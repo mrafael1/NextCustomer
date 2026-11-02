@@ -27,27 +27,27 @@ func test_condition_fizzles(
 			6
 		],
 		[V0_4, "bread,cheese", [], 10],
-		[V0_4, "cheese,bread", [[0, "Cheese after Bread", "no Bread just before it"]], 6],
-		[V0_4, "milk", [[0, "Milk: earlier Breakfast", "no Breakfast product before it"]], 3],
+		[V0_4, "cheese,bread", [[0, "Cheese after Bread", "no Bread right before it"]], 6],
+		[V0_4, "milk", [[0, "Milk: earlier Breakfast", "no Breakfast item before it"]], 3],
 		[V0_4, "bread,milk", [], 8],
-		[V0_4, "frozen_peas", [[0, "Frozen pair", "no Frozen product beside it"]], 3],
+		[V0_4, "frozen_peas", [[0, "Frozen pair", "no Frozen item beside it"]], 3],
 		[V0_4, "frozen_peas,frozen_peas", [], 12],
 		[
 			V0_6,
 			"day_old_buns",
-			[[0, "Day-old buns after Clearance", "no Clearance product just before it"]],
+			[[0, "Day-old buns after Clearance", "no Clearance item right before it"]],
 			2
 		],
 		[
 			V0_6,
 			"dented_can",
-			[[0, "Dented can: earlier Clearance", "no Clearance product before it"]],
+			[[0, "Dented can: earlier Clearance", "no Clearance item before it"]],
 			2
 		],
 		[
 			V0_6,
 			"reduced_yogurt",
-			[[0, "Reduced yogurt beside Clearance", "no Clearance product beside it"]],
+			[[0, "Reduced yogurt beside Clearance", "no Clearance item beside it"]],
 			2
 		],
 		[V0_6, "reduced_yogurt,dented_can", [], 9],

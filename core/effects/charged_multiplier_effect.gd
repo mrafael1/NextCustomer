@@ -6,8 +6,15 @@ extends ScoreEffect
 var tag: String = ""
 var factor: int = 1
 var charges: int = 0
+## A fractional factor in percent (#128 v3, Stale popcorn), or 0: see ScoreEffect.percent.
+var factor_percent: int = 0
 ## The last use came from a reaching upgrade (past the charges).
 var _reached: bool = false
+## Whether only `_targets` can take a charge (Tea bags' MORNING end, #128), and the waste's
+## reason when they don't.
+var _limited: bool = false
+var _targets: PackedInt32Array = PackedInt32Array()
+var _missing_reason: String = ""
 
 
 func _init(
@@ -24,8 +31,19 @@ func _init(
 	charges = charge_count
 
 
+## Only the products in `targets` can take a charge; an unused charge is wasted with `reason`.
+func limit_to(targets: PackedInt32Array, reason: String) -> void:
+	_limited = true
+	_targets = targets
+	_missing_reason = reason
+
+
 func armed_value() -> int:
 	return factor
+
+
+func percent() -> int:
+	return factor_percent
 
 
 ## With a reaching upgrade (#108), every later product with the tag takes the factor once the
@@ -33,6 +51,8 @@ func armed_value() -> int:
 func multiplier(state: ScoreState, slot: int) -> int:
 	_reached = false
 	if not state.has_tag(slot, tag):
+		return 1
+	if _limited and not _targets.has(slot):
 		return 1
 	if charges > 0:
 		charges -= 1
@@ -50,6 +70,8 @@ func reached_last() -> bool:
 func waste_reason() -> String:
 	if charges <= 0:
 		return ""
+	if _limited:
+		return _missing_reason
 	return "%d charge%s unused" % [charges, "" if charges == 1 else "s"]
 
 

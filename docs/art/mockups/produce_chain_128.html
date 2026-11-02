@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Produce Chain Readability</title>
+<style>
+/* Layout: one real 1920x1080 capture scaled to the column, with the proposal drawn over it in
+   stage pixels; controls above it, decisions below. Game art: one palette, no light/dark. */
+@font-face { font-family: Pixelify; src: url(../../../fonts/PixelifySans-Variable.ttf) format('truetype'); }
+@font-face { font-family: Atkinson; src: url(../../../fonts/AtkinsonHyperlegibleNext-Variable.ttf) format('truetype'); font-weight: 200 800; }
+@font-face { font-family: JBMono; src: url(../../../fonts/JetBrainsMono-Regular.ttf) format('truetype'); }
+:root {
+  --ink: #2b2420; --paper: #fbf7ee; --cream: #f3e9d2; --mustard: #e2b33c; --mustard-dark: #b38425;
+  --tomato: #d9534f; --produce: #5fae5a; --produce-light: #c9ef8a; --gold-in: #f1d27a;
+  --bg: #1f2a2c; --panel: #26363a; --text: #f3e9d2; --muted: #b9c2bd;
+  --display: Pixelify, "Courier New", monospace; --body: Atkinson, "Segoe UI", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 var(--body); }
+main { max-width: 1240px; margin: 0 auto; padding-block: 28px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 22px; }
+h1 { font: 700 34px/1.1 var(--display); letter-spacing: .02em; margin: 0; color: var(--mustard); }
+p { margin: 0; max-width: 72ch; }
+.lede { color: var(--muted); }
+.bar { display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: center; }
+.seg { display: inline-flex; flex-wrap: wrap; max-width: 100%; border: 2px solid var(--ink); border-radius: 4px; overflow: hidden; background: var(--panel); }
+.seg button { font: 600 15px var(--body); color: var(--text); background: none; border: 0; padding: 8px 14px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--mustard); color: var(--ink); }
+.seg button:focus-visible { outline: 3px solid var(--paper); outline-offset: -3px; }
+.grp { display: inline-flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; max-width: 100%; }
+.lab { font: 14px var(--display); color: var(--muted); letter-spacing: .06em; text-transform: uppercase; }
+.frame { width: 100%; aspect-ratio: 16 / 9; max-width: 100%; position: relative; overflow: hidden; border: 2px solid var(--ink); border-radius: 6px; background: #000; }
+.stage { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; }
+.stage > img { position: absolute; inset: 0; width: 1920px; height: 1080px; image-rendering: pixelated; }
+.cap { color: var(--muted); font-size: 14px; }
+/* Proposal layer, stage px */
+.layer { position: absolute; inset: 0; }
+.patch { position: absolute; background-size: 1920px 1080px; image-rendering: pixelated; }
+.cover { position: absolute; }
+.txt { position: absolute; font: 700 19px/22px var(--body); color: var(--ink); white-space: nowrap; }
+.num { position: absolute; font: 750 34px/34px var(--body); color: var(--ink); text-align: center; white-space: nowrap; }
+.struck { position: absolute; font: 700 17px/18px var(--body); color: var(--ink); text-shadow: 0 0 2px #d3e4c8; }
+.struck::after { content: ""; position: absolute; left: -3px; right: -3px; top: 8px; height: 3px; background: var(--tomato); }
+.rc { position: absolute; font: 400 20px/22px JBMono, monospace; color: var(--ink); white-space: pre; -webkit-text-stroke: .6px currentColor; }
+.rc.total { font-size: 33px; line-height: 36px; color: var(--tomato); }
+.rc.red { color: var(--tomato); }
+.rc .ok { color: #5fae5a; } .rc .no { color: var(--tomato); }
+.mon { position: absolute; font: 700 24px/30px var(--body); color: var(--ink); white-space: nowrap; }
+.topnum { position: absolute; font: 750 32px/36px var(--body); color: var(--gold-in); text-align: right; }
+.kw { display: inline-block; font: 400 15px/18px var(--display); letter-spacing: .04em; color: var(--ink); background: var(--produce-light); border: 2px solid var(--ink); border-radius: 3px; padding: 0 4px; margin-right: 4px; cursor: help; vertical-align: 1px; }
+.kw.mid { margin-left: 4px; }
+.mon .kw { font-size: 18px; line-height: 22px; vertical-align: 2px; }
+.kw:hover, .kw.lit { background: var(--mustard); }
+.kw.bad, .kw.bad:hover, .kw.bad.lit { background: var(--tomato); color: var(--paper); }
+.kw.bad svg { display: inline-block; vertical-align: -1px; margin-left: 4px; shape-rendering: crispEdges; }
+.tip { position: absolute; z-index: 5; width: 440px; background: var(--paper); color: var(--ink); border: 3px solid var(--ink); border-radius: 4px; padding: 10px 14px; font: 600 19px/1.35 var(--body); box-shadow: 0 6px 0 rgba(0,0,0,.35); pointer-events: none; }
+.tip b { font: 400 20px var(--display); letter-spacing: .05em; display: block; margin-bottom: 4px; }
+.tip.bad b { color: var(--tomato); }
+.notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+.note { background: var(--panel); border: 2px solid var(--ink); border-radius: 6px; padding: 14px 16px; min-width: 0; }
+.note h3 { font: 600 17px var(--display); margin: 0 0 6px; color: var(--mustard); letter-spacing: .03em; }
+.note p, .note li { font-size: 15px; color: var(--text); }
+.note ul { margin: 0; padding-left: 18px; }
+.prices { width: 100%; border-collapse: collapse; font-size: 14px; }
+.prices td, .prices th { text-align: left; padding: 2px 6px 2px 0; vertical-align: top; }
+.prices th { font: 400 13px var(--display); color: var(--muted); letter-spacing: .05em; }
+@media (prefers-reduced-motion: reduce) { .kw { transition: none; } }
+</style>
+</head>
+<body>
+<main>
+  <header style="display:grid;gap:8px">
+    <h1>Produce chains, readable</h1>
+    <p class="lede">#128 · Produce pass. How a <b>CHAIN</b> reads on the belt while planning, after the approved Produce links (2026-11-02): Bananas chain, Strawberries feeds a chain from just before it, a Lemon is a knot inside one, a Wonky carrot cashes it in just after it. Every chain is framed, plain pairs too. No job words, no arrows: each ticket's line says what its card does, and a card out of place turns its <b>CHAIN</b> chip tomato. Drawn over real captures of the build; hover a <b>CHAIN</b> chip.</p>
+  </header>
+
+  <div class="bar">
+    <span class="grp"><span class="lab">Belt</span>
+    <div class="seg" id="rowSeg"></div></span>
+    <span class="grp"><span class="lab">Show</span>
+    <div class="seg" id="viewSeg">
+      <button type="button" id="view-now" aria-pressed="false">Today</button>
+      <button type="button" id="view-new" aria-pressed="true">Proposal</button>
+    </div></span>
+    <span class="grp"><span class="lab">Chain</span>
+    <div class="seg" id="varSeg"></div></span>
+  </div>
+
+  <div class="frame" id="frame">
+    <div class="stage" id="stage">
+      <img id="shot" src="produce_chain_128_src/row_good.png" alt="">
+      <div class="layer" id="layer"></div>
+    </div>
+  </div>
+  <p class="cap" id="caption"></p>
+
+  <section class="notes">
+    <div class="note" id="varNote">
+      <h3 id="varNoteTitle"></h3>
+      <p id="varNoteText"></p>
+    </div>
+    <div class="note">
+      <h3>CHAIN, the keyword</h3>
+      <p>Every Produce card that works by a chain prints <b>CHAIN</b> as a chip, Produce green when calm, mustard when lit, tomato with a pixel cross when the card is out of place (its tooltip then gives the same reason as its WASTED step). Hovering a chip lights the chain it works on: Strawberries the chain after it, a Wonky carrot the chain before it. The monitor's NEXT line prints the same chip.</p>
+    </div>
+    <div class="note">
+      <h3>New sticker lines</h3>
+      <ul>
+        <li>Banana: <b>CHAIN</b> +prev</li>
+        <li>Strawberries: +1 each, next <b>CHAIN</b></li>
+        <li>Lemon: <b>CHAIN</b> middle: ×2 prev</li>
+        <li>Wonky carrot: after <b>CHAIN</b>: +2 each</li>
+      </ul>
+    </div>
+    <div class="note">
+      <h3>The prices shown</h3>
+      <p>The captures are today's build on a bare loyalty card (no perks), with the belt's stickers and rail strips hidden. In <b>Proposal</b>, the ticket prices and lines, the receipt, the monitor's line and the top total are redrawn with the new rules. The SPEND gauge's fill and its "to go" text are still today's.</p>
+      <table class="prices" id="priceTable"></table>
+    </div>
+  </section>
+</main>
+
+<script src="produce_chain_128_src/chain_kit.js"></script>
+<script src="produce_chain_128_src/variant_rings.js"></script>
+<script src="produce_chain_128_src/variant_bars.js"></script>
+<script src="produce_chain_128_src/variant_links.js"></script>
+<script>
+// Stage px, measured on the captures: ticket i's face spans x 555+192i .. 709+192i (its ink
+// outline 552..713), the ticket body y 684..785, its text block y 731..777. A gold price burst
+// covers face x +71..+177 down to y ~729, a plain tag +86..+165 down to ~720.
+const PITCH = 192, FACE_X = 555, FACE_W = 154;
+const faceL = i => FACE_X + PITCH * i;
+const SRC = 'produce_chain_128_src/';
+const KEYWORD = '2 or more Bananas linked one after another. Each Banana adds the price of the one before it. Each card\'s line says where by the chain it works.';
+// Ticket lines: '@' is the CHAIN chip.
+const L = {
+  banana: ['@', '+prev'],
+  straw: ['+1 each,', 'next @'],
+  lemon: ['@ middle:', '×2 prev'],
+  carrot: ['after @:', '+2 each'],
+};
+// Each item: badge (its NEW kind), patch (a donor ticket top {row, slot} whose badge style and,
+// when num is null, number are right), num (the new number to print in the badge), lines (new
+// sticker lines; none keeps the capture's), chain (the chain its chip lights), tip, bad (WASTED).
+const T = {
+  head: (n, extra) => ['CHAIN · HEAD', `First Banana of a chain of ${n}${extra || ''}. ${KEYWORD}`],
+  link: (body) => ['CHAIN · +PREV', body],
+};
+const ROWS = {
+  good: {
+    name: 'Good row',
+    items: [
+      { badge: 'plain', patch: { row: 'good', slot: 1 }, lines: L.straw, chain: 0, tip: ['+1 EACH · 3 BANANAS', 'Just before the chain\'s head: +1 to each of its 3 Bananas, before their price, so each +1 carries down the chain.'] },
+      { badge: 'gold', patch: { row: 'good', slot: 2 }, num: 3, lines: L.banana, chain: 0, tip: T.head(3, ' (2 + 1 from Strawberries)') },
+      { badge: 'gold', patch: { row: 'wrong', slot: 2 }, lines: L.banana, chain: 0, tip: T.link('2 + 1 from Strawberries + the €3 before it = €6.') },
+      { badge: 'plain', lines: L.lemon, chain: 0, tip: ['KNOT · ×2', 'Between two Bananas: the Banana after it chains on the one before it, and that link\'s bonus is doubled. The Lemon pays its base, €1.'] },
+      { badge: 'gold', patch: { row: 'good', slot: 2 }, num: 15, lines: L.banana, chain: 0, tip: T.link('Across the Lemon knot: 2 + 1 from Strawberries + €6 ×2 = €15. A flat bonus, so it would carry down later links.') },
+      { badge: 'gold', patch: { row: 'twofor', slot: 3 }, lines: L.carrot, chain: 0, tip: ['+2 EACH · 3 BANANAS', 'Just after the chain\'s last Banana: +2 for each of its 3 Bananas, €2 + €6 = €8.'] },
+    ],
+    chains: [{ first: 1, last: 4, knots: [3], feeder: 0, tally: 5 }],
+    receipt: { tops: [197, 226, 254, 283, 311, 340], set: { 0: '€2.00 ', 1: '€3.00+', 2: '€6.00+', 3: '€1.00 ', 4: '€15.00+', 5: '€8.00+' }, totalTop: 407, total: '€35.00', shortTop: 451, short: 'short €45.00', wastedTop: 478, wasted: '' },
+    top: '€35',
+    monitor: { lines: '+1 each, next @', patch: true },
+    now: 21, total: 35,
+    caption: 'Strawberries, Banana, Banana, Lemon, Banana, Wonky carrot: every helper where its line asks. One chain of 3 Bananas runs through the Lemon knot; Strawberries hooks on at its left end, the carrot at its right. €35 (today €21).',
+  },
+  pair: {
+    name: 'Plain pair',
+    items: [
+      { badge: 'gold' },
+      { badge: 'plain', lines: L.banana, chain: 0, tip: T.head(2) },
+      { badge: 'gold', lines: L.banana, chain: 0, tip: T.link('2 + the €2 before it = €4.') },
+      { badge: 'plain' },
+      { badge: 'plain' },
+    ],
+    chains: [{ first: 1, last: 2 }],
+    receipt: null,
+    top: null,
+    monitor: null,
+    now: 19, total: 19,
+    caption: 'Bread, Banana, Banana, Potatoes, Cheese: a plain Banana pair among others is framed too, because the Banana is the card doing the job. Same prices as today (€19).',
+  },
+  wrong: {
+    name: 'Wrong row',
+    items: [
+      { badge: 'plain', lines: L.lemon, bad: ['WASTED · NOT INSIDE A CHAIN', 'A Lemon works only between two Bananas. Nothing is before it here, so its ×2 is WASTED.'] },
+      { badge: 'plain', patch: { row: 'good', slot: 1 }, lines: L.banana, chain: 0, tip: T.head(2) },
+      { badge: 'gold', patch: { row: 'good', slot: 2 }, lines: L.banana, chain: 0, tip: T.link('2 + the €2 before it = €4.') },
+      { badge: 'plain', patch: { row: 'good', slot: 1 }, lines: L.straw, bad: ['WASTED · NO CHAIN JUST AFTER IT', 'Strawberries feeds the chain that starts just after it. Nothing is after it here, so its +1 each is WASTED.'] },
+    ],
+    chains: [{ first: 1, last: 2 }],
+    receipt: { tops: [281, 310, 338, 367], set: { 0: '€1.00x', 1: '€2.00 ', 2: '€4.00+', 3: '€2.00x' }, totalTop: 434, total: '€9.00', shortTop: 478, short: 'short €71.00 · 2 WASTED' },
+    top: '€9',
+    monitor: { lines: '@ middle: ×2 prev', bad: true },
+    now: 16, total: 9,
+    caption: 'Lemon, Banana, Banana, Strawberries: both helpers on the wrong side. The pair is still a chain, but the Lemon is not inside it and Strawberries has no chain after it: two tomato CHAIN chips before you check out. €9 (today €16, when the Lemon still doubled the next Produce).',
+  },
+  split: {
+    name: 'Two chains',
+    items: [
+      { badge: 'plain', lines: L.banana, chain: 0, tip: T.head(2) },
+      { badge: 'gold', lines: L.banana, chain: 0, tip: T.link('2 + the €2 before it = €4.') },
+      { badge: 'gold' },
+      { badge: 'plain', lines: L.banana, chain: 1, tip: T.head(2, ', a new chain after the Bread') },
+      { badge: 'gold', lines: L.banana, chain: 1, tip: T.link('2 + the €2 before it = €4.') },
+      { badge: 'gold', patch: { row: 'wrong', slot: 2 }, lines: L.carrot, chain: 1, tip: ['+2 EACH · 2 BANANAS', 'Just after the second chain\'s last Banana: +2 for each of its 2 Bananas, €2 + €4 = €6.'] },
+    ],
+    chains: [{ first: 0, last: 1 }, { first: 3, last: 4, tally: 5 }],
+    receipt: { tops: [224, 253, 281, 310, 338, 367], set: { 0: '€2.00 ', 1: '€4.00+', 2: '€7.00+', 3: '€2.00 ', 4: '€4.00+', 5: '€6.00+' }, totalTop: 434, total: '€25.00', shortTop: 478, short: 'short €55.00' },
+    top: '€25',
+    monitor: { lines: '@ +prev' },
+    now: 24, total: 25,
+    caption: 'Banana, Banana, Bread, Banana, Banana, Wonky carrot: the Bread ends the first chain, so two frames. The carrot hooks on the second one only and counts its 2 Bananas. €25 (today €24).',
+  },
+  twofor: {
+    name: '2 for 1 link',
+    items: [
+      { badge: 'plain', patch: { row: 'good', slot: 1 }, lines: L.straw, chain: 0, tip: ['+1 EACH · 3 BANANAS', 'Just before the chain\'s head: +1 to each of its 3 Bananas, before their price, so each +1 carries down.'] },
+      { badge: 'gold', patch: { row: 'good', slot: 2 }, num: 3, lines: L.banana, chain: 0, tip: T.head(3, ' (2 + 1 from Strawberries)') },
+      { badge: 'none' },
+      { badge: 'gold', patch: { row: 'twofor', slot: 3 }, num: 12, lines: L.banana, chain: 0, tip: T.link('Linked across the 2 for 1: 2 + 1 + the €3 before it = €6, then ×2 from the coupon = €12. The ×2 stays here; the next Banana takes €6.') },
+      { badge: 'gold', patch: { row: 'twofor', slot: 3 }, num: 9, lines: L.banana, chain: 0, tip: T.link('2 + 1 from Strawberries + €6 (the price before it, before the ×2) = €9.') },
+      { badge: 'gold', patch: { row: 'twofor', slot: 3 }, lines: L.carrot, chain: 0, tip: ['+2 EACH · 3 BANANAS', 'Just after the chain\'s last Banana: +2 for each of its 3 Bananas, €2 + €6 = €8.'] },
+    ],
+    chains: [{ first: 1, last: 4, feeder: 0, tally: 5 }],
+    receipt: { tops: [224, 253, 281, 310, 338, 367], set: { 0: '€2.00 ', 1: '€3.00+', 2: '€0.00 ', 3: '€12.00+', 4: '€9.00+', 5: '€8.00+' }, totalTop: 434, total: '€34.00', shortTop: 478, short: 'short €46.00' },
+    top: '€34',
+    monitor: { lines: '+1 each, next @', patch: true },
+    now: 26, total: 34,
+    caption: 'Strawberries, Banana, 2 for 1, Banana, Banana, Wonky carrot: the coupon links the Bananas on both sides, so one chain runs across it and the frame takes the coupon in. €34 (today €26).',
+  },
+};
+const ROW_ORDER = ['good', 'pair', 'wrong', 'split', 'twofor'];
+let row = 'good', proposal = true;
+const stage = document.getElementById('stage'), frame = document.getElementById('frame');
+const layer = document.getElementById('layer'), shot = document.getElementById('shot');
+const caption = document.getElementById('caption');
+
+function fit() { stage.style.transform = `scale(${frame.clientWidth / 1920})`; }
+new ResizeObserver(fit).observe(frame);
+
+function el(tag, cls, style) {
+  const d = document.createElement(tag); if (cls) d.className = cls; Object.assign(d.style, style || {}); return d;
+}
+const px = v => v + 'px';
+function box(cls, x, y, w, h, bg) { return layer.appendChild(el('div', cls, { left: px(x), top: px(y), width: px(w), height: px(h), background: bg })); }
+let tipEl = null;
+function showTip(anchorX, top, title, body, bad) {
+  hideTip();
+  tipEl = el('div', 'tip' + (bad ? ' bad' : ''));
+  tipEl.innerHTML = `<b>${title}</b>${body}`;
+  layer.appendChild(tipEl);
+  const left = Math.max(540, Math.min(1900 - 440, anchorX - 220));
+  Object.assign(tipEl.style, { left: px(left), top: px(top - tipEl.offsetHeight - 10) });
+}
+function hideTip() { if (tipEl) { tipEl.remove(); tipEl = null; } }
+
+const VARIANTS = window.CHAIN_VARIANTS || {};
+const ORDER = [['rings', 'A · Linked frame'], ['bars', 'B · Bound frame'], ['links', 'C · Links only']].filter(([k]) => VARIANTS[k]);
+const params = new URLSearchParams(location.search);
+let variant = ORDER.some(([k]) => k === params.get('v')) ? params.get('v') : ORDER[0][0];
+if (ROWS[params.get('row')]) row = params.get('row');
+if (params.get('view') === 'now') proposal = false;
+
+const CROSS = '<svg width="12" height="12" viewBox="0 0 6 6" aria-hidden="true"><path fill="currentColor" d="M0 0h2v1h-2zM4 0h2v1h-2zM1 1h2v1h-2zM3 1h2v1h-2zM2 2h2v2h-2zM1 4h2v1h-2zM3 4h2v1h-2zM0 5h2v1h-2zM4 5h2v1h-2z"/></svg>';
+// A CHAIN chip. Its hover lights chain `k` (none for a card out of place) and shows its tip.
+function chip(it, k, ctx, anchorX, anchorTop, mid) {
+  const kw = el('span', 'kw' + (it.bad ? ' bad' : '') + (mid ? ' mid' : ''));
+  kw.innerHTML = 'CHAIN' + (it.bad ? CROSS : '');
+  kw.tabIndex = 0;
+  const tip = it.bad || it.tip || ['CHAIN', KEYWORD];
+  kw.setAttribute('aria-label', tip[0] + '. ' + tip[1]);
+  const lit = on => { if (k != null) (ctx.targets[k] || []).forEach(d => d.classList.toggle('lit', on)); kw.classList.toggle('lit', on); };
+  const on = () => { lit(true); showTip(anchorX, anchorTop, tip[0], tip[1], !!it.bad); };
+  const off = () => { lit(false); hideTip(); };
+  kw.addEventListener('mouseenter', on); kw.addEventListener('mouseleave', off);
+  kw.addEventListener('focus', on); kw.addEventListener('blur', off);
+  return kw;
+}
+function writeLine(parent, text, it, k, ctx, anchorX, anchorTop) {
+  const parts = text.split('@');
+  parts.forEach((p, j) => {
+    const last = j === parts.length - 1;
+    let s = j > 0 ? p.replace(/^ /, '') : p;
+    if (!last) s = s.replace(/ $/, '');
+    if (s) parent.appendChild(document.createTextNode(s));
+    if (!last) {
+      const c = parent.appendChild(chip(it, k, ctx, anchorX, anchorTop, s.length > 0));
+      // Punctuation sits close after the chip.
+      if (/^[:,]/.test(parts[j + 1])) c.style.marginRight = '1px';
+    }
+  });
+}
+
+// The new price badge: a donor ticket top (its badge style; its number when right), with the
+// number repainted when it differs.
+function drawBadge(it, i) {
+  if (!it.patch) return;
+  const sx = faceL(it.patch.slot) + 60, dx = faceL(i) + 60, y = 670, w = 122, h = 61;
+  const p = el('div', 'patch', { left: px(dx), top: px(y), width: px(w), height: px(h), backgroundImage: `url(${SRC}row_${it.patch.row}.png)`, backgroundPosition: `${-sx}px ${-y}px` });
+  layer.appendChild(p);
+  if (it.num == null) return;
+  const x = faceL(i);
+  // The gold burst's flat inside, stepped like it.
+  box('cover', x + 99, 685, 48, 31, 'var(--gold-in)');
+  box('cover', x + 93, 690, 60, 22, 'var(--gold-in)');
+  const t = String(it.num).length > 1;
+  const n = el('div', 'num', { left: px(x + 84), top: px(t ? 685 : 683), width: px(78), fontSize: px(t ? 27 : 34), lineHeight: px(t ? 30 : 34) });
+  n.textContent = '€' + it.num;
+  layer.appendChild(n);
+}
+// The ticket's new sticker lines (and the struck base under a gold burst).
+function drawTicket(it, i, ctx) {
+  if (!it.lines) return;
+  const x = faceL(i);
+  box('cover', x + 1, 731, FACE_W - 2, 46, 'var(--produce)');
+  // Under a plain tag an old sticker icon (the Lemon's leaf after "×2 next") can start at y ~722,
+  // above the text block: paint its top too, between the tag's bottom and the text.
+  if (it.badge === 'plain') box('cover', x + 62, 721, 76, 10, 'var(--produce)');
+  const t = el('div', 'txt', { left: px(x + 6), top: px(731) });
+  it.lines.forEach((line, j) => {
+    if (j) t.appendChild(document.createElement('br'));
+    writeLine(t, line, it, it.chain, ctx, x + 40, 690);
+  });
+  layer.appendChild(t);
+  if (it.badge === 'gold') {
+    // Under a long first line the struck base drops to the second line's right.
+    const s = el('div', 'struck', { left: px(x + 118), top: px(it.lines[0] !== '@' ? 754 : 733) });
+    s.textContent = '€2';
+    layer.appendChild(s);
+  }
+}
+// The planning receipt, the monitor's NEXT line and the top total, redrawn with the new prices.
+function drawReceipt(r) {
+  const R = r.receipt;
+  if (!R) return;
+  for (const k in R.set) {
+    const top = R.tops[k];
+    box('cover', 300, top - 5, 112, 24, 'var(--paper)');
+    let v = R.set[k], mark = '';
+    if (/[+x ]$/.test(v)) { mark = v.slice(-1); v = v.slice(0, -1); }
+    const d = el('div', 'rc', { left: '0px', width: px(380), top: px(top - 5), textAlign: 'right' });
+    d.textContent = v;
+    layer.appendChild(d);
+    if (mark === '+') layer.appendChild(Object.assign(el('div', 'rc', { left: px(390), top: px(top - 5), color: '#5fae5a' }), { textContent: '✓' }));
+    if (mark === 'x') layer.appendChild(Object.assign(el('div', 'rc', { left: px(390), top: px(top - 5), color: 'var(--tomato)' }), { textContent: '✗' }));
+  }
+  box('cover', 240, R.totalTop - 4, 150, 34, 'var(--paper)');
+  const tot = el('div', 'rc total', { left: '0px', width: px(380), top: px(R.totalTop - 5), textAlign: 'right' });
+  tot.textContent = R.total;
+  layer.appendChild(tot);
+  box('cover', 78, R.shortTop - 4, 330, 20, 'var(--paper)');
+  const sh = el('div', 'rc red', { left: px(82), top: px(R.shortTop - 5), fontSize: '18px' });
+  sh.textContent = R.short;
+  layer.appendChild(sh);
+  if (R.wastedTop != null) box('cover', 78, R.wastedTop - 2, 330, 16, 'var(--paper)');
+}
+function drawMonitor(r, ctx) {
+  const M = r.monitor;
+  if (!M) return;
+  if (M.patch) {
+    // The plain €2 tag from the monitor of the "Two chains" capture (a Banana).
+    layer.appendChild(el('div', 'patch', { left: '1240px', top: '160px', width: '105px', height: '88px', backgroundImage: `url(${SRC}row_split.png)`, backgroundPosition: '-1240px -160px' }));
+  }
+  box('cover', 925, 166, 312, 38, 'var(--paper)');
+  const m = el('div', 'mon', { left: '930px', top: '168px' });
+  const first = r.items[0];
+  writeLine(m, M.lines, M.bad ? first : { tip: first.tip }, M.bad ? null : first.chain, ctx, 1000, 166);
+  layer.appendChild(m);
+}
+function drawTop(r) {
+  if (!r.top) return;
+  box('cover', 668, 24, 80, 34, '#2a4d4b');
+  const t = el('div', 'topnum', { left: '600px', top: '22px', width: px(126) });
+  t.textContent = r.top;
+  layer.appendChild(t);
+}
+
+function render() {
+  const r = ROWS[row], v = VARIANTS[variant];
+  shot.src = SRC + 'row_' + row + (proposal ? '' : '_today') + '.png';
+  shot.alt = 'The shift screen while planning, belt row: ' + r.caption;
+  caption.textContent = proposal ? r.caption : 'Today: the tickets say "+prev after Banana" and the helpers read any Produce; nothing on the belt shows where a chain starts or ends.';
+  document.getElementById('varNoteTitle').textContent = 'This variant: ' + v.label;
+  document.getElementById('varNoteText').textContent = v.note;
+  layer.innerHTML = '';
+  tipEl = null;
+  if (!proposal) return;
+  const ctx = { layer, row: r, targets: {}, addTargets: (k, list) => { (ctx.targets[k] = ctx.targets[k] || []).push(...list); } };
+  r.items.forEach((it, i) => drawBadge(it, i));
+  r.items.forEach((it, i) => drawTicket(it, i, ctx));
+  drawReceipt(r); drawMonitor(r, ctx); drawTop(r);
+  v.render(ctx);
+}
+function syncUrl() {
+  const q = new URLSearchParams({ v: variant, row, view: proposal ? 'new' : 'now' });
+  try { history.replaceState(null, '', '?' + q); } catch (e) { /* file:// may refuse; the page still works */ }
+}
+function press(seg, id) { for (const b of document.getElementById(seg).children) b.setAttribute('aria-pressed', String(b.id === id)); }
+const rowSeg = document.getElementById('rowSeg');
+for (const k of ROW_ORDER) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.id = 'row-' + k; b.textContent = ROWS[k].name;
+  b.onclick = () => { row = k; press('rowSeg', b.id); syncUrl(); render(); };
+  rowSeg.appendChild(b);
+}
+const varSeg = document.getElementById('varSeg');
+for (const [k, name] of ORDER) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.id = 'var-' + k; b.textContent = name; b.title = VARIANTS[k].label;
+  b.onclick = () => { variant = k; press('varSeg', b.id); syncUrl(); render(); };
+  varSeg.appendChild(b);
+}
+document.getElementById('view-now').onclick = () => { proposal = false; press('viewSeg', 'view-now'); syncUrl(); render(); };
+document.getElementById('view-new').onclick = () => { proposal = true; press('viewSeg', 'view-new'); syncUrl(); render(); };
+press('rowSeg', 'row-' + row); press('viewSeg', proposal ? 'view-new' : 'view-now'); press('varSeg', 'var-' + variant);
+// The price table under the notes.
+document.getElementById('priceTable').innerHTML = '<tr><th>Row</th><th>Today</th><th>New</th></tr>' +
+  ROW_ORDER.map(k => `<tr><td>${ROWS[k].name}</td><td>€${ROWS[k].now}</td><td>€${ROWS[k].total}</td></tr>`).join('');
+fit(); render();
+</script>
+</body>
+</html>

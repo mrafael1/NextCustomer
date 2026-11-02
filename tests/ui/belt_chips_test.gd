@@ -30,12 +30,13 @@ func after_test() -> void:
 
 
 ## Planning's effects follow the row on every place and remove, as stickers (#71), never as marks
-## or paid chips: Coffee alone fizzles (no Breakfast product after it); Bread placed after it takes
-## Coffee's +3 and Coffee's fizzle goes; Bread taken back out brings the fizzle back.
+## or paid chips: Mixed herbs alone fizzles (no Food product after it); Bread placed after it takes
+## the herbs' +3 and their fizzle goes; Bread taken back out brings the fizzle back (Coffee until
+## #128 Breakfast's MORNING).
 func test_planning_shows_stickers_never_marks_or_paid_chips() -> void:
 	var screen: ShiftScreen = await _screen()
-	await _place(screen, ["coffee"])
-	_assert_no_marks_or_chips(screen, "coffee")
+	await _place(screen, ["mixed_herbs"])
+	_assert_no_marks_or_chips(screen, "mixed_herbs")
 	assert_array(_chip_texts(screen, 0)).contains(["WASTED"])
 	await _place(screen, ["bread"])
 	_assert_no_marks_or_chips(screen, "bread")

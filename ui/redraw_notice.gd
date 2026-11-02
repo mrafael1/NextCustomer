@@ -10,6 +10,8 @@ extends RefCounted
 
 const RECYCLE_LINE := "Back in the pile, to draw again: %s."
 const RECYCLE_FOOT := "The old items go back in the pile (Recycle)."
+## The Redraw key's caption while redraw mode is armed.
+const PICK_CAPTION := "Pick a basket"
 
 ## The panel's heading ("REDRAW", "REDRAW BASKET 2", "REDRAWING") and the redraws left beside it.
 var title: String = ""
@@ -119,3 +121,23 @@ static func names(items: Array[CardDefinition]) -> String:
 	for item: CardDefinition in items:
 		parts.append("[b]%s[/b]" % item.display_name)
 	return " and ".join(parts)
+
+
+## Captions the shift screen's Redraw `redraw_key`: redraw mode `is_armed`, the redraws
+## `redraws_left` and whether any item is left `to_draw`. Mock-up B2's "Redraw  N left": a note
+## beside the word; screen readers hear what it takes.
+static func caption_key(
+	redraw_key: RegisterKey, is_armed: bool, redraws_left: int, to_draw: bool
+) -> void:
+	if is_armed:
+		redraw_key.show_caption(
+			PICK_CAPTION, "%d left" % redraws_left, "Pick a basket (%d left)" % redraws_left
+		)
+	elif redraws_left <= 0:
+		redraw_key.show_caption("Redraw used")
+	elif not to_draw:
+		redraw_key.show_caption("Redraw", "none to draw", "Redraw: no items left to draw")
+	else:
+		redraw_key.show_caption(
+			"Redraw", "%d left" % redraws_left, "Redraw a basket (%d left)" % redraws_left
+		)

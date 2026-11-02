@@ -13,7 +13,7 @@ func test_fizzles(
 		# Since #45 a conditional card whose condition fails fizzles too, but a Banana pair's
 		# first Banana does not: only a lone Banana (no Banana beside it) is WASTED.
 		["eggs,bread,cheese,banana,banana,repeat", []],
-		["bread,coffee", [[1, 1, "Coffee bonus", "no Breakfast product after it"]]],
+		["bread,coffee", [[1, 1, "Coffee bonus", "no Breakfast item after it"]]],
 		["eggs,bread", [[0, 0, "Eggs ×2", "1 charge unused"]]],
 		["eggs", [[0, 0, "Eggs ×2", "2 charges unused"]]],
 		[
@@ -26,43 +26,43 @@ func test_fizzles(
 		[
 			"breakfast_sticker,repeat,banana",
 			[
-				[0, 0, "Breakfast sticker", "no product in the next slot"],
-				[1, 1, "Repeat", "no product just before it to copy"],
+				[0, 0, "Breakfast sticker", "no item in the next slot"],
+				[1, 1, "Repeat", "no item right before it to copy"],
 				[2, 2, "Banana pair", "no Banana beside it"],
 			]
 		],
-		["breakfast_sticker", [[0, 0, "Breakfast sticker", "no product in the next slot"]]],
+		["breakfast_sticker", [[0, 0, "Breakfast sticker", "no item in the next slot"]]],
 		["breakfast_sticker,bread", [[0, 0, "Breakfast sticker", "already Breakfast"]]],
 		[
 			"bundle,banana,banana,bundle",
 			[
-				[0, 0, "Bundle", "no product on both sides"],
-				[3, 3, "Bundle", "no product on both sides"],
+				[0, 0, "Bundle", "no item on both sides"],
+				[3, 3, "Bundle", "no item on both sides"],
 			]
 		],
 		[
 			"banana,bundle,bundle",
 			[
-				[1, 1, "Bundle", "no product on both sides"],
-				[2, 2, "Bundle", "no product on both sides"],
+				[1, 1, "Bundle", "no item on both sides"],
+				[2, 2, "Bundle", "no item on both sides"],
 				[0, 0, "Banana pair", "no Banana beside it"],
 			]
 		],
 		["banana,bundle,banana", []],
-		["multipack,bread", [[0, 0, "Multipack ×2", "no product just before it"]]],
+		["multipack,bread", [[0, 0, "Multipack ×2", "no item right before it"]]],
 		[
 			"coffee,multipack,banana",
 			[
 				[2, 2, "Banana pair", "no Banana beside it"],
-				[0, 0, "Coffee bonus", "no Breakfast product after it"],
-				[1, 1, "Multipack ×2", "no later product shared a tag"],
+				[0, 0, "Coffee bonus", "no Breakfast item after it"],
+				[1, 1, "Multipack ×2", "no later item shared a family"],
 			]
 		],
 		["bread,multipack,bread", []],
 		["final_markdown,bread", [[0, 0, "Final markdown", "not in the last slot"]]],
 		["bread,final_markdown", []],
-		["repeat", [[0, 0, "Repeat", "no product just before it to copy"]]],
-		["frozen_peas,soup,repeat", [[0, 0, "Frozen pair", "no Frozen product beside it"]]],
+		["repeat", [[0, 0, "Repeat", "no item right before it to copy"]]],
+		["frozen_peas,soup,repeat", [[0, 0, "Frozen pair", "no Frozen item beside it"]]],
 	]
 ) -> void:
 	var result: ScoreResult = Scoring.score(_row(row))

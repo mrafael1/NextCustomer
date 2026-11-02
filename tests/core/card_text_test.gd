@@ -44,8 +44,8 @@ func test_bonus_is_base_reads_the_base() -> void:
 	assert_str(banana.sticker_summary()).is_equal("+2 or +2 after Banana")
 
 
-## The Banana chain (#106): `{bonus}` reads "prev", after its factor when that is not 1, and a
-## tier counting it twice shows as a changed bonus.
+## The Banana chain (#106): `{bonus}` reads "prev", after its factor when that is not 1,
+## and a tier counting it twice shows as a changed bonus.
 func test_chain_bonus_reads_prev() -> void:
 	var rule: AdjacentMatchBonusRule = AdjacentMatchBonusRule.new()
 	rule.match_by = AdjacentMatchBonusRule.Match.SAME_CARD
@@ -72,9 +72,60 @@ func test_other_keys_are_left_unformatted() -> void:
 	var card: CardDefinition = _card("Frozen peas", 3, rule)
 	card.sticker_text = "{match_by} {position} {bonus_is_base} {id} {receipt_text}"
 	assert_str(card.sticker_summary()).is_equal(card.sticker_text)
-	assert_array(CardText.sticker_values(card).keys()).contains_exactly_in_any_order(
-		["base", "name", "bonus", "match_value"]
+	(
+		assert_array(CardText.sticker_values(card).keys())
+		. contains_exactly_in_any_order(
+			[
+				"base",
+				"name",
+				"bonus",
+				"match_value",
+				CardText.BATCH_KEY,
+				CardText.CHAIN_KEY,
+				CardText.WASTED_KEY,
+				CardText.PAIR_KEY,
+				CardText.MORNING_KEY,
+			]
+		)
 	)
+
+
+## The BATCH keyword (#128) is a sticker key: `{batch}` reads BATCH_WORD, which a ticket draws as a
+## chip, and names_batch says a card's template names it; a baked batch's least size is a key too.
+func test_fills_the_batch_keyword_and_min_size() -> void:
+	var candles: BakedBatchBonusRule = BakedBatchBonusRule.new()
+	candles.tag = "Bakery"
+	candles.bonus = 3
+	candles.min_size = 3
+	var card: CardDefinition = _card("Birthday candles", 1, candles)
+	card.sticker_text = "+{bonus} each, next {batch} of {min_size}+"
+	assert_str(card.sticker_summary()).is_equal("+3 each, next BATCH of 3+")
+	assert_bool(CardText.names_batch(card)).is_true()
+	card.sticker_text = "+{bonus} next {tag}"
+	assert_bool(CardText.names_batch(card)).is_false()
+	assert_bool(CardText.names_batch(null)).is_false()
+
+
+## The CHAIN keyword (#128, Produce links) is a sticker key like BATCH: `{chain}` reads CHAIN_WORD,
+## and names_chain says a card's template names it; a chain role's factor and bonus are keys.
+func test_fills_the_chain_keyword() -> void:
+	var knot: ChainRoleRule = ChainRoleRule.new()
+	knot.role = ChainRoleRule.Role.KNOT
+	knot.factor = 3
+	var lemon: CardDefinition = _card("Golden lemon", 3, knot)
+	lemon.sticker_text = "{chain} middle: ×{factor} prev"
+	assert_str(lemon.sticker_summary()).is_equal("CHAIN middle: ×3 prev")
+	assert_bool(CardText.names_chain(lemon)).is_true()
+	assert_bool(CardText.names_batch(lemon)).is_false()
+	var feed: ChainRoleRule = ChainRoleRule.new()
+	feed.role = ChainRoleRule.Role.FEED
+	feed.bonus = 1
+	var berries: CardDefinition = _card("Strawberries", 2, feed)
+	berries.sticker_text = "+{bonus} each, next {chain}"
+	assert_str(berries.sticker_summary()).is_equal("+1 each, next CHAIN")
+	berries.sticker_text = "+{bonus} next {tag}"
+	assert_bool(CardText.names_chain(berries)).is_false()
+	assert_bool(CardText.names_chain(null)).is_false()
 
 
 ## A charged multiplier's charges are a sticker key (Golden Eggs, #77).
@@ -128,10 +179,11 @@ func test_changed_fields_between_tiers() -> void:
 		PackedStringArray(["base", "charges"])
 	)
 	assert_array(CardText.changed_fields(golden, golden)).is_empty()
-	# A card with no rule against one with a rule: every key the rule has differs.
+	# A card with no rule against one with a rule: every key the rule has differs (its `percent`,
+	# Stale popcorn's since #128 v3, too).
 	var bread: CardDefinition = _card("Bread", 1, null)
 	assert_array(CardText.changed_fields(bread, plain)).is_equal(
-		PackedStringArray(["factor", "charges", "tag"])
+		PackedStringArray(["factor", "charges", "tag", "percent"])
 	)
 
 

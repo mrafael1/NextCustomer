@@ -23,7 +23,7 @@ const ARM_MIN_ROOM := 60.0
 const ARM_META := "arm"
 const WORDS_META := "words"
 const AMBER_NAME := "Amber"
-const AMBER_PATTERN := "×\\d+"
+const AMBER_PATTERN := "×\\d+(\\.\\d+)?"
 ## How much the bold payout is emboldened (a FontVariation over the receipt's mono font).
 const BOLD_EMBOLDEN := 0.9
 ## A loyalty perk's line: a pale teal band (TEAL_PALE at PERK_BAND_ALPHA) in place of the gold.
@@ -109,8 +109,14 @@ static func is_bold(label: Label) -> bool:
 
 ## The armed effect's words for `step` (an EFFECT_ARMED step), from its card `definition`'s
 ## sticker summary (its rule's text when the card has none, or no card is known), after ARM_WORD.
+## A live factor reads the step's (#128 v3: Stale popcorn's ×2 with 1 redraw left).
 static func arm_words(step: ScoreStep, definition: CardDefinition) -> String:
-	var summary: String = "" if definition == null else CardText.sticker_summary(definition)
+	var left: int = -1
+	var live: GrantChargedMultiplierRule = CardText.live_rule(definition)
+	if live != null and step.percent > 0:
+		@warning_ignore("integer_division")
+		left = (step.percent - live.live_percent(0)) / (live.factor * live.percent)
+	var summary: String = "" if definition == null else CardText.sticker_summary(definition, left)
 	if summary.is_empty():
 		summary = step.text
 	return ARM_WORD + summary

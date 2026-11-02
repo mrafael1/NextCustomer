@@ -20,18 +20,22 @@ const NUMBER := "\\d+(?!st|nd|rd|th)"
 ## as N.
 const READINGS: Dictionary[String, String] = {
 	"eggs": "×N next Food",
-	"tea_bags": "×N next Breakfast",
-	# The Banana chain (#106) replaced v2's "+N after Banana".
-	"banana": "+prev after Banana",
-	"batteries": "+N in last slot",
+	"tea_bags": "×N last MORNING",
+	# The Banana chain (#106) replaced v2's "+N after Banana"; its CHAIN keyword (#128 Produce
+	# links) is a chip.
+	"banana": "CHAIN +prev",
+	"batteries": "×N next Household",
 	"two_for_one": "Same both sides: 2nd ×N",
-	"crisps": "+N beside Bread",
-	"coffee": "+N next Breakfast",
+	"crisps": "+N per redraw left",
+	"coffee": "+N per MORNING",
 	"milk": "+N per earlier Breakfast",
-	"cheese": "+N after Bread",
-	"strawberries": "+N beside Produce",
-	"croissant": "+N beside Bakery",
-	"multipack": "×N later with prior's tag",
+	"cheese": "+N PAIR with Bread",
+	# Produce links (#128): Strawberries feed the chain just after them.
+	"strawberries": "+N each, next CHAIN",
+	# The Bakery batch roles (#128 v3) replaced Croissant's "+N beside Bakery"; its BATCH keyword
+	# is a chip since the Bound strip.
+	"croissant": "BATCH 1st: +N to the rest",
+	"multipack": "×N later of the family before",
 }
 ## The pay tags' rects on a ticket (mock-up v3, ticketHTML): the burst, the wide burst (and where
 ## it moves over a two-glyph row) and a plain or €0 tag.
@@ -56,7 +60,8 @@ func test_every_ticket_lays_out_inside_and_apart() -> void:
 		add_child(sticker)
 		var id: String = String(definition.id)
 		var summary: GlyphLabel = sticker.summary()
-		if summary.text != definition.sticker_summary():
+		# A live factor reads the balance's base redraws off the shift (#128 v3).
+		if summary.text != CardText.sticker_summary(definition, sticker.redraws_left):
 			problems.append("%s: summary '%s'" % [id, summary.text])
 		if not summary.fits() or summary.line_count() > PriceSticker.MAX_SUMMARY_LINES:
 			problems.append("%s: summary over 2 lines" % id)
@@ -98,6 +103,39 @@ func test_the_v2_cards_read_as_approved() -> void:
 		assert_str(number.sub(text, "N", true)).override_failure_message(card_id).is_equal(
 			READINGS[card_id]
 		)
+
+
+## Stale popcorn's ×N is live (#128 v3): off the shift it reads the balance's base redraws (2:
+## ×3), and the shift's redraws left change it (1: ×2, 0: ×1; Golden ×6, ×4, ×2). Its ×N is a
+## gold chip whose tooltip says how it grows, the way Eggs' and Tea bags' ×N reads.
+func test_a_live_factor_follows_the_redraws_left() -> void:
+	var sticker: PriceSticker = auto_free(PriceSticker.new(_card("stale_popcorn")))
+	add_child(sticker)
+	assert_str(sticker.summary().text).is_equal("×3 next Snack")
+	for left: int in [1, 0, 2]:
+		sticker.redraws_left = left
+		var word: String = ["×1", "×2", "×3"][left]
+		assert_str(sticker.summary().text).is_equal(word + " next Snack")
+		var live: Array[KeywordChip] = []
+		for chip: KeywordChip in sticker.summary().keywords():
+			if chip.is_live():
+				live.append(chip)
+		assert_int(live.size()).is_equal(1)
+		assert_str(live[0].keyword).is_equal(word)
+		assert_object(live[0].face_color()).is_equal(Palette.GOLD)
+		assert_str(live[0].tip_text).is_equal(
+			"%s now · ×1, plus 1 for each redraw left this shift (%d left)" % [word, left]
+		)
+	var golden: PriceSticker = auto_free(PriceSticker.new(_card("stale_popcorn_golden")))
+	assert_str(golden.summary().text).is_equal("×6 next Snack")
+	golden.redraws_left = 0
+	assert_str(golden.summary().text).is_equal("×2 next Snack")
+	# A card with no live factor ignores the redraws.
+	var eggs: PriceSticker = auto_free(PriceSticker.new(_card("eggs")))
+	var eggs_text: String = eggs.summary().text
+	eggs.redraws_left = 0
+	assert_str(eggs.summary().text).is_equal(eggs_text)
+	assert_int(eggs.redraws_left).is_equal(-1)
 
 
 ## A card with no rule (Bread) shows only its price: an empty summary, its plain tag.
@@ -183,7 +221,7 @@ func test_coupons_show_coupon_on_their_face() -> void:
 		)
 		assert_int(font_size).is_greater_equal(PriceSticker.COUPON_TITLE_FITS[-1].x)
 	plain.set_got(true)
-	assert_bool(plain.is_got()).is_false()
+	assert_bool(plain.got_ring().visible).is_false()
 	plain.set_pay(false, Rect2())
 	assert_bool(title.visible).is_true()
 	assert_int(title.get_theme_font_size("font_size")).is_equal(12)
@@ -286,7 +324,7 @@ func test_got_rings_a_products_ticket() -> void:
 	var milk: PriceSticker = auto_free(PriceSticker.new(_card("milk")))
 	var face: Texture2D = (milk.face() as TextureRect).texture
 	milk.set_got(true)
-	assert_bool(milk.is_got()).is_true()
+	assert_bool(milk.got_ring().visible).is_true()
 	assert_bool(milk.got_ring().visible).is_true()
 	assert_object((milk.face() as TextureRect).texture).is_same(face)
 	milk.set_got(false)
@@ -301,7 +339,8 @@ func test_the_colour_says_what_it_means() -> void:
 		"cereal": "Dairy colour · works with Milk",
 		"banana": "Produce colour · works with another Banana",
 		"breakfast_sticker": "Breakfast colour · gives Breakfast",
-		"batteries": "Household colour · its own family",
+		"batteries": "Household colour · works with Household",
+		"scissors": "Household colour · its own family",
 		"multipack": "Plain coupon: works with whatever is beside it",
 	}
 	for id: String in expected:

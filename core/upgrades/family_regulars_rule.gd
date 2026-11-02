@@ -26,7 +26,7 @@ func row_wasted_reason(state: ScoreState) -> String:
 	for slot: int in range(state.size()):
 		if _in_family(state, slot):
 			count += 1
-	return "fewer than two %s products" % tag if count < 2 else ""
+	return "fewer than two %s items" % tag if count < 2 else ""
 
 
 func _in_family(state: ScoreState, slot: int) -> bool:

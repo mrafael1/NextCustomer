@@ -8,6 +8,19 @@ var payouts: PackedInt32Array = PackedInt32Array()
 var tags: Array[PackedStringArray] = []
 var steps: Array[ScoreStep] = []
 
+## The batches the rules read (CardBatch, #128 Bakery batches), each in slot order: what the
+## planning belt's batch brackets show. Empty for a total-only score.
+var batches: Array[PackedInt32Array] = []
+## The chains (CardChain, #128 Produce links), each in slot order with any Lemon knot inside it:
+## what the planning belt's chain frames show. Empty for a total-only score.
+var chains: Array[PackedInt32Array] = []
+## The chains' parts the belt marks (#128 Produce links): every chain's knots' factors by knot
+## slot (slot: its ChainKnots factor), and by chain index the FEED and TALLY helpers at their
+## places by it (ChainRoleRule; -1: none). Empty for a total-only score.
+var knot_factors: Dictionary[int, int] = {}
+var chain_feeds: PackedInt32Array = PackedInt32Array()
+var chain_tallies: PackedInt32Array = PackedInt32Array()
+
 
 ## A Double checkout shift's whole result (#122): `first` (row 1, its slots from 0) then
 ## `second` (row 2) with its slots moved past row 1's `first_slots` cards and its subtotals past
@@ -20,6 +33,13 @@ static func joined(first: ScoreResult, second: ScoreResult, first_slots: int) ->
 	result.steps = first.steps.duplicate()
 	for step: ScoreStep in second.steps:
 		result.steps.append(step.moved(first_slots, first.total))
+	result.batches = first.batches + _moved_runs(second.batches, first_slots)
+	result.chains = first.chains + _moved_runs(second.chains, first_slots)
+	result.knot_factors = first.knot_factors.duplicate()
+	for slot: int in second.knot_factors:
+		result.knot_factors[slot + first_slots] = second.knot_factors[slot]
+	result.chain_feeds = first.chain_feeds + _moved_slots(second.chain_feeds, first_slots)
+	result.chain_tallies = first.chain_tallies + _moved_slots(second.chain_tallies, first_slots)
 	return result
 
 
@@ -32,4 +52,25 @@ static func continued(result: ScoreResult, start: int) -> ScoreResult:
 	moved.tags = result.tags
 	for step: ScoreStep in result.steps:
 		moved.steps.append(step.moved(0, start))
+	moved.batches = result.batches
+	moved.chains = result.chains
+	moved.knot_factors = result.knot_factors
+	moved.chain_feeds = result.chain_feeds
+	moved.chain_tallies = result.chain_tallies
+	return moved
+
+
+## `runs` (batches or chains, slots each) with every slot `slots` later.
+static func _moved_runs(runs: Array[PackedInt32Array], slots: int) -> Array[PackedInt32Array]:
+	var moved: Array[PackedInt32Array] = []
+	for run: PackedInt32Array in runs:
+		moved.append(_moved_slots(run, slots))
+	return moved
+
+
+## `at` with every slot (not -1: none) `slots` later.
+static func _moved_slots(at: PackedInt32Array, slots: int) -> PackedInt32Array:
+	var moved: PackedInt32Array = PackedInt32Array()
+	for slot: int in at:
+		moved.append(slot + slots if slot >= 0 else slot)
 	return moved

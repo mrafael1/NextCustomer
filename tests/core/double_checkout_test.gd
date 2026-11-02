@@ -193,3 +193,33 @@ static func _wasted(result: ScoreResult) -> bool:
 
 static func _saved(run: RunState) -> Dictionary:
 	return JSON.parse_string(JSON.stringify(RunSave.to_dictionary(run, "id", 0)))
+
+
+## The joined result carries both rows' belt marks (#128's batches and chains, merged onto #122):
+## row 2's slots move past row 1's cards, a helper's -1 (none) stays -1; continued keeps them.
+func test_the_joined_result_moves_row_twos_batches_and_chains() -> void:
+	var first: ScoreResult = ScoreResult.new()
+	first.total = 10
+	first.batches = [PackedInt32Array([0, 1])]
+	first.chains = [PackedInt32Array([2, 3])]
+	first.knot_factors = {2: 2}
+	first.chain_feeds = PackedInt32Array([-1])
+	first.chain_tallies = PackedInt32Array([3])
+	var second: ScoreResult = ScoreResult.new()
+	second.total = 7
+	second.batches = [PackedInt32Array([1, 2])]
+	second.chains = [PackedInt32Array([0, 1])]
+	second.knot_factors = {1: 3}
+	second.chain_feeds = PackedInt32Array([-1])
+	second.chain_tallies = PackedInt32Array([2])
+	var joined: ScoreResult = ScoreResult.joined(first, second, 4)
+	assert_int(joined.total).is_equal(17)
+	assert_array(joined.batches).is_equal([PackedInt32Array([0, 1]), PackedInt32Array([5, 6])])
+	assert_array(joined.chains).is_equal([PackedInt32Array([2, 3]), PackedInt32Array([4, 5])])
+	assert_dict(joined.knot_factors).is_equal({2: 2, 5: 3})
+	assert_array(joined.chain_feeds).is_equal(PackedInt32Array([-1, -1]))
+	assert_array(joined.chain_tallies).is_equal(PackedInt32Array([3, 6]))
+	var on: ScoreResult = ScoreResult.continued(second, first.total)
+	assert_int(on.total).is_equal(17)
+	assert_array(on.chains).is_equal(second.chains)
+	assert_dict(on.knot_factors).is_equal(second.knot_factors)

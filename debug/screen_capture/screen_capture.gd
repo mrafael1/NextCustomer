@@ -55,8 +55,11 @@ extends Control
 ## With `--tip=<card id>[,<n>]` (#105) the glyph tooltip of glyph n (from 0) on that card's first
 ## belt ticket shows (below the ticket), `--tip=<card id>,colour` its colour's tooltip, and
 ## `--tip=monitor[,<n>]` that of the monitor scan's glyph n (above it; with --effects=<card id>);
-## the file name gets tip_<what>_<n>_ (tip_<what>_colour_).
-## With `--double` (#122) the fixed shift wears the Double checkout pin.
+## the file name gets tip_<what>_<n>_ (tip_<what>_colour_). `--tip=<card id>,batch` (#128) shows
+## the tooltip of the BATCH chip on that card's first belt ticket (its batch's frame lit), the
+## file name tip_<what>_batch_.
+## With `--double`, `--pin=<id>` and `--gun=<state>` (#122, #132) the fixed shift wears badge
+## pins (see CapturePins).
 ## With `--deck=<page>[,<option>...]` (#56) a new run opens the deck view (see deck() for the pages
 ## and options), and the file is shift_screen_deck_<page>[_<options>]_<width>x<height>.png.
 ## With `--stack` (#105 piece 3) the belt holds the planning layout test's stress row on Big
@@ -118,6 +121,9 @@ const DECK_ARGUMENT := "--deck="
 const TIP_ARGUMENT := "--tip="
 ## --stack's shift: planning_layout_test's stress row, with the upgrades it needs.
 const STACK_ARGUMENT := "--stack"
+## `--row=<card id>,...` (#128): the fixed shift with these cards on the belt (no inspection),
+## the file shift_screen_row_<width>x<height>.png.
+const ROW_ARGUMENT := "--row="
 const WEEK_ARGUMENT := "--week"
 const WEEK_PREFIX := "week_"
 const TOYS_ARGUMENT := "--toys="
@@ -128,16 +134,6 @@ const TOYS_OWNED: Dictionary[StringName, int] = {
 const CHEER_ARGUMENT := "--cheer"
 const DAY_ARGUMENT := "--day="
 const SLIP_ARGUMENT := "--slip"
-## #122: the fixed shift wears the Double checkout pin (two rows of 4); the file gets double_.
-const DOUBLE_ARGUMENT := "--double"
-## #132: `--pin=<pin id>` wears that pin on the fixed shift (Price gun's relabels the belt's first
-## product as Snack); the file gets pin_<id>_.
-const PIN_ARGUMENT := "--pin="
-## With --pin=price_gun, `--gun=<planning|armed|picker|retag>` leaves the belt untagged and shows
-## the labeller lying there, picked up, or picked up with the family picker open on the belt's
-## first product (retag: that product tagged Snack first, so the picker offers Remove tag); the
-## file gets gun_<state>_.
-const GUN_ARGUMENT := "--gun="
 const SLIP_PREFIX := "slip_%s_"
 const SLIP_PLAIN := "none"
 const CHEER_PREFIX := "cheer_"
@@ -164,6 +160,8 @@ const STACK_PREFIX := "stack_"
 const STACK_FAN_PREFIX := "stack_fan_"
 const TIP_PREFIX := "tip_%s_%d_"
 const TIP_COLOUR_PREFIX := "tip_%s_colour_"
+const TIP_BATCH_PREFIX := "tip_%s_batch_"
+const BATCH_TIP := "batch"
 const COLOUR_TIP := "colour"
 ## --deck's full cart: the first copies upgraded to these tiers, and this coupon added.
 const FULL_TIERS: Dictionary[String, String] = {"banana": "banana_golden", "milk": "milk_big"}
@@ -258,6 +256,11 @@ func _ready() -> void:
 		reveal(reveal_spec)
 	elif deck_spec != "":
 		await deck(deck_spec)
+	elif _argument(ROW_ARGUMENT) != "":
+		var row_ids: Array[String] = []
+		row_ids.assign(_argument(ROW_ARGUMENT).split(","))
+		_set_up_shift("", row_ids)
+		_stack_part = "row_"
 	elif stack_spec != "" or OS.get_cmdline_user_args().has(STACK_ARGUMENT):
 		await stack(stack_spec == "fan")
 	elif OS.get_cmdline_user_args().has("--rhythm"):
@@ -337,17 +340,13 @@ func _set_up_shift(
 	for upgrade_id: String in upgrade_ids:
 		upgrades.append(_upgrade(upgrade_id))
 	run.upgrades = upgrades
-	if OS.get_cmdline_user_args().has(DOUBLE_ARGUMENT):
-		RunPins.wear(run, [load("res://data/pins/double_checkout.tres") as PinDefinition])
-	if not _argument(PIN_ARGUMENT).is_empty():
-		var pin: String = "res://data/pins/%s.tres" % _argument(PIN_ARGUMENT)
-		RunPins.wear(run, [load(pin) as PinDefinition])
+	CapturePins.wear(run)  # --double, --pin= (CapturePins).
 	run.debug_skip_to_shift(SHIFT - 1)
 	# The same shift again: it keeps the inspection set here.
 	var events: Array[InspectionDefinition] = []
 	for event_id: String in inspection_id.split("+", false):
 		events.append(load("res://data/inspections/%s.tres" % event_id) as InspectionDefinition)
-	if _argument(PIN_ARGUMENT) == "day_off":
+	if CapturePins.day_off():
 		events = []  # A day off is never taken on an inspection day.
 	run.inspections = events
 	run.debug_skip_to_shift(SHIFT - 1)
@@ -358,18 +357,10 @@ func _set_up_shift(
 	var cards: Array[CardInstance] = run.hand()
 	for card: CardInstance in cards.slice(HAND_IDS.size()):
 		run.place(card, run.row.size())
-	var gun: String = _argument(GUN_ARGUMENT)
-	if _argument(PIN_ARGUMENT) == "price_gun" and (gun.is_empty() or gun == "retag"):
-		PinPlay.relabel(run, run.row[0], "Snack")
+	CapturePins.relabel(run)
 	_screen.debug_show_shift()
 	_screen._week.skip()  # The capture shows planning, never the time card (v0.70).
-	if gun in ["armed", "picker", "retag"]:
-		_screen._pins.press_gun()
-	if gun == "picker" or gun == "retag":
-		for card: CardInstance in run.row:
-			if card.definition.is_product():
-				_screen._pins.take_click(card)
-				break
+	CapturePins.arm_gun(run, _screen._pins)  # --gun= (CapturePins).
 
 
 ## Opens the fixed shift's time card in full; `result` "paid" or "slip" records the shift as
@@ -579,9 +570,7 @@ func capture(folder: String) -> void:
 		+ _cheer_part
 		+ _day_part
 		+ _slip_part
-		+ ("double_" if OS.get_cmdline_user_args().has(DOUBLE_ARGUMENT) else "")
-		+ ("" if _argument(PIN_ARGUMENT).is_empty() else "pin_%s_" % _argument(PIN_ARGUMENT))
-		+ ("" if _argument(GUN_ARGUMENT).is_empty() else "gun_%s_" % _argument(GUN_ARGUMENT))
+		+ CapturePins.file_part()
 	)
 	var path: String = folder.path_join(FILE_NAME % [prefix, window.x, window.y])
 	var image: Image = (
@@ -603,7 +592,8 @@ func tip(spec: String) -> void:
 	var parts: PackedStringArray = spec.split(",", false)
 	var what: String = parts[0] if not parts.is_empty() else ""
 	var colour: bool = parts.size() > 1 and parts[1] == COLOUR_TIP
-	var index: int = parts[1].to_int() if parts.size() > 1 and not colour else 0
+	var batch: bool = parts.size() > 1 and parts[1] == BATCH_TIP
+	var index: int = parts[1].to_int() if parts.size() > 1 and not colour and not batch else 0
 	var targets: Array[TipTarget] = []
 	if what == "monitor":
 		for found: Node in _screen._monitor.find_children("*", "FamilyGlyph", true, false):
@@ -616,6 +606,8 @@ func tip(spec: String) -> void:
 					targets.append(
 						item.sticker().get_node(PriceSticker.COLOUR_SPOT_NAME) as TipTarget
 					)
+				elif batch:
+					targets.append_array(item.sticker().summary().keywords())
 				else:
 					targets.append_array(item.sticker().glyphs())
 				break
@@ -630,6 +622,8 @@ func tip(spec: String) -> void:
 	_screen._glyph_tips.point_at(at)
 	_screen._glyph_tips.show_tip(target)
 	_tip_part = (TIP_COLOUR_PREFIX % what) if colour else (TIP_PREFIX % [what, index])
+	if batch:
+		_tip_part = TIP_BATCH_PREFIX % what
 
 
 ## Starts a new run (SEED, or `seed=<seed>`) on the cart reveal (v0.51), frozen at `spec`'s seconds

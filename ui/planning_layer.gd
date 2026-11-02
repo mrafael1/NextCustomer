@@ -35,6 +35,12 @@ extends Control
 ## sparkles, pay tags and ticket strikes go. A view hidden from the screen (a bagged item's cell)
 ## shows none of its parts.
 ##
+## Batches and chains (#128, the Bound strip and the Linked frame): each batch and chain of the
+## model (PlanningModel.batches, chains) is bound by a frame round its tickets (BatchFrames,
+## ChainFrames), following the views (a drag's reorder lays it out again); hovering a BATCH or CHAIN
+## chip lights its frame (light_frames). A wrong job (PlanningSlot.wrong_job) turns its ticket's
+## chip tomato and rings the ticket (PriceSticker.set_wrong_job). The count shows neither.
+##
 ## Motion (none under `reduced_motion`, and nothing loops): the stickers new since the last
 ## slap_new slap on, the fold chip pops in as a stack first folds and punches as more fold in (each
 ## newly folded sticker shrinking into it), a boosted item's halo steps out from the rings its card
@@ -108,6 +114,8 @@ var _strips: Array[RailStrip] = []
 var _strips_shown: bool = true
 ## The z-ordered parts' parents (section 6), and the ghost's parts' parent (a child of the ghost).
 var _gap_box: Control
+var _batches: BatchFrames
+var _chains: ChainFrames
 var _lane_boxes: Array[Control] = []
 var _pay_box: Control
 var _stack_box: Control
@@ -144,6 +152,10 @@ func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	size = ShiftStage.SIZE
 	_gap_box = _box("RailGaps")
+	_batches = BatchFrames.new()
+	add_child(_batches)
+	_chains = ChainFrames.new()
+	add_child(_chains)
 	_lane_boxes = [_box("Lane0"), _box("Lane1")]
 	# The hover ring stays behind pay tags and their die-cut rims at the ticket's corner.
 	_ring_box = _box("TicketRing")
@@ -201,6 +213,11 @@ func show_model(shown: PlanningModel, items: Array[ItemView], ghost: ItemView = 
 			_sparkles[slot] = made
 	_rings_by_card = shown_rings
 	_build_strips()
+	var run_batches: Array[PackedInt32Array] = []
+	for index: int in shown.run_batch:
+		run_batches.append(shown.batches[index])
+	_batches.show_batches(shown.runs, run_batches)
+	_chains.show_chains(shown)
 	_lay_out()
 	_paint_focus(0.0)
 	var frame_s: float = _motion(tuning.slap_frame_s if tuning != null else 0.0)
@@ -243,6 +260,17 @@ func fan() -> StackFan:
 func add_under_hot(part: Node) -> void:
 	add_child(part)
 	move_child(part, _hot_box.get_index())
+
+
+## The frames (#128) shown: the batches' (BATCH), or the chains' (CHAIN) when `chains`, hidden too.
+func frames(chains: bool = false) -> Array[BatchFrame]:
+	return (_chains if chains else _batches).frames()
+
+
+## Lights the frames `slot`'s `word` chip (BATCH or CHAIN) names; -1 lights none.
+func light_frames(slot: int, word: String) -> void:
+	_batches.light(slot if word == CardText.BATCH_WORD else -1)
+	_chains.light(slot if word == CardText.CHAIN_WORD else -1)
 
 
 ## The hot rail strips drawn on top (apply_focus), the hovered giver's own first.
@@ -326,6 +354,8 @@ func keep_stickers() -> void:
 		for child: Node in box.get_children():
 			box.remove_child(child)
 			child.queue_free()
+	_batches.clear_frames()
+	_chains.clear_frames()
 	_strips.clear()
 	_hot_strips.clear()
 	_hot_lanes.clear()
@@ -349,6 +379,7 @@ func clear() -> void:
 	_items.clear()
 	_rings_by_card.clear()
 	_folds_by_card.clear()
+	light_frames(-1, "")
 	show_strips(true)
 
 
@@ -384,6 +415,7 @@ func sparkles(slot: int) -> Array[TextureRect]:
 func parts() -> Array[Control]:
 	var shown: Array[Control] = []
 	var boxes: Array[Control] = _strip_boxes()
+	boxes.append_array([_batches, _chains])
 	boxes.append_array([_pay_box, _ring_box, _stack_box, _stamp_box, _sparkle_box, _hot_box])
 	boxes.append(_ghost_box)
 	for box: Control in boxes:
@@ -461,6 +493,8 @@ func _lay_out() -> void:
 	for strip: RailStrip in strips():
 		var lane: int = strip.spec().lane
 		strip.lay_out(_anchors(strip.spec()), RailStrip.LANE_RECTS[lane], lane == 0)
+	_batches.follow(self, _items, _ghost, _pays)
+	_chains.follow(self, _items, _ghost, _pays)
 	_lay_out_focus()
 	_hide_hot_calm()
 	_fan.track(_folded_stacks())
@@ -607,6 +641,8 @@ func _lay_out_belt(slot: int, planning: PlanningSlot, item: ItemView) -> void:
 	_lay_out_stack(slot, planning, Vector2(left, STACK_BOTTOM_Y), Vector2.ZERO, _stack_box)
 	var ticket_xf: Transform2D = to_layer * Transform2D(0.0, item.sticker().position)
 	var ticket: Rect2 = ticket_xf * Rect2(Vector2.ZERO, PriceSticker.SIZE)
+	# A wrong job's wider chip may move the text: set before the pay (#128).
+	item.sticker().set_wrong_job("" if _counting else planning.wrong_job)
 	var tag: PayTag = _pays.get(slot, null)
 	var tag_rect: Rect2 = Rect2()
 	var struck: bool = planning.struck and not _counting
@@ -782,6 +818,7 @@ func _reset() -> void:
 		if is_instance_valid(item):
 			item.boost_rings = 0
 			item.denied = false
+			item.sticker().set_wrong_job("")
 			item.sticker().set_pay(false, Rect2())
 	_painted.clear()
 	for got: PriceSticker in _got:
@@ -794,6 +831,8 @@ func _reset() -> void:
 		for child: Node in box.get_children():
 			box.remove_child(child)
 			child.queue_free()
+	_batches.clear_frames()
+	_chains.clear_frames()
 	_strips.clear()
 	_hot_strips.clear()
 	_hot_lanes.clear()

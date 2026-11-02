@@ -1,13 +1,15 @@
 [gd_resource type="Resource" script_class="CardDefinition" format=3]
 
 [ext_resource type="Script" path="res://core/rule.gd" id="1_rule"]
-[ext_resource type="Script" path="res://core/rules/last_slot_bonus_rule.gd" id="2_stale_doughnut"]
+[ext_resource type="Script" path="res://core/rules/batch_role_rule.gd" id="2_stale_doughnut"]
 [ext_resource type="Script" path="res://core/card_definition.gd" id="3_card"]
 
 [sub_resource type="Resource" id="Resource_stale_doughnut"]
 script = ExtResource("2_stale_doughnut")
+tag = "Bakery"
+role = 3
 bonus = 3
-receipt_text = "Stale doughnut last"
+receipt_text = "Stale doughnut closes batch"
 
 [resource]
 script = ExtResource("3_card")
@@ -17,8 +19,8 @@ kind = 1
 tags = PackedStringArray("Food", "Bakery", "Clearance")
 base = 1
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_stale_doughnut")])
-rule_text = "+3 if in the last slot"
-sticker_text = "+{bonus} in last slot"
+rule_text = "Last of a Bakery batch: +3 for each item in it"
+sticker_text = "{batch} last: +{bonus} each"
 art_ref = "res://art/items_v2/stale_doughnut.png"
 mini_art_ref = "res://art/minis/stale_doughnut.png"
 mini_golden_art_ref = "res://art/minis/stale_doughnut_golden.png"

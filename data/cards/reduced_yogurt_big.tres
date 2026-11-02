@@ -11,6 +11,7 @@ match_by = 3
 match_value = "Clearance"
 position = 2
 bonus = 3
+pair = true
 receipt_text = "Reduced yogurt beside Clearance"
 
 [resource]
@@ -21,7 +22,7 @@ kind = 1
 tags = PackedStringArray("Food", "Dairy", "Clearance")
 base = 4
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_reduced_yogurt")])
-rule_text = "+3 if beside a Clearance product"
+rule_text = "PAIR: +3 if beside a Clearance item"
 generally_useful = true
 art_ref = "res://art/items_v2/reduced_yogurt_big.png"
 variant_of = ExtResource("9_plain")

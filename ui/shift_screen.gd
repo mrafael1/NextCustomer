@@ -1,18 +1,18 @@
 class_name ShiftScreen
 extends Control
-## The shift screen (plan section 2): draw, redraw, click-to-place into the row, the live
-## projected total and receipt, checkout with the count-up, the RECEIPT REWARDS machine's visits
-## after a passed shift (#77, MachineFlow) and the loyalty card (plan section 3.8), the shift's
-## inspection and the next one's notice (plan section 3.9), the deck view, and the run's results
-## with its history. It only displays RunState and ScoreResult; every rule lives in core/. The
-## run is saved at every stable point and resumed when the screen opens (full build plan section
-## 4); the debug tools live in ShiftDebug.
+## The shift screen (plan section 2): draw, redraw, click-to-place into the row, the live projected
+## total and receipt, checkout with the count-up, the RECEIPT REWARDS machine's visits after a
+## passed shift (#77, MachineFlow) and the loyalty card (plan section 3.8), the shift's inspection
+## and the next one's notice (plan section 3.9), the deck view, and the run's results with its
+## history. It only displays RunState and ScoreResult; every rule lives in core/. The run is saved
+## at every stable point and resumed when the screen opens (full build plan section 4); the debug
+## tools live in ShiftDebug.
 ##
-## Click-to-place: click a hand card to pick it up, then click a slot to put it there (a
-## filled slot pushes the cards from there to the right). Click a row card to pick it back up.
-## Drag-and-drop does the same (CardDrag): drop on a slot to place, anywhere else to let go.
-## Hand items keep their places (plan section 3.8): one placed on the belt leaves its place empty
-## and one taken back returns to it.
+## Click-to-place: click a hand card to pick it up, then click a slot to put it there (a filled slot
+## pushes the cards from there to the right). Click a row card to pick it back up. Drag-and-drop
+## does the same (CardDrag): drop on a slot to place, anywhere else to let go. Hand items keep their
+## places (plan section 3.8): one placed on the belt leaves its place empty and one taken back
+## returns to it.
 ##
 ## The basket redraw (plan section 3.8; mock-up redraw_basket_v1.html): the Redraw key arms redraw
 ## mode ("Pick a basket", with Cancel), each basket that can be redrawn shows a REDRAW tag
@@ -20,20 +20,20 @@ extends Control
 ## saved) and BasketRedraw plays the motion, every click blocked until it ends. Redraw mode ends
 ## with the click.
 ##
-## The row has slot_count general slots (plan section 3.1, v0.46): any card fits any free slot.
-## The row is compacted, so its slots alone show the capacity, and RowCapacity enforces it.
+## The row has slot_count general slots (plan section 3.1, v0.46): any card fits any free slot. The
+## row is compacted, so its slots alone show the capacity, and RowCapacity enforces it.
 ##
 ## The layout (#55; full build plan section 6.1) is ShiftStage's: a 1280x720 stage centred in the
 ## window over a wall and a counter that fill it. The screen keeps its own names for the stage's
-## controls and fills them. Machine v2 (#77, Q1 = A): the store (the backdrop and the stage's
-## world, with the machine on the back wall) is in the StoreCamera, which glides to the machine at
-## 2x for its visits and back after the last one (MachineFlow); the top band and the stage's hud
-## (the top bar, the scan and popup layers) never zoom. Planning input waits for the glide back.
+## controls and fills them. Machine v2 (#77, Q1 = A): the store (the backdrop and the stage's world,
+## with the machine on the back wall) is in the StoreCamera, which glides to the machine at 2x for
+## its visits and back after the last one (MachineFlow); the top band and the stage's hud (the top
+## bar, the scan and popup layers) never zoom. Planning input waits for the glide back.
 ##
-## Sounds (#62) play on the screen's own Sfx, warmed up when it opens: cards picked up, placed
-## and let go, refusals, the redraw, CHECKOUT and the log export here, a prize in MachineFlow;
-## buttons and panels in UiKit, drag slot ticks in CardDrag, music in ShiftMusic. The only hover
-## sound is the scanner's beep (#75, ScanController), played once a hover on an item is held.
+## Sounds (#62) play on the screen's own Sfx, warmed up when it opens: cards picked up, placed and
+## let go, refusals, the redraw, CHECKOUT and the log export here, a prize in MachineFlow; buttons
+## and panels in UiKit, drag slot ticks in CardDrag, music in ShiftMusic. The only hover sound is
+## the scanner's beep (#75, ScanController), played once a hover on an item is held.
 
 ## The game's starting deck: a recipe (v0.49) dealt from each run's stock (StartingDeck).
 const STARTER_DECK := "res://data/decks/pack_starter.tres"
@@ -41,8 +41,6 @@ const BALANCE := "res://data/balance/balance.tres"
 const CATALOGUE := "res://data/catalogue/catalogue.tres"
 ## A refused card or a closed slot plays `denied` this much softer than the count-up does.
 const REFUSED_DB := -6.0
-## The Redraw key's caption while redraw mode is armed.
-const PICK_CAPTION := "Pick a basket"
 var run: RunState
 ## Where the save errors go (push_error by default). Tests set it before the screen enters the
 ## tree, so an unreadable save they write on purpose prints nothing.
@@ -771,21 +769,14 @@ func _refresh_buttons() -> void:
 	var planning: bool = run.phase == RunState.Phase.PLANNING and not _counting and not _redraw_busy
 	_checkout_button.disabled = not planning
 	var left: int = run.redraws_allowed - run.redraws_used
+	for view: ItemView in item_views():  # Live factors (#128 v3: Stale popcorn's ×N).
+		view.sticker().redraws_left = left
+	_monitor.redraws_left = left
 	var to_draw: bool = not run.deck.draw_pile().is_empty()
 	_redraw_button.disabled = not planning or left <= 0 or not to_draw
 	_cancel_button.visible = _redraw_mode
 	_redraw_button.lit = _redraw_mode
-	# Mock-up B2's "Redraw  N left": a note beside the word; screen readers hear what it takes.
-	if _redraw_mode:
-		_redraw_button.show_caption(
-			PICK_CAPTION, "%d left" % left, "Pick a basket (%d left)" % left
-		)
-	elif left <= 0:
-		_redraw_button.show_caption("Redraw used")
-	elif not to_draw:
-		_redraw_button.show_caption("Redraw", "none to draw", "Redraw: no items left to draw")
-	else:
-		_redraw_button.show_caption("Redraw", "%d left" % left, "Redraw a basket (%d left)" % left)
+	RedrawNotice.caption_key(_redraw_button, _redraw_mode, left, to_draw)
 
 
 func _refresh_preview() -> void:

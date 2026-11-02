@@ -41,6 +41,11 @@ const MEMO_LIMIT := 200000
 ## Rows scored (memo hits not counted), for the summary.
 var rows_scored: int = 0
 var max_changes: int = SENSIBLE_CHANGES
+## The shift's redrawn cards and redraws left (#128 v3, ScoreCredits.cards_redrawn and
+## redraws_left), set by the player before a
+## climb: scoring context, so it joins the context key when not 0.
+var cards_redrawn: int = 0
+var redraws_left: int = 0
 ## Row key (context key + definition ids in row order) -> total, and the older generation.
 var _totals: Dictionary[String, int] = {}
 var _old_totals: Dictionary[String, int] = {}
@@ -61,6 +66,8 @@ func climb(
 	start: Array[CardInstance] = []
 ) -> SimHandBest:
 	var context: String = context_key(upgrades, inspections)
+	if cards_redrawn != 0 or redraws_left != 0:
+		context += "r%d,%d" % [cards_redrawn, redraws_left]
 	var climb_key: String = _climb_key(context, hand, limits, start)
 	var known: Array = _known_climb(climb_key)
 	if not known.is_empty():
@@ -169,7 +176,7 @@ func _score(
 		total = _old_totals[key]
 	else:
 		rows_scored += 1
-		total = Scoring.total(row, upgrades, inspections)
+		total = Scoring.total(row, upgrades, inspections, cards_redrawn, redraws_left)
 	if _totals.size() >= MEMO_LIMIT:
 		_old_totals = _totals
 		_totals = {}

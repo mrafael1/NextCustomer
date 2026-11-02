@@ -26,7 +26,7 @@ func wasted_reason(state: ScoreState, slot: int) -> String:
 
 static func _problem(state: ScoreState, slot: int) -> String:
 	if not state.is_product(slot - 1) or not state.is_product(slot + 1):
-		return "no product on both sides"
+		return "no item on both sides"
 	if not state.definition(slot - 1).is_same_product(state.definition(slot + 1)):
-		return "not the same product on both sides"
+		return "not the same item on both sides"
 	return ""

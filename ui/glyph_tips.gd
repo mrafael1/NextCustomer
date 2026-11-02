@@ -99,11 +99,14 @@ func _process(delta: float) -> void:
 ## Shows the tip of `glyph` now (after the wait; tests call it directly).
 func show_tip(glyph: TipTarget) -> void:
 	var changed: bool = _shown != glyph
+	if changed and is_instance_valid(_shown):
+		_shown.tip_shown(false)
 	_shown = glyph
 	_candidate = glyph
 	_place(glyph)
 	_tip.visible = true
 	if changed:
+		glyph.tip_shown(true)
 		shown_changed.emit(glyph)
 	if _pop != null:
 		_pop.kill()
@@ -118,6 +121,8 @@ func show_tip(glyph: TipTarget) -> void:
 
 func hide_tip() -> void:
 	var was_shown: bool = _shown != null
+	if is_instance_valid(_shown):
+		_shown.tip_shown(false)
 	_shown = null
 	_tip.visible = false
 	if was_shown:

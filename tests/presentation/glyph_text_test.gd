@@ -62,6 +62,54 @@ func test_a_leading_glyph_and_punctuation() -> void:
 	)
 
 
+## The BATCH keyword (#128) is a keyword run glued to the plain word after it, never a glyph; a
+## keyword with punctuation keeps it as text in its piece.
+func test_the_batch_keyword_is_a_chip_glued_to_the_next_word() -> void:
+	var pieces: Array[Array] = GlyphText.pieces("BATCH 1st: +2 to the rest", _palette())
+	assert_array(pieces[0]).is_equal(
+		[GlyphText.keyword_run(CardText.BATCH_WORD), GlyphText.text_run(" 1st:")]
+	)
+	assert_int(pieces.size()).is_equal(5)
+	assert_array(Array(GlyphText.keywords("BATCH 1st: +2", _palette()))).is_equal(["BATCH"])
+	assert_array(Array(GlyphText.families("BATCH 1st: +2", _palette()))).is_empty()
+	var later: Array[Array] = GlyphText.pieces("+3 each, next BATCH of 3+", _palette())
+	assert_array(later[3]).is_equal(
+		[GlyphText.keyword_run(CardText.BATCH_WORD), GlyphText.text_run(" of")]
+	)
+	var punctuated: Array[Array] = GlyphText.pieces("next BATCH.", _palette())
+	assert_array(punctuated[1]).is_equal(
+		[GlyphText.keyword_run(CardText.BATCH_WORD), GlyphText.text_run(".")]
+	)
+	assert_bool(GlyphText.is_text(GlyphText.keyword_run("BATCH"))).is_false()
+	assert_bool(GlyphText.is_glyph(GlyphText.keyword_run("BATCH"))).is_false()
+	# Only the keyword itself, in capitals: "batch" stays a word.
+	assert_array(Array(GlyphText.keywords("2 per batch", _palette()))).is_empty()
+	assert_str(GlyphText.keyword_tip("BATCH")).is_equal(
+		(
+			"BATCH · 2 or more Bakery side by side make one batch. "
+			+ "Each card's line says where in its batch it works."
+		)
+	)
+
+
+## The CHAIN keyword (#128 Produce links) is a chip like BATCH, glued to the word after it, with
+## its own tooltip.
+func test_the_chain_keyword_is_a_chip() -> void:
+	var pieces: Array[Array] = GlyphText.pieces("CHAIN middle: ×2 prev", _palette())
+	assert_array(pieces[0]).is_equal(
+		[GlyphText.keyword_run(CardText.CHAIN_WORD), GlyphText.text_run(" middle:")]
+	)
+	assert_array(Array(GlyphText.keywords("+1 each, next CHAIN", _palette()))).is_equal(["CHAIN"])
+	assert_str(GlyphText.keyword_tip("CHAIN")).is_equal(
+		(
+			"CHAIN · 2 or more Bananas linked one after another. "
+			+ "Each Banana adds the price of the one before it. "
+			+ "Each card's line says where by the chain it works."
+		)
+	)
+	assert_str(GlyphText.keyword_tip("NOPE")).is_empty()
+
+
 func test_every_live_summary_splits_cleanly() -> void:
 	var palette: FamilyPalette = _palette()
 	var checked: int = 0

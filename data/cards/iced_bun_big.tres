@@ -1,17 +1,16 @@
 [gd_resource type="Resource" script_class="CardDefinition" format=3]
 
 [ext_resource type="Script" path="res://core/rule.gd" id="1_rule"]
-[ext_resource type="Script" path="res://core/rules/grant_charged_multiplier_rule.gd" id="2_iced_bun"]
+[ext_resource type="Script" path="res://core/rules/batch_role_rule.gd" id="2_iced_bun"]
 [ext_resource type="Script" path="res://core/card_definition.gd" id="3_card"]
 [ext_resource type="Resource" path="res://data/cards/iced_bun.tres" id="9_plain"]
 
 [sub_resource type="Resource" id="Resource_iced_bun"]
 script = ExtResource("2_iced_bun")
 tag = "Bakery"
+role = 4
 factor = 2
-charges = 1
-group = &"bun_charges"
-receipt_text = "Iced bun ×2"
+receipt_text = "Iced bun glaze"
 
 [resource]
 script = ExtResource("3_card")
@@ -21,7 +20,7 @@ kind = 1
 tags = PackedStringArray("Food", "Bakery")
 base = 3
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_iced_bun")])
-rule_text = "Double the next Bakery payout"
+rule_text = "Doubles the last item of its Bakery batch"
 art_ref = "res://art/items_v2/iced_bun_big.png"
 variant_of = ExtResource("9_plain")
 tier = 1

@@ -238,6 +238,7 @@ func _play_shift(
 	var no_row: Array[CardInstance] = []
 	# The day events plus the week event, as RunState.checkout scores the row.
 	var events: Array[InspectionDefinition] = WeekSchedule.shift_events(run)
+	_set_redraws(run)
 	var played: SimHandBest = _play_row(run.hand(), run.upgrades, events, run.limits, no_row)
 	while run.redraws_used < run.redraws_allowed and not _search.stopped:
 		# As a player does: the row goes on the belt, a basket of the cards left is redrawn
@@ -251,10 +252,13 @@ func _play_shift(
 		if not swapped:
 			break
 		record.redraws += 1
+		_set_redraws(run)
 		played = _play_row(run.hand(), run.upgrades, events, run.limits, played.row)
 	var best: SimHandBest = played
 	if _sensible and not _search.stopped:
 		best = _search.search(run.hand(), run.upgrades, events)
+	# Other searches (the machine's sample hands) score with no redraw.
+	_set_redraws(null)
 	# The time limit stopped the search: the run is dropped, so the shift isn't played.
 	if _search.stopped:
 		return
@@ -291,6 +295,17 @@ func _play_row(
 	if _sensible or climb:
 		return _climber.climb(hand, limits, upgrades, inspections, start)
 	return _search.search(hand, upgrades, inspections)
+
+
+## The shift's redrawn cards and redraws left for the searches' scores (#128 v3: Dented can,
+## Crisps, Stale popcorn read them), as ScoreCredits.for_run counts them; null: none. The player
+## still spends every redraw; weighing them is the end balance pass's.
+func _set_redraws(run: RunState) -> void:
+	var credits: ScoreCredits = ScoreCredits.new() if run == null else ScoreCredits.for_run(run)
+	_search.cards_redrawn = credits.cards_redrawn
+	_search.redraws_left = credits.redraws_left
+	_climber.cards_redrawn = credits.cards_redrawn
+	_climber.redraws_left = credits.redraws_left
 
 
 ## Rows the sensible player scored, for the summary.

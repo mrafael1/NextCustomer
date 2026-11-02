@@ -7,12 +7,20 @@ extends Control
 ## GLYPH_MARGIN on each side, its foot GLYPH_DROP under the line's baseline (the mock-up's
 ## vertical-align -4px), with a paper rim on a ticket (`rimmed`). The first line can keep clear of
 ## something at its right (set_first_inset: the ticket's struck price). At most `max_lines` lines
-## show (0: any number); fits() says whether every piece did. Display only.
+## show (0: any number); fits() says whether every piece did, each inside its line. Display only.
+##
+## A keyword run (#128, GlyphText: BATCH) is a KeywordChip, CHIP_MARGIN clear of its neighbours,
+## centred on its line; set_keyword_wasted turns the chips tomato with the WASTED reason as their
+## tooltip (the ticket's wrong job), laying the text out again (a wasted chip is wider).
 
 ## A glyph's room on its line: its margin each side.
 const GLYPH_MARGIN := 1.0
 ## How far a glyph's foot sits under the line's baseline.
 const GLYPH_DROP := 4.0
+## A keyword chip's room on its line: its margin each side.
+const CHIP_MARGIN := 1.0
+## How far a piece may pass its line's room (rounding) before the text no longer fits.
+const OVERFLOW_SLACK := 0.5
 
 var text: String = ""
 var _font: Font
@@ -27,7 +35,14 @@ var _palette: FamilyPalette
 ## Each shown line's runs: {"text", "family", "x"} (x from the line's left).
 var _lines: Array[Array] = []
 var _needed_lines: int = 0
+## Whether a piece is wider than its line's room (fits() is then false).
+var _overflow: bool = false
 var _glyphs: Array[FamilyGlyph] = []
+var _chips: Array[KeywordChip] = []
+## The keyword chips' wasted tooltip (set_keyword_wasted), or "" for calm chips.
+var _keyword_wasted: String = ""
+## Live words and their tooltips (set_live, #128 v3: Stale popcorn's ×N), drawn as value chips.
+var _live: Dictionary = {}
 var _tip_below: bool = false
 var _tip_anchor: Control
 
@@ -73,6 +88,37 @@ func set_tip(below: bool, anchor: Control) -> void:
 	for glyph: FamilyGlyph in _glyphs:
 		glyph.tip_below = below
 		glyph.tip_anchor = anchor
+	for chip: KeywordChip in _chips:
+		chip.tip_below = below
+		chip.tip_anchor = anchor
+
+
+## Turns the keyword chips wasted, `reason` their tooltip (the WASTED step's), or calm again ("").
+## The text is laid out again when this changes.
+func set_keyword_wasted(reason: String) -> void:
+	if reason == _keyword_wasted:
+		return
+	_keyword_wasted = reason
+	_lay_out()
+
+
+func keyword_wasted() -> String:
+	return _keyword_wasted
+
+
+## Shows `line` with its `live` words (word: tooltip, GlyphText.pieces) as value chips, laying
+## the text out again when either changes (#128 v3: Stale popcorn's ×N as the redraws go).
+func set_live(line: String, live: Dictionary) -> void:
+	if line == text and live == _live:
+		return
+	text = line
+	_live = live.duplicate()
+	_lay_out()
+
+
+## The keyword chips drawn in the text, in order.
+func keywords() -> Array[KeywordChip]:
+	return _chips
 
 
 ## The text's colour (a ticket's ink or paper).
@@ -98,9 +144,9 @@ func line_count() -> int:
 	return _lines.size()
 
 
-## Whether every piece of the text shows (none cut by max_lines).
+## Whether every piece of the text shows (none cut by max_lines) inside its line's room.
 func fits() -> bool:
-	return _needed_lines <= _lines.size()
+	return _needed_lines <= _lines.size() and not _overflow
 
 
 ## Where the text is drawn, in this label's coordinates: its lines' height, as wide as its
@@ -132,7 +178,7 @@ func _draw() -> void:
 	for index: int in _lines.size():
 		var baseline: float = roundf(index * _pitch + (_pitch - height) / 2.0 + ascent)
 		for run: Dictionary in _lines[index]:
-			if str(run["family"]).is_empty():
+			if GlyphText.is_text(run):
 				draw_string(
 					_font,
 					Vector2(float(run["x"]), baseline),
@@ -149,12 +195,17 @@ func _lay_out() -> void:
 		remove_child(glyph)
 		glyph.free()
 	_glyphs.clear()
+	for chip: KeywordChip in _chips:
+		remove_child(chip)
+		chip.free()
+	_chips.clear()
 	_lines.clear()
+	_overflow = false
 	var space: float = _text_width(" ")
 	var lines: Array[Array] = []
 	var line: Array = []
 	var x: float = 0.0
-	for piece: Array in GlyphText.pieces(text, _palette):
+	for piece: Array in GlyphText.pieces(text, _palette, _live):
 		var piece_width: float = _piece_width(piece)
 		var room: float = _width - (_first_inset if lines.is_empty() else 0.0)
 		var start: float = x + (space if not line.is_empty() else 0.0)
@@ -162,6 +213,10 @@ func _lay_out() -> void:
 			lines.append(line)
 			line = []
 			start = 0.0
+		# A piece wider than its line's room (a glued "BATCH 1st:" beside a struck price) overflows.
+		var line_room: float = _width - (_first_inset if lines.is_empty() else 0.0)
+		if start + piece_width > line_room + OVERFLOW_SLACK:
+			_overflow = true
 		for run: Dictionary in piece:
 			var placed: Dictionary = run.duplicate()
 			placed["x"] = roundf(start)
@@ -186,6 +241,9 @@ func _add_glyphs() -> void:
 	for index: int in _lines.size():
 		var baseline: float = roundf(index * _pitch + (_pitch - height) / 2.0 + ascent)
 		for run: Dictionary in _lines[index]:
+			if GlyphText.is_keyword(run):
+				_add_chip(run, index)
+				continue
 			var family: String = str(run["family"])
 			if family.is_empty():
 				continue
@@ -200,6 +258,17 @@ func _add_glyphs() -> void:
 			glyph.tip_anchor = _tip_anchor
 			add_child(glyph)
 			_glyphs.append(glyph)
+
+
+func _add_chip(run: Dictionary, line: int) -> void:
+	var live_tip: String = GlyphText.run_tip(run) if GlyphText.is_live(run) else ""
+	var chip: KeywordChip = KeywordChip.new(str(run["keyword"]), _keyword_wasted, live_tip)
+	var top: float = line * _pitch + floorf((_pitch - KeywordChip.HEIGHT) / 2.0)
+	chip.position = Vector2(float(run["x"]) + CHIP_MARGIN, top)
+	chip.tip_below = _tip_below
+	chip.tip_anchor = _tip_anchor
+	add_child(chip)
+	_chips.append(chip)
 
 
 func _line_end(line: Array) -> float:
@@ -217,6 +286,10 @@ func _piece_width(piece: Array) -> float:
 
 
 func _run_width(run: Dictionary) -> float:
+	if GlyphText.is_keyword(run):
+		var live: bool = GlyphText.is_live(run)
+		var wasted: bool = not _keyword_wasted.is_empty() and not live
+		return KeywordChip.width_for(str(run["keyword"]), wasted, live) + 2.0 * CHIP_MARGIN
 	if str(run["family"]).is_empty():
 		return _text_width(str(run["text"]))
 	return ArtStyle.FAMILY_GLYPH_SIZE + 2.0 * GLYPH_MARGIN

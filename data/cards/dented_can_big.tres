@@ -1,15 +1,14 @@
 [gd_resource type="Resource" script_class="CardDefinition" format=3]
 
 [ext_resource type="Script" path="res://core/rule.gd" id="1_rule"]
-[ext_resource type="Script" path="res://core/rules/count_earlier_tag_bonus_rule.gd" id="2_dented_can"]
+[ext_resource type="Script" path="res://core/rules/redraw_bonus_rule.gd" id="2_dented_can"]
 [ext_resource type="Script" path="res://core/card_definition.gd" id="3_card"]
 [ext_resource type="Resource" path="res://data/cards/dented_can.tres" id="9_plain"]
 
 [sub_resource type="Resource" id="Resource_dented_can"]
 script = ExtResource("2_dented_can")
-tag = "Clearance"
 bonus_each = 2
-receipt_text = "Dented can: earlier Clearance"
+receipt_text = "Dented can: cards redrawn"
 
 [resource]
 script = ExtResource("3_card")
@@ -19,7 +18,7 @@ kind = 1
 tags = PackedStringArray("Food", "Clearance")
 base = 4
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_dented_can")])
-rule_text = "+2 for each earlier Clearance product"
+rule_text = "+2 for each card redrawn this shift"
 art_ref = "res://art/items_v2/dented_can_big.png"
 variant_of = ExtResource("9_plain")
 tier = 1

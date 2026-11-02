@@ -19,7 +19,7 @@ func row_wasted_reason(state: ScoreState) -> String:
 	for slot: int in range(state.size()):
 		if _copies_before(state, slot) > 0:
 			return ""
-	return "no product with a copy before it"
+	return "no item with a copy before it"
 
 
 static func _copies_before(state: ScoreState, slot: int) -> int:

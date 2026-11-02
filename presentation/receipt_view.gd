@@ -550,7 +550,7 @@ static func step_text(
 			right = money(step.value, true)
 		ScoreStep.StepType.MULTIPLIER:
 			left = "  × " + cause
-			right = "×%d" % step.value
+			right = step.times_text()
 		ScoreStep.StepType.COPY:
 			left = "  %s: copy of %s" % [step.text, names[step.linked_slot]]
 			right = money(step.value, true)
@@ -609,7 +609,7 @@ static func step_line(
 		ScoreStep.StepType.FLAT:
 			return "%s %s" % [MonitorText.signed_euros(step.value), cause]
 		ScoreStep.StepType.MULTIPLIER:
-			return "×%d %s" % [step.value, multiplier_cause(step, upgrade_names, inspection_names)]
+			return step.times_text() + " " + multiplier_cause(step, upgrade_names, inspection_names)
 		ScoreStep.StepType.COPY:
 			return "+€%d %s: copy of %s" % [step.value, step.text, names[step.linked_slot]]
 		ScoreStep.StepType.BASE:

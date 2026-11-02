@@ -1,10 +1,11 @@
 class_name TipTarget
 extends TextureRect
 ## Something a small tooltip names when the pointer rests on it (#105, mock-up readability v3,
-## GlyphTips): a family glyph (FamilyGlyph: its family's name) or a ticket's colour
-## (PriceSticker.ColourSpot: what the colour means). The tip opens below `tip_anchor` (a rail or
-## shelf ticket) when `tip_below`, else above the target. It takes no clicks: the item under it
-## keeps its hover, its drag and its clicks.
+## GlyphTips): a family glyph (FamilyGlyph: its family's name), a ticket's colour
+## (PriceSticker.ColourSpot: what the colour means) or a keyword (KeywordChip, #128: what it
+## means, or why its line is wasted). The tip opens below `tip_anchor` (a rail or shelf ticket)
+## when `tip_below`, else above the target. It takes no clicks: the item under it keeps its hover,
+## its drag and its clicks.
 
 ## Every target is in this group, for GlyphTips.
 const GROUP := &"tip_target"
@@ -19,6 +20,12 @@ var tip_anchor: Control
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_to_group(GROUP)
+
+
+## Its tooltip showed (`shown`) or went (GlyphTips calls it once per change): a keyword chip
+## lights while its tip shows (KeywordChip). Nothing by default.
+func tip_shown(_shown: bool) -> void:
+	pass
 
 
 ## Whether the target shows on screen now (GlyphTips only shows a tooltip for one that does).

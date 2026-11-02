@@ -18,6 +18,13 @@ var relabels: Dictionary[int, String] = {}
 ## The row's open slots this shift (ShiftLimits.slot_count; 0: unknown): Express lane's last slot
 ## (EndSlotsMultiplierRule, #132).
 var row_slots: int = 0
+## The hand cards this shift's redraws replaced, every redraw's (#128 v3, the redraw tension:
+## scoring context, ScoreState.cards_redrawn): each redraw is a basket of the balance's
+## basket_size cards.
+var cards_redrawn: int = 0
+## The redraws this shift has left (#128 v3: Crisps, Stale popcorn): its allowed redraws, extra
+## ones included, less the ones used.
+var redraws_left: int = 0
 
 
 ## The credits of the run's current shift: its slots without any upgrade's (the balance's and
@@ -34,6 +41,8 @@ static func for_run(run: RunState) -> ScoreCredits:
 	credits.relabels = run.relabels.duplicate()
 	if run.limits != null:
 		credits.row_slots = RowCapacity.card_limit(run.limits)
+	credits.cards_redrawn = run.redraws_used * run.balance.basket_size
+	credits.redraws_left = maxi(run.redraws_allowed - run.redraws_used, 0)
 	return credits
 
 

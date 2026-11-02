@@ -39,6 +39,10 @@ extends Node
 ## Motion (none under reduced motion, and nothing loops): stickers new since the last refresh slap
 ## on, a halo steps out ring by ring, the strips' chevrons step once (PlanningLayer).
 ##
+## Batches and chains (#128): hovering a BATCH chip on a belt ticket (its tooltip:
+## GlyphTips.shown_changed) lights its batch's frame (PlanningLayer.light_frames), a CHAIN chip its
+## chain's.
+##
 ## Mix highlight (#105 piece 3, mock-up readability v3 section 4, option A; MixModel): hovering a
 ## family glyph anywhere (a ticket, the monitor, a popup, the Cart: GlyphTips.shown_changed,
 ## watch_glyphs) lights every belt and hand item in that family and greys the rest; hovering an
@@ -684,6 +688,11 @@ func _fade(seconds: float) -> float:
 ## A family glyph's tooltip shows (`target`; null: none): its family lights the Cart's cells
 ## when it is in the open Cart, else the counter's items (not while hovers are blocked).
 func _on_tip_shown(target: TipTarget) -> void:
+	# A BATCH chip on a belt ticket lights its batch's frame, a CHAIN chip its chain's (#128); any
+	# other tip, none.
+	var chip: KeywordChip = target as KeywordChip
+	var word: String = chip.keyword if chip != null and _shown else ""
+	_layer.light_frames(_belt_slot_of(chip) if not word.is_empty() else -1, word)
 	var glyph: FamilyGlyph = target as FamilyGlyph
 	var family: String = glyph.family if glyph != null else ""
 	var in_deck: bool = _deck != null and target != null and _deck.is_ancestor_of(target)
@@ -695,6 +704,15 @@ func _on_tip_shown(target: TipTarget) -> void:
 	_family = counter
 	if _shown and _landing < 0:
 		_apply_focus(true)
+
+
+## The belt slot whose ticket holds `part` (a chip on it), or -1.
+func _belt_slot_of(part: Node) -> int:
+	for slot: int in range(_views.size()):
+		var item: ItemView = _item(slot)
+		if item != null and item.sticker().is_ancestor_of(part):
+			return slot
+	return -1
 
 
 ## The hand's items still shown.

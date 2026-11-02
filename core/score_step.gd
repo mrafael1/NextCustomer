@@ -90,6 +90,41 @@ var row_wide: bool = false
 ## A neighbouring card enabling an own flat bonus. Explain-only visual provenance: the rule's
 ## source_kind/source_slot attribution and every scoring value stay unchanged.
 var support_slot: int = -1
+## MULTIPLIER and EFFECT_ARMED: a fractional factor in percent (#128 v3, Stale popcorn: 150 is
+## ×1.5), or 0 for a whole one. `value` then holds the factor rounded half up (×2 for ×1.5), for
+## any reader that wants a whole number; factor_text() is the factor's words.
+var percent: int = 0
+
+
+## `value` × `factor_percent` / 100, rounded to the nearest whole euro, halves away from zero
+## (the user's call, #128 v3: 10.5 pays 11). Integers only, so scoring stays exact.
+static func times_percent(amount: int, factor_percent: int) -> int:
+	@warning_ignore("integer_division")
+	var magnitude: int = (absi(amount) * factor_percent + 50) / 100
+	return magnitude if amount >= 0 else -magnitude
+
+
+## A factor in percent as words: 150 is "1.5", 175 "1.75", 200 "2".
+static func percent_text(factor_percent: int) -> String:
+	@warning_ignore("integer_division")
+	var whole: int = factor_percent / 100
+	var cents: int = factor_percent % 100
+	if cents == 0:
+		return str(whole)
+	if cents % 10 == 0:
+		@warning_ignore("integer_division")
+		return "%d.%d" % [whole, cents / 10]
+	return "%d.%02d" % [whole, cents]
+
+
+## A multiplier's factor as words, without the ×: "2", or "1.5" for a fractional one.
+func factor_text() -> String:
+	return percent_text(percent) if percent > 0 else str(value)
+
+
+## A multiplier's factor with its ×: "×2", "×1.5".
+func times_text() -> String:
+	return "×" + factor_text()
 
 
 func card_giver_slot() -> int:
@@ -112,7 +147,7 @@ func moved(slots: int, add: int) -> ScoreStep:
 
 
 func to_dictionary() -> Dictionary:
-	return {
+	var found: Dictionary = {
 		"step_type": StepType.keys()[step_type],
 		"slot": slot,
 		"source_slot": source_slot,
@@ -126,3 +161,6 @@ func to_dictionary() -> Dictionary:
 		"source_kind": SourceKind.keys()[source_kind],
 		"source_index": source_index,
 	}
+	if percent > 0:
+		found["percent"] = percent
+	return found
