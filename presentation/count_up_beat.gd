@@ -117,3 +117,6 @@ var cheer_combo: bool = false
 ## step it caused) or an inspection denied it. Only such a payout slumps a standee; a coupon that
 ## pays nothing of its own does not.
 var cheer_failed: bool = false
+## The beat's first step lowers its item (CountUpPlan.is_harmful): the monitor prints its line in
+## tomato, never with the green ✓.
+var harmful: bool = false

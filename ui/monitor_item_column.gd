@@ -9,8 +9,9 @@ extends Control
 ## the price differs from the base, a cream tag at the base, a tomato €0 tag); its effect text
 ## (the sticker summary, or the rule text: GlyphLabel, bold at EFFECT_SIZE on EFFECT_PITCH, kept
 ## clear of the price); a dashed rule; and its step lines (STEPS_TOP down), each with its mark (the
-## fizzle icon, a giver's mini, ✦ for a "gives" line, ✓ for its own), its text, and its amount in
-## one right-aligned column (AMOUNT_MIN wide) level with the text's first line.
+## fizzle icon, a giver's mini, ✦ for a "gives" line, a tomato ! for a harmful one, ✓ for its own),
+## its text, and its amount in one right-aligned column (AMOUNT_MIN wide) level with the text's
+## first line.
 ##
 ## In planning (show_item) it shows belt slot 1's item or the held one with every step line; on an
 ## empty belt a muted hint (show_empty). When the lines don't all fit under the full effect (where
@@ -24,6 +25,10 @@ extends Control
 ## When the item changes its parts fade in one after another (CountTotalTuning's part_delays and
 ## part_fade_s; at once under reduced motion). Display only: the prices and lines are the
 ## caller's (the score's).
+
+## A step line's look: a FIZZLE's and a HARM's (CountUpPlan.is_harmful) text and amount are tomato,
+## a HARM's amount keeping its sign ("−€2", "= 0") so the meaning never rests on colour alone.
+enum Tone { PLAIN, FIZZLE, HARM }
 
 const SIZE := Vector2(270, 146)
 const COUNT_SIZE := Vector2(270, 146)
@@ -74,6 +79,7 @@ const AMOUNT_PAD := 6.0
 const MARK_SIZE := Vector2(14, 14)
 const MARK_GAP := 4.0
 const CHECK_MARK := "✓"
+const HARM_MARK := "!"
 const GIVE_MARK := "✦"
 const GIVE_FALLBACK := "›"
 ## The compact layout's struck base: its gap to the price on its left.
@@ -157,8 +163,8 @@ func _init(tuning: CountTotalTuning = null) -> void:
 
 ## Planning: `definition` (with its `tags`) at `payout` (-1 for a hand item: its base price) and
 ## its step `lines` (each with whether it is a fizzle, `fizzles`; the first `gives` are "gives"
-## lines; `minis` the giver's mini for each, or null). `animate`: its parts fade in. Call it in
-## the tree: the text is measured with the real font.
+## lines; `minis` the giver's mini for each, or null; `harms` whether each is harmful).
+## `animate`: its parts fade in. Call it in the tree: the text is measured with the real font.
 func show_item(
 	definition: CardDefinition,
 	tags: PackedStringArray,
@@ -167,9 +173,14 @@ func show_item(
 	fizzles: Array[bool],
 	gives: int = 0,
 	minis: Array[Texture2D] = [],
-	animate: bool = false
+	animate: bool = false,
+	harms: Array[bool] = []
 ) -> void:
-	var key: Array = [definition, tags, payout, lines, fizzles, gives, minis, redraws_left]
+	var key: Array = [definition, tags, payout, lines, fizzles, gives, minis, redraws_left, harms]
+	var tones: Array[Tone] = []
+	for index: int in range(lines.size()):
+		var fizzle: bool = fizzles[index] if index < fizzles.size() else false
+		tones.append(tone_of(fizzle, index < harms.size() and harms[index]))
 	if not _counting and _definition == definition and key == _shown_key:
 		return
 	_counting = false
@@ -188,8 +199,8 @@ func show_item(
 		_build_head(definition, tags, reserve)
 		_set_price(value, base, fizzles.has(true), false)
 		if compact:
-			_fill_pages(lines, fizzles, gives, minis)
-		elif _fill_steps(lines, fizzles, gives, minis):
+			_fill_pages(lines, tones, gives, minis)
+		elif _fill_steps(lines, tones, gives, minis):
 			break
 	_shown_key = key
 	_fade_in(animate)
@@ -240,20 +251,22 @@ func set_value(value: int, fizzled: bool = false) -> void:
 	_set_price(value, _base_of(_definition), fizzled, value != _shown_value)
 
 
-## The count: the item's newest step `line` (a fizzle's, a "gives" line, with its giver's
-## `giver_mini`; `from_bag`: its giver is already in the bag, said after it in teal) joins the
-## lines, the newest highlighted; only earlier overflow folds into "+N earlier".
+## The count: the item's newest step `line` (a fizzle's, a `harmful` one's, a "gives" line, with its
+## giver's `giver_mini`; `from_bag`: its giver is already in the bag, said after it in teal) joins
+## the lines, the newest highlighted; only earlier overflow folds into "+N earlier".
 func show_step(
 	line: String,
 	fizzle: bool,
 	gives: bool = false,
 	giver_mini: Texture2D = null,
-	from_bag: bool = false
+	from_bag: bool = false,
+	harmful: bool = false
 ) -> void:
 	if line.is_empty():
 		return
+	var tone: Tone = tone_of(fizzle, harmful)
 	_count_lines.append(
-		{"line": line, "fizzle": fizzle, "gives": gives, "mini": giver_mini, "bag": from_bag}
+		{"line": line, "tone": tone, "gives": gives, "mini": giver_mini, "bag": from_bag}
 	)
 	_show_count_lines()
 
@@ -264,7 +277,7 @@ func show_paid(line: String, equation: PaymentEquation = null) -> void:
 	if line.is_empty() and equation == null:
 		return
 	var shown: String = equation.text(_arrow()) if equation != null else line
-	var entry: Dictionary = {"line": shown, "fizzle": false, "gives": false, "mini": null}
+	var entry: Dictionary = {"line": shown, "tone": Tone.PLAIN, "gives": false, "mini": null}
 	entry.merge({"bag": false, "ink": true, "equation": equation})
 	_count_lines.append(entry)
 	_show_count_lines()
@@ -326,10 +339,10 @@ func _add_count_row(entry: Dictionary, top: float) -> Control:
 		return _add_equation_row(equation, top)
 	var row: Control = _add_row(
 		entry["line"],
-		entry["fizzle"],
+		entry["tone"],
 		entry["gives"],
 		entry["mini"] as Texture2D,
-		12 if bool(entry["fizzle"]) else 13,
+		12 if entry["tone"] == Tone.FIZZLE else 13,
 		800,
 		top,
 		1,
@@ -683,16 +696,16 @@ func _one_line_effect(text: String, cut: bool, width: float) -> GlyphLabel:
 ## Every line of `lines` from the top of the steps, while each leaves room for a MORE_HEIGHT row
 ## under it (or is the last). Returns false when one doesn't (the compact layout takes over).
 func _fill_steps(
-	lines: PackedStringArray, fizzles: Array[bool], gives: int, minis: Array[Texture2D]
+	lines: PackedStringArray, tones: Array[Tone], gives: int, minis: Array[Texture2D]
 ) -> bool:
 	_clear_steps()
 	var room: float = _steps.size.y
 	var top: float = 0.0
 	for index: int in range(lines.size()):
 		var giver_mini: Texture2D = minis[index] if index < minis.size() else null
-		var fizzle: bool = fizzles[index] if index < fizzles.size() else false
+		var tone: Tone = tones[index] if index < tones.size() else Tone.PLAIN
 		var row: Control = _add_row(
-			lines[index], fizzle, index < gives, giver_mini, STEP_SIZE, STEP_WEIGHT, top
+			lines[index], tone, index < gives, giver_mini, STEP_SIZE, STEP_WEIGHT, top
 		)
 		if row == null:
 			continue
@@ -704,7 +717,7 @@ func _fill_steps(
 			_steps.remove_child(row)
 			row.queue_free()
 			row = _add_row(
-				lines[index], fizzle, index < gives, giver_mini, STEP_SIZE, STEP_WEIGHT, top, 1
+				lines[index], tone, index < gives, giver_mini, STEP_SIZE, STEP_WEIGHT, top, 1
 			)
 		if row.position.y + row.size.y + reserve > room:
 			return false
@@ -715,15 +728,15 @@ func _fill_steps(
 ## The compact layout's lines, one line each from the top of the steps: all of them when they
 ## fit, else whole lines on pages, room left for the pager's marker under them.
 func _fill_pages(
-	lines: PackedStringArray, fizzles: Array[bool], gives: int, minis: Array[Texture2D]
+	lines: PackedStringArray, tones: Array[Tone], gives: int, minis: Array[Texture2D]
 ) -> void:
 	_clear_steps()
 	var built: Array[Control] = []
 	for index: int in range(lines.size()):
 		var giver_mini: Texture2D = minis[index] if index < minis.size() else null
-		var fizzle: bool = fizzles[index] if index < fizzles.size() else false
+		var tone: Tone = tones[index] if index < tones.size() else Tone.PLAIN
 		var row: Control = _add_row(
-			lines[index], fizzle, index < gives, giver_mini, STEP_SIZE, STEP_WEIGHT, 0.0, 1
+			lines[index], tone, index < gives, giver_mini, STEP_SIZE, STEP_WEIGHT, 0.0, 1
 		)
 		if row != null:
 			# One line each on the mock-up's 18 px pitch (the count's rows keep theirs too).
@@ -766,7 +779,7 @@ static func _struck_text(base: int) -> String:
 ## One step line at `top` (see the class comment). Returns it, or null for an empty line.
 func _add_row(
 	line: String,
-	fizzle: bool,
+	tone: Tone,
 	gives: bool,
 	giver_mini: Texture2D,
 	font_size: int,
@@ -785,7 +798,7 @@ func _add_row(
 			parts[0] = "× " + parts[0].substr(gap + 1)
 	# Amber means only ×: a line's words (its giver's, a "gives" line's) are teal, a payment's ink.
 	var colour: Color = Palette.INK if ink else STEP_TEXT_COLOR
-	if fizzle:
+	if tone != Tone.PLAIN:
 		colour = Palette.TOMATO_DARK
 	var row: Control = Control.new()
 	row.name = "Step%d" % _rows.size()
@@ -793,7 +806,7 @@ func _add_row(
 	row.set_meta(&"line", line)
 	_steps.add_child(row)
 	var line_height: float = roundf(font_size * 1.3)
-	var mark: Control = _mark(fizzle, gives, giver_mini, font_size)
+	var mark: Control = _mark(tone, gives, giver_mini, font_size)
 	mark.name = "Mark"
 	row.add_child(mark)
 	var indent: float = MARK_SIZE.x + MARK_GAP
@@ -802,15 +815,15 @@ func _add_row(
 	if not parts[1].is_empty():
 		amount = MonitorKit.bold(
 			parts[1],
-			font_size + (0 if fizzle else 1),
+			font_size + (0 if tone == Tone.FIZZLE else 1),
 			AMOUNT_WEIGHT,
-			_amount_colour(parts[1], fizzle),
+			_amount_colour(parts[1], tone),
 			line_height
 		)
 		amount.name = "Amount"
 		amount.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		row.add_child(amount)
-		var least: float = 0.0 if fizzle else AMOUNT_MIN
+		var least: float = 0.0 if tone == Tone.FIZZLE else AMOUNT_MIN
 		amount_width = maxf(least, amount.get_minimum_size().x) + AMOUNT_PAD
 	var text: Label = MonitorKit.bold(parts[0], font_size, weight, colour, line_height)
 	text.name = "Text"
@@ -834,12 +847,16 @@ func _add_row(
 	return row
 
 
-## An amount's colour: a fizzle's tomato, a factor's ("×3") amber, any other (a "+€1", a payment)
-## ink.
-static func _amount_colour(amount: String, fizzle: bool) -> Color:
-	if fizzle:
+## An amount's colour: tomato (a fizzle's, a harmful line's), amber (a factor, "×3"), else ink.
+static func _amount_colour(amount: String, tone: Tone) -> Color:
+	if tone != Tone.PLAIN:
 		return Palette.TOMATO_DARK
 	return Palette.MUSTARD_DARKEST if amount.begins_with("×") else Palette.INK
+
+
+## A line's tone: a fizzle's, else a harmful line's, else plain.
+static func tone_of(fizzle: bool, harmful: bool) -> Tone:
+	return Tone.FIZZLE if fizzle else (Tone.HARM if harmful else Tone.PLAIN)
 
 
 ## Whether `row`'s text needs more lines than it shows (it ends in an ellipsis).
@@ -848,20 +865,20 @@ static func _overruns(row: Control) -> bool:
 	return text != null and text.get_line_count() > text.max_lines_visible
 
 
-## A line's mark: the fizzle icon, a giver's mini, ✦ (a "gives" line) or ✓.
-func _mark(fizzle: bool, gives: bool, giver_mini: Texture2D, font_size: int) -> Control:
-	var texture: Texture2D = FIZZLE_ICON if fizzle else giver_mini
+## A line's mark: the fizzle icon, a giver's mini, ✦ ("gives"), a tomato ! (harmful) or a green ✓.
+func _mark(tone: Tone, gives: bool, giver_mini: Texture2D, font_size: int) -> Control:
+	var texture: Texture2D = FIZZLE_ICON if tone == Tone.FIZZLE else giver_mini
 	if texture != null:
 		var icon: TextureRect = UiKit.sprite(texture)
 		icon.size = MARK_SIZE
 		return icon
 	var font: Font = MachineDisplay.marked_font(800)
-	var text: String = CHECK_MARK
+	var text: String = HARM_MARK if tone == Tone.HARM else CHECK_MARK
+	var colour: Color = Palette.TOMATO_DARK if tone == Tone.HARM else Palette.GREEN_DARK
 	if gives:
 		text = GIVE_MARK if font.has_char(GIVE_MARK.unicode_at(0)) else GIVE_FALLBACK
-	var label: Label = MonitorKit.bold(
-		text, font_size, 800, Palette.MUSTARD_DARK if gives else Palette.GREEN_DARK, MARK_SIZE.y
-	)
+		colour = Palette.MUSTARD_DARK
+	var label: Label = MonitorKit.bold(text, font_size, 800, colour, MARK_SIZE.y)
 	label.add_theme_font_override("font", font)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.size = MARK_SIZE

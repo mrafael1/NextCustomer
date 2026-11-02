@@ -105,6 +105,63 @@ func test_a_boon_multiplier_plays_in_the_count_up() -> void:
 	await _check_boon_count_up("free_samples", CountUpBeat.Kind.STAMP)
 
 
+## A harmful day event's line on the monitor (the user's call of 2026-11-02): Late delivery's
+## "−€2 Dairy pays less" and the Spot check's €0 (slot 3, the 3rd Milk) print in tomato with the
+## "!" mark, never the green ✓, in planning (the scan's item lines) and at the count's end (a
+## resumed checkout's last item), inside the item column; their amounts keep their signs.
+func test_harmful_lines_are_tomato_on_the_monitor() -> void:
+	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
+	var screen: ShiftScreen = runner.scene()
+	screen._debug.set_inspection("late_delivery")
+	# Two events at once, so one row shows both (the debug panel sets one).
+	screen.run.inspections.append(load("res://data/inspections/spot_check.tres"))
+	_place_ids(screen, ["milk", "bread", "milk"])
+	await _frames(3)
+	var lines: ScanController.ItemLines = screen._scan.item_lines(2)
+	assert_int(lines.harms.count(true)).is_equal(2)
+	assert_bool(lines.fizzles.has(true)).is_false()
+	screen._monitor.show_scan(screen.run.row[2].definition, screen.run.preview().tags[2], lines)
+	await _frames(1)
+	_assert_harmful_rows(screen, ["−€2", "= 0"])
+	# Bread's planning lines are untouched by either event.
+	(
+		assert_array(screen._scan.item_lines(1).harms.filter(func(each: bool) -> bool: return each))
+		. is_empty()
+	)
+	screen._monitor.end_scan()
+	var result: ScoreResult = screen.run.preview()
+	screen._count_up.show_end_state(result, screen.run.quota(), screen.count_up_context())
+	screen._monitor.show_end_state(
+		screen._count_up.plan, screen._row_views, false, result, screen._scan.line_of
+	)
+	await _frames(2)
+	_assert_harmful_rows(screen, ["−€2", "= 0"])
+
+
+## The item column's step rows with these `amounts` are tomato with the "!" mark, inside the
+## column; every other row with a mark keeps it off tomato.
+func _assert_harmful_rows(screen: ShiftScreen, amounts: Array[String]) -> void:
+	var column: MonitorItemColumn = screen._monitor.item_column()
+	var area: Rect2 = column.get_global_rect().grow(0.5)
+	var found: Array[String] = []
+	for row: Control in column.step_rows():
+		var amount: Label = row.get_node_or_null("Amount") as Label
+		if amount == null or not amount.text in amounts:
+			continue
+		found.append(amount.text)
+		var mark: Label = row.get_node("Mark") as Label
+		assert_str(mark.text).is_equal(MonitorItemColumn.HARM_MARK)
+		assert_that(mark.get_theme_color("font_color")).is_equal(Palette.TOMATO_DARK)
+		assert_that(amount.get_theme_color("font_color")).is_equal(Palette.TOMATO_DARK)
+		var text: Label = row.get_node("Text") as Label
+		assert_that(text.get_theme_color("font_color")).is_equal(Palette.TOMATO_DARK)
+		assert_bool(area.encloses(row.get_global_rect())).is_true()
+		assert_float(text.get_global_rect().end.x).is_less_equal(
+			amount.get_global_rect().position.x
+		)
+	assert_array(found).contains_exactly_in_any_order(amounts)
+
+
 func _check_boon_count_up(id: String, expected: CountUpBeat.Kind) -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()

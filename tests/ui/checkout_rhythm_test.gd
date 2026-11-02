@@ -121,6 +121,78 @@ func test_multipliers_keep_their_symbol_and_the_payout_shows_its_equation() -> v
 	await get_tree().process_frame
 
 
+## A harmful line (a day event's "−€2", an inspection's "= 0") prints in tomato, its text and its
+## amount, with a tomato "!" mark and never the green ✓, in the count and in planning (full and
+## compact); its amount keeps its sign. A good line keeps its green ✓, its teal words.
+func test_harmful_lines_are_tomato_with_no_green_check() -> void:
+	var column: MonitorItemColumn = auto_free(MonitorItemColumn.new())
+	add_child(column)
+	column.reduced_motion = func() -> bool: return true
+	column.start_item(MILK, PackedStringArray(["Dairy"]))
+	column.show_step("+€2 Eggs", false)
+	column.show_step("−€2 Dairy pays less", false, false, null, false, true)
+	column.show_step("Spot check: the 3rd product pays €0  = 0", false, false, null, false, true)
+	_assert_good(column.step_rows()[0])
+	for row: Control in column.step_rows().slice(1):
+		_assert_harmful(row, column)
+	assert_str((column.step_rows()[1].get_node("Amount") as Label).text).is_equal("−€2")
+	assert_str((column.step_rows()[2].get_node("Amount") as Label).text).is_equal("= 0")
+	var lines: PackedStringArray = PackedStringArray(
+		["+€2 Eggs", "−€2 Dairy pays less", "Spot check: the 3rd product pays €0  = 0"]
+	)
+	var harms: Array[bool] = [false, true, true]
+	for count: int in [3, 9]:
+		var shown: PackedStringArray = PackedStringArray()
+		var shown_harms: Array[bool] = []
+		for index: int in range(count):
+			shown.append(lines[index % 3])
+			shown_harms.append(harms[index % 3])
+		var none: Array[bool] = []
+		var no_minis: Array[Texture2D] = []
+		column.show_item(
+			MILK, PackedStringArray(["Dairy"]), 0, shown, none, 0, no_minis, false, shown_harms
+		)
+		var rows: Array[Control] = (
+			column.pages.all_rows() if column.pages != null else column.step_rows()
+		)
+		assert_int(rows.size()).is_equal(count)
+		for index: int in range(count):
+			if shown_harms[index]:
+				_assert_harmful(rows[index], null)
+			else:
+				_assert_good(rows[index])
+	remove_child(column)
+	await get_tree().process_frame
+
+
+func _assert_good(row: Control) -> void:
+	var mark: Label = row.get_node("Mark") as Label
+	assert_str(mark.text).is_equal(MonitorItemColumn.CHECK_MARK)
+	assert_that(mark.get_theme_color("font_color")).is_equal(Palette.GREEN_DARK)
+	assert_that(_colour(row, "Text")).is_equal(Palette.TEAL_DARK)
+	assert_that(_colour(row, "Amount")).is_equal(Palette.INK)
+
+
+## `row` is tomato with the "!" mark; inside `column` (when given), its mark left of its text and
+## its text left of its amount.
+func _assert_harmful(row: Control, column: Control) -> void:
+	var line: String = String(row.get_meta(&"line"))
+	var mark: Label = row.get_node("Mark") as Label
+	assert_object(mark).override_failure_message(line).is_not_null()
+	assert_str(mark.text).is_equal(MonitorItemColumn.HARM_MARK)
+	assert_that(mark.get_theme_color("font_color")).is_equal(Palette.TOMATO_DARK)
+	assert_that(mark.get_theme_color("font_color")).is_not_equal(Palette.GREEN_DARK)
+	assert_that(_colour(row, "Text")).override_failure_message(line).is_equal(Palette.TOMATO_DARK)
+	assert_that(_colour(row, "Amount")).is_equal(Palette.TOMATO_DARK)
+	if column == null:
+		return
+	var text: Rect2 = (row.get_node("Text") as Control).get_global_rect()
+	var amount: Rect2 = (row.get_node("Amount") as Control).get_global_rect()
+	assert_bool(column.get_global_rect().grow(0.5).encloses(row.get_global_rect())).is_true()
+	assert_float(mark.get_global_rect().end.x).is_less_equal(text.position.x)
+	assert_float(text.end.x).is_less_equal(amount.position.x)
+
+
 ## The register's follower keeps a tally (v0.84): bonus lines, WASTED and items paid, never the
 ## total the gauge shows. Its display is gone (2026-11-01): it shows nothing and has no labels.
 ## It follows the reading's met and clears for planning.
