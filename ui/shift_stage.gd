@@ -27,12 +27,14 @@ extends Control
 ## the basket redraw's pop layer, their fronts, and the redraw's targets and tags, BasketTags), the
 ## shade that darkens them while counting and the redraw layer (the basket redraw's flights into the
 ## Cart and its sparks, over the top bar). Over the fore's parts the quota crossing's bonus lights
-## (BonusLights) and the count's rail light (RailLight, #86 kept by #105 piece 2: the price rail lit
-## gold from a giver's ticket to its target's). Over them all the quota crossing (QuotaCrossing: its
-## flag, streak and lap stamps), the scan layer (ScanOverlay: the scan's brackets and beam) and the
-## popup layer, all taking no clicks. A belt or hand item's scan shows on the monitor (#80); the
-## popup layer only parks the hidden scan popup, which opens over the offers alone, in the layer an
-## offer's scan moves it to (ScanController.cover_offers). The receipt stands on the printer's slot
+## (BonusLights, over the count's quota light, QuotaLight: the band filling toward the belt's far
+## end with the running total against the quota) and the count's rail light (RailLight, #86 kept by
+## #105 piece 2: the price rail lit gold from a giver's ticket to its target's). Over them all the
+## quota crossing (QuotaCrossing: its flag, streak and lap stamps), the scan layer (ScanOverlay: the
+## scan's brackets and beam) and the popup layer, all taking no clicks. A belt or hand item's scan
+## shows on the monitor (#80); the popup layer only parks the hidden scan popup, which opens over
+## the offers alone, in the layer an offer's scan moves it to (ScanController.cover_offers). The
+## receipt stands on the printer's slot
 ## and grows up as its lines print, up to under the top bar; past that it scrolls to its newest
 ## line.  It only builds and lays out: the screen fills the controls, and its buttons emit the
 ## signals below. Its controls are public on purpose: the stage is ShiftScreen's layout part (as
@@ -201,8 +203,11 @@ var bag: PaperBag
 ## popup opens in.
 ## The count's rail light over the price rail (#105 piece 2), last in the fore.
 var rail_light: RailLight
+## The count's quota light on the belt's apron band (shift scene polish v2, section 1), first of
+## the band's lights in the fore.
+var quota_light: QuotaLight
 ## The quota crossing (A, B and E over the stage) and its bonus lights on the rail (D, in the fore
-## under the rail light).
+## over the quota light, under the rail light).
 var quota_crossing: QuotaCrossing
 var bonus_lights: BonusLights
 var scan_layer: ScanOverlay
@@ -263,6 +268,8 @@ func _init(slot_count: int) -> void:
 ## crossing.
 func follow_count(count_up: CountUp) -> void:
 	crowd.follow(count_up)
+	quota_light.reduced_motion = func() -> bool:
+		return count_up.plan != null and count_up.plan.reduced_motion
 	quota_crossing.follow(count_up, top_bar.quota_meter, bonus_lights)
 
 
@@ -374,6 +381,7 @@ func _fit_belt(cells: int) -> void:
 	crowd.belt_cut = belt.cut()
 	if bonus_lights != null:
 		bonus_lights.belt_cut = belt.cut()
+		quota_light.belt_cut = belt.cut()
 
 
 ## Rests the row on ROW_BOTTOM: a scaled row is shorter, so it starts lower. The scanner's plate
@@ -432,10 +440,17 @@ func _build_keys() -> void:
 	seed_label = cabinet.seed_label
 
 
-## The bonus lights and the rail light (last in the fore), then the quota crossing, the scan layer
-## and the popup layer (where the hidden scan popup waits) over the whole stage.
+## The quota light, the bonus lights over it and the rail light (last in the fore), then the quota
+## crossing, the scan layer and the popup layer (where the hidden scan popup waits) over the whole
+## stage.
 func _build_scan_layers() -> void:
+	quota_light = QuotaLight.new()
+	quota_light.size = SIZE
+	quota_light.belt_cut = belt.cut()
+	quota_light.follow(led)
+	fore.add_child(quota_light)
 	bonus_lights = BonusLights.new()
+	bonus_lights.on_fill = true
 	bonus_lights.size = SIZE
 	bonus_lights.belt_cut = belt.cut()
 	fore.add_child(bonus_lights)
