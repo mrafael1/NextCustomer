@@ -49,7 +49,8 @@ func test_phase_2_cards_score_the_design_examples(
 		# Breakfast (#42); Milk (4 + 1 x 2 earlier Breakfast) x3 Multipack = 18; 1 + 4 + 18.
 		["eggs,yogurt,multipack,milk", 23],
 		# Bulb 1; buns 2 + 3 after Clearance + 3 from the bulb; can 2 + 2 x 2 earlier Clearance.
-		["flickering_bulb,day_old_buns,dented_can", 15],
+		# #128 v3 (redraw tension, no redraw made or left here): was 15, 33, 33 and 22.
+		["flickering_bulb,day_old_buns,dented_can", 8],
 		# Repeat copies Bread's 5; Scissors 1 + 2 for Repeat; Batteries 1, its charge unused (no
 		# product just after it, #128).
 		["bread,repeat,scissors,batteries", 14],
@@ -57,7 +58,7 @@ func test_phase_2_cards_score_the_design_examples(
 		["butter,bread,crackers,soup,cereal,milk", 31],
 		# Banana 2, Yogurt 5, Carrier bag 1 + 8 x 2 Food beside it (#128), Reduced yogurt 5,
 		# Dented can 4.
-		["banana,yogurt,carrier_bag,reduced_yogurt,dented_can", 33],
+		["banana,yogurt,carrier_bag,reduced_yogurt,dented_can", 31],
 		# Tea bags isn't Food: Eggs skips it. Tea bags x4 on Bread: 1 + 20.
 		["tea_bags,bread", 21],
 		# 2 for 1 links the Bananas: the pair bonus applies, then ×2 (2 + 0 + 8).
@@ -80,9 +81,9 @@ func test_phase_2_cards_score_the_design_examples(
 		["birthday_candles,croissant,baguette,iced_bun,stale_doughnut", 59],
 		# Snacks: Bread 5; Crisps 5; Stale popcorn 2; Cereal bar 2 + 2 + 3; Bent lolly 5; Pick 'n'
 		# mix 1 + 2 x 4 earlier Snack.
-		["bread,crisps,stale_popcorn,cereal_bar,bent_lolly,pick_n_mix", 33],
+		["bread,crisps,stale_popcorn,cereal_bar,bent_lolly,pick_n_mix", 16],
 		# Clearance: Ham ends 2; Squashed cake 2; Reduced yogurt (2 + 3) x2; Dented can 2 + 2 x 3.
-		["ham_ends,squashed_cake,reduced_yogurt,dented_can", 22],
+		["ham_ends,squashed_cake,reduced_yogurt,dented_can", 16],
 		# Key items: Egg timer 1 + 4 after Eggs; Bread 5 x2 takes Eggs' one charge; Milk 4 + 1 x 3
 		# earlier Breakfast.
 		["eggs,egg_timer,bread,milk", 23],
@@ -122,7 +123,10 @@ func test_base_products_fizzle(
 		["bread,scissors", [[1, "Scissors: earlier coupons", "no coupon before it"]]],
 		["repeat,scissors", [[0, "Repeat", "no product just before it to copy"]]],
 		["tea_bags,soup", [[0, "Tea bags ×4", "1 charge unused"]]],
-		["flickering_bulb,bread", [[0, "Flickering bulb bonus", "no Clearance product after it"]]],
+		[
+			"flickering_bulb,bread",
+			[[0, "Flickering bulb after WASTED", "the product just before it was not WASTED"]],
+		],
 		["batteries,bread", [[0, "Batteries charge", "no Household product just after it"]]],
 		["batteries", [[0, "Batteries charge", "no Household product just after it"]]],
 		["batteries,odd_socks", []],
@@ -285,12 +289,15 @@ func test_stickers_show_every_rule_value() -> void:
 					assert_str(template).override_failure_message(message).contains(
 						"{%s}" % CardText.BATCH_KEY
 					)
+				elif key == "percent" and rule == CardText.live_rule(card):
+					# A live factor's percent shows through {factor} (#128 v3: Stale popcorn).
+					assert_str(template).override_failure_message(message).contains("{factor}")
 				elif _is_set(key, rule.get(key)):
 					assert_bool(shows).override_failure_message(message + " " + key).is_true()
 	# Cheese, Crisps, Breadsticks, Cereal, Chipped mug, Crackers, Egg timer, Soft tomatoes, Sugar
 	# cubes and Yogurt, plus their BIG and GOLDEN tiers (Cheese, Cereal, Crackers and Yogurt in
-	# v0.48, the six capsule products in v0.52).
-	assert_int(named_products).is_equal(30)
+	# v0.48, the six capsule products in v0.52). Crisps left in #128 v3 (IMPULSE, no Bread).
+	assert_int(named_products).is_equal(27)
 
 
 ## A charged multiplier's sticker says "next": with one charge that is the next product, so the

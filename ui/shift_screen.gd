@@ -766,6 +766,9 @@ func _refresh_buttons() -> void:
 	var planning: bool = run.phase == RunState.Phase.PLANNING and not _counting and not _redraw_busy
 	_checkout_button.disabled = not planning
 	var left: int = run.redraws_allowed - run.redraws_used
+	for view: ItemView in item_views():  # Live factors (#128 v3: Stale popcorn's ×N).
+		view.sticker().redraws_left = left
+	_monitor.redraws_left = left
 	var to_draw: bool = not run.deck.draw_pile().is_empty()
 	_redraw_button.disabled = not planning or left <= 0 or not to_draw
 	_cancel_button.visible = _redraw_mode

@@ -83,6 +83,8 @@ static func rule_family(
 		return (rule as BatchRoleRule).tag
 	if rule is BakedBatchBonusRule:
 		return (rule as BakedBatchBonusRule).tag
+	if rule is SnackSpreadRule:
+		return (rule as SnackSpreadRule).tag
 	var adjacent: AdjacentMatchBonusRule = rule as AdjacentMatchBonusRule
 	if adjacent == null:
 		return ""
@@ -131,6 +133,8 @@ static func rule_reason(rule: Rule, owner: CardDefinition, find_card: Callable) 
 		return Why.new(Reason.FAMILY, (rule as BatchRoleRule).tag)
 	if rule is BakedBatchBonusRule:
 		return Why.new(Reason.FAMILY, (rule as BakedBatchBonusRule).tag)
+	if rule is SnackSpreadRule:
+		return Why.new(Reason.FAMILY, (rule as SnackSpreadRule).tag)
 	var adjacent: AdjacentMatchBonusRule = rule as AdjacentMatchBonusRule
 	if adjacent == null:
 		return Why.new(Reason.NONE)

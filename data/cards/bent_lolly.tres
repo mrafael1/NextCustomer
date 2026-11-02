@@ -1,16 +1,16 @@
 [gd_resource type="Resource" script_class="CardDefinition" format=3]
 
 [ext_resource type="Script" path="res://core/rule.gd" id="1_rule"]
-[ext_resource type="Script" path="res://core/rules/adjacent_match_bonus_rule.gd" id="2_bent_lolly"]
+[ext_resource type="Script" path="res://core/rules/snack_spread_rule.gd" id="2_bent_lolly"]
 [ext_resource type="Script" path="res://core/card_definition.gd" id="3_card"]
 
 [sub_resource type="Resource" id="Resource_bent_lolly"]
 script = ExtResource("2_bent_lolly")
-match_by = 3
-match_value = "Snack"
-position = 1
-bonus = 3
-receipt_text = "Bent lolly after Snack"
+spread = 2
+tag = "Snack"
+bonus_each = 2
+max_count = 3
+receipt_text = "Bent lolly: gap to Snack"
 
 [resource]
 script = ExtResource("3_card")
@@ -20,8 +20,8 @@ kind = 1
 tags = PackedStringArray("Food", "Snack", "Clearance")
 base = 2
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_bent_lolly")])
-rule_text = "+3 if immediately after a Snack product"
-sticker_text = "+{bonus} after {match_value}"
+rule_text = "+2 for each product between it and the nearest other Snack, up to 3"
+sticker_text = "+{bonus_each} per gap to another {tag}"
 art_ref = "res://art/items_v2/bent_lolly.png"
 mini_art_ref = "res://art/minis/bent_lolly.png"
 mini_golden_art_ref = "res://art/minis/bent_lolly_golden.png"

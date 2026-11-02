@@ -64,5 +64,11 @@ func on_scanned(_state: ScoreState, _slot: int) -> void:
 	pass
 
 
+## True for a rule that reads ScoreState.wasted (#128 v3: Dusty toffees, Flickering bulb), so a
+## total-only score still records which earlier products were WASTED.
+func reads_waste() -> bool:
+	return false
+
+
 func text_for(card: CardDefinition) -> String:
 	return receipt_text if not receipt_text.is_empty() else card.display_name

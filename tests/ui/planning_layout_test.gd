@@ -20,13 +20,13 @@ const SCREEN_RECT := Rect2(0, 0, 1280, 720)
 ## fizzle and Slot engine's stamp.
 const REFERENCE_ROW: Array[String] = ["eggs", "bread", "milk", "multipack", "milk", "milk", "milk"]
 const REFERENCE_UPGRADES: Array[String] = ["coupon_engine", "slot_engine"]
-## Squashed cake, the last product, takes Flickering bulb's +3, Multipack's ×3, Birthday candles'
-## +3, Eggs' ×2, Tea bags' ×4 (with the Breakfast tag) and Category engine's bonus. The 8 cards
-## need Big basket's 8th slot (v0.56: 7 general slots; Extra coupon slot, which gave it before,
-## was removed).
+## Squashed cake, the last product, takes Big Squashed cake's ×2 (Flickering bulb's +3 until
+## #128 v3), Multipack's ×3, Birthday candles' +3, Eggs' ×2, Tea bags' ×4 (with the
+## Breakfast tag) and Category engine's bonus. The 8 cards need Big basket's 8th slot (v0.56:
+## 7 general slots; Extra coupon slot, which gave it before, was removed).
 const STRESS_ROW: Array[String] = [
 	"bread",
-	"flickering_bulb",
+	"squashed_cake_big",
 	"multipack",
 	"birthday_candles",
 	"eggs",

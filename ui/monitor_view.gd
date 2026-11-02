@@ -86,6 +86,12 @@ const WHEEL_BUTTONS: Array[MouseButton] = [
 var reduced_motion: Callable = Callable()
 ## The register's reading (the model the checkout column and the top bar follow) and the notices.
 var upgrades: Array[UpgradeDefinition] = []
+## The shift's redraws left, for a live factor in the item's effect text (-1: the rule's own).
+var redraws_left: int = -1:
+	set(value):
+		redraws_left = value
+		if _items != null:
+			_items.redraws_left = value
 var led: LedDisplay
 var notice_label: NoticeLabel
 ## The DONE state's "INSPECTION PASSED ✓" label, for checks (read only).
@@ -152,6 +158,7 @@ func _init() -> void:
 	_items = MonitorItemColumn.new()
 	_items.position = local(ITEM_RECT).position
 	_items.reduced_motion = _wants_reduced_motion
+	_items.redraws_left = redraws_left
 	add_child(_items)
 	_checkout = CheckoutColumn.new()
 	_checkout.position = local(CHECKOUT_RECT).position

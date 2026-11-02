@@ -38,6 +38,13 @@ func flat_bonus(_state: ScoreState, _slot: int) -> int:
 	return 0
 
 
+## A fractional effect's factor in percent (#128 v3: Stale popcorn's ×1.5 is 150), or 0 for a
+## whole one. When not 0, a target takes this percent (ScoreStep.times_percent) in place of
+## multiplier()'s factor, which is then only that factor rounded, for the steps' `value`.
+func percent() -> int:
+	return 0
+
+
 func multiplier(_state: ScoreState, _slot: int) -> int:
 	return 1
 

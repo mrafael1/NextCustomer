@@ -70,10 +70,14 @@ const CHAINED: Array[StringName] = [
 ## hand instead: GOLDEN Batteries pays ×3 just after (#128, the user's call of 2026-11-01), as a
 ## charge it gains would never be used (only the product just after it can take one); GOLDEN Iced
 ## bun glazes ×3 (#128 v3), as a glaze has no charge to gain; GOLDEN Lemon's knot is ×3 (#128
-## Produce links, 2026-11-02), as a knot has no charge to gain either.
+## Produce links, 2026-11-02), as a knot has no charge to gain either; GOLDEN Flickering bulb is
+## ×4 after a WASTED product (#128 v3), a multiplier with no charge; GOLDEN Stale popcorn adds 75%
+## per redraw left in place of 50% (the user's call of 2026-11-02), keeping its one charge.
 const TIER_BASE_STEP := 2
 const HAND_SET: Dictionary[StringName, Dictionary] = {
 	&"batteries": {"factor": 3, "charges": 1},
+	&"flickering_bulb": {"factor": 4},
+	&"stale_popcorn": {"factor": 2, "charges": 1},
 	&"iced_bun": {"factor": 3},
 	&"lemon": {"factor": 3},
 }
@@ -269,8 +273,8 @@ func test_tier_values_and_stickers(
 		["tea_bags_golden", 3, "×4 next 2 Breakfast"],
 		["crackers_big", 4, "+3 beside Soup"],
 		["crackers_golden", 4, "+6 beside Soup"],
-		["dented_can_big", 4, "+2 per earlier Clearance"],
-		["dented_can_golden", 4, "+4 per earlier Clearance"],
+		["dented_can_big", 4, "+2 per card redrawn"],
+		["dented_can_golden", 4, "+4 per card redrawn"],
 		["day_old_buns_big", 4, "+3 after Clearance"],
 		["day_old_buns_golden", 4, "+6 after Clearance"],
 		["carrier_bag_big", 3, "+8 per Food beside"],
@@ -279,8 +283,8 @@ func test_tier_values_and_stickers(
 		["scissors_golden", 3, "+4 per earlier coupon"],
 		["batteries_big", 3, "×2 Household just after"],
 		["batteries_golden", 3, "×3 Household just after"],
-		["flickering_bulb_big", 3, "+3 next Clearance"],
-		["flickering_bulb_golden", 3, "+6 next Clearance"],
+		["flickering_bulb_big", 3, "×3 after WASTED"],
+		["flickering_bulb_golden", 3, "×4 after WASTED"],
 		# A few of the capsule products' (v0.52): the knot and charged multipliers and the flat
 		# Potatoes; the Produce links (#128).
 		["lemon_big", 3, "CHAIN middle: ×2 prev"],
@@ -297,7 +301,7 @@ func test_tier_values_and_stickers(
 		["squashed_cake_golden", 4, "×2 next 2 Clearance"],
 		["potatoes_big", 5, ""],
 		["potatoes_golden", 7, ""],
-		["pick_n_mix_golden", 3, "+4 per earlier Snack"],
+		["pick_n_mix_golden", 3, "+6 per lone Snack"],
 	]
 ) -> void:
 	var card: CardDefinition = _card(id)
@@ -330,7 +334,7 @@ func test_changed_fields_from_the_tier_below(
 		["carrier_bag", PackedStringArray(["base"]), PackedStringArray(["bonus"])],
 		["scissors", PackedStringArray(["base"]), PackedStringArray(["bonus_each"])],
 		["batteries", PackedStringArray(["base"]), PackedStringArray(["factor"])],
-		["flickering_bulb", PackedStringArray(["base"]), PackedStringArray(["bonus"])],
+		["flickering_bulb", PackedStringArray(["base"]), PackedStringArray(["factor"])],
 		["lemon", PackedStringArray(["base"]), PackedStringArray(["factor"])],
 		["potatoes", PackedStringArray(["base"]), PackedStringArray(["base"])],
 		["mixed_herbs", PackedStringArray(["base"]), PackedStringArray(["bonus"])],

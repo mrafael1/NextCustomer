@@ -12,10 +12,10 @@ extends RefCounted
 ## that too when that word is a count ("next 2 Food" wraps as one piece), so a glyph never
 ## starts a line alone.
 ##
-## A keyword (#128: CardText.BATCH_WORD and CHAIN_WORD, from a template's `{batch}` or `{chain}`)
-## is a keyword run, {"text": word, "family": "", "keyword": word}, that a label draws as a boxed
-## chip with its tooltip (KEYWORD_TIPS). It is glued to the plain word after it ("BATCH 1st:"
-## wraps as one piece), so a chip never ends a line alone.
+## A keyword (#128: CardText.BATCH_WORD, CHAIN_WORD and WASTED_WORD, from a template's `{batch}`,
+## `{chain}` or `{wasted}`) is a keyword run, {"text": word, "family": "", "keyword": word}, that
+## a label draws as a boxed chip with its tooltip (KEYWORD_TIPS). It is glued to the plain word
+## after it ("BATCH 1st:" wraps as one piece), so a chip never ends a line alone.
 
 ## Punctuation that may follow a family's name (or a keyword) and stays text after its glyph (or
 ## chip); the ellipsis of a line the monitor cuts short (MonitorItemColumn) too.
@@ -34,6 +34,11 @@ const KEYWORD_TIPS: Dictionary[String, String] = {
 		+ "Each Banana adds the price of the one before it. "
 		+ "Each card's line says where by the chain it works."
 	),
+	CardText.WASTED_WORD:
+	(
+		"WASTED · A product whose own line did nothing where it stands. "
+		+ "Clearance cards turn WASTED products before them into money."
+	),
 }
 ## The least size each keyword's tooltip names (its `%d`).
 const KEYWORD_SIZES: Dictionary[String, int] = {
@@ -45,13 +50,15 @@ const KEYWORD_SIZES: Dictionary[String, int] = {
 ## The text's unbreakable pieces, in order, each an Array of runs; a line may break between
 ## two pieces (where the text had a space). A glued piece's text run ends with its space ("next
 ## 2 "), so the glyph follows it on the line.
-static func pieces(text: String, palette: FamilyPalette) -> Array[Array]:
+## `live` (#128 v3, Stale popcorn's ×N) maps a live word to its tooltip: that word is a keyword run
+## too (a chip), with its own tip (run_tip) instead of a KEYWORD_TIPS one.
+static func pieces(text: String, palette: FamilyPalette, live: Dictionary = {}) -> Array[Array]:
 	var found: Array[Array] = []
 	var after_keyword: bool = false
 	for word: String in text.split(" ", false):
 		var stem: String = word.rstrip(TRAILING)
-		if KEYWORD_TIPS.has(stem):
-			var keyword: Array = [keyword_run(stem)]
+		if KEYWORD_TIPS.has(stem) or live.has(stem):
+			var keyword: Array = [keyword_run(stem, str(live.get(stem, "")))]
 			if stem.length() < word.length():
 				keyword.append(text_run(word.substr(stem.length())))
 			found.append(keyword)
@@ -131,8 +138,22 @@ static func glyph_run(family: String, word: String = "") -> Dictionary:
 
 
 ## A keyword run for `word` (a KEYWORD_TIPS key), drawn as a chip.
-static func keyword_run(word: String) -> Dictionary:
+static func keyword_run(word: String, tip: String = "") -> Dictionary:
+	if not tip.is_empty():
+		return {"text": word, "family": "", "keyword": word, "tip": tip}
 	return {"text": word, "family": "", "keyword": word}
+
+
+## A keyword run's tooltip: a live word's own (keyword_run's `tip`), else keyword_tip's.
+static func run_tip(run: Dictionary) -> String:
+	if run.has("tip"):
+		return str(run["tip"])
+	return keyword_tip(str(run.get("keyword", "")))
+
+
+## Whether a keyword run is a live word (its own tip): a value chip, not a family keyword.
+static func is_live(run: Dictionary) -> bool:
+	return run.has("tip")
 
 
 static func is_glyph(run: Dictionary) -> bool:

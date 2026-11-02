@@ -61,13 +61,15 @@ const TOTALS: Dictionary[String, Dictionary] = {
 		"produce_regulars_lv3": 58,
 	},
 	"R4":
+	# #128 v3 (Clearance: Dented can reads redraws, none here; Flickering bulb wants a WASTED
 	{
-		"": 44,
-		"clearance_regulars": 63,
-		"clearance_aisle_run": 54,
-		"mixed_basket": 53,
-		"bulk_deal": 50,
-		"fire_sale": 49,
+		# product before it): was 44, 63, 54, 53, 50, 49.
+		"": 23,
+		"clearance_regulars": 42,
+		"clearance_aisle_run": 33,
+		"mixed_basket": 32,
+		"bulk_deal": 29,
+		"fire_sale": 28,
 	},
 	"R5":
 	{

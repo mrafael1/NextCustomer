@@ -26,7 +26,7 @@ const READINGS: Dictionary[String, String] = {
 	"banana": "CHAIN +prev",
 	"batteries": "×N Household just after",
 	"two_for_one": "Same both sides: 2nd ×N",
-	"crisps": "+N beside Bread",
+	"crisps": "+N per redraw left",
 	"coffee": "+N next Breakfast",
 	"milk": "+N per earlier Breakfast",
 	"cheese": "+N after Bread",
@@ -60,7 +60,8 @@ func test_every_ticket_lays_out_inside_and_apart() -> void:
 		add_child(sticker)
 		var id: String = String(definition.id)
 		var summary: GlyphLabel = sticker.summary()
-		if summary.text != definition.sticker_summary():
+		# A live factor reads the balance's base redraws off the shift (#128 v3).
+		if summary.text != CardText.sticker_summary(definition, sticker.redraws_left):
 			problems.append("%s: summary '%s'" % [id, summary.text])
 		if not summary.fits() or summary.line_count() > PriceSticker.MAX_SUMMARY_LINES:
 			problems.append("%s: summary over 2 lines" % id)
@@ -102,6 +103,39 @@ func test_the_v2_cards_read_as_approved() -> void:
 		assert_str(number.sub(text, "N", true)).override_failure_message(card_id).is_equal(
 			READINGS[card_id]
 		)
+
+
+## Stale popcorn's ×N is live (#128 v3): off the shift it reads the balance's base redraws (2:
+## ×3), and the shift's redraws left change it (1: ×2, 0: ×1; Golden ×6, ×4, ×2). Its ×N is a
+## gold chip whose tooltip says how it grows, the way Eggs' and Tea bags' ×N reads.
+func test_a_live_factor_follows_the_redraws_left() -> void:
+	var sticker: PriceSticker = auto_free(PriceSticker.new(_card("stale_popcorn")))
+	add_child(sticker)
+	assert_str(sticker.summary().text).is_equal("×3 next Snack")
+	for left: int in [1, 0, 2]:
+		sticker.redraws_left = left
+		var word: String = ["×1", "×2", "×3"][left]
+		assert_str(sticker.summary().text).is_equal(word + " next Snack")
+		var live: Array[KeywordChip] = []
+		for chip: KeywordChip in sticker.summary().keywords():
+			if chip.is_live():
+				live.append(chip)
+		assert_int(live.size()).is_equal(1)
+		assert_str(live[0].keyword).is_equal(word)
+		assert_object(live[0].face_color()).is_equal(Palette.GOLD)
+		assert_str(live[0].tip_text).is_equal(
+			"%s now · ×1, plus 1 for each redraw left this shift (%d left)" % [word, left]
+		)
+	var golden: PriceSticker = auto_free(PriceSticker.new(_card("stale_popcorn_golden")))
+	assert_str(golden.summary().text).is_equal("×6 next Snack")
+	golden.redraws_left = 0
+	assert_str(golden.summary().text).is_equal("×2 next Snack")
+	# A card with no live factor ignores the redraws.
+	var eggs: PriceSticker = auto_free(PriceSticker.new(_card("eggs")))
+	var eggs_text: String = eggs.summary().text
+	eggs.redraws_left = 0
+	assert_str(eggs.summary().text).is_equal(eggs_text)
+	assert_int(eggs.redraws_left).is_equal(-1)
 
 
 ## A card with no rule (Bread) shows only its price: an empty summary, its plain tag.
