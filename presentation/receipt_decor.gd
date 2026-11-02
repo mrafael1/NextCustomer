@@ -1,8 +1,8 @@
 class_name ReceiptDecor
 extends RefCounted
 ## What ReceiptView draws beside its text (#75, #80, #71): the hanging indent of a step line, the
-## combo band and diamond, the planning receipt's item marks (the raised check, the fizzle icon,
-## the inspection's warning), a hovered item's targets' fill and token chip, the dashed rules and
+## combo band and diamond, the planning receipt's item marks (the fizzle icon, the inspection's
+## warning), a hovered item's targets' fill and token chip, the dashed rules and
 ## the framed line's mustard frame. Display only: what gets marked is the receipt's call.
 
 ## A combo line's band behind it, at this alpha (ReceiptView.COMBO_* place its bar and diamond).
@@ -15,17 +15,6 @@ const HANG_MARKERS: Array[String] = ["+ ", "× "]
 ## A mark, from the line's right end (the end of its mark column, ReceiptView.MARK_COLUMN),
 ## centred on the line's first row.
 const MARK_RECT := Rect2(-14, -7, 14, 14)
-## The raised mark's check (B2's small thin tick, 8 x 7 px): one 1 px square per "#", centred in
-## the mark.
-const CHECK_ROWS: Array[String] = [
-	".......#",
-	"......##",
-	".....##.",
-	"#...##..",
-	"##.##...",
-	".###....",
-	"..#.....",
-]
 ## The framed line: a mustard-pale fill and a FRAME_WIDTH mustard frame.
 const FRAME_WIDTH := 2.0
 ## A hovered item's target line (relate): a mustard-pale fill and, before its amount, the token
@@ -39,7 +28,6 @@ const CHIP_PADDING := 3.0
 
 const FIZZLE_ICON := preload("res://art/icons/fizzle.png")
 const WARNING_ICON := preload("res://art/icons/warning.png")
-const CHECK_DISC := preload("res://art/icons/mark_check.png")
 
 
 ## Hangs an indented line's left `label`: its text starts past its lead and marker on every
@@ -95,25 +83,17 @@ static func perk(line: Control) -> void:
 
 ## Puts `kind` on `line`: a "Mark" inside its right label, at MARK_RECT in the line's mark
 ## column, centred on its left label's first row (a wrapped fizzle's mark sits beside the
-## reason's start): the check (RAISED, drawn), the fizzle icon (FIZZLED) or the warning icon
-## (DENIED, at its own aspect); the PROJECTED line's met mark (MET: the belt's mark_check disc,
-## unscaled, centred on the amount's height); nothing for NONE. Its "mark" meta holds `kind`.
+## reason's start): the fizzle icon (FIZZLED) or the warning icon (DENIED, at its own aspect);
+## nothing for NONE. Its "mark" meta holds `kind`.
 static func mark(line: HBoxContainer, kind: ReceiptView.Mark) -> void:
 	if kind == ReceiptView.Mark.NONE:
 		return
-	var icon: Control
+	var icon: TextureRect
 	if kind == ReceiptView.Mark.FIZZLED:
 		icon = _icon(FIZZLE_ICON)
-	elif kind == ReceiptView.Mark.DENIED:
-		icon = _icon(WARNING_ICON)
-		(icon as TextureRect).stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	elif kind == ReceiptView.Mark.MET:
-		icon = _icon(CHECK_DISC)
-		(icon as TextureRect).stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
 	else:
-		icon = Control.new()
-		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		icon.draw.connect(_draw_check.bind(icon))
+		icon = _icon(WARNING_ICON)
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	icon.name = "Mark"
 	icon.set_meta("mark", kind)
 	icon.set_anchors_preset(Control.PRESET_TOP_RIGHT)
@@ -124,17 +104,12 @@ static func mark(line: HBoxContainer, kind: ReceiptView.Mark) -> void:
 	icon.offset_right = MARK_RECT.end.x
 	icon.offset_top = middle + MARK_RECT.position.y
 	icon.offset_bottom = middle + MARK_RECT.end.y
-	if kind == ReceiptView.Mark.MET:
-		icon.anchor_top = 0.5
-		icon.anchor_bottom = 0.5
-		icon.offset_top = MARK_RECT.position.y
-		icon.offset_bottom = MARK_RECT.end.y
 	line.get_child(1).add_child(icon)
 
 
 ## Colours the PROJECTED `line`'s amount by the shown `total` against `quota` (a display difference,
-## as QuotaMeter's delta): GOOD with the met mark at or over it, TOMATO under it, so it never
-## relies on colour alone. Returns the shortfall's row ("short €12.00"), empty when met.
+## as QuotaMeter's delta): GOOD at or over it, TOMATO under it. Returns the shortfall's row
+## ("short €12.00", so a short total never relies on colour alone), empty when met.
 static func against_quota(line: HBoxContainer, total: int, quota: int) -> String:
 	var margin: ShiftMargin = ShiftMargin.of(total, quota)
 	var amount: Label = line.get_child(1) as Label
@@ -142,7 +117,6 @@ static func against_quota(line: HBoxContainer, total: int, quota: int) -> String
 		"font_color", Palette.GOOD if margin.passed() else Palette.TOMATO
 	)
 	if margin.passed():
-		mark(line, ReceiptView.Mark.MET)
 		return ""
 	return ReceiptView.SHORT_TEXT % ReceiptView.money(margin.amount())
 
@@ -268,20 +242,6 @@ static func _draw_combo_band(line: HBoxContainer) -> void:
 static func _draw_relation(line: HBoxContainer) -> void:
 	if line.get_meta("related", false):
 		line.draw_rect(Rect2(Vector2.ZERO, line.size), Palette.MUSTARD_PALE)
-
-
-## The raised mark's green check, centred in `icon`.
-static func _draw_check(icon: Control) -> void:
-	var origin: Vector2 = ((icon.size - check_size()) / 2.0).round()
-	for row: int in range(CHECK_ROWS.size()):
-		for column: int in range(CHECK_ROWS[row].length()):
-			if CHECK_ROWS[row][column] == "#":
-				icon.draw_rect(Rect2(origin + Vector2(column, row), Vector2.ONE), Palette.GOOD)
-
-
-## The check's size in pixels (CHECK_ROWS).
-static func check_size() -> Vector2:
-	return Vector2(CHECK_ROWS[0].length(), CHECK_ROWS.size())
 
 
 static func _draw_dashes(rule: HSeparator) -> void:

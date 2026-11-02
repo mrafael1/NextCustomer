@@ -1,9 +1,9 @@
 extends GdUnitTestSuite
 ## ReceiptView's planning receipt, count-up lines, header and combo lines (#75, #80). Planning
 ## (show_planning) is itemised: the header, a dashed rule, one line per item (name, payout with
-## cents, its mark: the check when raised, the fizzle icon when it fizzles), "n ·····" per open
-## empty slot, a dashed rule, "PROJECTED €N.00" (given the quota: green with the met mark at or over
-## it, red under it, the shortfall "short €1.00" on its own row under it), then the fizzle footer
+## cents, its mark: the fizzle icon when it fizzles, no check), "n ·····" per open empty slot, a
+## dashed rule, "PROJECTED €N.00" (given the quota: green at or over it, no mark, red under it,
+## the shortfall "short €1.00" on its own row under it), then the fizzle footer
 ## ("2 WASTED · hover an item", none without fizzles); highlight_slot frames a line (planning only).
 ## The count-up (begin_count) prints the header and its footer only; the steps print line by line
 ## (#105 piece 2): an item's line with its base, then its lines under it, the newest framed; an item
@@ -93,20 +93,21 @@ func test_fizzle_count_counts_every_wasted_step() -> void:
 	assert_int(ReceiptView.fizzle_count(result)).is_equal(2)
 
 
-## An item's mark comes from its recorded amounts: raised when its payout is above its base (that
-## wins, as on its belt ticket), fizzled when a WASTED step of its own is on it, none otherwise.
+## An item's mark comes from its recorded amounts: fizzled when a WASTED step of its own is on it
+## (even when its payout is raised), none otherwise: a raised item gets no check.
 func test_slot_marks_read_the_recorded_amounts() -> void:
 	var result: ScoreResult = _result()
 	assert_int(ReceiptView.slot_mark(result, 0)).is_equal(ReceiptView.Mark.NONE)
-	assert_int(ReceiptView.slot_mark(result, 1)).is_equal(ReceiptView.Mark.RAISED)
+	# Slot 1 is raised (its payout is above its base): no mark.
+	assert_int(ReceiptView.slot_mark(result, 1)).is_equal(ReceiptView.Mark.NONE)
 	assert_int(ReceiptView.slot_mark(result, 2)).is_equal(ReceiptView.Mark.FIZZLED)
 	assert_int(ReceiptView.slot_mark(result, 5)).is_equal(ReceiptView.Mark.NONE)
-	# Slot 1 also fizzles a condition of its own (#45): it was still raised, so it keeps the check.
+	# Slot 1 also fizzles a condition of its own (#45): raised or not, it shows the fizzle icon.
 	var waste: ScoreStep = _step(ScoreStep.StepType.WASTED, "Cheese after Bread")
 	waste.slot = 1
 	waste.source_slot = 1
 	result.steps.append(waste)
-	assert_int(ReceiptView.slot_mark(result, 1)).is_equal(ReceiptView.Mark.RAISED)
+	assert_int(ReceiptView.slot_mark(result, 1)).is_equal(ReceiptView.Mark.FIZZLED)
 	# An upgrade's row-wide fizzle (#45: the Slot engine with too few cards) on a slot is not
 	# that item's: Milk keeps no mark. An upgrade's fizzle on its own target (the first coupon
 	# paid nothing) still marks it.
@@ -147,7 +148,7 @@ func test_the_planning_receipt_is_itemised() -> void:
 		)
 	)
 	assert_array(_marks(_receipt)).is_equal(
-		[ReceiptView.Mark.NONE, ReceiptView.Mark.RAISED, ReceiptView.Mark.FIZZLED]
+		[ReceiptView.Mark.NONE, ReceiptView.Mark.NONE, ReceiptView.Mark.FIZZLED]
 	)
 	var paper: Rect2 = _receipt.get_global_rect()
 	for line: Node in _receipt._lines.get_children():
@@ -186,11 +187,11 @@ func test_the_planning_receipt_is_itemised() -> void:
 	await _frames(1)
 
 
-## Against the quota (#71's play test): PROJECTED's amount is Palette.GOOD with the met mark (the
-## belt's mark_check disc, in the mark column, centred on the line) at the quota and over it, with
-## no footer for a clean row; under it, Palette.TOMATO with no mark and the shortfall ("short
-## €1.00", dark tomato) on the footer's first row, before the fizzle footer; without a quota it
-## stays ink. Every footer row stays one line inside the stub's width, even with a long hover hint.
+## Against the quota (#71's play test): PROJECTED's amount is Palette.GOOD at the quota and over
+## it, with no mark (no check) and no footer for a clean row; under it, Palette.TOMATO with no
+## mark and the shortfall ("short €1.00", dark tomato) on the footer's first row, before the
+## fizzle footer; without a quota it stays ink. Every footer row stays one line inside the stub's
+## width, even with a long hover hint.
 func test_the_projected_total_reads_against_the_quota() -> void:
 	var clean: ScoreResult = _result()
 	clean.steps = clean.steps.filter(
@@ -202,18 +203,10 @@ func test_the_projected_total_reads_against_the_quota() -> void:
 		await _frames(2)
 		var projected: HBoxContainer = _projected(_receipt)
 		assert_that(_color(projected, 1)).is_equal(Palette.GOOD)
-		var mark: TextureRect = projected.get_child(1).get_node_or_null("Mark") as TextureRect
-		assert_object(mark).is_not_null()
-		assert_int(mark.get_meta("mark") as int).is_equal(ReceiptView.Mark.MET)
-		assert_object(mark.texture).is_same(ReceiptDecor.CHECK_DISC)
-		var mark_rect: Rect2 = mark.get_global_rect()
-		var line_rect: Rect2 = projected.get_global_rect()
-		assert_bool(paper.encloses(mark_rect)).override_failure_message(str(mark_rect)).is_true()
-		assert_float(mark_rect.end.x).is_equal_approx(line_rect.end.x, 0.5)
-		assert_float(mark_rect.get_center().y).is_equal_approx(line_rect.get_center().y, 1.0)
-		var amount: Label = projected.get_child(1) as Label
-		var text_end: float = amount.get_global_rect().end.x - ReceiptView.MARK_COLUMN
-		assert_float(mark_rect.position.x).is_greater_equal(text_end + 6.0 - 0.5)
+		assert_object(projected.get_child(1).get_node_or_null("Mark")).is_null()
+		assert_int(projected.get_child(1).get_child_count()).is_equal(0)
+		var amount: Rect2 = (projected.get_child(1) as Control).get_global_rect()
+		assert_bool(paper.encloses(amount)).override_failure_message(str(amount)).is_true()
 		assert_str(_lines(_receipt)[-1]).is_equal("PROJECTED | €8.00")
 	var cases: Array[Array] = [
 		[_result(), 9, ["short €1.00 | ", "1 WASTED |  · hover an item"]],
@@ -620,20 +613,6 @@ func test_a_framed_combo_line_shows_the_frame_alone() -> void:
 	assert_bool(combo.get_meta("framed", true)).is_false()
 	_receipt.add_total(4)
 	assert_bool(next.get_meta("framed", true)).is_false()
-
-
-## The raised mark's check is B2's small thin tick: at most 9 px tall, inside the mark, its
-## strokes no more than three pixels across on any row.
-func test_the_check_is_b2s_small_tick() -> void:
-	var check: Vector2 = ReceiptDecor.check_size()
-	assert_float(check.y).is_between(6.0, 9.0)
-	assert_float(check.x).is_less_equal(ReceiptDecor.MARK_RECT.size.x)
-	assert_float(check.y).is_less_equal(ReceiptDecor.MARK_RECT.size.y)
-	for row: String in ReceiptDecor.CHECK_ROWS:
-		assert_int(row.length()).is_equal(int(check.x))
-		assert_int(row.count("#")).is_greater(0)
-		for run: String in row.split(".", false):
-			assert_int(run.length()).is_less_equal(3)
 
 
 static func _step(type: ScoreStep.StepType, text: String) -> ScoreStep:

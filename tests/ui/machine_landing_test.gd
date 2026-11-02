@@ -53,7 +53,9 @@ func test_the_receipt_stamps_paid_and_inspection_passed() -> void:
 	var texts: PackedStringArray = _texts(stamp)
 	assert_array(Array(texts)).is_equal([ReceiptStamps.INSPECTION_TEXT, "Spot check"])
 	var title: Label = stamp.find_child(ReceiptStamps.TITLE_NAME, true, false) as Label
-	_assert_draws_check(title.get_theme_font("font"))
+	# The receipt's stamp carries no check.
+	assert_str(title.text).is_equal("INSPECTION PASSED")
+	assert_str(title.text).not_contains("✓")
 	assert_float(stamp.rotation).is_equal_approx(
 		deg_to_rad(ReceiptStamps.INSPECTION_TILT_DEG), 0.001
 	)
