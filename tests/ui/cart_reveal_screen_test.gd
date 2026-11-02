@@ -1,9 +1,9 @@
 extends GdUnitTestSuite
 ## The cart reveal on the real shift screen (v0.51): who opens it (the title's request for the new
-## run of the screen it opens, the results' New run, the debug panel's new run with a seed; never a
-## resumed run, nor a screen opened another way), that it shows the run as dealt and saved, that
-## it sits over the screen under the top bar with the Cart button clear for its fold, and that a
-## run started without it closes it.
+## run of the screen it opens, start_new_run with `reveal`, the debug panel's new run with a
+## seed; never a resumed run, nor a screen opened another way), that it shows the run as dealt
+## and saved, that it sits over the screen under the top bar with the Cart button clear for its
+## fold, and that a run started without it closes it.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 
@@ -69,9 +69,10 @@ func test_a_resumed_run_drops_the_request() -> void:
 	assert_bool(CartReveal._request).is_false()
 
 
-func test_the_results_and_the_debug_new_runs_open_it() -> void:
+## A new run with the reveal (start_new_run's `reveal`) and the debug panel's replay open it.
+func test_a_new_run_and_the_debug_new_runs_open_it() -> void:
 	var screen: ShiftScreen = await _screen()
-	screen._on_new_run_pressed()
+	screen.start_new_run(screen._log.new_run_seed(), true, true)
 	assert_bool(screen._cart_reveal.is_open()).is_true()
 	screen._cart_reveal.close()
 	screen._debug.replay_seed(42)

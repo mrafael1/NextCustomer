@@ -92,12 +92,15 @@ func test_a_shift_from_draw_to_next_shift() -> void:
 		assert_array(types.slice(-2)).is_equal(["machine_visit", "shift_start"])
 		assert_bool(_events()[-2]["binned"]).is_true()
 	else:
-		screen._on_new_run_pressed()
+		# The results' Return to menu (the scene change off): logged, no new run here.
+		screen.changes_scene = false
+		screen._on_menu_pressed()
+		assert_bool(TitleScreen.take_lit_request()).is_true()
 		types = _events().map(func(event: Dictionary) -> String: return event["type"])
-		assert_int(screen.run.shift_index).is_equal(0)
-		# The new run waits for its starter pack in the reveal (#107): shift 1 starts on the pick.
-		assert_array(types.slice(-2)).is_equal(["restart", "run_start"])
-		assert_int(screen.run.phase).is_equal(RunState.Phase.CHOOSE_START)
+		assert_str(types[-1]).is_equal("results_exit")
+		assert_str(_events()[-1]["screen"]).is_equal("results")
+		assert_bool(types.has("restart")).is_false()
+		assert_int(screen.run.phase).is_equal(RunState.Phase.LOST)
 
 
 ## A row card picked up and dropped back in the hand is a removal; one placed again is not.
