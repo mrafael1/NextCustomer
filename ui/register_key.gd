@@ -13,11 +13,16 @@ extends FramedButton
 ## BaseButton (PressReader reads a press on it the same way) and never takes focus.
 ##
 ## A key can carry a note beside its caption (show_caption; mock-up B2's "Redraw  1 left"): smaller,
-## in the number font and ink light, NOTE_GAP right of the caption, the pair centred on the front
-## face; it sinks and fades with the caption.
+## in the number font, NOTE_GAP right of the caption, the pair centred on the front face; it sinks
+## with the caption. A PLAIN note (a word, such as "none to draw") is ink light; a COUNT or ALERT
+## note (a bare count, such as Redraw's "2") is in its own colour, larger and heavier, so the digit
+## reads without the colour. PLAIN and COUNT notes fade with an OFF caption; an ALERT note (Redraw's
+## red "0") keeps its full strength.
 
 enum Kind { CHECKOUT, CREAM }
 enum Look { NORMAL, LIT, OFF }
+## A note's look (show_caption): a word, a count, or a count that never fades.
+enum NoteLook { PLAIN, COUNT, ALERT }
 
 ## Each kind's frames, in Look order.
 const FRAMES: Dictionary[Kind, Array] = {
@@ -50,6 +55,9 @@ const OFF_CAPTION_ALPHA := 0.42
 ## The note's size and its gap from the caption (B2's .redraw small: 13 px, 8 px gap).
 const NOTE_FONT_SIZE := 13
 const NOTE_GAP := 8.0
+## A COUNT or ALERT note's size, and its outline in its own colour (a heavier digit).
+const COUNT_FONT_SIZE := 15
+const COUNT_OUTLINE := 1
 
 ## Held down (CHECKOUT while the shift is counted): the OFF look, sunk, whatever the mouse does.
 var held: bool = false:
@@ -80,6 +88,7 @@ var _kind: Kind = Kind.CREAM
 var _styles: Array[StyleBoxTexture] = []
 ## The note beside the caption (show_caption), or null before the first one.
 var _note: Label
+var _note_look: NoteLook = NoteLook.PLAIN
 
 
 func _init(
@@ -99,20 +108,34 @@ func _init(
 	_show_state(get_draw_mode())
 
 
-## Captions the key `caption_text` with `note_text` beside it (empty: no note). Screen readers
-## announce `spoken`, or the caption and the note when it is empty.
-func show_caption(caption_text: String, note_text: String = "", spoken: String = "") -> void:
+## Captions the key `caption_text` with `note_text` beside it (empty: no note) in `note_color`,
+## looking `note_look` (set on every call). Screen readers announce `spoken`, or the caption and
+## the note when it is empty.
+func show_caption(
+	caption_text: String,
+	note_text: String = "",
+	spoken: String = "",
+	note_color: Color = Palette.INK_LIGHT,
+	note_look: NoteLook = NoteLook.PLAIN
+) -> void:
 	if _note == null and not note_text.is_empty():
 		_note = UiKit.body_label("", NOTE_FONT_SIZE, Palette.INK_LIGHT)
 		_note.name = "Note"
 		_note.add_theme_font_override("font", ArtStyle.number_font())
-		_note.add_theme_constant_override("outline_size", 0)
 		_note.set_anchors_preset(Control.PRESET_FULL_RECT)
 		_note.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		add_child(_note, false, Node.INTERNAL_MODE_FRONT)
+	_note_look = note_look
 	if _note != null:
+		var plain: bool = note_look == NoteLook.PLAIN
 		_note.text = note_text
 		_note.visible = not note_text.is_empty()
+		_note.add_theme_color_override("font_color", note_color)
+		_note.add_theme_color_override("font_outline_color", note_color)
+		_note.add_theme_constant_override("outline_size", 0 if plain else COUNT_OUTLINE)
+		_note.add_theme_font_size_override(
+			"font_size", NOTE_FONT_SIZE if plain else COUNT_FONT_SIZE
+		)
 	caption = caption_text
 	if spoken.is_empty():
 		spoken = caption_text if note_text.is_empty() else "%s, %s" % [caption_text, note_text]
@@ -232,4 +255,4 @@ func _place_note() -> void:
 	_note.offset_bottom = label.offset_bottom
 	_note.offset_left = left + caption_width + NOTE_GAP
 	_note.offset_right = _note.offset_left + note_width - size.x
-	_note.modulate.a = label.modulate.a
+	_note.modulate.a = 1.0 if _note_look == NoteLook.ALERT else label.modulate.a

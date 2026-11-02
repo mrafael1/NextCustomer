@@ -125,7 +125,7 @@ func test_a_new_screen_resumes_the_hand_the_row_and_the_redraws() -> void:
 	assert_int(resumed.run.redraws_allowed).is_equal(2)
 	assert_bool(resumed._redraw_button.disabled).is_false()
 	assert_str(resumed._redraw_button.caption).is_equal("Redraw")
-	assert_str(resumed._redraw_button.note()).is_equal("1 left")
+	assert_str(resumed._redraw_button.note()).is_equal("1")
 	assert_int(resumed._row_views.size()).is_equal(2)
 	assert_int(_hand_views(resumed).size()).is_equal(resumed.run.hand().size())
 	assert_bool(resumed._machine.is_open()).is_false()
