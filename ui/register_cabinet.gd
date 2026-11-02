@@ -12,7 +12,7 @@ extends Control
 ## clicks: the stage connects them to its signals.
 
 ## The printer box (art/src/scenery/printer_box.txt), drawn 1:1 at ShiftStage.PRINTER_RECT with
-## its paper slot at ShiftStage.PRINTER_SLOT_RECT.
+## its paper slot at ShiftStage.PRINTER_SLOT_RECT; its PrinterRoll over the front's window.
 const PRINTER_BOX := preload("res://art/scenery/printer_box.png")
 ## The column's charcoal front and the key deck, 9-slices with COLUMN_MARGIN and DECK_MARGIN art px.
 const COLUMN_FRAME := preload("res://art/frames/register_column.png")
@@ -56,6 +56,8 @@ var keypad: TextureRect
 var checkout_arrow: Label
 
 var drawer: CashDrawer
+## The printer's roll window, turning while the receipt prints (over the printer's front).
+var printer_roll: PrinterRoll
 var _count: CountUp
 
 
@@ -67,6 +69,8 @@ func _init() -> void:
 	var column: PanelContainer = UiKit.frame_panel(COLUMN_FRAME, COLUMN_MARGIN)
 	_add(column, local_rect(ShiftStage.COLUMN_RECT)).name = "Column"
 	_add(UiKit.sprite(PRINTER_BOX), local_rect(ShiftStage.PRINTER_RECT)).name = "Printer"
+	printer_roll = PrinterRoll.new()
+	_add(printer_roll, PrinterRoll.front_rect(local_rect(ShiftStage.PRINTER_RECT)))
 	var shadow: ColorRect = ColorRect.new()
 	shadow.color = Color(Palette.INK, DECK_SHADOW_ALPHA)
 	var shadow_rect: Rect2 = local_rect(ShiftStage.DECK_RECT)
@@ -220,3 +224,4 @@ func follow_count(count_up: CountUp, reading: LedDisplay) -> void:
 	total_display.follow(count_up, reading)
 	count_up.climax_running = total_display.is_celebrating
 	drawer.follow(count_up)
+	printer_roll.follow(count_up)
