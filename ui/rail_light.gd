@@ -11,6 +11,14 @@ extends Control
 ## The light fills the belt's apron band exactly (BeltPanel.APRON, inside the rail's ends): its top
 ## SHADE rows a darker gold under the lip, as the steel band is, and the belt's bolts and chevrons
 ## drawn back over it, so it reads as the band lighting up.
+## Over the quota light's lit band (QuotaLight, mustard or gold: `under` says LIT, or LIT_CHASE
+## while BonusLights chase over it) a gold run would vanish, so it draws an ink-brown frame round
+## a paper core instead (OVER_FRAME, OVER_CORE); over the chase it keeps to the band's upper rows,
+## so the bulbs below still show through.
+
+## What a column of the band shows under a run: bare steel (or the short tomato band), the lit
+## mustard or gold band, or that band with the bonus lights' bulbs on its lower rows.
+enum Under { STEEL, LIT, LIT_CHASE }
 
 const RAIL_Y := ShiftStage.BELT_RECT.position.y + BeltPanel.APRON.position.y
 const RAIL_HEIGHT := BeltPanel.APRON.size.y
@@ -27,11 +35,18 @@ const FROM_COLOR := Palette.MUSTARD
 const TO_COLOR := Palette.GOLD
 const HIGHLIGHT_COLOR := Palette.MUSTARD_PALE
 const EDGE_COLOR := Palette.GOLD
+const OVER_FRAME := Palette.MUSTARD_DARKEST
+const OVER_CORE := Palette.PAPER
+## The band's upper rows over the chase, which BonusLights' bulbs (BULB_SIZE, on its lower rows)
+## leave free.
+const CHASE_ROWS := 4.0
 
 ## Returns a new Tween on the count's clock; none: the layer's own.
 var make_tween: Callable = Callable()
 ## Returns true when the player asked for reduced motion. None means false.
 var reduced_motion: Callable = Callable()
+## Returns what the band shows at a stage x (an Under). None means STEEL.
+var under: Callable = Callable()
 
 var _tuning: CountTotalTuning
 ## The live runs: each with its from and to x, its tickets' rects and its age.
@@ -91,37 +106,94 @@ func _draw_run(lit: Dictionary) -> void:
 	var alpha_now: float = _alpha(lit)
 	if alpha_now <= 0.0:
 		return
-	var from_x: float = clampf(lit["from"], RAIL_LEFT, RAIL_RIGHT)
-	var head: float = clampf(_head(lit), RAIL_LEFT, RAIL_RIGHT)
-	var left: float = minf(from_x, head)
-	var width: float = absf(head - from_x)
-	var body_y: float = RAIL_Y + SHADE
-	var body_height: float = RAIL_HEIGHT - SHADE
+	var span: Vector2 = _span(lit)
+	var left: float = span.x
+	var width: float = span.y
 	var column: float = 0.0
 	while column < width:
-		var share: float = column / maxf(1.0, width)
-		var colour: Color = FROM_COLOR.lerp(TO_COLOR, share)
-		colour.a = alpha_now
-		draw_rect(Rect2(left + column, body_y, minf(GRID, width - column), body_height), colour)
+		var x: float = left + column
+		var cells: Array[Color] = run_cells(_under_at(x), column / maxf(1.0, width))
+		for row: int in range(cells.size()):
+			var colour: Color = cells[row]
+			if colour.a > 0.0:
+				colour.a *= alpha_now
+				var cell := Rect2(x, RAIL_Y + row * GRID, minf(GRID, width - column), GRID)
+				draw_rect(cell, colour)
 		column += GRID
 	if width > 0.0:
-		draw_rect(Rect2(left, RAIL_Y, width, SHADE), Color(SHADE_COLOR, alpha_now))
-		draw_rect(Rect2(left, body_y, width, HIGHLIGHT), Color(HIGHLIGHT_COLOR, alpha_now))
 		draw_hardware(self, left, left + width, alpha_now)
 	var arrived: bool = float(lit["q"]) >= _tuning.rail_run_s
 	if not arrived and width > 0.0:
-		var ahead: float = signf(float(lit["to"]) - float(lit["from"]))
-		var tip_x: float = head - HEAD_TIP if ahead > 0.0 else head
-		var back_x: float = head - HEAD_WIDTH if ahead > 0.0 else head
-		draw_rect(Rect2(back_x, body_y, HEAD_WIDTH, body_height), Palette.MUSTARD_PALE)
-		draw_rect(Rect2(tip_x, body_y, HEAD_TIP, body_height), Palette.PAPER)
-		_spark(Vector2(head - ahead * 4.0, RAIL_Y + RAIL_HEIGHT / 2.0 - 1.0), Palette.PAPER)
+		_draw_head(lit)
 	var giver: Rect2 = lit["giver"]
 	if giver.has_area():
 		_edge(giver, alpha_now)
 	var target: Rect2 = lit["target"]
 	if arrived and target.has_area():
 		_edge(target, alpha_now)
+
+
+## A column's cells (GRID rows each, top down) for a run over `below` (an Under), `share` of the
+## way from its giver end: the gold run on steel, the ink-brown frame and paper core on the lit
+## band, only the upper rows over the chase (the rest clear, the bulbs showing).
+static func run_cells(below: Under, share: float) -> Array[Color]:
+	var rows: int = roundi(RAIL_HEIGHT / GRID)
+	var cells: Array[Color] = []
+	cells.resize(rows)
+	if below == Under.STEEL:
+		var body: Color = FROM_COLOR.lerp(TO_COLOR, share)
+		for row: int in range(rows):
+			cells[row] = body
+		cells[0] = SHADE_COLOR
+		cells[1] = HIGHLIGHT_COLOR
+		return cells
+	var drawn: int = rows if below == Under.LIT else roundi(CHASE_ROWS / GRID)
+	for row: int in range(rows):
+		if row >= drawn:
+			cells[row] = Color.TRANSPARENT
+		elif row == 0 or (row == drawn - 1 and below == Under.LIT):
+			cells[row] = OVER_FRAME
+		else:
+			cells[row] = OVER_CORE
+	return cells
+
+
+## The colour the latest run's body draws at stage `at` (transparent off it), for checks.
+func colour_at(at: Vector2) -> Color:
+	if _runs.is_empty():
+		return Color.TRANSPARENT
+	var lit: Dictionary = _runs[-1]
+	var span: Vector2 = _span(lit)
+	if at.x < span.x or at.x >= span.x + span.y or at.y < RAIL_Y or at.y >= RAIL_Y + RAIL_HEIGHT:
+		return Color.TRANSPARENT
+	var column: float = floorf((at.x - span.x) / GRID) * GRID
+	var cells: Array[Color] = run_cells(_under_at(span.x + column), column / maxf(1.0, span.y))
+	var colour: Color = cells[clampi(floori((at.y - RAIL_Y) / GRID), 0, cells.size() - 1)]
+	if colour.a > 0.0:
+		colour.a *= _alpha(lit)
+	return colour
+
+
+## The running head: a paper tip with a spark (over the lit band: an ink-brown back, the spark's
+## arms brown, on the rows the run draws there).
+func _draw_head(lit: Dictionary) -> void:
+	var head: float = clampf(_head(lit), RAIL_LEFT, RAIL_RIGHT)
+	var ahead: float = signf(float(lit["to"]) - float(lit["from"]))
+	var tip_x: float = head - HEAD_TIP if ahead > 0.0 else head
+	var back_x: float = head - HEAD_WIDTH if ahead > 0.0 else head
+	var below: Under = _under_at(head - ahead * GRID)
+	var body_y: float = RAIL_Y + SHADE
+	var body_height: float = RAIL_HEIGHT - SHADE
+	var back: Color = Palette.MUSTARD_PALE
+	var arms: Color = Palette.GOLD
+	if below != Under.STEEL:
+		body_y = RAIL_Y
+		body_height = RAIL_HEIGHT if below == Under.LIT else CHASE_ROWS
+		back = OVER_FRAME
+		arms = OVER_FRAME
+	draw_rect(Rect2(back_x, body_y, HEAD_WIDTH, body_height), back)
+	draw_rect(Rect2(tip_x, body_y, HEAD_TIP, body_height), Palette.PAPER)
+	_spark(Vector2(head - ahead * 4.0, RAIL_Y + RAIL_HEIGHT / 2.0 - 1.0), arms, Palette.PAPER)
 
 
 ## The belt's bolts and chevrons that fall between `left` and `right` (stage x), drawn on
@@ -140,17 +212,30 @@ static func draw_hardware(canvas: CanvasItem, left: float, right: float, alpha_n
 				canvas.draw_texture(texture, at, tint)
 
 
-## A plus of gold cells round a centre of `centre_colour`.
-func _spark(at: Vector2, centre_colour: Color) -> void:
+## A plus of `arms` cells round a centre of `centre_colour`.
+func _spark(at: Vector2, arms: Color, centre_colour: Color) -> void:
 	var cell: Vector2 = Vector2.ONE * GRID
 	var spot: Vector2 = at.snapped(cell)
 	for arm: Vector2 in [Vector2(0, -2), Vector2(-2, 0), Vector2(2, 0), Vector2(0, 2)]:
-		draw_rect(Rect2(spot + arm, cell), Palette.GOLD)
+		draw_rect(Rect2(spot + arm, cell), arms)
 	draw_rect(Rect2(spot, cell), centre_colour)
 
 
 func _edge(rect: Rect2, alpha_now: float) -> void:
 	draw_rect(rect.grow(EDGE / 2.0), Color(EDGE_COLOR, alpha_now), false, EDGE)
+
+
+## A run's left x and width on the rail.
+func _span(lit: Dictionary) -> Vector2:
+	var from_x: float = clampf(lit["from"], RAIL_LEFT, RAIL_RIGHT)
+	var head: float = clampf(_head(lit), RAIL_LEFT, RAIL_RIGHT)
+	return Vector2(minf(from_x, head), absf(head - from_x))
+
+
+func _under_at(x: float) -> Under:
+	if not under.is_valid():
+		return Under.STEEL
+	return under.call(x) as Under
 
 
 func _head(lit: Dictionary) -> float:
