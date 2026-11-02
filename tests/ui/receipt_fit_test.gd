@@ -27,7 +27,8 @@ func after_test() -> void:
 
 
 ## The preview is itemised (#80): a short receipt standing on the printer's slot, as tall as its
-## lines, every line in view. A longer belt's is as short: its items take the empty slots' lines.
+## lines, every line in view. A longer belt's grows by its items' lines only: planning shows just
+## the next open slot (v0.82), so the empty slots add no lines.
 func test_a_short_preview_gives_a_short_receipt() -> void:
 	var screen: ShiftScreen = await _screen()
 	_place(screen, ["milk"])
@@ -37,7 +38,9 @@ func test_a_short_preview_gives_a_short_receipt() -> void:
 	var one: float = receipt.natural_height()
 	_place(screen, ["bread", "bread", "bread", "bread"])
 	await _frames(2)
-	assert_float(receipt.natural_height()).is_equal(one)
+	var item: Control = receipt._item_line_of(0)
+	var pitch: float = item.size.y + receipt._lines.get_theme_constant("separation")
+	assert_float(receipt.natural_height()).is_equal(one + 4.0 * pitch)
 	assert_float(receipt.size.y).is_equal(receipt.natural_height())
 	var stage_y: float = screen._stage.get_global_rect().position.y
 	assert_float(receipt.get_global_rect().end.y).is_equal(stage_y + ShiftStage.RECEIPT_BOTTOM)
