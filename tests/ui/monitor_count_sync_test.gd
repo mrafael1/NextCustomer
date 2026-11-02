@@ -1,6 +1,6 @@
 extends GdUnitTestSuite
 ## Checkout Rhythm v3 on the real shift screen: each payout rolls the shared register and
-## top gauge through the plan's exact ticks. Bonus steps only change the item's explanation.
+## quota tube through the plan's exact ticks. Bonus steps only change the item's explanation.
 ## Normal and reduced-motion playback retain identical scoring totals and a visible monitor,
 ## with no monitor-covering quota overlay. The tests record tick sounds alongside readings.
 

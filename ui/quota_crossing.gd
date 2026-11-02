@@ -16,8 +16,8 @@ extends Control
 ## - C, ka-ching: the register's drawer and bell (Sfx "kaching"), one-off, apart from the ladder.
 ## - D, bonus lights: BonusLights light the belt's rail for the rest of the count.
 ## - E, laps: from twice the quota on, the gauge laps (QuotaMeter); each new lap slams a ×N stamp
-##   beside the tube's top with sparkles and the ka-ching, shrinking away as the flag names the
-##   next.
+##   over the belt's start, beside the tube's top and clear of the receipt, with sparkles and the
+##   ka-ching, shrinking away as the flag names the next.
 ##
 ## Real time (the ding's hit-stop freezes the count, not these). Reduced motion keeps the sound,
 ## the lights and the flag and the stamp standing still for their time, with no dip, flash,
@@ -51,9 +51,11 @@ const BURST_RADIUS := 26.0
 const BURST_SECONDS := 0.35
 ## C: the ka-ching's volume.
 const KACHING_DB := 0.0
-## E: the stamp beside the tube's top, STAMP_BESIDE_PX right of it and STAMP_DOWN_PX under its
-## top (STAMP_SIZE at scale 1), slammed from STAMP_SLAM_SCALE over STAMP_SLAM_SECONDS, settling,
-## then fading over its last STAMP_FADE_SECONDS.
+## E: the stamp over the belt's start, beside the tube's top: STAMP_DOWN_PX under the tube's top
+## and STAMP_BESIDE_PX right of the register tower (ShiftStage.TOWER_RECT, which holds the
+## receipt) even at its slam's full scale, so it never covers the receipt's TODAY'S TARGET
+## (STAMP_SIZE at scale 1); slammed from STAMP_SLAM_SCALE over STAMP_SLAM_SECONDS, settling, then
+## fading over its last STAMP_FADE_SECONDS.
 const STAMP_SIZE := Vector2(70, 40)
 const STAMP_BESIDE_PX := 12.0
 const STAMP_DOWN_PX := 8.0
@@ -182,6 +184,22 @@ func flag_shown() -> bool:
 ## Whether a lap's stamp (E) shows now.
 func stamp_shown() -> bool:
 	return _lap_since >= 0.0 and _lap_since < STAMP_SECONDS
+
+
+## The lap stamp's centre in this layer (stage coordinates): over the belt's start, clear of the
+## tower at the slam's full scale, its top STAMP_DOWN_PX under the tube's top.
+func stamp_centre() -> Vector2:
+	var reach: float = STAMP_SIZE.x * STAMP_SLAM_SCALE / 2.0
+	return Vector2(
+		ShiftStage.TOWER_RECT.end.x + STAMP_BESIDE_PX + reach,
+		_gauge_rect().position.y + STAMP_DOWN_PX + STAMP_SIZE.y / 2.0
+	)
+
+
+## The lap stamp's rect at `scale_now` (1: at rest), in this layer.
+func stamp_rect(scale_now: float = 1.0) -> Rect2:
+	var box: Vector2 = (STAMP_SIZE * scale_now / GRID).round() * GRID
+	return Rect2(_snap(stamp_centre() - box / 2.0), box)
 
 
 func _process(delta: float) -> void:
@@ -329,7 +347,7 @@ func _draw_check(at: Vector2) -> void:
 		_cell(at + pixel, Vector2(2, 2), Palette.PAPER)
 
 
-## E: the ×N stamp slams under the gauge, settles and fades, with sparkles.
+## E: the ×N stamp slams over the belt's start, settles and fades, with sparkles.
 func _draw_stamp() -> void:
 	var t: float = _lap_since
 	var scale_now: float = 1.0
@@ -342,12 +360,8 @@ func _draw_stamp() -> void:
 	var fade_from: float = STAMP_SECONDS - STAMP_FADE_SECONDS
 	if t > fade_from:
 		alpha = 1.0 - _ease((t - fade_from) / STAMP_FADE_SECONDS)
-	var centre: Vector2 = Vector2(
-		_gauge.end.x + STAMP_BESIDE_PX + STAMP_SIZE.x / 2.0,
-		_gauge.position.y + STAMP_DOWN_PX + STAMP_SIZE.y / 2.0
-	)
-	var box: Vector2 = (STAMP_SIZE * scale_now / GRID).round() * GRID
-	var rect: Rect2 = Rect2(_snap(centre - box / 2.0), box)
+	var centre: Vector2 = stamp_centre()
+	var rect: Rect2 = stamp_rect(scale_now)
 	draw_rect(rect.grow(3.0), Color(Palette.INK, alpha))
 	draw_rect(rect, Color(Palette.GOLD, alpha))
 	draw_rect(Rect2(rect.position, Vector2(rect.size.x, 4.0)), Color(Palette.PAPER, alpha))

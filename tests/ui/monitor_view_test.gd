@@ -242,7 +242,7 @@ func test_a_held_scan_fills_the_monitor_then_it_goes_back() -> void:
 
 ## On the real screen, every count-up beat shows on the monitor as it starts: COUNT, the bay holds
 ## the beat's scanned item (its art and its chip), the step line is the receipt's wording, and on
-## every frame the checkout column's number, the top bar's gauge and (while it runs) the climax's
+## every frame the checkout column's number, the quota tube and (while it runs) the climax's
 ## number read the register's same whole number, TOTAL over it, the ladder lit by the landings;
 ## the monitor's parts stay inside their columns on every beat. At the end the TOTAL with the
 ## stamp and the "+N€" tab, apart, on the paper, met (quota_met once, with its pop, at the ding).
@@ -644,7 +644,7 @@ static func _in_number(label: Label) -> bool:
 	return false
 
 
-## The register's reading against the top bar's gauge, the checkout column's number and the
+## The register's reading against the quota tube, the checkout column's number and the
 ## climax's (while it runs) now, as failures (#105 piece 2: one number everywhere).
 static func _sync_failures(screen: ShiftScreen) -> Array[String]:
 	var failures: Array[String] = []

@@ -4,7 +4,7 @@ extends GdUnitTestSuite
 ## once; every paid beat lands once, with its payout and its subtotal; the quota is met once, as
 ## the ding beat's last tick brings the shown total to it (D1); the TOTAL lands once, after every
 ## payout and landing, on the total; the checkout column's number never punches past the largest
-## punch (CountTotalTuning). On every frame of the count the top bar's gauge, the checkout
+## punch (CountTotalTuning). On every frame of the count the quota tube, the checkout
 ## column's number and (while it runs) the climax's number read the register's same whole number.
 ## The same holds untouched, tapped (TAP_SKIP), held (FAST_FORWARD) and when the last payout meets
 ## the quota with the TOTAL (chip_at_total). The

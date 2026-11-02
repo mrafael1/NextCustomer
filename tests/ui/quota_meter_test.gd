@@ -7,7 +7,7 @@ extends GdUnitTestSuite
 ## colour by status; the tube's glow from NEAR_SHARE of the quota while short; a drag's preview
 ## kept apart from the shown amount; reduced motion plants the flag standing still; from twice the
 ## quota the count laps the tube (the quota crossing's E). Drawn checks: the flag stands on the
-## tube's top, its cloth (a lap's too) right of the pole.
+## tube's top, its ✓ cloth right of the pole, a lap's centred on the tube's top.
 
 
 ## No number in the tube (the user's call of 2026-11-02): the receipt says the amounts.
@@ -167,6 +167,12 @@ func test_twice_the_quota_laps_the_gauge() -> void:
 	assert_str(meter.flag().lap_text).is_equal("×3")
 	await _frames(2)
 	_assert_flag_on_top(meter)
+	# The lap's cloth is centred on the tube's top, no wider than the tube.
+	var bar: Rect2 = meter.bar().get_global_rect()
+	var lap_rest: Rect2 = meter.flag().rest_rect()
+	lap_rest.position += meter.flag().global_position
+	assert_float(lap_rest.position.x).is_equal(bar.position.x)
+	assert_float(lap_rest.end.x).is_equal(bar.end.x)
 	_assert_quota_line_at(meter, 1.0)
 	led.show_subtotal(95, true)
 	assert_array(laps).is_equal([2])
@@ -208,7 +214,7 @@ func _meter(reduced: bool = true) -> QuotaMeter:
 
 
 ## The flag stands on the tube's top at its middle: its pole and cloth above the tube, its cloth
-## (a lap's too) right of the pole, never left of the tube.
+## right of the pole (a lap's centred on it), never left of the tube.
 func _assert_flag_on_top(meter: QuotaMeter) -> void:
 	var bar: Rect2 = meter.bar().get_global_rect()
 	var flag: QuotaFlag = meter.flag()

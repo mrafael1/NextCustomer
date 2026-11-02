@@ -84,7 +84,7 @@ var closes_slot: bool = false
 var ride_ms: int = 0
 ## How the beat lands on the monitor's total (#105 piece 2; CountUpPlan's _set_landings).
 var land: Land = Land.NONE
-## The total the monitor and the top bar show before and after the beat's landing, in whole
+## The total the monitor and the quota tube show before and after the beat's landing, in whole
 ## euros: the payouts so far plus the running value of every item not yet paid. It always equals
 ## the step's subtotal at a PAYOUT, so the count ends on ScoreResult.total.
 var shown_from: int = 0

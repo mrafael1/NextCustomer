@@ -6,8 +6,8 @@ extends Control
 ## (presentation/dither_burst.gdshader; "NEXT RECEIPT", PREMIUM between two pixel stars, the
 ## rarity boost it gives, v0.61 #108: "EVERY TICKET RARE+" between two RARE diamonds and "ITEMS BIG
 ## OR BETTER", then "MEET THIS SHIFT'S QUOTA"), then shrinks and flies up to
-## hang, on a string from the quota mark (the target line on the gauge's top, the tube beside the
-## receipt),
+## hang, on a short string from the top bar's foot straight above it (since the shift scene
+## polish moved the quota gauge into the register tower, so the string never crosses the receipt),
 ## as a gold "PREMIUM NEXT" tag with a pixel star on the monitor's top bezel, clear of the brief's
 ## text, that glints every SHINE_PERIOD for the rest of the shift's planning and its count-up.
 ## A resumed run shows the tag at once; reduced motion (`reduced_motion`) skips the print, the
@@ -41,10 +41,9 @@ const FLOWN_SCALE := 0.5
 const BURST_RADIUS := 200.0
 const BURST_SPIN := 0.5
 const BURST_SHADER := preload("res://presentation/dither_burst.gdshader")
-## The tag: its size, its gap right of the quota mark, how far it reaches into the monitor's
-## screen under the top bezel (the brief's text starts lower), and its gap from the screen's right.
+## The tag: its size, how far it reaches into the monitor's screen under the top bezel (the
+## brief's text starts lower), and its gap from the screen's left edge.
 const TAG_SIZE := Vector2(152, 22)
-const TAG_RIGHT := 28.0
 const TAG_INTO := 4.0
 const TAG_MARGIN := 12.0
 ## The star before PREMIUM NEXT and round PREMIUM: a 5x5 pixel star (PrizeTicket's LEGENDARY pip).
@@ -107,10 +106,10 @@ func _init() -> void:
 	_burst_clip.add_child(_burst)
 
 
-## The monitor the receipt prints on and the quota gauge the tag hangs from.
-func setup(monitor: Control, gauge: Control) -> void:
+## The monitor the receipt prints on and the top bar the tag's string hangs from.
+func setup(monitor: Control, top_bar: Control) -> void:
 	_monitor = monitor
-	_bar = gauge
+	_bar = top_bar
 
 
 ## Shows the announce: printed from the start (`printing`, a shift that just started) or as the
@@ -147,21 +146,26 @@ func print_left() -> float:
 	return maxf(0.0, FLY_TO + RING_LENGTH - _time)
 
 
-## The tag's rect on screen (bounce included): right of the quota mark, on the monitor's top
-## bezel, reaching TAG_INTO into its screen and never lower (its bounce only lifts it), kept
-## TAG_MARGIN inside the screen's edges.
+## The tag's rect on screen (bounce included): on the monitor's top bezel, TAG_MARGIN inside its
+## screen's left edge, reaching TAG_INTO into its screen and never lower (its bounce only lifts
+## it).
 func tag_rect() -> Rect2:
-	var anchor: Vector2 = _anchor()
 	var screen: Rect2 = monitor_screen()
 	var bounce: float = 0.0
 	if not reduced_motion.call():
 		var k: float = maxf(0.0, _time - FLY_TO)
 		bounce = -absf(sin(k * BOUNCE_RATE) * BOUNCE_HEIGHT * exp(-k * BOUNCE_DECAY))
-	var x: float = clampf(
-		anchor.x + TAG_RIGHT, screen.position.x + TAG_MARGIN, screen.end.x - TAG_MARGIN - TAG_SIZE.x
-	)
+	var x: float = screen.position.x + TAG_MARGIN
 	var y: float = screen.position.y + TAG_INTO - TAG_SIZE.y + bounce
 	return Rect2(Vector2(floorf(x / 2.0), floorf(y / 2.0)) * 2.0, TAG_SIZE)
+
+
+## The tag's string, from where it hangs (the top bar's foot, straight above the eyelet) to the
+## tag's eyelet, on screen.
+func string_ends() -> PackedVector2Array:
+	var eyelet: Vector2 = tag_rect().position + Vector2(9, 9)
+	var foot: float = _bar_rect().end.y if _bar != null else eyelet.y
+	return PackedVector2Array([Vector2(eyelet.x, minf(foot, eyelet.y)), eyelet])
 
 
 ## The printed receipt's rect on screen at full size: centred in the monitor's screen,
@@ -338,11 +342,12 @@ func _text_if(
 		MachineArt.centred_text(self, text, centre, font, font_size, colour)
 
 
-## The hanging tag, its string from the quota mark, its glint and its landing sparkles.
+## The hanging tag, its string from the top bar's foot, its glint and its landing sparkles.
 func _draw_tag() -> void:
 	var rect: Rect2 = tag_rect()
-	var from: Vector2 = _anchor()
-	var eyelet: Vector2 = rect.position + Vector2(9, 9)
+	var ends: PackedVector2Array = string_ends()
+	var from: Vector2 = ends[0]
+	var eyelet: Vector2 = ends[1]
 	for index: int in range(STRING_DOTS + 1):
 		var at: Vector2 = from.lerp(eyelet, float(index) / STRING_DOTS)
 		draw_rect(Rect2(MachineArt.snap_point(at), Vector2(2, 4)), Palette.BRASS_DARKEST)
@@ -373,13 +378,6 @@ func _draw_tag() -> void:
 				+ Vector2(cos(angle) * (16.0 + k * 100.0), sin(angle) * (8.0 + k * 50.0))
 			)
 			MachineArt.sparkle(self, spot, 1.0, 1.0 - k / RING_LENGTH)
-
-
-## Where the string hangs from: the quota mark, the target line on the gauge's top (the tube
-## beside the receipt since the shift scene polish), at its right end.
-func _anchor() -> Vector2:
-	var bar: Rect2 = _bar_rect()
-	return Vector2(bar.end.x, bar.position.y)
 
 
 func _bar_rect() -> Rect2:

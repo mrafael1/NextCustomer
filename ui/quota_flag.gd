@@ -6,15 +6,20 @@ extends Control
 ## (the tube beside the receipt since the shift scene polish) plants it on the tube's top when the
 ## amount meets the quota. It is planted with a drop and a bounce, then the cloth flaps; reduced
 ## motion (`reduced_motion`) shows it standing still. Past twice the quota (the gauge's laps, the
-## quota crossing's E) it flies a wider mustard cloth naming the next lap ("×3", `lap_text`), left
-## of the pole, or right of it with `lap_cloth_left` off. Decor only: it takes no clicks.
+## quota crossing's E) it flies a mustard cloth naming the next lap ("×3", `lap_text`) on the side
+## `lap_cloth` says: left of the pole, right of it, or centred on its top (QuotaMeter: as wide as
+## the tube, so it stays in the column's margin, clear of the receipt). Decor only: it takes no
+## clicks.
+
+## Where a lap's cloth hangs: left of the pole, right of it, or centred on its top.
+enum LapCloth { LEFT, RIGHT, CENTRED }
 
 const POLE_WIDTH := 4.0
 const POLE_ABOVE := 14.0
 const POLE_BELOW := 2.0
 const CLOTH_SIZE := Vector2(18, 14)
-## A lap's cloth: wider for its "×N", in the number font at LAP_FONT_SIZE.
-const LAP_CLOTH_SIZE := Vector2(26, 14)
+## A lap's cloth: wider for its "×N", in the number font at LAP_FONT_SIZE (as wide as the tube).
+const LAP_CLOTH_SIZE := Vector2(24, 14)
 const LAP_FONT_SIZE := 11
 const BORDER := 2.0
 ## The plant: from PLANT_DROP px up, turned PLANT_TURN degrees, to its place over PLANT_SECONDS
@@ -32,7 +37,7 @@ var reduced_motion: Callable = Callable()
 var lap_text: String = ""
 ## How far the pole reaches above the flag's origin, and the side a lap's cloth hangs on.
 var pole_above: float = POLE_ABOVE
-var lap_cloth_left: bool = true
+var lap_cloth: LapCloth = LapCloth.LEFT
 
 ## The pole's length below the flag's origin (the gauge's height).
 var _pole: float = 0.0
@@ -69,12 +74,12 @@ func is_planting() -> bool:
 func rest_rect() -> Rect2:
 	var top: float = -pole_above
 	var height: float = _pole + pole_above + POLE_BELOW
-	if not lap_text.is_empty():
-		if not lap_cloth_left:
-			return Rect2(-POLE_WIDTH / 2.0, top, POLE_WIDTH / 2.0 + LAP_CLOTH_SIZE.x, height)
-		var left: float = POLE_WIDTH / 2.0 - LAP_CLOTH_SIZE.x - POLE_WIDTH
-		return Rect2(left, top, POLE_WIDTH - left, height)
-	return Rect2(-POLE_WIDTH / 2.0, top, POLE_WIDTH / 2.0 + CLOTH_SIZE.x, height)
+	if lap_text.is_empty():
+		return Rect2(-POLE_WIDTH / 2.0, top, POLE_WIDTH + CLOTH_SIZE.x, height)
+	var left: float = POLE_WIDTH / 2.0 + _lap_cloth_left()
+	var from: float = minf(left, -POLE_WIDTH / 2.0)
+	var to: float = maxf(left + LAP_CLOTH_SIZE.x, POLE_WIDTH / 2.0)
+	return Rect2(from, top, to - from, height)
 
 
 func _process(delta: float) -> void:
@@ -125,10 +130,19 @@ func _draw() -> void:
 	draw_set_transform_matrix(Transform2D.IDENTITY)
 
 
-## A lap's cloth (the transform set): it hangs left of the pole (right with lap_cloth_left off).
+## A lap's cloth's left edge from the cloth's origin (the pole's right edge), by `lap_cloth`.
+func _lap_cloth_left() -> float:
+	match lap_cloth:
+		LapCloth.RIGHT:
+			return 0.0
+		LapCloth.CENTRED:
+			return -(POLE_WIDTH + LAP_CLOTH_SIZE.x) / 2.0
+	return -LAP_CLOTH_SIZE.x - POLE_WIDTH
+
+
+## A lap's cloth (the transform set), on the side `lap_cloth` says.
 func _draw_lap_cloth() -> void:
-	var left: float = -LAP_CLOTH_SIZE.x - POLE_WIDTH if lap_cloth_left else 0.0
-	var cloth: Rect2 = Rect2(Vector2(left, 0.0), LAP_CLOTH_SIZE)
+	var cloth: Rect2 = Rect2(Vector2(_lap_cloth_left(), 0.0), LAP_CLOTH_SIZE)
 	draw_rect(cloth, Palette.INK)
 	draw_rect(cloth.grow(-BORDER), Palette.MUSTARD)
 	draw_rect(

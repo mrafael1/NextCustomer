@@ -10,8 +10,8 @@ extends RefCounted
 ## to keep that file short; they work on the screen's run and display.
 ##
 ## What shows the two rows (the user's choice of 2026-11-02): the belt shortened to a row's cells
-## (BeltPanel.set_cells), "CHECKOUT 1/2" then "CHECKOUT 2/2" on the key, two pips by the SPEND
-## gauge (RowPips, the first gold once row 1 is counted), and a ROW 2 banner popping over the
+## (BeltPanel.set_cells), "CHECKOUT 1/2" then "CHECKOUT 2/2" on the key, two pips under the
+## quota tube (RowPips, the first gold once row 1 is counted), and a ROW 2 banner popping over the
 ## belt as the hand refills after row 1's count, then fading (show_banner).
 
 ## The receipt header's row line (receipt_header): row 1, then row 2 with row 1's amount.

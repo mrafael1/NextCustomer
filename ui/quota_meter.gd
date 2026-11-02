@@ -22,7 +22,8 @@ extends Control
 ## Laps (the quota crossing's E, docs/art/mockups/quota_crossing.html, approved by the user on
 ## 2026-10-31): only while counting, once the amount reaches twice the quota the tube stops
 ## re-scaling. It flashes, banks in gold (BANKED_RAMP) and a new lap pours in over it toward the
-## next multiple (LAP_RAMP), and the flag names it ("×3"); each later multiple laps the same way.
+## next multiple (LAP_RAMP), and the flag names it ("×3", on a cloth centred on the tube's top, as
+## wide as the tube, so it never slips under the receipt); each later multiple laps the same way.
 ## Every new lap emits lap_reached (the quota crossing stamps it). The tube glows from NEAR_SHARE
 ## of the quota while short. Reduced motion (`reduced_motion`) keeps the level, the flag and the
 ## glow (steady) and drops the slosh, the spray, the bubbles and the flag's planting and flapping.
@@ -132,7 +133,7 @@ func _init() -> void:
 	_flag = QuotaFlag.new()
 	_flag.reduced_motion = _reduced
 	_flag.pole_above = FLAG_POLE_ABOVE
-	_flag.lap_cloth_left = false
+	_flag.lap_cloth = QuotaFlag.LapCloth.CENTRED
 	add_child(_flag)
 	resized.connect(_place_flag)
 	_random.seed = RANDOM_SEED

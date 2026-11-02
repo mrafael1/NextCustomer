@@ -26,7 +26,7 @@ extends Control
 ## The count (mode() COUNT, follow): the bay follows the rides and beats (ScannerBay); the item
 ## column shows the item in the bay coming in at its base price, its price moving at each of its
 ## landings and the landing's step line alone; the checkout column reads the register (LedDisplay's
-## reading, which the top bar's gauge follows too, so both show the same whole number at every
+## reading, which the quota tube follows too, so both read the same whole number at every
 ## moment). Each landing's amount flies from the item column to the number's left edge and its
 ## sparks pop as it lands (CountChips, over the paper); a giver's effect also lights the price
 ## rail (RailLight, BeltRide's). The landing that meets the quota starts the climax over the whole

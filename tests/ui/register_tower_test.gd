@@ -39,6 +39,56 @@ func test_the_tower_in_a_larger_window() -> void:
 	await _assert_the_tower_in(Vector2i(1600, 1000))
 
 
+## A count at twice the quota laps the tube: the flag's "×3" cloth, centred on the tube's top, and
+## the quota crossing's ×2 stamp (at its slam's full scale too, over the belt's start) stay inside
+## the window and clear of the receipt at its full height (RECEIPT_TOP, the usual state by then)
+## and of its TODAY'S TARGET; the stamp at rest stays under the top bar and left of the monitor.
+func test_a_lap_keeps_its_flag_and_stamp_clear_of_the_receipt() -> void:
+	var screen: ShiftScreen = await _screen()
+	screen.profile.set_reduced_motion(true)
+	var meter: QuotaMeter = screen._stage.quota_meter
+	var crossing: QuotaCrossing = screen._stage.quota_crossing
+	var quota: int = screen.run.quota()
+	meter._show(quota * 2, quota, true, true)
+	await _frames(3)
+	assert_int(meter.shown_lap()).is_equal(2)
+	var visible_rect: Rect2 = get_tree().root.get_visible_rect()
+	var receipt: Rect2 = _on_stage(
+		screen,
+		Rect2(
+			ShiftStage.RECEIPT_X,
+			ShiftStage.RECEIPT_TOP,
+			ShiftStage.RECEIPT_WIDTH,
+			ShiftStage.RECEIPT_BOTTOM - ShiftStage.RECEIPT_TOP
+		)
+	)
+	var target: Rect2 = screen._receipt.target.get_global_rect()
+	var flag: QuotaFlag = meter.flag()
+	assert_str(flag.lap_text).is_equal("×3")
+	var rest: Rect2 = flag.rest_rect()
+	rest.position += flag.global_position
+	assert_bool(visible_rect.encloses(rest)).override_failure_message(str(rest)).is_true()
+	assert_bool(rest.intersects(receipt)).override_failure_message(str(rest)).is_false()
+	assert_bool(rest.intersects(target)).is_false()
+	var tube: Rect2 = meter.get_global_rect()
+	assert_float(rest.position.x).is_greater_equal(tube.position.x)
+	assert_float(rest.end.x).is_less_equal(tube.end.x)
+	var column: Rect2 = screen._stage.tower.get_global_rect()
+	var monitor: Rect2 = _on_stage(screen, ShiftStage.MONITOR_RECT)
+	var to_screen: Transform2D = crossing.get_global_transform()
+	for scale_now: float in [1.0, QuotaCrossing.STAMP_SLAM_SCALE]:
+		var stamp: Rect2 = to_screen * crossing.stamp_rect(scale_now)
+		var why: String = "stamp %s at %s" % [stamp, scale_now]
+		assert_bool(stamp.intersects(receipt)).override_failure_message(why).is_false()
+		assert_bool(stamp.intersects(target)).override_failure_message(why).is_false()
+		assert_bool(stamp.intersects(column)).override_failure_message(why).is_false()
+		assert_bool(visible_rect.encloses(stamp)).override_failure_message(why).is_true()
+	var settled: Rect2 = to_screen * crossing.stamp_rect()
+	var stage_top: float = screen._stage.get_global_rect().position.y
+	assert_float(settled.position.y).is_greater_equal(stage_top + ShiftStage.TOP_BAR_BOTTOM)
+	assert_bool(settled.intersects(monitor)).is_false()
+
+
 ## The tower's faces and the gauge take no click: the belt and the hand keep theirs.
 func test_the_tower_takes_no_clicks() -> void:
 	var screen: ShiftScreen = await _screen()
@@ -91,6 +141,7 @@ func _assert_the_tower_in(window: Vector2i) -> void:
 	rest.position += flag.global_position
 	assert_bool(visible_rect.encloses(rest)).override_failure_message(str(rest)).is_true()
 	assert_bool(rest.intersects(receipt)).is_false()
+	assert_float(rest.end.x).is_less_equal(stage.position.x + ShiftStage.RECEIPT_X)
 	assert_float(rest.end.y).is_less_equal(tube.position.y + ArtStyle.ART_SCALE * 2.0)
 	# A Double checkout's pips under the tube.
 	var pips: Rect2 = tower.row_pips.get_global_rect()

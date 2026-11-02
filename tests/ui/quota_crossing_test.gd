@@ -2,10 +2,10 @@ extends GdUnitTestSuite
 ## The quota crossing (QuotaCrossing and BonusLights, mock-up docs/art/mockups/quota_crossing.html)
 ## on the real shift screen: the ding's crossing plants the SPEND MET flag on the item that met
 ## the quota, dips the stage and puts it back, lights the belt's rail and sounds the ka-ching;
-## twice the quota slams the ×2 stamp under the gauge with another ka-ching; the rail's lights go
-## out after the count; reduced motion keeps the flag, the lights and the sounds with no dip or
-## flash; a resumed checkout pops nothing. Alone: a lap stamps only while counting. The real saves
-## and logs are never touched.
+## twice the quota slams the ×2 stamp over the belt's start with another ka-ching; the rail's
+## lights go out after the count; reduced motion keeps the flag, the lights and the sounds with no
+## dip or flash; a resumed checkout pops nothing. Alone: a lap stamps only while counting. The
+## real saves and logs are never touched.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 const RECORDING_SFX := preload("res://tests/presentation/recording_sfx.gd")
@@ -60,7 +60,7 @@ func test_the_crossing_flags_the_item_dips_lights_and_rings() -> void:
 		. override_failure_message("Flag foot %s off the item %s" % [_at_cross[2], item])
 		. is_true()
 	)
-	# Twice the quota: one ×2 stamp, under the gauge.
+	# Twice the quota: one ×2 stamp, over the belt's start.
 	assert_int(_at_laps.size()).is_equal(1)
 	assert_int(_at_laps[0][0]).is_equal(2)
 	assert_bool(_at_laps[0][1]).is_true()

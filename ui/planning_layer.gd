@@ -16,8 +16,8 @@ extends Control
 ## its slot's stack, stamp and pay tag as its own children, so they follow it. Under all of that,
 ## along the belt lip, the rail strips (RailStrip, section 5) say who gives what to whom: one per
 ## giver slot, in its lane (PlanningModel.assign_lanes); an overflowing strip (lane -1) is not
-## drawn while calm. The strips hide during a drag (show_strips): the stickers and the SPEND chip
-## say what the drop does.
+## drawn while calm. The strips hide during a drag (show_strips): the stickers and the quota
+## tube's preview say what the drop does.
 ##
 ## Every anchor comes from the views' rects mapped into the layer, so a scaled 8-slot row
 ## places them by its scaled cells while the art never scales; CLOSED cells and empty slots are no
