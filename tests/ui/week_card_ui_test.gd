@@ -5,7 +5,7 @@ extends GdUnitTestSuite
 ## lists a review's maluses and reward, and flies into the week chip; the chips lie in the top bar
 ## between the QUOTA and LOYALTY chips, apart, with their texts and pips; tapping a chip reopens
 ## the card and tapping the card closes it; a resume mid-week never replays the card; and Bakery
-## festival's +€2 plays in the count-up from the week chip; after each verdict the card stamps the
+## festival's +2€ plays in the count-up from the week chip; after each verdict the card stamps the
 ## day PAID or SLIP (v0.72). Clicks are sent to the handlers,
 ## because headless runs don't deliver input events.
 
@@ -194,7 +194,7 @@ func test_a_mid_week_resume_does_not_replay_the_card() -> void:
 	assert_bool(screen._week.card.is_open()).is_true()
 
 
-## Bakery festival's +€2 on a Bakery product is a step of its own: the count-up plays it from the
+## Bakery festival's +2€ on a Bakery product is a step of its own: the count-up plays it from the
 ## week chip, and the receipt names the week event.
 func test_the_week_bonus_plays_in_the_count_up_from_the_week_chip() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
@@ -564,8 +564,12 @@ func _assert_chips_fit(screen: ShiftScreen) -> void:
 	for rect: Rect2 in [week, day]:
 		assert_bool(stage.encloses(rect)).override_failure_message(str(rect)).is_true()
 		assert_float(rect.end.y).is_less_equal(stage.position.y + ShiftStage.PANEL_TOP)
-	var quota_chip: Rect2 = (bar.get_child(1) as Control).get_global_rect()
-	assert_float(week.position.x).is_greater_equal(quota_chip.end.x)
+	# The SPEND chip is gone (the register tower): the week chip starts the row, or follows the
+	# SHIFT chip when it shows.
+	var left: float = bar.get_global_rect().position.x
+	if bar.shift_chip.visible:
+		left = bar.shift_chip.get_global_rect().end.x
+	assert_float(week.position.x).is_greater_equal(left)
 	assert_float(day.position.x).is_greater_equal(week.end.x)
 	assert_float(day.end.x).is_less_equal(screen._loyalty_card.get_global_rect().position.x)
 	var parts: Array[Control] = [bar.week_chip.number_label()]
