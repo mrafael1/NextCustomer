@@ -259,7 +259,7 @@ static func deal_offer(
 	if forced != null:
 		drawn.insert(mini(drawn.size(), floori(count / 2.0)), forced)
 	offer.first_pick = forced
-	var products: Array[CardDefinition] = drawable(stock, _chains(recipe, balance))
+	var products: Array[CardDefinition] = deal_pool(recipe, stock, balance)
 	var upgrades: Array[UpgradeDefinition] = []
 	if recipe.starting_upgrade != null:
 		upgrades.append(recipe.starting_upgrade)
@@ -344,6 +344,30 @@ static func fits_copies(
 		if total[card] > maxi(recipe.copy_max, int(fixed.get(card, 0))):
 			return false
 	return true
+
+
+## The products a recipe's deal draws from (the deal's pool): the stock's products with an
+## item-tier chain, capsule products only with random_capsules, in stock order (deal_offer's
+## shared products and the start screen's TODAY'S STOCK, #107).
+static func deal_pool(
+	recipe: DeckDefinition, stock: RunStock, balance: BalanceDefinition
+) -> Array[CardDefinition]:
+	return drawable(stock, _chains(recipe, balance))
+
+
+## The cart a run waiting for its pick starts with if it takes `pack` (the start screen's
+## preview, #107): `deck`'s core cards, the pack's cards, `shared`, then the worn `pins`' starting
+## cards, as RunState.take_pack deals them (with_pack, then RunPins.add_cards).
+static func cart(
+	deck: DeckDefinition,
+	pack: StarterPackDefinition,
+	shared: Array[CardDefinition],
+	pins: Array[PinDefinition]
+) -> Array[CardDefinition]:
+	var cards: Array[CardDefinition] = with_pack(deck, pack, shared).cards
+	for pin: PinDefinition in pins:
+		cards.append_array(pin.starting_cards)
+	return cards
 
 
 ## The deck before the pick (#107): `recipe` holding its core cards and the offer's shared

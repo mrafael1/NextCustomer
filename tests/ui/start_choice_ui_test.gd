@@ -1,10 +1,11 @@
 extends GdUnitTestSuite
-## The starter pack choice in the cart reveal (#107, mock-up starter_choice_107.html layout A,
-## v0.63; decided with the user on 2026-10-26: Q1 C, Q2 A, Q3 B, Q4 A): the offer's packs under
-## the staples with the good first pick raised, today's products as pictures in the dispenser, the
-## raise and the confirm, taps that never end the choice, the popups, the layout, and on the real
-## shift screen the run saved before the choice, the pick starting shift 1 and a resume that opens
-## the same offer. The reveal is driven by its API: headless runs deliver no input events.
+## The starter pack choice in the cart reveal (#107, v0.63; decided with the user on 2026-10-26:
+## Q1 C, Q2 A, Q3 B, Q4 A), on the start screen's board since 2026-11-03 (mock-up start_screen.html
+## layout A): the offer's packs with the good first pick picked, the pick and the confirm, taps
+## that never end the choice, the popups, the packs' layout, and on the real shift screen the run
+## saved before the choice, the pick starting shift 1 and a resume that opens the same offer. The
+## board's own layout and preview are start_board_test's. The reveal is driven by its API:
+## headless runs deliver no input events.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 const RECIPE := "res://data/decks/pack_starter.tres"
@@ -39,15 +40,14 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-## The choice: the offer's three packs (names, three cards each), the good first pick raised with
-## its ribbon and named on the push bar, today's shared products in the dispenser's window, and no
-## TODAY'S PICKS yet.
+## The choice: the offer's three packs (names, three cards each), the good first pick picked with
+## its ribbon and named on the OPEN STORE key; a profile that has won picks nothing, and the key
+## waits.
 func test_the_choice_shows_the_offer_with_the_first_pick_raised() -> void:
 	var run: RunState = _choice_run(SEED, true)
 	var reveal: CartReveal = _reveal(run)
 	assert_bool(reveal.is_choosing()).is_true()
-	var panel: RevealPanel = reveal.panel()
-	var choice: PackChoice = panel.choice
+	var choice: PackChoice = reveal.board.choice
 	assert_int(choice.faces.size()).is_equal(3)
 	for index: int in choice.faces.size():
 		var face: PackFace = choice.faces[index]
@@ -56,16 +56,16 @@ func test_the_choice_shows_the_offer_with_the_first_pick_raised() -> void:
 		assert_int(face.tiles.size()).is_equal(3)
 		assert_bool(face.has_ribbon()).is_equal(pack == run.start_offer.first_pick)
 		assert_bool(face.raised).is_equal(pack == run.start_offer.first_pick)
+		assert_bool(face.picked_tab.visible).is_equal(face.raised)
 	assert_int(choice.raised_index).is_equal(1)
-	assert_str(choice.bar_text()).is_equal("TAKE BREAKFAST RUN ›")
-	assert_array(panel.picks).is_empty()
-	assert_int(panel.dispenser.heap_left()).is_equal(run.start_offer.shared.size())
-	reveal.freeze_at(reveal.end_time())
-	assert_str(panel.dispenser.led_text()).is_equal(RevealPanel.CHOOSE_LED)
-	# A profile that has won: nothing raised, the bar waits.
+	assert_str(reveal.board.key_text()).is_equal(StartBoard.KEY_OPEN_TEXT)
+	assert_str(reveal.board.key_sub_text()).is_equal(
+		StartBoard.KEY_SUB_TEXT % [1, "Breakfast run", 13]
+	)
+	# A profile that has won: nothing picked, the key waits.
 	var won: CartReveal = _reveal(_choice_run(SEED, false))
-	assert_int(won.panel().choice.raised_index).is_equal(-1)
-	assert_str(won.panel().choice.bar_text()).is_equal(PackChoice.BAR_IDLE_TEXT)
+	assert_int(won.board.choice.raised_index).is_equal(-1)
+	assert_str(won.board.key_text()).is_equal(StartBoard.KEY_IDLE_TEXT)
 	assert_bool(won.take_pack()).is_false()
 	assert_bool(won.is_choosing()).is_true()
 
@@ -84,101 +84,89 @@ func test_taps_and_time_never_end_the_choice() -> void:
 	assert_array(_taken).is_empty()
 
 
-## Raising another pack changes the bar; taking it emits pack_taken, and the pack's cards are then
-## the first picks (flying in from the face), today's products the rest, and the summary names
-## the pack.
+## Picking another pack changes the key; taking it emits pack_taken and the board folds into the
+## Cart button at once (no fly-in: the cart was shown), then the reveal closes and finishes.
 func test_raising_and_taking_a_pack() -> void:
 	var run: RunState = _choice_run(SEED, true)
 	var reveal: CartReveal = _reveal(run)
+	var finished: Array[bool] = []
+	reveal.finished.connect(func() -> void: finished.append(true))
 	reveal.freeze_at(reveal.end_time())
 	var other: StarterPackDefinition = run.start_offer.packs[2]
 	reveal.raise_pack(2)
-	assert_int(reveal.panel().choice.raised_index).is_equal(2)
-	assert_str(reveal.panel().choice.bar_text()).is_equal(
-		"TAKE %s ›" % other.display_name.to_upper()
-	)
+	assert_int(reveal.board.choice.raised_index).is_equal(2)
+	assert_str(reveal.board.key_sub_text()).contains(other.display_name)
 	assert_bool(reveal.take_pack()).is_true()
 	assert_array(_taken).is_equal([other])
 	assert_bool(reveal.is_choosing()).is_false()
-	var panel: RevealPanel = reveal.panel()
-	assert_object(panel.pack).is_same(other)
-	assert_array(panel.picks).is_equal(other.cards + run.start_offer.shared)
-	assert_int(panel.pick_tiles.size()).is_equal(9)
-	reveal.freeze_at(reveal.end_time())
-	var texts: Array[String] = []
-	for found: Node in panel.summary.find_children("*", "Label", true, false):
-		texts.append((found as Label).text)
-	assert_array(texts).contains(["3 from %s" % other.display_name, "6 from today’s stock"])
-	assert_bool(panel.dispenser.is_sold_out()).is_true()
+	assert_bool(reveal.is_folding()).is_true()
+	assert_object(reveal.board.picked_pack()).is_same(other)
+	reveal.advance(reveal.tuning.outro_s + 0.1)
+	assert_bool(reveal.is_open()).is_false()
+	assert_array(finished).is_equal([true])
+	# With reduced motion the reveal closes at the pick.
+	var reduced: CartReveal = CartReveal.new()
+	_host.add_child(reduced)
+	assert_bool(reduced.play(_choice_run(SEED, true), _cart, true)).is_true()
+	reduced.set_process(false)
+	assert_bool(reduced.take_pack()).is_true()
+	assert_bool(reduced.is_open()).is_false()
 
 
-## The popups: a pack's card and one of today's products in the dispenser's window (Q2 A) open
-## their scan popup.
+## The popups open at once on hover on the board: a pack's card and a ticket of today's deal in the
+## cart.
 func test_pack_cards_and_todays_products_open_their_popup() -> void:
 	var run: RunState = _choice_run(SEED, true)
 	var reveal: CartReveal = _reveal(run)
 	reveal.freeze_at(reveal.end_time())
-	var tile: RevealTile = reveal.panel().choice.faces[0].tiles[1]
-	assert_object(reveal.tile_at(tile.get_global_rect().get_center())).is_same(tile)
-	reveal.show_popup(tile)
+	var tile: CartTicket = reveal.board.choice.faces[0].tiles[1]
+	assert_object(reveal.target_at(tile.get_global_rect().get_center())).is_same(tile)
+	reveal.hover(tile)
 	assert_bool(reveal.popup().visible).is_true()
 	assert_object(reveal.popup_tile()).is_same(tile)
-	var heap: Array[TextureRect] = reveal.panel().dispenser.heap_art()
-	var front: TextureRect = heap[heap.size() - 1]
-	var at: Vector2 = front.get_global_rect().get_center()
-	var target: Control = reveal.target_at(at)
-	assert_object(target).is_not_null()
-	reveal.show_popup(target)
+	var ticket: CartTicket = reveal.board.sheet.deal_tickets[0]
+	var target: Control = reveal.target_at(ticket.get_global_rect().get_center())
+	assert_object(target).is_same(ticket)
+	reveal.hover(target)
 	assert_bool(reveal.popup().visible).is_true()
-	assert_bool(run.start_offer.shared.has(reveal.panel().dispenser.card_at(at))).is_true()
-	# The first popup's content, cleared by the second, is freed on the next frame.
+	assert_bool(run.start_offer.shared.has(ticket.card)).is_true()
+	reveal.hover(null)
+	assert_bool(reveal.popup().visible).is_false()
+	# The popups' content, cleared by the next, is freed on the next frame.
 	await get_tree().process_frame
 
 
-## The layout at the 1280x720 stage: the faces inside the panel, apart from each other, from the
-## dispenser and from the push bar; each face's cards and its line inside it, the line on at most
-## two rows; the push bar inside the panel.
+## The packs' layout on the board: the faces apart; each face's cards and its line inside it, the
+## line on at most three rows and clear of the cards; each card's name on at most two rows.
 func test_the_choice_fits_the_panel() -> void:
 	var reveal: CartReveal = _reveal(_choice_run(SEED, true))
 	reveal.freeze_at(reveal.end_time())
-	var panel: RevealPanel = reveal.panel()
-	var box: Rect2 = panel.get_global_rect()
-	var faces: Array[PackFace] = panel.choice.faces
-	var bar: Control = panel.choice.find_child("ConfirmBar", true, false)
-	assert_bool(box.encloses(bar.get_global_rect())).is_true()
-	var cabinet: Rect2 = Rect2(
-		panel.get_global_rect().position - RevealPanel.RECT.position, Vector2.ZERO
-	)
-	cabinet.position += StockDispenser.CABINET_RECT.position
-	cabinet.size = StockDispenser.CABINET_RECT.size
+	var faces: Array[PackFace] = reveal.board.choice.faces
 	for index: int in faces.size():
 		var face: Rect2 = faces[index].get_global_rect()
 		var what: String = String(faces[index].pack.id)
-		assert_bool(box.encloses(face)).override_failure_message(what).is_true()
-		(
-			assert_bool(face.intersects(bar.get_global_rect()))
-			. override_failure_message(what)
-			. is_false()
-		)
-		assert_bool(face.intersects(cabinet)).override_failure_message(what).is_false()
 		for other: int in range(index + 1, faces.size()):
 			assert_bool(face.intersects(faces[other].get_global_rect())).is_false()
-		for tile: RevealTile in faces[index].tiles:
+		for tile: CartTicket in faces[index].tiles:
 			var rect: Rect2 = tile.get_global_rect()
 			assert_bool(face.encloses(rect)).override_failure_message(what).is_true()
-		for found: Node in faces[index].find_children("*", "Label", true, false):
+		for found: Node in faces[index].find_children("*", "Label", false, false):
 			var label: Label = found as Label
 			if label.autowrap_mode == TextServer.AUTOWRAP_OFF:
 				continue
-			assert_int(label.get_line_count()).override_failure_message(what).is_less_equal(2)
+			assert_int(label.get_line_count()).override_failure_message(what).is_less_equal(3)
 			var rows: float = label.get_line_count() * label.get_line_height()
 			assert_float(rows).override_failure_message(what).is_less_equal(label.size.y + 0.5)
-			for tile: RevealTile in faces[index].tiles:
+			for tile: CartTicket in faces[index].tiles:
 				(
 					assert_bool(label.get_global_rect().intersects(tile.get_global_rect()))
 					. override_failure_message(what)
 					. is_false()
 				)
+		for tile: CartTicket in faces[index].tiles:
+			if tile.name_label() != null:
+				var lines: int = tile.name_label().get_line_count()
+				assert_int(lines).override_failure_message(tile.name).is_less_equal(2)
 
 
 ## On the shift screen: a new run with the reveal waits for its pick (saved as choose_start with

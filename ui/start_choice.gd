@@ -64,7 +64,8 @@ func begin_if_choosing(reveal: bool) -> bool:
 	_screen._refresh()
 	_screen._save_run()
 	var reduced: bool = _screen.profile.reduced_motion()
-	if reveal and _screen._cart_reveal.play(run, _screen._deck_button, reduced):
+	var unlocked: Dictionary[StringName, int] = _screen.profile.unlocked_items
+	if reveal and _screen._cart_reveal.play(run, _screen._deck_button, reduced, unlocked):
 		_opened_ms = Time.get_ticks_msec()
 		_screen._machine.hold_notice()
 		return true

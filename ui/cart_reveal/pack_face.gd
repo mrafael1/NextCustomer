@@ -1,43 +1,50 @@
 class_name PackFace
 extends Control
-## One starter pack in the cart reveal's choice (#107, mock-up starter_choice_107.html layout A,
-## v0.63): a face in the colour and glyph of the family its cards boost (FamilyPalette), its name,
-## its three cards as reveal tiles (their scan popup opens on hover, as a staple's does) and its one
-## line. A click raises it (set_raised: it lifts and takes a gold frame); hovering lights its
-## frame. The good first pick (Q3 B, until the profile's first win) wears a mustard GOOD FIRST
-## PICK ribbon. Pure display: CartReveal routes the pointer and keys.
+## One starter pack on the start screen (#107, mock-up starter_choice_107.html layout A, v0.63;
+## redrawn for the clock-in board, mock-up start_screen.html layout A, 2026-11-03): a face in the
+## colour and glyph of the family its cards boost (FamilyPalette), its name and its key number (1 to
+## 3), its three cards as compact cart tickets (their scan popup opens on hover) and its one line. A
+## click picks it (set_raised: it lifts, takes a gold frame and a green PICKED tab); hovering
+## lights its frame (and previews it in the cart sheet). The good first pick (Q3 B, until the
+## profile's first win) wears a mustard GOOD FIRST PICK ribbon. Pure display: CartReveal routes the
+## pointer and keys.
 
-const SIZE := Vector2(300, 196)
-const HEADER_HEIGHT := 40.0
-const GLYPH_RECT := Rect2(10, 6, 28, 28)
-const NAME_POSITION := Vector2(46, 4)
+const SIZE := Vector2(248, 194)
+const HEADER_HEIGHT := 38.0
+const GLYPH_RECT := Rect2(10, 10, 18, 18)
+const NAME_POSITION := Vector2(34, 4)
 const NAME_SIZE := 20
-## The cards: reveal tiles at TILE_SCALE, TILE_LEFT from the face's left, TILE_STEP apart.
-const TILE_SCALE := 0.75
-const TILE_LEFT := 20.0
-const TILE_TOP := 54.0
-const TILE_STEP := 92.0
-const HINT_RECT := Rect2(12, 150, 276, 40)
-const HINT_SIZE := 13
+## The cards: compact cart tickets, TILE_LEFT from the face's left, TILE_STEP apart.
+const TILE_LEFT := 11.0
+const TILE_TOP := 48.0
+const TILE_STEP := 78.0
+const HINT_RECT := Rect2(10, 154, 228, 36)
+const HINT_SIZE := 12
 const FRAME := 3.0
 const RAISED_FRAME := 4.0
 const SHADOW_DROP := 6.0
 const RIBBON_TEXT := "GOOD FIRST PICK"
 const RIBBON_SIZE := 11
-const RIBBON_RECT := Rect2(170, -14, 124, 22)
+const RIBBON_RECT := Rect2(120, -12, 122, 20)
+## The PICKED tab (green, over the face's top left) and the key number (top right).
+const PICKED_TEXT := "✓ PICKED"
+const PICKED_RECT := Rect2(8, -12, 76, 20)
+const KEY_RECT := Rect2(214, 9, 22, 20)
+const KEY_SIZE := 14
 
 var pack: StarterPackDefinition
-var tiles: Array[RevealTile] = []
+var tiles: Array[CartTicket] = []
 var raised: bool = false
 var hovered: bool = false
 var first_pick: bool = false
+var picked_tab: RevealChip
 var _style: FamilyStyle
 var _name: Label
 ## The ribbon: its mustard tab, holding its label.
 var _ribbon: Control
 
 
-func _init(starter_pack: StarterPackDefinition, is_first_pick: bool = false) -> void:
+func _init(starter_pack: StarterPackDefinition, is_first_pick: bool = false, key: int = 0) -> void:
 	pack = starter_pack
 	first_pick = is_first_pick
 	name = "PackFace_%s" % pack.id
@@ -54,18 +61,13 @@ func _init(starter_pack: StarterPackDefinition, is_first_pick: bool = false) -> 
 		add_child(glyph)
 	_name = UiKit.display_label(pack.display_name, NAME_SIZE, _paper_text())
 	_name.position = NAME_POSITION
-	_name.size = Vector2(SIZE.x - NAME_POSITION.x - 8.0, HEADER_HEIGHT - 4.0)
+	_name.size = Vector2(KEY_RECT.position.x - NAME_POSITION.x - 4.0, HEADER_HEIGHT - 4.0)
+	_name.clip_text = true
 	_name.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	add_child(_name)
 	for index: int in pack.cards.size():
-		var card: CardDefinition = pack.cards[index]
-		var kind: RevealTile.Kind = (
-			RevealTile.Kind.COUPON if card.is_coupon() else RevealTile.Kind.PICK
-		)
-		var tile: RevealTile = RevealTile.new(card, kind)
-		tile.pivot_offset = Vector2.ZERO  # Scaled from its top left, inside the face.
-		tile.scale = Vector2.ONE * TILE_SCALE
-		tile.position = Vector2(TILE_LEFT + index * TILE_STEP, TILE_TOP)
+		var tile: CartTicket = CartTicket.new(pack.cards[index], false, 1, true)
+		tile.set_rest(Vector2(TILE_LEFT + index * TILE_STEP, TILE_TOP))
 		add_child(tile)
 		tiles.append(tile)
 	var hint: Label = UiKit.body_label(pack.hint_text, HINT_SIZE, Palette.INK)
@@ -88,6 +90,20 @@ func _init(starter_pack: StarterPackDefinition, is_first_pick: bool = false) -> 
 	ribbon_text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	ribbon_text.size = RIBBON_RECT.size
 	_ribbon.add_child(ribbon_text)
+	if key > 0:
+		var key_chip: RevealChip = RevealChip.new(
+			Palette.PAPER, KEY_RECT.size, null, str(key), KEY_SIZE, Palette.INK
+		)
+		key_chip.name = "Key"
+		key_chip.position = KEY_RECT.position
+		add_child(key_chip)
+	picked_tab = RevealChip.new(
+		Palette.GOOD, PICKED_RECT.size, null, PICKED_TEXT, RIBBON_SIZE, Palette.INK
+	)
+	picked_tab.name = "Picked"
+	picked_tab.position = PICKED_RECT.position
+	picked_tab.visible = false
+	add_child(picked_tab)
 
 
 ## The face's colour: its family's ticket colour, or the coupon's tomato for a family with none
@@ -118,6 +134,7 @@ func has_ribbon() -> bool:
 func set_raised(on: bool) -> void:
 	if on != raised:
 		raised = on
+		picked_tab.visible = on
 		queue_redraw()
 
 

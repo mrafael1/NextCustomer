@@ -28,6 +28,13 @@ extends Resource
 @export var pack_drop_px: float = 0.0
 @export var pack_raise_px: float = 0.0
 
+## The start screen's cart sheet (2026-11-03): a pack change pops the pack's tickets in over
+## ticket_pop_s each, ticket_stagger_s apart; the OPEN STORE key's glow pulses at key_glow_hz
+## once a pack is picked.
+@export var ticket_pop_s: float = 0.0
+@export var ticket_stagger_s: float = 0.0
+@export var key_glow_hz: float = 0.0
+
 ## Pick k leaves the chute at pick_start_s + pick_gap_s * k: it pops out over `exit_s` (from a
 ## scale of exit_scale, sliding exit_drop px down), then arcs into its slot over `fly_s`, an arc
 ## `arc_height` px high (a coupon's coupon_arc_height, fluttering coupon_flutter_deg); a product

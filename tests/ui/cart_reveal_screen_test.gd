@@ -33,9 +33,9 @@ func test_a_screen_opened_without_a_request_starts_without_it() -> void:
 	assert_bool(screen._cart_reveal.requested).is_false()
 
 
-## The title's New run: the new run opens on the reveal, already dealt and saved, showing its
-## staples and (since #107) the starter pack choice, today's products in the dispenser; the
-## request is used up.
+## The title's New run: the new run opens on the reveal, already dealt and saved, showing (since
+## #107, 2026-11-03) the start screen's board: the staples, the packs and today's products in its
+## cart; the request is used up.
 func test_the_titles_request_opens_it_on_the_new_run() -> void:
 	CartReveal.request()
 	var screen: ShiftScreen = await _screen()
@@ -44,12 +44,12 @@ func test_the_titles_request_opens_it_on_the_new_run() -> void:
 	# The machine's notice waits for the reveal to fold (it would pulse under the dim).
 	assert_bool(screen._machine._notice_due).is_false()
 	assert_bool(CartReveal._request).is_false()
-	var panel: RevealPanel = reveal.panel()
-	assert_array(panel.staples).is_equal(screen.run.starter.core_cards)
+	var board: StartBoard = reveal.board
+	assert_object(reveal.panel()).is_null()
+	assert_array(board.sheet.staples).is_equal(screen.run.starter.core_cards)
 	assert_bool(reveal.is_choosing()).is_true()
-	assert_object(panel.choice).is_not_null()
-	assert_array(panel.picks).is_empty()
-	assert_int(panel.dispenser.heap_left()).is_equal(screen.run.start_offer.shared.size())
+	assert_int(board.choice.faces.size()).is_equal(screen.run.start_offer.packs.size())
+	assert_array(board.sheet.shared).is_equal(screen.run.start_offer.shared)
 	assert_int(screen.run.phase).is_equal(RunState.Phase.CHOOSE_START)
 	assert_bool(FileAccess.file_exists(_folder.path_join(SaveService.RUN_FILE))).is_true()
 	# Over the deck view and the machine: the screen's last child but the debug panel.
@@ -83,32 +83,30 @@ func test_a_new_run_and_the_debug_new_runs_open_it() -> void:
 	assert_bool(screen._cart_reveal.is_open()).is_false()
 
 
-## On screen at 1280x720: the panel inside the stage under the top bar, the dim from the top
-## bar's bottom, the Cart button above the panel (clear for the fold's ring), and the fold ends
-## with shift 1's planning as it was.
+## On screen at 1280x720: the board inside the stage under the top bar, the dim from the top
+## bar's bottom, the Cart button above the board (clear for the fold's ring), and the fold after
+## the pick ends with shift 1's planning as it was.
 func test_it_sits_under_the_top_bar_and_folds_into_the_cart() -> void:
 	CartReveal.request()
 	var screen: ShiftScreen = await _screen()
 	var reveal: CartReveal = screen._cart_reveal
 	reveal.set_process(false)
-	# #107: the starter pack choice first (a new profile's good first pick is raised).
-	reveal.freeze_at(reveal.end_time())
-	assert_bool(reveal.take_pack()).is_true()
-	reveal.set_process(false)
+	# #107: the starter pack choice (a new profile's good first pick is picked).
 	reveal.freeze_at(reveal.end_time())
 	await get_tree().process_frame
 	var stage: Rect2 = screen._stage.get_global_rect()
-	var panel: Rect2 = reveal.panel().get_global_rect()
+	var panel: Rect2 = reveal.board.get_global_rect()
 	assert_bool(stage.encloses(panel)).is_true()
 	assert_float(panel.position.y).is_greater_equal(stage.position.y + ShiftStage.TOP_BAR_BOTTOM)
 	assert_bool(reveal.get_global_rect().encloses(screen.get_global_rect())).is_true()
 	var cart: Rect2 = screen._deck_button.get_global_rect()
 	assert_float(cart.end.y + CartReveal.RING_GAP + CartReveal.RING_WIDTH).is_less(panel.position.y)
 	assert_bool(stage.encloses(cart.grow(CartReveal.RING_GAP + CartReveal.RING_WIDTH))).is_true()
-	var hand: Array[CardInstance] = screen.run.hand()
-	reveal.freeze_at(reveal.end_time())
-	reveal.tap()
 	var folding_ms: int = Time.get_ticks_msec()
+	assert_bool(reveal.take_pack()).is_true()
+	reveal.set_process(false)
+	var hand: Array[CardInstance] = screen.run.hand()
+	assert_bool(reveal.is_folding()).is_true()
 	reveal.advance(reveal.tuning.outro_s + 0.1)
 	assert_bool(reveal.is_open()).is_false()
 	# Shift 1's time to checkout starts once the reveal is gone (plan section 8).
