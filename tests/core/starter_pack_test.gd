@@ -23,8 +23,10 @@ func before_test() -> void:
 
 
 ## The recipe: the 4 staples, 6 products from today's stock and no dealt coupon, an offer of 3 of
-## the 6 packs, Breakfast run as the good first pick. Each pack is 3 cards with exactly one RARE
-## and no LEGENDARY (the machine's rarities), and none holds Soup. The catalogue lists the recipe.
+## the 6 packs, Breakfast run as the good first pick. Each pack is 3 cards with no LEGENDARY and at
+## most one RARE (the machine's rarities: since v0.93 every plain product is COMMON, so a pack's
+## one RARE card of the first draft counts only when it is a coupon), and none holds Soup. The
+## catalogue lists the recipe.
 func test_the_recipe_and_its_packs() -> void:
 	assert_int(_recipe.random_count).is_equal(6)
 	assert_int(_recipe.random_coupon_count).is_equal(0)
@@ -45,14 +47,16 @@ func test_the_recipe_and_its_packs() -> void:
 		var rare: int = 0
 		for card: CardDefinition in pack.cards:
 			var rarity: int = (
-				machine.coupon_rarity(card) if card.is_coupon() else machine.product_rarity(card)
+				machine.coupon_rarity(card)
+				if card.is_coupon()
+				else MachineDefinition.product_rarity(card)
 			)
 			assert_int(rarity).override_failure_message(message).is_less(
 				MachinePrize.Rarity.LEGENDARY
 			)
 			rare += 1 if rarity == MachinePrize.Rarity.RARE else 0
 			assert_str(String(card.id)).override_failure_message(message).is_not_equal("soup")
-		assert_int(rare).override_failure_message(message).is_equal(1)
+		assert_int(rare).override_failure_message(message).is_less_equal(1)
 	var catalogue: CatalogueDefinition = load(CATALOGUE)
 	assert_bool(catalogue.decks.has(_recipe)).is_true()
 

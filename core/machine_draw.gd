@@ -8,15 +8,16 @@ extends RefCounted
 ## PREMIUM visit floors every drop) and takes a prize of that rarity and of the drop's kind
 ## (drop_kind: NEW ITEMS' last coupons_per_draw drops are coupons, the others products; UPGRADE's
 ## first loyalty_per_draw drops are loyalty perks, the next item_upgrades_per_draw item upgrades,
-## the rest either), uniform among the candidates: never a prize twice, and loyalty perks never
-## repeat a type. A rarity with no candidate of the drop's kind steps down to the floor, then up,
-## then below the floor (the empty-tier fallback); a kind with no candidate at any rarity takes any
-## kind the same way; none at all ends the draw short. Then the guarantee swap: if no drop is in
-## the chute's guarantee set, the last drop whose rarity pool holds a member of its own kind not
-## drawn yet (for a loyalty perk, of a type the other drops don't have) is swapped for one,
-## uniform; if none, the guarantee is skipped. NEW ITEMS then holds the run's newest new arrival
-## on its first draw, and finally each product with an upgrade chain rolls its tier (plain, BIG,
-## GOLDEN; roll_tiers) from the odds level's tier weights, keeping its plain card's rarity.
+## the rest either), uniform among the candidates: never a prize twice (nor one product at two
+## tiers), and loyalty perks never repeat a type. A rarity with no candidate of the drop's kind
+## steps down to the floor, then up, then below the floor (the empty-tier fallback); a kind with no
+## candidate at any rarity takes any kind the same way; none at all ends the draw short. Then the
+## guarantee swap: if no drop is in the chute's guarantee set, the last drop whose rarity pool holds
+## a member of its own kind not drawn yet (for a loyalty perk, of a type the other drops don't have)
+## is swapped for one, uniform; if none, the guarantee is skipped. NEW ITEMS then holds the run's
+## newest new arrival on its first draw. A product's rarity is its tier (v0.93): the rarity a
+## product drop rolls picks its tier (plain COMMON, BIG RARE, GOLDEN LEGENDARY), with no tier roll
+## of its own.
 
 ## Any kind of prize (a drop with no kind of its own).
 const ANY_KIND := -1
@@ -26,10 +27,11 @@ const RARITIES: Array[int] = [
 
 
 ## The chute's prizes as 3 lists (COMMON, RARE, LEGENDARY), each an Array[MachinePrize] in data
-## order. NEW ITEMS: the stocked products, then the coupon candidates
-## (MachineContext.coupon_candidates); UPGRADE: the pool's perks whose family isn't owned (none
-## once the card is full), then each owned perk's next level at its family's rarity, then each
-## chain's product with a copy in the deck, per rarity it can offer as an item upgrade.
+## order. NEW ITEMS: the stocked products, each at every tier it has (product_tiers, a tier at its
+## rarity), then the coupon candidates (MachineContext.coupon_candidates); UPGRADE: the pool's perks
+## whose family isn't owned (none once the card is full), then each owned perk's next level at its
+## family's rarity, then each chain's product with a copy in the deck, per rarity it can offer as an
+## item upgrade.
 static func pools(chute: int, context: MachineContext) -> Array:
 	var common: Array[MachinePrize] = []
 	var rare: Array[MachinePrize] = []
@@ -38,9 +40,10 @@ static func pools(chute: int, context: MachineContext) -> Array:
 	var machine: MachineDefinition = context.machine
 	match chute:
 		RewardMachine.Chute.NEW_ITEMS:
-			for card: CardDefinition in context.products:
-				var rarity: int = machine.product_rarity(card)
-				_add(found, MachinePrize.new(MachinePrize.Kind.PRODUCT, rarity, card))
+			for product: CardDefinition in context.products:
+				for card: CardDefinition in product_tiers(machine, product):
+					var rarity: int = MachineDefinition.product_rarity(card)
+					_add(found, MachinePrize.new(MachinePrize.Kind.PRODUCT, rarity, card))
 			for card: CardDefinition in context.coupon_candidates():
 				var rarity: int = machine.coupon_rarity(card)
 				_add(found, MachinePrize.new(MachinePrize.Kind.COUPON, rarity, card))
@@ -55,30 +58,25 @@ static func pools(chute: int, context: MachineContext) -> Array:
 	return found
 
 
-## The ids a draw must hold one of (empty: no guarantee). NEW ITEMS: the stocked generally useful
-## products, preferring in each rarity tier those the deck doesn't hold yet (v0.49; no copy of the
-## same product, a tier counting as its plain card): a tier's members are its useful products not
-## in the deck, or all its useful products when the deck holds every one, so a tier that could
-## swap one in before still can; UPGRADE: the new perks (never a level-up) that fit the deck.
+## The ids a draw must hold one of (empty: no guarantee; a product's are its plain card's, and a
+## BIG or GOLDEN drop counts as its plain card, holds). NEW ITEMS: the stocked generally useful
+## products the deck doesn't hold yet (v0.49; no copy of the same product, a tier counting as its
+## plain card), or all of them when the deck holds every one; UPGRADE: the new perks (never a
+## level-up) that fit the deck.
 static func guarantee(chute: int, context: MachineContext) -> Dictionary:
 	var found: Dictionary = {}
 	match chute:
 		RewardMachine.Chute.NEW_ITEMS:
 			var deck_cards: Array[CardDefinition] = context.deck_cards()
-			# Per rarity: [its useful products, those of them not in the deck].
-			var tiers: Dictionary[int, Array] = {}
+			var useful: Array[CardDefinition] = []
+			var fresh: Array[CardDefinition] = []
 			for card: CardDefinition in context.products:
 				if card.generally_useful:
-					var rarity: int = context.machine.product_rarity(card)
-					if not tiers.has(rarity):
-						tiers[rarity] = [[], []]
-					tiers[rarity][0].append(card)
+					useful.append(card)
 					if not deck_cards.any(card.is_same_product):
-						tiers[rarity][1].append(card)
-			for rarity: int in tiers:
-				var fresh: Array = tiers[rarity][1]
-				for card: CardDefinition in fresh if not fresh.is_empty() else tiers[rarity][0]:
-					found[card.id] = true
+						fresh.append(card)
+			for card: CardDefinition in fresh if not fresh.is_empty() else useful:
+				found[card.id] = true
 		RewardMachine.Chute.UPGRADE:
 			var deck_cards: Array[CardDefinition] = context.deck_cards()
 			for upgrade: UpgradeDefinition in _new_perks(context):
@@ -166,7 +164,7 @@ static func land(
 ## The guarantee swap's alternatives for a finished draw, equally likely: the draw itself when
 ## it holds a member of `held_ids` (or there is no guarantee, or no drop can swap), else the draw
 ## with its last swappable drop replaced by each member of that drop's rarity and kind not drawn
-## yet.
+## yet (a product: one not in the draw at any tier).
 static func swaps(chute_pools: Array, drawn: Array[MachinePrize], held_ids: Dictionary) -> Array:
 	if held_ids.is_empty() or holds(drawn, held_ids):
 		return [drawn]
@@ -174,7 +172,7 @@ static func swaps(chute_pools: Array, drawn: Array[MachinePrize], held_ids: Dict
 		var alternatives: Array = []
 		var pool: Array[MachinePrize] = chute_pools[drawn[index].rarity]
 		for prize: MachinePrize in pool:
-			if prize.kind != drawn[index].kind or not held_ids.has(prize.id()):
+			if prize.kind != drawn[index].kind or not held_ids.has(prize.plain_id()):
 				continue
 			if _has_key(drawn, prize) or _type_taken(drawn, prize, index):
 				continue
@@ -192,60 +190,49 @@ static func holds(drawn: Array[MachinePrize], held_ids: Dictionary) -> bool:
 
 
 ## The first NEW ITEMS draw's new-arrival hold (build spec 1.5, Q4): when the context holds a new
-## arrival not drawn yet, it replaces the last product drop that isn't the draw's only generally
-## useful product, at its own rarity (a coupon drop is never replaced). Any other draw is returned
-## as it is.
+## arrival not drawn yet (at any tier), it replaces the last product drop that isn't the draw's
+## only generally useful product, at its own rarity (plain: COMMON; a coupon drop is never
+## replaced). Any other draw is returned as it is.
 static func new_arrival_swap(
 	context: MachineContext, drawn: Array[MachinePrize]
 ) -> Array[MachinePrize]:
 	if not context.holds_new_arrival():
 		return drawn
-	if drawn.any(func(prize: MachinePrize) -> bool: return prize.card == context.new_arrival):
+	var arrival: CardDefinition = context.new_arrival
+	if drawn.any(
+		func(prize: MachinePrize) -> bool:
+			return prize.kind == MachinePrize.Kind.PRODUCT and prize.card.is_same_product(arrival)
+	):
 		return drawn
 	var useful: Dictionary = context.guarantee(RewardMachine.Chute.NEW_ITEMS)
 	var useful_count: int = (
-		drawn.filter(func(prize: MachinePrize) -> bool: return useful.has(prize.id())).size()
+		drawn.filter(func(prize: MachinePrize) -> bool: return useful.has(prize.plain_id())).size()
 	)
 	for index: int in range(drawn.size() - 1, -1, -1):
 		if drawn[index].kind != MachinePrize.Kind.PRODUCT:
 			continue
-		if useful_count == 1 and useful.has(drawn[index].id()):
+		if useful_count == 1 and useful.has(drawn[index].plain_id()):
 			continue
 		var swapped: Array[MachinePrize] = drawn.duplicate()
-		var rarity: int = context.machine.product_rarity(context.new_arrival)
-		swapped[index] = MachinePrize.new(MachinePrize.Kind.PRODUCT, rarity, context.new_arrival)
+		var rarity: int = MachineDefinition.product_rarity(arrival)
+		swapped[index] = MachinePrize.new(MachinePrize.Kind.PRODUCT, rarity, arrival)
 		return swapped
 	return drawn
 
 
-## The tier roll (#108): each product drop with an upgrade chain rolls plain, BIG or GOLDEN from
-## the odds level's tier weights (MachineOddsLevel.tier_weights, with a PREMIUM visit's tier
-## floor) and becomes that tier's card at its plain card's rarity. The RNG is used once per
-## product with a chain, never for others.
-static func roll_tiers(
-	context: MachineContext, level: int, drawn: Array[MachinePrize], rng: RandomNumberGenerator
-) -> Array[MachinePrize]:
-	var odds: MachineOddsLevel = context.machine.odds_level(level)
-	if odds == null:
-		return drawn
-	var tier_weights: PackedInt32Array = odds.tier_weights(context.min_tier())
-	var found: Array[MachinePrize] = drawn.duplicate()
-	for index: int in found.size():
-		var chain: ItemUpgradeDefinition = chain_of(context.machine, found[index])
-		if chain == null:
-			continue
-		var tier: int = roll(tier_weights, rng)
-		var card: CardDefinition = chain.tiers()[tier] if tier > 0 else null
-		if card != null:
-			found[index] = MachinePrize.new(MachinePrize.Kind.PRODUCT, found[index].rarity, card)
+## A stocked plain product's cards NEW ITEMS can draw, plain first: each tier of its upgrade
+## chain (plain, BIG, GOLDEN), or the plain card alone when it has no chain.
+static func product_tiers(
+	machine: MachineDefinition, product: CardDefinition
+) -> Array[CardDefinition]:
+	var found: Array[CardDefinition] = [product]
+	var chain: ItemUpgradeDefinition = ItemUpgrades.chain_for(machine.item_upgrades, product)
+	if chain == null:
+		return found
+	for card: CardDefinition in chain.tiers():
+		if card != null and card != product:
+			found.append(card)
 	return found
-
-
-## A product prize's upgrade chain (its plain card's), or null for any other prize.
-static func chain_of(machine: MachineDefinition, prize: MachinePrize) -> ItemUpgradeDefinition:
-	if prize.kind != MachinePrize.Kind.PRODUCT:
-		return null
-	return ItemUpgrades.chain_for(machine.item_upgrades, prize.card)
 
 
 ## The forward draw (draw77 simulate, #108's kinds) with the run's RNG: drops in drop order, 0 to
@@ -274,11 +261,10 @@ static func draw(
 		chosen = alternatives[rng.randi_range(0, alternatives.size() - 1)]
 	if chute == RewardMachine.Chute.NEW_ITEMS:
 		chosen = new_arrival_swap(context, chosen)
-		chosen = roll_tiers(context, level, chosen, rng)
 	return chosen
 
 
-## A rarity (or a tier) rolled against integer weights, or -1 when they sum to 0 (no RNG used
+## A rarity rolled against integer weights, or -1 when they sum to 0 (no RNG used
 ## then).
 static func roll(rarity_weights: PackedInt32Array, rng: RandomNumberGenerator) -> int:
 	var total: int = 0
@@ -327,11 +313,15 @@ static func _add_item_upgrades(found: Array, context: MachineContext) -> void:
 				_add(found, MachinePrize.new(MachinePrize.Kind.UPGRADE, rarity, chain.product))
 
 
-## Whether the draw already holds this prize (the same key: kind, card or upgrade, rarity).
+## Whether the draw already holds this prize (the same key: kind, card or upgrade, rarity), or,
+## for a product, the same product at any tier.
 static func _has_key(drawn: Array[MachinePrize], prize: MachinePrize) -> bool:
 	for other: MachinePrize in drawn:
 		if other == prize:
 			return true
+		if prize.kind == MachinePrize.Kind.PRODUCT and other.kind == MachinePrize.Kind.PRODUCT:
+			if other.card.is_same_product(prize.card):
+				return true
 		var same_item: bool = other.card == prize.card and other.upgrade == prize.upgrade
 		if same_item and other.kind == prize.kind and other.rarity == prize.rarity:
 			return true

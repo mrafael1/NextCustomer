@@ -1,12 +1,11 @@
 class_name MachinePrize
 extends RefCounted
-## One prize the RECEIPT REWARDS machine drew (#77, build spec 1.5), with its rarity: from NEW
-## ITEMS a product (PRODUCT, possibly a BIG or GOLDEN tier card since #108, at its plain card's
-## rarity) or a coupon (COUPON); from UPGRADE a loyalty perk (REGISTER: a new perk, or a level-up
-## of an owned one, #108) or an item upgrade (UPGRADE). An UPGRADE prize names the plain product;
-## its rarity sets its step (ItemUpgrades: COMMON one step, RARE straight to GOLDEN, LEGENDARY
-## SHELF UPGRADE). The kind names stay as saved and logged since #77 ("register" is the player's
-## LOYALTY).
+## One prize the RECEIPT REWARDS machine drew (#77, build spec 1.5), with its rarity: from NEW ITEMS
+## a product (PRODUCT, possibly a BIG or GOLDEN tier card since #108; since v0.93 its rarity is its
+## tier) or a coupon (COUPON); from UPGRADE a loyalty perk (REGISTER: a new perk, or a level-up of
+## an owned one, #108) or an item upgrade (UPGRADE). An UPGRADE prize names the plain product; its
+## rarity sets its step (ItemUpgrades: COMMON one step, RARE straight to GOLDEN, LEGENDARY SHELF
+## UPGRADE). The kind names stay as saved and logged since #77 ("register" is the player's LOYALTY).
 
 enum Kind { PRODUCT, COUPON, REGISTER, UPGRADE }
 ## The values ItemUpgrades.COMMON / RARE / LEGENDARY use too.

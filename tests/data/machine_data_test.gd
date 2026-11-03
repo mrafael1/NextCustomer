@@ -1,20 +1,15 @@
 extends GdUnitTestSuite
 ## The live machine data (#77, build spec 1.2): data/balance/machine.tres, referenced from the
-## balance. Its rarity lists follow the approved table (product_rarity.json with Carrier bag and
-## Tea bags moved to RARE, R3b), its odds are the approved draw's, and its shift lists fit the
-## run. These values are tuned between playtests, so tuning updates this test.
+## balance. Its coupon and upgrade rarity lists are the approved ones, a product's rarity is its
+## tier (v0.93: no product lists, no tier weights), its odds are the approved draw's, and its shift
+## lists fit the run. These values are tuned between playtests, so tuning updates this test.
 
 const BALANCE := "res://data/balance/balance.tres"
 const MACHINE := "res://data/balance/machine.tres"
 const STARTER := "res://data/decks/starter.tres"
-const RARITY_TABLE := "res://docs/art/mockups/machine_77_src/product_rarity.json"
-## R3b (decided with the user): these leave the Legendary list for the Rare one.
-const R3B_RARE: Array[String] = ["tea_bags", "carrier_bag"]
 ## draw77.js ODDS, per Regular level (COMMON, RARE, LEGENDARY); level 4 (v0.70) only Holiday
 ## rush's +1 reaches (the visits after shifts 9-11), one step past level 3.
 const ODDS := [[75, 22, 3], [65, 28, 7], [55, 33, 12], [45, 37, 18], [35, 41, 24]]
-## The tier a NEW ITEMS product with a chain arrives at, per odds level (plain, BIG, GOLDEN; #108).
-const TIERS := [[85, 13, 2], [75, 20, 5], [65, 27, 8], [55, 33, 12], [45, 39, 16]]
 
 var _balance: BalanceDefinition
 var _machine: MachineDefinition
@@ -39,16 +34,18 @@ func test_the_balance_uses_the_machine_file() -> void:
 		var payday: bool = [4, 8].has(shift_number)
 		assert_bool(_machine.is_payday_shift(shift_number)).is_equal(payday)
 	# #108: NEW ITEMS draws 1 coupon a draw; UPGRADE a loyalty perk and an item upgrade, then
-	# either. PREMIUM: RARE or better, BIG or better.
+	# either. PREMIUM: RARE or better (a product: BIG or better, its rarity its tier since v0.93).
 	assert_int(_machine.coupons_per_draw).is_equal(1)
 	assert_int(_machine.loyalty_per_draw).is_equal(1)
 	assert_int(_machine.item_upgrades_per_draw).is_equal(1)
 	assert_int(_machine.premium_min_rarity).is_equal(MachinePrize.Rarity.RARE)
-	assert_int(_machine.premium_min_tier).is_equal(CardDefinition.Tier.BIG)
+	assert_int(MachineDefinition.product_rarity(load("res://data/cards/milk_big.tres"))).is_equal(
+		_machine.premium_min_rarity
+	)
 
 
 ## The approved odds; every level rolls something, drop 1 too (its floor leaves a positive sum),
-## and a PREMIUM drop too; the tier weights rise with the level and PREMIUM leaves BIG and GOLDEN.
+## and a PREMIUM drop too.
 func test_the_odds_levels_are_the_approved_ones() -> void:
 	assert_int(_machine.odds_levels.size()).is_equal(ODDS.size())
 	assert_int(_machine.max_level()).is_equal(4)
@@ -63,17 +60,10 @@ func test_the_odds_levels_are_the_approved_ones() -> void:
 		assert_int(level.first_drop_min_rarity).is_equal(1 if index >= 3 else 0)
 		var premium: PackedInt32Array = level.weights(0, _machine.premium_min_rarity)
 		assert_int(premium[1] + premium[2]).is_greater(0)
-		assert_array(Array(level.tier_weights())).is_equal(TIERS[index])
-		var premium_tiers: PackedInt32Array = level.tier_weights(_machine.premium_min_tier)
-		assert_int(premium_tiers[0]).is_equal(0)
-		assert_int(premium_tiers[1] + premium_tiers[2]).is_greater(0)
 
 
-## Every listed product is a plain stockable product (a staple or an aisle item), every listed
-## coupon is in the coupon pool, every listed upgrade in the upgrade pool, and nothing is in two
-## lists.
 ## NEW ITEMS rolls its rarities one odds level above UPGRADE (decided with the user on
-## 2026-10-28), up to the top level; its tier roll stays at the visit's level.
+## 2026-10-28), up to the top level; since v0.93 that roll picks a product's tier too.
 func test_new_items_roll_rarities_one_level_up() -> void:
 	var new_items: int = RewardMachine.Chute.NEW_ITEMS
 	var upgrade: int = RewardMachine.Chute.UPGRADE
@@ -89,15 +79,9 @@ func test_new_items_roll_rarities_one_level_up() -> void:
 	assert_array(Array(weights)).is_equal(ODDS[1])
 
 
+## Every listed coupon is in the coupon pool, every listed upgrade in the upgrade pool, and nothing
+## is in two lists.
 func test_the_rarity_lists_hold_the_right_kinds() -> void:
-	var stockable: Array[CardDefinition] = RunStock.staples(_balance)
-	for aisle: AisleDefinition in _balance.aisles:
-		stockable.append_array(aisle.base_cards + aisle.capsule_cards)
-	for card: CardDefinition in _machine.rare_products + _machine.legendary_products:
-		var where: String = String(card.id)
-		assert_bool(card.is_product()).override_failure_message(where).is_true()
-		assert_int(card.tier).override_failure_message(where).is_equal(CardDefinition.Tier.PLAIN)
-		assert_bool(stockable.has(card)).override_failure_message(where).is_true()
 	for card: CardDefinition in _machine.rare_coupons + _machine.legendary_coupons:
 		(
 			assert_bool(_balance.coupon_pool.has(card))
@@ -111,7 +95,6 @@ func test_the_rarity_lists_hold_the_right_kinds() -> void:
 			. is_true()
 		)
 	for lists: Array in [
-		[_machine.rare_products, _machine.legendary_products],
 		[_machine.rare_coupons, _machine.legendary_coupons],
 		[_machine.rare_upgrades, _machine.legendary_upgrades],
 	]:
@@ -122,17 +105,11 @@ func test_the_rarity_lists_hold_the_right_kinds() -> void:
 				seen[item] = true
 
 
-## The product rarities are the approved table with R3b: Carrier bag and Tea bags are RARE, so the
-## fresh stock has no Legendary product. Coupons and registers follow the approved draw's tiers.
-func test_the_rarities_follow_the_approved_table_with_r3b() -> void:
-	var table: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(RARITY_TABLE))
-	var rare: Array = table["tiers"]["rare"].duplicate()
-	rare.append_array(R3B_RARE)
-	var legendary: Array = table["tiers"]["legendary"].filter(
-		func(id: String) -> bool: return not R3B_RARE.has(id)
-	)
-	assert_array(_ids(_machine.rare_products)).contains_exactly_in_any_order(rare)
-	assert_array(_ids(_machine.legendary_products)).contains_exactly_in_any_order(legendary)
+## Coupons and registers follow the approved draw's tiers. Products have no rarity list since
+## v0.93 (decided with the user on 2026-11-03): a product's rarity is its tier, so every stocked
+## product is COMMON plain, RARE BIG and LEGENDARY GOLDEN (Lemon, Iced bun and Squashed cake
+## included, LEGENDARY plain until then).
+func test_the_rarities_follow_the_approved_draw() -> void:
 	assert_array(_ids(_machine.rare_coupons)).contains_exactly_in_any_order(
 		["repeat", "two_for_one", "multipack"]
 	)
@@ -160,10 +137,33 @@ func test_the_rarities_follow_the_approved_table_with_r3b() -> void:
 	assert_array(Array(_machine.families)).contains_exactly_in_any_order(
 		["Bakery", "Produce", "Dairy", "Frozen", "Snack", "Household", "Breakfast", "Clearance"]
 	)
-	var fresh: RunStock = RunStock.starting(_balance)
-	for card: CardDefinition in fresh.cards:
+	var stockable: Array[CardDefinition] = RunStock.staples(_balance)
+	for aisle: AisleDefinition in _balance.aisles:
+		stockable.append_array(aisle.base_cards + aisle.capsule_cards)
+	for card: CardDefinition in stockable:
 		if card.is_product():
-			assert_int(_machine.product_rarity(card)).is_less(MachinePrize.Rarity.LEGENDARY)
+			(
+				assert_int(MachineDefinition.product_rarity(card))
+				. override_failure_message(String(card.id))
+				. is_equal(MachinePrize.Rarity.COMMON)
+			)
+	for chain: ItemUpgradeDefinition in _machine.item_upgrades:
+		var where: String = String(chain.product.id)
+		(
+			assert_int(MachineDefinition.product_rarity(chain.big))
+			. override_failure_message(where)
+			. is_equal(MachinePrize.Rarity.RARE)
+		)
+		(
+			assert_int(MachineDefinition.product_rarity(chain.golden))
+			. override_failure_message(where)
+			. is_equal(MachinePrize.Rarity.LEGENDARY)
+		)
+	var text: String = FileAccess.get_file_as_string(MACHINE)
+	for gone: String in [
+		"rare_products", "legendary_products", "premium_min_tier", "plain_weight", "big_weight"
+	]:
+		assert_bool(text.contains(gone)).override_failure_message(gone).is_false()
 
 
 ## The shift lists fit the run: each is a shift with a visit after it (1 to shift count - 1). The

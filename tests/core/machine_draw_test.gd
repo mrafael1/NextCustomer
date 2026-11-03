@@ -3,13 +3,14 @@ extends GdUnitTestSuite
 ## drop's kind (NEW ITEMS: products then a coupon; UPGRADE: a loyalty perk, an item upgrade, then
 ## either), the empty-tier fallback (with a PREMIUM floor) and the any-kind fallback, short draws,
 ## the loyalty perks' owned, level and type rules, the guarantee swap inside the drop's tier and
-## kind, the first NEW ITEMS draw's coupon and new arrival, the tier roll, SHELF UPGRADE's two
-## copies, and seeded determinism.
+## kind, the first NEW ITEMS draw's coupon and new arrival, a product's rarity as its tier (v0.93),
+## SHELF UPGRADE's two copies, and seeded determinism.
 
 const BALANCE := "res://data/balance/balance.tres"
 const STARTER := "res://data/decks/starter.tres"
 const CARDS_DIR := "res://data/cards"
 const UPGRADES_DIR := "res://data/upgrades"
+const MILK_CHAIN := "res://data/item_upgrades/milk.tres"
 
 var _balance: BalanceDefinition
 var _starter: DeckDefinition
@@ -188,8 +189,8 @@ func test_a_full_card_offers_only_level_ups() -> void:
 	assert_array(open_perks).not_contains([&"coupon_engine", &"slot_engine", &"big_basket"])
 
 
-## A PREMIUM visit floors every drop at RARE and every NEW ITEMS product with an upgrade chain at
-## BIG; a classic visit rolls plain products too.
+## A PREMIUM visit floors every drop at RARE, so every NEW ITEMS product is BIG or better (its
+## rarity is its tier); a classic visit draws plain products too.
 func test_a_premium_draw_is_rare_or_better_and_big_or_better() -> void:
 	var rng: RandomNumberGenerator = _rng(41)
 	var plain_seen: bool = false
@@ -201,8 +202,8 @@ func test_a_premium_draw_is_rare_or_better_and_big_or_better() -> void:
 				var drawn: Array[MachinePrize] = MachineDraw.draw(chute, context, draw % 4, rng)
 				assert_int(drawn.size()).is_equal(3)
 				for prize: MachinePrize in drawn:
-					var chain: ItemUpgradeDefinition = MachineDraw.chain_of(context.machine, prize)
-					var plain: bool = chain != null and prize.card.tier == CardDefinition.Tier.PLAIN
+					var product: bool = prize.kind == MachinePrize.Kind.PRODUCT
+					var plain: bool = product and prize.card.tier == CardDefinition.Tier.PLAIN
 					plain_seen = plain_seen or plain
 					if not premium:
 						continue
@@ -211,55 +212,77 @@ func test_a_premium_draw_is_rare_or_better_and_big_or_better() -> void:
 	assert_bool(plain_seen).is_true()
 
 
-## The odds level's tier weights: classic ones as data, a PREMIUM floor zeroes the plain tier, and
-## nothing left is always plain; the rarity floor zeroes the rarities below it.
-func test_tier_and_rarity_weights_take_their_floors() -> void:
+## The rarity floor zeroes the rarities below it (a PREMIUM floor on every drop, the level's
+## first-drop floor on drop 1).
+func test_rarity_weights_take_their_floors() -> void:
 	var level: MachineOddsLevel = _balance.machine.odds_level(0)
-	assert_array(Array(level.tier_weights())).is_equal([85, 13, 2])
-	assert_array(Array(level.tier_weights(1))).is_equal([0, 13, 2])
-	assert_array(Array(level.tier_weights(3))).is_equal([1, 0, 0])
 	assert_array(Array(level.weights(1))).is_equal([75, 22, 3])
 	assert_array(Array(level.weights(1, 1))).is_equal([0, 22, 3])
 	var top: MachineOddsLevel = _balance.machine.odds_level(3)
 	assert_array(Array(top.weights(0))).is_equal([0, 37, 18])
 	assert_array(Array(top.weights(0, 2))).is_equal([0, 0, 18])
-	assert_array(Array(MachineOddsLevel.new().tier_weights())).is_equal([1, 0, 0])
 
 
-## The tier roll: each product with a chain becomes its BIG or GOLDEN card by the tier weights, at
-## its plain card's rarity; coupons and products without a chain stay; tiers count as the plain
-## product for the guarantee.
-func test_new_items_products_roll_their_tier() -> void:
-	var context: MachineContext = _context()
-	var milk: MachinePrize = _live_product("milk")
-	var milk_rarity: int = context.machine.product_rarity(milk.card)
-	var coupon: MachinePrize = MachinePrize.new(
-		MachinePrize.Kind.COUPON, 1, load("%s/repeat.tres" % CARDS_DIR)
-	)
-	var drawn: Array[MachinePrize] = [milk, milk, coupon]
-	var counts: Array[int] = [0, 0, 0]
-	var held: Dictionary = {&"milk": true}
-	var rng: RandomNumberGenerator = _rng(23)
-	for _draw: int in 2000:
-		var rolled: Array[MachinePrize] = MachineDraw.roll_tiers(context, 0, drawn, rng)
-		assert_object(rolled[2]).is_same(coupon)
-		assert_bool(MachineDraw.holds(rolled, held)).is_true()
-		for index: int in 2:
-			var prize: MachinePrize = rolled[index]
-			counts[prize.card.tier] += 1
-			assert_int(prize.rarity).is_equal(milk_rarity)
-			assert_str(String(prize.plain_id())).is_equal("milk")
-	# 85 / 13 / 2 of 4000 rolls, seeded.
-	assert_int(counts[0]).is_between(3250, 3550)
-	assert_int(counts[1]).is_between(400, 650)
-	assert_int(counts[2]).is_between(30, 130)
+## v0.93: a product's rarity is its tier: plain COMMON, BIG RARE, GOLDEN LEGENDARY, whatever the
+## product (Lemon, LEGENDARY until v0.93, is COMMON plain). NEW ITEMS' pools hold each stocked
+## product at every tier, each at its rarity, and a forward draw lands each product at its tier's
+## rarity and never holds one product twice (two tiers of it included).
+func test_a_product_rarity_is_its_tier() -> void:
+	var milk: ItemUpgradeDefinition = load(MILK_CHAIN)
+	var lemon: ItemUpgradeDefinition = load("res://data/item_upgrades/lemon.tres")
+	for chain: ItemUpgradeDefinition in [milk, lemon]:
+		assert_int(MachineDefinition.product_rarity(chain.product)).is_equal(
+			MachinePrize.Rarity.COMMON
+		)
+		assert_int(MachineDefinition.product_rarity(chain.big)).is_equal(MachinePrize.Rarity.RARE)
+		assert_int(MachineDefinition.product_rarity(chain.golden)).is_equal(
+			MachinePrize.Rarity.LEGENDARY
+		)
 	var no_chain: CardDefinition = CardDefinition.new()
 	no_chain.id = &"no_chain"
 	no_chain.kind = CardDefinition.Kind.PRODUCT
-	var plain: Array[MachinePrize] = [MachinePrize.new(MachinePrize.Kind.PRODUCT, 0, no_chain)]
-	var state: int = rng.state
-	assert_array(MachineDraw.roll_tiers(context, 0, plain, rng)).is_equal(plain)
-	assert_int(rng.state).is_equal(state)
+	assert_int(MachineDefinition.product_rarity(no_chain)).is_equal(MachinePrize.Rarity.COMMON)
+	assert_array(MachineDraw.product_tiers(_balance.machine, no_chain)).is_equal([no_chain])
+	assert_array(MachineDraw.product_tiers(_balance.machine, milk.product)).is_equal(
+		[milk.product, milk.big, milk.golden]
+	)
+
+	# NEW ITEMS' pools: each stocked product at every tier, each tier at its rarity.
+	var context: MachineContext = _context()
+	var pools: Array = MachineDraw.pools(RewardMachine.Chute.NEW_ITEMS, context)
+	var expected: Array[Array] = [[], [], []]
+	for product: CardDefinition in context.products:
+		for card: CardDefinition in MachineDraw.product_tiers(context.machine, product):
+			expected[card.tier].append(card.id)
+	for rarity: int in MachineDraw.RARITIES:
+		var pool: Array[MachinePrize] = pools[rarity]
+		var products: Array = pool.filter(
+			func(prize: MachinePrize) -> bool: return prize.kind == MachinePrize.Kind.PRODUCT
+		)
+		assert_array(products.map(_id)).is_equal(expected[rarity])
+		assert_array(expected[rarity]).is_not_empty()
+
+	# A forward draw lands each product at its tier's rarity, never one product twice.
+	var rng: RandomNumberGenerator = _rng(23)
+	var seen: Array[int] = [0, 0, 0]
+	for draw: int in 600:
+		var drawn: Array[MachinePrize] = MachineDraw.draw(
+			RewardMachine.Chute.NEW_ITEMS, context, draw % 5, rng
+		)
+		_assert_distinct(drawn)
+		for prize: MachinePrize in drawn:
+			if prize.kind != MachinePrize.Kind.PRODUCT:
+				continue
+			assert_int(prize.rarity).is_equal(MachineDefinition.product_rarity(prize.card))
+			seen[prize.card.tier] += 1
+	for tier: int in seen:
+		assert_int(tier).is_greater(0)
+	# A product already drawn at one tier is no candidate at another.
+	var big_milk: MachinePrize = MachinePrize.new(MachinePrize.Kind.PRODUCT, 1, milk.big)
+	var plain_milk: MachinePrize = MachinePrize.new(MachinePrize.Kind.PRODUCT, 0, milk.product)
+	var chute_pools: Array = _pools([plain_milk], [big_milk], [])
+	var drawn_big: Array[MachinePrize] = [big_milk]
+	assert_array(MachineDraw.candidates(chute_pools, 0, drawn_big)).is_empty()
 
 
 ## The fresh stock always holds a generally useful product in every tier that can land, so every
@@ -291,20 +314,26 @@ func test_guarantees_hold_whenever_a_tier_has_one() -> void:
 		assert_bool(MachineDraw.holds(perks, held_perks)).is_true()
 
 
-## v0.49: NEW ITEMS' guarantee prefers, in each rarity tier, the stocked generally useful
-## products the deck doesn't hold yet (a tier counts as its plain card); a tier whose useful
-## products are all in the deck keeps them all, so every tier that could swap one in still can.
+## v0.49: NEW ITEMS' guarantee prefers the stocked generally useful products the deck doesn't
+## hold yet (a tier counts as its plain card); when the deck holds every one, it keeps them all.
+## Since v0.93 every plain product is COMMON, so the preference no longer splits by rarity.
 func test_the_new_items_guarantee_prefers_products_not_in_the_deck() -> void:
 	var run: RunState = RunState.new(1, _starter, _balance, RunStock.starting(_balance))
 	assert_array(_held(run)).contains_exactly_in_any_order(_expected_held(run))
-	# The starter holds both COMMON useful products (Banana, Bread): that tier keeps them.
-	assert_array(_held(run)).contains([&"banana", &"bread"])
-	assert_array(_held(run)).not_contains([&"milk", &"eggs"])
+	# The starter holds Banana and Bread: other useful products are preferred.
+	assert_array(_held(run)).is_not_empty()
+	assert_array(_held(run)).not_contains([&"banana", &"bread"])
 	assert_array(_held(run)).contains([&"butter"])
 	# A BIG copy counts as its plain product.
 	run.deck.add_card(load("res://data/cards/butter_big.tres"))
 	assert_array(_held(run)).not_contains([&"butter"])
 	assert_array(_held(run)).contains_exactly_in_any_order(_expected_held(run))
+	# A deck holding every useful product keeps them all.
+	for card: CardDefinition in run.stock.cards:
+		if card.is_product() and card.generally_useful:
+			run.deck.add_card(card)
+	assert_array(_held(run)).contains_exactly_in_any_order(_expected_held(run))
+	assert_array(_held(run)).contains([&"banana", &"bread", &"butter"])
 
 
 ## The swap replaces the last drop whose own tier holds a guarantee member of its own kind, with
@@ -351,32 +380,45 @@ func test_the_perk_swap_keeps_different_types() -> void:
 	assert_array(_keys(alternatives)).is_equal([economy.key(), risky.key(), fitting_slot.key()])
 
 
-## The run's first NEW ITEMS draw holds the newest new arrival at its own rarity: it replaces the
-## last product drop that isn't the draw's only generally useful product (never the coupon);
-## later draws don't.
+## The run's first NEW ITEMS draw holds the newest new arrival at its own rarity (plain: COMMON,
+## v0.93): it replaces the last product drop that isn't the draw's only generally useful product
+## (never the coupon); later draws don't.
 func test_the_first_new_items_draw_holds_the_new_arrival() -> void:
 	var context: MachineContext = _context()
 	var lemon: CardDefinition = load("%s/lemon.tres" % CARDS_DIR)
 	context.products.append(lemon)
 	context.new_arrival = lemon
 	context.first_new_items = true
-	var bread: MachinePrize = _live_product("bread")
+	# Butter is in the guarantee set (not in the starter), Soup and Coffee aren't.
+	var held: Dictionary = context.guarantee(RewardMachine.Chute.NEW_ITEMS)
+	assert_bool(held.has(&"butter")).is_true()
+	assert_bool(held.has(&"soup") or held.has(&"coffee")).is_false()
+	var butter: MachinePrize = _live_product("butter")
 	var soup: MachinePrize = _live_product("soup")
 	var coffee: MachinePrize = _live_product("coffee")
-	var one_useful: Array[MachinePrize] = [soup, coffee, bread]
+	var one_useful: Array[MachinePrize] = [soup, coffee, butter]
 	var swapped: Array[MachinePrize] = MachineDraw.new_arrival_swap(context, one_useful)
-	assert_array(swapped.map(_id)).is_equal([&"soup", &"lemon", &"bread"])
-	assert_int(swapped[1].rarity).is_equal(MachinePrize.Rarity.LEGENDARY)
-	var milk: MachinePrize = _live_product("milk")
-	var two_useful: Array[MachinePrize] = [soup, bread, milk]
+	assert_array(swapped.map(_id)).is_equal([&"soup", &"lemon", &"butter"])
+	assert_int(swapped[1].rarity).is_equal(MachinePrize.Rarity.COMMON)
+	# A BIG Lemon already drawn holds it: nothing is replaced.
+	var big_lemon: MachinePrize = MachinePrize.new(
+		MachinePrize.Kind.PRODUCT, 1, load("%s/lemon_big.tres" % CARDS_DIR)
+	)
+	var lemon_held: Array[MachinePrize] = [soup, big_lemon, butter]
+	assert_array(MachineDraw.new_arrival_swap(context, lemon_held)).is_equal(lemon_held)
+	var others: Array = held.keys()
+	others.erase(&"butter")
+	var other_id: StringName = others[0]
+	var other: MachinePrize = _live_product(String(other_id))
+	var two_useful: Array[MachinePrize] = [soup, butter, other]
 	swapped = MachineDraw.new_arrival_swap(context, two_useful)
-	assert_array(swapped.map(_id)).is_equal([&"soup", &"bread", &"lemon"])
+	assert_array(swapped.map(_id)).is_equal([&"soup", &"butter", &"lemon"])
 	var coupon: MachinePrize = MachinePrize.new(
 		MachinePrize.Kind.COUPON, 1, load("%s/repeat.tres" % CARDS_DIR)
 	)
-	var coupon_last: Array[MachinePrize] = [soup, bread, coupon]
+	var coupon_last: Array[MachinePrize] = [soup, butter, coupon]
 	swapped = MachineDraw.new_arrival_swap(context, coupon_last)
-	assert_array(swapped.map(_id)).is_equal([&"lemon", &"bread", &"repeat"])
+	assert_array(swapped.map(_id)).is_equal([&"lemon", &"butter", &"repeat"])
 	var rng: RandomNumberGenerator = _rng(5)
 	for draw: int in 50:
 		var drawn: Array[MachinePrize] = MachineDraw.draw(
@@ -386,7 +428,7 @@ func test_the_first_new_items_draw_holds_the_new_arrival() -> void:
 		var useful: Array = drawn.filter(_is_useful)
 		assert_array(useful).is_not_empty()
 	context.first_new_items = false
-	var later: Array[MachinePrize] = [soup, coffee, bread]
+	var later: Array[MachinePrize] = [soup, coffee, butter]
 	assert_array(MachineDraw.new_arrival_swap(context, later)).is_equal(later)
 
 
@@ -397,7 +439,7 @@ func test_item_upgrade_pools_and_shelf_upgrade() -> void:
 	var no_perks: Array[UpgradeDefinition] = []
 	context.upgrade_pool = no_perks
 	context.deck = Deck.new(null)
-	var milk: ItemUpgradeDefinition = load("res://data/item_upgrades/milk.tres")
+	var milk: ItemUpgradeDefinition = load(MILK_CHAIN)
 	var eggs: ItemUpgradeDefinition = load("res://data/item_upgrades/eggs.tres")
 	context.deck.add_card(milk.product)
 	context.deck.add_card(eggs.golden)
@@ -434,7 +476,7 @@ func test_prize_keys_and_save_form() -> void:
 		MachinePrize.new(MachinePrize.Kind.REGISTER, 1, null, _upgrade("coupon_engine_lv3")),
 		MachinePrize.new(MachinePrize.Kind.PRODUCT, 1, load("%s/milk_big.tres" % CARDS_DIR)),
 	]
-	assert_str(prizes[0].key()).is_equal("product:milk:1")
+	assert_str(prizes[0].key()).is_equal("product:milk:0")
 	assert_str(prizes[2].key()).is_equal("register:slot_engine:2")
 	assert_int(int(prizes[2].to_dictionary()["level"])).is_equal(1)
 	assert_int(int(prizes[4].to_dictionary()["level"])).is_equal(3)
@@ -455,11 +497,16 @@ func test_prize_keys_and_save_form() -> void:
 		assert_object(MachinePrize.from_dictionary(data, lookup)).is_null()
 
 
+## No prize twice, and no product twice at any tier.
 func _assert_distinct(drawn: Array[MachinePrize]) -> void:
 	var keys: Dictionary = {}
+	var products: Dictionary = {}
 	for prize: MachinePrize in drawn:
 		assert_bool(keys.has(prize.key())).is_false()
 		keys[prize.key()] = true
+		if prize.kind == MachinePrize.Kind.PRODUCT:
+			assert_bool(products.has(prize.plain_id())).is_false()
+			products[prize.plain_id()] = true
 
 
 ## Each drop's kind of a chute's draw with the live machine.
@@ -508,26 +555,17 @@ func _held(run: RunState) -> Array:
 
 ## The stocked useful products per the v0.49 rule, worked out from the deck by hand.
 func _expected_held(run: RunState) -> Array:
-	var held: Array = []
+	var useful: Array = []
+	var fresh: Array = []
 	var deck_ids: Array = run.deck.cards.map(
 		func(card: CardInstance) -> StringName: return card.definition.product_card().id
 	)
 	for card: CardDefinition in run.stock.cards:
-		if not (card.is_product() and card.generally_useful):
-			continue
-		var rarity: int = _balance.machine.product_rarity(card)
-		var tier_fresh: bool = run.stock.cards.any(
-			func(other: CardDefinition) -> bool:
-				return (
-					other.is_product()
-					and other.generally_useful
-					and _balance.machine.product_rarity(other) == rarity
-					and not deck_ids.has(other.id)
-				)
-		)
-		if not tier_fresh or not deck_ids.has(card.id):
-			held.append(card.id)
-	return held
+		if card.is_product() and card.tier == CardDefinition.Tier.PLAIN and card.generally_useful:
+			useful.append(card.id)
+			if not deck_ids.has(card.id):
+				fresh.append(card.id)
+	return fresh if not fresh.is_empty() else useful
 
 
 ## The fresh run's snapshot with the live machine (both first draws done).
@@ -567,7 +605,7 @@ func _coupon(id: String, rarity: int) -> MachinePrize:
 
 func _live_product(id: String) -> MachinePrize:
 	var card: CardDefinition = load("%s/%s.tres" % [CARDS_DIR, id])
-	var rarity: int = _balance.machine.product_rarity(card)
+	var rarity: int = MachineDefinition.product_rarity(card)
 	return MachinePrize.new(MachinePrize.Kind.PRODUCT, rarity, card)
 
 

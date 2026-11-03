@@ -26,7 +26,7 @@ var first_new_items: bool = false
 var new_arrival: CardDefinition
 ## The coupons the run's first coupon draw is restricted to (those also in `coupons`).
 var first_offer_pool: Array[CardDefinition] = []
-## A PREMIUM visit (#108): MachineDefinition.premium_min_rarity and premium_min_tier apply.
+## A PREMIUM visit (#108): MachineDefinition.premium_min_rarity applies.
 var premium: bool = false
 ## The loyalty card is full (register_cap new perks picked): UPGRADE offers only level-ups.
 var card_full: bool = false
@@ -111,11 +111,6 @@ func coupon_candidates() -> Array[CardDefinition]:
 ## The rarity floor of every drop (MachinePrize.Rarity): PREMIUM's, else 0.
 func min_rarity() -> int:
 	return machine.premium_min_rarity if premium else 0
-
-
-## The tier floor of a NEW ITEMS product with an upgrade chain: PREMIUM's, else 0 (plain).
-func min_tier() -> int:
-	return machine.premium_min_tier if premium else 0
 
 
 ## MachineDraw.pools for the chute, computed once.
