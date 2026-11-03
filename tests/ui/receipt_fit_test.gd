@@ -1,10 +1,12 @@
 extends GdUnitTestSuite
 ## The receipt in fit-up mode on the shift screen (#80, mock-up B2): it stands on the printer's
-## slot (ShiftStage.RECEIPT_BOTTOM) as tall as its lines; a long receipt stops at RECEIPT_TOP and
-## shows its newest line, with no scroll bar while the mouse wheel still scrolls; the end of a
-## shift printed at once (a resume, ReceiptView.show_shift_end) takes the same fit; a 9-item
-## count-up with 27 steps keeps its framed line in view at every step, then its TOTAL line. The
-## real saves and logs are never touched.
+## slot (ShiftStage.RECEIPT_BOTTOM) at its full length (B2 of shift_scene_polish_v4: up to
+## RECEIPT_TOP, one row per belt slot in planning, the foot pinned at its bottom, nothing
+## scrolling, at 1280x720 and 1920x1080); a long receipt shows its newest line, with no scroll
+## bar while the mouse wheel still scrolls; the end of a shift printed at once (a resume,
+## ReceiptView.show_shift_end) takes the same fit; a 9-item count-up with 27 steps keeps its
+## framed line in view at every step, then its TOTAL line. The real saves and logs are never
+## touched.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 
@@ -26,27 +28,108 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-## The preview is itemised (#80): a short receipt standing on the printer's slot, as tall as its
-## lines, every line in view. A longer belt's grows by its items' lines only: planning shows just
-## the next open slot (v0.82), so the empty slots add no lines.
-func test_a_short_preview_gives_a_short_receipt() -> void:
+## The planning receipt at full length (B2 at D's sizes, mock-up shift_scene_polish_v4, v4.1's
+## frame): with 6, 7 and 9 belt slots it reaches from the printer's slot to RECEIPT_TOP however
+## few items are placed, one row per slot (a placed item's line, else "n ·····" in muted ink),
+## every row the same pitch (20, 18 and 16 px: 30, 27 and 24 at 1920x1080), the header line shown
+## for 6 and 7 slots and dropped for 9; nothing scrolls; and the foot (PROJECTED, its line against
+## the target, the fizzle footer or its room) stands at the paper's bottom, so neither it nor any
+## row moves as items are placed, with or without a fizzle. Every row's text fits it on one row.
+func test_the_planning_receipt_is_full_length_with_a_row_per_slot() -> void:
 	var screen: ShiftScreen = await _screen()
-	_place(screen, ["milk"])
-	await _frames(2)
 	var receipt: ReceiptView = screen._receipt
-	assert_int(receipt._lines.get_child_count()).is_greater(0)
-	var one: float = receipt.natural_height()
-	_place(screen, ["bread", "bread", "bread", "bread"])
-	await _frames(2)
-	var item: Control = receipt._item_line_of(0)
-	var pitch: float = item.size.y + receipt._lines.get_theme_constant("separation")
-	assert_float(receipt.natural_height()).is_equal(one + 4.0 * pitch)
-	assert_float(receipt.size.y).is_equal(receipt.natural_height())
 	var stage_y: float = screen._stage.get_global_rect().position.y
-	assert_float(receipt.get_global_rect().end.y).is_equal(stage_y + ShiftStage.RECEIPT_BOTTOM)
-	assert_float(receipt.position.y).is_greater(ShiftStage.RECEIPT_TOP)
-	assert_bool(receipt._scroll.get_v_scroll_bar().visible).is_false()
-	_assert_lines_in_view(receipt)
+	var row_ids: Array[String] = [
+		"birthday_candles", "bread", "milk", "multipack", "eggs", "milk", "bread", "milk", "eggs"
+	]
+	for case: Array in [[6, 20.0, true], [7, 18.0, true], [9, 16.0, false]]:
+		var slots: int = case[0] as int
+		var where: String = "%d slots" % slots
+		_clear_row(screen)
+		screen.run.limits.slot_count = slots
+		var projected_y: float = -1.0
+		var row_tops: Array[float] = []
+		for placed: int in [0, 2, slots]:
+			_place(screen, row_ids.slice(screen.run.row.size(), placed))
+			await _frames(3)
+			assert_int(screen.run.row.size()).is_equal(placed)
+			var rect: Rect2 = receipt.get_global_rect()
+			assert_float(rect.position.y).is_equal(stage_y + ShiftStage.RECEIPT_TOP)
+			assert_float(rect.end.y).is_equal(stage_y + ShiftStage.RECEIPT_BOTTOM)
+			# Nothing scrolls in planning.
+			assert_int(receipt._scroll.scroll_vertical).override_failure_message(where).is_equal(0)
+			assert_float(receipt._inset.get_combined_minimum_size().y).is_less_equal(
+				receipt._scroll.size.y
+			)
+			assert_int(receipt._rows.size()).override_failure_message(where).is_equal(slots)
+			var separation: float = receipt._lines.get_theme_constant("separation")
+			var tops: Array[float] = []
+			for slot: int in range(slots):
+				var row: HBoxContainer = receipt._rows[slot] as HBoxContainer
+				var name_label: Label = row.get_child(0) as Label
+				assert_float(row.size.y + separation).override_failure_message(where).is_equal(
+					case[1] as float
+				)
+				assert_int(name_label.get_line_count()).is_equal(1)
+				_assert_row_text_fits(row, where)
+				tops.append(row.get_global_rect().position.y)
+				if slot < placed:
+					assert_object(row).is_same(receipt._item_line_of(slot))
+				else:
+					assert_str(name_label.text).is_equal(ReceiptView.EMPTY_SLOT_TEXT % (slot + 1))
+					assert_that(name_label.get_theme_color("font_color")).is_equal(
+						Palette.MUTED_INK
+					)
+			if row_tops.is_empty():
+				row_tops = tops
+			assert_array(tops).override_failure_message(where).is_equal(row_tops)
+			for line: Control in receipt._header:
+				assert_bool(line.visible).override_failure_message(where).is_equal(case[2])
+			# The foot stands at the paper's bottom: PROJECTED never moves.
+			var projected: Control = _projected(receipt)
+			if projected_y < 0.0:
+				projected_y = projected.get_global_rect().position.y
+			assert_float(projected.get_global_rect().position.y).is_equal(projected_y)
+			var last: Control = receipt._lines.get_children()[-1] as Control
+			var scroll: Rect2 = receipt._scroll.get_global_rect()
+			assert_bool(scroll.grow(1.0).encloses(last.get_global_rect())).is_true()
+			var footer_room: float = ReceiptRows.foot_margin(receipt._lines, true)
+			assert_float(scroll.end.y - last.get_global_rect().end.y).is_less_equal(
+				footer_room + 1.0
+			)
+	_clear_row(screen)
+
+
+## The full-length receipt's geometry at 1280x720 and 1920x1080 (the stage at 1.5x): the paper in
+## the receipt's well from RECEIPT_TOP to the printer's slot, TODAY'S TARGET's digits 72 px tall
+## at 1920x1080 (48 at 1280x720), the item lines at LINE_FONT_SIZE (21 px at 1920x1080), every
+## line inside the paper.
+func test_the_receipt_geometry_at_both_window_sizes() -> void:
+	for window: Vector2i in [Vector2i(1280, 720), Vector2i(1920, 1080)]:
+		get_tree().root.size = window
+		var screen: ShiftScreen = await _screen()
+		_place(screen, ["eggs", "bread"])
+		await _frames(3)
+		var receipt: ReceiptView = screen._receipt
+		var stretch: float = get_tree().root.get_final_transform().get_scale().y
+		var where: String = str(window)
+		assert_float(stretch).is_equal_approx(window.y / 720.0, 0.001)
+		var digits: Rect2 = receipt.target.digits_rect()
+		assert_float(digits.size.y * stretch).override_failure_message(where).is_equal_approx(
+			72.0 * window.y / 1080.0, 0.01
+		)
+		var item: Label = receipt._item_line_of(0).get_child(0) as Label
+		assert_int(item.get_theme_font_size("font_size")).is_equal(ReceiptView.LINE_FONT_SIZE)
+		var paper: Rect2 = receipt.get_global_rect()
+		var stage: Rect2 = screen._stage.get_global_rect()
+		assert_float(paper.position.x).is_equal(stage.position.x + ShiftStage.RECEIPT_X)
+		assert_float(paper.size.x).is_equal(ShiftStage.RECEIPT_WIDTH)
+		assert_float(paper.position.y).is_equal(stage.position.y + ShiftStage.RECEIPT_TOP)
+		assert_bool(screen.get_viewport_rect().encloses(paper)).is_true()
+		for line: Node in receipt._lines.get_children():
+			var rect: Rect2 = (line as Control).get_global_rect()
+			assert_bool(paper.encloses(rect)).override_failure_message(where + str(rect)).is_true()
+	get_tree().root.size = Vector2i(1280, 720)
 
 
 ## A long receipt grows up to RECEIPT_TOP, still standing on the printer's slot, scrolls to its
@@ -75,11 +158,11 @@ func test_a_long_receipt_stops_under_the_top_bar_and_scrolls_to_its_end() -> voi
 	assert_int(receipt._scroll.scroll_vertical).is_equal(0)
 	var first: Rect2 = (receipt._lines.get_child(0) as Control).get_global_rect()
 	assert_bool(receipt._scroll.get_global_rect().grow(1.0).encloses(first)).is_true()
-	# Cleared, it is short again, still on the slot.
+	# Cleared, it keeps its full length, still on the slot (B2).
 	receipt.clear()
 	await _frames(2)
 	assert_float(receipt.position.y + receipt.size.y).is_equal(ShiftStage.RECEIPT_BOTTOM)
-	assert_float(receipt.position.y).is_greater(ShiftStage.RECEIPT_TOP)
+	assert_float(receipt.position.y).is_equal(ShiftStage.RECEIPT_TOP)
 
 
 ## The end of a shift printed at once, as a resume does (the row's receipt, then show_shift_end):
@@ -93,9 +176,9 @@ func test_a_resumed_end_of_shift_takes_the_same_fit() -> void:
 	screen._receipt.show_shift_end(result.total, run.quota(), "Spot check next shift")
 	await _frames(2)
 	var receipt: ReceiptView = screen._receipt
-	var natural: float = receipt.natural_height()
+	# At full length (B2), however long its lines.
 	var room: float = ShiftStage.RECEIPT_BOTTOM - ShiftStage.RECEIPT_TOP
-	assert_float(receipt.size.y).is_equal(minf(natural, room))
+	assert_float(receipt.size.y).is_equal(room)
 	assert_float(receipt.position.y + receipt.size.y).is_equal(ShiftStage.RECEIPT_BOTTOM)
 	_assert_newest_in_view(receipt)
 
@@ -119,6 +202,9 @@ func test_a_long_count_up_keeps_its_counted_line_in_view() -> void:
 		names.append("Birthday candles" if slot % 2 == 0 else "Milk")
 	receipt.begin_count(ReceiptView.header_lines(5, 8, 9), names)
 	await _frames(3)
+	# The count's paper keeps its full length from its first line (B2: no dark well).
+	assert_float(receipt.position.y).is_equal(ShiftStage.RECEIPT_TOP)
+	assert_float(receipt.position.y + receipt.size.y).is_equal(ShiftStage.RECEIPT_BOTTOM)
 	var subtotal: int = 0
 	for slot: int in range(9):
 		for type: ScoreStep.StepType in [
@@ -166,6 +252,43 @@ func _long_receipt(screen: ShiftScreen) -> void:
 		await _frames(1)
 		assert_int(count).is_less(200)
 	await _frames(2)
+
+
+## Takes every item off the belt.
+func _clear_row(screen: ShiftScreen) -> void:
+	var run: RunState = screen.run
+	while not run.row.is_empty():
+		assert_bool(run.remove(run.row[-1])).is_true()
+	screen._refresh()
+
+
+static func _projected(receipt: ReceiptView) -> Control:
+	for line: Node in receipt._lines.get_children():
+		if (
+			line is HBoxContainer
+			and (line.get_child(0) as Label).text == ReceiptView.PROJECTED_TEXT
+		):
+			return line as Control
+	return null
+
+
+## A planning row's name fits past its mini on one row at its font size (else it is at the least
+## size, cut); its mini and its mark sit inside the row.
+func _assert_row_text_fits(row: HBoxContainer, where: String) -> void:
+	var name_label: Label = row.get_child(0) as Label
+	var font: Font = name_label.get_theme_font("font")
+	var font_size: int = name_label.get_theme_font_size("font_size")
+	var slot: float = name_label.get_theme_stylebox("normal").content_margin_left
+	var width: float = ReceiptView.text_width(name_label.text, font, font_size)
+	if font_size > ReceiptInk.NAME_MIN_FONT_SIZE:
+		(
+			assert_float(width)
+			. override_failure_message("%s: %s" % [where, name_label.text])
+			. is_less_equal(name_label.size.x - slot + 0.5)
+		)
+	var rect: Rect2 = row.get_global_rect().grow(1.0)
+	for part: Node in row.find_children("*", "TextureRect", true, false):
+		assert_bool(rect.encloses((part as Control).get_global_rect())).is_true()
 
 
 func _place(screen: ShiftScreen, card_ids: Array[String]) -> void:

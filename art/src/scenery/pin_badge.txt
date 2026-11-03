@@ -1,10 +1,11 @@
 ; The name badge the run's worn pins hang on (shift_scene_polish_v2 section 3, variant C,
-; drawBadge; approved 2026-11-02), 50x43 @2 at PinLanyard.BADGE: an ink outline round a brass
+; drawBadge; approved 2026-11-02), 50x51 @2 at PinLanyard.BADGE: an ink outline round a brass
 ; plate (a mustard light top edge, a brass dark foot, a gold glint top left), the teal dark band
-; with its teal top edge (NEXT CUSTOMER is printed on it in hard pixel words by code) and the
-; paper face with a cream shade foot (CASHIER and the pins are put on it by code). Its 2,2 drop
+; with its teal top edge, 15 rows tall since v4's E1 (NEXT / CUSTOMER is printed on it by code in
+; the 3x5 pixel capitals, one art px per font px, on two lines) and the paper face with a cream
+; shade foot (CASHIER and the pins are put on it by code). Its 2,2 drop
 ; shadow is drawn by code. Laid out with a scratch script.
-@size 50x43
+@size 50x51
 @kind scenery
 @scale 2
 ##################################################
@@ -12,6 +13,14 @@
 #LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL#
 #LLnnnLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL#
 #L4444444444444444444444444444444444444444444444L#
+#L2222222222222222222222222222222222222222222222L#
+#L2222222222222222222222222222222222222222222222L#
+#L2222222222222222222222222222222222222222222222L#
+#L2222222222222222222222222222222222222222222222L#
+#L2222222222222222222222222222222222222222222222L#
+#L2222222222222222222222222222222222222222222222L#
+#L2222222222222222222222222222222222222222222222L#
+#L2222222222222222222222222222222222222222222222L#
 #L2222222222222222222222222222222222222222222222L#
 #L2222222222222222222222222222222222222222222222L#
 #L2222222222222222222222222222222222222222222222L#

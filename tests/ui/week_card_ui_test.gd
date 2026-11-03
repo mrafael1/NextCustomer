@@ -136,6 +136,9 @@ func test_the_week_name_stays_beside_every_day_event() -> void:
 	await _frames(3)
 	var chip: WeekChip = screen._stage.top_bar.week_chip
 	assert_str(chip.name_label().text).is_equal("TRAINING")
+	# In hard pixels at NAME_SCALE (v4's D: 3 screen px per font px, 21 px caps at 1920x1080).
+	assert_vector(chip.name_label().scale).is_equal(Vector2.ONE * WeekChip.NAME_SCALE)
+	assert_int(WeekChip.PADDING).is_equal(6)
 	var tag: InspectionTag = screen._inspection_tag
 	var promised: int = 0
 	for file_name: String in DirAccess.get_files_at(INSPECTIONS):

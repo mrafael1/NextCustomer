@@ -1,6 +1,6 @@
 extends GdUnitTestSuite
-## The receipt on the real shift screen (#75, #80). In planning it is itemised: "NEXT CUSTOMER ·
-## REG 3", "SHIFT n/m · k ITEMS" (coupons counted), a dashed rule, each belt item's name and
+## The receipt on the real shift screen (#75, #80). In planning it is itemised: "SHIFT n/m · k
+## ITEMS" (coupons counted), a dashed rule, each belt item's name and
 ## payout (cents, from the preview), "n ·····" for each open empty slot, a dashed rule,
 ## "PROJECTED N.00€" (green, with no mark, at or over the shift's quota, red with "short
 ## N.00€" on its own row under it) and the fizzle footer ("1 WASTED · hover an item", none
@@ -221,7 +221,7 @@ func test_the_count_up_receipt_fills_in_as_it_counts() -> void:
 		if not _is_subsequence(shown, full):
 			failures.append("%s is not in the order of %s" % [shown, full])
 		var all: Array[String] = _receipt_lines(receipt)
-		if all.size() < header.size() or all[1] != header[1] + " | ":
+		if all.size() < header.size() or all[0] != header[0] + " | ":
 			failures.append("no header: %s" % [all])
 		elif all[-1] != ReceiptView.COUNT_FOOTER_TEXT + " | ":
 			failures.append("no footer: %s" % all[-1])
@@ -250,7 +250,7 @@ func test_the_count_up_receipt_fills_in_as_it_counts() -> void:
 
 
 ## The planning receipt on screen: inside the screen and over the register column, standing on
-## the printer's slot, as tall as its lines, every line on one row and in view and every mark
+## the printer's slot at its full length, every line on one row and in view and every mark
 ## inside the paper, clear of the hand, the monitor and CHECKOUT (with `marked`, some line has a
 ## mark).
 func _assert_planning_on_screen(screen: ShiftScreen, marked: bool = true) -> void:
@@ -262,7 +262,9 @@ func _assert_planning_on_screen(screen: ShiftScreen, marked: bool = true) -> voi
 	assert_float(rect.position.x).is_greater_equal(column.position.x)
 	assert_float(rect.end.x).is_less_equal(column.end.x)
 	assert_float(rect.end.y).is_equal(stage.position.y + ShiftStage.RECEIPT_BOTTOM)
-	assert_float(receipt.size.y).is_equal(receipt.natural_height())
+	# At full length (B2): its top at RECEIPT_TOP, its lines never longer than the paper.
+	assert_float(rect.position.y).is_equal(stage.position.y + ShiftStage.RECEIPT_TOP)
+	assert_float(receipt.natural_height()).is_less_equal(receipt.size.y)
 	for blocker: Rect2 in [
 		_on_stage(screen, ShiftStage.HAND_AREA),
 		_on_stage(screen, ShiftStage.MONITOR_RECT),
@@ -343,13 +345,13 @@ static func _planning(
 ) -> Array[String]:
 	var run: RunState = screen.run
 	var result: ScoreResult = run.preview()
-	var lines: Array[String] = [ReceiptView.HEADER_TEXT + " | ", shift_line + " | ", "---"]
+	var lines: Array[String] = [shift_line + " | ", "---"]
 	for slot: int in range(run.row.size()):
 		var payout: String = ReceiptView.money(result.payouts[slot])
 		lines.append("%s | %s" % [run.row[slot].definition.display_name, payout])
-	# Only the next open slot (v0.82: the receipt starts small and grows with the belt).
-	if run.row.size() < RowCapacity.card_limit(run.limits):
-		lines.append("%d ····· | " % (run.row.size() + 1))
+	# Every open slot (B2 of shift_scene_polish_v4: a row per belt slot, full length).
+	for slot: int in range(run.row.size(), RowCapacity.card_limit(run.limits)):
+		lines.append("%d ····· | " % (slot + 1))
 	lines.append("---")
 	lines.append("PROJECTED | " + ReceiptView.money(result.total))
 	lines.append(" | " + ReceiptTarget.against_text(result.total, run.quota()))

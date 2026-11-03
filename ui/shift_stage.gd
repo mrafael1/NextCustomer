@@ -108,8 +108,10 @@ const COLUMN_RECT := Rect2(0, 400, 336, 300)
 const DECK_RECT := Rect2(12, 412, 314, 204)
 const KEYPAD_RECT := Rect2(226, 516, 88, 86)
 const DRAWER_RECT := Rect2(12, 624, 314, 76)
-## The receipt stands on the printer's slot (RECEIPT_BOTTOM) and grows up to RECEIPT_TOP at
-## most, in its well on the tower; its lines wrap as the plan's examples do.
+## The receipt stands on the printer's slot (RECEIPT_BOTTOM), in its well on the tower, always
+## reaching RECEIPT_TOP (ReceiptView.full_length, B2 of mock-up shift_scene_polish_v4: one row per
+## belt slot in planning, so no dark well shows over a short receipt); its lines wrap as the
+## plan's examples do.
 const RECEIPT_X := 42.0
 const RECEIPT_WIDTH := 244.0
 const RECEIPT_BOTTOM := 340.0
@@ -362,6 +364,7 @@ func _build_register() -> void:
 	receipt.position = Vector2(RECEIPT_X, RECEIPT_BOTTOM)
 	receipt.size = Vector2(RECEIPT_WIDTH, 0.0)
 	fore.add_child(receipt)
+	receipt.full_length = true
 	receipt.fit_up(RECEIPT_BOTTOM, RECEIPT_TOP)
 	printer_lip = UiKit.sprite(PRINTER_LIP)
 	printer_lip.name = "PrinterLip"

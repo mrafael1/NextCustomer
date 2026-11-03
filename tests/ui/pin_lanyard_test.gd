@@ -79,19 +79,26 @@ func test_one_and_two_pins_are_laid_out_clear() -> void:
 				. is_false()
 			)
 			assert_bool(shadowed.intersects(_on_stage(screen, ShiftStage.BAG_RECT))).is_false()
-			# The name badge's words (the mock-up's drawBadge): NEXT CUSTOMER on the band,
-			# CASHIER on the face, above the pins.
+			# The name badge's words: NEXT / CUSTOMER on the band on two lines in the 3x5 pixel
+			# capitals (v4's E1: one art px per font px, 15 px tall at 1920x1080), centred, on the
+			# art's grid, apart; CASHIER on the face, above the pins.
 			var band: Rect2 = _global(lanyard, PinLanyard._on_badge(PinLanyard.BAND))
-			var band_label: Label = lanyard.band_label()
-			assert_str(band_label.text).is_equal(PinLanyard.BAND_TEXT)
-			var band_words: Rect2 = _caps(band_label)
-			assert_int(band_label.horizontal_alignment).is_equal(HORIZONTAL_ALIGNMENT_LEFT)
-			assert_object(band_label.get_theme_font("font")).is_same(
-				ArtStyle.bold_font(PinLanyard.BAND_TEXT_WEIGHT)
-			)
-			assert_float(band_words.size.x).is_less_equal(band.size.x)
-			assert_float(band_words.get_center().x).is_equal_approx(band.get_center().x, 2.0)
-			assert_bool(band.encloses(band_words)).override_failure_message(where).is_true()
+			var lines: Array[PixelWords] = lanyard.band_words()
+			assert_int(lines.size()).is_equal(2)
+			var previous: Rect2 = Rect2()
+			for index: int in lines.size():
+				var line: PixelWords = lines[index]
+				assert_str(line.text).is_equal(PinLanyard.BAND_LINES[index])
+				assert_int(line.sheet).is_equal(PixelWords.Sheet.CAPS)
+				var caps: Rect2 = line.get_global_rect()
+				assert_float(caps.size.y).is_equal(5.0 * PinLanyard.BAND_CELL)
+				assert_bool(band.encloses(caps)).override_failure_message(where).is_true()
+				assert_float(caps.get_center().x).is_equal_approx(band.get_center().x, 2.0)
+				assert_float(fmod(line.position.x, 2.0)).is_equal(0.0)
+				assert_float(fmod(line.position.y, 2.0)).is_equal(0.0)
+				if index > 0:
+					assert_bool(caps.intersects(previous)).is_false()
+				previous = caps
 			var face_label: Label = lanyard.face_label()
 			assert_str(face_label.text).is_equal(PinLanyard.FACE_TEXT)
 			var paper: Rect2 = _global(lanyard, PinLanyard._on_badge(PinLanyard.FACE))
@@ -373,23 +380,6 @@ func _screen(pins: Array, normal: bool = false) -> ShiftScreen:
 ## Moves the pointer to `at` (canvas coordinates: the window's stretch scales them).
 func _move_to(at: Vector2) -> void:
 	_runner.simulate_mouse_move(get_tree().root.get_final_transform() * at)
-
-
-## The band words' capitals on screen, from where the label itself lays its characters out
-## (Label.get_character_bounds: after its stylebox's content margins and its alignment): the first
-## character's left to the last one's right, BAND_CAP_HEIGHT tall above the line's baseline (the
-## line's top plus the font's ascent).
-static func _caps(label: Label) -> Rect2:
-	var font: Font = label.get_theme_font("font")
-	var size_px: int = label.get_theme_font_size("font_size")
-	var first: Rect2 = label.get_character_bounds(0)
-	var last: Rect2 = label.get_character_bounds(label.text.length() - 1)
-	var origin: Vector2 = label.get_global_rect().position
-	var baseline: float = origin.y + first.position.y + font.get_ascent(size_px)
-	var top: float = baseline - PinLanyard.BAND_CAP_HEIGHT
-	return Rect2(
-		origin.x + first.position.x, top, last.end.x - first.position.x, PinLanyard.BAND_CAP_HEIGHT
-	)
 
 
 static func _on_stage(screen: ShiftScreen, rect: Rect2) -> Rect2:

@@ -15,7 +15,7 @@ extends GdUnitTestSuite
 ## screen's width. No saves, no event log.
 
 const RECEIPT_SIZE := Vector2(ShiftStage.RECEIPT_WIDTH, 600)
-const HEADER: Array[String] = ["NEXT CUSTOMER · REG 3", "SHIFT 5/8 · 4 ITEMS"]
+const HEADER: Array[String] = ["SHIFT 5/8 · 4 ITEMS"]
 const NAMES: Array[String] = ["Milk", "Bread", "Coffee"]
 
 var _receipt: ReceiptView
@@ -42,12 +42,8 @@ func after_test() -> void:
 
 func test_the_header_counts_the_shift_and_every_item() -> void:
 	assert_array(Array(ReceiptView.header_lines(5, 8, 4))).is_equal(HEADER)
-	assert_array(Array(ReceiptView.header_lines(1, 10, 1))).is_equal(
-		["NEXT CUSTOMER · REG 3", "SHIFT 1/10 · 1 ITEM"]
-	)
-	assert_array(Array(ReceiptView.header_lines(1, 10, 0))).is_equal(
-		["NEXT CUSTOMER · REG 3", "SHIFT 1/10 · 0 ITEMS"]
-	)
+	assert_array(Array(ReceiptView.header_lines(1, 10, 1))).is_equal(["SHIFT 1/10 · 1 ITEM"])
+	assert_array(Array(ReceiptView.header_lines(1, 10, 0))).is_equal(["SHIFT 1/10 · 0 ITEMS"])
 
 
 ## Every money amount on the receipt prints with cents; the values stay whole euros.
@@ -62,7 +58,7 @@ func test_money_prints_cents() -> void:
 	assert_str(ReceiptTarget.margin_text(ShiftMargin.Kind.ON, 0)).is_equal("ON TARGET")
 	# The receipt's font has every glyph its lines print (the dots, the bullets, € and ×; one test
 	# with the amounts' words, so the suite stays at gdlint's 20 public methods).
-	for text: String in [ReceiptView.HEADER_TEXT, "€×+="]:
+	for text: String in [HEADER[0], "€×+="]:
 		for index: int in range(text.length()):
 			(
 				assert_bool(ReceiptView.MONO_FONT.has_char(text.unicode_at(index)))
@@ -134,7 +130,6 @@ func test_the_planning_receipt_is_itemised() -> void:
 		assert_array(_lines(_receipt))
 		. is_equal(
 			[
-				"NEXT CUSTOMER · REG 3 | ",
 				"SHIFT 5/8 · 4 ITEMS | ",
 				"---",
 				"Milk | 2.00€",
@@ -278,8 +273,8 @@ func test_the_planning_styles() -> void:
 	assert_str((projected.get_child(0) as Label).text).is_equal(ReceiptView.PROJECTED_TEXT)
 	assert_int(_size(projected, 0)).is_equal(ReceiptView.CAPTION_FONT_SIZE)
 	assert_int(_size(projected, 1)).is_equal(ReceiptView.TOTAL_FONT_SIZE)
-	assert_that(_color(lines[6] as HBoxContainer, 0)).is_equal(Palette.MUTED_INK)
-	assert_that(_color(lines[3] as HBoxContainer, 1)).is_equal(Palette.INK)
+	assert_that(_color(lines[5] as HBoxContainer, 0)).is_equal(Palette.MUTED_INK)
+	assert_that(_color(lines[2] as HBoxContainer, 1)).is_equal(Palette.INK)
 	var footer: HBoxContainer = lines[-1] as HBoxContainer
 	assert_that(_color(footer, 0)).is_equal(Palette.TOMATO_DARK)
 	assert_that(_color(footer, 1)).is_equal(Palette.INK_LIGHT)
@@ -318,7 +313,6 @@ func test_the_count_up_prints_line_by_line() -> void:
 	var names: PackedStringArray = PackedStringArray(NAMES)
 	_receipt.begin_count(PackedStringArray(HEADER), names)
 	var first: Array[String] = [
-		"NEXT CUSTOMER · REG 3 | ",
 		"SHIFT 5/8 · 4 ITEMS | ",
 		"---",
 		"tap: skip · hold: fast | ",
@@ -332,8 +326,8 @@ func test_the_count_up_prints_line_by_line() -> void:
 		if step.step_type == ScoreStep.StepType.FLAT:
 			# The bonus line under Bread is framed.
 			assert_object(_receipt._framed_line()).is_same(returned[-1])
-			assert_str(_lines(_receipt)[5]).is_equal("Coffee bonus | +2.00€")
-			assert_str(_lines(_receipt)[4]).is_equal("Bread | 3.00€")
+			assert_str(_lines(_receipt)[4]).is_equal("Coffee bonus | +2.00€")
+			assert_str(_lines(_receipt)[3]).is_equal("Bread | 3.00€")
 		if step.step_type == ScoreStep.StepType.PAYOUT:
 			assert_object(_receipt._framed_line()).is_same(_receipt._items[step.slot])
 	# A BASE step returns its item's line; a PAYOUT step that adds up its amount label when
@@ -350,7 +344,6 @@ func test_the_count_up_prints_line_by_line() -> void:
 		assert_array(_lines(_receipt))
 		. is_equal(
 			[
-				"NEXT CUSTOMER · REG 3 | ",
 				"SHIFT 5/8 · 4 ITEMS | ",
 				"---",
 				"Milk | 2.00€",
@@ -366,7 +359,7 @@ func test_the_count_up_prints_line_by_line() -> void:
 	assert_that(_color(_receipt._items[0], 0)).is_equal(Palette.INK)
 	assert_that(_color(_receipt._total_line, 0)).is_equal(Palette.INK)
 	# The fizzle's line is dark tomato with the fizzle mark.
-	var fizzle: HBoxContainer = _receipt._lines.get_child(7) as HBoxContainer
+	var fizzle: HBoxContainer = _receipt._lines.get_child(6) as HBoxContainer
 	assert_that(_color(fizzle, 0)).is_equal(Palette.TOMATO_DARK)
 	var mark: Control = fizzle.get_child(1).get_node_or_null("Mark") as Control
 	assert_object(mark).is_not_null()

@@ -300,6 +300,8 @@ func _print_receipt(rect: Rect2) -> void:
 	paper = _new_paper("FedReceipt", Vector2(rect.size.x, 0.0))
 	_holder.add_child(paper)
 	paper.position = Vector2(0.0, room)
+	# Full length, as the stage's receipt (ReceiptView.full_length).
+	paper.full_length = true
 	paper.fit_up(room, 0.0)
 	var result: ScoreResult = view.run.last_result
 	if result != null:

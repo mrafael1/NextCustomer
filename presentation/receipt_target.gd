@@ -1,29 +1,30 @@
 class_name ReceiptTarget
 extends VBoxContainer
 ## The receipt's TODAY'S TARGET block (the shift scene polish, mock-up
-## docs/art/mockups/shift_scene_polish_v2.html section 2): the printed caption, the shift's quota
-## as a big tomato-dark number in the display font, and a double tomato rule under it. It is
-## pinned at the receipt's top (ReceiptView keeps it out of the scroll area), so it stays in view
-## while the lines scroll. The target is a fixed fact (the user's pick B1): it never changes colour;
-## being met is said by the receipt's foot (planning's "+N.00€ over target" or "N.00€ short", the
-## dessert's margin line), the gauge's flag and the belt's light. Hidden until show_quota (a
-## receipt without a quota, such as the tests' or a stub's, has none). Display only.
+## docs/art/mockups/shift_scene_polish_v2.html section 2, sized by v4's D): the printed caption,
+## the shift's quota as a big tomato-dark number in the pixel digits, and a double tomato rule
+## under it. It is pinned at the receipt's top (ReceiptView keeps it out of the scroll area), so
+## it stays in view while the lines scroll. The target is a fixed fact (the user's pick B1): it
+## never changes colour; being met is said by the receipt's foot (planning's "+N.00€ over target"
+## or "N.00€ short", the dessert's margin line), the gauge's flag and the belt's light. Hidden
+## until show_quota (a receipt without a quota, such as the tests' or a stub's, has none).
+## Display only.
 
-## The caption: the receipt's mono font at CAPTION_SIZE, letter-spaced, in tomato dark.
+## The caption: the receipt's mono font at CAPTION_SIZE, letter-spaced, in tomato dark (mock-up
+## shift_scene_polish_v4 D: 18 px at 1920x1080).
 const CAPTION_TEXT := "TODAY'S TARGET"
-const CAPTION_SIZE := 11
+const CAPTION_SIZE := 12
 const CAPTION_SPACING := 2
 ## The quota as the block prints it: the whole euros (the receipt's amounts carry cents; the target
-## does not) and, after them, a small raised € (the mock-up's, and the user's "80€" of 2026-11-02),
-## the digits in the display font's hard pixels (UiKit.pixel_label) drawn AMOUNT_SCALE times larger
-## (one font pixel is 3 art pixels, so the 7-pixel digits stand 42 px tall on the art's grid), the
-## € drawn (art/src/icons/target_euro.txt: Pixelify's own € reads as a 3 that small) CURRENCY_GAP
-## px after them, their tops level. The row is as tall as the digits plus AMOUNT_PAD px under them.
-const AMOUNT_TEXT := "%d"
-const CURRENCY := preload("res://art/icons/target_euro.png")
-const AMOUNT_SCALE := 6
-const CURRENCY_GAP := 4.0
-const AMOUNT_PAD := 2.0
+## does not) and the € after them ("80€", the user's of 2026-11-02), in the 6x8 bold pixel digits
+## (PixelWords.Sheet.DIGITS, mock-up shift_scene_polish_v4 D: one font pixel is 3 art pixels, so
+## they stand 48 px tall, 72 px at 1920x1080, with 2-art-px stems), centred across the block on
+## the art's grid. A number too wide for the paper at AMOUNT_CELL steps down to AMOUNT_SMALL_CELL.
+## The row is as tall as the digits plus AMOUNT_PAD px under them.
+const AMOUNT_TEXT := "%d€"
+const AMOUNT_CELL := 6.0
+const AMOUNT_SMALL_CELL := 4.0
+const AMOUNT_PAD := 4.0
 const COLOR := Palette.TOMATO_DARK
 ## The double rule under the number: two RULE_WIDTH px tomato lines RULE_GAP px apart, inset
 ## RULE_INSET px from the block's sides.
@@ -39,8 +40,8 @@ const SHORT_TEXT := "%s short"
 const ON_TEXT := "on target"
 
 var caption: Label
-var amount: Label
-var currency: TextureRect
+## The quota's digits and € (PixelWords).
+var amount: PixelWords
 var _row: Control
 var _rule: Control
 var _quota: int = -1
@@ -61,17 +62,13 @@ func _init() -> void:
 	caption.add_theme_color_override("font_color", COLOR)
 	caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	add_child(caption)
-	amount = UiKit.pixel_label("", AMOUNT_SCALE, COLOR)
+	amount = PixelWords.new("", PixelWords.Sheet.DIGITS, AMOUNT_CELL, COLOR)
 	amount.name = "Amount"
-	currency = UiKit.sprite(CURRENCY)
-	currency.name = "Currency"
-	currency.size = CURRENCY.get_size() * ArtStyle.ART_SCALE
 	_row = Control.new()
 	_row.name = "AmountRow"
 	_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_row.custom_minimum_size.y = _digits_height() + AMOUNT_PAD
 	_row.add_child(amount)
-	_row.add_child(currency)
 	_row.resized.connect(_place_amount)
 	add_child(_row)
 	_rule = Control.new()
@@ -131,31 +128,23 @@ static func show_margin(line: Control, kind: ShiftMargin.Kind, euros: int) -> vo
 ## The printed amount's rect in the block, the digits and the € (for tests: inside the paper,
 ## over the rule).
 func digits_rect() -> Rect2:
-	var width: float = _printed_width()
-	var left: float = _row.position.x + _left()
-	return Rect2(left, _row.position.y, width, _digits_height())
+	return Rect2(_row.position + amount.position, amount.get_combined_minimum_size())
 
 
 static func _digits_height() -> float:
-	return float(ArtStyle.PIXEL_CAP_HEIGHT * AMOUNT_SCALE)
+	return PixelWords.text_size("0", PixelWords.Sheet.DIGITS, AMOUNT_CELL).y
 
 
-func _printed_width() -> float:
-	var digits: float = UiKit.pixel_text_size(amount).x
-	return digits + CURRENCY_GAP + currency.size.x
-
-
-## Where the digits start in the row: the digits and the € centred across it, on the art's grid.
-func _left() -> float:
-	return 2.0 * floorf((_row.size.x - _printed_width()) / 4.0)
-
-
-## The digits' caps fill the row's top and the €'s caps stand level with theirs.
+## The digits and the € centred across the row on the art's grid, their top at the row's top: at
+## AMOUNT_CELL, or AMOUNT_SMALL_CELL when that is too wide for the row.
 func _place_amount() -> void:
-	var left: float = _left()
-	var digits: float = UiKit.pixel_text_size(amount).x
-	UiKit.place_pixel_label(amount, Rect2(left, 0.0, digits + AMOUNT_SCALE, _digits_height()), true)
-	currency.position = Vector2(left + digits + CURRENCY_GAP, 0.0)
+	var cell: float = AMOUNT_CELL
+	if PixelWords.text_size(amount.text, amount.sheet, cell).x > _row.size.x and _row.size.x > 0:
+		cell = AMOUNT_SMALL_CELL
+	amount.cell = cell
+	var width: float = PixelWords.text_size(amount.text, amount.sheet, cell).x
+	amount.size = amount.get_combined_minimum_size()
+	amount.position = Vector2(2.0 * floorf((_row.size.x - width) / 4.0), 0.0)
 
 
 func _draw_rule() -> void:

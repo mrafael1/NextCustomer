@@ -175,7 +175,7 @@ func _assert_the_tower_in(window: Vector2i) -> void:
 	var target: ReceiptTarget = screen._receipt.target
 	assert_bool(target.visible).is_true()
 	assert_int(target.shown_quota()).is_equal(quota)
-	assert_str(target.amount.text).is_equal("%d" % quota)
+	assert_str(target.amount.text).is_equal("%d€" % quota)
 	var block: Rect2 = target.get_global_rect()
 	assert_bool(receipt.encloses(block)).override_failure_message(str(block)).is_true()
 	var digits: Rect2 = target.digits_rect()
