@@ -12,21 +12,20 @@ extends Button
 ## The pointer came onto the bin or left it (focus counts too).
 signal hover_changed(over: bool)
 
-const SIZE := Vector2(80, 104)
-## Its top, in machine coordinates: under KEEP ONE (PrizeRow.KEEP_MIDDLE_Y), clear of it with the
-## lid open.
-const TOP := 488.0
+const SIZE := Vector2(48, 68)
+## Its top, in machine coordinates: under the prize row (PrizeRow.ROW_TOP + the ticket's height),
+## clear of the tray's push bar (the relook, v0.86: KEEP ONE stands on the bar).
+const TOP := 342.0
 const TEXT := "SKIP"
-const TEXT_SIZE := 16
-const TEXT_WEIGHT := 800
-const TEXT_TOP := 78.0
+## The word's cap top, in hard pixel capitals (MachineLine, 2x).
+const TEXT_TOP := 52.0
 ## The bin (px): its body, its lid (hinged at its left end, LID_OPEN degrees when open), its
 ## handle and its pedal.
-const BODY := Rect2(18, 26, 44, 50)
-const LID := Rect2(12, 16, 56, 10)
-const HANDLE := Rect2(30, 8, 20, 10)
-const PEDAL := Rect2(56, 68, 14, 6)
-const RIBS := 3
+const BODY := Rect2(10, 14, 28, 34)
+const LID := Rect2(6, 8, 36, 6)
+const HANDLE := Rect2(18, 2, 12, 6)
+const PEDAL := Rect2(34, 42, 8, 4)
+const RIBS := 2
 const LID_OPEN := -24.0
 ## A disabled bin (not armed yet) is drawn this bright.
 const DISABLED_SHADE := 0.6
@@ -35,7 +34,7 @@ const DISABLED_SHADE := 0.6
 var view: RewardMachineView
 var _offered: bool = false
 var _over: bool = false
-var _label: Label
+var _label: MachineLine
 
 
 func _init() -> void:
@@ -50,16 +49,8 @@ func _init() -> void:
 	tooltip_text = ""
 	for state: String in ["normal", "hover", "pressed", "disabled", "focus"]:
 		add_theme_stylebox_override(state, StyleBoxEmpty.new())
-	_label = UiKit.body_label(TEXT, TEXT_SIZE, Palette.PAPER)
-	_label.name = "SkipLabel"
-	_label.add_theme_font_override("font", ArtStyle.bold_font(TEXT_WEIGHT))
-	_label.add_theme_color_override("font_shadow_color", Palette.INK)
-	_label.add_theme_constant_override("shadow_offset_x", 0)
-	_label.add_theme_constant_override("shadow_offset_y", 2)
-	_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_label.position = Vector2(0, TEXT_TOP)
-	_label.size = Vector2(SIZE.x, SIZE.y - TEXT_TOP)
-	_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_label = MachineLine.make("SkipLabel", TEXT, Palette.PAPER)
+	_label.position = MachineArt.snap_point(Vector2((SIZE.x - _label.width()) / 2.0, TEXT_TOP))
 	add_child(_label)
 	mouse_entered.connect(func() -> void: _set_over(true))
 	mouse_exited.connect(func() -> void: _set_over(false))
@@ -129,7 +120,7 @@ func _set_over(over: bool) -> void:
 	if _over == over:
 		return
 	_over = over
-	_label.add_theme_color_override("font_color", Palette.TOMATO_LIGHT if over else Palette.PAPER)
+	_label.show_text(TEXT, Palette.TOMATO_LIGHT if over else Palette.PAPER)
 	queue_redraw()
 	hover_changed.emit(over)
 

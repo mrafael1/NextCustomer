@@ -103,6 +103,66 @@ static func bevel(
 	item.draw_rect(Rect2(x + w - 2.0 * p, y + p, p, h - 2.0 * p), lo)
 
 
+## A 2x2 art px rivet at `at` (its top left): steel (its lit corner top left, its dark one bottom
+## right, as the gauge housing's) or `gold`.
+static func rivet(item: CanvasItem, at: Vector2, gold: bool = false) -> void:
+	var p: float = PIXEL
+	item.draw_rect(
+		Rect2(at, Vector2(2.0 * p, 2.0 * p)), Palette.BRASS_DARK if gold else Palette.STEEL_DARK
+	)
+	item.draw_rect(Rect2(at, Vector2(p, p)), Palette.MUSTARD_PALE if gold else Palette.STEEL_PALE)
+	item.draw_rect(
+		Rect2(at + Vector2(p, p), Vector2(p, p)),
+		Palette.BRASS_DARKEST if gold else Palette.RUBBER_DARK
+	)
+
+
+## The gauge's € plate (the relook's brass, v0.86): an ink outline, brass lit along its top
+## (mustard light) and left (mustard), brass dark along its foot and right, a gold rivet in each
+## corner.
+static func brass_plate(item: CanvasItem, rect: Rect2) -> void:
+	var p: float = PIXEL
+	item.draw_rect(rect, Palette.INK)
+	var inside: Rect2 = rect.grow(-p)
+	item.draw_rect(inside, Palette.BRASS)
+	item.draw_rect(Rect2(inside.position, Vector2(inside.size.x, p)), Palette.MUSTARD_LIGHT)
+	item.draw_rect(Rect2(inside.position, Vector2(p, inside.size.y)), Palette.MUSTARD)
+	item.draw_rect(Rect2(inside.position.x, inside.end.y - p, inside.size.x, p), Palette.BRASS_DARK)
+	item.draw_rect(Rect2(inside.end.x - p, inside.position.y, p, inside.size.y), Palette.BRASS_DARK)
+	for corner: Vector2 in corners(rect, 2.0 * p):
+		rivet(item, corner, true)
+
+
+## A steel frame round `rect` (the relook's housings, v0.86): an ink outline, steel lit on its top
+## and left (steel light), shaded on its foot and right, `thickness` art px of steel, an ink line
+## inside it; `gold`: brass instead of steel.
+static func steel_frame(
+	item: CanvasItem, rect: Rect2, thickness: float = 2.0, gold: bool = false
+) -> void:
+	var p: float = PIXEL
+	item.draw_rect(rect, Palette.INK)
+	var inside: Rect2 = rect.grow(-p)
+	item.draw_rect(inside, Palette.BRASS if gold else Palette.STEEL)
+	var lit: Color = Palette.MUSTARD_LIGHT if gold else Palette.STEEL_LIGHT
+	var shade: Color = Palette.BRASS_DARK if gold else Palette.STEEL_SHADE
+	item.draw_rect(Rect2(inside.position, Vector2(inside.size.x, p)), lit)
+	item.draw_rect(Rect2(inside.position, Vector2(p, inside.size.y)), lit)
+	item.draw_rect(Rect2(inside.position.x, inside.end.y - p, inside.size.x, p), shade)
+	item.draw_rect(Rect2(inside.end.x - p, inside.position.y, p, inside.size.y), shade)
+	item.draw_rect(rect.grow(-(thickness + 1.0) * p), Palette.INK)
+
+
+## The four rivets' top lefts `inset` px in from `rect`'s corners (a 2x2 art px rivet).
+static func corners(rect: Rect2, inset: float) -> Array[Vector2]:
+	var r: float = 2.0 * PIXEL
+	return [
+		rect.position + Vector2(inset, inset),
+		Vector2(rect.end.x - inset - r, rect.position.y + inset),
+		Vector2(rect.position.x + inset, rect.end.y - inset - r),
+		rect.end - Vector2(inset + r, inset + r),
+	]
+
+
 ## A hard diagonal shine band `band` art px wide across `rect` at `p` (0 .. 1: left of it .. past
 ## it; nothing outside 0 < p < 1), clipped to the rect.
 static func shine(

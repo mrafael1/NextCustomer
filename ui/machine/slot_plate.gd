@@ -1,23 +1,23 @@
 class_name SlotPlate
 extends Control
-## The machine's receipt slot (#77; redrawn front-on in v0.50, mock-up premium_machine_v1.html):
-## a cream bevelled plate right of the display, on the same strip, with the mouth (charcoal, a
-## steel dark lip) the receipt feeds into, the mustard arrow under it, the status lamp at the
-## right (mustard dark, green once the receipt is read) and the red scan bar under the mouth,
-## blinking while the receipt is fed and read (reduced motion: steady). Once a BOOSTED visit turns
-## PREMIUM (MachineLook) the plate goes gold and the gold receipt stays in the slot for the whole
-## visit, sticking out of the mouth with a shine every STUB_SHINE_PERIOD seconds.
+## The machine's receipt slot (#77; redrawn front-on in v0.50; the relook's 112x60 plate in
+## v0.86, mock-up machine_relook.html V2): a cream bevelled plate right of the display, on the
+## same strip, with the mouth (charcoal, a steel dark lip) the receipt feeds into, the brass arrow
+## under it, the status lamp at the bottom right (green dark, green once the receipt is read) and
+## the red scan bar under the mouth, blinking while the receipt is fed and read (reduced motion:
+## steady). Once a BOOSTED visit turns PREMIUM (MachineLook) the gold receipt stays in the slot for
+## the whole visit, sticking out of the mouth with a shine every STUB_SHINE_PERIOD seconds.
 
-const SIZE := Vector2(108, 52)
-const MOUTH_RECT := Rect2(20, 14, 68, 8)
-const SCAN_BAR_RECT := Rect2(20, 24, 68, 4)
-const LAMP_RECT := Rect2(90, 30, 12, 12)
+const SIZE := Vector2(112, 60)
+const MOUTH_RECT := Rect2(12, 18, 88, 8)
+const SCAN_BAR_RECT := Rect2(12, 28, 88, 4)
+const LAMP_RECT := Rect2(96, 44, 10, 10)
 ## The gold receipt left in the slot (it stands out above the plate).
-const STUB_RECT := Rect2(40, -4, 30, 22)
+const STUB_RECT := Rect2(40, -4, 32, 24)
 const STUB_SHINE_PERIOD := 2.2
 const STUB_SHINE_LENGTH := 0.5
 ## The arrow under the mouth: three rows, each 2 art px narrower.
-const ARROW_AT := Vector2(48, 30)
+const ARROW_AT := Vector2(42, 36)
 const ARROW_ROWS := 3
 ## The scan bar blinks on every other eighth of a second (look F's page).
 const BLINK_RATE := 8.0
@@ -94,28 +94,17 @@ func frame(t: float) -> void:
 
 func _draw() -> void:
 	var rect: Rect2 = Rect2(Vector2.ZERO, SIZE)
-	if _gold:
-		MachineArt.bevel(
-			self,
-			rect,
-			Palette.MUSTARD_LIGHT,
-			Palette.MUSTARD_PALE,
-			Palette.BRASS,
-			Palette.BRASS_DARKEST
-		)
-	else:
-		MachineArt.bevel(self, rect, Palette.CREAM, Palette.PAPER, Palette.CREAM_SHADE)
+	MachineArt.bevel(self, rect, Palette.CREAM, Palette.PAPER, Palette.CREAM_DARKEST)
 	draw_rect(MOUTH_RECT, Palette.CHARCOAL)
 	draw_rect(
 		Rect2(MOUTH_RECT.position.x, MOUTH_RECT.end.y - 2, MOUTH_RECT.size.x, 2), Palette.STEEL_DARK
 	)
 	if _scan_on:
 		draw_rect(SCAN_BAR_RECT, Palette.TOMATO)
-	var arrow: Color = Palette.BRASS_DARK if _gold else Palette.MUSTARD_DARK
 	for row: int in range(ARROW_ROWS):
-		var at: Vector2 = ARROW_AT + Vector2(2 * row, 2 * row)
-		draw_rect(Rect2(at, Vector2(14 - 4 * row, 2)), arrow)
-	MachineArt.box(self, LAMP_RECT, Palette.GOOD if _lamp_on else Palette.MUSTARD_DARK, Palette.INK)
+		var at: Vector2 = ARROW_AT + Vector2(4 * row, 2 * row)
+		draw_rect(Rect2(at, Vector2(28 - 8 * row, 2)), Palette.BRASS_DARK)
+	MachineArt.box(self, LAMP_RECT, Palette.GOOD if _lamp_on else Palette.GREEN_DARK, Palette.INK)
 	if _stub:
 		_draw_stub()
 
@@ -124,7 +113,7 @@ func _draw() -> void:
 func _draw_stub() -> void:
 	MachineArt.box(self, STUB_RECT, Palette.GOLD, Palette.BRASS_DARKEST)
 	var at: Vector2 = STUB_RECT.position
-	draw_rect(Rect2(at + Vector2(2, 2), Vector2(26, 2)), Palette.MUSTARD_PALE)
+	draw_rect(Rect2(at + Vector2(2, 2), Vector2(28, 2)), Palette.MUSTARD_PALE)
 	draw_rect(Rect2(at + Vector2(6, 8), Vector2(16, 2)), Palette.BRASS)
 	draw_rect(Rect2(at + Vector2(6, 12), Vector2(12, 2)), Palette.BRASS)
 	draw_rect(Rect2(MOUTH_RECT.position, Vector2(MOUTH_RECT.size.x, 2)), Palette.CHARCOAL)

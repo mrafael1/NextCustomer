@@ -1,7 +1,7 @@
 class_name PrizeArt
 extends Control
-## The art box on a prize ticket (v0.50, mock-up premium_machine_v1.html; M5), 176x120: the real
-## sprites, never a stand-in.
+## The art box on a prize ticket (v0.50, mock-up premium_machine_v1.html; M5; 152x104 on the
+## relook's compact ticket in v0.86): the real sprites, never a stand-in.
 ## - a product: its item sprite (plain, BIG or GOLDEN as drawn), a BIG or GOLDEN one (NEW ITEMS
 ##   since v0.61: an item can arrive upgraded) with its tier chip; a coupon: the coupon slip with
 ##   its icon, or its name printed on it (ItemView.item_art, as the game shows items everywhere);
@@ -15,20 +15,20 @@ extends Control
 ##   (#108, LV 2 or LV 3) stamps as many slots as its level and shows an "LV n" chip in the art's
 ##   bottom right corner, clear of the badge (chip_rect).
 
-const SIZE := Vector2(176, 120)
+const SIZE := Vector2(152, 104)
 ## The item's sprite (ItemView.SPRITE_SIZE) and where it sits.
-const SPRITE_AT := Vector2(40, 12)
+const SPRITE_AT := Vector2(28, 4)
 const SHELF_LIFT := 6.0
-const CHIP_AT := Vector2(42, 90)
+const CHIP_AT := Vector2(14, 80)
 ## A level-up's chip: its right edge and its top in the art box (right of the perk's badge).
-const LEVEL_CHIP_RIGHT := 170.0
-const LEVEL_CHIP_TOP := 92.0
+const LEVEL_CHIP_RIGHT := 148.0
+const LEVEL_CHIP_TOP := 80.0
 const CHIP_HEIGHT := 18.0
 const CHIP_SIZE := 12
 const CHIP_PAD := 6.0
-const PUNCH_RECT := Rect2(42, 14, 92, 60)
-const BADGE_RECT := Rect2(66, 76, 44, 36)
-const BADGE_MIDDLE := Vector2(88, 94)
+const PUNCH_RECT := Rect2(30, 2, 92, 58)
+const BADGE_RECT := Rect2(52, 62, 44, 40)
+const BADGE_MIDDLE := Vector2(74, 82)
 const BOLD_WEIGHT := 800
 const INITIALS_SIZE := 9
 const BADGE_INITIALS_SIZE := 14

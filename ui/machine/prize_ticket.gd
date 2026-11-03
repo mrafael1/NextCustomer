@@ -16,66 +16,67 @@ extends Control
 ## dot, two diamonds, three stars, drawn shapes) and its effect, never by colour alone. Under
 ## reduced motion it appears in place at its reveal, its burst still and its sparkles held.
 ##
-## The face (paper, its rarity's edge) holds the art box (PrizeArt: the real sprite, the coupon
-## slip, a LOYALTY punch card, an upgrade's item at its new tier), a band ("NEW ITEM · 2€",
-## "COUPON", "LOYALTY STAMP", a perk's "LEVEL UP · LV 2", "UPGRADE"), the prize's name (#105: in
-## Pixelify, as the scan popup
-## prints it, at the machine's NAME_DISPLAY_SIZE on one line, its numbers in the number font,
-## MixedLabel; a name too long for that in bold Atkinson in up to NAME_LINES lines) and its rule
-## (#105: an item's long rule text, its whole contract, in up to RULE_LINES lines,
-## RULE_LINES_ONE_NAME under a one-line name, at the first of RULE_SIZES that shows it uncut);
-## resting the
-## pointer on it (hovered) opens the scan popup with the whole effect (v0.53,
-## PrizePopup). A click picks it once the machine has armed; after the pick the
-## picked ticket lifts and flies off (MachineFlyer takes it), the others fall away, and a bin drops
-## them all. frame(t) reads only view.plan, t, view.landing and view.idle_time.
+## The face (paper, its rarity's 2 px edge; the relook's compact 168x248 ticket in v0.86, mock-up
+## machine_relook.html V2) holds the art box (PrizeArt: the real sprite, the coupon slip, a
+## LOYALTY punch card, an upgrade's item at its new tier) with the pips at its top left and a NEW
+## ITEM's price window at its top right, a band in hard pixel capitals ("NEW ITEM", "COUPON",
+## "LOYALTY STAMP", a perk's "LEVEL UP · LV 2", "UPGRADE"), the prize's name (in hard pixel lines,
+## up to NAME_LINES; a name too long for them in bold Atkinson) and its rule (#105: an item's long
+## rule text at the first of RULE_SIZES that shows it uncut in the room left, else cut there: the
+## popup has it whole); a LOYALTY prize's win strip runs straight along its foot. Resting the
+## pointer on it (hovered) opens the scan popup with the whole effect (v0.53, PrizePopup). A
+## click picks it once the machine has armed; after the pick the picked ticket lifts and flies off
+## (MachineFlyer takes it), the others fall away, and a bin drops them all. frame(t) reads only
+## view.plan, t, view.landing and view.idle_time.
 
 signal clicked(index: int)
 ## The pointer rests on the ticket, or left it (the view opens or closes its popup).
 signal hovered(index: int)
 signal unhovered(index: int)
 
-const SIZE := Vector2(200, 264)
+const SIZE := Vector2(168, 248)
 const RARITY_TEXTS: Array[String] = RarityTab.TEXTS
 const EDGES: Array[Color] = [Palette.GREY_LIGHT, Palette.TEAL_BRIGHT, Palette.GOLD]
 const PIP_INKS: Array[Color] = [Palette.GREY, Palette.TEAL, Palette.BRASS_DARK]
 const TIER_WORDS: Array[String] = ["PLAIN", "BIG", "GOLDEN"]
-## The face: the art box, the band, the name and the rule lines (their middles' pitch).
-const ART_RECT := Rect2(12, 16, 176, 120)
-const BAND_RECT := Rect2(4, 140, 192, 22)
-const BAND_SIZE := 13
-const NAME_TOP := 171.0
-const NAME_SIZE := 18
+## The face (the relook, v0.86): the art box, the band (hard pixel capitals), the name (hard
+## pixel lines from NAME_TOP, NAME_PITCH apart; a name too long for NAME_LINES of them in bold
+## Atkinson NAME_SIZE) and the rule (bold Atkinson, the first RULE_SIZES size that shows it in the
+## room left over the win strip or the face's foot, else the smallest, cut: the popup has it all).
+const ART_RECT := Rect2(8, 8, 152, 104)
+const BAND_RECT := Rect2(4, 114, 160, 22)
+const NAME_TOP := 142.0
+const NAME_SIZE := 15
 const NAME_PITCH := 18.0
-const NAME_WIDTH := 180.0
-## A Pixelify name (#105): NAME_DISPLAY_SIZE px (the machine prints Pixelify at 12 or 24 px only),
-## centred on a row from NAME_ROW_TOP as tall as its font's line, the rule NAME_ROW_GAP under it.
-const NAME_DISPLAY_SIZE := 24
-const NAME_ROW_TOP := 164.0
-const NAME_ROW_GAP := 2.0
-const RULE_GAP := 4.0
-const RULE_SIZES: Array[int] = [13, 12, 11]
-## Each RULE_SIZES size's line pitch.
-const RULE_PITCHES: Array[float] = [16.0, 15.0, 14.0]
-const RULE_WIDTH := 176.0
-const RULE_LINES := 3
-const RULE_LINES_ONE_NAME := 4
+const NAME_WIDTH := 152.0
 const NAME_LINES := 2
+const RULE_GAP := 6.0
+const RULE_SIZES: Array[int] = [12, 11, 10]
+## Each RULE_SIZES size's line pitch.
+const RULE_PITCHES: Array[float] = [14.0, 13.0, 12.0]
+const RULE_WIDTH := 152.0
+## The rule's foot without a win strip, and its gap over one.
+const RULE_BOTTOM := SIZE.y - 8.0
+const RULE_STRIP_GAP := 4.0
 const BOLD_WEIGHT := 800
 ## The extra height of a pitched box, so rounding never drops its last line.
 const PITCH_SLACK := 1.0
 const RULE_WEIGHT := 600
-## The pips (5x5 art px each, 1 apart) at the face's top right.
+## The pips (5x5 art px each, 1 apart) at the art box's top left.
 const PIP_GRIDS: Array[String] = [
 	".xxx.xxxxxxxxxxxxxxx.xxx.",
 	"..x...xxx.xxxxx.xxx...x..",
 	"..x..xxxxx.xxx..x.x.x...x",
 ]
-const PIP_RIGHT := 186.0
-const PIP_TOP := 22.0
+const PIP_LEFT := 14.0
+const PIP_TOP := 14.0
 const PIP_PIXEL := 2.0
+## A NEW ITEM's price window at the art box's top right (the band no longer carries the price).
+const PRICE_RIGHT := 154.0
+const PRICE_TOP := 12.0
+const PRICE_PAD := 4.0
 ## The tab's middle above the ticket.
-const TAB_MIDDLE := Vector2(100, -12)
+const TAB_MIDDLE := Vector2(84, -10)
 ## The flight: from this scale at the tray's mouth.
 const FLY_SCALE := 0.45
 ## COMMON's bump and dust, RARE's and LEGENDARY's effect times (seconds after landing).
@@ -112,21 +113,16 @@ const SHRED_WIDTH := 2.0
 const SHRED_ALPHA := 0.55
 const CROSS_SIZE := 44.0
 const CROSS_WIDTH := 8.0
-## The win sticker (#108, mock-up machine_loyalty_108.html section 4a): a gold label stuck over the
-## face's bottom edge, WIN_TILT degrees, a line per row: the last row and, from shift 2, the best
-## row this run. A line is grey and reads WASTED when it would have won nothing.
-const WIN_LABELS: Array[String] = ["ON YOUR LAST ROW", "BEST ROW THIS RUN"]
-const WIN_LABEL_SIZE := 10
-const WIN_AMOUNT_SIZE := 14
-## One line's size, and the room its label takes (the amount is right-aligned after it).
-const WIN_LINE := Vector2(172, 18)
-const WIN_LABEL_WIDTH := 106.0
-const WIN_PAD := 3.0
-## The sticker's right edge and its top, on the ticket.
-const WIN_RIGHT := SIZE.x + 6.0
-const WIN_TOP := SIZE.y - 14.0
-const WIN_TILT := -4.0
-const WIN_SHADOW := Vector2(3, 3)
+## The win strip (#108 section 4a; straight along the face's foot in the relook, v0.86): a row
+## per row of the run, the last row and, from shift 2, the best row this run, each in hard pixel
+## capitals, gold, or grey reading WASTED when it would have won nothing.
+const WIN_LABELS: Array[String] = ["LAST ROW", "BEST ROW"]
+## The strip overhangs the ticket's sides by WIN_OVERHANG (a sash stuck across it), so the last
+## row's "LAST ROW" and "WASTED" fit side by side at 2x.
+const WIN_ROW := 18.0
+const WIN_PAD := 4.0
+const WIN_OVERHANG := 8.0
+const WIN_FOOT := 4.0
 
 var index: int = 0
 var prize: MachinePrize
@@ -145,10 +141,13 @@ var _fx_back: Control
 var _fx_front: Control
 var _shred: Control
 var _burst: ColorRect
-var _band: Label
-## The name: a MixedLabel (Pixelify) or, too long for it, a bold Label.
+var _band: MachineLine
+## The name: its hard pixel lines (a holder of MachineLines) or, too long for them, a bold Label.
 var _name: Control
+var _name_text: String = ""
 var _name_lines: int = 1
+## A NEW ITEM's price in its window (null: none).
+var _price: MachineLine
 var _rule: Label
 ## What the prize would have won on the run's rows (PrizeWin), or null; its sticker.
 var _win: PrizeWin
@@ -199,12 +198,13 @@ func _init(
 	art = PrizeArt.new(prize, preview)
 	art.position = ART_RECT.position
 	_card.add_child(art)
-	_add_texts(run)
 	_win = PrizeWin.of(run, preview)
+	_add_texts(run)
 	if _win != null:
 		_add_win()
 	var chip: Control = _layer("Chip", _card)
-	chip.draw.connect(func() -> void: art.draw_chip(chip, ART_RECT.position))
+	chip.draw.connect(_draw_chip.bind(chip))
+	_add_price()
 	_fx_front = _layer("FxFront")
 	_fx_front.draw.connect(_draw_front)
 	_shred = _layer("Shred")
@@ -215,8 +215,8 @@ func _init(
 	add_child(tab)
 
 
-## The band's text: "NEW ITEM · 2€" (a BIG or GOLDEN item's own price), "COUPON", "LOYALTY STAMP",
-## a perk's level-up "LEVEL UP · LV 2" (#108), or "UPGRADE".
+## The band's text: "NEW ITEM" (its price, a BIG or GOLDEN item's own, in the price window),
+## "COUPON", "LOYALTY STAMP", a perk's level-up "LEVEL UP · LV 2" (#108), or "UPGRADE".
 static func band_text(shown: MachinePrize) -> String:
 	match shown.kind:
 		MachinePrize.Kind.COUPON:
@@ -227,7 +227,14 @@ static func band_text(shown: MachinePrize) -> String:
 			return "LOYALTY STAMP"
 		MachinePrize.Kind.UPGRADE:
 			return "UPGRADE"
-	return "NEW ITEM · %d€" % shown.card.base
+	return "NEW ITEM"
+
+
+## A NEW ITEM's price as its window prints it ("2€"); "" for any other prize.
+static func price_text(shown: MachinePrize) -> String:
+	if shown.kind != MachinePrize.Kind.PRODUCT:
+		return ""
+	return "%d€" % shown.card.base
 
 
 ## The prize's name on its ticket: the item's, the perk's, or the upgrade's name line.
@@ -252,16 +259,55 @@ static func rule_text(shown: MachinePrize, preview: MachinePreview) -> String:
 
 
 ## The rule's lines and its size (an index into RULE_SIZES) on a ticket whose name takes
-## `name_lines` lines: up to RULE_LINES_ONE_NAME lines under a one-line name, else RULE_LINES, at
-## the first size that shows `text` uncut (else the smallest, cut). Pure.
-static func rule_fit(text: String, name_lines: int) -> Vector2i:
+## `name_lines` lines over a win strip of `strip_rows` rows: at the first size that shows `text`
+## uncut in the room left (rule_room), else the smallest, cut to its room. Pure.
+static func rule_fit(text: String, name_lines: int, strip_rows: int = 0) -> Vector2i:
 	var font: Font = ArtStyle.bold_font(RULE_WEIGHT)
-	var room: int = RULE_LINES_ONE_NAME if name_lines <= 1 else RULE_LINES
 	for step: int in RULE_SIZES.size():
 		var lines: int = text_lines(font, text, RULE_SIZES[step], RULE_WIDTH)
-		if lines <= room:
+		if lines <= rule_room(name_lines, strip_rows, step):
 			return Vector2i(lines, step)
-	return Vector2i(room, RULE_SIZES.size() - 1)
+	var last: int = RULE_SIZES.size() - 1
+	return Vector2i(rule_room(name_lines, strip_rows, last), last)
+
+
+## How many rule lines at RULE_SIZES[step] fit between the name (`name_lines` lines) and the win
+## strip (`strip_rows` rows, 0: none) or the face's foot; at least one.
+static func rule_room(name_lines: int, strip_rows: int, step: int) -> int:
+	var bottom: float = RULE_BOTTOM
+	if strip_rows > 0:
+		bottom = strip_rect(strip_rows).position.y - RULE_STRIP_GAP
+	return maxi(1, floori((bottom - rule_top(name_lines)) / RULE_PITCHES[step]))
+
+
+## The rule's top under a name of `name_lines` lines.
+static func rule_top(name_lines: int) -> float:
+	return NAME_TOP + NAME_PITCH * (name_lines - 1) + ArtStyle.PIXEL_CAP_HEIGHT * 2.0 + RULE_GAP
+
+
+## The win strip's rect on the face for `rows` rows.
+static func strip_rect(rows: int) -> Rect2:
+	var height: float = WIN_ROW * rows
+	return Rect2(-WIN_OVERHANG, SIZE.y - WIN_FOOT - height, SIZE.x + 2.0 * WIN_OVERHANG, height)
+
+
+## `text` wrapped into hard pixel lines no wider than NAME_WIDTH; empty when it takes more than
+## NAME_LINES of them, or a word alone is too wide (the bold fallback). Pure.
+static func name_rows(text: String) -> PackedStringArray:
+	var rows: PackedStringArray = []
+	var row: String = ""
+	for word: String in text.split(" ", false):
+		var tried: String = word if row.is_empty() else "%s %s" % [row, word]
+		if MachineLine.width_of(tried) <= NAME_WIDTH:
+			row = tried
+			continue
+		if row.is_empty() or MachineLine.width_of(word) > NAME_WIDTH:
+			return PackedStringArray()
+		rows.append(row)
+		row = word
+	if not row.is_empty():
+		rows.append(row)
+	return rows if rows.size() <= NAME_LINES else PackedStringArray()
 
 
 ## What an UPGRADES pick does, from the machine's preview: one copy one step ("1 copy: BIG ›
@@ -371,18 +417,27 @@ func chip_rect() -> Rect2:
 
 ## The face's texts: the band, the name and the rule.
 func face_texts() -> PackedStringArray:
-	return PackedStringArray([_band.text, ItemName.text_of(_name), _rule.text])
+	return PackedStringArray([_band.text(), _name_text, _rule.text])
 
 
-## The face's labels (the band, the name's, the rule), for layout tests.
+## The face's labels (the band's, the name's, the rule), for layout tests.
 func face_labels() -> Array[Label]:
-	var found: Array[Label] = [_band]
-	found.append_array(ItemName.labels(_name))
+	var found: Array[Label] = []
+	for holder: Control in [_band, _name]:
+		if holder is Label:
+			found.append(holder as Label)
+		for child: Node in holder.find_children("*", "Label", true, false):
+			found.append(child as Label)
 	found.append(_rule)
 	return found
 
 
-## The name (a MixedLabel in Pixelify, or the bold fallback's Label) and its line count.
+## The price window's line (null: not a NEW ITEM).
+func price_line() -> MachineLine:
+	return _price
+
+
+## The name (a holder of hard pixel lines, or the bold fallback's Label) and its line count.
 func name_control() -> Control:
 	return _name
 
@@ -395,9 +450,9 @@ func rule_label() -> Label:
 	return _rule
 
 
-## Whether `text` prints in Pixelify on one line (else the bold fallback).
+## Whether `text` prints in hard pixel lines (name_rows; else the bold fallback).
 static func name_is_display(text: String) -> bool:
-	return ItemName.width_of(text, NAME_DISPLAY_SIZE) <= NAME_WIDTH
+	return not name_rows(text).is_empty()
 
 
 ## Whether the LEGENDARY sunburst shows now, and its radius.
@@ -480,102 +535,124 @@ func _frame_burst() -> void:
 
 
 func _add_texts(_run: RunState) -> void:
+	_band = MachineLine.make("Band", band_text(prize), _band_ink())
+	_band.centre_in(BAND_RECT)
+	_card.add_child(_band)
+	_name_text = prize_name(prize)
+	var rows: PackedStringArray = name_rows(_name_text)
 	var bold: Font = ArtStyle.bold_font(BOLD_WEIGHT)
-	_band = _label(band_text(prize), BAND_SIZE, bold, _band_ink())
-	_band.name = "Band"
-	RewardMachineView.fit(_band, BAND_RECT)
-	var name_text: String = prize_name(prize)
-	var rule_top: float
-	if name_is_display(name_text):
-		var shown: MixedLabel = MixedLabel.new(name_text, NAME_DISPLAY_SIZE, false, Palette.INK)
-		shown.alignment = BoxContainer.ALIGNMENT_CENTER
-		shown.name = "Name"
-		_card.add_child(shown)
-		# Measured from the fonts: out of the tree a label measures with the default size.
-		var row: float = ceilf(
-			maxf(
-				ArtStyle.DISPLAY_FONT.get_height(NAME_DISPLAY_SIZE),
-				ArtStyle.number_font().get_height(NAME_DISPLAY_SIZE)
+	if not rows.is_empty():
+		var holder: Control = Control.new()
+		holder.name = "Name"
+		holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		holder.position = Vector2((SIZE.x - NAME_WIDTH) / 2.0, NAME_TOP)
+		var cap: float = ArtStyle.PIXEL_CAP_HEIGHT * 2.0
+		holder.size = Vector2(NAME_WIDTH, NAME_PITCH * (rows.size() - 1) + cap)
+		for row: int in rows.size():
+			var line: MachineLine = MachineLine.make("Row%d" % row, rows[row], Palette.INK)
+			line.position = MachineArt.snap_point(
+				Vector2((NAME_WIDTH - line.width()) / 2.0, NAME_PITCH * row)
 			)
-		)
-		shown.position = Vector2((SIZE.x - NAME_WIDTH) / 2.0, NAME_ROW_TOP)
-		shown.size = Vector2(NAME_WIDTH, row)
-		_name = shown
-		_name_lines = 1
-		rule_top = NAME_ROW_TOP + row + NAME_ROW_GAP
+			holder.add_child(line)
+		_card.add_child(holder)
+		_name = holder
+		_name_lines = rows.size()
 	else:
-		var label: Label = _label(name_text, NAME_SIZE, bold, Palette.INK)
+		var label: Label = _label(_name_text, NAME_SIZE, bold, Palette.INK)
 		label.name = "Name"
-		_name_lines = mini(text_lines(bold, name_text, NAME_SIZE, NAME_WIDTH), NAME_LINES)
+		_name_lines = mini(text_lines(bold, _name_text, NAME_SIZE, NAME_WIDTH), NAME_LINES)
 		label.max_lines_visible = NAME_LINES
-		var name_band: Vector2 = Vector2(NAME_WIDTH, NAME_TOP)
+		var cap_middle: float = NAME_TOP + ArtStyle.PIXEL_CAP_HEIGHT - NAME_PITCH / 2.0
+		var name_band: Vector2 = Vector2(NAME_WIDTH, cap_middle)
 		_fit_pitched(label, bold, NAME_SIZE, NAME_PITCH, name_band, _name_lines)
 		_name = label
-		rule_top = NAME_TOP + NAME_PITCH * _name_lines + RULE_GAP
 	var rule_font: Font = ArtStyle.bold_font(RULE_WEIGHT)
 	var text: String = rule_text(prize, _preview)
-	var fit: Vector2i = rule_fit(text, _name_lines)
+	var fit: Vector2i = rule_fit(text, _name_lines, _strip_rows())
 	var rule_size: int = RULE_SIZES[fit.y]
-	var room: int = RULE_LINES_ONE_NAME if _name_lines <= 1 else RULE_LINES
+	var room: int = rule_room(_name_lines, _strip_rows(), fit.y)
 	_rule = _label(text, rule_size, rule_font, Palette.INK)
 	_rule.name = "Rule"
 	_rule.max_lines_visible = room
-	var band: Vector2 = Vector2(RULE_WIDTH, rule_top)
+	var band: Vector2 = Vector2(RULE_WIDTH, rule_top(_name_lines))
 	_fit_pitched(_rule, rule_font, rule_size, RULE_PITCHES[fit.y], band, room)
 	_rule.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 
 
-## The win sticker: two lines (the last row, the best row this run), each gold, or grey when it
-## would have won nothing, a dashed rule between them.
+## The win strip's rows (0: none).
+func _strip_rows() -> int:
+	if _win == null:
+		return 0
+	return 2 if _win.rows > 1 else 1
+
+
+## A NEW ITEM's price in its window at the art box's top right.
+func _add_price() -> void:
+	var price: String = price_text(prize)
+	if price.is_empty():
+		return
+	_price = MachineLine.make("Price", price, Palette.INK)
+	var width: float = _price.width()
+	_price.position = MachineArt.snap_point(
+		Vector2(PRICE_RIGHT - PRICE_PAD - width, PRICE_TOP + PRICE_PAD)
+	)
+	_card.add_child(_price)
+
+
+## The price window's rect (ticket coordinates; empty: none).
+func price_rect() -> Rect2:
+	if _price == null:
+		return Rect2()
+	return Rect2(_price.position, _price.size).grow(PRICE_PAD)
+
+
+## The chip layer: the art's chip, the pips and the price window, over the art.
+func _draw_chip(chip: Control) -> void:
+	art.draw_chip(chip, ART_RECT.position)
+	_draw_pips(chip)
+	if _price != null:
+		MachineArt.box(chip, price_rect(), Palette.PAPER, Palette.INK)
+
+
+## The win strip along the face's foot: a row per row of the run, its words and amount in hard
+## pixel capitals, gold, or grey reading WASTED.
 func _add_win() -> void:
 	var gains: Array[int] = [_win.last]
 	if _win.rows > 1:
 		gains.append(_win.best)
-	var box: Vector2 = Vector2(
-		WIN_LINE.x + WIN_PAD * 2.0, WIN_LINE.y * gains.size() + WIN_PAD * 2.0
-	)
+	var strip: Rect2 = strip_rect(gains.size())
 	_win_sticker = Control.new()
 	_win_sticker.name = "WinSticker"
 	_win_sticker.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_win_sticker.size = box
-	_win_sticker.position = MachineArt.snap_point(Vector2(WIN_RIGHT - box.x, WIN_TOP))
-	_win_sticker.pivot_offset = box / 2.0
-	_win_sticker.rotation_degrees = WIN_TILT
-	_win_sticker.draw.connect(_draw_win.bind(gains, box))
-	add_child(_win_sticker)
-	var bold: Font = ArtStyle.bold_font(BOLD_WEIGHT)
+	_win_sticker.position = strip.position
+	_win_sticker.size = strip.size
+	_win_sticker.draw.connect(_draw_win.bind(gains))
+	_card.add_child(_win_sticker)
 	for line: int in gains.size():
-		var top: float = WIN_PAD + WIN_LINE.y * line
 		var amount: String = win_amount(gains[line])
 		_win_texts.append("%s %s" % [WIN_LABELS[line], amount])
-		var small: Label = _label(WIN_LABELS[line], WIN_LABEL_SIZE, bold, Palette.INK, _win_sticker)
-		small.name = "WinLabel%d" % line
-		small.autowrap_mode = TextServer.AUTOWRAP_OFF
-		small.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-		RewardMachineView.fit(small, Rect2(WIN_PAD + 2.0, top, WIN_LABEL_WIDTH, WIN_LINE.y))
-		var shown: Label = _label(amount, WIN_AMOUNT_SIZE, bold, Palette.INK, _win_sticker)
-		shown.name = "WinAmount%d" % line
-		shown.autowrap_mode = TextServer.AUTOWRAP_OFF
-		shown.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		var room: float = WIN_LINE.x - WIN_LABEL_WIDTH - 4.0
-		RewardMachineView.fit(shown, Rect2(WIN_PAD + WIN_LABEL_WIDTH + 2.0, top, room, WIN_LINE.y))
+		var row: Rect2 = Rect2(0, WIN_ROW * line, strip.size.x, WIN_ROW)
+		var words: MachineLine = MachineLine.make(
+			"WinLabel%d" % line, WIN_LABELS[line], Palette.INK
+		)
+		words.centre_in(row)
+		words.position.x = WIN_PAD
+		_win_sticker.add_child(words)
+		var shown: MachineLine = MachineLine.make("WinAmount%d" % line, amount, Palette.INK)
+		shown.centre_in(row)
+		shown.position.x = MachineArt.snap(strip.size.x - WIN_PAD - shown.width())
+		_win_sticker.add_child(shown)
 
 
-## The sticker: its shadow, an ink edge, each line's fill (gold, or grey for WASTED) and a dashed
-## rule between the lines.
-func _draw_win(gains: Array[int], box: Vector2) -> void:
-	_win_sticker.draw_rect(Rect2(WIN_SHADOW, box), Color(Palette.INK, 0.45))
+## The strip: each row's fill (gold, or grey for WASTED) over an ink rule between them.
+func _draw_win(gains: Array[int]) -> void:
+	var box: Vector2 = _win_sticker.size
 	_win_sticker.draw_rect(Rect2(Vector2.ZERO, box), Palette.INK)
 	for line: int in gains.size():
-		var top: float = 2.0 if line == 0 else WIN_PAD + WIN_LINE.y * line
-		var last: bool = line == gains.size() - 1
-		var bottom: float = box.y - 2.0 if last else WIN_PAD + WIN_LINE.y * (line + 1)
 		var fill: Color = Palette.GOLD if gains[line] > 0 else Palette.GREY_LIGHT
-		_win_sticker.draw_rect(Rect2(2.0, top, box.x - 4.0, bottom - top), fill)
-	for line: int in range(1, gains.size()):
-		var y: float = WIN_PAD + WIN_LINE.y * line
-		for x: int in range(6, int(box.x) - 6, 6):
-			_win_sticker.draw_rect(Rect2(x, y - 1.0, 3.0, 1.0), Palette.INK)
+		var top: float = WIN_ROW * line + (2.0 if line == 0 else 0.0)
+		var bottom: float = WIN_ROW * (line + 1) - (2.0 if line < gains.size() - 1 else 0.0)
+		_win_sticker.draw_rect(Rect2(0, top, box.x, bottom - top), fill)
 
 
 func _label(
@@ -650,29 +727,23 @@ func _draw_card() -> void:
 	var legendary: bool = prize.rarity == MachinePrize.Rarity.LEGENDARY
 	_card.draw_rect(Rect2(Vector2(6, 6), SIZE), Color(Palette.INK, 0.35))
 	MachineArt.box(_card, rect, Palette.PAPER, Palette.BRASS_DARKEST if legendary else Palette.INK)
-	var edge: Color = EDGES[prize.rarity]
-	_card.draw_rect(Rect2(2, 2, SIZE.x - 4, 4), edge)
-	_card.draw_rect(Rect2(2, SIZE.y - 6, SIZE.x - 4, 4), edge)
-	_card.draw_rect(Rect2(2, 2, 4, SIZE.y - 4), edge)
-	_card.draw_rect(Rect2(SIZE.x - 6, 2, 4, SIZE.y - 4), edge)
+	_card.draw_rect(rect.grow(-2.0), EDGES[prize.rarity])
+	_card.draw_rect(rect.grow(-4.0), Palette.PAPER)
 	_card.draw_rect(ART_RECT, _art_colour())
-	_card.draw_rect(Rect2(64, 124, 72, 6), Color(Palette.INK, 0.12))
 	_card.draw_rect(BAND_RECT, _band_colour())
-	_draw_pips()
 
 
-func _draw_pips() -> void:
+func _draw_pips(item: CanvasItem) -> void:
 	var grid: String = PIP_GRIDS[prize.rarity]
 	var count: int = prize.rarity + 1
-	var width: float = (count * 5 + count - 1) * PIP_PIXEL
-	var origin: Vector2 = Vector2(PIP_RIGHT - width, PIP_TOP)
+	var origin: Vector2 = Vector2(PIP_LEFT, PIP_TOP)
 	for pip: int in range(count):
 		for cell: int in range(25):
 			if grid[cell] == "x":
 				var at: Vector2 = (
 					origin + Vector2(pip * 6 + cell % 5, floori(cell / 5.0)) * PIP_PIXEL
 				)
-				_card.draw_rect(Rect2(at, Vector2(PIP_PIXEL, PIP_PIXEL)), PIP_INKS[prize.rarity])
+				item.draw_rect(Rect2(at, Vector2(PIP_PIXEL, PIP_PIXEL)), PIP_INKS[prize.rarity])
 
 
 ## The shred mark of a doomed ticket: tomato strips down the face and a cross on the art.

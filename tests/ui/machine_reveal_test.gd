@@ -76,9 +76,13 @@ func test_every_rarity_has_a_non_colour_signal_on_its_reveal() -> void:
 		assert_float(tickets[1].burst_radius()).is_equal(0.0)
 		assert_float(tickets[2].burst_radius()).is_greater(0.0)
 		for ticket: PrizeTicket in tickets:
-			var tab_size: int = ticket.tab.label().get_theme_font_size("font_size")
-			assert_int(tab_size).is_equal(RarityTab.FONT_SIZE)
-			_assert_fits(ticket.tab.label())
+			# The relook (v0.86): the tab's word in hard pixel capitals, inside its box.
+			var tab_line: MachineLine = ticket.tab.word_line()
+			assert_str(tab_line.text()).is_equal(ticket.tab.text())
+			(
+				assert_bool(Rect2(Vector2.ZERO, ticket.tab.size).encloses(tab_line.get_rect()))
+				. is_true()
+			)
 
 
 ## The LEGENDARY sunburst grows to its full radius, holds, then shrinks to a small glow (a share
@@ -157,7 +161,7 @@ func test_the_row_and_keep_one_stay_on_the_view() -> void:
 	var tickets: Array[PrizeTicket] = _tickets(view, RARITIES)
 	var plan: MachinePlan = view.plan
 	var row: PrizeRow = view.prize_row
-	var keep: Label = row.keep_label()
+	var keep: MachineLine = row.keep_label()
 	row.frame(plan.reveal_at[2] - 0.01)
 	assert_bool(keep.visible).is_false()
 	var t: float = minf(plan.pick_at, plan.reveal_at[2] + PrizeRow.KEEP_AFTER)
@@ -169,7 +173,13 @@ func test_the_row_and_keep_one_stay_on_the_view() -> void:
 	assert_bool(keep.visible).is_true()
 	var keep_rect: Rect2 = keep.get_global_rect()
 	assert_bool(VIEW.encloses(keep_rect)).is_true()
-	_assert_fits(keep)
+	# The relook (v0.86): KEEP ONE stands on the tray's push bar, which lights for it.
+	var bar: Rect2 = MachineTray.BAR_RECT
+	bar.position += view.tray.get_global_rect().position
+	assert_bool(bar.encloses(keep_rect)).override_failure_message(str(keep_rect)).is_true()
+	view.tray.frame(t)
+	assert_bool(view.tray.keeps()).is_true()
+	assert_object(view.tray.bar_line()).is_null()
 	for ticket: PrizeTicket in tickets:
 		var rect: Rect2 = ticket.get_global_rect()
 		assert_bool(keep_rect.intersects(rect)).is_false()
@@ -205,14 +215,18 @@ func test_every_ticket_shows_its_prize_in_full() -> void:
 		view, 0, MachinePrize.new(MachinePrize.Kind.PRODUCT, 0, milk), null, 1
 	)
 	assert_array(Array(product.face_texts())).is_equal(
-		["NEW ITEM · %d€" % milk.base, milk.display_name, milk.rule_text]
+		["NEW ITEM", milk.display_name, milk.rule_text]
 	)
+	# The relook (v0.86): the price in its window at the art's top right, inside the art box.
+	assert_str(product.price_line().text()).is_equal("%d€" % milk.base)
+	assert_bool(PrizeTicket.ART_RECT.encloses(product.price_rect())).is_true()
 	assert_object(product.art.get_node("Sprite")).is_not_null()
 	var coupon_card: CardDefinition = _balance.first_offer_pool[0]
 	var coupon: PrizeTicket = _ticket(
 		view, 0, MachinePrize.new(MachinePrize.Kind.COUPON, 1, coupon_card), null, 1
 	)
 	assert_str(coupon.face_texts()[0]).is_equal("COUPON")
+	assert_object(coupon.price_line()).is_null()
 	assert_object(coupon.art.get_node("Sprite")).is_not_null()
 	var basket: UpgradeDefinition = load(BIG_BASKET)
 	var stamp: MachinePrize = MachinePrize.new(MachinePrize.Kind.REGISTER, 0, null, basket)
@@ -249,11 +263,12 @@ func test_every_ticket_shows_its_prize_in_full() -> void:
 	assert_str(shelf.art.chip_text()).is_equal("SHELF +1")
 
 
-## Every face's lines fit the ticket (the band on one line, the name in Pixelify on one line when
-## it fits NAME_WIDTH at NAME_DISPLAY_SIZE (#105), else bold in NAME_LINES, the long rule text
-## whole in RULE_LINES, or RULE_LINES_ONE_NAME under a one-line name, at a RULE_SIZES size, under
-## the name; all inside the ticket): every product and coupon the machine can draw, every
-## LOYALTY perk and every UPGRADES prize of every chain and rarity.
+## Every face's lines fit the ticket (the relook, v0.86: the band in hard pixel capitals inside
+## its band, the name in hard pixel lines (up to NAME_LINES) when it fits NAME_WIDTH, else bold in
+## NAME_LINES, the long rule text at the first RULE_SIZES size that shows it whole in the room
+## left (rule_room), else cut there, under the name; all inside the ticket): every product and
+## coupon the machine can draw, every LOYALTY perk and every UPGRADES prize of every chain and
+## rarity.
 ## #108 section 4a: a LOYALTY ticket carries the win sticker, one line after shift 1 (the last
 ## row is the only one) and two from shift 2, a line that wins nothing reading WASTED; its labels
 ## fit their boxes. A product ticket and a perk with no scoring rule carry none.
@@ -266,14 +281,25 @@ func test_a_loyalty_ticket_shows_its_win_sticker() -> void:
 	preview.prize = stamp
 	var run: RunState = _run_with_rows([[milk, milk, milk]])
 	var first: PrizeTicket = _ticket(view, 0, stamp, preview, 1, run)
-	assert_array(Array(first.win_texts())).is_equal(["ON YOUR LAST ROW +3€"])
+	assert_array(Array(first.win_texts())).is_equal(["LAST ROW +3€"])
 	run = _run_with_rows([[milk, milk, milk], [load(BREAD)]])
 	var later: PrizeTicket = _ticket(view, 0, stamp, preview, 1, run)
-	assert_array(Array(later.win_texts())).is_equal(
-		["ON YOUR LAST ROW WASTED", "BEST ROW THIS RUN +3€"]
+	assert_array(Array(later.win_texts())).is_equal(["LAST ROW WASTED", "BEST ROW +3€"])
+	# The relook (v0.86): a straight strip along the face's foot, its words and amounts inside it,
+	# the words left of the amounts.
+	var strip: Control = later.win_sticker()
+	var sash: Rect2 = Rect2(Vector2.ZERO, PrizeTicket.SIZE).grow_individual(
+		PrizeTicket.WIN_OVERHANG, 0, PrizeTicket.WIN_OVERHANG, 0
 	)
-	for label: Node in later.win_sticker().get_children():
-		_assert_fits(label as Label)
+	assert_bool(sash.encloses(strip.get_rect())).is_true()
+	assert_float(strip.rotation).is_equal(0.0)
+	for row: int in range(2):
+		var words: Control = strip.get_node("WinLabel%d" % row) as Control
+		var amount: Control = strip.get_node("WinAmount%d" % row) as Control
+		assert_bool(Rect2(Vector2.ZERO, strip.size).encloses(words.get_rect())).is_true()
+		assert_bool(Rect2(Vector2.ZERO, strip.size).encloses(amount.get_rect())).is_true()
+		assert_float(words.get_rect().end.x).is_less(amount.position.x)
+	assert_float(later.rule_label().get_rect().end.y).is_less_equal(strip.position.y)
 	var product: PrizeTicket = _ticket(
 		view, 0, MachinePrize.new(MachinePrize.Kind.PRODUCT, 0, milk), null, 1, run
 	)
@@ -318,16 +344,16 @@ func test_every_face_fits_the_ticket() -> void:
 		await get_tree().process_frame
 		var texts: PackedStringArray = ticket.face_texts()
 		var what: String = " / ".join(texts)
-		var band: int = PrizeTicket.text_lines(
-			bold, texts[0], PrizeTicket.BAND_SIZE, PrizeTicket.BAND_RECT.size.x
+		var band_width: float = MachineLine.width_of(texts[0])
+		assert_float(band_width).override_failure_message(what).is_less_equal(
+			PrizeTicket.BAND_RECT.size.x - 8.0
 		)
-		assert_int(band).override_failure_message(what).is_equal(1)
 		var display: bool = PrizeTicket.name_is_display(texts[1])
-		assert_bool(ticket.name_control() is MixedLabel).override_failure_message(what).is_equal(
-			display
+		assert_bool(ticket.name_control() is Label).override_failure_message(what).is_equal(
+			not display
 		)
 		var name_lines: int = (
-			1
+			PrizeTicket.name_rows(texts[1]).size()
 			if display
 			else PrizeTicket.text_lines(
 				bold, texts[1], PrizeTicket.NAME_SIZE, PrizeTicket.NAME_WIDTH
@@ -337,13 +363,13 @@ func test_every_face_fits_the_ticket() -> void:
 		assert_int(name_lines).override_failure_message(what).is_less_equal(PrizeTicket.NAME_LINES)
 		# #105: the long rule text, whole, at the first RULE_SIZES size that shows it.
 		var fit: Vector2i = PrizeTicket.rule_fit(texts[2], name_lines)
-		var room: int = (
-			PrizeTicket.RULE_LINES_ONE_NAME if name_lines <= 1 else PrizeTicket.RULE_LINES
+		var room: int = PrizeTicket.rule_room(name_lines, 0, fit.y)
+		var rule_lines: int = mini(
+			PrizeTicket.text_lines(
+				rule_font, texts[2], PrizeTicket.RULE_SIZES[fit.y], PrizeTicket.RULE_WIDTH
+			),
+			room
 		)
-		var rule_lines: int = PrizeTicket.text_lines(
-			rule_font, texts[2], PrizeTicket.RULE_SIZES[fit.y], PrizeTicket.RULE_WIDTH
-		)
-		assert_int(rule_lines).override_failure_message(what).is_less_equal(room)
 		assert_int(rule_lines).override_failure_message(what).is_equal(fit.x)
 		# The face's own coordinates: the card layer holding the rule.
 		var card: Control = ticket.rule_label().get_parent() as Control

@@ -8,8 +8,9 @@ extends GdUnitTestSuite
 ## them under the top bar; the back effects draw behind every ticket. The stock window fits on every
 ## kind of visit, its sealed tickets crisp and its odds on plates (v0.53); a lit key's glow hugs its
 ## shape (v0.53). The cart drawer sits below the top bar, left of the machine. Every label fits its
-## box, and Pixelify is only ever 12 or 24 px (full build plan 6.1). The views are driven directly
-## (no input events).
+## box, and Pixelify is only ever 12 or 24 px (full build plan 6.1), but for the relook's hard
+## pixel lettering (v0.86, MachineLine: the 11 px raster at 2x or 4x). The views are driven
+## directly (no input events).
 
 const Rush := preload("res://tests/ui/count_up_rush.gd")
 const SCREEN := "res://ui/shift_screen.tscn"
@@ -183,11 +184,10 @@ func test_the_stock_window_fits_on_every_visit() -> void:
 			assert_array(Array(view.display.texts())).is_equal(Array(lines))
 		var where: String = "stock %d, phase %d" % [run.stock.card_ids().size(), run.phase]
 		assert_int(lit).override_failure_message(where).is_greater(0)
-		for label: Label in view.stock.labels():
-			if not label.visible:
-				continue
-			assert_bool(window.encloses(label.get_global_rect())).is_true()
-			_assert_fits(label)
+		for line: MachineLine in view.stock.lines():
+			if line.is_visible_in_tree():
+				var rect: Rect2 = line.get_global_rect()
+				assert_bool(window.encloses(rect)).override_failure_message(str(rect)).is_true()
 		_assert_odds_plates(view.stock)
 		await _close(view)
 
@@ -369,11 +369,12 @@ func test_pixelify_is_only_12_or_24_and_every_label_fits() -> void:
 		await _close(view)
 	for rarity: int in range(RarityTab.TEXTS.size()):
 		var tab: RarityTab = auto_free(RarityTab.new(rarity))
-		var label: Label = tab.label()
-		_assert_pixelify_size(
-			label.get_theme_font("font"), label.get_theme_font_size("font_size"), tab.text()
-		)
-		_assert_fits(label)
+		var line: MachineLine = tab.word_line()
+		assert_bool(Rect2(Vector2.ZERO, tab.size).encloses(line.get_rect())).is_true()
+		for label: Label in _labels(line):
+			_assert_pixelify_size(
+				label.get_theme_font("font"), label.get_theme_font_size("font_size"), tab.text()
+			)
 	assert_int(seen).is_greater(100)
 
 
@@ -434,12 +435,17 @@ func test_new_items_and_upgrade_tickets_fit_with_their_marks() -> void:
 			. override_failure_message(str(chip))
 			. is_true()
 		)
+		var to_ticket: Transform2D = marked_ticket.get_global_transform().affine_inverse()
 		for label: Label in marked_ticket.face_labels():
-			assert_bool(label.get_rect().intersects(chip)).is_false()
+			var rect: Rect2 = to_ticket * label.get_global_rect()
+			assert_bool(rect.intersects(chip)).override_failure_message(label.text).is_false()
 		var band: String = marked_ticket.face_texts()[0]
 		if chute == RewardMachine.Chute.NEW_ITEMS:
 			assert_str(marked_ticket.art.chip_text()).is_equal("GOLDEN")
-			assert_str(band).is_equal("NEW ITEM · %d€" % visit.prizes[marked].card.base)
+			assert_str(band).is_equal("NEW ITEM")
+			var price: String = marked_ticket.price_line().text()
+			assert_str(price).is_equal("%d€" % visit.prizes[marked].card.base)
+			assert_bool(marked_ticket.price_rect().intersects(chip)).is_false()
 		else:
 			assert_str(marked_ticket.art.chip_text()).is_equal("LV 2")
 			assert_str(band).is_equal("LEVEL UP · LV 2")
@@ -484,21 +490,20 @@ func test_the_dim_veil_follows_the_silhouette() -> void:
 	assert_float(pieces[1].size.x).is_equal(MachineCabinet.SIZE.x)
 
 
-## The marquee's title is letter-spaced bold Atkinson: its width is the bold font's plus the
-## spacing between its glyphs, not the regular weight's (a wrapped FontVariation drops the weight).
-func test_the_marquee_title_is_bold() -> void:
+## The marquee's title (the relook, v0.86) is hard pixel lettering at 4x, engraved (a line one art
+## px under it), over the sub line at 2x, both inside the plate, on the classic and premium faces.
+func test_the_marquee_title_is_hard_pixel_lettering() -> void:
 	var head: MachineHead = auto_free(MachineHead.new())
-	var title: Label = head.title_labels()[0]
-	var font: Font = title.get_theme_font("font")
-	var font_size: int = title.get_theme_font_size("font_size")
-	var bold: Font = ArtStyle.bold_font(MachineHead.BOLD_WEIGHT)
-	for text: String in [MachineHead.TITLE, MachineHead.PREMIUM_TITLE]:
-		var spaced: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
-		var heavy: float = bold.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
-		var gaps: float = MachineHead.TITLE_SPACING * (text.length() - 1)
-		assert_float(spaced).override_failure_message(text).is_between(
-			heavy + gaps - 0.5, heavy + gaps + MachineHead.TITLE_SPACING + 0.5
-		)
+	var lines: Array[MachineLine] = head.title_lines()
+	assert_str(lines[0].text()).is_equal(MachineHead.TITLE)
+	assert_float(lines[0].size.y).is_equal(ArtStyle.PIXEL_CAP_HEIGHT * MachineArt.PIXEL * 2.0)
+	assert_float(lines[1].size.y).is_equal(ArtStyle.PIXEL_CAP_HEIGHT * MachineArt.PIXEL)
+	var plate: Rect2 = Rect2(Vector2.ZERO, MachineHead.SIZE)
+	for line: MachineLine in lines:
+		assert_bool(plate.encloses(line.get_rect())).override_failure_message(line.text()).is_true()
+		for label: Label in _labels(line):
+			assert_object(label.get_theme_font("font")).is_same(ArtStyle.pixel_display_font())
+	assert_float(lines[0].get_rect().end.y).is_less_equal(lines[1].position.y)
 
 
 ## A LEGENDARY landing jolts the stage (6 px across, 4 px down and up, decaying over SHAKE_S); a
@@ -545,7 +550,7 @@ func test_a_legendary_landing_shakes_the_stage() -> void:
 ## holding its share (in the number font) and its word.
 func _assert_odds_plates(stock: StockWindow) -> void:
 	assert_object(stock.tickets_layer().material).is_same(ArtStyle.pixel_material())
-	var labels: Array[Label] = stock.labels()
+	var lines: Array[MachineLine] = stock.lines()
 	var pedestal_foot: float = (
 		StockWindow.TICKET_TOP + StockWindow.TICKET_SIZE.y + StockWindow.PEDESTAL_SIZE.y
 	)
@@ -556,16 +561,25 @@ func _assert_odds_plates(stock: StockWindow) -> void:
 			assert_float(fposmod(plate.position.y, MachineArt.PIXEL)).is_equal(0.0)
 			assert_bool(Rect2(Vector2.ZERO, StockWindow.SIZE).encloses(plate)).is_true()
 			assert_float(plate.position.y).is_greater_equal(pedestal_foot)
+			assert_float(plate.end.y).is_less_equal(StockWindow.GLASS_HEIGHT)
 			if rarity > 0:
 				var left: Rect2 = StockWindow.plate_rect(column, rarity - 1)
 				assert_bool(left.intersects(plate)).is_false()
-			var odds: Label = labels[column * 3 + rarity]
-			var word: Label = labels[StockWindow.COLUMNS * 3 + column * 3 + rarity]
+			var odds: MachineLine = lines[column * 3 + rarity]
 			if not odds.visible:
 				continue
-			assert_object(odds.get_theme_font("font")).is_same(ArtStyle.number_font())
-			for label: Label in [odds, word]:
-				assert_bool(plate.encloses(Rect2(label.position, label.size))).is_true()
+			# The share in hard pixel digits, inside its LED window.
+			for label: Label in _labels(odds):
+				var font: Font = label.get_theme_font("font")
+				assert_object(font).is_same(ArtStyle.pixel_number_font())
+			var shown: Rect2 = Rect2(odds.position, odds.size)
+			assert_bool(plate.encloses(shown)).override_failure_message(str(shown)).is_true()
+	# The sill's legend names every rarity under the glass.
+	var sill: Rect2 = StockWindow.sill_rect()
+	for rarity: int in range(3):
+		var word: MachineLine = lines[StockWindow.COLUMNS * 3 + rarity]
+		assert_str(word.text()).is_equal(StockWindow.RARITY_WORDS[rarity])
+		assert_bool(sill.encloses(Rect2(word.position, word.size))).is_true()
 
 
 func _audit(view: RewardMachineView, where: String) -> int:
@@ -583,9 +597,11 @@ func _audit(view: RewardMachineView, where: String) -> int:
 				label.get_theme_font_size("font_size"),
 				"%s: %s" % [where, label.text]
 			)
-			if label.autowrap_mode == TextServer.AUTOWRAP_OFF and not _tilted(label):
+			# A hard pixel line's glyphs sit on its cap row, bearing and ascent outside its box.
+			var hard: bool = label.get_parent() is PixelLine
+			if label.autowrap_mode == TextServer.AUTOWRAP_OFF and not _tilted(label) and not hard:
 				_assert_fits(label)
-			if not _tilted(label):
+			if not _tilted(label) and not hard:
 				_assert_in_parent(label, where)
 			checked += 1
 		elif text is Button:
@@ -622,6 +638,8 @@ static func _tilted(control: Control) -> bool:
 func _assert_pixelify_size(font: Font, font_size: int, what: String) -> void:
 	if font == null or not _is_pixelify(font):
 		return
+	if font == ArtStyle.pixel_display_font() and font_size == ArtStyle.PIXEL_TEXT_SIZE:
+		return  # The hard pixel lettering's raster (MachineLine, PixelLine).
 	(
 		assert_bool(PIXELIFY_SIZES.has(font_size))
 		. override_failure_message("Pixelify %d px: %s" % [font_size, what])

@@ -1,8 +1,10 @@
 class_name ChuteKey
 extends Control
 ## One of the machine's chute keys (#77; redrawn front-on in v0.50, mock-up
-## premium_machine_v1.html): a big 192x96 key on the key plate with the chute's icon (the cart, the
-## up arrow), its name (bold Atkinson 18) and what it does (bold Atkinson 10). Since v0.61 (#108)
+## premium_machine_v1.html; the relook's chunky keycap in v0.86, mock-up machine_relook.html V2): a
+## wide 232x88 key in the cabinet's rubber key plate with the chute's icon on its left (the cart,
+## the up arrow, at 2x), its name in hard pixel capitals (MachineLine, 2x) and what it does (bold
+## Atkinson 12) beside it. Since v0.61 (#108)
 ## the machine has two chutes, NEW ITEMS ("ADD TO CART": items and a coupon) and UPGRADE ("IMPROVE
 ## WHAT YOU OWN": loyalty perks, their level-ups and item upgrades), both on every visit: cream
 ## (mustard pale when lit) on the classic machine, gold (gold when lit) once a PREMIUM visit's keys
@@ -24,24 +26,24 @@ signal hovered(chute: int)
 signal unhovered(chute: int)
 signal pressed(chute: int)
 
-const SIZE := Vector2(192, 96)
+const SIZE := Vector2(232, 88)
 const NAMES: Array[String] = ["NEW ITEMS", "UPGRADE"]
 const SUBS: Array[String] = ["ADD TO CART", "IMPROVE WHAT YOU OWN"]
-const NAME_SIZE := 18
-const SUB_SIZE := 10
-const REASON_SIZE := 10
+const SUB_SIZE := 12
+const REASON_SIZE := 12
 const NAME_WEIGHT := 800
-const SUB_WEIGHT := 750
-## The face (it sinks by PRESS), the base under it and the icon's, the name's and the sub line's
-## middles on the face.
-const FACE_HEIGHT := 84.0
-const BASE_RECT := Rect2(0, 8, 192, 88)
-const ICON_MIDDLE := 26.0
-const NAME_RECT := Rect2(4, 44, 184, 24)
-const SUB_RECT := Rect2(4, 64, 184, 16)
-const REASON_RECT := Rect2(8, 44, 176, 36)
-const PADLOCK_RECT := Rect2(87, 8, 18, 20)
-const PRESS := 6.0
+const SUB_WEIGHT := 700
+## The face (it sinks by PRESS), the base under it (the keycap's depth) and the icon's middle on the
+## face; the name's cap top and the sub line's rect beside the icon.
+const FACE_HEIGHT := 78.0
+const BASE_RECT := Rect2(0, 10, 232, 78)
+const ICON_MIDDLE := Vector2(38, 39)
+const TEXT_LEFT := 72.0
+const NAME_TOP := 20.0
+const SUB_RECT := Rect2(72, 42, 152, 18)
+const REASON_RECT := Rect2(64, 14, 160, 50)
+const PADLOCK_RECT := Rect2(29, 29, 18, 20)
+const PRESS := 8.0
 const LIFT := 2.0
 ## How far a shut key sinks.
 const SINK := 6.0
@@ -50,7 +52,7 @@ const SINK := 6.0
 const GLOW_GAP := 2.0
 const GLOW_OUTER_ALPHA := 0.4
 const GLOW_RATE := 5.0
-const LED_RECT := Rect2(176, 8, 8, 8)
+const LED_RECT := Rect2(216, 8, 8, 8)
 const PADLOCK := preload("res://art/icons/padlock.png")
 const CART := preload("res://art/icons/cart.png")
 const UP_ARROW := preload("res://art/icons/up_arrow.png")
@@ -67,7 +69,7 @@ var gold: bool = false
 var view: RewardMachineView
 var _face: Control
 var _icon: Control
-var _name: Label
+var _name: MachineLine
 var _sub: Label
 var _padlock: TextureRect
 var _reason: Label
@@ -78,6 +80,7 @@ var _pressed_now: bool = false
 var _lit_now: bool = true
 var _sink: float = 0.0
 var _glow: float = 0.0
+var _name_ink: Color = Palette.INK
 
 
 func _init(key_chute: int) -> void:
@@ -95,7 +98,9 @@ func _init(key_chute: int) -> void:
 	_icon = _make_icon()
 	_face.add_child(_icon)
 	_padlock = _sprite(PADLOCK, PADLOCK_RECT, _face)
-	_name = _label(NAMES[chute], NAME_SIZE, NAME_WEIGHT, NAME_RECT, false)
+	_name = MachineLine.make("Name", NAMES[chute], Palette.INK)
+	_name.position = Vector2(TEXT_LEFT, NAME_TOP)
+	_face.add_child(_name)
 	_sub = _label(SUBS[chute], SUB_SIZE, SUB_WEIGHT, SUB_RECT, false)
 	_reason = _label("", REASON_SIZE, NAME_WEIGHT, REASON_RECT, true)
 	_reason.name = "Reason"
@@ -182,11 +187,22 @@ func face_offset() -> float:
 	return _sink
 
 
-## The labels shown on the face (the name and the sub line, or the reason), for layout tests.
+## The labels shown on the face (the name's words and the sub line, or the reason), for layout
+## tests.
 func shown_labels() -> Array[Label]:
 	if _reason.visible:
 		return [_reason]
-	return [_name, _sub]
+	var shown: Array[Label] = []
+	for child: Node in _name.get_children():
+		if child is Label:
+			shown.append(child as Label)
+	shown.append(_sub)
+	return shown
+
+
+## The name in hard pixel capitals, for tests.
+func name_line() -> MachineLine:
+	return _name
 
 
 ## The key's face (sinks and lifts), for layout tests.
@@ -248,7 +264,9 @@ func _apply(on: bool, offset: float) -> void:
 	_lit_now = on and state == RewardMachine.ChuteState.OPEN
 	var pressed_now: bool = _pressed and _lit_now and offset >= PRESS
 	var colours: Array[Color] = _ink()
-	_name.add_theme_color_override("font_color", colours[0])
+	if _name.text() != NAMES[chute] or _name_ink != colours[0]:
+		_name_ink = colours[0]
+		_name.show_text(NAMES[chute], colours[0])
 	_sub.add_theme_color_override("font_color", colours[1])
 	if offset != _sink or pressed_now != _pressed_now:
 		_sink = offset
@@ -262,16 +280,15 @@ func _apply(on: bool, offset: float) -> void:
 func _ink() -> Array[Color]:
 	if gold:
 		return [Palette.BRASS_DARKEST, Palette.BRASS_DARKEST]
-	return [Palette.INK, Palette.MUSTARD_DARKEST]
+	return [Palette.INK, Palette.INK_LIGHT]
 
 
-## The chute's icon, centred ICON_MIDDLE down the face: the cart (NEW ITEMS), the up arrow
-## (UPGRADE).
+## The chute's icon, centred on ICON_MIDDLE: the cart (NEW ITEMS), the up arrow (UPGRADE).
 func _make_icon() -> Control:
 	var holder: Control = Control.new()
 	holder.name = "Icon"
 	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	holder.size = Vector2(SIZE.x, ICON_MIDDLE * 2.0)
+	holder.size = ICON_MIDDLE * 2.0
 	match chute:
 		RewardMachine.Chute.NEW_ITEMS:
 			_centred_sprite(CART, BIG_ICON, holder)
@@ -282,7 +299,7 @@ func _make_icon() -> Control:
 
 func _centred_sprite(texture: Texture2D, k: float, holder: Control) -> void:
 	var side: Vector2 = texture.get_size() * k
-	var at: Vector2 = MachineArt.snap_point(Vector2(SIZE.x / 2.0, ICON_MIDDLE) - side / 2.0)
+	var at: Vector2 = MachineArt.snap_point(ICON_MIDDLE - side / 2.0)
 	_sprite(texture, Rect2(at, side), holder)
 
 
@@ -297,7 +314,7 @@ func _sprite(texture: Texture2D, rect: Rect2, parent: Control) -> TextureRect:
 func _label(text: String, font_size: int, weight: int, rect: Rect2, wraps: bool) -> Label:
 	var label: Label = UiKit.body_label(text, font_size, Palette.INK)
 	label.add_theme_font_override("font", ArtStyle.bold_font(weight))
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	if wraps:
 		label.autowrap_mode = TextServer.AUTOWRAP_WORD
@@ -319,7 +336,7 @@ func _on_mouse_exited() -> void:
 	unhovered.emit(chute)
 
 
-## The face: a bevelled key, cream or gold, lit or idle (a shut key's rubber face), the LED.
+## The face: a bevelled keycap, cream or gold, lit or idle (a shut key's rubber face), the LED.
 func _draw_face() -> void:
 	var rect: Rect2 = Rect2(Vector2.ZERO, _face.size)
 	if state != RewardMachine.ChuteState.OPEN:
@@ -327,12 +344,12 @@ func _draw_face() -> void:
 		return
 	var face_colour: Color = Palette.MUSTARD_PALE if _lit_now else Palette.CREAM
 	var hi: Color = Palette.PAPER
-	var lo: Color = Palette.CREAM_SHADE
+	var lo: Color = Palette.CREAM_DARKEST
 	var line: Color = Palette.INK
 	if gold:
-		face_colour = Palette.GOLD if _lit_now else Palette.MUSTARD_LIGHT
-		hi = Palette.MUSTARD_PALE
-		lo = Palette.BRASS
+		face_colour = Palette.GOLD if _lit_now else Palette.MUSTARD
+		hi = Palette.MUSTARD_LIGHT
+		lo = Palette.BRASS_DARK
 		line = Palette.BRASS_DARKEST
 	MachineArt.bevel(_face, rect, face_colour, hi, lo, line)
 	MachineArt.box(
@@ -343,8 +360,8 @@ func _draw_face() -> void:
 ## The key's base and shadow under the face, and a lit key's glow ring outside it.
 func _draw() -> void:
 	var line: Color = Palette.BRASS_DARKEST if gold else Palette.INK
-	draw_rect(Rect2(-2, 8, SIZE.x + 4, SIZE.y - 4), Color(Palette.INK, 0.35))
-	MachineArt.box(self, BASE_RECT, Palette.BRASS_DARK if gold else Palette.CREAM_SHADE, line)
+	draw_rect(Rect2(-2, 10, SIZE.x + 4, SIZE.y - 6), Color(Palette.INK, 0.35))
+	MachineArt.box(self, BASE_RECT, Palette.BRASS_DARK if gold else Palette.CREAM_DARKEST, line)
 	if _glow > 0.0:
 		var colour: Color = Palette.GOLD if gold or _pressed_now else Palette.MUSTARD
 		var ring: Rect2 = glow_rect()

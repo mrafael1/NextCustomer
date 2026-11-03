@@ -55,13 +55,13 @@ func test_the_head_stamps_land_and_lift() -> void:
 	assert_float(head.stamp_scale()).is_equal_approx(MachineHead.BONUS_STAMP_FROM, EPSILON)
 	head.frame(at + 0.15)
 	assert_bool(head.stamp_shown()).is_false()  # Blinking in.
-	for label: Label in head.title_labels():
-		assert_bool(label.visible).is_false()  # No title between the blinks.
+	for line: MachineLine in head.title_lines():
+		assert_bool(line.visible).is_false()  # No title between the blinks.
 	head.frame(at + MachineTuning.sec(view.tuning.bonus_stamp_land_ms) + 0.01)
 	assert_bool(head.stamp_shown()).is_true()
 	assert_float(head.stamp_scale()).is_equal(1.0)
-	for label: Label in head.title_labels():
-		assert_bool(label.visible).is_false()
+	for line: MachineLine in head.title_lines():
+		assert_bool(line.visible).is_false()
 	assert_array(Array(head.stamp_texts())).is_equal(["BONUS TICKET!", "Spot check passed"])
 	view.plan.set_draw([0, 0, 1] as Array[int])
 	view.plan.set_landing(MachinePlan.Landing.NEW_CARD, 1, MachinePlan.NO_VISIT)
@@ -74,7 +74,7 @@ func test_the_head_stamps_land_and_lift() -> void:
 	assert_bool(head.stamp_shown()).is_true()
 	head.frame(view.plan.punch_end + lift + 0.1)
 	assert_bool(head.stamp_shown()).is_false()
-	assert_bool(head.title_labels()[0].visible).is_true()
+	assert_bool(head.title_lines()[0].visible).is_true()
 	# Reduced motion: no blink, no scale.
 	view.plan = MachinePlan.new(view.tuning, MachineVisit.Kind.BONUS, true)
 	head.set_stamp("BONUS TICKET!", "Spot check passed")
@@ -84,7 +84,7 @@ func test_the_head_stamps_land_and_lift() -> void:
 	head.set_stamp("", "")
 	head.frame(0.5)
 	assert_bool(head.stamp_shown()).is_false()
-	assert_bool(head.title_labels()[0].visible).is_true()
+	assert_bool(head.title_lines()[0].visible).is_true()
 
 
 ## The scan bar shows from the paper's arrival to the read's end, blinking (steady under reduced
@@ -169,10 +169,10 @@ func test_keys_light_in_turn_and_relight_on_a_bonus() -> void:
 		keys[1].set_pressed(true)  # Machine v2: the chosen key stays pressed through the draw.
 		_frame_keys(keys, view.plan.choose_at + EPSILON)
 		assert_array(_lit(keys)).is_equal([false, true])
-		assert_float(keys[1].face_offset()).is_equal(ChuteKey.SINK)
+		assert_float(keys[1].face_offset()).is_equal(ChuteKey.PRESS)
 		assert_float(keys[0].face_offset()).is_equal(0.0)
 		_frame_keys(keys, view.plan.odds_close)
-		assert_float(keys[1].face_offset()).is_equal(ChuteKey.SINK)
+		assert_float(keys[1].face_offset()).is_equal(ChuteKey.PRESS)
 		keys[1].set_pressed(false)
 		_frame_keys(keys, view.plan.odds_close)
 		assert_float(keys[1].face_offset()).is_equal(0.0)
@@ -250,7 +250,7 @@ func test_the_display_follows_the_visit() -> void:
 	assert_bool(view.skip_bin.visible).is_false()
 	view.show_at(plan.reveal_at[0] - EPSILON)
 	assert_array(Array(display.texts())).is_equal([MachineDisplay.PACKING, from])
-	assert_bool(display.message_in_display_font()).is_true()
+	assert_bool(display.message_wrapped()).is_false()
 	assert_bool(view.skip_bin.visible).is_false()
 	var last: int = plan.n_prizes - 1
 	view.show_at(plan.reveal_at[last] + EPSILON)
@@ -320,7 +320,7 @@ func test_a_bonus_visit_says_its_inspection_passed() -> void:
 		)
 		var icon: TextureRect = view.display.ticket_icon()
 		assert_bool(icon.visible).is_true()
-		var message: Rect2 = view.display.labels()[0].get_global_rect()
+		var message: Rect2 = view.display.message_lines()[0].get_global_rect()
 		assert_float(icon.get_global_rect().end.x).is_less_equal(message.position.x)
 		assert_bool(view.display.get_global_rect().encloses(icon.get_global_rect())).is_true()
 		view.show_at(plan.choose_at)
@@ -445,10 +445,10 @@ func test_the_stock_window_shows_sealed_odds_above_its_key() -> void:
 		assert_float(window.end.y).is_less_equal(key.position.y)
 		view.hover_key(chute)
 		assert_int(view.hovered_chute()).is_equal(chute)
-	for label: Label in view.stock.labels():
-		if label.visible:
-			assert_bool(window.encloses(label.get_global_rect())).is_true()
-			_assert_fits(label)
+	for line: MachineLine in view.stock.lines():
+		if line.is_visible_in_tree():
+			var rect: Rect2 = line.get_global_rect()
+			assert_bool(window.encloses(rect)).override_failure_message(str(rect)).is_true()
 	# The draw: only the chosen chute's column stays lit.
 	assert_bool(run.machine.choose(run, RewardMachine.Chute.UPGRADE)).is_true()
 	view.show_draw(run)
@@ -516,7 +516,7 @@ func test_a_pressed_key_drops_and_confirm_confirms() -> void:
 	assert_bool(new_items.is_pressed()).is_true()
 	assert_bool(new_items.looks_pressed()).is_true()
 	assert_bool(new_items.led_lit()).is_true()
-	assert_float(new_items.face().global_position.y - rest_y).is_equal_approx(ChuteKey.SINK, 0.01)
+	assert_float(new_items.face().global_position.y - rest_y).is_equal_approx(ChuteKey.PRESS, 0.01)
 	assert_bool(new_items.get_global_rect().encloses(new_items.led_global_rect())).is_true()
 	assert_bool(upgrade.is_pressed() or upgrade.led_lit()).is_false()
 	var display: MachineDisplay = view.display
@@ -528,14 +528,17 @@ func test_a_pressed_key_drops_and_confirm_confirms() -> void:
 		["PUSH TO CONFIRM · NEW ITEMS", "ADD TO CART · 3 PRIZES, KEEP 1"]
 	)
 	var flap: Rect2 = tray.flap_rect()
-	assert_bool(MachineTray.MOUTH_RECT.encloses(flap)).is_true()
+	assert_bool(Rect2(Vector2.ZERO, MachineTray.SIZE).encloses(flap)).is_true()
+	assert_float(flap.end.y).is_less_equal(MachineTray.MOUTH_RECT.position.y)
 	var tray_screen: Rect2 = tray.get_global_rect()
 	assert_bool(tray.get_viewport_rect().encloses(tray_screen)).is_true()
 	var font: Font = ArtStyle.bold_font(MachineTray.BOLD_WEIGHT)
-	var flap_text: float = MachineArt.text_width(tray.texts()[0], font, MachineTray.CONFIRM_SIZE)
+	var flap_text: float = MachineLine.width_of(tray.texts()[0])
 	assert_float(flap_text + 2.0 * tray._chevron_room()).is_less_equal(flap.size.x)
+	assert_float(tray.bar_line().width()).is_equal(flap_text)
+	assert_bool(flap.encloses(tray.bar_line().get_rect())).is_true()
 	var sub_text: float = MachineArt.text_width(tray.texts()[1], font, MachineTray.TAKE_SIZE)
-	assert_float(sub_text).is_less_equal(MachineTray.SIZE.x - 16.0)
+	assert_float(sub_text).is_less_equal(MachineTray.MOUTH_RECT.size.x - 16.0)
 	# Another key moves the press; the same key lets it up.
 	view.press_key(RewardMachine.Chute.UPGRADE)
 	assert_bool(new_items.is_pressed()).is_false()
@@ -544,7 +547,7 @@ func test_a_pressed_key_drops_and_confirm_confirms() -> void:
 		["PUSH TO CONFIRM · UPGRADE", "IMPROVE WHAT YOU OWN · 3 PRIZES, KEEP 1"]
 	)
 	var long_sub: float = MachineArt.text_width(tray.texts()[1], font, MachineTray.TAKE_SIZE)
-	assert_float(long_sub).is_less_equal(MachineTray.SIZE.x - 16.0)
+	assert_float(long_sub).is_less_equal(MachineTray.MOUTH_RECT.size.x - 16.0)
 	view.press_key(RewardMachine.Chute.UPGRADE)
 	assert_int(view.pressed_chute()).is_equal(-1)
 	assert_bool(tray.confirm_offered()).is_false()
@@ -607,6 +610,8 @@ func test_machine_lines_use_glyphs_their_fonts_have() -> void:
 		display.show_message(line[0], line[1])
 		for label: Label in display.labels():
 			_assert_glyphs(label.text, label.get_theme_font("font"))
+		for shown: MachineLine in display.message_lines():
+			_assert_line_glyphs(shown)
 	var run: RunState = _passed_run(30)
 	view.open_visit(run, null, null, false)
 	view.fast_forward()
@@ -616,12 +621,14 @@ func test_machine_lines_use_glyphs_their_fonts_have() -> void:
 		_assert_glyphs(label.text, label.get_theme_font("font"))
 	view.press_key(RewardMachine.Chute.NEW_ITEMS)
 	assert_bool(view.tray.confirm_offered()).is_true()
-	for line: String in view.tray.texts():
-		_assert_glyphs(line, ArtStyle.bold_font(MachineTray.BOLD_WEIGHT))
+	_assert_line_glyphs(view.tray.bar_line())
+	_assert_glyphs(view.tray.texts()[1], ArtStyle.bold_font(MachineTray.BOLD_WEIGHT))
 	for label: Label in view.display.labels():
 		_assert_glyphs(label.text, label.get_theme_font("font"))
-	for label: Label in view.head.title_labels():
-		_assert_glyphs(label.text, label.get_theme_font("font"))
+	for shown: MachineLine in view.display.message_lines():
+		_assert_line_glyphs(shown)
+	for shown: MachineLine in view.head.title_lines():
+		_assert_line_glyphs(shown)
 
 
 ## The display's longest lines fit: Pixelify 24 when it fits the strip, else bold Atkinson.
@@ -642,7 +649,7 @@ func test_long_display_lines_fit() -> void:
 		for label: Label in display.labels():
 			_assert_fits(label)
 	display.show_message("PICK 1", "")
-	assert_bool(display.message_in_display_font()).is_true()
+	assert_bool(display.message_wrapped()).is_false()
 
 
 ## A PREMIUM visit (v0.61, #108: a rarity boost) turns the machine PREMIUM (v0.50, dressing A):
@@ -702,14 +709,14 @@ func test_a_premium_visit_turns_the_machine_gold() -> void:
 				assert_bool(key.gold).is_true()
 		view.show_at(plan.premium_end + EPSILON)
 		assert_bool(head.premium_face()).is_true()
-		assert_str(head.title_labels()[0].text).is_equal(MachineHead.PREMIUM_TITLE)
-		assert_str(head.title_labels()[1].text).is_equal(MachineHead.PREMIUM_SUB)
-		for label: Label in head.title_labels():
-			_assert_fits(label)
+		assert_str(head.title_lines()[0].text()).is_equal(MachineHead.PREMIUM_TITLE)
+		assert_str(head.title_lines()[1].text()).is_equal(MachineHead.PREMIUM_SUB)
+		for shown: MachineLine in head.title_lines():
 			(
-				assert_bool(Rect2(Vector2.ZERO, ShiftStage.SIZE).encloses(label.get_global_rect()))
+				assert_bool(Rect2(Vector2.ZERO, ShiftStage.SIZE).encloses(shown.get_global_rect()))
 				. is_true()
 			)
+			assert_bool(head.get_global_rect().encloses(shown.get_global_rect())).is_true()
 		assert_float(view.cabinet.trim_shown()).is_equal(1.0)
 		assert_bool(view.cabinet.night_plate()).is_true()
 		assert_bool(view.slot_plate.stub_shown()).is_true()
@@ -762,15 +769,12 @@ func test_a_premium_visit_turns_the_machine_gold() -> void:
 	assert_array(Array(titled.tray.texts())).is_equal(
 		["PUSH TO CONFIRM · UPGRADE", "PREMIUM · 3 PRIZES, KEEP 1"]
 	)
-	var bold: Font = ArtStyle.bold_font(MachineTray.BOLD_WEIGHT)
 	for chute: int in RewardMachine.CHUTES:
 		assert_str(titled.title_sub(chute)).contains(RewardMachineView.TITLE_PREMIUM)
 		titled.tray.offer_confirm(ChuteKey.NAMES[chute], titled.title_sub(chute))
 		var lines: PackedStringArray = titled.tray.texts()
 		var room: float = MachineTray.FLAP_RECT.size.x - 2.0 * titled.tray._chevron_room()
-		assert_float(MachineArt.text_width(lines[0], bold, MachineTray.CONFIRM_SIZE)).is_less_equal(
-			room
-		)
+		assert_float(MachineLine.width_of(lines[0])).is_less_equal(room)
 	titled.close()
 	remove_child(titled)
 	# A classic visit: the classic face, both keys cream and lit.
@@ -780,7 +784,7 @@ func test_a_premium_visit_turns_the_machine_gold() -> void:
 	assert_bool(classic_view.plan.premium).is_false()
 	classic_view.show_at(classic_view.plan.choose_at)
 	assert_bool(classic_view.head.premium_face()).is_false()
-	assert_str(classic_view.head.title_labels()[0].text).is_equal(MachineHead.TITLE)
+	assert_str(classic_view.head.title_lines()[0].text()).is_equal(MachineHead.TITLE)
 	assert_array(_lit(classic_view.keys)).is_equal([true, true])
 	for key: ChuteKey in classic_view.keys:
 		assert_bool(key.visible).is_true()
@@ -953,6 +957,15 @@ func _assert_glyphs(text: String, font: Font) -> void:
 			. override_failure_message("'%s' in '%s'" % [text[index], text])
 			. is_true()
 		)
+
+
+## Every word of a hard pixel line is printed with glyphs its font has (its marks are patterns).
+func _assert_line_glyphs(line: MachineLine) -> void:
+	assert_object(line).is_not_null()
+	for child: Node in line.get_children():
+		var label: Label = child as Label
+		if label != null:
+			_assert_glyphs(label.text, label.get_theme_font("font"))
 
 
 func _frames(count: int) -> void:
