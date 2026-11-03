@@ -761,7 +761,7 @@ func _assert_receipt_of(
 		screen.receipt_header(),
 		ReceiptInk.cards_of(run.row)
 	)
-	assert_str(_lines(expected)[0]).is_equal(ReceiptView.HEADER_TEXT + " | ")
+	assert_str(_lines(expected)[0]).is_equal(screen.receipt_header()[0] + " | ")
 	expected.show_shift_end(
 		result.total, quota, notice, ", ".join(InspectionTag.names(run.inspections))
 	)

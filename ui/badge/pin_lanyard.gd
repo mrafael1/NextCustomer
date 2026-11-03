@@ -7,9 +7,10 @@ extends Control
 ## (RECT, in the stage's world: the camera's glide takes it with the monitor), on the 2 px art
 ## grid: the hook, the strap down to the clip and the badge's drop shadow are drawn by code; the
 ## badge is pixel art (art/scenery/pin_badge: the brass plate, the teal band, the paper face),
-## with NEXT CUSTOMER on its band and CASHIER on its face in the body font (the band's was hard
-## pixel words as the mock-up prints them, too thin to read at 1920x1080: the legibility fix of
-## 2026-11-03), and the worn pins (PinFace) on the face, centred. With no pin worn
+## with NEXT / CUSTOMER on its band on two lines in the 3x5 pixel capitals (PixelWords, one art px
+## per font px: 15 px tall at 1920x1080, mock-up shift_scene_polish_v4 E1; the band grew from 7 to
+## 15 art rows for them), CASHIER on its face in the body font, and the worn pins (PinFace) on the
+## face, centred. With no pin worn
 ## it hides.
 ##
 ## Hovering a pin opens its card (PinTip: name, rule and the charges left, PinPlay): the pin
@@ -22,9 +23,9 @@ extends Control
 ## the shift screen fills it (show_run, through PinFlow.refresh).
 
 ## The lanyard's whole rect on the stage: the badge and the hook on the monitor's bezel.
-const RECT := Rect2(370, 80, 120, 114)
+const RECT := Rect2(370, 80, 120, 130)
 ## In the lanyard's own coordinates: the badge, the hook, the clip, the strap's ends.
-const BADGE := Rect2(0, 28, 100, 86)
+const BADGE := Rect2(0, 28, 100, 102)
 const HOOK := Rect2(112, 0, 8, 10)
 const CLIP := Rect2(40, 20, 20, 12)
 const STRAP_TOP := Vector2(116, 4)
@@ -33,24 +34,23 @@ const STRAP_WIDTH := 4.0
 const PX := 2.0
 const BADGE_ART := preload("res://art/scenery/pin_badge.png")
 ## In the badge's coordinates: the band (under its lit top edge), the paper face, the pins.
-const BAND := Rect2(4, 10, 92, 14)
-const FACE := Rect2(4, 26, 92, 54)
-const BAND_TEXT := "NEXT CUSTOMER"
+const BAND := Rect2(4, 10, 92, 30)
+const FACE := Rect2(4, 42, 92, 54)
+## The band's lines, each centred on the band on the art's grid, their tops BAND_LINE_TOPS below
+## the band's top (the mock-up's E1: 2 art rows over NEXT, 1 between the lines).
+const BAND_LINES: Array[String] = ["NEXT", "CUSTOMER"]
+const BAND_LINE_TOPS: Array[float] = [4.0, 16.0]
+const BAND_CELL := 2.0
 const FACE_TEXT := "CASHIER"
-## NEXT CUSTOMER's size and weight, and its capitals' height at that size (Atkinson Hyperlegible
-## Next's capitals are 0.7 em), centred on the band.
-const BAND_TEXT_SIZE := 10
-const BAND_TEXT_WEIGHT := 800
-const BAND_CAP_HEIGHT := 7.0
 ## CASHIER's left and baseline, its size and weight (the mock-up's 700 9 px).
-const FACE_TEXT_AT := Vector2(8, 36)
+const FACE_TEXT_AT := Vector2(8, 52)
 const FACE_TEXT_SIZE := 9
 const FACE_TEXT_WEIGHT := 700
 const SHADOW := Vector2(4, 4)
 const SHADOW_ALPHA := 0.35
 const PIN_SIZE := 32.0
 const PIN_STEP := 40.0
-const PIN_TOP := 40.0
+const PIN_TOP := 56.0
 ## How far the shown pin lifts inside its ring.
 const LIFT := 2.0
 ## The card's room: between the receipt and the monitor's screen (MARGIN off each), down to the
@@ -71,7 +71,7 @@ var blocked: Callable = Callable()
 var _run: RunState
 var _pins: Array[PinDefinition] = []
 var _plate: TextureRect
-var _band_label: Label
+var _band_words: Array[PixelWords] = []
 var _face_label: Label
 var _ring: Control
 var _faces: Array[PinFace] = []
@@ -94,23 +94,20 @@ func _init() -> void:
 	_plate.position = BADGE.position
 	_plate.size = BADGE.size
 	add_child(_plate)
-	_band_label = UiKit.body_label(BAND_TEXT, BAND_TEXT_SIZE, Palette.PAPER)
-	_band_label.name = "BandText"
-	var band_font: Font = ArtStyle.bold_font(BAND_TEXT_WEIGHT)
-	_band_label.add_theme_font_override("font", band_font)
-	_band_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# Centred on the band by its measured width (the label's own centring would need its size,
-	# which it only takes once in the tree).
 	var band: Rect2 = _on_badge(BAND)
-	var width: float = (
-		band_font.get_string_size(BAND_TEXT, HORIZONTAL_ALIGNMENT_LEFT, -1, BAND_TEXT_SIZE).x
-	)
-	var cap_top: float = band.position.y + floorf((band.size.y - BAND_CAP_HEIGHT) / 2.0)
-	var ascent: float = band_font.get_ascent(BAND_TEXT_SIZE)
-	_band_label.position = Vector2(
-		band.position.x + floorf((band.size.x - width) / 2.0), cap_top + BAND_CAP_HEIGHT - ascent
-	)
-	add_child(_band_label)
+	for line: int in range(BAND_LINES.size()):
+		var words: PixelWords = PixelWords.new(
+			BAND_LINES[line], PixelWords.Sheet.CAPS, BAND_CELL, Palette.PAPER
+		)
+		words.name = "Band%d" % line
+		var width: float = words.get_combined_minimum_size().x
+		words.position = Vector2(
+			band.position.x + PX * floorf((band.size.x - width) / (2.0 * PX)),
+			band.position.y + BAND_LINE_TOPS[line]
+		)
+		words.size = words.get_combined_minimum_size()
+		add_child(words)
+		_band_words.append(words)
 	_face_label = UiKit.body_label(FACE_TEXT, FACE_TEXT_SIZE, Palette.MUTED_INK)
 	_face_label.name = "FaceText"
 	var face_font: Font = ArtStyle.bold_font(FACE_TEXT_WEIGHT)
@@ -163,9 +160,9 @@ func card() -> PinTip:
 	return _card
 
 
-## The badge's words: the band's (NEXT CUSTOMER) and the face's (CASHIER).
-func band_label() -> Label:
-	return _band_label
+## The badge's words: the band's lines (NEXT, CUSTOMER) and the face's (CASHIER).
+func band_words() -> Array[PixelWords]:
+	return _band_words.duplicate()
 
 
 func face_label() -> Label:

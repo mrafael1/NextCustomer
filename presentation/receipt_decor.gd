@@ -25,6 +25,12 @@ const CHIP_BORDER := 2
 const CHIP_SIZE := 11
 const CHIP_WEIGHT := 700
 const CHIP_PADDING := 3.0
+## The styles whose indented lines are step lines (line_label: ReceiptView.STEP_FONT_SIZE).
+const STEP_STYLES: Array[ReceiptView.LineStyle] = [
+	ReceiptView.LineStyle.DETAIL, ReceiptView.LineStyle.CONTEXT, ReceiptView.LineStyle.COMBO
+]
+## The smallest a PROJECTED amount shrinks to (fit_amount).
+const AMOUNT_MIN_FONT_SIZE := 18
 
 const FIZZLE_ICON := preload("res://art/icons/fizzle.png")
 const WARNING_ICON := preload("res://art/icons/warning.png")
@@ -109,21 +115,43 @@ static func mark(line: HBoxContainer, kind: ReceiptView.Mark) -> void:
 
 ## Colours the PROJECTED `line`'s amount by the shown `total` against `quota` (a display
 ## difference): GOOD at or over it, TOMATO under it; and prints how far it is on the `against` line
-## under it, at the footer's size, right-aligned under the amount (the shift scene polish:
-## "+67.00€ over target" in green dark, "56.00€ short" in tomato: ReceiptTarget.against_text), so
-## the status never relies on colour alone.
+## under it, at the foot's size (FOOT_FONT_SIZE), right-aligned under the amount (the shift scene
+## polish: "+67.00€ over target" in green dark, "56.00€ short" in tomato:
+## ReceiptTarget.against_text), so the status never relies on colour alone.
 static func against_quota(line: HBoxContainer, against: Control, total: int, quota: int) -> void:
 	var passed: bool = ShiftMargin.of(total, quota).passed()
 	var amount: Label = line.get_child(1) as Label
 	amount.add_theme_color_override("font_color", Palette.GOOD if passed else Palette.TOMATO)
 	against.name = "Against"
 	(against.get_child(0) as Label).add_theme_font_size_override(
-		"font_size", ReceiptView.FOOTER_FONT_SIZE
+		"font_size", ReceiptView.FOOT_FONT_SIZE
 	)
 	var words: Label = against.get_child(1) as Label
 	words.text = ReceiptTarget.against_text(total, quota)
-	words.add_theme_font_size_override("font_size", ReceiptView.FOOTER_FONT_SIZE)
+	words.add_theme_font_size_override("font_size", ReceiptView.FOOT_FONT_SIZE)
 	words.add_theme_color_override("font_color", ReceiptTarget.against_color(total, quota))
+
+
+## Shrinks the PROJECTED `line`'s amount (TOTAL_FONT_SIZE) to fit beside its caption and its mark
+## column in `width` px of lines, down to AMOUNT_MIN_FONT_SIZE (a four-digit total). Nothing for
+## a width not laid out yet, or no line (null: the lines' width changed with no PROJECTED line).
+static func fit_amount(line: HBoxContainer, width: float) -> void:
+	if width <= 0.0 or not is_instance_valid(line):
+		return
+	var caption: Label = line.get_child(0) as Label
+	var amount: Label = line.get_child(1) as Label
+	var room: float = (
+		width
+		- ReceiptView.text_width(caption.text, ReceiptView.MONO_FONT, ReceiptView.CAPTION_FONT_SIZE)
+		- line.get_theme_constant("separation")
+		- ReceiptView.MARK_COLUMN
+	)
+	amount.add_theme_font_size_override(
+		"font_size",
+		ReceiptInk.fit_font_size(
+			amount.text, room, ReceiptView.TOTAL_FONT_SIZE, AMOUNT_MIN_FONT_SIZE
+		)
+	)
 
 
 ## Marks `line` as a hovered item's target getting `token` (a mustard-pale fill behind it and the
@@ -219,6 +247,48 @@ static func scroll_target(scroll: ScrollContainer, lines: Control, line: Control
 	return clampi(roundi(at), 0, maxi(end, 0))
 
 
+## A receipt line's label of `style` holding `text`: the mono font at the style's size and colour
+## (ReceiptView.add_line).
+static func line_label(text: String, style: ReceiptView.LineStyle) -> Label:
+	var label: Label = Label.new()
+	label.text = text
+	var font_size: int = ReceiptView.LINE_FONT_SIZE
+	# An indented step line keeps the step size (it hangs and wraps under its item's line).
+	if text.begins_with(" ") and style in STEP_STYLES:
+		font_size = ReceiptView.STEP_FONT_SIZE
+	var color: Color = Palette.INK
+	match style:
+		ReceiptView.LineStyle.CONTEXT:
+			color = Palette.TEAL
+		ReceiptView.LineStyle.FIZZLE, ReceiptView.LineStyle.FOOTER:
+			# A fizzle's reason at B2's step-line size, so a long one keeps to two rows.
+			color = Palette.TOMATO_DARK
+			font_size = (
+				ReceiptView.FOOTER_FONT_SIZE
+				if style == ReceiptView.LineStyle.FIZZLE
+				else ReceiptView.FOOT_FONT_SIZE
+			)
+		ReceiptView.LineStyle.TOTAL, ReceiptView.LineStyle.PROJECTED:
+			font_size = ReceiptView.TOTAL_FONT_SIZE
+		ReceiptView.LineStyle.NOTICE:
+			font_size = 15
+			color = (
+				Palette.GREEN_DARK
+				if text.begins_with(ReceiptView.BOON_NOTICE_PREFIX)
+				else Palette.TOMATO
+			)
+		ReceiptView.LineStyle.MARGIN:
+			font_size = 15
+		ReceiptView.LineStyle.TEAR, ReceiptView.LineStyle.WAITING:
+			color = Palette.MUTED_INK
+		ReceiptView.LineStyle.CLOSING:
+			font_size = ReceiptView.FOOTER_FONT_SIZE
+	label.add_theme_font_override("font", ReceiptView.MONO_FONT)
+	label.add_theme_font_size_override("font_size", font_size)
+	label.add_theme_color_override("font_color", color)
+	return label
+
+
 static func _icon(texture: Texture2D) -> TextureRect:
 	var icon: TextureRect = TextureRect.new()
 	icon.texture = texture
@@ -250,9 +320,25 @@ static func _draw_relation(line: HBoxContainer) -> void:
 
 
 static func _draw_dashes(rule: HSeparator) -> void:
-	var y: float = roundf((rule.size.y - ArtStyle.ART_SCALE) / 2.0)
+	# At its foot when the rule is stretched (planning's rule over the foot at full length).
+	var natural: float = rule.get_combined_minimum_size().y
+	var y: float = rule.size.y - natural + roundf((natural - ArtStyle.ART_SCALE) / 2.0)
 	var x: float = 0.0
 	while x < rule.size.x:
 		var dash: float = minf(ReceiptView.RULE_DASH, rule.size.x - x)
 		rule.draw_rect(Rect2(x, y, dash, ArtStyle.ART_SCALE), Palette.CREAM_SHADE)
 		x += 2.0 * ReceiptView.RULE_DASH
+
+
+## Whether a line of `style` keeps the mark column (ReceiptView.MARK_COLUMN) at its right end: all
+## but the footer, the margin, the notice and the tear, which run across it.
+static func has_mark_column(style: ReceiptView.LineStyle) -> bool:
+	return (
+		style
+		not in [
+			ReceiptView.LineStyle.FOOTER,
+			ReceiptView.LineStyle.MARGIN,
+			ReceiptView.LineStyle.NOTICE,
+			ReceiptView.LineStyle.TEAR,
+		]
+	)

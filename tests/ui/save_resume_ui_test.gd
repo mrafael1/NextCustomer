@@ -143,7 +143,7 @@ func test_a_new_screen_resumes_the_hand_the_row_and_the_redraws() -> void:
 	assert_int(resumed._receipt.target.shown_quota()).is_equal(resumed.run.quota())
 	# A line's left text, then its (empty) right text.
 	var shift_line: String = ReceiptView.SHIFT_TEXT % [1, resumed.run.shift_count(), 2]
-	assert_array(Array(stub.slice(0, 4))).is_equal([ReceiptView.HEADER_TEXT, "", shift_line, ""])
+	assert_array(Array(stub.slice(0, 2))).is_equal([shift_line, ""])
 	assert_bool(stub.has(ReceiptView.PROJECTED_TEXT)).is_true()
 	assert_bool(stub.has(ReceiptView.money(first.run.preview().total))).is_true()
 	assert_str(_event_log().run_id).is_equal(run_id)
@@ -211,7 +211,7 @@ func test_quitting_during_the_count_up_resumes_on_the_machine() -> void:
 	# The receipt	await _count_up_end(first)
 	# The receipt (under the shift's header, #75), totals and met state beside the machine, as
 	# the count-up left them.
-	assert_str(_receipt_lines(resumed)[0]).is_equal(ReceiptView.HEADER_TEXT)
+	assert_str(_receipt_lines(resumed)[0]).is_equal(resumed.receipt_header()[0])
 	assert_bool(_receipt_lines(resumed).has(ReceiptView.PROJECTED_TEXT)).is_false()
 	assert_array(_receipt_lines(resumed)).is_equal(_receipt_lines(first))
 	# It keeps TODAY'S TARGET pinned at its top (the shift scene polish).

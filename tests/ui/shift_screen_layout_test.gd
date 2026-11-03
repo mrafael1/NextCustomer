@@ -335,7 +335,7 @@ func test_the_top_bar_fits_its_longest_texts() -> void:
 		var week: WeekEventDefinition = WeekSchedule.event_for(run.balance, last + 1)
 		var percent: int = inspection.quota_percent + week.quota_percent
 		var shown: int = ShiftLimits.with_percent(largest, percent)
-		assert_str(screen._receipt.target.amount.text).is_equal("%d" % shown)
+		assert_str(screen._receipt.target.amount.text).is_equal("%d€" % shown)
 		assert_int(screen._quota_meter.amount()).is_equal(9999)
 		assert_int(screen._quota_meter.shown_lap()).is_greater_equal(QuotaLaps.FIRST_LAP)
 		assert_int(screen._loyalty_card.box_texts().size()).is_equal(4)
@@ -396,21 +396,24 @@ func test_the_top_bar_fits_its_longest_texts() -> void:
 		assert_bool(seed_line.intersects(other.get_global_rect())).is_false()
 
 
-## The receipt stands on the printer's slot and grows up as its lines print: a short receipt is
-## as tall as its lines; a long one stops at RECEIPT_TOP, under the top bar, still standing on the
-## slot, and clear of the monitor.
-func test_the_receipt_grows_up_from_the_printer() -> void:
+## The receipt stands on the printer's slot at its full length (B2 of shift_scene_polish_v4): its
+## top at RECEIPT_TOP however few its lines, and a long one stays there, under the top bar, still
+## standing on the slot, and clear of the monitor.
+func test_the_receipt_stands_full_length_on_the_printer() -> void:
 	var screen: ShiftScreen = await _screen()
 	var stage: Rect2 = screen._stage.get_global_rect()
 	var receipt: ReceiptView = screen._receipt
 	var bottom: float = stage.position.y + ShiftStage.RECEIPT_BOTTOM
 	assert_float(receipt.get_global_rect().end.y).is_equal(bottom)
-	assert_float(receipt.size.y).is_equal_approx(receipt.natural_height(), 1.0)
-	var short_top: float = receipt.get_global_rect().position.y
+	assert_float(receipt.get_global_rect().position.y).is_equal(
+		stage.position.y + ShiftStage.RECEIPT_TOP
+	)
 	receipt.add_line("LINE", "1€", ReceiptView.LineStyle.ITEM)
 	await _frames(2)
 	assert_float(receipt.get_global_rect().end.y).is_equal(bottom)
-	assert_float(receipt.get_global_rect().position.y).is_less(short_top)
+	assert_float(receipt.get_global_rect().position.y).is_equal(
+		stage.position.y + ShiftStage.RECEIPT_TOP
+	)
 	while receipt.natural_height() <= ShiftStage.RECEIPT_BOTTOM - ShiftStage.RECEIPT_TOP:
 		receipt.add_line("LINE", "1€", ReceiptView.LineStyle.ITEM)
 		await _frames(1)
@@ -662,13 +665,9 @@ func test_numbers_use_the_number_font() -> void:
 			. override_failure_message("%s: %s" % [label.get_path(), label.text])
 			. is_same(number_font)
 		)
-	# The receipt's TODAY'S TARGET (the shift scene polish) prints the quota in the display font's
-	# hard pixels, like every pixel label.
-	var pixel: Label = UiKit.pixel_label("0", 1, Palette.INK)
-	assert_object(screen._receipt.target.amount.get_theme_font("font")).is_same(
-		pixel.get_theme_font("font")
-	)
-	pixel.free()
+	# The receipt's TODAY'S TARGET (the shift scene polish) prints the quota in the 6x8 pixel
+	# digits (v4's D), drawn, not a font.
+	assert_int(screen._receipt.target.amount.sheet).is_equal(PixelWords.Sheet.DIGITS)
 
 
 ## Every character the screen prints is in the font that prints it, including "−" (U+2212) on
