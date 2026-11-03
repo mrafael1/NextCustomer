@@ -4,8 +4,9 @@ extends RefCounted
 ## lamp over the gauge's steel housing, drawn on the art grid by QuotaMeter. An ink rim, a steel
 ## bezel (lit top left), and the lens inside it, 9 art px across: dark (steel dark, rubber dark)
 ## until the quota is made, then lit in the newest full lap's colours with its glyph: a check for
-## the first lap, "×N" once N laps are made, in 3x5 pixel digits. A soft glow pulses round a lit
-## lamp. Display arithmetic and drawing only.
+## the first lap, "×N" once N laps are made, in 3x5 pixel digits (from BARE_FROM laps the number
+## alone, capped at MAX_SHOWN, so the glyph always stays inside the lens). A soft glow pulses round
+## a lit lamp. Display arithmetic and drawing only.
 
 ## The lamp and its glow: art px diameters, and the squared radii of their discs. The lens is the
 ## lamp's disc inside its bezel, its shading measured from LENS_INSET art px in.
@@ -38,15 +39,45 @@ const GAP := 1
 const GLYPH_HEIGHT := 5
 const CHECK_TEXT := "✓"
 const TIMES_TEXT := "×"
+## From this many laps the lamp drops the "×" (two digits fill the lens), and it never shows more
+## than MAX_SHOWN.
+const BARE_FROM := 10
+const MAX_SHOWN := 99
+## A disc cell's layer inside the bezel (the lens).
+const LENS_LAYER := 3
 
 static var _discs: Dictionary[int, Array] = {}
 
 
-## The lamp's text for `laps` laps made: none for 0, the check for 1, "×N" from 2.
+## The lamp's text for `laps` laps made: none for 0, the check for 1, "×N" from 2, the number
+## alone from BARE_FROM (MAX_SHOWN at most).
 static func text_for(laps: int) -> String:
 	if laps <= 0:
 		return ""
-	return CHECK_TEXT if laps == 1 else TIMES_TEXT + str(laps)
+	if laps == 1:
+		return CHECK_TEXT
+	if laps >= BARE_FROM:
+		return str(mini(laps, MAX_SHOWN))
+	return TIMES_TEXT + str(laps)
+
+
+## Whether every inked cell of `text`'s glyph, placed as draw() places it, falls on the lens.
+static func glyph_fits(text: String) -> bool:
+	var rows: PackedStringArray = glyph_rows(text)
+	var layers: Array = _layers(SIZE, SIZE_R2)
+	var at: Vector2i = _glyph_origin(rows)
+	for row: int in range(rows.size()):
+		for column: int in range(rows[row].length()):
+			if rows[row][column] != "#":
+				continue
+			var x: int = at.x + column
+			var y: int = at.y + row
+			if x < 0 or x >= SIZE or y < 0 or y >= SIZE:
+				return false
+			var line: PackedInt32Array = layers[y]
+			if line[x] != LENS_LAYER:
+				return false
+	return true
 
 
 ## The rows of `text`'s glyphs side by side ('#' inked), GLYPH_HEIGHT rows.
@@ -110,7 +141,7 @@ static func draw(
 		SIZE_R2,
 		func(layer: int, x: int, y: int) -> Color:
 			var sum: int = x + y - 2 * LENS_INSET
-			if layer < 3:
+			if layer < LENS_LAYER:
 				return Color(Palette.INK, 0.0)
 			if not lit:
 				return Palette.STEEL_DARK if sum <= LENS_LIT_SUM else Palette.RUBBER_DARK
@@ -121,14 +152,18 @@ static func draw(
 	if lit and not text.is_empty():
 		var rows: PackedStringArray = glyph_rows(text)
 		var ink: Color = QuotaLaps.lamp_ink(ramp)
-		var left: int = floori((SIZE - rows[0].length()) / 2.0)
-		var top: int = floori((SIZE - GLYPH_HEIGHT) / 2.0)
+		var glyph_at: Vector2i = _glyph_origin(rows)
 		for row: int in range(rows.size()):
 			for column: int in range(rows[row].length()):
 				if rows[row][column] == "#":
-					var at: Vector2 = origin + Vector2(left + column, top + row) * cell
+					var at: Vector2 = origin + Vector2(glyph_at + Vector2i(column, row)) * cell
 					item.draw_rect(Rect2(at, Vector2(cell, cell)), ink)
 	item.draw_set_transform_matrix(Transform2D.IDENTITY)
+
+
+## The top left (art px in the lamp) of the glyph `rows`: centred, left-leaning on odd room.
+static func _glyph_origin(rows: PackedStringArray) -> Vector2i:
+	return Vector2i(floori((SIZE - rows[0].length()) / 2.0), floori((SIZE - GLYPH_HEIGHT) / 2.0))
 
 
 ## A disc `size` art px across (squared radius `r2`) at `origin`: each cell coloured by

@@ -103,20 +103,28 @@ func test_the_lap_colours_by_total_and_quota() -> void:
 		assert_that(QuotaLaps.lap_ramp(lap)[1]).is_not_equal(QuotaLaps.backdrop_ramp(lap)[1])
 
 
-## The new orange and violet ramps (art/src/palette.txt): lit, body and dark from light to dark,
-## their bodies HUE_GAP degrees or more from the short tube's tomato and the near tube's brass.
-func test_the_orange_and_violet_laps_keep_clear_of_the_warning_hues() -> void:
-	for lap_ramp: Array in [QuotaLaps.lap_ramp(3), QuotaLaps.lap_ramp(5)]:
-		var lit: Color = lap_ramp[0]
+## The lap ramps: lit, body and dark from light to dark, and every lap's body HUE_GAP degrees or
+## more from the short tube's tomato and the near tube's brass, or (gold and velvet, by decision:
+## QuotaLaps.VALUE_SEPARATED) VALUE_GAP of value from the warning body it comes near in hue. The
+## new orange and violet ramps (art/src/palette.txt) keep the hue gap.
+func test_every_lap_keeps_clear_of_the_warning_hues() -> void:
+	for lap: int in range(QuotaLaps.FIRST_LAP, QuotaLaps.FIRST_LAP + QuotaLaps.LAP_RAMPS.size()):
+		var lap_ramp: Array[Color] = QuotaLaps.lap_ramp(lap)
 		var body: Color = lap_ramp[1]
-		var dark: Color = lap_ramp[2]
-		assert_float(lit.get_luminance()).is_greater(body.get_luminance())
-		assert_float(body.get_luminance()).is_greater(dark.get_luminance())
+		assert_float(lap_ramp[0].get_luminance()).is_greater(body.get_luminance())
+		assert_float(body.get_luminance()).is_greater(lap_ramp[2].get_luminance())
 		for warning: Color in [QuotaMeter.SHORT_RAMP[1], QuotaMeter.NEAR_RAMP[1]]:
 			var gap: float = absf(body.h - warning.h) * 360.0
 			gap = minf(gap, 360.0 - gap)
-			var why: String = "%s is %.1f deg from %s" % [body, gap, warning]
-			assert_float(gap).override_failure_message(why).is_greater_equal(QuotaLaps.HUE_GAP)
+			var why: String = "lap %d %s is %.1f deg from %s" % [lap, body, gap, warning]
+			if gap >= QuotaLaps.HUE_GAP:
+				continue
+			assert_bool(QuotaLaps.VALUE_SEPARATED.has(body)).override_failure_message(why).is_true()
+			assert_float(absf(body.v - warning.v)).override_failure_message(why).is_greater_equal(
+				QuotaLaps.VALUE_GAP
+			)
+	for orange_or_violet: Color in [Palette.ORANGE, Palette.VIOLET]:
+		assert_bool(QuotaLaps.VALUE_SEPARATED.has(orange_or_violet)).is_false()
 	assert_array(QuotaLaps.lap_ramp(3)).is_equal(
 		[Palette.ORANGE_LIGHT, Palette.ORANGE, Palette.ORANGE_DARK]
 	)
@@ -185,7 +193,14 @@ func test_the_lamp_names_the_laps_made() -> void:
 	assert_str(LapLamp.text_for(0)).is_empty()
 	assert_str(LapLamp.text_for(1)).is_equal(LapLamp.CHECK_TEXT)
 	assert_str(LapLamp.text_for(2)).is_equal("×2")
-	assert_str(LapLamp.text_for(12)).is_equal("×12")
+	assert_str(LapLamp.text_for(9)).is_equal("×9")
+	assert_str(LapLamp.text_for(12)).is_equal("12")
+	assert_str(LapLamp.text_for(LapLamp.MAX_SHOWN + 40)).is_equal(str(LapLamp.MAX_SHOWN))
+	# Every glyph, the check to the cap, stays inside the lens (never over the bezel or rim).
+	for laps: int in range(1, LapLamp.MAX_SHOWN + 2):
+		var text: String = LapLamp.text_for(laps)
+		assert_bool(LapLamp.glyph_fits(text)).override_failure_message(text).is_true()
+	assert_bool(LapLamp.glyph_fits("×10")).is_false()
 	assert_array(LapLamp.glyph_rows("×2")).is_equal(
 		PackedStringArray(["....###", "#.#...#", ".#..###", "#.#.#..", "....###"])
 	)

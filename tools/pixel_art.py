@@ -191,7 +191,9 @@ AISLE_BASE_INDEX = 2
 # Tones (#121's TOY MACHINES; art data, not game balance), frozen from the approved mock-up
 # docs/art/mockups/toy_machines_121_v2/: dim (cabinets.py DIM_MAP, two steps down each ramp) and
 # off (build.py OFF_MAP, each colour desaturated to 30 %, darkened to 74 % and snapped to the
-# nearest key). Each maps every palette key but the transparent one.
+# nearest key). Each maps every palette key but the transparent one. The lap ramps' keys (+ * & ~ ^
+# $, the shift scene polish v4, A1) came later: dim takes them two steps down their ramps, off
+# snaps them with the same formula against the keys before them, so no earlier off art changes.
 TONE_PREFIX = "tone="
 TONE_MAPS = {
     "dim": {
@@ -205,6 +207,7 @@ TONE_MAPS = {
         "A": "D", "B": "E", "C": "E", "D": "H", "E": "I", "H": "I", "I": "N", "J": "K", "K": "N",
         "N": "N", "P": "S", "Q": "T", "S": "T", "T": "U", "U": "N", "W": "i", "Z": "i", "d": "-",
         "i": "=", "j": "4", "p": "3", "s": "t", "t": "N", "9": "0", "0": "f",
+        "+": "&", "*": "&", "&": "e", "~": "$", "^": "$", "$": "N",
     },
     "off": {
         "#": "N", "%": "s", "=": "I", "-": "E", ":": "D", "a": "-", "b": "D", "c": "C", "w": ":",
@@ -215,6 +218,7 @@ TONE_MAPS = {
         "H": "J", "I": "s", "J": "K", "K": "N", "N": "N", "P": "D", "Q": "E", "S": "=", "T": "J",
         "U": "N", "W": "C", "Z": "C", "d": "D", "i": "-", "j": ":", "p": "C", "s": "t", "t": "N",
         "7": "E", "8": "N", "9": "D", "0": "E",
+        "+": "-", "*": "E", "&": "%", "~": "D", "^": "E", "$": "I",
     },
 }
 
