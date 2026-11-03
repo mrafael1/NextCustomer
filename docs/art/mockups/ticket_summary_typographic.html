@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ticket Type First</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&family=Atkinson+Hyperlegible+Next:wght@200..800&display=swap">
+<style>
+/* House style of the shift mock-ups: the store's dark teal wall, live canvases of the game's
+   1280x720 stage (nearest-neighbour), notes beside them. One dark look on purpose: it is the game's palette. */
+@font-face{font-family:'NCPix';font-weight:400 700;src:url(../../../fonts/PixelifySans-Variable.ttf)}
+@font-face{font-family:'NCAtk';font-weight:200 800;src:url(../../../fonts/AtkinsonHyperlegibleNext-Variable.ttf)}
+:root{
+  color-scheme:dark;
+  --wall:#1f3b3a; --bay:#172c2b; --panel:#2a4d4b; --paper:#fbf7ee; --teal-pale:#c3e0d4; --teal-light:#86c2b6;
+  --mustard:#e2b33c; --gold:#ffcf3f; --tomato:#ec8a6e; --ink:#2b2420; --muted:#a9a59b;
+  --display:'NCPix','Pixelify Sans','Courier New',monospace;
+  --body:'NCAtk','Atkinson Hyperlegible Next','Segoe UI',system-ui,sans-serif;
+}
+:root[data-theme="light"], :root[data-theme="dark"]{color-scheme:dark}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--wall:#1f3b3a}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--wall);color:var(--paper)}
+body{font-family:var(--body);font-size:15px;line-height:1.5;overflow-x:hidden}
+main{max-width:1320px;margin:0 auto;padding:28px 16px 64px;display:grid;gap:40px}
+main>*,section>*{min-width:0}
+h1,h2,h3{font-family:var(--display);font-weight:700;margin:0;letter-spacing:.02em;text-wrap:balance}
+h1{font-size:34px;color:var(--gold)}
+h2{font-size:24px}
+h3{font-size:17px;color:var(--teal-pale)}
+p{margin:0;max-width:80ch}
+code{overflow-wrap:anywhere;color:#faecbc;font-size:13px}
+.eyebrow{font-family:var(--display);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--teal-light)}
+section{display:grid;gap:14px}
+.lede{display:grid;gap:10px}
+.card{background:var(--panel);border:2px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.35);padding:14px 16px;display:grid;gap:8px}
+.card strong{color:var(--gold)}
+.card ul,.card ol{margin:0;padding-left:20px;display:grid;gap:4px}
+.grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(min(100%,400px),1fr))}
+.bay{background:var(--bay);border:2px solid var(--ink);padding:10px;display:grid;gap:8px;min-width:0}
+.bay .lab{font-family:var(--display);font-size:13px;color:var(--gold);letter-spacing:.04em}
+.bay .note{font-size:13px;color:var(--teal-pale)}
+.scroll{overflow-x:auto;max-width:100%}
+canvas{display:block;image-rendering:pixelated;image-rendering:crisp-edges;max-width:none}
+.fit canvas{max-width:100%;height:auto}
+table{border-collapse:collapse;font-size:13px;width:100%}
+th,td{border-bottom:1px solid #3a7672;padding:5px 8px;text-align:left;vertical-align:top}
+th{font-family:var(--display);color:var(--teal-light);font-weight:500}
+td:first-child{white-space:nowrap;color:#faecbc}
+.grid.z{grid-template-columns:repeat(auto-fit,minmax(min(100%,560px),1fr))}
+.tiles{display:flex;flex-wrap:wrap;gap:12px}
+.chipkey{display:inline-block;padding:0 6px;border:2px solid var(--ink);color:var(--ink);font-weight:800}
+</style>
+<main>
+  <header class="lede">
+    <div class="eyebrow">Price tickets · concept 3 of the summary round · mock-up</div>
+    <h1>Type first: a ticket with no icons</h1>
+    <p>Direction B (colour card), made taller: 108x76 screen px, 54x38 art px at 2x. The family glyphs come off the face. The family is told by colour and a named strip, the price by big hard-pixel digits, and the effect by words. The glyphs come back only in the hover tip.</p>
+  </header>
+
+  <section class="card">
+    <h3>How each part answers one question</h3>
+    <ul>
+      <li><strong>Face colour (family, what it works with):</strong> the whole card stays in the #105 ticket colour, so a row of mustard reads as "Breakfast combo" before anything else is read.</li>
+      <li><strong>Name strip at the foot (family, what it is):</strong> the item's own families as words in hard 3x5 caps on their colours: one family is spelled out (BREAKFAST), two or three use codes (BFST · DAI). It replaces the 9x9 glyph row, so the only pictures near the belt are the groceries.</li>
+      <li><strong>Price window (price):</strong> one fixed window in the top-right corner, with 6x8 hard-pixel digits and the € after the number (128€). Its fill shows the state (paper base, pale gold boosted, red 0€).</li>
+      <li><strong>Was-price (price change):</strong> the old price sits straight on the face to the left of the window, struck in red, in a 4x7 face whose € has its curve and two bars, so "4€" can't read as "4E". It has no box, so it never looks like a second price.</li>
+      <li><strong>Cream plate (effect):</strong> the rule in the game's Atkinson 800 13 px, two lines at most. A target family is a highlighted word in that family's colour (<span class="chipkey" style="background:#e2b33c">Breakfast</span>), and a keyword is a pixel label tape (<span class="chipkey" style="background:#2b2420;color:#ddcba5;font-family:var(--display);font-weight:500">BATCH</span>), so the two never look alike.</li>
+    </ul>
+    <p><strong>The 2-second test:</strong> 1st, the price (biggest and highest-contrast, in the same corner on every ticket). 2nd, the colour, taken in without reading (the face, then the highlighted word that names it). 3rd, the rule's first line. The name strip is the 4th look, there to confirm, and the colour-blind player's route.</p>
+  </section>
+
+  <section>
+    <h2>(a) The real belt row, 1:1</h2>
+    <p>The 7 tickets of <code>now_planning.png</code> (Eggs 1€, Bread 14€ was 5€, Milk on the 0€ Spot check slot, the Multipack coupon (wasted in this deal), Milk 21€, 48€ and 63€) drawn over the capture's belt. The hand row is moved down 12 px for the taller tickets. Hover a ticket to see its tip (the glyphs live there now).</p>
+    <div class="bay"><div class="scroll"><canvas id="row1" width="920" height="150"></canvas></div>
+      <div class="note">1:1 · hover a ticket for its tip</div></div>
+  </section>
+
+  <section>
+    <h2>(a) The same row at 3x</h2>
+    <div class="bay"><div class="lab">SLOTS 1-3 · EGGS, BREAD, MILK ON SPOT CHECK</div><div class="scroll"><canvas id="row3a"></canvas></div></div>
+    <div class="bay"><div class="lab">SLOTS 4-6 · MULTIPACK (WASTED), MILK 21€, MILK 48€</div><div class="scroll"><canvas id="row3b"></canvas></div></div>
+  </section>
+
+  <section>
+    <h2>(b)-(e) Specimens, 1:1 and 3x</h2>
+    <div class="bay"><div class="lab">1:1 · STRESS · COUPON · COUPON WASTED · KEYWORD · SPOT CHECK CARDED · SPOT CHECK EMPTY</div>
+      <div class="scroll"><canvas id="spec1"></canvas></div></div>
+    <div class="grid z" id="zooms"></div>
+  </section>
+
+  <section>
+    <h2>The hover tip (where the glyphs went)</h2>
+    <div class="grid" style="grid-template-columns:1fr">
+      <div class="bay"><div class="lab">3x · MILK 48€, HOVERED</div><div class="scroll"><canvas id="tip3"></canvas></div></div>
+      <div class="card">
+        <h3>Telling the families apart without colour</h3>
+        <ul>
+          <li><strong>What it is:</strong> the strip at the foot spells it out (BREAKFAST, or the codes BFST · DAI · BAK). It is text, so it doesn't rely on the colour.</li>
+          <li><strong>What it works with:</strong> the face colour is always spelled out by the highlighted word in the rule ("+1 per earlier <b>Breakfast</b>"). A ticket with no rule has the colour of its own family, which is the strip's first name.</li>
+          <li><strong>The tip:</strong> the glyph and full name of each family, plus the colour's meaning line from the game (FamilyPalette.colour_tip).</li>
+          <li>So nothing is carried by colour alone, and the strip needs no hatch pattern. If playtests still mix up two codes (BAK and BFST are the closest), the fix is a 1-art pattern on the strip's light row: dots for Dairy, dashes for Bakery, solid for Breakfast.</li>
+        </ul>
+        <p class="note">Codes: Produce VEG · Dairy DAI · Bakery BAK · Breakfast BFST · Household HOME · Clearance CLR · Snack SNK · Food FOOD (Food shows only when an item has no other family). One family is spelled in full, because every name fits in 50 art at 3x5.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Zones (art px, ticket 54x38, outline at x0/x53 and y0/y37)</h2>
+    <div class="card scroll">
+      <table>
+        <tr><th>Zone</th><th>Rect</th><th>Content</th></tr>
+        <tr><td>Body</td><td>0-53 × 0-37</td><td>1 art outline: ink, or brass dark l on GOLDEN. 2-px die-cut corners. Shadow: ink 35%, offset (1,1).</td></tr>
+        <tr><td>Face</td><td>1-52 × 1-28</td><td>Ticket colour (#105 "works with"). Light row y1 and light column x1, shade column x52. GOLDEN: light row y1 in gold n, a 5x5 sparkle at (2,2). Coupon: paper.</td></tr>
+        <tr><td>Price window</td><td>23-51 × 2-13</td><td>Fixed. 1 art outline, inner 27x10 with an inset row and column. Digits 6x8 with 2-art stems ("1" 4 wide), € 6x8, 1-art gaps, right-aligned to x49 on rows y4-11. "128€" = 25 art. Fills: base w/ink · boosted Y/k with an n top row · lowered O/r · 0€ R/w · coupon stub teal 4 with a w scissors · wasted stub grey with an R slash.</td></tr>
+        <tr><td>Was-price</td><td>right-aligned to x20, y5-11</td><td>Only when the shown price differs from the base price. No box: 4x7 digits straight on the face in ink light % (paper on dark faces), € 4x7 (curve and two bars), 1-art strike on y8 in R (gold on dark faces), running 1 art past each end.</td></tr>
+        <tr><td>Free corner</td><td>2-21 × 2-13</td><td>The face colour shows here: a pure swatch when there is no was-price.</td></tr>
+        <tr><td>Rule plate</td><td>2-51 × 15-28</td><td>Cream c with a b inset row y15 and column x2. 2 bands of 7 art (y15-21, y22-28). Atkinson 800 13 px ink, baseline 11 px under each band's top, text from screen x8 to x102. Family word: a 6-art highlight (band rows 1-6) in the family face, with ink or paper text. Keyword: a 7-art label tape (an ink strip with corners cut) with 3x5 caps in the keyword's calm colour (KeywordChip.CALM_FACES). The ink rows above and below the caps are their margin; an outlined chip on cream left the caps touching the border. Plain product: its name in grey dark plus a 19x5 barcode.</td></tr>
+        <tr><td>Hairline</td><td>1-52 × 29</td><td>Ink. Coupon: a dashed perforation (2 on, 1 off) with 1x3 bites cut in both edges.</td></tr>
+        <tr><td>Name strip</td><td>1-52 × 30-36</td><td>Own families (CardFamilies.shelf_families), in equal segments split by a 1-art ink column. Light row y30, face y31-35 with 3x5 caps on y31-35, shade row y36. Ink caps, paper on Household, Snack and Clearance. Coupon: teal 3 with paper COUPON.</td></tr>
+        <tr><td>Cause chip (Spot check)</td><td>13x12, centred, 1 art under the ticket</td><td>Warning only: an R face with an r rim and a 9x8 warning sign at 2x. No digits, because the ticket's window owns the 0€.</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h3>Weak points, honestly</h3>
+    <ul>
+      <li><strong>Two families, two places:</strong> the face is the "works with" colour and the strip is "what it is". Milk is mustard with a teal DAI segment. That is the #105 rule made visible, but a new player may still ask why Milk isn't teal. The tip explains it; the ticket alone doesn't.</li>
+      <li><strong>Codes are a learning cost:</strong> BFST, DAI and BAK must be learned, and BAK/BFST are close at 3x5. Full names only fit with one family.</li>
+      <li><strong>The strip is quiet by design:</strong> 5-px-tall caps at 1:1 are readable but small. The strip is a confirmation, not a first read. A player who looks for family first has to rely on colour.</li>
+      <li><strong>Mixed resolutions remain in the plate:</strong> the rule is still smooth Atkinson (as in the game) next to hard-pixel digits, chips and strip. It is contained on cream, but it's not pure pixel art.</li>
+      <li><strong>A 2-line rule with a long family word is tight:</strong> "Household" or "Clearance" highlighted in 13 px takes about 70 of the 94 px on a line, so a rule naming two families needs the 12 px fallback.</li>
+      <li><strong>The keyword tape is a change to KeywordChip:</strong> it reverses the game's outlined chip (ink caps on the calm face) to calm-coloured caps on ink, so the 3x5 caps get a margin inside a 7-art band. If the outlined chip has to stay, the rule bands need 9 art and the plate grows by 2.</li>
+      <li><strong>Taller tickets cost 12 px of the hand row</strong> (baskets moved down), the same cost as v2's 76 option.</li>
+    </ul>
+  </section>
+</main>
+
+<script>
+'use strict';
+/* ---------- palette (art/src/palette.txt) and families (data/families/*.tres) ---------- */
+const P = {INK:'#2b2420',INK_L:'#4a3f38',GREY_D:'#5e574d',GREY:'#8a8172',GREY_L:'#c7beab',CREAM_DK:'#b39f78',CREAM_SH:'#ddcba5',CREAM:'#f3e9d2',PAPER:'#fbf7ee',
+  T1:'#1f3b3a',T2:'#2a4d4b',T3:'#3a7672',T4:'#4f9a94',T5:'#86c2b6',T6:'#c3e0d4',
+  Rq:'#6e2630',Rr:'#a83a3c',R:'#d9534f',Ro:'#ec8a6e',RO:'#f5bfa0',
+  Mu:'#7a5a1c',Mm:'#b38425',M:'#e2b33c',My:'#f1d27a',MY:'#faecbc',
+  Bk:'#4a3010',Bl:'#8a5d1a',BL:'#c8932b',GOLD:'#ffcf3f',
+  STEEL_HI:'#ecebe4',STEEL_L:'#c7c3b8',STEEL_P:'#a9a59b',STEEL:'#8d8a83',STEEL_SH:'#6f6b63',STEEL_DKST:'#45423d'};
+const FAM = {
+  Produce:{face:'#5fae5a',light:'#a5d17e',shade:'#3d7a45',code:'VEG',name:'PRODUCE',ink:P.INK},
+  Dairy:{face:'#4f9a94',light:'#86c2b6',shade:'#3a7672',code:'DAI',name:'DAIRY',ink:P.INK,glyph:'family_dairy'},
+  Bakery:{face:'#d2a874',light:'#ddcba5',shade:'#a87a4e',code:'BAK',name:'BAKERY',ink:P.INK,glyph:'aisle_bakery'},
+  Breakfast:{face:'#e2b33c',light:'#f1d27a',shade:'#b38425',code:'BFST',name:'BREAKFAST',ink:P.INK,glyph:'family_breakfast'},
+  Household:{face:'#5e574d',light:'#8a8172',shade:'#4a3f38',code:'HOME',name:'HOUSEHOLD',ink:P.PAPER},
+  Clearance:{face:'#a83a3c',light:'#d9534f',shade:'#6e2630',code:'CLR',name:'CLEARANCE',ink:P.PAPER},
+  Snack:{face:'#7a5232',light:'#a87a4e',shade:'#4a3022',code:'SNK',name:'SNACK',ink:P.PAPER},
+  Food:{face:'#ec8a6e',light:'#f5bfa0',shade:'#d9534f',code:'FOOD',name:'FOOD',ink:P.INK,glyph:'aisle_pantry'},
+};
+const COUPON_FACE = {face:P.PAPER,light:P.PAPER,shade:P.CREAM_SH};
+const KW_FACE = {BATCH:P.CREAM_SH,CHAIN:'#a5d17e',WASTED:P.RO,PAIR:P.T5,MORNING:P.My};
+const ATK = "NCAtk, 'Atkinson Hyperlegible Next', sans-serif";
+const fTxt = (s, w = 800) => `${w} ${s}px ${ATK}`;
+
+/* ---------- hard-pixel type, drawn in JS ---------- */
+const BIG = {h:8, g:{
+  '0':['.####.','##..##','##..##','##..##','##..##','##..##','##..##','.####.'],
+  '1':['.##.','###.','.##.','.##.','.##.','.##.','.##.','####'],
+  '2':['.####.','##..##','....##','...##.','..##..','.##...','##....','######'],
+  '3':['#####.','....##','....##','.####.','....##','....##','....##','#####.'],
+  '4':['...##.','..###.','.####.','##.##.','##.##.','######','...##.','...##.'],
+  '5':['######','##....','#####.','....##','....##','....##','##..##','.####.'],
+  '6':['.####.','##....','##....','#####.','##..##','##..##','##..##','.####.'],
+  '7':['######','....##','...##.','...##.','..##..','..##..','..##..','..##..'],
+  '8':['.####.','##..##','##..##','.####.','##..##','##..##','##..##','.####.'],
+  '9':['.####.','##..##','##..##','##..##','.#####','....##','....##','.####.'],
+  '€':['..####','.##...','#####.','.##...','####..','.##...','.##...','..####'],
+}};
+const MID = {h:7, g:{
+  '0':['.##.','#..#','#..#','#..#','#..#','#..#','.##.'],
+  '1':['.#.','##.','.#.','.#.','.#.','.#.','###'],
+  '2':['.##.','#..#','...#','..#.','.#..','#...','####'],
+  '3':['###.','...#','...#','.##.','...#','...#','###.'],
+  '4':['..#.','.##.','#.#.','#.#.','####','..#.','..#.'],
+  '5':['####','#...','###.','...#','...#','#..#','.##.'],
+  '6':['.##.','#...','###.','#..#','#..#','#..#','.##.'],
+  '7':['####','...#','..#.','..#.','.#..','.#..','.#..'],
+  '8':['.##.','#..#','#..#','.##.','#..#','#..#','.##.'],
+  '9':['.##.','#..#','#..#','.###','...#','...#','.##.'],
+  '€':['..##','.#..','####','.#..','###.','.#..','..##'],
+}};
+const CAPS = {h:5, g:{
+  A:['.#.','#.#','###','#.#','#.#'],B:['##.','#.#','##.','#.#','##.'],C:['.##','#..','#..','#..','.##'],
+  D:['##.','#.#','#.#','#.#','##.'],E:['###','#..','##.','#..','###'],F:['###','#..','##.','#..','#..'],
+  G:['.##','#..','#.#','#.#','.##'],H:['#.#','#.#','###','#.#','#.#'],I:['###','.#.','.#.','.#.','###'],
+  K:['#.#','#.#','##.','#.#','#.#'],L:['#..','#..','#..','#..','###'],M:['#...#','##.##','#.#.#','#...#','#...#'],
+  N:['#..#','##.#','#.##','#..#','#..#'],O:['.#.','#.#','#.#','#.#','.#.'],P:['##.','#.#','##.','#..','#..'],
+  R:['##.','#.#','##.','#.#','#.#'],S:['.##','#..','.#.','..#','##.'],T:['###','.#.','.#.','.#.','.#.'],
+  U:['#.#','#.#','#.#','#.#','###'],V:['#.#','#.#','#.#','#.#','.#.'],W:['#...#','#...#','#.#.#','##.##','#...#'],
+  X:['#.#','#.#','.#.','#.#','#.#'],Y:['#.#','#.#','.#.','.#.','.#.'],Z:['###','..#','.#.','#..','###'],' ':['..','..','..','..','..'],
+}};
+function tw(font, s) { let w = 0; for (const ch of s) w += (font.g[ch] || font.g['0'])[0].length + 1; return Math.max(0, w - 1); }
+function type(p, font, s, x, y, c) { let cx = x; for (const ch of s) { const g = font.g[ch] || font.g['0']; for (let r = 0; r < g.length; r++) for (let k = 0; k < g[r].length; k++) if (g[r][k] === '#') p(cx + k, y + r, 1, 1, c); cx += g[0].length + 1; } return cx - 1; }
+const SCISSORS = ['.##....#','#..#..#.','.##..#..','...##...','.##..#..','#..#..#.','.##....#'];
+const WARN = ['....#....','...#M#...','...#M#...','..#M#M#..','..#M#M#..','.#MMMMM#.','.#MM#MM#.','#########'];
+function sprite(p, rows, x, y, map) { rows.forEach((r, j) => [...r].forEach((ch, i) => { if (map[ch]) p(x + i, y + j, 1, 1, map[ch]); })); }
+
+/* ---------- helpers ---------- */
+function mk(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; c.getContext('2d').imageSmoothingEnabled = false; return c; }
+function R(ctx, x, y, w, h, c) { ctx.fillStyle = c; ctx.fillRect(x, y, w, h); }
+const IMG = {};
+const NAMES = ['now_planning','now_planning_plain','belt_bolt','belt_chevrons','sparkle','family_breakfast','family_dairy','aisle_bakery','aisle_pantry','family_coupon'];
+function loadAll() { return Promise.all(NAMES.map(n => new Promise(res => { const i = new Image(); i.onload = () => { IMG[n] = i; res(); }; i.onerror = () => { console.error('missing image ' + n); res(); }; i.src = 'ticket_summary_typographic_src/' + n + '.png'; }))); }
+
+/* ---------- the ticket (54x38 art, drawn at 2x) ---------- */
+const TW = 54, TH = 38, S = 2;
+const TICKET_X0 = 368, PITCH = 128, TICKET_Y = 458, SHIFT = 12;
+const TXT_L = 8, TXT_R = 102;
+/* A ticket spec: face (a FAM key or 'coupon'), fams (own families), price, state ('base'|'boost'|'low'|'zero'),
+   struck, rule ('{Fam}' highlights a family, '[KW]' a keyword chip), name (plain product), golden, wasted. */
+function layoutRule(ctx, text) {
+  ctx.font = fTxt(13);
+  const toks = text.split(' ').map(t => {
+    let m;
+    if ((m = t.match(/^\{(\w+)\}(.*)$/))) { const w = ctx.measureText(m[1]).width; return {k:'fam', fam:m[1], s:m[1], tail:m[2], w:Math.ceil((w + 6) / 2) * 2 + ctx.measureText(m[2]).width}; }
+    if ((m = t.match(/^\[(\w+)\](.*)$/))) { return {k:'kw', s:m[1], tail:m[2], w:(tw(CAPS, m[1]) + 4) * S + ctx.measureText(m[2]).width}; }
+    return {k:'w', s:t, w:ctx.measureText(t).width};
+  });
+  const sp = ctx.measureText(' ').width, max = TXT_R - TXT_L;
+  const lines = [[]]; let x = 0;
+  for (const t of toks) { const need = (x ? sp : 0) + t.w; if (x && x + need > max) { lines.push([]); x = 0; } lines[lines.length - 1].push(t); x += (x ? sp : 0) + t.w; }
+  return lines;
+}
+function drawTicket(ctx, X, Y, sp) {
+  const art = mk(TW, TH), a = art.getContext('2d');
+  const p = (x, y, w, h, c) => R(a, x, y, w, h, c);
+  const coupon = sp.face === 'coupon';
+  const F = coupon ? COUPON_FACE : FAM[sp.face];
+  const OL = sp.golden ? P.Bl : P.INK;
+  // body silhouette with die-cut corners
+  p(2, 0, 50, 1, OL); p(1, 1, 52, 1, OL); p(0, 2, 54, 34, OL); p(1, 36, 52, 1, OL); p(2, 37, 50, 1, OL);
+  // face
+  p(2, 1, 50, 1, sp.golden ? P.GOLD : F.light); p(1, 2, 52, 27, F.face); p(1, 2, 1, 27, F.light); p(52, 2, 1, 27, F.shade);
+  p(2, 1, 50, 1, sp.golden ? P.GOLD : F.light);
+  // price window (fixed)
+  p(23, 2, 29, 12, OL);
+  let fill = P.PAPER, ins = P.CREAM_SH, dig = P.INK;
+  if (coupon) { fill = sp.wasted ? P.GREY_L : P.T4; ins = sp.wasted ? P.GREY : P.T3; }
+  else if (sp.state === 'boost') { fill = P.MY; ins = P.GOLD; dig = P.Bk; }
+  else if (sp.state === 'low') { fill = P.RO; ins = P.Ro; dig = P.Rr; }
+  else if (sp.state === 'zero') { fill = P.R; ins = P.Rr; dig = P.PAPER; }
+  p(24, 3, 27, 10, fill); p(24, 3, 27, 1, ins); p(24, 3, 1, 10, ins);
+  if (coupon) {
+    sprite(p, SCISSORS, 33, 4, {'#':sp.wasted ? P.GREY_D : P.PAPER});
+    if (sp.wasted) for (let i = 0; i < 25; i++) p(25 + i, 12 - Math.floor(i * 9 / 25), 1, 1, P.R);
+  } else {
+    const s = sp.price + '€'; type(p, BIG, s, 49 - tw(BIG, s) + 1, 4, dig);
+  }
+  // was-price chit
+  if (!coupon && sp.struck != null && sp.struck !== sp.price) {
+    const s = sp.struck + '€', w = tw(MID, s), x1 = 20 - w;
+    const dark = F.ink === P.PAPER;
+    type(p, MID, s, x1, 5, dark ? P.PAPER : P.INK_L);
+    p(x1 - 1, 8, w + 2, 1, dark ? P.GOLD : P.R);
+  }
+  if (sp.golden && IMG.sparkle) a.drawImage(IMG.sparkle, 2, 2);
+  // rule plate
+  p(2, 15, 50, 14, P.CREAM); p(2, 15, 50, 1, P.CREAM_SH); p(2, 15, 1, 14, P.CREAM_SH);
+  // hairline / perforation
+  if (coupon) { p(1, 29, 52, 1, P.CREAM); for (let x = 1; x < 53; x += 3) p(x, 29, 2, 1, P.INK_L); }
+  else p(1, 29, 52, 1, OL);
+  // name strip
+  const strip = coupon ? [{face:P.T3, light:P.T4, shade:P.T2, ink:P.PAPER, word:'COUPON'}]
+    : sp.fams.map(f => ({...FAM[f], word:sp.fams.length === 1 ? FAM[f].name : FAM[f].code}));
+  const n = strip.length, segW = (52 - (n - 1)) / n;
+  strip.forEach((sg, i) => {
+    const x0 = 1 + Math.round(i * (segW + 1)), x1 = 1 + Math.round(i * (segW + 1) + segW);
+    p(x0, 30, x1 - x0, 7, sg.face); p(x0, 30, x1 - x0, 1, sg.light); p(x0, 36, x1 - x0, 1, sg.shade);
+    if (i > 0) p(x0 - 1, 30, 1, 7, OL);
+    const w = tw(CAPS, sg.word); type(p, CAPS, sg.word, x0 + Math.floor((x1 - x0 - w) / 2), 31, sg.ink);
+  });
+  // re-cut the bottom corners over the strip
+  a.clearRect(0, 36, 1, 2); a.clearRect(1, 37, 1, 1); a.clearRect(53, 36, 1, 2); a.clearRect(52, 37, 1, 1);
+  p(1, 36, 1, 1, OL); p(52, 36, 1, 1, OL);
+  if (coupon) { a.clearRect(0, 28, 1, 3); a.clearRect(53, 28, 1, 3); p(1, 28, 1, 3, P.INK); p(52, 28, 1, 3, P.INK); }
+  // keyword chips and family highlights are art too; the words are 1x Atkinson on top
+  const lines = sp.rule ? layoutRule(ctx, sp.rule) : [];
+  const words = [];
+  ctx.font = fTxt(13); const spc = ctx.measureText(' ').width;
+  lines.slice(0, 2).forEach((ln, li) => {
+    const band = 15 + li * 7; let cx = TXT_L;
+    ln.forEach((t, k) => {
+      if (k) cx += spc;
+      if (t.k === 'w') { words.push({s:t.s, x:cx, y:band * S + 11, c:P.INK}); cx += t.w; return; }
+      const ax = Math.ceil(cx / 2);
+      if (t.k === 'fam') {
+        const f = FAM[t.fam], tx = ctx.measureText(t.s).width, aw = Math.ceil((tx + 6) / 2);
+        p(ax, band, aw, 7, f.face); p(ax, band + 6, aw, 1, f.shade);
+        words.push({s:t.s, x:ax * S + 3, y:band * S + 11, c:f.ink});
+        cx = (ax + aw) * S;
+      } else {
+        // label tape: an ink strip with corners cut, the 3x5 caps in the keyword's calm colour
+        const w = tw(CAPS, t.s), aw = w + 4;
+        p(ax + 1, band, aw - 2, 1, P.INK); p(ax, band + 1, aw, 5, P.INK); p(ax + 1, band + 6, aw - 2, 1, P.INK);
+        type(p, CAPS, t.s, ax + 2, band + 1, KW_FACE[t.s] || P.CREAM_SH);
+        cx = (ax + aw) * S;
+      }
+      if (t.tail) { words.push({s:t.tail, x:cx, y:band * S + 11, c:P.INK}); cx += ctx.measureText(t.tail).width; }
+    });
+  });
+  if (!sp.rule && sp.name) {
+    words.push({s:sp.name, x:TXT_L, y:15 * S + 11, c:P.GREY_D, w:700});
+    let bx = 4; [1, 1, 2, 1, 1, 3, 1, 2].forEach(bw => { p(bx, 23, bw, 5, P.INK); bx += bw + 1; });
+  }
+  // shadow, then the art at 2x, then the words
+  const sh = mk(TW, TH), s2 = sh.getContext('2d'); s2.drawImage(art, 0, 0); s2.globalCompositeOperation = 'source-in'; R(s2, 0, 0, TW, TH, P.INK);
+  ctx.save(); ctx.imageSmoothingEnabled = false; ctx.globalAlpha = 0.35; ctx.drawImage(sh, X + 2, Y + 2, TW * S, TH * S); ctx.globalAlpha = 1;
+  ctx.drawImage(art, X, Y, TW * S, TH * S);
+  ctx.textBaseline = 'alphabetic';
+  for (const w of words) { ctx.font = fTxt(13, w.w || 800); ctx.fillStyle = w.c; ctx.fillText(w.s, X + Math.round(w.x), Y + w.y); }
+  ctx.restore();
+  return {x:X, y:Y, w:TW * S, h:TH * S};
+}
+/* The warning-only cause chip (13x12 art) under a carded Spot check slot. */
+function causeChip(ctx, cx, top) {
+  const art = mk(13, 12), a = art.getContext('2d'); const p = (x, y, w, h, c) => R(a, x, y, w, h, c);
+  p(1, 0, 11, 12, P.INK); p(0, 1, 13, 10, P.INK); p(1, 1, 11, 10, P.Rr); p(2, 2, 9, 8, P.R); p(2, 2, 9, 1, P.Ro);
+  sprite(p, WARN, 2, 2, {'#':P.INK, M:P.M});
+  ctx.save(); ctx.imageSmoothingEnabled = false; ctx.globalAlpha = 0.35;
+  const sh = mk(13, 12), s2 = sh.getContext('2d'); s2.drawImage(art, 0, 0); s2.globalCompositeOperation = 'source-in'; R(s2, 0, 0, 13, 12, P.INK);
+  ctx.drawImage(sh, cx - 13 + 2, top + 2, 26, 24); ctx.globalAlpha = 1; ctx.drawImage(art, cx - 13, top, 26, 24); ctx.restore();
+}
+/* The full talker on an empty Spot check slot (the only 0€ shown then). */
+function fullTalker(ctx, cx, top) {
+  const w = 2 + 9 + 2 + tw(BIG, '0€') + 2, art = mk(w, 12), a = art.getContext('2d'); const p = (x, y, ww, h, c) => R(a, x, y, ww, h, c);
+  p(1, 0, w - 2, 12, P.INK); p(0, 1, w, 10, P.INK); p(1, 1, w - 2, 10, P.Rr); p(2, 2, w - 4, 8, P.R); p(2, 2, w - 4, 1, P.Ro);
+  sprite(p, WARN, 2, 2, {'#':P.INK, M:P.M}); type(p, BIG, '0€', 13, 2, P.PAPER);
+  ctx.save(); ctx.imageSmoothingEnabled = false; ctx.drawImage(art, cx - w, top, w * 2, 24); ctx.restore();
+}
+function emptySlot(ctx, X, Y, n) {
+  const art = mk(TW, TH), a = art.getContext('2d'); const p = (x, y, w, h, c) => R(a, x, y, w, h, c);
+  p(0, 0, TW, TH, P.STEEL_L);
+  for (let i = 0; i < TW; i += 4) { p(i, 0, 2, 1, P.PAPER); p(i, TH - 1, 2, 1, P.PAPER); }
+  for (let j = 0; j < TH; j += 4) { p(0, j, 1, 2, P.PAPER); p(TW - 1, j, 1, 2, P.PAPER); }
+  type(p, BIG, String(n), 25, 15, P.GREY_D);
+  ctx.save(); ctx.imageSmoothingEnabled = false; ctx.drawImage(art, X, Y, TW * S, TH * S); ctx.restore();
+}
+function tooltip(ctx, X, sp) {
+  const rows = (sp.fams || []).map(f => ({g:FAM[f].glyph, s:FAM[f].name[0] + FAM[f].name.slice(1).toLowerCase()}));
+  const meaning = sp.face === 'coupon' ? 'Coupon: works on later items' : `${sp.face} colour · works with ${sp.face}`;
+  ctx.save(); ctx.font = fTxt(13); const w = Math.max(...rows.map(r => 26 + ctx.measureText(r.s).width), (ctx.font = fTxt(12, 600), ctx.measureText(meaning).width)) + 20;
+  const h = 14 + rows.length * 22 + 20, x = Math.round(X + 54 - w / 2) & ~1, y = (TICKET_Y - h - 6) & ~1;
+  R(ctx, x + 4, y + 4, w, h, 'rgba(43,36,32,.45)'); R(ctx, x, y, w, h, P.INK); R(ctx, x + 2, y + 2, w - 4, h - 4, P.PAPER); R(ctx, x + 2, y + 2, w - 4, 2, P.CREAM_SH);
+  rows.forEach((r, i) => { const ry = y + 10 + i * 22; if (IMG[r.g]) { ctx.imageSmoothingEnabled = false; ctx.drawImage(IMG[r.g], x + 10, ry, 18, 18); }
+    ctx.font = fTxt(13); ctx.fillStyle = P.INK; ctx.fillText(r.s, x + 34, ry + 14); });
+  ctx.font = fTxt(12, 600); ctx.fillStyle = P.GREY_D; ctx.fillText(meaning, x + 10, y + h - 10);
+  // pointer
+  R(ctx, X + 50, y + h, 8, 2, P.INK); R(ctx, X + 52, y + h + 2, 4, 2, P.INK);
+  ctx.restore();
+}
+
+/* ---------- the belt ---------- */
+const MILK = r => ({face:'Breakfast', fams:['Breakfast','Dairy'], rule:'+1 per earlier {Breakfast}', struck:4, ...r});
+const BELT = [
+  {face:'Food', fams:['Breakfast'], price:1, state:'base', rule:'×2 next {Food}'},
+  {face:'Bakery', fams:['Breakfast','Bakery'], price:14, state:'boost', struck:5, name:'Bread'},
+  MILK({price:0, state:'zero'}),
+  {face:'coupon', rule:'×3 later of the family before', wasted:true},
+  MILK({price:21, state:'boost'}), MILK({price:48, state:'boost'}), MILK({price:63, state:'boost'}),
+];
+const STRESS = {face:'Breakfast', fams:['Breakfast','Dairy','Bakery'], price:128, state:'boost', struck:4, golden:true, rule:'+1 per earlier {Breakfast}'};
+const COUPON = {face:'coupon', rule:'×3 later of the family before'};
+const CROISSANT = {face:'Bakery', fams:['Bakery','Breakfast'], price:2, state:'base', rule:'[BATCH] 1st: +2 to the rest'};
+let backdrop = null;
+function makeBackdrop() {
+  const c = mk(1280, 720), x = c.getContext('2d');
+  x.drawImage(IMG.now_planning, 0, 0);
+  x.drawImage(IMG.now_planning_plain, 676, 522, 72, 26, 676, 522, 72, 26); // today's slot-3 talker goes
+  // today's bursts overhang the gaps between slots; each gap column is uniform down the rail, so
+  // its row 516 is stretched over rows 456-521 (no pixel reads, so file:// stays untainted)
+  const g0 = mk(1280, 1); g0.getContext('2d').drawImage(c, 0, 516, 1280, 1, 0, 0, 1280, 1);
+  for (let i = -1; i < 7; i++) { const gx = TICKET_X0 + PITCH * i + 108; x.drawImage(g0, gx, 0, 20, 1, gx, 456, 20, 66); }
+  const snap = mk(1280, 238); snap.getContext('2d').drawImage(c, 0, 470, 1280, 238, 0, 0, 1280, 238);
+  x.drawImage(snap, 0, 470 + SHIFT);
+  R(x, 352, 448, 910, 2, P.STEEL_DKST); R(x, 352, 450, 910, 6, P.STEEL_SH); R(x, 352, 456, 910, 2, '#2c2926');
+  for (let i = 0; i < 7; i++) { x.drawImage(IMG.belt_bolt, 356 + 128 * i, 450); x.drawImage(IMG.belt_chevrons, 412 + 128 * i, 450); }
+  return c;
+}
+/* The stage with these 7 tickets; o.empty3: slot 3 left empty; o.hover: the hovered slot. */
+function scene(tks, o = {}) {
+  const c = mk(1280, 720), x = c.getContext('2d'); x.drawImage(backdrop, 0, 0);
+  tks.forEach((sp, i) => {
+    const X = TICKET_X0 + PITCH * i;
+    if (i === 2 && o.empty3) { emptySlot(x, X, TICKET_Y, 3); fullTalker(x, X + 54 + 22, TICKET_Y + TH * S + 2); return; }
+    R(x, X, TICKET_Y, TW * S, TH * S, '#2c2926'); // the rail channel shows through the die-cut corners
+    drawTicket(x, X, TICKET_Y, sp);
+    if (i === 2 && sp.state === 'zero') causeChip(x, X + 54, TICKET_Y + TH * S + 2);
+  });
+  if (o.hover != null) tooltip(x, TICKET_X0 + PITCH * o.hover, tks[o.hover]);
+  return c;
+}
+const SX = i => TICKET_X0 + PITCH * i;
+
+async function main() {
+  await loadAll();
+  try { await Promise.all([document.fonts.load(fTxt(13)), document.fonts.load(fTxt(13, 700)), document.fonts.load(fTxt(12, 600))]); } catch (e) {}
+  await document.fonts.ready;
+  backdrop = makeBackdrop();
+  const base = scene(BELT);
+  // (a) 1:1 with hover
+  const row = document.getElementById('row1'), rc = row.getContext('2d');
+  const CROP = {x:350, y:436, w:920, h:150};
+  let hov = null; const cache = new Map();
+  function drawRow() { const k = String(hov); if (!cache.has(k)) cache.set(k, hov == null ? base : scene(BELT, {hover:hov}));
+    const src = cache.get(k); rc.imageSmoothingEnabled = false; rc.clearRect(0, 0, 920, 150);
+    // a hovered tip rises above the crop, so the row grows to show it
+    rc.drawImage(src, CROP.x, CROP.y, CROP.w, CROP.h, 0, 0, CROP.w, CROP.h); }
+  row.height = 150; drawRow();
+  row.addEventListener('mousemove', e => { const r = row.getBoundingClientRect(); const mx = (e.clientX - r.left) * 920 / r.width + CROP.x, my = (e.clientY - r.top) * 150 / r.height + CROP.y;
+    let h = null; for (let i = 0; i < 7; i++) if (mx >= SX(i) && mx < SX(i) + 108 && my >= TICKET_Y && my < TICKET_Y + 76) h = i;
+    if (h !== hov) { hov = h; drawRow(); tipOver(); } });
+  row.addEventListener('mouseleave', () => { hov = null; drawRow(); tipOver(); });
+  // the hovered tip is drawn on a floating canvas over the row (the tip sits above the crop)
+  const float = mk(920, 170); float.style.cssText = 'position:absolute;pointer-events:none;image-rendering:pixelated;display:none';
+  row.parentElement.style.position = 'relative'; row.parentElement.appendChild(float);
+  function tipOver() { if (hov == null) { float.style.display = 'none'; return; }
+    const src = cache.get(String(hov)); const fx = float.getContext('2d'); fx.clearRect(0, 0, 920, 170); fx.imageSmoothingEnabled = false;
+    fx.drawImage(src, CROP.x, CROP.y - 150, 920, 170, 0, 0, 920, 170);
+    float.style.display = 'block'; float.style.left = '0px'; float.style.top = (row.offsetTop - 150) + 'px'; }
+  // (a) 3x
+  const z = (id, x0, w, src, y0 = 436, h = 150) => { const cv = document.getElementById(id); cv.width = w * 3; cv.height = h * 3; const c = cv.getContext('2d'); c.imageSmoothingEnabled = false; c.drawImage(src, x0, y0, w, h, 0, 0, w * 3, h * 3); };
+  z('row3a', SX(0) - 14, 128 * 3 - 4, base);
+  z('row3b', SX(3) - 14, 128 * 3 - 4, base);
+  // (b)-(e) specimens: each is one slot of a stage where that slot holds the specimen
+  const specs = [
+    {lab:'(b) STRESS · GOLDEN · 3 FAMILIES · 128€ WAS 4€', slot:6, tks:BELT.map((t, i) => i === 6 ? STRESS : t)},
+    {lab:'(c) COUPON', slot:3, tks:BELT.map((t, i) => i === 3 ? COUPON : t)},
+    {lab:'(c) COUPON · WASTED', slot:3, tks:BELT},
+    {lab:'(d) KEYWORD CHIP · CROISSANT', slot:1, tks:BELT.map((t, i) => i === 1 ? CROISSANT : t)},
+    {lab:'(e) SPOT CHECK · CARDED', slot:2, tks:BELT},
+    {lab:'(e) SPOT CHECK · EMPTY', slot:2, tks:BELT, o:{empty3:true}},
+  ];
+  const TILE = {w:150, h:118, y:448};
+  const s1 = document.getElementById('spec1'); s1.width = specs.length * (TILE.w + 6) - 6; s1.height = TILE.h; const s1c = s1.getContext('2d');
+  R(s1c, 0, 0, s1.width, s1.height, '#172c2b');
+  const zooms = document.getElementById('zooms');
+  specs.forEach((s, k) => {
+    const st = scene(s.tks, s.o || {}); const x0 = SX(s.slot) - 21;
+    s1c.drawImage(st, x0, TILE.y, TILE.w, TILE.h, k * (TILE.w + 6), 0, TILE.w, TILE.h);
+    const bay = document.createElement('div'); bay.className = 'bay';
+    bay.innerHTML = `<div class="lab">3x · ${s.lab}</div><div class="scroll"></div>`;
+    const cv = mk(TILE.w * 3, TILE.h * 3); const c = cv.getContext('2d'); c.imageSmoothingEnabled = false;
+    c.drawImage(st, x0, TILE.y, TILE.w, TILE.h, 0, 0, TILE.w * 3, TILE.h * 3);
+    bay.querySelector('.scroll').appendChild(cv); zooms.appendChild(bay);
+  });
+  // hover tip at 3x
+  const tipStage = scene(BELT, {hover:5});
+  const t3 = document.getElementById('tip3'); t3.width = 300 * 3; t3.height = 200 * 3; const tc = t3.getContext('2d'); tc.imageSmoothingEnabled = false;
+  tc.drawImage(tipStage, SX(5) + 54 - 150, 350, 300, 200, 0, 0, 900, 600);
+  document.body.dataset.ready = '1';
+}
+main().catch(e => { console.error(e); document.body.dataset.ready = 'error ' + e; });
+</script>
+</html>

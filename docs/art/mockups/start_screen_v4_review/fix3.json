@@ -1,0 +1,1 @@
+[{"url":"file:///C:/dev/projects/NextCustomer/docs/art/mockups/start_screen_v4.html?solo=1&page=2&s=2&p2=A&slots=2","w":1800},{"eval":"(()=>{sel=0;hovPack=2;render();const sc=document.querySelector('.selfcheck');return sc?sc.textContent.slice(0,200):'nosc'})()","tag":"selfA"},{"wait":600},{"shot":"../start_screen_v4_build/h_A2_2_slots2.png"}]

@@ -1,0 +1,1853 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Start Screen v4</title>
+<style>
+/* Round 3 of the start screen: two pages, YOUR STORE and YOUR BUILD. House style of start_screen_v2.html.
+   The frame is 1920x1080 screen px = the 640x360 art grid at 3 screen px per art px (stage 1280x720 at 2).
+   Every frame is a pixel 9-slice built at boot from the art/src/frames recipes (palette.txt keys);
+   words are hard Pixelify pixels, numbers the chunky 6x8 price-gun digits, sentences Atkinson. */
+@font-face{font-family:'NCPix';font-weight:400 700;src:url(../../../fonts/PixelifySans-Variable.ttf)}
+@font-face{font-family:'NCMono';src:url(../../../fonts/JetBrainsMono-Regular.ttf)}
+@font-face{font-family:'NCAtk';font-weight:200 800;src:url(../../../fonts/AtkinsonHyperlegibleNext-Variable.ttf)}
+:root{
+  color-scheme:dark;
+  --wall:#1f3b3a; --bay:#172c2b; --panel:#2a4d4b; --paper:#fbf7ee; --cream:#f3e9d2; --cream-shade:#ddcba5;
+  --cream-dark:#b39f78; --teal:#4f9a94; --teal-shade:#3a7672; --teal-dark:#2a4d4b; --teal-black:#172c2b;
+  --teal-pale:#c3e0d4; --teal-light:#86c2b6; --teal-bright:#5fb0a8;
+  --mustard:#e2b33c; --mustard-dark:#b38425; --mustard-darkest:#7a5a1c; --mustard-light:#f1d27a; --mustard-pale:#faecbc; --gold:#ffcf3f;
+  --brass:#c8932b; --brass-dark:#8a5d1a; --brass-darkest:#4a3010;
+  --tomato:#d9534f; --tomato-dark:#a83a3c; --tomato-light:#ec8a6e; --tomato-pale:#f5bfa0; --tomato-darkest:#6e2630;
+  --ink:#2b2420; --ink-light:#4a3f38; --grey-dark:#5e574d; --grey:#8a8172; --grey-light:#c7beab; --muted:#a9a59b;
+  --green:#5fae5a; --green-dark:#3d7a45; --green-light:#a5d17e;
+  --steel-hi:#ecebe4; --steel-light:#c7c3b8; --steel-pale:#a9a59b; --steel:#8d8a83; --steel-shade:#6f6b63;
+  --steel-dark:#57534c; --steel-darkest:#45423d; --charcoal:#24221f; --rubber:#3d3a36; --rubber-dark:#2c2926;
+  --display:'NCPix','Pixelify Sans','Courier New',monospace;
+  --body:'NCAtk','Atkinson Hyperlegible Next','Segoe UI',system-ui,sans-serif;
+  --mono:'NCMono','JetBrains Mono',Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--wall);color:var(--paper)}
+body{font-family:var(--body);font-size:15px;line-height:1.5;overflow-x:hidden}
+main{max-width:1400px;margin:0 auto;padding:28px 16px 64px;display:grid;gap:40px}
+main>*,section>*{min-width:0}
+h1,h2,h3{font-family:var(--display);font-weight:700;margin:0;letter-spacing:.02em;text-wrap:balance}
+h1{font-size:34px;color:var(--mustard-light)} h2{font-size:24px} h3{font-size:17px;color:var(--teal-pale)}
+p{margin:0;max-width:88ch}
+code{overflow-wrap:anywhere;color:var(--mustard-pale);font-size:13px}
+.lede{display:grid;gap:10px}
+.eyebrow{font-family:var(--display);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--teal-light)}
+section{display:grid;gap:16px}
+.opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.opt{background:var(--bay);border:2px solid var(--ink);padding:12px 14px;display:grid;gap:8px;align-content:start}
+.opt header{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.tag{font-family:var(--display);font-size:15px;background:var(--paper);color:var(--ink);padding:0 7px;border:2px solid var(--ink)}
+.opt p,.opt li{font-size:14px;color:var(--teal-pale)} .opt p b,.opt li b{color:var(--paper)}
+.controls{display:flex;gap:8px 12px;flex-wrap:wrap;align-items:center;max-width:1400px;margin:0 auto}
+.controls .lbl{font-family:var(--display);font-size:13px;color:var(--teal-light);letter-spacing:.06em}
+.seg{display:inline-flex;border:2px solid var(--ink);box-shadow:0 3px 0 var(--ink);flex-wrap:wrap}
+.seg button{box-shadow:none;border:0;border-right:2px solid var(--ink)}
+.seg button:last-child{border-right:0}
+button{font-family:var(--display);font-size:15px;color:var(--paper);background:var(--teal-shade);border:2px solid var(--ink);box-shadow:0 3px 0 var(--ink);padding:4px 12px;cursor:pointer}
+button:active{transform:translateY(2px)}
+button:focus-visible{outline:3px solid var(--mustard);outline-offset:2px}
+button[aria-pressed="true"]{background:var(--mustard);color:var(--ink)}
+.toolbar{position:sticky;top:0;z-index:50;background:var(--teal-black);border-bottom:2px solid var(--ink);padding:8px 16px}
+.fwrap{position:relative;border:2px solid var(--ink);box-shadow:4px 4px 0 rgba(43,36,32,.6);overflow:hidden;background:var(--bay)}
+body.one .fwrap{overflow:auto}
+.fscale{position:relative;transform-origin:0 0;width:1920px;height:1080px}
+ul,ol{margin:0;padding-left:20px;display:grid;gap:6px;max-width:92ch}
+.answers{background:var(--paper);color:var(--ink);border:3px solid var(--ink);box-shadow:4px 4px 0 rgba(43,36,32,.6);padding:16px 18px;display:grid;gap:10px}
+.answers h2{color:var(--ink)} .answers li b{color:var(--tomato-dark)}
+.answers code{color:var(--tomato-darkest);background:var(--cream)}
+.cap{font-size:13px;color:var(--muted)}
+.cap.bad{color:var(--tomato-light);font-weight:700}
+.scroll{overflow-x:auto;max-width:100%}
+table.spec{border-collapse:collapse;font-size:13.5px;min-width:820px;width:100%}
+table.spec th,table.spec td{border-bottom:1px solid var(--teal-shade);padding:6px 8px;text-align:left;vertical-align:top}
+table.spec th{font-family:var(--display);color:var(--teal-light);font-weight:500}
+table.spec td:first-child{white-space:nowrap;color:var(--mustard-pale)}
+.dec,.prop,.new{display:inline-block;font-family:var(--display);font-size:12px;letter-spacing:.06em;padding:0 6px;border:2px solid var(--ink);white-space:nowrap;line-height:18px}
+.dec{background:var(--green-light);color:var(--ink)} .prop{background:var(--mustard);color:var(--ink)} .new{background:var(--teal-pale);color:var(--ink)}
+.caps{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+.caps figure{margin:0;display:grid;gap:4px} .caps img{width:100%;border:2px solid var(--ink)}
+.moved{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:8px}
+.moved div{background:var(--bay);border:2px solid var(--ink);padding:8px 10px;font-size:14px;color:var(--teal-pale)}
+.moved b{display:block;font-family:var(--display);font-size:18px;color:var(--mustard-light)}
+
+/* ===================== the frame (1920x1080 screen px; 1 art px = 3 screen px) ===================== */
+.F{position:absolute;inset:0;width:1920px;height:1080px;overflow:hidden;font-family:var(--body);color:var(--paper);background:var(--wall)}
+.F *{image-rendering:pixelated}
+.F img{display:block}
+.F .a{position:absolute}
+.F .row{display:flex;align-items:center}
+.F .pl{display:inline-flex;align-items:flex-end;gap:9px;white-space:nowrap}
+.F .pl img{flex:none}
+.F .fr{border-style:solid;border-color:transparent}
+.bt{font-family:var(--body);font-weight:700;font-size:21px;line-height:27px;color:var(--teal-pale)}
+.bt b{color:var(--paper);font-weight:800}
+.on-paper b{color:var(--ink)}
+.pg{position:absolute;left:0;top:0;width:1920px;height:1080px}
+.pg.off{display:none}
+.pg.anim{animation-duration:.3s;animation-timing-function:steps(6,end);animation-fill-mode:both}
+.pg.out-l{animation-name:outl} .pg.out-r{animation-name:outr} .pg.in-r{animation-name:inr} .pg.in-l{animation-name:inl}
+@keyframes outl{from{transform:none}to{transform:translateX(-1920px)}}
+@keyframes outr{from{transform:none}to{transform:translateX(1920px)}}
+@keyframes inr{from{transform:translateX(1920px)}to{transform:none}}
+@keyframes inl{from{transform:translateX(-1920px)}to{transform:none}}
+.hop{animation:hop .24s steps(3,end) both}
+@keyframes hop{0%{transform:translateY(-12px)}100%{transform:none}}
+.F.rm .hop,.F.rm .drop,.F.rm .blink{animation:none}
+/* tiles */
+.tk{position:relative;background:var(--paper);border:3px solid var(--ink);box-shadow:0 6px 0 rgba(43,36,32,.45);cursor:help}
+.tk .win{position:relative;background:var(--cream);display:grid;place-items:center;overflow:hidden}
+.tk .win.cp{background:var(--teal-pale)}
+.tk .win .ci{position:absolute}
+.tk .band{position:relative;border-top:3px solid var(--ink);display:flex;align-items:center;gap:6px;padding:0 0 0 6px;background:var(--paper)}
+.tk .band .gl{outline:3px solid var(--ink);flex:none}
+.tk .band .pr{margin-left:auto;align-self:stretch;display:flex;align-items:center;justify-content:flex-end;min-width:72px;padding:0 6px 0 9px;border-left:3px solid var(--ink);background:var(--paper)}
+.tk .win .fs{position:absolute;left:0;right:0;bottom:0;height:6px}
+.tk.lit{box-shadow:0 0 0 3px var(--ink),0 0 0 9px var(--mustard),0 0 0 12px var(--ink),0 6px 0 12px rgba(43,36,32,.45)}
+.tk.dim::after,.dk::after{content:'';position:absolute;inset:-3px;background:rgba(44,41,38,.62);pointer-events:none} /* RUB_DK at 62%, as the machine dims */
+.dk{position:relative}
+.tk.ghost{border-style:dashed}
+.tk.empty{background:var(--steel-pale);border:3px dashed var(--paper);box-shadow:none;display:grid;place-items:center}
+.drop{animation:drop .3s steps(4,end) both}
+@keyframes drop{0%{transform:translateY(-36px)}70%{transform:translateY(6px)}100%{transform:none}}
+.blink{animation:blink .6s steps(2,jump-none) 2 both}
+@keyframes blink{0%{background:var(--mustard-darkest)}100%{background:transparent}}
+/* staple slots */
+.slot{position:absolute}
+.slot.can{cursor:pointer}
+.slot.can .tk{cursor:pointer}
+.slot.can:hover .tk{transform:translateY(-6px)}
+.slot.picking .tk{transform:translateY(-12px);box-shadow:0 0 0 3px var(--ink),0 0 0 9px var(--mustard),0 0 0 12px var(--ink)}
+/* stock rows */
+.ai{position:absolute;left:0;right:0;height:45px;display:flex;align-items:center;padding:0 12px;border-bottom:3px solid var(--teal-dark)}
+.ai.hov{background:var(--teal-dark)}
+.ai .sgn{flex:none}
+.ai .nm{position:absolute;left:66px}
+.ai .pn{position:absolute;left:300px}
+.ai .st{position:absolute;right:12px}
+.arrow{position:absolute}
+/* keys and plates */
+.key{position:absolute;display:grid;place-items:center;cursor:pointer;box-shadow:9px 9px 0 rgba(43,36,32,.45)}
+.key:active{transform:translate(6px,6px);box-shadow:3px 3px 0 rgba(43,36,32,.45)}
+.key.dis{transform:translate(6px,6px);box-shadow:3px 3px 0 rgba(43,36,32,.45);cursor:default}
+.key .tick{position:absolute;left:-36px;top:50%;margin-top:-10px;display:none}
+.key.on:hover,.key.on.mk{border-image-source:var(--redlit-frame)!important}
+.key.on:hover .tick,.key.on.mk .tick{display:block}
+.plate{position:absolute;display:flex;align-items:center;gap:9px;cursor:pointer}
+.plate:hover{transform:translateX(6px)}
+.plate:active{transform:translate(6px,3px)}
+.plate.dis{cursor:default;transform:none}
+/* pack card */
+.pack{position:absolute;cursor:pointer;background:var(--paper);border:3px solid var(--ink);box-shadow:0 9px 0 rgba(43,36,32,.45)}
+.pack .hd{height:75px;display:flex;align-items:center;gap:12px;padding:0 12px;border-bottom:3px solid var(--ink)}
+.pack .hd .nmw{min-width:0;overflow:hidden;flex:1;display:flex}
+.pack .hd .nmw img{margin-bottom:0!important}
+.pack .hd .kb{flex:none}
+.pack .kb.call{animation:callb 1s steps(2,jump-none) infinite}
+@keyframes callb{0%{background:var(--cream)}100%{background:var(--mustard)}}
+.F.rm .pack .kb.call{animation:none;background:var(--mustard)}
+.pack.hov{transform:translateY(-6px)}
+.pack.sel{box-shadow:0 0 0 3px var(--ink),0 0 0 9px var(--mustard),0 0 0 12px var(--ink),0 9px 0 12px rgba(43,36,32,.45)}
+.pack.sel.mus{box-shadow:0 0 0 6px var(--paper),0 0 0 9px var(--ink),0 0 0 15px var(--mustard),0 0 0 18px var(--ink),0 9px 0 18px rgba(43,36,32,.45)}
+/* price-gun stickers on the picked pack (the machine's -4° slap: 1.5 → 1, back ease) and the GOOD FIRST PICK shelf talker */
+.stk{position:absolute;z-index:3;display:grid;justify-items:center;gap:6px;padding:9px 12px;border:3px solid var(--ink);filter:drop-shadow(6px 6px 0 rgba(43,36,32,.45))}
+.stk.pk{transform:rotate(-4deg);background:var(--gold)}
+.stk.gf{transform:rotate(3deg);background:var(--mustard-pale)}
+.stk.slap{animation:slap .24s steps(4,end) both}
+@keyframes slap{0%{transform:rotate(-4deg) scale(1.5)}60%{transform:rotate(-4deg) scale(.9)}100%{transform:rotate(-4deg) scale(1)}}
+.F.rm .stk.slap{animation:none}
+/* pins */
+.pinsarea{cursor:pointer}
+.pinsarea:hover .badge{transform:translateY(-6px)}
+/* tips and sheets */
+.tip{position:absolute;z-index:70;width:450px;padding:6px 9px 9px;pointer-events:none;display:none;color:var(--ink);filter:drop-shadow(9px 9px 0 rgba(43,36,32,.45))}
+.tip .tr{font-size:21px;font-weight:700;line-height:27px;margin-top:9px}
+.tip .tm{font-size:19px;font-weight:700;color:var(--ink-light);line-height:24px;margin-top:6px}
+.dim{position:absolute;inset:0;z-index:35;background:rgba(23,44,43,.78)}
+.sheet{position:absolute;z-index:40;color:var(--ink);filter:drop-shadow(12px 12px 0 rgba(43,36,32,.45))}
+.sheet.anim{animation:sheet .18s steps(3,end) both}
+@keyframes sheet{from{transform:translateY(24px);opacity:.34}to{transform:none;opacity:1}}
+.F.rm .sheet.anim{animation:none}
+.sheet .bt{color:var(--ink-light)} .sheet .bt b{color:var(--ink)}
+.pcol{position:absolute;background:var(--cream);border:3px solid var(--ink)}
+.pcol .ph{height:57px;display:flex;align-items:center;gap:9px;padding:0 9px;border-bottom:3px solid var(--ink);background:var(--cream-shade)}
+.pcol .ph .sgn{flex:none}
+.pcol .ph .nmw{min-width:0;overflow:hidden;flex:1;display:flex;padding:6px 0 12px;margin:-6px 0 -12px}
+.pcol .ph .cnt{flex:none}
+.pit{position:relative;height:63px;display:flex;align-items:center;gap:9px;padding:0 9px;border-bottom:3px solid var(--cream-shade);cursor:pointer}
+.pit .t{display:grid;line-height:22px;min-width:0}
+.pit .t b{font-size:20px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pit .t span{font-size:18px;font-weight:700;color:var(--ink-light);white-space:nowrap}
+.pit .t span.why{color:var(--tomato-dark);font-weight:800}
+.pit .p{margin-left:auto}
+.pit:hover{box-shadow:inset 0 0 0 6px var(--mustard)}
+.pit.no{cursor:default;background:var(--cream-shade)}
+.pit.no:hover{box-shadow:none}
+.pit.cur{background:var(--green-light)}
+.rchip{position:relative;display:inline-flex;align-items:center;gap:9px;height:57px;padding:0 12px 0 9px;cursor:pointer;background:var(--cream);border:3px solid var(--ink);box-shadow:0 6px 0 var(--cream-dark)}
+.rchip.on{background:var(--mustard-pale);box-shadow:0 0 0 3px var(--ink),0 0 0 9px var(--mustard),0 0 0 12px var(--ink)}
+.prow{position:absolute;left:24px;right:24px;height:72px;display:flex;align-items:center;gap:15px;border-bottom:3px solid var(--cream-shade)}
+.prow .pr{font-size:21px;font-weight:700;line-height:25px;color:var(--ink-light);flex:1}
+.flood{position:absolute;inset:0;z-index:90;background:var(--mustard-pale);display:none;place-items:center;animation:flood .2s steps(3,jump-start) both}
+@keyframes flood{from{opacity:0}to{opacity:1}}
+.F.rm .flood{animation:none}
+.sheet .key.dis{transform:none;box-shadow:9px 9px 0 rgba(43,36,32,.45)}
+.bd{position:absolute;left:0;top:0;width:1920px;height:1080px;pointer-events:none}
+.cone{position:absolute;pointer-events:none}
+
+/* ===================== round 4: page 2 in three looks (A bagging counter, B staff room, C end-cap) ===================== */
+/* shared: chase bulbs (an ink socket, gold / mustard-darkest in two phases) and the roller shutter (OPEN STORE in A and B) */
+.blb{position:absolute;width:18px;height:18px;border:3px solid var(--ink);background:var(--gold);pointer-events:none}
+.blb.a{animation:blbA .5s steps(1,end) infinite} .blb.b{animation:blbB .5s steps(1,end) infinite}
+.blb.steady{background:var(--mustard-light)}
+@keyframes blbA{0%{background:var(--gold)}50%{background:var(--mustard-darkest)}}
+@keyframes blbB{0%{background:var(--mustard-darkest)}50%{background:var(--gold)}}
+.F.rm .blb{animation:none}
+.shutter{position:absolute;left:0;top:0;width:1920px;height:1080px;z-index:95;pointer-events:none;transform:translateY(-1080px)}
+.shutter.shown{transform:none}
+.shutter.down{animation:shdown .3s steps(6,end) both}
+.shutter.up{animation:shup .6s steps(12,end) both}
+@keyframes shdown{from{transform:translateY(-1080px)}to{transform:none}}
+@keyframes shup{from{transform:none}to{transform:translateY(-1080px)}}
+.wob{position:absolute;z-index:3;display:grid;justify-items:center;align-content:center;gap:6px;background:var(--mustard-pale);border:3px solid var(--ink);filter:drop-shadow(6px 6px 0 rgba(43,36,32,.45));transform:rotate(3deg);transform-origin:50% 100%}
+.wob.swing{animation:swing 1.2s steps(4,end) 1 both}
+@keyframes swing{0%{transform:rotate(-4deg)}35%{transform:rotate(5deg)}70%{transform:rotate(1deg)}100%{transform:rotate(3deg)}}
+.F.rm .wob.swing{animation:none}
+.wspring{position:absolute;width:6px;background:repeating-linear-gradient(var(--steel-light) 0 3px,var(--ink) 3px 6px)}
+.off-ov::after{content:'';position:absolute;inset:-3px;background:rgba(44,41,38,.62);pointer-events:none;z-index:4}
+
+/* ---------- A: the bagging counter ---------- */
+.lkA .bagcol{position:absolute;cursor:pointer}
+.lkA .bagcol .lift{position:absolute;left:0;top:0;width:588px;height:234px}
+.lkA .bagcol.hov .lift{transform:translateY(-9px)}
+.lkA .bagcol.sel .lift{transform:translateY(-18px)}
+.lkA .bagcol.sel .lift.hop2{animation:liftA .3s steps(4,end) both}
+@keyframes liftA{0%{transform:none}60%{transform:translateY(-30px)}100%{transform:translateY(-18px)}}
+.F.rm .bagcol.sel .lift.hop2{animation:none}
+.lkA .bagcol .itm{position:absolute;top:3px;width:96px;height:96px;cursor:help}
+.lkA .bagcol .itm .ci{position:absolute}
+.lkA .bagcol .shadow{position:absolute;left:153px;top:228px;width:282px;height:6px;background:rgba(23,44,43,.8)}
+.lkA .bagcol.off .lift::after,.lkA .bagcol.off .tkt::after{content:'';position:absolute;inset:-3px;background:rgba(44,41,38,.62);pointer-events:none;z-index:4}
+.lkA .tkt{position:absolute;left:0;top:255px;width:588px;height:108px;background:var(--paper);border:3px solid var(--ink);box-shadow:0 6px 0 rgba(43,36,32,.45)}
+.lkA .tkt .strip{position:absolute;left:0;top:0;bottom:0;width:78px;border-right:3px solid var(--ink);display:grid;justify-items:center;align-content:start;gap:9px;padding-top:6px}
+.lkA .bagcol.sel .tkt{box-shadow:0 0 0 3px var(--ink),0 0 0 9px var(--mustard),0 0 0 12px var(--ink),0 6px 0 12px rgba(43,36,32,.45)}
+.lkA .bagcol .kb.call{animation:callb 1s steps(2,jump-none) infinite}
+.F.rm.lkA .bagcol .kb.call{animation:none;background:var(--mustard)}
+.lkA .ctag{position:absolute;height:33px;padding:0 9px;display:flex;align-items:center;background:var(--paper);border:3px solid var(--ink);box-shadow:0 3px 0 rgba(43,36,32,.6)}
+.lkA .ctag.pv{background:var(--mustard-pale)} .lkA .ctag.warn{background:var(--mustard-pale)}
+.lkA .titm{position:absolute;width:96px;height:96px;cursor:help}
+.lkA .titm .ci{position:absolute}
+.lkA .titm .tsh{position:absolute;left:9px;right:9px;bottom:-3px;height:6px;background:rgba(23,44,43,.85)}
+.lkA .eslot{position:absolute;width:96px;height:96px;border:3px dashed var(--steel-light);display:grid;place-items:center}
+.lkA .eslot.want{border-color:var(--mustard)}
+.lkA .pvA{position:absolute;border:3px dashed var(--mustard)}
+.lkA #pinsArea{cursor:pointer}
+.lkA #pinsArea:hover .badge{transform:rotate(-3deg)}
+.lkA #pinsArea:hover .chg{transform:translateX(6px)}
+.lkA .badge{transform-origin:50% -6px}
+
+/* ---------- B: the staff room before the shift ---------- */
+.lkB .dymo{display:flex;align-items:center;height:39px;padding:0 12px;border:3px solid var(--ink);box-shadow:inset 0 3px 0 rgba(251,247,238,.18),6px 6px 0 rgba(43,36,32,.45)}
+.lkB .tube{left:738px;top:93px;width:444px;height:12px;pointer-events:none}
+.lkB .tube.flick{animation:flick .42s steps(1,end) both}
+@keyframes flick{0%{background:transparent}20%{background:var(--teal-black)}40%{background:transparent}60%{background:var(--teal-black)}80%{background:transparent}}
+.F.rm .tube.flick{animation:none}
+.lkB .notice{background:var(--paper);border:3px solid var(--ink);color:var(--ink);box-shadow:9px 9px 0 rgba(43,36,32,.45)}
+.lkB .note{background:var(--paper);border:3px solid var(--ink);padding:21px 12px 12px;color:var(--ink);box-shadow:6px 6px 0 rgba(43,36,32,.45)}
+.lkB .tape{position:absolute;top:-12px;width:75px;height:21px;background:var(--mustard-pale);border:3px solid var(--mustard-dark);opacity:.92}
+.lkB .note .tape{left:66px}
+.lkB #pinsArea{cursor:pointer}
+.lkB #pinsArea:hover .badge{transform:rotate(-3deg)}
+.lkB .badge{transform-origin:50% -9px}
+/* the crates: items stand whole on the crate, price tags on its lip, the label below; stickers stay inside the crate */
+.lkB .crate{position:absolute;width:396px;height:303px;cursor:pointer}
+.lkB .crate.hov{transform:translateY(-9px)}
+.lkB .crate.sel{transform:translateY(-9px)}
+.lkB .crate.hopc{animation:hopc .3s steps(4,end) both}
+@keyframes hopc{0%{transform:translateY(-33px)}60%{transform:translateY(0)}100%{transform:translateY(-9px)}}
+.F.rm .crate.hopc{animation:none}
+.lkB .crate.off::after{content:'';position:absolute;left:-3px;right:-3px;top:-3px;bottom:-12px;background:rgba(44,41,38,.62);pointer-events:none;z-index:5}
+.lkB .crate .glow{position:absolute;left:-12px;top:-63px;width:420px;height:162px;pointer-events:none}
+.lkB .cback{position:absolute;left:0;top:57px;width:396px;height:42px;background:#4a3022;border:3px solid var(--ink);box-shadow:inset 0 6px 0 #7a5232}
+.lkB .citems{position:absolute;left:39px;top:0;display:flex;gap:15px}
+.lkB .citem{position:relative;width:96px;height:96px;cursor:help}
+.lkB .citem .ci{position:absolute}
+.lkB .crate:hover .citem:nth-child(2){transform:translateY(-6px)}
+.lkB .citem.pop{animation:drop .3s steps(4,end) both}
+.lkB .cfront{position:absolute;left:0;top:93px;width:396px;height:210px;border:3px solid var(--ink);
+  background:repeating-linear-gradient(180deg,#a87a4e 0 33px,#d2a874 33px 36px,#7a5232 36px 39px,var(--ink) 39px 42px);box-shadow:0 9px 0 rgba(43,36,32,.45)}
+.lkB .cfront .post{position:absolute;top:0;bottom:0;width:24px;background:#7a5232;border-color:var(--ink);border-style:solid;border-width:0}
+.lkB .cfront .post.l{left:0;border-right-width:3px;box-shadow:inset 3px 0 0 #a87a4e}
+.lkB .cfront .post.r{right:0;border-left-width:3px;box-shadow:inset -3px 0 0 #4a3022}
+.lkB .crate.sel .cfront{box-shadow:0 0 0 3px var(--ink),0 0 0 9px var(--mustard),0 0 0 12px var(--ink),0 9px 0 12px rgba(43,36,32,.45)}
+.lkB .ptagB{position:absolute;top:99px;height:33px;min-width:66px;display:grid;place-items:center;padding:0 6px;background:var(--paper);border:3px solid var(--ink);box-shadow:0 3px 0 rgba(43,36,32,.5);z-index:2}
+.lkB .ptagB.cp{background:var(--teal-pale)}
+.lkB .clabel{position:absolute;left:33px;top:135px;width:330px;height:165px;background:var(--paper);border:3px solid var(--ink);z-index:2}
+.lkB .clabel .cname{height:48px;display:flex;align-items:center;gap:12px;padding:0 6px 0 12px;border-bottom:3px solid var(--ink)}
+.lkB .clabel .nmw{min-width:0;overflow:hidden;display:flex;padding:6px 0 12px;margin:-6px 0 -12px}
+.lkB .clabel .chint{padding:6px 12px 0;font:700 18px/22px var(--body);color:var(--ink-light);text-wrap:pretty}
+.lkB .clabel .cfoot{position:absolute;left:0;right:0;bottom:0;height:36px;border-top:3px dashed var(--cream-shade);display:flex;align-items:center;gap:9px;padding:0 9px}
+.lkB .clabel .staple{position:absolute;top:-6px;width:21px;height:9px;background:var(--steel-light);border:3px solid var(--ink)}
+.lkB .crate .kb.call{animation:callb 1s steps(2,jump-none) infinite}
+.F.rm.lkB .crate .kb.call{animation:none;background:var(--mustard)}
+/* the clipboard and its order sheet */
+.lkB .clipb{background:#a87a4e;border:3px solid var(--ink);box-shadow:inset 6px 6px 0 #d2a874,inset -6px -6px 0 #7a5232,12px 12px 0 rgba(43,36,32,.45)}
+.lkB .paper{background:var(--paper);border:3px solid var(--ink);box-shadow:inset 0 -6px 0 var(--cream)}
+.lkB .clipB{width:120px;height:48px;background:var(--brass);border:3px solid var(--ink);box-shadow:inset 0 6px 0 var(--gold),inset 0 -6px 0 var(--brass-dark)}
+.lkB .clipB .clipbar{position:absolute;left:24px;top:12px;width:66px;height:12px;background:var(--steel-light);border:3px solid var(--ink)}
+.lkB .sheetlines .ln{position:absolute;left:0;right:0;height:30px;display:flex;align-items:center;gap:9px;border-bottom:3px solid var(--cream-shade)}
+.lkB .sheetlines .ln.first{border-top:3px solid var(--grey-light);margin-top:-3px}
+.lkB .sheetlines .ln.drop{animation:dropln .24s steps(3,end) both}
+@keyframes dropln{0%{transform:translateY(-15px);opacity:0}100%{transform:none;opacity:1}}
+.lkB .sheetlines .no{width:36px;flex:none}
+.lkB .sheetlines .mini{flex:none;width:33px;height:27px;display:grid;place-items:center;border:3px solid var(--ink)}
+.lkB .sheetlines .mini.empty{border-style:dashed;border-color:var(--tomato-dark);background:transparent}
+.lkB .sheetlines .mini.free{border-style:dashed;border-color:var(--grey-light);background:transparent}
+.lkB .sheetlines .nmx{width:168px;flex:none;font:800 19px/22px var(--body);color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lkB .sheetlines .fromx{flex:1;min-width:0;font:700 17px/20px var(--body);color:var(--grey-dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lkB .sheetlines .prx{width:60px;flex:none;display:flex;justify-content:flex-end}
+.lkB .sheetlines .ck{flex:none;width:27px;height:27px;border:3px solid var(--ink);display:grid;place-items:center;background:var(--paper)}
+.lkB .sheetlines .ck.want{border-color:var(--tomato-dark);border-style:dashed}
+.lkB .sheetlines .ck.off{border-color:var(--grey-light)}
+.lkB .sheetlines .ck.pv{border-style:dashed;border-color:var(--grey)}
+.lkB .sheetlines .ck.stamp{animation:stamp .24s steps(4,end) both}
+@keyframes stamp{0%{transform:scale(1.8);opacity:0}60%{transform:scale(.85);opacity:1}100%{transform:none}}
+.F.rm .sheetlines .drop,.F.rm .sheetlines .stamp{animation:none}
+.lkB .pvchip{display:inline-flex;align-items:center;vertical-align:middle;height:33px;margin:-3px 6px -3px 0;padding:0 6px;border:3px solid var(--mustard-dark);background:var(--mustard-pale)}
+.lkB .fcardB{position:relative;background:var(--paper);border:3px solid var(--ink);box-shadow:0 6px 0 var(--cream-shade);padding:9px 9px 0;display:grid;gap:3px;cursor:help}
+.lkB .fcardB .fct{position:absolute;left:0;right:0;top:0;height:6px}
+/* the time clock */
+.lkB .tclock .tband{left:9px;right:9px;top:9px;height:48px;background:var(--brass);border-bottom:3px solid var(--ink);box-shadow:inset 0 3px 0 var(--gold),inset 0 -3px 0 var(--brass-dark)}
+.lkB .tclock .cardbay{left:18px;top:66px;width:72px;height:111px;background:var(--charcoal);border:3px solid var(--ink);overflow:hidden;box-shadow:inset 0 6px 0 #000}
+.lkB .tcard{position:absolute;left:6px;top:9px;width:54px;height:96px;background:var(--paper);border:3px solid var(--ink)}
+.lkB .tcard .tch{position:absolute;left:0;right:0;top:0;height:27px;background:var(--teal);border-bottom:3px solid var(--ink);display:grid;place-items:center}
+.lkB .tcard .tcl{position:absolute;left:6px;right:6px;top:36px;height:60px;background:repeating-linear-gradient(180deg,var(--cream-shade) 0 3px,transparent 3px 12px)}
+.lkB .tcard .tcp{position:absolute;left:3px;top:42px}
+.lkB .tcard.punch{animation:punch .27s steps(3,end) both}
+@keyframes punch{0%{transform:none}100%{transform:translateY(66px)}}
+.lkB .tcard.in .tcp{width:42px;height:6px;background:var(--tomato)}
+/* the parked trolley: the cart as item art */
+.lkB .tri{position:absolute;width:48px;height:48px;cursor:help}
+.lkB .tri .ci{position:absolute}
+.lkB .tri.pop{animation:drop .3s steps(4,end) both}
+.lkB .tre{position:absolute;width:48px;height:48px;border:3px dashed var(--grey);display:grid;place-items:center}
+.lkB .tre.want{border-color:var(--tomato-light)}
+.lkB .trpv{position:absolute;border:3px dashed var(--mustard)}
+
+/* ---------- C: the display end-cap in its aisle ---------- */
+.lkC .bayC{position:absolute;cursor:pointer}
+.lkC .bayC>*{position:absolute}
+.lkC .bayC.off::after{content:'';position:absolute;left:-3px;right:-3px;top:42px;bottom:-3px;background:rgba(44,41,38,.62);pointer-events:none;z-index:5}
+.lkC .topC{left:0;top:57px;width:504px;height:72px;border:3px solid var(--ink);display:flex;align-items:flex-start;justify-content:center;padding:0 12px}
+.lkC .topC .nmw{min-width:0;overflow:hidden;display:flex;padding:6px 0 12px;margin:-9px 0 -12px}   /* the name sits 3 px high so its descenders stay inside the banner */
+.lkC .bayC.hov .topC{transform:translateY(-6px)}
+.lkC .keyC{top:3px;width:48px;height:48px;display:grid;place-items:center}
+.lkC .bayC .kb.call{animation:callb 1s steps(2,jump-none) infinite}
+.F.rm.lkC .bayC .kb.call{animation:none;background:var(--mustard)}
+.lkC .prodC{position:absolute;width:144px;height:144px;cursor:help}
+.lkC .prodC>img{position:relative;display:block} .lkC .prodC>img.ci{position:absolute}
+.lkC .prodC .psh{position:absolute;left:18px;right:18px;bottom:-3px;height:6px;background:rgba(23,44,43,.85)}
+.lkC .ptagC{height:33px;min-width:66px;display:grid;place-items:center;padding:0 6px;background:var(--paper);border:3px solid var(--ink)}
+.lkC .ptagC.cp{background:var(--teal-pale)}
+.lkC .talkC{left:12px;top:327px;width:480px;height:54px;background:var(--paper);border:3px solid var(--ink);box-shadow:0 6px 0 rgba(23,44,43,.6);padding:0 12px 0 9px;display:flex;align-items:center;gap:12px}
+.lkC .talkC .bt{font-size:19px;line-height:21px;color:var(--ink-light);text-wrap:balance}
+.lkC .tclipC{top:321px;width:18px;height:15px;background:var(--brass);border:3px solid var(--ink);box-shadow:inset 0 3px 0 var(--mustard-light);z-index:2}
+.lkC .gfC{display:flex;align-items:center;gap:9px;height:45px;padding:0 12px;background:var(--mustard-pale);border:3px solid var(--ink);filter:drop-shadow(6px 6px 0 rgba(43,36,32,.45));transform:rotate(-2deg)}
+.lkC .bayC .stk.pk{display:flex;align-items:center;gap:9px;padding:6px 12px}
+.lkC .stagC{position:absolute;height:33px;display:flex;align-items:center;gap:9px;padding:0 9px;background:var(--paper);border:3px solid var(--ink);white-space:nowrap;z-index:2}
+.lkC .stagC.mus{background:var(--mustard-pale)}
+.lkC .efcC{position:absolute;width:96px;height:96px;border:3px dashed var(--mustard);display:grid;place-items:center}
+.lkC .efcC.free{border-color:var(--teal-shade)}
+.lkC .pvwC{position:absolute;border:3px dashed var(--mustard)}
+.lkC .trC{position:absolute;width:96px;height:96px;cursor:help}
+.lkC .trC .ci{position:absolute}
+.lkC .ledC{position:absolute;display:flex;align-items:center;justify-content:center;gap:15px}
+.lkC .fcardC{position:absolute;background:var(--paper);border:3px solid var(--ink);box-shadow:0 6px 0 rgba(23,44,43,.6);padding:12px 6px 3px;display:grid;justify-items:center;gap:3px;cursor:help}
+.lkC .fcardC .fct{position:absolute;left:0;right:0;top:0;height:6px}
+.lkC #pinsArea{cursor:pointer}
+.lkC #pinsArea:hover .badge{transform:translateY(-6px)}
+
+/* the starter pack's cards, highlighted on the order sheet and in the trolley */
+.lkB .sheetlines .ln.pkl{box-shadow:inset 0 -3px 0 rgba(43,36,32,.18)}
+.lkB .sheetlines .pkchip{display:inline-grid;place-items:center;height:24px;padding:0 6px;margin-right:9px;border:3px solid var(--ink);vertical-align:middle}
+.lkB .pkbar{position:absolute;width:9px;border:3px solid var(--ink)}
+.lkB .pkbar.pv{border-style:dashed;border-color:var(--mustard-dark)}
+.lkB .trpk{position:absolute;border:6px solid;box-shadow:0 0 0 3px var(--ink),inset 0 0 0 3px var(--ink);pointer-events:none}
+.lkB .trtag{position:absolute;height:27px;padding:0 9px;display:grid;place-items:center;border:3px solid var(--ink);pointer-events:none}
+
+.selfcheck{position:absolute;left:0;right:0;top:0;z-index:99;background:var(--tomato);color:var(--paper);font:800 18px var(--body);padding:4px 12px;display:none}
+</style>
+
+<div class="toolbar">
+  <div class="controls">
+    <span class="lbl">PAGE</span>
+    <div class="seg" id="segG"><button data-g="1" aria-pressed="true">1 Your store</button><button data-g="2">2 Your build</button></div>
+    <span class="lbl">PAGE 2 LOOK</span>
+    <div class="seg" id="segL"><button data-l="A">A Bagging counter</button><button data-l="B" aria-pressed="true">B Staff room</button><button data-l="C">C End-cap</button></div>
+    <span class="lbl">PROFILE</span>
+    <div class="seg" id="segS"><button data-s="0" aria-pressed="true">New save (0)</button><button data-s="1">1 complete</button><button data-s="2">3 complete</button><button data-s="3">6 complete</button></div>
+    <span class="lbl">PIN SLOTS</span>
+    <div class="seg" id="segP"><button data-p="1" aria-pressed="true">1</button><button data-p="2">2</button></div>
+    <span class="lbl">MOTION</span>
+    <div class="seg" id="segM"><button data-m="0" aria-pressed="true">On</button><button data-m="1">Reduced</button></div>
+    <span class="lbl">SCALE</span>
+    <div class="seg" id="segZ"><button data-z="fit" aria-pressed="true">Fit</button><button data-z="one">1:1</button></div>
+    <button id="reset">Reset frame</button>
+  </div>
+</div>
+
+<main>
+  <div class="lede">
+    <div class="eyebrow">Next Customer · start screen v4 · page 2 gets a place of its own · 2026-11-03</div>
+    <h1>Start screen v4: YOUR BUILD as a place in the store</h1>
+    <p>You liked v3, so <b>page 1 (YOUR STORE) is v3 unchanged</b>. Your note on page 2 was that it should be polished and <b>have its own art direction, not just sections with item placeholders</b>. Round 4 redraws only page 2, in three directions. Each one turns page 2 into a place in the store, drawn in pixel art in the game's palette, and each keeps every v3 function: the 3 packs with a hover preview, click or 1–3, PICKED and GOOD FIRST PICK, badge pins with the pins sheet, the full cart of 15 with family counts, OPEN STORE greyed until a pack is picked, ◀ STORE, the keys, the step rail, the top bar and the self-check.</p>
+    <p>Three judges scored the first drafts (identity and clarity count 1.5×): <b>B 119</b>, C 109.5, A 97.5. Every direction below has all of its judges' must-fix notes applied, and B, the recommendation, also has the best ideas taken from A and C. <b>Try it:</b> use <b>PAGE 2 LOOK</b> in the toolbar (or <code>?p2=A|B|C</code>), go to page 2, hover a pack, pick with 1–3, press P for pins and Enter to open the store. The rules, data and code-place tables are unchanged from v3: see <a href="start_screen_v3.html" style="color:var(--mustard-light)">start_screen_v3.html</a>.</p>
+  </div>
+
+  <section>
+    <div class="fwrap" id="fwrap"><div class="fscale" id="fscale"><div class="F" id="F"></div></div></div>
+    <p class="cap" id="capline"></p>
+  </section>
+
+  <section>
+    <h2>Recommended: B, the staff room before the shift</h2>
+    <p><b>Why B:</b> it is the only draft that all three judges read as a real <b>place</b> (backstage, before the shift, while page 1 is the shop floor). It also tells a small story: you pick a crate, check the order sheet and clock in. Its order sheet is the clearest cart recap, because every line says where its card comes from. In v4 it keeps that, and its weak spots are fixed.</p>
+    <div class="opts">
+      <div class="opt"><header><span class="tag">B</span><h3>What changed from the first draft</h3></header>
+        <ul>
+          <li><b>Whole items on the crates.</b> The 3 cards now stand whole on top of each crate at v3's size, each with a price-gun tag on the lip ("5€", or a teal coupon tag). A shorter label sits below: the name, the key and the hint, with the family at its foot.</li>
+          <li><b>Every tag stays on its own crate.</b> PICKED is a gold price-gun sticker slapped on the crate's label. GOOD FIRST PICK is a spring wobbler planted in the crate's back rim, above its items, and it swings on a pick. Nothing sits on the lockers any more.</li>
+          <li><b>The pick lights up</b> (from C): a mustard frame, a mustard glow on the lockers behind its items, and bulbs that chase down the crate's posts, while the other two crates go dark. A hovered crate lifts and burns steady.</li>
+          <li><b>One locker for the pins.</b> Your locker No. 11 is now a double locker with a single cork board inside: the badge hangs on its lanyard from a brass hook (from A), with the WEARING note beside it.</li>
+          <li><b>The notice</b> asks PICK A STARTER PACK. Its second line answers your pick (from A): tomato "Pick one to open the store", then "Your pick rides in the cart". It now hangs lower, so the lockers' vents and brass numbers show above it.</li>
+          <li><b>Order sheet:</b> CART n/15 now sits on an LED glass in gold chunky digits. The sum line always fits on one line (with a pin it says "+ 1 pin"), and a hover shows a dashed PREVIEW mark instead of a "?". Before a pick, the three pack lines show dashed tomato "?" boxes and a mustard "press 1, 2 or 3" chip. BY FAMILY is now three count cards with a big digit, the glyph and the name (from C). The source column is wider, so "Coupon clipper" is no longer cut off.</li>
+          <li><b>The cart as items:</b> a wire trolley parked in front of the bench holds the same 15 cards as item art, in cart order, so you see your build as groceries and not only as text. Before a pick the pack's places are dashed "?", and the pin places are dashed until a pin brings a card.</li>
+          <li><b>The time clock</b> now hangs on the wall right of the pillar, clear of the bench. Its dial sits in the brass band, and its OPEN STORE key is as big as v3's. <b>Clocking in</b> punches the card into the clock, then the store's <b>roller shutter</b> comes down (brass trim, a lit NEXT CUSTOMER sign, handles and a lock, in two lamps' night light) and rolls up on the CLOCKED IN · SHIFT 1/12 flood (from A).</li>
+        </ul></div>
+      <div class="opt"><header><span class="tag">B</span><h3>How it reads</h3></header>
+        <p>Left to right: <b>your locker</b> (badge pins), <b>the bench</b> with three crates (the one choice), <b>the clipboard</b> (what goes in your cart, line by line) and <b>the time clock</b> (the one action). The trolley on the floor repeats the cart as item art. As in v3, the step rail and the top bar sit above the room, and ◀ STORE sits on its riveted plaque. The pins sheet opens beside the clipboard, so you can watch a pin's card land on line 14.</p>
+        <p><b>New art for the game:</b> <code>staff_room_art.gd</code> (wall, tube, lockers, bench, floor), <code>pack_crate.gd</code> (crate, tags, label, wobbler, post bulbs), <code>order_sheet.gd</code>, <code>time_clock.gd</code>, <code>cart_trolley.gd</code> and a <code>roller_shutter</code> transition shared with the title.</p></div>
+    </div>
+    <div class="caps">
+      <figure><img src="start_screen_v4_build/B_s0.png" alt="B, new save, picked"><figcaption class="cap">B, new save: Breakfast run is GOOD FIRST PICK and is picked, so its crate is lit and the other two are dark. Cart 13/15.</figcaption></figure>
+      <figure><img src="start_screen_v4_build/B_s0_nopick.png" alt="B, new save, no pick"><figcaption class="cap">B, new save, nothing picked: keys blink, the order lines and trolley places are dashed "?", and the key reads PICK A PACK FIRST.</figcaption></figure>
+      <figure><img src="start_screen_v4_build/B_s2.png" alt="B, 3 completed"><figcaption class="cap">B, 3 completed: no pack yet, swaps read "your swap", Repack is worn.</figcaption></figure>
+      <figure><img src="start_screen_v4_build/B_s2_hov.png" alt="B, hover"><figcaption class="cap">B, Deli counter picked, hovering Banana bunch: the crate lifts and burns steady, and its lines are pencilled in with PREVIEW.</figcaption></figure>
+      <figure><img src="start_screen_v4_build/B_s2_pins.png" alt="B, pins"><figcaption class="cap">B, pins sheet beside the clipboard (2 slots, Coupon book's 2 for 1 on line 14).</figcaption></figure>
+      <figure><img src="start_screen_v4_build/B_shutter.png" alt="Shutter"><figcaption class="cap">OPEN STORE in A and B: the shutter down, before it rolls up on SHIFT 1/12.</figcaption></figure>
+    </div>
+  </section>
+
+  <section>
+    <h2>A, the bagging counter</h2>
+    <p>The end of the belt, where a build gets bagged. <b>Fixes:</b> the packs are now <b>tall kraft carrier bags</b> with twisted paper handles and the family band printed on them, with the 3 items standing whole out of the top. The picked bag lifts higher, gets a big ★ PICKED ★ sticker, and the other two go dark. The empty band above the shelf is gone. The hanging sign is centred under the middle lamp, and its second line answers the pick. The GOOD FIRST PICK wobbler is planted in the shelf on its spring. The trolley holds the cards <b>loose in its wire basket</b>, not in tile frames. Places still to come are dashed outlines, and there are no grey boxes. YOUR CART, the sum and BY FAMILY sit together on the trolley's ad board. The cork board holds the badge on its lanyard and a note with each worn pin's disc. OPEN STORE drops the shutter (now with its sign, handles, lock and night light).</p>
+    <div class="caps">
+      <figure><img src="start_screen_v4_build/A_s0.png" alt="A, new save, picked"><figcaption class="cap">A, new save, Breakfast run picked.</figcaption></figure>
+      <figure><img src="start_screen_v4_build/A_s0_nopick.png" alt="A, no pick"><figcaption class="cap">A, nothing picked.</figcaption></figure>
+      <figure><img src="start_screen_v4_build/A_s2.png" alt="A, 3 completed"><figcaption class="cap">A, 3 completed.</figcaption></figure>
+    </div>
+  </section>
+
+  <section>
+    <h2>C, the display end-cap in its aisle</h2>
+    <p>The premium toy machine's language (brass, a bulb marquee, spot lights) on an end-cap at the head of an aisle. <b>Fixes:</b> the space now has <b>depth</b>: a lino floor in perspective, the end-cap's light pooled on it, a gondola run receding behind the pins, and the unit casting its shadow. The cart is no longer v3's grid: it is a <b>flatbed stock trolley</b> parked in front of the end-cap, with the 15 cards in one row in cart order and a tag on the deck edge under each group. The products stand <b>big (3×) and centred</b> on the brass shelf, so the bays' empty corner is gone. The key tag, GOOD FIRST PICK and the gold PICKED hang under the marquee. The bays that weren't picked go dark in stills too. The hints are balanced, with no one-word last lines. The pins hang on a velvet card on an easel, sized to what it holds (no blank paper). The LED n/15 and the family count cards stand on a price board.</p>
+    <div class="caps">
+      <figure><img src="start_screen_v4_build/C_s0.png" alt="C, new save, picked"><figcaption class="cap">C, new save, Breakfast run picked: its posts chase and the other bays are dark.</figcaption></figure>
+      <figure><img src="start_screen_v4_build/C_s0_nopick.png" alt="C, no pick"><figcaption class="cap">C, nothing picked.</figcaption></figure>
+      <figure><img src="start_screen_v4_build/C_s2.png" alt="C, 3 completed"><figcaption class="cap">C, 3 completed.</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="answers">
+    <h2>Open questions for you</h2>
+    <ol>
+      <li><b>Q1 · Which look for page 2?</b> B (staff room, recommended), A (bagging counter) or C (end-cap). A graft between them is fine too (for example, B with C's end-cap marquee over the bench).</li>
+      <li><b>Q2 · The default items: DECIDED.</b> The 4 cards in every run (Banana, Banana, Milk, Eggs; swappable from completed aisles) are now <b>YOUR REGULARS</b>. The 6-product shelf the deal draws from (Banana, Bread, Milk, Eggs, Coffee, Soup) keeps the name <b>Staples shelf</b>. Only one thing is called "staples".</li>
+      <li><b>Q3 · The shutter on OPEN STORE:</b> keep it for every start, or only for the first run of a session (later runs go straight to the flood)?</li>
+    </ol>
+    <p><b>Defaults I took (say if any is wrong):</b> page 1 is untouched. The cart on page 2 shows twice in B (order sheet and trolley), because the judges asked to see the build as items. The 1–3 keys, P, Enter and Esc work as in v3, and so do the hover and capture hooks (<code>?p2=</code>, <code>hov=</code>, <code>sel=</code>, <code>shutter=1</code>).</p>
+  </section>
+</main>
+
+<script src="start_screen_v2_src/cards.js"></script>
+<script>
+/* ======================= self-check: JS errors, Pixelify digits, frame overflow ======================= */
+const CHECK = [];
+function bad(m){ if(!CHECK.includes(m)) CHECK.push(m); }
+window.addEventListener('error', e => bad('js: ' + e.message));
+
+const SRC = 'start_screen_v2_src/';
+const CARD = Object.fromEntries(CARDS.map(c => [c.id, c]));
+/* palette.txt, key → hex */
+const P = {'#':'#2b2420','%':'#4a3f38','=':'#5e574d','-':'#8a8172',':':'#c7beab','a':'#b39f78','b':'#ddcba5','c':'#f3e9d2','w':'#fbf7ee',
+  '1':'#1f3b3a','2':'#2a4d4b','3':'#3a7672','4':'#4f9a94','5':'#86c2b6','6':'#c3e0d4','7':'#5fb0a8','8':'#172c2b',
+  'q':'#6e2630','r':'#a83a3c','R':'#d9534f','o':'#ec8a6e','O':'#f5bfa0','u':'#7a5a1c','m':'#b38425','M':'#e2b33c','y':'#f1d27a','Y':'#faecbc',
+  'g':'#3d7a45','G':'#5fae5a','z':'#a5d17e','e':'#4a3022','f':'#7a5232','F':'#a87a4e','h':'#d2a874','k':'#4a3010','l':'#8a5d1a','L':'#c8932b','n':'#ffcf3f',
+  'A':'#ecebe4','B':'#c7c3b8','C':'#a9a59b','D':'#8d8a83','E':'#6f6b63','H':'#57534c','I':'#45423d','J':'#3d3a36','K':'#2c2926','N':'#24221f'};
+const INK=P['#'], PAPER=P.w;
+
+/* ======================= pixel frames (9-slices from art/src/frames recipes) ======================= */
+const rep=(r,n)=>Array(n).fill(r);
+const RIM10 = (top, mid, bot, ledge, corner='.') => [corner+'########'+corner, top].concat(rep(mid,5), [bot, ledge], [corner+'########'+corner]);
+const FRAMES = {
+  teal: RIM10('#66666666#','#54444443#','#33333333#','#22222222#'),            // button_teal.txt
+  teal_lit: RIM10('#wwwwwwww#','#65555553#','#33333333#','#22222222#'),        // button_teal_lit.txt
+  red: RIM10('#OOOOOOOO#','#oRRRRRRr#','#rrrrrrrr#','#qqqqqqqq#'),             // button.txt
+  red_lit: RIM10('#wwwwwwww#','#Ooooooor#','#rrrrrrrr#','#qqqqqqqq#'),         // button_lit.txt
+  off: RIM10('#BBBBBBBB#','#CDDDDDDE#','#EEEEEEEE#','#HHHHHHHH#'),             // new: button_off (steel)
+  cream: RIM10('#wwwwwwww#','#wccccccb#','#bbbbbbbb#','#aaaaaaaa#'),           // a cream plate (toy_plate's face)
+  chip: ['..######..','.#222222#.'].concat(rep('#22222222#',6),['.#111111#.','..######..']),
+  chip_warn: ['..######..','.#wwwwww#.'].concat(rep('#wwwwwwww#',6),['.#::::::#.','..######..']),
+  chip_green: ['..######..','.#zzzzzz#.'].concat(rep('#zGGGGGGg#',6),['.#gggggg#.','..######..']),
+  chip_np: ['..######..','.#wwwwww#.'].concat(rep('#wYYYYYYy#',6),['.#yyyyyy#.','..######..']),
+  chip_steel: ['..######..','.#DDDDDD#.'].concat(rep('#DHHHHHHI#',6),['.#IIIIII#.','..######..']),
+  chip_lock: ['..######..','.#JJJJJJ#.'].concat(rep('#JNNNNNNK#',6),['.#KKKKKK#.','..######..']),
+  chip_mus: ['..######..','.#yyyyyy#.'].concat(rep('#yMMMMMMm#',6),['.#mmmmmm#.','..######..']),
+  top: ['..######..','.#444444#.'].concat(rep('#44444444#',5),['#33333333#','.#333333#.','..######..']),   // top_button.txt
+  plate: ['##########','#44444443#'].concat(rep('#32222221#',6),['#11111111#','##########']),             // board plate (lit top row, lit left, shade right/bottom)
+  plaque: ['##########','#AAAAAAAB#'].concat(rep('#BCCCCCCE#',6),['#EEEEEEEE#','##########']),           // steel plaque behind the counter keys (machine_relook_v3 steel_frame)
+  well: ['##########','#NNNNNNNN#'].concat(rep('#N8888881#',6),['#11111111#','##########']),              // board well (inset)
+  slip: ['##########','#wwwwwwww#'].concat(rep('#wwwwwwwb#',6),['#bbbbbbbb#','##########']),              // paper slip
+  led: ['##########','#DDDDDDDD#','#D######H#'].concat(rep('#D#NNNN#H#',4),['#D######H#','#HHHHHHHH#','##########']), // LED shelf display (machine ledGlass)
+  sheet: ['.########.','#wwwwwwww#','#wnnnnnLw#'].concat(rep('#wnwwwwLw#',4),['#wnLLLLLw#','#wwwwwwww#','.########.']), // popup.txt
+};
+const FMARGIN = {sheet:4};
+const SIGN = ['##########','#55555555#'].concat(rep('#54444443#',7),['#22222222#','##########']);   // aisle_sign.txt
+const AISLE_MAP = {cold_cases:'2345', pantry:'mmMy', household:'==-:', fruit_and_veg:'1ggG', bakery:'FFhb', snacks:'eefF', staples:'abcw'}; // pixel_art.py AISLE_MAPS
+for(const [id,keys] of Object.entries(AISLE_MAP)) FRAMES['sign_'+id] = SIGN.map(r=>r.replace(/[2345]/g,ch=>keys['2345'.indexOf(ch)]));
+FRAMES.sign_off = SIGN.map(r=>r.replace(/[2345]/g,ch=>'8112'['2345'.indexOf(ch)]));
+const FURL = {};
+function gridURL(rows, pal=P){ const h=rows.length, w=rows[0].length, c=document.createElement('canvas'); c.width=w; c.height=h; const x=c.getContext('2d');
+  rows.forEach((r,j)=>{ for(let i=0;i<w;i++){ const k=r[i]; if(k==='.') continue; x.fillStyle=pal[k]||k; x.fillRect(i,j,1,1);} }); return c.toDataURL(); }
+function buildFrames(){
+  let css='';
+  for(const [n,rows] of Object.entries(FRAMES)){ FURL[n]=gridURL(rows); const m=FMARGIN[n]||3;
+    css+=`.f-${n}{border-style:solid;border-color:transparent;border-width:${m*3}px;border-image:url(${FURL[n]}) ${m} fill / ${m*3}px stretch}\n`; }
+  css+=`:root{--red-frame:url(${FURL.red});--redlit-frame:url(${FURL.red_lit})}`;
+  const s=document.createElement('style'); s.textContent=css; document.head.appendChild(s);
+}
+
+/* ======================= hard pixel words (Pixelify) and chunky digits ======================= */
+const RAST = new Map(); let CAPTOP = 7;
+function rast(s, hex, fam='NCPix', size=11, weight=400){
+  const mixed=/[a-z]/.test(s);
+  const key=[s,hex,fam,size,weight].join('|'); if(RAST.has(key)) return RAST.get(key);
+  const font=`${weight} ${size}px ${fam}`, m=document.createElement('canvas').getContext('2d'); m.font=font;
+  let w=10; for(const ch of s) w+=Math.max(1,Math.round(m.measureText(ch).width));
+  const H=size+12, base=size+4, c=document.createElement('canvas'); c.width=w; c.height=H;
+  const x=c.getContext('2d'); x.font=font; x.fillStyle='#000'; x.textBaseline='alphabetic';
+  let cx=3; for(const ch of s){ x.fillText(ch,cx,base); cx+=Math.max(1,Math.round(x.measureText(ch).width)); }
+  const id=x.getImageData(0,0,w,H), d=id.data; const [r,g,b]=[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16));
+  let left=w, right=-1;
+  for(let y=0;y<H;y++) for(let xx=0;xx<w;xx++){ const i=(y*w+xx)*4, on=d[i+3]>=110; d[i]=r;d[i+1]=g;d[i+2]=b;d[i+3]=on?255:0; if(on){left=Math.min(left,xx);right=Math.max(right,xx);} }
+  x.putImageData(id,0,0);
+  const top = base-CAPTOP-(mixed?1:0), bot = mixed? base+3 : base;
+  if(right<0){ left=0; right=2; }
+  const o=document.createElement('canvas'); o.width=right-left+1; o.height=bot-top; o.getContext('2d').drawImage(c,-left,-top);
+  const out={url:o.toDataURL(), w:o.width, h:o.height, desc: mixed?3:0}; RAST.set(key,out); return out;
+}
+function measureCap(){ // cap height of the hard raster ("H"), so caps-only words crop to exactly their caps
+  const c=document.createElement('canvas'); c.width=20; c.height=24; const x=c.getContext('2d'); x.font='400 11px NCPix'; x.fillText('H',2,15);
+  const d=x.getImageData(0,0,20,24).data; let top=99; for(let y=0;y<24;y++) for(let i=0;i<20;i++) if(d[(y*20+i)*4+3]>=110) top=Math.min(top,y);
+  if(top<99) CAPTOP=15-top;
+}
+/* A2 chunky price-gun digits (machine_relook_v3.html CH) + ★ › ‹ */
+const CH = {
+  '0':['.####.','##..##','##..##','##..##','##..##','##..##','##..##','.####.'], '1':['.##.','###.','.##.','.##.','.##.','.##.','.##.','####'],
+  '2':['.####.','##..##','....##','...##.','..##..','.##...','##....','######'], '3':['#####.','....##','....##','.####.','....##','....##','##..##','.####.'],
+  '4':['...##.','..###.','.####.','##.##.','######','...##.','...##.','...##.'], '5':['######','##....','#####.','....##','....##','....##','##..##','.####.'],
+  '6':['.####.','##....','##....','#####.','##..##','##..##','##..##','.####.'], '7':['######','....##','...##.','...##.','..##..','..##..','.##...','.##...'],
+  '8':['.####.','##..##','##..##','.####.','##..##','##..##','##..##','.####.'], '9':['.####.','##..##','##..##','##..##','.#####','....##','....##','.####.'],
+  '€':['...###','..##..','.##...','#####.','.##...','#####.','..##..','...###'], '%':['.##...##','.##..##.','....##..','...##...','...##...','..##....','.##..##.','##...##.'],
+  '+':['......','..##..','..##..','######','######','..##..','..##..','......'], '-':['....','....','....','####','####','....','....','....'],
+  '×':['......','##..##','.####.','..##..','.####.','##..##','......','......'], '/':['....##','....##','...##.','..##..','..##..','.##...','##....','##....'],
+  '.':['..','..','..','..','..','..','##','##'], ' ':['...','...','...','...','...','...','...','...'],
+  '★':['...#...','...#...','..###..','#######','.#####.','..###..','.##.##.','##...##'],
+  '›':['....','##..','.##.','..##','..##','.##.','##..','....'], '‹':['....','..##','.##.','##..','##..','.##.','..##','....'],
+  '–':['....','....','....','####','####','....','....','....'],
+};
+const NRAST=new Map();
+function nrast(s, hex, shadow){
+  const key=s+'|'+hex+'|'+(shadow||''); if(NRAST.has(key)) return NRAST.get(key);
+  let w=0; for(const ch of s) w+=(CH[ch]?CH[ch][0].length:3)+1; w=Math.max(1,w-1)+(shadow?1:0);
+  const h=8+(shadow?1:0), c=document.createElement('canvas'); c.width=w; c.height=h; const x=c.getContext('2d');
+  const draw=(ox,oy,col)=>{ x.fillStyle=col; let cx=ox; for(const ch of s){ const g=CH[ch]; if(!g) bad('no chunky glyph '+ch); else g.forEach((r,j)=>{ for(let i=0;i<r.length;i++) if(r[i]==='#') x.fillRect(cx+i,oy+j,1,1); }); cx+=(g?g[0].length:3)+1; } };
+  if(shadow) draw(1,1,shadow); draw(0,0,hex);
+  const out={url:c.toDataURL(), w, h, desc:0}; NRAST.set(key,out); return out;
+}
+const img=(r,sc,extra='')=>`<img src="${r.url}" style="width:${r.w*sc}px;height:${r.h*sc}px;${r.desc?`margin-bottom:${-r.desc*sc}px;`:''}${extra}" alt="">`;
+/* PT: one hard-pixel word run (never digits). NM: chunky number. L: a PixelLine of mixed tokens on one baseline. */
+function PT(s, hex, sc=3){ if(/[0-9€]/.test(s)) bad('Pixelify digit: '+s); return img(rast(s,hex),sc); }
+function NM(s, hex, sc=3, shadow){ return img(nrast(s,hex,shadow),sc); }
+const NUMTOK=/([+−×]?[0-9][0-9€%.\/k]*★?|[★›‹–])/;
+function L(s, hex, sc=3, o={}){
+  const parts=s.split(NUMTOK).map(t=>t.trim()).filter(Boolean);
+  const nh=o.num||hex;
+  return `<span class="pl" style="gap:${3*sc}px">${parts.map(t=>NUMTOK.test(t)&&t.match(NUMTOK)[0]===t ? NM(t.replace('−','-'),nh,sc,o.shadow) : PT(t,hex,sc)).join('')}</span>`;
+}
+const PTW=(s,sc=3)=>rast(s,'#000000').w*sc;
+
+/* the till 3x5 caps for props (pin faces), StorefrontArt.TILL / v5 CAPS */
+const TILL = {A:['.#.','#.#','###','#.#','#.#'],B:['##.','#.#','##.','#.#','##.'],C:['.##','#..','#..','#..','.##'],D:['##.','#.#','#.#','#.#','##.'],E:['###','#..','##.','#..','###'],F:['###','#..','##.','#..','#..'],
+  G:['.##','#..','#.#','#.#','.##'],I:['###','.#.','.#.','.#.','###'],K:['#.#','#.#','##.','#.#','#.#'],L:['#..','#..','#..','#..','###'],M:['#...#','##.##','#.#.#','#...#','#...#'],N:['#..#','##.#','#.##','#..#','#..#'],
+  O:['.#.','#.#','#.#','#.#','.#.'],P:['##.','#.#','##.','#..','#..'],R:['##.','#.#','##.','#.#','#.#'],S:['.##','#..','.#.','..#','##.'],T:['###','.#.','.#.','.#.','.#.'],X:['#.#','#.#','.#.','#.#','#.#'],
+  '2':['##.','..#','.#.','#..','###'],'×':['...','#.#','.#.','#.#','...'],'?':['##.','..#','.#.','...','.#.'],'+':['...','.#.','###','.#.','...']};
+/* pin face glyphs (art px), drawn 2x on a 25 px disc and 1x on a 19 px one; ×2 stays two till letters */
+const PINGLYPH = {
+  recycle:['..###..','.#...##','#....##','#......','#.....#','.#...#.','..###..'],
+  repack:['....#..','######.','....#..','.......','..#....','.######','..#....'],
+  stock_list:['#.####','......','#.####','......','#.####'],
+  day_off:['..###','.##..','##...','##...','##...','.##..','..###'],
+  golden_basket:['..###..','.#...#.','#######','#.#.#.#','#.#.#.#','.#####.'],
+  price_gun:['..####','.#...#','#..#.#','.#...#','..####'],
+  express_lane:['#..#...','.#..#..','..#..#.','.#..#..','#..#...'],
+  coupon_book:['#...#','.#.#.','..#..','.#.#.','##.##','##.##']};
+/* a badge pin: a pixel disc d art px with an ink outline, rim shade, face, a 2x2 glint and till letters */
+const DISC=new Map();
+function disc(face, rim, text, d, textHex, dashed){
+  const key=[face,rim,text,d,textHex,dashed].join('|'); if(DISC.has(key)) return DISC.get(key);
+  const c=document.createElement('canvas'); c.width=d; c.height=d; const x=c.getContext('2d'); const r=d/2;
+  for(let j=0;j<d;j++) for(let i=0;i<d;i++){ const dist=Math.hypot(i+.5-r,j+.5-r);
+    let col=null; if(dist<=r){ if(dist>r-1) col=dashed?(((Math.atan2(j-r,i-r)*8/Math.PI|0)+16)%2?null:dashed):INK; else if(!dashed){ col=dist>r-2.6?rim:face; if(dist>r-2.6&&(i<r&&j<r)) col=face; } }
+    if(col){ x.fillStyle=col; x.fillRect(i,j,1,1);} }
+  if(!dashed){ x.fillStyle='rgba(251,247,238,.75)'; x.fillRect(Math.round(d*.28),Math.round(d*.2),2,2); }
+  const gly=text&&PINGLYPH[text];
+  if(gly){ const k=d>=24?2:1, gw=gly[0].length*k, gh=gly.length*k, ox=Math.round((d-gw)/2), oy=Math.round((d-gh)/2); x.fillStyle=textHex;
+    gly.forEach((row,jj)=>{ for(let ii=0;ii<row.length;ii++) if(row[ii]==='#') x.fillRect(ox+ii*k,oy+jj*k,k,k); }); }
+  else if(text){ let w=0; for(const ch of text) w+=(TILL[ch]||TILL['?'])[0].length+1; w--; let cx=Math.round((d-w)/2); const y=Math.round((d-5)/2);
+    x.fillStyle=textHex; for(const ch of text){ const g=TILL[ch]||TILL['?']; g.forEach((row,jj)=>{ for(let ii=0;ii<row.length;ii++) if(row[ii]==='#') x.fillRect(cx+ii,y+jj,1,1); }); cx+=g[0].length+1; } }
+  const out={url:c.toDataURL(), w:d, h:d}; DISC.set(key,out); return out;
+}
+
+/* ======================= game data (from v2: data/cards, decks, aisles, pins) ======================= */
+const FAM = {
+  Bakery:['#d2a874','#ddcba5','#a87a4e','aisle_bakery'], Breakfast:['#e2b33c','#f1d27a','#b38425','family_breakfast'],
+  Clearance:['#a83a3c','#d9534f','#6e2630','family_clearance'], Coupon:['#4f9a94','#86c2b6','#3a7672','family_coupon'],
+  Dairy:['#4f9a94','#86c2b6','#3a7672','family_dairy'], Food:['#ec8a6e','#f5bfa0','#d9534f','aisle_pantry'],
+  Frozen:['#c3e0d4','#fbf7ee','#86c2b6','aisle_cold_cases'], Household:['#5e574d','#8a8172','#4a3f38','aisle_household'],
+  Produce:['#5fae5a','#a5d17e','#3d7a45','aisle_fruit_and_veg'], Snack:['#7a5232','#a87a4e','#4a3022','aisle_snacks']};
+const DARK_FACE = new Set(['Clearance','Household','Snack','Coupon','Dairy']);
+const PACKS = {
+  breakfast_run:{name:'Breakfast run',fam:'Breakfast',cards:['breakfast_sticker','coffee','tea_bags'],hint:'Line up Breakfast items: Coffee and Tea bags boost the next one.'},
+  bargain_bin:{name:'Bargain bin',fam:'Clearance',cards:['clearance_tag','dented_can','flickering_bulb'],hint:'Clearance in a row: Dented can pays +2 for each Clearance before it.'},
+  banana_bunch:{name:'Banana bunch',fam:'Produce',cards:['two_for_one','banana','banana'],hint:'4 Bananas in a row pay 2, 4, 6, 8. 2 for 1 between two doubles the 2nd.'},
+  coupon_clipper:{name:'Coupon clipper',fam:'Coupon',cards:['repeat','shelf_swap','scissors'],hint:'Two coupons, then Scissors: +2 for each coupon before it.'},
+  deli_counter:{name:'Deli counter',fam:'Bakery',cards:['bread','cheese','butter'],hint:'Butter, Bread, Cheese in a row: +3 beside Bread, +4 right after it.'},
+  big_shop:{name:'Big shop',fam:'Food',cards:['final_markdown','yogurt','carrier_bag'],hint:'Carrier bag between two Food: +8 for each Food beside it.'}};
+const CORE = ['banana','banana','milk','eggs'];
+const STAPLES = ['banana','bread','milk','eggs','coffee','soup'];
+const COPY_MAX = 2, AISLE_MAX = 2, DECK_LIMIT = 15;
+const AISLES = [
+  {id:'cold_cases',name:'Cold cases',sign:'#4f9a94',base:['cheese','frozen_peas','butter','yogurt','reduced_yogurt'],caps:['cream','ham_ends']},
+  {id:'pantry',name:'Pantry',sign:'#e2b33c',base:['cereal','tea_bags','crackers','dented_can','day_old_buns'],caps:['sugar_cubes','mixed_herbs']},
+  {id:'household',name:'Household',sign:'#8a8172',base:['carrier_bag','scissors','batteries','flickering_bulb'],caps:['egg_timer','chipped_mug','odd_socks']},
+  {id:'fruit_and_veg',name:'Fruit & veg',sign:'#3d7a45',base:[],caps:['fruit_salad','strawberries','grapefruit','wonky_carrot','lemon','bruised_apples','soft_tomatoes','potatoes']},
+  {id:'bakery',name:'Bakery',sign:'#d2a874',base:[],caps:['baguette','scone','croissant','broken_biscuit','iced_bun','birthday_candles','squashed_cake','stale_doughnut']},
+  {id:'snacks',name:'Snacks',sign:'#7a5232',base:[],caps:['crisps','cereal_bar','bent_lolly','pick_n_mix','stale_popcorn','breadsticks','dusty_toffees']}];
+const AISLE = Object.fromEntries(AISLES.map(a=>[a.id,a]));
+const PINS = [
+  {id:'recycle',name:'Recycle',face:'RE',c:['#5fae5a','#3d7a45'],rule:'Redrawn items go back in the pile; +1 redraw a shift',lock:'Finish a run'},
+  {id:'repack',name:'Repack',face:'MIX',c:['#4f9a94','#2a4d4b'],rule:'Move items between baskets while planning',lock:'Win a run'},
+  {id:'double_checkout',name:'Double checkout',face:'×2',c:['#8a1f33','#561327'],rule:'Check out two rows of 4 every shift; both count',lock:'Score 100€ in one checkout'},
+  {id:'stock_list',name:'Stock list',face:'NXT',c:['#2c3533','#172c2b'],rule:'See the next 3 items in the pile while planning'},
+  {id:'day_off',name:'Day off',face:'OFF',c:['#d9534f','#a83a3c'],rule:'Once a week, skip any day but a review: it passes on quota'},
+  {id:'golden_basket',name:'Golden basket',face:'GLD',c:['#ffcf3f','#8a5d1a'],rule:"Keep 2 checked-out items for the next shift's first basket"},
+  {id:'price_gun',name:'Price gun',face:'TAG',c:['#e2b33c','#b38425'],rule:'Once a shift, an item gains a family of your choice'},
+  {id:'express_lane',name:'Express lane',face:'EXP',c:['#a87a4e','#4a3022'],rule:'2 fewer slots; the first and last items pay ×2'},
+  {id:'coupon_book',name:'Coupon book',face:'CPN',c:['#fbf7ee','#d9534f'],rule:'Start every run with a 2 for 1 coupon',lock:'(example)',example:true,cards:['two_for_one']}];
+const PIN = Object.fromEntries(PINS.map(p => [p.id, p]));
+const LIGHT_PIN = new Set(['golden_basket','price_gun','coupon_book']);
+const ALLCAPS = AISLES.flatMap(a=>a.caps);
+const STATES = [
+  {key:'s0',label:'New save (0 completed)',seed:20261103,run:1,first:'breakfast_run',packs:['banana_bunch','breakfast_run','deli_counter'],
+   caps:[], order:['cold_cases','pantry','household'], swaps:[null,null,null,null], pair:null,
+   realShared:['bread','eggs','soup','yogurt','reduced_yogurt','cereal'],
+   owned:['stock_list','day_off','golden_basket','price_gun','express_lane'], worn:[]},
+  {key:'s1',label:'1 completed',seed:20261117,run:9,first:'breakfast_run',packs:['big_shop','breakfast_run','coupon_clipper'],
+   caps:['cream','ham_ends','sugar_cubes','fruit_salad','strawberries','lemon','potatoes'], order:['cold_cases','fruit_and_veg','pantry','household'], swaps:[null,null,null,null], pair:null,
+   owned:['stock_list','day_off','golden_basket','price_gun','express_lane','recycle'], worn:['price_gun']},
+  {key:'s3',label:'3 completed',seed:20261201,run:21,first:null,packs:['deli_counter','bargain_bin','banana_bunch'],
+   caps:['cream','ham_ends','sugar_cubes','mixed_herbs',...AISLE.fruit_and_veg.caps,'egg_timer','chipped_mug','baguette','scone','croissant','iced_bun','squashed_cake','crisps','cereal_bar'],
+   order:['pantry','bakery','household','cold_cases','fruit_and_veg'], swaps:['strawberries',null,null,'tea_bags'], pair:null,
+   owned:PINS.map(p=>p.id).filter(i=>i!=='double_checkout'), worn:['repack','coupon_book']},
+  {key:'s6',label:'6 completed',seed:20270115,run:38,first:null,packs:['coupon_clipper','big_shop','breakfast_run'],
+   caps:ALLCAPS.slice(), order:['household','fruit_and_veg','bakery','snacks','pantry','cold_cases'], swaps:['croissant',null,'scone','cheese'], pair:['bakery','snacks'],
+   owned:PINS.map(p=>p.id), worn:['double_checkout','golden_basket']}];
+
+let S=0, PAGE=1, SLOTS=1, RM=false, POOL='all', hovPack=-1, sel=-1, worn=[], hovAisle=null;
+let lastPack=null, lastSel=-2, modal=null, swaps=[], restock=null, useRestock=false, dealPop=false, flashRows=[], baseShared=[], modalAnim=false, ANIM=null, hopTab=false;
+const F=document.getElementById('F');
+const st=()=>STATES[S];
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+
+/* ---------- profile derivations (v2) ---------- */
+const owns=id=>st().caps.includes(id);
+function held(a){ return a.base.length + a.caps.filter(owns).length; }
+function total(a){ return a.base.length + a.caps.length; }
+function complete(a){ return held(a)===total(a); }
+function unlocked(a){ return a.base.length>0 || held(a)>=4; }
+function ownedItems(a){ return a.base.concat(a.caps.filter(owns)); }
+const completed=()=>AISLES.filter(complete);
+const swapCount=()=>Math.min(completed().length, CORE.length);
+const usedSwaps=()=>swaps.filter(Boolean).length;
+const staples=()=>CORE.map((c,i)=>swaps[i]||c);
+function stock(){
+  const s=st(), ord=s.order.filter(id=>unlocked(AISLE[id]));
+  let dealt = useRestock&&restock ? restock.pair : (s.pair || ord.slice(0,2));
+  const shelf = useRestock&&restock&&restock.shelf ? restock.shelf : (s.pair ? ord.find(id=>!s.pair.includes(id)) : ord[2]);
+  return {dealt, shelf};
+}
+function aisleOf(id){ if(STAPLES.includes(id)) return 'staples'; const a=AISLES.find(a=>a.base.includes(id)||a.caps.includes(id)); return a?a.id:null; }
+function maxPack(id){ return Math.max(0,...st().packs.map(p=>PACKS[p].cards.filter(c=>c===id).length)); }
+function rng(seedStr){ let h=1779033703^seedStr.length; for(let i=0;i<seedStr.length;i++){h=Math.imul(h^seedStr.charCodeAt(i),3432918353);h=h<<13|h>>>19;}
+  let a=h>>>0; return ()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;}; }
+function dealFor(pair, core, stream){ // JS stand-in for StartingDeck.deal_offer's shared draw (v2)
+  const pool=STAPLES.concat(...pair.map(id=>ownedItems(AISLE[id])));
+  const copies={}; core.forEach(c=>copies[c]=(copies[c]||0)+1);
+  const allP=new Set(st().packs.flatMap(p=>PACKS[p].cards)); allP.forEach(c=>copies[c]=(copies[c]||0)+maxPack(c));
+  const r=rng(`${st().seed}/${stream}/${pair.join('+')}`), out=[];
+  pair.forEach(id=>{ const ok=ownedItems(AISLE[id]).filter(c=>(copies[c]||0)<COPY_MAX); if(ok.length){ const c=ok[Math.floor(r()*ok.length)]; out.push(c); copies[c]=(copies[c]||0)+1; } }); // each dealt aisle gives 1+ (proposal)
+  while(out.length<6){ const ok=pool.filter(c=>(copies[c]||0)<COPY_MAX); if(!ok.length) break; const c=ok[Math.floor(r()*ok.length)]; out.push(c); copies[c]=(copies[c]||0)+1; }
+  return out.sort((x,y)=>pool.indexOf(x)-pool.indexOf(y));
+}
+function shared(){ return useRestock&&restock ? restock.shared : baseShared; }
+function pinCards(){ return worn.slice(0,SLOTS).flatMap(id=>(PIN[id]&&PIN[id].cards)||[]); }
+function packIdShown(){ const s=st(); if(hovPack>=0) return s.packs[hovPack]; if(sel>=0) return s.packs[sel]; return null; }
+function deckOf(packId){ const p=packId?PACKS[packId].cards:[]; return staples().concat(p, shared(), pinCards()); }
+function swapReason(id, slot){
+  if((swaps[slot]||CORE[slot])===id) return 'IN THIS SLOT';
+  const others=staples().filter((_,i)=>i!==slot);
+  const n=others.filter(c=>c===id).length + 1 + shared().filter(c=>c===id).length + maxPack(id);
+  if(n>COPY_MAX) return `max ${COPY_MAX} in the cart`;
+  const a=aisleOf(id); const same=swaps.filter((c,i)=>c&&i!==slot&&aisleOf(c)===a).length;
+  if(same>=AISLE_MAX) return `${AISLE_MAX} from this aisle`;
+  return '';
+}
+function goalText(){
+  const n=completed().length, inc=AISLES.filter(a=>unlocked(a)&&!complete(a)).map(a=>({a,miss:a.caps.filter(c=>!owns(c))})).sort((x,y)=>x.miss.length-y.miss.length);
+  const near=inc[0];
+  const nm=near?`<b>${esc(near.a.name)}</b> needs ${near.miss.length<=2?near.miss.map(c=>'<b>'+esc(CARD[c].name)+'</b>').join(' and '):near.miss.length+' capsules'}`:'';
+  if(n===0) return `Complete an aisle to swap your first regular: ${nm}.`;
+  if(n<3) return `${nm}. Aisle ${n+1} gives ${n+1===3?'a 3rd swap and RESTOCK':'a 2nd swap'}.`;
+  if(n<4) return `${nm}. A 4th aisle swaps every regular.`;
+  if(n<6) return `${nm}. All 6 let you choose the dealt aisles.`;
+  return `<b>ALL 6 COMPLETE.</b> Every swap is open, and your aisles are saved for the next runs.`;
+}
+
+/* ---------- tiles ---------- */
+const ticketFam = c => c.kind===2 ? 'Coupon' : (c.tags.find(t=>t!=='Food') || c.tags[0] || 'Food');
+function famsOf(c){ return c.kind===2 ? ['Coupon'] : c.tags.slice(); }
+function glyphsOf(c){ return famsOf(c).filter(t=>t!=='Food'||c.tags.length===1).slice(0,2); }
+function sprite(id, px){
+  const c=CARD[id];
+  if(c.kind===2) return `<img src="${SRC}items/coupon_slip.png" style="width:${px}px;height:${px}px" alt=""><img class="ci" src="${SRC}icons/coupon_${id}_v2.png" style="width:${px*40/96}px;height:${px*28/96}px;left:calc(50% - ${px*20/96}px);top:calc(50% - ${px*10/96}px)" alt="">`;
+  return `<img src="${SRC}items/${id}.png" style="width:${px}px;height:${px}px" alt="">`;
+}
+/* page 1 tile: 54 art wide (V5a's ticket width), cream window with the sprite at 3x, family band with glyphs + price */
+function tileBig(id, opt={}){
+  const c=CARD[id], f=ticketFam(c), fc=FAM[f], coupon=c.kind===2, dark=DARK_FACE.has(f);
+  const gl=glyphsOf(c).map(t=>`<img class="gl" src="${SRC}icons/${FAM[t][3]}.png" style="width:27px;height:27px;background:${FAM[t][0]}" alt="${t}">`).join('');
+  const price = coupon ? PT('COUPON', INK, 3) : NM(c.base+'€', INK, 3);
+  const strip = coupon ? '' : `<span class="fs" style="background:${fc[0]};border-top:3px solid var(--ink)"></span>`;
+  return `<div class="tk ${opt.lit?'lit':''} ${opt.dim?'dim':''} ${opt.pop?'drop':''}" data-card="${id}" ${opt.slot!=null?`data-slot="${opt.slot}"`:''} ${opt.src?`data-src="${opt.src}"`:''}
+    style="width:${opt.tw||162}px;${opt.delay!=null?`animation-delay:${opt.delay}ms;`:''}"><div class="win ${coupon?'cp':''}" style="height:150px">${sprite(id,144)}${strip}</div>
+    <div class="band" style="height:39px">${coupon?'':gl}<span class="pr">${price}</span></div></div>`;
+}
+/* recap and pack tiles: the window only (names, prices and families in the tip) */
+function tileWin(id, px, opt={}){
+  const coupon=CARD[id].kind===2;
+  return `<div class="tk ${opt.pop?'drop':''} ${opt.ghost?'ghost':''}" data-card="${id}" style="width:${px+12}px;${opt.delay!=null?`animation-delay:${opt.delay}ms;`:''}"><div class="win ${coupon?'cp':''}" style="height:${px}px">${sprite(id,px)}</div></div>`;
+}
+function emptyTile(px, label){ return `<div class="tk empty" style="width:${px+12}px;height:${px+6}px">${label?NM(label,P.w,3):''}</div>`; }
+function signTile(id, big){
+  const sz=big?39:39, g = id==='staples' ? `${SRC}minis/banana.png` : `${SRC}icons/aisle_${id}.png`, gs = id==='staples'?21:27;
+  const off = id!=='staples' && !unlocked(AISLE[id]);
+  return `<span class="fr f-sign_${off?'off':id} sgn" style="position:relative;display:inline-block;width:${sz}px;height:${sz}px"><span class="${off?'dk':''}" style="position:absolute;left:${(sz-gs)/2-9}px;top:${(sz-gs)/2-9}px;width:${gs}px;height:${gs}px"><img src="${g}" style="width:${gs}px;height:${gs}px" alt=""></span></span>`;
+}
+function pinDisc(p, d, ts){
+  if(!p) return img(disc(null,null,'+',d,P['-'],P[':']),3);
+  return img(disc(p.c[0],p.c[1],PINGLYPH[p.id]?p.id:p.face,d,LIGHT_PIN.has(p.id)?INK:PAPER),3,'cursor:pointer');
+}
+const arrowR = col => `<svg class="arrow" width="21" height="27" viewBox="0 0 7 9" shape-rendering="crispEdges"><path fill="${INK}" d="M0 0h2v1h1v1h1v1h1v1h1v1h-1v1h-1v1h-1v1h-1v1h-2z"/><path fill="${col}" d="M1 2h1v1h1v1h1v1h-1v1h-1v1h-1z"/></svg>`;
+const TICK = `<svg class="tick" width="15" height="21" viewBox="0 0 5 7" shape-rendering="crispEdges"><path fill="${INK}" d="M0 0h1v7h-1z"/><path fill="${P.R}" d="M1 0h1v1h1v1h1v1h1v1h-1v1h-1v1h-1v1h-1z"/></svg>`;
+
+/* ======================= the store behind the panels (StoreArt / StorefrontArt style) ======================= */
+/* Painted on the 640x360 art grid, shown at 3x: the ceiling seam under the top bar, dim back shelving with flat blocks of
+   stock (unlit colours), and recessed spot lamps whose cones (StorefrontArt.cone: 2-row steps, one px in four of
+   mustard-darkest, a checker in the top quarter of the lit one) light the stock blocks' lit colours. The same cone is
+   dithered over the one panel that matters (the deal on page 1, the packs on page 2), under its content. */
+const LAMPS = {1:{y1:170,w:[14,150],xs:[332,532]}, 2:{y1:170,w:[14,170],xs:[114,318,522]}};
+const STOCK_COL=[['#4a3022','#7a5232'],['#3d3a36','#5e574d'],['#6e2630','#a83a3c'],['#2a4d4b','#3a7672'],['#7a5a1c','#b38425'],['#172c2b','#2a4d4b']];
+function coneAt(x,y,cx,y1,w){ if(y<28||y>=y1) return 0; const sh=(y-28)/(y1-28), wd=Math.round((w[0]+(w[1]-w[0])*sh)/2)*2;
+  if(Math.abs(x+.5-cx)>wd/2) return 0; return sh<.25?2:1; }
+function coneDot(lv,x,y,hot){ return lv===2&&hot ? (x+y)%2===0 : (x%2===0&&y%2===0); }
+const BDC={};
+function backdrop(page,hotIdx){
+  const key=page+'|'+hotIdx; if(BDC[key]) return BDC[key];
+  const c=document.createElement('canvas'); c.width=640; c.height=360; const x=c.getContext('2d');
+  const L=LAMPS[page], r=rng('backdrop'), occ=new Uint8Array(640*360);
+  const lit=(i,j)=>{ let best=0, hot=false; L.xs.forEach((cx,k)=>{ const v=coneAt(i,j,cx,L.y1+40,L.w); if(v>best||(v&&k===hotIdx)){ best=v; hot=k===hotIdx; } }); return {lv:best,hot}; };
+  x.fillStyle=P['1']; x.fillRect(0,0,640,360);
+  for(let sy=40; sy<300; sy+=30){ // a run of shelving: flat blocks of stock on each shelf, the shelf board under them
+    let bx=2; while(bx<636){ const bw=4+Math.floor(r()*8), bh=8+Math.floor(r()*12), col=STOCK_COL[Math.floor(r()*STOCK_COL.length)];
+      for(let i=bx;i<Math.min(636,bx+bw);i++) for(let j=sy+24-bh;j<sy+24;j++){ const l=lit(i,j); x.fillStyle=l.lv?col[1]:col[0]; x.fillRect(i,j,1,1); occ[j*640+i]=1; }
+      bx+=bw+1+Math.floor(r()*3); }
+    x.fillStyle=P['8']; x.fillRect(0,sy+24,640,2); x.fillStyle=P['2']; x.fillRect(0,sy+26,640,1); occ.fill(1,(sy+24)*640,(sy+27)*640); }
+  for(let j=28;j<L.y1+40;j++) for(let i=0;i<640;i++){ const l=lit(i,j); if(l.lv&&coneDot(l.lv,i,j,l.hot)){ if(!occ[j*640+i]){ x.fillStyle=l.hot?P.m:P.u; x.fillRect(i,j,1,1);} } }
+  x.fillStyle=P['8']; x.fillRect(0,28,640,3);   // the ceiling seam under the top bar
+  L.xs.forEach((cx,k)=>{ // a recessed spot: ink rim, brass housing, a lit lens
+    x.fillStyle=INK; x.fillRect(cx-8,28,16,5); x.fillStyle=P.L; x.fillRect(cx-7,28,14,3); x.fillStyle=P.l; x.fillRect(cx-7,30,14,1);
+    x.fillStyle=k===hotIdx||hotIdx<0?P.n:P.y; x.fillRect(cx-5,31,10,1); });
+  return BDC[key]=c.toDataURL();
+}
+/* the cone over a panel (screen rect), under the panel's content: dots only, inside the frame's rim */
+const PCC={};
+function panelCone(page,hotIdx,X,Y,W,H){
+  const key=[page,hotIdx,X,Y,W,H].join('|'); if(PCC[key]) return PCC[key];
+  const ax=X/3, ay=Y/3, aw=W/3, ah=H/3, c=document.createElement('canvas'); c.width=aw; c.height=ah; const x=c.getContext('2d'), L=LAMPS[page];
+  for(let j=3;j<ah-3;j++) for(let i=3;i<aw-3;i++){ let best=0,hot=false; L.xs.forEach((cx,k)=>{ const v=coneAt(ax+i,ay+j,cx,L.y1+40,L.w); if(v>best||(v&&k===hotIdx)){best=v;hot=k===hotIdx;} });
+    if(best&&coneDot(best,ax+i,ay+j,hot)){ x.fillStyle=hot?P.m:P.u; x.fillRect(i,j,1,1);} }
+  return PCC[key]=`<img class="cone" src="${c.toDataURL()}" style="left:${X}px;top:${Y}px;width:${W}px;height:${H}px" alt="">`;
+}
+
+/* ======================= chrome: top bar, step rail, counter ======================= */
+function topBar(){
+  const s=st(), n=deckOf(PAGE===2?packIdShown():null).length, nc=completed().length;
+  let h=`<div class="a" style="left:0;top:0;width:1920px;height:84px;background:var(--wall);border-bottom:3px solid var(--ink)"></div>`;
+  h+=`<div class="a row fr f-chip" style="left:24px;top:12px;height:60px;padding:0 6px;gap:12px"><img src="${SRC}wall_clock.png" style="width:44px;height:44px" alt="">${PT('OPENING TIME',P.Y)}<span style="width:3px"></span>${L('SHIFT 1/12',P['5'],3,{num:PAPER})}</div>`;
+  h+=`<div class="a row fr f-chip" style="left:528px;top:12px;height:60px;padding:0 6px;gap:6px">${AISLES.map(a=>{const ok=complete(a);return `<span class="${ok?'':'dk'}" style="display:grid;place-items:center;width:33px;height:33px;border:3px solid var(--ink);background:${ok?a.sign:P['8']}"><img src="${SRC}icons/aisle_${a.id}.png" style="width:27px;height:27px" alt=""></span>`;}).join('')}
+    <span style="width:6px"></span>${NM(nc+'/6',PAPER)}${NM('★',nc?P.y:P['-'])}${PT('AISLES',P['5'])}</div>`;
+  h+=`<div class="a bt" style="right:300px;top:27px;color:var(--muted);font-size:20px">Seed ${s.seed} · run ${s.run}</div>`;
+  h+=`<div class="a row fr f-top" style="right:24px;top:12px;width:252px;height:60px;justify-content:center;gap:12px"><img src="${SRC}icons/cart.png" style="width:36px;height:27px" alt="">${L('Cart '+n+'/15',PAPER,3,{num:n>DECK_LIMIT?P.O:PAPER})}</div>`;
+  return h;
+}
+function stepRail(){
+  const tab=(k,label)=>{
+    const cur=PAGE===k, done=k===1&&PAGE===2;
+    const badge=`<span style="display:grid;place-items:center;width:39px;height:39px;background:${cur?P.M:P['3']};border:3px solid var(--ink)">${NM(String(k),cur?INK:PAPER)}</span>`;
+    return `<div class="row fr ${cur?'f-chip_warn':'f-chip'} ${cur&&hopTab?'hop':''}" data-tab="${k}" style="position:relative;height:63px;padding:0 9px;gap:12px;cursor:${cur?'default':'pointer'};${cur?'box-shadow:0 0 0 3px var(--ink),0 0 0 9px var(--mustard),0 0 0 12px var(--ink);':''}">
+      ${badge}${PT(label,cur?INK:P['5'])}${k===1?`<img src="${SRC}icons/mark_check.png" style="width:39px;height:39px;${done?'':'visibility:hidden'}" alt="${done?'done':''}">`:''}</div>`;
+  };
+  return `<div class="a row" style="left:24px;top:96px;gap:27px">${tab(1,'YOUR STORE')}${NM('›',P['5'],3)}${tab(2,'YOUR BUILD')}</div>`;
+}
+function counter(pg){
+  let h=`<div class="a counter" style="left:0;top:903px;width:1920px;height:177px">
+    <div class="a" style="left:0;top:0;width:1920px;height:3px;background:var(--ink)"></div>
+    <div class="a" style="left:0;top:3px;width:1920px;height:3px;background:var(--steel-hi)"></div>
+    <div class="a" style="left:0;top:6px;width:1920px;height:3px;background:var(--steel-light)"></div>
+    <div class="a" style="left:0;top:9px;width:1920px;height:6px;background:var(--steel)"></div>
+    <div class="a" style="left:0;top:15px;width:1920px;height:3px;background:var(--steel-dark)"></div>
+    <div class="a" style="left:0;top:18px;width:1920px;height:3px;background:var(--ink)"></div>
+    <div class="a" style="left:0;top:21px;width:1920px;height:156px;background:var(--rubber-dark)"></div>
+    <div class="a" style="left:0;top:21px;width:1920px;height:24px;background:repeating-linear-gradient(90deg,var(--rubber) 0 9px,var(--rubber-dark) 9px 18px);border-bottom:3px solid var(--charcoal)"></div>
+    <div class="a" style="left:0;top:48px;width:1920px;height:3px;background:var(--rubber)"></div>
+    ${plaque(1386,48,516,126)}${plaque(18,48,354,126)}`;
+  const backPlate=(id,cap)=>`<div class="plate fr f-teal" id="${id}" style="left:48px;top:75px;width:294px;height:72px;padding:0 15px;justify-content:center">${NM('‹',PAPER)}${PT(cap,PAPER)}</div>`;
+  if(pg===1){
+    h+=backPlate('toTitle','TITLE');
+    h+=`<div class="a bt" style="left:402px;top:69px;color:var(--steel-light)">Regular swaps and aisle choices are saved to your profile.</div>`;
+    h+=`<div class="a row bt" style="left:402px;top:111px;gap:9px;color:var(--steel-pale)">${keycap('ENTER')} next ${keycap('ESC')} close a panel, else the title</div>`;
+    h+=primaryKey('NEXT ›','Your build: pack, pins, cart',true,'next');
+  } else {
+    const s=st(), p=sel>=0?PACKS[s.packs[sel]]:null, n=deckOf(sel>=0?s.packs[sel]:null).length;
+    if(p&&LOOK==='C'){ const bl=[]; for(let k=0;k<19;k++) bl.push([1416+k*24,51]); for(let k=0;k<4;k++){ bl.push([1389,78+k*24]); bl.push([1884,78+k*24]); }
+      h+=bl.map(([x,y],k)=>`<span class="blb ${k%2?'b':'a'}" style="left:${x}px;top:${y}px"></span>`).join(''); } // C: the key's plaque lights up like the end-cap
+    h+=backPlate('back','STORE');
+    h+=`<div class="a bt" style="left:402px;top:69px;color:var(--steel-light)">Your store choices are kept. Pins are saved; your pack is for this run.</div>`;
+    h+=`<div class="a row bt" style="left:402px;top:111px;gap:9px;color:var(--steel-pale)">${keycap('ESC')} back ${keycap('1')}${keycap('2')}${keycap('3')} pick a pack ${keycap('P')} pins</div>`;
+    h+= p ? primaryKey('OPEN STORE ›',`Shift 1 with ${p.name} · ${n} cards`,true,'go')
+          : primaryKey('PICK A PACK FIRST','Click a pack above, or press 1, 2 or 3',false,'go');
+  }
+  return h+`</div>`;
+}
+function primaryKey(cap, sub, on, id){
+  const big = PTW(cap.replace(' ›',''),6) + 48 <= 420;
+  const capHTML = big ? L(cap, on?PAPER:INK, 6) : L(cap, on?PAPER:INK, 3);
+  return `<div class="key fr ${on?'f-red on':'f-off dis'}" id="${id}" style="left:1413px;top:63px;width:462px;height:102px">${on?TICK:''}
+    <div style="display:grid;justify-items:center;gap:6px;margin-top:-6px">${capHTML}<div class="bt" style="color:${on?'var(--paper)':'var(--ink)'};font-size:21px;line-height:24px;white-space:nowrap">${esc(sub)}</div></div></div>`;
+}
+/* a steel plaque with four rivets (machine_relook_v3's steel_frame + rivet) behind the primary key */
+function plaque(x,y,w,h){
+  const rv=(l,t)=>`<span class="a" style="left:${l}px;top:${t}px;width:12px;height:12px;background:var(--steel-hi);border:3px solid var(--ink);box-shadow:inset -3px -3px 0 var(--steel)"></span>`;
+  return `<div class="a fr f-plaque" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px"></div>${rv(x+9,y+9)}${rv(x+w-21,y+9)}`;
+}
+/* a keycap glyph for the key hints (TopBar key labels) */
+function keycap(k){ return `<span class="fr f-cream" style="display:inline-grid;place-items:center;min-width:${k.length>1?0:39}px;height:39px;padding:0 3px">${/[0-9]/.test(k)?NM(k,INK):PT(k,INK)}</span>`; }
+function sectionHead(x, y, title, sub){
+  return `<div class="a" style="left:${x}px;top:${y}px;display:flex;align-items:flex-end;gap:18px">${L(title,P.y,3)}${sub?`<span class="bt" style="line-height:21px;color:var(--teal-light);font-size:20px">${sub}</span>`:''}</div>`;
+}
+
+/* ======================= page 1: YOUR STORE ======================= */
+function stockRows(){
+  const stk=stock();
+  const rank={deal:1,shelf:2,off:3,lock:4};
+  const rows=AISLES.map((a,i)=>{ let state; if(!unlocked(a)) state='lock'; else if(stk.dealt.includes(a.id)) state='deal'; else if(stk.shelf===a.id) state='shelf'; else state='off'; return {a,state,i}; });
+  rows.sort((x,y)=> rank[x.state]-rank[y.state] || (x.state==='deal' ? stk.dealt.indexOf(x.a.id)-stk.dealt.indexOf(y.a.id) : x.i-y.i));
+  return rows;
+}
+function page1(){ return page1Body()+counter(1); }
+function page1Body(){
+  const s=st(), stk=stock(), n=completed().length;
+  let h=`<img class="bd" src="${backdrop(1,-1)}" alt="">`;
+  /* --- left: TODAY'S STOCK --- */
+  h+=`<div class="a fr f-plate" style="left:24px;top:168px;width:648px;height:720px"></div>`;
+  h+=sectionHead(48,186,"TODAY'S STOCK");
+  if(n<3) h+=`<div class="a row fr f-off" style="left:402px;top:177px;width:246px;height:51px;justify-content:center" title="RESTOCK opens at 3 completed aisles">${L('RESTOCK AT 3★',INK,3)}</div>`;
+  else if(restock){ const t=n>=6?'PAIR CHOSEN':'RESTOCK USED'; h+=`<div class="a row fr f-chip_steel" style="right:${1920-648}px;top:177px;height:51px;padding:0 6px" title="once a run">${PT(t,P.A)}</div>`; }
+  else h+=`<div class="plate fr f-teal" id="rsBtn" style="left:${n>=6?378:414}px;top:177px;height:54px;padding:0 15px">${L(n>=6?'CHOOSE AISLES ›':'RESTOCK ›',PAPER)}</div>`;
+  h+=`<div class="a bt" style="left:48px;top:234px;font-size:20px;line-height:24px"><b>NOT DEALT:</b> in stock, but only as machine prizes.</div>`;
+  const rows=[{id:'staples',state:'deal'}].concat(stockRows().map(r=>({id:r.a.id,state:r.state,a:r.a})));
+  const RH=45, DIV=33, HD=33, nIn=rows.filter(r=>r.state==='deal'||r.state==='shelf').length;
+  const rowTop=k=>HD+k*RH+(k>=nIn?DIV:0);
+  const WT=267;
+  h+=`<div class="a fr f-well" style="left:36px;top:${WT}px;width:624px;height:${HD+rows.length*RH+DIV+12}px">`;
+  // column heads: ITEMS (owned of the aisle's items, ★ = complete) and TODAY
+  h+=`<div class="ai" style="top:0;height:${HD}px;border-bottom:0;margin:0 -9px;background:var(--teal-black)"><span class="pn">${PT('ITEMS',P['5'])}</span><span class="st" style="right:21px">${PT('TODAY',P['5'])}</span></div>`;
+  // the in-stock bracket: a mustard rule under the in-stock rows, then the not-in-stock label
+  h+=`<div class="a" style="left:-9px;right:-9px;top:${HD+nIn*RH}px;height:${DIV}px;background:var(--teal-black);border-top:3px solid var(--mustard-dark);display:flex;align-items:center;padding:3px 12px 0">${PT('NOT IN STOCK TODAY',P['5'])}</div>`;
+  rows.forEach((r,k)=>{
+    const chip={deal:['chip_green','DEALT FROM',INK],shelf:['chip_warn','NOT DEALT',INK],off:['chip_steel','NOT TODAY',P.B],lock:['chip_lock','OPENS AT 4',P[':']]}[r.state];
+    const top=rowTop(k);
+    if(r.id==='staples'){
+      h+=`<div class="ai ${hovAisle==='staples'?'hov':''}" data-aisle="staples" style="top:${top}px;margin:0 -9px">${signTile('staples')}<span class="nm">${PT('Staples shelf',PAPER)}</span>
+        <span class="pn row">${NM('6',PAPER)}</span><span class="st fr f-chip_green row" style="height:39px;padding:0 3px">${PT('DEALT FROM',INK)}</span></div>`;
+      return; }
+    const a=r.a, hd=held(a), tt=total(a), done=hd===tt, locked=r.state==='lock';
+    const pn = NM(hd+'/'+tt, locked?P['-']:done?P.y:PAPER) + (done?NM('★',P.y):'');
+    h+=`<div class="ai ${locked?'locked':''} ${hovAisle===a.id?'hov':''} ${flashRows.includes(a.id)?'blink':''}" data-aisle="${a.id}" style="top:${top}px;margin:0 -9px">${signTile(a.id)}
+      <span class="nm">${PT(a.name,locked?P['-']:PAPER)}</span><span class="pn row" style="gap:6px">${pn}</span>
+      <span class="st fr f-${chip[0]} row" style="height:39px;padding:0 3px;gap:6px">${locked?`<img src="${SRC}icons/padlock.png" style="width:18px;height:20px" alt="">`:''}${L(chip[1],chip[2])}</span></div>`;
+  });
+  h+=`</div>`;
+  /* goal slip */
+  const gy=WT+HD+rows.length*RH+DIV+12+15, gb=873;
+  h+=`<div class="a fr f-slip" style="left:36px;top:${gy}px;width:624px;height:${gb-gy}px;color:var(--ink)">
+    <div style="display:flex;align-items:center;gap:12px;padding:0 3px 9px;border-bottom:3px solid var(--ink)">${PT('NEXT GOAL',P.u)}<span style="margin-left:auto">${L(n+'/6 ★',P.u,3)}</span></div>
+    <div class="bt on-paper" style="color:var(--ink-light);font-size:20px;line-height:24px;margin-top:9px;padding:0 3px">${goalText()}</div></div>`;
+  // the 6-stamp track, clear of the slip's foot
+  const lab=['swap','swap','restock','swap','','choose'];
+  const ty=gb-9-12-63;
+  h+=`<div class="a" style="left:57px;top:${ty}px;display:flex;gap:15px">${[1,2,3,4,5,6].map(i=>{const on=i<=n, key=i!==5;
+    return `<div style="display:grid;justify-items:center;gap:3px;width:84px"><span style="display:grid;place-items:center;width:39px;height:39px;border:3px solid var(--ink);background:${on?P.M:key?P.c:P.b}">${on?NM('★',INK):NM(String(i),key?P['%']:P.a)}</span>
+      <span style="font:800 21px/21px var(--body);color:${key?'var(--ink)':'var(--cream-dark)'};white-space:nowrap">${lab[i-1]}</span></div>`;}).join('')}</div>`;
+
+  /* --- right top: TODAY'S DEAL, lit by the two spot lamps --- */
+  h+=`<div class="a fr f-plate" style="left:696px;top:168px;width:1200px;height:345px"></div>`+panelCone(1,-1,696,168,1200,345);
+  h+=sectionHead(720,186,"TODAY'S DEAL", restock?'from the 3 DEALT FROM rows':'from the 3 DEALT FROM rows · RESTOCK re-deals it');
+  if(restock){
+    h+=`<div class="a row" style="left:1476px;top:177px;gap:0">
+      <div class="plate fr ${useRestock?'f-cream':'f-chip_mus'}" data-view="first" style="position:relative;height:54px;padding:0 12px">${PT('FIRST DEAL',INK)}</div>
+      <div class="plate fr ${useRestock?'f-chip_mus':'f-cream'}" data-view="restock" style="position:relative;height:54px;padding:0 12px;margin-left:6px">${PT('RESTOCKED',INK)}</div></div>`;
+  }
+  const sh=shared(), srcs=['staples'].concat(stk.dealt);
+  // every group keeps its full name (the stock row's name); if the three don't fit, the tiles step down to 150, then the
+  // Staples shelf group shows its sign alone (its name is in the stock row and the tip)
+  const AV=1872-720;
+  const mk=(tw,signOnly)=>srcs.map(src=>{ const cards=sh.filter(c=>aisleOf(c)===src); const gw=cards.length*tw+Math.max(0,cards.length-1)*12;
+    const name = src==='staples' ? 'Staples shelf' : AISLE[src].name, nameOn=!(signOnly&&src==='staples');
+    return {src,cards,name,nameOn,w:Math.max(gw,nameOn?PTW(name)+51:39)}; }).filter(g=>g.cards.length);
+  const need=gs=>gs.reduce((a,g)=>a+g.w,0)+18*(gs.length-1);
+  let TW=162, groups=mk(162,false);
+  if(need(groups)>AV){ TW=150; groups=mk(150,false); }
+  if(need(groups)>AV){ groups=mk(150,true); }
+  const gap = Math.min(36, Math.floor((AV-groups.reduce((a,g)=>a+g.w,0))/Math.max(1,groups.length-1)/3)*3);
+  if(gap<18) bad('deal groups too wide');
+  /* the source rail (the shift scene's rail light): a stub from each dealing row, a bus in the gap, and a rail under
+     the deal's groups, lit under each group. Hover a row or a group: the others go dark. Ink first, fills over it. */
+  const RY=282, RB=WT+9+HD+16, stubY=k=>RB+k*RH, endX=720+groups.reduce((a,g)=>a+g.w,0)+gap*(groups.length-1);
+  const ink=(x,y,w,hh)=>`<div class="a" style="left:${x}px;top:${y}px;width:${w}px;height:${hh}px;background:var(--ink)"></div>`;
+  const fill=(x,y,w,hh,on)=>`<div class="a" style="left:${x}px;top:${y}px;width:${w}px;height:${hh}px;background:${on===2?P.G:on===1?P.g:P['2']}${on===2?`;background-image:repeating-linear-gradient(90deg,${P.z} 0 6px,transparent 6px 18px);background-size:100% 3px;background-repeat:no-repeat`:''}"></div>`;
+  const litSrc=src=>!hovAisle||hovAisle===src?2:0;
+  h+=ink(678,RY,endX-678,12)+ink(678,RY,12,stubY(2)+12-RY)+[0,1,2].map(k=>ink(660,stubY(k),30,12)).join('');
+  h+=fill(681,RY+3,endX-681-3,6,1)+fill(681,RY+3,6,stubY(2)+6-RY,1);
+  srcs.forEach((src,k)=>{ h+=fill(663,stubY(k)+3,24,6,litSrc(src)); });
+  let gx=720;
+  groups.forEach((g,gi)=>{
+    const {src,cards,w,name,nameOn}=g, dim=!!(hovAisle&&hovAisle!==src);
+    h+=`<div class="a row" data-aisle="${src}" style="left:${gx}px;top:237px;gap:12px;cursor:default">${signTile(src)}${nameOn?PT(name,dim?P['3']:PAPER):''}</div>`;
+    h+=fill(gx,RY+3,w,6,litSrc(src));
+    h+=`<div class="a" style="left:${gx}px;top:303px;display:flex;gap:12px">${cards.map((c,j)=>tileBig(c,{src,tw:TW,pop:dealPop,delay:(gi*2+j)*70,lit:hovAisle===src,dim})).join('')}</div>`;
+    gx+=w+gap;
+  });
+
+  /* --- right bottom: YOUR REGULARS --- */
+  const nSw=swapCount(), used=usedSwaps(), free=nSw-used;
+  h+=`<div class="a fr f-plate" style="left:696px;top:531px;width:1200px;height:357px"></div>`;
+  h+=sectionHead(720,549,'YOUR REGULARS', nSw===0 ? 'in every run' : 'in every run · click one to swap it');
+  staples().forEach((c,i)=>{
+    const sw=!!swaps[i], picking=modal&&modal.t==='pick'&&modal.slot===i;
+    let chip, can=false;
+    if(sw){ chip=`<div class="fr f-chip_warn row" style="height:42px;justify-content:center;gap:9px">${PT('WAS',P.u)}<img src="${SRC}minis/${CORE[i]}.png" style="width:21px;height:21px" alt="${esc(CARD[CORE[i]].name)}"></div>`; can=true; }
+    else if(nSw===0) chip='';
+    else if(free>0){ chip=`<div class="fr f-teal row" style="height:42px;justify-content:center">${L('SWAP ›',PAPER)}</div>`; can=true; }
+    else chip=`<div class="fr f-chip row" style="height:42px;justify-content:center">${PT('NO SWAP',P['5'])}</div>`;
+    h+=`<div class="slot ${can?'can':''} ${picking?'picking':''}" data-slotbox="${i}" style="left:${720+i*198}px;top:600px;width:162px">${tileBig(c,{slot:i})}${chip?`<div style="margin-top:15px">${chip}</div>`:''}</div>`;
+  });
+  // new save: one lock strip under the four, no meter (the NEXT GOAL slip says how to open it)
+  if(nSw===0){ h+=`<div class="a fr f-chip_lock row" style="left:720px;top:813px;width:756px;height:45px;justify-content:center;gap:12px"><img src="${SRC}icons/padlock.png" style="width:18px;height:20px" alt="">${PT('SWAPS OPEN WHEN AN AISLE IS COMPLETE',P[':'])}</div>`; return h; }
+  // swaps meter
+  h+=`<div class="a fr f-well" style="left:1494px;top:600px;width:378px;height:255px;padding:6px 12px">
+    <div class="row" style="gap:15px">${PT('SWAPS',P['5'])}<span style="margin-left:auto">${NM(used+'/'+nSw,nSw?PAPER:P['-'],6)}</span></div>
+    <div class="row" style="gap:9px;margin-top:15px">${[0,1,2,3].map(i=>{const st_= i<used?'used':i<nSw?'open':'lock';
+      return `<span style="width:72px;height:24px;border:3px solid var(--ink);background:${st_==='used'?P.y:st_==='open'?P['4']:P.N}"></span>`;}).join('')}</div>
+    <div class="bt" style="font-size:21px;line-height:27px;margin-top:15px;color:var(--teal-pale)">${free>0?`<b>${free} open.</b> A swap takes any item of a completed aisle.`:`All ${nSw} used. Click a swapped regular to change it.`}</div></div>`;
+  return h;
+}
+
+
+/* ======================= page 2 (round 4): three looks behind one switch ======================= */
+/* LOOK picks page 2's place: A the bagging counter, B the staff room (recommended), C the display end-cap.
+   Page 1, the top bar, the step rail, the keys, the modals and every rule are shared. */
+let LOOK = 'B';
+const ART2 = {};      // cached canvases of the three looks
+function canv(key, w, h, fn){ if(ART2[key]) return ART2[key]; const c=document.createElement('canvas'); c.width=w; c.height=h; const x=c.getContext('2d');
+  const R=(k,X,Y,W,H=1)=>{ x.fillStyle=P[k]||k; x.fillRect(X,Y,W,H); }; fn(R,x); return ART2[key]=c.toDataURL(); }
+const aimg=(url,l,t,w,h,extra='')=>`<img class="a" src="${url}" style="left:${l}px;top:${t}px;width:${w}px;height:${h}px;${extra}" alt="">`;
+/* Atkinson width of a plain sentence (to step a long line down a size instead of letting it wrap) */
+const ATKM=document.createElement('canvas').getContext('2d');
+function atkW(s, size, weight=700){ ATKM.font=`${weight} ${size}px NCAtk`; return ATKM.measureText(s).width; }
+/* a row of chase bulbs along a line (screen px); phase alternates a/b, steady lights them all */
+function bulbRow(x0, y0, dx, dy, n, steady, ph=0){ let h=''; for(let k=0;k<n;k++) h+=`<span class="blb ${steady?'steady':(k+ph)%2?'b':'a'}" style="left:${x0+k*dx}px;top:${y0+k*dy}px"></span>`; return h; }
+
+/* the store's roller shutter (A and B's OPEN STORE): a brass-trimmed housing with the lit NEXT CUSTOMER sign, steel slats
+   in the night light of two gooseneck lamps (StorefrontArt's cone dots), a brass bottom bar with two handles and a lock */
+function shutterArt(){ return canv('shutter',640,360,(R)=>{
+  for(let y=36;y<346;y++){ const k=(y-36)%12; R(k===0?'B':k<9?'D':k<11?'E':'#',0,y,640,1); }
+  // the lamps' cones on the slats: one px in four, a checker near the lamp
+  [150,490].forEach(cx=>{ for(let y=44;y<300;y++){ const half=8+(y-44)*.42; for(let i=Math.max(0,Math.round(cx-half));i<Math.min(640,cx+half);i++){
+    const near=y<100; if(near?(i+y)%2===0:(i%2===0&&y%2===0)){ const k=(y-36)%12; if(k!==11) R(k===0?'y':'u',i,y,1,1); } } } });
+  // housing: steel box, brass trim, the sign plate (charcoal glass in a brass ring)
+  R('#',0,0,640,38); R('E',0,1,640,30); R('D',0,1,640,2); R('H',0,28,640,3); R('L',0,31,640,4); R('n',0,31,640,1); R('l',0,34,640,1); R('#',0,35,640,1);
+  R('#',150,3,340,30); R('L',151,4,338,28); R('n',151,4,338,1); R('l',151,31,338,1); R('#',153,6,334,24); R('N',154,7,332,22);
+  for(let j=8;j<29;j+=2) R('K',154,j,332,1);
+  // the two gooseneck lamps under the housing
+  [150,490].forEach(cx=>{ R('#',cx-1,35,3,6); R('#',cx-6,40,12,4); R('L',cx-5,40,10,2); R('n',cx-4,43,8,1); });
+  // bottom bar, handles, lock
+  R('#',0,345,640,1); R('L',0,346,640,9); R('n',0,346,640,1); R('l',0,353,640,2); R('#',0,355,640,5);
+  [210,430].forEach(hx=>{ R('#',hx,348,24,6); R('B',hx+2,350,20,2); R('#',hx+4,350,16,1); });
+  R('#',312,347,16,8); R('B',313,348,14,6); R('#',319,350,2,3);
+}); }
+function shutterEl(){
+  const d=document.createElement('div'); d.className='shutter';
+  const bl=bulbRow(468,15,30,0,33,false)+bulbRow(468,84,30,0,33,false);
+  d.innerHTML=`<img src="${shutterArt()}" style="position:absolute;left:0;top:0;width:1920px;height:1080px" alt="">${bl}
+    <div class="a" style="left:3px;top:33px;width:1920px;display:flex;justify-content:center">${PT('NEXT CUSTOMER',P.k,6)}</div>
+    <div class="a" style="left:0;top:30px;width:1920px;display:flex;justify-content:center">${PT('NEXT CUSTOMER',P.n,6)}</div>
+    <div class="a" style="left:828px;top:474px;width:264px;padding:12px 15px;background:var(--paper);border:3px solid var(--ink);transform:rotate(-2deg);box-shadow:6px 6px 0 rgba(43,36,32,.45);display:grid;justify-items:center;gap:6px">${PT('OPENING',INK)}${PT('TIME',P.r)}</div>`;
+  return d;
+}
+
+
+/* ======================= page 2, look A: the bagging counter ======================= */
+/* The build is put together at the end of the belt. Behind the counter, a steel shelf holds the three starter packs,
+   pre-packed in tall kraft carrier bags, their 3 items standing whole out of the top, each over its shelf-edge ticket.
+   Picking one lifts its bag off the shelf (a big PICKED sticker on the bag, its lamp burns hot, the other two go dark).
+   GOOD FIRST PICK is a wobbler on its spring, planted in the shelf beside the bag. The trolley is the cart recap: the
+   15 cards stand loose in its wire basket under paper tags, still-to-come places dashed. The badge pins hang on the
+   cashier's lanyard on the staff cork board. OPEN STORE drops the store's roller shutter and rolls it up on SHIFT 1/12. */
+/* the bag's back: its open mouth behind the items and the two twisted paper handles (100x36 art) */
+function bagBackA(){ return canv('bagbackA',100,36,(R)=>{
+  for(const [a1,a2] of [[12,42],[58,88]]){ const cx=(a1+a2)/2, rx=(a2-a1)/2;
+    for(let pass=0;pass<2;pass++) for(let k=0;k<=60;k++){ const t=Math.PI*k/60, xx=Math.round(cx+rx*Math.cos(t)), yy=Math.round(31-27*Math.sin(t));
+      if(pass===0) R('#',xx-2,yy-2,4,4); else R(k%6<3?'h':'F',xx-1,yy-1,2,2); } }
+  R('#',0,28,100,8); R('f',1,29,98,2); R('e',1,31,98,5);
+}); }
+/* the bag's front: a folded kraft lip, a tall body with the family band printed across it, a side gusset and a bottom
+   fold (100x44 art) */
+function bagFrontA(fam){ const fc=FAM[fam]; return canv('bagfrontA|'+fam,100,44,(R)=>{
+  R('#',0,3,100,41); R('h',1,4,98,39); R('b',1,4,1,38);
+  for(let i=0;i<100;i++){ const t=i%6<3?i%6:6-i%6; R('#',i,3-t+0,1,1); R('h',i,4-t,1,t); if(t>0) R('b',i,4-t,1,1); }   // the cut zig-zag top
+  R('F',1,6,98,1);
+  for(const px of [14,30,70,86]) for(let j=7;j<38;j+=2) R('F',px,j,1,1);                                       // pleats
+  R('F',91,4,8,39); R('f',90,4,1,39); R('h',94,6,1,34);
+  R('#',0,12,100,1); R(fc[0],1,13,98,12); R(fc[1],1,13,98,1); R(fc[2],1,24,98,1); R(fc[2],91,14,8,10); R('#',0,25,100,1);
+  for(let i=6;i<88;i+=6) R('a',i,31,3,1);                    // a dashed "packed" seam
+  R('F',1,39,98,1); R('f',1,40,98,1); R('F',1,41,98,2);       // the bottom fold
+}); }
+/* the trolley: wire basket, tube rims, the grip, a shelf wire between the two rows, chassis and casters (422x114 art) */
+function trolleyA(){ return canv('trolleyA',422,114,(R)=>{
+  const fx=y=>Math.round(416-(y-6)*10/98);
+  for(let y=7;y<104;y++){ const r=fx(y); R('K',11,y,r-11,1);
+    for(let i=12;i<r;i++){ if((i-12)%6===0||(y-7)%6===0) R('J',i,y,1,1); if((i-12)%6===0&&(y-7)%6===0) R('H',i,y,1,1); } }
+  const tube=(y,a,b)=>{ R('#',a,y,b-a,4); R('B',a,y+1,b-a,1); R('D',a,y+2,b-a,1); };
+  tube(4,6,420); tube(104,8,fx(104)+4);
+  R('#',6,0,5,110); R('B',7,4,1,105); R('D',8,4,2,105);
+  for(let y=7;y<104;y++){ const r=fx(y); R('#',r,y,4,1); R('B',r+1,y,1,1); R('D',r+2,y,1,1); }
+  R('#',0,0,20,7); R('6',1,1,18,1); R('4',1,2,18,3); R('3',1,5,18,1);
+  R('#',14,108,400,3); R('D',15,109,398,1);
+  for(const dx of [169,297]){ R('#',dx-1,8,4,45); R('B',dx,8,1,45); R('D',dx+1,8,1,45); }
+  R('#',230,56,4,48); R('B',231,56,1,48); R('D',232,56,1,48);
+  R('#',12,53,fx(53)-12,3); R('B',12,53,fx(53)-12,1); R('E',12,54,fx(53)-12,1);
+}); }
+/* the staff cork board in its wood frame (194x115 art) */
+function corkA(){ return canv('corkA',194,115,(R)=>{
+  const r=rng('cork'); R('#',0,0,194,115); R('f',1,1,192,113); R('F',2,2,190,1); R('e',3,3,188,109);
+  R('#',4,4,186,107); R('F',5,5,184,105);
+  for(let j=5;j<110;j++) for(let i=5;i<189;i++){ const v=r(); if(v<.07) R('f',i,j); else if(v<.12) R('h',i,j); }
+  R('#',39,4,13,6); R('L',40,5,11,3); R('l',40,8,11,1); R('#',44,9,3,6); R('L',45,9,1,5);
+  const strand=(a,b)=>{ for(let j=12;j<=25;j++){ const xx=Math.round(a+(b-a)*(j-12)/13); R('#',xx-1,j,4,1); R('4',xx,j,2,1); if(j%4===0) R('6',xx,j,1,1); } };
+  strand(41,44); strand(50,47);
+  R('#',42,25,8,5); R('L',43,26,6,3); R('n',43,26,2,1);
+}); }
+function page2A(){
+  const s=st(), shown=packIdShown(), preview=hovPack>=0&&hovPack!==sel;
+  let h=`<img class="bd" src="${backdrop(2,sel)}" alt="">`;
+  /* --- the packing shelf: dark back panel under the three lamps, the steel board, the ticket rail --- */
+  h+=`<div class="a" style="left:24px;top:168px;width:1872px;height:240px;background:var(--teal-black);border:3px solid var(--ink);border-bottom:0"></div>`+panelCone(2,sel,24,168,1872,240);
+  h+=`<div class="a" style="left:18px;top:405px;width:1884px;height:21px;background:linear-gradient(var(--ink) 0 3px,var(--steel-hi) 3px 6px,var(--steel-light) 6px 12px,var(--steel) 12px 15px,var(--steel-dark) 15px 18px,var(--ink) 18px 21px)"></div>`;
+  h+=`<div class="a" style="left:24px;top:426px;width:1872px;height:117px;background:var(--charcoal);border:3px solid var(--ink);border-top:0;box-shadow:inset 0 3px 0 var(--steel-darkest)"></div>`;
+  for(const ux of [24,1875]) h+=`<div class="a" style="left:${ux}px;top:168px;width:21px;height:375px;background:var(--steel-shade);border:3px solid var(--ink);box-shadow:inset 3px 0 0 var(--steel-light)"></div>`;
+  /* the hanging sign, centred under the middle lamp: two chains from its housing */
+  h+=`<div class="a" style="left:888px;top:84px;width:3px;height:18px;background:var(--steel-dark)"></div><div class="a" style="left:1029px;top:84px;width:3px;height:18px;background:var(--steel-dark)"></div>`;
+  h+=`<div class="a fr f-sign_staples" style="left:765px;top:99px;width:390px;height:69px;display:grid;justify-items:center;align-content:center;gap:3px">${PT('PICK A STARTER PACK',INK)}
+     <span class="bt" style="font-size:20px;line-height:22px;font-weight:800;color:${sel<0?'var(--tomato-dark)':'var(--green-dark)'}">${sel<0?'Pick one to open the store':'Your pick rides in the cart'}</span></div>`;
+  const slapNow = sel!==lastSel; lastSel=sel;
+  s.packs.forEach((id,i)=>{
+    const p=PACKS[id], fc=FAM[p.fam], x=48+i*612, on=sel===i, hv=hovPack===i&&!on, off=sel>=0&&!on&&!hv;
+    const nameSc = PTW(p.name,6)<=480 ? 6 : 3; if(nameSc<6) bad('pack name steps down: '+p.name);
+    const items=p.cards.map((c,j)=>`<span class="itm" data-card="${c}" style="left:${150+j*96}px">${sprite(c,96)}</span>`).join('');
+    h+=`<div class="bagcol ${hv?'hov':''} ${on?'sel':''} ${off?'off':''}" data-pack="${i}" style="left:${x}px;top:180px;width:588px;height:363px">
+      <span class="shadow"></span>
+      <div class="lift ${on&&slapNow&&!RM?'hop2':''}">
+        ${aimg(bagBackA(),144,0,300,108)}${items}${aimg(bagFrontA(p.fam),144,96,300,132)}
+        <span class="a" style="left:165px;top:141px;width:45px;height:45px;background:var(--paper);border:3px solid var(--ink);display:grid;place-items:center;box-shadow:inset -3px -3px 0 var(--cream-shade)"><img src="${SRC}icons/${fc[3]}.png" style="width:27px;height:27px" alt=""></span>
+        ${on?`<div class="stk pk ${slapNow&&!RM?'slap':''}" style="left:222px;top:132px;display:flex;align-items:center;gap:9px;padding:9px 15px">${NM('★',INK)}${PT('PICKED',INK)}${NM('★',INK)}</div>`:''}
+      </div>
+      ${s.first===id?`<span class="wspring" style="left:513px;top:204px;height:24px"></span>
+        <div class="wob ${on&&slapNow&&!RM?'swing':''}" style="left:462px;top:90px;width:111px;height:117px">${PT('GOOD',INK)}${PT('FIRST',INK)}${PT('PICK',INK)}</div>`:''}
+      <div class="tkt"><div class="strip" style="background:${fc[0]}"><span class="kb fr f-cream ${sel<0?'call':''}" style="display:grid;place-items:center;width:48px;height:48px">${NM(String(i+1),INK)}</span>
+          <img src="${SRC}icons/${fc[3]}.png" style="width:27px;height:27px;outline:3px solid var(--ink);background:${fc[0]}" alt="${p.fam}"></div>
+        <div class="a" style="left:96px;top:-3px">${PT(p.name,INK,nameSc)}</div>
+        <div class="a bt" style="left:96px;top:63px;width:474px;font-size:18px;line-height:19px;color:var(--ink-light);text-wrap:pretty">${esc(p.hint)}</div></div></div>`;
+  });
+  /* --- the trolley: the cart recap, 15 places, the cards standing loose in the basket --- */
+  const deck=deckOf(shown), n=deck.length, pk=shown?PACKS[shown]:null, pc=pinCards();
+  h+=aimg(trolleyA(),24,555,1266,342);
+  const tag=(x,y,label,count,cls)=>`<div class="ctag ${cls||''}" style="left:${x}px;top:${y}px">${L(label+(count!=null?' '+count:''),INK,3,{num:INK})}</div>`;
+  const it=(c,x,y,o={})=>`<span class="titm ${o.pop?'drop':''}" data-card="${c}" style="left:${x}px;top:${y}px;${o.delay!=null?`animation-delay:${o.delay}ms`:''}"><span class="tsh"></span>${sprite(c,96)}</span>`;
+  const R1T=582, R1=618, R2T=726, R2=768;
+  h+=tag(78,R1T,'STAPLES',4)+staples().map((c,k)=>it(c,78+k*102,R1)).join('');
+  const popNow = shown!==lastPack; lastPack=shown;
+  if(pk){ if(preview) h+=`<span class="pvA" style="left:579px;top:${R1-6}px;width:312px;height:108px"></span>`;
+    h+=pk.cards.map((c,j)=>it(c,585+j*102,R1,{pop:popNow&&!preview,delay:j*60})).join('');
+    h+=tag(585,R1T,preview?'PREVIEW':'YOUR PACK',3,preview?'pv':''); }
+  else { h+=[0,1,2].map(j=>`<span class="eslot want" style="left:${585+j*102}px;top:${R1}px">${PT('?',P.M,6)}</span>`).join('');
+    h+=`<div class="ctag warn row" style="left:585px;top:${R1T}px;gap:9px">${PT('YOUR PACK',INK)}<span class="bt" style="font-size:18px;color:var(--tomato-dark)">pick one above</span></div>`; }
+  h+=tag(948,R1T,'PIN CARDS',pc.length)+pc.map((c,j)=>it(c,948+j*102,R1,{pop:true})).join('')+Array.from({length:Math.max(0,2-pc.length)},(_,j)=>`<span class="eslot" style="left:${948+(pc.length+j)*102}px;top:${R1}px"></span>`).join('');
+  h+=tag(78,R2T,"TODAY'S DEAL",6)+shared().map((c,k)=>it(c,78+k*102,R2)).join('');
+  const fam={}; deck.forEach(c=>famsOf(CARD[c]).forEach(f=>fam[f]=(fam[f]||0)+1));
+  const fl=Object.entries(fam).sort((x,y)=>y[1]-x[1]);
+  const fchip=(f,k)=>`<span class="row" style="gap:6px" data-fam="${f}"><span style="display:grid;place-items:center;width:33px;height:33px;border:3px solid var(--ink);background:${FAM[f][0]};flex:none"><img src="${SRC}icons/${FAM[f][3]}.png" style="width:27px;height:27px" alt="${f}"></span>${NM(String(k),PAPER)}</span>`;
+  /* the ad board on the trolley's side: YOUR CART n/15, the sum, and the top 3 families */
+  // one line, never wrapped: a long one steps down a size, then says "pin" for "from pins"
+  const capOf=pw=>`= 4 regulars + ${pk?'3 '+pk.name+(preview?' (preview)':'')+' + ':''}6 dealt${pc.length?` + ${pc.length} ${pw}`:''}${pk?'':' · +3 when you pick a pack'}`;
+  const capFs = atkW(capOf('from pins'),19)<=492 ? 19 : 17, pinW = atkW(capOf('from pins'),capFs)<=492 ? 'from pins' : 'pin';
+  if(atkW(capOf(pinW),capFs)>492) bad('cart caption wraps: '+capOf(pinW));
+  h+=`<div class="a fr f-plate" style="left:720px;top:726px;width:510px;height:141px;padding:0 3px">
+     <div class="row" style="gap:12px">${PT('YOUR CART',P.y)}${NM(n+'/15',n>DECK_LIMIT?P.o:PAPER)}</div>
+     <div class="bt" style="font-size:${capFs}px;line-height:22px;margin-top:6px;color:var(--teal-pale);height:44px;white-space:nowrap">= 4 regulars + ${pk?(preview?'<b style="color:var(--mustard-light)">3 '+esc(pk.name)+' (preview)</b>':'3 '+esc(pk.name))+' + ':''}6 dealt${pc.length?` + ${pc.length} ${pinW}`:''}${pk?'':' · <b style="color:var(--tomato-pale)">+3 when you pick a pack</b>'}</div>
+     <div class="row" style="gap:18px;margin-top:3px">${PT('BY FAMILY',P['5'])}${fl.slice(0,3).map(([f,k])=>fchip(f,k)).join('')}</div></div>`;
+  /* --- badge pins: the cashier's lanyard and the pinned note on the staff cork board --- */
+  const ws=worn.slice(0,SLOTS);
+  h+=`<div id="pinsArea">${aimg(corkA(),1314,555,582,345)}`;
+  h+=`<div class="a badge" style="left:1347px;top:639px;width:204px;height:219px;background:var(--cream);border:3px solid var(--ink);box-shadow:9px 9px 0 rgba(43,36,32,.45);display:flex;flex-direction:column">
+     <div style="height:69px;flex:none;background:var(--teal);border-bottom:3px solid var(--ink);display:grid;place-items:center;gap:6px;padding:9px 0">${PT('NEXT',PAPER)}${PT('CUSTOMER',PAPER)}</div>
+     <div style="display:grid;justify-items:center;padding-top:9px">${PT('CASHIER',P['3'])}</div>
+     <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:9px;padding-bottom:6px">${Array.from({length:SLOTS},(_,k)=>pinDisc(PIN[ws[k]],SLOTS>1?19:25)).join('')}</div></div>`;
+  h+=`<div class="a fr f-slip" style="left:1575px;top:585px;width:297px;color:var(--ink)">
+     <span class="a" style="left:126px;top:-21px;width:18px;height:18px;background:var(--tomato);border:3px solid var(--ink);box-shadow:inset -3px -3px 0 var(--tomato-dark)"></span>
+     <div class="row" style="padding:0 3px 6px;border-bottom:3px solid var(--ink);gap:9px">${PT('BADGE PINS',P.u)}<span style="margin-left:auto">${L(ws.length+'/'+SLOTS,P.u,3)}</span></div>
+     ${ws.length?ws.map(id=>{const p=PIN[id];return `<div class="row" style="margin-top:9px;padding:0 3px;gap:9px;align-items:flex-start">${pinDisc(p,13)}<div><div style="font:800 19px/22px var(--body)">${esc(p.name)}</div><div class="bt" style="font-size:17px;line-height:20px;color:var(--ink-light)">${ws.length===1?esc(p.rule):''}${p.cards?`${ws.length===1?' · ':''}<b style="color:var(--green-dark)">+1 card in your cart</b>`:''}</div></div></div>`;}).join('')
+       :`<div class="row" style="margin-top:9px;padding:0 3px;gap:9px">${pinDisc(null,13)}<div style="font:800 19px/22px var(--body);color:var(--grey-dark)">No pin worn</div></div>`}
+     ${ws.length<SLOTS?`<div class="bt" style="font-size:18px;line-height:22px;margin-top:9px;padding:0 3px;color:var(--ink-light)">${SLOTS-ws.length} slot free</div>`:''}</div>`;
+  h+=`<div class="a fr f-teal row chg" style="left:1575px;top:810px;height:57px;padding:0 15px;gap:12px">${L('CHANGE PINS ›',PAPER)}</div></div>`;
+  return h+counter(2);
+}
+
+
+/* ======================= page 2, look B: the staff room before the shift (recommended) ======================= */
+/* One room on the 640x360 art grid, shown at 3x: a cinder-block wall under one fluorescent tube, a row of teal staff
+   lockers (yours, No. 11, a double, stands open: one cork board holds the badge on its lanyard and the note of the pins
+   you wear), a wooden bench with the three starter packs as produce crates (items standing whole on top, price tags on
+   the lip, a stapled label; PICKED and GOOD FIRST PICK stay inside their crate), the order clipboard (the cart: 15
+   numbered lines, each saying where the card comes from), the parked trolley (the same 15 as item art) and the time
+   clock on the wall: clocking in punches the card, the shutter comes down and rolls up on SHIFT 1/12. */
+function chDraw(x, s, X, Y, col){ let cx=X; x.fillStyle=col; for(const ch of s){ const g=CH[ch]; if(!g) continue; g.forEach((r,j)=>{ for(let i=0;i<r.length;i++) if(r[i]==='#') x.fillRect(cx+i,Y+j,1,1); }); cx+=g[0].length+1; } }
+function roomArt(){ return canv('room',640,360,(R,x)=>{
+  const r=rng('staffroom');
+  /* the wall: cinder blocks in running bond, lit by the tube (one px in four on the faces, a checker near it) */
+  R('%',0,28,640,332);
+  const TX=322, face=(i,j)=>{ const row=(j-28)>>3, y8=(j-28)&7, off=row%2?8:0; return y8!==0 && ((i+off)&15)!==0; };
+  for(let j=29;j<360;j++) for(let i=0;i<640;i++) if(face(i,j)){ const hw=70+(j-34)*1.05, d=Math.abs(i+.5-TX);
+    let k='='; if(j<300&&d<hw){ const hot=j<96&&d<hw*.55; if(hot? (i+j)%2===0 : (i%2===0&&j%2===0)) k='-'; } R(k,i,j,1,1); }
+  /* the fluorescent tube */
+  R('#',246,28,152,7); R('D',247,28,150,3); R('E',247,31,150,1); R('w',250,32,144,2); R('A',250,34,144,1); R('#',246,32,4,3); R('#',394,32,4,3);
+  /* cardboard stock boxes on top of the lockers */
+  [[300,36,26,16],[328,42,20,10],[372,40,24,12]].forEach(([bx,by,bw,bh])=>{ R('#',bx,by,bw,bh+1); R('F',bx+1,by+1,bw-2,bh-1); R('h',bx+1,by+1,bw-2,1); R('f',bx+bw-3,by+1,2,bh-1); R('y',bx+Math.floor(bw/2)-1,by+1,3,bh-1); });
+  /* the locker row's top ledge */
+  R('#',6,52,426,5); R('3',7,53,424,2); R('5',7,53,424,1);
+  /* your double locker (No. 11), open: frame, dark inside, a top shelf with a mug and the pin tin, one cork board */
+  R('#',36,56,150,246); R('4',37,57,148,244); R('5',37,57,1,244); R('3',184,57,1,244);
+  R('N',40,60,142,240); R('K',40,60,142,4); R('8',40,170,142,130);
+  R('#',40,68,142,3); R('3',40,68,142,1);
+  R('#',118,59,9,9); R('c',119,60,7,8); R('b',124,60,1,8); R('#',127,61,3,5); R('N',128,62,1,3); R('R',119,63,7,2);
+  R('#',160,62,18,6); R('L',161,63,16,4); R('n',161,63,16,1); R('l',161,66,16,1); R('#',163,64,12,1);
+  R('#',42,72,138,89); R('f',43,73,136,87); R('F',43,73,136,1); R('#',44,75,134,84);
+  for(let j=76;j<158;j++) for(let i=45;i<177;i++){ const v=r(); R(v<.08?'h':v<.16?'f':v<.2?'e':'F',i,j,1,1); }
+  // a coat hook with your apron, and a pair of shoes, below the board
+  R('#',54,286,22,8); R('J',55,287,20,6); R('E',55,287,20,1); R('#',80,286,22,8); R('J',81,287,20,6); R('E',81,287,20,1);
+  /* the door, swung open (seen almost edge-on): its inside face, vents, two hinges */
+  R('#',8,58,28,244); R('3',9,59,26,242); R('2',12,62,20,236); R('4',9,59,26,1); R('2',34,59,1,242);
+  for(let v=0;v<4;v++){ R('#',13,66+v*4,18,2); R('8',13,67+v*4,18,1); }
+  for(let v=0;v<3;v++){ R('#',13,272+v*5,18,2); R('8',13,273+v*5,18,1); }
+  [72,250].forEach(hy=>{ R('#',34,hy,3,8); R('B',35,hy+1,1,6); });
+  /* the four closed lockers: vents, a brass number plate, a handle, kick vents */
+  ['12','13','14','15'].forEach((no,k)=>{ const lx=188+k*60;
+    R('#',lx,56,61,246); R('4',lx+1,57,59,244); R('5',lx+1,57,1,244); R('5',lx+1,57,59,1); R('3',lx+58,57,1,244); R('3',lx+1,300,59,1);
+    for(let v=0;v<4;v++){ R('#',lx+14,64+v*4,32,2); R('2',lx+14,65+v*4,32,1); }
+    R('#',lx+20,84,21,12); R('L',lx+21,85,19,10); R('n',lx+21,85,19,1); R('l',lx+21,94,19,1); chDraw(x,no,lx+21+Math.floor((19-11)/2),86,INK);
+    R('#',lx+50,140,5,26); R('B',lx+51,141,3,24); R('A',lx+51,141,1,24);
+    for(let v=0;v<3;v++){ R('#',lx+14,268+v*5,32,2); R('2',lx+14,269+v*5,32,1); } });
+  /* the floor of the room (left of the pillar): a baseboard and a dark lino checker; right of it the wall runs down */
+  R('N',0,299,436,3);
+  for(let j=302;j<360;j++) for(let i=0;i<436;i++){ const row=(j-302)/6|0, off=row%2?8:0; R((((i+off)>>4)&1)?'I':'J',i,j,1,1); }
+  R('N',442,353,198,2); R('I',442,355,198,5);
+  /* the bench: a wooden seat on steel legs, its shadow on the floor */
+  R('#',10,281,422,11); R('h',11,282,420,1); R('F',11,283,420,4); R('f',11,287,420,4);
+  [30,216,404].forEach(lx=>{ R('#',lx,292,7,14); R('D',lx+1,292,5,13); R('E',lx+4,292,2,13); });
+  for(let j=302;j<307;j++) for(let i=12;i<430;i++) if((i+j)%2===0) R('K',i,j,1,1);
+  /* the pillar: the corner between the room and the clock wall */
+  R('#',433,28,3,332); R('2',436,28,6,332); R('3',436,28,1,332);
+}); }
+/* the time clock's dial, small enough for the brass band: brass rim, cream face, hands at 8:59, a tomato second hand */
+function clockFaceSmall(){ return canv('face18',18,18,(R,x)=>{
+  for(let j=0;j<18;j++) for(let i=0;i<18;i++){ const t=Math.hypot(i+.5-9,j+.5-9); let k=null;
+    if(t<=9) k='#'; if(t<=8) k=(i+j<16)?'n':'L'; if(t<=6.6) k='#'; if(t<=5.8) k='w'; if(k) R(k,i,j,1,1); }
+  R('#',8,4,2,1); R('#',13,8,1,2); R('#',8,13,2,1); R('#',4,8,1,2);   // 12, 3, 6, 9
+  R('#',8,4,2,5); R('#',5,8,4,2); R('R',10,10,2,1); R('R',12,11,1,1); R('R',8,8,2,2);
+}); }
+function dymo(text, x, y, o={}){ return `<div class="a dymo" style="left:${x}px;top:${y}px;background:${o.bg||P['8']};${o.extra||''}">${PT(text,o.fg||PAPER)}</div>`; }
+/* the lit backing of the picked crate: a mustard glow dithered on the lockers behind its items */
+function glowB(){ return canv('glowB',140,54,(R)=>{
+  for(let j=0;j<54;j++) for(let i=0;i<140;i++){ const d=((i-70)/70)**2+((j-40)/42)**2; if(d>=1) continue;
+    if(d<.32 ? (i+j)%2===0 : (i%2===0&&j%2===0)) R(d<.32?'m':'u',i,j,1,1); } }); }
+/* the lanyard: a brass hook on the board and the two teal strands down to the badge's clip */
+function lanyardB(){ return canv('lanyard',24,15,(R)=>{
+  R('#',8,0,8,4); R('L',9,1,6,2); R('n',9,1,2,1);
+  const strand=(a,b)=>{ for(let j=4;j<=12;j++){ const xx=Math.round(a+(b-a)*(j-4)/8); R('#',xx-1,j,4,1); R('4',xx,j,2,1); if(j%3===0) R('6',xx,j,1,1); } };
+  strand(10,5); strand(14,19); R('#',3,12,18,3); R('L',4,12,16,2); R('n',4,12,4,1);
+}); }
+/* one starter pack as a produce crate on the bench */
+function crateB(id, i, slapNow){
+  const s=st(), p=PACKS[id], fc=FAM[p.fam], dark=DARK_FACE.has(p.fam), x=36+i*420, on=sel===i, hv=hovPack===i&&!on, off=sel>=0&&!on&&!hv;
+  const pop=slapNow&&on&&!RM;
+  if(PTW(p.name)>330-18-42-12-6) bad('crate name too wide: '+p.name);
+  // crate 1 carrying GOOD FIRST PICK stacks above crate 2, whose dimming would otherwise cover the wobbler's right edge
+  let h=`<div class="crate ${hv?'hov':''} ${on?'sel':''} ${off?'off':''} ${pop?'hopc':''}" data-pack="${i}" style="left:${x}px;top:540px;${i===0&&s.first===id?'z-index:6':''}">`;
+  if(on) h+=`<img class="glow" src="${glowB()}" alt="">`;
+  h+=`<div class="cback"></div>`;
+  h+=`<div class="citems">${p.cards.map((c,j)=>`<div class="citem ${pop?'pop':''}" data-card="${c}" style="animation-delay:${j*60}ms">${sprite(c,96)}</div>`).join('')}</div>`;
+  h+=`<div class="cfront"><span class="post l"></span><span class="post r"></span></div>`;
+  h+=p.cards.map((c,j)=>{ const cx=39+j*111+48, cp=CARD[c].kind===2;
+    return `<span class="ptagB ${cp?'cp':''}" data-card="${c}" style="left:${cx-33}px;width:66px">${cp?`<img src="${SRC}icons/family_coupon.png" style="width:27px;height:27px" alt="coupon">`:NM(CARD[c].base+'€',INK)}</span>`; }).join('');
+  h+=`<div class="clabel">
+      <div class="cname" style="background:${fc[0]}"><span class="nmw">${PT(p.name,dark?PAPER:INK)}</span>
+        <span class="kb fr f-cream ${sel<0?'call':''}" style="display:grid;place-items:center;width:42px;height:42px;margin-left:auto;flex:none">${NM(String(i+1),INK)}</span></div>
+      <div class="chint">${esc(p.hint)}</div>
+      <div class="cfoot"><img src="${SRC}icons/${fc[3]}.png" style="width:27px;height:27px;background:${fc[0]};outline:3px solid var(--ink);margin-left:3px" alt="${p.fam}">${PT(p.fam.toUpperCase(),P['%'])}</div>
+      <span class="staple" style="left:12px"></span><span class="staple" style="right:12px"></span>
+      ${on?`<div class="stk pk ${slapNow&&!RM?'slap':''}" style="right:-18px;bottom:-18px">${PT('PICKED',INK)}</div>`:''}</div>`;
+  if(on) h+=bulbRow(3,111,0,24,8,false)+bulbRow(375,111,0,24,8,false,1);
+  else if(hv) h+=bulbRow(3,111,0,24,8,true)+bulbRow(375,111,0,24,8,true);
+  // GOOD FIRST PICK: a wobbler above the crate's right end; on crate 1 it stands lower, at the crate's right edge, so it
+  // keeps clear of the badge-pins cork board above it
+  const wb = i===0 ? {sx:384,st:45,sh:15,wx:351,wy:-57} : {sx:363,st:-21,sh:81,wx:276,wy:-120};
+  if(s.first===id) h+=`<span class="wspring" style="left:${wb.sx}px;top:${wb.st}px;height:${wb.sh}px"></span>
+      <div class="wob ${on&&slapNow&&!RM?'swing':''}" style="left:${wb.wx}px;top:${wb.wy}px;width:111px;height:102px;${i===0?'z-index:6':''}">${PT('GOOD',INK)}${PT('FIRST',INK)}${PT('PICK',INK)}</div>`;
+  return h+`</div>`;
+}
+/* the cart as an order sheet: 15 numbered lines (staples, pack, deal, pin cards), each with its mini, name, where it comes
+   from, its price and a check box the clerk stamps when the line is filled; CART n/15 on an LED, BY FAMILY as count cards */
+const TICKS = `<svg width="21" height="21" viewBox="0 0 7 7" shape-rendering="crispEdges"><path fill="${P.g}" d="M6 0h1v2h-1v1h-1v1h-1v1h-1v1h-1v1h-1v-1h-1v-2h1v1h1v-1h1v-1h1v-1h1v-1h1z"/></svg>`;
+/* a pale tint of a family face over the order sheet's paper (hard colour, no alpha) */
+function paleOf(hex){ const f=n=>parseInt(hex.slice(n,n+2),16), pp=[0xfb,0xf7,0xee]; return 'rgb('+[1,3,5].map((n,i)=>Math.round(f(n)*0.35+pp[i]*0.65)).join(',')+')'; }
+function orderSheet(){
+  const s=st(), shown=packIdShown(), preview=hovPack>=0&&hovPack!==sel, pk=shown?PACKS[shown]:null, pc=pinCards();
+  const deck=deckOf(shown), n=deck.length, popNow=shown!==lastPack; lastPack=shown;
+  const lines=[];
+  staples().forEach((c,k)=>lines.push({c,from:swaps[k]?'your swap':'regular',g:'STAPLES'}));
+  if(pk) pk.cards.forEach(c=>lines.push({c,from:pk.name,g:'PACK',pv:preview,pop:popNow&&!preview}));
+  else for(let k=0;k<3;k++) lines.push({empty:true,g:'PACK',k});
+  shared().forEach(c=>{ const a=aisleOf(c); lines.push({c,from:a==='staples'?'Staples shelf':AISLE[a].name,g:'DEAL'}); });
+  worn.slice(0,SLOTS).forEach(id=>((PIN[id]&&PIN[id].cards)||[]).forEach(c=>lines.push({c,from:PIN[id].name+' pin',g:'PIN',pop:true})));
+  while(lines.length<DECK_LIMIT) lines.push({empty:true,free:true,g:'PIN'});
+  const X=1314, Y=105, W=582, H=756;
+  let h=`<div class="a clipb" style="left:${X}px;top:${Y}px;width:${W}px;height:${H}px"></div>
+    <div class="a paper" style="left:${X+21}px;top:${Y+24}px;width:${W-42}px;height:${H-48}px"></div>
+    <div class="a clipB" style="left:${X+W/2-60}px;top:${Y-9}px"><span class="clipbar"></span></div>`;
+  const PX=X+36, PW=W-72;
+  h+=`<div class="a row" style="left:${PX}px;top:${Y+36}px;width:${PW}px;height:72px;gap:15px">${PT('ORDER SHEET',INK)}
+      <span class="fr f-led row" style="margin-left:auto;height:72px;padding:0 6px;gap:12px"><img src="${SRC}icons/cart.png" style="width:36px;height:27px" alt="cart">${NM(n+'/15',n>DECK_LIMIT?P.o:P.n,6,P.k)}</span></div>`;
+  // the sum line: one line, never wrapped (a long one steps down a size)
+  const pinT = pc.length?` + ${pc.length} pin`:'';
+  const plain = pk ? `4 regulars + ${preview?'PREVIEW ':''}3 ${pk.name} + 6 dealt${pinT}` : `4 regulars + 6 dealt${pinT} · +3 when you pick a crate`;
+  const fs = atkW(plain,19)+(preview?30:0) <= PW ? 19 : 17;
+  if(atkW(plain,fs)+(preview?30:0) > PW) bad('order sheet sum line too long');
+  const packT = pk ? (preview?`<span class="pvchip">${PT('PREVIEW',INK)}</span><span style="color:var(--grey)">3 ${esc(pk.name)}</span>`:`3 ${esc(pk.name)}`)+' + ' : '';
+  h+=`<div class="a bt" style="left:${PX}px;top:${Y+114}px;width:${PW}px;font-size:${fs}px;line-height:27px;color:var(--ink-light);white-space:nowrap">4 regulars + ${packT}6 dealt${pinT}${pk?'':' · <b style="color:var(--tomato-dark)">+3 when you pick a crate</b>'}</div>`;
+  h+=`<div class="a" style="left:${PX}px;top:${Y+147}px;width:${PW}px;height:9px;border-top:3px solid var(--ink);border-bottom:3px solid var(--ink)"></div>`;
+  const LY=Y+162, LH=29;
+  h+=`<div class="a sheetlines" style="left:${PX}px;top:${LY}px;width:${PW}px">`;
+  let lastG=null;
+  lines.forEach((ln,k)=>{
+    const top=k*LH, first=ln.g!==lastG; lastG=ln.g;
+    const no=`<span class="no">${NM(String(k+1).padStart(2,'0'),ln.empty?P[':']:P['-'])}</span>`;
+    let body;
+    if(ln.free) body=`${no}<span class="mini free"></span><span class="nmx" style="color:var(--grey)">free line</span><span class="fromx">for pin cards</span><span class="prx"></span><span class="ck off"></span>`;
+    else if(ln.empty) body=`${no}<span class="mini empty">${PT('?',P.r)}</span><span class="nmx" style="color:var(--tomato-dark)">pick a crate</span><span class="fromx">${ln.k===0?`<span style="background:var(--mustard-pale);border:3px solid var(--mustard-dark);padding:0 6px;color:var(--ink)">press 1, 2 or 3</span>`:''}</span><span class="prx"></span><span class="ck want"></span>`;
+    else {
+      const c=CARD[ln.c], f=ticketFam(c), coupon=c.kind===2, mini=coupon?`${SRC}icons/coupon_${ln.c}_mini.png`:`${SRC}minis/${ln.c}.png`, pv=!!ln.pv;
+      body=`${no}<span class="mini" style="background:${FAM[f][0]}"><img src="${mini}" style="width:${coupon?27:21}px;height:21px" alt=""></span>
+        <span class="nmx" style="${pv?'color:var(--grey)':''}">${esc(c.name)}</span><span class="fromx" style="${ln.g==='PACK'&&!pv?'color:var(--ink);font-weight:800':''}">${esc(ln.from)}</span>
+        <span class="prx">${coupon?NM('–',pv?P['-']:INK):NM(c.base+'€',pv?P['-']:INK)}</span>
+        <span class="ck ${pv?'pv':'on'} ${ln.pop&&!RM?'stamp':''}" style="${ln.pop?`animation-delay:${120+(k%3)*90}ms`:''}">${pv?'':TICKS}</span>`;
+    }
+    const pkl=ln.g==='PACK'&&pk&&!ln.empty&&!ln.pv;
+    h+=`<div class="ln ${first&&k?'first':''} ${ln.pop&&!RM?'drop':''} ${pkl?'pkl':''}" ${ln.c?`data-card="${ln.c}"`:''} style="top:${top}px;${pkl?`background:${paleOf(FAM[pk.fam][0])};`:''}${ln.pop?`animation-delay:${(k%3)*90}ms`:''}">${body}</div>`;
+  });
+  h+=`</div>`;
+  // the starter pack's 3 lines: a bar in the pack's colour in the sheet's left margin (dashed while only previewed)
+  if(pk){ const k0=lines.findIndex(l=>l.g==='PACK'); h+=`<div class="a pkbar ${preview?'pv':''}" style="left:${PX-18}px;top:${LY+k0*LH-3}px;height:${3*LH}px;background:${preview?'transparent':FAM[pk.fam][0]}"></div>`; }
+  // BY FAMILY: three count cards at the sheet's foot (big digit, glyph, name)
+  const fam={}; deck.forEach(c=>famsOf(CARD[c]).forEach(f=>fam[f]=(fam[f]||0)+1));
+  const fl=Object.entries(fam).sort((x,y)=>y[1]-x[1]).slice(0,3);
+  const FY=LY+15*LH;
+  h+=`<div class="a row" style="left:${PX}px;top:${FY}px;width:${PW}px;border-top:3px solid var(--ink);padding-top:6px;gap:12px">${PT('BY FAMILY',P['%'])}<span class="bt" style="font-size:17px;line-height:20px;color:var(--grey-dark)">top 3 · a card can be in 2</span></div>`;
+  h+=`<div class="a row" style="left:${PX}px;top:${FY+36}px;width:${PW}px;gap:12px;align-items:flex-start">
+     ${fl.map(([f,k])=>`<div class="fcardB" data-fam="${f}"><span class="fct" style="background:${FAM[f][0]}"></span><div class="row" style="gap:9px"><span style="display:grid;place-items:center;width:33px;height:33px;border:3px solid var(--ink);background:${FAM[f][0]};flex:none"><img src="${SRC}icons/${FAM[f][3]}.png" style="width:27px;height:27px" alt=""></span>${NM(String(k),INK,6)}</div><div class="bt" style="font-size:17px;line-height:20px;color:var(--ink)">${f}</div></div>`).join('')}</div>`;
+  return h;
+}
+/* your open locker: one cork board holds the badge on its lanyard and the note of the pins you wear */
+function lockerPins(){
+  const ws=worn.slice(0,SLOTS);
+  let h=`<div class="pinsarea" id="pinsArea">`;
+  h+=dymo('BADGE PINS',141,192,{extra:'z-index:2'});
+  h+=aimg(lanyardB(),189,231,72,45);
+  h+=`<div class="a badge" style="left:141px;top:270px;width:168px;height:186px;background:var(--cream);border:3px solid var(--ink);box-shadow:9px 9px 0 rgba(43,36,32,.45);display:flex;flex-direction:column">
+     <div style="height:57px;flex:none;background:var(--teal);border-bottom:3px solid var(--ink);display:grid;place-items:center;gap:3px;padding:6px 0">${PT('NEXT',PAPER)}${PT('CUSTOMER',PAPER)}</div>
+     <div style="display:grid;justify-items:center;padding-top:6px">${PT('CASHIER',P['3'])}</div>
+     <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:9px;padding-bottom:6px">${Array.from({length:SLOTS},(_,k)=>pinDisc(PIN[ws[k]],SLOTS>1?19:25)).join('')}</div></div>`;
+  h+=`<div class="a note" style="left:324px;top:237px;width:228px">
+     <span class="tape"></span>
+     <div class="row" style="gap:9px">${PT('WEARING',P.u)}${L(ws.length+'/'+SLOTS,P.u,3)}</div>
+     ${ws.length?ws.map(id=>{const p=PIN[id];return `<div style="margin-top:9px"><div style="font:800 19px/22px var(--body);color:var(--ink)">${esc(p.name)}</div>${ws.length===1?`<div class="bt" style="font-size:17px;line-height:20px;margin-top:3px;color:var(--ink-light)">${esc(p.rule)}</div>`:''}${p.cards?`<div class="bt" style="font-size:17px;line-height:20px;color:var(--green-dark)">+1 card in your cart</div>`:''}</div>`;}).join('')
+       :`<div style="margin-top:9px;font:800 19px/22px var(--body);color:var(--grey-dark)">No pin worn</div>`}
+     <div class="bt" style="font-size:17px;line-height:20px;margin-top:9px;color:var(--teal-shade)">${ws.length<SLOTS?`${SLOTS-ws.length} slot free · `:''}click to change</div></div>`;
+  return h+`</div>`;
+}
+function keycapS(k){ return `<span class="fr f-cream" style="display:inline-grid;place-items:center;vertical-align:middle;width:30px;height:30px;border-width:6px">${PT(k,INK,2)}</span>`; }
+/* the time clock on the wall right of the pillar: brass band with its dymo and dial, the card slot, the one primary key */
+function timeClock(){
+  const s=st(), p=sel>=0?PACKS[s.packs[sel]]:null, n=deckOf(sel>=0?s.packs[sel]:null).length, on=!!p;
+  const X=1335, Y=876, W=561, H=192;
+  let h=`<div class="a tclock" style="left:${X}px;top:${Y}px;width:${W}px;height:${H}px">
+    <div class="a fr f-plaque" style="left:0;top:0;width:${W}px;height:${H}px"></div>
+    <div class="a tband"></div>
+    ${dymo('TIME CLOCK',24,9,{bg:P['#'],fg:P.Y})}
+    ${aimg(clockFaceSmall(),W-81,6,54,54)}
+    <div class="a cardbay"><div class="tcard ${on?'in':''}" id="tcard"><span class="tch">${PT('IN',PAPER)}</span><span class="tcl"></span><span class="tcp"></span></div></div>
+  </div>`;
+  h+=primaryKey2(on?'OPEN STORE ›':'PICK A PACK FIRST', on?`Clock in · ${p.name} · ${n} cards`:'Pick a crate, or press 1, 2 or 3', on, 'go', X+108, Y+66, W-129, 111);
+  return h;
+}
+function primaryKey2(cap, sub, on, id, x, y, w, hh){
+  const big = PTW(cap.replace(' ›',''),6) + 48 <= w-18;
+  const capHTML = big ? L(cap, on?PAPER:INK, 6) : L(cap, on?PAPER:INK, 3);
+  return `<div class="key fr ${on?'f-red on':'f-off dis'}" id="${id}" style="left:${x}px;top:${y}px;width:${w}px;height:${hh}px">${on?TICK:''}
+    <div style="display:grid;justify-items:center;gap:6px;margin-top:-6px">${capHTML}<div class="bt" style="color:${on?'var(--paper)':'var(--ink)'};font-size:20px;line-height:24px;white-space:nowrap">${esc(sub)}</div></div></div>`;
+}
+/* the trolley parked in front of the bench: the 15 cards as item art, in cart order, so the build reads at a glance */
+function trolleyB(){
+  const shown=packIdShown(), preview=hovPack>=0&&hovPack!==sel, pk=shown?PACKS[shown]:null, pc=pinCards(), popNow=shown!==lastPackT; lastPackT=shown;
+  const groups=[{cards:staples()},{cards:pk?pk.cards:[null,null,null],pack:true},{cards:shared()},{cards:pc.concat(Array(Math.max(0,2-pc.length)).fill(undefined)).slice(0,2)}];
+  const X0=432, TY=906, STEP=51, GAP=24;
+  let x=X0, items='', marks='';
+  groups.forEach((g,gi)=>{ const gx=x;
+    g.cards.forEach((c,j)=>{
+      if(c===null) items+=`<span class="tre want" style="left:${x}px;top:${TY}px">${PT('?',P.o)}</span>`;
+      else if(c===undefined) items+=`<span class="tre" style="left:${x}px;top:${TY}px"></span>`;
+      else items+=`<span class="tri ${g.pack&&popNow&&!preview&&!RM?'pop':''}" data-card="${c}" style="left:${x}px;top:${TY}px;animation-delay:${j*60}ms">${sprite(c,48)}</span>`;
+      x+=STEP; });
+    if(g.pack&&preview) marks+=`<span class="trpv" style="left:${gx-6}px;top:${TY-6}px;width:${x-gx+9}px;height:60px"></span>`;
+    if(g.pack&&pk&&!preview) marks+=`<span class="trpk" style="left:${gx-9}px;top:${TY-9}px;width:${x-gx+15}px;height:66px;border-color:${FAM[pk.fam][0]}"></span><span class="trtag" style="left:${gx-9}px;top:${TY-33}px;background:${FAM[pk.fam][0]}">${PT('PACK',DARK_FACE.has(pk.fam)?PAPER:INK)}</span>`;
+    x+=GAP-3; });
+  const AW=Math.ceil((x-(GAP-3)-X0+12)/3);
+  const art=canv('trolleyB'+AW,AW+12,40,(R)=>{
+    R('#',0,0,8,5); R('6',1,1,6,1); R('4',1,2,6,2); R('#',2,5,3,28); R('B',3,5,1,27);         // grip and post
+    R('#',4,6,AW+4,2); R('D',4,6,AW+4,1);                                                   // back rim
+    for(let v=8;v<19;v++) for(let u=6;u<AW+8;u++) if((u%3===0)||(v%3===0)) R('J',u,v,1,1);   // back mesh behind the items
+    R('#',4,18,AW+6,3); R('B',4,19,AW+6,1);                                                 // the top rim the items stand in
+    const fe=v=>AW+8-Math.round((v-21)*.8);                                                  // the basket's front slants in
+    for(let v=21;v<31;v++){ const e=fe(v); R('K',6,v,e-6,1); for(let u=6;u<e;u+=3) R('J',u,v,1,1); if(v%3===0) R('J',6,v,e-6,1); R('#',e,v,2,1); R('B',e,v,1,1); }
+    R('#',6,31,fe(31)-4,2); R('D',6,31,fe(31)-4,1); R('#',10,33,AW-10,2);                   // basket floor and chassis
+    [16,AW-4].forEach(cx=>{ for(let j=-3;j<=3;j++) for(let i=-3;i<=3;i++){ const d=Math.hypot(i,j); if(d<=3.2) R(d>2.3?'#':'D',cx+i,36+j,1,1); } });
+  });
+  return aimg(art,X0-36,TY-9,(AW+12)*3,120)+marks+items;
+}
+let lastPackT=null;
+function page2B(){
+  const s=st();
+  const slapNow = sel!==lastSel; lastSel=sel;
+  let h=`<img class="bd" src="${roomArt()}" alt="">`;
+  h+=`<div class="a tube ${hopTab&&!RM?'flick':''}"></div>`;
+  /* the notice taped over the closed lockers: the page's one question, and a second line that answers the pick */
+  h+=`<div class="a notice" style="left:603px;top:297px;width:642px;padding:18px 24px 12px">
+     <span class="tape" style="left:24px"></span><span class="tape" style="right:24px"></span>
+     <div class="row" style="justify-content:center">${PT('PICK A STARTER PACK',INK,6)}</div>
+     <div class="bt" style="text-align:center;margin-top:9px;font-size:22px;line-height:27px;"><b style="color:${sel<0?'var(--tomato-dark)':'var(--green-dark)'}">${sel<0?'Pick one to open the store':'Your pick rides in the cart'}</b></div></div>`;
+  h+=lockerPins();
+  s.packs.forEach((id,i)=>{ h+=crateB(id,i,slapNow); });
+  h+=orderSheet();
+  /* the floor: ◀ STORE on its plaque, the parked trolley, the hints; the time clock on the wall */
+  h+=plaque(18,948,354,120);
+  h+=`<div class="plate fr f-teal" id="back" style="left:48px;top:972px;width:294px;height:72px;padding:0 15px;justify-content:center">${NM('‹',PAPER)}${PT('STORE',PAPER)}</div>`;
+  h+=trolleyB();
+  h+=`<div class="a row bt" style="left:402px;top:1029px;gap:9px;color:var(--steel-light)">${keycap('ESC')} back, choices kept ${keycap('1')}${keycap('2')}${keycap('3')} pick a crate ${keycap('P')} pins ${keycap('ENTER')} clock in</div>`;
+  h+=timeClock();
+  return h;
+}
+
+
+/* ======================= page 2, look C: the display end-cap, standing in its aisle ======================= */
+/* The end-cap at the head of an aisle, at night, in the premium toy machine's language. The store has depth now: a lino
+   floor in perspective runs back to the aisle, a gondola run recedes behind the pins easel, and the light of the
+   end-cap pools on the floor. The unit: a lit STARTER PACKS marquee on brass posts, three promo bays (a key tag hanging
+   under the marquee, a family-colour topper with the name, the 3 products standing big on a brass shelf with price-gun
+   tags, a clipped talker with the hint). Picking a bay lights it like a prize (bulbs chase down its posts, its light burns
+   hot, a gold PICKED hangs beside its key) and the other two go dark. In front of it, YOUR CART is a flatbed stock
+   trolley: the 15 cards in one row in cart order, a tag on the deck edge under each group. Beside the trolley a price
+   board carries the LED n/15 and the top 3 families; BADGE PINS hang on a velvet card on an easel. */
+const BAYC = i => 48 + i*528;          // screen x of bay i; 504 wide, from y 240 to 630
+function sceneC(selI, hovI){ return canv('sceneC|'+selI+'|'+hovI,640,360,(R)=>{
+  R('1',0,28,640,332);
+  /* the back wall over the unit: dim shelving, as on page 1 */
+  const r=rng('endcap');
+  for(let bx=2;bx<636;){ const bw=4+Math.floor(r()*8), bh=6+Math.floor(r()*10), col=STOCK_COL[Math.floor(r()*STOCK_COL.length)][0]; R(col,bx,52-bh,Math.min(bw,636-bx),bh); bx+=bw+1+Math.floor(r()*3); }
+  R('8',0,52,640,2); R('8',0,28,640,3);
+  /* the gondola run receding to the right of the unit (vanishing point at 300,150) */
+  const VX=300, VY=150;
+  for(let i=546;i<640;i++){ const s=(i-VX)/340;
+    for(let j=31;j<214;j++){ const yp=(j-VY)/s; if(yp<-128||yp>=64) continue;
+      const row=Math.floor((yp+128)/36), loc=(yp+128)-row*36, z=Math.floor(8/s*3);
+      if(loc<2.2/s) R(loc<1/s?'2':'8',i,j,1,1);
+      else { const h=((row*131+z*71)%97)/97, top=36*(.35+h*.4); R(loc>36-top?STOCK_COL[(row*3+z)%STOCK_COL.length][0]:'8',i,j,1,1); } } }
+  /* the floor: a lino checker in perspective, the end-cap's light pooled on it */
+  for(let j=214;j<360;j++) for(let i=0;i<640;i++){ const d=j-VY+40, row=Math.floor(2400/d), col=Math.floor((i-VX)*24/d);
+    R((row+col)%2?'2':'1',i,j,1,1);
+    if(row!==Math.floor(2400/(d+1))) R('8',i,j,1,1);                                        // grout between tile rows
+    const pool=j<230&&i>14&&i<540&&(i-16)%176<168; if(pool&&(j<220?(i+j)%2===0:(i%4===0&&j%2===0))) R('u',i,j,1,1); }
+  for(let i=8;i<546;i++) for(let j=214;j<218;j++) if((i+j)%2===0||j<216) R('N',i,j,1,1);   // the unit's shadow
+  /* the end-cap unit: marquee, posts, three bays */
+  R('#',8,56,536,26); R('l',9,57,534,24); R('L',9,57,534,1); R('k',9,80,534,1); R('#',11,60,530,19); R('N',12,61,528,17);
+  for(let j=62;j<78;j+=2) R('K',12,j,528,1);
+  for(let bx=12;bx<540;bx+=24){ R('L',bx,59,1,1); R('L',bx,79,1,1); }
+  for(let b=0;b<3;b++){
+    const bx=16+176*b, on=b===selI, hv=b===hovI&&!on, off=selI>=0&&!on&&!hv;
+    R('8',bx,82,168,128);
+    R(off?'1':'2',bx,99,168,74); R(off?'2':'3',bx,99,168,1);
+    for(let j=101;j<173;j+=4) for(let k=bx+2;k<bx+166;k+=4) R('8',k,j,1,1);
+    // the bay's display light under the topper and its dithered cone over the products
+    const cx=bx+84;
+    if(!off) for(let j=123;j<173;j++){ const sh=(j-123)/50, half=Math.round(20+54*sh);
+      for(let k=Math.max(bx+1,cx-half);k<Math.min(bx+167,cx+half);k++){ if((k-bx-2)%4===0&&(j-101)%4===0) continue;
+        const dot = on&&sh<.35 ? (k+j)%2===0 : (k%2===0&&j%2===0); if(dot) R(on?'m':hv?'l':'u',k,j,1,1); } }
+    R('#',cx-18,122,36,3); R('L',cx-17,122,34,1); R('l',cx-17,123,34,1); R('#',cx-14,125,28,1); R(on?'n':hv?'y':off?'l':'Y',cx-14,124,28,1);
+    // the shelf: ink, a lit lip, brass, the price channel, ink; then the dark back behind the talker
+    R('#',bx,173,168,1); R('y',bx,174,168,1); R('L',bx,175,168,2); R('l',bx,177,168,10); R('k',bx,178,168,1); R('#',bx,187,168,1);
+    if(on){ R('L',bx,82,168,2); R('n',bx,82,168,1); }
+  }
+  for(const px of [8,184,360,536]){ R('#',px,81,8,130); R('L',px+1,81,6,130); R('y',px+2,81,1,130); R('l',px+5,81,1,130); for(let j=88;j<206;j+=8) R('k',px+3,j,2,3); }
+  R('#',8,210,536,4); R('l',9,211,534,2); R('L',9,211,534,1);
+  /* the pins easel's legs and the price board's feet */
+  [[556,206],[626,206]].forEach(([lx,ly])=>{ R('#',lx,ly,4,12); R('L',lx+1,ly,2,12); });
+  R('#',552,209,82,3); R('l',553,210,80,1);
+  /* the flatbed stock trolley: deck, trimmed edge, three casters, its handle at the right end */
+  R('#',16,263,480,14); R('B',17,264,478,1); R('D',17,265,478,3); R('#',16,268,480,1); R('L',17,269,478,1); R('E',17,270,478,6); R('H',17,275,478,1);
+  [40,252,470].forEach(cx=>{ R('#',cx-1,277,3,3); R('D',cx,277,1,3); for(let j=-3;j<=3;j++) for(let i=-3;i<=3;i++){ const d=Math.hypot(i,j); if(d<=3.2) R(d>2.3?'#':'J',cx+i,283+j,1,1); } });
+  for(let i=14;i<500;i++) for(let j=286;j<289;j++) if((i+j)%2===0) R('N',i,j,1,1);
+  R('#',494,222,6,47); R('B',495,222,1,46); R('D',496,222,2,46); R('#',488,216,14,7); R('6',489,217,12,1); R('4',489,218,12,3); R('3',489,221,12,1);
+}); }
+/* the velvet of the pins card: a brass frame, wine velvet with a soft nap and a darker edge (82x120 art) */
+function velvetC(){ return canv('velvetC',82,120,(R)=>{
+  R('#',0,0,82,120); R('L',1,1,80,118); R('y',1,1,80,1); R('y',1,1,1,118); R('l',1,118,80,1); R('l',80,1,1,118);
+  R('#',3,3,76,114); R('q',4,4,74,112);
+  for(let j=4;j<116;j++) for(let i=4;i<78;i++){ const e=Math.min(i-4,77-i,j-4,115-j); if(e<2&&(i+j)%2===0) R('#',i,j,1,1); else if((i*7+j*13)%17===0) R('r',i,j,1,1); }
+  R('#',8,6,66,13); R('L',9,7,64,11); R('y',9,7,64,1); R('l',9,17,64,1); R('k',11,12,2,2); R('k',69,12,2,2);
+}); }
+function prodC(id, l, t, opt={}){
+  return `<div class="prodC ${opt.pop?'drop':''}" data-card="${id}" style="left:${l}px;top:${t}px;${opt.delay!=null?`animation-delay:${opt.delay}ms;`:''}"><span class="psh"></span>${sprite(id,144)}</div>`;
+}
+function priceTagC(id, l, t){
+  const c=CARD[id];
+  return c.kind===2 ? `<span class="ptagC cp" data-card="${id}" style="left:${l}px;top:${t}px"><img src="${SRC}icons/family_coupon.png" style="width:27px;height:27px" alt="coupon"></span>`
+                    : `<span class="ptagC" data-card="${id}" style="left:${l}px;top:${t}px">${NM(c.base+'€',INK)}</span>`;
+}
+function bayC(id, i, slapNow){
+  const s=st(), p=PACKS[id], fc=FAM[p.fam], dark=DARK_FACE.has(p.fam), on=sel===i, hv=hovPack===i&&!on, off=sel>=0&&!on&&!hv, gf=s.first===id;
+  const nameSc = PTW(p.name,6)<=504-30 ? 6 : 3; if(nameSc<6) bad('pack name steps down: '+p.name);
+  let h=`<div class="bayC ${on?'on':''} ${hv?'hov':''} ${off?'off':''}" data-pack="${i}" style="left:${BAYC(i)}px;top:240px;width:504px;height:390px">`;
+  // under the marquee: the key tag (right), GOOD FIRST PICK (left) and, once picked, the gold PICKED sticker
+  h+=`<span style="left:465px;top:0;width:6px;height:6px;background:var(--brass-dark)"></span>`;
+  h+=`<span class="keyC kb fr f-cream ${sel<0?'call':''}" style="left:444px">${NM(String(i+1),INK)}</span>`;
+  if(gf) h+=`<div class="gfC" style="left:12px;top:3px">${PT('GOOD FIRST PICK',INK)}</div>`;
+  if(on) h+=`<div class="stk pk ${slapNow&&!RM?'slap':''}" style="left:${gf?285:12}px;top:0">${gf?'':NM('★',INK)}${PT('PICKED',INK)}${gf?'':NM('★',INK)}</div>`;
+  h+=`<div class="topC" style="background:${fc[0]};box-shadow:inset 0 3px 0 ${fc[1]},inset 0 -3px 0 ${fc[2]}${on?',0 0 0 3px var(--gold),0 0 0 6px var(--ink)':''},0 6px 0 rgba(23,44,43,.6)"><span class="nmw">${PT(p.name,dark?PAPER:INK,nameSc)}</span></div>`;
+  h+=p.cards.map((c,k)=>prodC(c,24+k*156,135)+priceTagC(c,24+k*156+39,288)).join('');
+  h+=`<div class="talkC"><span style="display:grid;place-items:center;width:33px;height:33px;border:3px solid var(--ink);background:${fc[0]};flex:none"><img src="${SRC}icons/${fc[3]}.png" style="width:27px;height:27px" alt="${p.fam}"></span><span class="bt">${esc(p.hint)}</span></div>
+    <span class="tclipC" style="left:60px"></span><span class="tclipC" style="left:426px"></span>`;
+  return h+`</div>`;
+}
+function page2C(){
+  const s=st(), shown=packIdShown(), preview=hovPack>=0&&hovPack!==sel;
+  let h=`<img class="bd" src="${sceneC(sel,hovPack)}" alt="">`;
+  /* --- the marquee: STARTER PACKS, bulbs chasing along its top --- */
+  h+=bulbRow(36,162,24,0,66,false);
+  h+=`<div class="a" style="left:27px;top:189px;width:1608px;display:flex;justify-content:center">${PT('STARTER PACKS',P.k,6)}</div>`;
+  h+=`<div class="a" style="left:24px;top:186px;width:1608px;display:flex;justify-content:center">${PT('STARTER PACKS',P.n,6)}</div>`;
+  h+=`<div class="a" style="left:54px;top:198px">${L('PICK 1 OF 3',P.y,3,{num:P.n})}</div>`;
+  h+=`<div class="a bt" style="right:${1920-1602}px;top:195px;font-weight:800;color:${sel<0?'var(--paper)':'var(--mustard-pale)'}">${sel<0?'Pick one to open the store':'3 cards that start your build'}</div>`;
+  /* --- the three bays; the picked one's posts chase, a hovered one burns steady --- */
+  const slapNow = sel!==lastSel; lastSel=sel;
+  s.packs.forEach((id,i)=>{ h+=bayC(id,i,slapNow); });
+  [[sel,false],[hovPack!==sel?hovPack:-1,true]].forEach(([b,steady])=>{ if(b<0) return; const lx=BAYC(b)-21, rx=BAYC(b)+507;
+    h+=bulbRow(lx,258,0,24,15,steady)+bulbRow(rx,258,0,24,15,steady,1); });
+  /* --- YOUR CART: the flatbed stock trolley, 15 cards in one row --- */
+  const deck=deckOf(shown), n=deck.length, pk=shown?PACKS[shown]:null, pc=pinCards(), popNow=shown!==lastPack; lastPack=shown;
+  h+=`<div class="a row" style="left:48px;top:651px;gap:18px">${PT('YOUR CART',P.y)}<span class="bt" style="font-size:20px;line-height:21px;color:var(--teal-pale)">4 regulars + ${pk?(preview?'<b style="color:var(--mustard-light)">3 from '+esc(pk.name)+' (preview)</b>':'3 from '+esc(pk.name))+' + ':''}6 dealt${pc.length?` + ${pc.length} from pins`:''}${pk?'':' · <b style="color:var(--tomato-pale)">+3 when you pick a pack</b>'}</span></div>`;
+  const TY=699, STEP=90, GAP=18;
+  let x=66;
+  const tagC=(l,inner,cls='')=>`<div class="stagC ${cls}" style="left:${l}px;top:801px">${inner}</div>`;
+  // staples
+  let gx=x; staples().forEach(c=>{ h+=`<div class="trC" data-card="${c}" style="left:${x}px;top:${TY}px">${sprite(c,96)}</div>`; x+=STEP; }); h+=tagC(gx,L('REGULARS 4',INK,3)); x+=GAP;
+  // the pack: its 3, a preview in a dashed mustard frame, or 3 dashed facings and a "pick one above" tag
+  gx=x;
+  if(pk){ if(preview) h+=`<div class="pvwC" style="left:${x-9}px;top:${TY-9}px;width:${3*STEP+12}px;height:114px"></div>`;
+    pk.cards.forEach((c,j)=>{ h+=`<div class="trC ${popNow&&!preview&&!RM?'drop':''}" data-card="${c}" style="left:${x}px;top:${TY}px;animation-delay:${j*60}ms">${sprite(c,96)}</div>`; x+=STEP; });
+    h+=tagC(gx,L((preview?'PREVIEW':'YOUR PACK')+' 3',INK,3),preview?'mus':''); }
+  else { for(let j=0;j<3;j++){ h+=`<div class="efcC" style="left:${x}px;top:${TY}px">${PT('?',P.M,6)}</div>`; x+=STEP; }
+    h+=tagC(gx,`${PT('YOUR PACK',INK)}<span class="bt" style="font-size:18px;line-height:21px;color:var(--tomato-dark);font-weight:800">pick one</span>`,'mus'); }
+  x+=GAP;
+  // today's deal
+  gx=x; shared().forEach(c=>{ h+=`<div class="trC" data-card="${c}" style="left:${x}px;top:${TY}px">${sprite(c,96)}</div>`; x+=STEP; }); h+=tagC(gx,L("TODAY'S DEAL 6",INK,3)); x+=GAP;
+  // pin cards: the pins' cards, then dashed free places
+  gx=x; for(let j=0;j<2;j++){ const c=pc[j]; h+= c ? `<div class="trC drop" data-card="${c}" style="left:${x}px;top:${TY}px">${sprite(c,96)}</div>` : `<div class="efcC free" style="left:${x}px;top:${TY}px"></div>`; x+=STEP; }
+  h+=tagC(gx,L('PINS '+pc.length,INK,3));
+  if(x-STEP+96>1482) bad('trolley row past the deck');
+  /* --- the price board beside the trolley: the LED n/15 and the top 3 families --- */
+  h+=`<div class="a fr f-plaque" style="left:1530px;top:648px;width:366px;height:252px"></div>`;
+  h+=`<div class="ledC fr f-led" style="left:1551px;top:663px;width:324px;height:72px"><img src="${SRC}icons/cart.png" style="width:36px;height:27px" alt="cart">${NM(n+'/15',n>DECK_LIMIT?P.o:P.n,6,P.k)}</div>`;
+  h+=`<div class="a row" style="left:1554px;top:744px;gap:12px">${PT('BY FAMILY',INK)}<span class="bt" style="font-size:18px;line-height:21px;color:var(--ink-light)">top 3</span></div>`;
+  const fam={}; deck.forEach(c=>famsOf(CARD[c]).forEach(f=>fam[f]=(fam[f]||0)+1));
+  Object.entries(fam).sort((x,y)=>y[1]-x[1]).slice(0,3).forEach(([f,k],j)=>{
+    h+=`<div class="fcardC" data-fam="${f}" style="left:${1551+j*111}px;top:774px;width:102px"><span class="fct" style="background:${FAM[f][0]}"></span>
+      <span style="display:grid;place-items:center;width:33px;height:33px;border:3px solid var(--ink);background:${FAM[f][0]}"><img src="${SRC}icons/${FAM[f][3]}.png" style="width:27px;height:27px" alt=""></span>${NM(String(k),INK,6)}
+      <span class="bt" style="font-size:16px;line-height:18px;color:var(--ink)">${f}</span></div>`; });
+  /* --- BADGE PINS: the velvet card on its easel --- */
+  const ws=worn.slice(0,SLOTS);
+  h+=`<div class="pinsarea" id="pinsArea">${aimg(velvetC(),1650,258,246,360)}`;
+  h+=`<div class="a" style="left:1674px;top:282px;width:198px;display:flex;justify-content:center">${PT('BADGE PINS',P.k)}</div>`;
+  h+=`<div class="a badge" style="left:1683px;top:330px;width:180px;height:165px;background:var(--cream);border:3px solid var(--ink);box-shadow:9px 9px 0 rgba(23,8,12,.55);display:flex;flex-direction:column">
+     <div style="height:60px;flex:none;background:var(--teal);border-bottom:3px solid var(--ink);display:grid;place-items:center;gap:3px;padding:6px 0">${PT('NEXT',PAPER)}${PT('CUSTOMER',PAPER)}</div>
+     <div style="display:grid;justify-items:center;padding-top:6px">${PT('CASHIER',P['3'])}</div>
+     <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:9px;padding-bottom:3px">${Array.from({length:SLOTS},(_,k)=>pinDisc(PIN[ws[k]],SLOTS>1?19:25)).join('')}</div></div>`;
+  h+=`<div class="a" style="left:1671px;top:510px;width:204px;display:grid;gap:3px;text-align:center">${ws.length?ws.map(id=>`<div style="font:800 19px/22px var(--body);color:var(--mustard-pale)">${esc(PIN[id].name)}${PIN[id].cards?' <span style="color:var(--green-light)">+1 card</span>':''}</div>`).join(''):`<div style="font:800 19px/22px var(--body);color:var(--tomato-pale)">No pin worn</div>`}${ws.length<SLOTS?`<div class="bt" style="font-size:17px;line-height:20px;color:var(--tomato-pale)">${SLOTS-ws.length} slot free</div>`:''}</div>`;
+  h+=`<div class="plate fr f-teal row" style="left:1680px;top:561px;width:186px;height:48px;justify-content:center;gap:9px">${L('CHANGE ›',PAPER)}</div></div>`;
+  return h+counter(2);
+}
+
+function page2(){ return LOOK==='A' ? page2A() : LOOK==='C' ? page2C() : page2B(); }
+
+/* ======================= modals (TitlePopup sheets) ======================= */
+function sheetOpen(x,y,w,h,inner){ return `<div class="dim" data-close="1"></div><div class="sheet fr f-sheet ${modalAnim?'anim':''}" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px">${inner}</div>`; }
+function pinsModal(){
+  const s=st(), w=900, x=PAGE===2&&LOOK==='B'?390:1920-w-48, y=108;
+  const list=PINS.filter(p=>!p.example||s.owned.includes(p.id));
+  const rows=list.map((p,i)=>{
+    const own=s.owned.includes(p.id), on=worn.slice(0,SLOTS).includes(p.id);
+    const btn = !own ? `<div class="fr f-off row" style="width:156px;height:54px;justify-content:center">${PT('LOCKED',INK)}</div>`
+      : on ? `<div class="plate fr f-chip_green" data-wear="${p.id}" style="position:relative;width:156px;height:54px;justify-content:center">${PT('WORN',INK)}</div>`
+           : `<div class="plate fr f-teal" data-wear="${p.id}" style="position:relative;width:156px;height:54px;justify-content:center">${PT('WEAR',PAPER)}</div>`;
+    return `<div class="prow" style="top:${90+i*72}px">${own?pinDisc(p,19):img(disc(P[':'],P['-'],'?',19,INK),3)}
+      <div style="width:250px">${PT(p.name,own?INK:P['-'])}</div>
+      <div class="pr">${own?esc(p.rule)+(p.cards?' · <b style="color:var(--green-dark)">+1 card in your cart</b>':''):'Unlock: '+esc(p.lock)}</div>${btn}</div>`;}).join('');
+  const hgt=90+list.length*72+117;
+  return sheetOpen(x,y,w,hgt,`<div class="a" style="left:24px;top:24px;display:flex;align-items:flex-end;gap:18px">${PT('BADGE PINS',INK,6)}<span class="bt" style="font-size:20px;line-height:21px">${SLOTS} slot${SLOTS>1?'s':''} · a new pin replaces the first</span></div>
+    ${rows}<div class="plate fr f-teal" data-close="1" style="left:24px;bottom:21px;height:57px;padding:0 21px">${PT('DONE',PAPER)}</div>
+    <div class="a bt" style="left:186px;bottom:21px;width:${w-240}px;font-size:20px;line-height:24px">Pins are saved to your profile; your pack is for this run. The deal stays the same. A pin's cards join your cart at once.</div>`);
+}
+function pickerModal(){
+  const slot=modal.slot, cur=swaps[slot]||CORE[slot], orig=CORE[slot];
+  const comp=completed(), n=comp.length;
+  const w=n>=4?1824:(n===3?1500:1200), x=Math.round((1920-w)/2/3)*3, y=105;
+  const colW=Math.floor((w-48-(n-1)*15)/n), sub=Math.max(1,Math.floor(colW/290)), subW=Math.floor(colW/sub);
+  const cols=comp.map((a,k)=>{
+    const items = a.base.concat(a.caps);
+    const body = items.map(id=>{
+      const why=swapReason(id,slot), c=CARD[id], isCur=cur===id;
+      return `<div class="pit ${why&&!isCur?'no':''} ${isCur?'cur':''}" ${why?'':`data-take="${id}"`}><img src="${SRC}items/${id}.png" style="width:48px;height:48px" alt="">
+        <div class="t"><b>${esc(c.name)}</b><span class="${why&&!isCur?'why':''}">${isCur?'in this slot':why?why:(a.base.includes(id)?'base item':'capsule item')}</span></div><span class="p">${NM(c.base+'€',INK)}</span></div>`;}).join('');
+    return `<div class="pcol" style="left:${24+k*(colW+15)}px;top:105px;width:${colW}px"><div class="ph">${signTile(a.id)}<span class="nmw">${PT(a.name,INK)}</span>${n>=5?'':`<span class="cnt row">${NM(held(a)+'/'+total(a)+'★',P.u)}</span>`}</div><div style="display:grid;grid-template-columns:repeat(${sub},${subW-2}px)">${body}</div></div>`;
+  }).join('');
+  const maxRows=Math.max(1,...comp.map(a=>Math.ceil(a.base.concat(a.caps).length/sub)));
+  const hgt=Math.min(960, 105+60+maxRows*66+108);
+  return sheetOpen(x,y,w,hgt,`<div class="a" style="left:24px;top:24px;display:flex;align-items:flex-end;gap:18px">${PT('SWAP A REGULAR',INK,6)}
+      <span class="bt" style="font-size:20px;line-height:21px">Replacing <b>${esc(CARD[cur].name)}</b> · slot ${slot+1} of 4 · ${swapCount()-usedSwaps()+(swaps[slot]?1:0)} of ${swapCount()} swaps free · saved for your next runs</span></div>
+    ${cols}
+    ${swaps[slot]?`<div class="plate fr f-teal" data-take="__keep" style="right:228px;bottom:21px;height:57px;padding:0 18px">${PT('BACK TO '+CARD[orig].name.toUpperCase(),PAPER)}</div>`:''}
+    <div class="plate fr f-teal" data-close="1" style="right:30px;bottom:21px;height:57px;padding:0 18px">${PT('CANCEL',PAPER)}</div>
+    <div class="a bt" style="left:24px;bottom:24px;width:${w-560}px;font-size:19px;line-height:23px">Max ${COPY_MAX} of a card in the cart · max ${AISLE_MAX} swapped regulars from one aisle · plain tier, no coupons · the deal is not re-dealt.</div>`);
+}
+function restockModal(){
+  const stk=stock(), n=completed().length, w=840, x=1920-w-48, y=150;
+  const unl=AISLES.filter(unlocked);
+  const rc=(a,on,attr)=>`<div class="rchip ${on?'on':''}" ${attr}>${signTile(a.id)}${PT(a.name,INK)}</div>`;
+  let body;
+  if(n>=6){
+    body=`<div class="a" style="left:24px;top:102px">${L('DEAL FROM · PICK 2',INK,3,{num:INK})}</div>
+      <div class="a" style="left:24px;top:144px;right:24px;display:flex;flex-wrap:wrap;gap:21px 18px">${unl.map(a=>rc(a,modal.pair.includes(a.id),`data-pairpick="${a.id}"`)).join('')}</div>
+      <div class="a bt" style="left:24px;top:300px;right:24px;font-size:20px;line-height:25px">The 3rd aisle (NOT DEALT) stays the seed's. The pair is saved for your next runs.</div>`;
+  } else {
+    const ins=unl.filter(a=>!stk.dealt.includes(a.id)&&a.id!==stk.shelf);
+    body=`<div class="a" style="left:24px;top:102px">${PT('TAKE OUT',INK)}</div>
+      <div class="a" style="left:24px;top:138px;display:flex;gap:18px">${stk.dealt.map(id=>rc(AISLE[id],modal.out===id,`data-rsout="${id}"`)).join('')}<span class="bt" style="align-self:center;margin-left:6px"><b>${esc(AISLE[stk.shelf].name)}</b> stays (NOT DEALT)</span></div>
+      <div class="a" style="left:24px;top:228px">${PT('PUT IN',INK)}</div>
+      <div class="a" style="left:24px;top:264px;display:flex;gap:18px;flex-wrap:wrap;right:24px">${ins.length?ins.map(a=>rc(a,modal.in===a.id,`data-rsin="${a.id}"`)).join(''):`<div class="bt" style="color:var(--tomato-dark)">No other unlocked aisle.</div>`}</div>`;
+  }
+  const ready = n>=6 ? (modal.pair.length===2 && modal.pair.slice().sort().join()!==stk.dealt.slice().sort().join()) : (modal.out&&modal.in);
+  return sheetOpen(x,y,w,576,`<div class="a" style="left:24px;top:24px;display:flex;align-items:flex-end;gap:18px">${PT(n>=6?'CHOOSE AISLES':'RESTOCK',INK,6)}<span class="bt" style="font-size:20px;line-height:21px">${n>=6?'pick the 2 aisles that deal':'swap one dealt aisle'}</span></div>
+    ${body}
+    <div class="a" style="left:24px;right:24px;top:357px;padding:6px 12px 9px;border-top:3px solid var(--ink);border-bottom:3px solid var(--ink);background:var(--cream)">${PT('ONCE A RUN',P.r)}<div class="bt" style="font-size:20px;line-height:24px;color:var(--ink-light);margin-top:6px">You see the new 6 only after you confirm. The packs stay. You can switch back to the first deal, but not restock again this run. Quitting keeps it.</div></div>
+    <div class="key fr ${ready?'f-red on':'f-off dis'}" id="rsGo" style="left:24px;bottom:24px;width:330px;height:63px">${ready?TICK:''}${L(n>=6?'DEAL FROM THESE ›':'RESTOCK ›',ready?PAPER:INK)}</div>
+    <div class="plate fr f-teal" data-close="1" style="left:390px;bottom:24px;height:63px;padding:0 21px">${PT('CANCEL',PAPER)}</div>`);
+}
+
+/* ======================= render ======================= */
+function pageClass(k){
+  if(ANIM){ const el=performance.now()-ANIM.t0, d=`style="animation-delay:${-Math.min(el,299)}ms"`;
+    if(k===ANIM.from) return `pg anim ${ANIM.dir>0?'out-l':'out-r'}" ${d} data-x="`;
+    if(k===ANIM.to) return `pg anim ${ANIM.dir>0?'in-r':'in-l'}" ${d} data-x="`; }
+  return k===PAGE ? 'pg on' : 'pg off';
+}
+function render(){
+  F.className='F'+(RM?' rm':'')+' lk'+LOOK;
+  let h=`<div class="${pageClass(1)}" id="P1">${(PAGE===1||(ANIM&&(ANIM.from===1||ANIM.to===1)))?page1():''}</div>`;
+  h+=`<div class="${pageClass(2)}" id="P2">${(PAGE===2||(ANIM&&(ANIM.from===2||ANIM.to===2)))?page2():''}</div>`;
+  h+=`<div class="chrome">${topBar()}${stepRail()}</div>`;
+  if(modal&&modal.t==='pins') h+=pinsModal();
+  if(modal&&modal.t==='pick') h+=pickerModal();
+  if(modal&&modal.t==='restock') h+=restockModal();
+  h+=`<div class="tip fr f-sheet" id="tip"></div><div class="flood" id="flood"></div><div class="selfcheck" id="selfcheck"></div>`;
+  F.innerHTML=h;
+  dealPop=false; flashRows=[]; modalAnim=false; hopTab=false;
+  selfCheck(); updateCap();
+}
+function selfCheck(){
+  if(ANIM) return;
+  const fr=F.getBoundingClientRect(), k=fr.width/1920;
+  F.querySelectorAll('.pg.on *, .chrome *, .sheet *').forEach(el=>{
+    if(el.closest('.tip')) return;
+    const r=el.getBoundingClientRect(); if(!r.width&&!r.height) return;
+    const L_=(r.left-fr.left)/k, R_=(r.right-fr.left)/k, T_=(r.top-fr.top)/k, B_=(r.bottom-fr.top)/k;
+    if(L_<-1||T_<-1||R_>1921||B_>1081) bad(`overflow: ${el.className||el.tagName} (${Math.round(L_)},${Math.round(T_)})-(${Math.round(R_)},${Math.round(B_)}) p${PAGE} s${S}`);
+  });
+  document.documentElement.dataset.check = CHECK.length ? 'FAIL' : 'ok';
+  const sc=document.getElementById('selfcheck');
+  if(CHECK.length&&sc){ sc.style.display='block'; sc.textContent='SELF-CHECK: '+CHECK.slice(0,4).join(' | '); }
+}
+function updateCap(){
+  const s=st(), stk=stock(), c=document.getElementById('capline');
+  c.className='cap'+(CHECK.length?' bad':'');
+  c.innerHTML = `Page ${PAGE}${PAGE===2?' (look '+LOOK+')':''} · ${esc(s.label)} · ${completed().length} of 6 aisles complete · ${swapCount()} regular swap${swapCount()===1?'':'s'} open · dealt from ${AISLE[stk.dealt[0]].name} + ${AISLE[stk.dealt[1]].name}, ${AISLE[stk.shelf].name} NOT DEALT. `+
+   (s.realShared&&!(useRestock&&restock) ? `Today's deal is the real <code>StartingDeck.deal_offer</code> for seed ${s.seed}.` : `Today's deal is a JS stand-in for <code>deal_offer</code> (uniform draw, copy_max 2), not a game deal.`)+
+   ` Self-check: ${CHECK.length?CHECK.join(' | '):'no JS errors, no Pixelify digits, nothing past the 1920×1080 frame.'}`;
+}
+
+/* ---------- tips ---------- */
+function showTip(html, el, side){
+  const tip=document.getElementById('tip'); tip.innerHTML=html; tip.style.display='block';
+  const fr=F.getBoundingClientRect(), r=el.getBoundingClientRect(), k=fr.width/1920;
+  let x=(r.right-fr.left)/k+15, y=(r.top-fr.top)/k-6;
+  if(side==='left'||x+460>1910) x=(r.left-fr.left)/k-465;
+  const th=tip.offsetHeight||200;
+  tip.style.left=Math.round(Math.max(6,x)/3)*3+'px'; tip.style.top=Math.round(Math.max(90,Math.min(y,1074-th))/3)*3+'px';
+}
+function cardTip(el){
+  const id=el.dataset.card, c=CARD[id]; if(!c) return;
+  const fams=famsOf(c).map(t=>`<span class="row fr f-chip_warn" style="height:39px;padding:0 3px;gap:6px"><img src="${SRC}icons/${FAM[t][3]}.png" style="width:27px;height:27px;background:${FAM[t][0]};outline:3px solid var(--ink)" alt="">${PT(t,INK)}</span>`).join('');
+  const where=aisleOf(id), wn=where==='staples'?'Staples shelf':(AISLE[where]||{}).name;
+  const cnt=deckOf(PAGE===2?packIdShown():null).filter(x=>x===id).length;
+  let extra='';
+  if(el.dataset.slot!=null){ const i=+el.dataset.slot, nSw=swapCount();
+    if(swaps[i]) extra=`Swapped regular (was ${CARD[CORE[i]].name}). Click to change it or put it back.`;
+    else if(nSw===0) extra=`Swap locked: complete an aisle at the toy machines.`;
+    else if(usedSwaps()<nSw) extra=`Click to swap it for an item of a completed aisle.`;
+    else extra=`No swap left (${nSw} of ${nSw} used).`; }
+  showTip(`<div class="row" style="gap:12px">${PT(c.name,INK)}<span style="margin-left:auto">${c.kind===1?NM(c.base+'€',INK):''}</span></div>
+    <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:12px">${fams}</div>
+    <div class="tr">${esc(c.rule)}</div><div class="tm">${wn?esc(wn)+' · ':''}×${cnt} in your cart${extra?'<br>'+extra:''}</div>`, el);
+}
+F.addEventListener('mousemove',e=>{
+  const tip=document.getElementById('tip'); if(!tip) return;
+  if(e.target.closest('.sheet')||ANIM||GOING){ tip.style.display='none'; return; }
+  const t=e.target.closest('[data-card]'); if(t){ cardTip(t); return; }
+  const fm=e.target.closest('[data-fam]');
+  if(fm){ const f=fm.dataset.fam, k=deckOf(packIdShown()).filter(c=>famsOf(CARD[c]).includes(f)).length; showTip(`${PT(f,INK)}<div class="tr">${k} of your cards are ${f}.</div>`, fm); return; }
+  const pinEl=e.target.closest('.pinsarea img');
+  if(pinEl){ tip.style.display='none'; return; }
+  const ai=e.target.closest('.ai[data-aisle]');
+  if(ai&&ai.dataset.aisle!=='staples'){ const a=AISLE[ai.dataset.aisle], stk=stock(), miss=a.caps.filter(c=>!owns(c));
+    const state=!unlocked(a)?`Locked: it opens at 4 items (${held(a)} now). Its capsules still ride the next runs as new arrivals.`:stk.dealt.includes(a.id)?`Dealt from today: ${shared().filter(c=>aisleOf(c)===a.id).length} of today's 6.`:stk.shelf===a.id?'In today\'s stock but NOT DEALT: its items can come from the machine\'s NEW ITEMS.':'Unlocked, not in today\'s stock.';
+    showTip(`<div class="row" style="gap:12px">${PT(a.name,INK)}<span style="margin-left:auto" class="row">${NM(held(a)+'/'+total(a),INK)}</span></div><div class="tr">${state}</div><div class="tm">${miss.length?`Missing: ${miss.slice(0,4).map(c=>CARD[c].name).join(', ')}${miss.length>4?'…':''}. Complete it for a regular swap.`:'Complete ★: it gives one regular swap.'}</div>`, ai, 'right'); return; }
+  if(ai){ showTip(`${PT('Staples shelf',INK)}<div class="tr">Banana, Bread, Milk, Eggs, Coffee and Soup. Always in the deal's pool, next to the 2 dealt aisles.</div>`, ai); return; }
+  tip.style.display='none';
+});
+F.addEventListener('mouseover',e=>{
+  if(modal||ANIM||GOING) return;
+  const p=e.target.closest('[data-pack]'); const hp=p?+p.dataset.pack:-1;
+  const a=e.target.closest('[data-aisle]'); const ha=a?a.dataset.aisle:null;
+  if(hp!==hovPack||ha!==hovAisle){ hovPack=hp; hovAisle=ha; render(); }
+});
+F.addEventListener('mouseleave',()=>{ if(ANIM||GOING) return; hovPack=-1; hovAisle=null; render(); });
+F.addEventListener('click',e=>{
+  const T=e.target; if(ANIM||GOING) return;
+  if(T.closest('[data-close]')){ modal=null; render(); return; }
+  const w=T.closest('[data-wear]');
+  if(w){ const id=w.dataset.wear; const i=worn.indexOf(id); if(i>=0&&i<SLOTS) worn.splice(i,1); else { if(worn.length>=SLOTS) worn.splice(0,1); worn.push(id);} worn=worn.slice(0,SLOTS); render(); return; }
+  const tk=T.closest('[data-take]');
+  if(tk&&modal&&modal.t==='pick'){ const id=tk.dataset.take; swaps[modal.slot]= id==='__keep'?null:id; modal=null; render(); return; }
+  const po=T.closest('[data-rsout]'); if(po){ modal.out=po.dataset.rsout; render(); return; }
+  const pi=T.closest('[data-rsin]'); if(pi){ modal.in=pi.dataset.rsin; render(); return; }
+  const pp=T.closest('[data-pairpick]'); if(pp){ const id=pp.dataset.pairpick, pr=modal.pair; const k=pr.indexOf(id); if(k>=0) pr.splice(k,1); else { if(pr.length>=2) pr.shift(); pr.push(id);} render(); return; }
+  if(T.closest('#rsGo')) { doRestock(); return; }
+  if(T.closest('.sheet')) return;
+  const tab=T.closest('[data-tab]'); if(tab){ goPage(+tab.dataset.tab); return; }
+  if(T.closest('#next')){ goPage(2); return; }
+  if(T.closest('#back')){ goPage(1); return; }
+  if(T.closest('#toTitle')){ toTitle(); return; }
+  const vw=T.closest('[data-view]'); if(vw){ useRestock=vw.dataset.view==='restock'; dealPop=true; render(); return; }
+  if(T.closest('#rsBtn')){ if(completed().length>=3&&!restock){ modal={t:'restock',out:null,in:null,pair:stock().dealt.slice()}; modalAnim=true; render(); } return; }
+  if(T.closest('#pinsArea')){ modal={t:'pins'}; modalAnim=true; render(); return; }
+  const sb=T.closest('[data-slotbox]');
+  if(sb){ const i=+sb.dataset.slotbox; if(swaps[i]||(swapCount()>usedSwaps())){ modal={t:'pick',slot:i}; modalAnim=true; render(); } return; }
+  const p=T.closest('[data-pack]'); if(p){ sel=+p.dataset.pack; render(); return; }
+  if(T.closest('#go')) go();
+});
+function goPage(p){
+  if(p===PAGE||modal||ANIM||GOING) return;
+  hovPack=-1; hovAisle=null;
+  if(RM){ PAGE=p; hopTab=false; render(); return; }
+  ANIM={from:PAGE,to:p,dir:p>PAGE?1:-1,t0:performance.now()}; PAGE=p; render();
+  setTimeout(()=>{ ANIM=null; hopTab=true; render(); },300);
+}
+function doRestock(){
+  const stk=stock(), n=completed().length, s=st();
+  let pair, shelf=stk.shelf;
+  if(n>=6){ if(modal.pair.length!==2) return; pair=modal.pair.slice(); shelf=s.order.find(id=>!pair.includes(id)); }
+  else { if(!modal.out||!modal.in) return; pair=stk.dealt.map(id=>id===modal.out?modal.in:id); }
+  restock={pair, shelf, shared:dealFor(pair, staples(), 'starting_deck_restock')};
+  useRestock=true; dealPop=true; flashRows=pair.concat(shelf); modal=null; render();
+}
+/* page 1's way out: back to the title menu (here a short stepped flood, then the frame resets) */
+function toTitle(){
+  if(modal||ANIM||GOING) return;
+  const fl=document.getElementById('flood');
+  fl.style.background='var(--teal-black)';
+  fl.innerHTML=`<div style="display:grid;justify-items:center;gap:24px">${PT('TITLE MENU',P.y,6)}<div class="bt">The start screen reopens on page 1 with your choices kept.</div></div>`; fl.style.display='grid';
+  setTimeout(()=>{ fl.style.display='none'; fl.style.background=''; QP.page=1; reset(); }, RM?900:1400);
+}
+/* OPEN STORE. A: the store's roller shutter drops over the counter and rolls up on the opening flood. B: the time card
+   punches into the clock, then the same shutter. C (and reduced motion): the stepped mustard-pale flood, as in v3. */
+let GOING=false;   // OPEN STORE is running: every input waits for the final reset()
+function go(){
+  if(GOING) return;
+  if(sel<0||modal){ const k=document.getElementById('go'); if(k&&!RM){ k.animate([{transform:'translate(6px,6px)'},{transform:'translate(0,6px)'},{transform:'translate(12px,6px)'},{transform:'translate(6px,6px)'}],{duration:180,easing:'steps(4,end)'}); } return; }
+  GOING=true;
+  const k=document.getElementById('go'); k.style.transform='translate(6px,6px)'; k.style.boxShadow='3px 3px 0 rgba(43,36,32,.45)';
+  const fl=document.getElementById('flood'), pk=PACKS[st().packs[sel]], n=deckOf(st().packs[sel]).length;
+  const showFlood=()=>{ fl.innerHTML=`<div style="display:grid;justify-items:center;gap:24px">${LOOK==='B'?PT('CLOCKED IN',P.u,3):''}${L('SHIFT 1/12',INK,6,{num:INK})}${L(pk.name.toUpperCase()+' · '+n+' CARDS',P.u,3,{num:P.u})}</div>`; fl.style.display='grid'; };
+  if(RM||LOOK==='C'){ setTimeout(showFlood, RM?0:120); setTimeout(()=>{ fl.style.display='none'; reset(); }, RM?1200:1800); return; }
+  let t0=90;
+  if(LOOK==='B'){ const tc=document.getElementById('tcard'); if(tc) tc.classList.add('punch'); t0=360; }
+  const sh=shutterEl();
+  setTimeout(()=>{ F.appendChild(sh); sh.classList.add('down'); }, t0);
+  setTimeout(()=>{ showFlood(); fl.style.animation='none'; sh.classList.remove('down'); sh.classList.add('shown'); void sh.offsetWidth; sh.classList.remove('shown'); sh.classList.add('up'); }, t0+300+480);
+  setTimeout(()=>{ sh.remove(); fl.style.display='none'; fl.style.animation=''; reset(); }, t0+300+480+600+800);
+}
+
+document.addEventListener('keydown',e=>{
+  if(GOING) return;
+  if(e.key==='Escape'){ if(modal){ modal=null; render(); } else if(ANIM){} else if(PAGE===2) goPage(1); else toTitle(); return; }
+  if(modal||ANIM) return;
+  if(PAGE===2&&['1','2','3'].includes(e.key)){ sel=+e.key-1; render(); }
+  else if(e.key==='Enter'){ if(PAGE===1) goPage(2); else go(); }
+  else if(PAGE===2&&(e.key==='p'||e.key==='P')){ modal={t:'pins'}; modalAnim=true; render(); }
+});
+function reset(){
+  const s=st(); sel=s.first?s.packs.indexOf(s.first):-1; worn=s.worn.slice(0,SLOTS); hovPack=-1; hovAisle=null; modal=null;
+  swaps=s.swaps.slice(); restock=null; useRestock=false; PAGE=QP.page||1; ANIM=null; GOING=false;
+  baseShared = s.realShared ? s.realShared.slice() : dealFor(stock().dealt, staples(), 'starting_deck');
+  syncSegs(); render();
+}
+function seg(id,attr,fn){ const g=document.getElementById(id); g.addEventListener('click',e=>{if(GOING)return;const b=e.target.closest('button'); if(!b)return; g.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b)); fn(b.dataset[attr]);}); }
+function syncSegs(){
+  document.querySelectorAll('#segS button').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.s===S));
+  document.querySelectorAll('#segP button').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.p===SLOTS));
+  document.querySelectorAll('#segG button').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.g===PAGE));
+  document.querySelectorAll('#segL button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.l===LOOK));
+  document.querySelectorAll('#segM button').forEach(b=>b.setAttribute('aria-pressed',(b.dataset.m==='1')===RM));
+}
+seg('segS','s',v=>{S=+v;QP.page=PAGE;reset();});
+seg('segG','g',v=>{ if(modal){modal=null;} goPage(+v); });
+seg('segP','p',v=>{SLOTS=+v;worn=st().worn.slice(0,SLOTS);render();});
+seg('segM','m',v=>{RM=v==='1';render();});
+seg('segL','l',v=>{ LOOK=v; lastSel=sel; lastPack=packIdShown(); modal=null; render(); });
+seg('segZ','z',v=>{document.body.classList.toggle('one',v==='one');fit();});
+document.getElementById('reset').onclick=()=>{if(GOING)return;QP.page=PAGE;reset();};
+function fit(){ const w=document.getElementById('fwrap'), sc=document.getElementById('fscale');
+  const k=document.body.classList.contains('one')?1:Math.min(1,w.clientWidth/1920);
+  sc.style.transform=`scale(${k})`; w.style.height=(1080*k+4)+'px'; }
+window.addEventListener('resize',fit);
+const _gp=goPage; // keep the segmented PAGE control in step with every page change
+goPage = p => { _gp(p); setTimeout(syncSegs, 0); };
+
+/* URL hooks: ?p2=A|B|C&hov=0..2&shutter=1&page=1|2&s=0..3&slots=2&take=<slot>:<id>&restock=out:in|pair:a+b&rsopen=1&pick=<slot>&pins=1&sel=0..2|-1&rm=1&solo=1 */
+const Q=new URLSearchParams(location.search), QP={};
+if(Q.get('s')) S=+Q.get('s'); if(Q.get('slots')) SLOTS=+Q.get('slots'); if(Q.get('rm')) RM=true;
+if(Q.get('page')) QP.page=+Q.get('page');
+if(['A','B','C'].includes(Q.get('p2'))) LOOK=Q.get('p2');
+if(Q.get('pins')) QP.page=2;                                                      // the pins sheet belongs to page 2
+if(Q.get('pick')||Q.get('rsopen')||Q.get('restock')) QP.page=1;    // the picker and restock sheet to page 1
+window.addEventListener('unhandledrejection', e => { bad('js: '+((e.reason&&e.reason.message)||e.reason)); selfCheck(); });
+Promise.all([document.fonts.load('400 11px NCPix'), document.fonts.load('700 21px NCAtk'), document.fonts.load('800 21px NCAtk')]).catch(()=>bad('fonts did not load')).then(()=>{
+  measureCap(); buildFrames(); reset();
+  if(Q.get('sel')) sel=+Q.get('sel');
+  if(Q.get('hov')) hovPack=+Q.get('hov');   // capture hook: a pack under the pointer (its preview in the cart)
+  if(Q.get('take')){ const [sl,id]=Q.get('take').split(':'); if(CARD[id]&&+sl>=0&&+sl<4) swaps[+sl]=id; else bad('take hook: unknown slot or id '+Q.get('take')); }
+  if(Q.get('restock')){ const r=Q.get('restock'); if(r.startsWith('pair:')) modal={pair:r.slice(5).split(/[+ ,]/).filter(Boolean)}; else { const [o,i]=r.split(':'); modal={out:o,in:i}; } if(!Q.get('rsopen')){ doRestock(); if(modal&&!modal.t){ bad('restock hook failed: '+r); modal=null; } } else modal.t='restock'; }
+  if(Q.get('rsopen')&&!modal) modal={t:'restock',out:null,in:null,pair:stock().dealt.slice()};
+  if(Q.get('pick')) modal={t:'pick',slot:+Q.get('pick')};
+  if(Q.get('pins')) modal={t:'pins'};
+  render();
+  if(Q.get('keys')){ Q.get('keys').split(',').forEach((k,i)=>setTimeout(()=>document.dispatchEvent(new KeyboardEvent('keydown',{key:k})),300+i*500)); }
+  if(Q.get('solo')){ soloSetup(); render(); }
+  else fit();
+  if(Q.get('shutter')){ const sh=shutterEl(); sh.classList.add('shown'); F.appendChild(sh); }   // capture hook: the shutter down (after the solo render)
+}).catch(e=>{ bad('js: '+(e&&e.message||e)); if(Q.get('solo')) soloSetup(); selfCheck(); updateCap(); });
+function soloSetup(){ document.body.style.overflow='hidden'; const fw=document.getElementById('fwrap'); document.body.prepend(fw); fw.style.cssText='position:fixed;left:0;top:0;border:0;z-index:99;width:1920px;height:1080px'; document.querySelector('.toolbar').style.display='none'; document.querySelector('main').style.display='none'; document.getElementById('fscale').style.transform='none'; }
+</script>
+</html>

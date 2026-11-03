@@ -1,0 +1,469 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ticket Seal Badge</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&family=Atkinson+Hyperlegible+Next:wght@200..800&display=swap">
+<style>
+/* House style of the shift mock-ups: bays on the store's dark teal wall, canvases drawn in screen px
+   and scaled nearest-neighbour. Single dark look on purpose: it is the game's own palette. */
+@font-face{font-family:'NCPix';font-weight:400 700;src:url(../../../fonts/PixelifySans-Variable.ttf)}
+@font-face{font-family:'NCAtk';font-weight:200 800;src:url(../../../fonts/AtkinsonHyperlegibleNext-Variable.ttf)}
+:root{
+  color-scheme:dark;
+  --wall:#1f3b3a; --bay:#172c2b; --panel:#2a4d4b; --paper:#fbf7ee; --teal-pale:#c3e0d4; --teal-light:#86c2b6;
+  --mustard:#e2b33c; --gold:#ffcf3f; --tomato:#ec8a6e; --ink:#2b2420;
+  --display:'NCPix','Pixelify Sans','Courier New',monospace;
+  --body:'NCAtk','Atkinson Hyperlegible Next','Segoe UI',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--wall);color:var(--paper)}
+body{font-family:var(--body);font-size:15px;line-height:1.5;overflow-x:hidden}
+main{max-width:1320px;margin:0 auto;padding:28px 16px 64px;display:grid;gap:40px}
+main>*,section>*,.grid>*{min-width:0}
+h1,h2,h3{font-family:var(--display);font-weight:700;margin:0;letter-spacing:.02em;text-wrap:balance}
+h1{font-size:34px;color:var(--gold)}
+h2{font-size:23px}
+h3{font-size:16px;color:var(--teal-pale)}
+p{margin:0;max-width:80ch}
+.eyebrow{font-family:var(--display);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--teal-light)}
+section{display:grid;gap:14px}
+.lede{display:grid;gap:12px}
+.card{background:var(--panel);border:2px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.35);padding:14px 16px;display:grid;gap:8px}
+.card strong{color:var(--gold)}
+.card ul,.card ol{margin:0;padding-left:22px;display:grid;gap:4px}
+.bay{background:var(--bay);border:2px solid var(--ink);padding:12px;display:grid;gap:10px;align-content:start}
+.bay p{font-size:14px;color:var(--teal-pale)}
+.bay p b{color:var(--paper)}
+.grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(min(100%,400px),1fr))}
+.pair{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap}
+canvas{image-rendering:pixelated;image-rendering:crisp-edges;display:block;max-width:100%;height:auto;background:#222a29}
+canvas.fill{width:100%}
+.zoomrow{display:grid;gap:10px}
+.tag{font-family:var(--display);font-size:13px;background:var(--paper);color:var(--ink);padding:0 6px;border:2px solid var(--ink);justify-self:start}
+table{border-collapse:collapse;font-size:14px;width:100%}
+th,td{border:2px solid var(--ink);padding:5px 8px;text-align:left;vertical-align:top}
+th{background:var(--bay);font-family:var(--display);font-weight:600;color:var(--teal-pale)}
+td code{color:#faecbc;font-size:13px}
+.tablewrap{overflow-x:auto}
+.controls{display:flex;gap:8px 12px;flex-wrap:wrap;align-items:center}
+.controls .lbl{font-family:var(--display);font-size:13px;color:var(--teal-light);letter-spacing:.06em}
+.seg{display:inline-flex;border:2px solid var(--ink);box-shadow:0 3px 0 var(--ink)}
+.seg button{font-family:var(--display);font-size:14px;color:var(--paper);background:#3a7672;border:0;border-right:2px solid var(--ink);padding:4px 12px;cursor:pointer}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--mustard);color:var(--ink)}
+.muted{color:var(--teal-light);font-size:13px}
+</style>
+<body>
+<main>
+  <header class="lede">
+    <div class="eyebrow">Next Customer · price tickets · concept 2</div>
+    <h1>Seal badge tickets</h1>
+    <p>Direction B's colour card at the taller size, 108×76 screen px (54×38 art px). Each zone answers one question.</p>
+    <div class="card">
+      <ul>
+        <li><strong>Family: the seal.</strong> Each family the item belongs to gets one round seal, like a price-gun sticker, over the ticket's top-left corner. The seal uses the family colour and has a plain 5×5 symbol on it, with a paper ring and an ink edge. Two or three families fan out to the right, and every symbol stays fully visible.</li>
+        <li><strong>Price: the window.</strong> The price sits in one paper window at a fixed spot in the top right, in hard 4×7 digits ("21€"). When the price changes, the old price sits above it in the same window, in small struck grey digits, so "was" and "now" are read together.</li>
+        <li><strong>Effect: the cream plate.</strong> The rule is in ink on cream, at most 2 lines. A family named in the rule gets a cap-height colour dot followed by its name in ink. A keyword gets a hard-pixel chip.</li>
+      </ul>
+      <p><strong>The 2-second test.</strong> First, the colour: the seal and face register before you read anything, across the whole belt. Second, the price: the brightest box, always in the same spot. Third, the effect: the only running text, on the calmest ground.</p>
+    </div>
+    <div class="controls">
+      <span class="lbl">Face colour</span>
+      <span class="seg" id="faceSeg"><button data-v="works" aria-pressed="true">works with (game rule)</button><button data-v="own" aria-pressed="false">first seal</button></span>
+      <span class="muted">The game colours the face by the family the rule works with (Eggs: Food). The seals show what the item is. "first seal" makes the face match the first seal.</span>
+    </div>
+  </header>
+
+  <section>
+    <h2>a · The real belt row (now_planning.png) at 1:1</h2>
+    <p class="muted">Eggs · golden Bread · Milk on the 0€ Spot check slot 3 · Multipack (wasted) · Milk 21€ · 48€ · 63€. Below the rail, everything is moved down 12 px for the taller ticket.</p>
+    <canvas id="scene" width="1280" height="732" style="width:1280px"></canvas>
+    <div class="zoomrow">
+      <span class="tag">3× · slots 1–3</span><canvas id="z1" class="fill"></canvas>
+      <span class="tag">3× · slots 4–7</span><canvas id="z2" class="fill"></canvas>
+    </div>
+  </section>
+
+  <section>
+    <h2>b–e · Specimens, 1:1 and 3×</h2>
+    <div class="grid" id="specs"></div>
+  </section>
+
+  <section>
+    <h2>The seal key (3×)</h2>
+    <p class="muted">Each symbol is abstract: a sun for Breakfast, an ear of wheat for Bakery, a drop for Dairy, a leaf for Produce, a house for Household, an arrow down for Clearance, a cookie for Snack, a fork and knife for Food (a quiet family that only shows when a rule names it), a snowflake for Frozen and a % for Coupon. The colour does most of the work, and the symbol is there for colour-blind players and for telling Food from Clearance.</p>
+    <canvas id="key" class="fill"></canvas>
+    <div class="card">
+      <strong>Inline targets: a dot plus the word, not a tiny seal and not a coloured word.</strong>
+      <ul>
+        <li>A seal shrunk to cap height (5 art px) has no room left for a symbol. It becomes a bare colour dot that colour-blind players can't decode, and Food has no seal on the ticket to match it.</li>
+        <li>A coloured word fails on cream. Mustard, Bakery cream, Frozen pale and Dairy light are all under 2:1 against cream, and the shades are muddy at 13 px.</li>
+        <li>So the family name is always written in ink, and a 5×5 dot in the family colour sits in front of it, on the baseline at cap height. The dot uses the same colour as the face (the family the rule works with).</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2>Sizes and zones (art px, ×2 on screen)</h2>
+    <div class="tablewrap"><table>
+      <tr><th>Zone</th><th>Rect / size</th><th>Contents and rules</th></tr>
+      <tr><td>Body</td><td>54×38, outline x0/x53, y0/y37</td><td>Die-cut corners (corner px + 2 neighbours). The face is the family's face colour, with its light colour on row y1 and a light/face checker on y2, its shade on column x52 and row y36, and a checker on y35. Shadow: ink at 35%, offset (1,1). A coupon has a paper face with teal perforation rows y1–2.</td></tr>
+      <tr><td>Seal</td><td>13×13 at (−2,−2); next ones at x+9 (overlap 4); 3 seals end at x28</td><td>The shape is a d13 disc (dx²+dy² ≤ 40). A notched version was tried and dropped: at 13 px, the notches ate the face and the symbol. Layers from the outside: 1 ink, 1 paper ring, the face disc (light on its top-left edge, shade on its bottom-right edge), and the 5×5 symbol at (4..8, 4..8). The symbol is ink, or paper on dark families (Household, Snack, Clearance). Each seal has its own 35% shadow at (1,1). A later seal is drawn on top of the one before.</td></tr>
+      <tr><td>Price window</td><td>clipped into the corner: it shares the ticket's top (y0) and right (x53) edges, with its own ink on column x30 and row y16; inner x31–52 × y1–15 (22×15)</td><td>Big digits 4×7 ("1" is 3 wide, € is 4 wide), right edge at x51, on rows y5–11 (centred) or y8–14 when the old price is shown. States: base is paper with ink digits; boosted is mustard pale with brass darkest digits; lowered is tomato pale with tomato dark digits; 0€ is tomato with paper digits; a coupon is a teal stub with a paper scissors, and a wasted coupon is grey with an R strike.</td></tr>
+      <tr><td>Struck price</td><td>mini 3×5 digits, no €; in the window above the price, rows y2–6, right-aligned to x51</td><td>"Was" over "now". The old price is grey dark with a 1-row R strike on y4, running 1 px past each end. On the 0€ window it uses tomato pale digits with an ink strike. It always fits, because the old price and the price never share a row (128€ included). The € is left off, because a 3×5 € with a strike reads as "E", which was v2's smudge.</td></tr>
+      <tr><td>Effect plate</td><td>x2–51 × y18–35 (50×18)</td><td>Cream c, with a 1 px b inset on its top row and left column. The rule is Atkinson 800 14 px ink on baselines at screen y52 and y68 (falling back to 13, then 12 px, never 3 lines), with text from screen x6 to x100. A plain product shows its name (700, grey dark) and a 16×5 barcode.</td></tr>
+      <tr><td>Target dot</td><td>5×5 (10 screen px = the cap height)</td><td>Corner-cut ink ring, a 3×3 face with a light top-left pixel, its bottom row on the baseline, 3 screen px before the ink word.</td></tr>
+      <tr><td>Keyword chip</td><td>9 tall, top at baseline − 14 screen px; width = 4 × letters + 3</td><td>Ink outline with cut corners, the keyword's calm face (BATCH: cream shade), and hard 3×5 caps in ink with 1 px of padding. A wasted chip is tomato with paper caps.</td></tr>
+      <tr><td>GOLDEN</td><td>trim only</td><td>Brass dark outline and window outline, gold on row y1, and a 3×3 sparkle on the bottom-right corner. The seal covers the top-left corner, and the old price takes the top-right one.</td></tr>
+      <tr><td>Spot check</td><td>13×13 cause chip, centred under the ticket</td><td>The ticket's window owns the 0€ (with the struck 4 next to it). The chip only shows the warning sign.</td></tr>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>Weak points</h2>
+    <div class="card"><ul id="weak">
+      <li><b>The face and the seal can disagree.</b> Eggs is a Breakfast item (mustard seal) on a Food face (tomato), because the game colours the face by the family the rule works with. The dot in the rule echoes the face, but the disagreement still has to be learned. The "first seal" toggle removes it, but it changes an approved rule (#105).</li>
+      <li><b>The seals overhang the ticket</b> by 2 art px on the top and left. They go into the apron above and into the 10-art gap between tickets. Hovering, dragging and the count's flights need to treat the seal as part of the ticket.</li>
+      <li><b>Three seals fill the whole header</b> (x−2 to x28), so a 4th family or a wider window can't fit. The window is now 15 rows tall to stack "was" over "now", which leaves the plate 18 rows and keeps the rule at 14 px on 2 lines with no slack: a rule that needs 3 lines falls back to 13 or 12 px.</li>
+      <li><b>The struck old price is small</b> (3×5, grey, no €). It reads as "was" only because of where it sits, above the price, so at 1:1 it is a detail, not something you read at a glance.</li>
+      <li><b>The symbols are abstract and tiny</b> (5×5). The sun, wheat and cookie need a first-run tooltip. Without colour, Bakery and Snack differ only by their symbol.</li>
+      <li><b>The rule words are still smooth Atkinson.</b> Only the digits, caps chips, dots and seals are hard pixels, so the resolution mix from v2 is smaller, not gone.</li>
+      <li><b>Mustard seals on mustard faces</b> (Milk) rely only on the paper ring and the ink edge. They read well at 1:1, but the seal is quieter there than on any other face.</li>
+    </ul></div>
+  </section>
+</main>
+
+<script>
+'use strict';
+/* ---------- palette (art/src/palette.txt) and families (data/families/*.tres) ---------- */
+const P = {INK:'#2b2420',INK_LIGHT:'#4a3f38',GREY_DARK:'#5e574d',GREY:'#8a8172',GREY_LIGHT:'#c7beab',CREAM_DARKEST:'#b39f78',
+  CREAM_SHADE:'#ddcba5',CREAM:'#f3e9d2',PAPER:'#fbf7ee',TEAL_DARKEST:'#1f3b3a',TEAL_DARK:'#2a4d4b',TEAL_SHADE:'#3a7672',TEAL:'#4f9a94',
+  TEAL_LIGHT:'#86c2b6',TEAL_PALE:'#c3e0d4',TOMATO_DARKEST:'#6e2630',TOMATO_DARK:'#a83a3c',TOMATO:'#d9534f',TOMATO_LIGHT:'#ec8a6e',
+  TOMATO_PALE:'#f5bfa0',MUSTARD_DARKEST:'#7a5a1c',MUSTARD_DARK:'#b38425',MUSTARD:'#e2b33c',MUSTARD_LIGHT:'#f1d27a',MUSTARD_PALE:'#faecbc',
+  GREEN_DARK:'#3d7a45',GREEN:'#5fae5a',GREEN_LIGHT:'#a5d17e',BROWN_DARKEST:'#4a3022',BROWN_DARK:'#7a5232',BROWN:'#a87a4e',BROWN_LIGHT:'#d2a874',
+  BRASS_DARKEST:'#4a3010',BRASS_DARK:'#8a5d1a',BRASS:'#c8932b',GOLD:'#ffcf3f',
+  STEEL_HI:'#ecebe4',STEEL_LIGHT:'#c7c3b8',STEEL_PALE:'#a9a59b',STEEL:'#8d8a83',STEEL_SHADE:'#6f6b63',STEEL_DARK:'#57534c',STEEL_DARKEST:'#45423d',
+  RUBBER:'#3d3a36',RUBBER_DARK:'#2c2926',CHARCOAL:'#24221f'};
+const FAM = {
+  Breakfast:{face:P.MUSTARD,light:P.MUSTARD_LIGHT,shade:P.MUSTARD_DARK,sym:'sun'},
+  Bakery:{face:P.BROWN_LIGHT,light:P.CREAM_SHADE,shade:P.BROWN,sym:'wheat'},
+  Dairy:{face:P.TEAL,light:P.TEAL_LIGHT,shade:P.TEAL_SHADE,sym:'drop'},
+  Produce:{face:P.GREEN,light:P.GREEN_LIGHT,shade:P.GREEN_DARK,sym:'leaf'},
+  Household:{face:P.GREY_DARK,light:P.GREY,shade:P.INK_LIGHT,sym:'house',paper:true},
+  Clearance:{face:P.TOMATO_DARK,light:P.TOMATO,shade:P.TOMATO_DARKEST,sym:'down',paper:true},
+  Snack:{face:P.BROWN_DARK,light:P.BROWN,shade:P.BROWN_DARKEST,sym:'cookie',paper:true},
+  Food:{face:P.TOMATO_LIGHT,light:P.TOMATO_PALE,shade:P.TOMATO,sym:'fork'},
+  Frozen:{face:P.TEAL_PALE,light:P.PAPER,shade:P.TEAL_LIGHT,sym:'flake'},
+  Coupon:{face:P.TEAL,light:P.TEAL_LIGHT,shade:P.TEAL_SHADE,sym:'pct'},
+};
+const KEY_ORDER = ['Breakfast','Bakery','Dairy','Produce','Household','Clearance','Snack','Food','Frozen','Coupon'];
+const KW_FACE = {BATCH:P.CREAM_SHADE, CHAIN:P.GREEN_LIGHT, PAIR:P.TEAL_LIGHT, MORNING:P.MUSTARD_LIGHT, WASTED:P.TOMATO_PALE};
+const ATK = "NCAtk, 'Atkinson Hyperlegible Next', sans-serif";
+const fTxt = (s, w = 800) => `${w} ${s}px ${ATK}`;
+
+/* ---------- hard-pixel sheets ---------- */
+const SYM = {
+  sun:   ['#.#.#', '.###.', '#####', '.###.', '#.#.#'],
+  wheat: ['.#.#.', '..#..', '.#.#.', '..#..', '..#..'],
+  drop:  ['..#..', '.###.', '#####', '#####', '.###.'],
+  leaf:  ['..###', '.####', '#####', '.##..', '#....'],
+  house: ['..#..', '.###.', '#####', '##.##', '##.##'],
+  down:  ['.###.', '.###.', '#####', '.###.', '..#..'],
+  cookie:['.###.', '##.##', '#####', '#.###', '.###.'],
+  fork:  ['#.#.#', '#.#.#', '###.#', '.#..#', '.#..#'],
+  flake: ['..#..', '#.#.#', '.###.', '#.#.#', '..#..'],
+  pct:   ['##..#', '##.#.', '..#..', '.#.##', '#..##'],
+};
+const DIG_BIG = {
+  '0':['.##.','#..#','#..#','#..#','#..#','#..#','.##.'], '1':['.#.','##.','.#.','.#.','.#.','.#.','###'],
+  '2':['.##.','#..#','...#','..#.','.#..','#...','####'], '3':['###.','...#','...#','.##.','...#','...#','###.'],
+  '4':['..#.','.##.','#.#.','#.#.','####','..#.','..#.'], '5':['####','#...','###.','...#','...#','#..#','.##.'],
+  '6':['.##.','#...','#...','###.','#..#','#..#','.##.'], '7':['####','...#','..#.','..#.','.#..','.#..','.#..'],
+  '8':['.##.','#..#','#..#','.##.','#..#','#..#','.##.'], '9':['.##.','#..#','#..#','.###','...#','...#','.##.'],
+  '€':['..##','.#..','####','.#..','####','.#..','..##'],
+};
+const MINI = {
+  '0':['###','#.#','#.#','#.#','###'], '1':['.#.','##.','.#.','.#.','###'], '2':['##.','..#','.#.','#..','###'],
+  '3':['##.','..#','.#.','..#','##.'], '4':['..#','.##','#.#','###','..#'], '5':['###','#..','##.','..#','##.'],
+  '6':['.##','#..','###','#.#','###'], '7':['###','..#','.#.','.#.','.#.'], '8':['###','#.#','###','#.#','###'],
+  '9':['###','#.#','###','..#','##.'],
+  A:['.#.','#.#','###','#.#','#.#'], B:['##.','#.#','##.','#.#','##.'], C:['.##','#..','#..','#..','.##'], D:['##.','#.#','#.#','#.#','##.'],
+  E:['###','#..','##.','#..','###'], G:['.##','#..','#.#','#.#','.##'], H:['#.#','#.#','###','#.#','#.#'], I:['###','.#.','.#.','.#.','###'],
+  M:['#...#','##.##','#.#.#','#...#','#...#'], N:['#..#','##.#','#.##','#..#','#..#'], O:['.#.','#.#','#.#','#.#','.#.'],
+  P:['##.','#.#','##.','#..','#..'], R:['##.','#.#','##.','#.#','#.#'], S:['.##','#..','.#.','..#','##.'], T:['###','.#.','.#.','.#.','.#.'],
+  W:['#...#','#...#','#.#.#','##.##','#...#'],
+};
+function sheetW(s, set) { let w = 0; for (const ch of s) w += set[ch][0].length + 1; return w - 1; }
+/* Draws s with its right edge at art column `right` (inclusive), its top at art row `top`; returns the left column. */
+function sheetR(a, s, right, top, set, colour) { const x0 = right - sheetW(s, set) + 1; sheetL(a, s, x0, top, set, colour); return x0; }
+function sheetL(a, s, x0, top, set, colour) {
+  let x = x0;
+  for (const ch of s) { const g = set[ch]; g.forEach((row, j) => { for (let i = 0; i < row.length; i++) if (row[i] === '#') a(x + i, top + j, 1, 1, colour); }); x += g[0].length + 1; }
+}
+
+/* ---------- canvas helpers ---------- */
+function R(ctx, x, y, w, h, c) { ctx.fillStyle = c; ctx.fillRect(x, y, w, h); }
+const artOf = (ctx, X, Y) => (x, y, w, h, c) => R(ctx, X + x * 2, Y + y * 2, w * 2, h * 2, c);
+function mk(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d'); x.imageSmoothingEnabled = false; return c; }
+const IMG = {};
+function loadAll() {
+  return Promise.all(['now_planning', 'now_planning_plain', 'family_coupon'].map(n => new Promise(res => {
+    const i = new Image(); i.onload = () => { IMG[n] = i; res(); }; i.onerror = () => { console.error('missing image ' + n); res(); };
+    i.src = 'ticket_summary_seal-badge_src/' + n + '.png';
+  })));
+}
+
+/* ---------- the seal: a 13x13 round disc, layered ink / paper ring / face / symbol ---------- */
+const SEAL_MASK = (() => {
+  const m = []; for (let y = 0; y < 13; y++) { m.push([]); for (let x = 0; x < 13; x++) { const dx = x - 6, dy = y - 6; m[y].push(dx * dx + dy * dy <= 40 ? 1 : 0); } }
+  return m;
+})();
+function layers(mask) {
+  const H = mask.length, W = mask[0].length; const at = (x, y) => (x >= 0 && y >= 0 && x < W && y < H) ? mask[y][x] : 0;
+  const L = mask.map(r => r.map(v => v ? 3 : 0)); // 1 ink, 2 paper, 3 face
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (mask[y][x] && (!at(x - 1, y) || !at(x + 1, y) || !at(x, y - 1) || !at(x, y + 1))) L[y][x] = 1;
+  const isInk = (x, y) => (x >= 0 && y >= 0 && x < W && y < H) ? L[y][x] === 1 || L[y][x] === 0 : true;
+  const L2 = L.map(r => r.slice());
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (L[y][x] === 3 && (isInk(x - 1, y) || isInk(x + 1, y) || isInk(x, y - 1) || isInk(x, y + 1))) L2[y][x] = 2;
+  return L2;
+}
+const SEAL_L = layers(SEAL_MASK);
+function drawSeal(a, fam, x0, y0) {
+  const f = FAM[fam]; const L = SEAL_L;
+  const isP = (x, y) => L[y] && L[y][x] === 2;
+  ctxAlpha(a, 0.35, () => { for (let y = 0; y < 13; y++) for (let x = 0; x < 13; x++) if (L[y][x]) a(x0 + x + 1, y0 + y + 1, 1, 1, P.INK); });
+  for (let y = 0; y < 13; y++) for (let x = 0; x < 13; x++) {
+    const v = L[y][x]; if (!v) continue;
+    let c = v === 1 ? P.INK : v === 2 ? P.PAPER : f.face;
+    if (v === 3) { if (isP(x - 1, y) || isP(x, y - 1)) c = f.light; else if (isP(x + 1, y) || isP(x, y + 1)) c = f.shade; }
+    a(x0 + x, y0 + y, 1, 1, c);
+  }
+  SYM[f.sym].forEach((row, j) => { for (let i = 0; i < 5; i++) if (row[i] === '#') a(x0 + 4 + i, y0 + 4 + j, 1, 1, f.paper ? P.PAPER : P.INK); });
+}
+function ctxAlpha(a, al, fn) { const c = a.ctx; c.save(); c.globalAlpha = al; fn(); c.restore(); }
+function artOfC(ctx, X, Y) { const a = artOf(ctx, X, Y); a.ctx = ctx; return a; }
+
+/* The 5x5 target dot (cap height): its bottom row on the baseline. */
+function targetDot(ctx, fam, sx, base) {
+  const f = FAM[fam]; const a = artOf(ctx, sx, base - 10);
+  a(1, 0, 3, 1, P.INK); a(1, 4, 3, 1, P.INK); a(0, 1, 1, 3, P.INK); a(4, 1, 1, 3, P.INK);
+  a(1, 1, 3, 3, f.face); a(1, 1, 1, 1, f.light); a(3, 3, 1, 1, f.shade);
+}
+function kwWidth(word) { return (sheetW(word, MINI) + 4) * 2; }
+function kwChip(ctx, word, sx, base, wasted) {
+  const w = sheetW(word, MINI) + 4, h = 9; const a = artOf(ctx, sx, base - 14);
+  const face = wasted ? P.TOMATO : (KW_FACE[word] || P.CREAM_SHADE);
+  a(1, 0, w - 2, 1, P.INK); a(1, h - 1, w - 2, 1, P.INK); a(0, 1, 1, h - 2, P.INK); a(w - 1, 1, 1, h - 2, P.INK);
+  a(1, 1, w - 2, h - 2, face);
+  sheetL(a, word, 2, 2, MINI, wasted ? P.PAPER : P.INK);
+}
+
+/* ---------- rule text: words, {Family} targets, [KEYWORD] chips ---------- */
+function toks(s) {
+  return s.split(' ').filter(Boolean).map(w => w[0] === '{' ? {g:w.slice(1, -1)} : w[0] === '[' ? {k:w.slice(1, -1)} : {w});
+}
+function measure(ctx, t) {
+  if (t.g) return 13 + ctx.measureText(t.g).width;
+  if (t.k) return kwWidth(t.k);
+  return ctx.measureText(t.w).width;
+}
+function wrap(ctx, tokens, size, widths) {
+  ctx.font = fTxt(size); const sp = ctx.measureText(' ').width; const lines = [[]]; let cur = 0;
+  for (const t of tokens) {
+    const tw = measure(ctx, t); const W = widths[Math.min(lines.length - 1, widths.length - 1)];
+    const line = lines[lines.length - 1]; const add = (line.length ? sp : 0) + tw;
+    if (cur + add > W && line.length) { lines.push([{...t, tw}]); cur = tw; } else { line.push({...t, tw}); cur += add; }
+  }
+  return lines;
+}
+function ruleText(ctx, s, x, base1, pitch, widths, size = 14, wasted = false) {
+  const lines = wrap(ctx, toks(s).map(t => t.k && wasted ? {...t, wasted:true} : t), size, widths);
+  if (lines.length > 2 && size > 12) return ruleText(ctx, s, x, base1, pitch, widths, size - 1, wasted);
+  ctx.font = fTxt(size); const sp = ctx.measureText(' ').width;
+  lines.slice(0, 2).forEach((line, li) => {
+    let bx = x; const base = base1 + li * pitch;
+    line.forEach((t, k) => {
+      if (k) bx += sp;
+      const gx = Math.round(bx / 2) * 2;
+      if (t.g) { targetDot(ctx, t.g, gx, base); ctx.fillStyle = P.INK; ctx.fillText(t.g, gx + 13, base); }
+      else if (t.k) kwChip(ctx, t.k, gx, base, t.wasted);
+      else { ctx.fillStyle = P.INK; ctx.fillText(t.w, Math.round(bx), base); }
+      bx += t.tw;
+    });
+  });
+  return size;
+}
+function barcode(a, x, y) { const w = [1, 1, 2, 1, 1, 3, 1, 2, 1, 1, 2, 1]; let cx = x; w.forEach((n, i) => { if (i % 2 === 0) a(cx, y, n, 5, P.INK); cx += n; }); }
+
+/* ---------- the ticket, 54x38 art ---------- */
+const TH = 38;
+let FACE_MODE = 'works';
+function shape(a, c) { a(2, 0, 50, TH, c); a(1, 1, 52, TH - 2, c); a(0, 2, 54, TH - 4, c); }
+function outline(a, O) {
+  a(2, 0, 50, 1, O); a(2, TH - 1, 50, 1, O); a(0, 2, 1, TH - 4, O); a(53, 2, 1, TH - 4, O);
+  a(1, 1, 1, 1, O); a(52, 1, 1, 1, O); a(1, TH - 2, 1, 1, O); a(52, TH - 2, 1, 1, O);
+}
+function sparkle(a, x, y) { a(x + 1, y, 1, 3, P.GOLD); a(x, y + 1, 3, 1, P.GOLD); a(x + 1, y + 1, 1, 1, P.PAPER); }
+const WIN = {base:[P.PAPER, P.CREAM_SHADE, P.INK, P.GREY_DARK, P.TOMATO], boost:[P.MUSTARD_PALE, P.MUSTARD_LIGHT, P.BRASS_DARKEST, P.GREY_DARK, P.TOMATO],
+  low:[P.TOMATO_PALE, P.TOMATO_LIGHT, P.TOMATO_DARK, P.GREY_DARK, P.TOMATO], zero:[P.TOMATO, P.TOMATO_DARK, P.PAPER, P.TOMATO_PALE, P.INK]};
+/* sp: {seals:[..], works: family the face shows, text, name, base, shown, golden, zero, coupon, fizzle} */
+function ticket(ctx, sp, X, Y) {
+  const a = artOfC(ctx, X, Y);
+  const gold = sp.golden; const O = gold ? P.BRASS_DARK : P.INK;
+  const fam = sp.coupon ? null : FAM[FACE_MODE === 'own' ? sp.seals[0] : (sp.works || sp.seals[0])];
+  ctxAlpha(a, 0.35, () => shape(artOf(ctx, X + 2, Y + 2), P.INK));
+  if (sp.coupon) {
+    a(1, 1, 52, TH - 2, P.PAPER); a(1, 1, 52, 2, P.TEAL_SHADE); for (let x = 1; x < 53; x += 3) a(x, 2, 2, 1, P.PAPER);
+    a(52, 3, 1, TH - 4, P.CREAM_SHADE); a(1, TH - 2, 52, 1, P.CREAM_SHADE);
+  } else {
+    a(1, 1, 52, TH - 2, fam.face); a(1, 1, 52, 1, gold ? P.GOLD : fam.light);
+    for (let x = 1; x < 53; x += 2) { a(x, 2, 1, 1, fam.light); a(x + 1, TH - 3, 1, 1, fam.shade); }
+    a(52, 2, 1, TH - 3, fam.shade); a(1, TH - 2, 52, 1, fam.shade);
+  }
+  outline(a, O);
+  // the price window, clipped into the top-right corner: it shares the ticket's top (y0) and right (x53)
+  // edges; its own ink is column x30 and row y16; inner x31-52 x y1-15
+  const ps = sp.coupon ? 'stub' : sp.zero ? 'zero' : sp.shown > sp.base ? 'boost' : sp.shown < sp.base ? 'low' : 'base';
+  const w = ps === 'stub' ? [sp.fizzle ? P.GREY_LIGHT : P.TEAL, sp.fizzle ? P.GREY : P.TEAL_SHADE] : WIN[ps];
+  a(31, 1, 22, 15, w[0]); a(31, 1, 22, 1, w[1]); a(31, 1, 1, 15, w[1]);
+  a(30, 1, 1, 16, O); a(30, 16, 23, 1, O); a(52, 1, 1, 1, O);
+  if (gold) sparkle(a, 51, TH - 3);
+  if (sp.coupon) {
+    const img = IMG.family_coupon; const sx = X + 74, sy = Y + 8;
+    const tmp = mk(18, 18); const tc = tmp.getContext('2d'); tc.imageSmoothingEnabled = false; tc.drawImage(img, 0, 0, 18, 18); tc.globalCompositeOperation = 'source-in'; tc.fillStyle = sp.fizzle ? P.GREY_DARK : P.PAPER; tc.fillRect(0, 0, 18, 18);
+    ctx.drawImage(tmp, sx, sy);
+    if (sp.fizzle) for (let i = 0; i < 20; i++) a(32 + i, 14 - Math.floor(i * 12 / 19), 1, 1, P.TOMATO);
+  } else {
+    const struck = sp.shown !== sp.base;
+    // was over now: the old price in mini digits on rows y2-6, struck on y4, the price on y8-14
+    // (centred on y5-11 when there is no old price)
+    sheetR(a, sp.shown + '€', 51, struck ? 8 : 5, DIG_BIG, w[2]);
+    if (struck) {
+      const ms = String(sp.base); const mw = sheetW(ms, MINI); const x0 = sheetR(a, ms, 51, 2, MINI, w[3]);
+      a(x0 - 1, 4, mw + 2, 1, w[4]);
+    }
+  }
+  // the effect plate: x2-51 x y18-35
+  a(2, 18, 50, 18, P.CREAM); a(2, 18, 50, 1, P.CREAM_SHADE); a(2, 18, 1, 18, P.CREAM_SHADE);
+  const tx = X + 6;
+  if (sp.text) ruleText(ctx, sp.text, tx, Y + 52, 16, [94, 94], 14, !!sp.wastedKw);
+  else { ctx.font = fTxt(14, 700); ctx.fillStyle = P.GREY_DARK; ctx.fillText(sp.name, tx, Y + 52); barcode(a, 3, 29); }
+  // the seals, last so they sit over the corner
+  if (!sp.coupon) sp.seals.forEach((f, i) => drawSeal(a, f, -2 + 9 * i, -2));
+  else drawSeal(a, 'Coupon', -2, -2);
+}
+/* The cause-only chip (13x13 art) under a carded Spot check slot. */
+const WARN2 = ['....#....','...#M#...','..#M#M#..','..#M#M#..','.#MM#MM#.','.#MMMMM#.','#MMM#MMM#','#########'];
+function causeChip(ctx, cx, top) {
+  const a = artOfC(ctx, cx - 13, top);
+  ctxAlpha(a, 0.42, () => { a(2, 1, 11, 13, P.INK); a(1, 2, 13, 11, P.INK); });
+  a(1, 0, 11, 13, P.INK); a(0, 1, 13, 11, P.INK); a(1, 1, 11, 11, P.TOMATO_DARK); a(2, 2, 9, 9, P.TOMATO); a(2, 2, 9, 1, P.TOMATO_LIGHT);
+  WARN2.forEach((r, j) => { for (let i = 0; i < r.length; i++) if (r[i] !== '.') a(2 + i, 3 + j, 1, 1, r[i] === '#' ? P.INK : P.MUSTARD); });
+}
+function rail(ctx, X, Y, W) {
+  const hp = TH * 2;
+  R(ctx, X, Y - 2, W, 2, P.STEEL_SHADE); R(ctx, X, Y, W, 2, P.STEEL_HI); R(ctx, X, Y + 2, W, hp - 6, P.STEEL_PALE);
+  R(ctx, X, Y + hp - 4, W, 4, P.STEEL_DARK); R(ctx, X, Y + hp, W, 2, P.RUBBER_DARK);
+}
+
+/* ---------- content: the capture's row (data/cards/*.tres, sticker texts) and the specimens ---------- */
+const ROW = [
+  {name:'Eggs', seals:['Breakfast'], works:'Food', text:'×2 next {Food}', base:1, shown:1},
+  {name:'Bread', seals:['Breakfast', 'Bakery'], works:'Bakery', text:'', base:5, shown:14, golden:true},
+  {name:'Milk', seals:['Breakfast', 'Dairy'], works:'Breakfast', text:'+1 per earlier {Breakfast}', base:4, shown:0, zero:true},
+  {name:'Multipack', coupon:true, fizzle:true, text:'×3 later of the family before'},
+  {name:'Milk', seals:['Breakfast', 'Dairy'], works:'Breakfast', text:'+1 per earlier {Breakfast}', base:4, shown:21},
+  {name:'Milk', seals:['Breakfast', 'Dairy'], works:'Breakfast', text:'+1 per earlier {Breakfast}', base:4, shown:48},
+  {name:'Milk', seals:['Breakfast', 'Dairy'], works:'Breakfast', text:'+1 per earlier {Breakfast}', base:4, shown:63},
+];
+const SPECS = [
+  {id:'b', title:'b · Stress: GOLDEN Milk, 3 families, 128€ (was 4)', note:'There are three seals at x−2/7/16, ending at x28, 2 px before the window. The struck 4 sits above 128€, so it fits with no fallback. The trim is gold: a brass outline, a gold top row and a sparkle in the bottom-right corner.',
+    sp:{name:'Milk', seals:['Breakfast', 'Dairy', 'Household'], works:'Breakfast', text:'+1 per earlier {Breakfast}', base:4, shown:128, golden:true}},
+  {id:'c1', title:'c · Coupon: Multipack', note:'The face is paper with a teal perforation, the seal is Coupon (%), and the price window is a teal stub with scissors. A coupon never shows €.',
+    sp:{name:'Multipack', coupon:true, text:'×3 later of the family before'}},
+  {id:'c2', title:'c · Coupon, wasted', note:'When the coupon is wasted, its stub turns grey with a tomato strike. The WASTED sticker on the item explains why.',
+    sp:{name:'Multipack', coupon:true, fizzle:true, text:'×3 later of the family before'}},
+  {id:'d', title:'d · Keyword chip: Croissant', note:'BATCH is a hard-pixel chip in 3×5 caps, on the calm cream-shade face. The struck 2 sits above 8€.',
+    sp:{name:'Croissant', seals:['Bakery', 'Breakfast'], works:'Bakery', text:'[BATCH] 1st: +2 to the rest', base:2, shown:8}},
+  {id:'d2', title:'d · Keyword chip, wasted', note:'A wasted chip is tomato with paper caps. Its tooltip gives the reason.',
+    sp:{name:'Croissant', seals:['Bakery', 'Breakfast'], works:'Bakery', text:'[BATCH] 1st: +2 to the rest', base:2, shown:2, wastedKw:true}},
+  {id:'e', title:'e · The 0€ Spot check slot', note:'The ticket owns the amount: a tomato window reading 0€, with the struck 4 in pale digits. The chip under the ticket only shows the cause, a warning sign with no text, and its tooltip still says "Spot check: this slot pays 0€".',
+    sp:{name:'Milk', seals:['Breakfast', 'Dairy'], works:'Breakfast', text:'+1 per earlier {Breakfast}', base:4, shown:0, zero:true}, chip:true},
+  {id:'f', title:'extra · Target naming Household (dark family)', note:'A dark family gets a paper symbol on its seal. The target dot works the same on every face.',
+    sp:{name:'Batteries', seals:['Household'], works:'Household', text:'×2 next {Household}', base:3, shown:3}},
+];
+
+/* ---------- drawing ---------- */
+const TICKET_X0 = 368, PITCH = 128, TICKET_Y = 458;
+function drawScene(ctx) {
+  ctx.imageSmoothingEnabled = false;
+  R(ctx, 0, 0, 1280, 732, '#222a29');
+  ctx.drawImage(IMG.now_planning, 0, 0);
+  ctx.drawImage(IMG.now_planning_plain, 676, 522, 72, 26, 676, 522, 72, 26); // today's slot-3 talker goes
+  // everything under the rail moves down 12 px for the 38-art ticket
+  ctx.drawImage(IMG.now_planning, 0, 470, 1280, 250, 0, 482, 1280, 250);
+  ctx.drawImage(IMG.now_planning_plain, 676, 522, 72, 26, 676, 534, 72, 26);
+  rail(ctx, 352, TICKET_Y, 910);
+  ROW.forEach((sp, i) => {
+    const X = TICKET_X0 + PITCH * i; ticket(ctx, sp, X, TICKET_Y);
+    if (i === 2) causeChip(ctx, X + 54, TICKET_Y + TH * 2 - 2);
+  });
+}
+function zoom(dst, src, sx, sy, sw, sh, s) {
+  dst.width = sw * s; dst.height = sh * s; const c = dst.getContext('2d'); c.imageSmoothingEnabled = false;
+  c.drawImage(src, sx, sy, sw, sh, 0, 0, sw * s, sh * s);
+}
+function drawSpec(c, spec) {
+  const W = 156, H = 124; c.width = W; c.height = H; const ctx = c.getContext('2d'); ctx.imageSmoothingEnabled = false;
+  R(ctx, 0, 0, W, H, P.CHARCOAL); R(ctx, 0, 0, W, 10, P.STEEL_DARK);
+  rail(ctx, 0, 20, W);
+  const sp = spec.sp;
+  ticket(ctx, sp, 24, 20);
+  if (spec.chip) causeChip(ctx, 24 + 54, 20 + TH * 2 - 2);
+}
+function drawKey(c) {
+  const n = KEY_ORDER.length, cell = 28; const w = n * cell + 8, h = 46; const src = mk(w, h); const ctx = src.getContext('2d');
+  R(ctx, 0, 0, w, h, P.CREAM);
+  KEY_ORDER.forEach((f, i) => drawSeal(artOfC(ctx, 6 + i * cell, 4), f, 0, 0));
+  zoom(c, src, 0, 0, w, 34, 3);
+  // names under the seals (page text, not art)
+  const c2 = c; const extra = 30; const tmp = mk(c2.width, c2.height + extra); const t = tmp.getContext('2d');
+  t.drawImage(c2, 0, 0); R(t, 0, c2.height, tmp.width, extra, P.CREAM); t.font = fTxt(14, 700); t.fillStyle = P.INK; t.textAlign = 'center';
+  KEY_ORDER.forEach((f, i) => t.fillText(f, (6 + i * cell + 13) * 3, c2.height + 18));
+  c.height = tmp.height; c.getContext('2d').drawImage(tmp, 0, 0);
+}
+function drawAll() {
+  const scene = document.getElementById('scene'); const sctx = scene.getContext('2d');
+  drawScene(sctx);
+  zoom(document.getElementById('z1'), scene, 350, 440, 390, 130, 3);
+  zoom(document.getElementById('z2'), scene, 736, 440, 520, 130, 3);
+  const host = document.getElementById('specs'); host.innerHTML = '';
+  for (const spec of SPECS) {
+    const bay = document.createElement('div'); bay.className = 'bay';
+    bay.innerHTML = `<h3>${spec.title}</h3>`;
+    const pair = document.createElement('div'); pair.className = 'pair';
+    const one = document.createElement('canvas'); drawSpec(one, spec);
+    const three = document.createElement('canvas'); zoom(three, one, 0, 0, one.width, one.height, 3);
+    one.style.width = one.width + 'px'; three.style.width = '100%'; three.style.maxWidth = three.width + 'px';
+    pair.append(one); bay.append(pair, three);
+    const p = document.createElement('p'); p.textContent = spec.note; bay.append(p);
+    host.append(bay);
+  }
+  drawKey(document.getElementById('key'));
+}
+document.getElementById('faceSeg').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return; FACE_MODE = b.dataset.v;
+  for (const x of e.currentTarget.querySelectorAll('button')) x.setAttribute('aria-pressed', x === b ? 'true' : 'false');
+  drawAll();
+});
+(async function start() {
+  await loadAll();
+  try { await Promise.all([document.fonts.load(fTxt(14)), document.fonts.load(fTxt(14, 700)), document.fonts.load(fTxt(13))]); } catch (e) {}
+  await document.fonts.ready;
+  try { drawAll(); document.body.dataset.ok = '1'; } catch (e) { console.error(e); document.body.dataset.err = e.message; }
+})();
+</script>
+</body>
+</html>
