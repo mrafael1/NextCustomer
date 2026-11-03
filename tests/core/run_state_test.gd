@@ -11,13 +11,13 @@ const REPEAT := "res://data/cards/repeat.tres"
 
 func test_balance_matches_the_plan() -> void:
 	var balance: BalanceDefinition = load(BALANCE)
-	# 12 shifts in 3 weeks of 4 since v0.65 (8 fitted with the balance simulator before, plan
-	# v0.28, issue #41; shift 1 lowered to 29 in v0.54): placeholders until the refit.
+	# 16 shifts in 4 weeks of 4 since v0.95 (12 in 3 since v0.65, 8 fitted with the balance
+	# simulator before, plan v0.28, issue #41): placeholders until the refit.
 	assert_array(Array(balance.quotas)).is_equal(
-		[29, 35, 53, 61, 73, 85, 98, 111, 125, 140, 155, 175]
+		[29, 35, 53, 61, 73, 85, 98, 111, 125, 140, 155, 175, 195, 215, 235, 260]
 	)
-	assert_array(Array(balance.inspection_shifts)).is_equal([3, 7, 11])
-	assert_array(Array(balance.review_shifts)).is_equal([4, 8, 12])
+	assert_array(Array(balance.inspection_shifts)).is_equal([3, 7, 11, 15])
+	assert_array(Array(balance.review_shifts)).is_equal([4, 8, 12, 16])
 	assert_int(balance.review_inspection_count).is_equal(2)
 	assert_int(balance.write_up_limit).is_equal(2)
 	assert_int(balance.write_up_last_shift).is_equal(4)

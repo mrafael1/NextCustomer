@@ -57,6 +57,11 @@ extends RefCounted
 ## (or older) save gets its week built as it loads (_legacy_week: the played days from the history,
 ## the current and announced ones as saved, the later ones drawn with the run's RNG), and its
 ## current shift keeps playing without its week event (RunState.pre_week_shift).
+## v0.95 (four weeks: 16 shifts) keeps version 10: the save holds no run length (the balance's
+## quotas give it), so a save from the 12-shift run resumes as a 16-shift run. Its played shifts
+## keep their saved quotas, the current one is rebuilt from today's curve, and its week plan
+## stands (weeks 1-3 are unchanged); a save on shift 12 plays it as a review with its payday, not
+## the final review, and week 4 is drawn as it starts.
 const FORMAT_VERSION := 10
 ## Version 9: version 10's form with the next shift's events and no week, read as it is.
 const BEFORE_WEEKS_VERSION := 9

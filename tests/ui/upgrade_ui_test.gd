@@ -484,7 +484,7 @@ func test_the_results_screen_lists_the_run_history() -> void:
 	# Shift 2's quota is its record's: a boon day can change it (v0.69).
 	var quota: String = "0€ / %d€" % screen.run.history[1].quota
 	assert_str(texts[4]).is_equal("  2  %-13s  fail" % quota)
-	# The full 12-shift receipt's layout: tests/ui/results_panel_test.gd.
+	# The full 16-shift receipt's layout (week columns): tests/ui/results_panel_test.gd.
 
 
 ## A shift's dim lines: one per machine visit (#77), then the inspection.
