@@ -1,11 +1,12 @@
 extends GdUnitTestSuite
 ## The register's tower on the real shift screen (the shift scene polish, mock-up
 ## docs/art/mockups/shift_scene_polish_v2.html section 2, A2; RegisterTower), in the stage's window
-## and a larger one (more of the store shows under the expand stretch): the charcoal column from
-## the stage's top down to the counter, inside the window; on it the quota tube (no number in it)
-## left of the receipt and clear of it, its flag on its top inside the window, a Double checkout's
-## pips under it, clear of the receipt; the receipt in its well, opening with TODAY'S TARGET (the
-## quota inside the paper); and the top bar right of the column, every chip clear of it. The real
+## and larger ones (1920x1080 first; more of the store shows under the expand stretch): the
+## charcoal column from the stage's top down to the counter, inside the window; on it the quota
+## tube (no number in it) left of the receipt and clear of it, never a flag on it, its lap badge
+## on its top inside the column and clear of the receipt, a Double checkout's pips under it, clear
+## of the receipt; the receipt in its well, opening with TODAY'S TARGET (the quota inside the
+## paper); and the top bar right of the column, every chip clear of it. The real
 ## saves and logs are never touched.
 
 const SCREEN := "res://ui/shift_screen.tscn"
@@ -39,11 +40,25 @@ func test_the_tower_in_a_larger_window() -> void:
 	await _assert_the_tower_in(Vector2i(1600, 1000))
 
 
-## A count at twice the quota laps the tube: the flag's "×3" cloth, centred on the tube's top, and
+## The game's first target (the user's feedback of 2026-11-03).
+func test_the_tower_at_1920x1080() -> void:
+	await _assert_the_tower_in(Vector2i(1920, 1080))
+
+
+func test_a_lap_at_1920x1080() -> void:
+	await _assert_a_lap_clear_of_the_receipt(Vector2i(1920, 1080))
+
+
+## A count at twice the quota laps the tube: its "×3" badge, centred on the tube's top, and
 ## the quota crossing's ×2 stamp (at its slam's full scale too, over the belt's start) stay inside
 ## the window and clear of the receipt at its full height (RECEIPT_TOP, the usual state by then)
 ## and of its TODAY'S TARGET; the stamp at rest stays under the top bar and left of the monitor.
-func test_a_lap_keeps_its_flag_and_stamp_clear_of_the_receipt() -> void:
+func test_a_lap_keeps_its_badge_and_stamp_clear_of_the_receipt() -> void:
+	await _assert_a_lap_clear_of_the_receipt(Vector2i(1280, 720))
+
+
+func _assert_a_lap_clear_of_the_receipt(window: Vector2i) -> void:
+	get_tree().root.size = window
 	var screen: ShiftScreen = await _screen()
 	screen.profile.set_reduced_motion(true)
 	var meter: QuotaMeter = screen._stage.quota_meter
@@ -51,7 +66,7 @@ func test_a_lap_keeps_its_flag_and_stamp_clear_of_the_receipt() -> void:
 	var quota: int = screen.run.quota()
 	meter._show(quota * 2, quota, true, true)
 	await _frames(3)
-	assert_int(meter.shown_lap()).is_equal(2)
+	assert_int(meter.shown_lap()).is_equal(3)
 	var visible_rect: Rect2 = get_tree().root.get_visible_rect()
 	var receipt: Rect2 = _on_stage(
 		screen,
@@ -63,17 +78,17 @@ func test_a_lap_keeps_its_flag_and_stamp_clear_of_the_receipt() -> void:
 		)
 	)
 	var target: Rect2 = screen._receipt.target.get_global_rect()
-	var flag: QuotaFlag = meter.flag()
-	assert_str(flag.lap_text).is_equal("×3")
-	var rest: Rect2 = flag.rest_rect()
-	rest.position += flag.global_position
-	assert_bool(visible_rect.encloses(rest)).override_failure_message(str(rest)).is_true()
-	assert_bool(rest.intersects(receipt)).override_failure_message(str(rest)).is_false()
-	assert_bool(rest.intersects(target)).is_false()
-	var tube: Rect2 = meter.get_global_rect()
-	assert_float(rest.position.x).is_greater_equal(tube.position.x)
-	assert_float(rest.end.x).is_less_equal(tube.end.x)
+	assert_str(meter.badge_text()).is_equal("×3")
+	assert_int(meter.get_child_count()).is_equal(0)
+	var badge: Rect2 = meter.get_global_transform() * meter.badge_rect()
 	var column: Rect2 = screen._stage.tower.get_global_rect()
+	assert_bool(visible_rect.encloses(badge)).override_failure_message(str(badge)).is_true()
+	assert_bool(column.encloses(badge)).override_failure_message(str(badge)).is_true()
+	assert_bool(badge.intersects(receipt)).override_failure_message(str(badge)).is_false()
+	assert_bool(badge.intersects(target)).is_false()
+	var tube: Rect2 = meter.get_global_rect()
+	assert_bool(column.encloses(tube)).is_true()
+	assert_bool(tube.intersects(receipt)).is_false()
 	var monitor: Rect2 = _on_stage(screen, ShiftStage.MONITOR_RECT)
 	var to_screen: Transform2D = crossing.get_global_transform()
 	for scale_now: float in [1.0, QuotaCrossing.STAMP_SLAM_SCALE]:
@@ -134,15 +149,15 @@ func _assert_the_tower_in(window: Vector2i) -> void:
 	assert_float(receipt.position.x).is_greater_equal(well.position.x)
 	assert_float(receipt.end.x).is_less_equal(well.end.x)
 	assert_float(receipt.position.y).is_greater_equal(well.position.y)
-	# The flag stands on the tube's top, inside the window, clear of the receipt.
-	var flag: QuotaFlag = meter.flag()
-	assert_bool(meter.flag_shown()).is_true()
-	var rest: Rect2 = flag.rest_rect()
-	rest.position += flag.global_position
-	assert_bool(visible_rect.encloses(rest)).override_failure_message(str(rest)).is_true()
-	assert_bool(rest.intersects(receipt)).is_false()
-	assert_float(rest.end.x).is_less_equal(stage.position.x + ShiftStage.RECEIPT_X)
-	assert_float(rest.end.y).is_less_equal(tube.position.y + ArtStyle.ART_SCALE * 2.0)
+	# At the quota: no flag; lap 2's badge on the tube's top, inside the column, clear of the
+	# receipt.
+	assert_int(meter.get_child_count()).is_equal(0)
+	assert_str(meter.badge_text()).is_equal("×2")
+	var badge: Rect2 = meter.get_global_transform() * meter.badge_rect()
+	assert_bool(column.encloses(badge)).override_failure_message(str(badge)).is_true()
+	assert_bool(badge.intersects(receipt)).is_false()
+	assert_float(badge.end.x).is_less_equal(stage.position.x + ShiftStage.RECEIPT_X)
+	assert_float(badge.end.y).is_less_equal(tube.position.y)
 	# A Double checkout's pips under the tube.
 	var pips: Rect2 = tower.row_pips.get_global_rect()
 	assert_bool(tower.row_pips.visible).is_true()

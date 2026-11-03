@@ -6,33 +6,22 @@ extends Control
 ## tube beside the receipt since the shift scene polish: lap_reached), and never scores.
 ##
 ## At the crossing, on top of the count-up's ding and its hit-stop (the ding's hold) and the
-## monitor's SPEND MET:
-## - A, the flag on the item: the item whose payout met the quota gets the gauge's flag planted
-##   on it, a mustard pennant reading SPEND MET with a ✓ badge on the pole; it flaps, then folds
-##   away as the item goes on to the bag (FLAG_SECONDS).
+## monitor's SPEND MET (A, the flag planted on the item, is gone since the user's feedback of
+## 2026-11-03: the gauge's laps say it):
 ## - B, hit-stop + streak: the picture dips (DIP) under a warm flash, and a gold spark flies from
-##   the item to the quota on the gauge (the target line on the tube's top), which pulses with a
-##   ring as it lands.
+##   the item that met the quota to the quota on the gauge (the target line on the tube's top),
+##   which pulses with a ring as it lands (CROSS_SECONDS in all).
 ## - C, ka-ching: the register's drawer and bell (Sfx "kaching"), one-off, apart from the ladder.
 ## - D, bonus lights: BonusLights light the belt's rail for the rest of the count.
-## - E, laps: from twice the quota on, the gauge laps (QuotaMeter); each new lap slams a ×N stamp
-##   over the belt's start, beside the tube's top and clear of the receipt, with sparkles and the
-##   ka-ching, shrinking away as the flag names the next.
+## - E, laps: from twice the quota on, each multiple reached (QuotaMeter.lap_reached) slams a ×N
+##   stamp over the belt's start, beside the tube's top and clear of the receipt, with sparkles
+##   and the ka-ching, shrinking away as the tube's badge names the next lap.
 ##
 ## Real time (the ding's hit-stop freezes the count, not these). Reduced motion keeps the sound,
-## the lights and the flag and the stamp standing still for their time, with no dip, flash,
-## streak or sparkles. Stage coordinates (the layer covers the stage), over the fore, under the
+## the lights and the stamp standing still for its time, with no dip, flash, streak, ring or
+## sparkles. Stage coordinates (the layer covers the stage), over the fore, under the
 ## scan layer.
 
-## A: the pole's height and the pennant, in px, and how long the flag stays (it folds over its
-## last FLAG_FOLD_SECONDS).
-const POLE_HEIGHT := 64.0
-const PENNANT_SIZE := Vector2(104, 30)
-const FLAG_GROW_SECONDS := 0.22
-const FLAG_SECONDS := 1.15
-const FLAG_FOLD_SECONDS := 0.2
-const FLAG_WAVE_PX := 2.0
-const FLAG_TEXT := "SPEND MET"
 ## B: the dip's offsets (px, one per DIP_STEP_SECONDS), the flash, the streak's flight (from
 ## STREAK_START_SECONDS, STREAK_SECONDS long) and the gauge's ring.
 const DIP: Array[Vector2] = [Vector2(0, 4), Vector2(-2, 2), Vector2.ZERO]
@@ -45,6 +34,8 @@ const STREAK_TRAIL := 7
 const STREAK_BEND := Vector2(-100, 0)
 const RING_SECONDS := 0.4
 const RING_GROW_PX := 10.0
+## The crossing's show (B) lasts this long: the streak's flight, then its ring.
+const CROSS_SECONDS := STREAK_START_SECONDS + STREAK_SECONDS + RING_SECONDS
 ## The sparkles: BURST_DOTS dots out to BURST_RADIUS px over BURST_SECONDS.
 const BURST_DOTS := 10
 const BURST_RADIUS := 26.0
@@ -79,15 +70,13 @@ var _count_up: CountUp
 var _counting: bool = false
 ## The slot of the latest beat's item (the one paying when the quota is met).
 var _slot: int = -1
-## The slot of the item that met the quota (A's flag follows it).
-var _flag_slot: int = -1
 ## Seconds since the crossing (-1: none) and since the last lap's stamp (-1: none), and that lap.
 var _since: float = -1.0
 var _lap_since: float = -1.0
 var _lap: int = 0
-## The flag's foot and the streak's ends, in this layer's coordinates, taken at the crossing (the
-## flag's foot follows its item while it rides).
-var _foot: Vector2 = Vector2.ZERO
+## The streak's ends, in this layer's coordinates, taken at the crossing: the item that met the
+## quota, and the quota mark on the gauge.
+var _launch: Vector2 = Vector2.ZERO
 var _mark: Vector2 = Vector2.ZERO
 var _gauge: Rect2 = Rect2()
 ## B's dip: the viewport's canvas transform before it, while dipping.
@@ -148,12 +137,11 @@ func end() -> void:
 		lights.fade()
 
 
-## The quota is met with a pop: A, B, C and D start.
+## The quota is met with a pop: B, C and D start.
 func cross() -> void:
 	_since = 0.0
-	_flag_slot = _slot
 	var rect: Rect2 = _local_rect(_item())
-	_foot = _snap(Vector2(rect.get_center().x - 6.0, rect.get_center().y + 6.0))
+	_launch = _snap(rect.get_center())
 	_gauge = _gauge_rect()
 	_mark = _quota_mark()
 	_play_kaching()
@@ -176,9 +164,14 @@ func stamp_lap(lap: int) -> void:
 	queue_redraw()
 
 
-## Whether the crossing's flag (A) shows now.
-func flag_shown() -> bool:
-	return _since >= 0.0 and _since < FLAG_SECONDS
+## Whether the crossing's show (B: the streak and its ring) runs now.
+func crossing_shown() -> bool:
+	return _since >= 0.0 and _since < CROSS_SECONDS
+
+
+## Where the crossing's streak flies from (the item that met the quota), in this layer.
+func launch_point() -> Vector2:
+	return _launch
 
 
 ## Whether a lap's stamp (E) shows now.
@@ -210,7 +203,7 @@ func _process(delta: float) -> void:
 	if _since >= 0.0:
 		_since += delta
 		_move_dip()
-		if _since >= FLAG_SECONDS:
+		if _since >= CROSS_SECONDS:
 			_since = -1.0
 	if _lap_since >= 0.0:
 		_lap_since += delta
@@ -226,7 +219,6 @@ func _draw() -> void:
 	if _since >= 0.0:
 		_draw_streak()
 		_draw_ring()
-		_draw_flag()
 	if _lap_since >= 0.0:
 		_draw_stamp()
 
@@ -235,7 +227,7 @@ func _draw() -> void:
 func _draw_streak() -> void:
 	if reduced_motion:
 		return
-	var from: Vector2 = _foot + Vector2(6.0, -16.0)
+	var from: Vector2 = _launch
 	var bend: Vector2 = (from + _mark) / 2.0 + STREAK_BEND
 	var k: float = _ease((_since - STREAK_START_SECONDS) / STREAK_SECONDS)
 	if _since < STREAK_START_SECONDS:
@@ -264,87 +256,6 @@ func _draw_ring() -> void:
 	var a: float = 1.0 - landed / RING_SECONDS
 	var ring: Rect2 = _gauge.grow(6.0 + (1.0 - a) * RING_GROW_PX)
 	draw_rect(ring, Color(Palette.GOLD, a), false, 4.0)
-
-
-## A: the pennant on its pole, planted with an overshoot, flapping, folding at the end.
-func _draw_flag() -> void:
-	if _flag_slot >= 0 and _flag_slot == _slot:
-		var rect: Rect2 = _local_rect(_item())
-		_foot = _snap(Vector2(rect.get_center().x - 6.0, rect.get_center().y + 6.0))
-	var grow: float = 1.0 if reduced_motion else _back(_since / FLAG_GROW_SECONDS)
-	var fold_from: float = FLAG_SECONDS - FLAG_FOLD_SECONDS
-	var out: float = 0.0
-	if not reduced_motion and _since > fold_from:
-		out = _ease((_since - fold_from) / FLAG_FOLD_SECONDS)
-	var pole: float = POLE_HEIGHT * grow * (1.0 - out)
-	if pole < GRID:
-		return
-	var top: float = _foot.y - pole
-	_cell(Vector2(_foot.x - 2.0, top - 2.0), Vector2(6.0, pole + 2.0), Palette.INK)
-	_cell(Vector2(_foot.x, top), Vector2(2.0, pole), Palette.PAPER)
-	var width: float = PENNANT_SIZE.x * grow * (1.0 - out)
-	if width < 16.0:
-		return
-	var wave: float = 0.0 if reduced_motion else roundf(sin(_since * 22.0) * FLAG_WAVE_PX)
-	_draw_pennant(Vector2(_foot.x + 2.0, top), width, wave)
-	if width > PENNANT_SIZE.x * 0.8:
-		_draw_label(Vector2(_foot.x + 46.0, top + PENNANT_SIZE.y / 2.0 + wave / 2.0))
-		_draw_check(Vector2(_foot.x - 10.0, top - 14.0))
-	if not reduced_motion and _since < BURST_SECONDS:
-		_burst(_foot + Vector2(0, -4), _since / BURST_SECONDS)
-
-
-## The pennant: an ink edge, a mustard face with a light band on top, a notched tail.
-func _draw_pennant(at: Vector2, width: float, wave: float) -> void:
-	var h: float = PENNANT_SIZE.y
-	var edge: PackedVector2Array = PackedVector2Array(
-		[
-			at + Vector2(0, -2),
-			at + Vector2(width + 4.0, -2.0 + wave),
-			at + Vector2(width - 8.0, h / 2.0 + wave),
-			at + Vector2(width + 4.0, h + 2.0 + wave),
-			at + Vector2(0, h + 2.0),
-		]
-	)
-	draw_colored_polygon(edge, Palette.INK)
-	var face: PackedVector2Array = PackedVector2Array(
-		[
-			at,
-			at + Vector2(width, wave),
-			at + Vector2(width - 12.0, h / 2.0 + wave),
-			at + Vector2(width, h + wave),
-			at + Vector2(0, h),
-		]
-	)
-	draw_colored_polygon(face, Palette.MUSTARD)
-	_cell(at, Vector2(width - 4.0, 4.0), Palette.MUSTARD_LIGHT)
-
-
-## SPEND MET in hard pixel lettering (2x), centred on `centre`, with an ink outline.
-func _draw_label(centre: Vector2) -> void:
-	var font: Font = ArtStyle.pixel_display_font()
-	var size_px: int = ArtStyle.PIXEL_TEXT_SIZE
-	var width: float = font.get_string_size(FLAG_TEXT, HORIZONTAL_ALIGNMENT_LEFT, -1, size_px).x
-	var cap_top: float = font.get_ascent(size_px) - ArtStyle.PIXEL_CAP_HEIGHT
-	var origin: Vector2 = _snap(
-		centre - Vector2(width, ArtStyle.PIXEL_CAP_HEIGHT) * ART / 2.0 - Vector2(0, cap_top * ART)
-	)
-	draw_set_transform(origin, 0.0, Vector2.ONE * ART)
-	var baseline: Vector2 = Vector2(0, font.get_ascent(size_px))
-	for offset: Vector2 in [Vector2.LEFT, Vector2.RIGHT, Vector2.UP, Vector2.DOWN]:
-		draw_string(
-			font, baseline + offset, FLAG_TEXT, HORIZONTAL_ALIGNMENT_LEFT, -1, size_px, Palette.INK
-		)
-	draw_string(font, baseline, FLAG_TEXT, HORIZONTAL_ALIGNMENT_LEFT, -1, size_px, Palette.PAPER)
-	draw_set_transform_matrix(Transform2D.IDENTITY)
-
-
-## The ✓ badge at the pole's top, in art pixels.
-func _draw_check(at: Vector2) -> void:
-	_cell(at, Vector2(18, 16), Palette.INK)
-	_cell(at + Vector2(2, 2), Vector2(14, 12), Palette.GOOD)
-	for pixel: Vector2 in [Vector2(5, 7), Vector2(7, 9), Vector2(9, 7), Vector2(11, 5)]:
-		_cell(at + pixel, Vector2(2, 2), Palette.PAPER)
 
 
 ## E: the ×N stamp slams over the belt's start, settles and fades, with sparkles.
@@ -542,9 +453,3 @@ static func _bezier(from: Vector2, bend: Vector2, to: Vector2, k: float) -> Vect
 
 static func _ease(x: float) -> float:
 	return 1.0 - pow(1.0 - clampf(x, 0.0, 1.0), 3.0)
-
-
-## An ease out with an overshoot (the flag's planting).
-static func _back(x: float) -> float:
-	var t: float = clampf(x, 0.0, 1.0) - 1.0
-	return 1.0 + 3.2 * pow(t, 3.0) + 2.2 * pow(t, 2.0)

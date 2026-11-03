@@ -325,7 +325,7 @@ func test_the_top_bar_fits_its_longest_texts() -> void:
 		screen._on_shift_started()
 		var deck_limit: int = run.balance.deck_limit
 		screen._deck_button.caption = "Cart %d/%d" % [deck_limit, deck_limit]
-		# The gauge's flag: a 4-digit subtotal past the quota.
+		# The gauge's laps: a 4-digit subtotal past the quota.
 		screen._led.start_count(largest)
 		screen._led.show_subtotal(9999, true)
 		await _frames(2)
@@ -337,7 +337,7 @@ func test_the_top_bar_fits_its_longest_texts() -> void:
 		var shown: int = ShiftLimits.with_percent(largest, percent)
 		assert_str(screen._receipt.target.amount.text).is_equal("%d" % shown)
 		assert_int(screen._quota_meter.amount()).is_equal(9999)
-		assert_bool(screen._quota_meter.flag_shown()).is_true()
+		assert_int(screen._quota_meter.shown_lap()).is_greater_equal(QuotaMeter.FIRST_LAP)
 		assert_int(screen._loyalty_card.box_texts().size()).is_equal(4)
 		# A boon's chip (v0.69) reads "Today: name — effect".
 		var chip_text: String = (

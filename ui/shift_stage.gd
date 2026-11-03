@@ -34,7 +34,7 @@ extends Control
 ## toward the belt's far end with the running total against the quota) and the count's rail
 ## light (RailLight, #86 kept by #105 piece 2: the price rail lit gold from a giver's ticket to its
 ## target's). Over them all the quota
-## crossing (QuotaCrossing: its flag, streak and lap stamps), the scan layer (ScanOverlay: the
+## crossing (QuotaCrossing: its streak and lap stamps), the scan layer (ScanOverlay: the
 ## scan's brackets and beam) and the popup layer, all taking no clicks. A belt or hand item's scan
 ## shows on the monitor (#80); the popup layer only parks the hidden scan popup, which opens over
 ## the offers alone, in the layer an offer's scan moves it to (ScanController.cover_offers). The
@@ -60,7 +60,8 @@ const TOP_BAR_BOTTOM := 56.0
 ## A2): the column's charcoal front from the top of the screen down to the printer, left of the
 ## bagging shelf. The top bar's band starts at its right edge (StoreBackdrop.top_parts). On it the
 ## receipt's well, the quota gauge's tube in the column's left margin (its top is the target line;
-## the flag stands on it once the quota is met) and a Double checkout's row pips under the tube.
+## past the quota it refills lap by lap, its lap's badge on its top) and a Double checkout's row
+## pips under the tube.
 const TOWER_RECT := Rect2(0, 0, 298, 332)
 const RECEIPT_WELL_RECT := Rect2(32, 4, 260, 328)
 const TUBE_RECT := Rect2(8, 50, 24, 244)

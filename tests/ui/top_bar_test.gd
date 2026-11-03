@@ -1,9 +1,9 @@
 extends GdUnitTestSuite
 ## The top bar on its own (#80 step 10, mock-up B2; TopBar), with no SPEND chip since the shift
 ## scene polish; and the quota gauge it held (QuotaMeter, now the tube beside the receipt): it
-## shows the projected total in planning (the screen's preview hands it over; #86's flag once it
+## shows the projected total in planning (the screen's preview hands it over; its laps once it
 ## reaches the quota) and mirrors the LED from the checkout (the subtotal while counting so the
-## gauge never shows the final total early, the flag once the count meets the quota and until the
+## gauge never shows the final total early, its laps once the count meets the quota and until the
 ## next shift) and keeps its size through a count and a drag (#86's gauge itself:
 ## quota_meter_test); the menu opens under its button
 ## with Export log, drawn sharp, which closes it and says so; Cart's trolley sits left of its
@@ -20,36 +20,36 @@ func test_the_quota_gauge_follows_the_led() -> void:
 	led.clear()
 	assert_int(meter.amount()).is_equal(-1)
 	assert_float(meter.fill()).is_equal(0.0)
-	# Planning: the projected total from the screen's preview (the LED blank), the flag planted
-	# once it reaches the quota.
+	# Planning: the projected total from the screen's preview (the LED blank), lap 2 refilling
+	# from the quota on.
 	meter.show_projected(22, 73)
 	assert_int(meter.amount()).is_equal(22)
 	assert_float(meter.fill()).is_equal_approx(22.0 / 73.0, 0.0001)
-	assert_bool(meter.flag_shown()).is_false()
+	assert_bool(_met(meter)).is_false()
 	meter.show_projected(90, 73)
-	assert_float(meter.fill()).is_equal(1.0)
-	assert_bool(meter.flag_shown()).is_true()
-	# The count starts from 0 and follows the subtotal; the flag comes with the count's ding.
+	assert_float(meter.fill()).is_equal_approx(17.0 / 73.0, 0.0001)
+	assert_bool(_met(meter)).is_true()
+	# The count starts from 0 and follows the subtotal; the laps come with the count's ding.
 	led.start_count(73)
 	assert_int(meter.amount()).is_equal(0)
 	assert_float(meter.fill()).is_equal(0.0)
 	led.show_subtotal(40, false)
 	assert_float(meter.fill()).is_equal_approx(40.0 / 73.0, 0.0001)
-	assert_bool(meter.flag_shown()).is_false()
+	assert_bool(_met(meter)).is_false()
 	led.show_subtotal(80, true)
-	assert_bool(meter.flag_shown()).is_true()
-	assert_float(meter.fill()).is_equal(1.0)
+	assert_bool(_met(meter)).is_true()
+	assert_float(meter.fill()).is_equal_approx(7.0 / 73.0, 0.0001)
 	# It stays through the TOTAL, then the next shift's planning (the LED blanked, the projected
 	# total handed over) frees it.
 	led.show_total()
-	assert_bool(meter.flag_shown()).is_true()
+	assert_bool(_met(meter)).is_true()
 	assert_int(meter.amount()).is_equal(80)
 	led.clear()
 	meter.show_projected(10, 90)
-	assert_bool(meter.flag_shown()).is_false()
+	assert_bool(_met(meter)).is_false()
 	assert_int(meter.amount()).is_equal(10)
 	led.clear()
-	assert_bool(meter.flag_shown()).is_false()
+	assert_bool(_met(meter)).is_false()
 	assert_float(meter.fill()).is_equal(0.0)
 
 
@@ -155,7 +155,7 @@ func test_the_quota_gauge_keeps_its_size() -> void:
 	for subtotal: int in [0, 9, 99, 999, 9999]:
 		led.show_subtotal(subtotal, subtotal >= 900)
 		await _frames(2)
-		assert_bool(meter.flag_shown()).is_equal(subtotal >= 900)
+		assert_bool(_met(meter)).is_equal(subtotal >= 900)
 		assert_vector(meter.size).is_equal(ShiftStage.TUBE_RECT.size)
 	led.clear()
 	for case: Array in [[52, 6], [40, -6], [9999, 999], [1, -999]]:
@@ -182,3 +182,8 @@ func test_the_bar_has_no_spend_chip() -> void:
 func _frames(count: int) -> void:
 	for _frame: int in range(count):
 		await get_tree().process_frame
+
+
+## The gauge shows the quota met: its laps past the first.
+static func _met(meter: QuotaMeter) -> bool:
+	return meter.shown_lap() >= QuotaMeter.FIRST_LAP
