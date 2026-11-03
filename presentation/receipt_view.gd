@@ -37,12 +37,12 @@ extends PanelContainer
 ## Its `target` block (ReceiptTarget, the shift scene polish: TODAY'S TARGET and the quota as a
 ## big number) is pinned at its top, outside the scroll area, once the screen shows the quota. On
 ## the shift screen it stands on the printer's slot (fit_up, #80), at its full length
-## (`full_length`, B2: up to ShiftStage.RECEIPT_TOP however few its lines, the planning foot pinned
-## at its bottom). An indented step line hangs (#55): wrapped, it starts past
-## its lead and marker on every row, and its amount sits on its last row (a fizzle's line has none:
-## its mark says it, on its first row). The lines sit in an inset (FRAME_OUT on the left, FRAME_PAD
-## on the right) that holds the frame, inside the scroll area; most lines keep B2's mark column
-## (MARK_COLUMN) at their right end.
+## (`full_length`, B2: in planning, up to ShiftStage.RECEIPT_TOP however few its lines, the foot
+## pinned at its bottom; the count's receipt still fits up to its lines). An indented step line
+## hangs (#55): wrapped, it starts past its lead and marker on every row, and its amount sits on
+## its last row (a fizzle's line has none: its mark says it, on its first row). The lines sit in
+## an inset (FRAME_OUT on the left, FRAME_PAD on the right) that holds the frame, inside the
+## scroll area; most lines keep B2's mark column (MARK_COLUMN) at their right end.
 
 enum LineStyle {
 	DETAIL,
@@ -111,7 +111,7 @@ const EMPTY_SLOT_TEXT := "%d ·····"
 ## The line closing an item whose lines don't add up to its payout (add_step): "= 3.00€", at
 ## FOOTER_FONT_SIZE in ink (LineStyle.CLOSING), with no left side.
 const CLOSING_TEXT := "= "
-## How a multiplier's receipt text ends in its factor ("Multipack ×3", multiplier_cause).
+## How a multiplier's receipt text ends in its factor ("Multipack ×3", ReceiptCause.multiplier).
 const FACTOR_MARK := " ×"
 ## A money amount on the receipt (money()).
 const MONEY_TEXT := "%d.00€"
@@ -123,8 +123,9 @@ const FRAME_PAD := 6.0
 const FRAME_GROW := 1.0
 ## B2's mark column at a line's right end: a 6 px gap past the amount, then the 14 px mark
 ## (ReceiptDecor.mark). Every line keeps it but the footer, the margin, the notice and the tear
-## (has_mark_column), so the dashed rules and the footer run across it. A fizzle's line has no
-## amount: its column is just the mark and a 2 px gap (FIZZLE_MARK_COLUMN), with no gap before it.
+## (ReceiptDecor.has_mark_column), so the dashed rules and the footer run across it. A fizzle's
+## line has no amount: its column is just the mark and a 2 px gap (FIZZLE_MARK_COLUMN), with no
+## gap before it.
 const MARK_COLUMN := 20.0
 const FIZZLE_MARK_COLUMN := 16.0
 ## A combo line: a faint gold band behind the whole line with a gold bar on its left, and the
@@ -145,8 +146,10 @@ var stub: ReceiptStub:
 			scroll_to_end()
 ## TODAY'S TARGET, pinned at the top (hidden until its show_quota).
 var target: ReceiptTarget
-## Fit-up mode at full length (B2): the paper reaches its top however few its lines.
+## Fit-up mode at full length (B2): in planning the paper reaches its top however few its lines.
 var full_length: bool = false
+## Planning's PROJECTED line (its amount fits the lines' width: ReceiptDecor.fit_amount), or null.
+var _projected: HBoxContainer
 var _lines: VBoxContainer
 ## Holds the lines inside the scroll area, with room for the frame and the marks; draws the frame.
 var _inset: MarginContainer
@@ -222,6 +225,7 @@ func _init() -> void:
 	_lines.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_lines.add_theme_constant_override("separation", 1)
 	_lines.sort_children.connect(_inset.queue_redraw)
+	_lines.resized.connect(func() -> void: ReceiptDecor.fit_amount(_projected, _lines.size.x))
 	_inset.add_child(_lines)
 
 
@@ -252,7 +256,8 @@ func fit_height() -> void:
 			_inset.get_combined_minimum_size().y - _lines.get_combined_minimum_size().y
 		)
 		ReceiptRows.fit(_lines, _rows, _header, room - frame - pinned - margins)
-	var natural: float = maxf(natural_height(), room) if full_length else natural_height()
+	var full: bool = _planning and full_length
+	var natural: float = maxf(natural_height(), room) if full else natural_height()
 	# The newest line stays in view in the very frame the receipt grows or shrinks.
 	_snap_to_end = true
 	# A stub snapping off shrinks the receipt from its foot, its body kept where it was.
@@ -285,6 +290,7 @@ func clear() -> void:
 	_total_rule = null
 	_footer = null
 	_framed = null
+	_projected = null
 	_planning = false
 	_rows.clear()
 	_header.clear()
@@ -363,8 +369,11 @@ func show_planning(
 		_rows.append(add_line(EMPTY_SLOT_TEXT % (slot + 1), "", LineStyle.WAITING))
 	for row: Control in _rows + _header:
 		ReceiptRows.one_row(row.get_child(0) as Label)
+	# Only the SHIFT line may drop (ReceiptRows.fit): a Double checkout's row line always prints.
+	_header.resize(mini(_header.size(), 1))
 	var projected: Control = add_line(PROJECTED_TEXT, money(result.total), LineStyle.PROJECTED)
-	ReceiptDecor.fit_amount(projected as HBoxContainer, _lines.size.x)
+	_projected = projected as HBoxContainer
+	ReceiptDecor.fit_amount(_projected, _lines.size.x)
 	# Its dashed rule takes the room the lines leave: the foot stands at the paper's bottom.
 	_lines.get_child(projected.get_index() - 1).size_flags_vertical = Control.SIZE_EXPAND_FILL
 	if quota >= 0:
@@ -570,7 +579,7 @@ static func step_text(
 ) -> PackedStringArray:
 	var cause: String = source_text(step, upgrade_names, inspection_names)
 	if step.step_type == ScoreStep.StepType.MULTIPLIER:
-		cause = multiplier_cause(step, upgrade_names, inspection_names)
+		cause = ReceiptCause.multiplier(step, upgrade_names, inspection_names)
 	var left: String = ""
 	var right: String = ""
 	match step.step_type:
@@ -647,7 +656,11 @@ static func step_line(
 		ScoreStep.StepType.FLAT:
 			return "%s %s" % [MonitorText.signed_euros(step.value), cause]
 		ScoreStep.StepType.MULTIPLIER:
-			return step.times_text() + " " + multiplier_cause(step, upgrade_names, inspection_names)
+			return (
+				step.times_text()
+				+ " "
+				+ ReceiptCause.multiplier(step, upgrade_names, inspection_names)
+			)
 		ScoreStep.StepType.COPY:
 			return (
 				"%s %s: copy of %s"
@@ -683,46 +696,7 @@ static func source_text(
 	upgrade_names: PackedStringArray,
 	inspection_names: PackedStringArray = PackedStringArray()
 ) -> String:
-	return _cause(step, step.text, upgrade_names, inspection_names)
-
-
-## A multiplier's cause as source_text names it, less the factor its receipt text ends in
-## ("Multipack ×3" is "Multipack"): its line prints the factor itself ("×3 Multipack").
-static func multiplier_cause(
-	step: ScoreStep,
-	upgrade_names: PackedStringArray,
-	inspection_names: PackedStringArray = PackedStringArray()
-) -> String:
-	var text: String = step.text
-	var at: int = text.rfind(FACTOR_MARK)
-	if at > 0 and text.substr(at + FACTOR_MARK.length()).is_valid_int():
-		text = text.substr(0, at)
-	return _cause(step, text, upgrade_names, inspection_names)
-
-
-## source_text's words for `step` with `text` as its rule's receipt text.
-static func _cause(
-	step: ScoreStep,
-	text: String,
-	upgrade_names: PackedStringArray,
-	inspection_names: PackedStringArray
-) -> String:
-	match step.source_kind:
-		ScoreStep.SourceKind.UPGRADE:
-			if step.source_index < 0 or step.source_index >= upgrade_names.size():
-				return text
-			var upgrade_name: String = upgrade_names[step.source_index]
-			if text.is_empty() or text == upgrade_name:
-				return upgrade_name
-			return "%s (%s)" % [text, upgrade_name]
-		ScoreStep.SourceKind.INSPECTION:
-			if step.source_index < 0 or step.source_index >= inspection_names.size():
-				return text
-			var inspection_name: String = inspection_names[step.source_index]
-			if text.is_empty() or text == inspection_name:
-				return inspection_name
-			return "%s: %s" % [inspection_name, text]
-	return text
+	return ReceiptCause.of(step, step.text, upgrade_names, inspection_names)
 
 
 ## The TOTAL line ("TOTAL 22.00€"): after a count's lines, under its dashed rule (begin_count),
@@ -848,7 +822,7 @@ func add_line(left: String, right: String, style: LineStyle) -> Control:
 	# The amount sits on the line's last row when the left side wraps.
 	right_label.size_flags_vertical = Control.SIZE_FILL
 	right_label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
-	if has_mark_column(style):
+	if ReceiptDecor.has_mark_column(style):
 		var column: StyleBoxEmpty = StyleBoxEmpty.new()
 		column.content_margin_right = MARK_COLUMN
 		if style == LineStyle.FIZZLE:
@@ -876,12 +850,6 @@ func add_line(left: String, right: String, style: LineStyle) -> Control:
 	_lines.add_child(line)
 	scroll_to_end()
 	return line
-
-
-## Whether a line of `style` keeps the mark column (MARK_COLUMN) at its right end: all but the
-## footer, the margin, the notice and the tear, which run across it.
-static func has_mark_column(style: LineStyle) -> bool:
-	return style not in [LineStyle.FOOTER, LineStyle.MARGIN, LineStyle.NOTICE, LineStyle.TEAR]
 
 
 static func text_width(text: String, font: Font, font_size: int) -> float:

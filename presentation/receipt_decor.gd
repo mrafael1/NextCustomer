@@ -134,9 +134,9 @@ static func against_quota(line: HBoxContainer, against: Control, total: int, quo
 
 ## Shrinks the PROJECTED `line`'s amount (TOTAL_FONT_SIZE) to fit beside its caption and its mark
 ## column in `width` px of lines, down to AMOUNT_MIN_FONT_SIZE (a four-digit total). Nothing for
-## a width not laid out yet.
+## a width not laid out yet, or no line (null: the lines' width changed with no PROJECTED line).
 static func fit_amount(line: HBoxContainer, width: float) -> void:
-	if width <= 0.0:
+	if width <= 0.0 or not is_instance_valid(line):
 		return
 	var caption: Label = line.get_child(0) as Label
 	var amount: Label = line.get_child(1) as Label
@@ -328,3 +328,17 @@ static func _draw_dashes(rule: HSeparator) -> void:
 		var dash: float = minf(ReceiptView.RULE_DASH, rule.size.x - x)
 		rule.draw_rect(Rect2(x, y, dash, ArtStyle.ART_SCALE), Palette.CREAM_SHADE)
 		x += 2.0 * ReceiptView.RULE_DASH
+
+
+## Whether a line of `style` keeps the mark column (ReceiptView.MARK_COLUMN) at its right end: all
+## but the footer, the margin, the notice and the tear, which run across it.
+static func has_mark_column(style: ReceiptView.LineStyle) -> bool:
+	return (
+		style
+		not in [
+			ReceiptView.LineStyle.FOOTER,
+			ReceiptView.LineStyle.MARGIN,
+			ReceiptView.LineStyle.NOTICE,
+			ReceiptView.LineStyle.TEAR,
+		]
+	)
