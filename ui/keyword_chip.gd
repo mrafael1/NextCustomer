@@ -69,6 +69,8 @@ var _live: bool = false
 func _init(word: String, wasted_tip: String = "", live_tip: String = "") -> void:
 	super()
 	keyword = word
+	# The word is hard pixel text drawn at 1x (its box and cross are untextured).
+	ArtStyle.use_pixel_text_material(self)
 	name = "Keyword%s" % word.capitalize()
 	_live = not live_tip.is_empty()
 	_wasted = not wasted_tip.is_empty() and not _live

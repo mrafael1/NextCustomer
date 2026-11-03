@@ -238,7 +238,8 @@ func test_every_printed_character_has_its_glyph() -> void:
 
 
 ## No text goes through the sharp-pixel material (the monitor's scan included; the gold number's
-## own gold-bands shader aside), and the sharp-pixel switch (ArtStyle.set_sharp, the capture's S
+## own gold-bands shader aside) but hard pixel text (ArtStyle.use_pixel_text_material, unmarked as
+## art), and the sharp-pixel switch (ArtStyle.set_sharp, the capture's S
 ## key) reaches every piece of art, items too.
 func test_text_never_carries_the_pixel_material() -> void:
 	for scan: String in SCANS:
@@ -249,7 +250,14 @@ func test_text_never_carries_the_pixel_material() -> void:
 				label.material is ShaderMaterial
 				and (label.material as ShaderMaterial).shader == TotalNumber.SHADER
 			)
-			if not gold:
+			var hard_pixels: bool = (
+				label.get_theme_font("font") == ArtStyle.pixel_display_font()
+				or label.get_theme_font("font") == ArtStyle.pixel_number_font()
+			)
+			if hard_pixels:
+				assert_object(label.material).is_same(ArtStyle.pixel_material())
+				assert_int(label.texture_filter).is_equal(CanvasItem.TEXTURE_FILTER_LINEAR)
+			elif not gold:
 				(
 					assert_object(label.material)
 					. override_failure_message(str(label.get_path()))

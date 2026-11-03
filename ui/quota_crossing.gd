@@ -99,6 +99,8 @@ var _flash: TextureRect
 func _init() -> void:
 	name = "QuotaCrossing"
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Its SPEND MET and ×N are hard pixel text, drawn 2x and up (its shapes are untextured).
+	ArtStyle.use_pixel_text_material(self)
 	_flash = TextureRect.new()
 	_flash.name = "Flash"
 	_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE

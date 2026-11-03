@@ -7,8 +7,9 @@ extends Control
 ## (RECT, in the stage's world: the camera's glide takes it with the monitor), on the 2 px art
 ## grid: the hook, the strap down to the clip and the badge's drop shadow are drawn by code; the
 ## badge is pixel art (art/scenery/pin_badge: the brass plate, the teal band, the paper face),
-## with NEXT CUSTOMER on its band in hard pixel words, CASHIER on its face in the body font, as
-## the mock-up prints them, and the worn pins (PinFace) on the face, centred. With no pin worn
+## with NEXT CUSTOMER on its band and CASHIER on its face in the body font (the band's was hard
+## pixel words as the mock-up prints them, too thin to read at 1920x1080: the legibility fix of
+## 2026-11-03), and the worn pins (PinFace) on the face, centred. With no pin worn
 ## it hides.
 ##
 ## Hovering a pin opens its card (PinTip: name, rule and the charges left, PinPlay): the pin
@@ -36,6 +37,11 @@ const BAND := Rect2(4, 10, 92, 14)
 const FACE := Rect2(4, 26, 92, 54)
 const BAND_TEXT := "NEXT CUSTOMER"
 const FACE_TEXT := "CASHIER"
+## NEXT CUSTOMER's size and weight, and its capitals' height at that size (Atkinson Hyperlegible
+## Next's capitals are 0.7 em), centred on the band.
+const BAND_TEXT_SIZE := 10
+const BAND_TEXT_WEIGHT := 800
+const BAND_CAP_HEIGHT := 7.0
 ## CASHIER's left and baseline, its size and weight (the mock-up's 700 9 px).
 const FACE_TEXT_AT := Vector2(8, 36)
 const FACE_TEXT_SIZE := 9
@@ -88,10 +94,22 @@ func _init() -> void:
 	_plate.position = BADGE.position
 	_plate.size = BADGE.size
 	add_child(_plate)
-	_band_label = UiKit.pixel_label(BAND_TEXT, 1, Palette.PAPER)
+	_band_label = UiKit.body_label(BAND_TEXT, BAND_TEXT_SIZE, Palette.PAPER)
 	_band_label.name = "BandText"
-	_band_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var band_font: Font = ArtStyle.bold_font(BAND_TEXT_WEIGHT)
+	_band_label.add_theme_font_override("font", band_font)
 	_band_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Centred on the band by its measured width (the label's own centring would need its size,
+	# which it only takes once in the tree).
+	var band: Rect2 = _on_badge(BAND)
+	var width: float = (
+		band_font.get_string_size(BAND_TEXT, HORIZONTAL_ALIGNMENT_LEFT, -1, BAND_TEXT_SIZE).x
+	)
+	var cap_top: float = band.position.y + floorf((band.size.y - BAND_CAP_HEIGHT) / 2.0)
+	var ascent: float = band_font.get_ascent(BAND_TEXT_SIZE)
+	_band_label.position = Vector2(
+		band.position.x + floorf((band.size.x - width) / 2.0), cap_top + BAND_CAP_HEIGHT - ascent
+	)
 	add_child(_band_label)
 	_face_label = UiKit.body_label(FACE_TEXT, FACE_TEXT_SIZE, Palette.MUTED_INK)
 	_face_label.name = "FaceText"
@@ -212,11 +230,6 @@ static func card_area() -> Rect2:
 	var right: float = ShiftStage.MONITOR_SCREEN_RECT.position.x - CARD_MARGIN
 	var top: float = ShiftStage.TOP_BAR_BOTTOM
 	return Rect2(left, top, right - left, ShiftStage.SIZE.y - top)
-
-
-func _ready() -> void:
-	# Placed once in the tree: its text's size is measured with its pixel font only there.
-	UiKit.place_pixel_label(_band_label, _on_badge(BAND), true)
 
 
 func _process(_delta: float) -> void:

@@ -16,7 +16,10 @@ signal pressed
 
 const WEEK_TEXT := "W%d"
 const NUMBER_SIZE := 20
-const NAME_SIZE := 13
+## The week's name at the top bar's key size (TopBar.KEY_FONT_SIZE; 13 until the 1920x1080
+## legibility fix of 2026-11-03: Pixelify Sans at 13 px puts a font pixel on 1.8 screen pixels at
+## 1920x1080, so its strokes thinned and wobbled, where at 15 one is 2.1).
+const NAME_SIZE := TopBar.KEY_FONT_SIZE
 ## The pips: 9 px squares (v0.83: 1.5x the mock-up's 6 px, easier to read), 2 px apart, on whole
 ## pixels; today's has an ink ring. The chip's padding is narrower than the other chips'
 ## (PADDING): the bar has little room left.
