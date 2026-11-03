@@ -1,20 +1,27 @@
-; The register's tower (the shift scene polish, mock-up docs/art/mockups/shift_scene_polish_v2.html
-; section 2, A2): the register column's charcoal front carried up from the printer to the top of
-; the screen, so the receipt, its tube gauge and the keys read as one zone. A 9-slice (margins 4 art
-; px) stretched to ShiftStage.TOWER_RECT: the rubber face, with a rubber-dark band and an ink edge
-; on its right, where it meets the store. No other edge: like the column under it, it runs off the
-; screen's left edge (StoreBackdrop's tower band carries it on in a wider window) and its top, and
-; its foot stands behind the printer.
-@size 10x10
+; The register's tower (the shift scene polish, mock-up docs/art/mockups/shift_scene_polish_v4.html
+; section A, A1): the register column's rubber front carried up from the printer to the top of the
+; screen, so the receipt, its gauge housing and the keys read as one machine. A 9-slice (margins 8
+; art px) stretched to ShiftStage.TOWER_RECT: the rubber face with a steel trim along its top (steel
+; dark over steel darkest) and its left edge (steel darkest), and on its right, where it meets the
+; store, a steel-darkest seam, a rubber-dark band with a rivet near its top and its foot, and an ink
+; edge. Its foot stands behind the printer.
+@size 17x17
 @kind frame
 @scale 2
-JJJJJJJKK#
-JJJJJJJKK#
-JJJJJJJKK#
-JJJJJJJKK#
-JJJJJJJKK#
-JJJJJJJKK#
-JJJJJJJKK#
-JJJJJJJKK#
-JJJJJJJKK#
-JJJJJJJKK#
+IHHHHHHHHHHHHIKK#
+IIIIIIIIIIIIIIKK#
+IJJJJJJJJJJJJIKK#
+IJJJJJJJJJJJJIKK#
+IJJJJJJJJJJJJIKK#
+IJJJJJJJJJJJJICH#
+IJJJJJJJJJJJJIHK#
+IJJJJJJJJJJJJIKK#
+IJJJJJJJJJJJJIKK#
+IJJJJJJJJJJJJICH#
+IJJJJJJJJJJJJIHK#
+IJJJJJJJJJJJJIKK#
+IJJJJJJJJJJJJIKK#
+IJJJJJJJJJJJJIKK#
+IJJJJJJJJJJJJIKK#
+IJJJJJJJJJJJJIKK#
+IJJJJJJJJJJJJIKK#

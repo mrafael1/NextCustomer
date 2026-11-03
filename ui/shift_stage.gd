@@ -57,15 +57,19 @@ const SIZE := Vector2(1280, 720)
 ## it, and a scan popup never reaches it.
 const TOP_BAR_BOTTOM := 56.0
 ## The register's tower (the shift scene polish, mock-up shift_scene_polish_v2.html section 2,
-## A2): the column's charcoal front from the top of the screen down to the printer, left of the
-## bagging shelf. The top bar's band starts at its right edge (StoreBackdrop.top_parts). On it the
-## receipt's well, the quota gauge's tube in the column's left margin (its top is the target line;
-## past the quota it refills lap by lap, its lap's badge on its top) and a Double checkout's row
-## pips under the tube.
+## A2; v4's A1): the column's rubber front from the top of the screen down to the printer, left of
+## the bagging shelf, with a steel trim on its top and left edges and rivets on its right strip.
+## The top bar's band starts at its right edge (StoreBackdrop.top_parts). On it the receipt's
+## recessed well (its left edge on the receipt's), and in the column's left margin the gauge's
+## steel housing (GaugeHousing) with the quota gauge's glass in it (its top row is the target line;
+## past the quota it refills lap by lap, its lap lamp over the housing's top cap), and under it a
+## brass plate with an engraved €, where a Double checkout's row pips show instead.
 const TOWER_RECT := Rect2(0, 0, 298, 332)
-const RECEIPT_WELL_RECT := Rect2(32, 4, 260, 328)
-const TUBE_RECT := Rect2(8, 50, 24, 244)
-const ROW_PIPS_POSITION := Vector2(14, 300)
+const RECEIPT_WELL_RECT := Rect2(40, 4, 252, 328)
+const HOUSING_RECT := Rect2(0, 30, 42, 276)
+const TUBE_RECT := Rect2(6, 38, 30, 258)
+const PLATE_RECT := Rect2(2, 308, 38, 22)
+const ROW_PIPS_POSITION := Vector2(7, 313)
 ## Where the store meets the belt's back: the counter is below it. The clean scene (#123, mock-up
 ## docs/art/mockups/scene_123.html, direction A) brings the belt 34 px down onto the baskets, so
 ## the counter reads as one surface and the store above it gets the room.

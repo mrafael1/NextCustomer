@@ -101,3 +101,12 @@ const BROWN_LIGHT := Color("d2a874")
 ## darkest).
 const BROWN_DARKEST := Color("4a3022")
 const CREAM_DARKEST := Color("b39f78")
+## The quota gauge's laps (the shift scene polish v4, A1; QuotaLaps): art/src/palette.txt's true
+## orange and violet ramps (lit, body, dark), whose bodies sit 18 degrees or more of hue from the
+## short tube's tomato and the near tube's brass.
+const ORANGE_LIGHT := Color("ffa463")
+const ORANGE := Color("f2702a")
+const ORANGE_DARK := Color("b04a17")
+const VIOLET_LIGHT := Color("cdb2f2")
+const VIOLET := Color("9468d8")
+const VIOLET_DARK := Color("5c3a9c")

@@ -1,22 +1,30 @@
 class_name QuotaLaps
 extends RefCounted
-## The quota tube's laps (QuotaMeter; the user's feedback of 2026-11-03): display arithmetic and
-## colours only. The first lap is full exactly at the quota; once it is met the tube never
-## re-scales: lap N runs from (N - 1) to N times the quota and refills the tube from its foot in
-## its own colour (LAP_RAMPS, cycling) over a full tube of the lap before's (the met green
-## behind lap 2).
+## The quota tube's laps (QuotaMeter; the user's feedback of 2026-11-03, the colours of mock-up
+## shift_scene_polish_v4.html, A1): display arithmetic and colours only. The first lap is full
+## exactly at the quota; once it is met the tube never re-scales: lap N runs from (N - 1) to N
+## times the quota and refills the tube from its foot in its own colour (LAP_RAMPS, cycling) over
+## a full tube of the lap before's (the met green behind lap 2). The lap lamp over the tube names
+## the laps made in the newest full lap's colour (backdrop_ramp, lamp_ink).
 
 ## The first lap past the quota.
 const FIRST_LAP := 2
-## The laps past the quota (lap 2 on), cycling: gold, orange (the palette's wood: it has no pure
-## orange, and its coral is the short tube's red), velvet (its magenta) and teal glass (its
-## violet stand-in: it has none). Lit, mid and dark columns; no colour of the short tube's.
+## The laps past the quota (lap 2 on), cycling (mock-up shift_scene_polish_v4.html, A1): gold,
+## orange, velvet (the palette's magenta) and violet. Lit, mid and dark columns; none shares a
+## colour with the first lap's short or near ramps (QuotaMeter.SHORT_RAMP, NEAR_RAMP), and the
+## new orange and violet bodies sit at least HUE_GAP degrees from theirs, so a big shift never
+## reads as short.
 const LAP_RAMPS: Array[Array] = [
-	[Palette.MUSTARD_PALE, Palette.GOLD, Palette.MUSTARD],
-	[Palette.WOOD_PALE, Palette.WOOD_LIGHT, Palette.WOOD],
+	[Palette.MUSTARD_PALE, Palette.GOLD, Palette.MUSTARD_DARK],
+	[Palette.ORANGE_LIGHT, Palette.ORANGE, Palette.ORANGE_DARK],
 	[Palette.VELVET_SHEEN, Palette.VELVET, Palette.VELVET_DARK],
-	[Palette.GLASS, Palette.TEAL_BRIGHT, Palette.TEAL_SHADE],
+	[Palette.VIOLET_LIGHT, Palette.VIOLET, Palette.VIOLET_DARK],
 ]
+## The hue gap (degrees) the orange and violet bodies keep from the short and near bodies.
+const HUE_GAP := 18.0
+## The lap lamp's glyphs are ink on a lap colour this light (its body's luminance) or lighter,
+## paper on a darker one.
+const LAMP_INK_LUMINANCE := 0.5
 
 
 ## The lap `amount_shown` is in against `quota`: 1 while short or not `met`, else the whole
@@ -46,6 +54,11 @@ static func lap_ramp(lap: int) -> Array[Color]:
 ## the lap before's colour behind the others.
 static func backdrop_ramp(lap: int) -> Array[Color]:
 	return QuotaMeter.MET_RAMP if lap <= FIRST_LAP else lap_ramp(lap - 1)
+
+
+## The lamp's glyph colour on `ramp`: ink on a light body, paper on a dark one.
+static func lamp_ink(ramp: Array[Color]) -> Color:
+	return Palette.INK if ramp[1].get_luminance() >= LAMP_INK_LUMINANCE else Palette.PAPER
 
 
 ## The laps `amount_shown` has made of `quota` (whole multiples), 0 for a quota of 0.

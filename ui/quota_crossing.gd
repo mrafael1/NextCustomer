@@ -43,13 +43,14 @@ const BURST_SECONDS := 0.35
 ## C: the ka-ching's volume.
 const KACHING_DB := 0.0
 ## E: the stamp over the belt's start, beside the tube's top: STAMP_DOWN_PX under the tube's top
-## and STAMP_BESIDE_PX right of the register tower (ShiftStage.TOWER_RECT, which holds the
+## (under the top bar's band since the housing raised the glass, v4's A1) and STAMP_BESIDE_PX
+## right of the register tower (ShiftStage.TOWER_RECT, which holds the
 ## receipt) even at its slam's full scale, so it never covers the receipt's TODAY'S TARGET
 ## (STAMP_SIZE at scale 1); slammed from STAMP_SLAM_SCALE over STAMP_SLAM_SECONDS, settling, then
 ## fading over its last STAMP_FADE_SECONDS.
 const STAMP_SIZE := Vector2(70, 40)
 const STAMP_BESIDE_PX := 12.0
-const STAMP_DOWN_PX := 8.0
+const STAMP_DOWN_PX := 20.0
 const STAMP_SLAM_SCALE := 2.6
 const STAMP_SLAM_SECONDS := 0.15
 const STAMP_SECONDS := 0.75

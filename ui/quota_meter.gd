@@ -1,35 +1,38 @@
 class_name QuotaMeter
 extends Control
 ## The quota gauge (#86 gauge TA of mock-up count_up_86_v4_live.html; a tube since the shift scene
-## polish, mock-up docs/art/mockups/shift_scene_polish_v2.html section 2, variant A2): a vertical
-## liquid tube in the register's column, beside the receipt, that fills up toward the shift's
-## quota. Its top is the target: a tomato line across it, red like the receipt's big TODAY'S
-## TARGET number (ReceiptTarget). It prints no number: the receipt says the target, the projected
-## total and how far it is (its foot), and the monitor the count. In planning the level is the
-## projected total, which the shift screen hands it from its preview (show_projected), as the
-## monitor's checkout column shows it (#105 piece 2). During the count it mirrors the register's
-## reading (LedDisplay, follow), as the monitor's number does: the running total, so the gauge
-## never shows the final total early. Blank alone: an empty tube.
+## polish, mock-up docs/art/mockups/shift_scene_polish_v2.html section 2, variant A2; the glass of
+## a steel housing since v4's A1, GaugeHousing): a vertical liquid tube in the register's column,
+## beside the receipt, that fills up toward the shift's quota. Its top is the target: a tomato
+## line across the glass's top row, red like the receipt's big TODAY'S TARGET number
+## (ReceiptTarget). Tick marks at a quarter, half and three quarters of a lap and a highlight down
+## the glass's left side sit over the liquid. It prints no number: the receipt says the target,
+## the projected total and how far it is (its foot), and the monitor the count. In planning the
+## level is the projected total, which the shift screen hands it from its preview
+## (show_projected), as the monitor's checkout column shows it (#105 piece 2). During the count it
+## mirrors the register's reading (LedDisplay, follow), as the monitor's number does: the running
+## total, so the gauge never shows the final total early. Blank alone: an empty tube.
 ##
 ## The liquid is coloured by status (red, orange, green: SHORT_RAMP, NEAR_RAMP, MET_RAMP), lit
 ## on its left columns and dark on its right ones (light from the top left), with a paper meniscus
 ## on its surface. The first lap is full exactly at the quota. Each gain sloshes the surface and
 ## sprays droplets; bubbles rise through the liquid; meeting the quota and each new lap flash it.
-## The tube glows from NEAR_SHARE of the quota while short.
+## The glass's rim glows from NEAR_SHARE of the quota while short.
 ##
 ## Laps (the user's feedback of 2026-11-03, replacing the flag and the re-scaling past the
 ## quota): once the quota is met (the count-up's ding, or a projected total reaching it) the tube
 ## never re-scales. The full green tube stays as the backdrop and lap 2 refills it from the
 ## foot in gold, from the quota to twice the quota; lap 3 (to three times) in orange over a full
-## gold tube, lap 4 in velvet, lap 5 in teal glass, then the colours cycle from gold again
+## gold tube, lap 4 in velvet, lap 5 in violet, then the colours cycle from gold again
 ## (QuotaLaps). So the tube's top is always the lap's target: lap N is full at N times the quota,
-## and a lap fills to the top before the next one pours (the eased level's lap is drawn). From
-## lap 2 a badge on the tube's top names the lap ("×2", in the number font's hard pixels on the
-## lap's colour, popping as a lap starts while counting), inside the column's margin and clear of
-## the receipt's well (badge_rect). While counting, reaching twice the quota and
-## each later multiple emits lap_reached (the quota crossing stamps it). Reduced motion
-## (`reduced_motion`) keeps the levels, the colours, the badge and the glow (steady) and drops the
-## slosh, the spray, the bubbles and the badge's pop.
+## and a lap fills to the top before the next one pours (the eased level's lap is drawn). The lap
+## badge is a round lamp over the housing (LapLamp, badge_rect): dark until the liquid reaches
+## the quota, then lit in the newest full lap's colour, green with a check for the first, "×N"
+## once N laps are made, glowing, and popping as a lap is made while counting; inside the column's
+## margin, clear of the receipt's well. While counting, reaching twice the quota and each later
+## multiple emits lap_reached (the quota crossing stamps it). Reduced motion (`reduced_motion`)
+## keeps the levels, the colours, the lamp and the glows (steady) and drops the slosh, the spray,
+## the bubbles and the lamp's pop.
 ##
 ## While an item is dragged over a landing slot (#71, decision 4A) it previews the stretch that
 ## drop would give (paler for a gain, a dark stretch for a loss; show_hypothetical) until the drag
@@ -37,16 +40,15 @@ extends Control
 ## lap's terms (_preview_plan): a loss darkens the tube down to the would-be level, under it the
 ## would-be lap's colour (red or orange back under the quota); a gain fills the lap to the top
 ## and pours the would-be lap's colour from the foot. A Double checkout's rows (#122) show as
-## RowPips under the tube (RegisterTower places them). Display only: the amounts are the screen's
-## preview and the LED's.
+## RowPips on the housing's plate (RegisterTower places them). Display only: the amounts are the
+## screen's preview and the LED's.
 
 ## The count's amount reached `multiple` times the quota (2 or more): lap `multiple` + 1 starts.
 signal lap_reached(multiple: int)
 
-## The glow: a mustard-light ring GLOW_WIDTH px round the tube, pulsing every GLOW_SECONDS, from
+## The glow: the glass's rim (its ink edge) in mustard light, pulsing every GLOW_SECONDS, from
 ## this share of the quota while short.
 const NEAR_SHARE := 0.8
-const GLOW_WIDTH := 3.0
 const GLOW_SECONDS := 0.7
 ## The liquid's lit and dark columns (art px) at its left and right edges.
 const LIT_COLUMNS := 2
@@ -83,19 +85,27 @@ const SHORT_RAMP: Array[Color] = [Palette.TOMATO_LIGHT, Palette.TOMATO, Palette.
 const NEAR_RAMP: Array[Color] = [Palette.MUSTARD, Palette.BRASS, Palette.BRASS_DARK]
 const MET_RAMP: Array[Color] = [Palette.GREEN_LIGHT, Palette.GOOD, Palette.GREEN_DARK]
 const STATUS_EASE_RATE := 6.0
-## The lap's badge on the tube's top: "×N" in the hard pixel number font on the lap's colour, an
-## ink edge round it, BADGE_PAD art px above and under the text (and beside it while it fits); a
-## new lap pops it BADGE_POP art px taller, settling over BADGE_POP_SECONDS.
-const BADGE_TEXT := "×%d"
-const BADGE_PAD := 2
-## The badge stays in the column's margin: its right edge at most the tube's (the receipt's well
-## starts there, ShiftStage.RECEIPT_WELL_RECT), its left at most BADGE_REACH art px left of the
-## tube's (a 1 art px gutter from the stage's edge). A text too wide for that ("×10" on) takes a
-## smaller size, down to BADGE_MIN_SIZE.
-const BADGE_REACH := 3
-const BADGE_MIN_SIZE := 8
-const BADGE_POP := 2
-const BADGE_POP_SECONDS := 0.35
+## The lap lamp (LapLamp): its top left LAMP_AT art px from the tube's (over the housing's top
+## cap). A lit lamp's glow pulses LAMP_GLOW_PULSE round LAMP_GLOW alpha every LAMP_GLOW_SECONDS
+## (steady at LAMP_GLOW under reduced motion); a new lap pops its lens and glyph LAMP_POP larger,
+## settling over LAMP_POP_SECONDS.
+const LAMP_AT := Vector2i(1, -18)
+const LAMP_GLOW := 0.18
+const LAMP_GLOW_PULSE := 0.08
+const LAMP_GLOW_SECONDS := 1.05
+const LAMP_POP := 0.45
+const LAMP_POP_SECONDS := 0.3
+## The glass's tick marks (paper at TICK_ALPHA on its right side, at these shares of a lap):
+## TICK_LENGTH art px long, HALF_TICK_LENGTH at half a lap.
+const TICKS: Array[float] = [0.25, 0.5, 0.75]
+const TICK_LENGTH := 3
+const HALF_TICK_LENGTH := 4
+const TICK_ALPHA := 0.55
+## The glass's highlight (paper at SHINE_ALPHA): a column SHINE_INSET art px inside its left
+## edge down the glass, and one SHINE_SHORT art px long two columns right of it.
+const SHINE_ALPHA := 0.2
+const SHINE_INSET := 2
+const SHINE_SHORT := 8
 ## The surface's meniscus, the bubbles and the target line on the tube's top.
 const MENISCUS_COLOR := Palette.PAPER
 const BUBBLE_COLOR := Palette.PAPER
@@ -116,7 +126,7 @@ var _blank: bool = true
 ## The quota is met: the count-up's ding while counting, the projected total reaching it in
 ## planning.
 var _met: bool = false
-## The amount is the count's reading (not the planning projection): only a count pops the badge.
+## The amount is the count's reading (not the planning projection): only a count pops the lamp.
 var _live: bool = false
 ## The amount's lap (1 while short, 0 blank); the lap drawn follows the eased level (_drawn_lap).
 var _lap: int = 0
@@ -126,7 +136,7 @@ var _shown: float = 0.0
 var _slosh: float = 0.0
 var _flash: float = 0.0
 var _time: float = 0.0
-## The badge's pop, from 1 at a new lap down to 0.
+## The lamp's pop, from 1 at a new lap down to 0, and the lap it last showed.
 var _pop: float = 0.0
 var _badge_lap: int = 0
 var _bubbles: Array[Vector3] = []
@@ -208,37 +218,22 @@ func bar() -> Control:
 
 
 ## Where the quota stands on the tube, in global coordinates: the middle of the target line on
-## the tube's top (every lap is full at its target).
+## the glass's top row (every lap is full at its target).
 func quota_mark() -> Vector2:
 	var cell: float = ArtStyle.ART_SCALE
-	return get_global_transform() * Vector2(size.x / 2.0, -cell / 2.0)
+	return get_global_transform() * Vector2(size.x / 2.0, cell * 1.5)
 
 
-## The badge's text ("×2"), empty while it is hidden (blank or in the first lap).
+## The lap lamp's text: empty while it is dark (blank, or the liquid short of the quota), the
+## check once the first lap is full, "×N" once N laps are (LapLamp.text_for).
 func badge_text() -> String:
-	var lap: int = _drawn_lap()
-	return BADGE_TEXT % lap if lap >= QuotaLaps.FIRST_LAP else ""
+	return LapLamp.text_for(_laps_made())
 
 
-## The badge's rect at rest (local px), for the badge's text `text`: its ink edge's foot on the
-## target line's top, centred over the tube when it fits, else right-aligned on it and reaching
-## left into the column's margin (BADGE_REACH).
-func badge_rect(text: String = "") -> Rect2:
-	if text.is_empty():
-		text = BADGE_TEXT % maxi(_drawn_lap(), QuotaLaps.FIRST_LAP)
-	var size_px: int = _badge_size(text)
-	var font: Font = ArtStyle.pixel_number_font()
-	var text_width: int = ceili(
-		font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size_px).x
-	)
-	var text_height: int = ceili(font.get_ascent(size_px) - font.get_descent(size_px))
-	var room: int = _art_size().x + BADGE_REACH
-	var pad: int = clampi(floori((room - 2 - text_width) / 2.0), 0, BADGE_PAD)
-	var box: Vector2i = Vector2i(text_width + (pad + 1) * 2, text_height + (BADGE_PAD + 1) * 2)
-	var art_left: int = mini(floori((_art_size().x - box.x) / 2.0), _art_size().x - box.x)
-	var art_top: int = -1 - box.y
+## The lap lamp's rect (local px): LAMP_AT, LapLamp.SIZE art px square.
+func badge_rect() -> Rect2:
 	var cell: float = ArtStyle.ART_SCALE
-	return Rect2(Vector2(art_left, art_top) * cell, Vector2(box) * cell)
+	return Rect2(Vector2(LAMP_AT) * cell, Vector2.ONE * LapLamp.SIZE * cell)
 
 
 ## The first lap's ramp as drawn now (for tests).
@@ -257,7 +252,7 @@ func _process(delta: float) -> void:
 		return
 	_time += delta
 	_flash = maxf(0.0, _flash - delta / FLASH_SECONDS)
-	_pop = maxf(0.0, _pop - delta / BADGE_POP_SECONDS)
+	_pop = maxf(0.0, _pop - delta / LAMP_POP_SECONDS)
 	var target: Array[Color] = _status_ramp()
 	for index: int in range(_ramp.size()):
 		var weight: float = 1.0 if _reduced() else minf(1.0, delta * STATUS_EASE_RATE)
@@ -341,8 +336,8 @@ func _drawn_lap() -> int:
 	return mini(_lap, QuotaLaps.lap_for(floori(_shown), _quota, _met))
 
 
-## A new lap drawn while counting flashes the tube and pops the badge (planning's projection
-## laps quietly: a drag back and forth over a multiple does not blink).
+## A new lap drawn while counting flashes the tube and pops the lamp (planning's projection laps
+## quietly: a drag back and forth over a multiple does not blink).
 func _follow_badge() -> void:
 	var lap: int = _drawn_lap()
 	if lap > _badge_lap and lap >= QuotaLaps.FIRST_LAP and _live:
@@ -351,17 +346,9 @@ func _follow_badge() -> void:
 	_badge_lap = lap
 
 
-## The badge's text size: PIXEL_NUMBER_SIZE, smaller (down to BADGE_MIN_SIZE) for a text too wide
-## for the column's margin.
-func _badge_size(text: String) -> int:
-	var font: Font = ArtStyle.pixel_number_font()
-	var room: int = _art_size().x + BADGE_REACH - 2
-	var size_px: int = ArtStyle.PIXEL_NUMBER_SIZE
-	while size_px > BADGE_MIN_SIZE:
-		if font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size_px).x <= room:
-			break
-		size_px -= 1
-	return size_px
+## The laps the drawn liquid has filled: 0 short of the quota (or blank), then one per multiple.
+func _laps_made() -> int:
+	return maxi(_drawn_lap() - 1, 0)
 
 
 ## The tube's size in art pixels.
@@ -418,27 +405,56 @@ func _draw() -> void:
 	var art: Vector2i = _art_size()
 	if art.x < 3 or art.y < 3:
 		return
-	if is_near():
-		_draw_glow()
 	_cell(0, 0, art.x, art.y, Palette.INK)
 	_cell(1, 1, art.x - 2, art.y - 2, WELL_COLOR)
 	if not _blank:
 		_draw_liquid(art)
-	# The target on the tube's top: an ink cap with a tomato line, a pixel wider each side.
-	_cell(-1, -1, art.x + 2, 2, Palette.INK)
-	_cell(0, -1, art.x, 1, TARGET_COLOR)
-	if not badge_text().is_empty():
-		_draw_badge()
+	_draw_glass(art)
+	# The target: a tomato line across the glass's top row.
+	_cell(1, 1, art.x - 2, 1, TARGET_COLOR)
+	if is_near():
+		_draw_glow(art)
+	_draw_lamp()
 
 
-func _draw_glow() -> void:
+## The glass over the liquid: its tick marks on the right side and its highlight on the left.
+func _draw_glass(art: Vector2i) -> void:
+	var foot: int = art.y - 1
+	for share: float in TICKS:
+		var length: int = HALF_TICK_LENGTH if is_equal_approx(share, 0.5) else TICK_LENGTH
+		var y: int = foot - roundi(_inner() * share)
+		_cell(art.x - 1 - length, y, length, 1, Color(Palette.PAPER, TICK_ALPHA))
+	var shine: Color = Color(Palette.PAPER, SHINE_ALPHA)
+	var top: int = 1 + SHINE_INSET
+	_cell(1 + SHINE_INSET, top, 1, art.y - 2 * (SHINE_INSET + 1), shine)
+	_cell(3 + SHINE_INSET, top, 1, SHINE_SHORT, shine)
+
+
+## The glass's rim in mustard light, pulsing (steady under reduced motion).
+func _draw_glow(art: Vector2i) -> void:
 	var alpha: float = 1.0
 	if not _reduced():
 		alpha = 0.5 - 0.5 * cos(TAU * fmod(_time, GLOW_SECONDS) / GLOW_SECONDS)
+	var rim: Color = Color(Palette.MUSTARD_LIGHT, alpha)
+	_cell(0, 0, art.x, 1, rim)
+	_cell(0, art.y - 1, art.x, 1, rim)
+	_cell(0, 1, 1, art.y - 2, rim)
+	_cell(art.x - 1, 1, 1, art.y - 2, rim)
+
+
+## The lap lamp: dark until the first lap is full, then in the newest full lap's colours with its
+## glyph, glowing, its lens popped as a lap is made.
+func _draw_lamp() -> void:
 	var cell: float = ArtStyle.ART_SCALE
-	var rect: Rect2 = Rect2(Vector2(-cell, -cell), size + Vector2(cell, cell) * 2.0)
-	var ring: Rect2 = rect.grow(GLOW_WIDTH / 2.0 + 1.0)
-	draw_rect(ring, Color(Palette.MUSTARD_LIGHT, alpha), false, GLOW_WIDTH)
+	var colours: Array[Color] = []
+	var glow: float = 0.0
+	if _laps_made() > 0:
+		colours = QuotaLaps.backdrop_ramp(_drawn_lap())
+		glow = LAMP_GLOW
+		if not _reduced():
+			glow += LAMP_GLOW_PULSE * sin(TAU * _time / LAMP_GLOW_SECONDS)
+	var pop: float = 1.0 + LAMP_POP * pow(_pop, 3.0)
+	LapLamp.draw(self, Vector2(LAMP_AT) * cell, cell, colours, badge_text(), glow, pop)
 
 
 func _draw_liquid(art: Vector2i) -> void:
@@ -536,39 +552,6 @@ func _draw_motion(art: Vector2i, front: float, liquid: Array[Color]) -> void:
 			continue
 		var y: float = maxf(at.y, 1.0)
 		_cell(floori(at.x), floori(y), 1, 1, liquid[0] if life > SPRAY_LIFE / 2.0 else liquid[1])
-
-
-## The lap's badge: an ink edge, the lap's colour with its lit band on top, "×N" in paper with an
-## ink outline; popped larger as a lap starts.
-func _draw_badge() -> void:
-	var text: String = badge_text()
-	var cell: float = ArtStyle.ART_SCALE
-	var rect: Rect2 = badge_rect(text)
-	var grow: int = ceili(_pop * BADGE_POP)
-	if grow > 0:
-		rect = rect.grow_individual(0.0, grow * 2.0 * cell, 0.0, 0.0)
-	var colours: Array[Color] = QuotaLaps.lap_ramp(_drawn_lap())
-	draw_rect(rect, Palette.INK)
-	var face: Rect2 = rect.grow(-cell)
-	draw_rect(face, colours[1])
-	draw_rect(Rect2(face.position, Vector2(face.size.x, cell)), colours[0])
-	draw_rect(Rect2(face.position.x, face.end.y - cell, face.size.x, cell), colours[2])
-	var font: Font = ArtStyle.pixel_number_font()
-	var size_px: int = _badge_size(text)
-	var text_width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size_px).x
-	var ascent: float = font.get_ascent(size_px)
-	var descent: float = font.get_descent(size_px)
-	var art_origin: Vector2 = (
-		(rect.get_center() / cell - Vector2(text_width, ascent - descent) / 2.0).round()
-	)
-	draw_set_transform(art_origin * cell, 0.0, Vector2.ONE * cell)
-	var baseline: Vector2 = Vector2(0.0, ascent)
-	for offset: Vector2 in [Vector2.LEFT, Vector2.RIGHT, Vector2.UP, Vector2.DOWN]:
-		draw_string(
-			font, baseline + offset, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size_px, Palette.INK
-		)
-	draw_string(font, baseline, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size_px, Palette.PAPER)
-	draw_set_transform_matrix(Transform2D.IDENTITY)
 
 
 func _cell(x: int, y: int, width: int, height: int, colour: Color) -> void:

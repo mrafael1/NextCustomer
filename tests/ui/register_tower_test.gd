@@ -1,13 +1,14 @@
 extends GdUnitTestSuite
 ## The register's tower on the real shift screen (the shift scene polish, mock-up
-## docs/art/mockups/shift_scene_polish_v2.html section 2, A2; RegisterTower), in the stage's window
-## and larger ones (1920x1080 first; more of the store shows under the expand stretch): the
-## charcoal column from the stage's top down to the counter, inside the window; on it the quota
-## tube (no number in it) left of the receipt and clear of it, never a flag on it, its lap badge
-## on its top inside the column and clear of the receipt, a Double checkout's pips under it, clear
-## of the receipt; the receipt in its well, opening with TODAY'S TARGET (the quota inside the
-## paper); and the top bar right of the column, every chip clear of it. The real
-## saves and logs are never touched.
+## docs/art/mockups/shift_scene_polish_v2.html section 2, A2, and v4's A1; RegisterTower), in the
+## stage's window and larger ones (1920x1080 first; more of the store shows under the expand
+## stretch): the rubber column from the stage's top down to the counter, inside the window; in its
+## left margin the gauge's steel housing (GaugeHousing) holding the quota tube (no number in it)
+## left of the receipt and clear of it and of CHECKOUT, never a flag on it, its lap lamp over the
+## housing inside the column and clear of the receipt, the brass plate under the housing with a
+## Double checkout's pips on it, clear of the receipt and of the printer; the receipt in its well,
+## opening with TODAY'S TARGET (the quota inside the paper); and the top bar right of the column,
+## every chip clear of it. The real saves and logs are never touched.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 
@@ -49,7 +50,7 @@ func test_a_lap_at_1920x1080() -> void:
 	await _assert_a_lap_clear_of_the_receipt(Vector2i(1920, 1080))
 
 
-## A count at twice the quota laps the tube: its "×3" badge, centred on the tube's top, and
+## A count at twice the quota laps the tube: its lamp reads "×2" over the housing, and
 ## the quota crossing's ×2 stamp (at its slam's full scale too, over the belt's start) stay inside
 ## the window and clear of the receipt at its full height (RECEIPT_TOP, the usual state by then)
 ## and of its TODAY'S TARGET; the stamp at rest stays under the top bar and left of the monitor.
@@ -78,7 +79,7 @@ func _assert_a_lap_clear_of_the_receipt(window: Vector2i) -> void:
 		)
 	)
 	var target: Rect2 = screen._receipt.target.get_global_rect()
-	assert_str(meter.badge_text()).is_equal("×3")
+	assert_str(meter.badge_text()).is_equal("×2")
 	assert_int(meter.get_child_count()).is_equal(0)
 	var badge: Rect2 = meter.get_global_transform() * meter.badge_rect()
 	var column: Rect2 = screen._stage.tower.get_global_rect()
@@ -152,25 +153,52 @@ func _assert_the_tower_in(window: Vector2i) -> void:
 	assert_float(receipt.position.x).is_greater_equal(well.position.x)
 	assert_float(receipt.end.x).is_less_equal(well.end.x)
 	assert_float(receipt.position.y).is_greater_equal(well.position.y)
-	# At the quota: no flag; lap 2's badge on the tube's top, inside the column, clear of the
-	# receipt.
+	# The housing (v4's A1, its 57 px at 1080p) holds the glass, in the column's margin, clear of
+	# the receipt and of CHECKOUT.
+	var housing: GaugeHousing = tower.housing
+	var case: Rect2 = _on_stage(screen, ShiftStage.HOUSING_RECT)
+	var plate: Rect2 = _on_stage(screen, ShiftStage.PLATE_RECT)
+	var checkout: Rect2 = _on_stage(screen, ShiftStage.CHECKOUT_RECT)
+	var printer: Rect2 = _on_stage(screen, ShiftStage.PRINTER_RECT)
+	var art: float = ArtStyle.ART_SCALE
+	assert_that(Vector2(housing.case_rect().size) * art).is_equal(ShiftStage.HOUSING_RECT.size)
+	assert_bool(column.encloses(case)).override_failure_message(str(case)).is_true()
+	assert_bool(case.encloses(tube)).override_failure_message(str(tube)).is_true()
+	assert_float(case.end.x).is_less_equal(receipt.position.x)
+	# Its glass is 13 art px wide inside its ink (10 before A1: +30%); its right ink edge is the
+	# well's.
+	assert_float(tube.size.x / art - 2.0).is_equal(13.0)
+	assert_float(case.end.x).is_equal(well.position.x + art)
+	for part: Rect2 in [case, plate, tube]:
+		assert_bool(part.intersects(receipt)).override_failure_message(str(part)).is_false()
+		assert_bool(part.intersects(checkout)).override_failure_message(str(part)).is_false()
+		assert_bool(part.intersects(printer)).override_failure_message(str(part)).is_false()
+	for part: Rect2 in [plate, tube]:
+		assert_bool(part.intersects(well)).override_failure_message(str(part)).is_false()
+	assert_float(plate.position.y).is_greater_equal(case.end.y)
+	assert_bool(column.encloses(plate)).override_failure_message(str(plate)).is_true()
+	# At the quota: no flag; the lamp lit with its check over the housing, inside the column,
+	# clear of the receipt.
 	assert_int(meter.get_child_count()).is_equal(0)
-	assert_str(meter.badge_text()).is_equal("×2")
+	assert_str(meter.badge_text()).is_equal(LapLamp.CHECK_TEXT)
 	var badge: Rect2 = meter.get_global_transform() * meter.badge_rect()
 	assert_bool(column.encloses(badge)).override_failure_message(str(badge)).is_true()
 	assert_bool(badge.intersects(receipt)).is_false()
 	assert_float(badge.end.x).is_less_equal(stage.position.x + ShiftStage.RECEIPT_X)
-	assert_float(badge.end.y).is_less_equal(tube.position.y)
+	assert_float(badge.end.y).is_less_equal(case.position.y)
 	# In the column's margin: clear of the receipt's well, a gutter from the stage's left edge.
 	assert_bool(badge.intersects(well)).override_failure_message(str(badge)).is_false()
 	assert_float(badge.position.x).is_greater(stage.position.x)
 	assert_float(badge.end.x).is_less_equal(tube.end.x + 0.01)
-	# A Double checkout's pips under the tube.
+	# A Double checkout's pips on the plate, in place of its €.
 	var pips: Rect2 = tower.row_pips.get_global_rect()
 	assert_bool(tower.row_pips.visible).is_true()
 	assert_float(pips.position.y).is_greater_equal(tube.end.y)
-	assert_bool(column.encloses(pips)).override_failure_message(str(pips)).is_true()
+	assert_bool(plate.encloses(pips)).override_failure_message(str(pips)).is_true()
 	assert_bool(pips.intersects(receipt)).is_false()
+	assert_bool(housing.shows_euro()).is_false()
+	tower.row_pips.show_rows(0, 1)
+	assert_bool(housing.shows_euro()).is_true()
 	# TODAY'S TARGET opens the paper with the quota.
 	var target: ReceiptTarget = screen._receipt.target
 	assert_bool(target.visible).is_true()

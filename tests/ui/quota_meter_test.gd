@@ -4,10 +4,11 @@ extends GdUnitTestSuite
 ## 2026-11-03; QuotaMeter): a tube that prints no number and fills up toward the target line on
 ## its top; full exactly at the quota in its first lap; once the quota is met (the count's ding,
 ## or a projected total reaching it) it never re-scales: it refills from its foot lap by lap, each
-## lap in its own colour over a full tube of the lap before's, with a "×N" badge on its top and
-## no flag; the first lap's colour by status; the tube's glow from NEAR_SHARE of the quota while
-## short; a drag's preview kept apart from the shown amount; reduced motion keeps the levels and
-## the colours; from twice the quota the count emits lap_reached once per multiple (the quota
+## lap in its own colour over a full tube of the lap before's (gold, orange, velvet, violet: v4's
+## A1), the lap lamp over the housing naming the laps made (a check, then "×N") and no flag; the
+## first lap's colour by status; the tube's glow from NEAR_SHARE of the quota while short; a
+## drag's preview kept apart from the shown amount; reduced motion keeps the levels and the
+## colours; from twice the quota the count emits lap_reached once per multiple (the quota
 ## crossing's E).
 
 const PALETTE_FILE := "res://art/src/palette.txt"
@@ -68,17 +69,18 @@ func test_lap_fill() -> void:
 	assert_float(QuotaLaps.lap_fill(30.0, 0, 3)).is_equal(1.0)
 
 
-## The lap colours: gold, orange (wood), velvet, teal glass, then gold again; each over a full
-## tube of the lap before's (the met green behind lap 2); all of them the art palette's.
+## The lap colours (v4's A1): gold, orange, velvet, violet, then gold again; each over a full tube
+## of the lap before's (the met green behind lap 2); all of them the art palette's, none shared
+## with the first lap's short or near ramps.
 func test_the_lap_colours_by_total_and_quota() -> void:
 	var expected: Array = [
 		[40, 2, Palette.GOLD, Palette.GOOD],
 		[60, 2, Palette.GOLD, Palette.GOOD],
-		[80, 3, Palette.WOOD_LIGHT, Palette.GOLD],
-		[100, 3, Palette.WOOD_LIGHT, Palette.GOLD],
-		[130, 4, Palette.VELVET, Palette.WOOD_LIGHT],
-		[170, 5, Palette.TEAL_BRIGHT, Palette.VELVET],
-		[210, 6, Palette.GOLD, Palette.TEAL_BRIGHT],
+		[80, 3, Palette.ORANGE, Palette.GOLD],
+		[100, 3, Palette.ORANGE, Palette.GOLD],
+		[130, 4, Palette.VELVET, Palette.ORANGE],
+		[170, 5, Palette.VIOLET, Palette.VELVET],
+		[210, 6, Palette.GOLD, Palette.VIOLET],
 	]
 	for row: Array in expected:
 		var lap: int = QuotaLaps.lap_for(row[0], 40, true)
@@ -91,17 +93,40 @@ func test_the_lap_colours_by_total_and_quota() -> void:
 	for colour_ramp: Array in ramps:
 		for colour: Color in colour_ramp:
 			assert_bool(palette.has(colour)).override_failure_message(str(colour)).is_true()
-	# No lap shares a colour with the short tube's red, and each lap's body differs from the one
-	# behind it.
+	# No lap shares a colour with the short or near tube, and each lap's body differs from the
+	# one behind it.
 	for lap: int in range(QuotaLaps.FIRST_LAP, QuotaLaps.FIRST_LAP + QuotaLaps.LAP_RAMPS.size()):
 		for colour: Color in QuotaLaps.lap_ramp(lap):
 			var why: String = "lap %d %s" % [lap, colour]
 			assert_bool(QuotaMeter.SHORT_RAMP.has(colour)).override_failure_message(why).is_false()
+			assert_bool(QuotaMeter.NEAR_RAMP.has(colour)).override_failure_message(why).is_false()
 		assert_that(QuotaLaps.lap_ramp(lap)[1]).is_not_equal(QuotaLaps.backdrop_ramp(lap)[1])
 
 
+## The new orange and violet ramps (art/src/palette.txt): lit, body and dark from light to dark,
+## their bodies HUE_GAP degrees or more from the short tube's tomato and the near tube's brass.
+func test_the_orange_and_violet_laps_keep_clear_of_the_warning_hues() -> void:
+	for lap_ramp: Array in [QuotaLaps.lap_ramp(3), QuotaLaps.lap_ramp(5)]:
+		var lit: Color = lap_ramp[0]
+		var body: Color = lap_ramp[1]
+		var dark: Color = lap_ramp[2]
+		assert_float(lit.get_luminance()).is_greater(body.get_luminance())
+		assert_float(body.get_luminance()).is_greater(dark.get_luminance())
+		for warning: Color in [QuotaMeter.SHORT_RAMP[1], QuotaMeter.NEAR_RAMP[1]]:
+			var gap: float = absf(body.h - warning.h) * 360.0
+			gap = minf(gap, 360.0 - gap)
+			var why: String = "%s is %.1f deg from %s" % [body, gap, warning]
+			assert_float(gap).override_failure_message(why).is_greater_equal(QuotaLaps.HUE_GAP)
+	assert_array(QuotaLaps.lap_ramp(3)).is_equal(
+		[Palette.ORANGE_LIGHT, Palette.ORANGE, Palette.ORANGE_DARK]
+	)
+	assert_array(QuotaLaps.lap_ramp(5)).is_equal(
+		[Palette.VIOLET_LIGHT, Palette.VIOLET, Palette.VIOLET_DARK]
+	)
+
+
 ## During a count: lap 2 pours gold over the full green tube from the foot up, lap 3 orange over
-## gold; the badge names the lap.
+## gold; the lamp names the laps made (a check, then "×2").
 func test_the_tube_refills_lap_by_lap() -> void:
 	var meter: QuotaMeter = await _meter()
 	var led: LedDisplay = auto_free(LedDisplay.new())
@@ -119,44 +144,67 @@ func test_the_tube_refills_lap_by_lap() -> void:
 	assert_float(meter.fill()).is_equal(0.25)
 	assert_array(meter.liquid_ramp()).is_equal(QuotaLaps.lap_ramp(2))
 	assert_that(QuotaLaps.backdrop_ramp(meter.shown_lap())).is_equal(QuotaMeter.MET_RAMP)
-	assert_str(meter.badge_text()).is_equal("×2")
+	assert_str(meter.badge_text()).is_equal(LapLamp.CHECK_TEXT)
 	led.show_subtotal(100, true)
 	await _frames(2)
 	assert_int(meter.shown_lap()).is_equal(3)
 	assert_float(meter.fill()).is_equal(0.5)
-	assert_str(meter.badge_text()).is_equal("×3")
+	assert_str(meter.badge_text()).is_equal("×2")
 	assert_array(meter.liquid_ramp()).is_equal(QuotaLaps.lap_ramp(3))
 
 
-## The badge sits on the tube's top: its foot on the target line, in the column's margin (its
-## right edge at most the tube's, where the receipt's well starts; a gutter from the stage's left
-## edge), clear of the well, from ×2 to ×12 (a two-digit lap takes a smaller size).
-func test_the_badge_sits_on_the_tube_top() -> void:
+## The lap lamp (v4's A1) sits over the housing's top cap, centred over the glass, inside the
+## tower's left margin (a gutter from the stage's left edge, clear of the receipt's well), with
+## its glyph inside it from "×2" to "×9".
+func test_the_lamp_sits_over_the_housing() -> void:
 	var meter: QuotaMeter = await _meter()
 	var cell: float = ArtStyle.ART_SCALE
-	for lap: int in [2, 3, 9, 10, 12]:
-		var rect: Rect2 = meter.badge_rect(QuotaMeter.BADGE_TEXT % lap)
-		assert_float(rect.end.y).is_equal(-cell)
-		var on_stage: Rect2 = Rect2(rect.position + ShiftStage.TUBE_RECT.position, rect.size)
-		var why: String = "×%d at %s" % [lap, on_stage]
-		(
-			assert_bool(ShiftStage.TOWER_RECT.encloses(on_stage))
-			. override_failure_message(why)
-			. is_true()
-		)
-		assert_float(on_stage.end.x).override_failure_message(why).is_less_equal(
-			ShiftStage.TUBE_RECT.end.x
-		)
-		assert_float(on_stage.position.x).override_failure_message(why).is_greater_equal(cell)
-		var well: Rect2 = ShiftStage.RECEIPT_WELL_RECT
-		assert_bool(on_stage.intersects(well)).override_failure_message(why).is_false()
-		assert_float(rect.size.x).override_failure_message(why).is_greater_equal(meter.size.x)
-	# One-digit laps keep the full size.
-	assert_int(meter._badge_size("×9")).is_equal(ArtStyle.PIXEL_NUMBER_SIZE)
+	var rect: Rect2 = meter.badge_rect()
+	var on_stage: Rect2 = Rect2(rect.position + ShiftStage.TUBE_RECT.position, rect.size)
+	var why: String = str(on_stage)
+	assert_bool(ShiftStage.TOWER_RECT.encloses(on_stage)).override_failure_message(why).is_true()
+	assert_float(on_stage.end.y).override_failure_message(why).is_less_equal(
+		ShiftStage.HOUSING_RECT.position.y
+	)
+	assert_float(on_stage.position.y).is_greater(0.0)
+	assert_float(on_stage.position.x).is_greater_equal(cell)
+	assert_float(on_stage.get_center().x).is_equal_approx(ShiftStage.TUBE_RECT.get_center().x, 0.01)
+	assert_bool(on_stage.intersects(ShiftStage.RECEIPT_WELL_RECT)).is_false()
+	assert_float(on_stage.end.x).is_less_equal(ShiftStage.RECEIPT_X)
+	assert_float(rect.size.x).is_equal(LapLamp.SIZE * cell)
+	for laps: int in range(2, 10):
+		var rows: PackedStringArray = LapLamp.glyph_rows(LapLamp.text_for(laps))
+		assert_int(rows.size()).is_equal(LapLamp.GLYPH_HEIGHT)
+		# Inside the lens: 2 art px of bezel and rim each side.
+		assert_int(rows[0].length()).is_less_equal(LapLamp.SIZE - 2 * LapLamp.LENS_INSET)
+
+
+## The lamp's text by laps made: dark (none) short of the quota, a check for the first lap, "×N"
+## from two; its glyphs ink on a light lap colour, paper on a dark one.
+func test_the_lamp_names_the_laps_made() -> void:
+	assert_str(LapLamp.text_for(0)).is_empty()
+	assert_str(LapLamp.text_for(1)).is_equal(LapLamp.CHECK_TEXT)
+	assert_str(LapLamp.text_for(2)).is_equal("×2")
+	assert_str(LapLamp.text_for(12)).is_equal("×12")
+	assert_array(LapLamp.glyph_rows("×2")).is_equal(
+		PackedStringArray(["....###", "#.#...#", ".#..###", "#.#.#..", "....###"])
+	)
+	assert_that(QuotaLaps.lamp_ink(QuotaMeter.MET_RAMP)).is_equal(Palette.INK)
+	assert_that(QuotaLaps.lamp_ink(QuotaLaps.lap_ramp(2))).is_equal(Palette.INK)
+	assert_that(QuotaLaps.lamp_ink(QuotaLaps.lap_ramp(3))).is_equal(Palette.INK)
+	assert_that(QuotaLaps.lamp_ink(QuotaLaps.lap_ramp(4))).is_equal(Palette.PAPER)
+	assert_that(QuotaLaps.lamp_ink(QuotaLaps.lap_ramp(5))).is_equal(Palette.PAPER)
+	var meter: QuotaMeter = await _meter()
+	meter.show_projected(30, 40)
+	assert_str(meter.badge_text()).is_empty()
+	meter.show_projected(40, 40)
+	assert_str(meter.badge_text()).is_equal(LapLamp.CHECK_TEXT)
+	meter.show_projected(130, 40)
+	assert_str(meter.badge_text()).is_equal("×3")
 
 
 ## With motion, the ding past the quota does not snap the tube to full green: the first lap keeps
-## pouring (its green, no badge) up to the target line before lap 2's gold starts.
+## pouring (its green, the lamp dark) up to the target line before lap 2's gold starts.
 func test_the_first_lap_pours_to_the_top_before_lap_two() -> void:
 	var meter: QuotaMeter = await _meter(false)
 	var led: LedDisplay = auto_free(LedDisplay.new())
@@ -174,7 +222,7 @@ func test_the_first_lap_pours_to_the_top_before_lap_two() -> void:
 	assert_float(meter._front()).is_less(meter._inner())
 	await _seconds(1.0)
 	assert_int(meter._drawn_lap()).is_equal(2)
-	assert_str(meter.badge_text()).is_equal("×2")
+	assert_str(meter.badge_text()).is_equal(LapLamp.CHECK_TEXT)
 	assert_array(meter.liquid_ramp()).is_equal(QuotaLaps.lap_ramp(2))
 
 
@@ -211,7 +259,7 @@ func test_only_a_count_pops_a_new_lap() -> void:
 	for amount: int in [90, 70, 90]:
 		meter.show_projected(amount, 40)
 		await _seconds(0.6)
-	assert_str(meter.badge_text()).is_equal("×3")
+	assert_str(meter.badge_text()).is_equal("×2")
 	assert_float(meter._pop).is_equal(0.0)
 	var led: LedDisplay = auto_free(LedDisplay.new())
 	add_child(led)
@@ -225,7 +273,7 @@ func test_only_a_count_pops_a_new_lap() -> void:
 		await _frames(1)
 		popped = popped or meter._pop > 0.0
 	assert_bool(popped).is_true()
-	assert_str(meter.badge_text()).is_equal("×3")
+	assert_str(meter.badge_text()).is_equal("×2")
 
 
 ## The tube glows from NEAR_SHARE of the quota while short, never once it is met.
@@ -294,23 +342,23 @@ func test_the_liquid_colour_follows_the_status() -> void:
 	assert_that(QuotaMeter.MET_RAMP[1]).is_equal(Palette.GOOD)
 
 
-## Reduced motion keeps the level, the lap, its colours and the badge (no pop): at once.
+## Reduced motion keeps the level, the lap, its colours and the lamp (no pop): at once.
 func test_reduced_motion_keeps_the_levels_and_colours() -> void:
 	var meter: QuotaMeter = await _meter()
 	meter.show_projected(100, 40)
 	await _frames(1)
 	assert_int(meter.shown_lap()).is_equal(3)
 	assert_float(meter.fill()).is_equal(0.5)
-	assert_str(meter.badge_text()).is_equal("×3")
+	assert_str(meter.badge_text()).is_equal("×2")
 	assert_array(meter.liquid_ramp()).is_equal(QuotaLaps.lap_ramp(3))
 	assert_float(meter._pop).is_equal(0.0)
-	# With motion, a new lap pops the badge.
+	# With motion, the lamp follows the laps made.
 	var moving: QuotaMeter = await _meter(false)
 	moving.show_projected(100, 40)
 	await _frames(30)
 	moving.show_projected(130, 40)
 	await _frames(30)
-	assert_str(moving.badge_text()).is_equal("×4")
+	assert_str(moving.badge_text()).is_equal("×3")
 
 
 ## The quota crossing's E: while counting, twice the quota and each later multiple emit
@@ -359,11 +407,11 @@ func _meter(reduced: bool = true) -> QuotaMeter:
 	return meter
 
 
-## The quota mark stands on the target line over the tube's top, at its middle.
+## The quota mark stands on the target line across the glass's top row, at its middle.
 func _assert_quota_mark_on_top(meter: QuotaMeter) -> void:
 	var bar: Rect2 = meter.bar().get_global_rect()
 	var cell: float = ArtStyle.ART_SCALE
-	assert_float(meter.quota_mark().y).is_equal_approx(bar.position.y - cell / 2.0, 0.5)
+	assert_float(meter.quota_mark().y).is_equal_approx(bar.position.y + cell * 1.5, 0.5)
 	assert_float(meter.quota_mark().x).is_equal_approx(bar.get_center().x, 0.5)
 
 
