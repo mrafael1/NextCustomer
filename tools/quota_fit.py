@@ -74,6 +74,8 @@ DEFAULT_SCENARIO = "greedy@sensible"
 # Plan 7.1: the collection holds 30 capsules. A won run pays the records' last table entry (3
 # since v0.65; 2 in the 8-shift run), WON_RUN_COINS when the records hold no table.
 WON_RUN_COINS = 3
+# The fewest coins the coin fit lets a won run pay: a great run (the 90th percentile) pays 2-3.
+MIN_WON_RUN_COINS = 2
 UNLOCKS = 30
 # A great run is the 90th percentile of coins per run (decided with the user in #40).
 GREAT_RUN_PERCENTILE = 90
@@ -229,7 +231,11 @@ def shift_quota(run: Run, index: int, base: int) -> int:
     return with_percent(base, percent)
 
 
-def replay(run: Run, curve: list[int]) -> Outcome:
+def replay(run: Run, curve: list[int], shifts: int = 0) -> Outcome:
+    """The run replayed under `curve`, which may be the first shifts of a longer run of `shifts`
+    shifts (0: the curve's length): a slip is never forgiven on the run's last shift, so a curve
+    still being fitted must pass the run's real length."""
+    length = shifts if shifts > 0 else len(curve)
     passed = 0
     overtime = 0
     slips = 0
@@ -244,7 +250,7 @@ def replay(run: Run, curve: list[int]) -> Outcome:
         total = run.totals[index]
         if total < quota:
             passes.append(False)
-            if run.slips.forgives(index + 1, len(curve), slips):
+            if run.slips.forgives(index + 1, length, slips):
                 slips += 1
                 continue
             return Outcome(passed, False, overtime, margin, quotas, True, passes, slips)
@@ -274,7 +280,7 @@ def fit_curve(runs: list[Run], shifts: int, win: float, shift1: float, shift2: f
         curve: list[int] = []
         for index in range(shifts):
             keep = shift1 if index == 0 else shift2 if index == 1 else 1.0 - fail
-            curve.append(_quota_for_share(runs, curve, keep))
+            curve.append(_quota_for_share(runs, curve, keep, shifts))
         return curve
 
     low, high = 0.0, 1.0
@@ -292,15 +298,16 @@ def fit_curve(runs: list[Run], shifts: int, win: float, shift1: float, shift2: f
     return best
 
 
-def _quota_for_share(runs: list[Run], curve: list[int], keep: float) -> int:
+def _quota_for_share(runs: list[Run], curve: list[int], keep: float, shifts: int = 0) -> int:
     """The highest quota for the next shift that at least `keep` of the runs reaching it meet
-    and at least 1 more than the previous shift's."""
+    and at least 1 more than the previous shift's. `shifts` is the run's length (0: the next
+    shift is the last), so a slip on the shift just fitted is forgiven like in the full run."""
     index = len(curve)
     floor = curve[-1] + 1 if curve else 0
     # Each reaching run's total and quota percent on the shift (a run still going: slips too).
     reaching: list[tuple[int, int]] = []
     for run in runs:
-        outcome = replay(run, curve)
+        outcome = replay(run, curve, shifts if shifts > 0 else index + 1)
         if outcome.won and outcome.complete and len(run.totals) > index:
             percent = run.quota_percents[index] if index < len(run.quota_percents) else 0
             reaching.append((run.totals[index], percent))
@@ -335,7 +342,8 @@ def fit_coins(
 ) -> CoinRule:
     """Plan 7.1's coin shape for this curve, stepped by completed weeks (v0.95): a lost run that
     completed w weeks (shifts passed // `week_length`; every shift a week when 0) pays step w,
-    nothing for none, a won run `won_coins`; the steps never fall and stay at most `won_coins`.
+    nothing for none, a won run from MIN_WON_RUN_COINS up to `won_coins` (the records' amount);
+    the steps never fall and stay at most the won run's amount.
     The overtime coin's euros are set so about `overtime_share` of the runs earn it. Of the
     candidates meeting the targets (the median run pays 1, a great run 2-3, 30 unlocks in 25-40
     runs, the shift-1 margin alone earns the overtime coin in under 2% of runs), the one nearest
@@ -345,16 +353,17 @@ def fit_coins(
     weeks = max(math.ceil(shifts / length), 1)
     outcomes = [replay(run, curve) for run in runs]
     euros = overtime_euros_for_share(outcomes, overtime_share)
-    best: tuple[tuple[int, float, int], CoinRule] | None = None
-    for steps in coin_steps(weeks - 1, won_coins):
-        values = [0] + steps
-        table = [values[min(passed // length, len(values) - 1)] for passed in range(shifts)]
-        rule = CoinRule(table + [won_coins], euros, overtime_max)
-        stats = coin_stats(outcomes, rule)
-        distance = abs(stats["runs_to_unlock_all"] - TARGET_RUNS_MIDDLE)
-        key = (0 if meets_coin_targets(stats) else 1, distance, -sum(table))
-        if best is None or key < best[0]:
-            best = (key, rule)
+    best: tuple[tuple[int, float, int, int], CoinRule] | None = None
+    for won in range(min(MIN_WON_RUN_COINS, won_coins), won_coins + 1):
+        for steps in coin_steps(weeks - 1, won):
+            values = [0] + steps
+            table = [values[min(passed // length, len(values) - 1)] for passed in range(shifts)]
+            rule = CoinRule(table + [won], euros, overtime_max)
+            stats = coin_stats(outcomes, rule)
+            distance = abs(stats["runs_to_unlock_all"] - TARGET_RUNS_MIDDLE)
+            key = (0 if meets_coin_targets(stats) else 1, distance, -sum(table), -won)
+            if best is None or key < best[0]:
+                best = (key, rule)
     if best is None:
         return CoinRule([0] * shifts + [won_coins], euros, overtime_max)
     return best[1]

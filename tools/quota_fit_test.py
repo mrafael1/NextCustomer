@@ -193,6 +193,22 @@ class SlipTest(unittest.TestCase):
         self.assertFalse(qf.replay(last, self.CURVE).won)
         self.assertTrue(qf.replay(to_runs([make_run([10, 10, 10, 10, 5, 10])], (2, 0))[0], self.CURVE).won)
 
+    def test_a_slip_on_a_fitted_prefix_s_last_shift_is_forgiven(self) -> None:
+        # Fitting shift 4 of 6: a miss on shift 3 is a slip of the 6-shift run, not its end.
+        run = to_runs([make_run([10, 10, 5, 10, 10, 10])], self.SLIPS)[0]
+        self.assertFalse(qf.replay(run, self.CURVE[:3]).won)
+        prefix = qf.replay(run, self.CURVE[:3], len(self.CURVE))
+        self.assertTrue(prefix.won)
+        self.assertEqual(prefix.slips, 1)
+
+    def test_a_run_that_slipped_just_before_reaches_the_fitted_shift(self) -> None:
+        # 10 runs slip on shift 2 and score 40 on shift 3; 10 pass shift 2 and score 20. Every
+        # run reaches shift 3, so keeping 0.5 of them is a quota of 40, not 20.
+        entries = [make_run([10, 5, 40, 10, 10, 10], seed=i) for i in range(10)]
+        entries += [make_run([10, 10, 20, 10, 10, 10], seed=100 + i) for i in range(10)]
+        runs = to_runs(entries, self.SLIPS)
+        self.assertEqual(qf._quota_for_share(runs, [10, 10], 0.5, len(self.CURVE)), 40)
+
     def test_a_won_run_with_slips_pays_the_last_entry(self) -> None:
         run = to_runs([make_run([5, 5, 10, 10, 10, 10])], self.SLIPS)[0]
         outcome = qf.replay(run, self.CURVE)
@@ -233,7 +249,7 @@ class CoinTest(unittest.TestCase):
         runs = to_runs([make_run([10 + i, 20 + i, 30 + i], seed=i) for i in range(40)])
         rule = qf.fit_coins(runs, [10, 25, 50], 0.10, 1)
         self.assertEqual(rule.table[0], 0)
-        self.assertEqual(rule.table[-1], qf.WON_RUN_COINS)
+        self.assertIn(rule.table[-1], range(qf.MIN_WON_RUN_COINS, qf.WON_RUN_COINS + 1))
         self.assertEqual(rule.overtime_max, 1)
         self.assertTrue(all(b >= a for a, b in zip(rule.table, rule.table[1:])))
 
@@ -243,6 +259,16 @@ class CoinTest(unittest.TestCase):
 
 
 class CoinTargetTest(unittest.TestCase):
+    def test_the_fit_can_pay_a_won_run_less_than_the_records(self) -> None:
+        # Weeks of 2 shifts, 4 shifts, records paying a win 3. 100 runs: 90 win, 10 lose on
+        # shift 1. Paying 3 a win is 2.7 coins a run (11 runs to 30 unlocks), paying 2 still 1.8
+        # (median 2): the nearest to 32.5 runs pays a win the fewest, 2.
+        entries = [make_run([10, 10, 10, 10], seed=i) for i in range(90)]
+        entries += [make_run([0, 10, 10, 10], seed=100 + i) for i in range(10)]
+        rule = qf.fit_coins(to_runs(entries), [5, 5, 5, 5], 0.0, 1, won_coins=3, week_length=2)
+        self.assertEqual(rule.table[-1], qf.MIN_WON_RUN_COINS)
+
+
     def test_lost_runs_are_paid_by_completed_weeks(self) -> None:
         # Weeks of 2 shifts, 4 shifts, a won run paying 2. 100 runs: 40 win, 30 lose on shift 2
         # (no week completed), 30 lose on shift 3 (1 week).
