@@ -6,11 +6,12 @@ extends Control
 ## from today's deal [+ n from your pins]); under it the cart in brackets of CartTickets: STAPLES
 ## (padlocked, in every run), the PACK (the picked or hovered pack's cards, or empty dashed slots
 ## with "pick a pack ↑"), TODAY'S DEAL (the offer's shared products, the same for every pack) and
-## FROM YOUR PINS (only when a worn pin brings cards). Identical cards share one ticket per
-## bracket, its ×N counting the card's copies over the whole cart. BY FAMILY tallies the cart's
-## family tags beside the deal. A pack change pops its tickets in (CartRevealTuning's ticket pop,
-## at once with reduced motion). Display only: the cards come from StartingDeck.cart, the same as
-## RunState.take_pack deals.
+## FROM YOUR PINS (only when a worn pin brings cards; the first row holds two distinct pin cards
+## beside 3 distinct staples and a pack, start_board_test checks every catalogue pin). Identical
+## cards share one ticket per bracket, its ×N counting the card's copies over the whole cart.
+## BY FAMILY tallies the cart's family tags beside the deal. A pack change pops its tickets in
+## (CartRevealTuning's ticket pop, at once with reduced motion). Display only: the cards come
+## from StartingDeck.cart, the same as RunState.take_pack deals.
 
 const RECT := Rect2(44, 326, 780, 362)
 const HEADER_TOP := 10.0
@@ -231,7 +232,8 @@ func _build_brackets() -> void:
 			slot.set_rest(Vector2(x + index * TICKET_STEP, ROW_TICKET_TOPS[0]))
 			_body.add_child(slot)
 			pack_tickets.append(slot)
-		x += _pack_size * TICKET_STEP + BRACKET_GAP
+		# The same advance as a filled bracket's (_bracket).
+		x += _pack_size * TICKET_STEP + BRACKET_GAP - (TICKET_STEP - CartTicket.SIZE.x)
 	if not pin_cards.is_empty():
 		_bracket(PINS_TEXT, pin_cards, "", x, 0, pin_tickets, false)
 	_bracket(DEAL_TEXT, shared, DEAL_SUB, LEFT, 1, deal_tickets, false)

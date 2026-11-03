@@ -1,9 +1,13 @@
 extends GdUnitTestSuite
 ## The start screen's clock-in board (#107's choice, mock-up start_screen.html layout A,
-## 2026-11-03): the layout on screen at 1280x720 and 1920x1080 (every part inside the board, apart),
-## a pick and a hover updating the cart preview, the preview being exactly the deck the run starts
-## with, the worn pins, and TODAY'S STOCK's pools (a new profile's, and one with a machine-opened
-## aisle listed). The board is driven by its API: headless runs deliver no input events.
+## 2026-11-03): the layout on the real shift screen in a 1280x720 and a 1920x1080 screen (the
+## 1280x720 stage centred in it, like day_slip_test: the game's 1920x1080 is that stage at the
+## project's uniform 1.5x canvas_items stretch, which no headless test runs) with and without a pin
+## that brings cards (every part inside the board, apart; the Cart button's count the board's), a
+## pick and a hover updating the cart preview, the preview being exactly the deck the run starts
+## with, the worn pins, TODAY'S STOCK's pools (a new profile's, and one with a machine-opened aisle
+## listed), and the popups (silent; a pick that rebuilds the cart closes a gone ticket's popup).
+## The board is driven by its API: headless runs deliver no input events.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 const RECIPE := "res://data/decks/pack_starter.tres"
@@ -11,6 +15,7 @@ const BALANCE := "res://data/balance/balance.tres"
 const SEEDS: Array[int] = [20261103, 20261014, 99, 7]
 const WINDOWS: Array[Vector2] = [Vector2(1280, 720), Vector2(1920, 1080)]
 const REPACK := "res://data/pins/repack.tres"
+const RecordingSfx := preload("res://tests/presentation/recording_sfx.gd")
 
 var _host: Control
 var _cart: Control
@@ -38,26 +43,49 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-## On screen at 1280x720 and 1920x1080, for several deals and every pack shown: the board inside
-## the stage under the top bar (its header plate above it, clear of the Cart button), and its
-## parts inside it and apart: the packs, the cart sheet (every ticket inside it, none touching
-## another, BY FAMILY clear of the deal), the stock's rows and footer, the pins and the key.
+## On the real screen at 1280x720 and 1920x1080, for several deals, with no pin and with a pin
+## bringing two cards unlike the staples (FROM YOUR PINS on the first row; the most the row holds
+## beside 3 distinct staples and a pack), with each catalogue pin that brings cards, and every
+## pack shown, none picked included:
+## the board inside the stage under the top bar (its header plate above it, clear of the real Cart
+## button), and its parts inside it and apart: the packs, the cart sheet (every ticket inside it,
+## none touching another, BY FAMILY clear of the deal), the stock's rows and footer, the pins and
+## the key. The Cart button counts the board's cart (13/15 before and after the pick).
 func test_the_board_fits_the_screen_with_no_overlaps() -> void:
+	var screen: ShiftScreen = await _screen()
+	screen.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+	var pin_sets: Array[Array] = [[], [_two_card_pin()]]
+	# Every pin of the catalogue that brings cards, on its own (none does today).
+	for pin: PinDefinition in screen._catalogue.pins:
+		if not pin.starting_cards.is_empty():
+			pin_sets.append([pin])
 	for window_size: Vector2 in WINDOWS:
-		_host.size = window_size
-		for seed_value: int in SEEDS:
-			var reveal: CartReveal = _reveal(_choice_run(seed_value, true, []))
-			reveal.freeze_at(reveal.end_time())
-			await get_tree().process_frame
-			var board: StartBoard = reveal.board
-			for shown: int in range(-1, board.choice.faces.size()):
-				board.pick(shown)
+		screen.size = window_size
+		for worn: Array in pin_sets:
+			var pins: Array[PinDefinition] = []
+			pins.assign(worn)
+			for seed_value: int in SEEDS:
+				screen.start_new_run(seed_value, true, true)
+				var reveal: CartReveal = screen._cart_reveal
+				RunPins.wear(screen.run, pins)
+				reveal.play(screen.run, screen._deck_button, false)
+				screen._refresh_bar()
+				reveal.freeze_at(reveal.end_time())
 				await get_tree().process_frame
-				_assert_layout(board, "%s seed %d pack %d" % [window_size, seed_value, shown])
-			reveal.close()
+				var board: StartBoard = reveal.board
+				var what: String = "%s seed %d pins %d" % [window_size, seed_value, pins.size()]
+				for shown: int in range(-1, board.choice.faces.size()):
+					board.pick(shown)
+					await get_tree().process_frame
+					_assert_layout(board, screen._deck_button, "%s pack %d" % [what, shown])
+					var caption: String = "Cart %s" % board.sheet.total_text()
+					assert_str(screen._deck_button.caption).override_failure_message(what).is_equal(
+						caption
+					)
+				reveal.close()
 
 
-func _assert_layout(board: StartBoard, what: String) -> void:
+func _assert_layout(board: StartBoard, cart: Control, what: String) -> void:
 	var box: Rect2 = board.get_global_rect()
 	var stage: Rect2 = Rect2(box.position - StartBoard.RECT.position, ShiftStage.SIZE)
 	assert_bool(stage.encloses(box)).override_failure_message(what).is_true()
@@ -67,7 +95,9 @@ func _assert_layout(board: StartBoard, what: String) -> void:
 	assert_float(header.end.y).override_failure_message(what).is_less_equal(
 		stage.position.y + ShiftStage.TOP_BAR_BOTTOM
 	)
-	assert_float(header.end.x).is_less(_cart.get_global_rect().position.x)
+	assert_float(header.end.x).override_failure_message(what).is_less(
+		cart.get_global_rect().position.x
+	)
 	var parts: Array[Rect2] = [
 		board.sheet.get_global_rect(),
 		_rect_of(board.shelves, board.shelves.footer()),
@@ -213,10 +243,7 @@ func test_confirm_starts_the_run_with_exactly_the_previewed_deck() -> void:
 ## The same seed and choice give the same deck as the preview with a pin that brings cards: its
 ## cards are in the preview (FROM YOUR PINS) and in the deck the pick deals.
 func test_a_pins_cards_are_in_the_preview_and_the_deck() -> void:
-	var pin: PinDefinition = PinDefinition.new()
-	pin.id = &"test_pin"
-	pin.display_name = "Test pin"
-	pin.rule_text = "Brings two cards."
+	var pin: PinDefinition = _two_card_pin()
 	var milk: CardDefinition = load("res://data/cards/milk.tres")
 	pin.starting_cards = [milk, milk]
 	var run: RunState = _choice_run(SEEDS[2], true, [pin])
@@ -321,6 +348,43 @@ func test_a_listed_machine_aisle_is_prizes_only() -> void:
 	assert_int(shelves.pool_size).is_equal(pool.size())
 	for card: CardDefinition in opened.capsule_cards:
 		assert_bool(pool.has(card)).is_false()
+
+
+## A card's popup on the board opens at once on hover and silently (no hover sounds, #62). A pick
+## (the 1 to 3 keys) while a staple's popup is open rebuilds the cart: the popup closes with its
+## gone ticket, and the pointer leaving shows nothing stale.
+func test_a_pick_closes_the_popup_of_a_rebuilt_ticket() -> void:
+	var sfx: RecordingSfx = RecordingSfx.new()
+	_host.add_child(sfx)
+	var reveal: CartReveal = _reveal(_choice_run(SEEDS[0], true, []))
+	reveal.freeze_at(reveal.end_time())
+	var staple: CartTicket = reveal.board.sheet.staple_tickets[0]
+	reveal.hover(staple)
+	assert_bool(reveal.popup().visible).is_true()
+	assert_object(reveal.popup_tile()).is_same(staple)
+	assert_int(sfx.count(ScanController.HOVER_SOUND)).is_equal(0)
+	var other: int = (reveal.board.choice.raised_index + 1) % reveal.board.choice.faces.size()
+	reveal.raise_pack(other)
+	assert_bool(is_instance_valid(staple)).is_false()
+	assert_bool(reveal.popup().visible).is_false()
+	assert_object(reveal.popup_tile()).is_null()
+	reveal.hover(null)
+	assert_bool(reveal.popup().visible).is_false()
+	# A new ticket under the pointer opens its popup again.
+	reveal.hover(reveal.board.sheet.staple_tickets[0])
+	assert_bool(reveal.popup().visible).is_true()
+	assert_int(sfx.count(ScanController.HOVER_SOUND)).is_equal(0)
+	await get_tree().process_frame  # The popup's old lines (queue_free) go.
+
+
+## A test pin bringing Coffee and Bread, two cards unlike the staples (two FROM YOUR PINS tickets).
+func _two_card_pin() -> PinDefinition:
+	var pin: PinDefinition = PinDefinition.new()
+	pin.id = &"test_pin"
+	pin.display_name = "Test pin"
+	pin.rule_text = "Brings two cards."
+	pin.starting_cards = [load("res://data/cards/coffee.tres"), load("res://data/cards/bread.tres")]
+	return pin
 
 
 func _choice_run(seed_value: int, first_pick: bool, pins: Array[PinDefinition]) -> RunState:

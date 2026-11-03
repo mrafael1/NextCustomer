@@ -24,6 +24,20 @@ func _init(screen: ShiftScreen, event_log: EventLogService) -> void:
 	_screen._cart_reveal.pack_taken.connect(take_chosen)
 
 
+## The cart the run starts with, as the top bar's Cart button counts it: the deck's cards, and
+## while the run waits for its pick (#107) the start board's whole cart (StartBoard's YOUR CART:
+## the staples, a pack's cards, today's deal and the worn pins' cards), so the two agree.
+static func cart_count(run: RunState) -> int:
+	if run.phase != RunState.Phase.CHOOSE_START or run.start_offer == null:
+		return run.deck.size()
+	var count: int = run.deck.size()
+	if not run.start_offer.packs.is_empty():
+		count += run.start_offer.packs[0].cards.size()
+	for pin: PinDefinition in run.pins:
+		count += pin.starting_cards.size()
+	return count
+
+
 ## A new run for `seed_value` with `recipe` as its starting deck: its stock from the profile, its
 ## deck dealt (a recipe with packs: its offer, the run waiting for its pick), wearing the
 ## profile's badge pins (#122).

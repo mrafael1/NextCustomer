@@ -41,8 +41,11 @@ extends Control
 ## one: pack_taken is emitted (the screen makes the deck and starts shift 1) and the board folds
 ## into the Cart button at once (the cart was already shown, so no fly-in; reduced motion: it
 ## closes). The good first pick (until the profile's first win) is picked from the start. A card's
-## popup opens at once on hover on the board. During the packs' drop a tap jumps to the choice,
-## never past it; during the choice a click off the packs and the key, Space and Esc do nothing.
+## popup opens at once on hover on the board, silently (no hover sounds, #62; the beep stays the
+## panel's, after its hold). A pick or a preview rebuilds the cart's tickets: the popup of a ticket
+## gone closes, and the one under the pointer opens again. During the packs' drop a tap jumps to
+## the choice, never past it; during the choice a click off the packs and the key, Space and Esc
+## do nothing.
 
 signal finished
 ## The player took `pack` from the starter pack choice (#107).
@@ -230,6 +233,7 @@ func raise_pack(index: int) -> void:
 	if board.choice.raised_index != index:
 		board.pick(index)
 		Sfx.play_at(self, "ui_click")
+		_forget_freed()
 	_render()
 
 
@@ -368,6 +372,7 @@ func target_at(point: Vector2) -> Control:
 ## The pointer is over `tile` (a target_at target; null: none): another one starts its hold
 ## again, and leaving the shown one hides the popup.
 func hover(tile: Control) -> void:
+	_forget_freed()
 	if tile == _hover_tile:
 		return
 	_hover_tile = tile
@@ -375,7 +380,7 @@ func hover(tile: Control) -> void:
 	if tile != _shown_tile:
 		_hide_popup()
 	if tile != null and is_choosing():
-		show_popup(tile)  # The board's popups open at once (2026-11-03).
+		show_popup(tile, false)  # The board's popups open at once, silently (2026-11-03).
 
 
 ## Moves the hover's hold on by `seconds` (as _process does each frame): the popup opens once the
@@ -384,6 +389,7 @@ func hover(tile: Control) -> void:
 func hover_for(seconds: float) -> void:
 	if not visible:
 		return
+	_forget_freed()
 	if _hover_tile == null and get_global_rect().has_point(get_global_mouse_position()):
 		hover(target_at(get_global_mouse_position()))
 	if _hover_tile == null or _hover_tile == _shown_tile:
@@ -394,8 +400,8 @@ func hover_for(seconds: float) -> void:
 
 
 ## Opens the popup for `tile` (a target_at target) at once (the hold's end; development tools and
-## tests).
-func show_popup(tile: Control) -> void:
+## tests), with the scanner's beep when `beep`.
+func show_popup(tile: Control, beep: bool = true) -> void:
 	var card: CardDefinition = _card_of(tile)
 	if card == null:
 		return
@@ -404,11 +410,13 @@ func show_popup(tile: Control) -> void:
 	_popup.visible = true
 	_popup.show_card(card, card.tags)
 	_place_popup()
-	Sfx.play_at(self, ScanController.HOVER_SOUND, ScanController.HOVER_DB)
+	if beep:
+		Sfx.play_at(self, ScanController.HOVER_SOUND, ScanController.HOVER_DB)
 
 
 ## Places the popup beside its tile over the panel, on the stage (ScanPopup.place_at).
 func _place_popup() -> void:
+	_forget_freed()
 	if _shown_tile == null or _view() == null:
 		return
 	var tile_rect: Rect2 = _shown_tile.get_global_rect()
@@ -432,6 +440,16 @@ func _view() -> Control:
 	return _panel
 
 
+## A rebuild of the board's cart (a pick, a preview) frees its tickets: a freed popup target
+## closes the popup, and a freed hovered one is forgotten (hover_for finds what is under the
+## pointer again).
+func _forget_freed() -> void:
+	if not is_instance_valid(_shown_tile):
+		_hide_popup()
+	if not is_instance_valid(_hover_tile):
+		_hover_tile = null
+
+
 func _hide_popup() -> void:
 	_shown_tile = null
 	if _popup != null:
@@ -447,9 +465,9 @@ func _gui_input(event: InputEvent) -> void:
 	var motion: InputEventMouseMotion = event as InputEventMouseMotion
 	if motion != null:
 		var point: Vector2 = get_global_transform() * motion.position
-		hover(target_at(point))
 		if is_choosing():
-			board.set_pointer(point)
+			board.set_pointer(point)  # First: a preview's change rebuilds the cart's tickets.
+		hover(target_at(point))
 		return
 	var click: InputEventMouseButton = event as InputEventMouseButton
 	if click != null and click.pressed and click.button_index == MOUSE_BUTTON_LEFT:

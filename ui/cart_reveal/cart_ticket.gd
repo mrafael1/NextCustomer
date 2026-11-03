@@ -38,8 +38,9 @@ const LOCK_RECT := Rect2(-6, -8, 22, 22)
 const COUNT_AT := Vector2(50, -9)
 const COUNT_SIZE := Vector2(28, 20)
 const COUNT_TEXT_SIZE := 13
-const TAB_RECT := Rect2(6, -10, 46, 14)
-const TAB_TEXT_SIZE := 9
+## The tab's text is 10 px (15 px at 1920x1080, the board's floor); it ends before the ×N.
+const TAB_RECT := Rect2(0, -10, 48, 16)
+const TAB_TEXT_SIZE := 10
 const CUT_INSET := Vector4(4, 4, 4, 26)
 const DASH := 5.0
 const EMPTY_TEXT := "?"

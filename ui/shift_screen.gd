@@ -709,7 +709,8 @@ func _refresh_bar() -> void:
 		InspectionTag.bonus_for(run, _counting, _inspection_tag.bonus_state())
 	)
 	_refresh_loyalty_card()
-	_deck_button.caption = "Cart %d/%d" % [run.deck.size(), run.balance.deck_limit]
+	var cart: int = StartChoice.cart_count(run)  # The start board's cart while it waits (#107).
+	_deck_button.caption = "Cart %d/%d" % [cart, run.balance.deck_limit]
 	(_top_bar as TopBar).fit_inspection()
 
 
