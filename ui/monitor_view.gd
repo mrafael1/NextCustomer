@@ -199,6 +199,7 @@ func _init() -> void:
 	notice_label.position = notice_at.position
 	notice_label.size = notice_at.size
 	notice_label.showing_changed.connect(_on_notice_showing)
+	notice_label.notice_shown.connect(_fit_notice)
 	_chips = CountChips.new()
 	_chips.position = local(PAPER_RECT).position
 	_chips.size = PAPER_RECT.size
@@ -767,11 +768,14 @@ func _show_last_item(plan: CountUpPlan, result: ScoreResult, line_of: Callable) 
 	_items.set_value(result.payouts[slot], fizzled)
 
 
-func _on_notice_showing(showing: bool) -> void:
-	if showing:
-		var room: Vector2 = _rects[notice_label].size
-		notice_label.add_theme_font_size_override("font_size", notice_size(notice_label.text, room))
+func _on_notice_showing(_showing: bool) -> void:
 	_apply()
+
+
+## Every notice shown (one replacing another too) takes the size that fits its strip.
+func _fit_notice(notice: String) -> void:
+	var room: Vector2 = _rects[notice_label].size
+	notice_label.add_theme_font_size_override("font_size", notice_size(notice, room))
 
 
 ## The first of NOTICE_SIZES at which `text`, wrapped to `room`'s width, fits its height (the

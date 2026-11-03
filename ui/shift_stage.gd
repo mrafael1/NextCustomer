@@ -131,14 +131,15 @@ const CANCEL_RECT := Rect2(232, 518, 84, 54)
 ## baskets on it (HandRow: ItemView.BASKET_SIZE cells, from the first basket's left edge to the
 ## last one's right edge at the natural pitch; the baskets' rims are HandBaskets'). Since the belt
 ## came down onto the baskets (#123) the hand's cells start at the rail's shadow: a scanned or
-## picked basket item rises over the counter face, up to the rail.
-const LEDGE_RECT := Rect2(346, 686, 924, 34)
+## picked basket item rises over the counter face, up to the rail. The ledge's foot is the floor's
+## line (FLOOR_TOP).
+const LEDGE_RECT := Rect2(346, 686, 924, 22)
 const HAND_RECT := Rect2(362, 538, 892, ItemView.BASKET_SIZE.y)
 ## Where the hand is: from as high as a scanned basket item rises (ItemView.BASKET_LIFT over the
 ## cells' top, over the rail's foot since #123) down to the stage's foot, right of the register.
 const HAND_AREA := Rect2(336, 524, 944, 196)
 ## While the shift is counted a shade darkens the hand and its baskets (ink at this alpha, mock-up
-## B2's count-up), so the belt reads first.
+## B2's count-up), so the belt reads first: down to the ledge's floor shadow (HandBaskets).
 const COUNTING_SHADE_RECT := Rect2(336, 538, 944, 174)
 const COUNTING_SHADE_ALPHA := 0.4
 const SEED_RECT := Rect2(20, 586, 198, 18)

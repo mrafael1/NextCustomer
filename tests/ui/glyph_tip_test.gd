@@ -244,7 +244,9 @@ func test_a_belt_glyph_tips_and_keeps_its_item() -> void:
 	var tip: GlyphTip = tips.tip()
 	var box: Rect2 = tip.get_global_rect()
 	assert_bool(tip.below).is_true()
-	assert_str(tip.tip_text()).is_equal(glyph.tip_text)
+	assert_str(tip.tip_text()).is_equal(glyph.full_tip())
+	# On the belt the membership tip names the family's other items there (tickets v5).
+	assert_str(glyph.tip_more).is_equal("No other Breakfast item on the belt")
 	assert_float(box.position.y).is_equal(sticker.get_global_rect().end.y + GlyphTip.BELOW_GAP)
 	assert_bool(screen.get_global_rect().encloses(box)).override_failure_message(str(box)).is_true()
 	# A press hides it (the item takes the press).

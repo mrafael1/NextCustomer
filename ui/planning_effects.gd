@@ -92,6 +92,10 @@ var _hand: Array[Control] = []
 var _belt_tags: Array[PackedStringArray] = []
 ## The hovered family glyph's family on the counter (#105 piece 3), or "".
 var _family: String = ""
+## A hovered written family's (FamilyWord, tickets v5) belt slot and the slots its rule counts
+## (RuleReach), which alone light; -1 for a glyph's tip or none.
+var _reach_slot: int = -1
+var _reach: PackedInt32Array = PackedInt32Array()
 ## The card a drag carries, while it shows its landings.
 var _dragged: CardInstance
 ## The Cart, whose glyphs light its own cells (watch_glyphs).
@@ -262,6 +266,8 @@ func clear() -> void:
 	_focus = Focus.NONE
 	_focus_card = null
 	_family = ""
+	_reach_slot = -1
+	_reach = PackedInt32Array()
 	_dragged = null
 	_slapped.clear()
 	if _grey_tween != null:
@@ -455,7 +461,14 @@ func _mix_looks(graph: EffectGraph, card: CardInstance) -> Dictionary[ItemView, 
 		items.append(item)
 		entries.append(MixModel.Entry.new(item.card, item.card.definition.tags))
 	var shown: Array[MixModel.Look] = []
-	if not _family.is_empty():
+	if _reach_slot >= 0:
+		# A written family: its card and what its rule counts, the rest grey.
+		for entry: MixModel.Entry in entries:
+			var look: MixModel.Look = MixModel.Look.GREY
+			if entry.slot >= 0 and _reach.has(entry.slot):
+				look = MixModel.Look.LIT
+			shown.append(MixModel.Look.SELF if entry.slot == _reach_slot else look)
+	elif not _family.is_empty():
 		shown = MixModel.for_family(entries, _family)
 	elif card != null:
 		var focus: MixModel.Entry = MixModel.Entry.new(card, card.definition.tags)
@@ -709,7 +722,9 @@ func _fade(seconds: float) -> float:
 
 ## A family glyph's or written family's tooltip shows (`target`; null: none): its family lights
 ## the Cart's cells when it is in the open Cart, else the counter's items (not while hovers are
-## blocked).
+## blocked). On a belt ticket the tip adds the belt's part (tickets v5): a glyph's names the
+## family's other items there, a written family's what its rule counts (RuleReach), and only
+## those light.
 func _on_tip_shown(target: TipTarget) -> void:
 	# A BATCH chip on a belt ticket lights its batch's frame, a CHAIN chip its chain's (#128); any
 	# other tip, none.
@@ -727,11 +742,64 @@ func _on_tip_shown(target: TipTarget) -> void:
 	if _deck != null:
 		_deck.mix_family = family if in_deck and _deck.visible else ""
 	var counter: String = "" if in_deck or _blocked() else family
-	if counter == _family:
+	var reach_slot: int = -1
+	var reach: PackedInt32Array = PackedInt32Array()
+	if target != null:
+		target.tip_more = ""
+		var slot: int = -1 if counter.is_empty() else _belt_slot_of(target)
+		if slot >= 0 and written != null:
+			reach_slot = slot
+			reach = _tell_reach(written, slot)
+		elif slot >= 0:
+			_tell_members(target, family, slot)
+	if counter == _family and reach_slot == _reach_slot and reach == _reach:
 		return
 	_family = counter
+	_reach_slot = reach_slot
+	_reach = reach
 	if _shown and _landing < 0:
 		_apply_focus(true)
+
+
+## Writes on `word`'s tip what its rule (the card at belt `slot`) counts, or that nothing matches,
+## and returns those slots.
+func _tell_reach(word: FamilyWord, slot: int) -> PackedInt32Array:
+	var products: Array[bool] = []
+	for other: int in range(_views.size()):
+		var item: ItemView = _item(other)
+		products.append(item != null and item.card.definition.is_product())
+	var reach: RuleReach = RuleReach.of(
+		_item(slot).card.definition, slot, word.family, _belt_tags, products
+	)
+	if reach.slots.is_empty():
+		word.tip_more = reach.none_text(word.display_name())
+	else:
+		word.tip_more = "counts %s" % _names(reach.slots)
+	return reach.slots
+
+
+## Writes on a membership glyph's tip the family's other items on the belt (or none).
+func _tell_members(target: TipTarget, family: String, slot: int) -> void:
+	var members: PackedInt32Array = PackedInt32Array()
+	for other: int in range(_views.size()):
+		var item: ItemView = _item(other)
+		if other != slot and item != null and other < _belt_tags.size():
+			if CardAffinity.in_family(_belt_tags[other], family):
+				members.append(other)
+	var style: FamilyStyle = FamilyPalette.shared().style(family)
+	var shown: String = style.display_name if style != null else family
+	if members.is_empty():
+		target.tip_more = "No other %s item on the belt" % shown
+	else:
+		target.tip_more = "on the belt: %s" % _names(members)
+
+
+## The items at `slots` as the tips name them: "Cereal (4), Milk (6)" (slots from 1).
+func _names(slots: PackedInt32Array) -> String:
+	var names: PackedStringArray = PackedStringArray()
+	for slot: int in slots:
+		names.append("%s (%d)" % [_item(slot).card.definition.display_name, slot + 1])
+	return ", ".join(names)
 
 
 ## The belt slot whose ticket holds `part` (a chip on it), or -1.

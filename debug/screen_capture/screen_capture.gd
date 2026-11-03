@@ -85,7 +85,8 @@ extends Control
 ## With `--slip[=<inspection id>|none]` (2026-10-31) the day chip's slip (DaySlip: today's events
 ## and where they touch the belt) hangs under the chip on the fixed shift, under that day event
 ## (default the fixed shift's, `none` a plain day); the file is
-## shift_screen_slip_<id>_<width>x<height>.png.
+## shift_screen_slip_<id>_<width>x<height>.png. `--redraws=` and `--notice=` (CaptureStates) set
+## the Redraw key's count and a monitor notice.
 
 const SCREEN := preload("res://ui/shift_screen.tscn")
 const SEED := 20261014
@@ -306,6 +307,7 @@ func _ready() -> void:
 			if announce_parts.size() > 1 and announce_parts[1].begins_with("shift="):
 				announce_shift = announce_parts[1].trim_prefix("shift=").to_int()
 			await announce(announce_parts[0].to_float(), announce_shift)
+		_stack_part += CaptureStates.apply(_screen, OS.get_cmdline_user_args())
 		await capture(capture_folder)
 		get_tree().quit()
 

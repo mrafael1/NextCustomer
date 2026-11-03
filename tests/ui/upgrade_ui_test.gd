@@ -462,11 +462,18 @@ func test_extra_redraw_gives_a_third_redraw() -> void:
 	_assert_note_color(screen, Palette.TOMATO_DARK)
 
 
-## The Redraw key's count note is in `color`, outlined in it (a heavier digit).
+## The Redraw key's count sits on its coin badge in `color`: a PAPER digit on a solid coin, or,
+## used up (TOMATO_DARK), the digit in the colour on a hollow coin; outlined (a heavier digit).
 func _assert_note_color(screen: ShiftScreen, color: Color) -> void:
 	var note: Label = screen._redraw_button.note_label()
-	assert_object(note.get_theme_color("font_color")).is_equal(color)
-	assert_object(note.get_theme_color("font_outline_color")).is_equal(color)
+	var badge: RegisterKey.CountBadge = screen._redraw_button.count_badge()
+	var hollow: bool = color == Palette.TOMATO_DARK
+	var digit: Color = color if hollow else Palette.PAPER
+	assert_bool(badge.visible).is_true()
+	assert_object(badge.colour).is_equal(color)
+	assert_bool(badge.hollow).is_equal(hollow)
+	assert_object(note.get_theme_color("font_color")).is_equal(digit)
+	assert_object(note.get_theme_color("font_outline_color")).is_equal(digit)
 	assert_int(note.get_theme_constant("outline_size")).is_equal(RegisterKey.COUNT_OUTLINE)
 
 

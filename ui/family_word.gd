@@ -4,8 +4,9 @@ extends TipTarget
 ## name on a chip in its ticket colours (FamilyStyle: its light top row, its face, its shade foot
 ## row, corners cut), in the rule's own font and size, paper or ink as the family reads. It says
 ## what the item works with, so it differs from the icon label's glyphs (what the item is). Its
-## tip says so ("Works with Breakfast"), and while it shows PlanningEffects lights the family's
-## items, as a glyph's tip does. It takes no clicks.
+## tip says so ("Works with Breakfast"); on the belt PlanningEffects adds what the rule counts
+## there (RuleReach: "counts Cereal (4)", or that nothing matches) and lights only those items.
+## It takes no clicks.
 
 ## The name's room inside the chip on each side, and the chip's height (7 art px).
 const PADDING_X := 3.0
@@ -39,6 +40,11 @@ static func width_for(style: FamilyStyle, font: Font, font_size: int) -> float:
 		font.get_string_size(_name_of(style), HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
 	)
 	return ceilf((text + 2.0 * PADDING_X) / ArtStyle.ART_SCALE) * ArtStyle.ART_SCALE
+
+
+## The family's name as the chip writes it.
+func display_name() -> String:
+	return _name_of(_style)
 
 
 ## The name's colour: paper on a dark family's face, else ink.

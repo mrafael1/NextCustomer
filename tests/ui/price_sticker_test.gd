@@ -273,8 +273,8 @@ func test_a_split_face_is_a_stair_with_a_seam() -> void:
 	assert_str(_hex(art.get_pixel(30, 13))).is_equal(_hex(second.face))
 
 
-## The window holds every price in its fixed box: the 6x8 digits to 999€ (and on, while a price
-## of narrow 1s still fits them), the 4x7 ones to 9999€, then "12k€"; the digits always end at
+## The window holds every price in its fixed box by V5a's ladder: the 6x8 digits to 999€, the 4x7
+## ones from 1000€ to 9999€, then "12k€" (6x8) and "123k€" (4x7); the digits always end at
 ## DIGITS_RIGHT and never reach the icons or the plate.
 func test_the_window_holds_every_price() -> void:
 	var room: int = PriceWindow.DIGITS_RIGHT - PriceWindow.DIGITS_LEFT + 1
@@ -283,14 +283,18 @@ func test_the_window_holds_every_price() -> void:
 		var form: Array = PriceWindow.form_for(amount)
 		var sheet: PixelWords.Sheet = form[1]
 		var whole: String = "%d€" % amount
-		var big: bool = PixelWords.font_size_of(whole, PixelWords.Sheet.DIGITS).x <= room
 		var expected: PixelWords.Sheet = (
-			PixelWords.Sheet.DIGITS if big else PixelWords.Sheet.SMALL_DIGITS
+			PixelWords.Sheet.DIGITS if amount <= 999 else PixelWords.Sheet.SMALL_DIGITS
 		)
-		if form[0] != whole or sheet != expected or (amount <= 999 and not big):
+		if form[0] != whole or sheet != expected:
 			problems.append("%d€: %s" % [amount, form])
 		if PixelWords.font_size_of(form[0], sheet).x > room:
 			problems.append("%d€ too wide" % amount)
+	for amount: int in [10000, 12345, 99999, 100000, 999999]:
+		var form: Array = PriceWindow.form_for(amount)
+		if PixelWords.font_size_of(form[0], form[1]).x > room:
+			problems.append("%d€ too wide" % amount)
+	assert_array(PriceWindow.form_for(123456)).is_equal(["123k€", PixelWords.Sheet.SMALL_DIGITS])
 	assert_array(problems).override_failure_message("\n".join(problems)).is_empty()
 	assert_array(PriceWindow.form_for(THOUSANDS)).is_equal(["12k€", PixelWords.Sheet.DIGITS])
 	# On a ticket with two glyphs and a long text (Golden Milk), at each width of price.

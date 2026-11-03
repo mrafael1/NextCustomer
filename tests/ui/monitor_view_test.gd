@@ -240,6 +240,47 @@ func test_a_held_scan_fills_the_monitor_then_it_goes_back() -> void:
 	assert_int(monitor.mode()).is_equal(MonitorView.Mode.NEXT)
 
 
+## Every notice the shift screen shows fits the monitor's strip at the size MonitorView picks
+## (16, or a step down only when it would not fit), and a notice that replaces one still showing
+## takes its own size: a long Day off notice over the short Price gun one steps down, and the
+## short one after it goes back up to 16.
+func test_every_notice_fits_its_strip_even_when_it_replaces_another() -> void:
+	var screen: ShiftScreen = await _screen()
+	var monitor: MonitorView = screen._monitor
+	var label: NoticeLabel = screen._notice_label
+	var room: Vector2 = monitor._rects[monitor.notice_label].size
+	var font: Font = ArtStyle.bold_font(MonitorView.NOTICE_WEIGHT)
+	var notices: Array[String] = [
+		PinFlow.DAY_OFF_ARMED,
+		PinFlow.DAY_OFF_LOCKED,
+		PinFlow.DAY_OFF_DONE,
+		PinFlow.GUN_ARMED,
+		PinFlow.GUN_NONE,
+		PinFlow.GUN_EMPTY,
+		WriteUp.NOTICE % [2, 3],
+		WriteUp.LAST_NOTICE % [2, 3],
+		WriteUp.OVER_NOTICE,
+		InspectionTag.NEXT_NOTICE % "COUPON SLOT CLOSED",
+		InspectionTag.NEXT_REVIEW_NOTICE % "COUPON SLOT CLOSED",
+		"Row full (9/9 items): take an item out first",
+	]
+	for notice: String in notices:
+		var font_size: int = MonitorView.notice_size(notice, room)
+		var needed: Vector2 = font.get_multiline_string_size(
+			notice, HORIZONTAL_ALIGNMENT_CENTER, room.x, font_size
+		)
+		assert_float(needed.y).override_failure_message(notice).is_less_equal(room.y)
+	label.show_notice(PinFlow.GUN_NONE)
+	assert_int(label.get_theme_font_size("font_size")).is_equal(MonitorView.NOTICE_SIZE)
+	label.show_notice(PinFlow.DAY_OFF_ARMED)
+	assert_bool(label.is_showing()).is_true()
+	var long_size: int = MonitorView.notice_size(PinFlow.DAY_OFF_ARMED, room)
+	assert_int(label.get_theme_font_size("font_size")).is_equal(long_size)
+	label.show_notice(PinFlow.GUN_NONE)
+	assert_int(label.get_theme_font_size("font_size")).is_equal(MonitorView.NOTICE_SIZE)
+	label.clear_notice()
+
+
 ## On the real screen, every count-up beat shows on the monitor as it starts: COUNT, the bay holds
 ## the beat's scanned item (its art and its chip), the step line is the receipt's wording, and on
 ## every frame the checkout column's number, the quota tube and (while it runs) the climax's

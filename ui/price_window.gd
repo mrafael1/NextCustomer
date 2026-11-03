@@ -131,20 +131,18 @@ static func state_for(pay: PlanningModel.Pay, coupon: bool) -> State:
 	return State.PRINTED
 
 
-## How `amount` prints in the window: [text, PixelWords.Sheet], the first of the ladder (see the
-## class comment) whose width fits the digits' room. Pure.
+## How `amount` prints in the window: [text, PixelWords.Sheet], by its size (V5a's ladder, so a
+## belt's prices of one size print alike): the 6x8 digits to 999€, the 4x7 ones to 9999€, then
+## "12k€" in 6x8, and in 4x7 from 100k€. Each form fits the digits' room (the window test checks
+## it). Pure.
 static func form_for(amount: int) -> Array:
-	var room: int = DIGITS_RIGHT - DIGITS_LEFT + 1
-	var whole: String = MonitorText.euros(amount)
+	if amount <= 999:
+		return [MonitorText.euros(amount), PixelWords.Sheet.DIGITS]
+	if amount <= 9999:
+		return [MonitorText.euros(amount), PixelWords.Sheet.SMALL_DIGITS]
 	var short: String = THOUSANDS % floori(amount / 1000.0)
-	for form: Array in [
-		[whole, PixelWords.Sheet.DIGITS],
-		[whole, PixelWords.Sheet.SMALL_DIGITS],
-		[short, PixelWords.Sheet.DIGITS],
-		[short, PixelWords.Sheet.SMALL_DIGITS],
-	]:
-		if PixelWords.font_size_of(form[0], form[1]).x <= room:
-			return form
+	if amount < 100000:
+		return [short, PixelWords.Sheet.DIGITS]
 	return [short, PixelWords.Sheet.SMALL_DIGITS]
 
 
