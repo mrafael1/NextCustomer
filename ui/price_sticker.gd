@@ -14,8 +14,9 @@ extends Control
 ## row for the gained glyph, GAINED written in the face beside it; only that ticket grows,
 ## downward, so the prices still form one row. What it pays: the price window, top right
 ## (PriceWindow, the same box on every ticket), the printed price at rest and the planned or
-## counted pay (set_pay) with its state's fill and texture; never a struck price: the printed
-## price and the pay are in its tip and the scan popup. What it does: the rule plate, its short
+## counted pay (set_pay) in its state's ink on the window's one paper fill (a boost's ink steps up
+## with the pay, PriceWindow.boost_step); never a struck price: the printed price and the pay are
+## in its tip and the scan popup. What it does: the rule plate, its short
 ## text (CardDefinition.sticker_summary, formatted in core from the card's own data) in ink on
 ## cream, the families it works with written as chips (FamilyWord), a keyword as its chip
 ## (KeywordChip). The text takes the first of TEXT_FITS that fits the plate (2 lines at 14 px,
@@ -26,13 +27,14 @@ extends Control
 ##
 ## A GOLDEN tier (#77) wears the gold ring outside its outline (GOLD_RING_NAME: two gold art px,
 ## brass on its lower right, then a dark rim) and two sparkles on its corners; no gold inside the
-## ticket, so a boosted pay (the window's green) never reads as GOLDEN.
+## ticket, so a boosted pay (the window's green or violet digits) never reads as GOLDEN.
 ##
 ## Resting the pointer on the ticket (off its glyphs, window and chips) says what its colour
 ## means, below it (ColourSpot; FamilyPalette.colour_tip). Planning (#71): set_got rings a hovered
 ## giver's target in gold inside its outline; a batch card's wrong job (#128, set_wrong_job) turns
-## its keyword chip tomato with a cross and rings the ticket WRONG_RING_WIDTH px of tomato just
-## inside its outline. Neither changes a number.
+## its keyword chip tomato with a cross, the ticket itself unframed (the user's play test of
+## 2026-11-03: the tomato ring round a lone Banana "does not feel clean"). Neither changes a
+## number.
 
 
 ## The ticket's colour as a tooltip target (#105): the whole ticket, under its glyphs (a glyph on
@@ -47,21 +49,6 @@ class ColourSpot:
 		tip_below = true
 		tip_anchor = ticket
 		size = ticket.size
-
-
-## The tomato ring of a wrong job (#128), inside the ticket's outline.
-class WrongRing:
-	extends Control
-
-	func _init(ticket_size: Vector2) -> void:
-		name = WRONG_RING_NAME
-		mouse_filter = Control.MOUSE_FILTER_IGNORE
-		size = ticket_size
-		visible = false
-
-	func _draw() -> void:
-		for side: Rect2 in PriceSticker.wrong_ring_sides(size):
-			draw_rect(side, Palette.TOMATO)
 
 
 ## The gold ring of a hovered giver's target (#71), inside the ticket's outline.
@@ -86,7 +73,7 @@ const TALL_SIZE := Vector2(108, 96)
 const OUTLINE := 2.0
 ## The icon label's glyph places (stage px): the printed families on row 1, a gained one on row 2,
 ## one every ICON_STEP (10 art px: a glyph's 9 columns and its rim never covered).
-const ICON_FIRST := Vector2(4, 4)
+const ICON_FIRST := Vector2(6, 6)
 const ICON_STEP := 20.0
 const ICON_ROW_2 := 20.0
 const ICONS_PER_ROW := 2
@@ -94,7 +81,7 @@ const ICONS_PER_ROW := 2
 const GAINED_TEXT := "GAINED"
 const GAINED_AT := Vector2(52, 30)
 ## The price window's place (TicketFace.WINDOW at 2x).
-const WINDOW_AT := Vector2(48, 2)
+const WINDOW_AT := Vector2(48, 4)
 ## The rule's text: from TEXT_LEFT, TEXT_WIDTH wide, centred down the plate; TEXT_FITS are
 ## (size, line pitch, lines), the first that fits.
 const TEXT_LEFT := 9.0
@@ -110,7 +97,6 @@ const SPARKLE_SIZE := Vector2(10, 10)
 const SPARKLE_FOOT_AT := Vector2i(50, -4)
 const SPARKLE_TOP_AT := Vector2i(-3, -3)
 const GOT_RING_WIDTH := 2.0
-const WRONG_RING_WIDTH := 3.0
 ## Tips (FamilyGlyph's, PriceWindow's).
 const MEMBER_TIP := "%s · %s is a %s item"
 const GAINED_TIP := "%s · gained from the Price gun this shift"
@@ -129,7 +115,6 @@ const GAINED_WORDS_NAME := "GainedWords"
 const SUMMARY_NAME := "Summary"
 const MORE_NAME := "More"
 const GOT_RING_NAME := "GotRing"
-const WRONG_RING_NAME := "WrongRing"
 const GOLD_RING_NAME := "GoldRing"
 const SPARKLE_NAME := "Sparkle%d"
 const COLOUR_SPOT_NAME := "ColourSpot"
@@ -167,7 +152,6 @@ var _window: PriceWindow
 var _summary: GlyphLabel
 var _more: KeywordChip
 var _got_ring: GotRing
-var _wrong_ring: WrongRing
 var _colour_spot: ColourSpot
 var _gained_words: PixelWords
 ## The family a Price gun gave the item (#132), its glyph on the label's second row; null for none.
@@ -210,9 +194,6 @@ func _init(definition: CardDefinition, palette: FamilyPalette = null) -> void:
 	_window.tip_anchor = self
 	add_child(_window)
 	clear_pay()
-	# Over the window's edge too: a wrong job rings the whole ticket.
-	_wrong_ring = WrongRing.new(SIZE)
-	add_child(_wrong_ring)
 	if CardText.live_rule(definition) != null:
 		redraws_left = _base_redraws(definition)
 	var line: String = CardText.sticker_summary(definition, redraws_left)
@@ -237,7 +218,7 @@ func set_pay(pay: PlanningModel.Pay, amount: int, reason: String = "") -> void:
 	var printed: String = price_text(_definition.base)
 	var state: PriceWindow.State = PriceWindow.state_for(pay, _definition.is_coupon())
 	var shown: int = _definition.base if state == PriceWindow.State.PRINTED else amount
-	_window.show_pay(state, 0 if state == PriceWindow.State.ZERO else shown)
+	_window.show_pay(state, 0 if state == PriceWindow.State.ZERO else shown, _definition.base)
 	match state:
 		PriceWindow.State.COUPON:
 			_window.tip_text = COUPON_TIP % item
@@ -264,10 +245,9 @@ func window() -> PriceWindow:
 
 
 ## The ticket's wrong job (#128): `reason` (the WASTED step's tooltip text) turns its keyword
-## chips tomato and rings it in tomato; "" puts it back. The chips are summary().keywords(), the
-## ring the child WRONG_RING_NAME, the reason summary().keyword_wasted().
+## chips tomato with a cross; "" puts them back. No ring: the chip and the item's WASTED sticker
+## say it. The chips are summary().keywords(), the reason summary().keyword_wasted().
 func set_wrong_job(reason: String) -> void:
-	_wrong_ring.visible = not reason.is_empty()
 	if reason != _summary.keyword_wasted():
 		_summary.set_keyword_wasted(reason)
 		_place_summary()
@@ -281,12 +261,6 @@ static func ring_sides(rect: Rect2, width: float) -> Array[Rect2]:
 		Rect2(rect.position.x, rect.position.y + width, width, rect.size.y - 2.0 * width),
 		Rect2(rect.end.x - width, rect.position.y + width, width, rect.size.y - 2.0 * width),
 	]
-
-
-## A wrong job's tomato ring's sides in the coordinates of a ticket `ticket_size` big:
-## WRONG_RING_WIDTH just inside its outline (BatchFrame redraws the parts its foot covers).
-static func wrong_ring_sides(ticket_size: Vector2 = SIZE) -> Array[Rect2]:
-	return ring_sides(Rect2(Vector2.ZERO, ticket_size).grow(-OUTLINE), WRONG_RING_WIDTH)
 
 
 ## Rings a product's ticket in gold as a hovered giver's target (#71), or takes the ring off. A
@@ -570,7 +544,7 @@ func _set_tall(tall: bool) -> void:
 	size = ticket
 	_face.texture = TicketFace.texture(_styles, _definition.is_coupon(), tall)
 	_face.size = ticket
-	for part: Control in [_wrong_ring, _got_ring, _colour_spot]:
+	for part: Control in [_got_ring, _colour_spot]:
 		part.size = ticket
 	if _gained_words == null:
 		_gained_words = PixelWords.new(

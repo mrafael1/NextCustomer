@@ -111,7 +111,8 @@ func test_the_frame_links_exactly_the_chain() -> void:
 	_assert_plate_cells(frame, 0)
 	for slot: int in range(GOOD_ROW.size()):
 		var sticker: PriceSticker = _item(screen, slot).sticker()
-		assert_bool(sticker.get_node(PriceSticker.WRONG_RING_NAME).visible).is_false()
+		for chip: KeywordChip in sticker.summary().keywords():
+			assert_bool(chip.is_wasted()).is_false()
 
 
 ## A GOLDEN Lemon's plate reads its own factor, ×3.
@@ -253,8 +254,7 @@ func test_a_narrow_gap_gets_a_jump_ring() -> void:
 	var tickets: Array[Rect2] = []
 	for index: int in range(3):
 		tickets.append(Rect2(Vector2(100.0 + index * (ticket.x + 8.0), 400.0), ticket))
-	var none: Array[Rect2] = []
-	frame.lay_out(tickets, 1000.0, none)
+	frame.lay_out(tickets, 1000.0)
 	assert_array(frame.pairs()).is_equal([false, false])
 	var rings: Array[Rect2] = frame.link_rects()
 	assert_int(rings.size()).is_equal(2)
@@ -269,7 +269,7 @@ func test_a_narrow_gap_gets_a_jump_ring() -> void:
 	tickets.clear()
 	for index: int in range(2):
 		tickets.append(Rect2(Vector2(100.0 + index * 128.0, 400.0), PriceSticker.SIZE))
-	frame.lay_out(tickets, 1000.0, none, PackedInt32Array([0, 1]))
+	frame.lay_out(tickets, 1000.0, PackedInt32Array([0, 1]))
 	assert_array(frame.pairs()).is_equal([true])
 	var pair: Array[Rect2] = frame.link_rects()
 	assert_float(pair[0].end.x - pair[1].position.x).is_equal(ChainFrame.LINK_OVERLAP)

@@ -9,22 +9,26 @@ extends RefCounted
 ## second family's light colour. A coupon's bottom row is perforated in paper.
 ##
 ## Three fixed zones sit on the face. Top left, the icon label (LABEL: two rows of icons on a tall
-## ticket, LABEL_TALL) on paper, its foot row cream shade, an ink border on its right. Top right,
-## the price window's place (WINDOW: PriceWindow draws it), painted paper here so a dimmed window
-## fades to paper, an ink rule under it. Under them, past an ink rule across the ticket, the rule
-## plate (PLATE, PLATE_TALL): cream with a cream-shade top row and left column. Built from the
-## data's colours (no PNG per family), each look once (a cache by its colours and height).
+## ticket, LABEL_TALL) and top right, the price window's place (WINDOW: PriceWindow draws it,
+## painted paper here so a dimmed window fades to paper): two paper boxes framed by the face
+## itself, one art px of the family's colours round each (the light row over them, the light
+## column left, the shade column right, the face between them and under them; the user's play
+## test of 2026-11-03: "badge and price sections should still have a border ... with family
+## color"). A split ticket's frame follows its stair, so the window's frame is the second family's
+## from the stair on. Under them, the rule plate (PLATE, PLATE_TALL): cream with a cream-shade top
+## row and left column. Built from the data's colours (no PNG per family), each look once (a cache
+## by its colours and height).
 
 const ART_SIZE := Vector2i(54, 38)
 const TALL_ART_SIZE := Vector2i(54, 48)
 const SPLIT_SUM := 41
-## The icon label (art px): its paper rows, then its cream-shade foot row; the ink border right
-## of it is at LABEL.end.x.
-const LABEL := Rect2i(1, 1, 22, 11)
-const LABEL_TALL := Rect2i(1, 1, 22, 21)
-## The price window (art px, PriceWindow's rect at 2x), the ink rule under it at WINDOW.end.y.
-const WINDOW := Rect2i(24, 1, 29, 11)
-## The rule plate (art px), the ink rule across the ticket two rows over it.
+## The icon label (art px), paper; the face's column between it and the window is at LABEL.end.x.
+const LABEL := Rect2i(2, 2, 21, 11)
+const LABEL_TALL := Rect2i(2, 2, 21, 21)
+## The price window (art px, PriceWindow's rect at 2x), paper; the face's row under it is at
+## WINDOW.end.y.
+const WINDOW := Rect2i(24, 2, 28, 11)
+## The rule plate (art px), the face's row over it at its top - 1.
 const PLATE := Rect2i(3, 14, 48, 22)
 const PLATE_TALL := Rect2i(3, 24, 48, 22)
 
@@ -86,14 +90,10 @@ static func image(families: Array[FamilyStyle], coupon: bool, tall: bool = false
 
 
 static func _paint_zones(out: Image, tall: bool) -> void:
-	var label: Rect2i = label_rect(tall)
-	_fill(out, Rect2i(label.position, label.size - Vector2i(0, 1)), Palette.PAPER)
-	_fill(out, Rect2i(label.position.x, label.end.y - 1, label.size.x, 1), Palette.CREAM_SHADE)
-	_fill(out, Rect2i(label.end.x, label.position.y, 1, label.size.y), ArtStyle.INK)
+	# The face round the two paper boxes is their frame.
+	_fill(out, label_rect(tall), Palette.PAPER)
 	_fill(out, WINDOW, Palette.PAPER)
-	_fill(out, Rect2i(label.end.x, WINDOW.end.y, WINDOW.end.x - label.end.x, 1), ArtStyle.INK)
 	var plate: Rect2i = plate_rect(tall)
-	_fill(out, Rect2i(1, plate.position.y - 2, ART_SIZE.x - 2, 1), ArtStyle.INK)
 	_fill(out, plate, Palette.CREAM)
 	_fill(out, Rect2i(plate.position, Vector2i(plate.size.x, 1)), Palette.CREAM_SHADE)
 	_fill(out, Rect2i(plate.position, Vector2i(1, plate.size.y)), Palette.CREAM_SHADE)

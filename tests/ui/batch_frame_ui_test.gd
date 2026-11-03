@@ -9,7 +9,7 @@ extends GdUnitTestSuite
 ## counter edge, its binding bars in the gaps clear of every ticket's text, chips and price tags;
 ## hovering a BATCH chip lights its frame; a drag lays the frames out for its landing, binding
 ## the tickets round where the ghost lands; a link that skips products splits a batch's frame
-## round its own tickets; a wrong job's tomato ring stays closed over a frame's foot. The chip
+## round its own tickets; a wrong job's ticket is never framed in tomato. The chip
 ## shows on the monitor and in the deck too. The count shows no frame and no wrong job. The real
 ## saves and logs are never touched.
 
@@ -172,12 +172,15 @@ func test_the_chip_keeps_its_words_apart() -> void:
 			assert_float(float(run["x"])).is_greater_equal(chip.position.x + chip.size.x)
 
 
-## A wrong job turns the chip tomato with a pixel cross, its tooltip the reason, and rings the
-## ticket inside its outline; clearing it puts the calm chip back.
+## A wrong job turns the chip tomato with a pixel cross, its tooltip the reason; the ticket gets
+## no frame of its own (no ring, the same face: the user's play test of 2026-11-03); clearing it
+## puts the calm chip back.
 func test_a_wrong_job_turns_the_chip_tomato() -> void:
 	var sticker: PriceSticker = auto_free(PriceSticker.new(_card("croissant")))
 	add_child(sticker)
 	var calm_width: float = sticker.summary().keywords()[0].size.x
+	var calm_face: Texture2D = sticker.face().texture
+	var children: int = sticker.get_child_count()
 	var reason: String = "WASTED · Not first in its Bakery batch"
 	sticker.set_wrong_job(reason)
 	var chip: KeywordChip = sticker.summary().keywords()[0]
@@ -189,16 +192,24 @@ func test_a_wrong_job_turns_the_chip_tomato() -> void:
 	assert_that(cross.size).is_equal(Vector2.ONE * KeywordChip.CROSS_CELLS)
 	assert_bool(Rect2(Vector2.ZERO, chip.size).grow(-KeywordChip.BORDER).encloses(cross)).is_true()
 	assert_float(chip.size.x).is_greater(calm_width)
-	var ring: Control = sticker.get_node(PriceSticker.WRONG_RING_NAME)
-	assert_bool(ring.visible).is_true()
-	assert_float(PriceSticker.WRONG_RING_WIDTH).is_equal(3.0)
-	# Under the glyphs and the text (drawn before them), over the price window so it stays whole.
-	assert_int(ring.get_index()).is_less(sticker.summary().get_index())
-	assert_int(ring.get_index()).is_greater(sticker.window().get_index())
+	_assert_unframed(sticker)
+	assert_object(sticker.face().texture).is_same(calm_face)
+	assert_int(sticker.get_child_count()).is_equal(children)
 	assert_bool(sticker.summary().fits()).is_true()
 	sticker.set_wrong_job("")
 	assert_bool(sticker.summary().keywords()[0].is_wasted()).is_false()
-	assert_bool(ring.visible).is_false()
+
+
+## No red frame on a wrong job's ticket (the user's play test of 2026-11-03): no child of the
+## ticket but its keyword chips draws tomato, and no ring node.
+func _assert_unframed(sticker: PriceSticker) -> void:
+	assert_object(sticker.get_node_or_null("WrongRing")).is_null()
+	for child: Node in sticker.get_children():
+		var ring: bool = (
+			child.name.contains("Ring")
+			and not (child.name in [PriceSticker.GOT_RING_NAME, PriceSticker.GOLD_RING_NAME])
+		)
+		assert_bool(ring).override_failure_message(str(child.name)).is_false()
 
 
 ## The keyword's tooltip wraps: no wider than MAX_WIDTH, taller than one line, its tail on the chip.
@@ -216,7 +227,7 @@ func test_the_keywords_tooltip_wraps() -> void:
 ## On the shift screen the wrong row (Bread first) frames one batch, Bread to Stale doughnut,
 ## round exactly their tickets, over the counter edge and inside the screen; its bars sit in the
 ## gaps clear of every ticket's text and chips, and nothing of it covers a price tag. Croissant's
-## chip is tomato and its ticket ringed; Bread's ticket is not.
+## chip is tomato, its ticket unframed; Bread's chips (none) stay calm.
 func test_the_frame_binds_exactly_the_batch() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _place(screen, WRONG_ROW)
@@ -229,51 +240,24 @@ func test_the_frame_binds_exactly_the_batch() -> void:
 	_assert_frame_geometry(screen, frame)
 	var croissant: PriceSticker = _item(screen, 1).sticker()
 	assert_bool(croissant.summary().keywords()[0].is_wasted()).is_true()
-	assert_bool(croissant.get_node(PriceSticker.WRONG_RING_NAME).visible).is_true()
+	_assert_unframed(croissant)
 	assert_str(croissant.summary().keywords()[0].tip_text).is_equal(
 		"WASTED · Not first in its Bakery batch"
 	)
 	var bread: PriceSticker = _item(screen, 0).sticker()
-	assert_bool(bread.get_node(PriceSticker.WRONG_RING_NAME).visible).is_false()
+	for chip: KeywordChip in bread.summary().keywords():
+		assert_bool(chip.is_wasted()).is_false()
 	for slot: int in [2, 3, 4]:
 		var sticker: PriceSticker = _item(screen, slot).sticker()
 		assert_bool(sticker.summary().keywords()[0].is_wasted()).is_false()
-	_assert_ring_closed(screen, frame, croissant)
+	# The frame draws no tomato over a wrong job's ticket.
+	for paint: int in frame.drawn_paints():
+		assert_that(frame.paint_color(paint as BatchFrame.Paint)).is_not_equal(Palette.TOMATO)
 
 
-## The frame's foot covers the tickets' feet (they reach under the counter edge's band): where it
-## covers a wrong job's tomato ring the frame draws that ring's part over itself, exactly the
-## covered part, so the ring reads closed on all four sides; it draws no tomato elsewhere.
-func _assert_ring_closed(screen: ShiftScreen, frame: BatchFrame, wrong: PriceSticker) -> void:
-	var to_global: Transform2D = _layer(screen).get_global_transform()
-	var to_wrong: Transform2D = wrong.get_global_transform()
-	var sides: Array[Rect2] = []
-	for side: Rect2 in PriceSticker.wrong_ring_sides():
-		sides.append(to_wrong * side)
-	var covered: float = 0.0
-	for side: Rect2 in sides:
-		for drawn: Rect2 in frame.drawn_rects():
-			covered += side.intersection(to_global * drawn).get_area()
-	assert_float(covered).is_greater(0.0)
-	var tomato: float = 0.0
-	for rect: Rect2 in frame.tomato_rects():
-		var shown: Rect2 = to_global * rect
-		var inside: bool = false
-		for side: Rect2 in sides:
-			inside = inside or side.encloses(shown)
-		assert_bool(inside).override_failure_message(str(shown)).is_true()
-		tomato += shown.get_area()
-	# The bottom side's covered part is redrawn whole (the frame's parts never overlap).
-	var bottom: Rect2 = sides[1]
-	var bottom_covered: float = 0.0
-	for drawn: Rect2 in frame.drawn_rects():
-		bottom_covered += bottom.intersection(to_global * drawn).get_area()
-	assert_float(bottom_covered).is_greater(0.0)
-	assert_float(tomato).is_equal_approx(covered, 0.01)
-
-
-## In their places (Croissant first) no job is wrong, and the frame binds the same tickets. (The
-## lone Banana closing the row is a CHAIN card out of place since #128's Produce links.)
+## In their places (Croissant first) no job is wrong, and the frame binds the same tickets. The
+## lone Banana closing the row is a CHAIN card out of place (#128's Produce links): its CHAIN chip
+## is wasted, its ticket unframed (the user's play test of 2026-11-03).
 func test_the_good_row_has_no_wrong_job() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _place(screen, GOOD_ROW)
@@ -282,10 +266,11 @@ func test_the_good_row_has_no_wrong_job() -> void:
 	_assert_frame_geometry(screen, frames[0])
 	for slot: int in range(GOOD_ROW.size() - 1):
 		var sticker: PriceSticker = _item(screen, slot).sticker()
-		assert_bool(sticker.get_node(PriceSticker.WRONG_RING_NAME).visible).is_false()
 		for chip: KeywordChip in sticker.summary().keywords():
 			assert_bool(chip.is_wasted()).is_false()
-	assert_array(frames[0].tomato_rects()).is_empty()
+	var banana: PriceSticker = _item(screen, GOOD_ROW.size() - 1).sticker()
+	assert_bool(banana.summary().keywords()[0].is_wasted()).is_true()
+	_assert_unframed(banana)
 
 
 ## The monitor's NEXT item (belt slot 1, the Croissant) prints its BATCH chip with the keyword's
@@ -472,7 +457,6 @@ func test_the_count_shows_no_frame() -> void:
 		assert_bool(part is BatchFrame).is_false()
 	for view: CardView in screen._row_views:
 		var sticker: PriceSticker = (view as ItemView).sticker()
-		assert_bool(sticker.get_node(PriceSticker.WRONG_RING_NAME).visible).is_false()
 		for chip: KeywordChip in sticker.summary().keywords():
 			assert_bool(chip.is_wasted()).is_false()
 

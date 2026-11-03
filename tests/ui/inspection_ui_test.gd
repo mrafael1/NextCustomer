@@ -209,7 +209,8 @@ func _assert_zero_once(window: Vector2i) -> void:
 	)
 	assert_float(rect.position.y).override_failure_message(message).is_less(ticket.end.y)
 	assert_float(rect.end.y).override_failure_message(message).is_greater(ticket.end.y)
-	# The ticket's price window owns the amount (tickets v5): hatched "0€", the reason in its tip.
+	# The ticket's price window owns the amount (tickets v5): "0€" in tomato dark, its reason in
+	# the tip.
 	var pay: PriceWindow = screen._stage.planning_layer.pay_tag(2)
 	var sticker: PriceSticker = (screen._row_views[2] as ItemView).sticker()
 	assert_object(pay).is_same(sticker.window())

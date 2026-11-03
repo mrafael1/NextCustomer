@@ -38,7 +38,7 @@ extends Control
 ## model (PlanningModel.batches, chains) is bound by a frame round its tickets (BatchFrames,
 ## ChainFrames), following the views (a drag's reorder lays it out again); hovering a BATCH or CHAIN
 ## chip lights its frame (light_frames). A wrong job (PlanningSlot.wrong_job) turns its ticket's
-## chip tomato and rings the ticket (PriceSticker.set_wrong_job). The count shows neither.
+## chip tomato with a cross (PriceSticker.set_wrong_job). The count shows neither.
 ##
 ## Motion (none under `reduced_motion`, and nothing loops): the stickers new since the last
 ## slap_new slap on, the fold chip pops in as a stack first folds and punches as more fold in (each
@@ -925,10 +925,9 @@ func _pay_window(item: ItemView, planning: PlanningSlot, on_ghost: bool) -> Pric
 	if not on_ghost:
 		item.sticker().set_pay(planning.pay, planning.payout, planning.stamp_caption)
 		return item.sticker().window()
-	var state: PriceWindow.State = PriceWindow.state_for(
-		planning.pay, item.card.definition.is_coupon()
-	)
-	var window: PriceWindow = PriceWindow.new(state, planning.payout, true)
+	var definition: CardDefinition = item.card.definition
+	var state: PriceWindow.State = PriceWindow.state_for(planning.pay, definition.is_coupon())
+	var window: PriceWindow = PriceWindow.new(state, planning.payout, true, definition.base)
 	_ghost_box.add_child(window)
 	return window
 

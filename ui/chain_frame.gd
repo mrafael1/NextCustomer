@@ -3,20 +3,20 @@ extends BatchFrame
 ## One Produce chain linked on the price rail while planning (#128 Produce links, the approved
 ## Linked frame: docs/art/mockups/produce_chain_128.html's 'rings'): the Bakery's Bound-strip frame
 ## (BatchFrame: the same closed ring round the chain's tickets, running on behind every pinned pay
-## tag, open along a plain tag's own rect, its foot on the counter edge at most, a wrong job's
-## tomato ring kept closed over it) in Produce green, with the chain's parts in place of the binding
-## bars. Every gap between two of its tickets is crossed by two interlocked pixel rings (LINK_SIZE,
-## ink, face and ink, the face's top row light; each ring's band in the other's hole, an open hole
-## either side), the left ring over the right one on top and under it at the bottom (a scaled
-## 8-slot row's narrow gap: one jump ring bridging it); the gaps beside a Lemon knot are lemon
-## yellow, and the knot's ticket has a small "×2" plate (its factor, from the score: ×3 for a
-## GOLDEN Lemon, in PLATE_GLYPHS' pixel cells) on the frame's bottom band. A FEED helper at its
-## place (Strawberries just before the chain) hangs one clasp ring through the frame's left side, a
-## TALLY helper at its place (Wonky carrot just after it) one through its right side: the ring's top
-## runs under the side and its bottom over it, so the side passes through the ring. Lit (a CHAIN
-## chip naming the chain hovered) every green and lemon part turns gold and its light rows paper.
-## While a drag's ghost (no ticket on the belt) is in the run, the gap across it has no rings, and
-## a helper or a chain end that is the ghost hangs no clasp. ChainFrames owns it; decor only.
+## tag, open along a plain tag's own rect, its foot on the counter edge at most) in Produce green,
+## with the chain's parts in place of the binding bars. Every gap between two of its tickets is
+## crossed by two interlocked pixel rings (LINK_SIZE, ink, face and ink, the face's top row light;
+## each ring's band in the other's hole, an open hole either side), the left ring over the right one
+## on top and under it at the bottom (a scaled 8-slot row's narrow gap: one jump ring bridging it);
+## the gaps beside a Lemon knot are lemon yellow, and the knot's ticket has a small "×2" plate (its
+## factor, from the score: ×3 for a GOLDEN Lemon, in PLATE_GLYPHS' pixel cells) on the frame's
+## bottom band. A FEED helper at its place (Strawberries just before the chain) hangs one clasp ring
+## through the frame's left side, a TALLY helper at its place (Wonky carrot just after it) one
+## through its right side: the ring's top runs under the side and its bottom over it, so the side
+## passes through the ring. Lit (a CHAIN chip naming the chain hovered) every green and lemon part
+## turns gold and its light rows paper. While a drag's ghost (no ticket on the belt) is in the run,
+## the gap across it has no rings, and a helper or a chain end that is the ghost hangs no clasp.
+## ChainFrames owns it; decor only.
 
 ## The palette has no lime or lemon (the mock-up's #a9dd45 and #f5d93a): green light for the
 ## frame's face, gold for a knot's parts (the mock-up's lemon is next to its lit gold).
