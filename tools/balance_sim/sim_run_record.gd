@@ -7,7 +7,8 @@ var run_seed: int = 0
 var won: bool = false
 ## One ShiftRecord.to_dictionary() per played shift (its machine visits too), in order, plus
 ## "best": the shift's exact best total (the played total, unless the strategy plays sensible
-## rows), and "hand": the card ids of its hand at checkout.
+## rows), "hand": the card ids of its hand at checkout, and "quota_percent": the quota percent of
+## its day and week events (SimPlayer.quota_percent, v0.95; 0 in older records).
 var shifts: Array[Dictionary] = []
 ## The exact best total and the hand's card ids at checkout of each shift played so far
 ## (SimPlayer fills them in, then the shifts' "best" and "hand").
@@ -45,6 +46,7 @@ static func from_dictionary(data: Dictionary) -> SimRunRecord:
 		var entry: Dictionary = shift.duplicate()
 		for key: String in ["shift", "quota", "total", "best"]:
 			entry[key] = int(entry.get(key, entry["total"]))
+		entry["quota_percent"] = int(entry.get("quota_percent", 0))
 		entry["visits"] = _visits(entry.get("visits", []))
 		record.shifts.append(entry)
 	record.final_deck = PackedStringArray(data["final_deck"])

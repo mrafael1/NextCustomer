@@ -20,34 +20,39 @@ import quota_fit as qf  # noqa: E402
 
 
 def make_run(totals: list[int], upgrades: list[str] | None = None, inspections: list[str] | None = None,
-             seed: int = 1) -> dict:
+             seed: int = 1, percents: list[int] | None = None) -> dict:
     upgrades = upgrades or [""] * len(totals)
     inspections = inspections or [""] * len(totals)
+    percents = percents or [0] * len(totals)
     return {
         "run_seed": seed,
         "shifts": [
             {"shift": i + 1, "quota": 0, "total": t, "best": t, "passed": True,
              "upgrade_taken": upgrades[i], "inspection": inspections[i],
-             "hand": ["eggs", "bread"] if t >= 10 else ["bread"]}
+             "hand": ["eggs", "bread"] if t >= 10 else ["bread"], "quota_percent": percents[i]}
             for i, t in enumerate(totals)
         ],
     }
 
 
-def make_records(scenarios: dict[str, list[dict]], quotas: list[int] | None = None) -> dict:
+def make_records(scenarios: dict[str, list[dict]], quotas: list[int] | None = None,
+                 slips: tuple[int, int] = (0, 0), week_length: int = 1) -> dict:
     return {
         "quotas": quotas or [0, 0, 0],
         "coins_by_shifts_passed": [0, 0, 1, 2],
         "overtime_coin_euros": 60,
         "overtime_coin_max": 1,
+        "write_up_limit": slips[0],
+        "write_up_last_shift": slips[1],
+        "week_length": week_length,
         "scenarios": scenarios,
     }
 
 
-def to_runs(entries: list[dict]) -> list[qf.Run]:
+def to_runs(entries: list[dict], slips: tuple[int, int] = (0, 0)) -> list[qf.Run]:
     with tempfile.TemporaryDirectory() as folder:
         path = Path(folder) / "records.json"
-        path.write_text(json.dumps(make_records({"s": entries})), encoding="utf-8")
+        path.write_text(json.dumps(make_records({"s": entries}, slips=slips)), encoding="utf-8")
         return qf.load_records(path).scenarios["s"]
 
 
@@ -107,6 +112,106 @@ class ReplayTest(unittest.TestCase):
         self.assertTrue(qf.replay(run, [5, 50, 5]).complete)
 
 
+class QuotaPercentTest(unittest.TestCase):
+    def test_the_percent_rounds_like_shift_limits(self) -> None:
+        # ShiftLimits.with_percent: roundi (half away from zero), never under 1, 0 % or 0 kept.
+        self.assertEqual(qf.with_percent(35, 10), 39)  # 38.5 rounds up, not to even.
+        self.assertEqual(qf.with_percent(45, 10), 50)  # 49.5
+        self.assertEqual(qf.with_percent(25, -10), 23)  # 22.5
+        self.assertEqual(qf.with_percent(85, 10), 94)  # 93.5
+        self.assertEqual(qf.with_percent(29, 0), 29)
+        self.assertEqual(qf.with_percent(0, 25), 0)
+        self.assertEqual(qf.with_percent(1, -90), 1)
+        self.assertEqual(qf.with_percent(175, 25), 219)  # 218.75
+
+    def test_each_shift_plays_its_recorded_percent(self) -> None:
+        run = to_runs([make_run([11, 22, 30], percents=[10, 25, 0])])[0]
+        outcome = qf.replay(run, [10, 20, 30])
+        self.assertEqual(outcome.quotas, [11, 25])
+        self.assertFalse(outcome.won)
+        self.assertEqual(outcome.shifts_passed, 1)
+        self.assertEqual(outcome.passes, [True, False])
+        # The fit meets a share at the raised quotas: base 20 at +25% is 25, base 17 is 21.
+        runs = to_runs([make_run([5, 22, 50], percents=[0, 25, 0])])
+        self.assertEqual(qf.fit_curve(runs, 3, 1.0, 1.0, 1.0)[1], 17)
+
+    def test_old_records_read_with_no_percents_or_slips(self) -> None:
+        records = make_records({"s": [make_run([5, 10, 30])]})
+        for key in ["write_up_limit", "write_up_last_shift", "week_length"]:
+            del records[key]
+        for shift in records["scenarios"]["s"][0]["shifts"]:
+            del shift["quota_percent"]
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "records.json"
+            path.write_text(json.dumps(records), encoding="utf-8")
+            loaded = qf.load_records(path)
+        self.assertFalse(loaded.current)
+        run = loaded.scenarios["s"][0]
+        self.assertEqual(run.quota_percents, [0, 0, 0])
+        outcome = qf.replay(run, [6, 10, 30])
+        self.assertFalse(outcome.won)
+        self.assertEqual(outcome.slips, 0)
+        text = qf.format_report(loaded, "s", [6, 10, 30], qf.CoinRule([0, 0, 1, 2], 0, 1), False,
+                                {"s": qf.evaluate(loaded.scenarios["s"], [6, 10, 30],
+                                                  qf.CoinRule([0, 0, 1, 2], 0, 1))},
+                                {"win": 0.5, "shift1": 0.9, "shift2": 0.9, "overtime_share": 0.1})
+        self.assertIn("WARNING: records from before v0.95", text)
+
+
+class SlipTest(unittest.TestCase):
+    # The training week: misses on shifts 1-4 forgiven up to 2, never on the last shift (6 here).
+    SLIPS = (2, 4)
+    CURVE = [10, 10, 10, 10, 10, 10]
+
+    def test_a_training_week_miss_is_a_slip(self) -> None:
+        run = to_runs([make_run([5, 10, 10, 10, 10, 10])], self.SLIPS)[0]
+        outcome = qf.replay(run, self.CURVE)
+        self.assertTrue(outcome.won)
+        self.assertEqual(outcome.slips, 1)
+        self.assertEqual(outcome.shifts_passed, 5)
+        self.assertEqual(outcome.passes, [False] + [True] * 5)
+        # A slip earns no overtime.
+        self.assertEqual(qf.replay(run, [4, 10, 10, 10, 10, 10]).overtime, 1)
+        self.assertEqual(outcome.overtime, 0)
+
+    def test_the_third_training_week_miss_ends_the_run(self) -> None:
+        run = to_runs([make_run([5, 5, 10, 5, 10, 10])], self.SLIPS)[0]
+        outcome = qf.replay(run, self.CURVE)
+        self.assertFalse(outcome.won)
+        self.assertEqual(outcome.slips, 2)
+        self.assertEqual(outcome.shifts_passed, 1)
+        self.assertEqual(len(outcome.quotas), 4)
+
+    def test_a_miss_after_the_training_week_ends_the_run(self) -> None:
+        run = to_runs([make_run([10, 10, 10, 10, 5, 10])], self.SLIPS)[0]
+        outcome = qf.replay(run, self.CURVE)
+        self.assertFalse(outcome.won)
+        self.assertEqual(outcome.slips, 0)
+        self.assertEqual(outcome.shifts_passed, 4)
+        # Every shift covered (last shift 0) still never forgives the run's last shift.
+        last = to_runs([make_run([10, 10, 10, 10, 10, 5])], (2, 0))[0]
+        self.assertFalse(qf.replay(last, self.CURVE).won)
+        self.assertTrue(qf.replay(to_runs([make_run([10, 10, 10, 10, 5, 10])], (2, 0))[0], self.CURVE).won)
+
+    def test_a_won_run_with_slips_pays_the_last_entry(self) -> None:
+        run = to_runs([make_run([5, 5, 10, 10, 10, 10])], self.SLIPS)[0]
+        outcome = qf.replay(run, self.CURVE)
+        self.assertTrue(outcome.won)
+        self.assertEqual(outcome.shifts_passed, 4)
+        rule = qf.CoinRule([0, 0, 0, 0, 1, 1, 3], 0, 1)
+        self.assertEqual(qf.coin_stats([outcome], rule)["median"], 3)
+        self.assertEqual(rule.coins(4, 0), 1)
+        self.assertEqual(rule.coins(4, 0, True), 3)
+
+    def test_slips_are_reported(self) -> None:
+        runs = to_runs([make_run([5, 10, 10, 10, 10, 10]), make_run([10] * 6)], self.SLIPS)
+        result = qf.evaluate(runs, self.CURVE, qf.CoinRule([0] * 6 + [3], 0, 1))
+        self.assertEqual(result["slipped_share"], 0.5)
+        self.assertEqual(result["shifts"][0]["pass_rate"], 0.5)
+        self.assertEqual(result["shifts"][1]["reached"], 2)
+        self.assertEqual(result["win_rate"], 1.0)
+
+
 class CoinTest(unittest.TestCase):
     def test_coins_are_the_table_plus_capped_overtime(self) -> None:
         rule = qf.CoinRule([0, 0, 1, 2], 60, 1)
@@ -127,24 +232,45 @@ class CoinTest(unittest.TestCase):
     def test_fitted_coins_keep_plan_7_1(self) -> None:
         runs = to_runs([make_run([10 + i, 20 + i, 30 + i], seed=i) for i in range(40)])
         rule = qf.fit_coins(runs, [10, 25, 50], 0.10, 1)
-        self.assertEqual(rule.table[:2], [0, 0])
+        self.assertEqual(rule.table[0], 0)
         self.assertEqual(rule.table[-1], qf.WON_RUN_COINS)
         self.assertEqual(rule.overtime_max, 1)
+        self.assertTrue(all(b >= a for a, b in zip(rule.table, rule.table[1:])))
+
+    def test_coin_steps_never_fall(self) -> None:
+        self.assertEqual(qf.coin_steps(2, 2), [[0, 0], [0, 1], [0, 2], [1, 1], [1, 2], [2, 2]])
+        self.assertEqual(qf.coin_steps(0, 3), [[]])
 
 
 class CoinTargetTest(unittest.TestCase):
-    def test_lost_runs_are_paid_from_the_earliest_shift_the_targets_allow(self) -> None:
-        # 100 runs: 40 win, 30 lose on shift 2 (1 passed), 30 lose on shift 3 (2 passed).
-        entries = [make_run([10, 10, 10], seed=i) for i in range(40)]
-        entries += [make_run([10, 0, 10], seed=100 + i) for i in range(30)]
-        entries += [make_run([10, 10, 0], seed=200 + i) for i in range(30)]
-        rule = qf.fit_coins(to_runs(entries), [5, 5, 5], 0.0, 1)
-        # Paying from 2 shifts passed: mean (30 + 80) / 100 = 1.1 coins, 27 runs to 30 unlocks.
-        self.assertEqual(rule.table, [0, 0, 1, qf.WON_RUN_COINS])
-        stats = qf.coin_stats([qf.replay(r, [5, 5, 5]) for r in to_runs(entries)], rule)
+    def test_lost_runs_are_paid_by_completed_weeks(self) -> None:
+        # Weeks of 2 shifts, 4 shifts, a won run paying 2. 100 runs: 40 win, 30 lose on shift 2
+        # (no week completed), 30 lose on shift 3 (1 week).
+        entries = [make_run([10, 10, 10, 10], seed=i) for i in range(40)]
+        entries += [make_run([10, 0, 10, 10], seed=100 + i) for i in range(30)]
+        entries += [make_run([10, 10, 0, 10], seed=200 + i) for i in range(30)]
+        runs = to_runs(entries)
+        rule = qf.fit_coins(runs, [5, 5, 5, 5], 0.0, 1, won_coins=2, week_length=2)
+        # Paying 1 a completed week: mean (30 + 80) / 100 = 1.1 coins, 27 runs to 30 unlocks,
+        # median 1, p90 2. Paying 0 has median 0, paying 2 median 2.
+        self.assertEqual(rule.table, [0, 0, 1, 1, 2])
+        stats = qf.coin_stats([qf.replay(r, [5, 5, 5, 5]) for r in runs], rule)
         self.assertTrue(qf.meets_coin_targets(stats))
         self.assertFalse(qf.meets_coin_targets({**stats, "median": 2}))
         self.assertFalse(qf.meets_coin_targets({**stats, "runs_to_unlock_all": 20.0}))
+
+    def test_the_command_line_fit_pays_the_records_won_entry(self) -> None:
+        entries = [make_run([10, 10, 10], seed=i) for i in range(10)]
+        with tempfile.TemporaryDirectory() as folder:
+            records = Path(folder) / "records.json"
+            records.write_text(json.dumps(make_records({"greedy@sensible": entries})), encoding="utf-8")
+            data = Path(folder) / "fit.json"
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                status = qf.main([str(records), f"--report={Path(folder) / 'r.txt'}", f"--json={data}"])
+            self.assertEqual(status, 0)
+            # The records' table ends at 2 (make_records).
+            self.assertEqual(json.loads(data.read_text(encoding="utf-8"))["coins_by_shifts_passed"][-1], 2)
 
 
 class FitTest(unittest.TestCase):

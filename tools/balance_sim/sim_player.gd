@@ -213,6 +213,7 @@ func play(run_seed: int) -> SimRunRecord:
 		var entry: Dictionary = run.history[index].to_dictionary()
 		entry["best"] = record.best_totals[index]
 		entry["hand"] = record.hands[index]
+		entry["quota_percent"] = quota_percent(run.balance, run.history[index])
 		record.shifts.append(entry)
 	for card: CardInstance in run.deck.cards:
 		var id: String = String(card.definition.id)
@@ -230,6 +231,18 @@ func play(run_seed: int) -> SimRunRecord:
 	record.coins = payout.total()
 	record.overtime_coins = payout.overtime_coins
 	return record
+
+
+## The quota percent `shift` was played under: its day events' plus its week event's (Rush hour
+## +10, Holiday rush +15; the simulator wears no pins), as ShiftLimits.for_shift adds them, so
+## tools/quota_fit.py can raise any base quota the way the game does (v0.95).
+static func quota_percent(balance: BalanceDefinition, shift: ShiftRecord) -> int:
+	var percent: int = 0
+	for event: InspectionDefinition in WeekSchedule.events_for(
+		balance, shift.shift, shift.inspections
+	):
+		percent += event.quota_percent
+	return percent
 
 
 func _play_shift(

@@ -7,11 +7,24 @@ RECORDS is the run-record file the balance simulator writes with --records (tool
 ... --quotas=0 --records=res://reports/records.json). No simulator choice reads the quota, so a run
 played with every quota at 0 is, shift for shift, the same run as under any other curve until its
 first failed shift (the run's RNG is used the same way at every passed checkout). This tool
-replays every recorded run under a candidate curve and coin amounts: the loss at the first total
-under the quota, and the coins (CoinPayout: the table by shifts passed plus one overtime coin per overtime_coin_euros of
-summed margin, at most overtime_coin_max). A recorded run that ended before the last shift without
-failing the candidate curve was cut by the quotas it was played with, so it can't be replayed; it
-is counted and the curve's numbers are flagged.
+replays every recorded run under a candidate curve and coin amounts, the way the game plays it
+(v0.95):
+- each shift's quota is the curve's base raised by the shift's recorded quota percent (its day
+  events' and week event's, e.g. Rush hour +10, Holiday rush +15: ShiftLimits.with_percent's
+  rounding, half away from zero, never under 1);
+- a total under it on the training week (shifts up to the records' write_up_last_shift, never the
+  last shift) is a slip the run forgives while it has had fewer than write_up_limit (TrainingWeek):
+  the shift isn't passed and earns no overtime, and the run goes on; any other miss loses the run.
+  A replayed run that slipped is approximate: the recorded run (quota 0) got the machine visit the
+  real game skips after a slip, so the report gives the share of runs that slipped, and the real
+  win rate is measured by a simulator run on the fitted quotas;
+- the coins (CoinPayout): the table by shifts passed (a won run pays its last entry, whatever its
+  slips) plus one overtime coin per overtime_coin_euros of summed margin, at most
+  overtime_coin_max.
+Records from before v0.95 hold no quota percents and no slip limits: they read as 0 % and no
+slips, with a warning. A recorded run that ended before the last shift without failing the
+candidate curve was cut by the quotas it was played with, so it can't be replayed; it is counted
+and the curve's numbers are flagged.
 
 Decided with the user (#41): the curve is fitted to the sensible player ("greedy@sensible": greedy
 drafting, rows played by SimHillClimb). Shift 1 is passed by at least --shift1 (0.97) of the runs
@@ -19,11 +32,13 @@ and shift 2 by at least --shift2 (0.95) of the runs that reach it; from shift 3 
 fails the same share of the runs that reach it, set so the run win rate is --win (0.375). A
 shift's quota is the highest whole number that the required share of the runs reaching it still
 meet, and the curve always rises by at least 1 a shift; a shift held at that floor can miss its
-target, and the report warns about it. The coins keep plan 7.1's rule (a run lost on shift 1 or 2
-pays no table coins, a won run pays 2) with the fewest shifts a lost run must pass to pay 1 that
-still meets the coin targets (the median run pays 1, a great run 2-3, 30 unlocks in 25-40 runs),
-and the overtime coin set so just over --overtime-share (0.10) of the runs earn it (so a great
-run, the 90th percentile, can reach 3).
+target, and the report warns about it. A miss counts as a fail of its shift, forgiven or not.
+The coins step by completed weeks (v0.95): a lost run that completed w weeks (shifts passed //
+week_length) pays the w-th step, nothing for none, and a won run the records' last table entry;
+of the non-decreasing steps up to it, those meeting the coin targets (the median run pays 1, a
+great run 2-3, 30 unlocks in 25-40 runs) are kept and the one nearest 32.5 runs to 30 unlocks is
+picked (the nearest of all when none meets them). The overtime coin is set so just over
+--overtime-share (0.10) of the runs earn it (so a great run, the 90th percentile, can reach 3).
 
 Options:
     --scenario=KEY       the scenario the curve is fitted to (default: greedy@sensible, else the
@@ -56,8 +71,9 @@ from typing import Any
 REPO = Path(__file__).resolve().parent.parent
 DEFAULT_REPORT = REPO / "reports" / "quota_fit" / "report.txt"
 DEFAULT_SCENARIO = "greedy@sensible"
-# Plan 7.1: a won run pays 2 table coins, and the collection holds 30 capsules.
-WON_RUN_COINS = 2
+# Plan 7.1: the collection holds 30 capsules. A won run pays the records' last table entry (3
+# since v0.65; 2 in the 8-shift run), WON_RUN_COINS when the records hold no table.
+WON_RUN_COINS = 3
 UNLOCKS = 30
 # A great run is the 90th percentile of coins per run (decided with the user in #40).
 GREAT_RUN_PERCENTILE = 90
@@ -67,6 +83,22 @@ SHIFT1_OVERTIME_MAX = 0.02
 # 25-40 runs; the fit aims at the middle of that range.
 TARGET_RUNS = (25.0, 40.0)
 TARGET_RUNS_MIDDLE = 32.5
+
+
+@dataclass
+class Slips:
+    """TrainingWeek: a miss on a shift up to `last_shift` (every shift when 0), never the run's
+    last, is forgiven while the run has had fewer than `limit`."""
+
+    limit: int
+    last_shift: int
+
+    def forgives(self, shift_number: int, shifts: int, misses_before: int) -> bool:
+        if self.limit <= 0 or shift_number >= shifts:
+            return False
+        if self.last_shift > 0 and shift_number > self.last_shift:
+            return False
+        return misses_before < self.limit
 
 
 @dataclass
@@ -82,6 +114,10 @@ class Run:
     upgrades_taken: list[list[str]]
     # The card ids of each shift's hand at checkout (empty lists in older records).
     hands: list[list[str]] = field(default_factory=list)
+    # Each shift's quota percent from its day and week events (0s in records before v0.95).
+    quota_percents: list[int] = field(default_factory=list)
+    # The training week's slips the run is replayed with (the records').
+    slips: Slips = field(default_factory=lambda: Slips(0, 0))
 
 
 @dataclass
@@ -91,6 +127,10 @@ class Records:
     overtime_coin_euros: int
     overtime_coin_max: int
     scenarios: dict[str, list[Run]]
+    slips: Slips = field(default_factory=lambda: Slips(0, 0))
+    week_length: int = 0
+    # False for records from before v0.95 (no quota percents, no slip limits).
+    current: bool = True
 
 
 @dataclass
@@ -99,8 +139,9 @@ class CoinRule:
     overtime_euros: int
     overtime_max: int
 
-    def coins(self, shifts_passed: int, overtime: int) -> int:
-        coins = self.table[min(shifts_passed, len(self.table) - 1)] if self.table else 0
+    def coins(self, shifts_passed: int, overtime: int, won: bool = False) -> int:
+        index = len(self.table) - 1 if won else min(shifts_passed, len(self.table) - 1)
+        coins = self.table[index] if self.table else 0
         if self.overtime_euros > 0:
             coins += min(overtime // self.overtime_euros, self.overtime_max)
         return coins
@@ -118,6 +159,10 @@ class Outcome:
     quotas: list[int] = field(default_factory=list)
     # False when the recorded run ended early without failing this curve (can't be replayed).
     complete: bool = True
+    # Whether each shift it played was passed (a slip, or the losing miss, is False).
+    passes: list[bool] = field(default_factory=list)
+    # The misses the training week forgave.
+    slips: int = 0
 
 
 def shift_registers(shift: dict[str, Any]) -> list[str]:
@@ -137,11 +182,14 @@ def shift_registers(shift: dict[str, Any]) -> list[str]:
 
 def load_records(path: Path) -> Records:
     data = json.loads(path.read_text(encoding="utf-8"))
+    current = "write_up_limit" in data
+    slips = Slips(int(data.get("write_up_limit", 0)), int(data.get("write_up_last_shift", 0)))
     scenarios: dict[str, list[Run]] = {}
     for key, entries in data["scenarios"].items():
         runs = []
         for entry in entries:
             shifts = entry["shifts"]
+            current = current and all("quota_percent" in s for s in shifts)
             upgrades = [shift_registers(s) for s in shifts]
             runs.append(Run(
                 seed=int(entry["run_seed"]),
@@ -149,6 +197,8 @@ def load_records(path: Path) -> Records:
                 inspections=[str(s.get("inspection", "")) for s in shifts],
                 upgrades_taken=upgrades,
                 hands=[[str(card) for card in s.get("hand", [])] for s in shifts],
+                quota_percents=[int(s.get("quota_percent", 0)) for s in shifts],
+                slips=slips,
             ))
         scenarios[key] = runs
     return Records(
@@ -157,28 +207,55 @@ def load_records(path: Path) -> Records:
         overtime_coin_euros=int(data["overtime_coin_euros"]),
         overtime_coin_max=int(data["overtime_coin_max"]),
         scenarios=scenarios,
+        slips=slips,
+        week_length=int(data.get("week_length", 0)),
+        current=current,
     )
+
+
+def with_percent(amount: int, percent: int) -> int:
+    """ShiftLimits.with_percent: `amount` raised by `percent`, Godot's roundi (half away from
+    zero) on the same double, never under 1; a 0 % change or an amount of 0 keeps the amount."""
+    if percent == 0 or amount <= 0:
+        return amount
+    value = amount * (100 + percent) / 100.0
+    rounded = math.floor(value + 0.5) if value >= 0 else -math.floor(-value + 0.5)
+    return max(int(rounded), 1)
+
+
+def shift_quota(run: Run, index: int, base: int) -> int:
+    """The quota the run's shift `index` (0-based) plays under for a curve's `base`."""
+    percent = run.quota_percents[index] if index < len(run.quota_percents) else 0
+    return with_percent(base, percent)
 
 
 def replay(run: Run, curve: list[int]) -> Outcome:
     passed = 0
     overtime = 0
+    slips = 0
     quotas: list[int] = []
+    passes: list[bool] = []
+    margin = _shift1_margin(run, curve)
     for index, base in enumerate(curve):
         if index >= len(run.totals):
-            return Outcome(passed, False, overtime, _shift1_margin(run, curve), quotas, False)
-        quota = base
+            return Outcome(passed, False, overtime, margin, quotas, False, passes, slips)
+        quota = shift_quota(run, index, base)
         quotas.append(quota)
         total = run.totals[index]
         if total < quota:
-            return Outcome(passed, False, overtime, _shift1_margin(run, curve), quotas)
+            passes.append(False)
+            if run.slips.forgives(index + 1, len(curve), slips):
+                slips += 1
+                continue
+            return Outcome(passed, False, overtime, margin, quotas, True, passes, slips)
+        passes.append(True)
         passed += 1
         overtime += total - quota
-    return Outcome(passed, True, overtime, _shift1_margin(run, curve), quotas)
+    return Outcome(passed, True, overtime, margin, quotas, True, passes, slips)
 
 
 def _shift1_margin(run: Run, curve: list[int]) -> int:
-    return run.totals[0] - curve[0] if run.totals and curve else 0
+    return run.totals[0] - shift_quota(run, 0, curve[0]) if run.totals and curve else 0
 
 
 def nearest_rank(values: list[int], percent: int) -> int:
@@ -220,16 +297,18 @@ def _quota_for_share(runs: list[Run], curve: list[int], keep: float) -> int:
     and at least 1 more than the previous shift's."""
     index = len(curve)
     floor = curve[-1] + 1 if curve else 0
-    reaching: list[int] = []
+    # Each reaching run's total and quota percent on the shift (a run still going: slips too).
+    reaching: list[tuple[int, int]] = []
     for run in runs:
         outcome = replay(run, curve)
         if outcome.won and outcome.complete and len(run.totals) > index:
-            reaching.append(run.totals[index])
+            percent = run.quota_percents[index] if index < len(run.quota_percents) else 0
+            reaching.append((run.totals[index], percent))
     if not reaching:
         return floor
     need = math.ceil(keep * len(reaching) - 1e-9)
     # Pass count only falls as the quota rises: bisect for the highest quota keeping `need`.
-    low, high = floor, max(reaching) + 1
+    low, high = floor, max(total for total, _ in reaching) + 1
     if _meeting(reaching, low) < need:
         return floor
     while high - low > 1:
@@ -241,8 +320,8 @@ def _quota_for_share(runs: list[Run], curve: list[int], keep: float) -> int:
     return low
 
 
-def _meeting(reaching: list[int], quota: int) -> int:
-    return sum(1 for total in reaching if total >= quota)
+def _meeting(reaching: list[tuple[int, int]], base: int) -> int:
+    return sum(1 for total, percent in reaching if total >= with_percent(base, percent))
 
 
 def win_rate(runs: list[Run], curve: list[int]) -> float:
@@ -250,29 +329,46 @@ def win_rate(runs: list[Run], curve: list[int]) -> float:
     return sum(1 for o in outcomes if o.won) / len(outcomes) if outcomes else 0.0
 
 
-def fit_coins(runs: list[Run], curve: list[int], overtime_share: float, overtime_max: int) -> CoinRule:
-    """Plan 7.1's coin shape for this curve: table entries 0 below `first_paid` shifts passed (at
-    least 2: a run lost on shift 1 or 2 pays nothing), 1 from there, WON_RUN_COINS for a won run,
-    and the overtime coin's euros so about `overtime_share` of the runs earn it. Of the candidates
-    meeting the targets (the median run pays 1, a great run 2-3, 30 unlocks in 25-40 runs, the
-    shift-1 margin alone earns the overtime coin in under 2% of runs), the one that pays lost runs
-    from the earliest shift ("something even for a lost run"); with none, the nearest to 32.5 runs."""
+def fit_coins(
+    runs: list[Run], curve: list[int], overtime_share: float, overtime_max: int,
+    won_coins: int = WON_RUN_COINS, week_length: int = 0,
+) -> CoinRule:
+    """Plan 7.1's coin shape for this curve, stepped by completed weeks (v0.95): a lost run that
+    completed w weeks (shifts passed // `week_length`; every shift a week when 0) pays step w,
+    nothing for none, a won run `won_coins`; the steps never fall and stay at most `won_coins`.
+    The overtime coin's euros are set so about `overtime_share` of the runs earn it. Of the
+    candidates meeting the targets (the median run pays 1, a great run 2-3, 30 unlocks in 25-40
+    runs, the shift-1 margin alone earns the overtime coin in under 2% of runs), the one nearest
+    32.5 runs to 30 unlocks (ties: the one paying lost runs more); with none, the nearest of all."""
     shifts = len(curve)
+    length = week_length if week_length > 0 else 1
+    weeks = max(math.ceil(shifts / length), 1)
     outcomes = [replay(run, curve) for run in runs]
     euros = overtime_euros_for_share(outcomes, overtime_share)
-    nearest: tuple[float, CoinRule] | None = None
-    for first_paid in range(2, shifts):
-        table = [0 if passed < first_paid else 1 for passed in range(shifts)] + [WON_RUN_COINS]
-        rule = CoinRule(table, euros, overtime_max)
+    best: tuple[tuple[int, float, int], CoinRule] | None = None
+    for steps in coin_steps(weeks - 1, won_coins):
+        values = [0] + steps
+        table = [values[min(passed // length, len(values) - 1)] for passed in range(shifts)]
+        rule = CoinRule(table + [won_coins], euros, overtime_max)
         stats = coin_stats(outcomes, rule)
-        if meets_coin_targets(stats):
-            return rule
         distance = abs(stats["runs_to_unlock_all"] - TARGET_RUNS_MIDDLE)
-        if nearest is None or distance < nearest[0]:
-            nearest = (distance, rule)
-    if nearest is None:
-        return CoinRule([0, 0] + [1] * (shifts - 2) + [WON_RUN_COINS], euros, overtime_max)
-    return nearest[1]
+        key = (0 if meets_coin_targets(stats) else 1, distance, -sum(table))
+        if best is None or key < best[0]:
+            best = (key, rule)
+    if best is None:
+        return CoinRule([0] * shifts + [won_coins], euros, overtime_max)
+    return best[1]
+
+
+def coin_steps(count: int, top: int) -> list[list[int]]:
+    """Every non-decreasing list of `count` whole numbers from 0 to `top`."""
+    if count <= 0:
+        return [[]]
+    found: list[list[int]] = []
+    for rest in coin_steps(count - 1, top):
+        low = rest[-1] if rest else 0
+        found.extend(rest + [value] for value in range(low, top + 1))
+    return found
 
 
 def meets_coin_targets(stats: dict[str, Any]) -> bool:
@@ -298,7 +394,7 @@ def overtime_euros_for_share(outcomes: list[Outcome], share: float) -> int:
 
 
 def coin_stats(outcomes: list[Outcome], rule: CoinRule) -> dict[str, Any]:
-    coins = [rule.coins(o.shifts_passed, o.overtime) for o in outcomes]
+    coins = [rule.coins(o.shifts_passed, o.overtime, o.won) for o in outcomes]
     mean = sum(coins) / len(coins) if coins else 0.0
     counts = Counter(coins)
     overtime_runs = sum(
@@ -325,14 +421,16 @@ def evaluate(runs: list[Run], curve: list[int], rule: CoinRule) -> dict[str, Any
     passed = [0] * shifts
     totals_reaching: list[list[int]] = [[] for _ in range(shifts)]
     for run, outcome in zip(runs, outcomes):
-        for index in range(min(shifts, outcome.shifts_passed + 1, len(run.totals))):
+        for index, ok in enumerate(outcome.passes[:shifts]):
             reached[index] += 1
             totals_reaching[index].append(run.totals[index])
-            if index < outcome.shifts_passed:
+            if ok:
                 passed[index] += 1
     return {
         "runs": len(runs),
         "incomplete": sum(1 for o in outcomes if not o.complete),
+        "slipped_share": sum(1 for o in outcomes if o.slips) / len(runs) if runs else 0.0,
+        "slips_per_run": sum(o.slips for o in outcomes) / len(runs) if runs else 0.0,
         "win_rate": sum(1 for o in outcomes if o.won) / len(runs) if runs else 0.0,
         "mean_shifts_passed": sum(o.shifts_passed for o in outcomes) / len(runs) if runs else 0.0,
         "shifts": [
@@ -360,12 +458,12 @@ def inspection_stats(runs: list[Run], outcomes: list[Outcome]) -> dict[str, dict
     played: Counter = Counter()
     failed: Counter = Counter()
     for run, outcome in zip(runs, outcomes):
-        for index in range(min(outcome.shifts_passed + 1, len(run.totals), len(outcome.quotas))):
+        for index, ok in enumerate(outcome.passes):
             inspection = run.inspections[index]
             if not inspection:
                 continue
             played[inspection] += 1
-            if index == outcome.shifts_passed and not outcome.won:
+            if not ok:
                 failed[inspection] += 1
     all_played = sum(played.values())
     all_failed = sum(failed.values())
@@ -404,7 +502,7 @@ def upgrade_stats(
             )
             for index in range(max(shifts - 2, first), min(played, shifts)):
                 entry["late_reached"] += 1
-                entry["late_passed"] += int(index < outcome.shifts_passed)
+                entry["late_passed"] += int(outcome.passes[index])
     return {
         name: {
             "runs": entry["runs"],
@@ -432,7 +530,7 @@ def card_stats(runs: list[Run], outcomes: list[Outcome]) -> dict[str, dict[str, 
     passed = 0
     for run, outcome in zip(runs, outcomes):
         for index in range(1, min(len(outcome.quotas), len(run.hands))):
-            ok = index < outcome.shifts_passed
+            ok = outcome.passes[index]
             played += 1
             passed += int(ok)
             for card in set(run.hands[index]):
@@ -478,6 +576,15 @@ def format_report(
         f" reaching it, win rate {targets['win']:.1%}; overtime coin for ~{targets['overtime_share']:.0%} of runs"
     )
     lines.append(f"Recorded with quotas {records.quotas}")
+    lines.append(
+        f"Slips: up to {records.slips.limit} on shifts 1-{records.slips.last_shift} (training week);"
+        f" week length {records.week_length}"
+    )
+    if not records.current:
+        lines.append(
+            "WARNING: records from before v0.95: no quota percents or slip limits, replayed at 0%"
+            " with no slips"
+        )
     lines.append(f"Curve: {curve}")
     lines.append(
         f"Coins: table {rule.table} - one overtime coin per {rule.overtime_euros} euros of summed margin,"
@@ -495,6 +602,8 @@ def format_report(
             )
         lines.append(
             f"Win rate {result['win_rate']:.1%} - mean shifts passed {result['mean_shifts_passed']:.2f}"
+            f" - runs that slipped {result['slipped_share']:.1%} (approximate replays),"
+            f" slips per run {result['slips_per_run']:.2f}"
         )
         lines.append("Shift  Quota  Reached  Passed  Pass rate  Median total")
         for shift in result["shifts"]:
@@ -605,7 +714,10 @@ def main(argv: list[str]) -> int:
             rule = CoinRule(table, max(euros, 0), max(cap, 0))
         else:
             cap = 1 if args.overtime_max is None else args.overtime_max
-            rule = fit_coins(runs, curve, args.overtime_share, max(cap, 0))
+            won = records.coins_by_shifts_passed[-1] if records.coins_by_shifts_passed else WON_RUN_COINS
+            rule = fit_coins(
+                runs, curve, args.overtime_share, max(cap, 0), won, records.week_length
+            )
     except SystemExit as error:
         print(error, file=sys.stderr)
         return 2
