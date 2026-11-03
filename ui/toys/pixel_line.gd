@@ -169,7 +169,7 @@ func _add_number(number: String, x: float, colour: Color) -> float:
 		label.add_theme_font_size_override("font_size", ArtStyle.PIXEL_NUMBER_SIZE)
 		label.add_theme_constant_override("outline_size", 0)
 		label.add_theme_color_override("font_color", colour)
-		label.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		ArtStyle.use_pixel_text_material(label)
 		label.scale = Vector2.ONE * art
 		label.position = Vector2(cursor - ink.x * art, (baseline - ascent) * art)
 		add_child(label)

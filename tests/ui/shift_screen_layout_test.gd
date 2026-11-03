@@ -602,7 +602,8 @@ func test_the_wall_and_counter_cover_the_viewport() -> void:
 
 
 ## Text never goes through the sharp-pixel shader: no Label or Button text carries its material
-## or the pixel-art mark (the gold number's own gold-bands shader aside).
+## or the pixel-art mark (the gold number's own gold-bands shader aside), but hard pixel text
+## (ArtStyle.use_pixel_text_material: the shared material, unmarked as art).
 func test_no_text_carries_the_pixel_material() -> void:
 	var screen: ShiftScreen = await _rich_screen()
 	var texts: Array[Control] = _texts(screen)
@@ -614,6 +615,11 @@ func test_no_text_carries_the_pixel_material() -> void:
 			and (text.material as ShaderMaterial).shader == TotalNumber.SHADER
 		)
 		if gold:
+			continue
+		var font: Font = text.get_theme_font("font")
+		if font == ArtStyle.pixel_display_font() or font == ArtStyle.pixel_number_font():
+			assert_object(text.material).is_same(ArtStyle.pixel_material())
+			assert_bool(text.has_meta(ArtStyle.PIXEL_ART_META)).is_false()
 			continue
 		(
 			assert_object(text.material)

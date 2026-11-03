@@ -13,6 +13,7 @@ const SCREEN := "res://ui/shift_screen.tscn"
 const Rush := preload("res://tests/ui/count_up_rush.gd")
 const BALANCE := "res://data/balance/balance.tres"
 const STARTER := "res://data/decks/starter.tres"
+const INSPECTIONS := "res://data/inspections"
 const RecordingSfx := preload("res://tests/presentation/recording_sfx.gd")
 
 var _folder: String = ""
@@ -119,6 +120,45 @@ func test_the_chips_lay_out_in_the_top_bar() -> void:
 	]
 	assert_array(chip.pips()).is_equal(expected)
 	assert_str(tag.day_label().text).is_equal("D6")
+	_assert_chips_fit(screen)
+
+
+## The week chip keeps its name beside every single day event (1920x1080 legibility, 2026-11-03:
+## the name grew from 13 to 15 px, and TopBar.fit_inspection hides it first when the day chip runs
+## short): TRAINING, the longest week name, beside each inspection's chip text, with the bonus
+## ticket's pill where the inspection promises one, the chips still apart. A review's two maluses
+## hide the name, at 13 px as at 15 (the day's effects come first); the pips stay.
+func test_the_week_name_stays_beside_every_day_event() -> void:
+	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
+	var screen: ShiftScreen = runner.scene()
+	screen._week.skip()
+	MachineSteps.bonus_after_inspection(screen.run)
+	await _frames(3)
+	var chip: WeekChip = screen._stage.top_bar.week_chip
+	assert_str(chip.name_label().text).is_equal("TRAINING")
+	var tag: InspectionTag = screen._inspection_tag
+	var promised: int = 0
+	for file_name: String in DirAccess.get_files_at(INSPECTIONS):
+		if not file_name.ends_with(".tres"):
+			continue
+		screen._debug.set_inspection(file_name.get_basename())
+		await _frames(3)
+		assert_str(screen.run.inspections[0].resource_path.get_file()).is_equal(file_name)
+		if tag.bonus_state() == InspectionTag.Bonus.PROMISED:
+			promised += 1
+		assert_bool(chip.name_shown()).override_failure_message(file_name).is_true()
+		assert_bool(tag.is_trimmed()).override_failure_message(file_name).is_false()
+		_assert_chips_fit(screen)
+	assert_int(promised).is_greater(0)
+	var run: RunState = screen.run
+	run.inspections = [
+		load(INSPECTIONS + "/spot_check.tres"), load(INSPECTIONS + "/late_delivery.tres")
+	]
+	run.debug_skip_to_shift(run.shift_index)
+	screen._on_shift_started()
+	screen._week.drop()
+	await _frames(3)
+	assert_bool(chip.pips_shown() and not tag.is_trimmed()).is_true()
 	_assert_chips_fit(screen)
 
 

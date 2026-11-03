@@ -85,6 +85,10 @@ func test_one_and_two_pins_are_laid_out_clear() -> void:
 			var band_label: Label = lanyard.band_label()
 			assert_str(band_label.text).is_equal(PinLanyard.BAND_TEXT)
 			var band_words: Rect2 = _caps(band_label)
+			assert_int(band_label.horizontal_alignment).is_equal(HORIZONTAL_ALIGNMENT_LEFT)
+			assert_object(band_label.get_theme_font("font")).is_same(
+				ArtStyle.bold_font(PinLanyard.BAND_TEXT_WEIGHT)
+			)
 			assert_float(band_words.size.x).is_less_equal(band.size.x)
 			assert_float(band_words.get_center().x).is_equal_approx(band.get_center().x, 2.0)
 			assert_bool(band.encloses(band_words)).override_failure_message(where).is_true()
@@ -371,16 +375,21 @@ func _move_to(at: Vector2) -> void:
 	_runner.simulate_mouse_move(get_tree().root.get_final_transform() * at)
 
 
-## A centred pixel label's capitals on screen: its text's width centred in its box (in font px,
-## scaled), from its cap top down PIXEL_CAP_HEIGHT.
+## The band words' capitals on screen, from where the label itself lays its characters out
+## (Label.get_character_bounds: after its stylebox's content margins and its alignment): the first
+## character's left to the last one's right, BAND_CAP_HEIGHT tall above the line's baseline (the
+## line's top plus the font's ascent).
 static func _caps(label: Label) -> Rect2:
-	var text: Vector2 = UiKit.pixel_text_size(label)
-	var box: Rect2 = label.get_global_rect()
-	var font: Font = ArtStyle.pixel_display_font()
-	var cap_top: float = font.get_ascent(ArtStyle.PIXEL_TEXT_SIZE) - ArtStyle.PIXEL_CAP_HEIGHT
-	var left: float = box.position.x + (label.size.x * label.scale.x - text.x) / 2.0
-	var top: float = box.position.y + cap_top * label.scale.y
-	return Rect2(left, top, text.x, ArtStyle.PIXEL_CAP_HEIGHT * label.scale.y)
+	var font: Font = label.get_theme_font("font")
+	var size_px: int = label.get_theme_font_size("font_size")
+	var first: Rect2 = label.get_character_bounds(0)
+	var last: Rect2 = label.get_character_bounds(label.text.length() - 1)
+	var origin: Vector2 = label.get_global_rect().position
+	var baseline: float = origin.y + first.position.y + font.get_ascent(size_px)
+	var top: float = baseline - PinLanyard.BAND_CAP_HEIGHT
+	return Rect2(
+		origin.x + first.position.x, top, last.end.x - first.position.x, PinLanyard.BAND_CAP_HEIGHT
+	)
 
 
 static func _on_stage(screen: ShiftScreen, rect: Rect2) -> Rect2:

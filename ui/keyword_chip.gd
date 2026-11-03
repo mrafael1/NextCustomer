@@ -71,6 +71,10 @@ func _init(word: String, wasted_tip: String = "", live_tip: String = "") -> void
 	keyword = word
 	name = "Keyword%s" % word.capitalize()
 	_live = not live_tip.is_empty()
+	# The word is hard pixel text drawn at 1x (its box and cross are untextured). A live chip's
+	# digits are smooth bold text: the sharp-pixel shader would block their edges when scaled.
+	if not _live:
+		ArtStyle.use_pixel_text_material(self)
 	_wasted = not wasted_tip.is_empty() and not _live
 	if _wasted:
 		tip_text = wasted_tip

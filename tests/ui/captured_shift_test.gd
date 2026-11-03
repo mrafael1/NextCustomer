@@ -73,8 +73,9 @@ func test_everything_lies_inside_the_stage() -> void:
 			)
 
 
-## The top bar's chips and buttons (SHIFT, QUOTA, the week chip, the day chip, LOYALTY,
-## Cart and the menu): apart, under the stage's top edge and above the belt.
+## The top bar's parts (the week chip, the day chip, LOYALTY, the spacer, Cart and the menu; the
+## SHIFT chip hides with weeks, and the register tower took the SPEND chip): apart, under the
+## stage's top edge and above the belt.
 func test_the_top_bar_parts_are_apart_above_the_belt() -> void:
 	for scan: String in SCANS:
 		var screen: ShiftScreen = await _captured(scan)
@@ -85,7 +86,7 @@ func test_the_top_bar_parts_are_apart_above_the_belt() -> void:
 				parts.append(part.get_global_rect())
 		# The week chip and the day chip (v0.70) are always shown.
 		assert_bool(screen._inspection_tag.visible).is_true()
-		assert_int(parts.size()).is_equal(7)
+		assert_int(parts.size()).is_equal(6)
 		var bottom: float = _y(screen, ShiftStage.TOP_BAR_BOTTOM)
 		for rect: Rect2 in parts:
 			assert_float(rect.end.y).override_failure_message(str(rect)).is_less_equal(bottom)
@@ -238,7 +239,8 @@ func test_every_printed_character_has_its_glyph() -> void:
 
 
 ## No text goes through the sharp-pixel material (the monitor's scan included; the gold number's
-## own gold-bands shader aside), and the sharp-pixel switch (ArtStyle.set_sharp, the capture's S
+## own gold-bands shader aside) but hard pixel text (ArtStyle.use_pixel_text_material, unmarked as
+## art), and the sharp-pixel switch (ArtStyle.set_sharp, the capture's S
 ## key) reaches every piece of art, items too.
 func test_text_never_carries_the_pixel_material() -> void:
 	for scan: String in SCANS:
@@ -249,7 +251,14 @@ func test_text_never_carries_the_pixel_material() -> void:
 				label.material is ShaderMaterial
 				and (label.material as ShaderMaterial).shader == TotalNumber.SHADER
 			)
-			if not gold:
+			var hard_pixels: bool = (
+				label.get_theme_font("font") == ArtStyle.pixel_display_font()
+				or label.get_theme_font("font") == ArtStyle.pixel_number_font()
+			)
+			if hard_pixels:
+				assert_object(label.material).is_same(ArtStyle.pixel_material())
+				assert_int(label.texture_filter).is_equal(CanvasItem.TEXTURE_FILTER_LINEAR)
+			elif not gold:
 				(
 					assert_object(label.material)
 					. override_failure_message(str(label.get_path()))
