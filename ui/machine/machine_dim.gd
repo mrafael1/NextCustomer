@@ -12,8 +12,9 @@ extends Control
 const DIM_BRIGHTNESS := 0.62
 const DIM_SATURATION := 0.55
 ## The veil's pieces in the machine: the marquee with its bulbs inside its rim (RewardMachineView's
-## HEAD_POSITION, MachineHead.SIZE, but for its foot over the cabinet's top band), the cabinet (MachineCabinet.SIZE, under the marquee) and its
-## plinth (MachineCabinet.PLINTH_RECT). The floor shadow is left out.
+## HEAD_POSITION, MachineHead.SIZE, but for its foot over the cabinet's top band), the cabinet
+## (MachineCabinet.SIZE, under the marquee) and its plinth (MachineCabinet.PLINTH_RECT). The floor
+## shadow is left out.
 const VEIL_RECTS: Array[Rect2] = [
 	Rect2(12, -52, 536, 52),
 	Rect2(0, 0, 560, 584),

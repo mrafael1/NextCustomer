@@ -285,20 +285,23 @@ func test_a_loyalty_ticket_shows_its_win_sticker() -> void:
 	run = _run_with_rows([[milk, milk, milk], [load(BREAD)]])
 	var later: PrizeTicket = _ticket(view, 0, stamp, preview, 1, run)
 	assert_array(Array(later.win_texts())).is_equal(["LAST ROW WASTED", "BEST ROW +3€"])
-	# The relook (v0.86): a straight strip along the face's foot, its words and amounts inside it,
-	# the words left of the amounts.
+	# The relook (v0.86, the mock-up's strip): straight and inside the face's sides and foot, a
+	# small lower-case label left of its amount, WASTED in tomato and a win in green.
 	var strip: Control = later.win_sticker()
-	var sash: Rect2 = Rect2(Vector2.ZERO, PrizeTicket.SIZE).grow_individual(
-		PrizeTicket.WIN_OVERHANG, 0, PrizeTicket.WIN_OVERHANG, 0
-	)
-	assert_bool(sash.encloses(strip.get_rect())).is_true()
+	var inside: Rect2 = Rect2(Vector2.ZERO, PrizeTicket.SIZE).grow(-PrizeTicket.WIN_INSET)
+	assert_bool(inside.encloses(strip.get_rect())).is_true()
 	assert_float(strip.rotation).is_equal(0.0)
+	var inks: Array[Color] = [Palette.TOMATO_DARK, Palette.GREEN_DARK]
 	for row: int in range(2):
-		var words: Control = strip.get_node("WinLabel%d" % row) as Control
-		var amount: Control = strip.get_node("WinAmount%d" % row) as Control
+		var words: Label = strip.get_node("WinLabel%d" % row) as Label
+		var amount: MachineLine = strip.get_node("WinAmount%d" % row) as MachineLine
+		assert_str(words.text).is_equal(PrizeTicket.WIN_LABELS[row].to_lower())
+		assert_int(words.get_theme_font_size("font_size")).is_greater_equal(12)
 		assert_bool(Rect2(Vector2.ZERO, strip.size).encloses(words.get_rect())).is_true()
 		assert_bool(Rect2(Vector2.ZERO, strip.size).encloses(amount.get_rect())).is_true()
 		assert_float(words.get_rect().end.x).is_less(amount.position.x)
+		assert_int(words.get_visible_line_count()).is_equal(1)
+		assert_object(amount.ink()).is_equal(inks[row])
 	assert_float(later.rule_label().get_rect().end.y).is_less_equal(strip.position.y)
 	var product: PrizeTicket = _ticket(
 		view, 0, MachinePrize.new(MachinePrize.Kind.PRODUCT, 0, milk), null, 1, run
@@ -338,6 +341,7 @@ func test_every_face_fits_the_ticket() -> void:
 	var bold: Font = ArtStyle.bold_font(PrizeTicket.BOLD_WEIGHT)
 	var rule_font: Font = ArtStyle.bold_font(PrizeTicket.RULE_WEIGHT)
 	var face: Rect2 = Rect2(Vector2.ZERO, PrizeTicket.SIZE)
+	var cut: PackedStringArray = []
 	for index: int in range(prizes.size()):
 		var ticket: PrizeTicket = _ticket(view, 0, prizes[index], previews[index], 1)
 		# The name's row lays out its labels at the frame's end.
@@ -348,7 +352,7 @@ func test_every_face_fits_the_ticket() -> void:
 		assert_float(band_width).override_failure_message(what).is_less_equal(
 			PrizeTicket.BAND_RECT.size.x - 8.0
 		)
-		var display: bool = PrizeTicket.name_is_display(texts[1])
+		var display: bool = PrizeTicket.name_in_rows(texts[1], texts[2])
 		assert_bool(ticket.name_control() is Label).override_failure_message(what).is_equal(
 			not display
 		)
@@ -363,14 +367,19 @@ func test_every_face_fits_the_ticket() -> void:
 		assert_int(name_lines).override_failure_message(what).is_less_equal(PrizeTicket.NAME_LINES)
 		# #105: the long rule text, whole, at the first RULE_SIZES size that shows it.
 		var fit: Vector2i = PrizeTicket.rule_fit(texts[2], name_lines)
-		var room: int = PrizeTicket.rule_room(name_lines, 0, fit.y)
-		var rule_lines: int = mini(
-			PrizeTicket.text_lines(
-				rule_font, texts[2], PrizeTicket.RULE_SIZES[fit.y], PrizeTicket.RULE_WIDTH
-			),
-			room
+		var rule_lines: int = PrizeTicket.text_lines(
+			rule_font, texts[2], PrizeTicket.RULE_SIZES[fit.y], PrizeTicket.RULE_WIDTH
 		)
 		assert_int(rule_lines).override_failure_message(what).is_equal(fit.x)
+		# Whole, never cut: under the face's foot and, for a prize that can carry a win strip
+		# (a LOYALTY perk, an UPGRADES prize), over a strip of one row and of two.
+		var strips: Array[int] = [0]
+		if prizes[index].kind in [MachinePrize.Kind.REGISTER, MachinePrize.Kind.UPGRADE]:
+			strips = [0, 1, 2]
+		for strip_rows: int in strips:
+			var strip_names: int = _name_lines(texts[1], texts[2], strip_rows)
+			if not PrizeTicket.rule_whole(texts[2], strip_names, strip_rows):
+				cut.append("%s (strip %d)" % [what, strip_rows])
 		# The face's own coordinates: the card layer holding the rule.
 		var card: Control = ticket.rule_label().get_parent() as Control
 		var to_face: Transform2D = card.get_global_transform().affine_inverse()
@@ -405,6 +414,20 @@ func test_every_face_fits_the_ticket() -> void:
 			)
 			assert_int(wanted).override_failure_message(what).is_greater(0)
 		ticket.free()
+	# #105: no rule is ever cut on its ticket.
+	assert_array(Array(cut)).override_failure_message(", ".join(cut)).is_empty()
+
+
+## The lines a ticket's name `shown` takes over a win strip of `strip_rows` rows
+## (PrizeTicket.name_in_rows: hard pixel rows, else bold).
+static func _name_lines(shown: String, rule: String, strip_rows: int) -> int:
+	if PrizeTicket.name_in_rows(shown, rule, strip_rows):
+		return PrizeTicket.name_rows(shown).size()
+	var bold: Font = ArtStyle.bold_font(PrizeTicket.BOLD_WEIGHT)
+	return mini(
+		PrizeTicket.text_lines(bold, shown, PrizeTicket.NAME_SIZE, PrizeTicket.NAME_WIDTH),
+		PrizeTicket.NAME_LINES
+	)
 
 
 ## A LOYALTY prize's perk glyph stays inside its badge, clear of the punch card above it (Big

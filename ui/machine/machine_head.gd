@@ -18,15 +18,16 @@ extends Control
 ## twice its size at the visit's start (reduced motion: at rest), and lifts once the visit's
 ## landing is over (the punch's end + 0.6 s).
 
-const SIZE := Vector2(536, 60)
+const SIZE := Vector2(536, 66)
 const TITLE := "RECEIPT REWARDS"
 const SUB_LINE := "ONE PRIZE PER RECEIPT"
 const PREMIUM_TITLE := "PREMIUM REWARDS"
 const PREMIUM_SUB := "RARE OR BETTER"
 ## The title's and the sub line's boxes (their capitals centred in them): the title at 4x (word
-## scale 2), the sub line at 2x.
-const TITLE_RECT := Rect2(8, 4, 520, 28)
-const SUB_RECT := Rect2(8, 38, 520, 14)
+## scale 2), the sub line at 2x, each at least BULB_CLEAR (2 art px) clear of its bulb row.
+const TITLE_RECT := Rect2(8, 10, 520, 28)
+const SUB_RECT := Rect2(8, 42, 520, 14)
+const BULB_CLEAR := 4.0
 const TITLE_SCALE := 2
 ## The bulbs (2 art px square): BULBS_ALONG on the top row and on the foot's, BULB_STEP apart
 ## from BULB_LEFT.

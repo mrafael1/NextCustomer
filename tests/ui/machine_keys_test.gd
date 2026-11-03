@@ -264,6 +264,11 @@ func test_the_display_follows_the_visit() -> void:
 	view.show_at(plan.pick_at)
 	assert_str(display.texts()[0]).is_equal(RewardMachineView.pick_prompt(plan.n_prizes, run))
 	assert_bool(view.skip_bin.visible).is_true()
+	# The relook (v0.86): the bin and its word stand between the keys, over neither key's face.
+	var bin: Rect2 = view.skip_bin.get_global_rect()
+	for key: ChuteKey in view.keys:
+		assert_bool(key.visible).is_true()
+		assert_bool(bin.intersects(key.get_global_rect())).is_false()
 	var landing: MachineLanding = MachineSteps.take(run, 0)
 	view.land(landing)
 	plan = view.plan

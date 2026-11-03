@@ -27,6 +27,7 @@ const RUN_GAP := 1
 static var _mark_textures: Dictionary[String, ImageTexture] = {}
 
 var _runs: Array[String] = []
+var _ink: Color = Palette.INK
 
 
 ## Lays out `line`: words in `colour` at `word_scale` (1: 2x, 2: 4x), numbers and marks in
@@ -58,6 +59,7 @@ func show_text(
 			x += _add_word(run, x, colour)
 	_width = x
 	_text = line
+	_ink = colour
 	size = Vector2(_width, ArtStyle.PIXEL_CAP_HEIGHT * art * word_scale)
 
 
@@ -74,6 +76,11 @@ static func make(
 	made.name = line_name
 	made.show_text(line, colour, number_colour, word_scale, big)
 	return made
+
+
+## The words' colour (show_text's `colour`).
+func ink() -> Color:
+	return _ink
 
 
 ## Centres the line in `rect` (its parent's px) on the 2 px grid: its ink across, its capitals

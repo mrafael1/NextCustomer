@@ -1,14 +1,15 @@
 class_name MachineTray
 extends Control
 ## The machine's prize tray (v0.50, mock-up premium_machine_v1.html; R1 "drop"; the relook's
-## riveted steel housing in v0.86, mock-up machine_relook.html V2): under the keys, its rivets gold
-## once a PREMIUM visit turns PREMIUM (MachineLook), the push bar on top (its words in hard pixel
-## capitals: PUSH, PUSH TO CONFIRM · X, KEEP ONE's bar lit while the row waits for its pick) over a
-## dark mouth with a light strip and "TAKE YOUR PRIZE" in it. While the draw packs (view.plan's
-## draw .. draw_end) the strip and the mouth flicker and the flap rattles; the light runs grey,
-## then teal, then gold, up to the best rarity drawn (a hint, never the prize: COMMON stays
-## grey). Once the tickets are out it glows softly in that colour until the pick. The prize tickets
-## fly out of it (PrizeTicket). Under reduced motion it neither flickers nor rattles.
+## riveted steel housing in v0.86, mock-up machine_relook.html V2): under the keys, its housing
+## brass with gold rivets once a PREMIUM visit turns PREMIUM (MachineLook), the push bar on top
+## (its words in hard pixel capitals: PUSH, PUSH TO CONFIRM · X, KEEP ONE's bar lit while the
+## row waits for its pick) over a dark mouth with a light strip and "TAKE YOUR PRIZE" in it.
+## While the draw packs (view.plan's draw .. draw_end) the strip and the mouth flicker and the
+## flap rattles; the light runs grey, then teal, then gold, up to the best rarity drawn (a hint,
+## never the prize: COMMON stays grey). Once the tickets are out it glows softly in that colour
+## until the pick. The prize tickets fly out of it (PrizeTicket). Under reduced motion it neither
+## flickers nor rattles.
 ##
 ## THE PUSH BAR CONFIRMS (v0.53, decided with the user on 2026-10-23: "confirm button should be
 ## on the push on the bottom instead of changing the top row"): at the chute wait a pressed key
@@ -252,7 +253,12 @@ func _show_bar_word() -> void:
 func _draw() -> void:
 	var rect: Rect2 = Rect2(Vector2.ZERO, SIZE)
 	var ink: Color = Palette.BRASS_DARKEST if _gold else Palette.INK
-	MachineArt.bevel(self, rect, Palette.STEEL, Palette.STEEL_HIGHLIGHT, Palette.STEEL_DARK, ink)
+	if _gold:
+		MachineArt.bevel(self, rect, Palette.BRASS, Palette.MUSTARD_LIGHT, Palette.BRASS_DARK, ink)
+	else:
+		MachineArt.bevel(
+			self, rect, Palette.STEEL, Palette.STEEL_HIGHLIGHT, Palette.STEEL_DARK, ink
+		)
 	for at: Vector2 in MachineArt.corners(rect, RIVET_INSET):
 		MachineArt.rivet(self, at, _gold)
 	MachineArt.box(self, MOUTH_RECT, Palette.CHARCOAL, Palette.INK)

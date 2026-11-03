@@ -504,6 +504,13 @@ func test_the_marquee_title_is_hard_pixel_lettering() -> void:
 		for label: Label in _labels(line):
 			assert_object(label.get_theme_font("font")).is_same(ArtStyle.pixel_display_font())
 	assert_float(lines[0].get_rect().end.y).is_less_equal(lines[1].position.y)
+	# Clear of both bulb rows by 2 art px (the engraving under the title included).
+	var engraved: Rect2 = lines[0].get_rect().grow_individual(0, 0, 0, MachineArt.PIXEL)
+	for index: int in range(MachineHead.bulb_count()):
+		var bulb: Rect2 = Rect2(MachineHead.bulb_point(index), Vector2.ONE * MachineHead.BULB_SIZE)
+		bulb = bulb.grow(MachineHead.BULB_CLEAR)
+		for shown: Rect2 in [engraved, lines[1].get_rect()]:
+			assert_bool(shown.intersects(bulb)).override_failure_message(str(bulb)).is_false()
 
 
 ## A LEGENDARY landing jolts the stage (6 px across, 4 px down and up, decaying over SHAKE_S); a
@@ -588,7 +595,14 @@ func _audit(view: RewardMachineView, where: String) -> int:
 		var text: Control = found as Control
 		if not text.is_visible_in_tree():
 			continue
-		if text is Label:
+		if text is MachineLine:
+			# The hard pixel lines' own boxes (their ink across, their capitals down) stay in
+			# their holder: a plate, a key face, a ticket, the strip, the bin.
+			var line: MachineLine = text as MachineLine
+			if not line.text().strip_edges().is_empty() and not _tilted(line):
+				_assert_line_in_parent(line, where)
+				checked += 1
+		elif text is Label:
 			var label: Label = text as Label
 			if label.text.strip_edges().is_empty():
 				continue
@@ -704,6 +718,22 @@ func _assert_in_parent(label: Label, where: String) -> void:
 			(
 				"%s: '%s' at %s outside its parent %s (%s)"
 				% [where, label.text, label.get_rect(), parent.name, parent.size]
+			)
+		)
+		. is_true()
+	)
+
+
+func _assert_line_in_parent(line: MachineLine, where: String) -> void:
+	var parent: Control = line.get_parent() as Control
+	if parent == null or parent.size == Vector2.ZERO:
+		return
+	(
+		assert_bool(Rect2(Vector2.ZERO, parent.size).grow(0.5).encloses(line.get_rect()))
+		. override_failure_message(
+			(
+				"%s: line '%s' at %s outside its parent %s (%s)"
+				% [where, line.text(), line.get_rect(), parent.name, parent.size]
 			)
 		)
 		. is_true()

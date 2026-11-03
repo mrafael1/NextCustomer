@@ -162,9 +162,10 @@ const CAMERA_OFFSET := Vector2(-2244, -64)
 ## at the machine shows stage x 1122 .. 1762.
 const WORLD_RIGHT := 1800.0
 ## Where the camera puts the machine's cabinet on screen (stage coordinates of the unzoomed
-## layers: the hud and the machine's overlay), under the top bar: the marquee's bulbs reach up to
-## y 44 and the plinth's shadow down to y 718, inside the screen (v0.50: the old framing cut the
-## tray off; v0.86's relook keeps the camera's offset, the cabinet centred where it was).
+## layers: the hud and the machine's overlay), under the top bar: the marquee's top (its bulbs
+## inside its rim) at y 64 and the plinth's shadow down to y 718, inside the screen (v0.50: the
+## old framing cut the tray off; v0.86's relook keeps the camera's offset, the cabinet centred
+## where it was).
 const MACHINE_RECT := Rect2(360, 116, 560, 584)
 ## The cart drawer's right edge and top (left of the machine's cabinet at 2x, under the top bar).
 const CART_DRAWER_RIGHT := 352.0

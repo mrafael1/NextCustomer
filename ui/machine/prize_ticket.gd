@@ -113,16 +113,21 @@ const SHRED_WIDTH := 2.0
 const SHRED_ALPHA := 0.55
 const CROSS_SIZE := 44.0
 const CROSS_WIDTH := 8.0
-## The win strip (#108 section 4a; straight along the face's foot in the relook, v0.86): a row
-## per row of the run, the last row and, from shift 2, the best row this run, each in hard pixel
-## capitals, gold, or grey reading WASTED when it would have won nothing.
+## The win strip (#108 section 4a; straight inside the face's foot in the relook, v0.86, as the
+## mock-up draws it): a row per row of the run, the last row and, from shift 2, the best row this
+## run, each a small "last row" / "best row" label left and its amount right in hard pixel lettering
+## (green), or WASTED in tomato when it would have won nothing. WIN_LABELS are the rows' names in
+## win_texts; the labels print them in lower case.
 const WIN_LABELS: Array[String] = ["LAST ROW", "BEST ROW"]
-## The strip overhangs the ticket's sides by WIN_OVERHANG (a sash stuck across it), so the last
-## row's "LAST ROW" and "WASTED" fit side by side at 2x.
+const WIN_LABEL_SIZE := 12
+const WIN_LABEL_WEIGHT := 700
+## A row's height (an ink rule, then the fill), the strip's inset from the face's sides and foot,
+## and the words' inset inside it.
 const WIN_ROW := 18.0
-const WIN_PAD := 4.0
-const WIN_OVERHANG := 8.0
+const WIN_RULE := 2.0
+const WIN_INSET := 4.0
 const WIN_FOOT := 4.0
+const WIN_PAD := 4.0
 
 var index: int = 0
 var prize: MachinePrize
@@ -288,7 +293,31 @@ static func rule_top(name_lines: int) -> float:
 ## The win strip's rect on the face for `rows` rows.
 static func strip_rect(rows: int) -> Rect2:
 	var height: float = WIN_ROW * rows
-	return Rect2(-WIN_OVERHANG, SIZE.y - WIN_FOOT - height, SIZE.x + 2.0 * WIN_OVERHANG, height)
+	return Rect2(WIN_INSET, SIZE.y - WIN_FOOT - height, SIZE.x - 2.0 * WIN_INSET, height)
+
+
+## Whether the rule `text` shows whole (rule_fit) under a name of `name_lines` lines over a win
+## strip of `strip_rows` rows. Pure.
+static func rule_whole(text: String, name_lines: int, strip_rows: int = 0) -> bool:
+	var fit: Vector2i = rule_fit(text, name_lines, strip_rows)
+	var font: Font = ArtStyle.bold_font(RULE_WEIGHT)
+	var needed: int = text_lines(font, text, RULE_SIZES[fit.y], RULE_WIDTH)
+	return needed <= rule_room(name_lines, strip_rows, fit.y)
+
+
+## Whether the name `text` shows in hard pixel lines (name_rows) on a ticket whose rule is `rule`
+## over a win strip of `strip_rows` rows: when it fits them, unless its two lines would cut the
+## rule where the bold name takes fewer lines and leaves it whole. Pure.
+static func name_in_rows(text: String, rule: String, strip_rows: int = 0) -> bool:
+	var rows: PackedStringArray = name_rows(text)
+	if rows.is_empty():
+		return false
+	if rows.size() == 1 or rule_whole(rule, rows.size(), strip_rows):
+		return true
+	var bold_lines: int = mini(
+		text_lines(ArtStyle.bold_font(BOLD_WEIGHT), text, NAME_SIZE, NAME_WIDTH), NAME_LINES
+	)
+	return not (bold_lines < rows.size() and rule_whole(rule, bold_lines, strip_rows))
 
 
 ## `text` wrapped into hard pixel lines no wider than NAME_WIDTH; empty when it takes more than
@@ -539,9 +568,10 @@ func _add_texts(_run: RunState) -> void:
 	_band.centre_in(BAND_RECT)
 	_card.add_child(_band)
 	_name_text = prize_name(prize)
+	var text: String = rule_text(prize, _preview)
 	var rows: PackedStringArray = name_rows(_name_text)
 	var bold: Font = ArtStyle.bold_font(BOLD_WEIGHT)
-	if not rows.is_empty():
+	if name_in_rows(_name_text, text, _strip_rows()):
 		var holder: Control = Control.new()
 		holder.name = "Name"
 		holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -567,7 +597,6 @@ func _add_texts(_run: RunState) -> void:
 		_fit_pitched(label, bold, NAME_SIZE, NAME_PITCH, name_band, _name_lines)
 		_name = label
 	var rule_font: Font = ArtStyle.bold_font(RULE_WEIGHT)
-	var text: String = rule_text(prize, _preview)
 	var fit: Vector2i = rule_fit(text, _name_lines, _strip_rows())
 	var rule_size: int = RULE_SIZES[fit.y]
 	var room: int = rule_room(_name_lines, _strip_rows(), fit.y)
@@ -614,8 +643,8 @@ func _draw_chip(chip: Control) -> void:
 		MachineArt.box(chip, price_rect(), Palette.PAPER, Palette.INK)
 
 
-## The win strip along the face's foot: a row per row of the run, its words and amount in hard
-## pixel capitals, gold, or grey reading WASTED.
+## The win strip inside the face's foot: a row per row of the run, its small label left and its
+## amount right in hard pixel lettering, green, or WASTED in tomato.
 func _add_win() -> void:
 	var gains: Array[int] = [_win.last]
 	if _win.rows > 1:
@@ -626,33 +655,37 @@ func _add_win() -> void:
 	_win_sticker.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_win_sticker.position = strip.position
 	_win_sticker.size = strip.size
-	_win_sticker.draw.connect(_draw_win.bind(gains))
+	_win_sticker.draw.connect(_draw_win.bind(gains.size()))
 	_card.add_child(_win_sticker)
+	var font: Font = ArtStyle.bold_font(WIN_LABEL_WEIGHT)
 	for line: int in gains.size():
 		var amount: String = win_amount(gains[line])
 		_win_texts.append("%s %s" % [WIN_LABELS[line], amount])
-		var row: Rect2 = Rect2(0, WIN_ROW * line, strip.size.x, WIN_ROW)
-		var words: MachineLine = MachineLine.make(
-			"WinLabel%d" % line, WIN_LABELS[line], Palette.INK
-		)
-		words.centre_in(row)
-		words.position.x = WIN_PAD
-		_win_sticker.add_child(words)
-		var shown: MachineLine = MachineLine.make("WinAmount%d" % line, amount, Palette.INK)
+		var row: Rect2 = Rect2(0, WIN_ROW * line + WIN_RULE, strip.size.x, WIN_ROW - WIN_RULE)
+		var ink: Color = Palette.GREEN_DARK if gains[line] > 0 else Palette.TOMATO_DARK
+		var shown: MachineLine = MachineLine.make("WinAmount%d" % line, amount, ink)
 		shown.centre_in(row)
 		shown.position.x = MachineArt.snap(strip.size.x - WIN_PAD - shown.width())
 		_win_sticker.add_child(shown)
+		var words: Label = _label(
+			WIN_LABELS[line].to_lower(), WIN_LABEL_SIZE, font, Palette.INK_LIGHT, _win_sticker
+		)
+		words.name = "WinLabel%d" % line
+		words.autowrap_mode = TextServer.AUTOWRAP_OFF
+		words.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		var width: float = shown.position.x - 2.0 * WIN_PAD
+		RewardMachineView.fit(words, Rect2(WIN_PAD, row.position.y, width, row.size.y))
 
 
-## The strip: each row's fill (gold, or grey for WASTED) over an ink rule between them.
-func _draw_win(gains: Array[int]) -> void:
+## The strip: each row's ink rule over its pale mustard fill.
+func _draw_win(rows: int) -> void:
 	var box: Vector2 = _win_sticker.size
-	_win_sticker.draw_rect(Rect2(Vector2.ZERO, box), Palette.INK)
-	for line: int in gains.size():
-		var fill: Color = Palette.GOLD if gains[line] > 0 else Palette.GREY_LIGHT
-		var top: float = WIN_ROW * line + (2.0 if line == 0 else 0.0)
-		var bottom: float = WIN_ROW * (line + 1) - (2.0 if line < gains.size() - 1 else 0.0)
-		_win_sticker.draw_rect(Rect2(0, top, box.x, bottom - top), fill)
+	for line: int in rows:
+		var top: float = WIN_ROW * line
+		_win_sticker.draw_rect(Rect2(0, top, box.x, WIN_RULE), Palette.INK)
+		_win_sticker.draw_rect(
+			Rect2(0, top + WIN_RULE, box.x, WIN_ROW - WIN_RULE), Palette.MUSTARD_PALE
+		)
 
 
 func _label(

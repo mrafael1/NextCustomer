@@ -12,6 +12,9 @@ extends Button
 ## The pointer came onto the bin or left it (focus counts too).
 signal hover_changed(over: bool)
 
+## The button: the bin itself (the build spec's 32x48, body and lid, from LID's top to BODY's
+## foot) with its word under it, as wide as the gap between the chute keys
+## (RewardMachineView.KEY_X), so it never covers a key's face.
 const SIZE := Vector2(48, 68)
 ## Its top, in machine coordinates: under the prize row (PrizeRow.ROW_TOP + the ticket's height),
 ## clear of the tray's push bar (the relook, v0.86: KEEP ONE stands on the bar).
@@ -21,10 +24,10 @@ const TEXT := "SKIP"
 const TEXT_TOP := 52.0
 ## The bin (px): its body, its lid (hinged at its left end, LID_OPEN degrees when open), its
 ## handle and its pedal.
-const BODY := Rect2(10, 14, 28, 34)
+const BODY := Rect2(8, 14, 32, 34)
 const LID := Rect2(6, 8, 36, 6)
 const HANDLE := Rect2(18, 2, 12, 6)
-const PEDAL := Rect2(34, 42, 8, 4)
+const PEDAL := Rect2(36, 42, 8, 4)
 const RIBS := 2
 const LID_OPEN := -24.0
 ## A disabled bin (not armed yet) is drawn this bright.

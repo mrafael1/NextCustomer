@@ -93,16 +93,17 @@ signal items_shown
 
 const SIZE := MachineCabinet.SIZE
 const TUNING_PATH := "res://data/balance/machine_tempo.tres"
-## The marquee's foot stands 8 px over the cabinet's top band, so its top stays under the stage's
-## ShiftStage.PANEL_TOP.
+## The marquee's foot stands 14 px over the cabinet's top band (clear of the display under it),
+## so its top stays under the stage's ShiftStage.PANEL_TOP.
 const HEAD_POSITION := Vector2(12, -52)
 const DISPLAY_POSITION := Vector2(36, 16)
 const SLOT_POSITION := Vector2(412, 16)
 const WINDOW_POSITION := Vector2(42, 90)
 ## The key plate's inside, where the keys stand (it clips them while they sink out of sight in the
-## premium transform), and each chute's key's place in it: NEW ITEMS left, UPGRADE right.
+## premium transform), and each chute's key's place in it: NEW ITEMS left, UPGRADE right, 48 px
+## apart so the SKIP bin (SkipBin.SIZE) stands between them during the pick.
 const KEY_BAY_RECT := Rect2(28, 300, 504, 108)
-const KEY_X: Array[float] = [12.0, 260.0]
+const KEY_X: Array[float] = [8.0, 276.0]
 const KEY_Y := 12.0
 const TRAY_POSITION := Vector2(36, 412)
 ## A beat planned at the clock's time when its segment starts (the pick press) still fires.

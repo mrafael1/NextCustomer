@@ -26,7 +26,7 @@ signal hovered(chute: int)
 signal unhovered(chute: int)
 signal pressed(chute: int)
 
-const SIZE := Vector2(232, 88)
+const SIZE := Vector2(220, 88)
 const NAMES: Array[String] = ["NEW ITEMS", "UPGRADE"]
 const SUBS: Array[String] = ["ADD TO CART", "IMPROVE WHAT YOU OWN"]
 const SUB_SIZE := 12
@@ -36,13 +36,13 @@ const SUB_WEIGHT := 700
 ## The face (it sinks by PRESS), the base under it (the keycap's depth) and the icon's middle on the
 ## face; the name's cap top and the sub line's rect beside the icon.
 const FACE_HEIGHT := 78.0
-const BASE_RECT := Rect2(0, 10, 232, 78)
-const ICON_MIDDLE := Vector2(38, 39)
-const TEXT_LEFT := 72.0
+const BASE_RECT := Rect2(0, 10, 220, 78)
+const ICON_MIDDLE := Vector2(34, 39)
+const TEXT_LEFT := 62.0
 const NAME_TOP := 20.0
-const SUB_RECT := Rect2(72, 42, 152, 18)
-const REASON_RECT := Rect2(64, 14, 160, 50)
-const PADLOCK_RECT := Rect2(29, 29, 18, 20)
+const SUB_RECT := Rect2(62, 42, 152, 18)
+const REASON_RECT := Rect2(58, 14, 154, 50)
+const PADLOCK_RECT := Rect2(25, 29, 18, 20)
 const PRESS := 8.0
 const LIFT := 2.0
 ## How far a shut key sinks.
@@ -52,7 +52,7 @@ const SINK := 6.0
 const GLOW_GAP := 2.0
 const GLOW_OUTER_ALPHA := 0.4
 const GLOW_RATE := 5.0
-const LED_RECT := Rect2(216, 8, 8, 8)
+const LED_RECT := Rect2(204, 8, 8, 8)
 const PADLOCK := preload("res://art/icons/padlock.png")
 const CART := preload("res://art/icons/cart.png")
 const UP_ARROW := preload("res://art/icons/up_arrow.png")
