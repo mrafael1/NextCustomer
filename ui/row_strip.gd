@@ -98,7 +98,7 @@ const POST_TOP_REGION := Rect2(0, 0, 12, 52)
 const POST_FOOT_REGION := Rect2(0, 20, 12, 52)
 const POST_SHADOW_RECTS: Array[Rect2] = [Rect2(9, 108, 20, 6), Rect2(91, 108, 20, 6)]
 const ROPE_RECT := Rect2(12, 10, 88, 24)
-const CLOSED_SIGN_RECT := Rect2(4, 176, 108, 24)
+const CLOSED_SIGN_RECT := Rect2(4, 182, 108, 24)
 const CLOSED_PLATE_RECT := TICKET_RECT
 const CLOSED_PLATE_MARGIN := 3
 ## A SlotMark's top in its cell, tucked behind the ticket's foot, and its right end: the cell's
@@ -110,7 +110,7 @@ const SLOT_MARK_GAP := 2.0
 const CLOSED_TEXT := "CLOSED"
 const CLOSED_SIZE := 18
 const CLOSED_CAPTION_TEXT := "inspection"
-const CLOSED_CAPTION_RECT := Rect2(6, 200, 104, 30)
+const CLOSED_CAPTION_RECT := Rect2(6, 206, 104, 30)
 const CLOSED_CAPTION_SIZE := 12
 const CLOSED_CAPTION_WEIGHT := 700
 const CLOSED_CAPTION_OUTLINE := 4

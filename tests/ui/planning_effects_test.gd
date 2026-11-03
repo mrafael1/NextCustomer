@@ -57,7 +57,7 @@ func after_test() -> void:
 
 
 ## Each item shows its slot of the preview's model: its stickers (texts and badges in step order),
-## its pay tag and struck base, its halo rings and lift, its grey and stamp; planning shows no
+## its price window, its halo rings and lift, its grey and stamp; planning shows no
 ## corner disc; the preview is unchanged.
 func test_every_item_shows_its_model() -> void:
 	var screen: ShiftScreen = await _screen()
@@ -90,8 +90,8 @@ func test_every_item_shows_its_model() -> void:
 	assert_str(stamp.amount()).is_equal("0€")
 	assert_str(stamp.caption()).is_equal(screen.run.inspections[0].display_name.to_upper())
 	assert_bool(_item(screen, 2).denied).is_true()
-	# Its slot's talker (the cause-only chip) shows the warning sign, so its 0€ tag shows none.
-	assert_int(layer.pay_tag(2).glyph).is_equal(PlanningModel.Glyph.NONE)
+	# Its slot's talker (the cause-only chip) shows the warning sign; its window the hatched 0€.
+	assert_int(layer.pay_tag(2).pay_state()).is_equal(PriceWindow.State.ZERO)
 	# Every own sticker has no badge.
 	for slot: int in range(screen._row_views.size()):
 		for sticker: EffectSticker in layer.stack(slot):
@@ -475,12 +475,11 @@ func test_a_hovered_giver_lights_its_strip_and_explains_it() -> void:
 	# A Milk: Multipack's strip hot in its lane with that Milk's gain only.
 	var milk: ItemView = _item(screen, 5)
 	milk.hovered.emit(milk)
-	# A boosted price overlaps the ticket ring and must draw over it, including its cut rim.
-	var pay: PayTag = layer.pay_tag(5)
-	assert_int(pay.pay).is_equal(PlanningModel.Pay.BOOSTED)
-	assert_bool(layer.ticket_ring().intersects(Rect2(pay.position, pay.size))).is_true()
-	var ring_box: Control = layer.get_node("TicketRing") as Control
-	assert_int(pay.get_parent().get_index()).is_greater(ring_box.get_index())
+	# A boosted price shows in its ticket's own window (tickets v5), inside the ticket.
+	var pay: PriceWindow = layer.pay_tag(5)
+	assert_object(pay).is_same(milk.sticker().window())
+	assert_int(pay.pay_state()).is_equal(PriceWindow.State.BOOSTED)
+	assert_bool(milk.sticker().get_global_rect().encloses(pay.get_global_rect())).is_true()
 	hot = layer.hot_strips()
 	assert_int(hot.size()).is_equal(1)
 	assert_array(Array(hot[0].gain_texts())).is_equal([RailStrip.GAIN_TEXT % spec.gains[1]])
@@ -647,7 +646,9 @@ func test_the_click_keeps_only_the_stickers() -> void:
 			assert_int(item.relation).is_equal(ItemView.Relation.NONE)
 			assert_int(item.boost_rings).is_equal(0)
 			assert_bool(item.denied).is_equal(planned.denied)
-			assert_bool(item.sticker().is_struck()).is_false()
+			assert_int(item.sticker().window().pay_state()).is_equal(
+				PriceWindow.state_for(PlanningModel.Pay.PLAIN, item.card.definition.is_coupon())
+			)
 			assert_float(item._stand.modulate.a).is_equal(1.0)
 		assert_int(stickers).is_greater(3)
 		for index: int in range(screen.run.upgrades.size()):
@@ -726,8 +727,8 @@ func _assert_motion(reduced: bool) -> void:
 
 
 ## `items` (the view showing each slot) show `model`: each stack's texts are its stickers' (the
-## earliest folded into the "+N" chip from the 5th), each pay tag's text and glyph, each struck
-## base, each stamp, each halo and grey.
+## earliest folded into the "+N" chip from the 5th), each price window's state and payout, each
+## stamp, each halo and grey.
 func _assert_model_shown(screen: ShiftScreen, model: PlanningModel, items: Array[ItemView]) -> void:
 	var layer: PlanningLayer = _layer(screen)
 	assert_int(items.size()).is_equal(model.slots.size())
@@ -745,21 +746,20 @@ func _assert_model_shown(screen: ShiftScreen, model: PlanningModel, items: Array
 			shown = shown.slice(1)
 			expected = expected.slice(expected.size() - kept)
 		assert_array(shown).override_failure_message(message).is_equal(expected)
-		var tag: PayTag = layer.pay_tag(slot)
+		var tag: PriceWindow = layer.pay_tag(slot)
+		var coupon: bool = item.card.definition.is_coupon()
 		if planning.pay == PlanningModel.Pay.PLAIN:
 			assert_object(tag).override_failure_message(message).is_null()
 		else:
-			assert_str(tag.text()).override_failure_message(message).is_equal(planning.pay_text)
-			assert_int(tag.glyph).override_failure_message(message).is_equal(planning.glyph)
+			assert_int(tag.pay_state()).override_failure_message(message).is_equal(
+				PriceWindow.state_for(planning.pay, coupon)
+			)
+			assert_int(tag.pay_amount()).override_failure_message(message).is_equal(planning.payout)
 		assert_bool(layer.stamp(slot) != null).override_failure_message(message).is_equal(
 			planning.has_stamp()
 		)
 		assert_int(item.boost_rings).override_failure_message(message).is_equal(planning.rings)
 		assert_bool(item.denied).override_failure_message(message).is_equal(planning.denied)
-		if item.form == ItemView.Form.BELT:
-			assert_bool(item.sticker().is_struck()).override_failure_message(message).is_equal(
-				planning.struck
-			)
 
 
 ## The layer draws a calm rail strip for each of `model`'s strips in a lane (none for an overflow),

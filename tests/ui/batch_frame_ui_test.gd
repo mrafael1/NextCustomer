@@ -137,7 +137,7 @@ func test_a_batch_cards_ticket_prints_the_batch_chip() -> void:
 		assert_bool(chip.is_wasted()).is_false()
 		assert_that(chip.face_color()).is_equal(Palette.CREAM_SHADE)
 		var rect: Rect2 = Rect2(sticker.summary().position + chip.position, chip.size)
-		var box: Rect2 = Rect2(PriceSticker.SUMMARY_RECT)
+		var box: Rect2 = sticker.plate_rect()
 		assert_bool(box.grow(1).encloses(rect)).override_failure_message(str(rect)).is_true()
 		assert_bool(sticker.summary().fits()).override_failure_message(id).is_true()
 		assert_str(sticker.summary().text).contains(CardText.BATCH_WORD)
@@ -192,9 +192,9 @@ func test_a_wrong_job_turns_the_chip_tomato() -> void:
 	var ring: Control = sticker.get_node(PriceSticker.WRONG_RING_NAME)
 	assert_bool(ring.visible).is_true()
 	assert_float(PriceSticker.WRONG_RING_WIDTH).is_equal(3.0)
-	# Under the glyphs, the text and the tag (drawn before them).
+	# Under the glyphs and the text (drawn before them), over the price window so it stays whole.
 	assert_int(ring.get_index()).is_less(sticker.summary().get_index())
-	assert_int(ring.get_index()).is_less(sticker.plain_tag().get_index())
+	assert_int(ring.get_index()).is_greater(sticker.window().get_index())
 	assert_bool(sticker.summary().fits()).is_true()
 	sticker.set_wrong_job("")
 	assert_bool(sticker.summary().keywords()[0].is_wasted()).is_false()
@@ -521,12 +521,8 @@ func _assert_frame_geometry(screen: ShiftScreen, frame: BatchFrame) -> void:
 		for glyph: FamilyGlyph in sticker.glyphs():
 			if glyph.visible:
 				keep_clear.append(to_sticker * glyph.rim_rect())
-		var tag: PayTag = layer.pay_tag(slot)
-		if tag != null:
-			if frame.slots.has(slot):
-				_assert_behind(frame, tag)
-		elif sticker.plain_tag() != null and sticker.plain_tag().visible:
-			keep_clear.append(sticker.plain_tag().get_global_rect())
+		# The price window (tickets v5), paid or printed, sits inside the ticket, clear of the frame.
+		keep_clear.append(sticker.window().get_global_rect())
 	for drawn: Rect2 in frame.drawn_rects():
 		var shown: Rect2 = to_global * drawn
 		for rect: Rect2 in keep_clear:
@@ -535,19 +531,6 @@ func _assert_frame_geometry(screen: ShiftScreen, frame: BatchFrame) -> void:
 				. override_failure_message("%s over %s" % [shown, rect])
 				. is_false()
 			)
-
-
-## `frame` runs on under `tag` (a pay tag pinned on one of its tickets): some of its top band lies
-## under the tag, and the tag draws after it.
-func _assert_behind(frame: BatchFrame, tag: PayTag) -> void:
-	var to_global: Transform2D = frame.get_parent().get_global_transform()
-	var tag_rect: Rect2 = tag.get_global_rect()
-	var under: bool = false
-	for drawn: Rect2 in frame.drawn_rects():
-		if (to_global * drawn).intersects(tag_rect):
-			under = true
-	assert_bool(under).override_failure_message("no frame under %s" % tag_rect).is_true()
-	assert_bool(tag.is_greater_than(frame)).is_true()
 
 
 func _model(row: String) -> PlanningModel:
@@ -569,7 +552,7 @@ static func _card(id: String) -> CardDefinition:
 ## `slot`'s ticket's global rect.
 static func _ticket(screen: ShiftScreen, slot: int) -> Rect2:
 	var sticker: PriceSticker = _item(screen, slot).sticker()
-	return sticker.get_global_transform() * Rect2(Vector2.ZERO, PriceSticker.SIZE)
+	return sticker.get_global_transform() * Rect2(Vector2.ZERO, sticker.size)
 
 
 static func _layer(screen: ShiftScreen) -> PlanningLayer:

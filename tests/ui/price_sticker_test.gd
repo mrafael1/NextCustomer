@@ -1,14 +1,16 @@
 extends GdUnitTestSuite
-## The price ticket (#75; #105's readability pass, mock-up readability v3): every card in
-## data/cards (every tier) shows its summary from core (CardDefinition.sticker_summary) in at most
-## 2 lines inside SUMMARY_RECT, its family glyphs in the glyph row (4 + 20j, 5), 18x18, its plain
-## price tag on the corner at rest, all inside the ticket and apart, and its face in the colours of
-## the family it works with (FamilyPalette, data). Struck (#71, #105) the old price stands under
-## the pay tag, right-aligned at STRUCK_RIGHT, 15 px, its strike low across it (tomato on a light
-## ticket, paper on a dark one), and the text's first line keeps clear of it (a text that needs
-## its whole first line puts it beside the tag, clear of the glyphs); a wide burst squeezes a
-## two-glyph row; a coupon's COUPON shrinks to stay clear of its 0€ tag. set_got rings a product's
-## ticket. Its colour says what it means in a tooltip (ColourSpot). No ticket carries the staple
+## The price ticket (tickets v5, V5a of mock-up shift_scene_polish_v5_tickets.html): every card in
+## data/cards (every tier) reads in three fixed zones, inside the ticket and apart: its family
+## glyphs in the icon label (ICON_FIRST + 20 px steps), its price in the fixed window (PriceWindow,
+## top right; its digits never leave it for any price, 1€ to 9999€ and the "Nk€" form), and its
+## short text from core (CardDefinition.sticker_summary) on the cream plate, fitted to 2 lines at
+## 14 px, else 3 at 13, else 3 at 12, the same size for each tier of a card, never cut (no card in
+## data/ needs the MORE chip). The face is in the colours of the family it works with
+## (FamilyPalette, data); a works-with family is written as a chip (FamilyWord). A gained family
+## (the Price gun) grows the ticket to TALL_SIZE with a GAINED row. GOLDEN wears a gold ring
+## outside the outline (its own TextureRect), never gold in the window, so a boosted pay (green
+## with up chevrons) reads apart from it. Its colour says what it means in a tooltip
+## (ColourSpot); every glyph, word and window tips below the ticket. No ticket carries the staple
 ## padlock.
 
 const LiveCardCount := preload("res://tests/data/live_card_count.gd")
@@ -37,61 +39,85 @@ const READINGS: Dictionary[String, String] = {
 	"croissant": "BATCH 1st: +N to the rest",
 	"multipack": "×N later of the family before",
 }
-## The pay tags' rects on a ticket (mock-up v3, ticketHTML): the burst, the wide burst (and where
-## it moves over a two-glyph row) and a plain or 0€ tag.
-const BURST := Rect2(54, -6, 60, 32)
-const WIDE := Rect2(42, -12, 80, 36)
-const WIDE_CLEAR := Rect2(46, -12, 80, 36)
-const PLAIN := Rect2(60, -4, 52, 26)
-## The pay tag's die-cut: two art pixels round its art.
-const CUT := 4.0
+## The prices the window must hold: every whole euro to 9999€, and a 12k€ total.
+const MAX_WHOLE := 9999
+const THOUSANDS := 12000
+## A text no plate holds (the fit's -1).
+const TOO_LONG := "+12 per earlier Breakfast item, then ×3 for each Dairy before it "
 
 
-## Every ticket, at rest and struck under each pay tag: its glyphs, price and text are where the
-## mock-up puts them, inside the ticket and apart.
+## Every ticket at rest: its glyphs in the icon label, its window top right, its text on the plate,
+## all inside the ticket and apart; its text the card's own, fitted with no MORE chip.
 func test_every_ticket_lays_out_inside_and_apart() -> void:
 	var cards: Array[CardDefinition] = _cards()
 	assert_int(cards.size()).is_equal(LiveCardCount.CARDS)
 	var palette: FamilyPalette = FamilyPalette.shared()
-	var face: Rect2 = Rect2(Vector2.ZERO, PriceSticker.SIZE)
 	var problems: PackedStringArray = PackedStringArray()
 	for definition: CardDefinition in cards:
 		var sticker: PriceSticker = auto_free(PriceSticker.new(definition))
 		add_child(sticker)
-		var id: String = String(definition.id)
-		var summary: GlyphLabel = sticker.summary()
-		# A live factor reads the balance's base redraws off the shift (#128 v3).
-		if summary.text != CardText.sticker_summary(definition, sticker.redraws_left):
-			problems.append("%s: summary '%s'" % [id, summary.text])
-		if not summary.fits() or summary.line_count() > PriceSticker.MAX_SUMMARY_LINES:
-			problems.append("%s: summary over 2 lines" % id)
-		var text: Rect2 = sticker.summary_text_rect()
-		var box: Rect2 = PriceSticker.SUMMARY_RECT.grow_side(SIDE_TOP, 1)
-		if text.has_area() and not box.encloses(text):
-			problems.append("%s: summary %s outside %s" % [id, text, box])
-		if sticker.face_families() != palette.ticket_families(definition):
-			problems.append("%s: face %s" % [id, sticker.face_families()])
-		if sticker.find_children("*Lock*", "", true, false).size() > 0:
-			problems.append("%s: a padlock" % id)
-		var expected: PackedStringArray = PackedStringArray()
-		if definition.is_product():
-			expected = palette.shelf_families(definition.tags)
-		var shown: PackedStringArray = PackedStringArray()
-		for index: int in sticker.glyphs().size():
-			var glyph: FamilyGlyph = sticker.glyphs()[index]
-			shown.append(glyph.family)
-			var at: Rect2 = Rect2(PriceSticker.GLYPH_ROW + Vector2(20 * index, 0), Vector2(18, 18))
-			if Rect2(glyph.position, glyph.size) != at or not face.encloses(glyph.rim_rect()):
-				problems.append("%s: glyph %d at %s" % [id, index, glyph.position])
-			if text.has_area() and glyph.rim_rect().intersects(text):
-				problems.append("%s: glyph %d over the text" % [id, index])
-		if shown != expected:
-			problems.append("%s: glyphs %s, not %s" % [id, shown, expected])
-		if definition.is_coupon():
-			if sticker.plain_tag() != null or sticker.coupon_title() == null:
-				problems.append("%s: a coupon's head" % id)
+		problems.append_array(_layout_problems(sticker, definition, palette))
+	assert_array(problems).override_failure_message("\n".join(problems)).is_empty()
+
+
+## The rule-fit check over every card in data/ (BIG and GOLDEN tiers included): each text fits the
+## plate at one of TEXT_FITS (never the MORE safety net), and each tier of a card prints at the
+## same size as its plain card. A text no plate could hold gets no fit.
+func test_every_rule_fits_its_plate() -> void:
+	var palette: FamilyPalette = FamilyPalette.shared()
+	var sizes: Dictionary[String, int] = {}
+	var problems: PackedStringArray = PackedStringArray()
+	for definition: CardDefinition in _cards():
+		var redraws: int = -1
+		if CardText.live_rule(definition) != null:
+			redraws = (load(PriceSticker.BALANCE) as BalanceDefinition).base_redraws
+		var line: String = CardText.sticker_summary(definition, redraws)
+		if line.is_empty():
 			continue
-		problems.append_array(_struck_problems(sticker, id, text))
+		var id: String = String(definition.id)
+		var fit: int = PriceSticker.fit_for(
+			line, 0, palette, CardText.live_tips(definition, redraws)
+		)
+		if fit < 0:
+			problems.append("%s: '%s' fits no plate" % [id, line])
+			continue
+		var sticker: PriceSticker = auto_free(PriceSticker.new(definition))
+		if not sticker.summary().fits() or sticker.get_node_or_null(PriceSticker.MORE_NAME) != null:
+			problems.append("%s: '%s' needs MORE" % [id, line])
+		var stem: CardDefinition = definition
+		while stem.variant_of != null:
+			stem = stem.variant_of
+		var font_size: int = sticker.summary().font_size()
+		var key: String = String(stem.id)
+		if sizes.has(key) and sizes[key] != font_size:
+			problems.append("%s: %d px, its other tiers %d px" % [id, font_size, sizes[key]])
+		sizes[key] = font_size
+		if not [14, 13, 12].has(font_size):
+			problems.append("%s: %d px" % [id, font_size])
+	assert_array(problems).override_failure_message("\n".join(problems)).is_empty()
+	assert_int(PriceSticker.fit_for(TOO_LONG.repeat(3), 0, palette)).is_equal(-1)
+
+
+## A wrong job's wider tomato chip still fits the plate on every card with a keyword: the text
+## steps down a size while it lasts (never the MORE chip) and back once it clears.
+func test_a_wrong_job_still_fits() -> void:
+	var problems: PackedStringArray = PackedStringArray()
+	for definition: CardDefinition in _cards():
+		var sticker: PriceSticker = auto_free(PriceSticker.new(definition))
+		if sticker.summary().keywords().is_empty():
+			continue
+		var calm: int = sticker.summary().font_size()
+		sticker.set_wrong_job("WASTED · a test reason")
+		var id: String = String(definition.id)
+		if not sticker.summary().fits() or sticker.get_node_or_null(PriceSticker.MORE_NAME) != null:
+			problems.append("%s: '%s' does not fit wasted" % [id, sticker.summary().text])
+		if not sticker.plate_rect().grow(1).encloses(sticker.summary_text_rect()):
+			problems.append("%s: wasted text outside the plate" % id)
+		sticker.set_wrong_job("")
+		if sticker.summary().font_size() != calm:
+			problems.append(
+				"%s: %d px after, %d before" % [id, sticker.summary().font_size(), calm]
+			)
 	assert_array(problems).override_failure_message("\n".join(problems)).is_empty()
 
 
@@ -153,93 +179,84 @@ func test_only_a_pixel_word_chip_takes_the_pixel_material() -> void:
 	assert_int(live.texture_filter).is_equal(CanvasItem.TEXTURE_FILTER_PARENT_NODE)
 
 
-## A card with no rule (Bread) shows only its price: an empty summary, its plain tag.
-func test_a_card_with_no_rule_shows_only_its_price() -> void:
+## A card with no rule (Bread) shows its name centred on the plate and its printed price in the
+## window.
+func test_a_card_with_no_rule_shows_its_name() -> void:
 	var bread: CardDefinition = _card("bread")
 	assert_bool(bread.rules.is_empty()).is_true()
 	var sticker: PriceSticker = auto_free(PriceSticker.new(bread))
-	assert_str(sticker.summary().text).is_empty()
-	assert_bool(sticker.summary_text_rect().has_area()).is_false()
-	assert_str(sticker.plain_tag().text()).is_equal("%d€" % bread.base)
+	add_child(sticker)
+	assert_str(sticker.summary().text).is_equal(bread.display_name)
+	var text: Rect2 = sticker.summary_text_rect()
+	assert_bool(sticker.plate_rect().encloses(text)).is_true()
+	var off_centre: float = absf(text.get_center().x - sticker.plate_rect().get_center().x)
+	assert_float(off_centre).is_less_equal(ArtStyle.ART_SCALE)
+	assert_int(sticker.window().pay_state()).is_equal(PriceWindow.State.PRINTED)
+	assert_str(sticker.window().digits().text).is_equal("%d€" % bread.base)
 
 
-## The face (mock-up v3, frame3URL): an ink outline with cut corners, the family's light top row,
-## its shade on the right column and the bottom row, its face colour inside; the text in ink or
-## paper by the family (Clearance and Household are paper).
+## The face (V5a): an ink outline with cut corners, the family's light left column, its face down
+## the sides, its shade on the right column and the bottom row; the icon label paper, the window's
+## place paper, the plate cream with dark text on every family.
 func test_the_face_is_in_its_familys_colours() -> void:
 	var palette: FamilyPalette = FamilyPalette.shared()
-	var cases: Dictionary[String, Array] = {
-		"milk": ["Breakfast", Palette.INK],
-		"cereal": ["Dairy", Palette.INK],
-		"banana": ["Produce", Palette.INK],
-		"eggs": ["Food", Palette.INK],
-		"batteries": ["Household", Palette.PAPER],
-		"final_markdown": ["Clearance", Palette.PAPER],
+	var cases: Dictionary[String, String] = {
+		"milk": "Breakfast",
+		"cereal": "Dairy",
+		"banana": "Produce",
+		"eggs": "Food",
+		"batteries": "Household",
+		"final_markdown": "Clearance",
 	}
 	for card_id: String in cases:
 		var sticker: PriceSticker = auto_free(PriceSticker.new(_card(card_id)))
-		var family: FamilyStyle = palette.style(cases[card_id][0] as String)
+		var family: FamilyStyle = palette.style(cases[card_id])
 		assert_array(Array(sticker.face_families())).contains_exactly([family.id])
-		assert_object(sticker.text_color()).override_failure_message(card_id).is_equal(
-			cases[card_id][1]
-		)
 		var art: Image = (sticker.face() as TextureRect).texture.get_image()
-		assert_vector(Vector2(art.get_size())).is_equal(PriceSticker.SIZE / 2.0)
-		var coupon: bool = _card(card_id).is_coupon()
-		assert_str(_hex(art.get_pixel(10, 10))).override_failure_message(card_id).is_equal(
+		assert_vector(Vector2(art.get_size())).is_equal(Vector2(TicketFace.ART_SIZE))
+		assert_vector(sticker.size).is_equal(PriceSticker.SIZE)
+		assert_str(_hex(art.get_pixel(2, 20))).override_failure_message(card_id).is_equal(
 			_hex(family.face)
 		)
-		if not coupon:
-			assert_str(_hex(art.get_pixel(10, 1))).is_equal(_hex(family.light))
-		assert_str(_hex(art.get_pixel(52, 10))).is_equal(_hex(family.shade))
-		assert_str(_hex(art.get_pixel(10, 30))).is_equal(_hex(family.shade))
-		assert_str(_hex(art.get_pixel(10, 0))).is_equal(_hex(ArtStyle.INK))
+		assert_str(_hex(art.get_pixel(1, 20))).is_equal(_hex(family.light))
+		assert_str(_hex(art.get_pixel(52, 20))).is_equal(_hex(family.shade))
+		assert_str(_hex(art.get_pixel(20, 36))).is_equal(_hex(family.shade))
+		assert_str(_hex(art.get_pixel(10, 37))).is_equal(_hex(ArtStyle.INK))
+		assert_str(_hex(art.get_pixel(5, 5))).is_equal(_hex(Palette.PAPER))
+		assert_str(_hex(art.get_pixel(30, 5))).is_equal(_hex(Palette.PAPER))
+		assert_str(_hex(art.get_pixel(23, 5))).is_equal(_hex(ArtStyle.INK))
+		assert_str(_hex(art.get_pixel(20, 25))).is_equal(_hex(Palette.CREAM))
 		assert_float(art.get_pixel(0, 0).a).is_equal(0.0)
-		assert_float(art.get_pixel(53, 31).a).is_equal(0.0)
-		# Its text's ink matches the face.
-		assert_object(sticker.summary().color()).is_equal(cases[card_id][1])
+		assert_float(art.get_pixel(53, 37).a).is_equal(0.0)
+		assert_object(sticker.summary().color()).is_equal(Palette.INK)
 
 
-## The plain coupon keeps its slip with COUPON in teal dark; a family coupon (the Breakfast
-## sticker) gets its family's face, perforated, and COUPON in the ticket's text colour.
-func test_coupons_show_coupon_on_their_face() -> void:
+## A plain coupon wears the coupon teal, a family coupon (the Breakfast sticker) its family's
+## colours, both perforated along the foot; the window shows the scissors (a coupon pays nothing
+## itself), WASTED when it gives nothing; a coupon is never ringed as a target.
+func test_a_coupon_shows_its_scissors() -> void:
 	var plain: PriceSticker = auto_free(PriceSticker.new(_card("multipack")))
-	assert_object((plain.face() as TextureRect).texture).is_same(PriceSticker.COUPON_FRAME)
-	var title: Label = plain.coupon_title()
-	assert_vector(title.position).is_equal(PriceSticker.COUPON_TITLE_AT)
-	assert_object(title.get_theme_color("font_color")).is_equal(Palette.TEAL_DARK)
-	assert_int(title.get_theme_font_size("font_size")).is_equal(12)
+	var art: Image = (plain.face() as TextureRect).texture.get_image()
+	assert_str(_hex(art.get_pixel(2, 20))).is_equal(_hex(Palette.TEAL_SHADE))
+	assert_str(_hex(art.get_pixel(3, 36))).is_equal(_hex(Palette.PAPER))
+	assert_str(_hex(art.get_pixel(5, 36))).is_equal(_hex(Palette.TEAL_DARK))
 	var family: PriceSticker = auto_free(PriceSticker.new(_card("breakfast_sticker")))
 	var breakfast: FamilyStyle = FamilyPalette.shared().style("Breakfast")
-	var art: Image = (family.face() as TextureRect).texture.get_image()
-	# Rows 1 and 2 perforated: shade, shade, light.
-	assert_str(_hex(art.get_pixel(1, 1))).is_equal(_hex(breakfast.shade))
-	assert_str(_hex(art.get_pixel(3, 2))).is_equal(_hex(breakfast.light))
-	assert_str(_hex(art.get_pixel(10, 10))).is_equal(_hex(breakfast.face))
-	assert_object(family.coupon_title().get_theme_color("font_color")).is_equal(Palette.INK)
-	# Beside a coupon's tag (a fizzled 0€) COUPON stays, shrunk to end clear of the tag's die-cut;
-	# never struck, never ringed.
+	var family_art: Image = (family.face() as TextureRect).texture.get_image()
+	assert_str(_hex(family_art.get_pixel(2, 20))).is_equal(_hex(breakfast.face))
+	assert_str(_hex(family_art.get_pixel(4, 36))).is_equal(_hex(Palette.PAPER))
 	for coupon: PriceSticker in [plain, family]:
-		coupon.set_pay(true, PLAIN)
-		var shown: Label = coupon.coupon_title()
-		assert_bool(coupon.is_struck()).is_false()
-		assert_bool(shown.visible).is_true()
-		var font: Font = shown.get_theme_font("font")
-		var font_size: int = shown.get_theme_font_size("font_size")
-		var width: float = (
-			font
-			. get_string_size(PriceSticker.COUPON_TITLE, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
-			. x
-		)
-		assert_float(shown.position.x + width).is_less_equal(
-			PLAIN.grow(CUT).position.x - PriceSticker.COUPON_TAG_GAP
-		)
-		assert_int(font_size).is_greater_equal(PriceSticker.COUPON_TITLE_FITS[-1].x)
-	plain.set_got(true)
-	assert_bool(plain.got_ring().visible).is_false()
-	plain.set_pay(false, Rect2())
-	assert_bool(title.visible).is_true()
-	assert_int(title.get_theme_font_size("font_size")).is_equal(12)
+		assert_int(coupon.window().pay_state()).is_equal(PriceWindow.State.COUPON)
+		assert_bool(coupon.window().digits().visible).is_false()
+		assert_str(coupon.window().tip_text).contains("a coupon pays nothing itself")
+		coupon.set_pay(PlanningModel.Pay.DENIED, 0, "nothing beside it")
+		assert_int(coupon.window().pay_state()).is_equal(PriceWindow.State.WASTED)
+		assert_str(coupon.window().tip_text).contains("nothing beside it")
+		coupon.clear_pay()
+		assert_int(coupon.window().pay_state()).is_equal(PriceWindow.State.COUPON)
+		coupon.set_got(true)
+		assert_bool(coupon.got_ring().visible).is_false()
+	assert_str(plain.glyphs()[0].family).is_equal("Coupon")
 
 
 ## A split ticket (two families): a 45° stair, the second family past it, the seam in its light.
@@ -249,89 +266,162 @@ func test_a_split_face_is_a_stair_with_a_seam() -> void:
 	var second: FamilyStyle = palette.style("Dairy")
 	var styles: Array[FamilyStyle] = [first, second]
 	var art: Image = TicketFace.image(styles, false)
-	assert_str(_hex(art.get_pixel(5, 5))).is_equal(_hex(first.face))
-	assert_str(_hex(art.get_pixel(40, 20))).is_equal(_hex(second.face))
-	assert_str(_hex(art.get_pixel(22, 20))).is_equal(_hex(second.light))
-	assert_str(_hex(art.get_pixel(21, 20))).is_equal(_hex(first.face))
-	assert_str(_hex(art.get_pixel(30, 1))).is_equal(_hex(first.light))
-	assert_str(_hex(art.get_pixel(45, 1))).is_equal(_hex(second.light))
+	assert_str(_hex(art.get_pixel(2, 20))).is_equal(_hex(first.face))
+	assert_str(_hex(art.get_pixel(51, 20))).is_equal(_hex(second.face))
+	assert_str(_hex(art.get_pixel(29, 13))).is_equal(_hex(second.light))
+	assert_str(_hex(art.get_pixel(28, 13))).is_equal(_hex(first.face))
+	assert_str(_hex(art.get_pixel(30, 13))).is_equal(_hex(second.face))
 
 
-## Struck: the plain tag hides under the pinned tag, the old price stands under it (the tag draws
-## it, PayTag.show_struck; alone it draws itself), right-aligned at STRUCK_RIGHT, 15 px, its
-## strike 2 px thick at round(15 × 0.62) under its top, 2 px past each end: tomato with a paper
-## rim on a light ticket, paper on a dark one; the text's first line keeps clear of it.
-func test_a_struck_price_stands_under_the_tag() -> void:
-	var milk: PriceSticker = auto_free(PriceSticker.new(_card("milk")))
+## The window holds every price in its fixed box: the 6x8 digits to 999€ (and on, while a price
+## of narrow 1s still fits them), the 4x7 ones to 9999€, then "12k€"; the digits always end at
+## DIGITS_RIGHT and never reach the icons or the plate.
+func test_the_window_holds_every_price() -> void:
+	var room: int = PriceWindow.DIGITS_RIGHT - PriceWindow.DIGITS_LEFT + 1
+	var problems: PackedStringArray = PackedStringArray()
+	for amount: int in range(1, MAX_WHOLE + 1):
+		var form: Array = PriceWindow.form_for(amount)
+		var sheet: PixelWords.Sheet = form[1]
+		var whole: String = "%d€" % amount
+		var big: bool = PixelWords.font_size_of(whole, PixelWords.Sheet.DIGITS).x <= room
+		var expected: PixelWords.Sheet = (
+			PixelWords.Sheet.DIGITS if big else PixelWords.Sheet.SMALL_DIGITS
+		)
+		if form[0] != whole or sheet != expected or (amount <= 999 and not big):
+			problems.append("%d€: %s" % [amount, form])
+		if PixelWords.font_size_of(form[0], sheet).x > room:
+			problems.append("%d€ too wide" % amount)
+	assert_array(problems).override_failure_message("\n".join(problems)).is_empty()
+	assert_array(PriceWindow.form_for(THOUSANDS)).is_equal(["12k€", PixelWords.Sheet.DIGITS])
+	# On a ticket with two glyphs and a long text (Golden Milk), at each width of price.
+	var milk: PriceSticker = auto_free(PriceSticker.new(_card("milk_golden")))
 	add_child(milk)
-	milk.set_pay(true, BURST)
-	assert_bool(milk.is_struck()).is_true()
-	assert_bool(milk.plain_tag().visible).is_false()
-	assert_bool(milk.struck_price().visible).is_false()
-	milk.set_pay(true, Rect2())
-	assert_bool(milk.struck_price().visible).is_true()
-	var struck: Rect2 = milk.struck_rect()
-	assert_float(struck.end.x).is_equal(PriceSticker.STRUCK_RIGHT)
-	assert_float(struck.position.y).is_equal(PriceSticker.STRUCK_TOP)
-	assert_float(struck.size.y).is_equal(PriceSticker.STRUCK_HEIGHT)
-	var line: Rect2 = milk.strike_rect()
-	assert_float(line.position.y).is_equal(PriceSticker.STRUCK_TOP + 9.0)
-	assert_float(line.size.y).is_equal(2.0)
-	assert_float(line.position.x).is_equal(struck.position.x - 2.0)
-	assert_float(line.size.x).is_equal(struck.size.x + 4.0)
-	assert_object(milk.struck_price().strike_color()).is_equal(Palette.TOMATO)
-	assert_object(milk.struck_price().text_color()).is_equal(Palette.INK)
-	var first: Rect2 = milk.summary().first_line_rect()
-	first.position += milk.summary().position
-	assert_bool(first.intersects(struck)).is_false()
-	var dark: PriceSticker = auto_free(PriceSticker.new(_card("batteries")))
-	dark.set_pay(true, Rect2())
-	assert_object(dark.struck_price().strike_color()).is_equal(Palette.PAPER)
-	assert_object(dark.struck_price().text_color()).is_equal(Palette.PAPER)
-	assert_float(milk.struck_rect().position.y).is_equal(PriceSticker.STRUCK_TOP)
-	# A text that needs its whole first line (the soups') keeps it: the old price stands beside
-	# the tag instead, at the glyph row's height, clear of the tag's die-cut and of the glyphs.
-	for soup_id: String in ["soup", "soup_big", "soup_golden"]:
-		var soup: PriceSticker = auto_free(PriceSticker.new(_card(soup_id)))
-		for tag: Rect2 in [PLAIN, BURST]:
-			soup.set_pay(true, tag)
-			var beside: Rect2 = soup.struck_rect()
-			var message: String = "%s under %s: %s" % [soup_id, tag, beside]
-			assert_bool(soup.is_struck()).override_failure_message(message).is_true()
-			assert_bool(soup.summary().fits()).override_failure_message(message).is_true()
-			assert_float(beside.position.y).is_equal(PriceSticker.STRUCK_BESIDE_TOP)
-			assert_float(beside.end.x).override_failure_message(message).is_less_equal(
-				tag.grow(CUT).position.x - PriceSticker.STRIKE_OUT
-			)
-			for glyph: FamilyGlyph in soup.glyphs():
-				assert_bool(glyph.rim_rect().intersects(soup.strike_rect())).is_false()
-			assert_bool(beside.intersects(soup.summary_text_rect())).is_false()
-			assert_bool(Rect2(Vector2.ZERO, PriceSticker.SIZE).encloses(beside)).is_true()
-	milk.set_pay(false, Rect2())
-	assert_bool(milk.is_struck()).is_false()
-	assert_bool(milk.plain_tag().visible).is_true()
-	assert_bool(milk.struck_price().visible).is_false()
+	var window: PriceWindow = milk.window()
+	var box: Rect2 = Rect2(window.position, window.size)
+	assert_that(box).is_equal(Rect2(PriceSticker.WINDOW_AT, PriceWindow.SIZE))
+	var right: float = (PriceWindow.DIGITS_RIGHT + 1) * ArtStyle.ART_SCALE
+	for amount: int in [1, 9, 99, 999, 1000, 9999, THOUSANDS]:
+		milk.set_pay(PlanningModel.Pay.BOOSTED, amount)
+		var digits: Rect2 = window.digits_rect()
+		var message: String = "%d€: %s" % [amount, digits]
+		var inside: bool = Rect2(Vector2.ZERO, window.size).encloses(digits)
+		assert_bool(inside).override_failure_message(message).is_true()
+		assert_float(digits.end.x).override_failure_message(message).is_equal(right)
+		var shown: Rect2 = Rect2(window.position + digits.position, digits.size)
+		for glyph: FamilyGlyph in milk.glyphs():
+			var over: bool = glyph.rim_rect().intersects(shown)
+			assert_bool(over).override_failure_message(message).is_false()
+		var on_plate: bool = shown.intersects(milk.plate_rect())
+		assert_bool(on_plate).override_failure_message(message).is_false()
+		assert_that(Rect2(window.position, window.size)).is_equal(box)
+		assert_str(window.tip_text).contains("%d€" % amount)
 
 
-## A wide burst over a two-glyph row (Golden Milk at 126€): at WIDE_CLEAR its die-cut meets the
-## squeezed row (the second glyph at x 22), both glyphs show; at WIDE the second would be cut, so
-## it hides.
-func test_a_wide_burst_squeezes_two_glyphs() -> void:
+## Each pay has its window state with a texture of its own (never hue alone): boosted green with up
+## chevrons, lowered pale tomato with down chevrons, 0€ tomato hatched with its reason in the tip.
+func test_the_window_says_the_pay() -> void:
+	var milk: PriceSticker = auto_free(PriceSticker.new(_card("milk")))
+	var window: PriceWindow = milk.window()
+	var cases: Dictionary[PlanningModel.Pay, PriceWindow.State] = {
+		PlanningModel.Pay.PLAIN: PriceWindow.State.PRINTED,
+		PlanningModel.Pay.BOOSTED: PriceWindow.State.BOOSTED,
+		PlanningModel.Pay.LOWERED: PriceWindow.State.LOWERED,
+		PlanningModel.Pay.DENIED: PriceWindow.State.ZERO,
+		PlanningModel.Pay.ZERO: PriceWindow.State.ZERO,
+	}
+	for pay: PlanningModel.Pay in cases:
+		milk.set_pay(pay, 12, "SPOT CHECK")
+		assert_int(window.pay_state()).is_equal(cases[pay])
+	assert_bool(PriceWindow.BANDS.has(PriceWindow.State.PRINTED)).is_false()
+	var up: Array = PriceWindow.BANDS[PriceWindow.State.BOOSTED]
+	var down: Array = PriceWindow.BANDS[PriceWindow.State.LOWERED]
+	assert_array(down).is_equal([up[1], up[0]])
+	assert_array(PriceWindow.BANDS[PriceWindow.State.ZERO]).is_not_equal(up)
+	assert_object(PriceWindow.fill_color(PriceWindow.State.BOOSTED)).is_equal(Palette.GREEN_LIGHT)
+	assert_object(PriceWindow.fill_color(PriceWindow.State.LOWERED)).is_equal(Palette.TOMATO_PALE)
+	assert_object(PriceWindow.fill_color(PriceWindow.State.ZERO)).is_equal(Palette.TOMATO)
+	milk.set_pay(PlanningModel.Pay.DENIED, 0, "SPOT CHECK")
+	assert_str(window.digits().text).is_equal("0€")
+	assert_str(window.tip_text).contains("SPOT CHECK")
+	milk.set_pay(PlanningModel.Pay.ZERO, 0)
+	assert_str(window.tip_text).contains(PriceSticker.ZERO_REASON)
+	milk.set_pay(PlanningModel.Pay.BOOSTED, 18)
+	assert_str(window.digits().text).is_equal("18€")
+	var printed: String = "%d€" % _card("milk").base
+	assert_str(window.tip_text).is_equal(PriceSticker.PAY_TIP % ["Milk", "18€", printed, "boosted"])
+	milk.clear_pay()
+	assert_int(window.pay_state()).is_equal(PriceWindow.State.PRINTED)
+	assert_str(window.digits().text).is_equal(printed)
+
+
+## GOLDEN and boosted take different draw paths, so they never read alike: GOLDEN is a gold ring
+## outside the outline (its own TextureRect, dark rim outermost) with two sparkles, the window
+## inside still paper; a boosted pay is the window's green with chevrons, and no window is ever
+## gold.
+func test_golden_and_boosted_read_apart() -> void:
 	var golden: PriceSticker = auto_free(PriceSticker.new(_card("milk_golden")))
-	assert_int(golden.glyphs().size()).is_equal(2)
-	golden.set_pay(true, WIDE_CLEAR)
-	assert_bool(golden.is_squeezed()).is_true()
-	assert_float(golden.glyphs()[1].position.x).is_equal(22.0)
-	for glyph: FamilyGlyph in golden.glyphs():
-		assert_bool(glyph.visible).is_true()
-		assert_bool(glyph.rim_rect().intersects(WIDE_CLEAR.grow(CUT))).is_false()
-	golden.set_pay(true, WIDE)
-	assert_bool(golden.glyphs()[0].visible).is_true()
-	assert_bool(golden.glyphs()[1].visible).is_false()
-	golden.set_pay(false, Rect2())
-	assert_bool(golden.is_squeezed()).is_false()
-	assert_float(golden.glyphs()[1].position.x).is_equal(24.0)
-	assert_bool(golden.glyphs()[1].visible).is_true()
+	var plain: PriceSticker = auto_free(PriceSticker.new(_card("milk")))
+	assert_object(plain.gold_ring()).is_null()
+	var ring: TextureRect = golden.gold_ring()
+	assert_object(ring).is_not_null()
+	var grow: float = PriceSticker.GOLD_RING_ART * ArtStyle.ART_SCALE
+	assert_that(Rect2(ring.position, ring.size)).is_equal(
+		Rect2(Vector2.ZERO, PriceSticker.SIZE).grow(grow)
+	)
+	var art: Image = ring.texture.get_image()
+	var middle: int = floori(art.get_width() / 2.0)
+	assert_str(_hex(art.get_pixel(middle, 0))).is_equal(_hex(Palette.BRASS_DARKEST))
+	assert_str(_hex(art.get_pixel(middle, 1))).is_equal(_hex(Palette.GOLD))
+	assert_str(_hex(art.get_pixel(middle, 2))).is_equal(_hex(Palette.GOLD))
+	assert_str(_hex(art.get_pixel(middle, art.get_height() - 2))).is_equal(_hex(Palette.BRASS))
+	assert_float(art.get_pixel(middle, 10).a).is_equal(0.0)
+	for index: int in 2:
+		assert_object(golden.get_node_or_null(PriceSticker.SPARKLE_NAME % index)).is_not_null()
+	assert_int(golden.window().pay_state()).is_equal(PriceWindow.State.PRINTED)
+	plain.set_pay(PlanningModel.Pay.BOOSTED, 30)
+	assert_object(plain.gold_ring()).is_null()
+	for state: PriceWindow.State in PriceWindow.State.values():
+		for colour: Color in [
+			PriceWindow.fill_color(state),
+			PriceWindow.band_color(state),
+			PriceWindow.digit_color(state),
+		]:
+			assert_bool(colour.is_equal_approx(Palette.GOLD)).is_false()
+			assert_bool(colour.is_equal_approx(Palette.BRASS)).is_false()
+
+
+## A gained family (the Price gun) grows only that ticket, downward, to TALL_SIZE: the glyph on the
+## label's second row, GAINED beside it, the plate moved down; the window stays put. Taking it off
+## puts the short ticket back.
+func test_a_gained_family_makes_the_tall_ticket() -> void:
+	var definition: CardDefinition = _card("milk_golden")
+	var milk: PriceSticker = auto_free(PriceSticker.new(definition))
+	add_child(milk)
+	var printed: int = milk.glyphs().size()
+	milk.show_gained("Household")
+	assert_bool(milk.is_tall()).is_true()
+	assert_vector(milk.size).is_equal(PriceSticker.TALL_SIZE)
+	assert_vector(milk.face().texture.get_size()).is_equal(Vector2(TicketFace.TALL_ART_SIZE))
+	assert_int(milk.glyphs().size()).is_equal(printed + 1)
+	var gained: FamilyGlyph = milk.glyphs()[-1]
+	assert_str(String(gained.name)).is_equal(PriceSticker.GAINED_NAME % "Household")
+	assert_vector(gained.position).is_equal(
+		PriceSticker.ICON_FIRST + Vector2(0, PriceSticker.ICON_ROW_2)
+	)
+	assert_str(gained.tip_text).contains("gained from the Price gun")
+	var words: PixelWords = milk.get_node(PriceSticker.GAINED_WORDS_NAME) as PixelWords
+	assert_bool(words.visible).is_true()
+	assert_str(words.text).is_equal(PriceSticker.GAINED_TEXT)
+	assert_vector(milk.window().position).is_equal(PriceSticker.WINDOW_AT)
+	_assert_layout(milk, definition)
+	var grow: float = 2.0 * PriceSticker.GOLD_RING_ART * ArtStyle.ART_SCALE
+	assert_float(milk.gold_ring().size.y).is_equal(PriceSticker.TALL_SIZE.y + grow)
+	milk.show_gained("")
+	assert_bool(milk.is_tall()).is_false()
+	assert_vector(milk.size).is_equal(PriceSticker.SIZE)
+	assert_bool(words.visible).is_false()
+	assert_int(milk.glyphs().size()).is_equal(printed)
+	_assert_layout(milk, definition)
 
 
 ## A hovered giver's target (#71) gets a gold ring inside its outline, its face unchanged.
@@ -339,7 +429,6 @@ func test_got_rings_a_products_ticket() -> void:
 	var milk: PriceSticker = auto_free(PriceSticker.new(_card("milk")))
 	var face: Texture2D = (milk.face() as TextureRect).texture
 	milk.set_got(true)
-	assert_bool(milk.got_ring().visible).is_true()
 	assert_bool(milk.got_ring().visible).is_true()
 	assert_object((milk.face() as TextureRect).texture).is_same(face)
 	milk.set_got(false)
@@ -369,59 +458,122 @@ func test_the_colour_says_what_it_means() -> void:
 		assert_that(Rect2(spot.position, spot.size)).is_equal(
 			Rect2(Vector2.ZERO, PriceSticker.SIZE)
 		)
-		# Under every glyph, so a glyph's own tip wins where they overlap.
-		for glyph: FamilyGlyph in sticker.glyphs() + sticker.summary().glyphs():
-			assert_bool(glyph.is_greater_than(spot)).override_failure_message(id).is_true()
+		# Under every glyph, word and the window, so their own tips win where they overlap.
+		for part: Control in _tip_targets(sticker):
+			assert_bool(part.is_greater_than(spot)).override_failure_message(id).is_true()
 
 
-## The glyphs' tooltips open below the ticket (GlyphTips): the row's and the text's, each with
-## its paper rim.
-func test_every_glyph_tips_below_its_ticket() -> void:
+## The hover tips, each below the ticket: a membership glyph names the family and the item (and
+## lights the family's items, PlanningEffects: mix_highlight_ui_test), a written family says what
+## the item works with, the window its price.
+func test_every_tip_opens_below_its_ticket() -> void:
+	var milk: PriceSticker = auto_free(PriceSticker.new(_card("milk")))
+	add_child(milk)
+	var member: FamilyGlyph = milk.glyphs()[0]
+	var style: FamilyStyle = FamilyPalette.shared().style(member.family)
+	assert_str(member.tip_text).is_equal(
+		PriceSticker.MEMBER_TIP % [style.display_name, "Milk", style.display_name]
+	)
+	var words: Array[FamilyWord] = milk.summary().words()
+	assert_int(words.size()).is_equal(1)
+	assert_str(words[0].family).is_equal("Breakfast")
+	assert_str(words[0].tip_text).is_equal(FamilyWord.WORKS_WITH % "Breakfast")
+	assert_str(milk.window().tip_text).is_equal(
+		PriceSticker.PRINTED_TIP % ["Milk", "%d€" % _card("milk").base]
+	)
 	var scissors: PriceSticker = auto_free(PriceSticker.new(_card("scissors")))
-	var glyphs: Array[FamilyGlyph] = scissors.glyphs() + scissors.summary().glyphs()
-	assert_int(scissors.summary().glyphs().size()).is_equal(1)
-	assert_str(scissors.summary().glyphs()[0].family).is_equal("Coupon")
-	for glyph: FamilyGlyph in glyphs:
-		assert_bool(glyph.tip_below).is_true()
-		assert_object(glyph.tip_anchor).is_same(scissors)
-		assert_object(glyph.rim()).is_not_null()
-
-
-## `id` at rest and struck under each pay tag its row could pin: the plain tag on the corner, the
-## glyphs and the text clear of every tag's die-cut and of the struck price.
-func _struck_problems(sticker: PriceSticker, id: String, text: Rect2) -> PackedStringArray:
-	var problems: PackedStringArray = PackedStringArray()
-	if sticker.plain_tag_rect() != PLAIN:
-		problems.append("%s: plain tag at %s" % [id, sticker.plain_tag_rect()])
-	for glyph: FamilyGlyph in sticker.glyphs():
-		if glyph.rim_rect().intersects(PLAIN):
-			problems.append("%s: a glyph under the plain tag" % id)
-	if text.has_area() and text.intersects(PLAIN):
-		problems.append("%s: the text under the plain tag" % id)
-	var two: bool = sticker.glyphs().size() > 1
-	var tags: Array[Rect2] = [BURST, WIDE_CLEAR if two else WIDE, PLAIN]
-	for tag: Rect2 in tags:
-		sticker.set_pay(true, tag)
-		var cut: Rect2 = tag.grow(CUT)
+	for sticker: PriceSticker in [milk, scissors]:
+		for target: TipTarget in _tip_targets(sticker):
+			assert_bool(target.tip_below).is_true()
+			assert_object(target.tip_anchor).is_same(sticker)
 		for glyph: FamilyGlyph in sticker.glyphs():
-			if not glyph.visible:
-				problems.append("%s: a glyph hidden under %s" % [id, tag])
-			elif glyph.rim_rect().intersects(cut):
-				problems.append("%s: a glyph under %s" % [id, tag])
-		var struck: Rect2 = sticker.struck_rect()
-		var first: Rect2 = sticker.summary().first_line_rect()
-		first.position += sticker.summary().position
-		if sticker.is_struck() and first.has_area() and first.intersects(struck):
-			problems.append("%s: the first line under the struck price" % id)
-		if sticker.is_struck() and struck.position.y == PriceSticker.STRUCK_BESIDE_TOP:
-			if struck.intersects(cut) or struck.intersects(sticker.summary_text_rect()):
-				problems.append("%s: the struck price beside %s cut" % [id, tag])
-			for glyph: FamilyGlyph in sticker.glyphs():
-				if glyph.visible and glyph.rim_rect().intersects(struck):
-					problems.append("%s: the struck price over a glyph" % id)
-		if not sticker.summary().fits():
-			problems.append("%s: the text cut when struck" % id)
-	sticker.set_pay(false, Rect2())
+			assert_object(glyph.rim()).is_not_null()
+
+
+## `sticker` lays out as test_every_ticket_lays_out_inside_and_apart holds.
+func _assert_layout(sticker: PriceSticker, definition: CardDefinition) -> void:
+	var problems: PackedStringArray = _layout_problems(sticker, definition, FamilyPalette.shared())
+	assert_array(problems).override_failure_message("\n".join(problems)).is_empty()
+
+
+## `sticker`'s window, glyphs and written families: the parts with tips of their own.
+static func _tip_targets(sticker: PriceSticker) -> Array[TipTarget]:
+	var targets: Array[TipTarget] = [sticker.window()]
+	for glyph: FamilyGlyph in sticker.glyphs() + sticker.summary().glyphs():
+		targets.append(glyph)
+	for word: FamilyWord in sticker.summary().words():
+		targets.append(word)
+	return targets
+
+
+static func _layout_problems(
+	sticker: PriceSticker, definition: CardDefinition, palette: FamilyPalette
+) -> PackedStringArray:
+	var problems: PackedStringArray = PackedStringArray()
+	var id: String = String(definition.id)
+	var face: Rect2 = Rect2(Vector2.ZERO, sticker.size)
+	var summary: GlyphLabel = sticker.summary()
+	var line: String = CardText.sticker_summary(definition, sticker.redraws_left)
+	if summary.text != (line if not line.is_empty() else definition.display_name):
+		problems.append("%s: summary '%s'" % [id, summary.text])
+	if not summary.fits() or sticker.get_node_or_null(PriceSticker.MORE_NAME) != null:
+		problems.append("%s: summary does not fit" % id)
+	var text: Rect2 = sticker.summary_text_rect()
+	var plate: Rect2 = sticker.plate_rect()
+	if not plate.grow(1).encloses(text):
+		problems.append("%s: summary %s outside %s" % [id, text, plate])
+	var chips: Array[Control] = []
+	for chip: KeywordChip in summary.keywords():
+		chips.append(chip)
+	for word: FamilyWord in summary.words():
+		chips.append(word)
+	for chip: Control in chips:
+		var rect: Rect2 = Rect2(summary.position + chip.position, chip.size)
+		if not plate.grow(1).encloses(rect):
+			problems.append("%s: chip %s outside %s" % [id, rect, plate])
+	if sticker.face_families() != palette.ticket_families(definition):
+		problems.append("%s: face %s" % [id, sticker.face_families()])
+	if sticker.find_children("*Lock*", "", true, false).size() > 0:
+		problems.append("%s: a padlock" % id)
+	var window: Rect2 = Rect2(sticker.window().position, sticker.window().size)
+	if window != Rect2(PriceSticker.WINDOW_AT, PriceWindow.SIZE) or not face.encloses(window):
+		problems.append("%s: window at %s" % [id, window])
+	if window.intersects(text) or window.intersects(plate):
+		problems.append("%s: window over the plate" % id)
+	problems.append_array(_glyph_problems(sticker, definition, palette, window, text))
+	return problems
+
+
+static func _glyph_problems(
+	sticker: PriceSticker,
+	definition: CardDefinition,
+	palette: FamilyPalette,
+	window: Rect2,
+	text: Rect2
+) -> PackedStringArray:
+	var problems: PackedStringArray = PackedStringArray()
+	var id: String = String(definition.id)
+	var label: Rect2i = TicketFace.label_rect(sticker.is_tall())
+	var label_rect: Rect2 = Rect2(label.position * 2, label.size * 2)
+	var expected: PackedStringArray = PackedStringArray(["Coupon"])
+	if definition.is_product():
+		expected = palette.shelf_families(definition.tags)
+	var shown: PackedStringArray = PackedStringArray()
+	for glyph: FamilyGlyph in sticker.glyphs():
+		var rim: Rect2 = glyph.rim_rect()
+		if not String(glyph.name).begins_with("Gained"):
+			var at: Vector2 = (
+				PriceSticker.ICON_FIRST + Vector2(PriceSticker.ICON_STEP * shown.size(), 0)
+			)
+			if glyph.position != at:
+				problems.append("%s: glyph %d at %s" % [id, shown.size(), glyph.position])
+			shown.append(glyph.family)
+		if not label_rect.grow(1).encloses(rim):
+			problems.append("%s: glyph %s outside the label" % [id, glyph.family])
+		if rim.intersects(window) or rim.intersects(text):
+			problems.append("%s: glyph %s over the window or text" % [id, glyph.family])
+	if shown != expected:
+		problems.append("%s: glyphs %s, not %s" % [id, shown, expected])
 	return problems
 
 

@@ -126,13 +126,18 @@ func test_mounted_tips_show_for_the_glyph_under_the_pointer() -> void:
 	tips.blocked = func() -> bool: return blocked[0]
 	holder.add_child(tips)
 	await _frames(2)
-	var glyphs: Array[FamilyGlyph] = scissors.glyphs() + scissors.summary().glyphs()
+	# Its icon label's glyph, its written family (tickets v5) and its price window.
+	var glyphs: Array[TipTarget] = [scissors.window()]
+	for glyph: FamilyGlyph in scissors.glyphs() + scissors.summary().glyphs():
+		glyphs.append(glyph)
+	for word: FamilyWord in scissors.summary().words():
+		glyphs.append(word)
 	assert_int(glyphs.size()).is_greater_equal(2)
 	var ticket: Rect2 = scissors.get_global_rect()
-	for glyph: FamilyGlyph in glyphs:
+	for glyph: TipTarget in glyphs:
 		var shown: GlyphTip = await _tip_for(tips, glyph)
 		var box: Rect2 = shown.get_global_rect()
-		var message: String = "%s: %s" % [glyph.family, box]
+		var message: String = "%s: %s" % [glyph.name, box]
 		assert_str(shown.tip_text()).is_equal(glyph.tip_text)
 		assert_bool(shown.below).override_failure_message(message).is_true()
 		assert_float(box.position.y).override_failure_message(message).is_equal(

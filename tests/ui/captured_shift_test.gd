@@ -147,8 +147,8 @@ func test_stickers_never_cover_a_sticker_a_sprite_or_a_mark() -> void:
 				var ticket: PriceSticker = view.sticker()
 				stickers.append(ticket.get_global_rect())
 				var to_global: Transform2D = ticket.get_global_transform()
-				if ticket.is_struck():
-					texts.append(to_global * ticket.struck_rect())
+				var window: PriceWindow = ticket.window()
+				texts.append(to_global * Rect2(window.position, window.size))
 				if ticket.summary_text_rect().has_area():
 					texts.append(to_global * ticket.summary_text_rect())
 			others.append(view.sprite().get_global_rect())

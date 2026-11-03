@@ -5,9 +5,14 @@ extends Control
 ## breaking only between pieces (a glyph never starts a line alone). Text runs are drawn in
 ## `font`; each family glyph is a FamilyGlyph, ArtStyle.FAMILY_GLYPH_SIZE square with
 ## GLYPH_MARGIN on each side, its foot GLYPH_DROP under the line's baseline (the mock-up's
-## vertical-align -4px), with a paper rim on a ticket (`rimmed`). The first line can keep clear of
-## something at its right (set_first_inset: the ticket's struck price). At most `max_lines` lines
-## show (0: any number); fits() says whether every piece did, each inside its line. Display only.
+## vertical-align -4px), with a paper rim when `rimmed`. At most `max_lines` lines show (0: any
+## number); fits() says whether every piece did, each inside its line, and the last allowed line
+## can keep clear of something at its right (set_end_inset: a ticket's MORE chip). Display only.
+##
+## Written (tickets v5, a ticket's rule plate): a family named by its id is a FamilyWord, its name
+## on a chip in its colours (what the item works with), not a glyph, HEIGHT tall in its line; a
+## family's other words ("coupon") stay text, and nothing is glued to a family, so a chip may start
+## a line.
 ##
 ## A keyword run (#128, GlyphText: BATCH) is a KeywordChip, CHIP_MARGIN clear of its neighbours,
 ## centred on its line; set_keyword_wasted turns the chips tomato with the WASTED reason as their
@@ -30,7 +35,8 @@ var _pitch: float
 var _width: float
 var _max_lines: int
 var _rimmed: bool
-var _first_inset: float = 0.0
+var _end_inset: float = 0.0
+var _written: bool = false
 var _palette: FamilyPalette
 ## Each shown line's runs: {"text", "family", "x"} (x from the line's left).
 var _lines: Array[Array] = []
@@ -38,6 +44,7 @@ var _needed_lines: int = 0
 ## Whether a piece is wider than its line's room (fits() is then false).
 var _overflow: bool = false
 var _glyphs: Array[FamilyGlyph] = []
+var _words: Array[FamilyWord] = []
 var _chips: Array[KeywordChip] = []
 ## The keyword chips' wasted tooltip (set_keyword_wasted), or "" for calm chips.
 var _keyword_wasted: String = ""
@@ -48,7 +55,7 @@ var _tip_anchor: Control
 
 
 ## `line` in `font` at `text_size` and `text_color`, `line_pitch` px a line, wrapped at `width`.
-## `palette` names the glyphs (the game's when null).
+## `palette` names the glyphs (the game's when null); `written` writes the families (see above).
 func _init(
 	line: String,
 	font: Font,
@@ -58,7 +65,8 @@ func _init(
 	width: float,
 	max_lines: int = 0,
 	rimmed: bool = false,
-	palette: FamilyPalette = null
+	palette: FamilyPalette = null,
+	written: bool = false
 ) -> void:
 	text = line
 	_font = font
@@ -69,15 +77,17 @@ func _init(
 	_max_lines = max_lines
 	_rimmed = rimmed
 	_palette = palette if palette != null else FamilyPalette.shared()
+	_written = written
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_lay_out()
 
 
-## Keeps the first line `inset` px clear of the right edge (0: the full width).
-func set_first_inset(inset: float) -> void:
-	if is_equal_approx(inset, _first_inset):
+## Keeps the last allowed line (max_lines') `inset` px clear of the right edge (0: the full
+## width).
+func set_end_inset(inset: float) -> void:
+	if is_equal_approx(inset, _end_inset):
 		return
-	_first_inset = inset
+	_end_inset = inset
 	_lay_out()
 
 
@@ -91,6 +101,9 @@ func set_tip(below: bool, anchor: Control) -> void:
 	for chip: KeywordChip in _chips:
 		chip.tip_below = below
 		chip.tip_anchor = anchor
+	for word: FamilyWord in _words:
+		word.tip_below = below
+		word.tip_anchor = anchor
 
 
 ## Turns the keyword chips wasted, `reason` their tooltip (the WASTED step's), or calm again ("").
@@ -172,6 +185,16 @@ func glyphs() -> Array[FamilyGlyph]:
 	return _glyphs
 
 
+## The written families' chips (written mode), in order.
+func words() -> Array[FamilyWord]:
+	return _words
+
+
+## Where the last shown line's text ends, in this label's coordinates (0 with no text).
+func last_line_end() -> float:
+	return _line_end(_lines[_lines.size() - 1]) if not _lines.is_empty() else 0.0
+
+
 func _draw() -> void:
 	var ascent: float = _font.get_ascent(_font_size)
 	var height: float = ascent + _font.get_descent(_font_size)
@@ -199,23 +222,25 @@ func _lay_out() -> void:
 		remove_child(chip)
 		chip.free()
 	_chips.clear()
+	for word: FamilyWord in _words:
+		remove_child(word)
+		word.free()
+	_words.clear()
 	_lines.clear()
 	_overflow = false
 	var space: float = _text_width(" ")
 	var lines: Array[Array] = []
 	var line: Array = []
 	var x: float = 0.0
-	for piece: Array in GlyphText.pieces(text, _palette, _live):
+	for piece: Array in _pieces():
 		var piece_width: float = _piece_width(piece)
-		var room: float = _width - (_first_inset if lines.is_empty() else 0.0)
 		var start: float = x + (space if not line.is_empty() else 0.0)
-		if not line.is_empty() and start + piece_width > room:
+		if not line.is_empty() and start + piece_width > _room(lines.size()):
 			lines.append(line)
 			line = []
 			start = 0.0
-		# A piece wider than its line's room (a glued "BATCH 1st:" beside a struck price) overflows.
-		var line_room: float = _width - (_first_inset if lines.is_empty() else 0.0)
-		if start + piece_width > line_room + OVERFLOW_SLACK:
+		# A piece wider than its line's room (a long word beside a MORE chip) overflows.
+		if start + piece_width > _room(lines.size()) + OVERFLOW_SLACK:
 			_overflow = true
 		for run: Dictionary in piece:
 			var placed: Dictionary = run.duplicate()
@@ -235,6 +260,64 @@ func _lay_out() -> void:
 	queue_redraw()
 
 
+## A line's room: the width, less the end inset on the last allowed line.
+func _room(line: int) -> float:
+	return _width - (_end_inset if _max_lines > 0 and line == _max_lines - 1 else 0.0)
+
+
+## The text's pieces; written, every family run and its trailing punctuation a piece of its own
+## (the words glued to it split off), and a family's other words plain text.
+func _pieces() -> Array[Array]:
+	var found: Array[Array] = GlyphText.pieces(text, _palette, _live)
+	if not _written:
+		return found
+	var split: Array[Array] = []
+	for piece: Array in found:
+		var rest: Array = []
+		for run: Dictionary in piece:
+			if GlyphText.is_glyph(run) and str(run["text"]) != str(run["family"]):
+				rest.append(GlyphText.text_run(str(run["text"])))
+			elif GlyphText.is_glyph(run) and not rest.is_empty():
+				for word: String in _joined(rest).split(" ", false):
+					split.append([GlyphText.text_run(word)])
+				rest = [run]
+			else:
+				rest.append(run)
+		if not rest.all(GlyphText.is_text):
+			split.append(rest)
+			continue
+		for word: String in _joined(rest).split(" ", false):
+			split.append([GlyphText.text_run(word)])
+	return _split_at_spaces(split)
+
+
+## `pieces` with every text run that starts with a space (a keyword chip's next word, "CHAIN
+## middle:") split off into its own words, so a line may break after a chip.
+static func _split_at_spaces(pieces: Array[Array]) -> Array[Array]:
+	var out: Array[Array] = []
+	for piece: Array in pieces:
+		var kept: Array = []
+		for run: Dictionary in piece:
+			var spaced: bool = GlyphText.is_text(run) and str(run["text"]).begins_with(" ")
+			if not spaced or kept.is_empty():
+				kept.append(run)
+				continue
+			out.append(kept)
+			kept = []
+			for word: String in str(run["text"]).split(" ", false):
+				out.append([GlyphText.text_run(word)])
+		if not kept.is_empty():
+			out.append(kept)
+	return out
+
+
+static func _joined(runs: Array) -> String:
+	var joined: String = ""
+	for run: Dictionary in runs:
+		joined += str(run["text"])
+	return joined
+
+
 func _add_glyphs() -> void:
 	var ascent: float = _font.get_ascent(_font_size)
 	var height: float = ascent + _font.get_descent(_font_size)
@@ -248,6 +331,9 @@ func _add_glyphs() -> void:
 			if family.is_empty():
 				continue
 			var style: FamilyStyle = _palette.style(family)
+			if _written and style != null:
+				_add_word(style, float(run["x"]), index, baseline)
+				continue
 			if style == null or style.glyph == null:
 				continue
 			var glyph: FamilyGlyph = FamilyGlyph.new(style, _rimmed)
@@ -271,6 +357,17 @@ func _add_chip(run: Dictionary, line: int) -> void:
 	_chips.append(chip)
 
 
+func _add_word(style: FamilyStyle, x: float, line: int, baseline: float) -> void:
+	var word: FamilyWord = FamilyWord.new(style, _font, _font_size)
+	var top: float = line * _pitch + snappedf(_pitch - FamilyWord.HEIGHT, ArtStyle.ART_SCALE)
+	word.position = Vector2(x + CHIP_MARGIN, top)
+	word.draw_at(baseline - top)
+	word.tip_below = _tip_below
+	word.tip_anchor = _tip_anchor
+	add_child(word)
+	_words.append(word)
+
+
 func _line_end(line: Array) -> float:
 	if line.is_empty():
 		return 0.0
@@ -292,6 +389,9 @@ func _run_width(run: Dictionary) -> float:
 		return KeywordChip.width_for(str(run["keyword"]), wasted, live) + 2.0 * CHIP_MARGIN
 	if str(run["family"]).is_empty():
 		return _text_width(str(run["text"]))
+	var style: FamilyStyle = _palette.style(str(run["family"])) if _written else null
+	if style != null:
+		return FamilyWord.width_for(style, _font, _font_size) + 2.0 * CHIP_MARGIN
 	return ArtStyle.FAMILY_GLYPH_SIZE + 2.0 * GLYPH_MARGIN
 
 

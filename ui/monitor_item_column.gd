@@ -130,7 +130,7 @@ var _name: Control
 var _glyphs: Array[FamilyGlyph] = []
 var _price: PayTag
 var _price_holder: Control
-var _struck: PriceSticker.StruckPrice
+var _struck: StruckPrice
 var _effect: GlyphLabel
 var _rule: Control
 var _steps: Control
@@ -193,9 +193,7 @@ func show_item(
 		if compact:
 			reserve = COUNT_NAME_RESERVE
 			if value != base:
-				reserve += (
-					ceilf(PriceSticker.StruckPrice.text_width(_struck_text(base))) + STRUCK_GAP
-				)
+				reserve += (ceilf(StruckPrice.text_width(_struck_text(base))) + STRUCK_GAP)
 		_build_head(definition, tags, reserve)
 		_set_price(value, base, fizzles.has(true), false)
 		if compact:
@@ -481,7 +479,7 @@ func price_tag() -> PayTag:
 	return _price
 
 
-func struck() -> PriceSticker.StruckPrice:
+func struck() -> StruckPrice:
 	return _struck
 
 
@@ -610,7 +608,7 @@ func _set_price(value: int, base: int, fizzled: bool, punch: bool) -> void:
 			_price.pivot_offset = Vector2(_price.size.x, _price.size.y / 2.0)
 			_price_holder.add_child(_price)
 			if value != base and not _counting:
-				_struck = PriceSticker.StruckPrice.new(_struck_text(base), false)
+				_struck = StruckPrice.new(_struck_text(base), false)
 				_struck.position = Vector2(STRUCK_RIGHT - _struck.size.x, STRUCK_TOP)
 				if _compact:
 					# In the name row, left of the price (the mock-up's compact head).

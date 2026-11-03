@@ -41,6 +41,9 @@ const SWEEP_S := 0.16
 ## A giver's sparks: each one's run at speed 1 (s) and the gap between targets.
 const SPARK_S := 0.3
 const SPARK_GAP_S := 0.06
+## A counted pay's window pops from this scale back to 1 over PAID_POP_S.
+const PAID_POP := 1.2
+const PAID_POP_S := 0.18
 
 var _count: CountUp
 var _stage: ShiftStage
@@ -53,7 +56,8 @@ var _reduced: bool = false
 var _active: bool = false
 ## The slots hopped into the bag so far.
 var _bagged: Dictionary[int, bool] = {}
-var _count_tags: Array[PayTag] = []
+## The tickets whose window shows a counted pay (put back to their printed price by _stop).
+var _paid_tickets: Array[PriceSticker] = []
 ## The slot at the scanner, or -1.
 var _scanning: int = -1
 var _slide: Tween
@@ -109,7 +113,7 @@ func ticket_rect(slot: int) -> Rect2:
 	var item: ItemView = _item(slot)
 	if item == null or _bagged.has(slot) or not item.is_visible_in_tree():
 		return Rect2()
-	var local: Rect2 = Rect2(ItemView.BELT_STICKER, PriceSticker.SIZE)
+	var local: Rect2 = Rect2(ItemView.BELT_STICKER, item.sticker().size)
 	var to_global: Transform2D = item.get_global_transform()
 	return Rect2(to_global * local.position, local.size * to_global.get_scale())
 
@@ -443,11 +447,10 @@ static func _to(transform: Transform2D, rect: Rect2) -> Rect2:
 
 ## Stops the slide, the hops (their copies go) and the sparks, and clears the scanner.
 func _stop() -> void:
-	for tag: PayTag in _count_tags:
-		if is_instance_valid(tag):
-			tag.get_parent().remove_child(tag)
-			tag.queue_free()
-	_count_tags.clear()
+	for ticket: PriceSticker in _paid_tickets:
+		if is_instance_valid(ticket):
+			ticket.clear_pay()
+	_paid_tickets.clear()
 	if _slide != null and _slide.is_valid():
 		_slide.kill()
 	_slide = null
@@ -473,30 +476,24 @@ func _item(slot: int) -> ItemView:
 	return _views[slot] as ItemView
 
 
-## A paid item's final ticket stays legible until its cell drops off into the bag.
+## A paid item's counted pay shows in its ticket's price window (tickets v5) until its cell drops
+## off into the bag: the window pops from PAID_POP about its middle (not under reduced motion).
 func _show_paid_ticket(step: ScoreStep) -> void:
 	var item: ItemView = _item(step.slot)
 	if item == null or _bagged.has(step.slot):
 		return
 	var ticket: PriceSticker = item.sticker()
-	var pay: PlanningModel.Pay = (
-		PlanningModel.Pay.BOOSTED
-		if step.value > item.card.definition.base
-		else PlanningModel.Pay.LOWERED
-	)
-	if step.value == 0:
+	var base: int = item.card.definition.base
+	var pay: PlanningModel.Pay = PlanningModel.Pay.PLAIN
+	if step.value == 0 and base > 0:
 		pay = PlanningModel.Pay.ZERO
-	var tag: PayTag = PayTag.new(
-		pay, PriceSticker.price_text(step.value), PlanningModel.Glyph.NONE, true
-	)
-	var rect: Rect2 = Rect2(Vector2.ZERO, PriceSticker.SIZE)
-	var at: Rect2 = tag.rect_on(rect, ticket, 1.0)
-	tag.position = at.position
-	ticket.set_pay(step.value != item.card.definition.base, at)
-	ticket.add_child(tag)
-	_count_tags.append(tag)
+	elif step.value != base:
+		pay = PlanningModel.Pay.BOOSTED if step.value > base else PlanningModel.Pay.LOWERED
+	ticket.set_pay(pay, step.value)
+	_paid_tickets.append(ticket)
 	if not _reduced:
-		tag.pivot_offset = tag.size / 2.0
-		tag.scale = Vector2.ONE * 1.2
+		var window: PriceWindow = ticket.window()
+		window.pivot_offset = window.size / 2.0
+		window.scale = Vector2.ONE * PAID_POP
 		var pulse: Tween = _count.tween_maker().call() as Tween
-		pulse.tween_property(tag, "scale", Vector2.ONE, 0.18)
+		pulse.tween_property(window, "scale", Vector2.ONE, PAID_POP_S)

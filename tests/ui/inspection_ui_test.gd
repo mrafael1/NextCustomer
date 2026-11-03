@@ -209,35 +209,27 @@ func _assert_zero_once(window: Vector2i) -> void:
 	)
 	assert_float(rect.position.y).override_failure_message(message).is_less(ticket.end.y)
 	assert_float(rect.end.y).override_failure_message(message).is_greater(ticket.end.y)
-	# The ticket's pay tag owns the amount: "0€" with no warning sign.
-	var pay: PayTag = screen._stage.planning_layer.pay_tag(2)
-	assert_str(pay.text()).is_equal("0€")
-	assert_int(pay.glyph).is_equal(PlanningModel.Glyph.NONE)
-	assert_object(pay.get_node_or_null(^"Glyph")).is_null()
-	assert_bool(pay.label().get_global_rect().encloses(_text_rect(pay.label()))).is_true()
-	# Exactly one "0€" shows on the ticket and the talker.
-	var band: Rect2 = Rect2(ticket.position.x, ticket.position.y, ticket.size.x, 0.0)
-	band = band.expand(Vector2(ticket.position.x, pay.get_global_rect().position.y))
-	band = band.expand(rect.end)
+	# The ticket's price window owns the amount (tickets v5): hatched "0€", the reason in its tip.
+	var pay: PriceWindow = screen._stage.planning_layer.pay_tag(2)
+	var sticker: PriceSticker = (screen._row_views[2] as ItemView).sticker()
+	assert_object(pay).is_same(sticker.window())
+	assert_int(pay.pay_state()).is_equal(PriceWindow.State.ZERO)
+	assert_str(pay.digits().text).is_equal("0€")
+	assert_str(pay.tip_text).contains("pays 0€")
+	# No other "0€" shows on the ticket and the talker: the window's digits are the only one.
+	var band: Rect2 = ticket.expand(rect.end)
 	var zeros: int = 0
 	for label: Node in screen.find_children("*", "Label", true, false):
 		var shown: Label = label as Label
 		if shown.is_visible_in_tree() and shown.text.contains("0€"):
 			if shown.get_global_rect().intersects(band):
 				zeros += 1
-	assert_int(zeros).override_failure_message(message).is_equal(1)
+	assert_int(zeros).override_failure_message(message).is_equal(0)
 	# The other slots' marks: none (Spot check marks slot 3 only).
 	assert_object(screen._row_strip.inspection_mark(3)).is_null()
 	# The count still plays the 0€ beat on it: the chip fires.
 	await Rush.checkout(screen)
 	assert_int(dead.fired_count()).override_failure_message(case).is_equal(1)
-
-
-## The part of `label` its text takes, centred as it is drawn.
-static func _text_rect(label: Label) -> Rect2:
-	var rect: Rect2 = label.get_global_rect()
-	var text_size: Vector2 = label.get_minimum_size() * label.get_global_transform().get_scale()
-	return Rect2(rect.get_center() - text_size / 2.0, text_size)
 
 
 func test_the_debug_panel_clears_the_inspection() -> void:

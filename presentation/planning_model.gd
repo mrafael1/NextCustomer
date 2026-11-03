@@ -309,8 +309,7 @@ static func _pay(
 		planning.pay = Pay.PLAIN
 	if planning.pay != Pay.PLAIN:
 		planning.pay_text = PAY_TEXT % payout
-		# A coupon's title "COUPON" is never struck.
-		planning.struck = card.is_product()
+		planning.payout = payout
 
 
 ## The halo's rings for a boosted pay (section 2.3): 1, then one more at each ratio of the base

@@ -707,16 +707,22 @@ func _fade(seconds: float) -> float:
 	return 0.0 if _reduced() else seconds
 
 
-## A family glyph's tooltip shows (`target`; null: none): its family lights the Cart's cells
-## when it is in the open Cart, else the counter's items (not while hovers are blocked).
+## A family glyph's or written family's tooltip shows (`target`; null: none): its family lights
+## the Cart's cells when it is in the open Cart, else the counter's items (not while hovers are
+## blocked).
 func _on_tip_shown(target: TipTarget) -> void:
 	# A BATCH chip on a belt ticket lights its batch's frame, a CHAIN chip its chain's (#128); any
 	# other tip, none.
 	var chip: KeywordChip = target as KeywordChip
 	var word: String = chip.keyword if chip != null and _shown else ""
 	_layer.light_frames(_belt_slot_of(chip) if not word.is_empty() else -1, word)
+	# A family glyph (what an item is) and a ticket's written family (what it works with) both
+	# light their family.
 	var glyph: FamilyGlyph = target as FamilyGlyph
+	var written: FamilyWord = target as FamilyWord
 	var family: String = glyph.family if glyph != null else ""
+	if written != null:
+		family = written.family
 	var in_deck: bool = _deck != null and target != null and _deck.is_ancestor_of(target)
 	if _deck != null:
 		_deck.mix_family = family if in_deck and _deck.visible else ""

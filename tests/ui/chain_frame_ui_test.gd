@@ -254,7 +254,7 @@ func test_a_narrow_gap_gets_a_jump_ring() -> void:
 	for index: int in range(3):
 		tickets.append(Rect2(Vector2(100.0 + index * (ticket.x + 8.0), 400.0), ticket))
 	var none: Array[Rect2] = []
-	frame.lay_out(tickets, none, 1000.0)
+	frame.lay_out(tickets, 1000.0, none)
 	assert_array(frame.pairs()).is_equal([false, false])
 	var rings: Array[Rect2] = frame.link_rects()
 	assert_int(rings.size()).is_equal(2)
@@ -269,7 +269,7 @@ func test_a_narrow_gap_gets_a_jump_ring() -> void:
 	tickets.clear()
 	for index: int in range(2):
 		tickets.append(Rect2(Vector2(100.0 + index * 128.0, 400.0), PriceSticker.SIZE))
-	frame.lay_out(tickets, none, 1000.0, [], PackedInt32Array([0, 1]))
+	frame.lay_out(tickets, 1000.0, none, PackedInt32Array([0, 1]))
 	assert_array(frame.pairs()).is_equal([true])
 	var pair: Array[Rect2] = frame.link_rects()
 	assert_float(pair[0].end.x - pair[1].position.x).is_equal(ChainFrame.LINK_OVERLAP)
@@ -324,12 +324,8 @@ func _assert_frame_geometry(screen: ShiftScreen, frame: ChainFrame) -> void:
 		for glyph: FamilyGlyph in sticker.glyphs():
 			if glyph.visible:
 				keep_clear.append(to_sticker * glyph.rim_rect())
-		var tag: PayTag = layer.pay_tag(slot)
-		if tag != null:
-			if frame.slots.has(slot):
-				_assert_behind(frame, tag)
-		elif sticker.plain_tag() != null and sticker.plain_tag().visible:
-			keep_clear.append(sticker.plain_tag().get_global_rect())
+		# The price window (tickets v5), paid or printed, sits inside the ticket, clear of the frame.
+		keep_clear.append(sticker.window().get_global_rect())
 	for drawn: Rect2 in frame.drawn_rects():
 		var shown: Rect2 = to_global * drawn
 		for rect: Rect2 in keep_clear:
@@ -437,19 +433,6 @@ func _assert_plate_cells(frame: ChainFrame, index: int) -> void:
 	assert_int(cells).is_equal(expected)
 
 
-## `frame` runs on under `tag` (a pay tag pinned on one of its tickets): some of its top band lies
-## under the tag, and the tag draws after it.
-func _assert_behind(frame: BatchFrame, tag: PayTag) -> void:
-	var to_global: Transform2D = frame.get_parent().get_global_transform()
-	var tag_rect: Rect2 = tag.get_global_rect()
-	var under: bool = false
-	for drawn: Rect2 in frame.drawn_rects():
-		if (to_global * drawn).intersects(tag_rect):
-			under = true
-	assert_bool(under).override_failure_message("no frame under %s" % tag_rect).is_true()
-	assert_bool(tag.is_greater_than(frame)).is_true()
-
-
 ## Each line of `sticker`'s short text: its pitch tall, as wide as its text (global).
 static func _line_rects(sticker: PriceSticker) -> Array[Rect2]:
 	var label: GlyphLabel = sticker.summary()
@@ -487,7 +470,7 @@ static func _chain_frames(screen: ShiftScreen) -> Array[ChainFrame]:
 ## `slot`'s ticket's global rect.
 static func _ticket(screen: ShiftScreen, slot: int) -> Rect2:
 	var sticker: PriceSticker = _item(screen, slot).sticker()
-	return sticker.get_global_transform() * Rect2(Vector2.ZERO, PriceSticker.SIZE)
+	return sticker.get_global_transform() * Rect2(Vector2.ZERO, sticker.size)
 
 
 static func _layer(screen: ShiftScreen) -> PlanningLayer:

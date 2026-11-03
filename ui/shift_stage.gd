@@ -77,7 +77,7 @@ const COUNTER_TOP := 360.0
 ## The floor under the counter and the register: the basket ledge's foot.
 const FLOOR_TOP := 708.0
 ## The belt, from its steel guard down to the price rail's shadow (BeltPanel draws its bands).
-const BELT_RECT := Rect2(348, 348, 918, 180)
+const BELT_RECT := Rect2(348, 348, 918, 192)
 ## Where the 7-slot row starts: each cell (ItemView.BELT_SIZE) stands its item on the belt's top
 ## face and clips its ticket on the rail. Every row rests on ROW_BOTTOM: a scaled 8-slot row
 ## too.
@@ -132,14 +132,14 @@ const CANCEL_RECT := Rect2(232, 518, 84, 54)
 ## last one's right edge at the natural pitch; the baskets' rims are HandBaskets'). Since the belt
 ## came down onto the baskets (#123) the hand's cells start at the rail's shadow: a scanned or
 ## picked basket item rises over the counter face, up to the rail.
-const LEDGE_RECT := Rect2(346, 674, 924, 34)
-const HAND_RECT := Rect2(362, 526, 892, ItemView.BASKET_SIZE.y)
+const LEDGE_RECT := Rect2(346, 686, 924, 34)
+const HAND_RECT := Rect2(362, 538, 892, ItemView.BASKET_SIZE.y)
 ## Where the hand is: from as high as a scanned basket item rises (ItemView.BASKET_LIFT over the
 ## cells' top, over the rail's foot since #123) down to the stage's foot, right of the register.
-const HAND_AREA := Rect2(336, 512, 944, 208)
+const HAND_AREA := Rect2(336, 524, 944, 196)
 ## While the shift is counted a shade darkens the hand and its baskets (ink at this alpha, mock-up
 ## B2's count-up), so the belt reads first.
-const COUNTING_SHADE_RECT := Rect2(336, 526, 944, 186)
+const COUNTING_SHADE_RECT := Rect2(336, 538, 944, 174)
 const COUNTING_SHADE_ALPHA := 0.4
 const SEED_RECT := Rect2(20, 586, 198, 18)
 ## Screen panels (the deck view, the results) and their shade stay below this line, under the top
