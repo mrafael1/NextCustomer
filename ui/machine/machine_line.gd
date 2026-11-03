@@ -2,17 +2,18 @@ class_name MachineLine
 extends PixelLine
 ## One line of the machine's hard pixel lettering (the relook, mock-up
 ## docs/art/mockups/machine_relook.html V2): PixelLine's words (Pixelify's 11 px raster at 2x or
-## 4x) and numbers (the number font's raster at 2x), from plain text. show_text() splits a line
-## into runs: a number run is digits with the signs that go with them (€, %, +, −, <, ×), drawn in
-## the number font (the € and the 2 never mistaken for each other); a mark (✓ ✕ ● ◆ ★, which
+## 4x) and numbers, from plain text. show_text() splits a line into runs: a number run is digits
+## with the signs that go with them (€, %, +, −, <, ×, /), drawn in the chunky price-gun digits
+## (v0.96, A2 of mock-up machine_relook_v2.html: PixelWords.Sheet.CHUNKY, 6x8 font px at one art
+## px each, at the words' scale; Pixelify never prints a digit), their foot on the words'
+## baseline, with an optional shadow one font px down and right; a mark (✓ ✕ ● ◆ ★, which
 ## Pixelify lacks) is a small pixel pattern; the rest are words. The runs follow each other one
 ## art px apart, a space keeping its own advance, so "SPEND 109€ ✓ THANK YOU!" reads as one line.
-## `big` numbers use PixelWords' 6x8 bold digits instead (the display's amounts). The control's
-## top left is the words' cap top at the line's left; its size is the line's width and the
-## capitals' height. Display only.
+## The control's top left is the words' cap top at the line's left; its size is the line's width
+## and the capitals' height. Display only.
 
 ## The number runs: digits and the signs printed with them.
-const NUMBER_RUN := "[+−<×]?[0-9]+(?:[.,][0-9]+)?[€%]?"
+const NUMBER_RUN := "[+−<×-]?[0-9]+(?:[.,/][0-9]+)?[€%]?"
 ## The marks drawn as patterns ('#' ink), centred on the capitals.
 const MARKS: Dictionary[String, Array] = {
 	"✓": ["....#", "...##", "#.##.", "###..", ".#..."],
@@ -31,13 +32,14 @@ var _ink: Color = Palette.INK
 
 
 ## Lays out `line`: words in `colour` at `word_scale` (1: 2x, 2: 4x), numbers and marks in
-## `number_colour` (the words' colour when left clear); `big` numbers in PixelWords' 6x8 digits.
+## `number_colour` (the words' colour when left clear), the numbers' shadow `number_shadow`
+## (clear: none).
 func show_text(
 	line: String,
 	colour: Color,
-	number_colour: Color = Color(0, 0, 0, 0),
+	number_colour: Color = Color(Palette.INK, 0.0),
 	word_scale: int = 1,
-	big: bool = false
+	number_shadow: Color = Color(Palette.INK, 0.0)
 ) -> void:
 	for child: Node in get_children():
 		remove_child(child)
@@ -54,7 +56,7 @@ func show_text(
 		if MARKS.has(run):
 			x += _add_icon(mark_texture(run, numbers), x, CENTRED)
 		elif _is_number_run(run):
-			x += _add_big(run, x, numbers) if big else _add_number(run, x, numbers)
+			x += _add_chunky(run, x, numbers, number_shadow)
 		else:
 			x += _add_word(run, x, colour)
 	_width = x
@@ -68,14 +70,19 @@ static func make(
 	line_name: String,
 	line: String,
 	colour: Color,
-	number_colour: Color = Color(0, 0, 0, 0),
+	number_colour: Color = Color(Palette.INK, 0.0),
 	word_scale: int = 1,
-	big: bool = false
+	number_shadow: Color = Color(Palette.INK, 0.0)
 ) -> MachineLine:
 	var made: MachineLine = MachineLine.new()
 	made.name = line_name
-	made.show_text(line, colour, number_colour, word_scale, big)
+	made.show_text(line, colour, number_colour, word_scale, number_shadow)
 	return made
+
+
+## A clear colour, for show_text's `number_colour` (the words' colour) and `number_shadow` (none).
+static func clear() -> Color:
+	return Color(Palette.INK, 0.0)
 
 
 ## The words' colour (show_text's `colour`).
@@ -119,7 +126,7 @@ static func runs_of(line: String) -> Array[String]:
 
 
 ## `line`'s width in canvas px at `word_scale` (as show_text lays it out).
-static func width_of(line: String, word_scale: int = 1, big: bool = false) -> float:
+static func width_of(line: String, word_scale: int = 1) -> float:
 	var art: float = ArtStyle.ART_SCALE
 	var total: float = 0.0
 	var runs: Array[String] = runs_of(line)
@@ -130,10 +137,7 @@ static func width_of(line: String, word_scale: int = 1, big: bool = false) -> fl
 		if MARKS.has(run):
 			total += (MARKS[run][0] as String).length() * art
 		elif _is_number_run(run):
-			if big:
-				total += PixelWords.text_size(run, PixelWords.Sheet.DIGITS, art).x
-			else:
-				total += number_width(run)
+			total += PixelWords.text_size(run, PixelWords.Sheet.CHUNKY, art * word_scale).x
 		else:
 			total += word_width(run, word_scale)
 	return total
@@ -185,11 +189,23 @@ static func _push(runs: Array[String], word: String) -> void:
 	runs.append(word)
 
 
-## A number in PixelWords' 6x8 digits, its foot on the words' baseline.
-func _add_big(number: String, x: float, colour: Color) -> float:
-	var art: float = ArtStyle.ART_SCALE
-	var digits: PixelWords = PixelWords.new(number, PixelWords.Sheet.DIGITS, art, colour)
-	var rows: int = PixelWords.font_size_of(number, PixelWords.Sheet.DIGITS).y
-	digits.position = Vector2(x, (ArtStyle.PIXEL_CAP_HEIGHT * _scale_factor - rows) * art)
+## A number in the chunky digits at the words' scale, its foot on the words' baseline.
+func _add_chunky(number: String, x: float, colour: Color, shadow: Color) -> float:
+	var cell: float = ArtStyle.ART_SCALE * _scale_factor
+	var sheet: PixelWords.Sheet = PixelWords.Sheet.CHUNKY
+	var digits: PixelWords = PixelWords.new(number, sheet, cell, colour)
+	digits.name = "Number"
+	digits.shadow = shadow
+	var rows: int = PixelWords.font_size_of(number, sheet).y
+	digits.position = Vector2(x, (ArtStyle.PIXEL_CAP_HEIGHT - rows) * cell)
 	add_child(digits)
-	return PixelWords.text_size(number, PixelWords.Sheet.DIGITS, art).x
+	return PixelWords.text_size(number, sheet, cell).x
+
+
+## The number runs' PixelWords (chunky digits), for tests.
+func number_words() -> Array[PixelWords]:
+	var found: Array[PixelWords] = []
+	for child: Node in get_children():
+		if child is PixelWords:
+			found.append(child as PixelWords)
+	return found

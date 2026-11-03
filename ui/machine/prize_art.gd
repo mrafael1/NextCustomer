@@ -1,37 +1,39 @@
 class_name PrizeArt
 extends Control
-## The art box on a prize ticket (v0.50, mock-up premium_machine_v1.html; M5; 152x104 on the
-## relook's compact ticket in v0.86): the real sprites, never a stand-in.
+## The art box on a prize ticket (v0.50, mock-up premium_machine_v1.html; M5; 132x100 on V3's
+## 144x244 ticket in v0.96, mock-up machine_relook_v3.html): the real sprites, never a stand-in.
 ## - a product: its item sprite (plain, BIG or GOLDEN as drawn), a BIG or GOLDEN one (NEW ITEMS
 ##   since v0.61: an item can arrive upgraded) with its tier chip; a coupon: the coupon slip with
 ##   its icon, or its name printed on it (ItemView.item_art, as the game shows items everywhere);
 ## - an item upgrade (the UPGRADE chute): the item at its new tier with a BIG / GOLDEN chip; the
-##   SHELF upgrade (LEGENDARY) shows the plain item on a gold shelf plank with "SHELF +1", since the
-##   GOLDEN palette on it would read as a different product;
+##   SHELF upgrade (LEGENDARY) shows the plain item on a gold shelf plank with "SHELF +1" (its chip
+##   in the art's bottom right corner), since the GOLDEN palette on it would read as a different
+##   product;
 ## - a LOYALTY prize (the UPGRADE chute's perks): a punch card matching the top bar's loyalty card
-##   (cream, a teal band, three stamp slots, the first stamped with the perk's initials, as the top
-##   bar's stamps show them) over the perk's badge: its icon (UpgradeDefinition.icon_ref; Big
-##   basket's "+1 slot" ticket) on a teal shade badge, or its initials when it has none. A level-up
-##   (#108, LV 2 or LV 3) stamps as many slots as its level and shows an "LV n" chip in the art's
-##   bottom right corner, clear of the badge (chip_rect).
+##   (cream, a teal band, three stamp slots), centred, its first slot stamped with the perk's icon
+##   (UpgradeDefinition.icon_ref; Big basket's "+1 slot" ticket) or, with none, its initials. A
+##   level-up (#108, LV 2 or LV 3) stamps as many slots as its level and shows an "LV n" chip in
+##   the art's bottom right corner (chip_rect): the ticket's band carries only the perk's name.
 
-const SIZE := Vector2(152, 104)
+const SIZE := Vector2(132, 100)
 ## The item's sprite (ItemView.SPRITE_SIZE) and where it sits.
-const SPRITE_AT := Vector2(28, 4)
+const SPRITE_AT := Vector2(18, 2)
 const SHELF_LIFT := 6.0
-const CHIP_AT := Vector2(14, 80)
-## A level-up's chip: its right edge and its top in the art box (right of the perk's badge).
-const LEVEL_CHIP_RIGHT := 148.0
+## A tier chip's top left (bottom left of the art); a level-up's and the SHELF's chip: its right
+## edge and its top (bottom right of the art).
+const CHIP_AT := Vector2(6, 80)
+const LEVEL_CHIP_RIGHT := 128.0
 const LEVEL_CHIP_TOP := 80.0
 const CHIP_HEIGHT := 18.0
 const CHIP_SIZE := 12
 const CHIP_PAD := 6.0
-const PUNCH_RECT := Rect2(30, 2, 92, 58)
-const BADGE_RECT := Rect2(52, 62, 44, 40)
-const BADGE_MIDDLE := Vector2(74, 82)
+## The loyalty punch card, centred, its teal band and its three stamp slots (SLOT_STEP apart).
+const PUNCH_RECT := Rect2(22, 24, 88, 52)
+const PUNCH_BAND := 10.0
+const SLOT_AT := Vector2(6, 18)
+const SLOT_STEP := 26.0
 const BOLD_WEIGHT := 800
 const INITIALS_SIZE := 9
-const BADGE_INITIALS_SIZE := 14
 const STAMP_RING := preload("res://art/icons/stamp_ring.png")
 const STAMP_EMPTY := preload("res://art/icons/stamp_ring_empty.png")
 ## The perk's icon on the badge: a small glyph (6 art px or less) at 3x art, else 2x or 1x art,
@@ -90,7 +92,7 @@ func chip_rect() -> Rect2:
 	var width: float = MachineArt.snap(
 		MachineArt.text_width(_chip, font, CHIP_SIZE) + CHIP_PAD * 2.0
 	)
-	if prize.kind == MachinePrize.Kind.REGISTER:
+	if prize.kind == MachinePrize.Kind.REGISTER or has_shelf():
 		return Rect2(Vector2(LEVEL_CHIP_RIGHT - width, LEVEL_CHIP_TOP), Vector2(width, CHIP_HEIGHT))
 	return Rect2(CHIP_AT, Vector2(width, CHIP_HEIGHT))
 
@@ -123,36 +125,27 @@ func _add_loyalty() -> void:
 	var initials: String = LoyaltyCard.initials(
 		prize.upgrade.display_name if prize.upgrade != null else ""
 	)
-	var stamped: Label = _initials_label(initials, INITIALS_SIZE, Palette.PAPER)
-	stamped.name = "StampInitials"
-	stamped.position = PUNCH_RECT.position + Vector2(6, 22)
-	stamped.size = STAMP_RING.get_size() * 2.0
+	var slot: Rect2 = Rect2(PUNCH_RECT.position + SLOT_AT, STAMP_RING.get_size() * 2.0)
 	_icon = icon_of(prize.upgrade)
 	if _icon != null:
 		var k: float = icon_scale(_icon.get_size())
 		var glyph: TextureRect = UiKit.sprite(_icon)
 		glyph.name = "PerkIcon"
 		glyph.size = _icon.get_size() * k
-		glyph.position = MachineArt.snap_point(BADGE_MIDDLE - glyph.size / 2.0)
+		glyph.position = MachineArt.snap_point(slot.get_center() - glyph.size / 2.0)
 		add_child(glyph)
 	else:
-		var badge: Label = _initials_label(initials, BADGE_INITIALS_SIZE, Palette.PAPER)
-		badge.name = "PerkInitials"
-		badge.position = BADGE_RECT.position
-		badge.size = BADGE_RECT.size
+		var stamped: Label = _initials_label(initials, INITIALS_SIZE, Palette.PAPER)
+		stamped.name = "StampInitials"
+		stamped.position = slot.position
+		stamped.size = slot.size
 
 
-## The badge glyph's scale (canvas px per texel) for an icon of `texels`: 3x art for a small one
-## (SMALL_ICON or less), else the largest of 2x and 1x art that stays inside the badge's ink
-## border, so a larger glyph (a 13x12 one, as Big basket's "+1" ticket was) never reaches the
-## punch card.
+## The stamped slot's glyph scale (canvas px per texel) for an icon of `texels`: 2x art for a
+## small one (SMALL_ICON or less), else 1x art, so it stays inside the stamp ring.
 static func icon_scale(texels: Vector2) -> float:
-	var inside: Vector2 = BADGE_RECT.size - Vector2(4, 4)
 	if maxf(texels.x, texels.y) <= SMALL_ICON:
-		return 6.0
-	for k: float in [4.0, 2.0]:
-		if texels.x * k <= inside.x and texels.y * k <= inside.y:
-			return k
+		return 4.0
 	return 2.0
 
 
@@ -194,10 +187,9 @@ func draw_chip(item: CanvasItem, origin: Vector2) -> void:
 ## level) and the perk's badge.
 func _draw_punch_card() -> void:
 	var card: Rect2 = PUNCH_RECT
-	MachineArt.box(self, card, Palette.CREAM, Palette.INK)
-	draw_rect(Rect2(card.position + Vector2(2, 2), Vector2(card.size.x - 4, 12)), Palette.TEAL)
+	MachineArt.box(self, card, Palette.PAPER, Palette.INK)
 	draw_rect(
-		Rect2(card.position + Vector2(2, 14), Vector2(card.size.x - 4, 2)), Palette.TEAL_SHADE
+		Rect2(card.position + Vector2(2, 2), Vector2(card.size.x - 4, PUNCH_BAND)), Palette.TEAL
 	)
 	draw_rect(
 		Rect2(card.position + Vector2(2, card.size.y - 4), Vector2(card.size.x - 4, 2)),
@@ -206,9 +198,5 @@ func _draw_punch_card() -> void:
 	var stamped: int = prize.upgrade.level_number() if prize.upgrade != null else 1
 	for slot: int in range(3):
 		var texture: Texture2D = STAMP_RING if slot < stamped else STAMP_EMPTY
-		var at: Vector2 = card.position + Vector2(6 + slot * 28, 22)
+		var at: Vector2 = card.position + SLOT_AT + Vector2(slot * SLOT_STEP, 0)
 		draw_texture_rect(texture, Rect2(at, texture.get_size() * 2.0), false)
-	if _icon != null and _icon.get_width() > SMALL_ICON * 2:
-		return  # A wide ticket icon stands on its own, as the mock-up drew Big basket's.
-	MachineArt.box(self, BADGE_RECT, Palette.TEAL_SHADE, Palette.INK)
-	draw_rect(Rect2(BADGE_RECT.position + Vector2(4, 2), Vector2(36, 2)), Palette.TEAL)

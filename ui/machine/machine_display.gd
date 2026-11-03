@@ -2,11 +2,11 @@ class_name MachineDisplay
 extends Control
 ## The machine's LED display (#77, look F; build spec 4.2-4.3; the relook in v0.86, mock-up
 ## docs/art/mockups/machine_relook.html V2): a charcoal glass with scanlines in a steel bezel,
-## left of the receipt slot, 368 px wide. Its message is hard pixel lettering at 2x in gold
-## (MachineLine: its amounts in PixelWords' 6x8 bold digits, its marks ✓ ✕ drawn as pixels), with
-## its sub line in bold Atkinson 12 (teal pale) under it; a message too wide for the glass wraps
-## onto a second line instead of shrinking (the sub line then gives way). The SKIP bin bins a draw
-## (2026-10-29, SkipBin).
+## left of the receipt slot, 340 px wide. Its message is hard pixel lettering at 2x in gold
+## (MachineLine: its amounts in the chunky price-gun digits, PixelWords.Sheet.CHUNKY, its marks
+## ✓ ✕ drawn as pixels), with its sub line in bold Atkinson 12 (teal pale) under it; a message
+## too wide for the glass wraps onto a second line instead of shrinking (the sub line then gives
+## way). The SKIP bin bins a draw (2026-10-29, SkipBin).
 ## Atkinson has no ✓ or ✕: the sub line's font falls back to JetBrains Mono (ArtStyle.MONO_FONT)
 ## for them, the same on desktop and on the web build (marked_font).
 ##
@@ -22,9 +22,9 @@ extends Control
 ## A BONUS visit's feed reads the ticket icon and "BONUS TICKET" / "inspection passed · feeding
 ## in".
 
-const SIZE := Vector2(368, 60)
+const SIZE := Vector2(340, 60)
 ## The glass inside the bezel, and the room the message's lines have in it.
-const GLASS_RECT := Rect2(6, 6, 356, 48)
+const GLASS_RECT := Rect2(6, 6, 328, 48)
 const PAD := 8.0
 ## The message's capitals (one line, or two when wrapped) and the sub line's box.
 const LINE_TOP := 14.0
@@ -359,7 +359,7 @@ func _show(message: String, sub: String) -> void:
 		line.visible = index < parts.size()
 		if not line.visible:
 			continue
-		line.show_text(parts[index], Palette.GOLD, Palette.GOLD, 1, true)
+		line.show_text(parts[index], Palette.GOLD, Palette.GOLD)
 		var cap: float = ArtStyle.PIXEL_CAP_HEIGHT * ArtStyle.ART_SCALE
 		line.centre_in(Rect2(icon_room, tops[index], SIZE.x - icon_room, cap))
 	if _icon.visible:
@@ -377,7 +377,7 @@ func _show(message: String, sub: String) -> void:
 ## `message` as it fits `room` px of glass: one line, or split at the space nearest its middle
 ## into two when it is too wide (a single long word stays one line).
 static func wrap_message(message: String, room: float) -> PackedStringArray:
-	if message.is_empty() or MachineLine.width_of(message, 1, true) <= room:
+	if message.is_empty() or MachineLine.width_of(message) <= room:
 		return PackedStringArray([message])
 	var words: PackedStringArray = message.split(" ")
 	var best: PackedStringArray = PackedStringArray([message])
@@ -385,9 +385,7 @@ static func wrap_message(message: String, room: float) -> PackedStringArray:
 	for cut: int in range(1, words.size()):
 		var first: String = " ".join(words.slice(0, cut))
 		var second: String = " ".join(words.slice(cut))
-		var wide: float = maxf(
-			MachineLine.width_of(first, 1, true), MachineLine.width_of(second, 1, true)
-		)
+		var wide: float = maxf(MachineLine.width_of(first), MachineLine.width_of(second))
 		if wide < widest:
 			widest = wide
 			best = PackedStringArray([first, second])

@@ -144,10 +144,17 @@ func test_the_receipt_travels_into_the_slot() -> void:
 	assert_float(rect.size.x).is_equal_approx(mouth.size.x * view.tuning.feed_fit, PX)
 	view.show_at(plan.fly_end / 2.0)
 	var mid: Rect2 = _stage_rect(screen, feed.paper)
-	assert_float(mid.position.x).is_between(rest.position.x, rect.position.x)
+	# It heads for the slot's live mouth, which mid-glide is still on its way in (v0.96: the V3
+	# counter fills the view, so the slot starts far right of where it ends; as store_camera_test):
+	# between its rest and the furthest of its end and the plate's live right edge, give or take
+	# the tear's tilt (half its height's sine).
+	var tuning: MachineTuning = view.tuning
+	var sway: float = rest.size.y / 2.0 * sin(deg_to_rad(tuning.tear_tilt_deg))
+	var plate: Rect2 = _stage_rect(screen, view.slot_plate)
+	var right: float = maxf(maxf(rest.position.x, rect.position.x), plate.end.x)
+	assert_float(mid.position.x).is_between(rest.position.x - sway, right + sway)
 	# Between its rest and the mouth, up to the tear's lift and tilt above them (v0.50: the slot sits
 	# lower than the receipt's top, so the lift shows).
-	var tuning: MachineTuning = view.tuning
 	var tilt: float = rest.size.x / 2.0 * sin(deg_to_rad(tuning.tear_tilt_deg))
 	var top: float = minf(rect.position.y, rest.position.y) - tuning.tear_lift_px - tilt
 	assert_float(mid.position.y).is_between(top, maxf(rect.position.y, rest.position.y))
@@ -207,8 +214,9 @@ func test_no_stub_without_a_bonus() -> void:
 		assert_object(view.receipt_feed.ticket).is_null()
 
 
-## A NEW ITEMS pick: the prize flies from its ticket into the drawer's new slot; the drawer (right
-## edge 748, under the top bar, left of the machine, inside the stage) slides in before the flight,
+## A NEW ITEMS pick: the prize flies from its ticket into the drawer's new slot; the drawer (V3:
+## right edge CART_DRAWER_RIGHT, under the top bar, over the machine's stock window side and clear
+## of its prize bay, inside the stage) slides in before the flight,
 ## its count chip reads n/<deck_limit> then n+1 at the landing with the new slot filled and NEW IN
 ## CART stamped, and it is gone after its slide out.
 func test_a_new_card_flies_into_the_cart_drawer() -> void:
@@ -227,7 +235,8 @@ func test_a_new_card_flies_into_the_cart_drawer() -> void:
 	assert_float(rest.end.x).is_equal(ShiftStage.CART_DRAWER_RIGHT)
 	assert_float(rest.position.y).is_greater_equal(TOP_BAR_BOTTOM)
 	assert_bool(STAGE_RECT.encloses(rest)).is_true()
-	assert_bool(rest.intersects(ShiftStage.MACHINE_RECT)).is_false()
+	var bay_left: float = ShiftStage.MACHINE_RECT.position.x + RewardMachineView.BAY_POSITION.x
+	assert_float(rest.end.x).is_less_equal(bay_left)
 	assert_float(_stage_rect(screen, drawer).end.x).is_equal_approx(rest.end.x, PX)
 	assert_str(drawer.count_label.text).is_equal("%d/%d" % [landing.cart_before, limit])
 	var new_slot: Dictionary = drawer.slots[-1]

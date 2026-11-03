@@ -19,6 +19,7 @@ const STARTER := "res://data/decks/starter.tres"
 const SPOT_CHECK := "res://data/inspections/spot_check.tres"
 const MILK := "res://data/cards/milk.tres"
 const COUPON_ENGINE := "res://data/upgrades/coupon_engine.tres"
+const DAIRY_REGULARS := "res://data/upgrades/dairy_regulars.tres"
 ## Milk, Multipack, then five Milks (109): passes shift 1.
 const PASSING_ROW: Array[String] = ["milk", "multipack", "milk", "milk", "milk", "milk", "milk"]
 ## The only Pixelify sizes (full build plan 6.1).
@@ -43,11 +44,12 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-## On the real screen (v0.50 front-on redraw): the machine at MACHINE_RECT, wholly inside the stage
-## (its tray no longer cropped by the view's foot) and right of the register column and the
-## receipt; the marquee over the cabinet, below the top bar; the display, the slot plate, the stock
-## window, the key bay and the tray inside the cabinet.
-func test_the_machine_sits_beside_the_register_inside_the_stage() -> void:
+## On the real screen (V3's prize counter, v0.96: it fills the view): the machine at MACHINE_RECT,
+## wholly inside the stage with its plinth, its shadow and its beacons; the marquee over the
+## cabinet, centred, below the top bar; the display, the slot plate, the stock window, the key bay
+## and the tray inside the machine's module, left of the middle pillar; the prize bay right of it,
+## inside the cabinet.
+func test_the_v3_counter_fills_the_view() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
 	for id: String in PASSING_ROW:
@@ -64,8 +66,27 @@ func test_the_machine_sits_beside_the_register_inside_the_stage() -> void:
 	var machine: Rect2 = view.get_global_rect()
 	_assert_rect(machine, xform * ShiftStage.MACHINE_RECT, "machine")
 	assert_bool(stage.encloses(machine)).override_failure_message(str(machine)).is_true()
-	assert_float(machine.position.x).is_greater_equal((xform * ShiftStage.REGISTER_RECT).end.x)
-	assert_float(machine.position.x).is_greater_equal(screen._receipt.get_global_rect().end.x)
+	var to_global: Transform2D = view.get_global_transform()
+	var extras: Array[Rect2] = [MachineCabinet.PLINTH_RECT, MachineCabinet.SHADOW_RECT]
+	extras.append_array(MachineCabinet.BEACON_RECTS)
+	for extra: Rect2 in extras:
+		var shown: Rect2 = to_global * extra
+		assert_bool(stage.encloses(shown)).override_failure_message(str(shown)).is_true()
+	var pillar: Rect2 = to_global * MachineCabinet.MIDDLE_PILLAR_RECT
+	var bay: Rect2 = view.bay.get_global_rect()
+	_assert_rect(
+		bay,
+		(
+			xform
+			* Rect2(
+				ShiftStage.MACHINE_RECT.position + RewardMachineView.BAY_POSITION, PrizeBay.SIZE
+			)
+		),
+		"bay"
+	)
+	assert_bool(machine.encloses(bay)).is_true()
+	assert_float(bay.position.x).is_greater_equal(pillar.end.x)
+	assert_float(view.stock.get_global_rect().end.x).is_less_equal(pillar.position.x)
 	var head: Rect2 = view.head.get_global_rect()
 	assert_bool(stage.encloses(head)).is_true()
 	assert_float(head.position.y).is_greater_equal(
@@ -79,6 +100,7 @@ func test_the_machine_sits_beside_the_register_inside_the_stage() -> void:
 			. override_failure_message("%s %s" % [part.name, part.get_global_rect()])
 			. is_true()
 		)
+		assert_float(part.get_global_rect().end.x).is_less_equal(pillar.position.x)
 
 
 ## The prize row (3, 2 and 1 tickets) at PrizeRow.card_rect on the machine: every ticket inside the
@@ -118,6 +140,64 @@ func test_the_prize_row_sits_on_the_stage() -> void:
 			assert_str(prompt).is_equal("PICK 1 · ONLY %d IN STOCK" % count)
 		for label: Label in view.display.labels():
 			_assert_fits(label)
+		await _close(view)
+
+
+## V3 on the stage at the pick (3, 2 and 1 tickets), on the widest case (LOYALTY stamps at
+## LEGENDARY, each with a two-row win sticker): every ticket with its rim (TicketRim.OUTER_AT out)
+## stays inside the prize bay; each sticker, tilted and with its shadow, stays inside the bay and
+## the stage, its body clear of the next ticket's rim; its family chips sit inside its art box.
+func test_the_rims_stickers_and_chips_stay_in_the_bay() -> void:
+	var regulars: UpgradeDefinition = load(DAIRY_REGULARS)
+	var on_stage: Rect2 = Rect2(Vector2.ZERO, ShiftStage.SIZE)
+	for count: int in [3, 2, 1]:
+		var run: RunState = _passed_run(12)
+		var earlier: ShiftRecord = ShiftRecord.new(0, 0, 0)
+		earlier.played.append(load(MILK) as CardDefinition)
+		run.history.insert(0, earlier)
+		var view: RewardMachineView = await _open(run)
+		assert_bool(run.machine.choose(run, RewardMachine.Chute.NEW_ITEMS)).is_true()
+		var drawn: Array[MachinePrize] = []
+		for index: int in range(count):
+			drawn.append(
+				MachinePrize.new(
+					MachinePrize.Kind.REGISTER, MachinePrize.Rarity.LEGENDARY, null, regulars
+				)
+			)
+		run.machine.current_visit().set_drawn(drawn)
+		view.show_draw(run)
+		view.show_at(view.plan.pick_at)
+		await _frames(2)
+		var bay: Rect2 = view.bay.get_global_rect()
+		var rims: Array[Rect2] = []
+		for ticket: PrizeTicket in view.tickets:
+			rims.append(ticket.get_global_rect().grow(TicketRim.OUTER_AT))
+		for index: int in range(count):
+			var ticket: PrizeTicket = view.tickets[index]
+			var what: String = "ticket %d of %d" % [index, count]
+			assert_bool(bay.encloses(rims[index])).override_failure_message(what).is_true()
+			var sticker: WinSticker = ticket.win_sticker()
+			assert_object(sticker).is_not_null()
+			assert_int(sticker.texts().size()).is_equal(2)
+			var local: Rect2 = Rect2(Vector2.ZERO, sticker.size)
+			var xform: Transform2D = sticker.get_global_transform()
+			var body: Rect2 = xform * local
+			var shadowed: Rect2 = xform * local.merge(Rect2(WinSticker.WIN_SHADOW, sticker.size))
+			var where: String = "%s: sticker %s" % [what, shadowed]
+			assert_bool(bay.encloses(shadowed)).override_failure_message(where).is_true()
+			assert_bool(on_stage.encloses(shadowed)).override_failure_message(where).is_true()
+			if index + 1 < count:
+				(
+					assert_bool(body.intersects(rims[index + 1]))
+					. override_failure_message("%s: sticker %s" % [what, body])
+					. is_false()
+				)
+			var art_box: Rect2 = ticket.get_global_transform() * PrizeTicket.ART_RECT
+			var chips: Array[Rect2] = PrizeTicket.chip_rects(ticket.family_chips().size())
+			assert_int(chips.size()).is_greater(0)
+			for chip: Rect2 in chips:
+				var placed: Rect2 = ticket.get_global_transform() * chip
+				assert_bool(art_box.encloses(placed)).override_failure_message(what).is_true()
 		await _close(view)
 
 
@@ -304,8 +384,9 @@ func test_a_lit_key_glow_follows_its_shape() -> void:
 
 
 ## The cart drawer at its widest (a landing product with more copies than it shows) rests below
-## the top bar, left of the machine, and above the floor; its labels fit.
-func test_the_cart_drawer_sits_left_of_the_machine() -> void:
+## the top bar, over the machine's stock window side (v0.96: the counter fills the view), clear of
+## the prize bay, and above the stock window's sill legend; its labels fit.
+func test_the_cart_drawer_sits_over_the_stock_window_side() -> void:
 	var run: RunState = _passed_run(18, _with_milks)
 	var view: RewardMachineView = await _open(run)
 	assert_bool(run.machine.choose(run, RewardMachine.Chute.NEW_ITEMS)).is_true()
@@ -323,7 +404,16 @@ func test_the_cart_drawer_sits_left_of_the_machine() -> void:
 	assert_float(rest.position.y).is_greater_equal(ShiftStage.TOP_BAR_BOTTOM)
 	assert_float(rest.position.x).is_greater_equal(ShiftStage.CART_DRAWER_LEFT)
 	assert_float(rest.end.x).is_less_equal(ShiftStage.CART_DRAWER_REACH)
+	var bay_left: float = ShiftStage.MACHINE_RECT.position.x + RewardMachineView.BAY_POSITION.x
+	assert_float(rest.end.x).is_less_equal(bay_left)
 	assert_float(rest.end.y).is_less_equal(ShiftStage.FLOOR_TOP)
+	# Its foot, shadow included, stays above the stock window's sill, so the legend reads whole.
+	var sill_top: float = (
+		ShiftStage.MACHINE_RECT.position.y
+		+ RewardMachineView.WINDOW_POSITION.y
+		+ StockWindow.sill_rect().position.y
+	)
+	assert_float(rest.end.y + CartDrawer.SHADOW).is_less_equal(sill_top)
 	for label: Label in _labels(drawer):
 		_assert_fits(label)
 	await _close(view)
@@ -381,8 +471,8 @@ func test_pixelify_is_only_12_or_24_and_every_label_fits() -> void:
 ## The prize tickets of a NEW ITEMS draw holding its coupon and an item that arrived BIG or GOLDEN
 ## (v0.61, #108), and of an UPGRADE draw holding a perk's level-up and an item upgrade: every
 ## ticket inside the stage and apart; its chip (the item's tier, the level-up's "LV 2") inside its
-## ticket and its art box, clear of the face's labels; the band says what the prize is; every
-## label fits.
+## ticket and its art box, clear of the face's labels; the band holds the prize's name (v0.96: no
+## kind word; a level-up's level is its art's "LV 2" chip); every label fits.
 func test_new_items_and_upgrade_tickets_fit_with_their_marks() -> void:
 	var on_stage: Rect2 = Rect2(Vector2.ZERO, ShiftStage.SIZE)
 	var engine: UpgradeDefinition = load(COUPON_ENGINE)
@@ -442,17 +532,17 @@ func test_new_items_and_upgrade_tickets_fit_with_their_marks() -> void:
 		var band: String = marked_ticket.face_texts()[0]
 		if chute == RewardMachine.Chute.NEW_ITEMS:
 			assert_str(marked_ticket.art.chip_text()).is_equal("GOLDEN")
-			assert_str(band).is_equal("NEW ITEM")
+			assert_str(band).is_equal(visit.prizes[marked].card.display_name)
 			var price: String = marked_ticket.price_line().text()
 			assert_str(price).is_equal("%d€" % visit.prizes[marked].card.base)
 			assert_bool(marked_ticket.price_rect().intersects(chip)).is_false()
 		else:
 			assert_str(marked_ticket.art.chip_text()).is_equal("LV 2")
-			assert_str(band).is_equal("LEVEL UP · LV 2")
-			# The perk's badge stays clear of the chip.
-			var badge: Rect2 = PrizeArt.BADGE_RECT
-			badge.position += PrizeTicket.ART_RECT.position
-			assert_bool(badge.intersects(chip)).is_false()
+			assert_str(band).is_equal(engine.next_level.display_name)
+			# The punch card stays clear of the chip.
+			var card: Rect2 = PrizeArt.PUNCH_RECT
+			card.position += PrizeTicket.ART_RECT.position
+			assert_bool(card.intersects(chip)).is_false()
 		await _close(view)
 
 
@@ -469,6 +559,7 @@ func test_the_dim_veil_follows_the_silhouette() -> void:
 		Rect2(Vector2.ZERO, MachineCabinet.SIZE),
 		MachineCabinet.PLINTH_RECT,
 	]
+	parts.append_array(MachineCabinet.BEACON_RECTS)
 	for index: int in range(MachineHead.bulb_count()):
 		var at: Vector2 = RewardMachineView.HEAD_POSITION + MachineHead.bulb_point(index)
 		parts.append(Rect2(at - Vector2(2, 2), Vector2(6, 6)))

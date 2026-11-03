@@ -5,10 +5,12 @@ extends GdUnitTestSuite
 ## flies out of the tray and lands face up in its row; the LEGENDARY sunburst grows, then shrinks
 ## to a small glow within about a second, with a short shake; the row, its tabs and KEEP ONE stay
 ## on the 1280x720 view without overlapping; each ticket shows its prize in full (the real sprite,
-## the coupon slip, a LOYALTY punch card with its perk's badge, an upgrade's new tier or the SHELF
-## plank) and every face's lines fit; the veil darkens the store for the row; after the pick the
-## picked ticket lifts and goes, the others fall away (a bin: all of them). Parts are framed
-## directly on a machine view with a hand-made plan (the clock is the root's, U0).
+## the coupon slip, a LOYALTY punch card with its perk in its first stamp slot, an upgrade's new
+## tier or the SHELF plank) and every face's lines fit (V3, v0.96: the name in the band, the rule
+## under it); a ticket wears its family chips, its rarity rim, chase lights and sheen, and a
+## LOYALTY ticket its S1 win sticker; after the pick the picked ticket lifts and goes, the others
+## fall away (a bin: all of them). Parts are framed directly on a machine view with a hand-made
+## plan (the clock is the root's, U0).
 
 const BALANCE := "res://data/balance/balance.tres"
 const STARTER := "res://data/decks/starter.tres"
@@ -48,7 +50,7 @@ func after_test() -> void:
 
 
 ## Issue #77's test 5: each rarity's landed ticket differs from the others in its tab's text, its
-## pips, its effect (none, the RARE ring, the LEGENDARY sunburst), the reveal's length and its
+## pips, its effect (none, the RARE rim, the LEGENDARY sunburst), the reveal's length and its
 ## sounds; reduced motion keeps every one of them (the sunburst at its glow).
 func test_every_rarity_has_a_non_colour_signal_on_its_reveal() -> void:
 	for rm: bool in [false, true]:
@@ -188,35 +190,29 @@ func test_the_row_and_keep_one_stay_on_the_view() -> void:
 		assert_bool(VIEW.encloses(tab)).is_true()
 
 
-## The veil darkens the store as the first ticket leaves the tray, holds through the row, and
-## lifts after the press.
-func test_the_veil_frames_the_row() -> void:
+## The KEEP ONE label hides once the pick is pressed (V3, v0.96: no veil; the prize bay frames
+## the row).
+func test_keep_one_hides_after_the_press() -> void:
 	var view: RewardMachineView = _view(MachineVisit.Kind.TICKET, false, RARITIES)
 	var plan: MachinePlan = view.plan
 	var row: PrizeRow = view.prize_row
-	row.frame(plan.drop_at[0] - PrizeRow.VEIL_LEAD - 0.01)
-	assert_float(row.veil_alpha()).is_equal(0.0)
-	row.frame(plan.pick_at)
-	assert_float(row.veil_alpha()).is_equal_approx(PrizeRow.VEIL_ALPHA, 0.0001)
 	plan.set_landing(MachinePlan.Landing.NEW_CARD, 1, MachinePlan.NO_VISIT)
-	row.frame(plan.press + PrizeRow.VEIL_OUT + 0.01)
-	assert_float(row.veil_alpha()).is_equal(0.0)
+	row.frame(plan.press + 0.5)
 	assert_bool(row.keep_label().visible).is_false()
 
 
-## Each prize in full: a product's band and its price, its name and long rule (#105) over its real
-## sprite; a coupon's band; a LOYALTY prize's band, the perk's name and effect over a punch card
-## and its perk badge (Big basket's "+1 slot" glyph); an upgrade's new tier on its chip; the SHELF
-## upgrade's plain item on a gold plank, "SHELF +1".
+## Each prize in full (V3, v0.96: the band is the name, no kind word): a product's name, its price
+## and its long rule (#105) over its real sprite; a coupon's name; a LOYALTY prize's perk name and
+## effect over a punch card, its perk's glyph in the first stamp slot (Big basket's "+1 slot"); an
+## upgrade's name line and new tier on its chip; the SHELF upgrade's plain item on a gold plank,
+## "SHELF +1".
 func test_every_ticket_shows_its_prize_in_full() -> void:
 	var view: RewardMachineView = _view(MachineVisit.Kind.TICKET, true, [0])
 	var milk: CardDefinition = load(MILK)
 	var product: PrizeTicket = _ticket(
 		view, 0, MachinePrize.new(MachinePrize.Kind.PRODUCT, 0, milk), null, 1
 	)
-	assert_array(Array(product.face_texts())).is_equal(
-		["NEW ITEM", milk.display_name, milk.rule_text]
-	)
+	assert_array(Array(product.face_texts())).is_equal([milk.display_name, milk.rule_text])
 	# The relook (v0.86): the price in its window at the art's top right, inside the art box.
 	assert_str(product.price_line().text()).is_equal("%d€" % milk.base)
 	assert_bool(PrizeTicket.ART_RECT.encloses(product.price_rect())).is_true()
@@ -225,17 +221,16 @@ func test_every_ticket_shows_its_prize_in_full() -> void:
 	var coupon: PrizeTicket = _ticket(
 		view, 0, MachinePrize.new(MachinePrize.Kind.COUPON, 1, coupon_card), null, 1
 	)
-	assert_str(coupon.face_texts()[0]).is_equal("COUPON")
+	assert_str(coupon.face_texts()[0]).is_equal(coupon_card.display_name)
 	assert_object(coupon.price_line()).is_null()
 	assert_object(coupon.art.get_node("Sprite")).is_not_null()
 	var basket: UpgradeDefinition = load(BIG_BASKET)
 	var stamp: MachinePrize = MachinePrize.new(MachinePrize.Kind.REGISTER, 0, null, basket)
 	var loyalty: PrizeTicket = _ticket(view, 0, stamp, null, 1)
-	assert_array(Array(loyalty.face_texts())).is_equal(
-		["LOYALTY STAMP", basket.display_name, basket.effect_text]
-	)
+	assert_array(Array(loyalty.face_texts())).is_equal([basket.display_name, basket.effect_text])
 	assert_object(loyalty.art.perk_icon()).is_same(load(PLUS_SLOT))
-	assert_object(loyalty.art.get_node("StampInitials")).is_not_null()
+	assert_object(loyalty.art.find_child("PerkIcon", false, false)).is_not_null()
+	assert_object(loyalty.art.find_child("StampInitials", false, false)).is_null()
 	var preview: MachinePreview = MachinePreview.new()
 	preview.targets = [CardInstance.new(load(MILK_BIG), 3)]
 	preview.to_cards = [load(MILK_GOLDEN)]
@@ -243,9 +238,7 @@ func test_every_ticket_shows_its_prize_in_full() -> void:
 	var upgrade: PrizeTicket = _ticket(
 		view, 0, MachinePrize.new(MachinePrize.Kind.UPGRADE, 0, milk), preview, 1
 	)
-	assert_array(Array(upgrade.face_texts())).is_equal(
-		["UPGRADE", "Milk +1 step", "1 copy: BIG › GOLDEN"]
-	)
+	assert_array(Array(upgrade.face_texts())).is_equal(["Milk +1 step", "1 copy: BIG › GOLDEN"])
 	assert_str(upgrade.art.chip_text()).is_equal("GOLDEN")
 	assert_object(upgrade.art.upgraded_card()).is_same(load(MILK_GOLDEN))
 	assert_bool(upgrade.art.has_shelf()).is_false()
@@ -257,21 +250,17 @@ func test_every_ticket_shows_its_prize_in_full() -> void:
 		view, 0, MachinePrize.new(MachinePrize.Kind.UPGRADE, 2, milk), shelf_preview, 1
 	)
 	assert_array(Array(shelf.face_texts())).is_equal(
-		["UPGRADE", "Shelf upgrade", "SHELF ×2 · every Milk +1 step"]
+		["Shelf upgrade", "SHELF ×2 · every Milk +1 step"]
 	)
 	assert_bool(shelf.art.has_shelf()).is_true()
 	assert_str(shelf.art.chip_text()).is_equal("SHELF +1")
 
 
-## Every face's lines fit the ticket (the relook, v0.86: the band in hard pixel capitals inside
-## its band, the name in hard pixel lines (up to NAME_LINES) when it fits NAME_WIDTH, else bold in
-## NAME_LINES, the long rule text at the first RULE_SIZES size that shows it whole in the room
-## left (rule_room), else cut there, under the name; all inside the ticket): every product and
-## coupon the machine can draw, every LOYALTY perk and every UPGRADES prize of every chain and
-## rarity.
-## #108 section 4a: a LOYALTY ticket carries the win sticker, one line after shift 1 (the last
-## row is the only one) and two from shift 2, a line that wins nothing reading WASTED; its labels
-## fit their boxes. A product ticket and a perk with no scoring rule carry none.
+## #108 section 4a: a LOYALTY ticket carries the win sticker, one row after shift 1 (the last row
+## is the only one) and two from shift 2, a row that wins nothing reading WASTED. A product ticket
+## and a perk with no scoring rule carry none. S1 (v0.96): tilted WIN_TILT across the ticket's
+## foot, its right edge STICK_OUT past the ticket's and its top OVERLAP over the foot, clear of the
+## rule; a won row's amount in green dark chunky digits inside the sticker, a WASTED row stamped.
 func test_a_loyalty_ticket_shows_its_win_sticker() -> void:
 	var view: RewardMachineView = _view(MachineVisit.Kind.TICKET, true, [0])
 	var milk: CardDefinition = load(MILK)
@@ -285,24 +274,30 @@ func test_a_loyalty_ticket_shows_its_win_sticker() -> void:
 	run = _run_with_rows([[milk, milk, milk], [load(BREAD)]])
 	var later: PrizeTicket = _ticket(view, 0, stamp, preview, 1, run)
 	assert_array(Array(later.win_texts())).is_equal(["LAST ROW WASTED", "BEST ROW +3€"])
-	# The relook (v0.86, the mock-up's strip): straight and inside the face's sides and foot, a
-	# small lower-case label left of its amount, WASTED in tomato and a win in green.
-	var strip: Control = later.win_sticker()
-	var inside: Rect2 = Rect2(Vector2.ZERO, PrizeTicket.SIZE).grow(-PrizeTicket.WIN_INSET)
-	assert_bool(inside.encloses(strip.get_rect())).is_true()
-	assert_float(strip.rotation).is_equal(0.0)
-	var inks: Array[Color] = [Palette.TOMATO_DARK, Palette.GREEN_DARK]
-	for row: int in range(2):
-		var words: Label = strip.get_node("WinLabel%d" % row) as Label
-		var amount: MachineLine = strip.get_node("WinAmount%d" % row) as MachineLine
-		assert_str(words.text).is_equal(PrizeTicket.WIN_LABELS[row].to_lower())
-		assert_int(words.get_theme_font_size("font_size")).is_greater_equal(12)
-		assert_bool(Rect2(Vector2.ZERO, strip.size).encloses(words.get_rect())).is_true()
-		assert_bool(Rect2(Vector2.ZERO, strip.size).encloses(amount.get_rect())).is_true()
-		assert_float(words.get_rect().end.x).is_less(amount.position.x)
-		assert_int(words.get_visible_line_count()).is_equal(1)
-		assert_object(amount.ink()).is_equal(inks[row])
+	var strip: WinSticker = later.win_sticker()
+	var placed: Rect2 = WinSticker.sticker_rect(2, strip.size.x, PrizeTicket.SIZE)
+	# Its unrotated rect (get_rect() is the rotated one's).
+	var unrotated: Rect2 = Rect2(strip.position, strip.size)
+	(
+		assert_bool(unrotated.is_equal_approx(placed))
+		. override_failure_message(str(unrotated))
+		. is_true()
+	)
+	assert_float(unrotated.end.x).is_equal(PrizeTicket.SIZE.x + WinSticker.STICK_OUT)
+	assert_float(strip.position.y).is_equal(PrizeTicket.SIZE.y - WinSticker.OVERLAP)
+	assert_float(strip.rotation_degrees).is_equal_approx(WinSticker.WIN_TILT, 0.001)
 	assert_float(later.rule_label().get_rect().end.y).is_less_equal(strip.position.y)
+	strip.frame(10.0, false)
+	assert_float(strip.sticker_scale()).is_equal(1.0)
+	assert_str(strip.shown_amount(0)).is_equal(WinSticker.WASTED)
+	assert_float(strip.stamp_scale(0)).is_equal(1.0)
+	assert_str(strip.shown_amount(1)).is_equal("+3€")
+	var amount: MachineLine = strip.get_node("WinAmount1") as MachineLine
+	assert_bool(amount.visible).is_true()
+	assert_str(amount.text()).is_equal("+3€")
+	assert_object(amount.ink()).is_equal(Palette.GREEN_DARK)
+	assert_bool(Rect2(Vector2.ZERO, strip.size).encloses(amount.get_rect())).is_true()
+	assert_bool((strip.get_node("WinAmount0") as MachineLine).visible).is_false()
 	var product: PrizeTicket = _ticket(
 		view, 0, MachinePrize.new(MachinePrize.Kind.PRODUCT, 0, milk), null, 1, run
 	)
@@ -312,6 +307,105 @@ func test_a_loyalty_ticket_shows_its_win_sticker() -> void:
 	assert_object(_ticket(view, 0, basket.prize, basket, 1, run).win_sticker()).is_null()
 
 
+## S1's motion (v0.96): hidden until SLAP_AT, slapped in from SLAP_FROM down to 1x by
+## SLAP_S later; each won row rolls from "+0€" to its amount from ROLL_AT + ROLL_STEP x its row
+## over ROLL_S; a WASTED row's stamp thumps in from STAMP_FROM as its row would roll; under
+## reduced motion it shows whole at the landing.
+func test_the_win_sticker_slaps_in_and_rolls() -> void:
+	assert_float(WinSticker.scale_at(WinSticker.SLAP_AT - 0.01, false)).is_equal(0.0)
+	assert_float(WinSticker.scale_at(WinSticker.SLAP_AT, false)).is_equal_approx(
+		WinSticker.SLAP_FROM, 0.001
+	)
+	var slapped: float = WinSticker.SLAP_AT + WinSticker.SLAP_S
+	assert_float(WinSticker.scale_at(slapped, false)).is_equal_approx(1.0, 0.001)
+	assert_float(WinSticker.scale_at(0.0, true)).is_equal(1.0)
+	assert_float(WinSticker.scale_at(-0.01, true)).is_equal(0.0)
+	var second: float = WinSticker.ROLL_AT + WinSticker.ROLL_STEP
+	assert_str(WinSticker.rolled_text(40, 1, second - 0.01, false)).is_equal(WinSticker.ZERO)
+	var half: String = WinSticker.rolled_text(40, 1, second + WinSticker.ROLL_S / 2.0, false)
+	assert_str(half).is_not_equal(WinSticker.ZERO)
+	assert_str(half).is_not_equal("+40€")
+	assert_str(WinSticker.rolled_text(40, 1, second + WinSticker.ROLL_S, false)).is_equal("+40€")
+	assert_str(WinSticker.rolled_text(40, 1, 0.0, true)).is_equal("+40€")
+	assert_str(WinSticker.rolled_text(0, 0, 9.0, false)).is_equal(WinSticker.WASTED)
+	assert_float(WinSticker.stamp_scale_at(0, WinSticker.ROLL_AT - 0.01, false)).is_equal(0.0)
+	assert_float(WinSticker.stamp_scale_at(0, WinSticker.ROLL_AT + 0.001, false)).is_greater(1.5)
+	var thumped: float = WinSticker.ROLL_AT + WinSticker.STAMP_S
+	assert_float(WinSticker.stamp_scale_at(0, thumped, false)).is_equal_approx(1.0, 0.001)
+	assert_float(WinSticker.stamp_scale_at(0, 0.0, true)).is_equal(1.0)
+
+
+## C2 (v0.96): COMMON has no rim, chase or sheen; RARE a notched 4-bar rim RIM_AT round the ticket
+## with CHASE_COUNT[RARE] segments; LEGENDARY adds its outer line and more segments. The chase
+## moves on the idle clock and holds still under reduced motion; the sheen crosses on landing and
+## repeats every SHEEN_PERIOD, staggered per ticket, never under reduced motion.
+func test_the_rarity_rim_chases_and_shines() -> void:
+	var size: Vector2 = PrizeTicket.SIZE
+	var common: int = MachinePrize.Rarity.COMMON
+	var rare: int = MachinePrize.Rarity.RARE
+	var legendary: int = MachinePrize.Rarity.LEGENDARY
+	assert_int(TicketRim.rim_rects(common, size).size()).is_equal(0)
+	assert_int(TicketRim.chase_points(common, 1.0, false, size).size()).is_equal(0)
+	assert_float(TicketRim.sheen_at(common, 0.1, 0.0, false)).is_equal(-1.0)
+	var rim: Array[Rect2] = TicketRim.rim_rects(rare, size)
+	assert_int(rim.size()).is_equal(4)
+	var ring: Rect2 = Rect2(Vector2.ZERO, size).grow(TicketRim.RIM_AT)
+	for bar: Rect2 in rim:
+		assert_bool(ring.encloses(bar)).is_true()
+		assert_bool(Rect2(Vector2.ZERO, size).intersects(bar)).is_false()
+	assert_int(TicketRim.rim_rects(legendary, size).size()).is_equal(8)
+	var per: int = int(TicketRim.CHASE_LEN / MachineArt.PIXEL)
+	var points: Array[Vector2] = TicketRim.chase_points(rare, 0.0, false, size)
+	assert_int(points.size()).is_equal(TicketRim.CHASE_COUNT[rare] * per)
+	var legend: Array[Vector2] = TicketRim.chase_points(legendary, 0.0, false, size)
+	assert_int(legend.size()).is_equal(TicketRim.CHASE_COUNT[legendary] * per)
+	assert_array(TicketRim.chase_points(rare, 0.5, false, size)).is_not_equal(points)
+	assert_array(TicketRim.chase_points(rare, 0.5, true, size)).is_equal(points)
+	var outer: Rect2 = ring.grow(MachineArt.PIXEL)
+	for point: Vector2 in points:
+		assert_bool(outer.has_point(point)).is_true()
+		assert_bool(Rect2(Vector2.ZERO, size).has_point(point)).is_false()
+	var landing: float = TicketRim.SHEEN_LAND_S / 2.0
+	assert_float(TicketRim.sheen_at(rare, landing, 0.0, false)).is_equal_approx(0.5, 0.001)
+	assert_float(TicketRim.sheen_at(rare, landing, 0.0, true)).is_equal(-1.0)
+	var period: float = TicketRim.SHEEN_PERIOD[rare]
+	var crossing: float = TicketRim.SHEEN_S / 2.0
+	assert_float(TicketRim.sheen_at(rare, 9.0, period * 3.0 + crossing, false)).is_equal_approx(
+		0.5, 0.001
+	)
+	assert_float(TicketRim.sheen_at(rare, 9.0, period * 3.0 + crossing, false, 1)).is_equal(-1.0)
+	assert_float(TicketRim.sheen_at(rare, 9.0, period * 3.0 + 1.0, false)).is_equal(-1.0)
+
+
+## B2 (v0.96): a ticket wears its family chips in its art's top left corner, inside the art box
+## and clear of the price window: a product its family's, a perk the family it boosts, a perk
+## that boosts none (Big basket) none.
+func test_a_ticket_wears_its_family_chips() -> void:
+	var view: RewardMachineView = _view(MachineVisit.Kind.TICKET, true, [0])
+	var milk: CardDefinition = load(MILK)
+	var product: PrizeTicket = _ticket(
+		view, 0, MachinePrize.new(MachinePrize.Kind.PRODUCT, 0, milk), null, 1
+	)
+	var families: PackedStringArray = PrizeTicket.chip_families(product.prize)
+	assert_int(families.size()).is_greater(0)
+	assert_int(product.family_chips().size()).is_equal(families.size())
+	for chip: Rect2 in PrizeTicket.chip_rects(families.size()):
+		assert_bool(PrizeTicket.ART_RECT.encloses(chip)).is_true()
+		assert_bool(chip.intersects(product.price_rect())).is_false()
+	var regulars: UpgradeDefinition = load(DAIRY_REGULARS)
+	var stamp: MachinePrize = MachinePrize.new(MachinePrize.Kind.REGISTER, 0, null, regulars)
+	assert_array(Array(PrizeTicket.chip_families(stamp))).is_equal([regulars.boosts_tag])
+	var basket: UpgradeDefinition = load(BIG_BASKET)
+	var plain: MachinePrize = MachinePrize.new(MachinePrize.Kind.REGISTER, 0, null, basket)
+	assert_int(PrizeTicket.chip_families(plain).size()).is_equal(0)
+
+
+## Every face's lines fit the ticket (V3, v0.96: the name in the band in hard pixel rows (one, or
+## the balanced two-row split) when they fit NAME_WIDTH, else bold in NAME_LINES; the long rule
+## text at the first RULE_SIZES size that shows it whole in the room left (rule_room, over a win
+## sticker's foot or the plain one), else cut there, under the band; all inside the ticket): every
+## product and coupon the machine can draw, every LOYALTY perk and every UPGRADES prize of every
+## chain and rarity.
 func test_every_face_fits_the_ticket() -> void:
 	var view: RewardMachineView = _view(MachineVisit.Kind.TICKET, true, [0])
 	var prizes: Array[MachinePrize] = []
@@ -348,38 +442,39 @@ func test_every_face_fits_the_ticket() -> void:
 		await get_tree().process_frame
 		var texts: PackedStringArray = ticket.face_texts()
 		var what: String = " / ".join(texts)
-		var band_width: float = MachineLine.width_of(texts[0])
-		assert_float(band_width).override_failure_message(what).is_less_equal(
-			PrizeTicket.BAND_RECT.size.x - 8.0
-		)
-		var display: bool = PrizeTicket.name_in_rows(texts[1], texts[2])
+		var rows: PackedStringArray = PrizeTicket.name_rows(texts[0])
+		var display: bool = not rows.is_empty()
 		assert_bool(ticket.name_control() is Label).override_failure_message(what).is_equal(
 			not display
 		)
-		var name_lines: int = (
-			PrizeTicket.name_rows(texts[1]).size()
-			if display
-			else PrizeTicket.text_lines(
-				bold, texts[1], PrizeTicket.NAME_SIZE, PrizeTicket.NAME_WIDTH
+		for row: String in rows:
+			assert_float(MachineLine.width_of(row)).override_failure_message(what).is_less_equal(
+				PrizeTicket.NAME_WIDTH
 			)
-		)
+		var name_lines: int = rows.size() if display else PrizeTicket.NAME_LINES
+		if not display:
+			var bold_lines: int = PrizeTicket.text_lines(
+				bold, texts[0], PrizeTicket.NAME_SIZE, PrizeTicket.NAME_WIDTH
+			)
+			assert_int(bold_lines).override_failure_message(what).is_less_equal(
+				PrizeTicket.NAME_LINES
+			)
 		assert_int(ticket.name_line_count()).override_failure_message(what).is_equal(name_lines)
 		assert_int(name_lines).override_failure_message(what).is_less_equal(PrizeTicket.NAME_LINES)
 		# #105: the long rule text, whole, at the first RULE_SIZES size that shows it.
-		var fit: Vector2i = PrizeTicket.rule_fit(texts[2], name_lines)
+		var fit: Vector2i = PrizeTicket.rule_fit(texts[1], name_lines)
 		var rule_lines: int = PrizeTicket.text_lines(
-			rule_font, texts[2], PrizeTicket.RULE_SIZES[fit.y], PrizeTicket.RULE_WIDTH
+			rule_font, texts[1], PrizeTicket.RULE_SIZES[fit.y], PrizeTicket.RULE_WIDTH
 		)
 		assert_int(rule_lines).override_failure_message(what).is_equal(fit.x)
-		# Whole, never cut: under the face's foot and, for a prize that can carry a win strip
-		# (a LOYALTY perk, an UPGRADES prize), over a strip of one row and of two.
-		var strips: Array[int] = [0]
+		# Whole, never cut: over the face's plain foot and, for a prize that can carry a win
+		# sticker (a LOYALTY perk, an UPGRADES prize), over the sticker's.
+		var stickers: Array[bool] = [false]
 		if prizes[index].kind in [MachinePrize.Kind.REGISTER, MachinePrize.Kind.UPGRADE]:
-			strips = [0, 1, 2]
-		for strip_rows: int in strips:
-			var strip_names: int = _name_lines(texts[1], texts[2], strip_rows)
-			if not PrizeTicket.rule_whole(texts[2], strip_names, strip_rows):
-				cut.append("%s (strip %d)" % [what, strip_rows])
+			stickers = [false, true]
+		for sticker: bool in stickers:
+			if not PrizeTicket.rule_whole(texts[1], name_lines, sticker):
+				cut.append("%s (sticker %s)" % [what, sticker])
 		# The face's own coordinates: the card layer holding the rule.
 		var card: Control = ticket.rule_label().get_parent() as Control
 		var to_face: Transform2D = card.get_global_transform().affine_inverse()
@@ -418,21 +513,9 @@ func test_every_face_fits_the_ticket() -> void:
 	assert_array(Array(cut)).override_failure_message(", ".join(cut)).is_empty()
 
 
-## The lines a ticket's name `shown` takes over a win strip of `strip_rows` rows
-## (PrizeTicket.name_in_rows: hard pixel rows, else bold).
-static func _name_lines(shown: String, rule: String, strip_rows: int) -> int:
-	if PrizeTicket.name_in_rows(shown, rule, strip_rows):
-		return PrizeTicket.name_rows(shown).size()
-	var bold: Font = ArtStyle.bold_font(PrizeTicket.BOLD_WEIGHT)
-	return mini(
-		PrizeTicket.text_lines(bold, shown, PrizeTicket.NAME_SIZE, PrizeTicket.NAME_WIDTH),
-		PrizeTicket.NAME_LINES
-	)
-
-
-## A LOYALTY prize's perk glyph stays inside its badge, clear of the punch card above it (Big
-## basket's 13x12 "+1" ticket included), with the card's 2 px gap at least.
-func test_the_perk_glyph_stays_on_its_badge() -> void:
+## A LOYALTY prize's perk glyph sits in the punch card's first stamp slot (V3, v0.96: no badge),
+## inside the card and below its band (Big basket's 13x12 "+1" ticket included).
+func test_the_perk_glyph_sits_in_the_first_stamp_slot() -> void:
 	var shown: int = 0
 	for perk: UpgradeDefinition in _balance.upgrade_pool:
 		var art: PrizeArt = auto_free(
@@ -443,15 +526,15 @@ func test_the_perk_glyph_stays_on_its_badge() -> void:
 			continue
 		shown += 1
 		var rect: Rect2 = Rect2(glyph.position, glyph.size)
-		var badge: Rect2 = PrizeArt.BADGE_RECT.grow(-2.0)
-		assert_bool(badge.encloses(rect)).override_failure_message(String(perk.id)).is_true()
-		var gap: float = rect.position.y - PrizeArt.PUNCH_RECT.end.y
-		assert_float(gap).override_failure_message(String(perk.id)).is_greater_equal(2.0)
+		var card: Rect2 = PrizeArt.PUNCH_RECT
+		assert_bool(card.encloses(rect)).override_failure_message(String(perk.id)).is_true()
+		var below: float = rect.position.y - (card.position.y + PrizeArt.PUNCH_BAND)
+		assert_float(below).override_failure_message(String(perk.id)).is_greater_equal(0.0)
 	assert_int(shown).is_greater(0)
 
 
 ## The art's chip (v0.61, #108): every perk level above 1 reads "LV n", and every BIG or GOLDEN
-## item its tier; the chip lies inside the art, and a level's clear of the perk's badge.
+## item its tier; the chip lies inside the art, and a level's clear of the punch card.
 func test_the_level_and_tier_chips_stay_inside_the_art() -> void:
 	var art_box: Rect2 = Rect2(Vector2.ZERO, PrizeArt.SIZE)
 	var levels: int = 0
@@ -466,7 +549,7 @@ func test_the_level_and_tier_chips_stay_inside_the_art() -> void:
 			assert_str(art.chip_text()).is_equal("LV %d" % level.level_number())
 			assert_bool(art_box.encloses(art.chip_rect())).override_failure_message(what).is_true()
 			(
-				assert_bool(art.chip_rect().intersects(PrizeArt.BADGE_RECT))
+				assert_bool(art.chip_rect().intersects(PrizeArt.PUNCH_RECT))
 				. override_failure_message(what)
 				. is_false()
 			)

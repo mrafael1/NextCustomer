@@ -273,9 +273,9 @@ func test_an_upgrade_pick_stamps_the_loyalty_card() -> void:
 
 
 ## At the card's cap (#108 Q4 B) UPGRADE offers only level-ups of owned perks (and item upgrades):
-## picking the Coupon engine's LV 2 replaces it in its own box (no new box), the landing word is
-## LEVEL UP ✓, and the box shows its LV 2 badge inside it, on the top bar's chip; the next shift
-## plays it at LV 2 and the log names its level.
+## the ticket names the prize, its art's chip LV 2; picking the Coupon engine's LV 2 replaces it
+## in its own box (no new box), the landing word is LEVEL UP ✓, and the box shows its LV 2 badge
+## inside it, on the top bar's chip; the next shift plays it at LV 2 and the log names its level.
 func test_a_level_up_at_the_cap_restamps_its_own_box() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
@@ -296,7 +296,9 @@ func test_a_level_up_at_the_cap_restamps_its_own_box() -> void:
 	assert_int(index).is_greater_equal(0)
 	var view: RewardMachineView = screen._machine.view
 	await _until_armed(screen)
-	assert_str(view.tickets[index].face_texts()[0]).is_equal("LEVEL UP · LV 2")
+	# V3: the band names the prize; the art's chip carries its level.
+	assert_str(view.tickets[index].face_texts()[0]).is_equal(engine.next_level.display_name)
+	assert_str(view.tickets[index].art.chip_text()).is_equal("LV 2")
 	view.pick(index)
 	screen._machine.on_deck_added()
 	assert_str(view.display.rest_texts()[0]).is_equal("LEVEL UP ✓")

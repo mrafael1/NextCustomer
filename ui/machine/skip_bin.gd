@@ -16,9 +16,9 @@ signal hover_changed(over: bool)
 ## foot) with its word under it, as wide as the gap between the chute keys
 ## (RewardMachineView.KEY_X), so it never covers a key's face.
 const SIZE := Vector2(48, 68)
-## Its top, in machine coordinates: under the prize row (PrizeRow.ROW_TOP + the ticket's height),
-## clear of the tray's push bar (the relook, v0.86: KEEP ONE stands on the bar).
-const TOP := 342.0
+## Its top, in machine coordinates: on the prize bay's floor (V3, v0.96: PrizeBay.FLOOR_Y, the
+## bin's lid over it), under the middle of the prize row, clear of the tickets' win stickers.
+const TOP := 414.0
 const TEXT := "SKIP"
 ## The word's cap top, in hard pixel capitals (MachineLine, 2x).
 const TEXT_TOP := 52.0

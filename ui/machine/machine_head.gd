@@ -1,7 +1,8 @@
 class_name MachineHead
 extends Control
 ## The machine's marquee (#77; redrawn front-on in v0.50; the steel-and-brass relook in v0.86,
-## mock-up docs/art/mockups/machine_relook.html V2): an engraved brass plate over the cabinet,
+## mock-up docs/art/mockups/machine_relook.html V2; v0.96 one marquee over both of V3's modules,
+## machine_relook_v2.html): an engraved brass plate over the cabinet,
 ## like the gauge's € plate (an ink outline, a mustard light top row, brass dark at its foot and
 ## right, a gold rivet in each corner), with "RECEIPT REWARDS" in hard pixel lettering at 4x,
 ## engraved (brass darkest letters over a mustard light row one art px under them), over "ONE
@@ -18,20 +19,20 @@ extends Control
 ## twice its size at the visit's start (reduced motion: at rest), and lifts once the visit's
 ## landing is over (the punch's end + 0.6 s).
 
-const SIZE := Vector2(536, 66)
+const SIZE := Vector2(928, 74)
 const TITLE := "RECEIPT REWARDS"
 const SUB_LINE := "ONE PRIZE PER RECEIPT"
 const PREMIUM_TITLE := "PREMIUM REWARDS"
 const PREMIUM_SUB := "RARE OR BETTER"
 ## The title's and the sub line's boxes (their capitals centred in them): the title at 4x (word
 ## scale 2), the sub line at 2x, each at least BULB_CLEAR (2 art px) clear of its bulb row.
-const TITLE_RECT := Rect2(8, 10, 520, 28)
-const SUB_RECT := Rect2(8, 42, 520, 14)
+const TITLE_RECT := Rect2(8, 10, 912, 28)
+const SUB_RECT := Rect2(8, 50, 912, 14)
 const BULB_CLEAR := 4.0
 const TITLE_SCALE := 2
 ## The bulbs (2 art px square): BULBS_ALONG on the top row and on the foot's, BULB_STEP apart
 ## from BULB_LEFT.
-const BULBS_ALONG := 33
+const BULBS_ALONG := 57
 const BULB_LEFT := 12.0
 const BULB_STEP := 16.0
 const BULB_TOP := 2.0
@@ -54,7 +55,6 @@ const BONUS_STAMP_FROM := 2.2
 const BACK_C := 1.7
 const BLINK_RATE := 10.0
 const FLASH_ALPHA := 0.85
-const CLEAR := Color(0, 0, 0, 0)
 
 ## The machine this part belongs to (setup(), build spec 4.2).
 var view: RewardMachineView
@@ -93,7 +93,7 @@ func _init() -> void:
 func set_stamp(text: String, under: String) -> void:
 	_stamp_text = text
 	_under_text = under
-	_stamp_line.show_text(text, Palette.TOMATO_DARK, CLEAR, TITLE_SCALE)
+	_stamp_line.show_text(text, Palette.TOMATO_DARK, MachineLine.clear(), TITLE_SCALE)
 	_under.show_text(under.to_upper(), Palette.INK_LIGHT)
 	_under.visible = not under.is_empty()
 	var inner: float = maxf(_stamp_line.width(), _under.width() if _under.visible else 0.0)
@@ -219,8 +219,8 @@ func _show_face(night: bool) -> void:
 	var title: String = PREMIUM_TITLE if night else TITLE
 	var under: Color = Palette.BRASS_DARKEST if night else Palette.MUSTARD_LIGHT
 	var ink: Color = Palette.GOLD if night else Palette.BRASS_DARKEST
-	_title_under.show_text(title, under, CLEAR, TITLE_SCALE)
-	_title.show_text(title, ink, CLEAR, TITLE_SCALE)
+	_title_under.show_text(title, under, MachineLine.clear(), TITLE_SCALE)
+	_title.show_text(title, ink, MachineLine.clear(), TITLE_SCALE)
 	_sub.show_text(PREMIUM_SUB if night else SUB_LINE, Palette.MUSTARD_LIGHT if night else ink)
 	_title.centre_in(TITLE_RECT)
 	_title_under.position = _title.position + Vector2(0, MachineArt.PIXEL)

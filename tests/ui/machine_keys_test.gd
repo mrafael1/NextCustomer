@@ -822,6 +822,9 @@ func test_the_cabinet_on_the_stage() -> void:
 		var on_stage: Rect2 = Rect2(Vector2(0, ShiftStage.PANEL_TOP), ShiftStage.SIZE)
 		on_stage.end = ShiftStage.SIZE
 		assert_bool(on_stage.encloses(machine)).override_failure_message(str(machine)).is_true()
+		# V3's 74 px marquee stands up to the top bar's foot.
+		on_stage.position.y = ShiftStage.TOP_BAR_BOTTOM
+		on_stage.end = ShiftStage.SIZE
 		var head: Rect2 = view.head.get_global_rect()
 		assert_vector(head.position).is_equal(machine.position + RewardMachineView.HEAD_POSITION)
 		assert_bool(on_stage.encloses(head)).is_true()

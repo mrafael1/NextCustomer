@@ -146,37 +146,35 @@ const SEED_RECT := Rect2(20, 586, 198, 18)
 ## bar, so Cart and the menu stay reachable.
 const PANEL_TOP := 64.0
 ## The RECEIPT REWARDS machine in the store (#77 machine v2, Q1 = A; redrawn front-on in v0.50,
-## mock-up premium_machine_v1.html; the steel-and-brass relook since v0.86, mock-up
-## machine_relook.html V2): the 560x584 cabinet at MACHINE_WALL_SCALE. Since the clean
-## scene (#123) it stands right of the stage, out of the planning view: the camera glides to it for
-## its visits, and a window wider than 16:9 shows it at the right edge. Shown all run, dimmed
-## between its visits. Its marquee and bulbs stand above the rect, its plinth and shadow below it.
-const MACHINE_WALL_RECT := Rect2(1302, 90, 280, 292)
+## mock-up premium_machine_v1.html; the steel-and-brass relook since v0.86, mock-ups
+## machine_relook.html V2 and machine_relook_v2.html / _v3.html V3): the 1040x584 prize counter
+## (the machine's module and its prize bay) at MACHINE_WALL_SCALE. Since the clean scene (#123) it
+## stands right of the stage, out of the planning view: the camera glides to it for its visits,
+## and a window wider than 16:9 shows it at the right edge. Shown all run, dimmed between its
+## visits. Its marquee and bulbs stand above the rect, its plinth and shadow below it.
+const MACHINE_WALL_RECT := Rect2(1302, 90, 520, 292)
 const MACHINE_WALL_SCALE := 0.5
 ## The camera at the machine (StoreCamera): CAMERA_ZOOM, and the offset (whole pixels) that puts
 ## the machine at MACHINE_RECT on screen, at a net scale of 1 (crisp: 0.5 x 2).
 const CAMERA_ZOOM := 2.0
 ## (MACHINE_RECT.position - CAMERA_ZOOM x MACHINE_WALL_RECT.position).
-const CAMERA_OFFSET := Vector2(-2244, -64)
+const CAMERA_OFFSET := Vector2(-2484, -64)
 ## The world (the store, the counter's and the floor's bands) runs to here on the stage: the camera
-## at the machine shows stage x 1122 .. 1762.
-const WORLD_RIGHT := 1800.0
+## at the machine shows stage x 1242 .. 1882.
+const WORLD_RIGHT := 1904.0
 ## Where the camera puts the machine's cabinet on screen (stage coordinates of the unzoomed
 ## layers: the hud and the machine's overlay), under the top bar: the marquee's top (its bulbs
-## inside its rim) at y 64 and the plinth's shadow down to y 718, inside the screen (v0.50: the
-## old framing cut the tray off; v0.86's relook keeps the camera's offset, the cabinet centred
-## where it was).
-const MACHINE_RECT := Rect2(360, 116, 560, 584)
-## The cart drawer's right edge and top (left of the machine's cabinet at 2x, under the top bar).
-const CART_DRAWER_RIGHT := 352.0
-## The drawer never starts left of this (a four-slot drawer is wider than the room left of the
-## machine: it reaches over the cabinet's left edge).
-const CART_DRAWER_LEFT := 8.0
-## The widest drawer's right edge (four slots from CART_DRAWER_LEFT): over the cabinet's left
-## 96 px (its pillar, the marquee's end and the display's left end, whose lines are centred well
-## clear of it).
-const CART_DRAWER_REACH := 456.0
-const CART_DRAWER_TOP := 64.0
+## inside its rim) at y 56, the top bar's foot, and the plinth's shadow down to y 718, inside the
+## screen. V3 (v0.96) fills the view: the machine's module left, the prize bay right.
+const MACHINE_RECT := Rect2(120, 116, 1040, 584)
+## The cart drawer (v0.96: the counter fills the view, so it drops over the machine's stock window
+## side, clear of the prize bay): its left edge, the widest drawer's right edge, and its top (its
+## foot, shadow included, ends at the stock window's sill, so the rarity legend stays whole).
+const CART_DRAWER_LEFT := 144.0
+## A narrow drawer's right edge (it never starts left of CART_DRAWER_LEFT).
+const CART_DRAWER_RIGHT := 592.0
+const CART_DRAWER_REACH := 592.0
+const CART_DRAWER_TOP := 194.0
 ## The fore fades to this much of its alpha as it drops out of frame (mock-up: 1 - 0.9 e).
 const FORE_FADE := 0.9
 

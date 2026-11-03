@@ -331,7 +331,13 @@ func _build_title(heading: String, title_text: String, top: float) -> void:
 	_content.add_child(name_label)
 	_name = name_label
 	_price = null
-	var title: Label = UiKit.display_label(title_text, COUPON_TITLE_SIZE, false)
+	# Pixelify never prints a digit: a level-up's "LV n" takes the number font.
+	var has_digit: bool = RegEx.create_from_string("[0-9]").search(title_text) != null
+	var title: Label = (
+		UiKit.number_label(title_text, COUPON_TITLE_SIZE, false)
+		if has_digit
+		else UiKit.display_label(title_text, COUPON_TITLE_SIZE, false)
+	)
 	title.add_theme_color_override("font_color", Palette.TEAL)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER

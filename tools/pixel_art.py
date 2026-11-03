@@ -19,7 +19,8 @@ folder, picks the lint. Lines starting with ';' are comments, and blank lines ar
 
 Directives:
     @size WxH   the grid's size (required); every row must match it
-    @kind K     item, perk, frame, icon or scenery (required); items get the strictest lint
+    @kind K     item, perk, frame, icon, scenery or font (required); items get the strictest lint;
+                a font is a row of FONT_CELL-wide cells, FONT_HEIGHT rows tall, one glyph each
     @scale N    write the PNG N times larger (default 1), for frames a StyleBoxTexture stretches
 
 A derived source holds no grid and no other directive, only (after its comments)
@@ -122,7 +123,12 @@ PALETTE_FILE = "palette.txt"
 
 TRANSPARENT = "."
 INK = "#"
-KINDS = frozenset({"item", "perk", "frame", "icon", "scenery"})
+KINDS = frozenset({"item", "perk", "frame", "icon", "scenery", "font"})
+# A pixel font's sheet (art/src/fonts/, v0.96's chunky digits): one glyph per FONT_CELL-wide cell,
+# FONT_HEIGHT rows, ink and transparent only, each glyph's ink left-aligned in its cell (the game
+# crops a cell to its ink).
+FONT_CELL = 8
+FONT_HEIGHT = 8
 # The first items were 32x32 (the retired card view's sprite box); every item is now drawn on a
 # 48x48 grid in art/src/items_v2/ (#75, decision 3A), until #57 retires the 32x32 Milk. An
 # item's size follows its top folder.
@@ -480,6 +486,8 @@ def lint_sprite(sprite: Sprite, palette: Palette) -> list[str]:
     if unknown:
         errors.append(f"{sprite.name}: keys not in the palette: {' '.join(unknown)}")
         return errors
+    if sprite.kind == "font":
+        return lint_font(sprite)
     if sprite.kind != "item":
         return errors
     folder = sprite.name.split("/")[0]
@@ -507,6 +515,30 @@ def lint_sprite(sprite: Sprite, palette: Palette) -> list[str]:
                 if len(errors) >= 10:
                     errors.append(f"{sprite.name}: (more outline errors not listed)")
                     return errors
+    return errors
+
+
+def lint_font(sprite: Sprite) -> list[str]:
+    """A font sheet: ink and transparent only, FONT_HEIGHT rows, whole FONT_CELL-wide cells, each
+    cell's ink starting in its first column (or a blank cell)."""
+    errors: list[str] = []
+    other = sorted({key for row in sprite.rows for key in row} - {INK, TRANSPARENT})
+    if other:
+        errors.append(f"{sprite.name}: a font uses only {INK!r} and {TRANSPARENT!r}, "
+                      f"got {' '.join(other)}")
+    if sprite.height != FONT_HEIGHT:
+        errors.append(f"{sprite.name}: a font is {FONT_HEIGHT} rows tall, got {sprite.height}")
+    if sprite.width % FONT_CELL:
+        errors.append(f"{sprite.name}: a font is whole {FONT_CELL}-px cells wide, "
+                      f"got {sprite.width}")
+        return errors
+    for cell in range(sprite.width // FONT_CELL):
+        left = cell * FONT_CELL
+        columns = [row[left:left + FONT_CELL] for row in sprite.rows]
+        inked = any(INK in column for column in columns)
+        if inked and not any(column[0] == INK for column in columns):
+            errors.append(f"{sprite.name}: glyph {cell}'s ink must start in its cell's first "
+                          f"column")
     return errors
 
 

@@ -23,14 +23,14 @@ extends Control
 ## The push bar was pressed (after its down state): the pressed key's chute is confirmed.
 signal confirm_pressed
 
-const SIZE := Vector2(488, 104)
+const SIZE := Vector2(460, 104)
 ## The push bar (the flap) and the mouth under it, with the mouth's light strip and glow.
-const BAR_RECT := Rect2(16, 8, 456, 32)
+const BAR_RECT := Rect2(12, 8, 436, 32)
 const FLAP_RECT := BAR_RECT
-const MOUTH_RECT := Rect2(16, 44, 456, 52)
-const STRIP_RECT := Rect2(18, 46, 452, 4)
-const GLOW_RECT := Rect2(18, 50, 452, 44)
-const TAKE_MIDDLE := Vector2(244, 74)
+const MOUTH_RECT := Rect2(14, 46, 432, 50)
+const STRIP_RECT := Rect2(16, 48, 428, 4)
+const GLOW_RECT := Rect2(16, 52, 428, 42)
+const TAKE_MIDDLE := Vector2(230, 72)
 const PUSH_TEXT := "PUSH"
 const TAKE_TEXT := "TAKE YOUR PRIZE"
 ## The offered push bar's word on the flap, with the chute's name.
