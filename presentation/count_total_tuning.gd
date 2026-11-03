@@ -76,7 +76,7 @@ extends Resource
 
 @export_group("Chips")
 ## A flying amount dissolves from chip_dissolve_from of its flight; a ×'s chip flips into its gain
-## from mul_flip_from over mul_flip_s (shares of the flight). WASTED's grey €0 drops for
+## from mul_flip_from over mul_flip_s (shares of the flight). WASTED's grey 0€ drops for
 ## waste_drop_s, fading from waste_fade_from_s, falling at waste_gravity px/s² and turning
 ## waste_spin degrees per second.
 @export var chip_dissolve_from: float = 0.0

@@ -2,7 +2,7 @@ class_name EffectSticker
 extends Control
 ## One planning sticker on a belt item (#71, mock-up h1, H1_BUILD_SPEC.md section 4.1): an effect
 ## the item receives, slapped on it. ADD is a cream price-gun label ("+3"), MULTIPLY a gold
-## starburst ("×3"), COPY a teal label ("=€6"), FIZZLE a grey "WASTED" label and MORE the fold
+## starburst ("×3"), COPY a teal label ("=6€"), FIZZLE a grey "WASTED" label and MORE the fold
 ## chip the earliest stickers of a stack fold into from its 4th (#105 piece 3, mock-up readability
 ## v3 fold A): a grey label turned FOLD_TILT_DEG with a card-fan mark and the count ("+3") in ink.
 ## The chip pops in and punches as more fold in (fold_punch); in the count it counts down as each

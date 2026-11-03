@@ -5,7 +5,7 @@ extends Control
 ## events, big: "DAY 5 · TODAY", then each event's icon and name in its tone (a boon green, an
 ## inspection tomato, as on the time card's rows), its effect (notice_text) and, when it touches
 ## the belt, where: "→ slot 7 closed" (Short belt), "→ slot 8 opens" (Extra till), "→ slot 3 pays
-## €0" (Spot check), "→ last filled slot" (Happy hour). Where is read from the event's data and the
+## 0€" (Spot check), "→ last filled slot" (Happy hour). Where is read from the event's data and the
 ## shift's limits (where_lines), never from its id. A day without an event reads "Normal day" and
 ## "No event today". The week chip still opens the whole time card (WeekFlow).
 ##
@@ -22,7 +22,7 @@ const WHERE_CLOSED := "→ slot %d closed"
 const WHERE_CLOSED_MANY := "→ slots %d–%d closed"
 const WHERE_OPENS := "→ slot %d opens"
 const WHERE_OPEN_MANY := "→ slots %d–%d open"
-const WHERE_ZERO := "→ slot %d pays €0"
+const WHERE_ZERO := "→ slot %d pays 0€"
 const WHERE_LAST := "→ last filled slot"
 ## The paper: its width, border, padding, hard shadow, the gap under the chip and the screen's
 ## margin it keeps.
@@ -348,7 +348,7 @@ func _event_block(event: InspectionDefinition, limits: ShiftLimits) -> Control:
 		return panel
 	for line: String in where_lines(event, limits):
 		if line.trim_prefix("→ ").to_lower() == event.notice_text.to_lower():
-			continue  # The effect already says it (Spot check's "Slot 3 pays €0").
+			continue  # The effect already says it (Spot check's "Slot 3 pays 0€").
 		var where: Label = _bold(line, WHERE_SIZE, Palette.INK)
 		where.name = "Where"
 		var tag: StyleBoxFlat = _box(Palette.PAPER, ink, 2, 2)

@@ -672,7 +672,7 @@ func _assert_monitor_holds_its_text(screen: ShiftScreen) -> void:
 			assert_bool(column.encloses(rect)).override_failure_message(str(rect)).is_true()
 
 
-## The item column's price for `payout`: its tag reads "€payout", or none for a coupon at €0.
+## The item column's price for `payout`: its tag reads "€payout", or none for a coupon at 0€.
 func _assert_price(screen: ShiftScreen, payout: int) -> void:
 	var tag: PayTag = screen._monitor.item_column().price_tag()
 	if tag == null:

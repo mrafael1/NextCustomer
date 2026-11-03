@@ -81,26 +81,26 @@ func test_the_reference_row_shows_its_pays_halos_and_stamp() -> void:
 	for slot: int in [1, 4, 5, 6]:
 		var planning: PlanningSlot = model.slots[slot]
 		assert_int(planning.pay).is_equal(PlanningModel.Pay.BOOSTED)
-		assert_str(planning.pay_text).is_equal("€%d" % result.payouts[slot])
+		assert_str(planning.pay_text).is_equal("%d€" % result.payouts[slot])
 		assert_bool(planning.struck).is_true()
 		assert_int(planning.rings).is_equal(_expected_rings(result.payouts[slot], row[slot].base))
 		assert_bool(planning.denied).is_false()
 		assert_bool(planning.has_stamp()).is_false()
-	# The Spot check denies Milk 3: stamp, grey sprite, €0 tag with no glyph (2026-11-02: the
+	# The Spot check denies Milk 3: stamp, grey sprite, 0€ tag with no glyph (2026-11-02: the
 	# slot's talker, the cause-only chip, shows the warning sign).
 	var milk: PlanningSlot = model.slots[2]
 	assert_int(milk.pay).is_equal(PlanningModel.Pay.DENIED)
 	assert_int(milk.glyph).is_equal(PlanningModel.Glyph.NONE)
-	assert_str(milk.pay_text).is_equal("€0")
+	assert_str(milk.pay_text).is_equal("0€")
 	assert_bool(milk.struck).is_true()
 	assert_bool(milk.denied).is_true()
-	assert_str(milk.stamp_amount).is_equal("€0")
+	assert_str(milk.stamp_amount).is_equal("0€")
 	assert_str(milk.stamp_caption).is_equal("SPOT CHECK")
 	# Multipack pays nothing after Coupon engine's fizzle; a coupon's title is never struck.
 	var multipack: PlanningSlot = model.slots[3]
 	assert_int(multipack.pay).is_equal(PlanningModel.Pay.ZERO)
 	assert_int(multipack.glyph).is_equal(PlanningModel.Glyph.FIZZLE)
-	assert_str(multipack.pay_text).is_equal("€0")
+	assert_str(multipack.pay_text).is_equal("0€")
 	assert_bool(multipack.struck).is_false()
 	assert_bool(multipack.has_stamp()).is_false()
 
@@ -178,17 +178,17 @@ func test_the_five_pay_states() -> void:
 	# BOOSTED.
 	var boosted: PlanningSlot = _one(product, [_flat(0, 3, 8)], 8, tuning)
 	assert_int(boosted.pay).is_equal(PlanningModel.Pay.BOOSTED)
-	assert_str(boosted.pay_text).is_equal("€8")
+	assert_str(boosted.pay_text).is_equal("8€")
 	assert_bool(boosted.struck).is_true()
 	# LOWERED: 0 < pay < base.
 	var lowered: PlanningSlot = _one(
 		product, [_override(0, 0, ScoreStep.SourceKind.CARD, 2)], 2, tuning
 	)
 	assert_int(lowered.pay).is_equal(PlanningModel.Pay.LOWERED)
-	assert_str(lowered.pay_text).is_equal("€2")
+	assert_str(lowered.pay_text).is_equal("2€")
 	assert_bool(lowered.struck).is_true()
 	assert_bool(lowered.denied).is_false()
-	assert_str(lowered.stamp_amount).is_equal("€2")
+	assert_str(lowered.stamp_amount).is_equal("2€")
 	# DENIED by an inspection (warning glyph: Spot check zeroes slot 3, not this slot 1, so no
 	# talker shows it) and by the card itself (fizzle glyph).
 	var inspected: PlanningSlot = _one(
@@ -202,13 +202,13 @@ func test_the_five_pay_states() -> void:
 	var own: PlanningSlot = _one(soup, [_override(0, 0, ScoreStep.SourceKind.CARD, 0)], 0, tuning)
 	assert_int(own.pay).is_equal(PlanningModel.Pay.DENIED)
 	assert_int(own.glyph).is_equal(PlanningModel.Glyph.FIZZLE)
-	assert_str(own.stamp_amount).is_equal("€0")
+	assert_str(own.stamp_amount).is_equal("0€")
 	assert_str(own.stamp_caption).is_equal("SOUP")
 	# ZERO: a coupon that pays nothing after a fizzle; never struck.
 	var zero: PlanningSlot = _one(coupon, [_wasted(0, 0)], 0, tuning)
 	assert_int(zero.pay).is_equal(PlanningModel.Pay.ZERO)
 	assert_int(zero.glyph).is_equal(PlanningModel.Glyph.FIZZLE)
-	assert_str(zero.pay_text).is_equal("€0")
+	assert_str(zero.pay_text).is_equal("0€")
 	assert_bool(zero.struck).is_false()
 	assert_int(zero.stickers.size()).is_equal(1)
 	assert_int(zero.stickers[0].kind).is_equal(StickerSpec.Kind.FIZZLE)
@@ -262,7 +262,7 @@ func test_copies_make_a_backward_strip_when_the_copy_comes_first() -> void:
 		model.slots[1].stickers[0],
 		[StickerSpec.Kind.COPY, model.slots[1].stickers[0].text, GiverBadge.Kind.ITEM, "Ba"]
 	)
-	assert_str(model.slots[1].stickers[0].text).starts_with("=€")
+	assert_str(model.slots[1].stickers[0].text).starts_with("=").ends_with("€")
 	var copy: RailStripSpec = model.strips[0]
 	assert_int(copy.giver_slot).is_equal(0)
 	assert_array(Array(copy.targets)).is_equal([1])
@@ -354,7 +354,7 @@ func test_every_golden_row_builds_a_model_from_its_steps() -> void:
 				var planning: PlanningSlot = model.slots[slot]
 				if planning.pay != PlanningModel.Pay.PLAIN:
 					assert_str(planning.pay_text).override_failure_message(ids).is_equal(
-						"€%d" % result.payouts[slot]
+						"%d€" % result.payouts[slot]
 					)
 				for sticker: StickerSpec in planning.stickers:
 					assert_str(sticker.text).override_failure_message(ids).is_not_empty()

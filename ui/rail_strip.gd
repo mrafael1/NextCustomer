@@ -17,7 +17,7 @@ extends Control
 ## coordinates. lay_out places everything from the tickets' rects, so a scaled 8-slot row
 ## moves the anchors (the offsets scale) while the art never scales. Calm strips are brass and
 ## nothing loops. Hot (set_hot: its giver or a target hovered, section 5.3) it turns bright gold
-## in a pale ring and a gain badge ("+€14", the target's summed gain) stands on each target (or
+## in a pale ring and a gain badge ("+14€", the target's summed gain) stands on each target (or
 ## only the hovered target's); dimmed (set_dimmed) it fades back. step_chevrons steps the chevrons
 ## one texel toward the targets, once. Decor only: it takes no clicks, and every gain on it is a
 ## step's (RailStripSpec).
@@ -57,11 +57,11 @@ const NAME_SPACING := 1
 const NAME_CLEARANCE := 4.0
 const ELLIPSIS := "…"
 const TARGET_ROOM := 20.0
-## A hot strip's gain badge ("+€14"): centred on its target, else beside it (its near edge GAIN_GAP
+## A hot strip's gain badge ("+14€"): centred on its target, else beside it (its near edge GAIN_GAP
 ## past the target's centre: after it, then before it), GAIN_RISES[lane] over the body's top,
 ## GAIN_HEIGHT tall, its text GAIN_TEXT_SIZE with GAIN_PADDING on each side; a GAIN_BORDER ink
 ## border and an ink shadow GAIN_SHADOW down and right.
-const GAIN_TEXT := "+€%d"
+const GAIN_TEXT := "+%d€"
 const GAIN_GAP := 6.0
 const GAIN_RISES: Array[float] = [7.0, 3.0]
 const GAIN_HEIGHT := 22.0
@@ -643,7 +643,7 @@ func _lay_out_fills(anchors: Dictionary[int, Rect2], gap_fill: bool) -> void:
 		_gap_rects.append(rect)
 
 
-## A hot strip's gain badge showing `shown` ("+€14"): a paper box with an ink border and shadow,
+## A hot strip's gain badge showing `shown` ("+14€"): a paper box with an ink border and shadow,
 ## the gain in the number font in mustard darkest, GAIN_PADDING each side of it, GAIN_HEIGHT tall.
 static func _make_gain(shown: String) -> Control:
 	var gain: Control = Control.new()

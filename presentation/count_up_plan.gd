@@ -205,8 +205,8 @@ static func is_cheer_line(step: ScoreStep) -> bool:
 
 
 ## A step line that lowers its item (the monitor prints it in tomato, never with the green ✓),
-## read from the recorded values of `steps[index]`: a bonus below 0 (Late delivery's -€2), a factor
-## below ×1, or a payout override below the item's running value before it (Spot check's €0).
+## read from the recorded values of `steps[index]`: a bonus below 0 (Late delivery's -2€), a factor
+## below ×1, or a payout override below the item's running value before it (Spot check's 0€).
 static func is_harmful(steps: Array[ScoreStep], index: int) -> bool:
 	var step: ScoreStep = steps[index]
 	match step.step_type:
@@ -223,7 +223,7 @@ static func is_harmful(steps: Array[ScoreStep], index: int) -> bool:
 
 
 ## A combo the cheering counts (#120): ReceiptView.is_combo, but only one that lifts the payout
-## (a bonus above 0, a factor above 1, a copy), so a day event's penalty (Late delivery's -€2)
+## (a bonus above 0, a factor above 1, a copy), so a day event's penalty (Late delivery's -2€)
 ## never cheers more.
 static func is_cheer_combo(step: ScoreStep) -> bool:
 	if not ReceiptView.is_combo(step):

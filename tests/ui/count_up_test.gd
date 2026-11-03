@@ -96,7 +96,7 @@ func test_the_full_row_counts_up_on_screen_in_five_to_nine_seconds() -> void:
 	assert_bool(probe["met_lost"]).is_false()
 	assert_array(probe["pops"]).is_equal([true])
 	_assert_met(screen, true)
-	# The 107 is huge against the €45 floor.
+	# The 107 is huge against the 45€ floor.
 	assert_int(plan.size).is_equal(CountUpPlan.Size.HUGE)
 	assert_object(count_up.intensity).is_not_null()
 	assert_bool(count_up.intensity.is_huge).is_true()
@@ -283,7 +283,7 @@ func test_the_best_so_far_leaves_out_the_shift_being_counted() -> void:
 	screen._count_up._tap(Time.get_ticks_msec())
 	screen._count_up._tap(Time.get_ticks_msec())
 	await _count_up_end(screen)
-	# Shift 1 totals 109, yet its count-up measured against the €45 floor.
+	# Shift 1 totals 109, yet its count-up measured against the 45€ floor.
 	assert_int(screen.run.history.size()).is_equal(1)
 	assert_int(screen.run.history[0].total).is_equal(109)
 	assert_int(screen._count_up.plan.best).is_equal(45)

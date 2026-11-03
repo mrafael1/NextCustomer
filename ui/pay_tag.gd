@@ -2,7 +2,7 @@ class_name PayTag
 extends Control
 ## The real pay on a planning item's ticket (#71, mock-up h1, H1_BUILD_SPEC.md section 4.5): a gold
 ## burst for a boosted pay (a wide one from WIDE_CHARS characters), a cream tag for a lowered one,
-## and a punched tomato "€0" tag with the warning glyph (an inspection's denial) or the paper fizzle
+## and a punched tomato "0€" tag with the warning glyph (an inspection's denial) or the paper fizzle
 ## glyph (a card's own denial, or a pay wiped by fizzles); none, the text centred, on a slot whose
 ## talker shows the warning sign (SlotMark.set_compact, PlanningModel). Its shadow is the same
 ## art in ink at SHADOW_ALPHA, SHADOW_OFFSET down and right. PlanningLayer pins it on the
@@ -18,7 +18,7 @@ const BURST_SIZE := Vector2(60, 32)
 const WIDE_SIZE := Vector2(80, 36)
 const TAG_SIZE := Vector2(52, 26)
 ## The burst's text (#105): BURST_TEXT_SIZE, or ArtStyle.BURST_PRICE_SIZE_3 for three characters
-## ("€10").
+## ("10€").
 const BURST_TEXT_SIZE := ArtStyle.BURST_PRICE_SIZE
 ## The wide burst's text: WIDE_TEXT_SIZE for WIDE_CHARS characters, WIDE_LONG_SIZE for more, still
 ## shrinking to WIDE_MIN_SIZE to fit its width less WIDE_PADDING.
@@ -27,7 +27,7 @@ const WIDE_LONG_SIZE := 18
 const WIDE_MIN_SIZE := 16
 const WIDE_PADDING := 16.0
 const TAG_TEXT_SIZE := 17
-## On the €0 tag: the glyph at GLYPH_AT (the warning sign at 1x, WARNING_AT, so it fits the
+## On the 0€ tag: the glyph at GLYPH_AT (the warning sign at 1x, WARNING_AT, so it fits the
 ## tag's face), the text from TEXT_LEFT.
 const GLYPH_AT := Vector2(6, 6)
 const FIZZLE_SIZE := Vector2(14, 14)
@@ -41,7 +41,7 @@ const CUT_NAME := "Cut"
 const STRUCK_NAME := "Struck"
 ## Pinned on its ticket's top-right corner (rect_on; #105, mock-up readability v3's stacked
 ## price): its overhang past the ticket's right edge and above its top, none past the right edge
-## on a scaled row. A wide burst over a two-glyph row (Golden Milk at €126) moves right to
+## on a scaled row. A wide burst over a two-glyph row (Golden Milk at 126€) moves right to
 ## WIDE_CLEAR_LEFT from the ticket's left (its die-cut meets the squeezed glyph row's rims,
 ## PriceSticker), at most WIDE_CLEAR_LEFT + its width - the ticket's width past the ticket (the
 ## rail's gap holds it).
@@ -66,7 +66,7 @@ var _dimmed: bool = false
 var _tween: Tween
 
 
-## The tag of a `tag_pay` pay showing `shown`, with `tag_glyph` on a €0 tag, die-cut when
+## The tag of a `tag_pay` pay showing `shown`, with `tag_glyph` on a 0€ tag, die-cut when
 ## `die_cut`.
 func _init(
 	tag_pay: PlanningModel.Pay,

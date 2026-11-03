@@ -19,7 +19,7 @@ enum Tone { MALUS, BOON, WEEK }
 @export var display_name: String = ""
 @export var tone: Tone = Tone.MALUS
 ## The announcement, printed under the previous shift's total and shown during the shift, e.g.
-## "Slot 3 pays €0".
+## "Slot 3 pays 0€".
 @export_multiline var notice_text: String = ""
 ## The effect in a few words, for the top bar's chip ("Inspection · −1 slot", mock-up B2; a boon's
 ## "Today: Quiet morning — quota −10%"); the chip's hover text gives the name and the notice.

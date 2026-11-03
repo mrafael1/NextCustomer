@@ -12,8 +12,8 @@ func test_the_placeholder_inspection_matches_the_plan() -> void:
 	var spot_check: InspectionDefinition = load(SPOT_CHECK)
 	assert_str(String(spot_check.id)).is_equal("spot_check")
 	assert_str(spot_check.display_name).is_equal("Spot check")
-	assert_str(spot_check.notice_text).is_equal("Slot 3 pays €0")
-	assert_str(spot_check.chip_text).is_equal("Slot 3 pays €0")
+	assert_str(spot_check.notice_text).is_equal("Slot 3 pays 0€")
+	assert_str(spot_check.chip_text).is_equal("Slot 3 pays 0€")
 	assert_int(spot_check.rules.size()).is_equal(1)
 	var rule: NthSlotZeroPayoutRule = spot_check.rules[0]
 	assert_int(rule.slot_number).is_equal(3)
@@ -32,7 +32,7 @@ func test_the_live_inspection_scores_the_plan_example() -> void:
 	for step: ScoreStep in inspected.steps:
 		if step.source_kind == ScoreStep.SourceKind.INSPECTION:
 			lines.append(ReceiptView.source_text(step, PackedStringArray(), names))
-	assert_array(Array(lines)).is_equal(["Spot check: slot 3 pays €0"])
+	assert_array(Array(lines)).is_equal(["Spot check: slot 3 pays 0€"])
 
 
 ## v0.69's day events: each file's tone and the numbers it changes (the limits' fields; every
@@ -125,8 +125,8 @@ func test_the_week_events_match_the_plan() -> void:
 	assert_int(balance.write_up_limit).is_equal(2)
 
 
-## The boons' rules on live cards: Free samples doubles the 1st product, Happy hour adds €3 to
-## the last card, Late delivery takes €2 off a Dairy product.
+## The boons' rules on live cards: Free samples doubles the 1st product, Happy hour adds 3€ to
+## the last card, Late delivery takes 2€ off a Dairy product.
 func test_the_live_day_event_rules_score() -> void:
 	var no_upgrades: Array[UpgradeDefinition] = []
 	var row: Array[CardInstance] = _row(["banana", "bread", "milk"])

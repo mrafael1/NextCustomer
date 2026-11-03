@@ -33,7 +33,7 @@ func test_show_relations_explains_a_hovered_item() -> void:
 	assert_object(chip).is_not_null()
 	assert_str(chip.text).is_equal("+2")
 	assert_int(chip.get_index()).is_equal(bread.get_child_count() - 2)
-	assert_str((bread.get_child(bread.get_child_count() - 1) as Label).text).is_equal("€5.00")
+	assert_str((bread.get_child(bread.get_child_count() - 1) as Label).text).is_equal("5.00€")
 	assert_bool(bread.get_meta("related", false)).is_true()
 	var face: StyleBoxFlat = chip.get_theme_stylebox("normal") as StyleBoxFlat
 	assert_object(face.bg_color).is_equal(Palette.MUSTARD)
@@ -54,7 +54,7 @@ func test_show_relations_explains_a_hovered_item() -> void:
 	await _frames(1)
 
 
-## An item an inspection sets to €0 shows the warning icon (DENIED, over a fizzle on it too).
+## An item an inspection sets to 0€ shows the warning icon (DENIED, over a fizzle on it too).
 func test_an_inspection_denial_marks_its_line() -> void:
 	var result: ScoreResult = STUB._closing_result()
 	assert_int(ReceiptView.slot_mark(result, 1)).is_equal(ReceiptView.Mark.DENIED)

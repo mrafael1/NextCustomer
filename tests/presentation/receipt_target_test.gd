@@ -24,7 +24,7 @@ func test_the_quota_prints_in_whole_euros_with_the_euro_after() -> void:
 	var target: ReceiptTarget = receipt.target
 	target.show_quota(80)
 	for line: int in range(30):
-		receipt.add_line("Milk %d" % line, "€1.00", ReceiptView.LineStyle.ITEM)
+		receipt.add_line("Milk %d" % line, "1.00€", ReceiptView.LineStyle.ITEM)
 	await _frames(3)
 	assert_str(target.caption.text).is_equal("TODAY'S TARGET")
 	assert_str(target.amount.text).is_equal("80")

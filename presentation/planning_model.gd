@@ -10,7 +10,7 @@ enum Pay { PLAIN, BOOSTED, LOWERED, DENIED, ZERO }
 enum Glyph { NONE, FIZZLE, WARNING }
 
 ## The pay tag's text.
-const PAY_TEXT := "€%d"
+const PAY_TEXT := MonitorText.EUROS
 ## A wrong job's tooltip (#128): WASTED, then its step's reason, capitalised.
 const WRONG_JOB_TIP := "%s · %s"
 ## The links that make rail strips.
@@ -276,8 +276,8 @@ static func _slot(
 		planning.stamp_caption = names.of_cause(denial).to_upper()
 		planning.denied = denial.value == 0
 	_pay(planning, card, payout, denial, fizzled)
-	# One owner per fact (2026-11-02): a slot an inspection pays €0 wears that inspection's
-	# talker, now the cause-only chip with the warning sign, so its ticket's €0 tag shows none.
+	# One owner per fact (2026-11-02): a slot an inspection pays 0€ wears that inspection's
+	# talker, now the cause-only chip with the warning sign, so its ticket's 0€ tag shows none.
 	if planning.glyph == Glyph.WARNING and names.zeroes_slot(denial, slot):
 		planning.glyph = Glyph.NONE
 	if planning.pay == Pay.BOOSTED:
@@ -431,7 +431,7 @@ class CauseNames:
 					return _inspections[link.cause_index].display_name
 		return ""
 
-	## Whether `link`'s cause is an inspection that pays `slot` €0 by its place
+	## Whether `link`'s cause is an inspection that pays `slot` 0€ by its place
 	## (NthSlotZeroPayoutRule): the slot wears its mark (SlotMark.inspection_marks).
 	func zeroes_slot(link: EffectLink, slot: int) -> bool:
 		if link == null or link.cause_kind != ScoreStep.SourceKind.INSPECTION:

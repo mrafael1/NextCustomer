@@ -161,7 +161,7 @@ func _long_receipt(screen: ShiftScreen) -> void:
 	var room: float = ShiftStage.RECEIPT_BOTTOM - ShiftStage.RECEIPT_TOP
 	var count: int = 0
 	while receipt.natural_height() <= room + 60.0:
-		receipt.add_line("LINE %d" % count, "€%d" % count, ReceiptView.LineStyle.ITEM)
+		receipt.add_line("LINE %d" % count, "%d€" % count, ReceiptView.LineStyle.ITEM)
 		count += 1
 		await _frames(1)
 		assert_int(count).is_less(200)

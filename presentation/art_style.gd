@@ -77,7 +77,7 @@ const TICKET_TEXT_SIZE := 13
 const TICKET_TEXT_LINE := 15
 const TICKET_TEXT_LINES := 2
 ## The stacked price: the new price's digits in the burst (BURST_PRICE_SIZE, or
-## BURST_PRICE_SIZE_3 for three characters such as "€10"), the struck old price under it.
+## BURST_PRICE_SIZE_3 for three characters such as "10€"), the struck old price under it.
 const BURST_PRICE_SIZE := 22
 const BURST_PRICE_SIZE_3 := 21
 const STRUCK_PRICE_SIZE := 15

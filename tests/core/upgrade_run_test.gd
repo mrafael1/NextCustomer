@@ -234,7 +234,7 @@ func test_extra_redraw_and_big_basket_credit_what_they_earned() -> void:
 	for card: CardInstance in run.row:
 		names.append(card.definition.display_name)
 	var text: PackedStringArray = ReceiptView.step_text(credits[1], names)
-	assert_str(text[0]).is_equal("  Big basket earned €%d.00 (slot 8)" % result.payouts[7])
+	assert_str(text[0]).is_equal("  Big basket earned %d.00€ (slot 8)" % result.payouts[7])
 	assert_str(text[1]).is_empty()
 	# The extra redraw's cards are saved.
 	var saved: Dictionary = RunSave.to_dictionary(run, "id", 0)

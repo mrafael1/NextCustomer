@@ -8,14 +8,14 @@
 script = ExtResource("2_tag_bonus")
 tag = "Bakery"
 bonus = 2
-receipt_text = "Bakery +€2"
+receipt_text = "Bakery +2€"
 
 [resource]
 script = ExtResource("3_week")
 id = &"bakery_festival"
 display_name = "Bakery festival"
 tone = 2
-notice_text = "Bakery items +€2, quota +10%"
+notice_text = "Bakery items +2€, quota +10%"
 chip_text = "BAKERY"
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_tag_bonus")])
 quota_percent = 10

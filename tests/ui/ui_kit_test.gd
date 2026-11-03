@@ -114,7 +114,7 @@ func test_no_material_on_text() -> void:
 	assert_int(button.caption_label().mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
 	for label: Label in [
 		UiKit.display_label("A", 12, true),
-		UiKit.number_label("€1", 12, true),
+		UiKit.number_label("1€", 12, true),
 		UiKit.body_label("rule", 12),
 		UiKit.receipt_label("1 Milk", 12),
 	]:
@@ -160,7 +160,7 @@ func test_fonts_by_role() -> void:
 	assert_object(button.caption_label().get_theme_font("font")).is_same(ArtStyle.DISPLAY_FONT)
 	var labels: Array[Label] = [
 		UiKit.display_label("SHIFT", 20, true),
-		UiKit.number_label("€12", 20, true),
+		UiKit.number_label("12€", 20, true),
 		UiKit.body_label("Doubles the next item", 13),
 		UiKit.receipt_label("TOTAL", 14),
 	]

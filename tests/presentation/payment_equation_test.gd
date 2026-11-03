@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## PaymentEquation (Checkout Rhythm v3): "€X × N → €Y" read from an item's real ScoreSteps, only
+## PaymentEquation (Checkout Rhythm v3): "X€ × N → Y€" read from an item's real ScoreSteps, only
 ## when its multipliers take the value before the first one exactly to its payout; every other
 ## shape has none. The plan carries it on the PAYOUT beat without changing any beat's length.
 
@@ -45,7 +45,7 @@ func test_flats_fold_into_the_start_and_stacked_factors_multiply() -> void:
 	assert_int(equation.start).is_equal(4)
 	assert_int(equation.factor).is_equal(6)
 	assert_int(equation.payout).is_equal(24)
-	assert_str(equation.text(ARROW)).is_equal("€4 × 6 → €24")
+	assert_str(equation.text(ARROW)).is_equal("4€ × 6 → 24€")
 	assert_str(equation.factor_text()).is_equal("× 6")
 
 
@@ -53,7 +53,7 @@ func test_four_digit_amounts_read_in_full() -> void:
 	var steps: Array[ScoreStep] = [
 		_base(0, 125), _mul(0, 10, 1250), _mul(0, 2, 2500), _payout(0, 2500)
 	]
-	assert_str(PaymentEquation.of(steps, 0).text(ARROW)).is_equal("€125 × 20 → €2500")
+	assert_str(PaymentEquation.of(steps, 0).text(ARROW)).is_equal("125€ × 20 → 2500€")
 
 
 func test_a_zero_payout_coupon_has_no_equation() -> void:
@@ -87,7 +87,7 @@ func test_other_slots_and_steps_after_the_payout_are_left_out() -> void:
 	var steps: Array[ScoreStep] = [
 		_base(0, 2), wasted, _base(1, 5), _mul(1, 4, 20), _mul(0, 3, 6), _payout(0, 6), armed
 	]
-	assert_str(PaymentEquation.of(steps, 0).text(ARROW)).is_equal("€2 × 3 → €6")
+	assert_str(PaymentEquation.of(steps, 0).text(ARROW)).is_equal("2€ × 3 → 6€")
 	assert_object(PaymentEquation.of(steps, 1)).is_null()
 
 

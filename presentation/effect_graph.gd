@@ -170,10 +170,10 @@ static func _link(steps: Array[ScoreStep], index: int, landings: PackedInt32Arra
 		ScoreStep.StepType.COPY:
 			link.kind = EffectLink.Kind.COPY
 			link.cause_slot = step.linked_slot
-			link.token = "=€%d" % step.value
+			link.token = "=" + MonitorText.euros(step.value)
 		ScoreStep.StepType.PAYOUT_OVERRIDE:
 			link.kind = EffectLink.Kind.DENIED
-			link.token = "€%d" % step.value
+			link.token = MonitorText.euros(step.value)
 		ScoreStep.StepType.WASTED:
 			link.kind = EffectLink.Kind.FIZZLE
 			link.token = EffectLink.WASTED_WORD

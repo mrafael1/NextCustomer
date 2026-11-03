@@ -15,17 +15,17 @@ extends Control
 ## only: it takes no clicks, and its numbers are the rule's data (NthSlotMultiplierRule).
 ##
 ## An inspection's mark (2026-10-28, rule tweaks 2: Spot check's dead slot 3) is the same tag in
-## the €0 pay tag's tomato (slot_talker_inspection) with the warning sign and "€0" in paper, so
+## the 0€ pay tag's tomato (slot_talker_inspection) with the warning sign and "0€" in paper, so
 ## the slot reads as the wasted one before anything is put there; it fires when the inspection
 ## zeroes the card there (NthSlotZeroPayoutRule). One owner per fact (2026-11-02, shift scene
 ## polish v2 ticket brief section 3): while a card stands on that slot its ticket's pay tag owns
-## the "€0", so the mark (a zero_slot one) shrinks to a cause-only chip (set_compact: the
+## the "0€", so the mark (a zero_slot one) shrinks to a cause-only chip (set_compact: the
 ## slot_chip_inspection art, the warning sign alone, no text), centred under the ticket; on an
-## empty slot it is the full "⚠ €0" talker, the only €0 shown then. Either way its hover tip names
-## the cause (ZERO_TIP: "Spot check: this slot pays €0").
+## empty slot it is the full "⚠ 0€" talker, the only 0€ shown then. Either way its hover tip names
+## the cause (ZERO_TIP: "Spot check: this slot pays 0€").
 ##
 ## Every day event aimed at a slot wears one (2026-10-31: "day event that impact a specific slot
-## should be shown visually on slot"): Happy hour's "+€3" rides on the row's last filled slot (on
+## should be shown visually on slot"): Happy hour's "+3€" rides on the row's last filled slot (on
 ## slot 1 while the belt is empty: the next card is the last), and Extra till's slot more says
 ## EXTRA. A boon's mark is the tag in green (slot_talker_boon) with the boon coin and its text in
 ## paper; a malus's is the tomato one with the warning sign. It fires when the event's step lands
@@ -55,14 +55,14 @@ const TEXT_FORMAT := "×%d"
 ## The text's colour on the teal face: the loyalty stamp's mustard pale.
 const TEXT_COLOR := Palette.MUSTARD_PALE
 ## An inspection's mark: its text and the text's colour on the tomato face.
-const INSPECTION_TEXT := "€0"
+const INSPECTION_TEXT := "0€"
 const INSPECTION_TEXT_COLOR := Palette.PAPER
 ## A zero slot's hover tip: the inspection's name and INSPECTION_TEXT.
 const ZERO_TIP := "%s: this slot pays %s"
 ## A day event's flat bonus on its slot (Happy hour: LastCardBonusRule), with its sign; and the
 ## mark of an event's extra slot (Extra till).
-const BONUS_FORMAT := "+€%d"
-const MALUS_FORMAT := "−€%d"
+const BONUS_FORMAT := "+%d€"
+const MALUS_FORMAT := "−%d€"
 const EXTRA_TEXT := "EXTRA"
 const SHADOW_OFFSET := Vector2(2, 2)
 const SHADOW_ALPHA := 0.42
@@ -102,7 +102,7 @@ var factor: int = 1
 var inspection_index: int = -1
 var boon: bool = false
 var ends: bool = false
-## Whether it marks a slot an inspection pays €0 (NthSlotZeroPayoutRule; set_zero_tip): it shrinks
+## Whether it marks a slot an inspection pays 0€ (NthSlotZeroPayoutRule; set_zero_tip): it shrinks
 ## to the cause-only chip while a card stands there (set_compact).
 var zero_slot: bool = false
 var _inner: Control
@@ -206,8 +206,8 @@ static func marks_for(
 
 
 ## The marks of the shift's day events `inspections` (2026-10-31), in order: on its slot, each
-## rule that zeroes a fixed slot (NthSlotZeroPayoutRule: "€0"); on the row's last filled slot
-## (slot 1 for an empty row of `row_size` 0), each last card bonus (LastCardBonusRule: "+€3");
+## rule that zeroes a fixed slot (NthSlotZeroPayoutRule: "0€"); on the row's last filled slot
+## (slot 1 for an empty row of `row_size` 0), each last card bonus (LastCardBonusRule: "+3€");
 ## on the row's first and last of its `slot_count` open slots (the last filled one when
 ## `slot_count` is 0, unknown), each ends multiplier (EndSlotsMultiplierRule: "×2",
 ## #132); and on each slot an event adds, the last of
@@ -266,7 +266,7 @@ func set_zero_tip(inspection_name: String) -> void:
 
 
 ## Shrinks a zero slot's mark to the cause-only chip (`compact`: a card stands on its slot, its
-## ticket shows the €0) or grows it back to the full talker; other marks never shrink. The chip is
+## ticket shows the 0€) or grows it back to the full talker; other marks never shrink. The chip is
 ## the slot_chip_inspection art over its hard shadow, its top tucked behind the ticket like the
 ## talker's; RowStrip hangs it again (centred under the ticket when it is the slot's only mark).
 func set_compact(compact: bool) -> void:

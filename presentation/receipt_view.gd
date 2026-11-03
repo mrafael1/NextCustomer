@@ -1,14 +1,14 @@
 class_name ReceiptView
 extends PanelContainer
 ## The receipt: printed from a ScoreResult's payouts and steps alone, so it can never disagree
-## with the score. Every money amount on it prints with cents (money(): "€3.00", "+€15.00"); the
+## with the score. Every money amount on it prints with cents (money(): "3.00€", "+15.00€"); the
 ## values stay whole euros.
 ##
 ## In planning (show_planning, #80) it is itemised: the header and a dashed rule, one line per
 ## belt item in scan order (its name, its payout, then its mark: the fizzle icon when one of its
 ## effects fizzles, the warning icon when an inspection denies it), a muted "5 ·····" for each
-## open empty slot, a dashed rule, "PROJECTED €22.00" (green when met, red under it) over a line
-## against the quota ("+€N.00 over target", "€N.00 short": ReceiptTarget.against_text), and the
+## open empty slot, a dashed rule, "PROJECTED 22.00€" (green when met, red under it) over a line
+## against the quota ("+N.00€ over target", "N.00€ short": ReceiptTarget.against_text), and the
 ## fizzle footer ("2 WASTED · hover an item", none without fizzles). The belt item being scanned
 ## frames its line (highlight_slot). A hovered belt item (#71) frames its line too, marks its
 ## targets' lines with a mustard-pale fill and the token it gives them (show_relations), and the
@@ -19,9 +19,9 @@ extends PanelContainer
 ## then prints into its item's group (add_step): the BASE step fills the item's line in with its
 ## base amount, which it keeps; the other steps print an indented line under the item's earlier
 ## lines, a fizzle's in dark tomato with the fizzle icon. Every item's lines add up: its base, its
-## bonus and copy lines ("+€15.00") and an override's "= €0.00" (which the item's amount is from
+## bonus and copy lines ("+15.00€") and an override's "= 0.00€" (which the item's amount is from
 ## then on) come to its PAYOUT step's value, or (a multiplier) the PAYOUT step closes the item
-## with a small "= €3.00" line (CLOSING_TEXT, LineStyle.CLOSING), its last line; when they do, it
+## with a small "= 3.00€" line (CLOSING_TEXT, LineStyle.CLOSING), its last line; when they do, it
 ## prints nothing. The line just printed (or filled; the item's line when the PAYOUT step prints
 ## nothing) is framed (mustard-pale fill, mustard frame), and the receipt keeps it in view.
 ## add_total fills the TOTAL line in plainly and drops the footer and the frame; the dessert (#61)
@@ -68,7 +68,7 @@ const MONO_FONT := preload("res://fonts/JetBrainsMono-Regular.ttf")
 ## The TOTAL and PROJECTED amounts' font size; their captions print at CAPTION_FONT_SIZE.
 const TOTAL_FONT_SIZE := 22
 const CAPTION_FONT_SIZE := 15
-## The verdict "€total / €quota" on the TOTAL line, smaller than the total so it fits; a long
+## The verdict "total€ / quota€" on the TOTAL line, smaller than the total so it fits; a long
 ## one (a four-digit total) shrinks down to VERDICT_MIN_FONT_SIZE to stay on the line.
 const VERDICT_FONT_SIZE := 15
 const VERDICT_MIN_FONT_SIZE := 10
@@ -101,13 +101,13 @@ const HOVERED_HINT := "%s hovered"
 const COUNT_FOOTER_TEXT := "tap: skip · hold: fast"
 ## An open empty slot on the planning receipt: its number, then dots.
 const EMPTY_SLOT_TEXT := "%d ·····"
-## The line closing an item whose lines don't add up to its payout (add_step): "= €3.00", at
+## The line closing an item whose lines don't add up to its payout (add_step): "= 3.00€", at
 ## FOOTER_FONT_SIZE in ink (LineStyle.CLOSING), with no left side.
 const CLOSING_TEXT := "= "
 ## How a multiplier's receipt text ends in its factor ("Multipack ×3", multiplier_cause).
 const FACTOR_MARK := " ×"
 ## A money amount on the receipt (money()).
-const MONEY_TEXT := "€%d.00"
+const MONEY_TEXT := "%d.00€"
 ## The inset around the lines: the frame reaches FRAME_OUT past their left and FRAME_PAD past
 ## their right (B2: 4 px of padding, then its 2 px frame).
 const FRAME_OUT := 4.0
@@ -312,7 +312,7 @@ func begin_count(
 
 ## The planning receipt (#80): `header` and a dashed rule; for each belt item (`names`, in scan
 ## order) its name, its payout in `result` and its mark (slot_mark()); "n ·····" for each open
-## slot past them up to `open_slots`; a dashed rule and "PROJECTED €total", against `quota` (none
+## slot past them up to `open_slots`; a dashed rule and "PROJECTED total€", against `quota` (none
 ## when negative): green at or over it, red under it, with how far it is on its own row under it
 ## (ReceiptDecor.against_quota); then the fizzle footer (none without fizzles). Each item's payout
 ## prints bold, its mini from `cards`.
@@ -378,7 +378,7 @@ static func header_lines(shift: int, shifts: int, items: int) -> PackedStringArr
 	return PackedStringArray([HEADER_TEXT, shift_text])
 
 
-## A money amount as the receipt prints it: "€3.00", or "+€15.00" when `signed` ("−€2.00" for a
+## A money amount as the receipt prints it: "3.00€", or "+15.00€" when `signed` ("−2.00€" for a
 ## fall: Late delivery's, v0.69). Values are whole euros: only the receipt shows cents.
 static func money(euros: int, signed: bool = false) -> String:
 	var prefix: String = "" if not signed else "+" if euros >= 0 else "−"
@@ -437,7 +437,7 @@ func show_result(
 
 ## Prints one step and returns what the count-up animates: a BASE step fills its item's line in
 ## (its base amount, in ink, kept for good) and returns the line; a PAYOUT step prints the
-## closing line "= €payout" when the item's printed amount (its BASE step's value plus its FLAT
+## closing line "= payout€" when the item's printed amount (its BASE step's value plus its FLAT
 ## and COPY steps', a PAYOUT_OVERRIDE step's value replacing the sum) is not its value, and
 ## returns that line's amount label; else it prints nothing and returns the item line's amount
 ## label when nothing printed under the item (a plain card: its amount fades in on the beat), or
@@ -596,9 +596,9 @@ static func is_combo(step: ScoreStep) -> bool:
 
 
 ## A step's line on one row, in whole euros (#75 and #80: the monitor's count-up line and a belt
-## item's scan footer). A bonus reads as B2 words it, its amount first ("+€15 Category engine",
-## "×2 Multipack", "+€3 Repeat: copy of Bread"); a base "MILK  2", a payout "€17", an override
-## "Spot check: the 3rd product pays €0  = 0"; the others are the receipt's left side without its
+## item's scan footer). A bonus reads as B2 words it, its amount first ("+15€ Category engine",
+## "×2 Multipack", "+3€ Repeat: copy of Bread"); a base "MILK  2", a payout "17€", an override
+## "Spot check: the 3rd product pays 0€  = 0"; the others are the receipt's left side without its
 ## indent, then its right side two spaces after it ("Coffee: no Breakfast product after it
 ## WASTED"). Empty for a step that prints no line.
 static func step_line(
@@ -614,11 +614,14 @@ static func step_line(
 		ScoreStep.StepType.MULTIPLIER:
 			return step.times_text() + " " + multiplier_cause(step, upgrade_names, inspection_names)
 		ScoreStep.StepType.COPY:
-			return "+€%d %s: copy of %s" % [step.value, step.text, names[step.linked_slot]]
+			return (
+				"%s %s: copy of %s"
+				% [MonitorText.gain(step.value), step.text, names[step.linked_slot]]
+			)
 		ScoreStep.StepType.BASE:
 			return joined_line(names[step.slot].to_upper(), str(step.value))
 		ScoreStep.StepType.PAYOUT:
-			return "€%d" % step.value
+			return MonitorText.euros(step.value)
 		ScoreStep.StepType.PAYOUT_OVERRIDE:
 			return joined_line(cause, "= %d" % step.value)
 		ScoreStep.StepType.WASTED:
@@ -639,7 +642,7 @@ static func joined_line(left: String, right: String) -> String:
 ## Who caused a step, as the receipt names it. A card's rule is named by its receipt text; an
 ## upgrade's line always names the upgrade (plan section 3.8), with its rule's receipt text
 ## after it when that text is something else. An inspection's line starts with the
-## inspection's name (plan section 3.9): "Spot check: the 3rd product pays €0".
+## inspection's name (plan section 3.9): "Spot check: the 3rd product pays 0€".
 static func source_text(
 	step: ScoreStep,
 	upgrade_names: PackedStringArray,
@@ -687,7 +690,7 @@ static func _cause(
 	return text
 
 
-## The TOTAL line ("TOTAL €22.00"): after a count's lines, under its dashed rule (begin_count),
+## The TOTAL line ("TOTAL 22.00€"): after a count's lines, under its dashed rule (begin_count),
 ## which also ends the count-up's footer and frame; else a new one under a solid rule.
 func add_total(total: int) -> Control:
 	_set_frame(null)
@@ -726,13 +729,13 @@ func show_shift_end(
 		add_notice(notice)
 
 
-## The TOTAL line's "€total / €quota" (#61; since #80 it prints plainly, and the dessert's slam
+## The TOTAL line's "total€ / quota€" (#61; since #80 it prints plainly, and the dessert's slam
 ## lands on the monitor), with cents.
 static func verdict_text(total: int, quota: int) -> String:
 	return "%s / %s" % [money(total), money(quota)]
 
 
-## Shows the verdict on the TOTAL line at once: its right side reads "€total / €quota" at
+## Shows the verdict on the TOTAL line at once: its right side reads "total€ / quota€" at
 ## VERDICT_FONT_SIZE across the mark column (down to VERDICT_MIN_FONT_SIZE when it would not
 ## fit beside TOTAL), green on a pass and red on a miss. Returns that label (null when no
 ## TOTAL line was printed).

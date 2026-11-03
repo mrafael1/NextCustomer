@@ -30,11 +30,11 @@ extends Control
 ## slots; its tooltip says why. It is never a drop target, and the row keeps the run's usual
 ## cell count, so an inspection never rescales it.
 ##
-## A slot an inspection zeroes (Spot check's slot 3) wears its tomato "€0" SlotMark the same way,
+## A slot an inspection zeroes (Spot check's slot 3) wears its tomato "0€" SlotMark the same way,
 ## and so does a slot any day event aims at (Happy hour's last filled slot, Extra till's extra
 ## one: SlotMark.inspection_marks); a slot's second mark hangs left of its first. While a card
-## stands on a slot an inspection pays €0, its mark is the cause-only chip (SlotMark.set_compact:
-## the ticket's pay tag owns the "€0"), centred under the ticket when it is the slot's only mark
+## stands on a slot an inspection pays 0€, its mark is the cause-only chip (SlotMark.set_compact:
+## the ticket's pay tag owns the "0€"), centred under the ticket when it is the slot's only mark
 ## (_hang_marks). A slot an
 ## ends mark is on (Express lane's, SlotMark.ends) is marked itself too: its SlotLane (the green
 ## plate round its ticket and the lane painted on its belt patch) lies on its talker layer, under

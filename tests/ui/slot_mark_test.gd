@@ -87,7 +87,7 @@ func test_no_mark_without_slot_engine() -> void:
 
 ## One owner per fact (2026-11-02): only a zero slot's mark (Spot check's, its hover tip naming
 ## the cause) shrinks to the cause-only chip, the warning sign with no text at the chip art's
-## size, its hook at its top's middle; it grows back to the full "⚠ €0" talker. A day event's
+## size, its hook at its top's middle; it grows back to the full "⚠ 0€" talker. A day event's
 ## or a loyalty upgrade's mark never shrinks.
 func test_only_a_zero_slot_mark_shrinks_to_its_chip() -> void:
 	var spot_check: InspectionDefinition = load("res://data/inspections/spot_check.tres")

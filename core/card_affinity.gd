@@ -8,7 +8,7 @@ extends RefCounted
 ## has: FamilyPalette.quiet_families, passed in) names it only WEAKly; a product rule (Cereal
 ## beside Milk) names that product, its tiers included; a pair rule (Banana) names its own product;
 ## a chain helper (#128: Strawberries, Lemon, Wonky carrot) names the chain's product (the Banana);
-## a penalty (Soup's €0 beside Frozen) names the tag's products as a PENALTY; coupon counting
+## a penalty (Soup's 0€ beside Frozen) names the tag's products as a PENALTY; coupon counting
 ## (Scissors) names every coupon; a tag grant (Breakfast sticker, Clearance tag) names every card
 ## whose rule counts, boosts or pairs with the tag it grants (WEAKly for a broad one), and a card
 ## zeroed beside it as a PENALTY. The rules in NAMES_NONE name no other card (slot rules, links,

@@ -10,11 +10,11 @@ extends GdUnitTestSuite
 const CARDS := "res://data/cards"
 const LINES: Array[String] = [
 	"× Multipack  ×3",
-	"+€1 Eggs before it",
+	"+1€ Eggs before it",
 	"Breakfast sticker  WASTED",
 	"×2 Coffee",
-	"+€2 Bread after it",
-	"+€3 Butter beside it",
+	"+2€ Bread after it",
+	"+3€ Butter beside it",
 	"×2 Lemon",
 ]
 

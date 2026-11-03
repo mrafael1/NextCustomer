@@ -29,7 +29,7 @@ enum Kind {
 }
 
 ## What a beat does to the monitor's total (#105 piece 2, mock-up readability_v3.html): nothing, the
-## item's base lands, a +N or a × lands its gain, a denial lowers it, or WASTED drops a grey €0.
+## item's base lands, a +N or a × lands its gain, a denial lowers it, or WASTED drops a grey 0€.
 enum Land { NONE, BASE, ADD, MUL, DOWN, WASTE }
 
 var kind: Kind = Kind.BASE

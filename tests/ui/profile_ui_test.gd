@@ -67,7 +67,7 @@ func test_the_results_print_the_coins_and_fit_the_screen() -> void:
 	# Without the final Manager's review (v0.65), so the row below scores its own total.
 	screen.run.inspections = []
 	screen.run.debug_skip_to_shift(screen.run.shift_index)
-	# The debug jump writes no history: the 11 earlier shifts are passed records, each €2 over.
+	# The debug jump writes no history: the 11 earlier shifts are passed records, each 2€ over.
 	for shift: int in range(count - 1, 0, -1):
 		screen.run.history.push_front(ShiftRecord.new(shift, 10, 12))
 	# The last quota (plan v0.28) expects upgrades: this test plays it against 48 instead.
@@ -78,11 +78,11 @@ func test_the_results_print_the_coins_and_fit_the_screen() -> void:
 		screen.run.place(screen.run.debug_add_to_hand(card), screen.run.row.size())
 	await Rush.checkout(screen)
 	assert_int(screen.run.phase).is_equal(RunState.Phase.WON)
-	# 12 shifts passed pay 3; overtime 11 x 2 + (82 - 48) = 56, under the €923 step.
+	# 12 shifts passed pay 3; overtime 11 x 2 + (82 - 48) = 56, under the 923€ step.
 	screen._results.skip_printing()
 	var texts: PackedStringArray = screen._results.texts().slice(-3)
 	assert_str(texts[0]).starts_with("Shifts passed 12").ends_with("+3")
-	assert_str(texts[1]).starts_with("Overtime €56").ends_with("+0")
+	assert_str(texts[1]).starts_with("Overtime 56€").ends_with("+0")
 	assert_str(texts[2]).starts_with("COINS +3").ends_with("you have 9")
 	assert_int(saves.load_profile().coins).is_equal(9)
 	for frame: int in range(4):
@@ -109,7 +109,7 @@ func test_coin_receipt_lines_align_and_show_an_unknown_total() -> void:
 		. is_equal(
 			[
 				"Shifts passed 5                           +1",
-				"Overtime €140                             +1",
+				"Overtime 140€                             +1",
 				"COINS +2                       you have 1234",
 			]
 		)

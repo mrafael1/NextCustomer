@@ -7,7 +7,7 @@ extends Control
 ## - The scanner bay (ScannerBay, BAY_RECT): the item at the scanner, with the queue over it and
 ##   its family chip under it (FamilyChip: what the item works with, in its ticket's colour).
 ## - The item column (MonitorItemColumn, ITEM_RECT): that item read in full: its name and family
-##   glyphs, its price ("€N", the struck old price under a changed one), its effect text, a dashed
+##   glyphs, its price ("N€", the struck old price under a changed one), its effect text, a dashed
 ##   rule and its step lines.
 ## - The checkout column (CheckoutColumn, CHECKOUT_RECT) is kept for its readings but never shown:
 ##   since Checkout Rhythm v3 the spend objective and the total are the register's and the top
@@ -646,7 +646,9 @@ func _on_beat_started(
 	if beat.kind == CountUpBeat.Kind.PAYOUT:
 		# Under the named bonus lines: the payment equation when the steps multiply out to the
 		# payout, else what it pays.
-		_items.show_paid(ReceiptView.joined_line("Pays", "€%d" % beat.payout), beat.equation)
+		_items.show_paid(
+			ReceiptView.joined_line("Pays", MonitorText.euros(beat.payout)), beat.equation
+		)
 
 
 func _on_step_landed(index: int) -> void:

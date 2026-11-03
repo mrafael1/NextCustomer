@@ -28,7 +28,7 @@ extends Node
 ## shows its payout and every step of its slot but BASE and PAYOUT, worded as the receipt words
 ## them (ReceiptView.step_line, decision 1A), so every line of the planning receipt can be read by
 ## scanning its item. A belt item that gives to others (#71) gets a "gives" line first (GIVES_TEXT:
-## its tokens, its targets and their summed gain, "×3 to Milk, Milk, Milk  +€114", from its rail
+## its tokens, its targets and their summed gain, "×3 to Milk, Milk, Milk  +114€", from its rail
 ## strip, PlanningModel.strip_of). Its tag line shows the scored tags (granted ones too); a hand
 ## item's its card's own.
 ##
@@ -59,7 +59,7 @@ const TUNING_PATH := "res://data/balance/scan.tres"
 ## A giver's "gives" line (#71): its tokens and its targets' names (up to GIVES_NAMES of them, else
 ## GIVES_MANY), then its targets' summed gain (cancelled ones left out) as the line's amount.
 const GIVES_TEXT := "%s to %s"
-const GIVES_AMOUNT := "+€%d"
+const GIVES_AMOUNT := "+%d€"
 const GIVES_NAMES := 3
 const GIVES_MANY := "%d items"
 

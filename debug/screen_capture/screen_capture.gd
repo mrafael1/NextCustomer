@@ -80,7 +80,7 @@ extends Control
 ## CHEER_TIERS' standees (mixed sizes, the newest still cheering) behind the counter; the file is
 ## shift_screen_cheer_<width>x<height>.png.
 ## With `--day=<inspection id>[+<id>...]` (2026-10-31) the fixed shift runs under those day events
-## (data/inspections) in place of Short belt, so their slot marks show (Happy hour's "+€3" on the
+## (data/inspections) in place of Short belt, so their slot marks show (Happy hour's "+3€" on the
 ## last filled slot, Extra till's EXTRA slot); the file name gets day_<ids>_ (ids joined by "+").
 ## With `--slip[=<inspection id>|none]` (2026-10-31) the day chip's slip (DaySlip: today's events
 ## and where they touch the belt) hangs under the chip on the fixed shift, under that day event

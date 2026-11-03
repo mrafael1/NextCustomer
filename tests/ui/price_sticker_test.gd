@@ -7,7 +7,7 @@ extends GdUnitTestSuite
 ## the pay tag, right-aligned at STRUCK_RIGHT, 15 px, its strike low across it (tomato on a light
 ## ticket, paper on a dark one), and the text's first line keeps clear of it (a text that needs
 ## its whole first line puts it beside the tag, clear of the glyphs); a wide burst squeezes a
-## two-glyph row; a coupon's COUPON shrinks to stay clear of its €0 tag. set_got rings a product's
+## two-glyph row; a coupon's COUPON shrinks to stay clear of its 0€ tag. set_got rings a product's
 ## ticket. Its colour says what it means in a tooltip (ColourSpot). No ticket carries the staple
 ## padlock.
 
@@ -38,7 +38,7 @@ const READINGS: Dictionary[String, String] = {
 	"multipack": "×N later of the family before",
 }
 ## The pay tags' rects on a ticket (mock-up v3, ticketHTML): the burst, the wide burst (and where
-## it moves over a two-glyph row) and a plain or €0 tag.
+## it moves over a two-glyph row) and a plain or 0€ tag.
 const BURST := Rect2(54, -6, 60, 32)
 const WIDE := Rect2(42, -12, 80, 36)
 const WIDE_CLEAR := Rect2(46, -12, 80, 36)
@@ -145,7 +145,7 @@ func test_a_card_with_no_rule_shows_only_its_price() -> void:
 	var sticker: PriceSticker = auto_free(PriceSticker.new(bread))
 	assert_str(sticker.summary().text).is_empty()
 	assert_bool(sticker.summary_text_rect().has_area()).is_false()
-	assert_str(sticker.plain_tag().text()).is_equal("€%d" % bread.base)
+	assert_str(sticker.plain_tag().text()).is_equal("%d€" % bread.base)
 
 
 ## The face (mock-up v3, frame3URL): an ink outline with cut corners, the family's light top row,
@@ -202,7 +202,7 @@ func test_coupons_show_coupon_on_their_face() -> void:
 	assert_str(_hex(art.get_pixel(3, 2))).is_equal(_hex(breakfast.light))
 	assert_str(_hex(art.get_pixel(10, 10))).is_equal(_hex(breakfast.face))
 	assert_object(family.coupon_title().get_theme_color("font_color")).is_equal(Palette.INK)
-	# Beside a coupon's tag (a fizzled €0) COUPON stays, shrunk to end clear of the tag's die-cut;
+	# Beside a coupon's tag (a fizzled 0€) COUPON stays, shrunk to end clear of the tag's die-cut;
 	# never struck, never ringed.
 	for coupon: PriceSticker in [plain, family]:
 		coupon.set_pay(true, PLAIN)
@@ -298,7 +298,7 @@ func test_a_struck_price_stands_under_the_tag() -> void:
 	assert_bool(milk.struck_price().visible).is_false()
 
 
-## A wide burst over a two-glyph row (Golden Milk at €126): at WIDE_CLEAR its die-cut meets the
+## A wide burst over a two-glyph row (Golden Milk at 126€): at WIDE_CLEAR its die-cut meets the
 ## squeezed row (the second glyph at x 22), both glyphs show; at WIDE the second would be cut, so
 ## it hides.
 func test_a_wide_burst_squeezes_two_glyphs() -> void:

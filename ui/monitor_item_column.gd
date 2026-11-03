@@ -5,8 +5,8 @@ extends Control
 ## the register's and the top bar's since Checkout Rhythm v3): the item in the bay, read in full.
 ## From the top: its name (ItemName: Pixelify at 22 px, or the bold body font when too long)
 ## with its family glyphs after it (FamilyPalette.shelf_families, their names on hover); its price
-## top right in the monitor's "€N" tag style (PayTag: a gold burst over the struck old price once
-## the price differs from the base, a cream tag at the base, a tomato €0 tag); its effect text
+## top right in the monitor's "N€" tag style (PayTag: a gold burst over the struck old price once
+## the price differs from the base, a cream tag at the base, a tomato 0€ tag); its effect text
 ## (the sticker summary, or the rule text: GlyphLabel, bold at EFFECT_SIZE on EFFECT_PITCH, kept
 ## clear of the price); a dashed rule; and its step lines (STEPS_TOP down), each with its mark (the
 ## fizzle icon, a giver's mini, ✦ for a "gives" line, a tomato ! for a harmful one, ✓ for its own),
@@ -27,7 +27,7 @@ extends Control
 ## caller's (the score's).
 
 ## A step line's look: a FIZZLE's and a HARM's (CountUpPlan.is_harmful) text and amount are tomato,
-## a HARM's amount keeping its sign ("−€2", "= 0") so the meaning never rests on colour alone.
+## a HARM's amount keeping its sign ("−2€", "= 0") so the meaning never rests on colour alone.
 enum Tone { PLAIN, FIZZLE, HARM }
 
 const SIZE := Vector2(270, 146)
@@ -271,8 +271,8 @@ func show_step(
 	_show_count_lines()
 
 
-## The count: the item's payout lands: its payment `equation` ("€X × N → €Y" under a rule, the
-## factor amber) or, with none, `line` ("Pays  €N", "No bonus on this item") in ink.
+## The count: the item's payout lands: its payment `equation` ("X€ × N → Y€" under a rule, the
+## factor amber) or, with none, `line` ("Pays  N€", "No bonus on this item") in ink.
 func show_paid(line: String, equation: PaymentEquation = null) -> void:
 	if line.is_empty() and equation == null:
 		return
@@ -369,8 +369,8 @@ func _add_from_bag(row: Control) -> void:
 	note.size = Vector2(note_width, text.size.y)
 
 
-## The payout's equation row at `top`: an EQUATION_RULE px ink rule along its top, then "€X", the
-## amber "× N" and the arrow, with the payout "€Y" in the amount column, on one line.
+## The payout's equation row at `top`: an EQUATION_RULE px ink rule along its top, then "X€", the
+## amber "× N" and the arrow, with the payout "Y€" in the amount column, on one line.
 func _add_equation_row(equation: PaymentEquation, top: float) -> Control:
 	var row: Control = Control.new()
 	row.name = "Step%d" % _rows.size()
@@ -509,7 +509,7 @@ func price_point() -> Vector2:
 	return get_global_transform() * Vector2(PRICE_RIGHT - 26.0, PRICE_MIDDLE)
 
 
-## Where WASTED's grey €0 drops from (global): just under the newest line's amount (the mock-up's
+## Where WASTED's grey 0€ drops from (global): just under the newest line's amount (the mock-up's
 ## chip, its top at the word's foot), or under the rule.
 func waste_point() -> Vector2:
 	if not _rows.is_empty():

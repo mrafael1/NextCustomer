@@ -57,7 +57,7 @@ static func lines(
 	if not won:
 		var margin: ShiftMargin = ShiftMargin.of(result.total, run.quota())
 		var shortfall: String = (
-			"Shift %d / %d: short by €%d"
+			"Shift %d / %d: short by %d€"
 			% [run.shift_index + 1, run.shift_count(), margin.amount()]
 		)
 		printed.append(Line.new(shortfall, Tone.SHORTFALL, true))
@@ -69,16 +69,16 @@ static func lines(
 	return printed
 
 
-## A shift's line ("  4  €30 / €22        pass") and its dim lines: one per machine visit
+## A shift's line ("  4  30€ / 22€        pass") and its dim lines: one per machine visit
 ## after it (visit_text), then the inspections it was played under. A miss reads "slip" when the
 ## run went on after it (`went_on`; v0.65's "write-up"). `compact` folds the inspections into the
-## shift line ("  4  €30 / €22        pass  review").
+## shift line ("  4  30€ / 22€        pass  review").
 static func shift_texts(
 	record: ShiftRecord, compact: bool = false, went_on: bool = false
 ) -> PackedStringArray:
 	var main: String = (
 		"%3d  %-13s  %s"
-		% [record.shift, "€%d / €%d" % [record.total, record.quota], _result(record, went_on)]
+		% [record.shift, "%d€ / %d€" % [record.total, record.quota], _result(record, went_on)]
 	)
 	var maluses: Array[InspectionDefinition] = InspectionDefinition.maluses(record.inspections)
 	if compact and not maluses.is_empty():
@@ -121,7 +121,7 @@ static func coin_lines(payout: CoinPayout, coins_owned: int) -> PackedStringArra
 	return PackedStringArray(
 		[
 			_line("Shifts passed %d" % payout.shifts_passed, "+%d" % payout.shift_coins),
-			_line("Overtime €%d" % payout.overtime, "+%d" % payout.overtime_coins),
+			_line("Overtime %d€" % payout.overtime, "+%d" % payout.overtime_coins),
 			_line("COINS +%d" % payout.total(), "you have " + _owned_text(coins_owned)),
 		]
 	)

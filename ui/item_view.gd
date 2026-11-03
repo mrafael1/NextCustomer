@@ -162,7 +162,7 @@ var boost_rings: int = 0:
 ## Set both first.
 var halo_step_s: float = 0.0
 var halo_start: int = 0
-## Denied to €0 (#71): the sprite greys (ArtStyle.Grey.DENIED).
+## Denied to 0€ (#71): the sprite greys (ArtStyle.Grey.DENIED).
 var denied: bool = false:
 	set(value):
 		denied = value
@@ -258,7 +258,7 @@ func set_highlight(highlight: CardView.Highlight) -> void:
 	queue_redraw()
 
 
-## Shows the paid chip, "€N" (muted at €0), unless shows_paid_chip is off. `strong` (the count-up's
+## Shows the paid chip, "N€" (muted at 0€), unless shows_paid_chip is off. `strong` (the count-up's
 ## running value) looks the same: the count-up punches the chip instead, and set_badge_current
 ## picks its face.
 func show_badge(value: int, _strong: bool) -> void:

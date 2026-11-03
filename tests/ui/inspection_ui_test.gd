@@ -12,10 +12,10 @@ const HAPPY_HOUR := "res://data/inspections/happy_hour.tres"
 const EXTRA_TILL := "res://data/inspections/extra_till.tres"
 ## Checkouts rush their count (one tap): the suite tests what follows it.
 const Rush := preload("res://tests/ui/count_up_rush.gd")
-const NOTICE := "INSPECTION NEXT SHIFT: Slot 3 pays €0"
-const RECEIPT_LINE := "Spot check: slot 3 pays €0"
+const NOTICE := "INSPECTION NEXT SHIFT: Slot 3 pays 0€"
+const RECEIPT_LINE := "Spot check: slot 3 pays 0€"
 
-## The windows the €0 slot is checked at: the game's and a larger one the layout scales to.
+## The windows the 0€ slot is checked at: the game's and a larger one the layout scales to.
 const WINDOWS: Array[Vector2i] = [Vector2i(1280, 720), Vector2i(1600, 1000)]
 
 var _folder: String = ""
@@ -92,9 +92,9 @@ func test_the_notice_comes_before_the_machine() -> void:
 	assert_int(run.shift_index).is_equal(2)
 	assert_bool(screen._inspection_tag.visible).is_true()
 	# The bonus pill's chip may drop "Inspection · " to fit the bar (#77 machine v2).
-	assert_str(screen._inspection_tag.text()).ends_with("Slot 3 pays €0")
+	assert_str(screen._inspection_tag.text()).ends_with("Slot 3 pays 0€")
 	assert_str(screen._inspection_tag.tooltip_text).contains("Spot check")
-	assert_str(screen._inspection_tag.tooltip_text).contains("Slot 3 pays €0")
+	assert_str(screen._inspection_tag.tooltip_text).contains("Slot 3 pays 0€")
 	assert_bool(screen._loyalty_card.is_ancestor_of(screen._inspection_tag)).is_false()
 	assert_int(screen._loyalty_card.stamped_boxes().size()).is_equal(run.upgrades.size())
 	assert_array(_last_event("shift_start")["inspections"]).is_equal(["spot_check"])
@@ -127,7 +127,7 @@ func test_inspection_steps_print_and_play_from_the_tag() -> void:
 	screen._debug.set_inspection("spot_check")
 	assert_bool(screen._inspection_tag.visible).is_true()
 	assert_str(_last_event("debug")["action"]).is_equal("set_inspection")
-	# Slot 3 wears the inspection's "€0" mark on the empty belt already (2026-10-28).
+	# Slot 3 wears the inspection's "0€" mark on the empty belt already (2026-10-28).
 	var dead: SlotMark = screen._row_strip.inspection_mark(2, 0)
 	assert_object(dead).is_not_null()
 	assert_bool(dead.is_visible_in_tree()).is_true()
@@ -152,11 +152,11 @@ func test_inspection_steps_print_and_play_from_the_tag() -> void:
 
 
 ## One owner per fact (2026-11-02, shift scene polish v2 ticket brief section 3): with a card on
-## Spot check's slot 3 the ticket's pay tag shows the €0 with no warning sign, and the slot's
+## Spot check's slot 3 the ticket's pay tag shows the 0€ with no warning sign, and the slot's
 ## talker is the cause-only chip (the warning sign, no text, its hover tip naming the cause),
-## centred under the ticket, inside the window and clear of its neighbours, so exactly one "€0"
-## shows on the ticket and the talker; the empty slot keeps the full "⚠ €0" talker. At the game's
-## window and a larger one. The count still fires the chip on the €0 beat.
+## centred under the ticket, inside the window and clear of its neighbours, so exactly one "0€"
+## shows on the ticket and the talker; the empty slot keeps the full "⚠ 0€" talker. At the game's
+## window and a larger one. The count still fires the chip on the 0€ beat.
 func test_a_carded_zero_slot_shows_its_zero_once() -> void:
 	await _assert_zero_once(WINDOWS[0])
 
@@ -176,7 +176,7 @@ func _assert_zero_once(window: Vector2i) -> void:
 	var case: String = str(window)
 	var dead: SlotMark = screen._row_strip.inspection_mark(2, 0)
 	assert_object(dead).override_failure_message(case).is_not_null()
-	# Empty: the full talker, its warning and "€0", the only €0 on the slot.
+	# Empty: the full talker, its warning and "0€", the only 0€ on the slot.
 	assert_bool(dead.is_compact()).override_failure_message(case).is_false()
 	assert_bool(dead.shows_text()).override_failure_message(case).is_true()
 	assert_bool(dead.icon().is_visible_in_tree()).override_failure_message(case).is_true()
@@ -209,26 +209,26 @@ func _assert_zero_once(window: Vector2i) -> void:
 	)
 	assert_float(rect.position.y).override_failure_message(message).is_less(ticket.end.y)
 	assert_float(rect.end.y).override_failure_message(message).is_greater(ticket.end.y)
-	# The ticket's pay tag owns the amount: "€0" with no warning sign.
+	# The ticket's pay tag owns the amount: "0€" with no warning sign.
 	var pay: PayTag = screen._stage.planning_layer.pay_tag(2)
-	assert_str(pay.text()).is_equal("€0")
+	assert_str(pay.text()).is_equal("0€")
 	assert_int(pay.glyph).is_equal(PlanningModel.Glyph.NONE)
 	assert_object(pay.get_node_or_null(^"Glyph")).is_null()
 	assert_bool(pay.label().get_global_rect().encloses(_text_rect(pay.label()))).is_true()
-	# Exactly one "€0" shows on the ticket and the talker.
+	# Exactly one "0€" shows on the ticket and the talker.
 	var band: Rect2 = Rect2(ticket.position.x, ticket.position.y, ticket.size.x, 0.0)
 	band = band.expand(Vector2(ticket.position.x, pay.get_global_rect().position.y))
 	band = band.expand(rect.end)
 	var zeros: int = 0
 	for label: Node in screen.find_children("*", "Label", true, false):
 		var shown: Label = label as Label
-		if shown.is_visible_in_tree() and shown.text.contains("€0"):
+		if shown.is_visible_in_tree() and shown.text.contains("0€"):
 			if shown.get_global_rect().intersects(band):
 				zeros += 1
 	assert_int(zeros).override_failure_message(message).is_equal(1)
 	# The other slots' marks: none (Spot check marks slot 3 only).
 	assert_object(screen._row_strip.inspection_mark(3)).is_null()
-	# The count still plays the €0 beat on it: the chip fires.
+	# The count still plays the 0€ beat on it: the chip fires.
 	await Rush.checkout(screen)
 	assert_int(dead.fired_count()).override_failure_message(case).is_equal(1)
 
@@ -523,7 +523,7 @@ func test_a_full_row_explains_why_a_card_does_not_fit() -> void:
 
 
 ## Day events aimed at a slot wear its mark (2026-10-31: "day event that impact a specific slot
-## should be shown visually on slot"): Happy hour's green "+€3" on the row's last filled slot (slot
+## should be shown visually on slot"): Happy hour's green "+3€" on the row's last filled slot (slot
 ## 1 on the empty belt), moving as cards are placed, and Extra till's EXTRA on the slot it adds;
 ## each hangs under its own slot's ticket, on screen, and Happy hour's fires on its step.
 func test_slot_day_events_mark_their_slots() -> void:
@@ -540,7 +540,7 @@ func test_slot_day_events_mark_their_slots() -> void:
 	assert_int(screen._slots.size()).is_equal(open)
 	var happy: SlotMark = screen._row_strip.inspection_mark(0, 0)
 	assert_object(happy).is_not_null()
-	assert_str(happy.text()).is_equal("+€3")
+	assert_str(happy.text()).is_equal("+3€")
 	assert_bool(happy.boon).is_true()
 	var extra: SlotMark = screen._row_strip.inspection_mark(open - 1, 1)
 	assert_object(extra).is_not_null()

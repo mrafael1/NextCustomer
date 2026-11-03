@@ -33,8 +33,8 @@ const ARROW := "→"
 const ARROW_FALLBACK := "›"
 ## What separates a step line's text from its amount (ReceiptView.joined_line).
 const AMOUNT_SEPARATOR := "  "
-## A step line's amount kept at its start ("+€1 Eggs before it", "×2 Eggs", "−€2 Late delivery").
-const LEADING_AMOUNT := ["+€", "×", "−€"]
+## A step line's amount kept at its start ("+1€ Eggs before it", "×2 Eggs", "−2€ Late delivery").
+const LEADING_AMOUNT := ["+", "×", "−"]
 
 
 ## A whole-euro amount with the € after it: "26€".
@@ -42,10 +42,10 @@ static func euros(amount: int) -> String:
 	return EUROS % amount
 
 
-## A whole-euro amount with its sign, as a step line starts: "+€3", or "−€2" for a fall (v0.69:
-## Late delivery's).
+## A whole-euro amount with its sign, as a step line starts: "+3€", or "−2€" for a fall (v0.69:
+## Late delivery's). Every price puts its € after the number ("80€ everywhere", 2026-11-03).
 static func signed_euros(amount: int) -> String:
-	return "+€%d" % amount if amount >= 0 else "−€%d" % -amount
+	return gain(amount)
 
 
 ## A landing's chip: "+N€" for a gain, "−N€" for a fall.
@@ -101,8 +101,8 @@ static func waste_line(step: ScoreStep) -> String:
 
 
 ## A step line (ReceiptView.step_line, or a scan's "gives" line) as its text and its amount for
-## the item column: an amount after two spaces ("cause  WASTED") or at its start ("+€1 Eggs before
-## it" reads "Eggs before it" with "+€1"; "×2 Eggs" keeps its factor in the text and shows it as
+## the item column: an amount after two spaces ("cause  WASTED") or at its start ("+1€ Eggs before
+## it" reads "Eggs before it" with "+1€"; "×2 Eggs" keeps its factor in the text and shows it as
 ## the amount too). Returns [text, amount]; the amount is "" for none.
 static func step_parts(line: String) -> PackedStringArray:
 	var at: int = line.rfind(AMOUNT_SEPARATOR)

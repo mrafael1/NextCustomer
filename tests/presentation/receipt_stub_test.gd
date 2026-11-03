@@ -2,13 +2,13 @@ extends GdUnitTestSuite
 ## ReceiptView's planning receipt, count-up lines, header and combo lines (#75, #80). Planning
 ## (show_planning) is itemised: the header, a dashed rule, one line per item (name, payout with
 ## cents, its mark: the fizzle icon when it fizzles, no check), "n ·····" per open empty slot, a
-## dashed rule, "PROJECTED €N.00" (given the quota: green at or over it, no mark, red under it,
-## with how far it is on its own row under it: "+€3.00 over target", "€1.00 short"), then the
+## dashed rule, "PROJECTED N.00€" (given the quota: green at or over it, no mark, red under it,
+## with how far it is on its own row under it: "+3.00€ over target", "1.00€ short"), then the
 ## fizzle footer
 ## ("2 WASTED · hover an item", none without fizzles); highlight_slot frames a line (planning only).
 ## The count-up (begin_count) prints the header and its footer only; the steps print line by line
 ## (#105 piece 2): an item's line with its base, then its lines under it, the newest framed; an item
-## whose lines don't add up to its payout closes with "= €3.00"; add_total prints the dashed rule
+## whose lines don't add up to its payout closes with "= 3.00€"; add_total prints the dashed rule
 ## and TOTAL at the end and drops the footer and the frame; show_result prints the same receipt at
 ## once. Every bonus, multiplier or copy another source caused is a combo line, marked by a gold
 ## band and a diamond in place of its marker. The receipt is laid out on its own, at the shift
@@ -52,13 +52,13 @@ func test_the_header_counts_the_shift_and_every_item() -> void:
 
 ## Every money amount on the receipt prints with cents; the values stay whole euros.
 func test_money_prints_cents() -> void:
-	assert_str(ReceiptView.money(3)).is_equal("€3.00")
-	assert_str(ReceiptView.money(22)).is_equal("€22.00")
-	assert_str(ReceiptView.money(15, true)).is_equal("+€15.00")
-	assert_str(ReceiptView.money(0)).is_equal("€0.00")
-	assert_str(ReceiptView.verdict_text(51, 40)).is_equal("€51.00 / €40.00")
-	assert_str(ReceiptTarget.margin_text(ShiftMargin.Kind.OVER, 11)).is_equal("+€11.00 OVER TARGET")
-	assert_str(ReceiptTarget.margin_text(ShiftMargin.Kind.SHORT, 4)).is_equal("SHORT €4.00")
+	assert_str(ReceiptView.money(3)).is_equal("3.00€")
+	assert_str(ReceiptView.money(22)).is_equal("22.00€")
+	assert_str(ReceiptView.money(15, true)).is_equal("+15.00€")
+	assert_str(ReceiptView.money(0)).is_equal("0.00€")
+	assert_str(ReceiptView.verdict_text(51, 40)).is_equal("51.00€ / 40.00€")
+	assert_str(ReceiptTarget.margin_text(ShiftMargin.Kind.OVER, 11)).is_equal("+11.00€ OVER TARGET")
+	assert_str(ReceiptTarget.margin_text(ShiftMargin.Kind.SHORT, 4)).is_equal("SHORT 4.00€")
 	assert_str(ReceiptTarget.margin_text(ShiftMargin.Kind.ON, 0)).is_equal("ON TARGET")
 	# The receipt's font has every glyph its lines print (the dots, the bullets, € and ×; one test
 	# with the amounts' words, so the suite stays at gdlint's 20 public methods).
@@ -137,13 +137,13 @@ func test_the_planning_receipt_is_itemised() -> void:
 				"NEXT CUSTOMER · REG 3 | ",
 				"SHIFT 5/8 · 4 ITEMS | ",
 				"---",
-				"Milk | €2.00",
-				"Bread | €5.00",
-				"Coffee | €1.00",
+				"Milk | 2.00€",
+				"Bread | 5.00€",
+				"Coffee | 1.00€",
 				"4 ····· | ",
 				"5 ····· | ",
 				"---",
-				"PROJECTED | €8.00",
+				"PROJECTED | 8.00€",
 				"1 WASTED |  · hover an item",
 			]
 		)
@@ -184,14 +184,14 @@ func test_the_planning_receipt_is_itemised() -> void:
 		func(step: ScoreStep) -> bool: return step.step_type != ScoreStep.StepType.WASTED
 	)
 	_receipt.show_planning(PackedStringArray(HEADER), clean, PackedStringArray(NAMES), 3)
-	assert_str(_lines(_receipt)[-1]).is_equal("PROJECTED | €8.00")
+	assert_str(_lines(_receipt)[-1]).is_equal("PROJECTED | 8.00€")
 	await _frames(1)
 
 
 ## Against the quota (#71's play test; the target since the shift scene polish): PROJECTED's
 ## amount is Palette.GOOD at the quota and over it, with no mark (no check), and the row under it
-## says how far over ("+€3.00 over target", "on target", green dark) with no footer for a clean
-## row; under it, Palette.TOMATO with no mark and the shortfall ("€1.00 short", tomato) on the row
+## says how far over ("+3.00€ over target", "on target", green dark) with no footer for a clean
+## row; under it, Palette.TOMATO with no mark and the shortfall ("1.00€ short", tomato) on the row
 ## under it, before the fizzle footer; without a quota it stays ink, with no such row. Every row
 ## under it stays one line inside the stub's width, even with a long hover hint.
 func test_the_projected_total_reads_against_the_quota() -> void:
@@ -209,7 +209,7 @@ func test_the_projected_total_reads_against_the_quota() -> void:
 		assert_int(projected.get_child(1).get_child_count()).is_equal(0)
 		var amount: Rect2 = (projected.get_child(1) as Control).get_global_rect()
 		assert_bool(paper.encloses(amount)).override_failure_message(str(amount)).is_true()
-		assert_str(_lines(_receipt)[-2]).is_equal("PROJECTED | €8.00")
+		assert_str(_lines(_receipt)[-2]).is_equal("PROJECTED | 8.00€")
 		assert_str(_lines(_receipt)[-1]).is_equal(" | " + ReceiptTarget.against_text(8, quota))
 		var against: HBoxContainer = _receipt._lines.get_children()[-1] as HBoxContainer
 		assert_that(_color(against, 1)).is_equal(Palette.GREEN_DARK)
@@ -218,10 +218,10 @@ func test_the_projected_total_reads_against_the_quota() -> void:
 		# Right-aligned under the amount.
 		assert_float(words.end.x).is_greater_equal(amount.end.x - 0.5)
 	assert_str(ReceiptTarget.against_text(8, 8)).is_equal("on target")
-	assert_str(ReceiptTarget.against_text(8, 5)).is_equal("+€3.00 over target")
+	assert_str(ReceiptTarget.against_text(8, 5)).is_equal("+3.00€ over target")
 	var cases: Array[Array] = [
-		[_result(), 9, [" | €1.00 short", "1 WASTED |  · hover an item"]],
-		[clean, 20, [" | €12.00 short"]],
+		[_result(), 9, [" | 1.00€ short", "1 WASTED |  · hover an item"]],
+		[clean, 20, [" | 12.00€ short"]],
 	]
 	for case: Array in cases:
 		var result: ScoreResult = case[0] as ScoreResult
@@ -234,7 +234,7 @@ func test_the_projected_total_reads_against_the_quota() -> void:
 		assert_that(_color(projected, 1)).is_equal(Palette.TOMATO)
 		assert_object(projected.get_child(1).get_node_or_null("Mark")).is_null()
 		var tail: Array[String] = _lines(_receipt)
-		tail = tail.slice(tail.find("PROJECTED | €8.00") + 1)
+		tail = tail.slice(tail.find("PROJECTED | 8.00€") + 1)
 		assert_array(tail).is_equal(case[2] as Array)
 		# A long hint is cut, never wrapped or widening the stub.
 		_receipt.show_relations(-1, {}, ReceiptView.HOVERED_HINT % "Squashed cake")
@@ -332,8 +332,8 @@ func test_the_count_up_prints_line_by_line() -> void:
 		if step.step_type == ScoreStep.StepType.FLAT:
 			# The bonus line under Bread is framed.
 			assert_object(_receipt._framed_line()).is_same(returned[-1])
-			assert_str(_lines(_receipt)[5]).is_equal("Coffee bonus | +€2.00")
-			assert_str(_lines(_receipt)[4]).is_equal("Bread | €3.00")
+			assert_str(_lines(_receipt)[5]).is_equal("Coffee bonus | +2.00€")
+			assert_str(_lines(_receipt)[4]).is_equal("Bread | 3.00€")
 		if step.step_type == ScoreStep.StepType.PAYOUT:
 			assert_object(_receipt._framed_line()).is_same(_receipt._items[step.slot])
 	# A BASE step returns its item's line; a PAYOUT step that adds up its amount label when
@@ -353,13 +353,13 @@ func test_the_count_up_prints_line_by_line() -> void:
 				"NEXT CUSTOMER · REG 3 | ",
 				"SHIFT 5/8 · 4 ITEMS | ",
 				"---",
-				"Milk | €2.00",
-				"Bread | €3.00",
-				"Coffee bonus | +€2.00",
-				"Coffee | €1.00",
+				"Milk | 2.00€",
+				"Bread | 3.00€",
+				"Coffee bonus | +2.00€",
+				"Coffee | 1.00€",
 				"Coffee bonus: no Breakfast item after it | ",
 				"---",
-				"TOTAL | €8.00",
+				"TOTAL | 8.00€",
 			]
 		)
 	)
@@ -374,10 +374,10 @@ func test_the_count_up_prints_line_by_line() -> void:
 
 
 ## Every item's lines add up (#80): when the base and the bonus lines don't come to the payout (a
-## multiplier), the PAYOUT step closes the item with a small "= €payout" in ink with the mark
+## multiplier), the PAYOUT step closes the item with a small "= payout€" in ink with the mark
 ## column, framed, and returns its amount; a later line of the item prints above it. An
-## override's "= €0.00" is the item's amount from then on, so its payout prints nothing more
-## (null), and a fizzled item at €0 that adds up gets no closing line. An armed effect prints
+## override's "= 0.00€" is the item's amount from then on, so its payout prints nothing more
+## (null), and a fizzled item at 0€ that adds up gets no closing line. An armed effect prints
 ## its arm line after its item's payout (its words: the rule's text without its card). show_result
 ## prints the same.
 func test_an_item_that_does_not_add_up_closes_with_its_payout() -> void:
@@ -400,22 +400,22 @@ func test_an_item_that_does_not_add_up_closes_with_its_payout() -> void:
 			assert_float(column.content_margin_right).is_equal(ReceiptView.MARK_COLUMN)
 	# Milk's override line closes it: its PAYOUT frames its line and returns nothing to fade in.
 	assert_object(returned[6]).is_null()
-	# The fizzled Soup adds up at €0: its PAYOUT frames its line and prints nothing.
+	# The fizzled Soup adds up at 0€: its PAYOUT frames its line and prints nothing.
 	assert_object(returned[8]).is_same(_receipt._items[2].get_child(1))
 	assert_bool(ReceiptInk.is_arm(returned[9])).is_true()
 	_receipt.add_total(result.total)
 	var expected: Array[String] = [
-		"Multipack | €1.00",
+		"Multipack | 1.00€",
 		"Multipack | ×3",
 		"Multipack: nothing to multiply after it | ",
-		" | = €3.00",
-		"Milk | €2.00",
-		"Spot check: the 2nd product pays €0 | = €0.00",
-		"Soup | €0.00",
+		" | = 3.00€",
+		"Milk | 2.00€",
+		"Spot check: the 2nd product pays 0€ | = 0.00€",
+		"Soup | 0.00€",
 		"arms Soup bonus | ",
 		"Soup bonus: no Frozen item after it | ",
 		"---",
-		"TOTAL | €3.00",
+		"TOTAL | 3.00€",
 	]
 	assert_array(_lines(_receipt)).is_equal(expected)
 	var at_once: ReceiptView = auto_free(ReceiptView.new())
@@ -424,7 +424,7 @@ func test_an_item_that_does_not_add_up_closes_with_its_payout() -> void:
 	await _frames(1)
 
 
-## A late-run verdict ("€1118.00 / €120.00", the simulator's largest total on shift 8's
+## A late-run verdict ("1118.00€ / 120.00€", the simulator's largest total on shift 8's
 ## quota) stays on the TOTAL line, shrinking when it must (a 5-digit one does): the caption on
 ## one row, the line inside the lines' width; a short one keeps VERDICT_FONT_SIZE.
 func test_a_four_digit_verdict_stays_on_the_total_line() -> void:
@@ -463,7 +463,7 @@ func test_show_result_is_the_count_ups_receipt() -> void:
 	)
 	assert_array(_lines(_receipt)).is_equal(_lines(expected))
 	expected.show_result(result, names)
-	assert_str(_lines(expected)[0]).is_equal("Milk | €2.00")
+	assert_str(_lines(expected)[0]).is_equal("Milk | 2.00€")
 	_receipt.begin()
 	assert_int(_lines(_receipt).size()).is_equal(0)
 	# The lines let go are freed at the frame's end.
@@ -495,9 +495,9 @@ func _assert_a_later_items_tag_keeps_the_scan_order() -> void:
 		assert_int(milk).is_less(bread)
 		assert_int(bread).is_less(coffee)
 		var lines: Array[String] = _lines(receipt)
-		assert_str(lines[coffee]).is_equal("Coffee | €1.00")
+		assert_str(lines[coffee]).is_equal("Coffee | 1.00€")
 		assert_str(lines[coffee + 1]).is_equal("Clearance tag: Coffee gains Clearance | ")
-		assert_str(lines[-1]).is_equal("TOTAL | €8.00")
+		assert_str(lines[-1]).is_equal("TOTAL | 8.00€")
 	await _frames(1)
 
 
@@ -507,7 +507,7 @@ func test_step_lines_word_bonuses_amount_first() -> void:
 	var names: PackedStringArray = PackedStringArray(NAMES)
 	var flat: ScoreStep = _step(ScoreStep.StepType.FLAT, "Category engine")
 	flat.value = 15
-	assert_str(ReceiptView.step_line(flat, names)).is_equal("+€15 Category engine")
+	assert_str(ReceiptView.step_line(flat, names)).is_equal("+15€ Category engine")
 	var multiplier: ScoreStep = _step(ScoreStep.StepType.MULTIPLIER, "Multipack")
 	assert_str(ReceiptView.step_line(multiplier, names)).is_equal("×2 Multipack")
 	# A receipt text that ends in its factor prints it once.
@@ -522,17 +522,17 @@ func test_step_lines_word_bonuses_amount_first() -> void:
 	assert_str(ReceiptView.step_line(upgrade, names, upgrades)).is_equal("×2 Slot engine")
 	var copy: ScoreStep = _step(ScoreStep.StepType.COPY, "Repeat")
 	copy.linked_slot = 1
-	assert_str(ReceiptView.step_line(copy, names)).is_equal("+€2 Repeat: copy of Bread")
+	assert_str(ReceiptView.step_line(copy, names)).is_equal("+2€ Repeat: copy of Bread")
 	var wasted: ScoreStep = _step(ScoreStep.StepType.WASTED, "Coffee bonus")
 	wasted.reason = "no Breakfast item after it"
 	assert_str(ReceiptView.step_line(wasted, names)).is_equal(
 		"Coffee bonus: no Breakfast item after it  WASTED"
 	)
 	assert_str(ReceiptView.step_line(_step(ScoreStep.StepType.BASE, ""), names)).is_equal("MILK  2")
-	assert_str(ReceiptView.step_line(_step(ScoreStep.StepType.PAYOUT, ""), names)).is_equal("€2")
-	var override: ScoreStep = _step(ScoreStep.StepType.PAYOUT_OVERRIDE, "the 3rd product pays €0")
+	assert_str(ReceiptView.step_line(_step(ScoreStep.StepType.PAYOUT, ""), names)).is_equal("2€")
+	var override: ScoreStep = _step(ScoreStep.StepType.PAYOUT_OVERRIDE, "the 3rd product pays 0€")
 	override.value = 0
-	assert_str(ReceiptView.step_line(override, names)).is_equal("the 3rd product pays €0  = 0")
+	assert_str(ReceiptView.step_line(override, names)).is_equal("the 3rd product pays 0€  = 0")
 
 
 ## A combo is a bonus or multiplier another item, an upgrade or an inspection caused, or a copy;
@@ -607,7 +607,7 @@ func test_every_combo_line_is_marked_and_hangs_past_its_diamond() -> void:
 	# The long upgrade line wraps, every row hung past the diamond.
 	var wrapped: Label = lines[0].get_child(0) as Label
 	assert_int(wrapped.get_line_count()).is_greater(1)
-	assert_str((lines[0].get_child(1) as Label).text).is_equal("+€2.00")
+	assert_str((lines[0].get_child(1) as Label).text).is_equal("+2.00€")
 	assert_str((lines[2].get_child(0) as Label).text).is_equal("Repeat: copy of Bread")
 	var own_left: Label = plain.get_child(0) as Label
 	assert_object(own_left.get_node_or_null("ComboDiamond")).is_null()
@@ -671,7 +671,7 @@ static func _result() -> ScoreResult:
 
 
 ## Multipack (base 1, ×3: 3) whose second multiplier fizzles after its payout, Milk (2) that the
-## Spot check sets to €0, and Soup (0) whose bonus fizzles; total 3.
+## Spot check sets to 0€, and Soup (0) whose bonus fizzles; total 3.
 static func _closing_result() -> ScoreResult:
 	var result: ScoreResult = ScoreResult.new()
 	var rows: Array[Array] = [
@@ -680,7 +680,7 @@ static func _closing_result() -> ScoreResult:
 		[0, ScoreStep.StepType.PAYOUT, 3, ""],
 		[0, ScoreStep.StepType.WASTED, 0, "Multipack"],
 		[1, ScoreStep.StepType.BASE, 2, ""],
-		[1, ScoreStep.StepType.PAYOUT_OVERRIDE, 0, "the 2nd product pays €0"],
+		[1, ScoreStep.StepType.PAYOUT_OVERRIDE, 0, "the 2nd product pays 0€"],
 		[1, ScoreStep.StepType.PAYOUT, 0, ""],
 		[2, ScoreStep.StepType.BASE, 0, ""],
 		[2, ScoreStep.StepType.PAYOUT, 0, ""],

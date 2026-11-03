@@ -110,7 +110,7 @@ static func mark(line: HBoxContainer, kind: ReceiptView.Mark) -> void:
 ## Colours the PROJECTED `line`'s amount by the shown `total` against `quota` (a display
 ## difference): GOOD at or over it, TOMATO under it; and prints how far it is on the `against` line
 ## under it, at the footer's size, right-aligned under the amount (the shift scene polish:
-## "+€67.00 over target" in green dark, "€56.00 short" in tomato: ReceiptTarget.against_text), so
+## "+67.00€ over target" in green dark, "56.00€ short" in tomato: ReceiptTarget.against_text), so
 ## the status never relies on colour alone.
 static func against_quota(line: HBoxContainer, against: Control, total: int, quota: int) -> void:
 	var passed: bool = ShiftMargin.of(total, quota).passed()

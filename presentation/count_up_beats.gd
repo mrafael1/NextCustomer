@@ -231,7 +231,7 @@ func _linked(beat: CountUpBeat, step: ScoreStep) -> void:
 	tween.tween_callback(line.queue_free)
 
 
-## A perk's credit (#108 piece 2): its loyalty-card box punches and what it earned ("€17") flies
+## A perk's credit (#108 piece 2): its loyalty-card box punches and what it earned ("17€") flies
 ## from the box to the item, in teal; the total doesn't move (the payout is already in it).
 func _credit(beat: CountUpBeat, step: ScoreStep) -> void:
 	_print_step(step)
@@ -240,7 +240,9 @@ func _credit(beat: CountUpBeat, step: ScoreStep) -> void:
 		return
 	_fx.punch(_moving_part(box), 1.15)
 	var flight: float = minf(TAG_FLIGHT, _motion(beat) * 0.7)
-	_fx.fly_text("€%d" % step.value, _center(box), _at(step.slot), Palette.TEAL, 20, flight, true)
+	_fx.fly_text(
+		MonitorText.euros(step.value), _center(box), _at(step.slot), Palette.TEAL, 20, flight, true
+	)
 
 
 ## A fizzle: the card shudders, greys out for a moment, and lets out a little WASTED puff where

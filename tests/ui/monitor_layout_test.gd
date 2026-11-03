@@ -165,7 +165,7 @@ func test_the_step_amounts_share_one_edge_and_the_glyphs_follow_the_name() -> vo
 	var lines: ScanController.ItemLines = ScanController.ItemLines.new()
 	lines.payout = 10
 	# Two lines: a third folds into "+N more" in the step area's 56 px.
-	lines.lines = PackedStringArray(["+€1 Eggs before it", "× Multipack  ×3"])
+	lines.lines = PackedStringArray(["+1€ Eggs before it", "× Multipack  ×3"])
 	var fizzles: Array[bool] = [false, false]
 	lines.fizzles = fizzles
 	monitor.show_next(milk, 6, 3, milk.tags, lines)

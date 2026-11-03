@@ -8,8 +8,8 @@ extends RefCounted
 ## The total slams onto the monitor's number (#80: big numbers land on the monitor, the receipt
 ## prints plainly; #105 piece 2: the checkout column's TotalNumber, `target`), with `total` or
 ## `miss` and a shake, a step bigger for a large total and another for a huge one, while the
-## receipt's TOTAL line shows "€total / €quota" at once (green on a pass, red on a miss). The margin
-## line under it counts "+€N OVER TARGET", "SHORT €N" or a green "ON TARGET" (ShiftMargin) while
+## receipt's TOTAL line shows "total€ / quota€" at once (green on a pass, red on a miss). The margin
+## line under it counts "+N€ OVER TARGET", "SHORT N€" or a green "ON TARGET" (ShiftMargin) while
 ## `pass` or `fail` sounds; a pass gets the PAID stamp (`stamp_paid`) once the margin has counted,
 ## and an inspected pass then INSPECTION PASSED under it (`stamp_notice`, #77); the receipt tears
 ## (`rip`), on a miss after `fail` has rung out; the next shift's notice prints in red with the
@@ -163,7 +163,7 @@ static func shake_px(passed: bool, intensity: CountUpIntensity, tuning: CountUpT
 	return px * (1.0 + tuning.dessert_shake_step * steps)
 
 
-## The receipt's TOTAL line shows "€total / €quota" at once, plainly; the total slams from
+## The receipt's TOTAL line shows "total€ / quota€" at once, plainly; the total slams from
 ## SLAM_SCALE onto the monitor's number (under reduced motion it fades in there at full size),
 ## hidden under it until it lands. Returns the number's whole-group label (null without a target).
 func _slam(total: int, quota: int, reduced_motion: bool) -> Label:

@@ -87,10 +87,10 @@ func test_every_item_shows_its_model() -> void:
 		"res://art/icons/coupon_multipack_mini.png"
 	)
 	var stamp: DenyStamp = layer.stamp(2)
-	assert_str(stamp.amount()).is_equal("€0")
+	assert_str(stamp.amount()).is_equal("0€")
 	assert_str(stamp.caption()).is_equal(screen.run.inspections[0].display_name.to_upper())
 	assert_bool(_item(screen, 2).denied).is_true()
-	# Its slot's talker (the cause-only chip) shows the warning sign, so its €0 tag shows none.
+	# Its slot's talker (the cause-only chip) shows the warning sign, so its 0€ tag shows none.
 	assert_int(layer.pay_tag(2).glyph).is_equal(PlanningModel.Glyph.NONE)
 	# Every own sticker has no badge.
 	for slot: int in range(screen._row_views.size()):

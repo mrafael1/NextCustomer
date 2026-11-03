@@ -5,7 +5,7 @@ extends InspectionRule
 ## row's last open slot (the shift's slot count, ScoreCredits.row_slots: slot 5 on a 5-slot row,
 ## slot 4 on a Short belt shift), not the last filled one: a row that doesn't reach it gets only
 ## slot 1's. A bare score (no credits) has no slot count and takes the last filled slot. A card
-## paying €0 there has nothing to multiply (WASTED). On a Double checkout shift each row has its
+## paying 0€ there has nothing to multiply (WASTED). On a Double checkout shift each row has its
 ## own ends.
 
 @export var factor: int = 1

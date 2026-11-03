@@ -8,18 +8,18 @@ extends RefCounted
 var stickers: Array[StickerSpec] = []
 ## The ticket's pay state.
 var pay: PlanningModel.Pay = PlanningModel.Pay.PLAIN
-## The pay tag's text ("€21", "€0"); empty for PLAIN.
+## The pay tag's text ("21€", "0€"); empty for PLAIN.
 var pay_text: String = ""
-## The €0 tag's glyph (DENIED and ZERO); none on a slot an inspection pays €0 by its place, whose
+## The 0€ tag's glyph (DENIED and ZERO); none on a slot an inspection pays 0€ by its place, whose
 ## talker (SlotMark's cause-only chip) shows the warning sign.
 var glyph: PlanningModel.Glyph = PlanningModel.Glyph.NONE
 ## The ticket's base price is struck through (a product whose pay differs from its base).
 var struck: bool = false
 ## The halo's rings: 0 unless boosted, then 1 to 3 (PlanningTuning.halo_ratios).
 var rings: int = 0
-## Denied to €0: the sprite turns grey.
+## Denied to 0€: the sprite turns grey.
 var denied: bool = false
-## The denial stamp's big line ("€0"); empty when no stamp.
+## The denial stamp's big line ("0€"); empty when no stamp.
 var stamp_amount: String = ""
 ## The denial stamp's caption: the denier's name in uppercase ("SPOT CHECK", "SOUP").
 var stamp_caption: String = ""

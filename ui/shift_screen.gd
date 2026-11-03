@@ -739,7 +739,7 @@ func _refresh_row() -> void:
 	_row_views = _row_strip.show_cards(
 		run.row, run.row.size() if placeable else -1, _on_row_card_clicked, run.balance
 	)
-	# The Slot engine's slot 6 wears its mark; the day events their slots' (Spot check's "€0").
+	# The Slot engine's slot 6 wears its mark; the day events their slots' (Spot check's "0€").
 	_row_strip.show_slot_marks(SlotMark.run_marks(run))
 
 

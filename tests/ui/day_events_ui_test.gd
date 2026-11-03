@@ -3,7 +3,7 @@ extends GdUnitTestSuite
 ## top bar ("Today: Quiet morning (quota −10%)", the boon coin) lies inside the chip, the bar and
 ## the stage between the QUOTA and LOYALTY chips, and the quota reads the boon's; the next shift's
 ## boon prints in green on the receipt ("TOMORROW: ..."), on screen; a boon day's pass earns no
-## INSPECTION PASSED; and a boon's steps play in the count-up from its chip (Happy hour's +€3,
+## INSPECTION PASSED; and a boon's steps play in the count-up from its chip (Happy hour's +3€,
 ## Free samples' ×2). Clicks are sent to the screen's handlers, because headless runs don't
 ## deliver input events.
 
@@ -94,7 +94,7 @@ func test_the_next_boon_prints_in_green_and_earns_no_stamp() -> void:
 	assert_object(run.history[-1].inspection).is_null()
 
 
-## Happy hour's +€3 is a step of its own: the count-up plays it as a bonus from the boon's chip,
+## Happy hour's +3€ is a step of its own: the count-up plays it as a bonus from the boon's chip,
 ## and the receipt prints it.
 func test_a_boon_bonus_plays_in_the_count_up() -> void:
 	await _check_boon_count_up("happy_hour", CountUpBeat.Kind.BONUS)
@@ -106,7 +106,7 @@ func test_a_boon_multiplier_plays_in_the_count_up() -> void:
 
 
 ## A harmful day event's line on the monitor (the user's call of 2026-11-02): Late delivery's
-## "−€2 Dairy pays less" and the Spot check's €0 (slot 3, the 3rd Milk) print in tomato with the
+## "−2€ Dairy pays less" and the Spot check's 0€ (slot 3, the 3rd Milk) print in tomato with the
 ## "!" mark, never the green ✓, in planning (the scan's item lines) and at the count's end (a
 ## resumed checkout's last item), inside the item column; their amounts keep their signs.
 func test_harmful_lines_are_tomato_on_the_monitor() -> void:
@@ -122,7 +122,7 @@ func test_harmful_lines_are_tomato_on_the_monitor() -> void:
 	assert_bool(lines.fizzles.has(true)).is_false()
 	screen._monitor.show_scan(screen.run.row[2].definition, screen.run.preview().tags[2], lines)
 	await _frames(1)
-	_assert_harmful_rows(screen, ["−€2", "= 0"])
+	_assert_harmful_rows(screen, ["−2€", "= 0"])
 	# Bread's planning lines are untouched by either event.
 	(
 		assert_array(screen._scan.item_lines(1).harms.filter(func(each: bool) -> bool: return each))
@@ -135,7 +135,7 @@ func test_harmful_lines_are_tomato_on_the_monitor() -> void:
 		screen._count_up.plan, screen._row_views, false, result, screen._scan.line_of
 	)
 	await _frames(2)
-	_assert_harmful_rows(screen, ["−€2", "= 0"])
+	_assert_harmful_rows(screen, ["−2€", "= 0"])
 
 
 ## The item column's step rows with these `amounts` are tomato with the "!" mark, inside the

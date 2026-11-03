@@ -85,17 +85,17 @@ func test_a_lost_run_lists_its_shifts_then_the_shortfall_and_the_coins() -> void
 	screen._results.skip_printing()
 	var texts: PackedStringArray = screen._results.texts()
 	var rule: String = FinalReceipt.rule()
-	var shortfall: String = "Shift 2 / %d: short by €%d" % [run.shift_count(), run.quota() - 20]
+	var shortfall: String = "Shift 2 / %d: short by %d€" % [run.shift_count(), run.quota() - 20]
 	var payout: CoinPayout = CoinPayout.for_run(run)
 	var expected: Array = ["RUN OVER", rule]
 	(
 		expected
 		. append_array(
 			[
-				"  1  €109 / €34     pass",
+				"  1  109€ / 34€     pass",
 				"     binned NEW ITEMS",
 				"     inspection Spot check",
-				"  2  €20 / €35      fail",
+				"  2  20€ / 35€      fail",
 				shortfall,
 				rule,
 			]

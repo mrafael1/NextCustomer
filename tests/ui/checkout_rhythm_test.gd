@@ -27,8 +27,8 @@ func test_the_monitor_keeps_bonus_lines_and_folds_only_the_earliest_overflow() -
 	column.reduced_motion = func() -> bool: return true
 	column.start_item(load("res://data/cards/banana.tres"), PackedStringArray(["Produce"]))
 	var giver_icon: Texture2D = load("res://art/minis/banana.png")
-	column.show_step("Banana chain  +€3", false, false, giver_icon, true)
-	column.show_step("Produce regulars  +€2", false)
+	column.show_step("Banana chain  +3€", false, false, giver_icon, true)
+	column.show_step("Produce regulars  +2€", false)
 	column.show_step("Produce aisle run  ×3", false)
 	column.show_step("Multipack  ×3", false)
 	assert_int(column.step_texts().size()).is_equal(4)
@@ -44,10 +44,10 @@ func test_the_monitor_keeps_bonus_lines_and_folds_only_the_earliest_overflow() -
 	assert_float(note.get_global_rect().end.x).is_less_equal(amount.get_global_rect().position.x)
 	column.show_step("Slot engine  ×2", false)
 	assert_int(column.step_texts().size()).is_equal(5)
-	column.show_step("Pays  €126", false)
+	column.show_step("Pays  126€", false)
 	assert_int(column.step_texts().size()).is_equal(5)
 	assert_str(column.step_texts()[0]).is_equal("+2 earlier")
-	assert_str(column.step_texts()[-1]).is_equal("Pays  €126")
+	assert_str(column.step_texts()[-1]).is_equal("Pays  126€")
 	for row: Control in column.step_rows():
 		(
 			assert_bool(
@@ -64,7 +64,7 @@ func test_the_monitor_keeps_bonus_lines_and_folds_only_the_earliest_overflow() -
 
 ## The count's lines keep every maths symbol: a multiplier reads "× Multipack" with its amber
 ## "×3"; a + amount is ink; the giver's words are teal. At the payout the equation comes under
-## them as one line, "€4 × 6 → €24": its factor amber, the rest ink, every part inside its row
+## them as one line, "4€ × 6 → 24€": its factor amber, the rest ink, every part inside its row
 ## and the column, apart; a payment with none reads "Pays" in ink. Reduced motion or not.
 func test_multipliers_keep_their_symbol_and_the_payout_shows_its_equation() -> void:
 	for reduced: bool in [false, true]:
@@ -72,7 +72,7 @@ func test_multipliers_keep_their_symbol_and_the_payout_shows_its_equation() -> v
 		add_child(column)
 		column.reduced_motion = func() -> bool: return reduced
 		column.start_item(MILK, PackedStringArray(["Dairy"]))
-		column.show_step("+€2 Eggs", false)
+		column.show_step("+2€ Eggs", false)
 		column.show_step("×3 Multipack", false)
 		column.show_step("×2 Golden Strawberries aisle", false)
 		var add: Control = column.step_rows()[0]
@@ -88,17 +88,17 @@ func test_multipliers_keep_their_symbol_and_the_payout_shows_its_equation() -> v
 				(row.get_node("Amount") as Label).get_global_rect().position.x
 			)
 		assert_str((column.step_rows()[1].get_node("Text") as Label).text).is_equal("× Multipack")
-		column.show_paid("Pays  €24", PaymentEquation.new(4, 6, 24))
+		column.show_paid("Pays  24€", PaymentEquation.new(4, 6, 24))
 		var rows: Array[Control] = column.step_rows()
 		assert_int(rows.size()).is_equal(4)
 		var equation: Control = rows[-1]
 		var arrow: String = MonitorItemColumn._arrow()
-		assert_str(String(equation.get_meta(&"line"))).is_equal("€4 × 6 %s €24" % arrow)
+		assert_str(String(equation.get_meta(&"line"))).is_equal("4€ × 6 %s 24€" % arrow)
 		assert_str((equation.get_node("Factor") as Label).text).is_equal("× 6")
 		assert_that(_colour(equation, "Factor")).is_equal(Palette.MUSTARD_DARKEST)
 		assert_that(_colour(equation, "Text")).is_equal(Palette.INK)
 		assert_that(_colour(equation, "Amount")).is_equal(Palette.INK)
-		assert_str((equation.get_node("Amount") as Label).text).is_equal("€24")
+		assert_str((equation.get_node("Amount") as Label).text).is_equal("24€")
 		var area: Rect2 = column.get_global_rect()
 		var rect: Rect2 = equation.get_global_rect()
 		assert_bool(area.grow(0.5).encloses(rect)).is_true()
@@ -111,8 +111,8 @@ func test_multipliers_keep_their_symbol_and_the_payout_shows_its_equation() -> v
 			assert_float(part.position.x).is_greater_equal(right)
 			right = part.end.x
 		column.start_item(MILK, PackedStringArray(["Dairy"]))
-		column.show_step("+€2 Eggs", false)
-		column.show_paid("Pays  €5")
+		column.show_step("+2€ Eggs", false)
+		column.show_paid("Pays  5€")
 		var pays: Control = column.step_rows()[-1]
 		assert_bool(pays.has_meta(&"equation")).is_false()
 		assert_that(_colour(pays, "Text")).is_equal(Palette.INK)
@@ -121,7 +121,7 @@ func test_multipliers_keep_their_symbol_and_the_payout_shows_its_equation() -> v
 	await get_tree().process_frame
 
 
-## A harmful line (a day event's "−€2", an inspection's "= 0") prints in tomato, its text and its
+## A harmful line (a day event's "−2€", an inspection's "= 0") prints in tomato, its text and its
 ## amount, with a tomato "!" mark and never the green ✓, in the count and in planning (full and
 ## compact); its amount keeps its sign. A good line keeps its green ✓, its teal words.
 func test_harmful_lines_are_tomato_with_no_green_check() -> void:
@@ -129,16 +129,16 @@ func test_harmful_lines_are_tomato_with_no_green_check() -> void:
 	add_child(column)
 	column.reduced_motion = func() -> bool: return true
 	column.start_item(MILK, PackedStringArray(["Dairy"]))
-	column.show_step("+€2 Eggs", false)
-	column.show_step("−€2 Dairy pays less", false, false, null, false, true)
-	column.show_step("Spot check: the 3rd product pays €0  = 0", false, false, null, false, true)
+	column.show_step("+2€ Eggs", false)
+	column.show_step("−2€ Dairy pays less", false, false, null, false, true)
+	column.show_step("Spot check: the 3rd product pays 0€  = 0", false, false, null, false, true)
 	_assert_good(column.step_rows()[0])
 	for row: Control in column.step_rows().slice(1):
 		_assert_harmful(row, column)
-	assert_str((column.step_rows()[1].get_node("Amount") as Label).text).is_equal("−€2")
+	assert_str((column.step_rows()[1].get_node("Amount") as Label).text).is_equal("−2€")
 	assert_str((column.step_rows()[2].get_node("Amount") as Label).text).is_equal("= 0")
 	var lines: PackedStringArray = PackedStringArray(
-		["+€2 Eggs", "−€2 Dairy pays less", "Spot check: the 3rd product pays €0  = 0"]
+		["+2€ Eggs", "−2€ Dairy pays less", "Spot check: the 3rd product pays 0€  = 0"]
 	)
 	var harms: Array[bool] = [false, true, true]
 	for count: int in [3, 9]:
@@ -223,7 +223,7 @@ func test_the_register_tallies_and_clears_for_planning() -> void:
 	assert_that(display.tally()).is_equal(Vector3i.ZERO)
 
 
-## The drawer throws one coin per €8 of a payout, at least one and at most five (v0.84).
+## The drawer throws one coin per 8€ of a payout, at least one and at most five (v0.84).
 func test_the_drawer_throws_one_to_five_coins() -> void:
 	assert_int(CashDrawer.coins_for(1)).is_equal(1)
 	assert_int(CashDrawer.coins_for(8)).is_equal(1)

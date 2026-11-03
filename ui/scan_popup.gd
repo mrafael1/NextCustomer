@@ -4,7 +4,7 @@ extends Control
 ## readability v3): what a scanned offer does, in full. A paper panel with a gold trim and a hard
 ## drop shadow: a header band in the colour of the card's ticket (FamilyPalette, data; a plain
 ## coupon keeps the paper) with its name (ItemName: Pixelify at 22 px, or the bold body font when
-## too long) and its price "€N" (or COUPON); under a coloured header, the line that teaches the
+## too long) and its price "N€" (or COUPON); under a coloured header, the line that teaches the
 ## colour (a swatch of it and FamilyPalette.ticket_line, "Breakfast ticket: works with Breakfast",
 ## with the glyph of the family it names); a "Counts as" row of the family glyphs it counts as
 ## (FamilyPalette.shelf_families of its tags) and the card's long rule text verbatim. No aisle and
@@ -278,7 +278,7 @@ func name_text() -> String:
 	return ItemName.text_of(_name)
 
 
-## The price "€N", or null (a coupon, a LOYALTY perk).
+## The price "N€", or null (a coupon, a LOYALTY perk).
 func price_label() -> Label:
 	return _price
 

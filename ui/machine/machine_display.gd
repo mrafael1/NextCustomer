@@ -10,7 +10,7 @@ extends Panel
 ##
 ## RewardMachineView gives the message for each wait point (show_message: PICK A CHUTE, the pick
 ## prompt, the landing's word); frame(t) plays the visit's own lines around them from the plan:
-## READING…, then SPEND €N ✓ THANK YOU! with the quota met (a BONUS visit: BONUS TICKET! until
+## READING…, then SPEND N€ ✓ THANK YOU! with the quota met (a BONUS visit: BONUS TICKET! until
 ## its stub is fed), on a PREMIUM visit PREMIUM / PREMIUM RECEIPT blinking while the machine turns
 ## PREMIUM, PACKING… while the tray packs, each landed ticket's rarity and prize (a level-up's
 ## "Coupon engine LV 2"), and on the landing ENJOY!, UPGRADING…, the landing's word with the cart
@@ -210,7 +210,7 @@ func _read_text() -> PackedStringArray:
 	var record: ShiftRecord = _record()
 	if record == null:
 		return PackedStringArray()
-	var met: String = "quota €%d met" % record.quota
+	var met: String = "quota %d€ met" % record.quota
 	if _payday():
 		met += Payday.READ
 	elif view.run.machine.is_premium():

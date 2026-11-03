@@ -33,7 +33,7 @@ var step_index: int = -1
 var armed_step: int = -1
 ## The step's value: the amount, the factor, the copied or overridden payout, the armed value.
 var value: int = 0
-## Short wording: "+3", "×3", "=€6", "€0", WASTED_WORD; ARMED: its first landing's "×3" or "+3", or
+## Short wording: "+3", "×3", "=6€", "0€", WASTED_WORD; ARMED: its first landing's "×3" or "+3", or
 ## the effect's receipt text without a landing (as the count-up's pip).
 var token: String = ""
 ## The step's receipt text.

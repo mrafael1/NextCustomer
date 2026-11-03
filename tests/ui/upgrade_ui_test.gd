@@ -183,7 +183,7 @@ func test_upgrade_steps_play_from_the_loyalty_card() -> void:
 	# The planning receipt lists only the items (#80): scanning them names the upgrades.
 	assert_str(_receipt_text(screen)).not_contains("Coupon engine")
 	assert_str(_scan_text(screen, 2)).contains("Coupon engine").contains("×")
-	assert_str(_scan_text(screen, 1)).contains("Category engine").contains("+€")
+	assert_str(_scan_text(screen, 1)).contains("Category engine").contains("+").contains("€")
 
 	await Rush.checkout(screen)
 	assert_int(screen._led.amount()).is_equal(preview.total)
@@ -479,10 +479,10 @@ func test_the_results_screen_lists_the_run_history() -> void:
 	await Rush.checkout(screen)
 	assert_bool(screen._results.visible).is_true()
 	var texts: PackedStringArray = screen._results.texts()
-	assert_str(texts[2]).is_equal("  1  €109 / €29     pass")
+	assert_str(texts[2]).is_equal("  1  109€ / 29€     pass")
 	assert_str(texts[3]).is_equal("     binned NEW ITEMS")
 	# Shift 2's quota is its record's: a boon day can change it (v0.69).
-	var quota: String = "€0 / €%d" % screen.run.history[1].quota
+	var quota: String = "0€ / %d€" % screen.run.history[1].quota
 	assert_str(texts[4]).is_equal("  2  %-13s  fail" % quota)
 	# The full 12-shift receipt's layout: tests/ui/results_panel_test.gd.
 
@@ -513,7 +513,7 @@ func test_history_rows_name_the_visits_and_the_inspection() -> void:
 		assert_array(Array(FinalReceipt.shift_texts(record)))
 		. is_equal(
 			[
-				"  4  €30 / €22      pass",
+				"  4  30€ / 22€      pass",
 				"     NEW ITEMS: Bread",
 				"     BONUS · UPGRADE: Category engine",
 				"     inspection Spot check",

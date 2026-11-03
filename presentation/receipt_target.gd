@@ -5,7 +5,7 @@ extends VBoxContainer
 ## as a big tomato-dark number in the display font, and a double tomato rule under it. It is
 ## pinned at the receipt's top (ReceiptView keeps it out of the scroll area), so it stays in view
 ## while the lines scroll. The target is a fixed fact (the user's pick B1): it never changes colour;
-## being met is said by the receipt's foot (planning's "+€N.00 over target" or "€N.00 short", the
+## being met is said by the receipt's foot (planning's "+N.00€ over target" or "N.00€ short", the
 ## dessert's margin line), the gauge's flag and the belt's light. Hidden until show_quota (a
 ## receipt without a quota, such as the tests' or a stub's, has none). Display only.
 
@@ -96,7 +96,7 @@ func shown_quota() -> int:
 
 
 ## The foot's words for `total` against `quota` (the receipt's money(), with cents): how far over
-## it ("+€67.00 over target"), how far short ("€56.00 short") or "on target".
+## it ("+67.00€ over target"), how far short ("56.00€ short") or "on target".
 static func against_text(total: int, quota: int) -> String:
 	var margin: ShiftMargin = ShiftMargin.of(total, quota)
 	match margin.kind():
@@ -112,7 +112,7 @@ static func against_color(total: int, quota: int) -> Color:
 	return Palette.GREEN_DARK if ShiftMargin.of(total, quota).passed() else Palette.TOMATO
 
 
-## The dessert's margin line under the total: "+€N.00 OVER TARGET", "SHORT €N.00" or "ON TARGET"
+## The dessert's margin line under the total: "+N.00€ OVER TARGET", "SHORT N.00€" or "ON TARGET"
 ## (#61's line, in the words of TODAY'S TARGET since the shift scene polish).
 static func margin_text(kind: ShiftMargin.Kind, euros: int) -> String:
 	match kind:

@@ -407,14 +407,14 @@ func test_the_receipt_grows_up_from_the_printer() -> void:
 	assert_float(receipt.get_global_rect().end.y).is_equal(bottom)
 	assert_float(receipt.size.y).is_equal_approx(receipt.natural_height(), 1.0)
 	var short_top: float = receipt.get_global_rect().position.y
-	receipt.add_line("LINE", "€1", ReceiptView.LineStyle.ITEM)
+	receipt.add_line("LINE", "1€", ReceiptView.LineStyle.ITEM)
 	await _frames(2)
 	assert_float(receipt.get_global_rect().end.y).is_equal(bottom)
 	assert_float(receipt.get_global_rect().position.y).is_less(short_top)
 	while receipt.natural_height() <= ShiftStage.RECEIPT_BOTTOM - ShiftStage.RECEIPT_TOP:
-		receipt.add_line("LINE", "€1", ReceiptView.LineStyle.ITEM)
+		receipt.add_line("LINE", "1€", ReceiptView.LineStyle.ITEM)
 		await _frames(1)
-	receipt.add_line("LINE", "€1", ReceiptView.LineStyle.ITEM)
+	receipt.add_line("LINE", "1€", ReceiptView.LineStyle.ITEM)
 	await _frames(2)
 	var rect: Rect2 = receipt.get_global_rect()
 	assert_float(rect.end.y).is_equal(bottom)

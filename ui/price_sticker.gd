@@ -14,7 +14,7 @@ extends Control
 ##
 ## Top left, a product's family glyphs (FamilyPalette.shelf_families of its tags), alone, each with
 ## a paper rim, their tooltips opening below the ticket (GlyphTips); a coupon shows "COUPON"
-## there. Top right, a product's price: at rest its plain tag ("€N", PayTag's LOWERED look) on the
+## there. Top right, a product's price: at rest its plain tag ("N€", PayTag's LOWERED look) on the
 ## corner. Under them its short text (CardDefinition.sticker_summary, formatted in core from the
 ## card's own data) in at most 2 lines, its family names drawn as glyphs (GlyphLabel). Every
 ## number comes from the card's data.
@@ -169,7 +169,7 @@ const COUPON_SUMMARY_TOP := 28.0
 const SUMMARY_GAP := 14.0
 const MAX_SUMMARY_LINES := ArtStyle.TICKET_TEXT_LINES
 ## "COUPON" on a coupon's ticket, in the body font at COUPON_TITLE_WEIGHT, letter-spaced. Beside a
-## pinned tag (a fizzled €0) it takes the first of COUPON_TITLE_FITS (size, letter spacing) that
+## pinned tag (a fizzled 0€) it takes the first of COUPON_TITLE_FITS (size, letter spacing) that
 ## ends COUPON_TAG_GAP clear of the tag's die-cut.
 const COUPON_TITLE := "COUPON"
 const COUPON_TITLE_AT := Vector2(8, 8)
@@ -302,9 +302,9 @@ func _live_tips() -> Dictionary:
 	return CardText.live_tips(_definition, redraws_left)
 
 
-## "€N": a price as tickets print it.
+## "N€": a price as tickets print it.
 static func price_text(amount: int) -> String:
-	return "€%d" % amount
+	return MonitorText.euros(amount)
 
 
 ## The planning pay on the ticket (#71, #105): with a pay tag pinned at `tag_rect` (this sticker's

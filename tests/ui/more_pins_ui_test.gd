@@ -92,7 +92,7 @@ func test_day_off_skips_the_shift_to_the_machine() -> void:
 	assert_bool(run.hand().has(placed)).is_true()
 	var pile: DayOffPile = screen._pins.pile()
 	assert_object(pile).is_not_null()
-	assert_str(pile.tag().text()).is_equal("€%d" % run.quota())
+	assert_str(pile.tag().text()).is_equal("%d€" % run.quota())
 	var landing: float = DayOffPile.DROP_TIME + DayOffPile.TAG_POP_TIME + 0.1
 	await get_tree().create_timer(landing).timeout
 	var first: Rect2 = RowStrip.footprint(screen._slots[0]).get_global_rect()
@@ -398,7 +398,7 @@ func test_express_lane_end_item_rings_no_chip() -> void:
 
 
 ## A day event on an Express lane end still rings the day chip: with Happy hour (the last filled
-## slot +€3) and a full row, the last item is caused by both, and the day's event wins over the
+## slot +3€) and a full row, the last item is caused by both, and the day's event wins over the
 ## run-wide pin's.
 func test_a_day_event_on_an_express_lane_end_still_rings_the_day_chip() -> void:
 	var screen: ShiftScreen = await _screen([EXPRESS_LANE], true)
