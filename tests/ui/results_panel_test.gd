@@ -20,6 +20,7 @@ const LONG_UPGRADE := "res://data/upgrades/category_engine.tres"
 const LONG_INSPECTION := "res://data/inspections/short_belt.tres"
 const STARTING_UPGRADE := "res://data/upgrades/big_basket.tres"
 const SPOT_CHECK := "res://data/inspections/spot_check.tres"
+const BOON := "res://data/inspections/quiet_morning.tres"
 ## The run's perks; the first at LV 3, so its box carries a level mark (v0.61, #108).
 const UPGRADES: Array[String] = [
 	"res://data/upgrades/coupon_engine_lv3.tres",
@@ -182,6 +183,9 @@ func test_the_coins_and_their_duck_start_when_the_coin_lines_print() -> void:
 	var base: float = music.base_db()
 	music.duck(CountUp.DESSERT_DUCK_DB, 0.0)
 	_full_run(screen)
+	# Without the day events' dim lines, so the coins print well inside the check's 6 s.
+	for record: ShiftRecord in screen.run.history:
+		record.inspections = []
 	var balance: BalanceDefinition = screen.run.balance.duplicate() as BalanceDefinition
 	var table: PackedInt32Array = PackedInt32Array()
 	table.resize(screen.run.shift_count() + 1)
@@ -223,11 +227,15 @@ func test_the_coins_and_their_duck_start_when_the_coin_lines_print() -> void:
 	assert_int(coins[-1] - coins[0]).is_greater_equal((coins.size() - 1) * gap_ms - 20)
 
 
-## A won 8-shift run with the longest names, an upgrade and an inspection on every shift and a
-## starting upgrade: the printed receipt fits 1280x720 below the top bar, unclipped; every line
-## is inside the paper; no two lines overlap; the loyalty card (one box per upgrade shift plus
-## the starting upgrade's) is in the paper's top-right corner and covers no line, the LV 3 perk's
-## level mark inside its box; the coins are at the bottom, above the buttons.
+## A won 16-shift run (v0.95) with the longest names: a ticket after every shift, a payday's
+## PREMIUM perk after each review but the last, an inspection, a review's two and a boon on their
+## days by the live schedule, and a starting upgrade. The printed receipt is full (not compact)
+## in two week columns, weeks 1-2 on the left and 3-4 on the right, each under its header; it fits
+## 1280x720 below the top bar, unclipped; every line is inside the paper and its column, the
+## columns side by side between the two rules, no two lines of a column overlap; the loyalty card
+## (one box per upgrade shift plus the starting upgrade's) is in the paper's top-right corner and
+## covers no line, the LV 3 perk's level mark inside its box; the coins are at the bottom, above
+## the buttons.
 func test_a_full_receipt_fits_the_screen_with_the_card_and_the_coins() -> void:
 	var screen: ShiftScreen = await _screen()
 	_full_run(screen)
@@ -235,21 +243,25 @@ func test_a_full_receipt_fits_the_screen_with_the_card_and_the_coins() -> void:
 	screen._show_results(_last_result(screen))
 	results.skip_printing()
 	await _frames(15)
-	# 12 shift lines, 11 ticket visits and 3 bonus visits: too long for the screen even at the
-	# smallest fit, so compact (v0.65): the 3 inspections fold into their shift lines.
-	assert_int(results.texts().size()).is_equal(2 + 12 + 11 + 3 + 1 + 3)
-	(
-		assert_int(
-			(
-				Array(results.texts())
-				. filter(func(t: String) -> bool: return t.ends_with("inspected"))
-				. size()
-			)
-		)
-		. is_equal(3)
+	var balance: BalanceDefinition = screen.run.balance
+	var count: int = screen.run.shift_count()
+	assert_int(count).is_equal(16)
+	assert_bool(results.is_compact()).is_false()
+	var paydays: int = balance.machine.bonus_extra_shifts.size()
+	var days: int = balance.inspection_shifts.size() + balance.review_shifts.size()
+	days += balance.boon_shifts.size()
+	# The headline, a rule, 4 week headers, the shifts, their visits and day events, a rule and
+	# 3 coin lines.
+	var expected: int = 2 + 4 + count + (count - 1) + paydays + days + 1 + 3
+	assert_int(results.texts().size()).is_equal(expected)
+	var headers: Array = Array(results.texts()).filter(
+		func(text: String) -> bool: return text.begins_with("WEEK ")
+	)
+	assert_array(headers).is_equal(
+		["WEEK 1 · TRAINING", "WEEK 2 · BAKERY", "WEEK 3 · HOLIDAY", "WEEK 4 · CLEARANCE"]
 	)
 	var paper: Rect2 = results.get_global_rect()
-	prints("#61 final receipt:", paper)
+	prints("v0.95 final receipt:", paper, "fit", results._fit)
 	assert_bool(SCREEN_RECT.encloses(paper)).is_true()
 	# Below the top bar's height (64 px), the closed store's shutter showing above it.
 	assert_float(paper.position.y).is_greater_equal(64.0)
@@ -276,20 +288,88 @@ func test_a_full_receipt_fits_the_screen_with_the_card_and_the_coins() -> void:
 		. is_true()
 	)
 	assert_bool(card.encloses(mark.get_global_rect())).is_true()
-	var previous: Rect2 = Rect2()
-	for index: int in range(results._lines.size()):
-		var line: Label = results._lines[index]
+	# The two columns: side by side, between the rules, the right one starting at the middle.
+	var columns: Array[VBoxContainer] = results.week_columns()
+	assert_int(columns.size()).is_equal(2)
+	var left: Rect2 = columns[0].get_global_rect()
+	var right: Rect2 = columns[1].get_global_rect()
+	assert_bool(left.intersects(right)).is_false()
+	assert_float(right.position.x).is_greater_equal(left.end.x)
+	assert_float(right.position.x).is_equal_approx(paper.get_center().x, 40.0)
+	var rules: Array[Label] = []
+	var previous: Dictionary[Node, Rect2] = {}
+	for line: Label in results._lines:
 		var rect: Rect2 = line.get_global_rect()
 		assert_bool(paper.encloses(rect)).override_failure_message(line.text).is_true()
 		assert_float(rect.size.x).is_greater_equal(line.get_minimum_size().x - 0.5)
 		assert_bool(rect.intersects(card)).override_failure_message(line.text).is_false()
-		if index > 0:
-			assert_float(rect.position.y).is_greater_equal(previous.end.y - 0.5)
-		previous = rect
+		var parent: Node = line.get_parent()
+		if parent is VBoxContainer and columns.has(parent as VBoxContainer):
+			var column: Rect2 = (parent as Control).get_global_rect()
+			(
+				assert_bool(column.grow(0.5).encloses(rect))
+				. override_failure_message(line.text)
+				. is_true()
+			)
+		if previous.has(parent):
+			assert_float(rect.position.y).is_greater_equal(previous[parent].end.y - 0.5)
+		previous[parent] = rect
+		if line.text == FinalReceipt.rule(FinalReceipt.WIDE_WIDTH):
+			rules.append(line)
+	assert_int(rules.size()).is_equal(2)
+	for column: Rect2 in [left, right]:
+		assert_float(column.position.y).is_greater_equal(rules[0].get_global_rect().end.y)
+		assert_float(column.end.y).is_less_equal(rules[1].get_global_rect().position.y)
+		# The rules span both columns.
+		assert_float(rules[0].get_global_rect().end.x).is_greater_equal(column.end.x - 1.0)
+	# The left column holds weeks 1-2, the right one weeks 3-4: shift 9 starts the right one.
+	var shift_nine: Label = results._lines[Array(results.texts()).find("WEEK 3 · HOLIDAY")]
+	assert_object(shift_nine.get_parent()).is_same(columns[1])
+	assert_float(shift_nine.get_global_rect().position.y).is_equal_approx(left.position.y, 0.5)
+	var coins: Label = results._lines[-1]
 	var menu: Rect2 = results.menu_button().get_global_rect()
 	assert_bool(paper.encloses(menu)).is_true()
-	assert_float(menu.position.y).is_greater_equal(previous.end.y)
+	assert_float(menu.position.y).is_greater_equal(coins.get_global_rect().end.y)
+	assert_float(coins.get_global_rect().position.y).is_greater(rules[1].get_global_rect().end.y)
 	assert_str(results.texts()[-1]).starts_with("COINS +")
+
+
+## A run lost in week 3 (shift 11) also prints in week columns, its shortfall closing the right
+## one under the failed shift; one lost in week 2 (shift 8) too, week 1 on the left and week 2
+## on the right; one lost in week 1 (shift 4) prints in one column, as before.
+func test_a_run_lost_in_week_three_prints_in_columns() -> void:
+	var screen: ShiftScreen = await _screen()
+	var run: RunState = screen.run
+	for last: int in [11, 8, 4]:
+		_full_run(screen)
+		run.history = run.history.slice(0, last)
+		run.history[-1].total = run.history[-1].quota - 5
+		run.history[-1].passed = false
+		run.history[-1].visits.clear()
+		run.shift_index = last - 1
+		run.limits.quota = run.history[-1].quota
+		run.phase = RunState.Phase.LOST
+		assert_bool(FinalReceipt.uses_columns(run)).is_equal(last > 4)
+		assert_int(FinalReceipt.left_weeks(run)).is_equal({11: 2, 8: 1, 4: 0}[last])
+		var results: ResultsPanel = screen._results
+		screen._show_results(_last_result(screen))
+		results.skip_printing()
+		await _frames(4)
+		var texts: PackedStringArray = results.texts()
+		var shortfall: int = Array(texts).find("Shift %d / 16: short by 5€" % last)
+		assert_int(shortfall).is_greater(0)
+		assert_bool(results.is_compact()).is_false()
+		if last == 4:
+			assert_array(results.week_columns()).is_empty()
+			assert_bool(texts[2].begins_with("WEEK")).is_false()
+			continue
+		var columns: Array[VBoxContainer] = results.week_columns()
+		assert_object(results._lines[shortfall].get_parent()).is_same(columns[1])
+		var paper: Rect2 = results.get_global_rect()
+		assert_bool(SCREEN_RECT.encloses(paper)).is_true()
+		assert_float(paper.position.y).is_greater_equal(64.0)
+		for line: Label in results._lines:
+			assert_bool(paper.encloses(line.get_global_rect())).is_true()
 
 
 ## #56: the store closes behind the receipt: the closed store covers the whole window, the top
@@ -415,6 +495,7 @@ func test_return_to_menu_mid_print_finishes_the_print() -> void:
 ## upgrade name); a starting upgrade on the loyalty card.
 func _full_run(screen: ShiftScreen) -> void:
 	var run: RunState = screen.run
+	var balance: BalanceDefinition = run.balance
 	var starter: DeckDefinition = run.starter.duplicate() as DeckDefinition
 	starter.starting_upgrade = load(STARTING_UPGRADE)
 	run.starter = starter
@@ -436,17 +517,25 @@ func _full_run(screen: ShiftScreen) -> void:
 			ticket.set_drawn(cards)
 			ticket.picked = 0
 			record.visits.append(ticket)
-		if run.balance.inspection_shifts.has(shift):
-			record.inspection = load(LONG_INSPECTION)
-			var bonus: MachineVisit = MachineVisit.new(MachineVisit.Kind.BONUS, "short_belt")
+		if balance.machine.is_payday_shift(shift) and shift < run.shift_count():
+			var bonus: MachineVisit = MachineVisit.new(MachineVisit.Kind.BONUS, "payday")
+			bonus.premium = true
 			bonus.chute = RewardMachine.Chute.UPGRADE
 			var register: MachinePrize = MachinePrize.new(
-				MachinePrize.Kind.REGISTER, MachinePrize.Rarity.COMMON, null, load(LONG_UPGRADE)
+				MachinePrize.Kind.REGISTER, MachinePrize.Rarity.RARE, null, load(LONG_UPGRADE)
 			)
 			var registers: Array[MachinePrize] = [register]
 			bonus.set_drawn(registers)
 			bonus.picked = 0
 			record.visits.append(bonus)
+		var events: Array[InspectionDefinition] = []
+		if balance.inspection_shifts.has(shift):
+			events.append(load(LONG_INSPECTION))
+		if balance.review_shifts.has(shift):
+			events.append_array([load(LONG_INSPECTION), load(SPOT_CHECK)])
+		if balance.boon_shifts.has(shift):
+			events.append(load(BOON))
+		record.inspections = events
 		history.append(record)
 	run.history = history
 	run.shift_index = run.shift_count() - 1

@@ -86,6 +86,7 @@ extends Control
 ## and where they touch the belt) hangs under the chip on the fixed shift, under that day event
 ## (default the fixed shift's, `none` a plain day); the file is
 ## shift_screen_slip_<id>_<width>x<height>.png.
+## With `--at-shift=<n>` or `--results=<won|lost>` (v0.95), see CaptureWeeks.
 
 const SCREEN := preload("res://ui/shift_screen.tscn")
 const SEED := 20261014
@@ -252,7 +253,9 @@ func _ready() -> void:
 	var reveal_spec: String = _argument(REVEAL_ARGUMENT)
 	var deck_spec: String = _argument(DECK_ARGUMENT)
 	var stack_spec: String = _argument(STACK_ARGUMENT + "=")
-	if reveal_spec != "":
+	if CaptureWeeks.show_results(_screen, SEED):
+		pass  # --results= (CaptureWeeks).
+	elif reveal_spec != "":
 		reveal(reveal_spec)
 	elif deck_spec != "":
 		await deck(deck_spec)
@@ -341,7 +344,7 @@ func _set_up_shift(
 		upgrades.append(_upgrade(upgrade_id))
 	run.upgrades = upgrades
 	CapturePins.wear(run)  # --double, --pin= (CapturePins).
-	run.debug_skip_to_shift(SHIFT - 1)
+	run.debug_skip_to_shift(CaptureWeeks.shift(SHIFT) - 1)
 	# The same shift again: it keeps the inspection set here.
 	var events: Array[InspectionDefinition] = []
 	for event_id: String in inspection_id.split("+", false):
@@ -349,7 +352,7 @@ func _set_up_shift(
 	if CapturePins.day_off():
 		events = []  # A day off is never taken on an inspection day.
 	run.inspections = events
-	run.debug_skip_to_shift(SHIFT - 1)
+	run.debug_skip_to_shift(CaptureWeeks.shift(SHIFT) - 1)
 	# The fixed hand replaces the dealt one, which is set aside for the shift.
 	run.deck.restore(run.deck.cards, [], run.deck.draw_pile(), run.deck.next_instance_id())
 	for card_id: String in HAND_IDS + row_ids:
@@ -571,6 +574,7 @@ func capture(folder: String) -> void:
 		+ _day_part
 		+ _slip_part
 		+ CapturePins.file_part()
+		+ CaptureWeeks.file_part()
 	)
 	var path: String = folder.path_join(FILE_NAME % [prefix, window.x, window.y])
 	var image: Image = (
