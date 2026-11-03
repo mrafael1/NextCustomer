@@ -107,7 +107,7 @@ func test_live_coin_amounts() -> void:
 	assert_array(Array(table)).is_equal([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2])
 	for index: int in range(1, table.size()):
 		assert_int(table[index]).is_greater_equal(table[index - 1])
-	assert_int(balance.overtime_coin_euros).is_equal(8509)
+	assert_int(balance.overtime_coin_euros).is_equal(8567)
 	assert_int(balance.overtime_coin_max).is_equal(1)
 
 
