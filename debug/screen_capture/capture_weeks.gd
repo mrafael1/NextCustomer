@@ -4,7 +4,9 @@ extends RefCounted
 ## gdlint's file length.
 ##
 ## `--at-shift=<n>`: the fixed shift is shift n in place of shift 5 (`--at-shift=13 --week` shows
-## week 4's time card, `--at-shift=16` the top bar on the final review); the file gets shift<n>_.
+## week 4's time card, `--at-shift=16` the top bar on the final review), its day events the live
+## schedule's (the week the run draws) in place of the fixed shift's Short belt; the file gets
+## shift<n>_.
 ## `--results=<won|lost>`: a scripted run's final receipt over the shift screen, printed in full:
 ## `won` a won run of every shift (each passed with some overtime, every ticket and payday visit
 ## taken, each day's events by the live schedule), `lost` one that slipped on shift 2 and was lost
@@ -25,6 +27,11 @@ const STARTING_PERKS: Array[String] = ["coupon_engine"]
 static func shift(default_shift: int) -> int:
 	var value: String = _argument(SHIFT_ARGUMENT)
 	return value.to_int() if value.is_valid_int() and value.to_int() > 0 else default_shift
+
+
+## Whether --at-shift picks the fixed shift.
+static func at_shift() -> bool:
+	return _argument(SHIFT_ARGUMENT).is_valid_int()
 
 
 ## The file name part of these options.

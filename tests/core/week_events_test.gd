@@ -360,6 +360,54 @@ func test_a_twelve_shift_save_resumes_as_a_sixteen_shift_run() -> void:
 		assert_bool(WeekSchedule.shift_events(resumed).has(week_four)).is_true()
 
 
+## A 12-shift save resumed on a curve other than the one it was played with (v0.95: the 16-shift
+## curve, here quotas of 1 against 1000): the played shifts keep their recorded quotas; saved
+## after its checkout, the current shift keeps its record's quota, so it still reads as passed
+## with its margin; saved in planning, the shift not yet played takes today's curve.
+func test_a_twelve_shift_save_keeps_its_played_quotas_on_a_new_curve() -> void:
+	var old: BalanceDefinition = _twelve_shift_balance()
+	var today: BalanceDefinition = _balance.duplicate()
+	var quotas: PackedInt32Array = PackedInt32Array()
+	for _shift: int in range(today.quotas.size()):
+		quotas.append(1000)
+	today.quotas = quotas
+	var lookup: ContentLookup = ContentLookup.new(today)
+	for at_scored: bool in [false, true]:
+		var run: RunState = RunState.new(5, load(STARTER), old, RunStock.starting(old))
+		run.start_shift()
+		while run.shift_index < 9 or run.phase != RunState.Phase.PLANNING:
+			if run.phase == RunState.Phase.PLANNING:
+				_fill(run)
+				run.checkout()
+			elif RunState.MACHINE_PHASES.has(run.phase):
+				MachineSteps.pass_visits(run)
+			elif run.phase == RunState.Phase.SCORED:
+				run.next_shift()
+		if at_scored:
+			# Shift 10 checked out (Holiday rush's +15% on its quota of 1).
+			_fill(run)
+			run.checkout()
+			MachineSteps.pass_visits(run)
+			assert_int(run.phase).is_equal(RunState.Phase.SCORED)
+		var save: RunSave = RunSave.from_dictionary(
+			_json(RunSave.to_dictionary(run, "id", 0)), lookup
+		)
+		assert_object(save).override_failure_message(str(at_scored)).is_not_null()
+		var resumed: RunState = save.run
+		assert_int(resumed.shift_count()).is_equal(16)
+		for index: int in range(resumed.history.size()):
+			assert_int(resumed.history[index].quota).is_equal(run.history[index].quota)
+		if at_scored:
+			assert_int(resumed.quota()).is_equal(run.quota())
+			assert_int(resumed.quota()).is_equal(resumed.history[-1].quota)
+			assert_bool(resumed.passed()).is_true()
+			assert_int(resumed.last_result.total - resumed.quota()).is_equal(
+				run.last_result.total - run.quota()
+			)
+		else:
+			assert_int(resumed.quota()).is_greater_equal(1000)
+
+
 ## The live balance as the 12-shift run had it (v0.65-v0.94), its quotas at 1.
 func _twelve_shift_balance() -> BalanceDefinition:
 	var old: BalanceDefinition = _balance.duplicate()
