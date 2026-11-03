@@ -86,6 +86,9 @@ func _assert_a_lap_clear_of_the_receipt(window: Vector2i) -> void:
 	assert_bool(column.encloses(badge)).override_failure_message(str(badge)).is_true()
 	assert_bool(badge.intersects(receipt)).override_failure_message(str(badge)).is_false()
 	assert_bool(badge.intersects(target)).is_false()
+	var well: Rect2 = _on_stage(screen, ShiftStage.RECEIPT_WELL_RECT)
+	assert_bool(badge.intersects(well)).override_failure_message(str(badge)).is_false()
+	assert_float(badge.position.x).is_greater(screen._stage.get_global_rect().position.x)
 	var tube: Rect2 = meter.get_global_rect()
 	assert_bool(column.encloses(tube)).is_true()
 	assert_bool(tube.intersects(receipt)).is_false()
@@ -158,6 +161,10 @@ func _assert_the_tower_in(window: Vector2i) -> void:
 	assert_bool(badge.intersects(receipt)).is_false()
 	assert_float(badge.end.x).is_less_equal(stage.position.x + ShiftStage.RECEIPT_X)
 	assert_float(badge.end.y).is_less_equal(tube.position.y)
+	# In the column's margin: clear of the receipt's well, a gutter from the stage's left edge.
+	assert_bool(badge.intersects(well)).override_failure_message(str(badge)).is_false()
+	assert_float(badge.position.x).is_greater(stage.position.x)
+	assert_float(badge.end.x).is_less_equal(tube.end.x + 0.01)
 	# A Double checkout's pips under the tube.
 	var pips: Rect2 = tower.row_pips.get_global_rect()
 	assert_bool(tower.row_pips.visible).is_true()

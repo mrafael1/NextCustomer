@@ -337,7 +337,7 @@ func test_the_top_bar_fits_its_longest_texts() -> void:
 		var shown: int = ShiftLimits.with_percent(largest, percent)
 		assert_str(screen._receipt.target.amount.text).is_equal("%d" % shown)
 		assert_int(screen._quota_meter.amount()).is_equal(9999)
-		assert_int(screen._quota_meter.shown_lap()).is_greater_equal(QuotaMeter.FIRST_LAP)
+		assert_int(screen._quota_meter.shown_lap()).is_greater_equal(QuotaLaps.FIRST_LAP)
 		assert_int(screen._loyalty_card.box_texts().size()).is_equal(4)
 		# A boon's chip (v0.69) reads "Today: name — effect".
 		var chip_text: String = (

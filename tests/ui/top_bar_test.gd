@@ -186,4 +186,4 @@ func _frames(count: int) -> void:
 
 ## The gauge shows the quota met: its laps past the first.
 static func _met(meter: QuotaMeter) -> bool:
-	return meter.shown_lap() >= QuotaMeter.FIRST_LAP
+	return meter.shown_lap() >= QuotaLaps.FIRST_LAP
