@@ -375,18 +375,21 @@ func _move_to(at: Vector2) -> void:
 	_runner.simulate_mouse_move(get_tree().root.get_final_transform() * at)
 
 
-## A centred pixel label's capitals on screen: its text's width centred in its box (in font px,
-## scaled), from its cap top down PIXEL_CAP_HEIGHT.
-## The band words' capitals on screen: the body font's (PinLanyard.BAND_TEXT_SIZE) text width
-## from the label's left, BAND_CAP_HEIGHT tall above the baseline.
+## The band words' capitals on screen, from where the label itself lays its characters out
+## (Label.get_character_bounds: after its stylebox's content margins and its alignment): the first
+## character's left to the last one's right, BAND_CAP_HEIGHT tall above the line's baseline (the
+## line's top plus the font's ascent).
 static func _caps(label: Label) -> Rect2:
 	var font: Font = label.get_theme_font("font")
 	var size_px: int = label.get_theme_font_size("font_size")
-	var text: float = font.get_string_size(label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, size_px).x
-	var box: Rect2 = label.get_global_rect()
-	var left: float = box.position.x
-	var top: float = box.position.y + font.get_ascent(size_px) - PinLanyard.BAND_CAP_HEIGHT
-	return Rect2(left, top, text, PinLanyard.BAND_CAP_HEIGHT)
+	var first: Rect2 = label.get_character_bounds(0)
+	var last: Rect2 = label.get_character_bounds(label.text.length() - 1)
+	var origin: Vector2 = label.get_global_rect().position
+	var baseline: float = origin.y + first.position.y + font.get_ascent(size_px)
+	var top: float = baseline - PinLanyard.BAND_CAP_HEIGHT
+	return Rect2(
+		origin.x + first.position.x, top, last.end.x - first.position.x, PinLanyard.BAND_CAP_HEIGHT
+	)
 
 
 static func _on_stage(screen: ShiftScreen, rect: Rect2) -> Rect2:

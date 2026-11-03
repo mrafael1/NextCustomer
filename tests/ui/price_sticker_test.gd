@@ -138,6 +138,21 @@ func test_a_live_factor_follows_the_redraws_left() -> void:
 	assert_int(eggs.redraws_left).is_equal(-1)
 
 
+## A keyword chip's pixel word goes through the sharp-pixel material with linear filtering (the
+## 1920x1080 legibility fix: at 1.5x the word's strokes stay even); a live chip's smooth bold
+## digits don't, so a chip scaled up in a pop keeps their edges soft.
+func test_only_a_pixel_word_chip_takes_the_pixel_material() -> void:
+	var word: KeywordChip = auto_free(KeywordChip.new("BATCH"))
+	assert_object(word.material).is_same(ArtStyle.pixel_material())
+	assert_int(word.texture_filter).is_equal(CanvasItem.TEXTURE_FILTER_LINEAR)
+	var wasted: KeywordChip = auto_free(KeywordChip.new("CHAIN", "wasted"))
+	assert_object(wasted.material).is_same(ArtStyle.pixel_material())
+	var live: KeywordChip = auto_free(KeywordChip.new("×3", "", "×3 now"))
+	assert_bool(live.is_live()).is_true()
+	assert_object(live.material).is_null()
+	assert_int(live.texture_filter).is_equal(CanvasItem.TEXTURE_FILTER_PARENT_NODE)
+
+
 ## A card with no rule (Bread) shows only its price: an empty summary, its plain tag.
 func test_a_card_with_no_rule_shows_only_its_price() -> void:
 	var bread: CardDefinition = _card("bread")

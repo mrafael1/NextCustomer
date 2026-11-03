@@ -112,6 +112,14 @@ func test_an_idle_screen_stays_dark() -> void:
 	assert_bool(screen._stage.quota_crossing.stamp_shown()).is_false()
 
 
+## Alone: its hard pixel text (SPEND MET, the ×N stamp) goes through the sharp-pixel material
+## with linear filtering, so its strokes stay even at 1920x1080 (the 1.5x stretch).
+func test_its_pixel_text_takes_the_pixel_material() -> void:
+	var crossing: QuotaCrossing = auto_free(QuotaCrossing.new())
+	assert_object(crossing.material).is_same(ArtStyle.pixel_material())
+	assert_int(crossing.texture_filter).is_equal(CanvasItem.TEXTURE_FILTER_LINEAR)
+
+
 ## Alone: a gauge's lap stamps only between a count's start and its end.
 func test_a_lap_stamps_only_while_counting() -> void:
 	var meter: QuotaMeter = auto_free(QuotaMeter.new())
