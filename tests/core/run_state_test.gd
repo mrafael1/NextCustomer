@@ -11,10 +11,10 @@ const REPEAT := "res://data/cards/repeat.tres"
 
 func test_balance_matches_the_plan() -> void:
 	var balance: BalanceDefinition = load(BALANCE)
-	# 16 shifts in 4 weeks of 4 since v0.95 (12 in 3 since v0.65, 8 fitted with the balance
-	# simulator before, plan v0.28, issue #41): placeholders until the refit.
+	# 16 shifts in 4 weeks of 4 since v0.95, refit with the balance simulator and
+	# tools/quota_fit.py (12 in 3 since v0.65, 8 fitted before, plan v0.28, issue #41).
 	assert_array(Array(balance.quotas)).is_equal(
-		[29, 35, 53, 61, 73, 85, 98, 111, 125, 140, 155, 175, 195, 215, 235, 260]
+		[30, 37, 38, 39, 62, 63, 64, 65, 89, 109, 110, 111, 148, 149, 150, 151]
 	)
 	assert_array(Array(balance.inspection_shifts)).is_equal([3, 7, 11, 15])
 	assert_array(Array(balance.review_shifts)).is_equal([4, 8, 12, 16])
@@ -31,7 +31,7 @@ func test_start_shift_draws_a_hand_and_empties_the_row() -> void:
 	var run: RunState = _run(1)
 	assert_int(run.hand().size()).is_equal(8)
 	assert_array(run.row).is_empty()
-	assert_int(run.quota()).is_equal(29)
+	assert_int(run.quota()).is_equal(30)
 	assert_int(run.phase).is_equal(RunState.Phase.PLANNING)
 
 
@@ -160,12 +160,12 @@ func test_passing_a_shift_moves_to_the_next_quota() -> void:
 	assert_int(run.phase).is_equal(RunState.Phase.SCORED)
 	assert_bool(run.next_shift()).is_true()
 	assert_int(run.shift_index).is_equal(1)
-	# Shift 2 is a boon day (v0.69): its quota is 35 changed by its boon's percent, its hand 8
+	# Shift 2 is a boon day (v0.69): its quota is 37 changed by its boon's percent, its hand 8
 	# with its boon's change.
 	assert_int(run.inspections.size()).is_equal(1)
 	var boon: InspectionDefinition = run.inspections[0]
 	assert_bool(boon.is_boon()).is_true()
-	assert_int(run.quota()).is_equal(ShiftLimits.with_percent(35, boon.quota_percent))
+	assert_int(run.quota()).is_equal(ShiftLimits.with_percent(37, boon.quota_percent))
 	assert_array(run.row).is_empty()
 	assert_int(run.hand().size()).is_equal(8 + boon.hand_size_delta)
 	assert_int(run.redraws_used).is_equal(0)

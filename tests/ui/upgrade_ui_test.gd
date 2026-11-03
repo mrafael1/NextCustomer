@@ -479,7 +479,7 @@ func test_the_results_screen_lists_the_run_history() -> void:
 	await Rush.checkout(screen)
 	assert_bool(screen._results.visible).is_true()
 	var texts: PackedStringArray = screen._results.texts()
-	assert_str(texts[2]).is_equal("  1  109€ / 29€     pass")
+	assert_str(texts[2]).is_equal("  1  109€ / 30€     pass")
 	assert_str(texts[3]).is_equal("     binned NEW ITEMS")
 	# Shift 2's quota is its record's: a boon day can change it (v0.69).
 	var quota: String = "0€ / %d€" % screen.run.history[1].quota

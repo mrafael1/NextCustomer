@@ -70,7 +70,7 @@
 
 [resource]
 script = ExtResource("1_balance")
-quotas = PackedInt32Array(29, 35, 53, 61, 73, 85, 98, 111, 125, 140, 155, 175, 195, 215, 235, 260)
+quotas = PackedInt32Array(30, 37, 38, 39, 62, 63, 64, 65, 89, 109, 110, 111, 148, 149, 150, 151)
 hand_size = 8
 base_redraws = 2
 basket_size = 2
@@ -96,8 +96,8 @@ week_length = 4
 weeks = Array[ExtResource("w1_week")]([ExtResource("w2_training_week"), ExtResource("w3_bakery_festival"), ExtResource("w4_holiday_rush"), ExtResource("w5_clearance_week")])
 write_up_limit = 2
 write_up_last_shift = 4
-coins_by_shifts_passed = PackedInt32Array(0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 3)
-overtime_coin_euros = 923
+coins_by_shifts_passed = PackedInt32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2)
+overtime_coin_euros = 8509
 overtime_coin_max = 1
 capsule_price = 1
 pin_slots = 1
