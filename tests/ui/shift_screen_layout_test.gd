@@ -498,29 +498,48 @@ func test_every_redraw_caption_fits() -> void:
 	assert_object(word.get_theme_color("font_color")).is_equal(Palette.INK_LIGHT)
 	assert_int(word.get_theme_constant("outline_size")).is_equal(0)
 	assert_int(word.get_theme_font_size("font_size")).is_equal(RegisterKey.NOTE_FONT_SIZE)
+	assert_bool(screen._redraw_button.count_badge().visible).is_false()
 	assert_float(word.modulate.a).is_equal_approx(RegisterKey.OFF_CAPTION_ALPHA, 0.001)
 	await _assert_redraw_in_place(screen)
 
 
-## The Redraw key shows `left` as a bare digit beside its caption, larger and heavier than a word
-## note, in RedrawNotice.count_color (2 or more green, 1 amber, 0 red); the red 0 keeps its full
+## The Redraw key shows `left` as a digit on a coin beside its caption (polish pass 2026-11-03),
+## larger and heavier than a word note: a paper digit on a solid coin in RedrawNotice.count_color
+## (2 or more green, 1 amber), and the 0 a hollow coin ringed in red with a red digit, so the
+## count reads by its digit and the coin's shape without the colour. The 0 keeps its full
 ## strength while the disabled key's caption fades. Screen readers still hear "(N left)".
 func _assert_redraw_count(screen: ShiftScreen, left: int) -> void:
 	var button: RegisterKey = screen._redraw_button
 	var note: Label = button.note_label()
+	var badge: RegisterKey.CountBadge = button.count_badge()
 	var color: Color = Palette.GREEN_DARK
 	if left == 1:
 		color = Palette.MUSTARD_DARKEST
 	elif left <= 0:
 		color = Palette.TOMATO_DARK
+	var digit: Color = color if left <= 0 else Palette.PAPER
 	assert_str(button.note()).is_equal("%d" % left)
-	assert_object(note.get_theme_color("font_color")).is_equal(color)
-	assert_object(note.get_theme_color("font_outline_color")).is_equal(color)
+	assert_bool(badge.visible).is_true()
+	assert_object(badge.colour).is_equal(color)
+	assert_bool(badge.hollow).is_equal(left <= 0)
+	assert_object(note.get_theme_color("font_color")).is_equal(digit)
+	assert_object(note.get_theme_color("font_outline_color")).is_equal(digit)
 	assert_int(note.get_theme_constant("outline_size")).is_equal(RegisterKey.COUNT_OUTLINE)
 	assert_int(note.get_theme_font_size("font_size")).is_equal(RegisterKey.COUNT_FONT_SIZE)
 	assert_int(RegisterKey.COUNT_FONT_SIZE).is_greater(RegisterKey.NOTE_FONT_SIZE)
 	assert_str(button.accessibility_name).contains("(%d left)" % left)
 	assert_float(note.modulate.a).is_equal(1.0)
+	# The coin sits on the face round the digit, inside the key.
+	var coin: Rect2 = badge.get_global_rect()
+	var shown: Rect2 = note.get_global_rect()
+	assert_float(absf(coin.get_center().x - shown.get_center().x)).is_less_equal(1.0)
+	assert_float(absf(coin.get_center().y - shown.get_center().y)).is_less_equal(1.0)
+	(
+		assert_bool(button.get_global_rect().encloses(coin))
+		. override_failure_message(str(coin))
+		. is_true()
+	)
+	assert_float(coin.size.x).is_greater_equal(note.get_minimum_size().x)
 	if left <= 0:
 		assert_bool(button.disabled).is_true()
 		assert_float(button.caption_label().modulate.a).is_equal_approx(

@@ -14,10 +14,64 @@ extends FramedButton
 ##
 ## A key can carry a note beside its caption (show_caption; mock-up B2's "Redraw  1 left"): smaller,
 ## in the number font, NOTE_GAP right of the caption, the pair centred on the front face; it sinks
-## with the caption. A PLAIN note (a word, such as "none to draw") is ink light; a COUNT or ALERT
-## note (a bare count, such as Redraw's "2") is in its own colour, larger and heavier, so the digit
-## reads without the colour. PLAIN and COUNT notes fade with an OFF caption; an ALERT note (Redraw's
-## red "0") keeps its full strength.
+## with the caption. A PLAIN note (a word, such as "none to draw") is ink light. A COUNT or ALERT
+## note (a bare count, such as Redraw's "2"; polish pass 2026-11-03) is a coin badge (CountBadge):
+## a heavier paper digit on a solid coin in the note's colour in an ink rim, or, for ALERT (Redraw's
+## "0"), a hollow coin (paper, ringed in the colour) with the digit in it, so the count reads by
+## its digit and its coin's shape without the colour. PLAIN and COUNT notes fade with an OFF
+## caption; an ALERT note keeps its full strength.
+
+
+## The coin behind a COUNT or ALERT note: a BADGE_ART px pixel disc at 2x, solid (the colour, its
+## top rows lit, in an ink rim) or hollow (paper in a ring of the colour).
+class CountBadge:
+	extends Control
+
+	var colour: Color = Palette.GREEN_DARK
+	var hollow: bool = false
+
+	func _init() -> void:
+		name = "CountBadge"
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		size = Vector2.ONE * BADGE_ART * ArtStyle.ART_SCALE
+		visible = false
+
+	func show_count(badge_colour: Color, is_hollow: bool) -> void:
+		colour = badge_colour
+		hollow = is_hollow
+		queue_redraw()
+
+	## Whether art cell (`x`, `y`) is inside the disc.
+	static func inside(x: int, y: int) -> bool:
+		var middle: float = (BADGE_ART - 1) / 2.0
+		return Vector2(x - middle, y - middle).length() <= BADGE_ART / 2.0 - 0.2
+
+	## How deep in the disc cell (`x`, `y`) is: 1 on its edge, 2 a cell in, else 3.
+	static func depth(x: int, y: int) -> int:
+		for reach: int in [1, 2]:
+			for step: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
+				if not inside(x + reach * step.x, y + reach * step.y):
+					return reach
+		return 3
+
+	func _draw() -> void:
+		var px: float = ArtStyle.ART_SCALE
+		# A hollow coin's ring is two cells deep, a solid coin's ink rim one.
+		var rim_depth: int = 2 if hollow else 1
+		var rim: Color = colour if hollow else ArtStyle.INK
+		var fill: Color = Palette.PAPER if hollow else colour
+		var lit: Color = Palette.PAPER if hollow else colour.lightened(BADGE_LIGHT)
+		for y: int in BADGE_ART:
+			for x: int in BADGE_ART:
+				if not inside(x, y):
+					continue
+				var cell: Color = fill
+				if depth(x, y) <= rim_depth:
+					cell = rim
+				elif y <= 3:
+					cell = lit
+				draw_rect(Rect2(Vector2(x, y) * px, Vector2(px, px)), cell)
+
 
 enum Kind { CHECKOUT, CREAM }
 enum Look { NORMAL, LIT, OFF }
@@ -55,9 +109,12 @@ const OFF_CAPTION_ALPHA := 0.42
 ## The note's size and its gap from the caption (B2's .redraw small: 13 px, 8 px gap).
 const NOTE_FONT_SIZE := 13
 const NOTE_GAP := 8.0
-## A COUNT or ALERT note's size, and its outline in its own colour (a heavier digit).
-const COUNT_FONT_SIZE := 15
+## A COUNT or ALERT note's size, and its outline in the digit's colour (a heavier digit); its coin
+## (CountBadge: BADGE_ART art px across, its lit rows BADGE_LIGHT lighter).
+const COUNT_FONT_SIZE := 17
 const COUNT_OUTLINE := 1
+const BADGE_ART := 13
+const BADGE_LIGHT := 0.22
 
 ## Held down (CHECKOUT while the shift is counted): the OFF look, sunk, whatever the mouse does.
 var held: bool = false:
@@ -89,6 +146,7 @@ var _styles: Array[StyleBoxTexture] = []
 ## The note beside the caption (show_caption), or null before the first one.
 var _note: Label
 var _note_look: NoteLook = NoteLook.PLAIN
+var _badge: CountBadge
 
 
 func _init(
@@ -124,14 +182,22 @@ func show_caption(
 		_note.add_theme_font_override("font", ArtStyle.number_font())
 		_note.set_anchors_preset(Control.PRESET_FULL_RECT)
 		_note.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_badge = CountBadge.new()
+		add_child(_badge, false, Node.INTERNAL_MODE_FRONT)
 		add_child(_note, false, Node.INTERNAL_MODE_FRONT)
 	_note_look = note_look
 	if _note != null:
 		var plain: bool = note_look == NoteLook.PLAIN
+		var hollow: bool = note_look == NoteLook.ALERT
+		var digit: Color = note_color if plain or hollow else Palette.PAPER
 		_note.text = note_text
 		_note.visible = not note_text.is_empty()
-		_note.add_theme_color_override("font_color", note_color)
-		_note.add_theme_color_override("font_outline_color", note_color)
+		_badge.visible = _note.visible and not plain
+		_badge.show_count(note_color, hollow)
+		_note.custom_minimum_size.x = 0.0 if plain else _badge.size.x
+		_note.add_theme_color_override("font_color", digit)
+		_note.add_theme_color_override("font_outline_color", digit)
 		_note.add_theme_constant_override("outline_size", 0 if plain else COUNT_OUTLINE)
 		_note.add_theme_font_size_override(
 			"font_size", NOTE_FONT_SIZE if plain else COUNT_FONT_SIZE
@@ -151,6 +217,11 @@ func note() -> String:
 ## The note's label, or null before the first note (for layout tests).
 func note_label() -> Label:
 	return _note
+
+
+## The coin behind a COUNT or ALERT note (null before the first note; hidden for a PLAIN one).
+func count_badge() -> CountBadge:
+	return _badge
 
 
 ## The key's look now: NORMAL, LIT (hover or press) or OFF (disabled or held).
@@ -223,7 +294,7 @@ func _fit_minimum_size() -> void:
 	var needed: float = (
 		caption_label().get_minimum_size().x
 		+ NOTE_GAP
-		+ _note.get_minimum_size().x
+		+ _note.get_combined_minimum_size().x
 		+ 2.0 * CAPTION_PADDING.x
 	)
 	custom_minimum_size.x = maxf(custom_minimum_size.x, needed)
@@ -246,7 +317,7 @@ func _place_note() -> void:
 		label.offset_right = 0.0
 		return
 	var caption_width: float = label.get_minimum_size().x
-	var note_width: float = _note.get_minimum_size().x
+	var note_width: float = _note.get_combined_minimum_size().x
 	var left: float = roundf((size.x - caption_width - NOTE_GAP - note_width) / 2.0)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	label.offset_left = left
@@ -256,3 +327,9 @@ func _place_note() -> void:
 	_note.offset_left = left + caption_width + NOTE_GAP
 	_note.offset_right = _note.offset_left + note_width - size.x
 	_note.modulate.a = 1.0 if _note_look == NoteLook.ALERT else label.modulate.a
+	var middle: Vector2 = Vector2(
+		_note.offset_left + note_width / 2.0,
+		(_note.offset_top + size.y + _note.offset_bottom) / 2.0
+	)
+	_badge.position = (middle - _badge.size / 2.0).round()
+	_badge.modulate.a = _note.modulate.a

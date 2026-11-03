@@ -52,7 +52,10 @@ const CHECKOUT_RECT := Rect2(799, 77, 98, 154)
 ## A notice's paper strip over the item column's step lines, and its text inside it.
 const NOTICE_RECT := Rect2(617, 163, 274, 66)
 const NOTICE_MARGIN := 4.0
-const NOTICE_SIZE := 14
+## The notice's size: the monitor's body size (16, as the item's effect text), stepping down
+## through NOTICE_SIZES only for a notice that would not fit the strip (polish pass 2026-11-03).
+const NOTICE_SIZE := 16
+const NOTICE_SIZES: Array[int] = [16, 15, 14]
 const NOTICE_WEIGHT := 800
 const NOTICE_COLOR := Palette.INK
 ## The DONE state's "INSPECTION PASSED ✓" at the item column's foot (#77 machine v2), as the
@@ -764,8 +767,24 @@ func _show_last_item(plan: CountUpPlan, result: ScoreResult, line_of: Callable) 
 	_items.set_value(result.payouts[slot], fizzled)
 
 
-func _on_notice_showing(_showing: bool) -> void:
+func _on_notice_showing(showing: bool) -> void:
+	if showing:
+		var room: Vector2 = _rects[notice_label].size
+		notice_label.add_theme_font_size_override("font_size", notice_size(notice_label.text, room))
 	_apply()
+
+
+## The first of NOTICE_SIZES at which `text`, wrapped to `room`'s width, fits its height (the
+## smallest when none does). Pure.
+static func notice_size(text: String, room: Vector2) -> int:
+	var font: Font = ArtStyle.bold_font(NOTICE_WEIGHT)
+	for font_size: int in NOTICE_SIZES:
+		var needed: Vector2 = font.get_multiline_string_size(
+			text, HORIZONTAL_ALIGNMENT_CENTER, room.x, font_size
+		)
+		if needed.y <= room.y and needed.x <= room.x:
+			return font_size
+	return NOTICE_SIZES[-1]
 
 
 ## `step`'s line in the item column: a WASTED step's reason (MonitorText.waste_line), else the
