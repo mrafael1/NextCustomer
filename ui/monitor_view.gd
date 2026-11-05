@@ -633,7 +633,8 @@ func _on_beat_started(
 		_scanned = beat.scan_slot
 		var opened: CardDefinition = _definition_of(beat.scan_slot)
 		if opened != null:
-			_items.start_item(opened, _tags_of(beat.scan_slot))
+			var given: int = _count_up.contribution(beat.scan_slot) if opened.is_coupon() else 0
+			_items.start_item(opened, _tags_of(beat.scan_slot), true, given)
 	if step.slot != _scanned or _scanned < 0:
 		return
 	if _shows_line(beat) or beat.kind == CountUpBeat.Kind.ARMED:
@@ -745,7 +746,15 @@ func _show_last_item(plan: CountUpPlan, result: ScoreResult, line_of: Callable) 
 	var definition: CardDefinition = _definition_of(slot)
 	if definition == null or slot >= result.payouts.size():
 		return
-	_items.start_item(definition, _tags_of(slot), false)
+	var given: int = 0
+	if definition.is_coupon():
+		var names: PackedStringArray = PackedStringArray()
+		for view: CardView in _views:
+			names.append(
+				view.card.definition.display_name if view != null and view.card != null else ""
+			)
+		given = PlanningModel.contribution(result, slot, names)
+	_items.start_item(definition, _tags_of(slot), false, given)
 	var last: ScoreStep = null
 	for beat: CountUpBeat in plan.beats:
 		var step: ScoreStep = result.steps[beat.steps[0]]

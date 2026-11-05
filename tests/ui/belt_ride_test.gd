@@ -253,7 +253,8 @@ func test_reduced_motion_snaps_the_ride() -> void:
 ## A real checkout of the reference row: every shown item stays on the belt's top face and inside
 ## the stage, the scanned one at the scanner whenever it is marked; each landed step's sticker
 ## fires (it punches, and its check settles on its top right corner, on the stage); an armed
-## giver's beat sends sparks (inside the stage) to its targets' stickers, which charge; the belt
+## giver's beat sends sparks (inside the stage) to its targets' stickers (v1.00: its "×N" bursts
+## no longer punch as they charge or fire, the other stickers do); the belt
 ## ends empty, the bag holding every item, and the count's flights no longer ask the ride. PR #138
 ## round 7: the rail light never runs (the user's "remove yellow line filling when an item is
 ## scanned under first item") and no "×N" pops over the items ("remove x2, x3... pop up on the
@@ -319,7 +320,9 @@ func test_a_checkout_rides_every_item_into_the_bag_and_fires_the_stickers() -> v
 	assert_int(fired.size()).is_greater(3)
 	assert_bool(punched[0]).is_true()
 	assert_int(sparks[0]).is_greater(0)
-	assert_bool(charged[0]).is_true()
+	# The row's armed givers (Eggs, Multipack) give only "×N" bursts, which a charge leaves still
+	# (v1.00): the sparks fly, no sticker punches before it fires.
+	assert_bool(charged[0]).is_false()
 	_assert_belt_empty(screen)
 	assert_int(screen._stage.bag.items().size()).is_equal(FULL_ROW.size())
 	assert_bool(screen._count_up.source_rect.is_valid()).is_false()
@@ -327,14 +330,21 @@ func test_a_checkout_rides_every_item_into_the_bag_and_fires_the_stickers() -> v
 
 ## A sticker's fire (EffectSticker.fire): it punches past 1.4 and turns, then settles back at rest
 ## with its check shown on its top right corner; under reduced motion the check shows at once with
-## no punch. A charge punches lightly and shows no check.
+## no punch. A charge punches lightly and shows no check. v1.00: a MULTIPLY burst ("×N") never
+## punches or flashes, firing or charged; it still gets its check.
 func test_a_sticker_fires_with_a_punch_then_a_check() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _full_row(screen)
 	var stickers: Array[EffectSticker] = []
+	var bursts: Array[EffectSticker] = []
 	for slot: int in range(screen._row_views.size()):
-		stickers.append_array(screen._stage.planning_layer.stack(slot))
+		for found: EffectSticker in screen._stage.planning_layer.stack(slot):
+			if found.spec().kind == StickerSpec.Kind.MULTIPLY:
+				bursts.append(found)
+			elif found.spec().kind != StickerSpec.Kind.MORE:
+				stickers.append(found)
 	assert_int(stickers.size()).is_greater(2)
+	assert_int(bursts.size()).is_greater(1)
 	var sticker: EffectSticker = stickers[0]
 	var inner: Control = sticker.get_child(0) as Control
 	sticker.fire(false)
@@ -363,6 +373,19 @@ func test_a_sticker_fires_with_a_punch_then_a_check() -> void:
 	assert_bool(charged.has_check()).is_false()
 	charged.charge(true)
 	assert_bool(charged.is_firing()).is_false()
+	var burst: EffectSticker = bursts[0]
+	var burst_inner: Control = burst.get_child(0) as Control
+	burst.fire(false)
+	await _frames(1)
+	assert_float(burst_inner.scale.x).is_equal(1.0)
+	assert_that(burst_inner.modulate).is_equal(Color.WHITE)
+	await _seconds(EffectSticker.CHECK_AT + EffectSticker.CHECK_SETTLE_S + 0.1)
+	assert_bool(burst.has_check()).is_true()
+	var still: EffectSticker = bursts[1]
+	still.charge(false)
+	await _frames(1)
+	assert_bool(still.is_firing()).is_false()
+	assert_float((still.get_child(0) as Control).scale.x).is_equal(1.0)
 
 
 ## A resumed checkout shows the count's end at once (show_end_state): the belt empty, the items in

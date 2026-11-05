@@ -45,10 +45,17 @@ const TOP_RECT := Rect2(0, 0, 918, 86)
 const FRONT_RECT := Rect2(0, 86, 918, 102)
 const FRONT_MARGIN := 3
 ## A bolt head in each gap between two tickets of the 7-slot row (the mirrored mock-up B2: 8 px
-## before each cell's left edge), on the apron.
+## before each cell's left edge), on the apron. A wider row (8 or 9 cells: Big basket, Extra
+## till) closes its gaps and scales to the 7-slot width (RowStrip), so its bolts and chevrons
+## follow its own cells (v1.00, the user's play test of 2026-11-05: at 9 slots they stood at the
+## 7-slot places, out of line with the tickets): a bolt centred on each cell's left edge, the
+## chevrons centred under each ticket, at the row's pitch (cue_pitch). BOLT_COUNT is the widest
+## row's cells.
 const BOLT_FIRST := Vector2(8, 102)
 const BOLT_PITCH := 128.0
-const BOLT_COUNT := 7
+const BOLT_COUNT := 9
+## The row's first cell's left edge in the belt's coordinates.
+const CELLS_LEFT := ShiftStage.ROW_POSITION.x - ShiftStage.BELT_RECT.position.x
 ## The 7-slot row's cells, and the shortest belt baked (a shorter row keeps it).
 const FULL_CELLS := 7
 const MIN_CELLS := 4
@@ -120,11 +127,11 @@ func _init() -> void:
 	for index: int in range(BOLT_COUNT):
 		var bolt: TextureRect = UiKit.sprite(BELT_BOLT)
 		bolt.name = "Bolt%d" % index
-		_place(bolt, Rect2(BOLT_FIRST + Vector2(index * BOLT_PITCH, 0), BELT_BOLT.get_size()))
+		_place(bolt, Rect2(Vector2.ZERO, BELT_BOLT.get_size()))
 		var chevrons: TextureRect = UiKit.sprite(BELT_CHEVRONS)
 		chevrons.name = "Chevrons%d" % index
-		var at: Vector2 = CHEVRONS_FIRST + Vector2(index * BOLT_PITCH, 0)
-		_place(chevrons, Rect2(at, BELT_CHEVRONS.get_size()))
+		_place(chevrons, Rect2(Vector2.ZERO, BELT_CHEVRONS.get_size()))
+	_place_cues(FULL_CELLS)
 	_scanner = UiKit.sprite(SCANNER_PLATE)
 	_scanner.name = SCANNER_NAME
 	_place(_scanner, SCANNER_RECT)
@@ -137,8 +144,10 @@ func _draw() -> void:
 
 
 ## Fits the belt to a row of `cells` cells (at least MIN_CELLS, at most FULL_CELLS): the short
-## art, the front, the rail's shadow, and the bolts and chevrons under its tickets only.
+## art, the front, the rail's shadow, and the bolts and chevrons under its tickets only. A wider
+## row (up to BOLT_COUNT cells) keeps the full belt, its bolts and chevrons at its own cells.
 func set_cells(cells: int) -> void:
+	_place_cues(clampi(cells, MIN_CELLS, BOLT_COUNT))
 	var fitted: int = clampi(cells, MIN_CELLS, FULL_CELLS)
 	if fitted == _cells:
 		return
@@ -146,10 +155,53 @@ func set_cells(cells: int) -> void:
 	_frames = TOP_FRAMES if fitted == FULL_CELLS else short_frames(fitted)
 	_top.texture = _frames[frame()]
 	_front.size.x = FRONT_RECT.size.x - cut()
-	for index: int in range(BOLT_COUNT):
-		(get_node("Bolt%d" % index) as CanvasItem).visible = index < fitted
-		(get_node("Chevrons%d" % index) as CanvasItem).visible = index < fitted
 	queue_redraw()
+
+
+## Shows the first `shown` bolts and chevrons at a `shown`-cell row's places; the hidden ones wait
+## at the widest row's places, on the belt.
+func _place_cues(shown: int) -> void:
+	for index: int in range(BOLT_COUNT):
+		var cells: int = shown if index < shown else BOLT_COUNT
+		var bolt: Control = get_node("Bolt%d" % index) as Control
+		bolt.position = bolt_at(index, cells)
+		bolt.visible = index < shown
+		var chevrons: Control = get_node("Chevrons%d" % index) as Control
+		chevrons.position = chevrons_at(index, cells)
+		chevrons.visible = index < shown
+
+
+## The distance between two cells' left edges in a row of `cells` cells, in the belt's
+## coordinates: BOLT_PITCH up to FULL_CELLS; a wider row's own pitch, scaled as RowStrip scales
+## it to the laid-out row's width.
+static func cue_pitch(cells: int) -> float:
+	if cells <= FULL_CELLS:
+		return BOLT_PITCH
+	var separation: int = RowStrip.separation_for(cells)
+	var natural: float = RowStrip.row_width(cells, separation)
+	var factor: float = minf(1.0, RowStrip.row_width(RowStrip.LAID_OUT_SLOTS) / natural)
+	return (RowStrip.CELL_SIZE.x + separation) * factor
+
+
+## Bolt `index`'s top left in a row of `cells` cells (whole pixels): BOLT_FIRST's place before
+## its cell up to FULL_CELLS, else centred on its cell's left edge.
+static func bolt_at(index: int, cells: int) -> Vector2:
+	if cells <= FULL_CELLS:
+		return BOLT_FIRST + Vector2(index * BOLT_PITCH, 0)
+	var left: float = CELLS_LEFT + index * cue_pitch(cells)
+	return Vector2(roundf(left - BELT_BOLT.get_width() / 2.0), BOLT_FIRST.y)
+
+
+## Chevrons `index`'s top left in a row of `cells` cells (whole pixels): centred under its
+## cell's ticket.
+static func chevrons_at(index: int, cells: int) -> Vector2:
+	if cells <= FULL_CELLS:
+		return CHEVRONS_FIRST + Vector2(index * BOLT_PITCH, 0)
+	var factor: float = cue_pitch(cells) / (RowStrip.CELL_SIZE.x + RowStrip.separation_for(cells))
+	var centre: float = (
+		CELLS_LEFT + (index * cue_pitch(cells)) + RowStrip.CELL_SIZE.x * factor / 2.0
+	)
+	return Vector2(roundf(centre - BELT_CHEVRONS.get_width() / 2.0), CHEVRONS_FIRST.y)
 
 
 ## The cells the belt is fitted to (set_cells).
