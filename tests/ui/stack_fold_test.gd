@@ -8,7 +8,8 @@ extends GdUnitTestSuite
 ## bounds (clamped at both ends of the belt). On the real shift screen at 1280x720 (the stress row
 ## on 8 slots, Squashed cake's many stickers): the stack sits on the item's right shoulder with at
 ## most 3 stickers and the chip on top, overlapping by exactly 4 px (the mock-up's 3 px on the art
-## grid) where its ceiling allows, inside the screen and under its ceiling (the last slot's
+## grid; scaled with the 8-slot row, as the whole stack is since v1.00) where its ceiling
+## allows, inside the screen and under its ceiling (the last slot's
 ## shifted left by the screen's edge, at the same height); hovering it fans every
 ## sticker out in step order, numbered 1 to N, on screen, inside the belt's x-range, under the top
 ## bar, above the item and never over its ticket or pay tag, the stack hidden meanwhile; the fan
@@ -224,8 +225,9 @@ func test_a_folded_stack_on_the_shift_screen() -> void:
 		# STACK_OVERLAP exactly where the ceiling leaves room (none squeezed).
 		var overlap: float = _overlap(shown, to_layer)
 		if shown.size() > 1 and span.position.y > ceiling + 2.0 * PlanningLayer.STACK_OVERLAP_MAX:
-			assert_float(overlap).override_failure_message("slot %d" % index).is_equal(
-				PlanningLayer.STACK_OVERLAP
+			var scaled: float = PlanningLayer.STACK_OVERLAP * shown[0].scale.y
+			assert_float(overlap).override_failure_message("slot %d" % index).is_equal_approx(
+				scaled, 0.01
 			)
 		if folded:
 			# The chip on top, on the stack's left edge.
@@ -441,7 +443,7 @@ func _overlap(shown: Array[EffectSticker], to_layer: Transform2D) -> float:
 		var lower: Rect2 = to_layer * shown[index + 1].get_global_rect()
 		var here: float = upper.end.y - lower.position.y
 		if overlap >= 0.0:
-			assert_float(here).is_equal(overlap)
+			assert_float(here).is_equal_approx(overlap, 0.01)
 		overlap = here
 	return overlap
 

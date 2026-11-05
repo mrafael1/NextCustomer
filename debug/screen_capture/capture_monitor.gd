@@ -108,6 +108,8 @@ const CASES: Dictionary[String, Dictionary] = {
 	"coupon_bundle": {"row": ["bread", "bundle", "butter"], "scan": "bundle"},
 	"coupon_clearance": {"row": ["clearance_tag", "milk", "bread"], "scan": "clearance_tag"},
 	"coupon_swap": {"row": ["bread", "shelf_swap", "milk", "butter"], "scan": "shelf_swap"},
+	# v1.00: a coupon that adds nothing (no target after it) leaves its payout zone empty.
+	"coupon_wasted": {"row": ["milk", "multipack"], "scan": "multipack"},
 	"penalty": {"row": ["soup", "frozen_peas"], "scan": "soup"},
 	"unused": {"row": ["eggs", "batteries"], "scan": "eggs"},
 	"hand": {"row": ["bread"], "scan": "coffee", "hand": true},
