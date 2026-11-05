@@ -80,3 +80,13 @@ static func drawn_rect(control: Control, grow: float = 0.0) -> Rect2:
 	for corner: Vector2 in corners:
 		bounds = bounds.expand(transform * corner)
 	return bounds
+
+
+## The width of a name's text (ItemName.make's control).
+static func name_width(shown_name: Control) -> float:
+	if shown_name is MixedLabel:
+		return shown_name.get_combined_minimum_size().x
+	var label: Label = shown_name as Label
+	var font: Font = label.get_theme_font("font")
+	var font_size: int = label.get_theme_font_size("font_size")
+	return font.get_string_size(label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x

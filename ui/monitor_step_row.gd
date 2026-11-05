@@ -9,10 +9,13 @@ extends RefCounted
 ## digits ending where the euro amounts' digits end (round 6: the "€" column left to the euros), a
 ## harmful row's (a factor under ×1 or a minus amount too) name and amount in tomato with its sign
 ## kept and a "!" when it has no icon, a fizzle's reason in tomato with WASTED, a "gives" row (what
-## it gives another item, not its own payout; PR #138 round 7: "to Banana  ×2 · 5€ → 10€", under
-## the target's mini) its name teal and its amount in its effect's ink (a factor's, a bonus's
-## green), unbracketed. A row cut past its lines shows its whole line in a tip. Pure makers: no
-## state.
+## it gives another item, not its own payout; PR #138 round 7: "to Banana  ×2", under the
+## target's mini) its name teal and its amount in its effect's ink (a factor's, a bonus's green),
+## unbracketed, its equation ("5€ × 2 = 10€", v1.11) on a line of its own under its name,
+## indented as part of that effect (EQUATION_INDENT, muted). A row cut past its lines shows its
+## whole line in a tip. A count row whose giver is already in the bag (v1.11) shows the bag glyph
+## (BAG_ICON) beside the giver's icon, the words in its tip, so its line keeps its room for the
+## name and the amount. Pure makers: no state.
 
 ## A row's look: a FIZZLE's and a HARM's (CountUpPlan.is_harmful) text and amount are tomato, a
 ## HARM's amount keeping its sign ("−2€") so the meaning never rests on colour alone.
@@ -65,12 +68,33 @@ const FIZZLE_ICON := preload("res://art/icons/fizzle.png")
 ## column's right edge (PR #138 round 6, the user's "multiplier should be aligned with other
 ## number"), so every number's digits share one right edge.
 const EURO := "€"
+## A "gives" row's equation line under its name (v1.11): indented EQUATION_INDENT past the name's
+## left edge, at EQUATION_SIZE and EQUATION_WEIGHT in NOTE_COLOR.
+const EQUATION_INDENT := 10.0
+const EQUATION_SIZE := 12
+const EQUATION_WEIGHT := 700
+## The bag glyph (v1.11, the user's "a small bag glyph beside the giver and put the wording in its
+## tooltip"): BAG_SIZE, BAG_GAP after the giver's icon, the name moving that much right; its tip
+## BAG_TIP with the giver's name, else BAG_TIP_UNNAMED.
+const BAG_ICON := preload("res://art/icons/from_bag.png")
+const BAG_SIZE := Vector2(14, 14)
+const BAG_GAP := 2.0
+const BAG_TIP := "From the bag: %s is already bagged and still gives this"
+const BAG_TIP_UNNAMED := "From the bag: its giver is already bagged and still gives this"
 
 
 ## One row `width` px wide (see the class comment), in no parent yet, at most `max_lines` lines
-## (each ROW_PITCH), or null for an empty line.
+## (each ROW_PITCH) and its `equation`'s line under them ("" for none), with the bag glyph and its
+## `bag_tip` beside the mark ("" for none; bag_tip_of), or null for an empty line.
 static func make(
-	line: String, tone: Tone, gives: bool, giver_mini: Texture2D, max_lines: int, width: float
+	line: String,
+	tone: Tone,
+	gives: bool,
+	giver_mini: Texture2D,
+	max_lines: int,
+	width: float,
+	equation: String = "",
+	bag_tip: String = ""
 ) -> Control:
 	if line.is_empty():
 		return null
@@ -84,6 +108,11 @@ static func make(
 	mark.name = "Mark"
 	row.add_child(mark)
 	var indent: float = MARK_SIZE.x + MARK_GAP
+	if not bag_tip.is_empty():
+		var bag: TipTarget = _bag(bag_tip)
+		bag.position = Vector2(MARK_SIZE.x + BAG_GAP, roundf((ROW_PITCH - BAG_SIZE.y) / 2.0))
+		row.add_child(bag)
+		indent += BAG_SIZE.x + BAG_GAP
 	var amount_width: float = 0.0
 	var inset: float = 0.0
 	var amount: Label = null
@@ -100,7 +129,7 @@ static func make(
 			_ink_factor(amount, factor_step(parts[1]))
 		var least: float = 0.0 if tone == Tone.FIZZLE else AMOUNT_MIN
 		var shown_width: float = maxf(text_width(amount), amount.get_minimum_size().x)
-		inset = 0.0 if gives else amount_inset(parts[1])
+		inset = amount_inset(parts[1])
 		amount_width = maxf(least, ceilf(shown_width) + inset) + AMOUNT_PAD
 	var room: float = width - indent - amount_width
 	var text: Label = row_text(parts[0], colour, room, max_lines)
@@ -110,6 +139,9 @@ static func make(
 	var lines: int = clampi(wrapped, 1, max_lines)
 	var height: float = lines * ROW_PITCH
 	text.size = Vector2(room, height)
+	if not equation.is_empty():
+		row.add_child(_equation(equation, indent, width, height))
+		height += ROW_PITCH
 	if wrapped > max_lines:
 		# Cut with an ellipsis: resting the pointer on the text shows the whole line (#138 review).
 		var whole: TipTarget = TipTarget.new()
@@ -128,6 +160,65 @@ static func make(
 		amount.size = Vector2(amount_width - AMOUNT_PAD - inset, ROW_PITCH)
 	row.size = Vector2(width, height)
 	return row
+
+
+## Planning's rows in their order (MonitorItemColumn.show_item): the "gives" rows (`given`) before
+## the item's `own` rows, or after them when `gives_last` (v1.11), then the `unused` ones (fizzles,
+## which change no amount).
+static func in_order(
+	own: Array[Control], given: Array[Control], unused: Array[Control], gives_last: bool
+) -> Array[Control]:
+	var ordered: Array[Control] = []
+	ordered.append_array(own if gives_last else given)
+	ordered.append_array(given if gives_last else own)
+	ordered.append_array(unused)
+	return ordered
+
+
+## How many lines (each ROW_PITCH) `rows` take in all (x) and the tallest one's (y).
+static func rows_lines(rows: Array[Control]) -> Vector2i:
+	var counted: Vector2i = Vector2i.ZERO
+	for row: Control in rows:
+		var row_lines: int = roundi(row.size.y / ROW_PITCH)
+		counted.x += row_lines
+		counted.y = maxi(counted.y, row_lines)
+	return counted
+
+
+## The bag glyph's tip for a giver named `giver` ("" when unknown).
+static func bag_tip_of(giver: String) -> String:
+	return BAG_TIP % giver if not giver.is_empty() else BAG_TIP_UNNAMED
+
+
+## The bag glyph (BAG_ICON at BAG_SIZE) with `tip` as its tooltip.
+static func _bag(tip: String) -> TipTarget:
+	var bag: TipTarget = TipTarget.new()
+	bag.name = "FromBag"
+	bag.texture = BAG_ICON
+	bag.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	bag.stretch_mode = TextureRect.STRETCH_SCALE
+	ArtStyle.use_pixel_material(bag)
+	bag.size = BAG_SIZE
+	bag.tip_text = tip
+	bag.tip_below = true
+	# Its row shows only during the count, which blocks the other tips (GlyphTips).
+	bag.shows_while_blocked = true
+	return bag
+
+
+## A "gives" row's `equation` line (see EQUATION_INDENT) at `top`, under a name that starts at
+## `indent` in a row `width` px wide.
+static func _equation(equation: String, indent: float, width: float, top: float) -> Label:
+	var label: Label = MonitorKit.bold(
+		equation, EQUATION_SIZE, EQUATION_WEIGHT, NOTE_COLOR, ROW_PITCH
+	)
+	label.name = "Equation"
+	label.custom_minimum_size = Vector2.ZERO
+	label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	label.clip_text = true
+	label.position = Vector2(indent + EQUATION_INDENT, top)
+	label.size = Vector2(width - indent - EQUATION_INDENT, ROW_PITCH)
+	return label
 
 
 ## A muted note row `width` px wide (a hand item's), wrapped like a step's text.

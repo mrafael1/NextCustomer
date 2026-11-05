@@ -1,0 +1,13 @@
+; The monitor's "from the bag" glyph (v1.11): the store's carrier bag in miniature (as
+; items_v2/carrier_bag: cream body (a, its shade b, c under the stripe), teal 4 loop handle reaching
+; its open mouth's corners, the teal stripe). Shown at 2x (14x14) beside a count row's giver icon
+; when that giver is already in the bag.
+@size 7x7
+@kind icon
+..444..
+.4...4.
+#4###4#
+#aaaab#
+#44444#
+#ccccb#
+#######

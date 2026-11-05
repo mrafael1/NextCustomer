@@ -43,6 +43,16 @@ const AMOUNT_SEPARATOR := "  "
 const LEADING_AMOUNT := ["+", "×", "−"]
 ## A PAYOUT_OVERRIDE step's amount on the receipt ("= 0"): the item column shows it as euros.
 const OVERRIDE_PREFIX := "="
+## A copy (Repeat), the user's point A of 2026-11-05: the copier's scan names its source and the
+## copied amount ("Copied from Golden Milk", "264€" on the amounts' column, the dotted leader
+## between them), the source's scan a quiet note under its total instead of a "gives" row.
+const COPIED_FROM := "Copied from %s"
+const COPIED_BY := "Copied by %s"
+## A "gives" row's equation (equation): the operators it spells out, its "=", and the change alone
+## for an effect that is no arithmetic.
+const EQUATION_SIGNS: Array[String] = ["×", "+", "−", "-"]
+const EQUATION_EQUALS := "="
+const EQUATION_CHANGE := "%s %s %s"
 
 
 ## A whole-euro amount with the € after it: "26€".
@@ -106,6 +116,34 @@ static func waste_line(step: ScoreStep) -> String:
 	return ReceiptView.joined_line(
 		reason.left(1).to_upper() + reason.substr(1), EffectLink.WASTED_WORD
 	)
+
+
+## A COPY step's line on its copier's scan: "Copied from Golden Milk  264€" (step_parts: the text,
+## then the copied amount).
+static func copied_from(source: String, amount: int) -> String:
+	return ReceiptView.joined_line(COPIED_FROM % source, euros(amount))
+
+
+## The quiet note beside a copied item's total: "Copied by Repeat", "" when nothing copied it.
+static func copied_by(copier: String) -> String:
+	return COPIED_BY % copier if not copier.is_empty() else ""
+
+
+## A "gives" row's equation under its effect (v1.11, the user's "Put 2€ × 2 = 4€ directly under to
+## Banana"): the target's price before, each of `effects` ("×2", "+3€", "−2€") as its operator and
+## its number, then "=" and the price after: "2€ × 2 = 4€", "4€ + 3€ = 7€". An effect that is no
+## arithmetic (an override's "=0") says the change alone, "17€ `arrow` 0€".
+static func equation(before: int, effects: PackedStringArray, after: int, arrow: String) -> String:
+	var parts: PackedStringArray = PackedStringArray([euros(before)])
+	for effect: String in effects:
+		var operator: String = effect.left(1)
+		if not operator in EQUATION_SIGNS:
+			return EQUATION_CHANGE % [euros(before), arrow, euros(after)]
+		parts.append(operator)
+		parts.append(effect.substr(1))
+	parts.append(EQUATION_EQUALS)
+	parts.append(euros(after))
+	return " ".join(parts)
 
 
 ## A step line (ReceiptView.step_line, or a scan's "gives" line) as its text and its amount for

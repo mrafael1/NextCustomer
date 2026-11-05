@@ -2,10 +2,10 @@ class_name MonitorLeader
 extends Control
 ## A dotted leader on an item column row (PR #138 round 4's DOTTED look; round 5: on every row and
 ## the base line, MonitorBaseLine): DOT px dots every PITCH px from GAP after the end of the row's
-## text (its last line, or its "from the bag" note) to GAP before its amount's digits, like a
+## text (its last line) to GAP before its amount's digits, like a
 ## receipt's or a menu's, on the 2 px grid and in columns shared by every row. Measured when drawn,
-## from the row's own parts (MonitorStepRow.make's Text, FromBag and Amount), so a page's even text
-## size (MonitorStepRow.even_sizes) and the count's note are counted. A row cut past its lines or
+## from the row's own parts (MonitorStepRow.make's Text and Amount), so a page's even text size
+## (MonitorStepRow.even_sizes) is counted. A row cut past its lines or
 ## with no amount draws none. Display only.
 ##
 ## Each dot is snapped to whole screen pixels (PR #138 round 7, the user's "are dots drawn? at
@@ -51,9 +51,6 @@ func span() -> Vector3:
 		return Vector3.ZERO
 	var lines: int = maxi(roundi(text.size.y / MonitorStepRow.ROW_PITCH), 1)
 	var end: float = text.position.x + last_line_width(text, lines)
-	var note: Label = row.get_node_or_null("FromBag") as Label
-	if note != null:
-		end = note.position.x + MonitorStepRow.text_width(note)
 	var digits: float = amount.position.x + amount.size.x - MonitorStepRow.text_width(amount)
 	var from: float = PITCH * ceilf((end + GAP) / PITCH)
 	var to: float = digits - GAP

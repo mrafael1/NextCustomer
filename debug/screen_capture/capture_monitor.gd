@@ -110,7 +110,21 @@ const CASES: Dictionary[String, Dictionary] = {
 	"coupon_swap": {"row": ["bread", "shelf_swap", "milk", "butter"], "scan": "shelf_swap"},
 	# v1.00: a coupon that adds nothing (no target after it) leaves its payout zone empty.
 	"coupon_wasted": {"row": ["milk", "multipack"], "scan": "multipack"},
+	# v1.11: Eggs in slot 3 under the Spot check (it pays 0€) gives Banana ×2: its "gives" row's
+	# equation under it, the Spot check on its own line; in the count, Banana's ×2 from Eggs in the
+	# bag (the bag glyph beside the giver).
+	"eggs_banana":
+	{"row": ["bread", "milk", "eggs", "banana"], "inspection": "spot_check", "scan": "eggs"},
+	"eggs_banana_target":
+	{"row": ["bread", "milk", "eggs", "banana"], "inspection": "spot_check", "scan": "banana"},
 	"penalty": {"row": ["soup", "frozen_peas"], "scan": "soup"},
+	# Point A (2026-11-05): Repeat copies Golden Milk; Milk's scan has no "to Repeat" row, its
+	# quiet "Copied by Repeat" note by its total; Repeat's scan reads "Copied from Golden Milk"
+	# with the copied amount. Repeat first copies nothing: no note on Milk.
+	"repeat_source": {"row": ["butter", "milk_golden", "repeat"], "scan": "milk_golden"},
+	"repeat_copy": {"row": ["butter", "milk_golden", "repeat"], "scan": "repeat"},
+	"repeat_none": {"row": ["repeat", "milk_golden", "butter"], "scan": "milk_golden"},
+	"repeat_none_copy": {"row": ["repeat", "milk_golden", "butter"], "scan": "repeat"},
 	"unused": {"row": ["eggs", "batteries"], "scan": "eggs"},
 	"hand": {"row": ["bread"], "scan": "coffee", "hand": true},
 	"ladder":

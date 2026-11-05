@@ -169,6 +169,26 @@ static func contribution(result: ScoreResult, slot: int, names: PackedStringArra
 	return (strip.total_gain() if strip != null else 0) + maxi(result.payouts[slot], 0)
 
 
+## The slots whose COPY step copied `slot`'s payout in `result` (Repeat right after it), in step
+## order; none when nothing copied it (a copy of a 0€ payout still counts: it has its step).
+static func copiers(result: ScoreResult, slot: int) -> PackedInt32Array:
+	var found: PackedInt32Array = PackedInt32Array()
+	if result == null:
+		return found
+	for step: ScoreStep in result.steps:
+		if step.step_type == ScoreStep.StepType.COPY and step.linked_slot == slot:
+			found.append(step.slot)
+	return found
+
+
+## The name (from `names`) of the card that copied `slot`'s payout in `result` (copiers), or "".
+static func copied_by(result: ScoreResult, slot: int, names: PackedStringArray) -> String:
+	var found: PackedInt32Array = copiers(result, slot)
+	if found.is_empty() or found[0] < 0 or found[0] >= names.size():
+		return ""
+	return names[found[0]]
+
+
 ## Gives each strip its lane (section 5.2): sorted by (lo, giver slot), a strip takes lane 0
 ## when no strip already in lane 0 shares a slot with it, else lane 1 likewise, else -1
 ## (overflow, drawn only on hover).

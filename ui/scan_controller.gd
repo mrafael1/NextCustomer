@@ -33,9 +33,9 @@ extends Node
 ## shows its payout and every step of its slot but BASE and PAYOUT, worded as the receipt words
 ## them (ReceiptView.step_line, decision 1A), so every line of the planning receipt can be read by
 ## scanning its item. A belt item that gives to others (#71) gets its "gives" lines first
-## (gives_rows: one per target, "to Banana  ×2 · 5€ → 10€", from its rail strip,
-## PlanningModel.strip_of). Its tag line shows the scored tags (granted ones too); a hand item's
-## its card's own.
+## (gives_rows: one per target, "to Banana  ×2" over its equation "5€ × 2 = 10€", from its rail
+## strip, PlanningModel.strip_of). Its tag line shows the scored tags (granted ones too); a hand
+## item's its card's own.
 ##
 ## The scan follows the pointer. While the pointer is inside an offer's popup, the scanned offer
 ## stays, so moving over the popup never switches to an item it covers. Once the pointer is over
@@ -64,12 +64,13 @@ const TUNING_PATH := "res://data/balance/scan.tres"
 ## A giver's "gives" rows (#71; PR #138 round 7, a friend's suggestion the user passed on: the
 ## relationship explicit): one per target, up to GIVES_NAMES of them, its words GIVES_TEXT ("to
 ## Banana") and its amount GIVES_EFFECT, the effect, then the target's price before it and after
-## it ("×2 · 5€ → 10€"; a bonus's token with its €, "+3€ · 4€ → 7€"), GIVES_ARROW when the
-## monitor's font has it, else GIVES_ARROW_FALLBACK. Past GIVES_NAMES targets one row says
+## it, v1.11: the effect alone on the row ("×2"; a bonus's token with its €, "+3€") and the
+## target's price before and after it as the row's equation under it (MonitorText.equation, "5€ ×
+## 2 = 10€"), GIVES_ARROW when the monitor's font has it, else GIVES_ARROW_FALLBACK, for an
+## effect that is no arithmetic. Past GIVES_NAMES targets one row says
 ## GIVES_MANY with their summed gain (GIVES_AMOUNT). A target whose links were cancelled shows its
 ## effect alone; words that are no amount (a reset's WASTED) go before "to".
 const GIVES_TEXT := "to %s"
-const GIVES_EFFECT := "%s · %s %s %s"
 const GIVES_AMOUNT := "+%d€"
 const GIVES_NAMES := 3
 const GIVES_MANY := "%d items"
@@ -138,12 +139,17 @@ var _framed: bool = false
 ## (null for none); the first `gives` lines are "gives" lines, one per target, and `collapsed` (with
 ## `collapsed_mini`) the one GIVES_MANY row the monitor shows instead when the scan would not fit
 ## on one page ("" with fewer than two); `given` a coupon's contribution, its "+N€"
-## (PlanningModel.contribution; 0 for a product), PR #138 round 7.
+## (PlanningModel.contribution; 0 for a product), PR #138 round 7; `equations`, each line's
+## equation shown under it (a "gives" line's, GivesRow.equation; "" for none), v1.11.
 class ItemLines:
 	extends RefCounted
 
 	var payout: int = -1
+	## The quiet note left of the total of an item whose payout was copied ("Copied by Repeat",
+	## MonitorText.copied_by; "" when nothing copied it), the user's point A of 2026-11-05.
+	var copied_by: String = ""
 	var lines: PackedStringArray = PackedStringArray()
+	var equations: PackedStringArray = PackedStringArray()
 	var fizzles: Array[bool] = []
 	var harms: Array[bool] = []
 	var minis: Array[Texture2D] = []
@@ -154,11 +160,13 @@ class ItemLines:
 
 
 ## One "gives" row (gives_rows): its `line` (text and amount, ReceiptView.joined_line), its
-## `target` slot (-1 for the GIVES_MANY row) and what it added there, `gain` (0 when cancelled).
+## `equation` under it ("" for none), its `target` slot (-1 for the GIVES_MANY row) and what it
+## added there, `gain` (0 when cancelled).
 class GivesRow:
 	extends RefCounted
 
 	var line: String = ""
+	var equation: String = ""
 	var target: int = -1
 	var gain: int = 0
 
@@ -346,8 +354,10 @@ func item_lines(slot: int) -> ItemLines:
 	if _result == null or slot < 0 or slot >= _result.payouts.size():
 		return shown
 	shown.payout = _result.payouts[slot]
+	shown.copied_by = MonitorText.copied_by(PlanningModel.copied_by(_result, slot, _names))
 	for row: GivesRow in gives_rows(_result, slot, _names, gives_arrow()):
 		shown.lines.append(row.line)
+		shown.equations.append(row.equation)
 		shown.fizzles.append(false)
 		shown.harms.append(false)
 		# The target's own mini (the friend's "[item icon] to item"); the many row's, the giver's.
@@ -369,6 +379,7 @@ func item_lines(slot: int) -> ItemLines:
 				else ReceiptView.step_line(step, _names, _upgrade_names, _inspection_names)
 			)
 		)
+		shown.equations.append("")
 		shown.fizzles.append(fizzle)
 		shown.harms.append(CountUpPlan.is_harmful(_result.steps, _result.steps.find(step)))
 		shown.minis.append(_giver_mini(step))
@@ -404,7 +415,8 @@ func _own_mini(slot: int) -> Texture2D:
 ## The "gives" rows of the belt item at `slot` in `result` (see GIVES_TEXT; `names` are the row's
 ## names, `arrow` GIVES_ARROW or its fallback), none when it gives nothing: one per target up to
 ## `most`, past it the one GIVES_MANY row. Every number is the rail strip's (PlanningModel.strip_of:
-## the score's steps).
+## the score's steps). A copy of its payout (Repeat's) is no "gives" row: its copier's scan says
+## it, and its own scan has the quiet "Copied by" note (ItemLines.copied_by; point A, 2026-11-05).
 static func gives_rows(
 	result: ScoreResult,
 	slot: int,
@@ -416,16 +428,22 @@ static func gives_rows(
 	var strip: RailStripSpec = PlanningModel.strip_of(result, slot, names)
 	if strip == null:
 		return rows
-	if strip.targets.size() > most:
+	var copiers: PackedInt32Array = PlanningModel.copiers(result, slot)
+	var shown: Array[int] = []
+	for index: int in range(strip.targets.size()):
+		if not copiers.has(strip.targets[index]):
+			shown.append(index)
+	if shown.size() > most:
 		var many: GivesRow = GivesRow.new()
-		many.gain = strip.total_gain()
+		for index: int in shown:
+			many.gain += maxi(strip.gains[index], 0)
 		many.line = ReceiptView.joined_line(
-			GIVES_TEXT % (GIVES_MANY % strip.targets.size()),
+			GIVES_TEXT % (GIVES_MANY % shown.size()),
 			GIVES_AMOUNT % many.gain if many.gain > 0 else ""
 		)
 		rows.append(many)
 		return rows
-	for index: int in range(strip.targets.size()):
+	for index: int in shown:
 		var row: GivesRow = GivesRow.new()
 		row.target = strip.targets[index]
 		row.gain = maxi(strip.gains[index], 0)
@@ -441,18 +459,11 @@ static func gives_rows(
 		var text: String = GIVES_TEXT % names[row.target]
 		if not words.is_empty():
 			text = " ".join(words) + " " + text
-		var amount: String = " ".join(effects)
 		if not effects.is_empty() and strip.gains[index] >= 0:
-			amount = (
-				GIVES_EFFECT
-				% [
-					amount,
-					MonitorText.euros(strip.befores[index]),
-					arrow,
-					MonitorText.euros(strip.afters[index])
-				]
+			row.equation = MonitorText.equation(
+				strip.befores[index], effects, strip.afters[index], arrow
 			)
-		row.line = ReceiptView.joined_line(text, amount)
+		row.line = ReceiptView.joined_line(text, " ".join(effects))
 		rows.append(row)
 	return rows
 

@@ -492,7 +492,7 @@ func test_step_lines_word_bonuses_amount_first() -> void:
 	assert_str(ReceiptView.step_line(upgrade, names, upgrades)).is_equal("×2 Slot engine")
 	var copy: ScoreStep = _step(ScoreStep.StepType.COPY, "Repeat")
 	copy.linked_slot = 1
-	assert_str(ReceiptView.step_line(copy, names)).is_equal("+2€ Repeat: copy of Bread")
+	assert_str(ReceiptView.step_line(copy, names)).is_equal("Copied from Bread  2€")
 	var wasted: ScoreStep = _step(ScoreStep.StepType.WASTED, "Coffee bonus")
 	wasted.reason = "no Breakfast item after it"
 	assert_str(ReceiptView.step_line(wasted, names)).is_equal(

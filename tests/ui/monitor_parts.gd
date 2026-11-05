@@ -171,7 +171,8 @@ static func amounts_aligned(lines: Array[Control]) -> PackedStringArray:
 
 ## `amount`'s ink as drawn (global, from its glyphs' own bitmaps, TextServer): x its last glyph's
 ## ink right edge, y its last digit's ink right edge (NAN with none), z its baseline's offset under
-## its line's last text line's top (its row's height less a pitch). Its text is one line,
+## its line's last text line's top (its row's height less a pitch, and less its equation's line,
+## v1.11). Its text is one line,
 ## right-aligned and top-aligned in its box.
 static func amount_ink(amount: Label) -> Vector3:
 	var font: Font = amount.get_theme_font("font")
@@ -198,6 +199,8 @@ static func amount_ink(amount: Label) -> Vector3:
 		pen += float(glyph["advance"])
 	var row: Control = amount.get_parent() as Control
 	var line_top: float = row.size.y - MonitorStepRow.ROW_PITCH
+	if row.get_node_or_null("Equation") != null:
+		line_top -= MonitorStepRow.ROW_PITCH
 	return Vector3(
 		ink_right, digit_right, amount.position.y - line_top + font.get_ascent(font_size)
 	)
@@ -260,9 +263,6 @@ static func _leader(row: Control) -> PackedStringArray:
 		return found
 	var lines: int = maxi(roundi(text.size.y / MonitorStepRow.ROW_PITCH), 1)
 	var name_end: float = text.position.x + MonitorLeader.last_line_width(text, lines)
-	var note: Label = row.get_node_or_null("FromBag") as Label
-	if note != null:
-		name_end = note.position.x + MonitorStepRow.text_width(note)
 	var digits: float = amount.position.x + amount.size.x - MonitorStepRow.text_width(amount)
 	if span.x <= name_end or span.y >= digits or fmod(span.x, 2.0) != 0.0:
 		found.append(
@@ -381,12 +381,16 @@ static func gives_of(
 	return given
 
 
-## The "gives" row a multiplier from `giver` to `slot` in `result` reads (PR #138 round 7): "to
-## <target>  <effect> · <before>€ → <after>€", its before and after the target's running values
-## around that step in the steps (the value-carrying steps', EffectGraph.VALUE_STEPS).
-static func gives_line(
-	target: String, effect: String, result: ScoreResult, giver: int, slot: int
-) -> String:
+## The "gives" row a multiplier from `giver` reads (PR #138 round 7; v1.11: its effect alone):
+## "to <target>  <effect>".
+static func gives_line(target: String, effect: String) -> String:
+	return ReceiptView.joined_line(ScanController.GIVES_TEXT % target, effect)
+
+
+## The equation under the "gives" row of a multiplier `effect` ("×2") from `giver` to `slot` in
+## `result` (v1.11): "<before>€ × <n> = <after>€", its before and after the target's running
+## values around that step in the steps (the value-carrying steps', EffectGraph.VALUE_STEPS).
+static func gives_equation(effect: String, result: ScoreResult, giver: int, slot: int) -> String:
 	var running: int = -1
 	var was: int = -1
 	var now: int = -1
@@ -402,11 +406,7 @@ static func gives_line(
 			was = running
 			now = step.value_after
 		running = step.value_after
-	var amount: String = (
-		ScanController.GIVES_EFFECT
-		% [effect, MonitorText.euros(was), ScanController.gives_arrow(), MonitorText.euros(now)]
-	)
-	return ReceiptView.joined_line(ScanController.GIVES_TEXT % target, amount)
+	return "%s × %s = %s" % [MonitorText.euros(was), effect.substr(1), MonitorText.euros(now)]
 
 
 ## When the scan of the giver at `slot` shows its one collapsed "gives" row (`texts` first; the

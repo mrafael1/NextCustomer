@@ -635,6 +635,7 @@ func _on_beat_started(
 		if opened != null:
 			var given: int = _count_up.contribution(beat.scan_slot) if opened.is_coupon() else 0
 			_items.start_item(opened, _tags_of(beat.scan_slot), true, given)
+			_items.payout_view().set_note(_count_up.copied_note(beat.scan_slot))
 	if step.slot != _scanned or _scanned < 0:
 		return
 	if _shows_line(beat) or beat.kind == CountUpBeat.Kind.ARMED:
@@ -645,13 +646,15 @@ func _on_beat_started(
 		var from_bag: bool = (
 			step.source_kind == ScoreStep.SourceKind.CARD and _bagged.has(step.card_giver_slot())
 		)
+		var giver: CardDefinition = _definition_of(step.card_giver_slot()) if from_bag else null
 		var line_shown: Callable = _items.show_step.bind(
 			shown,
 			fizzle,
 			beat.kind == CountUpBeat.Kind.ARMED,
 			_giver_mini(step),
 			from_bag,
-			beat.harmful
+			beat.harmful,
+			giver.display_name if giver != null else ""
 		)
 		_show_line_in_beat(beat, line_shown)
 
@@ -746,15 +749,18 @@ func _show_last_item(plan: CountUpPlan, result: ScoreResult, line_of: Callable) 
 	var definition: CardDefinition = _definition_of(slot)
 	if definition == null or slot >= result.payouts.size():
 		return
-	var given: int = 0
-	if definition.is_coupon():
-		var names: PackedStringArray = PackedStringArray()
-		for view: CardView in _views:
-			names.append(
-				view.card.definition.display_name if view != null and view.card != null else ""
-			)
-		given = PlanningModel.contribution(result, slot, names)
+	var names: PackedStringArray = PackedStringArray()
+	for view: CardView in _views:
+		names.append(
+			view.card.definition.display_name if view != null and view.card != null else ""
+		)
+	var given: int = (
+		PlanningModel.contribution(result, slot, names) if definition.is_coupon() else 0
+	)
 	_items.start_item(definition, _tags_of(slot), false, given)
+	_items.payout_view().set_note(
+		MonitorText.copied_by(PlanningModel.copied_by(result, slot, names))
+	)
 	var last: ScoreStep = null
 	for beat: CountUpBeat in plan.beats:
 		var step: ScoreStep = result.steps[beat.steps[0]]

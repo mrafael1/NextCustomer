@@ -18,6 +18,9 @@ var tip_more: String = ""
 ## The tooltip opens below `tip_anchor` (a rail or shelf ticket), else above the target.
 var tip_below: bool = false
 var tip_anchor: Control
+## Its tip still shows while GlyphTips is `blocked` (the count-up): a monitor count row's bag glyph
+## (v1.11), which only shows during the count.
+var shows_while_blocked: bool = false
 
 
 func _init() -> void:
