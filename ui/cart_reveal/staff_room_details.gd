@@ -1,6 +1,7 @@
 class_name StaffRoomDetails
 extends Control
-## Small staff-room drawings live on their own canvas: the dial, or lanyard and trolley.
+## Small staff-room drawings live on their own canvas: the dial, or the lanyard (the trolley under
+## the bench went in v1.01).
 
 var is_clock: bool = false
 
@@ -23,14 +24,3 @@ func _draw() -> void:
 	draw_rect(Rect2(140, 152, 18, 6), Palette.BRASS)
 	draw_line(Vector2(146, 158), Vector2(130, 180), Palette.TEAL_LIGHT, 4.0)
 	draw_line(Vector2(150, 158), Vector2(170, 180), Palette.TEAL_LIGHT, 4.0)
-	draw_rect(Rect2(270, 600, 568, 60), Palette.RUBBER_DARK)
-	for x: int in range(272, 838, 6):
-		draw_line(Vector2(x, 608), Vector2(x, 660), Palette.STEEL_DARK, 2.0)
-	for y: int in range(608, 662, 6):
-		draw_line(Vector2(272, y), Vector2(840 - (y - 608) * 0.4, y), Palette.STEEL_DARK, 2.0)
-	draw_rect(Rect2(268, 632, 574, 4), Palette.STEEL_LIGHT)
-	draw_rect(Rect2(276, 658, 540, 4), Palette.STEEL)
-	draw_circle(Vector2(302, 670), 8.0, Palette.INK)
-	draw_circle(Vector2(806, 670), 8.0, Palette.INK)
-	draw_circle(Vector2(302, 670), 4.0, Palette.STEEL)
-	draw_circle(Vector2(806, 670), 4.0, Palette.STEEL)

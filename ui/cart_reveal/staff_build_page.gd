@@ -1,8 +1,9 @@
 class_name StaffBuildPage
 extends Control
 ## YOUR BUILD as v4 B's staff room (full build plan 7.2): lockers, the bench's three crates (each
-## with its strategy line and an example row), NEW PACKS under the sign, the order sheet (the
-## cart overview, the picked pack's lines highlighted) and the time clock.
+## its three items, name and family; v1.01 dropped the strategy line, prices and example row),
+## the mustard NEW PACKS under the sign, the order sheet (the cart overview, the picked pack's
+## lines highlighted) and the time clock.
 
 signal pick_requested(index: int)
 signal preview_requested(index: int)
@@ -12,6 +13,35 @@ signal new_packs_requested
 
 const PICK_TITLE := "PICK A STARTER PACK"
 const PICKED_TITLE := "YOUR STARTER PACK"
+## The crates on the bench: CRATE_LEFT, then a crate every CRATE_STEP px; their tops at CRATE_TOP
+## (a picked or hovered crate CRATE_LIFT px higher), their bottoms on the bench.
+const CRATE_LEFT := 20.0
+const CRATE_STEP := 284.0
+const CRATE_TOP := 340.0
+const CRATE_LIFT := 6.0
+## The right column: the wall right of the room's teal divider (StaffRoomArt art px 442) to the
+## stage's edge. The order sheet and the time clock share its centre, COLUMN_MARGIN px in from
+## each side, the clock COLUMN_MARGIN px under the sheet and over the stage's foot.
+const COLUMN_LEFT := 884.0
+const COLUMN_MARGIN := 8.0
+const ORDER_POSITION := Vector2(892, 70)
+## The time clock (stage px) and its parts (clock px): the brass header (HEADER_INSET px in), the
+## card slot, the IN card's size and rest height (a punch lifts it CARD_PUNCH px), and OPEN STORE;
+## the slot and the key share one row, CLOCK_PAD px clear of the header and the frame's inset.
+const CLOCK_RECT := Rect2(892, 582, 380, 130)
+const HEADER_INSET := 4.0
+const HEADER_HEIGHT := 32.0
+const CLOCK_PAD := 10.0
+const CARD_SLOT := Rect2(14, 46, 48, 70)
+const CARD_SIZE := Vector2(32, 62)
+const CARD_Y := 50.0
+const CARD_PUNCH := 10.0
+const OPEN_KEY_RECT := Rect2(72, 46, 294, 70)
+## The clock's dial (clock px), as far in from the header's right end as the title from its left.
+const DIAL_SIZE := 30.0
+## NEW PACKS: a mustard key with ink words (feedback 2026-11-05: the teal one did not read as a
+## button on the teal lockers).
+const NEW_PACKS_RECT := Rect2(676, 280, 154, 38)
 
 var crates: Array[PackCrate] = []
 var order: OrderSheet
@@ -59,38 +89,61 @@ func _init() -> void:
 	_answer.name = "Answer"
 	_answer.add_theme_font_override("font", ArtStyle.bold_font(700))
 	new_packs_key = StartBoardKit.key(
-		self, "NEW PACKS", Rect2(676, 280, 154, 36), func() -> void: new_packs_requested.emit()
+		self, "NEW PACKS", NEW_PACKS_RECT, func() -> void: new_packs_requested.emit()
 	)
 	new_packs_key.name = "NewPacks"
+	_mustard(new_packs_key)
 	_pins = Control.new()
 	add_child(_pins)
 	_recap = Control.new()
 	add_child(_recap)
 	order = OrderSheet.new()
-	order.position = Vector2(876, 70)
+	order.position = ORDER_POSITION
 	_recap.add_child(order)
-	_clock = StartBoardKit.panel(self, Rect2(890, 584, 374, 128), Palette.STEEL_PALE)
-	StartBoardKit.panel(_clock, Rect2(4, 4, 366, 30), Palette.BRASS)
-	StartBoardKit.words(_clock, "TIME CLOCK", Rect2(18, 4, 210, 28), Palette.MUSTARD_PALE)
+	_clock = StartBoardKit.panel(self, CLOCK_RECT, Palette.STEEL_PALE)
+	_clock.name = "TimeClock"
+	var header: Rect2 = Rect2(
+		HEADER_INSET, HEADER_INSET, CLOCK_RECT.size.x - 2 * HEADER_INSET, HEADER_HEIGHT
+	)
+	StartBoardKit.panel(_clock, header, Palette.BRASS).name = "ClockHeader"
+	var clock_title: Label = StartBoardKit.words(
+		_clock,
+		"TIME CLOCK",
+		Rect2(header.position.x + CLOCK_PAD, header.position.y + 2, 210, 26),
+		Palette.MUSTARD_PALE
+	)
+	clock_title.name = "ClockTitle"
 	_dial = StaffRoomDetails.new(true)
-	_dial.position = Vector2(320, 4)
-	_dial.size = Vector2(30, 30)
+	_dial.name = "Dial"
+	_dial.position = Vector2(
+		header.end.x - CLOCK_PAD - DIAL_SIZE, header.position.y + (HEADER_HEIGHT - DIAL_SIZE) / 2
+	)
+	_dial.size = Vector2.ONE * DIAL_SIZE
 	_dial.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_clock.add_child(_dial)
-	StartBoardKit.panel(_clock, Rect2(14, 46, 38, 70), Palette.CHARCOAL)
+	# The card rack: the IN card stands in its slot, its teal IN head clear of the slot's lip.
+	var rack: Panel = StartBoardKit.panel(_clock, CARD_SLOT, Palette.CHARCOAL)
+	rack.name = "CardSlot"
 	_time_card = Control.new()
-	_time_card.position = Vector2(20, 54)
-	_time_card.size = Vector2(26, 60)
+	_time_card.name = "TimeCard"
+	_time_card.position = Vector2(CARD_SLOT.position.x + 8, CARD_Y)
+	_time_card.size = CARD_SIZE
 	_time_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_clock.add_child(_time_card)
-	StartBoardKit.panel(_time_card, Rect2(0, 0, 26, 60), Palette.CREAM)
-	StartBoardKit.words(_time_card, "IN", Rect2(0, -6, 26, 24), Palette.TEAL)
+	StartBoardKit.panel(_time_card, Rect2(Vector2.ZERO, CARD_SIZE), Palette.CREAM)
+	var head: Rect2 = Rect2(0, 0, CARD_SIZE.x, 22)
+	StartBoardKit.panel(_time_card, head, Palette.TEAL)
+	var in_word: Label = StartBoardKit.tag(_time_card, "IN", head.grow(-2), Palette.PAPER, 2, true)
+	in_word.name = "In"
 	for index: int in 4:
 		StartBoardKit.panel(
-			_time_card, Rect2(4, 24 + index * 8, 18, 2), Palette.CREAM_SHADE, Palette.CREAM_SHADE
+			_time_card,
+			Rect2(6, 28 + index * 8, CARD_SIZE.x - 12, 2),
+			Palette.CREAM_SHADE,
+			Palette.CREAM_SHADE
 		)
 	open_key = StartBoardKit.key(
-		_clock, "OPEN STORE ›", Rect2(72, 44, 288, 74), func() -> void: open_requested.emit(), true
+		_clock, "OPEN STORE ›", OPEN_KEY_RECT, func() -> void: open_requested.emit(), true
 	)
 	open_line = StartBoardKit.subtitle(open_key, "")
 	open_line.name = "OpenLine"
@@ -140,7 +193,7 @@ func show_build(
 	var key_label: Label = StartBoardKit.key_caption(open_key)
 	key_label.text = "PICK A PACK FIRST" if selected < 0 else "OPEN STORE ›"
 	UiKit.use_pixel_text(key_label, 2 if selected < 0 else 4)
-	var room: Rect2 = Rect2(8, 4, 272, open_key.size.y - 30)
+	var room: Rect2 = Rect2(8, 4, open_key.size.x - 16, open_key.size.y - 30)
 	UiKit.place_pixel_label(key_label, room, true)
 	StartBoardKit.centre(key_label, room)
 	key_label.add_theme_color_override(
@@ -174,7 +227,7 @@ func show_build(
 	new_packs_key.tooltip_text = StartReasons.new_packs(packs_reason)
 	var packs_caption: Label = StartBoardKit.key_caption(new_packs_key)
 	packs_caption.add_theme_color_override(
-		"font_color", Palette.INK_LIGHT if new_packs_key.disabled else Palette.PAPER
+		"font_color", Palette.INK_LIGHT if new_packs_key.disabled else Palette.INK
 	)
 
 
@@ -287,10 +340,25 @@ func _show_pins(run: StartBuildView) -> void:
 
 func punch() -> Tween:
 	var tween: Tween = create_tween()
-	tween.tween_property(_time_card, "position:y", 44.0, 0.1)
+	tween.tween_property(_time_card, "position:y", CARD_Y - CARD_PUNCH, 0.1)
 	tween.tween_interval(0.12)
-	tween.tween_property(_time_card, "position:y", 60.0, 0.08)
+	tween.tween_property(_time_card, "position:y", CARD_Y, 0.08)
 	return tween
+
+
+## Restyles `key` in mustard (lighter under the pointer, darker pressed; steel when disabled).
+static func _mustard(key: Button) -> void:
+	var faces: Dictionary = {
+		"normal": Palette.MUSTARD,
+		"hover": Palette.MUSTARD_LIGHT,
+		"pressed": Palette.MUSTARD_DARK,
+		"disabled": Palette.STEEL_PALE,
+	}
+	for state: String in faces:
+		var style: StyleBoxFlat = (key.get_theme_stylebox(state) as StyleBoxFlat).duplicate()
+		style.bg_color = faces[state]
+		key.add_theme_stylebox_override(state, style)
+	StartBoardKit.key_caption(key).add_theme_color_override("font_color", Palette.INK)
 
 
 ## Builds the crates for the offer's packs (again after NEW PACKS changed them).
@@ -306,7 +374,7 @@ func _ensure_crates(offer: StartOffer, reduced: bool) -> void:
 		for index: int in offer.packs.size():
 			var offered: StarterPackDefinition = offer.packs[index]
 			var crate: PackCrate = PackCrate.new(offered, index, offered == offer.first_pick)
-			crate.position = Vector2(24 + index * 280, 360)
+			crate.position = Vector2(CRATE_LEFT + index * CRATE_STEP, CRATE_TOP)
 			crate.reduced = reduced
 			add_child(crate)
 			crates.append(crate)
@@ -318,5 +386,7 @@ func _show_crates(selected: int, preview: int) -> void:
 	for index: int in crates.size():
 		var crate: PackCrate = crates[index]
 		crate.hovered = preview == index
-		crate.position.y = 354 if index == selected or preview == index else 360
+		crate.position.y = (
+			CRATE_TOP - CRATE_LIFT if index == selected or preview == index else CRATE_TOP
+		)
 		crate.show_state(index == selected, selected >= 0)
