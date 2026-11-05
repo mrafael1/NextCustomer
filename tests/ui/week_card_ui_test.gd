@@ -381,6 +381,10 @@ func test_the_card_waits_for_the_upgrade_swap() -> void:
 	assert_bool(machine.is_swapping()).is_false()
 	await _frames(3)
 	assert_bool(screen._week.card.is_open()).is_true()
+	# Skip the slide-in so the rect is settled however long the frames took (a busy batch run).
+	screen._week.card.finish()
+	await _frames(1)
+	assert_bool(screen._week.card.is_open()).is_true()
 	(
 		assert_bool(screen.get_global_rect().encloses(screen._week.card.card().get_global_rect()))
 		. is_true()
