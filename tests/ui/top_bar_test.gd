@@ -8,7 +8,11 @@ extends GdUnitTestSuite
 ## quota_meter_test); the menu opens under its button
 ## with Export log, drawn sharp, which closes it and says so; Cart's trolley sits left of its
 ## caption inside the button and the menu's bars in its middle; the chips' decor takes no clicks.
-## Its place on the screen: shift_screen_layout_test.
+## Its place on the screen: shift_screen_layout_test. The week chip's lettering (v1.10) is
+## checked here; its layout in week_card_ui_test.
+
+const BALANCE := "res://data/balance/balance.tres"
+const STARTER := "res://data/decks/starter.tres"
 
 
 func test_the_quota_gauge_follows_the_led() -> void:
@@ -177,6 +181,56 @@ func test_the_bar_has_no_spend_chip() -> void:
 	assert_int(spacer.size_flags_horizontal).is_equal(Control.SIZE_EXPAND_FILL)
 	assert_int(spacer.get_index()).is_less(bar.deck_button.get_index())
 	assert_float(bar.menu_button.get_rect().end.x).is_equal_approx(TopBar.ROW_SIZE.x, 0.5)
+
+
+## One lettering (v1.10, the user's review of 2026-11-05): "W :", "/4" and the week's name use the
+## week's number's font, in paper, smaller and quieter (a thin ink outline, no drop) than the
+## number, which stays the largest, outlined widest, dropped and in its week's ink; the parts'
+## outlines stay clear of the number's (no merged ink), all on whole pixels at 1920x1080's 1.5x.
+func test_the_chip_letters_its_words_as_its_number() -> void:
+	var chip: WeekChip = auto_free(WeekChip.new())
+	add_child(chip)
+	var balance: BalanceDefinition = load(BALANCE)
+	var run: RunState = RunState.new(43, load(STARTER), balance, RunStock.starting(balance))
+	run.start_shift()
+	chip.show_week(WeekCardModel.of(run))
+	await _frames(2)
+	var number: Label = chip.number_label()
+	var number_size: int = number.get_theme_font_size("font_size")
+	var number_outline: int = number.get_theme_constant("outline_size")
+	var drop: int = number.get_theme_constant("shadow_offset_y")
+	assert_int(number_size).is_equal(WeekChip.NUMBER_SIZE)
+	assert_int(number_outline).is_equal(WeekChip.NUMBER_OUTLINE)
+	assert_object(number.get_theme_color("font_color")).is_equal(WeekChip.number_ink(1))
+	assert_float(fmod(drop * 1.5, 1.0)).is_equal(0.0)
+	assert_str(chip.name_label().text).is_equal("TRAINING")
+	for part: Label in [chip.key_label(), chip.count_label(), chip.name_label()]:
+		assert_object(part.get_theme_font("font")).override_failure_message(part.name).is_same(
+			number.get_theme_font("font")
+		)
+		assert_object(part.get_theme_color("font_color")).is_equal(Palette.PAPER)
+		assert_object(part.get_theme_color("font_outline_color")).is_equal(Palette.INK)
+		# No drop: only the number casts one.
+		assert_float(part.get_theme_color("font_shadow_color").a).is_equal(0.0)
+		var outline: int = part.get_theme_constant("outline_size")
+		assert_int(outline).is_equal(WeekChip.SMALL_OUTLINE)
+		assert_float(fmod(outline * 1.5, 1.0)).is_equal(0.0)
+		# Quiet: at most half the number's outline.
+		assert_int(outline * 2).is_greater(0).is_less_equal(number_outline)
+		var part_size: int = part.get_theme_font_size("font_size")
+		assert_int(part_size).is_equal(WeekChip.SMALL_SIZE).is_less(number_size)
+		assert_vector(part.scale).is_equal(Vector2.ONE)
+		assert_float(part.get_minimum_size().y).is_less(number.get_minimum_size().y)
+	# The outlines stay apart: each part's text grown by half its outline, the number's by half its
+	# own, leave at least a canvas pixel of the chip between them.
+	var inked: Rect2 = number.get_rect().grow(number_outline / 2.0 + 1.0)
+	for part: Label in [chip.key_label(), chip.count_label()]:
+		var outline: float = part.get_theme_constant("outline_size") / 2.0
+		(
+			assert_bool(part.get_rect().grow(outline).intersects(inked))
+			. override_failure_message("%s's outline meets the number's" % part.name)
+			. is_false()
+		)
 
 
 func _frames(count: int) -> void:

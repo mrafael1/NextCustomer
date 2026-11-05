@@ -19,15 +19,22 @@ extends PanelContainer
 ## no room on crowded days): "/4" says the run's length. The pips are drawn in whole screen pixels
 ## (pip_metrics): at the 1920x1080 window's 1.5x stretch each is 13 px with a 3 px gap and its
 ## glyph's pixels one screen pixel each, so every pip, gap and stroke is the same size.
+## One lettering (v1.10, the user's review of 2026-11-05): "W :", "/4" and the week's name are
+## lettered in the week's number's font, in paper, smaller (SMALL_SIZE) and quieter: a thin ink
+## outline (SMALL_OUTLINE) and no drop, KEY_GAP clear of the number's outline, so the number stays
+## the one that stands out (big, in its week's ink, outlined wide and dropped). The pips stay
+## quiet.
 
 signal pressed
 
-## "W :", the week's number and "/4" (the run's week count), KEY_GAP px apart (clear of the
-## number's ink outline).
-## The number is the chip's big one (NUMBER_SIZE), "W :" and "/4" smaller (SMALL_SIZE), so the
-## chip stays as narrow as v1.02's "W2/4" bar a few px and the review day's chip keeps its words.
+## "W :", the week's number and "/4" (the run's week count), KEY_GAP px apart: half the
+## number's outline plus half the small outline plus 2 px, so their outlines never touch and the
+## number's stands alone.
+## The number is the chip's big one (NUMBER_SIZE), "W :", "/4" and the name smaller (SMALL_SIZE,
+## outlined SMALL_OUTLINE px, no drop), so the chip stays narrow and the review day's chip keeps
+## its words.
 const KEY_TEXT := "W :"
-const KEY_GAP := 3
+const KEY_GAP := 7
 const WEEK_TEXT := "%d"
 const NUMBER_SIZE := 20
 const SMALL_SIZE := 15
@@ -45,14 +52,13 @@ const NUMBER_INKS: Array[Color] = [
 ]
 const NUMBER_OUTLINE := 8
 const NUMBER_DROP := 2
+## The small lettering's outline: thin (a quarter of the number's), with no drop, so the words
+## read as quiet paper type beside the number's heavy ink sticker (v1.10 review: at the number's
+## weight they buried it). Whole pixels at the 1.5x stretch (3 screen px).
+const SMALL_OUTLINE := 2
 ## An ink too dark on the ink outline (WCAG contrast under DARK_INK_CONTRAST: the velvet's 4,
 ## v1.02 review) is outlined in paper instead, a sticker on the chip, its drop still ink.
 const DARK_INK_CONTRAST := 3.0
-## The week's name in the display font's hard pixels (UiKit.pixel_label), NAME_SCALE px per font
-## px: on the art's grid, 3 screen px per font px and 21 px capitals at 1920x1080 (mock-up
-## shift_scene_polish_v4 D; Pixelify Sans at 13 or 15 px put a font pixel on 1.8 or 2.1 screen
-## pixels, so its strokes thinned and wobbled).
-const NAME_SCALE := 2
 ## The pips: 9 px squares (v0.83: 1.5x the mock-up's 6 px, easier to read), 2 px apart, on whole
 ## pixels; today's has an ink ring. The chip's padding is narrower than the other chips'
 ## (PADDING): the bar has little room left (v4's D: 8 to 6, and its gaps 6 to 4, for the bigger
@@ -117,9 +123,8 @@ var hold_result: bool = false
 var _key: Label
 var _number: Label
 var _count: Label
-## The name's hard pixel label, in a box as big as its words (the label is drawn scaled).
+## The week's short name, lettered as "W :" and "/4".
 var _name: Label
-var _name_box: Control
 var _pips_view: Control
 var _pips: Array[WeekCardModel.Pip] = []
 var _ringed: bool = false
@@ -146,30 +151,18 @@ func _init() -> void:
 	number_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	number_row.add_theme_constant_override("separation", KEY_GAP)
 	row.add_child(number_row)
-	_key = _paper_number(KEY_TEXT, SMALL_SIZE)
+	_key = _lettered(KEY_TEXT, SMALL_SIZE, SMALL_OUTLINE, 0)
 	_key.name = "Key"
 	number_row.add_child(_key)
-	_number = _paper_number("", NUMBER_SIZE)
+	_number = _lettered("", NUMBER_SIZE, NUMBER_OUTLINE, NUMBER_DROP)
 	_number.name = "Number"
-	_number.add_theme_constant_override("outline_size", NUMBER_OUTLINE)
-	_number.add_theme_color_override("font_outline_color", Palette.INK)
-	_number.add_theme_constant_override("shadow_outline_size", NUMBER_OUTLINE)
-	_number.add_theme_constant_override("shadow_offset_x", 0)
-	_number.add_theme_constant_override("shadow_offset_y", NUMBER_DROP)
-	_number.add_theme_color_override("font_shadow_color", Palette.INK)
 	number_row.add_child(_number)
-	_count = _paper_number("", SMALL_SIZE)
+	_count = _lettered("", SMALL_SIZE, SMALL_OUTLINE, 0)
 	_count.name = "Count"
 	number_row.add_child(_count)
-	_name_box = Control.new()
-	_name_box.name = "NameBox"
-	_name_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_name_box.resized.connect(_place_name)
-	row.add_child(_name_box)
-	_name = UiKit.pixel_label("", NAME_SCALE, Palette.PAPER)
+	_name = _lettered("", SMALL_SIZE, SMALL_OUTLINE, 0)
 	_name.name = "Name"
-	_name.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_name_box.add_child(_name)
+	row.add_child(_name)
 	_pips_view = Control.new()
 	_pips_view.name = "Pips"
 	_pips_view.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -182,9 +175,20 @@ func _init() -> void:
 	set_process(false)
 
 
-static func _paper_number(text: String, font_size: int) -> Label:
+## The chip's lettering: the number font at `font_size` in paper, outlined `outline` px in ink with
+## an ink drop `drop` px down (none at 0; show_week recolours the number's ink and outline).
+static func _lettered(text: String, font_size: int, outline: int, drop: int) -> Label:
 	var label: Label = UiKit.number_label(text, font_size, false)
 	label.add_theme_color_override("font_color", Palette.PAPER)
+	label.add_theme_constant_override("outline_size", outline)
+	label.add_theme_color_override("font_outline_color", Palette.INK)
+	if drop > 0:
+		label.add_theme_constant_override("shadow_outline_size", outline)
+		label.add_theme_constant_override("shadow_offset_x", 0)
+		label.add_theme_constant_override("shadow_offset_y", drop)
+		label.add_theme_color_override("font_shadow_color", Palette.INK)
+	else:
+		label.add_theme_color_override("font_shadow_color", Color(Palette.INK, 0.0))
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	return label
 
@@ -217,9 +221,7 @@ func show_week(model: WeekCardModel) -> void:
 	_count.text = model.count_text()
 	_count.visible = model.week_count > 1
 	_name.text = model.chip_name()
-	_name_box.custom_minimum_size.x = UiKit.pixel_text_size(_name).x
-	_name_box.visible = not _name.text.is_empty()
-	_place_name()
+	_name.visible = not _name.text.is_empty()
 	_pips = model.pips()
 	if hold_result:
 		_hold_last_result()
@@ -235,11 +237,11 @@ func show_week(model: WeekCardModel) -> void:
 
 ## Shows the short name, or hides it when the bar has no room (TopBar.fit_inspection).
 func show_name(shown: bool) -> void:
-	_name_box.visible = shown and not _name.text.is_empty()
+	_name.visible = shown and not _name.text.is_empty()
 
 
 func name_shown() -> bool:
-	return _name_box.visible
+	return _name.visible
 
 
 ## Shows the pips, or hides them when the bar has no room even without the name
@@ -284,11 +286,6 @@ func pips_view() -> Control:
 ## The pips shown, in order.
 func pips() -> Array[WeekCardModel.Pip]:
 	return _pips.duplicate()
-
-
-## The name's capitals centred on the chip's height, on the art's grid.
-func _place_name() -> void:
-	UiKit.place_pixel_label(_name, Rect2(Vector2.ZERO, _name_box.size), true)
 
 
 ## Shows the last result pip, today's, as today's until flash() lights it.
