@@ -80,8 +80,9 @@ extends Control
 ## With `--slip[=<inspection id>|none]` (2026-10-31) the day chip's slip (DaySlip: today's events
 ## and where they touch the belt) hangs under the chip on the fixed shift, under that day event
 ## (default the fixed shift's, `none` a plain day); the file is
-## shift_screen_slip_<id>_<width>x<height>.png.
-## With `--at-shift=<n>` or `--results=<won|lost>` (v0.95), see CaptureWeeks.
+## shift_screen_slip_<id>_<width>x<height>.png. `--redraws=` and `--notice=` (CaptureStates) set
+## the Redraw key's count and a monitor notice.
+## With `--at-shift=<n>` or `--results=<won|lost>` (v0.96), see CaptureWeeks.
 
 const SCREEN := preload("res://ui/shift_screen.tscn")
 const SEED := 20261014
@@ -118,7 +119,7 @@ const TIP_ARGUMENT := "--tip="
 ## --stack's shift: planning_layout_test's stress row, with the upgrades it needs.
 const STACK_ARGUMENT := "--stack"
 ## `--row=<card id>,...` (#128): the fixed shift with these cards on the belt (no inspection),
-## the file shift_screen_row_<width>x<height>.png.
+## the file shift_screen_row_<width>x<height>.png. `--monitor=<case>`: CaptureMonitor's cases.
 const ROW_ARGUMENT := "--row="
 const WEEK_ARGUMENT := "--week"
 const WEEK_PREFIX := "week_"
@@ -255,6 +256,10 @@ func _ready() -> void:
 		row_ids.assign(_argument(ROW_ARGUMENT).split(","))
 		_set_up_shift("", row_ids)
 		_stack_part = "row_"
+	elif _argument(CaptureMonitor.ARGUMENT) != "":
+		var case: Dictionary = CaptureMonitor.spec(_argument(CaptureMonitor.ARGUMENT))
+		_set_up_shift(case.get("inspection", ""), case["row"], case["upgrades"])
+		_stack_part = await CaptureMonitor.scan(self, _screen, case)
 	elif stack_spec != "" or OS.get_cmdline_user_args().has(STACK_ARGUMENT):
 		await stack(stack_spec == "fan")
 	elif OS.get_cmdline_user_args().has("--rhythm"):
@@ -300,6 +305,7 @@ func _ready() -> void:
 			if announce_parts.size() > 1 and announce_parts[1].begins_with("shift="):
 				announce_shift = announce_parts[1].trim_prefix("shift=").to_int()
 			await announce(announce_parts[0].to_float(), announce_shift)
+		_stack_part += CaptureStates.apply(_screen, OS.get_cmdline_user_args())
 		await capture(capture_folder)
 		get_tree().quit()
 

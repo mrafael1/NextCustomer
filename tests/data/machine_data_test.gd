@@ -31,7 +31,7 @@ func test_the_balance_uses_the_machine_file() -> void:
 	assert_int(_machine.register_cap).is_equal(3)
 	assert_int(_machine.shelf_min_copies).is_equal(2)
 	# v0.68, Payday: an inspection is only a hurdle; a passed review (shifts 4, 8 and 12 since
-	# v0.95's four weeks; the final review ends the run) pays two PREMIUM tickets.
+	# v0.96's four weeks; the final review ends the run) pays two PREMIUM tickets.
 	assert_bool(_machine.bonus_after_inspection).is_false()
 	assert_bool(_machine.new_arrival_first_visit).is_true()
 	assert_array(Array(_machine.bonus_extra_shifts)).is_equal([4, 8, 12])
@@ -167,7 +167,7 @@ func test_the_rarities_follow_the_approved_table_with_r3b() -> void:
 
 
 ## The shift lists fit the run: each is a shift with a visit after it (1 to shift count - 1). The
-## PREMIUM shifts are the reviews before the last (4, 8 and 12, v0.95), and each shift's odds
+## PREMIUM shifts are the reviews before the last (4, 8 and 12, v0.96), and each shift's odds
 ## level is the approved one (one per shift: week 1 0,0,1,1, week 2 1,2,2,2, week 3 3, week 4 4),
 ## never falling and always a level there is. STAMP DAY is gone.
 func test_the_shift_lists_fit_the_run() -> void:
@@ -175,7 +175,7 @@ func test_the_shift_lists_fit_the_run() -> void:
 	for shifts: PackedInt32Array in [_machine.premium_shifts, _machine.bonus_extra_shifts]:
 		for shift_number: int in shifts:
 			assert_int(shift_number).is_between(1, last)
-	# PREMIUM after the Manager's reviews of weeks 1 to 3 (v0.95; weeks 1 and 2 in v0.65, shifts
+	# PREMIUM after the Manager's reviews of weeks 1 to 3 (v0.96; weeks 1 and 2 in v0.65, shifts
 	# 3, 5 and 7 before).
 	assert_array(Array(_machine.premium_shifts)).is_equal([4, 8, 12])
 	var levels: Array[int] = []

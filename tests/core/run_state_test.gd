@@ -11,7 +11,7 @@ const REPEAT := "res://data/cards/repeat.tres"
 
 func test_balance_matches_the_plan() -> void:
 	var balance: BalanceDefinition = load(BALANCE)
-	# 16 shifts in 4 weeks of 4 since v0.95, refit with the balance simulator and
+	# 16 shifts in 4 weeks of 4 since v0.96, refit with the balance simulator and
 	# tools/quota_fit.py (12 in 3 since v0.65, 8 fitted before, plan v0.28, issue #41).
 	assert_array(Array(balance.quotas)).is_equal(
 		[30, 35, 36, 37, 59, 60, 61, 62, 88, 101, 102, 103, 146, 147, 148, 149]

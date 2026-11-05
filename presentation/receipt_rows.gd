@@ -23,18 +23,6 @@ static func pitch_for(room: float, slots: int) -> float:
 	return minf(MAX_PITCH, floorf(room / float(maxi(slots, 1))))
 
 
-## The lines' inset's bottom margin under the foot: ReceiptView.FRAME_GROW, plus a footer line's
-## room (FOOT_FONT_SIZE and the lines' separation) when `kept` (no footer printed).
-static func foot_margin(lines: VBoxContainer, kept: bool) -> int:
-	var room: float = 0.0
-	if kept:
-		room = (
-			ReceiptView.MONO_FONT.get_height(ReceiptView.FOOT_FONT_SIZE)
-			+ lines.get_theme_constant("separation")
-		)
-	return int(ReceiptView.FRAME_GROW + room)
-
-
 ## Keeps a row's name `label` (or a header line's) to one row: it never wraps, and is cut with an
 ## ellipsis past its width (ReceiptInk's name fit shrinks an item's name first, down to
 ## ReceiptInk.NAME_MIN_FONT_SIZE), so its height is one row's even while it is hidden. It is not

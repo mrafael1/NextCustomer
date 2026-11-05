@@ -235,7 +235,7 @@ func play(run_seed: int) -> SimRunRecord:
 
 ## The quota percent `shift` was played under: its day events' plus its week event's (Rush hour
 ## +10, Holiday rush +15; the simulator wears no pins), as ShiftLimits.for_shift adds them, so
-## tools/quota_fit.py can raise any base quota the way the game does (v0.95).
+## tools/quota_fit.py can raise any base quota the way the game does (v0.96).
 static func quota_percent(balance: BalanceDefinition, shift: ShiftRecord) -> int:
 	var percent: int = 0
 	for event: InspectionDefinition in WeekSchedule.events_for(

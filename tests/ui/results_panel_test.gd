@@ -227,7 +227,7 @@ func test_the_coins_and_their_duck_start_when_the_coin_lines_print() -> void:
 	assert_int(coins[-1] - coins[0]).is_greater_equal((coins.size() - 1) * gap_ms - 20)
 
 
-## A won 16-shift run (v0.95) with the longest names: a ticket after every shift, a payday's
+## A won 16-shift run (v0.96) with the longest names: a ticket after every shift, a payday's
 ## PREMIUM perk after each review but the last, an inspection, a review's two and a boon on their
 ## days by the live schedule, and a starting upgrade. The printed receipt is full (not compact)
 ## in two week columns, weeks 1-2 on the left and 3-4 on the right, each under its header; it fits
@@ -261,7 +261,7 @@ func test_a_full_receipt_fits_the_screen_with_the_card_and_the_coins() -> void:
 		["WEEK 1 · TRAINING", "WEEK 2 · BAKERY", "WEEK 3 · HOLIDAY", "WEEK 4 · CLEARANCE"]
 	)
 	var paper: Rect2 = results.get_global_rect()
-	prints("v0.95 final receipt:", paper, "fit", results._fit)
+	prints("v0.96 final receipt:", paper, "fit", results._fit)
 	assert_bool(SCREEN_RECT.encloses(paper)).is_true()
 	# Below the top bar's height (64 px), the closed store's shutter showing above it.
 	assert_float(paper.position.y).is_greater_equal(64.0)

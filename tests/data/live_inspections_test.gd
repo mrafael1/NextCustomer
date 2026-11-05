@@ -92,7 +92,7 @@ func test_no_live_day_event_grows_the_hand() -> void:
 
 
 ## v0.70's fixed week events: the balance's week list in order (Training week, Bakery festival,
-## Holiday rush, then v0.95's Clearance week), four shifts a week, each a WEEK-tone event with the
+## Holiday rush, then v0.96's Clearance week), four shifts a week, each a WEEK-tone event with the
 ## plan's numbers.
 func test_the_week_events_match_the_plan() -> void:
 	var balance: BalanceDefinition = load(BALANCE)
@@ -107,7 +107,7 @@ func test_the_week_events_match_the_plan() -> void:
 	assert_array(Array(ids)).is_equal(
 		["training_week", "bakery_festival", "holiday_rush", "clearance_week"]
 	)
-	# One week event per week of the run (v0.95: 4 weeks of 4).
+	# One week event per week of the run (v0.96: 4 weeks of 4).
 	assert_int(ids.size()).is_equal(WeekSchedule.week_count(balance))
 	# id: [forgives_slips, quota_percent, odds_level_delta, rules]
 	var cases: Dictionary = {

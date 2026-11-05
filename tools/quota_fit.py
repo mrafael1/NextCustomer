@@ -8,7 +8,7 @@ RECORDS is the run-record file the balance simulator writes with --records (tool
 played with every quota at 0 is, shift for shift, the same run as under any other curve until its
 first failed shift (the run's RNG is used the same way at every passed checkout). This tool
 replays every recorded run under a candidate curve and coin amounts, the way the game plays it
-(v0.95):
+(v0.96):
 - each shift's quota is the curve's base raised by the shift's recorded quota percent (its day
   events' and week event's, e.g. Rush hour +10, Holiday rush +15: ShiftLimits.with_percent's
   rounding, half away from zero, never under 1);
@@ -21,7 +21,7 @@ replays every recorded run under a candidate curve and coin amounts, the way the
 - the coins (CoinPayout): the table by shifts passed (a won run pays its last entry, whatever its
   slips) plus one overtime coin per overtime_coin_euros of summed margin, at most
   overtime_coin_max.
-Records from before v0.95 hold no quota percents and no slip limits: they read as 0 % and no
+Records from before v0.96 hold no quota percents and no slip limits: they read as 0 % and no
 slips, with a warning. A recorded run that ended before the last shift without failing the
 candidate curve was cut by the quotas it was played with, so it can't be replayed; it is counted
 and the curve's numbers are flagged.
@@ -33,7 +33,7 @@ fails the same share of the runs that reach it, set so the run win rate is --win
 shift's quota is the highest whole number that the required share of the runs reaching it still
 meet, and the curve always rises by at least 1 a shift; a shift held at that floor can miss its
 target, and the report warns about it. A miss counts as a fail of its shift, forgiven or not.
-The coins step by completed weeks (v0.95): a lost run that completed w weeks (shifts passed //
+The coins step by completed weeks (v0.96): a lost run that completed w weeks (shifts passed //
 week_length) pays the w-th step, nothing for none, and a won run the records' last table entry;
 of the non-decreasing steps up to it, those meeting the coin targets (the median run pays 1, a
 great run 2-3, 30 unlocks in 25-40 runs) are kept and the one nearest 32.5 runs to 30 unlocks is
@@ -116,7 +116,7 @@ class Run:
     upgrades_taken: list[list[str]]
     # The card ids of each shift's hand at checkout (empty lists in older records).
     hands: list[list[str]] = field(default_factory=list)
-    # Each shift's quota percent from its day and week events (0s in records before v0.95).
+    # Each shift's quota percent from its day and week events (0s in records before v0.96).
     quota_percents: list[int] = field(default_factory=list)
     # The training week's slips the run is replayed with (the records').
     slips: Slips = field(default_factory=lambda: Slips(0, 0))
@@ -131,7 +131,7 @@ class Records:
     scenarios: dict[str, list[Run]]
     slips: Slips = field(default_factory=lambda: Slips(0, 0))
     week_length: int = 0
-    # False for records from before v0.95 (no quota percents, no slip limits).
+    # False for records from before v0.96 (no quota percents, no slip limits).
     current: bool = True
 
 
@@ -340,7 +340,7 @@ def fit_coins(
     runs: list[Run], curve: list[int], overtime_share: float, overtime_max: int,
     won_coins: int = WON_RUN_COINS, week_length: int = 0,
 ) -> CoinRule:
-    """Plan 7.1's coin shape for this curve, stepped by completed weeks (v0.95): a lost run that
+    """Plan 7.1's coin shape for this curve, stepped by completed weeks (v0.96): a lost run that
     completed w weeks (shifts passed // `week_length`; every shift a week when 0) pays step w,
     nothing for none, a won run from MIN_WON_RUN_COINS up to `won_coins` (the records' amount);
     the steps never fall and stay at most the won run's amount.
@@ -591,7 +591,7 @@ def format_report(
     )
     if not records.current:
         lines.append(
-            "WARNING: records from before v0.95: no quota percents or slip limits, replayed at 0%"
+            "WARNING: records from before v0.96: no quota percents or slip limits, replayed at 0%"
             " with no slips"
         )
     lines.append(f"Curve: {curve}")

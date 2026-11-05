@@ -217,19 +217,17 @@ func test_a_short_pile_swaps_the_left_item_and_says_which_stays() -> void:
 	screen._basket_redraw.stop()
 	assert_object(run.hand_places()[1]).is_same(stays)
 	assert_int(run.redraws_used).is_equal(1)
-	assert_str(screen._redraw_button.note()).is_equal("none to draw")
+	assert_str(screen._redraw_button.caption).is_equal(RedrawNotice.EMPTY_CAPTION)
+	assert_str(screen._redraw_button.note()).is_equal("1")
 
 
 ## The redraw panel's heading shows the bare count of redraws left at its right, in the Redraw
-## key's colours (2 or more green, 1 amber, none red), heavier, inside the heading's row.
+## key's colours (2 or more green, 1 orange, none red), heavier, inside the heading's row.
 func test_the_panel_count_is_coloured_by_what_is_left() -> void:
 	var panel: RedrawPanel = auto_free(RedrawPanel.new())
 	add_child(panel)
 	var colours: Dictionary[int, Color] = {
-		3: Palette.GREEN_DARK,
-		2: Palette.GREEN_DARK,
-		1: Palette.MUSTARD_DARKEST,
-		0: Palette.TOMATO_DARK
+		3: Palette.GREEN_DARK, 2: Palette.GREEN_DARK, 1: Palette.ORANGE_DARK, 0: Palette.TOMATO_DARK
 	}
 	for left: int in colours:
 		panel.show_notice(RedrawNotice.armed(left))

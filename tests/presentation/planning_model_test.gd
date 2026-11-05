@@ -75,14 +75,14 @@ func test_the_reference_row_shows_its_pays_halos_and_stamp() -> void:
 	# Eggs pays its base.
 	assert_int(model.slots[0].pay).is_equal(PlanningModel.Pay.PLAIN)
 	assert_str(model.slots[0].pay_text).is_empty()
-	assert_bool(model.slots[0].struck).is_false()
+	assert_int(model.slots[0].payout).is_equal(0)
 	assert_int(model.slots[0].rings).is_equal(0)
-	# Bread and the Milks after Multipack are boosted: struck base, gold burst with the payout.
+	# Bread and the Milks after Multipack are boosted: the payout in the ticket's window.
 	for slot: int in [1, 4, 5, 6]:
 		var planning: PlanningSlot = model.slots[slot]
 		assert_int(planning.pay).is_equal(PlanningModel.Pay.BOOSTED)
 		assert_str(planning.pay_text).is_equal("%d€" % result.payouts[slot])
-		assert_bool(planning.struck).is_true()
+		assert_int(planning.payout).is_equal(result.payouts[slot])
 		assert_int(planning.rings).is_equal(_expected_rings(result.payouts[slot], row[slot].base))
 		assert_bool(planning.denied).is_false()
 		assert_bool(planning.has_stamp()).is_false()
@@ -92,16 +92,16 @@ func test_the_reference_row_shows_its_pays_halos_and_stamp() -> void:
 	assert_int(milk.pay).is_equal(PlanningModel.Pay.DENIED)
 	assert_int(milk.glyph).is_equal(PlanningModel.Glyph.NONE)
 	assert_str(milk.pay_text).is_equal("0€")
-	assert_bool(milk.struck).is_true()
+	assert_int(milk.payout).is_equal(0)
 	assert_bool(milk.denied).is_true()
 	assert_str(milk.stamp_amount).is_equal("0€")
 	assert_str(milk.stamp_caption).is_equal("SPOT CHECK")
-	# Multipack pays nothing after Coupon engine's fizzle; a coupon's title is never struck.
+	# Multipack pays nothing after Coupon engine's fizzle (its window WASTED).
 	var multipack: PlanningSlot = model.slots[3]
 	assert_int(multipack.pay).is_equal(PlanningModel.Pay.ZERO)
 	assert_int(multipack.glyph).is_equal(PlanningModel.Glyph.FIZZLE)
 	assert_str(multipack.pay_text).is_equal("0€")
-	assert_bool(multipack.struck).is_false()
+	assert_int(multipack.payout).is_equal(0)
 	assert_bool(multipack.has_stamp()).is_false()
 
 
@@ -174,19 +174,19 @@ func test_the_five_pay_states() -> void:
 	# PLAIN: pays its base; a coupon paying 0 with nothing on it.
 	assert_int(_one(product, [], 5, tuning).pay).is_equal(PlanningModel.Pay.PLAIN)
 	assert_int(_one(coupon, [], 0, tuning).pay).is_equal(PlanningModel.Pay.PLAIN)
-	assert_bool(_one(coupon, [], 0, tuning).struck).is_false()
+	assert_int(_one(coupon, [], 0, tuning).payout).is_equal(0)
 	# BOOSTED.
 	var boosted: PlanningSlot = _one(product, [_flat(0, 3, 8)], 8, tuning)
 	assert_int(boosted.pay).is_equal(PlanningModel.Pay.BOOSTED)
 	assert_str(boosted.pay_text).is_equal("8€")
-	assert_bool(boosted.struck).is_true()
+	assert_int(boosted.payout).is_equal(8)
 	# LOWERED: 0 < pay < base.
 	var lowered: PlanningSlot = _one(
 		product, [_override(0, 0, ScoreStep.SourceKind.CARD, 2)], 2, tuning
 	)
 	assert_int(lowered.pay).is_equal(PlanningModel.Pay.LOWERED)
 	assert_str(lowered.pay_text).is_equal("2€")
-	assert_bool(lowered.struck).is_true()
+	assert_int(lowered.payout).is_equal(2)
 	assert_bool(lowered.denied).is_false()
 	assert_str(lowered.stamp_amount).is_equal("2€")
 	# DENIED by an inspection (warning glyph: Spot check zeroes slot 3, not this slot 1, so no
@@ -204,12 +204,12 @@ func test_the_five_pay_states() -> void:
 	assert_int(own.glyph).is_equal(PlanningModel.Glyph.FIZZLE)
 	assert_str(own.stamp_amount).is_equal("0€")
 	assert_str(own.stamp_caption).is_equal("SOUP")
-	# ZERO: a coupon that pays nothing after a fizzle; never struck.
+	# ZERO: a coupon that pays nothing after a fizzle.
 	var zero: PlanningSlot = _one(coupon, [_wasted(0, 0)], 0, tuning)
 	assert_int(zero.pay).is_equal(PlanningModel.Pay.ZERO)
 	assert_int(zero.glyph).is_equal(PlanningModel.Glyph.FIZZLE)
 	assert_str(zero.pay_text).is_equal("0€")
-	assert_bool(zero.struck).is_false()
+	assert_int(zero.payout).is_equal(0)
 	assert_int(zero.stickers.size()).is_equal(1)
 	assert_int(zero.stickers[0].kind).is_equal(StickerSpec.Kind.FIZZLE)
 	assert_int(zero.stickers[0].badge).is_equal(GiverBadge.Kind.NONE)

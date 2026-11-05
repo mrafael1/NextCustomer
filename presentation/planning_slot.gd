@@ -10,11 +10,11 @@ var stickers: Array[StickerSpec] = []
 var pay: PlanningModel.Pay = PlanningModel.Pay.PLAIN
 ## The pay tag's text ("21€", "0€"); empty for PLAIN.
 var pay_text: String = ""
+## The pay in whole euros (the ticket's price window prints it); 0 for PLAIN.
+var payout: int = 0
 ## The 0€ tag's glyph (DENIED and ZERO); none on a slot an inspection pays 0€ by its place, whose
 ## talker (SlotMark's cause-only chip) shows the warning sign.
 var glyph: PlanningModel.Glyph = PlanningModel.Glyph.NONE
-## The ticket's base price is struck through (a product whose pay differs from its base).
-var struck: bool = false
 ## The halo's rings: 0 unless boosted, then 1 to 3 (PlanningTuning.halo_ratios).
 var rings: int = 0
 ## Denied to 0€: the sprite turns grey.

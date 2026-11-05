@@ -24,10 +24,10 @@ extends RefCounted
 ## ticks still sound.
 ##
 ## The beats: a plain card's scan beep, note, base pop and payout in one short beat; bonuses
-## flying in from the card (or upgrade box) that caused them; multiplier stamps; copies; Soup's
-## and the inspections' "denied"; sticker and Bundle moments; an armed effect's glow (the belt
-## ride sends its sparks); fizzle puffs; the total's ticks at each landing; a register rattle on
-## big payouts; the quota ding as the ding beat's last tick lands.
+## flying in from the card (or upgrade box) that caused them; multiplier thuds (no "×N" pop-up,
+## PR #138 round 7); copies; Soup's and the inspections' "denied"; sticker and Bundle moments; an
+## armed effect's glow (the belt ride sends its sparks); fizzle puffs; the total's ticks at each
+## landing; a register rattle on big payouts; the quota ding as the ding beat's last tick lands.
 
 ## Motion lengths at speed 1 (s), the longest each gets: a shorter beat shortens it (_motion).
 ## A plain card's scan before its payout lands, between these.
@@ -364,15 +364,17 @@ func _bonus(beat: CountUpBeat, step: ScoreStep) -> void:
 	_land_unless_total(beat)
 
 
-## A multiplier lands like a stamp: big, rotated, slammed down, with a shake. An upgrade's
-## factor first flies in from its loyalty-card box, a day event's (v0.69: Free samples' ×2) from
-## its chip; an armed effect's stamp punches and lights up the arming card.
+## A multiplier lands like a stamp's thud, with a shake, but shows no "×N" over the item (PR #138
+## round 7, the user's "remove x2, x3... pop up on the right of receipt on checkout": the belt's
+## sticker, the receipt's line and the monitor already say it). An upgrade's box or a day event's
+## chip (v0.69: Free samples' ×2) pulses for the flight's time, and the slam's time passes before
+## the value lands, so the beat's timing is unchanged; an armed effect's source punches and lights
+## up the arming card.
 func _stamp(beat: CountUpBeat, step: ScoreStep) -> void:
 	_print_step(step)
 	var target: CardView = _views[step.slot]
-	var factor: String = step.times_text()
 	if beat.echo:
-		_echo(beat, step, factor, Palette.TOMATO)
+		_echo(beat, step, "", Palette.TOMATO)
 		return
 	var motion: float = _motion(beat)
 	var slam_time: float = minf(STAMP_SLAM, motion * 0.6)
@@ -386,25 +388,14 @@ func _stamp(beat: CountUpBeat, step: ScoreStep) -> void:
 		_pulse_giver(upgrade_box)
 		var flight: float = minf(UPGRADE_FLIGHT, motion * 0.45)
 		slam_time = minf(STAMP_SLAM, motion * 0.35)
-		await _fx.fly_text(factor, _center(upgrade_box), _at(step.slot), Palette.TOMATO, 26, flight)
+		await _wait(flight)
 		waited = flight
 	elif source != null and step.source_slot != step.slot:
 		_pulse_giver(source)
 		_fx.glow(source.body)
 	# The slam ends at the value's moment (its start waits for it).
 	await _hold_value(beat, waited + slam_time)
-	var stamp: Label = CountUpMotion.text_label(factor, Palette.TOMATO, 54)
-	_overlay.add_child(stamp)
-	stamp.global_position = _at(step.slot) - stamp.size / 2.0
-	stamp.pivot_offset = stamp.size / 2.0
-	stamp.scale = Vector2(2.6, 2.6)
-	stamp.rotation = deg_to_rad(-18.0)
-	stamp.modulate.a = 0.0
-	var slam: Tween = _tween().set_parallel().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	slam.tween_property(stamp, "scale", Vector2.ONE, slam_time)
-	slam.tween_property(stamp, "rotation", deg_to_rad(-8.0), slam_time)
-	slam.tween_property(stamp, "modulate:a", 1.0, slam_time * 0.6)
-	await slam.finished
+	await _wait(slam_time)
 	if not CountUpPlan.is_landing(beat):
 		sfx.play("stamp")
 		if beat.note >= 0:
@@ -414,10 +405,6 @@ func _stamp(beat: CountUpBeat, step: ScoreStep) -> void:
 	_fx.punch(target.badge, 1.4)
 	landed.call(beat)
 	_land_unless_total(beat)
-	var fade: Tween = _tween()
-	fade.tween_interval(0.2)
-	fade.tween_property(stamp, "modulate:a", 0.0, 0.2)
-	fade.tween_callback(stamp.queue_free)
 
 
 ## A bonus or stamp's value lands on its item no earlier than the tuning's step_value_at of the
@@ -432,13 +419,15 @@ func _hold_value(beat: CountUpBeat, waited: float) -> void:
 
 
 ## A repeat landing of an armed effect, played short (D7 stage 2): the arming card punches and
-## the effect pops on the target; no flight, no slam, no hit-stop.
+## the effect's `text` pops on the target (none for a multiplier's, PR #138 round 7: no "×N"
+## pop-up); no flight, no slam, no hit-stop.
 func _echo(beat: CountUpBeat, step: ScoreStep, text: String, color: Color) -> void:
 	var target: CardView = _views[step.slot]
 	var source: CardView = _source_view(step)
 	if source != null and step.source_slot != step.slot:
 		_fx.punch(source.body, 1.08)
-	_fx.pop_text(text, _at(step.slot), color, 34, ECHO_POP)
+	if not text.is_empty():
+		_fx.pop_text(text, _at(step.slot), color, 34, ECHO_POP)
 	var stamped: bool = step.step_type == ScoreStep.StepType.MULTIPLIER
 	if stamped:
 		sfx.play("stamp", 1.0, CountUp.ECHO_STAMP_DB)

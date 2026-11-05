@@ -6,9 +6,11 @@ extends Control
 ## readability_v3.html, monitor b): in the count the item at the belt's scanner, in planning belt
 ## slot 1's item or the held one (show_planning, below), shown big. A teal panel with an ink header
 ## (the queue, BayQueue: "4 LEFT", LAST, DONE and a pip per item, beside the scan light), the scan
-## bed (BayBed: the item's art at 2x, alive, in gold corners) and, under it, the item's family chip
-## (FamilyChip: what the item works with, in its ticket's colour; "–" between items, "THANK YOU"
-## at the end). Its price, effect and steps are the item column's (MonitorItemColumn).
+## bed (BayBed: the item's art at 2x, alive, in gold corners) and, under it, the item's chip
+## (FamilyChip: in the count what the item works with, in its ticket's colour, no glyph; "–" between
+## items, "THANK YOU" at the end; in planning the status plate, MonitorText.SCAN_COMPLETE while a
+## scan is pinned, else ON_BELT). Its price, effect and steps are the item column's
+## (MonitorItemColumn).
 ##
 ## The count-up's rides (ride, CountUp.ride) move the items: the item in the bay slides out toward
 ## the bag (OUT_SHARE of the ride, at most BayBed.OUT_S), the next one drops in as the belt brings
@@ -19,9 +21,10 @@ extends Control
 ## count-up's, so it follows its taps, holds and hit-stops). Reduced motion (`reduced_motion`)
 ## keeps every state (the item shows at its opening beat and goes at once) and drops the motion.
 ##
-## In planning (show_planning) the header reads NEXT over belt slot 1's item (an empty bed and
-## GONE_NAME when slot 1 is empty) with a pip per belt slot (BayQueue show_slots; SCANNER with no
-## belt slots), or SCAN while a hover-hold scan holds an item (belt or hand): that item, the fan
+## In planning (show_planning) the header reads NEXT over the last placed belt item (an empty bed
+## and GONE_NAME when the belt is empty) with a pip per belt slot, the shown item's gold (BayQueue
+## show_slots; SCANNER with no belt slots), or SCAN while a scan is pinned to an item (belt or
+## hand, ScanController: until another is scanned or placed): that item, the fan
 ## and BEEP, the light on in HELD_COLOR. When the item to show changes, the one in the bay slides
 ## out over PLAN_OUT_S and the new one drops in (BayBed.FALL_S); the chip keeps the old item until
 ## it has slid out, is blank while the new one falls and shows the new one once it has landed. A
@@ -116,6 +119,8 @@ var _label_scan: bool = false
 ## Planning's belt: its slots and how many hold items (the header's pips).
 var _slots: int = 0
 var _filled: int = 0
+## Planning's belt slot of the item shown (its pip gold), -1 for none (a hand item's scan).
+var _at: int = 0
 
 
 func _init() -> void:
@@ -263,16 +268,20 @@ func reset(keep_item: bool = false) -> void:
 	queue_redraw()
 
 
-## Planning (see the class comment): the bay shows `definition` (belt slot 1's item, or the held
-## one when `held`; null for an empty slot 1) under NEXT or SCAN, with a pip per belt slot
-## (`slots`, the first `filled` of them holding items).
-func show_planning(definition: CardDefinition, held: bool, slots: int, filled: int) -> void:
+## Planning (see the class comment): the bay shows `definition` (the last placed belt item, or the
+## held one when `held`; null for an empty belt) under NEXT or SCAN, with a pip per belt slot
+## (`slots`, the first `filled` of them holding items, slot `at`'s gold: the shown item's, -1 for
+## none).
+func show_planning(
+	definition: CardDefinition, held: bool, slots: int, filled: int, at: int = 0
+) -> void:
 	if not _planning:
 		_enter_planning()
 	_want = definition
 	_want_scan = held and definition != null
 	_slots = slots
 	_filled = filled
+	_at = at
 	_queue_text()
 	_sync_planning()
 	queue_redraw()
@@ -414,7 +423,7 @@ func _show_planning_label() -> void:
 	if shown == null:
 		_set_name(GONE_NAME)
 	else:
-		_chip.show_item(shown)
+		_chip.show_status(MonitorText.SCAN_COMPLETE if _label_scan else MonitorText.ON_BELT)
 	_queue_text()
 
 
@@ -429,7 +438,7 @@ func _header_text() -> String:
 ## The header in planning: its text over the belt's pips.
 func _queue_text() -> void:
 	if _planning:
-		_queue.show_slots(_slots, _filled, _header_text())
+		_queue.show_slots(_slots, _filled, _header_text(), _at)
 
 
 func _stop_land() -> void:

@@ -188,8 +188,8 @@ func _assert_laid_out(screen: ShiftScreen, case: String) -> void:
 	for view: CardView in screen._row_views:
 		var ticket: PriceSticker = (view as ItemView).sticker()
 		var to_global: Transform2D = ticket.get_global_transform()
-		if ticket.is_struck():
-			texts.append(to_global * ticket.struck_rect())
+		var window: PriceWindow = ticket.window()
+		texts.append(to_global * Rect2(window.position, window.size))
 		if ticket.summary_text_rect().has_area():
 			texts.append(to_global * ticket.summary_text_rect())
 	var clear: Array[Rect2] = _keep_clear(screen)

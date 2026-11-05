@@ -155,7 +155,7 @@ class QuotaPercentTest(unittest.TestCase):
                                 {"s": qf.evaluate(loaded.scenarios["s"], [6, 10, 30],
                                                   qf.CoinRule([0, 0, 1, 2], 0, 1))},
                                 {"win": 0.5, "shift1": 0.9, "shift2": 0.9, "overtime_share": 0.1})
-        self.assertIn("WARNING: records from before v0.95", text)
+        self.assertIn("WARNING: records from before v0.96", text)
 
 
 class SlipTest(unittest.TestCase):

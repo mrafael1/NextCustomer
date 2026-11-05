@@ -32,12 +32,14 @@ func after_test() -> void:
 ## The planning receipt at full length (B2 at D's sizes, mock-up shift_scene_polish_v4, v4.1's
 ## frame): with 6, 7, 8 and 9 belt slots it reaches from the printer's slot to RECEIPT_TOP however
 ## few items are placed, one row per slot (a placed item's line, else "n ·····" in muted ink),
-## every row the same pitch (20, 18, 15 and 16 px: 30, 27, 22.5 and 24 at 1920x1080), the header
-## line shown under 9 slots and dropped at 9 (the page's rule); on a Double checkout shift (6
-## slots at most: its 4-slot row, Big basket and Extra till) both header lines print; nothing
-## scrolls; and the foot (PROJECTED, its line against the target, the fizzle footer or its room)
-## stands at the paper's bottom, so neither it nor any row moves as items are placed, with or
-## without a fizzle. Every row's text fits it on one row, its descenders inside its pitch.
+## every row the same pitch (20, 20, 18 and 18 px since the PR #138 left UI gave the fizzle
+## footer's room to the rows: 30, 30, 27 and 27 at 1920x1080), the header line shown under 9
+## slots and dropped at 9 (the page's rule); on a Double checkout shift (6 slots at most: its
+## 4-slot row, Big basket and Extra till) both header lines print; nothing
+## scrolls; and the foot (PROJECTED and its line against the target; no fizzle footer since the
+## PR #138 left UI, its room the rows') stands at the paper's bottom, so neither it nor any row
+## moves as items are placed, with or without a fizzle. Every row's text fits it on one row, its
+## descenders inside its pitch.
 func test_the_planning_receipt_is_full_length_with_a_row_per_slot() -> void:
 	var screen: ShiftScreen = await _screen()
 	var receipt: ReceiptView = screen._receipt
@@ -47,9 +49,9 @@ func test_the_planning_receipt_is_full_length_with_a_row_per_slot() -> void:
 	]
 	for case: Array in [
 		[6, 20.0, true, false],
-		[7, 18.0, true, false],
-		[8, 15.0, true, false],
-		[9, 16.0, false, false],
+		[7, 20.0, true, false],
+		[8, 18.0, true, false],
+		[9, 18.0, false, false],
 		[6, -1.0, true, true],
 	]:
 		var slots: int = case[0] as int
@@ -80,9 +82,9 @@ func test_the_planning_receipt_is_full_length_with_a_row_per_slot() -> void:
 				var row: HBoxContainer = receipt._rows[slot] as HBoxContainer
 				var name_label: Label = row.get_child(0) as Label
 				if case[1] as float > 0.0:
-					assert_float(row.size.y + separation).override_failure_message(where).is_equal(
-						case[1] as float
-					)
+					var pitch: float = row.size.y + separation
+					var said: String = "%s: pitch %s" % [where, pitch]
+					assert_float(pitch).override_failure_message(said).is_equal(case[1] as float)
 				assert_float(row.size.y + separation).is_greater_equal(ReceiptRows.MIN_PITCH)
 				assert_int(name_label.get_line_count()).is_equal(1)
 				_assert_row_text_fits(row, where)
@@ -115,9 +117,10 @@ func test_the_planning_receipt_is_full_length_with_a_row_per_slot() -> void:
 			var last: Control = receipt._lines.get_children()[-1] as Control
 			var scroll: Rect2 = receipt._scroll.get_global_rect()
 			assert_bool(scroll.grow(1.0).encloses(last.get_global_rect())).is_true()
-			var footer_room: float = ReceiptRows.foot_margin(receipt._lines, true)
+			# The foot's last line is the paper's last: no footer's room kept under it.
+			assert_str(last.name).override_failure_message(where).is_equal("Against")
 			assert_float(scroll.end.y - last.get_global_rect().end.y).is_less_equal(
-				footer_room + 1.0
+				ReceiptView.FRAME_GROW + 1.0
 			)
 	_clear_row(screen)
 
@@ -215,18 +218,17 @@ func test_a_projected_amount_fits_a_receipt_laid_out_after_it() -> void:
 	receipt.show_planning(ReceiptView.header_lines(5, 12, 0), result, PackedStringArray(), 7, 100)
 	var line: HBoxContainer = receipt._projected
 	var amount: Label = line.get_child(1) as Label
-	assert_int(amount.get_theme_font_size("font_size")).is_equal(ReceiptView.TOTAL_FONT_SIZE)
+	assert_int(amount.get_theme_font_size("font_size")).is_equal(ReceiptView.PROJECTED_FONT_SIZE)
 	receipt.size = Vector2(ShiftStage.RECEIPT_WIDTH, ShiftStage.RECEIPT_BOTTOM)
 	add_child(receipt)
 	await _frames(3)
 	var font_size: int = amount.get_theme_font_size("font_size")
-	assert_int(font_size).is_less(ReceiptView.TOTAL_FONT_SIZE)
+	assert_int(font_size).is_less(ReceiptView.PROJECTED_FONT_SIZE)
 	var caption: Label = line.get_child(0) as Label
 	var used: float = (
 		ReceiptView.text_width(caption.text, ReceiptView.MONO_FONT, ReceiptView.CAPTION_FONT_SIZE)
-		+ ReceiptView.text_width(amount.text, ReceiptView.MONO_FONT, font_size)
+		+ ReceiptView.text_width(amount.text, amount.get_theme_font("font"), font_size)
 		+ line.get_theme_constant("separation")
-		+ ReceiptView.MARK_COLUMN
 	)
 	assert_float(used).is_less_equal(receipt._lines.size.x)
 

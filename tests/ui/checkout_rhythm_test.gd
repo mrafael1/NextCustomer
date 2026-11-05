@@ -28,115 +28,110 @@ func test_the_monitor_keeps_bonus_lines_and_folds_only_the_earliest_overflow() -
 	column.start_item(load("res://data/cards/banana.tres"), PackedStringArray(["Produce"]))
 	var giver_icon: Texture2D = load("res://art/minis/banana.png")
 	column.show_step("Banana chain  +3€", false, false, giver_icon, true)
+	var newest: Control = column.step_rows()[-1]
+	assert_bool(newest.get_meta(&"from_bag")).is_true()
+	# The note after the giver's words: smaller, teal, on the same line, after the text (a bonus's
+	# words green, PR #138 round 6).
+	var text: Label = newest.get_node("Text") as Label
+	var note: Label = newest.get_node("FromBag") as Label
+	assert_str(note.text).contains("from the bag")
+	assert_that(note.get_theme_color("font_color")).is_equal(Palette.TEAL_DARK)
+	assert_that(text.get_theme_color("font_color")).is_equal(MonitorStepRow.BONUS_COLOR)
+	assert_float(note.get_global_rect().position.x).is_greater_equal(text.get_global_rect().end.x)
+	var amount: Label = newest.get_node("Amount") as Label
+	assert_float(note.get_global_rect().end.x).is_less_equal(amount.get_global_rect().position.x)
 	column.show_step("Produce regulars  +2€", false)
 	column.show_step("Produce aisle run  ×3", false)
 	column.show_step("Multipack  ×3", false)
-	assert_int(column.step_texts().size()).is_equal(4)
-	assert_bool(column.step_rows()[0].get_meta(&"from_bag")).is_true()
-	# The note after the giver's words: smaller, teal, on the same line, after the text.
-	var text: Label = column.step_rows()[0].get_node("Text") as Label
-	var note: Label = column.step_rows()[0].get_node("FromBag") as Label
-	assert_str(note.text).contains("from the bag")
-	assert_that(note.get_theme_color("font_color")).is_equal(Palette.TEAL_DARK)
-	assert_that(text.get_theme_color("font_color")).is_equal(Palette.TEAL_DARK)
-	assert_float(note.get_global_rect().position.x).is_greater_equal(text.get_global_rect().end.x)
-	var amount: Label = column.step_rows()[0].get_node("Amount") as Label
-	assert_float(note.get_global_rect().end.x).is_less_equal(amount.get_global_rect().position.x)
 	column.show_step("Slot engine  ×2", false)
-	assert_int(column.step_texts().size()).is_equal(5)
-	column.show_step("Pays  126€", false)
-	assert_int(column.step_texts().size()).is_equal(5)
-	assert_str(column.step_texts()[0]).is_equal("+2 earlier")
-	assert_str(column.step_texts()[-1]).is_equal("Pays  126€")
+	column.show_step("Lemon squeezer  ×2", false)
+	# Six lines in the rows' room (PR #138 monitor): the newest that fit, the earlier ones folded
+	# into "+N earlier" (N the lines left out), every row inside the rows' area.
+	var texts: PackedStringArray = column.step_texts()
+	assert_str(texts[-1]).is_equal("Lemon squeezer  ×2")
+	assert_int(texts.size()).is_less(6)
+	assert_str(texts[0]).is_equal(MonitorItemColumn.FOLDED_TEXT % (6 - (texts.size() - 1)))
+	var area: Rect2 = column.part_rects()["rows"]
 	for row: Control in column.step_rows():
-		(
-			assert_bool(
-				Rect2(Vector2.ZERO, column.size).encloses(
-					Rect2(row.position + Vector2(0, MonitorItemColumn.COUNT_STEPS_TOP), row.size)
-				)
-			)
-			. is_true()
-		)
+		assert_bool(area.grow(0.5).encloses(row.get_global_rect())).is_true()
 
 	await get_tree().process_frame
 	await get_tree().process_frame
 
 
-## The count's lines keep every maths symbol: a multiplier reads "× Multipack" with its amber
-## "×3"; a + amount is ink; the giver's words are teal. At the payout the equation comes under
-## them as one line, "4€ × 6 → 24€": its factor amber, the rest ink, every part inside its row
-## and the column, apart; a payment with none reads "Pays" in ink. Reduced motion or not.
-func test_multipliers_keep_their_symbol_and_the_payout_shows_its_equation() -> void:
+## The count's lines keep every maths symbol: a multiplier reads "Multipack" with its "×3" as its
+## amount, in its strength's ink (PR #138 round 3; the factor shows once); a + amount is green
+## (PR #138 round 2) and so are its giver's words (round 6); a multiplier's words are teal. The
+## payout shows only its result at the foot (PR #138 monitor: "= 24€", no equation row, no "Pays"
+## row).
+## Reduced motion or not.
+func test_multipliers_keep_their_symbol_and_the_payout_shows_only_its_result() -> void:
 	for reduced: bool in [false, true]:
 		var column: MonitorItemColumn = auto_free(MonitorItemColumn.new())
 		add_child(column)
 		column.reduced_motion = func() -> bool: return reduced
 		column.start_item(MILK, PackedStringArray(["Dairy"]))
+		# Each line is the newest row when it shows (earlier ones may fold in the rows' room).
 		column.show_step("+2€ Eggs", false)
-		column.show_step("×3 Multipack", false)
-		column.show_step("×2 Golden Strawberries aisle", false)
-		var add: Control = column.step_rows()[0]
+		var add: Control = column.step_rows()[-1]
 		assert_str((add.get_node("Text") as Label).text).is_equal("Eggs")
-		assert_that(_colour(add, "Amount")).is_equal(Palette.INK)
-		assert_that(_colour(add, "Text")).is_equal(Palette.TEAL_DARK)
-		for row: Control in column.step_rows().slice(1):
+		assert_that(_colour(add, "Amount")).is_equal(MonitorStepRow.BONUS_COLOR)
+		assert_that(_colour(add, "Text")).is_equal(MonitorStepRow.BONUS_COLOR)
+		for line: String in ["×3 Multipack", "×2 Golden Strawberries aisle"]:
+			column.show_step(line, false)
+			var row: Control = column.step_rows()[-1]
 			var text: Label = row.get_node("Text") as Label
-			assert_str(text.text).starts_with("× ")
-			assert_that(_colour(row, "Amount")).is_equal(Palette.MUSTARD_DARKEST)
+			var factor: Label = row.get_node("Amount") as Label
+			assert_str(factor.text).is_equal(line.get_slice(" ", 0))
+			assert_str(text.text).is_equal(line.substr(line.find(" ") + 1))
+			var step: int = MonitorStepRow.factor_step(factor.text)
+			assert_that(_colour(row, "Amount")).is_equal(MonitorStepRow.factor_ink(step))
 			assert_int(text.get_line_count()).is_less_equal(text.max_lines_visible)
 			assert_float(text.get_global_rect().end.x).is_less_equal(
-				(row.get_node("Amount") as Label).get_global_rect().position.x
+				factor.get_global_rect().position.x
 			)
-		assert_str((column.step_rows()[1].get_node("Text") as Label).text).is_equal("× Multipack")
-		column.show_paid("Pays  24€", PaymentEquation.new(4, 6, 24))
-		var rows: Array[Control] = column.step_rows()
-		assert_int(rows.size()).is_equal(4)
-		var equation: Control = rows[-1]
-		var arrow: String = MonitorItemColumn._arrow()
-		assert_str(String(equation.get_meta(&"line"))).is_equal("4€ × 6 %s 24€" % arrow)
-		assert_str((equation.get_node("Factor") as Label).text).is_equal("× 6")
-		assert_that(_colour(equation, "Factor")).is_equal(Palette.MUSTARD_DARKEST)
-		assert_that(_colour(equation, "Text")).is_equal(Palette.INK)
-		assert_that(_colour(equation, "Amount")).is_equal(Palette.INK)
-		assert_str((equation.get_node("Amount") as Label).text).is_equal("24€")
-		var area: Rect2 = column.get_global_rect()
-		var rect: Rect2 = equation.get_global_rect()
-		assert_bool(area.grow(0.5).encloses(rect)).is_true()
-		assert_float(rect.size.y).is_equal(MonitorItemColumn.EQUATION_HEIGHT)
-		assert_float(rows[-2].get_global_rect().end.y).is_less_equal(rect.position.y + 0.5)
-		var right: float = rect.position.x
-		for part_name: String in ["Text", "Factor", "Arrow", "Amount"]:
-			var part: Rect2 = (equation.get_node(part_name) as Control).get_global_rect()
-			assert_bool(rect.grow(0.5).encloses(part)).override_failure_message(part_name).is_true()
-			assert_float(part.position.x).is_greater_equal(right)
-			right = part.end.x
-		column.start_item(MILK, PackedStringArray(["Dairy"]))
-		column.show_step("+2€ Eggs", false)
-		column.show_paid("Pays  5€")
-		var pays: Control = column.step_rows()[-1]
-		assert_bool(pays.has_meta(&"equation")).is_false()
-		assert_that(_colour(pays, "Text")).is_equal(Palette.INK)
-		assert_that(_colour(pays, "Amount")).is_equal(Palette.INK)
+		var shown_rows: int = column.step_rows().size()
+		column.set_value(24)
+		assert_int(column.step_rows().size()).is_equal(shown_rows)
+		var payout: MonitorPayout = column.payout_view()
+		assert_bool(payout.equals().visible).is_true()
+		assert_str(payout.digit_words().text).is_equal(MonitorText.euros(24))
+		assert_int(payout.pay_amount()).is_equal(24)
+		var zone: Rect2 = MonitorItemColumn.PAYOUT_RECT
+		zone.position += column.get_global_rect().position
+		assert_bool(zone.grow(0.5).encloses(payout.shown_rect())).is_true()
+		for text: String in column.step_texts():
+			(
+				assert_bool(text.begins_with("Pays") or text.contains("→"))
+				. override_failure_message(text)
+				. is_false()
+			)
 		remove_child(column)
 	await get_tree().process_frame
 
 
 ## A harmful line (a day event's "−2€", an inspection's "= 0") prints in tomato, its text and its
-## amount, with a tomato "!" mark and never the green ✓, in the count and in planning (full and
-## compact); its amount keeps its sign. A good line keeps its green ✓, its teal words.
-func test_harmful_lines_are_tomato_with_no_green_check() -> void:
+## amount, with a tomato "!" mark, in the count and in planning (on one page or several); its amount
+## keeps its sign. An override's "= 0" reads "0€", said once (#138 review): left out of the amount
+## column when the text already says it ("pays 0€"). A good line has no mark (PR #138 monitor: no
+## checkmarks), its words green for a bonus (PR #138 round 6), else teal.
+func test_harmful_lines_are_tomato_and_good_lines_unmarked() -> void:
 	var column: MonitorItemColumn = auto_free(MonitorItemColumn.new())
 	add_child(column)
 	column.reduced_motion = func() -> bool: return true
 	column.start_item(MILK, PackedStringArray(["Dairy"]))
+	# Each the newest row when it shows (earlier ones may fold in the rows' room).
 	column.show_step("+2€ Eggs", false)
+	_assert_good(column.step_rows()[-1])
 	column.show_step("−2€ Dairy pays less", false, false, null, false, true)
+	_assert_harmful(column.step_rows()[-1], column)
+	assert_str((column.step_rows()[-1].get_node("Amount") as Label).text).is_equal("−2€")
 	column.show_step("Spot check: the 3rd product pays 0€  = 0", false, false, null, false, true)
-	_assert_good(column.step_rows()[0])
-	for row: Control in column.step_rows().slice(1):
-		_assert_harmful(row, column)
-	assert_str((column.step_rows()[1].get_node("Amount") as Label).text).is_equal("−2€")
-	assert_str((column.step_rows()[2].get_node("Amount") as Label).text).is_equal("= 0")
+	_assert_harmful(column.step_rows()[-1], column)
+	assert_object(column.step_rows()[-1].get_node_or_null("Amount")).is_null()
+	column.show_step("Soup beside Frozen  = 0", false, false, null, false, true)
+	_assert_harmful(column.step_rows()[-1], column)
+	assert_str((column.step_rows()[-1].get_node("Amount") as Label).text).is_equal("0€")
 	var lines: PackedStringArray = PackedStringArray(
 		["+2€ Eggs", "−2€ Dairy pays less", "Spot check: the 3rd product pays 0€  = 0"]
 	)
@@ -147,11 +142,11 @@ func test_harmful_lines_are_tomato_with_no_green_check() -> void:
 		for index: int in range(count):
 			shown.append(lines[index % 3])
 			shown_harms.append(harms[index % 3])
-		var none: Array[bool] = []
-		var no_minis: Array[Texture2D] = []
-		column.show_item(
-			MILK, PackedStringArray(["Dairy"]), 0, shown, none, 0, no_minis, false, shown_harms
-		)
+		var scan: ScanController.ItemLines = ScanController.ItemLines.new()
+		scan.payout = 0
+		scan.lines = shown
+		scan.harms = shown_harms
+		column.show_item(MILK, PackedStringArray(["Dairy"]), scan)
 		var rows: Array[Control] = (
 			column.pages.all_rows() if column.pages != null else column.step_rows()
 		)
@@ -167,10 +162,14 @@ func test_harmful_lines_are_tomato_with_no_green_check() -> void:
 
 func _assert_good(row: Control) -> void:
 	var mark: Label = row.get_node("Mark") as Label
-	assert_str(mark.text).is_equal(MonitorItemColumn.CHECK_MARK)
-	assert_that(mark.get_theme_color("font_color")).is_equal(Palette.GREEN_DARK)
-	assert_that(_colour(row, "Text")).is_equal(Palette.TEAL_DARK)
-	assert_that(_colour(row, "Amount")).is_equal(Palette.INK)
+	assert_str(mark.text).is_empty()
+	var amount: String = (row.get_node("Amount") as Label).text
+	var words: Color = MonitorStepRow.BONUS_COLOR if amount.begins_with("+") else Palette.TEAL_DARK
+	assert_that(_colour(row, "Text")).is_equal(words)
+	var good: Color = MonitorStepRow.BONUS_COLOR if amount.begins_with("+") else Palette.INK
+	if amount.begins_with("×"):
+		good = MonitorStepRow.factor_ink(MonitorStepRow.factor_step(amount))
+	assert_that(_colour(row, "Amount")).is_equal(good)
 
 
 ## `row` is tomato with the "!" mark; inside `column` (when given), its mark left of its text and
@@ -183,14 +182,17 @@ func _assert_harmful(row: Control, column: Control) -> void:
 	assert_that(mark.get_theme_color("font_color")).is_equal(Palette.TOMATO_DARK)
 	assert_that(mark.get_theme_color("font_color")).is_not_equal(Palette.GREEN_DARK)
 	assert_that(_colour(row, "Text")).override_failure_message(line).is_equal(Palette.TOMATO_DARK)
-	assert_that(_colour(row, "Amount")).is_equal(Palette.TOMATO_DARK)
+	var has_amount: bool = row.get_node_or_null("Amount") != null
+	if has_amount:
+		assert_that(_colour(row, "Amount")).is_equal(Palette.TOMATO_DARK)
 	if column == null:
 		return
 	var text: Rect2 = (row.get_node("Text") as Control).get_global_rect()
-	var amount: Rect2 = (row.get_node("Amount") as Control).get_global_rect()
 	assert_bool(column.get_global_rect().grow(0.5).encloses(row.get_global_rect())).is_true()
 	assert_float(mark.get_global_rect().end.x).is_less_equal(text.position.x)
-	assert_float(text.end.x).is_less_equal(amount.position.x)
+	if has_amount:
+		var amount: Rect2 = (row.get_node("Amount") as Control).get_global_rect()
+		assert_float(text.end.x).is_less_equal(amount.position.x)
 
 
 ## The register's follower keeps a tally (v0.84): bonus lines, WASTED and items paid, never the

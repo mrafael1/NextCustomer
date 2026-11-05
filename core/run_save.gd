@@ -57,7 +57,7 @@ extends RefCounted
 ## (or older) save gets its week built as it loads (_legacy_week: the played days from the history,
 ## the current and announced ones as saved, the later ones drawn with the run's RNG), and its
 ## current shift keeps playing without its week event (RunState.pre_week_shift).
-## v0.95 (four weeks: 16 shifts) keeps version 10: the save holds no run length (the balance's
+## v0.96 (four weeks: 16 shifts) keeps version 10: the save holds no run length (the balance's
 ## quotas give it), so a save from the 12-shift run resumes as a 16-shift run. Its played shifts
 ## keep their saved quotas, the current one is rebuilt from today's curve (saved after its
 ## checkout, it keeps its record's quota: its margin and pass read as played), and its week plan
@@ -263,7 +263,7 @@ static func from_dictionary(saved: Dictionary, lookup: ContentLookup) -> RunSave
 		restored.limits = _limits(restored)
 	var history_ok: bool = _restore_history(restored, reader.dictionaries("history"), lookup)
 	# After the checkout, the shift was played under its record's quota: a save from an older
-	# curve (the 12-shift run's, v0.95) keeps it, so its margin and pass read as they were.
+	# curve (the 12-shift run's, v0.96) keeps it, so its margin and pass read as they were.
 	if history_ok and restored.limits != null and _after_checkout(restored):
 		if not restored.history.is_empty():
 			restored.limits.quota = restored.history[-1].quota

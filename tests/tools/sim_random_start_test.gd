@@ -92,7 +92,7 @@ static func _ids(cards: Array[CardDefinition]) -> Array:
 	return cards.map(func(card: CardDefinition) -> String: return String(card.id))
 
 
-## Each recorded shift holds the quota percent of its day and week events (v0.95), so
+## Each recorded shift holds the quota percent of its day and week events (v0.96), so
 ## tools/quota_fit.py can apply them: Rush hour +10, Holiday rush +15, Clearance week +15 with
 ## Rush hour +25, Bakery festival +10, none on shift 1; the JSON copy keeps them.
 func test_records_hold_each_shift_quota_percent() -> void:

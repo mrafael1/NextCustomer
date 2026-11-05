@@ -9,11 +9,10 @@ extends Control
 ## (never over the ticket, never past the hung monitor's foot or the top bar's); from the 4th
 ## sticker the earliest fold into the grey "+N" chip on top, so at most STACK_SHOWN show (a stack
 ## still too tall squeezes, then folds more), and hovering a folded stack fans every sticker out
-## above the item, numbered (StackFan); the pay on its ticket (PayTag, over the ticket's top
-## right corner, die-cut, the struck old price under it: PriceSticker.set_pay; #105); a
+## above the item, numbered (StackFan); the pay in its ticket's window (PriceSticker.set_pay); a
 ## denied item's rubber stamp (DenyStamp); and a 3-ring item's two sparkles. It boosts (halo and
 ## lift) and greys the items themselves (ItemView.set_boost, set_denied). A drag's ghost carries
-## its slot's stack, stamp and pay tag as its own children, so they follow it. Under all of that,
+## its slot's stack, stamp and a framed price window as its own children. Under all of that,
 ## along the belt lip, the rail strips (RailStrip, section 5) say who gives what to whom: one per
 ## giver slot, in its lane (PlanningModel.assign_lanes); an overflowing strip (lane -1) is not
 ## drawn while calm. The strips hide during a drag (show_strips): the stickers and the quota
@@ -23,7 +22,7 @@ extends Control
 ## places them by its scaled cells while the art never scales; CLOSED cells and empty slots are no
 ## view, so they get nothing. The layout follows the views (it is redone whenever a view moves
 ## relative to the layer, e.g. once the row's containers have sorted). apply_focus lights the
-## hovered item's stickers and drains the rest, and dims the unrelated pay tags and stamps; it rings
+## hovered item's stickers and drains the rest, and dims the unrelated pays and stamps; it rings
 ## the hovered item's ticket (mustard pale, mustard, ink), gives its targets' tickets the "got" ring
 ## and turns the related rail strips hot (section 5.3): the hovered giver's own strip is drawn
 ## again in lane 0's geometry on top of everything, with every target's gain, and the strips
@@ -32,14 +31,14 @@ extends Control
 ##
 ## The count (#86 v6, keep_stickers): only the stickers and a denied item's stamp stay on the items
 ## as they ride to the scanner (their stickers fire there: BeltRide); the rail strips, halos,
-## sparkles, pay tags and ticket strikes go. A view hidden from the screen (a bagged item's cell)
+## sparkles and planned pays go. A view hidden from the screen (a bagged item's cell)
 ## shows none of its parts.
 ##
 ## Batches and chains (#128, the Bound strip and the Linked frame): each batch and chain of the
 ## model (PlanningModel.batches, chains) is bound by a frame round its tickets (BatchFrames,
 ## ChainFrames), following the views (a drag's reorder lays it out again); hovering a BATCH or CHAIN
 ## chip lights its frame (light_frames). A wrong job (PlanningSlot.wrong_job) turns its ticket's
-## chip tomato and rings the ticket (PriceSticker.set_wrong_job). The count shows neither.
+## chip tomato with a cross (PriceSticker.set_wrong_job). The count shows neither.
 ##
 ## Motion (none under `reduced_motion`, and nothing loops): the stickers new since the last
 ## slap_new slap on, the fold chip pops in as a stack first folds and punches as more fold in (each
@@ -75,7 +74,7 @@ const STICKER_TILTS: Array[float] = [-4.0, 3.0, -3.0, 4.0, -2.0]
 const MONITOR_GAP := 2.0
 const TOP_BAR_GAP := 8.0
 ## Over a drag's ghost (its coordinates): the stack's left edge, its bottom GHOST_STACK_GAP over
-## the sprite's, and the pay tag's place (the ghost has no ticket).
+## the sprite's, and its framed price window's place (the ghost has no ticket).
 const GHOST_STACK_LEFT := 78.0
 const GHOST_STACK_GAP := 2.0
 const GHOST_PAY_AT := Vector2(60, 70)
@@ -106,7 +105,8 @@ var _painted: Array[ItemView] = []
 var _stacks: Dictionary[int, Array] = {}
 ## Each stack's folded count (0: none folded), to rebuild a stack only when its fold changes.
 var _folds: Dictionary[int, int] = {}
-var _pays: Dictionary[int, PayTag] = {}
+## Each paid slot's price window: its ticket's, or the ghost's own framed one.
+var _pays: Dictionary[int, PriceWindow] = {}
 var _stamps: Dictionary[int, DenyStamp] = {}
 var _sparkles: Dictionary[int, Array] = {}
 var _strips: Array[RailStrip] = []
@@ -117,7 +117,6 @@ var _gap_box: Control
 var _batches: BatchFrames
 var _chains: ChainFrames
 var _lane_boxes: Array[Control] = []
-var _pay_box: Control
 var _stack_box: Control
 var _stamp_box: Control
 var _sparkle_box: Control
@@ -143,7 +142,7 @@ var _rings_by_card: Dictionary[CardInstance, int] = {}
 var _folds_by_card: Dictionary[CardInstance, int] = {}
 ## The folded stacks' fan, over every other part.
 var _fan: StackFan
-## The count's look (keep_stickers): no pay tag or strike on the tickets.
+## The count's look (keep_stickers): no planned pay on the tickets.
 var _counting: bool = false
 
 
@@ -157,9 +156,7 @@ func _init() -> void:
 	_chains = ChainFrames.new()
 	add_child(_chains)
 	_lane_boxes = [_box("Lane0"), _box("Lane1")]
-	# The hover ring stays behind pay tags and their die-cut rims at the ticket's corner.
 	_ring_box = _box("TicketRing")
-	_pay_box = _box("Pays")
 	_stack_box = _box("Stacks")
 	_stamp_box = _box("Stamps")
 	_sparkle_box = _box("Sparkles")
@@ -194,10 +191,9 @@ func show_model(shown: PlanningModel, items: Array[ItemView], ghost: ItemView = 
 		_painted.append(item)
 		var on_ghost: bool = item == _ghost
 		if planning.pay != PlanningModel.Pay.PLAIN:
-			var tag: PayTag = PayTag.new(planning.pay, planning.pay_text, planning.glyph, true)
-			tag.dimmed_alpha = tuning.dim_ticket_alpha if tuning != null else 1.0
-			(_ghost_box if on_ghost else _pay_box).add_child(tag)
-			_pays[slot] = tag
+			var window: PriceWindow = _pay_window(item, planning, on_ghost)
+			window.dimmed_alpha = tuning.dim_ticket_alpha if tuning != null else 1.0
+			_pays[slot] = window
 		if planning.has_stamp():
 			var stamped: DenyStamp = DenyStamp.new(planning.stamp_amount, planning.stamp_caption)
 			(_ghost_box if on_ghost else _stamp_box).add_child(stamped)
@@ -306,7 +302,7 @@ func strips() -> Array[RailStrip]:
 
 
 ## Lights the stickers `lit_causes` (slot: int, spec: StickerSpec) -> bool says (an invalid
-## Callable: every sticker, no focus) and drains the rest; dims the pay tags and drains the stamps
+## Callable: every sticker, no focus) and drains the rest; dims the pays and drains the stamps
 ## of slots outside `related`, over `fade_s` seconds (0: at once). With a focus, the strips of
 ## `hot` (giver slot: the target whose gain shows, -1 for every target's) turn hot and every
 ## other strip dims, and the item at `focus_slot` (-1: none) gets its ticket ring and its targets'
@@ -343,24 +339,24 @@ func apply_focus(
 
 
 ## The count's look (#86 v6): keeps the stickers and stamps of the model shown, takes the rail
-## strips, halos, sparkles, pay tags, ticket strikes and the focus off, until the next show_model.
+## strips, halos, sparkles, planned pays and the focus off, until the next show_model.
 func keep_stickers() -> void:
 	for item: ItemView in _painted:
 		if is_instance_valid(item):
 			item.boost_rings = 0
 	var boxes: Array[Control] = _strip_boxes()
-	boxes.append_array([_pay_box, _ring_box, _sparkle_box, _hot_box])
+	boxes.append_array([_ring_box, _sparkle_box, _hot_box])
 	for box: Control in boxes:
 		for child: Node in box.get_children():
 			box.remove_child(child)
 			child.queue_free()
+	_clear_pays()
 	_batches.clear_frames()
 	_chains.clear_frames()
 	_strips.clear()
 	_hot_strips.clear()
 	_hot_lanes.clear()
 	_ring = null
-	_pays.clear()
 	_sparkles.clear()
 	_lit = Callable()
 	_related = PackedInt32Array()
@@ -392,8 +388,9 @@ func stack(slot: int) -> Array[EffectSticker]:
 	return shown
 
 
-## The pay tag on `slot`'s ticket, or null.
-func pay_tag(slot: int) -> PayTag:
+## The price window showing `slot`'s planned pay (its ticket's, or the ghost's), or null for a
+## plain pay.
+func pay_tag(slot: int) -> PriceWindow:
 	return _pays.get(slot, null)
 
 
@@ -410,13 +407,13 @@ func sparkles(slot: int) -> Array[TextureRect]:
 	return shown
 
 
-## Every part shown: rail strips, their gap fills and gain badges, stickers, pay tags, stamps and
-## sparkles (the ghost's too).
+## Every part shown: rail strips, their gap fills and gain badges, stickers, stamps and sparkles
+## (the ghost's too, its price window included).
 func parts() -> Array[Control]:
 	var shown: Array[Control] = []
 	var boxes: Array[Control] = _strip_boxes()
 	boxes.append_array([_batches, _chains])
-	boxes.append_array([_pay_box, _ring_box, _stack_box, _stamp_box, _sparkle_box, _hot_box])
+	boxes.append_array([_ring_box, _stack_box, _stamp_box, _sparkle_box, _hot_box])
 	boxes.append(_ghost_box)
 	for box: Control in boxes:
 		if box != null and is_instance_valid(box) and box.visible:
@@ -493,8 +490,8 @@ func _lay_out() -> void:
 	for strip: RailStrip in strips():
 		var lane: int = strip.spec().lane
 		strip.lay_out(_anchors(strip.spec()), RailStrip.LANE_RECTS[lane], lane == 0)
-	_batches.follow(self, _items, _ghost, _pays)
-	_chains.follow(self, _items, _ghost, _pays)
+	_batches.follow(self, _items, _ghost)
+	_chains.follow(self, _items, _ghost)
 	_lay_out_focus()
 	_hide_hot_calm()
 	_fan.track(_folded_stacks())
@@ -514,7 +511,7 @@ func _lay_out_focus() -> void:
 	if _ring == null or item == null or item == _ghost:
 		return
 	var to_ticket: Transform2D = _to_layer(item) * Transform2D(0.0, item.sticker().position)
-	var ticket: Rect2 = to_ticket * Rect2(Vector2.ZERO, PriceSticker.SIZE)
+	var ticket: Rect2 = to_ticket * Rect2(Vector2.ZERO, item.sticker().size)
 	var outer: Rect2 = ticket.grow(RING_BAND * RING_COLOURS.size())
 	_ring.position = outer.position
 	_ring.size = outer.size
@@ -639,24 +636,7 @@ func _lay_out_belt(slot: int, planning: PlanningSlot, item: ItemView) -> void:
 	var shoulder: float = (to_layer * Vector2(STACK_LEFT, 0)).x
 	var left: float = _on_screen(shoulder, planning)
 	_lay_out_stack(slot, planning, Vector2(left, STACK_BOTTOM_Y), Vector2.ZERO, _stack_box)
-	var ticket_xf: Transform2D = to_layer * Transform2D(0.0, item.sticker().position)
-	var ticket: Rect2 = ticket_xf * Rect2(Vector2.ZERO, PriceSticker.SIZE)
-	# A wrong job's wider chip may move the text: set before the pay (#128).
 	item.sticker().set_wrong_job("" if _counting else planning.wrong_job)
-	var tag: PayTag = _pays.get(slot, null)
-	var tag_rect: Rect2 = Rect2()
-	var struck: bool = planning.struck and not _counting
-	if tag != null:
-		tag_rect = tag.rect_on(ticket, item.sticker(), scale_x)
-		tag.position = tag_rect.position
-	item.sticker().set_pay(struck, ticket_xf.affine_inverse() * tag_rect)
-	if tag != null:
-		var old: PriceSticker.StruckPrice = item.sticker().struck_price()
-		if item.sticker().is_struck() and old != null:
-			var at: Vector2 = ticket_xf * item.sticker().struck_rect().position - tag.position
-			tag.show_struck(old.text, old.dark, at, ticket_xf.get_scale())
-		else:
-			tag.hide_struck()
 	var stamped: DenyStamp = _stamps.get(slot, null)
 	if stamped != null:
 		stamped.position = (sprite.position + STAMP_OFFSET * scale_x).snappedf(ArtStyle.ART_SCALE)
@@ -668,17 +648,16 @@ func _lay_out_belt(slot: int, planning: PlanningSlot, item: ItemView) -> void:
 
 
 ## The ghost's parts in its own coordinates: the stack over its sprite's right side, its ceiling
-## from where the ghost stands in the layer now, the stamp on its sprite and the pay tag pinned.
+## from where the ghost stands in the layer now, the stamp on its sprite and its price window.
 func _lay_out_ghost(slot: int, planning: PlanningSlot, ghost: ItemView) -> void:
 	var origin: Vector2 = _to_layer(ghost).origin
 	var sprite: Rect2 = _sprite_rect(ghost, Transform2D.IDENTITY)
 	var anchor: Vector2 = origin + Vector2(GHOST_STACK_LEFT, sprite.end.y - GHOST_STACK_GAP)
 	anchor.x = _on_screen(anchor.x, planning)
 	_lay_out_stack(slot, planning, anchor, origin, _ghost_box)
-	var tag: PayTag = _pays.get(slot, null)
-	if tag != null:
-		tag.position = GHOST_PAY_AT
-		tag.hide_struck()
+	var window: PriceWindow = _pays.get(slot, null)
+	if window != null:
+		window.position = GHOST_PAY_AT
 	var stamped: DenyStamp = _stamps.get(slot, null)
 	if stamped != null:
 		stamped.position = sprite.position + STAMP_OFFSET
@@ -814,19 +793,20 @@ func _paint_focus(fade: float) -> void:
 ## Takes every part off, and every painted view's boost, grey and ticket pay.
 func _reset() -> void:
 	_fan.track({})
+	_clear_pays()
 	for item: ItemView in _painted:
 		if is_instance_valid(item):
 			item.boost_rings = 0
 			item.denied = false
 			item.sticker().set_wrong_job("")
-			item.sticker().set_pay(false, Rect2())
+			item.sticker().clear_pay()
 	_painted.clear()
 	for got: PriceSticker in _got:
 		if is_instance_valid(got):
 			got.set_got(false)
 	_got.clear()
 	var boxes: Array[Control] = _strip_boxes()
-	boxes.append_array([_pay_box, _ring_box, _stack_box, _stamp_box, _sparkle_box, _hot_box])
+	boxes.append_array([_ring_box, _stack_box, _stamp_box, _sparkle_box, _hot_box])
 	for box: Control in boxes:
 		for child: Node in box.get_children():
 			box.remove_child(child)
@@ -844,7 +824,6 @@ func _reset() -> void:
 	_ghost = null
 	_stacks.clear()
 	_folds.clear()
-	_pays.clear()
 	_stamps.clear()
 	_sparkles.clear()
 	_layout_key.clear()
@@ -885,7 +864,7 @@ func _anchors(spec: RailStripSpec) -> Dictionary[int, Rect2]:
 				return {}
 			continue
 		var to_ticket: Transform2D = _to_layer(item) * Transform2D(0.0, item.sticker().position)
-		anchors[slot] = to_ticket * Rect2(Vector2.ZERO, PriceSticker.SIZE)
+		anchors[slot] = to_ticket * Rect2(Vector2.ZERO, item.sticker().size)
 	return anchors
 
 
@@ -929,16 +908,36 @@ func _key() -> Array[Transform2D]:
 	return key
 
 
-## The parts on `slot`'s belt view: its stickers, pay tag, stamp and sparkles.
+## The parts on `slot`'s belt view: its stickers, stamp and sparkles (its pay is in its ticket).
 func _parts_of(slot: int) -> Array[Control]:
 	var found: Array[Control] = []
 	for sticker: EffectSticker in stack(slot):
 		found.append(sticker)
-	for part: Control in [_pays.get(slot, null), _stamps.get(slot, null)]:
-		if part != null:
-			found.append(part)
+	var stamped: DenyStamp = _stamps.get(slot, null)
+	if stamped != null:
+		found.append(stamped)
 	found.append_array(sparkles(slot))
 	return found
+
+
+## `item`'s planned pay (`planning`) in its ticket's window, or in a framed one on the ghost.
+func _pay_window(item: ItemView, planning: PlanningSlot, on_ghost: bool) -> PriceWindow:
+	if not on_ghost:
+		item.sticker().set_pay(planning.pay, planning.payout, planning.stamp_caption)
+		return item.sticker().window()
+	var definition: CardDefinition = item.card.definition
+	var state: PriceWindow.State = PriceWindow.state_for(planning.pay, definition.is_coupon())
+	var window: PriceWindow = PriceWindow.new(state, planning.payout, true, definition.base)
+	_ghost_box.add_child(window)
+	return window
+
+
+## Puts every paid ticket's printed price back (the ghost's window goes with its box).
+func _clear_pays() -> void:
+	for window: PriceWindow in _pays.values():
+		if is_instance_valid(window) and window.get_parent() is PriceSticker:
+			(window.get_parent() as PriceSticker).clear_pay()
+	_pays.clear()
 
 
 func _box(box_name: String) -> Control:

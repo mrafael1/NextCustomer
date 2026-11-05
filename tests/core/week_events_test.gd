@@ -1,6 +1,6 @@
 extends GdUnitTestSuite
 ## The week events (v0.70, plan section 3.9): a run of 16 shifts is 4 weeks of 4 (WeekSchedule,
-## v0.95), each with its fixed week event from the shift number (Training week, Bakery festival,
+## v0.96), each with its fixed week event from the shift number (Training week, Bakery festival,
 ## Holiday rush, Clearance week). A week's day events are all drawn as its first shift starts
 ## (the time card shows them), with the run's RNG, and every later day of the week plays them;
 ## the week event stacks with the day's own events (the quota percents add up, Bakery festival's
@@ -29,7 +29,7 @@ func before_test() -> void:
 
 
 ## Shifts 1-4 are week 1 (Training week), 5-8 week 2 (Bakery festival), 9-12 week 3 (Holiday
-## rush), 13-16 week 4 (Clearance week, v0.95); a week starts on shifts 1, 5, 9 and 13.
+## rush), 13-16 week 4 (Clearance week, v0.96); a week starts on shifts 1, 5, 9 and 13.
 func test_the_weeks_follow_the_shift_number() -> void:
 	var balance: BalanceDefinition = load(BALANCE)
 	assert_int(WeekSchedule.week_count(balance)).is_equal(4)
@@ -141,7 +141,7 @@ func test_holiday_rush_raises_the_machine_odds() -> void:
 	assert_int(WeekSchedule.odds_delta(_balance, 8)).is_equal(0)
 	for shift: int in [9, 10, 11, 12]:
 		assert_int(WeekSchedule.odds_delta(_balance, shift)).is_equal(1)
-	# Week 4 (v0.95) has no delta: its own odds level is already the top one.
+	# Week 4 (v0.96) has no delta: its own odds level is already the top one.
 	for shift: int in [13, 14, 15, 16]:
 		assert_int(WeekSchedule.odds_delta(_balance, shift)).is_equal(0)
 		assert_int(machine.odds_level_after(shift)).is_equal(machine.max_level())
@@ -301,7 +301,7 @@ func test_a_save_from_before_the_weeks_plays_its_shift_without_the_week_event() 
 	assert_str(WeekCardModel.of(run).chip_name()).is_not_empty()
 
 
-## v0.95's four weeks keep the save format (10): a save from the 12-shift run (3 weeks, paydays
+## v0.96's four weeks keep the save format (10): a save from the 12-shift run (3 weeks, paydays
 ## after 4 and 8, its final review on 12) resumes as a 16-shift run on today's balance. Saved in
 ## shift 12's planning, its week 3 plan holds; shift 12 is a review that pays, not the FINAL
 ## REVIEW, its checkout opens the machine with a payday's BONUS queued, and shift 13 opens week 4
@@ -360,7 +360,7 @@ func test_a_twelve_shift_save_resumes_as_a_sixteen_shift_run() -> void:
 		assert_bool(WeekSchedule.shift_events(resumed).has(week_four)).is_true()
 
 
-## A 12-shift save resumed on a curve other than the one it was played with (v0.95: the 16-shift
+## A 12-shift save resumed on a curve other than the one it was played with (v0.96: the 16-shift
 ## curve, here quotas of 1 against 1000): the played shifts keep their recorded quotas; saved
 ## after its checkout, the current shift keeps its record's quota, so it still reads as passed
 ## with its margin; saved in planning, the shift not yet played takes today's curve.
@@ -408,7 +408,7 @@ func test_a_twelve_shift_save_keeps_its_played_quotas_on_a_new_curve() -> void:
 			assert_int(resumed.quota()).is_greater_equal(1000)
 
 
-## The live balance as the 12-shift run had it (v0.65-v0.94), its quotas at 1.
+## The live balance as the 12-shift run had it (v0.65-v0.95), its quotas at 1.
 func _twelve_shift_balance() -> BalanceDefinition:
 	var old: BalanceDefinition = _balance.duplicate()
 	old.quotas = old.quotas.slice(0, 12)

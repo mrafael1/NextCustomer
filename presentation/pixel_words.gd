@@ -7,8 +7,11 @@ extends Control
 ## cell, one art px per font px). A cell that is a multiple of the art's 2 px keeps the words on
 ## the art's grid. Its minimum size is the words' (text_size()); it draws them from its top left,
 ## with no line or glyph padding. A character the sheet lacks draws as a blank. Display only.
+## The 4x7 digits (SMALL_DIGITS, mock-up shift_scene_polish_v5_tickets.html's MID sheet) and the
+## "k" of both digit sheets print a ticket's price window when a 6x8 price would not fit it
+## (PriceWindow).
 
-enum Sheet { DIGITS, CAPS }
+enum Sheet { DIGITS, CAPS, SMALL_DIGITS }
 
 ## One font pixel between two characters.
 const GAP := 1
@@ -25,7 +28,24 @@ const DIGIT_GLYPHS: Dictionary[String, Array] = {
 	"8": [".####.", "##..##", "##..##", ".####.", "##..##", "##..##", "##..##", ".####."],
 	"9": [".####.", "##..##", "##..##", "##..##", ".#####", "....##", "....##", ".####."],
 	"€": ["..####", ".##...", "#####.", ".##...", "####..", ".##...", ".##...", "..####"],
+	"k": ["##....", "##....", "##..##", "##.##.", "####..", "##.##.", "##..##", "##..##"],
 	" ": ["...", "...", "...", "...", "...", "...", "...", "..."],
+}
+## The 4x7 digits, their € and "k" (the v5 mock-up's MID sheet), '#' ink.
+const SMALL_DIGIT_GLYPHS: Dictionary[String, Array] = {
+	"0": [".##.", "#..#", "#..#", "#..#", "#..#", "#..#", ".##."],
+	"1": [".#.", "##.", ".#.", ".#.", ".#.", ".#.", "###"],
+	"2": [".##.", "#..#", "...#", "..#.", ".#..", "#...", "####"],
+	"3": ["###.", "...#", "...#", ".##.", "...#", "...#", "###."],
+	"4": ["..#.", ".##.", "#.#.", "#.#.", "####", "..#.", "..#."],
+	"5": ["####", "#...", "###.", "...#", "...#", "#..#", ".##."],
+	"6": [".##.", "#...", "###.", "#..#", "#..#", "#..#", ".##."],
+	"7": ["####", "...#", "..#.", "..#.", ".#..", ".#..", ".#.."],
+	"8": [".##.", "#..#", "#..#", ".##.", "#..#", "#..#", ".##."],
+	"9": [".##.", "#..#", "#..#", ".###", "...#", "...#", ".##."],
+	"€": ["..##", ".#..", "####", ".#..", "###.", ".#..", "..##"],
+	"k": ["#...", "#...", "#..#", "#.#.", "##..", "#.#.", "#..#"],
+	" ": ["..", "..", "..", "..", "..", "..", ".."],
 }
 ## The 3x5 capitals (the mock-up's CAPS sheet), '#' ink.
 const CAPS_GLYPHS: Dictionary[String, Array] = {
@@ -120,7 +140,12 @@ func _draw() -> void:
 
 
 static func _glyphs(from: Sheet) -> Dictionary[String, Array]:
-	return DIGIT_GLYPHS if from == Sheet.DIGITS else CAPS_GLYPHS
+	match from:
+		Sheet.DIGITS:
+			return DIGIT_GLYPHS
+		Sheet.SMALL_DIGITS:
+			return SMALL_DIGIT_GLYPHS
+	return CAPS_GLYPHS
 
 
 static func _glyph(glyphs: Dictionary[String, Array], character: String) -> Array:

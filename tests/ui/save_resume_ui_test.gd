@@ -124,7 +124,7 @@ func test_a_new_screen_resumes_the_hand_the_row_and_the_redraws() -> void:
 	assert_int(resumed.run.redraws_used).is_equal(1)
 	assert_int(resumed.run.redraws_allowed).is_equal(2)
 	assert_bool(resumed._redraw_button.disabled).is_false()
-	assert_str(resumed._redraw_button.caption).is_equal("Redraw")
+	assert_str(resumed._redraw_button.caption).is_equal(RedrawNotice.REDRAW_CAPTION)
 	assert_str(resumed._redraw_button.note()).is_equal("1")
 	assert_int(resumed._row_views.size()).is_equal(2)
 	assert_int(_hand_views(resumed).size()).is_equal(resumed.run.hand().size())
@@ -240,11 +240,10 @@ func test_quitting_during_the_count_up_resumes_on_the_machine() -> void:
 		assert_bool(monitor.checkout().sunburst().visible).is_false()
 		assert_bool(monitor.climax().is_running()).is_false()
 		assert_bool(monitor.bay().is_met()).is_false()
-		assert_bool(screen._stage.rail_light.is_lit()).is_false()
 	assert_array(_errors).is_empty()
 
 
-## A resumed checkout keeps the monitor on the final item and its complete explanation,
+## A resumed checkout keeps the monitor on the final item and its breakdown,
 ## with a green bay, no climax or rail light, and the final register total without celebration.
 func _assert_monitor_end_state(resumed: ShiftScreen) -> void:
 	var monitor: MonitorView = resumed._monitor
@@ -268,26 +267,21 @@ func _assert_monitor_end_state(resumed: ShiftScreen) -> void:
 		var items: MonitorItemColumn = monitor.item_column()
 		assert_object(items.shown_definition()).is_same(resumed.run.row[last].definition)
 		assert_int(items.shown_value()).is_equal(resumed.run.last_result.payouts[last])
-		# The last item's payment equation (the last Milk under Multipack's ×3 has one), as the
-		# count showed it: the newest row, inside the item column, below the line above it.
-		var equation: PaymentEquation = PaymentEquation.of(resumed.run.last_result.steps, last)
-		assert_object(equation).override_failure_message("PASSING_ROW's last Milk").is_not_null()
+		# The last item's breakdown as the count left it (PR #138 monitor: its rows and only
+		# "= N€" at the foot, no equation row): rows inside the item column, its payout the score's.
 		var rows: Array[Control] = items.step_rows()
-		var equations: Array[String] = []
+		assert_int(rows.size()).is_greater(0)
 		for row: Control in rows:
-			if row.has_meta(&"equation"):
-				equations.append(String(row.get_meta(&"line")))
-		assert_array(equations).is_equal([equation.text(MonitorItemColumn._arrow())])
-		assert_bool(rows[-1].has_meta(&"equation")).is_true()
-		var shown: Rect2 = rows[-1].get_global_rect()
-		(
-			assert_bool(items.get_global_rect().grow(0.5).encloses(shown))
-			. override_failure_message("%s outside %s" % [shown, items.get_global_rect()])
-			. is_true()
-		)
-		assert_int(rows.size()).is_greater(1)
-		assert_float(shown.position.y).is_greater_equal(rows[-2].get_global_rect().end.y - 0.5)
-		assert_bool(resumed._stage.rail_light.is_lit()).is_false()
+			assert_bool(row.has_meta(&"equation")).is_false()
+			var shown: Rect2 = row.get_global_rect()
+			(
+				assert_bool(items.get_global_rect().grow(0.5).encloses(shown))
+				. override_failure_message("%s outside %s" % [shown, items.get_global_rect()])
+				. is_true()
+			)
+		var payout: MonitorPayout = items.payout_view()
+		assert_int(payout.pay_amount()).is_equal(resumed.run.last_result.payouts[last])
+		assert_bool(payout.equals().visible).is_true()
 		assert_vector(monitor.position).is_equal(ShiftStage.MONITOR_RECT.position)
 		await _frames(5)
 

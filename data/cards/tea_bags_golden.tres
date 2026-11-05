@@ -24,6 +24,7 @@ base = 3
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_tea_bags")])
 rule_text = "×4 to the last 2 MORNING items after it"
 sticker_text = "×{factor} last {charges} {morning}"
+monitor_text = "The last {charges} {morning} items after it each pay ×{factor}."
 art_ref = "res://art/items_v2/tea_bags_golden.png"
 variant_of = ExtResource("9_plain")
 tier = 2

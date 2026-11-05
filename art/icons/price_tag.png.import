@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bw7kp67d7nrt5"
-path="res://.godot/imported/ticket_product.png-3fae3840d086d1217ba91510ae438e3b.ctex"
+uid="uid://mbw3nah8l0e8"
+path="res://.godot/imported/price_tag.png-d03ee58def94aaac696c00f1a04d9390.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://art/frames/ticket_product.png"
-dest_files=["res://.godot/imported/ticket_product.png-3fae3840d086d1217ba91510ae438e3b.ctex"]
+source_file="res://art/icons/price_tag.png"
+dest_files=["res://.godot/imported/price_tag.png-d03ee58def94aaac696c00f1a04d9390.ctex"]
 
 [params]
 

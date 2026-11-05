@@ -1,6 +1,6 @@
 extends GdUnitTestSuite
 ## The loop rework (v0.65, full build plan section 5.3): 16 shifts in 4 weeks of 4 (12 in 3 before
-## v0.95), each week's
+## v0.96), each week's
 ## 3rd shift inspected and its 4th the Manager's review (several inspections at once); v0.68's
 ## Payday (a passed review pays two PREMIUM tickets, an inspection only the ticket) and training
 ## week (a miss on shifts 1-4 is a slip the run forgives, at most 2; any other miss ends the run),
@@ -11,7 +11,7 @@ const STARTER := "res://data/decks/starter.tres"
 const BREAD := "res://data/cards/bread.tres"
 
 
-## The live schedule: 16 shifts (v0.95); shifts 3, 7, 11 and 15 under one inspection, 4, 8, 12
+## The live schedule: 16 shifts (v0.96); shifts 3, 7, 11 and 15 under one inspection, 4, 8, 12
 ## and 16 under two.
 func test_the_live_weeks() -> void:
 	var balance: BalanceDefinition = load(BALANCE)
@@ -263,7 +263,7 @@ func test_a_slipped_run_round_trips() -> void:
 
 
 ## A format 7 save (before v0.65) names one next inspection and one per record: it reads into
-## today's run (16 shifts since v0.95), its next shift's inspections by today's schedule.
+## today's run (16 shifts since v0.96), its next shift's inspections by today's schedule.
 func test_a_format_7_save_reads_its_single_inspections() -> void:
 	var lookup: ContentLookup = ContentLookup.new(load(BALANCE))
 	var run: RunState = _live_run(15)

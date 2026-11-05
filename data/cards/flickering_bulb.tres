@@ -20,6 +20,7 @@ base = 1
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_flickering_bulb")])
 rule_text = "×3 if the item right before it was WASTED"
 sticker_text = "×{factor} after {wasted}"
+monitor_text = "Pays ×{factor} when the item right before it was {wasted}."
 generally_useful = true
 art_ref = "res://art/items_v2/flickering_bulb.png"
 mini_art_ref = "res://art/minis/flickering_bulb.png"

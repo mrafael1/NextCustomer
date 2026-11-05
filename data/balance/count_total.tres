@@ -71,6 +71,3 @@ climax_tab_at = 0.42
 climax_shine = Vector2(0.15, 0.6)
 climax_spin = 14.0
 met_sun_spin = 8.0
-rail_run_s = 0.2
-rail_hold_s = 0.45
-rail_fade_s = 0.25

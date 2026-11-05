@@ -5,8 +5,13 @@ extends Node
 ## the pointer has stayed on that same item for the hold (ScanTuning.hold_ms, in
 ## data/balance/scan.tres) is it scanned: the item's sprite lifts, tomato brackets mark it (the
 ## stage's scan layer, ScanOverlay; B2 has no handheld scanner, #80), the scanner beeps and the hung
-## monitor shows the item (MonitorView.show_scan) until the scan ends, when it goes back to its
-## idle screen. A belt item's full scan also frames its line on the planning receipt
+## monitor shows the item (MonitorView.show_scan). The monitor's scan is sticky (2026-11-04): it
+## stays pinned to that card after the scan ends, so it can be read and its keyword chips hovered
+## on the monitor, until another item gets the full scan or the owner lets it go
+## (release_monitor: a card placed on the belt, the count's start, a new shift). Each refresh
+## (watch) shows the pinned card again with its new lines (on the belt its slot's, in the hand none)
+## and lets it go once it is in neither. A belt item's full scan also frames its line on the
+## planning receipt
 ## (ReceiptView.highlight_slot) until the scan ends; a hand item's frames none. The pointer
 ## leaving the item cancels a pending hold, and back on the item the hold starts again; another
 ## item starts its own. Dragging an item ends the scan, a pending hold with it (`blocked`).
@@ -27,15 +32,15 @@ extends Node
 ## The monitor (and an offer's popup) shows the card's rule text verbatim. A belt item's scan also
 ## shows its payout and every step of its slot but BASE and PAYOUT, worded as the receipt words
 ## them (ReceiptView.step_line, decision 1A), so every line of the planning receipt can be read by
-## scanning its item. A belt item that gives to others (#71) gets a "gives" line first (GIVES_TEXT:
-## its tokens, its targets and their summed gain, "×3 to Milk, Milk, Milk  +114€", from its rail
-## strip, PlanningModel.strip_of). Its tag line shows the scored tags (granted ones too); a hand
-## item's its card's own.
+## scanning its item. A belt item that gives to others (#71) gets its "gives" lines first
+## (gives_rows: one per target, "to Banana  ×2 · 5€ → 10€", from its rail strip,
+## PlanningModel.strip_of). Its tag line shows the scored tags (granted ones too); a hand item's
+## its card's own.
 ##
 ## The scan follows the pointer. While the pointer is inside an offer's popup, the scanned offer
 ## stays, so moving over the popup never switches to an item it covers. Once the pointer is over
-## neither the item nor its popup, the scan moves to the item under it, or ends: the marks clear,
-## the popup hides and the monitor goes back to its idle screen. It also ends when the pointer
+## neither the item nor its popup, the scan moves to the item under it, or ends: the marks clear
+## and the popup hides (the monitor keeps the pinned card). It also ends when the pointer
 ## leaves the window and when the player leaves (FocusWatch.player_left; ShiftScreen calls clear).
 ## A refresh that rebuilds the items keeps the scan on the same card (its new view) while the
 ## pointer is on that view (or an offer's popup); a card the refresh moved away from the pointer (a
@@ -56,12 +61,22 @@ const HOVER_DB := -8.0
 const THROTTLE_MS := 120
 ## The scanner's tuning (the hold), unless `tuning` is set before setup().
 const TUNING_PATH := "res://data/balance/scan.tres"
-## A giver's "gives" line (#71): its tokens and its targets' names (up to GIVES_NAMES of them, else
-## GIVES_MANY), then its targets' summed gain (cancelled ones left out) as the line's amount.
-const GIVES_TEXT := "%s to %s"
+## A giver's "gives" rows (#71; PR #138 round 7, a friend's suggestion the user passed on: the
+## relationship explicit): one per target, up to GIVES_NAMES of them, its words GIVES_TEXT ("to
+## Banana") and its amount GIVES_EFFECT, the effect, then the target's price before it and after
+## it ("×2 · 5€ → 10€"; a bonus's token with its €, "+3€ · 4€ → 7€"), GIVES_ARROW when the
+## monitor's font has it, else GIVES_ARROW_FALLBACK. Past GIVES_NAMES targets one row says
+## GIVES_MANY with their summed gain (GIVES_AMOUNT). A target whose links were cancelled shows its
+## effect alone; words that are no amount (a reset's WASTED) go before "to".
+const GIVES_TEXT := "to %s"
+const GIVES_EFFECT := "%s · %s %s %s"
 const GIVES_AMOUNT := "+%d€"
 const GIVES_NAMES := 3
 const GIVES_MANY := "%d items"
+const GIVES_ARROW := "→"
+const GIVES_ARROW_FALLBACK := "=>"
+## The tokens that are an amount (EffectLink.token): a factor, a bonus or a fall, an override.
+const GIVES_SIGNS: Array[String] = ["×", "+", "−", "-", "="]
 
 ## Returns true while scanning is off. Set by the owner; none means never.
 var blocked: Callable = Callable()
@@ -98,6 +113,8 @@ var _inspection_names: PackedStringArray = PackedStringArray()
 ## The item scanned and its card (a refresh's new view of that card takes the scan over).
 var _shown: ItemView
 var _shown_card: CardInstance
+## The card the monitor is pinned to (the last full scan of a hand or belt item), or null.
+var _monitor_card: CardInstance
 ## The item the pointer last entered and hasn't left: where the scan goes once it leaves the
 ## scanned item and its popup.
 var _under: ItemView
@@ -118,7 +135,10 @@ var _framed: bool = false
 ## A belt item's payout and step lines for the monitor's item column (#105 piece 2): `payout` (-1
 ## for a hand item), its `lines` (ReceiptView.step_line, after its "gives" line), each with
 ## whether it is a fizzle, whether it is harmful (CountUpPlan.is_harmful) and its giver's mini
-## (null for none); the first `gives` lines are "gives" lines.
+## (null for none); the first `gives` lines are "gives" lines, one per target, and `collapsed` (with
+## `collapsed_mini`) the one GIVES_MANY row the monitor shows instead when the scan would not fit
+## on one page ("" with fewer than two); `given` a coupon's contribution, its "+N€"
+## (PlanningModel.contribution; 0 for a product), PR #138 round 7.
 class ItemLines:
 	extends RefCounted
 
@@ -128,6 +148,19 @@ class ItemLines:
 	var harms: Array[bool] = []
 	var minis: Array[Texture2D] = []
 	var gives: int = 0
+	var given: int = 0
+	var collapsed: String = ""
+	var collapsed_mini: Texture2D
+
+
+## One "gives" row (gives_rows): its `line` (text and amount, ReceiptView.joined_line), its
+## `target` slot (-1 for the GIVES_MANY row) and what it added there, `gain` (0 when cancelled).
+class GivesRow:
+	extends RefCounted
+
+	var line: String = ""
+	var target: int = -1
+	var gain: int = 0
 
 
 func _ready() -> void:
@@ -182,7 +215,14 @@ func watch(row: Array[CardView], hand: Array[Control]) -> void:
 		_watch(view as ItemView)
 	if not _is_shown(_under) or not (_items.has(_under) or _offers.has(_under)):
 		_under = null
+	_show_pinned()
 	_queue_reshow()
+
+
+## The belt's items in slot order after a refresh rebuilt them, before the preview reads their
+## lines (item_lines' source icons): watch() comes at the refresh's end.
+func set_row(row: Array[CardView]) -> void:
+	_row = row.duplicate()
 
 
 ## The ScoreResult the belt shows (the preview's, or a resumed checkout's) and the names its
@@ -201,8 +241,8 @@ func set_result(
 	_queue_reshow()
 
 
-## Ends the scan: the item rests, the popup hides, the monitor goes back to idle and the marks
-## clear.
+## Ends the scan: the item rests, the popup hides and the marks clear. The monitor keeps the pinned
+## card (release_monitor lets it go).
 func clear() -> void:
 	if _is_shown(_shown):
 		_shown.lifted = false
@@ -213,13 +253,25 @@ func clear() -> void:
 	_reshow_queued = false
 	if _popup != null:
 		_popup.visible = false
-	if _monitor != null:
-		_monitor.end_scan()
 	_highlight(-1)
 	for marks: ScanOverlay in [_overlay, _offer_overlay]:
 		if marks != null:
 			marks.dock()
 	set_process(false)
+
+
+## Lets go of the monitor's pinned card: the monitor goes back to the last placed belt item
+## (MonitorView.end_scan). The owner calls it when a card is placed, at the count's start and on a
+## new shift.
+func release_monitor() -> void:
+	_monitor_card = null
+	if _monitor != null:
+		_monitor.end_scan()
+
+
+## The card the monitor is pinned to (see the class comment), or null.
+func pinned() -> CardInstance:
+	return _monitor_card
 
 
 ## The item hovered (its hold pending) or scanned (is_full), or null.
@@ -294,13 +346,18 @@ func item_lines(slot: int) -> ItemLines:
 	if _result == null or slot < 0 or slot >= _result.payouts.size():
 		return shown
 	shown.payout = _result.payouts[slot]
-	var given: String = gives_line(_result, slot, _names)
-	if not given.is_empty():
-		shown.lines.append(given)
+	for row: GivesRow in gives_rows(_result, slot, _names, gives_arrow()):
+		shown.lines.append(row.line)
 		shown.fizzles.append(false)
 		shown.harms.append(false)
-		shown.minis.append(null)
-		shown.gives = 1
+		# The target's own mini (the friend's "[item icon] to item"); the many row's, the giver's.
+		shown.minis.append(_own_mini(row.target if row.target >= 0 else slot))
+		shown.gives += 1
+	if shown.gives > 1:
+		shown.collapsed = gives_rows(_result, slot, _names, gives_arrow(), 0)[0].line
+		shown.collapsed_mini = _own_mini(slot)
+	if slot < _row.size() and _row[slot] != null and _row[slot].card.definition.is_coupon():
+		shown.given = PlanningModel.contribution(_result, slot, _names)
 	for step: ScoreStep in footer_steps(_result, slot):
 		var fizzle: bool = step.step_type == ScoreStep.StepType.WASTED
 		# A WASTED line says why in the monitor's room (MonitorText.waste_line); the receipt's
@@ -323,37 +380,88 @@ func line_of(step: ScoreStep) -> String:
 	return ReceiptView.step_line(step, _names, _upgrade_names, _inspection_names)
 
 
-## The mini of the item that gave `step` (another item on the belt), or null.
+## The icon of what gave `step`, as the count shows it (MonitorView.source_icon): the belt item at
+## its card_giver_slot (the supporting neighbour, else its own rule's item), the register upgrade's,
+## the event's.
 func _giver_mini(step: ScoreStep) -> Texture2D:
-	if step.source_kind != ScoreStep.SourceKind.CARD:
+	var giver: int = step.card_giver_slot()
+	var card: CardDefinition = null
+	if giver >= 0 and giver < _row.size() and _row[giver] != null:
+		card = _row[giver].card.definition
+	if _monitor == null:
+		return MonitorView.source_icon(step, card, [], [])
+	return MonitorView.source_icon(step, card, _monitor.upgrades, _monitor.inspections)
+
+
+## The mini of the belt item at `slot` (its own badge mini), or null: a "gives" row's source.
+func _own_mini(slot: int) -> Texture2D:
+	if slot < 0 or slot >= _row.size() or _row[slot] == null:
 		return null
-	var giver: int = step.source_slot
-	if giver < 0 or giver == step.slot or giver >= _row.size() or _row[giver] == null:
-		return null
-	var ref: String = _row[giver].card.definition.badge_mini_ref()
+	var ref: String = _row[slot].card.definition.badge_mini_ref()
 	return load(ref) as Texture2D if not ref.is_empty() and ResourceLoader.exists(ref) else null
 
 
-## The "gives" line of the belt item at `slot` in `result` (see GIVES_TEXT; `names` are the row's
-## names), or empty when it gives nothing.
-static func gives_line(result: ScoreResult, slot: int, names: PackedStringArray) -> String:
+## The "gives" rows of the belt item at `slot` in `result` (see GIVES_TEXT; `names` are the row's
+## names, `arrow` GIVES_ARROW or its fallback), none when it gives nothing: one per target up to
+## `most`, past it the one GIVES_MANY row. Every number is the rail strip's (PlanningModel.strip_of:
+## the score's steps).
+static func gives_rows(
+	result: ScoreResult,
+	slot: int,
+	names: PackedStringArray,
+	arrow: String = GIVES_ARROW,
+	most: int = GIVES_NAMES
+) -> Array[GivesRow]:
+	var rows: Array[GivesRow] = []
 	var strip: RailStripSpec = PlanningModel.strip_of(result, slot, names)
 	if strip == null:
-		return ""
-	var tokens: PackedStringArray = PackedStringArray()
-	var targets: PackedStringArray = PackedStringArray()
-	var gain: int = 0
+		return rows
+	if strip.targets.size() > most:
+		var many: GivesRow = GivesRow.new()
+		many.gain = strip.total_gain()
+		many.line = ReceiptView.joined_line(
+			GIVES_TEXT % (GIVES_MANY % strip.targets.size()),
+			GIVES_AMOUNT % many.gain if many.gain > 0 else ""
+		)
+		rows.append(many)
+		return rows
 	for index: int in range(strip.targets.size()):
+		var row: GivesRow = GivesRow.new()
+		row.target = strip.targets[index]
+		row.gain = maxi(strip.gains[index], 0)
+		var effects: PackedStringArray = PackedStringArray()
+		var words: PackedStringArray = PackedStringArray()
 		for token: String in strip.tokens[index].split(" ", false):
-			if not tokens.has(token):
-				tokens.append(token)
-		targets.append(names[strip.targets[index]])
-		gain += maxi(strip.gains[index], 0)
-	var named: String = ", ".join(targets)
-	if targets.size() > GIVES_NAMES:
-		named = GIVES_MANY % targets.size()
-	var text: String = GIVES_TEXT % [" ".join(tokens), named]
-	return ReceiptView.joined_line(text, GIVES_AMOUNT % gain if gain > 0 else "")
+			if not GIVES_SIGNS.has(token.left(1)):
+				words.append(token)
+			elif token.left(1) in ["+", "−", "-"] and not token.ends_with("€"):
+				effects.append(token + "€")
+			else:
+				effects.append(token)
+		var text: String = GIVES_TEXT % names[row.target]
+		if not words.is_empty():
+			text = " ".join(words) + " " + text
+		var amount: String = " ".join(effects)
+		if not effects.is_empty() and strip.gains[index] >= 0:
+			amount = (
+				GIVES_EFFECT
+				% [
+					amount,
+					MonitorText.euros(strip.befores[index]),
+					arrow,
+					MonitorText.euros(strip.afters[index])
+				]
+			)
+		row.line = ReceiptView.joined_line(text, amount)
+		rows.append(row)
+	return rows
+
+
+## The arrow of a "gives" row's amount: GIVES_ARROW when the monitor rows' font has it, else
+## GIVES_ARROW_FALLBACK (the friend's "=>").
+static func gives_arrow() -> String:
+	var font: Font = ArtStyle.bold_font(MonitorStepRow.AMOUNT_WEIGHT)
+	return GIVES_ARROW if font.has_char(GIVES_ARROW.unicode_at(0)) else GIVES_ARROW_FALLBACK
 
 
 ## Follows the pointer while an item is scanned: see the class comment.
@@ -486,7 +594,6 @@ func _show(view: ItemView) -> void:
 	set_process(true)
 	if not _full:
 		_popup.visible = false
-		_monitor.end_scan()
 		_highlight(-1)
 		for docked: ScanOverlay in [_overlay, _offer_overlay]:
 			if docked != null:
@@ -513,17 +620,35 @@ func _show(view: ItemView) -> void:
 		_popup.place_at(
 			sprite, view.below_rect(), _stage.get_global_rect(), _offer_panel.get_global_rect()
 		)
-		_monitor.end_scan()
 		_highlight(-1)
 	else:
 		_popup.visible = false
-		_monitor.show_scan(definition, view.tags(), shown)
-		_highlight(slot if view.form == ItemView.Form.BELT else -1)
+		var belt: bool = view.form == ItemView.Form.BELT and slot >= 0
+		_monitor_card = view.card
+		_monitor.show_scan(definition, view.tags(), shown, slot if belt else -1)
+		_highlight(slot if belt else -1)
 	marks.pose_hover(sprite)
 	if _wants_reduced_motion():
 		marks.stop_beam_loop()
 	else:
 		marks.start_beam_loop()
+
+
+## The pinned card (_monitor_card) shown again on the monitor after a refresh, with its new lines:
+## on the belt its slot's, in the hand none (payout -1). A card in neither is let go.
+func _show_pinned() -> void:
+	if _monitor_card == null or _monitor == null:
+		return
+	for slot: int in range(_row.size()):
+		var belt_item: ItemView = _row[slot] as ItemView
+		if belt_item != null and belt_item.card == _monitor_card:
+			_monitor.show_scan(_monitor_card.definition, belt_item.tags(), item_lines(slot), slot)
+			return
+	for item: ItemView in _items:
+		if item.card == _monitor_card:
+			_monitor.show_scan(_monitor_card.definition, item.tags(), ItemLines.new())
+			return
+	release_monitor()
 
 
 ## Frames `slot`'s line on the planning receipt, or none for -1. Unframing only takes the scan's

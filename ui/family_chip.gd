@@ -3,11 +3,14 @@ extends TipTarget
 ## The scanner bay's plate under the item (#105 piece 2, mock-up readability_v3.html's aisleChip):
 ## a chip in the item's ticket colour (FamilyPalette.ticket_families; a split ticket in its first
 ## family's) naming what the item works with, the way its ticket's colour does: a family (its
-## glyph, then its name), a card ("Milk"), the item itself ("Banana"), both halves of a split
-## ticket ("Snack + Bakery") or COUPON for the plain coupon ticket. Its tooltip is the colour's
+## name), a card ("Milk"), the item itself ("Banana"), both halves of a split ticket ("Snack +
+## Bakery") or COUPON for the plain coupon ticket; no family glyph since PR #138's monitor (the
+## item column's header is the one place the glyphs show). Its tooltip is the colour's
 ## (FamilyPalette.colour_tip). Between items and at the count's end it shows a word on paper
-## (show_text: "–", "THANK YOU"), with no tooltip. Upper case, the body font at TEXT_WEIGHT,
-## TEXT_SIZE px, on a BORDER px ink edge with a BORDER px lit row inside it.
+## (show_text: "–", "THANK YOU"), with no tooltip. In planning it is the bay's status plate
+## (show_status: SCAN COMPLETE, ON THE BELT): paper words on teal dark, STATUS_SIZE px. Upper
+## case, the body font at TEXT_WEIGHT, TEXT_SIZE px, on a BORDER px ink edge with a BORDER px lit
+## row inside it.
 
 const SIZE := Vector2(100, 20)
 const BORDER := 2.0
@@ -17,6 +20,7 @@ const TEXT_ALONE := Rect2(6, 0, 88, 20)
 const TEXT_SIZE := 11
 const TEXT_WEIGHT := 800
 const TEXT_SPACING := 0
+const STATUS_SIZE := 10
 const COUPON_TEXT := "COUPON"
 const SPLIT_TEXT := "%s + %s"
 
@@ -75,9 +79,9 @@ func show_item(definition: CardDefinition) -> void:
 	_face = first.face if first != null and first.has_ticket_colours() else Palette.PAPER
 	_light = first.light if first != null and first.has_ticket_colours() else Palette.PAPER
 	var ink: Color = palette.text_color(ids) if not ids.is_empty() else Palette.INK
-	var art: Texture2D = first.glyph if ids.size() == 1 and first != null else null
-	_glyph.texture = art
-	_glyph.visible = art != null
+	_glyph.texture = null
+	_glyph.visible = false
+	_label.add_theme_font_size_override("font_size", TEXT_SIZE)
 	_label.text = item_text(definition)
 	_label.add_theme_color_override("font_color", ink)
 	tip_text = palette.colour_tip(definition)
@@ -90,12 +94,23 @@ func show_item(definition: CardDefinition) -> void:
 
 ## A word on paper ("–", "THANK YOU"; "" for a blank chip), with no tooltip.
 func show_text(text: String) -> void:
-	_face = Palette.PAPER
-	_light = Palette.PAPER
+	_show_word(text, Palette.PAPER, Palette.PAPER, Palette.INK, TEXT_SIZE)
+
+
+## The bay's status in planning (MonitorText.SCAN_COMPLETE, ON_BELT): paper words on teal dark
+## (its light edge teal shade).
+func show_status(text: String) -> void:
+	_show_word(text, Palette.TEAL_DARK, Palette.TEAL_SHADE, Palette.PAPER, STATUS_SIZE)
+
+
+func _show_word(text: String, face: Color, light: Color, ink: Color, font_size: int) -> void:
+	_face = face
+	_light = light
 	_glyph.texture = null
 	_glyph.visible = false
 	_label.text = text
-	_label.add_theme_color_override("font_color", Palette.INK)
+	_label.add_theme_font_size_override("font_size", font_size)
+	_label.add_theme_color_override("font_color", ink)
 	tip_text = ""
 	_place_text(TEXT_ALONE, HORIZONTAL_ALIGNMENT_CENTER)
 	queue_redraw()

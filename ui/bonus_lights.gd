@@ -1,8 +1,8 @@
 class_name BonusLights
 extends Control
 ## The quota crossing's bonus lights (D, docs/art/mockups/quota_crossing.html, approved by the
-## user on 2026-10-31): once the count meets the quota, the price rail's top strip (RailLight's,
-## under its giver runs) lights in chasing gold for the rest of the count: everything past it is
+## user on 2026-10-31): once the count meets the quota, the price rail's top strip (RailLight's
+## band) lights in chasing gold for the rest of the count: everything past it is
 ## extra. The bulbs switch on from the scanner end outward over ON_SECONDS, then chase back toward
 ## the scanner and the register, one in CHASE_PERIOD lit, a step every CHASE_STEP_SECONDS. They
 ## fade out over FADE_SECONDS when the count ends (the printer feed or its end). Reduced motion
@@ -18,7 +18,7 @@ const RAIL_HEIGHT := RailLight.RAIL_HEIGHT
 const LEFT := ShiftStage.BELT_RECT.position.x + 4.0
 const WIDTH := ShiftStage.BELT_RECT.size.x - 8.0
 const BULBS := 38
-## The strip's top SHADE rows a darker gold under the lip (as RailLight's), the bolts and chevrons
+## The strip's top SHADE rows a darker gold under the lip (RailLight.SHADE), the bolts and chevrons
 ## drawn back over it. A bulb: BULB_SIZE px, on the strip's lower rows.
 const SHADE := RailLight.SHADE
 const BULB_SIZE := Vector2(10, 4)

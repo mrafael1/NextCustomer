@@ -13,7 +13,7 @@ extends RefCounted
 ## compact receipt (when the full one can't fit the screen) folds each shift's inspection line
 ## into its shift line ("inspected", or "review" for a Manager's review).
 ##
-## A run that reached its second week (v0.95's 16 shifts in 4 weeks) prints in week columns
+## A run that reached its second week (v0.96's 16 shifts in 4 weeks) prints in week columns
 ## (`columns`, uses_columns): each week opens with a header ("WEEK 3 · HOLIDAY", the week event's
 ## chip name) and its shift and dim lines carry their week (Line.week), so the results screen
 ## sets the first half of the weeks it reached in a left column (left_weeks: weeks 1-2 of 3 or

@@ -1,9 +1,10 @@
 extends GdUnitTestSuite
 ## The planning receipt's hover explanation (#71, H1_BUILD_SPEC.md section 8.2): show_relations
 ## frames the hovered item's line, marks its targets' lines (a mustard-pale fill and the token's
-## chip before the amount) and names it in the fizzle footer's hint, and an inspection's denial
-## marks its item's line with the warning icon. The receipt is laid out on its own, at the shift
-## screen's width (receipt_stub_test's fixtures). No saves, no event log.
+## chip before the amount), with no footer naming it (the PR #138 left UI dropped the fizzle
+## footer), and an inspection's denial marks its item's line with the warning icon. The receipt
+## is laid out on its own, at the shift screen's width (receipt_stub_test's fixtures). No saves,
+## no event log.
 
 const STUB := preload("res://tests/presentation/receipt_stub_test.gd")
 
@@ -17,7 +18,7 @@ func before_test() -> void:
 
 
 ## A hovered item (#71): show_relations frames its line, gives each target's line a mustard-pale
-## fill and its token's chip right before the amount, and names the item in the footer's hint;
+## fill and its token's chip right before the amount; the foot stays PROJECTED (no footer);
 ## show_relations(-1) takes it all off; outside planning it does nothing.
 func test_show_relations_explains_a_hovered_item() -> void:
 	_receipt.show_planning(
@@ -25,7 +26,7 @@ func test_show_relations_explains_a_hovered_item() -> void:
 	)
 	await _frames(2)
 	var tokens: Dictionary[int, String] = {1: "+2"}
-	_receipt.show_relations(0, tokens, ReceiptView.HOVERED_HINT % "Milk")
+	_receipt.show_relations(0, tokens)
 	await _frames(1)
 	assert_object(_receipt._framed_line()).is_same(_receipt._items[0])
 	var bread: HBoxContainer = _receipt._items[1]
@@ -41,15 +42,16 @@ func test_show_relations_explains_a_hovered_item() -> void:
 	assert_float(chip.get_global_rect().end.x).is_less_equal(bread.get_global_rect().end.x)
 	assert_object(ReceiptDecor.relation_chip(_receipt._items[2])).is_null()
 	assert_bool(_receipt._items[2].get_meta("related", false)).is_false()
-	assert_str(STUB._lines(_receipt)[-1]).is_equal("1 WASTED |  · Milk hovered")
+	assert_str(STUB._lines(_receipt)[-1]).is_equal("PROJECTED | 8.00€")
+	assert_object(_receipt._footer).is_null()
 	_receipt.show_relations(-1)
 	await _frames(1)
 	assert_object(_receipt._framed_line()).is_null()
 	assert_object(ReceiptDecor.relation_chip(bread)).is_null()
 	assert_bool(bread.get_meta("related", false)).is_false()
-	assert_str(STUB._lines(_receipt)[-1]).is_equal("1 WASTED |  · hover an item")
+	assert_str(STUB._lines(_receipt)[-1]).is_equal("PROJECTED | 8.00€")
 	_receipt.begin_count(PackedStringArray(STUB.HEADER), PackedStringArray(STUB.NAMES))
-	_receipt.show_relations(0, tokens, "Milk hovered")
+	_receipt.show_relations(0, tokens)
 	assert_object(_receipt._framed_line()).is_null()
 	await _frames(1)
 

@@ -207,7 +207,7 @@ func test_the_final_review_reads_pass_to_win() -> void:
 	var last: String = _texts(card.rows()[3])
 	assert_str(last).contains("FINAL REVIEW · 2 MALUSES")
 	assert_str(last).contains(WeekCardModel.FINAL_REWARD)
-	# Week 4 (v0.95): Clearance week, its banner in its own colour (orange dark).
+	# Week 4 (v0.96): Clearance week, its banner in its own colour (orange dark).
 	assert_str(_texts(card.banner())).contains("CLEARANCE WEEK")
 	assert_bool(WeekCard.colour_of(4) == Palette.ORANGE_DARK).is_true()
 	var colours: Array[Color] = []

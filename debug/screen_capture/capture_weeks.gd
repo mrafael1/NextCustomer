@@ -1,6 +1,6 @@
 class_name CaptureWeeks
 extends RefCounted
-## The screen capture's four-week options (v0.95), kept out of ScreenCapture so it stays under
+## The screen capture's four-week options (v0.96), kept out of ScreenCapture so it stays under
 ## gdlint's file length.
 ##
 ## `--at-shift=<n>`: the fixed shift is shift n in place of shift 5 (`--at-shift=13 --week` shows

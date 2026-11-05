@@ -17,7 +17,7 @@ extends PanelContainer
 ## clicks (the shift screen's shade under it does, below the top bar), so Cart and ☰ stay
 ## clickable. The profile's reduced motion (`reduced_motion`) shows the store closed at once.
 ##
-## A run that reached its second week (v0.95: 16 shifts in 4 weeks) prints in two week columns
+## A run that reached its second week (v0.96: 16 shifts in 4 weeks) prints in two week columns
 ## (FinalReceipt.uses_columns): the first half of its weeks on the left, the rest on the right,
 ## each under its header, a tab in the week's colour (WeekCard.colour_of); the rules, the
 ## shortfall and the coins span both columns, and the lines print down the left column, then the
@@ -47,7 +47,7 @@ const FITS: Array[Vector3i] = [
 ]
 ## A receipt that doesn't fit even then is built again compact (FinalReceipt.lines' `compact`, its
 ## inspection lines folded into the shift lines) through FITS, then COMPACT_FITS, smaller still.
-## Since v0.95's week columns a won 16-shift run fits FITS in full.
+## Since v0.96's week columns a won 16-shift run fits FITS in full.
 const COMPACT_FITS: Array[Vector3i] = [Vector3i(12, 9, 2), Vector3i(11, 8, 0), Vector3i(10, 8, 0)]
 ## A week header's tab: its padding around the text, in px.
 const WEEK_TAB_PADDING := Vector2i(6, 1)
@@ -301,7 +301,7 @@ func _room() -> float:
 
 
 ## The width the centred receipt may take: its parent's, less the closed store's CLOSED sign (by
-## the window's left edge) and as much again on the right, so the sign stays in view (v0.95: a
+## the window's left edge) and as much again on the right, so the sign stays in view (v0.96: a
 ## receipt in week columns is wide).
 func _room_width() -> float:
 	var width: float = get_parent_area_size().x

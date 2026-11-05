@@ -18,15 +18,15 @@ const ORDER: Array[String] = [
 	"Wall", "StoreShelves", "Tower", "TowerTop", "TowerBand", "TowerEdge", "Counter", "Floor"
 ]
 ## Points on the stage over decor only: the storefront glass, the shelving under the hung sign, a
-## pendant lamp, the shelving between the receipt and the monitor, the ceiling over the receipt
-## and the store under the monitor (above the slots' drop targets, which reach up over a standing
-## item's art).
+## pendant lamp, the shelving between the receipt and the monitor, the store right of the tower
+## (the full-length receipt, B2, covers the old point over it) and the store under the monitor
+## (above the slots' drop targets, which reach up over a standing item's art).
 const DECOR_POINTS: Array[Vector2] = [
 	Vector2(1180, 150),
 	Vector2(1100, 230),
 	Vector2(990, 76),
 	Vector2(440, 220),
-	Vector2(160, 62),
+	Vector2(380, 150),
 	Vector2(700, 262),
 ]
 

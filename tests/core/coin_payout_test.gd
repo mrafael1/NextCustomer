@@ -98,7 +98,7 @@ func test_an_ended_run_adds_its_coins_to_the_profile() -> void:
 
 
 ## The amounts fitted with the balance simulator (plan v0.28, issue #41; stretched to 12 shifts
-## in v0.65, refit for 16 in v0.95): one entry per number of shifts passed, never decreasing,
+## in v0.65, refit for 16 in v0.96): one entry per number of shifts passed, never decreasing,
 ## nothing for a run lost with fewer than 8 shifts passed (1 from 8), and a won run pays 2.
 func test_live_coin_amounts() -> void:
 	var balance: BalanceDefinition = load(BALANCE)

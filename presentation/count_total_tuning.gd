@@ -137,10 +137,3 @@ extends Resource
 @export var climax_spin: float = 0.0
 ## The small sunburst behind the number once met turns this many degrees per second.
 @export var met_sun_spin: float = 0.0
-
-@export_group("Rail light")
-## A giver's effect lights the rail gold from its ticket to its target's over rail_run_s, holds to
-## rail_hold_s and fades over rail_fade_s (the count's clock).
-@export var rail_run_s: float = 0.0
-@export var rail_hold_s: float = 0.0
-@export var rail_fade_s: float = 0.0

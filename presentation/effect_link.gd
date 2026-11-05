@@ -53,6 +53,9 @@ var fizzled: bool = false
 ## minus the previous value-carrying step's on that slot: BASE, FLAT, MULTIPLIER, COPY or
 ## PAYOUT_OVERRIDE); otherwise 0. Read from the steps (h1's rail-strip gains): it scores nothing.
 var gain: int = 0
+## The step's slot's running value after it (ScoreStep.value_after; with `gain`, the value before
+## it: value_after - gain), for the monitor's "gives" rows (PR #138 round 7). Read, never scored.
+var value_after: int = 0
 ## A later PAYOUT_OVERRIDE on the same slot replaced the value this link changed (a denial), so
 ## it didn't reach the payout.
 var cancelled: bool = false

@@ -21,6 +21,7 @@ base = 1
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_pick_n_mix")])
 rule_text = "+3 for each lone Snack in the row (no Snack beside it)"
 sticker_text = "+{bonus_each} per lone {tag}"
+monitor_text = "Gets +{bonus_each} for each lone {tag} in the row, one with no {tag} beside it."
 art_ref = "res://art/items_v2/pick_n_mix.png"
 mini_art_ref = "res://art/minis/pick_n_mix.png"
 mini_golden_art_ref = "res://art/minis/pick_n_mix_golden.png"

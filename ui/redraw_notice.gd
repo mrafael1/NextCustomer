@@ -10,8 +10,11 @@ extends RefCounted
 
 const RECYCLE_LINE := "Back in the pile, to draw again: %s."
 const RECYCLE_FOOT := "The old items go back in the pile (Recycle)."
-## The Redraw key's caption while redraw mode is armed.
-const PICK_CAPTION := "Pick a basket"
+## The Redraw key's captions (caps, as the register's other keys: the PR #138 left UI): REDRAW,
+## PICK A BASKET while redraw mode is armed, NONE TO DRAW with an empty draw pile.
+const REDRAW_CAPTION := "REDRAW"
+const PICK_CAPTION := "PICK A BASKET"
+const EMPTY_CAPTION := "NONE TO DRAW"
 
 ## The panel's heading ("REDRAW", "REDRAW BASKET 2", "REDRAWING") and the redraws left beside it.
 var title: String = ""
@@ -123,34 +126,38 @@ static func names(items: Array[CardDefinition]) -> String:
 	return " and ".join(parts)
 
 
-## The colour of a redraw count `redraws_left` (the Redraw key's note, the redraw panel's
-## heading): green for 2 or more, amber for 1, red for none, each dark enough to read on the cream
-## key and the paper.
+## The colour of a redraw count `redraws_left` (the Redraw key's counter, the redraw panel's
+## heading): green for 2 or more, orange for 1 (the PR #138 review: orange, not the brown of
+## mustard darkest), red for none, each dark enough to read on the paper of the key's counter
+## window and the panel.
 static func count_color(redraws_left: int) -> Color:
 	if redraws_left >= 2:
 		return Palette.GREEN_DARK
 	if redraws_left == 1:
-		return Palette.MUSTARD_DARKEST
+		return Palette.ORANGE_DARK
 	return Palette.TOMATO_DARK
 
 
 ## Captions the shift screen's Redraw `redraw_key`: redraw mode `is_armed`, the redraws
-## `redraws_left` and whether any item is left `to_draw`. "Redraw" (or "Pick a basket") with the
-## bare count beside it in count_color; the red "0" stays at full strength on the disabled key.
-## Screen readers hear "(N left)".
+## `redraws_left` and whether any item is left `to_draw`. The count stands in the key's counter
+## window in count_color (the PR #138 left UI: its own part, left of the key's face; the 0 struck
+## through on an unlit pane, RegisterKey.NoteLook.ALERT), the face reads REDRAW (PICK A BASKET
+## while armed, NONE TO DRAW with an empty draw pile). Screen readers hear "(N left)".
 static func caption_key(
 	redraw_key: RegisterKey, is_armed: bool, redraws_left: int, to_draw: bool
 ) -> void:
 	var count: String = "%d" % redraws_left
 	var color: Color = count_color(redraws_left)
+	var look: RegisterKey.NoteLook = RegisterKey.NoteLook.COUNT
+	var caption: String = REDRAW_CAPTION
+	var spoken: String = "Redraw a basket (%d left)" % redraws_left
 	if is_armed:
-		var picking: String = "Pick a basket (%d left)" % redraws_left
-		redraw_key.show_caption(PICK_CAPTION, count, picking, color, RegisterKey.NoteLook.COUNT)
+		caption = PICK_CAPTION
+		spoken = "Pick a basket (%d left)" % redraws_left
 	elif redraws_left <= 0:
-		var used: String = "Redraw (0 left)"
-		redraw_key.show_caption("Redraw", "0", used, color, RegisterKey.NoteLook.ALERT)
+		look = RegisterKey.NoteLook.ALERT
+		spoken = "Redraw (0 left)"
 	elif not to_draw:
-		redraw_key.show_caption("Redraw", "none to draw", "Redraw: no items left to draw")
-	else:
-		var spoken: String = "Redraw a basket (%d left)" % redraws_left
-		redraw_key.show_caption("Redraw", count, spoken, color, RegisterKey.NoteLook.COUNT)
+		caption = EMPTY_CAPTION
+		spoken = "Redraw: no items left to draw (%d left)" % redraws_left
+	redraw_key.show_caption(caption, count, spoken, color, look)

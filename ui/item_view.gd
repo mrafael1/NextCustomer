@@ -47,8 +47,8 @@ enum Form { TRAY, BELT, GHOST, BASKET }
 ## How the item relates to the hovered item, loyalty box, inspection or family glyph (#71, #105).
 enum Relation { NONE, FOCUS, RELATED, DIM }
 
-const BELT_SIZE := Vector2(116, 232)
-const TRAY_SIZE := Vector2(108, 168)
+const BELT_SIZE := Vector2(116, 244)
+const TRAY_SIZE := Vector2(108, 180)
 ## A basket item's cell (HandRow), from 20 px under the rail down past every sprite's foot. A
 ## short art's transparent top rows may stand above it; its hit area starts at the art.
 const BASKET_SIZE := Vector2(96, 110)
@@ -374,13 +374,13 @@ func hit_rect() -> Rect2:
 	if form == Form.BASKET:
 		var top: float = _art_top() - maxf(LIFT, _lift_height())
 		return Rect2(rect.position.x, top, rect.size.x, rect.end.y - top)
-	return rect.merge(Rect2(_sticker.position, PriceSticker.SIZE))
+	return rect.merge(Rect2(_sticker.position, _sticker.size))
 
 
 ## The sticker's rect (global): ScanPopup.place_at merges it into the item's column so a side
 ## popup clears both.
 func below_rect() -> Rect2:
-	return get_global_transform() * Rect2(_sticker.position, PriceSticker.SIZE)
+	return get_global_transform() * Rect2(_sticker.position, _sticker.size)
 
 
 func _has_point(point: Vector2) -> bool:

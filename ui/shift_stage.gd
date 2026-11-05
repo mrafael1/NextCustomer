@@ -31,9 +31,7 @@ extends Control
 ## BasketTags), the shade that darkens them while counting and the redraw layer (the basket redraw's
 ## flights into the Cart and its sparks, over the top bar). Over the fore's parts the quota
 ## crossing's bonus lights (BonusLights, over the count's quota light, QuotaLight: the band filling
-## toward the belt's far end with the running total against the quota) and the count's rail
-## light (RailLight, #86 kept by #105 piece 2: the price rail lit gold from a giver's ticket to its
-## target's). Over them all the quota
+## toward the belt's far end with the running total against the quota). Over them all the quota
 ## crossing (QuotaCrossing: its streak and lap stamps), the scan layer (ScanOverlay: the
 ## scan's brackets and beam) and the popup layer, all taking no clicks. A belt or hand item's scan
 ## shows on the monitor (#80); the popup layer only parks the hidden scan popup, which opens over
@@ -77,7 +75,7 @@ const COUNTER_TOP := 360.0
 ## The floor under the counter and the register: the basket ledge's foot.
 const FLOOR_TOP := 708.0
 ## The belt, from its steel guard down to the price rail's shadow (BeltPanel draws its bands).
-const BELT_RECT := Rect2(348, 348, 918, 180)
+const BELT_RECT := Rect2(348, 348, 918, 192)
 ## Where the 7-slot row starts: each cell (ItemView.BELT_SIZE) stands its item on the belt's top
 ## face and clips its ticket on the rail. Every row rests on ROW_BOTTOM: a scaled 8-slot row
 ## too.
@@ -131,15 +129,16 @@ const CANCEL_RECT := Rect2(232, 518, 84, 54)
 ## baskets on it (HandRow: ItemView.BASKET_SIZE cells, from the first basket's left edge to the
 ## last one's right edge at the natural pitch; the baskets' rims are HandBaskets'). Since the belt
 ## came down onto the baskets (#123) the hand's cells start at the rail's shadow: a scanned or
-## picked basket item rises over the counter face, up to the rail.
-const LEDGE_RECT := Rect2(346, 674, 924, 34)
-const HAND_RECT := Rect2(362, 526, 892, ItemView.BASKET_SIZE.y)
+## picked basket item rises over the counter face, up to the rail. The ledge's foot is the floor's
+## line (FLOOR_TOP).
+const LEDGE_RECT := Rect2(346, 686, 924, 22)
+const HAND_RECT := Rect2(362, 538, 892, ItemView.BASKET_SIZE.y)
 ## Where the hand is: from as high as a scanned basket item rises (ItemView.BASKET_LIFT over the
 ## cells' top, over the rail's foot since #123) down to the stage's foot, right of the register.
-const HAND_AREA := Rect2(336, 512, 944, 208)
+const HAND_AREA := Rect2(336, 524, 944, 196)
 ## While the shift is counted a shade darkens the hand and its baskets (ink at this alpha, mock-up
-## B2's count-up), so the belt reads first.
-const COUNTING_SHADE_RECT := Rect2(336, 526, 944, 186)
+## B2's count-up), so the belt reads first: down to the ledge's floor shadow (HandBaskets).
+const COUNTING_SHADE_RECT := Rect2(336, 538, 944, 174)
 const COUNTING_SHADE_ALPHA := 0.4
 const SEED_RECT := Rect2(20, 586, 198, 18)
 ## Screen panels (the deck view, the results) and their shade stay below this line, under the top
@@ -229,13 +228,11 @@ var planning_layer: PlanningLayer
 var bag: PaperBag
 ## Over everything on the stage, taking no clicks: the scan's marks, and the layer the scan
 ## popup opens in.
-## The count's rail light over the price rail (#105 piece 2), last in the fore.
-var rail_light: RailLight
 ## The count's quota light on the belt's apron band (shift scene polish v2, section 1), first of
 ## the band's lights in the fore.
 var quota_light: QuotaLight
 ## The quota crossing (A, B and E over the stage) and its bonus lights on the rail (D, in the fore
-## over the quota light, under the rail light).
+## over the quota light, last).
 var quota_crossing: QuotaCrossing
 var bonus_lights: BonusLights
 var scan_layer: ScanOverlay
@@ -475,7 +472,7 @@ func _build_keys() -> void:
 	seed_label = cabinet.seed_label
 
 
-## The quota light, the bonus lights over it and the rail light (last in the fore), then the quota
+## The quota light and the bonus lights over it (last in the fore), then the quota
 ## crossing, the scan layer and the popup layer (where the hidden scan popup waits) over the whole
 ## stage.
 func _build_scan_layers() -> void:
@@ -489,10 +486,6 @@ func _build_scan_layers() -> void:
 	bonus_lights.size = SIZE
 	bonus_lights.belt_cut = belt.cut()
 	fore.add_child(bonus_lights)
-	rail_light = RailLight.new()
-	rail_light.size = SIZE
-	rail_light.under = _band_under
-	fore.add_child(rail_light)
 	quota_crossing = QuotaCrossing.new()
 	quota_crossing.size = SIZE
 	add_child(quota_crossing)
@@ -505,13 +498,6 @@ func _build_scan_layers() -> void:
 	popup_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	popup_layer.size = SIZE
 	add_child(popup_layer)
-
-
-## What the apron band shows at stage `x` under a giver's run (RailLight.Under).
-func _band_under(x: float) -> RailLight.Under:
-	if not quota_light.is_warm_at(x):
-		return RailLight.Under.STEEL
-	return RailLight.Under.LIT_CHASE if bonus_lights.is_lit() else RailLight.Under.LIT
 
 
 func _layer(layer_name: String) -> Control:

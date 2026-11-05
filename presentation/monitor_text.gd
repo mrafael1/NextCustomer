@@ -22,6 +22,12 @@ const PLANNED_OVER := "+%d€ planned"
 const PLANNED_SHORT := TO_GO
 ## The item column on an empty belt (nothing in slot 1, nothing held).
 const EMPTY_BELT := "Drag items onto the belt"
+## A hand item's note in the item column's effect rows (PR #138 monitor): it has no effects yet.
+const HAND_NOTE := "Place it on the belt to see its effects"
+## The scanner bay's status plate in planning (PR #138 monitor): a pinned scan, else the last item
+## placed on the belt.
+const SCAN_COMPLETE := "SCAN COMPLETE"
+const ON_BELT := "ON THE BELT"
 ## A number with its €, a gain, a fall.
 const EUROS := "%d€"
 const GAIN := "+%d€"
@@ -35,6 +41,8 @@ const ARROW_FALLBACK := "›"
 const AMOUNT_SEPARATOR := "  "
 ## A step line's amount kept at its start ("+1€ Eggs before it", "×2 Eggs", "−2€ Late delivery").
 const LEADING_AMOUNT := ["+", "×", "−"]
+## A PAYOUT_OVERRIDE step's amount on the receipt ("= 0"): the item column shows it as euros.
+const OVERRIDE_PREFIX := "="
 
 
 ## A whole-euro amount with the € after it: "26€".
@@ -117,3 +125,30 @@ static func step_parts(line: String) -> PackedStringArray:
 		if gap > 0:
 			return PackedStringArray([line, line.left(gap)])
 	return PackedStringArray([line, ""])
+
+
+## A step line as the item column's row shows it (step_parts), its amount said once (#138
+## review): a factor shows only as the amount ("×3 Multipack" reads "Multipack" with "×3"); an
+## override's "= N" reads "N€" (no equation over the payout's "= N€"); a text that already ends
+## in its amount ("Bakery festival: Bakery +2€") loses it there, and one that says it in words
+## ("Spot check: slot 3 pays 0€") keeps it, the amount left out. Returns [text, amount].
+static func row_parts(line: String) -> PackedStringArray:
+	var parts: PackedStringArray = step_parts(line)
+	if parts[0].begins_with(LEADING_AMOUNT[1]) and not parts[1].is_empty():
+		var gap: int = parts[0].find(" ")
+		if gap > 0:
+			parts[0] = parts[0].substr(gap + 1)
+	var amount: String = parts[1]
+	var override: bool = amount.begins_with(OVERRIDE_PREFIX)
+	if override:
+		amount = amount.substr(OVERRIDE_PREFIX.length()).strip_edges()
+		if amount.is_valid_int():
+			amount = euros(int(amount))
+	parts[1] = amount
+	if amount.is_empty() or not parts[0].ends_with(" " + amount):
+		return parts
+	if override:
+		parts[1] = ""
+	else:
+		parts[0] = parts[0].left(parts[0].length() - amount.length()).strip_edges()
+	return parts
