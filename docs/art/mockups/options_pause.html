@@ -1,0 +1,773 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Options and Pause</title>
+<style>
+/* House style of the shift mock-ups (run_info_clarity, shift_scene_polish_v4): the store's dark teal wall,
+   live stages, verdicts beside them. The stage is the game's 1280x720 stage (art px = 2 stage px). */
+@font-face{font-family:'NCPix';font-weight:400 700;src:url(options_pause_src/PixelifySans-Variable.ttf)}
+@font-face{font-family:'NCMono';src:url(options_pause_src/JetBrainsMono-Regular.ttf)}
+@font-face{font-family:'NCAtk';font-weight:200 800;src:url(options_pause_src/AtkinsonHyperlegibleNext-Variable.ttf)}
+:root{
+  color-scheme:dark;
+  --wall:#1f3b3a; --bay:#172c2b; --panel:#2a4d4b; --paper:#fbf7ee; --cream:#f3e9d2; --cream-shade:#ddcba5; --teal-pale:#c3e0d4; --teal-light:#86c2b6;
+  --teal:#4f9a94; --teal-shade:#3a7672; --teal-dark:#2a4d4b; --teal-darkest:#1f3b3a; --mustard:#e2b33c; --mustard-pale:#faecbc; --mustard-light:#f1d27a; --mustard-dark:#b38425; --gold:#ffcf3f;
+  --tomato:#d9534f; --tomato-dark:#a83a3c; --tomato-pale:#f5bfa0; --tomato-light:#ec8a6e; --green:#5fae5a; --green-dark:#3d7a45; --green-light:#a5d17e;
+  --ink:#2b2420; --ink-light:#4a3f38; --muted:#a9a59b; --grey-light:#c7beab; --grey:#8a8172;
+  --brown-dark:#7a5232; --brown:#a87a4e; --brown-light:#d2a874; --steel:#8d8a83; --steel-light:#c7c3b8; --steel-dark:#57534c;
+  --display:'NCPix','Courier New',monospace;
+  --body:'NCAtk','Segoe UI',system-ui,sans-serif;
+  --mono:'NCMono',Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--wall);color:var(--paper)}
+body{font-family:var(--body);font-size:15px;line-height:1.5;overflow-x:hidden}
+main{max-width:1400px;margin:0 auto;padding:28px 16px 64px;display:grid;gap:44px;grid-template-columns:minmax(0,1fr)}
+main>*,section>*{min-width:0}
+h1,h2,h3{font-family:var(--display);font-weight:700;margin:0;letter-spacing:.02em;text-wrap:balance}
+h1{font-size:34px;color:var(--gold)}
+h2{font-size:24px}
+h3{font-size:17px;color:var(--teal-pale)}
+p{margin:0;max-width:82ch;overflow-wrap:break-word}
+code{overflow-wrap:anywhere;color:#faecbc;font-size:13px}
+.lede{display:grid;gap:10px}
+.eyebrow{font-family:var(--display);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--teal-light)}
+section{display:grid;gap:16px;min-width:0;grid-template-columns:minmax(0,1fr)}
+.verdict{background:var(--panel);border:2px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.35);padding:14px 16px;display:grid;gap:8px}
+.verdict strong{color:var(--gold)}
+.controls{display:flex;gap:8px 10px;flex-wrap:wrap;align-items:center}
+.controls .lbl{font-family:var(--display);font-size:13px;color:var(--teal-light);letter-spacing:.06em}
+.seg{display:inline-flex;border:2px solid var(--ink);box-shadow:0 3px 0 var(--ink);flex-wrap:wrap}
+.seg button{box-shadow:none;border:0;border-right:2px solid var(--ink)}
+.seg button:last-child{border-right:0}
+button{font-family:var(--display);font-size:15px;color:var(--paper);background:#3a7672;border:2px solid var(--ink);box-shadow:0 3px 0 var(--ink);padding:4px 12px;cursor:pointer}
+button:active{transform:translateY(2px)}
+button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+button[aria-pressed="true"]{background:var(--mustard);color:var(--ink)}
+.toolbar{position:sticky;top:0;z-index:50;background:rgba(23,44,43,.96);border-bottom:2px solid var(--ink);padding:8px 16px}
+.toolbar .controls{max-width:1400px;margin:0 auto}
+ul,ol{margin:0;padding-left:22px;display:grid;gap:6px;max-width:88ch}
+.answers{background:var(--paper);color:var(--ink);border:3px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.4);padding:16px 18px;display:grid;gap:10px}
+.answers h2{color:var(--ink)}
+.answers li b{color:#a83a3c}
+.cap{font-size:12px;color:var(--muted)}
+.scroll{overflow-x:auto;max-width:100%}
+table.spec{border-collapse:collapse;font-size:13px;min-width:760px}
+table.spec th,table.spec td{border-bottom:1px solid #3a7672;padding:5px 8px;text-align:left;vertical-align:top}
+table.spec th{font-family:var(--display);color:var(--teal-light);font-weight:500}
+table.spec td:first-child{white-space:nowrap;color:#faecbc}
+.opts{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr))}
+.opt{background:var(--bay);border:2px solid var(--ink);padding:12px;display:grid;gap:8px;min-width:0;align-content:start;cursor:pointer}
+.opt[aria-current="true"]{outline:3px solid var(--gold);outline-offset:-1px}
+.opt.rec{border-color:var(--mustard)}
+.tag{font-family:var(--display);font-size:15px;background:var(--paper);color:var(--ink);padding:0 7px;border:2px solid var(--ink);justify-self:start}
+.opt.rec .tag{background:var(--mustard)}
+.pick{font-family:var(--display);font-size:12px;color:var(--gold);letter-spacing:.08em}
+.opt p{font-size:14px;color:var(--teal-pale)}
+.opt p b{color:var(--paper)}
+.shot{position:relative;border:2px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.35);max-width:100%}
+.shot img{display:block;width:100%;height:auto;image-rendering:pixelated}
+.shot .pin{position:absolute;transform:translate(-50%,-50%);width:26px;height:26px;border-radius:50%;background:var(--gold);color:var(--ink);border:2px solid var(--ink);font-family:var(--display);font-weight:700;font-size:15px;display:grid;place-items:center;box-shadow:0 2px 0 var(--ink)}
+.two{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr))}
+.probs{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr))}
+.prob{background:var(--bay);border:2px solid var(--ink);padding:10px 12px;display:grid;gap:4px;grid-template-columns:30px minmax(0,1fr);align-items:start}
+.prob .n{width:26px;height:26px;border-radius:50%;background:var(--gold);color:var(--ink);border:2px solid var(--ink);font-family:var(--display);font-weight:700;display:grid;place-items:center}
+.prob b{color:var(--paper)} .prob span{font-size:14px;color:var(--teal-pale)}
+kbd{font-family:var(--mono);font-size:12px;background:var(--bay);border:1px solid var(--teal-shade);padding:0 5px;color:var(--teal-pale)}
+
+/* ---------- the live stage ---------- */
+.stage-wrap{position:relative;width:100%;aspect-ratio:16/9;border:2px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.35);overflow:hidden;background:#000}
+.stage-wrap:fullscreen{border:0;box-shadow:none;aspect-ratio:auto;width:100vw;height:100vh;display:grid;place-items:center}
+.stage{position:absolute;left:0;top:0;width:1280px;height:720px;transform-origin:0 0;overflow:hidden;font-family:var(--body);color:var(--ink);user-select:none;--ts:1}
+.bg{position:absolute;inset:0;background-size:1280px 720px;image-rendering:pixelated}
+.bg.title{background-image:url(options_pause_src/title_1280x720.png)}
+.bg.shift{background-image:url(options_pause_src/shift_1920x1080.png)}
+.bg.zoom{transform:scale(1.32);transform-origin:696px 160px;animation:zoomin .36s steps(6) both}
+@keyframes zoomin{from{transform:scale(1)}to{transform:scale(1.32)}}
+.dim{position:absolute;inset:0;background:rgba(23,44,43,.66);
+  background-image:linear-gradient(45deg,rgba(0,0,0,.18) 25%,transparent 25%,transparent 75%,rgba(0,0,0,.18) 75%),linear-gradient(45deg,rgba(0,0,0,.18) 25%,transparent 25%,transparent 75%,rgba(0,0,0,.18) 75%);
+  background-size:4px 4px;background-position:0 0,2px 2px;animation:fade .2s steps(3) both}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.hot-ring{position:absolute;left:1220px;top:8px;width:46px;height:40px;outline:3px solid var(--gold);outline-offset:0;animation:fade .2s steps(2) both}
+.menu-hit{position:absolute;left:1222px;top:10px;width:42px;height:36px;cursor:pointer}
+.menu-hit:hover{outline:2px solid var(--gold)}
+.esc-hint{position:absolute;right:16px;bottom:10px;font-family:var(--display);font-size:13px;color:var(--teal-pale);background:rgba(23,44,43,.85);padding:2px 8px;border:2px solid var(--ink)}
+
+/* title plates (MenuPlate look) */
+.plate{position:absolute;font-family:var(--display);color:var(--paper);border:2px solid var(--ink);cursor:pointer;
+  background:var(--teal);box-shadow:inset 0 2px 0 var(--teal-light),inset 0 -4px 0 var(--teal-shade),4px 4px 0 rgba(0,0,0,.35);
+  padding:4px 14px;font-size:20px;letter-spacing:1px;display:flex;align-items:center;gap:8px;transition:transform .08s steps(2)}
+.plate.big{background:var(--tomato);box-shadow:inset 0 3px 0 var(--tomato-light),inset 0 -5px 0 var(--tomato-dark),4px 4px 0 rgba(0,0,0,.35);font-size:38px;font-weight:700;flex-direction:column;align-items:flex-start;gap:0;line-height:1.05;padding:8px 22px 10px}
+.plate .sub{font-size:13px;letter-spacing:1px;color:var(--tomato-pale);font-weight:500}
+.plate.small-sub{flex-direction:column;align-items:flex-start;gap:0;line-height:1.1;padding:5px 14px 7px}
+.plate.small-sub .sub{color:var(--teal-pale);font-size:12px}
+.plate.hot{transform:translateX(8px)}
+.plate.hot::before{content:"";position:absolute;left:-22px;top:50%;margin-top:-8px;border:8px solid transparent;border-left:10px solid var(--tomato)}
+.plate.big.hot::before{border-left-color:var(--gold)}
+.plate.half{font-size:17px;justify-content:center;padding:4px 6px}
+.plate.new-plate{outline:2px dashed var(--gold);outline-offset:3px}
+.step-in{animation:stepin .16s steps(4) both}
+@keyframes stepin{from{transform:translateX(-24px);opacity:0}to{transform:none;opacity:1}}
+.sub-patch{position:absolute;left:96px;top:369px;width:262px;height:22px;background:#d9534f;font-family:var(--display);font-size:14px;color:var(--tomato-pale);letter-spacing:1px;line-height:22px;padding-left:2px;pointer-events:none}
+
+/* A: lane closed sign */
+.sign{position:absolute;left:600px;top:52px;width:400px;transform-origin:200px 0;animation:signdrop .5s steps(8) both}
+.sign .chain{position:absolute;top:0;width:4px;height:120px;background:repeating-linear-gradient(var(--steel-light) 0 4px,var(--steel-dark) 4px 8px)}
+.sign .board{position:absolute;top:118px;left:0;width:400px;height:128px;background:var(--tomato);border:3px solid var(--ink);box-shadow:inset 0 0 0 4px var(--tomato),inset 0 0 0 7px var(--paper),6px 6px 0 rgba(0,0,0,.4);display:grid;place-items:center;align-content:center;gap:2px;text-align:center}
+.sign .board b{font-family:var(--display);font-size:46px;color:var(--paper);letter-spacing:2px;line-height:1}
+.sign .board span{font-family:var(--display);font-size:15px;color:var(--tomato-pale);letter-spacing:3px}
+.sign .board.saved{background:var(--paper);box-shadow:inset 0 0 0 4px var(--paper),inset 0 0 0 7px var(--green),6px 6px 0 rgba(0,0,0,.4);animation:flip .3s steps(4) both}
+.sign .board.saved b{color:var(--green-dark)} .sign .board.saved span{color:var(--ink-light)}
+@keyframes signdrop{0%{transform:translateY(-260px)}60%{transform:translateY(10px) rotate(-2deg)}80%{transform:translateY(-4px) rotate(1deg)}100%{transform:none}}
+@keyframes flip{0%{transform:scaleY(1)}50%{transform:scaleY(.05)}100%{transform:scaleY(1)}}
+.paused-chip{position:absolute;left:640px;top:330px;transform:translateX(-50%);font-family:var(--mono);font-size:13px;color:var(--mustard-pale);background:rgba(43,36,32,.85);padding:2px 10px;border:2px solid var(--ink);white-space:nowrap}
+.side-note{position:absolute;font-family:var(--body);font-size:13px;color:var(--teal-pale);line-height:1.35}
+.side-note b{color:var(--paper)}
+.exportlink{position:absolute;left:40px;top:470px;background:rgba(23,44,43,.9);border:2px solid var(--ink);padding:2px 10px 2px 4px;font-family:var(--display);font-size:14px;color:var(--teal-pale);display:flex;gap:8px;align-items:center;cursor:pointer}
+.exportlink img{width:24px;height:24px;image-rendering:pixelated}
+
+/* shared options card (A: paper card) */
+.card{position:absolute;background:var(--paper);border:3px solid var(--ink);box-shadow:inset 0 -6px 0 var(--cream-shade),8px 8px 0 rgba(0,0,0,.4);color:var(--ink);animation:cardin .22s steps(4) both}
+@keyframes cardin{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
+.card .head{background:var(--teal-shade);color:var(--paper);font-family:var(--display);font-weight:700;font-size:28px;letter-spacing:2px;padding:6px 18px;display:flex;justify-content:space-between;align-items:baseline;border-bottom:3px solid var(--ink)}
+.card .head small{font-size:12px;font-weight:500;color:var(--teal-pale);letter-spacing:1px}
+.rows{padding:10px 20px 6px;display:grid;gap:0}
+.row{display:grid;grid-template-columns:150px 1fr;gap:12px;align-items:center;padding:9px 0;border-bottom:2px dashed var(--cream-shade)}
+.row:last-child{border-bottom:0}
+.row .k{font-family:var(--display);font-size:17px;font-weight:700;letter-spacing:1px;color:var(--ink)}
+.row .k small{display:block;font-weight:400;font-size:11px;color:var(--grey);letter-spacing:.5px}
+.row .v{display:grid;gap:4px;min-width:0}
+.row .d{font-size:calc(12px * var(--ts));line-height:1.3;color:var(--ink-light)}
+.row.proposed{outline:2px dashed var(--mustard-dark);outline-offset:-2px;padding-left:6px;padding-right:6px;background:var(--mustard-pale)}
+.pseg{display:inline-flex;border:2px solid var(--ink);box-shadow:0 3px 0 var(--ink);justify-self:start;flex-wrap:wrap}
+.pseg span{font-family:var(--display);font-size:15px;padding:3px 12px;background:var(--cream);color:var(--ink);border-right:2px solid var(--ink);cursor:pointer;letter-spacing:1px}
+.pseg span:last-child{border-right:0}
+.pseg span:hover{background:var(--mustard-pale)}
+.pseg span.on{background:var(--mustard);color:var(--ink);box-shadow:inset 0 2px 0 var(--mustard-light),inset 0 -3px 0 var(--mustard-dark)}
+.vol{display:flex;gap:6px;align-items:center}
+.vol .pm{font-family:var(--display);font-size:18px;width:26px;height:26px;display:grid;place-items:center;background:var(--teal);color:var(--paper);border:2px solid var(--ink);box-shadow:0 2px 0 var(--ink);cursor:pointer;line-height:1}
+.pips{display:flex;gap:3px}
+.pips i{width:16px;height:22px;background:var(--grey-light);border:2px solid var(--ink);cursor:pointer;display:block}
+.pips i.f{background:var(--teal);box-shadow:inset 0 2px 0 var(--teal-light)}
+.pips i.f.hi{background:var(--mustard);box-shadow:inset 0 2px 0 var(--mustard-light)}
+.vol .num{font-family:var(--display);font-size:17px;width:46px;text-align:right}
+.vol .num.mute{color:var(--tomato-dark)}
+.preview{font-family:var(--body);font-size:calc(15px * var(--ts));line-height:1.28;background:var(--cream);border:2px solid var(--ink-light);padding:4px 8px}
+.preview .fam{background:var(--tomato-light);color:var(--ink);padding:0 4px;font-weight:700}
+.card .foot{display:flex;justify-content:space-between;align-items:center;padding:8px 20px 14px;font-size:12px;color:var(--grey)}
+.btn-done{font-family:var(--display);font-size:20px;font-weight:700;letter-spacing:2px;background:var(--tomato);color:var(--paper);border:2px solid var(--ink);box-shadow:inset 0 2px 0 var(--tomato-light),inset 0 -4px 0 var(--tomato-dark),0 3px 0 var(--ink);padding:5px 22px 8px;cursor:pointer}
+.webnote{font-size:11px;color:var(--tomato-dark)}
+
+/* B: clipboard */
+.board{position:absolute;left:330px;top:44px;width:620px;height:690px;background:var(--brown);border:3px solid var(--ink);box-shadow:inset 0 0 0 4px var(--brown-light),inset 0 -8px 0 var(--brown-dark),8px 8px 0 rgba(0,0,0,.45);animation:slideup .32s steps(6) both}
+@keyframes slideup{from{transform:translateY(700px)}to{transform:none}}
+.board .clip{position:absolute;left:210px;top:-14px;width:200px;height:46px;background:var(--steel-light);border:3px solid var(--ink);box-shadow:inset 0 -6px 0 var(--steel),inset 0 3px 0 #ecebe4;z-index:3}
+.board .clip::after{content:"";position:absolute;left:80px;top:10px;width:34px;height:14px;border:3px solid var(--ink);background:var(--steel-dark)}
+.board .sheet{position:absolute;left:22px;top:46px;right:22px;bottom:24px;background:var(--paper);border:2px solid var(--ink);box-shadow:3px 3px 0 rgba(0,0,0,.3);overflow:hidden}
+.board .sheet.flip{animation:flip .26s steps(4) both}
+.tabs{display:flex;gap:0;padding:12px 16px 0;border-bottom:3px solid var(--ink)}
+.tabs span{font-family:var(--display);font-size:16px;font-weight:700;letter-spacing:1px;padding:4px 14px;border:2px solid var(--ink);border-bottom:0;margin-right:-2px;background:var(--cream-shade);color:var(--ink-light);cursor:pointer}
+.tabs span.on{background:var(--mustard);color:var(--ink);transform:translateY(1px)}
+.listhead{font-family:var(--mono);font-size:13px;color:var(--ink-light);padding:12px 22px 4px;letter-spacing:1px;display:flex;justify-content:space-between}
+.crow{display:grid;grid-template-columns:30px 1fr;gap:4px;padding:12px 22px;border-bottom:2px dashed var(--cream-shade);cursor:pointer;align-items:center}
+.crow b{font-family:var(--display);font-size:28px;letter-spacing:1px;line-height:1.05}
+.crow small{grid-column:2;font-size:13px;color:var(--grey);line-height:1.2}
+.crow .box{width:22px;height:22px;border:3px solid var(--ink);background:var(--cream)}
+.crow.hot{background:var(--mustard-pale)}
+.crow.hot .box{background:var(--tomato)}
+.crow.primary b{color:var(--tomato-dark)}
+.board .rows{padding:6px 22px}
+.board .row{grid-template-columns:130px 1fr}
+
+/* C: service monitor */
+.mon{position:absolute;left:300px;top:60px;width:680px;height:500px;animation:monin .3s steps(5) both}
+@keyframes monin{from{transform:scale(.62);opacity:.2}to{transform:none;opacity:1}}
+.mon .rod{position:absolute;top:-60px;width:6px;height:62px;background:var(--steel-dark);border:2px solid var(--ink)}
+.mon .bezel{position:absolute;inset:0;background:var(--steel);border:3px solid var(--ink);box-shadow:inset 0 3px 0 var(--steel-light),inset 0 -6px 0 var(--steel-dark),8px 8px 0 rgba(0,0,0,.45);padding:16px}
+.mon .scr{position:absolute;inset:16px 16px 34px;background:#132625;border:3px solid var(--ink);font-family:var(--mono);color:var(--green-light);padding:14px 18px;overflow:hidden;
+  background-image:repeating-linear-gradient(transparent 0 3px,rgba(0,0,0,.25) 3px 4px)}
+.mon .brand{position:absolute;left:0;right:0;bottom:8px;text-align:center;font-family:var(--display);font-size:12px;letter-spacing:3px;color:var(--ink-light)}
+.scr h4{margin:0 0 10px;font-family:var(--display);font-size:24px;color:var(--gold);letter-spacing:3px;font-weight:700}
+.scr h4 .cur{animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.mrow{font-size:20px;padding:6px 8px;cursor:pointer;display:flex;gap:14px;color:var(--teal-light)}
+.mrow .key{color:var(--ink);background:var(--green-light);padding:0 7px}
+.mrow.hot{background:rgba(165,209,126,.16);color:var(--green-light)}
+.mrow small{font-size:12px;color:var(--teal-shade);align-self:center}
+.lrow{display:grid;grid-template-columns:170px 1fr;gap:10px;font-size:calc(15px * var(--ts));padding:5px 0;align-items:center;color:var(--teal-pale)}
+.lrow .lk{color:var(--teal-light)}
+.lopt{display:flex;gap:10px;flex-wrap:wrap}
+.lopt span{cursor:pointer;color:var(--teal-shade)}
+.lopt span.on{color:var(--ink);background:var(--green-light);padding:0 5px}
+.lbar{letter-spacing:1px;cursor:pointer}
+.lbar i{font-style:normal;color:var(--green-light)} .lbar u{text-decoration:none;color:#2f4f4c}
+.lprev{font-size:calc(15px * var(--ts));color:var(--teal-pale);border-top:1px dashed var(--teal-shade);margin-top:6px;padding-top:6px;max-height:64px;overflow:hidden;position:relative}
+.lprev::after{content:"clipped";position:absolute;right:0;bottom:0;font-size:11px;background:var(--tomato);color:var(--paper);padding:0 4px;display:var(--clipflag,none)}
+
+/* doors (save & quit / continue) */
+.leaf{position:absolute;top:0;bottom:0;width:640px;background:#2b2420;z-index:40;
+  background-image:linear-gradient(90deg,transparent 0 92%,var(--teal-shade) 92% 100%)}
+.leaf.l{left:0;animation:leafL .36s steps(6) both}
+.leaf.r{right:0;transform:scaleX(-1);animation:leafR .36s steps(6) both}
+.leaf.open.l{animation:leafLo .36s steps(6) both}
+.leaf.open.r{animation:leafRo .36s steps(6) both}
+@keyframes leafL{from{transform:translateX(-640px)}to{transform:none}}
+@keyframes leafR{from{transform:scaleX(-1) translateX(-640px)}to{transform:scaleX(-1)}}
+@keyframes leafLo{from{transform:none}to{transform:translateX(-640px)}}
+@keyframes leafRo{from{transform:scaleX(-1)}to{transform:scaleX(-1) translateX(-640px)}}
+.toast{position:absolute;left:640px;top:58px;transform:translateX(-50%);background:var(--paper);border:3px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.4);padding:6px 18px;font-family:var(--display);font-size:18px;letter-spacing:1px;color:var(--ink);white-space:nowrap;animation:toast 2.4s steps(24) both;z-index:30}
+.toast b{color:var(--green-dark)}
+@keyframes toast{0%{transform:translate(-50%,-30px);opacity:0}8%{transform:translate(-50%,0);opacity:1}85%{opacity:1}100%{opacity:0}}
+.stub{position:absolute;left:380px;top:130px;width:520px}
+.stub .body{padding:16px 20px;display:grid;gap:10px;font-size:calc(14px * var(--ts))}
+.stub .terms{display:flex;gap:6px;flex-wrap:wrap}
+.stub .terms span{font-family:var(--display);font-size:14px;background:var(--cream);border:2px solid var(--ink);padding:0 6px}
+
+/* flow strip */
+.flow{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.flow button{font-size:13px;padding:3px 9px}
+.flow .arr{color:var(--teal-light);font-family:var(--display)}
+
+/* text-size lab */
+.lab{display:grid;gap:12px}
+.crop{position:relative;border:2px solid var(--ink);overflow:visible;image-rendering:pixelated;background-repeat:no-repeat}
+.crop-holder{overflow-x:auto;max-width:100%;padding-bottom:6px}
+.pop{position:absolute;background:var(--paper);border:2px solid var(--ink);color:var(--ink);font-family:var(--body)}
+.pop .ph{display:flex;justify-content:space-between;align-items:baseline;background:var(--teal-pale);border-bottom:2px solid var(--ink);padding:0 .4em;font-family:var(--display)}
+.pop .rule{padding:.25em .45em;line-height:1.25;font-weight:600}
+.pop .rule .fam{background:var(--tomato-light);padding:0 .2em}
+.pop .rule .fam2{background:var(--mustard);padding:0 .2em}
+.pop .ln{padding:.1em .45em;color:var(--tomato-dark);font-weight:600;border-top:1px dashed var(--grey-light)}
+.pop .grow{position:absolute;right:-2px;bottom:-22px;font-family:var(--display);font-size:11px;background:var(--mustard);color:var(--ink);padding:0 5px;border:2px solid var(--ink)}
+.scaletable td,.scaletable th{padding:4px 10px;border-bottom:1px solid var(--teal-shade);text-align:left;font-size:13px}
+.scaletable th{font-family:var(--display);color:var(--teal-light);font-weight:500}
+
+/* reduced motion: everything still (the mock-up's own switch and the OS setting) */
+body.rm *,body.rm *::before,body.rm *::after{animation-duration:0s!important;animation-delay:0s!important;transition:none!important}
+body.rm .scr h4 .cur{animation:none!important}
+@media (prefers-reduced-motion:reduce){*{animation-duration:0s!important;transition:none!important}}
+</style>
+<body>
+<div class="toolbar"><div class="controls">
+  <span class="lbl">DIRECTION</span>
+  <span class="seg" id="dirSeg">
+    <button data-dir="A" aria-pressed="true">A Lane closed</button>
+    <button data-dir="B" aria-pressed="false">B Clipboard</button>
+    <button data-dir="C" aria-pressed="false">C Service mode</button>
+  </span>
+  <span class="lbl">PAUSED DURING</span>
+  <span class="seg" id="phaseSeg">
+    <button data-phase="planning" aria-pressed="true">Planning</button>
+    <button data-phase="count" aria-pressed="false">Count-up</button>
+    <button data-phase="machine" aria-pressed="false">Machine</button>
+  </span>
+  <button id="musicBtn" aria-pressed="false">Play music</button>
+</div></div>
+
+<main>
+  <div class="lede">
+    <div class="eyebrow">Next Customer · phase 4 prep · options and pause · 2026-11-05</div>
+    <h1>Options and pause</h1>
+    <p>Your request: Options reachable from the title and during a shift, starting with Fullscreen / Windowed, music and sound volume, text size and reduced motion, and a pause menu with Resume and Save &amp; Quit to Title. The stage below is the game's 1280x720 stage with the real title and a real shift 13 capture. Everything on it is clickable, and the settings work: the music and sound sliders play the game's own <code>shift.ogg</code> and <code>scan.wav</code>, FULLSCREEN puts the stage in your browser's full screen (the web build's own case), and REDUCED MOTION stills this page.</p>
+    <p class="cap">Keys on the stage: <kbd>Esc</kbd> or <kbd>P</kbd> pause and resume, <kbd>Up</kbd> <kbd>Down</kbd> <kbd>Enter</kbd> in the menus. The ☰ button at the top right of the shift opens the pause too. How to Play is only an entry here: another mock-up designs it.</p>
+  </div>
+
+  <section>
+    <div class="eyebrow">1 · What the game does today</div>
+    <h2>No options screen, no pause, and the save is already there</h2>
+    <div class="two">
+      <div class="shot"><img src="options_pause_src/title_1280x720.png" alt="The title screen today: CONTINUE, NEW RUN, REWARDS plates on the brick wall">
+        <span class="pin" style="left:15%;top:62%">1</span><span class="pin" style="left:3%;top:96%">2</span></div>
+      <div class="shot"><img src="options_pause_src/shift_1280x720.png" alt="A shift today, shift 13 planning">
+        <span class="pin" style="left:95%;top:9%">3</span><span class="pin" style="left:50%;top:50%">4</span><span class="pin" style="left:13%;top:40%">5</span></div>
+    </div>
+    <div class="probs">
+      <div class="prob"><span class="n">1</span><div><b>Title plates.</b> <span>CONTINUE (with a save), NEW RUN, REWARDS. PR #143 adds a GUIDE plate under REWARDS (<code>PLATE_TOPS</code> 0 / 96 / 152 / 208). There is no Options entry.</span></div></div>
+      <div class="prob"><span class="n">2</span><div><b>Export log and build label.</b> <span>The only other things on the title. There are no settings anywhere a player can reach.</span></div></div>
+      <div class="prob"><span class="n">3</span><div><b>The ☰ menu (<code>TopBar.menu</code>).</b> <span>A popup with Export log; PR #143 adds Guide above it. It doesn't pause anything, and there's no way back to the title from a shift.</span></div></div>
+      <div class="prob"><span class="n">4</span><div><b>Esc only steps back.</b> <span>It cancels a drag or the price-gun picker, closes the day slip and the toy machines. Nothing pauses the shift. The count-up, the machine and the music keep running while the window is in the background.</span></div></div>
+      <div class="prob"><span class="n">5</span><div><b>Settings exist, but players can't reach them.</b> <span><code>ProfileState.settings</code> in <code>profile.json</code> holds <code>count_up_speed</code> and <code>reduced_motion</code>, which only the debug panel sets (it's excluded from playtest exports). Volumes are fixed in <code>default_bus_layout.tres</code> (Music −15 dB, SFX −6 dB). The window is 1280x720 with <code>canvas_items</code> / <code>expand</code>, so fullscreen is only possible from the OS. Text sizes are constants (the scan popup's rule text is 15 px, its lines 13 px).</span></div></div>
+      <div class="prob"><span class="n">↺</span><div><b>Saving is continuous.</b> <span><code>RunSave</code> writes at every wait: PLANNING (after every place, remove and redraw), MACHINE_CHOOSE (at the CHECKOUT click), MACHINE_PICK and SCORED, plus the start board after every commitment. Closing the window loses nothing, and CONTINUE resumes through <code>_resume_run</code>. A resume never replays a count-up. Only <code>run_resume</code> is logged.</span></div></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">2 · Three directions, live</div>
+    <h2>Pick a direction, then walk the flow</h2>
+    <div class="opts" id="dirCards">
+      <div class="opt rec" data-dir="A" aria-current="true"><span class="tag">A · Lane closed</span><span class="pick">RECOMMENDED</span>
+        <p><b>Pause:</b> a tomato LANE CLOSED sign swings down over the belt, the store dims and freezes, and the title's own menu plates step in on the left: RESUME, OPTIONS, HOW TO PLAY, SAVE &amp; QUIT. <b>Options:</b> one paper card, the same over the title and over the pause.</p></div>
+      <div class="opt" data-dir="B"><span class="tag">B · Manager's clipboard</span>
+        <p><b>Pause:</b> a clipboard slides up from the counter with tabs PAUSED / OPTIONS / HOW TO PLAY. Each entry is a checklist line. <b>Options</b> is a page flip on the same board, and the title opens it on its OPTIONS tab.</p></div>
+      <div class="opt" data-dir="C"><span class="tag">C · Service mode</span>
+        <p><b>Pause:</b> the camera pushes in on the shop monitor, which switches to a green-LED SERVICE MODE with numbered entries (1–4). <b>Options</b> are LED lines on the same screen. It's very much in the world, but the screen has a fixed size, so large text clips.</p></div>
+    </div>
+    <div class="stage-wrap" id="wrap"><div class="stage" id="stage"></div></div>
+    <div class="flow" id="flow"></div>
+    <p class="cap" id="stateCap"></p>
+  </section>
+
+  <section>
+    <div class="eyebrow">3 · Text size in a pixel-art game</div>
+    <h2>Scale the reading text, never the art</h2>
+    <p>The stage is drawn at 1280x720 and Godot stretches it (<code>canvas_items</code>), so at 1920x1080 everything is already ×1.5. A 15 px rule line is 15 screen px in a 1280x720 window and 22.5 px in 1080p fullscreen. Small windows need the setting most. TEXT SIZE multiplies the font size of <b>reading text</b> (Atkinson body and the mono receipt lines) by 1.0 / 1.2 / 1.4 and leaves the pixel art, the chunky-caps headings, the stickers and the ticket prices alone. Those are drawn on the 2 px grid and fit fixed boxes. A panel with reading text grows to fit: the monitor's popup lets its paper run down past the bezel instead of clipping.</p>
+    <div class="controls">
+      <span class="lbl">RESOLUTION</span>
+      <span class="seg" id="resSeg"><button data-res="1280" aria-pressed="true">1280x720 window</button><button data-res="1920" aria-pressed="false">1920x1080 fullscreen</button></span>
+      <span class="lbl">TEXT SIZE</span>
+      <span class="seg" id="tsSeg"><button data-ts="normal" aria-pressed="true">Normal</button><button data-ts="large" aria-pressed="false">Large</button><button data-ts="larger" aria-pressed="false">Larger</button></span>
+    </div>
+    <div class="crop-holder"><div class="crop" id="crop"></div></div>
+    <p class="cap">This is the shop monitor cropped from the real capture, at true size for the chosen resolution: one CSS pixel is one screen pixel at 100% zoom. The scan popup is redrawn in HTML at the chosen text size.</p>
+    <div class="scroll"><table class="scaletable">
+      <tr><th>Scales with TEXT SIZE</th><th>Stays (pixel grid / fixed boxes)</th></tr>
+      <tr><td>Scan popup rule and lines (15 / 13 / 12 px), glyph tips, the handbook's entries, the receipt's item lines (mono), the time card and day slip body, Options and pause sub-lines, results / final receipt lines</td><td>Item sprites, price-ticket numbers and effect text on tickets, stickers (+1, ×3, WASTED), chunky-caps headings, the monitor's big total, menu plate labels, top-bar chips</td></tr>
+    </table></div>
+  </section>
+
+  <section>
+    <div class="eyebrow">4 · Recommendation</div>
+    <div class="verdict">
+      <p><strong>A · Lane closed.</strong> The pause reads at once as "this checkout is stopped", which suits a cashier game, and it costs little: the sign is one new sprite, and the plates are the title's <code>MenuPlate</code> and <code>TitleMenu</code> stepping in, so title and pause feel like one menu. Options is one plain paper card shared by both places. It has room for six rows and grows with text size, which C can't do. B is a fine fallback, but its board hides the run, while A keeps the dimmed belt visible behind the sign, so the player remembers where they are.</p>
+      <p><strong>Save &amp; Quit needs no confirmation.</strong> The run is always saved at the last wait, so the button never loses anything. The sign flips to SAVED for a beat, the doors close, and the title opens lit with CONTINUE showing the shift and week. CONTINUE opens the doors onto the same state, with a short WELCOME BACK slip.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">5 · Behaviour spec (direction A)</div>
+    <div class="scroll"><table class="spec">
+      <tr><th>Piece</th><th>What the build changes</th></tr>
+      <tr><td>Opening the pause</td><td>In a shift, <kbd>Esc</kbd> first closes the topmost thing as today (a drag, the picker, a popup, the day slip). When nothing is open, Esc opens the pause. <kbd>P</kbd> and the ☰ button open it too: the ☰ popup is replaced by the pause, and Export log moves into the pause as a small link. In the pause, Esc / P / RESUME close it. It can't open on the results, during the cart reveal's first 0.3 s, or while a doors transition plays.</td></tr>
+      <tr><td>What pauses</td><td>A new <code>PauseMenu</code> (<code>ui/pause/</code>, <code>process_mode = ALWAYS</code>) sets <code>get_tree().paused</code>. Count-up tweens, hit-stops, the machine's plan time, the belt, standees and timers all freeze, and the music ducks with the existing <code>Music.duck</code>. Played time (<code>run_ms</code>) excludes paused time. Resume continues the animation where it stopped (reduced motion: it was already still).</td></tr>
+      <tr><td>Pause menu</td><td>RESUME (primary, tomato, with a sub-line saying where you are), OPTIONS, HOW TO PLAY (the handbook from PR #143, opened over the pause), SAVE &amp; QUIT (its sub-line says where you'll resume). The plates use <code>MenuPlate</code> with Up / Down / Enter, like <code>TitleMenu.handle_key</code>. The LANE CLOSED sign is one sprite (<code>art/src/ui/lane_closed.txt</code>) dropping over 0.5 s with a 2-swing settle; it's still under reduced motion.</td></tr>
+      <tr><td>Save &amp; Quit</td><td>No new save point and no confirmation. The run is already saved at its last wait (planning: the last place / remove / redraw; count-up or dessert: the CHECKOUT click as MACHINE_CHOOSE, so it resumes at the machine with the checkout's end state and no replay; machine pick: MACHINE_PICK with the same prizes; start board: the last commitment). An in-flight drag snaps back first. The sign flips to SAVED (stamp sound), the doors close, and <code>TitleScreen.request_lit()</code> then the title opens.</td></tr>
+      <tr><td>Resume</td><td>Unchanged <code>_resume_run</code>. New: a paper slip "WELCOME BACK · SHIFT n/16 · as you left it" under the top bar for 1.8 s (still under reduced motion). It doesn't show on the first start of a run.</td></tr>
+      <tr><td>Title</td><td>A new OPTIONS entry in <code>TitleMenu.Entry</code>. Recommended: GUIDE and OPTIONS as two half plates on the last shelf (y 208), so the column keeps its height. OPTIONS opens the same card over the dimmed storefront. Esc closes it, and BACK / DONE return to the plates.</td></tr>
+      <tr><td>Options card</td><td><code>OptionsCard</code> (<code>ui/options/</code>), one scene used by the title and the pause. Changes apply live: the display mode switches at once, volume sliders play a scan beep (sound) or change the playing loop (music), and the text size reflows the card's own preview. DONE or Esc saves the profile once.</td></tr>
+      <tr><td>Display</td><td>WINDOWED / FULLSCREEN through <code>DisplayServer.window_set_mode</code> (FULLSCREEN = borderless, not exclusive). <kbd>Alt+Enter</kbd> toggles it anywhere (it's the same setting). Applied at boot from the profile, before the title opens. <b>Web:</b> the button calls the browser's fullscreen (allowed because it's a click). Saved FULLSCREEN is <i>not</i> applied at boot, because browsers refuse without a click. When the browser leaves fullscreen (its own Esc), the card's switch follows and that Esc doesn't open the pause, so P and ☰ are the reliable keys on the web.</td></tr>
+      <tr><td>Volumes</td><td>MUSIC and SOUND, 0–10 (default 8), stored as ints. Applied as <code>linear_to_db(v / 10)</code> on top of the bus layout's levels. The music offset goes into <code>Music</code>'s base level, so ducking still works relative to it. At 0 the bus is muted.</td></tr>
+      <tr><td>Text size</td><td>NORMAL / LARGE / LARGER = ×1.0 / 1.2 / 1.4 on reading text only (table above). It's read through one helper (<code>UiKit.text_size(base)</code>), so screens built after a change pick it up, and an Options change rebuilds open panels' fonts. Panels with reading text grow; nothing clips. UI tests check the scan popup and the time card at LARGER at 1280x720.</td></tr>
+      <tr><td>Reduced motion</td><td>The existing <code>ProfileState.reduced_motion</code>, now reachable. Description: "No shakes, no flying chips, no rolling numbers. Every result stays." The debug panel's toggle stays.</td></tr>
+      <tr><td>Save data</td><td><code>profile.json</code> → <code>settings</code> (JSON values, accessors tolerate missing or wrong types, so <b>no FORMAT_VERSION bump</b>): <code>display</code> ("windowed" | "fullscreen"), <code>music_volume</code>, <code>sound_volume</code> (int 0–10), <code>text_size</code> ("normal" | "large" | "larger"), plus the existing <code>reduced_motion</code> and <code>count_up_speed</code>. The run save is unchanged. Settings never touch a run.</td></tr>
+      <tr><td>Telemetry</td><td><code>settings_change</code> {key, from, to} once per changed key when the card closes. <code>pause_open</code> / <code>pause_close</code> {phase, shift, paused_ms}. <code>run_quit</code> {phase, shift} on Save &amp; Quit (the next <code>run_resume</code> pairs with it). <code>tools/log_summary.py</code> adds a settings line per player (final values, number of pauses).</td></tr>
+      <tr><td>Changelog</td><td>Playtest-facing: a plan changelog row (pause, options, settings keys, text-size reach).</td></tr>
+    </table></div>
+  </section>
+
+  <section class="answers">
+    <h2>Questions (my default answers in bold)</h2>
+    <ol>
+      <li>On the title, where does OPTIONS go? <b>GUIDE | OPTIONS as two half plates on the last shelf</b> (alternatives: a fifth full plate, or a small gear by Export log).</li>
+      <li>Should Options also show COUNT-UP SPEED (Normal / Fast)? It's already in the profile but only the debug panel sets it. <b>Yes, as a sixth row</b> (the dashed row on the card).</li>
+      <li>Text size: <b>three steps (×1.0 / 1.2 / 1.4), reading text only, panels grow</b>. Or should the stickers and ticket text scale too? That would mean a second, larger pixel font size.</li>
+      <li>Pausing during the count-up: <b>freeze it, and Save &amp; Quit resumes at the machine with the checkout's end state</b>. The alternative is to let the count finish before the pause opens.</li>
+    </ol>
+  </section>
+</main>
+
+<audio id="mus" src="options_pause_src/shift.ogg" loop preload="none"></audio>
+<audio id="sfxScan" src="options_pause_src/scan.wav" preload="auto"></audio>
+<audio id="sfxClick" src="options_pause_src/ui_click_1.wav" preload="auto"></audio>
+<audio id="sfxOpen" src="options_pause_src/ui_open.wav" preload="auto"></audio>
+<audio id="sfxClose" src="options_pause_src/ui_close.wav" preload="auto"></audio>
+<audio id="sfxStamp" src="options_pause_src/stamp_paid.wav" preload="auto"></audio>
+
+<script>
+"use strict";
+const TS = {normal:1, large:1.2, larger:1.4};
+const S = {
+  dir:'A', state:'title', phase:'planning', hot:0, saved:false, from:'title', res:'1280',
+  set:{display:'windowed', music:8, sound:8, text:'normal', rm:false, speed:'normal'},
+  musicOn:false, busy:false,
+};
+const stage = document.getElementById('stage');
+const wrap = document.getElementById('wrap');
+
+/* ---------- sound ---------- */
+function sfx(id, vol){
+  try{
+    const a = document.getElementById(id);
+    if(!a) return;
+    const v = (S.set.sound/10); a.volume = Math.min(1, v*v*(vol||0.8));
+    if(S.set.sound === 0) return;
+    a.currentTime = 0; const p = a.play(); if(p && p.catch) p.catch(()=>{});
+  }catch(e){}
+}
+function applyMusic(){
+  const m = document.getElementById('mus');
+  const paused = ['pause','pause_opts','howto'].includes(S.state);
+  const v = S.set.music/10;
+  try{ m.volume = Math.min(1, v*v*0.6*(paused?0.45:1)); }catch(e){}
+  if(S.musicOn && S.set.music>0){ const p=m.play(); if(p&&p.catch)p.catch(()=>{}); } else m.pause();
+}
+
+/* ---------- copy ---------- */
+const PHASE = {
+  planning:{resume:'SHIFT 13/16 · PLANNING', quit:'Saved after your last move', frozen:'', back:'planning, hand and row as you left them'},
+  count:{resume:'SHIFT 13/16 · COUNT-UP FROZEN', quit:'Checkout already paid · resumes at the machine', frozen:'⏸ count-up frozen at 23.00€ · RESUME carries on', back:'the machine, checkout end state shown, no replay'},
+  machine:{resume:'SHIFT 13/16 · PRIZE PICK', quit:'Same prizes when you come back', frozen:'⏸ machine waiting for your pick', back:'the prize pick, same 3 prizes'},
+};
+const PAUSE_ITEMS = ()=>[
+  {act:'resume', label:'RESUME', sub:PHASE[S.phase].resume, primary:true},
+  {act:'options', label:'OPTIONS', sub:'Display · sound · text · motion'},
+  {act:'howto', label:'HOW TO PLAY', sub:'Controls and terms (own mock-up)'},
+  {act:'quit', label:'SAVE & QUIT', sub:PHASE[S.phase].quit},
+];
+
+/* ---------- options content (shared by the three skins) ---------- */
+function seg(key, opts){
+  return '<span class="pseg">'+opts.map(([v,l])=>`<span data-act="set" data-k="${key}" data-v="${v}" class="${S.set[key]===v?'on':''}">${l}</span>`).join('')+'</span>';
+}
+function vol(key){
+  const v = S.set[key]; let p='';
+  for(let i=1;i<=10;i++) p += `<i data-act="pip" data-k="${key}" data-v="${i}" class="${i<=v?'f':''}${i<=v&&i>8?' hi':''}"></i>`;
+  return `<span class="vol"><span class="pm" data-act="vol" data-k="${key}" data-v="-1">−</span><span class="pips">${p}</span><span class="pm" data-act="vol" data-k="${key}" data-v="1">+</span><span class="num ${v===0?'mute':''}">${v===0?'MUTE':v}</span></span>`;
+}
+const PREVIEW = 'Later items that share a family with the item right before it pay ×3. <span class="fam">Food</span> doesn\'t count.';
+function optionRows(){
+  return `
+  <div class="row"><div class="k">DISPLAY<small>Alt+Enter</small></div><div class="v">${seg('display',[['windowed','WINDOWED'],['fullscreen','FULLSCREEN']])}
+    <div class="d">Web build: uses the browser's full screen; its Esc leaves it.</div></div></div>
+  <div class="row"><div class="k">MUSIC</div><div class="v">${vol('music')}</div></div>
+  <div class="row"><div class="k">SOUND</div><div class="v">${vol('sound')}<div class="d">Each step plays the scanner's beep.</div></div></div>
+  <div class="row"><div class="k">TEXT SIZE</div><div class="v">${seg('text',[['normal','NORMAL'],['large','LARGE'],['larger','LARGER']])}
+    <div class="preview">${PREVIEW}</div></div></div>
+  <div class="row"><div class="k">REDUCED MOTION</div><div class="v">${seg('rm',[[false,'OFF'],[true,'ON']])}
+    <div class="d">No shakes, no flying chips, no rolling numbers. Every result stays.</div></div></div>
+  <div class="row proposed"><div class="k">COUNT SPEED<small>question 2</small></div><div class="v">${seg('speed',[['normal','NORMAL'],['fast','FAST ×1.5']])}</div></div>`;
+}
+function ledBar(key){
+  const v=S.set[key]; let s='';
+  for(let i=1;i<=10;i++) s += i<=v?'<i>█</i>':'<u>█</u>';
+  return `<span class="lbar"><span data-act="vol" data-k="${key}" data-v="-1">[-]</span> ${s} <span data-act="vol" data-k="${key}" data-v="1">[+]</span> ${v===0?'MUTE':String(v).padStart(2,'0')}</span>`;
+}
+function ledOpts(key, opts){
+  return '<span class="lopt">'+opts.map(([v,l])=>`<span data-act="set" data-k="${key}" data-v="${v}" class="${S.set[key]===v?'on':''}">${l}</span>`).join('')+'</span>';
+}
+
+/* ---------- stage renderers ---------- */
+function bg(kind, zoom){ return `<div class="bg ${kind}${zoom?' zoom':''}"></div>`; }
+
+function titleLayer(withOptionsHot){
+  const continueSub = S.saved ? 'SHIFT 13/16 · WEEK 4' : 'SHIFT 13/16 · WEEK 4';
+  return `${bg('title')}
+  <div class="sub-patch">${continueSub}</div>
+  <div class="plate half" style="left:74px;top:530px;width:114px;height:38px" data-act="noop" title="GUIDE (PR #143)">GUIDE</div>
+  <div class="plate half new-plate${withOptionsHot?' hot':''}" style="left:196px;top:530px;width:114px;height:38px" data-act="title-options">OPTIONS</div>
+  <div class="side-note" style="left:322px;top:532px;width:210px;background:rgba(23,44,43,.9);border:2px solid var(--ink);padding:3px 8px"><b>New:</b> GUIDE | OPTIONS share the last shelf (Q1).</div>
+  <div class="plate" style="left:74px;top:322px;width:300px;height:74px;opacity:0" data-act="continue" title="CONTINUE"></div>`;
+}
+
+function optionsCardA(){
+  return `<div class="card" style="left:330px;top:40px;width:620px">
+    <div class="head">OPTIONS <small>SAVED TO YOUR PROFILE</small></div>
+    <div class="rows">${optionRows()}</div>
+    <div class="foot"><span>Changes apply at once · Esc = done</span><button class="btn-done" data-act="back">DONE</button></div></div>`;
+}
+
+function howtoStub(){
+  return `<div class="card stub"><div class="head">HOW TO PLAY <small>OWN MOCK-UP</small></div>
+    <div class="body"><p>The quick reference the other mock-up designs opens here, over the pause: controls, then terms that are easy to forget mid-run.</p>
+    <div class="terms"><span>CHAIN</span><span>MORNING</span><span>PAIR</span><span>BATCH</span><span>WASTED</span><span>REDRAW</span><span>PAYDAY</span></div>
+    <p class="cap" style="color:var(--grey)">Its content comes from the handbook entries of PR #143 (<code style="color:var(--tomato-dark)">data/handbook/entries/*.tres</code>).</p>
+    <div style="text-align:right"><button class="btn-done" data-act="back">BACK</button></div></div></div>`;
+}
+
+function pausePlatesA(){
+  const it = PAUSE_ITEMS(); let y = 150, h = '';
+  it.forEach((e,i)=>{
+    const hot = i===S.hot ? ' hot' : '';
+    const delay = `animation-delay:${i*70}ms`;
+    if(e.primary){
+      h += `<div class="plate big step-in${hot}" style="left:40px;top:${y}px;width:300px;${delay}" data-act="${e.act}" data-i="${i}">${e.label}<span class="sub">${e.sub}</span></div>`;
+      y += 104;
+    } else {
+      h += `<div class="plate small-sub step-in${hot}" style="left:40px;top:${y}px;width:300px;${delay}" data-act="${e.act}" data-i="${i}">${e.label}<span class="sub">${e.sub}</span></div>`;
+      y += 66;
+    }
+  });
+  h += `<div class="exportlink" data-act="noop"><img src="options_pause_src/export_log.png" alt="">Export log</div>`;
+  return h;
+}
+
+function signA(saved){
+  return `<div class="sign"><div class="chain" style="left:60px"></div><div class="chain" style="left:336px"></div>
+    <div class="board${saved?' saved':''}">${saved?'<b>SAVED ✓</b><span>SEE YOU SOON</span>':'<b>LANE CLOSED</b><span>BACK IN A MOMENT</span>'}</div></div>`;
+}
+
+function renderA(){
+  switch(S.state){
+    case 'title': return titleLayer(false);
+    case 'title_opts': return titleLayer(true)+'<div class="dim"></div>'+optionsCardA();
+    case 'shift': return shiftLayer();
+    case 'pause': case 'quitting': {
+      const fz = PHASE[S.phase].frozen;
+      return bg('shift')+'<div class="dim"></div><div class="hot-ring"></div>'+signA(S.state==='quitting')+(fz?`<div class="paused-chip">${fz}</div>`:'')+pausePlatesA()+'<div class="esc-hint">Esc / P · resume</div>';
+    }
+    case 'pause_opts': return bg('shift')+'<div class="dim"></div>'+optionsCardA();
+    case 'howto': return bg('shift')+'<div class="dim"></div>'+howtoStub();
+  }
+}
+
+function boardB(tabs, active, inner, flip){
+  return `<div class="board"><div class="clip"></div><div class="sheet${flip?' flip':''}">
+    <div class="tabs">${tabs.map(([k,l])=>`<span data-act="${k}" class="${k===active?'on':''}">${l}</span>`).join('')}</div>${inner}</div></div>`;
+}
+function pauseListB(){
+  const it = PAUSE_ITEMS();
+  return `<div class="listhead"><span>NEXT CUSTOMER · REG 3</span><span>${PHASE[S.phase].resume}</span></div>`+
+    it.map((e,i)=>`<div class="crow${i===S.hot?' hot':''}${e.primary?' primary':''}" data-act="${e.act}" data-i="${i}"><span class="box"></span><b>${e.label}</b><small>${e.sub}</small></div>`).join('')+
+    `<div class="listhead" style="padding-top:14px"><span data-act="noop" style="cursor:pointer">▤ Export log</span><span>Esc / P · resume</span></div>`;
+}
+function renderB(){
+  const shiftTabs = [['pause-tab','PAUSED'],['options','OPTIONS'],['howto','HOW TO PLAY']];
+  switch(S.state){
+    case 'title': return titleLayer(false);
+    case 'title_opts': return titleLayer(true)+'<div class="dim"></div>'+boardB([['options','OPTIONS'],['noop','HOW TO PLAY']],'options',`<div class="rows">${optionRows()}</div><div class="foot"><span>Esc = done</span><button class="btn-done" data-act="back">DONE</button></div>`);
+    case 'shift': return shiftLayer();
+    case 'pause': case 'quitting': {
+      const fz = PHASE[S.phase].frozen;
+      return bg('shift')+'<div class="dim"></div><div class="hot-ring"></div>'+(fz?`<div class="paused-chip" style="top:20px;left:180px">${fz}</div>`:'')+boardB(shiftTabs,'pause-tab',pauseListB())+(S.state==='quitting'?'<div class="toast" style="top:300px;animation-duration:.8s"><b>SAVED ✓</b> · see you soon</div>':'');
+    }
+    case 'pause_opts': return bg('shift')+'<div class="dim"></div>'+boardB(shiftTabs,'options',`<div class="rows">${optionRows()}</div><div class="foot"><span>Esc = back to PAUSED</span><button class="btn-done" data-act="back">DONE</button></div>`, true);
+    case 'howto': return bg('shift')+'<div class="dim"></div>'+boardB(shiftTabs,'howto',`<div style="padding:18px 22px;display:grid;gap:10px;font-size:calc(14px * var(--ts))"><p>The quick reference from the other mock-up sits on this tab.</p><div class="terms" style="display:flex;gap:6px;flex-wrap:wrap">${['CHAIN','MORNING','PAIR','BATCH','WASTED','REDRAW'].map(t=>`<span style="font-family:var(--display);border:2px solid var(--ink);padding:0 6px;background:var(--cream)">${t}</span>`).join('')}</div></div>`, true);
+  }
+}
+
+function monC(title, inner){
+  return `<div class="mon"><div class="rod" style="left:120px"></div><div class="rod" style="left:550px"></div><div class="bezel"><div class="scr"><h4>${title}<span class="cur">▮</span></h4>${inner}</div><div class="brand">REG 3 · SERVICE</div></div></div>`;
+}
+function ledOptions(){
+  const clip = S.set.text !== 'normal';
+  return `<div style="--clipflag:${clip?'block':'none'}">
+    <div class="lrow"><span class="lk">DISPLAY</span>${ledOpts('display',[['windowed','WINDOWED'],['fullscreen','FULLSCREEN']])}</div>
+    <div class="lrow"><span class="lk">MUSIC</span>${ledBar('music')}</div>
+    <div class="lrow"><span class="lk">SOUND</span>${ledBar('sound')}</div>
+    <div class="lrow"><span class="lk">TEXT SIZE</span>${ledOpts('text',[['normal','NORMAL'],['large','LARGE'],['larger','LARGER']])}</div>
+    <div class="lrow"><span class="lk">REDUCED MOTION</span>${ledOpts('rm',[[false,'OFF'],[true,'ON']])}</div>
+    <div class="lrow"><span class="lk">COUNT SPEED</span>${ledOpts('speed',[['normal','NORMAL'],['fast','FAST']])}</div>
+    <div class="lprev">${PREVIEW.replace(/<[^>]+>/g,'')} Larger text has nowhere to go on a fixed screen.</div>
+    <div class="mrow" data-act="back" style="margin-top:6px"><span class="key">0</span>DONE<small>Esc</small></div></div>`;
+}
+function renderC(){
+  const items = PAUSE_ITEMS();
+  const list = items.map((e,i)=>`<div class="mrow${i===S.hot?' hot':''}" data-act="${e.act}" data-i="${i}"><span class="key">${i+1}</span>${e.label}<small>${e.sub}</small></div>`).join('');
+  switch(S.state){
+    case 'title': return titleLayer(false);
+    case 'title_opts': return titleLayer(true)+'<div class="dim"></div>'+monC('OPTIONS', ledOptions());
+    case 'shift': return shiftLayer();
+    case 'pause': case 'quitting': {
+      const fz = PHASE[S.phase].frozen;
+      return bg('shift',true)+'<div class="dim" style="background-color:rgba(23,44,43,.5)"></div>'+monC(S.state==='quitting'?'SAVING… OK':'SERVICE MODE', list+(fz?`<div class="mrow" style="color:var(--mustard-light)">${fz}</div>`:'')+'<div class="mrow"><small>keys 1–4 · Esc / P resume · ▤ Export log</small></div>');
+    }
+    case 'pause_opts': return bg('shift',true)+'<div class="dim" style="background-color:rgba(23,44,43,.5)"></div>'+monC('OPTIONS', ledOptions());
+    case 'howto': return bg('shift',true)+'<div class="dim" style="background-color:rgba(23,44,43,.5)"></div>'+monC('HOW TO PLAY', '<div class="lrow" style="display:block">The quick reference from the other mock-up would scroll here: CHAIN, MORNING, PAIR, REDRAW…</div><div class="mrow" data-act="back"><span class="key">0</span>BACK</div>');
+  }
+}
+
+function shiftLayer(){
+  return bg('shift')+`<div class="menu-hit" data-act="open-pause" title="Menu (pause)"></div>`+
+    (S.resumed?`<div class="toast">WELCOME BACK · <b>SHIFT 13/16</b> · as you left it</div>`:'')+
+    `<div class="esc-hint">Esc / P / ☰ · pause</div>`;
+}
+
+const STATES = [
+  ['title','Title'],['title_opts','Title → Options'],['shift','Shift'],['pause','Pause'],['pause_opts','Pause → Options'],['howto','How to Play entry'],['quitting','Save & Quit'],['title2','Title (Continue)'],['resumed','Resumed'],
+];
+const CAPS = {
+  title:'The title with a run saved. New: GUIDE | OPTIONS on the last shelf. Click OPTIONS (or CONTINUE to go to the shift).',
+  title_opts:'Options over the dimmed storefront. The same card as in the pause. DONE or Esc closes it and saves the profile once.',
+  shift:'Shift 13, planning. Press Esc or P, or click ☰ at the top right.',
+  pause:'Paused: everything frozen, music ducked. RESUME\'s sub-line says where you are; SAVE & QUIT\'s says where you\'ll come back. Try the PAUSED DURING switch in the toolbar.',
+  pause_opts:'Options from the pause. Esc returns to the pause, not to the shift.',
+  howto:'How to Play is only an entry here; its content is the other mock-up\'s.',
+  quitting:'Save & Quit: no confirmation (the run is already saved at its last wait). The sign flips to SAVED, the doors close, the title opens lit.',
+  title2:'Back on the title: CONTINUE shows the saved shift and week. Click CONTINUE.',
+  resumed:'CONTINUE: the doors open onto the save point, then a WELCOME BACK slip. On resume you get: ',
+};
+
+function render(){
+  stage.style.setProperty('--ts', TS[S.set.text]);
+  const st = (S.state==='title2') ? 'title' : (S.state==='resumed' ? 'shift' : S.state);
+  const realState = S.state; S.state = st;
+  S.resumed = (realState==='resumed');
+  let html = S.dir==='A' ? renderA() : S.dir==='B' ? renderB() : renderC();
+  S.state = realState;
+  if(realState==='title2') html = html.replace('class="sub-patch"','class="sub-patch" style="background:#d9534f;color:#faecbc"');
+  stage.innerHTML = html;
+  document.body.classList.toggle('rm', S.set.rm);
+  // flow strip
+  document.getElementById('flow').innerHTML = STATES.map(([k,l],i)=>`${i?'<span class="arr">›</span>':''}<button data-goto="${k}" aria-pressed="${k===realState}">${l}</button>`).join('');
+  document.getElementById('stateCap').textContent = CAPS[realState] + (realState==='resumed' ? PHASE[S.phase].back + '.' : '');
+  syncSegs(); applyMusic(); renderLab(); fit();
+}
+
+/* ---------- actions ---------- */
+function go(state){ S.state = state; if(state==='pause') S.hot = 0; render(); }
+function openPause(){ sfx('sfxOpen'); go('pause'); }
+function act(a, el){
+  if(S.busy) return;
+  const k = el && el.dataset.k, v = el && el.dataset.v;
+  switch(a){
+    case 'open-pause': openPause(); break;
+    case 'resume': sfx('sfxClose'); go('shift'); break;
+    case 'pause-tab': go('pause'); break;
+    case 'options': sfx('sfxClick'); S.from = S.state==='title'||S.state==='title2'?'title':'pause'; go(S.from==='title'?'title_opts':'pause_opts'); break;
+    case 'title-options': sfx('sfxClick'); S.from='title'; go('title_opts'); break;
+    case 'howto': sfx('sfxClick'); go('howto'); break;
+    case 'back': sfx('sfxClose'); go(S.state==='title_opts'?'title':'pause'); break;
+    case 'quit': quit(); break;
+    case 'continue': cont(); break;
+    case 'set': {
+      let val = v; if(v==='true') val=true; if(v==='false') val=false;
+      S.set[k] = val; sfx('sfxClick');
+      if(k==='display') setDisplay(val);
+      render(); break;
+    }
+    case 'vol': S.set[k] = Math.max(0, Math.min(10, S.set[k] + Number(v))); if(k==='sound') sfx('sfxScan'); render(); break;
+    case 'pip': { const n = Number(v); S.set[k] = (S.set[k]===n && n===1) ? 0 : n; if(k==='sound') sfx('sfxScan'); render(); break; }
+  }
+}
+function wait(ms){ return new Promise(r=>setTimeout(r, S.set.rm ? Math.min(ms,120) : ms)); }
+async function quit(){
+  S.busy = true; sfx('sfxStamp'); S.state='quitting'; render();
+  await wait(700);
+  if(!S.set.rm){ stage.insertAdjacentHTML('beforeend','<div class="leaf l"></div><div class="leaf r"></div>'); await wait(420); }
+  S.saved = true; S.state='title2'; render();
+  if(!S.set.rm){ stage.insertAdjacentHTML('beforeend','<div class="leaf l open"></div><div class="leaf r open"></div>'); await wait(380); stage.querySelectorAll('.leaf').forEach(n=>n.remove()); }
+  S.busy = false;
+}
+async function cont(){
+  S.busy = true; sfx('sfxClick');
+  if(!S.set.rm){ stage.insertAdjacentHTML('beforeend','<div class="leaf l"></div><div class="leaf r"></div>'); await wait(420); }
+  S.state = (S.saved ? 'resumed' : 'shift'); render();
+  if(!S.set.rm){ stage.insertAdjacentHTML('beforeend','<div class="leaf l open"></div><div class="leaf r open"></div>'); await wait(380); stage.querySelectorAll('.leaf').forEach(n=>n.remove()); }
+  S.busy = false;
+}
+function setDisplay(mode){
+  try{
+    if(mode==='fullscreen' && !document.fullscreenElement && wrap.requestFullscreen){ wrap.requestFullscreen().catch(()=>{ S.set.display='windowed'; render(); }); }
+    else if(mode==='windowed' && document.fullscreenElement){ document.exitFullscreen().catch(()=>{}); }
+  }catch(e){}
+}
+document.addEventListener('fullscreenchange', ()=>{
+  if(!document.fullscreenElement && S.set.display==='fullscreen'){ S.set.display='windowed'; render(); }
+  setTimeout(fit, 30);
+});
+
+stage.addEventListener('click', e=>{
+  const el = e.target.closest('[data-act]');
+  if(!el) return;
+  act(el.dataset.act, el);
+});
+stage.addEventListener('mouseover', e=>{
+  const el = e.target.closest('[data-i]');
+  if(!el) return;
+  const i = Number(el.dataset.i);
+  if(i!==S.hot){ S.hot = i; stage.querySelectorAll('[data-i]').forEach(n=>n.classList.toggle('hot', Number(n.dataset.i)===i)); }
+});
+document.addEventListener('keydown', e=>{
+  const tag = (e.target && e.target.tagName) || '';
+  if(tag==='INPUT' || tag==='TEXTAREA') return;
+  const k = e.key;
+  const inPause = S.state==='pause' && S.dir!=='Z';
+  if(k==='Escape' || k==='p' || k==='P'){
+    if(S.state==='shift' || S.state==='resumed'){ openPause(); e.preventDefault(); }
+    else if(S.state==='pause'){ act('resume'); e.preventDefault(); }
+    else if(S.state==='pause_opts' || S.state==='howto' || S.state==='title_opts'){ if(k==='Escape'){ act('back'); e.preventDefault(); } }
+    return;
+  }
+  if(inPause){
+    if(k==='ArrowDown'){ S.hot=(S.hot+1)%4; render(); e.preventDefault(); }
+    else if(k==='ArrowUp'){ S.hot=(S.hot+3)%4; render(); e.preventDefault(); }
+    else if(k==='Enter' || k===' '){ act(PAUSE_ITEMS()[S.hot].act); e.preventDefault(); }
+    else if(S.dir==='C' && /^[1-4]$/.test(k)){ act(PAUSE_ITEMS()[Number(k)-1].act); }
+  }
+});
+
+/* ---------- toolbar and direction cards ---------- */
+function syncSegs(){
+  document.querySelectorAll('#dirSeg button').forEach(b=>b.setAttribute('aria-pressed', b.dataset.dir===S.dir));
+  document.querySelectorAll('#dirCards .opt').forEach(o=>o.setAttribute('aria-current', o.dataset.dir===S.dir));
+  document.querySelectorAll('#phaseSeg button').forEach(b=>b.setAttribute('aria-pressed', b.dataset.phase===S.phase));
+  document.querySelectorAll('#resSeg button').forEach(b=>b.setAttribute('aria-pressed', b.dataset.res===S.res));
+  document.querySelectorAll('#tsSeg button').forEach(b=>b.setAttribute('aria-pressed', b.dataset.ts===S.set.text));
+  const mb = document.getElementById('musicBtn'); mb.setAttribute('aria-pressed', S.musicOn); mb.textContent = S.musicOn ? 'Music on' : 'Play music';
+}
+document.getElementById('dirSeg').addEventListener('click', e=>{ const b=e.target.closest('button'); if(b){ S.dir=b.dataset.dir; render(); }});
+document.getElementById('dirCards').addEventListener('click', e=>{ const o=e.target.closest('.opt'); if(o){ S.dir=o.dataset.dir; render(); }});
+document.getElementById('phaseSeg').addEventListener('click', e=>{ const b=e.target.closest('button'); if(b){ S.phase=b.dataset.phase; render(); }});
+document.getElementById('resSeg').addEventListener('click', e=>{ const b=e.target.closest('button'); if(b){ S.res=b.dataset.res; render(); }});
+document.getElementById('tsSeg').addEventListener('click', e=>{ const b=e.target.closest('button'); if(b){ S.set.text=b.dataset.ts; render(); }});
+document.getElementById('musicBtn').addEventListener('click', ()=>{ S.musicOn=!S.musicOn; render(); });
+document.getElementById('flow').addEventListener('click', e=>{
+  const b=e.target.closest('button[data-goto]'); if(!b || S.busy) return;
+  const g=b.dataset.goto;
+  if(g==='title2' || g==='resumed') S.saved = true;
+  S.state = g; S.hot = 0; render();
+});
+
+/* ---------- text-size lab ---------- */
+function renderLab(){
+  const k = S.res==='1920' ? 1.5 : 1;
+  const ts = TS[S.set.text];
+  const crop = document.getElementById('crop');
+  const W = Math.round(470*k), H = Math.round(190*k), X = Math.round(470*k), Y = Math.round(60*k);
+  // the monitor region, from the 1920 capture scaled to the chosen stage size
+  crop.style.width = (W + Math.round(300*k)) + 'px';
+  crop.style.height = (H + Math.round(150*k)) + 'px';
+  crop.style.backgroundImage = 'url(options_pause_src/shift_1920x1080.png)';
+  crop.style.backgroundSize = (1280*k)+'px '+(720*k)+'px';
+  crop.style.backgroundPosition = (-X)+'px '+(-Y)+'px';
+  const left = Math.round((617-470)*k), top = Math.round((80-60)*k), w = Math.round(276*k), minH = Math.round(152*k);
+  const f = 15*k*ts, fl = 13*k*ts, fn = 20*k;
+  crop.innerHTML = `<div class="pop" style="left:${left}px;top:${top}px;width:${w}px;min-height:${minH}px;font-size:${f}px">
+      <div class="ph"><span style="font-size:${fn}px">Multipack</span><span style="font-size:${12*k*ts}px">1/2</span></div>
+      <div class="rule">Later items that share a family with the item right before it pay ×3. <span class="fam">Food</span> and <span class="fam2">Breakfast</span> don't count.</div>
+      <div class="ln" style="font-size:${fl}px">The first coupon paid nothing · WASTED</div>
+      <div class="ln" style="font-size:${fl}px">No later item shared a family · WASTED</div>
+      ${ts>1?'<span class="grow">PAPER GROWS PAST THE BEZEL</span>':''}
+    </div>
+    <div style="position:absolute;right:${Math.round(8*k)}px;top:${Math.round(8*k)}px;font-family:var(--display);font-size:13px;background:var(--bay);color:var(--teal-pale);border:2px solid var(--ink);padding:2px 8px">
+      rule ${Math.round(f*10)/10} px · lines ${Math.round(fl*10)/10} px on screen</div>`;
+}
+
+/* ---------- scale the 1280x720 stage to the page ---------- */
+function fit(){
+  const w = wrap.clientWidth, h = wrap.clientHeight;
+  const s = Math.min(w/1280, h/720);
+  stage.style.transform = `scale(${s})`;
+  stage.style.left = ((w - 1280*s)/2) + 'px';
+  stage.style.top = ((h - 720*s)/2) + 'px';
+}
+new ResizeObserver(fit).observe(wrap);
+
+/* ?dir=B&state=pause&phase=count&ts=large&res=1920 opens a given still; ?selftest renders every state */
+(function(){
+  const q = new URLSearchParams(location.search);
+  if(q.get('dir')) S.dir = q.get('dir');
+  if(q.get('state')) { S.state = q.get('state'); if(S.state==='title2'||S.state==='resumed') S.saved = true; }
+  if(q.get('phase')) S.phase = q.get('phase');
+  if(q.get('ts')) S.set.text = q.get('ts');
+  if(q.get('res')) S.res = q.get('res');
+  if(q.has('rm')) S.set.rm = true;
+  render();
+  if(q.has('selftest')){
+    const out = [];
+    window.addEventListener('error', ev=>out.push('ERROR '+ev.message));
+    for(const d of ['A','B','C']) for(const [st] of STATES) for(const ph of ['planning','count','machine']) for(const t of ['normal','larger']){
+      try{ S.dir=d; S.state=st; S.phase=ph; S.set.text=t; S.saved=true; render();
+        if(!stage.innerHTML.trim()) out.push('EMPTY '+d+' '+st);
+      }catch(err){ out.push('FAIL '+d+' '+st+' '+ph+' '+err.message); }
+    }
+    // a few actions
+    try{ S.dir='A'; S.state='pause_opts'; render(); act('vol', {dataset:{k:'music',v:'-1'}}); act('pip',{dataset:{k:'sound',v:'3'}}); act('set',{dataset:{k:'rm',v:'true'}}); act('set',{dataset:{k:'text',v:'large'}}); act('back'); }catch(err){ out.push('ACT '+err.message); }
+    const pre = document.createElement('pre'); pre.id='selftest';
+    pre.textContent = 'SELFTEST ' + (out.length? out.join('\n') : 'OK') + ' music=' + S.set.music + ' sound=' + S.set.sound + ' rm=' + S.set.rm + ' state=' + S.state;
+    document.body.appendChild(pre);
+  }
+})();
+</script>
+</body>
+</html>
