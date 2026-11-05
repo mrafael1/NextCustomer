@@ -19,6 +19,7 @@ base = 1
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_scissors")])
 rule_text = "+2 for each earlier coupon"
 sticker_text = "+{bonus_each} per earlier coupon"
+monitor_text = "Gets +{bonus_each} for each earlier coupon."
 art_ref = "res://art/items_v2/scissors.png"
 mini_art_ref = "res://art/minis/scissors.png"
 mini_golden_art_ref = "res://art/minis/scissors_golden.png"

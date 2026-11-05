@@ -6,15 +6,17 @@ extends Control
 ## shows one screen in every mode, with no switching: two columns on the paper (PAPER_RECT).
 ## - The scanner bay (ScannerBay, BAY_RECT): the item at the scanner, with the queue over it and
 ##   its family chip under it (FamilyChip: what the item works with, in its ticket's colour).
-## - The item column (MonitorItemColumn, ITEM_RECT): that item read in full: its name and family
-##   glyphs, its price ("N€", the struck old price under a changed one), its effect text, a dashed
-##   rule and its step lines.
+## - The item column (MonitorItemColumn, ITEM_RECT): that item read in full (PR #138 monitor): a
+##   family-coloured header with its glyphs and name, its rule in plain language, then its base
+##   price line, its applied effects in scoring order and, at a fixed place under them, "= N€".
 ## - The checkout column (CheckoutColumn, CHECKOUT_RECT) is kept for its readings but never shown:
 ##   since Checkout Rhythm v3 the spend objective and the total are the register's and the top
 ##   bar's, and the item column takes the paper's whole right side.
-## In planning (mode() NEXT) the bay and the item column show belt slot 1's item with its lines
-## (show_next, on every refresh; on an empty belt the item column's hint, MonitorText.EMPTY_BELT),
-## or SCAN a held item's (show_scan, until end_scan). In redraw mode (plan
+## In planning (mode() NEXT) the bay and the item column show the last item placed on the belt with
+## its lines (show_next, on every refresh; on an empty belt the item column's hint,
+## MonitorText.EMPTY_BELT), or SCAN a scanned item's (show_scan, until end_scan: the scan is
+## sticky, ScanController keeps it pinned until another item is scanned or placed, so it can be
+## read and its keyword chips hovered on the monitor). In redraw mode (plan
 ## section 3.8, show_redraw; mode() REDRAW) the redraw panel covers the whole paper. A notice
 ## (NoticeLabel: a full row, a closed slot) shows on a paper strip over the item column's step
 ## lines (NOTICE_RECT) while it lasts, never in the count. When the item column's lines are on
@@ -28,10 +30,10 @@ extends Control
 ## landings and the landing's step line alone; the checkout column reads the register (LedDisplay's
 ## reading, which the quota tube follows too, so both read the same whole number at every
 ## moment). Each landing's amount flies from the item column to the number's left edge and its
-## sparks pop as it lands (CountChips, over the paper); a giver's effect also lights the price
-## rail (RailLight, BeltRide's). The landing that meets the quota starts the climax over the whole
-## paper (MonitorClimax; the dessert waits for it, CountUp.climax_running); the TOTAL line ends the
-## count (CheckoutColumn.finish: the stamp and the "+N€" tab). The last item stays in the item
+## sparks pop as it lands (CountChips, over the paper). The landing that meets the quota starts
+## the climax over the whole paper (MonitorClimax; the dessert waits for it,
+## CountUp.climax_running); the TOTAL line ends the count (CheckoutColumn.finish: the stamp and the
+## "+N€" tab). The last item stays in the item
 ## column, its last step line under it (mock-up still 16.5), and an inspected pass shows INSPECTION
 ## PASSED ✓ at the column's foot (a step line reaching it goes). A resumed checkout shows the end
 ## state at once (show_end_state).
@@ -47,10 +49,12 @@ enum Mode { NEXT, SCAN, COUNT, REDRAW }
 ## (inside the screen's ink border), the bay, the item column and the checkout column.
 const PAPER_RECT := Rect2(495, 77, 402, 154)
 const BAY_RECT := Rect2(499, 79, 112, 150)
-const ITEM_RECT := Rect2(619, 81, 270, 146)
+## The item column's frame stands 2 px from the paper's edge (PR #138 round 2: the user's "closer
+## to the monitor's edge", so each part gets bigger), 4 px right of the bay.
+const ITEM_RECT := Rect2(615, 79, 280, 150)
 const CHECKOUT_RECT := Rect2(799, 77, 98, 154)
 ## A notice's paper strip over the item column's step lines, and its text inside it.
-const NOTICE_RECT := Rect2(617, 163, 274, 66)
+const NOTICE_RECT := Rect2(613, 163, 284, 66)
 const NOTICE_MARGIN := 4.0
 ## The notice's size: the monitor's body size (16, as the item's effect text), stepping down
 ## through NOTICE_SIZES only for a notice that would not fit the strip (polish pass 2026-11-03).
@@ -89,6 +93,8 @@ const WHEEL_BUTTONS: Array[MouseButton] = [
 var reduced_motion: Callable = Callable()
 ## The register's reading (the model the checkout column and the top bar follow) and the notices.
 var upgrades: Array[UpgradeDefinition] = []
+## The shift's events (WeekSchedule.shift_events): an INSPECTION step's source_index is one of them.
+var inspections: Array[InspectionDefinition] = []
 ## The shift's redraws left, for a live factor in the item's effect text (-1: the rule's own).
 var redraws_left: int = -1:
 	set(value):
@@ -125,16 +131,18 @@ var _met: bool = false
 ## clock; it shows at once when its value lands first or the next beat starts.
 var _pending_line: Callable = Callable()
 var _pending_wait: Tween
-## Planning: belt slot 1's item and its lines, the belt's slots and filled ones, and the held
-## item (null with no scan) with its lines.
+## Planning: the last placed belt item, its lines and its slot, the belt's slots and filled ones,
+## and the scanned item (null with no scan) with its lines and its belt slot (-1 in the hand).
 var _next: CardDefinition
 var _next_tags: PackedStringArray = PackedStringArray()
 var _next_lines: ScanController.ItemLines
+var _next_at: int = 0
 var _slots: int = 0
 var _filled: int = 0
 var _held: CardDefinition
 var _held_tags: PackedStringArray = PackedStringArray()
 var _held_lines: ScanController.ItemLines
+var _held_at: int = -1
 ## What the item column shows in planning now (it fades in when this changes).
 var _shown_item: CardDefinition
 ## Each label's rect (local), set again once in the tree (a label never shrinks back by itself).
@@ -269,20 +277,23 @@ func show_redraw(notice: RedrawNotice) -> void:
 	_apply()
 
 
-## Planning's bay and item column (the shift screen, on every refresh): belt slot 1's item
-## (`definition`, null for an empty slot 1, with its scored `tags` and its `lines`) under NEXT,
-## with a pip per belt slot (`slots`, the first `filled` of them holding items). A held scan's
-## item shows instead while it lasts (show_scan). Nothing changes in the count.
+## Planning's bay and item column (the shift screen, on every refresh): the belt item to show
+## (`definition`: the last placed one, at belt slot `at`; null for an empty belt, with its scored
+## `tags` and its `lines`) under NEXT, with a pip per belt slot (`slots`, the first `filled` of them
+## holding items, slot `at`'s gold). A scanned item shows instead while it is pinned (show_scan).
+## Nothing changes in the count.
 func show_next(
 	definition: CardDefinition,
 	slots: int,
 	filled: int,
 	tags: PackedStringArray = PackedStringArray(),
-	lines: ScanController.ItemLines = null
+	lines: ScanController.ItemLines = null,
+	at: int = 0
 ) -> void:
 	_next = definition
 	_next_tags = tags
 	_next_lines = lines
+	_next_at = at
 	_slots = slots
 	_filled = filled
 	_update_planning()
@@ -290,20 +301,27 @@ func show_next(
 
 ## Shows a scanned item (ScanController): `definition` with its `tags` (on the belt the scored
 ## ones) and its payout and step lines (`lines`; a hand item's payout is -1). Call it once the
-## monitor is in the tree: the text is measured with the real font.
+## monitor is in the tree: the text is measured with the real font. `at` is its belt slot (its pip
+## gold), -1 for a hand item.
 func show_scan(
-	definition: CardDefinition, tags: PackedStringArray, lines: ScanController.ItemLines = null
+	definition: CardDefinition,
+	tags: PackedStringArray,
+	lines: ScanController.ItemLines = null,
+	at: int = -1
 ) -> void:
 	_held = definition
 	_held_tags = tags
 	_held_lines = lines
+	_held_at = at
 	_update_planning()
 
 
-## The scan ended: the bay and the item column go back to belt slot 1's item.
+## The scan was let go (ScanController.release_monitor): the bay and the item column go back to the
+## last placed belt item (show_next's).
 func end_scan() -> void:
 	_held = null
 	_held_lines = null
+	_held_at = -1
 	_update_planning()
 
 
@@ -511,14 +529,14 @@ func _counting() -> bool:
 	return led.is_counting()
 
 
-## Planning's bay and item column: the held item under SCAN, else belt slot 1's under NEXT.
+## Planning's bay and item column: the scanned item under SCAN, else show_next's under NEXT.
 func _update_planning() -> void:
 	if _counting():
 		return
 	var held: bool = _held != null
 	var shown: CardDefinition = _held if held else _next
 	_bay.chip().visible = true
-	_bay.show_planning(shown, held, _slots, _filled)
+	_bay.show_planning(shown, held, _slots, _filled, _held_at if held else _next_at)
 	if shown == null:
 		_items.show_empty(MonitorText.EMPTY_BELT)
 		_shown_item = null
@@ -528,17 +546,7 @@ func _update_planning() -> void:
 			lines = ScanController.ItemLines.new()
 		var animate: bool = shown != _shown_item
 		_shown_item = shown
-		_items.show_item(
-			shown,
-			_held_tags if held else _next_tags,
-			lines.payout,
-			lines.lines,
-			lines.fizzles,
-			lines.gives,
-			lines.minis,
-			animate,
-			lines.harms
-		)
+		_items.show_item(shown, _held_tags if held else _next_tags, lines, animate)
 	_apply()
 
 
@@ -626,8 +634,6 @@ func _on_beat_started(
 		var opened: CardDefinition = _definition_of(beat.scan_slot)
 		if opened != null:
 			_items.start_item(opened, _tags_of(beat.scan_slot))
-		if beat.kind == CountUpBeat.Kind.MERGED_PLAIN:
-			_items.show_paid("No bonus on this item")
 	if step.slot != _scanned or _scanned < 0:
 		return
 	if _shows_line(beat) or beat.kind == CountUpBeat.Kind.ARMED:
@@ -647,12 +653,6 @@ func _on_beat_started(
 			beat.harmful
 		)
 		_show_line_in_beat(beat, line_shown)
-	if beat.kind == CountUpBeat.Kind.PAYOUT:
-		# Under the named bonus lines: the payment equation when the steps multiply out to the
-		# payout, else what it pays.
-		_items.show_paid(
-			ReceiptView.joined_line("Pays", MonitorText.euros(beat.payout)), beat.equation
-		)
 
 
 func _on_step_landed(index: int) -> void:
@@ -736,8 +736,7 @@ func _show_inspection_passed() -> void:
 
 
 ## The resumed end's item column: the item at the scanner on `plan`'s last beat, at its payout,
-## with the step lines the count showed for it (see _on_beat_started) and its payment equation,
-## if it had one.
+## with the step lines the count showed for it (see _on_beat_started).
 func _show_last_item(plan: CountUpPlan, result: ScoreResult, line_of: Callable) -> void:
 	var slot: int = -1
 	for beat: CountUpBeat in plan.beats:
@@ -761,9 +760,6 @@ func _show_last_item(plan: CountUpPlan, result: ScoreResult, line_of: Callable) 
 				step.source_kind == ScoreStep.SourceKind.CARD and step.card_giver_slot() < slot,
 				beat.harmful
 			)
-	for beat: CountUpBeat in plan.beats:
-		if beat.slot == slot and beat.equation != null:
-			_items.show_paid("", beat.equation)
 	var fizzled: bool = last != null and last.step_type == ScoreStep.StepType.WASTED
 	_items.set_value(result.payouts[slot], fizzled)
 
@@ -829,20 +825,55 @@ func _tags_of(slot: int) -> PackedStringArray:
 	return item.tags() if item != null else PackedStringArray()
 
 
-## The mini of the item that gave `step` (another item of the count), or null.
+## The icon of what gave `step` (source_icon): the item of the count (another, or its own rule's;
+## its card_giver_slot), the register upgrade's, the event's.
 func _giver_mini(step: ScoreStep) -> Texture2D:
-	if step.source_kind == ScoreStep.SourceKind.UPGRADE:
-		if step.source_index >= 0 and step.source_index < upgrades.size():
-			var icon: String = upgrades[step.source_index].icon_ref
-			return load(icon) as Texture2D if not icon.is_empty() else null
-		return null
-	if step.source_kind != ScoreStep.SourceKind.CARD or step.card_giver_slot() == step.slot:
-		return null
-	var giver: CardDefinition = _definition_of(step.card_giver_slot())
+	return source_icon(step, _definition_of(step.card_giver_slot()), upgrades, inspections)
+
+
+## The run's upgrades and the shift's events the source icons read (source_icon). The shift screen
+## sets them on every planning refresh and at the count's start.
+func use_sources(owned: Array[UpgradeDefinition], events: Array[InspectionDefinition]) -> void:
+	upgrades = owned.duplicate()
+	inspections = events.duplicate()
+
+
+## The icon of what gave `step`, as the belt's stickers show it: a card's mini (`giver`, the card
+## at its card_giver_slot: the supporting neighbour, else the source), a register upgrade's icon
+## (upgrade_icon of `owned`), an event's badge (event_icon of `events`), or null.
+static func source_icon(
+	step: ScoreStep,
+	giver: CardDefinition,
+	owned: Array[UpgradeDefinition],
+	events: Array[InspectionDefinition]
+) -> Texture2D:
+	match step.source_kind:
+		ScoreStep.SourceKind.UPGRADE:
+			return upgrade_icon(owned, step.source_index)
+		ScoreStep.SourceKind.INSPECTION:
+			return event_icon(events, step.source_index)
 	if giver == null:
 		return null
 	var ref: String = giver.badge_mini_ref()
 	return load(ref) as Texture2D if not ref.is_empty() and ResourceLoader.exists(ref) else null
+
+
+## The icon of upgrade `index` of `owned` (its icon_ref), or null.
+static func upgrade_icon(owned: Array[UpgradeDefinition], index: int) -> Texture2D:
+	if index < 0 or index >= owned.size() or owned[index] == null:
+		return null
+	var icon: String = owned[index].icon_ref
+	return load(icon) as Texture2D if not icon.is_empty() and ResourceLoader.exists(icon) else null
+
+
+## The badge of event `index` of `events`, as its belt sticker wears it (GiverBadge,
+## PlanningModel's badge_of): a boon's or a week event's coin, an inspection's warning sign.
+static func event_icon(events: Array[InspectionDefinition], index: int) -> Texture2D:
+	if index < 0 or index >= events.size() or events[index] == null:
+		return GiverBadge.WARNING
+	if events[index].is_boon() or events[index].is_week():
+		return GiverBadge.BOON
+	return GiverBadge.WARNING
 
 
 ## A hung part (a rod, the shade): `color` with an ink outline on its sides and foot.

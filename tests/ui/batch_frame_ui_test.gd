@@ -273,11 +273,15 @@ func test_the_good_row_has_no_wrong_job() -> void:
 	_assert_unframed(banana)
 
 
-## The monitor's NEXT item (belt slot 1, the Croissant) prints its BATCH chip with the keyword's
-## tooltip, and the Deck shows it on a Croissant's ticket in the cart.
+## The monitor's scan of belt slot 1, the Croissant (pinned, 2026-11-04: the default is the last
+## placed item) prints its BATCH chip with the keyword's tooltip, and the Deck shows it on a
+## Croissant's ticket in the cart.
 func test_the_monitor_and_the_deck_show_the_chip() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _place(screen, GOOD_ROW)
+	screen._week.skip()  # The time card (v0.70) stays out of the scan's way.
+	assert_bool(screen.debug_scan(screen.run.row[0])).is_true()
+	await _frames(1)
 	var column: MonitorItemColumn = screen._stage.monitor.item_column()
 	assert_object(column.shown_definition()).is_same(_card("croissant"))
 	var chips: Array[KeywordChip] = column.effect().keywords()
@@ -312,12 +316,15 @@ func test_the_monitor_column_prints_the_chip_in_every_layout() -> void:
 	for index: int in range(12):
 		many.append("Breakfast sticker  WASTED")
 		fizzles.append(true)
-	var none: Array[bool] = []
 	for id: String in ["croissant", "baguette", "iced_bun", "stale_doughnut", "birthday_candles"]:
 		var definition: CardDefinition = _card(id)
-		column.show_item(definition, definition.tags, -1, PackedStringArray(), none)
+		column.show_item(definition, definition.tags, ScanController.ItemLines.new())
 		_assert_one_chip(column, "%s planning" % id)
-		column.show_item(definition, definition.tags, definition.base, many, fizzles)
+		var compact: ScanController.ItemLines = ScanController.ItemLines.new()
+		compact.payout = definition.base
+		compact.lines = many
+		compact.fizzles = fizzles
+		column.show_item(definition, definition.tags, compact)
 		_assert_one_chip(column, "%s compact" % id)
 		column.start_item(definition, definition.tags, false)
 		_assert_one_chip(column, "%s counting" % id)

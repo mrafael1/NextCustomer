@@ -234,7 +234,9 @@ func test_every_printed_character_has_its_glyph() -> void:
 	if not printed.has(chip):
 		chip = effect
 	var caption: String = RowStrip.CLOSED_CAPTION_TEXT
-	for required: String in [RowStrip.CLOSED_TEXT, "COUPON", caption, chip, "5", "6", "Multipack"]:
+	# The scanned multipack's bay plate reads SCAN COMPLETE (PR #138 monitor; COUPON before).
+	var plate: String = MonitorText.SCAN_COMPLETE
+	for required: String in [RowStrip.CLOSED_TEXT, plate, caption, chip, "5", "6", "Multipack"]:
 		assert_bool(printed.has(required)).override_failure_message(required).is_true()
 
 

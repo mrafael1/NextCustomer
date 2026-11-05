@@ -112,13 +112,14 @@ func test_every_item_shows_its_model() -> void:
 		assert_int(strip.lip_rects().size()).is_equal(3 + strip.spec().targets.size())
 		assert_int(strip.target_centres().size()).is_equal(strip.spec().targets.size())
 		assert_array(strip.find_children("*Badge*", "", true, false)).is_empty()
-	# The monitor's one screen (#105 piece 2; the store channel's key went): belt slot 1's item
-	# in the item column and PLAN over the projected total in the checkout column.
+	# The monitor's one screen (#105 piece 2; the store channel's key went): the last placed item
+	# (the belt's last here) in the item column and PLAN over the projected total in the checkout
+	# column.
 	var column: CheckoutColumn = screen._monitor.checkout()
 	assert_str(column.caption().text).is_equal(MonitorText.PLAN_CAPTION)
 	assert_int(column.total_number().value()).is_equal(result.total)
-	var first: CardDefinition = screen.run.row[0].definition
-	assert_object(screen._monitor.item_column().shown_definition()).is_same(first)
+	var shown: CardDefinition = screen.run.row[screen.shown_slot()].definition
+	assert_object(screen._monitor.item_column().shown_definition()).is_same(shown)
 	assert_int(screen.run.preview().total).is_equal(result.total)
 	assert_array(screen.run.preview().payouts).is_equal(result.payouts)
 
@@ -470,8 +471,8 @@ func test_a_hovered_giver_lights_its_strip_and_explains_it() -> void:
 	for slot: int in [4, 5, 6]:
 		assert_str(ReceiptDecor.relation_chip(receipt._items[slot]).text).is_equal("×3")
 	assert_object(ReceiptDecor.relation_chip(receipt._items[1])).is_null()
-	var hovered: String = ReceiptView.HOVERED_HINT % "Multipack"
-	assert_str(receipt._footer.get_child(1).text).is_equal(ReceiptView.HINT_TEXT % hovered)
+	# No footer names the hovered item (the PR #138 left UI): its framed line does.
+	assert_object(receipt._footer).is_null()
 	# A Milk: Multipack's strip hot in its lane with that Milk's gain only.
 	var milk: ItemView = _item(screen, 5)
 	milk.hovered.emit(milk)
@@ -485,9 +486,7 @@ func test_a_hovered_giver_lights_its_strip_and_explains_it() -> void:
 	assert_array(Array(hot[0].gain_texts())).is_equal([RailStrip.GAIN_TEXT % spec.gains[1]])
 	assert_bool(layer.strips()[0].is_dimmed()).is_true()
 	assert_bool(_item(screen, 4).sticker().got_ring().visible).is_false()
-	assert_str(receipt._footer.get_child(1).text).is_equal(
-		ReceiptView.HINT_TEXT % (ReceiptView.HOVERED_HINT % "Milk")
-	)
+	assert_object(receipt._framed_line()).is_same(receipt._items[5])
 	# A box, then the chip: no strip hot, every strip dimmed.
 	for hover: Callable in [
 		func() -> void: screen._loyalty_card.box_hovered.emit(1),
@@ -508,9 +507,7 @@ func test_a_hovered_giver_lights_its_strip_and_explains_it() -> void:
 	for slot: int in range(screen._row_views.size()):
 		assert_bool(_item(screen, slot).sticker().got_ring().visible).is_false()
 		assert_object(ReceiptDecor.relation_chip(receipt._items[slot])).is_null()
-	assert_str(receipt._footer.get_child(1).text).is_equal(
-		ReceiptView.HINT_TEXT % ReceiptView.DEFAULT_HINT
-	)
+	assert_object(receipt._framed_line()).is_null()
 
 
 ## With motion on, a refresh slaps on only the stickers that are new, a boosted item's halo steps

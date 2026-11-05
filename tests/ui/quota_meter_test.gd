@@ -104,9 +104,9 @@ func test_the_lap_colours_by_total_and_quota() -> void:
 
 
 ## The lap ramps: lit, body and dark from light to dark, and every lap's body HUE_GAP degrees or
-## more from the short tube's tomato and the near tube's brass, or (gold and velvet, by decision:
+## more from the short tube's teal (PR #138) and the near tube's brass, or (gold, by decision:
 ## QuotaLaps.VALUE_SEPARATED) VALUE_GAP of value from the warning body it comes near in hue. The
-## new orange and violet ramps (art/src/palette.txt) keep the hue gap.
+## orange, velvet and violet ramps keep the hue gap.
 func test_every_lap_keeps_clear_of_the_warning_hues() -> void:
 	for lap: int in range(QuotaLaps.FIRST_LAP, QuotaLaps.FIRST_LAP + QuotaLaps.LAP_RAMPS.size()):
 		var lap_ramp: Array[Color] = QuotaLaps.lap_ramp(lap)
@@ -123,8 +123,8 @@ func test_every_lap_keeps_clear_of_the_warning_hues() -> void:
 			assert_float(absf(body.v - warning.v)).override_failure_message(why).is_greater_equal(
 				QuotaLaps.VALUE_GAP
 			)
-	for orange_or_violet: Color in [Palette.ORANGE, Palette.VIOLET]:
-		assert_bool(QuotaLaps.VALUE_SEPARATED.has(orange_or_violet)).is_false()
+	for by_hue: Color in [Palette.ORANGE, Palette.VELVET, Palette.VIOLET]:
+		assert_bool(QuotaLaps.VALUE_SEPARATED.has(by_hue)).is_false()
 	assert_array(QuotaLaps.lap_ramp(3)).is_equal(
 		[Palette.ORANGE_LIGHT, Palette.ORANGE, Palette.ORANGE_DARK]
 	)
@@ -353,7 +353,7 @@ func test_the_liquid_colour_follows_the_status() -> void:
 	led.show_subtotal(104, true)
 	await _frames(2)
 	assert_array(meter.ramp()).is_equal(QuotaMeter.MET_RAMP)
-	assert_that(QuotaMeter.SHORT_RAMP[1]).is_equal(Palette.TOMATO)
+	assert_that(QuotaMeter.SHORT_RAMP[1]).is_equal(Palette.TEAL)
 	assert_that(QuotaMeter.MET_RAMP[1]).is_equal(Palette.GOOD)
 
 

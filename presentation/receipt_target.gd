@@ -1,20 +1,21 @@
 class_name ReceiptTarget
 extends VBoxContainer
 ## The receipt's TODAY'S TARGET block (the shift scene polish, mock-up
-## docs/art/mockups/shift_scene_polish_v2.html section 2, sized by v4's D): the printed caption,
-## the shift's quota as a big tomato-dark number in the pixel digits, and a double tomato rule
+## docs/art/mockups/shift_scene_polish_v2.html section 2, sized by v4's D): the printed caption in
+## ink, the shift's quota as a big tomato-dark number in the pixel digits, and a double tomato rule
 ## under it. It is pinned at the receipt's top (ReceiptView keeps it out of the scroll area), so
 ## it stays in view while the lines scroll. The target is a fixed fact (the user's pick B1): it
-## never changes colour; being met is said by the receipt's foot (planning's "+N.00€ over target"
-## or "N.00€ short", the dessert's margin line), the gauge's flag and the belt's light. Hidden
+## never changes colour; being met is said by the receipt's foot (planning's "+N.00€ over" or
+## "N.00€ short", the dessert's margin line), the gauge's flag and the belt's light. Hidden
 ## until show_quota (a receipt without a quota, such as the tests' or a stub's, has none).
 ## Display only.
 
-## The caption: the receipt's mono font at CAPTION_SIZE, letter-spaced, in tomato dark (mock-up
-## shift_scene_polish_v4 D: 18 px at 1920x1080).
+## The caption: the receipt's mono font at CAPTION_SIZE, letter-spaced, in ink (CAPTION_COLOR; the
+## PR #138 review: tomato dark until then; mock-up shift_scene_polish_v4 D: 18 px at 1920x1080).
 const CAPTION_TEXT := "TODAY'S TARGET"
 const CAPTION_SIZE := 12
 const CAPTION_SPACING := 2
+const CAPTION_COLOR := Palette.INK
 ## The quota as the block prints it: the whole euros (the receipt's amounts carry cents; the target
 ## does not) and the € after them ("80€", the user's of 2026-11-02), in the 6x8 bold pixel digits
 ## (PixelWords.Sheet.DIGITS, mock-up shift_scene_polish_v4 D: one font pixel is 3 art pixels, so
@@ -35,7 +36,7 @@ const RULE_INSET := 2.0
 const RULE_BELOW := 2.0
 ## The foot's line against the target (ReceiptView.show_planning) and the dessert's margin line
 ## (margin_text) share these words.
-const OVER_TEXT := "+%s over target"
+const OVER_TEXT := "+%s over"
 const SHORT_TEXT := "%s short"
 const ON_TEXT := "on target"
 
@@ -59,7 +60,7 @@ func _init() -> void:
 	spaced.spacing_glyph = CAPTION_SPACING
 	caption.add_theme_font_override("font", spaced)
 	caption.add_theme_font_size_override("font_size", CAPTION_SIZE)
-	caption.add_theme_color_override("font_color", COLOR)
+	caption.add_theme_color_override("font_color", CAPTION_COLOR)
 	caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	add_child(caption)
 	amount = PixelWords.new("", PixelWords.Sheet.DIGITS, AMOUNT_CELL, COLOR)
@@ -93,7 +94,7 @@ func shown_quota() -> int:
 
 
 ## The foot's words for `total` against `quota` (the receipt's money(), with cents): how far over
-## it ("+67.00€ over target"), how far short ("56.00€ short") or "on target".
+## it ("+67.00€ over"), how far short ("56.00€ short") or "on target".
 static func against_text(total: int, quota: int) -> String:
 	var margin: ShiftMargin = ShiftMargin.of(total, quota)
 	match margin.kind():

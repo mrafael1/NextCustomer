@@ -14,9 +14,10 @@ extends Control
 ## family's other words ("coupon") stay text, and nothing is glued to a family, so a chip may start
 ## a line.
 ##
-## A keyword run (#128, GlyphText: BATCH) is a KeywordChip, CHIP_MARGIN clear of its neighbours,
-## centred on its line; set_keyword_wasted turns the chips tomato with the WASTED reason as their
-## tooltip (the ticket's wrong job), laying the text out again (a wasted chip is wider).
+## A keyword run (#128, GlyphText: BATCH) is a KeywordChip, CHIP_MARGIN clear of its neighbours
+## (set_chip_room: the monitor's roomier chips, PR #138 round 2), centred on its line;
+## set_keyword_wasted turns the chips tomato with the WASTED reason as their tooltip (the ticket's
+## wrong job), laying the text out again (a wasted chip is wider).
 
 ## A glyph's room on its line: its margin each side.
 const GLYPH_MARGIN := 1.0
@@ -52,6 +53,9 @@ var _keyword_wasted: String = ""
 var _live: Dictionary = {}
 var _tip_below: bool = false
 var _tip_anchor: Control
+## A chip's (a keyword's, a written family's) margin each side and a keyword chip's padding.
+var _chip_margin: float = CHIP_MARGIN
+var _chip_padding: float = KeywordChip.PADDING_X
 
 
 ## `line` in `font` at `text_size` and `text_color`, `line_pitch` px a line, wrapped at `width`.
@@ -88,6 +92,16 @@ func set_end_inset(inset: float) -> void:
 	if is_equal_approx(inset, _end_inset):
 		return
 	_end_inset = inset
+	_lay_out()
+
+
+## Gives the chips `margin` px clear of their neighbours each side and a keyword chip's word
+## `padding` px each side inside its box, laying the text out again.
+func set_chip_room(margin: float, padding: float) -> void:
+	if is_equal_approx(margin, _chip_margin) and is_equal_approx(padding, _chip_padding):
+		return
+	_chip_margin = margin
+	_chip_padding = padding
 	_lay_out()
 
 
@@ -348,9 +362,11 @@ func _add_glyphs() -> void:
 
 func _add_chip(run: Dictionary, line: int) -> void:
 	var live_tip: String = GlyphText.run_tip(run) if GlyphText.is_live(run) else ""
-	var chip: KeywordChip = KeywordChip.new(str(run["keyword"]), _keyword_wasted, live_tip)
+	var chip: KeywordChip = KeywordChip.new(
+		str(run["keyword"]), _keyword_wasted, live_tip, _chip_padding
+	)
 	var top: float = line * _pitch + floorf((_pitch - KeywordChip.HEIGHT) / 2.0)
-	chip.position = Vector2(float(run["x"]) + CHIP_MARGIN, top)
+	chip.position = Vector2(float(run["x"]) + _chip_margin, top)
 	chip.tip_below = _tip_below
 	chip.tip_anchor = _tip_anchor
 	add_child(chip)
@@ -360,7 +376,7 @@ func _add_chip(run: Dictionary, line: int) -> void:
 func _add_word(style: FamilyStyle, x: float, line: int, baseline: float) -> void:
 	var word: FamilyWord = FamilyWord.new(style, _font, _font_size)
 	var top: float = line * _pitch + snappedf(_pitch - FamilyWord.HEIGHT, ArtStyle.ART_SCALE)
-	word.position = Vector2(x + CHIP_MARGIN, top)
+	word.position = Vector2(x + _chip_margin, top)
 	word.draw_at(baseline - top)
 	word.tip_below = _tip_below
 	word.tip_anchor = _tip_anchor
@@ -386,12 +402,13 @@ func _run_width(run: Dictionary) -> float:
 	if GlyphText.is_keyword(run):
 		var live: bool = GlyphText.is_live(run)
 		var wasted: bool = not _keyword_wasted.is_empty() and not live
-		return KeywordChip.width_for(str(run["keyword"]), wasted, live) + 2.0 * CHIP_MARGIN
+		var chip: float = KeywordChip.width_for(str(run["keyword"]), wasted, live, _chip_padding)
+		return chip + 2.0 * _chip_margin
 	if str(run["family"]).is_empty():
 		return _text_width(str(run["text"]))
 	var style: FamilyStyle = _palette.style(str(run["family"])) if _written else null
 	if style != null:
-		return FamilyWord.width_for(style, _font, _font_size) + 2.0 * CHIP_MARGIN
+		return FamilyWord.width_for(style, _font, _font_size) + 2.0 * _chip_margin
 	return ArtStyle.FAMILY_GLYPH_SIZE + 2.0 * GLYPH_MARGIN
 
 

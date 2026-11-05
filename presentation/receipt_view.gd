@@ -8,12 +8,14 @@ extends PanelContainer
 ## belt item in scan order (its name, its payout, then its mark: the fizzle icon when one of its
 ## effects fizzles, the warning icon when an inspection denies it), a muted "5 ·····" for each
 ## open empty slot (B2 of shift_scene_polish_v4: every slot, one row each at full length,
-## ReceiptRows), a dashed rule, "PROJECTED 22.00€" (green when met, red under it) over a line
-## against the quota ("+N.00€ over target", "N.00€ short": ReceiptTarget.against_text), and the
-## fizzle footer ("2 WASTED · hover an item", none without fizzles). The belt item being scanned
-## frames its line (highlight_slot). A hovered belt item (#71) frames its line too, marks its
-## targets' lines with a mustard-pale fill and the token it gives them (show_relations), and the
-## footer names it (set_footer_hint: "2 WASTED · Multipack hovered").
+## ReceiptRows), a dashed rule, then the foot: the caption PROJECTED at the paper's left and the
+## total ("22.00€", in ink) at its right, centred on the caption's line (the PR #138 left UI), over
+## a line against the quota under the total ("+N.00€ over", "N.00€ short":
+## ReceiptTarget.against_text). The fizzles show on their item lines' marks only (the PR #138 left
+## UI dropped the "2 WASTED · hover an item" footer, its room going to the rows). The belt item
+## being scanned frames its line (highlight_slot). A hovered belt item (#71) frames its line too
+## and marks its targets' lines with a mustard-pale fill and the token it gives them
+## (show_relations).
 ##
 ## The count-up (begin_count) pre-prints the header, every item's line greyed ("Multipack
 ## ·····"), the dashed rule, "TOTAL •••••" and the footer "tap: skip · hold: fast". Each step
@@ -54,7 +56,6 @@ enum LineStyle {
 	MARGIN,
 	TEAR,
 	PROJECTED,
-	FOOTER,
 	COMBO,
 	WAITING,
 	CLOSING,
@@ -70,6 +71,8 @@ const MONO_FONT := preload("res://fonts/JetBrainsMono-Regular.ttf")
 ## The TOTAL and PROJECTED amounts' font size; their captions print at CAPTION_FONT_SIZE (v4's D:
 ## 39 and 24 px at 1920x1080).
 const TOTAL_FONT_SIZE := 26
+## Planning's PROJECTED amount: bigger, and bold (the PR #138 round 2: it stands out).
+const PROJECTED_FONT_SIZE := 30
 const CAPTION_FONT_SIZE := 16
 ## The verdict "total€ / quota€" on the TOTAL line, smaller than the total so it fits; a long
 ## one (a four-digit total) shrinks down to VERDICT_MIN_FONT_SIZE to stay on the line.
@@ -77,8 +80,8 @@ const VERDICT_FONT_SIZE := 15
 const VERDICT_MIN_FONT_SIZE := 10
 ## The item and header lines' size (v4's D: 21 px at 1920x1080), the count's indented step lines'
 ## (a step below, so they keep their wrap), the sub lines' (a fizzle's reason, a closing line, an
-## arm line) and the foot's small lines' (planning's line against the quota and its fizzle
-## footer, the count-up's footer).
+## arm line) and the foot's small lines' (planning's line against the quota, the count-up's
+## footer).
 const LINE_FONT_SIZE := 14
 const STEP_FONT_SIZE := 13
 const FOOTER_FONT_SIZE := 12
@@ -97,13 +100,6 @@ const PROJECTED_TEXT := "PROJECTED"
 const TOTAL_TEXT := "TOTAL"
 ## The dashed rules: a dash RULE_DASH long, then a gap as long.
 const RULE_DASH := 4.0
-## The fizzle footer: the count (in dark tomato), then the hint (muted): where to read them, or
-## the hovered item (set_footer_hint).
-## The count reads EffectLink.WASTED_WORD, one or many ("1 WASTED", "2 WASTED", #45).
-const FIZZLES_TEXT := "%d " + EffectLink.WASTED_WORD
-const HINT_TEXT := " · %s"
-const DEFAULT_HINT := "hover an item"
-const HOVERED_HINT := "%s hovered"
 ## The count-up's footer, from its start to the TOTAL line.
 const COUNT_FOOTER_TEXT := "tap: skip · hold: fast"
 ## An open empty slot on the planning receipt: its number, then dots.
@@ -122,8 +118,8 @@ const FRAME_PAD := 6.0
 ## The framed line's frame reaches this far above and below the line.
 const FRAME_GROW := 1.0
 ## B2's mark column at a line's right end: a 6 px gap past the amount, then the 14 px mark
-## (ReceiptDecor.mark). Every line keeps it but the footer, the margin, the notice and the tear
-## (ReceiptDecor.has_mark_column), so the dashed rules and the footer run across it. A fizzle's
+## (ReceiptDecor.mark). Every line keeps it but the margin, the notice and the tear
+## (ReceiptDecor.has_mark_column), so the dashed rules run across it. A fizzle's
 ## line has no amount: its column is just the mark and a 2 px gap (FIZZLE_MARK_COLUMN), with no
 ## gap before it.
 const MARK_COLUMN := 20.0
@@ -158,7 +154,7 @@ var _scroll: ScrollContainer
 var _total_line: HBoxContainer
 ## The pre-printed TOTAL line's dashed rule (begin_count), or null: the step lines print above it.
 var _total_rule: Control
-## The footer line (fizzles in planning, the count-up's), or null.
+## The count-up's footer line, or null.
 var _footer: Control
 ## Each slot's item line, its last printed line and its item's name.
 var _items: Dictionary[int, HBoxContainer] = {}
@@ -342,11 +338,12 @@ func begin_count(
 
 ## The planning receipt (#80): `header` and a dashed rule; for each belt item (`names`, in scan
 ## order) its name, its payout in `result` and its mark (slot_mark()); "n ·····" for each open
-## slot past them up to `open_slots`; a dashed rule and "PROJECTED total€", against `quota` (none
-## when negative): green at or over it, red under it, with how far it is on its own row under it
-## (ReceiptDecor.against_quota); then the fizzle footer (none without fizzles). Each item's payout
-## prints bold, its mini from `cards`. Each slot's line is one row; at full length the rows share
-## the paper's room and the foot (its footer's room kept) stands at its bottom (ReceiptRows).
+## slot past them up to `open_slots`; a dashed rule and the foot: PROJECTED at the left and the
+## total at the right in ink (ReceiptDecor.spread_projected), against `quota` (none when negative),
+## with how far it is on its own row under the total, green at or over it, red under it
+## (ReceiptDecor.against_quota). Each item's payout prints bold, its mini from `cards`. Each slot's
+## line is one row; at full length the rows share the paper's room and the foot stands at its
+## bottom (ReceiptRows).
 func show_planning(
 	header: PackedStringArray,
 	result: ScoreResult,
@@ -373,18 +370,13 @@ func show_planning(
 	_header.resize(mini(_header.size(), 1))
 	var projected: Control = add_line(PROJECTED_TEXT, money(result.total), LineStyle.PROJECTED)
 	_projected = projected as HBoxContainer
+	ReceiptDecor.spread_projected(_projected)
 	ReceiptDecor.fit_amount(_projected, _lines.size.x)
 	# Its dashed rule takes the room the lines leave: the foot stands at the paper's bottom.
 	_lines.get_child(projected.get_index() - 1).size_flags_vertical = Control.SIZE_EXPAND_FILL
 	if quota >= 0:
-		var against: Control = add_line("", "", LineStyle.MARGIN)
+		var against: HBoxContainer = add_line("", "", LineStyle.MARGIN) as HBoxContainer
 		ReceiptDecor.against_quota(projected as HBoxContainer, against, result.total, quota)
-	var fizzles: int = fizzle_count(result)
-	if fizzles > 0:
-		_footer = add_line(FIZZLES_TEXT % fizzles, HINT_TEXT % DEFAULT_HINT, LineStyle.FOOTER)
-	# At full length the foot keeps its footer's room without one, so nothing moves (B2).
-	var kept: bool = fizzles == 0 and full_length
-	_inset.add_theme_constant_override("margin_bottom", ReceiptRows.foot_margin(_lines, kept))
 	_queue_fit()
 
 
@@ -396,21 +388,17 @@ func highlight_slot(slot: int) -> void:
 	_set_frame(_item_line_of(slot))
 
 
-## Planning only (#71): the hovered belt item at `focus_slot` (-1: none) frames its line, each slot
-## of `tokens` (its targets) gets a mustard-pale fill and the token it gives them before its
-## amount (ReceiptDecor.relate), and the fizzle footer's hint becomes `hint` ("Bread hovered").
-## The previous relations go. (One call, not three: gdlint allows the class 20 public methods.)
-func show_relations(
-	focus_slot: int, tokens: Dictionary[int, String] = {}, hint: String = DEFAULT_HINT
-) -> void:
+## Planning only (#71): the hovered belt item at `focus_slot` (-1: none) frames its line, and each
+## slot of `tokens` (its targets) gets a mustard-pale fill and the token it gives them before its
+## amount (ReceiptDecor.relate). The previous relations go. (One call, not two: gdlint allows the
+## class 20 public methods.)
+func show_relations(focus_slot: int, tokens: Dictionary[int, String] = {}) -> void:
 	if not _planning:
 		return
 	for slot: int in _items:
 		if _item_line_of(slot) != null:
 			ReceiptDecor.relate(_item_line_of(slot), tokens.get(slot, ""))
 	highlight_slot(focus_slot)
-	if is_instance_valid(_footer):
-		(_footer.get_child(1) as Label).text = HINT_TEXT % hint
 
 
 ## The header's line for 1-based `shift` of `shifts` with `items` on the belt (coupons included):
@@ -427,16 +415,6 @@ static func header_lines(shift: int, shifts: int, items: int) -> PackedStringArr
 static func money(euros: int, signed: bool = false) -> String:
 	var prefix: String = "" if not signed else "+" if euros >= 0 else "−"
 	return prefix + MONEY_TEXT % (absi(euros) if signed else euros)
-
-
-## How many of `result`'s steps fizzle (the footer's count): every WASTED step, the upgrades'
-## too.
-static func fizzle_count(result: ScoreResult) -> int:
-	var count: int = 0
-	for step: ScoreStep in result.steps:
-		if step.step_type == ScoreStep.StepType.WASTED:
-			count += 1
-	return count
 
 
 ## `slot`'s mark in `result`, read from its recorded amounts: DENIED when an inspection's
@@ -830,18 +808,6 @@ func add_line(left: String, right: String, style: LineStyle) -> Control:
 			column.content_margin_right = FIZZLE_MARK_COLUMN
 			line.add_theme_constant_override("separation", 0)
 		right_label.add_theme_stylebox_override("normal", column)
-	if style == LineStyle.FOOTER:
-		# The fizzle count, then where to read them, run on as one line.
-		left_label.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-		left_label.autowrap_mode = TextServer.AUTOWRAP_OFF
-		right_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		right_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-		right_label.add_theme_color_override("font_color", Palette.INK_LIGHT)
-		# One line that never widens the stub: a long hint is cut with an ellipsis.
-		right_label.clip_text = true
-		right_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-		right_label.custom_minimum_size.x = 1.0
-		line.add_theme_constant_override("separation", 0)
 	line.add_child(right_label)
 	if style == LineStyle.TOTAL and not is_instance_valid(_total_rule):
 		_lines.add_child(HSeparator.new())

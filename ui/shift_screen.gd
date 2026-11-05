@@ -105,6 +105,7 @@ var _cabinet: RegisterCabinet
 ## The hung monitor (#80; one screen since #105 piece 2): the bay, the item column, the checkout
 ## column, the notices and the count-up's beats.
 var _monitor: MonitorView
+var _last_placed: CardInstance  # The last card placed: the monitor's default (shown_slot).
 ## The monitor's LED: blank in planning, the count-up's subtotal and total.
 var _led: LedDisplay
 ## The quota gauge (the tube beside the receipt): the projected total in planning (fed here), the
@@ -288,6 +289,8 @@ func _close_overlays() -> void:
 	_receipt.visible = true
 	_drag.cancel()
 	_scan.clear()
+	_scan.release_monitor()
+	_last_placed = null
 	_picked = null
 	_picked_from_row = false
 	_redraw_mode = false
@@ -375,6 +378,8 @@ func _place_picked(slot: int, dragged: bool = false) -> void:
 	if run.place(_picked, slot):
 		tracker.on_place(dragged)
 		_sfx.play("card_place")
+		_last_placed = _picked  # It takes the monitor, over a pinned scan.
+		_scan.release_monitor()
 		_picked = null
 		_picked_from_row = false
 		_refresh()
@@ -518,6 +523,7 @@ func _on_checkout_pressed() -> void:
 	_cabinet.set_total_down(true)
 	_stage.dim_hand(true)
 	_scan.clear()
+	_scan.release_monitor()
 	_drop_pick()
 	_notice_label.clear_notice()
 	_drag.cancel()
@@ -557,7 +563,7 @@ func _on_checkout_pressed() -> void:
 	var counted: ScoreResult = DoubleCheckoutFlow.counted(run)  # #122: row 2 counts on.
 	_effects.show_count(counted, _row_views, run)  # Only the stickers stay, to fire.
 	var context: CountUpContext = count_up_context()
-	_monitor.upgrades = run.upgrades.duplicate()
+	_monitor.use_sources(run.upgrades, WeekSchedule.shift_events(run))
 	_ride.begin(counted, _row_views, context.reduced_motion)
 	await _count_up.play(
 		counted,
@@ -780,17 +786,24 @@ func _refresh_preview() -> void:
 	_show_projected(result)
 
 
-## Planning's monitor and quota gauge (#105 piece 2): the LED goes blank; the monitor shows belt
-## slot 1's item with its lines and, like the gauge, the projected total of `result`.
+## Planning's monitor and quota gauge (#105 piece 2): the LED goes blank; the monitor shows the
+## last placed item (shown_slot; a pinned scan over it) and, like the gauge, `result`'s total.
 func _show_projected(result: ScoreResult) -> void:
 	if _led.mode() != LedDisplay.Mode.BLANK:
 		_led.clear()
 	_quota_meter.show_projected(result.total, run.quota())
 	_monitor.show_plan(result.total, run.quota())
-	var first: CardDefinition = null if run.row.is_empty() else run.row[0].definition
-	var tags: PackedStringArray = PackedStringArray() if first == null else result.tags[0]
+	var slot: int = shown_slot()
+	var shown: CardDefinition = null if slot < 0 else run.row[slot].definition
+	var tags: PackedStringArray = PackedStringArray() if shown == null else result.tags[slot]
 	var slots: int = RowCapacity.card_limit(run.limits)
-	_monitor.show_next(first, slots, run.row.size(), tags, _scan.item_lines(0))
+	_monitor.show_next(shown, slots, run.row.size(), tags, _scan.item_lines(slot), slot)
+
+
+## The monitor's default belt slot: the last placed card's, else the belt's last (-1: empty).
+func shown_slot() -> int:
+	var slot: int = run.row.find(_last_placed)
+	return slot if slot >= 0 else run.row.size() - 1
 
 
 ## The preview: the planning receipt (#80; a row for every belt slot, B2 of shift_scene_polish_v4)
@@ -815,12 +828,13 @@ func _show_checked_out(result: ScoreResult) -> void:
 	_show_belt(result, true)
 
 
-## The belt's tags for a result, with planning's effects unless `paid` (a resumed checkout), no
-## marks or paid chips, and the result its scans read.
+## The belt's tags for `result` (planning's effects unless `paid`); what scans and monitor read.
 func _show_belt(result: ScoreResult, paid: bool = false) -> void:
-	var upgrade_names: PackedStringArray = LoyaltyCard.names(run.upgrades)
-	var inspection_names: PackedStringArray = InspectionTag.names(WeekSchedule.shift_events(run))
-	_scan.set_result(result, CardInstance.names(run.row), upgrade_names, inspection_names)
+	var events: Array[InspectionDefinition] = WeekSchedule.shift_events(run)
+	_monitor.use_sources(run.upgrades, events)
+	_scan.set_row(_row_views)  # Before the monitor reads the preview's lines (_show_projected).
+	var names: PackedStringArray = CardInstance.names(run.row)
+	_scan.set_result(result, names, LoyaltyCard.names(run.upgrades), InspectionTag.names(events))
 	_belt_chips.show_all(_row_views)
 	if not paid:
 		_effects.show_all(result, _row_views, run, _hand_box.cards())

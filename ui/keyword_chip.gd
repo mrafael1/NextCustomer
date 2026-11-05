@@ -19,7 +19,8 @@ extends TipTarget
 
 const HEIGHT := 15.0
 const BORDER := 2.0
-## The word's room on each side inside the border.
+## The word's room on each side inside the border (the monitor's roomier chips pass their own,
+## PR #138 round 2).
 const PADDING_X := 3.0
 ## The word's capitals: their top CAP_TOP under the chip's top.
 const CAP_TOP := 4.0
@@ -62,13 +63,19 @@ var _lit: bool = false
 var _wasted: bool = false
 ## A live value chip (#128 v3: Stale popcorn's ×N), with its own tooltip.
 var _live: bool = false
+## The word's room on each side inside the border.
+var _padding: float = PADDING_X
 
 
 ## The chip of `word`, wasted (`wasted_tip`: its tooltip, the WASTED step's reason) when not empty.
 ## A live value chip (`live_tip` not empty: Stale popcorn's ×N) shows that tooltip, gold when calm.
-func _init(word: String, wasted_tip: String = "", live_tip: String = "") -> void:
+## `padding`: the word's room on each side.
+func _init(
+	word: String, wasted_tip: String = "", live_tip: String = "", padding: float = PADDING_X
+) -> void:
 	super()
 	keyword = word
+	_padding = padding
 	name = "Keyword%s" % word.capitalize()
 	_live = not live_tip.is_empty()
 	# The word is hard pixel text drawn at 1x (its box and cross are untextured). A live chip's
@@ -80,16 +87,19 @@ func _init(word: String, wasted_tip: String = "", live_tip: String = "") -> void
 		tip_text = wasted_tip
 	else:
 		tip_text = live_tip if _live else GlyphText.keyword_tip(word)
-	size = Vector2(width_for(word, _wasted, _live), HEIGHT)
+	size = Vector2(width_for(word, _wasted, _live, padding), HEIGHT)
 	custom_minimum_size = size
 
 
-## A chip's width for `word` (wider by its cross when `wasted`), on the 2 px grid.
-static func width_for(word: String, wasted: bool, live: bool = false) -> float:
+## A chip's width for `word` (wider by its cross when `wasted`), `padding` each side of it, on the
+## 2 px grid.
+static func width_for(
+	word: String, wasted: bool, live: bool = false, padding: float = PADDING_X
+) -> float:
 	var shown: Font = live_font() if live else font()
 	var shown_size: int = ArtStyle.TICKET_TEXT_SIZE if live else text_size()
 	var text: float = shown.get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, shown_size).x
-	var width: float = BORDER * 2.0 + PADDING_X * 2.0 + ceilf(text)
+	var width: float = BORDER * 2.0 + padding * 2.0 + ceilf(text)
 	if wasted:
 		width += CROSS_GAP + CROSS_CELLS
 	return ceilf(width / ArtStyle.ART_SCALE) * ArtStyle.ART_SCALE
@@ -153,7 +163,7 @@ func ink_color() -> Color:
 func cross_rect() -> Rect2:
 	if not _wasted:
 		return Rect2()
-	var left: float = size.x - BORDER - PADDING_X - CROSS_CELLS
+	var left: float = size.x - BORDER - _padding - CROSS_CELLS
 	var top: float = roundf((size.y - CROSS_CELLS) / 2.0)
 	return Rect2(left, top, CROSS_CELLS, CROSS_CELLS)
 
@@ -180,7 +190,7 @@ func _draw() -> void:
 		baseline = roundf((size.y + ascent - descent) / 2.0)
 	draw_string(
 		text_font,
-		Vector2(BORDER + PADDING_X, baseline),
+		Vector2(BORDER + _padding, baseline),
 		keyword,
 		HORIZONTAL_ALIGNMENT_LEFT,
 		-1,

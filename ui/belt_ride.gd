@@ -24,9 +24,10 @@ extends Node
 ## motion; the checks still show. The belt shows no paid chips in the count
 ## (ItemView.shows_paid_chip).
 ##
-## As a giver's effect lands (CountUp.step_landed with another item as giver), the rail
-## light (#86, kept by #105 piece 2: RailLight, ShiftStage.rail_light) runs gold along the price
-## rail from the giver's ticket (the rail's left end once it is bagged) to the target's.
+## The rail light (#86, kept by #105 piece 2) is gone from the count (PR #138 round 7, the user's
+## "remove yellow line filling when an item is scanned under first item": the gold run along the
+## price rail from a giver's ticket, or the rail's left end once it is bagged, to the scanned
+## item's): the giver's hop, sparks and sticker say it.
 ##
 ## Where an item is now (source_rect, CountUp.source_rect while counting): its sprite on the belt,
 ## or the bag's mouth once bagged, for the count's flights and puffs. A resumed checkout shows the
@@ -78,10 +79,7 @@ func setup(count_up: CountUp, stage: ShiftStage) -> void:
 	count_up.ride.connect(_on_ride)
 	count_up.step_landed.connect(_on_step_landed)
 	count_up.beat_started.connect(_on_beat_started)
-	count_up.landing.connect(_on_landing)
 	count_up.finished.connect(_on_finished)
-	if _stage.rail_light != null:
-		_stage.rail_light.make_tween = count_up.tween_maker()
 
 
 ## The CHECKOUT click (after the refresh that rebuilt the belt items `views`): `result` is about
@@ -312,7 +310,6 @@ func _on_step_landed(index: int) -> void:
 		step.step_type
 		in [ScoreStep.StepType.FLAT, ScoreStep.StepType.MULTIPLIER, ScoreStep.StepType.COPY]
 	):
-		_light_step(step)
 		if step.source_kind == ScoreStep.SourceKind.CARD and _bagged.has(step.card_giver_slot()):
 			_stage.bag.land(_reduced)
 	var sticker: EffectSticker = _sticker_of(step.slot, index)
@@ -413,38 +410,6 @@ func _on_finished() -> void:
 	_count.source_rect = Callable()
 
 
-## CountUp.landing: a giver's effect pays (a +N or a × from another item): the rail light runs
-## from the giver's ticket (the rail's left end once it is bagged) to the target's.
-func _on_landing(_beat: CountUpBeat) -> void:
-	# Register landings are payouts; effect rails fire with their own sticker's step.
-	pass
-
-
-func _light_step(step: ScoreStep) -> void:
-	var light: RailLight = _stage.rail_light
-	if not _active or light == null:
-		return
-	if step.source_kind != ScoreStep.SourceKind.CARD:
-		return
-	if step.card_giver_slot() < 0 or step.card_giver_slot() == step.slot:
-		return
-	var to_local: Transform2D = light.get_global_transform().affine_inverse()
-	var giver: Rect2 = _to(to_local, ticket_rect(step.card_giver_slot()))
-	var target: Rect2 = _to(to_local, ticket_rect(step.slot))
-	if not target.has_area():
-		return
-	var rail_left: float = ShiftStage.BELT_RECT.position.x + BeltPanel.RAIL.position.x
-	var from_x: float = giver.get_center().x if giver.has_area() else rail_left
-	light.reduced_motion = func() -> bool: return _reduced
-	light.run(from_x, target.get_center().x, giver, target)
-
-
-static func _to(transform: Transform2D, rect: Rect2) -> Rect2:
-	if not rect.has_area():
-		return Rect2()
-	return Rect2(transform * rect.position, rect.size * transform.get_scale())
-
-
 ## Stops the slide, the hops (their copies go) and the sparks, and clears the scanner.
 func _stop() -> void:
 	for ticket: PriceSticker in _paid_tickets:
@@ -459,8 +424,6 @@ func _stop() -> void:
 			hop.kill()
 	_hops.clear()
 	_sparks.clear()
-	if _stage.rail_light != null:
-		_stage.rail_light.clear()
 	_stage.scan_layer.clear()
 
 

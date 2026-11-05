@@ -1,0 +1,12 @@
+; The monitor's base price line icon (PR #138 round 5 review): price_tag.txt at a row mark's size,
+; a cream shelf price tag pointing left, its string hole in ink, its lower edge in cream shade.
+; 7x7 (the tag 7x5, centred), shown at 2x (14x14, MonitorStepRow.MARK_SIZE).
+@size 7x7
+@kind icon
+.......
+..#####
+.#cccb#
+#c#ccb#
+.#bbbb#
+..#####
+.......

@@ -13,8 +13,9 @@ const FIRST_LAP := 2
 ## orange, velvet (the palette's magenta) and violet. Lit, mid and dark columns; none shares a
 ## colour with the first lap's short or near ramps (QuotaMeter.SHORT_RAMP, NEAR_RAMP), and each
 ## body sits at least HUE_GAP degrees from theirs, so a big shift never reads as short, except
-## the VALUE_SEPARATED bodies (the page's gold and velvet, kept by decision), which sit at least
-## VALUE_GAP of value (HSV) from the warning bodies they come near in hue.
+## the VALUE_SEPARATED body (the page's gold, kept by decision), which sits at least VALUE_GAP of
+## value (HSV) from the warning body it comes near in hue. Since the short tube is teal (the PR
+## #138 review), velvet clears it by hue.
 const LAP_RAMPS: Array[Array] = [
 	[Palette.MUSTARD_PALE, Palette.GOLD, Palette.MUSTARD_DARK],
 	[Palette.ORANGE_LIGHT, Palette.ORANGE, Palette.ORANGE_DARK],
@@ -23,9 +24,9 @@ const LAP_RAMPS: Array[Array] = [
 ]
 ## The hue gap (degrees) the lap bodies keep from the short and near bodies.
 const HUE_GAP := 18.0
-## The lap bodies told from a warning body of near hue by value instead: gold (brighter than the
-## near tube's brass) and velvet (darker than the short tube's tomato).
-const VALUE_SEPARATED: Array[Color] = [Palette.GOLD, Palette.VELVET]
+## The lap body told from a warning body of near hue by value instead: gold (brighter than the
+## near tube's brass).
+const VALUE_SEPARATED: Array[Color] = [Palette.GOLD]
 const VALUE_GAP := 0.2
 ## The lap lamp's glyphs are ink on a lap colour this light (its body's luminance) or lighter,
 ## paper on a darker one.

@@ -21,6 +21,7 @@ base = 2
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_croissant")])
 rule_text = "First of a Bakery batch: +2 to every later Bakery item in it"
 sticker_text = "{batch} 1st: +{bonus} to the rest"
+monitor_text = "{batch} As the first of its {tag} batch, gives +{bonus} to every later item in it."
 art_ref = "res://art/items_v2/croissant.png"
 mini_art_ref = "res://art/minis/croissant.png"
 mini_golden_art_ref = "res://art/minis/croissant_golden.png"

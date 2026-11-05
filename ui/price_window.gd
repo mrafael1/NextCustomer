@@ -3,19 +3,22 @@ extends TipTarget
 ## A ticket's price window (tickets v5, V5a of mock-up shift_scene_polish_v5_tickets.html): the
 ## fixed 28x11 art box in the ticket's top-right corner (TicketFace.WINDOW, at 2x, framed by the
 ## ticket's face) that shows the item's one payout. Its size never changes, so the icons and the
-## rule never move: the digits end DIGITS_RIGHT art px from its left and sit on DIGITS_FOOT, and a
-## price too wide for it falls back (form_for): the 6x8 digits up to 999€, the 4x7 ones up to
-## 9999€, then "Nk€" (rounded down) in 6x8, then in 4x7; the exact amount is in its tip.
+## rule never move: the digits sit centred in it on the art's grid (digits_at; the PR #138 review:
+## a long or small-digit price no longer drifts to the window's foot), and a price too wide for it
+## falls back (form_for): the 6x8 digits up to 999€, the 4x7 ones up to 9999€, then "Nk€" (rounded
+## down) in 6x8, then in 4x7; the exact amount is in its tip.
 ##
 ## Its fill is paper in every state (the user's play test of 2026-11-03: "price bg shouldn't change
 ## when price increase instead number color should change"); the digits' ink says the pay
-## (digit_color): PRINTED in ink; BOOSTED on a ramp that grows with the pay against its base
-## (BOOST_INKS, steps from boost_step: dark green, then bright green on a dark green shadow, then
-## violet on a dark violet shadow, so the strong steps also read by their weight); LOWERED and
-## ZERO in tomato dark. COUPON shows the teal scissors (a coupon pays nothing itself), WASTED (a
-## coupon that gave nothing) grey scissors under a tomato-dark slash. It never draws gold: GOLDEN
-## is the ticket's ring (PriceSticker). Off a ticket (a drag's ghost carries its pay) it is
-## `framed`, in an ink edge of its own.
+## (digit_color), in the classic strength ramp (the PR #138 review: "black for base, yellow/orange
+## for semi strong and red for strong"): PRINTED, the base, in ink; BOOSTED by its strength against
+## its base (BOOST_INKS, steps from boost_step): semi strong amber (mustard dark), then orange,
+## below pay_ink_ratios[1] times the base, strong red from it, each on a darker shadow so it also
+## reads by its weight; LOWERED and ZERO in grey (muted ink, the PR #138 round 2: a lowered pay is
+## not a warning) with no shadow. COUPON shows the teal
+## scissors (a coupon pays nothing itself), WASTED (a coupon that gave nothing) grey scissors
+## under a tomato-dark slash. It never draws gold: GOLDEN is the ticket's ring (PriceSticker). Off
+## a ticket (a drag's ghost carries its pay) it is `framed`, in an ink edge of its own.
 ##
 ## Resting the pointer on it shows its tip (TipTarget: the printed price and the pay, set by its
 ## ticket). Dimmed (an unrelated item while another is hovered) it fades to `dimmed_alpha` over
@@ -25,9 +28,12 @@ enum State { PRINTED, BOOSTED, LOWERED, ZERO, COUPON, WASTED }
 
 ## The window's size (TicketFace.WINDOW at 2x).
 const SIZE := Vector2(56, 22)
-## The digits' room (art px from the window's left): they end at DIGITS_RIGHT (inclusive) and
-## start no further left than DIGITS_LEFT; their foot row is DIGITS_FOOT. A shadow sits one art px
-## down and right of them (inside the window: its last row and column).
+## The window in art px (SIZE at ART_SCALE).
+const ART := Vector2i(28, 11)
+## The digits' room (art px from the window's left): from DIGITS_LEFT to DIGITS_RIGHT (inclusive),
+## rows down to DIGITS_FOOT, so the shadow, one art px down and right of them, stays inside the
+## window (its last row and column). Every form fits it (form_for); the digits sit centred in the
+## window (digits_at), and a wasted coupon's slash spans the room.
 const DIGITS_LEFT := 0
 const DIGITS_RIGHT := 26
 const DIGITS_FOOT := 9
@@ -35,14 +41,21 @@ const SHADOW_OFFSET := Vector2i(1, 1)
 ## The one fill of every state.
 const FILL := Palette.PAPER
 ## A boosted pay's digits by boost_step (1 to 3): [ink, shadow]; a transparent shadow draws none.
-## None is gold or brass (the GOLDEN ring's) or tomato (a lowered pay's).
+## Steps 1 and 2 are semi strong (below pay_ink_ratios[1] times the base: amber, then orange from
+## pay_ink_ratios[0] times), step 3 strong (red). Step 1's amber is mustard dark, so its ink
+## reads on the paper by itself (about 3.1:1; the paler orange light was 1.9:1, the PR #138
+## review). None is gold, mustard itself or brass (the GOLDEN ring's) or the grey of a lowered
+## pay.
 const BOOST_INKS: Array[Array] = [
-	[Palette.GREEN_DARK, Color.TRANSPARENT],
-	[Palette.GOOD, Palette.GREEN_DARK],
-	[Palette.VIOLET, Palette.VIOLET_DARK],
+	[Palette.MUSTARD_DARK, Palette.MUSTARD_DARKEST],
+	[Palette.ORANGE, Palette.ORANGE_DARK],
+	[Palette.TOMATO, Palette.TOMATO_DARKEST],
 ]
-## A lowered or 0€ pay's digits.
-const NEGATIVE_INK := Palette.TOMATO_DARK
+## The first strong step (BOOST_INKS): the ones before it are semi strong.
+const STRONG_STEP := 3
+## A lowered or 0€ pay's digits: grey (the PR #138 round 2, the user's answer of 2026-11-04: they
+## were tomato dark), about 3.6:1 on the paper, so the bold digits still read.
+const NEGATIVE_INK := Palette.MUTED_INK
 ## The coupon's scissors (art px, its top-left from the window's), and a wasted coupon's slash
 ## from SLASH_LEFT to the digits' right end, falling SLASH_DROP rows.
 const SCISSORS: Array[String] = [
@@ -51,6 +64,9 @@ const SCISSORS: Array[String] = [
 const SCISSORS_AT := Vector2i(19, 2)
 const SCISSORS_INK := Palette.TEAL_SHADE
 const WASTED_SCISSORS_INK := Palette.GREY
+## A wasted coupon's slash stays tomato dark (only lowered and 0€ digits went grey, PR #138
+## round 2), so "gave nothing" still reads.
+const WASTED_SLASH_INK := Palette.TOMATO_DARK
 const SLASH_LEFT := 1
 const SLASH_DROP := 7
 ## A framed window's ink edge (one art px round it).
@@ -107,7 +123,7 @@ func show_pay(state: State, amount: int, base: int = 0) -> void:
 	if not coupon:
 		var form: Array = form_for(amount)
 		var art: Vector2i = PixelWords.font_size_of(form[0], form[1])
-		var at: Vector2 = Vector2(DIGITS_RIGHT + 1 - art.x, DIGITS_FOOT + 1 - art.y) * _px()
+		var at: Vector2 = Vector2(digits_at(art)) * _px()
 		for words: PixelWords in [_digits, _shadow]:
 			words.sheet = form[1]
 			words.text = form[0]
@@ -138,7 +154,7 @@ func digits() -> PixelWords:
 	return _digits
 
 
-## The digits' shadow (PixelWords), shown on the strong boost steps only.
+## The digits' shadow (PixelWords), shown on a boosted pay only.
 func shadow() -> PixelWords:
 	return _shadow
 
@@ -183,6 +199,16 @@ static func form_for(amount: int) -> Array:
 	if amount < 100000:
 		return [short, PixelWords.Sheet.DIGITS]
 	return [short, PixelWords.Sheet.SMALL_DIGITS]
+
+
+## Where digits `art` art px in size sit (their top left, art px from the window's): centred in the
+## window, on the art's grid (an odd room leaves the spare art px right of them and under them,
+## where the shadow falls), and inside the digits' room. Pure.
+static func digits_at(art: Vector2i) -> Vector2i:
+	var at: Vector2i = Vector2i(floori((ART.x - art.x) / 2.0), floori((ART.y - art.y) / 2.0))
+	at.x = clampi(at.x, DIGITS_LEFT, maxi(DIGITS_RIGHT + 1 - art.x, DIGITS_LEFT))
+	at.y = clampi(at.y, 0, maxi(DIGITS_FOOT + 1 - art.y, 0))
+	return at
 
 
 ## The boost step of a boosted `amount` against `base` (its printed price, at least 1): 1, then
@@ -255,7 +281,7 @@ func _draw() -> void:
 		var length: int = DIGITS_RIGHT - SLASH_LEFT + 2
 		for step: int in length:
 			var drop: int = floori(step * SLASH_DROP / float(length - 1))
-			_cell(Vector2i(SLASH_LEFT + step, DIGITS_FOOT - drop), NEGATIVE_INK, px)
+			_cell(Vector2i(SLASH_LEFT + step, DIGITS_FOOT - drop), WASTED_SLASH_INK, px)
 
 
 func _cell(at: Vector2i, colour: Color, px: float) -> void:

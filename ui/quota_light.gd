@@ -1,23 +1,24 @@
 class_name QuotaLight
 extends Control
-## The conveyor's quota light (shift scene polish v2, section 1, the user's pick of 2026-11-02:
-## fill only, no shine; docs/art/mockups/shift_scene_polish_v2.html): while the shift is counted,
-## the belt's apron band (BeltPanel.APRON, the strip RailLight and BonusLights light) fills from
+## The conveyor's quota light (shift scene polish v2, section 1, the user's pick of 2026-11-02: fill
+## only, no shine; docs/art/mockups/shift_scene_polish_v2.html): while the shift is counted, the
+## belt's apron band (BeltPanel.APRON, RailLight's band, which BonusLights lights too) fills from
 ## the scanner end toward the belt's far end in proportion to the running total against the quota,
 ## so it reaches the far end exactly when the quota is met and stays full past it. It follows the
 ## register's reading (LedDisplay, follow), as the top bar's gauge does: the running total, never
 ## the final one early. Display arithmetic only (QuotaMeter.fill_fraction); it never scores.
 ##
-## Its colours are the gauge's statuses: tomato while short, mustard from QuotaMeter.NEAR_SHARE of
-## the quota, gold once full (at once at the crossing: no easing to full, so the bonus lights come
-## on over a full band). A band of SHADE rows under the lip, a HIGHLIGHT row under them, then
-## the body (as RailLight's light), the belt's bolts and chevrons drawn back over it; a paper head
-## marks the front, and the far end's steel cap with its unlit mustard mark stands for the goal
-## until the band is full. No flash, sweep or glow. The level eases to each reading (EASE_RATE, the
-## gauge's); under reduced motion it jumps. It is dark in planning (the LED blank or projected):
-## it clears when the next shift's planning starts. A shorter belt (belt_cut, #122) is filled to
-## its own end. Stage coordinates (the layer covers the stage); in the fore under BonusLights (whose
-## chase draws over it, on_fill) and RailLight (whose giver runs draw over it). Decor only.
+## Its colours are the gauge's statuses: teal while short (the gauge tube's QuotaMeter.SHORT_RAMP,
+## the PR #138 round 2: it was tomato), mustard from QuotaMeter.NEAR_SHARE of the quota, gold once
+## full (at once at the crossing: no easing to full, so the bonus lights come on over a full band).
+## A band of SHADE rows under the lip, a HIGHLIGHT row under them, then the body (the band's shared
+## look, RailLight), the belt's bolts and chevrons drawn back over it; a paper head marks the front,
+## and the far end's steel cap with its unlit mustard mark stands for the goal until the band is
+## full. No flash, sweep or glow. The level eases to each reading (EASE_RATE, the gauge's); under
+## reduced motion it jumps. It is dark in planning (the LED blank or projected): it clears when the
+## next shift's planning starts. A shorter belt (belt_cut, #122) is filled to its own end. Stage
+## coordinates (the layer covers the stage); in the fore under BonusLights (whose chase draws over
+## it, on_fill). Decor only.
 
 const RAIL_Y := RailLight.RAIL_Y
 const RAIL_HEIGHT := RailLight.RAIL_HEIGHT
@@ -35,7 +36,7 @@ const EASE_RATE := QuotaMeter.EASE_RATE
 ## The shown level snaps to the reading once this close (a fraction of the band).
 const SNAP := 0.002
 ## The band's rows by status: [highlight, body, shade].
-const SHORT_RAMP: Array[Color] = [Palette.TOMATO_PALE, Palette.TOMATO_LIGHT, Palette.TOMATO]
+const SHORT_RAMP: Array[Color] = QuotaMeter.SHORT_RAMP
 const NEAR_RAMP: Array[Color] = [Palette.MUSTARD_PALE, Palette.MUSTARD_LIGHT, Palette.MUSTARD]
 const FULL_RAMP: Array[Color] = [Palette.MUSTARD_PALE, Palette.GOLD, Palette.MUSTARD]
 const HEAD_COLOR := Palette.PAPER
@@ -115,12 +116,6 @@ func ramp() -> Array[Color]:
 	if _shown >= 1.0:
 		return FULL_RAMP
 	return NEAR_RAMP if _shown >= NEAR_SHARE else SHORT_RAMP
-
-
-## Whether the band at stage `x` is lit mustard or gold (where a gold giver run needs its
-## contrasting look, RailLight.Under).
-func is_warm_at(x: float) -> bool:
-	return _on and _shown >= NEAR_SHARE and x >= LEFT and x < LEFT + _lit_width()
 
 
 ## The colour drawn at stage `at` (the cap, the band's rows or the head; transparent off the

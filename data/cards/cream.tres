@@ -19,6 +19,7 @@ base = 2
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_cream")])
 rule_text = "+2 for each PAIR in the row"
 sticker_text = "+{bonus_each} per {pair}"
+monitor_text = "Gets +{bonus_each} for each {pair} in the row."
 art_ref = "res://art/items_v2/cream.png"
 mini_art_ref = "res://art/minis/cream.png"
 mini_golden_art_ref = "res://art/minis/cream_golden.png"

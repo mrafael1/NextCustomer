@@ -42,6 +42,9 @@ const READINGS: Dictionary[String, String] = {
 ## The prices the window must hold: every whole euro to 9999€, and a 12k€ total.
 const MAX_WHOLE := 9999
 const THOUSANDS := 12000
+## The least a boost step's ink (on its own, no shadow) contrasts with the paper fill: step 2's
+## orange (about 2.7:1) still reads by its hue; the PR #138 review's pale step 1 (1.9:1) did not.
+const BOOST_INK_MIN_CONTRAST := 2.5
 ## A text no plate holds (the fit's -1).
 const TOO_LONG := "+12 per earlier Breakfast item, then ×3 for each Dairy before it "
 
@@ -252,6 +255,12 @@ func test_a_coupon_shows_its_scissors() -> void:
 		coupon.set_pay(PlanningModel.Pay.DENIED, 0, "nothing beside it")
 		assert_int(coupon.window().pay_state()).is_equal(PriceWindow.State.WASTED)
 		assert_str(coupon.window().tip_text).contains("nothing beside it")
+		# The slash stays tomato dark over the grey scissors (only lowered and 0€ digits went grey,
+		# PR #138 round 2): "gave nothing" still reads.
+		assert_str(_hex(PriceWindow.WASTED_SLASH_INK)).is_equal(_hex(Palette.TOMATO_DARK))
+		assert_str(_hex(PriceWindow.WASTED_SLASH_INK)).is_not_equal(
+			_hex(PriceWindow.WASTED_SCISSORS_INK)
+		)
 		coupon.clear_pay()
 		assert_int(coupon.window().pay_state()).is_equal(PriceWindow.State.COUPON)
 		coupon.set_got(true)
@@ -309,8 +318,9 @@ func _assert_zone_frames(art: Image, left: FamilyStyle, right: FamilyStyle) -> v
 
 
 ## The window holds every price in its fixed box by V5a's ladder: the 6x8 digits to 999€, the 4x7
-## ones from 1000€ to 9999€, then "12k€" (6x8) and "123k€" (4x7); the digits always end at
-## DIGITS_RIGHT and never reach the icons or the plate.
+## ones from 1000€ to 9999€, then "12k€" (6x8) and "123k€" (4x7); the digits sit centred in the
+## window (within 1 px both ways, on the art's grid: the PR #138 review), the 4x7 ones included,
+## and never reach the icons or the plate.
 func test_the_window_holds_every_price() -> void:
 	var room: int = PriceWindow.DIGITS_RIGHT - PriceWindow.DIGITS_LEFT + 1
 	var problems: PackedStringArray = PackedStringArray()
@@ -338,14 +348,20 @@ func test_the_window_holds_every_price() -> void:
 	var window: PriceWindow = milk.window()
 	var box: Rect2 = Rect2(window.position, window.size)
 	assert_that(box).is_equal(Rect2(PriceSticker.WINDOW_AT, PriceWindow.SIZE))
-	var right: float = (PriceWindow.DIGITS_RIGHT + 1) * ArtStyle.ART_SCALE
-	for amount: int in [1, 9, 99, 999, 1000, 9999, THOUSANDS]:
+	var middle: Vector2 = window.size / 2.0
+	for amount: int in [1, 9, 99, 999, 1000, 9999, THOUSANDS, 123456]:
 		milk.set_pay(PlanningModel.Pay.BOOSTED, amount)
 		var digits: Rect2 = window.digits_rect()
 		var message: String = "%d€: %s" % [amount, digits]
 		var inside: bool = Rect2(Vector2.ZERO, window.size).encloses(digits)
 		assert_bool(inside).override_failure_message(message).is_true()
-		assert_float(digits.end.x).override_failure_message(message).is_equal(right)
+		var off: Vector2 = (digits.get_center() - middle).abs()
+		assert_float(off.x).override_failure_message(message).is_less_equal(1.0)
+		assert_float(off.y).override_failure_message(message).is_less_equal(1.0)
+		assert_float(fmod(digits.position.x, ArtStyle.ART_SCALE)).is_equal(0.0)
+		assert_float(fmod(digits.position.y, ArtStyle.ART_SCALE)).is_equal(0.0)
+		var shadow: Rect2 = Rect2(window.shadow().position, window.shadow().size)
+		assert_bool(Rect2(Vector2.ZERO, window.size).encloses(shadow)).is_true()
 		var shown: Rect2 = Rect2(window.position + digits.position, digits.size)
 		for glyph: FamilyGlyph in milk.glyphs():
 			var over: bool = glyph.rim_rect().intersects(shown)
@@ -356,9 +372,23 @@ func test_the_window_holds_every_price() -> void:
 		assert_str(window.tip_text).contains("%d€" % amount)
 
 
+## The monitor's payout prints a lowered or 0€ pay in the ticket's grey too (the PR #138 round 2),
+## a plain one in ink: the same state colours as the price window.
+func test_the_monitor_payout_shares_the_window_inks() -> void:
+	var payout: MonitorPayout = auto_free(MonitorPayout.new())
+	payout.show_pay(PriceWindow.State.LOWERED, 1, 3)
+	assert_that(payout.digit_words().color).is_equal(Palette.MUTED_INK)
+	assert_bool(payout.shadow().visible).is_false()
+	payout.show_pay(PriceWindow.State.ZERO, 0, 4, PlanningModel.Glyph.WARNING)
+	assert_that(payout.digit_words().color).is_equal(Palette.MUTED_INK)
+	payout.show_pay(PriceWindow.State.PRINTED, 4, 4)
+	assert_that(payout.digit_words().color).is_equal(Palette.INK)
+
+
 ## Each pay has its window state; the window's fill is paper in every state (the user's play test
 ## of 2026-11-03) and the digits' ink says the pay: ink printed, a boost on BOOST_INKS' ramp,
-## lowered and 0€ (its reason in the tip) tomato dark.
+## lowered and 0€ (its reason in the tip) grey (muted ink; the PR #138 round 2: tomato dark until
+## then), still readable on the paper.
 func test_the_window_says_the_pay() -> void:
 	var milk: PriceSticker = auto_free(PriceSticker.new(_card("milk")))
 	var window: PriceWindow = milk.window()
@@ -377,12 +407,13 @@ func test_the_window_says_the_pay() -> void:
 	for gone: String in ["fill_color", "band_color"]:
 		assert_bool(window.has_method(gone)).override_failure_message(gone).is_false()
 	milk.set_pay(PlanningModel.Pay.LOWERED, 1)
-	assert_that(window.digits().color).is_equal(Palette.TOMATO_DARK)
+	assert_that(window.digits().color).is_equal(Palette.MUTED_INK)
+	assert_float(_contrast(Palette.MUTED_INK, PriceWindow.FILL)).is_greater_equal(3.5)
 	assert_bool(window.shadow().visible).is_false()
 	milk.set_pay(PlanningModel.Pay.PLAIN, 0)
 	assert_that(window.digits().color).is_equal(Palette.INK)
 	milk.set_pay(PlanningModel.Pay.DENIED, 0, "SPOT CHECK")
-	assert_that(window.digits().color).is_equal(Palette.TOMATO_DARK)
+	assert_that(window.digits().color).is_equal(Palette.MUTED_INK)
 	assert_str(window.digits().text).is_equal("0€")
 	assert_str(window.tip_text).contains("SPOT CHECK")
 	milk.set_pay(PlanningModel.Pay.ZERO, 0)
@@ -398,8 +429,8 @@ func test_the_window_says_the_pay() -> void:
 
 ## GOLDEN and boosted take different draw paths, so they never read alike: GOLDEN is a gold ring
 ## outside the outline (its own TextureRect, dark rim outermost) with two sparkles, the window
-## inside still paper; a boosted pay is the digits' green or violet ink, and no window ink is ever
-## gold, brass or mustard.
+## inside still paper; a boosted pay is the digits' amber, orange or red ink, and no window ink is
+## ever gold, brass or mustard.
 func test_golden_and_boosted_read_apart() -> void:
 	var golden: PriceSticker = auto_free(PriceSticker.new(_card("milk_golden")))
 	var plain: PriceSticker = auto_free(PriceSticker.new(_card("milk")))
@@ -427,6 +458,7 @@ func test_golden_and_boosted_read_apart() -> void:
 		PriceWindow.NEGATIVE_INK,
 		PriceWindow.SCISSORS_INK,
 		PriceWindow.WASTED_SCISSORS_INK,
+		PriceWindow.WASTED_SLASH_INK,
 	]
 	for state: PriceWindow.State in PriceWindow.State.values():
 		for step: int in range(1, PriceWindow.BOOST_INKS.size() + 1):
@@ -438,10 +470,14 @@ func test_golden_and_boosted_read_apart() -> void:
 
 
 ## The boost ramp (the user's play test of 2026-11-03: "stronger the price, the stronger the
-## color"): step 1 for any boost, step 2 from pay_ink_ratios[0] times the base, step 3 from
-## pay_ink_ratios[1] times (data/balance/planning.tres); dark green, bright green on a dark green
-## shadow, violet on a dark violet shadow. Every step reads on the paper fill (its ink, or its
-## shadow, at 3:1 or more), each is apart from the last, and none is a negative pay's tomato.
+## color"; the PR #138 review's classic ramp: "black for base, yellow/orange for semi strong and red
+## for strong"): step 1 for any boost, step 2 from pay_ink_ratios[0] times the base, step 3 from
+## pay_ink_ratios[1] times (data/balance/planning.tres); the printed price ink, steps 1 and 2 (semi
+## strong) amber then orange, step 3 (strong, PriceWindow.STRONG_STEP) red, each on a darker
+## shadow. Every step reads on the paper fill (its shadow at 3:1 or more, and its ink itself at
+## BOOST_INK_MIN_CONTRAST or more, so no step is a pale ink held up by its shadow alone: the PR #138
+## review's washed-out step 1), each is apart from the last, and none is a negative pay's tomato
+## dark.
 func test_the_boost_ink_steps_up_with_the_pay() -> void:
 	var ratios: PackedInt32Array = PriceWindow.ink_ratios()
 	var tuning: PlanningTuning = load(PriceWindow.TUNING_PATH) as PlanningTuning
@@ -466,21 +502,31 @@ func test_the_boost_ink_steps_up_with_the_pay() -> void:
 	# A base of 0 counts as 1.
 	assert_int(PriceWindow.boost_step(ratios[1], 0)).is_equal(3)
 	var expected: Array[Array] = [
-		[Palette.GREEN_DARK, Color.TRANSPARENT],
-		[Palette.GOOD, Palette.GREEN_DARK],
-		[Palette.VIOLET, Palette.VIOLET_DARK],
+		[Palette.MUSTARD_DARK, Palette.MUSTARD_DARKEST],
+		[Palette.ORANGE, Palette.ORANGE_DARK],
+		[Palette.TOMATO, Palette.TOMATO_DARKEST],
 	]
 	assert_array(PriceWindow.BOOST_INKS).is_equal(expected)
+	assert_int(PriceWindow.STRONG_STEP).is_equal(PriceWindow.BOOST_INKS.size())
 	var last: Color = Palette.INK
 	for step: int in range(1, PriceWindow.BOOST_INKS.size() + 1):
 		var ink: Color = PriceWindow.digit_color(PriceWindow.State.BOOSTED, step)
 		var shadow: Color = PriceWindow.shadow_color(PriceWindow.State.BOOSTED, step)
-		var readable: float = maxf(_contrast(ink, Palette.PAPER), _contrast(shadow, Palette.PAPER))
-		assert_float(readable).override_failure_message("step %d" % step).is_greater_equal(3.0)
+		var step_text: String = "step %d" % step
+		(
+			assert_float(_contrast(shadow, Palette.PAPER))
+			. override_failure_message(step_text)
+			. is_greater_equal(3.0)
+		)
+		(
+			assert_float(_contrast(ink, Palette.PAPER))
+			. override_failure_message(step_text)
+			. is_greater_equal(BOOST_INK_MIN_CONTRAST)
+		)
 		assert_that(ink).is_not_equal(last)
 		assert_that(ink).is_not_equal(PriceWindow.NEGATIVE_INK)
 		last = ink
-	# On a ticket: Milk's pay against its printed price picks its step; the strong steps wear the
+	# On a ticket: Milk's pay against its printed price picks its step; every step wears the
 	# shadow one art px down and right, inside the window.
 	var definition: CardDefinition = _card("milk")
 	var milk: PriceSticker = auto_free(PriceSticker.new(definition))
@@ -493,14 +539,13 @@ func test_the_boost_ink_steps_up_with_the_pay() -> void:
 		assert_int(window.boost_level()).is_equal(step)
 		assert_that(window.digits().color).is_equal(PriceWindow.BOOST_INKS[step - 1][0])
 		var shadow: PixelWords = window.shadow()
-		assert_bool(shadow.visible).is_equal(step > 1)
-		if step > 1:
-			assert_that(shadow.color).is_equal(PriceWindow.BOOST_INKS[step - 1][1])
-			assert_str(shadow.text).is_equal(window.digits().text)
-			var offset: Vector2 = Vector2(PriceWindow.SHADOW_OFFSET) * ArtStyle.ART_SCALE
-			assert_vector(shadow.position).is_equal(window.digits().position + offset)
-			var shown: Rect2 = Rect2(shadow.position, shadow.size)
-			assert_bool(Rect2(Vector2.ZERO, window.size).encloses(shown)).is_true()
+		assert_bool(shadow.visible).is_true()
+		assert_that(shadow.color).is_equal(PriceWindow.BOOST_INKS[step - 1][1])
+		assert_str(shadow.text).is_equal(window.digits().text)
+		var offset: Vector2 = Vector2(PriceWindow.SHADOW_OFFSET) * ArtStyle.ART_SCALE
+		assert_vector(shadow.position).is_equal(window.digits().position + offset)
+		var shown: Rect2 = Rect2(shadow.position, shadow.size)
+		assert_bool(Rect2(Vector2.ZERO, window.size).encloses(shown)).is_true()
 	milk.clear_pay()
 	assert_int(window.boost_level()).is_equal(0)
 	assert_bool(window.shadow().visible).is_false()

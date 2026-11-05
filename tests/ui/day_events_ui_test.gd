@@ -107,8 +107,9 @@ func test_a_boon_multiplier_plays_in_the_count_up() -> void:
 
 ## A harmful day event's line on the monitor (the user's call of 2026-11-02): Late delivery's
 ## "−2€ Dairy pays less" and the Spot check's 0€ (slot 3, the 3rd Milk) print in tomato with the
-## "!" mark, never the green ✓, in planning (the scan's item lines) and at the count's end (a
-## resumed checkout's last item), inside the item column; their amounts keep their signs.
+## event's badge (#138 review; else the "!" mark), in planning (the scan's item lines) and at the
+## count's end (a resumed checkout's last item, its earlier rows folded when they don't fit),
+## inside the item column; their amounts keep their signs.
 func test_harmful_lines_are_tomato_on_the_monitor() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
@@ -135,30 +136,51 @@ func test_harmful_lines_are_tomato_on_the_monitor() -> void:
 		screen._count_up.plan, screen._row_views, false, result, screen._scan.line_of
 	)
 	await _frames(2)
-	_assert_harmful_rows(screen, ["−2€", "= 0"])
+	# The count keeps the newest rows that fit its room (PR #138 monitor), the earlier folded.
+	_assert_harmful_rows(screen, ["−2€", "= 0"], true)
 
 
-## The item column's step rows with these `amounts` are tomato with the "!" mark, inside the
-## column; every other row with a mark keeps it off tomato.
-func _assert_harmful_rows(screen: ShiftScreen, amounts: Array[String]) -> void:
+## The item column's step rows whose lines have these `amounts` are tomato with their source's
+## icon or the "!" mark, inside the
+## column; every other row with a mark keeps it off tomato. `folding`: the count's rows, where the
+## earlier ones may fold into "+N earlier" (the last amount shown, the others folded).
+func _assert_harmful_rows(
+	screen: ShiftScreen, amounts: Array[String], folding: bool = false
+) -> void:
 	var column: MonitorItemColumn = screen._monitor.item_column()
 	var area: Rect2 = column.get_global_rect().grow(0.5)
 	var found: Array[String] = []
 	for row: Control in column.step_rows():
-		var amount: Label = row.get_node_or_null("Amount") as Label
-		if amount == null or not amount.text in amounts:
+		# Each row by its receipt line's amount ("= 0" reads "0€", or none when its words say it).
+		var line: String = String(row.get_meta(&"line", ""))
+		var key: String = ""
+		for each: String in amounts:
+			if line.contains(each):
+				key = each
+		if key.is_empty():
 			continue
-		found.append(amount.text)
-		var mark: Label = row.get_node("Mark") as Label
-		assert_str(mark.text).is_equal(MonitorItemColumn.HARM_MARK)
-		assert_that(mark.get_theme_color("font_color")).is_equal(Palette.TOMATO_DARK)
-		assert_that(amount.get_theme_color("font_color")).is_equal(Palette.TOMATO_DARK)
+		found.append(key)
+		# Its source's icon (#138 review: an event's badge, MonitorView.event_icon), else a tomato "!".
+		var mark: Control = row.get_node("Mark") as Control
+		if mark is TextureRect:
+			assert_object((mark as TextureRect).texture).is_not_null()
+		else:
+			assert_str((mark as Label).text).is_equal(MonitorItemColumn.HARM_MARK)
+			assert_that(mark.get_theme_color("font_color")).is_equal(Palette.TOMATO_DARK)
 		var text: Label = row.get_node("Text") as Label
 		assert_that(text.get_theme_color("font_color")).is_equal(Palette.TOMATO_DARK)
-		assert_bool(area.encloses(row.get_global_rect())).is_true()
+		assert_bool(area.encloses(row.get_global_rect())).override_failure_message(line).is_true()
+		var amount: Label = row.get_node_or_null("Amount") as Label
+		if amount == null:
+			continue
+		assert_that(amount.get_theme_color("font_color")).is_equal(Palette.TOMATO_DARK)
 		assert_float(text.get_global_rect().end.x).is_less_equal(
 			amount.get_global_rect().position.x
 		)
+	if folding and found.size() < amounts.size():
+		assert_bool(found.has(amounts[-1])).is_true()
+		assert_str(String(column.step_rows()[0].get_meta(&"line", ""))).ends_with("earlier")
+		return
 	assert_array(found).contains_exactly_in_any_order(amounts)
 
 

@@ -158,7 +158,7 @@ static func count_row_one(screen: ShiftScreen, committed: Array[CardInstance]) -
 	screen._row_views = views
 	screen._effects.show_count(result, views, run)
 	var context: CountUpContext = screen.count_up_context()
-	screen._monitor.upgrades = run.upgrades.duplicate()
+	screen._monitor.use_sources(run.upgrades, WeekSchedule.shift_events(run))
 	screen._ride.begin(result, views, context.reduced_motion)
 	await (screen._count_up.play(
 		result,

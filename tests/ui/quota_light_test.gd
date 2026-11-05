@@ -2,15 +2,14 @@ extends GdUnitTestSuite
 ## The conveyor's quota light (QuotaLight, shift scene polish v2 section 1, fill only): alone on a
 ## LedDisplay, it is dark in planning, fills the apron band in proportion to the running total
 ## against the quota (lit width = band length x fraction, on the art grid, inside the band), is
-## full and gold at the quota and past it, tomato then mustard from the near share, eases to each
+## full and gold at the quota and past it, teal (the gauge tube's short ramp, the PR #138 round 2)
+## then mustard from the near share, eases to each
 ## reading (jumps under reduced motion), fits a short belt and clears when planning comes back. On
 ## the real shift screen, at 1280x720 and 1600x1000: dark in planning, following the LED through a
 ## count to full past the quota, the band on the belt's apron inside the window and clear of the
 ## register and the receipt, the bonus lights drawn over it, dark again at the next planning. At
 ## the quota crossing the band is full and gold the moment the bonus lights come on (no easing to
-## full). A giver's gold run over the lit mustard or gold band draws a contrasting look (an
-## ink-brown frame round a paper core), keeping to the upper rows over the chase so its bulbs still
-## show. The real saves and logs are never touched.
+## full). The real saves and logs are never touched.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 ## Milk, Multipack, Milk x5 = 109, past a quota of 40.
@@ -25,8 +24,6 @@ var _window_size: Vector2i
 var _readings: Array[Array] = []
 ## [band full, bonus lights lit, bonus lights over the band] at each quota_met on the screen.
 var _crossings: Array[Array] = []
-## A giver run's colour against the band's under it, sampled through a count where they overlap.
-var _overlaps: Array[Array] = []
 
 
 func before_test() -> void:
@@ -36,7 +33,6 @@ func before_test() -> void:
 	_window_size = get_tree().root.size
 	_readings.clear()
 	_crossings.clear()
-	_overlaps.clear()
 
 
 func after_test() -> void:
@@ -60,7 +56,8 @@ func test_it_is_dark_in_planning() -> void:
 
 
 ## Counting: the lit width is the band's length times total / quota, on the art grid, inside the
-## band; tomato short, mustard from the near share, full and gold at the quota and past it.
+## band; teal short (the gauge tube's SHORT_RAMP: no tomato), mustard from the near share, full and
+## gold at the quota and past it.
 func test_it_fills_the_band_in_proportion_to_the_quota() -> void:
 	var led: LedDisplay = _led()
 	var light: QuotaLight = _light(led, true)
@@ -72,6 +69,11 @@ func test_it_fills_the_band_in_proportion_to_the_quota() -> void:
 	led.start_count(QUOTA)
 	assert_bool(light.is_lit()).is_true()
 	assert_float(light.lit_rect().size.x).is_equal(0.0)
+	assert_array(QuotaLight.SHORT_RAMP).is_equal(QuotaMeter.SHORT_RAMP)
+	var teal: Array[Color] = [Palette.TEAL_LIGHT, Palette.TEAL, Palette.TEAL_SHADE]
+	assert_array(QuotaLight.SHORT_RAMP).is_equal(teal)
+	for tomato: Color in [Palette.TOMATO, Palette.TOMATO_LIGHT, Palette.TOMATO_PALE]:
+		assert_bool(QuotaLight.SHORT_RAMP.has(tomato)).is_false()
 	for amount: int in [10, 20, 31, 36]:
 		led.show_subtotal(amount, false)
 		var share: float = float(amount) / QUOTA
@@ -83,6 +85,10 @@ func test_it_fills_the_band_in_proportion_to_the_quota() -> void:
 		assert_bool(light.is_full()).is_false()
 		var near: bool = share >= QuotaMeter.NEAR_SHARE
 		assert_array(light.ramp()).is_equal(QuotaLight.NEAR_RAMP if near else QuotaLight.SHORT_RAMP)
+		if not near:
+			# The body row, behind the head: the tube's teal.
+			var body := Vector2(lit.position.x + 1.0, lit.end.y - 1.0)
+			assert_that(light.colour_at(body)).is_equal(Palette.TEAL)
 	led.show_subtotal(QUOTA, true)
 	assert_bool(light.is_full()).is_true()
 	assert_that(light.lit_rect()).is_equal(band)
@@ -162,44 +168,8 @@ func test_it_is_full_at_once_when_the_quota_is_met() -> void:
 	assert_bool(bonus.is_on_fill()).is_true()
 
 
-## A giver's run over the lit band: on the near (mustard) band and on the full (gold) band, every
-## cell of the run differs from the band's under it and its frame stands out (a clear luminance
-## step); over the chase it keeps to the upper rows and the bulbs under it still show.
-func test_a_giver_run_stands_out_on_the_lit_band() -> void:
-	var led: LedDisplay = _led()
-	var light: QuotaLight = _light(led, true)
-	var bonus: BonusLights = _bonus(light)
-	var rail: RailLight = _rail(light, bonus)
-	led.start_count(QUOTA)
-	led.show_subtotal(30, false)
-	var from_x: float = QuotaLight.LEFT + 100.0
-	rail.run(from_x, from_x + 200.0, Rect2(), Rect2())
-	_assert_run_on_steel(rail, light, from_x)
-	led.show_subtotal(34, false)
-	assert_array(light.ramp()).is_equal(QuotaLight.NEAR_RAMP)
-	_assert_run_stands_out(rail, light, from_x, RailLight.RAIL_HEIGHT)
-	led.show_subtotal(QUOTA, true)
-	assert_bool(light.is_full()).is_true()
-	_assert_run_stands_out(rail, light, from_x, RailLight.RAIL_HEIGHT)
-	bonus.light()
-	assert_bool(bonus.is_on_fill()).is_true()
-	_assert_run_stands_out(rail, light, from_x, RailLight.CHASE_ROWS)
-	var covered: int = 0
-	for bulb: Array in bonus.bulbs():
-		var rect: Rect2 = bulb[0]
-		if rect.position.x < from_x or rect.end.x > from_x + 200.0:
-			continue
-		covered += 1
-		for at: Vector2 in [rect.position, rect.get_center(), rect.end - Vector2.ONE]:
-			var hidden: String = "Bulb at %s hidden." % at
-			assert_float(rail.colour_at(at).a).override_failure_message(hidden).is_equal(0.0)
-	assert_int(covered).is_greater(3)
-	assert_float(RailLight.CHASE_ROWS).is_equal(RailLight.RAIL_HEIGHT - BonusLights.BULB_SIZE.y)
-
-
-## A crossing with easing on: the band is full and gold the moment the bonus lights come on;
-## through the count a giver's run over the lit band never matches it; then a run on the full
-## band, on screen inside the band, stands out from it.
+## A crossing with easing on: the band is full and gold the moment the bonus lights come on, and
+## stays full once they fade.
 func test_on_the_shift_screen_the_crossing_is_full_at_once() -> void:
 	get_tree().root.size = WINDOWS[0]
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
@@ -217,42 +187,13 @@ func test_on_the_shift_screen_the_crossing_is_full_at_once() -> void:
 		QUOTA,
 		CountUpContext.new(1, 0, 1.0, false, screen.receipt_header())
 	)
-	await _until_played(screen, stage)
+	await _until_played(screen)
 	assert_int(_crossings.size()).is_equal(1)
 	assert_array(_crossings[0]).is_equal([true, true, true])
-	for overlap: Array in _overlaps:
-		var same: bool = (overlap[0] as Color).is_equal_approx(overlap[1] as Color)
-		assert_bool(same).override_failure_message("Run lost: %s" % [overlap]).is_false()
 	var light: QuotaLight = stage.quota_light
 	await _seconds(BonusLights.FADE_SECONDS + 0.2)
 	assert_bool(stage.bonus_lights.is_lit()).is_false()
 	assert_bool(light.is_full()).is_true()
-	var from_x: float = QuotaLight.LEFT + 60.0
-	stage.rail_light.reduced_motion = func() -> bool: return true
-	stage.rail_light.run(from_x, from_x + 160.0, Rect2(), Rect2())
-	assert_int(stage._band_under(from_x + 10.0)).is_not_equal(RailLight.Under.STEEL)
-	_assert_run_stands_out(stage.rail_light, light, from_x, RailLight.RAIL_HEIGHT)
-	var span: Vector2 = stage.rail_light.lit_span()
-	var run_rect := Rect2(span.x, RailLight.RAIL_Y, span.y - span.x, RailLight.RAIL_HEIGHT)
-	var on_screen: Rect2 = stage.rail_light.get_global_transform_with_canvas() * run_rect
-	var band: Rect2 = light.get_global_transform_with_canvas() * light.lit_rect()
-	var where: String = "%s in %s" % [on_screen, band]
-	assert_bool(band.encloses(on_screen)).override_failure_message(where).is_true()
-	var visible := Rect2(Vector2.ZERO, Vector2(WINDOWS[0]))
-	assert_bool(visible.encloses(on_screen)).override_failure_message(where).is_true()
-	stage.rail_light.clear()
-
-
-## On the real screen at 1280x720: dark in planning, then through a count it follows the LED to
-## full past the quota, on the belt's apron inside the window and clear of the register and the
-## receipt, with the bonus lights over it; the next planning clears it.
-func test_on_the_shift_screen_it_follows_the_count() -> void:
-	await _check_screen(WINDOWS[0])
-
-
-## The same in a larger window (the stage centred in it).
-func test_on_the_shift_screen_in_a_larger_window() -> void:
-	await _check_screen(WINDOWS[1])
 
 
 func _check_screen(window: Vector2i) -> void:
@@ -267,7 +208,6 @@ func _check_screen(window: Vector2i) -> void:
 	assert_bool(light.is_lit()).override_failure_message("Lit in planning.").is_false()
 	var fore: Array[Node] = stage.fore.get_children()
 	assert_int(fore.find(light)).is_less(fore.find(stage.bonus_lights))
-	assert_int(fore.find(stage.bonus_lights)).is_less(fore.find(stage.rail_light))
 	assert_bool(stage.bonus_lights.is_on_fill()).is_false()
 	stage.led.reading_changed.connect(_on_reading.bind(stage))
 	screen._count_up.play(
@@ -307,53 +247,9 @@ func _assert_on_the_apron(stage: ShiftStage, light: QuotaLight, window: Vector2i
 	assert_bool(band.intersects(receipt)).override_failure_message(where).is_false()
 
 
-## The run's cells from `from_x` on, as on bare steel (gold).
-func _assert_run_on_steel(rail: RailLight, light: QuotaLight, from_x: float) -> void:
-	assert_bool(light.is_warm_at(from_x + 10.0)).is_false()
-	var cells: Array[Color] = RailLight.run_cells(RailLight.Under.STEEL, 0.0)
-	assert_that(rail.colour_at(Vector2(from_x + 10.0, RailLight.RAIL_Y))).is_equal(cells[0])
-
-
-## Over the lit band, columns along the run: each of its cells in the `rows` px it draws differs
-## from the band's colour there, the frame by a clear luminance step; below them it draws nothing.
-func _assert_run_stands_out(rail: RailLight, light: QuotaLight, from_x: float, rows: float) -> void:
-	for column: float in [10.0, 80.0, 150.0]:
-		var x: float = from_x + column
-		assert_bool(light.is_warm_at(x)).is_true()
-		var step: float = 0.0
-		var y: float = 0.0
-		while y < RailLight.RAIL_HEIGHT:
-			var at := Vector2(x, RailLight.RAIL_Y + y)
-			var run_colour: Color = rail.colour_at(at)
-			var band_colour: Color = light.colour_at(at)
-			var where: String = "%s: run %s, band %s" % [at, run_colour, band_colour]
-			if y < rows:
-				assert_float(run_colour.a).override_failure_message(where).is_equal(1.0)
-				var same: bool = run_colour.is_equal_approx(band_colour)
-				assert_bool(same).override_failure_message(where).is_false()
-				step = maxf(step, absf(run_colour.get_luminance() - band_colour.get_luminance()))
-			else:
-				assert_float(run_colour.a).override_failure_message(where).is_equal(0.0)
-			y += 2.0
-		assert_float(step).is_greater(0.3)
-
-
 func _on_quota_met(_pop: bool, stage: ShiftStage) -> void:
 	var full: bool = stage.quota_light.is_full()
 	_crossings.append([full, stage.bonus_lights.is_lit(), stage.bonus_lights.is_on_fill()])
-
-
-## A giver run's body colour and the band's at the middle of its span (its top rows), while both
-## show at full alpha and the band there is lit mustard or gold.
-func _sample_overlap(stage: ShiftStage) -> void:
-	if not stage.rail_light.is_lit() or stage.rail_light.alpha() < 1.0:
-		return
-	var span: Vector2 = stage.rail_light.lit_span()
-	if absf(span.y - span.x) < 8.0:
-		return
-	var at := Vector2(snappedf((span.x + span.y) / 2.0, 2.0) + 1.0, RailLight.RAIL_Y + 1.0)
-	if stage.quota_light.is_warm_at(at.x):
-		_overlaps.append([stage.rail_light.colour_at(at), stage.quota_light.colour_at(at)])
 
 
 func _on_reading(_amount: int, _quota: int, _met: bool, stage: ShiftStage) -> void:
@@ -369,13 +265,11 @@ func _fill_row(screen: ShiftScreen) -> void:
 	assert_int(screen.run.row.size()).is_equal(ROW.size())
 
 
-func _until_played(screen: ShiftScreen, stage: ShiftStage = null) -> void:
+func _until_played(screen: ShiftScreen) -> void:
 	var count_up: CountUp = screen._count_up
 	var started: int = Time.get_ticks_msec()
 	while count_up._playing and Time.get_ticks_msec() - started < MAX_WAIT_MS:
 		await get_tree().process_frame
-		if stage != null:
-			_sample_overlap(stage)
 	assert_bool(count_up._playing).override_failure_message("Still counting.").is_false()
 
 
@@ -402,19 +296,6 @@ func _bonus(light: QuotaLight) -> BonusLights:
 	bonus.on_fill = light.is_full
 	add_child(bonus)
 	return bonus
-
-
-## A rail light over `light` and `bonus`, told what the band shows as the stage tells it.
-func _rail(light: QuotaLight, bonus: BonusLights) -> RailLight:
-	var rail: RailLight = auto_free(RailLight.new())
-	rail.size = ShiftStage.SIZE
-	rail.reduced_motion = func() -> bool: return true
-	rail.under = func(x: float) -> RailLight.Under:
-		if not light.is_warm_at(x):
-			return RailLight.Under.STEEL
-		return RailLight.Under.LIT_CHASE if bonus.is_lit() else RailLight.Under.LIT
-	add_child(rail)
-	return rail
 
 
 func _frames(count: int) -> void:

@@ -18,3 +18,4 @@ tags = PackedStringArray()
 rules = Array[ExtResource("1_wxh1e")]([SubResource("Resource_xf33c")])
 rule_text = "The items on either side of it count as side by side"
 sticker_text = "Joins its neighbours"
+monitor_text = "The items on either side of it count as side by side."

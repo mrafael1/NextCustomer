@@ -177,7 +177,7 @@ func _init(definition: CardDefinition, palette: FamilyPalette = null) -> void:
 			_styles.append(style)
 	_text_color = families.text_color(_families) if not _styles.is_empty() else Palette.PAPER
 	if _styles.is_empty():
-		_styles.append(_fallback_style(definition))
+		_styles.append(fallback_style(definition))
 	_face = UiKit.sprite(TicketFace.texture(_styles, definition.is_coupon()))
 	_face.name = FACE_NAME
 	_face.size = SIZE
@@ -386,7 +386,7 @@ func _add_glyphs(definition: CardDefinition, families: FamilyPalette) -> void:
 
 
 ## The look of a ticket with no family colours: the coupon teal (a plain coupon), else cream.
-static func _fallback_style(definition: CardDefinition) -> FamilyStyle:
+static func fallback_style(definition: CardDefinition) -> FamilyStyle:
 	var style: FamilyStyle = FamilyStyle.new()
 	if definition.is_coupon():
 		style.face = Palette.TEAL_SHADE

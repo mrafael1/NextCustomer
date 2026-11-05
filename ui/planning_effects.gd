@@ -19,8 +19,8 @@ extends Node
 ## the inspection). The hovered item's ticket is ringed and its targets' tickets get the "got"
 ## face; its own rail strip turns hot on top in lane 0 with each target's gain ("+14€"), the strips
 ## giving to it turn hot with its gain, and every other strip dims (a box's or the chip's hover dims
-## them all). The receipt frames the item's line, marks its targets' lines with their tokens and
-## its footer names it ("Multipack hovered"). An item with no effect stays quiet, as #80's hover.
+## them all). The receipt frames the item's line and marks its targets' lines with their tokens.
+## An item with no effect stays quiet, as #80's hover.
 ## The scan's hold is unchanged (its scan adds a "gives" line: ScanController). Leaving waits the
 ## tuning's unfocus_delay_s, so sweeping across the belt never flickers, and the focus is kept by
 ## card across a refresh.
@@ -528,15 +528,14 @@ static func _tokens(model: PlanningModel, slot: int) -> Dictionary[int, String]:
 
 
 ## The receipt's explanation of the hovered item at `slot` (-1: none): its line framed, its
-## targets' lines marked with `tokens`, and the footer naming it.
+## targets' lines marked with `tokens`.
 func _explain(slot: int, tokens: Dictionary[int, String]) -> void:
 	if _receipt == null:
 		return
 	if slot < 0 or _item(slot) == null:
 		_receipt.show_relations(-1)
 		return
-	var hint: String = ReceiptView.HOVERED_HINT % _item(slot).card.definition.display_name
-	_receipt.show_relations(slot, tokens, hint)
+	_receipt.show_relations(slot, tokens)
 
 
 ## Relates `item` to the focus: `relation` (fading over `fade` seconds to DIM's `greyness`) and

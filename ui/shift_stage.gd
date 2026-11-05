@@ -31,9 +31,7 @@ extends Control
 ## BasketTags), the shade that darkens them while counting and the redraw layer (the basket redraw's
 ## flights into the Cart and its sparks, over the top bar). Over the fore's parts the quota
 ## crossing's bonus lights (BonusLights, over the count's quota light, QuotaLight: the band filling
-## toward the belt's far end with the running total against the quota) and the count's rail
-## light (RailLight, #86 kept by #105 piece 2: the price rail lit gold from a giver's ticket to its
-## target's). Over them all the quota
+## toward the belt's far end with the running total against the quota). Over them all the quota
 ## crossing (QuotaCrossing: its streak and lap stamps), the scan layer (ScanOverlay: the
 ## scan's brackets and beam) and the popup layer, all taking no clicks. A belt or hand item's scan
 ## shows on the monitor (#80); the popup layer only parks the hidden scan popup, which opens over
@@ -230,13 +228,11 @@ var planning_layer: PlanningLayer
 var bag: PaperBag
 ## Over everything on the stage, taking no clicks: the scan's marks, and the layer the scan
 ## popup opens in.
-## The count's rail light over the price rail (#105 piece 2), last in the fore.
-var rail_light: RailLight
 ## The count's quota light on the belt's apron band (shift scene polish v2, section 1), first of
 ## the band's lights in the fore.
 var quota_light: QuotaLight
 ## The quota crossing (A, B and E over the stage) and its bonus lights on the rail (D, in the fore
-## over the quota light, under the rail light).
+## over the quota light, last).
 var quota_crossing: QuotaCrossing
 var bonus_lights: BonusLights
 var scan_layer: ScanOverlay
@@ -476,7 +472,7 @@ func _build_keys() -> void:
 	seed_label = cabinet.seed_label
 
 
-## The quota light, the bonus lights over it and the rail light (last in the fore), then the quota
+## The quota light and the bonus lights over it (last in the fore), then the quota
 ## crossing, the scan layer and the popup layer (where the hidden scan popup waits) over the whole
 ## stage.
 func _build_scan_layers() -> void:
@@ -490,10 +486,6 @@ func _build_scan_layers() -> void:
 	bonus_lights.size = SIZE
 	bonus_lights.belt_cut = belt.cut()
 	fore.add_child(bonus_lights)
-	rail_light = RailLight.new()
-	rail_light.size = SIZE
-	rail_light.under = _band_under
-	fore.add_child(rail_light)
 	quota_crossing = QuotaCrossing.new()
 	quota_crossing.size = SIZE
 	add_child(quota_crossing)
@@ -506,13 +498,6 @@ func _build_scan_layers() -> void:
 	popup_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	popup_layer.size = SIZE
 	add_child(popup_layer)
-
-
-## What the apron band shows at stage `x` under a giver's run (RailLight.Under).
-func _band_under(x: float) -> RailLight.Under:
-	if not quota_light.is_warm_at(x):
-		return RailLight.Under.STEEL
-	return RailLight.Under.LIT_CHASE if bonus_lights.is_lit() else RailLight.Under.LIT
 
 
 func _layer(layer_name: String) -> Control:
