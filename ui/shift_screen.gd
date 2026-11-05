@@ -552,7 +552,7 @@ func _on_checkout_pressed() -> void:
 		_run_ended_ms = Time.get_ticks_msec()
 		_log.log_event("run_end", RunEvents.run_end(run, _run_ended_ms - _run_started_ms))
 		# Saved at the click too, so closing the game during the count-up loses nothing.
-		profile.record_run(run, _catalogue)
+		_results.pin_news = PinUnlockNews.record(run, profile, _catalogue)  # Its unlock cards.
 		_profile_saved = _saves.save_profile(profile)
 		if _saves_run:
 			_saves.delete_run()

@@ -11,9 +11,16 @@ extends RefCounted
 ## `won` a won run of every shift (each passed with some overtime, every ticket and payday visit
 ## taken, each day's events by the live schedule), `lost` one that slipped on shift 2 and was lost
 ## on LOST_SHIFT. The file gets results_<won|lost>_.
+## `--unlock=<pin id>[+<pin id>...]` with --results (v1.04): the run unlocked those badge pins
+## (on a fresh profile), so their unlock cards come after the receipt (PinReveal);
+## `--unlock-at=<ms>` freezes the reveal that many ms after its first card starts (default
+## UNLOCK_SETTLED_MS: every card landed). The file gets unlock_<ids>_<ms>_.
 
 const SHIFT_ARGUMENT := "--at-shift="
 const RESULTS_ARGUMENT := "--results="
+const UNLOCK_ARGUMENT := "--unlock="
+const UNLOCK_AT_ARGUMENT := "--unlock-at="
+const UNLOCK_SETTLED_MS := 60000
 ## The shift the `lost` run is lost on, and the one it slipped on.
 const LOST_SHIFT := 11
 const SLIP_SHIFT := 2
@@ -41,6 +48,8 @@ static func file_part() -> String:
 		part += "shift%s_" % _argument(SHIFT_ARGUMENT)
 	if not _argument(RESULTS_ARGUMENT).is_empty():
 		part += "results_%s_" % _argument(RESULTS_ARGUMENT)
+	if not _argument(UNLOCK_ARGUMENT).is_empty():
+		part += "unlock_%s_%d_" % [_argument(UNLOCK_ARGUMENT).replace("+", "_"), _unlock_at()]
 	return part
 
 
@@ -57,9 +66,28 @@ static func show_results(screen: ShiftScreen, seed_value: int) -> bool:
 	script_run(run, spec == "lost")
 	var result: ScoreResult = ScoreResult.new()
 	result.total = run.history[-1].total
+	var unlocked: String = _argument(UNLOCK_ARGUMENT)
+	if not unlocked.is_empty():
+		var ids: Array[StringName] = []
+		var profile: ProfileState = ProfileState.new()
+		for id: String in unlocked.split("+"):
+			ids.append(StringName(id))
+			profile.unlocked_pins.append(StringName(id))
+		var catalogue: CatalogueDefinition = screen._catalogue
+		screen._results.pin_news = PinUnlockNews.of(ids, profile, catalogue)
 	screen._show_results(result)
 	screen._results.skip_printing()
+	if not unlocked.is_empty():
+		var reveal: PinReveal = screen._results.pin_reveal()
+		reveal.refresh()  # The receipt has printed: the first card starts a gap from now.
+		var frozen: int = reveal._start_ms + _unlock_at()
+		reveal.clock = func() -> int: return frozen
 	return true
+
+
+static func _unlock_at() -> int:
+	var value: String = _argument(UNLOCK_AT_ARGUMENT)
+	return value.to_int() if value.is_valid_int() else UNLOCK_SETTLED_MS
 
 
 ## Gives `run` a played history by the live schedule (see --results) and ends it.

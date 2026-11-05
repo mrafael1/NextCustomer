@@ -1,0 +1,692 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Unlock Card Reveal</title>
+<style>
+/* House style of the shift mock-ups: every stage canvas is a 1920x1080 frame drawn in screen px
+   with the 1280x720 stage at 1.5x and art px = 2 stage px = 3 screen px. */
+@font-face{font-family:'NCPix';font-weight:400 700;src:url(../../../fonts/PixelifySans-Variable.ttf)}
+@font-face{font-family:'NCMono';src:url(../../../fonts/JetBrainsMono-Regular.ttf)}
+@font-face{font-family:'NCAtk';font-weight:200 800;src:url(../../../fonts/AtkinsonHyperlegibleNext-Variable.ttf)}
+:root{
+  color-scheme:dark;
+  --wall:#1f3b3a; --bay:#172c2b; --panel:#2a4d4b; --paper:#fbf7ee; --teal-pale:#c3e0d4; --teal-light:#86c2b6;
+  --mustard:#e2b33c; --gold:#ffcf3f; --tomato-light:#ec8a6e; --ink:#2b2420; --muted:#a9a59b; --good:#5fae5a;
+  --display:'NCPix','Pixelify Sans','Courier New',monospace;
+  --body:'NCAtk','Atkinson Hyperlegible Next','Segoe UI',system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--wall:#1f3b3a}}
+:root[data-theme="dark"]{--wall:#1f3b3a}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--wall);color:var(--paper)}
+body{font-family:var(--body);font-size:15px;line-height:1.5}
+main{max-width:1400px;margin:0 auto;padding:28px 16px 64px;display:grid;grid-template-columns:minmax(0,1fr);gap:44px}
+main>*,section>*{min-width:0}
+h1,h2,h3{font-family:var(--display);font-weight:700;margin:0;letter-spacing:.02em;text-wrap:balance}
+h1{font-size:34px;color:var(--gold)}
+h2{font-size:24px}
+h3{font-size:17px;color:var(--teal-pale)}
+p{margin:0;max-width:84ch}
+code{overflow-wrap:anywhere;color:#faecbc;font-size:13px}
+.lede{display:grid;gap:10px}
+.eyebrow{font-family:var(--display);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--teal-light)}
+section{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;min-width:0}
+.verdict{background:var(--panel);border:2px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.35);padding:14px 16px;display:grid;gap:8px}
+.verdict strong{color:var(--gold)}
+.opt{background:var(--bay);border:2px solid var(--ink);padding:12px;display:grid;grid-template-columns:minmax(0,1fr);gap:10px;align-content:start;min-width:0}
+.opt.rec{border-color:var(--mustard)}
+.opt header{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.tag{font-family:var(--display);font-size:15px;background:var(--paper);color:var(--ink);padding:0 7px;border:2px solid var(--ink)}
+.opt.rec .tag{background:var(--mustard)}
+.pick{font-family:var(--display);font-size:12px;color:var(--gold);letter-spacing:.08em}
+.opt p,.opt li{font-size:14px;color:var(--teal-pale)}
+.opt p b,.opt li b{color:var(--paper)}
+.controls{display:flex;gap:8px 10px;flex-wrap:wrap;align-items:center}
+.controls .lbl{font-family:var(--display);font-size:13px;color:var(--teal-light);letter-spacing:.06em}
+.seg{display:inline-flex;border:2px solid var(--ink);box-shadow:0 3px 0 var(--ink);flex-wrap:wrap}
+.seg button{box-shadow:none;border:0;border-right:2px solid var(--ink)}
+.seg button:last-child{border-right:0}
+button{font-family:var(--display);font-size:15px;color:var(--paper);background:#3a7672;border:2px solid var(--ink);box-shadow:0 3px 0 var(--ink);padding:4px 12px;cursor:pointer}
+button:active{transform:translateY(2px)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+button[aria-pressed="true"]{background:var(--mustard);color:var(--ink)}
+select{font-family:var(--display);font-size:15px;background:#3a7672;color:var(--paper);border:2px solid var(--ink);padding:3px 6px;max-width:100%}
+label.chk{display:inline-flex;gap:6px;align-items:center;font-family:var(--display);font-size:14px;cursor:pointer}
+.toolbar{position:sticky;top:0;z-index:5;background:rgba(23,44,43,.96);border-bottom:2px solid var(--ink);padding:8px 16px}
+.toolbar .controls{max-width:1400px;margin:0 auto}
+@media (max-width:700px){.toolbar{position:static;padding:8px 16px}.controls .lbl{flex-basis:100%}h1{font-size:28px}}
+.toast{font-size:13px;color:var(--gold);min-height:1.5em}
+.fwrap{position:relative;border:2px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.35);overflow:auto;max-width:100%;background:#111}
+canvas{display:block;image-rendering:pixelated}
+canvas.frame{width:100%;height:auto}
+body.one canvas.frame{width:auto;max-width:none}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:14px}
+.pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:14px}
+figure{margin:0;display:grid;gap:6px;min-width:0;align-content:start}
+figure canvas{width:100%;height:auto;max-width:330px;margin:0 auto;background:var(--bay);border:2px solid var(--ink)}
+figcaption{font-size:13px;color:var(--teal-pale)}
+figcaption b{color:var(--gold);font-family:var(--display);font-weight:600}
+.new{font-family:var(--display);font-size:11px;background:var(--tomato-light);color:var(--ink);padding:0 4px;border:1px solid var(--ink);margin-left:4px}
+.today{font-family:var(--display);font-size:11px;background:var(--good);color:var(--ink);padding:0 4px;border:1px solid var(--ink);margin-left:4px}
+ul,ol{margin:0;padding-left:20px;display:grid;gap:6px;max-width:90ch}
+table{border-collapse:collapse;width:100%;font-size:13px;background:var(--bay);border:2px solid var(--ink)}
+th,td{border:1px solid #2b2420;padding:5px 8px;text-align:left;vertical-align:top}
+th{font-family:var(--display);font-weight:600;color:var(--gold);background:#132524}
+.tablewrap{overflow-x:auto;max-width:100%}
+.answers{background:var(--paper);color:var(--ink);border:3px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.35);padding:14px 18px;display:grid;gap:10px}
+.answers h2{color:var(--ink)}
+.answers li{color:var(--ink)}
+.answers b{color:#7a5a1c}
+.hint{font-size:13px;color:var(--teal-pale)}
+</style>
+<body>
+<div class="toolbar">
+  <div class="controls">
+    <span class="lbl">LOOK</span>
+    <span class="seg" id="looks"><button data-look="A" aria-pressed="true">A Pin card</button><button data-look="B" aria-pressed="false">B Staff notice</button><button data-look="C" aria-pressed="false">C Plaque</button></span>
+    <span class="lbl">REVEAL</span>
+    <span class="seg" id="reveals"><button data-rev="R1" aria-pressed="true">R1 Receipt stub</button><button data-rev="R2" aria-pressed="false">R2 Drop in</button><button data-rev="R3" aria-pressed="false">R3 Spotlight</button></span>
+    <span class="lbl">SCENE</span>
+    <select id="scene" aria-label="Scene">
+      <option value="lost1">Results · first run lost (1 pin)</option>
+      <option value="won2">Results · won run, short receipt (2 pins)</option>
+      <option value="won3">Results · first run won, every machine line (3 pins)</option>
+      <option value="toy1">Toy machines · 1st aisle complete (Cold cases)</option>
+      <option value="toy3">Toy machines · 3rd aisle (Pantry, 2 cards)</option>
+    </select>
+    <button id="replay">↻ Replay</button>
+    <button id="skip" title="Same as a click in the game">Skip (click)</button>
+    <label class="chk"><input type="checkbox" id="rm"> Reduced motion</label>
+    <span class="seg"><button id="v_fit" aria-pressed="true">Fit</button><button id="v_one" aria-pressed="false">1:1</button></span>
+  </div>
+</div>
+<main>
+  <section class="lede">
+    <div class="eyebrow">Mock-up · unlock card · 2026-11-05 · from feature/start-staff-room</div>
+    <h1>The unlock card: the moment you earn something that stays</h1>
+    <p>Some things stay with your profile after a run: <b>badge pins</b> (earned by milestones like "Finish a run") and, with the new start screen, <b>completed aisles</b> (every item of an aisle collected: its base items plus its figurines), which unlock regular swaps, RESTOCK and choosing your aisles. Today the game unlocks them <b>silently</b>: the pin just shows as owned the next time you open the badge screen. This page designs the card that announces each unlock, and how it appears.</p>
+    <p>It appears on the <b>results screen</b> (the "store closed" receipt) for pins, and on the <b>TOY MACHINES</b> screen when an aisle's last figurine comes out. The backdrops below are sketches of those screens; only the card and its motion are being designed. Click the stage (or <b>Skip</b>) to do what a click does in the game; the receipt's buttons can be clicked too.</p>
+  </section>
+
+  <section>
+    <h2>1 · Live: pick a look, a reveal and a scene</h2>
+    <div class="fwrap"><canvas class="frame" id="stage" width="1920" height="1080" aria-label="Animated mock-up of the results screen with unlock cards"></canvas></div>
+    <p class="hint" id="caption"></p>
+    <p class="toast" id="toast" aria-live="polite"></p>
+  </section>
+
+  <section>
+    <h2>2 · The three card looks</h2>
+    <p>The same unlock (Recycle, the pin for finishing a run) and the same aisle completion in each look. All three use the game's pin face as drawn today (<code>PinFace</code>: ink rim, dark band, face colour, glint, the pin's letters in the number font).</p>
+    <div class="grid3">
+      <div class="opt rec"><header><span class="tag">A</span><h3>Pin card</h3><span class="pick">RECOMMENDED</span></header>
+        <div class="pair"><figure><canvas id="look_A_pin" width="330" height="474"></canvas></figure><figure><canvas id="look_A_aisle" width="330" height="474"></canvas></figure></div>
+        <p>The pin comes on a <b>shop backing card</b>, like the pins sold on a hook by the till: a hang slot, a coloured header, the pin in a clear blister, the rule, then a green line with the milestone you met. It is something a supermarket really sells, so it fits the store and reads as a collectible at once.</p></div>
+      <div class="opt"><header><span class="tag">B</span><h3>Staff notice</h3></header>
+        <div class="pair"><figure><canvas id="look_B_pin" width="330" height="474"></canvas></figure><figure><canvas id="look_B_aisle" width="330" height="474"></canvas></figure></div>
+        <p>A note from the manager pinned up with a tack, the pin on it and an APPROVED stamp. Warm and funny, close to the receipt's paper, but it reads as a message more than as a thing you own.</p></div>
+      <div class="opt"><header><span class="tag">C</span><h3>Plaque</h3></header>
+        <div class="pair"><figure><canvas id="look_C_pin" width="330" height="474"></canvas></figure><figure><canvas id="look_C_aisle" width="330" height="474"></canvas></figure></div>
+        <p>An "employee of the month" plaque: wood frame, velvet, an engraved brass plate. The most prestigious, but heavy for a small unlock, and engraved plates leave little room for the rule. It has <b>no stamp</b>: where the reveals say "the stamp lands", the name plate flashes paper-white instead.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>3 · The three reveals</h2>
+    <div class="grid3">
+      <div class="opt rec"><header><span class="tag">R1</span><h3>Receipt stub</h3><span class="pick">RECOMMENDED</span></header>
+        <p>The final receipt prints one more line after the coins, <b>★ NEW PIN  Recycle</b>. The card slides out from behind the receipt at that line and settles in the empty space on the right. The pin pops into its blister, the stamp lands, a few sparkles. Each card is a line on the receipt, so it belongs to the run you just played. On a receipt too long for the screen, the ★ lines fold into one (<b>★ 3 NEW PINS</b>) and the cards come from it one by one.</p></div>
+      <div class="opt"><header><span class="tag">R2</span><h3>Drop in</h3></header>
+        <p>The card falls from the top of the screen into the right-hand space, bounces once and puffs a little dust. Simple and punchy, but it does not say where the unlock came from.</p></div>
+      <div class="opt"><header><span class="tag">R3</span><h3>Spotlight</h3></header>
+        <p>The screen dims and the card arrives face down in the centre, flips over, waits for a click (or 1.6 s) and slides to the side. The biggest moment, but it covers the receipt and stops you several times after a run that unlocks 3 things.</p></div>
+    </div>
+  </section>
+
+  <section class="verdict">
+    <h2>Recommended: <strong>A Pin card</strong> with <strong>R1 Receipt stub</strong></h2>
+    <ul>
+      <li><b>A</b> is the only look that is clearly an <i>object you now own</i>, and the badge pin is exactly that. The same backing card works for an aisle (its sign colour and glyph) and for a start-screen tool (dark mustard).</li>
+      <li><b>R1</b> reuses the receipt's own printing rhythm (one line every 80 ms, a click prints the rest), so the unlock reads as part of the run's reward, like the coins. It never covers the receipt and takes about 1.4 s per card, with no extra click.</li>
+      <li>Several unlocks <b>stack</b> in the right-hand space (the newest on top, the older ones peeking above it), with "1 / 3" and arrows to look back. The buttons keep today's rule: armed 350 ms after the screen appears; clicking one while cards are still coming first shows them all in place, then does its job.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>4 · Every card that can appear, in look A</h2>
+    <p>Only unlocks that exist in the game today, or are already decided for the new start screen. Decks and card variants have the unlock code but no content yet (after launch), and the profile's <code>achievements</code> list is empty until Steam achievements (phase 4), so none of them get a card here.</p>
+    <div class="gallery" id="gallery"></div>
+    <p class="hint"><b>Not in this pass:</b> a card for UNLOCK A RANDOM PIN (12 coins) on the badge screen, which is now a popup on the start screen's YOUR BUILD page; that pin keeps today's silent unlock, since it shows as owned right there. A title or start-screen place for cards left unseen is not designed either (see "Never lost").</p>
+  </section>
+
+  <section>
+    <h2>5 · Behaviour spec (A + R1)</h2>
+    <div class="tablewrap"><table>
+      <tr><th>Part</th><th>Spec</th></tr>
+      <tr><td>Data it reads</td><td><code>ProfileState.record_run</code> already returns the ids unlocked by the run (decks, then variants, then pins), today ignored by <code>shift_screen.gd</code>. The results screen keeps that list and makes one card per pin: <code>PinDefinition</code> name, <code>face_text</code>, <code>face_colour</code>, <code>rule_text</code>, and <code>unlock_condition.summary()</code> ("Finish a run", "Win a run", "Score €100 in one checkout"). Progress = owned pins / catalogue pins (5 are owned from the start, so 6 / 8 after the first). Under the stack: the next locked pin in catalogue order and its milestone ("Next: Repack · Win a run"). <span class="new">NEW</span></td></tr>
+      <tr><td>Aisle cards</td><td>The toy machines' draw already saves the profile after each capsule. When a draw makes <code>StartSetupRules.completed()</code> grow (every item of the aisle collected: its <code>base_cards</code> plus its collected <code>capsule_cards</code>), the card appears after the figurine reveal: aisle <code>display_name</code>, <code>sign_color</code>, glyph, and "All N items collected" with N = <code>total_items</code> (Cold cases 7 = 5 base + 2 figurines, Pantry 7, Household 7, Fruit &amp; veg 8, Bakery 8, Snacks 7). Reward line by the new count: 1st to 4th aisle "+1 regular swap", the 3rd also adds a RESTOCK card (<code>restock_min_completed</code> 3), the 6th a CHOOSE AISLES card (<code>pair_choice_min_completed</code> 6). The 5th says "All 4 regulars can already be swapped" (it gives nothing new today). <span class="new">NEW</span></td></tr>
+      <tr><td>Card size</td><td>100 × 144 art px (200 × 288 stage px). Hang slot 18 × 4 art px; header band 12 art px; blister 52 × 44 art px holding the pin face at 30 art px across (1.25 × the badge screen's 24: <code>pin_row.gd</code> <code>FACE_SIZE</code> is 48 stage px); an aisle or tool icon sits in a seal of the same size, its pixels at 1 art px; name in Pixelify 22 stage px (shrinks to fit 184 px); rule in Atkinson 12 px, at most 3 lines; milestone strip 14 art px with the check icon; foot line 10 art px. The UNLOCKED stamp sits in the empty top-right corner beside the hang slot (centre at 78, 8 art px from the card's top left), so it never covers the pin.</td></tr>
+      <tr><td>Fonts</td><td>Results: as drawn here (Pixelify headings, Atkinson rule, the receipt's mono). TOY MACHINES: that screen uses hard pixel lettering (<code>PixelLine</code>: Pixelify words and the pixel number digits on the 2 px grid), so there the card's header, name, stamp and count use <code>PixelLine</code>; the rule and milestone lines stay Atkinson, as on every card, for reading.</td></tr>
+      <tr><td>Where (1280 × 720)</td><td>Results: the receipt panel is centred, so the card sits in the free space right of it, top-left at (1004, 196). The stack's older cards peek 10 px each above the top one (at most 2 shown, darkened 25 %); the pager "1 / 3 ‹ ›" at y 516 and the next-goal line at y 542 (y 518 with one card and no pager). The CLOSED sign stays on the left (x 76). TOY MACHINES: the same place. The six machines (one per aisle, <code>balance.aisles</code> order, from x 40 every 160 px) end at x 984, so the card stands on the wall right of them, above DONE (1080, 656).</td></tr>
+      <tr><td>Receipt fit</td><td>The receipt may take 592 px (720 less the 64 px top bar above and below, <code>ResultsPanel._room</code>). The ★ lines are ordinary lines in its fit: it steps down through <code>FITS</code> with them. When it still needs the compact build (inspections folded into the shift lines, then <code>COMPACT_FITS</code>), the ★ lines fold too, into one line "★ 3 NEW PINS"; the cards still come one by one from that line. The scene "first run won, every machine line" shows this. <span class="new">NEW</span></td></tr>
+      <tr><td>Timing per card</td><td>The first ★ line prints 300 ms after the coin total (the receipt's 80 ms line rhythm before it). The card starts 60 ms after its line and lasts 1000 ms: 0–240 ms it slides out from behind the receipt's right edge at that line's height to its place (ease out, 2 px steps); 240–440 ms the pin grows into the blister in whole art px to 125 % and back; 460–580 ms the stamp lands from 220 % to 100 %, its lettering stepping 1 art px at a time, then shakes 2 art px for 120 ms; 500–1000 ms four sparkles blink. The next ★ line prints 300 ms after the card ends: about 1.36 s per card. Idle: a glint crosses the pin every 3 s. Sound: the receipt's print tick, a soft pop, the stamp family's thump.</td></tr>
+      <tr><td>Clicks</td><td>Today's rule stays (<code>results_panel.gd</code>, <code>ARM_MS</code> 350): New run and Toy machines › arm 350 ms after the screen appears. A tap on the receipt prints the rest and shows every remaining card at once in its final state. A click on New run or Toy machines › while cards are coming does the same first, then does its job, as Toy machines already prints the rest of the receipt today. When everything is shown, ‹ › or a click on the stack brings the next card to the top.</td></tr>
+      <tr><td>Reduced motion</td><td>Each card appears at its line in its final place, with no slide, pop, shake, sparkle, dim or flip; the glint is off. So R1, R2 and R3 look the same with it on.</td></tr>
+      <tr><td>Never lost</td><td>The unlock is saved at the checkout click (as today). A card counts as seen once it has landed. If the game closes, or a button leaves the screen, before a card landed, the profile keeps its id as unseen and the next results or TOY MACHINES screen that shows cards shows it first. <span class="new">NEW</span> (one saved list of unseen ids). A title or start-screen place for them is not designed here.</td></tr>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>6 · What the game does today</h2>
+    <ul>
+      <li><b>Badge pins</b> (<code>data/pins/</code>, 8 in <code>catalogue.tres</code>): Recycle (Finish a run, kind FINISH_RUNS), Repack (Win a run, WIN_RUNS) and Double checkout (Score €100 in one checkout) have milestones; Stock list, Day off, Golden basket, Price gun and Express lane have none yet, so they are owned from the start (<code>FULL_BUILD_PLAN.md</code> 7.4).</li>
+      <li>Milestones are checked when a run ends, won or lost, in <code>ProfileState.record_run</code>, called at the last checkout click in <code>ui/shift_screen.gd</code>. Its returned list is not used: plan 7.4 says "nor does the results screen show an unlock notice".</li>
+      <li>The coin fallback, UNLOCK A RANDOM PIN for 12 coins (<code>pin_coin_price</code>), is on the badge screen, which now also opens from the start screen's YOUR BUILD page (P key). The BADGE PINS card in REWARDS is approved for removal (2026-11-05), not built yet.</li>
+      <li><b>Results buttons</b>: New run and Toy machines › can be clicked mid-print once armed (350 ms); Toy machines first prints the rest of the receipt. The receipt prints a dim line under a shift for each machine visit ("NEW ITEMS: Milk", "BONUS · UPGRADE: Eggs › GOLDEN") and the inspection played, and steps its sizes down to fit.</li>
+      <li><b>Aisles</b>: the TOY MACHINES draw figurines (1 coin each), one machine per aisle. A full aisle shows ALL COLLECTED on the FIGURINE SHELF; the machines' LED strip shows only its hint, 0 coins, OUT OF ORDER or, at 30 / 30, COLLECTION COMPLETE. On the new start screen (uncommitted, <code>core/start_setup_rules.gd</code>) an aisle is complete when every item in it is collected (base items count, so Cold cases, Pantry and Household need only 2 or 3 figurines); each completed aisle gives one regular swap (at most 4), 3 completed give RESTOCK, 6 give the choice of aisles. Nothing announces these yet.</li>
+      <li>Decks and card variants have <code>UnlockCondition</code> support but no locked content; <code>ProfileState.achievements</code> exists and is empty ("their content comes later"); Steam achievements are phase 4.</li>
+    </ul>
+  </section>
+
+  <section class="answers">
+    <h2>Questions (each has a default)</h2>
+    <ol>
+      <li><b>Look and reveal?</b> Default: <b>A Pin card + R1 Receipt stub</b>.</li>
+      <li><b>Results buttons: keep today's rule</b> (armed at 350 ms; a click first shows the rest of the cards, then acts) <b>or make New run wait until the last card has landed?</b> Waiting would be <span class="new">NEW</span>: about 1.4 s more per card, 4 s on a run with 3 pins. Default: <b>keep today's rule</b>.</li>
+      <li><b>Aisle completion cards on the TOY MACHINES screen, right after the last figurine lands?</b> Default: <b>yes</b>. (The figurine shelf animation itself is its own mock-up.)</li>
+      <li><b>Show the next milestone under the stack ("Next: Repack · Win a run")?</b> Default: <b>yes</b>, for pins only, hidden once every pin is owned. (No separate page of every card earned for now: the badge screen and the figurine shelf already list what you own.)</li>
+    </ol>
+  </section>
+</main>
+
+<script>
+'use strict';
+// ---------- palette (ui/palette.gd, art_style.gd INK) ----------
+const C = {
+  ink:'#2b2420', inkLight:'#4a3f38', paper:'#fbf7ee', cream:'#f3e9d2', creamShade:'#ddcba5', creamDarkest:'#b39f78',
+  muted:'#8a8172', greyLight:'#c7beab', grey:'#8a8172', greyDark:'#5e574d',
+  bg:'#1f3b3a', panel:'#2a4d4b', tealBlack:'#172c2b', teal:'#4f9a94', tealDark:'#2a4d4b', tealLight:'#86c2b6', tealPale:'#c3e0d4', tealShade:'#3a7672', tealBright:'#5fb0a8',
+  mustard:'#e2b33c', mustardLight:'#f1d27a', mustardPale:'#faecbc', mustardDark:'#b38425', mustardDarkest:'#7a5a1c',
+  tomato:'#d9534f', tomatoDark:'#a83a3c', tomatoLight:'#ec8a6e',
+  good:'#5fae5a', greenDark:'#3d7a45', greenLight:'#a5d17e',
+  velvet:'#8a1f33', velvetDark:'#561327', velvetDarkest:'#2a0e14', velvetSheen:'#b23a55',
+  gold:'#ffcf3f', brass:'#c8932b', brassDark:'#8a5d1a', brassDarkest:'#4a3010',
+  brown:'#a87a4e', brownDarkest:'#4a3022', brownLight:'#d2a874',
+  slate:'#2c3533', slateDark:'#222a29', tealShadeB:'#3a7672',
+  steel:'#8d8a83', steelShade:'#6f6b63', steelDark:'#57534c', steelDarkest:'#45423d', steelLight:'#c7c3b8', steelPale:'#a9a59b',
+  charcoal:'#24221f', wood:'#a8703a', woodLight:'#c98c4e', woodPale:'#ddb07a', woodDark:'#6e4524', woodDarkest:'#3e2614',
+  glass:'#bfe2dd', glassGlow:'#e4f6f3',
+};
+// PinFace.COLOURS, 1-based face_colour: face, dark band, glint.
+const PIN_COLOURS = [
+  [C.tomato,C.tomatoDark,C.tomatoLight],[C.teal,C.tealDark,C.tealLight],[C.mustard,C.mustardDark,C.mustardLight],
+  [C.velvet,C.velvetDark,C.velvetSheen],[C.good,C.greenDark,C.greenLight],[C.gold,C.brassDark,C.mustardPale],
+  [C.brown,C.brownDarkest,C.brownLight],[C.slate,C.tealBlack,C.tealShade],
+];
+const DISPLAY = "'NCPix','Pixelify Sans',monospace";
+const BODY = "'NCAtk','Atkinson Hyperlegible Next',sans-serif";
+const MONO = "'NCMono','JetBrains Mono',monospace";
+
+// ---------- images ----------
+const SRC = 'achievement_unlock_src/';
+const IMG_NAMES = ['coin','mark_check','sparkle','redraw_arrow','cart',
+  'aisle_fruit_and_veg','aisle_bakery','aisle_cold_cases','aisle_household','aisle_pantry','aisle_snacks',
+  'toy_cabinet_cold_cases','toy_cabinet_pantry','toy_cabinet_household','toy_cabinet_fruit_and_veg','toy_cabinet_bakery','toy_cabinet_snacks',
+  'toy_capsule_cold_cases','toy_capsule_pantry','item_ham_ends','item_mixed_herbs'];
+const IMG = {};
+function loadImages(){
+  return Promise.all(IMG_NAMES.map(n => new Promise(res => {
+    const im = new Image(); im.onload = () => { IMG[n] = im; res(); }; im.onerror = () => { console.warn('missing', n); res(); };
+    im.src = SRC + n + '.png';
+  })));
+}
+
+// ---------- unlock data (from data/pins, data/aisles, balance.tres) ----------
+const PINS = {
+  recycle:{kind:'pin', header:'NEW BADGE PIN', name:'Recycle', face:'RE', col:5, rule:'Redrawn items go back in the pile; +1 redraw a shift', cond:'Finish a run', foot:'WEAR IT ON YOUR BUILD', prog:[6,8,'PINS'], line:'NEW PIN  Recycle'},
+  repack:{kind:'pin', header:'NEW BADGE PIN', name:'Repack', face:'MIX', col:2, rule:'Move items between baskets while planning', cond:'Win a run', foot:'WEAR IT ON YOUR BUILD', prog:[7,8,'PINS'], line:'NEW PIN  Repack'},
+  double:{kind:'pin', header:'NEW BADGE PIN', name:'Double checkout', face:'×2', col:4, rule:'Check out two rows of 4 every shift; both count', cond:'Score €100 in one checkout', foot:'WEAR IT ON YOUR BUILD', prog:[8,8,'PINS'], line:'NEW PIN  Double checkout'},
+  bought:{kind:'pin', header:'PIN BOUGHT', name:'Repack', face:'MIX', col:2, rule:'Move items between baskets while planning', cond:'Bought for 12 coins', coin:true, foot:'WEAR IT ON YOUR BUILD', prog:[7,8,'PINS']},
+};
+const AISLE = {
+  cold:{kind:'aisle', header:'AISLE COMPLETE', name:'Cold cases', band:'#4f9a94', glyph:'aisle_cold_cases', rule:'+1 regular swap: trade one of your 4 regulars for a Cold cases item', cond:'All 7 items collected', foot:'SET IT ON YOUR STORE', prog:[1,6,'AISLES']},
+  pantry3:{kind:'aisle', header:'AISLE COMPLETE', name:'Pantry', band:'#e2b33c', glyph:'aisle_pantry', rule:'+1 regular swap: trade one of your 4 regulars for a Pantry item', cond:'All 7 items collected', foot:'SET IT ON YOUR STORE', prog:[3,6,'AISLES']},
+  restock:{kind:'tool', header:'NEW AT OPENING TIME', name:'Restock', band:C.mustardDark, icon:'redraw_arrow', rule:'Once a run, redraw one basket (same shelf or aisle, new items)', cond:'3 aisles complete', foot:'ON YOUR STORE', prog:[3,6,'AISLES']},
+  choose:{kind:'tool', header:'NEW AT OPENING TIME', name:'Choose aisles', band:C.mustardDark, icon:'cart', rule:'Pick which aisles you are dealt from, every run', cond:'All 6 aisles complete', foot:'ON YOUR STORE', prog:[6,6,'AISLES']},
+  fifth:{kind:'aisle', header:'AISLE COMPLETE', name:'Snacks', band:'#7a5232', glyph:'aisle_snacks', rule:'All 4 regulars can already be swapped: this one counts toward choosing aisles', cond:'All 7 items collected', foot:'ONE MORE TO GO', prog:[5,6,'AISLES']},
+};
+
+// ---------- drawing primitives (stage px; art px = 2) ----------
+function R(g,x,y,w,h,c){ g.fillStyle=c; g.fillRect(Math.round(x),Math.round(y),Math.round(w),Math.round(h)); }
+function snap(v){ return Math.round(v/2)*2; }
+function box(g,x,y,w,h,fill,ink){ R(g,x,y,w,h,ink||C.ink); R(g,x+2,y+2,w-4,h-4,fill); }
+function disc(g,cx,cy,r,col){ // r in art px; centre on the art grid
+  g.fillStyle=col;
+  for(let j=-r;j<r;j++){ const dy=j+0.5; const hw=Math.round(Math.sqrt(Math.max(0,r*r-dy*dy))); if(hw<=0) continue; g.fillRect(cx-hw*2, cy+j*2, hw*4, 2); }
+}
+function spr(g,name,x,y,scale){ const im=IMG[name]; if(!im) return; g.imageSmoothingEnabled=false; g.drawImage(im,Math.round(x),Math.round(y),im.width*(scale||2),im.height*(scale||2)); }
+function txt(g,s,x,y,o){
+  o=o||{}; g.font=(o.weight||'')+' '+(o.size||14)+'px '+(o.font||DISPLAY); g.textAlign=o.align||'left'; g.textBaseline=o.base||'alphabetic';
+  if(o.outline){ g.lineJoin='round'; g.lineWidth=o.outlineW||4; g.strokeStyle=o.outline; g.strokeText(s,x,y); }
+  g.fillStyle=o.col||C.ink; g.fillText(s,x,y);
+}
+function fitSize(g,s,font,size,weight,maxW){ let z=size; for(;z>8;z--){ g.font=(weight||'')+' '+z+'px '+font; if(g.measureText(s).width<=maxW) break; } return z; }
+function wrap(g,s,maxW,font,size,weight){
+  g.font=(weight||'')+' '+size+'px '+font; const words=s.split(' '); const lines=[]; let cur='';
+  for(const w of words){ const t=cur?cur+' '+w:w; if(g.measureText(t).width>maxW && cur){ lines.push(cur); cur=w; } else cur=t; }
+  if(cur) lines.push(cur); return lines;
+}
+function pinFace(g,cx,cy,r,col,letters,opts){
+  opts=opts||{}; const cols=PIN_COLOURS[col-1];
+  if(r<=0) return;
+  disc(g,cx,cy,r,C.ink); disc(g,cx,cy,r-1,cols[1]); if(r>3) disc(g,cx,cy,r-3,cols[0]);
+  if(r>6){ const gx=cx-Math.round(r*0.55)*2, gy=cy-Math.round(r*0.6)*2; R(g,gx,gy,4,2,cols[2]); R(g,gx-2,gy+2,2,4,cols[2]); }
+  if(letters && r>5){
+    const size=Math.round(r*2*(letters.length>2?0.62:0.8));
+    txt(g,letters,cx,cy+2,{font:BODY,weight:800,size:size,align:'center',base:'middle',col:C.paper,outline:cols[1],outlineW:Math.max(3,Math.round(size/5))});
+  }
+  if(opts.glint!=null && opts.glint>=0 && opts.glint<1){ // a glint band crossing the face, whole art px
+    const off=Math.round((opts.glint*2-1)*r)*2; g.save(); g.beginPath();
+    for(let j=-r+3;j<r-3;j++){ const dy=j+0.5; const hw=Math.round(Math.sqrt(Math.max(0,(r-3)*(r-3)-dy*dy))); g.rect(cx-hw*2,cy+j*2,hw*4,2); }
+    g.clip(); g.globalAlpha=0.55; for(let k=0;k<3;k++){ R(g,cx+off+k*2-(r*2), cy-r*2, 2, r*4, C.paper); } g.restore();
+  }
+}
+function seal(g,cx,cy,r,d){ // an aisle or tool seal in the pin's place
+  disc(g,cx,cy,r,C.ink); disc(g,cx,cy,r-1,shade(d.band,-0.35)); disc(g,cx,cy,r-3,d.band);
+  const name=d.glyph||d.icon; const im=IMG[name]; if(im){ const s=2; spr(g,name,cx-snap(im.width*s/2),cy-snap(im.height*s/2),s); }
+}
+function shade(hex,k){ const n=parseInt(hex.slice(1),16); let r=n>>16,gg=n>>8&255,b=n&255; const f=v=>Math.max(0,Math.min(255,Math.round(k<0?v*(1+k):v+(255-v)*k))); return '#'+((1<<24)|(f(r)<<16)|(f(gg)<<8)|f(b)).toString(16).slice(1); }
+function light(hex){ const n=parseInt(hex.slice(1),16); return (0.299*(n>>16)+0.587*(n>>8&255)+0.114*(n&255))>160; }
+function bandOf(d){ return d.kind==='pin' ? PIN_COLOURS[d.col-1][1] : d.band; }
+function emblem(g,cx,cy,r,d,st){ if(d.kind==='pin') pinFace(g,cx,cy,r,d.col,d.face,{glint:st.glint}); else seal(g,cx,cy,r,d); }
+function popR(R0,p){ // pin pop in whole art px: 0 -> 125% -> 100%
+  if(p>=1) return R0; if(p<=0) return 0; const s = p<0.6 ? (p/0.6)*1.25 : 1.25-(p-0.6)/0.4*0.25; return Math.max(1,Math.round(R0*s));
+}
+function stamp(g,cx,cy,label,col,p,shake,base){
+  if(p<=0) return; base=base||15; const s = p>=1?1:2.2-1.2*p;
+  const size = p>=1 ? base : Math.max(base, 2*Math.round(base*s/2));   // whole art px steps
+  g.save(); g.globalAlpha=Math.min(1,p*1.6);
+  g.font='700 '+size+'px '+DISPLAY; const w=snap(g.measureText(label).width+size), h=snap(size*1.7);
+  const x=snap(cx-w/2+shake), y=snap(cy-h/2);
+  R(g,x,y,w,h,col); R(g,x+2,y+2,w-4,h-4,C.paper);
+  txt(g,label,x+w/2,y+h/2+1,{font:DISPLAY,weight:700,size:size,align:'center',base:'middle',col:col});
+  g.restore();
+}
+function sparkles(g,x,y,w,h,t){
+  if(t<0||t>1) return; const pts=[[0.08,0.1],[0.95,0.22],[0.04,0.7],[0.9,0.86]];
+  pts.forEach((p,i)=>{ const local=t*4-i*0.5; if(local<0||local>1.4) return; if(Math.floor(local*6)%2) return; spr(g,'sparkle',snap(x+p[0]*w),snap(y+p[1]*h),2); });
+}
+
+// ---------- the card, look A / B / C, 200 x 288 stage px at (0,0) ----------
+const CW=200, CH=288;
+function drawCard(g,look,d,st){
+  st=st||{}; const pin=st.pin==null?1:st.pin, stp=st.stamp==null?1:st.stamp, shake=st.shake||0;
+  if(look==='A') cardA(g,d,pin,stp,shake,st); else if(look==='B') cardB(g,d,pin,stp,shake,st); else cardC(g,d,pin,stp,shake,st);
+}
+function condStrip(g,x,y,w,d,dark){
+  box(g,x,y,w,28,dark?C.tealBlack:C.paper,d.coin?C.mustardDark:C.greenDark);
+  if(d.coin) spr(g,'coin',x+6,y+2,2); else spr(g,'mark_check',x+2,y+1,2);
+  const sz=fitSize(g,d.cond,BODY,13,700,w-44);
+  txt(g,d.cond,x+34,y+19,{font:BODY,weight:700,size:sz,col:dark?C.paper:C.ink});
+}
+function ruleText(g,d,x,y,w,col,size,lh){
+  const lines=wrap(g,d.rule,w,BODY,size,600).slice(0,3);
+  lines.forEach((l,i)=>txt(g,l,x,y+i*lh,{font:BODY,weight:600,size:size,align:'center',col:col}));
+}
+function cardA(g,d,pin,stp,shake,st){
+  const band=bandOf(d);
+  box(g,0,0,CW,CH,C.paper);
+  R(g,2,2,CW-4,26,C.cream); R(g,2,26,CW-4,2,C.creamShade);
+  R(g,82,10,36,8,C.ink); R(g,84,12,32,4,C.tealBlack);                 // hang slot
+  R(g,2,28,CW-4,24,band); R(g,2,50,CW-4,2,shade(band,-0.35));        // header band
+  txt(g,d.header,CW/2,45,{font:DISPLAY,weight:700,size:fitSize(g,d.header,DISPLAY,15,700,180),align:'center',col:light(band)?C.ink:C.paper});
+  // blister
+  R(g,52,152,104,2,C.creamShade); R(g,154,64,2,90,C.creamShade);
+  g.fillStyle='rgba(228,246,243,0.35)'; g.fillRect(48,60,104,90);
+  R(g,52,58,96,2,C.glass); R(g,52,148,96,2,C.glass); R(g,46,64,2,82,C.glass); R(g,152,64,2,82,C.glass);
+  R(g,48,60,4,2,C.glass); R(g,148,60,4,2,C.glass); R(g,48,146,4,2,C.glass); R(g,148,146,4,2,C.glass);
+  R(g,48,62,2,2,C.glass); R(g,150,62,2,2,C.glass); R(g,48,144,2,2,C.glass); R(g,150,144,2,2,C.glass);
+  emblem(g,100,104,popR(15,pin),d,st);
+  g.globalAlpha=0.75; R(g,54,66,4,30,C.glassGlow); R(g,54,100,4,6,C.glassGlow); R(g,60,66,2,10,C.glassGlow); g.globalAlpha=1;
+  // name, rule, milestone, foot
+  const nsz=fitSize(g,d.name.toUpperCase(),DISPLAY,22,700,184);
+  txt(g,d.name.toUpperCase(),CW/2,176,{font:DISPLAY,weight:700,size:nsz,align:'center',col:C.ink});
+  ruleText(g,d,CW/2,194,176,C.inkLight,12,15);
+  condStrip(g,12,230,176,d);
+  R(g,12,264,176,2,C.creamShade);
+  txt(g,d.foot,14,280,{font:DISPLAY,size:fitSize(g,d.foot,DISPLAY,11,400,112),col:C.muted});
+  txt(g,d.prog[0]+'/'+d.prog[1],150,281,{font:BODY,weight:800,size:15,align:'right',col:C.ink});
+  txt(g,d.prog[2],186,280,{font:DISPLAY,size:10,align:'right',col:C.muted});
+  stamp(g,156,16,'UNLOCKED',C.greenDark,stp,shake,13); // empty top-right corner, clear of the pin
+}
+function cardB(g,d,pin,stp,shake,st){
+  box(g,0,0,CW,CH,C.paper); R(g,2,CH-6,CW-4,4,C.cream);
+  disc(g,100,14,5,C.ink); disc(g,100,14,4,C.mustardDark); disc(g,100,14,3,C.mustard); R(g,96,8,2,2,C.mustardPale); // tack
+  txt(g,'STAFF NOTICE',CW/2,42,{font:DISPLAY,weight:700,size:15,align:'center',col:C.ink});
+  for(let x=14;x<CW-14;x+=6) R(g,x,50,4,2,C.greyLight);
+  txt(g,d.kind==='pin'?'Well done, cashier! You earned':'Well done, cashier! You finished',CW/2,66,{font:BODY,weight:600,size:11,align:'center',col:C.muted});
+  emblem(g,100,102,popR(16,pin),d,st);
+  const nsz=fitSize(g,d.name.toUpperCase(),DISPLAY,20,700,184);
+  txt(g,d.name.toUpperCase(),CW/2,158,{font:DISPLAY,weight:700,size:nsz,align:'center',col:C.ink});
+  ruleText(g,d,CW/2,176,176,C.inkLight,12,15);
+  txt(g,'✓ '+d.cond,16,234,{font:MONO,size:fitSize(g,'✓ '+d.cond,MONO,12,400,170),col:C.greenDark});
+  txt(g,d.prog[2]+' '+d.prog[0]+'/'+d.prog[1],16,252,{font:MONO,size:12,col:C.inkLight});
+  txt(g,'— the manager',16,276,{font:DISPLAY,size:12,col:C.muted});
+  stamp(g,146,262,'APPROVED',C.greenDark,stp,shake,13);
+}
+function cardC(g,d,pin,stp,shake,st){
+  R(g,0,0,CW,CH,C.ink); R(g,2,2,CW-4,CH-4,C.woodDark); R(g,4,4,CW-8,CH-8,C.wood);
+  R(g,4,4,CW-8,2,C.woodPale); R(g,4,4,2,CH-8,C.woodLight); R(g,4,CH-6,CW-8,2,C.woodDarkest); R(g,CW-6,4,2,CH-8,C.woodDarkest);
+  for(let y=12;y<CH-12;y+=14) R(g,8+(y%28?6:30),y,22,2,shade(C.wood,-0.12));
+  R(g,16,16,CW-32,CH-32,C.ink); R(g,18,18,CW-36,CH-36,C.velvetDark); R(g,18,18,CW-36,2,C.velvet);
+  [[10,10],[CW-14,10],[10,CH-14],[CW-14,CH-14]].forEach(p=>{ R(g,p[0],p[1],4,4,C.steelLight); R(g,p[0]+2,p[1]+2,2,2,C.steelDark); });
+  txt(g,d.header,CW/2,40,{font:DISPLAY,weight:700,size:fitSize(g,d.header,DISPLAY,13,700,150),align:'center',col:C.mustardLight});
+  emblem(g,100,92,popR(18,pin),d,st);
+  // brass name plate
+  box(g,26,140,148,30,C.brass); R(g,28,142,144,2,C.mustardLight); R(g,28,166,144,2,C.brassDark);
+  const nsz=fitSize(g,d.name.toUpperCase(),DISPLAY,17,700,136);
+  txt(g,d.name.toUpperCase(),CW/2,161,{font:DISPLAY,weight:700,size:nsz,align:'center',col:C.brassDarkest});
+  ruleText(g,d,CW/2,190,150,C.mustardPale,11,14);
+  box(g,28,232,144,20,C.brass); R(g,30,234,140,2,C.mustardLight);
+  txt(g,d.cond.toUpperCase(),CW/2,247,{font:DISPLAY,size:fitSize(g,d.cond.toUpperCase(),DISPLAY,10,400,134),align:'center',col:C.brassDarkest});
+  txt(g,d.prog[2]+' '+d.prog[0]+'/'+d.prog[1],CW/2,266,{font:DISPLAY,size:11,align:'center',col:C.tealPale});
+  if(stp>0 && stp<1){ g.save(); g.globalAlpha=1-stp; R(g,26,140,148,30,C.paper); g.restore(); }
+}
+function drawBack(g){
+  box(g,0,0,CW,CH,C.tealDark); R(g,8,8,CW-16,CH-16,C.tealShade);
+  for(let y=12;y<CH-12;y+=8) for(let x=12+(y%16?4:0);x<CW-12;x+=8) R(g,x,y,2,2,C.tealDark);
+  disc(g,100,130,22,C.ink); disc(g,100,130,21,C.grey); disc(g,100,130,19,C.greyLight);
+  txt(g,'?',100,132,{font:BODY,weight:800,size:30,align:'center',base:'middle',col:C.ink});
+  txt(g,'NEXT CUSTOMER',CW/2,206,{font:DISPLAY,weight:700,size:15,align:'center',col:C.tealPale});
+}
+
+// card cache: rendered at 1.5x (screen px), drawn 1:1 into the stage
+const PAD=48;
+function cardCanvas(look,d,st,back){
+  const c=document.createElement('canvas'); c.width=(CW+2*PAD)*1.5; c.height=(CH+2*PAD)*1.5; const g=c.getContext('2d');
+  g.setTransform(1.5,0,0,1.5,PAD*1.5,PAD*1.5); g.imageSmoothingEnabled=false; if(back) drawBack(g); else drawCard(g,look,d,st); return c;
+}
+function drawCardImg(g,img,x,y,w){ const k=w/CW; g.drawImage(img,x-PAD*k,y-PAD,(CW+2*PAD)*k,CH+2*PAD); }
+
+// ---------- scenes ----------
+const SCENES = {
+  lost1:{ctx:'results', won:false, cards:[PINS.recycle], next:'Next: Repack · Win a run', coins:[1,1],
+    shifts:[[41,29,1],[52,35,1],[60,53,1],[70,61,1],[80,73,1],[71,85,0]], short:'Shift 6 / 12: short by €14', passed:5, overtime:52,
+    visits:[['NEW ITEMS: Milk'],['NEW ITEMS: Cheese'],['UPGRADE: Eggs › GOLDEN','BONUS · UPGRADE: Coupon engine LV 2'],['NEW ITEMS: Tea bags'],['UPGRADE: SHELF Milk ×3','BONUS · NEW ITEMS: Butter'],[]],
+    insp:{3:['Spot check']}},
+  won2:{ctx:'results', won:true, cards:[PINS.repack,PINS.double], next:'Every pin with a milestone is yours', coins:[3,7],
+    shifts:[[41,29,1],[48,35,1],[66,53,1],[70,61,1],[88,73,1],[96,85,1],[104,98,1],[119,111,1],[131,125,1],[149,140,1],[160,155,1],[182,175,1]], passed:12, overtime:105,
+    visits:[], insp:{}, note:'visit lines left out to show the short case'},
+  won3:{ctx:'results', won:true, cards:[PINS.recycle,PINS.repack,PINS.double], next:'Every pin with a milestone is yours', coins:[3,3],
+    shifts:[[41,29,1],[48,35,1],[66,53,1],[70,61,1],[88,73,1],[96,85,1],[104,98,1],[119,111,1],[131,125,1],[149,140,1],[160,155,1],[182,175,1]], passed:12, overtime:105,
+    visits:[['NEW ITEMS: Milk'],['NEW ITEMS: Cheese'],['UPGRADE: Eggs › GOLDEN','BONUS · UPGRADE: Coupon engine LV 2'],['NEW ITEMS: Tea bags'],
+      ['UPGRADE: SHELF Milk ×3','BONUS · NEW ITEMS: Butter'],['binned NEW ITEMS'],['UPGRADE: Cheese +1 step','BONUS · UPGRADE: Coupon engine LV 3'],
+      ['NEW ITEMS: Cereal'],['UPGRADE: Butter › GOLDEN'],['NEW ITEMS: Crackers'],['UPGRADE: Tea bags +1 step'],[]],
+    insp:{3:['Spot check'],8:['Short belt']}},
+  toy1:{ctx:'toys', cards:[AISLE.cold], next:'Next: complete a 2nd aisle for another swap', idx:0, item:'item_ham_ends', capsule:'toy_capsule_cold_cases', coins:2},
+  toy3:{ctx:'toys', cards:[AISLE.pantry3,AISLE.restock], next:'Next: all 6 aisles let you choose your aisles', idx:1, item:'item_mixed_herbs', capsule:'toy_capsule_pantry', coins:0},
+};
+const state = { look:'A', rev:'R1', scene:'lost1', rm:false, t0:0, offset:0, top:0 };
+const SLOT = {x:1004, y:196};
+
+// The receipt's fit (ResultsPanel): FITS roomiest first, then the compact build through FITS + COMPACT_FITS.
+const FITS=[[16,13,10],[15,12,6],[14,11,4],[13,10,2]], COMPACT_FITS=[[12,9,2],[11,8,0],[10,8,0]];
+const ROOM=592, INDENT='     ';
+function lineH(size,sep){ return Math.round(size*1.25)+Math.round(sep*0.4); }
+function receiptLines(sc,compact){
+  const L=[]; L.push({t:sc.won?'RUN WON!':'RUN OVER', tone:'head'}); L.push({t:'-'.repeat(40), tone:'rule'});
+  sc.shifts.forEach((s,i)=>{ const n=String(i+1).padStart(3,' '); const m=('€'+s[0]+' / €'+s[1]).padEnd(13,' ');
+    const res = s[2]?'pass':(sc.won?'slip':'fail'); const insp=sc.insp&&sc.insp[i];
+    let main=n+'  '+m+'  '+res; if(compact&&insp) main=main.padEnd(28,' ')+'  '+(insp.length>1?'review':'inspected');
+    L.push({t:main, tone:s[2]?'shift':'fail'});
+    ((sc.visits&&sc.visits[i])||[]).forEach(v=>L.push({t:INDENT+v, tone:'detail'}));
+    if(!compact&&insp) L.push({t:INDENT+'inspection '+insp.join(', '), tone:'detail'}); });
+  if(sc.short) L.push({t:sc.short, tone:'fail'});
+  L.push({t:'-'.repeat(40), tone:'rule'});
+  const pay=(a,b)=>a.padEnd(32,' ')+b;
+  L.push({t:pay('Shifts passed '+sc.passed,'+'+sc.coins[0]), tone:'coins'});
+  L.push({t:pay('Overtime €'+sc.overtime,'+0'), tone:'coins'});
+  L.push({t:pay('COINS +'+sc.coins[0],'you have '+sc.coins[1]), tone:'total'});
+  const cardLine=[];
+  if(compact && sc.cards.length>1){ L.push({t:'★ '+sc.cards.length+' NEW PINS', tone:'unlock'}); sc.cards.forEach(()=>cardLine.push(L.length-1)); }
+  else sc.cards.forEach(c=>{ L.push({t:'★ '+c.line, tone:'unlock'}); cardLine.push(L.length-1); });
+  return {lines:L, cardLine:cardLine};
+}
+function layout(sc){
+  let last=null;
+  for(const compact of [false,true]){
+    const built=receiptLines(sc,compact); const fits=compact?FITS.concat(COMPACT_FITS):FITS;
+    for(const fit of fits){
+      const hs=built.lines.map(l=>l.tone==='head'?50:lineH(l.tone==='detail'?fit[1]:fit[0],fit[2]));
+      const RH=snap(30+hs.reduce((a,b)=>a+b,0)+24+58+8);
+      last={...built, fit:fit, hs:hs, RH:RH, compact:compact};
+      if(RH<=ROOM) return last;
+    }
+  }
+  return last;
+}
+
+// timeline: when each line prints and each card's animation starts
+const LINE_MS=80, PRINT_START=500, GAP=300, ARM_MS=350;
+function cardDur(rev){ return rev==='R3'?2900:(rev==='R2'?1100:1000); }
+function timeline(sc){
+  const T={cards:[], settle:[]};
+  if(sc.ctx==='results'){
+    const lay=layout(sc); T.lay=lay; T.lines=lay.lines; T.lineAt=[];
+    const first=lay.cardLine.length?lay.cardLine[0]:lay.lines.length;
+    for(let i=0;i<first;i++) T.lineAt.push(PRINT_START+i*LINE_MS);
+    let t=PRINT_START+(first-1)*LINE_MS+GAP; T.settle.push(t);
+    sc.cards.forEach((c,i)=>{ const li=lay.cardLine[i]; if(T.lineAt[li]==null) T.lineAt[li]=t; T.cards.push(t+60); t+=60+cardDur(state.rev)+GAP; });
+    T.end=t;
+  } else {
+    let t=1900; T.settle.push(t); sc.cards.forEach(()=>{ T.cards.push(t); t+=cardDur(state.rev)+GAP; }); T.end=t;
+  }
+  T.cards.forEach(c=>T.settle.push(c+cardDur(state.rev)));
+  return T;
+}
+
+// ---------- backdrops ----------
+function rbox(T){ const RH=T.lay.RH; return {RX:402,RY:snap((720-RH)/2),RW:476,RH:RH}; }
+function drawResults(g,sc,T,t){
+  // the shift screen under the shade (sketch)
+  R(g,0,0,1280,720,C.bg); R(g,0,0,1280,56,C.panel); R(g,0,560,1280,160,C.woodDark);
+  for(let x=0;x<1280;x+=120) R(g,x,560,2,160,C.woodDarkest);
+  R(g,0,0,1280,720,'rgba(36,34,31,0.72)');
+  // the shutter down to 72%
+  const prog = state.rm?1:Math.min(1,Math.max(0,t/900)); const foot=snap(518*easeOut(prog));
+  for(let y=foot-18;y>-18;y-=18){ R(g,0,y,1280,18,C.steelShade); R(g,0,y+15,1280,3,C.steelDarkest); R(g,0,y,1280,3,C.steelPale); }
+  R(g,0,foot-8,1280,8,C.steelDark); R(g,610,foot-10,60,10,C.steelDarkest);
+  R(g,0,0,1280,foot,'rgba(36,34,31,0.45)');
+  // CLOSED sign at x 76
+  if(foot>420){ const sy=foot-400; R(g,110,sy-18,2,18,C.greyLight); R(g,190,sy-18,2,18,C.greyLight);
+    box(g,76,sy,152,50,C.tomato); R(g,80,sy+4,144,42,C.paper); txt(g,'CLOSED',152,sy+37,{font:DISPLAY,weight:700,size:34,align:'center',col:C.tomatoDark}); }
+  // the lamp on the receipt
+  const {RX,RY,RW,RH}=rbox(T);
+  g.save(); g.globalAlpha=Math.min(1,t/600); for(let k=6;k>=1;k--){ g.fillStyle='rgba(250,236,188,'+(0.022)+')'; g.fillRect(RX-k*14,RY-k*10,RW+k*28,RH+k*20); } g.restore();
+}
+function lineTops(T){ const b=rbox(T); const ys=[]; let y=b.RY+30; T.lay.hs.forEach(h=>{ ys.push(y); y+=h; }); return ys; }
+function btnRects(T){ const {RX,RY,RH}=rbox(T); const by=RY+RH-58;
+  return [{id:'new',x:RX+24,y:by,w:130,h:40,label:'New run',fill:C.tomato},{id:'toys',x:RX+166,y:by,w:160,h:40,label:'Toy machines ›',fill:C.teal},{id:'log',x:RX+338,y:by,w:114,h:40,label:'Export log',fill:C.teal}]; }
+function drawReceipt(g,sc,T,t){
+  const {RX,RY,RW}=rbox(T); const fit=T.lay.fit; const ys=lineTops(T);
+  box(g,RX,RY,RW,T.lay.RH,C.paper); R(g,RX+2,RY+2,RW-4,2,C.cream);
+  T.lines.forEach((L,i)=>{
+    const at=T.lineAt[i]; if(at==null||t<at) return; const y=ys[i], lh=T.lay.hs[i];
+    if(L.tone==='head'){ txt(g,L.t,RX+24,y+40,{font:DISPLAY,weight:700,size:40,col:sc.won?C.greenDark:C.tomatoDark}); // loyalty card stapled top right (sketch)
+      box(g,RX+RW-150,RY+18,126,40,C.cream); R(g,RX+RW-150,RY+18,126,12,C.teal); R(g,RX+RW-100,RY+14,20,5,C.steel);
+      [0,1,2].forEach(k=>{ disc(g,RX+RW-122+k*36,RY+44,6,C.ink); disc(g,RX+RW-122+k*36,RY+44,5,k<2||sc.won?C.mustard:C.creamShade); });
+      return; }
+    let col=C.ink, size=fit[0]; if(L.tone==='rule') col=C.greyLight; if(L.tone==='fail') col=C.tomatoDark;
+    if(L.tone==='detail'){ col=C.muted; size=fit[1]; }
+    if(L.tone==='total'){ R(g,RX+16,y-1,RW-32,lh,C.mustardDark); R(g,RX+18,y+1,RW-36,lh-4,C.mustardPale); col=C.teal; }
+    if(L.tone==='unlock'){
+      const age=t-at; const flash = !state.rm && age<300 && Math.floor(age/75)%2===0;
+      R(g,RX+16,y-1,RW-32,lh,C.greenDark); R(g,RX+18,y+1,RW-36,lh-4,flash?C.gold:C.paper); col=C.greenDark;
+    }
+    txt(g,L.t,RX+24,y+Math.round(lh*0.5),{font:MONO,size:size,base:'middle',col:col});
+  });
+  // buttons: today's rule, armed ARM_MS after the screen appears
+  const armed=t>=ARM_MS;
+  btnRects(T).forEach(b=>{ g.save(); g.globalAlpha=armed?1:0.45; box(g,b.x,b.y,b.w,b.h,b.fill); R(g,b.x+2,b.y+2,b.w-4,4,shade(b.fill,0.25));
+    txt(g,b.label,b.x+b.w/2,b.y+27,{font:DISPLAY,weight:700,size:18,align:'center',col:C.paper,outline:C.ink,outlineW:3}); g.restore(); });
+}
+const MACHINE_X0=40, MACHINE_PITCH=160, MACHINE_TOP=250;
+const TOY_AISLES=['cold_cases','pantry','household','fruit_and_veg','bakery','snacks']; // balance.aisles order
+function drawToys(g,sc,T,t){
+  R(g,0,0,1280,720,C.tealBlack);
+  for(let x=0;x<1280;x+=160){ R(g,x,0,24,530,C.slateDark); R(g,x+22,0,2,530,C.slate); }
+  R(g,0,530,1280,4,C.brass); R(g,0,534,1280,186,C.charcoal);
+  for(let y=534;y<720;y+=40) for(let x=(Math.round((y-534)/40)%2)*40;x<1280;x+=80) R(g,x,y,40,40,C.slateDark);
+  // coins chip (sketch)
+  box(g,24,20,150,44,C.steel); R(g,30,26,138,32,C.slate); spr(g,'coin',38,30,2); txt(g,String(sc.coins),72,52,{font:BODY,weight:800,size:22,col:C.gold}); txt(g,'COINS',96,50,{font:DISPLAY,size:13,col:C.mustardDark});
+  // six machines, one per aisle: the aisle's cabinet at 2x on a plain stand (sketch)
+  TOY_AISLES.forEach((a,i)=>{ const x=MACHINE_X0+i*MACHINE_PITCH;
+    spr(g,'toy_cabinet_'+a,x,MACHINE_TOP,2);
+    box(g,x+8,MACHINE_TOP+152,128,128,C.steelShade); R(g,x+12,MACHINE_TOP+156,120,4,C.steelLight); R(g,x+52,MACHINE_TOP+204,40,28,C.steelDarkest);
+    if(i===sc.idx){ g.save(); g.globalAlpha=0.5+0.5*Math.sin(t/200); R(g,x,MACHINE_TOP-8,144,4,C.gold); g.restore(); } });
+  // the figurine that just came out, items_v2 at 2x (the shelf animation is its own mock-up)
+  const mx=MACHINE_X0+sc.idx*MACHINE_PITCH;
+  if(t>600){ const k=Math.min(1,(t-600)/500); spr(g,sc.item,mx+24,snap(MACHINE_TOP+170-k*24),2); spr(g,sc.capsule,mx+110,MACHINE_TOP+250,2); }
+  txt(g,'Sketch of the TOY MACHINES screen',1260,708,{font:BODY,size:11,align:'right',col:C.greyDark});
+}
+function easeOut(p){ return 1-Math.pow(1-p,3); }
+function easeIn(p){ return p*p*p; }
+
+// ---------- card motion ----------
+function cardState(local,dur){ // pin pop, stamp, shake, sparkle time from the card's local ms
+  if(state.rm||local>=dur) return {pin:1,stamp:1,shake:0,spark:-1};
+  const base = state.rev==='R3'?700:(state.rev==='R2'?160:0);
+  const pin = (local-base-240)/200, stp=(local-base-460)/120;
+  const shake = (local-base>580 && local-base<700) ? (Math.floor(local/30)%2?4:-4) : 0;
+  return {pin:Math.max(0,Math.min(1,pin)), stamp:Math.max(0,Math.min(1,stp)), shake:shake, spark:(local-base-500)/500};
+}
+function drawCardsLayer(g,sc,T,t){
+  const dur=cardDur(state.rev); const n=sc.cards.length;
+  const shown=[]; T.cards.forEach((at,i)=>{ if(t>=at) shown.push(i); });
+  if(!shown.length) return;
+  const allDone = t>=T.cards[n-1]+dur;
+  // order: when done, state.top picks the card on top; else the latest is on top
+  const topIdx = allDone ? ((n-1+state.top)%n+n)%n : shown[shown.length-1];
+  const others = shown.filter(i=>i!==topIdx);
+  const order = allDone ? [...Array(n).keys()].map(k=>(topIdx+1+k)%n).filter(i=>i!==topIdx) : others;
+  // R3: the spotlight shade under the active card
+  const active = shown[shown.length-1]; const aLocal=t-T.cards[active];
+  if(state.rev==='R3' && !state.rm && aLocal<dur){ const a = aLocal<200?aLocal/200:(aLocal>dur-300?(dur-aLocal)/300:1); R(g,0,0,1280,720,'rgba(36,34,31,'+(0.62*a)+')'); }
+  // stacked older cards
+  const depth = order.slice(-2);
+  depth.forEach((i,k)=>{ const d=depth.length-k; const y=SLOT.y-d*10; g.save(); drawCardImg(g,cache(i,{}),SLOT.x,y,CW); g.fillStyle='rgba(23,44,43,'+(0.25*d)+')'; g.fillRect(SLOT.x,y,CW,CH); g.restore(); });
+  // the top card
+  const local = t-T.cards[topIdx];
+  const st = allDone?{pin:1,stamp:1,shake:0,spark:-1}:cardState(local,dur);
+  const glint = (!state.rm && allDone) ? (((t-T.end)%3000)/600) : -1; st.glint=glint;
+  let x=SLOT.x, y=SLOT.y, w=CW, back=false;
+  if(!state.rm && !allDone && local<dur){
+    if(state.rev==='R1'){ const p=Math.min(1,local/240); const e=easeOut(p); const sy = sc.ctx==='results'? lineY(sc,T,topIdx) : MACHINE_TOP+140;
+      const sx = sc.ctx==='results'? 690 : MACHINE_X0+sc.idx*MACHINE_PITCH+72-CW/2; x=snap(sx+(SLOT.x-sx)*e); y=snap(sy-CH/2+(SLOT.y-(sy-CH/2))*e); }
+    else if(state.rev==='R2'){ if(local<280){ y=snap(-CH+(SLOT.y+CH)*easeIn(local/280)); } else if(local<380){ y=snap(SLOT.y-8*Math.sin((local-280)/100*Math.PI)); }
+      if(local>=280&&local<520){ const p=(local-280)/240; g.save(); g.globalAlpha=1-p; [[-10,0],[CW-6,0]].forEach((o,k)=>{ for(let j=0;j<3;j++) R(g,snap(SLOT.x+o[0]+(k?1:-1)*j*10*p*1.4),snap(SLOT.y+CH-6-j*6*p),6,6,C.creamShade); }); g.restore(); } }
+    else if(state.rev==='R3'){ const cx=540, cy=216;
+      if(local<250){ x=snap(1300+(cx-1300)*easeOut(local/250)); y=cy; back=true; }
+      else if(local<500){ const p=(local-250)/250; x=cx; y=cy; w=snap(CW*Math.abs(Math.cos(p*Math.PI))); back=p<0.5; x=snap(cx+(CW-w)/2); }
+      else if(local<dur-300){ x=cx; y=cy; }
+      else { const p=(local-(dur-300))/300; const e=easeOut(p); x=snap(cx+(SLOT.x-cx)*e); y=snap(cy+(SLOT.y-cy)*e); } }
+  }
+  g.fillStyle='rgba(0,0,0,0.35)'; g.fillRect(x+6,y+6,w,CH);
+  const img = back ? backCanvas() : cardCanvas(state.look,sc.cards[topIdx],st,false);
+  drawCardImg(g,img,x,y,w);
+  if(st.spark>=0) sparkles(g,x-12,y-12,CW+24,CH+24,st.spark);
+  // pager + next goal
+  if(allDone){
+    if(n>1){ txt(g,'‹',SLOT.x+6,SLOT.y+CH+34,{font:DISPLAY,weight:700,size:24,col:C.tealPale}); txt(g,'›',SLOT.x+CW-6,SLOT.y+CH+34,{font:DISPLAY,weight:700,size:24,align:'right',col:C.tealPale});
+      txt(g,(topIdx+1)+' / '+n,SLOT.x+CW/2,SLOT.y+CH+32,{font:BODY,weight:800,size:16,align:'center',col:C.paper}); }
+    txt(g,sc.next,SLOT.x+CW/2,SLOT.y+CH+(n>1?58:34),{font:BODY,weight:600,size:12,align:'center',col:C.tealPale});
+  }
+}
+function lineY(sc,T,cardIdx){ const li=T.lay.cardLine[cardIdx]; return lineTops(T)[li]+T.lay.hs[li]/2; }
+const _cache={};
+function cache(i,st){ const sc=SCENES[state.scene]; const key=state.scene+state.look+i; if(!_cache[key]) _cache[key]=cardCanvas(state.look,sc.cards[i],{pin:1,stamp:1},false); return _cache[key]; }
+let _back=null; function backCanvas(){ if(!_back) _back=cardCanvas(null,null,null,true); return _back; }
+
+// ---------- main loop ----------
+const stage=document.getElementById('stage'); const sg=stage.getContext('2d');
+let T=null;
+function restart(){ state.t0=performance.now(); state.offset=0; state.top=0; T=timeline(SCENES[state.scene]); updateCaption(); }
+const Q=new URLSearchParams(location.search);
+if(Q.get('look')) state.look=Q.get('look'); if(Q.get('rev')) state.rev=Q.get('rev'); if(Q.get('scene')) state.scene=Q.get('scene');
+const FREEZE=Q.get('at')!=null?Number(Q.get('at')):null; // ?at=ms freezes the stage (for stills)
+function now(){ return FREEZE!=null?FREEZE+state.offset:performance.now()-state.t0+state.offset; }
+function frame(){
+  const sc=SCENES[state.scene]; const t=now();
+  sg.setTransform(1.5,0,0,1.5,0,0); sg.imageSmoothingEnabled=false;
+  if(sc.ctx==='results'){ drawResults(sg,sc,T,t); drawReceipt(sg,sc,T,t);
+    // R1 slides out from behind the receipt: the cards are clipped out of its rect
+    sg.save(); if(state.rev==='R1'){ sg.beginPath(); sg.rect(0,0,1280,720); const b=rbox(T); sg.rect(b.RX,b.RY,b.RW,b.RH); sg.clip('evenodd'); }
+    drawCardsLayer(sg,sc,T,t); sg.restore(); }
+  else { drawToys(sg,sc,T,t); drawCardsLayer(sg,sc,T,t); }
+  requestAnimationFrame(frame);
+}
+function skipCards(){ const t=now(); if(t<T.end){ state.offset+=Math.max(0,T.end-GAP-t); } }
+function skip(){ const t=now(); if(t<T.end) skipCards(); else state.top=(state.top+1); }
+let toastTimer=null;
+function toast(msg){ const el=document.getElementById('toast'); el.textContent=msg; clearTimeout(toastTimer); toastTimer=setTimeout(()=>{ el.textContent=''; },4000); }
+stage.addEventListener('click',e=>{
+  const sc=SCENES[state.scene]; const r=stage.getBoundingClientRect(); const k=1280/r.width;
+  const px=(e.clientX-r.left)*k, py=(e.clientY-r.top)*k; const t=now();
+  if(sc.ctx==='results'){ const hit=btnRects(T).find(b=>px>=b.x&&px<b.x+b.w&&py>=b.y&&py<b.y+b.h);
+    if(hit){ if(t<ARM_MS) return; // not armed yet: today's ARM_MS
+      if(hit.id==='log'){ toast('Export log: the log is exported; the cards keep coming.'); return; }
+      const coming=t<T.end-GAP; skipCards();
+      toast((hit.id==='new'?'New run':'Toy machines ›')+(coming?' first showed every remaining card in place, then would open now. Cards that had not landed stay unseen and come back on the next results or TOY MACHINES screen.':' would open now.'));
+      return; } }
+  skip();
+});
+function updateCaption(){
+  const sc=SCENES[state.scene];
+  const where = sc.ctx==='results'?'Results screen ("store closed"): the receipt prints, then one line per unlock.':'TOY MACHINES: the aisle\'s last figurine just came out.';
+  document.getElementById('caption').textContent = where+' Look '+state.look+', reveal '+state.rev+'. '+sc.cards.length+' card'+(sc.cards.length>1?'s':'')+'.'+(sc.ctx==='results'?' Receipt: '+T.lines.length+' lines, '+(T.lay.compact?'compact build':'normal build')+', '+T.lay.fit[0]+' px lines.'+(sc.note?' ('+sc.note+')':''):'')+' Click the stage or Skip to do what a click does in the game; when all cards are shown, a click brings the next card to the top.'+(state.rm?' Reduced motion is on: R1, R2 and R3 look the same (each card appears in place at its line, no dim or flip).':'');
+}
+
+// ---------- controls ----------
+function seg(id,attr,key){ document.querySelectorAll('#'+id+' button').forEach(b=>b.addEventListener('click',()=>{ document.querySelectorAll('#'+id+' button').forEach(x=>x.setAttribute('aria-pressed','false')); b.setAttribute('aria-pressed','true'); state[key]=b.dataset[attr]; for(const k in _cache) delete _cache[k]; restart(); })); }
+seg('looks','look','look'); seg('reveals','rev','rev');
+document.getElementById('scene').addEventListener('change',e=>{ state.scene=e.target.value; restart(); });
+document.getElementById('replay').addEventListener('click',restart);
+document.getElementById('skip').addEventListener('click',skip);
+document.getElementById('rm').addEventListener('change',e=>{ state.rm=e.target.checked; restart(); });
+const vf=document.getElementById('v_fit'), vo=document.getElementById('v_one');
+vf.addEventListener('click',()=>{ document.body.classList.remove('one'); vf.setAttribute('aria-pressed','true'); vo.setAttribute('aria-pressed','false'); });
+vo.addEventListener('click',()=>{ document.body.classList.add('one'); vo.setAttribute('aria-pressed','true'); vf.setAttribute('aria-pressed','false'); });
+try{ if(matchMedia('(prefers-reduced-motion: reduce)').matches){ state.rm=true; document.getElementById('rm').checked=true; } }catch(e){}
+
+// ---------- static figures ----------
+function figure(canvas,look,d){
+  const g=canvas.getContext('2d'); const s=canvas.width/220; g.setTransform(s,0,0,s,0,0); g.imageSmoothingEnabled=false;
+  g.fillStyle=C.tealBlack; g.fillRect(0,0,220,316);
+  g.fillStyle='rgba(0,0,0,0.35)'; g.fillRect(16,20,CW,CH); g.save(); g.translate(10,14); drawCard(g,look,d,{pin:1,stamp:1}); g.restore();
+}
+const GALLERY=[
+  [PINS.recycle,'Recycle','Finish a run (FINISH_RUNS 1). Results screen.','today'],
+  [PINS.repack,'Repack','Win a run (WIN_RUNS 1). Results screen.','today'],
+  [PINS.double,'Double checkout','Score €100 in one checkout. Results screen.','today'],
+  [AISLE.cold,'Aisle complete (1st to 4th)','Every item of the aisle collected (Cold cases: 5 base + 2 figurines). +1 regular swap each. TOY MACHINES, after the last figurine.','new'],
+  [AISLE.restock,'3 aisles complete','RESTOCK unlocks; shown after that aisle\'s card.','new'],
+  [AISLE.fifth,'5th aisle','Gives nothing new today; the card says so and points at the 6th.','new'],
+  [AISLE.choose,'6 aisles complete','Choose today\'s aisles; shown after the aisle card.','new'],
+];
+function buildStatics(){
+  ['A','B','C'].forEach(l=>{ figure(document.getElementById('look_'+l+'_pin'),l,PINS.recycle); figure(document.getElementById('look_'+l+'_aisle'),l,AISLE.cold); });
+  const gal=document.getElementById('gallery');
+  GALLERY.forEach(([d,title,note,tag])=>{ const f=document.createElement('figure'); const c=document.createElement('canvas'); c.width=330; c.height=474; f.appendChild(c);
+    const cap=document.createElement('figcaption'); cap.innerHTML='<b>'+title+'</b>'+(tag==='new'?'<span class="new">NEW</span>':'<span class="today">UNLOCK EXISTS</span>')+'<br>'+note; f.appendChild(cap); gal.appendChild(f); figure(c,'A',d); });
+}
+
+Promise.all([loadImages(), document.fonts ? Promise.all([document.fonts.load("700 20px NCPix"),document.fonts.load("800 20px NCAtk"),document.fonts.load("600 12px NCAtk"),document.fonts.load("16px NCMono")]).catch(()=>{}) : Promise.resolve()])
+  .then(()=>{ buildStatics();
+    document.querySelectorAll('#looks button').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.look===state.look)));
+    document.querySelectorAll('#reveals button').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.rev===state.rev)));
+    document.getElementById('scene').value=state.scene; restart(); requestAnimationFrame(frame); });
+</script>
+</body>
+</html>
