@@ -1,0 +1,773 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ticket Labels v5</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&family=Atkinson+Hyperlegible+Next:wght@200..800&family=JetBrains+Mono&display=swap">
+<style>
+/* House style of the shift mock-ups (v4): the store's dark teal wall, full 1920x1080 frames drawn in
+   screen px with art px = 3 screen px (the 1280x720 stage at 1.5x, art at 2x on the stage). */
+@font-face{font-family:'NCPix';font-weight:400 700;src:url(../../../fonts/PixelifySans-Variable.ttf)}
+@font-face{font-family:'NCMono';src:url(../../../fonts/JetBrainsMono-Regular.ttf)}
+@font-face{font-family:'NCAtk';font-weight:200 800;src:url(../../../fonts/AtkinsonHyperlegibleNext-Variable.ttf)}
+:root{
+  color-scheme:dark;
+  --wall:#1f3b3a; --bay:#172c2b; --panel:#2a4d4b; --paper:#fbf7ee; --teal-pale:#c3e0d4; --teal-light:#86c2b6;
+  --mustard:#e2b33c; --gold:#ffcf3f; --tomato:#ec8a6e; --ink:#2b2420; --muted:#a9a59b; --green:#a5d17e;
+  --display:'NCPix','Pixelify Sans','Courier New',monospace;
+  --body:'NCAtk','Atkinson Hyperlegible Next','Segoe UI',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--wall);color:var(--paper)}
+body{font-family:var(--body);font-size:15px;line-height:1.5;overflow-x:hidden}
+main{max-width:1400px;margin:0 auto;padding:28px 16px 64px;display:grid;gap:44px}
+main>*,section>*,.stack>*{min-width:0}
+h1,h2,h3{font-family:var(--display);font-weight:700;margin:0;letter-spacing:.02em;text-wrap:balance}
+h1{font-size:34px;color:var(--gold)}
+h2{font-size:24px}
+h3{font-size:17px;color:var(--teal-pale)}
+p{margin:0;max-width:82ch}
+code{overflow-wrap:anywhere;color:#faecbc;font-size:13px}
+.lede{display:grid;gap:10px}
+.eyebrow{font-family:var(--display);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--teal-light)}
+section{display:grid;gap:16px;min-width:0}
+.verdict{background:var(--panel);border:2px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.35);padding:14px 16px;display:grid;gap:8px}
+.verdict strong{color:var(--gold)}
+.touch{font-size:13px;color:var(--teal-pale)}
+.stack{display:grid;gap:18px}
+.opt{background:var(--bay);border:2px solid var(--ink);padding:12px;display:grid;gap:10px;align-content:start;min-width:0}
+.opt.rec{border-color:var(--mustard)}
+.opt header{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.tag{font-family:var(--display);font-size:15px;background:var(--paper);color:var(--ink);padding:0 7px;border:2px solid var(--ink)}
+.opt.rec .tag{background:var(--mustard)}
+.pick{font-family:var(--display);font-size:12px;color:var(--gold);letter-spacing:.08em}
+.opt p{font-size:14px;color:var(--teal-pale)}
+.opt p b{color:var(--paper)}
+.controls{display:flex;gap:8px 10px;flex-wrap:wrap;align-items:center}
+.controls .lbl{font-family:var(--display);font-size:13px;color:var(--teal-light);letter-spacing:.06em}
+.seg{display:inline-flex;border:2px solid var(--ink);box-shadow:0 3px 0 var(--ink);flex-wrap:wrap}
+.seg button{box-shadow:none;border:0;border-right:2px solid var(--ink)}
+.seg button:last-child{border-right:0}
+button{font-family:var(--display);font-size:15px;color:var(--paper);background:#3a7672;border:2px solid var(--ink);box-shadow:0 3px 0 var(--ink);padding:4px 12px;cursor:pointer}
+button:active{transform:translateY(2px)}
+button:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+button[aria-pressed="true"]{background:var(--mustard);color:var(--ink)}
+label.chk{display:inline-flex;gap:6px;align-items:center;font-family:var(--display);font-size:14px;cursor:pointer}
+.toolbar{position:sticky;top:0;z-index:5;background:rgba(23,44,43,.96);border-bottom:2px solid var(--ink);padding:8px 16px}
+.toolbar .controls{max-width:1400px;margin:0 auto}
+.fwrap{position:relative;border:2px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.35);overflow:auto;max-width:100%;background:#111}
+canvas.frame{display:block;width:100%;height:auto;image-rendering:auto}
+canvas.live{cursor:crosshair}
+body.one canvas.frame{width:auto;max-width:none;image-rendering:pixelated}
+ul{margin:0;padding-left:20px;display:grid;gap:6px;max-width:84ch}
+.answers{background:var(--paper);color:var(--ink);border:3px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.4);padding:16px 18px;display:grid;gap:10px}
+.answers h2{color:var(--ink)}
+.answers li b{color:#a83a3c}
+.answers code{color:#6e2630;background:#f3e9d2}
+.cap{font-size:12px;color:var(--muted)}
+.scroll{overflow-x:auto;max-width:100%}
+table.spec{border-collapse:collapse;font-size:13px;min-width:720px}
+table.spec th,table.spec td{border-bottom:1px solid #3a7672;padding:5px 8px;text-align:left;vertical-align:top}
+table.spec th{font-family:var(--display);color:var(--teal-light);font-weight:500}
+table.spec td:first-child{white-space:nowrap;color:#faecbc}
+table.spec td.n{font-family:var(--display);white-space:nowrap}
+#checkout{font-family:var(--display);font-size:14px;padding:8px 12px;border:2px solid var(--ink);background:var(--bay)}
+#checkout.ok{color:var(--green)} #checkout.bad{color:var(--tomato)}
+body.solo{overflow:hidden}
+body.solo canvas.frame{position:fixed;left:0;top:0;width:auto;max-width:none;z-index:99}
+</style>
+
+<div class="toolbar"><div class="controls">
+  <span class="lbl">VIEW</span>
+  <div class="seg" role="group" aria-label="Frame scale">
+    <button id="v_fit" aria-pressed="true">Fit to window</button>
+    <button id="v_one" aria-pressed="false">1:1 (1920×1080 px)</button>
+  </div>
+  <button id="replay">↻ Replay</button>
+  <label class="chk"><input type="checkbox" id="rm"> Reduced motion</label>
+  <span class="cap">Hover the belts: the icons, the price windows, the written chips and the rule plates all have tips. With no mouse on a belt, its tips play on their own.</span>
+</div></div>
+
+<main>
+  <div class="lede">
+    <div class="eyebrow">Mock-up · shift scene · tickets v5 (review fixes) · 2026-11-03 · from feature/shift-scene-polish (v0.94 art)</div>
+    <h1>Tickets v5: C3's label with a fixed price window and protected icons</h1>
+    <p>This version follows your notes on v4's section C. The base is <b>C3's shelf-edge label</b>. The price sits top-right, so the prices form one row you can scan across the belt. The rule is dark text on a cream plate. The family icons have no seals. Each ticket shows one payout, with no struck price, and the original price and the calculation are in the price's tip.</p>
+    <p>Each ticket reads in the same order: <b>what the item is</b> (the icons), then <b>what it pays</b> (the window), then <b>what it does</b> (the rule). The price window has the <b>same fixed size</b> on every ticket. Its width is reserved for a realistic large payout, and its contents use a defined fallback for bigger numbers, so the icons and the rule never move. Icons never cover each other: every glyph shows all 9 of its columns. The rule may use 3 lines, and its text is never cut. A rule that still doesn't fit gets a visible MORE chip, with the full text in its tip. GOLDEN, boosted, lowered and 0€ each get their own cue, and the payout states don't rely on hue alone. Every frame is 1920×1080 or a 1:1 sheet, and the backdrop is the game's 1080p capture from v4. The icons are the game's own 9×9 glyphs (<code>art/icons/</code>) at 3 px per art pixel.</p>
+    <div id="checkout" role="status">In-page check: running…</div>
+  </div>
+
+  <section id="va">
+    <h2>The belt: V5a and V5b in the current scene</h2>
+    <div class="stack">
+      <div class="opt rec"><header><span class="tag">V5a</span><h3>One header row: 162×114 at 1080p (108×76 stage, 54×38 art); 162×144 (108×96 stage, 54×48 art) for an item with a gained family</h3><span class="pick">RECOMMENDED</span></header>
+        <div class="fwrap"><canvas class="frame live" id="fa" width="1920" height="1080" aria-label="V5a tickets on the belt, with live tips"></canvas></div>
+        <p>The header is split into <b>two fixed zones</b>. The <b>icon label</b> (art 1–22, paper) holds the item's printed families, 1 or 2 side by side, at a 10-art pitch. When an item <b>gains</b> a family (the Price gun's relabel), the label grows a <b>second row</b> for the gained families, the face beside it reads GAINED, and that one ticket grows 10 art (30 px at 1080p). No glyph ever covers another. The <b>price window</b> (art 24–52) sits behind its own ink border in the top-right corner, where the pay flights and the burst already land. Its size and position are the same on the tall ticket. It has 27 art for the digits, which fits <b>"999€" at the full 6×8 size</b>. The digits always end 2 art from the edge, and bigger numbers switch to the fallback inside the window (see the growth test). The window's top 2 rows, above the digits, hold a <b>state band</b>: up chevrons when the item is boosted, down chevrons when it's lowered, and hatching at 0€. The <b>rule plate</b> has 22 rows, which fits 2 lines at 21 px or 3 lines at 19.5 or 18 px. The works-with colour frames it, and the written chip in the rule repeats that colour. The Milk in slot 7 has gained Frozen from the Price gun, so it's the tall ticket. It cycles 63 → 128 → 999 → 1250 → 12400€ so you can watch its icons and its rule stay put. The tall ticket hangs 30 px below the others, over the gap above the hand row, so the rail and the hand row don't move.</p>
+      </div>
+      <div class="opt"><header><span class="tag">V5b</span><h3>A separate icon row: 162×138 at 1080p (108×92 stage, 54×46 art) for every ticket</h3></header>
+        <div class="fwrap"><canvas class="frame live" id="fb" width="1920" height="1080" aria-label="V5b tickets on the belt, with live tips"></canvas></div>
+        <p>The icons get their own row on the works-with colour. Up to 4 fit side by side at a 10-art pitch, and the face colour reads as a band again, as #105 had it. Under that row, the <b>price window takes the full width</b>. The window's left end holds a <b>state mark</b> drawn in the digits' colour, never gold: an up arrow when boosted, a down arrow when lowered, and a ! at 0€. With a mark, the digits have 41 art, so 6×8 up to 99 999€. Without one, they have 48 art, so 6×8 up to 999 999€. The plate keeps 3 lines. Every ticket is <b>24 px taller at 1080p</b>, so the hand row moves 42 px lower than today instead of v4's 18. The baskets then end 11 px above the screen's bottom edge.</p>
+      </div>
+    </div>
+    <div class="verdict">
+      <p><strong>Recommendation: V5a, with the second label row for gained families.</strong> It meets your five points at today's ticket size for every printed card. No card prints more than 2 icons. Food is a quiet family (<code>CardFamilies.shelf_families</code> leaves it out), and no card has more than 2 other tags. A 3rd glyph comes only from the <b>Price gun</b> pin (<code>PriceSticker.show_gained</code>): once a shift, on one item. A Breakfast sticker or a Clearance tag also adds a family during the checkout, but the game doesn't draw those grants as glyphs today. If it did, an item could reach <b>4 families</b>: 2 printed, 1 from the sticker in the slot before it, and 1 from the Price gun. The page is built and checked for 4. On V5a, a ticket's membership grows only because the item's families changed, never because of its payout.</p>
+      <ul class="touch">
+        <li><b>A correction:</b> the first v5 fanned a 3rd icon at a 6-art pitch and claimed 6 columns stayed visible. The paper outlines left only 5 of 9, so the Dairy and Clearance glyphs were cut in half. The fan is gone, and the check now counts the outline.</li>
+        <li><b>The cost of V5a:</b> on the tall ticket, the rule sits 30 px lower than its neighbours' rules, and the ticket hangs 30 px past the rail. The prices still form one row.</li>
+        <li><b>V5b</b> puts up to 4 icons in one row on every ticket and keeps everything aligned. It costs 24 px of height on every ticket, all the time, for a Price gun item, and it pushes the hand row to the screen's bottom edge.</li>
+        <li><b>Both</b> keep the window in the same corner on every ticket, so the pay flights and the burst don't move. Both keep C2's written target chips, and both give the space the seals and the footer used to the rule.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="sg">
+    <h2>Growth test: one 3-family ticket from 2€ to 12400€</h2>
+    <p>This is Reduced yogurt (Dairy, Clearance), relabelled Frozen by the Price gun. That's the game's real way to get a 3rd glyph. On V5a it's the tall ticket (54×48 art). The same ticket is drawn at 8 payouts. The <b>icons and the rule stay in exactly the same place</b> in every copy, and the in-page check compares their positions. Only the contents of the price window change. The two bottom rows show every state of the window on each variant.</p>
+    <div class="fwrap"><canvas class="frame" id="fg" width="1920" height="1000" aria-label="Payout growth test for V5a and V5b, and the window states"></canvas></div>
+    <div class="scroll"><table class="spec" id="ladder">
+      <tr><th>Payout</th><th>V5a window (27 art for the digits)</th><th>V5b window (48 art)</th><th>V5b with a state mark (41 art)</th></tr>
+    </table></div>
+    <div class="verdict">
+      <p><strong>Payout range (evidence).</strong> Your fb-p3 play logs (544 checkouts in 12-shift runs, <code>playtest_logs/*.jsonl</code>) give a <b>median checkout of 59€</b>, a p90 of 342€ and a p99 of 1064€. The <b>highest is 2549€</b>, on shift 8. From shift 8 on, the p90 is 650–930€. The simulator's last full records (phase 2, <code>reports/p42_final_records.json</code>, 20 023 shifts) top out at 1641€, with a p99 of 524€. The logs record only the checkout total, not each item. A single item pays at most that total, and on the reference belt the last Milk takes 43% of it. So one item reaches 3 digits from about shift 4, and 4 digits only in the strongest late rows: roughly 1100€ in the 2549€ checkout.</p>
+      <p><strong>Fallback, V5a:</strong> up to 999€ at the full 6×8. From 1000€ to 9999€, the 4×7 digits from v3's struck price (still 21 px tall). From 10 000€, "12k€" at 6×8, rounded down, with the exact amount in the tip (4×7 again from 100k€). The digits always end 2 art from the window's right edge and sit on the same bottom row. <strong>V5b:</strong> 6×8 up to 999 999€ with no mark. With a state mark (boosted, lowered or 0€), the digits start after the mark, so 6×8 up to 99 999€, then 4×7. The check fails any digit that would touch the mark.</p>
+    </div>
+  </section>
+
+  <section id="sx">
+    <h2>Stress sheet at 1:1</h2>
+    <p>These are real cards with their real sticker text from <code>data/cards/</code>. The first row has the Price gun's 3-family Reduced yogurt at 128€ and at 1250€, and a <b>4-family</b> one at 12400€ (a Breakfast sticker's grant plus the Price gun, in case grants get glyphs). It also has a fresh coupon, a wasted keyword (Croissant's BATCH), the pale Frozen face and the dark Household face. The second row has a keyword rule, the widest real rule (Bent lolly's, on the dark Snack face), a 0€ spot check and a 0€ caused by the item's own rule (Soup). It also has the clashes a payout state can make with a face of the same hue: <b>0€ and lowered on the Clearance face</b>, and <b>boosted on the Produce face</b>. The third row has a second boosted Produce item and <b>GOLDEN on mustard, brown and pale Frozen</b>, next to a <b>plain Milk boosted to 48€</b>. It also has Golden Milk, which shares Milk's text size, and a forced overflow test. That test uses Lemon's full 140-character inspection text, which no ticket prints, to show the MORE chip.</p>
+    <div class="fwrap"><canvas class="frame" id="fx" width="1920" height="1420" aria-label="Stress specimens for V5a and V5b"></canvas></div>
+    <div class="verdict">
+      <p><strong>GOLDEN against boosted.</strong> GOLDEN is the <b>tier</b>. It gets a 2-art gold ring outside the ink outline, brass on its lower right with a dark rim, and the game's 5×5 sparkle on two corners. The ring sits on the belt, outside the face, so it reads the same on mustard, brown and pale Frozen. <b>Boosted</b> is the <b>payout</b>: a green window with up chevrons (V5a) or an up arrow in ink (V5b), and no gold anywhere. A GOLDEN item that is also boosted shows gold only in its ring. So Tea bags (GOLDEN, 3€) and Milk (plain, 48€) have no cue in common. A <b>lowered</b> payout gets a pale tomato window with down chevrons or a down arrow. <b>0€</b> gets a tomato window with paper digits and hatching or a !, and the reason is in its tip.</p>
+      <p><strong>Hue clashes.</strong> Green, pale tomato and tomato are also the Produce, Food and Clearance colours, and no colour left in the palette is free. So each state also gets a texture or a mark, and the window keeps its ink frame. On V5a, the window always sits beside the paper label, which keeps it apart from the face. On V5b, a 0€ window sits right under a Clearance face row, both red. Only the ink rule and the ! separate them there, which is weaker than V5a.</p>
+    </div>
+  </section>
+
+  <section id="st">
+    <h2>The tips: membership, gained, works-with, price, 0€ and MORE</h2>
+    <p>The tips separate what an item <b>is</b> from what it <b>works with</b>. A membership icon's tip names the family and lists the matching items on the belt, and those tickets light up. A gained icon's tip also says where the family came from (the Price gun, this shift). On the belt frames above, hover a Milk's Dairy icon to see slots 3, 5, 6 and 7 light up. The written chip in a rule says "works with" and lights the items the rule counts. Those items follow the rule's direction and the items' tags, Food and gained families included. Eggs' "×2 next Food" lights Bread, the next Food item, Milk's "+1 per earlier Breakfast" lights every earlier Breakfast item, and a "beside" rule lights its neighbours. When nothing matches, the tip says so, e.g. "No Food item after it on the belt." The price's tip shows the printed price and the calculation. The 0€ tip shows the reason, and the MORE tip shows the full rule.</p>
+    <div class="fwrap"><canvas class="frame" id="ft" width="1920" height="820" aria-label="The six tip kinds"></canvas></div>
+  </section>
+
+  <section id="sall">
+    <h2>Every real sticker on V5a, and the check</h2>
+    <p>These are all 59 base cards (coupons included) on V5a, each at its printed price. The page also lays out every one of the 159 cards on both variants without drawing them, the BIG and GOLDEN tiers included. A tier with no sticker text of its own uses its base card's template, filled with the tier's own values, the way <code>CardText.sticker_summary</code> does it (Golden Milk reads "+2 per earlier Breakfast"). A card's tiers share one text size, the one its widest tier needs, so two Milks on a belt always match. Each fit is tested against 96% of the plate, so Godot's text can measure up to 4% wider than Chrome's and still wrap the same way. The check reports any rule that was cut, any line that runs past the plate, any icon that was dropped or covered, any tiers whose text sizes differ, and any price that doesn't fit. It reports them in the console and in the status line at the top.</p>
+    <div class="fwrap"><canvas class="frame" id="fall" width="1920" height="1020" aria-label="All base card stickers on V5a"></canvas></div>
+    <div class="scroll"><table class="spec">
+      <tr><th>Zone (V5a)</th><th>Art px (54×38, or 54×48 with a gained family; ×3 at 1080p)</th><th>Content</th></tr>
+      <tr><td>Icon label</td><td>1–22 × 1–11, paper (1–22 × 1–21 when tall)</td><td>Glyphs 9×9 with a 1-art paper outline, at a 10-art pitch, so none is covered. Row 1 (y2) holds the printed families at x2 and x12. Row 2 (y12) holds gained families only, and GAINED is written in the face beside it. Each icon has its own hover area.</td></tr>
+      <tr><td>Price window</td><td>24–52 × 1–11, ink border at x23, ink rule at y12 (same on the tall ticket)</td><td>The digits end at x50 and sit on y10. 6×8 up to 999€, 4×7 to 9999€, then "Nk€" at 6×8. Rows 1–2, above the digits, hold the state band: up chevrons when boosted, down chevrons when lowered, hatching at 0€. Fills: paper (printed), green (boosted), pale tomato (lowered), tomato with paper digits (0€), teal with scissors (coupon), grey with a tomato slash (wasted).</td></tr>
+      <tr><td>Plate</td><td>3–50 × 14–35 (24–45 when tall), cream; works-with face around it</td><td>Atkinson 800: 2 lines at 21 px (8-art pitch), else 3 lines at 19.5 px, else 3 lines at 18 px (7-art pitch), never smaller. A card's tiers share the size. A target family is a written chip in that family's colours, and a keyword is the KeywordChip. A rule that still doesn't fit gets a MORE chip at the end of line 3, with the full text in its tip. Text is never dropped.</td></tr>
+      <tr><td>Text origins</td><td>stage px (1280×720)</td><td>Font sizes 14, 13 and 12 stage px (21, 19.5 and 18 at 1080p). Rule text starts 9 stage px from the ticket's left edge. Baselines are 13 stage px (8-art pitch) or 11 stage px (7-art pitch) below each line's band. Chip text starts 3 stage px inside the chip. Every run of text starts on a whole stage px.</td></tr>
+      <tr><td>GOLDEN</td><td>rings at −1, −2 (gold, brass lower right) and −3 (dark rim); sparkles at (50,34) and (−3,−3)</td><td>All of it sits outside the ink outline, plus the two 5×5 sparkles. No gold inside the ticket.</td></tr>
+    </table></div>
+    <p class="touch">Touches <code>ui/ticket_face.gd</code> (the label, window and plate zones, the tall label), <code>ui/pay_tag.gd</code> (one number, the fallback ladder, the state band, the green boosted fill), <code>ui/price_sticker.gd</code> (no struck price; <code>show_gained</code> moves the gained glyph to the label's second row; per-icon hover; MORE; the chip tip's targets), and a new pixel sheet for the 4×7 digits, "k" and the chevrons. No rule, card value or balance changes.</p>
+  </section>
+
+  <section class="answers" aria-labelledby="ans">
+    <h2 id="ans">What I need from you</h2>
+    <ul>
+      <li><b>V5a or V5b?</b> V5a keeps today's 108×76 ticket for every printed card, and only an item with a gained family grows to 108×96, with a second row of icons. V5b makes every ticket 16 stage px taller, keeps up to 4 icons in one row, and keeps 4-digit prices big.</li>
+      <li><b>Should a Breakfast sticker's or a Clearance tag's grant show as a glyph?</b> Today only the Price gun's does. If grants show, the target item gets the tall V5a ticket while the grant applies, and a ticket can carry 4 icons.</li>
+      <li><b>Boosted in green, with chevrons:</b> today a boosted window is mustard. V5 makes it green with up chevrons so it can't be confused with GOLDEN. Is that OK, or do you want another treatment that isn't gold?</li>
+      <li><b>4-digit prices:</b> is the smaller 4×7 digit (21 px tall) fine from 1000€, or would you rather show "1.2k€" at the full size and keep the exact amount in the tip?</li>
+    </ul>
+    <p>Defaults if you don't say: V5a with the second label row, only the Price gun's grant shown (as today), a green boosted window with chevrons, 4×7 digits from 1000€ and "Nk€" from 10 000€, and MORE only as a safety net (no real sticker needs it today).</p>
+  </section>
+</main>
+
+<script src="shift_scene_polish_v5_src/cards.js"></script>
+<script>
+'use strict';
+const SRC = 'shift_scene_polish_v5_src/';
+const NAMES = ['now_1080','family_breakfast','family_dairy','family_clearance','family_coupon','aisle_bakery','aisle_pantry','aisle_cold_cases',
+  'aisle_household','aisle_fruit_and_veg','aisle_snacks','sparkle'];
+const IMG = {};
+const P = {INK:'#2b2420',INK_L:'#4a3f38',GREY_D:'#5e574d',GREY:'#8a8172',GREY_L:'#c7beab',CREAM_DK:'#b39f78',CREAM_SH:'#ddcba5',CREAM:'#f3e9d2',PAPER:'#fbf7ee',
+  T1:'#1f3b3a',T2:'#2a4d4b',T3:'#3a7672',T4:'#4f9a94',T5:'#86c2b6',T6:'#c3e0d4',T7:'#5fb0a8',T8:'#172c2b',
+  TOM_DKST:'#6e2630',TOM_DK:'#a83a3c',TOM:'#d9534f',TOM_L:'#ec8a6e',TOM_P:'#f5bfa0',
+  MUS_DKST:'#7a5a1c',MUS_DK:'#b38425',MUS:'#e2b33c',MUS_L:'#f1d27a',MUS_P:'#faecbc',
+  G_DK:'#3d7a45',G:'#5fae5a',G_L:'#a5d17e',BR_DKST:'#4a3022',BR_DK:'#7a5232',BR:'#a87a4e',BR_L:'#d2a874',
+  BRASS_DKST:'#4a3010',BRASS_DK:'#8a5d1a',BRASS:'#c8932b',GOLD:'#ffcf3f',
+  ST_HI:'#ecebe4',ST_P:'#a9a59b',ST_DK:'#57534c',RUB_DK:'#2c2926',SLATE_DK:'#222a29'};
+const ATK = "NCAtk, 'Atkinson Hyperlegible Next', sans-serif";
+const fA = (s, w = 800) => `${w} ${s}px ${ATK}`;
+let REDUCE = false;
+let T0 = performance.now();
+const QS = new URLSearchParams(location.search);
+const FREEZE = QS.has('t') ? parseFloat(QS.get('t')) : null;
+const K = 3, M = 4;
+
+/* ---------- helpers ---------- */
+function R(ctx, x, y, w, h, c) { ctx.fillStyle = c; ctx.fillRect(x, y, w, h); }
+function mk(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; c.getContext('2d').imageSmoothingEnabled = false; return c; }
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const CAPS = {
+  A:['.#.','#.#','###','#.#','#.#'], B:['##.','#.#','##.','#.#','##.'], C:['.##','#..','#..','#..','.##'], D:['##.','#.#','#.#','#.#','##.'],
+  E:['###','#..','##.','#..','###'], F:['###','#..','##.','#..','#..'], G:['.##','#..','#.#','#.#','.##'], H:['#.#','#.#','###','#.#','#.#'],
+  I:['#','#','#','#','#'], K:['#.#','#.#','##.','#.#','#.#'], L:['#..','#..','#..','#..','###'], M:['#...#','##.##','#.#.#','#...#','#...#'],
+  N:['#..#','##.#','#.##','#..#','#..#'], O:['.#.','#.#','#.#','#.#','.#.'], P:['##.','#.#','##.','#..','#..'], Q:['.#.','#.#','#.#','##.','.##'],
+  R:['##.','#.#','##.','#.#','#.#'], S:['.##','#..','.#.','..#','##.'], T:['###','.#.','.#.','.#.','.#.'], U:['#.#','#.#','#.#','#.#','###'],
+  V:['#.#','#.#','#.#','#.#','.#.'], W:['#...#','#...#','#.#.#','##.##','#...#'], X:['#.#','#.#','.#.','#.#','#.#'], Y:['#.#','#.#','.#.','.#.','.#.'],
+  Z:['###','..#','.#.','#..','###'], ' ':['.','.','.','.','.'],
+};
+/* 6x8 bold digits (v4's window) + a 'k'; 4x7 digits (v3's struck price) + a 'k'. */
+const BIG = {
+  '0':['.####.','##..##','##..##','##..##','##..##','##..##','##..##','.####.'], '1':['.##.','###.','.##.','.##.','.##.','.##.','.##.','####'],
+  '2':['.####.','##..##','....##','...##.','..##..','.##...','##....','######'], '3':['#####.','....##','....##','.####.','....##','....##','....##','#####.'],
+  '4':['...##.','..###.','.####.','##.##.','##.##.','######','...##.','...##.'], '5':['######','##....','#####.','....##','....##','....##','##..##','.####.'],
+  '6':['.####.','##....','##....','#####.','##..##','##..##','##..##','.####.'], '7':['######','....##','...##.','...##.','..##..','..##..','..##..','..##..'],
+  '8':['.####.','##..##','##..##','.####.','##..##','##..##','##..##','.####.'], '9':['.####.','##..##','##..##','##..##','.#####','....##','....##','.####.'],
+  '€':['..####','.##...','#####.','.##...','####..','.##...','.##...','..####'], 'k':['##....','##....','##..##','##.##.','####..','##.##.','##..##','##..##'],
+};
+const MID = {
+  '0':['.##.','#..#','#..#','#..#','#..#','#..#','.##.'], '1':['.#.','##.','.#.','.#.','.#.','.#.','###'],
+  '2':['.##.','#..#','...#','..#.','.#..','#...','####'], '3':['###.','...#','...#','.##.','...#','...#','###.'],
+  '4':['..#.','.##.','#.#.','#.#.','####','..#.','..#.'], '5':['####','#...','###.','...#','...#','#..#','.##.'],
+  '6':['.##.','#...','###.','#..#','#..#','#..#','.##.'], '7':['####','...#','..#.','..#.','.#..','.#..','.#..'],
+  '8':['.##.','#..#','#..#','.##.','#..#','#..#','.##.'], '9':['.##.','#..#','#..#','.###','...#','...#','.##.'],
+  '€':['..##','.#..','####','.#..','###.','.#..','..##'], 'k':['#...','#...','#..#','#.#.','##..','#.#.','#..#'],
+};
+const SCISSORS = ['.##....#','#..#..#.','.##..#..','...##...','.##..#..','#..#..#.','.##....#'];
+const CROSS5 = ['#...#','.#.#.','..#..','.#.#.','#...#'];
+const BANG = ['##','##','##','##','..','##'];
+const ARROW_UP = ['..#..','.###.','#####','..#..','..#..','..#..'];
+const ARROW_DN = ARROW_UP.slice().reverse();
+/* V5a's state band (window rows 1-2, above the digits): a texture, so a state never reads by hue alone. */
+const BAND = {boosted:['.#..','#.#.'], lowered:['#.#.','.#..'], zero:['##..','.##.']};
+function sheetW(s, set) { let w = 0; for (const ch of s) w += (set[ch] || set[' '] || set['0'])[0].length + 1; return Math.max(0, w - 1); }
+function sheet(p, s, x, y, set, c) { let cx = x; for (const ch of s) { const g = set[ch] || set[' '] || set['0']; g.forEach((row, j) => { for (let i = 0; i < row.length; i++) if (row[i] === '#') p(cx + i, y + j, 1, 1, c); }); cx += g[0].length + 1; } }
+function pat(p, rows, x, y, c) { rows.forEach((r, j) => { for (let i = 0; i < r.length; i++) if (r[i] === '#') p(x + i, y + j, 1, 1, c); }); }
+
+/* ---------- families and cards (from data/) ---------- */
+const FAM = {
+  Breakfast:{face:P.MUS, light:P.MUS_L, shade:P.MUS_DK, glyph:'family_breakfast'},
+  Bakery:{face:P.BR_L, light:P.CREAM_SH, shade:P.BR, glyph:'aisle_bakery'},
+  Dairy:{face:P.T4, light:P.T5, shade:P.T3, glyph:'family_dairy'},
+  Produce:{face:P.G, light:P.G_L, shade:P.G_DK, glyph:'aisle_fruit_and_veg'},
+  Household:{face:P.GREY_D, light:P.GREY, shade:P.INK_L, glyph:'aisle_household', paper:true},
+  Clearance:{face:P.TOM_DK, light:P.TOM, shade:P.TOM_DKST, glyph:'family_clearance', paper:true},
+  Snack:{face:P.BR_DK, light:P.BR, shade:P.BR_DKST, glyph:'aisle_snacks', paper:true},
+  Food:{face:P.TOM_L, light:P.TOM_P, shade:P.TOM, glyph:'aisle_pantry'},
+  Frozen:{face:P.T6, light:P.PAPER, shade:P.T5, glyph:'aisle_cold_cases'},
+  Coupon:{face:P.T3, light:P.T4, shade:P.T2, glyph:'family_coupon', paper:true},
+};
+const MAIN_ORDER = ['Bakery', 'Produce', 'Dairy', 'Frozen', 'Snack', 'Household', 'Breakfast', 'Clearance', 'Food'];
+const KW_FACE = {BATCH:P.CREAM_SH, CHAIN:P.G_L, PAIR:P.T5, MORNING:P.MUS_L, WASTED:P.GREY_L};
+const BYID = Object.fromEntries(CARDS.map(c => [c.id, c]));
+/* A card's tier family: BIG and GOLDEN tiers share their base card's stem. */
+const STEM = c => c.variant_of || c.id.replace(/_(big|golden)$/, '');
+/* CardFamilies.shelf_families: Food is quiet unless it is the only family. */
+function shelf(tags) { const s = tags.filter(t => t !== 'Food' && FAM[t]); return s.length ? s : tags.slice(0, 1); }
+function card(id, over = {}) {
+  const c = BYID[id]; const coupon = c.kind === 2; const fams = coupon ? ['Coupon'] : shelf(c.tags);
+  const works = coupon ? 'Coupon' : (c.works && FAM[c.works] ? c.works : MAIN_ORDER.find(f => fams.includes(f)) || fams[0]);
+  return {id, name:c.name, fams, tags:c.tags.slice(), works, rule:c.sticker, full:c.rule, base:c.base, shown:c.base, coupon,
+    golden:c.tier === 2, stem:STEM(c), ...over};
+}
+/* A family the item gains for this shift or checkout: one more glyph, newest last, and the tag
+   for every rule that counts it. Where it came from goes in the membership tip. */
+const GUN = 'from the Price gun, this shift', STK = 'from a Breakfast sticker, this checkout';
+function gain(sp, fam, src) { return {...sp, fams:[...sp.fams, fam], tags:[...sp.tags, fam], gains:{...(sp.gains || {}), [fam]:src}}; }
+
+/* ---------- variants ---------- */
+/* V5a has two heights: 1-2 families (every printed card) and 3-4 families (a gained family), where
+   the label grows a second row of glyphs. The window and the plate's size never change. */
+const WIN_A = {x:24, y:1, w:29, h:11, right:50, bottom:10, avail:27};
+const VAR = {
+  a:{id:'a', name:'V5a', TH:38, win:WIN_A, plate:{x:3, y:14, w:48, h:22}, label:{x0:1, x1:23, y1:12}},
+  a2:{id:'a', tall:true, name:'V5a', TH:48, win:WIN_A, plate:{x:3, y:24, w:48, h:22}, label:{x0:1, x1:23, y1:22}},
+  b:{id:'b', name:'V5b', TH:46, win:{x:1, y:12, w:52, h:10, right:50, bottom:20, avail:48, markEnd:9}, plate:{x:3, y:23, w:48, h:21}, label:{x0:1, x1:53, y1:11}},
+};
+const MAX_ICONS = 4;   // 2 printed + 1 Breakfast/Clearance sticker grant + 1 Price gun
+function variantFor(v, sp) { return v.id === 'a' && sp.fams.length > 2 ? VAR.a2 : v; }
+function iconSlots(v, n) {
+  if (v.id === 'a') return [{x:2, y:2}, {x:12, y:2}, {x:2, y:12}, {x:12, y:12}].slice(0, n);
+  return [{x:3, y:1}, {x:13, y:1}, {x:23, y:1}, {x:33, y:1}].slice(0, n);
+}
+/* The price fallback ladder: the first form that fits the window's digit width. */
+function priceForm(n, avail) {
+  const k = Math.floor(n / 1000) + 'k€';
+  const tries = [[n + '€', BIG, '6×8'], [n + '€', MID, '4×7'], [k, BIG, '6×8 k'], [k, MID, '4×7 k']];
+  for (const [s, set, label] of tries) if (sheetW(s, set) <= avail) return {s, set, label, w:sheetW(s, set)};
+  return null;
+}
+function winFill(sp) {
+  if (sp.coupon) return sp.wasted ? [P.GREY_L, P.GREY, P.GREY_D] : [P.T4, P.T3, P.PAPER];
+  if (sp.zero || sp.shown === 0) return [P.TOM, P.TOM_DK, P.PAPER];
+  if (sp.shown > sp.base) return [P.G_L, P.G, P.INK];
+  if (sp.shown < sp.base) return [P.TOM_P, P.TOM_L, P.TOM_DK];
+  return [P.PAPER, P.CREAM_SH, P.INK];
+}
+function winState(sp) { return sp.coupon ? (sp.wasted ? 'wasted' : 'coupon') : (sp.zero || sp.shown === 0) ? 'zero' : sp.shown > sp.base ? 'boosted' : sp.shown < sp.base ? 'lowered' : 'printed'; }
+
+/* ---------- the rule layout: never drops a token ---------- */
+const kwArtW = kw => sheetW(kw.word, CAPS) + 4 + (kw.wasted ? 6 : 0);
+function tokens(ctx, rule, size) {
+  ctx.font = fA(size);
+  return rule.split(' ').filter(Boolean).map(tk => {
+    let m;
+    if ((m = tk.match(/^\{(\w+)\}(.*)$/)) && FAM[m[1]]) { const ww = ctx.measureText(m[1]).width; const bw = Math.ceil((ww + 9) / 3) * 3; return {k:'fam', fam:m[1], s:m[1], tail:m[2], bw, w:bw + (m[2] ? ctx.measureText(m[2]).width : 0)}; }
+    if ((m = tk.match(/^\[(\w+)(!?)\](.*)$/))) { const kw = {word:m[1], wasted:!!m[2]}; const bw = kwArtW(kw) * 3; return {k:'kw', kw, tail:m[3], bw, w:bw + (m[3] ? ctx.measureText(m[3]).width : 0)}; }
+    return {k:'w', s:tk, w:ctx.measureText(tk).width};
+  });
+}
+function breakLines(ts, sp, maxW) {
+  const out = [[]]; let x = 0, ok = true;
+  for (const tk of ts) { if (tk.w > maxW) ok = false; if (x && x + sp + tk.w > maxW) { out.push([]); x = 0; } out[out.length - 1].push(tk); x += (x ? sp : 0) + tk.w; }
+  return {lines:out, ok};
+}
+const TRIES = [[21, 2, 8], [19.5, 3, 7], [18, 3, 7]];
+const MORE_W = (sheetW('MORE', CAPS) + 4) * 3;
+/* Fits are tested against 96% of the plate, so Godot's text measurement may run up to 4% wider
+   than Chrome's and still wrap the same way. */
+const FIT = 0.96;
+function lineW(ln, sp) { return ln.reduce((x, tk, k) => x + (k ? sp : 0) + tk.w, 0); }
+function fitTry(ctx, rule, maxW, rows, i) {
+  const [size, lines, pitch] = TRIES[i]; if (lines * pitch > rows) return null;
+  const ts = tokens(ctx, rule, size); ctx.font = fA(size); const sp = ctx.measureText(' ').width;
+  const r = breakLines(ts, sp, maxW * FIT);
+  return r.ok && r.lines.length <= lines ? {lines:r.lines, size, pitch, sp, total:ts.length, placed:ts.length, overflow:false,
+    slack:maxW - Math.max(...r.lines.map(l => lineW(l, sp)))} : null;
+}
+/* `start` is the first try allowed: every tier of a card (plain, BIG, GOLDEN) starts at the try its
+   widest tier needs, so two Milks on one belt always share a text size. */
+function layoutRule(ctx, rule, maxW, rows, start = 0) {
+  for (let i = start; i < TRIES.length; i++) { const L = fitTry(ctx, rule, maxW, rows, i); if (L) return L; }
+  // Explicit expansion: 3 lines at 18 px; line 3 keeps what fits beside a MORE chip, the tip has the rest.
+  const ts = tokens(ctx, rule, 18); ctx.font = fA(18); const sp = ctx.measureText(' ').width;
+  const r = breakLines(ts, sp, maxW * FIT); const kept = r.lines.slice(0, 2); const third = [];
+  let x = 0; const rest = r.lines.slice(2).flat();
+  for (const tk of rest) { const nx = x + (x ? sp : 0) + tk.w; if (nx + sp + MORE_W > maxW * FIT) break; third.push(tk); x = nx; }
+  kept.push(third);
+  return {lines:kept, size:18, pitch:7, sp, total:ts.length, placed:kept.flat().length, overflow:true, slack:0};
+}
+const _tierStart = {};
+function tierStart(ctx, sp, maxW, rows) {
+  const key = sp.stem + '|' + maxW + '|' + rows; if (_tierStart[key] !== undefined) return _tierStart[key];
+  let start = 0;
+  for (const c of CARDS) { if (STEM(c) !== sp.stem || !c.sticker) continue;
+    let i = 0; while (i < TRIES.length && !fitTry(ctx, c.sticker, maxW, rows, i)) i++; start = Math.max(start, Math.min(i, TRIES.length - 1)); }
+  return (_tierStart[key] = start);
+}
+const snap = v => Math.round(v / 1.5) * 1.5;   // whole 1280x720 stage px
+
+/* ---------- one ticket ---------- */
+const CHECK = [];
+function fail(where, msg) { CHECK.push({where, msg}); }
+/* Draws sp on variant v with its top-left at screen (X,Y); returns its hover regions and a record
+   for the check. ctx may be null (layout only). */
+function ticket(ctx, X, Y, sp, v0, o = {}) {
+  const v = variantFor(v0, sp);
+  const TW = 54, TH = v.TH;
+  const lay = ctx || mk(4, 4).getContext('2d');
+  const art = mk(TW + 2 * M, TH + 2 * M), a = art.getContext('2d');
+  const p = (x, y, w, h, c) => { a.fillStyle = c; a.fillRect(x + M, y + M, w, h); };
+  const F = FAM[sp.works] || FAM[sp.fams[0]]; const OL = P.INK;
+  const regions = [], glyphs = [], words = [], rec = {sp, v:v.id, TH, label:v.label, icons:[], price:null, rule:null};
+  // body (die-cut corners), face lit from the top left
+  p(2, 0, 50, 1, OL); p(1, 1, 52, 1, OL); p(0, 2, 54, TH - 4, OL); p(1, TH - 2, 52, 1, OL); p(2, TH - 1, 50, 1, OL);
+  p(1, 2, 52, TH - 4, F.face); p(2, 1, 50, 1, F.light); p(1, 2, 1, TH - 4, F.light); p(52, 2, 1, TH - 4, F.shade); p(2, TH - 2, 50, 1, F.shade);
+  if (sp.coupon) for (let x = 3; x < 51; x += 3) p(x, TH - 2, 2, 1, P.PAPER);
+  const W = v.win, wf = winFill(sp), st = winState(sp);
+  const PL = v.plate;
+  let mark = false;
+  if (v.id === 'a') {
+    const lh = v.label.y1 - 1;                                                             // 11 or 21 rows
+    p(1, 1, 22, lh, P.PAPER); p(1, lh, 22, 1, P.CREAM_SH);                                 // icon label
+    p(23, 1, 1, lh, OL); p(W.x, 1, 29, 11, wf[0]); p(W.x, 1, 28, 1, wf[1]);                // window
+    if (BAND[st]) pat(p, [BAND[st][0].repeat(8).slice(0, 27), BAND[st][1].repeat(8).slice(0, 27)], W.x + 1, 1, wf[1] === wf[0] ? P.INK : wf[1]);
+    p(23, 12, 30, 1, OL); p(1, PL.y - 2, 52, 1, OL);
+    if (v.tall) { const c = F.paper ? P.PAPER : P.INK; sheet(p, 'GAINED', 26, 15, CAPS, c); }   // row 2 = gained families
+  } else {
+    p(1, 11, 52, 1, OL); p(W.x, W.y, W.w, W.h, wf[0]); p(W.x + 1, W.y, W.w - 1, 1, wf[1]); p(1, 22, 52, 1, OL);
+    if (!sp.coupon && (st === 'zero' || st === 'boosted' || st === 'lowered')) {                // the state mark, in the digits' colour
+      mark = true; if (st === 'zero') pat(p, BANG, 5, 14, wf[2]); else pat(p, st === 'boosted' ? ARROW_UP : ARROW_DN, 4, 14, wf[2]);
+    }
+  }
+  // the price
+  if (sp.coupon) {
+    pat(p, SCISSORS, W.right - 7, W.bottom - 6, sp.wasted ? P.GREY_D : P.PAPER);
+    if (sp.wasted) { const x0 = v.id === 'a' ? 25 : 30, len = W.right - x0 + 2; for (let i = 0; i < len; i++) p(x0 + i, W.bottom - Math.floor(i * 7 / (len - 1)), 1, 1, P.TOM); }
+    rec.price = {s:'coupon', ok:true};
+  } else {
+    const minX = v.id === 'a' ? 24 : mark ? W.markEnd + 1 : 3;                              // a mark covers x4-8, then 1 art of gap
+    const avail = W.right - minX + 1;
+    const f = priceForm(sp.shown, avail);
+    if (!f) { fail(sp.name, 'price ' + sp.shown + ' has no form that fits'); }
+    else { const h = f.set === BIG ? 8 : 7; sheet(p, f.s, W.right - f.w + 1, W.bottom - h + 1, f.set, wf[2]); rec.price = {s:f.s, form:f.label, x0:W.right - f.w + 1, x1:W.right, ok:true, avail};
+      if (W.right - f.w + 1 < minX) fail(sp.name, 'price ' + f.s + (mark ? ' runs into the state mark' : ' runs into the icon zone')); }
+  }
+  regions.push({x:X + W.x * K, y:Y + W.y * K, w:(v.id === 'a' ? 29 : 52) * K, h:W.h * K, kind:'price', sp});
+  // the plate, framed by the works-with face
+  p(PL.x, PL.y, PL.w, PL.h, P.CREAM); p(PL.x, PL.y, PL.w, 1, P.CREAM_SH); p(PL.x, PL.y, 1, PL.h, P.CREAM_SH);
+  // the rule: origins on whole stage px (multiples of 1.5 screen px)
+  const tl = (PL.x + 1) * K + 1.5, maxW = (PL.x + PL.w - 1) * K - tl;
+  if (sp.rule) {
+    const start = sp.rule === (BYID[sp.id] || {}).sticker ? tierStart(lay, sp, maxW, PL.h) : 0;
+    const L = layoutRule(lay, sp.rule, maxW, PL.h, start); const n = L.lines.length; const pitch = L.pitch;
+    rec.rule = {total:L.total, placed:L.placed, overflow:L.overflow, size:L.size, lines:n, maxRight:0, limit:tl + maxW, slack:L.slack, start};
+    const band0 = PL.y + Math.max(0, Math.floor((PL.h - n * pitch) / 2));
+    L.lines.forEach((ln, li) => {
+      const band = band0 + li * pitch, base = band * K + (pitch === 7 ? 16.5 : 19.5); let cx = tl;
+      ln.forEach((tk, k) => {
+        if (k) cx += L.sp;
+        if (tk.k === 'w') { words.push({s:tk.s, x:snap(cx), y:base, c:P.INK, size:L.size}); cx += tk.w; return; }
+        const ax = Math.ceil(cx / K);
+        if (tk.k === 'fam') {
+          const f = FAM[tk.fam]; const aw = tk.bw / K; const t0 = pitch === 7 ? 0 : 1;
+          p(ax + 1, band + t0, aw - 2, 1, f.light); p(ax, band + t0 + 1, aw, 5, f.face); p(ax + 1, band + t0 + 6, aw - 2, 1, f.shade);
+          words.push({s:tk.s, x:ax * K + 4.5, y:base, c:f.paper ? P.PAPER : P.INK, size:L.size});
+          regions.push({x:X + ax * K, y:Y + (band + t0) * K, w:aw * K, h:7 * K, kind:'chip', fam:tk.fam, sp});
+          cx = (ax + aw) * K;
+        } else {
+          const kw = tk.kw, aw = kwArtW(kw); const face = kw.wasted ? P.TOM : (KW_FACE[kw.word] || P.CREAM_SH), fg = kw.wasted ? P.PAPER : P.INK;
+          const hh = pitch === 7 ? 7 : 9, inner = hh - 2;
+          p(ax + 1, band, aw - 2, hh, P.INK); p(ax, band + 1, aw, inner, P.INK); p(ax + 1, band + 1, aw - 2, inner, face);
+          const cy = band + 1 + Math.floor((inner - 5) / 2);
+          sheet(p, kw.word, ax + 2, cy, CAPS, fg); if (kw.wasted) pat(p, CROSS5, ax + 2 + sheetW(kw.word, CAPS) + 2, cy, fg);
+          regions.push({x:X + ax * K, y:Y + band * K, w:aw * K, h:hh * K, kind:'kw', kw, sp});
+          cx = (ax + aw) * K;
+        }
+        if (tk.tail) { words.push({s:tk.tail, x:snap(cx), y:base, c:P.INK, size:L.size}); lay.font = fA(L.size); cx += lay.measureText(tk.tail).width; }
+      });
+      if (L.overflow && li === n - 1) {
+        const ax = Math.ceil((cx + (ln.length ? L.sp : 0)) / K), aw = MORE_W / K;
+        p(ax + 1, band, aw - 2, 7, P.INK); p(ax, band + 1, aw, 5, P.INK); sheet(p, 'MORE', ax + 2, band + 1, CAPS, P.GOLD);
+        regions.push({x:X + ax * K, y:Y + band * K, w:aw * K, h:7 * K, kind:'more', sp});
+        cx = (ax + aw) * K;
+      }
+      rec.rule.maxRight = Math.max(rec.rule.maxRight, cx);
+    });
+    regions.push({x:X + PL.x * K, y:Y + PL.y * K, w:PL.w * K, h:PL.h * K, kind:'plate', sp});
+  } else {
+    const band = PL.y + Math.floor((PL.h - 8) / 2); lay.font = fA(21); const nw = lay.measureText(sp.name).width;
+    words.push({s:sp.name, x:snap((PL.x + PL.w / 2) * K - nw / 2), y:band * K + 19.5, c:P.INK, size:21});
+    rec.rule = {total:0, placed:0, overflow:false, size:21, lines:1, maxRight:0, limit:1e9, slack:1e9};
+  }
+  // GOLDEN: a 2-art gold ring outside the outline with a dark rim, and two sparkles
+  if (sp.golden) {
+    // rings are the outline's shape grown by 1, 2 and 3 art (8-neighbour), so the die-cut corners follow
+    const inS = (x, y, set) => set.has(x + ',' + y);
+    let cur = new Set(); for (let y = 0; y < TH; y++) { const x0 = y === 0 || y === TH - 1 ? 2 : y === 1 || y === TH - 2 ? 1 : 0; for (let x = x0; x < 54 - x0; x++) cur.add(x + ',' + y); }
+    [[P.GOLD, P.BRASS], [P.GOLD, P.BRASS], [P.BRASS_DKST, P.BRASS_DKST]].forEach(([top, bot]) => {
+      const next = new Set(cur);
+      for (let y = -4; y < TH + 4; y++) for (let x = -4; x < 58; x++) { if (inS(x, y, cur)) continue;
+        let hit = false; for (let dy = -1; dy <= 1 && !hit; dy++) for (let dx = -1; dx <= 1; dx++) if (inS(x + dx, y + dy, cur)) { hit = true; break; }
+        if (hit) { next.add(x + ',' + y); p(x, y, 1, 1, y >= TH - 1 || (x >= 53 && y >= 2) ? bot : top); } }
+      cur = next; });
+  }
+  // icons: slots by family count only (never by payout), side by side, never covering each other
+  const fams = sp.fams; const xs = iconSlots(v, fams.length);
+  fams.forEach((f, i) => { if (xs[i] === undefined) return; const s = xs[i]; glyphs.push({img:FAM[f].glyph, x:s.x, y:s.y, fam:f});
+    regions.push({x:X + s.x * K, y:Y + s.y * K, w:9 * K, h:9 * K, kind:'fam', fam:f, sp});
+    rec.icons.push({fam:f, x:s.x, y:s.y}); });
+  rec.mark = mark;
+  if (!ctx) return {regions, rec};
+  // shadow, art at 3x, icons (paper cut-out outline, then the glyph), then the words
+  const sh = mk(art.width, art.height), s2 = sh.getContext('2d'); s2.drawImage(art, 0, 0); s2.globalCompositeOperation = 'source-in'; R(s2, 0, 0, art.width, art.height, P.INK);
+  ctx.save(); ctx.imageSmoothingEnabled = false;
+  if (o.lift) ctx.translate(0, -o.lift);
+  ctx.globalAlpha = 0.35; ctx.drawImage(sh, X - M * K + 3, Y - M * K + 3, art.width * K, art.height * K); ctx.globalAlpha = 1;
+  ctx.drawImage(art, X - M * K, Y - M * K, art.width * K, art.height * K);
+  ctx.save(); ctx.beginPath(); ctx.rect(X + K, Y + K, (v.id === 'a' ? 22 : 52) * K, (v.label.y1 - 1) * K); ctx.clip();
+  for (const gl of glyphs) { const im = IMG[gl.img]; if (!im) continue;
+    const sil = silhouette(gl.img); for (const [dx, dy] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]]) ctx.drawImage(sil, X + (gl.x + dx) * K, Y + (gl.y + dy) * K, 27, 27);
+    ctx.drawImage(im, X + gl.x * K, Y + gl.y * K, 27, 27); }
+  ctx.restore();
+  if (sp.golden && IMG.sparkle) { ctx.drawImage(IMG.sparkle, X + 50 * K, Y + (TH - 4) * K, 15, 15); ctx.drawImage(IMG.sparkle, X - 3 * K, Y - 3 * K, 15, 15); }
+  ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
+  for (const w of words) { ctx.font = fA(w.size); ctx.fillStyle = w.c; ctx.fillText(w.s, X + w.x, Y + w.y); }
+  ctx.restore();
+  return {regions, rec};
+}
+const _sil = {};
+function silhouette(name) { if (_sil[name]) return _sil[name]; const c = mk(9, 9), x = c.getContext('2d'); x.drawImage(IMG[name], 0, 0); x.globalCompositeOperation = 'source-in'; R(x, 0, 0, 9, 9, P.PAPER); return (_sil[name] = c); }
+let MIN_SLACK = null;
+function verify(where, rec) {
+  const sp = rec.sp, r = rec.rule, n = sp.name + ' (' + where + ')', lab = rec.label;
+  if (sp.fams.length > MAX_ICONS) fail(n, sp.fams.length + ' families: more than the ' + MAX_ICONS + ' a ticket is built for');
+  if (rec.icons.length !== sp.fams.length) fail(n, 'drew ' + rec.icons.length + ' of ' + sp.fams.length + ' icons');
+  rec.icons.forEach((ic, i) => {
+    // a glyph is 9x9 with a 1-art paper outline: two glyphs need 10 art between their origins to show all 9 columns
+    rec.icons.forEach((jc, j) => { if (j > i && Math.abs(ic.x - jc.x) < 10 && Math.abs(ic.y - jc.y) < 10) fail(n, ic.fam + ' and ' + jc.fam + ' icons cover each other'); });
+    if (ic.x < lab.x0 || ic.x + 9 > lab.x1 || ic.y + 9 > lab.y1) fail(n, ic.fam + ' icon leaves its label');
+  });
+  if (r) {
+    if (r.placed < r.total && !r.overflow) fail(n, 'rule lost ' + (r.total - r.placed) + ' words with no MORE chip');
+    if (r.maxRight > r.limit + 0.5) fail(n, 'rule line runs ' + Math.round(r.maxRight - r.limit) + ' px past the plate');
+    if (r.size < 18) fail(n, 'rule text at ' + r.size + ' px');
+    if (r.lines > 3) fail(n, 'rule on ' + r.lines + ' lines');
+    if (r.total && !r.overflow && (!MIN_SLACK || r.slack < MIN_SLACK.slack)) MIN_SLACK = {slack:r.slack, name:sp.name, size:r.size};
+  }
+  if (!rec.price) fail(n, 'no price drawn');
+}
+
+/* ---------- scene ---------- */
+const MILK_CALC = {21:['+3 · 3 earlier Breakfast items', '×3 · from an earlier item'], 48:['+4 · 4 earlier Breakfast items', '×3 and ×2 · from earlier items'],
+  63:['+5 · 5 earlier Breakfast items', '+12 · from an earlier item', '×3 · from an earlier item']};
+const ROW = [
+  card('eggs', {shown:1}),
+  card('bread', {shown:14, golden:true, calc:['×2 · Eggs (the next Food item pays ×2)', '+4 · its GOLDEN tier']}),
+  card('milk', {shown:0, zero:true, reason:'Inspection: slot 3 pays 0€'}),
+  card('multipack', {wasted:true, reason:'WASTED this checkout: it gave nothing extra (receipt: 0.00€ ✕)'}),
+  card('milk', {shown:21, calc:MILK_CALC[21]}), card('milk', {shown:48, calc:MILK_CALC[48]}), gain(card('milk', {shown:63, calc:MILK_CALC[63], cycle:true}), 'Frozen', GUN),
+];
+const CYCLE = [63, 128, 999, 1250, 12400];
+const TX0 = 552, TPITCH = 192, TY = 681;
+function railRow(ctx, x, y, w, h) {
+  R(ctx, x, y - 3, w, 3, P.ST_DK); R(ctx, x, y, w, 3, P.INK); R(ctx, x, y + 6, w, 3, P.ST_HI); R(ctx, x, y + 9, w, h - 9, P.ST_P);
+  R(ctx, x, y + h, w, 6, P.ST_DK); R(ctx, x, y + h + 6, w, 3, P.INK);
+}
+function frameBelt(v) {
+  const extra = v.TH * K - 114, shift = 18 + extra;
+  return (ctx, t, F) => {
+    const im = IMG.now_1080; ctx.drawImage(im, 0, 0);
+    ctx.drawImage(im, 0, 786, 1920, 1080 - 786 - shift, 0, 786 + shift, 1920, 1080 - 786 - shift);   // the hand row moves lower
+    ctx.drawImage(im, 0, 786, 528, 294, 0, 786, 528, 294);                                            // the register column stays put
+    R(ctx, 1893, 681, 27, 123 + extra, P.SLATE_DK); ctx.drawImage(im, 1893, 681, 27, 105, 1893, 681, 27, 105);
+    railRow(ctx, 528, 681, 1365, 114 + extra);
+    const ci = Math.floor((REDUCE ? 0 : t) / 1.6) % CYCLE.length;
+    F.regions = []; F.slots = [];
+    ROW.forEach((sp0, i) => {
+      const sp = sp0.cycle ? {...sp0, shown:CYCLE[ci], calc:CYCLE[ci] === 63 ? sp0.calc : ['(the growth cycle: payout set to ' + CYCLE[ci] + '€)']} : sp0;
+      const X = TX0 + TPITCH * i, Y = TY + 3;
+      const r = ticket(ctx, X, Y, sp, v); F.regions.push(...r.regions.map(g => ({...g, slot:i}))); F.slots.push({X, Y, sp, TH:r.rec.TH});
+      verify('belt ' + v.name + ' slot ' + (i + 1), r.rec);
+      if (sp0.cycle) { const ic = r.rec.icons.map(c => c.x + ':' + c.y).join(',') + '|' + r.rec.rule.maxRight; F.cycleIcons = F.cycleIcons || ic; if (F.cycleIcons !== ic) fail('belt cycle', 'icons or rule moved at ' + sp.shown + '€'); }
+    });
+    hoverLayer(ctx, F, t, v);
+  };
+}
+
+/* ---------- tips ---------- */
+function onBelt(fam) { return ROW.map((sp, i) => ({sp, i})).filter(e => e.sp.fams.includes(fam)); }
+/* The items a rule's written chip counts, from the rule's direction (its full text) and the items'
+   tags (Food included, gained families too): the same reading the scoring engine uses. */
+function ruleTargets(belt, i, fam) {
+  const sp = belt[i], r = (sp.full || sp.rule || '').toLowerCase();
+  const has = j => j >= 0 && j < belt.length && j !== i && !belt[j].coupon && (belt[j].tags || []).includes(fam);
+  const all = belt.map((s, j) => j).filter(has); let dir, pick;
+  if (/next slot/.test(r)) { dir = 'in the next slot'; pick = i + 1 < belt.length && !belt[i + 1].coupon ? [i + 1] : []; }
+  else if (/\bnext\b/.test(r)) { dir = 'after it'; const m = r.match(/next (\d+)/); pick = all.filter(j => j > i).slice(0, m ? +m[1] : 1); }
+  else if (/right after/.test(r)) { dir = 'right before it'; pick = has(i - 1) ? [i - 1] : []; }
+  else if (/beside|side by side/.test(r)) { dir = 'beside it'; pick = [i - 1, i + 1].filter(has); }
+  else if (/nearest other/.test(r)) { dir = 'nearest to it'; const d = Math.min(...all.map(j => Math.abs(j - i))); pick = all.filter(j => Math.abs(j - i) === d); }
+  else if (/earlier|before it/.test(r)) { dir = 'before it'; pick = all.filter(j => j < i); }
+  else if (/later|after it/.test(r)) { dir = 'after it'; pick = all.filter(j => j > i); }
+  else { dir = 'on the belt'; pick = all; }
+  return {dir, pick};
+}
+function tipFor(g, belt = ROW) {
+  const sp = g.sp;
+  if (g.kind === 'fam') {
+    const m = onBelt(g.fam); const names = m.map(e => e.sp.name + ' (' + (e.i + 1) + ')').join(', ');
+    const src = sp.gains && sp.gains[g.fam];
+    return {fam:g.fam, title:g.fam, lines:[sp.name + ' is a ' + g.fam + ' item' + (src ? ' (' + src + ').' : '.'), m.length ? g.fam + ' on the belt: ' + names : 'No other ' + g.fam + ' item on the belt.'], light:m.map(e => e.i), ring:'is'};
+  }
+  if (g.kind === 'chip') {
+    const T = g.slot !== undefined ? ruleTargets(belt, g.slot, g.fam) : {dir:'', pick:[]};
+    const own = (sp.tags || sp.fams).includes(g.fam) ? '' : ' (not its own family)';
+    const said = T.pick.length ? 'It counts: ' + T.pick.map(j => belt[j].name + ' (' + (j + 1) + ')').join(', ') : (T.dir === 'on the belt' ? 'No other ' + g.fam + ' item on the belt.' : T.dir === 'in the next slot' ? 'No item in the next slot.' : 'No ' + g.fam + ' item ' + T.dir + ' on the belt.');
+    return {fam:g.fam, title:'Works with ' + g.fam + own, lines:[sp.full || sp.rule, said], light:T.pick, ring:'works'};
+  }
+  if (g.kind === 'kw') return {title:g.kw.word + (g.kw.wasted ? ' · WASTED' : ''), lines:[g.kw.wasted ? 'This keyword found no batch, so it adds nothing.' : 'Keyword: see the glossary.', sp.full || '']};
+  if (g.kind === 'more' || g.kind === 'plate') return {title:sp.name + (g.kind === 'more' ? ': the full rule' : ''), lines:[sp.full || sp.rule]};
+  // price
+  if (sp.coupon) return {title:sp.name + (sp.wasted ? ' · WASTED' : ' · coupon'), lines:[sp.full, sp.reason || 'Coupons pay nothing themselves.'].filter(Boolean), neg:sp.wasted};
+  const st = winState(sp);
+  if (st === 'zero') return {title:sp.name + ' · 0€', lines:['Printed price: ' + sp.base + '€', sp.reason || 'It pays 0€ this checkout.'], neg:true};
+  const lines = ['Printed price: ' + sp.base + '€', ...(sp.calc || (st === 'printed' ? ['Pays its printed price.'] : [])), '= ' + sp.shown + '€'];
+  return {title:sp.name + ' · ' + sp.shown + '€' + (st === 'boosted' ? ' · boosted' : st === 'lowered' ? ' · lowered' : '') + (sp.golden ? ' · GOLDEN' : ''), lines, boost:st === 'boosted'};
+}
+function wrapText(s, w) { const c = mk(4, 4).getContext('2d'); c.font = fA(19.5, 700); const out = []; let line = '';
+  for (const wd of s.split(' ')) { const t = line ? line + ' ' + wd : wd; if (c.measureText(t).width > w && line) { out.push(line); line = wd; } else line = t; } if (line) out.push(line); return out; }
+function drawTip(ctx, tip, ax, ay, below, maxw = 420) {
+  ctx.save(); ctx.font = fA(19.5, 700); const pad = 15;
+  const lines = tip.lines.flatMap(l => wrapText(l, maxw)); ctx.font = fA(21, 800); let w = ctx.measureText(tip.title).width + (tip.fam ? 36 : 0); ctx.font = fA(19.5, 700);
+  for (const l of lines) w = Math.max(w, ctx.measureText(l).width); w = Math.ceil(w + 2 * pad); const h = 48 + lines.length * 26 + 12;
+  let x = clamp(Math.round(ax - w / 2), 12, ctx.canvas.width - w - 12), y = below ? ay + 18 : ay - h - 18; y = clamp(y, 6, ctx.canvas.height - h - 6);
+  R(ctx, x + 6, y + 6, w, h, 'rgba(0,0,0,0.35)'); R(ctx, x, y, w, h, P.INK); R(ctx, x + 3, y + 3, w - 6, h - 6, P.PAPER);
+  const f = tip.fam ? FAM[tip.fam] : null; const hb = tip.neg ? P.TOM : tip.boost ? P.G_L : f ? f.face : P.CREAM_SH;
+  R(ctx, x + 3, y + 3, w - 6, 39, hb); R(ctx, x + 3, y + 42, w - 6, 3, P.INK);
+  let tx = x + pad; if (f && IMG[f.glyph]) { ctx.imageSmoothingEnabled = false; R(ctx, x + pad - 3, y + 6, 33, 33, P.PAPER); ctx.drawImage(IMG[f.glyph], x + pad, y + 9, 27, 27); tx += 39; }
+  ctx.font = fA(21, 800); ctx.fillStyle = (tip.neg || (f && f.paper)) ? P.PAPER : P.INK; ctx.textBaseline = 'alphabetic'; ctx.fillText(tip.title, tx, y + 31);
+  ctx.font = fA(19.5, 700); ctx.fillStyle = P.INK; lines.forEach((l, i) => ctx.fillText(l, x + pad, y + 72 + i * 26));
+  // the pointer
+  const px = clamp(ax, x + 18, x + w - 18); ctx.fillStyle = P.INK;
+  if (below) { ctx.beginPath(); ctx.moveTo(px - 12, y); ctx.lineTo(px, y - 12); ctx.lineTo(px + 12, y); ctx.fill(); }
+  else { ctx.beginPath(); ctx.moveTo(px - 12, y + h); ctx.lineTo(px, y + h + 12); ctx.lineTo(px + 12, y + h); ctx.fill(); }
+  ctx.restore();
+}
+function ringRect(ctx, x, y, w, h, c, dashed) { ctx.save(); ctx.strokeStyle = c; ctx.lineWidth = 6; if (dashed) ctx.setLineDash([12, 6]); ctx.strokeRect(x - 9, y - 9, w + 18, h + 18); ctx.restore(); }
+const TOUR = [{slot:4, kind:'fam', fam:'Dairy'}, {slot:4, kind:'chip'}, {slot:5, kind:'price'}, {slot:2, kind:'price'}, {slot:0, kind:'chip'}, {slot:1, kind:'price'}, {slot:3, kind:'price'}];
+function hoverLayer(ctx, F, t, v) {
+  let g = null;
+  if (F.mouse) g = [...F.regions].reverse().find(r => F.mouse.x >= r.x && F.mouse.x < r.x + r.w && F.mouse.y >= r.y && F.mouse.y < r.y + r.h) || null;
+  else if (!REDUCE || FREEZE !== null) { const s = TOUR[Math.floor((t + 0.5) / 2.6) % TOUR.length]; g = F.regions.find(r => r.slot === s.slot && r.kind === s.kind && (!s.fam || r.fam === s.fam)) || null; }
+  else g = F.regions.find(r => r.slot === 4 && r.kind === 'fam' && r.fam === 'Dairy');
+  if (!g) return;
+  const tip = tipFor(g);
+  for (const i of tip.light || []) { const s = F.slots[i]; ringRect(ctx, s.X, s.Y, 162, s.TH * K, tip.ring === 'works' ? P.GOLD : P.PAPER, tip.ring === 'works'); }
+  ctx.save(); ctx.strokeStyle = P.GOLD; ctx.lineWidth = 3; ctx.strokeRect(g.x - 1.5, g.y - 1.5, g.w + 3, g.h + 3); ctx.restore();
+  drawTip(ctx, tip, g.x + g.w / 2, g.y - 12, false);
+}
+
+/* ---------- growth test ---------- */
+const GROW = [2, 9, 48, 128, 999, 1250, 2549, 12400];
+/* Reduced yogurt (Dairy, Clearance) relabelled Frozen by the Price gun: the game's real 3rd glyph
+   (PriceSticker.show_gained). YOG4 adds a Breakfast sticker's grant, which the game does not show
+   as a glyph today: the most a ticket can ever carry (2 printed + 1 sticker grant + 1 Price gun). */
+const YOG3 = o => gain(card('reduced_yogurt', o), 'Frozen', GUN);
+const YOG4 = o => gain(gain(card('reduced_yogurt', o), 'Breakfast', STK), 'Frozen', GUN);
+function label(ctx, s, x, y, c = P.T6, size = 20) { ctx.font = fA(size); ctx.fillStyle = c; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.fillText(s, x, y); }
+function caption(ctx, s, x, y, w) { ctx.font = fA(15, 700); ctx.fillStyle = P.T6; ctx.textAlign = 'center'; const ls = wrapText(s, w); ls.slice(0, 2).forEach((l, i) => ctx.fillText(l, x, y + i * 18)); ctx.textAlign = 'left'; }
+const STATES = () => [['printed', card('eggs', {shown:1})], ['boosted', card('milk', {shown:48})], ['lowered', card('coffee', {shown:1})], ['0€', card('milk', {shown:0, zero:true})],
+  ['coupon', card('multipack')], ['wasted coupon', card('multipack', {wasted:true})], ['GOLDEN, printed', card('tea_bags_golden')]];
+function frameGrow(ctx) {
+  R(ctx, 0, 0, 1920, 1000, P.T8);
+  [['V5a', VAR.a, 30], ['V5b', VAR.b, 280]].forEach(([nm, v, y]) => {
+    const th = variantFor(v, YOG3({})).TH;
+    label(ctx, nm, 36, y + 64, nm === 'V5a' ? P.GOLD : P.T6, 24); label(ctx, '54×' + th + ' art', 36, y + 92, P.T5, 16);
+    railRow(ctx, 170, y + 12, 1730, th * K + 6); let ref = null;
+    GROW.forEach((n, i) => { const X = 200 + i * 212, r = ticket(ctx, X, y + 15, YOG3({shown:n}), v); verify('growth ' + nm + ' ' + n, r.rec);
+      const sig = r.rec.icons.map(c => c.x + ':' + c.y).join(',') + '|' + r.rec.rule.maxRight; if (ref === null) ref = sig; else if (sig !== ref) fail('growth ' + nm, 'icons or rule moved at ' + n + '€');
+      caption(ctx, n + '€ → "' + r.rec.price.s + '" (' + r.rec.price.form + ')', X + 81, y + 15 + th * K + 36, 200); });
+  });
+  [['V5a window states', VAR.a, 540], ['V5b window states', VAR.b, 770]].forEach(([nm, v, y]) => {
+    label(ctx, nm, 36, y + 64, v === VAR.a ? P.GOLD : P.T6, 20); railRow(ctx, 230, y + 12, 1670, v.TH * K + 6);
+    STATES().forEach(([s, sp], i) => { const X = 262 + i * 232; const r = ticket(ctx, X, y + 15, sp, v); verify('state ' + v.name + ' ' + s, r.rec); caption(ctx, s, X + 81, y + 15 + v.TH * K + 34, 200); });
+  });
+}
+function fillLadder() {
+  const tb = document.getElementById('ladder'); const bm = VAR.b.win.right - VAR.b.win.markEnd;
+  [1, 9, 63, 128, 999, 1000, 1250, 2549, 9999, 12400, 25000, 99999, 100000, 250000].forEach(n => {
+    const a = priceForm(n, VAR.a.win.avail), b = priceForm(n, VAR.b.win.avail), c = priceForm(n, bm); const tr = document.createElement('tr');
+    tr.innerHTML = `<td class="n">${n}€</td><td class="n">"${a.s}" · ${a.label} · ${a.w} art</td><td class="n">"${b.s}" · ${b.label} · ${b.w} art</td><td class="n">"${c.s}" · ${c.label} · ${c.w} art</td>`; tb.appendChild(tr);
+  });
+}
+
+/* ---------- stress sheet ---------- */
+const LEMON_FULL = card('lemon');
+const STRESS = [
+  [YOG3({shown:128, calc:['+3 · PAIR beside a Clearance item', '×… · from earlier items']}), '3 families (Price gun) · 128€'],
+  [YOG3({shown:1250}), '3 families · 1250€'],
+  [YOG4({shown:12400}), '4 families (sticker + Price gun) · 12400€'],
+  [card('multipack'), 'fresh coupon'],
+  [card('croissant', {rule:'[BATCH!] 1st: +2 to the rest'}), 'wasted keyword'],
+  [card('frozen_peas', {shown:3}), 'Frozen pale face'],
+  [card('batteries', {shown:1}), 'dark Household face'],
+  [card('birthday_candles'), 'keyword rule'],
+  [card('bent_lolly', {shown:8}), 'widest real rule (Snack)'],
+  [card('milk', {shown:0, zero:true, reason:'Inspection: slot 3 pays 0€'}), '0€ · spot check'],
+  [card('soup', {shown:0, zero:true, reason:'Its own rule: it is beside Frozen peas'}), '0€ · its own rule'],
+  [card('reduced_yogurt', {shown:0, zero:true, reason:'Inspection: slot 3 pays 0€'}), '0€ on the Clearance face'],
+  [card('day_old_buns', {shown:1}), 'lowered on the Clearance face'],
+  [card('fruit_salad', {shown:30, calc:['+3 × 4 · Produce kinds before it', '×… · from earlier items']}), 'boosted on the Produce face'],
+  [card('grapefruit', {shown:40}), 'boosted on the Produce face'],
+  [card('tea_bags_golden'), 'GOLDEN on mustard · printed 3€'],
+  [card('milk', {shown:48, calc:MILK_CALC[48]}), 'plain · boosted 48€'],
+  [card('milk_golden'), 'Golden Milk: same size as Milk'],
+  [card('croissant_golden'), 'GOLDEN on brown'],
+  [card('frozen_peas_golden'), 'GOLDEN on pale Frozen'],
+  [card('lemon', {rule:LEMON_FULL.full, shown:1}), 'forced overflow test'],
+];
+function frameStress(ctx) {
+  R(ctx, 0, 0, 1920, ctx.canvas.height, P.T8);
+  let y = 20;
+  [['V5a', VAR.a], ['V5b', VAR.b]].forEach(([nm, v]) => {
+    label(ctx, nm, 36, y + 64, nm === 'V5a' ? P.GOLD : P.T6, 24);
+    [0, 1, 2].forEach(r => { const row = STRESS.slice(r * 7, r * 7 + 7); const th = Math.max(...row.map(([sp]) => variantFor(v, sp).TH));
+      railRow(ctx, 150, y + 12, 1750, th * K + 6);
+      row.forEach(([sp, cap], i) => { const X = 186 + i * 248, res = ticket(ctx, X, y + 15, sp, v);
+        verify('stress ' + nm, res.rec); if (sp.rule === LEMON_FULL.full && !res.rec.rule.overflow) fail('stress ' + nm, 'the forced test did not show MORE');
+        caption(ctx, cap, X + 81, y + 15 + th * K + 34, 230); });
+      y += th * K + 84; });
+    y += 30;
+  });
+}
+
+/* ---------- tips sheet ---------- */
+function frameTips(ctx) {
+  R(ctx, 0, 0, 1920, 820, P.T8);
+  const milk = {...ROW[5]}; const cells = [
+    ['membership icon', milk, 'fam', 'Dairy', 5], ['gained icon (Price gun)', ROW[6], 'fam', 'Frozen', 6], ['works-with chip', ROW[0], 'chip', null, 0],
+    ['price: printed + calculation', milk, 'price', null, 5], ['0€: the reason', ROW[2], 'price', null, 2], ['MORE: the full rule', STRESS[20][0], 'more', null, undefined]];
+  cells.forEach(([nm, sp, kind, fam, slot], i) => {
+    const X = 230 + (i % 3) * 600, Y = 70 + Math.floor(i / 3) * 400, th = variantFor(VAR.a, sp).TH; label(ctx, nm, X - 8, Y - 30, P.GOLD, 18); railRow(ctx, X - 16, Y - 3, 194, th * K + 6);
+    const r = ticket(ctx, X, Y, sp, VAR.a); const g = r.regions.find(q => q.kind === kind && (!fam || q.fam === fam)); if (!g) { fail('tips', 'no ' + kind + ' region'); return; }
+    g.slot = slot; ctx.save(); ctx.strokeStyle = P.GOLD; ctx.lineWidth = 3; ctx.strokeRect(g.x - 1.5, g.y - 1.5, g.w + 3, g.h + 3); ctx.restore();
+    drawTip(ctx, tipFor(g), g.x + g.w / 2, Y + th * K + 6, true, 420);
+  });
+}
+
+/* ---------- every real sticker ---------- */
+const BASE_IDS = CARDS.filter(c => STEM(c) === c.id).map(c => c.id);
+function frameAll(ctx) {
+  R(ctx, 0, 0, 1920, 1020, P.T8);
+  BASE_IDS.forEach((id, i) => { const col = i % 10, row = Math.floor(i / 10); const X = 34 + col * 188, Y = 20 + row * 166;
+    if (col === 0) railRow(ctx, 0, Y - 3, 1920, 120);
+    const r = ticket(ctx, X, Y, card(id), VAR.a); caption(ctx, BYID[id].name, X + 81, Y + 114 + 32, 180); });
+}
+function checkAllCards() {
+  let widest = null, rules = 0, tiers = 0; const sizes = {};
+  for (const v of [VAR.a, VAR.b]) for (const c of CARDS) {
+    const sp = card(c.id); const r = ticket(null, 0, 0, sp, v); verify('all ' + v.name, r.rec);
+    if (r.rec.rule && r.rec.rule.overflow) fail(c.name + ' (' + v.name + ')', 'real sticker needs MORE: rewrite it');
+    if (c.kind === 1 && !c.sticker && !['bread', 'potatoes'].includes(sp.stem)) fail(c.name, 'no sticker text: its template was not filled');
+    if (!sp.rule) continue;
+    if (v === VAR.a) { rules++; if (STEM(c) !== c.id) tiers++; }
+    const key = v.id + sp.stem; (sizes[key] = sizes[key] || new Set()).add(r.rec.rule.size);
+    if (sizes[key].size > 1) fail(c.name + ' (' + v.name + ')', 'its tiers use different text sizes');
+    if (v === VAR.a) { const m = r.rec.rule.lines * 100 - r.rec.rule.size; if (!widest || m > widest.m) widest = {m, id:c.id, s:sp.rule, lines:r.rec.rule.lines, size:r.rec.rule.size}; }
+  }
+  for (const v of [VAR.a, VAR.b]) for (const n of [1, 999, 1000, 9999, 12400, 99999, 250000]) {
+    if (!priceForm(n, v.win.avail)) fail('ladder ' + v.name, n + '€ has no form');
+    if (v.win.markEnd && !priceForm(n, v.win.right - v.win.markEnd)) fail('ladder ' + v.name + ' with a mark', n + '€ has no form'); }
+  return {widest, rules, tiers};
+}
+
+/* ---------- frames, the loop, the controls ---------- */
+const FRAMES = [['fa', frameBelt(VAR.a), true], ['fb', frameBelt(VAR.b), true], ['fg', frameGrow, false], ['fx', frameStress, false], ['ft', frameTips, false], ['fall', frameAll, false]]
+  .map(([id, draw, live]) => { const c = document.getElementById(id); const ctx = c.getContext('2d'); ctx.imageSmoothingEnabled = false; return {id, c, ctx, draw, live, visible:true, dirty:true}; });
+const io = 'IntersectionObserver' in window ? new IntersectionObserver(es => es.forEach(e => { const f = FRAMES.find(f => f.c === e.target); if (f) f.visible = e.isIntersecting; })) : null;
+if (io) FRAMES.forEach(f => io.observe(f.c));
+FRAMES.filter(f => f.live).forEach(f => {
+  f.c.addEventListener('mousemove', e => { const r = f.c.getBoundingClientRect(); f.mouse = {x:(e.clientX - r.left) * f.c.width / r.width, y:(e.clientY - r.top) * f.c.height / r.height}; f.dirty = true; });
+  f.c.addEventListener('mouseleave', () => { f.mouse = null; f.dirty = true; });
+});
+function tick(now) {
+  const t = FREEZE !== null ? FREEZE : (now - T0) / 1000;
+  for (const f of FRAMES) { if (!f.visible && !f.dirty) continue; if (!f.live && !f.dirty) continue; f.ctx.imageSmoothingEnabled = false; f.draw(f.ctx, t, f); f.dirty = false; }
+  requestAnimationFrame(tick);
+}
+const dirtyAll = () => FRAMES.forEach(f => { f.dirty = true; });
+function seg(ids, fn) { ids.forEach(id => document.getElementById(id).addEventListener('click', () => { ids.forEach(j => document.getElementById(j).setAttribute('aria-pressed', String(j === id))); fn(id); dirtyAll(); })); }
+seg(['v_fit', 'v_one'], id => document.body.classList.toggle('one', id === 'v_one'));
+if (QS.get('only')) { document.body.classList.add('solo'); const c = document.getElementById(QS.get('only')); document.body.appendChild(c); }
+document.getElementById('replay').addEventListener('click', () => { T0 = performance.now(); dirtyAll(); });
+document.getElementById('rm').addEventListener('change', e => { REDUCE = e.target.checked; dirtyAll(); });
+try { if (matchMedia('(prefers-reduced-motion: reduce)').matches) { REDUCE = true; document.getElementById('rm').checked = true; } } catch (e) { /* no media queries */ }
+function loadImages() { return Promise.all(NAMES.map(n => new Promise(res => { const i = new Image(); i.onload = () => { IMG[n] = i; res(); }; i.onerror = () => { fail('image', n + ' did not load'); res(); }; i.src = SRC + n + '.png'; }))); }
+const fontsReady = Promise.all([`800 21px ${ATK}`, `700 19.5px ${ATK}`, `800 18px ${ATK}`].map(f => document.fonts.load(f).catch(() => null)));
+Promise.all([loadImages(), fontsReady]).then(() => {
+  fillLadder(); T0 = performance.now();
+  for (const f of FRAMES) { f.draw(f.ctx, FREEZE !== null ? FREEZE : 0, f); f.dirty = false; }
+  const {widest, rules, tiers} = checkAllCards();
+  // the belt's cycle: draw every payout once so the check sees them all
+  CYCLE.forEach((n, i) => FRAMES.slice(0, 2).forEach(f => f.draw(f.ctx, i * 1.6 + 0.1, f)));
+  dirtyAll(); requestAnimationFrame(tick);
+  const seen = new Set(); const uniq = CHECK.filter(c => { const k = c.where + c.msg; if (seen.has(k)) return false; seen.add(k); return true; });
+  uniq.forEach(c => console.error('CHECK FAIL · ' + c.where + ' · ' + c.msg));
+  const el = document.getElementById('checkout');
+  const msg = `In-page check (${BASE_IDS.length} base cards drawn): ${CARDS.length} cards × 2 variants (${rules} stickers with a rule, ${tiers} of them BIG or GOLDEN tiers, which use their base card's template with their own values), the belt (all 5 payouts of the cycle), the growth test, the window states and the stress sheet · ` +
+    (uniq.length ? `${uniq.length} problem(s), see the console` : 'no rule cut, no line past its plate, no icon dropped, every price fits') +
+    (widest ? ` · widest real rule: ${BYID[widest.id].name}, "${widest.s}" (${widest.lines} lines at ${widest.size} px on V5a)` : '') +
+    (MIN_SLACK ? ` · tightest fit: ${MIN_SLACK.name} at ${MIN_SLACK.size} px, ${MIN_SLACK.slack.toFixed(1)} px to spare (fits are tested at ${Math.round(FIT * 100)}% of the plate)` : '');
+  el.textContent = msg; el.className = uniq.length ? 'bad' : 'ok';
+  console.log('CHECK ' + (uniq.length ? 'FAIL ' + uniq.length : 'OK') + ' · ' + msg);
+  if (QS.has('check')) console.log('CHECK scrollW=' + document.documentElement.scrollWidth + ' innerW=' + innerWidth + ' scrollH=' + document.documentElement.scrollHeight + ' fonts=' + [...document.fonts].filter(f => f.status === 'loaded').map(f => f.family).join('|'));
+});
+</script>
+</html>

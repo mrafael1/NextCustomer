@@ -127,7 +127,9 @@ func test_one_marker_lights_an_entry_and_enter_presses_it() -> void:
 	assert_array(pressed).is_equal(["start", "new_run", "rewards"])
 
 
-func test_rewards_shows_the_coins_and_its_two_cards_on_the_sheet() -> void:
+## 2026-11-05: one card, TOY MACHINES, centred across the sheet (the BADGE PINS card is gone:
+## pins are chosen on the start screen).
+func test_rewards_shows_the_coins_and_its_card_on_the_sheet() -> void:
 	var rewards: RewardsMenu = auto_free(RewardsMenu.new(load(BALANCE)))
 	rewards.still = true
 	add_child(rewards)
@@ -140,35 +142,23 @@ func test_rewards_shows_the_coins_and_its_two_cards_on_the_sheet() -> void:
 	assert_vector(sheet.size).is_equal(Vector2(RewardsMenu.SHEET_ART) * ArtStyle.ART_SCALE)
 	assert_vector(sheet.get_center()).is_equal(Vector2(640, 360))
 	var machines: Rect2 = rewards.toy_machines_card().get_global_rect()
-	var badge_card: Rect2 = rewards.badge_card().get_global_rect()
 	var back: Rect2 = rewards.back_plate().get_global_rect()
-	for rect: Rect2 in [machines, badge_card, back, rewards.coin_led().get_global_rect()]:
+	var led: Rect2 = rewards.coin_led().get_global_rect()
+	for rect: Rect2 in [machines, back, led]:
 		assert_bool(sheet.encloses(rect)).is_true()
-	assert_bool(machines.intersects(badge_card)).is_false()
+	assert_float(machines.get_center().x).is_equal(sheet.get_center().x)
+	assert_bool(machines.intersects(led)).is_false()
 	assert_float(back.position.y).is_greater_equal(machines.end.y)
-	assert_bool(rewards.badge_card().is_locked()).is_false()
-	# #122: the name badge and the pins line inside the card, under its title, apart.
-	var badge: Rect2 = rewards.badge().get_global_rect()
-	var line: Rect2 = rewards.pins_line().get_global_rect()
-	var title_end: float = badge_card.position.y + RewardCard.TITLE_RECT.end.y
-	assert_bool(badge_card.encloses(badge)).is_true()
-	assert_bool(badge_card.encloses(line)).is_true()
-	assert_float(badge.position.y).is_greater_equal(title_end)
-	assert_float(line.position.y).is_greater_equal(badge.end.y)
-	var pins: Array[PinDefinition] = [load("res://data/pins/recycle.tres")]
-	rewards.show_badge(pins, 1, [0], 1, 2)
-	assert_str(rewards.pins_line().text).is_equal("1 OF 2 PINS")
-	assert_str(rewards.badge().slot_faces()[0].letters()).is_equal(pins[0].face_text)
+	assert_int(rewards.sheet().find_children("*", "NameBadge", true, false).size()).is_equal(0)
 	rewards.set_coins(7)
 	assert_str(rewards.coin_label().text).is_equal("7")
 
 
-func test_rewards_opens_toy_machines_and_the_badge_pins() -> void:
+func test_rewards_opens_toy_machines() -> void:
 	var rewards: RewardsMenu = auto_free(RewardsMenu.new(load(BALANCE)))
 	add_child(rewards)
 	var heard: Array[String] = []
 	rewards.toy_machines_requested.connect(func() -> void: heard.append("machines"))
-	rewards.badge_requested.connect(func() -> void: heard.append("badge"))
 	rewards.closed.connect(func() -> void: heard.append("closed"))
 	var opening: Tween = rewards.open(3)
 	assert_object(opening).is_not_null()
@@ -184,15 +174,18 @@ func test_rewards_opens_toy_machines_and_the_badge_pins() -> void:
 	rewards.handle_key(_key(KEY_ENTER))
 	assert_array(heard).is_equal(["machines"])
 	assert_bool(rewards.is_open()).is_true()
+	# The only other entry is BACK.
 	rewards.handle_key(_key(KEY_RIGHT))
-	assert_bool(rewards.badge_card().marked).is_true()
+	assert_bool(rewards.back_plate().marked).is_true()
 	assert_bool(rewards.toy_machines_card().marked).is_false()
+	rewards.handle_key(_key(KEY_RIGHT))
+	assert_bool(rewards.toy_machines_card().marked).is_true()
 	rewards.handle_key(_key(KEY_SPACE))
-	assert_array(heard).is_equal(["machines", "badge"])
+	assert_array(heard).is_equal(["machines", "machines"])
 	assert_bool(rewards.is_open()).is_true()
 	rewards.handle_key(_key(KEY_ESCAPE))
 	assert_bool(rewards.is_open()).is_false()
-	assert_array(heard).is_equal(["machines", "badge", "closed"])
+	assert_array(heard).is_equal(["machines", "machines", "closed"])
 	assert_bool(rewards.handle_key(_key(KEY_DOWN))).is_false()
 	rewards.open(3)
 	rewards.back_plate().pressed.emit()
@@ -307,8 +300,9 @@ func test_the_words_are_hard_pixel_text() -> void:
 			. override_failure_message("%s at %s" % [label.text, at])
 			. is_equal(Vector2.ZERO)
 		)
-	for caption: String in ["CONTINUE", "NEW RUN", "REWARDS", "TOY MACHINES", "BADGE PINS", "BACK"]:
+	for caption: String in ["CONTINUE", "NEW RUN", "REWARDS", "TOY MACHINES", "BACK"]:
 		assert_array(texts).contains([caption])
+	assert_array(texts).not_contains(["BADGE PINS"])
 	for caption: String in ["ESC", "COINS", "ABANDON THIS RUN?", "ABANDON", "KEEP"]:
 		assert_array(texts).contains([caption])
 

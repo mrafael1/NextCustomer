@@ -13,6 +13,16 @@ const SURPRISE_LIST_STREAM := "surprise_list"
 ## The derived stream of the run seed that deals a recipe deck's random cards (StartingDeck,
 ## v0.49), so the run's own RNG draws exactly as before.
 const STARTING_DECK_STREAM := "starting_deck"
+## The derived stream of the run seed that suggests the opening-time stock's aisles
+## (StartSetupRules.suggest_aisles).
+const STOCK_AISLES_STREAM := "stock_aisles"
+## The derived streams of the run seed for the opening-time board (StartSetupRules): one basket's
+## deal at LOCK IN, by its source (StartSetup.STAPLES or the aisle id); one basket's RESTOCK, by
+## its source; a regular slot's offer from one aisle, by slot and aisle id; NEW PACKS.
+const START_BASKET_STREAM := "start_basket_%s"
+const START_RESTOCK_STREAM := "start_restock_%s"
+const START_REGULARS_STREAM := "start_regulars_%d_%s"
+const START_NEW_PACKS_STREAM := "start_new_packs"
 ## The derived stream of the profile's capsule seed for one TOY MACHINES draw, by the draw's
 ## index (ProfileState.capsule_draws, #63).
 const CAPSULE_STREAM := "capsule_%d"

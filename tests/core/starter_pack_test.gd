@@ -260,3 +260,37 @@ func _pack(id: String) -> StarterPackDefinition:
 ## As the save file holds it: through JSON (numbers come back as floats).
 static func _json(data: Dictionary) -> Dictionary:
 	return JSON.parse_string(JSON.stringify(data))
+
+
+## The opening-time board deals start_basket_size cards into each of its baskets (the Staples
+## basket and one per STARTER CART aisle), so the cart keeps the recipe's random_count dealt cards.
+func test_the_baskets_hold_the_recipes_dealt_cards() -> void:
+	assert_int(_balance.start_basket_size).is_equal(2)
+	assert_int(_balance.start_basket_size * (1 + _balance.dealt_aisle_count)).is_equal(
+		_recipe.random_count
+	)
+
+
+## Each crate's example row (start screen YOUR BUILD) scores its stated total with the live card
+## rules at shift 1 (no upgrades, no day events), and the text names that total.
+func test_each_packs_example_row_scores_its_total() -> void:
+	for pack: StarterPackDefinition in _recipe.starter_packs:
+		var message: String = String(pack.id)
+		assert_str(pack.example_text).override_failure_message(message).is_not_empty()
+		(
+			assert_bool(
+				pack.cards.any(
+					func(card: CardDefinition) -> bool: return pack.example_cards.has(card)
+				)
+			)
+			. override_failure_message(message)
+			. is_true()
+		)
+		var row: Array[CardInstance] = []
+		for card: CardDefinition in pack.example_cards:
+			row.append(CardInstance.new(card, row.size() + 1))
+		var total: int = Scoring.score(row).total
+		assert_int(total).override_failure_message(message).is_equal(pack.example_total)
+		assert_str(pack.example_text).override_failure_message(message).ends_with(
+			"Total %d." % pack.example_total
+		)

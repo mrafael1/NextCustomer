@@ -2,8 +2,9 @@ extends GdUnitTestSuite
 ## The cart reveal on the real shift screen (v0.51): who opens it (the title's request for the new
 ## run of the screen it opens, start_new_run with `reveal`, the debug panel's new run with a
 ## seed; never a resumed run, nor a screen opened another way), that it shows the run as dealt
-## and saved, that it sits over the screen under the top bar with the Cart button clear for its
-## fold, and that a run started without it closes it.
+## and saved on the two-page start board over the stage, that clock-in hands shift 1 over as
+## dealt, that the board's cards use the reveal's scan popup, and that a run started without it
+## closes it.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 
@@ -44,12 +45,11 @@ func test_the_titles_request_opens_it_on_the_new_run() -> void:
 	# The machine's notice waits for the reveal to fold (it would pulse under the dim).
 	assert_bool(screen._machine._notice_due).is_false()
 	assert_bool(CartReveal._request).is_false()
-	var panel: RevealPanel = reveal.panel()
-	assert_array(panel.staples).is_equal(screen.run.starter.core_cards)
+	# A run with a start setup opens the two-page board, never the older panel (or its sounds).
+	assert_object(reveal.panel()).is_null()
+	assert_object(reveal.board).is_not_null()
 	assert_bool(reveal.is_choosing()).is_true()
-	assert_object(panel.choice).is_not_null()
-	assert_array(panel.picks).is_empty()
-	assert_int(panel.dispenser.heap_left()).is_equal(screen.run.start_offer.shared.size())
+	assert_object(reveal.board.run).is_same(screen.run)
 	assert_int(screen.run.phase).is_equal(RunState.Phase.CHOOSE_START)
 	assert_bool(FileAccess.file_exists(_folder.path_join(SaveService.RUN_FILE))).is_true()
 	# Over the deck view and the machine: the screen's last child but the debug panel.
@@ -83,40 +83,74 @@ func test_a_new_run_and_the_debug_new_runs_open_it() -> void:
 	assert_bool(screen._cart_reveal.is_open()).is_false()
 
 
-## On screen at 1280x720: the panel inside the stage under the top bar, the dim from the top
-## bar's bottom, the Cart button above the panel (clear for the fold's ring), and the fold ends
-## with shift 1's planning as it was.
-func test_it_sits_under_the_top_bar_and_folds_into_the_cart() -> void:
+## The title's request opens the full two-page board over the stage. Clock-in starts shift 1
+## behind the shutter: the hand dealt then is the one planning opens with, its time to checkout
+## starts and the machine's notice is due only once the shutter has cleared it.
+func test_the_opening_board_covers_the_stage_and_clocks_in() -> void:
+	CartReveal.request()
+	var screen: ShiftScreen = await _screen()
+	var reveal: CartReveal = screen._cart_reveal
+	var board: StartBoard = reveal.board
+	assert_int(board.page).is_equal(1)
+	var stage: Rect2 = screen._stage.get_global_rect()
+	assert_bool(board.get_global_rect().encloses(stage)).is_true()
+	screen.profile.set_reduced_motion(true)
+	# Nothing is dealt until LOCK IN & DEAL, so page 2 waits for it.
+	board.show_page(2, "enter")
+	assert_int(board.page).is_equal(1)
+	assert_bool(board.lock_in()).is_true()
+	board.show_page(2, "enter")
+	board.pick(0)
+	var pack: StarterPackDefinition = screen.run.start_offer.packs[0]
+	# Recorded after the screen's own handlers (connected first): shift 1 as the shutter covers
+	# the board, and the machine as the shutter opens.
+	var dealt: Array[CardInstance] = []
+	var notice_due: Array[bool] = []
+	reveal.pack_taken.connect(
+		func(_taken: StarterPackDefinition) -> void: dealt.assign(screen.run.hand())
+	)
+	reveal.finished.connect(func() -> void: notice_due.append(screen._machine._notice_due))
+	var clocked_ms: int = Time.get_ticks_msec()
+	assert_bool(reveal.take_pack()).is_true()
+	for frame: int in 3:
+		await get_tree().process_frame
+	assert_bool(reveal.is_open()).is_false()
+	# Shift 1's time to checkout starts once the shutter is gone (plan section 8).
+	assert_int(screen.tracker._start_ms).is_greater_equal(clocked_ms)
+	assert_array(notice_due).is_equal([true])
+	assert_int(dealt.size()).is_equal(screen.run.balance.hand_size)
+	assert_array(screen.run.hand()).is_equal(dealt)
+	# The hand comes from the cart the board showed: regulars, today's stock and the pack.
+	var cart: Array[CardDefinition] = screen.run.starter.core_cards + screen.run.start_offer.shared
+	cart.append_array(pack.cards)
+	for card: CardInstance in dealt:
+		assert_array(cart).contains([card.definition])
+	assert_int(screen.run.phase).is_equal(RunState.Phase.PLANNING)
+	assert_array(screen.run.row).is_empty()
+
+
+## The board's card tiles show the reveal's own scan popup after its hold (hover_hold_ms), over
+## the board and on the stage; leaving the tile hides it.
+func test_the_boards_cards_show_the_reveals_popup() -> void:
 	CartReveal.request()
 	var screen: ShiftScreen = await _screen()
 	var reveal: CartReveal = screen._cart_reveal
 	reveal.set_process(false)
-	# #107: the starter pack choice first (a new profile's good first pick is raised).
-	reveal.freeze_at(reveal.end_time())
-	assert_bool(reveal.take_pack()).is_true()
-	reveal.set_process(false)
-	reveal.freeze_at(reveal.end_time())
-	await get_tree().process_frame
-	var stage: Rect2 = screen._stage.get_global_rect()
-	var panel: Rect2 = reveal.panel().get_global_rect()
-	assert_bool(stage.encloses(panel)).is_true()
-	assert_float(panel.position.y).is_greater_equal(stage.position.y + ShiftStage.TOP_BAR_BOTTOM)
-	assert_bool(reveal.get_global_rect().encloses(screen.get_global_rect())).is_true()
-	var cart: Rect2 = screen._deck_button.get_global_rect()
-	assert_float(cart.end.y + CartReveal.RING_GAP + CartReveal.RING_WIDTH).is_less(panel.position.y)
-	assert_bool(stage.encloses(cart.grow(CartReveal.RING_GAP + CartReveal.RING_WIDTH))).is_true()
-	var hand: Array[CardInstance] = screen.run.hand()
-	reveal.freeze_at(reveal.end_time())
-	reveal.tap()
-	var folding_ms: int = Time.get_ticks_msec()
-	reveal.advance(reveal.tuning.outro_s + 0.1)
-	assert_bool(reveal.is_open()).is_false()
-	# Shift 1's time to checkout starts once the reveal is gone (plan section 8).
-	assert_int(screen.tracker._start_ms).is_greater_equal(folding_ms)
-	assert_bool(screen._machine._notice_due).is_true()
-	assert_array(screen.run.hand()).is_equal(hand)
-	assert_int(screen.run.phase).is_equal(RunState.Phase.PLANNING)
-	assert_array(screen.run.row).is_empty()
+	var tile: Control = null
+	for node: Node in reveal.board.find_children("*", "Control", true, false):
+		var control: Control = node as Control
+		if tile == null and control.has_meta("card") and control.is_visible_in_tree():
+			tile = control
+	assert_object(tile).is_not_null()
+	reveal.hover(tile)
+	reveal.hover_for(maxf(reveal.hover_hold_ms - 50, 0) / 1000.0)
+	assert_bool(reveal.popup().visible).is_equal(reveal.hover_hold_ms < 50)
+	reveal.hover_for(0.1)
+	assert_bool(reveal.popup().visible).is_true()
+	assert_int(reveal.popup().get_index()).is_greater(reveal.board.get_index())
+	assert_bool(reveal.board.stage_rect().encloses(reveal.popup().get_global_rect())).is_true()
+	reveal.hover(null)
+	assert_bool(reveal.popup().visible).is_false()
 
 
 func _screen() -> ShiftScreen:

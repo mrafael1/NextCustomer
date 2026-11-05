@@ -1,21 +1,22 @@
 class_name BadgeScreen
 extends TitlePopup
 ## BADGE PINS (#122, full build plan 7.4; decided with the user on 2026-10-31): the badge pins
-## popup over REWARDS. The cashier's name badge (NameBadge) shows the pins worn in the balance's
-## pin_slots, with the worn pin's rule under it; beside it one row per pin of the catalogue
-## (PinRow): WORN, WEAR or LOCKED with its milestone. Pressing an owned pin wears it (with every
-## slot taken it takes the first slot's place) and pressing a worn one takes it off, saved at
-## once; a locked one answers no. UNLOCK A RANDOM PIN (the way past a milestone out of reach)
-## spends the balance's pin_coin_price coins on one locked pin drawn on its own derived stream
-## of the profile's capsule seed (ProfileState.PIN_STREAM), made here the first time, as the
-## toy machines do. A save that fails rolls the change back. Worn pins ride from the next run
+## popup, opened from the start screen's page 2 (StartChoice.open_pins; the title's REWARDS
+## card was removed on 2026-11-05). The cashier's name badge (NameBadge) shows the pins worn in
+## the balance's pin_slots, with the worn pin's rule under it; beside it one row per pin of the
+## catalogue (PinRow): WORN, WEAR or LOCKED with its milestone. Pressing an owned pin wears it
+## (with every slot taken it takes the first slot's place) and pressing a worn one takes it off,
+## saved at once; a locked one answers no. UNLOCK A RANDOM PIN (the way past a milestone out of
+## reach) spends the balance's pin_coin_price coins on one locked pin drawn on its own derived
+## stream of the profile's capsule seed (ProfileState.PIN_STREAM), made here the first time, as
+## the toy machines do. A save that fails rolls the change back. Worn pins ride from the next run
 ## started: a run copies them at its start (RunPins) and never reads the profile again.
 ## BACK and Esc close it. The mouse and the keys share one marker (TitlePopup).
 ## The rows show PAGE_ROWS at a time (#132: more pins than fit the sheet); ‹ and › beside the
 ## tagline turn the pages, and the keys' marker turns to the page of the row it lands on.
 
-## The profile changed and was saved (a pin worn, taken off or bought): the title follows its
-## coins.
+## The profile changed and was saved (a pin worn, taken off or bought): the start screen
+## follows it.
 signal profile_changed
 
 const SHEET_ART := Vector2i(340, 232)

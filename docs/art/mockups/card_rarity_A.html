@@ -1,0 +1,1114 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Card Rarity A</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&family=Atkinson+Hyperlegible+Next:wght@200..800&family=JetBrains+Mono&display=swap">
+<style>
+/* House style of the shift mock-ups: every stage canvas is a full 1920x1080 frame (or a 1920-wide
+   strip), drawn in screen px with art px = 3 screen px (the 1280x720 stage at 1.5x, art at 2x). */
+@font-face{font-family:'NCPix';font-weight:400 700;src:url(../../../fonts/PixelifySans-Variable.ttf)}
+@font-face{font-family:'NCMono';src:url(../../../fonts/JetBrainsMono-Regular.ttf)}
+@font-face{font-family:'NCAtk';font-weight:200 800;src:url(../../../fonts/AtkinsonHyperlegibleNext-Variable.ttf)}
+:root{
+  color-scheme:dark;
+  --wall:#1f3b3a; --bay:#172c2b; --panel:#2a4d4b; --paper:#fbf7ee; --teal-pale:#c3e0d4; --teal-light:#86c2b6;
+  --mustard:#e2b33c; --gold:#ffcf3f; --tomato:#ec8a6e; --ink:#2b2420; --muted:#a9a59b;
+  --display:'NCPix','Pixelify Sans','Courier New',monospace;
+  --body:'NCAtk','Atkinson Hyperlegible Next','Segoe UI',system-ui,sans-serif;
+}
+:root[data-theme="light"]{color-scheme:dark}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--wall:#1f3b3a}}
+:root[data-theme="dark"]{--wall:#1f3b3a}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--wall);color:var(--paper)}
+body{font-family:var(--body);font-size:15px;line-height:1.5;overflow-x:hidden}
+main{max-width:1400px;margin:0 auto;padding:28px 16px 64px;display:grid;gap:44px}
+main>*,section>*,.stack>*{min-width:0}
+h1,h2,h3{font-family:var(--display);font-weight:700;margin:0;letter-spacing:.02em;text-wrap:balance}
+h1{font-size:34px;color:var(--gold)}
+h2{font-size:24px}
+h3{font-size:17px;color:var(--teal-pale)}
+p{margin:0;max-width:84ch}
+code{overflow-wrap:anywhere;color:#faecbc;font-size:13px}
+.lede{display:grid;gap:10px}
+.eyebrow{font-family:var(--display);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--teal-light)}
+section{display:grid;gap:16px;min-width:0}
+.verdict{background:var(--panel);border:2px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.35);padding:14px 16px;display:grid;gap:8px}
+.verdict strong{color:var(--gold)}
+.touch{font-size:13px;color:var(--teal-pale)}
+.opt{background:var(--bay);border:2px solid var(--ink);padding:12px;display:grid;gap:10px;align-content:start;min-width:0}
+.opt.rec{border-color:var(--mustard)}
+.opt header{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.tag{font-family:var(--display);font-size:15px;background:var(--paper);color:var(--ink);padding:0 7px;border:2px solid var(--ink)}
+.opt.rec .tag{background:var(--mustard)}
+.pick{font-family:var(--display);font-size:12px;color:var(--gold);letter-spacing:.08em}
+.opt p,.opt li{font-size:14px;color:var(--teal-pale)}
+.opt p b,.opt li b{color:var(--paper)}
+.controls{display:flex;gap:8px 10px;flex-wrap:wrap;align-items:center}
+.controls .lbl{font-family:var(--display);font-size:13px;color:var(--teal-light);letter-spacing:.06em}
+.seg{display:inline-flex;border:2px solid var(--ink);box-shadow:0 3px 0 var(--ink);flex-wrap:wrap}
+.seg button{box-shadow:none;border:0;border-right:2px solid var(--ink)}
+.seg button:last-child{border-right:0}
+button{font-family:var(--display);font-size:15px;color:var(--paper);background:#3a7672;border:2px solid var(--ink);box-shadow:0 3px 0 var(--ink);padding:4px 12px;cursor:pointer}
+button:active{transform:translateY(2px)}
+button:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+button[aria-pressed="true"]{background:var(--mustard);color:var(--ink)}
+label.chk{display:inline-flex;gap:6px;align-items:center;font-family:var(--display);font-size:14px;cursor:pointer}
+.toolbar{position:sticky;top:0;z-index:5;background:rgba(23,44,43,.96);border-bottom:2px solid var(--ink);padding:8px 16px}
+.toolbar .controls{max-width:1400px;margin:0 auto}
+.fwrap{position:relative;border:2px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.35);overflow:auto;max-width:100%;background:#111}
+canvas.frame{display:block;width:100%;height:auto;image-rendering:auto}
+body.one canvas.frame{width:auto;max-width:none;image-rendering:pixelated}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:14px}
+figure{margin:0;display:grid;gap:6px;min-width:0}
+figcaption{font-size:13px;color:var(--teal-pale)}
+figcaption b{color:var(--gold);font-family:var(--display);font-weight:600}
+ul,ol{margin:0;padding-left:20px;display:grid;gap:6px;max-width:90ch}
+table{border-collapse:collapse;width:100%;font-size:13px;background:var(--bay);border:2px solid var(--ink)}
+th,td{border:1px solid #2b2420;padding:5px 8px;text-align:left;vertical-align:top}
+th{font-family:var(--display);font-weight:600;color:var(--gold);background:#132524}
+td code{font-size:12px}
+.tablewrap{overflow-x:auto;max-width:100%}
+.answers{background:var(--paper);color:var(--ink);border:3px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.35);padding:14px 18px;display:grid;gap:8px}
+.answers h2{color:var(--ink)}
+.answers li{color:var(--ink)}
+.answers code{color:#7a5a1c}
+.sw{display:inline-block;width:12px;height:12px;border:1px solid var(--ink);vertical-align:-1px;margin-right:4px}
+body.solo main,body.solo .toolbar{display:none}
+body.solo canvas{display:block;width:auto;height:auto}
+#check{display:none}
+</style>
+<body>
+<div class="toolbar">
+  <div class="controls">
+    <span class="lbl">VIEW</span>
+    <span class="seg"><button id="v_fit" aria-pressed="true">Fit</button><button id="v_one" aria-pressed="false">1:1 (1920 px)</button></span>
+    <span class="lbl">VISIT</span>
+    <span class="seg"><button id="m_classic" aria-pressed="true">Classic (Normal)</button><button id="m_premium" aria-pressed="false">Premium (Boosted)</button></span>
+    <span class="lbl">STATE</span>
+    <span class="seg" id="states"><button id="s_live" aria-pressed="true">Live loop</button><button id="s_idle" aria-pressed="false">Idle</button><button id="s_read" aria-pressed="false">Read</button><button id="s_choose" aria-pressed="false">Choose</button><button id="s_prizes" aria-pressed="false">Prizes</button><button id="s_pick" aria-pressed="false">Pick</button><button id="s_end" aria-pressed="false">Cart / stamp</button></span>
+    <button id="replay">↻ Replay</button>
+    <label class="chk"><input type="checkbox" id="rm"> Reduced motion</label>
+    <label class="chk"><input type="checkbox" id="hc2"> C2 halo (compare)</label>
+  </div>
+</div>
+<main>
+  <section class="lede">
+    <div class="eyebrow">Mock-up · card rarity, direction A · 2026-11-03 · built on machine relook V3</div>
+    <h1>Card rarity A: the card stock is the rarity</h1>
+    <p>Your note on V3: "I would love if cards embrace rarity instead of just having a halo." In direction A the <b>card itself</b> is a different object at each rarity. A common is a slip of <b>receipt paper</b>. A rare is <b>teal cardstock</b>: thicker, bevelled and die-cut. A legendary is a <b>brass plaque</b> with an engraved frame, star rivets and the item behind display-case glass. The size (72×122 art px), the layout, the name band, the B2 chips, the rule and the gold sticker stay where V3 put them. The C2 halo goes (see the end of the page). <b>Reduced motion</b> in the toolbar shows the still version, and <b>C2 halo</b> puts the old halo back to compare.</p>
+  </section>
+
+  <section>
+    <h2>1 · One item, three stocks</h2>
+    <p>Milk at common, rare and legendary, then the same three in greyscale. Each one should still read without colour: a flat sheet with a torn foot, a thick bevelled card with cut corners, a wide plate with corner studs. Each card replays its landing every 5 s.</p>
+    <div class="fwrap"><canvas class="frame" id="r_same" width="1920" height="630"></canvas></div>
+  </section>
+
+  <section>
+    <h2>2 · Every kind at its rarity</h2>
+    <p>The name band keeps its kind colour (cream item, teal coupon, mustard upgrade or loyalty), and the art window keeps its kind fill. Only the stock changes. The loyalty cards show the gold LAST ROW / BEST ROW sticker over the foot.</p>
+    <div class="fwrap"><canvas class="frame" id="r_kinds" width="1920" height="630"></canvas></div>
+  </section>
+
+  <section>
+    <h2>3 · In the machine</h2>
+    <p>The bay at its approved size, with the landing replayed every 3.6 s. The light strip on each pedestal now takes the card's rarity colour (cream, teal, gold), so the bay still reads across the room without a halo.</p>
+    <div class="grid2">
+      <figure><div class="fwrap"><canvas class="frame" id="k_prizes" width="1920" height="1080"></canvas></div><figcaption><b>Normal visit</b>: two receipts and one teal cardstock</figcaption></figure>
+      <figure><div class="fwrap"><canvas class="frame" id="k_prem" width="1920" height="1080"></canvas></div><figcaption><b>Boosted visit</b>: two rares and a legendary brass plaque</figcaption></figure>
+    </div>
+    <p>The whole visit, live (the toolbar switches the visit and freezes a state):</p>
+    <div class="fwrap"><canvas class="frame" id="c_main" width="1920" height="1080"></canvas></div>
+  </section>
+
+  <section>
+    <h2>4 · A legendary is not a GOLDEN product</h2>
+    <p>GOLDEN is a product tier: the sprite is repainted in gold. Legendary is the card. The plaque is dark, engraved <b>brass</b> around a cream label, and the item keeps its own palette. A GOLDEN milk on common paper and a plain milk on a brass plaque can't be confused, and the two can stack.</p>
+    <div class="fwrap"><canvas class="frame" id="r_golden" width="1920" height="630"></canvas></div>
+  </section>
+
+  <section>
+    <h2>5 · Motion, frozen</h2>
+    <p>The rare emboss glint runs once around the light bevel. The legendary shine is a diagonal that only lights the brass frame, never the label or the art. The rivets flash as it enters and leaves, and the glass streaks brighten as it passes.</p>
+    <div class="fwrap"><canvas class="frame" id="r_motion" width="1920" height="630"></canvas></div>
+  </section>
+
+  <section>
+    <h2>Per tier</h2>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Tier</th><th>Stock and frame</th><th>Window, band, tab</th><th>Motion</th><th>Reduced motion</th></tr></thead>
+      <tbody>
+        <tr><td>COMMON</td><td>Receipt paper: ink outline, a 1 px cream edge, flat <code>PAPER</code>, a torn zigzag foot (2 px deep, 4 px period). No thickness.</td><td>Flat window, plain band, plain cream tab</td><td>None: it lands and sits</td><td>Same</td></tr>
+        <tr><td>RARE!</td><td>Teal cardstock: notched die-cut corners (4 px), a bevel (<code>T6</code> top and left, <code>T3</code> bottom and right), a beaded emboss ring (<code>T6</code>/<code>T4</code> every 4 px on <code>T7</code>), an inner lip, and a sparse lattice of <code>T6</code> dots (1 in 8) in the paper. 2 px of teal stock thickness to the bottom right.</td><td>Window debossed (1 px shade on top and left), a <code>T5</code> rail under the band, a chamfered teal tab</td><td>Landing: a dithered sheen across the card (0.6 s). Then an 8 px glint runs once round the light bevel in 1.5 s, every 3.6 s. The phase is set by the card's x, so the cards never move together.</td><td>No sheen, no glint</td></tr>
+        <tr><td>LEGENDARY!!</td><td>Brass plaque: 2 px wider than the body on every side, a 5-ring frame (ink, bevel, 2 rings of engraved rope in <code>BRASS_DKST</code>/<code>MUS</code> on <code>BRASS</code>, a recess), a 7×7 star rivet on each corner that pokes past the silhouette, 3 px of plate thickness. The label inside stays <code>PAPER</code>.</td><td>Window inlaid as a display case: a dark recess on top and left, a dithered shadow row, a lit lip on bottom and right, two dithered glass streaks. Brass rails above and below the band. A gold nameplate tab with two rivets</td><td>Landing: a fast shine across the frame (0.5 s), plus the existing burst and shake. Then a slow shine every 3.2 s that takes 1.2 s. The top-left rivet flashes as it enters, the bottom-right one as it leaves, and the glass streaks brighten as it passes.</td><td>Frame, rivets and glass shown still; no shine, burst or shake</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="verdict">
+    <h2>The C2 halo: it goes</h2>
+    <p><strong>Why:</strong> in V3, the rim and chase were the only thing that said "rare". Now the stock says it, and the halo's 3 to 5 px are the room the plaque grows into (2 px) and where the stock's thickness shows (2 to 3 px). A rim around a die-cut or riveted silhouette also hides that silhouette, and the silhouette is what reads in greyscale. The chase lights fought the brass shine too, and with both, the legendary looked busy rather than precious. Two things stay off the card: the legendary burst and shake on landing (the jackpot moment), and the pedestal light strip, which now takes the rarity colour. Tick <b>C2 halo</b> in the toolbar to see both together.</p>
+  </section>
+
+  <section class="answers">
+    <h2>Open questions</h2>
+    <ol>
+      <li><b>Common's torn foot:</b> keep the receipt tear, or a straight edge?</li>
+      <li><b>Rare lattice:</b> is the 1-in-8 teal dot pattern behind the rule enough texture, or too much?</li>
+      <li><b>Halo:</b> gone (this page), or a 1 px rim kept for legendary only?</li>
+    </ol>
+  </section>
+</main>
+<pre id="check"></pre>
+
+<script>
+'use strict';
+window.__err = [];
+window.addEventListener('error', e => window.__err.push(String(e.message)));
+const SRC = 'machine_relook_v2_src/';
+const NAMES = ['wall_1080','sealed_common','sealed_rare','sealed_legendary','day_old_buns','carrier_bag_big','coupon_slip','milk','banana','cereal','coffee','eggs',
+  'tea_bags','dented_can','coupon_breakfast','perk_mixed_basket','cart','up_arrow','bonus_ticket','sparkle','stamp_ring','stamp_ring_empty','plus_slot','family_breakfast',
+  'family_clearance','family_dairy','family_coupon','aisle_bakery','aisle_pantry','aisle_cold_cases','aisle_fruit_and_veg','aisle_household','aisle_snacks','coin','bread',
+  'croissant','crisps','coupon_two_for_one_mini','cap_odds','cap_items','cap_premium','milk_golden'];
+const IMG = {};
+const P = {INK:'#2b2420',INK_L:'#4a3f38',GREY_D:'#5e574d',GREY:'#8a8172',GREY_L:'#c7beab',CREAM_DK:'#b39f78',CREAM_SH:'#ddcba5',CREAM:'#f3e9d2',PAPER:'#fbf7ee',
+  T1:'#1f3b3a',T2:'#2a4d4b',T3:'#3a7672',T4:'#4f9a94',T5:'#86c2b6',T6:'#c3e0d4',T7:'#5fb0a8',T8:'#172c2b',
+  TOM_DK:'#a83a3c',TOM:'#d9534f',TOM_L:'#ec8a6e',MUS_DKST:'#7a5a1c',MUS_DK:'#b38425',MUS:'#e2b33c',MUS_L:'#f1d27a',MUS_P:'#faecbc',
+  G_DK:'#3d7a45',G:'#5fae5a',G_L:'#a5d17e',BR_DK:'#7a5232',BR:'#a87a4e',
+  BRASS_DKST:'#4a3010',BRASS_DK:'#8a5d1a',BRASS:'#c8932b',GOLD:'#ffcf3f',
+  ST_HI:'#ecebe4',ST_L:'#c7c3b8',ST_P:'#a9a59b',ST:'#8d8a83',ST_SH:'#6f6b63',ST_DK:'#57534c',ST_DKST:'#45423d',RUB:'#3d3a36',RUB_DK:'#2c2926',CHAR:'#24221f',
+  DEEP:'#1a1917', WARM:'#3a362b'};
+/* The game's family looks (data/families/*.tres, FamilyStyle face/light/shade/paper_text and glyph). */
+const FAM = {
+  Bakery:{face:'#d2a874', light:'#ddcba5', shade:'#a87a4e', paper:false, glyph:'aisle_bakery'},
+  Breakfast:{face:'#e2b33c', light:'#f1d27a', shade:'#b38425', paper:false, glyph:'family_breakfast'},
+  Clearance:{face:'#a83a3c', light:'#d9534f', shade:'#6e2630', paper:true, glyph:'family_clearance'},
+  Dairy:{face:'#4f9a94', light:'#86c2b6', shade:'#3a7672', paper:false, glyph:'family_dairy'},
+  Food:{face:'#ec8a6e', light:'#f5bfa0', shade:'#d9534f', paper:false, glyph:'aisle_pantry'},
+  Frozen:{face:'#c3e0d4', light:'#fbf7ee', shade:'#86c2b6', paper:false, glyph:'aisle_cold_cases'},
+  Household:{face:'#5e574d', light:'#8a8172', shade:'#4a3f38', paper:true, glyph:'aisle_household'},
+  Produce:{face:'#5fae5a', light:'#a5d17e', shade:'#3d7a45', paper:false, glyph:'aisle_fruit_and_veg'},
+  Snack:{face:'#7a5232', light:'#a87a4e', shade:'#4a3022', paper:true, glyph:'aisle_snacks'},
+};
+const ATK = "NCAtk, 'Atkinson Hyperlegible Next', sans-serif";
+const PIX = "NCPix, 'Pixelify Sans', monospace";
+const QS = new URLSearchParams(location.search);
+let REDUCE = QS.has('rm'), MODE = QS.get('mode') === 'premium' ? 'premium' : 'classic', STATE = QS.get('state') || 'live';
+let T0 = performance.now();
+const REC = {fam:'chip', halo:QS.get('halo') === 'c2' ? 'chase' : 'none', win:'sticker', num:'chunky', band:'name'};
+
+/* ---------- helpers: everything is placed in art px (1 art = 3 screen px) ---------- */
+let C = null, OX = 0, OY = 0, IT = 0; // IT: ambient seconds (bulbs, halos), runs even on frozen frames
+const K = 3;
+function A(x, y, w, h, c) { C.fillStyle = c; C.fillRect(OX + Math.round(x * K), OY + Math.round(y * K), Math.round(w * K), Math.round(h * K)); }
+function box(x, y, w, h, fill, edge = P.INK) { A(x, y, w, h, edge); A(x + 1, y + 1, w - 2, h - 2, fill); }
+function alpha(a, fn) { C.save(); C.globalAlpha = Math.max(0, Math.min(1, a)); fn(); C.restore(); }
+function mk(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; c.getContext('2d').imageSmoothingEnabled = false; return c; }
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const seg = (t, a, b) => clamp((t - a) / (b - a), 0, 1);
+const ease3 = k => 1 - Math.pow(1 - k, 3);
+const easeBack = k => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(k - 1, 3) + c1 * Math.pow(k - 1, 2); };
+function spr(name, x, y, s = 1) { const i = IMG[name]; if (!i) return; C.save(); C.imageSmoothingEnabled = false; C.drawImage(i, OX + Math.round(x * K), OY + Math.round(y * K), i.width * K * s, i.height * K * s); C.restore(); }
+function sprW(name) { return IMG[name] ? IMG[name].width : 0; }
+function sprH(name) { return IMG[name] ? IMG[name].height : 0; }
+function scaled(cx, cy, sc, fn) { if (sc === 1) { fn(); return; } C.save(); const px = OX + cx * K, py = OY + cy * K; C.translate(px, py); C.scale(sc, sc); C.translate(-px, -py); fn(); C.restore(); }
+/* Hard pixel text: rasterised at `size` px with no smoothing, trimmed; 1 raster px = 1 art px. */
+const _hard = new Map();
+function hardText(s, colour, size = 11, weight = 400, fam = PIX) {
+  const key = [s, size, weight, colour, fam].join('|'); if (_hard.has(key)) return _hard.get(key);
+  const m = mk(4, 4).getContext('2d'); m.font = `${weight} ${size}px ${fam}`;
+  let w = 4; for (const ch of s) w += Math.round(m.measureText(ch).width); w += 4;
+  const c = mk(w, size + 8); const x = c.getContext('2d'); x.font = `${weight} ${size}px ${fam}`; x.fillStyle = '#000'; x.textBaseline = 'alphabetic';
+  let cx = 2; for (const ch of s) { x.fillText(ch, cx, size + 1); cx += Math.round(x.measureText(ch).width); }
+  const id = x.getImageData(0, 0, c.width, c.height); const [r, g, b] = [1, 3, 5].map(i => parseInt(colour.slice(i, i + 2), 16));
+  for (let i = 0; i < id.data.length; i += 4) { const on = id.data[i + 3] >= 110; id.data[i] = r; id.data[i + 1] = g; id.data[i + 2] = b; id.data[i + 3] = on ? 255 : 0; }
+  x.putImageData(id, 0, 0);
+  let top = c.height, bot = -1, left = c.width, right = -1;
+  for (let y = 0; y < c.height; y++) for (let xx = 0; xx < c.width; xx++) if (id.data[(y * c.width + xx) * 4 + 3]) { top = Math.min(top, y); bot = Math.max(bot, y); left = Math.min(left, xx); right = Math.max(right, xx); }
+  if (bot < 0) { const e = mk(1, 1); e.capTop = 0; _hard.set(key, e); return e; }
+  const out = mk(right - left + 1, bot - top + 1); out.getContext('2d').drawImage(c, -left, -top);
+  out.capTop = top - (size + 1 - Math.round(size * 0.64)); _hard.set(key, out); return out;
+}
+function T(s, x, y, colour, o = {}) {
+  const sc = o.scale || 1, img = hardText(s, colour, o.size || 11, o.weight || 400, o.fam || PIX);
+  const w = img.width * sc; let ax = x; if (o.align === 'center') ax = x - w / 2; else if (o.align === 'right') ax = x - w;
+  C.save(); C.imageSmoothingEnabled = false; C.drawImage(img, OX + Math.round(ax) * K, OY + Math.round(y + img.capTop * sc) * K, img.width * K * sc, img.height * K * sc); C.restore();
+  return w;
+}
+function TW(s, o = {}) { return hardText(s, '#000000', o.size || 11, o.weight || 400, o.fam || PIX).width * (o.scale || 1); }
+const NUM = {fam:ATK, size:12, weight:700}; // today's pixel_number_font: Atkinson hard at 12 px, 700
+const PIXN = {fam:ATK, size:13, weight:800}; // A1: the same font one step bigger and bolder
+function wrapLines(s, px, weight, maxW) {
+  C.font = `${weight} ${px * 1.5}px ${ATK}`; const words = s.split(' '); const lines = []; let cur = '';
+  for (const w of words) { const tryS = cur ? cur + ' ' + w : w; if (C.measureText(tryS).width > maxW * K && cur) { lines.push(cur); cur = w; } else cur = tryS; }
+  if (cur) lines.push(cur); return lines;
+}
+function B(s, x, y, px, colour, o = {}) {
+  const weight = o.weight || 700, lh = o.lh || px * 1.25 / 2; const lines = o.maxW ? wrapLines(s, px, weight, o.maxW) : [s];
+  C.font = `${weight} ${px * 1.5}px ${ATK}`; C.fillStyle = colour; C.textBaseline = 'top'; C.textAlign = o.align || 'left';
+  lines.slice(0, o.maxLines || 9).forEach((l, i) => C.fillText(l, OX + x * K, OY + (y + i * lh) * K));
+  C.textAlign = 'left'; return lines.length;
+}
+function BW(s, px, weight = 700) { C.font = `${weight} ${px * 1.5}px ${ATK}`; return C.measureText(s).width / K; }
+function rivet(x, y) { A(x, y, 2, 2, P.ST_DK); A(x, y, 1, 1, P.ST_P); A(x + 1, y + 1, 1, 1, P.RUB_DK); }
+function rivetGold(x, y) { A(x, y, 2, 2, P.BRASS_DK); A(x, y, 1, 1, P.MUS_P); A(x + 1, y + 1, 1, 1, P.BRASS_DKST); }
+function pat(rows, x, y, c) { rows.forEach((r, j) => { for (let i = 0; i < r.length; i++) if (r[i] === '#') A(x + i, y + j, 1, 1, c); }); }
+function dither(x, y, w, h, c, phase = 0) { for (let j = 0; j < h; j++) for (let i = (j + phase) % 2; i < w; i += 2) A(x + i, y + j, 1, 1, c); }
+
+/* ---------- A2: the chunky price-gun digits (6x8, 2-px strokes) ---------- */
+const CH = {
+  '0':['.####.','##..##','##..##','##..##','##..##','##..##','##..##','.####.'], '1':['.##.','###.','.##.','.##.','.##.','.##.','.##.','####'],
+  '2':['.####.','##..##','....##','...##.','..##..','.##...','##....','######'], '3':['#####.','....##','....##','.####.','....##','....##','##..##','.####.'],
+  '4':['...##.','..###.','.####.','##.##.','######','...##.','...##.','...##.'], '5':['######','##....','#####.','....##','....##','....##','##..##','.####.'],
+  '6':['.####.','##....','##....','#####.','##..##','##..##','##..##','.####.'], '7':['######','....##','...##.','...##.','..##..','..##..','.##...','.##...'],
+  '8':['.####.','##..##','##..##','.####.','##..##','##..##','##..##','.####.'], '9':['.####.','##..##','##..##','##..##','.#####','....##','....##','.####.'],
+  '€':['...###','..##..','.##...','#####.','.##...','#####.','..##..','...###'], '%':['.##...##','.##..##.','....##..','...##...','...##...','..##....','.##..##.','##...##.'],
+  '+':['......','..##..','..##..','######','######','..##..','..##..','......'], '-':['....','....','....','####','####','....','....','....'],
+  '×':['......','##..##','.####.','..##..','.####.','##..##','......','......'], '/':['....##','....##','...##.','..##..','..##..','.##...','##....','##....'],
+  '.':['..','..','..','..','..','..','##','##'], ' ':['...','...','...','...','...','...','...','...'],
+};
+function numW(s) { let w = 0; for (const ch of s) w += (CH[ch] ? CH[ch][0].length : 3) + 1; return Math.max(0, w - 1); }
+function num(s, x, y, c) { let cx = x; for (const ch of s) { const g = CH[ch]; if (g) pat(g, cx, y, c); cx += (g ? g[0].length : 3) + 1; } return cx - x - 1; }
+/* A number in a style: 'old' (today's mock font), 'pix' (A1), 'chunky' (A2), 'body' (A3). y is the digits' top. */
+function NW(st, s) { if (st === 'chunky') return numW(s); if (st === 'body') return BW(s, 16, 800); if (st === 'pix') return TW(s, PIXN); return TW(s, NUM); }
+function N(st, s, x, y, col, o = {}) {
+  const w = NW(st, s); let ax = x; if (o.align === 'center') ax = x - w / 2; else if (o.align === 'right') ax = x - w;
+  if (st === 'chunky') { if (o.shadow) num(s, ax + 1, y + 1, o.shadow); num(s, ax, y, col); }
+  else if (st === 'body') { if (o.shadow) B(s, ax + 0.67, y + 1.33, 16, o.shadow, {weight:800}); B(s, ax, y + 0.67, 16, col, {weight:800}); }
+  else if (st === 'pix') { if (o.shadow) T(s, ax + 1, y + 1, o.shadow, PIXN); T(s, ax, y, col, PIXN); }
+  else T(s, ax, y, col, NUM);
+  return w;
+}
+const money = v => v > 0 ? '+' + v + '€' : 'WASTED';
+
+/* ---------- the visit's clock (unchanged from the first page) ---------- */
+const RARITY = ['COMMON', 'RARE!', 'LEGENDARY!!'];
+const RCOL = [P.GREY_L, P.T7, P.GOLD];
+const TIER = [null, {face:P.T7, light:P.T6, dark:P.T4}, {face:P.GOLD, light:P.MUS_P, dark:P.MUS_DK}];
+const PR = {
+  buns:{kind:'item', rar:0, sprite:'day_old_buns', band:'NEW ITEM', price:'2€', name:'Day-old buns', rule:'+3 if right after a Clearance item', tf:['Clearance'], sf:['Bakery', 'Clearance']},
+  sticker:{kind:'coupon', rar:0, sticker:'coupon_breakfast', band:'COUPON', name:'Breakfast sticker', rule:'The item in the next slot joins the Breakfast family', tf:['Breakfast'], sf:['Breakfast']},
+  bag:{kind:'item', rar:1, sprite:'carrier_bag_big', band:'NEW ITEM', price:'3€', name:'Big Carrier bag', rule:'+8 for each Food item beside it', tf:['Food'], sf:['Household']},
+  croissant:{kind:'item', rar:1, sprite:'croissant', band:'NEW ITEM', price:'3€', name:'Croissant', rule:'First of a Bakery batch: +2 to every later Bakery item in it', tf:['Bakery'], sf:['Bakery', 'Breakfast']},
+  crisps:{kind:'item', rar:0, sprite:'crisps', band:'NEW ITEM', price:'2€', name:'Crisps', rule:'+3 for each redraw left this shift', tf:['Snack'], sf:['Snack']},
+  two:{kind:'coupon', rar:1, sticker:'coupon_two_for_one_mini', band:'COUPON', name:'2 for 1', rule:'Same item on both sides: they count as side by side, and the second pays ×2', tf:[], sf:[]},
+  basket:{kind:'loyalty', rar:1, perk:'perk_mixed_basket', band:'LOYALTY', name:'Mixed basket', rule:'Each product that brings a new family to the row +3', tf:[], sf:[], last:3, best:9},
+  bakeryRun:{kind:'loyalty', rar:1, perk:'aisle_bakery', band:'LOYALTY', name:'Bakery aisle run', rule:'3 or more Bakery products in a row: the last pays ×3', tf:['Bakery'], sf:[], last:0, best:12},
+  shelf:{kind:'upgrade', rar:2, sprite:'milk', band:'UPGRADE', name:'Shelf upgrade', rule:'SHELF ×2 · every Milk +1 step', tf:['Breakfast', 'Dairy'], sf:['Breakfast', 'Dairy'], last:32, best:32},
+};
+const PRIZES = {classic:[PR.buns, PR.sticker, PR.bag], premium:[PR.basket, PR.bakeryRun, PR.shelf]};
+const ODDS = {classic:[[65, 35, 0], [75, 22, 3]], premium:[[0, 86, 14], [0, 90, 10]]};
+function plan(mode) {
+  const P2 = mode === 'premium' ? 2.0 : 0;
+  const b = {read:0.9, prem:1.0, hover:1.6 + P2, press:2.4 + P2, push:3.4 + P2, draw:3.7 + P2, armed:5.4 + P2, hoverT:6.0 + P2, pick:7.0 + P2, end:7.9 + P2};
+  b.loop = b.end + (mode === 'premium' ? 3.0 : 3.6); b.P2 = P2; return b;
+}
+const FREEZES = {idle:b => 0.2, read:b => 0.2, choose:b => b.press + 0.6, prizes:b => b.hoverT + 0.4, pick:b => b.pick + 0.6, end:b => b.end + 2.4};
+function stateAt(t, mode, idle) {
+  const b = plan(mode); const s = {b, t, mode, premium: mode === 'premium' && !idle, idle: !!idle};
+  if (idle) { Object.assign(s, {reading:false, hoverKey:-1, pressed:false, pushLit:false, pushIn:false, drawn:false, fly:[0, 0, 0], landAge:[-9, -9, -9], armed:false, hoverT:-1, picked:-1, endK:0, endAge:-9}); return s; }
+  s.reading = t < b.read;
+  s.chute = s.premium ? 1 : 0;
+  s.hoverKey = t >= b.hover && t < b.push ? s.chute : -1;
+  s.pressed = t >= b.press && t < b.loop;
+  s.pushLit = t >= b.press && t < b.push + 0.15;
+  s.pushIn = t >= b.push && t < b.push + 0.15;
+  s.drawn = t >= b.draw;
+  s.fly = [0, 1, 2].map(i => seg(t, b.draw + 0.28 * i, b.draw + 0.28 * i + 0.5));
+  s.landAge = [0, 1, 2].map(i => t - (b.draw + 0.28 * i + 0.5));
+  s.armed = t >= b.armed && t < b.pick;
+  s.hoverT = t >= b.hoverT && t < b.pick ? 0 : -1;
+  s.picked = t >= b.pick ? 0 : -1;
+  s.endK = seg(t, b.end, b.end + 0.45);
+  s.endAge = t - b.end;
+  if (REDUCE) { s.fly = s.fly.map(k => k > 0 ? 1 : 0); s.endK = s.endK > 0 ? 1 : 0; s.landAge = s.landAge.map(a => a > 0 ? 9 : a); }
+  return s;
+}
+function look(s) {
+  const d = s.premium ? (s.t - s.b.prem) : -1;
+  const L = {night: d >= 0.3, flash: d >= 0.3 && d < 0.38, trim: d < 0 ? 0 : ease3(seg(d, 0.3, 1.0)), trayGold: d >= 0.9, keysGold: s.premium && d >= 1.3,
+    keysUp: !s.premium || d < 0 ? 1 : d < 1.3 ? 1 - seg(d, 1.0, 1.25) : easeBack(seg(d, 1.3, 1.65)), d};
+  L.col = [0, 1].map(i => { if (!s.premium || d < 1.0 + i * 0.24) return [0, false]; const k0 = 1.0 + i * 0.24; if (d < k0 + 0.12) return [Math.round(70 * Math.pow(seg(d, k0, k0 + 0.12), 2)), false];
+    return [-Math.round(60 * (1 - easeBack(seg(d, k0 + 0.12, k0 + 0.26)))), true]; });
+  if (REDUCE && s.premium && d >= 0) { Object.assign(L, {night:true, flash:false, trim:1, trayGold:true, keysGold:true, keysUp:1}); L.col = [[0, true], [0, true]]; }
+  L.bulb = i => L.night && (REDUCE || (i + Math.floor(IT * 10)) % 4 !== 0) && (d >= 1.4 || i * 0.012 < d);
+  return L;
+}
+
+/* ---------- machine parts ---------- */
+function pillar(x, y, w, h, gold = 0) {
+  A(x, y, w, h, P.INK);
+  const body = (yy, hh, g) => { A(x + 1, yy, w - 2, hh, g ? P.BRASS : P.ST); A(x + 1, yy, 1, hh, g ? P.MUS_L : P.ST_L); A(x + 2, yy, 1, hh, g ? P.MUS : P.ST_P);
+    A(x + w - 3, yy, 1, hh, g ? P.BRASS_DK : P.ST_SH); A(x + w - 2, yy, 1, hh, g ? P.BRASS_DKST : P.ST_DK); };
+  const gh = Math.round((h - 2) * gold);
+  body(y + 1, h - 2, false); if (gh > 0) body(y + 1, gh, true);
+  const g = gold > 0.99;
+  for (const cy of [y + 1, y + h - 6]) { A(x + 1, cy, w - 2, 5, g ? P.MUS : P.ST_P); A(x + 1, cy, w - 2, 1, g ? P.MUS_P : P.ST_HI); A(x + 1, cy + 5, w - 2, 1, P.INK); }
+  // brass knob on the top cap
+  const kx = x + Math.floor(w / 2) - 2; A(kx, y - 3, 4, 3, P.INK); A(kx + 1, y - 2, 2, 2, g ? P.GOLD : P.BRASS); A(kx + 1, y - 2, 1, 1, P.MUS_P);
+  for (const ry of [y + 2, y + h - 5]) { (g ? rivetGold : rivet)(x + 2, ry); (g ? rivetGold : rivet)(x + w - 4, ry); }
+  for (let ry = y + 24; ry < y + h - 16; ry += 40) { (gold * h > ry - y ? rivetGold : rivet)(x + Math.floor(w / 2) - 1, ry); }
+}
+function steelFrame(x, y, w, h, th = 2) {
+  A(x, y, w, h, P.INK); A(x + 1, y + 1, w - 2, h - 2, P.ST); A(x + 1, y + 1, w - 2, 1, P.ST_L); A(x + 1, y + 1, 1, h - 2, P.ST_L);
+  A(x + 1, y + h - 2, w - 2, 1, P.ST_SH); A(x + w - 2, y + 1, 1, h - 2, P.ST_SH);
+  A(x + th + 1, y + th + 1, w - 2 * th - 2, h - 2 * th - 2, P.INK);
+}
+function brassPlate(x, y, w, h, rivets = true) {
+  A(x, y, w, h, P.INK); A(x + 1, y + 1, w - 2, h - 2, P.BRASS); A(x + 1, y + 1, w - 2, 1, P.MUS_L); A(x + 1, y + 1, 1, h - 2, P.MUS);
+  A(x + 1, y + h - 2, w - 2, 1, P.BRASS_DK); A(x + w - 2, y + 1, 1, h - 2, P.BRASS_DK);
+  if (rivets) for (const [rx, ry] of [[x + 2, y + 2], [x + w - 4, y + 2], [x + 2, y + h - 4], [x + w - 4, y + h - 4]]) rivetGold(rx, ry);
+}
+function engraved(s, cx, y, o) { T(s, cx, y + 1, P.MUS_L, Object.assign({align:'center'}, o)); T(s, cx, y, P.BRASS_DKST, Object.assign({align:'center'}, o)); }
+function pointer(x, y, down) {
+  const rows = ['#.......','##......','#w#.....','#ww#....','#www#...','#wwww#..','#wwwww#.','#www###.','#w#w#...','##.#w#..','....##..'];
+  rows.forEach((r, j) => { for (let i = 0; i < r.length; i++) { if (r[i] === '#') A(x + i, y + j + (down ? 1 : 0), 1, 1, P.INK); else if (r[i] === 'w') A(x + i, y + j + (down ? 1 : 0), 1, 1, P.PAPER); } });
+}
+const PIPS = [['.#.', '###', '.#.'], ['.#...#.', '###.###', '.#...#.'], ['..#.....#.....#..', '#####.#####.#####', '.###...###...###.', '.#.#...#.#...#.#.']];
+function ledGlass(x, y, w, h) {
+  A(x, y, w, h, P.INK); A(x + 1, y + 1, w - 2, h - 2, P.ST_DK); A(x + 1, y + 1, w - 2, 1, P.ST_SH);
+  A(x + 2, y + 2, w - 4, h - 4, P.INK); A(x + 3, y + 3, w - 6, h - 6, P.CHAR);
+  alpha(0.35, () => { for (let yy = y + 4; yy < y + h - 3; yy += 2) A(x + 3, yy, w - 6, 1, P.DEEP); });
+}
+function marquee(x, y, w, h, s, L, o) {
+  if (L.night) {
+    A(x, y, w, h, P.INK); A(x + 1, y + 1, w - 2, h - 2, P.BRASS_DK); A(x + 3, y + 3, w - 6, h - 6, P.INK); A(x + 4, y + 4, w - 8, h - 8, P.CHAR);
+    let i = 0; for (let bx = x + 6; bx < x + w - 6; bx += 8) { for (const by of [y + 1, y + h - 3]) { const on = L.bulb(i++); A(bx, by, 2, 2, on ? P.GOLD : P.BRASS_DKST); if (on) alpha(0.35, () => A(bx - 1, by - 1, 4, 4, P.MUS_L)); } }
+    T('PREMIUM REWARDS', x + w / 2, y + o.titleY + 1, P.BRASS_DKST, {align:'center', scale:2});
+    T('PREMIUM REWARDS', x + w / 2, y + o.titleY, P.GOLD, {align:'center', scale:2});
+    T('RARE OR BETTER', x + w / 2, y + o.subY, P.MUS_L, {align:'center'});
+    const sh = ((IT % 2.4) / 0.6); if (sh < 1 && !REDUCE) alpha(0.25, () => { for (let yy = 4; yy < h - 4; yy++) A(x + 4 + (w - 8) * sh - yy * 0.5, y + yy, 6, 1, P.PAPER); });
+    if (L.flash) alpha(0.85, () => A(x, y, w, h, P.PAPER));
+  } else {
+    brassPlate(x, y, w, h);
+    // a teal band under the plate's words, the left column's language
+    engraved('RECEIPT REWARDS', x + w / 2, y + o.titleY, {scale:2});
+    T('ONE PRIZE PER RECEIPT', x + w / 2, y + o.subY, P.BRASS_DKST, {align:'center'});
+    for (let bx = x + 8; bx < x + w - 8; bx += 8) A(bx, y - 2, 2, 2, P.BRASS_DKST);
+  }
+}
+function display(x, y, w, h, s, num_) {
+  ledGlass(x, y, w, h);
+  const cx = x + w / 2, mid = y + h / 2;
+  if (s.idle) { if (Math.floor(IT * 1.5) % 2 === 0 || REDUCE) A(cx - 3, mid - 1, 6, 2, P.GREY_D); return; }
+  if (s.reading) { if (REDUCE || Math.floor(s.t * 3) % 2 === 0) T('READING…', cx, mid - 4, P.GOLD, {align:'center'}); return; }
+  const pickLine = (word, n, sub) => { const w1 = TW(word) + 3 + NW(num_, n); let lx = cx - w1 / 2; lx += T(word, lx, mid - 9, P.GOLD) + 3; N(num_, n, lx, mid - 10, P.GOLD); B(sub, cx, mid + 2, 12, P.T6, {align:'center'}); };
+  if (s.picked >= 0 && s.endAge > -0.9) {
+    if (s.premium) { T(s.endAge > 0.6 ? 'STAMPED!' : 'GOOD PICK', cx, mid - 8, P.GOLD, {align:'center'}); B('from the next shift', cx, mid + 2, 12, P.T6, {align:'center'}); }
+    else { T('INTO THE CART', cx, mid - 8, P.GOLD, {align:'center'}); B('drop on +1, or on an item to swap', cx, mid + 2, 12, P.T6, {align:'center'}); }
+    return;
+  }
+  if (s.drawn) { pickLine('PICK', '1', 'or skip the draw'); return; }
+  const w1 = TW('SPEND') + 3 + NW(num_, '109€') + 3 + TW('✓ THANK YOU!');
+  let lx = cx - w1 / 2; const ty = mid - 9;
+  lx += T('SPEND', lx, ty, P.GOLD) + 3; lx += N(num_, '109€', lx, ty - 1, P.GOLD) + 3; T('✓ THANK YOU!', lx, ty, P.GOLD);
+  B(s.premium && look(s).night ? 'premium · rare or better · pick a chute' : 'pick a chute', cx, mid + 2, 12, P.T6, {align:'center'});
+}
+function slotPlate(x, y, w, h, s) {
+  box(x, y, w, h, P.CREAM); A(x + 1, y + 1, w - 2, 1, P.PAPER); A(x + 1, y + h - 2, w - 2, 1, P.CREAM_DK);
+  const sx = x + 6, sy = y + Math.round(h * 0.35); A(sx, sy, w - 12, 3, P.INK); A(sx + 1, sy + 1, w - 14, 1, P.CHAR);
+  const k = s.reading ? clamp(s.t / 0.7, 0, 1) : 1; const stubH = s.idle ? 0 : Math.round(10 * (1 - k));
+  const gold = s.premium && look(s).night;
+  if (stubH > 0) { A(sx + 4, sy - stubH, w - 20, stubH, gold ? P.MUS_P : P.PAPER); A(sx + 4, sy - stubH + 2, w - 20, 1, gold ? P.MUS : P.TOM); }
+  pat(['#####', '.###.', '..#..'], x + w / 2 - 3, sy + 6, P.BRASS_DK);
+  const lit = !s.reading && !s.idle; box(x + w - 7, y + h - 7, 4, 4, lit ? P.G : P.G_DK);
+}
+/* An odds plate in a number style; the plate is dark and the tier rides on its top rim. */
+function oddsPlate(st, v, r, cx, ly, lw, hot, old) {
+  const zero = v === 0; const lx = cx - lw / 2;
+  if (old) {
+    A(lx, ly, lw, 12, P.INK); A(lx + 1, ly + 1, lw - 2, 10, P.CHAR); alpha(hot ? 0.45 : 0.25, () => A(lx + 1, ly + 1, lw - 2, 10, RCOL[r]));
+    alpha(0.3, () => { for (let yy = ly + 2; yy < ly + 11; yy += 2) A(lx + 1, yy, lw - 2, 1, P.DEEP); });
+    T(v + '%', cx, ly + 2, zero ? P.GREY : r === 0 ? P.PAPER : RCOL[r], Object.assign({align:'center'}, NUM)); return;
+  }
+  const h = 14; A(lx, ly, lw, h, P.INK); A(lx + 1, ly + 1, lw - 2, h - 2, P.CHAR);
+  const rim = zero ? P.GREY_D : hot ? [P.ST_HI, P.T6, P.MUS_P][r] : [P.GREY_L, P.T7, P.GOLD][r]; A(lx + 1, ly + 1, lw - 2, 1, rim);
+  alpha(0.25, () => { for (let yy = ly + 3; yy < ly + h - 1; yy += 2) A(lx + 1, yy, lw - 2, 1, P.DEEP); });
+  const col = zero ? P.GREY : [P.PAPER, P.T6, P.GOLD][r];
+  N(st, v + '%', cx, ly + 4, col, {align:'center', shadow: zero ? null : P.DEEP});
+}
+function vitrine(x, y, w, h, s, L, o) {
+  steelFrame(x, y, w, h, 2);
+  const gx = x + 3, gy = y + 3, gw = w - 6, gh = h - 6 - o.sill;
+  A(gx, gy, gw, gh, P.T1);
+  alpha(0.35, () => { for (let i = 0; i < 3; i++) for (let yy = 0; yy < gh; yy++) A(gx + 20 + i * 80 - yy * 0.5, gy + yy, 10, 1, P.T2); });
+  const mx = x + Math.round(w / 2) - 2; A(mx, gy, 4, gh, P.INK); A(mx + 1, gy, 2, gh, P.ST_P);
+  const colW = (gw - 4) / 2;
+  for (let c = 0; c < 2; c++) {
+    const cx0 = gx + c * (colW + 4); const lit = !s.reading && !s.idle; const hot = s.hoverKey === c || (s.pressed && s.chute === c && !s.drawn);
+    A(cx0 + colW / 2 - 6, gy, 12, 2, lit ? P.MUS_P : P.ST_DK);
+    if (lit) { const n = hot ? 1 : 0; for (let yy = 0; yy < gh - 12; yy++) { const ww = Math.round(12 + yy * 0.9); for (let xx = (yy + n) % 2; xx < ww; xx += hot ? 1 + (yy % 2) : 2) if ((yy % 2 === 0) || hot) A(cx0 + colW / 2 - ww / 2 + xx, gy + 2 + yy, 1, 1, '#24433f'); } }
+    if (s.idle || s.reading) { for (let yy = gy + 4; yy < gy + gh - 2; yy += 4) A(cx0 + 2, yy, colW - 4, 2, P.ST_DK); continue; }
+    const [off, gold] = L.col[c];
+    const odds = ODDS[gold || (s.premium && L.d >= 1.4) ? 'premium' : 'classic'][c];
+    const step = o.step, t0 = cx0 + colW / 2 - step;
+    C.save(); C.beginPath(); C.rect(OX + gx * K, OY + gy * K, gw * K, gh * K); C.clip();
+    for (let r = 0; r < 3; r++) {
+      const tx = Math.round(t0 + r * step - 12), ty = gy + o.ticketY + off;
+      alpha(odds[r] === 0 ? 0.4 : 1, () => spr(['sealed_common', 'sealed_rare', 'sealed_legendary'][r], tx, ty));
+      const py = ty + 32; A(tx - 2, py, 28, 3, P.INK); A(tx - 1, py, 26, 2, gold ? P.MUS : P.ST_P); A(tx - 1, py + 2, 26, 1, gold ? P.BRASS_DK : P.ST_SH);
+      oddsPlate(o.num, odds[r], r, tx + 12, py + 5, o.plateW, hot, o.num === 'old');
+    }
+    C.restore();
+  }
+  if (o.sill) {
+    A(x + 3, y + h - 3 - o.sill, w - 6, o.sill, P.ST_DK); A(x + 3, y + h - 3 - o.sill, w - 6, 1, P.ST_SH);
+    const ly = y + h - 3 - o.sill + Math.round((o.sill - 7) / 2);
+    const parts = [[PIPS[0], 'COMMON', P.ST_HI], [PIPS[1], 'RARE', P.T6], [PIPS[2], 'LEGENDARY', P.GOLD]];
+    let tot = 0; parts.forEach(([pp, wd]) => { tot += pp[0].length + 2 + TW(wd) + 8; }); tot -= 8;
+    let lx = x + w / 2 - tot / 2;
+    parts.forEach(([pp, wd, col], i) => { pat(pp, lx, ly + (7 - pp.length) / 2 | 0, [P.ST_HI, P.T5, P.GOLD][i]); lx += pp[0].length + 2; lx += T(wd, lx, ly, col) + 8; });
+  }
+}
+function keycap(x, y, w, h, o) {
+  const depth = o.down ? 1 : 4; const up = o.up === undefined ? 1 : o.up;
+  const yy = y + Math.round((1 - up) * (h + 8));
+  C.save(); C.beginPath(); C.rect(OX + (x - 4) * K, OY + (y - 4) * K, (w + 8) * K, (h + 10) * K); C.clip();
+  if (o.lit && up > 0.9) { alpha(o.hover ? 0.9 : 0.55 + 0.25 * Math.sin(IT * 4), () => { A(x - 2, yy - 2 + (4 - depth), w + 4, h + 4 - (4 - depth), o.gold ? P.GOLD : P.MUS_L); A(x - 1, yy - 1 + (4 - depth), w + 2, h + 2 - (4 - depth), P.INK); }); }
+  const face = o.gold ? P.MUS : P.CREAM, top = o.gold ? P.MUS_L : P.PAPER, bot = o.gold ? P.BRASS_DK : P.CREAM_DK, side = o.gold ? P.BRASS : P.CREAM_SH;
+  const fy = yy + (4 - depth);
+  A(x, fy, w, h - (4 - depth), P.INK);
+  A(x + 1, fy + h - 5, w - 2, depth, bot);
+  A(x + 1, fy + 1, w - 2, h - 3 - depth, face);
+  A(x + 1, fy + 1, w - 2, 1, top); A(x + 1, fy + 1, 1, h - depth - 3, top); A(x + w - 2, fy + 2, 1, h - depth - 4, side);
+  const ix = x + 6, iy = fy + Math.round((h - depth - 4) / 2) - 8;
+  if (o.icon) spr(o.icon, ix, iy + 8 - sprH(o.icon), 2);
+  const tx = x + 6 + (o.icon ? sprW(o.icon) * 2 + 4 : 0);
+  T(o.label, tx, fy + Math.round((h - depth) / 2) - 9, o.dim ? P.GREY : P.INK);
+  B(o.sub, tx, fy + Math.round((h - depth) / 2) + 1, 11, o.gold ? P.BRASS_DKST : P.INK_L);
+  box(x + w - 7, fy + 3, 4, 3, o.down ? P.G : (o.lit ? P.G_DK : P.ST_DK));
+  if (o.dark) alpha(0.6, () => A(x, fy, w, h, P.RUB_DK));
+  C.restore();
+}
+function pushBar(x, y, w, h, s, L, o) {
+  const gold = L.trayGold;
+  A(x, y, w, h, P.INK); A(x + 1, y + 1, w - 2, h - 2, gold ? P.BRASS : P.ST); A(x + 1, y + 1, w - 2, 1, gold ? P.MUS_L : P.ST_L); A(x + 1, y + h - 2, w - 2, 1, gold ? P.BRASS_DK : P.ST_SH);
+  rivet(x + 2, y + 2); rivet(x + w - 4, y + 2); rivet(x + 2, y + h - 4); rivet(x + w - 4, y + h - 4);
+  const bx = x + 6, by = y + 4 + (s.pushIn ? 1 : 0), bw = w - 12, bh = o.barH;
+  const keep = s.armed || (s.drawn && s.picked < 0);
+  const lit = s.pushLit || keep;
+  A(bx, by, bw, bh, P.INK); A(bx + 1, by + 1, bw - 2, bh - 2, lit ? P.GOLD : P.CREAM); A(bx + 1, by + bh - 2, bw - 2, 1, lit ? P.MUS_DK : P.CREAM_DK);
+  if (lit && !REDUCE) { for (let i = 0; i < 4; i++) { const ph = ((IT * 1.6 + i / 4) % 1); const cxL = bx + 4 + ph * 16, cxR = bx + bw - 4 - ph * 16; pat(['#..', '.#.', '#..'], cxL, by + bh / 2 - 1, P.MUS_DK); pat(['..#', '.#.', '..#'], cxR - 2, by + bh / 2 - 1, P.MUS_DK); } }
+  const label = keep ? 'KEEP ONE' : s.pushLit ? 'PUSH TO CONFIRM · ' + (s.chute ? 'UPGRADE' : 'NEW ITEMS') : s.picked >= 0 ? 'TAKE YOUR PRIZE' : 'PUSH';
+  T(label, x + w / 2, by + Math.round((bh - 7) / 2), s.idle ? P.GREY : P.INK, {align:'center'});
+  const my = by + bh + 3, mh = y + h - 4 - my;
+  A(x + 6, my, w - 12, mh, P.INK); A(x + 7, my + 1, w - 14, mh - 2, P.CHAR); A(x + 7, my + 1, w - 14, 1, lit ? P.MUS_P : P.ST_DK);
+  const sub = keep ? '3 prizes · keep 1, or skip them all' : s.pushLit ? (s.chute ? 'IMPROVE WHAT YOU OWN · 3 PRIZES, KEEP 1' : 'ADD TO CART · 3 PRIZES, KEEP 1') : s.picked >= 0 || s.reading || s.idle ? '' : 'press a key, then push';
+  if (sub && mh >= 10) B(sub, x + w / 2, my + Math.round(mh / 2) - 4, 12, lit ? P.MUS_P : P.T5, {align:'center'});
+  return {mx: x + w / 2, my: my + 2};
+}
+function vents(x, y, w) { const n = Math.floor(w / 24); for (let i = 0; i < n; i++) { const vx = x + 6 + i * (w - 12) / n; A(vx, y, 12, 2, P.INK); A(vx, y + 4, 12, 2, P.INK); } }
+function dock(x, y, w, h) {
+  for (let i = 0; i < w; i += 4) { A(x + i, y, 2, 1, P.T5); A(x + i, y + h - 1, 2, 1, P.T5); }
+  for (let j = 0; j < h; j += 4) { A(x, y + j, 1, 2, P.T5); A(x + w - 1, y + j, 1, 2, P.T5); }
+  spr('bonus_ticket', x + 4, y + (h - 11) / 2);
+  T('BONUS TICKET HERE', x + 24, y + Math.round((h - 7) / 2), P.T5);
+}
+function bin(x, y, s, label = true) {
+  const hot = s.hoverBin; const lid = hot ? -3 : 0;
+  A(x - 1, y + 3 + lid, 18, 3, P.INK); A(x, y + 3 + lid, 16, 2, P.ST_HI); A(x + 6, y + 1 + lid, 4, 2, P.INK);
+  A(x, y + 6, 16, 18, P.INK); A(x + 1, y + 6, 14, 17, P.ST_L); for (let i = 0; i < 3; i++) A(x + 4 + i * 4, y + 8, 1, 13, P.ST_SH); A(x + 13, y + 7, 1, 15, P.ST);
+  if (label) T('SKIP', x + 8, y + 27, P.PAPER, {align:'center'});
+}
+function burst(cx, cy, age, R = 60) {
+  if (age < 0 || age > 1.6 || REDUCE) return;
+  const r = age < 0.3 ? R * ease3(age / 0.3) : age < 0.85 ? R : R - (R - 20) * ease3(seg(age, 0.85, 1.6));
+  const rot = age * 0.5;
+  for (let y = -r; y <= r; y += 1) for (let x = -r; x <= r; x += 1) {
+    const d = Math.hypot(x, y); if (d > r) continue; const a = Math.atan2(y, x) + rot; const ray = (Math.floor((a / (Math.PI * 2)) * 16 + 16) % 2) === 0;
+    if (!ray) continue; if ((Math.round(x) + Math.round(y)) % 2 && d > r * 0.5) continue;
+    A(cx + x, cy + y, 1, 1, d < r * 0.4 ? P.MUS_P : P.GOLD);
+  }
+}
+
+/* ---------- the prize card ---------- */
+function prizeArt(p, x, y, w, h, neutral, under) {
+  const fill = neutral ? P.CREAM : p.kind === 'coupon' ? P.T6 : p.kind === 'item' ? P.CREAM : P.MUS_P;
+  A(x, y, w, h, fill); A(x, y + h - 1, w, 1, neutral ? P.CREAM_SH : p.kind === 'coupon' ? P.T5 : p.kind === 'item' ? P.CREAM_SH : P.MUS_L);
+  if (under) under();
+  const cx = Math.round(x + w / 2), cy = Math.round(y + h / 2);
+  if (p.kind === 'item') spr(p.sprite, cx - 24, cy - 25);
+  else if (p.kind === 'coupon') { spr('coupon_slip', cx - 24, cy - 25); const st = p.sticker; spr(st, cx - Math.round(sprW(st) / 2), cy - 8); }
+  else if (p.kind === 'upgrade') { spr(p.sprite, cx - 24, cy - 25); const cw = TW('SHELF +1') + 6; box(x + w - 1 - cw, y + h - 13, cw, 11, P.MUS); A(x + w - cw, y + h - 12, cw - 2, 1, P.MUS_L); T('SHELF +1', x + w - 1 - cw / 2, y + h - 11, P.INK, {align:'center'}); }
+  else {
+    const kw = 44, kh = 26, kx = cx - kw / 2, ky = cy - 13; box(kx, ky, kw, kh, P.PAPER); A(kx + 1, ky + 1, kw - 2, 5, P.T4);
+    spr('stamp_ring', kx + 3, ky + 9); spr(p.perk, kx + 3 + Math.round((13 - sprW(p.perk)) / 2), ky + 9 + Math.round((13 - sprH(p.perk)) / 2));
+    spr('stamp_ring_empty', kx + 16, ky + 9); spr('stamp_ring_empty', kx + 29, ky + 9);
+  }
+}
+const STAR9 = ['....#....', '....#....', '...###...', '#########', '.#######.', '..#####..', '..##.##..', '.##...##.', '.#.....#.'];
+function glyphTile(name, x, y) { A(x - 1, y - 1, 11, 11, P.INK); A(x, y, 9, 9, P.PAPER); spr(name, x, y); }
+/* The hand ticket's face over a strip (TicketFace: light top, shade right and bottom, 45° stair for a split). */
+function ticketFace(x, y, w, h, fams, coupon) {
+  const f = fams.map(n => FAM[n]);
+  if (!f.length) { A(x, y, w, h, P.ST); A(x, y, w, 1, P.ST_L); A(x, y + h - 1, w, 1, P.ST_SH); A(x + w - 1, y, 1, h, P.ST_SH);
+    for (let i = 2; i < w - 2; i += 6) A(x + i, y + h - 3, 2, 1, P.ST_P); return; }
+  const split = f.length > 1 ? Math.round(w / 2 + h / 2) : 1e9;
+  for (let j = 0; j < h; j++) {
+    const sx = split - j; // pixels with i + j > split go to the second family
+    const run = (i0, i1, fm) => { if (i1 <= i0) return; const c = j === 0 ? fm.light : j === h - 1 ? fm.shade : fm.face; A(x + i0, y + j, i1 - i0, 1, c); };
+    run(0, clamp(sx, 0, w), f[0]); if (f.length > 1) { run(clamp(sx + 1, 0, w), w, f[1]); if (sx >= 0 && sx < w) A(x + sx, y + j, 1, 1, f[1].light); }
+  }
+  const last = f[f.length - 1]; A(x + w - 1, y + 1, 1, h - 2, last.shade);
+  if (coupon) for (let i = 1; i < w - 2; i += 4) { A(x + i, y, 2, 1, f[0].shade); A(x + i + 2, y + 1, 2, 1, f[0].light); }
+}
+function bandInk(fams) { if (!fams.length) return P.INK; return fams.every(n => FAM[n].paper) ? P.PAPER : P.INK; }
+function cardLayout(w, h) { return {art:52, band:13}; }
+/* The rarity halo behind the card. kind: 'old' | 'rim' | 'chase' | 'aura' | 'none'. */
+function rimRect(x, y, w, h, off, th, c) {
+  A(x - off + 1, y - off, w + 2 * off - 2, th, c); A(x - off + 1, y + h + off - th, w + 2 * off - 2, th, c);
+  A(x - off, y - off + 1, th, h + 2 * off - 2, c); A(x + w + off - th, y - off + 1, th, h + 2 * off - 2, c);
+}
+function perim(x, y, w, h, off, p) { // a point on the rim's centre line, p in [0, L)
+  const X = x - off, Y = y - off, W = w + 2 * off - 2, H = h + 2 * off - 2; const L = 2 * (W + H); p = ((p % L) + L) % L;
+  if (p < W) return [X + p, Y]; p -= W; if (p < H) return [X + W, Y + p]; p -= H; if (p < W) return [X + W - p, Y + H]; p -= W; return [X, Y + H - p];
+}
+function glint(cx, cy, big, c, on) {
+  if (!on) { A(cx, cy, 1, 1, c); return; }
+  if (big) pat(['...#...', '...#...', '..###..', '#######', '..###..', '...#...', '...#...'], cx - 3, cy - 3, c);
+  else pat(['..#..', '..#..', '#####', '..#..', '..#..'], cx - 2, cy - 2, c);
+}
+function halo(kind, p, x, y, w, h, o) {
+  const r = p.rar; if (kind === 'none' || !o.landed) return;
+  if (kind === 'old') { if (r > 0) alpha(0.5 + 0.2 * Math.sin(IT * 3), () => { A(x - 3, y - 3, w + 6, h + 6, RCOL[r]); A(x - 2, y - 2, w + 4, h + 4, P.INK); }); return; }
+  if (r === 0) return;
+  const tc = TIER[r];
+  const pulse = REDUCE ? 0 : Math.floor(IT / (r === 2 ? 0.5 : 0.7)) % 2;
+  if (kind === 'aura') { const rings = REDUCE ? 3 : 2 + (Math.floor(IT / 0.6) % 2) * 2; for (let i = 0; i < rings; i++) { const off = 4 + i; const c = i < 2 ? tc.face : tc.dark;
+      for (let xx = x - off; xx < x + w + off; xx++) { if ((xx + i) % 2 === 0) { A(xx, y - off, 1, 1, c); A(xx, y + h + off - 1, 1, 1, c); } }
+      for (let yy = y - off; yy < y + h + off; yy++) { if ((yy + i) % 2 === 0) { A(x - off, yy, 1, 1, c); A(x + w + off - 1, yy, 1, 1, c); } } } }
+  rimRect(x, y, w, h, 3, 2, pulse ? tc.light : tc.face);
+  if (r === 2) rimRect(x, y, w, h, kind === 'aura' ? 9 : 5, 1, pulse ? tc.face : tc.dark);
+  if (kind === 'chase') {
+    const n = r === 2 ? 5 : 3, sp = r === 2 ? 90 : 60, L = 2 * (w + 4 + h + 4);
+    for (let i = 0; i < n; i++) { const base = (REDUCE ? 0 : IT * sp) + i * L / n; for (let k = 0; k < 8; k++) { const [px, py] = perim(x, y, w, h, 3, base + k); A(px, py, 2, 2, k < 2 || k > 5 ? tc.light : P.PAPER); } }
+  }
+  // corner glints: rare 2 (top left, bottom right), legendary 4
+  const corners = r === 2 ? [[x - 3, y - 3], [x + w + 2, y - 3], [x + w + 2, y + h + 2], [x - 3, y + h + 2]] : [[x - 3, y - 3], [x + w + 2, y + h + 2]];
+  corners.forEach(([cx, cy], i) => { const on = REDUCE || Math.floor(IT / 0.4 + i * 1.5) % 3 !== 0; glint(cx, cy, r === 2, P.PAPER, on); });
+}
+function sheen(x, y, w, h, k, c = P.PAPER) {
+  C.save(); C.beginPath(); C.rect(OX + x * K, OY + y * K, w * K, h * K); C.clip();
+  alpha(0.55, () => { const sx = x - h + k * (w + h * 2); for (let yy = 0; yy < h; yy++) A(sx + yy, y + yy, 5, 1, c); }); C.restore();
+}
+/* LAST ROW / BEST ROW. kind: 'old' | 'ribbon' | 'ticker' | 'tag'. Returns the foot's height. */
+function winRows(p) { if (p.last === undefined) return []; const rows = [{lab:'LAST ROW', v:p.last}]; if (p.best !== undefined && !p.shift1) rows.push({lab:'BEST ROW', v:p.best}); return rows; }
+function winFoot(kind, p, x, y, w, h, o) {
+  const rows = winRows(p); if (!rows.length) return 0; const st = o.num; const age = o.landed ? o.age : -1;
+  const RH = kind === 'old' ? 12 : 15; const fy = y + h - 3 - rows.length * RH;
+  rows.forEach((row, r) => {
+    const ry = fy + r * RH; const gain = row.v > 0; const amt = money(row.v);
+    if (kind === 'old') {
+      A(x + 2, ry, w - 4, 1, P.INK); A(x + 2, ry + 1, w - 4, 11, P.MUS_P); B(row.lab.toLowerCase(), x + 5, ry + 2.5, 11, P.INK_L);
+      if (gain) N(st, amt, x + w - 5, ry + 3, P.G_DK, {align:'right'}); else T('WASTED', x + w - 5, ry + 3, P.TOM_DK, {align:'right'});
+      return;
+    }
+    const t0 = 0.30 + r * 0.18;
+    const k = REDUCE ? (age >= t0 ? 1 : 0) : seg(age, t0, t0 + 0.22);
+    if (k <= 0) return;
+    const roll = REDUCE ? 1 : ease3(seg(age, t0 + 0.12, t0 + 0.57));
+    const shown = gain ? money(Math.max(1, Math.round(row.v * roll))) : 'WASTED';
+    if (kind === 'ribbon') {
+      const sc = REDUCE ? 1 : 1.8 - 0.8 * easeBack(k); const col = r === 1 ? P.MUS : gain ? P.G : P.TOM, dk = r === 1 ? P.BRASS_DK : gain ? P.G_DK : P.TOM_DK;
+      scaled(x + w / 2, ry + 6, sc, () => {
+        A(x - 3, ry + 11, 3, 2, dk); A(x + w, ry + 11, 3, 2, dk); // folded ends
+        A(x - 4, ry, w + 8, 12, P.INK); A(x - 3, ry + 1, w + 6, 10, col); A(x - 3, ry + 1, w + 6, 1, r === 1 ? P.MUS_L : gain ? P.G_L : P.TOM_L);
+        A(x - 4, ry + 4, 1, 4, P.WARM); A(x + w + 3, ry + 4, 1, 4, P.WARM); // notches
+        B(row.lab, x + 1, ry + 2.5, 11, r === 1 ? P.INK : P.PAPER, {weight:800});
+        if (gain) N(st, shown, x + w - 1, ry + 2, r === 1 ? P.INK : P.PAPER, {align:'right', shadow: r === 1 ? null : dk}); else T('WASTED', x + w - 1, ry + 3, P.PAPER, {align:'right'});
+      });
+      if (!REDUCE && age > t0 + 0.22 && age < t0 + 0.4) { const d = (age - t0 - 0.22) * 40; for (const sx of [-1, 1]) { A(x + w / 2 + sx * (w / 2 + 5 + d), ry + 3, 1, 1, P.PAPER); A(x + w / 2 + sx * (w / 2 + 4 + d), ry + 9, 1, 1, P.PAPER); } }
+    } else if (kind === 'ticker') {
+      A(x + 3, ry, w - 6, 12, P.INK); A(x + 4, ry + 1, w - 8, 10, P.CHAR); alpha(0.35, () => { for (let yy = ry + 2; yy < ry + 11; yy += 2) A(x + 4, yy, w - 8, 1, P.DEEP); });
+      B(row.lab, x + 6, ry + 2.5, 10, P.T5, {weight:800});
+      if (gain) N(st, shown, x + w - 6, ry + 2, r === 1 ? P.MUS_L : P.GOLD, {align:'right'});
+      else { const blink = REDUCE || age > t0 + 0.9 || Math.floor((age - t0) / 0.15) % 2 === 0; if (blink) T('WASTED', x + w - 6, ry + 3, P.TOM, {align:'right'}); }
+    } else {
+      const drop = REDUCE ? 0 : Math.round(-4 * (1 - easeBack(k)));
+      const py = ry + drop; const px = x + 2, pw = w - 4, ph = 14; const best = r === 1;
+      A(px, py, pw, ph, P.INK); A(px + 1, py + 1, pw - 2, ph - 2, best ? P.MUS : P.BRASS); A(px + 1, py + 1, pw - 2, 1, best ? P.MUS_P : P.MUS_L); A(px + 1, py + ph - 2, pw - 2, 1, P.BRASS_DK);
+      const lx = px + 3, ink = best ? P.MUS_DKST : P.BRASS_DKST;
+      B(row.lab, lx, py + 3.67, 10, best ? P.MUS_P : P.MUS_L, {weight:800}); B(row.lab, lx, py + 3, 10, ink, {weight:800});
+      if (gain) { const ww = NW(st, amt) + 4; const wx = px + pw - 2 - ww; A(wx, py + 1, ww, 12, P.INK); A(wx + 1, py + 2, ww - 2, 10, P.PAPER); N(st, shown, wx + ww - 2, py + 3, P.G_DK, {align:'right'});
+        if (!REDUCE && roll >= 1 && age < t0 + 0.75) alpha(0.7, () => A(wx + 1, py + 2, ww - 2, 1, P.MUS_L)); }
+      else { const ws = Math.ceil(BW('WASTED', 10, 800)) + 6; const wx = px + pw - 2 - ws; const sk = REDUCE ? 1 : seg(age, t0 + 0.1, t0 + 0.28); if (sk > 0) scaled(wx + ws / 2, py + 7, REDUCE ? 1 : 1.6 - 0.6 * ease3(sk), () => {
+        A(wx, py + 1, ws, 12, P.TOM_DK); A(wx + 1, py + 2, ws - 2, 10, P.PAPER); A(wx + 2, py + 3, ws - 4, 8, P.TOM_DK); A(wx + 3, py + 4, ws - 6, 6, P.PAPER); B('WASTED', wx + ws / 2, py + 3.67, 10, P.TOM_DK, {weight:800, align:'center'}); }); }
+    }
+  });
+  return rows.length * RH + 2;
+}
+/* The win sticker (S1 gold / S2 brass): a price-gun label slapped across the card's bottom edge at -4°. */
+function winSticker(kind, p, x, y, w, h, o) {
+  const rows = winRows(p); if (!rows.length) return; const age = o.landed ? o.age : -1; const st = o.num;
+  const t0 = 0.30; const k = REDUCE ? (age >= t0 ? 1 : 0) : seg(age, t0, t0 + 0.2); if (k <= 0) return;
+  const gold = kind === 'sticker';
+  const RH = 11; const labW = Math.max(...rows.map(r => BW(r.lab, 10, 800))); const amtW = Math.max(...rows.map(r => r.v > 0 ? NW(st, money(r.v)) : BW('WASTED', 10, 800) + 6));
+  const SW = Math.ceil(labW + amtW + 11), SH = rows.length * RH + 2; const sx = x + w + 4 - SW, sy = y + h - 4;
+  const sc = REDUCE ? 1 : 1.5 - 0.5 * easeBack(k);
+  C.save(); const cx = OX + (sx + SW / 2) * K, cy = OY + (sy + SH / 2) * K; C.translate(cx, cy); C.rotate(-4 * Math.PI / 180); C.scale(sc, sc); C.translate(-cx, -cy);
+  alpha(0.45, () => A(sx + 2, sy + 2, SW, SH, P.INK));
+  A(sx, sy, SW, SH, P.INK);
+  rows.forEach((row, r) => {
+    const ry = sy + 1 + r * RH; const gain = row.v > 0;
+    const fill = gain ? (gold ? P.GOLD : P.BRASS) : P.GREY_L, light = gain ? (gold ? P.MUS_P : P.MUS_L) : P.PAPER;
+    A(sx + 1, ry, SW - 2, RH, fill); A(sx + 1, ry, SW - 2, 1, light); if (!gold && gain) A(sx + 1, ry + RH - 1, SW - 2, 1, P.BRASS_DK);
+    if (r > 0) for (let i = 2; i < SW - 3; i += 4) A(sx + i, ry, 2, 1, P.INK);
+    const ink = gold || !gain ? P.INK : P.BRASS_DKST;
+    if (!gold && gain) B(row.lab, sx + 3, ry + 2.67, 10, P.MUS_L, {weight:800});
+    B(row.lab, sx + 3, ry + 2, 10, ink, {weight:800});
+    const r0 = 0.42 + r * 0.18;
+    if (gain) {
+      const roll = REDUCE ? 1 : ease3(seg(age, r0, r0 + 0.45));
+      const shown = roll > 0 ? money(Math.max(1, Math.round(row.v * roll))) : '+0€';
+      N(st, shown, sx + SW - 3, ry + 2, gold ? P.G_DK : P.INK, {align:'right'});
+      if (!REDUCE && age > r0 + 0.45 && age < r0 + 0.8) glint(sx + SW - 3, ry + 1, false, P.PAPER, true);
+    } else {
+      const ws = Math.ceil(BW('WASTED', 10, 800)) + 6; const wx = sx + SW - 2 - ws; const sk = REDUCE ? 1 : seg(age, r0, r0 + 0.18);
+      if (sk > 0) scaled(wx + ws / 2, ry + 5, REDUCE ? 1 : 1.6 - 0.6 * ease3(sk), () => {
+        A(wx, ry + 1, ws, 9, P.TOM_DK); A(wx + 1, ry + 2, ws - 2, 7, P.PAPER); B('WASTED', wx + ws / 2, ry + 2.33, 10, P.TOM_DK, {weight:800, align:'center'}); });
+    }
+  });
+  C.restore();
+}
+/* ---------- direction A, card stock: the card itself carries its rarity ----------
+   common = receipt paper (thin edge, torn foot); rare = teal cardstock (bevelled, beaded emboss, die-cut corners,
+   2 px of stock thickness, a sparse lattice in the paper); legendary = a brass plaque (2 px wider than the body,
+   engraved rope frame, star rivets on the corners, 3 px of plate thickness, an inlaid display-case window). */
+const GROW = [0, 0, 2];     // the plaque reaches 2 art px past the 72x122 body (into the old halo's room)
+const SLAB = [0, 2, 3];     // the stock's thickness, seen to the bottom right
+const FRAME_D = [1, 2, 4];  // rings (outline = 0) that the frame overlay redraws over the window and band
+const SM = 8;
+const STOCK = new Map();
+const ROSE = ['....#....', '...#y#...', '...#y#...', '.##yyy##.', '#yyywyyy#', '.##ooo##.', '...#o#...', '...#o#...', '....#....'];
+function stockMask(r, w, h) {
+  if (r === 0) { const tear = i => [0, 1, 2, 1][((i % 4) + 4) % 4]; return (i, j) => i >= 0 && i < w && j >= 0 && j <= h - 1 - tear(i); }
+  const g = GROW[r], n = r === 1 ? 4 : 2, W = w + 2 * g, H = h + 2 * g;
+  return (i, j) => { const a = i + g, b = j + g; return a >= 0 && a < W && b >= 0 && b < H && a + b >= n && W - 1 - a + b >= n && a + H - 1 - b >= n && W - 1 - a + H - 1 - b >= n; };
+}
+const pmod = (a, n) => ((a % n) + n) % n;
+function stockCol(r, d, light, i, j) {
+  if (d === 0) return [P.INK, false];
+  if (r === 0) return [d === 1 ? (light ? P.CREAM_SH : P.CREAM_DK) : P.PAPER, false];
+  if (r === 1) {
+    if (d === 1) return [light ? P.T6 : P.T3, false];
+    if (d === 2) { const t = pmod(i + j, 4); return [t === 0 ? P.T6 : t === 1 ? P.T4 : P.T7, false]; } // beaded emboss
+    if (d === 3) return [light ? P.T5 : P.T6, false];
+    const lat = (pmod(i, 4) === 0 && pmod(j, 4) === 0) || (pmod(i, 4) === 2 && pmod(j, 4) === 2);
+    return [lat ? P.PAPER : P.T6, false];
+  }
+  if (d === 1) return [light ? P.MUS_L : P.BRASS_DK, false];
+  if (d === 2) { const t = pmod(i + j, 4); return t === 0 ? [P.BRASS_DKST, true] : t === 1 ? [P.MUS_L, false] : [P.BRASS, false]; } // engraved leaves
+  if (d === 3) return [P.BRASS_DK, true]; // the engraved stem
+  if (d === 4) return [light ? P.BRASS_DKST : P.MUS, false];
+  return [P.PAPER, false];
+}
+function stockFor(r, w, h) {
+  const key = r + '|' + w + '|' + h; if (STOCK.has(key)) return STOCK.get(key);
+  const m = stockMask(r, w, h); const GW = w + 2 * SM, GH = h + 2 * SM;
+  const dist = new Int16Array(GW * GH).fill(-1); const q = [];
+  for (let b = 0; b < GH; b++) for (let a = 0; a < GW; a++) if (!m(a - SM, b - SM)) { dist[b * GW + a] = 0; q.push(b * GW + a); }
+  for (let qi = 0; qi < q.length; qi++) { const id = q[qi], a0 = id % GW, b0 = (id / GW) | 0;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const a = a0 + dx, b = b0 + dy; if (a < 0 || b < 0 || a >= GW || b >= GH) continue; const k = b * GW + a; if (dist[k] < 0) { dist[k] = dist[id] + 1; q.push(k); } } }
+  const D = (i, j) => { const a = i + SM, b = j + SM; if (a < 0 || b < 0 || a >= GW || b >= GH) return -1; return dist[b * GW + a] - 1; };
+  const base = mk(GW, GH), over = mk(GW, GH); const bx = base.getContext('2d'), ox = over.getContext('2d');
+  const put = (cx, i, j, c) => { cx.fillStyle = c; cx.fillRect(i + SM, j + SM, 1, 1); };
+  const s = SLAB[r];
+  if (s) for (let j = -SM; j < h + SM; j++) for (let i = -SM; i < w + SM; i++) { if (m(i, j) || !m(i - s, j - s)) continue;
+    const ds = D(i - s, j - s); put(bx, i, j, ds === 0 ? P.INK : r === 1 ? (ds === 1 ? P.T4 : P.T3) : (ds === 1 ? P.BRASS_DK : P.BRASS_DKST)); }
+  const frame = []; const corners = [[0, 0], [w - 1, 0], [0, h - 1], [w - 1, h - 1]];
+  for (let j = -SM; j < h + SM; j++) for (let i = -SM; i < w + SM; i++) { if (!m(i, j)) continue;
+    const d = D(i, j); const light = !m(i, j - d - 1) || !m(i - d - 1, j); const [c, e] = stockCol(r, d, light, i, j);
+    put(bx, i, j, c); if (d <= FRAME_D[r]) put(ox, i, j, c);
+    if (r === 2 && d >= 1 && d <= 4 && !corners.some(([ci, cj]) => Math.abs(ci - i) + Math.abs(cj - j) <= 5)) frame.push([i, j, d, e]); }
+  if (r === 2) corners.forEach(([ci, cj]) => { const cx = ci + (ci ? 1 : -1), cy = cj + (cj ? 1 : -1); // diamond studs that poke past the plate
+    for (let dy = -4; dy <= 4; dy++) for (let dx = -4; dx <= 4; dx++) { const m1 = Math.abs(dx) + Math.abs(dy); if (m1 > 4) continue;
+      put(ox, cx + dx, cy + dy, m1 === 4 ? P.INK : (m1 <= 1 && dy <= 0 && dx <= 0) ? P.PAPER : (dy < 0 || (dy === 0 && dx < 0)) ? P.GOLD : dx + dy > 0 ? P.MUS_DK : P.MUS); } });
+  const out = {base, over, D, m, frame}; STOCK.set(key, out); return out;
+}
+function blitStock(img, x, y) { C.save(); C.imageSmoothingEnabled = false; C.drawImage(img, OX + (x - SM) * K, OY + (y - SM) * K, img.width * K, img.height * K); C.restore(); }
+/* The art window: rare is debossed into the stock, legendary sits in a display case with glass. */
+function stockCone(p, x, y, w, h) { // the display case's lamp, under the art
+  if (p.rar !== 2) return; const cx = x + w / 2;
+  for (let j = 2; j < h - 2; j++) { const hw = 4 + j * 0.45; for (let i = Math.ceil(cx - hw); i < cx + hw; i++) if (pmod(i + j, 2) === 0 && pmod(j, 2) === 0) A(i, y + j, 1, 1, P.PAPER); }
+}
+function stockWindow(p, x, y, w, h) {
+  const r = p.rar; if (r === 0) return;
+  const dark = p.kind === 'coupon' ? P.T5 : p.kind === 'item' ? P.CREAM_SH : P.MUS_L;
+  if (r === 1) { A(x, y, w, 1, dark); A(x, y, 1, h - 1, dark); return; }
+  A(x, y, w, 1, P.BRASS_DKST); A(x, y, 1, h, P.BRASS_DKST); dither(x + 1, y + 1, w - 1, 1, dark); dither(x + 1, y + 2, 1, h - 3, dark, 1);
+  A(x, y + h - 1, w, 1, P.MUS_L); A(x + w - 1, y, 1, h, P.MUS_L);
+  const cx = Math.round(x + w / 2); A(cx - 5, y, 10, 2, P.BRASS_DKST); A(cx - 3, y + 2, 6, 1, P.MUS_P);
+  glass(x, y, w, h, 0);
+}
+function glass(x, y, w, h, lit) { // two dithered glass streaks in the case's lower left
+  const c = lit ? P.PAPER : P.PAPER; const L1 = lit ? 12 : 9, L2 = lit ? 7 : 5;
+  for (let k = 0; k < L1; k += lit ? 1 : 2) A(x + 3 + k, y + h - 4 - k, 1, 1, c);
+  for (let k = 0; k < L2; k += lit ? 1 : 2) A(x + 7 + k, y + h - 4 - k, 1, 1, c);
+}
+function footPlate(x, y, w, h) { // an engraved brass strip at the label's foot, three stars
+  A(x, y, w, h, P.INK); A(x, y + 1, w, h - 1, P.BRASS); A(x, y + 1, w, 1, P.MUS_L); A(x, y + h - 1, w, 1, P.BRASS_DK);
+  const sx = Math.round(x + w / 2) - 4; for (let k = -1; k <= 1; k++) { const cx = sx + k * 12; pat(['..#..', '.###.', '#####', '.#.#.'], cx + 2, y + 2, P.BRASS_DKST); pat(['..#..'], cx + 2, y + 2, P.MUS_P); }
+  A(x + 4, y + 4, sx - 12 - x - 6, 1, P.BRASS_DK); A(sx + 21, y + 4, x + w - 4 - sx - 21, 1, P.BRASS_DK);
+}
+function rarityTab(r, x, y, w) {
+  const lab = RARITY[r]; const tw = TW(lab) + (r === 2 ? 14 : 8), tbx = Math.round(x + w / 2 - tw / 2), tby = y - 9;
+  if (r === 0) { box(tbx, tby, tw, 11, P.CREAM_SH); T(lab, x + w / 2, tby + 2, P.INK, {align:'center'}); return; }
+  if (r === 1) { A(tbx + 1, tby, tw - 2, 11, P.INK); A(tbx, tby + 1, tw, 9, P.INK); A(tbx + 1, tby + 1, tw - 2, 9, P.T4); A(tbx + 2, tby + 1, tw - 4, 1, P.T5); A(tbx + 2, tby + 9, tw - 4, 1, P.T3);
+    T(lab, x + w / 2, tby + 2, P.PAPER, {align:'center'}); return; }
+  box(tbx, tby, tw, 11, P.GOLD); A(tbx + 1, tby + 1, tw - 2, 1, P.MUS_P); A(tbx + 1, tby + 9, tw - 2, 1, P.MUS_DK);
+  rivetGold(tbx + 2, tby + 4); rivetGold(tbx + tw - 4, tby + 4); T(lab, x + w / 2, tby + 2, P.INK, {align:'center'});
+}
+function ringWalk(x0, y0, W, H, p) { const L = 2 * (W + H); p = pmod(p, L); if (p < W) return [x0 + p, y0]; p -= W; if (p < H) return [x0 + W, y0 + p]; p -= H; if (p < W) return [x0 + W - p, y0 + H]; p -= W; return [x0, y0 + H - p]; }
+/* Motion: rare = a landing sheen, then an emboss glint that runs once round the bevel every 3.6 s;
+   legendary = a fast engraving shine on landing, then a slow one every 3.2 s, rivets catching it. */
+function stockMotion(p, x, y, w, h, o) {
+  if (REDUCE || !o.landed || o.gold || o.dark) return;
+  const r = p.rar, st = stockFor(r, w, h), age = o.age;
+  if (r === 1) {
+    if (o.shineK === undefined && age >= 0 && age < 0.6) { const s = -6 + (age / 0.6) * (w + h + 12);
+      for (let j = 0; j < h; j++) for (let i = Math.floor(s - j - 3); i <= s - j + 3; i++) { const dd = st.D(i, j); if (dd >= 0 && (dd <= 3 || j < 54) && pmod(i + j, 2) === 0) A(x + i, y + j, 1, 1, P.PAPER); } }
+    const ph = pmod(IT + x * 0.013, 3.6); const k = o.shineK !== undefined ? o.shineK : (age > 0.6 ? ph / 1.5 : 9);
+    if (k < 1) { const L = 2 * (w - 3 + h - 3), L2 = 2 * (w - 5 + h - 5);
+      for (let t = 0; t < 14; t++) { const [px, py] = ringWalk(x + 1, y + 1, w - 3, h - 3, Math.round(k * L) - t); if (st.D(px - x, py - y) === 1) A(px, py, 1, 1, t < 4 ? P.PAPER : t < 9 ? P.T6 : P.T5);
+        const [qx, qy] = ringWalk(x + 2, y + 2, w - 5, h - 5, Math.round(k * L2) - t); if (t < 8 && st.D(qx - x, qy - y) === 2) A(qx, qy, 1, 1, t < 3 ? P.PAPER : P.T6); }
+      const [hx, hy] = ringWalk(x + 1, y + 1, w - 3, h - 3, Math.round(k * L)); if (st.D(hx - x, hy - y) === 1) glint(hx, hy, true, P.PAPER, true); }
+  }
+  if (r === 2) {
+    let k = -1;
+    if (o.shineK !== undefined) k = o.shineK; else if (age >= 0 && age < 0.5) k = age / 0.5; else { const ph = pmod(IT + x * 0.011, 3.2); if (ph < 1.2) k = ph / 1.2; }
+    if (k >= 0 && k <= 1) { const s = -6 + k * (w + h + 12);
+      const lit = (i, j, e) => { const df = i + j - s; const a = Math.abs(df), b = Math.abs(df + 7); // a 9 px streak and a 1 px trailer
+        if (a <= 4) A(x + i, y + j, 1, 1, a <= 1 ? P.PAPER : a <= 2 ? P.MUS_P : e ? P.MUS : P.GOLD); else if (b < 1) A(x + i, y + j, 1, 1, e ? P.MUS : P.MUS_P); };
+      for (const [i, j, d, e] of st.frame) lit(i, j, e);
+      if (!winRows(p).length) for (let j = h - 10; j < h - 3; j++) for (let i = 3; i < w - 3; i++) lit(i, j, false);
+      if (k < 0.16) glint(x, y, false, P.PAPER, true); if (k > 0.84) glint(x + w - 1, y + h - 1, false, P.PAPER, true);
+      if (k > 0.25 && k < 0.6) glass(x + 3, y + 3, w - 6, 50, 1); }
+  }
+}
+function prizeCard(p, x, y, w, h, opt = {}) {
+  const o = Object.assign({}, REC, {landed:true, age:9}, opt);
+  const sc = o.scale === undefined ? 1 : o.scale; const r = p.rar; const st = stockFor(r, w, h);
+  C.save();
+  if (sc !== 1) { const px = OX + (x + w / 2) * K, py = OY + (y + h / 2) * K; C.translate(px, py); C.scale(sc, sc); C.translate(-px, -py); }
+  if (o.gold) { const g = GROW[r] + 3, s = SLAB[r]; A(x - g - 1, y - g - 1, w + 2 * g + 2 + s, h + 2 * g + 2 + s, P.INK); A(x - g, y - g, w + 2 * g + s, h + 2 * g + s, P.GOLD); A(x - g + 2, y - g + 2, w + 2 * g - 4 + s, h + 2 * g - 4 + s, P.INK); }
+  else if (o.halo !== 'none') halo(o.halo, p, x, y, w, h, o);
+  blitStock(st.base, x, y);
+  const inset = 3, aw = 50;
+  prizeArt(p, x + inset, y + inset, w - inset * 2, aw, false, () => stockCone(p, x + inset, y + inset, w - inset * 2, aw));
+  stockWindow(p, x + inset, y + inset, w - inset * 2, aw);
+  pat(PIPS[r], x + inset + 2, y + inset + 2, [P.GREY, P.T4, P.BRASS_DK][r]);
+  if (p.price) { const pw = NW(o.num, p.price) + 6; const px = x + w - inset - 1 - pw, py = y + inset + 1; box(px, py, pw, 12, P.PAPER); N(o.num, p.price, px + pw / 2, py + 2, P.INK, {align:'center'}); }
+  // the name band (kind colour), with rarity rails
+  const maxW = w - 8;
+  let lines = [p.name]; if (TW(p.name) > maxW) { const ws = p.name.split(' '); let best = null; for (let i = 1; i < ws.length; i++) { const a = ws.slice(0, i).join(' '), b2 = ws.slice(i).join(' '); const m = Math.max(TW(a), TW(b2)); if (!best || m < best[0]) best = [m, [a, b2]]; } if (best) lines = best[1]; }
+  const by = y + inset + aw + 1, bh = 3 + lines.length * 10, bx = x + 2, bw = w - 4;
+  const bcol = p.kind === 'coupon' ? P.T4 : p.kind === 'item' ? P.CREAM_SH : P.MUS; A(bx, by, bw, bh, bcol); const ink = p.kind === 'coupon' ? P.PAPER : P.INK;
+  if (r === 1) A(bx, by + bh, bw, 1, P.T5);
+  if (r === 2) { A(bx, by - 1, bw, 1, P.BRASS_DKST); A(bx, by + bh, bw, 1, P.BRASS_DK); }
+  lines.forEach((l, i) => T(l, bx + bw / 2, by + 3 + i * 10, ink, {align:'center'}));
+  // B2 corner chips
+  p.tf.forEach((n, i) => { const f = FAM[n]; const cx = x + inset + 1 + i * 14, cy = y + inset + 8; A(cx, cy, 13, 13, P.INK); A(cx + 1, cy + 1, 11, 11, f.face); A(cx + 1, cy + 1, 11, 1, f.light); A(cx + 11, cy + 2, 1, 10, f.shade); A(cx + 1, cy + 11, 11, 1, f.shade); spr(f.glyph, cx + 2, cy + 2); });
+  // the rule, centred in the room left
+  let ny = by + bh + 3 + (r === 1 ? 1 : 0);
+  const STK = true; const foot = winRows(p).length ? 6 : r === 2 ? 11 : 2;
+let RW = r === 0 ? w - 8 : w - 10; // the rare lip and the plaque's recess keep 1 px more off the rule
+  if (RW < w - 8 && wrapLines(p.rule, 14, 600, RW).length > wrapLines(p.rule, 14, 600, w - 8).length) RW = w - 8;
+  const big = wrapLines(p.rule, 14, 600, RW).length; let roomPx = y + h - 3 - foot - ny;
+  { const ruleH = (big - 1) * 9 + 7; const spare = roomPx - ruleH; if (spare > 6 && big <= 4) { const d = Math.floor(spare * 0.4); ny += d; roomPx -= d; } }
+  if ((big - 1) * 9 + 7 <= roomPx && big <= 4) B(p.rule, x + w / 2, ny, 14, P.INK_L, {weight:600, align:'center', maxW: RW, maxLines: 4, lh: 9});
+  else B(p.rule, x + w / 2, ny, 12, P.INK_L, {weight:600, align:'center', maxW: RW, maxLines: Math.max(1, Math.min(4, Math.floor((roomPx - 6) / 8) + 1)), lh: 8});
+  if (r === 2 && !winRows(p).length) footPlate(x + 3, y + h - 11, w - 6, 8);
+  // the frame on top (die-cut corners, plaque, rivets), the tab, the motion
+  blitStock(st.over, x, y);
+  rarityTab(r, x, y, w);
+  stockMotion(p, x, y, w, h, o);
+  if (STK) winSticker(o.win, p, x, y, w, h, o);
+  if (o.dark) alpha(0.62, () => A(x - 6, y - 10, w + 12, h + (winRows(p).length ? 36 : 16), P.RUB_DK));
+  C.restore();
+}
+
+/* ---------- V3, polished ---------- */
+const V = {cab:{x:60, y:58, w:520, h:292}, head:{x:88, y:21, w:464, h:37, titleY:6, subY:26}, disp:{x:72, y:66, w:170, h:30}, slot:{x:246, y:66, w:56, h:30},
+  win:{x:72, y:100, w:230, h:108, sill:10, step:32, ticketY:10, plateW:30}, keys:[{x:74, y:214, w:110, h:44}, {x:190, y:214, w:110, h:44}],
+  tray:{x:72, y:264, w:230, h:52, barH:16}, plinth:{x:54, y:350, w:532}, bay:{x:316, y:66, w:250, h:254},
+  tickets:{x:[323, 405, 487], y:96, w:72, h:122}, bin:{x:433, y:266}};
+function cabinet(s, L) {
+  const c = V.cab;
+  alpha(0.35, () => A(V.plinth.x - 6, V.plinth.y + 6, V.plinth.w + 12, 3, '#000'));
+  A(V.plinth.x, V.plinth.y, V.plinth.w, 7, P.INK); A(V.plinth.x + 1, V.plinth.y + 1, V.plinth.w - 2, 2, P.ST_P); A(V.plinth.x + 1, V.plinth.y + 3, V.plinth.w - 2, 3, P.ST_DK);
+  A(c.x, c.y, c.w, c.h, P.INK); A(c.x + 1, c.y + 1, c.w - 2, c.h - 2, P.T2);
+  A(c.x + 1, c.y + 1, c.w - 2, 4, P.T4); A(c.x + 1, c.y + 5, c.w - 2, 1, P.T5);
+  // kick panel: a dither shade, the bonus dock under the vitrine, vents under the bay
+  A(c.x + 1, 322, c.w - 2, 1, P.T1); dither(c.x + 12, 323, c.w - 24, 4, P.T1); A(c.x + 12, 327, c.w - 24, c.h - (327 - c.y) - 1, P.T1);
+  A(126, 328, 120, 18, P.T2); dock(128, 329, 116, 16);
+  vents(324, 333, 236);
+  pillar(c.x, c.y, 12, c.h, L.trim); pillar(c.x + c.w - 12, c.y, 12, c.h, L.trim); pillar(V.bay.x - 12, c.y, 10, c.h, L.trim);
+  // crest plate on the middle pillar
+  const mx = V.bay.x - 12; A(mx - 2, 140, 14, 20, P.INK); A(mx - 1, 141, 12, 18, L.trim > 0.99 ? P.GOLD : P.BRASS); A(mx - 1, 141, 12, 1, P.MUS_P); pat(STAR9.slice(0, 7), mx + 1, 146, P.BRASS_DKST);
+  // beacon lamps on the outer caps
+  for (const bx of [c.x + 6, c.x + c.w - 6]) { const on = L.night && (REDUCE || Math.floor(IT * 3) % 2 === 0); A(bx - 4, c.y - 9, 8, 6, P.INK); A(bx - 3, c.y - 8, 6, 5, on ? P.GOLD : P.BRASS_DK); A(bx - 2, c.y - 8, 2, 1, P.MUS_P);
+    if (on) alpha(0.3, () => { A(bx - 7, c.y - 12, 14, 12, P.MUS_L); }); }
+}
+function bay(s, L) {
+  const b = V.bay;
+  A(b.x, b.y, b.w, b.h, P.INK); A(b.x + 1, b.y + 1, b.w - 2, b.h - 2, P.ST_DK); A(b.x + 1, b.y + 1, b.w - 2, 1, P.ST_SH);
+  A(b.x + 3, b.y + 3, b.w - 6, b.h - 6, P.INK); A(b.x + 4, b.y + 4, b.w - 8, b.h - 8, P.CHAR);
+  // the frame's bulbs (premium) along its top
+  if (L.night) { let i = 0; for (let bx = b.x + 6; bx < b.x + b.w - 6; bx += 10) { const on = L.bulb(i++ + 3); A(bx, b.y + 1, 2, 1, on ? P.GOLD : P.BRASS_DKST); } }
+  // LED header
+  const hx = b.x + 4, hy = b.y + 4, hw = b.w - 8, hh = 15;
+  A(hx, hy, hw, hh, P.DEEP); alpha(0.5, () => { for (let yy = hy + 1; yy < hy + hh; yy += 2) A(hx, yy, hw, 1, P.CHAR); }); A(hx, hy + hh, hw, 1, P.ST_DK);
+  const head = s.idle ? '' : s.drawn ? (s.picked >= 0 ? 'GOOD PICK' : 'YOUR PRIZES · KEEP 1') : 'PRIZE BAY';
+  if (head) T(head, b.x + b.w / 2, hy + 4, s.drawn ? P.GOLD : P.T5, {align:'center'});
+  // floor with a hatch for the bin
+  const fy = b.y + b.h - 40; A(b.x + 4, fy, b.w - 8, 1, P.RUB); for (let gx = b.x + 10; gx < b.x + b.w - 6; gx += 16) A(gx, fy + 1, 1, 35, P.RUB_DK);
+  const t = V.tickets;
+  for (let i = 0; i < 3; i++) { const cx = t.x[i] + t.w / 2; const landed = s.drawn && s.landAge[i] >= 0;
+    // spotlight: a lamp and a dithered cone
+    A(cx - 6, hy + hh + 1, 12, 2, s.drawn ? P.MUS_P : P.ST_DK);
+    if (s.drawn) { for (let yy = 0; yy < 156; yy += 1) { const ww = Math.round(14 + yy * 0.42); if (yy % 2) continue; for (let xx = (yy / 2) % 2; xx < ww; xx += 2) A(cx - ww / 2 + xx, hy + hh + 3 + yy, 1, 1, P.WARM); } }
+    // pedestal with a brass lip and a light strip
+    const py = t.y + t.h + 4; A(t.x[i] - 3, py, t.w + 6, 6, P.INK); A(t.x[i] - 2, py, t.w + 4, 2, L.trayGold ? P.MUS : P.ST_P); A(t.x[i] - 2, py + 2, t.w + 4, 1, L.trayGold ? P.BRASS_DK : P.ST_SH);
+    A(t.x[i] + 4, py + 3, t.w - 8, 2, landed ? [L.trayGold ? P.MUS_L : P.CREAM_SH, P.T6, P.GOLD][PRIZES[s.mode][i].rar] : P.RUB);
+    if (!s.drawn) {
+      for (let j = 0; j < t.w; j += 4) { A(t.x[i] + j, t.y, 2, 1, P.ST_DK); A(t.x[i] + j, t.y + t.h - 1, 2, 1, P.ST_DK); }
+      for (let j = 0; j < t.h; j += 4) { A(t.x[i], t.y + j, 1, 2, P.ST_DK); A(t.x[i] + t.w - 1, t.y + j, 1, 2, P.ST_DK); }
+      T('?', cx, t.y + t.h / 2 - 7, s.idle ? P.RUB : P.ST_DK, {align:'center', scale:2});
+    }
+  }
+  if (!s.drawn && !s.idle) B('3 sealed prizes drop here', b.x + b.w / 2, fy + 14, 12, P.T5, {align:'center'});
+  // bin hatch
+  A(V.bin.x - 6, fy + 2, 28, 2, P.ST_DKST);
+}
+function drawMachine(ctx, t, opts = {}) {
+  C = ctx; OX = 0; OY = 0;
+  const mode = opts.mode || MODE; const s = stateAt(t, mode, opts.idle); const L = look(s);
+  const prizes = PRIZES[s.mode];
+  const legI = prizes.findIndex(p => p.rar === 2);
+  if (legI >= 0 && !REDUCE && !s.idle) { const a = s.landAge[legI]; if (a >= 0 && a < 0.3) { const k = 1 - a / 0.3; OX = Math.round(Math.sin(a * 250) * 6 * k / 3) * 3; OY = Math.round(Math.sin(a * 310) * 4 * k / 3) * 3; } }
+  ctx.imageSmoothingEnabled = false;
+  if (IMG.wall_1080) ctx.drawImage(IMG.wall_1080, 0, 0); else { ctx.fillStyle = P.T1; ctx.fillRect(0, 0, 1920, 1080); }
+  cabinet(s, L);
+  marquee(V.head.x, V.head.y, V.head.w, V.head.h, s, L, V.head);
+  display(V.disp.x, V.disp.y, V.disp.w, V.disp.h, s, REC.num);
+  slotPlate(V.slot.x, V.slot.y, V.slot.w, V.slot.h, s);
+  vitrine(V.win.x, V.win.y, V.win.w, V.win.h, s, L, Object.assign({num:REC.num}, V.win));
+  const k0 = V.keys[0], k1 = V.keys[1]; const px = k0.x - 4, pw = k1.x + k1.w + 4 - px;
+  A(px, k0.y - 3, pw, k0.h + 6, P.INK); A(px + 1, k0.y - 2, pw - 2, k0.h + 4, L.night ? P.CHAR : P.RUB); A(px + 1, k0.y - 2, pw - 2, 1, L.night ? P.RUB : P.ST_SH);
+  const keyDefs = [{label:'NEW ITEMS', sub:'add to cart', icon:'cart'}, {label:'UPGRADE', sub:'improve what you own', icon:'up_arrow'}];
+  V.keys.forEach((kr, i) => keycap(kr.x, kr.y, kr.w, kr.h, Object.assign({}, keyDefs[i], {lit:!s.idle && !s.reading && !s.drawn && L.keysUp > 0.99, hover:s.hoverKey === i, down:s.pressed && s.chute === i, gold:L.keysGold, up:L.keysUp, dim:s.idle})));
+  const mouth = pushBar(V.tray.x, V.tray.y, V.tray.w, V.tray.h, s, L, V.tray);
+  bay(s, L);
+  let ptr = null;
+  const tk = V.tickets;
+  if (s.drawn) {
+    if (s.armed || s.hoverT >= 0) bin(V.bin.x, V.bin.y, s, true);
+    prizes.forEach((p, i) => {
+      const k = s.fly[i]; if (k <= 0) return; const age = s.landAge[i];
+      const tx = tk.x[i], ty = tk.y;
+      let x = tx, y = ty, sc = 1;
+      if (k < 1) { const e = ease3(k); x = mouth.mx - tk.w / 2 + (tx - (mouth.mx - tk.w / 2)) * e; y = mouth.my - tk.h / 2 + (ty - (mouth.my - tk.h / 2)) * e - Math.sin(e * Math.PI) * 40; sc = 0.45 + 0.55 * e; }
+      if (s.picked >= 0 && s.picked !== i && s.endK > 0) return;
+      if (p.rar === 2 && age >= 0 && s.picked < 0) burst(tx + tk.w / 2, ty + tk.h / 2, age, 70);
+      const picked = s.picked === i, other = s.picked >= 0 && !picked;
+      let lift = s.hoverT === i ? 2 : 0; if (picked) lift = 4;
+      if (picked && s.endK > 0) {
+        if (s.premium) { const e = ease3(s.endK); const toX = 389 - tk.w / 2, toY = 14 - tk.h / 2; x = tx + (toX - tx) * e; y = ty - 4 + (toY - ty + 4) * e; sc = 1 - 0.85 * e; if (s.endK >= 1) return; }
+        else return;
+      }
+      if (other && s.endK > 0) return;
+      prizeCard(p, x, y - lift, tk.w, tk.h, {scale:sc, landed:k >= 1, age, gold:picked, dark:other});
+    });
+    if (s.hoverT >= 0) ptr = [tk.x[0] + tk.w / 2 + 14, tk.y + 40, false];
+    if (s.picked >= 0 && s.endK <= 0) ptr = [tk.x[0] + tk.w / 2 + 14, tk.y + 36, true];
+  } else if (s.hoverKey >= 0 || (s.pressed && !s.drawn)) {
+    const kr = V.keys[s.chute]; if (s.t < s.b.press + 0.4) ptr = [kr.x + kr.w - 30, kr.y + 18, s.t >= s.b.press];
+    else { const e = ease3(seg(s.t, s.b.press + 0.4, s.b.press + 0.9)); ptr = [kr.x + kr.w - 30 + (V.tray.x + V.tray.w / 2 + 20 - (kr.x + kr.w - 30)) * e, kr.y + 18 + (V.tray.y + 10 - kr.y - 18) * e, s.pushIn]; }
+  }
+  if (s.picked >= 0 && s.endK > 0) { if (s.premium) stampEnd(s); else cartEnd(s); }
+  else if (ptr) pointer(ptr[0], ptr[1], ptr[2]);
+  OX = 0; OY = 0;
+}
+function stampEnd(s) {
+  const a = s.endAge - 0.45; if (a < 0) return;
+  const x = 389 - 6.5, y = 14 - 6.5;
+  const pop = REDUCE ? 1 : 1 + 0.6 * Math.max(0, 1 - a / 0.25);
+  scaled(x + 6.5, y + 6.5, pop, () => { spr('stamp_ring', x, y); spr('perk_mixed_basket', x + 4, y + 4); });
+  if (a < 0.6 && !REDUCE) for (let i = 0; i < 6; i++) { const an = i * 1.05 + a * 3; glint(389 + Math.cos(an) * (10 + a * 12), 14 + Math.sin(an) * (10 + a * 12), false, P.GOLD, true); }
+}
+function cartEnd(s) {
+  const st = REC.num;
+  const e = ease3(s.endK); const dy = Math.round((1 - e) * 330);
+  const x = 16, y = 34 + dy, w = 608, h = 236;
+  A(x, y, w, h, P.INK); A(x + 1, y + 1, w - 2, h - 2, P.ST); A(x + 1, y + 1, w - 2, 1, P.ST_L); A(x + 1, y + h - 2, w - 2, 1, P.ST_SH);
+  for (const rx of [x + 2, x + w - 4]) for (const ry of [y + 2, y + h - 4]) rivet(rx, ry); A(x + 4, y + 4, w - 8, h - 8, P.INK); A(x + 5, y + 5, w - 10, h - 10, P.T2);
+  const hy = y + 6; A(x + 5, hy, w - 10, 18, P.T3); A(x + 5, hy + 18, w - 10, 1, P.INK);
+  spr('cart', x + 10, hy + 3, 1); let lx = x + 26; lx += T('CART', lx, hy + 5, P.PAPER) + 3; lx += N(st, '13/15', lx, hy + 5, P.PAPER, {shadow:P.INK});
+  B('drop Day-old buns on +1, or on an item to swap', lx + 8, hy + 4, 14, P.T6);
+  box(x + w - 50, hy + 2, 42, 14, P.CREAM); A(x + w - 49, hy + 14, 40, 1, P.CREAM_DK); T('CLOSE', x + w - 29, hy + 5, P.INK, {align:'center'});
+  B('Tags: Food 10 · Breakfast 8 · Clearance 2 · Dairy 2 · Produce 2 · Bakery 1', x + 12, hy + 24, 13, P.T6);
+  T('PRODUCTS (12)', x + 12, hy + 38, P.MUS_L); T('COUPONS (1)', x + 520, hy + 38, P.MUS_L);
+  const cells = [['banana', 2, '2€', ['aisle_fruit_and_veg']], ['cereal', 2, '2€', ['family_breakfast']], ['coffee', 1, '2€', ['family_breakfast']], ['bread', 1, '5€', ['aisle_bakery', 'family_breakfast']], ['dented_can', 1, '2€', ['family_clearance']], ['eggs', 2, '1€', ['family_breakfast']], ['milk', 2, '4€', ['family_breakfast', 'family_dairy']], ['tea_bags', 1, '1€', ['family_breakfast']]];
+  const names = {banana:'Banana', cereal:'Cereal', coffee:'Coffee', bread:'Bread', dented_can:'Dented can', eggs:'Eggs', milk:'Milk', tea_bags:'Tea bags'};
+  const cy = hy + 50;
+  cells.forEach(([sp, n, pr, fams], i) => { const cx = x + 12 + i * 62;
+    A(cx, cy + 50, 56, 3, P.T1); spr(sp, cx + 4, cy);
+    if (n > 1) { const cw = NW(st, '×' + n) + 6; box(cx + 56 - cw, cy, cw, 12, P.PAPER); N(st, '×' + n, cx + 56 - cw / 2, cy + 2, P.INK, {align:'center'}); }
+    box(cx, cy + 53, 56, 14, P.MUS); fams.forEach((f, j) => spr(f, cx + 2 + j * 10, cy + 55)); const pw = NW(st, pr) + 6; box(cx + 56 - pw - 1, cy + 52, pw, 14, P.PAPER); N(st, pr, cx + 56 - 1 - pw / 2, cy + 55, P.INK, {align:'center'});
+    B(names[sp], cx + 28, cy + 71, 13, P.PAPER, {align:'center'}); });
+  { const cx = x + 520; spr('coupon_slip', cx + 4, cy); spr('coupon_breakfast', cx + 18, cy + 17); box(cx, cy + 53, 72, 14, P.T4); T('COUPON', cx + 36, cy + 56, P.PAPER, {align:'center'}); B('Breakfast sticker', cx + 36, cy + 71, 13, P.PAPER, {align:'center'}); }
+  const sy = cy + 86;
+  const a = s.endAge - 0.45; const over = a > 1.0, dropped = a > 1.7;
+  for (let i = 0; i < 2; i++) { const sx = x + 12 + i * 62; const hot = i === 0 && over && !dropped;
+    if (hot) alpha(0.3 + 0.15 * Math.sin(IT * 8), () => A(sx - 2, sy - 2, 60, 72, P.GOLD));
+    for (let j = 0; j < 56; j += 4) { A(sx + j, sy, 2, 1, P.GOLD); A(sx + j, sy + 67, 2, 1, P.GOLD); } for (let j = 0; j < 68; j += 4) { A(sx, sy + j, 1, 2, P.GOLD); A(sx + 55, sy + j, 1, 2, P.GOLD); }
+    if (!(i === 0 && dropped)) spr('plus_slot', sx + 21, sy + 28); }
+  B('Drop outside, or ◀ BACK, to put it back on the machine', x + 140, sy + 28, 14, P.T5);
+  const fromX = 330, fromY = 140, toX = x + 12 + 4, toY = sy + 8;
+  const m = ease3(seg(a, 0.1, 1.0)); const hx = fromX + (toX - fromX) * m, hy2 = fromY + (toY - fromY) * m;
+  if (!dropped) { if (a > -0.4) { alpha(0.3, () => A(hx + 4, hy2 + 46, 40, 3, '#000')); spr('day_old_buns', hx, hy2); pointer(hx + 30, hy2 + 30, false); } }
+  else { const pa = a - 1.7; spr('day_old_buns', toX, toY); if (pa < 0.8) { const up = REDUCE ? 0 : pa * 20; alpha(1 - pa / 0.8, () => N(st, '+1', toX + 24, toY - 10 - up, P.GOLD, {align:'center', shadow:P.INK})); } pointer(toX + 40, toY + 40, false); }
+}
+
+/* ---------- section strips (1920 x 630: art 640 x 210) ---------- */
+function strip(ctx) { C = ctx; OX = 0; OY = 0; ctx.imageSmoothingEnabled = false; ctx.fillStyle = P.CHAR; ctx.fillRect(0, 0, 1920, 630);
+  dither(0, 196, 640, 2, P.RUB); A(0, 198, 640, 12, P.RUB_DK); }
+function lineup(cards, o = {}) {
+  const w = 72, h = o.h || 122, n = cards.length; const gap = o.gap || 16; const extra = o.split ? 28 : 0;
+  const tot = n * w + (n - 1) * gap + extra; let x = Math.round((640 - tot) / 2); const y = o.y || 30;
+  cards.forEach((c, i) => {
+    if (o.split && i === o.split) { x += extra; A(x - gap / 2 - extra / 2, 18, 1, 170, P.RUB); }
+    const grey = o.split && i >= o.split;
+    if (grey) C.filter = 'grayscale(1)';
+    const age = c.age !== undefined ? c.age : (o.loop ? ((IT + 3.2 - i * 0.15) % o.loop) - 0.2 : 9);
+    prizeCard(c.p, x, y, w, h, Object.assign({}, c.o || {}, o.card || {}, {age}));
+    if (grey) C.filter = 'none';
+    if (c.cap) B(c.cap, x + w / 2, y + h + (o.capDy || 12), 12, P.T5, {align:'center', maxW: w + gap - 2, maxLines: 2, lh: 7});
+    x += w + gap;
+  });
+}
+const B_CARDS = [{p:PR.buns, cap:'Clearance · 1 family'}, {p:PR.croissant, cap:'Bakery · 2 glyphs'}, {p:PR.crisps, cap:'Snack · paper text'}, {p:PR.sticker, cap:'family coupon'}, {p:PR.two, cap:'plain coupon'}, {p:PR.shelf, cap:'split: Breakfast + Dairy'}, {p:PR.basket, cap:'perk · no family'}];
+const C_CARDS = [PR.crisps, PR.bag, PR.shelf];
+const D_CARDS = [{p:Object.assign({}, PR.basket, {shift1:true}), cap:'shift 1: last row only'}, {p:PR.basket, cap:'from shift 2: + best row'}, {p:PR.bakeryRun, cap:'last row WASTED'}, {p:PR.shelf, cap:'legendary upgrade'}];
+function drawB(ctx, fam) { strip(ctx); lineup(B_CARDS, {card:{fam, halo:'chase', win:'tag'}}); }
+function drawC(ctx, halo) { strip(ctx); lineup(C_CARDS.concat(C_CARDS).map((p, i) => ({p, cap: i < 3 ? ['common', 'rare', 'legendary'][i] : ['no colour', 'no colour', 'no colour'][i - 3]})), {card:{halo}, split:3, loop:5}); }
+function drawS(ctx, win) { strip(ctx); lineup(D_CARDS, {card:{win}, loop:4.5, gap:40, capDy:32}); }
+function drawAll(ctx) { strip(ctx); lineup(B_CARDS, {loop:5, capDy:36}); }
+function drawCmp(ctx) { strip(ctx);
+  const cards = [[PR.buns, 150, {win:'tag'}], [PR.basket, 150, {win:'tag'}], [PR.buns, 122, {}], [PR.basket, 122, {}]];
+  const xs = [128, 216, 368, 456];
+  cards.forEach(([p, h, o], i) => { const age = ((IT + 3.2 - i * 0.15) % 4.5) - 0.2; prizeCard(p, xs[i], 22, 72, h, Object.assign({age}, o)); });
+  B('V2 · 72×150 art px (1:2.1)', 208, 186, 13, P.T5, {align:'center'}); B('V3 · 72×122 art px (1:1.7)', 448, 186, 13, P.GOLD, {align:'center'});
+  A(320, 18, 1, 176, P.RUB); }
+function drawD(ctx, win) { strip(ctx); lineup(D_CARDS, {card:{win}, loop:4.5, gap:40}); }
+
+/* ---------- direction A strips ---------- */
+PR.milk = {kind:'item', rar:0, sprite:'milk', price:'4€', name:'Milk', rule:'+2 for each Breakfast item beside it', tf:['Breakfast', 'Dairy'], sf:['Breakfast', 'Dairy']};
+PR.goldMilk = Object.assign({}, PR.milk, {sprite:'milk_golden', price:'9€', name:'Golden milk', rule:'GOLDEN: +6 for each Breakfast item beside it'});
+const atR = (p, r) => Object.assign({}, p, {rar:r});
+function drawSame(ctx) { strip(ctx); const cs = [0, 1, 2].map(r => atR(PR.milk, r));
+  lineup(cs.concat(cs).map((p, i) => ({p, cap: (i < 3 ? '' : 'grey: ') + ['common · receipt', 'rare · cardstock', 'legendary · plaque'][i % 3]})), {split:3, loop:5, gap:20}); }
+const K_CARDS = [{p:PR.buns, cap:'common item'}, {p:PR.sticker, cap:'common coupon'}, {p:PR.croissant, cap:'rare item'}, {p:PR.two, cap:'rare coupon'}, {p:PR.basket, cap:'rare loyalty'},
+  {p:PR.shelf, cap:'legendary upgrade'}, {p:atR(PR.bakeryRun, 2), cap:'legendary loyalty'}];
+function drawKinds(ctx) { strip(ctx); lineup(K_CARDS, {loop:5, capDy:32, gap:14}); }
+function drawGolden(ctx) { strip(ctx); lineup([{p:PR.milk, cap:'common Milk'}, {p:PR.goldMilk, cap:'GOLDEN tier on common stock'}, {p:atR(PR.milk, 2), cap:'legendary Milk'}, {p:atR(PR.goldMilk, 2), cap:'GOLDEN tier, legendary'}], {gap:44, loop:5}); }
+function drawMotion(ctx) { strip(ctx); const rare = atR(PR.croissant, 1), leg = atR(PR.milk, 2);
+  lineup([{p:rare, o:{shineK:0.06}, cap:'rare glint 0.1 s'}, {p:rare, o:{shineK:0.45}, cap:'rare glint 0.7 s'}, {p:leg, o:{shineK:0.08}, cap:'shine 0.1 s'}, {p:leg, o:{shineK:0.4}, cap:'shine 0.5 s'}, {p:leg, o:{shineK:0.7}, cap:'shine 0.85 s'}, {p:leg, o:{shineK:0.92}, cap:'shine 1.1 s'}], {gap:22}); }
+
+/* ---------- A: the number sheet (1920 x 780: art 640 x 260) ---------- */
+const A_COLS = [{k:'cur', h:'TODAY (v0.86 capture)'}, {k:'pix', h:'A1 · TODAY BOLDER, RE-INKED'}, {k:'chunky', h:'A2 · CHUNKY (REC.)'}, {k:'body', h:'A3 · ATKINSON 800'}];
+const A_ROWS = [
+  {h:'Odds', crop:['cap_odds', 995, 446, 297, 52]},
+  {h:'Price', crop:['cap_items', 712, 324, 86, 44]},
+  {h:'Display', crop:['cap_odds', 685, 208, 377, 42]},
+  {h:'Last row', crop:['cap_premium', 556, 650, 246, 34]},
+  {h:'Counts', crop:['cap_items', 790, 212, 160, 60]},
+];
+function drawA(ctx) {
+  C = ctx; OX = 0; OY = 0; ctx.imageSmoothingEnabled = false; ctx.fillStyle = P.T8; ctx.fillRect(0, 0, 1920, 780);
+  const lw = 52, cw = 147, top = 18, rh = 47;
+  A_COLS.forEach((c, i) => { const x = lw + i * cw; A(x, 0, cw - 2, 14, c.k === 'chunky' ? P.MUS : P.T2); T(c.h, x + cw / 2 - 1, 4, c.k === 'chunky' ? P.INK : P.T6, {align:'center'}); });
+  A_ROWS.forEach((r, j) => {
+    const y = top + j * rh; T(r.h.toUpperCase(), 4, y + rh / 2 - 4, P.T5);
+    A_COLS.forEach((c, i) => {
+      const x = lw + i * cw; A(x, y, cw - 2, rh - 2, P.T1);
+      if (c.k === 'cur') { const [n, sx, sy, sw, sh] = r.crop; const im = IMG[n]; if (im) { ctx.save(); ctx.beginPath(); ctx.rect(x * K, y * K, (cw - 2) * K, (rh - 2) * K); ctx.clip(); ctx.drawImage(im, sx, sy, sw, sh, x * K + 6, y * K + Math.round(((rh - 2) * K - sh) / 2), sw, sh); ctx.restore(); } return; }
+      aCell(c.k, j, x + 4, y, cw - 10, rh - 2);
+    });
+  });
+  B('Every cell is drawn at 1 art px = 3 screen px; the crops are 1:1 from the game at 1920×1080. Press 1:1 to judge them at real size.', 4, top + 5 * rh + 3, 12, P.T5);
+}
+function aCell(st, row, x, y, w, h) {
+  const mid = y + h / 2;
+  if (row === 0) { [[75, 0], [22, 1], [3, 2], [0, 1]].forEach(([v, r], i) => { const cx = x + 17 + i * 35; oddsPlate(st, v, r, cx, mid - 7, 32, false, false); }); }
+  else if (row === 1) { A(x, y + 4, 64, h - 8, P.CREAM); A(x, y + h - 5, 64, 1, P.CREAM_SH); ['2€', '13€'].forEach((s, i) => { const pw = NW(st, s) + 6; const px = x + 6 + i * 30; box(px, mid - 6, pw, 12, P.PAPER); N(st, s, px + pw / 2, mid - 4, P.INK, {align:'center'}); }); }
+  else if (row === 2) { ledGlass(x, mid - 10, w, 20); const tw = TW('SPEND') + 3 + NW(st, '109€') + 3 + TW('✓ THANK YOU!'); let lx = x + w / 2 - tw / 2; lx += T('SPEND', lx, mid - 4, P.GOLD) + 3; lx += N(st, '109€', lx, mid - 4, P.GOLD) + 3; T('✓ THANK YOU!', lx, mid - 4, P.GOLD); }
+  else if (row === 3) { A(x, mid - 7, 80, 13, P.INK); A(x + 1, mid - 6, 78, 11, P.MUS_P); B('last row', x + 4, mid - 4, 11, P.INK_L); N(st, '+32€', x + 76, mid - 4, P.G_DK, {align:'right'});
+    ledGlass(x + 86, mid - 8, 50, 16); N(st, '+3€', x + 111, mid - 4, P.GOLD, {align:'center'}); }
+  else { ledGlass(x, mid - 10, 54, 20); const tw = TW('PICK') + 3 + NW(st, '1'); let lx = x + 27 - tw / 2; lx += T('PICK', lx, mid - 4, P.GOLD) + 3; N(st, '1', lx, mid - 4, P.GOLD);
+    const cw = NW(st, '×2') + 6; box(x + 59, mid - 6, cw, 12, P.PAPER); N(st, '×2', x + 59 + cw / 2, mid - 4, P.INK, {align:'center'});
+    const bx = x + 59 + cw + 5; spr('cart', bx, mid - 5); N(st, '13/15', bx + sprW('cart') + 2, mid - 4, P.PAPER); }
+}
+
+/* ---------- frames ---------- */
+const FRAMES = [];
+function addFrame(id, draw, opts = {}) { const c = document.getElementById(id); if (!c) return; const ctx = c.getContext('2d'); ctx.imageSmoothingEnabled = false; FRAMES.push({c, ctx, draw, live:!!opts.live, still:!!opts.still, visible:true, dirty:true, last:-1}); }
+function timeFor(st, mode) { return FREEZES[st](plan(mode)); }
+addFrame('c_main', (ctx, t) => { const st = STATE === 'live' ? null : STATE; drawMachine(ctx, st ? timeFor(st, MODE) : t, {mode:MODE, idle:st === 'idle'}); }, {live:true});
+addFrame('k_idle', ctx => drawMachine(ctx, 0.2, {mode:'classic', idle:true}));
+addFrame('k_choose', ctx => drawMachine(ctx, timeFor('choose', 'classic'), {mode:'classic'}));
+const landLoop = mode => { const b = plan(mode); return b.draw - 0.3 + pmod(IT, 3.6); };
+addFrame('k_prizes', ctx => drawMachine(ctx, landLoop('classic'), {mode:'classic'}));
+addFrame('k_prem', ctx => drawMachine(ctx, landLoop('premium'), {mode:'premium'}));
+addFrame('r_same', drawSame);
+addFrame('r_kinds', drawKinds);
+addFrame('r_golden', drawGolden);
+addFrame('r_motion', drawMotion);
+addFrame('k_pick', ctx => drawMachine(ctx, timeFor('pick', 'classic'), {mode:'classic'}));
+addFrame('k_cart', ctx => drawMachine(ctx, timeFor('end', 'classic'), {mode:'classic'}));
+addFrame('p_cmp', drawCmp);
+addFrame('b_all', drawAll);
+addFrame('s1', ctx => drawS(ctx, 'sticker'));
+addFrame('s2', ctx => drawS(ctx, 'brass'));
+['band', 'chip', 'edge'].forEach((f, i) => addFrame('b' + (i + 1), ctx => drawB(ctx, f)));
+['rim', 'chase', 'aura'].forEach((h, i) => addFrame('c' + (i + 1), ctx => drawC(ctx, h)));
+['ribbon', 'ticker', 'tag'].forEach((w, i) => addFrame('d' + (i + 1), ctx => drawD(ctx, w)));
+const io = 'IntersectionObserver' in window ? new IntersectionObserver(es => es.forEach(e => { const f = FRAMES.find(f => f.c === e.target); if (f) f.visible = e.isIntersecting; })) : null;
+if (io) FRAMES.forEach(f => io.observe(f.c));
+let FROZEN_IT = QS.has('it') ? parseFloat(QS.get('it')) : null;
+function tick(now) {
+  const b = plan(MODE);
+  const t = QS.has('t') ? parseFloat(QS.get('t')) : ((now - T0) / 1000) % b.loop;
+  IT = FROZEN_IT !== null ? FROZEN_IT : now / 1000;
+  for (const f of FRAMES) {
+    if (!f.dirty && (!f.visible || f.still)) continue;
+    if (!f.live && !f.dirty && now - f.last < 80) continue; // ambient frames redraw at about 12 fps
+    try { f.draw(f.ctx, t); } catch (e) { window.__err.push(f.c.id + ': ' + e.message); }
+    f.dirty = false; f.last = now;
+  }
+  requestAnimationFrame(tick);
+}
+const dirtyAll = () => FRAMES.forEach(f => { f.dirty = true; });
+function segBtns(ids, fn) { ids.forEach(id => document.getElementById(id).addEventListener('click', () => { ids.forEach(j => document.getElementById(j).setAttribute('aria-pressed', String(j === id))); fn(id); dirtyAll(); })); }
+const STATES = ['s_live', 's_idle', 's_read', 's_choose', 's_prizes', 's_pick', 's_end'];
+segBtns(['v_fit', 'v_one'], id => document.body.classList.toggle('one', id === 'v_one'));
+segBtns(['m_classic', 'm_premium'], id => { MODE = id === 'm_premium' ? 'premium' : 'classic'; T0 = performance.now(); });
+segBtns(STATES, id => { STATE = id.slice(2); T0 = performance.now(); });
+document.getElementById('replay').addEventListener('click', () => { T0 = performance.now(); STATE = 'live'; STATES.forEach(j => document.getElementById(j).setAttribute('aria-pressed', String(j === 's_live'))); dirtyAll(); });
+const rmBox = document.getElementById('rm');
+rmBox.addEventListener('change', e => { REDUCE = e.target.checked; dirtyAll(); });
+try { if (matchMedia('(prefers-reduced-motion: reduce)').matches) REDUCE = true; } catch (e) { /* no media queries */ }
+rmBox.checked = REDUCE;
+const hBox = document.getElementById('hc2'); hBox.checked = REC.halo !== 'none'; hBox.addEventListener('change', e => { REC.halo = e.target.checked ? 'chase' : 'none'; dirtyAll(); });
+if (MODE === 'premium') { document.getElementById('m_premium').setAttribute('aria-pressed', 'true'); document.getElementById('m_classic').setAttribute('aria-pressed', 'false'); }
+if (STATE !== 'live' && document.getElementById('s_' + STATE)) STATES.forEach(j => document.getElementById(j).setAttribute('aria-pressed', String(j === 's_' + STATE)));
+if (QS.get('only')) { document.body.classList.add('solo'); const c = document.getElementById(QS.get('only')); if (c) document.body.appendChild(c); }
+function loadImages() { return Promise.all(NAMES.map(n => new Promise(res => { const i = new Image(); i.onload = () => { IMG[n] = i; res(); }; i.onerror = () => res(); i.src = SRC + n + '.png'; }))); }
+const fontsReady = Promise.all([`700 18px ${ATK}`, `800 24px ${ATK}`, `600 18px ${ATK}`, `400 11px ${PIX}`, `700 11px ${PIX}`, `700 12px ${ATK}`].map(f => document.fonts.load(f).catch(() => null)));
+Promise.all([loadImages(), fontsReady]).then(() => { _hard.clear(); T0 = performance.now(); dirtyAll(); requestAnimationFrame(tick);
+  setTimeout(() => { document.getElementById('check').textContent = 'CHECK errors=' + JSON.stringify(window.__err) + ' scrollW=' + document.documentElement.scrollWidth + ' innerW=' + innerWidth + ' scrollH=' + document.documentElement.scrollHeight + ' missing=' + NAMES.filter(n => !IMG[n]).join(','); }, 800); });
+</script>
+</html>

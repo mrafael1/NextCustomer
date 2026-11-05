@@ -5,6 +5,8 @@
 [ext_resource type="Resource" path="res://data/cards/repeat.tres" id="c_repeat"]
 [ext_resource type="Resource" path="res://data/cards/shelf_swap.tres" id="c_shelf_swap"]
 [ext_resource type="Resource" path="res://data/cards/scissors.tres" id="c_scissors"]
+[ext_resource type="Resource" path="res://data/cards/milk.tres" id="e_milk"]
+[ext_resource type="Resource" path="res://data/cards/eggs.tres" id="e_eggs"]
 
 [resource]
 script = ExtResource("1_pack")
@@ -12,4 +14,7 @@ id = &"coupon_clipper"
 display_name = "Coupon clipper"
 family = "Coupon"
 cards = Array[ExtResource("2_card")]([ExtResource("c_repeat"), ExtResource("c_shelf_swap"), ExtResource("c_scissors")])
-hint_text = "Two coupons, then Scissors: +2 for each coupon before it."
+hint_text = "Coupons early, Scissors late: +2 for each earlier coupon. Repeat copies the item before it."
+example_text = "Milk, Repeat, Shelf swap, Eggs, Scissors: Repeat copies Milk's 4, Scissors pays 1 + 4. Total 14."
+example_cards = Array[ExtResource("2_card")]([ExtResource("e_milk"), ExtResource("c_repeat"), ExtResource("c_shelf_swap"), ExtResource("e_eggs"), ExtResource("c_scissors")])
+example_total = 14

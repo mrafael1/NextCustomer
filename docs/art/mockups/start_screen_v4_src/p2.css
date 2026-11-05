@@ -1,0 +1,180 @@
+
+/* ===================== round 4: page 2 in three looks (A bagging counter, B staff room, C end-cap) ===================== */
+/* shared: chase bulbs (an ink socket, gold / mustard-darkest in two phases) and the roller shutter (OPEN STORE in A and B) */
+.blb{position:absolute;width:18px;height:18px;border:3px solid var(--ink);background:var(--gold);pointer-events:none}
+.blb.a{animation:blbA .5s steps(1,end) infinite} .blb.b{animation:blbB .5s steps(1,end) infinite}
+.blb.steady{background:var(--mustard-light)}
+@keyframes blbA{0%{background:var(--gold)}50%{background:var(--mustard-darkest)}}
+@keyframes blbB{0%{background:var(--mustard-darkest)}50%{background:var(--gold)}}
+.F.rm .blb{animation:none}
+.shutter{position:absolute;left:0;top:0;width:1920px;height:1080px;z-index:95;pointer-events:none;transform:translateY(-1080px)}
+.shutter.shown{transform:none}
+.shutter.down{animation:shdown .3s steps(6,end) both}
+.shutter.up{animation:shup .6s steps(12,end) both}
+@keyframes shdown{from{transform:translateY(-1080px)}to{transform:none}}
+@keyframes shup{from{transform:none}to{transform:translateY(-1080px)}}
+.wob{position:absolute;z-index:3;display:grid;justify-items:center;align-content:center;gap:6px;background:var(--mustard-pale);border:3px solid var(--ink);filter:drop-shadow(6px 6px 0 rgba(43,36,32,.45));transform:rotate(3deg);transform-origin:50% 100%}
+.wob.swing{animation:swing 1.2s steps(4,end) 1 both}
+@keyframes swing{0%{transform:rotate(-4deg)}35%{transform:rotate(5deg)}70%{transform:rotate(1deg)}100%{transform:rotate(3deg)}}
+.F.rm .wob.swing{animation:none}
+.wspring{position:absolute;width:6px;background:repeating-linear-gradient(var(--steel-light) 0 3px,var(--ink) 3px 6px)}
+.off-ov::after{content:'';position:absolute;inset:-3px;background:rgba(44,41,38,.62);pointer-events:none;z-index:4}
+
+/* ---------- A: the bagging counter ---------- */
+.lkA .bagcol{position:absolute;cursor:pointer}
+.lkA .bagcol .lift{position:absolute;left:0;top:0;width:588px;height:234px}
+.lkA .bagcol.hov .lift{transform:translateY(-9px)}
+.lkA .bagcol.sel .lift{transform:translateY(-18px)}
+.lkA .bagcol.sel .lift.hop2{animation:liftA .3s steps(4,end) both}
+@keyframes liftA{0%{transform:none}60%{transform:translateY(-30px)}100%{transform:translateY(-18px)}}
+.F.rm .bagcol.sel .lift.hop2{animation:none}
+.lkA .bagcol .itm{position:absolute;top:3px;width:96px;height:96px;cursor:help}
+.lkA .bagcol .itm .ci{position:absolute}
+.lkA .bagcol .shadow{position:absolute;left:153px;top:228px;width:282px;height:6px;background:rgba(23,44,43,.8)}
+.lkA .bagcol.off .lift::after,.lkA .bagcol.off .tkt::after{content:'';position:absolute;inset:-3px;background:rgba(44,41,38,.62);pointer-events:none;z-index:4}
+.lkA .tkt{position:absolute;left:0;top:255px;width:588px;height:108px;background:var(--paper);border:3px solid var(--ink);box-shadow:0 6px 0 rgba(43,36,32,.45)}
+.lkA .tkt .strip{position:absolute;left:0;top:0;bottom:0;width:78px;border-right:3px solid var(--ink);display:grid;justify-items:center;align-content:start;gap:9px;padding-top:6px}
+.lkA .bagcol.sel .tkt{box-shadow:0 0 0 3px var(--ink),0 0 0 9px var(--mustard),0 0 0 12px var(--ink),0 6px 0 12px rgba(43,36,32,.45)}
+.lkA .bagcol .kb.call{animation:callb 1s steps(2,jump-none) infinite}
+.F.rm.lkA .bagcol .kb.call{animation:none;background:var(--mustard)}
+.lkA .ctag{position:absolute;height:33px;padding:0 9px;display:flex;align-items:center;background:var(--paper);border:3px solid var(--ink);box-shadow:0 3px 0 rgba(43,36,32,.6)}
+.lkA .ctag.pv{background:var(--mustard-pale)} .lkA .ctag.warn{background:var(--mustard-pale)}
+.lkA .titm{position:absolute;width:96px;height:96px;cursor:help}
+.lkA .titm .ci{position:absolute}
+.lkA .titm .tsh{position:absolute;left:9px;right:9px;bottom:-3px;height:6px;background:rgba(23,44,43,.85)}
+.lkA .eslot{position:absolute;width:96px;height:96px;border:3px dashed var(--steel-light);display:grid;place-items:center}
+.lkA .eslot.want{border-color:var(--mustard)}
+.lkA .pvA{position:absolute;border:3px dashed var(--mustard)}
+.lkA #pinsArea{cursor:pointer}
+.lkA #pinsArea:hover .badge{transform:rotate(-3deg)}
+.lkA #pinsArea:hover .chg{transform:translateX(6px)}
+.lkA .badge{transform-origin:50% -6px}
+
+/* ---------- B: the staff room before the shift ---------- */
+.lkB .dymo{display:flex;align-items:center;height:39px;padding:0 12px;border:3px solid var(--ink);box-shadow:inset 0 3px 0 rgba(251,247,238,.18),6px 6px 0 rgba(43,36,32,.45)}
+.lkB .tube{left:738px;top:93px;width:444px;height:12px;pointer-events:none}
+.lkB .tube.flick{animation:flick .42s steps(1,end) both}
+@keyframes flick{0%{background:transparent}20%{background:var(--teal-black)}40%{background:transparent}60%{background:var(--teal-black)}80%{background:transparent}}
+.F.rm .tube.flick{animation:none}
+.lkB .notice{background:var(--paper);border:3px solid var(--ink);color:var(--ink);box-shadow:9px 9px 0 rgba(43,36,32,.45)}
+.lkB .note{background:var(--paper);border:3px solid var(--ink);padding:21px 12px 12px;color:var(--ink);box-shadow:6px 6px 0 rgba(43,36,32,.45)}
+.lkB .tape{position:absolute;top:-12px;width:75px;height:21px;background:var(--mustard-pale);border:3px solid var(--mustard-dark);opacity:.92}
+.lkB .note .tape{left:66px}
+.lkB #pinsArea{cursor:pointer}
+.lkB #pinsArea:hover .badge{transform:rotate(-3deg)}
+.lkB .badge{transform-origin:50% -9px}
+/* the crates: items stand whole on the crate, price tags on its lip, the label below; stickers stay inside the crate */
+.lkB .crate{position:absolute;width:396px;height:303px;cursor:pointer}
+.lkB .crate.hov{transform:translateY(-9px)}
+.lkB .crate.sel{transform:translateY(-9px)}
+.lkB .crate.hopc{animation:hopc .3s steps(4,end) both}
+@keyframes hopc{0%{transform:translateY(-33px)}60%{transform:translateY(0)}100%{transform:translateY(-9px)}}
+.F.rm .crate.hopc{animation:none}
+.lkB .crate.off::after{content:'';position:absolute;left:-3px;right:-3px;top:-3px;bottom:-12px;background:rgba(44,41,38,.62);pointer-events:none;z-index:5}
+.lkB .crate .glow{position:absolute;left:-12px;top:-63px;width:420px;height:162px;pointer-events:none}
+.lkB .cback{position:absolute;left:0;top:57px;width:396px;height:42px;background:#4a3022;border:3px solid var(--ink);box-shadow:inset 0 6px 0 #7a5232}
+.lkB .citems{position:absolute;left:39px;top:0;display:flex;gap:15px}
+.lkB .citem{position:relative;width:96px;height:96px;cursor:help}
+.lkB .citem .ci{position:absolute}
+.lkB .crate:hover .citem:nth-child(2){transform:translateY(-6px)}
+.lkB .citem.pop{animation:drop .3s steps(4,end) both}
+.lkB .cfront{position:absolute;left:0;top:93px;width:396px;height:210px;border:3px solid var(--ink);
+  background:repeating-linear-gradient(180deg,#a87a4e 0 33px,#d2a874 33px 36px,#7a5232 36px 39px,var(--ink) 39px 42px);box-shadow:0 9px 0 rgba(43,36,32,.45)}
+.lkB .cfront .post{position:absolute;top:0;bottom:0;width:24px;background:#7a5232;border-color:var(--ink);border-style:solid;border-width:0}
+.lkB .cfront .post.l{left:0;border-right-width:3px;box-shadow:inset 3px 0 0 #a87a4e}
+.lkB .cfront .post.r{right:0;border-left-width:3px;box-shadow:inset -3px 0 0 #4a3022}
+.lkB .crate.sel .cfront{box-shadow:0 0 0 3px var(--ink),0 0 0 9px var(--mustard),0 0 0 12px var(--ink),0 9px 0 12px rgba(43,36,32,.45)}
+.lkB .ptagB{position:absolute;top:99px;height:33px;min-width:66px;display:grid;place-items:center;padding:0 6px;background:var(--paper);border:3px solid var(--ink);box-shadow:0 3px 0 rgba(43,36,32,.5);z-index:2}
+.lkB .ptagB.cp{background:var(--teal-pale)}
+.lkB .clabel{position:absolute;left:33px;top:135px;width:330px;height:165px;background:var(--paper);border:3px solid var(--ink);z-index:2}
+.lkB .clabel .cname{height:48px;display:flex;align-items:center;gap:12px;padding:0 6px 0 12px;border-bottom:3px solid var(--ink)}
+.lkB .clabel .nmw{min-width:0;overflow:hidden;display:flex;padding:6px 0 12px;margin:-6px 0 -12px}
+.lkB .clabel .chint{padding:6px 12px 0;font:700 18px/22px var(--body);color:var(--ink-light);text-wrap:pretty}
+.lkB .clabel .cfoot{position:absolute;left:0;right:0;bottom:0;height:36px;border-top:3px dashed var(--cream-shade);display:flex;align-items:center;gap:9px;padding:0 9px}
+.lkB .clabel .staple{position:absolute;top:-6px;width:21px;height:9px;background:var(--steel-light);border:3px solid var(--ink)}
+.lkB .crate .kb.call{animation:callb 1s steps(2,jump-none) infinite}
+.F.rm.lkB .crate .kb.call{animation:none;background:var(--mustard)}
+/* the clipboard and its order sheet */
+.lkB .clipb{background:#a87a4e;border:3px solid var(--ink);box-shadow:inset 6px 6px 0 #d2a874,inset -6px -6px 0 #7a5232,12px 12px 0 rgba(43,36,32,.45)}
+.lkB .paper{background:var(--paper);border:3px solid var(--ink);box-shadow:inset 0 -6px 0 var(--cream)}
+.lkB .clipB{width:120px;height:48px;background:var(--brass);border:3px solid var(--ink);box-shadow:inset 0 6px 0 var(--gold),inset 0 -6px 0 var(--brass-dark)}
+.lkB .clipB .clipbar{position:absolute;left:24px;top:12px;width:66px;height:12px;background:var(--steel-light);border:3px solid var(--ink)}
+.lkB .sheetlines .ln{position:absolute;left:0;right:0;height:30px;display:flex;align-items:center;gap:9px;border-bottom:3px solid var(--cream-shade)}
+.lkB .sheetlines .ln.first{border-top:3px solid var(--grey-light);margin-top:-3px}
+.lkB .sheetlines .ln.drop{animation:dropln .24s steps(3,end) both}
+@keyframes dropln{0%{transform:translateY(-15px);opacity:0}100%{transform:none;opacity:1}}
+.lkB .sheetlines .no{width:36px;flex:none}
+.lkB .sheetlines .mini{flex:none;width:33px;height:27px;display:grid;place-items:center;border:3px solid var(--ink)}
+.lkB .sheetlines .mini.empty{border-style:dashed;border-color:var(--tomato-dark);background:transparent}
+.lkB .sheetlines .mini.free{border-style:dashed;border-color:var(--grey-light);background:transparent}
+.lkB .sheetlines .nmx{width:168px;flex:none;font:800 19px/22px var(--body);color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lkB .sheetlines .fromx{flex:1;min-width:0;font:700 17px/20px var(--body);color:var(--grey-dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lkB .sheetlines .prx{width:60px;flex:none;display:flex;justify-content:flex-end}
+.lkB .sheetlines .ck{flex:none;width:27px;height:27px;border:3px solid var(--ink);display:grid;place-items:center;background:var(--paper)}
+.lkB .sheetlines .ck.want{border-color:var(--tomato-dark);border-style:dashed}
+.lkB .sheetlines .ck.off{border-color:var(--grey-light)}
+.lkB .sheetlines .ck.pv{border-style:dashed;border-color:var(--grey)}
+.lkB .sheetlines .ck.stamp{animation:stamp .24s steps(4,end) both}
+@keyframes stamp{0%{transform:scale(1.8);opacity:0}60%{transform:scale(.85);opacity:1}100%{transform:none}}
+.F.rm .sheetlines .drop,.F.rm .sheetlines .stamp{animation:none}
+.lkB .pvchip{display:inline-flex;align-items:center;vertical-align:middle;height:33px;margin:-3px 6px -3px 0;padding:0 6px;border:3px solid var(--mustard-dark);background:var(--mustard-pale)}
+.lkB .fcardB{position:relative;background:var(--paper);border:3px solid var(--ink);box-shadow:0 6px 0 var(--cream-shade);padding:9px 9px 0;display:grid;gap:3px;cursor:help}
+.lkB .fcardB .fct{position:absolute;left:0;right:0;top:0;height:6px}
+/* the time clock */
+.lkB .tclock .tband{left:9px;right:9px;top:9px;height:48px;background:var(--brass);border-bottom:3px solid var(--ink);box-shadow:inset 0 3px 0 var(--gold),inset 0 -3px 0 var(--brass-dark)}
+.lkB .tclock .cardbay{left:18px;top:66px;width:72px;height:111px;background:var(--charcoal);border:3px solid var(--ink);overflow:hidden;box-shadow:inset 0 6px 0 #000}
+.lkB .tcard{position:absolute;left:6px;top:9px;width:54px;height:96px;background:var(--paper);border:3px solid var(--ink)}
+.lkB .tcard .tch{position:absolute;left:0;right:0;top:0;height:27px;background:var(--teal);border-bottom:3px solid var(--ink);display:grid;place-items:center}
+.lkB .tcard .tcl{position:absolute;left:6px;right:6px;top:36px;height:60px;background:repeating-linear-gradient(180deg,var(--cream-shade) 0 3px,transparent 3px 12px)}
+.lkB .tcard .tcp{position:absolute;left:3px;top:42px}
+.lkB .tcard.punch{animation:punch .27s steps(3,end) both}
+@keyframes punch{0%{transform:none}100%{transform:translateY(66px)}}
+.lkB .tcard.in .tcp{width:42px;height:6px;background:var(--tomato)}
+/* the parked trolley: the cart as item art */
+.lkB .tri{position:absolute;width:48px;height:48px;cursor:help}
+.lkB .tri .ci{position:absolute}
+.lkB .tri.pop{animation:drop .3s steps(4,end) both}
+.lkB .tre{position:absolute;width:48px;height:48px;border:3px dashed var(--grey);display:grid;place-items:center}
+.lkB .tre.want{border-color:var(--tomato-light)}
+.lkB .trpv{position:absolute;border:3px dashed var(--mustard)}
+
+/* ---------- C: the display end-cap in its aisle ---------- */
+.lkC .bayC{position:absolute;cursor:pointer}
+.lkC .bayC>*{position:absolute}
+.lkC .bayC.off::after{content:'';position:absolute;left:-3px;right:-3px;top:42px;bottom:-3px;background:rgba(44,41,38,.62);pointer-events:none;z-index:5}
+.lkC .topC{left:0;top:57px;width:504px;height:72px;border:3px solid var(--ink);display:flex;align-items:flex-start;justify-content:center;padding:0 12px}
+.lkC .topC .nmw{min-width:0;overflow:hidden;display:flex;padding:6px 0 12px;margin:-9px 0 -12px}   /* the name sits 3 px high so its descenders stay inside the banner */
+.lkC .bayC.hov .topC{transform:translateY(-6px)}
+.lkC .keyC{top:3px;width:48px;height:48px;display:grid;place-items:center}
+.lkC .bayC .kb.call{animation:callb 1s steps(2,jump-none) infinite}
+.F.rm.lkC .bayC .kb.call{animation:none;background:var(--mustard)}
+.lkC .prodC{position:absolute;width:144px;height:144px;cursor:help}
+.lkC .prodC>img{position:relative;display:block} .lkC .prodC>img.ci{position:absolute}
+.lkC .prodC .psh{position:absolute;left:18px;right:18px;bottom:-3px;height:6px;background:rgba(23,44,43,.85)}
+.lkC .ptagC{height:33px;min-width:66px;display:grid;place-items:center;padding:0 6px;background:var(--paper);border:3px solid var(--ink)}
+.lkC .ptagC.cp{background:var(--teal-pale)}
+.lkC .talkC{left:12px;top:327px;width:480px;height:54px;background:var(--paper);border:3px solid var(--ink);box-shadow:0 6px 0 rgba(23,44,43,.6);padding:0 12px 0 9px;display:flex;align-items:center;gap:12px}
+.lkC .talkC .bt{font-size:19px;line-height:21px;color:var(--ink-light);text-wrap:balance}
+.lkC .tclipC{top:321px;width:18px;height:15px;background:var(--brass);border:3px solid var(--ink);box-shadow:inset 0 3px 0 var(--mustard-light);z-index:2}
+.lkC .gfC{display:flex;align-items:center;gap:9px;height:45px;padding:0 12px;background:var(--mustard-pale);border:3px solid var(--ink);filter:drop-shadow(6px 6px 0 rgba(43,36,32,.45));transform:rotate(-2deg)}
+.lkC .bayC .stk.pk{display:flex;align-items:center;gap:9px;padding:6px 12px}
+.lkC .stagC{position:absolute;height:33px;display:flex;align-items:center;gap:9px;padding:0 9px;background:var(--paper);border:3px solid var(--ink);white-space:nowrap;z-index:2}
+.lkC .stagC.mus{background:var(--mustard-pale)}
+.lkC .efcC{position:absolute;width:96px;height:96px;border:3px dashed var(--mustard);display:grid;place-items:center}
+.lkC .efcC.free{border-color:var(--teal-shade)}
+.lkC .pvwC{position:absolute;border:3px dashed var(--mustard)}
+.lkC .trC{position:absolute;width:96px;height:96px;cursor:help}
+.lkC .trC .ci{position:absolute}
+.lkC .ledC{position:absolute;display:flex;align-items:center;justify-content:center;gap:15px}
+.lkC .fcardC{position:absolute;background:var(--paper);border:3px solid var(--ink);box-shadow:0 6px 0 rgba(23,44,43,.6);padding:12px 6px 3px;display:grid;justify-items:center;gap:3px;cursor:help}
+.lkC .fcardC .fct{position:absolute;left:0;right:0;top:0;height:6px}
+.lkC #pinsArea{cursor:pointer}
+.lkC #pinsArea:hover .badge{transform:translateY(-6px)}
+
+/* the starter pack's cards, highlighted on the order sheet and in the trolley */
+.lkB .sheetlines .ln.pkl{box-shadow:inset 0 -3px 0 rgba(43,36,32,.18)}
+.lkB .sheetlines .pkchip{display:inline-grid;place-items:center;height:24px;padding:0 6px;margin-right:9px;border:3px solid var(--ink);vertical-align:middle}
+.lkB .pkbar{position:absolute;width:9px;border:3px solid var(--ink)}
+.lkB .pkbar.pv{border-style:dashed;border-color:var(--mustard-dark)}
+.lkB .trpk{position:absolute;border:6px solid;box-shadow:0 0 0 3px var(--ink),inset 0 0 0 3px var(--ink);pointer-events:none}
+.lkB .trtag{position:absolute;height:27px;padding:0 9px;display:grid;place-items:center;border:3px solid var(--ink);pointer-events:none}

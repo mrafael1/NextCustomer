@@ -618,8 +618,16 @@ func reveal(spec: String) -> void:
 			picked = option.trim_prefix("pick=").to_int()
 		elif option.begins_with("stock="):
 			stocked = option.trim_prefix("stock=").to_int()
+	var board_part: String = CaptureStart.open(_screen, options, raised, seed_value)
+	if board_part != "":
+		_reveal_part = board_part
+		return
 	_screen.start_new_run(seed_value, true, true)
 	var cart_reveal: CartReveal = _screen._cart_reveal
+	# The original capture API still reviews the older reveal and its timeline.
+	if cart_reveal.board != null:
+		# Reopened without the board's actions, it builds the older panel.
+		cart_reveal.play(_screen.run, _screen._deck_button, _screen.profile.reduced_motion())
 	var fold: String = "outro_%d_" % roundi(outro * 10.0) if outro >= 0.0 else ""
 	if cart_reveal.is_choosing() and (raised >= 0 or picked >= 0):
 		cart_reveal.freeze_at(cart_reveal.end_time())

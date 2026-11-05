@@ -1,0 +1,13 @@
+<!doctype html><meta charset="utf-8">
+<style>@font-face{font-family:'NCPix';font-weight:400 700;src:url(../../../../fonts/PixelifySans-Variable.ttf)}</style>
+<body><pre id="o"></pre>
+<script>
+document.fonts.load('400 11px NCPix').then(()=>{
+ const m=document.createElement('canvas').getContext('2d'); m.font='400 11px NCPix';
+ const w=s=>{const font='400 11px NCPix'; let W=10; for(const ch of s) W+=Math.max(1,Math.round(m.measureText(ch).width));
+ const c=document.createElement('canvas'); c.width=W; c.height=23; const x=c.getContext('2d'); x.font=font; let cx=3; for(const ch of s){ x.fillText(ch,cx,15); cx+=Math.max(1,Math.round(x.measureText(ch).width)); }
+ const d=x.getImageData(0,0,W,23).data; let l=W,r=-1; for(let y=0;y<23;y++) for(let i=0;i<W;i++) if(d[(y*W+i)*4+3]>=110){l=Math.min(l,i);r=Math.max(r,i);} return r-l+1;};
+ const names=['Breakfast run','Bargain bin','Banana bunch','Coupon clipper','Deli counter','Big shop','OPEN STORE','PICK A STARTER PACK','CUSTOMER','BADGE PINS','PICKED','GOOD FIRST','NEXT CUSTOMER','STARTER PACKS','Double checkout','ORDER SHEET','BREAKFAST','CLEARANCE','PRODUCE','COUPON'];
+ document.getElementById('o').textContent=names.map(n=>n+': '+w(n)+' art (x3='+w(n)*3+', x6='+w(n)*6+')').join('\n');
+});
+</script>

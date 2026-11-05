@@ -1,0 +1,13 @@
+; The start screen's OPENING TIME clock (mock-up start_screen_v3): a paper face in an ink ring,
+; ink hands at nine o'clock, a grey light shade at the bottom right. 9x9, shown at 2x.
+@size 9x9
+@kind icon
+..#####..
+.#ww#ww#.
+#www#www#
+#www#www#
+#####www#
+#wwwwww:#
+#wwwwww:#
+.#ww:::#.
+..#####..

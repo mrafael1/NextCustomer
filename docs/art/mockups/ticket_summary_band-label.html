@@ -1,0 +1,469 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ticket Band Label</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&family=Atkinson+Hyperlegible+Next:wght@200..800&display=swap">
+<style>
+/* House style of the shift mock-ups: bays on the store's dark teal wall, canvases at the game's own
+   pixels (nearest-neighbour), notes beside them. Single dark look on purpose: the game's palette. */
+@font-face{font-family:'NCPix';font-weight:400 700;src:url(../../../fonts/PixelifySans-Variable.ttf)}
+@font-face{font-family:'NCAtk';font-weight:200 800;src:url(../../../fonts/AtkinsonHyperlegibleNext-Variable.ttf)}
+:root{
+  color-scheme:dark;
+  --wall:#1f3b3a; --bay:#172c2b; --panel:#2a4d4b; --paper:#fbf7ee; --teal-pale:#c3e0d4; --teal-light:#86c2b6;
+  --mustard:#e2b33c; --gold:#ffcf3f; --ink:#2b2420; --muted:#a9a59b;
+  --display:'NCPix','Pixelify Sans','Courier New',monospace;
+  --body:'NCAtk','Atkinson Hyperlegible Next','Segoe UI',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--wall);color:var(--paper)}
+body{font-family:var(--body);font-size:15px;line-height:1.5;overflow-x:hidden}
+main{max-width:1320px;margin:0 auto;padding:28px 16px 64px;display:grid;gap:40px}
+main>*,section>*{min-width:0}
+h1,h2,h3{font-family:var(--display);font-weight:700;margin:0;letter-spacing:.02em;text-wrap:balance}
+h1{font-size:34px;color:var(--gold)}
+h2{font-size:24px}
+h3{font-size:16px;color:var(--teal-pale)}
+p{margin:0;max-width:80ch}
+b{color:#faecbc}
+code{color:#faecbc;font-size:13px;overflow-wrap:anywhere}
+.eyebrow{font-family:var(--display);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--teal-light)}
+section{display:grid;gap:14px;min-width:0}
+.lede{display:grid;gap:12px}
+.panel{background:var(--panel);border:2px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.35);padding:14px 16px;display:grid;gap:8px}
+.panel strong{color:var(--gold)}
+ul,ol{margin:0;padding-left:22px;display:grid;gap:6px;max-width:84ch}
+.bay{background:var(--bay);border:2px solid var(--ink);padding:12px;display:grid;gap:10px;min-width:0}
+.row{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start}
+.cell{display:grid;gap:6px;min-width:0}
+.cap{font-size:12px;color:var(--muted);max-width:60ch}
+canvas{image-rendering:pixelated;image-rendering:crisp-edges;display:block;max-width:100%;height:auto;background:#222a29}
+.controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+button{font-family:var(--display);font-size:15px;color:var(--paper);background:#3a7672;border:2px solid var(--ink);box-shadow:0 3px 0 var(--ink);padding:4px 12px;cursor:pointer}
+button:active{transform:translateY(2px)}
+button[aria-pressed="true"]{background:var(--mustard);color:var(--ink)}
+button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+table{border-collapse:collapse;font-size:14px}
+td,th{border:1px solid #3a7672;padding:4px 8px;text-align:left;vertical-align:top}
+th{font-family:var(--display);font-weight:500;color:var(--teal-pale)}
+.scroll{overflow-x:auto;max-width:100%}
+</style>
+
+<main>
+  <div class="lede">
+    <div class="eyebrow">Mock-up · price ticket · concept 1 "band + word" · 2026-11-03 · direction B, 108×76</div>
+    <h1>Ticket: band + word</h1>
+    <p>This is ticket B (colour card, fixed price window, rule on a cream plate) at the taller 54×38 art px (108×76 on screen). It answers "the icons feel odd" by taking every item-like icon off the ticket. A family is now a <b>colour band with its name in hard-pixel caps</b>, and a target family inside a rule is a <b>small piece of that same band</b>, a word chip. Every number and every capital letter is drawn from pixel sheets at 2×. Only the rule's words are Atkinson.</p>
+  </div>
+
+  <section class="panel" aria-labelledby="how">
+    <h2 id="how">How each part answers family, price and effect</h2>
+    <ul>
+      <li><b>Band (family).</b> The top 7 rows are the family's colour, with its name in 3×5 capitals. You read "DAIRY" there; you don't have to decode a milk carton. With 2 or 3 families the band splits into segments, and each segment keeps its own name, shortened only when the names don't fit.</li>
+      <li><b>Symbol (family, optional).</b> A 5×5 single-colour shape (a drop, a dome, a sun ring) that is exactly as tall as the capitals, so it reads as part of the word. It appears only on a single-family band.</li>
+      <li><b>Price window (price).</b> A fixed inset box, right side, rows 8–18, in big 4×7 digits with the euro after the number ("128€"). Its fill gives the state: paper is the base price, pale gold is boosted, tomato is 0€.</li>
+      <li><b>Was-tab (price).</b> When the shown price isn't the base price, the old one sits on a small cream tab left of the window, slashed in tomato. It reads like the "was" on a real sale label, and its euro is redrawn so it no longer looks like an E.</li>
+      <li><b>Cream plate (effect).</b> The rule, in Atkinson 13 px ink, 2 lines. A target family is a band chip ("BREAKFAST" on mustard). A keyword (BATCH, WASTED…) is a dark ink chip, so a family and a mechanic never look alike.</li>
+    </ul>
+    <p><strong>The 2-second test:</strong> on a belt row you read the <b>price window first</b> (biggest, highest-contrast digits, same place on every ticket), then the <b>band</b> (colour at a glance, the word when you look), and the <b>plate third</b> (the rule, with the family chip its colour-matched anchor). When a chip's colour matches another ticket's band, the "works with" link is visible without reading.</p>
+  </section>
+
+  <div class="controls" role="group" aria-label="Options">
+    <span class="eyebrow">Band symbol</span>
+    <button id="symOn" aria-pressed="true">On</button>
+    <button id="symOff" aria-pressed="false">Off</button>
+  </div>
+
+  <section aria-labelledby="sa">
+    <h2 id="sa">(a) The capture's belt row</h2>
+    <p class="cap">Drawn over now_planning.png. The lower part of the stage moves down 12 px for the taller tickets. Slot 3's talker becomes the cause-only chip. Families come from the cards' tags, Food stays quiet, and the order follows FamilyPalette.main_family_order, so every Milk is DAIRY first.</p>
+    <div class="bay"><h3>1:1, the stage's bottom half</h3><canvas id="stage" width="1280" height="300" aria-label="The shift screen's belt with the seven new tickets"></canvas></div>
+    <div class="bay"><h3>3×, each ticket on its rail</h3><div class="row" id="row3"></div></div>
+  </section>
+
+  <section aria-labelledby="sb">
+    <h2 id="sb">(b) Stress: GOLDEN, 3 families, 128€, was 4€</h2>
+    <p class="cap">A Golden Milk with a Price-gun family (Household), so the band holds 3 segments. Brass outline, a gold top row, a corner sparkle. The stress rule follows the brief (+1, was 4€); the real Golden Milk is 6€ with +2, which is the same width.</p>
+    <div class="bay"><div class="row" id="stress"></div></div>
+  </section>
+
+  <section aria-labelledby="sc">
+    <h2 id="sc">(c) Coupons</h2>
+    <p class="cap">A coupon's band always says COUPON (teal, perforated under the band). Its window is the stub (scissors, never a € amount). A family coupon names its family as a chip in the rule instead of borrowing the family's face. A fizzle greys and strikes the stub.</p>
+    <div class="bay"><div class="row" id="coupons"></div></div>
+  </section>
+
+  <section aria-labelledby="sd">
+    <h2 id="sd">(d) Keyword chips</h2>
+    <p class="cap">Keywords are dark ink chips with capitals in the keyword's calm colour (BATCH is Bakery cream, as in KeywordChip). A wrong job (the WASTED state) turns the chip tomato and adds a cross after the word, as KeywordChip.set_wasted does. Family chips are always light pieces of a band, so the two kinds never get confused.</p>
+    <div class="bay"><div class="row" id="keywords"></div></div>
+  </section>
+
+  <section aria-labelledby="se">
+    <h2 id="se">(e) The 0€ Spot check slot</h2>
+    <p class="cap">The ticket owns the amount: a tomato window says 0€ and the was-tab keeps the lost 4€ visible. The chip under it owns the cause: a warning sign only, with no second 0€. On an empty slot, the full talker is the only 0€.</p>
+    <div class="bay"><div class="row" id="spot"></div></div>
+  </section>
+
+  <section aria-labelledby="sf">
+    <h2 id="sf">Band specimen: every family, the splits and the short names</h2>
+    <p class="cap">The fitting rule: try every full name. While the names don't fit the band, shorten the longest one to its next form (full, then short, then a 4-letter code). The capital I is 1 px wide, M and W are 5, N is 4, and all other letters are 3.</p>
+    <div class="bay"><div class="row" id="bands"></div></div>
+    <div class="scroll"><table>
+      <tr><th>Family</th><th>Full</th><th>Short</th><th>Code</th><th>Text on band</th><th>Symbol</th></tr>
+      <tbody id="names"></tbody>
+    </table></div>
+  </section>
+
+  <section class="panel" aria-labelledby="spec">
+    <h2 id="spec">Zones (art px, 54×38, drawn at 2×)</h2>
+    <ul>
+      <li><b>Body</b> x0–53 × y0–37: 1 px ink outline (brass-dark on GOLDEN), 2 px die-cut corners, a 35% ink shadow at (1,1), a shade column at x52 and a shade row at y36. The face is the first band family's colour; a coupon's is paper.</li>
+      <li><b>Band</b> y1–7, x1–52: light row y1, face y2–6, shade row y7. Capitals 3×5 on y2–6 start at x3 (x10 after a 5×5 symbol at x3). Splits are segments sized to their names, joined by a 1 px ink-light seam. Coupons have a dashed perforation on y7.</li>
+      <li><b>Price window</b> x31–53 × y8–18: ink outline on x31, y8 and y18, plus the ticket's own right edge. Inside it is x32–52 × y9–17 with a 1 px highlight on its top and left. The digits are 4×7 ("1" is 3), right-aligned at x51, rows y10–16. "128€" is 18 px wide in 21 px of room.</li>
+      <li><b>Was-tab</b> right edge x29, rows y9–17: cream, with a cream-shade bottom row. The digits are 3×5 grey-dark, right-aligned at x28, rows y11–15, with a 1 px tomato slash from bottom left (y16) to top right (y11), 1 px past each end, so the middle row of the digits stays readable.</li>
+      <li><b>Plate</b> x2–51 × y20–35: cream, with a cream-shade inset on y20 and x2. The rule is Atkinson 800 13 px (12 px fallback, never 3 lines), with baselines at screen y54 and y68, from screen x8 to x100.</li>
+      <li><b>Chips</b>, 7 rows tall (screen baseline −12 to +2). A family chip is a light row, face rows with ink or paper capitals, and a shade row, 2 px of padding, cut corners. A keyword chip is ink with capitals in the calm colour; a WASTED one is tomato with paper capitals and a 5×5 cross.</li>
+      <li><b>Cause chip</b> (Spot check): 13×13, tomato, the 2× warning sign, centred under the ticket and overlapping its bottom by 1 art px.</li>
+    </ul>
+  </section>
+
+  <section class="panel" aria-labelledby="weak">
+    <h2 id="weak">Weak points</h2>
+    <ul>
+      <li>The face colour changes meaning. Today it is the family the card <i>works with</i> (#105), so every Milk is mustard. Here it is what the item <i>is</i>, so Milk turns teal, and "works with" moves to the mustard BREAKFAST chip in its rule. The belt row changes colour.</li>
+      <li>With 3 families the band falls back to 4-letter codes (DAIR, HHLD, BRKF). They are readable, but they are codes. Shortened names need their tooltip, or a reader learns them over time.</li>
+      <li>A 3×5 capital is 10 screen px tall. At 1:1 it is crisp but small, and long names (BREAKFAST, CLEARANCE) are dense. The words are smaller than the rule's Atkinson.</li>
+      <li>On a single-family ticket with no struck price, the cell left of the window (x1–30, y8–18) is empty face. It's breathing room, but it's also unused room.</li>
+      <li>The window sits 6 rows lower than in v2's B, so the count's pay flights land 12 screen px lower. That's code work in PlanningLayer and pay_burst.</li>
+      <li>Chips are as tall as the line pitch (14 px), so a chip on line 1 and another on line 2 touch. Rules rarely have two chips, but they would read as one block.</li>
+      <li>Light families (Frozen, Bakery) have low contrast between the cream was-tab and the face.</li>
+    </ul>
+  </section>
+</main>
+
+<script>
+'use strict';
+/* ---------- palette (ui/palette.gd, art/src/palette.txt) and families (data/families/*.tres) ---------- */
+const P = {INK:'#2b2420',INK_LIGHT:'#4a3f38',PAPER:'#fbf7ee',CREAM:'#f3e9d2',CREAM_SHADE:'#ddcba5',MUSTARD:'#e2b33c',MUSTARD_LIGHT:'#f1d27a',
+  MUSTARD_PALE:'#faecbc',BRASS:'#c8932b',BRASS_DARK:'#8a5d1a',BRASS_DARKEST:'#4a3010',GOLD:'#ffcf3f',TOMATO:'#d9534f',TOMATO_DARK:'#a83a3c',
+  TOMATO_LIGHT:'#ec8a6e',TOMATO_PALE:'#f5bfa0',TEAL:'#4f9a94',TEAL_DARK:'#2a4d4b',TEAL_LIGHT:'#86c2b6',TEAL_SHADE:'#3a7672',GREEN_LIGHT:'#a5d17e',
+  GREY:'#8a8172',GREY_LIGHT:'#c7beab',GREY_DARK:'#5e574d',STEEL_HI:'#ecebe4',STEEL_LIGHT:'#c7c3b8',STEEL_PALE:'#a9a59b',STEEL_SHADE:'#6f6b63',
+  STEEL_DARK:'#57534c',STEEL_DARKEST:'#45423d',RUBBER_DARK:'#2c2926'};
+/* names: full, short, 4-letter code (the fitting rule shortens the longest first). paper: FamilyStyle.paper_text. */
+const FAM = {
+  Produce:  {face:'#5fae5a',light:'#a5d17e',shade:'#3d7a45',names:['PRODUCE','PROD'],sym:'leaf'},
+  Dairy:    {face:'#4f9a94',light:'#86c2b6',shade:'#3a7672',names:['DAIRY','DAIR'],sym:'drop'},
+  Bakery:   {face:'#d2a874',light:'#ddcba5',shade:'#a87a4e',names:['BAKERY','BAKE'],sym:'dome'},
+  Breakfast:{face:'#e2b33c',light:'#f1d27a',shade:'#b38425',names:['BREAKFAST','BRKFST','BRKF'],sym:'sun'},
+  Household:{face:'#5e574d',light:'#8a8172',shade:'#4a3f38',names:['HOUSEHOLD','HSHLD','HHLD'],sym:'square',paper:true},
+  Clearance:{face:'#a83a3c',light:'#d9534f',shade:'#6e2630',names:['CLEARANCE','CLEAR','CLR'],sym:'down',paper:true},
+  Snack:    {face:'#7a5232',light:'#a87a4e',shade:'#4a3022',names:['SNACK','SNK'],sym:'up',paper:true},
+  Frozen:   {face:'#c3e0d4',light:'#fbf7ee',shade:'#86c2b6',names:['FROZEN','FRZN'],sym:'snow'},
+  Food:     {face:'#ec8a6e',light:'#f5bfa0',shade:'#d9534f',names:['FOOD'],sym:'dot'},
+  Coupon:   {face:'#3a7672',light:'#4f9a94',shade:'#2a4d4b',names:['COUPON'],sym:'pct',paper:true},
+};
+const KW_FACE = {BATCH:P.CREAM_SHADE, CHAIN:P.GREEN_LIGHT, PAIR:P.TEAL_LIGHT, MORNING:P.MUSTARD_LIGHT};
+const ATK = "NCAtk, 'Atkinson Hyperlegible Next', sans-serif";
+const fTxt = s => `800 ${s}px ${ATK}`;
+
+/* ---------- pixel sheets ---------- */
+const CAPS = {
+  A:['.#.','#.#','###','#.#','#.#'], B:['##.','#.#','##.','#.#','##.'], C:['.##','#..','#..','#..','.##'], D:['##.','#.#','#.#','#.#','##.'],
+  E:['###','#..','##.','#..','###'], F:['###','#..','##.','#..','#..'], G:['.##','#..','#.#','#.#','.##'], H:['#.#','#.#','###','#.#','#.#'],
+  I:['#','#','#','#','#'], J:['..#','..#','..#','#.#','.#.'], K:['#.#','#.#','##.','#.#','#.#'], L:['#..','#..','#..','#..','###'],
+  M:['#...#','##.##','#.#.#','#...#','#...#'], N:['#..#','##.#','#.##','#..#','#..#'], O:['.#.','#.#','#.#','#.#','.#.'],
+  P:['##.','#.#','##.','#..','#..'], R:['##.','#.#','##.','#.#','#.#'], S:['.##','#..','.#.','..#','##.'], T:['###','.#.','.#.','.#.','.#.'],
+  U:['#.#','#.#','#.#','#.#','###'], V:['#.#','#.#','#.#','#.#','.#.'], W:['#...#','#...#','#.#.#','##.##','#...#'], X:['#.#','#.#','.#.','#.#','#.#'],
+  Y:['#.#','#.#','.#.','.#.','.#.'], Z:['###','..#','.#.','#..','###'],
+};
+const SYM = {
+  leaf:['..#..','.###.','#####','.###.','..#..'], drop:['..#..','.###.','#####','#####','.###.'], dome:['.###.','#####','#####','#####','#####'],
+  sun:['.###.','#...#','#.#.#','#...#','.###.'], square:['#####','#...#','#...#','#...#','#####'], down:['#####','#####','.###.','.###.','..#..'],
+  up:['..#..','..#..','.###.','.###.','#####'], snow:['#.#.#','.###.','#####','.###.','#.#.#'], dot:['.....','.###.','.###.','.###.','.....'],
+  pct:['##..#','##.#.','..#..','.#.##','#..##'],
+};
+const DIG_BIG = {
+  '0':['.##.','#..#','#..#','#..#','#..#','#..#','.##.'], '1':['.#.','##.','.#.','.#.','.#.','.#.','###'],
+  '2':['.##.','#..#','...#','..#.','.#..','#...','####'], '3':['###.','...#','...#','.##.','...#','...#','###.'],
+  '4':['..#.','.##.','#.#.','#.#.','####','..#.','..#.'], '5':['####','#...','###.','...#','...#','#..#','.##.'],
+  '6':['.##.','#...','#...','###.','#..#','#..#','.##.'], '7':['####','...#','..#.','..#.','.#..','.#..','.#..'],
+  '8':['.##.','#..#','#..#','.##.','#..#','#..#','.##.'], '9':['.##.','#..#','#..#','.###','...#','...#','.##.'],
+  '€':['..##','.#..','####','.#..','####','.#..','..##'],
+};
+/* Mini digits. The euro is a C with its two bars sticking out on the LEFT only (v2's full-width bars read as an E). */
+const DIG_MINI = {
+  '0':['###','#.#','#.#','#.#','###'], '1':['.#.','##.','.#.','.#.','###'], '2':['##.','..#','.#.','#..','###'],
+  '3':['##.','..#','.#.','..#','##.'], '4':['#.#','#.#','###','..#','..#'], '5':['###','#..','##.','..#','##.'],
+  '6':['.##','#..','###','#.#','###'], '7':['###','..#','.#.','.#.','.#.'], '8':['###','#.#','###','#.#','###'],
+  '9':['###','#.#','###','..#','##.'], '€':['..##','###.','.#..','###.','..##'],
+};
+const CROSS5 = ['#...#','.#.#.','..#..','.#.#.','#...#'];
+const WARN2 = ['....#....','...#M#...','..#M#M#..','..#M#M#..','.#MM#MM#.','.#MMMMM#.','#MMM#MMM#','#########'];
+
+function R(ctx, x, y, w, h, c) { ctx.fillStyle = c; ctx.fillRect(x, y, w, h); }
+function mk(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d'); x.imageSmoothingEnabled = false; return c; }
+function sheetW(s, set) { let w = 0; for (const ch of s) w += set[ch][0].length + 1; return Math.max(0, w - 1); }
+/* Draws s left-aligned at art (x, top); returns the width. */
+function sheetAt(a, s, x, top, set, colour) {
+  let cx = x;
+  for (const ch of s) { const g = set[ch]; g.forEach((row, j) => { for (let i = 0; i < row.length; i++) if (row[i] === '#') a(cx + i, top + j, 1, 1, colour); }); cx += g[0].length + 1; }
+  return cx - x - 1;
+}
+function sheetRight(a, s, right, top, set, colour) { const x0 = right - sheetW(s, set) + 1; sheetAt(a, s, x0, top, set, colour); return x0; }
+function pat(a, rows, x, y, colour, alt) { rows.forEach((r, j) => { for (let i = 0; i < r.length; i++) if (r[i] !== '.') a(x + i, y + j, 1, 1, r[i] === '#' ? colour : alt); }); }
+const capsW = s => sheetW(s, CAPS);
+const textOn = f => f.paper ? P.PAPER : P.INK;
+
+/* ---------- the band: segments sized to their names ---------- */
+const BAND_X0 = 1, BAND_W = 52;
+/* Returns [{fam, name, w}] with each segment's width (seams of 1 px between them). */
+function fitBand(fams, sym) {
+  const lvl = fams.map(() => 0);
+  const name = i => { const n = FAM[fams[i]].names; return n[Math.min(lvl[i], n.length - 1)]; };
+  const need = () => fams.reduce((s, f, i) => s + capsW(name(i)) + 2, 0) + (fams.length - 1) + (fams.length === 1 && sym ? 7 : 0) + (fams.length === 1 ? 2 : 0);
+  for (let guard = 0; guard < 20 && need() > BAND_W; guard++) {
+    let best = -1, bw = -1;
+    fams.forEach((f, i) => { const can = lvl[i] < FAM[f].names.length - 1; const w = capsW(name(i)); if (can && w > bw) { bw = w; best = i; } });
+    if (best < 0) break; lvl[best]++;
+  }
+  const segs = fams.map((f, i) => ({fam:f, name:name(i), w:capsW(name(i)) + 2}));
+  let spare = BAND_W - segs.reduce((s, g) => s + g.w, 0) - (segs.length - 1);
+  // spread the spare room: equal share, the last takes the rest
+  const share = Math.floor(spare / segs.length);
+  segs.forEach((g, i) => { g.w += i === segs.length - 1 ? spare - share * (segs.length - 1) : share; });
+  return segs;
+}
+function drawBand(a, fams, o) {
+  const segs = fitBand(fams, o.sym); let x = BAND_X0;
+  segs.forEach((g, i) => {
+    const f = FAM[g.fam];
+    a(x, 1, g.w, 1, o.golden ? P.GOLD : f.light); a(x, 2, g.w, 5, f.face); a(x, 7, g.w, 1, f.shade);
+    let tx = x + (segs.length === 1 ? 2 : 1);
+    if (segs.length === 1 && o.sym) { pat(a, SYM[f.sym], tx, 2, textOn(f)); tx += 7; }
+    sheetAt(a, g.name, tx, 2, CAPS, textOn(f));
+    x += g.w;
+    if (i < segs.length - 1) { a(x, 1, 1, 7, P.INK_LIGHT); x += 1; }
+  });
+  return segs;
+}
+
+/* ---------- chips (art grid, 7 rows) ---------- */
+function chipW(c) { return capsW(c.text) + 4 + (c.wasted ? 6 : 0); }
+function drawChip(a, c, x, y) {
+  const w = chipW(c);
+  if (c.kind === 'fam') {
+    const f = FAM[c.fam];
+    a(x + 1, y, w - 2, 1, f.light); a(x, y + 1, w, 5, f.face); a(x + 1, y + 6, w - 2, 1, f.shade);
+    sheetAt(a, c.text, x + 2, y + 1, CAPS, textOn(f));
+  } else {
+    const bg = c.wasted ? P.TOMATO : P.INK, fg = c.wasted ? P.PAPER : (KW_FACE[c.text] || P.CREAM_SHADE);
+    a(x + 1, y, w - 2, 7, bg); a(x, y + 1, w, 5, bg);
+    if (c.wasted) a(x + 1, y, w - 2, 1, P.TOMATO_LIGHT);
+    const tw = sheetAt(a, c.text, x + 2, y + 1, CAPS, fg);
+    if (c.wasted) pat(a, CROSS5, x + 2 + tw + 2, y + 1, P.PAPER);
+  }
+}
+
+/* ---------- the rule: words in Atkinson, {Family} and [KEYWORD] as chips ---------- */
+function toks(s, short) {
+  return s.split(' ').filter(Boolean).map(w => {
+    if (w[0] === '{') { const fam = w.slice(1, -1); const n = FAM[fam].names; return {chip:{kind:'fam', fam, text:short ? n[Math.min(1, n.length - 1)] : n[0]}}; }
+    if (w[0] === '[') { const k = w.slice(1, -1); const wasted = k.endsWith('!'); return {chip:{kind:'kw', text:wasted ? k.slice(0, -1) : k, wasted}}; }
+    return {w};
+  });
+}
+function layoutRule(ctx, s, width) {
+  for (const size of [13, 12]) for (const short of [false, true]) {
+    ctx.font = fTxt(size); const sp = Math.round(ctx.measureText(' ').width);
+    const lines = [[]]; let cur = 0;
+    for (const t of toks(s, short)) {
+      const tw = t.chip ? chipW(t.chip) * 2 : ctx.measureText(t.w).width;
+      const line = lines[lines.length - 1]; const add = (line.length ? sp : 0) + tw;
+      if (cur + add > width && line.length) { lines.push([{...t, tw}]); cur = tw; } else { line.push({...t, tw}); cur += add; }
+    }
+    if (lines.length <= 2) return {lines, size, sp};
+  }
+  return null;
+}
+function drawRule(ctx, a, s, X, Y) {
+  const L = layoutRule(ctx, s, 92); if (!L) return;
+  ctx.font = fTxt(L.size);
+  L.lines.forEach((line, li) => {
+    const base = Y + 54 + li * 14; let bx = X + 8;
+    line.forEach((t, k) => {
+      if (k) bx += L.sp;
+      if (t.chip) { const ax = Math.round((bx - X) / 2); drawChip(a, t.chip, ax, (base - Y - 12) / 2); bx = X + ax * 2 + t.tw; }
+      else { ctx.fillStyle = P.INK; ctx.fillText(t.w, Math.round(bx), base); bx += t.tw; }
+    });
+  });
+}
+function barcode(a, x, y) { const w = [1, 1, 2, 1, 1, 3, 1, 2, 1, 1, 2, 1]; let cx = x; w.forEach((n, i) => { if (i % 2 === 0) a(cx, y, n, 5, P.INK); cx += n; }); }
+
+/* ---------- the ticket, 54x38 art at 2x ---------- */
+const H = 38;
+function shape(a, c) { a(2, 0, 50, H, c); a(1, 1, 52, H - 2, c); a(0, 2, 54, H - 4, c); }
+function outline(a, O) { a(2, 0, 50, 1, O); a(2, H - 1, 50, 1, O); a(0, 2, 1, H - 4, O); a(53, 2, 1, H - 4, O); a(1, 1, 1, 1, O); a(52, 1, 1, 1, O); a(1, H - 2, 1, 1, O); a(52, H - 2, 1, 1, O); }
+function railBehind(ctx, X, Y) {
+  const hp = H * 2;
+  R(ctx, X - 10, Y - 2, 128, 2, P.STEEL_SHADE); R(ctx, X - 10, Y, 128, 2, P.STEEL_HI); R(ctx, X - 10, Y + 2, 128, hp - 6, P.STEEL_PALE);
+  R(ctx, X - 10, Y + hp - 4, 128, 4, P.STEEL_DARK); R(ctx, X - 10, Y + hp, 128, 2, P.RUBBER_DARK);
+}
+function ticket(ctx, sp, X, Y, o) {
+  const a = (x, y, w, h, c) => R(ctx, X + x * 2, Y + y * 2, w * 2, h * 2, c);
+  const gold = sp.golden, O = gold ? P.BRASS_DARK : P.INK;
+  const body = sp.coupon ? {face:P.PAPER, shade:P.CREAM_SHADE} : FAM[sp.fams[0]];
+  if (!o.noRail) railBehind(ctx, X, Y);
+  ctx.save(); ctx.globalAlpha = 0.35; shape((x, y, w, h, c) => R(ctx, X + 2 + x * 2, Y + 2 + y * 2, w * 2, h * 2, c), P.INK); ctx.restore();
+  shape(a, body.face); a(52, 8, 1, H - 9, body.shade); a(1, H - 2, 52, 1, body.shade);
+  // band
+  drawBand(a, sp.coupon ? ['Coupon'] : sp.fams, {sym:o.sym, golden:gold});
+  if (sp.coupon) for (let x = 1; x < 31; x += 3) a(x, 7, 2, 1, P.PAPER);
+  outline(a, O);
+  if (gold) { a(1, 0, 1, 3, P.GOLD); a(0, 1, 3, 1, P.GOLD); a(1, 1, 1, 1, P.PAPER); }
+  // price window
+  const v = sp.shown;
+  const ps = sp.coupon ? 'stub' : sp.zero ? 'zero' : v > sp.base ? 'boost' : v < sp.base ? 'low' : 'base';
+  const WIN = {base:[P.PAPER, P.CREAM_SHADE, P.INK], boost:[P.MUSTARD_PALE, P.GOLD, P.BRASS_DARKEST], low:[P.TOMATO_PALE, P.TOMATO_LIGHT, P.TOMATO_DARK],
+    zero:[P.TOMATO, P.TOMATO_DARK, P.PAPER], stub:[sp.fizzle ? P.GREY_LIGHT : P.TEAL, sp.fizzle ? P.GREY : P.TEAL_LIGHT, P.PAPER]}[ps];
+  a(32, 9, 21, 9, WIN[0]); a(32, 9, 21, 1, WIN[1]); a(32, 9, 1, 9, WIN[1]);
+  a(31, 8, 22, 1, gold ? P.BRASS_DARK : P.INK); a(31, 18, 22, 1, gold ? P.BRASS_DARK : P.INK); a(31, 8, 1, 11, gold ? P.BRASS_DARK : P.INK);
+  if (sp.coupon) {
+    const img = IMG.family_coupon; const sx = X + 32 * 2 + (42 - 18) / 2, sy = Y + 9 * 2;
+    ctx.drawImage(silhouette(img, sp.fizzle ? P.GREY_DARK : P.PAPER), sx, sy, 18, 18);
+    if (sp.fizzle) for (let i = 0; i < 9; i++) a(35 + i * 2, 17 - i, 2, 1, P.TOMATO);
+  } else sheetRight(a, v + '€', 51, 10, DIG_BIG, WIN[2]);
+  // was-tab
+  if (!sp.coupon && v !== sp.base) {
+    const s = sp.base + '€', w = sheetW(s, DIG_MINI); const x0 = 28 - w + 1;
+    a(x0 - 1, 9, w + 2, 9, P.CREAM); a(x0 - 1, 17, w + 2, 1, P.CREAM_SHADE);
+    sheetAt(a, s, x0, 11, DIG_MINI, P.GREY_DARK);
+    // a diagonal slash (bottom-left to top-right), so the digits' middle row stays readable
+    const n = w + 2; for (let i = 0; i < n; i++) a(x0 - 1 + i, 16 - Math.floor(i * 6 / n), 1, 1, P.TOMATO);
+  }
+  // plate + rule
+  if (!sp.coupon) { a(2, 20, 50, 16, P.CREAM); a(2, 20, 50, 1, P.CREAM_SHADE); a(2, 20, 1, 16, P.CREAM_SHADE); }
+  if (sp.rule) drawRule(ctx, a, sp.rule, X, Y);
+  else { ctx.font = `700 13px ${ATK}`; ctx.fillStyle = P.GREY_DARK; ctx.fillText(sp.name, X + 8, Y + 54); barcode(a, 4, 29); }
+}
+const _sil = new Map();
+function silhouette(img, colour) {
+  const k = img.src + colour; if (_sil.has(k)) return _sil.get(k);
+  const c = mk(img.width, img.height); const x = c.getContext('2d'); x.drawImage(img, 0, 0); x.globalCompositeOperation = 'source-in'; R(x, 0, 0, c.width, c.height, colour);
+  _sil.set(k, c); return c;
+}
+/* The cause-only chip under a carded Spot check slot (13x13 art). */
+function causeChip(ctx, cx, top) {
+  const X = cx - 13, Y = top; const a = (x, y, w, h, c) => R(ctx, X + x * 2, Y + y * 2, w * 2, h * 2, c);
+  ctx.save(); ctx.globalAlpha = 0.42; a(2, 1, 11, 13, P.INK); a(1, 2, 13, 11, P.INK); ctx.restore();
+  a(1, 0, 11, 13, P.INK); a(0, 1, 13, 11, P.INK); a(1, 1, 11, 11, P.TOMATO_DARK); a(2, 2, 9, 9, P.TOMATO); a(2, 2, 9, 1, P.TOMATO_LIGHT);
+  pat(a, WARN2, 2, 3, P.INK, P.MUSTARD);
+}
+function fullTalker(ctx, cx, top) {
+  const w = 2 + 9 + 2 + sheetW('0€', DIG_BIG) + 3; const X = cx - w, Y = top; const a = (x, y, ww, h, c) => R(ctx, X + x * 2, Y + y * 2, ww * 2, h * 2, c);
+  ctx.save(); ctx.globalAlpha = 0.42; a(2, 1, w - 2, 13, P.INK); a(1, 2, w, 11, P.INK); ctx.restore();
+  a(1, 0, w - 2, 13, P.INK); a(0, 1, w, 11, P.INK); a(1, 1, w - 2, 11, P.TOMATO_DARK); a(2, 2, w - 4, 9, P.TOMATO); a(2, 2, w - 4, 1, P.TOMATO_LIGHT);
+  pat(a, WARN2, 2, 3, P.INK, P.MUSTARD); sheetRight(a, '0€', w - 4, 3, DIG_BIG, P.PAPER);
+}
+function emptySlot(ctx, X, Y) {
+  railBehind(ctx, X, Y); R(ctx, X, Y, 108, 76, P.STEEL_LIGHT);
+  for (let i = 0; i < 108; i += 8) { R(ctx, X + i, Y, 4, 2, P.PAPER); R(ctx, X + i, Y + 74, 4, 2, P.PAPER); }
+  for (let j = 0; j < 76; j += 8) { R(ctx, X, Y + j, 2, 4, P.PAPER); R(ctx, X + 106, Y + j, 2, 4, P.PAPER); }
+  const a = (x, y, w, h, c) => R(ctx, X + x * 4, Y + y * 4, w * 4, h * 4, c);
+  sheetRight(a, '3', 14, 5, DIG_BIG, P.GREY_DARK);
+}
+
+/* ---------- data: the capture's row (now_planning.png) and the specimens ---------- */
+const MILK = '+1 per earlier {Breakfast}';
+const ROW = [
+  {name:'Eggs', fams:['Breakfast'], base:1, shown:1, rule:'×2 next {Food}'},
+  {name:'Bread', fams:['Bakery', 'Breakfast'], base:5, shown:14},
+  {name:'Milk', fams:['Dairy', 'Breakfast'], base:4, shown:0, zero:true, rule:MILK},
+  {name:'Multipack', coupon:true, fizzle:true, rule:'×3 later of the family before'},
+  {name:'Milk', fams:['Dairy', 'Breakfast'], base:4, shown:21, rule:MILK},
+  {name:'Milk', fams:['Dairy', 'Breakfast'], base:4, shown:48, rule:MILK},
+  {name:'Milk', fams:['Dairy', 'Breakfast'], base:4, shown:63, rule:MILK},
+];
+const STRESS = {name:'Golden Milk', fams:['Dairy', 'Household', 'Breakfast'], base:4, shown:128, golden:true, rule:MILK};
+const COUPONS = [
+  [{name:'Multipack', coupon:true, rule:'×3 later of the family before'}, 'Multipack, live'],
+  [{name:'Multipack', coupon:true, fizzle:true, rule:'×3 later of the family before'}, 'Multipack, fizzled'],
+  [{name:'Breakfast sticker', coupon:true, rule:'Next gains {Breakfast}'}, 'Breakfast sticker (a family coupon)'],
+];
+const KEYWORDS = [
+  [{name:'Croissant', fams:['Bakery', 'Breakfast'], base:2, shown:2, rule:'[BATCH] 1st: +2 to the rest'}, 'Croissant, BATCH'],
+  [{name:'Croissant', fams:['Bakery', 'Breakfast'], base:2, shown:6, rule:'[BATCH] 1st: +2 to the rest'}, 'Croissant, boosted'],
+  [{name:'Croissant', fams:['Bakery', 'Breakfast'], base:2, shown:2, rule:'[BATCH!] 1st: +2 to the rest'}, 'Croissant, wrong job (WASTED)'],
+];
+
+/* ---------- images ---------- */
+const NAMES = ['now_planning', 'now_planning_plain', 'family_coupon', 'belt_bolt', 'belt_chevrons'];
+const IMG = {};
+const loadAll = () => Promise.all(NAMES.map(n => new Promise(res => { const i = new Image(); i.onload = () => { IMG[n] = i; res(); }; i.onerror = () => { console.error('missing ' + n); res(); }; i.src = 'ticket_summary_band-label_src/' + n + '.png'; })));
+
+/* ---------- views ---------- */
+const OPT = {sym:true};
+const TX0 = 368, PITCH = 128, TY = 458;
+function drawStage() {
+  const full = mk(1280, 720), ctx = full.getContext('2d');
+  ctx.drawImage(IMG.now_planning, 0, 0);
+  R(ctx, 352, 448, 910, 2, P.STEEL_DARKEST); R(ctx, 352, 450, 910, 6, P.STEEL_SHADE);
+  for (let i = 0; i < 7; i++) { ctx.drawImage(IMG.belt_bolt, 356 + 128 * i, 450); ctx.drawImage(IMG.belt_chevrons, 412 + 128 * i, 450); }
+  ctx.drawImage(IMG.now_planning_plain, 676, 522, 72, 26, 676, 522, 72, 26); // today's slot-3 talker goes
+  const snap = mk(1280, 238); snap.getContext('2d').drawImage(full, 0, 470, 1280, 238, 0, 0, 1280, 238); ctx.drawImage(snap, 0, 482);
+  ctx.save(); ctx.translate(678, 373); ctx.rotate(-0.14); R(ctx, -21, -11, 42, 22, P.PAPER); ctx.font = `750 30px ${ATK}`; ctx.fillStyle = P.TOMATO_DARK; ctx.textAlign = 'center'; ctx.fillText('0€', 0, 10); ctx.restore();
+  ROW.forEach((sp, i) => { ticket(ctx, sp, TX0 + PITCH * i, TY, OPT); if (sp.zero) causeChip(ctx, TX0 + PITCH * i + 54, TY + 74); });
+  const st = document.getElementById('stage'); const sx = st.getContext('2d'); sx.imageSmoothingEnabled = false; sx.drawImage(full, 0, 330, 1280, 300, 0, 0, 1280, 300);
+  return full;
+}
+function zoom(src, sx, sy, sw, sh, k, label) {
+  const c = mk(sw * k, sh * k); c.getContext('2d').drawImage(src, sx, sy, sw, sh, 0, 0, sw * k, sh * k);
+  c.style.width = (sw * k) + 'px'; if (label) c.setAttribute('aria-label', label); return c;
+}
+function cellOf(title, kids) { const d = document.createElement('div'); d.className = 'cell'; const h = document.createElement('div'); h.className = 'cap'; h.textContent = title; d.append(h, ...kids); return d; }
+function specimen(sp, title, extra) {
+  const W = 132, Hh = 110; const c = mk(W, Hh); const ctx = c.getContext('2d');
+  R(ctx, 0, 0, W, Hh, '#3d3a36'); for (let y = 0; y < Hh; y += 8) R(ctx, 0, y, W, 2, '#45423d');
+  if (sp) ticket(ctx, sp, 12, 10, OPT); else emptySlot(ctx, 12, 10);
+  if (extra) extra(ctx, 12, 10);
+  c.style.width = W + 'px';
+  return cellOf(title, [c, zoom(c, 0, 0, W, Hh, 3, title + ' at 3x')]);
+}
+function bandStrip(fams) {
+  const c = mk(116, 22); const ctx = c.getContext('2d'); R(ctx, 0, 0, 116, 22, '#3d3a36');
+  const a = (x, y, w, h, col) => R(ctx, 4 + x * 2, 2 + y * 2, w * 2, h * 2, col);
+  a(0, 0, 54, 9, P.INK); const segs = drawBand(a, fams, {sym:OPT.sym});
+  c.style.width = '116px';
+  return cellOf(segs.map(s => s.name).join(' · '), [c, zoom(c, 0, 0, 116, 22, 3)]);
+}
+function render() {
+  const full = drawStage();
+  const r3 = document.getElementById('row3'); r3.replaceChildren();
+  ROW.forEach((sp, i) => r3.append(cellOf(`${i + 1} · ${sp.name}${sp.zero ? ' (Spot check)' : ''}`, [zoom(full, TX0 + PITCH * i - 8, TY - 10, 124, 114, 3, sp.name + ' at 3x')])));
+  const fill = (id, list) => { const el = document.getElementById(id); el.replaceChildren(...list); };
+  fill('stress', [specimen(STRESS, 'Golden Milk · DAIR | HHLD | BRKF · 128€ was 4€'), specimen({...STRESS, golden:false, fams:['Dairy', 'Breakfast']}, 'Same rule, 2 families, not golden')]);
+  fill('coupons', COUPONS.map(([sp, t]) => specimen(sp, t)));
+  fill('keywords', KEYWORDS.map(([sp, t]) => specimen(sp, t)));
+  fill('spot', [specimen(ROW[2], 'Milk on slot 3: the ticket owns 0€', (ctx, X, Y) => causeChip(ctx, X + 54, Y + 74)),
+    specimen(null, 'Empty slot 3: the full talker', (ctx, X, Y) => fullTalker(ctx, X + 54 + 22, Y + 74))]);
+  const B = [['Produce'], ['Dairy'], ['Bakery'], ['Breakfast'], ['Household'], ['Clearance'], ['Snack'], ['Frozen'], ['Food'], ['Coupon'],
+    ['Bakery', 'Breakfast'], ['Dairy', 'Breakfast'], ['Produce', 'Snack'], ['Household', 'Clearance'], ['Produce', 'Breakfast'],
+    ['Dairy', 'Household', 'Breakfast'], ['Produce', 'Bakery', 'Snack'], ['Bakery', 'Clearance', 'Breakfast']];
+  fill('bands', B.map(bandStrip));
+  const tb = document.getElementById('names'); tb.replaceChildren();
+  for (const [k, f] of Object.entries(FAM)) { const tr = document.createElement('tr'); [k, f.names[0], f.names[1] || '–', f.names[2] || (f.names[1] ? '–' : '–'), f.paper ? 'paper' : 'ink', f.sym].forEach(t => { const td = document.createElement('td'); td.textContent = t; tr.append(td); }); tb.append(tr); }
+}
+function setSym(on) { OPT.sym = on; document.getElementById('symOn').setAttribute('aria-pressed', on); document.getElementById('symOff').setAttribute('aria-pressed', !on); render(); }
+window.addEventListener('error', e => { document.body.dataset.err = (document.body.dataset.err || '') + ' | ' + e.message; });
+(async function start() {
+  await loadAll();
+  try { await Promise.all([document.fonts.load(fTxt(13)), document.fonts.load(fTxt(12)), document.fonts.load(`700 13px ${ATK}`)]); } catch (e) { /* fallback fonts */ }
+  const sym = new URLSearchParams(location.search).get('sym');
+  document.getElementById('symOn').onclick = () => setSym(true);
+  document.getElementById('symOff').onclick = () => setSym(false);
+  setSym(sym !== 'off');
+  document.body.dataset.ready = '1';
+})();
+</script>

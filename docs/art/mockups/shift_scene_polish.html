@@ -1,0 +1,1063 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Shift Scene Polish</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&family=Atkinson+Hyperlegible+Next:wght@200..800&display=swap">
+<style>
+/* House style of the shift mock-ups (register_polish.html): one column of bays on the store's dark
+   teal wall, each a live canvas of the game's 1280x720 stage (nearest-neighbour), with its verdict.
+   Single dark look on purpose: it is the game's own palette. */
+@font-face{font-family:'NCPix';font-weight:400 700;src:url(../../../fonts/PixelifySans-Variable.ttf)}
+@font-face{font-family:'NCMono';src:url(../../../fonts/JetBrainsMono-Regular.ttf)}
+@font-face{font-family:'NCAtk';font-weight:200 800;src:url(../../../fonts/AtkinsonHyperlegibleNext-Variable.ttf)}
+:root{
+  color-scheme:dark;
+  --wall:#1f3b3a; --bay:#172c2b; --panel:#2a4d4b; --paper:#fbf7ee; --teal-pale:#c3e0d4; --teal-light:#86c2b6;
+  --mustard:#e2b33c; --gold:#ffcf3f; --tomato:#ec8a6e; --ink:#2b2420; --muted:#a9a59b;
+  --display:'NCPix','Pixelify Sans','Courier New',monospace;
+  --body:'NCAtk','Atkinson Hyperlegible Next','Segoe UI',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--wall);color:var(--paper)}
+body{font-family:var(--body);font-size:15px;line-height:1.5;overflow-x:hidden}
+main{max-width:1320px;margin:0 auto;padding:28px 16px 64px;display:grid;gap:44px}
+h1,h2,h3{font-family:var(--display);font-weight:700;margin:0;letter-spacing:.02em;text-wrap:balance}
+h1{font-size:34px;color:var(--gold)}
+h2{font-size:24px}
+h3{font-size:17px;color:var(--teal-pale)}
+p{margin:0;max-width:74ch}
+.lede{display:grid;gap:10px}
+.eyebrow{font-family:var(--display);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--teal-light)}
+section{display:grid;gap:16px;min-width:0}
+.verdict{background:var(--panel);border:2px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.35);padding:14px 16px;display:grid;gap:8px}
+.verdict strong{color:var(--gold)}
+.verdict code,.touch code{color:#faecbc;font-size:13px}
+.touch{font-size:13px;color:var(--teal-pale)}
+.grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr))}
+.grid.wide{grid-template-columns:repeat(auto-fit,minmax(min(100%,560px),1fr))}
+.grid.two{grid-template-columns:repeat(auto-fit,minmax(min(100%,480px),1fr))}
+.stack{display:grid;gap:16px}
+.stack canvas{max-width:1100px}
+.opt{background:var(--bay);border:2px solid var(--ink);padding:12px;display:grid;gap:10px;align-content:start;min-width:0}
+.opt.rec{border-color:var(--mustard)}
+.opt.now{border-color:#5e574d}
+.opt header{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.tag{font-family:var(--display);font-size:15px;background:var(--paper);color:var(--ink);padding:0 7px;border:2px solid var(--ink)}
+.opt.rec .tag{background:var(--mustard)}
+.opt.now .tag{background:#c7beab}
+.pick{font-family:var(--display);font-size:12px;color:var(--gold);letter-spacing:.08em}
+.opt p{font-size:14px;color:var(--teal-pale)}
+.opt p b{color:var(--paper)}
+main>*,section>*,.stack>*,.grid>*{min-width:0}
+code{overflow-wrap:anywhere}
+canvas{width:100%;max-width:100%;height:auto;image-rendering:pixelated;image-rendering:crisp-edges;display:block;background:#222a29}
+.controls{display:flex;gap:8px 10px;flex-wrap:wrap;align-items:center}
+.controls .lbl{font-family:var(--display);font-size:13px;color:var(--teal-light);letter-spacing:.06em}
+.seg{display:inline-flex;border:2px solid var(--ink);box-shadow:0 3px 0 var(--ink)}
+.seg button{box-shadow:none;border:0;border-right:2px solid var(--ink)}
+.seg button:last-child{border-right:0}
+button{font-family:var(--display);font-size:15px;color:var(--paper);background:#3a7672;border:2px solid var(--ink);box-shadow:0 3px 0 var(--ink);padding:4px 12px;cursor:pointer}
+button:active{transform:translateY(2px)}
+button:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+button[aria-pressed="true"]{background:var(--mustard);color:var(--ink)}
+label.chk{display:inline-flex;gap:6px;align-items:center;font-family:var(--display);font-size:14px;cursor:pointer}
+.stagebox{position:relative;border:2px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.35)}
+.badge-now{position:absolute;right:8px;bottom:8px;font-family:var(--display);font-size:13px;background:rgba(23,44,43,.85);color:var(--gold);padding:2px 8px;border:2px solid var(--ink);pointer-events:none}
+ul{margin:0;padding-left:20px;display:grid;gap:6px;max-width:80ch}
+.answers{background:var(--paper);color:var(--ink);border:3px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.4);padding:16px 18px;display:grid;gap:10px}
+.answers h2{color:var(--ink)}
+.answers li b{color:#a83a3c}
+.cap{font-size:12px;color:var(--muted)}
+</style>
+
+<main>
+  <div class="lede">
+    <div class="eyebrow">Mock-up · shift scene · 2026-11-02 · from main (1a8789c)</div>
+    <h1>Shift scene polish</h1>
+    <p>Six changes to the shift screen. The pictures marked <b>today</b> are real captures (<code>debug/screen_capture</code>, shift 5, quota €80, the <code>--effects</code> belt; the count stills are <code>--checkout=6 / 8.5 / 10</code>). The proposals are drawn on the same 1280×720 stage, at the stage's own coordinates, with the game's art PNGs, palette and fonts, so you can see where each one would sit. Each section shows today beside the proposal. Where there's a real choice I give 2 or 3 lettered variants; the recommended one has a mustard border.</p>
+  </div>
+
+  <!-- 0 · composite -->
+  <section id="all">
+    <h2>0 · All six together</h2>
+    <div class="controls">
+      <div class="seg" role="group" aria-label="Which screen">
+        <button id="c_new" aria-pressed="true">Proposed</button>
+        <button id="c_now" aria-pressed="false">Game today</button>
+      </div>
+      <button id="c_play">↻ Replay the count</button>
+      <label class="chk"><input type="checkbox" id="c_rm"> Reduced motion</label>
+    </div>
+    <div class="controls" id="c_opts"></div>
+    <div class="stagebox">
+      <canvas id="scene" width="1280" height="720" aria-label="The shift screen with all proposals applied; the count plays on a loop"></canvas>
+      <div class="badge-now" id="c_badge">PROPOSED</div>
+    </div>
+    <p class="cap">The loop: planning (1.6 s), then the count. Items pay at the stage's own values (€1, €14, €0, €0, €21, €48, €63), the gauge and the belt light fill, the quota (€80) is crossed by the 6th item, the count ends at €147. In this mock-up the belt items stay where they are; in the game they ride toward the scanner as before. Hover a pin to see its rule. "Game today" shows the real count's stills at the matching moments.</p>
+  </section>
+
+  <!-- 1 · top bar -->
+  <section id="s1">
+    <h2>1 · A bigger target and a thicker gauge</h2>
+    <div class="grid wide">
+      <div class="opt now"><header><span class="tag">TODAY</span><h3>Planning (projected €147) and mid-count (€22)</h3></header>
+        <canvas id="t_now1" width="640" height="56"></canvas>
+        <canvas id="t_now2" width="640" height="56"></canvas>
+        <p>The quota "€80+" is 20 px, the same as the amount, and the gauge is 18 px (9 art px). The target is the smallest thing on the chip that matters most.</p>
+      </div>
+      <div class="opt rec"><header><span class="tag">A</span><h3>Bigger inside today's 38 px row</h3><span class="pick">RECOMMENDED</span></header>
+        <canvas id="t_a" width="640" height="56"></canvas>
+        <p><b>Target 20 → 28 px</b> (the number font, paper), <b>gauge 18 → 26 px</b> (13 art px), the amount 20 → 24 px. The SPEND word, the flag, the "€N to go" tag and the liquid stay as they are. The row stays 38 px tall, so nothing else moves. The gauge loses about 30 px of width to the bigger numbers (162 → 129 px); it still has room.</p>
+      </div>
+      <div class="opt"><header><span class="tag">B</span><h3>Row grows to 46 px</h3></header>
+        <canvas id="t_b" width="640" height="56"></canvas>
+        <p><b>Target 32 px, gauge 30 px.</b> The whole top row grows by 8 px (9 → 5 px from the top), which still clears the monitor (y 66). The other chips would grow to match; here only SPEND is redrawn. It is louder, but the band gets heavier over the store, and the gauge drops to about 103 px unless the chip takes room from the day chip.</p>
+      </div>
+    </div>
+    <div class="verdict">
+      <p><strong>Verdict:</strong> A. It answers "bigger and thicker" without moving the row, and the target becomes the chip's headline. B is there if A still reads small on a laptop.</p>
+      <p class="touch">Touches <code>ui/quota_meter.gd</code> (<code>BAR_HEIGHT</code> 18 → 26, the quota label's size, <code>AMOUNT_DIGITS</code> readout width), <code>ui/quota_flag.gd</code> (pole length follows the gauge), <code>ui/top_bar.gd</code> (<code>VALUE_FONT_SIZE</code> for SPEND only; B also <code>ROW_SIZE</code>/<code>POSITION</code>), <code>ui/led_display.gd</code> (QUOTA_AMOUNT format unchanged). Tests that assert the chip's geometry need new numbers.</p>
+    </div>
+  </section>
+
+  <!-- 2 · pins -->
+  <section id="s2">
+    <h2>2 · A place for the badge pins</h2>
+    <div class="controls">
+      <span class="lbl">PINS WORN</span>
+      <div class="seg" role="group" aria-label="Pins worn">
+        <button class="np" data-n="1" aria-pressed="false">1</button>
+        <button class="np" data-n="2" aria-pressed="false">2</button>
+        <button class="np" data-n="3" aria-pressed="true">3</button>
+      </div>
+      <span class="cap">The balance has <code>pin_slots = 1</code> today; the layouts are sized for 3. Hover a pin (each picture shows its first pin's hover state until you do).</span>
+    </div>
+    <div class="grid">
+      <div class="opt"><header><span class="tag">A</span><h3>Top bar, far left</h3></header>
+        <canvas id="p_a" width="440" height="200"></canvas>
+        <p>A teal chip before SPEND, pins at 28 px. <b>It's the first thing you read</b>, and it's always visible. The day chip gives up the room: with today's 1 slot it loses about 64 px and keeps most of its text; with 3 pins it shrinks to "D5 ⚠ Insp…" (cut as it already is when the row is full, with the full text on hover).</p>
+      </div>
+      <div class="opt rec"><header><span class="tag">B</span><h3>Top bar, beside the week chip</h3><span class="pick">RECOMMENDED</span></header>
+        <canvas id="p_b" width="440" height="200"></canvas>
+        <p>The same chip between the week and the day: <b>the run's standing rules sit with the week's and the day's</b>, which is where players already look for "what's different today". Express lane's "2 fewer slots; ×2 on the ends" belongs here, not on the day chip. Same cost to the day chip as A.</p>
+      </div>
+      <div class="opt"><header><span class="tag">C</span><h3>The name badge, hung on the monitor</h3></header>
+        <canvas id="p_c" width="330" height="260"></canvas>
+        <p>The badge from the badge screen (brass plate, NEXT CUSTOMER band), shrunk and hung on a teal lanyard from the monitor's left side; empty slots show as dashed rings. <b>The most charming, and it shows the badge's slot count</b>, but it's on the back wall, where the count's crowd stands, and it costs wall that the ambiance redraw (#123's follow-up) may want.</p>
+      </div>
+    </div>
+    <div class="verdict">
+      <p><strong>Verdict:</strong> B. All three put the pin's rule one hover away (click pins the card open; a second click closes it). The hover card gives the name, the rule (<code>rule_text</code>) and, for pins with charges, what's left this shift (shown for Price gun; Day off would say "1 day off left this week").</p>
+      <p class="touch">Touches <code>ui/top_bar.gd</code> (a new chip; <code>fit_inspection</code> already trims the day chip), a new <code>ui/pin_chip.gd</code> reusing <code>ui/badge/pin_face.gd</code> (<code>PinFace</code> at 28 px) and <code>ui/tip_target.gd</code>/<code>glyph_tip.gd</code> for the card, filled from <code>RunState.pins</code> by <code>ui/shift_screen.gd</code>; for C, <code>ui/badge/name_badge.gd</code> at a smaller size and <code>ShiftStage</code> rects. The day chip stops listing Express lane's event (<code>WeekSchedule.shift_events</code> source marking, the fix in progress).</p>
+    </div>
+  </section>
+
+  <!-- 3 · ticket size -->
+  <section id="s3">
+    <h2>3 · Tickets 20% taller, bigger rule text</h2>
+    <div class="stack">
+      <div class="opt now"><header><span class="tag">TODAY</span><h3>108 × 64, text 13 px</h3></header>
+        <canvas id="k_now" width="920" height="120"></canvas>
+      </div>
+      <div class="opt rec"><header><span class="tag">PROPOSED</span><h3>108 × 76, text 15 px</h3></header>
+        <canvas id="k_new" width="920" height="120"></canvas>
+      </div>
+    </div>
+    <div class="verdict">
+      <p><strong>Verdict:</strong> 64 → <b>76 px</b> (+19%, 38 art px, on the 2 px grid) and the rule text 13 → <b>15 px</b> (Atkinson 800, 16 px pitch, still 2 lines). The rail grows 12 px (68 → 80) and the hand row comes down 12 px; the ledge's foot reaches the stage's bottom edge. The belt, the scanner and the monitor don't move. The same ticket is used everywhere (belt, hand, cart, deck view), so all of them grow. Text that doesn't fit 2 lines at 15 px drops to 14, then 13 (none of the belt's texts here need it; the long coupon text "×3 later of the family before" does).</p>
+      <p class="touch">Touches <code>ui/price_sticker.gd</code> (<code>SIZE</code>, <code>SUMMARY_RECT</code>), <code>ui/ticket_face.gd</code> (<code>ART_SIZE</code> 54×32 → 54×38, <code>SPLIT_SUM</code>), <code>presentation/art_style.gd</code> (<code>TICKET_TEXT_SIZE</code>/<code>LINE</code>), <code>ui/belt_panel.gd</code> + <code>tools/belt_art.py</code> (<code>RAIL</code>, <code>RAIL_SHADOW</code>, <code>belt_front</code> art), <code>ui/shift_stage.gd</code> (<code>HAND_RECT</code>, <code>HAND_AREA</code>, <code>LEDGE_RECT</code>, <code>COUNTING_SHADE_RECT</code>), <code>ui/item_view.gd</code> (<code>BELT_SIZE</code>), and the cart and deck grids that lay tickets out.</p>
+    </div>
+  </section>
+
+  <!-- 4 · zones -->
+  <section id="s4">
+    <h2>4 · Fixed places for icons, price and rule</h2>
+    <div class="controls">
+      <label class="chk"><input type="checkbox" id="z_show" checked> Show the zones</label>
+      <span class="cap">teal: family icons · gold: price · tomato: rule text</span>
+    </div>
+    <div class="stack">
+      <div class="opt now"><header><span class="tag">TODAY</span><h3>The price takes what it needs</h3></header>
+        <canvas id="z_now" width="560" height="250"></canvas>
+        <p>Redrawn from <code>PriceSticker.set_pay</code> and <code>PayTag.rect_on</code>: a 4-character burst (€128) is 80 px wide, so it moves right (<code>WIDE_CLEAR_LEFT</code>, hanging 18 px off the ticket), the glyph row squeezes to an 18 px step, and <b>glyphs still under the burst are hidden</b>, here 2 of 4. The struck price pushes the first text line in.</p>
+      </div>
+      <div class="opt rec"><header><span class="tag">A</span><h3>Shelf-edge label: icons, rule, price</h3><span class="pick">RECOMMENDED</span></header>
+        <canvas id="z_a" width="560" height="250"></canvas>
+        <p>Three bands, like a real shelf-edge label: <b>icons</b> along the top (5 slots at the full 20 px step, never squeezed), the <b>rule</b> across the full width, and the <b>price</b> at the bottom right, hanging off the bottom edge like a price flag, with the old price struck to its left. The widest burst fits without touching anything, and the top edge stays clear, so the belt's quota light (6) is never covered. (The small mustard corner on the 4th icon marks the Price gun's gained family; optional.)</p>
+      </div>
+      <div class="opt"><header><span class="tag">B</span><h3>Icon column on the left</h3></header>
+        <canvas id="z_b" width="560" height="250"></canvas>
+        <p>The icons stack in a 24 px column (3 at a roomy step, 4 touching), and the price keeps today's top-right corner, so the count's tags fly where they do now. <b>But the rule gets only 74 px</b>, so texts wrap more and some drop to 13 px. The column holds 4 at most.</p>
+      </div>
+    </div>
+    <div class="verdict">
+      <p><strong>Verdict:</strong> A. Every zone has a fixed rect, so a €128 or a struck price can't take room from the icons or the rule. The stress case is a GOLDEN item with 3 family icons and a Price gun icon (today's data shows at most 2 families plus the Price gun's, since Food is a quiet family, so 4 is headroom). The cost of A: the pinned tag and the struck price move from the top right to the bottom right, so the count's flights and the "€X × N" equation land lower, and a slot's talker (the Spot check's "⚠ €0") hangs under the ticket's left half instead of its middle.</p>
+      <p class="touch">Touches <code>ui/price_sticker.gd</code> (<code>GLYPH_ROW</code>, the squeeze and hide logic in <code>set_pay</code> and <code>_lay_out_glyphs</code> go away, <code>PLAIN_TAG_AT</code>, <code>STRUCK_*</code>, <code>SUMMARY_RECT</code>, <code>_place_struck_beside</code> removed), <code>ui/pay_tag.gd</code> (<code>rect_on</code>: the bottom-right anchor; <code>WIDE_CLEAR_LEFT</code> removed), <code>ui/planning_layer.gd</code> and <code>ui/belt_ride.gd</code> (where tags are pinned), <code>ui/slot_mark.gd</code> (the talker's place), <code>ui/glyph_label.gd</code> (no first-line inset). B touches the same files, keeps the tag's anchor and narrows <code>SUMMARY_RECT</code>.</p>
+    </div>
+  </section>
+
+  <!-- 5 · printer -->
+  <section id="s5">
+    <h2>5 · The receipt printer, redrawn</h2>
+    <div class="controls"><label class="chk"><input type="checkbox" id="r_print" checked> Printing (count)</label><span class="cap">The top face, slot and tear lip stay (the receipt's geometry is unchanged); the front is redrawn at <code>PRINTER_RECT</code>, 132×31 art px at 2x.</span></div>
+    <div class="grid two">
+      <div class="opt now"><header><span class="tag">TODAY</span><h3>The grey box</h3></header>
+        <canvas id="r_now" width="300" height="112"></canvas>
+        <p>Flat steel-dark rubber, a green light, a steel feed button and a long empty window. It predates #123's charcoal register and reads as a placeholder beside the keys and the drawer.</p>
+      </div>
+      <div class="opt rec"><header><span class="tag">A</span><h3>Charcoal twin</h3><span class="pick">RECOMMENDED</span></header>
+        <canvas id="r_a" width="300" height="112"></canvas>
+        <p>The register column's charcoal laminate with its lit top and left edge, a <b>cream FEED key</b> like Redraw, a teal LED window ("REG 3 · READY", "PRINTING" scrolling while it prints) and a vent grille. It belongs with the register.</p>
+      </div>
+      <div class="opt"><header><span class="tag">B</span><h3>Roll window</h3></header>
+        <canvas id="r_b" width="300" height="112"></canvas>
+        <p>A smoked window shows the paper roll turning while it prints, a tomato power key and a teal stripe that ties it to the store's chips. The liveliest one; the roll's motion competes a little with the receipt above it.</p>
+      </div>
+      <div class="opt"><header><span class="tag">C</span><h3>Brass trim</h3></header>
+        <canvas id="r_c" width="300" height="112"></canvas>
+        <p>Charcoal with a brass band and a <b>THANK YOU</b> nameplate that catches a glint while it prints, matching the drawer's brass lock. Warmer and a little premium.</p>
+      </div>
+    </div>
+    <div class="verdict">
+      <p><strong>Verdict:</strong> A: same materials as the register, the same light (from the upper left, 1 art px ink outline, lit top and left, shaded right and bottom), and its LED window gives the count a small "printing" beat. Pick B or C if you want the printer to be a character rather than part of the register.</p>
+      <p class="touch">Touches <code>art/src/scenery/printer_box.txt</code> (rows 11–30 redrawn; rows 0–10 with the slot kept) → <code>python tools/pixel_art.py build</code>, <code>ui/register_cabinet.gd</code> (a small child for the LED window's text and the light's blink, driven by the count like the drawer), a production-log row in <code>art/src/production_log.tsv</code>.</p>
+    </div>
+  </section>
+
+  <!-- 6 · quota light -->
+  <section id="s6">
+    <h2>6 · The quota light under the belt</h2>
+    <div class="controls">
+      <button id="q_play">↻ Replay</button>
+      <label class="chk"><input type="checkbox" id="q_rm"> Reduced motion</label>
+    </div>
+    <div class="grid wide">
+      <div class="opt now"><header><span class="tag">TODAY</span><h3>Dark until the crossing, then the bonus lights</h3></header>
+        <canvas id="q_now1" width="920" height="160"></canvas>
+        <canvas id="q_now2" width="920" height="160"></canvas>
+        <p>Top: the crossing (count 8.5 s). Bottom: after it (10.0 s), the bonus lights chase in the 8 px apron band (<code>BeltPanel.APRON</code>). Before the crossing the band is dark except for the giver runs.</p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="opt"><header><span class="tag">A</span><h3>Soft</h3></header>
+        <canvas id="q_a" width="920" height="160"></canvas>
+        <p>The fill and its crossing; after it the band is gold with the chase, and a 6 px glow.</p>
+      </div>
+      <div class="opt rec"><header><span class="tag">B</span><h3>Bright</h3><span class="pick">RECOMMENDED</span></header>
+        <canvas id="q_b" width="920" height="160"></canvas>
+        <p>A white flash at the crossing, a small ✓ flag at the band's end, then a 12 px glow that breathes over the lip and the rail gaps.</p>
+      </div>
+      <div class="opt"><header><span class="tag">C</span><h3>Blazing</h3></header>
+        <canvas id="q_c" width="920" height="160"></canvas>
+        <p>B, plus a 20 px glow, a gold edge along the tickets' tops and sparks running along the band.</p>
+      </div>
+    </div>
+    <div class="verdict">
+      <p><strong>Verdict:</strong> B. Under the belt, the apron band fills from the scanner end (left) toward the right as the total climbs; the whole band is the quota. It uses the gauge's own colours (tomato, then mustard from 80%) so the two read as one meter. When the total meets the quota, the band flashes, turns gold and glows, a ✓ flag pops at its end and today's bonus chase runs on top. In planning the band shows the projected total as a dim preview, the way the gauge does. Reduced motion: no flash, sparks, breathing or chase; the fill jumps to each value, and the met state is a steady gold band with every other bulb lit.</p>
+      <p>One conflict: the giver runs (#86's rail light) use the same band. They should draw over the fill, as a brighter gold run with its paper head, so they still read.</p>
+      <p class="touch">Touches a new <code>ui/quota_light.gd</code> layer (like <code>ui/bonus_lights.gd</code>: <code>RAIL_Y</code>, <code>RAIL_HEIGHT</code>, the bolts and chevrons drawn back over), fed by the count's model like <code>QuotaMeter.follow</code>; <code>ui/bonus_lights.gd</code> (its base becomes the gold fill); <code>ui/rail_light.gd</code> (draws above the fill); <code>ui/quota_crossing.gd</code> (the flash and the flag). The tuning (glow size, breathing, flash) goes in <code>CountTotalTuning</code>/<code>data/balance/count_up.tres</code>.</p>
+    </div>
+  </section>
+
+  <section class="answers" aria-labelledby="ans">
+    <h2 id="ans">What I need from you</h2>
+    <ul>
+      <li><b>Top bar:</b> A (bigger inside the 38 px row) or B (row grows to 46 px)?</li>
+      <li><b>Pins:</b> A (top bar, far left), B (beside the week chip) or C (name badge on the monitor)? And should pins with charges (Price gun, Day off) show what's left on the pin itself, or only in the hover card?</li>
+      <li><b>Ticket zones:</b> A (shelf-edge: icons top, rule, price bottom right) or B (icon column, price stays top right)? A moves the count's tags to the bottom right.</li>
+      <li><b>Printer:</b> A (charcoal twin), B (roll window) or C (brass trim)?</li>
+      <li><b>Quota light glow:</b> A soft, B bright or C blazing?</li>
+    </ul>
+    <p>Defaults if you don't say: ticket height 76 px and rule text 15 px (dropping to 14 or 13 when 2 lines aren't enough); the band uses the gauge's colours before the quota and gold after it; the planning preview is dim. No rule, card value or balance change in any of the six.</p>
+  </section>
+</main>
+
+<script>
+'use strict';
+/* ---------- data from the game (ui/palette.gd, data/families/*.tres, data/pins/*.tres) ---------- */
+const P = {INK:'#2b2420',PAPER:'#fbf7ee',CREAM:'#f3e9d2',CREAM_SHADE:'#ddcba5',MUSTARD:'#e2b33c',MUSTARD_LIGHT:'#f1d27a',
+  MUSTARD_PALE:'#faecbc',MUSTARD_DARK:'#b38425',MUSTARD_DARKEST:'#7a5a1c',BRASS:'#c8932b',BRASS_DARK:'#8a5d1a',
+  BRASS_DARKEST:'#4a3010',GOLD:'#ffcf3f',TOMATO:'#d9534f',TOMATO_DARK:'#a83a3c',TOMATO_LIGHT:'#ec8a6e',TOMATO_PALE:'#f5bfa0',
+  TOMATO_DARKEST:'#6e2630',TEAL:'#4f9a94',TEAL_DARK:'#2a4d4b',TEAL_LIGHT:'#86c2b6',TEAL_PALE:'#c3e0d4',TEAL_SHADE:'#3a7672',
+  TEAL_BLACK:'#172c2b',TEAL_BRIGHT:'#5fb0a8',BG:'#1f3b3a',PANEL:'#2a4d4b',GOOD:'#5fae5a',GREEN_DARK:'#3d7a45',
+  GREEN_LIGHT:'#a5d17e',GREY:'#8a8172',GREY_LIGHT:'#c7beab',GREY_DARK:'#5e574d',STEEL_HI:'#ecebe4',STEEL_LIGHT:'#c7c3b8',
+  STEEL_PALE:'#a9a59b',STEEL:'#8d8a83',STEEL_SHADE:'#6f6b63',STEEL_DARK:'#57534c',STEEL_DARKEST:'#45423d',RUBBER:'#3d3a36',
+  RUBBER_DARK:'#2c2926',CHARCOAL:'#24221f',SLATE:'#2c3533',SLATE_DARK:'#222a29',VELVET:'#8a1f33',VELVET_DARK:'#561327',
+  VELVET_SHEEN:'#b23a55',BROWN:'#a87a4e',BROWN_DARKEST:'#4a3022',BROWN_LIGHT:'#d2a874',BROWN_DARK:'#7a5232',
+  GLASS:'#bfe2dd',GLASS_GLOW:'#e4f6f3',MUTED:'#8a8172'};
+const ATK = "NCAtk, 'Atkinson Hyperlegible Next', sans-serif";
+const PIX = "NCPix, 'Pixelify Sans', monospace";
+const fNum = s => `750 ${s}px ${ATK}`;
+const fTxt = s => `800 ${s}px ${ATK}`;
+const fPix = (s, w = 500) => `${w} ${s}px ${PIX}`;
+
+const FAM = {
+  Bakery:{face:'#d2a874',light:'#ddcba5',shade:'#a87a4e',glyph:'aisle_bakery'},
+  Breakfast:{face:'#e2b33c',light:'#f1d27a',shade:'#b38425',glyph:'family_breakfast'},
+  Clearance:{face:'#a83a3c',light:'#d9534f',shade:'#6e2630',glyph:'family_clearance',paper:true},
+  Dairy:{face:'#4f9a94',light:'#86c2b6',shade:'#3a7672',glyph:'family_dairy'},
+  Food:{face:'#ec8a6e',light:'#f5bfa0',shade:'#d9534f',glyph:'aisle_pantry'},
+  Frozen:{face:'#c3e0d4',light:'#fbf7ee',shade:'#86c2b6',glyph:'aisle_cold_cases'},
+  Household:{face:'#5e574d',light:'#8a8172',shade:'#4a3f38',glyph:'aisle_household',paper:true},
+  Produce:{face:'#5fae5a',light:'#a5d17e',shade:'#3d7a45',glyph:'aisle_fruit_and_veg'},
+  Snack:{face:'#7a5232',light:'#a87a4e',shade:'#4a3022',glyph:'aisle_snacks',paper:true},
+};
+const SLIP = {face:P.PAPER,light:P.PAPER,shade:P.CREAM_SHADE};
+const PIN_COLOURS = [[P.TOMATO,P.TOMATO_DARK,P.TOMATO_LIGHT],[P.TEAL,P.TEAL_DARK,P.TEAL_LIGHT],[P.MUSTARD,P.MUSTARD_DARK,P.MUSTARD_LIGHT],
+  [P.VELVET,P.VELVET_DARK,P.VELVET_SHEEN],[P.GOOD,P.GREEN_DARK,P.GREEN_LIGHT],[P.GOLD,P.BRASS_DARK,P.MUSTARD_PALE],
+  [P.BROWN,P.BROWN_DARKEST,P.BROWN_LIGHT],['#2c3533',P.TEAL_BLACK,P.TEAL_SHADE]];
+const PINS = [
+  {name:'Price gun',rule:'Once a shift, an item gains a family of your choice',face:'TAG',colour:3,left:'1 use left this shift'},
+  {name:'Recycle',rule:'Redrawn items go back in the pile; +1 redraw a shift',face:'RE',colour:5},
+  {name:'Express lane',rule:'2 fewer slots; the first and last items pay ×2',face:'EXP',colour:7},
+];
+/* The capture's belt (the --effects row): what each ticket shows in planning. */
+const BELT = [
+  {fams:['Food'],glyphs:['Breakfast'],text:'×2 next {Food}',pay:{kind:'plain',text:'€1'}},
+  {fams:['Bakery'],glyphs:['Breakfast','Bakery'],text:'',pay:{kind:'burst',text:'€14'},struck:'€5'},
+  {fams:['Breakfast'],glyphs:['Breakfast','Dairy'],text:'+1 per earlier {Breakfast}',pay:{kind:'zero',text:'€0'},struck:'€4',talker:true},
+  {slip:true,coupon:true,text:'×3 later of the family before',pay:{kind:'fizzle',text:'€0'}},
+  {fams:['Breakfast'],glyphs:['Breakfast','Dairy'],text:'+1 per earlier {Breakfast}',pay:{kind:'burst',text:'€21'},struck:'€4'},
+  {fams:['Breakfast'],glyphs:['Breakfast','Dairy'],text:'+1 per earlier {Breakfast}',pay:{kind:'burst',text:'€48'},struck:'€4'},
+  {fams:['Breakfast'],glyphs:['Breakfast','Dairy'],text:'+1 per earlier {Breakfast}',pay:{kind:'burst',text:'€63'},struck:'€4'},
+];
+const STRESS = [
+  {fams:['Bakery','Clearance'],glyphs:['Bakery','Clearance','Snack'],gained:'Breakfast',text:'+6 right after {Bakery}',pay:{kind:'burst',text:'€128'},struck:'€4',item:'broken_biscuit_golden',label:'GOLDEN Broken biscuit · 3 families + Price gun · €128'},
+  {fams:['Breakfast'],glyphs:['Breakfast','Dairy'],text:'+1 per earlier {Breakfast}',pay:{kind:'burst',text:'€63'},struck:'€4',item:'milk',label:'Milk · €63 burst + struck €4'},
+  {slip:true,coupon:true,text:'×3 later of the family before',pay:{kind:'fizzle',text:'€0'},label:'Multipack coupon · fizzled'},
+];
+/* ShiftStage / BeltPanel rects (stage px). */
+const TICKET_X0 = 368, TICKET_PITCH = 128, TICKET_Y = 458;
+const APRON = {x:352,y:448,w:910,h:8};
+const QUOTA = 80;
+const BEATS = [[0.6,1],[1.5,14],[2.3,0],[3.0,0],[3.9,21],[5.0,48],[6.2,63]];
+const PLAN_LEN = 1.6, COUNT_LEN = 9.0, LOOP = PLAN_LEN + COUNT_LEN + 1.6;
+
+/* ---------- images ---------- */
+const NAMES = ['now_planning','now_count_6.0s','now_count_8.5s','now_count_10.0s','aisle_bakery','aisle_cold_cases',
+  'aisle_fruit_and_veg','aisle_household','aisle_pantry','aisle_snacks','family_breakfast','family_clearance','family_coupon',
+  'family_dairy','mark_check','mark_fizzle','warning','pay_burst','pay_burst_wide','pay_plain','pay_zero','sparkle',
+  'printer_box','printer_lip','belt_bolt','belt_chevrons','broken_biscuit_golden','milk','chip'];
+const IMG = {};
+function loadAll() {
+  return Promise.all(NAMES.map(n => new Promise(res => {
+    const i = new Image();
+    i.onload = () => { IMG[n] = i; res(); };
+    i.onerror = () => { console.error('missing image ' + n); res(); };
+    i.src = 'shift_scene_polish_src/' + n + '.png';
+  })));
+}
+function mk(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d'); x.imageSmoothingEnabled = false; return c; }
+const _cache = new Map();
+function cached(key, fn) { if (!_cache.has(key)) _cache.set(key, fn()); return _cache.get(key); }
+/* An image at `s`x, optionally as a flat-colour silhouette grown by `g` px (a die-cut rim, a shadow). */
+function scaled(name, s = 2) {
+  return cached('s:' + name + s, () => { const i = IMG[name]; const c = mk(i.width * s, i.height * s); c.getContext('2d').drawImage(i, 0, 0, c.width, c.height); return c; });
+}
+function sil(name, colour, g, s = 2) {
+  return cached('sil:' + name + colour + g + s, () => {
+    const i = IMG[name]; const w = i.width * s, h = i.height * s; const c = mk(w + 2 * g, h + 2 * g); const x = c.getContext('2d');
+    for (const dx of [-g, 0, g]) for (const dy of [-g, 0, g]) x.drawImage(i, g + dx, g + dy, w, h);
+    x.globalCompositeOperation = 'source-in'; x.fillStyle = colour; x.fillRect(0, 0, c.width, c.height); return c;
+  });
+}
+function rimmed(name, s = 2, g = 2, colour = P.PAPER) {
+  return cached('rim:' + name + s + g + colour, () => {
+    const base = sil(name, colour, g, s); const c = mk(base.width, base.height); const x = c.getContext('2d');
+    x.drawImage(base, 0, 0); x.drawImage(scaled(name, s), g, g); return c;
+  });
+}
+/* Nine-slice of a canvas/image already at screen scale, margins m px. */
+function nine(ctx, img, x, y, w, h, m) {
+  const iw = img.width, ih = img.height;
+  const sx = [0, m, iw - m, iw], dx = [x, x + m, x + w - m, x + w], sy = [0, m, ih - m, ih], dy = [y, y + m, y + h - m, y + h];
+  for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) {
+    const sw = sx[i + 1] - sx[i], sh = sy[j + 1] - sy[j], dw = dx[i + 1] - dx[i], dh = dy[j + 1] - dy[j];
+    if (sw > 0 && sh > 0 && dw > 0 && dh > 0) ctx.drawImage(img, sx[i], sy[j], sw, sh, dx[i], dy[j], dw, dh);
+  }
+}
+function R(ctx, x, y, w, h, c) { ctx.fillStyle = c; ctx.fillRect(x, y, w, h); }
+function hash(n) { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); }
+const ease3 = k => 1 - Math.pow(1 - k, 3);
+
+/* ---------- the count's timeline ---------- */
+function amountAt(t) {
+  let a = 0;
+  for (const [bt, v] of BEATS) if (t >= bt) a += v * ease3(Math.min(1, (t - bt) / 0.35));
+  return a;
+}
+let CROSS_T = 0;
+for (let t = 0; t < COUNT_LEN; t += 0.005) { if (amountAt(t) >= QUOTA) { CROSS_T = t; break; } }
+/* The scene's moment: planning, or the count at `ct` seconds. */
+function moment(t, reduce) {
+  if (reduce) return {plan:false, ct:COUNT_LEN, amount:147, reduce:true};
+  const lt = t % LOOP;
+  if (lt < PLAN_LEN) return {plan:true, ct:-1, amount:147, reduce:false};
+  const ct = lt - PLAN_LEN;
+  return {plan:false, ct, amount:amountAt(ct), reduce:false};
+}
+
+/* ---------- text with inline glyphs (GlyphLabel) ---------- */
+function toks(s) { return s.split(' ').filter(Boolean).map(w => w[0] === '{' ? {g:w.slice(1, -1)} : {w}); }
+function wrap(ctx, tokens, size, widths) {
+  ctx.font = fTxt(size); const sp = ctx.measureText(' ').width; const lines = [[]]; let cur = 0;
+  for (const t of tokens) {
+    const tw = t.g ? 20 : ctx.measureText(t.w).width;
+    const W = widths[Math.min(lines.length - 1, widths.length - 1)];
+    const line = lines[lines.length - 1];
+    const add = (line.length ? sp : 0) + tw;
+    if (cur + add > W && line.length) { lines.push([{...t, tw}]); cur = tw; } else { line.push({...t, tw}); cur += add; }
+  }
+  return lines;
+}
+function drawRich(ctx, s, x, top, widths, o) {
+  if (!s) return {size:0, lines:0};
+  const tk = toks(s); let lines, size;
+  for (size of o.sizes) { lines = wrap(ctx, tk, size, widths); if (lines.length <= o.maxLines) break; }
+  if (size !== o.sizes[0]) document.body.dataset.shrunk = (document.body.dataset.shrunk || '') + ' | ' + s + '@' + size + 'w' + widths[0];
+  const pitch = o.pitch(size); ctx.font = fTxt(size); const sp = ctx.measureText(' ').width;
+  lines.forEach((line, li) => {
+    let bx = x; const base = top + Math.round(size * 0.82) + li * pitch;
+    line.forEach((t, k) => {
+      if (k) bx += sp;
+      if (t.g) { ctx.drawImage(rimmed(FAM[t.g].glyph), Math.round(bx) - 1, base - Math.round(size * 0.35) - 11); }
+      else { ctx.fillStyle = o.colour; ctx.fillText(t.w, bx, base); }
+      bx += t.tw;
+    });
+  });
+  return {size, lines:lines.length};
+}
+
+/* ---------- ticket pieces ---------- */
+/* TicketFace: an ink outline with cut corners, the top row light, the right column and bottom row in
+   shade, a split ticket's 45° stair, a family coupon's perforated top; on the 2 px art grid. */
+function face(ctx, wA, hA, fams, kind) {
+  const S = Math.round((wA + hA) / 2) - 2;
+  for (let r = 0; r < hA; r++) for (let c = 0; c < wA; c++) {
+    const edgeC = c === 0 || c === wA - 1, edgeR = r === 0 || r === hA - 1;
+    if (edgeC && edgeR) continue;
+    let col;
+    if (edgeC || edgeR) col = P.INK;
+    else {
+      const f = fams.length > 1 && c + r > S ? fams[1] : fams[0];
+      if (fams.length > 1 && c + r === S + 1) col = fams[1].light;
+      else if (r === 1) col = f.light; else if (c === wA - 2 || r === hA - 2) col = f.shade; else col = f.face;
+      if (kind === 'slip' && r === 2) col = c % 2 ? P.TEAL_SHADE : P.PAPER;
+    }
+    ctx.fillStyle = col; ctx.fillRect(c * 2, r * 2, 2, 2);
+  }
+}
+function paySize(ctx, p) {
+  if (p.kind === 'burst') return p.text.length >= 4 ? {w:80, h:36, wide:true} : {w:60, h:32};
+  ctx.font = fNum(17); const tw = ctx.measureText(p.text).width;
+  return {w:Math.max(52, Math.ceil((tw + 22 + (p.kind === 'plain' ? 0 : 14)) / 2) * 2), h:26};
+}
+function drawPay(ctx, p, x, y) {
+  const sz = paySize(ctx, p);
+  if (p.kind === 'burst') {
+    const n = sz.wide ? 'pay_burst_wide' : 'pay_burst';
+    ctx.globalAlpha = 0.42; ctx.drawImage(sil(n, P.INK, 0), x + 3, y + 3); ctx.globalAlpha = 1;
+    ctx.drawImage(sil(n, P.PAPER, 2), x - 2, y - 2); ctx.drawImage(scaled(n), x, y);
+    let fs = sz.wide ? 21 : 22; ctx.font = fNum(fs);
+    while (ctx.measureText(p.text).width > sz.w - 16 && fs > 16) { fs--; ctx.font = fNum(fs); }
+    ctx.fillStyle = P.INK; ctx.textAlign = 'center'; ctx.fillText(p.text, x + sz.w / 2, y + sz.h / 2 + fs * 0.36); ctx.textAlign = 'left';
+    return sz;
+  }
+  const n = p.kind === 'plain' ? 'pay_plain' : 'pay_zero';
+  ctx.globalAlpha = 0.42; nine(ctx, sil(n, P.INK, 0), x + 3, y + 3, sz.w, sz.h, 8); ctx.globalAlpha = 1;
+  if (p.kind !== 'plain') nine(ctx, sil(n, P.PAPER, 2), x - 2, y - 2, sz.w + 4, sz.h + 4, 10);
+  nine(ctx, scaled(n), x, y, sz.w, sz.h, 8);
+  ctx.font = fNum(17);
+  if (p.kind === 'plain') { ctx.fillStyle = P.INK; ctx.textAlign = 'center'; ctx.fillText(p.text, x + sz.w / 2, y + 19); ctx.textAlign = 'left'; }
+  else {
+    if (p.kind === 'zero') ctx.drawImage(IMG.warning, x + 5, y + 8);
+    else ctx.drawImage(IMG.mark_fizzle, x + 4, y + 6);
+    ctx.fillStyle = P.PAPER; ctx.fillText(p.text, x + 20, y + 19);
+  }
+  return sz;
+}
+function struckW(ctx, s) { ctx.font = fNum(15); return Math.ceil(ctx.measureText(s).width); }
+function drawStruck(ctx, s, right, top, dark) {
+  ctx.font = fNum(15); const w = struckW(ctx, s); const x = right - w;
+  if (!dark) { ctx.strokeStyle = P.PAPER; ctx.lineWidth = 4; ctx.lineJoin = 'round'; ctx.strokeText(s, x, top + 13); }
+  ctx.fillStyle = dark ? P.PAPER : P.INK; ctx.fillText(s, x, top + 13);
+  R(ctx, x - 2, top + 9, w + 4, 2, dark ? P.PAPER : P.TOMATO);
+}
+function zone(ctx, x, y, w, h, c, label) {
+  ctx.save(); ctx.strokeStyle = c; ctx.lineWidth = 2; ctx.setLineDash([4, 3]); ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
+  if (label) { ctx.font = fPix(9, 700); ctx.fillStyle = c; ctx.fillText(label, x + 3, y - 2); }
+  ctx.restore();
+}
+/* Layouts: 'now' (today's code), 'A' shelf-edge bands, 'B' icon column. Coordinates in the ticket's px. */
+function ticketLayout(ctx, spec, layout) {
+  const glyphs = [...(spec.glyphs || []), ...(spec.gained ? [spec.gained] : [])];
+  const pay = spec.pay ? paySize(ctx, spec.pay) : null;
+  const L = {H:layout === 'now' ? 64 : 76, glyphs:[], zones:[]};
+  if (layout === 'now') {
+    if (pay) {
+      if (spec.pay.kind === 'burst' && pay.wide) {
+        let left = 108 + 14 - 80; const rowEnd = 4 + 20 * (glyphs.length - 1) + 20;
+        if (glyphs.length && rowEnd > left - 2) left = 46;
+        L.pay = {x:left, y:24 - 36};
+      } else if (spec.pay.kind === 'burst') L.pay = {x:108 + 6 - 60, y:26 - 32};
+      else L.pay = {x:108 + 4 - pay.w, y:22 - 26};
+    }
+    const cut = L.pay ? {x:L.pay.x - 2, y:L.pay.y - 2, w:pay.w + 4, h:pay.h + 4} : null;
+    const hit = (gx, gy) => cut && gx < cut.x + cut.w && gx + 20 > cut.x && gy < cut.y + cut.h && gy + 20 > cut.y;
+    let step = 20;
+    if (glyphs.some((g, i) => hit(4 + 20 * i, 5))) step = 18;
+    glyphs.forEach((g, i) => L.glyphs.push({g, x:4 + step * i, y:5, hidden:spec.pay && spec.pay.kind !== 'plain' && hit(4 + step * i, 5)}));
+    if (spec.coupon) L.title = {x:8, y:8, small:true};
+    const sw = spec.struck ? struckW(ctx, spec.struck) : 0;
+    L.struck = spec.struck ? {right:101, top:26} : null;
+    L.text = {x:6, top:spec.coupon ? 28 : 27, widths:[spec.struck ? 98 - sw - 14 : 98, 98], sizes:[13], pitch:() => 15, maxLines:2};
+    L.zones = [[4, 5, 104, 20, P.TEAL_LIGHT], [6, 27, 98, 35, P.TOMATO_LIGHT]];
+    if (L.pay) L.zones.push([L.pay.x, L.pay.y, pay.w, pay.h, P.GOLD]);
+  } else if (layout === 'A') {
+    glyphs.forEach((g, i) => L.glyphs.push({g, x:4 + 20 * i, y:4}));
+    if (spec.coupon) L.title = {x:8, y:6};
+    if (pay) {
+      if (spec.pay.kind === 'burst') L.pay = pay.wide ? {x:108 + 6 - 80, y:56} : {x:108 + 6 - 60, y:56};
+      else L.pay = {x:108 + 4 - pay.w, y:58};
+    }
+    L.struck = spec.struck && L.pay ? {right:L.pay.x - 5, top:58} : null;
+    L.text = {x:6, top:25, widths:[96], sizes:[15, 14, 13], pitch:s => s + 1, maxLines:2};
+    L.divider = {y:56};
+    L.zones = [[2, 2, 104, 22, P.TEAL_LIGHT, ''], [4, 25, 100, 31, P.TOMATO_LIGHT, ''], [2, 56, 108 + 6, 36, P.GOLD, '']];
+  } else {
+    const n = glyphs.length; const step = n <= 3 ? 24 : 18; const y0 = n <= 3 ? 4 : 2;
+    glyphs.forEach((g, i) => L.glyphs.push({g, x:3, y:y0 + step * i}));
+    if (pay) {
+      if (spec.pay.kind === 'burst') L.pay = pay.wide ? {x:108 + 14 - 80, y:24 - 36} : {x:108 + 6 - 60, y:26 - 32};
+      else L.pay = {x:108 + 4 - pay.w, y:22 - 26};
+    }
+    L.struck = spec.struck ? {right:102, top:28} : null;
+    if (spec.coupon) { L.title = {x:8, y:8, small:true}; L.text = {x:6, top:28, widths:[96], sizes:[15, 14, 13], pitch:s => s, maxLines:3}; }
+    else L.text = {x:30, top:44, widths:[74], sizes:[15, 14, 13], pitch:s => s + 1, maxLines:2};
+    if (n) L.column = true;
+    L.zones = n ? [[2, 2, 24, 72, P.TEAL_LIGHT, ''], [28, -12, 82, 54, P.GOLD, ''], [28, 43, 78, 32, P.TOMATO_LIGHT, '']] : [[28, -12, 82, 40, P.GOLD, ''], [4, 28, 100, 46, P.TOMATO_LIGHT, '']];
+  }
+  return L;
+}
+function ticketCanvas(spec, layout, zones) {
+  return cached('t:' + JSON.stringify(spec) + layout + zones, () => {
+    const pad = 30; const tmp = mk(10, 10).getContext('2d');
+    const L = ticketLayout(tmp, spec, layout);
+    const c = mk(108 + pad * 2, L.H + pad * 2); const x = c.getContext('2d'); x.translate(pad, pad);
+    const fams = spec.slip ? [SLIP] : spec.fams.map(f => FAM[f]);
+    face(x, 54, L.H / 2, fams, spec.slip ? 'slip' : 'product');
+    const dark = !spec.slip && fams.every(f => f.paper);
+    const shade = fams[0].shade;
+    if (L.divider) R(x, 6, L.divider.y, 96, 2, shade);
+    if (L.column) R(x, 25, 6, 2, L.H - 12, shade);
+    for (const g of L.glyphs) if (!g.hidden) x.drawImage(rimmed(FAM[g.g].glyph), g.x - 1, g.y - 1);
+    if (spec.gained) { const g = L.glyphs[L.glyphs.length - 1]; if (!g.hidden) { R(x, g.x + 13, g.y - 3, 8, 8, P.INK); R(x, g.x + 15, g.y - 1, 4, 4, P.MUSTARD); } }
+    if (L.title) {
+      x.save(); x.font = `800 ${L.title.small ? 10 : 12}px ${ATK}`; x.fillStyle = P.TEAL_SHADE; if ('letterSpacing' in x) x.letterSpacing = '1px';
+      x.fillText('COUPON', L.title.x, L.title.y + 12); x.restore();
+    }
+    drawRich(x, spec.text, L.text.x, L.text.top, L.text.widths, {sizes:L.text.sizes, pitch:L.text.pitch, maxLines:L.text.maxLines, colour:dark ? P.PAPER : P.INK});
+    if (L.struck) drawStruck(x, spec.struck, L.struck.right, L.struck.top, dark);
+    if (L.pay) drawPay(x, spec.pay, L.pay.x, L.pay.y);
+    if (zones) for (const z of L.zones) zone(x, z[0], z[1], z[2], z[3], z[4], z[5]);
+    return {c, pad, H:L.H};
+  });
+}
+function drawTicket(ctx, spec, layout, X, Y, zones) {
+  const t = ticketCanvas(spec, layout, zones);
+  ctx.globalAlpha = 1; R(ctx, X + 108, Y + 2, 2, t.H - 2, '#79746c');
+  ctx.drawImage(t.c, X - t.pad, Y - t.pad);
+}
+
+/* ---------- top bar ---------- */
+function chip(ctx, x, y, w, h) { nine(ctx, IMG.chip, x, y, w, h, 4); }
+function drawFlag(ctx, x, gaugeTop, gaugeBottom, age, reduce, small) {
+  const plant = reduce ? 1 : Math.min(1, age / 0.55);
+  const k = plant < 1 ? 1 - Math.pow(1 - plant, 2) : 1;
+  const over = plant < 1 ? Math.sin(plant * Math.PI) * 4 : 0;
+  const drop = (1 - k) * 34 - over;
+  const above = small ? 10 : 14;
+  const top = gaugeTop - above - drop;
+  ctx.save(); ctx.globalAlpha = Math.min(1, plant * 3);
+  R(ctx, x - 2, top, 4, gaugeBottom + 2 - top + drop, P.INK); R(ctx, x - 1, top + 1, 2, gaugeBottom - top + drop, P.PAPER);
+  const cw = small ? 14 : 18, ch = small ? 10 : 14; const flap = reduce ? 0 : Math.round(Math.sin(age * 7) * 1);
+  R(ctx, x + 1, top + flap, cw, ch, P.INK); R(ctx, x + 3, top + 2 + flap, cw - 4, ch - 4, P.GOOD);
+  const cx = x + 1 + cw / 2 - 1, cy = top + ch / 2 + flap;
+  for (const [dx, dy] of [[-3, 0], [-1, 2], [1, 0], [3, -2]]) R(ctx, cx + dx, cy + dy, 2, 2, P.PAPER);
+  ctx.restore();
+}
+/* The SPEND chip: "SPEND", the quota "€80+", the liquid gauge, the amount. v: 'now' | 'A' | 'B'. */
+function drawSpend(ctx, v, x, y, w, st, t) {
+  const S = {now:{h:38, q:20, g:18, a:20}, A:{h:38, q:28, g:26, a:24}, B:{h:46, q:32, g:30, a:30}}[v];
+  const h = S.h;
+  const amt = Math.round(st.amount);
+  const met = amt >= QUOTA;
+  const short = !met && amt / QUOTA < 0.8 ? 'short' : 'near';
+  if (!met && amt / QUOTA >= 0.8 && !st.reduce) {
+    ctx.save(); ctx.globalAlpha = 0.45 + 0.35 * Math.sin(t * Math.PI * 2 / 0.7);
+    ctx.strokeStyle = P.MUSTARD_LIGHT; ctx.lineWidth = 3; ctx.strokeRect(x - 2.5, y - 2.5, w + 5, h + 5); ctx.restore();
+  }
+  chip(ctx, x, y, w, h);
+  const mid = y + h / 2;
+  ctx.save(); ctx.font = fPix(15); ctx.fillStyle = P.MUSTARD_PALE; if ('letterSpacing' in ctx) ctx.letterSpacing = '1px';
+  ctx.fillText('SPEND', x + 12, mid + 5); const sw = ctx.measureText('SPEND').width; ctx.restore();
+  let cx = x + 12 + sw + 8;
+  ctx.font = fNum(S.q); ctx.fillStyle = P.PAPER; ctx.fillText('€' + QUOTA + '+', cx, mid + S.q * 0.36);
+  cx += ctx.measureText('€' + QUOTA + '+').width + 8;
+  ctx.font = fNum(S.a); const readW = ctx.measureText('€000').width;
+  const gx = cx, gw = x + w - 12 - readW - 8 - gx, gh = S.g, gy = Math.round(mid - gh / 2);
+  document.body.dataset['gauge' + v] = String(Math.round(gw));
+  // gauge: ink border, charcoal well, liquid
+  R(ctx, gx, gy, gw, gh, P.INK); R(ctx, gx + 2, gy + 2, gw - 4, gh - 4, P.CHARCOAL);
+  const inner = gw - 4;
+  let fill, flagX = null;
+  if (!met) fill = Math.max(0, Math.min(1, amt / QUOTA));
+  else { fill = 1; flagX = gx + 2 + Math.round(inner * QUOTA / Math.max(amt, QUOTA)); }
+  const ramp = met ? null : (short === 'short' ? [P.TOMATO_LIGHT, P.TOMATO, P.TOMATO_DARK] : [P.MUSTARD, P.BRASS, P.BRASS_DARK]);
+  const lw = Math.round(inner * fill / 2) * 2;
+  if (lw > 0) {
+    const drawLiquid = (x0, x1, rp) => {
+      R(ctx, x0, gy + 2, x1 - x0, gh - 4, rp[1]); R(ctx, x0, gy + 2, x1 - x0, 2, rp[0]); R(ctx, x0, gy + gh - 4, x1 - x0, 2, rp[2]);
+    };
+    if (!met) drawLiquid(gx + 2, gx + 2 + lw, ramp);
+    else { drawLiquid(gx + 2, flagX, [P.GREEN_LIGHT, P.GOOD, P.GREEN_DARK]); drawLiquid(flagX, gx + 2 + inner, [P.MUSTARD_PALE, P.MUSTARD_LIGHT, P.MUSTARD]); }
+    if (!st.reduce) { // shine + bubbles
+      ctx.save(); ctx.beginPath(); ctx.rect(gx + 2, gy + 2, lw, gh - 4); ctx.clip();
+      const sx = gx + ((t * 70) % (gw + 60)) - 30;
+      ctx.globalAlpha = 0.35; for (let i = 0; i < gh; i += 2) R(ctx, Math.round(sx + i * 0.6), gy + gh - 2 - i, 6, 2, P.PAPER);
+      ctx.globalAlpha = 0.7; for (let b = 0; b < 7; b++) { const bx = gx + 4 + ((hash(b) * lw + t * (6 + b)) % Math.max(lw - 6, 1)); const by = gy + gh - 6 - ((t * 9 + hash(b + 9) * gh) % (gh - 8)); R(ctx, Math.round(bx / 2) * 2, Math.round(by / 2) * 2, 2, 2, P.PAPER); }
+      ctx.restore();
+    }
+  }
+  if (!met) {
+    const tag = '€' + (QUOTA - amt) + ' to go'; const ts = v === 'now' ? 11 : 13; ctx.font = fNum(ts);
+    const tw = ctx.measureText(tag).width; const tx = gx + gw - 6 - tw;
+    ctx.fillStyle = tx < gx + 2 + lw ? P.INK : P.TOMATO_LIGHT; ctx.fillText(tag, tx, mid + ts * 0.36);
+  }
+  if (flagX !== null) drawFlag(ctx, flagX, gy, gy + gh, st.metAge == null ? 9 : st.metAge, st.reduce, v === 'B');
+  ctx.font = fNum(S.a); ctx.fillStyle = P.MUSTARD_LIGHT;
+  let punch = 1; if (!st.reduce && st.gainAge != null && st.gainAge < 0.28) punch = 1 + 0.22 * Math.sin(st.gainAge / 0.28 * Math.PI);
+  ctx.save(); ctx.translate(x + w - 12 - readW, mid); ctx.scale(punch, punch); ctx.fillText('€' + amt, 0, S.a * 0.36); ctx.restore();
+}
+/* The pins chip (variants A and B): a teal chip with the worn pins at 28 px. Returns its width. */
+function pinChipW(n) { return 12 + n * 28 + (n - 1) * 6 + 12; }
+function drawPinChip(ctx, x, y, n, hover, out) {
+  const w = pinChipW(n); chip(ctx, x, y, w, 38);
+  for (let i = 0; i < n; i++) {
+    const px = x + 12 + i * 34, py = y + 5;
+    drawPin(ctx, px, py, 28, PINS[i], hover === i);
+    out.push({x:px, y:py, w:28, h:28, i, place:'below'});
+  }
+  return w;
+}
+function drawPin(ctx, X, Y, D, pin, hover) {
+  const col = pin ? PIN_COLOURS[pin.colour - 1] : null; const cells = D / 2, r = cells / 2;
+  if (hover) { ctx.save(); ctx.globalAlpha = 0.9; ctx.strokeStyle = P.GOLD; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(X + D / 2, Y + D / 2, D / 2 + 2, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); Y -= 2; }
+  for (let row = 0; row < cells; row++) {
+    const yy = row + 0.5 - r; const half = Math.round(Math.sqrt(Math.max(r * r - yy * yy, 0)));
+    const from = Math.floor(r) - half, to = Math.floor(r) + half;
+    for (let c = from; c < to; c++) {
+      if (!pin) { if ((c === from || c === to - 1) && row % 3 !== 0) R(ctx, X + c * 2, Y + row * 2, 2, 2, P.GREY); continue; }
+      const d = Math.hypot(c + 0.5 - r, row + 0.5 - r); let k;
+      if (d > r - 1) k = P.INK; else if (d > r - 3) k = col[1];
+      else if (Math.hypot(c + 0.5 - r * 0.55, row + 0.5 - r * 0.55) < r * 0.22) k = col[2]; else k = col[0];
+      R(ctx, X + c * 2, Y + row * 2, 2, 2, k);
+    }
+  }
+  if (!pin) return;
+  const fs = D >= 32 ? 12 : D >= 28 ? 11 : 10; ctx.font = fNum(fs); ctx.textAlign = 'center';
+  ctx.strokeStyle = col[1]; ctx.lineWidth = 3; ctx.lineJoin = 'round'; ctx.strokeText(pin.face, X + D / 2, Y + D / 2 + fs * 0.36);
+  ctx.fillStyle = P.PAPER; ctx.fillText(pin.face, X + D / 2, Y + D / 2 + fs * 0.36); ctx.textAlign = 'left';
+}
+function wrapPlain(ctx, s, w) { const words = s.split(' '); const lines = ['']; for (const wd of words) { const t = lines[lines.length - 1] ? lines[lines.length - 1] + ' ' + wd : wd; if (ctx.measureText(t).width > w && lines[lines.length - 1]) lines.push(wd); else lines[lines.length - 1] = t; } return lines; }
+function drawPinTip(ctx, pin, a, n) {
+  const W = 260; ctx.font = `700 14px ${ATK}`; const lines = wrapPlain(ctx, pin.rule, W - 24);
+  const H = 44 + lines.length * 18 + 24 + (pin.left ? 18 : 0);
+  let x = Math.max(8, Math.min(1272 - W, a.x + a.w / 2 - W / 2)), y;
+  if (a.place === 'below') y = a.y + a.h + 12; else y = a.y + a.h + 12;
+  R(ctx, x + 4, y + 4, W, H, 'rgba(0,0,0,.4)');
+  R(ctx, x, y, W, H, P.INK); R(ctx, x + 2, y + 2, W - 4, H - 4, P.PAPER); R(ctx, x + 2, y + H - 6, W - 4, 4, P.CREAM_SHADE);
+  const cx = Math.max(x + 14, Math.min(x + W - 14, a.x + a.w / 2));
+  for (let i = 0; i < 6; i++) R(ctx, cx - i - 1, y - 6 + i, 2 * i + 2, 1, i === 5 ? P.PAPER : P.INK);
+  for (let i = 1; i < 6; i++) R(ctx, cx - i + 1, y - 6 + i + 1, 2 * i - 2, 1, P.PAPER);
+  drawPin(ctx, x + 12, y + 10, 24, pin, false);
+  ctx.font = fPix(18, 700); ctx.fillStyle = P.INK; ctx.fillText(pin.name, x + 44, y + 28);
+  ctx.font = `700 14px ${ATK}`; ctx.fillStyle = P.INK; lines.forEach((l, i) => ctx.fillText(l, x + 12, y + 56 + i * 18));
+  let fy = y + 56 + lines.length * 18;
+  if (pin.left) { ctx.font = `750 13px ${ATK}`; ctx.fillStyle = P.TEAL_SHADE; ctx.fillText('● ' + pin.left, x + 12, fy + 2); fy += 18; }
+  ctx.font = `600 12px ${ATK}`; ctx.fillStyle = P.MUTED; ctx.fillText('Badge pin · click to keep it open', x + 12, fy + 6);
+}
+/* Variant C: the name badge hung from the monitor's left side on a teal lanyard. */
+function drawBadge(ctx, n, hover, out) {
+  const X = 370, Y = 112, W = 104, H = 82;
+  // lanyard: from the monitor's left frame hook (486, 86) down to the clip
+  for (let i = 0; i <= 14; i++) { const lx = 484 - i * 4, ly = 84 + i * 2; R(ctx, lx - 2, ly, 6, 4, P.INK); R(ctx, lx - 1, ly + 1, 4, 2, P.TEAL); }
+  R(ctx, 482, 80, 8, 10, P.INK); R(ctx, 484, 82, 4, 6, P.STEEL_LIGHT);
+  for (let i = 0; i <= 6; i++) { const lx = 428 - i * 1, ly = 112 - 14 + i * 2; R(ctx, lx - 2, ly, 4, 2, P.TEAL_SHADE); }
+  R(ctx, X + 4, Y + 4, W, H, 'rgba(0,0,0,.35)');
+  R(ctx, X + W / 2 - 10, Y - 8, 20, 12, P.INK); R(ctx, X + W / 2 - 8, Y - 6, 16, 8, P.STEEL_LIGHT); R(ctx, X + W / 2 - 8, Y - 6, 16, 2, P.STEEL_HI);
+  R(ctx, X, Y, W, H, P.INK); R(ctx, X + 2, Y + 2, W - 4, H - 4, P.BRASS); R(ctx, X + 2, Y + 2, W - 4, 2, P.MUSTARD_LIGHT);
+  R(ctx, X + 2, Y + H - 4, W - 4, 2, P.BRASS_DARK); R(ctx, X + 6, Y + 6, 6, 2, P.GOLD);
+  R(ctx, X + 4, Y + 8, W - 8, 16, P.TEAL_DARK); R(ctx, X + 4, Y + 8, W - 8, 2, P.TEAL);
+  ctx.font = fPix(10, 700); ctx.fillStyle = P.PAPER; ctx.textAlign = 'center'; ctx.fillText('NEXT CUSTOMER', X + W / 2, Y + 20); ctx.textAlign = 'left';
+  R(ctx, X + 4, Y + 26, W - 8, 50, P.PAPER); R(ctx, X + 4, Y + 74, W - 8, 2, P.CREAM_SHADE);
+  for (let i = 0; i < 3; i++) {
+    const px = X + 8 + i * 32, py = Y + 38;
+    drawPin(ctx, px, py, 28, i < n ? PINS[i] : null, hover === i);
+    if (i < n) out.push({x:px, y:py, w:28, h:28, i, place:'below'});
+  }
+  ctx.font = `700 9px ${ATK}`; ctx.fillStyle = P.MUTED; ctx.fillText('CASHIER', X + 8, Y + 35);
+}
+/* The top bar with pins A/B: copies of the capture's chips, the day chip trimmed. */
+function drawTopBar(ctx, o, st, t, out) {
+  const base = IMG.now_planning;
+  const spendV = o.top === 'now' ? 'now' : o.top;
+  const pinsW = (o.pins === 'A' || o.pins === 'B') ? pinChipW(o.npins) + 12 : 0;
+  if (o.top === 'now' && !pinsW && !o.liveNow) return;
+  R(ctx, 0, 0, 1280, 56, P.BG); ctx.drawImage(base, 0, 0, 1280, 3, 0, 0, 1280, 3); ctx.drawImage(base, 0, 50, 1280, 6, 0, 50, 1280, 6);
+  let x = 16;
+  const spendY = spendV === 'B' ? 5 : 9;
+  if (o.pins === 'A') { drawPinChip(ctx, x, 9, o.npins, o.hover, out); x += pinsW; }
+  drawSpend(ctx, spendV, x, spendY, 362, st, t); x += 362 + 14;
+  ctx.drawImage(base, 392, 7, 150, 42, x, 7, 150, 42); x += 150 + 13;
+  if (o.pins === 'B') { drawPinChip(ctx, x, 9, o.npins, o.hover, out); x += pinsW; }
+  // the day chip, trimmed to the room left before LOYALTY (840)
+  const dayW = 828 - x;
+  if (dayW >= 273) ctx.drawImage(base, 555, 7, 273, 42, x, 7, 273, 42);
+  else {
+    ctx.drawImage(base, 555, 7, dayW - 12, 42, x, 7, dayW - 12, 42); ctx.drawImage(base, 816, 7, 12, 42, x + dayW - 12, 7, 12, 42);
+    R(ctx, x + dayW - 30, 13, 20, 28, P.TOMATO_PALE); ctx.font = fNum(15); ctx.fillStyle = P.INK; ctx.fillText('…', x + dayW - 28, 34);
+  }
+  ctx.drawImage(base, 840, 7, 440, 42, 840, 7, 440, 42);
+}
+
+/* ---------- the receipt printer's front (art rows 11..30, 132 x 20 art px) ---------- */
+function printerFront(ctx, v, X, Y, t, printing) {
+  const r = (x, y, w, h, c) => R(ctx, X + x * 2, Y + y * 2, w * 2, h * 2, c);
+  const blink = printing ? Math.floor(t * 6) % 2 === 0 : true;
+  // body shared by A, B, C: charcoal laminate like the register column (#123)
+  r(0, 0, 132, 1, P.INK); r(0, 0, 1, 19, P.INK); r(131, 0, 1, 19, P.INK); r(1, 19, 130, 1, P.INK);
+  r(1, 1, 130, 1, P.STEEL_DARK); r(1, 2, 130, 15, P.RUBBER); r(1, 2, 1, 15, P.STEEL_DARKEST);
+  r(129, 2, 2, 15, P.RUBBER_DARK); r(1, 16, 130, 1, P.RUBBER_DARK); r(1, 17, 130, 2, P.CHARCOAL);
+  r(3, 3, 1, 1, P.STEEL_PALE); r(127, 3, 1, 1, P.STEEL_PALE); r(3, 14, 1, 1, P.STEEL_DARK); r(127, 14, 1, 1, P.STEEL_DARK);
+  const led = (x, y) => { r(x, y, 5, 4, P.INK); r(x + 1, y + 1, 3, 2, blink ? P.GOOD : P.GREEN_DARK); if (blink) r(x + 1, y + 1, 1, 1, P.GREEN_LIGHT);
+    if (blink && printing) { ctx.save(); ctx.globalAlpha = 0.25; r(x - 1, y - 1, 7, 6, P.GREEN_LIGHT); ctx.restore(); } };
+  const feedKey = (x, y) => { r(x, y, 16, 9, P.INK); r(x + 1, y + 1, 14, 6, P.CREAM); r(x + 1, y + 1, 14, 1, P.PAPER); r(x + 1, y + 6, 14, 2, P.CREAM_SHADE);
+    r(x + 7, y + 2, 2, 1, P.INK_LIGHT || '#4a3f38'); r(x + 6, y + 3, 4, 1, '#4a3f38'); r(x + 5, y + 4, 6, 1, '#4a3f38'); };
+  const vent = (x, y) => { for (let i = 0; i < 4; i++) { r(x, y + i * 2, 22, 1, P.RUBBER_DARK); r(x, y + i * 2 + 1, 22, 1, P.STEEL_DARKEST); } };
+  if (v === 'A') {
+    led(6, 5); feedKey(14, 4);
+    r(36, 3, 62, 11, P.INK); r(37, 4, 60, 9, P.TEAL_BLACK); r(37, 4, 60, 1, '#1d3634');
+    ctx.save(); ctx.beginPath(); ctx.rect(X + 74, Y + 8, 120, 18); ctx.clip();
+    ctx.font = fPix(12, 600); ctx.fillStyle = P.TEAL_BRIGHT;
+    if (printing) { const msg = 'PRINTING ▸ THANK YOU ▸ '; const mw = ctx.measureText(msg).width; const off = (t * 40) % mw; ctx.fillText(msg + msg, X + 78 - off, Y + 22); }
+    else ctx.fillText('REG 3 · READY', X + 80, Y + 22);
+    ctx.restore();
+    ctx.save(); ctx.globalAlpha = 0.18; r(38, 5, 10, 1, P.GLASS_GLOW); ctx.restore();
+    vent(104, 5);
+  } else if (v === 'B') {
+    led(6, 5);
+    r(14, 4, 9, 9, P.INK); r(15, 5, 7, 7, P.TOMATO); r(15, 5, 7, 1, P.TOMATO_LIGHT); r(15, 5, 1, 7, P.TOMATO_LIGHT); r(21, 6, 1, 6, P.TOMATO_DARK); r(15, 11, 7, 1, P.TOMATO_DARK);
+    r(18, 7, 1, 3, P.PAPER);
+    r(34, 2, 64, 12, P.INK); r(35, 3, 62, 10, P.SLATE);
+    r(37, 4, 58, 8, P.CREAM_SHADE); r(37, 5, 58, 5, P.PAPER); r(37, 4, 58, 1, P.CREAM); r(37, 10, 58, 2, '#b39f78');
+    const ph = printing ? Math.floor(t * 12) % 4 : 0;
+    for (let k = 0; k < 3; k++) { const ry = 5 + ((k * 2 + ph) % 6); if (ry < 10) r(37, ry, 58, 1, P.CREAM); }
+    r(36, 3, 1, 10, P.TEAL_BLACK); r(96, 3, 1, 10, P.TEAL_BLACK);
+    ctx.save(); ctx.globalAlpha = 0.5; for (let i = 0; i < 6; i++) r(40 + i, 3 + i, 1, 1, P.GLASS_GLOW); for (let i = 0; i < 4; i++) r(47 + i, 3 + i, 1, 1, P.GLASS_GLOW); ctx.restore();
+    r(1, 14, 130, 1, P.TEAL_LIGHT); r(1, 15, 130, 1, P.TEAL);
+    vent(104, 4);
+  } else if (v === 'C') {
+    led(6, 4); feedKey(14, 3);
+    r(1, 12, 130, 1, P.INK); r(1, 13, 130, 1, P.MUSTARD_LIGHT); r(1, 14, 130, 1, P.BRASS); r(1, 15, 130, 1, P.BRASS_DARK); r(1, 16, 130, 1, P.INK);
+    r(42, 2, 50, 9, P.INK); r(43, 3, 48, 7, P.BRASS); r(43, 3, 48, 1, P.MUSTARD_LIGHT); r(43, 9, 48, 1, P.BRASS_DARK);
+    r(44, 4, 1, 1, P.BRASS_DARKEST); r(89, 4, 1, 1, P.BRASS_DARKEST);
+    ctx.font = fPix(11, 700); ctx.fillStyle = P.BRASS_DARKEST; ctx.textAlign = 'center'; ctx.fillText('THANK YOU', X + 134, Y + 17); ctx.textAlign = 'left';
+    ctx.fillStyle = P.MUSTARD_LIGHT; ctx.globalAlpha = 0.35; ctx.textAlign = 'center'; ctx.fillText('THANK YOU', X + 134, Y + 16); ctx.textAlign = 'left'; ctx.globalAlpha = 1;
+    if (printing) { const gx = 43 + ((t * 30) % 70) - 10; ctx.save(); ctx.beginPath(); ctx.rect(X + 86, Y + 6, 96, 14); ctx.clip(); ctx.globalAlpha = 0.7; for (let i = 0; i < 7; i++) r(Math.round(gx + i * 0.5), 3 + i, 2, 1, P.GOLD); ctx.restore(); }
+    vent(104, 3);
+  }
+}
+/* Today's printer, or a redrawn front over today's top face (rows 0..10 with the slot). */
+function drawPrinter(ctx, v, X, Y, t, printing) {
+  if (v === 'now') { ctx.drawImage(IMG.printer_box, X, Y); return; }
+  ctx.drawImage(IMG.printer_box, 0, 0, 264, 22, X, Y, 264, 22);
+  printerFront(ctx, v, X, Y + 22, t, printing);
+}
+
+/* ---------- the quota light in the apron band ---------- */
+function apronBase(ctx) {
+  R(ctx, APRON.x, APRON.y, APRON.w, 2, P.STEEL_DARKEST); R(ctx, APRON.x, APRON.y + 2, APRON.w, 6, P.STEEL_SHADE);
+}
+function apronMarks(ctx, lit) {
+  for (let i = 0; i < 7; i++) {
+    ctx.globalAlpha = lit ? 0.55 : 1;
+    ctx.drawImage(IMG.belt_bolt, 356 + 128 * i, 450); ctx.drawImage(IMG.belt_chevrons, 412 + 128 * i, 450);
+    ctx.globalAlpha = 1;
+  }
+}
+/* band: {v:'A'|'B'|'C', frac, ghost, met, metAge, ct, reduce} */
+function drawBand(ctx, b, t) {
+  const G = {A:{n:3, a:0.55}, B:{n:6, a:1.0}, C:{n:10, a:1.35}}[b.v];
+  apronBase(ctx);
+  const x0 = APRON.x, y0 = APRON.y;
+  if (b.ghost) {
+    ctx.save(); ctx.globalAlpha = 0.33; R(ctx, x0, y0 + 2, APRON.w, 6, P.MUSTARD); R(ctx, x0, y0 + 2, APRON.w, 2, P.MUSTARD_LIGHT); ctx.restore();
+    apronMarks(ctx, false); return;
+  }
+  const frac = Math.min(1, b.frac);
+  const fw = Math.round(APRON.w * frac / 2) * 2;
+  if (!b.met) {
+    const rp = frac < 0.8 ? [P.TOMATO_PALE, P.TOMATO_LIGHT, P.TOMATO] : [P.MUSTARD_PALE, P.MUSTARD_LIGHT, P.MUSTARD];
+    if (fw > 0) {
+      R(ctx, x0, y0, fw, 2, rp[2]); R(ctx, x0, y0 + 2, fw, 6, rp[1]); R(ctx, x0, y0 + 2, fw, 2, rp[0]);
+      apronMarks(ctx, true);
+      if (!b.reduce) { R(ctx, x0 + fw - 4, y0, 4, 8, P.PAPER); R(ctx, x0 + fw - 6, y0 + 2, 2, 4, P.MUSTARD_PALE); }
+      // a faint glow at the head, rising from 80%
+      const hi = frac >= 0.8 ? 0.7 : 0.35;
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      for (let k = 1; k <= 3; k++) { ctx.globalAlpha = hi * (1 - (k - 1) / 3) * 0.6; R(ctx, x0 + Math.max(0, fw - 60), y0 - 2 * k, Math.min(60, fw), 2, rp[0]); }
+      ctx.restore();
+    } else apronMarks(ctx, false);
+    return;
+  }
+  // met: gold, the flash, the glow and the chase
+  const age = b.metAge;
+  const flash = !b.reduce && b.v !== 'A' && age < 0.16;
+  R(ctx, x0, y0, APRON.w, 2, P.MUSTARD); R(ctx, x0, y0 + 2, APRON.w, 6, P.GOLD); R(ctx, x0, y0 + 2, APRON.w, 2, P.MUSTARD_PALE);
+  apronMarks(ctx, true);
+  // bulbs (today's bonus lights, on the gold): chase back toward the scanner
+  const step = b.reduce ? 0 : Math.floor(age / 0.09);
+  for (let i = 0; i < 38; i++) {
+    const bx = x0 + 4 + Math.round(i * (APRON.w - 14) / 37 / 2) * 2;
+    const lit = b.reduce ? i % 2 === 0 : (i + step) % 4 === 0;
+    R(ctx, bx, y0 + 4, 10, 4, lit ? P.PAPER : P.MUSTARD);
+  }
+  if (flash) { ctx.save(); ctx.globalAlpha = 1 - age / 0.16; R(ctx, x0, y0 - 2, APRON.w, 12, P.PAPER); ctx.restore(); }
+  // glow: stepped rows above (lip) and below (the rail, behind the tickets)
+  const swell = b.reduce ? 1 : Math.min(1, age / 0.35);
+  const breathe = (b.reduce || b.v === 'A') ? 1 : 0.85 + 0.15 * Math.sin(t * Math.PI * 2 / 1.2);
+  const boost = (!b.reduce && age < 0.6) ? 1 + 0.6 * (1 - age / 0.6) : 1;
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  for (let k = 1; k <= G.n; k++) {
+    ctx.globalAlpha = Math.min(1, G.a * swell * breathe * boost * Math.pow(1 - (k - 1) / G.n, 1.2) * 0.6);
+    R(ctx, x0, y0 - 2 * k, APRON.w, 2, P.GOLD);
+    if (k <= Math.ceil(G.n * 0.7)) R(ctx, x0, y0 + 6 + 2 * k, APRON.w, 2, P.GOLD);
+  }
+  ctx.restore();
+  if (b.v === 'C' && !b.reduce) { // sparks running along the band
+    for (let s = 0; s < 14; s++) {
+      const sx = x0 + ((hash(s) * APRON.w + (age * (120 + 60 * hash(s + 3)))) % APRON.w);
+      const sy = y0 - 4 - Math.round(hash(s + 7) * 10 + Math.sin(age * 6 + s) * 3);
+      ctx.globalAlpha = 0.6 + 0.4 * Math.sin(age * 9 + s); R(ctx, Math.round(sx / 2) * 2, Math.round(sy / 2) * 2, 2, 2, P.PAPER); ctx.globalAlpha = 1;
+    }
+  }
+  if (b.v !== 'A') { // the ✓ flag at the band's right end
+    const fx = APRON.x + APRON.w - 16; drawFlag(ctx, fx, y0 - 2, y0 + 8, b.reduce ? 9 : age, b.reduce, true);
+  }
+  if (!b.reduce && b.v !== 'A' && age < 0.8) { // a burst of sparkles at the end
+    for (let s = 0; s < 10; s++) {
+      const a = s / 10 * Math.PI * 2, d = age * 70 * (0.6 + hash(s) * 0.6);
+      ctx.globalAlpha = 1 - age / 0.8; ctx.drawImage(IMG.sparkle, Math.round(APRON.x + APRON.w - 20 + Math.cos(a) * d), Math.round(y0 + Math.sin(a) * d * 0.6), IMG.sparkle.width * 2, IMG.sparkle.height * 2); ctx.globalAlpha = 1;
+    }
+  }
+}
+
+/* ---------- the whole stage ---------- */
+/* o: {top, pins, npins, ticket, printer, band, hover, zones, liveNow} — each 'now' or a variant. */
+function drawScene(ctx, o, t, out) {
+  out.length = 0;
+  ctx.imageSmoothingEnabled = false;
+  const reduce = o.reduce;
+  const m = moment(t, reduce);
+  const met = !m.plan && m.amount >= QUOTA - 0.001;
+  const metAge = m.plan ? null : (reduce ? 9 : Math.max(0, m.ct - CROSS_T));
+  let gainAge = null; if (!m.plan) for (const [bt, v] of BEATS) if (v > 0 && m.ct >= bt) gainAge = m.ct - bt;
+  const st = {amount:m.plan ? 147 : m.amount, reduce, metAge:m.plan ? 9 : (met ? metAge : null), gainAge};
+  ctx.drawImage(IMG.now_planning, 0, 0);
+  const newTickets = o.ticket !== 'now';
+  const redrawBelt = newTickets || o.band !== 'now';
+  if (newTickets) { // the hand row comes down 12 px under a rail 12 px taller
+    ctx.drawImage(IMG.now_planning, 336, 524, 944, 196, 336, 536, 944, 196);
+    R(ctx, 336, 524, 944, 12, P.RUBBER_DARK);
+  }
+  if (redrawBelt) {
+    const railH = newTickets ? 80 : 68;
+    if (newTickets) {
+      R(ctx, 680, 536, 60, 20, P.RUBBER_DARK);
+      R(ctx, 350, 456, 914, railH, P.INK);
+      R(ctx, 354, 458, 906, railH - 4, P.STEEL_PALE); R(ctx, 354, 458, 906, 2, P.STEEL_HI); R(ctx, 354, 456 + railH - 6, 906, 4, P.STEEL_DARK);
+      ctx.save(); ctx.globalAlpha = 0.35; R(ctx, 354, 456 + railH, 910, 4, P.INK); ctx.restore();
+    }
+    if (o.band === 'now') ctx.drawImage(IMG.now_planning, 352, 448, 910, 8, 352, 448, 910, 8);
+    else if (o.bandPlain) { apronBase(ctx); apronMarks(ctx, false); }
+    else {
+      let band;
+      if (m.plan) band = {v:o.band, ghost:true};
+      else band = {v:o.band, frac:m.amount / QUOTA, met, metAge, reduce};
+      drawBand(ctx, band, t);
+    }
+    // the chain frames' stems (EGGS, MULTIPACK) between tickets
+    if (newTickets) for (const sx of [480, 864]) { R(ctx, sx, 456, 12, railH - 2, P.MUSTARD_DARK); R(ctx, sx, 456, 12, 2, P.MUSTARD); }
+    const layout = newTickets ? o.ticket : 'now';
+    BELT.forEach((spec, i) => drawTicket(ctx, spec, layout, TICKET_X0 + TICKET_PITCH * i, TICKET_Y, o.zones));
+    if (newTickets) { // the Spot check's talker under slot 3
+      const tx = o.ticket === 'A' ? 628 : 683; ctx.drawImage(IMG.now_planning, 683, 522, 54, 19, tx, 534, 54, 19);
+    }
+    if (o.band !== 'now' && o.band === 'C' && met) { // gold edge on the tickets' tops
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.5 * Math.min(1, metAge / 0.35);
+      for (let i = 0; i < 7; i++) R(ctx, TICKET_X0 + TICKET_PITCH * i + 2, TICKET_Y, 104, 2, P.GOLD); ctx.restore();
+    }
+  }
+  if (o.printer !== 'now') {
+    const printing = !m.plan && m.ct < COUNT_LEN - 0.5 && !reduce;
+    printerFront(ctx, o.printer, 32, 352, t, printing || o.forcePrint);
+  }
+  drawTopBar(ctx, o, st, t, out);
+  if (o.pins === 'C') drawBadge(ctx, o.npins, o.hover, out);
+  if (o.hover != null && out[o.hover]) drawPinTip(ctx, PINS[o.hover], out[o.hover], o.npins);
+}
+
+/* ---------- live canvases ---------- */
+const prefersRM = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const state = {mode:'new', top:'A', pins:'B', npins:3, ticket:'A', printer:'A', band:'B', reduce:prefersRM, zones:false};
+let T0 = performance.now(), Q0 = performance.now();
+/* ?t=<seconds> freezes every clock at that loop time (for captures), as the earlier pages' ?at=. */
+const FREEZE = (() => { const q = new URLSearchParams(location.search).get('t'); return q == null ? null : Number(q); })();
+const DEBUG = new URLSearchParams(location.search).has('debug') ? document.body.insertBefore(Object.assign(document.createElement('pre'), {style:'position:fixed;left:0;top:0;z-index:9;background:#000;color:#0f0;font:14px monospace;white-space:pre-wrap;max-width:1300px;margin:0;padding:8px'}), document.body.firstChild) : null;
+const qtime = () => FREEZE != null ? FREEZE : (performance.now() - Q0) / 1000;
+window.addEventListener('error', e => { document.body.dataset.err = (document.body.dataset.err || '') + ' | ' + e.message; });
+const views = [];
+function view(id, draw) {
+  const c = document.getElementById(id); const ctx = c.getContext('2d'); ctx.imageSmoothingEnabled = false;
+  const v = {c, ctx, draw, visible:true, hover:null, pinned:null, rects:[]}; views.push(v);
+  if ('IntersectionObserver' in window) new IntersectionObserver(es => { for (const e of es) v.visible = e.isIntersecting; }).observe(c);
+  return v;
+}
+const full = mk(1280, 720); const fctx = full.getContext('2d');
+function crop(v, o, t, sx, sy) { drawScene(fctx, o, t, v.rects); v.ctx.drawImage(full, sx, sy, v.c.width, v.c.height, 0, 0, v.c.width, v.c.height); }
+function hoverable(v, sx, sy) {
+  const pos = e => { const r = v.c.getBoundingClientRect(); return [(e.clientX - r.left) * v.c.width / r.width + sx, (e.clientY - r.top) * v.c.height / r.height + sy]; };
+  const hit = (x, y) => { const k = v.rects.find(p => x >= p.x - 3 && x <= p.x + p.w + 3 && y >= p.y - 3 && y <= p.y + p.h + 3); return k ? k.i : null; };
+  v.c.addEventListener('mousemove', e => { const [x, y] = pos(e); v.hover = hit(x, y); v.c.style.cursor = v.hover != null ? 'pointer' : 'default'; });
+  v.c.addEventListener('mouseleave', () => { v.hover = null; });
+  v.c.addEventListener('click', e => { const [x, y] = pos(e); const h = hit(x, y); v.pinned = (h != null && v.pinned !== h) ? h : null; });
+}
+
+function sceneOpts() {
+  return {top:state.top, pins:state.pins, npins:state.npins, ticket:state.ticket, printer:state.printer, band:state.band, reduce:state.reduce};
+}
+const NOW = {top:'now', pins:'none', npins:0, ticket:'now', printer:'now', band:'now'};
+
+function setupComposite() {
+  const v = view('scene', (v, t) => {
+    if (state.mode === 'now') {
+      const m = moment(t, state.reduce); let img = IMG.now_planning;
+      if (!m.plan) img = m.ct < 2.5 ? IMG.now_planning : m.ct < CROSS_T ? IMG['now_count_6.0s'] : m.ct < CROSS_T + 1.8 ? IMG['now_count_8.5s'] : IMG['now_count_10.0s'];
+      v.ctx.drawImage(img, 0, 0); return;
+    }
+    const o = sceneOpts(); o.hover = v.pinned != null ? v.pinned : v.hover; drawScene(v.ctx, o, t, v.rects);
+  });
+  hoverable(v, 0, 0);
+  const opts = [
+    ['TOP BAR', 'top', ['A', 'B']], ['PINS', 'pins', ['A', 'B', 'C']], ['TICKETS', 'ticket', ['A', 'B']],
+    ['PRINTER', 'printer', ['A', 'B', 'C']], ['GLOW', 'band', ['A', 'B', 'C']], ['PINS WORN', 'npins', [1, 2, 3]],
+  ];
+  const box = document.getElementById('c_opts');
+  for (const [lbl, key, vals] of opts) {
+    const s = document.createElement('span'); s.className = 'lbl'; s.textContent = lbl; box.appendChild(s);
+    const seg = document.createElement('div'); seg.className = 'seg'; seg.setAttribute('role', 'group'); seg.setAttribute('aria-label', lbl);
+    for (const val of vals) {
+      const b = document.createElement('button'); b.textContent = val; b.setAttribute('aria-pressed', String(state[key] === val));
+      b.addEventListener('click', () => { state[key] = val; for (const o of seg.children) o.setAttribute('aria-pressed', String(o === b)); if (key === 'npins') syncNp(); });
+      seg.appendChild(b);
+    }
+    box.appendChild(seg);
+  }
+  const setMode = m => { state.mode = m; document.getElementById('c_new').setAttribute('aria-pressed', String(m === 'new')); document.getElementById('c_now').setAttribute('aria-pressed', String(m === 'now')); document.getElementById('c_badge').textContent = m === 'new' ? 'PROPOSED' : 'GAME TODAY'; };
+  document.getElementById('c_new').onclick = () => setMode('new');
+  document.getElementById('c_now').onclick = () => setMode('now');
+  document.getElementById('c_play').onclick = () => { T0 = performance.now(); };
+  const rm = document.getElementById('c_rm'); rm.checked = state.reduce; rm.onchange = () => { state.reduce = rm.checked; document.getElementById('q_rm').checked = rm.checked; };
+}
+function syncNp() { for (const b of document.querySelectorAll('.np')) b.setAttribute('aria-pressed', String(Number(b.dataset.n) === state.npins)); }
+
+function setupSections() {
+  // 1 · top bar
+  view('t_now1', v => v.ctx.drawImage(IMG.now_planning, 0, 0, 640, 56, 0, 0, 640, 56));
+  view('t_now2', v => v.ctx.drawImage(IMG['now_count_6.0s'], 0, 0, 640, 56, 0, 0, 640, 56));
+  for (const [id, top] of [['t_a', 'A'], ['t_b', 'B']]) view(id, (v, t) => crop(v, {...NOW, top, reduce:state.reduce, liveNow:true}, t, 0, 0));
+  // 2 · pins
+  for (const [id, pins, sx, sy] of [['p_a', 'A', 0, 0], ['p_b', 'B', 360, 0], ['p_c', 'C', 250, 70]]) {
+    const v = view(id, (v, t) => { const h = v.pinned != null ? v.pinned : (v.hover != null ? v.hover : 0); crop(v, {...NOW, top:'A', pins, npins:state.npins, hover:h, reduce:true, liveNow:true}, 0, sx, sy); });
+    hoverable(v, sx, sy);
+  }
+  document.querySelectorAll('.np').forEach(b => b.addEventListener('click', () => { state.npins = Number(b.dataset.n); syncNp(); }));
+  // 3 · size
+  view('k_now', v => v.ctx.drawImage(IMG.now_planning, 350, 426, 920, 120, 0, 0, 920, 120));
+  view('k_new', v => crop(v, {...NOW, ticket:'A', band:'B', bandPlain:true, reduce:true}, 0, 350, 426));
+  // 4 · zones
+  for (const [id, layout] of [['z_now', 'now'], ['z_a', 'A'], ['z_b', 'B']]) view(id, v => {
+    const c = v.ctx; R(c, 0, 0, 560, 250, P.RUBBER_DARK);
+    STRESS.forEach((s, i) => {
+      const X = 24 + i * 180, Y = 112;
+      R(c, X - 12, Y - 2, 136, 92, P.STEEL_PALE); R(c, X - 12, Y - 2, 136, 2, P.STEEL_HI);
+      R(c, X - 12, Y - 10, 136, 8, P.STEEL_SHADE); R(c, X - 12, Y - 10, 136, 2, P.STEEL_DARKEST);
+      if (s.item) { const img = IMG[s.item]; c.drawImage(img, X + 54 - img.width, Y - 12 - img.height * 2, img.width * 2, img.height * 2); }
+      drawTicket(c, s, layout, X, Y, document.getElementById('z_show').checked);
+      c.font = `700 10px ${ATK}`; c.fillStyle = P.TEAL_PALE; const words = wrapPlain(c, s.label, 150); words.forEach((w, k) => c.fillText(w, X - 10, 222 + k * 13));
+    });
+  });
+  // 5 · printer
+  for (const [id, pv] of [['r_now', 'now'], ['r_a', 'A'], ['r_b', 'B'], ['r_c', 'C']]) view(id, (v, t) => {
+    const c = v.ctx; const printing = document.getElementById('r_print').checked && !state.reduce;
+    R(c, 0, 0, 300, 112, P.BG); R(c, 0, 62, 300, 50, P.RUBBER_DARK); R(c, 0, 62, 300, 2, P.STEEL_DARKEST);
+    const X = 18, Y = 42;
+    // the receipt rising out of the slot
+    R(c, X + 14, 0, 236, Y + 12, P.PAPER); R(c, X + 14, 0, 2, Y + 12, P.CREAM); R(c, X + 248, 0, 2, Y + 12, P.CREAM_SHADE);
+    c.save(); c.beginPath(); c.rect(X + 14, 0, 236, Y + 8); c.clip();
+    const scroll = printing ? (t * 18) % 18 : 0;
+    c.font = `12px NCMono, 'JetBrains Mono', monospace`;
+    const rows = ['Milk  €4.00', '+ Milk: earlier  +€3.00', 'Multipack  ×3', '= €21.00', 'Milk  €4.00', '+ Breakfast  +€4.00', 'Slot engine  ×2', '= €48.00'];
+    for (let i = 0; i < 6; i++) { const ry = Y + 2 - i * 18 + scroll; const txt = rows[(i + Math.floor(printing ? t : 0)) % rows.length];
+      c.fillStyle = P.INK; c.fillText(txt, X + 24, ry - 4); }
+    c.restore();
+    drawPrinter(c, pv, X, Y, t, printing);
+    c.drawImage(IMG.printer_lip, X + 10, Y + 6);
+  });
+  // 6 · quota light
+  view('q_now1', v => v.ctx.drawImage(IMG['now_count_8.5s'], 350, 396, 920, 160, 0, 0, 920, 160));
+  view('q_now2', v => v.ctx.drawImage(IMG['now_count_10.0s'], 350, 396, 920, 160, 0, 0, 920, 160));
+  for (const [id, band] of [['q_a', 'A'], ['q_b', 'B'], ['q_c', 'C']]) view(id, (v, t) => {
+    crop(v, {...NOW, top:'A', ticket:'A', band, reduce:document.getElementById('q_rm').checked, liveNow:true}, qtime(), 350, 396);
+    // the running total over the strip, so the fill reads against the quota
+    const m = moment(qtime(), document.getElementById('q_rm').checked);
+    const c = v.ctx; const amt = Math.round(m.amount);
+    R(c, 6, 4, 148, 22, 'rgba(23,44,43,.85)'); c.font = fNum(15); c.fillStyle = amt >= QUOTA ? P.GOLD : P.PAPER;
+    c.fillText((m.plan ? 'PROJECTED €' : 'TOTAL €') + amt + ' / €' + QUOTA, 12, 20);
+  });
+  document.getElementById('q_play').onclick = () => { Q0 = performance.now(); };
+  const qrm = document.getElementById('q_rm'); qrm.checked = state.reduce;
+  document.getElementById('z_show').onchange = () => {};
+}
+
+function frame(now) {
+  const t = FREEZE != null ? FREEZE : (now - T0) / 1000;
+  for (const v of views) if (v.visible) { try { v.draw(v, t); } catch (e) { console.error(e); document.body.dataset.err = (document.body.dataset.err || '') + ' | ' + v.c.id + ': ' + e.message; v.visible = false; } }
+  document.body.dataset.frames = String((Number(document.body.dataset.frames) || 0) + 1);
+  if (DEBUG) DEBUG.textContent = 'vw ' + innerWidth + ' doc ' + document.documentElement.scrollWidth + ' ' + JSON.stringify(document.body.dataset);
+  requestAnimationFrame(frame);
+}
+(async function start() {
+  await loadAll();
+  try { await Promise.all([document.fonts.load(fNum(20)), document.fonts.load(fTxt(15)), document.fonts.load(fPix(15)), document.fonts.load(fPix(15, 700))]); } catch (e) {}
+  await document.fonts.ready;
+  setupComposite(); setupSections();
+  const g = new URLSearchParams(location.search).get('pins'); if (g) state.pins = g;
+  const rm = new URLSearchParams(location.search).get('rm'); if (rm) { state.reduce = true; document.getElementById('c_rm').checked = true; document.getElementById('q_rm').checked = true; }
+  requestAnimationFrame(frame);
+})();
+</script>
+</html>
