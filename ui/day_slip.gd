@@ -8,6 +8,9 @@ extends Control
 ## 0€" (Spot check), "→ last filled slot" (Happy hour). Where is read from the event's data and the
 ## shift's limits (where_lines), never from its id. A day without an event reads "Normal day" and
 ## "No event today". The week chip still opens the whole time card (WeekFlow).
+## Under today's events a short line reminds the week's bonus (v1.02, run info: "WEEK 4 ·
+## CLEARANCE WEEK" and its effect, framed in the week's colour), when the week has an event; the
+## training week's misses read as on the time card's banner, on their red tag.
 ##
 ## open() drops the slip from its hook under the chip and lets it settle (DROP seconds; at once
 ## with reduced motion); tapping the chip again, the slip itself, anywhere else, or Esc closes it
@@ -24,6 +27,10 @@ const WHERE_OPENS := "→ slot %d opens"
 const WHERE_OPEN_MANY := "→ slots %d–%d open"
 const WHERE_ZERO := "→ slot %d pays 0€"
 const WHERE_LAST := "→ last filled slot"
+## The week's reminder: its head, and the week colour's square beside it.
+const WEEK_HEAD := "WEEK %d · %s"
+const WEEK_SIZE := 15
+const WEEK_SQUARE := 10.0
 ## The paper: its width, border, padding, hard shadow, the gap under the chip and the screen's
 ## margin it keeps.
 const WIDTH := 300.0
@@ -58,6 +65,8 @@ var _day: int = 0
 var _names: Array[Label] = []
 var _effects: Array[Label] = []
 var _wheres: Array[Label] = []
+## The week's reminder (null: a week without an event, or no week given).
+var _week: Control
 
 
 func _init() -> void:
@@ -91,19 +100,21 @@ static func where_lines(event: InspectionDefinition, limits: ShiftLimits) -> Pac
 
 
 ## Drops the slip for day `day` (1-based, as the chip reads) with `events` (none: a plain day)
-## under `anchor`, the shift's `limits` saying where on the belt.
+## under `anchor`, the shift's `limits` saying where on the belt, and `week`'s event (if any)
+## reminded under them.
 func open(
 	day: int,
 	events: Array[InspectionDefinition],
 	limits: ShiftLimits,
 	anchor: Control,
-	reduced: bool
+	reduced: bool,
+	week: WeekCardModel = null
 ) -> void:
 	clear()
 	_day = day
 	_anchor = anchor
 	reduced_motion = reduced
-	_build(events, limits)
+	_build(events, limits, week)
 	visible = true
 	modulate.a = 1.0
 	set_process_input(true)
@@ -157,6 +168,7 @@ func clear() -> void:
 	_names.clear()
 	_effects.clear()
 	_wheres.clear()
+	_week = null
 
 
 ## Open and not closing.
@@ -190,6 +202,11 @@ func effect_labels() -> Array[Label]:
 
 func where_labels() -> Array[Label]:
 	return _wheres.duplicate()
+
+
+## The week's reminder, or null.
+func week_line() -> Control:
+	return _week
 
 
 ## Every text on the slip, one per line (tests).
@@ -263,7 +280,7 @@ func _place() -> void:
 # --- Build -----------------------------------------------------------------------------------
 
 
-func _build(events: Array[InspectionDefinition], limits: ShiftLimits) -> void:
+func _build(events: Array[InspectionDefinition], limits: ShiftLimits, week: WeekCardModel) -> void:
 	_paper = WeekCard.ShadowPanel.new(_box(Palette.PAPER, Palette.INK, BORDER, PADDING), SHADOW)
 	_paper.name = "Paper"
 	_paper.notch = true
@@ -289,6 +306,63 @@ func _build(events: Array[InspectionDefinition], limits: ShiftLimits) -> void:
 		column.add_child(_event_block(null, limits))
 	for event: InspectionDefinition in events:
 		column.add_child(_event_block(event, limits))
+	if week != null and week.event != null:
+		_week = _week_block(week)
+		column.add_child(_week)
+
+
+## The week's reminder: the week colour's square and "WEEK 4 · CLEARANCE WEEK", then its effect,
+## in a box bordered in the week's colour.
+func _week_block(week: WeekCardModel) -> Control:
+	var colour: Color = WeekCard.colour_of(week.week_number)
+	var panel: PanelContainer = PanelContainer.new()
+	panel.name = "Week"
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_theme_stylebox_override("panel", _box(Palette.PAPER, colour, 2, 4))
+	var words: VBoxContainer = _column(0)
+	panel.add_child(words)
+	var head_row: HBoxContainer = HBoxContainer.new()
+	head_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	head_row.add_theme_constant_override("separation", 6)
+	words.add_child(head_row)
+	var square: ColorRect = ColorRect.new()
+	square.name = "Square"
+	square.color = colour
+	square.custom_minimum_size = Vector2(WEEK_SQUARE, WEEK_SQUARE)
+	square.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	square.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	head_row.add_child(square)
+	var head: Label = _bold(
+		WEEK_HEAD % [week.week_number, week.title()], WEEK_SIZE, Palette.MUSTARD_DARKEST
+	)
+	head.name = "WeekHead"
+	head_row.add_child(head)
+	var misses: String = week.misses_text()
+	if not misses.is_empty():
+		words.add_child(_misses_line(misses))
+		return panel
+	# Its gains green and its harms red, as on the monitor (v1.02).
+	var effect: RichTextLabel = WeekCard.effect_line(week, WEEK_SIZE, Palette.INK)
+	effect.name = "WeekEffect"
+	# A wrapping label needs its width to measure its height before the slip is laid out.
+	effect.custom_minimum_size.x = WIDTH - 2.0 * (PADDING + BORDER) - 2.0 * (4 + 2)
+	words.add_child(effect)
+	return panel
+
+
+## The training week's effect as the time card's banner reads it (WeekCard._misses_line): "THIS
+## WEEK ALLOWS" in ink, then the misses on their red tag (WeekCard.misses_tag).
+func _misses_line(misses: String) -> Control:
+	var row: HBoxContainer = HBoxContainer.new()
+	row.name = "WeekEffect"
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_theme_constant_override("separation", 6)
+	var lead: Label = _bold(WeekCardModel.ALLOWS_LEAD, WEEK_SIZE, Palette.INK)
+	lead.name = "Lead"
+	lead.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(lead)
+	row.add_child(WeekCard.misses_tag(misses, WEEK_SIZE))
+	return row
 
 
 ## One event (null: the plain day): its icon, name, effect and where lines in its tone's tint.
@@ -375,6 +449,9 @@ static func _collect(node: Node, lines: PackedStringArray) -> void:
 	var label: Label = node as Label
 	if label != null and label.visible:
 		lines.append(label.text)
+	var rich: RichTextLabel = node as RichTextLabel
+	if rich != null and rich.visible:
+		lines.append(rich.get_parsed_text())
 	for child: Node in node.get_children():
 		_collect(child, lines)
 

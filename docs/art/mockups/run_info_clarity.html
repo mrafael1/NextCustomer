@@ -1,0 +1,896 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Run Info Clarity</title>
+<style>
+/* House style of the shift mock-ups (shift_scene_polish_v4): the store's dark teal wall, live stages,
+   verdicts beside them. Stages are the game's 1280x720 stage; art px = 2 stage px (ArtStyle.ART_SCALE). */
+@font-face{font-family:'NCPix';font-weight:400 700;src:url(run_info_clarity_src/PixelifySans-Variable.ttf)}
+@font-face{font-family:'NCMono';src:url(run_info_clarity_src/JetBrainsMono-Regular.ttf)}
+@font-face{font-family:'NCAtk';font-weight:200 800;src:url(run_info_clarity_src/AtkinsonHyperlegibleNext-Variable.ttf)}
+:root{
+  color-scheme:dark;
+  --wall:#1f3b3a; --bay:#172c2b; --panel:#2a4d4b; --paper:#fbf7ee; --cream:#f3e9d2; --teal-pale:#c3e0d4; --teal-light:#86c2b6;
+  --teal:#4f9a94; --teal-shade:#3a7672; --mustard:#e2b33c; --mustard-pale:#faecbc; --mustard-light:#f1d27a; --mustard-dark:#b38425; --gold:#ffcf3f;
+  --tomato:#d9534f; --tomato-dark:#a83a3c; --tomato-pale:#f5bfa0; --tomato-light:#ec8a6e; --green:#5fae5a; --green-dark:#3d7a45; --green-light:#a5d17e;
+  --ink:#2b2420; --ink-light:#4a3f38; --muted:#a9a59b; --grey-light:#c7beab;
+  --display:'NCPix','Courier New',monospace;
+  --body:'NCAtk','Segoe UI',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--wall);color:var(--paper)}
+body{font-family:var(--body);font-size:15px;line-height:1.5;overflow-x:hidden}
+main{max-width:1400px;margin:0 auto;padding:28px 16px 64px;display:grid;gap:44px;grid-template-columns:minmax(0,1fr)}
+main>*,section>*{min-width:0}
+h1,h2,h3{font-family:var(--display);font-weight:700;margin:0;letter-spacing:.02em;text-wrap:balance}
+h1{font-size:34px;color:var(--gold)}
+h2{font-size:24px}
+h3{font-size:17px;color:var(--teal-pale)}
+p{margin:0;max-width:82ch;overflow-wrap:break-word}
+code{overflow-wrap:anywhere;color:#faecbc;font-size:13px}
+.lede{display:grid;gap:10px}
+.eyebrow{font-family:var(--display);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--teal-light);overflow-wrap:anywhere}
+section{display:grid;gap:16px;min-width:0;grid-template-columns:minmax(0,1fr)}
+.verdict{background:var(--panel);border:2px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.35);padding:14px 16px;display:grid;gap:8px}
+.verdict strong{color:var(--gold)}
+.controls{display:flex;gap:8px 10px;flex-wrap:wrap;align-items:center}
+.controls .lbl{font-family:var(--display);font-size:13px;color:var(--teal-light);letter-spacing:.06em}
+.seg{display:inline-flex;border:2px solid var(--ink);box-shadow:0 3px 0 var(--ink);flex-wrap:wrap}
+.seg button{box-shadow:none;border:0;border-right:2px solid var(--ink)}
+.seg button:last-child{border-right:0}
+button{font-family:var(--display);font-size:15px;color:var(--paper);background:#3a7672;border:2px solid var(--ink);box-shadow:0 3px 0 var(--ink);padding:4px 12px;cursor:pointer}
+button:active{transform:translateY(2px)}
+button:disabled{opacity:.45;cursor:default}
+button:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+button[aria-pressed="true"]{background:var(--mustard);color:var(--ink)}
+label.chk{display:inline-flex;gap:6px;align-items:center;font-family:var(--display);font-size:14px;cursor:pointer}
+.toolbar{position:sticky;top:0;z-index:50;background:rgba(23,44,43,.96);border-bottom:2px solid var(--ink);padding:8px 16px}
+.toolbar .controls{max-width:1400px;margin:0 auto}
+ul,ol{margin:0;padding-left:22px;display:grid;gap:6px;max-width:88ch}
+.answers{background:var(--paper);color:var(--ink);border:3px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.4);padding:16px 18px;display:grid;gap:10px}
+.answers h2{color:var(--ink)}
+.answers li b{color:#a83a3c}
+.answers code{color:#6e2630;background:#f3e9d2}
+.cap{font-size:12px;color:var(--muted)}
+.scroll{overflow-x:auto;max-width:100%}
+table.spec{border-collapse:collapse;font-size:13px;min-width:720px}
+table.spec th,table.spec td{border-bottom:1px solid #3a7672;padding:5px 8px;text-align:left;vertical-align:top}
+table.spec th{font-family:var(--display);color:var(--teal-light);font-weight:500}
+table.spec td:first-child{white-space:nowrap;color:#faecbc}
+.opt{background:var(--bay);border:2px solid var(--ink);padding:12px;display:grid;gap:10px;min-width:0}
+.opt.rec{border-color:var(--mustard)}
+.tag{font-family:var(--display);font-size:15px;background:var(--paper);color:var(--ink);padding:0 7px;border:2px solid var(--ink)}
+.opt.rec .tag{background:var(--mustard)}
+.pick{font-family:var(--display);font-size:12px;color:var(--gold);letter-spacing:.08em}
+.opt p{font-size:14px;color:var(--teal-pale)}
+.opt p b{color:var(--paper)}
+.new{font-family:var(--display);font-size:11px;background:var(--gold);color:var(--ink);padding:0 4px;border:1px solid var(--ink);letter-spacing:.08em;vertical-align:2px}
+
+/* ---------- before: the capture with numbered problems ---------- */
+.shot{position:relative;border:2px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.35);max-width:100%}
+.shot img{display:block;width:100%;height:auto}
+.shot .pin{position:absolute;transform:translate(-50%,-50%);width:26px;height:26px;border-radius:50%;background:var(--gold);color:var(--ink);border:2px solid var(--ink);font-family:var(--display);font-weight:700;font-size:15px;display:grid;place-items:center;box-shadow:0 2px 0 var(--ink)}
+.probs{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr))}
+.prob{background:var(--bay);border:2px solid var(--ink);padding:10px 12px;display:grid;gap:4px;grid-template-columns:30px minmax(0,1fr);align-items:start}
+.prob .n{width:26px;height:26px;border-radius:50%;background:var(--gold);color:var(--ink);border:2px solid var(--ink);font-family:var(--display);font-weight:700;display:grid;place-items:center}
+.prob b{color:var(--paper)} .prob span{font-size:14px;color:var(--teal-pale)}
+.prob .q{font-family:var(--display);font-size:14px;color:var(--gold);grid-column:2}
+
+/* ---------- the live stage (1280x720, scaled) ---------- */
+.stagewrap{position:relative;border:2px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.35);overflow:hidden;background:#111;max-width:100%}
+body.one .stagewrap{overflow:auto}
+.stage{position:absolute;left:0;top:0;width:1280px;height:720px;transform-origin:0 0;overflow:hidden;font-family:var(--body);color:var(--ink)}
+.stage img{image-rendering:pixelated}
+.stage .bg{position:absolute;left:0;top:0;width:1280px;height:720px;image-rendering:auto}
+.stage .band{position:absolute;left:340px;top:0;width:940px;height:56px;background:#1f3b3a}
+.stage .shade{position:absolute;left:0;top:56px;width:1280px;height:664px;background:rgba(23,44,43,.62);opacity:0;pointer-events:none;transition:opacity .16s steps(3);z-index:15}
+.stage .shade.on{opacity:1;pointer-events:auto}
+/* paper patches over the backdrop receipt's target lines, so the backdrop matches the chosen shift */
+.patch{position:absolute;background:#fbf7ee;display:none;white-space:nowrap;overflow:hidden}
+.patch.on{display:block}
+#pT{left:50px;top:35px;width:230px;height:52px;font-family:var(--display);font-weight:700;font-size:60px;line-height:52px;color:#a83a3c;text-align:center;letter-spacing:2px}
+#pT span{display:inline-block;transform:scaleX(1.25)}
+#pS{left:48px;top:97px;width:200px;height:17px;font-family:'NCMono',monospace;font-size:14px;line-height:17px;color:#2d2621}
+#pP{left:150px;top:291px;width:130px;height:16px;font-family:'NCMono',monospace;font-size:13px;line-height:16px;color:#dc635e;text-align:right}
+.patchnote{position:absolute;left:8px;top:700px;font-family:var(--display);font-size:12px;background:var(--gold);color:var(--ink);border:2px solid var(--ink);padding:0 4px;display:none}
+.patchnote.on{display:block}
+/* the hanging PAYDAY NEXT tag (PremiumAnnounce, Payday.TAG) on review shifts that lead to a payday */
+.paytag{position:absolute;left:500px;top:54px;width:152px;height:22px;background:#ffcf3f;border:2px solid var(--ink);box-shadow:2px 2px 0 rgba(43,36,32,.3);font-family:var(--display);font-weight:700;font-size:12px;line-height:18px;color:#5a3d0e;text-align:center;letter-spacing:1px;display:none;z-index:10}
+.paytag::before{content:"";position:absolute;left:4px;top:6px;width:6px;height:6px;background:#5a3d0e}
+.paystring{position:absolute;left:508px;top:47px;width:2px;height:9px;background:var(--ink);display:none;z-index:10}
+.paytag.on,.paystring.on{display:block}
+.bar{position:absolute;left:348px;top:9px;width:916px;height:38px;display:flex;gap:12px;align-items:stretch}
+.bar .grow{flex:1 1 0}
+.ch{position:relative;height:38px;border-style:solid;border-width:6px;border-image:url(run_info_clarity_src/chip.png) 3 fill / 6px / 0 stretch;image-rendering:pixelated;display:flex;align-items:center;gap:8px;padding:0 6px;flex:none;white-space:nowrap;min-width:0}
+.ch.tap{cursor:pointer}
+.ch.tap:hover{filter:brightness(1.08)}
+.ch.ring::after{content:"";position:absolute;inset:-9px;border:3px solid var(--gold);pointer-events:none}
+.key{font-family:var(--display);font-size:15px;letter-spacing:1px;color:var(--mustard-pale);line-height:1}
+.num{font-family:var(--body);font-weight:800;font-size:20px;line-height:1;color:var(--paper);font-variant-numeric:tabular-nums}
+.bt{font-family:var(--body);font-weight:700;font-size:15px;line-height:1;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.ico{display:block;flex:none}
+.btn{border-image-source:url(run_info_clarity_src/top_button.png);justify-content:center;cursor:pointer}
+.pips{display:flex;gap:2px;align-items:center}
+.pip{width:9px;height:9px;position:relative;flex:none}
+.pip svg{display:block;width:9px;height:9px}
+.weekgrp{display:flex;flex-direction:column;gap:3px;align-items:stretch}
+.weekgrp .ul{height:2px}
+.weekgrp.cur .ul{height:3px;margin-top:-1px}
+.tracks{display:flex;gap:4px;align-items:flex-start;padding-top:5px}
+.rules{display:flex;flex-direction:column;justify-content:center;gap:0;line-height:13px;font-size:13px;font-weight:700;color:var(--ink);overflow:hidden;min-width:0;flex:1 1 0}
+.rules .ln{display:flex;gap:4px;align-items:center;white-space:nowrap;min-width:0}
+.rules .ln .tx{overflow:hidden;text-overflow:ellipsis;min-width:0}
+.rules .sw{width:8px;height:8px;border:2px solid var(--ink);flex:none}
+.rules .k{font-family:var(--display);font-weight:600;font-size:12px;letter-spacing:.5px;flex:none}
+.skiptag{font-family:var(--body);font-weight:700;font-size:12px;line-height:11px;background:var(--teal-light);border:2px solid var(--ink);padding:0 3px;flex:none;cursor:pointer}
+.ring26{width:26px;height:26px;position:relative;flex:none}
+.ring26 img{position:absolute;left:0;top:0;width:26px;height:26px}
+.ring26 .pk{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%)}
+.tip{position:absolute;z-index:30;background:var(--paper);color:var(--ink);border:3px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.4);padding:6px 10px;font-size:14px;font-weight:700;line-height:1.3;pointer-events:none;opacity:0;white-space:nowrap}
+.tip.on{opacity:1}
+.tip small{display:block;font-weight:500;color:var(--ink-light);font-size:13px}
+.flashglow{position:absolute;inset:-12px;background:rgba(255,207,63,.6);pointer-events:none}
+
+/* the run slip (C) and the run page (B): the time card's mustard-pale card around paper tables */
+.slip{position:absolute;z-index:20;background:var(--mustard-pale);border:3px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.45);color:var(--ink);transform-origin:58px -10px;display:none}
+.slip.on{display:block}
+.slip .hook{position:absolute;left:52px;top:-13px;width:14px;height:12px;background:#a9a59b;border:2px solid var(--ink);border-bottom:0}
+.sp{padding:5px 10px 6px;display:grid;gap:3px}
+.sp .hd{display:flex;justify-content:space-between;align-items:baseline;gap:10px;border-bottom:3px solid var(--ink);padding-bottom:2px}
+.sp .hd .t{font-family:var(--display);font-size:20px;font-weight:700;letter-spacing:1px;line-height:22px}
+.sp .hd .r{font-family:var(--display);font-size:12px;color:var(--tomato-dark);letter-spacing:1px;text-align:right}
+.eu{font-family:var(--body);font-weight:800;font-style:normal;letter-spacing:0}
+#pT .eu{font-size:50px}
+.sec{font-family:var(--display);font-size:12px;letter-spacing:1px;color:var(--teal-shade);line-height:14px}
+.big{display:flex;gap:6px;padding-bottom:6px}
+.wk{flex:1 1 0;display:grid;gap:2px;min-width:0}
+.wk .wh{font-family:var(--display);font-size:12px;line-height:14px;letter-spacing:.5px;color:var(--paper);padding:0 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border:2px solid var(--ink)}
+.wk .cells{display:grid;grid-template-columns:repeat(4,1fr);gap:2px}
+.cell{position:relative;height:36px;border:2px solid var(--ink);background:var(--paper);display:flex;align-items:flex-end;justify-content:center;padding-bottom:2px}
+.cell .d{position:absolute;left:2px;top:0;font-family:var(--body);font-weight:800;font-size:12px;line-height:12px;z-index:1;text-shadow:1px 1px 0 rgba(251,247,238,.8)}
+.cell .q{font-family:var(--body);font-weight:800;font-size:14px;color:var(--muted);margin-bottom:4px}
+.cell.rev{background:var(--mustard-light)}
+.cell.past{background:var(--cream)}
+.cell.past .d{color:var(--ink-light)}
+.cell.today{background:var(--gold);outline:3px solid var(--ink);outline-offset:-1px;z-index:2}
+.cell .res{display:block;width:18px;height:18px;margin-bottom:5px}
+.cell .res svg{display:block;width:18px;height:18px}
+.cell .pay{position:absolute;left:50%;bottom:-9px;transform:translateX(-50%);font-family:var(--display);font-size:10px;letter-spacing:.5px;background:var(--mustard);border:2px solid var(--ink);padding:0 2px;line-height:10px;white-space:nowrap;z-index:3}
+.cell .pay.win{background:var(--green-light)}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.box{border:2px solid var(--ink);background:var(--paper);padding:3px 6px 4px;display:grid;gap:2px;align-content:start}
+.ev{display:grid;grid-template-columns:26px 1fr;gap:4px;align-items:center;font-size:13px;line-height:15px}
+.ev>img,.ev>i{justify-self:center}
+.ev b{font-weight:800}
+.ev .fx{font-weight:600;color:var(--ink-light)}
+.ev .where{color:var(--tomato-dark);font-weight:700}
+.ev.boon b{color:var(--green-dark)} .ev.malus b{color:var(--tomato-dark)}
+.stakes{margin-top:2px;border:2px solid var(--ink);padding:1px 6px;font-weight:800;font-size:13px;line-height:15px}
+.stakes.hard{background:var(--tomato-pale)} .stakes.soft{background:var(--green-light)}
+.paypill{font-family:var(--display);font-size:11px;background:var(--mustard);border:2px solid var(--ink);padding:0 3px;line-height:12px;letter-spacing:.5px}
+.paypill.win{background:var(--green-light)}
+.own{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;border:2px solid var(--ink);background:var(--paper);padding:2px 6px}
+.own .sec{flex-basis:100%}
+.own .it,.foot .it{display:flex;gap:4px;align-items:center;font-size:13px;font-weight:800;line-height:15px;white-space:nowrap}
+.own .it .lv{font-family:var(--display);font-size:11px;color:var(--teal-shade);font-weight:500}
+.pinface{position:relative;width:28px;height:28px;flex:none}
+.pinface svg{position:absolute;inset:0;width:28px;height:28px}
+.pinface span{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--body);font-weight:800;font-size:9px;color:var(--paper);text-shadow:1px 0 #3d7a45,-1px 0 #3d7a45,0 1px #3d7a45,0 -1px #3d7a45}
+.foot{display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:13px;font-weight:700;line-height:15px}
+.foot .coins{display:flex;gap:4px;align-items:center}
+.fbtn{font-family:var(--display);font-size:13px;background:var(--teal);color:var(--paper);border:2px solid var(--ink);box-shadow:0 2px 0 var(--ink);padding:0 6px;white-space:nowrap;cursor:pointer;line-height:18px}
+/* B: the full run page in the popup frame */
+.page{background:var(--paper);box-shadow:inset 0 0 0 3px #fbf7ee,inset 0 0 0 6px var(--mustard),4px 4px 0 rgba(0,0,0,.45);padding:6px}
+.page .sp{padding:6px 10px}
+/* 1:1 crops under the stage */
+.crop{overflow-x:auto;max-width:100%;border:2px solid var(--ink);background:#111}
+.crop .win{position:relative;overflow:hidden}
+.crop .win>.stage{position:absolute;transform:none}
+.crop.off{display:none}
+body.shotmode main>*:not(#live),body.shotmode .toolbar,body.shotmode #live>*:not(.stagewrap){display:none}
+body.shotmode main{padding:0}
+@media (max-width:640px){h1{font-size:26px} .shot .pin{width:16px;height:16px;font-size:10px;border-width:1px}}
+</style>
+
+<div class="toolbar"><div class="controls">
+  <span class="lbl">VIEW</span>
+  <div class="seg" role="group" aria-label="Stage scale">
+    <button id="v_fit" aria-pressed="true">Fit</button>
+    <button id="v_one" aria-pressed="false">1:1</button>
+    <button id="v_hd" aria-pressed="false">1.5×</button>
+  </div>
+  <button id="replay">↻ Replay all</button>
+  <label class="chk"><input type="checkbox" id="rm"> Reduced motion</label>
+</div></div>
+
+<main>
+  <div class="lede">
+    <div class="eyebrow">Mock-up · run info clarity · revised 2026-11-05 · feature/four-weeks (4fabab8, 16 shifts) on the shift scene polish bar</div>
+    <h1>Run info: where am I, what's next, what do I own</h1>
+    <p>This page is about the <b>top bar of the shift screen</b> and a <b>run info view</b> that opens from it. Today a new player can't easily tell how far into the run they are, what today's rules are, what comes next, or what they own. Every stage below uses a real capture of the four-weeks build at shift 13 of 16 as its backdrop. Only the top bar and the panel it opens are redrawn, with the game's chip frames, icons, palette and fonts.</p>
+    <p>All three options (A, B and C) are live. Pick a run moment (shift 3, 8 or 13). <b>Pass today</b> lights today's pip, and <b>Miss today</b> shows a slip, or the end of the run. Tap the bar to open the panel. Anything the game doesn't have yet is marked <span class="new">NEW</span>.</p>
+  </div>
+
+  <!-- BEFORE -->
+  <section id="before">
+    <h2>Today: what the bar shows, and what a new player can't answer</h2>
+    <div class="shot" id="shot"><img src="run_info_clarity_src/before_shift13_1920x1080.png" alt="The shift screen at shift 13 of 16 in the four-weeks build: W4 CLEARANCE chip, D13 day chip, LOYALTY stamps, Cart 13/15, menu"></div>
+    <p class="cap">Capture: <code>NC-weeks/reports/four_weeks/cap3/shift_screen_shift13_1920x1080.png</code>. The quota moved out of the bar (shift scene polish A2) and is now the receipt's TODAY'S TARGET with its tube. That part already reads well, so it stays as it is.</p>
+    <div class="crop"><div class="win" style="width:940px;height:56px"><img src="run_info_clarity_src/before_shift13_1280x720.png" alt="The capture's top bar at 1:1" style="position:absolute;left:-340px;top:0;width:1280px;height:720px;max-width:none"></div></div>
+    <p class="cap">The capture's bar at 1:1 (1280×720). Scroll sideways on a phone.</p>
+    <div class="probs" id="probs"></div>
+  </section>
+
+  <!-- LIVE -->
+  <section id="live">
+    <h2>The options, live</h2>
+    <div class="controls">
+      <span class="lbl">OPTION</span>
+      <div class="seg" role="group" aria-label="Variant">
+        <button data-var="before" aria-pressed="false">Today</button>
+        <button data-var="A" aria-pressed="false">A · clearer bar</button>
+        <button data-var="B" aria-pressed="false">B · run page</button>
+        <button data-var="C" aria-pressed="true">C · bar + run slip ★</button>
+      </div>
+    </div>
+    <div class="controls">
+      <span class="lbl">RUN MOMENT</span>
+      <div class="seg" role="group" aria-label="Run moment">
+        <button data-st="3" aria-pressed="false">Shift 3 · training week</button>
+        <button data-st="8" aria-pressed="false">Shift 8 · review, payday</button>
+        <button data-st="13" aria-pressed="true">Shift 13 · week 4</button>
+      </div>
+      <button id="b_open">Open the panel</button>
+      <button id="b_pass">▶ Pass today</button>
+      <button id="b_miss">✗ Miss today</button>
+      <button id="b_reset">Reset</button>
+    </div>
+    <div class="stagewrap" id="wrap"><div class="stage" id="stage">
+      <img class="bg" src="run_info_clarity_src/before_shift13_1280x720.png" alt="">
+      <div class="patch" id="pT"></div><div class="patch" id="pS"></div><div class="patch" id="pP"></div>
+      <div class="patchnote" id="pN">receipt lines patched for this shift</div>
+      <div class="band"></div>
+      <div class="paystring" id="payS"></div><div class="paytag" id="payT">PAYDAY NEXT</div>
+      <div class="shade" id="shade"></div>
+      <div class="bar" id="bar"></div>
+      <div class="slip" id="slip"></div>
+      <div class="tip" id="tip"></div>
+    </div></div>
+    <p class="cap">At shifts 3 and 8, and after Pass or Miss, the receipt's target, its "SHIFT n/16" line and its "short" line are covered with paper patches that show the chosen shift's numbers (the items list stays shift 13's). On review shifts that lead to a payday (4, 8, 12), the PAYDAY NEXT tag hangs from the bar's foot over the monitor, as <code>PremiumAnnounce</code> draws it.</p>
+    <div class="verdict" id="vnote"></div>
+    <h3>At 1:1 (1280×720 stage px): the bar<span id="cropSlipLbl">, then the open panel</span></h3>
+    <div class="crop" id="cropBar"><div class="win" style="width:940px;height:56px"></div></div>
+    <div class="crop off" id="cropSlip"><div class="win" style="width:900px;height:330px"></div></div>
+    <p class="cap">The smallest text on the game's bar today is the pill's 12 px bold (<code>InspectionTag.PILL_SIZE</code>). The new TODAY chip uses 12 px Pixelify keys and 13 px bold Atkinson lines, so nothing is smaller than that. Scroll sideways on a phone.</p>
+  </section>
+
+  <section>
+    <h2>The three options</h2>
+    <div class="opt"><div><span class="tag">A</span> <b>Clearer bar only</b></div>
+      <p>The week chip and the day number merge into one <b>run track</b>: "13/16", then 16 pips in 4 week groups, each underlined in its week's colour (the time card's colours). Played days show ✓ or ✗, today is gold, and the coming reviews are mustard <span class="new">NEW</span>. The day chip becomes a two-line <b>TODAY</b> chip: today's event with its name, then the week's effect. LOYALTY keeps its stamps but loses the word. Nothing else changes: the track still reopens the time card, and the full list stays under Cart › Run info.</p>
+      <p><b>Good:</b> answers "where am I" and "today's rules" at a glance, with no new screen. <b>Weak:</b> "what's next" and "what do I own" stay scattered.</p></div>
+    <div class="opt"><div><span class="tag">B</span> <b>Today's bar + a full run page</b></div>
+      <p>The bar stays as it is. ☰ gets a <b>Run info</b> entry <span class="new">NEW</span> that opens a large page in the title's popup frame (860 wide): the whole run as 16 cells, today, what's next, the stakes, what you own and the coins. Cart's Run info tab moves here.</p>
+      <p><b>Good:</b> everything in one place. <b>Weak:</b> it's two clicks away, it's wider and covers the back of the belt, and the bar's own problems stay: the event's name is still cut first, and the run's length still isn't on the bar.</p></div>
+    <div class="opt rec"><div><span class="tag">C</span> <span class="pick">RECOMMENDED</span> <b>A's bar + a run slip that drops from the track</b></div>
+      <p>A's bar. Tapping the track drops a <b>run slip</b> <span class="new">NEW</span> under it, the way today's day slip drops. It is the time card's mustard card with paper inside, 600 wide and about 280 tall. It shows the 16-shift track with its PAYDAY and WIN tags, then two columns. TODAY lists every rule in force, where each one hits the belt, and the stakes. NEXT shows tomorrow and the next review. Under them, one line of named stamps, the worn pin and the cart, then the coins so far. It ends above the belt, so the belt, the slots and the baskets stay in sight. The time card still plays at the start of each week. ☰ › Run info opens the same slip.</p></div>
+  </section>
+
+  <section class="verdict">
+    <h2>Recommendation: C</h2>
+    <ul>
+      <li><strong>One glance, one tap.</strong> Without a tap, the bar answers "where am I" (13/16 and the pips) and "what are today's rules" (both lines, with the event's name). One tap on the track answers the rest. The slip covers the monitor but ends by y 347, above the belt's rail (y 350), so you can still read the row you are planning.</li>
+      <li><strong>It folds four places into one.</strong> The time card's reopen, the day slip, Cart's Run info tab and the hover-only stamp names all become the slip, and Cart goes back to being the cart.</li>
+      <li><strong>It is built from parts the game already has:</strong> the week colours and pip glyphs (<code>WeekChip</code>), the day slip's drop (<code>DaySlip</code>), the time card's card and paper (<code>WeekCard</code>), the stamp rings (<code>LoyaltyCard.make_ring</code>), the pin faces (<code>PinFace</code>) and the "where" lines (<code>DaySlip.where_lines</code>).</li>
+      <li><strong>It gives the event's name room.</strong> Today the day chip is what <code>TopBar.fit_inspection</code> cuts first, so on a busy row the name never shows. In C the TODAY chip takes all the room left over, about 270 px, and its first line drops back to the effects only when the full line doesn't fit (see the spec).</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Spec of C</h2>
+    <div class="scroll"><table class="spec">
+      <tr><th>Part</th><th>Behaviour</th><th>Size / place (1280×720 stage px; art px = 2)</th><th>Reads</th></tr>
+      <tr><td>Bar row</td><td>Same row as today: track, TODAY, stamps, Cart, ☰. The SHIFT chip and the day chip's "D13" are retired, because the track says it. Width budget: the row is 916 px and <code>TopBar.FIT_MARGIN</code> keeps 8 free, so 908 px. Track 262 + stamps 146 + Cart 130 + ☰ 44 + 4 gaps of 12 = 630. That leaves <b>278 px for TODAY</b>, which takes whatever is left (flex), as the day chip does now.</td><td>x 348, y 9, 916×38, gaps 12</td><td><code>TopBar</code></td></tr>
+      <tr><td>Run track chip</td><td>"13/16" in the number font (Atkinson 800, 20 px, paper; "/16" 15 px at 70%), then 16 pips of 9×9 in 4 week groups (2 px apart, 4 px between weeks), with a 2 px underline in each week's colour (3 px for the current week). Pip states: played ✓ green light with ink check / ✗ tomato with paper cross (<code>WeekChip.CHECK_PIXELS</code>/<code>CROSS_PIXELS</code>); today gold with an ink ring (<code>Pip.NOW</code>); other days to come paper at 30% (<code>Pip.TODO</code>, as now); a coming review mustard at 55% <span class="new">NEW pip state</span>. Hover tip: "Shift 13 of 16 · Week 4: Clearance week" and "Tap for run info". A tap opens the slip.</td><td>262×38, teal chip frame (<code>frames/chip.png</code>)</td><td><code>run.shift_index</code>, <code>shift_count()</code>, <code>WeekCardModel</code> pips, <code>WeekCard.colour_of</code>, <code>InspectionSchedule.is_review_shift</code></td></tr>
+      <tr><td>Pip light (after the verdict)</td><td>As today's <code>WeekChip.flash</code>: today's pip pops from 3× in whole steps over 0.8 s with a square gold glow, and the chip rings. The next shift's pip turns gold when its planning opens. A new week moves the 3 px underline to the next group (0.3 s, 3 steps) and swaps the TODAY chip's week line (0.2 s, stepped). Reduced motion: no pop, the states change at once.</td><td>glow 12 px, alpha 0.6</td><td><code>WeekFlow.light_day</code>, <code>hold_result</code></td></tr>
+      <tr><td>TODAY chip</td><td>Two lines of 13 px bold Atkinson, line height 13. Keys in 12 px Pixelify (= <code>PILL_SIZE</code>). Line 1: a 2 px-bordered tone square (green boon, tomato malus, mustard review, grey no event), "TODAY", then the event: one event "Fresh delivery: Fruit & veg +1€", a review "Review: Slot 3 pays 0€ · −1 redraw", no event "Normal day". Line 2: the week's colour square, "WEEK 4", then the week's short effect ("Clearance +2€ · quota +15%"). Fit, as <code>InspectionTag.fit_width</code> does: the full line 1, else the effects only ("Slot 3 pays 0€ · −1 redraw"), else an ellipsis. Measured on this page's 16 days: line 1 fits in full on 15. Only shift 16's review drops to the effects. The paper chip is tinted by today's tone with <code>InspectionTag.tint_of</code> (review = MUSTARD_LIGHT <code>f1d27a</code>). A tap opens the slip. SKIP: see Q3.</td><td>flex, 278×38 with the budget above</td><td><code>WeekFlow.day_events</code>, <code>display_name</code>, <code>chip_text</code>; week line: <span class="new">NEW data field</span> <code>short_text</code> on the 4 week events (why: see below the table)</td></tr>
+      <tr><td>Stamps chip</td><td>As today, without the word LOYALTY: 4 rings of 13×13 art at 2×, with perk icons and LV badges. Hover tips stay. Empty: "No upgrades yet · Pick UPGRADE at the machine". A tap opens the slip.</td><td>146×38</td><td><code>LoyaltyCard</code></td></tr>
+      <tr><td>Cart / ☰</td><td>Cart keeps its word: "Cart 13/15" next to its trolley (it is the only way into the deck view). ☰ gets Run info <span class="new">NEW</span> above Export log.</td><td>130×38 · 44×38</td><td><code>run.deck.size()</code>, <code>deck_limit</code></td></tr>
+      <tr><td>Run slip: open/close</td><td>Drops from a hook under the track: from 22 px higher, turned −6°, settling in 0.32 s (fading in over the first 40%), as <code>DaySlip.open</code> does. A light teal shade covers the stage under the band. It closes on <b>Esc, a click outside it, or a tap on the track</b> (0.12 s fade). Unlike the day slip, a click on the slip does not close it, so its <b>Open cart ›</b> button works. Reduced motion: shown and hidden at once. Only in planning (<code>WeekFlow._can_show</code>), and never with the time card.</td><td>600 wide, 265 to 285 tall (measured here at shifts 13, 3 and 8: the review day with two maluses is the tallest); left x 348, top y 62, bottom y 327 to 347 (the belt's rail is at y 350); the hook at x 403. 600 rather than 560, so that each line fits on one row</td><td>—</td></tr>
+      <tr><td>Slip and the PAYDAY NEXT tag</td><td>On shifts 4, 8 and 12 the tag hangs over the monitor's top bezel (x 500, y 54, 152×22), on a string from the bar's foot at x 508. The slip draws above the announce, so while it is open it hides the tag and its string. Nothing is lost, because the slip's NEXT box says "Today: Manager's review · pass = PAYDAY". The tag shows again when the slip closes. The monitor's print-out ("PASS THE REVIEW · PAYDAY · 2 PREMIUM TICKETS") plays as planning opens, before the player can open the slip. A slip opened during it skips the print-out to the hanging tag.</td><td>slip z above <code>PremiumAnnounce</code></td><td><code>PremiumAnnounce.tag_hangs</code></td></tr>
+      <tr><td>Slip · header</td><td>On the mustard card: "RUN · SHIFT 13 OF 16" (Pixelify 20) and, on the right, "PASSED 11 OF 12" in tomato dark (12). The week's name heads its column just below.</td><td>3 px ink rule under it</td><td><code>WeekCardModel</code></td></tr>
+      <tr><td>Slip · track</td><td>4 week columns on paper, each headed by its name on its colour. Each has 4 cells with the day number in the corner. Days to come show the event's icon at 2× (boon coin, warning sign or its <code>icon_ref</code>), or "?" when their week hasn't started (its events are drawn then). Played days show their result pip at 2× (18×18) in place of the icon, on cream. Today is gold with an ink outline, and reviews are mustard light. A PAYDAY tag hangs under the cells of 4, 8 and 12, and WIN under 16, clear of the pips.</td><td>cells about 33×36</td><td><code>WeekSchedule</code>, <code>MachineDefinition.is_payday_shift</code>, results as the time card's stamps</td></tr>
+      <tr><td>Slip · TODAY / NEXT</td><td>TODAY, headed "TODAY · TARGET 168€": the week line ("Week 4 Clearance +2€ · quota +15%", with the full <code>notice_text</code> on hover), then each day event (its icon at 2×, name, effect, and the "→ slot 7 closed" lines from <code>DaySlip.where_lines</code>), then the stakes line. NEXT: tomorrow ("Shift 14: Free samples (1st product ×2)", or "Shift 9: new week, Holiday rush"), then the next review: "Review in 3 shifts (shift 16)" with a <b>PASS = RUN WON</b> tag, or <b>PASS = PAYDAY</b> · 2 PREMIUM tickets for 4, 8 and 12. When tomorrow is the review, the two merge into one line ("Shift 4: Manager's review −1 hand item · −1 redraw").</td><td>2 columns of about 286</td><td><code>WeekSchedule.shift_events</code>, <code>run.next_inspections</code>, quota</td></tr>
+      <tr><td>Slip · stakes <span class="new">NEW text</span></td><td>Shifts 1 to 4 with a slip left: green, "1 of 2 slips left: a miss is forgiven". With none left: tomato, "No slip left: the next miss ends the run". From shift 5: tomato, "Miss today's 168€ and the run ends". This is the rule as <code>TrainingWeek</code> plays it. Today it is only said on the training week's time card ("THIS WEEK ALLOWS 2 MISSES").</td><td>one line</td><td><code>TrainingWeek</code>, <code>run.write_ups</code>, <code>write_up_limit</code> 2, <code>write_up_last_shift</code> 4</td></tr>
+      <tr><td>Slip · YOU HAVE</td><td>One line of named stamps: each upgrade's ring at 2× and its name (the rule is in the ring's hover). Then the worn pin as a <code>PinFace</code> (28 px: ink rim, dark band, face, glint on the 2 px grid; letters at round(16 × 28 / 48) = 9 px; Recycle reads "RE" on green) with its name. No upgrades yet: "No upgrades yet · Pick UPGRADE at the machine".</td><td>one row, 26 px rings</td><td><code>run.upgrades</code>, <code>run.pins</code>, <code>PinDefinition.face_text</code>/<code>face_colour</code></td></tr>
+      <tr><td>Slip · foot <span class="new">NEW</span></td><td>On the left, the coin at 2× and "Stop now: 1 coin (+ up to 1 overtime) · a win: 2", with a hover tip: "Coins buy capsules at the TOY MACHINES (1 each) or a locked pin (12)". The figure is <code>coins_by_shifts_passed[passed]</code>, worked out when shown and never stored. The overtime coin (1 per 8 567€ over quota, at most 1) is named but not counted. On the right, the trolley, "13/15" and <b>Open cart ›</b>, which opens the Cart view.</td><td>one line</td><td><code>CoinPayout</code>, <code>capsule_price</code> 1, <code>pin_coin_price</code> 12</td></tr>
+      <tr><td>Stock</td><td>Stays in the Cart view as its own tab, "Stock" (the old Run info page without the upgrades and inspections).</td><td>—</td><td><code>DeckView</code></td></tr>
+    </table></div>
+    <p class="cap" style="font-size:13px;color:var(--teal-pale)"><b>Why a new <code>short_text</code> and not <code>notice_text</code>:</b> line 2 has about 170 px after its key. The weeks' <code>notice_text</code> is 31 to 44 characters ("Miss a quota? It is a slip: the run goes on." is about 290 px at 13 px). <code>receipt_text</code> ("Clearance +2€") exists only for Bakery and Clearance, and it leaves out the quota. So each week gets one short line: "misses are slips (2 allowed)", "Bakery +2€ · quota +10%", "quota +15% · odds +1", "Clearance +2€ · quota +15%". The slip's week line uses it too, and the hovers keep <code>notice_text</code>.</p>
+  </section>
+
+  <section class="answers">
+    <h2>Questions (each has a default)</h2>
+    <ol>
+      <li><b>Track tap: open the run slip instead of reopening the time card?</b> Default: <b>yes</b>. The slip holds the week's days too, and the time card still plays at the start of each week.</li>
+      <li><b>Bar words: drop "LOYALTY" (stamps only, named in the slip and on hover), and keep "Cart"?</b> Default: <b>drop LOYALTY, keep "Cart 13/15"</b>. Cart is the only way into the deck view. Dropping LOYALTY frees the room that the TODAY chip needs.</li>
+      <li><b>Where does a Day off pin's SKIP tag go?</b> Default: <b>it takes the place of the "TODAY" key on line 1 while today can be taken off</b> ("SKIP ›", teal, 12 px bold, 2 px border; "UNDO ‹" when armed). It is about as wide as the key, so the width budget doesn't change. The bonus pill needs no place: <code>bonus_after_inspection</code> is off in this build, and paydays are told by the monitor's PAYDAY announce. If the pill comes back, it goes in the slip's NEXT box.</li>
+      <li><b>Show "if you stopped now: N coins" in the slip, and say what coins buy?</b> Default: <b>yes</b>. Today coins only appear on the final receipt, so a player doesn't know that 8 passed shifts are worth a coin, or that 12 coins buy a locked pin.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>What this is based on</h2>
+    <ul class="cap" style="font-size:13px;color:var(--teal-pale)">
+      <li><code>ui/top_bar.gd</code> (NC-weeks): the row is x 348, y 9, 916×38 with gaps of 12: SHIFT n/m (hidden with weeks), week chip, day chip, LOYALTY, then Cart and ☰. ☰ holds only Export log. <code>FIT_MARGIN</code> 8. <code>fit_inspection</code> fits the day chip first. <code>InspectionTag.fit_width</code> drops the pill's "PASS ›" and shortens the pill, then cuts the text to the effects only ("Fruit & veg +1€"), then adds an ellipsis. Only if the chip is still cut does the week chip lose its name, then its pips.</li>
+      <li><code>ui/inspection_tag.gd</code>: "D13", then "Inspection · −1 slot" (<code>CAPTION</code>), "Review · …" (<code>REVIEW_CAPTION</code>) or "Today: Fresh delivery (Fruit & veg +1€)" (<code>TODAY_TEXT</code>, <code>BOON_TEXT</code>), or "Normal day". Tints from <code>tint_of</code>: green light, tomato pale, mustard light, grey light. A tap drops <code>DaySlip</code> (300 px, a 0.32 s drop). It also holds the bonus pill and the Day off SKIP tag.</li>
+      <li><code>ui/week_chip.gd</code>: "W4", the short name, 9 px pips (PAID green light + ink check, SLIP tomato + paper cross, NOW gold with an ink ring, TODO paper at 30%), <code>flash()</code> 0.8 s from 3×. A tap reopens the time card.</li>
+      <li><code>ui/week_card.gd</code>: the time card is a MUSTARD_PALE card around a PAPER table ("WEEK 4 OF 4", a row per day, MANAGER'S REVIEW, "REVIEW PASSED · 2 PREMIUM TICKETS" or "PASS = RUN WON"; the training week's "THIS WEEK ALLOWS 2 MISSES").</li>
+      <li><code>ui/premium_announce.gd</code> + <code>presentation/payday.gd</code>: on review shifts before a payday, the monitor prints "PASS THE REVIEW · PAYDAY · 2 PREMIUM TICKETS", then hangs "PAYDAY NEXT" from the bar's foot. After a pass, the receipt prints "INSPECTION NEXT SHIFT: …", "MANAGER'S REVIEW NEXT SHIFT: …" or "TOMORROW: …".</li>
+      <li><code>ui/deck_view.gd</code>: the "Run info" tab inside Cart: UPGRADES, INSPECTIONS (this shift and next, as text) and STOCK.</li>
+      <li>NC-weeks data: 16 shifts in 4 weeks (<code>week_length</code> 4). Weeks: Training, Bakery festival, Holiday rush, Clearance week. Inspections on 3, 7, 11 and 15, reviews on 4, 8, 12 and 16, boon days on 2, 5, 6, 9, 10, 13 and 14, paydays after the reviews on 4, 8 and 12. Quotas 30 to 149. Up to 2 slips on shifts 1 to 4. Coins by shifts passed: 0 until 8, 1 from 8, 2 for a win, plus at most 1 overtime coin (one per 8 567€ over quota). Coins buy capsules (1) or a locked pin (12). Upgrades come from the machine's UPGRADE choice (<code>loyalty_per_draw</code> 1, <code>register_cap</code> 3).</li>
+      <li>Pins: <code>RunState.pins</code>, shown on the lanyard by the monitor (<code>ui/badge/pin_lanyard.gd</code>), drawn by <code>ui/badge/pin_face.gd</code>. Recycle: "RE", <code>face_colour</code> 5 (green), "Redrawn items go back in the pile; +1 redraw a shift".</li>
+      <li>The events on this page follow the real schedule. Which boon or malus lands on which day is only an example, because the game draws them.</li>
+    </ul>
+  </section>
+  <pre id="measure" hidden></pre>
+</main>
+
+<script>
+'use strict';
+const SRC = 'run_info_clarity_src/';
+let REDUCE = false;
+try { REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
+document.getElementById('rm').checked = REDUCE;
+
+/* ---------- game facts (NC-weeks data) ---------- */
+const WEEKS = [
+  {n:1, name:'Training week', chip:'TRAINING', fx:'Miss a quota? It is a slip: the run goes on.', short:'misses are slips (2 allowed)', col:'#3a7672', tint:'3a7672', q:0},
+  {n:2, name:'Bakery festival', chip:'BAKERY', fx:'Bakery items +2€, quota +10%', short:'Bakery +2€ · quota +10%', col:'#b38425', tint:'b38425', q:10},
+  {n:3, name:'Holiday rush', chip:'HOLIDAY', fx:'Quota +15%, machine odds +1 level', short:'quota +15% · odds +1', col:'#4a3f38', tint:'4a3f38', q:15},
+  {n:4, name:'Clearance week', chip:'CLEARANCE', fx:'Clearance items +2€, quota +15%', short:'Clearance +2€ · quota +15%', col:'#b5470c', tint:'b5470c', q:15},
+];
+// display_name, chip_text, icon_ref of data/inspections/*.tres
+const EV = {
+  qm:{name:'Quiet morning', chip:'quota −10%', icon:'up_arrow', flip:true, tone:'boon', q:-10},
+  et:{name:'Extra till', chip:'+1 slot', icon:'plus_slot', tone:'boon', where:'→ slot 8 opens'},
+  rd:{name:"Regulars' day", chip:'+1 redraw', icon:'redraw_arrow_hot', tone:'boon'},
+  fd:{name:'Fresh delivery', chip:'Fruit & veg +1€', icon:'aisle_fruit_and_veg', tone:'boon'},
+  fs:{name:'Free samples', chip:'1st product ×2', icon:'coin', tone:'boon'},
+  hh:{name:'Happy hour', chip:'last slot +3€', icon:'coin', tone:'boon', where:'→ last filled slot'},
+  sb:{name:'Short belt', chip:'−1 slot', icon:'warning', tone:'malus', where:'→ slot 7 closed'},
+  sc:{name:'Spot check', chip:'Slot 3 pays 0€', icon:'padlock', tone:'malus', where:'→ slot 3 pays 0€'},
+  tj:{name:'Till jam', chip:'−1 redraw', icon:'redraw_arrow_hot', tone:'malus'},
+  sm:{name:'Small baskets', chip:'−1 hand item', icon:'cart', tone:'malus'},
+  rh:{name:'Rush hour', chip:'Quota +10%', icon:'up_arrow', tone:'malus', q:10},
+  ld:{name:'Late delivery', chip:'Dairy −2€', icon:'family_dairy', tone:'malus'},
+};
+// Schedule: shift 1 none; boons 2,5,6,9,10,13,14; inspections 3,7,11,15; reviews 4,8,12,16 (two maluses).
+const DAYS = {1:[],2:['qm'],3:['sb'],4:['sm','tj'],5:['et'],6:['hh'],7:['sc'],8:['rh','ld'],9:['rd'],10:['fd'],11:['sm'],12:['sb','ld'],13:['fd'],14:['fs'],15:['rh'],16:['sc','tj']};
+const QUOTAS = [30,35,36,37,59,60,61,62,88,101,102,103,146,147,148,149];
+const REVIEWS = [4,8,12,16], PAYDAYS = [4,8,12];
+const COINS = [0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,2];
+const SLIP_LIMIT = 2, SLIP_LAST = 4;
+const UPG = {
+  ce:{name:'Coupon engine', fx:'The first coupon in the row pays ×2', icon:'perk_coupon_engine', w:9, h:7},
+  bd:{name:'Bulk deal', fx:'Each product +3 for each copy of it earlier in the row', icon:'perk_bulk_deal', w:7, h:6},
+  se:{name:'Slot engine', fx:'The card in slot 6 pays ×2', icon:'perk_slot_engine', w:8, h:5},
+};
+const PIN = {name:'Recycle', fx:'Redrawn items go back in the pile; +1 redraw a shift', face:'RE', cols:['#5fae5a','#3d7a45','#a5d17e']};
+const STATES = {
+  3:  {s:3, res:{1:'paid',2:'slip'}, upg:[], cart:'11/15'},
+  8:  {s:8, res:{1:'paid',2:'slip',3:'paid',4:'paid',5:'paid',6:'paid',7:'paid'}, upg:['ce','bd'], cart:'13/15'},
+  13: {s:13, res:{1:'paid',2:'slip',3:'paid',4:'paid',5:'paid',6:'paid',7:'paid',8:'paid',9:'paid',10:'paid',11:'paid',12:'paid'}, upg:['ce','bd','se'], cart:'13/15'},
+};
+const weekOf = s => Math.ceil(s / 4);
+const isReview = s => REVIEWS.includes(s);
+const evs = s => (DAYS[s] || []).map(k => EV[k]);
+function quota(s) {
+  let p = WEEKS[weekOf(s) - 1].q;
+  for (const e of evs(s)) p += e.q || 0;
+  return Math.round(QUOTAS[s - 1] * (1 + p / 100));
+}
+
+/* ---------- state ---------- */
+let VAR = 'C', ST = 13, cur = null, slipOpen = false;
+function fresh() { const b = STATES[ST] || STATES[13]; ST = b.s; cur = {s:b.s, res:Object.assign({}, b.res), upg:b.upg.slice(), cart:b.cart, over:false}; }
+fresh();
+const slipsUsed = () => Object.values(cur.res).filter(v => v === 'slip').length;
+
+/* ---------- helpers ---------- */
+const $ = id => document.getElementById(id);
+function el(tag, cls, html) { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; }
+// Every image at a whole multiple of its art size (ART_SCALE 2).
+function img(name, w, h, scale = 2) { const i = new Image(); i.src = SRC + name + '.png'; i.width = w * scale; i.height = h * scale; i.className = 'ico'; i.alt = ''; return i; }
+const ICON_SIZE = {up_arrow:[9,9], plus_slot:[13,12], redraw_arrow_hot:[9,8], aisle_fruit_and_veg:[9,9], coin:[12,12], warning:[13,11], padlock:[9,10], cart:[12,9], family_dairy:[9,9], boon:[11,11], mark_check:[13,13], menu:[9,7]};
+function icon(name, scale = 2, flip = false) { const s = ICON_SIZE[name] || [9,9]; const i = img(name, s[0], s[1], scale); if (flip) i.style.transform = 'scaleY(-1)'; return i; }
+const CHECK = [[7,2],[6,3],[7,3],[1,4],[5,4],[6,4],[1,5],[2,5],[4,5],[5,5],[2,6],[3,6],[4,6],[3,7]];
+const CROSS = [[2,2],[6,2],[2,3],[3,3],[5,3],[6,3],[3,4],[4,4],[5,4],[2,5],[3,5],[5,5],[6,5],[2,6],[6,6]];
+function pipSvg(fill, glyph, glyphCol, ring, alpha) {
+  let r = `<svg viewBox="0 0 9 9" shape-rendering="crispEdges"><rect width="9" height="9" fill="${fill}"${alpha != null ? ` opacity="${alpha}"` : ''}/>`;
+  if (ring) r += `<rect x=".5" y=".5" width="8" height="8" fill="none" stroke="#2b2420" stroke-width="1"/>`;
+  for (const [x, y] of glyph || []) r += `<rect x="${x}" y="${y}" width="1" height="1" fill="${glyphCol}"/>`;
+  return r + '</svg>';
+}
+const resultSvg = r => r === 'paid' ? pipSvg('#a5d17e', CHECK, '#2b2420') : pipSvg('#d9534f', CROSS, '#fbf7ee');
+// PinFace._draw on the 2 px grid: ink rim, RIM 2 dark band, face, glint (cells = diameter / 2).
+function pinFace(d, cols, text) {
+  const cells = d / 2, R = cells / 2; let s = `<svg viewBox="0 0 ${cells} ${cells}" shape-rendering="crispEdges">`;
+  for (let row = 0; row < cells; row++) {
+    const y = row + .5 - R, half = Math.round(Math.sqrt(Math.max(R * R - y * y, 0)));
+    for (let c = Math.floor(R) - half; c < Math.floor(R) + half; c++) {
+      const dist = Math.hypot(c + .5 - R, row + .5 - R);
+      let col = cols[0];
+      if (dist > R - 1) col = '#2b2420';
+      else if (dist > R - 3) col = cols[1];
+      else if (Math.hypot(c + .5 - R * .55, row + .5 - R * .55) < R * .22) col = cols[2];
+      s += `<rect x="${c}" y="${row}" width="1" height="1" fill="${col}"/>`;
+    }
+  }
+  const box = el('div', 'pinface', s + '</svg>'); box.appendChild(el('span', null, text)); return box;
+}
+function chip(tint) { const c = el('div', 'ch'); if (tint) c.style.borderImageSource = `url(${SRC}chip_${tint}.png)`; return c; }
+// InspectionTag.tint_of: GREEN_LIGHT boon, MUSTARD_LIGHT review, GREY_LIGHT none, TOMATO_PALE malus.
+function kindOf(list) { if (!list.length) return 'none'; const m = list.filter(e => e.tone === 'malus').length; if (m > 1) return 'review'; return m ? 'malus' : 'boon'; }
+const TINT = {none:'c7beab', review:'f1d27a', malus:'f5bfa0', boon:'a5d17e'};
+const TONE = {none:'#c7beab', review:'#e2b33c', malus:'#d9534f', boon:'#5fae5a'};
+
+/* ---------- bars ---------- */
+function stampsChip(word) {
+  const c = chip(null);
+  if (word) c.appendChild(el('span', 'key', 'LOYALTY'));
+  const row = el('div', null); row.style.cssText = 'display:flex;gap:6px';
+  for (let i = 0; i < 4; i++) {
+    const u = cur.upg[i] ? UPG[cur.upg[i]] : null;
+    const r = el('div', 'ring26');
+    r.appendChild(img(u ? 'stamp_ring' : 'stamp_ring_empty', 13, 13));
+    if (u) { const p = img(u.icon, u.w, u.h); p.classList.add('pk'); r.appendChild(p); }
+    row.appendChild(r);
+  }
+  c.appendChild(row);
+  c.dataset.tip = cur.upg.length ? cur.upg.map(k => UPG[k].name).join(' · ') + '<small>Hover a stamp for its rule</small>' : 'No upgrades yet<small>Pick UPGRADE at the machine</small>';
+  return c;
+}
+function cartBtn() {
+  const c = chip(null); c.classList.add('btn'); c.style.cssText += ';width:130px;padding:0';
+  c.appendChild(img('cart', 12, 9));
+  c.appendChild(el('span', 'num', `<span class="bt" style="font-size:16px">Cart </span>${cur.cart}`));
+  c.querySelector('.num').style.fontSize = '16px';
+  c.dataset.tip = 'Cart: ' + cur.cart.replace('/', ' of ') + ' items<small>Tap to see your cart</small>';
+  return c;
+}
+function menuBtn() { const c = chip(null); c.classList.add('btn'); c.style.width = '44px'; c.appendChild(img('menu', 9, 7)); c.dataset.tip = VAR === 'before' || VAR === 'A' ? 'Menu<small>Export log</small>' : 'Menu<small>Run info · Export log</small>'; c.addEventListener('click', () => { if (VAR === 'B' || VAR === 'C') toggleSlip(); }); return c; }
+
+function weekPips(w) {
+  const box = el('div', 'pips');
+  for (let d = 1; d <= 4; d++) {
+    const s = (w - 1) * 4 + d, p = el('div', 'pip'); p.dataset.s = s;
+    p.innerHTML = pipHtml(s, VAR === 'before' || VAR === 'B');
+    box.appendChild(p);
+  }
+  return box;
+}
+function pipHtml(s, old) {
+  const r = cur.res[s];
+  if (r) return resultSvg(r);
+  if (s === cur.s && !cur.over) return pipSvg('#ffcf3f', null, null, true);
+  if (!old && isReview(s)) return pipSvg('#e2b33c', null, null, false, .55); // NEW: a coming review
+  return pipSvg('#fbf7ee', null, null, false, .3); // Pip.TODO
+}
+
+const ROW_ROOM = 916 - 8; // TopBar.ROW_SIZE.x less FIT_MARGIN
+function used(bar, except) { let w = 0, n = 0; for (const c of bar.children) { if (c === except || c.classList.contains('grow') || c.style.display === 'none') continue; w += c.offsetWidth; n++; } return w + n * 12; }
+
+function barBefore() {
+  const bar = $('bar'); bar.innerHTML = '';
+  const w = weekOf(cur.s), W = WEEKS[w - 1];
+  const wc = chip(W.tint); wc.classList.add('tap'); wc.style.gap = '6px'; wc.style.padding = '0 2px';
+  wc.appendChild(el('span', 'num', 'W' + w));
+  const nm = el('span', 'key', W.chip); nm.style.cssText = 'font-size:15px;letter-spacing:2px;color:#fbf7ee'; wc.appendChild(nm);
+  const pp = weekPips(w); wc.appendChild(pp);
+  wc.dataset.tip = `${W.name}<small>${W.fx} · Tap to open the time card</small>`;
+  wc.addEventListener('click', () => flashNote('Today the week chip reopens the time card (WeekFlow).'));
+  bar.appendChild(wc);
+  const list = evs(cur.s), kind = kindOf(list);
+  const dc = chip(TINT[kind]); dc.classList.add('tap'); dc.style.flex = 'none';
+  const dn = el('span', 'num', 'D' + cur.s); dn.style.color = '#2b2420'; dc.appendChild(dn);
+  if (kind !== 'none') dc.appendChild(icon(kind === 'boon' ? 'boon' : 'warning'));
+  const maluses = list.filter(e => e.tone === 'malus'), boons = list.filter(e => e.tone === 'boon');
+  const parts = [];
+  if (maluses.length) parts.push([maluses.length > 1 ? 'Review' : 'Inspection', ...maluses.map(e => e.chip)].join(' · '));
+  if (boons.length) parts.push('Today: ' + boons.map(e => `${e.name} (${e.chip})`).join(', '));
+  const full = parts.length ? parts.join(' · ') : 'Normal day';
+  const effects = list.length ? list.map(e => e.chip).join(' · ') : 'Normal day';
+  const tx = el('span', 'bt', full); dc.appendChild(tx);
+  dc.dataset.tip = list.length ? list.map(e => `${e.tone === 'boon' ? 'TODAY' : 'INSPECTION'}: ${e.name}`).join('<br>') + '<small>Tap for today\'s slip</small>' : 'Normal day<small>No event today</small>';
+  dc.addEventListener('click', () => flashNote('Today the day chip drops today\'s slip (DaySlip): today\'s events only.'));
+  bar.appendChild(dc);
+  bar.appendChild(stampsChip(true));
+  bar.appendChild(el('div', 'grow'));
+  bar.appendChild(cartBtn());
+  bar.appendChild(menuBtn());
+  // TopBar.fit_inspection + InspectionTag.fit_width: full text, else effects only, else ellipsis;
+  // only then the week chip's name, then its pips.
+  const fitOnce = () => {
+    tx.textContent = full; dc.style.maxWidth = 'none';
+    const room = ROW_ROOM - used(bar, dc);
+    if (dc.offsetWidth <= room) return false;
+    tx.textContent = effects;
+    if (dc.offsetWidth <= room) return false;
+    dc.style.maxWidth = room + 'px'; return true;
+  };
+  if (fitOnce()) { nm.style.display = 'none'; if (fitOnce()) { pp.style.display = 'none'; fitOnce(); } }
+}
+
+function barNew(clickable) {
+  const bar = $('bar'); bar.innerHTML = '';
+  const w = weekOf(cur.s), W = WEEKS[w - 1];
+  const tc = chip(null); tc.classList.add('tap'); tc.id = 'track'; tc.style.width = '262px';
+  tc.appendChild(el('span', 'num', `${cur.s}<span style="opacity:.7;font-size:15px">/16</span>`));
+  const tr = el('div', 'tracks');
+  for (let k = 1; k <= 4; k++) {
+    const g = el('div', 'weekgrp' + (k === w ? ' cur' : '')); g.dataset.w = k;
+    g.appendChild(weekPips(k));
+    const ul = el('div', 'ul'); ul.style.background = WEEKS[k - 1].col; if (k !== w) ul.style.opacity = '.75';
+    g.appendChild(ul); tr.appendChild(g);
+  }
+  tc.appendChild(tr);
+  tc.dataset.tip = `Shift ${cur.s} of 16 · Week ${w}: ${W.name}<small>${clickable ? 'Tap for run info' : 'Tap to open the time card'}</small>`;
+  tc.addEventListener('click', e => { e.stopPropagation(); clickable ? toggleSlip() : flashNote('In A the track still reopens the time card; the full list stays under Cart › Run info.'); });
+  bar.appendChild(tc);
+  // TODAY chip: takes the room left
+  const list = evs(cur.s), kind = kindOf(list);
+  const rc = chip(TINT[kind]); rc.classList.add('tap'); rc.id = 'today'; rc.style.flex = '1 1 0';
+  const rules = el('div', 'rules');
+  let full, eff;
+  if (!list.length) full = eff = 'Normal day';
+  else if (kind === 'review') { eff = list.map(e => e.chip).join(' · '); full = 'Review: ' + eff; }
+  else { full = list[0].name + ': ' + list[0].chip; eff = list[0].chip; }
+  const l1 = el('div', 'ln', `<i class="sw" style="background:${TONE[kind]}"></i><span class="k">TODAY</span><span class="tx">${full}</span>`);
+  rules.appendChild(l1);
+  rules.appendChild(el('div', 'ln wl', `<i class="sw" style="background:${W.col}"></i><span class="k">WEEK ${w}</span><span class="tx">${W.short}</span>`));
+  rc.appendChild(rules);
+  rc.dataset.tip = (list.length ? list.map(e => `${e.name}: ${e.chip}`).join('<br>') : 'Normal day') + `<br>${W.name}: ${W.fx}<small>${clickable ? 'Tap for run info' : 'Tap for today\'s slip'}</small>`;
+  rc.addEventListener('click', () => clickable ? toggleSlip() : flashNote('In A the TODAY chip drops today\'s slip, as the day chip does today.'));
+  bar.appendChild(rc);
+  const sc = stampsChip(false); if (clickable) { sc.classList.add('tap'); sc.addEventListener('click', () => toggleSlip()); }
+  bar.appendChild(sc);
+  bar.appendChild(cartBtn());
+  bar.appendChild(menuBtn());
+  // the TODAY chip takes the row's room less FIT_MARGIN (908 px less the others)
+  rc.style.flex = 'none'; rc.style.width = (ROW_ROOM - used(bar, rc)) + 'px';
+  // fit line 1 as fit_width does: full, else the effects, else the ellipsis (CSS)
+  const t1 = l1.querySelector('.tx');
+  if (t1.scrollWidth > t1.clientWidth) { t1.textContent = eff; rc.dataset.fit = t1.scrollWidth > t1.clientWidth ? 'ellipsis' : 'effects'; }
+  else rc.dataset.fit = 'full';
+}
+
+/* ---------- the run slip / page ---------- */
+function buildPanel(page) {
+  const s = cur.s, w = weekOf(s), W = WEEKS[w - 1], list = evs(s);
+  const sp = el('div', 'sp');
+  const passed = Object.values(cur.res).filter(v => v === 'paid').length, played = Object.keys(cur.res).length;
+  sp.appendChild(el('div', 'hd', `<span class="t">RUN · SHIFT ${s} OF 16</span><span class="r">PASSED ${passed} OF ${played}</span>`));
+  // track
+  const big = el('div', 'big');
+  for (let k = 1; k <= 4; k++) {
+    const K = WEEKS[k - 1], col = el('div', 'wk');
+    const wh = el('div', 'wh', page ? `W${k} ${K.name.toUpperCase()}` : `W${k} ${K.chip}`); wh.style.background = K.col; col.appendChild(wh);
+    const cells = el('div', 'cells');
+    for (let d = 1; d <= 4; d++) {
+      const t = (k - 1) * 4 + d, c = el('div', 'cell'); c.dataset.s = t;
+      if (isReview(t)) c.classList.add('rev');
+      if (cur.res[t]) c.classList.add('past');
+      if (t === s && !cur.over) c.classList.add('today');
+      c.appendChild(el('span', 'd', t));
+      const L = evs(t);
+      if (cur.res[t]) c.appendChild(el('span', 'res', resultSvg(cur.res[t])));
+      else if (k > w) c.appendChild(el('span', 'q', '?'));
+      else if (L.length > 1) c.appendChild(icon('warning'));
+      else if (L.length === 1) c.appendChild(icon(L[0].icon, 2, L[0].flip));
+      if (PAYDAYS.includes(t)) c.appendChild(el('span', 'pay', 'PAYDAY'));
+      if (t === 16) c.appendChild(el('span', 'pay win', 'WIN'));
+      cells.appendChild(c);
+    }
+    col.appendChild(cells); big.appendChild(col);
+  }
+  sp.appendChild(big);
+  // today / next
+  const cols = el('div', 'cols');
+  const td = el('div', 'box'); td.appendChild(el('div', 'sec', `TODAY · TARGET <span class="eu">${quota(s)}€</span>`));
+  const weekEv = el('div', 'ev'); const sw = el('i'); sw.style.cssText = `width:14px;height:14px;background:${W.col};border:2px solid #2b2420;display:block`;
+  weekEv.title = W.fx; weekEv.appendChild(sw); weekEv.appendChild(el('div', null, `<b>Week ${w}</b> <span class="fx">${W.short}</span>`)); td.appendChild(weekEv);
+  if (!list.length) td.appendChild(el('div', 'ev', `<i></i><div><b>Normal day</b> <span class="fx">no event</span></div>`));
+  for (const e of list) {
+    const r = el('div', 'ev ' + e.tone); r.appendChild(icon(e.icon, 2, e.flip));
+    r.appendChild(el('div', null, `<b>${e.name}</b> <span class="fx">${e.chip}</span>${e.where ? ` <span class="where">${e.where}</span>` : ''}`));
+    td.appendChild(r);
+  }
+  const used = slipsUsed();
+  let stk;
+  if (cur.over) stk = el('div', 'stakes hard', 'Run over: the quota was missed');
+  else if (s <= SLIP_LAST && used < SLIP_LIMIT) stk = el('div', 'stakes soft', `${SLIP_LIMIT - used} of ${SLIP_LIMIT} slips left: a miss is forgiven`);
+  else if (s <= SLIP_LAST) stk = el('div', 'stakes hard', 'No slip left: the next miss ends the run');
+  else stk = el('div', 'stakes hard', `Miss today's ${quota(s)}€ and the run ends`);
+  td.appendChild(stk);
+  cols.appendChild(td);
+  const nx = el('div', 'box'); nx.appendChild(el('div', 'sec', 'NEXT'));
+  const rv = REVIEWS.find(r => r >= s);
+  if (s < 16 && rv !== s + 1) {
+    const t = s + 1;
+    if (weekOf(t) !== w) { const N = WEEKS[weekOf(t) - 1]; const r = el('div', 'ev', `<i style="width:14px;height:14px;background:${N.col};border:2px solid #2b2420;display:block"></i><div><b>Shift ${t}:</b> <span class="fx">new week, ${N.name}</span></div>`); r.title = N.fx; nx.appendChild(r); }
+    else {
+      const L = evs(t);
+      const r = el('div', 'ev' + (L.length === 1 ? ' ' + L[0].tone : ''));
+      if (L.length) r.appendChild(icon(L[0].icon, 2, L[0].flip)); else r.appendChild(el('i'));
+      r.appendChild(el('div', null, `<b>Shift ${t}:</b> <span class="fx">${L.length ? L.map(e => e.name + ' (' + e.chip + ')').join(' + ') : 'normal day'}</span>`));
+      nx.appendChild(r);
+    }
+  }
+  if (rv) {
+    // the next review (tomorrow's review is this line, with its maluses)
+    const inN = rv - s;
+    const when = inN === 0 ? "Today: Manager's review" : inN === 1 ? `Shift ${rv}: Manager's review` : `Review in ${inN} shifts (shift ${rv})`;
+    const fx = inN === 1 ? ` <span class="fx">${evs(rv).map(e => e.chip).join(' · ')}</span>` : '';
+    const pays = rv === 16 ? '<span class="paypill win">PASS = RUN WON</span>' : '<span class="paypill">PASS = PAYDAY</span> <span class="fx">2 PREMIUM tickets</span>';
+    const r = el('div', 'ev'); r.appendChild(inN === 0 ? el('i') : icon('warning'));
+    r.appendChild(el('div', null, `<b>${when}</b>${fx}<br>${pays}`)); nx.appendChild(r);
+  }
+  cols.appendChild(nx);
+  sp.appendChild(cols);
+  // own: one line of named stamps, the pin, the cart
+  const own = el('div', 'own');
+  if (!cur.upg.length) own.appendChild(el('div', 'it', `<div class="ring26"><img src="${SRC}stamp_ring_empty.png" alt=""></div><span>No upgrades yet <span class="lv">· Pick UPGRADE at the machine</span></span>`));
+  for (const k of cur.upg) {
+    const u = UPG[k], it = el('div', 'it'); it.title = u.fx; const r = el('div', 'ring26'); r.appendChild(img('stamp_ring', 13, 13)); const p = img(u.icon, u.w, u.h); p.classList.add('pk'); r.appendChild(p);
+    it.appendChild(r); it.appendChild(el('span', null, u.name)); own.appendChild(it);
+  }
+  const pi = el('div', 'it'); pi.title = PIN.fx; pi.appendChild(pinFace(28, PIN.cols, PIN.face)); pi.appendChild(el('span', null, `${PIN.name} <span class="lv">PIN</span>`)); own.appendChild(pi);
+  sp.appendChild(own);
+  const ft = el('div', 'foot');
+  const co = el('span', 'coins'); co.title = 'Coins buy capsules at the TOY MACHINES (1 each) or a locked pin (12)';
+  co.appendChild(img('coin', 12, 12)); co.appendChild(el('span', null, `Stop now: ${COINS[passed]} coin${COINS[passed] === 1 ? '' : 's'} (+ up to 1 overtime) · a win: 2`));
+  ft.appendChild(co);
+  const ci = el('div', 'it'); ci.appendChild(img('cart', 12, 9)); ci.appendChild(el('span', null, cur.cart));
+  const ob = el('span', 'fbtn', 'Open cart ›'); ob.addEventListener('click', e => { e.stopPropagation(); flashNote('Open cart › opens the Cart view (DeckView). A click on the slip itself does not close it.'); });
+  ci.appendChild(ob); ft.appendChild(ci); sp.appendChild(ft);
+  return sp;
+}
+
+let slipAnim = null;
+function toggleSlip(force) {
+  const want = force != null ? force : !slipOpen;
+  const slip = $('slip'), shade = $('shade');
+  if (slipAnim) { slipAnim.cancel(); slipAnim = null; }
+  if (!want) {
+    if (!slipOpen && !slip.classList.contains('on')) return;
+    slipOpen = false; shade.classList.remove('on'); payTag();
+    if (REDUCE) { slip.classList.remove('on'); updateCrops(); return; }
+    slipAnim = slip.animate([{opacity:1},{opacity:0}], {duration:120, fill:'forwards'});
+    slipAnim.onfinish = () => { slip.classList.remove('on'); slipAnim = null; updateCrops(); };
+    return;
+  }
+  if (VAR === 'before' || VAR === 'A') return;
+  slipOpen = true;
+  slip.innerHTML = '';
+  if (VAR === 'C') {
+    slip.className = 'slip on'; slip.style.cssText = 'left:348px;top:62px;width:600px';
+    slip.appendChild(el('div', 'hook'));
+  } else {
+    slip.className = 'slip page on'; slip.style.cssText = 'left:210px;top:84px;width:860px';
+  }
+  slip.appendChild(buildPanel(VAR === 'B'));
+  if (VAR === 'B') slip.querySelectorAll('.cell').forEach(c => c.style.height = '44px');
+  shade.classList.add('on'); payTag();
+  setTimeout(updateCrops, REDUCE ? 0 : 360);
+  if (REDUCE) { slip.style.opacity = 1; return; }
+  if (VAR === 'C') {
+    slipAnim = slip.animate([
+      {transform:'translateY(-22px) rotate(-6deg)', opacity:0, offset:0},
+      {opacity:1, offset:.4},
+      {transform:'translateY(0) rotate(0)', opacity:1, offset:1}
+    ], {duration:320, easing:'cubic-bezier(.2,1.4,.4,1)', fill:'both'});
+  } else {
+    slipAnim = slip.animate([
+      {transform:'translateY(16px)', opacity:0},
+      {transform:'translateY(12px)', opacity:.25},
+      {transform:'translateY(8px)', opacity:.5},
+      {transform:'translateY(4px)', opacity:.75},
+      {transform:'translateY(0)', opacity:1}
+    ], {duration:200, easing:'steps(4,end)', fill:'both'});
+  }
+}
+
+/* ---------- pass / miss today: the pip lights, then the next shift's planning ---------- */
+let passTimers = [];
+function endToday(result) {
+  if (cur.over || cur.s > 16 || cur.res[cur.s]) return;
+  toggleSlip(false);
+  passTimers.forEach(clearTimeout); passTimers = [];
+  const s = cur.s;
+  const ends = result === 'miss' && !(s <= SLIP_LAST && slipsUsed() < SLIP_LIMIT && s < 16);
+  cur.res[s] = result === 'pass' ? 'paid' : 'slip';
+  const pip = document.querySelector(`#bar .pip[data-s="${s}"]`);
+  if (pip) {
+    pip.innerHTML = pipHtml(s);
+    if (!REDUCE) {
+      const g = el('div', 'flashglow'); g.style.background = result === 'pass' ? 'rgba(255,207,63,.6)' : 'rgba(217,83,79,.6)'; pip.appendChild(g);
+      pip.animate([{transform:'scale(3)'},{transform:'scale(2.33)'},{transform:'scale(1.67)'},{transform:'scale(1)'}], {duration:800, easing:'steps(3,end)'});
+      g.animate([{opacity:.6, transform:'scale(1.5)'},{opacity:0, transform:'scale(.5)'}], {duration:800, easing:'steps(4,end)', fill:'forwards'});
+      const host = pip.closest('.ch'); host.classList.add('ring'); passTimers.push(setTimeout(() => host.classList.remove('ring'), 800));
+    }
+  }
+  passTimers.push(setTimeout(() => {
+    if (ends) { cur.over = true; renderBar(); flashNote(s >= 16 ? 'Shift 16 missed: the run ends.' : 'Missed with no slip left: the run ends. The slip would read "Run over".'); patch(); updateCrops(); return; }
+    if (s >= 16) { flashNote('Shift 16 passed: the final review is the run\'s win.'); return; }
+    const newWeek = weekOf(s + 1) !== weekOf(s);
+    cur.s = s + 1;
+    renderBar(); patch();
+    if (result === 'miss') flashNote(`A slip: ${SLIP_LIMIT - slipsUsed()} of ${SLIP_LIMIT} left. Open the panel to read the stakes line change.`);
+    if (!REDUCE && VAR !== 'before') {
+      const p2 = document.querySelector(`#bar .pip[data-s="${cur.s}"]`);
+      if (p2) p2.animate([{transform:'scale(1.6)'},{transform:'scale(1)'}], {duration:200, easing:'steps(2,end)'});
+      if (newWeek && VAR !== 'B') {
+        const ul = document.querySelector(`#bar .weekgrp.cur .ul`);
+        if (ul) ul.animate([{transform:'scaleX(0)'},{transform:'scaleX(.33)'},{transform:'scaleX(.66)'},{transform:'scaleX(1)'}], {duration:300, easing:'steps(3,end)'});
+        const wl = document.querySelector('#today .wl');
+        if (wl) wl.animate([{opacity:0, transform:'translateY(-6px)'},{opacity:1, transform:'translateY(0)'}], {duration:200, easing:'steps(2,end)'});
+      }
+    }
+    updateCrops();
+  }, REDUCE ? 50 : 1000));
+}
+
+/* ---------- backdrop: receipt patches, PAYDAY NEXT tag ---------- */
+function patch() {
+  const on = cur.s !== 13 || cur.over;
+  ['pT','pS','pP','pN'].forEach(id => $(id).classList.toggle('on', on));
+  if (!on) return;
+  const q = quota(cur.s);
+  $('pT').innerHTML = `<span>${q}<i class="eu">€</i></span>`;
+  $('pS').textContent = `SHIFT ${cur.s}/16 · 4 ITEMS`;
+  $('pP').textContent = Math.max(0, q - 23) + '.00€ short';
+  payTag();
+}
+function payTag() {
+  const on = PAYDAYS.includes(cur.s) && !cur.res[cur.s] && !slipOpen;
+  $('payT').classList.toggle('on', on); $('payS').classList.toggle('on', on);
+}
+
+/* ---------- render ---------- */
+function renderBar() { if (VAR === 'before' || VAR === 'B') barBefore(); else barNew(VAR === 'C'); wireTips(); payTag(); }
+function render() {
+  toggleSlip(false); $('slip').classList.remove('on'); slipOpen = false; $('shade').classList.remove('on');
+  renderBar(); patch();
+  const notes = {
+    before: '<strong>Today.</strong> The week chip (W4, its name, this week\'s pips), the day chip (D13 and today\'s effects, cut to fit), LOYALTY stamps, Cart, and ☰ (Export log only). Hover each chip for its tooltip. A tap opens the time card or today\'s slip.',
+    A: '<strong>A.</strong> One run track (13/16 and 16 pips in the 4 week colours) and a two-line TODAY chip (today\'s event with its name, and the week\'s effect). No new panel: the track still reopens the time card.',
+    B: '<strong>B.</strong> Today\'s bar. ☰ (or "Open the panel") opens the full run page in the popup frame. Everything is in one place, but it is two clicks away and the bar is unchanged.',
+    C: '<strong>C, recommended.</strong> A\'s bar. Tap the track, the TODAY chip, the stamps or ☰, and the run slip drops under the track. It closes on Esc, a click on the shade, or another tap on the track. Clicks inside it, such as Open cart ›, don\'t close it.',
+  };
+  $('vnote').innerHTML = notes[VAR];
+  $('b_open').disabled = VAR === 'before' || VAR === 'A';
+  updateCrops();
+}
+
+/* tooltips */
+function wireTips() {
+  const tip = $('tip');
+  document.querySelectorAll('#bar .ch').forEach(c => {
+    c.addEventListener('mouseenter', () => {
+      if (!c.dataset.tip || slipOpen) return;
+      tip.innerHTML = c.dataset.tip; tip.classList.add('on');
+      const r = c.offsetLeft + 348, w = tip.offsetWidth;
+      tip.style.left = Math.min(Math.max(8, r), 1272 - w) + 'px'; tip.style.top = '56px';
+    });
+    c.addEventListener('mouseleave', () => tip.classList.remove('on'));
+  });
+}
+let noteT = null;
+function flashNote(t) { const v = $('vnote'); v.innerHTML = '<strong>Note:</strong> ' + t; clearTimeout(noteT); noteT = setTimeout(() => { if (!slipOpen) render(); }, 4500); }
+
+/* ---------- 1:1 crops of the bar and of the open panel ---------- */
+function cloneStage(x, y) {
+  const c = $('stage').cloneNode(true);
+  c.removeAttribute('id'); c.querySelectorAll('[id]').forEach(n => n.removeAttribute('id'));
+  c.style.cssText = `position:absolute;left:${-x}px;top:${-y}px;transform:none;pointer-events:none`;
+  c.querySelectorAll('.slip').forEach(n => { n.style.transform = 'none'; n.style.opacity = n.classList.contains('on') ? 1 : 0; });
+  c.querySelectorAll('.tip').forEach(n => n.remove());
+  return c;
+}
+function updateCrops() {
+  const b = $('cropBar').firstElementChild; b.innerHTML = ''; b.appendChild(cloneStage(340, 0));
+  const open = slipOpen && $('slip').classList.contains('on');
+  $('cropSlip').classList.toggle('off', !open); $('cropSlipLbl').style.display = open ? '' : 'none';
+  const s = $('cropSlip').firstElementChild; s.innerHTML = '';
+  if (open) { const x = VAR === 'B' ? 200 : 340; s.style.width = VAR === 'B' ? '880px' : '900px'; s.style.height = VAR === 'B' ? '600px' : '330px'; s.appendChild(cloneStage(x, VAR === 'B' ? 70 : 40)); }
+}
+
+/* ---------- before: numbered problems ---------- */
+const PROBS = [
+  {x:35, y:8.6, t:'Two counters, two names', d:'"W4 ▪▪▪▪" and "D13" both say where you are. The run\'s length (16) is only on the receipt, as "SHIFT 13/16" in small type. The pips only cover this week.', q:'Where am I in the run?'},
+  {x:40, y:3.9, t:'The week\'s rule is one word', d:'"CLEARANCE". Its effect (Clearance items +2€, quota +15%) is only in the hover text and on the time card.', q:'What are today\'s rules?'},
+  {x:51, y:8.6, t:'No room, so the day\'s name is cut first', d:'The full chip is "D13 Today: Fresh delivery (Fruit & veg +1€)". When the row is short, fit_width cuts it to the effects only, "Fruit & veg +1€", before the week chip gives up anything. That is the state in the capture. The two chips open two different papers (time card, today\'s slip), and nothing shows that they can be tapped.', q:'What is today?'},
+  {x:70, y:8.6, t:'Upgrades are unlabelled stamps', d:'The LOYALTY rings show icons only, and their names are in the hover. Worn pins hang on the lanyard by the monitor. The full list sits under Cart › "Run info", a tab inside the cart.', q:'What do I own?'},
+  {x:97, y:8.6, t:'☰ only exports the log', d:'There is no run summary to open from the menu.', q:'Where do I look?'},
+  {x:21.5, y:16.5, t:'Only the next step is told', d:'After a pass the receipt prints tomorrow ("INSPECTION NEXT SHIFT: …", "TOMORROW: …"). On review shifts the monitor prints "PASS THE REVIEW · PAYDAY · 2 PREMIUM TICKETS" and a PAYDAY NEXT tag hangs over it. Not said anywhere during play: how many shifts are left until the next review, how many slips are left (there are only the crosses on this week\'s pips, and "THIS WEEK ALLOWS 2 MISSES" on the training week\'s time card), and the coins earned so far (they are only on the final receipt).', q:'How far is the next review? How am I doing?'},
+];
+function buildBefore() {
+  const shot = $('shot'), probs = $('probs');
+  PROBS.forEach((p, i) => {
+    const m = el('div', 'pin', i + 1); m.style.left = p.x + '%'; m.style.top = p.y + '%'; shot.appendChild(m);
+    probs.appendChild(el('div', 'prob', `<div class="n">${i + 1}</div><div><b>${p.t}.</b> <span>${p.d}</span></div><div class="q">→ ${p.q}</div>`));
+  });
+}
+
+/* ---------- scale ---------- */
+let SCALE_MODE = 'fit';
+function fit() {
+  const wrap = $('wrap'), stage = $('stage');
+  const s = SCALE_MODE === 'one' ? 1 : SCALE_MODE === 'hd' ? 1.5 : Math.min(1.5, (wrap.parentElement.clientWidth - 4) / 1280);
+  stage.style.transform = `scale(${s})`;
+  document.body.classList.toggle('one', SCALE_MODE !== 'fit');
+  if (SCALE_MODE === 'fit') { stage.style.position = 'absolute'; stage.style.margin = '0'; wrap.style.height = (720 * s + 4) + 'px'; wrap.style.width = (1280 * s + 4) + 'px'; }
+  else { stage.style.position = 'relative'; wrap.style.height = 'auto'; wrap.style.width = '100%'; stage.style.marginBottom = (720 * (s - 1)) + 'px'; stage.style.marginRight = (1280 * (s - 1)) + 'px'; }
+}
+function seg(sel, on) { document.querySelectorAll(sel).forEach(b => b.setAttribute('aria-pressed', b === on ? 'true' : 'false')); }
+
+/* ---------- wiring ---------- */
+document.querySelectorAll('[data-var]').forEach(b => b.addEventListener('click', () => { VAR = b.dataset.var; seg('[data-var]', b); passTimers.forEach(clearTimeout); fresh(); render(); }));
+document.querySelectorAll('[data-st]').forEach(b => b.addEventListener('click', () => { ST = +b.dataset.st; seg('[data-st]', b); passTimers.forEach(clearTimeout); fresh(); render(); }));
+$('b_open').addEventListener('click', () => toggleSlip(true));
+$('b_pass').addEventListener('click', () => endToday('pass'));
+$('b_miss').addEventListener('click', () => endToday('miss'));
+$('b_reset').addEventListener('click', () => { passTimers.forEach(clearTimeout); fresh(); render(); });
+$('shade').addEventListener('click', () => toggleSlip(false));
+document.addEventListener('keydown', e => { if (e.key === 'Escape') toggleSlip(false); });
+$('rm').addEventListener('change', e => { REDUCE = e.target.checked; });
+$('replay').addEventListener('click', () => {
+  passTimers.forEach(clearTimeout); fresh(); render();
+  if (VAR === 'before' || VAR === 'A') { setTimeout(() => endToday('pass'), 200); return; }
+  setTimeout(() => toggleSlip(true), 200);
+  setTimeout(() => toggleSlip(false), 2600);
+  setTimeout(() => endToday('pass'), 3000);
+});
+[['v_fit','fit'],['v_one','one'],['v_hd','hd']].forEach(([id, m]) => $(id).addEventListener('click', () => { SCALE_MODE = m; seg('#v_fit,#v_one,#v_hd', $(id)); fit(); }));
+addEventListener('resize', fit);
+buildBefore();
+// Deep links for captures: ?var=C&st=13&open=1&rm=1 (st: 3, 8 or 13; anything else falls back to 13)
+const Q = (() => { try { return new URLSearchParams(location.search); } catch (e) { return new URLSearchParams(); } })();
+if (Q.get('rm') === '1') { REDUCE = true; $('rm').checked = true; }
+if (Q.get('shot') === '1') document.body.classList.add('shotmode');
+if (['before','A','B','C'].includes(Q.get('var'))) { VAR = Q.get('var'); seg('[data-var]', document.querySelector(`[data-var="${VAR}"]`)); }
+if (Q.get('st')) { ST = STATES[+Q.get('st')] ? +Q.get('st') : 13; seg('[data-st]', document.querySelector(`[data-st="${ST}"]`)); fresh(); }
+render(); fit();
+if (Q.get('open') === '1') toggleSlip(true);
+// ?measure=1: widths and fits for the spec (headless checks)
+function measure() {
+  const out = {};
+  const keep = [VAR, ST, REDUCE]; REDUCE = true;
+  for (const v of ['before', 'C']) {
+    VAR = v; out[v] = {};
+    for (let s = 1; s <= 16; s++) {
+      fresh(); cur.s = s; renderBar();
+      const kids = [...$('bar').children].filter(c => !c.classList.contains('grow')).map(c => c.offsetWidth);
+      const t = $('today');
+      out[v][s] = {kids, fit: t ? t.dataset.fit : ($('bar').children[1].querySelector('.bt') || {}).textContent};
+    }
+  }
+  VAR = 'C';
+  for (const s of [3, 8, 13]) { ST = s; fresh(); render(); toggleSlip(true); const r = $('slip'); out['slip' + s] = [r.offsetTop, r.offsetHeight, r.offsetTop + r.offsetHeight]; toggleSlip(false); }
+  // miss flow at shift 3: a slip, then the run ends
+  ST = 3; fresh(); render(); endToday('miss');
+  setTimeout(() => {
+    toggleSlip(true); out.miss1 = [cur.s, $('slip').querySelector('.stakes').textContent]; toggleSlip(false);
+    endToday('miss');
+    setTimeout(() => {
+      toggleSlip(true); out.miss2 = [cur.s, cur.over, $('slip').querySelector('.stakes').textContent]; toggleSlip(false);
+      [VAR, ST, REDUCE] = keep; fresh(); render();
+      $('measure').textContent = JSON.stringify(out);
+    }, 120);
+  }, 120);
+}
+if (Q.get('measure') === '1') (document.fonts ? document.fonts.ready : Promise.resolve()).then(measure);
+</script>
+</html>

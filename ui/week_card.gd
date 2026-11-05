@@ -89,6 +89,12 @@ const BANNER_BORDER := 3
 const BANNER_TEXT_WIDTH := (
 	CARD_WIDTH - 2.0 * (CARD_PADDING + CARD_BORDER) - 2.0 * (BANNER_PADDING + BANNER_BORDER)
 )
+## The week effect's values' inks (v1.02, by how they read for the player): a gain green and a
+## harm red, as the monitor's bonus and harmful names (MonitorStepRow).
+const GAIN_INK := Palette.GREEN_DARK
+const HARM_INK := Palette.TOMATO_DARK
+## On the banner's colour they stand outlined in paper, this wide (px).
+const PAPER_OUTLINE := 6
 ## The weeks' banner colours (the mock-up's teal shade, mustard dark, ink light, then orange dark
 ## for the fourth week, v0.96), by week; later weeks reuse the last.
 const WEEK_COLOURS: Array[Color] = [
@@ -464,15 +470,15 @@ func _make_banner(model: WeekCardModel) -> ShadowPanel:
 	var misses: String = model.misses_text()
 	if not misses.is_empty():
 		column.add_child(_misses_line(misses))
-	var effect: String = "" if not misses.is_empty() else model.effect()
-	var line: Label = _bold(effect, BANNER_EFFECT_SIZE, Palette.PAPER)
+	# Paper on the week's colour; its gains and harms in their inks on paper (v1.02).
+	var line: RichTextLabel = effect_line(model, BANNER_EFFECT_SIZE, Palette.PAPER, true)
 	line.name = "Effect"
-	line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	# A wrapping label needs its width to measure its height before the card is laid out.
 	line.custom_minimum_size.x = BANNER_TEXT_WIDTH
-	line.visible = not effect.is_empty()
+	line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	line.visible = misses.is_empty() and not model.effect().is_empty()
 	column.add_child(line)
-	for label: Label in [key, title, line]:
+	for label: Label in [key, title]:
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	return panel
 
@@ -488,14 +494,58 @@ func _misses_line(misses: String) -> Control:
 	lead.name = "Lead"
 	lead.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(lead)
-	var tag: Label = _bold(misses, BANNER_EFFECT_SIZE, Palette.PAPER)
+	row.add_child(misses_tag(misses, BANNER_EFFECT_SIZE))
+	return row
+
+
+## The week's effect line (v1.02), bold, wrapping: its plain runs in `ink`, its gains in GAIN_INK
+## and its harms in HARM_INK (WeekCardModel.effect_runs), those outlined in paper when `on_paper`
+## (a coloured banner). The day slip's week reminder reads it the same.
+static func effect_line(
+	model: WeekCardModel, font_size: int, ink: Color, on_paper: bool = false
+) -> RichTextLabel:
+	var label: RichTextLabel = RichTextLabel.new()
+	label.bbcode_enabled = true
+	label.fit_content = true
+	label.scroll_active = false
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.add_theme_font_override("normal_font", ArtStyle.bold_font(700))
+	label.add_theme_font_size_override("normal_font_size", font_size)
+	label.add_theme_color_override("default_color", ink)
+	label.text = effect_bbcode(model, on_paper)
+	return label
+
+
+## The week's effect line as BBCode for effect_line.
+static func effect_bbcode(model: WeekCardModel, on_paper: bool = false) -> String:
+	var text: String = ""
+	for run: WeekCardModel.EffectRun in model.effect_runs():
+		var words: String = run.text.replace("[", "[lb]")
+		if run.tone == WeekCardModel.Tone.PLAIN:
+			text += words
+			continue
+		var ink: Color = GAIN_INK if run.tone == WeekCardModel.Tone.GAIN else HARM_INK
+		words = "[color=#%s]%s[/color]" % [ink.to_html(false), words]
+		if on_paper:
+			words = (
+				"[outline_size=%d][outline_color=#%s]%s[/outline_color][/outline_size]"
+				% [PAPER_OUTLINE, Palette.PAPER.to_html(false), words]
+			)
+		text += words
+	return text
+
+
+## The training week's misses ("2 MISSES") on their red tag: paper on tomato, ink-rimmed. The day
+## slip's week reminder reads them the same (v1.02).
+static func misses_tag(misses: String, font_size: int) -> Label:
+	var tag: Label = _bold(misses, font_size, Palette.PAPER)
 	tag.name = "MissesTag"
 	var box: StyleBoxFlat = _box(Palette.TOMATO, Palette.INK, 2, 1)
 	box.content_margin_left = 6
 	box.content_margin_right = 6
 	tag.add_theme_stylebox_override("normal", box)
-	row.add_child(tag)
-	return row
+	return tag
 
 
 ## A day's row: the punch column (its number and "IN"), then its events.

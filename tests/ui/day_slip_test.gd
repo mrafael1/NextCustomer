@@ -5,9 +5,11 @@ extends GdUnitTestSuite
 ## 0€ slot, none on a plain day); a second tap, a click elsewhere or Esc closes it; the week chip
 ## still opens the time card, which closes the slip, and the day chip no longer does. Clicks are
 ## sent to the handlers, because headless runs don't deliver input events. The event's icon sits
-## on the left of its block, centred on its height (2026-11-01).
+## on the left of its block, centred on its height (2026-11-01). Under the day's events the week's
+## bonus is reminded (v1.02): "WEEK 2 · BAKERY FESTIVAL" and its effect, in the paper.
 
 const SCREEN := "res://ui/shift_screen.tscn"
+const BALANCE := "res://data/balance/balance.tres"
 const INSPECTIONS := "res://data/inspections/%s.tres"
 const WINDOWS: Array[Vector2] = [Vector2(1280, 720), Vector2(1920, 1080)]
 ## The fixed shift (day 5 of the real schedule).
@@ -34,7 +36,7 @@ func after_test() -> void:
 ## closes the slot after the open ones, Extra till opens the last, Spot check zeroes its slot,
 ## Happy hour pays the last filled slot; an event off the belt has no line.
 func test_where_lines_come_from_the_events_data() -> void:
-	var balance: BalanceDefinition = load("res://data/balance/balance.tres")
+	var balance: BalanceDefinition = load(BALANCE)
 	var cases: Dictionary[String, PackedStringArray] = {
 		"short_belt": PackedStringArray([DaySlip.WHERE_CLOSED % balance.slot_count]),
 		"extra_till": PackedStringArray([DaySlip.WHERE_OPENS % (balance.slot_count + 1)]),
@@ -80,6 +82,14 @@ func test_the_slip_hangs_under_the_day_chip_inside_the_screen() -> void:
 		lines.append_array(slip.name_labels())
 		lines.append_array(slip.effect_labels())
 		lines.append_array(slip.where_labels())
+		# The week's reminder comes last, under the day's events.
+		var week_line: Control = slip.week_line()
+		assert_object(week_line).is_not_null()
+		lines.append(week_line.find_child("WeekHead", true, false) as Label)
+		for event: Node in slip.paper().find_children("Event", "PanelContainer", true, false):
+			var event_rect: Rect2 = (event as Control).get_global_rect()
+			assert_bool(event_rect.intersects(week_line.get_global_rect())).is_false()
+			assert_float(week_line.get_global_rect().position.y).is_greater_equal(event_rect.end.y)
 		var previous: float = paper.position.y
 		for label: Label in lines:
 			var rect: Rect2 = label.get_global_rect()
@@ -87,6 +97,12 @@ func test_the_slip_hangs_under_the_day_chip_inside_the_screen() -> void:
 			assert_float(rect.size.x).is_greater_equal(label.get_minimum_size().x - 0.5)
 			assert_float(rect.position.y).is_greater_equal(previous)
 			previous = rect.end.y
+		var effect: RichTextLabel = week_line.find_child("WeekEffect", true, false) as RichTextLabel
+		var effect_rect: Rect2 = effect.get_global_rect()
+		assert_bool(paper.encloses(effect_rect)).is_true()
+		assert_bool(week_line.get_global_rect().encloses(effect_rect)).is_true()
+		assert_float(effect_rect.position.y).is_greater_equal(previous)
+		assert_float(effect_rect.size.y).is_greater_equal(float(DaySlip.WEEK_SIZE))
 		# The event icon: at ICON_SCALE, on the left of its block, centred on the block's height.
 		var icon: TextureRect = slip.paper().find_child("Icon", true, false) as TextureRect
 		var icon_rect: Rect2 = icon.get_global_rect()
@@ -99,6 +115,9 @@ func test_the_slip_hangs_under_the_day_chip_inside_the_screen() -> void:
 		assert_str(text).contains("Short belt")
 		assert_str(text).contains("One slot fewer")
 		assert_str(text).contains(DaySlip.WHERE_CLOSED % 7)
+		var week: WeekCardModel = WeekCardModel.of(screen.run)
+		assert_str(text).contains(DaySlip.WEEK_HEAD % [week.week_number, week.title()])
+		assert_str(text).contains(week.effect())
 		chip.call("_gui_input", _left_click())
 		assert_bool(slip.is_open()).is_false()
 		await _frames(2)
@@ -226,3 +245,122 @@ static func _left_click() -> InputEventMouseButton:
 
 static func _event_log() -> EventLogService:
 	return (Engine.get_main_loop() as SceneTree).root.get_node("/root/EventLog")
+
+
+## The week's reminder shows only for a week with an event: a slip opened without a week, or for
+## a week without an event, has none; the training week's reads its misses.
+func test_the_week_reminder_needs_a_week_event() -> void:
+	var host: Control = auto_free(Control.new())
+	add_child(host)
+	host.size = Vector2(1280, 720)
+	var slip: DaySlip = DaySlip.new()
+	host.add_child(slip)
+	var balance: BalanceDefinition = load(BALANCE)
+	var events: Array[InspectionDefinition] = []
+	var limits: ShiftLimits = ShiftLimits.for_shift(balance, [], 0, events)
+	slip.open(1, events, limits, null, true)
+	assert_object(slip.week_line()).is_null()
+	var plain: WeekCardModel = WeekCardModel.new()
+	slip.open(1, events, limits, null, true, plain)
+	assert_object(slip.week_line()).is_null()
+	var training: WeekCardModel = WeekCardModel.new()
+	training.event = balance.weeks[0]
+	training.allowed_misses = balance.write_up_limit
+	slip.open(1, events, limits, null, true, training)
+	assert_object(slip.week_line()).is_not_null()
+	assert_str(slip.slip_text()).contains(WeekCardModel.ALLOWS_LEAD)
+	assert_str(slip.slip_text()).contains(training.misses_text())
+	assert_str(slip.slip_text()).contains(DaySlip.WEEK_HEAD % [1, training.title()])
+	slip.clear()
+
+
+## The week reminder's effect reads its gains green and its quota red, as the monitor's bonus
+## and harmful names (v1.02 review: "+2€" green, "+10%" red), the rest in ink, from the week
+## event's data: Bakery festival's tag bonus and quota_percent.
+func test_the_week_effect_colours_gains_green_and_the_quota_red() -> void:
+	var host: Control = auto_free(Control.new())
+	add_child(host)
+	host.size = Vector2(1280, 720)
+	var slip: DaySlip = DaySlip.new()
+	host.add_child(slip)
+	var balance: BalanceDefinition = load(BALANCE)
+	var events: Array[InspectionDefinition] = []
+	var limits: ShiftLimits = ShiftLimits.for_shift(balance, [], 0, events)
+	var week: WeekCardModel = WeekCardModel.new()
+	week.week_number = 2
+	week.event = load("res://data/weeks/bakery_festival.tres") as WeekEventDefinition
+	slip.open(1, events, limits, null, true, week)
+	var effect: RichTextLabel = (
+		slip.week_line().find_child("WeekEffect", true, false) as RichTextLabel
+	)
+	assert_object(effect).is_not_null()
+	assert_str(effect.get_parsed_text()).is_equal(week.effect())
+	assert_str(effect.get_parsed_text()).is_equal("Bakery items +2€, quota +10%")
+	var gain: String = "[color=#%s]+2€[/color]" % Palette.GREEN_DARK.to_html(false)
+	var harm: String = "[color=#%s]+10%%[/color]" % Palette.TOMATO_DARK.to_html(false)
+	assert_str(effect.text).is_equal("Bakery items %s, quota %s" % [gain, harm])
+	assert_bool(effect.get_theme_color("default_color") == Palette.INK).is_true()
+	assert_bool(WeekCard.GAIN_INK == MonitorStepRow.BONUS_COLOR).is_true()
+	assert_bool(WeekCard.HARM_INK == MonitorStepRow.HARM_COLOR).is_true()
+	# The runs come from the data: a gain, a harm, and plain text between.
+	var tones: Array[WeekCardModel.Tone] = []
+	for run: WeekCardModel.EffectRun in week.effect_runs():
+		tones.append(run.tone)
+	var plain: WeekCardModel.Tone = WeekCardModel.Tone.PLAIN
+	assert_array(tones).is_equal([plain, WeekCardModel.Tone.GAIN, plain, WeekCardModel.Tone.HARM])
+	# Holiday rush: its quota red, its machine odds green.
+	week.event = load("res://data/weeks/holiday_rush.tres") as WeekEventDefinition
+	slip.open(1, events, limits, null, true, week)
+	effect = slip.week_line().find_child("WeekEffect", true, false) as RichTextLabel
+	assert_str(effect.text).contains(
+		"[color=#%s]+15%%[/color]" % Palette.TOMATO_DARK.to_html(false)
+	)
+	assert_str(effect.text).contains(
+		"[color=#%s]+1 level[/color]" % Palette.GREEN_DARK.to_html(false)
+	)
+	slip.clear()
+
+
+## The training week's reminder reads its misses as the time card's banner does (v1.02 review):
+## "THIS WEEK ALLOWS" in ink, then "2 MISSES" on the card's red tag (paper on tomato, ink rim), on
+## one line, apart, inside the reminder and the slip, at 1280x720 and 1920x1080.
+func test_the_training_week_misses_read_as_on_the_card() -> void:
+	var balance: BalanceDefinition = load(BALANCE)
+	var events: Array[InspectionDefinition] = []
+	var limits: ShiftLimits = ShiftLimits.for_shift(balance, [], 0, events)
+	var training: WeekCardModel = WeekCardModel.new()
+	training.event = balance.weeks[0]
+	training.allowed_misses = balance.write_up_limit
+	assert_bool(training.event.forgives_slips).is_true()
+	var card_tag: Label = WeekCard.misses_tag(training.misses_text(), WeekCard.BANNER_EFFECT_SIZE)
+	var card_box: StyleBoxFlat = card_tag.get_theme_stylebox("normal") as StyleBoxFlat
+	card_tag.free()
+	for window: Vector2 in WINDOWS:
+		var host: Control = auto_free(Control.new())
+		add_child(host)
+		host.size = window
+		var slip: DaySlip = DaySlip.new()
+		host.add_child(slip)
+		slip.open(1, events, limits, null, true, training)
+		await _frames(2)
+		var week_line: Control = slip.week_line()
+		var tag: Label = week_line.find_child("MissesTag", true, false) as Label
+		var lead: Label = week_line.find_child("Lead", true, false) as Label
+		assert_object(tag).is_not_null()
+		assert_object(lead).is_not_null()
+		assert_str(tag.text).is_equal("%d MISSES" % balance.write_up_limit)
+		assert_object(tag.get_theme_color("font_color")).is_equal(Palette.PAPER)
+		assert_object(lead.get_theme_color("font_color")).is_equal(Palette.INK)
+		var box: StyleBoxFlat = tag.get_theme_stylebox("normal") as StyleBoxFlat
+		assert_object(box.bg_color).is_equal(Palette.TOMATO)
+		assert_object(box.bg_color).is_equal(card_box.bg_color)
+		assert_object(box.border_color).is_equal(card_box.border_color)
+		var tag_rect: Rect2 = tag.get_global_rect()
+		var lead_rect: Rect2 = lead.get_global_rect()
+		assert_bool(tag_rect.intersects(lead_rect)).is_false()
+		assert_float(tag_rect.position.x).is_greater_equal(lead_rect.end.x)
+		assert_float(absf(tag_rect.get_center().y - lead_rect.get_center().y)).is_less_equal(1.0)
+		var line_rect: Rect2 = week_line.get_global_rect()
+		assert_bool(line_rect.encloses(tag_rect) and line_rect.encloses(lead_rect)).is_true()
+		assert_bool(slip.paper().get_global_rect().encloses(line_rect)).is_true()
+		slip.clear()

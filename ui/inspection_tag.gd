@@ -321,6 +321,14 @@ func is_trimmed() -> bool:
 	return _label.text_overrun_behavior != TextServer.OVERRUN_NO_TRIMMING
 
 
+## Whether fit_width showed less than the day's line: the text trimmed, or a review day's
+## "Review ·" dropped (it says two inspections meet; "Inspection ·" drops freely, the warning sign
+## says it, and the pill's short forms aside).
+func is_shortened() -> bool:
+	var review: bool = InspectionDefinition.maluses(_inspections).size() > 1
+	return is_trimmed() or (review and _shown_text != _effects_text)
+
+
 ## The chip's look for the bonus state: the pill, the icon, the text and the chip's tint.
 func _show_bonus_state() -> void:
 	var earned: bool = _bonus == Bonus.EARNED

@@ -14,6 +14,8 @@ const Rush := preload("res://tests/ui/count_up_rush.gd")
 const BALANCE := "res://data/balance/balance.tres"
 const STARTER := "res://data/decks/starter.tres"
 const INSPECTIONS := "res://data/inspections"
+## A full loyalty card's perks (the review-day caption test).
+const FULL_CARD: Array[String] = ["coupon_engine", "bulk_deal", "category_engine", "big_basket"]
 const RecordingSfx := preload("res://tests/presentation/recording_sfx.gd")
 
 var _folder: String = ""
@@ -94,7 +96,8 @@ func test_the_chips_lay_out_in_the_top_bar() -> void:
 	var chip: WeekChip = screen._stage.top_bar.week_chip
 	var tag: InspectionTag = screen._inspection_tag
 	assert_bool(chip.visible and tag.visible).is_true()
-	assert_str(chip.number_label().text).is_equal("W1")
+	assert_str(chip.key_label().text).is_equal(WeekChip.KEY_TEXT)
+	assert_str(chip.number_label().text).is_equal("1")
 	assert_str(chip.name_label().text).is_equal("TRAINING")
 	var pips: Array[WeekCardModel.Pip] = chip.pips()
 	var expected: Array[WeekCardModel.Pip] = [
@@ -111,7 +114,7 @@ func test_the_chips_lay_out_in_the_top_bar() -> void:
 	screen.debug_show_shift()
 	screen._week.skip()
 	await _frames(3)
-	assert_str(chip.number_label().text).is_equal("W2")
+	assert_str(chip.number_label().text).is_equal("2")
 	expected = [
 		WeekCardModel.Pip.DONE,
 		WeekCardModel.Pip.NOW,
@@ -209,6 +212,21 @@ func test_the_final_review_reads_pass_to_win() -> void:
 	assert_str(last).contains(WeekCardModel.FINAL_REWARD)
 	# Week 4 (v0.96): Clearance week, its banner in its own colour (orange dark).
 	assert_str(_texts(card.banner())).contains("CLEARANCE WEEK")
+	# Its effect's gain green and its quota red, outlined in paper on the banner (v1.02).
+	var effect: RichTextLabel = card.banner().find_child("Effect", true, false) as RichTextLabel
+	assert_bool(effect.visible).is_true()
+	assert_str(effect.get_parsed_text()).is_equal("Clearance items +2€, quota +15%")
+	assert_bool(effect.get_theme_color("default_color") == Palette.PAPER).is_true()
+	var outline: String = (
+		"[outline_size=%d][outline_color=#%s]"
+		% [WeekCard.PAPER_OUTLINE, Palette.PAPER.to_html(false)]
+	)
+	assert_str(effect.text).contains(
+		outline + "[color=#%s]+2€[/color]" % Palette.GREEN_DARK.to_html(false)
+	)
+	assert_str(effect.text).contains(
+		outline + "[color=#%s]+15%%[/color]" % Palette.TOMATO_DARK.to_html(false)
+	)
 	assert_bool(WeekCard.colour_of(4) == Palette.ORANGE_DARK).is_true()
 	var colours: Array[Color] = []
 	for week: int in range(1, 5):
@@ -234,7 +252,7 @@ func test_a_mid_week_resume_does_not_replay_the_card() -> void:
 	await _frames(3)
 	assert_bool(screen._week.card.is_open()).is_false()
 	assert_bool(screen._week.holds_planning()).is_false()
-	assert_str(screen._stage.top_bar.week_chip.number_label().text).is_equal("W2")
+	assert_str(screen._stage.top_bar.week_chip.number_label().text).is_equal("2")
 	assert_str(screen._inspection_tag.day_label().text).is_equal("D6")
 	screen.run.debug_skip_to_shift(4)
 	var start: RunSave = RunSave.from_dictionary(_json(_saved(screen.run)), lookup)
@@ -478,7 +496,10 @@ func test_the_row_icons_are_centred() -> void:
 	assert_int(rewards).is_greater(0)
 
 
-## The chip's pips (v0.83: 9 px, 1.5x the mock-up's) lie on whole pixels inside the chip, apart.
+## The chip's pips (v0.83: 9 px, 1.5x the mock-up's) lie on whole pixels of the screen inside the
+## chip, centred on its height, all one size and evenly spaced (v1.02 review: at 1920x1080's 1.5x
+## stretch 13 px, 3 px apart, where the corner snapping alone gave 13 and 14 px pips and 2 and
+## 3 px gaps), their glyphs' pixels whole and inside the pip, a pixel clear of its edge.
 func test_the_pips_are_whole_and_inside_the_chip() -> void:
 	var host: Control = _card_host()
 	var chip: WeekChip = WeekChip.new()
@@ -497,28 +518,46 @@ func test_the_pips_are_whole_and_inside_the_chip() -> void:
 		var view: Control = chip.pips_view()
 		var screen: Transform2D = WeekChip.screen_transform(view)
 		var chip_rect: Rect2 = WeekChip.screen_transform(chip) * Rect2(Vector2.ZERO, chip.size)
+		var metrics: Vector3i = WeekChip.pip_metrics(scale)
 		var rects: Array[Rect2] = []
 		for index: int in range(chip.pips().size()):
-			var local: Rect2 = chip.pip_rect(index)
-			var rect: Rect2 = screen * local
+			var rect: Rect2 = chip.pip_screen_rect(index)
 			var message: String = "pip %d at %sx: %s" % [index, scale, rect]
-			assert_float(local.size.x).is_equal(WeekChip.PIP_SIZE)
-			assert_vector(rect.position).override_failure_message(message).is_equal_approx(
-				rect.position.round(), Vector2(0.01, 0.01)
+			assert_vector(rect.position).override_failure_message(message).is_equal(
+				rect.position.round()
 			)
+			assert_vector(rect.size).override_failure_message(message).is_equal(
+				Vector2(metrics.y, metrics.y)
+			)
+			# The canvas rect is the same square.
+			var back: Rect2 = screen * chip.pip_rect(index)
+			assert_vector(back.position).is_equal_approx(rect.position, Vector2(0.01, 0.01))
 			assert_bool(chip_rect.encloses(rect)).override_failure_message(message).is_true()
+			assert_float(absf(rect.get_center().y - chip_rect.get_center().y)).is_less_equal(1.5)
 			if not rects.is_empty():
-				assert_bool(rects[-1].intersects(rect)).is_false()
-			rects.append(rect)
-			# A result's glyph lies inside its pip, clear of its edge (a pixel all round).
-			for pixel: Vector2i in WeekChip.glyph_pixels(chip.pips()[index]):
-				var dot: Rect2 = Rect2(local.position + Vector2(pixel), Vector2.ONE)
 				(
-					assert_bool(local.grow(-1.0).encloses(dot))
+					assert_float(rect.position.x - rects[-1].end.x)
+					. override_failure_message(message)
+					. is_equal(float(metrics.z))
+				)
+			rects.append(rect)
+			# A result's glyph lies inside its pip, clear of its edge, its pixels whole.
+			var margin: float = floorf((rect.size.x - WeekChip.GLYPH_CELLS * metrics.x) / 2.0)
+			for pixel: Vector2i in WeekChip.glyph_pixels(chip.pips()[index]):
+				var dot: Rect2 = Rect2(
+					rect.position + Vector2(margin, margin) + Vector2(pixel * metrics.x),
+					Vector2(metrics.x, metrics.x)
+				)
+				(
+					assert_bool(rect.grow(-metrics.x).encloses(dot))
 					. override_failure_message(message)
 					. is_true()
 				)
-		assert_float(rects[0].size.y).is_greater_equal(9.0 * scale)
+		# The pips never shrink under the canvas size's whole pixels.
+		assert_float(rects[0].size.y).is_greater_equal(floorf(9.0 * scale))
+	assert_vector(Vector3(WeekChip.pip_metrics(1.0))).is_equal(Vector3(1, 9, 2))
+	assert_vector(Vector3(WeekChip.pip_metrics(1.5))).is_equal(Vector3(1, 13, 3))
+	assert_vector(Vector3(WeekChip.pip_metrics(2.0))).is_equal(Vector3(2, 18, 4))
 	# Both glyphs show: the PAID day's check and the missed one's cross, apart.
 	assert_int(chip.pips()[0]).is_equal(WeekCardModel.Pip.PAID)
 	assert_int(chip.pips()[1]).is_equal(WeekCardModel.Pip.SLIP)
@@ -626,7 +665,9 @@ func _assert_chips_fit(screen: ShiftScreen) -> void:
 	assert_float(week.position.x).is_greater_equal(left)
 	assert_float(day.position.x).is_greater_equal(week.end.x)
 	assert_float(day.end.x).is_less_equal(screen._loyalty_card.get_global_rect().position.x)
-	var parts: Array[Control] = [bar.week_chip.number_label()]
+	var parts: Array[Control] = [bar.week_chip.key_label(), bar.week_chip.number_label()]
+	if bar.week_chip.count_label().visible:
+		parts.append(bar.week_chip.count_label())
 	if bar.week_chip.pips_shown():
 		parts.append(bar.week_chip.pips_view())
 	if bar.week_chip.name_shown():
@@ -635,6 +676,9 @@ func _assert_chips_fit(screen: ShiftScreen) -> void:
 	for part: Control in parts:
 		var rect: Rect2 = part.get_global_rect()
 		assert_bool(week.encloses(rect)).override_failure_message(part.name).is_true()
+		# Each part centred on the chip's height.
+		var off: float = absf(rect.get_center().y - week.get_center().y)
+		assert_float(off).override_failure_message(part.name).is_less_equal(1.5)
 	for index: int in range(1, parts.size()):
 		var a: Rect2 = parts[index - 1].get_global_rect()
 		var b: Rect2 = parts[index].get_global_rect()
@@ -700,3 +744,168 @@ static func _left_click() -> InputEventMouseButton:
 
 static func _event_log() -> EventLogService:
 	return (Engine.get_main_loop() as SceneTree).root.get_node("/root/EventLog")
+
+
+## The run's weeks at a glance (v1.02, the user's review of 2026-11-05): on every shift of the
+## run, at 1280x720 and 1920x1080, the week chip reads "W :", the week's number in its week's ink
+## (WeekChip.number_ink) and "/<week count>" (from the balance), with one pip per day of the
+## current week only (no box for the other weeks), and the chips keep inside the stage and apart:
+## on the review days too, where the day chip keeps its "Review" caption, untrimmed. The number's
+## inks follow the big numbers' colours (_assert_the_number_inks).
+func test_the_week_chip_reads_the_week_out_of_the_run() -> void:
+	_assert_the_number_inks()
+	for window: Vector2 in [Vector2(1280, 720), Vector2(1920, 1080)]:
+		var runner: GdUnitSceneRunner = scene_runner(SCREEN)
+		var screen: ShiftScreen = runner.scene()
+		screen.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+		screen.size = window
+		screen._week.skip()
+		await _frames(3)
+		var run: RunState = screen.run
+		var weeks: int = WeekSchedule.week_count(run.balance)
+		assert_int(weeks).is_greater(1)
+		var chip: WeekChip = screen._stage.top_bar.week_chip
+		var reviews: int = 0
+		for shift_index: int in range(run.shift_count()):
+			run.debug_skip_to_shift(shift_index)
+			screen.debug_show_shift()
+			screen._week.skip()
+			await _frames(3)
+			var model: WeekCardModel = WeekCardModel.of(run)
+			var message: String = "shift %d at %s" % [shift_index + 1, window]
+			assert_str(chip.key_label().text).is_equal(WeekChip.KEY_TEXT)
+			assert_str(chip.number_label().text).is_equal(str(model.week_number))
+			assert_object(chip.number_label().get_theme_color("font_color")).is_equal(
+				WeekChip.number_ink(model.week_number)
+			)
+			assert_object(chip.number_label().get_theme_color("font_outline_color")).is_equal(
+				WeekChip.number_outline(model.week_number)
+			)
+			assert_str(chip.count_label().text).is_equal("/%d" % weeks)
+			assert_bool(chip.count_label().visible).is_true()
+			assert_int(chip.pips().size()).override_failure_message(message).is_equal(
+				model.days.size()
+			)
+			var pips_end: float = chip.pips_view().get_global_rect().end.x
+			assert_float(pips_end).is_less_equal(chip.get_global_rect().end.x)
+			_assert_chips_fit(screen)
+			var viewport: Rect2 = Rect2(Vector2.ZERO, window)
+			assert_bool(viewport.encloses(chip.get_global_rect())).is_true()
+			var tag: InspectionTag = screen._stage.top_bar.inspection_tag
+			if InspectionSchedule.is_review_shift(run.balance, shift_index + 1):
+				reviews += 1
+				# The whole line, "Review · " first: neither trimmed nor without its caption.
+				assert_bool(tag.is_shortened()).override_failure_message(message).is_false()
+				assert_str(tag.label().text).override_failure_message(message).starts_with(
+					InspectionTag.REVIEW_CAPTION + " · "
+				)
+				assert_bool(chip.pips_shown()).override_failure_message(message).is_true()
+		assert_int(reviews).is_greater(0)
+	await _assert_every_review_day_keeps_its_caption()
+
+
+## The week's number's ink (v1.02 review): the quota tube's colours in lap order, week 1 the met
+## green, then the laps' gold, orange and velvet, a week past them the last; each reads apart from
+## the paper "W :" and "/4" beside it and on its ink outline.
+func _assert_the_number_inks() -> void:
+	assert_object(WeekChip.number_ink(1)).is_equal(QuotaMeter.MET_RAMP[0])
+	assert_object(WeekChip.number_ink(2)).is_equal(QuotaLaps.lap_ramp(2)[1])
+	assert_object(WeekChip.number_ink(3)).is_equal(QuotaLaps.lap_ramp(3)[0])
+	assert_object(WeekChip.number_ink(4)).is_equal(QuotaLaps.lap_ramp(4)[0])
+	var last: Color = WeekChip.NUMBER_INKS[-1]
+	assert_object(WeekChip.number_ink(WeekChip.NUMBER_INKS.size() + 3)).is_equal(last)
+	var balance: BalanceDefinition = load(BALANCE)
+	var seen: Array[Color] = []
+	for week: int in range(1, WeekSchedule.week_count(balance) + 1):
+		var ink: Color = WeekChip.number_ink(week)
+		assert_bool(seen.has(ink)).override_failure_message("week %d" % week).is_false()
+		seen.append(ink)
+		assert_float(_contrast(ink, Palette.INK)).is_greater_equal(2.5)
+		assert_float(_contrast(ink, Palette.PAPER)).is_greater_equal(1.3)
+		# Its outline sets it off: ink, or paper for the velvet too dark on ink (v1.02 review).
+		var outline: Color = WeekChip.number_outline(week)
+		assert_bool(outline == Palette.INK or outline == Palette.PAPER).is_true()
+		assert_float(_contrast(ink, outline)).is_greater_equal(WeekChip.DARK_INK_CONTRAST)
+	assert_object(WeekChip.number_outline(4)).is_equal(Palette.PAPER)
+
+
+static func _contrast(a: Color, b: Color) -> float:
+	# WCAG's relative luminance: on the linear colour.
+	var la: float = a.srgb_to_linear().get_luminance() + 0.05
+	var lb: float = b.srgb_to_linear().get_luminance() + 0.05
+	return maxf(la, lb) / minf(la, lb)
+
+
+## A review day keeps its "Review ·" whenever it fits (v1.02 review: D12 and D16 dropped it for
+## want of 3 px): on every week's review shift, at 1280x720 and 1920x1080, beside a 4-box loyalty
+## card, any two of the pool's inspections show whole with the week chip's pips beside them, and
+## caption first unless the row's spare room is narrower than "Review · " (the longest pairs).
+func _assert_every_review_day_keeps_its_caption() -> void:
+	var balance: BalanceDefinition = load(BALANCE)
+	var pool: Array[InspectionDefinition] = balance.inspection_pool
+	for window: Vector2 in [Vector2(1280, 720), Vector2(1920, 1080)]:
+		var runner: GdUnitSceneRunner = scene_runner(SCREEN)
+		var screen: ShiftScreen = runner.scene()
+		screen.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+		screen.size = window
+		screen._week.skip()
+		await _frames(3)
+		var run: RunState = screen.run
+		var bar: TopBar = screen._stage.top_bar
+		# The widest loyalty card: a starting upgrade's box and the register cap's, all stamped.
+		run.upgrades.clear()
+		for id: String in FULL_CARD:
+			run.upgrades.append(load("res://data/upgrades/%s.tres" % id) as UpgradeDefinition)
+		assert_int(run.upgrades.size()).is_equal(run.balance.machine.register_cap + 1)
+		var caption: String = InspectionTag.REVIEW_CAPTION + " · "
+		var fitted: int = 0
+		var dropped: int = 0
+		for shift_index: int in range(run.shift_count()):
+			if not InspectionSchedule.is_review_shift(run.balance, shift_index + 1):
+				continue
+			for first: int in range(pool.size()):
+				for second: int in range(first + 1, pool.size()):
+					run.debug_skip_to_shift(shift_index)
+					run.inspections = [pool[first], pool[second]]
+					screen._on_shift_started()
+					screen._week.drop()
+					await _frames(2)
+					var message: String = (
+						"shift %d, %s at %s"
+						% [shift_index + 1, bar.inspection_tag.full_text(), window]
+					)
+					# The pips stay; the caption too, unless the row's spare room is narrower.
+					(
+						assert_bool(bar.week_chip.pips_shown())
+						. override_failure_message(message)
+						. is_true()
+					)
+					(
+						assert_bool(bar.inspection_tag.is_trimmed())
+						. override_failure_message(message)
+						. is_false()
+					)
+					var label: Label = bar.inspection_tag.label()
+					if label.text.begins_with(caption):
+						assert_bool(bar.inspection_tag.is_shortened()).is_false()
+					else:
+						dropped += 1
+						var spare: float = TopBar.ROW_SIZE.x - bar.get_combined_minimum_size().x
+						var needed: float = (
+							label
+							. get_theme_font("font")
+							. get_string_size(
+								caption,
+								HORIZONTAL_ALIGNMENT_LEFT,
+								-1,
+								label.get_theme_font_size("font_size")
+							)
+							. x
+						)
+						assert_float(spare).override_failure_message(message).is_less(needed)
+					fitted += 1
+					_assert_chips_fit(screen)
+		# Most pairs keep it (v1.02 review: all but the 2 or 3 longest).
+		assert_int(dropped * 4).override_failure_message("%d of %d" % [dropped, fitted]).is_less(
+			fitted
+		)

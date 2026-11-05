@@ -16,9 +16,14 @@ enum Kind { NONE, BOON, MALUS, REVIEW }
 enum Pip { TODO, DONE, NOW, PAID, SLIP }
 ## How a day ended (v0.72), its stamp on the card: not played yet, passed, or a forgiven miss.
 enum Result { NONE, PAID, SLIP }
+## How a run of the week's effect line reads for the player (v1.02): plain, a gain (an item bonus,
+## better machine odds) or a harm (a higher quota), coloured as the monitor's bonus and harmful
+## names.
+enum Tone { PLAIN, GAIN, HARM }
 
 const WEEK_HEAD := "WEEK %d OF %d"
 const WEEK_TITLE := "WEEK %d"
+const WEEK_COUNT := "/%d"
 const CARD_TITLE := "TIME CARD"
 const CARD_SUB := "CASHIER · TILL 4"
 const REVIEW_HEAD := "MANAGER'S REVIEW · %d MALUSES"
@@ -38,6 +43,11 @@ const PAID_STAMP := "PAID"
 const SLIP_STAMP := "SLIP %d/%d"
 ## Today's tab on the card (#119).
 const TODAY_TAB := "TODAY"
+## How the week event's values read in its notice (v1.02): an item bonus "+2€", the quota's
+## "+10%", the machine odds' "+1 level".
+const BONUS_VALUE := "%+d€"
+const QUOTA_VALUE := "%+d%%"
+const ODDS_VALUE := "%+d level"
 
 ## The 1-based week, and how many the run has.
 var week_number: int = 1
@@ -48,6 +58,17 @@ var event: WeekEventDefinition
 var allowed_misses: int = 0
 ## The week's days, in order.
 var days: Array[WeekDay] = []
+
+
+## A run of the week's effect line and how it reads for the player.
+class EffectRun:
+	extends RefCounted
+	var text: String = ""
+	var tone: Tone = Tone.PLAIN
+
+	func _init(run_text: String = "", run_tone: Tone = Tone.PLAIN) -> void:
+		text = run_text
+		tone = run_tone
 
 
 ## One day of the week on the card.
@@ -160,6 +181,11 @@ func head() -> String:
 	return WEEK_HEAD % [week_number, week_count]
 
 
+## The week's number out of the run's ("/4", the week chip's count after "W : 2").
+func count_text() -> String:
+	return WEEK_COUNT % week_count
+
+
 ## The banner's title: the week event's name in capitals, or "WEEK n".
 func title() -> String:
 	return event.display_name.to_upper() if event != null else WEEK_TITLE % week_number
@@ -173,6 +199,35 @@ func effect() -> String:
 	if event.forgives_slips:
 		return "%s %s" % [ALLOWS_LEAD, misses_text()]
 	return event.notice_text
+
+
+## effect() in runs (v1.02), each with how it reads for the player: the week event's values, by
+## their signs in its data (its item bonuses and machine odds a gain when they go up, its quota a
+## harm), where its notice shows them ("Bakery items +2€, quota +10%": "+2€" a gain, "+10%" a
+## harm); the rest plain. The runs join into effect().
+func effect_runs() -> Array[EffectRun]:
+	var text: String = effect()
+	var runs: Array[EffectRun] = []
+	var values: Array[EffectRun] = _values()
+	var at: int = 0
+	while at < text.length():
+		var first: int = -1
+		var found: EffectRun = null
+		for value: EffectRun in values:
+			var index: int = text.find(value.text, at)
+			if index >= 0 and (first < 0 or index < first):
+				first = index
+				found = value
+		if found == null:
+			break
+		if first > at:
+			runs.append(EffectRun.new(text.substr(at, first - at)))
+		runs.append(found)
+		values.erase(found)
+		at = first + found.text.length()
+	if at < text.length():
+		runs.append(EffectRun.new(text.substr(at)))
+	return runs
 
 
 ## The training week's misses ("2 MISSES", the red tag on its banner), or "" outside it.
@@ -206,3 +261,33 @@ func pips() -> Array[Pip]:
 ## Whether the card opens on its own for `run`'s current shift: the first shift of its week.
 static func opens_at(run: RunState) -> bool:
 	return WeekSchedule.is_week_start(run.balance, run.shift_index + 1)
+
+
+## The week event's values as its notice reads them, each with how it reads for the player.
+func _values() -> Array[EffectRun]:
+	var values: Array[EffectRun] = []
+	if event == null or event.forgives_slips:
+		return values
+	for rule: InspectionRule in event.rules:
+		var bonus: TagFlatBonusRule = rule as TagFlatBonusRule
+		if bonus != null and bonus.bonus != 0:
+			values.append(
+				EffectRun.new(
+					BONUS_VALUE % bonus.bonus, Tone.GAIN if bonus.bonus > 0 else Tone.HARM
+				)
+			)
+	if event.quota_percent != 0:
+		values.append(
+			EffectRun.new(
+				QUOTA_VALUE % event.quota_percent,
+				Tone.HARM if event.quota_percent > 0 else Tone.GAIN
+			)
+		)
+	if event.odds_level_delta != 0:
+		values.append(
+			EffectRun.new(
+				ODDS_VALUE % event.odds_level_delta,
+				Tone.GAIN if event.odds_level_delta > 0 else Tone.HARM
+			)
+		)
+	return values
