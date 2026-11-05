@@ -3,7 +3,7 @@ extends GdUnitTestSuite
 ## top bar ("Today: Quiet morning (quota −10%)", the boon coin) lies inside the chip, the bar and
 ## the stage between the QUOTA and LOYALTY chips, and the quota reads the boon's; the next shift's
 ## boon prints in green on the receipt ("TOMORROW: ..."), on screen; a boon day's pass earns no
-## INSPECTION PASSED; and a boon's steps play in the count-up from its chip (Happy hour's +€3,
+## INSPECTION PASSED; and a boon's steps play in the count-up from its chip (Happy hour's +3€,
 ## Free samples' ×2). Clicks are sent to the screen's handlers, because headless runs don't
 ## deliver input events.
 
@@ -94,7 +94,7 @@ func test_the_next_boon_prints_in_green_and_earns_no_stamp() -> void:
 	assert_object(run.history[-1].inspection).is_null()
 
 
-## Happy hour's +€3 is a step of its own: the count-up plays it as a bonus from the boon's chip,
+## Happy hour's +3€ is a step of its own: the count-up plays it as a bonus from the boon's chip,
 ## and the receipt prints it.
 func test_a_boon_bonus_plays_in_the_count_up() -> void:
 	await _check_boon_count_up("happy_hour", CountUpBeat.Kind.BONUS)
@@ -103,6 +103,85 @@ func test_a_boon_bonus_plays_in_the_count_up() -> void:
 ## Free samples' ×2 lands as a stamp from the boon's chip.
 func test_a_boon_multiplier_plays_in_the_count_up() -> void:
 	await _check_boon_count_up("free_samples", CountUpBeat.Kind.STAMP)
+
+
+## A harmful day event's line on the monitor (the user's call of 2026-11-02): Late delivery's
+## "−2€ Dairy pays less" and the Spot check's 0€ (slot 3, the 3rd Milk) print in tomato with the
+## event's badge (#138 review; else the "!" mark), in planning (the scan's item lines) and at the
+## count's end (a resumed checkout's last item, its earlier rows folded when they don't fit),
+## inside the item column; their amounts keep their signs.
+func test_harmful_lines_are_tomato_on_the_monitor() -> void:
+	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
+	var screen: ShiftScreen = runner.scene()
+	screen._debug.set_inspection("late_delivery")
+	# Two events at once, so one row shows both (the debug panel sets one).
+	screen.run.inspections.append(load("res://data/inspections/spot_check.tres"))
+	_place_ids(screen, ["milk", "bread", "milk"])
+	await _frames(3)
+	var lines: ScanController.ItemLines = screen._scan.item_lines(2)
+	assert_int(lines.harms.count(true)).is_equal(2)
+	assert_bool(lines.fizzles.has(true)).is_false()
+	screen._monitor.show_scan(screen.run.row[2].definition, screen.run.preview().tags[2], lines)
+	await _frames(1)
+	_assert_harmful_rows(screen, ["−2€", "= 0"])
+	# Bread's planning lines are untouched by either event.
+	(
+		assert_array(screen._scan.item_lines(1).harms.filter(func(each: bool) -> bool: return each))
+		. is_empty()
+	)
+	screen._monitor.end_scan()
+	var result: ScoreResult = screen.run.preview()
+	screen._count_up.show_end_state(result, screen.run.quota(), screen.count_up_context())
+	screen._monitor.show_end_state(
+		screen._count_up.plan, screen._row_views, false, result, screen._scan.line_of
+	)
+	await _frames(2)
+	# The count keeps the newest rows that fit its room (PR #138 monitor), the earlier folded.
+	_assert_harmful_rows(screen, ["−2€", "= 0"], true)
+
+
+## The item column's step rows whose lines have these `amounts` are tomato with their source's
+## icon or the "!" mark, inside the
+## column; every other row with a mark keeps it off tomato. `folding`: the count's rows, where the
+## earlier ones may fold into "+N earlier" (the last amount shown, the others folded).
+func _assert_harmful_rows(
+	screen: ShiftScreen, amounts: Array[String], folding: bool = false
+) -> void:
+	var column: MonitorItemColumn = screen._monitor.item_column()
+	var area: Rect2 = column.get_global_rect().grow(0.5)
+	var found: Array[String] = []
+	for row: Control in column.step_rows():
+		# Each row by its receipt line's amount ("= 0" reads "0€", or none when its words say it).
+		var line: String = String(row.get_meta(&"line", ""))
+		var key: String = ""
+		for each: String in amounts:
+			if line.contains(each):
+				key = each
+		if key.is_empty():
+			continue
+		found.append(key)
+		# Its source's icon (#138 review: an event's badge, MonitorView.event_icon), else a tomato "!".
+		var mark: Control = row.get_node("Mark") as Control
+		if mark is TextureRect:
+			assert_object((mark as TextureRect).texture).is_not_null()
+		else:
+			assert_str((mark as Label).text).is_equal(MonitorItemColumn.HARM_MARK)
+			assert_that(mark.get_theme_color("font_color")).is_equal(Palette.TOMATO_DARK)
+		var text: Label = row.get_node("Text") as Label
+		assert_that(text.get_theme_color("font_color")).is_equal(Palette.TOMATO_DARK)
+		assert_bool(area.encloses(row.get_global_rect())).override_failure_message(line).is_true()
+		var amount: Label = row.get_node_or_null("Amount") as Label
+		if amount == null:
+			continue
+		assert_that(amount.get_theme_color("font_color")).is_equal(Palette.TOMATO_DARK)
+		assert_float(text.get_global_rect().end.x).is_less_equal(
+			amount.get_global_rect().position.x
+		)
+	if folding and found.size() < amounts.size():
+		assert_bool(found.has(amounts[-1])).is_true()
+		assert_str(String(column.step_rows()[0].get_meta(&"line", ""))).ends_with("earlier")
+		return
+	assert_array(found).contains_exactly_in_any_order(amounts)
 
 
 func _check_boon_count_up(id: String, expected: CountUpBeat.Kind) -> void:

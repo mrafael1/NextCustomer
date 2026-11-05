@@ -2,7 +2,7 @@ extends GdUnitTestSuite
 ## The count-up receipt's lines add up (#80): for every item of every golden row (each scored with
 ## its frozen fixture) and of a long row of live cards under every register upgrade and the Spot
 ## check, the amounts printed for the item (its line's base plus its bonus and copy lines, an
-## override's "= €0.00" replacing them, or its closing "= €payout" line, which is then its last
+## override's "= 0.00€" replacing them, or its closing "= €payout" line, which is then its last
 ## line and prints only when the others don't already add up) come to its payout, and all the
 ## items' to the TOTAL. Only the printed labels are read. The real saves and logs are never touched.
 
@@ -146,16 +146,16 @@ static func _failures(
 	return found
 
 
-## A closing line: no left side, its right side "= €3.00".
+## A closing line: no left side, its right side "= 3.00€".
 static func _is_closing(line: HBoxContainer) -> bool:
 	var left: String = (line.get_child(0) as Label).text
 	var right: String = (line.get_child(1) as Label).text
 	return left.is_empty() and right.begins_with(ReceiptView.CLOSING_TEXT)
 
 
-## A printed amount ("€3.00", "+€15.00") in whole euros.
+## A printed amount ("3.00€", "+15.00€") in whole euros.
 static func _euros(text: String) -> int:
-	return int(text.trim_prefix("+").trim_prefix("€").trim_suffix(".00"))
+	return int(text.trim_prefix("+").trim_suffix(".00€"))
 
 
 static func _row(folder: String, ids: String) -> Array[CardInstance]:

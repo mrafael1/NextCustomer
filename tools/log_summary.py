@@ -50,11 +50,12 @@ KNOWN_TYPES = frozenset({
     "run_start", "shift_start", "redraw", "repack", "row_checkout", "checkout", "count_up",
     "day_off", "golden_basket", "price_gun", "reward", "upgrade",
     "machine_visit", "machine_landing_skipped", "run_end", "run_resume", "run_abandon", "restart",
-    "log_export", "debug", "capsule",
+    "results_exit", "log_export", "debug", "capsule",
 })
-# Events that make a run_id a run; the others (restart, log_export, debug, and the TOY
-# MACHINES' capsule draws, #63) only attach to one. A capsule drawn on the title has no run_id.
-RUN_TYPES = KNOWN_TYPES - {"restart", "log_export", "debug", "capsule"}
+# Events that make a run_id a run; the others (restart, results_exit: the results' Return to
+# menu, log_export, debug, and the TOY MACHINES' capsule draws, #63) only attach to one. A
+# capsule drawn on the title has no run_id.
+RUN_TYPES = KNOWN_TYPES - {"restart", "results_exit", "log_export", "debug", "capsule"}
 
 # Section 8, "How to read the numbers": checkouts of 3+ cards are High when their
 # rearrangements are at least twice the cards committed.

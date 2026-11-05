@@ -15,12 +15,17 @@ extends Control
 ## only: it takes no clicks, and its numbers are the rule's data (NthSlotMultiplierRule).
 ##
 ## An inspection's mark (2026-10-28, rule tweaks 2: Spot check's dead slot 3) is the same tag in
-## the €0 pay tag's tomato (slot_talker_inspection) with the warning sign and "€0" in paper, so
+## the 0€ pay tag's tomato (slot_talker_inspection) with the warning sign and "0€" in paper, so
 ## the slot reads as the wasted one before anything is put there; it fires when the inspection
-## zeroes the card there (NthSlotZeroPayoutRule).
+## zeroes the card there (NthSlotZeroPayoutRule). One owner per fact (2026-11-02, shift scene
+## polish v2 ticket brief section 3): while a card stands on that slot its ticket's pay tag owns
+## the "0€", so the mark (a zero_slot one) shrinks to a cause-only chip (set_compact: the
+## slot_chip_inspection art, the warning sign alone, no text), centred under the ticket; on an
+## empty slot it is the full "⚠ 0€" talker, the only 0€ shown then. Either way its hover tip names
+## the cause (ZERO_TIP: "Spot check: this slot pays 0€").
 ##
 ## Every day event aimed at a slot wears one (2026-10-31: "day event that impact a specific slot
-## should be shown visually on slot"): Happy hour's "+€3" rides on the row's last filled slot (on
+## should be shown visually on slot"): Happy hour's "+3€" rides on the row's last filled slot (on
 ## slot 1 while the belt is empty: the next card is the last), and Extra till's slot more says
 ## EXTRA. A boon's mark is the tag in green (slot_talker_boon) with the boon coin and its text in
 ## paper; a malus's is the tomato one with the warning sign. It fires when the event's step lands
@@ -50,12 +55,14 @@ const TEXT_FORMAT := "×%d"
 ## The text's colour on the teal face: the loyalty stamp's mustard pale.
 const TEXT_COLOR := Palette.MUSTARD_PALE
 ## An inspection's mark: its text and the text's colour on the tomato face.
-const INSPECTION_TEXT := "€0"
+const INSPECTION_TEXT := "0€"
 const INSPECTION_TEXT_COLOR := Palette.PAPER
+## A zero slot's hover tip: the inspection's name and INSPECTION_TEXT.
+const ZERO_TIP := "%s: this slot pays %s"
 ## A day event's flat bonus on its slot (Happy hour: LastCardBonusRule), with its sign; and the
 ## mark of an event's extra slot (Extra till).
-const BONUS_FORMAT := "+€%d"
-const MALUS_FORMAT := "−€%d"
+const BONUS_FORMAT := "+%d€"
+const MALUS_FORMAT := "−%d€"
 const EXTRA_TEXT := "EXTRA"
 const SHADOW_OFFSET := Vector2(2, 2)
 const SHADOW_ALPHA := 0.42
@@ -71,11 +78,14 @@ const SHADOW_NAME := &"Shadow"
 const FRAME_NAME := &"Frame"
 const ICON_NAME := &"Icon"
 const TEXT_NAME := &"Factor"
+const CHIP_NAME := &"Chip"
+const CHIP_SHADOW_NAME := &"ChipShadow"
 
 const TALKER := preload("res://art/effects/slot_talker.png")
 const INSPECTION_TALKER := preload("res://art/effects/slot_talker_inspection.png")
 const BOON_TALKER := preload("res://art/effects/slot_talker_boon.png")
 const EXPRESS_TALKER := preload("res://art/effects/slot_talker_express.png")
+const CHIP := preload("res://art/effects/slot_chip_inspection.png")
 const WARNING := preload("res://art/icons/warning.png")
 const BOON_ICON := preload("res://art/icons/boon.png")
 const EXPRESS_ICON := preload("res://art/icons/express.png")
@@ -92,11 +102,16 @@ var factor: int = 1
 var inspection_index: int = -1
 var boon: bool = false
 var ends: bool = false
+## Whether it marks a slot an inspection pays 0€ (NthSlotZeroPayoutRule; set_zero_tip): it shrinks
+## to the cause-only chip while a card stands there (set_compact).
+var zero_slot: bool = false
 var _inner: Control
 var _icon: Control
 var _label: Label
 var _fire_tween: Tween
 var _fired: int = 0
+var _compact: bool = false
+var _full_size: Vector2 = Vector2.ZERO
 
 
 func _init(
@@ -130,6 +145,7 @@ func _init(
 	var text_width: float = ceilf(_label.get_minimum_size().x)
 	size = Vector2(width_for(_icon.size.x, text_width), HEIGHT)
 	custom_minimum_size = size
+	_full_size = size
 	_inner = Control.new()
 	_inner.name = INNER_NAME
 	_inner.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -190,8 +206,8 @@ static func marks_for(
 
 
 ## The marks of the shift's day events `inspections` (2026-10-31), in order: on its slot, each
-## rule that zeroes a fixed slot (NthSlotZeroPayoutRule: "€0"); on the row's last filled slot
-## (slot 1 for an empty row of `row_size` 0), each last card bonus (LastCardBonusRule: "+€3");
+## rule that zeroes a fixed slot (NthSlotZeroPayoutRule: "0€"); on the row's last filled slot
+## (slot 1 for an empty row of `row_size` 0), each last card bonus (LastCardBonusRule: "+3€");
 ## on the row's first and last of its `slot_count` open slots (the last filled one when
 ## `slot_count` is 0, unknown), each ends multiplier (EndSlotsMultiplierRule: "×2",
 ## #132); and on each slot an event adds, the last of
@@ -208,7 +224,9 @@ static func inspection_marks(
 		for rule: InspectionRule in event.rules:
 			var zero_rule: NthSlotZeroPayoutRule = rule as NthSlotZeroPayoutRule
 			if zero_rule != null and zero_rule.slot_number > 0:
-				marks.append(SlotMark.new(zero_rule.slot_number - 1, -1, 1, null, index))
+				var zero: SlotMark = SlotMark.new(zero_rule.slot_number - 1, -1, 1, null, index)
+				zero.set_zero_tip(event.display_name)
+				marks.append(zero)
 			var last_rule: LastCardBonusRule = rule as LastCardBonusRule
 			if last_rule != null and last_rule.bonus != 0:
 				var amount: int = absi(last_rule.bonus)
@@ -237,6 +255,53 @@ static func inspection_marks(
 ## Whether it is an inspection's mark (the dead slot's), not a loyalty upgrade's.
 func is_inspection() -> bool:
 	return inspection_index >= 0
+
+
+## Makes it a zero slot's mark (zero_slot) of the inspection `inspection_name`: its hover tip
+## names the cause (ZERO_TIP), so it takes the mouse (it still takes no clicks: PASS).
+func set_zero_tip(inspection_name: String) -> void:
+	zero_slot = true
+	tooltip_text = ZERO_TIP % [inspection_name, INSPECTION_TEXT]
+	mouse_filter = Control.MOUSE_FILTER_PASS
+
+
+## Shrinks a zero slot's mark to the cause-only chip (`compact`: a card stands on its slot, its
+## ticket shows the 0€) or grows it back to the full talker; other marks never shrink. The chip is
+## the slot_chip_inspection art over its hard shadow, its top tucked behind the ticket like the
+## talker's; RowStrip hangs it again (centred under the ticket when it is the slot's only mark).
+func set_compact(compact: bool) -> void:
+	var shrink: bool = compact and zero_slot
+	if shrink == _compact:
+		return
+	_compact = shrink
+	if shrink and _inner.get_node_or_null(NodePath(CHIP_NAME)) == null:
+		for chip_name: StringName in [CHIP_SHADOW_NAME, CHIP_NAME]:
+			var chip: TextureRect = UiKit.sprite(CHIP)
+			chip.name = chip_name
+			chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			chip.size = CHIP.get_size() * ArtStyle.ART_SCALE
+			if chip_name == CHIP_SHADOW_NAME:
+				chip.position = SHADOW_OFFSET
+				chip.self_modulate = Color(Palette.INK, SHADOW_ALPHA)
+			_inner.add_child(chip)
+	for part: Node in _inner.get_children():
+		var chip_part: bool = part.name == CHIP_NAME or part.name == CHIP_SHADOW_NAME
+		(part as CanvasItem).visible = chip_part == shrink
+	# The minimum first: a size under it would be clamped.
+	custom_minimum_size = CHIP.get_size() * ArtStyle.ART_SCALE if shrink else _full_size
+	size = custom_minimum_size
+	_inner.size = size
+	_inner.pivot_offset = Vector2(size.x / 2.0, 0.0)
+
+
+## Whether it shows as the cause-only chip (set_compact).
+func is_compact() -> bool:
+	return _compact
+
+
+## Whether its text shows (not on the cause-only chip).
+func shows_text() -> bool:
+	return _label.visible
 
 
 ## The tag's width for an icon and a text this wide: the padding, the icon, the gap, the text

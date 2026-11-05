@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b1r5x12h072xj"
-path="res://.godot/imported/ticket_coupon.png-d6cac2c58f368c718ac03834dedba698.ctex"
+uid="uid://3xxub2y62nvg"
+path="res://.godot/imported/pin_card.png-817bd5cb5ae88b43a6d418dce6a10a08.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://art/frames/ticket_coupon.png"
-dest_files=["res://.godot/imported/ticket_coupon.png-d6cac2c58f368c718ac03834dedba698.ctex"]
+source_file="res://art/frames/pin_card.png"
+dest_files=["res://.godot/imported/pin_card.png-817bd5cb5ae88b43a6d418dce6a10a08.ctex"]
 
 [params]
 

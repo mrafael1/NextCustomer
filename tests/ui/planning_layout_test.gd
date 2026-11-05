@@ -188,8 +188,8 @@ func _assert_laid_out(screen: ShiftScreen, case: String) -> void:
 	for view: CardView in screen._row_views:
 		var ticket: PriceSticker = (view as ItemView).sticker()
 		var to_global: Transform2D = ticket.get_global_transform()
-		if ticket.is_struck():
-			texts.append(to_global * ticket.struck_rect())
+		var window: PriceWindow = ticket.window()
+		texts.append(to_global * Rect2(window.position, window.size))
 		if ticket.summary_text_rect().has_area():
 			texts.append(to_global * ticket.summary_text_rect())
 	var clear: Array[Rect2] = _keep_clear(screen)
@@ -480,7 +480,8 @@ func _assert_no_factor_badges(layer: PlanningLayer, case: String) -> void:
 		var labels: Array[Node] = strip.find_children("*", "Label", true, false)
 		assert_int(labels.size()).override_failure_message(case).is_equal(1)
 		assert_str(String(labels[0].name)).is_equal("Name")
-	var factor: RegEx = RegEx.create_from_string("^\\s*[×x+]\\s*\\d")
+	# A gain badge's amount ("+14€") is not a factor.
+	var factor: RegEx = RegEx.create_from_string("^\\s*[×x+]\\s*\\d+(?![\\d€])")
 	for node: Node in layer.find_children("*", "Label", true, false):
 		var label: Label = node as Label
 		var parent: Node = label.get_parent()

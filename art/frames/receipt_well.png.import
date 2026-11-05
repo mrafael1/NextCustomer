@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bw7kp67d7nrt5"
-path="res://.godot/imported/ticket_product.png-3fae3840d086d1217ba91510ae438e3b.ctex"
+uid="uid://c7qcqgcuw0sxi"
+path="res://.godot/imported/receipt_well.png-0ec6d19bf9f200277f404ef6beed7a2c.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://art/frames/ticket_product.png"
-dest_files=["res://.godot/imported/ticket_product.png-3fae3840d086d1217ba91510ae438e3b.ctex"]
+source_file="res://art/frames/receipt_well.png"
+dest_files=["res://.godot/imported/receipt_well.png-0ec6d19bf9f200277f404ef6beed7a2c.ctex"]
 
 [params]
 

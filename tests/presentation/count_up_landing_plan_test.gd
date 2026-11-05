@@ -62,7 +62,7 @@ func test_a_fitted_rows_landings_keep_their_floor() -> void:
 	prints("#105 long row's fit stage:", plan.fit_stage)
 
 
-## Hand-built: a card worth 4 paying 4 then a ×3 then an override to €0: BASE +4 (3 ticks 1, 3,
+## Hand-built: a card worth 4 paying 4 then a ×3 then an override to 0€: BASE +4 (3 ticks 1, 3,
 ## 4), MUL +8 with "×3" (ticks to 12), DOWN -12 with no lamp; the lamps 0 and 1.
 func test_an_unpaid_price_can_rise_and_fall_without_changing_the_register() -> void:
 	var steps: Array[ScoreStep] = [

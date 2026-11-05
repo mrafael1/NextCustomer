@@ -1,8 +1,8 @@
 class_name ShiftMargin
 extends RefCounted
 ## A shift's margin against its quota (#61, the dessert): over it, exactly on it, or short of
-## it, and by how many euros. The dessert's receipt line counts it up ("+€N OVER QUOTA",
-## "SHORT €N", "ON QUOTA"). Exactly on the quota is a pass (plan section 2: a total of at least
+## it, and by how many euros. The dessert's receipt line counts it up ("+N€ OVER TARGET",
+## "SHORT N€", "ON TARGET"). Exactly on the quota is a pass (plan section 2: a total of at least
 ## the quota passes). CoinPayout keeps its own overtime sum. Pure.
 
 enum Kind { OVER, ON, SHORT }

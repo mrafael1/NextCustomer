@@ -17,5 +17,6 @@ tags = PackedStringArray()
 rules = Array[ExtResource("1_rtnea")]([SubResource("Resource_ovbn1")])
 rule_text = "Copies what the item right before it pays"
 sticker_text = "Copies the item before"
+monitor_text = "Copies what the item right before it pays."
 art_ref = "res://art/icons/coupon_repeat_v2.png"
 mini_art_ref = "res://art/icons/coupon_repeat_mini.png"

@@ -1,11 +1,11 @@
 class_name PaymentEquation
 extends RefCounted
 ## An item's payment equation on the monitor at its payout (Checkout Rhythm v3, mock-up
-## checkout_rhythm_v3_1.html): "€X × N → €Y", read from the item's real ScoreSteps, never from
+## checkout_rhythm_v3_1.html): "X€ × N → Y€", read from the item's real ScoreSteps, never from
 ## the rules. X is the value before the item's first multiplier, N the product of its multipliers'
 ## factors and Y its payout. All flat bonuses come before all multipliers (PROTOTYPE_PLAN 3.8), so
 ## an item with a multiplier reads as one product; any other shape (a plain or flat-only item, a
-## €0 payout, a copy such as Repeat, a payout override, a flat after a multiplier, or numbers
+## 0€ payout, a copy such as Repeat, a payout override, a flat after a multiplier, or numbers
 ## that don't multiply out) has none. A fractional factor (#128 v3, Stale popcorn's ×1.5:
 ## ScoreStep.percent) reads "× 1.5" when it is the item's only multiplier, its payout rounded as
 ## scoring rounds it (ScoreStep.times_percent); with other multipliers it has none. Pure: every
@@ -13,9 +13,9 @@ extends RefCounted
 
 ## The equation's parts: the start, the factor ("× N", amber on the monitor), the arrow and the
 ## payout.
-const START := "€%d"
+const START := MonitorText.EUROS
 const FACTOR := "× %s"
-const PAYOUT := "€%d"
+const PAYOUT := MonitorText.EUROS
 const TEXT := "%s %s %s %s"
 
 ## The value before the first multiplier, the product of the factors and the payout.
@@ -71,7 +71,7 @@ static func of(steps: Array[ScoreStep], slot: int) -> PaymentEquation:
 	return PaymentEquation.new(before, product, paid)
 
 
-## The start's words: "€12".
+## The start's words: "12€".
 func start_text() -> String:
 	return START % start
 
@@ -81,11 +81,11 @@ func factor_text() -> String:
 	return FACTOR % (ScoreStep.percent_text(percent) if percent > 0 else str(factor))
 
 
-## The payout's words: "€72".
+## The payout's words: "72€".
 func payout_text() -> String:
 	return PAYOUT % payout
 
 
-## The whole equation: "€12 × 6 → €72" (`arrow`: MonitorText.ARROW, or its fallback).
+## The whole equation: "12€ × 6 → 72€" (`arrow`: MonitorText.ARROW, or its fallback).
 func text(arrow: String = MonitorText.ARROW) -> String:
 	return TEXT % [start_text(), factor_text(), arrow, payout_text()]

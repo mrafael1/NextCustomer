@@ -58,7 +58,7 @@ func test_the_reference_row_links_its_causes_and_targets() -> void:
 	assert_bool(milk[0].own).is_true()
 	assert_int(milk[1].cause_kind).is_equal(ScoreStep.SourceKind.INSPECTION)
 	assert_int(milk[1].cause_index).is_equal(0)
-	assert_str(milk[1].token).is_equal("€0")
+	assert_str(milk[1].token).is_equal("0€")
 	assert_int(graph.by_inspection(0).size()).is_equal(1)
 	assert_bool(graph.by_inspection(0)[0] == milk[1]).is_true()
 	# Coupon engine fizzles on Multipack; Slot engine stamps slot 6 (row index 5).
@@ -96,7 +96,7 @@ func test_copies_soups_and_resets_name_their_causes() -> void:
 	assert_int(repeat[0].kind).is_equal(EffectLink.Kind.COPY)
 	assert_int(repeat[0].cause_slot).is_equal(0)
 	assert_bool(repeat[0].own).is_false()
-	assert_str(repeat[0].token).is_equal("=€%d" % repeat[0].value)
+	assert_str(repeat[0].token).is_equal("=%d€" % repeat[0].value)
 	assert_array(Array(copy.related_slots(0))).is_equal([1])
 	# A Soup beside Frozen denies itself: no neighbour is guessed.
 	var soup: EffectGraph = EffectGraph.build(

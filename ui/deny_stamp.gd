@@ -2,7 +2,7 @@ class_name DenyStamp
 extends Control
 ## The rubber stamp over a denied planning item (#71, mock-up h1, H1_BUILD_SPEC.md section 4.4): a
 ## tilted tomato stamp (art/effects/deny_stamp, the one piece with no ink outline) printed with the
-## overridden pay ("€0") and the denier's name in capitals ("SPOT CHECK", or the card's own name
+## overridden pay ("0€") and the denier's name in capitals ("SPOT CHECK", or the card's own name
 ## for its own override). The two lines turn with the stamp (TILT_DEG about its centre). Drained
 ## (an unrelated item while another is hovered) its ink greys. Decor only: the amount is the
 ## PAYOUT_OVERRIDE step's value.

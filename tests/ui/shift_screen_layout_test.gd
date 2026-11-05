@@ -13,9 +13,6 @@ extends GdUnitTestSuite
 ## and on. The real saves and logs are never touched.
 
 const SCREEN := "res://ui/shift_screen.tscn"
-## The top bar's gauge before v0.83 (base 1280x720 px), and how much longer it is since.
-const BAR_WIDTH_V082 := 96.0
-const BAR_GAIN := 24.0
 const SHORT_BELT := preload("res://data/inspections/short_belt.tres")
 
 var _folder: String = ""
@@ -119,7 +116,7 @@ func test_the_stage_is_laid_out_without_overlaps() -> void:
 	assert_float(lip.position.y).is_less(receipt.end.y)
 	assert_float(lip.end.y).is_greater(receipt.end.y)
 	assert_int(screen._stage.printer_lip.get_index()).is_greater(screen._receipt.get_index())
-	assert_float(receipt.position.y).is_greater_equal(bar_bottom)
+	assert_float(receipt.position.y).is_greater_equal(stage.position.y + ShiftStage.RECEIPT_TOP)
 	assert_bool(receipt.intersects(monitor)).is_false()
 
 	# The belt, right of the register, with the row's cells on it: each item on the top face, each
@@ -200,26 +197,6 @@ func test_the_stage_is_laid_out_without_overlaps() -> void:
 		assert_bool(seed_rect.intersects(part.get_global_rect())).is_false()
 	assert_bool(seed_rect.intersects(_on_stage(screen, ShiftStage.DRAWER_RECT))).is_false()
 	assert_str(screen._seed_label.text).contains("Seed %d" % screen.run.run_seed)
-
-
-## The quota gauge (v0.83) is longer than v0.82's (BAR_WIDTH_V082) by at least BAR_GAIN on a usual
-## shift (the capture's: Short belt's chip, week 2), the readout after it fitting its texts.
-func test_the_quota_gauge_gained_its_room() -> void:
-	var screen: ShiftScreen = await _screen()
-	var run: RunState = screen.run
-	run.inspections = [SHORT_BELT]
-	run.debug_skip_to_shift(4)
-	screen._on_shift_started()
-	screen._week.skip()
-	await _frames(2)
-	var meter: QuotaMeter = screen._stage.top_bar.quota_meter
-	var width: float = meter.bar().size.x
-	assert_float(width).override_failure_message("bar %s" % width).is_greater_equal(
-		BAR_WIDTH_V082 + BAR_GAIN
-	)
-	var chip: Rect2 = (meter.get_parent() as Control).get_global_rect()
-	assert_bool(meter.bar().get_global_rect().encloses(meter.tag_label.get_global_rect())).is_true()
-	assert_bool(chip.encloses(meter.amount_label.get_global_rect())).is_true()
 
 
 ## The store's kraft bag (#86 v6, #123) stands at BAG_RECT on the bagging shelf behind the belt's
@@ -348,7 +325,7 @@ func test_the_top_bar_fits_its_longest_texts() -> void:
 		screen._on_shift_started()
 		var deck_limit: int = run.balance.deck_limit
 		screen._deck_button.caption = "Cart %d/%d" % [deck_limit, deck_limit]
-		# The widest quota chip: a 4-digit subtotal past the quota, with its flag.
+		# The gauge's laps: a 4-digit subtotal past the quota.
 		screen._led.start_count(largest)
 		screen._led.show_subtotal(9999, true)
 		await _frames(2)
@@ -358,9 +335,9 @@ func test_the_top_bar_fits_its_longest_texts() -> void:
 		var week: WeekEventDefinition = WeekSchedule.event_for(run.balance, last + 1)
 		var percent: int = inspection.quota_percent + week.quota_percent
 		var shown: int = ShiftLimits.with_percent(largest, percent)
-		assert_str(screen._quota_label.text).is_equal(QuotaMeter.QUOTA_AMOUNT % shown)
-		assert_str(top_bar.quota_meter.amount_label.text).is_equal("€9999")
-		assert_bool(top_bar.quota_meter.flag_shown()).is_true()
+		assert_str(screen._receipt.target.amount.text).is_equal("%d€" % shown)
+		assert_int(screen._quota_meter.amount()).is_equal(9999)
+		assert_int(screen._quota_meter.shown_lap()).is_greater_equal(QuotaLaps.FIRST_LAP)
 		assert_int(screen._loyalty_card.box_texts().size()).is_equal(4)
 		# A boon's chip (v0.69) reads "Today: name — effect".
 		var chip_text: String = (
@@ -372,7 +349,6 @@ func test_the_top_bar_fits_its_longest_texts() -> void:
 		# With weeks the SHIFT chip is gone past the training week (v0.82).
 		assert_bool(top_bar.shift_chip.visible).is_false()
 		var parts: Array[Control] = [
-			screen._top_bar.get_child(1) as Control,
 			top_bar.week_chip,
 			screen._inspection_tag,
 			screen._loyalty_card,
@@ -403,8 +379,9 @@ func test_the_top_bar_fits_its_longest_texts() -> void:
 			assert_float(parts[index].get_global_rect().position.x).is_greater(
 				parts[index - 1].get_global_rect().end.x
 			)
-		var meter_bar: Control = top_bar.quota_meter.bar()
-		assert_float(meter_bar.size.x).is_greater_equal(QuotaMeter.BAR_MIN_WIDTH)
+		assert_float(top_bar.week_chip.get_global_rect().position.x).is_greater_equal(
+			stage.position.x + ShiftStage.TOWER_RECT.end.x
+		)
 
 	var seed_line: Rect2 = screen._seed_label.get_global_rect()
 	assert_str(screen._seed_label.text).contains("4294967295")
@@ -419,30 +396,34 @@ func test_the_top_bar_fits_its_longest_texts() -> void:
 		assert_bool(seed_line.intersects(other.get_global_rect())).is_false()
 
 
-## The receipt stands on the printer's slot and grows up as its lines print: a short receipt is
-## as tall as its lines; a long one stops at RECEIPT_TOP, under the top bar, still standing on the
-## slot, and clear of the monitor.
-func test_the_receipt_grows_up_from_the_printer() -> void:
+## The receipt stands on the printer's slot at its full length (B2 of shift_scene_polish_v4): its
+## top at RECEIPT_TOP however few its lines, and a long one stays there, under the top bar, still
+## standing on the slot, and clear of the monitor.
+func test_the_receipt_stands_full_length_on_the_printer() -> void:
 	var screen: ShiftScreen = await _screen()
 	var stage: Rect2 = screen._stage.get_global_rect()
 	var receipt: ReceiptView = screen._receipt
 	var bottom: float = stage.position.y + ShiftStage.RECEIPT_BOTTOM
 	assert_float(receipt.get_global_rect().end.y).is_equal(bottom)
-	assert_float(receipt.size.y).is_equal_approx(receipt.natural_height(), 1.0)
-	var short_top: float = receipt.get_global_rect().position.y
-	receipt.add_line("LINE", "€1", ReceiptView.LineStyle.ITEM)
+	assert_float(receipt.get_global_rect().position.y).is_equal(
+		stage.position.y + ShiftStage.RECEIPT_TOP
+	)
+	receipt.add_line("LINE", "1€", ReceiptView.LineStyle.ITEM)
 	await _frames(2)
 	assert_float(receipt.get_global_rect().end.y).is_equal(bottom)
-	assert_float(receipt.get_global_rect().position.y).is_less(short_top)
+	assert_float(receipt.get_global_rect().position.y).is_equal(
+		stage.position.y + ShiftStage.RECEIPT_TOP
+	)
 	while receipt.natural_height() <= ShiftStage.RECEIPT_BOTTOM - ShiftStage.RECEIPT_TOP:
-		receipt.add_line("LINE", "€1", ReceiptView.LineStyle.ITEM)
+		receipt.add_line("LINE", "1€", ReceiptView.LineStyle.ITEM)
 		await _frames(1)
-	receipt.add_line("LINE", "€1", ReceiptView.LineStyle.ITEM)
+	receipt.add_line("LINE", "1€", ReceiptView.LineStyle.ITEM)
 	await _frames(2)
 	var rect: Rect2 = receipt.get_global_rect()
 	assert_float(rect.end.y).is_equal(bottom)
 	assert_float(rect.position.y).is_equal(stage.position.y + ShiftStage.RECEIPT_TOP)
-	assert_float(rect.position.y).is_greater_equal(stage.position.y + ShiftStage.TOP_BAR_BOTTOM)
+	# Since the shift scene polish it rises above the top bar's foot, in the tower left of the bar.
+	assert_float(rect.end.x).is_less_equal(screen._stage.top_bar.get_global_rect().position.x)
 	assert_bool(rect.intersects(_on_stage(screen, ShiftStage.MONITOR_RECT))).is_false()
 
 
@@ -465,11 +446,11 @@ func test_the_status_line_and_the_register_stay_clear() -> void:
 
 
 ## Every Redraw caption the run can show fits REDRAW_RECT without growing it, with every upgrade
-## that adds redraws: "Redraw" with its "M left" note for each M, "Redraw used", "Redraw" with
-## "none to draw" (an empty draw pile) and, in redraw mode (plan section 3.8), "Pick a basket"
-## with its "M left" note, held lit, for each M. The note sits beside the caption, on the
-## key's face, smaller; Redraw keeps its rect on the register column, clear of Cancel and
-## CHECKOUT.
+## that adds redraws: REDRAW with its count M in the counter window for each M (2 or more green,
+## 1 orange, 0 red and struck through on an unlit pane), NONE TO DRAW (an empty draw pile) and, in
+## redraw mode (plan section 3.8), PICK A BASKET held lit, for each M. The count is its own part
+## (the PR #138 left UI): the counter window and the key's face side by side inside the key's old
+## footprint; Redraw keeps its rect on the register column, clear of Cancel and CHECKOUT.
 func test_every_redraw_caption_fits() -> void:
 	var screen: ShiftScreen = await _screen()
 	var run: RunState = screen.run
@@ -488,30 +469,67 @@ func test_every_redraw_caption_fits() -> void:
 		screen._refresh_buttons()
 		captions.append("%s %s" % [screen._redraw_button.caption, screen._redraw_button.note()])
 		await _assert_redraw_in_place(screen)
-	assert_str(";".join(captions)).contains("Redraw %d left" % run.redraws_allowed)
-	assert_str(";".join(captions)).contains("Redraw used")
+		_assert_redraw_count(screen, run.redraws_allowed - used)
+	var redraw: String = RedrawNotice.REDRAW_CAPTION
+	assert_str(";".join(captions)).contains("%s %d" % [redraw, run.redraws_allowed])
+	assert_str(";".join(captions)).contains("%s 0" % redraw)
+	assert_str(";".join(captions)).not_contains("left")
 	for used: int in range(run.redraws_allowed):
 		run.redraws_used = used
 		screen._refresh()
 		screen._on_redraw_pressed()
 		assert_bool(screen._cancel_button.visible).is_true()
-		assert_str(screen._redraw_button.caption).is_equal("Pick a basket")
+		assert_str(screen._redraw_button.caption).is_equal(RedrawNotice.PICK_CAPTION)
 		assert_int(screen._redraw_button.look()).is_equal(RegisterKey.Look.LIT)
-		captions.append("%s %s" % [screen._redraw_button.caption, screen._redraw_button.note()])
 		await _assert_redraw_in_place(screen)
+		_assert_redraw_count(screen, run.redraws_allowed - used)
 		screen._on_cancel_pressed()
-	assert_str(";".join(captions)).contains("Pick a basket %d left" % run.redraws_allowed)
 	assert_int(screen._redraw_button.look()).is_not_equal(RegisterKey.Look.LIT)
-	# An empty draw pile: nothing to draw.
+	# An empty draw pile: nothing to draw, the count still shown.
 	run.redraws_used = 0
 	while not run.deck.draw_pile().is_empty():
 		run.deck.redraw_places([0])
 	screen._refresh_buttons()
-	assert_str(screen._redraw_button.note()).is_equal("none to draw")
+	assert_str(screen._redraw_button.caption).is_equal(RedrawNotice.EMPTY_CAPTION)
 	assert_bool(screen._redraw_button.disabled).is_true()
+	assert_float(screen._redraw_button.caption_label().modulate.a).is_equal_approx(
+		RegisterKey.OFF_CAPTION_ALPHA, 0.001
+	)
 	await _assert_redraw_in_place(screen)
+	_assert_redraw_count(screen, run.redraws_allowed)
 
 
+## The Redraw key's counter window shows `left` in the 6x8 pixel digits, in
+## RedrawNotice.count_color (2 or more green, 1 orange, 0 red), the 0 in the window's alert look
+## (unlit, struck through), so it reads without the colour; LEFT under it. Unlike the key's face it
+## never fades or sinks: a display. Screen readers still hear "(N left)".
+func _assert_redraw_count(screen: ShiftScreen, left: int) -> void:
+	var button: RegisterKey = screen._redraw_button
+	var counter: RegisterKey.CounterWindow = button.counter()
+	var color: Color = Palette.GREEN_DARK
+	if left == 1:
+		color = Palette.ORANGE_DARK
+	elif left <= 0:
+		color = Palette.TOMATO_DARK
+	assert_str(button.note()).is_equal("%d" % left)
+	assert_bool(counter.visible).is_true()
+	assert_object(counter.colour).is_equal(color)
+	assert_object(counter.digits.color).is_equal(color)
+	assert_str(counter.digits.text).is_equal("%d" % left)
+	assert_int(counter.digits.sheet).is_equal(PixelWords.Sheet.DIGITS)
+	assert_bool(counter.alert).is_equal(left <= 0)
+	assert_str(counter.word.text).is_equal(RegisterKey.COUNTER_WORD)
+	assert_str(button.accessibility_name).contains("(%d left)" % left)
+	assert_that(counter.modulate).is_equal(Color.WHITE)
+	assert_float(counter.position.y).is_equal(0.0)
+	if left <= 0:
+		assert_bool(button.disabled).is_true()
+
+
+## The Redraw key in its rect, split in two (the PR #138 left UI): the counter window at its left
+## (COUNTER_WIDTH, the key's height) and its face COUNTER_GAP right of it to the key's end, side by
+## side inside the key's old footprint; the count's digits and LEFT inside the window's pane, on
+## the 2 px grid; the caption whole on the face.
 func _assert_redraw_in_place(screen: ShiftScreen) -> void:
 	await _frames(1)
 	var button: RegisterKey = screen._redraw_button
@@ -521,38 +539,37 @@ func _assert_redraw_in_place(screen: ShiftScreen) -> void:
 		. override_failure_message("'%s %s' needs %s" % [button.caption, button.note(), needed])
 		. is_true()
 	)
+	var key: Rect2 = button.get_global_rect()
+	var counter: Rect2 = button.counter().get_global_rect()
+	var face: Rect2 = button.face().get_global_rect()
+	var scale: float = key.size.x / ShiftStage.REDRAW_RECT.size.x
+	var why: String = "key %s counter %s face %s" % [key, counter, face]
+	assert_bool(key.encloses(counter)).override_failure_message(why).is_true()
+	assert_float(counter.position.x).is_equal_approx(key.position.x, 0.5)
+	assert_float(counter.position.y).is_equal_approx(key.position.y, 0.5)
+	assert_float(counter.size.y).is_equal_approx(key.size.y, 0.5)
+	assert_float(counter.size.x).is_equal_approx(RegisterKey.COUNTER_WIDTH * scale, 0.5)
+	var gap: float = face.position.x - counter.end.x
+	assert_float(gap).is_equal_approx(RegisterKey.COUNTER_GAP * scale, 0.5)
+	assert_float(face.end.x).is_equal_approx(key.end.x, 0.5)
+	assert_bool(face.intersects(counter)).is_false()
+	var pane: Rect2 = button.counter().pane()
+	for part: PixelWords in [button.counter().digits, button.counter().word]:
+		var rect: Rect2 = Rect2(part.position, part.size)
+		assert_bool(pane.encloses(rect)).override_failure_message(str(rect)).is_true()
+		assert_float(fmod(rect.position.x, 2.0)).is_equal(0.0)
+		assert_float(fmod(rect.position.y, 2.0)).is_equal(0.0)
 	var caption: Rect2 = button.caption_label().get_global_rect()
-	var caption_width: float = button.caption_label().get_minimum_size().x
+	var caption_width: float = button.caption_label().get_minimum_size().x * scale
+	assert_bool(face.encloses(caption)).override_failure_message(str(caption)).is_true()
 	assert_float(caption.size.x).is_greater_equal(caption_width - 0.5)
-	if not button.note().is_empty():
-		var note_label: Label = button.note_label()
-		var note: Rect2 = note_label.get_global_rect()
-		assert_bool(note_label.visible).is_true()
-		(
-			assert_bool(button.get_global_rect().encloses(note))
-			. override_failure_message(str(note))
-			. is_true()
-		)
-		assert_float(note.position.x).is_greater_equal(caption.end.x)
-		assert_float(note.size.x).is_greater_equal(note_label.get_minimum_size().x - 0.5)
-		assert_int(note_label.get_theme_font_size("font_size")).is_less(
-			button.caption_label().get_theme_font_size("font_size")
-		)
-		# The pair is centred on the face.
-		var middle: float = (caption.position.x + note.end.x) / 2.0
-		assert_float(middle).is_equal_approx(button.get_global_rect().get_center().x, 1.0)
-	elif button.note_label() != null:
-		assert_bool(button.note_label().visible).is_false()
-	assert_that(button.get_global_rect()).is_equal(_on_stage(screen, ShiftStage.REDRAW_RECT))
+	assert_that(key).is_equal(_on_stage(screen, ShiftStage.REDRAW_RECT))
 	var others: Array[Control] = [screen._checkout_button]
 	if screen._cancel_button.visible:
 		others.append(screen._cancel_button)
 	for other: Control in others:
-		assert_bool(button.get_global_rect().intersects(other.get_global_rect())).is_false()
-	(
-		assert_bool(_on_stage(screen, ShiftStage.COLUMN_RECT).encloses(button.get_global_rect()))
-		. is_true()
-	)
+		assert_bool(key.intersects(other.get_global_rect())).is_false()
+	assert_bool(_on_stage(screen, ShiftStage.COLUMN_RECT).encloses(key)).is_true()
 
 
 ## The wall and the counter cover the whole viewport, whatever its shape, and the top band and
@@ -564,11 +581,22 @@ func test_the_wall_and_counter_cover_the_viewport() -> void:
 	var wall: Rect2 = screen._wall.get_global_rect()
 	var counter: Rect2 = (content.get_node("Counter") as Control).get_global_rect()
 	assert_bool(wall.encloses(window)).is_true()
-	var bands: Array[Control] = [screen.get_node("TopBand"), content.get_node("Floor")]
-	for band_control: Control in bands:
-		var band: Rect2 = band_control.get_global_rect()
-		assert_float(band.position.x).is_less_equal(window.position.x)
-		assert_float(band.end.x).is_greater_equal(window.end.x)
+	var floor_band: Rect2 = (content.get_node("Floor") as Control).get_global_rect()
+	assert_float(floor_band.position.x).is_less_equal(window.position.x)
+	assert_float(floor_band.end.x).is_greater_equal(window.end.x)
+	# The top band runs from the register tower's edge (the shift scene polish) to the window's
+	# right; left of it the tower's charcoal reaches the window's left and top.
+	var stage_rect: Rect2 = screen._stage.get_global_rect()
+	var tower_edge: float = stage_rect.position.x + ShiftStage.TOWER_RECT.end.x
+	var top_band: Rect2 = (screen.get_node("TopBand") as Control).get_global_rect()
+	assert_float(top_band.position.x).is_equal_approx(tower_edge, 0.5)
+	assert_float(top_band.end.x).is_greater_equal(window.end.x)
+	var tower_left: Rect2 = (content.get_node("Tower") as Control).get_global_rect()
+	assert_float(tower_left.position.x).is_less_equal(window.position.x)
+	assert_float(tower_left.end.x).is_equal_approx(stage_rect.position.x, 0.5)
+	var tower_top: Rect2 = (content.get_node("TowerTop") as Control).get_global_rect()
+	assert_float(tower_top.position.y).is_less_equal(window.position.y)
+	assert_float(tower_top.end.x).is_equal_approx(tower_edge, 0.5)
 	assert_float(counter.position.x).is_less_equal(window.position.x)
 	assert_float(counter.end.x).is_greater_equal(window.end.x)
 	assert_float(counter.end.y).is_greater_equal(window.end.y)
@@ -578,7 +606,8 @@ func test_the_wall_and_counter_cover_the_viewport() -> void:
 
 
 ## Text never goes through the sharp-pixel shader: no Label or Button text carries its material
-## or the pixel-art mark (the gold number's own gold-bands shader aside).
+## or the pixel-art mark (the gold number's own gold-bands shader aside), but hard pixel text
+## (ArtStyle.use_pixel_text_material: the shared material, unmarked as art).
 func test_no_text_carries_the_pixel_material() -> void:
 	var screen: ShiftScreen = await _rich_screen()
 	var texts: Array[Control] = _texts(screen)
@@ -590,6 +619,11 @@ func test_no_text_carries_the_pixel_material() -> void:
 			and (text.material as ShaderMaterial).shader == TotalNumber.SHADER
 		)
 		if gold:
+			continue
+		var font: Font = text.get_theme_font("font")
+		if font == ArtStyle.pixel_display_font() or font == ArtStyle.pixel_number_font():
+			assert_object(text.material).is_same(ArtStyle.pixel_material())
+			assert_bool(text.has_meta(ArtStyle.PIXEL_ART_META)).is_false()
 			continue
 		(
 			assert_object(text.material)
@@ -617,10 +651,8 @@ func test_numbers_use_the_number_font() -> void:
 	plain.queue_free()
 	var numbers: Array[Label] = [
 		screen._shift_label,
-		screen._quota_label,
 		screen._monitor.checkout().total_number().slam_label(),
 		screen._deck_button.caption_label(),
-		screen._redraw_button.note_label(),
 	]
 	assert_int(screen._row_views.size()).is_greater(0)
 	# The paid chips show only in the count-up (#80, step 7), in the number font all the same.
@@ -633,6 +665,11 @@ func test_numbers_use_the_number_font() -> void:
 			. override_failure_message("%s: %s" % [label.get_path(), label.text])
 			. is_same(number_font)
 		)
+	# The receipt's TODAY'S TARGET (the shift scene polish) prints the quota in the 6x8 pixel
+	# digits (v4's D), drawn, not a font.
+	assert_int(screen._receipt.target.amount.sheet).is_equal(PixelWords.Sheet.DIGITS)
+	# So does the Redraw key's counter window (the PR #138 left UI).
+	assert_int(screen._redraw_button.counter().digits.sheet).is_equal(PixelWords.Sheet.DIGITS)
 
 
 ## Every character the screen prints is in the font that prints it, including "−" (U+2212) on

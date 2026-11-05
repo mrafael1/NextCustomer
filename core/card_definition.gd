@@ -27,6 +27,12 @@ enum Tier { PLAIN, BIG, GOLDEN }
 ## for a card with no rule (the sticker shows only the price) and for a variant that keeps its
 ## base card's. The keys are CardText.STICKER_KEYS; sticker_summary() formats it.
 @export var sticker_text: String = ""
+## The monitor's long description (PR #138 monitor): the rule in plain language, with more detail
+## than the sticker, as a template in sticker_text's key language (CardText.MONITOR_KEYS: the
+## sticker keys, a keyword first, plus a few the sticker never needs), digit-free; e.g. "{chain}
+## Adds {previous} when placed right after another {name}." Empty for a card with no rule and for a
+## variant that keeps its base card's. CardText.monitor_text() formats it.
+@export_multiline var monitor_text: String = ""
 ## Reward offers include at least one card with this flag (plan section 5).
 @export var generally_useful: bool = false
 @export var art_ref: String = ""

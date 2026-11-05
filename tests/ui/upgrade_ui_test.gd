@@ -183,7 +183,15 @@ func test_upgrade_steps_play_from_the_loyalty_card() -> void:
 	# The planning receipt lists only the items (#80): scanning them names the upgrades.
 	assert_str(_receipt_text(screen)).not_contains("Coupon engine")
 	assert_str(_scan_text(screen, 2)).contains("Coupon engine").contains("×")
-	assert_str(_scan_text(screen, 1)).contains("Category engine").contains("+€")
+	assert_str(_scan_text(screen, 1)).contains("Category engine").contains("+").contains("€")
+	# In planning, before any count, each upgrade row wears its upgrade's icon (#138 review).
+	for step: ScoreStep in upgrade_steps:
+		if step.step_type == ScoreStep.StepType.WASTED:
+			continue
+		var lines: ScanController.ItemLines = screen._scan.item_lines(step.slot)
+		var icon: Texture2D = MonitorView.upgrade_icon(screen.run.upgrades, step.source_index)
+		assert_object(icon).is_not_null()
+		assert_bool(lines.minis.has(icon)).override_failure_message(step.text).is_true()
 
 	await Rush.checkout(screen)
 	assert_int(screen._led.amount()).is_equal(preview.total)
@@ -434,28 +442,42 @@ func test_a_hovered_ticket_lights_up_when_armed() -> void:
 func test_extra_redraw_gives_a_third_redraw() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	assert_str(screen._redraw_button.caption).is_equal("Redraw")
-	assert_str(screen._redraw_button.note()).is_equal("2 left")
+	assert_str(screen._redraw_button.caption).is_equal(RedrawNotice.REDRAW_CAPTION)
+	assert_str(screen._redraw_button.note()).is_equal("2")
 	assert_str(screen._redraw_button.accessibility_name).is_equal("Redraw a basket (2 left)")
+	_assert_note_color(screen, Palette.GREEN_DARK)
 	screen._debug.give_upgrade("extra_redraw")
 	assert_int(screen.run.redraws_allowed).is_equal(3)
-	assert_str(screen._redraw_button.note()).is_equal("3 left")
+	assert_str(screen._redraw_button.note()).is_equal("3")
+	_assert_note_color(screen, Palette.GREEN_DARK)
 	assert_str(screen._loyalty_card.box_icon(0).resource_path).is_equal(
 		"res://art/icons/redraw_arrow.png"
 	)
 	_redraw_first_card(screen)
 	assert_int(screen.run.redraws_used).is_equal(1)
-	assert_str(screen._redraw_button.note()).is_equal("2 left")
+	assert_str(screen._redraw_button.note()).is_equal("2")
 	_redraw_first_card(screen)
 	assert_int(screen.run.redraws_used).is_equal(2)
-	assert_str(screen._redraw_button.note()).is_equal("1 left")
+	assert_str(screen._redraw_button.note()).is_equal("1")
+	_assert_note_color(screen, Palette.ORANGE_DARK)
 	assert_bool(screen._redraw_button.disabled).is_false()
 	_redraw_first_card(screen)
 	assert_int(screen.run.redraws_used).is_equal(3)
-	assert_str(screen._redraw_button.caption).is_equal("Redraw used")
-	assert_str(screen._redraw_button.note()).is_empty()
-	assert_str(screen._redraw_button.accessibility_name).is_equal("Redraw used")
+	assert_str(screen._redraw_button.caption).is_equal(RedrawNotice.REDRAW_CAPTION)
+	assert_str(screen._redraw_button.note()).is_equal("0")
+	assert_str(screen._redraw_button.accessibility_name).is_equal("Redraw (0 left)")
 	assert_bool(screen._redraw_button.disabled).is_true()
+	_assert_note_color(screen, Palette.TOMATO_DARK)
+
+
+## The Redraw key's count shows in its counter window in `color` (the PR #138 left UI); used up
+## (TOMATO_DARK), the window reads "none left" (its alert look: unlit, the digit struck).
+func _assert_note_color(screen: ShiftScreen, color: Color) -> void:
+	var counter: RegisterKey.CounterWindow = screen._redraw_button.counter()
+	assert_bool(counter.visible).is_true()
+	assert_object(counter.colour).is_equal(color)
+	assert_object(counter.digits.color).is_equal(color)
+	assert_bool(counter.alert).is_equal(color == Palette.TOMATO_DARK)
 
 
 func test_the_results_screen_lists_the_run_history() -> void:
@@ -467,10 +489,10 @@ func test_the_results_screen_lists_the_run_history() -> void:
 	await Rush.checkout(screen)
 	assert_bool(screen._results.visible).is_true()
 	var texts: PackedStringArray = screen._results.texts()
-	assert_str(texts[2]).is_equal("  1  €109 / €29     pass")
+	assert_str(texts[2]).is_equal("  1  109€ / 29€     pass")
 	assert_str(texts[3]).is_equal("     binned NEW ITEMS")
 	# Shift 2's quota is its record's: a boon day can change it (v0.69).
-	var quota: String = "€0 / €%d" % screen.run.history[1].quota
+	var quota: String = "0€ / %d€" % screen.run.history[1].quota
 	assert_str(texts[4]).is_equal("  2  %-13s  fail" % quota)
 	# The full 12-shift receipt's layout: tests/ui/results_panel_test.gd.
 
@@ -501,7 +523,7 @@ func test_history_rows_name_the_visits_and_the_inspection() -> void:
 		assert_array(Array(FinalReceipt.shift_texts(record)))
 		. is_equal(
 			[
-				"  4  €30 / €22      pass",
+				"  4  30€ / 22€      pass",
 				"     NEW ITEMS: Bread",
 				"     BONUS · UPGRADE: Category engine",
 				"     inspection Spot check",

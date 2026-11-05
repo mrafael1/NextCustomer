@@ -23,6 +23,7 @@ base = 2
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_yogurt")])
 rule_text = "PAIR: +3 if beside a Banana"
 sticker_text = "+{bonus} {pair} with Banana"
+monitor_text = "{pair} Gets +{bonus} when placed beside a Banana."
 art_ref = "res://art/items_v2/yogurt.png"
 mini_art_ref = "res://art/minis/yogurt.png"
 mini_golden_art_ref = "res://art/minis/yogurt_golden.png"

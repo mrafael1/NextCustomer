@@ -297,7 +297,8 @@ func test_the_words_are_hard_pixel_text() -> void:
 	var texts: Array[String] = []
 	for label: Label in words:
 		texts.append(label.text)
-		assert_int(label.texture_filter).is_equal(CanvasItem.TEXTURE_FILTER_NEAREST)
+		assert_int(label.texture_filter).is_equal(CanvasItem.TEXTURE_FILTER_LINEAR)
+		assert_object(label.material).is_same(ArtStyle.pixel_material())
 		assert_int(label.get_theme_font_size("font_size")).is_equal(ArtStyle.PIXEL_TEXT_SIZE)
 		assert_bool(label.scale.x in [2.0, 4.0]).is_true()
 		var at: Vector2 = label.get_global_transform().origin

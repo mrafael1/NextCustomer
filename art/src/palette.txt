@@ -74,3 +74,12 @@ t 222a29 slate dark
 8 172c2b teal black
 9 e2b48c skin
 0 c38f6a skin shade
+; The quota gauge's laps (the shift scene polish v4, A1): a true orange and a violet, so no lap
+; after the first reads as the short tube's tomato or the near tube's brass (their bodies sit
+; 18 degrees or more from both).
++ ffa23a orange light
+* ff6a1a orange
+& b5470c orange dark
+~ cdb2f2 violet light
+^ 9468d8 violet
+$ 5c3a9c violet dark

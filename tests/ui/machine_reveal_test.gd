@@ -205,7 +205,7 @@ func test_every_ticket_shows_its_prize_in_full() -> void:
 		view, 0, MachinePrize.new(MachinePrize.Kind.PRODUCT, 0, milk), null, 1
 	)
 	assert_array(Array(product.face_texts())).is_equal(
-		["NEW ITEM · €%d" % milk.base, milk.display_name, milk.rule_text]
+		["NEW ITEM · %d€" % milk.base, milk.display_name, milk.rule_text]
 	)
 	assert_object(product.art.get_node("Sprite")).is_not_null()
 	var coupon_card: CardDefinition = _balance.first_offer_pool[0]
@@ -266,11 +266,11 @@ func test_a_loyalty_ticket_shows_its_win_sticker() -> void:
 	preview.prize = stamp
 	var run: RunState = _run_with_rows([[milk, milk, milk]])
 	var first: PrizeTicket = _ticket(view, 0, stamp, preview, 1, run)
-	assert_array(Array(first.win_texts())).is_equal(["ON YOUR LAST ROW +€3"])
+	assert_array(Array(first.win_texts())).is_equal(["ON YOUR LAST ROW +3€"])
 	run = _run_with_rows([[milk, milk, milk], [load(BREAD)]])
 	var later: PrizeTicket = _ticket(view, 0, stamp, preview, 1, run)
 	assert_array(Array(later.win_texts())).is_equal(
-		["ON YOUR LAST ROW WASTED", "BEST ROW THIS RUN +€3"]
+		["ON YOUR LAST ROW WASTED", "BEST ROW THIS RUN +3€"]
 	)
 	for label: Node in later.win_sticker().get_children():
 		_assert_fits(label as Label)

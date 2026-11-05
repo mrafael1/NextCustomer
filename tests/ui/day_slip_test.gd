@@ -2,7 +2,7 @@ extends GdUnitTestSuite
 ## Today's slip (DaySlip, 2026-10-31) on the real shift screen: tapping the day chip ("D5") drops
 ## the slip under it, inside the screen at 1280x720 and 1920x1080, reading "DAY 5 · TODAY", the
 ## day event's name, effect and where it touches the belt (Short belt's closed slot, Spot check's
-## €0 slot, none on a plain day); a second tap, a click elsewhere or Esc closes it; the week chip
+## 0€ slot, none on a plain day); a second tap, a click elsewhere or Esc closes it; the week chip
 ## still opens the time card, which closes the slip, and the day chip no longer does. Clicks are
 ## sent to the handlers, because headless runs don't deliver input events. The event's icon sits
 ## on the left of its block, centred on its height (2026-11-01).
@@ -104,7 +104,7 @@ func test_the_slip_hangs_under_the_day_chip_inside_the_screen() -> void:
 		await _frames(2)
 
 
-## Spot check reads its €0 slot; a plain day reads "Normal day", "No event today" and no slot.
+## Spot check reads its 0€ slot; a plain day reads "Normal day", "No event today" and no slot.
 func test_the_slip_reads_spot_check_and_a_plain_day() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
@@ -115,7 +115,7 @@ func test_the_slip_reads_spot_check_and_a_plain_day() -> void:
 	chip.call("_gui_input", _left_click())
 	var text: String = slip.slip_text()
 	assert_str(text).contains("Spot check")
-	assert_str(text).contains("Slot 3 pays €0")
+	assert_str(text).contains("Slot 3 pays 0€")
 	# The effect already names the slot: no repeated where line.
 	assert_str(text).not_contains(DaySlip.WHERE_ZERO % 3)
 	assert_int(slip.where_labels().size()).is_equal(0)

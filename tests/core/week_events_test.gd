@@ -3,7 +3,7 @@ extends GdUnitTestSuite
 ## each with its fixed week event from the shift number (Training week, Bakery festival, Holiday
 ## rush). A week's day events are all drawn as its first shift starts (the time card shows them),
 ## with the run's RNG, and every later day of the week plays them; the week event stacks with the
-## day's own events (the quota percents add up, Bakery festival's +€2 is an engine step of its own,
+## day's own events (the quota percents add up, Bakery festival's +2€ is an engine step of its own,
 ## Holiday rush raises the machine's odds a level), and the run save keeps the week at every save
 ## point, a save from before the weeks getting its week built as it loads.
 
@@ -101,9 +101,9 @@ func test_the_week_quota_stacks_with_the_day_events() -> void:
 	assert_int(run.limits.quota).is_equal(ShiftLimits.with_percent(_balance.quotas[4], 20))
 
 
-## Bakery festival's +€2 on each Bakery item is an engine step of its own (source INSPECTION,
+## Bakery festival's +2€ on each Bakery item is an engine step of its own (source INSPECTION,
 ## indexed after the day's events: the count-up plays it from the week chip), on top of a day
-## event's own step (Fresh delivery's +€1 on a Fruit & veg item).
+## event's own step (Fresh delivery's +1€ on a Fruit & veg item).
 func test_the_bakery_festival_pays_an_engine_step() -> void:
 	var run: RunState = _new_run(5)
 	run.start_shift()
@@ -259,7 +259,7 @@ func test_a_save_from_before_the_weeks_at_a_week_end_keeps_the_announced_events(
 
 
 ## A version 9 save in planning on shift 5 (Bakery festival) keeps playing that shift without its
-## week event: no +10% quota, no +€2 on Bread, and the time card and week chip don't name it.
+## week event: no +10% quota, no +2€ on Bread, and the time card and week chip don't name it.
 func test_a_save_from_before_the_weeks_plays_its_shift_without_the_week_event() -> void:
 	var balance: BalanceDefinition = load(BALANCE)
 	var lookup: ContentLookup = ContentLookup.new(balance)

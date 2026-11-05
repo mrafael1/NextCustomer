@@ -135,6 +135,11 @@ static func relabels_per_shift(run: RunState) -> int:
 	return count
 
 
+## The relabels left this shift: the pins' relabels_per_shift less the items relabelled.
+static func relabels_left(run: RunState) -> int:
+	return maxi(relabels_per_shift(run) - run.relabels.size(), 0)
+
+
 ## The families the worn Price guns can give, in their data's order.
 static func relabel_tags(run: RunState) -> PackedStringArray:
 	var tags: PackedStringArray = PackedStringArray()

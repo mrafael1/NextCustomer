@@ -23,6 +23,7 @@ base = 3
 rules = Array[ExtResource("1_jvkti")]([SubResource("Resource_2sfbs")])
 rule_text = "PAIR: +4 if beside Bread"
 sticker_text = "+{bonus} {pair} with Bread"
+monitor_text = "{pair} Gets +{bonus} when placed beside Bread."
 art_ref = "res://art/items_v2/cheese.png"
 mini_art_ref = "res://art/minis/cheese.png"
 mini_golden_art_ref = "res://art/minis/cheese_golden.png"

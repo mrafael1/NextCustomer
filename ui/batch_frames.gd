@@ -2,16 +2,13 @@ class_name BatchFrames
 extends Control
 ## The planning layer's batch frames (#128, the approved Bound strip): one BatchFrame for each run
 ## of a batch PlanningModel.batches frames (one holding a Bakery job card; PlanningModel.runs: a
-## link that skips products splits it), laid out round its tickets from the belt's ticket rects,
-## passing behind their price tags, its foot at most on the counter edge (FOOT_Y). A drag's ghost
-## has no ticket on the belt: a frame binds its other tickets, the ghost landing among or beside
-## them, and follows every move of the drag. A frame with a slot that has no ticket otherwise (none,
-## or hidden) hides. A wrong job's tomato ring (PriceSticker.set_wrong_job) stays closed over a
-## frame's foot. light() lights the frames a hovered BATCH chip names. PlanningLayer owns it as its
-## z-ordered box over the rail strips' gap lights and under the strips, rings and pay tags, so a
-## pinned pay tag covers the frame where it hangs over it; a ticket's plain tag (the sticker's,
-## under the layer) is left open in the frame along its own outline, so the frame still reads as
-## passing behind it. Decor only: it takes no clicks.
+## link that skips products splits it), laid out round its tickets from the belt's ticket rects, its
+## foot at most on the counter edge (FOOT_Y). A drag's ghost has no ticket on the belt: a frame
+## binds its other tickets, the ghost landing among or beside them, and follows every move of the
+## drag. A frame with a slot that has no ticket otherwise (none, or hidden) hides. light() lights
+## the frames a hovered BATCH chip names. PlanningLayer owns it as its z-ordered box over the rail
+## strips' gap lights and under the strips and rings (tickets v5: a ticket's price is in its own
+## window, so nothing hangs over a frame). Decor only: it takes no clicks.
 ##
 ## ChainFrames (#128 Produce links) is this box for the chains' frames: it makes ChainFrames
 ## instead (show_chains) and lights the chain a CHAIN chip names (_names); the layout is shared.
@@ -52,16 +49,10 @@ func clear_frames() -> void:
 
 
 ## Lays the frames out round the tickets of `items` (the view showing each slot, null for none)
-## in `layer`'s coordinates: every slot's with a shown belt view (`ghost`'s slot skipped), open at
-## its plain tag when no pay tag is pinned on it in `pays` (slot: its tag, a child of `layer`'s,
-## drawn over the frame), and with every wrong job's tomato ring.
-func follow(
-	layer: Control, items: Array[ItemView], ghost: ItemView, pays: Dictionary[int, PayTag]
-) -> void:
+## in `layer`'s coordinates: every slot's with a shown belt view (`ghost`'s slot skipped).
+func follow(layer: Control, items: Array[ItemView], ghost: ItemView) -> void:
 	var tickets: Dictionary[int, Rect2] = {}
-	var cutouts: Dictionary[int, Rect2] = {}
 	var skipped: PackedInt32Array = PackedInt32Array()
-	var rings: Array[Rect2] = []
 	var to_layer: Transform2D = layer.get_global_transform().affine_inverse()
 	for slot: int in range(items.size()):
 		var item: ItemView = items[slot]
@@ -74,30 +65,19 @@ func follow(
 			continue
 		var sticker: PriceSticker = item.sticker()
 		var to_ticket: Transform2D = to_layer * sticker.get_global_transform()
-		tickets[slot] = to_ticket * Rect2(Vector2.ZERO, PriceSticker.SIZE)
-		var plain: PayTag = sticker.plain_tag()
-		if not pays.has(slot) and plain != null and plain.visible:
-			cutouts[slot] = to_ticket * sticker.plain_tag_rect()
-		if not sticker.summary().keyword_wasted().is_empty():
-			for side: Rect2 in PriceSticker.wrong_ring_sides():
-				rings.append(to_ticket * side)
-	lay_out(tickets, cutouts, skipped, rings)
+		tickets[slot] = to_ticket * Rect2(Vector2.ZERO, sticker.size)
+	lay_out(tickets, skipped)
 
 
-## Places each frame round `tickets` (slot: its ticket's rect on the belt, layer coordinates),
-## open at `cutouts` (slot: its plain price tag's rect), over `rings` (the wrong jobs' tomato ring
-## sides); a `skipped` slot (the drag's ghost) has no ticket to bind, and a frame missing any
-## other slot's ticket hides.
+## Places each frame round `tickets` (slot: its ticket's rect on the belt, layer coordinates);
+## a `skipped` slot (the drag's ghost) has no ticket to bind, and a frame missing any other slot's
+## ticket hides.
 func lay_out(
-	tickets: Dictionary[int, Rect2],
-	cutouts: Dictionary[int, Rect2],
-	skipped: PackedInt32Array = PackedInt32Array(),
-	rings: Array[Rect2] = []
+	tickets: Dictionary[int, Rect2], skipped: PackedInt32Array = PackedInt32Array()
 ) -> void:
 	for frame: BatchFrame in frames():
 		var rects: Array[Rect2] = []
 		var shown: PackedInt32Array = PackedInt32Array()
-		var cuts: Array[Rect2] = []
 		for slot: int in range(frame.slots[0], frame.slots[-1] + 1):
 			if skipped.has(slot):
 				continue
@@ -107,9 +87,7 @@ func lay_out(
 				break
 			rects.append(tickets[slot])
 			shown.append(slot)
-			if cutouts.has(slot):
-				cuts.append(cutouts[slot])
-		frame.lay_out(rects, cuts, FOOT_Y, rings, shown, skipped)
+		frame.lay_out(rects, FOOT_Y, shown, skipped)
 
 
 ## Lights the frame of every batch `slot`'s BATCH chip names (the batch holding it, or for a card

@@ -23,6 +23,7 @@ base = 4
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_squashed_cake")])
 rule_text = "The next 2 Clearance items pay ×2"
 sticker_text = "×{factor} next {charges} {tag}"
+monitor_text = "The next {charges} {tag} items each pay ×{factor}."
 art_ref = "res://art/items_v2/squashed_cake_golden.png"
 variant_of = ExtResource("9_plain")
 tier = 2

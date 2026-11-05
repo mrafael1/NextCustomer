@@ -15,11 +15,25 @@ var tokens: PackedStringArray = PackedStringArray()
 ## One per target: the summed EffectLink.gain of the links to it, or -1 when a denial cancelled
 ## them (no gain badge then).
 var gains: PackedInt32Array = PackedInt32Array()
+## One per target (PR #138 round 7, the monitor's "gives" rows): the target's running value just
+## before the first link to it (that step's value_after minus its gain) and just after the last
+## (that step's value_after), read from the steps. With several links to one target, another
+## giver's step landing on it between them is inside that span (no card does that today).
+var befores: PackedInt32Array = PackedInt32Array()
+var afters: PackedInt32Array = PackedInt32Array()
 ## The lane: 0 (the lip), 1 (the top face's front edge) or -1 (overflow: drawn only on hover).
 var lane: int = 0
 ## Every target comes before the giver (the cap is at the leftmost target and the chevrons
 ## point left).
 var backward: bool = false
+
+
+## What the giver added to its targets: its gains summed, cancelled ones (-1) left out.
+func total_gain() -> int:
+	var total: int = 0
+	for gain: int in gains:
+		total += maxi(gain, 0)
+	return total
 
 
 ## The span's first slot (the giver or a target).

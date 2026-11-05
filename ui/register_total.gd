@@ -3,7 +3,7 @@ extends Control
 ## The register's count follower (Checkout Rhythm v3; v0.84's tally, mock-up
 ## docs/art/mockups/register_polish.html, option A). Its customer display (BONUSES, WASTED,
 ## ITEMS and the SPEND MET plate over the held CHECKOUT key) was removed on 2026-11-01 (the
-## user: more info for nothing; the top bar's gauge, the monitor and the belt already show the
+## user: more info for nothing; the quota tube, the monitor and the belt already show the
 ## count), so it draws nothing and is never shown. It still counts the tally (the bonus lines
 ## fired, the bonuses WASTED, the row's items scanned), holds the count CELEBRATE_S at the
 ## quota (is_celebrating, the crossing's beat) and asks the cabinet for each paid item's coins

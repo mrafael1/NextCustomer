@@ -16,14 +16,19 @@ signal pressed
 
 const WEEK_TEXT := "W%d"
 const NUMBER_SIZE := 20
-const NAME_SIZE := 13
+## The week's name in the display font's hard pixels (UiKit.pixel_label), NAME_SCALE px per font
+## px: on the art's grid, 3 screen px per font px and 21 px capitals at 1920x1080 (mock-up
+## shift_scene_polish_v4 D; Pixelify Sans at 13 or 15 px put a font pixel on 1.8 or 2.1 screen
+## pixels, so its strokes thinned and wobbled).
+const NAME_SCALE := 2
 ## The pips: 9 px squares (v0.83: 1.5x the mock-up's 6 px, easier to read), 2 px apart, on whole
 ## pixels; today's has an ink ring. The chip's padding is narrower than the other chips'
-## (PADDING): the bar has little room left.
+## (PADDING): the bar has little room left (v4's D: 8 to 6, and its gaps 6 to 4, for the bigger
+## name).
 const PIP_SIZE := 9.0
 const PIP_GAP := 2.0
-const PADDING := 8
-const SEPARATION := 6
+const PADDING := 6
+const SEPARATION := 4
 const RING_WIDTH := 2.0
 const TIP := "%s · %s\nTap to open the time card"
 ## flash(): how long the light lasts (s), the pip's pop from 3x (in whole steps, on the pixel
@@ -73,7 +78,9 @@ const CHIP_FRAME := preload("res://art/frames/chip_warn.png")
 var hold_result: bool = false
 
 var _number: Label
+## The name's hard pixel label, in a box as big as its words (the label is drawn scaled).
 var _name: Label
+var _name_box: Control
 var _pips_view: Control
 var _pips: Array[WeekCardModel.Pip] = []
 var _ringed: bool = false
@@ -100,10 +107,15 @@ func _init() -> void:
 	_number.add_theme_color_override("font_color", Palette.PAPER)
 	_number.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	row.add_child(_number)
-	_name = TopBar.key_label("")
-	_name.add_theme_font_size_override("font_size", NAME_SIZE)
-	_name.add_theme_color_override("font_color", Palette.PAPER)
-	row.add_child(_name)
+	_name_box = Control.new()
+	_name_box.name = "NameBox"
+	_name_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_name_box.resized.connect(_place_name)
+	row.add_child(_name_box)
+	_name = UiKit.pixel_label("", NAME_SCALE, Palette.PAPER)
+	_name.name = "Name"
+	_name.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_name_box.add_child(_name)
 	_pips_view = Control.new()
 	_pips_view.name = "Pips"
 	_pips_view.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -120,7 +132,9 @@ func show_week(model: WeekCardModel) -> void:
 	visible = model.event != null or model.week_count > 1
 	_number.text = WEEK_TEXT % model.week_number
 	_name.text = model.chip_name()
-	_name.visible = not _name.text.is_empty()
+	_name_box.custom_minimum_size.x = UiKit.pixel_text_size(_name).x
+	_name_box.visible = not _name.text.is_empty()
+	_place_name()
 	_pips = model.pips()
 	if hold_result:
 		_hold_last_result()
@@ -136,11 +150,11 @@ func show_week(model: WeekCardModel) -> void:
 
 ## Shows the short name, or hides it when the bar has no room (TopBar.fit_inspection).
 func show_name(shown: bool) -> void:
-	_name.visible = shown and not _name.text.is_empty()
+	_name_box.visible = shown and not _name.text.is_empty()
 
 
 func name_shown() -> bool:
-	return _name.visible
+	return _name_box.visible
 
 
 ## Shows the pips, or hides them when the bar has no room even without the name
@@ -169,6 +183,11 @@ func pips_view() -> Control:
 ## The pips shown, in order.
 func pips() -> Array[WeekCardModel.Pip]:
 	return _pips.duplicate()
+
+
+## The name's capitals centred on the chip's height, on the art's grid.
+func _place_name() -> void:
+	UiKit.place_pixel_label(_name, Rect2(Vector2.ZERO, _name_box.size), true)
 
 
 ## Shows the last result pip, today's, as today's until flash() lights it.

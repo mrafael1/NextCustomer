@@ -103,6 +103,7 @@ func test_the_announce_prints_in_the_monitor_before_the_bonus_notice() -> void:
 				. override_failure_message("'%s' %s under the tag %s" % [label.text, box, tag])
 				. is_false()
 			)
+	_assert_string_clear(screen, announce)
 	# The tag's text fits it.
 	var bold: Font = ArtStyle.bold_font(PremiumAnnounce.BOLD_WEIGHT)
 	var width: float = MachineArt.text_width(
@@ -149,6 +150,7 @@ func test_a_payday_announce_replaces_the_bonus_notice() -> void:
 	assert_bool(screen.get_global_rect().encloses(tag)).is_true()
 	assert_float(tag.end.y).is_less_equal(screen_rect.position.y + PremiumAnnounce.TAG_INTO)
 	assert_float(tag.end.x).is_less_equal(screen_rect.end.x)
+	_assert_string_clear(screen, announce)
 	var bold: Font = ArtStyle.bold_font(PremiumAnnounce.BOLD_WEIGHT)
 	var tag_width: float = MachineArt.text_width(
 		announce.tag_text(), bold, PremiumAnnounce.TAG_FONT_SIZE
@@ -201,6 +203,31 @@ func test_a_payday_visit_shows_no_bonus_pill() -> void:
 func _frames(count: int) -> void:
 	for i: int in range(count):
 		await get_tree().process_frame
+
+
+## The hung tag's string drops straight down from the top bar's foot to the tag's eyelet, never
+## across the receipt (at its full height, ShiftStage.RECEIPT_TOP) or the register tower holding
+## it, nor the receipt as it stands now.
+func _assert_string_clear(screen: ShiftScreen, announce: PremiumAnnounce) -> void:
+	var ends: PackedVector2Array = announce.string_ends()
+	var eyelet: Vector2 = announce.tag_rect().position + Vector2(9, 9)
+	assert_that(ends[1]).is_equal(eyelet)
+	assert_float(ends[0].x).is_equal(ends[1].x)
+	var foot: float = screen._stage.top_bar.get_global_rect().end.y
+	assert_float(ends[0].y).is_equal_approx(minf(foot, eyelet.y), 0.5)
+	var cord: Rect2 = Rect2(ends[0], Vector2.ZERO).expand(ends[1]).grow(2.0)
+	var stage: Vector2 = screen._stage.get_global_rect().position
+	var receipt: Rect2 = Rect2(
+		stage + Vector2(ShiftStage.RECEIPT_X, ShiftStage.RECEIPT_TOP),
+		Vector2(ShiftStage.RECEIPT_WIDTH, ShiftStage.RECEIPT_BOTTOM - ShiftStage.RECEIPT_TOP)
+	)
+	var tower: Rect2 = Rect2(stage + ShiftStage.TOWER_RECT.position, ShiftStage.TOWER_RECT.size)
+	for area: Rect2 in [receipt, tower, screen._receipt.get_global_rect()]:
+		(
+			assert_bool(cord.intersects(area))
+			. override_failure_message("the string %s crosses %s" % [cord, area])
+			. is_false()
+		)
 
 
 static func _event_log() -> EventLogService:

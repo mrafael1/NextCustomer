@@ -12,13 +12,18 @@ const HAPPY_HOUR := "res://data/inspections/happy_hour.tres"
 const EXTRA_TILL := "res://data/inspections/extra_till.tres"
 ## Checkouts rush their count (one tap): the suite tests what follows it.
 const Rush := preload("res://tests/ui/count_up_rush.gd")
-const NOTICE := "INSPECTION NEXT SHIFT: Slot 3 pays €0"
-const RECEIPT_LINE := "Spot check: slot 3 pays €0"
+const NOTICE := "INSPECTION NEXT SHIFT: Slot 3 pays 0€"
+const RECEIPT_LINE := "Spot check: slot 3 pays 0€"
+
+## The windows the 0€ slot is checked at: the game's and a larger one the layout scales to.
+const WINDOWS: Array[Vector2i] = [Vector2i(1280, 720), Vector2i(1600, 1000)]
 
 var _folder: String = ""
+var _window: Vector2i = Vector2i.ZERO
 
 
 func before_test() -> void:
+	_window = get_tree().root.size
 	_folder = "user://test_logs_%d" % Time.get_ticks_usec()
 	_event_log().use_folder(_folder)
 	# The profile save goes there too, never to the real user:// profile.
@@ -26,6 +31,7 @@ func before_test() -> void:
 
 
 func after_test() -> void:
+	get_tree().root.size = _window
 	ProjectSettings.set_setting(SaveService.FOLDER_SETTING, null)
 	if DirAccess.dir_exists_absolute(_folder):
 		for file_name: String in DirAccess.get_files_at(_folder):
@@ -60,7 +66,7 @@ func test_the_notice_comes_before_the_machine() -> void:
 			[
 				"TOTAL",
 				ReceiptView.verdict_text(109, quota),
-				ReceiptView.margin_text(ShiftMargin.Kind.OVER, 109 - quota),
+				ReceiptTarget.margin_text(ShiftMargin.Kind.OVER, 109 - quota),
 				ReceiptView.PAID_TEXT,
 				ReceiptView.TEAR_PATTERN.repeat(ReceiptView.TEAR_REPEAT),
 				"",
@@ -86,9 +92,9 @@ func test_the_notice_comes_before_the_machine() -> void:
 	assert_int(run.shift_index).is_equal(2)
 	assert_bool(screen._inspection_tag.visible).is_true()
 	# The bonus pill's chip may drop "Inspection · " to fit the bar (#77 machine v2).
-	assert_str(screen._inspection_tag.text()).ends_with("Slot 3 pays €0")
+	assert_str(screen._inspection_tag.text()).ends_with("Slot 3 pays 0€")
 	assert_str(screen._inspection_tag.tooltip_text).contains("Spot check")
-	assert_str(screen._inspection_tag.tooltip_text).contains("Slot 3 pays €0")
+	assert_str(screen._inspection_tag.tooltip_text).contains("Slot 3 pays 0€")
 	assert_bool(screen._loyalty_card.is_ancestor_of(screen._inspection_tag)).is_false()
 	assert_int(screen._loyalty_card.stamped_boxes().size()).is_equal(run.upgrades.size())
 	assert_array(_last_event("shift_start")["inspections"]).is_equal(["spot_check"])
@@ -121,7 +127,7 @@ func test_inspection_steps_print_and_play_from_the_tag() -> void:
 	screen._debug.set_inspection("spot_check")
 	assert_bool(screen._inspection_tag.visible).is_true()
 	assert_str(_last_event("debug")["action"]).is_equal("set_inspection")
-	# Slot 3 wears the inspection's "€0" mark on the empty belt already (2026-10-28).
+	# Slot 3 wears the inspection's "0€" mark on the empty belt already (2026-10-28).
 	var dead: SlotMark = screen._row_strip.inspection_mark(2, 0)
 	assert_object(dead).is_not_null()
 	assert_bool(dead.is_visible_in_tree()).is_true()
@@ -143,6 +149,88 @@ func test_inspection_steps_print_and_play_from_the_tag() -> void:
 	assert_str(_receipt_text(screen)).contains(RECEIPT_LINE)
 	assert_object(screen.run.history[0].inspection).is_not_null()
 	assert_int(dead.fired_count()).is_equal(1)
+
+
+## One owner per fact (2026-11-02, shift scene polish v2 ticket brief section 3): with a card on
+## Spot check's slot 3 the ticket's pay tag shows the 0€ with no warning sign, and the slot's
+## talker is the cause-only chip (the warning sign, no text, its hover tip naming the cause),
+## centred under the ticket, inside the window and clear of its neighbours, so exactly one "0€"
+## shows on the ticket and the talker; the empty slot keeps the full "⚠ 0€" talker. At the game's
+## window and a larger one. The count still fires the chip on the 0€ beat.
+func test_a_carded_zero_slot_shows_its_zero_once() -> void:
+	await _assert_zero_once(WINDOWS[0])
+
+
+func test_a_carded_zero_slot_shows_its_zero_once_in_a_larger_window() -> void:
+	await _assert_zero_once(WINDOWS[1])
+
+
+func _assert_zero_once(window: Vector2i) -> void:
+	get_tree().root.size = window
+	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
+	var screen: ShiftScreen = runner.scene()
+	Rush.no_write_ups(screen)
+	_only_spot_check(screen)
+	screen._debug.set_inspection("spot_check")
+	await _frames(3)
+	var case: String = str(window)
+	var dead: SlotMark = screen._row_strip.inspection_mark(2, 0)
+	assert_object(dead).override_failure_message(case).is_not_null()
+	# Empty: the full talker, its warning and "0€", the only 0€ on the slot.
+	assert_bool(dead.is_compact()).override_failure_message(case).is_false()
+	assert_bool(dead.shows_text()).override_failure_message(case).is_true()
+	assert_bool(dead.icon().is_visible_in_tree()).override_failure_message(case).is_true()
+	assert_str(dead.text()).is_equal(SlotMark.INSPECTION_TEXT)
+	var tip: String = "Spot check: this slot pays %s" % SlotMark.INSPECTION_TEXT
+	assert_str(dead.tooltip_text).is_equal(tip)
+	assert_int(dead.mouse_filter).is_equal(Control.MOUSE_FILTER_PASS)
+	_assert_on_slot(screen, dead, 2)
+	_place_ids(screen, ["bread", "bread", "bread", "bread"])
+	await _frames(3)
+	assert_object(screen._row_strip.inspection_mark(2, 0)).is_same(dead)
+	# Carded: the cause-only chip, the warning alone and the tip kept.
+	assert_bool(dead.is_compact()).override_failure_message(case).is_true()
+	assert_bool(dead.shows_text()).override_failure_message(case).is_false()
+	assert_bool(dead.icon().is_visible_in_tree()).override_failure_message(case).is_false()
+	var chip: TextureRect = dead.inner().get_node(NodePath(SlotMark.CHIP_NAME)) as TextureRect
+	assert_bool(chip.is_visible_in_tree()).override_failure_message(case).is_true()
+	assert_str(chip.texture.resource_path).is_equal(SlotMark.CHIP.resource_path)
+	assert_vector(dead.size).is_equal(SlotMark.CHIP.get_size() * ArtStyle.ART_SCALE)
+	assert_str(dead.tooltip_text).is_equal(tip)
+	_assert_on_slot(screen, dead, 2)
+	# Under its ticket, centred on it (within an art pixel), its top tucked behind the foot.
+	var ticket: Rect2 = (screen._row_views[2] as ItemView).sticker().get_global_rect()
+	var rect: Rect2 = dead.get_global_rect()
+	var message: String = "%s: chip %s under ticket %s" % [case, rect, ticket]
+	var scale: float = dead.get_global_transform().get_scale().x
+	var off_centre: float = absf(rect.get_center().x - ticket.get_center().x)
+	assert_float(off_centre).override_failure_message(message).is_less_equal(
+		ArtStyle.ART_SCALE * scale
+	)
+	assert_float(rect.position.y).override_failure_message(message).is_less(ticket.end.y)
+	assert_float(rect.end.y).override_failure_message(message).is_greater(ticket.end.y)
+	# The ticket's price window owns the amount (tickets v5): "0€" in tomato dark, its reason in
+	# the tip.
+	var pay: PriceWindow = screen._stage.planning_layer.pay_tag(2)
+	var sticker: PriceSticker = (screen._row_views[2] as ItemView).sticker()
+	assert_object(pay).is_same(sticker.window())
+	assert_int(pay.pay_state()).is_equal(PriceWindow.State.ZERO)
+	assert_str(pay.digits().text).is_equal("0€")
+	assert_str(pay.tip_text).contains("pays 0€")
+	# No other "0€" shows on the ticket and the talker: the window's digits are the only one.
+	var band: Rect2 = ticket.expand(rect.end)
+	var zeros: int = 0
+	for label: Node in screen.find_children("*", "Label", true, false):
+		var shown: Label = label as Label
+		if shown.is_visible_in_tree() and shown.text.contains("0€"):
+			if shown.get_global_rect().intersects(band):
+				zeros += 1
+	assert_int(zeros).override_failure_message(message).is_equal(0)
+	# The other slots' marks: none (Spot check marks slot 3 only).
+	assert_object(screen._row_strip.inspection_mark(3)).is_null()
+	# The count still plays the 0€ beat on it: the chip fires.
+	await Rush.checkout(screen)
+	assert_int(dead.fired_count()).override_failure_message(case).is_equal(1)
 
 
 func test_the_debug_panel_clears_the_inspection() -> void:
@@ -428,7 +516,7 @@ func test_a_full_row_explains_why_a_card_does_not_fit() -> void:
 
 
 ## Day events aimed at a slot wear its mark (2026-10-31: "day event that impact a specific slot
-## should be shown visually on slot"): Happy hour's green "+€3" on the row's last filled slot (slot
+## should be shown visually on slot"): Happy hour's green "+3€" on the row's last filled slot (slot
 ## 1 on the empty belt), moving as cards are placed, and Extra till's EXTRA on the slot it adds;
 ## each hangs under its own slot's ticket, on screen, and Happy hour's fires on its step.
 func test_slot_day_events_mark_their_slots() -> void:
@@ -445,7 +533,7 @@ func test_slot_day_events_mark_their_slots() -> void:
 	assert_int(screen._slots.size()).is_equal(open)
 	var happy: SlotMark = screen._row_strip.inspection_mark(0, 0)
 	assert_object(happy).is_not_null()
-	assert_str(happy.text()).is_equal("+€3")
+	assert_str(happy.text()).is_equal("+3€")
 	assert_bool(happy.boon).is_true()
 	var extra: SlotMark = screen._row_strip.inspection_mark(open - 1, 1)
 	assert_object(extra).is_not_null()

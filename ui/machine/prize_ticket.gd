@@ -17,7 +17,7 @@ extends Control
 ## reduced motion it appears in place at its reveal, its burst still and its sparkles held.
 ##
 ## The face (paper, its rarity's edge) holds the art box (PrizeArt: the real sprite, the coupon
-## slip, a LOYALTY punch card, an upgrade's item at its new tier), a band ("NEW ITEM · €2",
+## slip, a LOYALTY punch card, an upgrade's item at its new tier), a band ("NEW ITEM · 2€",
 ## "COUPON", "LOYALTY STAMP", a perk's "LEVEL UP · LV 2", "UPGRADE"), the prize's name (#105: in
 ## Pixelify, as the scan popup
 ## prints it, at the machine's NAME_DISPLAY_SIZE on one line, its numbers in the number font,
@@ -215,7 +215,7 @@ func _init(
 	add_child(tab)
 
 
-## The band's text: "NEW ITEM · €2" (a BIG or GOLDEN item's own price), "COUPON", "LOYALTY STAMP",
+## The band's text: "NEW ITEM · 2€" (a BIG or GOLDEN item's own price), "COUPON", "LOYALTY STAMP",
 ## a perk's level-up "LEVEL UP · LV 2" (#108), or "UPGRADE".
 static func band_text(shown: MachinePrize) -> String:
 	match shown.kind:
@@ -227,7 +227,7 @@ static func band_text(shown: MachinePrize) -> String:
 			return "LOYALTY STAMP"
 		MachinePrize.Kind.UPGRADE:
 			return "UPGRADE"
-	return "NEW ITEM · €%d" % shown.card.base
+	return "NEW ITEM · %d€" % shown.card.base
 
 
 ## The prize's name on its ticket: the item's, the perk's, or the upgrade's name line.
@@ -341,7 +341,7 @@ func frame(t: float) -> void:
 	_fx_front.queue_redraw()
 
 
-## The win sticker's lines ("ON YOUR LAST ROW +€6", "BEST ROW THIS RUN WASTED"); empty without one.
+## The win sticker's lines ("ON YOUR LAST ROW +6€", "BEST ROW THIS RUN WASTED"); empty without one.
 func win_texts() -> PackedStringArray:
 	return _win_texts
 
@@ -350,9 +350,9 @@ func win_sticker() -> Control:
 	return _win_sticker
 
 
-## A win's amount as its sticker prints it: "+€6", or WASTED for nothing.
+## A win's amount as its sticker prints it: "+6€", or WASTED for nothing.
 static func win_amount(gain: int) -> String:
-	return "+€%d" % gain if gain > 0 else "WASTED"
+	return MonitorText.gain(gain) if gain > 0 else "WASTED"
 
 
 ## The prize's rarity texts (the tab), for tests.

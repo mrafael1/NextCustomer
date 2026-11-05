@@ -21,8 +21,8 @@ static func screen_opened(music: MusicService) -> void:
 	music.play(SHIFT_MUSIC)
 
 
-## A new run (the results' New run, the debug panel's replay or skip, or the screen's first
-## run): back to the shift loop, at full level (no fade when it is there already).
+## A new run (the debug panel's replay or skip, or the screen's first run): back to the shift
+## loop, at full level (no fade when it is there already).
 static func new_run(music: MusicService) -> void:
 	music.play(SHIFT_MUSIC)
 	if music.is_ducked():

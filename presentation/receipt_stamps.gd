@@ -11,7 +11,7 @@ const PAID_TEXT := "PAID"
 const PAID_TILT_DEG := -8.0
 ## INSPECTION PASSED: its title (Pixelify 12) over the inspection's name (bold Atkinson 11), in a
 ## dark tomato border on paper, tilted INSPECTION_TILT_DEG around its left end.
-const INSPECTION_TEXT := "INSPECTION PASSED ✓"
+const INSPECTION_TEXT := "INSPECTION PASSED"
 const INSPECTION_TILT_DEG := -3.0
 const INSPECTION_NAME := "InspectionStamp"
 const TITLE_SIZE := 12
@@ -23,10 +23,7 @@ const PAD_Y := 2
 ## The stamp's left inset on its line, and the room left under it for its tilt.
 const STAMP_INSET := 4.0
 const STAMP_ROOM := 6.0
-## Pixelify has no ✓: the title's font falls back to the mono font for it (desktop and web alike).
 const TITLE_NAME := "Title"
-
-static var _title_font: FontVariation
 
 
 ## PAID is stamped on a passed shift's margin `line`, tilted. Returns the stamp's label.
@@ -93,7 +90,6 @@ static func inspection_stamp(inspection_name: String) -> PanelContainer:
 	stamp.add_child(lines)
 	var title: Label = UiKit.display_label(INSPECTION_TEXT, TITLE_SIZE, false)
 	title.name = TITLE_NAME
-	title.add_theme_font_override("font", title_font())
 	title.add_theme_color_override("font_color", Palette.TOMATO_DARK)
 	lines.add_child(title)
 	if not inspection_name.is_empty():
@@ -102,16 +98,6 @@ static func inspection_stamp(inspection_name: String) -> PanelContainer:
 		lines.add_child(name_label)
 	tilt(stamp, INSPECTION_TILT_DEG, false)
 	return stamp
-
-
-## The INSPECTION PASSED title's font: Pixelify with the mono font behind it for the ✓.
-static func title_font() -> Font:
-	if _title_font == null:
-		_title_font = FontVariation.new()
-		_title_font.base_font = ArtStyle.DISPLAY_FONT
-		var fallbacks: Array[Font] = [ArtStyle.MONO_FONT]
-		_title_font.fallbacks = fallbacks
-	return _title_font
 
 
 ## The INSPECTION PASSED stamp on `line` (stamp_inspection), or null.

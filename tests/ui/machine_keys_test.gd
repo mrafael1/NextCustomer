@@ -233,11 +233,11 @@ func test_the_display_follows_the_visit() -> void:
 	assert_str(display.texts()[0]).is_equal("READING…")
 	view.show_at(plan.feed_end + EPSILON)
 	assert_array(Array(display.texts())).is_equal(
-		["SPEND €%d ✓ THANK YOU!" % run.history[-1].total, "quota €%d met" % run.history[-1].quota]
+		["SPEND %d€ ✓ THANK YOU!" % run.history[-1].total, "quota %d€ met" % run.history[-1].quota]
 	)
 	view.show_at(plan.choose_at)
 	assert_array(Array(display.texts())).is_equal(
-		["SPEND €%d ✓ THANK YOU!" % run.history[-1].total, RewardMachineView.CHOOSE_SUB]
+		["SPEND %d€ ✓ THANK YOU!" % run.history[-1].total, RewardMachineView.CHOOSE_SUB]
 	)
 	assert_bool(run.machine.choose(run, RewardMachine.Chute.NEW_ITEMS)).is_true()
 	view.show_draw(run)
@@ -592,15 +592,15 @@ func test_machine_lines_use_glyphs_their_fonts_have() -> void:
 	assert_int(view.skip_bin.pressed.get_connections().size()).is_equal(1)
 	for line: Array in [
 		[RewardMachineView.BIN_ALL % 3, RewardMachineView.BIN_ALL_SUB],
-		["SPEND €114 ✓ THANK YOU!", RewardMachineView.CHOOSE_SUB],
+		["SPEND 114€ ✓ THANK YOU!", RewardMachineView.CHOOSE_SUB],
 		["BINNED ✕", "no prize this time"],
 		["NEW IN CART ✓", "1 swapped out · cart 15/15"],
 		["UPGRADED ✓", "cart stays 15/15"],
 		["STAMPED ✓", "Slot engine on your card"],
 		["LEVEL UP ✓", "Category engine LV 3 on your card"],
-		["READING…", "quota €99 met · Spot check passed"],
-		["SPEND €114 ✓ THANK YOU!", RewardMachineView.PREMIUM_SUB],
-		["SPEND €114 ✓ THANK YOU!", "quota €99 met" + MachineDisplay.PREMIUM_READ],
+		["READING…", "quota 99€ met · Spot check passed"],
+		["SPEND 114€ ✓ THANK YOU!", RewardMachineView.PREMIUM_SUB],
+		["SPEND 114€ ✓ THANK YOU!", "quota 99€ met" + MachineDisplay.PREMIUM_READ],
 		[RewardMachineView.BONUS_TITLE, RewardMachineView.BONUS_SUB % "inspection passed"],
 		["BANANA › GOLDEN ✓", "cart stays 15/15"],
 	]:
@@ -633,9 +633,9 @@ func test_long_display_lines_fit() -> void:
 		["PICK 1 · ONLY 2 IN STOCK", RewardMachineView.CART_FULL_TEXT],
 		[RewardMachineView.BIN_ALL % 3, RewardMachineView.BIN_ALL_SUB],
 		[MachineDisplay.PACKING, "bonus ticket"],
-		["SPEND €999 ✓ THANK YOU!", "quota €999 met · Coupon slot closed passed"],
-		["SPEND €999 ✓ THANK YOU!", RewardMachineView.PREMIUM_SUB],
-		["SPEND €999 ✓ THANK YOU!", "quota €999 met" + MachineDisplay.PREMIUM_READ],
+		["SPEND 999€ ✓ THANK YOU!", "quota 999€ met · Coupon slot closed passed"],
+		["SPEND 999€ ✓ THANK YOU!", RewardMachineView.PREMIUM_SUB],
+		["SPEND 999€ ✓ THANK YOU!", "quota 999€ met" + MachineDisplay.PREMIUM_READ],
 		["LEVEL UP ✓", "Category engine LV 3 on your card"],
 	]:
 		display.show_message(line[0], line[1])
@@ -716,7 +716,7 @@ func test_a_premium_visit_turns_the_machine_gold() -> void:
 		assert_bool(view.tray.is_gold()).is_true()
 		view.show_at(plan.choose_at)
 		assert_array(Array(view.display.texts())).is_equal(
-			["SPEND €%d ✓ THANK YOU!" % run.history[-1].total, RewardMachineView.PREMIUM_SUB]
+			["SPEND %d€ ✓ THANK YOU!" % run.history[-1].total, RewardMachineView.PREMIUM_SUB]
 		)
 		for label: Label in view.display.labels():
 			_assert_fits(label)

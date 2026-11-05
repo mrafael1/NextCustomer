@@ -15,7 +15,7 @@ extends Resource
 
 
 ## Value pass, after the card's own, effect and upgrade flat bonuses: a flat bonus for this slot
-## (negative for a malus: Late delivery's -€2), given the slot's value so far (`value`), so a
+## (negative for a malus: Late delivery's -2€), given the slot's value so far (`value`), so a
 ## malus never takes it below 0.
 func flat_bonus(_state: ScoreState, _slot: int, _value: int) -> int:
 	return 0

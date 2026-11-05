@@ -104,9 +104,9 @@ func test_a_failed_condition_shows_a_wasted_sticker_in_planning() -> void:
 
 ## A conditional card that another card boosts while its own condition fails (Eggs, Cheese: the
 ## Egg doubles Cheese, which has no Bread just before it) keeps its "WASTED" sticker, but its belt
-## ticket is BOOSTED and its planning receipt line shows the raised check, not the fizzle icon,
-## on screen inside the receipt.
-func test_a_boosted_card_with_a_failed_condition_keeps_the_raised_mark() -> void:
+## ticket is BOOSTED and its planning receipt line shows the fizzle icon (the receipt draws no
+## raised check), on screen inside the receipt.
+func test_a_boosted_card_with_a_failed_condition_shows_the_fizzle_mark() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _place(screen, ["eggs", "cheese"])
 	var result: ScoreResult = screen.run.preview()
@@ -119,11 +119,12 @@ func test_a_boosted_card_with_a_failed_condition_keeps_the_raised_mark() -> void
 	assert_object(line).is_not_null()
 	if line == null:
 		return
-	var mark: Control = line.get_child(1).get_node_or_null("Mark") as Control
+	var mark: TextureRect = line.get_child(1).get_node_or_null("Mark") as TextureRect
 	assert_object(mark).is_not_null()
 	if mark == null:
 		return
-	assert_int(int(mark.get_meta("mark"))).is_equal(ReceiptView.Mark.RAISED)
+	assert_int(int(mark.get_meta("mark"))).is_equal(ReceiptView.Mark.FIZZLED)
+	assert_object(mark.texture).is_same(ReceiptDecor.FIZZLE_ICON)
 	var receipt_rect: Rect2 = screen._receipt.get_global_rect()
 	assert_bool(receipt_rect.grow(1.0).encloses(mark.get_global_rect())).is_true()
 	assert_bool(SCREEN_RECT.encloses(mark.get_global_rect())).is_true()

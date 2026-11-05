@@ -18,7 +18,7 @@ static func printed(receipt: ReceiptView) -> Array[String]:
 
 ## The steps of `result` that print a receipt line, in order: each item's BASE (its item's line),
 ## its PAYOUT when the item's base, bonus and copy amounts (an override's amount replacing
-## them) don't add up to it (its closing "= €3.00" line), and every other step that prints a
+## them) don't add up to it (its closing "= 3.00€" line), and every other step that prints a
 ## line of its own (an EFFECT_ARMED step its arm line, ReceiptInk.arm_line).
 static func printing_steps(result: ScoreResult) -> Array[ScoreStep]:
 	var names: PackedStringArray = PackedStringArray()

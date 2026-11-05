@@ -4,7 +4,7 @@ extends GdUnitTestSuite
 ## once; every paid beat lands once, with its payout and its subtotal; the quota is met once, as
 ## the ding beat's last tick brings the shown total to it (D1); the TOTAL lands once, after every
 ## payout and landing, on the total; the checkout column's number never punches past the largest
-## punch (CountTotalTuning). On every frame of the count the top bar's gauge, the checkout
+## punch (CountTotalTuning). On every frame of the count the quota tube, the checkout
 ## column's number and (while it runs) the climax's number read the register's same whole number.
 ## The same holds untouched, tapped (TAP_SKIP), held (FAST_FORWARD) and when the last payout meets
 ## the quota with the TOTAL (chip_at_total). The
@@ -178,10 +178,10 @@ func _sample(screen: ShiftScreen) -> void:
 	if not screen._led.is_counting():
 		return
 	var reading: int = screen._led.amount()
-	var top: String = screen._quota_meter.amount_label.text
+	var top: int = screen._quota_meter.amount()
 	var frame: int = Engine.get_process_frames()
-	if top != "€%d" % reading:
-		_out_of_sync.append("frame %d: the top bar %s, the reading %d" % [frame, top, reading])
+	if top != reading:
+		_out_of_sync.append("frame %d: the gauge %d, the reading %d" % [frame, top, reading])
 	if number.value() != reading:
 		_out_of_sync.append(
 			"frame %d: the column %d, the reading %d" % [frame, number.value(), reading]

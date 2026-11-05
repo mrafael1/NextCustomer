@@ -2,7 +2,8 @@ class_name RedrawPanel
 extends Control
 ## The monitor's redraw panel (plan section 3.8; mock-up redraw_basket_v1.html, approved by the
 ## user on 2026-10-22): over the whole paper while redraw mode is armed or the redraw plays
-## (MonitorView.show_redraw). The heading with the redraws left at its right; then either a small
+## (MonitorView.show_redraw). The heading with the redraws left at its right (the bare count in
+## RedrawNotice.count_color, heavier, so the digit reads without the colour); then either a small
 ## spaced key line ("PICK A BASKET") and the body line, or a row of the going items' icons, a ">"
 ## and the coming items' icons (or "N new items drawn" and the "-1 REDRAW" chip) over the body
 ## line; and the foot under a dashed rule, tomato dark when it warns. Display only: it lays out a
@@ -11,7 +12,8 @@ extends Control
 const PADDING := Vector2(16, 12)
 const TITLE_HEIGHT := 30.0
 const TITLE_SIZE := 24
-const LEFT_SIZE := 12
+const LEFT_SIZE := 18
+const LEFT_OUTLINE := 1
 const KEY_Y := 48.0
 const KEY_HEIGHT := 14.0
 const KEY_SIZE := 11
@@ -65,9 +67,12 @@ func show_notice(shown: RedrawNotice) -> void:
 	title.name = "Title"
 	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_add(title, Rect2(PADDING, Vector2(width, TITLE_HEIGHT)))
-	var left_label: Label = UiKit.display_label("%d left" % shown.left, LEFT_SIZE, false)
+	var count_color: Color = RedrawNotice.count_color(shown.left)
+	var left_label: Label = UiKit.body_label("%d" % shown.left, LEFT_SIZE, count_color)
 	left_label.name = "Left"
-	left_label.add_theme_color_override("font_color", Palette.TEAL_SHADE)
+	left_label.add_theme_font_override("font", ArtStyle.number_font())
+	left_label.add_theme_color_override("font_outline_color", count_color)
+	left_label.add_theme_constant_override("outline_size", LEFT_OUTLINE)
 	left_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	left_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_add(left_label, Rect2(PADDING, Vector2(width, TITLE_HEIGHT)))

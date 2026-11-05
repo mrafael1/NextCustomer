@@ -23,6 +23,7 @@ base = 3
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_batteries")])
 rule_text = "The next 2 Household items pay ×2 (a second Batteries replaces this, they don't add up)"
 sticker_text = "×{factor} next {charges} {tag}"
+monitor_text = "The next {charges} {tag} items each pay ×{factor}. A second {name} replaces this one instead of adding up."
 art_ref = "res://art/items_v2/batteries_golden.png"
 variant_of = ExtResource("9_plain")
 tier = 2

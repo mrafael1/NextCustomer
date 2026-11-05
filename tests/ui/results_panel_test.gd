@@ -3,7 +3,8 @@ extends GdUnitTestSuite
 ## lines and their order (the headline, one line per played shift with a dim line per RECEIPT
 ## REWARDS visit (#77) and the inspection under it, the shortfall on a loss, the coins at the
 ## bottom), the print
-## one line every final_line_ms, a tap printing the rest at once, New run armed mid-print, the
+## one line every final_line_ms, a tap printing the rest at once, Return to menu armed mid-print
+## (the one primary button; it no longer starts a run or opens the toy machines), the
 ## coins clinking and the music ducking when the coin lines print, and the layout: 8 shifts with
 ## their visits, the
 ## stapled loyalty card with a starting-upgrade box and the coins fit 1280x720 unclipped. The
@@ -84,17 +85,17 @@ func test_a_lost_run_lists_its_shifts_then_the_shortfall_and_the_coins() -> void
 	screen._results.skip_printing()
 	var texts: PackedStringArray = screen._results.texts()
 	var rule: String = FinalReceipt.rule()
-	var shortfall: String = "Shift 2 / %d: short by €%d" % [run.shift_count(), run.quota() - 20]
+	var shortfall: String = "Shift 2 / %d: short by %d€" % [run.shift_count(), run.quota() - 20]
 	var payout: CoinPayout = CoinPayout.for_run(run)
 	var expected: Array = ["RUN OVER", rule]
 	(
 		expected
 		. append_array(
 			[
-				"  1  €109 / €34     pass",
+				"  1  109€ / 34€     pass",
 				"     binned NEW ITEMS",
 				"     inspection Spot check",
-				"  2  €20 / €35      fail",
+				"  2  20€ / 35€      fail",
 				shortfall,
 				rule,
 			]
@@ -109,8 +110,8 @@ func test_a_lost_run_lists_its_shifts_then_the_shortfall_and_the_coins() -> void
 
 
 ## The receipt prints one line every final_line_ms from the show (none early, none more than
-## LATE_MS late), and New run arms 350 ms in, mid-print, once the mouse is up.
-func test_the_receipt_prints_line_by_line_and_new_run_arms_mid_print() -> void:
+## LATE_MS late), and Return to menu arms 350 ms in, mid-print, once the mouse is up.
+func test_the_receipt_prints_line_by_line_and_menu_arms_mid_print() -> void:
 	var screen: ShiftScreen = await _screen()
 	_full_run(screen)
 	var results: ResultsPanel = screen._results
@@ -124,7 +125,7 @@ func test_the_receipt_prints_line_by_line_and_new_run_arms_mid_print() -> void:
 		var now: int = Time.get_ticks_msec() - shown
 		while printed_at.size() < results.printed_count():
 			printed_at.append(now)
-		if armed_ms < 0 and not results._new_run_button.disabled:
+		if armed_ms < 0 and not results.menu_button().disabled:
 			armed_ms = now
 			armed_mid_print = results.is_printing()
 	var count: int = results.texts().size()
@@ -285,9 +286,9 @@ func test_a_full_receipt_fits_the_screen_with_the_card_and_the_coins() -> void:
 		if index > 0:
 			assert_float(rect.position.y).is_greater_equal(previous.end.y - 0.5)
 		previous = rect
-	var new_run: Rect2 = results._new_run_button.get_global_rect()
-	assert_bool(paper.encloses(new_run)).is_true()
-	assert_float(new_run.position.y).is_greater_equal(previous.end.y)
+	var menu: Rect2 = results.menu_button().get_global_rect()
+	assert_bool(paper.encloses(menu)).is_true()
+	assert_float(menu.position.y).is_greater_equal(previous.end.y)
 	assert_str(results.texts()[-1]).starts_with("COINS +")
 
 
@@ -312,8 +313,9 @@ func test_the_store_closes_behind_the_receipt() -> void:
 	assert_float(closed.shutter()).is_less(1.0)
 	await get_tree().create_timer(StoreClosed.SHUTTER_S + SLACK_S).timeout
 	assert_float(closed.shutter()).is_equal(1.0)
-	assert_float(closed.shutter_foot()).is_equal_approx(
-		SCREEN_RECT.size.y * StoreClosed.SHUTTER_STOP, 0.5
+	assert_float(closed.shutter_foot()).is_equal_approx(closed.size.y, 0.5)
+	assert_float(closed.global_position.y + closed.shutter_foot()).is_equal_approx(
+		SCREEN_RECT.end.y, 0.5
 	)
 	assert_bool(closed.focus.is_equal_approx(results.get_global_rect())).is_true()
 
@@ -327,63 +329,84 @@ func test_reduced_motion_closes_the_store_at_once() -> void:
 	screen._show_results(_last_result(screen))
 	var closed: StoreClosed = screen._results.store_closed()
 	assert_float(closed.shutter()).is_equal(1.0)
-	assert_float(closed.shutter_foot()).is_equal_approx(
-		closed.size.y * StoreClosed.SHUTTER_STOP, 0.5
-	)
+	assert_float(closed.shutter_foot()).is_equal_approx(closed.size.y, 0.5)
 
 
-## #63: "Toy machines ›" sits beside New run inside the receipt and arms with it.
-func test_toy_machines_sits_beside_new_run_and_arms_with_it() -> void:
+## The closed store's shutter reaches the window's bottom edge, so it covers the whole visible
+## window; the CLOSED sign stays near the top, fully on screen, and clear of the receipt.
+func test_the_closed_shutter_covers_the_whole_window() -> void:
+	await _assert_the_closed_store_covers(Vector2i(SCREEN_RECT.size))
+
+
+## The same in a larger window (more of the store shows under the expand stretch): the shutter
+## still reaches the bottom edge and the sign still hangs near the top.
+func test_the_closed_shutter_covers_a_larger_window() -> void:
+	var visible_rect: Rect2 = await _assert_the_closed_store_covers(Vector2i(1600, 1000))
+	# The larger window shows more of the store: taller than the 720 design height.
+	assert_float(visible_rect.size.y).is_greater(SCREEN_RECT.size.y)
+
+
+## The results' actions: Return to menu, the one primary (red-framed) button, then Export log
+## (teal) on its right, both inside the receipt and centred on one row; no New run and no Toy
+## machines (they are on the title's REWARDS). Return to menu arms after ARM_MS.
+func test_return_to_menu_is_the_one_primary_action_and_arms() -> void:
 	var screen: ShiftScreen = await _screen()
 	_full_run(screen)
 	var results: ResultsPanel = screen._results
 	screen._show_results(_last_result(screen))
 	results.skip_printing()
 	await _frames(3)
-	var toys: FramedButton = results.toy_machines_button()
-	var new_run: FramedButton = results.new_run_button()
-	assert_str(toys.caption).is_equal("Toy machines ›")
-	assert_bool(toys.disabled).is_true()
-	assert_bool(new_run.disabled).is_true()
+	var menu: FramedButton = results.menu_button()
+	assert_str(menu.caption).is_equal("Return to menu")
+	assert_bool(menu.disabled).is_true()
+	var row: HBoxContainer = menu.get_parent() as HBoxContainer
+	var captions: Array[String] = []
+	for child: Node in row.get_children():
+		captions.append((child as FramedButton).caption)
+	assert_array(captions).is_equal(["Return to menu", "Export log"])
+	var export: FramedButton = row.get_child(1) as FramedButton
+	assert_object(_frame_of(menu)).is_same(UiKit.BUTTON_FRAME)
+	assert_object(_frame_of(export)).is_same(TopBar.BUTTON_FRAME)
 	await await_millis(ResultsPanel.ARM_MS + 100)
 	await _frames(3)
-	assert_bool(new_run.disabled).is_false()
-	assert_bool(toys.disabled).is_false()
+	assert_bool(menu.disabled).is_false()
 	var paper: Rect2 = results.get_global_rect()
-	assert_bool(paper.encloses(toys.get_global_rect())).is_true()
-	assert_float(toys.get_global_rect().position.x).is_greater_equal(
-		new_run.get_global_rect().end.x
+	assert_bool(paper.encloses(menu.get_global_rect())).is_true()
+	assert_bool(paper.encloses(export.get_global_rect())).is_true()
+	assert_float(export.get_global_rect().position.x).is_greater_equal(menu.get_global_rect().end.x)
+	var row_center: float = (
+		(menu.get_global_rect().position.x + export.get_global_rect().end.x) / 2.0
 	)
-	(
-		assert_float(
-			absf(toys.get_global_rect().get_center().y - new_run.get_global_rect().get_center().y)
-		)
-		. is_less(1.0)
-	)
+	assert_float(absf(row_center - paper.get_center().x)).is_less(1.0)
 
 
-## Toy machines clicked mid-print prints the rest first (a skip), so the receipt stops printing
-## and its PressReader stops reading presses behind the full-screen machines.
-func test_toy_machines_mid_print_finishes_the_print() -> void:
+## Return to menu clicked mid-print prints the rest first (a skip), so the receipt stops printing
+## and its PressReader stops reading presses as the screen leaves; it asks for the menu.
+func test_return_to_menu_mid_print_finishes_the_print() -> void:
 	var screen: ShiftScreen = await _screen()
+	screen.changes_scene = false
 	_full_run(screen)
 	var results: ResultsPanel = screen._results
+	var asked: Array[bool] = []
+	results.menu_requested.connect(func() -> void: asked.append(true))
 	screen._show_results(_last_result(screen))
 	var shown: int = Time.get_ticks_msec()
-	while results.toy_machines_button().disabled and Time.get_ticks_msec() - shown < 3000:
+	while results.menu_button().disabled and Time.get_ticks_msec() - shown < 3000:
 		await get_tree().process_frame
 	(
-		assert_bool(results.toy_machines_button().disabled)
+		assert_bool(results.menu_button().disabled)
 		. override_failure_message(
 			"not armed; mouse held: %s" % Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
 		)
 		. is_false()
 	)
 	assert_bool(results.is_printing()).is_true()
-	results.toy_machines_button().pressed.emit()
+	results.menu_button().pressed.emit()
 	assert_bool(results.is_printing()).is_false()
 	assert_int(results.printed_count()).is_equal(results.texts().size())
 	assert_bool(results._reader.is_reading()).is_false()
+	assert_array(asked).is_equal([true])
+	assert_bool(TitleScreen.take_lit_request()).is_true()
 
 
 ## The won run of the layout test: 8 passed shifts with totals of four digits, a ticket visit
@@ -430,6 +453,34 @@ func _full_run(screen: ShiftScreen) -> void:
 	run.phase = RunState.Phase.WON
 
 
+## The store closed (at once) behind the final receipt in a `window` sized window: the shutter
+## encloses the visible window and its foot is the window's bottom edge; the sign is on screen,
+## below the top bar, in the window's top half, and off the receipt. Returns the visible window.
+func _assert_the_closed_store_covers(window: Vector2i) -> Rect2:
+	get_tree().root.size = window
+	var screen: ShiftScreen = await _screen()
+	screen.profile.set_reduced_motion(true)
+	_full_run(screen)
+	var results: ResultsPanel = screen._results
+	screen._show_results(_last_result(screen))
+	results.skip_printing()
+	await _frames(3)
+	var visible_rect: Rect2 = get_tree().root.get_visible_rect()
+	var closed: StoreClosed = results.store_closed()
+	assert_float(closed.shutter()).is_equal(1.0)
+	var shutter: Rect2 = Rect2(
+		closed.global_position, Vector2(closed.size.x, closed.shutter_foot())
+	)
+	assert_bool(shutter.grow(0.5).encloses(visible_rect)).is_true()
+	assert_float(shutter.end.y).is_equal_approx(visible_rect.end.y, 0.5)
+	var sign_rect: Rect2 = closed.sign_rect()
+	assert_bool(visible_rect.encloses(sign_rect)).is_true()
+	assert_float(sign_rect.position.y).is_greater_equal(ShiftStage.PANEL_TOP)
+	assert_float(sign_rect.end.y).is_less(visible_rect.get_center().y)
+	assert_bool(sign_rect.intersects(results.get_global_rect())).is_false()
+	return visible_rect
+
+
 func _last_result(screen: ShiftScreen) -> ScoreResult:
 	var result: ScoreResult = ScoreResult.new()
 	result.total = screen.run.history[-1].total
@@ -449,6 +500,11 @@ func _screen() -> ShiftScreen:
 	music.play(ShiftMusic.SHIFT_MUSIC)
 	await _frames(2)
 	return screen
+
+
+## The 9-slice texture a framed button's face is drawn with.
+static func _frame_of(button: FramedButton) -> Texture2D:
+	return (button.face().get_theme_stylebox("panel") as StyleBoxTexture).texture
 
 
 func _frames(count: int) -> void:

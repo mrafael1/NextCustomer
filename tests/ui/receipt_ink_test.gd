@@ -94,7 +94,7 @@ func test_planning_minis_sit_inside_their_lines_and_keep_the_height() -> void:
 
 ## The count: step by step (as the count-up prints) and at once (show_result) the same lines,
 ## inks and minis. Eggs (plain) pays bold on its line and then prints its arm line; Bread's ×2
-## (from Eggs) is amber, its own +€2 ink, its closing payout bold; Milk's perk +€1 adds up to its
+## (from Eggs) is amber, its own +2€ ink, its closing payout bold; Milk's perk +1€ adds up to its
 ## payout, so that last + amount is the bold figure (no line added), and its line has the perk
 ## band. Every line sits inside the receipt, none
 ## overlapping, the arm line no taller than a step line.
@@ -123,15 +123,15 @@ func test_the_count_prints_inks_and_the_arm_line() -> void:
 			assert_array(texts)
 			. is_equal(
 				[
-					"Eggs  €1.00",
+					"Eggs  1.00€",
 					arm,
-					"Bread  €3.00",
-					"+ Bread bonus  +€2.00",
+					"Bread  3.00€",
+					"+ Bread bonus  +2.00€",
 					"Eggs  ×2",
-					"  = €10.00",
-					"Milk  €2.00",
-					"Dairy regulars  +€1.00",
-					"TOTAL  €14.00",
+					"  = 10.00€",
+					"Milk  2.00€",
+					"Dairy regulars  +1.00€",
+					"TOTAL  14.00€",
 				]
 			)
 		)
@@ -228,7 +228,7 @@ func test_an_arm_line_without_a_card_reads_its_rule() -> void:
 	assert_str((left.get_node(ReceiptInk.AMBER_NAME) as Label).text).is_equal("×2")
 
 
-## Eggs pays €1 and arms ×2; Bread pays (3 + 2) × 2 = 10; Milk 2 + 1 (a perk) = 3.
+## Eggs pays 1€ and arms ×2; Bread pays (3 + 2) × 2 = 10; Milk 2 + 1 (a perk) = 3.
 static func _count_result() -> ScoreResult:
 	var result: ScoreResult = ScoreResult.new()
 	var rows: Array[Array] = [

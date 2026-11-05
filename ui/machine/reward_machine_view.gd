@@ -105,7 +105,7 @@ const KEY_Y := 6.0
 const TRAY_POSITION := Vector2(20, 420)
 ## A beat planned at the clock's time when its segment starts (the pick press) still fires.
 const SAME_TIME := 0.000001
-const SPEND_LINE := "SPEND €%d ✓ THANK YOU!"
+const SPEND_LINE := "SPEND %d€ ✓ THANK YOU!"
 ## The chute wait's sub line (build spec 4.3's resume table) and a BONUS visit's lines there
 ## (#77 machine v2: "BONUS TICKET" / "inspection passed · 1 more prize · pick a chute").
 const CHOOSE_SUB := "pick a chute"

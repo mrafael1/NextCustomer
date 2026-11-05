@@ -209,6 +209,39 @@ func test_every_card_has_a_digit_free_sticker_template() -> void:
 		assert_object(digit.search(without_ordinals)).override_failure_message(message).is_null()
 
 
+## Every card with a rule has a monitor description (PR #138 monitor): a digit-free template
+## (ordinals aside) naming only CardText.MONITOR_KEYS, its keyword (if the sticker names one) first,
+## formatted with nothing left in braces; a card with no rule has none.
+func test_every_card_has_a_digit_free_monitor_text() -> void:
+	var ordinal: RegEx = RegEx.create_from_string(ORDINAL)
+	var digit: RegEx = RegEx.create_from_string("\\d")
+	var placeholder: RegEx = RegEx.create_from_string(PLACEHOLDER)
+	for card: CardDefinition in _all_cards():
+		var template: String = CardText.monitor_template(card)
+		var message: String = '%s: "%s"' % [card.id, template]
+		assert_bool(template.is_empty()).override_failure_message(message).is_equal(
+			card.rules.is_empty()
+		)
+		(
+			assert_object(digit.search(ordinal.sub(template, "", true)))
+			. override_failure_message(message)
+			. is_null()
+		)
+		for found: RegExMatch in placeholder.search_all(template):
+			assert_array(CardText.MONITOR_KEYS).override_failure_message(message).contains(
+				[found.get_string(1)]
+			)
+		var shown: String = CardText.monitor_text(card)
+		(
+			assert_bool(shown.contains("{") or shown.contains("}"))
+			. override_failure_message(message)
+			. is_false()
+		)
+		for key: String in ["{chain}", "{batch}", "{pair}"]:
+			if CardText.sticker_template(card).begins_with(key):
+				assert_str(template).override_failure_message(message).starts_with(key)
+
+
 ## Every key a template names is a sticker key and resolves, and the numbers on the sticker are
 ## exactly the data's values for those keys, read here straight from the card and its rule.
 func test_sticker_numbers_come_from_the_data() -> void:

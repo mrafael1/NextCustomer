@@ -1,0 +1,21 @@
+; Spot check's cause-only chip (2026-11-02, shift scene polish v2 ticket brief section 3, "one
+; owner per fact"): when a card stands on a slot an inspection pays €0, its ticket's pay tag
+; owns the "€0" and the slot talker shrinks to this chip, holding only the cause. Tomato light
+; o along the top, tomato dark r rim, tomato R face, the warning sign (mustard M with its ink
+; exclamation mark, redrawn smaller than warning.txt to fit) in an ink outline with stepped
+; corners. 13x13, shown at 2x.
+@size 13x13
+@kind icon
+.###########.
+#rrrrrrrrrrr#
+#rooooooooor#
+#rRRRR#RRRRr#
+#rRRR#M#RRRr#
+#rRR#M#M#RRr#
+#rRR#M#M#RRr#
+#rR#MM#MM#Rr#
+#rR#MMMMM#Rr#
+#r#MMM#MMM#r#
+#r#########r#
+#rrrrrrrrrrr#
+.###########.

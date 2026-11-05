@@ -1,26 +1,23 @@
 class_name LedDisplay
 extends Node
 ## The register's reading (#55; a model since #105 piece 2): the one total the shift shows, which
-## the monitor's checkout column (MonitorView, CheckoutColumn) and the top bar's gauge (QuotaMeter)
-## both follow through reading_changed, so they read the same whole number at every moment. Blank
-## in planning (show_projected is the preview's, the top bar shows it), SUBTOTAL from the checkout
-## (the count-up's running total, CountUp) and TOTAL once the verdict is shown (also on a resumed
-## checkout). It draws nothing: the LED panel and its count layout went with the single monitor
-## screen of #105 piece 2 (mock-up readability_v3.html). Display only: the amounts are the
-## caller's (a ScoreResult's total or the count-up's shown total), and nothing here scores.
+## the monitor's checkout column (MonitorView, CheckoutColumn) and the quota gauge (QuotaMeter, the
+## tube beside the receipt) both follow through reading_changed, so they read the same whole number
+## at every moment. Blank in planning (show_projected is the preview's, the gauge shows it),
+## SUBTOTAL from the checkout (the count-up's running total, CountUp) and TOTAL once the verdict is
+## shown (also on a resumed checkout). It draws nothing: the LED panel and its count layout went
+## with the single monitor screen of #105 piece 2 (mock-up readability_v3.html). Display only: the
+## amounts are the caller's (a ScoreResult's total or the count-up's shown total), and nothing here
+## scores.
 
 ## Emitted whenever the mode is set (show_projected, start_count, show_total, clear), even to the
 ## same mode.
 signal mode_changed(mode: Mode)
 ## Each amount shown with its quota (start_count: 0) and whether the quota is met (the count-up's
-## ding, or the projected total reaching it), for the top bar's QuotaMeter and the monitor.
+## ding, or the projected total reaching it), for the quota gauge (QuotaMeter) and the monitor.
 signal reading_changed(amount: int, quota: int, met: bool)
 
 enum Mode { BLANK, PROJECTED, SUBTOTAL, TOTAL }
-
-## The quota's player-facing word and amount (#86: "SPEND €73+"); code and data keep "quota".
-const QUOTA_WORD := "SPEND"
-const QUOTA_AMOUNT := "€%d+"
 
 var _mode: Mode = Mode.BLANK
 var _quota: int = 0

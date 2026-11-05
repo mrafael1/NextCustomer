@@ -12,6 +12,12 @@ extends Resource
 ## base come from the score's steps.
 @export var halo_ratios: PackedInt32Array = PackedInt32Array()
 
+## A boosted price's digits on its ticket (the user's play test of 2026-11-03: "stronger the price,
+## the stronger the color"): step 1 for any boost, step 2 once the pay is at least
+## `pay_ink_ratios[0]` times its base (at least 1), step 3 at `pay_ink_ratios[1]` times
+## (PriceWindow.BOOST_INKS). Display only, like the halo.
+@export var pay_ink_ratios: PackedInt32Array = PackedInt32Array()
+
 ## Seconds the hover takes to fade the unrelated items, tickets and strips (0 under reduced
 ## motion).
 @export var focus_fade_s: float = 0.0

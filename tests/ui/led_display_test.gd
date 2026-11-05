@@ -1,10 +1,10 @@
 extends GdUnitTestSuite
 ## The register's reading (#55; a model since #105 piece 2, LedDisplay): its mode per phase
 ## (blank, PROJECTED, SUBTOTAL, TOTAL), the amount, quota and met state it says through
-## reading_changed (which the monitor's checkout column and the top bar's gauge both follow). On
+## reading_changed (which the monitor's checkout column and the quota tube both follow). On
 ## the real screen it draws nothing, stays blank in planning and reads core's ScoreResult total at
-## a checkout's end, and the checkout column and the top bar show that same number. The real saves
-## and logs are never touched.
+## a checkout's end, and the checkout column and the quota tube show that same number. The real
+## saves and logs are never touched.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 
@@ -81,7 +81,7 @@ func test_the_mode_and_reading_follow_the_phase() -> void:
 
 ## On the real screen the reading is the monitor's model (no drawn node): blank in planning as
 ## cards are placed, and a checkout's end state reads core's total, TOTAL and met, which the
-## checkout column's number and the top bar's gauge show too.
+## checkout column's number and the quota tube show too.
 func test_the_screen_reads_core_totals() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
@@ -101,7 +101,7 @@ func test_the_screen_reads_core_totals() -> void:
 	assert_int(led.mode()).is_equal(LedDisplay.Mode.TOTAL)
 	assert_int(led.amount()).is_equal(result.total)
 	assert_int(screen._stage.monitor.checkout().total_number().value()).is_equal(result.total)
-	assert_str(screen._quota_meter.shown_text()).contains("%d" % result.total)
+	assert_int(screen._quota_meter.amount()).is_equal(result.total)
 
 
 func _frames(count: int) -> void:

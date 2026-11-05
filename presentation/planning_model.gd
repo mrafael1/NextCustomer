@@ -10,7 +10,7 @@ enum Pay { PLAIN, BOOSTED, LOWERED, DENIED, ZERO }
 enum Glyph { NONE, FIZZLE, WARNING }
 
 ## The pay tag's text.
-const PAY_TEXT := "€%d"
+const PAY_TEXT := MonitorText.EUROS
 ## A wrong job's tooltip (#128): WASTED, then its step's reason, capitalised.
 const WRONG_JOB_TIP := "%s · %s"
 ## The links that make rail strips.
@@ -159,6 +159,16 @@ static func strip_of(result: ScoreResult, slot: int, names: PackedStringArray) -
 	return null
 
 
+## A coupon's contribution at `slot` in `result` (the monitor's "+N€", PR #138 round 7): what it
+## added to its targets (its strip's RailStripSpec.total_gain) and its own pay (Repeat's copy,
+## Final markdown's bonus), all of it counted in the total.
+static func contribution(result: ScoreResult, slot: int, names: PackedStringArray) -> int:
+	if slot < 0 or slot >= result.payouts.size():
+		return 0
+	var strip: RailStripSpec = strip_of(result, slot, names)
+	return (strip.total_gain() if strip != null else 0) + maxi(result.payouts[slot], 0)
+
+
 ## Gives each strip its lane (section 5.2): sorted by (lo, giver slot), a strip takes lane 0
 ## when no strip already in lane 0 shares a slot with it, else lane 1 likewise, else -1
 ## (overflow, drawn only on hover).
@@ -276,6 +286,10 @@ static func _slot(
 		planning.stamp_caption = names.of_cause(denial).to_upper()
 		planning.denied = denial.value == 0
 	_pay(planning, card, payout, denial, fizzled)
+	# One owner per fact (2026-11-02): a slot an inspection pays 0€ wears that inspection's
+	# talker, now the cause-only chip with the warning sign, so its ticket's 0€ tag shows none.
+	if planning.glyph == Glyph.WARNING and names.zeroes_slot(denial, slot):
+		planning.glyph = Glyph.NONE
 	if planning.pay == Pay.BOOSTED:
 		planning.rings = _rings(payout, card.base, tuning)
 	return planning
@@ -305,8 +319,7 @@ static func _pay(
 		planning.pay = Pay.PLAIN
 	if planning.pay != Pay.PLAIN:
 		planning.pay_text = PAY_TEXT % payout
-		# A coupon's title "COUPON" is never struck.
-		planning.struck = card.is_product()
+		planning.payout = payout
 
 
 ## The halo's rings for a boosted pay (section 2.3): 1, then one more at each ratio of the base
@@ -385,15 +398,23 @@ static func _strip(giver: int, display_name: String, links: Array) -> RailStripS
 		var tokens: PackedStringArray = PackedStringArray()
 		var gain: int = 0
 		var cancelled: bool = false
+		var first: EffectLink = null
+		var last: EffectLink = null
 		for link: EffectLink in links:
 			if link.target_slot != target:
 				continue
 			tokens.append(link.token)
 			gain += link.gain
 			cancelled = cancelled or link.cancelled
+			if first == null or link.step_index < first.step_index:
+				first = link
+			if last == null or link.step_index > last.step_index:
+				last = link
 		strip.targets.append(target)
 		strip.tokens.append(" ".join(tokens))
 		strip.gains.append(-1 if cancelled else gain)
+		strip.befores.append(first.value_after - first.gain)
+		strip.afters.append(last.value_after)
 	return strip
 
 
@@ -426,6 +447,19 @@ class CauseNames:
 				if link.cause_index >= 0 and link.cause_index < _inspections.size():
 					return _inspections[link.cause_index].display_name
 		return ""
+
+	## Whether `link`'s cause is an inspection that pays `slot` 0€ by its place
+	## (NthSlotZeroPayoutRule): the slot wears its mark (SlotMark.inspection_marks).
+	func zeroes_slot(link: EffectLink, slot: int) -> bool:
+		if link == null or link.cause_kind != ScoreStep.SourceKind.INSPECTION:
+			return false
+		if link.cause_index < 0 or link.cause_index >= _inspections.size():
+			return false
+		for rule: InspectionRule in _inspections[link.cause_index].rules:
+			var zero_rule: NthSlotZeroPayoutRule = rule as NthSlotZeroPayoutRule
+			if zero_rule != null and zero_rule.slot_number - 1 == slot:
+				return true
+		return false
 
 	## The giver-badge mini of `link`'s cause (CardDefinition.badge_mini_ref) for a card cause,
 	## or empty.

@@ -5,9 +5,9 @@ extends BatchFrames
 ## too; PlanningModel.chain_runs: a link that skips products splits it), each with its run's
 ## knots' factors and its chain's FEED and TALLY helpers at their places, all from the model.
 ## Everything else is BatchFrames': the layout round the belt's tickets (a drag's ghost skipped,
-## followed live), the place under the pinned pay tags and over the gap lights, the cutouts and
-## the wrong jobs' tomato rings. light() lights the chain a hovered CHAIN chip names: the chain
-## holding its slot, or the chain its FEED or TALLY helper at its place serves. Decor only.
+## followed live) and the place over the gap lights. light() lights the chain a hovered CHAIN chip
+## names: the chain holding its slot, or the chain its FEED or TALLY helper at its place serves.
+## Decor only.
 
 
 func _init() -> void:

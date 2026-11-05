@@ -160,7 +160,8 @@ func test_the_quota_chip_shows_the_drops_total() -> void:
 	_drag_hand_card(screen, _add(screen, "bread"), 0)
 	await _frames(2)
 	var projected: int = screen.run.preview().total
-	assert_str(screen._quota_meter.shown_text()).is_equal("€%d" % projected)
+	assert_int(screen._quota_meter.amount()).is_equal(projected)
+	assert_int(screen._quota_meter.hypothetical()).is_equal(-1)
 	var layout: Array[Rect2] = _top_bar_rects(screen)
 	var eggs: CardInstance = _add(screen, "eggs")
 	_press_hand_card(screen, eggs)
@@ -168,9 +169,8 @@ func test_the_quota_chip_shows_the_drops_total() -> void:
 		_move(screen, _slot_center(screen, slot))
 		await _frames(2)
 		var total: int = screen.run.preview(eggs, slot).total
-		assert_str(screen._quota_meter.shown_text()).is_equal(
-			QuotaMeter.HYPOTHETICAL_TEXT % [total, total - projected]
-		)
+		assert_int(screen._quota_meter.amount()).is_equal(projected)
+		assert_int(screen._quota_meter.hypothetical()).is_equal(total)
 		assert_array(_top_bar_rects(screen)).override_failure_message(str(slot)).is_equal(layout)
 		assert_int(screen.run.row.size()).is_equal(1)
 	# Eggs before Bread lands its ×2: the drop gains more than its own price.
@@ -180,12 +180,13 @@ func test_the_quota_chip_shows_the_drops_total() -> void:
 	motion.position = _slot_center(screen, 2)
 	screen._drag._input(motion)
 	assert_bool(screen._drag.is_dragging()).is_false()
-	assert_str(screen._quota_meter.shown_text()).is_equal("€%d" % projected)
+	assert_int(screen._quota_meter.amount()).is_equal(projected)
+	assert_int(screen._quota_meter.hypothetical()).is_equal(-1)
 	await _frames(2)
 	assert_array(_top_bar_rects(screen)).is_equal(layout)
 
 
-## The top bar's chips and the QUOTA bar, as they stand on screen.
+## The top bar's chips and the quota gauge, as they stand on screen.
 static func _top_bar_rects(screen: ShiftScreen) -> Array[Rect2]:
 	var rects: Array[Rect2] = [screen._quota_meter.bar().get_global_rect()]
 	for child: Node in screen._top_bar.get_children():

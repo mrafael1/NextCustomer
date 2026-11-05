@@ -14,6 +14,9 @@ extends Label
 
 ## Emitted when a notice starts showing (true) and when it has faded or been cleared (false).
 signal showing_changed(showing: bool)
+## Emitted on every show_notice, also when it replaces a notice still showing (MonitorView fits
+## the text's size to its strip on it).
+signal notice_shown(notice: String)
 
 ## How long a notice stays before it fades.
 const SHOW_SECONDS := 2.2
@@ -41,6 +44,7 @@ func show_notice(notice: String) -> void:
 	_tween.tween_interval(SHOW_SECONDS)
 	_tween.tween_property(self, "modulate", Color(1, 1, 1, 0), FADE_SECONDS)
 	_tween.tween_callback(_on_faded)
+	notice_shown.emit(notice)
 	_set_showing(true)
 
 

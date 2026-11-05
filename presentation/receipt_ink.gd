@@ -102,9 +102,10 @@ static func bold_font() -> FontVariation:
 	return _bold
 
 
-## Whether `label` prints in bold (bold_font).
+## Whether `label` prints in bold (bold_font; a planning row's under its pitch's spacing).
 static func is_bold(label: Label) -> bool:
-	return label.get_theme_font("font") == bold_font()
+	var font: Font = label.get_meta(ReceiptRows.BASE_FONT_META, label.get_theme_font("font"))
+	return font == bold_font()
 
 
 ## The armed effect's words for `step` (an EFFECT_ARMED step), from its card `definition`'s
@@ -186,12 +187,20 @@ static func _fit_arm(label: Label) -> void:
 
 
 ## The item name's font: the line's size, or smaller (to NAME_MIN_FONT_SIZE) while the name
-## would wrap onto more rows past the mini's `slot` than across the whole label; the mini centred
-## on its first row.
+## would wrap onto more rows past the mini's `slot` than across the whole label (a one-row name:
+## while it is wider than the label past the slot); the mini and the line's mark centred on its
+## first row.
 static func _fit_name(label: Label, slot: float) -> void:
 	var font_size: int = ReceiptView.LINE_FONT_SIZE
-	if label.size.x > slot:
-		var font: Font = label.get_theme_font("font")
+	var font: Font = label.get_theme_font("font")
+	if label.size.x > slot and label.autowrap_mode == TextServer.AUTOWRAP_OFF:
+		# A one-row name (a planning row, ReceiptRows.one_row) shrinks until it fits past the slot.
+		while (
+			font_size > NAME_MIN_FONT_SIZE
+			and ReceiptView.text_width(label.text, font, font_size) > label.size.x - slot
+		):
+			font_size -= 1
+	elif label.size.x > slot:
 		var rows: int = _rows(label.text, label.size.x, font, font_size)
 		while (
 			font_size > NAME_MIN_FONT_SIZE
@@ -200,10 +209,17 @@ static func _fit_name(label: Label, slot: float) -> void:
 			font_size -= 1
 	if label.get_theme_font_size("font_size") != font_size:
 		label.add_theme_font_size_override("font_size", font_size)
+	var row: float = label.get_theme_font("font").get_height(font_size)
 	var icon: Control = label.get_node_or_null(ICON_NAME) as Control
 	if icon != null:
-		var row: float = label.get_theme_font("font").get_height(font_size)
 		icon.position = Vector2(0.0, roundf((row - ICON_SIZE.y) / 2.0))
+	# The line's mark (ReceiptDecor.mark) stays centred on the name's row at its new size.
+	var line: Node = label.get_parent()
+	if line != null and line.get_child_count() > 1:
+		var mark: Control = line.get_child(1).get_node_or_null("Mark") as Control
+		if mark != null:
+			mark.offset_top = roundf(row / 2.0) + ReceiptDecor.MARK_RECT.position.y
+			mark.offset_bottom = roundf(row / 2.0) + ReceiptDecor.MARK_RECT.end.y
 
 
 ## The largest font size from `largest` down to `smallest` at which `text` fits `room` pixels in

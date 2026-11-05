@@ -1,0 +1,10 @@
+; The pin card's tail (shift_scene_polish_v2 section 3, drawPinTip), pointing up at the pin
+; from the card opened under it. Its bottom row is drawn over the card's top outline, so the
+; tail opens into the paper face; the tip is the single ink pixel at the top middle.
+@size 7x4
+@kind frame
+@scale 2
+...#...
+..#w#..
+.#www#.
+#wwwww#

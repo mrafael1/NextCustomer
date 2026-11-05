@@ -127,7 +127,7 @@ func test_a_live_multiplier_names_its_percent() -> void:
 	assert_int(multiplied[0].value_after).is_equal(10)
 	assert_str(EffectLinks.token_text(multiplied[0])).is_equal("×2")
 	var equation: PaymentEquation = PaymentEquation.of(result.steps, 2)
-	assert_str(equation.text("→")).is_equal("€5 × 2 → €10")
+	assert_str(equation.text("→")).is_equal("5€ × 2 → 10€")
 
 
 func test_percent_rounds_half_up(

@@ -19,6 +19,18 @@ const MARKER_COLOR := Palette.INK_LIGHT
 
 ## Returns true when the player asked for reduced motion. None means false.
 var reduced_motion: Callable = Callable()
+## Where the marker's foot sits, its left edge (the pages' coordinates: the item column puts it
+## at its header's right end, PR #138 round 2); none (x below 0): bottom right, under the lines.
+var marker_foot: Vector2 = Vector2(-1, -1):
+	set(value):
+		marker_foot = value
+		_show_marker()
+## Whether marker_foot's x is the marker's right edge (the item column's header end) rather than
+## its left.
+var marker_right: bool = false:
+	set(value):
+		marker_right = value
+		_show_marker()
 
 var _pages: Array[Control] = []
 var _rows: Array[Array] = []
@@ -172,7 +184,11 @@ func _show_marker() -> void:
 	_marker.size = Vector2.ZERO
 	var shown: Vector2 = _marker.get_combined_minimum_size()
 	_marker.size = shown
-	_marker.position = Vector2(size.x - shown.x, size.y - shown.y)
+	if marker_foot.x >= 0.0:
+		var left: float = marker_foot.x - shown.x if marker_right else marker_foot.x
+		_marker.position = Vector2(left, marker_foot.y - shown.y)
+	else:
+		_marker.position = Vector2(size.x - shown.x, size.y - shown.y)
 
 
 func _stop_fades() -> void:

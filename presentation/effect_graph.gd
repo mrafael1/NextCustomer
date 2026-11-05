@@ -39,6 +39,7 @@ static func build(result: ScoreResult) -> EffectGraph:
 		if link == null:
 			continue
 		link.gain = gains[index]
+		link.value_after = steps[index].value_after
 		link.cancelled = link.kind != EffectLink.Kind.DENIED and _overridden_later(steps, index)
 		graph.links.append(link)
 		if link.kind == EffectLink.Kind.ARMED:
@@ -170,10 +171,10 @@ static func _link(steps: Array[ScoreStep], index: int, landings: PackedInt32Arra
 		ScoreStep.StepType.COPY:
 			link.kind = EffectLink.Kind.COPY
 			link.cause_slot = step.linked_slot
-			link.token = "=€%d" % step.value
+			link.token = "=" + MonitorText.euros(step.value)
 		ScoreStep.StepType.PAYOUT_OVERRIDE:
 			link.kind = EffectLink.Kind.DENIED
-			link.token = "€%d" % step.value
+			link.token = MonitorText.euros(step.value)
 		ScoreStep.StepType.WASTED:
 			link.kind = EffectLink.Kind.FIZZLE
 			link.token = EffectLink.WASTED_WORD

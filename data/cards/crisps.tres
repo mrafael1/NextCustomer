@@ -19,6 +19,7 @@ base = 2
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_crisps")])
 rule_text = "+3 for each redraw left this shift"
 sticker_text = "+{bonus} per redraw left"
+monitor_text = "Gets +{bonus} for each redraw left this shift."
 generally_useful = true
 art_ref = "res://art/items_v2/crisps.png"
 mini_art_ref = "res://art/minis/crisps.png"

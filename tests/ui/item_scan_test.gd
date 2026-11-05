@@ -10,7 +10,9 @@ extends GdUnitTestSuite
 ## worded as the receipt words them: all the belt items' scans together hold every step line of the
 ## planning receipt, for #60's reference row (the golden rows are in scan_popup_golden_rows_test).
 ## No scan while dragging, counting or with the deck view open; leaving the item, the window or the
-## game ends the scan, clears the marks and brings belt slot 1's item back to the monitor; reduced
+## game ends the scan and clears the marks, while the monitor keeps the scanned card (sticky,
+## 2026-11-04) until another item is scanned or a card is placed (then the placed card shows, the
+## monitor's default being the last placed item); the count's start lets it go; reduced
 ## motion runs no beam loop. The belt ride poses the scanner (#86 v6): each item in turn, at the
 ## scanner cell. Every card's scan fits the monitor. Headless runs never move the mouse, so the
 ## tests set the controller's pointer (and its clock, which the hold and the throttle read) and send
@@ -18,6 +20,7 @@ extends GdUnitTestSuite
 ## the stage is centred, 280 px down). The real saves and logs are never touched.
 
 const LiveCardCount := preload("res://tests/data/live_card_count.gd")
+const MonitorParts := preload("res://tests/ui/monitor_parts.gd")
 const SCREEN := "res://ui/shift_screen.tscn"
 const CARDS := "res://data/cards"
 const RecordingSfx := preload("res://tests/presentation/recording_sfx.gd")
@@ -73,10 +76,10 @@ func test_a_held_hand_item_shows_on_the_monitor() -> void:
 	assert_bool(screen._scan.popup().visible).is_false()
 	assert_float(view.body.position.y).is_equal(-ItemView.BASKET_LIFT)
 	var column: MonitorItemColumn = monitor.item_column()
-	assert_str(column.effect().text).is_equal(_scan_text(view.card.definition))
+	assert_str(column.effect().text).is_equal(_scan_text(view.card.definition, column))
 	var shown_name: String = ItemName.text_of(column.name_control())
 	assert_str(shown_name).is_equal(view.card.definition.display_name)
-	assert_array(column.step_rows()).is_empty()
+	_assert_hand_note(column)
 	_assert_monitor_holds_its_text(screen)
 	_assert_scanner_posed(screen, view)
 	assert_int(sfx.count(ScanController.HOVER_SOUND)).is_equal(1)
@@ -117,7 +120,9 @@ func test_a_held_belt_item_lists_its_fizzles_on_the_monitor() -> void:
 		. is_true()
 	)
 	_assert_price(screen, result.payouts[2])
-	assert_str(monitor.item_column().effect().text).is_equal(_scan_text(view.card.definition))
+	assert_str(monitor.item_column().effect().text).is_equal(
+		_scan_text(view.card.definition, monitor.item_column())
+	)
 	_assert_monitor_holds_its_text(screen)
 	_assert_scanner_posed(screen, view)
 
@@ -341,12 +346,13 @@ func test_leaving_the_item_moves_or_ends_the_scan() -> void:
 	await _hover(screen, hand[0])
 	await _hold(screen)
 	assert_int(screen._monitor.mode()).is_equal(MonitorView.Mode.SCAN)
-	# Onto its neighbour: that one is hovered, quietly.
+	# Onto its neighbour: that one is hovered, quietly; the monitor keeps the first.
 	_leave(hand[0])
 	_point = hand[1].sprite().get_global_rect().get_center()
 	hand[1].hovered.emit(hand[1])
 	await _frames(2)
 	_assert_quiet(screen, hand[1], sfx, 1)
+	_assert_pinned(screen, hand[0].card)
 	assert_float(hand[0].body.position.y).is_equal(0.0)
 	# Back on the first: its hold starts again.
 	_leave(hand[1])
@@ -358,13 +364,15 @@ func test_leaving_the_item_moves_or_ends_the_scan() -> void:
 	await _hold(screen)
 	assert_bool(screen._scan.is_full()).is_true()
 	assert_int(sfx.count(ScanController.HOVER_SOUND)).is_equal(2)
-	# Off every item: the scan ends.
+	# Off every item: the scan ends; the monitor keeps it.
 	await _leave_to(_on_stage(screen, Rect2(600, 20, 1, 1)).position, hand[0])
 	_assert_cleared(screen)
+	_assert_pinned(screen, hand[0].card)
 	assert_float(hand[0].body.position.y).is_equal(0.0)
 
 
-## The pointer leaving the window, or the player leaving the game, ends the scan.
+## The pointer leaving the window, or the player leaving the game, ends the scan (the monitor
+## keeps a pinned card).
 func test_leaving_the_window_or_the_game_ends_the_scan() -> void:
 	var screen: ShiftScreen = await _screen()
 	var view: ItemView = _hand_views(screen)[0]
@@ -401,8 +409,8 @@ func test_a_refresh_keeps_the_scan_on_the_same_card() -> void:
 
 ## A belt item clicked out to the hand moves away from the pointer: the scan ends with the
 ## refresh. Checked straight after the refresh's deferred calls (a call queued after the click
-## runs after them, before the next process step): the monitor is idle and the scanner docked,
-## and it stays so.
+## runs after them, before the next process step): the scanner is docked, and it stays so. The
+## monitor keeps the card, now a hand item (no payout, no lines).
 func test_a_belt_item_clicked_out_ends_the_scan() -> void:
 	var screen: ShiftScreen = await _screen()
 	_place(screen, ["milk", "bread"])
@@ -414,8 +422,7 @@ func test_a_belt_item_clicked_out_ends_the_scan() -> void:
 	var overlay: ScanOverlay = screen._scan.overlay()
 	assert_bool(overlay.is_posed()).is_true()
 	var shown: Array[bool] = [true]
-	var look: Callable = func() -> void:
-		shown[0] = screen._monitor.mode() == MonitorView.Mode.SCAN or overlay.is_posed()
+	var look: Callable = func() -> void: shown[0] = overlay.is_posed()
 	screen._on_row_card_clicked(view)
 	look.call_deferred()
 	assert_bool(screen.run.hand().has(card)).is_true()
@@ -423,7 +430,90 @@ func test_a_belt_item_clicked_out_ends_the_scan() -> void:
 		await get_tree().process_frame
 		assert_bool(shown[0]).override_failure_message("scanned after the refresh").is_false()
 		_assert_cleared(screen)
+	_assert_pinned(screen, card)
+	# Back in the hand: its note, no step lines.
+	_assert_hand_note(screen._monitor.item_column())
 	screen._let_go()
+
+
+## The monitor's default (2026-11-04): the last card placed (here in slot 1), its pip gold; else
+## (a row filled another way, the placed card taken out) the belt's last item.
+func test_the_monitor_shows_the_last_placed_card() -> void:
+	var screen: ShiftScreen = await _screen()
+	screen.profile.set_reduced_motion(true)
+	_place(screen, ["milk", "bread"])
+	await _frames(2)
+	_assert_shows_placed(screen, screen.run.row[1])
+	var eggs: CardInstance = screen.run.debug_add_to_hand(load("%s/eggs.tres" % CARDS))
+	screen._refresh()
+	screen._pick(eggs, false)
+	screen._place_picked(0)
+	await _frames(2)
+	assert_object(screen.run.row[0]).is_same(eggs)
+	_assert_shows_placed(screen, eggs)
+	screen._on_row_card_clicked(screen._row_views[0])
+	await _frames(2)
+	assert_bool(screen.run.row.has(eggs)).is_false()
+	_assert_shows_placed(screen, screen.run.row[-1])
+	screen._let_go()
+
+
+## A full scan sticks on the monitor (2026-11-04): leaving the item ends the marks, the monitor
+## keeps the card (a refresh with its slot's lines); another full scan replaces it, and placing a
+## card lets it go: the placed card shows.
+func test_a_scan_stays_on_the_monitor_until_another_is_scanned_or_placed() -> void:
+	var screen: ShiftScreen = await _screen()
+	screen.profile.set_reduced_motion(true)
+	_place(screen, ["coffee", "bread"])
+	var off: Vector2 = _on_stage(screen, Rect2(600, 20, 1, 1)).position
+	var belt: ItemView = screen._row_views[0] as ItemView
+	await _hover(screen, belt)
+	await _hold(screen)
+	_assert_pinned(screen, belt.card)
+	var rows: int = screen._monitor.item_column().step_rows().size()
+	assert_int(rows).is_greater(0)
+	await _leave_to(off, belt)
+	_assert_cleared(screen)
+	_assert_pinned(screen, belt.card)
+	assert_int(screen._monitor.item_column().step_rows().size()).is_equal(rows)
+	screen._refresh()
+	await _frames(2)
+	_assert_pinned(screen, screen.run.row[0])
+	assert_int(screen._monitor.item_column().step_rows().size()).is_equal(rows)
+	# Another item's full scan replaces it, and sticks.
+	var hand: ItemView = _hand_views(screen)[0]
+	await _hover(screen, hand)
+	await _hold(screen)
+	_assert_pinned(screen, hand.card)
+	await _leave_to(off, hand)
+	_assert_cleared(screen)
+	_assert_pinned(screen, hand.card)
+	# A card placed lets the scan go: the monitor shows the placed card.
+	var placed: CardInstance = _hand_views(screen)[1].card
+	screen._pick(placed, false)
+	screen._place_picked(screen.run.row.size())
+	await _frames(2)
+	_assert_shows_placed(screen, placed)
+
+
+## CHECKOUT lets a pinned scan go: the count drives the monitor (COUNT); after it nothing is pinned.
+func test_the_count_lets_a_pinned_scan_go() -> void:
+	var screen: ShiftScreen = await _screen()
+	_place(screen, ["milk", "bread"])
+	var belt: ItemView = screen._row_views[1] as ItemView
+	await _hover(screen, belt)
+	await _hold(screen)
+	await _leave_to(_on_stage(screen, Rect2(600, 20, 1, 1)).position, belt)
+	_assert_pinned(screen, belt.card)
+	screen._on_checkout_pressed()
+	await _frames(1)
+	assert_object(screen._scan.pinned()).is_null()
+	assert_int(screen._monitor.mode()).is_equal(MonitorView.Mode.COUNT)
+	screen._count_up._tap(Time.get_ticks_msec())
+	screen._count_up._tap(Time.get_ticks_msec())
+	while screen._counting:
+		await get_tree().process_frame
+	assert_object(screen._scan.pinned()).is_null()
 
 
 ## Reduced motion: a quiet hover moves nothing; the hold still ends in the full scan, which snaps
@@ -503,20 +593,19 @@ func test_the_scans_hold_every_line_of_the_planning_receipt() -> void:
 		if at >= 0:
 			want[at] = MonitorText.waste_line(step)
 			expected[step.slot] = want
-	# A giver's scan opens with its "gives" line (#71): Eggs' ×2 to Bread, Multipack's ×3 to the
-	# three Milks after it, each with its targets' summed gain, before its receipt lines.
-	var names: PackedStringArray = CardInstance.names(screen.run.row)
-	var gives: Dictionary[int, String] = {}
-	for slot: int in range(screen._row_views.size()):
-		var given: String = ScanController.gives_line(result, slot, names)
-		if not given.is_empty():
-			gives[slot] = given
-			var lines: PackedStringArray = PackedStringArray([given])
-			lines.append_array(expected.get(slot, PackedStringArray()))
-			expected[slot] = lines
+	# A giver's scan opens with its "gives" rows (#71; PR #138 round 7, MonitorParts.gives_line):
+	# Eggs' ×2 to Bread, Multipack's ×3 to each Milk after it, before its receipt lines.
+	var gives: Dictionary[int, PackedStringArray] = {}
+	var given: Dictionary[int, int] = MonitorParts.gives_of(screen, result, gives, expected)
 	assert_array(gives.keys()).is_equal([0, 3])
-	assert_str(gives[0]).starts_with(ScanController.GIVES_TEXT % ["×2", "Bread"])
-	assert_str(gives[3]).starts_with(ScanController.GIVES_TEXT % ["×3", "Milk, Milk, Milk"])
+	var wanted: Array[String] = [MonitorParts.gives_line("Bread", "×2", result, 0, 1)]
+	assert_array(Array(gives[0])).is_equal(wanted)
+	wanted.assign(
+		range(4, 7).map(
+			func(at: int) -> String: return MonitorParts.gives_line("Milk", "×3", result, 3, at)
+		)
+	)
+	assert_array(Array(gives[3])).is_equal(wanted)
 	var footers: Dictionary[int, PackedStringArray] = {}
 	var kinds: Dictionary[int, bool] = {}
 	for slot: int in range(screen._row_views.size()):
@@ -530,24 +619,26 @@ func test_the_scans_hold_every_line_of_the_planning_receipt() -> void:
 		# Every line is kept (on pages when they don't fit; Checkout Rhythm v3.1: no "+N more").
 		footers[slot] = texts
 		if gives.has(slot):
-			# The "gives" line comes first, its words teal (Checkout Rhythm v3: amber means only
-			# ×) with the ✦ mark, its gain the line's amount, amber for a × and ink for a +.
-			var amount: String = MonitorText.step_parts(gives[slot])[1]
-			var row: Control = rows[0]
-			var text: Label = row.get_node("Text") as Label
-			assert_object(text.get_theme_color("font_color")).is_equal(Palette.TEAL_DARK)
-			var amount_colour: Color = (
-				Palette.MUSTARD_DARKEST if amount.begins_with("×") else Palette.INK
-			)
-			assert_object((row.get_node("Amount") as Label).get_theme_color("font_color")).is_equal(
-				amount_colour
-			)
-			var mark: Label = row.get_node("Mark") as Label
-			var marks: Array[String] = [
-				MonitorItemColumn.GIVE_MARK, MonitorItemColumn.GIVE_FALLBACK
-			]
-			assert_bool(marks.has(mark.text)).override_failure_message(mark.text).is_true()
-			assert_str((row.get_node("Amount") as Label).text).is_equal(amount)
+			# The "gives" rows come first (as one row when the scan would page: Multipack), their
+			# words teal under the target's mini, their amount in the factor's ink: "×2 · 5€ → 10€".
+			MonitorParts.collapse_gives(screen, result, slot, texts, gives, expected)
+			for index: int in range(mini(gives[slot].size(), rows.size())):
+				var amount: String = MonitorText.step_parts(gives[slot][index])[1]
+				var row: Control = rows[index]
+				var text: Label = row.get_node("Text") as Label
+				assert_object(text.get_theme_color("font_color")).is_equal(Palette.TEAL_DARK)
+				var shown: Label = row.get_node("Amount") as Label
+				assert_str(shown.text).is_equal(amount)
+				assert_object(shown.get_theme_color("font_color")).is_equal(
+					MonitorStepRow.amount_colour_of(amount, MonitorStepRow.Tone.PLAIN)
+				)
+				var mark: TextureRect = row.get_node("Mark") as TextureRect
+				assert_object(mark).override_failure_message(gives[slot][index]).is_not_null()
+				assert_object(mark.texture).is_not_null()
+			# A coupon's zone shows what its rows added and its own pay ("+N€"); a product's, none.
+			var coupon: bool = screen.run.row[slot].definition.is_coupon()
+			var adds: int = given[slot] + maxi(result.payouts[slot], 0) if coupon else 0
+			assert_int(column.payout_view().given_amount()).is_equal(adds)
 		_assert_monitor_holds_its_text(screen)
 	for step: ScoreStep in result.steps:
 		kinds[step.step_type] = true
@@ -623,9 +714,8 @@ func _assert_scanned_on_monitor(screen: ShiftScreen, view: ItemView) -> void:
 
 ## Every text label the monitor shows inside its room (#105 piece 2): the bay's in the bay
 ## (BAY_RECT), the item column's in it (ITEM_RECT), the checkout column's in it (CHECKOUT_RECT),
-## the rest on the paper; the item column's parts (the name, its glyphs, the price, the struck old
-## price, the effect and each step line) inside the column, none overlapping another; the effect
-## (#105: the short text with its family glyphs) whole.
+## the rest on the paper; the item column's layout (MonitorParts: its parts inside it, apart, in
+## order, no text cut); the description whole or with its MORE chip.
 func _assert_monitor_holds_its_text(screen: ShiftScreen) -> void:
 	var monitor: MonitorView = screen._monitor
 	var rooms: Dictionary[Control, Rect2] = {
@@ -633,6 +723,10 @@ func _assert_monitor_holds_its_text(screen: ShiftScreen) -> void:
 		monitor.item_column(): MonitorView.ITEM_RECT,
 		monitor.checkout(): MonitorView.CHECKOUT_RECT,
 	}
+	# The name's letters by their baseline (their descenders may hang under the header).
+	var name_labels: Array[Label] = []
+	if monitor.item_column().name_control() != null:
+		name_labels = ItemName.labels(monitor.item_column().name_control())
 	for label: Label in monitor.shown_labels():
 		var room: Rect2 = MonitorView.PAPER_RECT
 		for part: Control in rooms:
@@ -640,51 +734,44 @@ func _assert_monitor_holds_its_text(screen: ShiftScreen) -> void:
 				room = rooms[part]
 		var content: Rect2 = _on_stage(screen, room).grow(0.5)
 		var rect: Rect2 = label.get_global_rect()
+		# The item column's text by its ink (a label's box may be taller: MonitorParts).
+		if monitor.item_column().is_ancestor_of(label):
+			rect = MonitorParts._drawn(label, not name_labels.has(label))
 		(
 			assert_bool(content.encloses(rect))
 			. override_failure_message("'%s' %s outside %s" % [label.text, rect, content])
 			. is_true()
 		)
 	var column: Rect2 = _on_stage(screen, MonitorView.ITEM_RECT).grow(0.5)
-	var parts: Dictionary[String, Rect2] = monitor.item_column().part_rects()
-	var names: Array[String] = parts.keys()
-	for index: int in range(names.size()):
-		var rect: Rect2 = parts[names[index]]
-		(
-			assert_bool(column.encloses(rect))
-			. override_failure_message("%s %s outside %s" % [names[index], rect, column])
-			. is_true()
-		)
-		for other: int in range(index + 1, names.size()):
-			var other_rect: Rect2 = parts[names[other]]
-			(
-				assert_bool(rect.intersects(other_rect))
-				. override_failure_message(
-					"%s %s on %s %s" % [names[index], rect, names[other], other_rect]
-				)
-				. is_false()
-			)
+	var problems: PackedStringArray = MonitorParts.problems(monitor.item_column())
+	assert_array(problems).override_failure_message(str(problems)).is_empty()
 	var effect: GlyphLabel = monitor.item_column().effect()
 	if effect != null:
-		assert_bool(effect.fits()).is_true()
+		var more: bool = monitor.item_column().part_rects().has("more")
+		assert_bool(effect.fits() or more).is_true()
 		for glyph: FamilyGlyph in effect.glyphs():
 			var rect: Rect2 = glyph.get_global_rect()
 			assert_bool(column.encloses(rect)).override_failure_message(str(rect)).is_true()
 
 
-## The item column's price for `payout`: its tag reads "€payout", or none for a coupon at €0.
+## The item column's payout for `payout` (PR #138 monitor: "= N€" at the foot).
 func _assert_price(screen: ShiftScreen, payout: int) -> void:
-	var tag: PayTag = screen._monitor.item_column().price_tag()
-	if tag == null:
-		assert_int(payout).is_equal(0)
-		return
-	assert_str(tag.text()).is_equal(PriceSticker.price_text(payout))
+	var shown: MonitorPayout = screen._monitor.item_column().payout_view()
+	assert_bool(shown.visible).is_true()
+	assert_int(shown.pay_amount()).is_equal(payout)
 
 
-## The monitor's scan text for `definition` (#105): its short sticker text, else its rule text.
-static func _scan_text(definition: CardDefinition) -> String:
-	var summary: String = definition.sticker_summary()
-	return summary if not summary.is_empty() else definition.rule_text
+## A hand item's rows: its one note (MonitorText.HAND_NOTE) and no step lines.
+func _assert_hand_note(column: MonitorItemColumn) -> void:
+	var rows: Array[Control] = column.step_rows()
+	assert_int(rows.size()).is_equal(1)
+	assert_str(String(rows[0].get_meta(&"line", ""))).is_equal(MonitorText.HAND_NOTE)
+
+
+## The monitor's description for `definition` (PR #138 monitor): its monitor text, else its sticker
+## text, else its rule text (MonitorItemColumn's, at the column's redraws).
+static func _scan_text(definition: CardDefinition, column: MonitorItemColumn) -> String:
+	return MonitorItemColumn._description(definition, column.redraws_left)
 
 
 ## Tomato brackets around `view`'s lifted sprite with the scan line across it, on the stage. A
@@ -721,14 +808,39 @@ func _scanned_slot(views: Array[CardView], brackets: Rect2) -> int:
 	return -1
 
 
-## No scan: no item scanned, the popup hidden, the monitor not showing a scan and no marks.
+## No scan: no item scanned, the popup hidden and no marks (the monitor may keep a pinned card:
+## _assert_pinned).
 func _assert_cleared(screen: ShiftScreen) -> void:
 	assert_object(screen._scan.scanned()).is_null()
 	assert_bool(screen._scan.popup().visible).is_false()
-	assert_bool(screen._monitor.mode() == MonitorView.Mode.SCAN).is_false()
 	var overlay: ScanOverlay = screen._scan.overlay()
 	assert_bool(overlay.is_posed()).is_false()
 	assert_that(overlay.brackets()).is_equal(Rect2())
+
+
+## The monitor pinned to `card`'s scan: SCAN, its art in the bay and its name in the item column.
+func _assert_pinned(screen: ShiftScreen, card: CardInstance) -> void:
+	var monitor: MonitorView = screen._monitor
+	assert_object(screen._scan.pinned()).is_same(card)
+	assert_int(monitor.mode()).is_equal(MonitorView.Mode.SCAN)
+	assert_object(monitor.bay().bed().shown_definition()).is_same(card.definition)
+	assert_object(monitor.item_column().shown_definition()).is_same(card.definition)
+
+
+## The monitor on its default: the last placed belt item, `card`, under NEXT, its slot's pip gold.
+func _assert_shows_placed(screen: ShiftScreen, card: CardInstance) -> void:
+	var monitor: MonitorView = screen._monitor
+	var slot: int = screen.run.row.find(card)
+	assert_int(slot).is_greater_equal(0)
+	assert_object(screen._scan.pinned()).is_null()
+	assert_int(monitor.mode()).is_equal(MonitorView.Mode.NEXT)
+	assert_int(screen.shown_slot()).is_equal(slot)
+	assert_object(monitor.bay().bed().shown_definition()).is_same(card.definition)
+	assert_object(monitor.item_column().shown_definition()).is_same(card.definition)
+	var colours: Array[Color] = monitor.bay().queue().pip_colours()
+	for index: int in range(colours.size()):
+		var gold: bool = colours[index] == BayQueue.FIRST_SLOT_COLOR
+		assert_bool(gold).override_failure_message("pip %d" % index).is_equal(index == slot)
 
 
 func _assert_on_stage(screen: ShiftScreen, rect: Rect2, message: String) -> void:
@@ -760,14 +872,16 @@ static func _instant(screen: ShiftScreen) -> void:
 	screen._scan.tuning = ScanTuning.new()
 
 
-## `view` hovered quietly: the monitor stays on belt slot 1's item and no popup, the item at rest,
-## the scanner docked with no marks or beam, no looping tween and no beep beyond the `beeps`
-## already heard.
+## `view` hovered quietly: the monitor keeps what it showed (the last placed item, or the pinned
+## scan) and no popup, the item at rest, the scanner docked with no marks or beam, no looping tween
+## and no beep beyond the `beeps` already heard.
 func _assert_quiet(screen: ShiftScreen, view: ItemView, sfx: RecordingSfx, beeps: int = 0) -> void:
 	assert_object(screen._scan.scanned()).is_same(view)
 	assert_bool(screen._scan.is_full()).is_false()
 	assert_bool(screen._scan.popup().visible).is_false()
-	assert_int(screen._monitor.mode()).is_equal(MonitorView.Mode.NEXT)
+	var pinned: bool = screen._scan.pinned() != null
+	var shown: MonitorView.Mode = MonitorView.Mode.SCAN if pinned else MonitorView.Mode.NEXT
+	assert_int(screen._monitor.mode()).is_equal(shown)
 	assert_bool(view.lifted).is_false()
 	assert_float(view.body.position.y).is_equal(0.0)
 	var overlay: ScanOverlay = screen._scan.overlay()

@@ -92,7 +92,7 @@ func test_conditions_read_as_text_and_report_problems() -> void:
 	var multipack: UnlockCondition = _condition(UnlockCondition.Kind.WIN_WITH_CARD, MULTIPACK, 0)
 	assert_str(multipack.summary()).is_equal("Win a run with Multipack in your deck")
 	var score: UnlockCondition = _condition(UnlockCondition.Kind.SCORE_IN_ONE_CHECKOUT, "", 40)
-	assert_str(score.summary()).is_equal("Score €40 in one checkout")
+	assert_str(score.summary()).is_equal("Score 40€ in one checkout")
 	var repeat: UnlockCondition = _condition(UnlockCondition.Kind.USE_COUPON_TIMES, REPEAT, 10)
 	assert_str(repeat.summary()).is_equal("Use Repeat 10 times")
 	for condition: UnlockCondition in [multipack, score, repeat]:

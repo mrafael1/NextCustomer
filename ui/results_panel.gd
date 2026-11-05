@@ -6,24 +6,24 @@ extends PanelContainer
 ## loyalty card is stapled to the receipt's top-right corner, beside the headline, so it covers
 ## no line. When the coin lines start printing, the coins clink (#62) and the music ducks for
 ## them (ShiftMusic.coins_printing), so both follow the print, a skipped one too. It only shows
-## the run; New run, Toy machines and Export log are reported to the shift screen. New run and
-## Toy machines (#63: the TOY MACHINES, where coins buy capsules) can be clicked mid-print, once
-## armed; Toy machines first prints the rest at once (a skip), so nothing keeps printing, nor
-## reading presses, behind the full-screen machines.
+## the run; Return to menu and Export log are reported to the shift screen. Return to menu can be
+## clicked mid-print, once armed; it first prints the rest at once (a skip), so nothing keeps
+## printing, nor reading presses, as the screen leaves for the title (where the TOY MACHINES
+## are, #63).
 ##
 ## Behind the receipt the store closes (#56, results option 2): StoreClosed covers the whole
-## window, the top bar too, so the receipt no longer reads as the last shift's screen. It takes no
+## window, the top bar too, its shutter down to the window's bottom edge, so the receipt no longer
+## reads as the last shift's screen. It takes no
 ## clicks (the shift screen's shade under it does, below the top bar), so Cart and ☰ stay
 ## clickable. The profile's reduced motion (`reduced_motion`) shows the store closed at once.
 
-signal new_run_requested
+signal menu_requested
 signal export_requested
-signal toy_machines_requested
 
-## New run (and Toy machines) arm this long after the panel appears, once the mouse is up, like
-## the machine's picks: the click that ended the run never starts a new one.
+## Return to menu arms this long after the panel appears, once the mouse is up, like the
+## machine's picks: the click that ended the run never leaves the results.
 const ARM_MS := 350
-const TOY_MACHINES_TEXT := "Toy machines ›"
+const MENU_TEXT := "Return to menu"
 const HEADLINE_SIZE := 44
 const LINE_SIZE := 16
 ## The machine visits and the inspection under a shift's line are smaller and dim.
@@ -65,8 +65,7 @@ var _print_started_ms: int = 0
 var _coin_sounds: int = 0
 var _coins_s: float = 0.0
 var _reader: PressReader
-var _new_run_button: FramedButton
-var _toy_machines_button: FramedButton
+var _menu_button: FramedButton
 var _column: VBoxContainer
 ## The FITS entry the receipt is laid out with.
 var _fit: Vector3i = FITS[0]
@@ -109,13 +108,9 @@ func _init(tuning: CountUpTuning = null, reduced_motion: Callable = Callable()) 
 	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
 	buttons.add_theme_constant_override("separation", 16)
 	column.add_child(buttons)
-	# The game's pixel buttons (#56): New run in the red frame, the others in the top bar's teal.
-	_new_run_button = UiKit.framed_button(
-		buttons, "New run", func() -> void: new_run_requested.emit(), 22
-	)
-	_toy_machines_button = UiKit.framed_button(
-		buttons, TOY_MACHINES_TEXT, _on_toy_machines_pressed, 20, TopBar.BUTTON_FRAME
-	)
+	# The game's pixel buttons (#56): Return to menu in the red frame, Export log in the top bar's
+	# teal.
+	_menu_button = UiKit.framed_button(buttons, MENU_TEXT, _on_menu_pressed, 22)
 	# The export confirms itself once done (ShiftScreen).
 	UiKit.framed_button(
 		buttons,
@@ -161,11 +156,10 @@ func _process(_delta: float) -> void:
 		return
 	_closed.focus = get_global_rect()
 	_print_due()
-	if not _new_run_button.disabled or Time.get_ticks_msec() < _armed_ms:
+	if not _menu_button.disabled or Time.get_ticks_msec() < _armed_ms:
 		return
 	if not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
-		_new_run_button.disabled = false
-		_toy_machines_button.disabled = false
+		_menu_button.disabled = false
 
 
 ## Shows a won or lost run: `result` is its last checkout, `coins_total` the profile's coins
@@ -185,8 +179,7 @@ func show_results(
 	_coins_s = 0.0
 	coins_started_ms = -1
 	print_skipped = false
-	_new_run_button.disabled = true
-	_toy_machines_button.disabled = true
+	_menu_button.disabled = true
 	_armed_ms = Time.get_ticks_msec() + ARM_MS
 	UiKit.pop_in(self)
 	_closed.close_store(_reduced_motion.is_valid() and bool(_reduced_motion.call()))
@@ -219,13 +212,9 @@ func store_closed() -> StoreClosed:
 	return _closed
 
 
-## New run and Toy machines (for tests and layout checks).
-func new_run_button() -> FramedButton:
-	return _new_run_button
-
-
-func toy_machines_button() -> FramedButton:
-	return _toy_machines_button
+## Return to menu (for tests and layout checks).
+func menu_button() -> FramedButton:
+	return _menu_button
 
 
 ## Every line's text in print order, the headline first (for tests).
@@ -246,12 +235,12 @@ func coin_line_index() -> int:
 	return _coin_from
 
 
-## Builds the lines with the roomiest FITS entry that fits the room (_room).
-func _on_toy_machines_pressed() -> void:
+func _on_menu_pressed() -> void:
 	skip_printing()
-	toy_machines_requested.emit()
+	menu_requested.emit()
 
 
+## Builds the lines with the roomiest FITS entry that fits the room (_room).
 func _lay_out(lines: Array[FinalReceipt.Line], compact: Array[FinalReceipt.Line]) -> void:
 	for each: Array[FinalReceipt.Line] in [lines, compact]:
 		var fits: Array[Vector3i] = FITS.duplicate()
