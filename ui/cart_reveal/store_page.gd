@@ -3,15 +3,25 @@ extends Control
 ## YOUR STORE, page 1 "Counter" (full build plan 7.2, v1.07; mock-up start_store_v6.html,
 ## direction A, the user: "A counter is really good"). Three hand baskets hang under their aisle
 ## signs on one rail (Staples, then the two STARTER CART aisles), dealt face up; today's extra
-## (RUN ONLY) aisle is a small sign at the rail's end with no basket; YOUR REGULARS stand on a
-## shelf below. Each unlock appears in place only once earned: from 1 completed aisle a swap badge
-## on each regular and the SWAPS pips, from restock_min_completed one RESTOCK key by the baskets,
-## from pair_choice_min_completed a swap tab on the two starter signs. A red NEW tag marks an
+## (RUN-ONLY) aisle is a small sign at the rail's end with no basket; the baskets stand on one
+## wooden shelf that ends before it (v1.08), and YOUR REGULARS stand on a matching shelf below,
+## each with one price and family sticker on the shelf's edge. Each unlock appears in place only
+## once earned: from 1 completed aisle a swap badge on each regular and the SWAPS pips, from
+## restock_min_completed one RESTOCK key by the baskets, from pair_choice_min_completed a swap tab
+## on the two starter signs. A red NEW tag marks an
 ## unlocked control until it is first used or the run clocks in (StartBoard marks it seen).
 ##
 ## The page only shows and reports clicks (its signals); StartBoard routes them to StartChoice and
 ## opens the small pop-ups (StorePopover). Motion (the drop-in, a restock's hop-out and drop, a
-## swap's flip, the restock pick's bob) is cosmetic; reduced motion shows the end state.
+## swap's flip, a restock pick's hover) is cosmetic; reduced motion shows the end state.
+##
+## The RESTOCK pick works as the shift's basket redraw (v1.08, the user: "it should work like
+## in-run redraw"; BasketTags, RedrawTag, BasketRedraw): the key arms it (PICK A BASKET, with its
+## close cross), each basket that can be restocked wears the redraw's teal tag on its front, here
+## reading RESTOCK, and becomes a click target; a hovered basket eases up and wobbles (the
+## redraw's hover, RedrawTuning) and its tag goes hot (teal light, without the redraw's gold
+## ring), naming how many items go ("RESTOCK 2").
+## Nothing else on the page changes: no frames, cues, bob or dimming.
 
 signal restock_pressed
 signal basket_clicked(basket: int)
@@ -41,21 +51,39 @@ const BASKET_X := 27.0
 const ITEM_TOP := 214.0
 const ITEM_SIZE := 96.0
 const ITEM_GAP := 12.0
-## The RESTOCK key, the extra aisle's sign, the wall shelf, the regulars' heading, tiles and gap,
-## and the footer's top.
+## The RESTOCK key, the extra aisle's sign, the baskets' zone bottom, the regulars' heading, tiles
+## and gap, and the footer's top. The baskets' shelf and the regulars' shelf are PLANK px deep, and
+## the baskets' shelf reaches SHELF_REACH px past the outer baskets.
 const RESTOCK := Rect2(704, 92, 308, 48)
 const EXTRA := Rect2(1040, 179, 200, 36)
 const WALL_SHELF_Y := 402.0
+const PLANK := 20.0
+const SHELF_REACH := 20.0
 const REGULARS_TOP := 419.0
-const TILE_TOP := 461.0
+const TILE_TOP := 473.0
 const TILE_GAP := 24.0
+## A regular's swap badge (v1.08): BADGE px square, BADGE_GAP px clear of its art's visible box,
+## reaching at most BADGE_REACH px past its tile's right edge (into the TILE_GAP lane).
+const BADGE := 30.0
+const BADGE_GAP := 4.0
+const BADGE_REACH := 12.0
+## A swapped regular's put-back tag (↺ and the old item): it takes the swap badge's place, its
+## top-right corner on the badge's.
+const UNDO := Vector2(58, 32)
 const FOOTER_Y := 630.0
-## Motion (s): the drop-in, the hop-out, the new pair's drop, the flip and the pick's bob.
+## Motion (s): the drop-in, the hop-out, the new pair's drop and the flip; the basket dips
+## LAND_DIP px over LAND_DIP_S as each new item lands.
 const DROP_S := 0.5
 const HOP_S := 0.28
 const PAIR_DROP_S := 0.55
 const FLIP_S := 0.42
-const BOB_S := 0.7
+const LAND_DIP := 4.0
+## The delay between two items' hop-out (and drop-in), s.
+const ITEM_STAGGER_S := 0.08
+const LAND_DIP_S := 0.18
+## The RESTOCK tag's word, and its top above the basket's foot (it sits where RESTOCKED stamps).
+const RESTOCK_WORD := "RESTOCK"
+const TAG_RISE := 30.0
 
 ## The three bays (strings, sign, basket), their signs, each basket's item hosts and pick areas.
 var bays: Array[Control] = []
@@ -78,7 +106,8 @@ var _profile: ProfileState
 var _reduced: bool = true
 var _tweens: Array[Tween] = []
 var _loops: Array[Tween] = []
-var _dimmed: Array[Control] = []
+## The redraw's hover timings (RedrawTuning), and each basket's hover tween while one plays.
+var _hover: RestockHover = RestockHover.new()
 
 
 ## Shows the page for `run` and `profile` (rebuilt from scratch).
@@ -93,7 +122,7 @@ func show_store(run: RunState, profile: ProfileState) -> void:
 	items.clear()
 	hits.clear()
 	regulars.clear()
-	_dimmed.clear()
+	_hover.clear()
 	restock_key = null
 	swap_chip = null
 	extra = null
@@ -102,6 +131,7 @@ func show_store(run: RunState, profile: ProfileState) -> void:
 	restock_picking = restock_picking and can_restock()
 	fresh = _fresh_tags()
 	_draw_wall()
+	_add_basket_shelf()
 	var heading: Label = StartBoardKit.words(
 		self, "TODAY'S BASKETS", Rect2(40, 110, 300, 28), Palette.MUSTARD_LIGHT
 	)
@@ -118,8 +148,8 @@ func show_store(run: RunState, profile: ProfileState) -> void:
 ## The unlocked controls' first-seen flags not yet seen.
 func _fresh_tags() -> Array[StringName]:
 	var found: Array[StringName] = []
-	# A player who saved a swap before the NEW tags existed already knows the control.
-	var swapped: bool = _profile.staple_swaps.any(func(id: StringName) -> bool: return id != &"")
+	# A run that already swapped (one resumed from before the NEW tags) knows the control.
+	var swapped: bool = StartSetupRules.applied_swaps(_run) > 0
 	if StartSetupRules.swap_limit(_run, _profile) > 0 and not swapped:
 		found.append(NEW_SWAP)
 	if restock_unlocked() and _run.start_setup.restock_basket < 0:
@@ -158,7 +188,7 @@ func can_swap(slot: int) -> bool:
 	return swapped or StartSetupRules.swaps_left(_run, _profile) > 0
 
 
-## The baskets wait for a pick (`on`), bobbing in gold frames, or stop waiting.
+## The baskets wait for a pick (`on`), each restockable one tagged RESTOCK, or stop waiting.
 func set_restock_picking(on: bool) -> void:
 	restock_picking = on
 	if _run != null:
@@ -169,9 +199,8 @@ func set_restock_picking(on: bool) -> void:
 func set_open_slot(slot: int) -> void:
 	open_slot = slot
 	for index: int in regulars.size():
-		var holder: Control = regulars[index]
-		holder.position.y = TILE_TOP - (8.0 if index == slot else 0.0)
-		(holder.get_node("Selected") as Control).visible = index == slot
+		_lift(index, 8.0 if index == slot else 0.0)
+		(regulars[index].get_node("Selected") as Control).visible = index == slot
 
 
 ## Marks green basket `basket` (-1: none) as the one whose aisle pop-up is open.
@@ -196,6 +225,19 @@ func basket_rect(basket: int) -> Rect2:
 ## Basket `basket`'s sign rect (stage px).
 func sign_rect(basket: int) -> Rect2:
 	return Rect2(SIGN.position + Vector2(BAY_LEFT + basket * BAY_STEP, 0), SIGN.size)
+
+
+## The baskets' shelf (stage px): one plank under the three baskets, its top at their feet, ending
+## before today's extra aisle.
+func basket_shelf_rect() -> Rect2:
+	var feet: float = _front_top() + BASKET_FRONT.get_height() * BASKET_SCALE
+	var left: float = BAY_LEFT + BASKET_X - SHELF_REACH
+	var count: int = _run.start_setup.baskets.size() if _run != null else 3
+	var right: float = (
+		BAY_LEFT + (count - 1) * BAY_STEP + BASKET_X + BASKET_FRONT.get_width() * BASKET_SCALE
+	)
+	right = 2.0 * ceilf((right + SHELF_REACH) / 2.0)
+	return Rect2(left, 2.0 * floorf(feet / 2.0), right - left, PLANK)
 
 
 ## Regular `slot`'s tile rect at rest (stage px).
@@ -223,13 +265,16 @@ func _draw_wall() -> void:
 			wall.draw_rect(Rect2(0, 54, 1280, FOOTER_Y - 54), Palette.BACKGROUND)
 			for x: int in range(158, 1280, 166):
 				wall.draw_rect(Rect2(x, 54, 8, FOOTER_Y - 54), Color(Palette.TEAL_BLACK, 0.55))
-			wall.draw_rect(Rect2(0, WALL_SHELF_Y, 1280, 8), Palette.TEAL_BLACK)
-			wall.draw_rect(Rect2(0, WALL_SHELF_Y + 8, 1280, 4), Color(Palette.INK, 0.18))
 			wall.draw_rect(Rect2(0, FOOTER_Y, 1280, 720 - FOOTER_Y), Palette.RUBBER)
 			wall.draw_rect(Rect2(0, FOOTER_Y, 1280, 2), Palette.INK)
 			wall.draw_rect(Rect2(0, FOOTER_Y + 2, 1280, 2), Palette.STEEL_DARK)
 	)
 	add_child(wall)
+
+
+## The baskets' wooden shelf (basket_shelf_rect), drawn under the bays so their feet stand on it.
+func _add_basket_shelf() -> void:
+	StartBoardKit.plank(self, basket_shelf_rect()).name = "BasketShelf"
 
 
 ## A sign in its aisle's colour (the Staples shelf's cream) with its glyph and name; a starter
@@ -299,13 +344,17 @@ func _add_bay(index: int) -> void:
 	bob.name = "Bob"
 	bob.size = bay.size
 	bob.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# The redraw's hover pivot: the basket's centre-bottom.
+	bob.pivot_offset = Vector2(
+		BASKET_X + floorf(BASKET_FRONT.get_width() * BASKET_SCALE / 2.0), _basket_bottom()
+	)
 	bay.add_child(bob)
 	_fill_basket(bob, index)
 	_sign_hover(index, false)
 
 
 ## The basket's back, its two items, its front and their price tags, its stamp, and its pick
-## area (in `bob`, the part that bobs while a pick waits).
+## area (in `bob`, the part that moves with a restock pick's hover and a restock's dip).
 func _fill_basket(bob: Control, index: int) -> void:
 	var setup: StartSetup = _run.start_setup
 	var basket_width: float = BASKET_FRONT.get_width() * BASKET_SCALE
@@ -366,7 +415,8 @@ func _art(parent: Control, texture: Texture2D, at: Vector2) -> TextureRect:
 	return sprite
 
 
-## Today's extra (RUN ONLY) aisle: a small sign at the rail's end, its capsules and one line.
+## Today's extra aisle: a small sign at the rail's end, RUN-ONLY under it, its capsules and one
+## line.
 func _add_extra() -> void:
 	var run_only: Array[StringName] = _run.start_setup.run_only_ids(_run.balance)
 	if run_only.is_empty():
@@ -376,7 +426,6 @@ func _add_extra() -> void:
 	extra.size = ShiftStage.SIZE
 	extra.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(extra)
-	_dimmed.append(extra)
 	for x: float in [EXTRA.position.x + 38, EXTRA.end.x - 42]:
 		StartBoardKit.panel(
 			extra, Rect2(x, RAIL.end.y, 4, EXTRA.position.y - RAIL.end.y), Palette.INK
@@ -385,15 +434,7 @@ func _add_extra() -> void:
 	board.name = "Sign"
 	board.mouse_filter = Control.MOUSE_FILTER_PASS
 	board.tooltip_text = "Today's extra aisle: in stock for machine prizes, drawn each run"
-	var caption: Label = StartBoardKit.tag(
-		extra,
-		"TODAY'S EXTRA AISLE",
-		Rect2(EXTRA.position.x - 10, 226, EXTRA.size.x + 20, 20),
-		Palette.MUSTARD_LIGHT,
-		2,
-		true
-	)
-	caption.name = "Caption"
+	_run_only_caption(Vector2(EXTRA.get_center().x, EXTRA.end.y + 8))
 	var capsule: Texture2D = load(CAPSULE_PATH % run_only[0]) as Texture2D
 	var row: float = 3 * 39 + 2 * 6
 	for at: int in 3:
@@ -401,14 +442,32 @@ func _add_extra() -> void:
 		StartBoardKit.icon(extra, capsule, Vector2(left, 252), 3).name = "Capsule%d" % at
 	var line: Label = StartBoardKit.body(
 		extra,
-		"No basket: its items come\nas machine prizes.",
-		Rect2(EXTRA.position.x - 10, 300, EXTRA.size.x + 20, 44),
+		"Available as machine prizes.",
+		Rect2(EXTRA.position.x - 10, 300, EXTRA.size.x + 20, 22),
 		Palette.TEAL_PALE,
 		14
 	)
 	line.name = "Line"
 	line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	line.add_theme_font_override("font", ArtStyle.bold_font(700))
+
+
+## RUN-ONLY centred on `centre` (its top): the pixel font's hyphen has no left side bearing (it
+## touched the N), so the hyphen is set on its own, 4 px after RUN.
+func _run_only_caption(centre: Vector2) -> void:
+	var caption: Control = Control.new()
+	caption.name = "Caption"
+	caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	extra.add_child(caption)
+	var parts: PackedStringArray = ["RUN", "-ONLY"]
+	var width: float = 4.0 + StartBoardKit.text_width(parts[0]) + StartBoardKit.text_width(parts[1])
+	caption.position = Vector2(2.0 * floorf((centre.x - width / 2.0) / 2.0), centre.y)
+	caption.size = Vector2(width, 20)
+	var x: float = 0
+	for part: String in parts:
+		var part_width: float = StartBoardKit.text_width(part)
+		StartBoardKit.tag(caption, part, Rect2(x, 0, part_width + 2, 20), Palette.MUSTARD_LIGHT)
+		x += part_width + 4
 
 
 ## The one RESTOCK key by the baskets (from restock_min_completed): RESTOCK, then PICK A BASKET
@@ -492,7 +551,6 @@ func _add_regulars() -> void:
 	shelf.size = ShiftStage.SIZE
 	shelf.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(shelf)
-	_dimmed.append(shelf)
 	var left: float = _tile_left(0)
 	var heading: Label = StartBoardKit.words(
 		shelf, "YOUR REGULARS", Rect2(left - 2, REGULARS_TOP, 220, 28), Palette.MUSTARD_LIGHT
@@ -509,19 +567,10 @@ func _add_regulars() -> void:
 		_add_swap_chip(shelf, Vector2(sub_left + 104, REGULARS_TOP + 1), limit)
 	var count: int = _run.starter.core_cards.size()
 	var width: float = count * StartItemTile.SIZE.x + (count - 1) * TILE_GAP
-	var plank: Panel = StartBoardKit.panel(
-		shelf,
-		Rect2(left - 40, TILE_TOP + StartItemTile.SIZE.y - 2, width + 80, 20),
-		Palette.WOOD,
-		Palette.INK
+	var plank: Panel = StartBoardKit.plank(
+		shelf, Rect2(left - 40, TILE_TOP + StartItemTile.SHELF_Y, width + 80, PLANK)
 	)
 	plank.name = "Shelf"
-	StartBoardKit.panel(
-		plank, Rect2(2, 2, plank.size.x - 4, 4), Palette.WOOD_LIGHT, Palette.WOOD_LIGHT
-	)
-	StartBoardKit.panel(
-		plank, Rect2(2, plank.size.y - 6, plank.size.x - 4, 4), Palette.WOOD_DARK, Palette.WOOD_DARK
-	)
 	for slot: int in count:
 		_add_tile(shelf, slot)
 
@@ -554,7 +603,7 @@ func _add_swap_chip(parent: Control, at: Vector2, limit: int) -> void:
 func _add_tile(parent: Control, slot: int) -> void:
 	var holder: Control = Control.new()
 	holder.name = "Regular%d" % slot
-	holder.position = Vector2(_tile_left(slot), TILE_TOP - (8.0 if slot == open_slot else 0.0))
+	holder.position = Vector2(_tile_left(slot), TILE_TOP)
 	holder.size = StartItemTile.SIZE
 	parent.add_child(holder)
 	regulars.append(holder)
@@ -585,7 +634,7 @@ func _add_tile(parent: Control, slot: int) -> void:
 	var original: CardDefinition = _run.start_setup.originals[slot]
 	if card != original:
 		var undo: Button = StartBoardKit.key(
-			holder, "", Rect2(-12, -12, 58, 32), func() -> void: undo_clicked.emit(slot)
+			holder, "", Rect2(_undo_at(tile), UNDO), func() -> void: undo_clicked.emit(slot)
 		)
 		undo.name = "Undo"
 		undo.tooltip_text = "Back to %s" % original.display_name
@@ -596,11 +645,12 @@ func _add_tile(parent: Control, slot: int) -> void:
 		small.remove_meta("card")
 	elif open:
 		var badge: Panel = StartBoardKit.panel(
-			holder, Rect2(StartItemTile.SIZE.x - 18, -12, 30, 30), Palette.TEAL_SHADE
+			holder, Rect2(_badge_at(tile), BADGE * Vector2.ONE), Palette.TEAL_SHADE
 		)
 		badge.name = "Badge"
 		(badge.get_theme_stylebox("panel") as StyleBoxFlat).set_border_width_all(3)
 		StartBoardKit.icon(badge, SWAP_ICON, Vector2(6, 5), 2).name = "Arrows"
+	_lift(slot, 8.0 if slot == open_slot else 0.0)
 
 
 func _tile_input(event: InputEvent, slot: int) -> void:
@@ -615,12 +665,44 @@ func _tile_hover(slot: int, inside: bool) -> void:
 	if slot >= regulars.size() or slot == open_slot or restock_picking:
 		return
 	var holder: Control = regulars[slot]
-	holder.position.y = TILE_TOP - (6.0 if inside else 0.0)
+	_lift(slot, 6.0 if inside else 0.0)
 	var badge: Panel = holder.get_node_or_null("Badge") as Panel
 	if badge != null:
 		var style: StyleBoxFlat = badge.get_theme_stylebox("panel") as StyleBoxFlat
 		style.bg_color = Palette.MUSTARD if inside else Palette.TEAL_SHADE
 		(badge.get_node("Arrows") as CanvasItem).modulate = Palette.INK if inside else Color.WHITE
+
+
+## Lifts regular `slot`'s item art `by` px off its shelf, its swap badge or put-back tag with it
+## (its sticker stays on the shelf's edge).
+func _lift(slot: int, by: float) -> void:
+	var tile: StartItemTile = regulars[slot].get_node("Tile") as StartItemTile
+	tile.art.position.y = StartItemTile.SHELF_Y - StartItemTile.ART - by
+	var badge: Control = regulars[slot].get_node_or_null("Badge") as Control
+	if badge != null:
+		badge.position = _badge_at(tile)
+	var undo: Control = regulars[slot].get_node_or_null("Undo") as Control
+	if undo != null:
+		undo.position = _undo_at(tile)
+
+
+## Where a swapped regular's put-back tag sits (holder px): in the swap badge's place, its
+## top-right corner on the badge's (so it reaches left over the art, never into the next lane).
+static func _undo_at(tile: StartItemTile) -> Vector2:
+	return _badge_at(tile) + Vector2(BADGE - UNDO.x, 0)
+
+
+## Where a regular's swap badge sits (holder px): at its art's visible top-right corner, BADGE_GAP
+## px clear of the art's opaque pixels (beside the art when it fits inside the tile's lane, else
+## just over the art's pixels under it, e.g. a carton's shoulder).
+static func _badge_at(tile: StartItemTile) -> Vector2:
+	var art: Rect2 = tile.art_bounds()
+	var x: float = minf(
+		2.0 * ceilf((art.end.x + BADGE_GAP) / 2.0), StartItemTile.SIZE.x + BADGE_REACH - BADGE
+	)
+	var under: float = tile.art_top_over(x - BADGE_GAP, x + BADGE + BADGE_GAP)
+	var y: float = minf(art.position.y - BADGE / 2.0, under - BADGE_GAP - BADGE)
+	return Vector2(x, 2.0 * floorf(y / 2.0))
 
 
 func _sign_input(event: InputEvent, basket: int) -> void:
@@ -656,81 +738,60 @@ func _basket_input(event: InputEvent, basket: int) -> void:
 		basket_clicked.emit(basket)
 
 
-## While a pick waits: each basket's gold dashed frame (pulsing, solid while hovered), its
-## "n RESTOCK THIS" cue and its bob; the regulars and the extra aisle dim.
+## While a pick waits (the shift's redraw mode): each basket that can be restocked becomes a click
+## target with the redraw's teal tag on its front, reading RESTOCK; the rest of the page stays
+## as it is.
 func _show_picking() -> void:
-	for control: Control in _dimmed:
-		control.modulate = Color(1, 1, 1, 0.35) if restock_picking else Color.WHITE
 	if not restock_picking:
 		return
 	for index: int in hits.size():
+		if StartSetupRules.restock_block(_run, _profile, index) != &"":
+			continue
 		var hit: Control = hits[index]
 		hit.mouse_filter = Control.MOUSE_FILTER_STOP
 		hit.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-		var frame: Control = Control.new()
-		frame.name = "Frame"
-		frame.size = hit.size
-		frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		frame.set_meta("hot", false)
-		frame.set_meta("lit", true)
-		frame.draw.connect(_draw_frame.bind(frame))
-		hit.add_child(frame)
-		hit.mouse_entered.connect(_frame_hot.bind(frame, true))
-		hit.mouse_exited.connect(_frame_hot.bind(frame, false))
-		var cue: Panel = StartBoardKit.panel(
-			hit, Rect2(floorf(hit.size.x / 4.0) * 2 - 88, hit.size.y - 22, 176, 30), Palette.GOLD
-		)
-		cue.name = "Cue"
-		(cue.get_theme_stylebox("panel") as StyleBoxFlat).set_border_width_all(3)
-		StartBoardKit.number(cue, str(index + 1), Rect2(10, 0, 20, 28), Palette.INK, 24)
-		var words: Label = StartBoardKit.tag(
-			cue, "RESTOCK THIS", Rect2(32, 0, 140, 28), Palette.INK
-		)
-		UiKit.place_pixel_label(words, Rect2(32, 0, 140, 28), true)
-		if not _reduced:
-			_loops.append(_bob(bays[index].get_node("Bob") as Control, index))
-			_loops.append(_pulse(frame))
+		var bob: Control = bays[index].get_node("Bob") as Control
+		var tag: RedrawTag = RedrawTag.new(RESTOCK_WORD)
+		tag.name = "Tag"
+		tag.ring = false
+		bob.add_child(tag)
+		_place_tag(tag)
+		tag.resized.connect(_place_tag.bind(tag))
+		hit.mouse_entered.connect(_pick_hover.bind(index, true))
+		hit.mouse_exited.connect(_pick_hover.bind(index, false))
 
 
-func _frame_hot(frame: Control, hot: bool) -> void:
-	frame.set_meta("hot", hot)
-	frame.queue_redraw()
+## Basket `basket`'s RESTOCK tag (null: not waiting for a pick, or it can't be restocked).
+func restock_tag(basket: int) -> RedrawTag:
+	if basket < 0 or basket >= bays.size():
+		return null
+	return bays[basket].get_node_or_null("Bob/Tag") as RedrawTag
 
 
-func _draw_frame(frame: Control) -> void:
-	var rect: Rect2 = Rect2(Vector2.ZERO, frame.size)
-	if frame.get_meta("hot", false):
-		frame.draw_rect(rect, Color(Palette.GOLD, 0.14))
-		frame.draw_rect(rect.grow(-2), Palette.GOLD, false, 4)
+## The tag centred on its basket's front, its top TAG_RISE px above the basket's foot.
+func _place_tag(tag: RedrawTag) -> void:
+	var centre: float = BASKET_X + BASKET_FRONT.get_width() * BASKET_SCALE / 2.0
+	var top: float = 2.0 * roundf((_basket_bottom() - TAG_RISE) / 2.0)
+	tag.position = Vector2(2.0 * roundf((centre - tag.tag_width() / 2.0) / 2.0), top)
+
+
+## A restock pick's hover, as the redraw's (BasketRedraw.hover): the tag goes hot and names how
+## many items go; with motion the basket eases up hover_lift px and wobbles about its centre-bottom,
+## and eases back on leaving.
+func _pick_hover(basket: int, inside: bool) -> void:
+	var tag: RedrawTag = restock_tag(basket)
+	if tag == null:
 		return
-	var colour: Color = Palette.GOLD if frame.get_meta("lit", true) else Palette.MUSTARD_DARK
-	for x: int in range(0, int(rect.size.x), 16):
-		var dash: float = minf(8, rect.size.x - x)
-		frame.draw_rect(Rect2(x, 0, dash, 4), colour)
-		frame.draw_rect(Rect2(x, rect.size.y - 4, dash, 4), colour)
-	for y: int in range(0, int(rect.size.y), 16):
-		var dash: float = minf(8, rect.size.y - y)
-		frame.draw_rect(Rect2(0, y, 4, dash), colour)
-		frame.draw_rect(Rect2(rect.size.x - 4, y, 4, dash), colour)
+	tag.set_hot(inside, _run.start_setup.baskets[basket].cards.size())
+	_place_tag(tag)
+	if _reduced:
+		return
+	_loops.append(_hover.play(basket, bays[basket].get_node("Bob") as Control, inside))
 
 
-func _bob(bob: Control, index: int) -> Tween:
-	var tween: Tween = bob.create_tween().set_loops()
-	tween.tween_interval(0.35 * (index % 2))
-	tween.tween_property(bob, "position:y", -6.0, BOB_S).set_trans(Tween.TRANS_SINE)
-	tween.tween_property(bob, "position:y", 0.0, BOB_S).set_trans(Tween.TRANS_SINE)
-	return tween
-
-
-func _pulse(frame: Control) -> Tween:
-	var tween: Tween = frame.create_tween().set_loops()
-	tween.tween_interval(0.45)
-	tween.tween_callback(
-		func() -> void:
-			frame.set_meta("lit", not frame.get_meta("lit", true))
-			frame.queue_redraw()
-	)
-	return tween
+## The baskets' foot (stage y): the bottom of their front.
+func _basket_bottom() -> float:
+	return _front_top() + BASKET_FRONT.get_height() * BASKET_SCALE
 
 
 ## A red NEW tag at `at` on `parent`, tilted and (with motion) pulsing.
@@ -793,7 +854,7 @@ func play_redeal(basket: int, before: Array[CardDefinition]) -> void:
 		ghost.pivot_offset = Vector2(ITEM_SIZE / 2, ITEM_SIZE)
 		bob.move_child(ghost, front.get_index())
 		var out: Tween = ghost.create_tween()
-		out.tween_interval(at * 0.08)
+		out.tween_interval(at * ITEM_STAGGER_S)
 		out.tween_property(ghost, "position:y", ITEM_TOP - 100, HOP_S).set_ease(Tween.EASE_IN)
 		out.parallel().tween_property(ghost, "rotation", deg_to_rad(-14), HOP_S)
 		out.parallel().tween_property(ghost, "modulate:a", 0.0, HOP_S)
@@ -804,7 +865,7 @@ func play_redeal(basket: int, before: Array[CardDefinition]) -> void:
 		host.position.y = ITEM_TOP - 146
 		host.modulate.a = 0.0
 		var drop: Tween = host.create_tween()
-		drop.tween_interval(HOP_S + at * 0.08)
+		drop.tween_interval(HOP_S + at * ITEM_STAGGER_S)
 		drop.tween_property(host, "modulate:a", 1.0, 0.05)
 		(
 			drop
@@ -813,7 +874,19 @@ func play_redeal(basket: int, before: Array[CardDefinition]) -> void:
 			. set_ease(Tween.EASE_OUT)
 		)
 		_tweens.append(drop)
+		# The basket dips as each item lands (the redraw's landing).
+		var dip: Tween = bob.create_tween()
+		dip.tween_interval(landing_s(at))
+		dip.tween_property(bob, "position:y", LAND_DIP, LAND_DIP_S * 0.4).set_ease(Tween.EASE_OUT)
+		dip.tween_property(bob, "position:y", 0.0, LAND_DIP_S * 0.6).set_ease(Tween.EASE_IN_OUT)
+		_tweens.append(dip)
 	_sparks(bays[basket].position + Vector2(BAY_WIDTH / 2, ITEM_TOP + 48), HOP_S + 0.3)
+
+
+## When new item `at` of a restock lands (s after the click): the moment its drop first reaches
+## the basket (its back ease overshoots, then settles).
+static func landing_s(at: int) -> float:
+	return HOP_S + at * ITEM_STAGGER_S + PAIR_DROP_S * 0.45
 
 
 ## Regular `slot` flips to its new card, with a few gold sparks.
@@ -871,6 +944,7 @@ func skip_deal() -> void:
 		bay.position = Vector2(BAY_LEFT + index * BAY_STEP, 0)
 		bay.modulate.a = 1.0
 		(bay.get_node("Bob") as Control).position = Vector2.ZERO
+		(bay.get_node("Bob") as Control).rotation = 0.0
 		for child: Node in bay.get_node("Bob").get_children():
 			if String(child.name).begins_with("Ghost"):
 				child.queue_free()
@@ -879,11 +953,12 @@ func skip_deal() -> void:
 			host.modulate.a = 1.0
 	if extra != null:
 		extra.position = Vector2.ZERO
-		extra.modulate.a = 0.35 if restock_picking else 1.0
+		extra.modulate.a = 1.0
 	for slot: int in regulars.size():
 		var holder: Control = regulars[slot]
-		holder.position = Vector2(_tile_left(slot), TILE_TOP - (8.0 if slot == open_slot else 0.0))
+		holder.position = Vector2(_tile_left(slot), TILE_TOP)
 		holder.modulate.a = 1.0
+		_lift(slot, 8.0 if slot == open_slot else 0.0)
 		(holder.get_node("Tile") as Control).scale = Vector2.ONE
 
 

@@ -134,30 +134,26 @@ func test_restock_is_spent_once_and_follows_its_aisle() -> void:
 	assert_array(setup.baskets[1].cards).is_equal(restocked)
 
 
-## A regular swap uses one of the swaps (saved in the profile, as StartChoice does); the real
-## undo (StartSetupRules.restore) puts the original back, clears the saved swap and gives the swap
-## back, and a second undo is refused.
+## A regular swap uses one of the run's swaps; the real undo (StartSetupRules.restore) puts the
+## original back and gives the swap back, and a second undo is refused.
 func test_a_swap_and_its_undo() -> void:
 	var profile: ProfileState = Kit.profile(3)
 	var run: RunState = Kit.locked(profile, SEED)
 	var left: int = StartSetupRules.swaps_left(run, profile)
 	var original: CardDefinition = run.starter.core_cards[2]
 	assert_bool(StartSetupRules.can_restore(run, 2)).is_false()
-	assert_bool(StartSetupRules.restore(run, profile, 2)).is_false()
+	assert_bool(StartSetupRules.restore(run, 2)).is_false()
 	assert_bool(Kit.swap(run, profile, 2)).is_true()
 	var swapped: CardDefinition = run.starter.core_cards[2]
-	profile.staple_swaps.resize(run.starter.core_cards.size())
-	profile.staple_swaps[2] = swapped.id
 	assert_object(swapped).is_not_equal(original)
 	assert_int(StartSetupRules.swaps_left(run, profile)).is_equal(left - 1)
 	assert_bool(StartSetupRules.can_restore(run, 2)).is_true()
-	assert_bool(StartSetupRules.restore(run, profile, 2)).is_true()
+	assert_bool(StartSetupRules.restore(run, 2)).is_true()
 	assert_object(run.starter.core_cards[2]).is_equal(original)
-	assert_str(String(profile.staple_swaps[2])).is_empty()
 	assert_int(StartSetupRules.applied_swaps(run)).is_equal(0)
 	assert_int(StartSetupRules.swaps_left(run, profile)).is_equal(left)
 	assert_bool(StartSetupRules.can_restore(run, 2)).is_false()
-	assert_bool(StartSetupRules.restore(run, profile, 2)).is_false()
+	assert_bool(StartSetupRules.restore(run, 2)).is_false()
 
 
 func _change(run: RunState, profile: ProfileState, basket: int, aisle_id: StringName) -> StringName:

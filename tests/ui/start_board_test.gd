@@ -159,8 +159,9 @@ func test_hover_previews_without_changing_the_saved_pick_or_rng() -> void:
 	assert_int(screen.run.rng_state).is_equal(state)
 
 
-## RESTOCK by keys (3 completed aisles): R makes the baskets wait (gold frames, "n RESTOCK THIS"
-## cues), 2 redraws basket 2 only, from the same source; the other baskets and the packs stay;
+## RESTOCK by keys (3 completed aisles): R makes the baskets wait as the shift's redraw mode does
+## (each wears the redraw's teal RESTOCK tag; no frame, cue, bob or dimming), 2 redraws basket 2
+## only, from the same source; the other baskets and the packs stay;
 ## the basket wears RESTOCKED, the key turns grey RESTOCK USED and R does nothing more; its NEW
 ## tag goes; saved and logged.
 func test_restock_by_keys_redraws_one_basket_once() -> void:
@@ -179,7 +180,15 @@ func test_restock_by_keys_redraws_one_basket_once() -> void:
 	assert_bool(store.restock_picking).is_true()
 	for index: int in store.bays.size():
 		var bob: Control = store.bays[index].get_node("Bob")
-		assert_object(bob.get_node_or_null("Hit/Frame")).is_not_null()
+		var tag: RedrawTag = store.restock_tag(index)
+		assert_object(tag).is_not_null()
+		assert_str(tag.text()).is_equal("RESTOCK")
+		assert_bool(tag.is_hot()).is_false()
+		assert_object(bob.get_node_or_null("Hit/Frame")).is_null()
+		assert_object(bob.get_node_or_null("Hit/Cue")).is_null()
+		assert_float(bob.position.y).is_equal(0.0)
+	assert_object(store.extra.modulate).is_equal(Color.WHITE)
+	assert_object((store.get_node("Regulars") as Control).modulate).is_equal(Color.WHITE)
 	assert_str(StartBoardKit.key_caption(store.restock_key).text).is_equal("PICK  A  BASKET")
 	assert_object(store.restock_key.get_node_or_null("Cross")).is_not_null()
 	var key_rect: Rect2 = store.restock_key.get_global_rect()
@@ -211,6 +220,8 @@ func test_restock_by_keys_redraws_one_basket_once() -> void:
 	assert_object(store.bays[1].get_node_or_null("Bob/Stamp")).is_not_null()
 	assert_object(store.bays[0].get_node_or_null("Bob/Stamp")).is_null()
 	assert_bool(store.restock_key.disabled).is_true()
+	for index: int in store.bays.size():
+		assert_object(store.restock_tag(index)).is_null()
 	assert_str(StartBoardKit.key_caption(store.restock_key).text).is_equal("RESTOCK  USED")
 	assert_object(store.restock_key.get_node_or_null("New")).is_null()
 	assert_bool(screen.profile.seen.has(StorePage.NEW_RESTOCK)).is_true()
@@ -237,6 +248,14 @@ func test_restock_by_click() -> void:
 	store.restock_key.pressed.emit()
 	var hit: Control = store.hits[2]
 	assert_int(hit.mouse_filter).is_equal(Control.MOUSE_FILTER_STOP)
+	assert_int(hit.mouse_default_cursor_shape).is_equal(Control.CURSOR_POINTING_HAND)
+	# Hovered, the tag goes hot and names the items going, as the redraw's does.
+	hit.mouse_entered.emit()
+	assert_bool(store.restock_tag(2).is_hot()).is_true()
+	assert_str(store.restock_tag(2).text()).is_equal("RESTOCK 2")
+	assert_bool(store.restock_tag(2).ring).is_false()
+	hit.mouse_exited.emit()
+	assert_str(store.restock_tag(2).text()).is_equal("RESTOCK")
 	hit.gui_input.emit(_click(true))
 	assert_int(screen.run.start_setup.restock_basket).is_equal(2)
 	assert_array(screen.run.start_setup.baskets[2].cards).is_not_equal(dealt)
@@ -284,7 +303,7 @@ func test_a_regular_is_swapped_by_click_and_undone() -> void:
 	assert_object(board.popover).is_null()
 	assert_object(run.starter.core_cards[0]).is_same(card)
 	assert_array(run.start_offer.shared).is_equal(shared)
-	assert_object(store.regulars[0].get_node_or_null("Undo")).is_not_null()
+	_assert_undo_in_badge_place(store, 0)
 	var pip: Panel = store.swap_chip.get_node("Pip0")
 	var style: StyleBoxFlat = pip.get_theme_stylebox("panel") as StyleBoxFlat
 	assert_object(style.bg_color).is_equal(Palette.TEAL_DARK)
@@ -294,7 +313,8 @@ func test_a_regular_is_swapped_by_click_and_undone() -> void:
 	assert_str(event["card"]).is_equal(String(card.id))
 	var saved: RunSave = RunSave.from_dictionary(_save(), ContentLookup.new(run.balance))
 	assert_object(saved.run.starter.core_cards[0]).is_same(card)
-	assert_array(screen._saves.load_profile().staple_swaps).contains([card.id])
+	# The swap is the run's own (v1.08): the profile never keeps it for the next run.
+	assert_bool(screen._saves.load_profile().to_dictionary().has("staple_swaps")).is_false()
 	# Reopening shows the same offer (kept per slot and aisle) and a BACK TO key.
 	var aisle: StringName = run.balance.aisle_of(card).id
 	var offer: Array[CardDefinition] = run.start_setup.regular_offer(0, aisle)
@@ -308,6 +328,32 @@ func test_a_regular_is_swapped_by_click_and_undone() -> void:
 	assert_object(store.regulars[0].get_node_or_null("Undo")).is_null()
 	assert_bool(_last_event("staple_swap")["restored"]).is_true()
 	assert_array(run.start_offer.shared).is_equal(shared)
+
+
+## A swapped regular's put-back tag stands in its swap badge's place: its top-right corner on the
+## badge's, right of the art's centre and above it, no badge beside it, inside the regular's lane,
+## and it rises with the art on hover.
+func _assert_undo_in_badge_place(store: StorePage, slot: int) -> void:
+	var holder: Control = store.regulars[slot]
+	var undo: Control = holder.get_node_or_null("Undo") as Control
+	assert_object(undo).is_not_null()
+	assert_object(holder.get_node_or_null("Badge")).is_null()
+	var tile: StartItemTile = holder.get_node("Tile") as StartItemTile
+	var badge: Vector2 = StorePage._badge_at(tile)
+	assert_vector(undo.position + Vector2(undo.size.x, 0)).is_equal(
+		badge + Vector2(StorePage.BADGE, 0)
+	)
+	var art: Rect2 = tile.art_bounds()
+	assert_float(undo.position.x + undo.size.x / 2).is_greater(art.get_center().x)
+	assert_float(undo.position.y + undo.size.y / 2).is_less(art.get_center().y)
+	assert_float(undo.position.x + undo.size.x).is_less_equal(
+		StartItemTile.SIZE.x + StorePage.BADGE_REACH
+	)
+	var rest: Vector2 = undo.position
+	store._tile_hover(slot, true)
+	assert_vector(undo.position).is_equal(rest - Vector2(0, 6))
+	store._tile_hover(slot, false)
+	assert_vector(undo.position).is_equal(rest)
 
 
 ## Keys: 2 opens regular 2's shelf, a number picks its item, Esc closes; while the shelf is open
@@ -383,7 +429,6 @@ func test_a_failed_run_save_rolls_back_the_swap_and_profile() -> void:
 	DirAccess.remove_absolute(blocked)
 	assert_object(screen.run.starter.core_cards[0]).is_same(original)
 	assert_dict(_save()).is_equal(saved_before)
-	assert_array(screen._saves.load_profile().staple_swaps).is_empty()
 	assert_int(errors.size()).is_equal(1)
 
 
@@ -522,11 +567,20 @@ func _assert_store_layout(board: StartBoard) -> void:
 			for bay: Rect2 in columns:
 				assert_bool(rect.intersects(bay)).is_false()
 	var regulars_top: float = _text_rect(store.get_node("Regulars/Heading")).position.y
-	for hit: Control in store.hits:
-		var cue: Control = hit.get_node_or_null("Cue")
-		if cue != null:
-			assert_bool(stage.encloses(cue.get_global_rect())).is_true()
-			assert_float(cue.get_global_rect().end.y).is_less_equal(regulars_top)
+	for index: int in store.bays.size():
+		var tag: RedrawTag = store.restock_tag(index)
+		if tag != null:
+			# On its basket's front, clear of its price tags, above the regulars.
+			var tag_rect: Rect2 = tag.get_global_rect()
+			var front: Rect2 = (
+				(store.bays[index].get_node("Bob/Front") as Control).get_global_rect()
+			)
+			assert_bool(stage.encloses(tag_rect)).is_true()
+			assert_bool(front.grow(1).encloses(tag_rect)).is_true()
+			assert_float(tag_rect.end.y).is_less_equal(regulars_top)
+			for at: int in store.items[index].size():
+				var price: Control = store.bays[index].get_node("Bob/Price%d" % at)
+				assert_bool(tag_rect.intersects(price.get_global_rect())).is_false()
 	if store.restock_key != null:
 		var key: Rect2 = store.restock_key.get_global_rect()
 		assert_bool(stage.encloses(key)).is_true()
@@ -592,6 +646,85 @@ func _assert_store_layout(board: StartBoard) -> void:
 		. x
 	)
 	assert_float(needed).is_less_equal(line.size.x)
+
+
+## The shelves (v1.08), at 1280x720 and 1920x1080: the baskets stand on one wooden plank whose top
+## meets their feet, reaching past the outer baskets and ending before today's extra aisle; RUN-ONLY
+## sits under the extra aisle's sign, "Available as machine prizes." under its capsules. Each
+## regular's art stands on its shelf with no card backing, its one sticker (glyphs and price) on
+## the shelf's edge under it and clear of its swap badge; a hover lifts the art but not the
+## sticker, and the tile (art and sticker) carries the card for its popup.
+func test_shelves_stickers_and_run_only_caption() -> void:
+	var screen: ShiftScreen = await _screen(1)
+	var board: StartBoard = screen._cart_reveal.board
+	var store: StorePage = board.store
+	for extent: Vector2 in [Vector2(1280, 720), Vector2(1920, 1080)]:
+		board.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		board.size = extent
+		board._resize()
+		var factor: float = board._stage.scale.x
+		var shelf: Rect2 = (store.get_node("BasketShelf") as Control).get_global_rect()
+		for bay: Control in store.bays:
+			var front: Rect2 = (bay.get_node("Bob/Front") as Control).get_global_rect()
+			assert_float(absf(shelf.position.y - front.end.y)).is_less_equal(2 * factor)
+			assert_float(shelf.position.x).is_less(front.position.x)
+			assert_float(shelf.end.x).is_greater(front.end.x)
+		var extra_sign: Rect2 = (store.extra.get_node("Sign") as Control).get_global_rect()
+		assert_float(shelf.end.x).is_less(extra_sign.position.x)
+		var caption: Rect2 = (store.extra.get_node("Caption") as Control).get_global_rect()
+		var words: String = ""
+		for part: Node in store.extra.get_node("Caption").get_children():
+			words += (part as Label).text
+		assert_str(words).is_equal("RUN-ONLY")
+		assert_float(caption.position.y).is_greater_equal(extra_sign.end.y)
+		assert_float(caption.position.y - extra_sign.end.y).is_less_equal(12 * factor)
+		assert_float(absf(caption.get_center().x - extra_sign.get_center().x)).is_less(4 * factor)
+		var line: Label = store.extra.get_node("Line") as Label
+		assert_str(line.text).is_equal("Available as machine prizes.")
+		assert_float(line.get_global_rect().position.y).is_greater(
+			(store.extra.get_node("Capsule0") as Control).get_global_rect().end.y
+		)
+		var plank: Rect2 = (store.get_node("Regulars/Shelf") as Control).get_global_rect()
+		for holder: Control in store.regulars:
+			var tile: StartItemTile = holder.get_node("Tile") as StartItemTile
+			assert_object(tile.get_meta("card")).is_same(
+				screen.run.starter.core_cards[store.regulars.find(holder)]
+			)
+			for child: Node in tile.get_children():
+				assert_bool(child == tile.art or child == tile.sticker).is_true()
+			var art: Rect2 = tile.art.get_global_rect()
+			assert_float(art.end.y).is_equal_approx(plank.position.y, 0.01)
+			var sticker: Rect2 = tile.sticker.get_global_rect()
+			assert_bool(sticker.intersects(plank)).is_true()
+			assert_float(sticker.position.y).is_greater(plank.position.y)
+			assert_bool(holder.get_global_rect().grow(0.5).encloses(sticker)).is_true()
+			assert_bool(holder.get_global_rect().grow(0.5).encloses(art)).is_true()
+			assert_str((tile.sticker.get_node("Price") as Label).text).contains("€")
+			var badge: Control = holder.get_node("Badge") as Control
+			assert_bool(badge.get_global_rect().intersects(sticker)).is_false()
+			assert_float(badge.get_global_rect().get_center().x).is_greater(art.get_center().x)
+			assert_float(badge.get_global_rect().get_center().y).is_less(art.get_center().y)
+			# Clear of the art's opaque pixels (2 px), at its top-right, in its own lane.
+			var spot: Rect2 = Rect2(badge.position, badge.size)
+			var under: float = tile.art_top_over(spot.position.x - 2, spot.end.x + 2)
+			assert_float(spot.end.y).is_less_equal(under - 2)
+			assert_float(spot.position.x).is_greater(tile.art_bounds().get_center().x)
+			assert_float(spot.end.y).is_less_equal(tile.art_bounds().position.y + StorePage.BADGE)
+			var lane: float = holder.get_global_rect().end.x + StorePage.TILE_GAP * factor
+			assert_float(badge.get_global_rect().end.x).is_less(lane)
+	var first: StartItemTile = store.regulars[0].get_node("Tile") as StartItemTile
+	var rest: float = first.sticker.position.y
+	var art_rest: float = first.art.position.y
+	var badge_rest: Vector2 = (store.regulars[0].get_node("Badge") as Control).position
+	store._tile_hover(0, true)
+	assert_float(first.art.position.y).is_equal(art_rest - 6)
+	assert_vector((store.regulars[0].get_node("Badge") as Control).position).is_equal(
+		badge_rest - Vector2(0, 6)
+	)
+	assert_float(first.sticker.position.y).is_equal(rest)
+	assert_vector(store.regulars[0].position).is_equal(store.tile_rect(0).position)
+	store._tile_hover(0, false)
+	assert_float(first.art.position.y).is_equal(art_rest)
 
 
 ## The top bar's chips and the two tabs stay apart and on the stage on both pages; YOUR STORE
@@ -708,13 +841,13 @@ func _assert_tile_tags(store: StorePage) -> void:
 
 
 ## Every visible NEW tag stays on the stage and off the controls it isn't on: the restock pick's
-## cues, the signs, the RESTOCK key, the SWAPS chip, the headings and the regulars.
+## tags, the signs, the RESTOCK key, the SWAPS chip, the headings and the regulars.
 func _assert_new_tags(board: StartBoard, stage: Rect2) -> void:
 	var store: StorePage = board.store
 	var others: Array[Control] = []
-	for hit: Control in store.hits:
-		if hit.has_node("Cue"):
-			others.append(hit.get_node("Cue") as Control)
+	for index: int in store.bays.size():
+		if store.restock_tag(index) != null:
+			others.append(store.restock_tag(index))
 	for sign_panel: Panel in store.signs:
 		others.append(sign_panel)
 	for control: Control in [store.restock_key, store.swap_chip]:

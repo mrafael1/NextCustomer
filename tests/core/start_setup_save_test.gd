@@ -178,28 +178,35 @@ func test_an_old_format_setup_restarts_or_is_dropped() -> void:
 	assert_bool(later.run.restart_setup).is_false()
 
 
-func test_the_profile_keeps_its_swaps_and_choice() -> void:
+## The profile keeps the aisle choice but no regular swap (v1.08: swaps reset each run). A
+## version 4 profile's saved swaps (any form) still read, are dropped, and never saved again.
+func test_the_profile_keeps_its_choice_but_no_swaps() -> void:
 	var profile: ProfileState = ProfileState.new()
-	profile.staple_swaps = [&"cheese", &"", &"cereal", &""]
 	profile.stock_pair = [&"snacks", &"bakery"]
 	profile.stock_run_only = &"pantry"
-	var read: ProfileState = ProfileState.from_dictionary(Kit.json(profile.to_dictionary()))
+	var saved: Dictionary = Kit.json(profile.to_dictionary())
+	assert_bool(saved.has("staple_swaps")).is_false()
+	var read: ProfileState = ProfileState.from_dictionary(saved)
 	assert_object(read).is_not_null()
-	assert_array(read.staple_swaps).is_equal(profile.staple_swaps)
 	assert_array(read.stock_pair).is_equal(profile.stock_pair)
 	assert_str(String(read.stock_run_only)).is_equal("pantry")
-	var older: Dictionary = Kit.json(profile.to_dictionary())
+	for swaps: Variant in [["cheese", "", "cereal", ""], "cheese", 3.0]:
+		var v4: Dictionary = saved.duplicate(true)
+		v4["format_version"] = 4.0
+		v4["staple_swaps"] = swaps
+		var old: ProfileState = ProfileState.from_dictionary(v4)
+		assert_object(old).is_not_null()
+		assert_array(old.stock_pair).is_equal(profile.stock_pair)
+		assert_bool(Kit.json(old.to_dictionary()).has("staple_swaps")).is_false()
+	var older: Dictionary = saved.duplicate(true)
 	older["format_version"] = 3
-	older.erase("staple_swaps")
 	older.erase("stock_pair")
 	older.erase("stock_run_only")
-	var old: ProfileState = ProfileState.from_dictionary(older)
-	assert_object(old).is_not_null()
-	assert_array(old.staple_swaps).is_empty()
-	assert_array(old.stock_pair).is_empty()
-	assert_str(String(old.stock_run_only)).is_empty()
+	var oldest: ProfileState = ProfileState.from_dictionary(older)
+	assert_object(oldest).is_not_null()
+	assert_array(oldest.stock_pair).is_empty()
+	assert_str(String(oldest.stock_run_only)).is_empty()
 	read.reset_collection()
-	assert_array(read.staple_swaps).is_empty()
 	assert_array(read.stock_pair).is_empty()
 	assert_str(String(read.stock_run_only)).is_empty()
 

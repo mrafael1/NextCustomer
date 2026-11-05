@@ -18,6 +18,10 @@ const NUMBER_KEYS: Array[Key] = [KEY_1, KEY_2, KEY_3, KEY_4]
 ## The pop-ups keep this far (stage px) from their anchor and from the stage's edges.
 const POP_GAP := 14.0
 const POP_TOP := 60.0
+## The most one frame advances the page slide (s), so a slow frame never jumps it.
+const SLIDE_MAX_STEP := 1.0 / 30.0
+## The page tabs' step box (px, square): even, so each digit's even-sized ink centres exactly.
+const STEP_BOX := 28.0
 
 var page: int = 1
 var selected: int = -1
@@ -35,6 +39,15 @@ var popover: StorePopover
 var slide_s: float = 0.3
 ## A board key pressed during the page slide, acted on when it ends (KEY_NONE: none).
 var _queued_key: Key = KEY_NONE
+## The running page slide: the leaving and the arriving page (null: no slide), its direction
+## (1: to page 2), its clock (s), the frame that built it and the wall clock (µs) of its last
+## frame (-1: not started).
+var _slide_old: Control
+var _slide_fresh: Control
+var _slide_direction: float = 1.0
+var _slide_time: float = 0.0
+var _slide_frame: int = 0
+var _slide_usec: int = -1
 var _choice: StartBoardActions
 var _stage: Control
 var _pages: Control
@@ -158,20 +171,15 @@ func _show_build() -> void:
 
 
 ## The footer on page 1: NEXT and its key hints (R only while a RESTOCK waits), and the line
-## saying the swaps (and aisle picks) stay for the next runs once they are unlocked.
+## saying the aisle picks stay for the next runs once they are unlocked (swaps reset each run).
 func _refresh_footer() -> void:
 	_next.visible = page == 1
 	if _key_hint != null:
 		_stage.remove_child(_key_hint)
 		_key_hint.queue_free()
 		_key_hint = null
-	var swaps: bool = StartSetupRules.swap_limit(run, profile) > 0
 	var aisles: bool = StartSetupRules.choice_mode(run.balance, profile)
-	_save_hint.text = (
-		"Swaps and aisle picks stay for your next runs."
-		if aisles
-		else "Swaps stay for your next runs." if swaps else ""
-	)
+	_save_hint.text = "Aisle picks stay for your next runs." if aisles else ""
 	_save_hint.visible = page == 1 and _note.text == ""
 	if page != 1:
 		return
@@ -203,22 +211,26 @@ func toggle_restock() -> bool:
 	return start_restock()
 
 
-## R on page 1: the baskets wait for a click or 1–3 (only while a basket can be restocked).
+## R on page 1: the baskets wait for a click or 1–3 (only while a basket can be restocked), as
+## the shift's Redraw key arms redraw mode (its sounds too: `fan`, then `ui_back` on a cancel).
 func start_restock() -> bool:
 	if page != 1 or busy or _blocked() or not store.can_restock():
 		return false
 	store.set_restock_picking(true)
-	Sfx.play_at(self, "ui_click")
+	Sfx.play_at(self, "fan")
 	_refresh_footer()
 	return true
 
 
 func cancel_restock() -> void:
+	if store.restock_picking:
+		Sfx.play_at(self, "ui_back")
 	store.set_restock_picking(false)
 	_refresh_footer()
 
 
-## RESTOCK basket `basket` (saved at once): its two items hop out and a new pair drops in.
+## RESTOCK basket `basket` (saved at once): its two items hop out and a new pair drops in, with
+## the redraw's sounds (`shuffle`, then one `card_place` as each new item lands).
 func restock(basket: int) -> bool:
 	if busy or _blocked() or page != 1:
 		return false
@@ -231,7 +243,11 @@ func restock(basket: int) -> bool:
 		say("Restock could not be saved. Try again.")
 		return false
 	_choice.mark_seen.call(StorePage.NEW_RESTOCK)
-	Sfx.play_at(self, "ui_confirm")
+	Sfx.play_at(self, "shuffle")
+	var sfx: Sfx = Sfx.find(self)
+	if sfx != null:
+		var count: int = run.start_setup.baskets[basket].cards.size()
+		sfx.play_series("card_place", count, StorePage.ITEM_STAGGER_S, StorePage.landing_s(0))
 	refresh()
 	store.play_redeal(basket, before)
 	return true
@@ -509,18 +525,26 @@ func _refresh_header() -> void:
 		UiKit.place_pixel_label(caption, Rect2(46, 0, 150, 40), true)
 		var box: Panel = StartBoardKit.panel(
 			tab,
-			Rect2(10, 8, 26, 26),
+			Rect2(10, 6, STEP_BOX, STEP_BOX),
 			Palette.MUSTARD if active else Palette.TEAL,
 			Palette.INK if active else Palette.TEAL_LIGHT
 		)
 		box.name = "Step"
-		var step: Label = StartBoardKit.number(
-			box, str(index + 1), Rect2(0, 0, 26, 24), Palette.INK if active else Palette.PAPER, 22
-		)
-		step.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_step_digit(box, index + 1, Palette.INK if active else Palette.PAPER)
 		if index == 0 and page == 2:
 			StartBoardKit.icon(tab, StartBoardKit.CHECK, Vector2(200, 7)).name = "Done"
 	StartBoardKit.tag(_rail, "›", Rect2(250, 62, 24, 40), Palette.TEAL_LIGHT)
+
+
+## Page `number`'s digit in its tab's step box: the 6x8 pixel digits (their glyph is their ink),
+## centred on the box at an even offset, so it stays centred on whole pixels at 1x and 1.5x.
+static func _step_digit(box: Control, number: int, ink: Color) -> PixelWords:
+	var digit: PixelWords = PixelWords.new(str(number), PixelWords.Sheet.DIGITS, 2.0, ink)
+	digit.name = "Digit"
+	digit.size = digit.get_minimum_size()
+	digit.position = (((box.size - digit.size) / 4.0).floor() * 2.0)
+	box.add_child(digit)
+	return digit
 
 
 ## A framed top-bar chip (TopBar's frame) holding its own children at absolute positions.
@@ -557,31 +581,61 @@ func show_page(next_page: int, key: String = "click") -> void:
 	busy = true
 	store.visible = true
 	staff.visible = true
-	var direction: float = 1.0 if page == 2 else -1.0
-	var old: Control = (store as Control) if before == 1 else (staff as Control)
-	var fresh: Control = (store as Control) if page == 1 else (staff as Control)
-	var tween: Tween = create_tween()
-	tween.tween_method(
-		func(fraction: float) -> void:
-			var step: float = floorf(fraction * 6) / 6.0
-			old.position.x = floorf(-direction * step * 1280 / 2.0) * 2
-			fresh.position.x = floorf(direction * (1 - step) * 1280 / 2.0) * 2,
-		0.0,
-		1.0,
-		slide_s
-	)
-	tween.tween_callback(
-		func() -> void:
-			store.position = Vector2.ZERO
-			staff.position = Vector2.ZERO
-			store.visible = page == 1
-			staff.visible = page == 2
-			busy = false
-			if _queued_key != KEY_NONE:
-				var queued: Key = _queued_key
-				_queued_key = KEY_NONE
-				_act(queued)
-	)
+	_slide_direction = 1.0 if page == 2 else -1.0
+	_slide_old = (store as Control) if before == 1 else (staff as Control)
+	_slide_fresh = (store as Control) if page == 1 else (staff as Control)
+	# Both pages were just built (refresh, above) in this frame, and the engine's frame deltas
+	# catch up on that build for a few frames: the slide's clock starts from the wall clock on the
+	# next frame and counts real time from there (each frame capped), so the build is never a jump
+	# in the motion and no frame of the slide builds anything.
+	_slide_frame = Engine.get_process_frames()
+	_slide_time = 0.0
+	_slide_usec = -1
+	_place_slide(0.0)
+
+
+## The slide's offset (stage px, 0 to the stage's width) at `elapsed` seconds: eased out, every
+## frame (never stepped to the art grid, which made it judder at ~10 steps a second), snapped to
+## whole stage pixels.
+func _slide_offset(elapsed: float) -> float:
+	var fraction: float = clampf(elapsed / maxf(slide_s, 0.001), 0.0, 1.0)
+	var eased: float = sin(fraction * PI / 2.0)
+	return roundf(eased * ShiftStage.SIZE.x)
+
+
+func _process(_delta: float) -> void:
+	if _slide_old == null:
+		return
+	if Engine.get_process_frames() > _slide_frame:
+		# Real time since the last frame, not the engine's delta (which still holds the build);
+		# a slow frame moves the slide one capped step, not a jump.
+		var now: int = Time.get_ticks_usec()
+		if _slide_usec >= 0:
+			_slide_time += minf((now - _slide_usec) / 1000000.0, SLIDE_MAX_STEP)
+		_slide_usec = now
+	_place_slide(_slide_time)
+	if _slide_time >= slide_s:
+		_end_slide()
+
+
+func _place_slide(elapsed: float) -> void:
+	var offset: float = _slide_offset(elapsed)
+	_slide_old.position.x = -_slide_direction * offset
+	_slide_fresh.position.x = _slide_direction * (ShiftStage.SIZE.x - offset)
+
+
+func _end_slide() -> void:
+	_slide_old = null
+	_slide_fresh = null
+	store.position = Vector2.ZERO
+	staff.position = Vector2.ZERO
+	store.visible = page == 1
+	staff.visible = page == 2
+	busy = false
+	if _queued_key != KEY_NONE:
+		var queued: Key = _queued_key
+		_queued_key = KEY_NONE
+		_act(queued)
 
 
 func pick(index: int) -> void:
@@ -686,7 +740,7 @@ func _input(event: InputEvent) -> void:
 
 ## Whether the page slide is running (busy for the slide, not for the clock-in punch).
 func page_sliding() -> bool:
-	return busy and store.visible and staff.visible
+	return _slide_old != null
 
 
 func _act(keycode: Key) -> void:

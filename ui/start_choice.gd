@@ -79,9 +79,6 @@ func _setup_run(seed_value: int, balance: BalanceDefinition, recipe: DeckDefinit
 		profile,
 		_stream(seed_value, EventLogService.STOCK_AISLES_STREAM)
 	)
-	# Saved swaps this run could not apply are dropped, so they never hold a swap's place.
-	if StartSetupRules.prune_swaps(profile, run):
-		_screen.save_profile()
 	deal(run, profile)
 	return run
 
@@ -224,8 +221,6 @@ func swap_staple(slot: int, card: CardDefinition, via: String = "click") -> bool
 	if not StartSetupRules.can_swap(run, _screen.profile, slot, card):
 		return false
 	var before: Dictionary = _snapshot()
-	_screen.profile.staple_swaps.resize(run.starter.core_cards.size())
-	_screen.profile.staple_swaps[slot] = card.id
 	run.starter.core_cards[slot] = card
 	StartSetupRules.refresh_deck(run)
 	if not _commit(before):
@@ -249,7 +244,7 @@ func restore_regular(slot: int, via: String = "click") -> bool:
 		return false
 	var before: Dictionary = _snapshot()
 	var original: CardDefinition = run.start_setup.originals[slot]
-	StartSetupRules.restore(run, _screen.profile, slot)
+	StartSetupRules.restore(run, slot)
 	if not _commit(before):
 		return false
 	_log.log_event(
@@ -392,7 +387,6 @@ func _snapshot() -> Dictionary:
 		"deals": offer.deals,
 		"shared": offer.shared.duplicate(),
 		"core": run.starter.core_cards.duplicate(),
-		"swaps": _screen.profile.staple_swaps.duplicate(),
 		"pair": _screen.profile.stock_pair.duplicate(),
 		"run_only": _screen.profile.stock_run_only,
 		"pins": run.pins.duplicate(),
@@ -400,13 +394,12 @@ func _snapshot() -> Dictionary:
 	}
 
 
-## Saves the run (and the profile when its swaps, pair or worn pins changed since `before`). On a
+## Saves the run (and the profile when its aisle pair or worn pins changed since `before`). On a
 ## failed save, everything in `before` is restored and the profile saved back; returns false.
 func _commit(before: Dictionary) -> bool:
 	var profile: ProfileState = _screen.profile
 	var with_profile: bool = (
-		profile.staple_swaps != before["swaps"]
-		or profile.stock_pair != before["pair"]
+		profile.stock_pair != before["pair"]
 		or profile.stock_run_only != before["run_only"]
 		or profile.worn_pins != before["worn"]
 	)
@@ -420,7 +413,6 @@ func _commit(before: Dictionary) -> bool:
 	run.start_offer.deals = before["deals"]
 	run.start_offer.shared = before["shared"]
 	run.starter.core_cards = before["core"]
-	profile.staple_swaps = before["swaps"]
 	profile.stock_pair = before["pair"]
 	profile.stock_run_only = before["run_only"]
 	run.pins = before["pins"]

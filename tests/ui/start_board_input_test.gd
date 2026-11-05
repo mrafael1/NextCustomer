@@ -158,6 +158,127 @@ func _assert_inside_apart(outer: Rect2, controls: Array[Control]) -> void:
 		seen.append(rect)
 
 
+## The page slide (reduced motion off), both ways: it starts the frame after the pages are built,
+## and from then every frame moves it (monotonic, whole stage pixels, at most the distance one
+## capped frame covers from where it is: never stepped to the art grid, never a jump after the
+## build's frame), no node is built
+## while it runs, and it settles at rest. Reduced motion swaps the pages at once.
+func test_the_page_slide_moves_smoothly_every_frame() -> void:
+	var screen: ShiftScreen = await _screen()
+	var board: StartBoard = screen._cart_reveal.board
+	screen.profile.set_reduced_motion(false)
+	var added: Array[Node] = []
+	var count_added: Callable = func(node: Node) -> void: added.append(node)
+	for next_page: int in [2, 1]:
+		board.show_page(next_page)
+		assert_bool(board.page_sliding()).is_true()
+		var fresh: Control = (
+			(board.staff as Control) if next_page == 2 else (board.store as Control)
+		)
+		var direction: float = 1.0 if next_page == 2 else -1.0
+		get_tree().node_added.connect(count_added)
+		var offsets: Array[float] = []
+		var times: Array[float] = []
+		while board.page_sliding():
+			offsets.append(ShiftStage.SIZE.x - fresh.position.x * direction)
+			times.append(board._slide_time)
+			await get_tree().process_frame
+		get_tree().node_added.disconnect(count_added)
+		assert_array(added).is_empty()
+		assert_int(offsets.size()).is_greater(int(board.slide_s * 30))
+		var moved: int = 0
+		for index: int in range(1, offsets.size()):
+			var step: float = offsets[index] - offsets[index - 1]
+			assert_float(step).is_greater_equal(0.0)
+			var reach: float = (
+				board._slide_offset(times[index - 1] + StartBoard.SLIDE_MAX_STEP)
+				- board._slide_offset(times[index - 1])
+			)
+			assert_float(step).is_less_equal(reach + 1.0)
+			# A frame that stays put is fine when the eased curve, snapped to whole pixels, gives
+			# the same offset for its time (the ease-out's last frames move under half a pixel).
+			var due: bool = (
+				board._slide_offset(times[index]) != board._slide_offset(times[index - 1])
+			)
+			moved += 1 if step > 0.0 or not due else 0
+		# Only the hold over the build's frame and a headless frame with no time in it repeat.
+		assert_int(moved).is_greater_equal(offsets.size() - 4)
+		assert_vector(board.store.position).is_equal(Vector2.ZERO)
+		assert_vector(board.staff.position).is_equal(Vector2.ZERO)
+		assert_bool(fresh.visible).is_true()
+	for half: int in 3:
+		assert_float(board._slide_offset(board.slide_s * half / 2.0)).is_equal_approx(
+			[0.0, ShiftStage.SIZE.x * sin(PI / 4.0), ShiftStage.SIZE.x][half], 1.0
+		)
+	screen.profile.set_reduced_motion(true)
+	board.show_page(2)
+	assert_bool(board.page_sliding()).is_false()
+	assert_bool(board.staff.visible and not board.store.visible).is_true()
+
+
+## The page tabs' step digits ("1", "2") sit exactly centred in their boxes, on whole screen
+## pixels, at 1280x720 and 1920x1080 (the user: "1 & 2 inside boxes ... aren't centered"): the
+## digit's ink (its 6x8 glyph fills its box) has the box's centre, both pages, both tab states.
+func test_the_page_steps_are_centred_at_both_sizes() -> void:
+	var screen: ShiftScreen = await _screen(3)
+	var board: StartBoard = screen._cart_reveal.board
+	board.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	for board_size: Vector2 in [Vector2(1280, 720), Vector2(1920, 1080)]:
+		board.size = board_size
+		board._resize()
+		for page: int in [1, 2]:
+			board.show_page(page)
+			board.refresh()
+			for index: int in 2:
+				var box: Panel = board._rail.get_node("Tab%d/Step" % (index + 1))
+				var digit: PixelWords = box.get_node("Digit")
+				assert_str(digit.text).is_equal(str(index + 1))
+				var ink: Rect2 = digit.get_global_rect()
+				var frame: Rect2 = box.get_global_rect()
+				assert_vector(ink.size).is_equal(
+					(
+						PixelWords.text_size(digit.text, digit.sheet, digit.cell)
+						* board_size.x
+						/ 1280.0
+					)
+				)
+				assert_vector(ink.get_center()).is_equal(frame.get_center())
+				for corner: Vector2 in [ink.position, ink.end, frame.position, frame.end]:
+					assert_vector(corner).is_equal(corner.round())
+
+
+## The RESTOCK pick's hover with motion on (as the redraw's, RedrawTuning): the basket eases up
+## hover_lift px and wobbles about its centre-bottom, its tag hot; leaving puts it back at rest.
+func test_a_restock_pick_hover_lifts_and_wobbles_the_basket() -> void:
+	var screen: ShiftScreen = await _screen(3)
+	var board: StartBoard = screen._cart_reveal.board
+	screen.profile.set_reduced_motion(false)
+	board.refresh()
+	assert_bool(board.start_restock()).is_true()
+	var store: StorePage = board.store
+	var bob: Control = store.bays[1].get_node("Bob")
+	var tuning: RedrawTuning = load(BasketRedraw.TUNING_PATH)
+	store.hits[1].mouse_entered.emit()
+	assert_bool(store.restock_tag(1).is_hot()).is_true()
+	var tilted: bool = false
+	var ends: int = Time.get_ticks_msec() + 400
+	while Time.get_ticks_msec() < ends:
+		await get_tree().process_frame
+		tilted = tilted or absf(bob.rotation) > 0.001
+	assert_float(bob.position.y).is_equal_approx(-tuning.hover_lift, 0.01)
+	assert_bool(tilted).is_true()
+	assert_float(bob.rotation).is_less_equal(deg_to_rad(tuning.hover_wobble_deg) + 0.001)
+	store.hits[1].mouse_exited.emit()
+	ends = Time.get_ticks_msec() + 300
+	while Time.get_ticks_msec() < ends:
+		await get_tree().process_frame
+	assert_float(bob.position.y).is_equal(0.0)
+	assert_float(bob.rotation).is_equal(0.0)
+	assert_bool(store.restock_tag(1).is_hot()).is_false()
+	board.cancel_restock()
+	assert_object(store.restock_tag(1)).is_null()
+
+
 ## Page 2 with reduced motion, then clock-in with it off; returns the shutter once it plays.
 func _clock_in_with_motion(screen: ShiftScreen) -> RollerShutter:
 	var board: StartBoard = screen._cart_reveal.board

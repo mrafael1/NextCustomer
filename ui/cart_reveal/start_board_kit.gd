@@ -25,6 +25,17 @@ static func panel(parent: Control, rect: Rect2, face: Color, edge: Color = Palet
 	return node
 
 
+## A wooden shelf plank (YOUR STORE's baskets and regulars stand on these): wood with a light top
+## edge and a dark bottom edge, inked.
+static func plank(parent: Control, rect: Rect2) -> Panel:
+	var board: Panel = panel(parent, rect, Palette.WOOD, Palette.INK)
+	panel(board, Rect2(2, 2, rect.size.x - 4, 4), Palette.WOOD_LIGHT, Palette.WOOD_LIGHT)
+	panel(
+		board, Rect2(2, rect.size.y - 6, rect.size.x - 4, 4), Palette.WOOD_DARK, Palette.WOOD_DARK
+	)
+	return board
+
+
 static func words(
 	parent: Control, text: String, rect: Rect2, color: Color = Palette.INK, pixels: int = 2
 ) -> Label:
