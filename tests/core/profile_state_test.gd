@@ -109,7 +109,7 @@ func test_the_saved_form_round_trips_through_json() -> void:
 func test_the_saved_form_states_its_format_version() -> void:
 	var data: Dictionary = ProfileState.new().to_dictionary()
 	assert_int(data["format_version"]).is_equal(ProfileState.FORMAT_VERSION)
-	assert_int(ProfileState.FORMAT_VERSION).is_equal(4)
+	assert_int(ProfileState.FORMAT_VERSION).is_equal(5)
 
 
 func test_missing_fields_keep_defaults_and_unknown_ones_are_ignored() -> void:

@@ -2,8 +2,9 @@ class_name CaptureStart
 extends RefCounted
 ## The opening board's review states for the screen capture (full build plan 7.2; page 1
 ## "Counter", v1.07): --reveal=0,page=1|2,completed=0..6[,<option>...], the options:
-## - restock=pick (RESTOCK pressed, the baskets waiting for a pick) or restock=<basket> (that
-##   basket restocked);
+## - restock=pick (RESTOCK pressed, the baskets waiting for a pick), restock=pick:<basket> (the
+##   same with that basket hovered: its tag hot, the basket at its hover lift) or
+##   restock=<basket> (that basket restocked);
 ## - swap=<slot>[:<aisle>]: regular <slot>'s swap shelf open (on aisle <aisle>, an index of
 ##   balance.aisles or an id, when given); swapped=<slot> swaps it to its first open offer first;
 ## - aisle=<basket>: starter basket <basket>'s aisle choice open; changed=<basket>:<aisle> deals
@@ -65,7 +66,8 @@ static func show_board(screen: ShiftScreen, options: PackedStringArray, raised: 
 	if swapped_text != "" and board.open_swap(swapped_text.to_int()):
 		board.popover.choose(_first_open(board))
 	var restock_text: String = _value(options, "restock=")
-	if restock_text != "" and restock_text != "pick":
+	var picking: bool = restock_text.begins_with("pick")
+	if restock_text != "" and not picking:
 		board.restock(restock_text.to_int())
 	board.show_page(_value(options, "page=").to_int(), "tab")
 	if raised >= 0:
@@ -78,8 +80,13 @@ static func show_board(screen: ShiftScreen, options: PackedStringArray, raised: 
 	var preview_text: String = _value(options, "preview=")
 	if preview_text != "":
 		board._preview(preview_text.to_int())
-	if restock_text == "pick":
+	if picking:
 		board.start_restock()
+		if restock_text.begins_with("pick:"):
+			var hovered: int = restock_text.trim_prefix("pick:").to_int()
+			board.store._pick_hover(hovered, true)
+			var tuning: RedrawTuning = load(BasketRedraw.TUNING_PATH)
+			(board.store.bays[hovered].get_node("Bob") as Control).position.y = -tuning.hover_lift
 	var swap_text: String = _value(options, "swap=")
 	if swap_text != "":
 		var parts: PackedStringArray = swap_text.split(":")

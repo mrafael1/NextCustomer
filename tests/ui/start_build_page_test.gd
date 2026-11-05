@@ -173,6 +173,7 @@ func test_crates_show_items_name_and_family_only() -> void:
 					assert_bool(item.intersects(crate.label.get_global_rect())).is_false()
 					assert_float((child as Control).size.x).is_equal(ItemView.SPRITE_SIZE.x)
 			assert_int(items).is_equal(crate.pack.cards.size())
+			_assert_lip(crate)
 			assert_bool(rect.encloses(crate.label.get_global_rect())).is_true()
 			var face: Rect2 = crate.label.get_global_rect()
 			for part: String in ["Name", "Family"]:
@@ -192,6 +193,39 @@ func test_crates_show_items_name_and_family_only() -> void:
 				for other: Rect2 in keep_clear:
 					assert_bool(first_sign.get_global_rect().intersects(other)).is_false()
 			placed.append(rect)
+
+
+## The crate's front lip (v1.08) is drawn over its items, covering only their box's last few px
+## (at most 12 crate px of each 96 px item), and stays inside the crate, its bottom on its label's
+## top. Every item's visible art (a coupon's slip too, not just its box) sinks about a quarter of
+## its visible height under the lip's top (6 to 18 crate px, packed inside the crate), ends above
+## the lip's bottom, and shows at least 70% of itself over the lip.
+func _assert_lip(crate: PackCrate) -> void:
+	var lip: Control = crate.get_node("Lip") as Control
+	var lip_rect: Rect2 = lip.get_global_rect()
+	var factor: float = crate.get_global_transform().get_scale().y
+	assert_bool(crate.get_global_rect().encloses(lip_rect)).is_true()
+	assert_bool(lip_rect.intersects(crate.label.get_global_rect())).is_false()
+	assert_float(lip_rect.end.y).is_equal_approx(crate.label.get_global_rect().position.y, 0.01)
+	for child: Node in crate.get_children():
+		if child.has_meta("card"):
+			assert_int(child.get_index()).is_less(lip.get_index())
+			var item: Rect2 = (child as Control).get_global_rect()
+			var covered: Rect2 = item.intersection(lip_rect)
+			assert_float(covered.size.y).is_greater(0.0)
+			assert_float(covered.size.y).is_less_equal(12 * factor + 0.01)
+			assert_float(covered.end.y).is_equal_approx(item.end.y, 0.01)
+			var art: TextureRect = child.get_child(0) as TextureRect
+			var texel: float = factor * PackCrate.ITEM / art.texture.get_height()
+			var box: Rect2i = ContactShadow.opaque_rect(art.texture)
+			var top: float = art.get_global_rect().position.y + box.position.y * texel
+			var foot: float = top + box.size.y * texel
+			var sink: float = foot - lip_rect.position.y
+			assert_float(sink).is_between(6 * factor - 0.01, 18 * factor + 0.01)
+			var quarter: float = clampf(box.size.y * texel / 4.0, 6 * factor, 18 * factor)
+			assert_float(sink).is_equal_approx(quarter, 1.0 * factor + 0.01)
+			assert_float(foot).is_less_equal(lip_rect.end.y - 2 * factor + 0.01)
+			assert_float(lip_rect.position.y - top).is_greater_equal(0.7 * (foot - top))
 
 
 ## The time clock (v1.01): the IN card stands inside its slot with its IN word on its head, the

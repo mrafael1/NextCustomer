@@ -202,36 +202,24 @@ func test_swaps_keep_the_copy_rule_and_never_redeal() -> void:
 		assert_bool(waiting.start_offer.packs.has(deli)).is_false()
 
 
-## Two regulars saved as Cheese: the Deli counter pack (Bread, Cheese, Butter) is left out of the
-## run's recipe, so it is never offered; a third saved Cheese is never applied.
-func test_saved_swaps_leave_out_a_pack_that_would_hold_a_third_copy() -> void:
+## Swaps reset each run (v1.08, the user: "swap should reset at each new run"): after a run spent
+## every swap, the next run (from the same profile, or from a version 4 profile that saved swaps)
+## starts with the recipe's own regulars, every pack and the full swap allowance.
+func test_a_new_run_starts_with_the_recipes_regulars_and_every_swap() -> void:
 	var profile: ProfileState = Kit.profile(3)
-	profile.staple_swaps = [&"cheese", &"cheese"]
-	var own: DeckDefinition = StartSetupRules.recipe_for(_recipe, _balance, profile)
-	assert_int(own.core_cards.count(CHEESE)).is_equal(2)
-	var deli: StarterPackDefinition = DELI
-	assert_bool(own.starter_packs.has(deli)).is_false()
-	assert_bool(_recipe.starter_packs.has(deli)).is_true()
-	for seed_value: int in range(SEED, SEED + 4):
-		var run: RunState = Kit.locked(profile, seed_value)
-		assert_bool(run.start_offer.packs.has(deli)).is_false()
-		assert_bool(run.start_offer.shared.has(CHEESE)).is_false()
-	profile.staple_swaps = [&"cheese", &"cheese", &"cheese"]
-	own = StartSetupRules.recipe_for(_recipe, _balance, profile)
-	assert_int(own.core_cards.count(CHEESE)).is_equal(2)
-
-
-func test_saved_swaps_a_run_cannot_apply_are_pruned() -> void:
-	var profile: ProfileState = Kit.profile(1)
-	var cream: CardDefinition = _balance.aisles[0].capsule_cards[0]
-	# Slot 1 names a pantry card (not completed), slot 2 a second swap past the one allowed.
-	profile.staple_swaps = [cream.id, &"cereal", &"butter"]
-	var run: RunState = Kit.run(profile, SEED)
-	assert_object(run.starter.core_cards[0]).is_same(cream)
-	assert_array(run.starter.core_cards.slice(1)).is_equal(_recipe.core_cards.slice(1))
-	assert_bool(StartSetupRules.prune_swaps(profile, run)).is_true()
-	assert_array(profile.staple_swaps).is_equal([cream.id, &"", &"", &""])
-	assert_bool(StartSetupRules.prune_swaps(profile, run)).is_false()
-	var fresh: ProfileState = ProfileState.new()
-	assert_bool(StartSetupRules.prune_swaps(fresh, Kit.run(fresh, SEED))).is_false()
-	assert_array(fresh.staple_swaps).is_empty()
+	var first: RunState = Kit.locked(profile, SEED)
+	var allowance: int = StartSetupRules.swaps_left(first, profile)
+	assert_int(allowance).is_greater(0)
+	for slot: int in allowance:
+		assert_bool(Kit.swap(first, profile, slot)).is_true()
+	assert_int(StartSetupRules.swaps_left(first, profile)).is_equal(0)
+	var v4: Dictionary = Kit.json(profile.to_dictionary())
+	v4["format_version"] = 4
+	v4["staple_swaps"] = ["cheese", "cheese", "", ""]
+	for shown: ProfileState in [profile, ProfileState.from_dictionary(v4)]:
+		var next: RunState = Kit.locked(shown, SEED + 1)
+		assert_array(next.starter.core_cards).is_equal(_recipe.core_cards)
+		assert_array(next.start_setup.originals).is_equal(_recipe.core_cards)
+		assert_array(next.starter.starter_packs).is_equal(_recipe.starter_packs)
+		assert_int(StartSetupRules.applied_swaps(next)).is_equal(0)
+		assert_int(StartSetupRules.swaps_left(next, shown)).is_equal(allowance)

@@ -25,8 +25,10 @@ extends RefCounted
 ## capsule_draws); version 1 saves still read, with no seed and 0 draws. 3 since #122
 ## (unlocked_pins and worn_pins); version 2 saves still read, with no pin unlocked or worn.
 ## Version 4 adds staple_swaps, stock_pair and the optional stock_run_only (the opening-time
-## board's last choice); older profiles read with none set.
-const FORMAT_VERSION := 4
+## board's last choice); older profiles read with none set. Version 5 (v1.08) drops staple_swaps:
+## regular swaps belong to their run only (the user: "swap should reset at each new run"), so a
+## version 4 profile's saved swaps are read past and never applied.
+const FORMAT_VERSION := 5
 ## The settings key of the count-up's speed (full build plan 6.2): COUNT_UP_NORMAL or
 ## COUNT_UP_FAST, read with count_up_speed().
 const COUNT_UP_SPEED_KEY := "count_up_speed"
@@ -51,8 +53,7 @@ var run_count: int = 0
 var unlocked_items: Dictionary[StringName, int] = {}
 ## The last shopping list (aisle ids), the next list's default (full build plan 7.2).
 var last_list: Array[StringName] = []
-## Opening-time regulars (one id per slot, empty means original) and saved deal-source pair.
-var staple_swaps: Array[StringName] = []
+## The opening-time board's saved deal-source pair (its two STARTER CART aisles).
 var stock_pair: Array[StringName] = []
 ## The opening-time board's last RUN ONLY aisle ("" for none).
 var stock_run_only: StringName = &""
@@ -245,7 +246,6 @@ func reset_collection() -> void:
 	unlocked_items.clear()
 	capsule_draws = 0
 	last_list.clear()
-	staple_swaps.clear()
 	stock_pair.clear()
 	stock_run_only = &""
 
@@ -262,7 +262,6 @@ func to_dictionary() -> Dictionary:
 		"run_count": run_count,
 		"unlocked_items": items,
 		"last_list": _strings(last_list),
-		"staple_swaps": _strings(staple_swaps),
 		"stock_pair": _strings(stock_pair),
 		"stock_run_only": String(stock_run_only),
 		"unlocked_decks": _strings(unlocked_decks),
@@ -283,8 +282,8 @@ func to_dictionary() -> Dictionary:
 ## Reads the saved form (as parsed from JSON: numbers may be floats). Returns null when it
 ## isn't a profile this version can read: a missing or newer format version, or a field of
 ## the wrong type (a capsule seed that isn't "" or a decimal of 0 or more). Version 1 reads
-## with no capsule seed and 0 draws, version 2 with no pins. Unknown fields are ignored;
-## missing fields keep their defaults.
+## with no capsule seed and 0 draws, version 2 with no pins, version 4's staple_swaps are
+## ignored. Unknown fields are ignored; missing fields keep their defaults.
 static func from_dictionary(data: Dictionary) -> ProfileState:
 	var version: Variant = data.get("format_version")
 	if not _is_whole(version) or int(version) < 1 or int(version) > FORMAT_VERSION:
@@ -295,7 +294,6 @@ static func from_dictionary(data: Dictionary) -> ProfileState:
 	ok = ok and _read_int(data, "run_count", profile, "run_count")
 	ok = ok and _read_items(data.get("unlocked_items", []), profile.unlocked_items)
 	ok = ok and _read_names(data.get("last_list", []), profile.last_list)
-	ok = ok and _read_names(data.get("staple_swaps", []), profile.staple_swaps)
 	ok = ok and _read_names(data.get("stock_pair", []), profile.stock_pair)
 	var run_only: Variant = data.get("stock_run_only", "")
 	ok = ok and run_only is String

@@ -25,10 +25,9 @@ extends RefCounted
 ##   up to regular_offer_max plain-tier products of a completed aisle (is_swap_option), saved the
 ##   first time it is shown; at most staple_swap_aisle_max swapped regulars come from one aisle,
 ##   and no card goes past the recipe's copy_max in the cart with every offered pack and the
-##   baskets (swap_block). Swaps never re-deal. The profile keeps them (ProfileState.staple_swaps):
-##   recipe_for applies them to each new run's own copy of the recipe, leaving out the offered
-##   packs that would hold a third copy of a swapped card; prune_swaps drops the ones it could not
-##   apply.
+##   baskets (swap_block). Swaps never re-deal. They belong to the run only (v1.08, the user:
+##   "swap should reset at each new run"): the run save keeps its own regulars, so a resume keeps
+##   them, and every new run starts with the recipe's regulars and its full swap allowance.
 ## - NEW PACKS (new_packs, packs_redraws_per_run a run) redraws the offered packs, keeping the
 ##   baskets, the regulars and the good first pick; the pick is cleared.
 
@@ -116,64 +115,11 @@ static func is_swap_option(
 	return false
 
 
-## A run's own copy of `recipe` with the profile's saved swaps applied, slot by slot: a swap is
-## applied while swaps are left (one per completed aisle, at most one per slot), its aisle has
-## swapped fewer than staple_swap_aisle_max regulars, and the regulars hold no more than copy_max
-## of its card. The packs that would give a swapped card a third copy are left out of the copy's
-## starter packs (the swap is the profile's choice); a swap that would leave fewer packs than
-## the offer shows is not applied. The recipe itself is never changed.
-static func recipe_for(
-	recipe: DeckDefinition, balance: BalanceDefinition, profile: ProfileState
-) -> DeckDefinition:
-	var copy: DeckDefinition = StartingDeck.with_cards(recipe, recipe.cards)
-	var limit: int = _swap_cap(completed(balance, profile).size(), copy.core_cards.size())
-	var needed: int = mini(copy.packs_offered, recipe.starter_packs.size())
-	var aisle_counts: Dictionary[StringName, int] = {}
-	var applied: int = 0
-	for index: int in mini(profile.staple_swaps.size(), copy.core_cards.size()):
-		if applied >= limit:
-			break
-		var card: CardDefinition = _swap_card(balance, profile, profile.staple_swaps[index])
-		if card == null or card == recipe.core_cards[index]:
-			continue
-		var aisle: AisleDefinition = balance.aisle_of(card)
-		if int(aisle_counts.get(aisle.id, 0)) >= balance.staple_swap_aisle_max:
-			continue
-		var core: Array[CardDefinition] = copy.core_cards.duplicate()
-		core[index] = card
-		if core.count(card) > copy.copy_max:
-			continue
-		var packs: Array[StarterPackDefinition] = _packs_fitting(
-			copy.starter_packs, core, recipe.core_cards, copy.copy_max
-		)
-		if packs.size() < needed:
-			continue
-		copy.core_cards = core
-		copy.starter_packs = packs
-		applied += 1
-		aisle_counts[aisle.id] = int(aisle_counts.get(aisle.id, 0)) + 1
-	return copy
-
-
-## Sets the profile's saved swaps to the ones `run` applied (a slot whose regular is not its
-## original names its card, the others ""), dropping stale ones. Returns whether it changed.
-static func prune_swaps(profile: ProfileState, run: RunState) -> bool:
-	var applied: Array[StringName] = []
-	for index: int in run.starter.core_cards.size():
-		var card: CardDefinition = run.starter.core_cards[index]
-		applied.append(card.id if card != run.start_setup.originals[index] else &"")
-	var none: Callable = func(id: StringName) -> bool: return id == &""
-	if profile.staple_swaps == applied or (profile.staple_swaps.all(none) and applied.all(none)):
-		return false
-	profile.staple_swaps = applied
-	return true
-
-
 ## A new run with the opening-time setup in SELECT: today's suggested aisles drawn on
-## `aisle_rng` (suggest_aisles), the recipe's run copy (recipe_for), an empty offer (no packs, no
-## baskets dealt) and the stock of the suggestion. The caller deals it at once (lock_in with the
-## suggestion), then the run waits for its pick. Call prune_swaps after it to drop saved swaps it
-## could not apply.
+## `aisle_rng` (suggest_aisles), a run copy of the recipe with its own regulars (no swap: swaps
+## never carry over to a new run), an empty offer (no packs, no baskets dealt) and the stock of the
+## suggestion. The caller deals it at once (lock_in with the suggestion), then the run waits for
+## its pick.
 static func setup_run(
 	seed_value: int,
 	balance: BalanceDefinition,
@@ -190,7 +136,7 @@ static func setup_run(
 	var stock: RunStock = RunStock.build(
 		balance, setup.stock_aisles, profile.unlocked_items, profile.run_count, true
 	)
-	var own: DeckDefinition = recipe_for(recipe, balance, profile)
+	var own: DeckDefinition = StartingDeck.with_cards(recipe, recipe.cards)
 	var offer: StartOffer = StartOffer.new()
 	var run: RunState = RunState.new(
 		seed_value, StartingDeck.before_pick(own, offer), balance, stock, offer
@@ -697,13 +643,11 @@ static func can_restore(run: RunState, slot: int) -> bool:
 	return _fits_all(run, recipe, original, false)
 
 
-## Puts swapped regular `slot` back to its original (can_restore) and clears the profile's saved
-## swap for that slot, so its swap is free again. False (nothing changed) when refused.
-static func restore(run: RunState, profile: ProfileState, slot: int) -> bool:
+## Puts swapped regular `slot` back to its original (can_restore), so its swap is free again.
+## False (nothing changed) when refused.
+static func restore(run: RunState, slot: int) -> bool:
 	if not can_restore(run, slot):
 		return false
-	profile.staple_swaps.resize(run.starter.core_cards.size())
-	profile.staple_swaps[slot] = &""
 	run.starter.core_cards[slot] = run.start_setup.originals[slot]
 	refresh_deck(run)
 	return true
@@ -871,19 +815,6 @@ static func _set_aisles(
 	setup.baskets.clear()
 	for source: StringName in basket_sources(balance, green):
 		setup.baskets.append(StartBasket.new(source))
-
-
-## The swap-pool card with saved id `id`, or null.
-static func _swap_card(
-	balance: BalanceDefinition, profile: ProfileState, id: StringName
-) -> CardDefinition:
-	if id == &"":
-		return null
-	for aisle: AisleDefinition in completed(balance, profile):
-		for card: CardDefinition in aisle.base_cards + aisle.capsule_cards:
-			if card.id == id:
-				return card if is_swap_option(balance, profile, card) else null
-	return null
 
 
 ## `packs` without those holding a swapped card (a regular other than its original) past

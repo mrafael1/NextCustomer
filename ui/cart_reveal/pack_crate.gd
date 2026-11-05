@@ -17,6 +17,16 @@ const ITEM_STEP := 88.0
 const ITEM_LEFT := 0.0
 ## The wood crate under them, and the paper label on its front (crate px).
 const CRATE_RECT := Rect2(0, 84, 272, 172)
+## The crate's front lip (its top rail, crate px), drawn over the items' feet so they sit packed
+## inside it (v1.08), as the basket rims hold YOUR STORE's items. It covers the items' box bottom
+## (ITEM) and runs down to the label's top. Each item's art stands in its box so its visible foot
+## is about a quarter of its visible height under the lip's top (LIP_SINK_SHARE, on the 2 px art
+## grid, from LIP_SINK_MIN to LIP_SINK_MAX px), whatever the art's empty rows under it (a
+## coupon's slip has 8, a product's none), so a small product or a coupon's slip stays readable.
+const LIP_RECT := Rect2(0, 84, 272, 20)
+const LIP_SINK_SHARE := 0.25
+const LIP_SINK_MIN := 6.0
+const LIP_SINK_MAX := 18.0
 const LABEL_RECT := Rect2(22, 104, 228, 120)
 ## The label's name bar, and the family line (glyph over name) under it (label px).
 const NAME_BAR := Rect2(0, 0, 228, 38)
@@ -59,6 +69,17 @@ func _init(definition: StarterPackDefinition, slot: int, first: bool) -> void:
 			self, pack.cards[card_index], Vector2(ITEM_LEFT + card_index * ITEM_STEP, 0), ITEM
 		)
 		item.name = "Item%d" % card_index
+		var art: TextureRect = item.get_child(0) as TextureRect
+		var texel: float = ITEM / art.texture.get_height()
+		var foot: float = ContactShadow.opaque_bottom(art.texture) * texel
+		art.position.y = LIP_RECT.position.y + lip_sink(art.texture) - foot
+	var lip: Control = Control.new()
+	lip.name = "Lip"
+	lip.position = LIP_RECT.position
+	lip.size = LIP_RECT.size
+	lip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lip.draw.connect(_draw_lip.bind(lip))
+	add_child(lip)
 	label = StartBoardKit.panel(self, LABEL_RECT, Palette.PAPER)
 	label.name = "Label"
 	StartBoardKit.panel(label, NAME_BAR, _face)
@@ -165,6 +186,24 @@ func _click(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		accept_event()
 		picked.emit(index)
+
+
+## How far (crate px) an item's visible foot sinks under the lip's top: LIP_SINK_SHARE of its
+## visible height at ITEM px, on the 2 px grid, within LIP_SINK_MIN..LIP_SINK_MAX.
+static func lip_sink(texture: Texture2D) -> float:
+	var shown: float = ContactShadow.opaque_rect(texture).size.y * ITEM / texture.get_height()
+	return clampf(2.0 * roundf(shown * LIP_SINK_SHARE / 2.0), LIP_SINK_MIN, LIP_SINK_MAX)
+
+
+## The lip: the crate's inked top edge and its light top rail, with the corner posts' tops (as
+## _draw paints them under it).
+func _draw_lip(lip: Control) -> void:
+	var width: float = LIP_RECT.size.x
+	lip.draw_rect(Rect2(0, 0, width, LIP_RECT.size.y), Palette.INK)
+	lip.draw_rect(Rect2(2, 2, width - 4, LIP_RECT.size.y - 2), Palette.BROWN_DARK)
+	lip.draw_rect(Rect2(4, 4, width - 8, 6), Palette.BROWN_LIGHT)
+	for x: float in [4.0, width - 14.0]:
+		lip.draw_rect(Rect2(x, 8, 10, LIP_RECT.size.y - 8), Palette.WOOD)
 
 
 func _draw() -> void:
