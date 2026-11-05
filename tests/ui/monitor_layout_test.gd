@@ -476,10 +476,12 @@ func test_the_description_band_and_the_open_equation() -> void:
 	for case_name: String in shown:
 		var parts: Dictionary[String, Rect2] = shown[case_name]
 		var inside: float = parts["frame"].end.y - MonitorItemColumn.FRAME
+		# v1.00: a coupon that adds nothing shows nothing in its zone (an empty rect).
+		if not parts["payout"].has_area():
+			continue
 		var lowest: float = parts["payout"].end.y
-		for part: String in ["payout_shadow", "payout_pricewindow"]:
-			if parts.has(part):
-				lowest = maxf(lowest, parts[part].end.y)
+		if parts.has("payout_shadow"):
+			lowest = maxf(lowest, parts["payout_shadow"].end.y)
 		assert_float(inside - lowest).override_failure_message(case_name).is_between(
 			MonitorParts.FOOT_CLEARANCE, PAYOUT_FOOT_MARGIN
 		)

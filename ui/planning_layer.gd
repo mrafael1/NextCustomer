@@ -18,50 +18,43 @@ extends Control
 ## drawn while calm. The strips hide during a drag (show_strips): the stickers and the quota
 ## tube's preview say what the drop does.
 ##
-## Every anchor comes from the views' rects mapped into the layer, so a scaled 8-slot row
-## places them by its scaled cells while the art never scales; CLOSED cells and empty slots are no
-## view, so they get nothing. The layout follows the views (it is redone whenever a view moves
-## relative to the layer, e.g. once the row's containers have sorted). apply_focus lights the
-## hovered item's stickers and drains the rest, and dims the unrelated pays and stamps; it rings
-## the hovered item's ticket (mustard pale, mustard, ink), gives its targets' tickets the "got" ring
-## and turns the related rail strips hot (section 5.3): the hovered giver's own strip is drawn
-## again in lane 0's geometry on top of everything, with every target's gain, and the strips
-## giving to it with its gain only (in lane 1 when they share a slot with it), while every other
-## strip dims.
+## Every anchor comes from the views' rects mapped into the layer, so a scaled 8- or 9-slot row
+## places them by its scaled cells and scales its stacks with it (v1.00); CLOSED cells and empty
+## slots are no view, so they get nothing. The layout follows the views (redone whenever a view
+## moves relative to the layer). apply_focus lights the hovered item's stickers, drains the rest
+## and dims the unrelated pays and stamps; it rings the hovered item's ticket, gives its targets'
+## tickets the "got" ring and turns the related rail strips hot (section 5.3): the hovered
+## giver's own strip drawn again in lane 0's geometry on top, with every target's gain, the
+## strips giving to it with its gain only (lane 1 when they share its slot); the rest dim.
 ##
 ## The count (#86 v6, keep_stickers): only the stickers and a denied item's stamp stay on the items
 ## as they ride to the scanner (their stickers fire there: BeltRide); the rail strips, halos,
-## sparkles and planned pays go. A view hidden from the screen (a bagged item's cell)
-## shows none of its parts.
+## sparkles and planned pays go. A hidden view (a bagged item's cell) shows none of its parts.
 ##
-## Batches and chains (#128, the Bound strip and the Linked frame): each batch and chain of the
-## model (PlanningModel.batches, chains) is bound by a frame round its tickets (BatchFrames,
-## ChainFrames), following the views (a drag's reorder lays it out again); hovering a BATCH or CHAIN
-## chip lights its frame (light_frames). A wrong job (PlanningSlot.wrong_job) turns its ticket's
-## chip tomato with a cross (PriceSticker.set_wrong_job). The count shows neither.
+## Batches and chains (#128): each batch and chain of the model (PlanningModel.batches, chains) is
+## bound by a frame round its tickets (BatchFrames, ChainFrames), following the views; hovering a
+## BATCH or CHAIN chip lights its frame (light_frames). A wrong job (PlanningSlot.wrong_job) turns
+## its ticket's chip tomato with a cross (PriceSticker.set_wrong_job). The count shows neither.
 ##
-## Motion (none under `reduced_motion`, and nothing loops): the stickers new since the last
-## slap_new slap on, the fold chip pops in as a stack first folds and punches as more fold in (each
-## newly folded sticker shrinking into it), a boosted item's halo steps out from the rings its card
-## showed before, and each rebuild steps the strips' chevrons once. Decor only: it takes no clicks,
-## and every number on it comes from the model (the score's steps and payouts).
+## Motion (none under `reduced_motion`, nothing loops): the stickers new since the last slap_new
+## slap on, the fold chip pops in as a stack first folds and punches as more fold in (each newly
+## folded sticker shrinking into it), a boosted item's halo steps out from its card's last rings,
+## each rebuild steps the strips' chevrons once. Decor only: no clicks; every number on it comes
+## from the model (the score's steps and payouts).
 
 ## The bottom of every belt stack (the item's ground line, less ItemView.BOOST_LIFT and 2), and
 ## its left edge from the cell's: the sprite's right shoulder (STACK_NUDGE more for every odd
-## sticker from the bottom: slapped, not aligned; a burst STACK_BURST_SHIFT and a WASTED label
-## STACK_FIZZLE_SHIFT more, so their wider frames sit over the shoulder too; the fold chip on the
-## edge itself).
+## sticker from the bottom; a burst STACK_BURST_SHIFT and a WASTED label STACK_FIZZLE_SHIFT
+## more, so their wider frames sit over the shoulder too; the fold chip on the edge itself).
 const STACK_BOTTOM_Y := ShiftStage.BELT_RECT.position.y + 60.0
 const STACK_LEFT := 72.0
 const STACK_NUDGE := 4.0
 const STACK_BURST_SHIFT := -8.0
 const STACK_FIZZLE_SHIFT := -8.0
-## The least room a belt stack keeps from the screen's right edge: it moves left to keep it,
-## retaining the same bottom as every other stack so it stays attached to its item.
+## The least room a belt stack keeps from the screen's right edge (it moves left, same bottom).
 const STACK_EDGE_GAP := 4.0
 ## Each sticker overlaps the one above it by STACK_OVERLAP (the mock-up's 3 px, on the 2 px art
-## grid), squeezed in STACK_SQUEEZE steps up to STACK_OVERLAP_MAX when the stack is too tall for its
-## ceiling.
+## grid), squeezed in STACK_SQUEEZE steps up to STACK_OVERLAP_MAX when the stack is too tall.
 const STACK_OVERLAP := 4.0
 const STACK_OVERLAP_MAX := 14.0
 const STACK_SQUEEZE := 2.0
@@ -633,9 +626,8 @@ func _lay_out_belt(slot: int, planning: PlanningSlot, item: ItemView) -> void:
 	var to_layer: Transform2D = _to_layer(item)
 	var scale_x: float = to_layer.get_scale().x
 	var sprite: Rect2 = _sprite_rect(item, to_layer)
-	var shoulder: float = (to_layer * Vector2(STACK_LEFT, 0)).x
-	var left: float = _on_screen(shoulder, planning)
-	_lay_out_stack(slot, planning, Vector2(left, STACK_BOTTOM_Y), Vector2.ZERO, _stack_box)
+	var bottom: Vector2 = Vector2((to_layer * Vector2(STACK_LEFT, 0)).x, STACK_BOTTOM_Y)
+	_lay_out_stack(slot, planning, bottom, Vector2.ZERO, _stack_box, minf(scale_x, 1.0))
 	item.sticker().set_wrong_job("" if _counting else planning.wrong_job)
 	var stamped: DenyStamp = _stamps.get(slot, null)
 	if stamped != null:
@@ -653,7 +645,6 @@ func _lay_out_ghost(slot: int, planning: PlanningSlot, ghost: ItemView) -> void:
 	var origin: Vector2 = _to_layer(ghost).origin
 	var sprite: Rect2 = _sprite_rect(ghost, Transform2D.IDENTITY)
 	var anchor: Vector2 = origin + Vector2(GHOST_STACK_LEFT, sprite.end.y - GHOST_STACK_GAP)
-	anchor.x = _on_screen(anchor.x, planning)
 	_lay_out_stack(slot, planning, anchor, origin, _ghost_box)
 	var window: PriceWindow = _pays.get(slot, null)
 	if window != null:
@@ -663,30 +654,36 @@ func _lay_out_ghost(slot: int, planning: PlanningSlot, ghost: ItemView) -> void:
 		stamped.position = sprite.position + STAMP_OFFSET
 
 
-## A stack's left edge `left` (layer coordinates), moved left in art pixels when `planning`'s
-## stack would pass the screen's right edge less STACK_EDGE_GAP (a wide WASTED sticker on the
-## last item or on a ghost dragged there, #45).
-func _on_screen(left: float, planning: PlanningSlot) -> float:
+## A stack's left edge `left`, moved left in art pixels when the `shown` stack (at `stack_scale`)
+## would pass the screen's right edge less STACK_EDGE_GAP (a wide WASTED sticker at the end, #45).
+func _on_screen(left: float, shown: Array[StickerSpec], stack_scale: float) -> float:
 	var right_limit: float = get_viewport_rect().size.x - STACK_EDGE_GAP
-	var overflow: float = _span(planning.stickers, left).end.x - right_limit
+	var overflow: float = _span(shown, left, stack_scale, shown.size()).end.x - right_limit
 	if overflow > 0.0:
 		left -= ceilf(overflow / ArtStyle.ART_SCALE) * ArtStyle.ART_SCALE
 	return left
 
 
 ## `slot`'s stack with its bottom-left at `anchor` (layer coordinates), as children of `parent`
-## whose origin is at `origin` in the layer: fitted under its ceiling, rebuilt when its fold
-## changes, each sticker placed bottom up.
+## whose origin is at `origin` in the layer, scaled by `stack_scale` (a wide row's): fitted
+## under its ceiling, rebuilt when its fold changes, each sticker placed bottom up.
 func _lay_out_stack(
-	slot: int, planning: PlanningSlot, anchor: Vector2, origin: Vector2, parent: Control
+	slot: int,
+	planning: PlanningSlot,
+	anchor: Vector2,
+	origin: Vector2,
+	parent: Control,
+	stack_scale: float = 1.0
 ) -> void:
 	if planning.stickers.is_empty():
 		return
-	var span: Rect2 = _span(planning.stickers, anchor.x)
-	var fitted: Array = fit_stack(planning.stickers, anchor.y, stack_ceiling(span))
+	var span: Rect2 = _span(planning.stickers, anchor.x, stack_scale)
+	var room: float = (anchor.y - stack_ceiling(span)) / stack_scale
+	var fitted: Array = fit_stack(planning.stickers, anchor.y, anchor.y - room)
 	var shown: Array[StickerSpec] = []
 	shown.assign(fitted[0])
 	var overlap: float = fitted[1]
+	anchor.x = _on_screen(anchor.x, shown, stack_scale)
 	var folded: int = 0
 	if _folded(shown):
 		folded = planning.stickers.size() - (shown.size() - 1)
@@ -697,10 +694,13 @@ func _lay_out_stack(
 	var y: float = anchor.y
 	for index: int in range(stickers.size() - 1, -1, -1):
 		var sticker: EffectSticker = stickers[index]
-		y -= sticker.size.y
-		var x: float = anchor.x + _shift(sticker.spec(), stickers.size() - 1 - index)
-		sticker.position = (Vector2(x, y) - origin).snappedf(ArtStyle.ART_SCALE)
-		y += overlap
+		sticker.scale = Vector2.ONE * stack_scale
+		y -= sticker.size.y * stack_scale
+		var x: float = anchor.x + _shift(sticker.spec(), stickers.size() - 1 - index) * stack_scale
+		sticker.position = Vector2(x, y) - origin
+		if stack_scale >= 1.0:  # A scaled stack keeps its exact bottom, off the art grid.
+			sticker.position = sticker.position.snappedf(ArtStyle.ART_SCALE)
+		y += overlap * stack_scale
 
 
 func _build_stack(slot: int, shown: Array[StickerSpec], parent: Control) -> void:
@@ -887,8 +887,7 @@ func _to_layer(item: Control) -> Transform2D:
 	return get_global_transform().affine_inverse() * item.get_global_transform()
 
 
-## `item`'s sprite at rest (no lift or boost) through `to_layer` (`item`'s coordinates into the
-## ones wanted).
+## `item`'s sprite at rest (no lift or boost) through `to_layer` (`item`'s coordinates to others).
 static func _sprite_rect(item: ItemView, to_layer: Transform2D) -> Rect2:
 	var centre: Vector2 = to_layer * (item.get_global_transform().affine_inverse() * item.center())
 	var shown: Vector2 = ItemView.SPRITE_SIZE * to_layer.get_scale()
@@ -948,16 +947,18 @@ func _box(box_name: String) -> Control:
 	return box
 
 
-## The x-range a stack of `specs` (as fit_stack shows them) with its left at `left` spans, badges
-## and shifts included.
-static func _span(specs: Array[StickerSpec], left: float) -> Rect2:
+## The x-range a stack of `specs` (its last `kept` shown, as fit_stack does) with its left at
+## `left` spans at `stack_scale`, badges and shifts included.
+static func _span(
+	specs: Array[StickerSpec], left: float, stack_scale: float = 1.0, kept: int = STACK_SHOWN
+) -> Rect2:
 	var start: float = left
 	var end: float = left
-	var shown: Array[StickerSpec] = _kept(specs, STACK_SHOWN)
+	var shown: Array[StickerSpec] = _kept(specs, kept)
 	for index: int in range(shown.size()):
-		var x: float = left + _shift(shown[index], shown.size() - 1 - index)
-		start = minf(start, x - EffectSticker.badge_overhang(shown[index]))
-		end = maxf(end, x + EffectSticker.size_for(shown[index]).x)
+		var x: float = _shift(shown[index], shown.size() - 1 - index)
+		start = minf(start, left + (x - EffectSticker.badge_overhang(shown[index])) * stack_scale)
+		end = maxf(end, left + (x + EffectSticker.size_for(shown[index]).x) * stack_scale)
 	return Rect2(start, 0.0, end - start, 0.0)
 
 
