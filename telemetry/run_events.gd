@@ -55,22 +55,18 @@ static func start_setup_fields(run: RunState) -> Dictionary:
 	}
 
 
-## The `start_lock_in` event: LOCK IN & DEAL on YOUR STORE. `chosen`: the aisles were choosable;
-## `changed`: the locked aisles differ from those the board opened on; `clicks`: the aisle status
-## changes before it. The offer's fair-deal swaps and basket deals come from the run.
-static func start_lock_in(run: RunState, chosen: bool, changed: bool, clicks: int) -> Dictionary:
-	var setup: StartSetup = run.start_setup
-	var run_only: Array[StringName] = setup.run_only_ids(run.balance)
+## The `start_aisle` event (v1.07): green basket `basket` changed its aisle from `before`'s source
+## to its current one; `kept`: the new aisle's pair was dealt earlier this run and came back.
+static func start_aisle(run: RunState, basket: int, before: StartBasket, kept: bool) -> Dictionary:
+	var changed: StartBasket = run.start_setup.baskets[basket]
 	return {
-		"green": Array(setup.green_ids(run.balance)),
-		"run_only": String(run_only[0]) if not run_only.is_empty() else "",
-		"chosen": chosen,
-		"changed": changed,
-		"status_clicks": clicks,
-		"baskets": basket_ids(setup),
-		"offered": pack_ids(run.start_offer.packs),
-		"swaps": run.start_offer.swaps,
-		"deals": run.start_offer.deals,
+		"basket": basket,
+		"from": String(before.source),
+		"to": String(changed.source),
+		"before": definition_ids(before.cards),
+		"after": definition_ids(changed.cards),
+		"kept": kept,
+		"green": Array(run.start_setup.green_ids(run.balance)),
 	}
 
 

@@ -199,7 +199,6 @@ func test_the_screen_saves_the_offer_and_starts_shift_one_on_the_pick() -> void:
 	)
 	screen._cart_reveal.freeze_at(screen._cart_reveal.end_time())
 	screen.profile.set_reduced_motion(true)
-	assert_bool(screen._cart_reveal.board.lock_in()).is_true()
 	screen._cart_reveal.board.show_page(2, "enter")
 	screen._cart_reveal.raise_pack(0)
 	var pack: StarterPackDefinition = run.start_offer.packs[0]

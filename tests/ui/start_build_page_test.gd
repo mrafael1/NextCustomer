@@ -272,7 +272,6 @@ func _screen() -> ShiftScreen:
 	screen.profile.set_reduced_motion(true)
 	screen.save_profile()
 	screen.start_new_run(SEED, true, true)
-	assert_bool(screen._cart_reveal.board.lock_in()).is_true()
 	return screen
 
 

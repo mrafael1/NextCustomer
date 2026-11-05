@@ -52,6 +52,7 @@ KNOWN_TYPES = frozenset({
     "machine_visit", "machine_landing_skipped", "run_end", "run_resume", "run_abandon", "restart",
     "results_exit", "log_export", "debug", "capsule", "start_choice", "start_page",
     "staple_swap", "restock", "restock_view", "pin_change", "start_lock_in", "new_packs",
+    "start_aisle",
 })
 # Events that make a run_id a run; the others (restart, results_exit: the results' Return to
 # menu, log_export, debug, and the TOY MACHINES' capsule draws, #63) only attach to one. A
@@ -986,8 +987,13 @@ def start_setup_summary(runs: list[Run]) -> dict:
     choices = [event for run in shown for event in run.of_type("start_choice")
                if event.get("chosen") is True]
     swaps = [event for run in shown for event in run.of_type("staple_swap")]
+    # LOCK IN & DEAL was logged until the v1.07 Counter page dealt at once (start_lock_in);
+    # since then a starter basket's aisle change is start_aisle (6 completed aisles).
     lock_ins = [event for run in shown for event in run.of_type("start_lock_in")]
     chosen = [event for event in lock_ins if event.get("chosen") is True]
+    aisle_changes = [event for run in shown for event in run.of_type("start_aisle")]
+    choosable = [run for run in shown if not run.of_type("start_lock_in")
+                 and (num(run.start, "completed_aisles") or 0) >= 6]
     # A basket restock (since the 2026-11-05 rework) names its source; the first build's restocks
     # (aisle lists) count toward the rate only.
     by_kind: Counter = Counter()
@@ -1011,6 +1017,9 @@ def start_setup_summary(runs: list[Run]) -> dict:
                          if (value := num(event, "ms_build")) is not None),
         "lock_ins": len(lock_ins),
         "changed_rate": rate(sum(event.get("changed") is True for event in chosen), len(chosen)),
+        "aisle_changes": len(aisle_changes),
+        "aisle_change_rate": rate(sum(bool(run.of_type("start_aisle")) for run in choosable),
+                                  len(choosable)),
         "restock_by_kind": {kind: rate(by_kind[kind], len(shown)) for kind in ("staples", "aisle")},
         "new_packs_rate": rate(sum(bool(run.of_type("new_packs")) for run in shown), len(shown)),
         "by_completed": [
@@ -1753,6 +1762,8 @@ def render_start_setup(summary: dict) -> list[str]:
     kinds = setup["restock_by_kind"]
     lines += [f"  Lock-ins: {setup['lock_ins']}; changed when choosable: "
               f"{fmt_rate(setup['changed_rate'])}; new packs: {fmt_rate(setup['new_packs_rate'])}",
+              f"  Aisle changes: {setup['aisle_changes']}; runs changing an aisle when "
+              f"choosable: {fmt_rate(setup['aisle_change_rate'])}",
               f"  Restock by source: staples {fmt_rate(kinds['staples'])}; "
               f"aisle {fmt_rate(kinds['aisle'])}"]
     lines += table(["Completed aisles", "Win rate"],

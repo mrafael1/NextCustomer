@@ -87,6 +87,11 @@ func test_a_damaged_setup_is_refused() -> void:
 		{"regular_offers": {"x": ["cheese"]}},
 		{"regular_offers": []},
 		{"originals": "milk"},
+		{"restock_source": 3},
+		{"restock_source": "pantry"},
+		{"dealt_sets": []},
+		{"dealt_sets": {"staples": ["cheese"]}},
+		{"dealt_sets": {"staples": staples + ["bread", "bread"]}},
 	]:
 		var bad: Dictionary = good.duplicate(true)
 		bad.merge(change, true)
@@ -199,16 +204,94 @@ func test_the_profile_keeps_its_swaps_and_choice() -> void:
 	assert_str(String(read.stock_run_only)).is_empty()
 
 
-## The setup's telemetry: start_lock_in, restock (one basket), new_packs and start_choice's
-## setup fields.
-func test_the_setup_events() -> void:
+## A save from before v1.07 has no restock_source or dealt_sets: they come from its baskets.
+func test_a_setup_saved_before_the_counter_reads_its_dealt_pairs() -> void:
+	var lookup: ContentLookup = ContentLookup.new(_balance)
 	var profile: ProfileState = Kit.profile(3)
 	var run: RunState = Kit.locked(profile, SEED)
-	var lock: Dictionary = RunEvents.start_lock_in(run, false, false, 0)
-	assert_array(lock["green"]).is_equal(Array(run.start_setup.green_ids(_balance)))
-	assert_str(lock["run_only"]).is_equal(String(run.start_setup.stock_aisles[2]))
-	assert_int(lock["baskets"].size()).is_equal(3)
-	assert_int(lock["offered"].size()).is_equal(3)
+	StartSetupRules.restock(run, profile, 2, Kit.restock_rng(run, 2))
+	var old: Dictionary = Kit.json(run.start_setup.to_dictionary())
+	old.erase("restock_source")
+	old.erase("dealt_sets")
+	var read: StartSetup = StartSetup.from_dictionary(old, lookup)
+	assert_object(read).is_not_null()
+	assert_str(String(read.restock_source)).is_equal(String(run.start_setup.baskets[2].source))
+	assert_bool(read.restocked(2)).is_true()
+	for basket: StartBasket in run.start_setup.baskets:
+		assert_array(read.dealt_set(basket.source)).is_equal(basket.cards)
+	assert_dict(read.to_dictionary()).is_equal(run.start_setup.to_dictionary())
+
+
+## An aisle switched away is held only in dealt_sets: it survives a save and a load (the run
+## save's checks accept it), and switching back after the resume deals its first pair again (kept),
+## so quitting and resuming never rerolls a basket. With RESTOCK spent on the switched-away aisle,
+## its restocked pair and RESTOCKED mark come back too.
+func test_a_switched_away_aisle_survives_a_resume() -> void:
+	for restock_first: bool in [false, true]:
+		var lookup: ContentLookup = ContentLookup.new(_balance)
+		var profile: ProfileState = Kit.profile(6)
+		var run: RunState = Kit.locked(profile, SEED)
+		var setup: StartSetup = run.start_setup
+		var first: StringName = setup.baskets[1].source
+		if restock_first:
+			var refused: StringName = StartSetupRules.restock(
+				run, profile, 1, Kit.restock_rng(run, 1)
+			)
+			assert_str(String(refused)).is_empty()
+		var first_pair: Array[CardDefinition] = setup.baskets[1].cards.duplicate()
+		var other: StringName = StartSetupRules.aisle_options(run, profile, 1)[0]
+		assert_str(String(_change(run, profile, 1, other))).is_empty()
+		var saved: RunSave = RunSave.from_dictionary(
+			Kit.json(RunSave.to_dictionary(run, "run", 0)), lookup
+		)
+		assert_object(saved).override_failure_message(str(restock_first)).is_not_null()
+		var resumed: RunState = saved.run
+		var read: StartSetup = resumed.start_setup
+		assert_str(String(read.baskets[1].source)).is_equal(String(other))
+		assert_array(read.dealt_set(first)).is_equal(first_pair)
+		assert_bool(read.restocked(1)).is_false()
+		# Switching back after the resume: the first pair returns, nothing rerolled.
+		var kept: bool = not read.dealt_set(first).is_empty()
+		assert_bool(kept).is_true()
+		assert_str(String(_change(resumed, profile, 1, first))).is_empty()
+		assert_array(read.baskets[1].cards).is_equal(first_pair)
+		assert_bool(read.restocked(1)).is_equal(restock_first)
+		var spent: String = "used" if restock_first else ""
+		assert_str(String(StartSetupRules.restock_block(resumed, profile, 1))).is_equal(spent)
+
+
+func _change(run: RunState, profile: ProfileState, basket: int, aisle_id: StringName) -> StringName:
+	return StartSetupRules.change_aisle(
+		run,
+		profile,
+		basket,
+		aisle_id,
+		EventLogService.derived_stream(run.run_seed, EventLogService.START_BASKET_STREAM % aisle_id)
+	)
+
+
+## The setup's telemetry: start_aisle (a starter basket's aisle changed), restock (one basket),
+## new_packs and start_choice's setup fields.
+func test_the_setup_events() -> void:
+	var all: ProfileState = Kit.profile(6)
+	var chosen: RunState = Kit.locked(all, SEED)
+	var old: StartBasket = chosen.start_setup.baskets[1].copy()
+	var aisle_id: StringName = StartSetupRules.aisle_options(chosen, all, 1)[0]
+	var stream: RandomNumberGenerator = EventLogService.derived_stream(
+		SEED, EventLogService.START_BASKET_STREAM % aisle_id
+	)
+	assert_str(String(StartSetupRules.change_aisle(chosen, all, 1, aisle_id, stream))).is_empty()
+	var aisle: Dictionary = RunEvents.start_aisle(chosen, 1, old, false)
+	assert_int(aisle["basket"]).is_equal(1)
+	assert_str(aisle["from"]).is_equal(String(old.source))
+	assert_str(aisle["to"]).is_equal(String(aisle_id))
+	assert_array(aisle["before"]).is_equal(RunEvents.definition_ids(old.cards))
+	assert_array(aisle["after"]).is_equal(
+		RunEvents.definition_ids(chosen.start_setup.baskets[1].cards)
+	)
+	assert_array(aisle["green"]).is_equal(Array(chosen.start_setup.green_ids(_balance)))
+	var profile: ProfileState = Kit.profile(3)
+	var run: RunState = Kit.locked(profile, SEED)
 	var kept: Array[CardDefinition] = run.start_setup.baskets[1].cards.duplicate()
 	StartSetupRules.restock(run, profile, 1, Kit.restock_rng(run, 1))
 	var restock: Dictionary = RunEvents.start_restock(run, 1, kept)

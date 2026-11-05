@@ -1,8 +1,8 @@
 extends GdUnitTestSuite
-## Start v4 B input and lifecycle on the real screen: the OPEN STORE shutter's click and Enter
-## skips (reduced motion off) and its release, Esc stepping back (a carried regular, the swap
-## strip and its preview, page 1, the title), the board leaving F1 to the debug panel, and the
-## swap strip scaling with the board at 1080p.
+## The opening board's input and lifecycle on the real screen: the OPEN STORE shutter's click and
+## Enter skips (reduced motion off) and its release, Esc stepping back (the swap shelf, a RESTOCK
+## pick, page 1, the title), the board leaving F1 to the debug panel, and page 1's pop-ups
+## scaling with the board at 1080p.
 
 const SCREEN := preload("res://ui/shift_screen.tscn")
 const SEED := 20261104
@@ -63,11 +63,11 @@ func test_a_new_run_frees_a_playing_shutter() -> void:
 	assert_int(screen.run.run_seed).is_equal(SEED + 1)
 
 
-## Esc puts a carried regular down, closes the swap strip, then its preview, then goes back from
-## page 2 to page 1, then asks the screen for the title (the screen closes the board; the scene
-## change is off in tests).
-func test_escape_steps_back_from_carry_to_strip_to_store_to_title() -> void:
-	var screen: ShiftScreen = await _screen(1)
+## Esc closes the swap shelf, then stops a RESTOCK pick, then goes back from page 2 to page 1,
+## then asks the screen for the title (the screen closes the board; the scene change is off in
+## tests).
+func test_escape_steps_back_from_shelf_to_restock_to_store_to_title() -> void:
+	var screen: ShiftScreen = await _screen(3)
 	screen._start_choice.changes_scene = false
 	var board: StartBoard = screen._cart_reveal.board
 	var asked: Array[int] = [0]
@@ -75,21 +75,18 @@ func test_escape_steps_back_from_carry_to_strip_to_store_to_title() -> void:
 	board.show_page(2)
 	board.show_page(1)
 	get_tree().root.push_input(_key(KEY_1), true)
-	assert_int(board.store.carry_slot).is_equal(0)
+	assert_object(board.popover).is_not_null()
+	assert_int(board.store.open_slot).is_equal(0)
 	get_tree().root.push_input(_key(KEY_ESCAPE), true)
-	assert_bool(board.store.carrying()).is_false()
+	assert_object(board.popover).is_null()
+	assert_object(board._modal).is_null()
+	assert_int(board.store.open_slot).is_equal(-1)
 	assert_int(board.page).is_equal(1)
-	var aisle: StringName = screen.run.balance.aisles[0].id
-	board._dropped(0, aisle, "click")
-	assert_object(board.strip).is_not_null()
+	get_tree().root.push_input(_key(KEY_R), true)
+	assert_bool(board.store.restock_picking).is_true()
 	get_tree().root.push_input(_key(KEY_ESCAPE), true)
-	assert_object(board.strip).is_null()
-	assert_object(board._modal).is_null()
-	board._dropped(0, aisle, "click")
-	board.strip.choose(_open_item(board))
-	assert_bool(board.strip.previewing).is_true()
-	get_tree().root.push_input(_key(KEY_ESCAPE), true)
-	assert_object(board._modal).is_null()
+	assert_bool(board.store.restock_picking).is_false()
+	assert_int(screen.run.start_setup.restock_basket).is_equal(-1)
 	assert_int(board.page).is_equal(1)
 	board.show_page(2)
 	get_tree().root.push_input(_key(KEY_ESCAPE), true)
@@ -114,40 +111,51 @@ func test_f1_reaches_the_debug_panel_through_the_board() -> void:
 	assert_bool(panel.visible).is_equal(shown)
 
 
-## The swap strip sits on the scaled stage: at 1920x1080 it is 1.5x, inside the board, beside the
-## aisle board and clear of it; its preview too.
-func test_the_swap_strip_scales_with_the_board() -> void:
-	var screen: ShiftScreen = await _screen(1)
+## The pop-ups sit on the scaled stage: at 1920x1080 the swap shelf is 1.5x, inside the board,
+## above its regular and clear of it, its tabs and offers inside it; the aisle choice the same
+## under its sign.
+func test_the_pop_ups_scale_with_the_board() -> void:
+	var screen: ShiftScreen = await _screen(6)
 	var board: StartBoard = screen._cart_reveal.board
 	board.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	board.size = Vector2(1920, 1080)
 	board._resize()
-	board._dropped(0, screen.run.balance.aisles[0].id, "click")
-	var strip: RegularSwapStrip = board.strip
 	var frame: Rect2 = board.get_global_rect()
-	var aisles: Rect2 = (board.store.board.get_node("Board") as Control).get_global_rect()
-	for step: int in 2:
-		var rect: Rect2 = strip.get_global_rect()
-		assert_vector(rect.size).is_equal_approx(strip.size * 1.5, Vector2.ONE)
-		assert_bool(frame.encloses(rect)).is_true()
-		assert_bool(rect.intersects(aisles)).is_false()
-		for button: Button in strip.items:
-			assert_bool(rect.encloses(button.get_global_rect())).is_true()
-		if step == 0:
-			strip.choose(_open_item(board))
-	assert_bool(strip.previewing).is_true()
-	var confirm: Rect2 = strip.confirm_key.get_global_rect()
-	var cancel: Rect2 = strip.cancel_key.get_global_rect()
-	assert_bool(strip.get_global_rect().encloses(confirm)).is_true()
-	assert_bool(strip.get_global_rect().encloses(cancel)).is_true()
-	assert_bool(confirm.intersects(cancel)).is_false()
+	assert_bool(board.open_swap(0)).is_true()
+	var shelf: Rect2 = board.popover.get_global_rect()
+	assert_vector(shelf.size).is_equal_approx(board.popover.size * 1.5, Vector2.ONE)
+	assert_bool(frame.encloses(shelf)).is_true()
+	var tile: Rect2 = board.store.regulars[0].get_global_rect()
+	assert_bool(shelf.intersects(tile)).is_false()
+	assert_float(shelf.end.y).is_less_equal(tile.position.y)
+	var keys: Array[Control] = []
+	for tab: Button in board.popover.tabs.values():
+		keys.append(tab)
+	for offer: Button in board.popover.offers:
+		keys.append(offer)
+	_assert_inside_apart(shelf, keys)
+	board.back()
+	assert_bool(board.open_aisles(1)).is_true()
+	var choice: Rect2 = board.popover.get_global_rect()
+	assert_bool(frame.encloses(choice)).is_true()
+	var sign_rect: Rect2 = board.store.signs[1].get_global_rect()
+	assert_bool(choice.intersects(sign_rect)).is_false()
+	assert_float(choice.position.y).is_greater_equal(sign_rect.end.y)
+	var options: Array[Control] = []
+	for option: Button in board.popover.options.values():
+		options.append(option)
+	assert_int(options.size()).is_greater(0)
+	_assert_inside_apart(choice, options)
 
 
-static func _open_item(board: StartBoard) -> int:
-	for at: int in board.strip.items.size():
-		if not board.strip.items[at].disabled:
-			return at
-	return 0
+func _assert_inside_apart(outer: Rect2, controls: Array[Control]) -> void:
+	var seen: Array[Rect2] = []
+	for control: Control in controls:
+		var rect: Rect2 = control.get_global_rect()
+		assert_bool(outer.encloses(rect)).override_failure_message(control.name).is_true()
+		for other: Rect2 in seen:
+			assert_bool(rect.intersects(other)).override_failure_message(control.name).is_false()
+		seen.append(rect)
 
 
 ## Page 2 with reduced motion, then clock-in with it off; returns the shutter once it plays.
@@ -201,7 +209,6 @@ func _screen(completed: int = 0) -> ShiftScreen:
 			screen.profile.unlocked_items[card.id] = 0
 	screen.save_profile()
 	screen.start_new_run(SEED, true, true)
-	assert_bool(screen._cart_reveal.board.lock_in()).is_true()
 	return screen
 
 

@@ -1,0 +1,833 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Your Store Redraw</title>
+<style>
+/* YOUR STORE v6 mock-up. Every stage is a 1920x1080 frame in screen px (the 1280x720 stage at
+   1.5x); item sprites at 3 screen px per art px, the hand basket at 1.8. Colours: art/src/palette.txt. */
+@font-face{font-family:'NCPix';font-weight:400 700;src:url(start_store_v6_src/fonts/PixelifySans-Variable.ttf)}
+@font-face{font-family:'NCAtk';font-weight:200 800;src:url(start_store_v6_src/fonts/AtkinsonHyperlegibleNext-Variable.ttf)}
+:root{
+  color-scheme:dark;
+  --ink:#2b2420; --ink-l:#4a3f38; --paper:#fbf7ee; --cream:#f3e9d2; --cream-s:#ddcba5; --cream-d:#b39f78;
+  --t-black:#172c2b; --t-darkest:#1f3b3a; --t-dark:#2a4d4b; --t-shade:#3a7672; --teal:#4f9a94; --t-light:#86c2b6; --t-pale:#c3e0d4; --t-bright:#5fb0a8;
+  --tomato:#d9534f; --tomato-d:#a83a3c; --tomato-l:#ec8a6e; --mustard:#e2b33c; --mustard-d:#b38425; --mustard-l:#f1d27a; --gold:#ffcf3f;
+  --green:#5fae5a; --green-d:#3d7a45; --wood:#a8703a; --wood-l:#c98c4e; --wood-d:#6e4524; --wood-p:#ddb07a;
+  --steel-l:#c7c3b8; --steel:#8d8a83; --steel-d:#57534c; --rubber:#3d3a36; --charcoal:#24221f;
+  --display:'NCPix','Pixelify Sans','Courier New',monospace;
+  --body:'NCAtk','Atkinson Hyperlegible Next','Segoe UI',system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--page:#1f3b3a}}
+:root[data-theme="dark"]{--page:#1f3b3a}
+*{box-sizing:border-box}
+html,body{margin:0;background:#1f3b3a;color:var(--paper)}
+body{font-family:var(--body);font-size:15px;line-height:1.5}
+h1,h2,h3{font-family:var(--display);font-weight:700;margin:0;letter-spacing:.02em;text-wrap:balance}
+h1{font-size:34px;color:var(--gold)}
+h2{font-size:24px}
+h3{font-size:17px;color:var(--t-pale)}
+p{margin:0;max-width:86ch}
+main{max-width:1400px;margin:0 auto;padding:28px 16px 64px;display:grid;grid-template-columns:minmax(0,1fr);gap:40px}
+main>*,section>*{min-width:0}
+section{display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
+.eyebrow{font-family:var(--display);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--t-light)}
+.toolbar{position:sticky;top:0;z-index:20;background:rgba(23,44,43,.97);border-bottom:2px solid var(--ink);padding:8px 16px}
+.controls{max-width:1400px;margin:0 auto;display:flex;gap:8px 10px;flex-wrap:wrap;align-items:center}
+.lbl{font-family:var(--display);font-size:13px;color:var(--t-light);letter-spacing:.06em}
+.seg{display:inline-flex;border:2px solid var(--ink);box-shadow:0 3px 0 var(--ink);flex-wrap:wrap}
+.seg button{box-shadow:none;border:0;border-right:2px solid var(--ink)}
+.seg button:last-child{border-right:0}
+button{font-family:var(--display);font-size:15px;color:var(--paper);background:var(--t-shade);border:2px solid var(--ink);box-shadow:0 3px 0 var(--ink);padding:4px 12px;cursor:pointer}
+button:active{transform:translateY(2px)}
+button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+button[aria-pressed="true"]{background:var(--mustard);color:var(--ink)}
+label.chk{display:inline-flex;gap:6px;align-items:center;font-family:var(--display);font-size:14px;cursor:pointer}
+@media (max-width:700px){.toolbar{position:static}.lbl{flex-basis:100%}h1{font-size:28px}}
+.hint{font-size:13px;color:var(--t-pale)}
+.toast{font-size:14px;color:var(--gold);min-height:1.5em;font-family:var(--display)}
+.verdict{background:var(--t-dark);border:2px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.35);padding:14px 16px;display:grid;gap:8px}
+.verdict strong{color:var(--gold)}
+ul,ol{margin:0;padding-left:20px;display:grid;gap:6px;max-width:92ch}
+li{color:var(--t-pale)}
+li b{color:var(--paper)}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:14px}
+.opt{background:var(--t-black);border:2px solid var(--ink);padding:14px;display:grid;gap:10px;align-content:start}
+.opt.rec{border-color:var(--mustard)}
+.opt header{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.tag{font-family:var(--display);font-size:15px;background:var(--paper);color:var(--ink);padding:0 7px;border:2px solid var(--ink)}
+.opt.rec .tag{background:var(--mustard)}
+.pick{font-family:var(--display);font-size:12px;color:var(--gold);letter-spacing:.08em}
+.opt p,.opt li{font-size:14px;color:var(--t-pale)}
+.opt p b{color:var(--paper)}
+.tablewrap{overflow-x:auto;max-width:100%}
+table{border-collapse:collapse;width:100%;font-size:14px;background:var(--t-black);border:2px solid var(--ink)}
+th,td{border:1px solid var(--ink);padding:6px 9px;text-align:left;vertical-align:top}
+th{font-family:var(--display);font-weight:600;color:var(--gold);background:#132524}
+td{color:var(--t-pale)}
+.before{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:14px}
+.before figure{margin:0;display:grid;gap:6px}
+.before img{width:100%;height:auto;border:2px solid var(--ink);display:block}
+figcaption{font-size:13px;color:var(--t-pale)}
+.answers{background:var(--paper);color:var(--ink);border:3px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.35);padding:16px 18px;display:grid;gap:10px}
+.answers h2{color:var(--ink)}
+.answers li{color:var(--ink)}
+.answers b{color:#7a5a1c}
+
+/* ---------- the stage ---------- */
+.fwrap{position:relative;border:2px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.35);overflow:hidden;max-width:100%;background:#111}
+.fwrap.one{overflow:auto}
+#stage{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0;overflow:hidden;font-family:var(--body);color:var(--paper);user-select:none;
+  background:
+    repeating-linear-gradient(90deg,rgba(23,44,43,.0) 0 236px,rgba(23,44,43,.55) 236px 248px),
+    linear-gradient(180deg,#1f3b3a 0 140px,#21403f 140px 560px,#1c3736 560px 940px);}
+#stage .wallshelf{position:absolute;left:0;right:0;height:12px;background:#172c2b;box-shadow:0 6px 0 rgba(0,0,0,.18)}
+#stage img.px{image-rendering:pixelated;display:block}
+.abs{position:absolute}
+.pix{font-family:var(--display);font-weight:700;letter-spacing:.02em}
+svg.dg{display:inline-block;vertical-align:middle}
+/* top bar */
+.topbar{position:absolute;left:0;top:0;width:1920px;height:78px;background:var(--t-black);border-bottom:3px solid var(--ink);display:flex;align-items:center;gap:22px;padding:0 24px}
+.tb{height:56px;border:3px solid var(--ink);background:var(--t-darkest);box-shadow:inset 0 3px 0 var(--t-shade);display:flex;align-items:center;gap:14px;padding:0 18px;font-family:var(--display);font-weight:700;font-size:30px;color:var(--mustard-l)}
+.tb .dim{color:var(--t-light)}
+.tb .big{color:var(--paper);font-size:36px}
+.tb img{width:27px;height:27px}
+.tb img.off{filter:grayscale(1) brightness(.45)}
+.tb.cart{margin-left:auto;background:var(--t-shade);color:var(--paper);box-shadow:inset 0 3px 0 var(--t-light)}
+.tb.cart img{width:36px;height:27px}
+/* page tabs */
+.tabs{position:absolute;left:24px;top:94px;display:flex;align-items:center;gap:14px}
+.ptab{height:54px;min-width:300px;border:3px solid var(--t-shade);background:var(--t-dark);display:flex;align-items:center;gap:14px;padding:0 16px 0 10px;font-family:var(--display);font-weight:700;font-size:28px;color:var(--t-pale);cursor:pointer}
+.ptab .n{width:36px;height:36px;border:3px solid var(--ink);background:var(--teal);color:var(--paper);display:grid;place-items:center;font-size:24px}
+.ptab.on{background:var(--paper);border-color:var(--mustard);color:var(--ink);box-shadow:0 0 0 3px var(--mustard)}
+.ptab.on .n{background:var(--mustard);color:var(--ink)}
+.ptab.done .n{background:var(--green)}
+.chev{font-family:var(--display);font-size:34px;color:var(--t-light)}
+/* headings on the stage */
+.shead{position:absolute;font-family:var(--display);font-weight:700;font-size:34px;color:var(--mustard-l);letter-spacing:.03em;white-space:nowrap}
+.ssub{font-family:var(--body);font-weight:700;font-size:22px;color:var(--t-light);margin-left:18px;letter-spacing:0}
+/* footer */
+.footer{position:absolute;left:0;top:948px;width:1920px;height:132px;background:var(--rubber);border-top:4px solid var(--ink);box-shadow:inset 0 4px 0 var(--steel-d)}
+.footer .keys{position:absolute;left:400px;top:30px;font-size:24px;font-weight:700;color:var(--cream);display:flex;gap:26px;align-items:center;flex-wrap:wrap;width:1000px}
+.footer .keys .line{width:100%;color:var(--t-pale);font-weight:600;font-size:22px}
+kbd{font-family:var(--display);font-weight:700;font-size:22px;background:var(--cream);color:var(--ink);border:3px solid var(--ink);box-shadow:0 3px 0 var(--cream-d);padding:0 8px;margin-right:8px}
+.btn{position:absolute;border:4px solid var(--ink);font-family:var(--display);font-weight:700;display:grid;place-items:center;cursor:pointer;text-align:center;line-height:1.05}
+.btn.title{left:44px;top:26px;width:300px;height:76px;background:var(--teal);box-shadow:inset 0 4px 0 var(--t-light),0 6px 0 var(--charcoal);font-size:34px}
+.btn.next{right:44px;top:16px;width:470px;height:96px;background:var(--tomato);box-shadow:inset 0 5px 0 var(--tomato-l),0 6px 0 var(--charcoal);font-size:50px}
+.btn.next small{display:block;font-family:var(--body);font-size:21px;font-weight:700;color:var(--paper)}
+.btn.next:hover{filter:brightness(1.08)}
+/* hanging rail + signs */
+.rail{position:absolute;height:12px;background:var(--steel);border:3px solid var(--ink);box-shadow:inset 0 3px 0 var(--steel-l)}
+.string{position:absolute;width:4px;background:var(--ink)}
+.sign{position:absolute;border:4px solid var(--ink);display:flex;align-items:center;justify-content:center;gap:14px;font-family:var(--display);font-weight:700;white-space:nowrap}
+.sign img{image-rendering:pixelated}
+.sign .swap{position:absolute;right:-4px;top:-4px;bottom:-4px;width:64px;border:4px solid var(--ink);background:var(--t-shade);color:var(--paper);display:grid;place-items:center;font-size:34px;box-shadow:inset 0 4px 0 var(--t-light);cursor:pointer}
+.sign.can{cursor:pointer}
+.sign.can:hover .swap{background:var(--mustard);color:var(--ink);box-shadow:inset 0 4px 0 var(--mustard-l)}
+.sign.can:hover{transform:rotate(-1.2deg)}
+.sign{transition:transform .15s}
+/* baskets */
+.bay{position:absolute}
+.bay .well{position:absolute;inset:0;border-radius:0}
+.basket{position:absolute}
+.basket .hit{position:absolute;left:-14px;right:-14px;top:-18px;bottom:-12px;border:4px dashed transparent;z-index:6}
+.item{position:absolute;transform-origin:50% 100%}
+.item img{width:100%;height:100%}
+.ptag{position:absolute;z-index:5;background:var(--cream);color:var(--ink);border:3px solid var(--ink);box-shadow:inset 0 -3px 0 var(--cream-s);line-height:0;padding:6px 10px 8px;white-space:nowrap}
+.ptag.new{background:var(--mustard-l)}
+.stamp{position:absolute;z-index:7;font-family:var(--display);font-weight:700;font-size:24px;color:var(--tomato-d);border:4px solid var(--tomato-d);padding:0 10px;background:rgba(251,247,238,.9);transform:rotate(-8deg)}
+/* restock picking */
+.picking .basket .hit{border-color:var(--gold);cursor:pointer;animation:hitpulse 0.9s steps(2) infinite}
+.picking .basket:hover .hit{background:rgba(255,207,63,.14);border-style:solid}
+.picking .bay .bob{animation:bob .7s ease-in-out infinite alternate}
+.picking .bay:nth-child(2n) .bob{animation-delay:-.35s}
+.picking .dimmable{opacity:.35;filter:saturate(.5);transition:opacity .2s}
+.dimmable{transition:opacity .2s}
+.pickcue{position:absolute;z-index:8;left:50%;transform:translateX(-50%);background:var(--gold);color:var(--ink);border:4px solid var(--ink);font-family:var(--display);font-weight:700;font-size:26px;padding:2px 14px;white-space:nowrap;box-shadow:0 4px 0 var(--ink);pointer-events:none}
+@keyframes hitpulse{0%{border-color:var(--gold)}100%{border-color:var(--mustard-d)}}
+@keyframes bob{from{transform:translateY(0)}to{transform:translateY(-10px)}}
+/* restock button */
+.rbtn{position:absolute;height:72px;border:4px solid var(--ink);background:var(--mustard);color:var(--ink);font-family:var(--display);font-weight:700;font-size:32px;display:flex;align-items:center;gap:14px;padding:0 22px;box-shadow:inset 0 4px 0 var(--mustard-l),0 6px 0 var(--ink);cursor:pointer;white-space:nowrap}
+.rbtn img{width:36px;height:32px;image-rendering:pixelated}
+.rbtn small{font-family:var(--body);font-size:20px;font-weight:700;color:var(--wood-d)}
+.rbtn:hover{filter:brightness(1.07)}
+.rbtn.on{background:var(--paper);box-shadow:inset 0 4px 0 #fff,0 6px 0 var(--ink)}
+.rbtn.used{background:var(--t-dark);color:var(--t-light);box-shadow:none;border-color:var(--t-shade);cursor:default;filter:none}
+.rbtn.used img{filter:grayscale(1) brightness(1.4);opacity:.5}
+.newtag{position:absolute;z-index:9;background:var(--tomato);color:var(--paper);border:3px solid var(--ink);font-family:var(--display);font-weight:700;font-size:22px;padding:0 8px;transform:rotate(8deg);animation:newpulse 1s ease-in-out infinite alternate;pointer-events:none}
+@keyframes newpulse{from{transform:rotate(8deg) scale(1)}to{transform:rotate(4deg) scale(1.12)}}
+/* regulars */
+.shelf{position:absolute;height:30px;background:var(--wood);border:4px solid var(--ink);box-shadow:inset 0 5px 0 var(--wood-l),inset 0 -5px 0 var(--wood-d),0 8px 0 rgba(0,0,0,.3)}
+.rtile{position:absolute;background:var(--cream);border:4px solid var(--ink);box-shadow:inset 0 4px 0 var(--paper),inset 0 -6px 0 var(--cream-s)}
+.rtile .spr{position:absolute;left:50%;transform:translateX(-50%)}
+.rtile .price{position:absolute;left:0;right:0;bottom:0;border-top:3px solid var(--ink);background:var(--paper);color:var(--ink);font-family:var(--display);font-weight:700;text-align:center;line-height:1}
+.rtile.can{cursor:pointer;transition:transform .12s}
+.rtile.can:hover{transform:translateY(-8px)}
+.rtile.sel{transform:translateY(-12px);box-shadow:inset 0 4px 0 var(--paper),inset 0 -6px 0 var(--cream-s),0 0 0 5px var(--gold)}
+.rtile .badge{position:absolute;right:-16px;top:-16px;width:46px;height:46px;border:4px solid var(--ink);background:var(--t-shade);color:var(--paper);display:grid;place-items:center;font-size:26px;box-shadow:inset 0 3px 0 var(--t-light);font-family:var(--display);font-weight:700}
+.rtile.can:hover .badge{background:var(--mustard);color:var(--ink)}
+.rtile .undo{position:absolute;left:-16px;top:-16px;height:46px;border:4px solid var(--ink);background:var(--paper);color:var(--ink);display:flex;align-items:center;gap:6px;padding:0 8px;font-size:24px;font-family:var(--display);font-weight:700;cursor:pointer}
+.rtile .undo img{width:27px;height:27px}
+.rtile .undo:hover{background:var(--mustard-l)}
+.rtile .rule{position:absolute;left:8px;right:8px;font-size:20px;line-height:1.25;color:var(--ink);font-weight:700;text-align:center}
+.chip{display:inline-flex;align-items:center;gap:8px;background:var(--t-shade);border:3px solid var(--ink);box-shadow:inset 0 3px 0 var(--t-light);font-family:var(--display);font-weight:700;font-size:24px;color:var(--paper);padding:0 12px;vertical-align:middle;margin-left:18px;position:relative}
+.chip .pips{display:inline-flex;gap:5px}
+.chip .pip{width:14px;height:14px;border:3px solid var(--ink);background:var(--gold)}
+.chip .pip.used{background:var(--t-dark)}
+/* popover */
+.pop{position:absolute;z-index:30;background:var(--paper);color:var(--ink);border:4px solid var(--ink);box-shadow:0 8px 0 rgba(0,0,0,.4),inset 0 -6px 0 var(--cream-s);padding:16px 18px 18px;animation:popin .18s cubic-bezier(.3,1.6,.6,1)}
+@keyframes popin{from{transform:scale(.85);opacity:0}to{transform:scale(1);opacity:1}}
+.pop .ph{font-family:var(--display);font-weight:700;font-size:28px;display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.pop .ph .x{margin-left:auto;width:42px;height:42px;border:3px solid var(--ink);background:var(--cream);display:grid;place-items:center;cursor:pointer;font-size:24px}
+.pop .ph .x:hover{background:var(--mustard-l)}
+.pop .atabs{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.atab{display:flex;align-items:center;gap:8px;border:3px solid var(--ink);padding:2px 12px 2px 6px;font-family:var(--display);font-weight:700;font-size:22px;cursor:pointer;opacity:.75}
+.atab img{width:27px;height:27px;image-rendering:pixelated}
+.atab.on{opacity:1;box-shadow:0 0 0 3px var(--mustard)}
+.atab.full{opacity:.35;cursor:not-allowed}
+.offers{display:flex;gap:12px}
+.offer{width:132px;background:var(--cream);border:3px solid var(--ink);box-shadow:inset 0 -5px 0 var(--cream-s);cursor:pointer;text-align:center;padding:6px 4px 8px;transition:transform .1s}
+.offer:hover{transform:translateY(-6px);background:#fff;box-shadow:inset 0 -5px 0 var(--cream-s),0 0 0 4px var(--gold)}
+.offer img{width:96px;height:96px;margin:0 auto}
+.offer .on{font-family:var(--display);font-weight:700;font-size:19px;line-height:1.1;margin-top:2px}
+.offer .op{font-family:var(--display);font-weight:700;font-size:24px}
+.pop .ruleline{margin-top:12px;min-height:56px;font-size:20px;font-weight:700;line-height:1.3;color:var(--ink-l);border-top:3px dashed var(--cream-d);padding-top:8px}
+.pop .ruleline b{color:var(--ink)}
+.signopts{display:flex;gap:12px;flex-wrap:wrap}
+.signopt{position:relative!important;height:64px;padding:0 18px;font-size:28px;cursor:pointer}
+.signopt:hover{transform:translateY(-5px);box-shadow:0 0 0 4px var(--gold)}
+.pop .note{font-size:19px;font-weight:700;color:var(--ink-l);margin-top:10px}
+/* tooltip */
+#tip{position:absolute;z-index:40;max-width:440px;background:var(--t-black);border:4px solid var(--ink);box-shadow:0 0 0 3px var(--t-shade),0 8px 0 rgba(0,0,0,.4);padding:10px 14px;font-size:21px;font-weight:700;line-height:1.3;color:var(--t-pale);pointer-events:none;opacity:0;transition:opacity .12s}
+#tip b{font-family:var(--body);font-weight:800;font-size:25px;color:var(--paper);display:block}
+#tip.on{opacity:1}
+/* extra aisle */
+.extra .cap{font-family:var(--display);font-weight:700;font-size:22px;color:var(--mustard-l);letter-spacing:.06em;text-align:center}
+.extra .txt{font-size:21px;font-weight:700;line-height:1.3;color:var(--t-pale);text-align:center}
+/* motion */
+.intro{animation:dropin .5s cubic-bezier(.25,1.5,.5,1) both}
+@keyframes dropin{from{transform:translateY(-40px);opacity:0}to{transform:none;opacity:1}}
+.out{animation:hopout .28s ease-in forwards}
+@keyframes hopout{to{transform:translateY(-150px) rotate(-14deg);opacity:0}}
+.drop{animation:dropitem .55s cubic-bezier(.25,1.6,.5,1) both}
+@keyframes dropitem{from{transform:translateY(-220px)}60%{transform:translateY(10px) scaleY(.92)}to{transform:none}}
+.flip{animation:flip .42s ease-out both}
+@keyframes flip{0%{transform:translateX(-50%) scaleX(0)}60%{transform:translateX(-50%) scaleX(1.12)}100%{transform:translateX(-50%) scaleX(1)}}
+.flipc{animation:flipc .42s ease-out both}
+@keyframes flipc{0%{transform:scaleX(0)}60%{transform:scaleX(1.12)}100%{transform:scaleX(1)}}
+.spark{position:absolute;z-index:12;width:12px;height:12px;background:var(--gold);border:3px solid var(--ink);pointer-events:none;animation:spark .6s ease-out forwards}
+@keyframes spark{to{transform:translate(var(--dx),var(--dy)) scale(.3);opacity:0}}
+.wiggle{animation:wiggle .4s}
+@keyframes wiggle{25%{transform:rotate(-3deg)}75%{transform:rotate(3deg)}}
+/* direction C strip */
+.belt{position:absolute;background:var(--rubber);border:4px solid var(--ink);box-shadow:inset 0 6px 0 #4a4640,inset 0 -6px 0 var(--charcoal)}
+.slot{position:absolute;background:var(--cream);border:3px solid var(--ink);box-shadow:inset 0 -5px 0 var(--cream-s)}
+.slot.empty{background:transparent;border:3px dashed var(--steel);box-shadow:none}
+.slot .price{position:absolute;left:0;right:0;bottom:0;height:36px;display:grid;place-items:center;background:var(--paper);border-top:3px solid var(--ink)}
+.glabel{position:absolute;height:48px;border:4px solid var(--ink);display:flex;align-items:center;justify-content:center;gap:10px;font-family:var(--display);font-weight:700;font-size:24px;white-space:nowrap}
+.info{position:absolute;background:var(--t-black);border:4px solid var(--ink);box-shadow:inset 0 0 0 3px var(--t-dark)}
+.info .k{font-family:var(--body);font-weight:800;font-size:34px;color:var(--paper)}
+.info .r{font-size:24px;font-weight:700;color:var(--t-pale);line-height:1.35}
+.rtile.sm .badge{right:3px;top:3px;width:32px;height:32px;font-size:18px;border-width:3px}
+.rtile.sm .undo{left:3px;top:3px;height:32px;font-size:18px;padding:0 4px;border-width:3px;gap:2px}
+.rtile.sm .undo img{width:18px;height:18px}
+body.rm *{animation:none!important;transition:none!important}
+body.solo .toolbar,body.solo main>section:not(#live),body.solo #live>*:not(.fwrap){display:none}
+body.solo main{padding:0;max-width:none;display:block}
+body.solo .fwrap{width:1920px;border:0;box-shadow:none}
+</style>
+<body>
+<div class="toolbar">
+  <div class="controls">
+    <span class="lbl">DIRECTION</span>
+    <span class="seg" id="dirs"><button data-dir="A" aria-pressed="true">A Counter ★</button><button data-dir="B" aria-pressed="false">B Three pages</button><button data-dir="C" aria-pressed="false">C Cart strip</button></span>
+    <span class="lbl">COMPLETED AISLES</span>
+    <span class="seg" id="lvls"><button data-lvl="0" aria-pressed="true">0 · new player</button><button data-lvl="2" aria-pressed="false">2 · swaps</button><button data-lvl="3" aria-pressed="false">3 · +restock</button><button data-lvl="6" aria-pressed="false">6 · +aisle choice</button></span>
+    <button id="reset">↻ Reset run</button>
+    <label class="chk"><input type="checkbox" id="rm"> Reduced motion</label>
+    <span class="seg"><button id="v_fit" aria-pressed="true">Fit</button><button id="v_one" aria-pressed="false">1:1</button></span>
+  </div>
+</div>
+<main>
+  <section>
+    <div class="eyebrow">Mock-up · start screen page 1 "YOUR STORE" · v6 · 2026-11-05 · from main (d9ce8d0)</div>
+    <h1>YOUR STORE, redrawn: three baskets, four regulars, nothing else until you earn it</h1>
+    <p>Your verdict on the shipped page: too much going on, nothing intuitive. The page does three jobs: it shows <b>today's baskets</b> (6 items dealt from the Staples shelf and today's two STARTER aisles), it shows <b>your regulars</b> (the 4 items in every run), and it holds three unlocks (regular swaps from 1 completed aisle, RESTOCK from 3, choosing your aisles from 6). The redraw keeps those jobs, drops the always-on aisle board, legend, source rail, tip card and per-basket RESTOCK tags, and makes every control appear <b>in place, only once it is unlocked</b>.</p>
+  </section>
+
+  <section id="live">
+    <h2>1 · Live: pick a direction and how far the player has got</h2>
+    <p class="hint">Everything on the stage can be clicked. At <b>3</b> or <b>6</b>: press the yellow <b>RESTOCK</b>, then click a basket (or 1, 2, 3; Esc cancels). At <b>2</b> or more: click a regular to swap it (↺ puts it back). At <b>6</b>: click a basket's aisle sign (the ⇄ tab) to change that aisle. Hover any item for its rule. The red NEW tag marks what the chosen step has just unlocked.</p>
+    <div class="fwrap" id="fwrap"><div id="stage" aria-label="Animated mock-up of the YOUR STORE page"></div></div>
+    <p class="hint" id="caption"></p>
+    <p class="toast" id="toast" aria-live="polite"></p>
+  </section>
+
+  <section>
+    <h2>2 · The three directions</h2>
+    <div class="grid3">
+      <div class="opt rec"><header><span class="tag">A</span><h3>Counter</h3><span class="pick">RECOMMENDED</span></header>
+        <p>Still two pages. On page 1, three <b>hand baskets hang under their aisle signs</b> on one rail, with today's extra (RUN ONLY) aisle as a small sign at the end of the rail, and the <b>regulars stand on a shelf</b> below. A new player sees 6 + 4 items and NEXT, nothing to read. Each unlock adds one thing in place: a ⇄ badge on each regular, one RESTOCK button by the baskets, a ⇄ tab on the two starter signs.</p></div>
+      <div class="opt"><header><span class="tag">B</span><h3>Three pages</h3></header>
+        <p>STORE › REGULARS › BUILD. Page 1 is only the baskets, bigger, with RESTOCK under them. Page 2 shows the regulars large with their rules printed under each, and the swap shelf opens below. The REGULARS tab is hidden until the first completed aisle, so a new player still has two pages. The roomiest, but every run from then on costs one more page.</p></div>
+      <div class="opt"><header><span class="tag">C</span><h3>Cart strip</h3></header>
+        <p>The page is <b>your starting cart</b>: one belt with 15 slots: 4 regulars, 3 baskets of 2, then 5 dashed slots for the pack you pick next. Labels over each group hold the actions. A big info panel under the belt reads out the item you hover. It says "this is what you start with" most plainly, but the items are small and it repeats page 2's ORDER SHEET.</p></div>
+    </div>
+    <div class="verdict"><p><strong>Recommendation: A, Counter.</strong> It keeps the two-page flow, so nothing gets slower. The page shows real store objects you already know from the shift (the hand basket, the aisle signs, the shelf), not a table. Each unlock is one extra control on the thing it changes, so there is nothing to learn before you have it. B is a good fallback if A still feels crowded once the regulars' rules have to be readable. C is better as an idea for page 2's order sheet than as page 1.</p></div>
+  </section>
+
+  <section>
+    <h2>3 · What appears when (the same in all three)</h2>
+    <div class="tablewrap"><table>
+      <tr><th>Completed aisles</th><th>New on the page</th><th>How it works</th></tr>
+      <tr><td>0 (new player)</td><td>Nothing to do</td><td>The baskets are dealt face up straight away (no covered baskets, no LOCK IN &amp; DEAL), the regulars stand on the shelf, NEXT. Hover reads an item's rule. The footer shows only ENTER next / ESC back.</td></tr>
+      <tr><td>1–5 (one swap per completed aisle, up to 4)</td><td>⇄ badge on each regular + SWAPS pips</td><td>Click a regular: a small shelf pops up over it with one tab per completed aisle and up to 4 items. Click one and it's swapped (a flip). No confirm dialog: a ↺ tag on the swapped regular puts the original back. Saved to your profile when you press NEXT.</td></tr>
+      <tr><td>3+</td><td>One RESTOCK button (once a run)</td><td>Press it: the three baskets bob with a gold frame and "RESTOCK THIS". Click one (or 1/2/3): its two items hop out and a new pair drops in, with a RESTOCKED stamp. The button stays, greyed: "RESTOCK used".</td></tr>
+      <tr><td>6</td><td>⇄ tab on the two starter signs</td><td>Click a starter basket's sign: pick another completed aisle from a row of signs; the basket is dealt again from it. Staples and today's extra aisle can't change (the extra aisle is drawn each run).</td></tr>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>4 · The page today, for comparison</h2>
+    <div class="before">
+      <figure><img src="start_store_v6_src/current_store.png" alt="Today's YOUR STORE page after LOCK IN and DEAL" loading="lazy"><figcaption>Today, after LOCK IN &amp; DEAL: aisle board with 3 statuses and a legend, source rail, three RESTOCK tags, tip card, five lines of footer help.</figcaption></figure>
+      <figure><img src="start_store_v6_src/current_drag.png" alt="Today's regular swap: dragging onto an aisle row" loading="lazy"><figcaption>Today's swap: drag a regular onto an aisle row, then an item strip, then a CONFIRM dialog (3 steps). v6 takes it to 2 clicks with an undo.</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="answers">
+    <h2>Questions (my default in bold)</h2>
+    <ol>
+      <li>Direction: <b>A Counter</b> (2 pages), B Three pages, or C Cart strip?</li>
+      <li>Drop the covered baskets and LOCK IN &amp; DEAL: <b>yes, deal face up straight away</b>. Each aisle's basket stays fixed by the run seed, so switching an aisle away and back gives the same two items (no free reroll). The choice is committed on NEXT.</li>
+      <li>Aisle choice (6 completed): <b>only the two starter aisles can change</b>. Today's extra (RUN ONLY) aisle stays random each run and is never offered as a starter.</li>
+      <li>Regular swap: <b>2 clicks with a ↺ undo, no confirm dialog</b>, and the swap is saved when you leave the page. Or keep a confirm step?</li>
+    </ol>
+  </section>
+</main>
+<script>
+"use strict";
+const SRC = 'start_store_v6_src/';
+const ITEMS = {
+  banana:['Banana',2,'+ the price of the Banana right before it (a chain: 4 Bananas pay 2, 4, 6, 8)'],
+  milk:['Milk',4,'+1 for each earlier Breakfast item'],
+  eggs:['Eggs',1,"The next Food item pays ×2 (a second Eggs replaces this, they don't add up)"],
+  bread:['Bread',5,'No rule'], coffee:['Coffee',2,'+1 for each MORNING item in the row'], soup:['Soup',5,'Pays 0 if beside a Frozen item'],
+  cereal:['Cereal',2,'PAIR: +3 if beside Milk'], tea_bags:['Tea bags',1,'×4 to the last MORNING item after it'], crackers:['Crackers',2,'+3 if beside Soup'],
+  dented_can:['Dented can',2,'+2 for each card redrawn this shift'], sugar_cubes:['Sugar cubes',2,'+4 if right after Coffee'], mixed_herbs:['Mixed herbs',1,'+3 to the next Food item'],
+  crisps:['Crisps',2,'+3 for each redraw left this shift'], cereal_bar:['Cereal bar',2,'+2 if beside a Snack item'],
+  bent_lolly:['Bent lolly',2,'+2 for each item between it and the nearest other Snack, up to 3'], pick_n_mix:["Pick 'n' mix",1,'+3 for each lone Snack in the row (no Snack beside it)'],
+  breadsticks:['Breadsticks',2,'+2 if right after Soup'],
+  cheese:['Cheese',3,'PAIR: +4 if beside Bread'], frozen_peas:['Frozen peas',3,'+3 if beside another Frozen item'], butter:['Butter',2,'PAIR: +3 if beside a Bakery item'],
+  yogurt:['Yogurt',2,'PAIR: +3 if beside a Banana'], cream:['Cream',2,'+2 for each PAIR in the row'],
+  strawberries:['Strawberries',2,'Right before a Banana chain: +1 to every Banana in it'], lemon:['Lemon',1,'Between two Bananas: ties them into one chain'],
+  potatoes:['Potatoes',3,'No rule'], grapefruit:['Grapefruit',2,'+3 to the next Produce item'],
+  baguette:['Baguette',2,'+4 for each earlier item in its Bakery batch, up to 2'], scone:['Scone',2,'PAIR: +3 if beside a Dairy item'],
+  croissant:['Croissant',2,'First of a Bakery batch: +2 to every later Bakery item in it'], broken_biscuit:['Broken biscuit',2,'+3 if right after a Bakery item'],
+  iced_bun:['Iced bun',1,'Doubles the last item of its Bakery batch'],
+  carrier_bag:['Carrier bag',1,'+8 for each Food item beside it'], scissors:['Scissors',1,'+2 for each earlier coupon'],
+  batteries:['Batteries',1,'The next Household item pays ×2'], egg_timer:['Egg timer',1,'+4 if right after Eggs'],
+};
+const AISLES = {
+  staples:{n:'Staples',bg:'#f3e9d2',hi:'#fbf7ee',fg:'#2b2420'},
+  cold_cases:{n:'Cold cases',bg:'#4f9a94',hi:'#86c2b6',fg:'#fbf7ee'},
+  pantry:{n:'Pantry',bg:'#e2b33c',hi:'#f1d27a',fg:'#2b2420'},
+  household:{n:'Household',bg:'#8a8172',hi:'#c7beab',fg:'#fbf7ee'},
+  fruit_and_veg:{n:'Fruit & veg',bg:'#3d7a45',hi:'#5fae5a',fg:'#fbf7ee'},
+  bakery:{n:'Bakery',bg:'#d2a874',hi:'#ddcba5',fg:'#2b2420'},
+  snacks:{n:'Snacks',bg:'#7a5232',hi:'#a87a4e',fg:'#fbf7ee'},
+};
+const SIX = ['cold_cases','pantry','household','fruit_and_veg','bakery','snacks'];
+const SETS = {staples:[['coffee','soup'],['bread','eggs']], pantry:[['sugar_cubes','mixed_herbs'],['crackers','tea_bags']], snacks:[['cereal_bar','pick_n_mix'],['crisps','breadsticks']],
+  cold_cases:[['cheese','butter'],['yogurt','cream']], fruit_and_veg:[['strawberries','lemon'],['grapefruit','potatoes']], bakery:[['baguette','scone'],['croissant','iced_bun']], household:[['scissors','batteries'],['carrier_bag','egg_timer']]};
+const OFFERS = {pantry:['cereal','tea_bags','crackers','dented_can'], cold_cases:['cheese','frozen_peas','butter','yogurt'], snacks:['crisps','cereal_bar','bent_lolly','pick_n_mix'],
+  fruit_and_veg:['strawberries','lemon','grapefruit','potatoes'], bakery:['baguette','scone','croissant','broken_biscuit'], household:['carrier_bag','scissors','batteries','egg_timer']};
+const COMPLETED = {0:[],2:['pantry','cold_cases'],3:['pantry','cold_cases','snacks'],6:SIX.slice()};
+const ORIG = ['banana','banana','milk','eggs'];
+const CAPTIONS = {
+  A:'A · Counter: three baskets hang under their aisle signs on one rail, today\'s extra aisle at the end, the regulars on a shelf below. Two pages, as today.',
+  B:'B · Three pages: STORE (the baskets, big) › REGULARS (big, rules printed) › BUILD. The REGULARS page only exists from the first completed aisle.',
+  C:'C · Cart strip: your starting cart on one belt (4 regulars + 3 baskets of 2 + 5 pack slots), group labels carry the actions, an info panel reads the hovered item.',
+};
+
+const stage = document.getElementById('stage');
+const fwrap = document.getElementById('fwrap');
+const toastEl = document.getElementById('toast');
+let K = 1, oneToOne = false;
+let S;
+function fresh(dir, lvl){
+  return {dir, lvl, starters:['pantry','snacks'], extra:'fruit_and_veg', setIx:{}, restockUsed:false, restocked:-1,
+    regs:ORIG.slice(), from:[null,null,null,null], mode:null, pop:null, page:1, intro:true, dropB:-1, flipS:-1, newsDone:false};
+}
+S = fresh('A', 0);
+
+const done = () => COMPLETED[S.lvl];
+const swapMax = () => Math.min(done().length, 4);
+const swapsUsed = () => S.from.filter(Boolean).length;
+const swapsLeft = () => swapMax() - swapsUsed();
+const canRestock = () => done().length >= 3;
+const canAisles = () => done().length >= 6;
+const sources = () => ['staples', S.starters[0], S.starters[1]];
+const basketItems = i => { const s = sources()[i]; return SETS[s][S.setIx[s] || 0]; };
+const newFeature = () => ({0:null,2:'swap',3:'restock',6:'aisle'})[S.lvl];
+const canSwapSlot = i => swapMax() > 0 && (S.from[i] || swapsLeft() > 0);
+const fromCount = a => S.from.filter(x => x === a).length;
+
+/* the game's 6x8 bold digits and € (PixelWords.DIGIT_GLYPHS), plus a '/' for the counters */
+const GLYPHS = {
+  "0":[".####.","##..##","##..##","##..##","##..##","##..##","##..##",".####."], "1":[".##.","###.",".##.",".##.",".##.",".##.",".##.","####"],
+  "2":[".####.","##..##","....##","...##.","..##..",".##...","##....","######"], "3":["#####.","....##","....##",".####.","....##","....##","....##","#####."],
+  "4":["...##.","..###.",".####.","##.##.","##.##.","######","...##.","...##."], "5":["######","##....","#####.","....##","....##","....##","##..##",".####."],
+  "6":[".####.","##....","##....","#####.","##..##","##..##","##..##",".####."], "7":["######","....##","...##.","...##.","..##..","..##..","..##..","..##.."],
+  "8":[".####.","##..##","##..##",".####.","##..##","##..##","##..##",".####."], "9":[".####.","##..##","##..##","##..##",".#####","....##","....##",".####."],
+  "€":["..####",".##...","#####.",".##...","####..",".##...",".##...","..####"], "/":["....##","....##","...##.","..##..","..##..",".##...","##....","##...."],
+  " ":["...","...","...","...","...","...","...","..."],
+};
+function dg(str, cell, fill){
+  let x = 0, rects = '';
+  for (const ch of String(str)){
+    const g = GLYPHS[ch] || GLYPHS[' '];
+    g.forEach((row, ry) => { for (let rx = 0; rx < row.length; rx++) if (row[rx] === '#') rects += `<rect x="${x+rx}" y="${ry}" width="1" height="1"/>`; });
+    x += g[0].length + 1;
+  }
+  x -= 1;
+  return `<svg class="dg" viewBox="0 0 ${x} 8" width="${x*cell}" height="${8*cell}" fill="${fill||'currentColor'}" shape-rendering="crispEdges" aria-label="${str}" role="img">${rects}</svg>`;
+}
+function img(name, w, h, cls=''){ return `<img class="px ${cls}" src="${SRC}${name}" width="${w}" height="${h||w}" alt="" draggable="false">`; }
+function itemImg(id, size, cls=''){ return `<img class="px ${cls}" src="${SRC}items/${id}.png" style="width:${size}px;height:${size}px" alt="${ITEMS[id][0]}" draggable="false">`; }
+
+/* ---------- shared pieces ---------- */
+function topbar(){
+  const d = done();
+  const icons = SIX.map(a => img('aisle_'+a+'.png', 27, 27, d.includes(a)?'':'off')).join('');
+  const cartN = S.dir === 'C' ? '10/15' : '10/15';
+  return `<div class="topbar">
+    <div class="tb">${img('clock.png',27)}OPENING TIME <span class="dim">SHIFT</span>${dg('1/12',4,'#fbf7ee')}</div>
+    <div class="tb">${icons}${dg(d.length+'/6',4,'#fbf7ee')}<span class="big">★</span><span class="dim">AISLES</span></div>
+    <div class="tb cart">${img('cart.png',36,27)}Cart ${dg(cartN,4,'#fbf7ee')}</div>
+  </div>`;
+}
+function tabs(list, on){
+  return `<div class="tabs">${list.map((t,i)=>`${i?'<span class="chev">›</span>':''}<div class="ptab ${i+1===on?'on':''} ${i+1<on?'done':''}" data-act="page:${t.p}"><span class="n">${i+1}</span>${t.n}</div>`).join('')}</div>`;
+}
+function footer(nextLabel, nextSub, backLabel){
+  const keys = ['<span><kbd>ENTER</kbd>next</span>'];
+  if (canRestock() && !S.restockUsed && !(S.dir === 'B' && S.page !== 1)) keys.push('<span><kbd>R</kbd>restock</span>');
+  keys.push('<span><kbd>ESC</kbd>back</span>');
+  let line = '';
+  if (swapMax() > 0) line = '<span class="line">Swaps' + (canAisles()?' and aisle picks':'') + ' stay for your next runs.</span>';
+  return `<div class="footer">
+    <div class="btn title" data-act="title">‹ ${backLabel||'TITLE'}</div>
+    <div class="keys">${keys.join('')}${line}</div>
+    <div class="btn next" data-act="next">${nextLabel} ›<small>${nextSub}</small></div>
+  </div>`;
+}
+function sign(aisle, {x, y, w, h, fs, starter, extraIx, inline}){
+  const A = AISLES[aisle];
+  const can = starter && canAisles();
+  const iconPx = Math.round(h*0.5/9)*9;
+  const pos = inline ? 'position:relative;flex:none;' : `left:${x}px;top:${y}px;`;
+  return `<div class="sign ${can?'can':''}" ${can?`data-act="sign:${extraIx}"`:''} style="${pos}width:${w}px;height:${h}px;background:${A.bg};color:${A.fg};font-size:${fs}px;box-shadow:inset 0 5px 0 ${A.hi},inset 0 -5px 0 rgba(0,0,0,.18),0 6px 0 rgba(0,0,0,.3);${can?'padding-right:56px':''}">
+    ${img('aisle_'+aisle+'.png', iconPx, iconPx)}${A.n}${can?'<span class="swap">⇄</span>':''}
+    ${can && newFeature()==='aisle' && !S.newsDone?'<span class="newtag" style="right:-26px;top:-26px">NEW</span>':''}
+  </div>`;
+}
+/* a basket with its two items, at (x,y) = top-left of the item row; bs basket scale, is item scale */
+function basket(i, x, y, bs, is){
+  const items = basketItems(i);
+  const IS = 48*is, BW = 216*bs, BH = 88*bs;
+  const gap = Math.round(IS*0.12);
+  const ix0 = x + (BW - (2*IS+gap))/2;
+  const frontTop = y + Math.round(IS*0.78);
+  const cls = S.dropB === i ? 'drop' : '';
+  let h = `<div class="basket" data-b="${i}" style="left:0;top:0">`;
+  h += `<img class="px abs" src="${SRC}basket_back_left.png" style="left:${x}px;top:${frontTop-Math.round(14*bs)}px;width:${BW}px;height:${22*bs}px" alt="">`;
+  items.forEach((id, k) => {
+    h += `<div class="item ${cls}" data-card="${id}" style="left:${ix0+k*(IS+gap)}px;top:${y}px;width:${IS}px;height:${IS}px;animation-delay:${k*0.08}s">${itemImg(id, IS)}</div>`;
+  });
+  h += `<img class="px abs" src="${SRC}basket_front.png" style="left:${x}px;top:${frontTop}px;width:${BW}px;height:${BH}px;pointer-events:none" alt="">`;
+  const tagY = frontTop + Math.round(BH*0.42);
+  items.forEach((id, k) => {
+    h += `<div class="ptag ${cls}" style="left:${ix0+k*(IS+gap)+IS/2-36}px;top:${tagY}px;animation-delay:${k*0.08+0.1}s">${dg(ITEMS[id][1]+'€',bs>2?4:3,'#2b2420')}</div>`;
+  });
+  if (S.restocked === i) h += `<div class="stamp" style="left:${x+BW/2-90}px;top:${frontTop+BH-36}px">RESTOCKED</div>`;
+  h += `<div class="hit" style="left:${x-14}px;top:${y-14}px;width:${BW+28}px;height:${frontTop+BH-y+28}px" data-act="basket:${i}"></div>`;
+  if (S.mode === 'restock') h += `<div class="pickcue" style="left:${x+BW/2}px;top:${frontTop+BH-30}px">${i+1} · RESTOCK THIS</div>`;
+  h += `</div>`;
+  return h;
+}
+function restockBtn(x, y, wide){
+  if (!canRestock()) return '';
+  const nt = newFeature()==='restock' && !S.newsDone ? '<span class="newtag" style="right:-22px;top:-24px">NEW</span>' : '';
+  if (S.restockUsed) return `<div class="rbtn used" style="left:${x}px;top:${y}px">${img('redraw_arrow.png',36,32)}RESTOCK used</div>`;
+  if (S.mode === 'restock') return `<div class="rbtn on" data-act="restock" style="left:${x}px;top:${y}px">✕ Pick a basket <small>(Esc)</small></div>`;
+  return `<div class="rbtn" data-act="restock" style="left:${x}px;top:${y}px">${img('redraw_arrow.png',36,32)}RESTOCK ${wide?'<small>one basket, once a run</small>':''}${nt}</div>`;
+}
+function swapChip(){
+  if (swapMax() === 0) return '';
+  const pips = Array.from({length:swapMax()},(_,i)=>`<span class="pip ${i<swapsUsed()?'used':''}"></span>`).join('');
+  const nt = newFeature()==='swap' && !S.newsDone ? '<span class="newtag" style="right:-30px;top:-22px">NEW</span>' : '';
+  return `<span class="chip">SWAPS <span class="pips">${pips}</span>${nt}</span>`;
+}
+function regTile(i, x, y, w, h, is, opts={}){
+  const id = S.regs[i], can = canSwapSlot(i) && S.mode !== 'restock';
+  const IS = 48*is;
+  const sel = S.pop && S.pop.kind==='reg' && S.pop.slot===i;
+  const flip = S.flipS === i ? 'flip' : '';
+  let t = `<div class="rtile ${can?'can':''} ${sel?'sel':''} ${opts.cls||''}" data-reg="${i}" ${can?`data-act="reg:${i}"`:''} data-card="${id}" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px">
+    <div class="spr ${flip}" style="top:${opts.sprTop||6}px;width:${IS}px;height:${IS}px">${itemImg(id, IS)}</div>`;
+  if (opts.rule) t += `<div class="rule" style="top:${(opts.sprTop||6)+IS+2}px"><span class="pix" style="font-size:26px;display:block">${ITEMS[id][0]}</span>${ITEMS[id][2]}</div>`;
+  const pc = opts.pc || 4;
+  t += `<div class="price" style="height:${opts.ph||44}px;display:grid;place-items:center">${dg(ITEMS[id][1]+'€',pc,'#2b2420')}</div>`;
+  if (S.from[i]) t += `<div class="undo" data-act="undo:${i}" title="Back to ${ITEMS[ORIG[i]][0]}">↺ ${img('items/'+ORIG[i]+'.png',27,27)}</div>`;
+  else if (can) t += `<div class="badge">⇄</div>`;
+  t += `</div>`;
+  return t;
+}
+/* ---------- direction A: Counter ---------- */
+function renderA(){
+  let h = topbar() + tabs([{n:'YOUR STORE',p:1},{n:'YOUR BUILD',p:3}], 1);
+  h += `<div class="wallshelf" style="top:604px"></div>`;
+  h += `<div class="shead" style="left:60px;top:160px">TODAY'S BASKETS</div>`;
+  h += restockBtn(1056, 140, true);
+  h += `<div class="rail" style="left:40px;top:226px;width:1840px"></div>`;
+  const BAY = 500, X0 = 60;
+  for (let i = 0; i < 3; i++){
+    const x = X0 + i*BAY, w = 470;
+    h += `<div class="bay ${S.intro?'intro':''}" style="left:0;top:0;animation-delay:${i*0.08}s">`;
+    h += `<div class="string" style="left:${x+70}px;top:238px;height:10px"></div><div class="string" style="left:${x+w-74}px;top:238px;height:10px"></div>`;
+    h += sign(sources()[i], {x:x+20, y:246, w:w-40, h:62, fs:34, starter:i>0, extraIx:i});
+    h += `<div class="bob">${basket(i, x+40, 322, 1.8, 3)}</div>`;
+    h += `</div>`;
+  }
+  // today's extra aisle: small sign at the end of the rail
+  const ex = 1560, ew = 300;
+  h += `<div class="dimmable ${S.intro?'intro':''}" style="position:absolute;left:0;top:0;animation-delay:.3s">`;
+  h += `<div class="string" style="left:${ex+60}px;top:238px;height:30px"></div><div class="string" style="left:${ex+ew-64}px;top:238px;height:30px"></div>`;
+  h += sign(S.extra, {x:ex, y:268, w:ew, h:54, fs:28});
+  h += `<div class="extra abs" style="left:${ex}px;top:346px;width:${ew}px">
+      <div class="cap">TODAY'S EXTRA AISLE</div>
+      <div style="display:flex;justify-content:center;gap:8px;margin:12px 0">${img('toy_capsule_'+S.extra+'.png',52,52)}${img('toy_capsule_'+S.extra+'.png',52,52)}${img('toy_capsule_'+S.extra+'.png',52,52)}</div>
+      <div class="txt">No basket: its items come<br>as machine prizes.</div></div>`;
+  h += `</div>`;
+  // regulars
+  const RW = 176, RG = 34, n = 4, rx0 = Math.round((1920 - (n*RW + (n-1)*RG))/2);
+  h += `<div class="shead dimmable" style="left:${rx0-4}px;top:628px">YOUR REGULARS<span class="ssub">in every run</span>${swapChip()}</div>`;
+  h += `<div class="dimmable">`;
+  for (let i = 0; i < 4; i++) h += `<div class="${S.intro?'intro':''}" style="position:absolute;left:0;top:0;animation-delay:${0.25+i*0.06}s">${regTile(i, rx0 + i*(RW+RG), 692, RW, 196, 3, {})}</div>`;
+  h += `<div class="shelf" style="left:${rx0-60}px;top:888px;width:${n*RW+(n-1)*RG+120}px"></div></div>`;
+  h += footer('NEXT', 'Your build: pack, pins, cart');
+  return h;
+}
+
+/* ---------- direction B: three pages ---------- */
+function renderB(){
+  const hasRegs = swapMax() > 0;
+  const list = hasRegs ? [{n:'STORE',p:1},{n:'REGULARS',p:2},{n:'BUILD',p:3}] : [{n:'STORE',p:1},{n:'BUILD',p:3}];
+  let on = list.findIndex(t => t.p === S.page) + 1;
+  let h = topbar() + tabs(list, on);
+  if (S.page === 1){
+    h += `<div class="shead" style="left:60px;top:174px">TODAY'S BASKETS</div>`;
+    h += `<div class="rail" style="left:40px;top:236px;width:1840px"></div>`;
+    for (let i = 0; i < 3; i++){
+      const w = 580, x = 50 + i*610;
+      h += `<div class="bay ${S.intro?'intro':''}" style="left:0;top:0;animation-delay:${i*0.08}s">`;
+      h += `<div class="string" style="left:${x+90}px;top:248px;height:16px"></div><div class="string" style="left:${x+w-94}px;top:248px;height:16px"></div>`;
+      h += sign(sources()[i], {x:x+30, y:262, w:w-60, h:80, fs:42, starter:i>0, extraIx:i});
+      h += `<div class="bob">${basket(i, x+20, 362, 2.5, 4)}</div>`;
+      h += `</div>`;
+    }
+    h += `<div class="dimmable ${S.intro?'intro':''}" style="position:absolute;left:0;top:0;animation-delay:.3s">
+      <div class="abs" style="left:50px;top:800px;width:1170px;height:96px;background:var(--t-black);border:4px solid var(--ink);display:flex;align-items:center;gap:22px;padding:0 22px">
+        <span class="pix" style="font-size:26px;color:var(--mustard-l);white-space:nowrap">ALSO IN STOCK TODAY</span>
+        ${sign(S.extra,{w:300,h:58,fs:28,inline:true})}
+        ${img('toy_capsule_'+S.extra+'.png',44,44)}<span style="font-size:22px;font-weight:700;color:var(--t-pale)">no basket: its items come<br>as machine prizes</span>
+      </div></div>`;
+    h += restockBtn(1300, 812, true);
+    h += footer('NEXT', hasRegs ? 'Your regulars' : 'Your build: pack, pins, cart');
+  } else if (S.page === 2){
+    const RW = 330, RG = 40, rx0 = Math.round((1920 - (4*RW+3*RG))/2);
+    h += `<div class="shead" style="left:${rx0}px;top:174px">YOUR REGULARS<span class="ssub">in every run · click one to swap it</span>${swapChip()}</div>`;
+    for (let i = 0; i < 4; i++) h += `<div class="${S.intro?'intro':''}" style="position:absolute;left:0;top:0;animation-delay:${i*0.07}s">${regTile(i, rx0+i*(RW+RG), 250, RW, 420, 4.5, {rule:true, ph:56, pc:6, sprTop:10})}</div>`;
+    h += `<div class="shelf" style="left:${rx0-60}px;top:670px;width:${4*RW+3*RG+120}px"></div>`;
+    h += footer('NEXT', 'Your build: pack, pins, cart', 'STORE');
+  } else {
+    h += buildPlaceholder();
+    h += footer('OPEN STORE', 'Clock in', hasRegs ? 'REGULARS' : 'STORE');
+  }
+  return h;
+}
+function buildPlaceholder(){
+  return `<div class="abs" style="left:360px;top:300px;width:1200px;height:420px;background:var(--t-black);border:4px dashed var(--t-shade);display:grid;place-items:center;text-align:center">
+    <div><div class="pix" style="font-size:46px;color:var(--mustard-l)">YOUR BUILD</div>
+    <div style="font-size:26px;font-weight:700;color:var(--t-pale);margin-top:10px">The staff room page (pack crates, badge pins, order sheet).<br>Its own clean-up (NEW PACKS colour, lighter crates) is a separate item.</div></div></div>`;
+}
+
+/* ---------- direction C: cart strip ---------- */
+function renderC(){
+  let h = topbar() + tabs([{n:'YOUR STORE',p:1},{n:'YOUR BUILD',p:3}], 1);
+  h += `<div class="shead" style="left:60px;top:170px">YOUR STARTING CART<span class="ssub">what every shift deals from, before your pack</span>${swapChip()}</div>`;
+  const SW = 100, SG = 8, GG = 30;
+  const groups = [{k:'reg',n:4},{k:'b0',n:2},{k:'b1',n:2},{k:'b2',n:2},{k:'pack',n:5}];
+  let total = 0; groups.forEach((g,gi)=>{ total += g.n*SW + (g.n-1)*SG + (gi?GG:0); });
+  let x = Math.round((1920-total)/2);
+  const top = 360;
+  h += `<div class="belt" style="left:${x-34}px;top:${top-26}px;width:${total+68}px;height:${190}px"></div>`;
+  groups.forEach((g, gi) => {
+    if (gi) x += GG;
+    const gw = g.n*SW + (g.n-1)*SG;
+    // label
+    if (g.k === 'reg'){
+      h += `<div class="glabel dimmable" style="left:${x}px;top:${top-96}px;width:${gw}px;background:var(--t-shade);color:var(--paper);box-shadow:inset 0 4px 0 var(--t-light)">REGULARS</div>`;
+    } else if (g.k === 'pack'){
+      h += `<div class="glabel" style="left:${x}px;top:${top-96}px;width:${gw}px;background:transparent;border-style:dashed;border-color:var(--steel);color:var(--steel-l)">YOUR PACK · next page</div>`;
+    } else {
+      const bi = +g.k[1];
+      h += sign(sources()[bi], {x, y:top-96, w:gw, h:48, fs:22, starter:bi>0, extraIx:bi});
+    }
+    for (let s = 0; s < g.n; s++){
+      const sx = x + s*(SW+SG);
+      if (g.k === 'reg'){
+        h += `<div class="${S.intro?'intro':''} dimmable" style="position:absolute;left:0;top:0;animation-delay:${s*0.04}s">${regTile(s, sx, top, SW, 140, 2, {ph:36, pc:3, sprTop:2, cls:'sm'})}</div>`;
+      } else if (g.k === 'pack'){
+        h += `<div class="slot empty" style="left:${sx}px;top:${top}px;width:${SW}px;height:140px"></div>`;
+      }
+    }
+    if (g.k[0] === 'b'){
+      const bi = +g.k[1];
+      const items = basketItems(bi);
+      const cls = S.dropB === bi ? 'drop' : (S.intro ? 'intro' : '');
+      h += `<div class="basket" data-b="${bi}"><div class="bob">`;
+      items.forEach((id, s) => {
+        const sx = x + s*(SW+SG);
+        h += `<div class="slot item ${cls}" data-card="${id}" style="left:${sx}px;top:${top}px;width:${SW}px;height:140px;animation-delay:${0.15+bi*0.06+s*0.04}s">${itemImg(id,96)}<div class="price">${dg(ITEMS[id][1]+'€',3,'#2b2420')}</div></div>`;
+      });
+      if (S.restocked === bi) h += `<div class="stamp" style="left:${x+10}px;top:${top+100}px;font-size:20px">RESTOCKED</div>`;
+      if (S.mode === 'restock') h += `<div class="pickcue" style="left:${x+gw/2}px;top:${top+168}px;font-size:22px">${bi+1} · THIS</div>`;
+      h += `<div class="hit" style="left:${x-12}px;top:${top-14}px;width:${gw+24}px;height:168px" data-act="basket:${bi}"></div></div></div>`;
+    }
+    g.x = x; g.w = gw;
+    x += gw;
+  });
+  // restock button centred under the three baskets
+  const bx = groups[1].x, bw = groups[3].x + groups[3].w - bx;
+  h += restockBtn(Math.round(bx + bw/2 - 150), top+226, false);
+  // info panel
+  h += `<div class="info dimmable" id="infoC" style="left:${groups[0].x-34}px;top:680px;width:${total+68}px;height:220px">
+    <div class="abs" id="infoImg" style="left:30px;top:26px;width:168px;height:168px"></div>
+    <div class="abs" style="left:230px;top:30px;right:30px"><div class="k" id="infoK">Hover an item</div><div class="r" id="infoR">Its price and rule show here. Today's extra aisle, ${AISLES[S.extra].n}, has no basket: its items come as machine prizes.</div></div></div>`;
+  h += footer('NEXT', 'Your build: pick a pack');
+  return h;
+}
+
+/* ---------- popovers ---------- */
+function popHTML(){
+  const P = S.pop; if (!P) return '';
+  if (P.kind === 'reg'){
+    const i = P.slot, cur = S.regs[i];
+    const aisles = done();
+    const ai = P.aisle || aisles.find(a => fromCount(a) < 2 || S.from[i] === a) || aisles[0];
+    P.aisle = ai;
+    const tabsH = aisles.map(a => {
+      const full = fromCount(a) >= 2 && S.from[i] !== a;
+      const A = AISLES[a];
+      return `<div class="atab ${a===ai?'on':''} ${full?'full':''}" ${full?'title="2 regulars already come from this aisle"':`data-act="ptab:${a}"`} style="background:${A.bg};color:${A.fg}">${img('aisle_'+a+'.png',27,27)}${A.n}</div>`;
+    }).join('');
+    const offers = OFFERS[ai].filter(c => c !== cur).slice(0,4).map(c => `<div class="offer" data-act="offer:${c}" data-card="${c}" data-pop="1">${itemImg(c,96)}<div class="on">${ITEMS[c][0]}</div><div class="op">${dg(ITEMS[c][1]+'€',3,'#2b2420')}</div></div>`).join('');
+    const back = S.from[i] ? `<div class="atab" data-act="undo:${i}" style="background:var(--cream);color:var(--ink);opacity:1">↺ back to ${ITEMS[ORIG[i]][0]}</div>` : '';
+    return `<div class="pop" id="pop" style="width:640px">
+      <div class="ph">${itemImg(cur,48)}SWAP ${ITEMS[cur][0].toUpperCase()} FOR…<span class="x" data-act="close">✕</span></div>
+      <div class="atabs">${tabsH}${back}</div>
+      <div class="offers">${offers}</div>
+      <div class="ruleline" id="popRule"><b>${ITEMS[cur][0]}</b> now: ${ITEMS[cur][2]}</div>
+    </div>`;
+  }
+  if (P.kind === 'aisle'){
+    const k = P.idx, cur = S.starters[k-1];
+    const opts = done().filter(a => !S.starters.includes(a) && a !== S.extra);
+    const optsH = opts.map(a => {
+      const A = AISLES[a];
+      return `<div class="sign signopt" data-act="aisle:${a}" style="background:${A.bg};color:${A.fg};box-shadow:inset 0 5px 0 ${A.hi},0 5px 0 rgba(0,0,0,.25)">${img('aisle_'+a+'.png',36,36)}${A.n}</div>`;
+    }).join('');
+    return `<div class="pop" id="pop" style="width:620px">
+      <div class="ph">${img('aisle_'+cur+'.png',36,36)}BASKET ${k+1}: CHANGE ${AISLES[cur].n.toUpperCase()} FOR…<span class="x" data-act="close">✕</span></div>
+      <div class="signopts">${optsH}</div>
+      <div class="note">The basket is dealt again from the new aisle. Staples and today's extra aisle (${AISLES[S.extra].n}) stay.</div>
+    </div>`;
+  }
+  return '';
+}
+function placePop(){
+  const pop = document.getElementById('pop'); if (!pop || !S.pop) return;
+  let anchor;
+  if (S.pop.kind === 'reg') anchor = stage.querySelector(`[data-reg="${S.pop.slot}"]`);
+  else anchor = stage.querySelector(`[data-act="sign:${S.pop.idx}"]`);
+  if (!anchor) return;
+  const sr = stage.getBoundingClientRect(), r = anchor.getBoundingClientRect();
+  const ax = (r.left - sr.left)/K, ay = (r.top - sr.top)/K, aw = r.width/K, ah = r.height/K;
+  const pw = pop.offsetWidth, ph = pop.offsetHeight;
+  let x = Math.max(24, Math.min(1920-pw-24, ax + aw/2 - pw/2));
+  let y = S.pop.kind === 'reg' ? (ay - ph - 24 > 90 ? ay - ph - 24 : ay + ah + 24) : ay + ah + 20;
+  if (y + ph > 1060) y = Math.max(90, ay - ph - 24);
+  pop.style.left = x + 'px'; pop.style.top = y + 'px';
+}
+
+/* ---------- render ---------- */
+function render(){
+  let h = S.dir === 'A' ? renderA() : S.dir === 'B' ? renderB() : renderC();
+  h += popHTML();
+  h += `<div id="tip"></div>`;
+  stage.innerHTML = h;
+  stage.classList.toggle('picking', S.mode === 'restock');
+  placePop();
+  S.intro = false; S.dropB = -1; S.flipS = -1;
+  document.getElementById('caption').textContent = CAPTIONS[S.dir];
+}
+function toast(t){ toastEl.textContent = t; clearTimeout(toast.t); toast.t = setTimeout(()=>toastEl.textContent='', 4200); }
+function sparks(el, n=10){
+  if (document.body.classList.contains('rm') || !el) return;
+  const sr = stage.getBoundingClientRect(), r = el.getBoundingClientRect();
+  const cx = (r.left - sr.left + r.width/2)/K, cy = (r.top - sr.top + r.height/2)/K;
+  for (let i = 0; i < n; i++){
+    const s = document.createElement('div'); s.className = 'spark';
+    const a = Math.PI*2*i/n + Math.random()*.4, d = 90 + Math.random()*60;
+    s.style.left = cx+'px'; s.style.top = cy+'px';
+    s.style.setProperty('--dx', Math.cos(a)*d+'px'); s.style.setProperty('--dy', Math.sin(a)*d+'px');
+    stage.appendChild(s); setTimeout(()=>s.remove(), 650);
+  }
+}
+const slow = () => document.body.classList.contains('rm') ? 0 : 280;
+
+/* ---------- actions ---------- */
+function doRestock(i){
+  S.mode = null;
+  const items = stage.querySelectorAll(`.basket[data-b="${i}"] .item, .basket[data-b="${i}"] .ptag`);
+  items.forEach(e => e.classList.add('out'));
+  stage.classList.remove('picking');
+  setTimeout(() => {
+    const s = sources()[i];
+    S.setIx[s] = ((S.setIx[s]||0) + 1) % SETS[s].length;
+    S.restockUsed = true; S.restocked = i; S.dropB = i; S.newsDone = true;
+    render();
+    setTimeout(()=>sparks(stage.querySelector(`.basket[data-b="${i}"] .item`), 12), 300);
+    toast(`Basket ${i+1} (${AISLES[s].n}) restocked: ${basketItems(i).map(c=>ITEMS[c][0]).join(' + ')}. RESTOCK is spent for this run.`);
+  }, slow());
+}
+function doSwap(i, card){
+  const aisle = S.pop.aisle;
+  S.regs[i] = card; S.from[i] = aisle; S.pop = null; S.flipS = i; S.newsDone = true;
+  render();
+  setTimeout(()=>sparks(stage.querySelector(`[data-reg="${i}"]`), 10), 120);
+  toast(`${ITEMS[ORIG[i]][0]} → ${ITEMS[card][0]} (from ${AISLES[aisle].n}). ↺ on the tile puts it back. ${swapsLeft()} swap${swapsLeft()===1?'':'s'} left.`);
+}
+function doUndo(i){
+  const was = S.regs[i];
+  S.regs[i] = ORIG[i]; S.from[i] = null; S.pop = null; S.flipS = i;
+  render();
+  toast(`${ITEMS[was][0]} → back to ${ITEMS[ORIG[i]][0]}.`);
+}
+function doAisle(a){
+  const k = S.pop.idx; S.pop = null;
+  const old = S.starters[k-1];
+  stage.querySelectorAll(`.basket[data-b="${k}"] .item, .basket[data-b="${k}"] .ptag`).forEach(e => e.classList.add('out'));
+  setTimeout(() => {
+    S.starters[k-1] = a; S.dropB = k; S.newsDone = true;
+    if (S.restocked === k) S.restocked = -1;
+    render();
+    const sg = stage.querySelector(`[data-act="sign:${k}"]`); if (sg){ sg.classList.add('wiggle'); }
+    toast(`Basket ${k+1}: ${AISLES[old].n} → ${AISLES[a].n}, dealt again. Kept for your next runs.`);
+  }, slow());
+}
+stage.addEventListener('click', e => {
+  const t = e.target.closest('[data-act]');
+  if (!t){ if (S.pop){ S.pop = null; render(); } return; }
+  const [act, arg] = t.dataset.act.split(':');
+  if (S.mode === 'restock' && act !== 'basket' && act !== 'restock'){ S.mode = null; render(); return; }
+  switch (act){
+    case 'restock': if (!S.restockUsed){ S.mode = S.mode ? null : 'restock'; S.pop = null; render(); if (S.mode) toast('Pick the basket to restock (or press 1, 2, 3). Its two items are replaced; the others stay.'); } break;
+    case 'basket': if (S.mode === 'restock') doRestock(+arg); break;
+    case 'reg': if (S.pop && S.pop.kind==='reg' && S.pop.slot===+arg) S.pop = null; else S.pop = {kind:'reg', slot:+arg}; render(); break;
+    case 'ptab': S.pop.aisle = arg; render(); break;
+    case 'offer': doSwap(S.pop.slot, arg); break;
+    case 'undo': e.stopPropagation(); doUndo(+arg); break;
+    case 'sign': S.pop = (S.pop && S.pop.kind==='aisle' && S.pop.idx===+arg) ? null : {kind:'aisle', idx:+arg}; render(); break;
+    case 'aisle': doAisle(arg); break;
+    case 'close': S.pop = null; render(); break;
+    case 'page': if (S.dir === 'B'){ S.page = +arg; S.pop = null; S.intro = true; render(); } else if (+arg === 3) toast('Page 2 YOUR BUILD is unchanged in this mock-up.'); break;
+    case 'next':
+      if (S.dir === 'B' && S.page < 3){ S.page = (S.page === 1 && swapMax() > 0) ? 2 : 3; S.pop = null; S.intro = true; render(); }
+      else toast(S.dir === 'B' ? 'OPEN STORE: the shift starts.' : 'NEXT → page 2 YOUR BUILD (unchanged in this mock-up).');
+      break;
+    case 'title':
+      if (S.dir === 'B' && S.page > 1){ S.page = S.page === 3 && swapMax() > 0 ? 2 : 1; S.pop = null; S.intro = true; render(); }
+      else toast('‹ TITLE: back to the title screen.');
+      break;
+  }
+});
+/* hover: rules */
+stage.addEventListener('mouseover', e => {
+  const c = e.target.closest('[data-card]');
+  const tip = document.getElementById('tip');
+  if (!c){ tip && tip.classList.remove('on'); return; }
+  const id = c.dataset.card;
+  if (c.dataset.pop){ const rl = document.getElementById('popRule'); if (rl) rl.innerHTML = `<b>${ITEMS[id][0]} · ${ITEMS[id][1]}€</b>: ${ITEMS[id][2]}`; return; }
+  if (S.dir === 'C'){
+    const k = document.getElementById('infoK');
+    if (k){ k.textContent = `${ITEMS[id][0]} · ${ITEMS[id][1]}€`; document.getElementById('infoR').textContent = ITEMS[id][2]; document.getElementById('infoImg').innerHTML = itemImg(id,168); }
+    return;
+  }
+  if (S.pop && S.pop.kind === 'reg') return;
+  tip.innerHTML = `<b>${ITEMS[id][0]} · ${ITEMS[id][1]} €</b>${ITEMS[id][2]}`;
+  const sr = stage.getBoundingClientRect(), r = c.getBoundingClientRect();
+  const x = (r.left - sr.left)/K, y = (r.top - sr.top)/K, w = r.width/K;
+  tip.style.left = Math.max(10, Math.min(1920-460, x + w/2 - 220)) + 'px';
+  tip.classList.add('on');
+  const th = tip.offsetHeight;
+  tip.style.top = (y - th - 18 < 84 ? y + r.height/K + 14 : y - th - 18) + 'px';
+});
+stage.addEventListener('mouseleave', () => { const t = document.getElementById('tip'); t && t.classList.remove('on'); });
+document.addEventListener('keydown', e => {
+  if (e.target.closest && e.target.closest('input,button')) { if (e.key !== 'Escape') return; }
+  if (e.key === 'Escape'){ if (S.mode || S.pop){ S.mode = null; S.pop = null; render(); } }
+  else if ((e.key === 'r' || e.key === 'R') && canRestock() && !S.restockUsed && !S.mode && !(S.dir === 'B' && S.page !== 1)){ S.mode = 'restock'; S.pop = null; render(); }
+  else if (S.mode === 'restock' && ['1','2','3'].includes(e.key)) doRestock(+e.key - 1);
+});
+
+/* ---------- toolbar ---------- */
+function press(groupId, attr, val){ document.querySelectorAll(`#${groupId} button`).forEach(b => b.setAttribute('aria-pressed', String(b.dataset[attr] === String(val)))); }
+document.getElementById('dirs').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; const keep = S; S = fresh(b.dataset.dir, keep.lvl); press('dirs','dir',S.dir); render(); });
+document.getElementById('lvls').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; S = fresh(S.dir, +b.dataset.lvl); press('lvls','lvl',S.lvl); render(); });
+document.getElementById('reset').addEventListener('click', () => { S = fresh(S.dir, S.lvl); render(); toast('New run: baskets dealt again, RESTOCK back, regulars as saved.'); });
+document.getElementById('rm').addEventListener('change', e => document.body.classList.toggle('rm', e.target.checked));
+function fit(){
+  const w = fwrap.clientWidth;
+  K = oneToOne ? 1 : w / 1920;
+  stage.style.transform = `scale(${K})`;
+  fwrap.style.height = (1080*K + (oneToOne ? 16 : 0)) + 'px';
+  fwrap.classList.toggle('one', oneToOne);
+  if (oneToOne){ stage.style.position = 'relative'; } else { stage.style.position = 'absolute'; }
+  placePop();
+}
+document.getElementById('v_fit').addEventListener('click', () => { oneToOne = false; document.getElementById('v_fit').setAttribute('aria-pressed','true'); document.getElementById('v_one').setAttribute('aria-pressed','false'); fit(); });
+document.getElementById('v_one').addEventListener('click', () => { oneToOne = true; document.getElementById('v_one').setAttribute('aria-pressed','true'); document.getElementById('v_fit').setAttribute('aria-pressed','false'); fit(); });
+new ResizeObserver(fit).observe(fwrap);
+if (matchMedia('(prefers-reduced-motion: reduce)').matches){ document.body.classList.add('rm'); document.getElementById('rm').checked = true; }
+/* URL options for captures and links: ?dir=A&lvl=3&do=pick|swap|aisle|p2|swapped|restocked&solo */
+const Q = new URLSearchParams(location.search);
+if (Q.has('solo')) document.body.classList.add('solo');
+if (Q.get('dir')) { S = fresh(Q.get('dir'), S.lvl); press('dirs','dir',S.dir); }
+if (Q.get('lvl')) { S = fresh(S.dir, +Q.get('lvl')); press('lvls','lvl',S.lvl); }
+for (const d of (Q.get('do')||'').split(',').filter(Boolean)){
+  if (d === 'pick') S.mode = 'restock';
+  if (d === 'swap') S.pop = {kind:'reg', slot:+(Q.get('slot')||2)};
+  if (d === 'aisle') S.pop = {kind:'aisle', idx:2};
+  if (d === 'p2') S.page = 2;
+  if (d === 'swapped'){ S.regs[2] = 'cereal'; S.from[2] = 'pantry'; S.newsDone = true; }
+  if (d === 'restocked'){ S.setIx.pantry = 1; S.restocked = 1; S.restockUsed = true; S.newsDone = true; }
+  if (d === 'still') document.body.classList.add('rm');
+}
+fit(); render();
+document.fonts && document.fonts.ready.then(() => { placePop(); });
+</script>
+</body>
+</html>

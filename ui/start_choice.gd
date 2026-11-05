@@ -5,16 +5,18 @@ extends RefCounted
 ##
 ## A run is set up by StartSetupRules.setup_run whenever the balance stocks aisles
 ## (stock_aisle_count > 0) and the recipe has starter packs: today's suggested aisles on the run
-## seed's stock-aisles stream, nothing dealt (StartSetup.Stage.SELECT). LOCK IN & DEAL draws the
-## offer on its starting-deck stream and each basket on its own basket stream; RESTOCK, a
-## regular slot's offer and NEW PACKS have their own named streams (EventLogService). The run
+## seed's stock-aisles stream, then dealt at once (v1.07: no covered baskets, no LOCK IN): the
+## offer on its starting-deck stream and each basket on its own basket stream (a save from before
+## v1.07 still waiting in SELECT is dealt the same way when it opens). An aisle change (6
+## completed aisles) deals that basket on the new aisle's basket stream; RESTOCK, a regular
+## slot's offer and NEW PACKS have their own named streams (EventLogService). The run
 ## waits for its pick (RunState.Phase.CHOOSE_START) and is saved after each commitment, so
 ## quitting can't reroll anything; a resume opens the same board, and a run whose setup was saved
 ## in the first build's form sets it up again (RunState.restart_setup). Without the reveal (tests,
-## captures, the demo row) the suggestion is locked in and the offer's default pack is taken for
-## the player. Only a recipe without packs, or a balance with
-## stock_aisle_count 0, takes the older path: a run that needs a list stocks a random one from
-## the run seed's own stream (#63) and the deck is dealt on the starting-deck stream.
+## captures, the demo row) the offer's default pack is taken for the player. Only a recipe
+## without packs, or a balance with stock_aisle_count 0, takes the older path: a run that needs a
+## list stocks a random one from the run seed's own stream (#63) and the deck is dealt on the
+## starting-deck stream.
 
 const TITLE_SCREEN := "res://ui/title_screen.tscn"
 
@@ -80,7 +82,25 @@ func _setup_run(seed_value: int, balance: BalanceDefinition, recipe: DeckDefinit
 	# Saved swaps this run could not apply are dropped, so they never hold a swap's place.
 	if StartSetupRules.prune_swaps(profile, run):
 		_screen.save_profile()
+	deal(run, profile)
 	return run
+
+
+## Deals `run`'s setup (still in SELECT) with today's aisles on the run seed's streams.
+static func deal(run: RunState, profile: ProfileState) -> StringName:
+	var setup: StartSetup = run.start_setup
+	var green: Array[StringName] = setup.green_ids(run.balance)
+	var streams: Dictionary[StringName, RandomNumberGenerator] = {}
+	for source: StringName in StartSetupRules.basket_sources(run.balance, green):
+		streams[source] = EventLogService.derived_stream(
+			run.run_seed, EventLogService.START_BASKET_STREAM % source
+		)
+	var pack_rng: RandomNumberGenerator = EventLogService.derived_stream(
+		run.run_seed, EventLogService.STARTING_DECK_STREAM
+	)
+	return StartSetupRules.lock_in(
+		run, profile, green, setup.run_only_ids(run.balance), pack_rng, streams
+	)
 
 
 func _stream(seed_value: int, stream_name: String) -> RandomNumberGenerator:
@@ -93,7 +113,8 @@ func board_actions() -> StartBoardActions:
 	actions.save_pick = save_pick
 	actions.swap_staple = swap_staple
 	actions.restore_regular = restore_regular
-	actions.lock_in = lock_in
+	actions.change_aisle = change_aisle
+	actions.mark_seen = mark_seen
 	actions.restock_basket = restock_basket
 	actions.new_packs = new_packs
 	actions.regular_offer = regular_offer
@@ -121,8 +142,15 @@ func begin_if_choosing(reveal: bool) -> bool:
 		_restart_setup()
 		run = _screen.run
 	var setup: StartSetup = run.start_setup
-	if setup != null and setup.stage == StartSetup.Stage.SELECT and not reveal:
-		lock_in(setup.green_ids(run.balance), setup.run_only_ids(run.balance), 0, false)
+	# A setup saved before its deal is dealt now; one whose aisles no longer deal (refused) has no
+	# way out on page 1 (no LOCK IN any more), so it is set up again from its seed.
+	if (
+		setup != null
+		and setup.stage == StartSetup.Stage.SELECT
+		and deal(run, _screen.profile) != &""
+	):
+		_restart_setup()
+		run = _screen.run
 	_screen._refresh()
 	_screen._save_run()
 	var reduced: bool = _screen.profile.reduced_motion()
@@ -221,10 +249,7 @@ func restore_regular(slot: int, via: String = "click") -> bool:
 		return false
 	var before: Dictionary = _snapshot()
 	var original: CardDefinition = run.start_setup.originals[slot]
-	_screen.profile.staple_swaps.resize(run.starter.core_cards.size())
-	_screen.profile.staple_swaps[slot] = &""
-	run.starter.core_cards[slot] = original
-	StartSetupRules.refresh_deck(run)
+	StartSetupRules.restore(run, _screen.profile, slot)
 	if not _commit(before):
 		return false
 	_log.log_event(
@@ -249,30 +274,34 @@ func regular_offer(slot: int, aisle_id: StringName) -> Array[CardDefinition]:
 	return []
 
 
-## LOCK IN & DEAL (StartSetupRules.lock_in) with `green` and `run_only`; `clicks`: the board's
-## status changes before it. Logs start_lock_in when `logged`.
-func lock_in(
-	green: Array[StringName], run_only: Array[StringName], clicks: int = 0, logged: bool = true
-) -> bool:
+## Changes green basket `basket`'s aisle to `aisle_id` (StartSetupRules.change_aisle), dealt on
+## that aisle's basket stream; saves the run and the profile's green pair, logs start_aisle.
+func change_aisle(basket: int, aisle_id: StringName) -> bool:
 	var run: RunState = _screen.run
 	var profile: ProfileState = _screen.profile
-	if StartSetupRules.lock_block(run, profile, green, run_only) != &"":
+	if StartSetupRules.aisle_block(run, profile, basket, aisle_id) != &"":
 		return false
-	var opened: Array[StringName] = run.start_setup.stock_aisles.duplicate()
 	var before: Dictionary = _snapshot()
-	var streams: Dictionary[StringName, RandomNumberGenerator] = {}
-	for source: StringName in StartSetupRules.basket_sources(run.balance, green):
-		streams[source] = _stream(run.run_seed, EventLogService.START_BASKET_STREAM % source)
-	var pack_rng: RandomNumberGenerator = _stream(
-		run.run_seed, EventLogService.STARTING_DECK_STREAM
+	var old: StartBasket = run.start_setup.baskets[basket].copy()
+	var kept: bool = not run.start_setup.dealt_set(aisle_id).is_empty()
+	var stream: RandomNumberGenerator = _stream(
+		run.run_seed, EventLogService.START_BASKET_STREAM % aisle_id
 	)
-	StartSetupRules.lock_in(run, profile, green, run_only, pack_rng, streams)
+	StartSetupRules.change_aisle(run, profile, basket, aisle_id, stream)
 	if not _commit(before):
 		return false
-	if logged:
-		var chosen: bool = StartSetupRules.choice_mode(run.balance, profile)
-		var changed: bool = run.start_setup.stock_aisles != opened
-		_log.log_event("start_lock_in", RunEvents.start_lock_in(run, chosen, changed, clicks))
+	_log.log_event("start_aisle", RunEvents.start_aisle(run, basket, old, kept))
+	return true
+
+
+## Marks first-seen flag `id` (a NEW tag, shown until its control is first used) and saves the
+## profile. False when already marked.
+func mark_seen(id: StringName) -> bool:
+	var profile: ProfileState = _screen.profile
+	if profile.seen.has(id):
+		return false
+	profile.seen.append(id)
+	_screen.save_profile()
 	return true
 
 

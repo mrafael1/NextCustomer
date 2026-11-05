@@ -1,20 +1,25 @@
 class_name StartSetup
 extends RefCounted
-## Saved opening-time choices (start screen, full build plan 7.2, reworked 2026-11-05).
-## StartSetupRules supplies the pure operations; the caller supplies the named random streams and
-## saves after each commitment. Serialization stays independent of the live run.
+## Saved opening-time choices (start screen, full build plan 7.2, reworked 2026-11-05; page 1
+## "Counter", v1.07). StartSetupRules supplies the pure operations; the caller supplies the named
+## random streams and saves after each commitment. Serialization stays independent of the live
+## run.
 ##
-## `stage` only moves forward: SELECT (today's aisles are being set, nothing dealt), REVEALED
-## (LOCK IN & DEAL dealt the baskets and drew the pack offer; the aisles are locked for the run),
-## BUILD (page 2 was opened once). `stock_aisles` are today's aisles: the STARTER CART (green)
-## aisles first, in data order, then the RUN ONLY (orange) one. `baskets` are the three baskets in
-## order: the Staples shelf's, then each green aisle's; their cards are empty in SELECT.
-## `restock_basket` is the basket the once-a-run RESTOCK redrew (-1: none). `regular_offers` holds
-## each regular slot's offer from one aisle ("<slot>:<aisle id>" → cards, data order), kept the
-## first time it is shown so reopening never rerolls it. `packs_redrawn`: NEW PACKS was used.
-## `originals` are the recipe's own regulars, `completed_count` the completed aisles when the run
-## started. A saved form without `stage` is the first build's (is_old_format): a run waiting for
-## its pick restarts its setup instead of converting it (RunSave).
+## `stage` only moves forward: SELECT (set up, nothing dealt yet: a new run is dealt at once, so
+## only a save from before v1.07 still waits here), REVEALED (the baskets and the pack offer are
+## dealt, face up), BUILD (page 2 was opened once). `stock_aisles` are today's aisles: the STARTER
+## CART (green) aisles first, in basket order, then the RUN ONLY (orange) one. `baskets` are the
+## three baskets in order: the Staples shelf's, then each green aisle's; their cards are empty in
+## SELECT. `dealt_sets` keeps each source's pair once dealt (source → cards), so a basket switched
+## to another aisle and back gets the same pair again (no free reroll). `restock_basket` is the
+## basket the once-a-run RESTOCK redrew (-1: none) and `restock_source` the source it redrew (the
+## RESTOCKED stamp follows the source). `regular_offers` holds each regular slot's offer from one
+## aisle ("<slot>:<aisle id>" → cards, data order), kept the first time it is shown so reopening
+## never rerolls it. `packs_redrawn`: NEW PACKS was used. `originals` are the recipe's own
+## regulars, `completed_count` the completed aisles when the run started. A saved form without
+## `stage` is the first build's (is_old_format): a run waiting for its pick restarts its setup
+## instead of converting it (RunSave). A save from before v1.07 has no `restock_source` and no
+## `dealt_sets`: they are taken from its baskets (_read_dealt).
 
 enum Stage { SELECT, REVEALED, BUILD }
 
@@ -28,12 +33,14 @@ var completed_count: int = 0
 var originals: Array[CardDefinition] = []
 var baskets: Array[StartBasket] = []
 var restock_basket: int = -1
+var restock_source: StringName = &""
+var dealt_sets: Dictionary[StringName, Array] = {}
 var regular_offers: Dictionary[String, Array] = {}
 var packs_redrawn: bool = false
 var picked: StringName = &""
 
 
-## The STARTER CART (green) aisles, data order.
+## The STARTER CART (green) aisles, basket order.
 func green_ids(balance: BalanceDefinition) -> Array[StringName]:
 	return stock_aisles.slice(0, balance.dealt_aisle_count)
 
@@ -59,6 +66,23 @@ func shared() -> Array[CardDefinition]:
 	return cards
 
 
+## Whether basket `index` holds its source's RESTOCKED pair (it wears the stamp).
+func restocked(index: int) -> bool:
+	return (
+		restock_source != &""
+		and index >= 0
+		and index < baskets.size()
+		and baskets[index].source == restock_source
+	)
+
+
+## Source `source`'s pair as last dealt this run (empty when never dealt).
+func dealt_set(source: StringName) -> Array[CardDefinition]:
+	var cards: Array[CardDefinition] = []
+	cards.assign(dealt_sets.get(source, []))
+	return cards
+
+
 ## The key of regular `slot`'s offer from aisle `aisle_id` in regular_offers.
 static func offer_key(slot: int, aisle_id: StringName) -> String:
 	return "%d:%s" % [slot, aisle_id]
@@ -80,6 +104,9 @@ func to_dictionary() -> Dictionary:
 	var offers: Dictionary = {}
 	for key: String in regular_offers:
 		offers[key] = _ids(regular_offer_from(key))
+	var sets: Dictionary = {}
+	for source: StringName in dealt_sets:
+		sets[String(source)] = _ids(dealt_set(source))
 	return {
 		"stage": stage_name(),
 		"stock_aisles": Array(stock_aisles),
@@ -87,6 +114,8 @@ func to_dictionary() -> Dictionary:
 		"originals": _ids(originals),
 		"baskets": saved_baskets,
 		"restock_basket": restock_basket,
+		"restock_source": String(restock_source),
+		"dealt_sets": sets,
 		"regular_offers": offers,
 		"packs_redrawn": packs_redrawn,
 		"picked": String(picked),
@@ -110,6 +139,9 @@ func copy() -> StartSetup:
 	for basket: StartBasket in baskets:
 		other.baskets.append(basket.copy())
 	other.restock_basket = restock_basket
+	other.restock_source = restock_source
+	for source: StringName in dealt_sets:
+		other.dealt_sets[source] = dealt_set(source)
 	for key: String in regular_offers:
 		other.regular_offers[key] = regular_offer_from(key)
 	other.packs_redrawn = packs_redrawn
@@ -154,7 +186,35 @@ static func from_dictionary(data: Dictionary, lookup: ContentLookup) -> StartSet
 		setup.regular_offers[key as String] = offers_reader.cards(key as String)
 	if not reader.ok or not offers_reader.ok or stage_index == -1:
 		return null
+	if not _read_dealt(setup, data, lookup):
+		return null
 	return setup if setup._is_valid(balance) else null
+
+
+## Reads v1.07's optional `restock_source` and `dealt_sets` into `setup`; a save from before them
+## takes the restocked basket's source and the baskets' own pairs. False when they are damaged.
+static func _read_dealt(setup: StartSetup, data: Dictionary, lookup: ContentLookup) -> bool:
+	var source: Variant = data.get("restock_source")
+	if source is String:
+		setup.restock_source = StringName(source as String)
+	elif source != null:
+		return false
+	elif setup.restock_basket >= 0 and setup.restock_basket < setup.baskets.size():
+		setup.restock_source = setup.baskets[setup.restock_basket].source
+	var sets: Variant = data.get("dealt_sets")
+	if sets == null:
+		for basket: StartBasket in setup.baskets:
+			if not basket.cards.is_empty():
+				setup.dealt_sets[basket.source] = basket.cards.duplicate()
+		return true
+	if not sets is Dictionary:
+		return false
+	var sets_reader: SaveReader = SaveReader.new(sets as Dictionary, lookup)
+	for key: Variant in (sets as Dictionary).keys():
+		if not key is String:
+			return false
+		setup.dealt_sets[StringName(key as String)] = sets_reader.cards(key as String)
+	return sets_reader.ok
 
 
 func _is_valid(balance: BalanceDefinition) -> bool:
@@ -163,7 +223,8 @@ func _is_valid(balance: BalanceDefinition) -> bool:
 	valid = valid and completed_count <= balance.aisles.size()
 	valid = valid and restock_basket >= -1 and restock_basket < baskets.size()
 	valid = valid and (restock_basket < 0 or completed_count >= balance.restock_min_completed)
-	return valid and _baskets_valid(balance) and _offers_valid(balance)
+	valid = valid and (restock_basket < 0) == (restock_source == &"")
+	return valid and _baskets_valid(balance) and _offers_valid(balance) and _dealt_valid(balance)
 
 
 ## The baskets: the Staples basket, then one per green aisle in order, each holding at most
@@ -184,6 +245,22 @@ func _baskets_valid(balance: BalanceDefinition) -> bool:
 		for card: CardDefinition in basket.cards:
 			if not _from_source(balance, basket.source, card) or basket.cards.count(card) != 1:
 				return false
+	return true
+
+
+## Each dealt pair: at most start_basket_size distinct cards of its source; a basket's own source
+## holds its cards.
+func _dealt_valid(balance: BalanceDefinition) -> bool:
+	for source: StringName in dealt_sets:
+		var cards: Array[CardDefinition] = dealt_set(source)
+		if cards.size() > balance.start_basket_size:
+			return false
+		for card: CardDefinition in cards:
+			if not _from_source(balance, source, card) or cards.count(card) != 1:
+				return false
+	for basket: StartBasket in baskets:
+		if dealt_sets.has(basket.source) and dealt_set(basket.source) != basket.cards:
+			return false
 	return true
 
 
