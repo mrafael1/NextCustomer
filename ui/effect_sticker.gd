@@ -73,7 +73,10 @@ const SLAP_SCALES: Array[Vector2] = [Vector2(1.2, 0.8), Vector2(0.92, 1.08)]
 ## The count's fire (#86 v6, mock-up count_up_86_v6_scan): a punch to 1 + FIRE_PUNCH easing back
 ## over FIRE_S, turned FIRE_TURN_DEG and back, brightened by FLASH for FLASH_S, then the check
 ## settles on the corner (from CHECK_POP over CHECK_SETTLE_S) at CHECK_AT. A giver's sparks
-## charge it (charge): a lighter punch, CHARGE_PUNCH over FIRE_S, with the flash.
+## charge it (charge): a lighter punch, CHARGE_PUNCH over FIRE_S, with the flash. A MULTIPLY
+## burst neither punches nor flashes (v1.00, the user's play test of 2026-11-05: its gold "×N"
+## blown up and flashed read as one more big multiplier pop-up at checkout): its fire only turns
+## it and settles the check, and a charge leaves it still.
 const FIRE_PUNCH := 0.55
 const FIRE_S := 0.3
 const FIRE_TURN_DEG := -6.0
@@ -327,7 +330,7 @@ func fire(reduced_motion: bool, make_tween: Callable = Callable()) -> void:
 	if tween == null:
 		_check.visible = true
 		return
-	tween.tween_method(_punch.bind(FIRE_PUNCH, true), 0.0, 1.0, FIRE_S)
+	tween.tween_method(_punch.bind(_punch_amount(FIRE_PUNCH), true), 0.0, 1.0, FIRE_S)
 	if _check.visible:
 		return
 	tween.tween_interval(maxf(CHECK_AT - FIRE_S, 0.0))
@@ -336,8 +339,10 @@ func fire(reduced_motion: bool, make_tween: Callable = Callable()) -> void:
 
 
 ## A giver's sparks reached it (#86 v6): a light punch with the flash, on `make_tween`'s tweens
-## when given; nothing under `reduced_motion`.
+## when given; nothing under `reduced_motion`, nor on a MULTIPLY burst (v1.00).
 func charge(reduced_motion: bool, make_tween: Callable = Callable()) -> void:
+	if _spec.kind == StickerSpec.Kind.MULTIPLY:
+		return
 	var tween: Tween = _start_motion(reduced_motion, make_tween)
 	if tween != null:
 		tween.tween_method(_punch.bind(CHARGE_PUNCH, false), 0.0, 1.0, FIRE_S)
@@ -456,6 +461,11 @@ func _start_motion(reduced_motion: bool, make_tween: Callable) -> Tween:
 		return null
 	_fire_tween = make_tween.call() as Tween if make_tween.is_valid() else create_tween()
 	return _fire_tween
+
+
+## How far a fire or charge of `amount` punches this sticker: none for a MULTIPLY burst (v1.00).
+func _punch_amount(amount: float) -> float:
+	return 0.0 if _spec.kind == StickerSpec.Kind.MULTIPLY else amount
 
 
 ## The punch at `progress` (0 to 1): scaled 1 + `amount` easing back to 1, turned (`turn`) from
