@@ -93,8 +93,11 @@ static func sub_line(inspected: bool, shift: int, payday: bool = false) -> Strin
 
 
 ## The title for a ticket with the small line `sub`: a payday's (Payday.TICKET_SUB) is the
-## PREMIUM TICKET (v0.68), any other the BONUS TICKET.
+## PREMIUM TICKET (v0.68), an over-quota one's (OvertimeWords.ticket_sub, v1.03) the OVERTIME
+## TICKET, any other the BONUS TICKET.
 static func title_for(sub: String) -> String:
+	if OvertimeWords.is_ticket_sub(sub):
+		return OvertimeWords.TICKET_TITLE
 	return Payday.TICKET_TITLE if sub == Payday.TICKET_SUB else TITLE
 
 

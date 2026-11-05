@@ -375,6 +375,7 @@ func _player(
 	if inspected_bonus:
 		balance.machine = live.machine.duplicate() as MachineDefinition
 		balance.machine.bonus_after_inspection = true
+	NoOvertime.apply(balance)  # Low quotas: no over-quota rewards (v1.03).
 	balance.upgrade_pool = live.upgrade_pool.duplicate()
 	balance.inspection_shifts = PackedInt32Array(inspection_shifts)
 	if not inspection_shifts.is_empty():

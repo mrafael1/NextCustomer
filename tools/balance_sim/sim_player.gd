@@ -229,7 +229,6 @@ func play(run_seed: int) -> SimRunRecord:
 	record.fitted_builds = _builds.fitted(final_cards)
 	var payout: CoinPayout = CoinPayout.for_run(run)
 	record.coins = payout.total()
-	record.overtime_coins = payout.overtime_coins
 	return record
 
 

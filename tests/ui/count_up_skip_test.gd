@@ -24,10 +24,13 @@ const FULL_ROW: Array[String] = ["eggs", "bread", "milk", "multipack", "milk", "
 const SOUND_QUOTA := 50
 
 var _folder: String = ""
+## The live machine, put back after each test (the passing rows make ×2 and more, v1.03).
+var _live_machine: MachineDefinition
 var _runner: GdUnitSceneRunner
 
 
 func before_test() -> void:
+	_live_machine = NoOvertime.live_off()
 	_folder = "user://test_logs_%d" % Time.get_ticks_usec()
 	_event_log().use_folder(_folder)
 	# The run and profile saves go there too, never to the real user:// saves.
@@ -35,6 +38,7 @@ func before_test() -> void:
 
 
 func after_test() -> void:
+	NoOvertime.live_restore(_live_machine)
 	Rush.restore()
 	ProjectSettings.set_setting(SaveService.FOLDER_SETTING, null)
 	if DirAccess.dir_exists_absolute(_folder):
@@ -372,6 +376,27 @@ static func _lines(receipt: ReceiptView) -> Array[String]:
 			texts.append((label as Label).text)
 		lines.append(" | ".join(texts))
 	return lines
+
+
+## With the over-quota rewards on (v1.03), a count tapped through and its dessert skipped still
+## shows the gauge's reward rows as it ends (the total landing shows them; they hold a moment):
+## the passing row makes ×3 on shift 1, so both rewards are earned.
+func test_a_skipped_count_still_shows_the_over_quota_rewards() -> void:
+	NoOvertime.live_restore(_live_machine)
+	_live_machine = null
+	var screen: ShiftScreen = await _screen()
+	_place_row(screen)
+	screen._on_checkout_pressed()
+	await _frames(3)
+	await _tap()
+	await _frames(2)
+	await _tap()
+	await _count_up_end(screen)
+	assert_bool(_last_event("count_up")["dessert_skipped"]).is_true()
+	assert_bool(screen.run.history[-1].overtime_premium).is_true()
+	var chip: OvertimeChip = screen._stage.quota_crossing.chip
+	assert_array(Array(chip.texts())).is_equal(["×2 +1 TICKET", "×3 PREMIUM TICKET"])
+	assert_bool(chip.visible).is_true()
 
 
 ## Plays `result` on the screen's row from the same context every time (shift 1, no best yet).

@@ -244,6 +244,8 @@ func _frame_ticket(plan: MachinePlan, t: float) -> void:
 
 
 func _ticket_sub(plan: MachinePlan) -> String:
+	if plan.overtime and view.run != null:  # v1.03: the OVERTIME ticket.
+		return OvertimeWords.ticket_sub(view.run.machine.machine)
 	var shift: int = view.run.shift_index + 1 if view.run != null else 0
 	var payday: bool = view.run != null and view.run.machine.is_payday(view.run)
 	return BonusTicket.sub_line(plan.inspected, shift, payday)

@@ -9,9 +9,12 @@ const Rush := preload("res://tests/ui/count_up_rush.gd")
 const BREAD := "res://data/cards/bread.tres"
 
 var _folder: String = ""
+## The live machine, put back after each test (the passing rows make ×2 and more, v1.03).
+var _live_machine: MachineDefinition
 
 
 func before_test() -> void:
+	_live_machine = NoOvertime.live_off()
 	_folder = "user://test_logs_%d" % Time.get_ticks_usec()
 	_event_log().use_folder(_folder)
 	# The profile save goes there too, never to the real user:// profile.
@@ -19,6 +22,7 @@ func before_test() -> void:
 
 
 func after_test() -> void:
+	NoOvertime.live_restore(_live_machine)
 	ProjectSettings.set_setting(SaveService.FOLDER_SETTING, null)
 	if DirAccess.dir_exists_absolute(_folder):
 		for file_name: String in DirAccess.get_files_at(_folder):

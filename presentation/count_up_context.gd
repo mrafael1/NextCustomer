@@ -36,6 +36,16 @@ var boon_names: PackedStringArray = PackedStringArray()
 ## (`start_total`, its steps' subtotals already past it: ScoreResult.continued).
 var more_rows: bool = false
 var start_total: int = 0
+## The over-quota rewards (v1.03, OvertimeTickets): what the shift's checkout made of the extra
+## ticket and of the PREMIUM transform (OvertimeTickets.State: NONE, EARNED, USED) and the laps
+## each needs, for the quota gauge's chip (OvertimeChip); and, when the shift's first extra visit
+## is the OVERTIME one (no BONUS visit), its ticket's small line, so the dessert prints its stub
+## ("" otherwise). The shift screen sets them after the checkout (OvertimeCue.dress).
+var overtime_ticket: int = 0
+var overtime_premium: int = 0
+var overtime_ticket_laps: int = 0
+var overtime_premium_laps: int = 0
+var overtime_stub: String = ""
 
 
 func _init(

@@ -14,13 +14,13 @@ replays every recorded run under a candidate curve and coin amounts, the way the
   rounding, half away from zero, never under 1);
 - a total under it on the training week (shifts up to the records' write_up_last_shift, never the
   last shift) is a slip the run forgives while it has had fewer than write_up_limit (TrainingWeek):
-  the shift isn't passed and earns no overtime, and the run goes on; any other miss loses the run.
+  the shift isn't passed, and the run goes on; any other miss loses the run.
   A replayed run that slipped is approximate: the recorded run (quota 0) got the machine visit the
   real game skips after a slip, so the report gives the share of runs that slipped, and the real
   win rate is measured by a simulator run on the fitted quotas;
 - the coins (CoinPayout): the table by shifts passed (a won run pays its last entry, whatever its
-  slips) plus one overtime coin per overtime_coin_euros of summed margin, at most
-  overtime_coin_max.
+  slips). The overtime coin went in v1.03 (a shift far over quota earns a machine ticket
+  instead); a record file from before it still reads, its overtime coin fields ignored.
 Records from before v0.96 hold no quota percents and no slip limits: they read as 0 % and no
 slips, with a warning. A recorded run that ended before the last shift without failing the
 candidate curve was cut by the quotas it was played with, so it can't be replayed; it is counted
@@ -37,8 +37,7 @@ The coins step by completed weeks (v0.96): a lost run that completed w weeks (sh
 week_length) pays the w-th step, nothing for none, and a won run the records' last table entry;
 of the non-decreasing steps up to it, those meeting the coin targets (the median run pays 1, a
 great run 2-3, 30 unlocks in 25-40 runs) are kept and the one nearest 32.5 runs to 30 unlocks is
-picked (the nearest of all when none meets them). The overtime coin is set so just over
---overtime-share (0.10) of the runs earn it (so a great run, the 90th percentile, can reach 3).
+picked (the nearest of all when none meets them).
 
 Options:
     --scenario=KEY       the scenario the curve is fitted to (default: greedy@sensible, else the
@@ -46,10 +45,7 @@ Options:
     --curve=A,B,...      evaluate this curve instead of fitting one
     --coins=A,B,...      evaluate this coin table (one entry per number of shifts passed, 0 to
                          the shift count) instead of fitting one
-    --overtime-euros=N   with --coins: the overtime coin's euros (0: no overtime coin; default the
-                         records' amount)
-    --overtime-max=N     with --coins: the most overtime coins a run pays (default the records')
-    --win=F --shift1=F --shift2=F --overtime-share=F   the fit's targets (see above)
+    --win=F --shift1=F --shift2=F   the fit's targets (see above)
     --report=PATH        the text report's file (default reports/quota_fit/report.txt)
     --json=PATH          also write the numbers as JSON
 
@@ -79,8 +75,6 @@ MIN_WON_RUN_COINS = 2
 UNLOCKS = 30
 # A great run is the 90th percentile of coins per run (decided with the user in #40).
 GREAT_RUN_PERCENTILE = 90
-# The share of runs whose shift-1 margin alone earns the overtime coin stays under this (#41).
-SHIFT1_OVERTIME_MAX = 0.02
 # Coin targets (plan 7.1, #41): the median run pays 1, a great run 3, and 30 unlocks take
 # 25-40 runs; the fit aims at the middle of that range.
 TARGET_RUNS = (25.0, 40.0)
@@ -126,8 +120,6 @@ class Run:
 class Records:
     quotas: list[int]
     coins_by_shifts_passed: list[int]
-    overtime_coin_euros: int
-    overtime_coin_max: int
     scenarios: dict[str, list[Run]]
     slips: Slips = field(default_factory=lambda: Slips(0, 0))
     week_length: int = 0
@@ -138,15 +130,10 @@ class Records:
 @dataclass
 class CoinRule:
     table: list[int]
-    overtime_euros: int
-    overtime_max: int
 
-    def coins(self, shifts_passed: int, overtime: int, won: bool = False) -> int:
+    def coins(self, shifts_passed: int, won: bool = False) -> int:
         index = len(self.table) - 1 if won else min(shifts_passed, len(self.table) - 1)
-        coins = self.table[index] if self.table else 0
-        if self.overtime_euros > 0:
-            coins += min(overtime // self.overtime_euros, self.overtime_max)
-        return coins
+        return self.table[index] if self.table else 0
 
 
 @dataclass
@@ -206,8 +193,6 @@ def load_records(path: Path) -> Records:
     return Records(
         quotas=[int(q) for q in data["quotas"]],
         coins_by_shifts_passed=[int(c) for c in data["coins_by_shifts_passed"]],
-        overtime_coin_euros=int(data["overtime_coin_euros"]),
-        overtime_coin_max=int(data["overtime_coin_max"]),
         scenarios=scenarios,
         slips=slips,
         week_length=int(data.get("week_length", 0)),
@@ -337,35 +322,31 @@ def win_rate(runs: list[Run], curve: list[int]) -> float:
 
 
 def fit_coins(
-    runs: list[Run], curve: list[int], overtime_share: float, overtime_max: int,
-    won_coins: int = WON_RUN_COINS, week_length: int = 0,
+    runs: list[Run], curve: list[int], won_coins: int = WON_RUN_COINS, week_length: int = 0,
 ) -> CoinRule:
     """Plan 7.1's coin shape for this curve, stepped by completed weeks (v0.96): a lost run that
     completed w weeks (shifts passed // `week_length`; every shift a week when 0) pays step w,
     nothing for none, a won run from MIN_WON_RUN_COINS up to `won_coins` (the records' amount);
     the steps never fall and stay at most the won run's amount.
-    The overtime coin's euros are set so about `overtime_share` of the runs earn it. Of the
-    candidates meeting the targets (the median run pays 1, a great run 2-3, 30 unlocks in 25-40
-    runs, the shift-1 margin alone earns the overtime coin in under 2% of runs), the one nearest
-    32.5 runs to 30 unlocks (ties: the one paying lost runs more); with none, the nearest of all."""
+    Of the candidates meeting the targets (the median run pays 1, a great run 2-3, 30 unlocks in
+    25-40 runs), the one nearest 32.5 runs to 30 unlocks (ties: the one paying lost runs more); with none, the nearest of all."""
     shifts = len(curve)
     length = week_length if week_length > 0 else 1
     weeks = max(math.ceil(shifts / length), 1)
     outcomes = [replay(run, curve) for run in runs]
-    euros = overtime_euros_for_share(outcomes, overtime_share)
     best: tuple[tuple[int, float, int, int], CoinRule] | None = None
     for won in range(min(MIN_WON_RUN_COINS, won_coins), won_coins + 1):
         for steps in coin_steps(weeks - 1, won):
             values = [0] + steps
             table = [values[min(passed // length, len(values) - 1)] for passed in range(shifts)]
-            rule = CoinRule(table + [won], euros, overtime_max)
+            rule = CoinRule(table + [won])
             stats = coin_stats(outcomes, rule)
             distance = abs(stats["runs_to_unlock_all"] - TARGET_RUNS_MIDDLE)
             key = (0 if meets_coin_targets(stats) else 1, distance, -sum(table), -won)
             if best is None or key < best[0]:
                 best = (key, rule)
     if best is None:
-        return CoinRule([0] * shifts + [won_coins], euros, overtime_max)
+        return CoinRule([0] * shifts + [won_coins])
     return best[1]
 
 
@@ -385,41 +366,19 @@ def meets_coin_targets(stats: dict[str, Any]) -> bool:
         stats["median"] == 1
         and 2 <= stats["great_run"] <= 3
         and TARGET_RUNS[0] <= stats["runs_to_unlock_all"] <= TARGET_RUNS[1]
-        and stats["shift1_overtime_share"] < SHIFT1_OVERTIME_MAX
     )
-
-
-def overtime_euros_for_share(outcomes: list[Outcome], share: float) -> int:
-    """The largest whole euros for which more than `share` of the runs earn an overtime coin
-    (the runs whose overtime reaches it), so a 90th-percentile run can earn it at 0.10. A share of
-    0 means no overtime coin (0 euros)."""
-    margins = sorted((o.overtime for o in outcomes), reverse=True)
-    if not margins or share <= 0:
-        return 0
-    earning = math.floor(share * len(margins)) + 1
-    if earning > len(margins):
-        return 1
-    return max(margins[earning - 1], 1)
 
 
 def coin_stats(outcomes: list[Outcome], rule: CoinRule) -> dict[str, Any]:
-    coins = [rule.coins(o.shifts_passed, o.overtime, o.won) for o in outcomes]
+    coins = [rule.coins(o.shifts_passed, o.won) for o in outcomes]
     mean = sum(coins) / len(coins) if coins else 0.0
     counts = Counter(coins)
-    overtime_runs = sum(
-        1 for o in outcomes if rule.overtime_euros > 0 and o.overtime >= rule.overtime_euros
-    )
-    shift1 = sum(
-        1 for o in outcomes if rule.overtime_euros > 0 and o.shift1_margin >= rule.overtime_euros
-    )
     return {
         "mean": mean,
         "median": nearest_rank(coins, 50),
         "great_run": nearest_rank(coins, GREAT_RUN_PERCENTILE),
         "runs_by_amount": [counts.get(a, 0) for a in range(max(coins, default=0) + 1)],
         "runs_to_unlock_all": UNLOCKS / mean if mean > 0 else -1.0,
-        "overtime_share": overtime_runs / len(outcomes) if outcomes else 0.0,
-        "shift1_overtime_share": shift1 / len(outcomes) if outcomes else 0.0,
     }
 
 
@@ -493,7 +452,7 @@ def upgrade_stats(
 ) -> dict[str, dict[str, Any]]:
     """Per upgrade, over the runs that owned it on a shift they played (an upgrade is owned from
     the shift after its pick): their win rate, the pass rate of the last two shifts among the runs
-    that reached them owning it, and the share of those runs earning the overtime coin."""
+    that reached them owning it."""
     counts: dict[str, Counter] = defaultdict(Counter)
     for run, outcome in zip(runs, outcomes):
         played = len(outcome.quotas)
@@ -506,9 +465,6 @@ def upgrade_stats(
             entry = counts[upgrade]
             entry["runs"] += 1
             entry["won"] += int(outcome.won)
-            entry["overtime"] += int(
-                rule.overtime_euros > 0 and outcome.overtime >= rule.overtime_euros
-            )
             for index in range(max(shifts - 2, first), min(played, shifts)):
                 entry["late_reached"] += 1
                 entry["late_passed"] += int(outcome.passes[index])
@@ -519,7 +475,6 @@ def upgrade_stats(
             "late_pass_rate": (
                 entry["late_passed"] / entry["late_reached"] if entry["late_reached"] else 0.0
             ),
-            "overtime_share": entry["overtime"] / entry["runs"],
         }
         for name, entry in sorted(counts.items())
     }
@@ -582,7 +537,7 @@ def format_report(
     lines.append("Quota fit (issue #41) - " + ("fitted" if fitted else "given") + f" curve for {scenario}")
     lines.append(
         f"Targets: shift 1 passed by {targets['shift1']:.0%}, shift 2 by {targets['shift2']:.0%} of the runs"
-        f" reaching it, win rate {targets['win']:.1%}; overtime coin for ~{targets['overtime_share']:.0%} of runs"
+        f" reaching it, win rate {targets['win']:.1%}"
     )
     lines.append(f"Recorded with quotas {records.quotas}")
     lines.append(
@@ -595,10 +550,7 @@ def format_report(
             " with no slips"
         )
     lines.append(f"Curve: {curve}")
-    lines.append(
-        f"Coins: table {rule.table} - one overtime coin per {rule.overtime_euros} euros of summed margin,"
-        f" at most {rule.overtime_max}"
-    )
+    lines.append(f"Coins: table {rule.table}")
     for warning in warnings(curve, results[scenario], targets):
         lines.append("WARNING: " + warning)
     for key, result in results.items():
@@ -628,11 +580,7 @@ def format_report(
             f"Coins per run: mean {coins['mean']:.2f} - median {coins['median']} - p90 {coins['great_run']}"
             f" (a great run) - {amounts}"
         )
-        lines.append(
-            f"Runs to 30 unlocks (30 / mean coins): {coins['runs_to_unlock_all']:.1f} - overtime coin"
-            f" {coins['overtime_share']:.1%} of runs - shift-1 margin alone earns it in"
-            f" {coins['shift1_overtime_share']:.1%}"
-        )
+        lines.append(f"Runs to 30 unlocks (30 / mean coins): {coins['runs_to_unlock_all']:.1f}")
         if result["inspections"]:
             lines.append("Inspection          Played  Failed  Fail rate  Share of inspected  Share of failures")
             for name, entry in result["inspections"].items():
@@ -641,11 +589,10 @@ def format_report(
                     f"  {entry['share_of_inspected']:18.1%}  {entry['share_of_failures']:17.1%}"
                 )
         if result["upgrades"]:
-            lines.append("Upgrade             Runs  Win rate  Last 2 shifts passed  Overtime coin")
+            lines.append("Upgrade             Runs  Win rate  Last 2 shifts passed")
             for name, entry in result["upgrades"].items():
                 lines.append(
                     f"{name:<19} {entry['runs']:4d}  {entry['win_rate']:8.1%}  {entry['late_pass_rate']:20.1%}"
-                    f"  {entry['overtime_share']:13.1%}"
                 )
         if result["cards"]:
             lines.append(
@@ -679,12 +626,9 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--scenario", default="")
     parser.add_argument("--curve", default="")
     parser.add_argument("--coins", default="")
-    parser.add_argument("--overtime-euros", type=int, default=None)
-    parser.add_argument("--overtime-max", type=int, default=None)
     parser.add_argument("--win", type=float, default=0.375)
     parser.add_argument("--shift1", type=float, default=0.97)
     parser.add_argument("--shift2", type=float, default=0.95)
-    parser.add_argument("--overtime-share", type=float, default=0.10)
     parser.add_argument("--report", default=str(DEFAULT_REPORT))
     parser.add_argument("--json", default="")
     try:
@@ -718,22 +662,14 @@ def main(argv: list[str]) -> int:
             table = parse_ints(args.coins, "coins")
             if len(table) != shifts + 1:
                 raise SystemExit(f"error: --coins needs {shifts + 1} values, got {len(table)}")
-            euros = records.overtime_coin_euros if args.overtime_euros is None else args.overtime_euros
-            cap = records.overtime_coin_max if args.overtime_max is None else args.overtime_max
-            rule = CoinRule(table, max(euros, 0), max(cap, 0))
+            rule = CoinRule(table)
         else:
-            cap = 1 if args.overtime_max is None else args.overtime_max
             won = records.coins_by_shifts_passed[-1] if records.coins_by_shifts_passed else WON_RUN_COINS
-            rule = fit_coins(
-                runs, curve, args.overtime_share, max(cap, 0), won, records.week_length
-            )
+            rule = fit_coins(runs, curve, won, records.week_length)
     except SystemExit as error:
         print(error, file=sys.stderr)
         return 2
-    targets = {
-        "win": args.win, "shift1": args.shift1, "shift2": args.shift2,
-        "overtime_share": args.overtime_share,
-    }
+    targets = {"win": args.win, "shift1": args.shift1, "shift2": args.shift2}
     results = {key: evaluate(scenario_runs, curve, rule) for key, scenario_runs in records.scenarios.items()}
     text = format_report(records, scenario, curve, rule, not args.curve, results, targets)
     print(text)
@@ -745,7 +681,6 @@ def main(argv: list[str]) -> int:
             Path(args.json).write_text(json.dumps({
                 "scenario": scenario, "curve": curve, "coins_by_shifts_passed": rule.table,
                 "warnings": warnings(curve, results[scenario], targets),
-                "overtime_coin_euros": rule.overtime_euros, "overtime_coin_max": rule.overtime_max,
                 "targets": targets, "results": results,
             }, indent=2), encoding="utf-8")
     except OSError as error:

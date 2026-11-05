@@ -61,6 +61,10 @@ var premium: bool = false
 ## BONUS (v0.53): the shift's ticket visit was PREMIUM too, so the machine is PREMIUM from the
 ## visit's start (no transform, no snap back to classic between the two visits).
 var premium_held: bool = false
+## v1.03: the extra ticket is the over-quota OVERTIME one (OvertimeTickets): on a BONUS plan, its
+## visit is an OVERTIME visit (shown as a BONUS visit with its own words, OvertimeWords); on a
+## TICKET plan with a stub, the stub is the OVERTIME ticket's. Texts only; same times.
+var overtime: bool = false
 ## Positioned at a wait point by resume_at(): the clock starts at `start` and nothing before it
 ## replays (every node shows the resume frame of build spec 4.3).
 var resumed: bool = false
@@ -176,6 +180,7 @@ func resume_at(point: int) -> MachinePlan:
 		copy.set_draw(rarities)
 	if has_landing:
 		copy.set_landing(landing, copies, next_visit)
+	copy.overtime = overtime
 	copy.resumed = true
 	copy.start = maxf(0.0, copy.wait_time(point))
 	return copy

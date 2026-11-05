@@ -16,6 +16,11 @@ extends Control
 ## - E, laps: from twice the quota on, each multiple reached (QuotaMeter.lap_reached) slams a ×N
 ##   stamp over the belt's start, beside the tube's top and clear of the receipt, with sparkles
 ##   and the ka-ching, shrinking away as the tube's badge names the next lap.
+## - F, over-quota rewards (v1.03): a lap reaching a reward's ×N (the extra ticket's ×2, the
+##   PREMIUM ticket's ×3) pops its row on the OvertimeChip under E's stamp (`chip`), earned or
+##   "used this week", as the count's context says (CountUp.run_context). As the total lands, the
+##   rows of every reward the total's laps reach show too (a lap a skip or a Double checkout's
+##   row 1 went past, v1.03 review). The rows hold past the count's end, then fade.
 ##
 ## Real time (the ding's hit-stop freezes the count, not these). Reduced motion keeps the sound,
 ## the lights and the stamp standing still for its time, with no dip, flash, streak, ring or
@@ -56,6 +61,9 @@ const STAMP_SLAM_SECONDS := 0.15
 const STAMP_SECONDS := 0.75
 const STAMP_FADE_SECONDS := 0.2
 const STAMP_TEXT := "×%d"
+## F: the chip's top left, CHIP_GAP_PX under E's stamp at rest, as far right of the register
+## tower as the stamp's slam (clear of the receipt and of the monitor on its right).
+const CHIP_GAP_PX := 12.0
 const GRID := 2.0
 const ART := ArtStyle.ART_SCALE
 
@@ -64,6 +72,8 @@ var item_rect: Callable = Callable()
 var meter: QuotaMeter
 var lights: BonusLights
 var reduced_motion: bool = false
+## F: the over-quota rewards' rows (v1.03).
+var chip: OvertimeChip
 
 var _count_up: CountUp
 ## A count is running (from count_started to the printer feed or its end): only then do the
@@ -98,6 +108,9 @@ func _init() -> void:
 	_flash.modulate.a = 0.0
 	_flash.show_behind_parent = true
 	add_child(_flash)
+	chip = OvertimeChip.new()
+	chip.visible = false
+	add_child(chip)
 	set_process(false)
 
 
@@ -110,6 +123,7 @@ func follow(count_up: CountUp, quota_meter: QuotaMeter, bonus_lights: BonusLight
 	count_up.count_started.connect(func(_views: Array[CardView]) -> void: begin())
 	count_up.beat_started.connect(_on_beat_started)
 	count_up.quota_met.connect(_on_quota_met)
+	count_up.total_landed.connect(_on_total_landed)
 	count_up.printer_feed.connect(end)
 	count_up.finished.connect(end)
 	quota_meter.lap_reached.connect(_on_lap_reached)
@@ -129,13 +143,17 @@ func begin() -> void:
 		lights.reduced_motion = func() -> bool: return reduced_motion
 		lights.clear()
 	_flash.modulate.a = 0.0
+	chip.clear()
+	chip.reduced_motion = reduced_motion
 	set_process(false)
 	queue_redraw()
 
 
-## The count ends: the lights fade; nothing else pops until the next count.
+## The count ends: the lights fade and the chip's rows hold a moment, then fade (so a skipped
+## dessert still shows them); nothing else pops until the next count.
 func end() -> void:
 	_counting = false
+	chip.fade_out()
 	if lights != null:
 		lights.fade()
 
@@ -339,6 +357,34 @@ func _on_quota_met(with_pop: bool) -> void:
 func _on_lap_reached(lap: int) -> void:
 	if _counting:
 		stamp_lap(lap)
+		show_rewards(lap)
+
+
+## F: the total landed: the rows of every reward its laps reach, any lap's pop missed.
+func _on_total_landed() -> void:
+	if _counting and meter != null:
+		show_rewards(meter.multiples_made())
+
+
+## F: the rows of the over-quota rewards `lap` laps reach (both at once when a lap jumps past
+## both), as the count's context states them; nothing without a context.
+func show_rewards(lap: int) -> void:
+	var context: CountUpContext = _count_up.run_context if _count_up != null else null
+	if context == null:
+		return
+	chip.position = chip_position()
+	for premium: bool in [false, true]:
+		var needed: int = context.overtime_premium_laps if premium else context.overtime_ticket_laps
+		if needed > 0 and lap >= needed:
+			var state: int = context.overtime_premium if premium else context.overtime_ticket
+			chip.show_reward(premium, state, STAMP_TEXT % needed)
+
+
+## F: the chip's top left in this layer: under E's stamp at rest, STAMP_BESIDE_PX right of the
+## register tower.
+func chip_position() -> Vector2:
+	var rest: Rect2 = stamp_rect()
+	return _snap(Vector2(ShiftStage.TOWER_RECT.end.x + STAMP_BESIDE_PX, rest.end.y + CHIP_GAP_PX))
 
 
 ## The flash: a warm glow round `centre` fading over FLASH_SECONDS.

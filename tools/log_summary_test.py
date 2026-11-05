@@ -676,6 +676,12 @@ class MachineTest(LogTestCase):
         summary = self.summary(path)
         machine = summary["machine"]
         self.assertEqual(machine["visit_kinds"], {"ticket": 2, "bonus": 2})
+        # v1.03: an OVERTIME visit (the over-quota extra ticket) is counted when present.
+        s.shift("m1", 3)
+        s.visit("m1", 3, "new_items", (("product", "eggs"),), picked=0)
+        s.visit("m1", 3, "new_items", (("product", "bread"),), picked=-1, kind="overtime")
+        overtime = self.summary(self.write("q.jsonl", s))["machine"]
+        self.assertEqual(overtime["visit_kinds"], {"ticket": 3, "bonus": 2, "overtime": 1})
         self.assertEqual(machine["visit_states"], {"classic": 2, "premium": 2})
         self.assertEqual(list(machine["chutes"]), ["new_items", "upgrade"])
         self.assertEqual(machine["chutes"]["upgrade"], ls.rate(3, 4))

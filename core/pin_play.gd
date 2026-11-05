@@ -76,8 +76,8 @@ static func set_day_off(run: RunState, pending: bool) -> bool:
 	return true
 
 
-## A day off's result: exactly the quota, with no slot and no step (no overtime, so no overtime
-## coins: CoinPayout).
+## A day off's result: exactly the quota, with no slot and no step (no lap over it, so no
+## over-quota reward: OvertimeTickets).
 static func day_off_result(run: RunState) -> ScoreResult:
 	var result: ScoreResult = ScoreResult.new()
 	result.total = run.quota()

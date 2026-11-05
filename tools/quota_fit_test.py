@@ -40,6 +40,7 @@ def make_records(scenarios: dict[str, list[dict]], quotas: list[int] | None = No
     return {
         "quotas": quotas or [0, 0, 0],
         "coins_by_shifts_passed": [0, 0, 1, 2],
+        # A record file from before v1.03 holds the overtime coin's fields: they're ignored.
         "overtime_coin_euros": 60,
         "overtime_coin_max": 1,
         "write_up_limit": slips[0],
@@ -151,10 +152,10 @@ class QuotaPercentTest(unittest.TestCase):
         outcome = qf.replay(run, [6, 10, 30])
         self.assertFalse(outcome.won)
         self.assertEqual(outcome.slips, 0)
-        text = qf.format_report(loaded, "s", [6, 10, 30], qf.CoinRule([0, 0, 1, 2], 0, 1), False,
+        text = qf.format_report(loaded, "s", [6, 10, 30], qf.CoinRule([0, 0, 1, 2]), False,
                                 {"s": qf.evaluate(loaded.scenarios["s"], [6, 10, 30],
-                                                  qf.CoinRule([0, 0, 1, 2], 0, 1))},
-                                {"win": 0.5, "shift1": 0.9, "shift2": 0.9, "overtime_share": 0.1})
+                                                  qf.CoinRule([0, 0, 1, 2]))},
+                                {"win": 0.5, "shift1": 0.9, "shift2": 0.9})
         self.assertIn("WARNING: records from before v0.96", text)
 
 
@@ -214,14 +215,14 @@ class SlipTest(unittest.TestCase):
         outcome = qf.replay(run, self.CURVE)
         self.assertTrue(outcome.won)
         self.assertEqual(outcome.shifts_passed, 4)
-        rule = qf.CoinRule([0, 0, 0, 0, 1, 1, 3], 0, 1)
+        rule = qf.CoinRule([0, 0, 0, 0, 1, 1, 3])
         self.assertEqual(qf.coin_stats([outcome], rule)["median"], 3)
-        self.assertEqual(rule.coins(4, 0), 1)
-        self.assertEqual(rule.coins(4, 0, True), 3)
+        self.assertEqual(rule.coins(4), 1)
+        self.assertEqual(rule.coins(4, True), 3)
 
     def test_slips_are_reported(self) -> None:
         runs = to_runs([make_run([5, 10, 10, 10, 10, 10]), make_run([10] * 6)], self.SLIPS)
-        result = qf.evaluate(runs, self.CURVE, qf.CoinRule([0] * 6 + [3], 0, 1))
+        result = qf.evaluate(runs, self.CURVE, qf.CoinRule([0] * 6 + [3]))
         self.assertEqual(result["slipped_share"], 0.5)
         self.assertEqual(result["shifts"][0]["pass_rate"], 0.5)
         self.assertEqual(result["shifts"][1]["reached"], 2)
@@ -229,28 +230,20 @@ class SlipTest(unittest.TestCase):
 
 
 class CoinTest(unittest.TestCase):
-    def test_coins_are_the_table_plus_capped_overtime(self) -> None:
-        rule = qf.CoinRule([0, 0, 1, 2], 60, 1)
-        self.assertEqual(rule.coins(1, 59), 0)
-        self.assertEqual(rule.coins(1, 60), 1)
-        self.assertEqual(rule.coins(3, 500), 3)
-        self.assertEqual(rule.coins(9, 0), 2)
-        self.assertEqual(qf.CoinRule([0, 0, 1, 2], 0, 1).coins(3, 500), 2)
-
-    def test_overtime_euros_keep_the_share_of_runs_earning_it(self) -> None:
-        outcomes = [qf.Outcome(3, True, margin, 0) for margin in range(0, 100, 10)]
-        # Just over 20% of 10 runs: 3 earn it, so the 80th percentile run does.
-        euros = qf.overtime_euros_for_share(outcomes, 0.2)
-        earning = sum(1 for o in outcomes if o.overtime >= euros)
-        self.assertEqual(earning, 3)
-        self.assertEqual(euros, 70)
+    def test_coins_are_the_table_alone(self) -> None:
+        # No overtime coin since v1.03: a run's margin pays nothing.
+        rule = qf.CoinRule([0, 0, 1, 2])
+        self.assertEqual(rule.coins(1), 0)
+        self.assertEqual(rule.coins(2), 1)
+        self.assertEqual(rule.coins(3), 2)
+        self.assertEqual(rule.coins(9), 2)
+        self.assertEqual(rule.coins(1, True), 2)
 
     def test_fitted_coins_keep_plan_7_1(self) -> None:
         runs = to_runs([make_run([10 + i, 20 + i, 30 + i], seed=i) for i in range(40)])
-        rule = qf.fit_coins(runs, [10, 25, 50], 0.10, 1)
+        rule = qf.fit_coins(runs, [10, 25, 50])
         self.assertEqual(rule.table[0], 0)
         self.assertIn(rule.table[-1], range(qf.MIN_WON_RUN_COINS, qf.WON_RUN_COINS + 1))
-        self.assertEqual(rule.overtime_max, 1)
         self.assertTrue(all(b >= a for a, b in zip(rule.table, rule.table[1:])))
 
     def test_coin_steps_never_fall(self) -> None:
@@ -265,7 +258,7 @@ class CoinTargetTest(unittest.TestCase):
         # (median 2): the nearest to 32.5 runs pays a win the fewest, 2.
         entries = [make_run([10, 10, 10, 10], seed=i) for i in range(90)]
         entries += [make_run([0, 10, 10, 10], seed=100 + i) for i in range(10)]
-        rule = qf.fit_coins(to_runs(entries), [5, 5, 5, 5], 0.0, 1, won_coins=3, week_length=2)
+        rule = qf.fit_coins(to_runs(entries), [5, 5, 5, 5], won_coins=3, week_length=2)
         self.assertEqual(rule.table[-1], qf.MIN_WON_RUN_COINS)
 
 
@@ -276,7 +269,7 @@ class CoinTargetTest(unittest.TestCase):
         entries += [make_run([10, 0, 10, 10], seed=100 + i) for i in range(30)]
         entries += [make_run([10, 10, 0, 10], seed=200 + i) for i in range(30)]
         runs = to_runs(entries)
-        rule = qf.fit_coins(runs, [5, 5, 5, 5], 0.0, 1, won_coins=2, week_length=2)
+        rule = qf.fit_coins(runs, [5, 5, 5, 5], won_coins=2, week_length=2)
         # Paying 1 a completed week: mean (30 + 80) / 100 = 1.1 coins, 27 runs to 30 unlocks,
         # median 1, p90 2. Paying 0 has median 0, paying 2 median 2.
         self.assertEqual(rule.table, [0, 0, 1, 1, 2])
@@ -307,7 +300,7 @@ class FitTest(unittest.TestCase):
     def test_the_shift_targets_hold_and_the_curve_rises(self) -> None:
         runs = self.runs()
         curve = qf.fit_curve(runs, 3, 0.5, 0.97, 0.95)
-        result = qf.evaluate(runs, curve, qf.CoinRule([0, 0, 1, 2], 0, 1))
+        result = qf.evaluate(runs, curve, qf.CoinRule([0, 0, 1, 2]))
         self.assertGreaterEqual(result["shifts"][0]["pass_rate"], 0.97)
         self.assertGreaterEqual(result["shifts"][1]["pass_rate"], 0.95)
         self.assertTrue(all(b > a for a, b in zip(curve, curve[1:])))
@@ -318,14 +311,14 @@ class FitTest(unittest.TestCase):
         curve = qf.fit_curve(runs, 3, 0.5, 0.97, 0.95)
         raised = list(curve)
         raised[0] += 1
-        self.assertLess(qf.evaluate(runs, raised, qf.CoinRule([0], 0, 0))["shifts"][0]["pass_rate"], 0.97)
+        self.assertLess(qf.evaluate(runs, raised, qf.CoinRule([0]))["shifts"][0]["pass_rate"], 0.97)
 
     def test_inspections_and_upgrades_are_reported(self) -> None:
         entries = [
             make_run([10, 30, 40], upgrades=["slot_engine", "", ""], inspections=["", "", "spot_check"], seed=1),
             make_run([10, 5, 40], upgrades=["", "", ""], inspections=["", "short_belt", ""], seed=2),
         ]
-        result = qf.evaluate(to_runs(entries), [5, 10, 20], qf.CoinRule([0, 0, 1, 2], 0, 1))
+        result = qf.evaluate(to_runs(entries), [5, 10, 20], qf.CoinRule([0, 0, 1, 2]))
         self.assertEqual(result["inspections"]["short_belt"]["failed"], 1)
         self.assertEqual(result["inspections"]["spot_check"]["failed"], 0)
         self.assertEqual(result["upgrades"]["slot_engine"]["runs"], 1)
@@ -361,7 +354,7 @@ class CommandLineTest(unittest.TestCase):
             report = Path(folder) / "report.txt"
             data = Path(folder) / "fit.json"
             status, text = self.run_main([
-                str(records), "--curve=5,10,20", "--coins=0,0,1,2", "--overtime-euros=0",
+                str(records), "--curve=5,10,20", "--coins=0,0,1,2",
                 f"--report={report}", f"--json={data}",
             ])
             self.assertEqual(status, 0)
@@ -383,8 +376,9 @@ class CommandLineTest(unittest.TestCase):
             self.assertEqual(status, 0)
             self.assertIn("WARNING: shift 2 passed by 50.0%, under its 95% target", text)
             self.assertIn("WARNING: shift 2's quota 6 is held at the previous quota + 1", text)
-            # --coins without --overtime-euros keeps the records' overtime coin (60 euros).
-            self.assertIn("one overtime coin per 60 euros", text)
+            # The records' old overtime coin fields are ignored (v1.03).
+            self.assertIn("Coins: table [0, 0, 1, 2]", text)
+            self.assertNotIn("overtime", text.lower())
 
     def test_help_exits_0(self) -> None:
         self.assertEqual(self.run_main(["--help"])[0], 0)

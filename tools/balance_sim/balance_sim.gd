@@ -881,8 +881,6 @@ func _write_records() -> int:
 		"options": _simulation_options(),
 		"quotas": Array(_balance.quotas),
 		"coins_by_shifts_passed": Array(_balance.coins_by_shifts_passed),
-		"overtime_coin_euros": _balance.overtime_coin_euros,
-		"overtime_coin_max": _balance.overtime_coin_max,
 		"write_up_limit": _balance.write_up_limit,
 		"write_up_last_shift": _balance.write_up_last_shift,
 		"week_length": _balance.week_length,

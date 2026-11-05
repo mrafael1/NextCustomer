@@ -1,15 +1,17 @@
 class_name MachineVisit
 extends RefCounted
-## One visit to the RECEIPT REWARDS machine (#77, build spec 2.2): the shift's ticket or the
-## inspection's bonus ticket, CLASSIC or PREMIUM (#108), the chute chosen, the prizes drawn and what
+## One visit to the RECEIPT REWARDS machine (#77, build spec 2.2): the shift's ticket, the
+## inspection's bonus ticket or the over-quota OVERTIME ticket (2026-11-05, OvertimeTickets),
+## CLASSIC or PREMIUM (#108), the chute chosen, the prizes drawn and what
 ## was done with them. RewardMachine fills it in and appends it to the shift's ShiftRecord.visits at
 ## the pick or bin; to_dictionary is the form the run save and the event log use.
 
-enum Kind { TICKET, BONUS }
+## OVERTIME (2026-11-05): the extra CLASSIC ticket of a shift that made its overtime laps.
+enum Kind { TICKET, BONUS, OVERTIME }
 
 ## Kind names, as saved (STAMP DAY's "stamp_day" went in v0.61; RunSaveMigration turns it into a
 ## ticket).
-const KIND_NAMES: Array[String] = ["ticket", "bonus"]
+const KIND_NAMES: Array[String] = ["ticket", "bonus", "overtime"]
 ## RewardMachine.Chute names, as saved and logged (v0.61; before it "coupons", "register" and
 ## "upgrades", which RunSaveMigration renames).
 const CHUTE_NAMES: Array[String] = ["new_items", "upgrade"]
@@ -22,7 +24,8 @@ var chute: int = NO_CHUTE
 ## two, v0.68), or "" for an uninspected shift. A BONUS visit's; a TICKET visit's is "".
 var why: String = ""
 ## A PREMIUM visit (#108: every drop at least RARE, products at least BIG), decided when it starts:
-## the ticket's and the BONUS visit after a premium shift.
+## the ticket's and the BONUS visit after a premium shift, and the ticket's after a shift that made
+## its overtime premium laps (OvertimeTickets). An OVERTIME visit is always CLASSIC.
 var premium: bool = false
 ## The prizes in reveal order (rarity ascending, drop order within a rarity).
 var prizes: Array[MachinePrize] = []

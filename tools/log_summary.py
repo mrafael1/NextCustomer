@@ -78,6 +78,8 @@ OFFER_KINDS = ("rack", "reward", "upgrade", "machine")
 MACHINE_CHUTES = ("new_items", "upgrade")
 LEGACY_MACHINE_CHUTES = ("coupons", "register", "upgrades")
 MACHINE_VISIT_KINDS = ("ticket", "bonus")
+# v1.03's over-quota extra ticket, reported when present (so logs without it read as before).
+OVERTIME_VISIT_KINDS = ("overtime",)
 LEGACY_MACHINE_VISIT_KINDS = ("stamp_day",)
 # machine_visit's `state` (#108: classic, premium); machine logs before v0.47 have none.
 MACHINE_VISIT_STATES = ("classic", "premium")
@@ -1093,8 +1095,8 @@ def machine_summary(runs: list[Run]) -> dict:
                           if card_id.endswith(TIER_SUFFIXES)})
     return {
         "visits": len(visits),
-        "visit_kinds": {kind: by_kind[kind] for kind in
-                        present(MACHINE_VISIT_KINDS, LEGACY_MACHINE_VISIT_KINDS, by_kind)},
+        "visit_kinds": {kind: by_kind[kind] for kind in present(
+            MACHINE_VISIT_KINDS, OVERTIME_VISIT_KINDS + LEGACY_MACHINE_VISIT_KINDS, by_kind)},
         "visit_states": {state: by_state[state] for state in
                          present(MACHINE_VISIT_STATES, LEGACY_MACHINE_VISIT_STATES, by_state)},
         "stateless": by_state["?"],

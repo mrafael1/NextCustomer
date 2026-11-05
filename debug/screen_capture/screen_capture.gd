@@ -70,6 +70,7 @@ extends Control
 ## the shift, as a tapped week chip opens it; the file is shift_screen_week_<width>x<height>.png.
 ## `--week=paid` or `--week=slip` first records the shift as passed or missed and shows the card
 ## as the verdict stamps it (v0.72; shift_screen_week_paid_<width>x<height>.png).
+## With `--laps=<n>[,used]` (v1.03) --checkout's row makes n laps of its quota (CaptureOvertime).
 ## With `--toys=<spec>` (#121) the TOY MACHINES open over the shift (see CaptureToys).
 ## With `--cheer` (#120) the fixed shift is checked out and frozen mid-count with a crowd of
 ## CHEER_TIERS' standees (mixed sizes, the newest still cheering) behind the counter; the file is
@@ -494,6 +495,7 @@ func stack(fan: bool) -> void:
 func checkout(seconds: float) -> void:
 	for _frame: int in range(SCAN_SETTLE_FRAMES):
 		await get_tree().process_frame
+	CaptureOvertime.before_checkout(_screen.run)  # --laps (v1.03).
 	# As the debug panel's checkout (ShiftDebug): the player's press.
 	_screen._on_checkout_pressed()
 	_checkout_s = seconds
@@ -546,6 +548,7 @@ func capture(folder: String) -> void:
 		+ _day_part
 		+ _slip_part
 		+ CapturePins.file_part()
+		+ CaptureOvertime.file_part()
 		+ CaptureWeeks.file_part()
 	)
 	var path: String = folder.path_join(FILE_NAME % [prefix, window.x, window.y])
@@ -761,6 +764,7 @@ func _fill_cart(run: RunState) -> void:
 ## - premium (v0.50; v0.61 a rarity boost): the shift's ticket visit is PREMIUM, so the machine
 ##   turns PREMIUM;
 ## - weekodds: shift 1's week event raises the odds a level (the stock window's week odds);
+## - overtime, x3 (v1.03): the row makes ×2 (the OVERTIME visit shown) or ×3 (CaptureOvertime);
 ## - rm: reduced motion; resume: the visit as a resumed run shows it (at its wait point, no
 ##   replay; with a chute, the run was saved after that chute's draw: resumed at the pick).
 ## The seconds count from the last step: the machine's open, the choice, or the pick. A spec
@@ -842,6 +846,7 @@ func _check_out_machine_shift(run: RunState, options: PackedStringArray) -> bool
 		run.machine.machine.register_cap = 0  # The card is full: only level-ups.
 	for card_id: String in MACHINE_ROW_IDS:
 		run.place(run.debug_add_to_hand(_card(card_id)), run.row.size())
+	CaptureOvertime.before_machine_checkout(run, options)  # overtime, x3 (v1.03).
 	run.checkout()
 	if options.has("bonus"):
 		# Live data gives an inspection no bonus ticket since v0.68 (Payday): a machine copy does.
@@ -862,6 +867,7 @@ func _check_out_machine_shift(run: RunState, options: PackedStringArray) -> bool
 	var wanted: int = MachineVisit.Kind.TICKET
 	if options.has("bonus"):
 		wanted = MachineVisit.Kind.BONUS
+	wanted = CaptureOvertime.after_machine_checkout(run, options, wanted)
 	var visit: MachineVisit = run.machine.current_visit()
 	if visit == null or visit.kind != wanted:
 		_report("No %s visit to show" % MachineVisit.KIND_NAMES[wanted])

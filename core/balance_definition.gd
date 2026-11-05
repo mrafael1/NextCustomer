@@ -76,10 +76,6 @@ extends Resource
 ## passed: index 0 to the number of shifts. A won run pays the last entry, whatever its slips
 ## (v0.68). Shorter tables use their last entry.
 @export var coins_by_shifts_passed: PackedInt32Array = PackedInt32Array()
-## Overtime coins: one per this many euros over quota, summed over the passed shifts (0: none).
-@export var overtime_coin_euros: int = 0
-## The most overtime coins one run pays.
-@export var overtime_coin_max: int = 0
 ## Coins one capsule costs at the TOY MACHINES (full build plan 7.1, #63).
 @export var capsule_price: int = 0
 ## The badge slots a profile wears pins in (#122, full build plan 7.4).
