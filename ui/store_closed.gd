@@ -2,7 +2,8 @@ class_name StoreClosed
 extends Control
 ## The store closes behind the run's final receipt (#56, results option 2 "Store closed"): the
 ## lights go down over the shift screen, a roller shutter rolls down from the window's top over
-## the top bar and the store, with a CLOSED sign hanging on it, and a warm lamp lights the
+## the top bar and the store to the window's bottom edge, at any window size, with a CLOSED sign
+## hanging on it near the top, and a warm lamp lights the
 ## receipt (`focus`). ResultsPanel owns it, behind itself, over the whole window. Decor only: it
 ## takes no clicks, so the top bar's Cart and ☰ stay clickable through the shutter (full build
 ## plan 6.1), and the shift screen's shade, below the top bar, keeps the store unpressable.
@@ -11,8 +12,6 @@ extends Control
 const DARK_S := 0.4
 const SHUTTER_S := 0.9
 const DARK := Color(Palette.CHARCOAL, 0.72)
-## The shutter stops this share of the window's height down.
-const SHUTTER_STOP := 0.72
 ## Its slats: the slat, its shadow line and its lit line, in pixels, top to bottom.
 const SLAT := 18.0
 const SLAT_SHADOW := 3.0
@@ -25,9 +24,10 @@ const SIGN_TEXT := "CLOSED"
 const SIGN_FONT_SIZE := 34
 const SIGN_PADDING := Vector2(20, 6)
 const SIGN_TILT := -6.0
-## The sign hangs from the shutter at this x, and its top this far above the shutter's foot.
+## The sign hangs from the shutter at this x, its top this far down the window once closed (it
+## rides down with the shutter as it rolls, so it stays near the top at any window height).
 const SIGN_X := 76.0
-const SIGN_ABOVE_FOOT := 400.0
+const SIGN_TOP := 118.0
 const SIGN_STRING := 18.0
 const LAMP := Color(Palette.MUSTARD_PALE, 0.24)
 ## The lamp's pool is this much larger than the receipt.
@@ -81,9 +81,20 @@ func shutter() -> float:
 	return _shutter
 
 
-## The shutter's foot, in local coordinates.
+## The shutter's foot, in local coordinates: the window's bottom edge once closed.
 func shutter_foot() -> float:
-	return size.y * SHUTTER_STOP * _shutter
+	return size.y * _shutter
+
+
+## The CLOSED sign's bounds, its tilted board and its strings, in global coordinates (for tests).
+func sign_rect() -> Rect2:
+	var board: Vector2 = _sign_board()
+	var top: float = _sign_top()
+	var turn: Transform2D = Transform2D(deg_to_rad(SIGN_TILT), Vector2(SIGN_X, top))
+	var bounds: Rect2 = Rect2(Vector2(SIGN_X + board.x / 2.0, top - SIGN_STRING), Vector2.ZERO)
+	for corner: Vector2 in [Vector2.ZERO, Vector2(board.x, 0), board, Vector2(0, board.y)]:
+		bounds = bounds.expand(turn * corner)
+	return get_global_transform() * bounds
 
 
 func _set_dark(value: float) -> void:
@@ -101,7 +112,7 @@ func _draw() -> void:
 	var foot: float = shutter_foot()
 	if foot > 0.0:
 		_draw_shutter(foot)
-		_draw_sign(foot)
+		_draw_sign()
 	if focus.has_area():
 		var local: Rect2 = get_global_transform().affine_inverse() * focus
 		var pool: Vector2 = local.size * LAMP_GROW
@@ -133,13 +144,10 @@ func _band(top: float, height: float, color: Color) -> void:
 		draw_rect(Rect2(0, from, size.x, top + height - from), color)
 
 
-func _draw_sign(foot: float) -> void:
+func _draw_sign() -> void:
 	var font: Font = ArtStyle.DISPLAY_FONT
-	var text: Vector2 = font.get_string_size(
-		SIGN_TEXT, HORIZONTAL_ALIGNMENT_LEFT, -1, SIGN_FONT_SIZE
-	)
-	var board: Vector2 = text + 2.0 * SIGN_PADDING
-	var top: float = foot - SIGN_ABOVE_FOOT
+	var board: Vector2 = _sign_board()
+	var top: float = _sign_top()
 	if top + board.y < 0.0:
 		return
 	var hook: Vector2 = Vector2(SIGN_X + board.x / 2.0, top - SIGN_STRING)
@@ -155,3 +163,16 @@ func _draw_sign(foot: float) -> void:
 		font, baseline, SIGN_TEXT, HORIZONTAL_ALIGNMENT_LEFT, -1, SIGN_FONT_SIZE, Palette.PAPER
 	)
 	draw_set_transform(Vector2.ZERO)
+
+
+## The sign's board: its text and padding.
+func _sign_board() -> Vector2:
+	var text: Vector2 = ArtStyle.DISPLAY_FONT.get_string_size(
+		SIGN_TEXT, HORIZONTAL_ALIGNMENT_LEFT, -1, SIGN_FONT_SIZE
+	)
+	return text + 2.0 * SIGN_PADDING
+
+
+## The sign's top, local: SIGN_TOP once closed, higher (off the top) while the shutter rolls.
+func _sign_top() -> float:
+	return shutter_foot() - size.y + SIGN_TOP

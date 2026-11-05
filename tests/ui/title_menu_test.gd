@@ -9,7 +9,7 @@ const BALANCE := "res://data/balance/balance.tres"
 
 
 func _menu(saved: bool) -> TitleMenu:
-	var menu: TitleMenu = auto_free(TitleMenu.new(saved, "SHIFT 5/12", 59))
+	var menu: TitleMenu = auto_free(TitleMenu.new(saved, "SHIFT 5/16", 59))
 	add_child(menu)
 	return menu
 
@@ -29,7 +29,7 @@ func test_the_plates_stand_on_the_brick() -> void:
 	)
 	var primary: MenuPlate = menu.plate(TitleMenu.Entry.PRIMARY)
 	assert_str(primary.caption).is_equal("CONTINUE")
-	assert_str(primary.sub_line).is_equal("SHIFT 5/12")
+	assert_str(primary.sub_line).is_equal("SHIFT 5/16")
 	assert_float(menu.plate(TitleMenu.Entry.NEW_RUN).position.y).is_equal(96.0)
 	var rewards: MenuPlate = menu.plate(TitleMenu.Entry.REWARDS)
 	assert_float(rewards.position.y).is_equal(152.0)
@@ -200,8 +200,8 @@ func test_the_new_run_question_never_abandons_on_a_bare_enter() -> void:
 	var heard: Array[String] = []
 	confirm.abandon_confirmed.connect(func() -> void: heard.append("abandon"))
 	confirm.kept.connect(func() -> void: heard.append("kept"))
-	confirm.open("SHIFT 3/12 WILL BE LOST")
-	assert_str(confirm.lost_label().text).is_equal("SHIFT 3/12 WILL BE LOST")
+	confirm.open("SHIFT 3/16 WILL BE LOST")
+	assert_str(confirm.lost_label().text).is_equal("SHIFT 3/16 WILL BE LOST")
 	var sheet: Rect2 = confirm.sheet().get_global_rect()
 	for plate: MenuPlate in [confirm.abandon_plate(), confirm.keep_plate()]:
 		assert_bool(sheet.encloses(plate.get_global_rect())).is_true()
@@ -210,7 +210,7 @@ func test_the_new_run_question_never_abandons_on_a_bare_enter() -> void:
 	confirm.handle_key(_key(KEY_ESCAPE))
 	assert_array(heard).is_equal(["kept"])
 	assert_bool(confirm.is_open()).is_false()
-	confirm.open("SHIFT 3/12 WILL BE LOST")
+	confirm.open("SHIFT 3/16 WILL BE LOST")
 	confirm.handle_key(_key(KEY_RIGHT))
 	assert_bool(confirm.abandon_plate().is_lit()).is_true()
 	confirm.handle_key(_key(KEY_RIGHT))
@@ -241,7 +241,7 @@ func test_a_key_moves_the_light_off_a_hovered_plate() -> void:
 	var confirm: AbandonConfirm = auto_free(AbandonConfirm.new())
 	confirm.still = true
 	add_child(confirm)
-	confirm.open("SHIFT 3/12 WILL BE LOST")
+	confirm.open("SHIFT 3/16 WILL BE LOST")
 	_hover(confirm.abandon_plate())
 	confirm.handle_key(_key(KEY_RIGHT))
 	assert_bool(confirm.abandon_plate().is_lit()).is_false()
@@ -276,7 +276,7 @@ func test_the_words_are_hard_pixel_text() -> void:
 	confirm.still = true
 	add_child(confirm)
 	confirm.size = Vector2(1280, 720)
-	confirm.open("SHIFT 3/12 WILL BE LOST")
+	confirm.open("SHIFT 3/16 WILL BE LOST")
 	await get_tree().process_frame
 	var words: Array[Label] = []
 	for root: Node in [menu, rewards, confirm] as Array[Node]:
@@ -290,7 +290,8 @@ func test_the_words_are_hard_pixel_text() -> void:
 	var texts: Array[String] = []
 	for label: Label in words:
 		texts.append(label.text)
-		assert_int(label.texture_filter).is_equal(CanvasItem.TEXTURE_FILTER_NEAREST)
+		assert_int(label.texture_filter).is_equal(CanvasItem.TEXTURE_FILTER_LINEAR)
+		assert_object(label.material).is_same(ArtStyle.pixel_material())
 		assert_int(label.get_theme_font_size("font_size")).is_equal(ArtStyle.PIXEL_TEXT_SIZE)
 		assert_bool(label.scale.x in [2.0, 4.0]).is_true()
 		var at: Vector2 = label.get_global_transform().origin

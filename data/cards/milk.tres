@@ -20,6 +20,7 @@ base = 4
 rules = Array[ExtResource("1_ivcki")]([SubResource("Resource_8j62u")])
 rule_text = "+1 for each earlier Breakfast item"
 sticker_text = "+{bonus_each} per earlier {tag}"
+monitor_text = "Gets +{bonus_each} for each earlier {tag} item."
 generally_useful = true
 art_ref = "res://art/items_v2/milk.png"
 mini_art_ref = "res://art/minis/milk.png"

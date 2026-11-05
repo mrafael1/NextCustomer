@@ -167,7 +167,7 @@ static func _scan(state: ScoreState, slot: int, registers: Array, checks: Array)
 					)
 	if has_upgrades:
 		value = _upgrade_flat_bonuses(state, slot, value, registers)
-	# Then the shift's day events' (v0.69: Late delivery's -€2, Happy hour's +€3).
+	# Then the shift's day events' (v0.69: Late delivery's -2€, Happy hour's +3€).
 	var inspection_rules: Array[InspectionRule] = checks[1]
 	var has_checks: bool = not inspection_rules.is_empty()
 	if has_checks:

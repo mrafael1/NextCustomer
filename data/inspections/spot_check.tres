@@ -7,13 +7,13 @@
 [sub_resource type="Resource" id="Resource_nth_slot"]
 script = ExtResource("2_nth_slot")
 slot_number = 3
-receipt_text = "slot 3 pays €0"
+receipt_text = "slot 3 pays 0€"
 
 [resource]
 script = ExtResource("3_inspection")
 id = &"spot_check"
 display_name = "Spot check"
-notice_text = "Slot 3 pays €0"
-chip_text = "Slot 3 pays €0"
+notice_text = "Slot 3 pays 0€"
+chip_text = "Slot 3 pays 0€"
 icon_ref = "res://art/icons/padlock.png"
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_nth_slot")])

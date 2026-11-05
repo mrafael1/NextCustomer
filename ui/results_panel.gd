@@ -6,24 +6,30 @@ extends PanelContainer
 ## loyalty card is stapled to the receipt's top-right corner, beside the headline, so it covers
 ## no line. When the coin lines start printing, the coins clink (#62) and the music ducks for
 ## them (ShiftMusic.coins_printing), so both follow the print, a skipped one too. It only shows
-## the run; New run, Toy machines and Export log are reported to the shift screen. New run and
-## Toy machines (#63: the TOY MACHINES, where coins buy capsules) can be clicked mid-print, once
-## armed; Toy machines first prints the rest at once (a skip), so nothing keeps printing, nor
-## reading presses, behind the full-screen machines.
+## the run; Return to menu and Export log are reported to the shift screen. Return to menu can be
+## clicked mid-print, once armed; it first prints the rest at once (a skip), so nothing keeps
+## printing, nor reading presses, as the screen leaves for the title (where the TOY MACHINES
+## are, #63).
 ##
 ## Behind the receipt the store closes (#56, results option 2): StoreClosed covers the whole
-## window, the top bar too, so the receipt no longer reads as the last shift's screen. It takes no
+## window, the top bar too, its shutter down to the window's bottom edge, so the receipt no longer
+## reads as the last shift's screen. It takes no
 ## clicks (the shift screen's shade under it does, below the top bar), so Cart and ☰ stay
 ## clickable. The profile's reduced motion (`reduced_motion`) shows the store closed at once.
+##
+## A run that reached its second week (v0.96: 16 shifts in 4 weeks) prints in two week columns
+## (FinalReceipt.uses_columns): the first half of its weeks on the left, the rest on the right,
+## each under its header, a tab in the week's colour (WeekCard.colour_of); the rules, the
+## shortfall and the coins span both columns, and the lines print down the left column, then the
+## right one, then the coins.
 
-signal new_run_requested
+signal menu_requested
 signal export_requested
-signal toy_machines_requested
 
-## New run (and Toy machines) arm this long after the panel appears, once the mouse is up, like
-## the machine's picks: the click that ended the run never starts a new one.
+## Return to menu arms this long after the panel appears, once the mouse is up, like the
+## machine's picks: the click that ended the run never leaves the results.
 const ARM_MS := 350
-const TOY_MACHINES_TEXT := "Toy machines ›"
+const MENU_TEXT := "Return to menu"
 const HEADLINE_SIZE := 44
 const LINE_SIZE := 16
 ## The machine visits and the inspection under a shift's line are smaller and dim.
@@ -39,10 +45,19 @@ const FITS: Array[Vector3i] = [
 	Vector3i(14, 11, 4),
 	Vector3i(13, 10, 2),
 ]
-## A 12-shift run's receipt (v0.65) may not fit even then: it is built again compact
-## (FinalReceipt.lines' `compact`, its inspection lines folded into the shift lines) through FITS,
-## then COMPACT_FITS, smaller still (a won run with every bonus visit is 34 lines).
+## A receipt that doesn't fit even then is built again compact (FinalReceipt.lines' `compact`, its
+## inspection lines folded into the shift lines) through FITS, then COMPACT_FITS, smaller still.
+## Since v0.96's week columns a won 16-shift run fits FITS in full.
 const COMPACT_FITS: Array[Vector3i] = [Vector3i(12, 9, 2), Vector3i(11, 8, 0), Vector3i(10, 8, 0)]
+## A week header's tab: its padding around the text, in px.
+const WEEK_TAB_PADDING := Vector2i(6, 1)
+## A receipt in week columns sets its lines this much tighter, top and bottom, in px (shift and
+## coin lines, then the smaller dim lines): the mono font's line keeps room above its capitals
+## and below its descenders that a column of 27 lines can't spare.
+const WEEK_LINE_TRIM := 2
+const WEEK_DETAIL_TRIM := 1
+## The least gap between the closed store's CLOSED sign and the receipt, in px.
+const SIGN_GAP := 4.0
 ## The staple across the loyalty card's top edge.
 const STAPLE_SIZE := Vector2(20, 5)
 
@@ -65,11 +80,19 @@ var _print_started_ms: int = 0
 var _coin_sounds: int = 0
 var _coins_s: float = 0.0
 var _reader: PressReader
-var _new_run_button: FramedButton
-var _toy_machines_button: FramedButton
+var _menu_button: FramedButton
 var _column: VBoxContainer
 ## The FITS entry the receipt is laid out with.
 var _fit: Vector3i = FITS[0]
+## In week columns: the weeks of the left column (the first half), and the two columns once built.
+var _left_weeks: int = 0
+var _week_columns: Array[VBoxContainer] = []
+## The full receipt's line count (the compact one prints fewer).
+var _full_count: int = 0
+## The receipt font, its lines WEEK_LINE_TRIM (dim lines WEEK_DETAIL_TRIM) tighter: a receipt
+## in week columns.
+var _week_font: FontVariation
+var _week_detail_font: FontVariation
 var _armed_ms: int = 0
 var _closed: StoreClosed
 ## Returns the profile's reduced motion (the shift screen's), or is unset: full motion.
@@ -80,6 +103,8 @@ var _reduced_motion: Callable
 func _init(tuning: CountUpTuning = null, reduced_motion: Callable = Callable()) -> void:
 	_tuning = tuning if tuning != null else load(CountUp.TUNING_PATH) as CountUpTuning
 	_reduced_motion = reduced_motion
+	_week_font = _trimmed_font(WEEK_LINE_TRIM)
+	_week_detail_font = _trimmed_font(WEEK_DETAIL_TRIM)
 	var style: StyleBoxFlat = StyleBoxFlat.new()
 	style.bg_color = Palette.PAPER
 	style.border_color = Palette.INK
@@ -109,13 +134,9 @@ func _init(tuning: CountUpTuning = null, reduced_motion: Callable = Callable()) 
 	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
 	buttons.add_theme_constant_override("separation", 16)
 	column.add_child(buttons)
-	# The game's pixel buttons (#56): New run in the red frame, the others in the top bar's teal.
-	_new_run_button = UiKit.framed_button(
-		buttons, "New run", func() -> void: new_run_requested.emit(), 22
-	)
-	_toy_machines_button = UiKit.framed_button(
-		buttons, TOY_MACHINES_TEXT, _on_toy_machines_pressed, 20, TopBar.BUTTON_FRAME
-	)
+	# The game's pixel buttons (#56): Return to menu in the red frame, Export log in the top bar's
+	# teal.
+	_menu_button = UiKit.framed_button(buttons, MENU_TEXT, _on_menu_pressed, 22)
 	# The export confirms itself once done (ShiftScreen).
 	UiKit.framed_button(
 		buttons,
@@ -161,11 +182,10 @@ func _process(_delta: float) -> void:
 		return
 	_closed.focus = get_global_rect()
 	_print_due()
-	if not _new_run_button.disabled or Time.get_ticks_msec() < _armed_ms:
+	if not _menu_button.disabled or Time.get_ticks_msec() < _armed_ms:
 		return
 	if not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
-		_new_run_button.disabled = false
-		_toy_machines_button.disabled = false
+		_menu_button.disabled = false
 
 
 ## Shows a won or lost run: `result` is its last checkout, `coins_total` the profile's coins
@@ -177,16 +197,17 @@ func show_results(
 	var won: bool = run.phase == RunState.Phase.WON
 	_headline.add_theme_color_override("font_color", Palette.GOOD if won else Palette.TOMATO)
 	_loyalty_card.show_upgrades(LoyaltyCard.box_count(run), run.upgrades)
+	_left_weeks = FinalReceipt.left_weeks(run)
+	var columns: bool = _left_weeks > 0
 	_lay_out(
-		FinalReceipt.lines(run, result, coins_total),
-		FinalReceipt.lines(run, result, coins_total, true)
+		FinalReceipt.lines(run, result, coins_total, false, columns),
+		FinalReceipt.lines(run, result, coins_total, true, columns)
 	)
 	_coin_sounds = FinalReceipt.coin_sounds(CoinPayout.for_run(run).total())
 	_coins_s = 0.0
 	coins_started_ms = -1
 	print_skipped = false
-	_new_run_button.disabled = true
-	_toy_machines_button.disabled = true
+	_menu_button.disabled = true
 	_armed_ms = Time.get_ticks_msec() + ARM_MS
 	UiKit.pop_in(self)
 	_closed.close_store(_reduced_motion.is_valid() and bool(_reduced_motion.call()))
@@ -219,13 +240,9 @@ func store_closed() -> StoreClosed:
 	return _closed
 
 
-## New run and Toy machines (for tests and layout checks).
-func new_run_button() -> FramedButton:
-	return _new_run_button
-
-
-func toy_machines_button() -> FramedButton:
-	return _toy_machines_button
+## Return to menu (for tests and layout checks).
+func menu_button() -> FramedButton:
+	return _menu_button
 
 
 ## Every line's text in print order, the headline first (for tests).
@@ -246,13 +263,24 @@ func coin_line_index() -> int:
 	return _coin_from
 
 
-## Builds the lines with the roomiest FITS entry that fits the room (_room).
-func _on_toy_machines_pressed() -> void:
+## The week columns, left then right (empty for a receipt in one column; for tests).
+func week_columns() -> Array[VBoxContainer]:
+	return _week_columns
+
+
+## Whether the receipt is laid out compact (for tests).
+func is_compact() -> bool:
+	return COMPACT_FITS.has(_fit) or texts().size() < _full_count
+
+
+func _on_menu_pressed() -> void:
 	skip_printing()
-	toy_machines_requested.emit()
+	menu_requested.emit()
 
 
+## Builds the lines with the roomiest FITS entry that fits the room (_room, _room_width).
 func _lay_out(lines: Array[FinalReceipt.Line], compact: Array[FinalReceipt.Line]) -> void:
+	_full_count = lines.size()
 	for each: Array[FinalReceipt.Line] in [lines, compact]:
 		var fits: Array[Vector3i] = FITS.duplicate()
 		if each == compact:
@@ -261,7 +289,8 @@ func _lay_out(lines: Array[FinalReceipt.Line], compact: Array[FinalReceipt.Line]
 			_fit = fit
 			_column.add_theme_constant_override("separation", fit.z)
 			_build_lines(each)
-			if get_combined_minimum_size().y <= _room():
+			var needed: Vector2 = get_combined_minimum_size()
+			if needed.y <= _room() and needed.x <= _room_width():
 				return
 
 
@@ -271,11 +300,23 @@ func _room() -> float:
 	return height - 2.0 * ShiftStage.PANEL_TOP
 
 
+## The width the centred receipt may take: its parent's, less the closed store's CLOSED sign (by
+## the window's left edge) and as much again on the right, so the sign stays in view (v0.96: a
+## receipt in week columns is wide).
+func _room_width() -> float:
+	var width: float = get_parent_area_size().x
+	if _closed == null or not _closed.is_inside_tree():
+		return width
+	var sign_end: float = _closed.sign_rect().end.x - _closed.get_global_rect().position.x
+	return width - 2.0 * (sign_end + SIGN_GAP)
+
+
 func _build_lines(lines: Array[FinalReceipt.Line]) -> void:
 	for child: Node in _lines_box.get_children():
 		_lines_box.remove_child(child)
 		child.queue_free()
 	_lines = []
+	_week_columns = []
 	_printed = 0
 	_coin_from = lines.size()
 	for index: int in range(lines.size()):
@@ -287,8 +328,13 @@ func _build_lines(lines: Array[FinalReceipt.Line]) -> void:
 		if line.tone == FinalReceipt.Tone.COINS and _coin_from == lines.size():
 			_coin_from = index
 		var label: Label = UiKit.label(line.text, _size(line), _color(line))
-		label.add_theme_font_override("font", ReceiptView.MONO_FONT)
-		_lines_box.add_child(label)
+		var font: Font = ReceiptView.MONO_FONT
+		if _left_weeks > 0:
+			font = _week_detail_font if line.tone == FinalReceipt.Tone.DETAIL else _week_font
+		label.add_theme_font_override("font", font)
+		if line.tone == FinalReceipt.Tone.WEEK:
+			_make_week_tab(label, line.week)
+		_line_parent(line).add_child(label)
 		_lines.append(label)
 	# Not printed yet: hidden by alpha, so the receipt keeps its size while it prints.
 	for label: Label in _lines:
@@ -326,6 +372,54 @@ func _start_coins() -> void:
 		ShiftMusic.coins_printing(_music, _coins_s)
 
 
+## Where `line` goes: its week's column (built at the first week line), else the receipt's box.
+func _line_parent(line: FinalReceipt.Line) -> Control:
+	if line.week <= 0 or _left_weeks <= 0:
+		return _lines_box
+	if _week_columns.is_empty():
+		var row: HBoxContainer = HBoxContainer.new()
+		row.name = "WeekColumns"
+		# The gap is FinalReceipt.COLUMN_GAP characters, so the rules span both columns.
+		var gap: String = " ".repeat(FinalReceipt.COLUMN_GAP)
+		var font_size: int = _fit.x
+		var gap_px: float = (
+			ReceiptView.MONO_FONT.get_string_size(gap, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+		)
+		row.add_theme_constant_override("separation", roundi(gap_px))
+		_lines_box.add_child(row)
+		for side: int in range(2):
+			var column: VBoxContainer = VBoxContainer.new()
+			column.name = "WeekColumn%d" % side
+			column.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+			# Both halves of the receipt's width: the right column starts at its middle.
+			column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			column.add_theme_constant_override("separation", 0)
+			row.add_child(column)
+			_week_columns.append(column)
+	return _week_columns[0 if line.week <= _left_weeks else 1]
+
+
+## The receipt font with `trim` px less room above and below its lines.
+static func _trimmed_font(trim: int) -> FontVariation:
+	var font: FontVariation = FontVariation.new()
+	font.base_font = ReceiptView.MONO_FONT
+	font.spacing_top = -trim
+	font.spacing_bottom = -trim
+	return font
+
+
+## A week header's look: a tab in the week's colour, hugging its text.
+static func _make_week_tab(label: Label, week: int) -> void:
+	var tab: StyleBoxFlat = StyleBoxFlat.new()
+	tab.bg_color = WeekCard.colour_of(week)
+	tab.content_margin_left = WEEK_TAB_PADDING.x
+	tab.content_margin_right = WEEK_TAB_PADDING.x
+	tab.content_margin_top = WEEK_TAB_PADDING.y
+	tab.content_margin_bottom = WEEK_TAB_PADDING.y
+	label.add_theme_stylebox_override("normal", tab)
+	label.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+
+
 func _draw_staple() -> void:
 	var at: Vector2 = Vector2(_loyalty_card.size.x / 2.0 - STAPLE_SIZE.x / 2.0, -1.0)
 	_loyalty_card.draw_rect(Rect2(at, STAPLE_SIZE), Palette.MUTED_INK)
@@ -343,6 +437,8 @@ static func _color(line: FinalReceipt.Line) -> Color:
 			return Palette.TOMATO
 		FinalReceipt.Tone.COINS_TOTAL:
 			return Palette.TEAL
+		FinalReceipt.Tone.WEEK:
+			return Palette.PAPER
 		FinalReceipt.Tone.DETAIL:
 			return Color(Palette.TOMATO if line.failed else Palette.INK, 0.55)
 	return Palette.TOMATO if line.failed else Palette.INK

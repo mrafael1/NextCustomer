@@ -29,7 +29,7 @@ enum Kind {
 }
 
 ## What a beat does to the monitor's total (#105 piece 2, mock-up readability_v3.html): nothing, the
-## item's base lands, a +N or a × lands its gain, a denial lowers it, or WASTED drops a grey €0.
+## item's base lands, a +N or a × lands its gain, a denial lowers it, or WASTED drops a grey 0€.
 enum Land { NONE, BASE, ADD, MUL, DOWN, WASTE }
 
 var kind: Kind = Kind.BASE
@@ -84,7 +84,7 @@ var closes_slot: bool = false
 var ride_ms: int = 0
 ## How the beat lands on the monitor's total (#105 piece 2; CountUpPlan's _set_landings).
 var land: Land = Land.NONE
-## The total the monitor and the top bar show before and after the beat's landing, in whole
+## The total the monitor and the quota tube show before and after the beat's landing, in whole
 ## euros: the payouts so far plus the running value of every item not yet paid. It always equals
 ## the step's subtotal at a PAYOUT, so the count ends on ScoreResult.total.
 var shown_from: int = 0
@@ -117,3 +117,6 @@ var cheer_combo: bool = false
 ## step it caused) or an inspection denied it. Only such a payout slumps a standee; a coupon that
 ## pays nothing of its own does not.
 var cheer_failed: bool = false
+## The beat's first step lowers its item (CountUpPlan.is_harmful): the monitor prints its line in
+## tomato, never with the green ✓.
+var harmful: bool = false

@@ -6,6 +6,7 @@ extends GdUnitTestSuite
 
 const LiveCardCount := preload("res://tests/data/live_card_count.gd")
 const SCREEN := "res://ui/shift_screen.tscn"
+const MonitorParts := preload("res://tests/ui/monitor_parts.gd")
 const CARDS := "res://data/cards"
 ## Milk, Multipack, Milk x5 = 109: passes the first five quotas.
 const PASSING_ROW: Array[String] = ["milk", "multipack", "milk", "milk", "milk", "milk", "milk"]
@@ -95,7 +96,7 @@ func test_the_monitor_hangs_on_the_stage_clear_of_the_rest() -> void:
 	assert_bool(MonitorView.PAPER_RECT.encloses(notice)).is_true()
 	assert_bool(notice.intersects(MonitorView.BAY_RECT)).is_false()
 	assert_float(notice.position.y).is_greater_equal(
-		MonitorView.ITEM_RECT.position.y + MonitorItemColumn.STEPS_TOP - 8.0
+		MonitorView.ITEM_RECT.position.y + MonitorItemColumn.HEADER_RECT.end.y
 	)
 	assert_bool(MonitorView.BAY_RECT.encloses(MonitorView.INSPECTION_RECT)).is_true()
 	# The parts where their rects say, the chips and the climax over the whole paper.
@@ -108,11 +109,13 @@ func test_the_monitor_hangs_on_the_stage_clear_of_the_rest() -> void:
 	assert_bool(monitor.chips().clip_contents).is_true()
 	assert_that(monitor.climax().get_global_rect()).is_equal(paper)
 	assert_bool(monitor.climax().clip_contents).is_true()
-	# Planning: NEXT with belt slot 1's item and no spend objective; no clicks taken.
+	# Planning: NEXT with the last placed item (the belt's last) and no spend objective; no clicks
+	# taken.
+	var shown: CardDefinition = screen.run.row[screen.shown_slot()].definition
 	assert_int(monitor.mode()).is_equal(MonitorView.Mode.NEXT)
 	assert_bool(monitor.bay().is_planning()).is_true()
-	assert_object(monitor.bay().bed().shown_definition()).is_same(screen.run.row[0].definition)
-	assert_object(monitor.item_column().shown_definition()).is_same(screen.run.row[0].definition)
+	assert_object(monitor.bay().bed().shown_definition()).is_same(shown)
+	assert_object(monitor.item_column().shown_definition()).is_same(shown)
 	assert_bool(monitor.checkout().is_visible_in_tree()).is_false()
 	assert_int(monitor.mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
 	await _assert_layout(monitor, screen._stage.get_global_rect().position, "planning")
@@ -131,6 +134,12 @@ func test_every_card_scan_fits_the_screen() -> void:
 	for index: int in range(WORST_LINES):
 		worst.lines.append(LONG_LINE if index % 2 == 0 else SHORT_LINE)
 		worst.fizzles.append(index % 2 == 0)
+	# Shown with the unused (fizzle) rows after the rest, each kept in its order (#138 review).
+	var worst_shown: PackedStringArray = PackedStringArray()
+	for fizzled: bool in [false, true]:
+		for index: int in range(WORST_LINES):
+			if worst.fizzles[index] == fizzled:
+				worst_shown.append(worst.lines[index])
 	var short: ScanController.ItemLines = ScanController.ItemLines.new()
 	short.lines = PackedStringArray([SHORT_LINE, BRIEF_FIZZLE])
 	short.fizzles = [false, true]
@@ -142,7 +151,7 @@ func test_every_card_scan_fits_the_screen() -> void:
 		await get_tree().process_frame
 		_assert_scan_fits(monitor, definition, "%s in the hand" % definition.id)
 		await _assert_layout(monitor, Vector2.ZERO, "%s in the hand" % definition.id)
-		assert_array(monitor.item_column().step_rows()).is_empty()
+		_assert_hand_note(monitor.item_column(), definition.id)
 		var effect: GlyphLabel = monitor.item_column().effect()
 		if effect != null:
 			var count: int = effect_sizes.get(effect.get_theme_font_size("font_size"), 0)
@@ -160,25 +169,33 @@ func test_every_card_scan_fits_the_screen() -> void:
 		_assert_scan_fits(monitor, definition, "%s, worst lines" % definition.id)
 		await _assert_layout(monitor, Vector2.ZERO, "%s, worst lines" % definition.id)
 		texts = monitor.item_column().step_texts()
-		assert_bool(texts == worst.lines).override_failure_message(str(texts)).is_true()
+		assert_bool(texts == worst_shown).override_failure_message(str(texts)).is_true()
 		var pages: MonitorStepPages = monitor.item_column().pages
-		assert_int(pages.count()).override_failure_message(definition.id).is_equal(3)
-		assert_str(pages.marker().text).is_equal("1/3")
+		assert_int(pages.count()).override_failure_message(definition.id).is_greater_equal(2)
+		assert_str(pages.marker().text).is_equal("1/%d" % pages.count())
 	prints("#105 item column effect sizes:", effect_sizes)
 
 
-## On the real screen: belt slot 1's item in planning; a plain hover on a belt item leaves it; the
-## held hover shows the item (its art, chip, name, effect, price and step lines worded as the
-## receipt words them, no popup); a notice shows on its strip while it lasts (in ink), the scan
-## kept, then goes; leaving the item brings slot 1's item back. A hand item shows no step lines.
+## On the real screen: the last placed item in planning (here milk, placed back in slot 1); a plain
+## hover on a belt item leaves it; the held hover shows the item (its art, chip, name, effect,
+## price and step lines worded as the receipt words them, no popup); a notice shows on its strip
+## while it lasts (in ink), the scan kept, then goes; leaving the item keeps the scan on the
+## monitor (sticky, 2026-11-04). A hand item shows no step lines, and stays too until the scan is
+## let go (ScanController.release_monitor): the last placed item again.
 func test_a_held_scan_fills_the_monitor_then_it_goes_back() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _place(screen, ["milk", "bread", "tea_bags"])
 	var monitor: MonitorView = screen._monitor
 	# The held item in the bay at once (monitor_bay_test covers the swaps' motion).
 	monitor.reduced_motion = func() -> bool: return true
-	var first: CardDefinition = screen.run.row[0].definition
+	var milk: CardInstance = screen.run.row[0]
+	screen._on_row_card_clicked(screen._row_views[0])
+	screen._place_picked(0)
+	await _frames(2)
+	assert_object(screen.run.row[0]).is_same(milk)
+	var first: CardDefinition = milk.definition
 	assert_int(monitor.mode()).is_equal(MonitorView.Mode.NEXT)
+	assert_object(monitor.item_column().shown_definition()).is_same(first)
 	var view: ItemView = screen._row_views[2] as ItemView
 	await _hover(screen, view)
 	_clock += screen._scan.hold_ms() - 1
@@ -193,9 +210,9 @@ func test_a_held_scan_fills_the_monitor_then_it_goes_back() -> void:
 	var definition: CardDefinition = view.card.definition
 	var column: MonitorItemColumn = monitor.item_column()
 	assert_str(ItemName.text_of(column.name_control())).is_equal(definition.display_name)
-	assert_str(column.effect().text).is_equal(_scan_text(definition))
+	assert_str(column.effect().text).is_equal(_scan_text(definition, column))
 	assert_object(monitor.scan_art().texture).is_same(ArtStyle.item_sprite(definition))
-	assert_str(monitor.bay().chip().chip_text()).is_equal(FamilyChip.item_text(definition))
+	assert_str(monitor.bay().chip().chip_text()).is_equal(MonitorText.SCAN_COMPLETE)
 	var result: ScoreResult = screen.run.preview()
 	var expected: PackedStringArray = PackedStringArray()
 	for step: ScoreStep in ScanController.footer_steps(result, 2):
@@ -207,7 +224,7 @@ func test_a_held_scan_fills_the_monitor_then_it_goes_back() -> void:
 	assert_bool(expected.has("No MORNING item after it  WASTED")).is_true()
 	var texts: PackedStringArray = column.step_texts()
 	assert_bool(texts == expected).override_failure_message(str(texts)).is_true()
-	assert_str(column.price_tag().text()).is_equal(PriceSticker.price_text(result.payouts[2]))
+	assert_int(column.payout_view().pay_amount()).is_equal(result.payouts[2])
 	# A notice shows on its strip while it lasts, in ink (tomato is for fizzles, CHECKOUT and
 	# CLOSED), over the item column's steps; the scan stays.
 	screen._notice_label.show_notice("Row full (9/9 items): take an item out first")
@@ -222,27 +239,72 @@ func test_a_held_scan_fills_the_monitor_then_it_goes_back() -> void:
 	screen._notice_label.clear_notice()
 	assert_bool(screen._notice_label.is_visible_in_tree()).is_false()
 	assert_int(monitor.mode()).is_equal(MonitorView.Mode.SCAN)
-	# Off the item: belt slot 1's item again.
+	# Off the item: the monitor keeps it.
 	_point = Vector2(-100, -100)
 	view.unhovered.emit(view)
 	await _frames(2)
 	assert_object(screen._scan.scanned()).is_null()
-	assert_int(monitor.mode()).is_equal(MonitorView.Mode.NEXT)
-	assert_object(column.shown_definition()).is_same(first)
-	# A hand item: no step lines.
+	assert_int(monitor.mode()).is_equal(MonitorView.Mode.SCAN)
+	assert_object(column.shown_definition()).is_same(definition)
+	assert_bool(column.step_texts() == expected).is_true()
+	# A hand item: no step lines, the note in their place.
 	var hand_item: ItemView = screen._hand_box.cards()[0] as ItemView
 	await _hover(screen, hand_item)
 	_clock += screen._scan.hold_ms()
 	await _frames(2)
 	assert_int(monitor.mode()).is_equal(MonitorView.Mode.SCAN)
-	assert_array(column.step_rows()).is_empty()
+	_assert_hand_note(column, "the hand item")
 	screen._scan.clear()
+	assert_int(monitor.mode()).is_equal(MonitorView.Mode.SCAN)
+	screen._scan.release_monitor()
 	assert_int(monitor.mode()).is_equal(MonitorView.Mode.NEXT)
+	assert_object(column.shown_definition()).is_same(first)
+
+
+## Every notice the shift screen shows fits the monitor's strip at the size MonitorView picks
+## (16, or a step down only when it would not fit), and a notice that replaces one still showing
+## takes its own size: a long Day off notice over the short Price gun one steps down, and the
+## short one after it goes back up to 16.
+func test_every_notice_fits_its_strip_even_when_it_replaces_another() -> void:
+	var screen: ShiftScreen = await _screen()
+	var monitor: MonitorView = screen._monitor
+	var label: NoticeLabel = screen._notice_label
+	var room: Vector2 = monitor._rects[monitor.notice_label].size
+	var font: Font = ArtStyle.bold_font(MonitorView.NOTICE_WEIGHT)
+	var notices: Array[String] = [
+		PinFlow.DAY_OFF_ARMED,
+		PinFlow.DAY_OFF_LOCKED,
+		PinFlow.DAY_OFF_DONE,
+		PinFlow.GUN_ARMED,
+		PinFlow.GUN_NONE,
+		PinFlow.GUN_EMPTY,
+		WriteUp.NOTICE % [2, 3],
+		WriteUp.LAST_NOTICE % [2, 3],
+		WriteUp.OVER_NOTICE,
+		InspectionTag.NEXT_NOTICE % "COUPON SLOT CLOSED",
+		InspectionTag.NEXT_REVIEW_NOTICE % "COUPON SLOT CLOSED",
+		"Row full (9/9 items): take an item out first",
+	]
+	for notice: String in notices:
+		var font_size: int = MonitorView.notice_size(notice, room)
+		var needed: Vector2 = font.get_multiline_string_size(
+			notice, HORIZONTAL_ALIGNMENT_CENTER, room.x, font_size
+		)
+		assert_float(needed.y).override_failure_message(notice).is_less_equal(room.y)
+	label.show_notice(PinFlow.GUN_NONE)
+	assert_int(label.get_theme_font_size("font_size")).is_equal(MonitorView.NOTICE_SIZE)
+	label.show_notice(PinFlow.DAY_OFF_ARMED)
+	assert_bool(label.is_showing()).is_true()
+	var long_size: int = MonitorView.notice_size(PinFlow.DAY_OFF_ARMED, room)
+	assert_int(label.get_theme_font_size("font_size")).is_equal(long_size)
+	label.show_notice(PinFlow.GUN_NONE)
+	assert_int(label.get_theme_font_size("font_size")).is_equal(MonitorView.NOTICE_SIZE)
+	label.clear_notice()
 
 
 ## On the real screen, every count-up beat shows on the monitor as it starts: COUNT, the bay holds
 ## the beat's scanned item (its art and its chip), the step line is the receipt's wording, and on
-## every frame the checkout column's number, the top bar's gauge and (while it runs) the climax's
+## every frame the checkout column's number, the quota tube and (while it runs) the climax's
 ## number read the register's same whole number, TOTAL over it, the ladder lit by the landings;
 ## the monitor's parts stay inside their columns on every beat. At the end the TOTAL with the
 ## stamp and the "+N€" tab, apart, on the paper, met (quota_met once, with its pop, at the ding).
@@ -271,12 +333,11 @@ func test_the_count_keeps_the_item_breakdown_visible_and_total_on_the_register()
 	assert_int(monitor.item_column().step_texts().size()).is_greater(0)
 
 
-## Checkout Rhythm v3: on the real screen, under reduced motion and tap-skip, each payout with
-## multipliers (the Milks under Multipack's ×3) shows its payment equation at its own beat, the
-## steps' own numbers, as the newest line: on one line inside the item column, clear of the lines
-## above, the factor amber and the rest ink. The multiplier lines keep their × and fit their row.
-## The row meets its quota, so the quota's hold runs and the item column stays.
-func test_payouts_show_their_equation_inside_the_column_and_clear_of_spend_met() -> void:
+## A row with multipliers (the Milks under Multipack's ×3) counts its lines on the item column with
+## no payment equation (PR #138 monitor: only "= N€" at the foot): the multiplier lines keep their
+## × and fit their row, and no row reads the equation. The row meets its quota, so the quota's
+## hold runs and the item column stays.
+func test_payouts_show_no_equation_and_the_column_stays_through_spend_met() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _place(screen, PASSING_ROW)
 	var monitor: MonitorView = screen._monitor
@@ -291,36 +352,17 @@ func test_payouts_show_their_equation_inside_the_column_and_clear_of_spend_met()
 		var rows: Array[Control] = items.step_rows()
 		if beat.kind == CountUpBeat.Kind.STAMP and not rows.is_empty():
 			var text: Label = rows[-1].get_node_or_null("Text") as Label
-			if text != null and not text.text.begins_with("× "):
+			var factor: Label = rows[-1].get_node_or_null("Amount") as Label
+			if text != null and (factor == null or not factor.text.begins_with("×")):
 				failures.append("A multiplier line lost its ×: " + text.text)
 			if text != null and text.get_line_count() > text.max_lines_visible:
 				failures.append("A multiplier line did not fit: " + text.text)
 		if beat.equation == null:
 			return
-		var row: Control = rows[-1]
-		shown.append(String(row.get_meta(&"line", "")))
-		if String(row.get_meta(&"line", "")) != beat.equation.text(MonitorItemColumn._arrow()):
-			failures.append("The equation row read " + String(row.get_meta(&"line", "")))
-		var rect: Rect2 = row.get_global_rect()
-		if not items.get_global_rect().grow(0.5).encloses(rect):
-			failures.append("The equation ran outside the item column")
-		for other: Control in rows.slice(0, rows.size() - 1):
-			if other.get_global_rect().intersection(rect).get_area() > 0.5:
-				failures.append("The equation overlapped the line above it")
-		var parts: Array[Control] = []
-		for part_name: String in ["Text", "Factor", "Arrow", "Amount"]:
-			var part: Label = row.get_node(part_name) as Label
-			parts.append(part)
-			if not rect.grow(0.5).encloses(part.get_global_rect()):
-				failures.append("The equation's %s ran outside its row" % part_name)
-		for index: int in range(parts.size() - 1):
-			if parts[index].get_global_rect().end.x > parts[index + 1].get_global_rect().position.x:
-				failures.append("The equation's parts overlapped")
-		var factor: Label = row.get_node("Factor") as Label
-		if factor.get_theme_color("font_color") != Palette.MUSTARD_DARKEST:
-			failures.append("The equation's factor was not amber")
-		if (row.get_node("Amount") as Label).get_theme_color("font_color") != Palette.INK:
-			failures.append("The equation's payout was not ink")
+		shown.append(beat.equation.text("="))
+		for row: Control in rows:
+			if String(row.get_meta(&"line", "")).contains(" × 3 "):
+				failures.append("A row read the equation " + String(row.get_meta(&"line", "")))
 	count.beat_started.connect(observe)
 	var met: Array[bool] = []
 	var celebrating: Callable = func(_pop: bool) -> void:
@@ -335,7 +377,6 @@ func test_payouts_show_their_equation_inside_the_column_and_clear_of_spend_met()
 	assert_array(failures).is_empty()
 	assert_array(met).override_failure_message("The row never met its quota").is_not_empty()
 	assert_int(shown.size()).is_greater(0)
-	assert_str(shown[0]).contains(" × 3 ")
 
 
 ## Checkout Rhythm v3.1 (the mock-up's doBeat: giver, then line, then value): on the real
@@ -442,7 +483,7 @@ func test_the_empty_belt_hint_and_a_long_wasted_line_read_whole() -> void:
 	assert_int(text.get_line_count()).is_less_equal(text.max_lines_visible)
 	(
 		assert_bool(
-			Rect2(MonitorView.ITEM_RECT.position, MonitorItemColumn.COUNT_SIZE).grow(0.5).encloses(
+			Rect2(MonitorView.ITEM_RECT.position, MonitorItemColumn.SIZE).grow(0.5).encloses(
 				row.get_global_rect()
 			)
 		)
@@ -559,28 +600,21 @@ func _assert_scan_fits(monitor: MonitorView, definition: CardDefinition, message
 	assert_object(art.texture).is_same(ArtStyle.item_sprite(definition))
 	assert_bool(bay.shows_scan()).override_failure_message(message).is_true()
 	assert_str(bay.queue().text()).is_equal(BayQueue.SCAN_TEXT)
-	assert_str(bay.chip().chip_text()).is_equal(FamilyChip.item_text(definition))
+	assert_str(bay.chip().chip_text()).is_equal(MonitorText.SCAN_COMPLETE)
 	var column: MonitorItemColumn = monitor.item_column()
 	assert_str(ItemName.text_of(column.name_control())).is_equal(definition.display_name)
 	var effect: GlyphLabel = column.effect()
-	var text: String = _scan_text(definition)
+	var text: String = _scan_text(definition, column)
 	if text.is_empty():
 		assert_object(effect).override_failure_message(message).is_null()
 		return
-	if column.pages != null:
-		# The compact layout's one line, cut with an ellipsis when the text is longer.
-		assert_int(effect.line_count()).override_failure_message(message).is_equal(1)
-		assert_bool(effect.fits()).override_failure_message(message).is_true()
-		if effect.text != text:
-			var cut: String = effect.text.trim_suffix(MonitorItemColumn.ELLIPSIS)
-			(
-				assert_bool(cut != effect.text and text.begins_with(cut))
-				. override_failure_message("%s: %s" % [message, effect.text])
-				. is_true()
-			)
-		return
+	# The whole text: it fits, or its last line carries the MORE chip (the whole text in its tip).
 	assert_str(effect.text).is_equal(text)
-	assert_bool(effect.fits()).override_failure_message(message).is_true()
+	(
+		assert_bool(effect.fits() or column.part_rects().has("more"))
+		. override_failure_message(message)
+		. is_true()
+	)
 
 
 ## The monitor's layout now (the stage's origin at `origin`), after a frame: every text label inside
@@ -603,6 +637,10 @@ static func _layout_failures(
 		monitor.checkout(): MonitorView.CHECKOUT_RECT,
 		monitor.climax(): MonitorView.PAPER_RECT,
 	}
+	# The name's letters by their baseline (their descenders may hang under the header).
+	var name_labels: Array[Label] = []
+	if monitor.item_column().name_control() != null:
+		name_labels = ItemName.labels(monitor.item_column().name_control())
 	for label: Label in monitor.shown_labels():
 		var room: Rect2 = MonitorView.PAPER_RECT
 		for part: Control in rooms:
@@ -614,24 +652,25 @@ static func _layout_failures(
 			continue
 		var content: Rect2 = Rect2(origin + room.position, room.size).grow(0.5)
 		var rect: Rect2 = label.get_global_rect()
+		# The item column's text by its ink (a label's box may be taller: MonitorParts).
+		if monitor.item_column().is_ancestor_of(label):
+			rect = MonitorParts._drawn(label, not name_labels.has(label))
 		if not content.encloses(rect):
 			failures.append("%s: '%s' %s outside %s" % [message, label.text, rect, content])
 	var column: Rect2 = Rect2(origin + MonitorView.ITEM_RECT.position, MonitorView.ITEM_RECT.size)
-	var parts: Dictionary[String, Rect2] = monitor.item_column().part_rects()
-	var names: Array[String] = parts.keys()
-	for index: int in range(names.size()):
-		var rect: Rect2 = parts[names[index]]
-		if not column.grow(0.5).encloses(rect):
-			failures.append("%s: %s %s outside the item column" % [message, names[index], rect])
-		for other: int in range(index + 1, names.size()):
-			if rect.intersects(parts[names[other]]):
-				failures.append(
-					(
-						"%s: %s %s over %s %s"
-						% [message, names[index], rect, names[other], parts[names[other]]]
-					)
-				)
+	var items: MonitorItemColumn = monitor.item_column()
+	if not column.grow(0.5).encloses(items.get_global_rect()):
+		failures.append("%s: the item column outside its rect" % message)
+	for problem: String in MonitorParts.problems(items):
+		failures.append("%s: %s" % [message, problem])
 	return failures
+
+
+## A hand item's rows: its one note (MonitorText.HAND_NOTE) and no step lines.
+func _assert_hand_note(column: MonitorItemColumn, message: String) -> void:
+	var rows: Array[Control] = column.step_rows()
+	assert_int(rows.size()).override_failure_message(message).is_equal(1)
+	assert_str(String(rows[0].get_meta(&"line", ""))).is_equal(MonitorText.HAND_NOTE)
 
 
 ## Whether `label` is a digit of a TotalNumber.
@@ -644,7 +683,7 @@ static func _in_number(label: Label) -> bool:
 	return false
 
 
-## The register's reading against the top bar's gauge, the checkout column's number and the
+## The register's reading against the quota tube, the checkout column's number and the
 ## climax's (while it runs) now, as failures (#105 piece 2: one number everywhere).
 static func _sync_failures(screen: ShiftScreen) -> Array[String]:
 	var failures: Array[String] = []
@@ -652,9 +691,9 @@ static func _sync_failures(screen: ShiftScreen) -> Array[String]:
 		return failures
 	var reading: int = screen._led.amount()
 	var frame: int = Engine.get_process_frames()
-	var top: String = screen._quota_meter.amount_label.text
-	if top != "€%d" % reading:
-		failures.append("frame %d: the top bar %s, the reading %d" % [frame, top, reading])
+	var top: int = screen._quota_meter.amount()
+	if top != reading:
+		failures.append("frame %d: the gauge %d, the reading %d" % [frame, top, reading])
 	var number: int = screen._monitor.checkout().total_number().value()
 	if number != reading:
 		failures.append("frame %d: the column %d, the reading %d" % [frame, number, reading])
@@ -721,9 +760,8 @@ static func _cards() -> Array[CardDefinition]:
 
 
 ## The monitor's scan text for `definition` (#105): its short sticker text, else its rule text.
-static func _scan_text(definition: CardDefinition) -> String:
-	var summary: String = definition.sticker_summary()
-	return summary if not summary.is_empty() else definition.rule_text
+static func _scan_text(definition: CardDefinition, column: MonitorItemColumn) -> String:
+	return MonitorItemColumn._description(definition, column.redraws_left)
 
 
 ## The screen on shift 1, its scanner following _point on the tests' clock.

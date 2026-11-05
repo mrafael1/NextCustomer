@@ -13,8 +13,8 @@ const SPOT_CHECK := "res://data/inspections/spot_check.tres"
 func test_balance_inspection_data_fits_the_run() -> void:
 	var balance: BalanceDefinition = load(BALANCE)
 	# v0.65: each week's 3rd shift, and its 4th the Manager's review (2 inspections at once).
-	assert_array(Array(balance.inspection_shifts)).is_equal([3, 7, 11])
-	assert_array(Array(balance.review_shifts)).is_equal([4, 8, 12])
+	assert_array(Array(balance.inspection_shifts)).is_equal([3, 7, 11, 15])
+	assert_array(Array(balance.review_shifts)).is_equal([4, 8, 12, 16])
 	for shift_number: int in balance.inspection_shifts + balance.review_shifts:
 		# Announced on the previous shift's receipt, so never shift 1.
 		assert_int(shift_number).is_between(2, balance.quotas.size())
@@ -26,7 +26,7 @@ func test_balance_inspection_data_fits_the_run() -> void:
 	)
 	for inspection: InspectionDefinition in balance.inspection_pool:
 		assert_bool(inspection.is_boon()).is_false()
-	assert_array(Array(balance.boon_shifts)).is_equal([2, 5, 6, 9, 10])
+	assert_array(Array(balance.boon_shifts)).is_equal([2, 5, 6, 9, 10, 13, 14])
 	(
 		assert_array(RunEvents.inspection_ids(balance.boon_pool))
 		. is_equal(

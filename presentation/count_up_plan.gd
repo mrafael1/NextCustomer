@@ -40,6 +40,14 @@ const LAST_STAGE := 5
 const CHEER_TOP_TIER := 3
 ## The shared subtotal roll's tuning, unless build() is given another.
 const TOTAL_TUNING_PATH := "res://data/balance/count_total.tres"
+## The steps that set an item's running value (is_harmful reads the one before an override).
+const VALUE_STEPS: Array[ScoreStep.StepType] = [
+	ScoreStep.StepType.BASE,
+	ScoreStep.StepType.FLAT,
+	ScoreStep.StepType.MULTIPLIER,
+	ScoreStep.StepType.COPY,
+	ScoreStep.StepType.PAYOUT_OVERRIDE,
+]
 
 var beats: Array[CountUpBeat] = []
 ## The auto speed-up times the speed setting (D6), as logged (RunEvents.count_up).
@@ -138,6 +146,8 @@ func _init(
 	bag_ms = tuning.bag_ms
 	total = steps[steps.size() - 1].subtotal if not steps.is_empty() else start_total
 	_make_beats(steps)
+	for beat: CountUpBeat in beats:
+		beat.harmful = is_harmful(steps, beat.steps[0])
 	_set_scan_groups()
 	_link_armed(steps)
 	_set_landings(steps)
@@ -194,8 +204,26 @@ static func is_cheer_line(step: ScoreStep) -> bool:
 	return false
 
 
+## A step line that lowers its item (the monitor prints it in tomato, never with the green ✓),
+## read from the recorded values of `steps[index]`: a bonus below 0 (Late delivery's -2€), a factor
+## below ×1, or a payout override below the item's running value before it (Spot check's 0€).
+static func is_harmful(steps: Array[ScoreStep], index: int) -> bool:
+	var step: ScoreStep = steps[index]
+	match step.step_type:
+		ScoreStep.StepType.FLAT:
+			return step.value < 0
+		ScoreStep.StepType.MULTIPLIER:
+			return step.percent < 100 if step.percent > 0 else step.value < 1
+		ScoreStep.StepType.PAYOUT_OVERRIDE:
+			for at: int in range(index - 1, -1, -1):
+				var earlier: ScoreStep = steps[at]
+				if earlier.slot == step.slot and earlier.step_type in VALUE_STEPS:
+					return step.value < earlier.value_after
+	return false
+
+
 ## A combo the cheering counts (#120): ReceiptView.is_combo, but only one that lifts the payout
-## (a bonus above 0, a factor above 1, a copy), so a day event's penalty (Late delivery's -€2)
+## (a bonus above 0, a factor above 1, a copy), so a day event's penalty (Late delivery's -2€)
 ## never cheers more.
 static func is_cheer_combo(step: ScoreStep) -> bool:
 	if not ReceiptView.is_combo(step):

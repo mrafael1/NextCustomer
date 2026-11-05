@@ -332,6 +332,9 @@ func _new_paper(paper_name: String, paper_size: Vector2) -> ReceiptView:
 		var paper_frame: StyleBox = view.receipt.get_theme_stylebox("panel")
 		if paper_frame != null:
 			copy.add_theme_stylebox_override("panel", paper_frame)
+	# The copy keeps the stage receipt's TODAY'S TARGET, pinned at its top.
+	if is_instance_valid(view.receipt) and view.receipt is ReceiptView:
+		copy.target.show_quota((view.receipt as ReceiptView).target.shown_quota())
 	copy.size = paper_size
 	return copy
 

@@ -1,0 +1,13 @@
+; The charcoal well the receipt rises in, on the register's tower (the shift scene polish, mock-up
+; docs/art/mockups/shift_scene_polish_v2.html section 2): a 9-slice (margins 2 art px) stretched
+; to ShiftStage.RECEIPT_WELL_RECT. Recessed, so its top and left edges are in ink shadow and its
+; right edge catches the light in steel darkest; its foot stands behind the printer.
+@size 6x6
+@kind frame
+@scale 2
+######
+#NNNNI
+#NNNNI
+#NNNNI
+#NNNNI
+#NNNNI

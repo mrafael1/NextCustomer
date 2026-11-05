@@ -1,0 +1,12 @@
+; The monitor's BASE PRICE strip icon (PR #138 monitor, mock-up monitor_codex.png): a cream shelf
+; price tag pointing left, its string hole ringed in ink, its lower edge in cream shade. 11x7,
+; shown at 2x.
+@size 11x7
+@kind icon
+..#########
+.#ccccccbb#
+#cc#cccccb#
+#c#.#ccccb#
+#cc#cccccb#
+.#bbbbbbbb#
+..#########

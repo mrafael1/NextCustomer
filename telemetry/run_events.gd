@@ -41,7 +41,7 @@ static func run_start(run: RunState) -> Dictionary:
 	return data.merged(run.stock.to_dictionary())
 
 
-## The opening-time board's fields of `start_choice` (docs/PROTOTYPE_PLAN.md section 8, v0.59),
+## The opening-time board's fields of `start_choice` (docs/PROTOTYPE_PLAN.md section 8, v0.60),
 ## for a run with a start setup: the regulars as taken, the RESTOCK used (0 or 1) and its basket
 ## (-1 for none), the baskets' card ids and NEW PACKS used (0 or 1).
 static func start_setup_fields(run: RunState) -> Dictionary:

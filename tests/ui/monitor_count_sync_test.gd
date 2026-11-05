@@ -1,6 +1,6 @@
 extends GdUnitTestSuite
 ## Checkout Rhythm v3 on the real shift screen: each payout rolls the shared register and
-## top gauge through the plan's exact ticks. Bonus steps only change the item's explanation.
+## quota tube through the plan's exact ticks. Bonus steps only change the item's explanation.
 ## Normal and reduced-motion playback retain identical scoring totals and a visible monitor,
 ## with no monitor-covering quota overlay. The tests record tick sounds alongside readings.
 
@@ -72,8 +72,8 @@ func _exercise(reduced: bool) -> void:
 		frames.append(Engine.get_process_frames())
 		if screen._cabinet.total_display.amount() != value:
 			failures.append("Register total differs from the shared reading")
-		if screen._quota_meter.amount_label.text != "€%d" % value:
-			failures.append("Top gauge differs from the shared reading")
+		if screen._quota_meter.amount() != value:
+			failures.append("The quota gauge differs from the shared reading")
 		if screen._monitor.checkout().is_visible_in_tree() or screen._monitor.climax().is_running():
 			failures.append("A total or celebration covered the monitor")
 	screen._led.reading_changed.connect(observe)

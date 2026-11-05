@@ -6,7 +6,7 @@ extends Control
 ## the item column (its price, or its step line's amount) to just short of the number's left edge
 ## over the beat's fly_ms: across first, then up, turned CHIP_TILT, dissolving from
 ## chip_dissolve_from of its flight so it never covers the digits; a ×'s chip (1.1x) flips into
-## its gain ("+5€") halfway. WASTED's grey "€0" drops off its step line (waste_drop_s, falling and
+## its gain ("+5€") halfway. WASTED's grey "0€" drops off its step line (waste_drop_s, falling and
 ## turning, fading at the end) and never lands. As a landing lands, `land` throws its sparks out of
 ## the number's sides (base none, +N 3, × 6) and a × also shoots gold corners round the number and
 ## two coins off it, down and out.
@@ -169,7 +169,7 @@ static func chip_width(shown: String) -> float:
 
 ## `beat`'s amount takes off from `from` (global) toward `to` (global; the number's left edge at
 ## its middle, CheckoutColumn.landing_point) and arrives in its fly_ms, its right edge LAND_SHORT
-## short of it; a WASTE drops its grey €0 from `from`. None under reduced motion or for a beat that
+## short of it; a WASTE drops its grey 0€ from `from`. None under reduced motion or for a beat that
 ## does not land.
 func launch(beat: CountUpBeat, from: Vector2, to: Vector2) -> void:
 	if _reduced() or not is_inside_tree():
@@ -307,9 +307,9 @@ func _drop_chip(chip: Chip) -> void:
 		chip.queue_free()
 
 
-## WASTED's grey €0: it drops from `from` (global), falling and turning, fading at the end.
+## WASTED's grey 0€: it drops from `from` (global), falling and turning, fading at the end.
 func _drop_waste(from: Vector2) -> void:
-	var chip: Chip = Chip.new("€0", Chip.Look.GREY)
+	var chip: Chip = Chip.new(MonitorText.euros(0), Chip.Look.GREY)
 	add_child(chip)
 	_chips.append(chip)
 	var start: Vector2 = _local(from)

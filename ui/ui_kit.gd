@@ -178,7 +178,7 @@ static func use_pixel_text(text_label: Label, scale_factor: int) -> void:
 	text_label.add_theme_font_override("font", ArtStyle.pixel_display_font())
 	text_label.add_theme_font_size_override("font_size", ArtStyle.PIXEL_TEXT_SIZE)
 	text_label.add_theme_constant_override("outline_size", 0)
-	text_label.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	ArtStyle.use_pixel_text_material(text_label)
 	text_label.scale = Vector2.ONE * scale_factor
 
 

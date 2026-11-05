@@ -82,21 +82,21 @@ func test_the_full_row_counts_up_on_screen_in_five_to_nine_seconds() -> void:
 
 	_assert_sounds(sfx, plan, count_up.printer_feed_ms)
 	_assert_rides(rides, plan)
-	# Shift 1's quota (29) is reached mid-row: the ding, then the quota met for good.
+	# Shift 1's quota (30) is reached mid-row: the ding, then the quota met for good.
 	assert_int(plan.ding_beat).is_greater_equal(0)
 	assert_int(_sounds(sfx, "ding")).is_equal(1)
 	assert_bool(probe["met_before_total"]).is_true()
 	# It was met at the ding beat, the subtotal past the quota but short of the total, and stayed
 	# met on every frame after.
 	var quota: int = screen.run.quota()
-	assert_int(quota).is_equal(29)
+	assert_int(quota).is_equal(30)
 	assert_int(int(probe["met_subtotal"])).is_between(quota, plan.total - 1)
 	var ding: CountUpBeat = plan.beats[plan.ding_beat]
 	assert_int(int(probe["met_subtotal"])).is_equal(ding.ticks[ding.ding_tick])
 	assert_bool(probe["met_lost"]).is_false()
 	assert_array(probe["pops"]).is_equal([true])
 	_assert_met(screen, true)
-	# The 107 is huge against the €45 floor.
+	# The 107 is huge against the 45€ floor.
 	assert_int(plan.size).is_equal(CountUpPlan.Size.HUGE)
 	assert_object(count_up.intensity).is_not_null()
 	assert_bool(count_up.intensity.is_huge).is_true()
@@ -283,7 +283,7 @@ func test_the_best_so_far_leaves_out_the_shift_being_counted() -> void:
 	screen._count_up._tap(Time.get_ticks_msec())
 	screen._count_up._tap(Time.get_ticks_msec())
 	await _count_up_end(screen)
-	# Shift 1 totals 109, yet its count-up measured against the €45 floor.
+	# Shift 1 totals 109, yet its count-up measured against the 45€ floor.
 	assert_int(screen.run.history.size()).is_equal(1)
 	assert_int(screen.run.history[0].total).is_equal(109)
 	assert_int(screen._count_up.plan.best).is_equal(45)
@@ -327,7 +327,7 @@ func test_the_led_and_checkout_follow_a_passed_shift() -> void:
 	assert_int(screen._monitor.mode()).is_equal(MonitorView.Mode.NEXT)
 	assert_str(column.caption().text).is_equal(MonitorText.PLAN_CAPTION)
 	assert_int(column.total_number().value()).is_equal(total)
-	assert_str(screen._quota_meter.amount_label.text).is_equal("€%d" % total)
+	assert_int(screen._quota_meter.amount()).is_equal(total)
 	assert_bool(checkout.held).is_false()
 	assert_int(checkout.look()).is_equal(RegisterKey.Look.NORMAL)
 	screen._on_checkout_pressed()
@@ -761,7 +761,7 @@ func _assert_receipt_of(
 		screen.receipt_header(),
 		ReceiptInk.cards_of(run.row)
 	)
-	assert_str(_lines(expected)[0]).is_equal(ReceiptView.HEADER_TEXT + " | ")
+	assert_str(_lines(expected)[0]).is_equal(screen.receipt_header()[0] + " | ")
 	expected.show_shift_end(
 		result.total, quota, notice, ", ".join(InspectionTag.names(run.inspections))
 	)

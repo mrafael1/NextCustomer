@@ -116,7 +116,7 @@ func setup(screen: ShiftScreen, event_log: EventLogService) -> RewardMachineView
 		var run: RunState = screen.run
 		return run != null and (run.phase == RunState.Phase.PLANNING or screen._counting)
 	screen._overlay.add_child(announce)
-	announce.setup(screen._monitor, screen._quota_meter.bar(), screen._quota_meter.flag())
+	announce.setup(screen._monitor, screen._stage.top_bar)
 	return view
 
 

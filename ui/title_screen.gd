@@ -7,8 +7,9 @@ extends Control
 ##
 ## The sign is dark when the title opens. After INTRO_DARK seconds it lights letter by letter,
 ## then the plates step in; the first click or key before that lights it and shows the plates at
-## once (skip_intro), and does nothing else. The profile's reduced motion lights it at once and
-## holds every loop and slide (Storefront, TitleMenu and the popups take `still`).
+## once (skip_intro), and does nothing else. A return from the results' Return to menu
+## (request_lit) skips the intro too. The profile's reduced motion lights it at once and holds
+## every loop and slide (Storefront, TitleMenu and the popups take `still`).
 ##
 ## The menu: without a run save, START RUN (the run's length under it, from balance data) and
 ## REWARDS (the profile's coins on it, read without reporting or backing anything up); with one
@@ -58,6 +59,8 @@ const BUILD_RIGHT := 1264.0
 const BUILD_WIDTH := 240.0
 const BUILD_FONT_SIZE := 14
 
+## Set by request_lit (the results' Return to menu): the next title opens with its sign lit.
+static var _lit_request: bool = false
 ## Tests turn this off so starting doesn't replace the test runner's scene.
 var changes_scene: bool = true
 var _starting: bool = false
@@ -140,6 +143,21 @@ func _ready() -> void:
 		add_child(_confirm)
 	if _still:
 		_storefront.light_now()
+	if take_lit_request():
+		skip_intro()
+
+
+## The shift screen's results, before they open the title: the next title made skips its intro
+## (the sign lit, the plates in place), as the player has just seen the game.
+static func request_lit() -> void:
+	_lit_request = true
+
+
+## Whether request_lit was called since the last take; clears it (the title's _ready; tests).
+static func take_lit_request() -> bool:
+	var requested: bool = _lit_request
+	_lit_request = false
+	return requested
 
 
 ## The profile's coins, read without reporting or backing anything up (the shift screen does

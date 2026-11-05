@@ -193,7 +193,7 @@ func test_the_footprint_recedes_to_the_vanishing_point() -> void:
 ## slot's input.
 func test_the_drop_target_covers_the_item_footprint_ticket_and_half_gaps() -> void:
 	var half_gap: float = RowStrip.SEPARATION / 2.0
-	var expected: Rect2 = Rect2(-half_gap, 18, ItemView.BELT_SIZE.x + RowStrip.SEPARATION, 212)
+	var expected: Rect2 = Rect2(-half_gap, 18, ItemView.BELT_SIZE.x + RowStrip.SEPARATION, 224)
 	assert_that(RowStrip.drop_target_rect(RowStrip.SEPARATION)).is_equal(expected)
 	assert_float(RowStrip.DROP_TOP).is_equal(
 		ItemView.BELT_SPRITE.y - ItemView.LIFT - ItemView.BOOST_LIFT
@@ -278,10 +278,10 @@ func test_a_closed_cell_takes_no_drop() -> void:
 			assert_bool(RowStrip.drop_rect(panel).has_point(point)).is_false()
 
 
-## The slot tickets keep tomato for CLOSED alone (mock-up B2's colour rule): the plain product
-## ticket's band (a product with no family) is mustard light, the coupon ticket's teal dashes, the
-## empty ticket steel and paper, and the CLOSED plate ink with a tomato band. (#105's full-colour
-## tickets take their families' colours, FamilyPalette: price_sticker_test.)
+## The slot tickets keep tomato for CLOSED alone (mock-up B2's colour rule): a product with no
+## family and a plain coupon (TicketFace, tickets v5: paper label and cream plate), the empty
+## ticket steel and paper, and the CLOSED plate ink with a tomato band. (Family tickets take their
+## families' colours, FamilyPalette: price_sticker_test.)
 func test_only_the_closed_plate_is_tomato() -> void:
 	var tomato: Array[String] = [
 		Palette.TOMATO.to_html(false),
@@ -289,8 +289,8 @@ func test_only_the_closed_plate_is_tomato() -> void:
 		Palette.TOMATO_LIGHT.to_html(false),
 	]
 	var tickets: Dictionary[Texture2D, bool] = {
-		PriceSticker.PLAIN_FRAME: false,
-		PriceSticker.COUPON_FRAME: false,
+		_face("bread"): false,
+		_face("multipack"): false,
 		RowStrip.TICKET_EMPTY: false,
 		RowStrip.TICKET_CLOSED: true,
 	}
@@ -305,8 +305,6 @@ func test_only_the_closed_plate_is_tomato() -> void:
 		assert_bool(found).override_failure_message(texture.resource_path).is_equal(
 			tickets[texture]
 		)
-	var band: Color = PriceSticker.PLAIN_FRAME.get_image().get_pixel(8, 3)
-	assert_str(band.to_html(false)).is_equal(Palette.MUSTARD_LIGHT.to_html(false))
 
 
 ## The placeable ring's art: solid mustard between an ink line outside and one inside, so it
@@ -727,6 +725,14 @@ static func _pick(node: Node, point: Vector2) -> Control:
 
 
 ## `rect` (a cell's coordinates) in the cell at `cell`.
+## The face of `id`'s ticket (Bread: a product with no family; Multipack: a plain coupon).
+func _face(id: String) -> Texture2D:
+	var sticker: PriceSticker = auto_free(
+		PriceSticker.new(load("res://data/cards/%s.tres" % id) as CardDefinition)
+	)
+	return sticker.face().texture
+
+
 static func _in_cell(cell: Rect2, rect: Rect2) -> Rect2:
 	return Rect2(cell.position + rect.position, rect.size)
 

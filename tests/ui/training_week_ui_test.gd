@@ -181,7 +181,7 @@ static func _end_visit(screen: ShiftScreen) -> void:
 	screen._machine.view.fast_forward()
 
 
-## The receipt line of `shift` among `texts` ("  3  €0 / €40  fail"), else "".
+## The receipt line of `shift` among `texts` ("  3  0€ / 40€  fail"), else "".
 static func _shift_line(texts: PackedStringArray, shift: int) -> String:
 	var lead: String = "%3d  " % shift
 	for text: String in texts:

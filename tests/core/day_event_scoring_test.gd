@@ -1,7 +1,7 @@
 extends GdUnitTestSuite
 ## Day event rules in scoring (v0.69, plan section 3.9): a flat bonus on a tag's products (Late
-## delivery's −€2, never below €0), a multiplier on the nth product (Free samples' ×2, wasted on a
-## €0 product or a row without it) and a flat bonus on the row's last card (Happy hour's +€3).
+## delivery's −2€, never below 0€), a multiplier on the nth product (Free samples' ×2, wasted on a
+## 0€ product or a row without it) and a flat bonus on the row's last card (Happy hour's +3€).
 ## Every change is a step of the event's (source_kind INSPECTION), so the count-up and the receipt
 ## show it. Uses the frozen fixture; the rules' numbers are set here, not taken from data/.
 
@@ -100,7 +100,7 @@ func test_total_matches_score_with_every_rule() -> void:
 		)
 
 
-## The receipt and the monitor word a fall with its sign: "−€2 Late delivery: Dairy pays less".
+## The receipt and the monitor word a fall with its sign: "−2€ Late delivery: Dairy pays less".
 func test_a_fall_reads_with_its_sign() -> void:
 	var result: ScoreResult = _score(["cheese"], [_late(-2)])
 	var step: ScoreStep = _event_steps(result)[0]
@@ -108,8 +108,8 @@ func test_a_fall_reads_with_its_sign() -> void:
 	var line: String = ReceiptView.step_line(
 		step, PackedStringArray(["Cheese"]), PackedStringArray(), names
 	)
-	assert_str(line).is_equal("−€2 Late delivery: Dairy pays less")
-	assert_str(ReceiptView.money(-2, true)).is_equal("−€2.00")
+	assert_str(line).is_equal("−2€ Late delivery: Dairy pays less")
+	assert_str(ReceiptView.money(-2, true)).is_equal("−2.00€")
 	assert_str(EffectLinks.token_text(step)).is_equal("−2")
 
 

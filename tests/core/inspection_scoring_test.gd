@@ -6,7 +6,7 @@ extends GdUnitTestSuite
 ## fixture; inspection numbers are set here, not taken from data/.
 
 const FIXTURE := "res://tests/fixtures/cards_v0_4/%s.tres"
-const RECEIPT := "the 3rd product pays €0"
+const RECEIPT := "the 3rd product pays 0€"
 
 
 func test_the_third_product_pays_zero() -> void:
@@ -212,14 +212,14 @@ func _third() -> InspectionDefinition:
 func _slot_three() -> InspectionDefinition:
 	var rule: NthSlotZeroPayoutRule = NthSlotZeroPayoutRule.new()
 	rule.slot_number = 3
-	rule.receipt_text = "slot 3 pays €0"
+	rule.receipt_text = "slot 3 pays 0€"
 	return _inspection("Spot check", rule)
 
 
 static func _inspection(display_name: String, rule: InspectionRule) -> InspectionDefinition:
 	var inspection: InspectionDefinition = InspectionDefinition.new()
 	inspection.display_name = display_name
-	inspection.notice_text = "The 3rd product pays €0"
+	inspection.notice_text = "The 3rd product pays 0€"
 	if rule != null:
 		var rules: Array[InspectionRule] = [rule]
 		inspection.rules = rules

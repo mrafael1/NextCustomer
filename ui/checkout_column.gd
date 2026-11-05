@@ -14,8 +14,8 @@ extends Control
 ## at its rect (the paper's right edge), as the mock-up's screen does: a ×'s punch may overrun it
 ## for a moment.
 ##
-## It reads only the register's reading (set_reading, which the top bar's gauge follows too, so
-## both show the same whole number at every moment), the count's landings (land, waste) and the
+## It reads only the register's reading (set_reading, which the quota tube follows too, so both
+## read the same whole number at every moment), the count's landings (land, waste) and the
 ## shift's quota; every number is theirs. The motion runs on `make_tween` (the count's clock); the
 ## pulse and the sunburst's turn in real time. Under `reduced_motion` the number never rolls or
 ## punches, the gain box and the newest lamp show without a pop, nothing pulses or turns.

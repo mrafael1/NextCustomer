@@ -18,5 +18,6 @@ tags = PackedStringArray()
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_opening_deal")])
 rule_text = "If in the first slot: the next item pays ×5"
 sticker_text = "In 1st slot: next item ×{factor}"
+monitor_text = "In the first slot, the next item pays ×{factor}."
 art_ref = "res://art/icons/coupon_opening_deal_v2.png"
 mini_art_ref = "res://art/icons/coupon_opening_deal_mini.png"

@@ -174,7 +174,7 @@ func test_clicking_a_basket_redraws_it_and_plays_the_motion() -> void:
 	assert_int(screen._stage.pop_layer.get_child_count()).is_equal(0)
 	assert_int(_live_children(screen._stage.redraw_layer)).is_equal(0)
 	assert_int(screen._monitor.mode()).is_not_equal(MonitorView.Mode.REDRAW)
-	assert_str(screen._redraw_button.note()).is_equal("1 left")
+	assert_str(screen._redraw_button.note()).is_equal("1")
 
 
 ## Reduced motion: no pose (the basket never tips), the redraw ends after the 0.3 s fade.
@@ -217,7 +217,36 @@ func test_a_short_pile_swaps_the_left_item_and_says_which_stays() -> void:
 	screen._basket_redraw.stop()
 	assert_object(run.hand_places()[1]).is_same(stays)
 	assert_int(run.redraws_used).is_equal(1)
-	assert_str(screen._redraw_button.note()).is_equal("none to draw")
+	assert_str(screen._redraw_button.caption).is_equal(RedrawNotice.EMPTY_CAPTION)
+	assert_str(screen._redraw_button.note()).is_equal("1")
+
+
+## The redraw panel's heading shows the bare count of redraws left at its right, in the Redraw
+## key's colours (2 or more green, 1 orange, none red), heavier, inside the heading's row.
+func test_the_panel_count_is_coloured_by_what_is_left() -> void:
+	var panel: RedrawPanel = auto_free(RedrawPanel.new())
+	add_child(panel)
+	var colours: Dictionary[int, Color] = {
+		3: Palette.GREEN_DARK, 2: Palette.GREEN_DARK, 1: Palette.ORANGE_DARK, 0: Palette.TOMATO_DARK
+	}
+	for left: int in colours:
+		panel.show_notice(RedrawNotice.armed(left))
+		await get_tree().process_frame
+		var label: Label = panel.get_node("Left") as Label
+		assert_str(label.text).is_equal("%d" % left)
+		assert_object(label.get_theme_color("font_color")).is_equal(colours[left])
+		assert_object(label.get_theme_color("font_outline_color")).is_equal(colours[left])
+		assert_int(label.get_theme_constant("outline_size")).is_equal(RedrawPanel.LEFT_OUTLINE)
+		var title: Label = panel.get_node("Title") as Label
+		var heading: Rect2 = title.get_global_rect()
+		var text_width: float = label.get_minimum_size().x
+		assert_bool(panel.get_global_rect().encloses(label.get_global_rect())).is_true()
+		assert_float(label.get_global_rect().end.x).is_equal_approx(heading.end.x, 0.5)
+		assert_float(text_width).is_greater(0.0)
+		assert_float(label.get_minimum_size().y).is_less_equal(RedrawPanel.TITLE_HEIGHT)
+		# Clear of the title's text at the heading's left.
+		var title_width: float = title.get_minimum_size().x
+		assert_float(heading.end.x - text_width).is_greater(heading.position.x + title_width)
 
 
 ## A resumed screen shows every item at its place (redraw mode is never saved): an item on the

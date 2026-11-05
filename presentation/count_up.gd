@@ -18,7 +18,7 @@ extends Node
 ## line.
 ##
 ## The total (#105 piece 2, mock-up readability_v3.html): the LED (LedDisplay, the reading the
-## monitor's checkout column and the top bar both follow) counts in whole euros at each landing
+## monitor's checkout column and the quota tube follow) counts in whole euros at each landing
 ## (CountUpPlan's landings: a base, a +N, a ×'s gain, a denial's fall), in at most three ticks
 ## per landing (CountTotalTuning, data/balance/count_total.tres), each tick sounding as the digits
 ## change; `landing` tells the monitor (its punch, sparks, chips and ladder).
@@ -478,7 +478,7 @@ func _quota_met(with_ding: bool) -> void:
 
 
 ## The quota is met: the LED's reading turns met (its subtotal green; reading_changed tells the
-## top gauge) and quota_met tells the rest, with `pop` or at once.
+## quota tube) and quota_met tells the rest, with `pop` or at once.
 func _meet(pop: bool) -> void:
 	_met = true
 	_led.show_subtotal(_shown_subtotal, true)

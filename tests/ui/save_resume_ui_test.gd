@@ -124,26 +124,26 @@ func test_a_new_screen_resumes_the_hand_the_row_and_the_redraws() -> void:
 	assert_int(resumed.run.redraws_used).is_equal(1)
 	assert_int(resumed.run.redraws_allowed).is_equal(2)
 	assert_bool(resumed._redraw_button.disabled).is_false()
-	assert_str(resumed._redraw_button.caption).is_equal("Redraw")
-	assert_str(resumed._redraw_button.note()).is_equal("1 left")
+	assert_str(resumed._redraw_button.caption).is_equal(RedrawNotice.REDRAW_CAPTION)
+	assert_str(resumed._redraw_button.note()).is_equal("1")
 	assert_int(resumed._row_views.size()).is_equal(2)
 	assert_int(_hand_views(resumed).size()).is_equal(resumed.run.hand().size())
 	assert_bool(resumed._machine.is_open()).is_false()
 	# The monitor's one screen in planning (#105 piece 2): belt slot 1's item and PLAN over the
-	# projected total, which the QUOTA chip shows too.
+	# projected total, which the quota gauge shows too.
 	assert_int(resumed._monitor.mode()).is_equal(MonitorView.Mode.NEXT)
 	var plan_column: CheckoutColumn = resumed._monitor.checkout()
 	assert_str(plan_column.caption().text).is_equal(MonitorText.PLAN_CAPTION)
 	assert_int(plan_column.total_number().value()).is_equal(first.run.preview().total)
-	var projected: String = "€%d" % first.run.preview().total
-	assert_str(resumed._quota_meter.amount_label.text).is_equal(projected)
+	assert_int(resumed._quota_meter.amount()).is_equal(first.run.preview().total)
 	assert_bool(resumed._cabinet.checkout_key.held).is_false()
 	# The receipt is the itemised planning receipt (#80): the header, the items and PROJECTED.
 	var stub: PackedStringArray = _receipt_lines(resumed)
 	assert_array(stub).is_equal(_receipt_lines(first))
+	assert_int(resumed._receipt.target.shown_quota()).is_equal(resumed.run.quota())
 	# A line's left text, then its (empty) right text.
 	var shift_line: String = ReceiptView.SHIFT_TEXT % [1, resumed.run.shift_count(), 2]
-	assert_array(Array(stub.slice(0, 4))).is_equal([ReceiptView.HEADER_TEXT, "", shift_line, ""])
+	assert_array(Array(stub.slice(0, 2))).is_equal([shift_line, ""])
 	assert_bool(stub.has(ReceiptView.PROJECTED_TEXT)).is_true()
 	assert_bool(stub.has(ReceiptView.money(first.run.preview().total))).is_true()
 	assert_str(_event_log().run_id).is_equal(run_id)
@@ -211,9 +211,11 @@ func test_quitting_during_the_count_up_resumes_on_the_machine() -> void:
 	# The receipt	await _count_up_end(first)
 	# The receipt (under the shift's header, #75), totals and met state beside the machine, as
 	# the count-up left them.
-	assert_str(_receipt_lines(resumed)[0]).is_equal(ReceiptView.HEADER_TEXT)
+	assert_str(_receipt_lines(resumed)[0]).is_equal(resumed.receipt_header()[0])
 	assert_bool(_receipt_lines(resumed).has(ReceiptView.PROJECTED_TEXT)).is_false()
 	assert_array(_receipt_lines(resumed)).is_equal(_receipt_lines(first))
+	# It keeps TODAY'S TARGET pinned at its top (the shift scene polish).
+	assert_int(resumed._receipt.target.shown_quota()).is_equal(first.run.quota())
 	_assert_same_led(resumed, first)
 	assert_bool(first._cabinet.checkout_key.held).is_false()
 	assert_bool(first._count_up._met).is_true()
@@ -238,11 +240,10 @@ func test_quitting_during_the_count_up_resumes_on_the_machine() -> void:
 		assert_bool(monitor.checkout().sunburst().visible).is_false()
 		assert_bool(monitor.climax().is_running()).is_false()
 		assert_bool(monitor.bay().is_met()).is_false()
-		assert_bool(screen._stage.rail_light.is_lit()).is_false()
 	assert_array(_errors).is_empty()
 
 
-## A resumed checkout keeps the monitor on the final item and its complete explanation,
+## A resumed checkout keeps the monitor on the final item and its breakdown,
 ## with a green bay, no climax or rail light, and the final register total without celebration.
 func _assert_monitor_end_state(resumed: ShiftScreen) -> void:
 	var monitor: MonitorView = resumed._monitor
@@ -266,26 +267,21 @@ func _assert_monitor_end_state(resumed: ShiftScreen) -> void:
 		var items: MonitorItemColumn = monitor.item_column()
 		assert_object(items.shown_definition()).is_same(resumed.run.row[last].definition)
 		assert_int(items.shown_value()).is_equal(resumed.run.last_result.payouts[last])
-		# The last item's payment equation (the last Milk under Multipack's ×3 has one), as the
-		# count showed it: the newest row, inside the item column, below the line above it.
-		var equation: PaymentEquation = PaymentEquation.of(resumed.run.last_result.steps, last)
-		assert_object(equation).override_failure_message("PASSING_ROW's last Milk").is_not_null()
+		# The last item's breakdown as the count left it (PR #138 monitor: its rows and only
+		# "= N€" at the foot, no equation row): rows inside the item column, its payout the score's.
 		var rows: Array[Control] = items.step_rows()
-		var equations: Array[String] = []
+		assert_int(rows.size()).is_greater(0)
 		for row: Control in rows:
-			if row.has_meta(&"equation"):
-				equations.append(String(row.get_meta(&"line")))
-		assert_array(equations).is_equal([equation.text(MonitorItemColumn._arrow())])
-		assert_bool(rows[-1].has_meta(&"equation")).is_true()
-		var shown: Rect2 = rows[-1].get_global_rect()
-		(
-			assert_bool(items.get_global_rect().grow(0.5).encloses(shown))
-			. override_failure_message("%s outside %s" % [shown, items.get_global_rect()])
-			. is_true()
-		)
-		assert_int(rows.size()).is_greater(1)
-		assert_float(shown.position.y).is_greater_equal(rows[-2].get_global_rect().end.y - 0.5)
-		assert_bool(resumed._stage.rail_light.is_lit()).is_false()
+			assert_bool(row.has_meta(&"equation")).is_false()
+			var shown: Rect2 = row.get_global_rect()
+			(
+				assert_bool(items.get_global_rect().grow(0.5).encloses(shown))
+				. override_failure_message("%s outside %s" % [shown, items.get_global_rect()])
+				. is_true()
+			)
+		var payout: MonitorPayout = items.payout_view()
+		assert_int(payout.pay_amount()).is_equal(resumed.run.last_result.payouts[last])
+		assert_bool(payout.equals().visible).is_true()
 		assert_vector(monitor.position).is_equal(ShiftStage.MONITOR_RECT.position)
 		await _frames(5)
 
@@ -532,7 +528,7 @@ func test_a_run_that_doesnt_save_leaves_the_run_save_untouched() -> void:
 	assert_int(screen.run.phase).is_equal(RunState.Phase.LOST)
 	await _count_up_end(screen)
 	assert_str(FileAccess.get_file_as_string(_run_file())).is_equal(kept)
-	screen._on_new_run_pressed()
+	screen.start_new_run(_event_log().new_run_seed(), true, true)
 	assert_str(_saved()["run_id"]).is_equal(_event_log().run_id)
 	assert_str(FileAccess.get_file_as_string(_run_file())).is_not_equal(kept)
 	assert_array(_errors).is_empty()
@@ -627,10 +623,11 @@ func _saved() -> Dictionary:
 	return json.data
 
 
-## The receipt's labels in order (a line's left text, then its right text).
+## The receipt's labels in order (a line's left text, then its right text), under its pinned
+## TODAY'S TARGET (the shift scene polish), left out.
 static func _receipt_lines(screen: ShiftScreen) -> PackedStringArray:
 	var texts: PackedStringArray = PackedStringArray()
-	for label: Node in screen._receipt.find_children("*", "Label", true, false):
+	for label: Node in screen._receipt._lines.find_children("*", "Label", true, false):
 		if not label.is_queued_for_deletion() and not label.get_parent().is_queued_for_deletion():
 			texts.append((label as Label).text)
 	return texts

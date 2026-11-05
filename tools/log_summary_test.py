@@ -265,6 +265,17 @@ class ReadingTest(LogTestCase):
         summary = self.summary(self.write("p.jsonl", s))
         self.assertEqual(summary["inputs"]["unknown_event_types"], {"future_event": 1})
 
+    def test_a_results_exit_is_known_and_makes_no_run(self) -> None:
+        # The results' Return to menu attaches to the ended run; on its own it is no run.
+        s = Session("s1")
+        s.run_start("r1")
+        s.run_end("r1", True, 8)
+        s.log("results_exit", "r1", since_run_end_ms=900, screen="results")
+        s.log("results_exit", "gone", since_run_end_ms=900, screen="results")
+        summary = self.summary(self.write("p.jsonl", s))
+        self.assertEqual(summary["inputs"]["unknown_event_types"], {})
+        self.assertEqual(summary["runs"]["runs"], 1)
+
     def test_duplicate_events_are_dropped(self) -> None:
         s = Session("s1")
         s.run_start("r1")

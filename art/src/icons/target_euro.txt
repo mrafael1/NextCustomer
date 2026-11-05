@@ -1,0 +1,20 @@
+; The small raised euro after the receipt's big TODAY'S TARGET number (the shift scene polish,
+; mock-up docs/art/mockups/shift_scene_polish_v2.html section 2; the user's "80€" of 2026-11-02):
+; a 5x7 hard-pixel € drawn with 2 art px per pixel in tomato dark, so it reads at two thirds of the
+; digits' pixel size (ReceiptTarget). Shown at 2x (20x28).
+@size 10x14
+@kind icon
+....rrrrrr
+....rrrrrr
+..rr......
+..rr......
+rrrrrrrr..
+rrrrrrrr..
+..rr......
+..rr......
+rrrrrrrr..
+rrrrrrrr..
+..rr......
+..rr......
+....rrrrrr
+....rrrrrr

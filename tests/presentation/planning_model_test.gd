@@ -75,32 +75,33 @@ func test_the_reference_row_shows_its_pays_halos_and_stamp() -> void:
 	# Eggs pays its base.
 	assert_int(model.slots[0].pay).is_equal(PlanningModel.Pay.PLAIN)
 	assert_str(model.slots[0].pay_text).is_empty()
-	assert_bool(model.slots[0].struck).is_false()
+	assert_int(model.slots[0].payout).is_equal(0)
 	assert_int(model.slots[0].rings).is_equal(0)
-	# Bread and the Milks after Multipack are boosted: struck base, gold burst with the payout.
+	# Bread and the Milks after Multipack are boosted: the payout in the ticket's window.
 	for slot: int in [1, 4, 5, 6]:
 		var planning: PlanningSlot = model.slots[slot]
 		assert_int(planning.pay).is_equal(PlanningModel.Pay.BOOSTED)
-		assert_str(planning.pay_text).is_equal("€%d" % result.payouts[slot])
-		assert_bool(planning.struck).is_true()
+		assert_str(planning.pay_text).is_equal("%d€" % result.payouts[slot])
+		assert_int(planning.payout).is_equal(result.payouts[slot])
 		assert_int(planning.rings).is_equal(_expected_rings(result.payouts[slot], row[slot].base))
 		assert_bool(planning.denied).is_false()
 		assert_bool(planning.has_stamp()).is_false()
-	# The Spot check denies Milk 3: stamp, grey sprite, €0 tag with the warning glyph.
+	# The Spot check denies Milk 3: stamp, grey sprite, 0€ tag with no glyph (2026-11-02: the
+	# slot's talker, the cause-only chip, shows the warning sign).
 	var milk: PlanningSlot = model.slots[2]
 	assert_int(milk.pay).is_equal(PlanningModel.Pay.DENIED)
-	assert_int(milk.glyph).is_equal(PlanningModel.Glyph.WARNING)
-	assert_str(milk.pay_text).is_equal("€0")
-	assert_bool(milk.struck).is_true()
+	assert_int(milk.glyph).is_equal(PlanningModel.Glyph.NONE)
+	assert_str(milk.pay_text).is_equal("0€")
+	assert_int(milk.payout).is_equal(0)
 	assert_bool(milk.denied).is_true()
-	assert_str(milk.stamp_amount).is_equal("€0")
+	assert_str(milk.stamp_amount).is_equal("0€")
 	assert_str(milk.stamp_caption).is_equal("SPOT CHECK")
-	# Multipack pays nothing after Coupon engine's fizzle; a coupon's title is never struck.
+	# Multipack pays nothing after Coupon engine's fizzle (its window WASTED).
 	var multipack: PlanningSlot = model.slots[3]
 	assert_int(multipack.pay).is_equal(PlanningModel.Pay.ZERO)
 	assert_int(multipack.glyph).is_equal(PlanningModel.Glyph.FIZZLE)
-	assert_str(multipack.pay_text).is_equal("€0")
-	assert_bool(multipack.struck).is_false()
+	assert_str(multipack.pay_text).is_equal("0€")
+	assert_int(multipack.payout).is_equal(0)
 	assert_bool(multipack.has_stamp()).is_false()
 
 
@@ -173,22 +174,23 @@ func test_the_five_pay_states() -> void:
 	# PLAIN: pays its base; a coupon paying 0 with nothing on it.
 	assert_int(_one(product, [], 5, tuning).pay).is_equal(PlanningModel.Pay.PLAIN)
 	assert_int(_one(coupon, [], 0, tuning).pay).is_equal(PlanningModel.Pay.PLAIN)
-	assert_bool(_one(coupon, [], 0, tuning).struck).is_false()
+	assert_int(_one(coupon, [], 0, tuning).payout).is_equal(0)
 	# BOOSTED.
 	var boosted: PlanningSlot = _one(product, [_flat(0, 3, 8)], 8, tuning)
 	assert_int(boosted.pay).is_equal(PlanningModel.Pay.BOOSTED)
-	assert_str(boosted.pay_text).is_equal("€8")
-	assert_bool(boosted.struck).is_true()
+	assert_str(boosted.pay_text).is_equal("8€")
+	assert_int(boosted.payout).is_equal(8)
 	# LOWERED: 0 < pay < base.
 	var lowered: PlanningSlot = _one(
 		product, [_override(0, 0, ScoreStep.SourceKind.CARD, 2)], 2, tuning
 	)
 	assert_int(lowered.pay).is_equal(PlanningModel.Pay.LOWERED)
-	assert_str(lowered.pay_text).is_equal("€2")
-	assert_bool(lowered.struck).is_true()
+	assert_str(lowered.pay_text).is_equal("2€")
+	assert_int(lowered.payout).is_equal(2)
 	assert_bool(lowered.denied).is_false()
-	assert_str(lowered.stamp_amount).is_equal("€2")
-	# DENIED by an inspection (warning glyph) and by the card itself (fizzle glyph).
+	assert_str(lowered.stamp_amount).is_equal("2€")
+	# DENIED by an inspection (warning glyph: Spot check zeroes slot 3, not this slot 1, so no
+	# talker shows it) and by the card itself (fizzle glyph).
 	var inspected: PlanningSlot = _one(
 		product, [_override(0, 0, ScoreStep.SourceKind.INSPECTION, 0)], 0, tuning
 	)
@@ -200,14 +202,14 @@ func test_the_five_pay_states() -> void:
 	var own: PlanningSlot = _one(soup, [_override(0, 0, ScoreStep.SourceKind.CARD, 0)], 0, tuning)
 	assert_int(own.pay).is_equal(PlanningModel.Pay.DENIED)
 	assert_int(own.glyph).is_equal(PlanningModel.Glyph.FIZZLE)
-	assert_str(own.stamp_amount).is_equal("€0")
+	assert_str(own.stamp_amount).is_equal("0€")
 	assert_str(own.stamp_caption).is_equal("SOUP")
-	# ZERO: a coupon that pays nothing after a fizzle; never struck.
+	# ZERO: a coupon that pays nothing after a fizzle.
 	var zero: PlanningSlot = _one(coupon, [_wasted(0, 0)], 0, tuning)
 	assert_int(zero.pay).is_equal(PlanningModel.Pay.ZERO)
 	assert_int(zero.glyph).is_equal(PlanningModel.Glyph.FIZZLE)
-	assert_str(zero.pay_text).is_equal("€0")
-	assert_bool(zero.struck).is_false()
+	assert_str(zero.pay_text).is_equal("0€")
+	assert_int(zero.payout).is_equal(0)
 	assert_int(zero.stickers.size()).is_equal(1)
 	assert_int(zero.stickers[0].kind).is_equal(StickerSpec.Kind.FIZZLE)
 	assert_int(zero.stickers[0].badge).is_equal(GiverBadge.Kind.NONE)
@@ -260,7 +262,7 @@ func test_copies_make_a_backward_strip_when_the_copy_comes_first() -> void:
 		model.slots[1].stickers[0],
 		[StickerSpec.Kind.COPY, model.slots[1].stickers[0].text, GiverBadge.Kind.ITEM, "Ba"]
 	)
-	assert_str(model.slots[1].stickers[0].text).starts_with("=€")
+	assert_str(model.slots[1].stickers[0].text).starts_with("=").ends_with("€")
 	var copy: RailStripSpec = model.strips[0]
 	assert_int(copy.giver_slot).is_equal(0)
 	assert_array(Array(copy.targets)).is_equal([1])
@@ -352,7 +354,7 @@ func test_every_golden_row_builds_a_model_from_its_steps() -> void:
 				var planning: PlanningSlot = model.slots[slot]
 				if planning.pay != PlanningModel.Pay.PLAIN:
 					assert_str(planning.pay_text).override_failure_message(ids).is_equal(
-						"€%d" % result.payouts[slot]
+						"%d€" % result.payouts[slot]
 					)
 				for sticker: StickerSpec in planning.stickers:
 					assert_str(sticker.text).override_failure_message(ids).is_not_empty()

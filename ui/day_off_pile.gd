@@ -4,7 +4,7 @@ extends Control
 ## conveyor with quota value", then "when clicking on skip, pile of gold spawns on 1st slot;
 ## checkout confirms; click the pile or the tag to cancel"). SKIP puts it on belt slot 1: the
 ## pile (gold_pile, drawn PILE_SCALE x) drops onto the slot's footprint with a bounce and the
-## coins' clinks, then the quota's gold burst ("€80", PayTag's BOOSTED look) pops above it with
+## coins' clinks, then the quota's gold burst ("80€", PayTag's BOOSTED look) pops above it with
 ## a ka-ching. A click on it says `pressed` (PinFlow takes it back: lift). CHECKOUT cashes it
 ## (cash: the burst punches). Under reduced motion it is simply there, or gone. Decor only: the
 ## amount is the shift's quota, which the day passes on.
@@ -45,7 +45,7 @@ func _init(quota: int) -> void:
 	mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	tooltip_text = "Day off: CHECKOUT takes it, a click takes it back"
 	var pile_size: Vector2 = Vector2(PILE.get_size()) * PILE_SCALE
-	_tag = PayTag.new(PlanningModel.Pay.BOOSTED, "€%d" % quota)
+	_tag = PayTag.new(PlanningModel.Pay.BOOSTED, MonitorText.euros(quota))
 	var tag_size: Vector2 = _tag.size * TAG_SCALE
 	size = Vector2(maxf(pile_size.x, tag_size.x), pile_size.y + tag_size.y + TAG_GAP)
 	_pile = UiKit.sprite(PILE)

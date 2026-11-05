@@ -23,13 +23,13 @@ enum Kind { UNSET, WIN_WITH_CARD, SCORE_IN_ONE_CHECKOUT, USE_COUPON_TIMES, WIN_R
 @export var amount: int = 0
 
 
-## The condition as the player reads it, e.g. "Score €40 in one checkout".
+## The condition as the player reads it, e.g. "Score 40€ in one checkout".
 func summary() -> String:
 	match kind:
 		Kind.WIN_WITH_CARD:
 			return "Win a run with %s in your deck" % _card_name()
 		Kind.SCORE_IN_ONE_CHECKOUT:
-			return "Score €%d in one checkout" % amount
+			return "Score %d€ in one checkout" % amount
 		Kind.USE_COUPON_TIMES:
 			return "Use %s %d times" % [_card_name(), amount]
 		Kind.WIN_RUNS:

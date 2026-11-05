@@ -5,7 +5,7 @@ extends GdUnitTestSuite
 ## lists a review's maluses and reward, and flies into the week chip; the chips lie in the top bar
 ## between the QUOTA and LOYALTY chips, apart, with their texts and pips; tapping a chip reopens
 ## the card and tapping the card closes it; a resume mid-week never replays the card; and Bakery
-## festival's +€2 plays in the count-up from the week chip; after each verdict the card stamps the
+## festival's +2€ plays in the count-up from the week chip; after each verdict the card stamps the
 ## day PAID or SLIP (v0.72). Clicks are sent to the handlers,
 ## because headless runs don't deliver input events.
 
@@ -13,6 +13,7 @@ const SCREEN := "res://ui/shift_screen.tscn"
 const Rush := preload("res://tests/ui/count_up_rush.gd")
 const BALANCE := "res://data/balance/balance.tres"
 const STARTER := "res://data/decks/starter.tres"
+const INSPECTIONS := "res://data/inspections"
 const RecordingSfx := preload("res://tests/presentation/recording_sfx.gd")
 
 var _folder: String = ""
@@ -122,6 +123,48 @@ func test_the_chips_lay_out_in_the_top_bar() -> void:
 	_assert_chips_fit(screen)
 
 
+## The week chip keeps its name beside every single day event (1920x1080 legibility, 2026-11-03:
+## the name grew from 13 to 15 px, and TopBar.fit_inspection hides it first when the day chip runs
+## short): TRAINING, the longest week name, beside each inspection's chip text, with the bonus
+## ticket's pill where the inspection promises one, the chips still apart. A review's two maluses
+## hide the name, at 13 px as at 15 (the day's effects come first); the pips stay.
+func test_the_week_name_stays_beside_every_day_event() -> void:
+	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
+	var screen: ShiftScreen = runner.scene()
+	screen._week.skip()
+	MachineSteps.bonus_after_inspection(screen.run)
+	await _frames(3)
+	var chip: WeekChip = screen._stage.top_bar.week_chip
+	assert_str(chip.name_label().text).is_equal("TRAINING")
+	# In hard pixels at NAME_SCALE (v4's D: 3 screen px per font px, 21 px caps at 1920x1080).
+	assert_vector(chip.name_label().scale).is_equal(Vector2.ONE * WeekChip.NAME_SCALE)
+	assert_int(WeekChip.PADDING).is_equal(6)
+	var tag: InspectionTag = screen._inspection_tag
+	var promised: int = 0
+	for file_name: String in DirAccess.get_files_at(INSPECTIONS):
+		if not file_name.ends_with(".tres"):
+			continue
+		screen._debug.set_inspection(file_name.get_basename())
+		await _frames(3)
+		assert_str(screen.run.inspections[0].resource_path.get_file()).is_equal(file_name)
+		if tag.bonus_state() == InspectionTag.Bonus.PROMISED:
+			promised += 1
+		assert_bool(chip.name_shown()).override_failure_message(file_name).is_true()
+		assert_bool(tag.is_trimmed()).override_failure_message(file_name).is_false()
+		_assert_chips_fit(screen)
+	assert_int(promised).is_greater(0)
+	var run: RunState = screen.run
+	run.inspections = [
+		load(INSPECTIONS + "/spot_check.tres"), load(INSPECTIONS + "/late_delivery.tres")
+	]
+	run.debug_skip_to_shift(run.shift_index)
+	screen._on_shift_started()
+	screen._week.drop()
+	await _frames(3)
+	assert_bool(chip.pips_shown() and not tag.is_trimmed()).is_true()
+	_assert_chips_fit(screen)
+
+
 ## Tapping the week chip reopens the whole card in planning (open until tapped); tapping the card
 ## flies it back into the chip. The day chip drops today's slip instead (DaySlip, day_slip_test).
 func test_a_chip_tap_reopens_the_card_and_a_tap_closes_it() -> void:
@@ -155,7 +198,7 @@ func test_the_final_review_reads_pass_to_win() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
 	screen._week.skip()
-	screen.run.debug_skip_to_shift(11)
+	screen.run.debug_skip_to_shift(screen.run.shift_count() - 1)
 	screen.debug_show_shift()
 	screen._week.skip()
 	screen._week.reopen()
@@ -164,7 +207,13 @@ func test_the_final_review_reads_pass_to_win() -> void:
 	var last: String = _texts(card.rows()[3])
 	assert_str(last).contains("FINAL REVIEW · 2 MALUSES")
 	assert_str(last).contains(WeekCardModel.FINAL_REWARD)
-	assert_str(_texts(card.banner())).contains("HOLIDAY RUSH")
+	# Week 4 (v0.96): Clearance week, its banner in its own colour (orange dark).
+	assert_str(_texts(card.banner())).contains("CLEARANCE WEEK")
+	assert_bool(WeekCard.colour_of(4) == Palette.ORANGE_DARK).is_true()
+	var colours: Array[Color] = []
+	for week: int in range(1, 5):
+		assert_bool(colours.has(WeekCard.colour_of(week))).is_false()
+		colours.append(WeekCard.colour_of(week))
 	var punched: Array[bool] = []
 	for punch: Label in card.punches():
 		punched.append(punch.modulate.a > 0.5)
@@ -194,7 +243,7 @@ func test_a_mid_week_resume_does_not_replay_the_card() -> void:
 	assert_bool(screen._week.card.is_open()).is_true()
 
 
-## Bakery festival's +€2 on a Bakery product is a step of its own: the count-up plays it from the
+## Bakery festival's +2€ on a Bakery product is a step of its own: the count-up plays it from the
 ## week chip, and the receipt names the week event.
 func test_the_week_bonus_plays_in_the_count_up_from_the_week_chip() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
@@ -331,6 +380,10 @@ func test_the_card_waits_for_the_upgrade_swap() -> void:
 	machine.swap.show_at(machine.swap.length())
 	assert_bool(machine.is_swapping()).is_false()
 	await _frames(3)
+	assert_bool(screen._week.card.is_open()).is_true()
+	# Skip the slide-in so the rect is settled however long the frames took (a busy batch run).
+	screen._week.card.finish()
+	await _frames(1)
 	assert_bool(screen._week.card.is_open()).is_true()
 	(
 		assert_bool(screen.get_global_rect().encloses(screen._week.card.card().get_global_rect()))
@@ -564,8 +617,12 @@ func _assert_chips_fit(screen: ShiftScreen) -> void:
 	for rect: Rect2 in [week, day]:
 		assert_bool(stage.encloses(rect)).override_failure_message(str(rect)).is_true()
 		assert_float(rect.end.y).is_less_equal(stage.position.y + ShiftStage.PANEL_TOP)
-	var quota_chip: Rect2 = (bar.get_child(1) as Control).get_global_rect()
-	assert_float(week.position.x).is_greater_equal(quota_chip.end.x)
+	# The SPEND chip is gone (the register tower): the week chip starts the row, or follows the
+	# SHIFT chip when it shows.
+	var left: float = bar.get_global_rect().position.x
+	if bar.shift_chip.visible:
+		left = bar.shift_chip.get_global_rect().end.x
+	assert_float(week.position.x).is_greater_equal(left)
 	assert_float(day.position.x).is_greater_equal(week.end.x)
 	assert_float(day.end.x).is_less_equal(screen._loyalty_card.get_global_rect().position.x)
 	var parts: Array[Control] = [bar.week_chip.number_label()]

@@ -10,8 +10,8 @@ extends RefCounted
 ## to keep that file short; they work on the screen's run and display.
 ##
 ## What shows the two rows (the user's choice of 2026-11-02): the belt shortened to a row's cells
-## (BeltPanel.set_cells), "CHECKOUT 1/2" then "CHECKOUT 2/2" on the key, two pips by the SPEND
-## gauge (RowPips, the first gold once row 1 is counted), and a ROW 2 banner popping over the
+## (BeltPanel.set_cells), "CHECKOUT 1/2" then "CHECKOUT 2/2" on the key, two pips under the
+## quota tube (RowPips, the first gold once row 1 is counted), and a ROW 2 banner popping over the
 ## belt as the hand refills after row 1's count, then fading (show_banner).
 
 ## The receipt header's row line (receipt_header): row 1, then row 2 with row 1's amount.
@@ -68,7 +68,7 @@ static func header(run: RunState) -> PackedStringArray:
 ## then row 2, both pips gold once the shift is checked out.
 static func refresh(screen: ShiftScreen) -> void:
 	var run: RunState = screen.run
-	var pips: RowPips = (screen._top_bar as TopBar).quota_meter.row_pips
+	var pips: RowPips = screen._stage.tower.row_pips
 	if RunPins.row_slots(run) <= 0:
 		screen._cabinet.set_checkout_row("")
 		pips.show_rows(0, 0)
@@ -158,7 +158,7 @@ static func count_row_one(screen: ShiftScreen, committed: Array[CardInstance]) -
 	screen._row_views = views
 	screen._effects.show_count(result, views, run)
 	var context: CountUpContext = screen.count_up_context()
-	screen._monitor.upgrades = run.upgrades.duplicate()
+	screen._monitor.use_sources(run.upgrades, WeekSchedule.shift_events(run))
 	screen._ride.begin(result, views, context.reduced_motion)
 	await (screen._count_up.play(
 		result,
@@ -168,7 +168,9 @@ static func count_row_one(screen: ShiftScreen, committed: Array[CardInstance]) -
 		context,
 		screen._loyalty_card.stamped_boxes(),
 		LoyaltyCard.names(run.upgrades),
-		(screen._top_bar as TopBar).event_sources(WeekSchedule.shift_events(run)),
+		(screen._top_bar as TopBar).event_sources(
+			WeekSchedule.shift_events(run), RunPins.pin_events(run).size()
+		),
 		InspectionTag.names(WeekSchedule.shift_events(run))
 	))
 	screen._counting = false

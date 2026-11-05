@@ -2,7 +2,7 @@ class_name NthProductMultiplierRule
 extends InspectionRule
 ## Day event (Free samples): the product_number-th product in the row (counting products only,
 ## coupons skipped) is multiplied by `factor`, after every card, effect and upgrade multiplier. A
-## product paying €0 there has nothing to multiply (WASTED), and a row with fewer products wastes
+## product paying 0€ there has nothing to multiply (WASTED), and a row with fewer products wastes
 ## the boon on its last slot. 0 means no product.
 
 @export var product_number: int = 0

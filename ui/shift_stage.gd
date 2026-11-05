@@ -14,31 +14,35 @@ extends Control
 ## (the world's at 1x), except the MACHINE_* rects the camera puts on screen.  On the stage, back to
 ## front: the checkout cheering's standees (CheckoutCrowd, #120) on the back wall, the hung monitor
 ## (MonitorView: two rods, its bezel and paper screen, with the scanner bay, the item column, the
-## checkout column and the notices on it), the register (RegisterCabinet, the count-up's rattle
+## checkout column and the notices on it), the badge pins' lanyard hung from it (PinLanyard), the
+## register (RegisterCabinet, the count-up's rattle
 ## target: the printer box on the counter top and the register column under it, with the key deck
 ## and its keys, Cancel, Redraw and CHECKOUT, the keypad, the seed line under Redraw and the cash
-## drawer), the receipt rising from the printer's slot, the bagging shelf behind the belt's first
-## cell with the store's kraft bag on it (PaperBag, #86 v6 and #123: the counted items go in), the
-## belt (BeltPanel: the steel guard, the rubber top face, the lip, the apron and the price rail,
-## then the row of items standing on the belt with their tickets on the rail), the planning layer
+## drawer) under the register's tower (RegisterTower: its charcoal front from the printer up to the
+## top of the screen, the receipt's well and the quota gauge, a tube beside the receipt), the
+## receipt rising from the printer's slot, the bagging shelf behind the belt's first cell with the
+## store's kraft bag on it (PaperBag, #86 v6 and #123: the counted items go in), the belt
+## (BeltPanel: the steel guard, the rubber top face, the lip, the apron and the price rail, then the
+## row of items standing on the belt with their tickets on the rail), the planning layer
 ## (PlanningLayer: #71's stickers, stamps and pay tags over the items), the top bar (TopBar: the
-## SHIFT, QUOTA, inspection and LOYALTY chips, Cart and the menu with Export log, all above
-## PANEL_TOP), the hand's baskets on the steel ledge (HandBaskets: their backs, the hand in them,
-## the basket redraw's pop layer, their fronts, and the redraw's targets and tags, BasketTags), the
-## shade that darkens them while counting and the redraw layer (the basket redraw's flights into the
-## Cart and its sparks, over the top bar). Over the fore's parts the quota crossing's bonus lights
-## (BonusLights) and the count's rail light (RailLight, #86 kept by #105 piece 2: the price rail lit
-## gold from a giver's ticket to its target's). Over them all the quota crossing (QuotaCrossing: its
-## flag, streak and lap stamps), the scan layer (ScanOverlay: the scan's brackets and beam) and the
-## popup layer, all taking no clicks. A belt or hand item's scan shows on the monitor (#80); the
-## popup layer only parks the hidden scan popup, which opens over the offers alone, in the layer an
-## offer's scan moves it to (ScanController.cover_offers). The receipt stands on the printer's slot
-## and grows up as its lines print, up to under the top bar; past that it scrolls to its newest
-## line.  It only builds and lays out: the screen fills the controls, and its buttons emit the
-## signals below. Its controls are public on purpose: the stage is ShiftScreen's layout part (as
-## ShiftDebug is its debug part), built and owned by the screen alone, so the screen fills them
-## directly instead of through a setter each. No other scene reaches into it.  The receipt never
-## shakes with the register, so the dessert's slam lands on a still TOTAL line.
+## SHIFT, week, inspection and LOYALTY chips, Cart and the menu with Export log, all above
+## PANEL_TOP, right of the tower), the hand's baskets on the steel ledge (HandBaskets: their backs,
+## the hand in them, the basket redraw's pop layer, their fronts, and the redraw's targets and tags,
+## BasketTags), the shade that darkens them while counting and the redraw layer (the basket redraw's
+## flights into the Cart and its sparks, over the top bar). Over the fore's parts the quota
+## crossing's bonus lights (BonusLights, over the count's quota light, QuotaLight: the band filling
+## toward the belt's far end with the running total against the quota). Over them all the quota
+## crossing (QuotaCrossing: its streak and lap stamps), the scan layer (ScanOverlay: the
+## scan's brackets and beam) and the popup layer, all taking no clicks. A belt or hand item's scan
+## shows on the monitor (#80); the popup layer only parks the hidden scan popup, which opens over
+## the offers alone, in the layer an offer's scan moves it to (ScanController.cover_offers). The
+## receipt stands on the printer's slot and grows up as its lines print, up to near the top of the
+## screen (the shift scene polish: its TODAY'S TARGET block stays pinned at its top); past that it
+## scrolls to its newest line.  It only builds and lays out: the screen fills the controls, and its
+## buttons emit the signals below. Its controls are public on purpose: the stage is ShiftScreen's
+## layout part (as ShiftDebug is its debug part), built and owned by the screen alone, so the screen
+## fills them directly instead of through a setter each. No other scene reaches into it.  The
+## receipt never shakes with the register, so the dessert's slam lands on a still TOTAL line.
 
 signal checkout_pressed
 signal redraw_pressed
@@ -47,9 +51,23 @@ signal deck_pressed
 signal export_pressed
 
 const SIZE := Vector2(1280, 720)
-## The top bar's band foot (TopBar's chips stand in it): the wall starts under it, and a scan
-## popup never reaches it.
+## The top bar's band foot (TopBar's chips stand in it, right of the tower): the wall starts under
+## it, and a scan popup never reaches it.
 const TOP_BAR_BOTTOM := 56.0
+## The register's tower (the shift scene polish, mock-up shift_scene_polish_v2.html section 2,
+## A2; v4's A1): the column's rubber front from the top of the screen down to the printer, left of
+## the bagging shelf, with a steel trim on its top and left edges and rivets on its right strip.
+## The top bar's band starts at its right edge (StoreBackdrop.top_parts). On it the receipt's
+## recessed well (its left edge on the receipt's), and in the column's left margin the gauge's
+## steel housing (GaugeHousing) with the quota gauge's glass in it (its top row is the target line;
+## past the quota it refills lap by lap, its lap lamp over the housing's top cap), and under it a
+## brass plate with an engraved €, where a Double checkout's row pips show instead.
+const TOWER_RECT := Rect2(0, 0, 298, 332)
+const RECEIPT_WELL_RECT := Rect2(40, 4, 252, 328)
+const HOUSING_RECT := Rect2(0, 30, 42, 276)
+const TUBE_RECT := Rect2(6, 38, 30, 258)
+const PLATE_RECT := Rect2(2, 308, 38, 22)
+const ROW_PIPS_POSITION := Vector2(7, 313)
 ## Where the store meets the belt's back: the counter is below it. The clean scene (#123, mock-up
 ## docs/art/mockups/scene_123.html, direction A) brings the belt 34 px down onto the baskets, so
 ## the counter reads as one surface and the store above it gets the room.
@@ -57,7 +75,7 @@ const COUNTER_TOP := 360.0
 ## The floor under the counter and the register: the basket ledge's foot.
 const FLOOR_TOP := 708.0
 ## The belt, from its steel guard down to the price rail's shadow (BeltPanel draws its bands).
-const BELT_RECT := Rect2(348, 348, 918, 180)
+const BELT_RECT := Rect2(348, 348, 918, 192)
 ## Where the 7-slot row starts: each cell (ItemView.BELT_SIZE) stands its item on the belt's top
 ## face and clips its ticket on the rail. Every row rests on ROW_BOTTOM: a scaled 8-slot row
 ## too.
@@ -92,12 +110,14 @@ const COLUMN_RECT := Rect2(0, 400, 336, 300)
 const DECK_RECT := Rect2(12, 412, 314, 204)
 const KEYPAD_RECT := Rect2(226, 516, 88, 86)
 const DRAWER_RECT := Rect2(12, 624, 314, 76)
-## The receipt stands on the printer's slot (RECEIPT_BOTTOM) and grows up to RECEIPT_TOP at
-## most; its lines wrap as the plan's examples do.
-const RECEIPT_X := 46.0
-const RECEIPT_WIDTH := 236.0
+## The receipt stands on the printer's slot (RECEIPT_BOTTOM), in its well on the tower, always
+## reaching RECEIPT_TOP (ReceiptView.full_length, B2 of mock-up shift_scene_polish_v4: one row per
+## belt slot in planning, so no dark well shows over a short receipt); its lines wrap as the
+## plan's examples do.
+const RECEIPT_X := 42.0
+const RECEIPT_WIDTH := 244.0
 const RECEIPT_BOTTOM := 340.0
-const RECEIPT_TOP := 64.0
+const RECEIPT_TOP := 10.0
 const RECEIPT_PADDING := 8
 ## The keys on the register's key deck (RegisterCabinet builds them). Redraw keeps its left
 ## edge, so a longer caption grows it toward the keypad, never off the column; Cancel (redraw
@@ -109,15 +129,16 @@ const CANCEL_RECT := Rect2(232, 518, 84, 54)
 ## baskets on it (HandRow: ItemView.BASKET_SIZE cells, from the first basket's left edge to the
 ## last one's right edge at the natural pitch; the baskets' rims are HandBaskets'). Since the belt
 ## came down onto the baskets (#123) the hand's cells start at the rail's shadow: a scanned or
-## picked basket item rises over the counter face, up to the rail.
-const LEDGE_RECT := Rect2(346, 674, 924, 34)
-const HAND_RECT := Rect2(362, 526, 892, ItemView.BASKET_SIZE.y)
+## picked basket item rises over the counter face, up to the rail. The ledge's foot is the floor's
+## line (FLOOR_TOP).
+const LEDGE_RECT := Rect2(346, 686, 924, 22)
+const HAND_RECT := Rect2(362, 538, 892, ItemView.BASKET_SIZE.y)
 ## Where the hand is: from as high as a scanned basket item rises (ItemView.BASKET_LIFT over the
 ## cells' top, over the rail's foot since #123) down to the stage's foot, right of the register.
-const HAND_AREA := Rect2(336, 512, 944, 208)
+const HAND_AREA := Rect2(336, 524, 944, 196)
 ## While the shift is counted a shade darkens the hand and its baskets (ink at this alpha, mock-up
-## B2's count-up), so the belt reads first.
-const COUNTING_SHADE_RECT := Rect2(336, 526, 944, 186)
+## B2's count-up), so the belt reads first: down to the ledge's floor shadow (HandBaskets).
+const COUNTING_SHADE_RECT := Rect2(336, 538, 944, 174)
 const COUNTING_SHADE_ALPHA := 0.4
 const SEED_RECT := Rect2(20, 586, 198, 18)
 ## Screen panels (the deck view, the results) and their shade stay below this line, under the top
@@ -167,13 +188,15 @@ const BAGGING_SHELF := preload("res://art/scenery/bagging_shelf.png")
 ## The zoomed layer (StoreCamera adopts it) and, in it, the part that drops out during the glide.
 var world: Control
 var fore: Control
+## The top band's part over the tower (StoreBackdrop.top_parts, the screen's): it shows as the
+## fore drops out of frame, so the top of the screen stays the top bar's band at the machine.
+var top_cap: Control
 ## The RECEIPT REWARDS machine on the wall (add_machine), or null.
 var machine: Control
 ## The checkout cheering's cardboard standees (#120): over the machine, under the monitor.
 var crowd: CheckoutCrowd
 var top_bar: TopBar
 var shift_label: Label
-var quota_label: Label
 var loyalty_card: LoyaltyCard
 var inspection_tag: InspectionTag
 var deck_button: FramedButton
@@ -181,9 +204,15 @@ var export_button: FramedButton
 ## The hung monitor: its rods, bezel and screen, with the register's reading (the LED) and the
 ## notices on it.
 var monitor: MonitorView
+## The run's badge pins on their name badge, hung on a lanyard from the monitor's left side
+## (PinLanyard, mock-up shift_scene_polish_v2 section 3 C): in the world after the monitor.
+var pin_lanyard: PinLanyard
 ## The register: the count-up's rattle target (the same node as `cabinet`).
 var register: Control
 var cabinet: RegisterCabinet
+## The register's tower over it, with the quota gauge (the tube) and the row pips.
+var tower: RegisterTower
+var quota_meter: QuotaMeter
 ## The monitor's LED: the projected total, the count-up's subtotal and the total.
 var led: LedDisplay
 var receipt: ReceiptView
@@ -199,10 +228,11 @@ var planning_layer: PlanningLayer
 var bag: PaperBag
 ## Over everything on the stage, taking no clicks: the scan's marks, and the layer the scan
 ## popup opens in.
-## The count's rail light over the price rail (#105 piece 2), last in the fore.
-var rail_light: RailLight
+## The count's quota light on the belt's apron band (shift scene polish v2, section 1), first of
+## the band's lights in the fore.
+var quota_light: QuotaLight
 ## The quota crossing (A, B and E over the stage) and its bonus lights on the rail (D, in the fore
-## under the rail light).
+## over the quota light, last).
 var quota_crossing: QuotaCrossing
 var bonus_lights: BonusLights
 var scan_layer: ScanOverlay
@@ -263,7 +293,9 @@ func _init(slot_count: int) -> void:
 ## crossing.
 func follow_count(count_up: CountUp) -> void:
 	crowd.follow(count_up)
-	quota_crossing.follow(count_up, top_bar.quota_meter, bonus_lights)
+	quota_light.reduced_motion = func() -> bool:
+		return count_up.plan != null and count_up.plan.reduced_motion
+	quota_crossing.follow(count_up, quota_meter, bonus_lights)
 
 
 ## Puts the machine in the store right of the stage, behind the fore, at half size.
@@ -280,6 +312,8 @@ func add_machine(view: Control) -> void:
 func set_fore_drop(e: float, reduced: bool, drop_px: float) -> void:
 	fore.position.y = 0.0 if reduced else roundf(e * drop_px)
 	fore.modulate.a = 1.0 - e if reduced else 1.0 - e * FORE_FADE
+	if top_cap != null:
+		top_cap.modulate.a = e
 
 
 ## The screen theme on every layer that had it before the world moved to the camera: the hud
@@ -295,9 +329,7 @@ func _build_top_bar() -> void:
 	add_child(top_bar)
 	top_bar.deck_pressed.connect(deck_pressed.emit)
 	top_bar.export_pressed.connect(export_pressed.emit)
-	top_bar.quota_meter.follow(led)
 	shift_label = top_bar.shift_label
-	quota_label = top_bar.quota_label
 	loyalty_card = top_bar.loyalty_card
 	inspection_tag = top_bar.inspection_tag
 	deck_button = top_bar.deck_button
@@ -310,9 +342,15 @@ func _build_monitor() -> void:
 	world.add_child(monitor)
 	led = monitor.led
 	notice_label = monitor.notice_label
+	pin_lanyard = PinLanyard.new()
+	world.add_child(pin_lanyard)
 
 
 func _build_register() -> void:
+	tower = RegisterTower.new()
+	fore.add_child(tower)
+	quota_meter = tower.quota_meter
+	quota_meter.follow(led)
 	cabinet = RegisterCabinet.new()
 	fore.add_child(cabinet)
 	register = cabinet
@@ -327,6 +365,7 @@ func _build_register() -> void:
 	receipt.position = Vector2(RECEIPT_X, RECEIPT_BOTTOM)
 	receipt.size = Vector2(RECEIPT_WIDTH, 0.0)
 	fore.add_child(receipt)
+	receipt.full_length = true
 	receipt.fit_up(RECEIPT_BOTTOM, RECEIPT_TOP)
 	printer_lip = UiKit.sprite(PRINTER_LIP)
 	printer_lip.name = "PrinterLip"
@@ -374,6 +413,7 @@ func _fit_belt(cells: int) -> void:
 	crowd.belt_cut = belt.cut()
 	if bonus_lights != null:
 		bonus_lights.belt_cut = belt.cut()
+		quota_light.belt_cut = belt.cut()
 
 
 ## Rests the row on ROW_BOTTOM: a scaled row is shorter, so it starts lower. The scanner's plate
@@ -432,16 +472,20 @@ func _build_keys() -> void:
 	seed_label = cabinet.seed_label
 
 
-## The bonus lights and the rail light (last in the fore), then the quota crossing, the scan layer
-## and the popup layer (where the hidden scan popup waits) over the whole stage.
+## The quota light and the bonus lights over it (last in the fore), then the quota
+## crossing, the scan layer and the popup layer (where the hidden scan popup waits) over the whole
+## stage.
 func _build_scan_layers() -> void:
+	quota_light = QuotaLight.new()
+	quota_light.size = SIZE
+	quota_light.belt_cut = belt.cut()
+	quota_light.follow(led)
+	fore.add_child(quota_light)
 	bonus_lights = BonusLights.new()
+	bonus_lights.on_fill = quota_light.is_full
 	bonus_lights.size = SIZE
 	bonus_lights.belt_cut = belt.cut()
 	fore.add_child(bonus_lights)
-	rail_light = RailLight.new()
-	rail_light.size = SIZE
-	fore.add_child(rail_light)
 	quota_crossing = QuotaCrossing.new()
 	quota_crossing.size = SIZE
 	add_child(quota_crossing)

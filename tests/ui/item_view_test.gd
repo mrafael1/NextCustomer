@@ -4,7 +4,7 @@ extends GdUnitTestSuite
 ## a tray item, placed where the shift screen puts them, with the real fonts. The paid chip never
 ## runs under the art (at rest, selected or scanned, either face) nor, settled, over the corner
 ## mark; the sticker covers neither the sprite nor the mark; center() is on the sprite; the paid
-## chip has its two faces, mutes at €0 and pops with an echo; the looks (selected, redraw) show; one
+## chip has its two faces, mutes at 0€ and pops with an echo; the looks (selected, redraw) show; one
 ## mark per item sits on the art's corner (#80, step 7); every sprite's opaque pixels keep clear of
 ## its sticker (#57); and every undrawn item's name fits its art-pending box or its slip.
 
@@ -63,7 +63,7 @@ func test_belt_items_keep_sprite_paid_chip_sticker_and_mark_apart() -> void:
 		for current: bool in [true, false]:
 			view.set_badge_current(current)
 			for value: int in [0, 7, 999, 9999]:
-				var label: String = "%s, %s €%d" % [message, current, value]
+				var label: String = "%s, %s %d€" % [message, current, value]
 				view.show_badge(value, false)
 				_assert_sprite_clear(view, label)
 				if value < 100:
@@ -248,9 +248,9 @@ static func _top_arms(brackets: Rect2) -> Array[Rect2]:
 	]
 
 
-## The paid chip (#80, step 7; mock-up B2's count-up): "€N", hidden until shown. The current face
+## The paid chip (#80, step 7; mock-up B2's count-up): "N€", hidden until shown. The current face
 ## is big mustard, CURRENT_HEIGHT tall; set_badge_current(false) settles it in place into the small
-## paper face, SETTLED_HEIGHT tall, at its own rest y. €0 and a denied value show the muted face
+## paper face, SETTLED_HEIGHT tall, at its own rest y. 0€ and a denied value show the muted face
 ## at either size, and show_badge brings the plain one back. A current chip asked to pop with its
 ## echo shows the frame around it (shadow included) on its next show, then fades it; without the
 ## echo, or settled, none shows. The face is drawn in code, behind the text, with no pixel material.
@@ -263,8 +263,8 @@ func test_the_paid_chip_faces_mute_and_echo() -> void:
 	assert_bool(plaque.visible).is_false()
 	assert_bool(plaque.is_current()).is_true()
 	view.show_badge(5, false)
-	assert_str(plaque.text).is_equal("€5")
-	assert_str(PayoutPlaque.text_for(17)).is_equal("€17")
+	assert_str(plaque.text).is_equal("5€")
+	assert_str(PayoutPlaque.text_for(17)).is_equal("17€")
 	assert_bool(plaque.is_muted()).is_false()
 	assert_object(plaque.get_theme_color("font_color")).is_equal(Palette.INK)
 	assert_int(plaque.get_theme_font_size("font_size")).is_equal(PayoutPlaque.CURRENT_FONT_SIZE)
@@ -276,7 +276,7 @@ func test_the_paid_chip_faces_mute_and_echo() -> void:
 	assert_object(plaque.get_theme_color("font_color")).is_equal(Palette.GREY_DARK)
 	view.show_fizzle_badge(4)
 	assert_bool(plaque.is_muted()).is_true()
-	assert_str(plaque.text).is_equal("€4")
+	assert_str(plaque.text).is_equal("4€")
 	view.show_badge(4, true)
 	assert_bool(plaque.is_muted()).is_false()
 	# Settled in place: the small face at its own rest y.
@@ -284,7 +284,7 @@ func test_the_paid_chip_faces_mute_and_echo() -> void:
 	view.set_badge_current(false)
 	assert_bool(plaque.is_current()).is_false()
 	assert_bool(plaque.visible).is_true()
-	assert_str(plaque.text).is_equal("€4")
+	assert_str(plaque.text).is_equal("4€")
 	assert_int(plaque.get_theme_font_size("font_size")).is_equal(PayoutPlaque.SETTLED_FONT_SIZE)
 	assert_float(plaque.face().size.y).is_equal(PayoutPlaque.SETTLED_HEIGHT)
 	assert_float(plaque.get_minimum_size().y).is_less_equal(PayoutPlaque.SETTLED_HEIGHT)

@@ -7,26 +7,20 @@ extends Control
 ## INK_WIDTH of ink, MUSTARD_WIDTH of mustard and INK_WIDTH of ink with stepped corners (two
 ## STEP px stairs each; its inside square), a light row along the inside of its top band; its
 ## sides run just outside the end tickets, its top over their top outline, its foot on the
-## counter edge at most. It
-## runs on behind the price tags: a pinned pay tag draws over it (PlanningLayer), and a cutout (a
-## ticket's plain tag, under the layer) is left open along the tag's own rect only, with no cap, so
-## the frame reads as passing behind it. Each bar is ink round mustard with the
-## same light row, BAR_OVERLAP onto each ticket's outline, clear of the tickets' text.
+## counter edge at most. Each bar is ink round mustard with the same light row, BAR_OVERLAP onto
+## each ticket's outline, clear of the tickets' text.
 ##
-## Where its foot band covers a wrong job's tomato ring (PriceSticker.set_wrong_job: the tickets
-## reach under the counter edge's band), it draws that ring's part over itself, so the ring stays
-## closed. Lit (set_lit: a BATCH chip of its batch hovered) its mustard turns gold and its light
+## Lit (set_lit: a BATCH chip of its batch hovered) its mustard turns gold and its light
 ## rows paper. PlanningLayer owns it: lay_out places it from the tickets' rects in the layer's
 ## coordinates. Decor only: it takes no clicks and never moves on its own.
 ##
 ## A Produce chain's frame (ChainFrame, #128 Produce links) is this frame in its own colours
 ## (paint_color) with its own parts in the gaps and round the frame (_place_parts, _add_under,
-## _add_parts) in place of the bars: everything it draws goes through the same cutouts and tomato
-## redraw, in draw order.
+## _add_parts) in place of the bars, drawn in draw order.
 
-## What each drawn rect is painted (paint_color): the ink, the frame's face and light rows, a
-## chain's knot parts' face and light (ChainFrame), and a wrong job's tomato redrawn over them.
-enum Paint { INK, FACE, LIGHT, KNOT_FACE, KNOT_LIGHT, TOMATO }
+## What each drawn rect is painted (paint_color): the ink, the frame's face and light rows, and a
+## chain's knot parts' face and light (ChainFrame).
+enum Paint { INK, FACE, LIGHT, KNOT_FACE, KNOT_LIGHT }
 
 ## The frame's bands: INK_WIDTH ink, MUSTARD_WIDTH mustard (its top band's first HIGHLIGHT rows
 ## light), INK_WIDTH ink; RING in all.
@@ -56,17 +50,15 @@ var slots: PackedInt32Array = PackedInt32Array()
 ## Its whole batch's slots, in slot order (the run's, or more when a link skips products).
 var batch: PackedInt32Array = PackedInt32Array()
 var _lit: bool = false
-## The last layout, in the layer's coordinates: the frame, its bars, the cutouts and the wrong
-## jobs' tomato ring sides; and the slot of each ticket it was laid out round, in order.
+## The last layout, in the layer's coordinates: the frame and its bars; and the slot of each
+## ticket it was laid out round, in order.
 var _frame_rect: Rect2 = Rect2()
 var _bar_rects: Array[Rect2] = []
-var _cutouts: Array[Rect2] = []
-var _wrong_rings: Array[Rect2] = []
 var _ticket_slots: PackedInt32Array = PackedInt32Array()
 ## The slots the last layout skipped (a drag's ghost: no ticket on the belt).
 var _skipped: PackedInt32Array = PackedInt32Array()
 ## The rects to draw (this control's coordinates) in draw order, each with its Paint: the
-## frame's and its parts', open at the cutouts, then the wrong jobs' tomato ring parts they cover.
+## frame's and its parts'.
 var _rects: Array[Rect2] = []
 var _paints: PackedInt32Array = PackedInt32Array()
 
@@ -82,20 +74,15 @@ func _init(run_slots: PackedInt32Array, batch_slots: PackedInt32Array = PackedIn
 
 
 ## Places the frame round `tickets` (every ticket's rect from the batch's first to its last, in
-## slot order, layer coordinates; `ticket_slots` their slots, none given: the run's slots), open
-## at `cutouts` (the plain price tags' rects), its foot at most at `foot_limit` (the counter
-## edge); `wrong_rings` are the wrong jobs' tomato ring sides (layer coordinates), redrawn where
-## the frame covers them; `skipped` the slots with no ticket on the belt (a drag's ghost).
+## slot order, layer coordinates; `ticket_slots` their slots, none given: the run's slots), its
+## foot at most at `foot_limit` (the counter edge); `skipped` the slots with no ticket on the
+## belt (a drag's ghost).
 func lay_out(
 	tickets: Array[Rect2],
-	cutouts: Array[Rect2],
 	foot_limit: float,
-	wrong_rings: Array[Rect2] = [],
 	ticket_slots: PackedInt32Array = PackedInt32Array(),
 	skipped: PackedInt32Array = PackedInt32Array()
 ) -> void:
-	_cutouts = cutouts.duplicate()
-	_wrong_rings = wrong_rings.duplicate()
 	_ticket_slots = ticket_slots if not ticket_slots.is_empty() else slots
 	_skipped = skipped
 	_bar_rects.clear()
@@ -142,29 +129,22 @@ func frame_rect() -> Rect2:
 	return _frame_rect
 
 
-## The wrong jobs' tomato ring parts drawn over the frame, in the layer's coordinates.
-func tomato_rects() -> Array[Rect2]:
-	return _painted(true)
-
-
 ## The binding bars' rects at the last layout, in the layer's coordinates.
 func bar_rects() -> Array[Rect2]:
 	return _bar_rects
 
 
-## Every rect drawn (ink, face and light, its parts' too; not the tomato), in the layer's
-## coordinates.
+## Every rect drawn (ink, face and light, its parts' too), in the layer's coordinates.
 func drawn_rects() -> Array[Rect2]:
-	return _painted(false)
+	var drawn: Array[Rect2] = []
+	for rect: Rect2 in _rects:
+		drawn.append(Rect2(rect.position + position, rect.size))
+	return drawn
 
 
 ## The Paint of each of drawn_rects(), in the same (draw) order.
 func drawn_paints() -> PackedInt32Array:
-	var paints: PackedInt32Array = PackedInt32Array()
-	for paint: int in _paints:
-		if paint != Paint.TOMATO:
-			paints.append(paint)
-	return paints
+	return _paints.duplicate()
 
 
 ## The colour `paint` is drawn in now (lit or calm): mustard (gold when lit) for the faces,
@@ -175,14 +155,12 @@ func paint_color(paint: Paint) -> Color:
 			return LIT_MUSTARD if _lit else CALM_MUSTARD
 		Paint.LIGHT, Paint.KNOT_LIGHT:
 			return LIT_LIGHT if _lit else CALM_LIGHT
-		Paint.TOMATO:
-			return Palette.TOMATO
 	return Palette.INK
 
 
-## How much a row's tickets are scaled (`tickets`' first against PriceSticker.SIZE).
+## How much a row's tickets are scaled (`tickets`' first's width against PriceSticker.SIZE's).
 static func row_scale_of(tickets: Array[Rect2]) -> float:
-	return tickets[0].size.y / PriceSticker.SIZE.y
+	return tickets[0].size.x / PriceSticker.SIZE.x
 
 
 ## The rects of a stepped rectangle's ring `width` wide inside `rect`, STEP px stairs at each
@@ -221,36 +199,6 @@ static func stepped_ring(rect: Rect2, width: float, stepped_hole: bool = true) -
 		if outer.y > inner.y:
 			found.append(Rect2(inner.y, y0, outer.y - inner.y, y1 - y0))
 	return found
-
-
-## `rect` less `cut`: up to four rects.
-static func subtract(rect: Rect2, cut: Rect2) -> Array[Rect2]:
-	var overlap: Rect2 = rect.intersection(cut)
-	if not overlap.has_area():
-		return [rect]
-	var pieces: Array[Rect2] = []
-	if overlap.position.y > rect.position.y:
-		pieces.append(
-			Rect2(rect.position, Vector2(rect.size.x, overlap.position.y - rect.position.y))
-		)
-	if overlap.end.y < rect.end.y:
-		pieces.append(
-			Rect2(rect.position.x, overlap.end.y, rect.size.x, rect.end.y - overlap.end.y)
-		)
-	if overlap.position.x > rect.position.x:
-		pieces.append(
-			Rect2(
-				rect.position.x,
-				overlap.position.y,
-				overlap.position.x - rect.position.x,
-				overlap.size.y
-			)
-		)
-	if overlap.end.x < rect.end.x:
-		pieces.append(
-			Rect2(overlap.end.x, overlap.position.y, rect.end.x - overlap.end.x, overlap.size.y)
-		)
-	return pieces
 
 
 func _draw() -> void:
@@ -328,8 +276,7 @@ func _add(rects: Array[Rect2], paint: Paint) -> void:
 
 
 ## The rects to draw in this control's coordinates: the parts under the frame, the frame's bands
-## and light row, its parts over it, all open at the cutouts; then the wrong jobs' tomato ring
-## parts they cover.
+## and light row, its parts over it.
 func _build() -> void:
 	_rects.clear()
 	_paints.clear()
@@ -338,35 +285,7 @@ func _build() -> void:
 	_add_under(origin)
 	_add_band_ring(outer, INK_WIDTH, MUSTARD_WIDTH)
 	_add_parts(origin)
-	var cuts: Array[Rect2] = []
-	for cutout: Rect2 in _cutouts:
-		cuts.append(Rect2(cutout.position - origin, cutout.size))
-	var kept: Array[Rect2] = []
-	var kept_paints: PackedInt32Array = PackedInt32Array()
-	for index: int in range(_rects.size()):
-		for piece: Rect2 in _cut([_rects[index]], cuts):
-			kept.append(piece)
-			kept_paints.append(_paints[index])
-	_rects = kept
-	_paints = kept_paints
-	var tomato: Array[Rect2] = []
-	for ring: Rect2 in _wrong_rings:
-		var local_ring: Rect2 = Rect2(ring.position - origin, ring.size)
-		for part: Rect2 in _rects:
-			var covered: Rect2 = local_ring.intersection(part)
-			if covered.has_area():
-				tomato.append(covered)
-	_add(tomato, Paint.TOMATO)
 	queue_redraw()
-
-
-## The drawn rects in the layer's coordinates: the tomato ones (`tomato`), or every other one.
-func _painted(tomato: bool) -> Array[Rect2]:
-	var drawn: Array[Rect2] = []
-	for index: int in range(_rects.size()):
-		if (_paints[index] == Paint.TOMATO) == tomato:
-			drawn.append(Rect2(_rects[index].position + position, _rects[index].size))
-	return drawn
 
 
 ## Each of `rects` cut to `clip` (the empty ones dropped).
@@ -376,17 +295,6 @@ static func _clipped(rects: Array[Rect2], clip: Rect2) -> Array[Rect2]:
 		var part: Rect2 = rect.intersection(clip)
 		if part.has_area():
 			kept.append(part)
-	return kept
-
-
-## Every rect of `rects` less every cut.
-static func _cut(rects: Array[Rect2], cuts: Array[Rect2]) -> Array[Rect2]:
-	var kept: Array[Rect2] = rects.duplicate()
-	for cut: Rect2 in cuts:
-		var next: Array[Rect2] = []
-		for rect: Rect2 in kept:
-			next.append_array(subtract(rect, cut))
-		kept = next
 	return kept
 
 

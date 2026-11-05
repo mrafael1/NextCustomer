@@ -84,6 +84,38 @@ func test_a_glyph_lights_its_family_on_the_belt_and_in_the_baskets() -> void:
 	_assert_all_plain(screen)
 
 
+## On the belt the tips add the belt's part (tickets v5): Milk's Breakfast glyph names the other
+## Breakfast items there; Milk's written Breakfast ("per earlier Breakfast") counts and lights only
+## the earlier ones (Eggs, Bread), Eggs' written Food ("next Food") only Bread; the rest grey.
+func test_a_written_family_lights_what_its_rule_counts() -> void:
+	var screen: ShiftScreen = await _screen()
+	var tips: GlyphTips = screen._glyph_tips
+	var milk: ItemView = _belt(screen, "milk")
+	tips.show_tip(_glyph(milk.sticker().glyphs(), "Breakfast"))
+	assert_str(tips.tip().tip_text()).ends_with("on the belt: Eggs (1), Bread (2)")
+	tips.hide_tip()
+	var word: FamilyWord = milk.sticker().summary().words()[0]
+	assert_str(word.family).is_equal("Breakfast")
+	tips.show_tip(word)
+	assert_str(tips.tip().tip_text()).is_equal(
+		FamilyWord.WORKS_WITH % "Breakfast" + " · counts Eggs (1), Bread (2)"
+	)
+	var looks: Dictionary = {"eggs": L.LIT, "bread": L.LIT, "milk": L.SELF, "frozen_peas": L.GREY}
+	for id: String in HAND_IDS:
+		looks[id] = L.GREY
+	_assert_looks(screen, looks)
+	tips.hide_tip()
+	_assert_all_plain(screen)
+	var eggs: FamilyWord = _belt(screen, "eggs").sticker().summary().words()[0]
+	assert_str(eggs.family).is_equal("Food")
+	tips.show_tip(eggs)
+	assert_str(tips.tip().tip_text()).ends_with("counts Bread (2)")
+	assert_int(_belt(screen, "bread").mix_look).is_equal(L.LIT)
+	assert_int(_belt(screen, "milk").mix_look).is_equal(L.GREY)
+	tips.hide_tip()
+	_assert_all_plain(screen)
+
+
 ## A glyph in the open Cart lights the Cart's cells of its family (not the counter's items).
 func test_a_glyph_in_the_cart_lights_its_cells() -> void:
 	var screen: ShiftScreen = await _screen()

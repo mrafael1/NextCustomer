@@ -64,6 +64,9 @@ func test_a_hand_of_eight_fills_four_baskets() -> void:
 	)
 	# The ledge's floor shadow lies under the ledge, clear of the register (#83's mirror).
 	var ledge: Rect2 = ShiftStage.LEDGE_RECT
+	assert_float(ledge.end.y).is_equal(ShiftStage.FLOOR_TOP)
+	assert_float(HandBaskets.LEDGE.get_size().y).is_equal(ledge.size.y)
+	assert_float(HandBaskets.LEDGE_SHADOW.end.y).is_less_equal(ShiftStage.COUNTING_SHADE_RECT.end.y)
 	assert_float(HandBaskets.LEDGE_SHADOW.position.y).is_equal(ledge.end.y)
 	assert_float(HandBaskets.LEDGE_SHADOW.position.x).is_greater_equal(ledge.position.x)
 	assert_float(HandBaskets.LEDGE_SHADOW.end.x).is_less_equal(ledge.end.x)

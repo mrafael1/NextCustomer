@@ -1,11 +1,11 @@
 extends GdUnitTestSuite
 ## The screens' colours are the art's (full build plan section 6.1, #55): every Color constant
 ## of Palette and of the boutique classes the shift screen builds is one of art/src/palette.txt's
-## 67 colours. Out of scope (listed for #56/#75, not changed in #55): the shade's black
+## 73 colours. Out of scope (listed for #56/#75, not changed in #55): the shade's black
 ## (ScreenShade's colour since #80), which belongs to #60's count-up look.
 
 const PALETTE_FILE := "res://art/src/palette.txt"
-const PALETTE_SIZE := 67
+const PALETTE_SIZE := 73
 ## Palette and ArtStyle, then the boutique classes #55 adds to the real shift screen
 ## (StoreBackdrop, BeltPanel with step 6's BeltFootprint and ContactShadow, RegisterCabinet,
 ## LedDisplay), the scan pieces #75 moves out of style frame v2 (PriceSticker,
@@ -20,8 +20,9 @@ const PALETTE_SIZE := 67
 ## CheckoutColumn, TotalNumber, CountChips, RailLight, MonitorClimax, PixelSunburst, MonitorKit,
 ## Sunburst), and the RECEIPT REWARDS machine's
 ## parts (#77, build spec 4.2: ui/machine/, and the receipt's stamps, ReceiptStamps), listed ahead
-## of their builds. A class is checked once its script exists, so each step of the adoption is
-## covered as it lands.
+## of their builds, and the quota gauge's pieces (QuotaMeter, QuotaLaps with v4's orange and violet
+## laps, LapLamp, GaugeHousing). A class is checked once its script exists, so each step of the
+## adoption is covered as it lands.
 const SCRIPTS: Array[String] = [
 	"res://ui/palette.gd",
 	"res://presentation/art_style.gd",
@@ -88,10 +89,14 @@ const SCRIPTS: Array[String] = [
 	"res://ui/machine/machine_flyer.gd",
 	"res://ui/machine/receipt_feed.gd",
 	"res://presentation/receipt_stamps.gd",
+	"res://ui/quota_meter.gd",
+	"res://ui/quota_laps.gd",
+	"res://ui/lap_lamp.gd",
+	"res://ui/gauge_housing.gd",
 ]
 ## The scan pieces, the items and the planning effects' pieces (#71), the giver sparks (#86 v6)
-## and the bay's family chip (#105 piece 2) name no colour of their own: every colour they draw
-## is a Palette constant.
+## and the bay's family chip (#105 piece 2), and the gauge's lap lamp and housing (v4's A1) name
+## no colour of their own: every colour they draw is a Palette constant.
 const PALETTE_ONLY: Array[String] = [
 	"res://ui/price_sticker.gd",
 	"res://ui/scan_popup.gd",
@@ -107,6 +112,8 @@ const PALETTE_ONLY: Array[String] = [
 	"res://ui/deny_stamp.gd",
 	"res://ui/family_chip.gd",
 	"res://ui/giver_sparks.gd",
+	"res://ui/lap_lamp.gd",
+	"res://ui/gauge_housing.gd",
 ]
 ## The machine's parts (test_the_machine_parts_use_the_palette) and the colour literals they may
 ## not write.

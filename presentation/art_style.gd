@@ -70,22 +70,20 @@ const ITEM_NAME_SIZE := 22
 const NAME_FALLBACK_WEIGHT := 700
 ## A family glyph's size on screen: its 9x9 art at 2x (a ticket's adds a one-texel paper rim).
 const FAMILY_GLYPH_SIZE := 18
-## A ticket's short text (the sticker summary): the body font at TICKET_TEXT_WEIGHT,
-## TICKET_TEXT_SIZE px on a TICKET_TEXT_LINE px pitch, at most TICKET_TEXT_LINES lines.
+## A ticket's short text (the sticker summary): the body font at TICKET_TEXT_WEIGHT; its sizes
+## are PriceSticker.TEXT_FITS (14, 13, 12 px), TICKET_TEXT_SIZE the keyword chips' middle one.
 const TICKET_TEXT_WEIGHT := 800
 const TICKET_TEXT_SIZE := 13
-const TICKET_TEXT_LINE := 15
-const TICKET_TEXT_LINES := 2
 ## The stacked price: the new price's digits in the burst (BURST_PRICE_SIZE, or
-## BURST_PRICE_SIZE_3 for three characters such as "€10"), the struck old price under it.
+## BURST_PRICE_SIZE_3 for three characters such as "10€"), the struck old price under it.
 const BURST_PRICE_SIZE := 22
 const BURST_PRICE_SIZE_3 := 21
 const STRUCK_PRICE_SIZE := 15
 ## Hard pixel words (#56, the title's direction C+): Pixelify Sans rasterised at PIXEL_TEXT_SIZE
-## px with no anti-aliasing, hinting or subpixel positioning, so every glyph is whole screen
-## pixels on whole-pixel places (Pixelify's 7-pixel capitals are 640 of its 1000 units: at 11 px
-## one font pixel is one screen pixel). UiKit.pixel_label draws it 2x (one font pixel = one art
-## pixel) or 4x with nearest filtering, so the words sit on the art's 2 px grid.
+## px with no anti-aliasing, hinting or subpixel positioning, so every glyph is whole font pixels
+## on whole-pixel places (Pixelify's 7-pixel capitals are 640 of its 1000 units: at 11 px one font
+## pixel is one raster pixel). UiKit.pixel_label draws it 2x (one font pixel = one art pixel) or
+## 4x, so the words sit on the art's 2 px grid.
 const PIXEL_TEXT_SIZE := 11
 ## Its capitals are this many font pixels tall.
 const PIXEL_CAP_HEIGHT := 7
@@ -95,6 +93,12 @@ const PIXEL_CAP_HEIGHT := 7
 ## the words' baseline (PixelLine).
 const PIXEL_NUMBER_SIZE := 12
 const PIXEL_NUMBER_WEIGHT := 700
+## The hard pixel fonts' oversampling, pinned at 1 (the 1920x1080 legibility fix, 2026-11-03):
+## Godot otherwise rasterises a font at the window's stretch factor (1.5 at 1920x1080, the game's
+## first target), putting each font pixel on 1.5 raster pixels, so strokes came out 1 or 2 pixels
+## wide at random (the pin badge's NEXT CUSTOMER lost letters). At 1 the raster keeps whole font
+## pixels, and use_pixel_text_material scales it evenly at any window size.
+const PIXEL_OVERSAMPLING := 1.0
 ## A glyph tooltip's text: the body font at TIP_TEXT_WEIGHT, TIP_TEXT_SIZE px.
 const TIP_TEXT_WEIGHT := 800
 const TIP_TEXT_SIZE := 13
@@ -113,10 +117,22 @@ static var _rim_materials: Dictionary[String, ShaderMaterial] = {}
 
 
 ## Marks a node that draws pixel art (its own texture or stylebox, never text: a Label or a
-## Button's text must not go through the shader) and gives it the sharp-pixel material.
+## Button's text must not go through the shader, except hard pixel text, use_pixel_text_material)
+## and gives it the sharp-pixel material.
 static func use_pixel_material(item: CanvasItem) -> void:
 	item.material = pixel_material()
 	item.set_meta(PIXEL_ART_META, true)
+
+
+## Hard pixel text (pixel_display_font, pixel_number_font) on `item`, a label or a node that draws
+## it: the sharp-pixel material with linear filtering, as the art (the 1920x1080 legibility fix,
+## 2026-11-03). Nearest filtering kept every font pixel whole only at a whole-number scale; at
+## 1920x1080's 1.5 stretch its texel edges fell on screen pixel centres and stepped. The material
+## keeps the font pixels even at any scale, blending only the one-pixel seams. It is not marked
+## as pixel art, so set_sharp and the mix grey leave it as it is.
+static func use_pixel_text_material(item: CanvasItem) -> void:
+	item.material = pixel_material()
+	item.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 
 
 ## A/B for review (the capture scene's S key): every node under `root` that is marked as pixel
@@ -257,11 +273,6 @@ static func rim_material(bands: PackedColorArray) -> ShaderMaterial:
 	return _rim_materials[key]
 
 
-## A changed price's die-cut (#105): a paper texel, then an ink one, round the tag's art.
-static func cut_material() -> ShaderMaterial:
-	return rim_material(PackedColorArray([Palette.PAPER, INK]))
-
-
 ## A family glyph's paper rim on a ticket (#105): one paper texel round the glyph's art.
 static func glyph_rim_material() -> ShaderMaterial:
 	return rim_material(PackedColorArray([Palette.PAPER, Color(0, 0, 0, 0)]))
@@ -312,6 +323,7 @@ static func pixel_display_font() -> Font:
 		_pixel_display_font.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
 		_pixel_display_font.keep_rounding_remainders = false
 		_pixel_display_font.generate_mipmaps = false
+		_pixel_display_font.oversampling = PIXEL_OVERSAMPLING
 	return _pixel_display_font
 
 
@@ -327,6 +339,7 @@ static func pixel_number_font() -> Font:
 		raster.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
 		raster.keep_rounding_remainders = false
 		raster.generate_mipmaps = false
+		raster.oversampling = PIXEL_OVERSAMPLING
 		_pixel_number_font = FontVariation.new()
 		_pixel_number_font.base_font = raster
 		var weight: int = TextServerManager.get_primary_interface().name_to_tag("wght")

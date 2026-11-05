@@ -305,7 +305,7 @@ func test_the_run_info_tab_shows_upgrades_inspections_and_stock() -> void:
 					"+3 for each different tag among your products  ·  Paid on the last product"
 					+ " in the row"
 				),
-				"This shift: Spot check, Slot 3 pays €0",
+				"This shift: Spot check, Slot 3 pays 0€",
 			]
 		)
 	)

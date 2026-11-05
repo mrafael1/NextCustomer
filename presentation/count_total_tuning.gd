@@ -76,7 +76,7 @@ extends Resource
 
 @export_group("Chips")
 ## A flying amount dissolves from chip_dissolve_from of its flight; a ×'s chip flips into its gain
-## from mul_flip_from over mul_flip_s (shares of the flight). WASTED's grey €0 drops for
+## from mul_flip_from over mul_flip_s (shares of the flight). WASTED's grey 0€ drops for
 ## waste_drop_s, fading from waste_fade_from_s, falling at waste_gravity px/s² and turning
 ## waste_spin degrees per second.
 @export var chip_dissolve_from: float = 0.0
@@ -137,10 +137,3 @@ extends Resource
 @export var climax_spin: float = 0.0
 ## The small sunburst behind the number once met turns this many degrees per second.
 @export var met_sun_spin: float = 0.0
-
-@export_group("Rail light")
-## A giver's effect lights the rail gold from its ticket to its target's over rail_run_s, holds to
-## rail_hold_s and fades over rail_fade_s (the count's clock).
-@export var rail_run_s: float = 0.0
-@export var rail_hold_s: float = 0.0
-@export var rail_fade_s: float = 0.0

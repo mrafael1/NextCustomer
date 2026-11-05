@@ -17,6 +17,6 @@ icon_ref = "res://art/icons/perk_rule_bender.png"
 display_name = "Rule bender"
 type = 1
 effect_text = "Coupons no longer break adjacency between products"
-condition_text = "Hazards too: Soup beside Frozen through a coupon pays €0"
+condition_text = "Hazards too: Soup beside Frozen through a coupon pays 0€"
 builds = Array[ExtResource("4_build")]([ExtResource("5_bulk_buyer")])
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_rule_bender")])

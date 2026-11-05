@@ -56,7 +56,7 @@ func after_test() -> void:
 
 ## A pass with no notice, untouched after the verdict: total and the slam at 300 ms, pass at
 ## 450, PAID at 520, the tear at 560 and the printer feed at 700 (each within _assert_ms's
-## bounds); the verdict and "+€75.00 OVER QUOTA | PAID" in green under it, then the tear; one
+## bounds); the verdict and "+75.00€ OVER TARGET | PAID" in green under it, then the tear; one
 ## printer_feed.
 func test_a_pass_slams_counts_stamps_tears_and_feeds() -> void:
 	var screen: ShiftScreen = await _screen()
@@ -89,8 +89,8 @@ func test_a_pass_slams_counts_stamps_tears_and_feeds() -> void:
 	var lines: Array[String] = _lines(screen._receipt)
 	assert_array(lines.slice(-3)).is_equal(
 		[
-			"TOTAL | €109.00 / €34.00",
-			"+€75.00 OVER QUOTA | PAID",
+			"TOTAL | 109.00€ / 34.00€",
+			"+75.00€ OVER TARGET | PAID",
 			ReceiptView.TEAR_PATTERN.repeat(60) + " | "
 		]
 	)
@@ -100,7 +100,7 @@ func test_a_pass_slams_counts_stamps_tears_and_feeds() -> void:
 
 
 ## A miss: miss, fail, then the tear once fail has rung out, and no PAID, notice or feed;
-## "SHORT €91.00" and the verdict in red.
+## "SHORT 91.00€" and the verdict in red.
 func test_a_miss_counts_short_and_tears_after_the_fail() -> void:
 	var screen: ShiftScreen = await _screen()
 	var sfx: Sfx = _recording_sfx(screen)
@@ -120,8 +120,8 @@ func test_a_miss_counts_short_and_tears_after_the_fail() -> void:
 	assert_array(feeds).is_empty()
 	assert_int(count_up.margin.kind()).is_equal(ShiftMargin.Kind.SHORT)
 	var lines: Array[String] = _lines(screen._receipt)
-	assert_str(lines[-3]).is_equal("TOTAL | €109.00 / €200.00")
-	assert_str(lines[-2]).is_equal("SHORT €91.00 | ")
+	assert_str(lines[-3]).is_equal("TOTAL | 109.00€ / 200.00€")
+	assert_str(lines[-2]).is_equal("SHORT 91.00€ | ")
 	assert_that(_color(screen._receipt.total_label())).is_equal(Palette.TOMATO)
 	assert_that(_color(_line_label(screen._receipt, -2, 0))).is_equal(Palette.TOMATO)
 	await _assert_lines_on_screen(screen, 3)
@@ -153,7 +153,7 @@ func test_before_an_inspected_shift_the_notice_prints_under_the_tear() -> void:
 	await _assert_lines_on_screen(screen, 4)
 
 
-## Exactly on the quota: a pass of €0, "ON QUOTA" in green with PAID.
+## Exactly on the quota: a pass of 0€, "ON TARGET" in green with PAID.
 func test_exactly_on_the_quota_is_a_green_on_quota() -> void:
 	var screen: ShiftScreen = await _screen()
 	var sfx: Sfx = _recording_sfx(screen)
@@ -161,8 +161,8 @@ func test_exactly_on_the_quota_is_a_green_on_quota() -> void:
 	_play_skipped(screen, ROW_TOTAL)
 	await _played(screen)
 	var lines: Array[String] = _lines(screen._receipt)
-	assert_str(lines[-3]).is_equal("TOTAL | €109.00 / €109.00")
-	assert_str(lines[-2]).is_equal("ON QUOTA | PAID")
+	assert_str(lines[-3]).is_equal("TOTAL | 109.00€ / 109.00€")
+	assert_str(lines[-2]).is_equal("ON TARGET | PAID")
 	assert_that(_color(_line_label(screen._receipt, -2, 0))).is_equal(Palette.GOOD)
 	assert_int(screen._count_up.margin.kind()).is_equal(ShiftMargin.Kind.ON)
 	assert_array(_names_of(_dessert_sounds(sfx, screen._count_up))).is_equal(
@@ -194,7 +194,7 @@ func test_the_last_shift_is_stamped_and_torn_then_shows_the_results() -> void:
 	assert_array(_names_of(_dessert_sounds(sfx, count_up))).is_equal(
 		["total", "pass", "stamp_paid", "rip"]
 	)
-	assert_str(_lines(screen._receipt)[-2]).is_equal("+€80.00 OVER QUOTA | PAID")
+	assert_str(_lines(screen._receipt)[-2]).is_equal("+79.00€ OVER TARGET | PAID")
 	assert_bool(_last_event("count_up").is_empty()).is_false()
 
 
@@ -221,7 +221,7 @@ func test_a_passed_shift_plays_the_dessert_then_opens_the_machine() -> void:
 	assert_array(heard.slice(0, 4)).is_equal(["total", "pass", "stamp_paid", "rip"])
 	var paid: int = 0
 	for line: String in _lines(screen._receipt):
-		paid += int(line.ends_with("OVER QUOTA | PAID"))
+		paid += int(line.ends_with("OVER TARGET | PAID"))
 	assert_int(paid).is_equal(1)
 	assert_bool(screen._machine.is_open()).is_true()
 	assert_int(screen._machine._timeline._shown_at).is_equal(count_up.printer_feed_ms)

@@ -1,12 +1,13 @@
 class_name MixedLabel
 extends HBoxContainer
 ## A line of display-font text whose numbers print in the number font (#56): Pixelify's digits
-## read poorly ("15" reads as "18"), so every run of a number ("13", "(13/15)", "€4") is its own
+## read poorly ("15" reads as "18"), so every run of a number ("13", "(13/15)", "4€") is its own
 ## number label between display labels, on one baseline row. Used by the deck view's title and
 ## its shelf headings.
 
-## A number run: an optional "(" and sign, digits (and "/digits"), an optional ")".
-const NUMBER_PATTERN := "\\(?[€+×−]?\\d+(?:/\\d+)?\\)?"
+## A number run: an optional "(" and sign, digits (with an optional € after them, and
+## "/digits"), an optional ")".
+const NUMBER_PATTERN := "\\(?[+×−]?\\d+€?(?:/\\d+)?\\)?"
 
 ## The whole line's text.
 var text: String:

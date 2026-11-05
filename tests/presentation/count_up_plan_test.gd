@@ -6,6 +6,7 @@ extends GdUnitTestSuite
 
 const TUNING := "res://data/balance/count_up.tres"
 const CARDS := "res://data/cards"
+const SPOT_CHECK := "res://data/inspections/spot_check.tres"
 const FIXTURE_DIR := "res://tests/fixtures/cards_v0_4"
 ## The full reference row of the #60 decisions: Eggs and Multipack arm effects, the Spot check
 ## zeroes the 3rd product, Coupon engine fizzles on Multipack, Slot engine stamps slot 6 (the
@@ -235,14 +236,14 @@ func test_payout_rolls_and_rattles_follow_the_best_so_far() -> void:
 	assert_int(bread.payout).is_equal(10)
 	# No roll (#105 piece 2): the total counted in at the item's landings.
 	assert_int(bread.roll_ms).is_equal(120)
-	# €10 is at least max(€10, 0.2 x 45 = €9), so it rattles: 3 + 6 x 10 / 45.
+	# 10€ is at least max(10€, 0.2 x 45 = 9€), so it rattles: 3 + 6 x 10 / 45.
 	assert_float(bread.rattle_px).is_equal_approx(3.0 + 60.0 / 45.0, 0.0001)
 	var eggs: CountUpBeat = plan.beats[0]
 	assert_float(eggs.rattle_px).is_equal(0.0)
 	# The subtotal first passes 45 in slot 6 (80): +2 px from there on.
 	assert_int(plan.passes_best_beat).is_equal(20)
 	assert_float(plan.beats[20].rattle_px).is_equal_approx(3.0 + 6.0 * 48 / 45.0 + 2.0, 0.0001)
-	# The last Milk's €27 in slot 7: 3 + 6 x 27 / 45, plus 2.
+	# The last Milk's 27€ in slot 7: 3 + 6 x 27 / 45, plus 2.
 	assert_float(plan.beats[24].rattle_px).is_equal_approx(8.6, 0.0001)
 	# The amplitude is capped at 12 before the +2.
 	assert_float(_plan(_flat_steps(1, 100)).beats[2].rattle_px).is_equal_approx(14.0, 0.0001)
@@ -251,7 +252,7 @@ func test_payout_rolls_and_rattles_follow_the_best_so_far() -> void:
 	assert_int(rich.passes_best_beat).is_equal(-1)
 	assert_float(rich.beats[4].rattle_px).is_equal(0.0)
 	assert_float(rich.beats[20].rattle_px).is_equal_approx(3.0 + 6.0 * 48 / 200.0, 0.0001)
-	# €27 is under max(€10, 0.2 x 200 = €40): no rattle.
+	# 27€ is under max(10€, 0.2 x 200 = 40€): no rattle.
 	assert_float(rich.beats[24].rattle_px).is_equal(0.0)
 
 
@@ -350,6 +351,66 @@ func test_an_empty_row_has_only_the_pre_roll() -> void:
 	assert_bool(plan.quota_reached).is_false()
 
 
+## The monitor's harmful lines (CountUpPlan.is_harmful, on the steps' recorded values): Late
+## delivery's −2€ and the Spot check's 0€ on the live data are harmful, and their beats say so; the
+## base, a good bonus and a factor above ×1 are not; a factor below ×1 (×0.5, ×0) is; an override
+## is only when it lowers the item's running value.
+func test_harmful_steps_are_the_ones_that_lower_their_item() -> void:
+	var inspections: Array[InspectionDefinition] = [
+		load("res://data/inspections/late_delivery.tres"),
+		load(SPOT_CHECK),
+	]
+	var upgrades: Array[UpgradeDefinition] = []
+	var steps: Array[ScoreStep] = (
+		Scoring.score(_row("milk,bread,milk,milk", CARDS), upgrades, inspections).steps
+	)
+	var harmful: Array[String] = []
+	for index: int in range(steps.size()):
+		var step: ScoreStep = steps[index]
+		if CountUpPlan.is_harmful(steps, index):
+			harmful.append(
+				"%s %d %d" % [ScoreStep.StepType.keys()[step.step_type], step.slot, step.value]
+			)
+		elif step.step_type in [ScoreStep.StepType.FLAT, ScoreStep.StepType.MULTIPLIER]:
+			assert_bool(step.value > 0 and (step.percent == 0 or step.percent > 100)).is_true()
+	# Every Milk pays 2€ less; slot 3 (the 2nd Milk, 2€ by then) pays 0€; Bread is untouched.
+	assert_array(harmful).contains_exactly_in_any_order(
+		["FLAT 0 -2", "FLAT 2 -2", "PAYOUT_OVERRIDE 2 0", "FLAT 3 -2"]
+	)
+	var plan: CountUpPlan = _plan(steps)
+	var flagged: int = 0
+	for beat: CountUpBeat in plan.beats:
+		assert_bool(beat.harmful).is_equal(CountUpPlan.is_harmful(steps, beat.steps[0]))
+		flagged += 1 if beat.harmful else 0
+	assert_int(flagged).is_equal(4)
+	var made: Array[ScoreStep] = [
+		_step(ScoreStep.StepType.BASE, 0, 0, 4, 0, "Card"),
+		_step(ScoreStep.StepType.MULTIPLIER, 0, 0, 1, 0, "half"),
+		_step(ScoreStep.StepType.MULTIPLIER, 0, 0, 2, 0, "double"),
+		_step(ScoreStep.StepType.MULTIPLIER, 0, 0, 2, 0, "and a half"),
+		_step(ScoreStep.StepType.MULTIPLIER, 0, 0, 0, 0, "none"),
+		_step(ScoreStep.StepType.PAYOUT_OVERRIDE, 0, 0, 6, 0, "raised"),
+		_step(ScoreStep.StepType.PAYOUT_OVERRIDE, 0, 0, 0, 0, "zeroed"),
+	]
+	made[0].value_after = 4
+	made[1].percent = 50
+	made[1].value_after = 2
+	made[2].value_after = 4
+	made[3].percent = 150
+	made[3].value_after = 6
+	made[4].value_after = 0
+	made[5].value_after = 6
+	made[6].value_after = 0
+	# The raised override (6 after the ×0's 0) is not harmful; the zeroed one after it (6) is.
+	var expected: Array[bool] = [false, true, false, false, true, false, true]
+	for index: int in range(made.size()):
+		(
+			assert_bool(CountUpPlan.is_harmful(made, index))
+			. override_failure_message(made[index].text)
+			. is_equal(expected[index])
+		)
+
+
 static func _total() -> CountTotalTuning:
 	return load(CountUpPlan.TOTAL_TUNING_PATH) as CountTotalTuning
 
@@ -372,7 +433,7 @@ static func _data_steps(ids: String) -> Array[ScoreStep]:
 		load("res://data/upgrades/coupon_engine.tres"),
 		load("res://data/upgrades/slot_engine.tres"),
 	]
-	var inspections: Array[InspectionDefinition] = [load("res://data/inspections/spot_check.tres")]
+	var inspections: Array[InspectionDefinition] = [load(SPOT_CHECK)]
 	return Scoring.score(_row(ids, CARDS), upgrades, inspections).steps
 
 

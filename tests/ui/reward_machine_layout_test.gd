@@ -439,7 +439,7 @@ func test_new_items_and_upgrade_tickets_fit_with_their_marks() -> void:
 		var band: String = marked_ticket.face_texts()[0]
 		if chute == RewardMachine.Chute.NEW_ITEMS:
 			assert_str(marked_ticket.art.chip_text()).is_equal("GOLDEN")
-			assert_str(band).is_equal("NEW ITEM · €%d" % visit.prizes[marked].card.base)
+			assert_str(band).is_equal("NEW ITEM · %d€" % visit.prizes[marked].card.base)
 		else:
 			assert_str(marked_ticket.art.chip_text()).is_equal("LV 2")
 			assert_str(band).is_equal("LEVEL UP · LV 2")

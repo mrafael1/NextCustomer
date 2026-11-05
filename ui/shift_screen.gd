@@ -39,12 +39,15 @@ extends Control
 const STARTER_DECK := "res://data/decks/pack_starter.tres"
 const BALANCE := "res://data/balance/balance.tres"
 const CATALOGUE := "res://data/catalogue/catalogue.tres"
+const TITLE_SCREEN := "res://ui/title_screen.tscn"  # The results' Return to menu goes here.
 ## A refused card or a closed slot plays `denied` this much softer than the count-up does.
 const REFUSED_DB := -6.0
 var run: RunState
 ## Where the save errors go (push_error by default). Tests set it before the screen enters the
 ## tree, so an unreadable save they write on purpose prints nothing.
 var report_error: Callable = Callable()
+## Tests turn this off so Return to menu doesn't replace the test runner's scene.
+var changes_scene: bool = true
 ## The meta progress (full build plan section 4): loaded at start, recorded and saved when a
 ## run ends. A run restarted before its end records nothing.
 var profile: ProfileState
@@ -75,7 +78,6 @@ var _camera: StoreCamera
 var _wall: ColorRect
 var _top_bar: HBoxContainer
 var _shift_label: Label
-var _quota_label: Label
 var _inspection_tag: InspectionTag
 var _loyalty_card: LoyaltyCard
 var _deck_button: FramedButton
@@ -103,9 +105,11 @@ var _cabinet: RegisterCabinet
 ## The hung monitor (#80; one screen since #105 piece 2): the bay, the item column, the checkout
 ## column, the notices and the count-up's beats.
 var _monitor: MonitorView
+var _last_placed: CardInstance  # The last card placed: the monitor's default (shown_slot).
 ## The monitor's LED: blank in planning, the count-up's subtotal and total.
 var _led: LedDisplay
-## The top bar's SPEND chip: the projected total in planning (fed here), the LED's while counting.
+## The quota gauge (the tube beside the receipt): the projected total in planning (fed here), the
+## LED's while counting.
 var _quota_meter: QuotaMeter
 var _overlay: Control
 var _count_up: CountUp
@@ -118,7 +122,6 @@ var _scan: ScanController
 var _belt_chips: BeltChips = BeltChips.new()
 var _ride: BeltRide  # The belt in the count (#86 v6): items ride to the scanner and bag.
 var _effects: PlanningEffects  # The planning effects (#71, mock-up h1).
-var _toys: ToyMachinesScreen  # The TOY MACHINES over the results (#63), made when first opened.
 var _cart_reveal: CartReveal
 var _week: WeekFlow  # The time card and the week and day chips (v0.70).
 var _start_choice: StartChoice  # The starter pack choice's part of a run's start (#107).
@@ -286,6 +289,8 @@ func _close_overlays() -> void:
 	_receipt.visible = true
 	_drag.cancel()
 	_scan.clear()
+	_scan.release_monitor()
+	_last_placed = null
 	_picked = null
 	_picked_from_row = false
 	_redraw_mode = false
@@ -373,6 +378,8 @@ func _place_picked(slot: int, dragged: bool = false) -> void:
 	if run.place(_picked, slot):
 		tracker.on_place(dragged)
 		_sfx.play("card_place")
+		_last_placed = _picked  # It takes the monitor, over a pinned scan.
+		_scan.release_monitor()
 		_picked = null
 		_picked_from_row = false
 		_refresh()
@@ -516,6 +523,7 @@ func _on_checkout_pressed() -> void:
 	_cabinet.set_total_down(true)
 	_stage.dim_hand(true)
 	_scan.clear()
+	_scan.release_monitor()
 	_drop_pick()
 	_notice_label.clear_notice()
 	_drag.cancel()
@@ -555,7 +563,7 @@ func _on_checkout_pressed() -> void:
 	var counted: ScoreResult = DoubleCheckoutFlow.counted(run)  # #122: row 2 counts on.
 	_effects.show_count(counted, _row_views, run)  # Only the stickers stay, to fire.
 	var context: CountUpContext = count_up_context()
-	_monitor.upgrades = run.upgrades.duplicate()
+	_monitor.use_sources(run.upgrades, WeekSchedule.shift_events(run))
 	_ride.begin(counted, _row_views, context.reduced_motion)
 	await _count_up.play(
 		counted,
@@ -565,7 +573,9 @@ func _on_checkout_pressed() -> void:
 		context,
 		_loyalty_card.stamped_boxes(),
 		LoyaltyCard.names(run.upgrades),
-		(_top_bar as TopBar).event_sources(WeekSchedule.shift_events(run)),
+		(_top_bar as TopBar).event_sources(
+			WeekSchedule.shift_events(run), RunPins.pin_events(run).size()
+		),
 		InspectionTag.names(WeekSchedule.shift_events(run)),
 		InspectionTag.next_notice(run.next_inspections)
 	)
@@ -617,26 +627,15 @@ func receipt_header() -> PackedStringArray:
 	return DoubleCheckoutFlow.header(run)  # #122: with its row line on a Double checkout.
 
 
-## Results screen: New run.
-func _on_new_run_pressed() -> void:
-	_log.log_event(
-		"restart", {"since_run_end_ms": Time.get_ticks_msec() - _run_ended_ms, "screen": "results"}
-	)
-	start_new_run(_log.new_run_seed(), true, true)
-
-
-## Results: the TOY MACHINES (#63) open over the results, below the debug panel. A draw here is
-## a results draw (its item rides the next 3 runs); the machines are off when the run's profile
-## save failed or the profile can't be saved. Done leaves the results as they were (the receipt's
-## coin total is the run's record and isn't reprinted).
-func _open_toy_machines() -> void:
-	if _toys == null:
-		_toys = ToyMachinesScreen.new()
-		add_child(_toys)
-		if _debug.panel != null:
-			move_child(_toys, _debug.panel.get_index())
-	var can_save: bool = _profile_saved and _saves.can_save_profile()
-	_toys.open(CapsuleCounter.new(profile, _saves, _balance, _log, false, can_save), _balance)
+## Results: Return to menu. The run was recorded and its save deleted at its end, so nothing is
+## lost; the title opens with its sign lit (no intro), the TOY MACHINES under its REWARDS (#63).
+func _on_menu_pressed() -> void:
+	var since_ms: int = Time.get_ticks_msec() - _run_ended_ms
+	_log.log_event("results_exit", {"since_run_end_ms": since_ms, "screen": "results"})
+	TitleScreen.request_lit()
+	if changes_scene:
+		_sfx.outlive_scene()  # The click finishes over the title.
+		get_tree().change_scene_to_file(TITLE_SCREEN)
 
 
 # --- Deck view and the loyalty card --------------------------------------------------------
@@ -706,10 +705,11 @@ func _refresh() -> void:
 	_scan.watch(_row_views, _hand_box.cards())
 
 
-## The top bar: shift, quota, inspection, loyalty card, the Cart's count (a pick changes it).
+## The top bar (shift, inspection, loyalty card, the Cart's count: a pick changes it) and the
+## receipt's target.
 func _refresh_bar() -> void:
 	_shift_label.text = "%d/%d" % [run.shift_index + 1, run.shift_count()]
-	_quota_label.text = QuotaMeter.QUOTA_AMOUNT % run.quota()
+	_receipt.target.show_quota(run.quota())
 	_week.show_chips()
 	_inspection_tag.show_bonus(
 		InspectionTag.bonus_for(run, _counting, _inspection_tag.bonus_state())
@@ -745,7 +745,7 @@ func _refresh_row() -> void:
 	_row_views = _row_strip.show_cards(
 		run.row, run.row.size() if placeable else -1, _on_row_card_clicked, run.balance
 	)
-	# The Slot engine's slot 6 wears its mark; the day events their slots' (Spot check's "€0").
+	# The Slot engine's slot 6 wears its mark; the day events their slots' (Spot check's "0€").
 	_row_strip.show_slot_marks(SlotMark.run_marks(run))
 
 
@@ -786,26 +786,35 @@ func _refresh_preview() -> void:
 	_show_projected(result)
 
 
-## Planning's monitor and SPEND chip (#105 piece 2): the LED goes blank; the monitor shows belt
-## slot 1's item with its lines and, like the SPEND chip, the projected total of `result`.
+## Planning's monitor and quota gauge (#105 piece 2): the LED goes blank; the monitor shows the
+## last placed item (shown_slot; a pinned scan over it) and, like the gauge, `result`'s total.
 func _show_projected(result: ScoreResult) -> void:
 	if _led.mode() != LedDisplay.Mode.BLANK:
 		_led.clear()
 	_quota_meter.show_projected(result.total, run.quota())
 	_monitor.show_plan(result.total, run.quota())
-	var first: CardDefinition = null if run.row.is_empty() else run.row[0].definition
-	var tags: PackedStringArray = PackedStringArray() if first == null else result.tags[0]
+	var slot: int = shown_slot()
+	var shown: CardDefinition = null if slot < 0 else run.row[slot].definition
+	var tags: PackedStringArray = PackedStringArray() if shown == null else result.tags[slot]
 	var slots: int = RowCapacity.card_limit(run.limits)
-	_monitor.show_next(first, slots, run.row.size(), tags, _scan.item_lines(0))
+	_monitor.show_next(shown, slots, run.row.size(), tags, _scan.item_lines(slot), slot)
 
 
-## The preview: the planning receipt (#80; only the next open slot, v0.82) and the belt's marks.
+## The monitor's default belt slot: the last placed card's, else the belt's last (-1: empty).
+func shown_slot() -> int:
+	var slot: int = run.row.find(_last_placed)
+	return slot if slot >= 0 else run.row.size() - 1
+
+
+## The preview: the planning receipt (#80; a row for every belt slot, B2 of shift_scene_polish_v4)
+## and the belt's marks.
 func _show_planning(result: ScoreResult) -> void:
-	var slots: int = mini(run.row.size() + 1, RowCapacity.card_limit(run.limits))
+	var slots: int = RowCapacity.card_limit(run.limits)
 	var cards: Array[CardDefinition] = ReceiptInk.cards_of(run.row)
 	_receipt.show_planning(
 		receipt_header(), result, CardInstance.names(run.row), slots, run.quota(), cards
 	)
+	_cabinet.printer_roll.print_burst()
 	_show_belt(result)
 
 
@@ -819,12 +828,13 @@ func _show_checked_out(result: ScoreResult) -> void:
 	_show_belt(result, true)
 
 
-## The belt's tags for a result, with planning's effects unless `paid` (a resumed checkout), no
-## marks or paid chips, and the result its scans read.
+## The belt's tags for `result` (planning's effects unless `paid`); what scans and monitor read.
 func _show_belt(result: ScoreResult, paid: bool = false) -> void:
-	var upgrade_names: PackedStringArray = LoyaltyCard.names(run.upgrades)
-	var inspection_names: PackedStringArray = InspectionTag.names(WeekSchedule.shift_events(run))
-	_scan.set_result(result, CardInstance.names(run.row), upgrade_names, inspection_names)
+	var events: Array[InspectionDefinition] = WeekSchedule.shift_events(run)
+	_monitor.use_sources(run.upgrades, events)
+	_scan.set_row(_row_views)  # Before the monitor reads the preview's lines (_show_projected).
+	var names: PackedStringArray = CardInstance.names(run.row)
+	_scan.set_result(result, names, LoyaltyCard.names(run.upgrades), InspectionTag.names(events))
 	_belt_chips.show_all(_row_views)
 	if not paid:
 		_effects.show_all(result, _row_views, run, _hand_box.cards())
@@ -863,7 +873,7 @@ func _build() -> void:
 	# stamps and verdict) uses the number font. The theme stays off the screen's root, so the
 	# panels #56 restyles and ShiftDebug's panel keep the plain default font.
 	_stage.apply_theme(UiKit.screen_theme())
-	StoreBackdrop.top_parts(self)
+	_stage.top_cap = StoreBackdrop.top_parts(self)
 	add_child(_stage)
 	_camera.adopt(_stage.world)
 	_stage.checkout_pressed.connect(_on_checkout_pressed)
@@ -873,7 +883,6 @@ func _build() -> void:
 	_stage.export_pressed.connect(_on_export_pressed)
 	_top_bar = _stage.top_bar
 	_shift_label = _stage.shift_label
-	_quota_label = _stage.quota_label
 	_loyalty_card = _stage.loyalty_card
 	_inspection_tag = _stage.inspection_tag
 	_deck_button = _stage.deck_button
@@ -883,7 +892,7 @@ func _build() -> void:
 	_monitor = _stage.monitor
 	_monitor.reduced_motion = func() -> bool: return profile.reduced_motion()
 	_led = _stage.led
-	_quota_meter = _stage.top_bar.quota_meter
+	_quota_meter = _stage.quota_meter
 	_quota_meter.reduced_motion = _monitor.reduced_motion
 	_receipt = _stage.receipt
 	_row_strip = _stage.row_strip
@@ -918,6 +927,7 @@ func _build() -> void:
 	_monitor.follow(_count_up)
 	_stage.follow_count(_count_up)  # The standees (#120) and the quota crossing.
 	_cabinet.follow_count(_count_up, _led)
+	_cabinet.printer_roll.reduced_motion = _monitor.reduced_motion
 	_drag = CardDrag.new()
 	add_child(_drag)
 	_drag.setup(_overlay, _slots, _hand_box, _landing_slot)
@@ -956,9 +966,8 @@ func _build() -> void:
 	_scan.cover_offers(_machine.view)
 	_results = ResultsPanel.new(null, _scan.reduced_motion)
 	add_child(_results)
-	_results.new_run_requested.connect(_on_new_run_pressed)
+	_results.menu_requested.connect(_on_menu_pressed)
 	_results.export_requested.connect(_on_export_pressed)
-	_results.toy_machines_requested.connect(_open_toy_machines)
 	# Added last, so the deck view sits above the machine and the results.
 	_deck_view = DeckView.new()
 	add_child(_deck_view)

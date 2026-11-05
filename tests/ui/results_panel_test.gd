@@ -3,7 +3,8 @@ extends GdUnitTestSuite
 ## lines and their order (the headline, one line per played shift with a dim line per RECEIPT
 ## REWARDS visit (#77) and the inspection under it, the shortfall on a loss, the coins at the
 ## bottom), the print
-## one line every final_line_ms, a tap printing the rest at once, New run armed mid-print, the
+## one line every final_line_ms, a tap printing the rest at once, Return to menu armed mid-print
+## (the one primary button; it no longer starts a run or opens the toy machines), the
 ## coins clinking and the music ducking when the coin lines print, and the layout: 8 shifts with
 ## their visits, the
 ## stapled loyalty card with a starting-upgrade box and the coins fit 1280x720 unclipped. The
@@ -19,6 +20,7 @@ const LONG_UPGRADE := "res://data/upgrades/category_engine.tres"
 const LONG_INSPECTION := "res://data/inspections/short_belt.tres"
 const STARTING_UPGRADE := "res://data/upgrades/big_basket.tres"
 const SPOT_CHECK := "res://data/inspections/spot_check.tres"
+const BOON := "res://data/inspections/quiet_morning.tres"
 ## The run's perks; the first at LV 3, so its box carries a level mark (v0.61, #108).
 const UPGRADES: Array[String] = [
 	"res://data/upgrades/coupon_engine_lv3.tres",
@@ -84,17 +86,17 @@ func test_a_lost_run_lists_its_shifts_then_the_shortfall_and_the_coins() -> void
 	screen._results.skip_printing()
 	var texts: PackedStringArray = screen._results.texts()
 	var rule: String = FinalReceipt.rule()
-	var shortfall: String = "Shift 2 / %d: short by €%d" % [run.shift_count(), run.quota() - 20]
+	var shortfall: String = "Shift 2 / %d: short by %d€" % [run.shift_count(), run.quota() - 20]
 	var payout: CoinPayout = CoinPayout.for_run(run)
 	var expected: Array = ["RUN OVER", rule]
 	(
 		expected
 		. append_array(
 			[
-				"  1  €109 / €34     pass",
+				"  1  109€ / 34€     pass",
 				"     binned NEW ITEMS",
 				"     inspection Spot check",
-				"  2  €20 / €35      fail",
+				"  2  20€ / 35€      fail",
 				shortfall,
 				rule,
 			]
@@ -109,8 +111,8 @@ func test_a_lost_run_lists_its_shifts_then_the_shortfall_and_the_coins() -> void
 
 
 ## The receipt prints one line every final_line_ms from the show (none early, none more than
-## LATE_MS late), and New run arms 350 ms in, mid-print, once the mouse is up.
-func test_the_receipt_prints_line_by_line_and_new_run_arms_mid_print() -> void:
+## LATE_MS late), and Return to menu arms 350 ms in, mid-print, once the mouse is up.
+func test_the_receipt_prints_line_by_line_and_menu_arms_mid_print() -> void:
 	var screen: ShiftScreen = await _screen()
 	_full_run(screen)
 	var results: ResultsPanel = screen._results
@@ -124,7 +126,7 @@ func test_the_receipt_prints_line_by_line_and_new_run_arms_mid_print() -> void:
 		var now: int = Time.get_ticks_msec() - shown
 		while printed_at.size() < results.printed_count():
 			printed_at.append(now)
-		if armed_ms < 0 and not results._new_run_button.disabled:
+		if armed_ms < 0 and not results.menu_button().disabled:
 			armed_ms = now
 			armed_mid_print = results.is_printing()
 	var count: int = results.texts().size()
@@ -181,6 +183,9 @@ func test_the_coins_and_their_duck_start_when_the_coin_lines_print() -> void:
 	var base: float = music.base_db()
 	music.duck(CountUp.DESSERT_DUCK_DB, 0.0)
 	_full_run(screen)
+	# Without the day events' dim lines, so the coins print well inside the check's 6 s.
+	for record: ShiftRecord in screen.run.history:
+		record.inspections = []
 	var balance: BalanceDefinition = screen.run.balance.duplicate() as BalanceDefinition
 	var table: PackedInt32Array = PackedInt32Array()
 	table.resize(screen.run.shift_count() + 1)
@@ -222,11 +227,15 @@ func test_the_coins_and_their_duck_start_when_the_coin_lines_print() -> void:
 	assert_int(coins[-1] - coins[0]).is_greater_equal((coins.size() - 1) * gap_ms - 20)
 
 
-## A won 8-shift run with the longest names, an upgrade and an inspection on every shift and a
-## starting upgrade: the printed receipt fits 1280x720 below the top bar, unclipped; every line
-## is inside the paper; no two lines overlap; the loyalty card (one box per upgrade shift plus
-## the starting upgrade's) is in the paper's top-right corner and covers no line, the LV 3 perk's
-## level mark inside its box; the coins are at the bottom, above the buttons.
+## A won 16-shift run (v0.96) with the longest names: a ticket after every shift, a payday's
+## PREMIUM perk after each review but the last, an inspection, a review's two and a boon on their
+## days by the live schedule, and a starting upgrade. The printed receipt is full (not compact)
+## in two week columns, weeks 1-2 on the left and 3-4 on the right, each under its header; it fits
+## 1280x720 below the top bar, unclipped; every line is inside the paper and its column, the
+## columns side by side between the two rules, no two lines of a column overlap; the loyalty card
+## (one box per upgrade shift plus the starting upgrade's) is in the paper's top-right corner and
+## covers no line, the LV 3 perk's level mark inside its box; the coins are at the bottom, above
+## the buttons.
 func test_a_full_receipt_fits_the_screen_with_the_card_and_the_coins() -> void:
 	var screen: ShiftScreen = await _screen()
 	_full_run(screen)
@@ -234,21 +243,25 @@ func test_a_full_receipt_fits_the_screen_with_the_card_and_the_coins() -> void:
 	screen._show_results(_last_result(screen))
 	results.skip_printing()
 	await _frames(15)
-	# 12 shift lines, 11 ticket visits and 3 bonus visits: too long for the screen even at the
-	# smallest fit, so compact (v0.65): the 3 inspections fold into their shift lines.
-	assert_int(results.texts().size()).is_equal(2 + 12 + 11 + 3 + 1 + 3)
-	(
-		assert_int(
-			(
-				Array(results.texts())
-				. filter(func(t: String) -> bool: return t.ends_with("inspected"))
-				. size()
-			)
-		)
-		. is_equal(3)
+	var balance: BalanceDefinition = screen.run.balance
+	var count: int = screen.run.shift_count()
+	assert_int(count).is_equal(16)
+	assert_bool(results.is_compact()).is_false()
+	var paydays: int = balance.machine.bonus_extra_shifts.size()
+	var days: int = balance.inspection_shifts.size() + balance.review_shifts.size()
+	days += balance.boon_shifts.size()
+	# The headline, a rule, 4 week headers, the shifts, their visits and day events, a rule and
+	# 3 coin lines.
+	var expected: int = 2 + 4 + count + (count - 1) + paydays + days + 1 + 3
+	assert_int(results.texts().size()).is_equal(expected)
+	var headers: Array = Array(results.texts()).filter(
+		func(text: String) -> bool: return text.begins_with("WEEK ")
+	)
+	assert_array(headers).is_equal(
+		["WEEK 1 · TRAINING", "WEEK 2 · BAKERY", "WEEK 3 · HOLIDAY", "WEEK 4 · CLEARANCE"]
 	)
 	var paper: Rect2 = results.get_global_rect()
-	prints("#61 final receipt:", paper)
+	prints("v0.96 final receipt:", paper, "fit", results._fit)
 	assert_bool(SCREEN_RECT.encloses(paper)).is_true()
 	# Below the top bar's height (64 px), the closed store's shutter showing above it.
 	assert_float(paper.position.y).is_greater_equal(64.0)
@@ -275,20 +288,88 @@ func test_a_full_receipt_fits_the_screen_with_the_card_and_the_coins() -> void:
 		. is_true()
 	)
 	assert_bool(card.encloses(mark.get_global_rect())).is_true()
-	var previous: Rect2 = Rect2()
-	for index: int in range(results._lines.size()):
-		var line: Label = results._lines[index]
+	# The two columns: side by side, between the rules, the right one starting at the middle.
+	var columns: Array[VBoxContainer] = results.week_columns()
+	assert_int(columns.size()).is_equal(2)
+	var left: Rect2 = columns[0].get_global_rect()
+	var right: Rect2 = columns[1].get_global_rect()
+	assert_bool(left.intersects(right)).is_false()
+	assert_float(right.position.x).is_greater_equal(left.end.x)
+	assert_float(right.position.x).is_equal_approx(paper.get_center().x, 40.0)
+	var rules: Array[Label] = []
+	var previous: Dictionary[Node, Rect2] = {}
+	for line: Label in results._lines:
 		var rect: Rect2 = line.get_global_rect()
 		assert_bool(paper.encloses(rect)).override_failure_message(line.text).is_true()
 		assert_float(rect.size.x).is_greater_equal(line.get_minimum_size().x - 0.5)
 		assert_bool(rect.intersects(card)).override_failure_message(line.text).is_false()
-		if index > 0:
-			assert_float(rect.position.y).is_greater_equal(previous.end.y - 0.5)
-		previous = rect
-	var new_run: Rect2 = results._new_run_button.get_global_rect()
-	assert_bool(paper.encloses(new_run)).is_true()
-	assert_float(new_run.position.y).is_greater_equal(previous.end.y)
+		var parent: Node = line.get_parent()
+		if parent is VBoxContainer and columns.has(parent as VBoxContainer):
+			var column: Rect2 = (parent as Control).get_global_rect()
+			(
+				assert_bool(column.grow(0.5).encloses(rect))
+				. override_failure_message(line.text)
+				. is_true()
+			)
+		if previous.has(parent):
+			assert_float(rect.position.y).is_greater_equal(previous[parent].end.y - 0.5)
+		previous[parent] = rect
+		if line.text == FinalReceipt.rule(FinalReceipt.WIDE_WIDTH):
+			rules.append(line)
+	assert_int(rules.size()).is_equal(2)
+	for column: Rect2 in [left, right]:
+		assert_float(column.position.y).is_greater_equal(rules[0].get_global_rect().end.y)
+		assert_float(column.end.y).is_less_equal(rules[1].get_global_rect().position.y)
+		# The rules span both columns.
+		assert_float(rules[0].get_global_rect().end.x).is_greater_equal(column.end.x - 1.0)
+	# The left column holds weeks 1-2, the right one weeks 3-4: shift 9 starts the right one.
+	var shift_nine: Label = results._lines[Array(results.texts()).find("WEEK 3 · HOLIDAY")]
+	assert_object(shift_nine.get_parent()).is_same(columns[1])
+	assert_float(shift_nine.get_global_rect().position.y).is_equal_approx(left.position.y, 0.5)
+	var coins: Label = results._lines[-1]
+	var menu: Rect2 = results.menu_button().get_global_rect()
+	assert_bool(paper.encloses(menu)).is_true()
+	assert_float(menu.position.y).is_greater_equal(coins.get_global_rect().end.y)
+	assert_float(coins.get_global_rect().position.y).is_greater(rules[1].get_global_rect().end.y)
 	assert_str(results.texts()[-1]).starts_with("COINS +")
+
+
+## A run lost in week 3 (shift 11) also prints in week columns, its shortfall closing the right
+## one under the failed shift; one lost in week 2 (shift 8) too, week 1 on the left and week 2
+## on the right; one lost in week 1 (shift 4) prints in one column, as before.
+func test_a_run_lost_in_week_three_prints_in_columns() -> void:
+	var screen: ShiftScreen = await _screen()
+	var run: RunState = screen.run
+	for last: int in [11, 8, 4]:
+		_full_run(screen)
+		run.history = run.history.slice(0, last)
+		run.history[-1].total = run.history[-1].quota - 5
+		run.history[-1].passed = false
+		run.history[-1].visits.clear()
+		run.shift_index = last - 1
+		run.limits.quota = run.history[-1].quota
+		run.phase = RunState.Phase.LOST
+		assert_bool(FinalReceipt.uses_columns(run)).is_equal(last > 4)
+		assert_int(FinalReceipt.left_weeks(run)).is_equal({11: 2, 8: 1, 4: 0}[last])
+		var results: ResultsPanel = screen._results
+		screen._show_results(_last_result(screen))
+		results.skip_printing()
+		await _frames(4)
+		var texts: PackedStringArray = results.texts()
+		var shortfall: int = Array(texts).find("Shift %d / 16: short by 5€" % last)
+		assert_int(shortfall).is_greater(0)
+		assert_bool(results.is_compact()).is_false()
+		if last == 4:
+			assert_array(results.week_columns()).is_empty()
+			assert_bool(texts[2].begins_with("WEEK")).is_false()
+			continue
+		var columns: Array[VBoxContainer] = results.week_columns()
+		assert_object(results._lines[shortfall].get_parent()).is_same(columns[1])
+		var paper: Rect2 = results.get_global_rect()
+		assert_bool(SCREEN_RECT.encloses(paper)).is_true()
+		assert_float(paper.position.y).is_greater_equal(64.0)
+		for line: Label in results._lines:
+			assert_bool(paper.encloses(line.get_global_rect())).is_true()
 
 
 ## #56: the store closes behind the receipt: the closed store covers the whole window, the top
@@ -312,8 +393,9 @@ func test_the_store_closes_behind_the_receipt() -> void:
 	assert_float(closed.shutter()).is_less(1.0)
 	await get_tree().create_timer(StoreClosed.SHUTTER_S + SLACK_S).timeout
 	assert_float(closed.shutter()).is_equal(1.0)
-	assert_float(closed.shutter_foot()).is_equal_approx(
-		SCREEN_RECT.size.y * StoreClosed.SHUTTER_STOP, 0.5
+	assert_float(closed.shutter_foot()).is_equal_approx(closed.size.y, 0.5)
+	assert_float(closed.global_position.y + closed.shutter_foot()).is_equal_approx(
+		SCREEN_RECT.end.y, 0.5
 	)
 	assert_bool(closed.focus.is_equal_approx(results.get_global_rect())).is_true()
 
@@ -327,63 +409,84 @@ func test_reduced_motion_closes_the_store_at_once() -> void:
 	screen._show_results(_last_result(screen))
 	var closed: StoreClosed = screen._results.store_closed()
 	assert_float(closed.shutter()).is_equal(1.0)
-	assert_float(closed.shutter_foot()).is_equal_approx(
-		closed.size.y * StoreClosed.SHUTTER_STOP, 0.5
-	)
+	assert_float(closed.shutter_foot()).is_equal_approx(closed.size.y, 0.5)
 
 
-## #63: "Toy machines ›" sits beside New run inside the receipt and arms with it.
-func test_toy_machines_sits_beside_new_run_and_arms_with_it() -> void:
+## The closed store's shutter reaches the window's bottom edge, so it covers the whole visible
+## window; the CLOSED sign stays near the top, fully on screen, and clear of the receipt.
+func test_the_closed_shutter_covers_the_whole_window() -> void:
+	await _assert_the_closed_store_covers(Vector2i(SCREEN_RECT.size))
+
+
+## The same in a larger window (more of the store shows under the expand stretch): the shutter
+## still reaches the bottom edge and the sign still hangs near the top.
+func test_the_closed_shutter_covers_a_larger_window() -> void:
+	var visible_rect: Rect2 = await _assert_the_closed_store_covers(Vector2i(1600, 1000))
+	# The larger window shows more of the store: taller than the 720 design height.
+	assert_float(visible_rect.size.y).is_greater(SCREEN_RECT.size.y)
+
+
+## The results' actions: Return to menu, the one primary (red-framed) button, then Export log
+## (teal) on its right, both inside the receipt and centred on one row; no New run and no Toy
+## machines (they are on the title's REWARDS). Return to menu arms after ARM_MS.
+func test_return_to_menu_is_the_one_primary_action_and_arms() -> void:
 	var screen: ShiftScreen = await _screen()
 	_full_run(screen)
 	var results: ResultsPanel = screen._results
 	screen._show_results(_last_result(screen))
 	results.skip_printing()
 	await _frames(3)
-	var toys: FramedButton = results.toy_machines_button()
-	var new_run: FramedButton = results.new_run_button()
-	assert_str(toys.caption).is_equal("Toy machines ›")
-	assert_bool(toys.disabled).is_true()
-	assert_bool(new_run.disabled).is_true()
+	var menu: FramedButton = results.menu_button()
+	assert_str(menu.caption).is_equal("Return to menu")
+	assert_bool(menu.disabled).is_true()
+	var row: HBoxContainer = menu.get_parent() as HBoxContainer
+	var captions: Array[String] = []
+	for child: Node in row.get_children():
+		captions.append((child as FramedButton).caption)
+	assert_array(captions).is_equal(["Return to menu", "Export log"])
+	var export: FramedButton = row.get_child(1) as FramedButton
+	assert_object(_frame_of(menu)).is_same(UiKit.BUTTON_FRAME)
+	assert_object(_frame_of(export)).is_same(TopBar.BUTTON_FRAME)
 	await await_millis(ResultsPanel.ARM_MS + 100)
 	await _frames(3)
-	assert_bool(new_run.disabled).is_false()
-	assert_bool(toys.disabled).is_false()
+	assert_bool(menu.disabled).is_false()
 	var paper: Rect2 = results.get_global_rect()
-	assert_bool(paper.encloses(toys.get_global_rect())).is_true()
-	assert_float(toys.get_global_rect().position.x).is_greater_equal(
-		new_run.get_global_rect().end.x
+	assert_bool(paper.encloses(menu.get_global_rect())).is_true()
+	assert_bool(paper.encloses(export.get_global_rect())).is_true()
+	assert_float(export.get_global_rect().position.x).is_greater_equal(menu.get_global_rect().end.x)
+	var row_center: float = (
+		(menu.get_global_rect().position.x + export.get_global_rect().end.x) / 2.0
 	)
-	(
-		assert_float(
-			absf(toys.get_global_rect().get_center().y - new_run.get_global_rect().get_center().y)
-		)
-		. is_less(1.0)
-	)
+	assert_float(absf(row_center - paper.get_center().x)).is_less(1.0)
 
 
-## Toy machines clicked mid-print prints the rest first (a skip), so the receipt stops printing
-## and its PressReader stops reading presses behind the full-screen machines.
-func test_toy_machines_mid_print_finishes_the_print() -> void:
+## Return to menu clicked mid-print prints the rest first (a skip), so the receipt stops printing
+## and its PressReader stops reading presses as the screen leaves; it asks for the menu.
+func test_return_to_menu_mid_print_finishes_the_print() -> void:
 	var screen: ShiftScreen = await _screen()
+	screen.changes_scene = false
 	_full_run(screen)
 	var results: ResultsPanel = screen._results
+	var asked: Array[bool] = []
+	results.menu_requested.connect(func() -> void: asked.append(true))
 	screen._show_results(_last_result(screen))
 	var shown: int = Time.get_ticks_msec()
-	while results.toy_machines_button().disabled and Time.get_ticks_msec() - shown < 3000:
+	while results.menu_button().disabled and Time.get_ticks_msec() - shown < 3000:
 		await get_tree().process_frame
 	(
-		assert_bool(results.toy_machines_button().disabled)
+		assert_bool(results.menu_button().disabled)
 		. override_failure_message(
 			"not armed; mouse held: %s" % Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
 		)
 		. is_false()
 	)
 	assert_bool(results.is_printing()).is_true()
-	results.toy_machines_button().pressed.emit()
+	results.menu_button().pressed.emit()
 	assert_bool(results.is_printing()).is_false()
 	assert_int(results.printed_count()).is_equal(results.texts().size())
 	assert_bool(results._reader.is_reading()).is_false()
+	assert_array(asked).is_equal([true])
+	assert_bool(TitleScreen.take_lit_request()).is_true()
 
 
 ## The won run of the layout test: 8 passed shifts with totals of four digits, a ticket visit
@@ -392,6 +495,7 @@ func test_toy_machines_mid_print_finishes_the_print() -> void:
 ## upgrade name); a starting upgrade on the loyalty card.
 func _full_run(screen: ShiftScreen) -> void:
 	var run: RunState = screen.run
+	var balance: BalanceDefinition = run.balance
 	var starter: DeckDefinition = run.starter.duplicate() as DeckDefinition
 	starter.starting_upgrade = load(STARTING_UPGRADE)
 	run.starter = starter
@@ -413,21 +517,57 @@ func _full_run(screen: ShiftScreen) -> void:
 			ticket.set_drawn(cards)
 			ticket.picked = 0
 			record.visits.append(ticket)
-		if run.balance.inspection_shifts.has(shift):
-			record.inspection = load(LONG_INSPECTION)
-			var bonus: MachineVisit = MachineVisit.new(MachineVisit.Kind.BONUS, "short_belt")
+		if balance.machine.is_payday_shift(shift) and shift < run.shift_count():
+			var bonus: MachineVisit = MachineVisit.new(MachineVisit.Kind.BONUS, "payday")
+			bonus.premium = true
 			bonus.chute = RewardMachine.Chute.UPGRADE
 			var register: MachinePrize = MachinePrize.new(
-				MachinePrize.Kind.REGISTER, MachinePrize.Rarity.COMMON, null, load(LONG_UPGRADE)
+				MachinePrize.Kind.REGISTER, MachinePrize.Rarity.RARE, null, load(LONG_UPGRADE)
 			)
 			var registers: Array[MachinePrize] = [register]
 			bonus.set_drawn(registers)
 			bonus.picked = 0
 			record.visits.append(bonus)
+		var events: Array[InspectionDefinition] = []
+		if balance.inspection_shifts.has(shift):
+			events.append(load(LONG_INSPECTION))
+		if balance.review_shifts.has(shift):
+			events.append_array([load(LONG_INSPECTION), load(SPOT_CHECK)])
+		if balance.boon_shifts.has(shift):
+			events.append(load(BOON))
+		record.inspections = events
 		history.append(record)
 	run.history = history
 	run.shift_index = run.shift_count() - 1
 	run.phase = RunState.Phase.WON
+
+
+## The store closed (at once) behind the final receipt in a `window` sized window: the shutter
+## encloses the visible window and its foot is the window's bottom edge; the sign is on screen,
+## below the top bar, in the window's top half, and off the receipt. Returns the visible window.
+func _assert_the_closed_store_covers(window: Vector2i) -> Rect2:
+	get_tree().root.size = window
+	var screen: ShiftScreen = await _screen()
+	screen.profile.set_reduced_motion(true)
+	_full_run(screen)
+	var results: ResultsPanel = screen._results
+	screen._show_results(_last_result(screen))
+	results.skip_printing()
+	await _frames(3)
+	var visible_rect: Rect2 = get_tree().root.get_visible_rect()
+	var closed: StoreClosed = results.store_closed()
+	assert_float(closed.shutter()).is_equal(1.0)
+	var shutter: Rect2 = Rect2(
+		closed.global_position, Vector2(closed.size.x, closed.shutter_foot())
+	)
+	assert_bool(shutter.grow(0.5).encloses(visible_rect)).is_true()
+	assert_float(shutter.end.y).is_equal_approx(visible_rect.end.y, 0.5)
+	var sign_rect: Rect2 = closed.sign_rect()
+	assert_bool(visible_rect.encloses(sign_rect)).is_true()
+	assert_float(sign_rect.position.y).is_greater_equal(ShiftStage.PANEL_TOP)
+	assert_float(sign_rect.end.y).is_less(visible_rect.get_center().y)
+	assert_bool(sign_rect.intersects(results.get_global_rect())).is_false()
+	return visible_rect
 
 
 func _last_result(screen: ShiftScreen) -> ScoreResult:
@@ -449,6 +589,11 @@ func _screen() -> ShiftScreen:
 	music.play(ShiftMusic.SHIFT_MUSIC)
 	await _frames(2)
 	return screen
+
+
+## The 9-slice texture a framed button's face is drawn with.
+static func _frame_of(button: FramedButton) -> Texture2D:
+	return (button.face().get_theme_stylebox("panel") as StyleBoxTexture).texture
 
 
 func _frames(count: int) -> void:

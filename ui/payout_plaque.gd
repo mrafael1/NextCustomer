@@ -1,12 +1,12 @@
 class_name PayoutPlaque
 extends Label
-## A belt item's paid chip (#80, step 7; mock-up B2's count-up; it was #55's brass "pays €N"
-## plaque): "€N" over the item's art, shown only in the count-up (and on a run resumed after its
+## A belt item's paid chip (#80, step 7; mock-up B2's count-up; it was #55's brass "pays N€"
+## plaque): "N€" over the item's art, shown only in the count-up (and on a run resumed after its
 ## checkout), never in planning. Two faces: the current item's, big mustard with an inset lit top,
 ## a dark foot and a 4 px hard shadow, and an earlier item's, small paper in an ink edge with a
 ## 2 px shadow; earlier chips stay. A current chip that pops in shows one mustard echo frame
 ## ECHO_GAP outside it (shadow included) that fades over ECHO_TIME (none under reduced motion). A
-## value of €0, or one a denied beat wiped, shows the muted face (cream shade, grey-dark edge and
+## value of 0€, or one a denied beat wiped, shows the muted face (cream shade, grey-dark edge and
 ## text) at either size. The chip is the item's badge: the count-up punches it, so it stays a
 ## Label (in the number font, B2's Atkinson, sharp at any punch), and the face is a child drawn
 ## behind its text. The value comes from the caller (the ScoreResult); the chip never scores.
@@ -69,7 +69,7 @@ func _init() -> void:
 	visible = false
 
 
-## Shows "€`value`" on the current or the settled face, muted when `muted` (€0, or a value a
+## Shows "`value`€" on the current or the settled face, muted when `muted` (0€, or a value a
 ## denied beat wiped). Its y is left alone: the count-up's scan may be lifting it. A current chip
 ## that pops in (set_current's `with_echo`) shows its echo.
 func show_value(value: int, muted: bool) -> void:
@@ -117,7 +117,7 @@ func shadow() -> float:
 
 ## The chip's text for a value.
 static func text_for(value: int) -> String:
-	return "%s%d" % [SYMBOL, value]
+	return "%d%s" % [value, SYMBOL]
 
 
 ## The face's height, current or settled.

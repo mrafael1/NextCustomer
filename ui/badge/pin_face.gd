@@ -2,7 +2,9 @@ class_name PinFace
 extends Control
 ## A badge pin's round face (#122, full build plan 7.4), drawn on the 2 px art grid: an ink rim, a
 ## RIM px band in the pin's dark colour, the face in its colour with a light glint top left, and
-## the pin's few letters (PinDefinition.face_text) in the number font, centred. A locked pin is
+## the pin's icon (PinDefinition.icon, centred) or, until it has one, its few letters
+## (PinDefinition.face_text) in the number font, centred (a face under 48 px a smaller size). A
+## locked pin is
 ## grey with "?"; an empty slot is a dashed ring (show_empty). Its own UI object: the badge, the
 ## badge screen's rows and the start screen's pins card all show pins with it. Display only.
 
@@ -23,6 +25,8 @@ const LOCKED_COLOURS: Array[Color] = [Palette.GREY_LIGHT, Palette.GREY, Palette.
 const PX := 2.0
 const RIM := 2
 const FONT_SIZE := 16
+## The face FONT_SIZE is for: a smaller face gets letters in proportion.
+const FONT_FACE := 48.0
 const LOCKED_TEXT := "?"
 ## The empty slot's ring: a dash every DASH art px.
 const DASH := 3
@@ -30,6 +34,7 @@ const DASH := 3
 var _colours: Array = []
 var _empty: bool = false
 var _label: Label
+var _icon: TextureRect
 
 
 ## A face `diameter` canvas px wide (a multiple of 4).
@@ -38,7 +43,10 @@ func _init(diameter: float = 48.0) -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	size = Vector2(diameter, diameter)
 	custom_minimum_size = size
-	_label = UiKit.number_label("", FONT_SIZE, true)
+	var font_size: int = FONT_SIZE
+	if diameter < FONT_FACE:
+		font_size = roundi(FONT_SIZE * diameter / FONT_FACE)
+	_label = UiKit.number_label("", font_size, true)
 	_label.name = "Letters"
 	_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -46,6 +54,12 @@ func _init(diameter: float = 48.0) -> void:
 	_label.position = Vector2.ZERO
 	_label.size = size
 	add_child(_label)
+	_icon = TextureRect.new()
+	_icon.name = "Icon"
+	_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_icon.visible = false
+	add_child(_icon)
 	show_empty()
 
 
@@ -57,7 +71,12 @@ func show_pin(pin: PinDefinition, index: int, locked: bool = false) -> void:
 	_label.text = LOCKED_TEXT if locked else pin.face_text
 	_label.add_theme_color_override("font_color", Palette.INK if locked else Palette.PAPER)
 	_label.add_theme_color_override("font_outline_color", _colours[1])
-	_label.visible = true
+	_icon.texture = null if locked else pin.icon
+	_icon.visible = _icon.texture != null
+	_label.visible = not _icon.visible
+	if _icon.visible:
+		_icon.size = _icon.texture.get_size()
+		_icon.position = ((size - _icon.size) / 2.0 / PX).floor() * PX
 	queue_redraw()
 
 
@@ -73,6 +92,7 @@ static func colour_index(pin: PinDefinition, index: int) -> int:
 func show_empty() -> void:
 	_empty = true
 	_label.visible = false
+	_icon.visible = false
 	queue_redraw()
 
 
@@ -80,9 +100,14 @@ func is_empty() -> bool:
 	return _empty
 
 
-## The letters shown ("" for an empty slot).
+## The letters shown ("" for an empty slot or a face showing its icon).
 func letters() -> String:
-	return "" if _empty else _label.text
+	return "" if _empty or not _label.visible else _label.text
+
+
+## The icon shown, or null (letters or an empty slot).
+func icon() -> Texture2D:
+	return _icon.texture if _icon.visible else null
 
 
 func _draw() -> void:
