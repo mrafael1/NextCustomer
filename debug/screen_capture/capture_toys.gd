@@ -7,8 +7,13 @@ extends RefCounted
 ## of the 30 figurines (the mock-up's partial collection): `normal` (5 coins), `broke` (0 coins),
 ## `off` (the profile can't be saved) or `complete` (every figurine, 5 coins); `hover=` hovers
 ## that aisle's machine; `car=<seconds>` (v0.79) catches a car that passed the doors that long
-## ago, `lamp` the street lamp's flicker. The file is
-## shift_screen_toys_<state>_[<aisle>_][car<tenths>_][lamp_]<width>x<height>.png.
+## ago, `lamp` the street lamp's flicker. `draw=<aisle id>` (v1.05) draws a capsule from that
+## machine (after any hover=) and presses the reveal's OK; `join=<seconds>` then holds the
+## figurine's join to its lineup card (ToyLineupJoin) that far in (a capsule that completes its
+## aisle, such as Cold cases' second, stops at the COMPLETED! card; `ok` presses its OK, and a
+## later join= goes on past it; `reduced` plays it under reduced motion). The file is
+## shift_screen_toys_<state>_[<aisle>_][car<tenths>_][lamp_][draw_<aisle>_][join<hundredths>_]
+## [ok_][reduced_]<width>x<height>.png (each option's part in the order given).
 
 ## The partial collection: the first items of each aisle owned (the mock-up's).
 const OWNED: Dictionary[StringName, int] = {
@@ -26,6 +31,7 @@ static func open(
 	var profile: ProfileState = ProfileState.new()
 	profile.coins = 0 if state == "broke" else 5
 	profile.run_count = 4
+	profile.set_reduced_motion(parts.has("reduced"))
 	for aisle: AisleDefinition in balance.aisles:
 		var count: int = OWNED.get(aisle.id, 0)
 		if state == "complete":
@@ -50,6 +56,21 @@ static func open(
 		if option == "lamp":
 			toys_screen.street()._process(ToyStreet.LAMP_FRAME * (ToyStreet.LAMP_OFF[0] + 0.5))
 			part += "lamp_"
+		if option.begins_with("draw="):
+			part += _draw(toys_screen, option.trim_prefix("draw="))
+		if option.begins_with("join="):
+			var seconds: float = option.trim_prefix("join=").to_float()
+			if not toys_screen.lineup_join().is_active():
+				continue  # No join playing (the draw gave nothing): nothing to seek, no name part.
+			toys_screen.lineup_join().seek(seconds)
+			toys_screen.lineup_join().set_process(false)  # The capture keeps the moment.
+			part += "join%d_" % roundi(seconds * 100.0)
+		if option == "ok":
+			toys_screen.lineup_join().completed_card().arm_now()
+			toys_screen.lineup_join().tap()
+			part += "ok_"
+		if option == "reduced":
+			part += "reduced_"
 		if not option.begins_with("hover="):
 			continue
 		var aisle_id: String = option.trim_prefix("hover=")
@@ -58,3 +79,16 @@ static func open(
 				view._on_hover(true)
 		part += aisle_id + "_"
 	return part
+
+
+## Draws a capsule from `aisle_id`'s machine and presses the reveal's OK: the join starts.
+static func _draw(toys_screen: ToyMachinesScreen, aisle_id: String) -> String:
+	for view: ToyMachineView in toys_screen.machines():
+		if view.aisle().id == StringName(aisle_id):
+			view.picked.emit(view.aisle())
+	if not toys_screen.reveal().visible:
+		push_warning("capture: draw=%s gave no capsule (sold out or no coins)" % aisle_id)
+		return ""
+	toys_screen.reveal().arm_now()
+	toys_screen.reveal().dismiss()
+	return "draw_%s_" % aisle_id

@@ -105,6 +105,8 @@ var _sign: ToyPlate
 var _sign_line: PixelLine
 var _floor: ToyPlate
 var _floor_line: PixelLine
+## The figurine join's tick (v1.05): the floor plate stepped right and up by this, with the tick.
+var _floor_nudge: Vector2 = Vector2.ZERO
 
 
 func _init() -> void:
@@ -201,6 +203,18 @@ func set_machine(
 ## pick another): it sinks, its sign and lamp cool, until the pointer enters it again.
 func clear_hover() -> void:
 	_hovered = false
+	_show_look()
+
+
+## Lifts the floor plate over the join's shade (true) or puts it back (v1.05).
+func lift_floor(on: bool) -> void:
+	_floor.z_index = 2 if on else 0
+
+
+## The join's tick (v1.05): the floor plate steps right and up `step` art px with the
+## price-gun tick (0: back at rest).
+func nudge_floor(step: int) -> void:
+	_floor_nudge = Vector2(step, -step) * ArtStyle.ART_SCALE
 	_show_look()
 
 
@@ -341,11 +355,14 @@ func _show_look() -> void:
 		sign_mode = ToyPlate.Mode.LIT if hot else ToyPlate.Mode.NORMAL
 	_sign.set_mode(sign_mode)
 	var art: float = ArtStyle.ART_SCALE
-	_floor.position = Vector2(FLOOR_AT) * art + Vector2(FLOOR_STEP if hot else 0.0, 0.0)
-	_floor.show_tick(hot)
+	_floor.position = (
+		Vector2(FLOOR_AT) * art + Vector2(FLOOR_STEP if hot else 0.0, 0.0) + _floor_nudge
+	)
+	_floor.show_tick(hot or _floor_nudge != Vector2.ZERO)
 	var colour: Color = Palette.INK if ok else Palette.GREY_DARK
 	var words: String = LEFT_TEXT % [_left, _total]
-	if _left == 0:
+	# Held by the figurine join, an emptied machine still reads 0 OF n LEFT until its SOLD OUT.
+	if _left == 0 and (_state == CapsuleCounter.State.EMPTY or _state == CapsuleCounter.State.OFF):
 		words = SOLD_OUT_TEXT
 		colour = Palette.TOMATO_DARK
 		_floor.set_mode(ToyPlate.Mode.OFF)

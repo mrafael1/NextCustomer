@@ -1,6 +1,7 @@
 extends GdUnitTestSuite
 ## A draw at the TOY MACHINES (#63): a click on an OK machine draws its key item first, saves it,
-## the coins drop by the price, the floor label and FIGURINES count it, and the reveal shows the
+## the coins drop by the price (the floor label, the window and FIGURINES count it once the
+## figurine has joined its lineup card, v1.05: held until then), and the reveal shows the
 ## figurine (its sprite, or the art-pending box with its name), its name, aisle and stock line
 ## (the results' and the title's without a saved run: "In stock from your next run"; the title's
 ## with one: "In stock after your saved run", the saved run's index). The reveal's pieces are
@@ -41,9 +42,10 @@ func test_a_click_draws_the_key_item_and_reveals_it() -> void:
 	assert_int(profile.unlocked_items[&"baguette"]).is_equal(2)
 	assert_int(profile.coins).is_equal(1)
 	assert_str(screen.coins_text()).is_equal("1")
-	assert_str(screen.machines()[4].floor_text()).is_equal("7 OF 8 LEFT")
-	assert_str(screen.figurines_text()).is_equal("1/30")
-	assert_int(bakery.capsule_count()).is_equal(7)
+	# Held under the reveal: only COINS changes at the draw.
+	assert_str(screen.machines()[4].floor_text()).is_equal("8 OF 8 LEFT")
+	assert_str(screen.figurines_text()).is_equal("0/30")
+	assert_int(bakery.capsule_count()).is_equal(8)
 	# Saved at once.
 	var saved: ProfileState = SaveService.new(_folder).load_profile()
 	assert_int(saved.unlocked_items[&"baguette"]).is_equal(2)
@@ -61,6 +63,15 @@ func test_a_click_draws_the_key_item_and_reveals_it() -> void:
 		assert_str(printed.text).is_equal("Baguette")
 	await _frames(20)
 	_assert_reveal_on_screen(reveal)
+	await await_millis(ResultsPanel.ARM_MS + 100)
+	await _frames(2)
+	reveal.dismiss()
+	assert_bool(screen.lineup_join().is_active()).is_true()
+	screen.lineup_join().finish()
+	assert_str(screen.machines()[4].floor_text()).is_equal("7 OF 8 LEFT")
+	assert_str(screen.figurines_text()).is_equal("1/30")
+	assert_int(bakery.capsule_count()).is_equal(7)
+	assert_bool(reveal.visible).is_false()
 
 
 ## After the key item, a draw is random among the items left; the reveal shows the drawn item's
@@ -100,6 +111,12 @@ func test_the_reveal_arms_after_the_draw_click_and_ok_closes_it() -> void:
 	assert_bool(reveal.is_armed()).is_true()
 	assert_bool(reveal.ok_button().disabled).is_false()
 	reveal.ok_button().pressed.emit()
+	assert_bool(reveal.is_open()).is_false()
+	# The figurine joins its lineup card; the machines take no clicks until it is done.
+	assert_bool(screen.lineup_join().is_active()).is_true()
+	_machine(screen, &"pantry")._gui_input(Kit.left_click())
+	assert_int(profile.coins).is_equal(2)
+	screen.lineup_join().finish()
 	assert_bool(reveal.visible).is_false()
 	# Back at the machines: a click anywhere closes the next reveal too.
 	_machine(screen, &"pantry")._gui_input(Kit.left_click())
@@ -107,7 +124,7 @@ func test_the_reveal_arms_after_the_draw_click_and_ok_closes_it() -> void:
 	await await_millis(ResultsPanel.ARM_MS + 100)
 	await _frames(2)
 	reveal._gui_input(Kit.left_click())
-	assert_bool(reveal.visible).is_false()
+	assert_bool(reveal.is_open()).is_false()
 
 
 ## A title draw while a run is saved: the saved run's index, the saved-run line.
@@ -154,6 +171,7 @@ func test_the_shelf_opens_and_comes_back() -> void:
 	await await_millis(ResultsPanel.ARM_MS + 100)
 	await _frames(2)
 	screen.reveal().dismiss()
+	screen.lineup_join().finish()
 	screen.shelf_button().pressed.emit()
 	assert_bool(screen.shelf().visible).is_true()
 	assert_int(screen.shelf().figurines(0).size()).is_equal(1)

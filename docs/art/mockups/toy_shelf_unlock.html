@@ -1,0 +1,1123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Figurine Shelf Unlock</title>
+<!-- Mock-up, 2026-11-05: what happens after a capsule opens on the TOY MACHINES screen - the figurine
+     joins its shelf, the aisle's count ticks, and a completed aisle shows what it unlocks.
+     Stage: the game's 1280x720 stage drawn on one canvas in stage px (art px = 2 stage px), shown with
+     nearest filtering. Backdrops are the game's own captures (docs/art/mockups/toy_machines_121_polish),
+     every sprite is the game's PNG (copied into toy_shelf_unlock_src/), words are Pixelify 11 px and
+     numbers Atkinson 700 12 px rasterised as hard pixels at 2x, as PixelLine does.
+     URL options: ?v=A|B|C  &s=1..4  &rm=1  &t=<seconds> (freeze at a time, for stills). -->
+<style>
+@font-face{font-family:'NCPix';font-weight:400 700;src:url(toy_shelf_unlock_src/fonts/PixelifySans-Variable.ttf)}
+@font-face{font-family:'NCAtk';font-weight:200 800;src:url(toy_shelf_unlock_src/fonts/AtkinsonHyperlegibleNext-Variable.ttf)}
+:root{
+  color-scheme:dark;
+  --wall:#1f3b3a; --bay:#172c2b; --panel:#2a4d4b; --paper:#fbf7ee; --cream:#f3e9d2; --teal-pale:#c3e0d4; --teal-light:#86c2b6;
+  --mustard:#e2b33c; --gold:#ffcf3f; --tomato:#d9534f; --ink:#2b2420;
+  --display:'NCPix','Pixelify Sans','Courier New',monospace;
+  --body:'NCAtk','Atkinson Hyperlegible Next','Segoe UI',system-ui,sans-serif;
+}
+@media (prefers-color-scheme: light){:root:not([data-theme="light"]){--wall:#1f3b3a}}
+:root[data-theme="dark"]{--wall:#1f3b3a}
+:root[data-theme="light"]{--wall:#1f3b3a}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--wall);color:var(--paper)}
+body{font-family:var(--body);font-size:15px;line-height:1.5;overflow-x:hidden}
+main{max-width:1320px;margin:0 auto;padding:24px 16px 64px;display:grid;gap:40px}
+main>*,section>*{min-width:0}
+h1,h2,h3{font-family:var(--display);font-weight:700;margin:0;letter-spacing:.02em;text-wrap:balance}
+h1{font-size:32px;color:var(--gold)}
+h2{font-size:23px}
+h3{font-size:17px;color:var(--teal-pale)}
+p{margin:0;max-width:84ch}
+code{overflow-wrap:anywhere;color:#faecbc;font-size:13px}
+.eyebrow{font-family:var(--display);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--teal-light)}
+section{display:grid;gap:14px}
+.lede{display:grid;gap:10px}
+.toolbar{position:sticky;top:0;z-index:5;background:rgba(23,44,43,.97);border-bottom:2px solid var(--ink);padding:8px 16px}
+.controls{max-width:1320px;margin:0 auto;display:flex;gap:8px 12px;flex-wrap:wrap;align-items:center}
+.lbl{font-family:var(--display);font-size:13px;color:var(--teal-light);letter-spacing:.06em}
+.seg{display:inline-flex;border:2px solid var(--ink);box-shadow:0 3px 0 var(--ink);flex-wrap:wrap}
+.seg button{box-shadow:none;border:0;border-right:2px solid var(--ink)}
+.seg button:last-child{border-right:0}
+button{font-family:var(--display);font-size:15px;color:var(--paper);background:#3a7672;border:2px solid var(--ink);box-shadow:0 3px 0 var(--ink);padding:4px 11px;cursor:pointer}
+button:active{transform:translateY(2px)}
+button:focus-visible,input:focus-visible,canvas:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+button[aria-pressed="true"]{background:var(--mustard);color:var(--ink)}
+label.chk{display:inline-flex;gap:6px;align-items:center;font-family:var(--display);font-size:14px;cursor:pointer}
+.stagewrap{position:relative;border:2px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.35);background:#111;max-width:100%}
+canvas#stage{display:block;width:100%;height:auto;image-rendering:pixelated;cursor:pointer}
+.readout{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--teal-pale);align-items:center}
+.readout b{font-family:var(--display);color:var(--gold);font-weight:600}
+.bar{flex:1 1 220px;height:8px;background:var(--bay);border:2px solid var(--ink);position:relative;min-width:160px}
+.bar i{position:absolute;left:0;top:0;bottom:0;background:var(--mustard)}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:14px}
+.opt{background:var(--bay);border:2px solid var(--ink);padding:12px;display:grid;gap:8px;align-content:start}
+.opt.rec{border-color:var(--mustard)}
+.opt header{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.tag{font-family:var(--display);font-size:15px;background:var(--paper);color:var(--ink);padding:0 7px;border:2px solid var(--ink)}
+.opt.rec .tag{background:var(--mustard)}
+.pick{font-family:var(--display);font-size:12px;color:var(--gold);letter-spacing:.08em}
+.opt p,.opt li{font-size:14px;color:var(--teal-pale)}
+.opt b{color:var(--paper)}
+.verdict{background:var(--panel);border:2px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.35);padding:14px 16px;display:grid;gap:8px}
+.verdict strong{color:var(--gold)}
+ul,ol{margin:0;padding-left:20px;display:grid;gap:6px;max-width:92ch}
+.tablewrap{overflow-x:auto;max-width:100%}
+table{border-collapse:collapse;width:100%;font-size:13px;background:var(--bay);border:2px solid var(--ink)}
+th,td{border:1px solid var(--ink);padding:5px 8px;text-align:left;vertical-align:top}
+th{font-family:var(--display);font-weight:600;color:var(--gold);background:#132524}
+.facts li{color:var(--teal-pale)}
+.facts b{color:var(--paper)}
+.new{font-family:var(--display);font-size:11px;background:var(--tomato);color:var(--paper);padding:0 5px;border:1px solid var(--ink);vertical-align:1px}
+.answers{background:var(--paper);color:var(--ink);border:3px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.35);padding:14px 18px;display:grid;gap:10px}
+.answers h2{color:var(--ink)}
+.answers li{color:var(--ink)}
+.answers code{color:#7a5a1c}
+.answers .def{font-weight:700;color:#3d7a45}
+canvas#focus{display:none;width:100%;height:auto;image-rendering:pixelated;cursor:pointer}
+body.focus canvas#stage{display:none}
+body.focus canvas#focus{display:block}
+.focusopt{display:none}
+@media (max-width:700px){
+  .toolbar{position:static;padding:8px 12px}
+  .controls{gap:6px 8px}
+  .lbl{display:none}
+  button{font-size:14px;padding:3px 8px}
+  .focusopt{display:inline-flex}
+}
+body.solo .toolbar,body.solo main>section:not(.stagesec),body.solo .readout{display:none}
+body.solo main{padding:0;max-width:none;display:block}
+body.solo .stagewrap{border:0;box-shadow:none}
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <div class="controls">
+    <span class="lbl">STYLE</span>
+    <span class="seg" id="vseg"><button data-v="A" aria-pressed="true">A Shelf drawer ★</button><button data-v="B" aria-pressed="false">B Lineup card</button><button data-v="C" aria-pressed="false">C Slide to the shelf</button></span>
+    <span class="lbl">CAPSULE</span>
+    <span class="seg" id="sseg"><button data-s="1" aria-pressed="true">New figurine</button><button data-s="2" aria-pressed="false">Completes aisle #2</button><button data-s="3" aria-pressed="false">#3 (RESTOCK)</button><button data-s="4" aria-pressed="false">#6 (last of 30)</button></span>
+    <button id="replay">↻ Replay</button>
+    <span class="seg" id="spd"><button data-k="1" aria-pressed="true">1×</button><button data-k="0.5" aria-pressed="false">½×</button><button data-k="0.25" aria-pressed="false">¼×</button></span>
+    <label class="chk"><input type="checkbox" id="auto" checked> Auto-press OK</label>
+    <label class="chk"><input type="checkbox" id="rm"> Reduced motion</label>
+    <label class="chk focusopt"><input type="checkbox" id="focusbox"> Focus view</label>
+  </div>
+</div>
+<main>
+  <section class="lede">
+    <div class="eyebrow">Mock-up · Toy machines · figurine shelf unlock · 2026-11-05 · design only, nothing built</div>
+    <h1>A new figurine joins the shelf</h1>
+    <p>Where: the <b>TOY MACHINES</b> screen at the store exit (opened from the results or from the title's REWARDS menu). You spend a coin, a capsule opens and its figurine is shown. Today the figurine then just disappears when you press OK, and you only see it again by opening <b>FIGURINE SHELF</b>. Nothing tells you when an aisle is completed, although completing aisles now unlocks things on the start screen.</p>
+    <p>This page designs what happens <b>after the capsule opens</b>: the figurine goes to its spot on the shelf, the counts tick, and a completed aisle gets its own moment that says what it unlocked. The coin, crank and capsule animation before it is issue #64. Here a short stand-in plays it.</p>
+    <p style="color:var(--teal-pale)">On a phone, <b>Focus view</b> (on by default under 700 px) shows a 560×480 crop of the stage that follows the action (the machine, then the drawer, then the card), about 2x larger than the whole stage would be. Click or tap the stage to skip, like in the game: a tap speeds up to the next resting point and never skips past a card that needs OK. Use the toolbar to switch style and capsule.</p>
+  </section>
+
+  <section class="stagesec">
+    <div class="stagewrap"><canvas id="stage" width="1280" height="720" tabindex="0" aria-label="Animated mock-up of the toy machines screen"></canvas><canvas id="focus" width="560" height="480" tabindex="0" aria-label="Close-up of the animated mock-up"></canvas></div>
+    <div class="readout"><span>Beat: <b id="beat">-</b></span><span id="clock">0.00 s</span><div class="bar"><i id="barfill"></i></div><span id="wait" style="color:var(--gold)"></span></div>
+  </section>
+
+  <section>
+    <h2>What the game does today</h2>
+    <ul class="facts">
+      <li><b>One machine per aisle, 30 figurines in all:</b> Cold cases 2, Pantry 2, Household 3, Fruit &amp; veg 8, Bakery 8, Snacks 7 (<code>data/aisles/*.tres</code>, <code>capsule_cards</code>). 1 coin buys 1 capsule (<code>capsule_price</code>).</li>
+      <li><b>No duplicates, ever.</b> The first capsule from a machine is always its key item. After that, one is drawn at random from the items still left (<code>core/capsule_draw.gd</code>). An empty machine shows <b>SOLD OUT</b> and can't be picked. So this design needs no duplicate step. If duplicates were ever added, that would be a rule change.</li>
+      <li><b>The reveal</b> (<code>ui/toys/toy_reveal.gd</code>): the figurine at 96×96 on a gold medallion with a sunburst behind it, NEW!, the name, the aisle and "In stock from your next run". It arms after 350 ms. Then OK, a click, Enter or Space closes it.</li>
+      <li><b>The shelf</b> (<code>ui/toys/figurine_shelf.gd</code>): a separate screen. A wooden cabinet holds one 576×116 section per aisle, in two columns. Each section has its sign, an "n / m" count and its figurines at 48×48, 70 px apart. They are <b>packed from the left in data order</b>, so a new figurine can land in the middle and push the ones after it right. Locked figurines are hidden, and a full aisle gets an <b>ALL COLLECTED</b> tag.</li>
+      <li><b>The lineup</b> (<code>ui/toys/toy_lineup.gd</code>): when you hover a machine, a price card hangs where the TOY MACHINES board is. It shows the aisle's minis at 2x, in colour once owned and as grey shapes before.</li>
+      <li><b>Completed aisle</b> = every item of the aisle is collected: its starting products plus all its figurines (<code>StartSetupRules.completed</code>). What that unlocks comes from the start-screen rework (uncommitted, branch <code>feature/start-staff-room</code>, plan 7.2):
+        <ul>
+          <li><b>regular swaps:</b> the run starts with 4 regulars (<code>pack_starter.tres</code> <code>core_cards</code>: Banana ×2, Milk, Eggs). You may swap up to <i>min(completed aisles, regulars)</i> of them (<code>_swap_cap</code>), only for a <b>plain-tier</b> product (the base version, not a golden one) of a completed aisle, and at most 2 swapped regulars from one aisle (<code>staple_swap_aisle_max</code>). So each completed aisle adds 1 swap up to 4, and also adds its products to the choices;</li>
+          <li>at <b>3</b> completed aisles: <b>RESTOCK</b>, which swaps one starting basket's pair once a run (<code>restock_min_completed</code>);</li>
+          <li>at <b>6</b> completed aisles: <b>choose your aisles</b> (STARTER CART and RUN ONLY) (<code>pair_choice_min_completed</code>). With 6 aisles, 6 completed means the whole collection, 30 / 30.</li>
+        </ul></li>
+      <li><b>Not built yet:</b> issue #64, the machine's coin, crank and capsule animation (open). It ends on the reveal above. Everything after the reveal on this page is <span class="new">NEW</span>.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Three ways to show the figurine joining the shelf</h2>
+    <div class="grid3">
+      <div class="opt rec"><header><span class="tag">A</span><h3>Shelf drawer</h3><span class="pick">RECOMMENDED</span></header>
+        <p>After OK, that aisle's <b>real shelf section</b> slides up from the bottom of the screen. The figurine flies from the medallion into its spot, shrinking from 96 to 48, and the figurines after it step aside. The spot lights up, then <b>n / m</b>, the floor plate and FIGURINES tick. The drawer slides away. About <b>2.1 s</b> after OK.</p>
+        <p>A completed aisle: the ALL COLLECTED tag slaps on, the figurines hop, and the <b>COMPLETED!</b> card shows what you unlocked.</p></div>
+      <div class="opt"><header><span class="tag">B</span><h3>Lineup card</h3></header>
+        <p>The figurine flies up into the machine's <b>LINEUP</b> card, which already exists on hover. Its grey shape flips into colour. It's the lightest option (<b>1.6 s</b>) and never leaves the machines, but you don't see the shelf: the figurine becomes a mini of 14 art px (28 stage px).</p></div>
+      <div class="opt"><header><span class="tag">C</span><h3>Slide to the shelf</h3></header>
+        <p>The full <b>FIGURINE SHELF</b> screen slides in from the right over the machines. The figurine drops onto its plank, then the shelf screen slides back out to the right. It shows the whole collection every time, but it's the longest (<b>3.3 s</b>) and leaves the machines for every coin.</p>
+        <p style="font-size:13px">In this mock-up the shelf screen is a redraw, not a capture: its title plate and FIGURINES chip are hand-drawn approximations of <code>figurine_shelf.gd</code>.</p></div>
+    </div>
+    <div class="verdict">
+      <p><strong>Pick A, the shelf drawer.</strong> It shows the figurine landing on the shelf, which is what the shelf is for, without leaving the machines. The coins and the other machines stay in view, so several coins in a row stay quick. It reuses the shelf's own art (cabinet, plank, signs, ALL COLLECTED tag), and the same drawer is the stage for the completed-aisle moment. B is the fallback if A feels slow after many capsules.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>The COMPLETED! card <span class="new">NEW</span></h2>
+    <p>The same card for all three styles. It only shows the lines that apply, and every line is a rule that already exists on the start screen (branch <code>feature/start-staff-room</code>). It needs OK, because it's rare (at most 6 times per profile) and it explains rules. Try "Completes aisle #2", "#3" and "#6" in the toolbar.</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Completed aisles after this capsule</th><th>Lines on the card</th><th>"Next" line</th><th>Then</th></tr></thead>
+      <tbody>
+        <tr><td>1, 2, 4</td><td><b>+1 REGULAR SWAP</b>: "You can now swap up to &lt;cap&gt; of your 4 regulars for a plain product of a completed aisle. &lt;Aisle&gt; joins the choices (max 2 per aisle)."</td><td>Next at 3: RESTOCK (below 3) / Next at 6: CHOOSE YOUR AISLES</td><td>SOLD OUT card swings onto the machine</td></tr>
+        <tr><td>3</td><td>+1 REGULAR SWAP (cap 3), and <b>RESTOCK UNLOCKED</b>: "Once a run, swap both items of one starting basket for a new pair."</td><td>Next at 6: CHOOSE YOUR AISLES</td><td>same</td></tr>
+        <tr><td>5</td><td><b>NEW SWAP CHOICES</b>: "Plain &lt;aisle&gt; products can now replace a regular. Still up to 4 of your 4 regulars (max 2 per aisle)." (the 5th aisle adds choices, not a 5th swap)</td><td>Next at 6: CHOOSE YOUR AISLES</td><td>same</td></tr>
+        <tr><td>6 (30 / 30)</td><td>NEW SWAP CHOICES, and <b>CHOOSE YOUR AISLES</b>: "Pick today's STARTER CART and RUN ONLY aisles yourself."</td><td>Every aisle completed.</td><td>SOLD OUT, then the existing COLLECTION COMPLETE strip opens</td></tr>
+      </tbody>
+    </table></div>
+    <p>Every number on the card comes from data, none is written into the card: <b>4</b> and the regulars' names = <code>pack_starter.tres</code> <code>core_cards</code> (Banana ×2, Milk, Eggs); <b>&lt;cap&gt;</b> = <code>_swap_cap</code> = min(completed aisles, regulars); <b>max 2</b> = <code>staple_swap_aisle_max</code>; <b>3</b> = <code>restock_min_completed</code>; <b>6</b> = <code>pair_choice_min_completed</code>. The code treats a threshold of 0 as off, so the card hides its RESTOCK line (and its "Next at" mention) when <code>restock_min_completed</code> is 0, and the same for CHOOSE YOUR AISLES. These values are on the uncommitted start-screen branch and wait for a play test, so they may still change. The swap icon is the aisle's glyph with two swap arrows, not a capsule item (capsule items are not always plain tier).</p>
+    <p>Footer line: "From your next run", or "After your saved run" when the screen was opened from the title with a run saved. That's the same rule as the reveal's stock line, because a saved run keeps the setup it started with.</p>
+  </section>
+
+  <section>
+    <h2>Behaviour spec for A (the recommended one)</h2>
+    <p>Sizes in stage px (1280×720; 1 art px = 2 stage px). Times start when the reveal's OK is pressed. Taps follow plan 6.2: a tap speeds the tweens up ×4 to the next resting point and never kills them, so the end state is always the same.</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Beat</th><th>Time</th><th>What moves</th><th>Size / place</th></tr></thead>
+      <tbody>
+        <tr><td>Reveal out</td><td>0.00-0.12</td><td>Name, aisle, stock line, NEW! and OK fade. The medallion and sunburst shrink to 0 (0.18 s). The figurine stays at 96×96. The shade goes from 45% to 38% ink.</td><td>Medallion centre (640, 310)</td></tr>
+        <tr><td>Drawer up</td><td>0.00-0.26</td><td>A piece of the shelf cabinet slides up from below the stage (ease out, back 1.2). It holds the aisle's section as the shelf draws it, with the count still at n−1.</td><td>Drawer 592×128 at (344, 586). Section 576×116 at (352, 592). Plates (y 538-568) stay visible above it.</td></tr>
+        <tr><td>Make room</td><td>0.18-0.34</td><td>Figurines after the new one's place slide right by one 70 px pitch (ease in-out). Skipped when it lands at the end.</td><td>Spot x = 16 + 70 × (its place among owned, data order)</td></tr>
+        <tr><td>Fly</td><td>0.24-0.64</td><td>The figurine flies on an arc (peak 60 px above the straight line) to its spot. It stays 96×96 (the 48 px PNG at 2x) for the first half of the arc and snaps to 48×48 (1x) at its midpoint (q = 0.5): no in-between size, so the pixels stay even. It stays upright and leaves a trail of sparkles (sparkle.png at 2x, one every 60 ms).</td><td>Lands at section (16+70i, 52)</td></tr>
+        <tr><td>Land</td><td>0.64-0.76</td><td>Squash 1.15×0.85 back to 1 (0.12 s). Two dust puffs. The plank dips 2 px. The spot lights: a stepped gold pillar (3 bands, mustard light at 45/25/12%) and a pool on the plank, fading over 0.6 s.</td><td>Pillar 52×64 over the spot</td></tr>
+        <tr><td>Tick</td><td>0.70-0.95</td><td>The count n−1 / m becomes n / m with a 1.3x pop. The FIGURINES LED and this machine's floor plate are lifted over the shade, and their numbers hop 2 art px. The plate steps right 2 art px and back, with the price-gun tick that hover uses. One capsule leaves the machine's window (the window shows one capsule per item left, <code>toy_machine_view.gd</code>).<br><span class="new">NEW</span> Today <code>_on_machine_picked</code> calls <code>_refresh()</code> right after the draw, so the LED, plate, window and EMPTY state already change under the reveal. This design holds them: the screen keeps the values from before the draw (FIGURINES LED, the plate's "n OF m LEFT", the window's capsules, the machine's EMPTY / SOLD OUT state) until this tick and the Sold out beat. Only the COINS LED changes at the draw, as today.</td><td>LED (172, 14). Plate under the machine.</td></tr>
+        <tr><td>Look</td><td>0.95-1.80</td><td>A small NEW! burst sits on the figurine's corner. A tap ends this beat early.</td><td>Burst 62×34, −8°</td></tr>
+        <tr><td>Drawer down</td><td>1.80-2.05</td><td>The drawer slides down and the shade fades out. The screen is back to picking.</td><td>-</td></tr>
+        <tr><td colspan="4"><b>When this capsule completes the aisle</b> (replaces Look and Drawer down)</td></tr>
+        <tr><td>Slap</td><td>0.95-1.60</td><td>ALL COLLECTED (the shelf's own tag: <code>DONE_TEXT</code>, mustard-light panel, 2 px mustard-darkest border, Atkinson 800 at 12 px, at <code>DONE_POSITION</code>, rotated <code>DONE_ROTATION</code>; redrawn approximately on this page) slaps on from 2x to 1x in 0.14 s with a 2 art px shake. The figurines hop one after the other, 6 px each, 50 ms apart.</td><td>Tag at section (230, 6), −4°</td></tr>
+        <tr><td>Card</td><td>1.60-</td><td>The COMPLETED! card pops in (0.7x to 1, back ease, like UiKit.pop_in). Its lines appear 0.15 s apart, and the new aisle's pip stamps in (2x to 1x plus a ring). OK arms after 350 ms. OK, a click, Enter or Space closes it.</td><td>Card 420 wide at (430, 64), popup frame. Height = 320 + each line's row: a row is 56 for 2 text lines, +15 per extra line. As drawn here: the +1 REGULAR SWAP text wraps to 3 lines and NEW SWAP CHOICES to 2, so the card is 391 tall for 1, 2 and 4 completed aisles, 447 for 3 (two rows), 376 for 5 and 432 for 6 (two 2-line rows).</td></tr>
+        <tr><td>Sold out</td><td>after OK, 0.8 s</td><td>The card and drawer leave. The machine's SOLD OUT card drops in and swings (a pendulum settling in 0.6 s). The plate flips to SOLD OUT and the machine's lamp flickers off. At 30 / 30 the COLLECTION COMPLETE strip opens from the centre.</td><td>Existing collected state</td></tr>
+        <tr><td colspan="4"><b>Reduced motion:</b> driven by the game's own setting, <code>profile.reduced_motion()</code> (the screen already reads it, <code>toy_machines_screen.gd</code> <code>_reduced_motion</code>); this page's toggle stands in for it and starts from the browser's <code>prefers-reduced-motion</code>. No flight, shake, swing or pops. The 96 px figurine leaves with the medallion at once (no second copy at the medallion), the drawer fades in (0.25 s) with the figurine already in its spot, the counts change in place, and the card and SOLD OUT fade in.</td></tr>
+        <tr><td colspan="4"><b>Hover and the LED strip:</b> if the aisle completes while that machine's lineup card is showing (hover), the lineup card stays up behind the shade and updates at the tick. The drawer covers the LED strip (y 586-630), where the hint or, after the last coin, the "NO COINS LEFT…" notice shows. Both show again as soon as the drawer has left.</td></tr>
+      </tbody>
+    </table></div>
+    <p><b>Data it reads:</b> the drawn card and its aisle (from <code>CapsuleCounter.draw</code>), the profile's unlocked items before the draw (for the packing and n−1), <code>balance.aisles</code>, and <code>StartSetupRules.completed</code> before and after the draw (to decide whether the aisle completed, and how many are complete). For the card: the regulars from <code>pack_starter.tres</code> <code>core_cards</code>, the swap cap from <code>_swap_cap</code> (min of completed aisles and regulars), <code>staple_swap_aisle_max</code>, <code>restock_min_completed</code> and <code>pair_choice_min_completed</code> (0 = off, line hidden). <span class="new">NEW</span> The screen keeps the values from before the draw (FIGURINES LED, plate, window, the machine's EMPTY state; only COINS changes at the draw) until the tick and the Sold out beat, instead of refreshing at the draw. It changes nothing in the save: the draw is already saved before any of this plays, so quitting mid-animation loses nothing. Several capsules in one visit play the full beat each time.</p>
+  </section>
+
+  <section class="answers">
+    <h2>Questions (each has a default)</h2>
+    <ol>
+      <li><b>Which style?</b> A shelf drawer, B lineup card, C slide to the shelf. <span class="def">Default: A.</span></li>
+      <li><b>Should the COMPLETED! card wait for OK?</b> <span class="def">Default: yes.</span> It's rare and it explains new rules. With "no", it would close by itself after 3 s.</li>
+      <li><b>Several capsules in one visit:</b> keep the full beat every time, or play it ×1.25 faster from the 3rd capsule of the same visit? <span class="def">Default: full beat every time.</span> A run pays 0–3 coins for shifts passed (<code>coins_by_shifts_passed</code>) plus at most 1 overtime coin, coins carry over between visits, and pins cost 12 coins, so a visit usually spends about 1–5 coins: 5 × 2.05 s ≈ 10 s, and a tap already skips the Look beat.</li>
+      <li><b>Build it with #64</b> (as the beat after the capsule opens) or on its own before #64? <span class="def">Default: on its own first.</span> It plays after today's plain reveal, and #64 then slots its coin, crank and capsule in front of it.</li>
+    </ol>
+  </section>
+</main>
+
+<script>
+'use strict';
+const SRC = 'toy_shelf_unlock_src/';
+const C = {
+  ink:'#2b2420', inkLight:'#4a3f38', greyDark:'#5e574d', grey:'#8a8172', greyLight:'#c7beab',
+  cream:'#f3e9d2', creamShade:'#ddcba5', paper:'#fbf7ee', tealDarkest:'#1f3b3a', tealDark:'#2a4d4b',
+  tealShade:'#3a7672', teal:'#4f9a94', tealLight:'#86c2b6', tealPale:'#c3e0d4', tomato:'#d9534f',
+  tomatoDark:'#a83a3c', mustard:'#e2b33c', mustardLight:'#f1d27a', mustardDark:'#b38425',
+  mustardDarkest:'#7a5a1c', gold:'#ffcf3f', brass:'#c8932b', brassDark:'#8a5d1a', green:'#5fae5a',
+  greenDark:'#3d7a45', plasterLight:'#ece0c6', plaster:'#e4d6b9', wood:'#a8703a', woodDark:'#6e4524',
+  slate:'#2c3533', slateDark:'#222a29', steel:'#8d8a83', steelShade:'#6f6b63', steelDark:'#57534c',
+  steelDarkest:'#45423d', steelLight:'#c7c3b8', tealBlack:'#172c2b'
+};
+const AISLES = [
+  {id:'cold_cases', name:'Cold cases', color:'#4f9a94', items:['cream','ham_ends']},
+  {id:'pantry', name:'Pantry', color:'#e2b33c', items:['sugar_cubes','mixed_herbs']},
+  {id:'household', name:'Household', color:'#8a8172', items:['egg_timer','chipped_mug','odd_socks']},
+  {id:'fruit_and_veg', name:'Fruit & veg', color:'#3d7a45', items:['fruit_salad','strawberries','grapefruit','wonky_carrot','lemon','bruised_apples','soft_tomatoes','potatoes']},
+  {id:'bakery', name:'Bakery', color:'#d2a874', items:['baguette','scone','croissant','broken_biscuit','iced_bun','birthday_candles','squashed_cake','stale_doughnut']},
+  {id:'snacks', name:'Snacks', color:'#7a5232', items:['crisps','cereal_bar','bent_lolly','pick_n_mix','stale_popcorn','breadsticks','dusty_toffees']},
+];
+const NAMES = {cream:'Cream',ham_ends:'Ham ends',sugar_cubes:'Sugar cubes',mixed_herbs:'Mixed herbs',egg_timer:'Egg timer',chipped_mug:'Chipped mug',odd_socks:'Odd socks',fruit_salad:'Fruit salad',strawberries:'Strawberries',grapefruit:'Grapefruit',wonky_carrot:'Wonky carrot',lemon:'Lemon',bruised_apples:'Bruised apples',soft_tomatoes:'Soft tomatoes',potatoes:'Potatoes',baguette:'Baguette',scone:'Scone',croissant:'Croissant',broken_biscuit:'Broken biscuit',iced_bun:'Iced bun',birthday_candles:'Birthday candles',squashed_cake:'Squashed cake',stale_doughnut:'Stale doughnut',crisps:'Crisps',cereal_bar:'Cereal bar',bent_lolly:'Bent lolly',pick_n_mix:"Pick 'n' mix",stale_popcorn:'Stale popcorn',breadsticks:'Breadsticks',dusty_toffees:'Dusty toffees'};
+const AI = Object.fromEntries(AISLES.map((a, i) => [a.id, i]));
+const CX = i => 112 + 160 * i;   // machine centres (ToyMachinesScreen: 160 px apart from x 40, 144 wide)
+
+// Profiles: the backdrop capture shows 9/30 (Cold 1, Pantry 2, Household 1, F&V 3, Bakery 2, Snacks 0).
+const BASE = {cold_cases:['cream'], pantry:['sugar_cubes','mixed_herbs'], household:['egg_timer'], fruit_and_veg:['fruit_salad','strawberries','lemon'], bakery:['baguette','iced_bun'], snacks:[]};
+const SCEN = {
+  // win: the machine window's capsules (one per item left, toy_machine_view.gd) - `pre` are already gone
+  // before the draw (the capture shows more than this profile has left), `tick` leaves at the tick.
+  1: {aisle:'fruit_and_veg', draw:'grapefruit', owned:BASE, win:{pre:[], tick:'fv1'}},
+  2: {aisle:'cold_cases', draw:'ham_ends', owned:BASE, win:{pre:[], tick:'cc1'}},
+  3: {aisle:'household', draw:'odd_socks', owned:{...BASE, cold_cases:['cream','ham_ends'], household:['egg_timer','chipped_mug']}, win:{pre:['hh2'], tick:'hh1'}},
+  4: {aisle:'cold_cases', draw:'ham_ends', owned:Object.fromEntries(AISLES.map(a => [a.id, a.id === 'cold_cases' ? ['cream'] : a.items.slice()])), win:{pre:[], tick:'cc1'}},
+};
+// Patches that paint a window capsule out of the capture (built from the capture's own background):
+// top-left corner on the stage and the capsule's centre (for the little pop).
+const WINP = {fv1:{x:542, y:331, cx:555, cy:342}, hh1:{x:404, y:352, cx:419, cy:367}, hh2:{x:436, y:350, cx:451, cy:365}, cc1:{x:76, y:364, cx:91, cy:379}};
+// Start-setup values the COMPLETED! card reads (uncommitted branch feature/start-staff-room, awaiting play test):
+// pack_starter.tres core_cards, staple_swap_aisle_max, restock_min_completed, pair_choice_min_completed (0 = off).
+const SETUP = {regulars:['Banana', 'Banana', 'Milk', 'Eggs'], aisleMax:2, restockMin:3, pairMin:6};
+const swapCap = done => Math.min(done, SETUP.regulars.length);   // StartSetupRules._swap_cap
+for (const s of Object.values(SCEN)) {
+  const a = AISLES[AI[s.aisle]];
+  s.before = s.owned[s.aisle];
+  s.after = a.items.filter(id => s.before.includes(id) || id === s.draw);
+  s.complete = s.after.length === a.items.length;
+  s.figsBefore = AISLES.reduce((n, x) => n + s.owned[x.id].length, 0);
+  s.k = AISLES.filter(x => s.owned[x.id].length === x.items.length).length + (s.complete ? 1 : 0);
+}
+
+// ---------- assets ----------
+const IMG = {};
+function load(key, path) { return new Promise(res => { const im = new Image(); im.onload = () => { IMG[key] = im; res(); }; im.onerror = () => { console.warn('missing', path); res(); }; im.src = SRC + path; }); }
+const loads = [];
+for (const a of AISLES) {
+  loads.push(load('sign_' + a.id, 'aisle_sign_' + a.id + '.png'), load('glyph_' + a.id, 'aisle_' + a.id + '.png'), load('cap_' + a.id, 'toy_capsule_' + a.id + '.png'));
+  for (const it of a.items) loads.push(load('item_' + it, 'items/' + it + '.png'), load('mini_' + it, 'minis/' + it + '.png'));
+}
+for (const k of Object.keys(WINP)) loads.push(load('patch_' + k, 'patch_' + k + '.png'));
+for (const k of ['bg_normal','bg_complete','bg_hover_pantry','bg_hover_fv','toy_medallion','sticker_burst','sticker_label','sparkle','display_cabinet','popup','shelf_plank','coin','padlock_dim','cart']) loads.push(load(k, k + '.png'));
+
+// ---------- helpers ----------
+const cv = document.getElementById('stage');
+const ctx = cv.getContext('2d');
+ctx.imageSmoothingEnabled = false;
+const clamp01 = x => Math.max(0, Math.min(1, x));
+const lerp = (a, b, t) => a + (b - a) * t;
+const easeOut = t => 1 - Math.pow(1 - t, 3);
+const easeInOut = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+const backOut = (t, s = 1.2) => 1 + (s + 1) * Math.pow(t - 1, 3) + s * Math.pow(t - 1, 2);
+const R = Math.round;
+
+function nine(img, x, y, w, h, m) {
+  if (!img) return;
+  const iw = img.width, ih = img.height;
+  x = R(x); y = R(y); w = R(w); h = R(h);
+  const sx = [0, m, iw - m, iw], dx = [x, x + m, x + w - m, x + w];
+  const sy = [0, m, ih - m, ih], dy = [y, y + m, y + h - m, y + h];
+  for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) {
+    const sw = sx[i + 1] - sx[i], sh = sy[j + 1] - sy[j], dw = dx[i + 1] - dx[i], dh = dy[j + 1] - dy[j];
+    if (sw > 0 && sh > 0 && dw > 0 && dh > 0) ctx.drawImage(img, sx[i], sy[j], sw, sh, dx[i], dy[j], dw, dh);
+  }
+}
+function spr(key, x, y, w, h) { const im = IMG[key]; if (im) ctx.drawImage(im, R(x), R(y), R(w ?? im.width), R(h ?? im.height)); }
+function rect(x, y, w, h, c) { ctx.fillStyle = c; ctx.fillRect(R(x), R(y), R(w), R(h)); }
+
+// Hard-pixel text, as PixelLine: words in Pixelify 11 px, numbers in Atkinson 700 12 px, rasterised at 1x
+// with no antialiasing (alpha threshold), then drawn at `scale` (2 = the art grid).
+const PXC = new Map();
+function rasterRaw(str, color, font) {
+  const m = document.createElement('canvas').getContext('2d');
+  m.font = font;
+  const w = Math.max(1, Math.ceil(m.measureText(str).width) + 2), h = 16;
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d'); g.font = font; g.fillStyle = '#000'; g.textBaseline = 'alphabetic';
+  g.fillText(str, 1, 12);
+  const d = g.getImageData(0, 0, w, h); const [r, gg, b] = hex(color);
+  let minX = w, maxX = -1;
+  for (let i = 0; i < w * h; i++) { const a = d.data[i * 4 + 3]; if (a >= 120) { d.data[i * 4] = r; d.data[i * 4 + 1] = gg; d.data[i * 4 + 2] = b; d.data[i * 4 + 3] = 255; minX = Math.min(minX, i % w); maxX = Math.max(maxX, i % w); } else d.data[i * 4 + 3] = 0; }
+  g.putImageData(d, 0, 0);
+  return {c, w, h, minX, maxX};
+}
+// Words: one raster. Numbers (PixelLine.NUMBER_PATTERN, digits / and ?): each glyph cropped to its ink,
+// DIGIT_GAP = 1 font px apart, as PixelLine lays them out.
+function rasterToken(str, color, isNum) {
+  const key = str + '|' + color + '|' + isNum;
+  if (PXC.has(key)) return PXC.get(key);
+  let out;
+  if (!isNum) { const r = rasterRaw(str, color, '500 11px NCPix'); out = {c: r.c, w: Math.max(1, r.maxX + 1), h: r.h}; }
+  else {
+    const gl = [...str].map(ch => rasterRaw(ch, color, '700 12px NCAtk')).filter(r => r.maxX >= 0);
+    const w = Math.max(1, gl.reduce((n, r, i) => n + (r.maxX - r.minX + 1) + (i ? 1 : 0), 0));
+    const c = document.createElement('canvas'); c.width = w; c.height = 16; const g = c.getContext('2d');
+    let x = 0; gl.forEach((r, i) => { if (i) x += 1; const iw = r.maxX - r.minX + 1; g.drawImage(r.c, r.minX, 0, iw, 16, x, 0, iw, 16); x += iw; });
+    out = {c, w, h: 16};
+  }
+  PXC.set(key, out); return out;
+}
+function hex(c) { const n = parseInt(c.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
+// tokens: array of strings or {t, c}; numbers (digits, / and ?, PixelLine.NUMBER_PATTERN) use the number font.
+// Every plate on the stage is redrawn with this from the first frame (the capture's plate text is
+// covered), so no plate changes font when the tick redraws it.
+function pxLine(tokens, color, scale = 2, gapArt = 3) {
+  return tokens.map(t => { const s = typeof t === 'string' ? t : t.t; const col = typeof t === 'string' ? color : t.c; return rasterToken(s, col, /^[0-9/?]+$/.test(s)); })
+    .reduce((acc, r, i) => { acc.parts.push({r, x: acc.w + (i ? gapArt : 0)}); acc.w += r.w + (i ? gapArt : 0); return acc; }, {parts: [], w: 0, scale});
+}
+function drawPx(line, x, y) { // x,y = top-left of the 16-row raster box (baseline at row 12)
+  for (const p of line.parts) ctx.drawImage(p.r.c, 0, 0, p.r.w, p.r.h, R(x + p.x * line.scale), R(y), p.r.w * line.scale, p.r.h * line.scale);
+}
+const pxW = l => l.w * l.scale;
+function txt(s, x, y, {size = 16, weight = 700, color = C.ink, align = 'left', font = 'NCAtk', base = 'alphabetic'} = {}) {
+  ctx.font = `${weight} ${size}px ${font}`; ctx.fillStyle = color; ctx.textAlign = align; ctx.textBaseline = base; ctx.fillText(s, x, y);
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+}
+function wrap(s, maxW, size, weight = 400) {
+  ctx.font = `${weight} ${size}px NCAtk`; const words = s.split(' '); const lines = []; let cur = '';
+  for (const w of words) { const t = cur ? cur + ' ' + w : w; if (ctx.measureText(t).width > maxW && cur) { lines.push(cur); cur = w; } else cur = t; }
+  if (cur) lines.push(cur); return lines;
+}
+
+// ---------- state ----------
+const state = {v: 'A', s: 1, rm: false, auto: true, speed: 1, t: 0, boost: 1, waiting: false, freeze: null};
+const qs = new URLSearchParams(location.search);
+if (qs.get('v') && ['A', 'B', 'C'].includes(qs.get('v').toUpperCase())) state.v = qs.get('v').toUpperCase();
+if (qs.get('s')) { const s = Math.round(+qs.get('s')); if (s >= 1 && s <= 4) state.s = s; }
+if (qs.get('rm') === '1') state.rm = true;
+if (qs.get('t') && isFinite(+qs.get('t'))) state.freeze = Math.max(0, +qs.get('t'));
+if (qs.get('cap') === 'stage') document.body.classList.add('solo');
+
+// Timeline: segments {id, d, hold (needs OK), rest (a tap ends it)}.
+let TL = [], TLmap = {};
+function build() {
+  const S = SCEN[state.s], rm = state.rm, v = state.v;
+  const segs = [];
+  const add = (id, d, o = {}) => segs.push({id, d, ...o});
+  add('idle', .6);
+  add('draw', rm ? .3 : .95);
+  add('reveal', rm ? .15 : .22);
+  add('ok', 1.6, {hold: true});
+  if (v === 'A') {
+    add('to', rm ? .25 : .7);
+    add('tick', .25);
+  } else if (v === 'B') {
+    add('to', rm ? .25 : .75);
+    add('tick', .25);
+  } else {
+    add('cut', rm ? .25 : .35);
+    add('to', rm ? .2 : .6);
+    add('tick', .25);
+  }
+  if (!S.complete) {
+    add('look', v === 'C' ? 1.1 : .85, {rest: true});
+    add('away', v === 'C' ? (rm ? .25 : .35) : (rm ? .2 : .25));
+  } else {
+    add('slap', rm ? .3 : .65);
+    add('cardIn', rm ? .3 : .9);
+    add('card', 2.6, {hold: true});
+    add('cardOut', .25);
+    if (v === 'C') add('away', rm ? .25 : .35);
+    add('sold', rm ? .3 : .8);
+    if (state.s === 4) add('collection', rm ? .3 : .9);
+  }
+  add('end', 1.2, {rest: true});
+  let t = 0; TL = segs; TLmap = {};
+  for (const s of segs) { s.t0 = t; t += s.d; s.t1 = t; TLmap[s.id] = s; }
+}
+const total = () => TL[TL.length - 1].t1;
+const P = id => { const s = TLmap[id]; if (!s) return 0; return clamp01((state.t - s.t0) / s.d); };
+const has = id => !!TLmap[id];
+const after = id => has(id) && state.t >= TLmap[id].t1;
+const during = id => has(id) && state.t >= TLmap[id].t0 && state.t < TLmap[id].t1;
+const sub = (p, a, b) => clamp01((p - a) / (b - a));
+function curSeg() { for (const s of TL) if (state.t < s.t1) return s; return TL[TL.length - 1]; }
+
+// ---------- backdrop pieces ----------
+// Columns: a machine's 160 px column from the normal capture (lit, playable) or the complete capture
+// (collected: dim, SOLD OUT card, SOLD OUT plate, lamp off).
+function column(i, src, alpha = 1) {
+  const x = CX(i) - 80; ctx.globalAlpha = alpha;
+  ctx.drawImage(IMG[src], x, 36, 160, 536, x, 36, 160, 536); ctx.globalAlpha = 1;
+}
+function plateText(i, tokens, dx = 0, dy = 0, color = C.ink) {
+  const x = CX(i);
+  rect(x - 62, 543, 128, 18, C.cream);
+  const l = pxLine(tokens, color);
+  drawPx(l, x + 2 - pxW(l) / 2 + dx, 536 + dy);
+}
+function led(x, y, minW, iconKey, num, word, hop = 0, lit = false) {
+  const n = pxLine([num], C.gold), w = pxLine([word], C.mustardDark);
+  const inner = (iconKey ? 30 : 0) + pxW(n) + 8 + pxW(w);
+  const W = Math.max(minW, inner + 28), H = 34;
+  rect(x, y, W, H, C.steelDark); rect(x + 2, y + 2, W - 4, H - 4, C.steelShade);
+  rect(x + 2, y + 2, W - 4, 2, C.steel); rect(x + 4, y + 4, W - 8, H - 8, C.slateDark);
+  ctx.fillStyle = C.slate; for (let yy = y + 6; yy < y + H - 6; yy += 4) for (let xx = x + 6; xx < x + W - 6; xx += 4) ctx.fillRect(xx, yy, 2, 2);
+  for (const [sx, sy] of [[x + 3, y + 3], [x + W - 7, y + 3], [x + 3, y + H - 7], [x + W - 7, y + H - 7]]) { rect(sx, sy, 4, 4, C.steelLight); rect(sx + 2, sy + 2, 2, 2, C.steelDarkest); }
+  let cx = x + 14;
+  if (iconKey) { spr(iconKey, cx, y + 6, 24, 24); cx += 30; }
+  if (lit) { ctx.fillStyle = 'rgba(255,207,63,.18)'; ctx.fillRect(x + 4, y + 4, W - 8, H - 8); }
+  drawPx(n, cx, y + 1 - hop); drawPx(w, cx + pxW(n) + 8, y + 1);
+  return W;
+}
+
+// The wall without the TOY MACHINES board (the board gives its place to a lineup card, as on hover):
+// lit columns from two hover captures (each hides the board), collected columns from the complete
+// capture's Cold cases column (the wall repeats every 160 px).
+let NOBOARD = null;
+function noboard() {
+  if (NOBOARD) return NOBOARD;
+  const c = document.createElement('canvas'); c.width = 1280; c.height = 240; const g = c.getContext('2d');
+  g.drawImage(IMG.bg_hover_pantry, 0, 0); g.drawImage(IMG.bg_hover_fv, 0, 0, 450, 240, 0, 0, 450, 240);
+  return NOBOARD = c;
+}
+function hideBoard(S) {
+  for (let i = 1; i <= 4; i++) {
+    const x0 = CX(i) - 80, xa = Math.max(x0, 320), xb = Math.min(x0 + 160, 720);
+    if (xb <= xa) continue;
+    const a = AISLES[i], full = S.owned[a.id].length === a.items.length && !(i === AI[S.aisle]);
+    ctx.drawImage(noboard(), xa, 0, xb - xa, 50, xa, 0, xb - xa, 50);
+    if (full) ctx.drawImage(IMG.bg_complete, 32 + (xa - x0), 50, xb - xa, 182, xa, 50, xb - xa, 182);
+    else ctx.drawImage(noboard(), xa, 50, xb - xa, 182, xa, 50, xb - xa, 182);
+  }
+}
+
+// ---------- the scene ----------
+function draw() {
+  const S = SCEN[state.s], A = AISLES[AI[S.aisle]], ai = AI[S.aisle], v = state.v, rm = state.rm;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.imageSmoothingEnabled = false;
+  // Shake (completion slap)
+  let shx = 0, shy = 0;
+  if (!rm && during('slap')) { const p = P('slap'); if (p < .3) { const k = (1 - p / .3) * 4; shx = R(Math.sin(p * 90) * k / 2) * 2; shy = R(Math.cos(p * 70) * k / 2) * 2; } }
+  ctx.translate(shx, shy);
+
+  // 1. backdrop
+  const base = state.s === 4 ? 'bg_complete' : 'bg_normal';
+  ctx.drawImage(IMG[base], 0, 0);
+  if (state.s === 4) { // the strip area and the one machine still playing come from the normal capture
+    ctx.drawImage(IMG.bg_normal, 200, 574, 880, 84, 200, 574, 880, 84);
+  }
+  const soldP = P('sold');
+  for (let i = 0; i < AISLES.length; i++) {
+    const a = AISLES[i];
+    const full = S.owned[a.id].length === a.items.length;
+    const isTarget = i === ai;
+    if (isTarget) {
+      if (after('sold')) column(i, 'bg_complete');
+      else column(i, 'bg_normal');
+    } else column(i, full ? 'bg_complete' : 'bg_normal');
+  }
+  // the target machine's window: capsules already gone, then one more at the tick (held until then)
+  const ticked0 = state.t >= (TLmap.tick ? TLmap.tick.t0 : 1e9);
+  if (!after('sold')) {
+    for (const k of S.win.pre) spr('patch_' + k, WINP[k].x, WINP[k].y);
+    if (ticked0) {
+      const w = WINP[S.win.tick];
+      spr('patch_' + S.win.tick, w.x, w.y);
+      const since = state.t - TLmap.tick.t0;
+      if (!rm && since < .3) { const d = easeOut(clamp01(since / .3)); const sp = []; for (let k = 0; k < 4; k++) { const a = -Math.PI / 4 - k * Math.PI / 6; sp.push({x: w.cx + Math.cos(a) * d * 18, y: w.cy + Math.sin(a) * d * 18, a: 1 - d}); } sparkles(sp); }
+    }
+  }
+  if (v === 'B') {
+    const toS = TLmap.to.t0, endS = TLmap.away ? TLmap.away.t1 : TLmap.cardOut.t1;
+    if (state.t >= toS && state.t < endS) hideBoard(S);
+  }
+  // plates
+  const ticked = state.t >= (TLmap.tick ? TLmap.tick.t0 : 1e9);
+  for (let i = 0; i < AISLES.length; i++) {
+    const a = AISLES[i], n = a.items.length;
+    const own = i === ai && ticked ? S.after.length : S.owned[a.id].length;
+    if (i !== ai) { if (own < n) plateText(i, [String(n - own), 'OF', String(n), 'LEFT']); continue; }
+    if (after('sold')) continue;                       // the complete column carries SOLD OUT
+    if (during('sold') && soldP > .35) {               // the plate flips to SOLD OUT
+      const fp = sub(soldP, .35, .6), sy = Math.abs(Math.cos(fp * Math.PI));
+      ctx.save(); ctx.translate(0, 552); ctx.scale(1, rm ? 1 : Math.max(.05, sy)); ctx.translate(0, -552);
+      if (fp < .5 && !rm) plateText(i, ['0', 'OF', String(n), 'LEFT']);
+      else { rect(CX(i) - 62, 543, 128, 18, C.cream); const l = pxLine(['SOLD', 'OUT'], C.tomatoDark); drawPx(l, CX(i) + 2 - pxW(l) / 2, 536); }
+      ctx.restore(); continue;
+    }
+    let dx = 0, dy = 0;
+    if (during('tick') && !rm) { const p = P('tick'); dx = R(Math.sin(p * Math.PI) * 2) * 2; dy = -R(Math.sin(p * Math.PI) * 2) * 2; }
+    plateText(i, [String(n - own), 'OF', String(n), 'LEFT'], dx, dy);
+  }
+  // SOLD OUT card swinging onto the window
+  if (during('sold')) {
+    const p = soldP, tt = p * TLmap.sold.d;
+    const dim = clamp01(p / .5) * .35;
+    ctx.fillStyle = `rgba(23,44,43,${dim})`; ctx.fillRect(CX(ai) - 72, 290, 144, 230);
+    const drop = rm ? 1 : easeOut(clamp01(tt / .15));
+    const ang = rm ? 0 : 22 * Math.exp(-6 * tt) * Math.cos(13 * tt) * Math.PI / 180;
+    ctx.save(); ctx.globalAlpha = rm ? clamp01(p * 3) : 1;
+    ctx.translate(CX(ai), lerp(300, 346, drop)); ctx.rotate(ang);
+    ctx.drawImage(IMG.bg_normal, 230, 344, 86, 26, -43, -2, 86, 26);
+    ctx.restore();
+    // lamp flicker off: darken the cone area a little at a time
+    const fl = rm ? clamp01(p * 2) : (p < .5 ? ((Math.floor(p * 20) % 2) ? .6 : .2) : 1);
+    ctx.fillStyle = `rgba(23,44,43,${.5 * fl})`; ctx.fillRect(CX(ai) - 40, 40, 80, 200);
+  }
+  // collection complete strip (30/30)
+  if (has('collection') && state.t >= TLmap.collection.t0) {
+    const p = rm ? 1 : easeOut(P('collection'));
+    const w = 852 * p;
+    ctx.drawImage(IMG.bg_complete, 640 - w / 2, 574, w, 84, 640 - w / 2, 574, w, 84);
+  }
+
+  // LEDs (coins spent at the draw; figurines tick)
+  const drawn = state.t >= TLmap.draw.t0 + .15;
+  const coins = drawn ? 4 : 5;
+  const coinHop = (!rm && drawn && state.t < TLmap.draw.t0 + .4) ? 4 : 0;
+  led(22, 14, 134, 'coin', String(coins), 'COINS', coinHop);
+  const figs = ticked ? S.figsBefore + 1 : S.figsBefore;
+  const figHop = (!rm && during('tick')) ? R(Math.sin(P('tick') * Math.PI) * 2) * 2 : 0;
+
+  // pointer on the picked machine's plate during idle
+  if (state.t < TLmap.ok.t0) { const x = CX(ai) - 78; ctx.fillStyle = C.tomato; ctx.beginPath(); ctx.moveTo(x, 546); ctx.lineTo(x + 8, 552); ctx.lineTo(x, 558); ctx.fill(); }
+
+  // 2. idle cursor click
+  if (during('idle')) { const p = P('idle'); const cx = CX(ai) + 30, cy = 450; drawCursor(cx, cy, p > .7); }
+
+  // 3. #64 stand-in draw: capsule pops out and opens
+  if (during('draw')) drawStandIn(A, P('draw'));
+
+  // shade over the scene from the reveal on
+  let shade = 0;
+  if (state.t >= TLmap.reveal.t0) shade = .45 * (rm ? 1 : clamp01(P('reveal') * 2));
+  const toStart = TLmap.cut ? TLmap.cut.t0 : TLmap.to.t0;
+  if (state.t >= toStart) shade = v === 'A' ? lerp(.45, .38, P('to')) : (v === 'B' ? lerp(.45, .2, P('to')) : .45);
+  const endFade = TLmap.away && state.t >= TLmap.away.t0 ? 1 - P('away') : 1;
+  if (S.complete && state.t >= TLmap.cardOut.t0) shade = lerp(v === 'A' ? .38 : (v === 'B' ? .2 : .45), 0, P('cardOut'));
+  else shade *= endFade;
+  if (state.t >= TLmap.end.t0 || (has('sold') && state.t >= TLmap.sold.t0)) shade = 0;
+  if (shade > 0) { ctx.fillStyle = `rgba(43,36,32,${shade})`; ctx.fillRect(-8, -8, 1296, 736); }
+
+  // LED + plate lifted over the shade while ticking
+  const lift = state.t >= toStart && state.t < (TLmap.away ? TLmap.away.t1 : TLmap.cardOut.t0);
+  led(172, 14, 202, null, figs + '/30', 'FIGURINES', figHop, lift && during('tick'));
+  if (lift && shade > 0 && !(v === 'C')) {
+    const own = ticked ? S.after.length : S.before.length;
+    let dx = 0, dy = 0;
+    if (during('tick') && !rm) { const p = P('tick'); dx = R(Math.sin(p * Math.PI) * 2) * 2; dy = -R(Math.sin(p * Math.PI) * 2) * 2; }
+    ctx.drawImage(IMG.bg_normal, CX(ai) - 80, 536, 160, 36, CX(ai) - 80, 536, 160, 36);
+    if (own < A.items.length) plateText(ai, [String(A.items.length - own), 'OF', String(A.items.length), 'LEFT'], dx, dy);
+    else { rect(CX(ai) - 62, 543, 128, 18, C.cream); const l = pxLine(['0', 'OF', String(A.items.length), 'LEFT'], C.ink); drawPx(l, CX(ai) + 2 - pxW(l) / 2 + dx, 536 + dy); }
+  }
+
+  // 4. reveal (today's ToyReveal look)
+  const revealOut = state.t >= toStart ? (rm ? clamp01(P(TLmap.cut ? 'cut' : 'to') * 4) : clamp01(P(TLmap.cut ? 'cut' : 'to') / (TLmap.cut ? .4 : .2))) : 0;
+  if (state.t >= TLmap.reveal.t0 && revealOut < 1) drawReveal(S, A, rm ? clamp01(P('reveal') * 2) : P('reveal'), revealOut);
+
+  // 5. the variant
+  if (state.t >= toStart) {
+    if (v === 'A') drawA(S, A, ai);
+    else if (v === 'B') drawB(S, A, ai);
+    else drawC(S, A, ai);
+  }
+
+  // 6. completion card
+  if (S.complete && state.t >= TLmap.cardIn.t0 && state.t < TLmap.cardOut.t1) drawCard(S, A);
+
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+}
+
+function drawCursor(x, y, down) {
+  ctx.save(); ctx.translate(x, y);
+  const pts = [[0,0],[0,22],[6,17],[10,26],[14,24],[10,15],[17,15]];
+  ctx.fillStyle = C.ink; ctx.beginPath(); pts.forEach(([a, b], i) => i ? ctx.lineTo(a * 1.2 - 2, b * 1.2 - 2) : ctx.moveTo(a - 2, b - 2)); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = C.paper; ctx.beginPath(); pts.forEach(([a, b], i) => i ? ctx.lineTo(a, b) : ctx.moveTo(a, b)); ctx.closePath(); ctx.fill();
+  if (down) { ctx.strokeStyle = C.gold; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI * 2); ctx.stroke(); }
+  ctx.restore();
+}
+
+function drawStandIn(A, p) {
+  const ai = AI[A.id], sx = CX(ai), sy = 470;
+  const cap = IMG['cap_' + A.id];
+  if (state.rm) { ctx.globalAlpha = 1 - p; ctx.drawImage(cap, 640 - 39, 310 - 39, 78, 78); ctx.globalAlpha = 1; return; }
+  let x, y, sc;
+  if (p < .55) { const q = easeOut(p / .55); x = lerp(sx, 640, q); y = lerp(sy, 310, q) - Math.sin(q * Math.PI) * 120; sc = lerp(3, 6, q); }
+  else { x = 640; y = 310; sc = 6; }
+  const wob = p > .55 && p < .8 ? Math.sin((p - .55) * 60) * .12 : 0;
+  const open = sub(p, .8, 1);
+  const s = 13 * sc;
+  ctx.save(); ctx.translate(R(x), R(y)); ctx.rotate(wob);
+  // top half (rows 0..6) and bottom half (rows 6..13)
+  ctx.drawImage(cap, 0, 0, 13, 6, -s / 2, -s / 2 - open * 50, s, 6 * sc);
+  ctx.drawImage(cap, 0, 6, 13, 7, -s / 2, -s / 2 + 6 * sc + open * 50, s, 7 * sc);
+  ctx.restore();
+  if (open > 0) { ctx.globalAlpha = open; ctx.fillStyle = C.paper; ctx.beginPath(); ctx.arc(640, 310, 30 + open * 60, 0, Math.PI * 2); ctx.globalAlpha = (1 - open) * .6; ctx.fill(); ctx.globalAlpha = 1; }
+  txt('#64 draw (stand-in)', 640, 215, {size: 14, color: C.tealPale, align: 'center', weight: 600});
+}
+
+function sunburst(cx, cy, r, alpha, rot) {
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(rot); ctx.fillStyle = `rgba(255,207,63,${alpha})`;
+  for (let i = 0; i < 12; i++) { const a0 = i * Math.PI / 6, a1 = a0 + Math.PI / 14; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(a0) * r, Math.sin(a0) * r); ctx.lineTo(Math.cos(a1) * r, Math.sin(a1) * r); ctx.closePath(); ctx.fill(); }
+  ctx.restore();
+}
+
+function drawReveal(S, A, pin, pout) {
+  const sc = state.rm ? 1 : .7 + .3 * backOut(pin, 1.6);
+  const textA = (state.rm ? pin : 1) * (1 - clamp01(pout * 1.5));
+  const medS = state.v === 'C' ? 1 - pout : 1 - easeOut(clamp01(pout * 1.3));
+  ctx.save(); ctx.translate(640, 400); ctx.scale(sc, sc); ctx.translate(-640, -400);
+  ctx.globalAlpha = textA;
+  if (medS > 0) {
+    ctx.save(); ctx.globalAlpha = state.rm ? pin * (1 - pout) : 1; ctx.translate(640, 310); ctx.scale(medS, medS); ctx.translate(-640, -310);
+    sunburst(640, 310, 130, .35, state.rm ? 0 : state.t * .3);
+    spr('toy_medallion', 640 - 56, 310 - 56, 112, 112);
+    ctx.restore();
+  }
+  ctx.globalAlpha = textA;
+  // NEW! burst
+  ctx.save(); ctx.translate(676 + 46, 226 + 25); ctx.rotate(-8 * Math.PI / 180);
+  spr('sticker_burst', -46, -25, 93, 51); txt('NEW!', 0, 6, {size: 18, weight: 800, align: 'center'}); ctx.restore();
+  // name label
+  ctx.font = '700 30px NCAtk'; const nw = ctx.measureText(NAMES[S.draw]).width + 40;
+  nine(IMG.sticker_label, 640 - nw / 2, 395 - 26, nw, 52, 6);
+  txt(NAMES[S.draw], 640, 406, {size: 30, align: 'center'});
+  // aisle row
+  ctx.font = '700 20px NCAtk'; const aw = ctx.measureText(A.name).width + 24;
+  spr('glyph_' + A.id, 640 - aw / 2, 456 - 9, 18, 18); txt(A.name, 640 - aw / 2 + 24, 463, {size: 20, color: C.cream});
+  // stock line
+  ctx.save(); ctx.translate(640, 496); ctx.rotate(-2 * Math.PI / 180);
+  ctx.font = '700 18px NCAtk'; const sw = ctx.measureText('In stock from your next run').width + 24;
+  rect(-sw / 2 - 2, -16, sw + 4, 32, C.ink); rect(-sw / 2, -14, sw, 28, C.tealDark);
+  txt('In stock from your next run', 0, 6, {size: 18, color: C.paper, align: 'center'}); ctx.restore();
+  // OK
+  const okSeg = TLmap.ok; const pressed = state.auto && state.t > okSeg.t1 - .18 && state.t < okSeg.t1;
+  const oy = 528 + (pressed ? 4 : 0);
+  rect(565, oy + (pressed ? 0 : 4), 150, 48, C.tomatoDark); rect(565, oy, 150, 44 + (pressed ? 4 : 0), C.ink); rect(567, oy + 2, 146, 40 + (pressed ? 4 : 0), C.tomato);
+  txt('OK', 640, oy + 31, {size: 22, color: C.paper, align: 'center', weight: 800});
+  txt('Click anywhere', 640, 600, {size: 14, color: C.greyLight, align: 'center', weight: 600});
+  ctx.restore();
+  ctx.globalAlpha = 1;
+  // the figurine itself is drawn by the reveal only until the variant takes it over
+  // (reduced motion: it leaves with the medallion at once, so the shelf copy is the only one)
+  if (pout <= 0) {
+    ctx.save(); ctx.translate(640, 400); ctx.scale(sc, sc); ctx.translate(-640, -400);
+    ctx.globalAlpha = state.rm ? pin * (1 - pout) : 1; spr('item_' + S.draw, 640 - 48, 310 - 48, 96, 96); ctx.restore(); ctx.globalAlpha = 1;
+  }
+}
+
+// ---------- shelf section (FigurineShelf geometry) ----------
+function slotX(i) { return 16 + 70 * i; }
+// opts: {flyId (skip drawing), shift (0..1 neighbours moved), count, countPop, tag (0..1), wave (seconds or -1), glow (0..1), newTag (alpha), plankDip}
+function section(ox, oy, A, owned, o = {}) {
+  ox = R(ox); oy = R(oy);
+  // sign
+  nine(IMG['sign_' + A.id], ox, oy + 2, 160, 26, 4);
+  spr('glyph_' + A.id, ox + 8, oy + 6, 18, 18);
+  txt(A.name, ox + 32, oy + 22, {size: 18, color: C.paper});
+  // count
+  const cs = o.countPop ? 1 + .3 * Math.sin(o.countPop * Math.PI) : 1;
+  ctx.save(); ctx.translate(ox + 172, oy + 20); ctx.scale(cs, cs);
+  txt(o.count, 0, 0, {size: 16, color: o.countPop ? C.mustardDarkest : C.inkLight}); ctx.restore();
+  // plank and shadow
+  const dip = o.plankDip || 0;
+  rect(ox + 4, oy + 114 + dip, 576, 6, 'rgba(43,36,32,.18)');
+  nine(IMG.shelf_plank, ox, oy + 100 + dip, 576, 14, 4);
+  // glow pillar behind the new figurine
+  if (o.glow > 0 && o.glowX != null) {
+    const gx = ox + o.glowX - 2, a = o.glow;
+    const bands = [[.45, 64], [.25, 44], [.12, 24]];
+    for (const [al, h] of bands) { ctx.fillStyle = `rgba(241,210,122,${al * a})`; ctx.fillRect(gx, oy + 100 - h, 52, h); }
+    ctx.fillStyle = `rgba(255,207,63,${.8 * a})`; ctx.fillRect(gx - 6, oy + 98 + dip, 64, 4);
+  }
+  if (owned.length === 0 && !o.flyId) txt('None yet', ox + 16, oy + 80, {size: 14, color: C.grey, weight: 400, font: 'NCAtk'});
+  // figurines
+  owned.forEach((id, i) => {
+    if (id === o.flyId) return;
+    let x = slotX(i);
+    if (o.shiftFrom && o.shiftFrom[id] != null) x = lerp(slotX(o.shiftFrom[id]), slotX(i), o.shift ?? 1);
+    let hop = 0;
+    if (o.wave >= 0) { const tt = o.wave - i * .05; if (tt > 0 && tt < .24) hop = R(Math.sin(tt / .24 * Math.PI) * 3) * 2; }
+    spr('item_' + id, ox + x, oy + 52 - hop + dip, 48, 48);
+  });
+  // ALL COLLECTED tag, as FigurineShelf._done_tag (approximate metrics): a MUSTARD_LIGHT StyleBoxFlat with a
+  // 2 px MUSTARD_DARKEST border and margins 8/8/2/3, DONE_TEXT in Atkinson 800 12 px MUSTARD_DARKEST,
+  // at DONE_POSITION (230, 6), rotated DONE_ROTATION (-4 deg) about its top left.
+  if (o.tag > 0) {
+    const s = state.rm ? 1 : lerp(2, 1, easeOut(clamp01(o.tag / .22)));
+    ctx.font = '800 12px NCAtk'; const tw = Math.ceil(ctx.measureText('ALL COLLECTED').width);
+    const w = tw + 16 + 4, h = 17 + 5 + 4;
+    ctx.save(); ctx.globalAlpha = clamp01(state.rm ? o.tag * 3 : o.tag * 6);
+    ctx.translate(ox + 230, oy + 6); ctx.rotate(-4 * Math.PI / 180);
+    ctx.translate(w / 2, h / 2); ctx.scale(s, s); ctx.translate(-w / 2, -h / 2);
+    rect(0, 0, w, h, C.mustardDarkest); rect(2, 2, w - 4, h - 4, C.mustardLight);
+    txt('ALL COLLECTED', 10, 2 + 2 + 13, {size: 12, weight: 800, color: C.mustardDarkest});
+    ctx.restore(); ctx.globalAlpha = 1;
+  }
+  if (o.newTag > 0 && o.newX != null) {
+    ctx.save(); ctx.globalAlpha = o.newTag; ctx.translate(ox + o.newX + 46, oy + 50); ctx.rotate(-8 * Math.PI / 180);
+    spr('sticker_burst', -31, -17, 62, 34); txt('NEW!', 0, 5, {size: 12, weight: 800, align: 'center'}); ctx.restore(); ctx.globalAlpha = 1;
+  }
+}
+function cabinetBack(x, y, w, h) {
+  rect(x, y, w, h, C.plasterLight);
+  for (let gx = x + 12; gx < x + w; gx += 24) rect(gx, y, 2, h, C.plaster);
+}
+function sparkles(list) { for (const s of list) { ctx.globalAlpha = s.a; spr('sparkle', s.x - 5, s.y - 5, 10, 10); } ctx.globalAlpha = 1; }
+
+// flight + landing shared by A and C (target = absolute slot top-left)
+function flyFigure(id, from, to, p, peak, startSize) {
+  const q = easeInOut(p);
+  const x = lerp(from.x, to.x, q), y = lerp(from.y, to.y, q) - Math.sin(q * Math.PI) * peak;
+  // integer scales only: 2x (96) for the first half of the arc, then 1x (48)
+  const size = q < .5 ? startSize : 48;
+  spr('item_' + id, x - size / 2 + 24, y - size / 2 + 24, size, size);
+  // trail
+  const trail = [];
+  for (let k = 1; k <= 4; k++) { const qq = easeInOut(Math.max(0, p - k * .08)); if (p - k * .08 < 0) break; trail.push({x: lerp(from.x, to.x, qq) + 24 + ((k * 37) % 13) - 6, y: lerp(from.y, to.y, qq) - Math.sin(qq * Math.PI) * peak + 24 + ((k * 53) % 11) - 5, a: .9 - k * .2}); }
+  sparkles(trail);
+}
+function landFx(cx, cy, p) { // p 0..1 over ~0.6 s after landing
+  const puffs = [];
+  for (const dir of [-1, 1]) { const d = easeOut(clamp01(p * 2.5)); puffs.push({x: cx + dir * (18 + d * 22), y: cy - d * 6, a: 1 - clamp01(p * 2.5)}); }
+  for (const pf of puffs) { ctx.globalAlpha = pf.a; rect(pf.x - 4, pf.y - 4, 8, 8, C.cream); rect(pf.x - 2, pf.y - 6, 4, 2, C.cream); }
+  ctx.globalAlpha = 1;
+  const sp = [];
+  for (let k = 0; k < 5; k++) { const ang = -Math.PI / 2 + (k - 2) * .5; const d = easeOut(clamp01(p * 1.6)) * 40; sp.push({x: cx + Math.cos(ang) * d, y: cy - 30 + Math.sin(ang) * d, a: 1 - clamp01(p * 1.4)}); }
+  sparkles(sp);
+}
+
+// ---------- A: shelf drawer ----------
+function drawA(S, A, ai) {
+  const rm = state.rm, pTo = P('to');
+  const DX = 344, DY = 586, DW = 592, DH = 128;
+  // drawer position
+  let dy = DY;
+  if (!rm) dy = lerp(736, DY, backOut(sub(pTo, 0, .37), 1.2));
+  let alpha = rm ? clamp01(pTo * 2) : 1;
+  const leaving = (TLmap.away && state.t >= TLmap.away.t0) || (S.complete && state.t >= TLmap.cardOut.t0);
+  if (leaving) {
+    const lp = TLmap.away && state.t >= TLmap.away.t0 ? P('away') : P('cardOut');
+    if (rm) alpha = 1 - lp; else dy = lerp(DY, 736, easeOut(lp) * easeOut(lp));
+  }
+  if (S.complete && after('cardOut')) return;
+  if (TLmap.away && after('away')) return;
+  ctx.globalAlpha = alpha;
+  nine(IMG.display_cabinet, DX, dy, DW, DH, 10);
+  cabinetBack(DX + 6, dy + 6, DW - 12, DH - 12);
+  const ox = 352, oy = dy + 6 - 2;
+  const idx = S.after.indexOf(S.draw);
+  const shiftFrom = {}; S.after.forEach((id, i) => { if (i > idx) shiftFrom[id] = i - 1; });
+  const flyP = rm ? 1 : sub(pTo, .34, .91);
+  const landed = flyP >= 1;
+  const tLand = TLmap.to.t0 + (rm ? .25 : .7 * .91);
+  const sinceLand = state.t - tLand;
+  const tickP = during('tick') ? P('tick') : 0;
+  const ticked = state.t >= TLmap.tick.t0;
+  const wave = has('slap') && state.t >= TLmap.slap.t0 && !rm ? state.t - TLmap.slap.t0 - .12 : -1;
+  const squashing = landed && !rm && sinceLand < .12;
+  section(ox, oy, A, S.after, {
+    flyId: landed && !squashing ? null : S.draw,
+    shiftFrom, shift: rm ? 1 : easeInOut(sub(pTo, .26, .49)),
+    count: (ticked ? S.after.length : S.before.length) + ' / ' + A.items.length,
+    countPop: rm ? 0 : tickP,
+    tag: has('slap') ? (state.t >= TLmap.slap.t0 ? (state.t - TLmap.slap.t0) : 0) : 0,
+    wave,
+    glow: landed && !rm ? 1 - clamp01(sinceLand / .7) : 0, glowX: slotX(idx),
+    plankDip: landed && !rm && sinceLand < .1 ? 2 : 0,
+    newTag: !S.complete && ticked ? (rm ? 1 : clamp01((state.t - TLmap.tick.t0) * 5)) : 0, newX: slotX(idx),
+  });
+  ctx.globalAlpha = 1;
+  if (!landed) {
+    const from = {x: 640 - 24, y: 310 - 24};
+    const to = {x: ox + slotX(idx), y: oy + 52};
+    if (flyP <= 0) { spr('item_' + S.draw, 640 - 48, 310 - 48, 96, 96); }
+    else flyFigure(S.draw, from, to, flyP, 60, 96);
+  } else if (!rm && sinceLand < .12) {
+    // squash on landing, drawn over the static one
+    const q = sinceLand / .12, sx = lerp(1.15, 1, q), sy = lerp(.85, 1, q);
+    const x = ox + slotX(idx), y = oy + 52;
+    ctx.drawImage(IMG['item_' + S.draw], R(x + 24 - 24 * sx), R(y + 48 - 48 * sy), R(48 * sx), R(48 * sy));
+  }
+  if (landed && !rm && sinceLand < .7) landFx(ox + slotX(idx) + 24, oy + 100, sinceLand / .7);
+}
+
+// ---------- B: lineup card ----------
+function lineupGeom(A, ai) {
+  const titleW = pxW(pxLine([A.name.toUpperCase(), 'LINEUP'], C.paper)) / 2;
+  const wArt = Math.max(R(titleW) + 16, 8 + 2 + A.items.length * 16 + 4);
+  const left = Math.max(8, Math.min(Math.round(CX(ai) / 2 - wArt / 2), 512 - wArt));
+  return {x: left * 2, y: 132, w: wArt * 2, h: 62};
+}
+function drawLineup(A, ai, owned, o = {}) {
+  const g = lineupGeom(A, ai); const y = g.y + (o.dy || 0);
+  // chains
+  for (const cx of [g.x + 16, g.x + g.w - 18]) for (let yy = 0; yy < y; yy += 4) rect(cx, yy, 2, 2, (yy / 4) % 2 ? C.steelDark : C.steel);
+  rect(g.x, y, g.w, g.h, C.ink); rect(g.x + 2, y + 2, g.w - 4, g.h - 6, C.paper); rect(g.x + 2, y + g.h - 4, g.w - 4, 2, C.creamShade);
+  const band = o.gold ? C.mustard : C.tomato;
+  rect(g.x + 2, y + 2, g.w - 4, 22, band);
+  const title = o.gold ? pxLine(['ALL', 'COLLECTED'], C.ink) : pxLine([A.name.toUpperCase(), 'LINEUP'], C.paper);
+  drawPx(title, g.x + 16, y + 0);
+  A.items.forEach((id, i) => {
+    const x = g.x + 16 + 4 + i * 32, yy = y + 28;
+    const own = owned.includes(id);
+    let hop = 0;
+    if (o.wave >= 0) { const tt = o.wave - i * .05; if (tt > 0 && tt < .24) hop = R(Math.sin(tt / .24 * Math.PI) * 2) * 2; }
+    if (id === o.flipId && o.flip != null) {
+      const f = o.flip; const sx = Math.abs(Math.cos(f * Math.PI));
+      ctx.save(); ctx.translate(x + 14, yy + 14); ctx.scale(Math.max(.06, sx), 1); ctx.translate(-x - 14, -yy - 14);
+      if (f < .5) silhouette(id, x, yy); else spr('mini_' + id, x, yy, 28, 28);
+      ctx.restore();
+    } else if (own) spr('mini_' + id, x, yy - hop, 28, 28);
+    else silhouette(id, x, yy);
+  });
+  // pointer
+  const tip = CX(ai);
+  for (let r = 0; r < 4; r++) { rect(tip - 8 + r * 2, y + g.h + 6 + r * 2, 18 - r * 4, 2, C.brass); }
+  return g;
+}
+const SIL = new Map();
+function silhouette(id, x, y) {
+  if (!SIL.has(id)) { const im = IMG['mini_' + id]; const c = document.createElement('canvas'); c.width = 7; c.height = 7; const g = c.getContext('2d'); g.drawImage(im, 0, 0); g.globalCompositeOperation = 'source-in'; g.fillStyle = '#5e574d'; g.fillRect(0, 0, 7, 7); SIL.set(id, c); }
+  ctx.drawImage(SIL.get(id), R(x), R(y), 28, 28);
+}
+function drawB(S, A, ai) {
+  const rm = state.rm, pTo = P('to');
+  const leaving = (TLmap.away && state.t >= TLmap.away.t0) || (S.complete && state.t >= TLmap.cardOut.t0);
+  if ((TLmap.away && after('away')) || (S.complete && after('cardOut'))) return;
+  // the board gives its place to the lineup card
+  let dy = rm ? 0 : lerp(-200, 0, backOut(sub(pTo, 0, .35), 1.1));
+  let alpha = rm ? clamp01(pTo * 2) : 1;
+  if (leaving) { const lp = TLmap.away && state.t >= TLmap.away.t0 ? P('away') : P('cardOut'); if (rm) alpha = 1 - lp; else dy = lerp(0, -200, easeOut(lp)); }
+  ctx.globalAlpha = alpha;
+  const g = lineupGeom(A, ai);
+  const idx = A.items.indexOf(S.draw);
+  const flyP = rm ? 1 : sub(pTo, .25, .8);
+  const flip = rm ? 1 : sub(pTo, .8, 1);
+  const ticked = state.t >= TLmap.tick.t0;
+  const gold = has('slap') && state.t >= TLmap.slap.t0 + (rm ? 0 : .1);
+  const wave = has('slap') && state.t >= TLmap.slap.t0 && !rm ? state.t - TLmap.slap.t0 - .15 : -1;
+  drawLineup(A, ai, flyP >= 1 ? S.after : S.before, {dy, flipId: flyP >= 1 && flip < 1 ? S.draw : null, flip, gold, wave});
+  ctx.globalAlpha = 1;
+  const target = {x: g.x + 16 + 4 + idx * 32, y: g.y + 28};
+  if (flyP > 0 && flyP < 1) {
+    const q = easeInOut(flyP);
+    const x = lerp(640, target.x + 14, q), y = lerp(310, target.y + 14, q) - Math.sin(q * Math.PI) * 50;
+    const size = q < .35 ? 96 : q < .7 ? 48 : 28;
+    if (size === 28) spr('mini_' + S.draw, x - 14, y - 14, 28, 28); else spr('item_' + S.draw, x - size / 2, y - size / 2, size, size);
+    const trail = []; for (let k = 1; k <= 4; k++) { const qq = easeInOut(Math.max(0, flyP - k * .08)); trail.push({x: lerp(640, target.x + 14, qq) + (k % 2 ? 6 : -6), y: lerp(310, target.y + 14, qq) - Math.sin(qq * Math.PI) * 50, a: .9 - k * .2}); }
+    sparkles(trail);
+  } else if (flyP <= 0) spr('item_' + S.draw, 640 - 48, 310 - 48, 96, 96);
+  if (flip >= 1 && !rm) { const since = state.t - (TLmap.to.t1); if (since < .5) { const sp = []; for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3; const d = easeOut(clamp01(since * 3)) * 26; sp.push({x: target.x + 14 + Math.cos(a) * d, y: target.y + 14 + Math.sin(a) * d, a: 1 - clamp01(since * 2.2)}); } sparkles(sp); } }
+  if (ticked && !S.complete && !leaving) {
+    ctx.save(); ctx.translate(target.x + 14, target.y + 50); ctx.rotate(-8 * Math.PI / 180);
+    ctx.globalAlpha = rm ? 1 : clamp01((state.t - TLmap.tick.t0) * 5); spr('sticker_burst', -31, -17, 62, 34); txt('NEW!', 0, 5, {size: 12, weight: 800, align: 'center'}); ctx.restore(); ctx.globalAlpha = 1;
+  }
+}
+
+// ---------- C: cut to the shelf ----------
+function drawShelfScreen(S, A, ai, o) {
+  rect(0, 0, 1280, 720, C.tealDarkest);
+  ctx.fillStyle = 'rgba(0,0,0,.18)'; for (let y = 4; y < 720; y += 12) for (let x = (y / 12 % 2) * 6; x < 1280; x += 12) ctx.fillRect(x, y, 2, 2);
+  // title plate and chip
+  rect(24, 12, 272, 56, C.ink); rect(26, 14, 268, 52, C.teal); rect(26, 14, 268, 4, C.tealLight); rect(26, 62, 268, 4, C.tealShade);
+  txt('FIGURINE SHELF', 160, 52, {size: 30, color: C.paper, align: 'center', font: 'NCPix'});
+  const figs = o.figs;
+  rect(360, 18, 186, 38, C.ink); rect(362, 20, 182, 34, C.tealDark);
+  txt('FIGURINES', 374, 43, {size: 13, color: C.tealPale, weight: 700, font: 'NCPix'});
+  const cs = o.countPop ? 1 + .3 * Math.sin(o.countPop * Math.PI) : 1;
+  ctx.save(); ctx.translate(470, 45); ctx.scale(cs, cs); txt(figs + ' / 30', 0, 0, {size: 20, color: C.paper, weight: 800}); ctx.restore();
+  // cabinet
+  nine(IMG.display_cabinet, 32, 80, 1216, 556, 10);
+  cabinetBack(44, 92, 1192, 532);
+  rect(638, 92, 4, 532, C.wood);
+  AISLES.forEach((a, i) => {
+    const ox = 56 + (i % 2) * 592, oy = 96 + Math.floor(i / 2) * 176;
+    const isT = i === ai;
+    const owned = isT ? S.after : S.owned[a.id];
+    if (isT) section(ox, oy, a, owned, o.sec);
+    else {
+      section(ox, oy, a, owned, {count: owned.length + ' / ' + a.items.length, tag: owned.length === a.items.length ? 1 : 0});
+      if (o.dim > 0) { ctx.fillStyle = `rgba(43,36,32,${.35 * o.dim})`; ctx.fillRect(ox - 6, oy - 4, 588, 128); }
+    }
+  });
+  txt('Hover a figurine for its name.', 56, 680, {size: 16, color: C.cream, weight: 600});
+  rect(1090, 650, 150, 52, C.ink); rect(1092, 652, 146, 46, C.teal); txt('Back', 1165, 684, {size: 22, color: C.paper, align: 'center'});
+}
+function drawC(S, A, ai) {
+  const rm = state.rm;
+  const pc = P('cut');
+  const back = TLmap.away && state.t >= TLmap.away.t0 ? P('away') : 0;
+  if (TLmap.away && after('away')) return;
+  // slide in from the right; slide back out at the end
+  let off = rm ? 0 : lerp(1280, 0, easeOut(pc));
+  if (back > 0 && !rm) off = lerp(0, 1280, easeInOut(back));
+  const alpha = rm ? (back > 0 ? 1 - back : clamp01(pc * 2)) : 1;
+  const ox = 56 + (ai % 2) * 592, oy = 96 + Math.floor(ai / 2) * 176;
+  const idx = S.after.indexOf(S.draw);
+  const pTo = P('to');
+  const fall = rm ? 1 : sub(pTo, .25, 1);
+  const landed = fall >= 1;
+  const ticked = state.t >= TLmap.tick.t0;
+  const tLand = TLmap.to.t1;
+  const since = state.t - tLand;
+  const shiftFrom = {}; S.after.forEach((id, i) => { if (i > idx) shiftFrom[id] = i - 1; });
+  const wave = has('slap') && state.t >= TLmap.slap.t0 && !rm ? state.t - TLmap.slap.t0 - .12 : -1;
+  ctx.save(); ctx.translate(R(off), 0); ctx.globalAlpha = alpha;
+  drawShelfScreen(S, A, ai, {
+    figs: ticked ? S.figsBefore + 1 : S.figsBefore, countPop: during('tick') && !rm ? P('tick') : 0,
+    dim: rm ? 1 : clamp01(pTo * 3),
+    sec: {
+      flyId: landed ? null : S.draw, shiftFrom, shift: rm ? 1 : easeInOut(sub(pTo, 0, .4)),
+      count: (ticked ? S.after.length : S.before.length) + ' / ' + A.items.length, countPop: during('tick') && !rm ? P('tick') : 0,
+      tag: has('slap') && state.t >= TLmap.slap.t0 ? state.t - TLmap.slap.t0 : 0, wave,
+      glow: landed && !rm ? 1 - clamp01(since / .7) : 0, glowX: slotX(idx), plankDip: landed && !rm && since < .1 ? 2 : 0,
+      newTag: !S.complete && ticked ? 1 : 0, newX: slotX(idx),
+    }
+  });
+  if (landed && !rm && since < .7) landFx(ox + slotX(idx) + 24, oy + 100, since / .7);
+  ctx.restore(); ctx.globalAlpha = 1;
+  // the falling figurine (from the medallion's place, 96 -> 48, onto the plank), above the sliding screen
+  if (!landed) {
+    const from = {x: 640 - 24, y: 310 - 24}, to = {x: ox + slotX(idx), y: oy + 52};
+    if (fall <= 0) spr('item_' + S.draw, 640 - 48, 310 - 48, 96, 96);
+    else { const q = easeOut(fall); const x = lerp(from.x, to.x, q), y = lerp(from.y, to.y, q * q); const size = q < .5 ? 96 : 48; spr('item_' + S.draw, x + 24 - size / 2, y + 24 - size / 2, size, size); }
+  }
+}
+
+// ---------- completion card ----------
+function cardLines(S, A) {
+  const k = S.k, rows = [], n = SETUP.regulars.length, cap = swapCap(k), prevCap = swapCap(k - 1);
+  if (cap > prevCap) rows.push({icon: 'swap', title: '+1 REGULAR SWAP', sub: `You can now swap up to ${cap} of your ${n} regulars for a plain product of a completed aisle. ${A.name} joins the choices (max ${SETUP.aisleMax} per aisle).`});
+  else rows.push({icon: 'swap', title: 'NEW SWAP CHOICES', sub: `Plain ${A.name} products can now replace a regular. Still up to ${cap} of your ${n} regulars (max ${SETUP.aisleMax} per aisle).`});
+  // a threshold of 0 is off in the code (StartSetupRules), so its line never shows
+  if (SETUP.restockMin > 0 && k === SETUP.restockMin) rows.push({icon: 'cart', title: 'RESTOCK UNLOCKED', sub: 'Once a run, swap both items of one starting basket for a new pair.'});
+  if (SETUP.pairMin > 0 && k === SETUP.pairMin) rows.push({icon: 'aisles', title: 'CHOOSE YOUR AISLES', sub: "Pick today's STARTER CART and RUN ONLY aisles yourself."});
+  const ahead = [[SETUP.restockMin, 'RESTOCK'], [SETUP.pairMin, 'CHOOSE YOUR AISLES']].filter(([m]) => m > k).sort((a, b) => a[0] - b[0]);
+  const next = ahead.length ? `Next at ${ahead[0][0]} completed aisles: ${ahead[0][1]}` : (k >= AISLES.length ? 'Every aisle completed.' : '');
+  return {rows, next};
+}
+const CARD_W = 420, CARD_TEXT_W = CARD_W - 110;
+function cardRows(rows) { return rows.map(r => { const lines = wrap(r.sub, CARD_TEXT_W, 13, 500); return {...r, lines, h: 56 + 15 * Math.max(0, lines.length - 2)}; }); }
+function drawCard(S, A) {
+  const rm = state.rm;
+  const pin = P('cardIn'), pout = P('cardOut');
+  const lines = cardLines(S, A), next = lines.next, rows = cardRows(lines.rows);
+  // height: 320 + each row (56 for 2 text lines, +15 per extra line)
+  const W = CARD_W, H = 320 + rows.reduce((h, r) => h + r.h, 0), X = 430, Y = 64;
+  const sc = rm ? 1 : (.7 + .3 * backOut(clamp01(pin / .25), 1.6)) * (1 - .3 * pout);
+  const alpha = rm ? clamp01(pin * 3) * (1 - pout) : (1 - pout);
+  ctx.save(); ctx.globalAlpha = alpha; ctx.translate(X + W / 2, Y + H / 2); ctx.scale(sc, sc); ctx.translate(-X - W / 2, -Y - H / 2);
+  rect(X + 6, Y + 8, W, H, 'rgba(0,0,0,.35)');
+  nine(IMG.popup, X, Y, W, H, 6);
+  // aisle band
+  nine(IMG['sign_' + A.id], X + 20, Y + 16, W - 40, 36, 4);
+  const nameL = pxLine([A.name.toUpperCase()], C.paper);
+  const bandW = 18 + 10 + pxW(nameL);
+  spr('glyph_' + A.id, X + W / 2 - bandW / 2, Y + 25, 18, 18);
+  drawPx(nameL, X + W / 2 - bandW / 2 + 28, Y + 15);
+  // heading at 4x
+  const head = pxLine(['COMPLETED!'], C.ink, 4);
+  drawPx(head, X + W / 2 - pxW(head) / 2, Y + 50);
+  let y = Y + 124;
+  rows.forEach((r, i) => {
+    const ra = rm ? 1 : clamp01((pin - .3 - i * .15) / .15);
+    ctx.globalAlpha = alpha * ra;
+    const dx = rm ? 0 : R((1 - ra) * 8) * 2;
+    rect(X + 24 + dx, y, 44, 44, C.ink); rect(X + 26 + dx, y + 2, 40, 40, C.tealDark);
+    if (r.icon === 'swap') { // the aisle's glyph (2x) between two swap arrows: a regular <-> a plain product
+      spr('glyph_' + A.id, X + 37 + dx, y + 13, 18, 18);
+      ctx.fillStyle = C.gold;
+      ctx.fillRect(X + 32 + dx, y + 6, 26, 2); ctx.fillRect(X + 54 + dx, y + 4, 2, 6); ctx.fillRect(X + 56 + dx, y + 6, 2, 2);
+      ctx.fillRect(X + 34 + dx, y + 36, 26, 2); ctx.fillRect(X + 36 + dx, y + 34, 2, 6); ctx.fillRect(X + 34 + dx, y + 36, 2, 2);
+    } else if (r.icon === 'cart') spr('cart', X + 34 + dx, y + 13, 24, 18);
+    else { AISLES.slice(0, 4).forEach((a, j) => spr('glyph_' + a.id, X + 27 + dx + (j % 2) * 20, y + 3 + Math.floor(j / 2) * 20, 18, 18)); }
+    txt(r.title, X + 80 + dx, y + 16, {size: 16, weight: 800});
+    r.lines.forEach((ln, j) => txt(ln, X + 80 + dx, y + 33 + j * 15, {size: 13, weight: 500, color: C.greyDark}));
+    y += r.h;
+  });
+  ctx.globalAlpha = alpha;
+  // progress pips
+  y += 4;
+  const lab = pxLine(['COMPLETED', 'AISLES', S.k + '/6'], C.inkLight);
+  drawPx(lab, X + W / 2 - pxW(lab) / 2, y - 6);
+  y += 26;
+  const done = AISLES.filter(a => (a.id === A.id) || S.owned[a.id].length === a.items.length);
+  AISLES.forEach((a, j) => {
+    const px = X + W / 2 - (6 * 44 - 8) / 2 + j * 44;
+    const isNew = a.id === A.id;
+    const comp = done.includes(a);
+    const stamp = isNew ? (rm ? 1 : clamp01((pin - .62) / .15)) : 1;
+    rect(px, y, 36, 36, C.ink); rect(px + 2, y + 2, 32, 32, comp && stamp > 0 ? a.color : C.tealDark);
+    if (comp && stamp > 0) {
+      const s = rm ? 1 : lerp(2, 1, easeOut(stamp));
+      ctx.save(); ctx.translate(px + 18, y + 18); ctx.scale(s, s); spr('glyph_' + a.id, -9, -9, 18, 18); ctx.restore();
+      if (isNew && !rm && stamp < 1) { ctx.strokeStyle = C.gold; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(px + 18, y + 18, 18 + stamp * 14, 0, Math.PI * 2); ctx.stroke(); }
+      if (isNew && !rm && pin >= 1) { const since = state.t - TLmap.cardIn.t1; if (since < .6) { ctx.strokeStyle = `rgba(255,207,63,${1 - since / .6})`; ctx.lineWidth = 2; ctx.strokeRect(px - 3, y - 3, 42, 42); } }
+    } else spr('padlock_dim', px + 9, y + 8, 18, 20);
+  });
+  y += 52;
+  txt(next, X + W / 2, y, {size: 14, weight: 700, color: C.inkLight, align: 'center'});
+  y += 26;
+  // stock line + OK
+  ctx.save(); ctx.translate(X + W / 2, y + 4); ctx.rotate(-2 * Math.PI / 180);
+  ctx.font = '700 15px NCAtk'; const sl = 'From your next run'; const sw = ctx.measureText(sl).width + 22;
+  rect(-sw / 2 - 2, -13, sw + 4, 26, C.ink); rect(-sw / 2, -11, sw, 22, C.tealDark); txt(sl, 0, 5, {size: 15, color: C.paper, align: 'center'}); ctx.restore();
+  y += 26;
+  const seg = TLmap.card; const pressed = state.auto && state.t > seg.t1 - .18 && state.t < seg.t1;
+  const armed = state.t >= TLmap.card.t0 + .35;
+  const oy = y + (pressed ? 4 : 0);
+  ctx.globalAlpha = alpha * (armed ? 1 : .6);
+  rect(X + W / 2 - 75, oy + (pressed ? 0 : 4), 150, 44, C.tomatoDark); rect(X + W / 2 - 75, oy, 150, 40, C.ink); rect(X + W / 2 - 73, oy + 2, 146, 36, C.tomato);
+  txt('OK', X + W / 2, oy + 28, {size: 22, color: C.paper, align: 'center', weight: 800});
+  ctx.restore(); ctx.globalAlpha = 1;
+}
+
+// ---------- clock ----------
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(.05, (now - last) / 1000); last = now;
+  if (state.freeze != null) state.t = state.freeze;
+  else if (!state.waiting) {
+    state.t += dt * state.speed * state.boost;
+    const s = curSeg();
+    if (state.boost > 1 && (s.hold || s.rest)) state.boost = 1;
+    if (!state.auto && s.hold && state.t >= s.t0 + .35) { state.t = s.t0 + .35; state.waiting = true; }
+    if (state.t >= total()) { state.t = total(); }
+  }
+  draw();
+  drawFocus();
+  const s = curSeg();
+  document.getElementById('beat').textContent = s.id + (s.hold ? ' (waits for OK)' : '');
+  document.getElementById('clock').textContent = state.t.toFixed(2) + ' / ' + total().toFixed(2) + ' s';
+  document.getElementById('barfill').style.width = (100 * state.t / total()) + '%';
+  document.getElementById('wait').textContent = state.waiting ? 'Click the stage for OK' : '';
+  requestAnimationFrame(frame);
+}
+// Focus view (phone): a 560x480 crop of the stage that follows the action, eased between targets.
+const fcv = document.getElementById('focus'), fctx = fcv.getContext('2d');
+const FW = 560, FH = 480, focusAt = {x: 360, y: 240, init: false};
+function focusTarget() {
+  const S = SCEN[state.s], ai = AI[S.aisle], cl = (v, a, b) => Math.max(a, Math.min(b, v));
+  const mx = cl(CX(ai) - FW / 2, 0, 1280 - FW);
+  if (state.t < TLmap.reveal.t0) return {x: mx, y: 160};
+  if (S.complete && state.t >= TLmap.cardIn.t0 && state.t < TLmap.cardOut.t1) return {x: 360, y: 48};
+  if (has('sold') && state.t >= TLmap.sold.t0) return {x: mx, y: 160};
+  if (state.v === 'C' && state.t >= TLmap.cut.t0) { const oy = 96 + Math.floor(ai / 2) * 176; return {x: cl(56 + (ai % 2) * 592 + 288 - FW / 2, 0, 1280 - FW), y: cl(oy + 58 - 300, 0, 720 - FH)}; }
+  if (state.v === 'B' && state.t >= TLmap.to.t0) return {x: cl(CX(ai) - FW / 2, 0, 1280 - FW), y: 60};
+  return {x: 360, y: 240};
+}
+function drawFocus() {
+  if (!document.body.classList.contains('focus')) return;
+  const t = focusTarget();
+  if (!focusAt.init || state.freeze != null) { focusAt.x = t.x; focusAt.y = t.y; focusAt.init = true; }
+  else { focusAt.x += (t.x - focusAt.x) * .12; focusAt.y += (t.y - focusAt.y) * .12; }
+  fctx.imageSmoothingEnabled = false;
+  fctx.drawImage(cv, R(focusAt.x / 2) * 2, R(focusAt.y / 2) * 2, FW, FH, 0, 0, FW, FH);
+}
+const focusBox = document.getElementById('focusbox');
+const narrow = matchMedia('(max-width: 700px)');
+function setFocus(on) { document.body.classList.toggle('focus', on && narrow.matches); focusAt.init = false; }
+focusBox.checked = narrow.matches;
+setFocus(focusBox.checked);
+focusBox.onchange = () => setFocus(focusBox.checked);
+narrow.addEventListener('change', () => setFocus(focusBox.checked));
+fcv.addEventListener('click', () => tap());
+fcv.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tap(); } });
+function tap() {
+  const s = curSeg();
+  if (state.waiting) { state.waiting = false; state.t = s.t1; return; }
+  if (s.hold || s.rest) { state.t = s.t1; return; }
+  if (state.t >= total()) { restart(); return; }
+  state.boost = 4;
+}
+function restart() { build(); state.t = 0; state.boost = 1; state.waiting = false; }
+cv.addEventListener('click', tap);
+cv.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tap(); } });
+function segBind(id, attr, fn) {
+  const box = document.getElementById(id);
+  box.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; box.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); fn(b.dataset[attr]); });
+  return box;
+}
+segBind('vseg', 'v', v => { state.v = v; restart(); });
+segBind('sseg', 's', s => { state.s = +s; restart(); });
+segBind('spd', 'k', k => { state.speed = +k; });
+document.getElementById('replay').onclick = restart;
+const rmBox = document.getElementById('rm');
+rmBox.onchange = () => { state.rm = rmBox.checked; restart(); };
+const autoBox = document.getElementById('auto');
+autoBox.onchange = () => { state.auto = autoBox.checked; if (state.auto && state.waiting) { state.waiting = false; } };
+if (matchMedia('(prefers-reduced-motion: reduce)').matches && !qs.has('rm')) state.rm = true;
+rmBox.checked = state.rm;
+document.querySelectorAll('#vseg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === state.v));
+document.querySelectorAll('#sseg button').forEach(b => b.setAttribute('aria-pressed', +b.dataset.s === state.s));
+
+Promise.all([...loads, document.fonts.load('500 11px NCPix'), document.fonts.load('700 12px NCAtk'), document.fonts.load('400 13px NCAtk')])
+  .then(() => document.fonts.ready).then(() => { build(); requestAnimationFrame(frame); });
+</script>
+</body>
+</html>
