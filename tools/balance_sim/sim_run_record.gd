@@ -24,11 +24,11 @@ var needed: Dictionary[String, int] = {}
 ## Redraws made over the run.
 var redraws: int = 0
 ## The final deck's main build (SimBuilds), every build it fits, and the coins the run paid
-## (CoinPayout): in all, and its overtime coins.
+## (CoinPayout; the overtime coin went in v1.03, and an older record's "overtime_coins" is
+## ignored).
 var main_build: String = ""
 var fitted_builds: PackedStringArray = PackedStringArray()
 var coins: int = 0
-var overtime_coins: int = 0
 ## The machine at the end of the run (#77): the new loyalty perks picked from it, each owned
 ## perk's level by family (#108, v0.61) and the final deck's BIG and GOLDEN copies by card id.
 var registers: int = 0
@@ -60,7 +60,6 @@ static func from_dictionary(data: Dictionary) -> SimRunRecord:
 	record.main_build = String(data["main_build"])
 	record.fitted_builds = PackedStringArray(data.get("fitted_builds", []))
 	record.coins = int(data["coins"])
-	record.overtime_coins = int(data["overtime_coins"])
 	record.registers = int(data.get("registers", 0))
 	var levels: Dictionary = data.get("perk_levels", {})
 	for family: String in levels:
@@ -105,7 +104,6 @@ func to_dictionary() -> Dictionary:
 		"main_build": main_build,
 		"fitted_builds": fitted_builds,
 		"coins": coins,
-		"overtime_coins": overtime_coins,
 		"registers": registers,
 		"perk_levels": perk_levels,
 		"tier_copies": tier_copies,

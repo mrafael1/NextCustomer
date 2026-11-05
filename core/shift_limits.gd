@@ -4,7 +4,7 @@ extends RefCounted
 ## Built when the shift starts from the balance data plus the run modifiers of every owned upgrade
 ## (Extra redraw, Big basket), so an upgrade picked after a shift applies from the next one, and
 ## the quota never changes during a shift. The top bar, the pass check, the run history and the
-## overtime coins all read this one quota. The shift's day events (inspections and boons, v0.69)
+## over-quota rewards all read this one quota. The shift's day events (inspections and boons, v0.69)
 ## add their own modifiers on top (Short belt's slot, Till jam's redraw, Small baskets' hand item,
 ## Rush hour's quota percent), so a closed slot is counted against what the run has, never a fixed
 ## number.

@@ -163,21 +163,21 @@ static func run_abandon(run: RunState, run_ms: int) -> Dictionary:
 	return {"shift": run.shift_index + 1, "phase": RunSave.phase_name(run.phase), "run_ms": run_ms}
 
 
-## The `machine_visit` event (#77), logged at each pick or bin of a RECEIPT REWARDS visit,
-## once RewardMachine.pick or bin has recorded `visit` (the run's last record holds it): the
-## shift (1-based), the visit's index in the shift (0: the ticket), its kind (ticket, bonus; until
-## v0.61 also stamp_day), its machine state (classic, premium; v0.61, #108: until then normal,
-## boosted, stamp_day), the inspections the bonus ticket's shift was played under (a BONUS
-## visit: their ids, comma-separated since v0.68, a Manager's review's two; "" otherwise), the chute
-## (new_items, upgrade; until v0.61 new_items, coupons, register, upgrades), the odds shown
-## (`odds`: the chosen chute's card: each rarity's % per drop, P(at least one RARE or better) and
-## P(a LEGENDARY), in %), whether the draw held its guarantee, the card's fallback notes, the
+## The `machine_visit` event (#77), logged at each pick or bin of a RECEIPT REWARDS visit, once
+## RewardMachine.pick or bin has recorded `visit` (the run's last record holds it): the shift
+## (1-based), the visit's index in the shift (0: the ticket), its kind (ticket, bonus, and since
+## v1.03 overtime; until v0.61 also stamp_day), its machine state (classic, premium; v0.61, #108:
+## until then normal, boosted, stamp_day), the inspections the bonus ticket's shift was played under
+## (a BONUS visit: their ids, comma-separated since v0.68, a Manager's review's two; "" otherwise),
+## the chute (new_items, upgrade; until v0.61 new_items, coupons, register, upgrades), the odds
+## shown (`odds`: the chosen chute's card: each rarity's % per drop, P(at least one RARE or better)
+## and P(a LEGENDARY), in %), whether the draw held its guarantee, the card's fallback notes, the
 ## chutes whose odds card was opened, in order, the prizes offered ({kind, id, rarity}, a loyalty
 ## perk with its `level`; reveal order), the reveal index picked (-1 for a bin), whether it was
 ## binned, the cart card it replaced, the upgraded copies ([instance id, from, to]), the cart size
-## after it, whether the cart was full at the pick, the loyalty boxes filled (`registers_owned`)
-## and each owned perk's level by family (`perk_levels`, v0.61), whether the visit was resumed
-## from a save, and the visit's times (`timing`).
+## after it, whether the cart was full at the pick, the loyalty boxes filled (`registers_owned`) and
+## each owned perk's level by family (`perk_levels`, v0.61), whether the visit was resumed from a
+## save, and the visit's times (`timing`).
 static func machine_visit(
 	run: RunState,
 	visit: MachineVisit,

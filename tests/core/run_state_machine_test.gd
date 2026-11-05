@@ -68,7 +68,10 @@ func test_a_visit_with_nothing_to_draw_is_skipped() -> void:
 
 
 static func _run(seed_value: int) -> RunState:
-	var balance: BalanceDefinition = load(BALANCE)
+	# No over-quota rewards (v1.03): the Milks' rows would earn them (overtime_tickets_test.gd).
+	var balance: BalanceDefinition = NoOvertime.apply(
+		(load(BALANCE) as BalanceDefinition).duplicate()
+	)
 	var deck: DeckDefinition = load(STARTER)
 	var run: RunState = RunState.new(seed_value, deck, balance, RunStock.starting(balance))
 	run.start_shift()

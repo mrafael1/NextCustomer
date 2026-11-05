@@ -120,6 +120,7 @@ static func _passed_run(seed_value: int, prepare: Callable = Callable()) -> RunS
 	run.start_shift()
 	for id: String in PASSING_ROW:
 		run.place(run.debug_add_to_hand(load("res://data/cards/%s.tres" % id)), run.row.size())
+	NoOvertime.on_run(run)  # The row makes ×2 and more (v1.03): no over-quota rewards.
 	run.checkout()
 	return run
 

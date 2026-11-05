@@ -251,6 +251,7 @@ static func _passed_run(seed_value: int) -> RunState:
 	var deck: DeckDefinition = load(STARTER)
 	var run: RunState = RunState.new(seed_value, deck, balance, RunStock.starting(balance))
 	run.start_shift()
+	NoOvertime.on_run(run)  # The row makes ×3 on shift 1 (v1.03): no over-quota rewards.
 	_fill_and_pass(run)
 	return run
 

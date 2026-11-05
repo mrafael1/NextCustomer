@@ -318,7 +318,8 @@ func test_the_machine_v2_tempo_is_set() -> void:
 		"end_hold_ms",
 	]:
 		var list: PackedInt32Array = tempo.get(field)
-		var size: int = MachineVisit.KIND_NAMES.size()
+		# TICKET and BONUS: an OVERTIME visit plays as a BONUS one (v1.03).
+		var size: int = MachineVisit.Kind.OVERTIME
 		assert_int(list.size()).override_failure_message(field).is_equal(size)
 	assert_bool(text.contains("stamp_day")).is_false()
 

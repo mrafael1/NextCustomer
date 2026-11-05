@@ -309,18 +309,26 @@ func open_visit(
 	_clear_tickets()
 	var visit: MachineVisit = run.machine.current_visit()
 	var kind: int = visit.kind if visit != null else MachineVisit.Kind.TICKET
+	# An OVERTIME visit (v1.03) shows as a BONUS visit, in its own words (MachinePlan.overtime).
+	var overtime: bool = kind == MachineVisit.Kind.OVERTIME
+	if overtime:
+		kind = MachineVisit.Kind.BONUS
 	# A TICKET visit's `why` is empty: the shift's record says whether it passed an inspection.
 	var inspected: bool = (
 		(visit != null and not visit.why.is_empty())
-		or (not run.history.is_empty() and run.history[-1].inspection != null)
+		or (not run.history.is_empty() and run.history[-1].inspection != null and not overtime)
 	)
-	var stub: bool = run.machine.pending_kinds().has(MachineVisit.Kind.BONUS)
+	var pending: Array[int] = run.machine.pending_kinds()
+	var stub: bool = not pending.is_empty()
 	var premium: bool = run.machine.is_premium()
-	_start(
-		MachinePlan.new(
-			tuning, kind, reduced_motion.call(), inspected, stub, premium, _ticket_was_premium()
-		)
+	var visit_plan: MachinePlan = MachinePlan.new(
+		tuning, kind, reduced_motion.call(), inspected, stub, premium, _ticket_was_premium()
 	)
+	# A TICKET visit's stub is the OVERTIME ticket's when that visit comes next (a BONUS visit
+	# prints no stub, so one followed by OVERTIME stays a BONUS visit).
+	var next_overtime: bool = stub and pending[0] == MachineVisit.Kind.OVERTIME
+	visit_plan.overtime = overtime or (kind == MachineVisit.Kind.TICKET and next_overtime)
+	_start(visit_plan)
 	_show_head(kind, visit)
 	_show_keys(run.phase == RunState.Phase.MACHINE_PICK)
 	if run.phase == RunState.Phase.MACHINE_PICK:
@@ -331,6 +339,8 @@ func open_visit(
 	skip_bin.set_offered(false, false)
 	if kind == MachineVisit.Kind.BONUS and run.machine.is_payday(run):
 		display.show_message(Payday.TICKET_TITLE, Payday.CHUTE_SUB)
+	elif overtime:
+		display.show_message(OvertimeWords.TICKET_TITLE, BONUS_SUB % display.why_words())
 	elif kind == MachineVisit.Kind.BONUS:
 		display.show_message(BONUS_TITLE, BONUS_SUB % display.why_words())
 	elif premium:
@@ -354,10 +364,11 @@ func show_draw(run_state: RunState, resumed: bool = false) -> void:
 	var visit: MachineVisit = run.machine.current_visit()
 	var prizes: Array[MachinePrize] = run.machine.prizes()
 	if plan == null:
+		var overtime: bool = visit.kind == MachineVisit.Kind.OVERTIME  # Shown as a BONUS visit.
 		_start(
 			MachinePlan.new(
 				tuning,
-				visit.kind,
+				MachineVisit.Kind.BONUS if overtime else visit.kind,
 				reduced_motion.call(),
 				true,
 				false,
@@ -365,6 +376,7 @@ func show_draw(run_state: RunState, resumed: bool = false) -> void:
 				_ticket_was_premium()
 			)
 		)
+		plan.overtime = overtime
 	if not resumed and clock < plan.choose_at:
 		_jump_to(plan.choose_at)  # Chosen before the keys lit (debug, tests).
 	var rarities: Array[int] = []
@@ -554,6 +566,8 @@ func title_sub(chute: int) -> String:
 	var lead: String = ChuteKey.SUBS[chute].to_lower()
 	if visit != null and visit.kind == MachineVisit.Kind.BONUS:
 		lead = Payday.KEY_LEAD if run.machine.is_payday(run) else TITLE_BONUS
+	elif visit != null and visit.kind == MachineVisit.Kind.OVERTIME:
+		lead = OvertimeWords.KEY_LEAD
 	elif visit != null and visit.premium:
 		lead = TITLE_PREMIUM
 	var prizes: int = run.machine.machine.prizes_per_visit if run != null else 3
@@ -826,6 +840,14 @@ func _show_head(kind: int, visit: MachineVisit) -> void:
 	if run.machine.is_payday(run):
 		# Payday (v0.68): one banner over both of the review's PREMIUM visits.
 		head.set_stamp(Payday.STAMP, Payday.STAMP_UNDER)
+		return
+	var machine_data: MachineDefinition = run.machine.machine
+	if visit != null and visit.kind == MachineVisit.Kind.OVERTIME:
+		head.set_stamp(OvertimeWords.STAMP, OvertimeWords.over_quota(machine_data))
+		return
+	if OvertimeTickets.is_premium_visit(run):
+		# v1.03: the shift's ×3 made its ticket PREMIUM.
+		head.set_stamp(OvertimeWords.PREMIUM_STAMP, OvertimeWords.over_quota(machine_data, true))
 		return
 	match kind:
 		MachineVisit.Kind.BONUS:

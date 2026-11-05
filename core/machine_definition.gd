@@ -59,6 +59,16 @@ extends Resource
 ## also in premium_shifts is a payday (v0.68, is_payday_shift): its two visits are both PREMIUM
 ## and the game shows them as one reward ("REVIEW PASSED · 2 PREMIUM TICKETS").
 @export var bonus_extra_shifts: PackedInt32Array = PackedInt32Array()
+## Over-quota rewards (2026-11-05, OvertimeTickets): a passed shift whose total makes this many
+## laps of its quota (whole multiples, the gauge's ×N) gives an OVERTIME visit after it (CLASSIC),
+## at most overtime_ticket_per_week times a week (0 laps: off).
+@export var overtime_ticket_laps: int = 0
+@export var overtime_ticket_per_week: int = 0
+## A passed shift making this many laps turns its ticket's visit PREMIUM (one already PREMIUM
+## stays so and uses nothing), at most overtime_premium_per_week times a week, a cap of its own
+## (0 laps: off).
+@export var overtime_premium_laps: int = 0
+@export var overtime_premium_per_week: int = 0
 ## The run's first NEW ITEMS draw holds the stock's newest new arrival, at its own rarity.
 @export var new_arrival_first_visit: bool = false
 ## SHELF UPGRADE (a LEGENDARY item upgrade) needs this many copies that can step.

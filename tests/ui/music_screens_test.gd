@@ -28,11 +28,14 @@ const FRAME_MS := 20
 const BIG_PAYOUT := 40
 
 var _folder: String = ""
+## The live machine, put back after each test (the passing rows make ×2 and more, v1.03).
+var _live_machine: MachineDefinition
 var _window_size: Vector2i
 var _bus_db: float = 0.0
 
 
 func before_test() -> void:
+	_live_machine = NoOvertime.live_off()
 	_folder = "user://test_logs_%d" % Time.get_ticks_usec()
 	_event_log().use_folder(_folder)
 	ProjectSettings.set_setting(SaveService.FOLDER_SETTING, _folder)
@@ -43,6 +46,7 @@ func before_test() -> void:
 
 
 func after_test() -> void:
+	NoOvertime.live_restore(_live_machine)
 	_autoload().unduck(0.0)
 	AudioServer.set_bus_volume_db(_music_bus(), _bus_db)
 	get_tree().root.size = _window_size
@@ -227,7 +231,8 @@ func test_a_fail_stays_ducked_then_the_results_duck_for_the_coins() -> void:
 	)
 	var coins_s: float = coins_delay_s + FinalReceipt.MAX_COIN_SOUNDS * FinalReceipt.COIN_GAP
 	assert_float(results.coins_seconds()).is_equal_approx(coins_s, 0.001)
-	assert_float(coins_s).is_greater(ShiftMusic.COINS_PRINT_S + 0.15)
+	# One coin line fewer since v1.03 (no overtime coin): still past COINS_PRINT_S.
+	assert_float(coins_s).is_greater(ShiftMusic.COINS_PRINT_S + 0.1)
 	var deep_ms: int = _first_ms(
 		frames, func(f: Dictionary) -> bool: return f["bus"] <= base - 24.0 + NEAR_DB
 	)

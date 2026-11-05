@@ -196,7 +196,8 @@ func _intro_text(plan: MachinePlan, t: float) -> PackedStringArray:
 		if t < plan.feed_end:
 			if _payday():
 				return PackedStringArray([Payday.TICKET_TITLE, Payday.FEED_SUB])
-			return PackedStringArray([BONUS_TICKET, "%s · feeding in" % why_words()])
+			var title: String = OvertimeWords.TICKET_TITLE if plan.overtime else BONUS_TICKET
+			return PackedStringArray([title, "%s · feeding in" % why_words()])
 		return PackedStringArray()
 	if t < plan.feed_end:
 		return PackedStringArray([READING, ""])
@@ -217,6 +218,8 @@ func _read_text() -> PackedStringArray:
 	var met: String = "quota %d€ met" % record.quota
 	if _payday():
 		met += Payday.READ
+	elif OvertimeTickets.is_premium_visit(view.run):
+		met += OvertimeWords.PREMIUM_READ % OvertimeWords.laps_text(view.run.machine.machine, true)
 	elif view.run.machine.is_premium():
 		met += PREMIUM_READ
 	elif record.inspection != null:
@@ -233,6 +236,8 @@ func _draw_text(plan: MachinePlan, t: float) -> PackedStringArray:
 		var from: String = "%s from %s" % [count.to_lower(), _chute_name().to_lower()]
 		if bonus:
 			from = "2nd premium ticket" if _payday() else "bonus ticket"
+			if plan.overtime:
+				from = OvertimeWords.KEY_LEAD
 		return PackedStringArray([PACKING, from])
 	var last: int = plan.n_prizes - 1
 	if t >= plan.reveal_at[last] + plan.reveal_length[last]:
@@ -282,12 +287,17 @@ func _end_sub(plan: MachinePlan) -> String:
 		return ""
 	if _payday():
 		return Payday.END_SUB
-	return "2 prizes this shift · %s" % _why()
+	# The shift's tickets so far (a BONUS and an OVERTIME visit make 3, v1.03).
+	var record: ShiftRecord = _record()
+	var tickets: int = maxi(record.visits.size(), 2) if record != null else 2
+	return "%d prizes this shift · %s" % [tickets, _why()]
 
 
 ## Why a bonus ticket was given, as the BONUS visit's lines say it (#77 machine v2): "inspection
-## passed", or "shift n" for a bonus extra shift.
+## passed", or "shift n" for a bonus extra shift; an OVERTIME visit's (v1.03) "×2 over quota".
 func why_words() -> String:
+	if _overtime():
+		return OvertimeWords.over_quota(view.run.machine.machine)
 	var record: ShiftRecord = _record()
 	if record == null or record.inspection != null:
 		return "inspection passed"
@@ -297,6 +307,8 @@ func why_words() -> String:
 ## Why a bonus ticket was given: "<inspections> passed" (every one of them, a Manager's review's
 ## two), or "shift n" for a bonus extra shift.
 func _why() -> String:
+	if _overtime():
+		return why_words()
 	var record: ShiftRecord = _record()
 	if record == null:
 		return ""
@@ -317,6 +329,17 @@ func _payday() -> bool:
 		return machine.is_payday(view.run)
 	var record: ShiftRecord = _record()
 	return record != null and view.plan.premium and machine.machine.is_payday_shift(record.shift)
+
+
+## Whether the visit on show is an OVERTIME one (v1.03): its plan says it (after its pick too).
+func _overtime() -> bool:
+	return (
+		view != null
+		and view.run != null
+		and view.plan != null
+		and view.plan.overtime
+		and view.plan.kind == MachineVisit.Kind.BONUS
+	)
 
 
 func _record() -> ShiftRecord:
@@ -348,7 +371,7 @@ func _show(message: String, sub: String) -> void:
 	_message = message
 	_sub.text = sub
 	var room: float = GLASS_RECT.size.x - 2.0 * PAD
-	_icon.visible = message == BONUS_TICKET or message == Payday.TICKET_TITLE
+	_icon.visible = message in [BONUS_TICKET, Payday.TICKET_TITLE, OvertimeWords.TICKET_TITLE]
 	var icon_room: float = _icon.size.x + ICON_GAP if _icon.visible else 0.0
 	var parts: PackedStringArray = wrap_message(message, room - icon_room)
 	var wrapped: bool = parts.size() > 1

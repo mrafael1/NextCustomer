@@ -164,6 +164,8 @@ func play_swaps() -> int:
 ## (the music comes back there), or `resumed` from a save (its prizes shown at once, no replay).
 func open(resumed: bool) -> void:
 	var run: RunState = _screen.run
+	# v1.03: the gauge's over-quota pills (held past the count) fade as it glides in.
+	_screen._stage.quota_crossing.chip.fade_now()
 	if (
 		run.phase == RunState.Phase.MACHINE_CHOOSE
 		and run.machine.current_visit().kind == MachineVisit.Kind.TICKET

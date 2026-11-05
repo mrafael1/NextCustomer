@@ -248,6 +248,7 @@ func test_extra_redraw_and_big_basket_credit_what_they_earned() -> void:
 static func _low_quotas() -> BalanceDefinition:
 	var balance: BalanceDefinition = (load(BALANCE) as BalanceDefinition).duplicate()
 	balance.quotas = PackedInt32Array([5, 5, 5, 5, 5, 5, 5, 5])
+	NoOvertime.apply(balance)  # Low quotas would make every shift earn them (v1.03).
 	# No boon days, and the inspections that change no redraw or hand (v0.69's day events would
 	# change the limits these tests count).
 	balance.boon_shifts = PackedInt32Array()

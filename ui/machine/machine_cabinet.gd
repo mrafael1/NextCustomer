@@ -87,16 +87,25 @@ func _init() -> void:
 	_dock_icon.name = "DockIcon"
 	_dock_icon.size = DOCK_ICON.get_size() * p
 	_dock_label = MachineLine.make("DockLabel", DOCK_TEXT, Palette.TEAL_LIGHT)
+	_lay_dock(DOCK_TEXT)
+	_dock_label.visible = false
+	_dock_icon.visible = false
+	add_child(_dock_icon)
+	add_child(_dock_label)
+
+
+## The dock's caption `caption` (DOCK_TEXT, or the OVERTIME ticket's, v1.03), the icon and the
+## words centred together in the dock.
+func _lay_dock(caption: String) -> void:
+	var p: float = MachineArt.PIXEL
+	if _dock_label.text() != caption:
+		_dock_label.show_text(caption, Palette.TEAL_LIGHT)
 	var pair: float = _dock_icon.size.x + 3.0 * p + _dock_label.width()
 	var left: float = MachineArt.snap(DOCK_RECT.get_center().x - pair / 2.0)
 	var middle: float = DOCK_RECT.get_center().y
 	_dock_icon.position = Vector2(left, MachineArt.snap(middle - _dock_icon.size.y / 2.0))
 	var text_left: float = left + _dock_icon.size.x + 3.0 * p
 	_dock_label.centre_in(Rect2(text_left, DOCK_RECT.position.y, _dock_label.width(), 32.0))
-	_dock_label.visible = false
-	_dock_icon.visible = false
-	add_child(_dock_icon)
-	add_child(_dock_label)
 
 
 ## Hooks this part to the machine: RewardMachineView calls it once, when it builds the part
@@ -145,6 +154,8 @@ func frame(t: float) -> void:
 		dock = true
 		dock_lit = t >= plan.fly_end
 		caption = t < plan.fly_end + MachineTuning.sec(view.tuning.dock_label_ms)
+		# v1.03: the stub is the OVERTIME ticket's (MachinePlan.overtime).
+		_lay_dock(OvertimeWords.DOCK_TEXT if plan.overtime else DOCK_TEXT)
 	elif plan != null and plan.kind == MachineVisit.Kind.BONUS and t < plan.fly_end:
 		dock = true
 		dock_lit = true

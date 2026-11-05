@@ -152,6 +152,7 @@ static func _run(kind: String, odds_raise: int = 0) -> RunState:
 	run.start_shift()
 	for id: String in PASSING_ROW:
 		run.place(run.debug_add_to_hand(load("res://data/cards/%s.tres" % id)), run.row.size())
+	NoOvertime.on_run(run)  # The row makes ×2 and more (v1.03): no over-quota rewards.
 	run.checkout()
 	if kind == "premium bonus":
 		run.history[-1].inspection = load(SPOT_CHECK)

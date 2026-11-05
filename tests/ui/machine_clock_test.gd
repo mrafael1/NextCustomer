@@ -19,11 +19,14 @@ const MAX_VISITS := 6
 const PASSING_ROW: Array[String] = ["milk", "multipack", "milk", "milk", "milk", "milk", "milk"]
 
 var _folder: String = ""
+## The live machine, put back after each test (the passing rows make ×2 and more, v1.03).
+var _live_machine: MachineDefinition
 ## The beats seen: [name, plan time, skipping].
 var _beats: Array = []
 
 
 func before_test() -> void:
+	_live_machine = NoOvertime.live_off()
 	_folder = "user://test_machine_clock_%d" % Time.get_ticks_usec()
 	_event_log().use_folder(_folder)
 	# The run and profile saves go there too, never to the real user:// saves.
@@ -32,6 +35,7 @@ func before_test() -> void:
 
 
 func after_test() -> void:
+	NoOvertime.live_restore(_live_machine)
 	ProjectSettings.set_setting(SaveService.FOLDER_SETTING, null)
 	if DirAccess.dir_exists_absolute(_folder):
 		for file_name: String in DirAccess.get_files_at(_folder):

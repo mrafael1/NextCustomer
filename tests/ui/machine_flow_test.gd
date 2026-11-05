@@ -482,7 +482,10 @@ func _assert_resume_frame(run: RunState, kind: int, picking: bool) -> void:
 ## A run (seed 7) that passed shift 1 with the passing row, at its ticket's chute wait.
 func _core_passed_run() -> RunState:
 	var deck: DeckDefinition = load(STARTER)
-	var balance: BalanceDefinition = load(BALANCE)
+	# The passing row makes ×2 and more: no over-quota rewards (v1.03), so one visit follows.
+	var balance: BalanceDefinition = NoOvertime.apply(
+		(load(BALANCE) as BalanceDefinition).duplicate()
+	)
 	var run: RunState = RunState.new(7, deck, balance, RunStock.starting(balance))
 	run.start_shift()
 	_core_pass(run)
@@ -521,6 +524,8 @@ func _pass(screen: ShiftScreen) -> void:
 		screen._debug.add_card(id)
 		screen._on_hand_card_clicked(_view_for(screen, screen.run.hand()[-1]))
 		screen._on_slot_input(_left_click(), screen.run.row.size())
+	# The passing row makes ×2 and more: no over-quota rewards (v1.03), so one visit follows.
+	NoOvertime.on_run(screen.run)
 	await screen._on_checkout_pressed()
 	assert_int(screen.run.phase).is_equal(RunState.Phase.MACHINE_CHOOSE)
 

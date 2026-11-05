@@ -5,11 +5,12 @@ extends RefCounted
 ## line per played shift (its number, total against quota, pass or fail) with a dim line per
 ## RECEIPT REWARDS visit after it (#77: "NEW ITEMS: Milk", "BONUS · UPGRADE: Eggs › GOLDEN",
 ## "UPGRADE: Coupon engine LV 2", "binned NEW ITEMS") and one for the inspection it was played
-## under, the shortfall on a lost run, a rule, then the coins: the shifts passed, the overtime,
-## the run's coins and the profile's total ("you have ?" when the profile couldn't be saved). It
-## only lays out text; core computes the payout and the margin. A missed shift the run went on
+## under, the shortfall on a lost run, a rule, then the coins: the shifts passed, the run's
+## coins and the profile's total ("you have ?" when the profile couldn't be saved). It only lays
+## out text; core computes the payout and the margin. A missed shift the run went on
 ## after reads "slip" (v0.68's training week; "write-up" in v0.65), the miss that ended it "fail".
-## A payday's second visit (v0.68) reads "PREMIUM · ", any other BONUS visit "BONUS · ". The
+## A payday's second visit (v0.68) reads "PREMIUM · ", any other BONUS visit "BONUS · ", an
+## over-quota extra ticket (v1.03) "OVERTIME · ". The
 ## compact receipt (when the full one can't fit the screen) folds each shift's inspection line
 ## into its shift line ("inspected", or "review" for a Manager's review).
 ##
@@ -150,6 +151,8 @@ static func visit_text(visit: MachineVisit) -> String:
 	var prefix: String = ""
 	if visit.kind == MachineVisit.Kind.BONUS:
 		prefix = "PREMIUM · " if visit.premium else "BONUS · "
+	elif visit.kind == MachineVisit.Kind.OVERTIME:
+		prefix = "OVERTIME · "
 	if visit.binned:
 		return prefix + "binned " + chute
 	var prize: MachinePrize = visit.picked_prize()
@@ -170,7 +173,6 @@ static func coin_lines(
 	return PackedStringArray(
 		[
 			_line("Shifts passed %d" % payout.shifts_passed, "+%d" % payout.shift_coins, width),
-			_line("Overtime %d€" % payout.overtime, "+%d" % payout.overtime_coins, width),
 			_line("COINS +%d" % payout.total(), "you have " + _owned_text(coins_owned), width),
 		]
 	)
