@@ -50,7 +50,8 @@ KNOWN_TYPES = frozenset({
     "run_start", "shift_start", "redraw", "repack", "row_checkout", "checkout", "count_up",
     "day_off", "golden_basket", "price_gun", "reward", "upgrade",
     "machine_visit", "machine_landing_skipped", "run_end", "run_resume", "run_abandon", "restart",
-    "log_export", "debug", "capsule",
+    "log_export", "debug", "capsule", "start_choice", "start_page", "staple_swap",
+    "restock", "restock_view", "pin_change", "start_lock_in", "new_packs",
 })
 # Events that make a run_id a run; the others (restart, log_export, debug, and the TOY
 # MACHINES' capsule draws, #63) only attach to one. A capsule drawn on the title has no run_id.
@@ -924,11 +925,15 @@ def visit_upgraded(event: dict) -> list[tuple[str, str]]:
 
 
 def final_deck(run: Run) -> Counter | None:
-    """The run's final deck: run_start's starting_deck, its impulse pick (removing
-    impulse_replaced), then every reward's pick (removing its replaced card), in older logs;
+    """The run's final deck: the last start_choice event's cart when it has one (the
+    opening time's regulars, pack, deal and pins), else run_start's starting_deck; its
+    impulse pick (removing impulse_replaced), then every reward's pick (removing its replaced card), in older logs;
     every machine visit's product or coupon pick (removing its replaced card) and item
     upgrades (each upgraded copy swapped for its new tier)."""
     deck_ids = id_list(run.start, "starting_deck")
+    choices = run.of_type("start_choice")
+    if choices and (cart := id_list(choices[-1], "cart")) is not None:
+        deck_ids = cart
     if deck_ids is None:
         return None
     deck = Counter(deck_ids)
@@ -966,6 +971,54 @@ def perk_family(upgrade_id: str) -> tuple[str, int]:
     if match is None:
         return upgrade_id, 1
     return match["family"], int(match["level"])
+
+
+def went_back(run: Run) -> bool:
+    """Whether the run's player went from YOUR BUILD back to YOUR STORE."""
+    return any(event.get("page") == 1 and event.get("from") == 2
+               for event in run.of_type("start_page"))
+
+
+def start_setup_summary(runs: list[Run]) -> dict:
+    """Only opening-board runs enter the rates; old logs lack stock_aisles and page times."""
+    shown = [run for run in runs if id_list(run.start, "stock_aisles") is not None]
+    choices = [event for run in shown for event in run.of_type("start_choice")
+               if event.get("chosen") is True]
+    swaps = [event for run in shown for event in run.of_type("staple_swap")]
+    lock_ins = [event for run in shown for event in run.of_type("start_lock_in")]
+    chosen = [event for event in lock_ins if event.get("chosen") is True]
+    # A basket restock (since the 2026-11-05 rework) names its source; the first build's restocks
+    # (aisle lists) count toward the rate only.
+    by_kind: Counter = Counter()
+    for run in shown:
+        for event in run.of_type("restock"):
+            if isinstance(source := event.get("source"), str):
+                by_kind["staples" if source == "staples" else "aisle"] += 1
+    by_completed: dict[int, list[Run]] = defaultdict(list)
+    for run in shown:
+        if (count := num(run.start, "completed_aisles")) is not None:
+            by_completed[int(count)].append(run)
+    return {
+        "shown": len(shown),
+        "swaps": len(swaps),
+        "swap_rate": rate(sum(bool(run.of_type("staple_swap")) for run in shown), len(shown)),
+        "restock_rate": rate(sum(bool(run.of_type("restock")) for run in shown), len(shown)),
+        "back_rate": rate(sum(went_back(run) for run in shown), len(shown)),
+        "store_ms": dist(value for event in choices
+                         if (value := num(event, "ms_store")) is not None),
+        "build_ms": dist(value for event in choices
+                         if (value := num(event, "ms_build")) is not None),
+        "lock_ins": len(lock_ins),
+        "changed_rate": rate(sum(event.get("changed") is True for event in chosen), len(chosen)),
+        "restock_by_kind": {kind: rate(by_kind[kind], len(shown)) for kind in ("staples", "aisle")},
+        "new_packs_rate": rate(sum(bool(run.of_type("new_packs")) for run in shown), len(shown)),
+        "by_completed": [
+            {"completed": count,
+             "win_rate": rate(sum(run.outcome == "won" for run in group),
+                              sum(run.outcome in ("won", "lost") for run in group))}
+            for count, group in sorted(by_completed.items())
+        ],
+    }
 
 
 def run_upgrades(run: Run) -> list[str]:
@@ -1315,6 +1368,7 @@ def summarise(players: list[Player], inputs: Inputs, catalogue: Catalogue,
         "non_interactive": non_interactive_summary(players),
         "count_up": count_up_summary(runs),
         "second_run": second_run_summary(players),
+        "start_setup": start_setup_summary(runs),
     }
 
 
@@ -1686,10 +1740,31 @@ def render_files(s: dict) -> list[str]:
     return lines
 
 
+def render_start_setup(summary: dict) -> list[str]:
+    setup = summary["start_setup"]
+    lines = heading("Opening-time setup",
+                    "Rates use runs shown the two-page startup board. Older logs are excluded.")
+    lines += [f"  Shown: {setup['shown']}; swap: {fmt_rate(setup['swap_rate'])}; "
+              f"restock: {fmt_rate(setup['restock_rate'])}; "
+              f"back to store: {fmt_rate(setup['back_rate'])}"]
+    lines += table(DIST_HEADERS, [dist_row("YOUR STORE (seconds)", setup["store_ms"], 1, 1000),
+                                 dist_row("YOUR BUILD (seconds)", setup["build_ms"], 1, 1000)])
+    kinds = setup["restock_by_kind"]
+    lines += [f"  Lock-ins: {setup['lock_ins']}; changed when choosable: "
+              f"{fmt_rate(setup['changed_rate'])}; new packs: {fmt_rate(setup['new_packs_rate'])}",
+              f"  Restock by source: staples {fmt_rate(kinds['staples'])}; "
+              f"aisle {fmt_rate(kinds['aisle'])}"]
+    lines += table(["Completed aisles", "Win rate"],
+                   [[str(row["completed"]), fmt_rate(row["win_rate"])]
+                    for row in setup["by_completed"]])
+    return lines
+
+
 def render(summary: dict) -> str:
     sections = [render_inputs, render_players, render_runs, render_checkouts, render_rewards,
                 render_builds, render_machine, render_toy_machines, render_shifts, render_lists,
-                render_offer_times, render_count_up, render_second_run, render_files]
+                render_offer_times, render_count_up, render_second_run, render_start_setup,
+                render_files]
     lines: list[str] = []
     for section in sections:
         lines += section(summary)

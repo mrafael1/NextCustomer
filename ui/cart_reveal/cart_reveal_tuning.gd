@@ -80,6 +80,9 @@ extends Resource
 @export var ring_start_s: float = 0.0
 @export var outro_s: float = 0.0
 
+## The opening board (v4 B): a page slide between YOUR STORE and YOUR BUILD.
+@export var page_slide_s: float = 0.0
+
 
 ## When pick `index` leaves the chute.
 func pick_start(index: int) -> float:

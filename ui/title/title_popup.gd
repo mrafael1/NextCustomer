@@ -25,6 +25,8 @@ const OPEN_DROP := 8
 
 ## Shows the popup at once, with no step in (the profile's reduced motion).
 var still: bool = false
+## Optional placement within the host, used by the staff-room pins beside its order sheet.
+var sheet_offset: Vector2 = Vector2.ZERO
 
 var _sheet: Control
 var _sheet_size: Vector2
@@ -175,4 +177,4 @@ func _open_share(share: float) -> void:
 ## The sheet centred on the window (like the storefront's stage, so it keeps the art grid), plus
 ## the rise still to go.
 func _place_sheet() -> void:
-	_sheet.position = ((size - _sheet_size) / 2.0).floor() + Vector2(0.0, _drop)
+	_sheet.position = ((size - _sheet_size) / 2.0).floor() + sheet_offset + Vector2(0.0, _drop)

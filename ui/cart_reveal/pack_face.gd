@@ -43,7 +43,8 @@ func _init(starter_pack: StarterPackDefinition, is_first_pick: bool = false) -> 
 	name = "PackFace_%s" % pack.id
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	size = SIZE
-	_style = FamilyPalette.shared().style(pack.family)
+	var palette: FamilyPalette = FamilyPalette.shared()
+	_style = palette.style(pack.family)
 	var glyph: TextureRect = null
 	if _style != null and _style.glyph != null:
 		glyph = UiKit.sprite(_style.glyph)
@@ -103,7 +104,8 @@ func _has_colours() -> bool:
 ## A pack's colours (its face, then its light) and glyph, as its face shows them: its family's
 ## ticket colours, or the coupon's tomato for a family with none (the Coupon family).
 static func pack_look(starter_pack: StarterPackDefinition) -> Array:
-	var style: FamilyStyle = FamilyPalette.shared().style(starter_pack.family)
+	var palette: FamilyPalette = FamilyPalette.shared()
+	var style: FamilyStyle = palette.style(starter_pack.family)
 	var glyph: Texture2D = style.glyph if style != null else null
 	if style == null or not style.has_ticket_colours():
 		return [Palette.TOMATO, Palette.TOMATO_LIGHT, glyph]

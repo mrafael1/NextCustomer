@@ -73,8 +73,8 @@ func test_everything_lies_inside_the_stage() -> void:
 			)
 
 
-## The top bar's chips and buttons (SHIFT, QUOTA, the week chip, the day chip, LOYALTY,
-## Cart and the menu): apart, under the stage's top edge and above the belt.
+## The top bar's six parts (the spend gauge, the week chip, the day chip, LOYALTY, Cart and
+## the menu): apart, under the stage's top edge and above the belt.
 func test_the_top_bar_parts_are_apart_above_the_belt() -> void:
 	for scan: String in SCANS:
 		var screen: ShiftScreen = await _captured(scan)
@@ -85,7 +85,8 @@ func test_the_top_bar_parts_are_apart_above_the_belt() -> void:
 				parts.append(part.get_global_rect())
 		# The week chip and the day chip (v0.70) are always shown.
 		assert_bool(screen._inspection_tag.visible).is_true()
-		assert_int(parts.size()).is_equal(7)
+		# Week replaces SHIFT: spend, week, day, loyalty, cart and menu.
+		assert_int(parts.size()).is_equal(6)
 		var bottom: float = _y(screen, ShiftStage.TOP_BAR_BOTTOM)
 		for rect: Rect2 in parts:
 			assert_float(rect.end.y).override_failure_message(str(rect)).is_less_equal(bottom)

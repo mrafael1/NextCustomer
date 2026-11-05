@@ -81,13 +81,7 @@ func test_the_game_deals_the_recipe_deck() -> void:
 	assert_int(run.deck.size()).is_equal(13)
 	var recipe: DeckDefinition = load(ShiftScreen.STARTER_DECK)
 	assert_array(run.starter.cards.slice(0, 4)).is_equal(recipe.core_cards)
-	var offer: StartOffer = StartingDeck.deal_offer(
-		recipe,
-		run.stock,
-		run.balance,
-		EventLogService.derived_stream(run.run_seed, EventLogService.STARTING_DECK_STREAM),
-		not screen.profile.has_won()
-	)
+	var offer: StartOffer = run.start_offer
 	var expected: DeckDefinition = StartingDeck.with_pack(
 		recipe, offer.default_pack(), offer.shared
 	)

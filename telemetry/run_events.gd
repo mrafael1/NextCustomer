@@ -25,7 +25,92 @@ static func run_start(run: RunState) -> Dictionary:
 		"starting_deck": definition_ids(run.starter.cards),
 		"shift_count": run.shift_count(),
 	}
+	if run.start_setup != null:
+		(
+			data
+			. merge(
+				{
+					"stock_aisles": Array(run.start_setup.stock_aisles),
+					"dealt_aisles": Array(run.start_setup.green_ids(run.balance)),
+					"regulars": definition_ids(run.starter.core_cards),
+					"completed_aisles": run.start_setup.completed_count,
+					"baskets": basket_ids(run.start_setup),
+				}
+			)
+		)
 	return data.merged(run.stock.to_dictionary())
+
+
+## The opening-time board's fields of `start_choice` (docs/PROTOTYPE_PLAN.md section 8, v0.59),
+## for a run with a start setup: the regulars as taken, the RESTOCK used (0 or 1) and its basket
+## (-1 for none), the baskets' card ids and NEW PACKS used (0 or 1).
+static func start_setup_fields(run: RunState) -> Dictionary:
+	var setup: StartSetup = run.start_setup
+	return {
+		"regulars": definition_ids(run.starter.core_cards),
+		"restock": 1 if setup.restock_basket >= 0 else 0,
+		"restock_basket": setup.restock_basket,
+		"baskets": basket_ids(setup),
+		"new_packs": 1 if setup.packs_redrawn else 0,
+	}
+
+
+## The `start_lock_in` event: LOCK IN & DEAL on YOUR STORE. `chosen`: the aisles were choosable;
+## `changed`: the locked aisles differ from those the board opened on; `clicks`: the aisle status
+## changes before it. The offer's fair-deal swaps and basket deals come from the run.
+static func start_lock_in(run: RunState, chosen: bool, changed: bool, clicks: int) -> Dictionary:
+	var setup: StartSetup = run.start_setup
+	var run_only: Array[StringName] = setup.run_only_ids(run.balance)
+	return {
+		"green": Array(setup.green_ids(run.balance)),
+		"run_only": String(run_only[0]) if not run_only.is_empty() else "",
+		"chosen": chosen,
+		"changed": changed,
+		"status_clicks": clicks,
+		"baskets": basket_ids(setup),
+		"offered": pack_ids(run.start_offer.packs),
+		"swaps": run.start_offer.swaps,
+		"deals": run.start_offer.deals,
+	}
+
+
+## The `restock` event (reworked 2026-11-05): basket `basket` RESTOCKED, its card ids `before`
+## and after.
+static func start_restock(run: RunState, basket: int, before: Array[CardDefinition]) -> Dictionary:
+	var restocked: StartBasket = run.start_setup.baskets[basket]
+	return {
+		"basket": basket,
+		"source": String(restocked.source),
+		"before": definition_ids(before),
+		"after": definition_ids(restocked.cards),
+	}
+
+
+## The `new_packs` event: the offered pack ids before and after NEW PACKS, and the pack picked
+## before ("" for none).
+static func new_packs(
+	before: Array[StarterPackDefinition],
+	after: Array[StarterPackDefinition],
+	picked_before: StringName
+) -> Dictionary:
+	return {
+		"before": pack_ids(before), "after": pack_ids(after), "picked_before": String(picked_before)
+	}
+
+
+## The baskets' card id lists, in basket order.
+static func basket_ids(setup: StartSetup) -> Array[Array]:
+	var ids: Array[Array] = []
+	for basket: StartBasket in setup.baskets:
+		ids.append(definition_ids(basket.cards))
+	return ids
+
+
+static func pack_ids(packs: Array[StarterPackDefinition]) -> Array[String]:
+	var ids: Array[String] = []
+	for pack: StarterPackDefinition in packs:
+		ids.append(String(pack.id))
+	return ids
 
 
 ## The `start_choice` event (#107, v0.63), logged when the run takes its starter pack, after

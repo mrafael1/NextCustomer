@@ -1239,5 +1239,63 @@ class CommandLineTest(LogTestCase):
                              / "Next Customer" / "playtest_logs")
 
 
+class StartSetupTest(LogTestCase):
+    def test_setup_rates_times_and_completed_aisle_cohorts_exclude_old_logs(self) -> None:
+        session = Session("startup")
+        start = session.run_start("new", rack=())
+        start.update(stock_aisles=["dairy", "bakery", "pantry"], completed_aisles=3)
+        session.log("start_page", "new", page=2, **{"from": 1})
+        session.log("start_page", "new", page=1, **{"from": 2})
+        session.log("start_lock_in", "new", green=["dairy", "bakery"], run_only="pantry",
+                    chosen=True, changed=True, status_clicks=3)
+        session.log("staple_swap", "new", slot=0, card="milk", aisle="dairy", via="drag")
+        session.log("restock", "new", basket=0, source="staples", before=["bread", "milk"],
+                    after=["eggs", "soup"])
+        session.log("new_packs", "new", before=["a", "b", "c"], after=["a", "d", "e"],
+                    picked_before="a")
+        session.log("start_choice", "new", chosen=True, ms_store=2500, ms_build=4000,
+                    cart=["milk", "bread", "repeat"])
+        session.run_end("new", True, 12)
+        session.run_start("old", rack=())
+        session.run_end("old", False, 1)
+        summary = self.summary(self.write("startup.jsonl", session))
+        setup = summary["start_setup"]
+        self.assertEqual(setup["shown"], 1)
+        self.assertEqual(setup["swap_rate"]["rate"], 1)
+        self.assertEqual(setup["restock_rate"]["rate"], 1)
+        self.assertEqual(setup["back_rate"]["rate"], 1)
+        self.assertEqual(setup["store_ms"]["median"], 2500)
+        self.assertEqual(setup["build_ms"]["median"], 4000)
+        self.assertEqual(setup["lock_ins"], 1)
+        self.assertEqual(setup["changed_rate"]["rate"], 1)
+        self.assertEqual(setup["restock_by_kind"]["staples"]["count"], 1)
+        self.assertEqual(setup["restock_by_kind"]["aisle"]["count"], 0)
+        self.assertEqual(setup["new_packs_rate"]["rate"], 1)
+        self.assertEqual(setup["by_completed"][0]["win_rate"]["rate"], 1)
+        self.assertIn("Opening-time setup", ls.render(summary))
+
+    def test_first_build_restocks_count_toward_the_rate_only(self) -> None:
+        session = Session("first")
+        start = session.run_start("old", rack=())
+        start.update(stock_aisles=["dairy", "bakery", "pantry"], completed_aisles=3)
+        session.log("restock", "old", before=["dairy", "bakery", "pantry"],
+                    after=["snacks", "bakery", "pantry"])
+        session.log("restock_view", "old", restocked=False)
+        session.run_end("old", False, 3)
+        setup = self.summary(self.write("first.jsonl", session))["start_setup"]
+        self.assertEqual(setup["restock_rate"]["rate"], 1)
+        self.assertEqual(setup["restock_by_kind"]["staples"]["count"], 0)
+        self.assertEqual(setup["restock_by_kind"]["aisle"]["count"], 0)
+        self.assertEqual(setup["changed_rate"]["n"], 0)
+
+    def test_final_deck_uses_the_confirmed_cart_including_pin_cards(self) -> None:
+        session = Session("cart")
+        session.run_start("new", deck=("banana",), rack=())
+        session.log("start_choice", "new", cart=["milk", "bread", "repeat", "repeat"])
+        session.log("machine_visit", "new", picked="", replaced="")
+        player = self.players(self.write("cart.jsonl", session))[0]
+        self.assertEqual(ls.final_deck(player.runs[0]), {"milk": 1, "bread": 1, "repeat": 2})
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -15,7 +15,7 @@ extends RefCounted
 ## milestone was met (record_run), or when it was bought at random (ProfilePins.buy_random, on
 ## its own derived stream of capsule_seed, PIN_STREAM). The worn pins (`worn_pins`, at most the
 ## balance's pin_slots, ProfilePins) are copied into a run when it starts; changing them never
-## touches a run.
+## touches a run after clock-in. The opening-time board can update a waiting run's pins.
 ##
 ## to_dictionary and from_dictionary give the saved form: JSON types only, with
 ## FORMAT_VERSION. Pure: no file access here.
@@ -24,7 +24,9 @@ extends RefCounted
 ## form changes, and read the older versions in from_dictionary. 2 since #63 (capsule_seed and
 ## capsule_draws); version 1 saves still read, with no seed and 0 draws. 3 since #122
 ## (unlocked_pins and worn_pins); version 2 saves still read, with no pin unlocked or worn.
-const FORMAT_VERSION := 3
+## Version 4 adds staple_swaps, stock_pair and the optional stock_run_only (the opening-time
+## board's last choice); older profiles read with none set.
+const FORMAT_VERSION := 4
 ## The settings key of the count-up's speed (full build plan 6.2): COUNT_UP_NORMAL or
 ## COUNT_UP_FAST, read with count_up_speed().
 const COUNT_UP_SPEED_KEY := "count_up_speed"
@@ -49,6 +51,11 @@ var run_count: int = 0
 var unlocked_items: Dictionary[StringName, int] = {}
 ## The last shopping list (aisle ids), the next list's default (full build plan 7.2).
 var last_list: Array[StringName] = []
+## Opening-time regulars (one id per slot, empty means original) and saved deal-source pair.
+var staple_swaps: Array[StringName] = []
+var stock_pair: Array[StringName] = []
+## The opening-time board's last RUN ONLY aisle ("" for none).
+var stock_run_only: StringName = &""
 ## Decks and card variants unlocked by their condition (plan 7.3). One without a condition is
 ## available from the start and never listed here.
 var unlocked_decks: Array[StringName] = []
@@ -238,6 +245,9 @@ func reset_collection() -> void:
 	unlocked_items.clear()
 	capsule_draws = 0
 	last_list.clear()
+	staple_swaps.clear()
+	stock_pair.clear()
+	stock_run_only = &""
 
 
 ## The saved form. Unlocked items are [id, run index] pairs, so their draw order survives any
@@ -252,6 +262,9 @@ func to_dictionary() -> Dictionary:
 		"run_count": run_count,
 		"unlocked_items": items,
 		"last_list": _strings(last_list),
+		"staple_swaps": _strings(staple_swaps),
+		"stock_pair": _strings(stock_pair),
+		"stock_run_only": String(stock_run_only),
 		"unlocked_decks": _strings(unlocked_decks),
 		"unlocked_variants": _strings(unlocked_variants),
 		"coupon_uses": _string_keys(coupon_uses),
@@ -282,6 +295,12 @@ static func from_dictionary(data: Dictionary) -> ProfileState:
 	ok = ok and _read_int(data, "run_count", profile, "run_count")
 	ok = ok and _read_items(data.get("unlocked_items", []), profile.unlocked_items)
 	ok = ok and _read_names(data.get("last_list", []), profile.last_list)
+	ok = ok and _read_names(data.get("staple_swaps", []), profile.staple_swaps)
+	ok = ok and _read_names(data.get("stock_pair", []), profile.stock_pair)
+	var run_only: Variant = data.get("stock_run_only", "")
+	ok = ok and run_only is String
+	if run_only is String:
+		profile.stock_run_only = StringName(run_only as String)
 	ok = ok and _read_names(data.get("unlocked_decks", []), profile.unlocked_decks)
 	ok = ok and _read_names(data.get("unlocked_variants", []), profile.unlocked_variants)
 	ok = ok and _read_counts(data.get("coupon_uses", {}), profile.coupon_uses)

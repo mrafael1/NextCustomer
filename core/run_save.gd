@@ -57,6 +57,14 @@ extends RefCounted
 ## (or older) save gets its week built as it loads (_legacy_week: the played days from the history,
 ## the current and announced ones as saved, the later ones drawn with the run's RNG), and its
 ## current shift keeps playing without its week event (RunState.pre_week_shift).
+## Version 10 also has two optional fields (the opening-time setup, start screen v4): `regulars`
+## (the run's own regulars, a recipe's core cards with the profile's swaps; missing: the recipe's)
+## and `start_setup` (StartSetup.to_dictionary, null or missing for a run without it). A saved
+## setup must match the run: its originals are the recipe's regulars; in SELECT the run waits for
+## its pick and its offer holds no packs and no shared products; from REVEALED the offer's shared
+## products are the baskets' cards and its picked pack is offered. A setup in the first build's
+## form (no `stage`) is not converted: a run waiting for its pick reads with no setup and
+## RunState.restart_setup set (the opening time sets it up again); a later run drops it.
 const FORMAT_VERSION := 10
 ## Version 9: version 10's form with the next shift's events and no week, read as it is.
 const BEFORE_WEEKS_VERSION := 9
@@ -157,10 +165,18 @@ static func to_dictionary(saved_run: RunState, saved_run_id: String, played_ms: 
 		"machine": saved_run.machine.to_dictionary(),
 		"start_offer": _offer_data(saved_run.start_offer),
 		"start_pack": _id(saved_run.starter.starter_pack),
+		"regulars": _ids(saved_run.starter.core_cards),
+		"start_setup": _start_setup_data(saved_run),
 	}
 	# "listed_aisles" and "stock", the same as run_start logs.
 	data.merge(saved_run.stock.to_dictionary())
 	return data
+
+
+static func _start_setup_data(saved_run: RunState) -> Variant:
+	if saved_run.start_setup != null:
+		return saved_run.start_setup.to_dictionary()
+	return null
 
 
 ## Reads the saved form (as parsed from JSON: numbers may be floats). Returns null when it
@@ -184,11 +200,34 @@ static func from_dictionary(saved: Dictionary, lookup: ContentLookup) -> RunSave
 	var reader: SaveReader = SaveReader.new(data, lookup)
 	var starter: DeckDefinition = reader.deck("starter")
 	var starting_cards: Array[CardDefinition] = reader.cards("starting_deck")
+	# Older runs keep their recipe's fixed regulars. New runs save their own copied recipe's: a
+	# regular is its recipe's own card or a swapped-in plain product.
+	var recipe_core: Array[CardDefinition] = []
+	if starter != null:
+		recipe_core = starter.core_cards.duplicate()
+	if data.has("regulars") and starter != null:
+		var regulars: Array[CardDefinition] = reader.cards("regulars")
+		if regulars.size() != starter.core_cards.size():
+			return null
+		for index: int in regulars.size():
+			var card: CardDefinition = regulars[index]
+			if card == recipe_core[index]:
+				continue
+			if not card.is_product() or card.variant_of != null:
+				return null
+			if card.tier != CardDefinition.Tier.PLAIN:
+				return null
+		starter = StartingDeck.with_cards(starter, starter.cards)
+		starter.core_cards = regulars
 	# A recipe with starter packs (#107): its offer and the pack taken ("" before the pick).
 	var offer: StartOffer = null
 	var pack: StarterPackDefinition = null
+	var setup_data: Variant = data.get("start_setup")
+	var selecting: bool = (
+		setup_data is Dictionary and (setup_data as Dictionary).get("stage") == "select"
+	)
 	if starter != null and not starter.starter_packs.is_empty():
-		offer = _read_offer(starter, data.get("start_offer"))
+		offer = _read_offer(starter, data.get("start_offer"), selecting)
 		var pack_id: Variant = data.get("start_pack")
 		if offer == null or not pack_id is String:
 			return null
@@ -215,6 +254,18 @@ static func from_dictionary(saved: Dictionary, lookup: ContentLookup) -> RunSave
 		return null
 	var restored: RunState = RunState.new(reader.int64("seed"), starter, lookup.balance, stock)
 	restored.start_offer = offer
+	if setup_data != null:
+		if not setup_data is Dictionary:
+			return null
+		var choosing: bool = SAVE_POINTS[phase_index] == RunState.Phase.CHOOSE_START
+		if StartSetup.is_old_format(setup_data as Dictionary):
+			restored.restart_setup = choosing
+		else:
+			restored.start_setup = _read_setup(
+				setup_data as Dictionary, lookup, offer, recipe_core, choosing
+			)
+			if restored.start_setup == null:
+				return null
 	restored.rng_state = reader.int64("rng_state")
 	restored.phase = SAVE_POINTS[phase_index]
 	restored.shift_index = reader.whole("shift_index")
@@ -599,6 +650,27 @@ static func _restore_cards(restored: RunState, reader: SaveReader, with_first_ro
 ## The saved form of a starter pack offer (#107): the offered pack ids, the first pick's id ("" for
 ## none), the swaps and the deals; {} without an offer. The shared products are the starting
 ## deck's.
+## The opening-time setup `data` holds, checked against the run (see the format notes), or null.
+static func _read_setup(
+	data: Dictionary,
+	lookup: ContentLookup,
+	offer: StartOffer,
+	recipe_core: Array[CardDefinition],
+	choosing: bool
+) -> StartSetup:
+	var setup: StartSetup = StartSetup.from_dictionary(data, lookup)
+	# The setup's originals are the saved recipe's own regulars.
+	if setup == null or offer == null or setup.originals != recipe_core:
+		return null
+	if setup.stage == StartSetup.Stage.SELECT:
+		if not choosing or not offer.packs.is_empty() or not offer.shared.is_empty():
+			return null
+		return setup
+	if setup.picked != &"" and offer.pack(setup.picked) == null:
+		return null
+	return setup if offer.shared == setup.shared() else null
+
+
 static func _offer_data(offer: StartOffer) -> Dictionary:
 	if offer == null:
 		return {}
@@ -612,7 +684,9 @@ static func _offer_data(offer: StartOffer) -> Dictionary:
 
 ## The offer `data` holds for `recipe` (as parsed from JSON), or null when it is missing or names
 ## a pack the recipe doesn't have. Its shared products are set from the starting deck.
-static func _read_offer(recipe: DeckDefinition, data: Variant) -> StartOffer:
+static func _read_offer(
+	recipe: DeckDefinition, data: Variant, allow_empty: bool = false
+) -> StartOffer:
 	if not data is Dictionary:
 		return null
 	var saved: Dictionary = data
@@ -630,7 +704,7 @@ static func _read_offer(recipe: DeckDefinition, data: Variant) -> StartOffer:
 		if found == null or offer.packs.has(found):
 			return null
 		offer.packs.append(found)
-	if offer.packs.is_empty():
+	if offer.packs.is_empty() != allow_empty:
 		return null
 	if not (first as String).is_empty():
 		offer.first_pick = offer.pack(StringName(first))

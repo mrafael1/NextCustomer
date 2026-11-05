@@ -1,0 +1,13 @@
+; The Staples shelf's glyph on the start screen (mock-up start_screen_v3): a banana on a cream
+; tile. 9x9 with its ink outline like the aisle glyphs; shown at 2x.
+@size 9x9
+@kind icon
+..#####..
+.#cc#g##.
+#cc#yM#c#
+#c#yMm#c#
+#c#yMm#c#
+#cc#yMm##
+#ccc#mm##
+.#ccc###.
+..#####..

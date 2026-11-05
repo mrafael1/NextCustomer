@@ -86,6 +86,23 @@ extends Resource
 @export var pin_slots: int = 0
 ## Coins for one random locked badge pin, the way past a milestone out of reach (#122).
 @export var pin_coin_price: int = 0
+## Opening-time setup (start screen, full build plan 7.2): today's stocked aisles, of which the
+## first dealt_aisle_count are STARTER CART (dealt) and the rest RUN ONLY.
+@export var stock_aisle_count: int = 0
+@export var dealt_aisle_count: int = 0
+## Cards in each opening-time basket (the Staples basket and one per STARTER CART aisle); not the
+## hand's basket_size. start_basket_size × (1 + dealt_aisle_count) is the recipe's random_count.
+@export var start_basket_size: int = 0
+## Completed aisles that unlock the basket RESTOCK, and RESTOCKs a run allows.
+@export var restock_min_completed: int = 0
+@export var restocks_per_run: int = 0
+## Completed aisles from which the player chooses today's aisles.
+@export var pair_choice_min_completed: int = 0
+## The most swapped regulars from one aisle, and the most cards a slot's offer from one aisle shows.
+@export var staple_swap_aisle_max: int = 0
+@export var regular_offer_max: int = 0
+## NEW PACKS a run allows (the starter pack offer redrawn once).
+@export var packs_redraws_per_run: int = 0
 ## The RECEIPT REWARDS machine's rules (#77, data/balance/machine.tres), so a balance copy can
 ## point at a different machine file.
 @export var machine: MachineDefinition
