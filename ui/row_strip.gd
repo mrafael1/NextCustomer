@@ -316,6 +316,17 @@ func _same_marks(shown: Array[SlotMark], marks: Array[SlotMark]) -> bool:
 	return true
 
 
+## The parts of the shown slot marks that hang under the tickets (SlotMark.visible_rect), global
+## rects: the MORNING ribbon keeps clear of them (KeywordMarks.obstacles).
+func mark_rects() -> Array[Rect2]:
+	var rects: Array[Rect2] = []
+	for slot: int in range(slots.size()):
+		for mark: SlotMark in _slot_marks(slot):
+			if mark.is_visible_in_tree():
+				rects.append(mark.get_global_transform() * mark.visible_rect())
+	return rects
+
+
 ## The mark on `slot` of upgrade `upgrade_index` (any upgrade's for -1), or null.
 func slot_mark(slot: int, upgrade_index: int = -1) -> SlotMark:
 	for mark: SlotMark in _slot_marks(slot):

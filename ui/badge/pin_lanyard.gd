@@ -199,6 +199,11 @@ func press_pin(index: int) -> void:
 	_update_card()
 
 
+## Whether a pin's card is open (a right-click closes it, so the handbook's deep link waits).
+func is_card_open() -> bool:
+	return _kept >= 0
+
+
 ## A click away from the pins closes a kept card.
 func close_card() -> void:
 	_kept = -1

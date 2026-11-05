@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="HandbookEntry" format=3]
+
+[ext_resource type="Script" path="res://presentation/handbook_entry.gd" id="1_entry"]
+
+[resource]
+script = ExtResource("1_entry")
+id = &"opening_deal"
+group = &"coupons"
+title = "Opening deal"
+mark = 4
+mark_value = "opening_deal"
+rule = "In the first slot, the next item pays ×5."
+example_row = PackedStringArray("opening_deal", "bread")
+example_total = 25
+details = "Anywhere but slot 1: WASTED."
+cards = PackedStringArray("bread")

@@ -405,6 +405,8 @@ func _build_belt(slot_count: int) -> void:
 	# Over the items and their tickets, under the top bar, the hand and the scan layers (#71).
 	planning_layer = PlanningLayer.new()
 	fore.add_child(planning_layer)
+	# The MORNING ribbon keeps clear of the slot marks under the tickets (v1.06).
+	KeywordMarks.of(planning_layer).obstacles = row_strip.mark_rects
 
 
 ## Fits the belt to the row's `cells` (#122: a Double checkout's short rows get a short belt).

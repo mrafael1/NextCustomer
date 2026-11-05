@@ -73,6 +73,20 @@ func is_paired(state: ScoreState, slot: int) -> bool:
 	return _has_match_at(state, slot, position)
 
 
+## The partners the product in `slot` finds in `position` (its PAIR's other side, #128: the belt's
+## PAIR clasps), in row order.
+func partners(state: ScoreState, slot: int) -> PackedInt32Array:
+	var found: PackedInt32Array = PackedInt32Array()
+	if position == Position.NONE or match_by == Match.NONE:
+		return found
+	var card: CardDefinition = state.definition(slot)
+	for other: int in _neighbours(state, slot, position):
+		if _matches(state, card, other):
+			found.append(other)
+	found.sort()
+	return found
+
+
 ## Explain path only (Scoring._report_fizzles). A rule paying nothing on a match (neutral
 ## numbers) never fizzles.
 func wasted_reason(state: ScoreState, slot: int) -> String:

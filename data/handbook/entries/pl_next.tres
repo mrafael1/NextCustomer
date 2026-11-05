@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="HandbookEntry" format=3]
+
+[ext_resource type="Script" path="res://presentation/handbook_entry.gd" id="1_entry"]
+
+[resource]
+script = ExtResource("1_entry")
+id = &"pl_next"
+group = &"place"
+title = "NEXT"
+mark = 2
+mark_value = "NEXT"
+rule = "The next item of that family, anywhere later in the row."
+example_row = PackedStringArray("eggs", "coffee", "bread")
+example_total = 16
+example_note = "Eggs: ×2 next Food."
+details = "A coupon between two products breaks BESIDE and RIGHT AFTER, unless its own rule links them."
+cards = PackedStringArray("eggs", "batteries", "grapefruit")

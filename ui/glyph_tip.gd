@@ -10,6 +10,9 @@ extends Control
 ## A text wider than MAX_WIDTH (a keyword's meaning, #128) wraps at it: the box grows down in
 ## lines of the text's height, WRAP_PADDING over and under them, and an above tip grows upward
 ## from where a one-line tip would end, so its tail stays on the glyph.
+##
+## A tip whose right-click opens the staff handbook (v1.06, GlyphTips.guide_for) says so on a
+## footer line under its text: GUIDE_HINT, smaller and in mustard light, HINT_ROOM taller.
 
 const HEIGHT := 26.0
 ## The text's room: the frame's 2 art px border and PADDING on each side.
@@ -34,6 +37,11 @@ const SCREEN_MARGIN := 16.0
 ## The widest a tip grows: a longer text wraps.
 const MAX_WIDTH := 340.0
 const WRAP_PADDING := 6.0
+## The handbook footer: its text, size and the room it adds under the tip's text.
+const GUIDE_HINT := "Right-click: open the guide"
+const HINT_SIZE := 11
+const HINT_ROOM := 16.0
+const HINT_LIFT := 2.0
 
 const FRAME := preload("res://art/frames/glyph_tip.png")
 const TAIL := preload("res://art/frames/glyph_tip_tail.png")
@@ -41,6 +49,7 @@ const TAIL := preload("res://art/frames/glyph_tip_tail.png")
 ## Whether it opened below its glyph's ticket.
 var below: bool = false
 var _label: Label
+var _hint: Label
 var _tail: TextureRect
 var _shadow: Panel
 var _face: Panel
@@ -63,6 +72,12 @@ func _init() -> void:
 	_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	add_child(_label)
+	_hint = UiKit.body_label(GUIDE_HINT, HINT_SIZE, Palette.MUSTARD_LIGHT)
+	_hint.name = "GuideHint"
+	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_hint.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	_hint.visible = false
+	add_child(_hint)
 	_tail = UiKit.sprite(TAIL)
 	_tail.name = "Tail"
 	_tail.size = TAIL_SIZE
@@ -102,6 +117,18 @@ static func size_for(text: String) -> Vector2:
 	return Vector2(width, height)
 
 
+## The tip's size for `text`, with the handbook footer when `guide`: size_for's, HINT_ROOM taller
+## and at least as wide as the footer's text plus TEXT_ROOM.
+static func size_with(text: String, guide: bool) -> Vector2:
+	var tip_size: Vector2 = size_for(text)
+	if not guide:
+		return tip_size
+	var font: Font = ArtStyle.BODY_FONT
+	var width: float = font.get_string_size(GUIDE_HINT, HORIZONTAL_ALIGNMENT_LEFT, -1, HINT_SIZE).x
+	tip_size.x = maxf(tip_size.x, ceilf((width + TEXT_ROOM) / 2.0) * 2.0)
+	return tip_size + Vector2(0.0, HINT_ROOM)
+
+
 ## The tip's box for a glyph at `glyph_rect` on a ticket at `anchor_rect` (opening `below` it, else
 ## above the glyph), `tip_size` big, inside `screen` (all in one set of coordinates). Below: its
 ## top BELOW_GAP under the ticket's foot, its right end BELOW_RIGHT past the glyph's middle; above:
@@ -139,9 +166,15 @@ static func tail_x(box: Rect2, glyph_rect: Rect2) -> float:
 
 
 ## Shows `text` for a glyph at `glyph_rect` (its ticket at `anchor_rect`, opening below it when
-## `opens_below`) inside `screen`, all in this tip's parent's coordinates.
+## `opens_below`) inside `screen`, all in this tip's parent's coordinates; with the handbook
+## footer when `guide`.
 func show_for(
-	text: String, glyph_rect: Rect2, anchor_rect: Rect2, opens_below: bool, screen: Rect2
+	text: String,
+	glyph_rect: Rect2,
+	anchor_rect: Rect2,
+	opens_below: bool,
+	screen: Rect2,
+	guide: bool = false
 ) -> void:
 	_label.text = text
 	var wrapped: bool = wraps(text)
@@ -149,7 +182,7 @@ func show_for(
 	_label.horizontal_alignment = (
 		HORIZONTAL_ALIGNMENT_LEFT if wrapped else HORIZONTAL_ALIGNMENT_CENTER
 	)
-	var tip_size: Vector2 = size_for(text)
+	var tip_size: Vector2 = size_with(text, guide)
 	var box: Rect2 = place(glyph_rect, anchor_rect, opens_below, tip_size, screen)
 	below = is_below(box, glyph_rect)
 	position = box.position
@@ -157,8 +190,13 @@ func show_for(
 	_shadow.size = size
 	_face.size = size
 	var inset: float = (TEXT_ROOM / 2.0) if wrapped else 0.0
+	# The footer sits HINT_LIFT over the box's foot (clear of its shadowed outline).
+	var footer: float = (HINT_ROOM + HINT_LIFT) if guide else 0.0
 	_label.position = Vector2(inset, 0.0)
-	_label.size = Vector2(size.x - inset * 2.0, size.y)
+	_label.size = Vector2(size.x - inset * 2.0, size.y - footer)
+	_hint.visible = guide
+	_hint.position = Vector2(0.0, size.y - footer)
+	_hint.size = Vector2(size.x, HINT_ROOM)
 	_tail.flip_v = below
 	var tail_y: float = TAIL_BELOW_Y if below else size.y - HEIGHT + TAIL_ABOVE_Y
 	_tail.position = Vector2(tail_x(box, glyph_rect), tail_y)
@@ -171,6 +209,11 @@ func tip_text() -> String:
 
 func label() -> Label:
 	return _label
+
+
+## The handbook footer (shown only on a tip whose right-click opens the guide).
+func hint() -> Label:
+	return _hint
 
 
 func tail() -> TextureRect:

@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="HandbookEntry" format=3]
+
+[ext_resource type="Script" path="res://presentation/handbook_entry.gd" id="1_entry"]
+
+[resource]
+script = ExtResource("1_entry")
+id = &"batch"
+group = &"keywords"
+title = "BATCH"
+mark = 1
+mark_value = "BATCH"
+rule = "2 or more Bakery side by side make one batch. Each card's line says where in its batch it works."
+example_row = PackedStringArray("croissant", "baguette", "stale_doughnut")
+example_total = 22
+example_note = "Croissant opens the batch, Baguette counts the items before it, Stale doughnut closes it."
+details = "On the belt a mustard frame binds the batch, two bars across each gap. Croissant first (+2 to the rest), Baguette +4 per earlier item, Stale doughnut last (+3 per item), Iced bun ×2 the last, Birthday candles +3 to each item of a batch of 3 or more right after them. Out of place, a role is WASTED."
+cards = PackedStringArray("croissant", "baguette", "stale_doughnut", "iced_bun", "birthday_candles")

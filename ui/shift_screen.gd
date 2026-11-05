@@ -955,8 +955,7 @@ func _build() -> void:
 
 	_shade = ScreenShade.new()
 	_shade.set_anchors_preset(Control.PRESET_FULL_RECT)
-	# Below the top bar, so the menu and Cart stay reachable on every screen (_process keeps it
-	# there when the stage moves).
+	# Below the top bar: its menu and Cart stay reachable (_process keeps it there on a move).
 	_shade.offset_top = ShiftStage.PANEL_TOP
 	_shade.visible = false
 	add_child(_shade)
@@ -983,6 +982,7 @@ func _build() -> void:
 	_glyph_tips.reduced_motion = _monitor.reduced_motion
 	add_child(_glyph_tips)
 	_effects.watch_glyphs(_glyph_tips, _deck_view)  # A glyph's family lights (#105 piece 3).
+	HandbookPage.mount(self, _glyph_tips, _top_bar as TopBar)  # The staff handbook (v1.06).
 
 
 ## Scanning the counter's items is off while the shift is counted, an item is dragged, outside

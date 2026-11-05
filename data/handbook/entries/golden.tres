@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="HandbookEntry" format=3]
+
+[ext_resource type="Script" path="res://presentation/handbook_entry.gd" id="1_entry"]
+
+[resource]
+script = ExtResource("1_entry")
+id = &"golden"
+group = &"tiers"
+title = "GOLDEN"
+mark = 2
+mark_value = "GOLDEN"
+rule = "The top tier: a higher price and one number on its line raised. Its ticket wears a gold ring with two sparkles."
+example_row = PackedStringArray("banana", "banana_big", "banana_golden")
+example_total = 24
+example_note = "Golden Banana adds twice the previous price."
+details = "Still the same product: it counts as its plain card everywhere (2 for 1, CHAIN, PAIR partners). UPGRADE at the machine turns a copy in your cart into the next tier."
+cards = PackedStringArray("banana_golden", "milk_golden", "eggs_golden")

@@ -18,3 +18,18 @@ static func slots(state: ScoreState, tag: String) -> PackedInt32Array:
 			break
 		found.append(slot)
 	return found
+
+
+## The MORNING the belt marks (#128, the keywords handbook's rising suns): its slots when a card
+## in the row reads it (a MorningCountRule, or a GrantChargedMultiplierRule's `morning_end`), the
+## first such rule's tag; empty otherwise.
+static func read(state: ScoreState) -> PackedInt32Array:
+	for slot: int in range(state.size()):
+		for rule: Rule in state.definition(slot).rules:
+			var count_rule: MorningCountRule = rule as MorningCountRule
+			if count_rule != null and not count_rule.tag.is_empty():
+				return slots(state, count_rule.tag)
+			var grant_rule: GrantChargedMultiplierRule = rule as GrantChargedMultiplierRule
+			if grant_rule != null and grant_rule.morning_end and not grant_rule.tag.is_empty():
+				return slots(state, grant_rule.tag)
+	return PackedInt32Array()

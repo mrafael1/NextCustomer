@@ -105,6 +105,44 @@ func test_a_shown_tip_points_its_tail_at_the_glyph() -> void:
 	assert_bool(box.encloses(Rect2(tip.label().position, tip.label().size))).is_true()
 
 
+## A tip whose right-click opens the guide shows the footer under its text: HINT_ROOM taller, at
+## least the footer's width, the footer and the text inside the box and apart; the tail still on
+## the glyph, below or above. Without it the tip is as before.
+func test_a_guide_tip_shows_its_footer() -> void:
+	var tip: GlyphTip = auto_free(GlyphTip.new())
+	add_child(tip)
+	tip.show_for("Dairy", GLYPH, TICKET, true, STAGE)
+	var plain: Vector2 = tip.size
+	assert_bool(tip.hint().visible).is_false()
+	for below: bool in [true, false]:
+		tip.show_for("Dairy", GLYPH, TICKET, below, STAGE, true)
+		assert_bool(tip.hint().visible).is_true()
+		assert_str(tip.hint().text).is_equal(GlyphTip.GUIDE_HINT)
+		assert_float(tip.size.y).is_equal(plain.y + GlyphTip.HINT_ROOM)
+		assert_vector(tip.size).is_equal(GlyphTip.size_with("Dairy", true))
+		var box: Rect2 = Rect2(Vector2.ZERO, tip.size)
+		var text: Rect2 = Rect2(tip.label().position, tip.label().size)
+		var hint: Rect2 = Rect2(tip.hint().position, tip.hint().size)
+		assert_bool(box.encloses(text)).is_true()
+		assert_bool(box.encloses(hint)).is_true()
+		assert_bool(text.intersects(hint)).is_false()
+		var font: Font = ArtStyle.BODY_FONT
+		var needed: float = (
+			font
+			. get_string_size(
+				GlyphTip.GUIDE_HINT, HORIZONTAL_ALIGNMENT_LEFT, -1, GlyphTip.HINT_SIZE
+			)
+			. x
+		)
+		assert_float(tip.size.x).is_greater_equal(needed)
+		assert_bool(STAGE.encloses(Rect2(tip.position, tip.size))).is_true()
+		var tail: Rect2 = Rect2(tip.position + tip.tail().position, GlyphTip.TAIL_SIZE)
+		assert_float(tail.get_center().x).is_equal_approx(GLYPH.get_center().x, 1.0)
+	tip.show_for("Dairy", GLYPH, TICKET, true, STAGE)
+	assert_bool(tip.hint().visible).is_false()
+	assert_vector(tip.size).is_equal(plain)
+
+
 ## Mounted over a ticket and a popup (standing for the offers' popup, which stays while the
 ## pointer is on it): the ticket's glyphs (its row's and its text's) tip below the ticket after
 ## SHOW_DELAY_S, the popup's above their glyph; inside the screen; off the glyph, or `blocked`, no

@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="HandbookEntry" format=3]
+
+[ext_resource type="Script" path="res://presentation/handbook_entry.gd" id="1_entry"]
+
+[resource]
+script = ExtResource("1_entry")
+id = &"pl_lone"
+group = &"place"
+title = "LONE"
+mark = 2
+mark_value = "LONE"
+rule = "A Snack with no Snack beside it."
+example_row = PackedStringArray("crisps", "bread", "pick_n_mix")
+example_total = 14
+example_note = "Pick 'n' mix +3 per lone Snack."
+details = "A coupon between two products breaks BESIDE and RIGHT AFTER, unless its own rule links them."
+cards = PackedStringArray("pick_n_mix")
