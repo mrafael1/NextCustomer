@@ -95,11 +95,9 @@ func test_the_opening_board_covers_the_stage_and_clocks_in() -> void:
 	var stage: Rect2 = screen._stage.get_global_rect()
 	assert_bool(board.get_global_rect().encloses(stage)).is_true()
 	screen.profile.set_reduced_motion(true)
-	# Nothing is dealt until LOCK IN & DEAL, so page 2 waits for it.
+	# The baskets are dealt face up as the board opens (v1.07), so page 2 opens at once.
 	board.show_page(2, "enter")
-	assert_int(board.page).is_equal(1)
-	assert_bool(board.lock_in()).is_true()
-	board.show_page(2, "enter")
+	assert_int(board.page).is_equal(2)
 	board.pick(0)
 	var pack: StarterPackDefinition = screen.run.start_offer.packs[0]
 	# Recorded after the screen's own handlers (connected first): shift 1 as the shutter covers

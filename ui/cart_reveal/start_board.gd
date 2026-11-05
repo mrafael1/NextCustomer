@@ -1,8 +1,10 @@
 class_name StartBoard
 extends Control
-## Opening-time v3 store page and v4 B staff room (full build plan 7.2, reworked 2026-11-05).
-## Root owns navigation, keys, LOCK IN & DEAL and the regular's swap strip; game choices go
-## through StartChoice (StartBoardActions), so this class only displays them and routes input.
+## Opening-time board (full build plan 7.2): page 1 YOUR STORE "Counter" (v1.07, mock-up
+## start_store_v6.html A) and page 2 YOUR BUILD, look B Staff room. Root owns navigation, keys,
+## RESTOCK's pick and the store page's two pop-ups (a regular's swap shelf, a starter basket's
+## aisle choice); game choices go through StartChoice (StartBoardActions), so this class only
+## displays them and routes input.
 
 signal clocked_in(pack: StarterPackDefinition)
 ## Esc (or ‹ TITLE) on the store page: the screen owns the scene change and its teardown.
@@ -10,25 +12,12 @@ signal back_to_title
 
 ## The keys the board answers; any other key goes on (F1's debug panel, global shortcuts).
 const KEYS: Array[Key] = [
-	KEY_ESCAPE,
-	KEY_ENTER,
-	KEY_KP_ENTER,
-	KEY_1,
-	KEY_2,
-	KEY_3,
-	KEY_4,
-	KEY_P,
-	KEY_R,
-	KEY_N,
-	KEY_UP,
-	KEY_DOWN,
-	KEY_SPACE,
-	KEY_BACKSPACE
+	KEY_ESCAPE, KEY_ENTER, KEY_KP_ENTER, KEY_1, KEY_2, KEY_3, KEY_4, KEY_P, KEY_R, KEY_N
 ]
 const NUMBER_KEYS: Array[Key] = [KEY_1, KEY_2, KEY_3, KEY_4]
-## The swap strip's left edge (just right of the aisle board) and its lowest bottom.
-const STRIP_LEFT := 456.0
-const STRIP_BOTTOM := 600.0
+## The pop-ups keep this far (stage px) from their anchor and from the stage's edges.
+const POP_GAP := 14.0
+const POP_TOP := 60.0
 
 var page: int = 1
 var selected: int = -1
@@ -38,7 +27,9 @@ var profile: ProfileState
 var store: StorePage
 var staff: StaffBuildPage
 var busy: bool = false
-var strip: RegularSwapStrip
+## The open pop-up (null while none) and what it is for: a regular's swap shelf (`_swap_slot`)
+## or a starter basket's aisle choice (`_aisle_basket`).
+var popover: StorePopover
 ## The page slide's length (s): CartRevealTuning.page_slide_s, set by the reveal before it adds
 ## the board.
 var slide_s: float = 0.3
@@ -59,12 +50,8 @@ var _pins: BadgeScreen
 var _note: Label
 var _save_hint: Label
 var _key_hint: Control
-## The swap strip (null while closed) and the regular it replaces: its slot, the card proposed,
-## whether it is a PUT BACK, and how it was dropped.
 var _swap_slot: int = -1
-var _swap_card: CardDefinition
-var _swap_restore: bool = false
-var _swap_via: String = "click"
+var _aisle_basket: int = -1
 
 
 func _init(shown_run: RunState, shown_profile: ProfileState, choice: StartBoardActions) -> void:
@@ -86,10 +73,11 @@ func _init(shown_run: RunState, shown_profile: ProfileState, choice: StartBoardA
 	StartBoardKit.panel(_pages, Rect2(Vector2.ZERO, ShiftStage.SIZE), Palette.BACKGROUND)
 	store = StorePage.new()
 	_pages.add_child(store)
-	store.drop_requested.connect(_dropped)
-	store.restore_requested.connect(open_restore)
-	store.restock_requested.connect(restock)
-	store.draft_changed.connect(_refresh_footer)
+	store.restock_pressed.connect(toggle_restock)
+	store.basket_clicked.connect(restock)
+	store.regular_clicked.connect(open_swap)
+	store.undo_clicked.connect(undo_swap)
+	store.sign_clicked.connect(open_aisles)
 	staff = StaffBuildPage.new()
 	_pages.add_child(staff)
 	staff.pick_requested.connect(pick)
@@ -113,15 +101,12 @@ func _init(shown_run: RunState, shown_profile: ProfileState, choice: StartBoardA
 	_next = StartBoardKit.key(_stage, "NEXT ›", Rect2(944, 640, 304, 66), _next_pressed, true)
 	_next.name = "Next"
 	_next_line = StartBoardKit.subtitle(_next, "Your build: pack, pins, cart")
-	_save_hint = StartBoardKit.body(
-		_stage,
-		"Regular replacements and aisle choices are saved to your profile.",
-		Rect2(270, 646, 650, 22),
-		Palette.CREAM,
-		14
-	)
-	_save_hint.add_theme_font_override("font", ArtStyle.bold_font(700))
-	_note = StartBoardKit.body(_stage, "", Rect2(380, 620, 520, 28), Palette.TOMATO_LIGHT, 14)
+	_save_hint = StartBoardKit.body(_stage, "", Rect2(270, 684, 640, 22), Palette.TEAL_PALE, 14)
+	_save_hint.name = "SaveHint"
+	_save_hint.add_theme_font_override("font", ArtStyle.bold_font(600))
+	_note = StartBoardKit.body(_stage, "", Rect2(270, 684, 640, 22), Palette.TOMATO_LIGHT, 14)
+	_note.name = "Note"
+	_note.add_theme_font_override("font", ArtStyle.bold_font(700))
 	_find_selected()
 	if run.start_setup.stage == StartSetup.Stage.BUILD:
 		page = 2
@@ -133,6 +118,8 @@ func _init(shown_run: RunState, shown_profile: ProfileState, choice: StartBoardA
 
 func _ready() -> void:
 	_resize()
+	if page == 1:
+		store.play_intro()
 
 
 ## The picked pack's place in the offer (-1: none picked).
@@ -141,11 +128,6 @@ func _find_selected() -> void:
 	for index: int in run.start_offer.packs.size():
 		if run.start_offer.packs[index].id == run.start_setup.picked:
 			selected = index
-
-
-## Whether nothing is dealt yet (LOCK IN & DEAL waits).
-func selecting() -> bool:
-	return run.start_setup.stage == StartSetup.Stage.SELECT
 
 
 func _resize() -> void:
@@ -161,127 +143,277 @@ func refresh() -> void:
 	_back_caption.text = "‹ TITLE" if page == 1 else "‹ STORE"
 	StartBoardKit.centre(_back_caption, Rect2(8, 2, _back.size.x - 16, _back.size.y - 8))
 	_next_plaque.visible = page == 1
-	_save_hint.visible = page == 1
 	_note.text = ""
 	_refresh_footer()
 
 
 func _show_build() -> void:
-	if not selecting():
-		staff.show_build(
-			_build_view(),
-			selected,
-			preview,
-			profile.reduced_motion(),
-			StartSetupRules.new_packs_block(run, profile)
-		)
+	staff.show_build(
+		_build_view(),
+		selected,
+		preview,
+		profile.reduced_motion(),
+		StartSetupRules.new_packs_block(run, profile)
+	)
 
 
-## The footer on page 1: LOCK IN & DEAL while nothing is dealt (disabled, saying what is
-## missing, while the draft isn't 2 STARTER CART and 1 RUN ONLY), else NEXT; and its key hints.
+## The footer on page 1: NEXT and its key hints (R only while a RESTOCK waits), and the line
+## saying the swaps (and aisle picks) stay for the next runs once they are unlocked.
 func _refresh_footer() -> void:
 	_next.visible = page == 1
-	var caption: Label = StartBoardKit.key_caption(_next)
-	var lock: bool = selecting()
-	var reason: StringName = store.lock_reason() if lock else &""
-	var done: int = StartSetupRules.completed(run.balance, profile).size()
-	caption.text = "LOCK IN & DEAL ›" if lock else "NEXT ›"
-	var pixels: int = 4
-	while pixels > 2 and StartBoardKit.text_width(caption.text, pixels) > _next.size.x - 24:
-		pixels -= 1
-	UiKit.use_pixel_text(caption, pixels)
-	var room: Rect2 = Rect2(8, 4, _next.size.x - 16, _next.size.y - 30)
-	UiKit.place_pixel_label(caption, room, true)
-	StartBoardKit.centre(caption, room)
-	_next.disabled = lock and reason != &""
-	caption.add_theme_color_override(
-		"font_color", Palette.INK_LIGHT if _next.disabled else Palette.PAPER
-	)
-	_next_line.text = (
-		StartReasons.lock(run, done, reason) if lock else "Your build: pack, pins, cart"
-	)
-	_next_line.add_theme_color_override(
-		"font_color", Palette.INK if _next.disabled else Palette.PAPER
-	)
-	_next.tooltip_text = _next_line.text
-	var line_font: Font = _next_line.get_theme_font("font")
-	var line_size: int = 14
-	while (
-		line_size > 11
-		and (
-			line_font.get_string_size(_next_line.text, HORIZONTAL_ALIGNMENT_LEFT, -1, line_size).x
-			> _next_line.size.x
-		)
-	):
-		line_size -= 1
-	_next_line.add_theme_font_size_override("font_size", line_size)
 	if _key_hint != null:
 		_stage.remove_child(_key_hint)
 		_key_hint.queue_free()
 		_key_hint = null
+	var swaps: bool = StartSetupRules.swap_limit(run, profile) > 0
+	var aisles: bool = StartSetupRules.choice_mode(run.balance, profile)
+	_save_hint.text = (
+		"Swaps and aisle picks stay for your next runs."
+		if aisles
+		else "Swaps stay for your next runs." if swaps else ""
+	)
+	_save_hint.visible = page == 1 and _note.text == ""
 	if page != 1:
 		return
-	var parts: PackedStringArray = (
-		["ENTER", "lock in & deal"] if lock else ["ENTER", "next", "R", "restock"]
-	)
-	if store.choosing():
-		parts.append_array(["SPACE", "aisle status"])
-	parts.append_array(["1-4", "replace a regular", "ESC", "back"])
-	_key_hint = StartBoardKit.hints(_stage, parts, Vector2(270, 676), Palette.CREAM)
+	var parts: PackedStringArray = ["ENTER", "next"]
+	if store.restock_unlocked() and store.can_restock():
+		parts.append_array(["R", "restock"])
+	if store.restock_picking:
+		parts = PackedStringArray(["1-3", "restock that basket", "ESC", "cancel"])
+	else:
+		parts.append_array(["ESC", "back"])
+	_key_hint = StartBoardKit.hints(_stage, parts, Vector2(270, 652), Palette.CREAM)
+
+
+## A short message in the footer (a refused or unsaved action), in place of the saves line.
+func say(text: String) -> void:
+	_note.text = text
+	_save_hint.visible = text == "" and page == 1
 
 
 func _next_pressed() -> void:
-	if selecting():
-		lock_in()
-	else:
-		show_page(2, "click")
+	show_page(2, "click")
 
 
-## LOCK IN & DEAL with the store page's draft: deals the baskets and the offer (saved), then
-## uncovers the baskets. False when refused or not saved.
-func lock_in() -> bool:
-	if busy or _blocked() or not selecting() or store.lock_reason() != &"":
+## The RESTOCK key: the baskets wait for a pick, or stop waiting.
+func toggle_restock() -> bool:
+	if store.restock_picking:
+		cancel_restock()
+		return true
+	return start_restock()
+
+
+## R on page 1: the baskets wait for a click or 1–3 (only while a basket can be restocked).
+func start_restock() -> bool:
+	if page != 1 or busy or _blocked() or not store.can_restock():
 		return false
-	store.cancel_carry()
-	if not _choice.lock_in.call(store.draft_green(), store.draft_run_only(), store.status_clicks):
-		_note.text = "Could not save the deal. Try again."
-		return false
-	_find_selected()
-	preview = -1
-	Sfx.play_at(self, "ui_confirm")
-	refresh()
-	store.play_deal(profile.reduced_motion())
+	store.set_restock_picking(true)
+	Sfx.play_at(self, "ui_click")
+	_refresh_footer()
 	return true
 
 
-## RESTOCK basket `basket` (saved at once), then plays that basket's reveal.
+func cancel_restock() -> void:
+	store.set_restock_picking(false)
+	_refresh_footer()
+
+
+## RESTOCK basket `basket` (saved at once): its two items hop out and a new pair drops in.
 func restock(basket: int) -> bool:
 	if busy or _blocked() or page != 1:
 		return false
 	if StartSetupRules.restock_block(run, profile, basket) != &"":
-		store.set_restock_picking(false)
 		return false
-	store.cancel_carry()
-	if not _choice.restock_basket.call(basket):
-		_note.text = "Restock could not be saved."
-		return false
-	Sfx.play_at(self, "ui_click")
+	var before: Array[CardDefinition] = run.start_setup.baskets[basket].cards.duplicate()
 	store.restock_picking = false
+	if not _choice.restock_basket.call(basket):
+		refresh()
+		say("Restock could not be saved. Try again.")
+		return false
+	_choice.mark_seen.call(StorePage.NEW_RESTOCK)
+	Sfx.play_at(self, "ui_confirm")
 	refresh()
-	store.play_deal(profile.reduced_motion(), basket)
+	store.play_redeal(basket, before)
 	return true
 
 
-## R on page 1: the RESTOCK tags wait for 1–3 (only while a basket can be restocked).
-func start_restock() -> bool:
-	if page != 1 or _blocked():
+## Regular `slot`'s swap shelf: one tab per completed aisle, the open tab's offer (saved the first
+## time it is shown); `aisle_id` opens that tab (&"": the slot's own aisle when swapped, else the
+## first open one).
+func open_swap(slot: int, aisle_id: StringName = &"") -> bool:
+	if busy or page != 1 or _pins_open() or store.restock_picking or not store.can_swap(slot):
 		return false
-	for basket: int in run.start_setup.baskets.size():
-		if StartSetupRules.restock_block(run, profile, basket) == &"":
-			store.cancel_carry()
-			store.set_restock_picking(true)
-			return true
-	return false
+	var aisles: Array[AisleDefinition] = StartSetupRules.completed(run.balance, profile)
+	var blocks: Array[StringName] = []
+	var open: StringName = aisle_id
+	var card: CardDefinition = run.starter.core_cards[slot]
+	var swapped_from: AisleDefinition = (
+		run.balance.aisle_of(card) if card != run.start_setup.originals[slot] else null
+	)
+	for aisle: AisleDefinition in aisles:
+		var reason: StringName = StartSetupRules.target_block(run, profile, slot, aisle.id)
+		blocks.append(reason)
+		if open == &"" and swapped_from == aisle:
+			open = aisle.id
+	if open == &"":
+		for index: int in aisles.size():
+			if open == &"" and blocks[index] == &"":
+				open = aisles[index].id
+	var cards: Array[CardDefinition] = []
+	var reasons: Array[StringName] = []
+	if open != &"":
+		cards = _choice.regular_offer.call(slot, open)
+		for offered: CardDefinition in cards:
+			reasons.append(StartSetupRules.swap_block(run, profile, slot, offered))
+	if _swap_slot != slot:
+		_open_modal()
+	_swap_slot = slot
+	store.set_open_slot(slot)
+	popover.show_swap(
+		run,
+		run.starter.core_cards[slot],
+		run.start_setup.originals[slot],
+		aisles,
+		blocks,
+		open,
+		cards,
+		reasons
+	)
+	var tile: Rect2 = store.tile_rect(slot)
+	_place(tile, true)
+	return true
+
+
+## Swaps the open shelf's regular for `card` at once (no confirm; its put-back tag undoes it).
+func swap_to(card: CardDefinition, via: String = "click") -> bool:
+	var slot: int = _swap_slot
+	if slot < 0 or not StartSetupRules.can_swap(run, profile, slot, card):
+		return false
+	_close_modal()
+	if not _choice.swap_staple.call(slot, card, via):
+		refresh()
+		say("The swap could not be saved. Try again.")
+		return false
+	_choice.mark_seen.call(StorePage.NEW_SWAP)
+	Sfx.play_at(self, "ui_confirm")
+	refresh()
+	store.play_flip(slot)
+	return true
+
+
+## The put-back tag on swapped regular `slot` (or the shelf's BACK TO tab): its original returns.
+func undo_swap(slot: int) -> bool:
+	if busy or page != 1 or _pins_open():
+		return false
+	if not StartSetupRules.can_restore(run, slot):
+		say("Putting it back would break the %d-copy limit." % run.starter.copy_max)
+		return false
+	_close_modal()
+	if not _choice.restore_regular.call(slot, "click"):
+		refresh()
+		say("The swap could not be saved. Try again.")
+		return false
+	Sfx.play_at(self, "ui_click")
+	refresh()
+	store.play_flip(slot)
+	return true
+
+
+## Starter basket `basket`'s aisle choice: the other completed aisles as signs.
+func open_aisles(basket: int) -> bool:
+	if busy or page != 1 or _pins_open() or store.restock_picking or not store.can_change(basket):
+		return false
+	var current: AisleDefinition = StorePage.aisle_of(run, run.start_setup.baskets[basket].source)
+	var choices: Array[AisleDefinition] = []
+	for id: StringName in StartSetupRules.aisle_options(run, profile, basket):
+		choices.append(StorePage.aisle_of(run, id))
+	var extra: Array[StringName] = run.start_setup.run_only_ids(run.balance)
+	var extra_aisle: AisleDefinition = (
+		StorePage.aisle_of(run, extra[0]) if not extra.is_empty() else null
+	)
+	_open_modal()
+	_aisle_basket = basket
+	store.set_open_basket(basket)
+	popover.show_aisles(
+		basket, current, choices, extra_aisle.display_name if extra_aisle != null else "none"
+	)
+	_place(store.sign_rect(basket), false)
+	return true
+
+
+## Deals the open pop-up's basket again from aisle `aisle_id` (saved at once).
+func change_aisle(aisle_id: StringName) -> bool:
+	var basket: int = _aisle_basket
+	if basket < 0 or StartSetupRules.aisle_block(run, profile, basket, aisle_id) != &"":
+		return false
+	var before: Array[CardDefinition] = run.start_setup.baskets[basket].cards.duplicate()
+	_close_modal()
+	if not _choice.change_aisle.call(basket, aisle_id):
+		refresh()
+		say("The aisle change could not be saved. Try again.")
+		return false
+	_choice.mark_seen.call(StorePage.NEW_AISLE)
+	Sfx.play_at(self, "ui_confirm")
+	refresh()
+	store.play_redeal(basket, before)
+	store.play_wiggle(basket)
+	return true
+
+
+## The modal layer for a pop-up: a click outside it closes it.
+func _open_modal() -> void:
+	_close_modal()
+	_modal = Control.new()
+	_modal.name = "PopLayer"
+	_modal.size = ShiftStage.SIZE
+	_modal.mouse_filter = Control.MOUSE_FILTER_STOP
+	_modal.gui_input.connect(
+		func(event: InputEvent) -> void:
+			var button: InputEventMouseButton = event as InputEventMouseButton
+			if button != null and button.pressed:
+				_close_modal()
+	)
+	_stage.add_child(_modal)
+	popover = StorePopover.new()
+	_modal.add_child(popover)
+	popover.tab_chosen.connect(func(aisle_id: StringName) -> void: open_swap(_swap_slot, aisle_id))
+	popover.chosen.connect(swap_to)
+	popover.restore_chosen.connect(func() -> void: undo_swap(_swap_slot))
+	popover.aisle_chosen.connect(change_aisle)
+	popover.closed.connect(_close_modal)
+	if not profile.reduced_motion():
+		popover.scale = Vector2.ONE * 0.85
+		popover.modulate.a = 0.0
+		var tween: Tween = popover.create_tween().set_parallel()
+		tween.tween_property(popover, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_BACK)
+		tween.tween_property(popover, "modulate:a", 1.0, 0.12)
+
+
+## Places the pop-up over `anchor` (`above`: above it when it fits, else below; otherwise below),
+## inside the stage.
+func _place(anchor: Rect2, above: bool) -> void:
+	var pop_size: Vector2 = popover.size
+	var left: float = anchor.get_center().x - pop_size.x / 2.0
+	left = clampf(left, 12, ShiftStage.SIZE.x - 12 - pop_size.x)
+	var top: float = anchor.end.y + POP_GAP
+	if above and anchor.position.y - pop_size.y - POP_GAP >= POP_TOP:
+		top = anchor.position.y - pop_size.y - POP_GAP
+	top = clampf(top, POP_TOP, ShiftStage.SIZE.y - 12 - pop_size.y)
+	popover.position = Vector2(left, top).floor()
+	popover.pivot_offset = Vector2(pop_size.x / 2.0, pop_size.y if above else 0.0)
+
+
+func _close_modal() -> void:
+	if _modal != null:
+		_stage.remove_child(_modal)
+		_modal.queue_free()
+		_modal = null
+	popover = null
+	if _swap_slot >= 0 or _aisle_basket >= 0:
+		_swap_slot = -1
+		_aisle_basket = -1
+		store.set_open_slot(-1)
+		store.set_open_basket(-1)
 
 
 ## NEW PACKS (saved at once): three other crates, the pick cleared.
@@ -365,9 +497,6 @@ func _refresh_header() -> void:
 			show_page.bind(index + 1, "tab")
 		)
 		tab.name = "Tab%d" % (index + 1)
-		if index == 1 and selecting():
-			tab.disabled = true
-			tab.tooltip_text = "LOCK IN & DEAL first"
 		if active:
 			StartBoardKit.restyle(tab, Palette.PAPER, Palette.MUSTARD, 4)
 		else:
@@ -411,16 +540,8 @@ func _chip(rect: Rect2, chip_name: String) -> Control:
 
 
 func show_page(next_page: int, key: String = "click") -> void:
-	if (
-		busy
-		or _modal != null
-		or (_pins != null and _pins.visible)
-		or next_page == page
-		or next_page not in [1, 2]
-		or (next_page == 2 and selecting())
-	):
+	if busy or _modal != null or _pins_open() or next_page == page or next_page not in [1, 2]:
 		return
-	store.cancel_carry()
 	store.restock_picking = false
 	if next_page == 2 and run.start_setup.stage == StartSetup.Stage.REVEALED:
 		_choice.mark_build.call()
@@ -472,7 +593,7 @@ func pick(index: int) -> void:
 		Sfx.play_at(self, "ui_click")
 		refresh()
 	else:
-		_note.text = "Could not save your pick. Try again."
+		say("Could not save your pick. Try again.")
 
 
 func _preview(index: int) -> void:
@@ -491,10 +612,13 @@ func _build_view() -> StartBuildView:
 	return view
 
 
+## Clocks in with the picked pack; the NEW tags shown this run are marked seen (first time only).
 func clock_in() -> bool:
 	if page != 2 or selected < 0 or busy or _blocked():
 		return false
 	busy = true
+	for id: StringName in store.fresh:
+		_choice.mark_seen.call(id)
 	if profile.reduced_motion():
 		clocked_in.emit(run.start_offer.packs[selected])
 	else:
@@ -513,12 +637,10 @@ func back(key: String = "esc") -> void:
 		return
 	if _modal != null:
 		_close_modal()
-	elif _pins != null and _pins.visible:
+	elif _pins_open():
 		_pins.close()
-	elif store.carrying():
-		store.cancel_carry()
 	elif store.restock_picking:
-		store.set_restock_picking(false)
+		cancel_restock()
 	elif page == 2:
 		show_page(1, key)
 	else:
@@ -526,9 +648,13 @@ func back(key: String = "esc") -> void:
 		back_to_title.emit()
 
 
-## Whether the swap strip or the pins are open over the page.
+## Whether a pop-up or the pins are open over the page.
 func _blocked() -> bool:
-	return _modal != null or (_pins != null and _pins.visible)
+	return _modal != null or _pins_open()
+
+
+func _pins_open() -> bool:
+	return _pins != null and _pins.visible
 
 
 func open_pins() -> void:
@@ -539,134 +665,11 @@ func open_pins() -> void:
 	_pins = _choice.open_pins.call(_stage, refresh, Vector2(-140, 0)) as BadgeScreen
 
 
-## The carried regular `slot` was dropped on aisle `aisle_id` (`via` drag, click or key): opens
-## the aisle's strip for it, or straight its preview when the aisle offers one item; a row that
-## can't take it says why in the tray.
-func _dropped(slot: int, aisle_id: StringName, via: String) -> void:
-	if busy or _blocked():
-		return
-	var reason: StringName = StartSetupRules.target_block(run, profile, slot, aisle_id)
-	if reason != &"":
-		store.say(StartReasons.target(run, reason) + ".")
-		return
-	var offer: Array[CardDefinition] = _choice.regular_offer.call(slot, aisle_id)
-	if offer.is_empty():
-		store.say("Could not save the aisle's offer. Try again.")
-		return
-	_swap_slot = slot
-	_swap_via = via
-	_swap_restore = false
-	if offer.size() == 1:
-		open_preview(slot, offer[0], false)
-		return
-	var reasons: Array[StringName] = []
-	for card: CardDefinition in offer:
-		reasons.append(StartSetupRules.swap_block(run, profile, slot, card))
-	_open_strip(store.board.row_rect(aisle_id))
-	strip.show_strip(
-		run, run.starter.core_cards[slot], AisleBoard._aisle(run, aisle_id), offer, reasons
-	)
-	_place_strip()
-
-
-## The WAS key under a replaced regular: the PUT BACK preview.
-func open_restore(slot: int) -> void:
-	if busy or _blocked():
-		return
-	if not StartSetupRules.can_restore(run, slot):
-		store.say("Putting it back would break the %d-copy limit." % run.starter.copy_max)
-		return
-	store.cancel_carry()
-	_swap_slot = slot
-	_swap_via = "click"
-	var regular: Control = store.regulars[slot]
-	open_preview(slot, run.start_setup.originals[slot], true, Rect2(regular.position, regular.size))
-
-
-## The preview of regular `slot` becoming `card` (`restore`: its original), CONFIRM or CANCEL.
-func open_preview(slot: int, card: CardDefinition, restore: bool, near: Rect2 = Rect2()) -> void:
-	if strip == null:
-		_open_strip(near)
-	_swap_slot = slot
-	_swap_card = card
-	_swap_restore = restore
-	strip.show_preview(run.starter.core_cards[slot], card, restore)
-	_place_strip()
-
-
-## Confirms the preview: the swap (or PUT BACK) is saved; the baskets are never re-dealt.
-func confirm_swap() -> bool:
-	if strip == null or not strip.previewing or _swap_card == null:
-		return false
-	var saved: bool = (
-		_choice.restore_regular.call(_swap_slot, _swap_via)
-		if _swap_restore
-		else _choice.swap_staple.call(_swap_slot, _swap_card, _swap_via)
-	)
-	_close_modal()
-	if not saved:
-		_note.text = "The replacement could not be saved."
-		return false
-	Sfx.play_at(self, "ui_confirm")
-	refresh()
-	return true
-
-
-## The modal layer for the strip: a light dim over the stage that cancels on a click.
-func _open_strip(near: Rect2) -> void:
-	_close_modal()
-	_modal = Control.new()
-	_modal.name = "SwapLayer"
-	_modal.size = ShiftStage.SIZE
-	_modal.mouse_filter = Control.MOUSE_FILTER_STOP
-	_modal.set_meta("near", near)
-	_modal.gui_input.connect(
-		func(event: InputEvent) -> void:
-			var button: InputEventMouseButton = event as InputEventMouseButton
-			if button != null and button.pressed:
-				_close_modal()
-	)
-	_stage.add_child(_modal)
-	var dim: ColorRect = ColorRect.new()
-	dim.color = Color(Palette.TEAL_BLACK, 0.55)
-	dim.position = -ShiftStage.SIZE
-	dim.size = ShiftStage.SIZE * 3
-	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_modal.add_child(dim)
-	strip = RegularSwapStrip.new()
-	_modal.add_child(strip)
-	strip.chosen.connect(func(card: CardDefinition) -> void: open_preview(_swap_slot, card, false))
-	strip.confirmed.connect(confirm_swap)
-	strip.cancelled.connect(_close_modal)
-
-
-## Places the strip beside the row (or regular) it came from, inside the stage.
-func _place_strip() -> void:
-	var near: Rect2 = _modal.get_meta("near", Rect2())
-	var top: float = near.get_center().y - strip.size.y / 2.0
-	var left: float = STRIP_LEFT
-	if near.position.x > STRIP_LEFT:
-		left = near.get_center().x - strip.size.x / 2.0
-		top = near.position.y - strip.size.y - 12
-	left = clampf(left, 12, ShiftStage.SIZE.x - 12 - strip.size.x)
-	top = clampf(top, 60, STRIP_BOTTOM - strip.size.y)
-	strip.position = Vector2(left, top).floor()
-
-
-func _close_modal() -> void:
-	if _modal != null:
-		_stage.remove_child(_modal)
-		_modal.queue_free()
-		_modal = null
-	strip = null
-	_swap_card = null
-
-
 func _input(event: InputEvent) -> void:
 	var key: InputEventKey = event as InputEventKey
 	if not is_visible_in_tree() or key == null or not key.pressed or key.echo:
 		return
-	if _pins != null and _pins.visible:
+	if _pins_open():
 		if _pins.handle_key(key):
 			get_viewport().set_input_as_handled()
 		return
@@ -693,11 +696,10 @@ func _act(keycode: Key) -> void:
 		back()
 	elif busy:
 		return
-	elif strip != null:
-		if strip.previewing and enter:
-			confirm_swap()
-		elif not strip.previewing and number >= 0:
-			strip.choose(number)
+	elif popover != null:
+		var card: CardDefinition = popover.card_at(number) if _swap_slot >= 0 else null
+		if card != null:
+			swap_to(card, "key")
 	elif _modal != null:
 		return
 	elif page == 2:
@@ -721,32 +723,22 @@ func _act_store(keycode: Key, enter: bool, number: int) -> void:
 	if store.restock_picking:
 		if number >= 0 and number < run.start_setup.baskets.size():
 			restock(number)
+		elif keycode == KEY_R:
+			cancel_restock()
 		return
-	if keycode in [KEY_UP, KEY_DOWN]:
-		store.move_focus(-1 if keycode == KEY_UP else 1)
-	elif keycode == KEY_SPACE or (enter and store.carrying()):
-		store.activate_focus()
-	elif enter:
-		if selecting():
-			lock_in()
-		else:
-			show_page(2, "enter")
-	elif number >= 0:
-		if store.carry_slot == number:
-			store.cancel_carry()
-		else:
-			store.carry(number, "key")
-	elif keycode == KEY_BACKSPACE and store.carrying():
-		open_restore(store.carry_slot)
-	elif keycode == KEY_R and not selecting():
+	if enter:
+		show_page(2, "enter")
+	elif keycode == KEY_R:
 		start_restock()
+	elif number >= 0:
+		open_swap(number)
 
 
 ## The card tile under the pointer that may show its scan popup (CartReveal's, with its hold):
-## a control carrying a "card" meta on the shown page; null while a sheet, the pins or a slide
+## a control carrying a "card" meta on the shown page; null while a pop-up, the pins or a slide
 ## covers the board.
 func hovered_card() -> Control:
-	if busy or _blocked() or store.carrying() or not is_visible_in_tree():
+	if busy or _blocked() or not is_visible_in_tree():
 		return null
 	var hovered: Control = get_viewport().gui_get_hovered_control()
 	while hovered != null and not hovered.has_meta("card"):

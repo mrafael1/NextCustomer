@@ -1,0 +1,15 @@
+; The start screen's swap mark (page 1 "Counter", v1.07, mock-up start_store_v6.html A): two
+; opposed arrows on a regular's swap badge and a starter aisle sign's tab; 9x10, shown at 2x,
+; paper w on the badge's teal face (an ink modulate on its mustard hover).
+@size 9x10
+@kind icon
+......w..
+.......w.
+wwwwwwwww
+.......w.
+......w..
+..w......
+.w.......
+wwwwwwwww
+.w.......
+..w......
