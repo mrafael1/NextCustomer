@@ -3,7 +3,8 @@ extends Control
 ## The machine's LED display (#77, look F; build spec 4.2-4.3; the relook in v0.86, mock-up
 ## docs/art/mockups/machine_relook.html V2): a charcoal glass with scanlines in a steel bezel,
 ## left of the receipt slot, 340 px wide. Its message is hard pixel lettering at 2x in gold
-## (MachineLine: its amounts in the chunky price-gun digits, PixelWords.Sheet.CHUNKY, its marks
+## (MachineLine, chunky since v0.97: its words in the chunky capitals, PixelWords.Sheet.
+## CHUNKY_CAPS, its amounts in the chunky price-gun digits, PixelWords.Sheet.CHUNKY, its marks
 ## ✓ ✕ drawn as pixels), with its sub line in bold Atkinson 12 (teal pale) under it; a message
 ## too wide for the glass wraps onto a second line instead of shrinking (the sub line then gives
 ## way). The SKIP bin bins a draw (2026-10-29, SkipBin).
@@ -28,7 +29,7 @@ const GLASS_RECT := Rect2(6, 6, 328, 48)
 const PAD := 8.0
 ## The message's capitals (one line, or two when wrapped) and the sub line's box.
 const LINE_TOP := 14.0
-const LONE_TOP := 23.0
+const LONE_TOP := 22.0
 const WRAP_TOPS: Array[float] = [10.0, 30.0]
 const SUB_TOP := 32.0
 const SUB_HEIGHT := 18.0
@@ -79,6 +80,7 @@ func _init() -> void:
 	for index: int in range(2):
 		var line: MachineLine = MachineLine.new()
 		line.name = "Message%d" % index
+		line.chunky = true
 		add_child(line)
 		_lines.append(line)
 	_sub = UiKit.body_label("", SUB_SIZE, Palette.TEAL_PALE)
@@ -360,8 +362,7 @@ func _show(message: String, sub: String) -> void:
 		if not line.visible:
 			continue
 		line.show_text(parts[index], Palette.GOLD, Palette.GOLD)
-		var cap: float = ArtStyle.PIXEL_CAP_HEIGHT * ArtStyle.ART_SCALE
-		line.centre_in(Rect2(icon_room, tops[index], SIZE.x - icon_room, cap))
+		line.centre_in(Rect2(icon_room, tops[index], SIZE.x - icon_room, line.size.y))
 	if _icon.visible:
 		# The icon and the line centred together.
 		var pair: float = _icon.size.x + ICON_GAP + _lines[0].width()
@@ -377,7 +378,7 @@ func _show(message: String, sub: String) -> void:
 ## `message` as it fits `room` px of glass: one line, or split at the space nearest its middle
 ## into two when it is too wide (a single long word stays one line).
 static func wrap_message(message: String, room: float) -> PackedStringArray:
-	if message.is_empty() or MachineLine.width_of(message) <= room:
+	if message.is_empty() or MachineLine.width_of(message, 1, true) <= room:
 		return PackedStringArray([message])
 	var words: PackedStringArray = message.split(" ")
 	var best: PackedStringArray = PackedStringArray([message])
@@ -385,7 +386,9 @@ static func wrap_message(message: String, room: float) -> PackedStringArray:
 	for cut: int in range(1, words.size()):
 		var first: String = " ".join(words.slice(0, cut))
 		var second: String = " ".join(words.slice(cut))
-		var wide: float = maxf(MachineLine.width_of(first), MachineLine.width_of(second))
+		var wide: float = maxf(
+			MachineLine.width_of(first, 1, true), MachineLine.width_of(second, 1, true)
+		)
 		if wide < widest:
 			widest = wide
 			best = PackedStringArray([first, second])

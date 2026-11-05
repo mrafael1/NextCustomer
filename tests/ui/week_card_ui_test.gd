@@ -266,8 +266,9 @@ func test_the_week_bonus_plays_in_the_count_up_from_the_week_chip() -> void:
 
 
 ## Holiday rush raises the machine's odds a level (v0.70): after shift 9 the stock window's lit
-## columns show the raised level's shares and a gold "WEEK ODDS +1" line inside the window, clear
-## of every odds label; after shift 8 (Bakery festival) there is none.
+## columns show the raised level's shares and a gold "ODDS +1 · WEEK" tag inside the window (under
+## its odds plates since v0.97), clear of every odds label; after shift 8 (Bakery festival) there
+## is none.
 func test_the_stock_window_shows_the_week_odds() -> void:
 	for shift: int in [8, 9]:
 		var balance: BalanceDefinition = (load(BALANCE) as BalanceDefinition).duplicate()
@@ -292,7 +293,7 @@ func test_the_stock_window_shows_the_week_odds() -> void:
 			assert_bool(line.visible).is_false()
 		else:
 			assert_bool(line.visible).is_true()
-			assert_str(line.text()).is_equal("WEEK ODDS +1")
+			assert_str(line.text()).is_equal("ODDS +1 · WEEK")
 			var window: Rect2 = view.stock.get_global_rect()
 			var rect: Rect2 = line.get_global_rect()
 			assert_bool(window.encloses(rect)).override_failure_message(str(rect)).is_true()

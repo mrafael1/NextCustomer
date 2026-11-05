@@ -4,15 +4,16 @@ extends Control
 ## machine_relook_v3.html), right of the cabinet's middle pillar (RewardMachineView.BAY_POSITION):
 ## the prize tickets land here, each on its own pedestal under a spotlight, so the row reads as a
 ## prize counter. A steel frame (ink, steel dark, ink, a charcoal floor 8 px in; on the night face
-## a row of chasing bulbs along its top), an LED header (charcoal with scanlines) whose hard pixel
+## a row of chasing bulbs along its top), an LED header (charcoal with scanlines) whose chunky pixel
 ## line follows the visit: "PRIZE BAY" (teal light) before the draw, "YOUR PRIZES · KEEP 1" (gold)
 ## once the tickets drop, "GOOD PICK" (gold) after a pick, blank while idle. Under it each ticket's
 ## lamp (lit mustard pale once the tickets drop) and its dithered cone of light; under each ticket
 ## a pedestal with a steel lip (brass once the tray turns gold, PREMIUM) and a light strip that
-## turns on as its ticket is revealed (reveal_at). Before the draw each slot is a dashed
-## placeholder with a "?" and the bay says how many sealed prizes drop here. The floor (a line and
-## a grid of ticks) has the SKIP bin's hatch. frame(t) reads only view.plan, t, view.idle_time and
-## MachineLook. Display only.
+## turns on as its ticket is revealed (reveal_at), in its card's rarity (v0.97, mock-up
+## card_rarity.html: cream shade, teal pale, gold; STRIP_LIGHTS). Before the draw each slot is a
+## dashed placeholder with a "?" and the bay says how many sealed prizes drop here. The floor (a
+## line and a grid of ticks) has the SKIP bin's hatch. frame(t) reads only view.plan, t,
+## view.idle_time and MachineLook. Display only.
 
 const SIZE := Vector2(500, 508)
 ## The frame's charcoal floor starts this far in.
@@ -41,6 +42,8 @@ const PEDESTAL_GAP := 8.0
 const PEDESTAL_GROW := 6.0
 const PEDESTAL_HEIGHT := 12.0
 const STRIP_INSET := 8.0
+## A lit strip's colour by its ticket's rarity (the plan's: the card's look).
+const STRIP_LIGHTS: Array[Color] = [Palette.CREAM_SHADE, Palette.TEAL_PALE, Palette.GOLD]
 ## The placeholder's dashes and "?" before the draw, and the line under the slots.
 const DASH := 4.0
 const HINT := "%d sealed prizes drop here"
@@ -58,6 +61,7 @@ var _header: MachineLine
 var _marks: Array[MachineLine] = []
 var _state: Array = []
 var _strips: Array[bool] = []
+var _strip_rarities: Array[int] = []
 var _n: int = 3
 var _drawn: bool = false
 var _idle: bool = true
@@ -71,7 +75,9 @@ func _init() -> void:
 	name = "PrizeBay"
 	size = SIZE
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_header = MachineLine.make("Header", "", Palette.TEAL_LIGHT)
+	_header = MachineLine.make(
+		"Header", "", Palette.TEAL_LIGHT, MachineLine.clear(), 1, MachineLine.clear(), true
+	)
 	add_child(_header)
 	for index: int in range(3):
 		var mark: MachineLine = MachineLine.make(
@@ -123,6 +129,22 @@ static func strip_lit(plan: MachinePlan, t: float, index: int) -> bool:
 	return t >= plan.reveal_at[index]
 
 
+## Ticket `index`'s rarity on view.plan (MachinePrize.Rarity; COMMON before the draw).
+static func strip_rarity(plan: MachinePlan, index: int) -> int:
+	if plan == null or index >= plan.rarities.size():
+		return MachinePrize.Rarity.COMMON
+	return clampi(plan.rarities[index], 0, STRIP_LIGHTS.size() - 1)
+
+
+## A lit strip's colour now, by pedestal (for tests; transparent: unlit).
+func strip_colours() -> Array[Color]:
+	var colours: Array[Color] = []
+	for index: int in _strips.size():
+		var lit: bool = _strips[index] and index < _strip_rarities.size()
+		colours.append(STRIP_LIGHTS[_strip_rarities[index]] if lit else Color(Palette.INK, 0.0))
+	return colours
+
+
 ## The header line (hard pixel lettering), for tests.
 func header() -> MachineLine:
 	return _header
@@ -140,12 +162,16 @@ func frame(t: float) -> void:
 	var drawn: bool = drawn_at(plan, t)
 	var count: int = plan.n_prizes if drawn else _slots()
 	var strips: Array[bool] = []
+	var strip_rarities: Array[int] = []
 	for index: int in range(count):
 		strips.append(strip_lit(plan, t, index))
+		strip_rarities.append(strip_rarity(plan, index))
 	var text: String = header_text(plan, t)
 	var chase: float = view.idle_time if view != null else 0.0
 	var night: bool = look.night_face()
-	var state: Array = [text, drawn, count, strips, look.tray_gold(), night, plan == null]
+	var state: Array = [
+		text, drawn, count, strips, strip_rarities, look.tray_gold(), night, plan == null
+	]
 	if state == _state and not (night and chase != _chase):
 		return
 	_chase = chase
@@ -156,6 +182,7 @@ func frame(t: float) -> void:
 	_drawn = drawn
 	_n = count
 	_strips = strips
+	_strip_rarities = strip_rarities
 	_gold = look.tray_gold()
 	_night = night
 	_look = look
@@ -270,8 +297,10 @@ func _draw_pedestal(index: int) -> void:
 		2.0 * p
 	)
 	var lit: bool = index < _strips.size() and _strips[index]
-	var light: Color = Palette.GOLD if _gold else Palette.MUSTARD_LIGHT
-	draw_rect(strip, light if lit else Palette.RUBBER)
+	var light: Color = Palette.RUBBER
+	if lit and index < _strip_rarities.size():
+		light = STRIP_LIGHTS[_strip_rarities[index]]
+	draw_rect(strip, light)
 
 
 ## The floor's line, its ticks and the SKIP bin's hatch.

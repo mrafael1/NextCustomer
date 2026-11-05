@@ -5,8 +5,9 @@ extends Control
 ## same strip, with the mouth (charcoal, a steel dark lip) the receipt feeds into, the brass arrow
 ## under it, the status lamp at the bottom right (green dark, green once the receipt is read) and
 ## the red scan bar under the mouth, blinking while the receipt is fed and read (reduced motion:
-## steady). Once a BOOSTED visit turns PREMIUM (MachineLook) the gold receipt stays in the slot for
-## the whole visit, sticking out of the mouth with a shine every STUB_SHINE_PERIOD seconds.
+## steady). As a visit turns PREMIUM (MachineLook) the gold receipt pops up in the slot with a
+## shine and is fed in (MachineLook.stub_left), gone once swallowed as a classic receipt is (v0.97:
+## it used to stay half inserted for the whole visit).
 
 const SIZE := Vector2(112, 60)
 const MOUTH_RECT := Rect2(12, 18, 88, 8)
@@ -28,6 +29,7 @@ var _lamp_on: bool = false
 var _scan_on: bool = false
 var _gold: bool = false
 var _stub: bool = false
+var _stub_left: float = 0.0
 var _shine: float = -1.0
 
 
@@ -47,7 +49,7 @@ func scan_bar_on() -> bool:
 	return _scan_on
 
 
-## Whether the gold receipt stands in the slot (a PREMIUM machine).
+## Whether the gold receipt sticks out of the slot (a PREMIUM machine's transform).
 func stub_shown() -> bool:
 	return _stub
 
@@ -78,16 +80,18 @@ func frame(t: float) -> void:
 	if reading and not plan.reduced_motion:
 		reading = int(floorf(t * BLINK_RATE)) % 2 == 0
 	var look: MachineLook = MachineLook.at(plan, t)
+	var left: float = look.stub_left()
 	var shine: float = -1.0
-	if look.premium() and view != null:
+	if left > 0.0 and view != null:
 		shine = fposmod(view.idle_time, STUB_SHINE_PERIOD) / STUB_SHINE_LENGTH
 	var changed: bool = lamp != _lamp_on or reading != _scan_on
-	changed = changed or look.tray_gold() != _gold or look.premium() != _stub
+	changed = changed or look.tray_gold() != _gold or left != _stub_left
 	if changed or shine != _shine:
 		_lamp_on = lamp
 		_scan_on = reading
 		_gold = look.tray_gold()
-		_stub = look.premium()
+		_stub = left > 0.0
+		_stub_left = left
 		_shine = shine
 		queue_redraw()
 
@@ -109,14 +113,23 @@ func _draw() -> void:
 		_draw_stub()
 
 
-## The gold receipt in the slot: its lines, the mouth's top line over it, its shine.
+## The gold receipt in the slot, `_stub_left` of it out (on the 2 px grid): its lines and its
+## shine above the mouth's top line, which hides what has gone in.
 func _draw_stub() -> void:
-	MachineArt.box(self, STUB_RECT, Palette.GOLD, Palette.BRASS_DARKEST)
-	var at: Vector2 = STUB_RECT.position
-	draw_rect(Rect2(at + Vector2(2, 2), Vector2(28, 2)), Palette.MUSTARD_PALE)
-	draw_rect(Rect2(at + Vector2(6, 8), Vector2(16, 2)), Palette.BRASS)
-	draw_rect(Rect2(at + Vector2(6, 12), Vector2(12, 2)), Palette.BRASS)
+	var line: float = MOUTH_RECT.position.y + 2.0
+	var travel: float = line - STUB_RECT.position.y
+	var at: Vector2 = STUB_RECT.position + Vector2(0, MachineArt.snap(travel * (1.0 - _stub_left)))
+	var shown: Rect2 = Rect2(at, Vector2(STUB_RECT.size.x, line - at.y))
+	if shown.size.y <= 2.0:
+		return
+	MachineArt.box(self, shown, Palette.GOLD, Palette.BRASS_DARKEST)
+	for part: Array in [
+		[Rect2(at + Vector2(2, 2), Vector2(28, 2)), Palette.MUSTARD_PALE],
+		[Rect2(at + Vector2(6, 8), Vector2(16, 2)), Palette.BRASS],
+		[Rect2(at + Vector2(6, 12), Vector2(12, 2)), Palette.BRASS],
+	]:
+		var lit: Rect2 = (part[0] as Rect2).intersection(shown.grow(-2.0))
+		if lit.has_area():
+			draw_rect(lit, part[1] as Color)
 	draw_rect(Rect2(MOUTH_RECT.position, Vector2(MOUTH_RECT.size.x, 2)), Palette.CHARCOAL)
-	MachineArt.shine(
-		self, Rect2(STUB_RECT.position, STUB_RECT.size - Vector2(0, 2)), _shine, Palette.PAPER, 2.0
-	)
+	MachineArt.shine(self, Rect2(at, shown.size - Vector2(0, 2)), _shine, Palette.PAPER, 2.0)

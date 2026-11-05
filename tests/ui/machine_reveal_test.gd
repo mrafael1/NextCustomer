@@ -7,7 +7,7 @@ extends GdUnitTestSuite
 ## on the 1280x720 view without overlapping; each ticket shows its prize in full (the real sprite,
 ## the coupon slip, a LOYALTY punch card with its perk in its first stamp slot, an upgrade's new
 ## tier or the SHELF plank) and every face's lines fit (V3, v0.96: the name in the band, the rule
-## under it); a ticket wears its family chips, its rarity rim, chase lights and sheen, and a
+## under it); a ticket wears its family chips and its rarity sheen (CardFoil's sweep), and a
 ## LOYALTY ticket its S1 win sticker; after the pick the picked ticket lifts and goes, the others
 ## fall away (a bin: all of them). Parts are framed directly on a machine view with a hand-made
 ## plan (the clock is the root's, U0).
@@ -335,36 +335,13 @@ func test_the_win_sticker_slaps_in_and_rolls() -> void:
 	assert_float(WinSticker.stamp_scale_at(0, 0.0, true)).is_equal(1.0)
 
 
-## C2 (v0.96): COMMON has no rim, chase or sheen; RARE a notched 4-bar rim RIM_AT round the ticket
-## with CHASE_COUNT[RARE] segments; LEGENDARY adds its outer line and more segments. The chase
-## moves on the idle clock and holds still under reduced motion; the sheen crosses on landing and
-## repeats every SHEEN_PERIOD, staggered per ticket, never under reduced motion.
-func test_the_rarity_rim_chases_and_shines() -> void:
-	var size: Vector2 = PrizeTicket.SIZE
+## C2 (v0.96; the sweep of the card foil since v0.97): COMMON has no sheen; RARE's and
+## LEGENDARY's cross on landing and repeat every SHEEN_PERIOD, staggered per ticket, never under
+## reduced motion.
+func test_the_rarity_sheen_crosses_on_landing_and_repeats() -> void:
 	var common: int = MachinePrize.Rarity.COMMON
 	var rare: int = MachinePrize.Rarity.RARE
-	var legendary: int = MachinePrize.Rarity.LEGENDARY
-	assert_int(TicketRim.rim_rects(common, size).size()).is_equal(0)
-	assert_int(TicketRim.chase_points(common, 1.0, false, size).size()).is_equal(0)
 	assert_float(TicketRim.sheen_at(common, 0.1, 0.0, false)).is_equal(-1.0)
-	var rim: Array[Rect2] = TicketRim.rim_rects(rare, size)
-	assert_int(rim.size()).is_equal(4)
-	var ring: Rect2 = Rect2(Vector2.ZERO, size).grow(TicketRim.RIM_AT)
-	for bar: Rect2 in rim:
-		assert_bool(ring.encloses(bar)).is_true()
-		assert_bool(Rect2(Vector2.ZERO, size).intersects(bar)).is_false()
-	assert_int(TicketRim.rim_rects(legendary, size).size()).is_equal(8)
-	var per: int = int(TicketRim.CHASE_LEN / MachineArt.PIXEL)
-	var points: Array[Vector2] = TicketRim.chase_points(rare, 0.0, false, size)
-	assert_int(points.size()).is_equal(TicketRim.CHASE_COUNT[rare] * per)
-	var legend: Array[Vector2] = TicketRim.chase_points(legendary, 0.0, false, size)
-	assert_int(legend.size()).is_equal(TicketRim.CHASE_COUNT[legendary] * per)
-	assert_array(TicketRim.chase_points(rare, 0.5, false, size)).is_not_equal(points)
-	assert_array(TicketRim.chase_points(rare, 0.5, true, size)).is_equal(points)
-	var outer: Rect2 = ring.grow(MachineArt.PIXEL)
-	for point: Vector2 in points:
-		assert_bool(outer.has_point(point)).is_true()
-		assert_bool(Rect2(Vector2.ZERO, size).has_point(point)).is_false()
 	var landing: float = TicketRim.SHEEN_LAND_S / 2.0
 	assert_float(TicketRim.sheen_at(rare, landing, 0.0, false)).is_equal_approx(0.5, 0.001)
 	assert_float(TicketRim.sheen_at(rare, landing, 0.0, true)).is_equal(-1.0)

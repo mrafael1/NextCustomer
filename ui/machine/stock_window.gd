@@ -21,7 +21,9 @@ extends Control
 ## odds).
 ##
 ## A week event that raises the odds (v0.70: Holiday rush's +1 level, MachineChuteInfo.week_odds)
-## shows as a gold line along the window's top while a lit chute's odds include it: "WEEK ODDS +1".
+## shows on a lit column whose odds include it as a gold tag right under its three odds plates
+## (v0.97, the user's "weeks odd + 1 is just sitting weirdly": it floated over the mullion and the
+## tickets' tops): an LED strip as wide as the plates' row, with a gold rim: "ODDS +1 · WEEK".
 
 const SIZE := Vector2(448, 204)
 ## The glass (the columns) over the sill.
@@ -69,9 +71,12 @@ const GLINT_X: Array[float] = [40.0, 200.0, 360.0]
 const GLINT_ALPHA := 0.35
 const CONE_ALPHA := 0.07
 const CONE_HOVER_ALPHA := 0.16
-## The week event's odds line (v0.70): its text, and its capitals' top.
-const WEEK_ODDS_TEXT := "WEEK ODDS +%d"
-const WEEK_ODDS_TOP := 8.0
+## The week event's odds tag (v0.70; under the plates in v0.97): its text, the art px between the
+## plates and the tag, and the tag's height (a plate's); its words are chunky capitals, so they
+## share the price-gun digits' cap top.
+const WEEK_ODDS_TEXT := "ODDS +%d · WEEK"
+const WEEK_TAG_GAP := 2
+const WEEK_TAG_HEIGHT := 28.0
 
 ## The machine this part belongs to (setup(), build spec 4.2).
 var view: RewardMachineView
@@ -93,8 +98,9 @@ var _legend: Array[MachineLine] = []
 var _tickets: Control
 ## The 0% shares' sealed tickets, drawn on a layer of their own faded to ZERO_ALPHA.
 var _faded: Control
-## The week event's odds line (v0.70).
-var _week_odds: MachineLine
+## The week event's odds tag's line per column (v0.70), and the raise each column shows (0: none).
+var _week_odds: Array[MachineLine] = []
+var _week_shown: Array[int] = [0, 0]
 
 
 func _init() -> void:
@@ -124,10 +130,13 @@ func _init() -> void:
 			odds.visible = false
 			add_child(odds)
 			_odds.append(odds)
-	_week_odds = MachineLine.new()
-	_week_odds.name = "WeekOdds"
-	_week_odds.visible = false
-	add_child(_week_odds)
+	for column: int in range(COLUMNS):
+		var week: MachineLine = MachineLine.new()
+		week.name = "WeekOdds%d" % column
+		week.chunky = true
+		week.visible = false
+		add_child(week)
+		_week_odds.append(week)
 	_add_legend()
 
 
@@ -195,9 +204,18 @@ static func sill_rect() -> Rect2:
 	return Rect2(0, GLASS_HEIGHT, SIZE.x, SIZE.y - GLASS_HEIGHT)
 
 
-## The week event's odds line (v0.70; for tests).
-func week_odds_label() -> MachineLine:
-	return _week_odds
+## The week event's odds tag in `column` (v0.70; its rect before a restock's offset), on the 2 px
+## grid right under the column's odds plates, as wide as their row.
+static func week_tag_rect(column: int) -> Rect2:
+	var first: Rect2 = plate_rect(column, 0)
+	var top: float = first.end.y + WEEK_TAG_GAP * MachineArt.PIXEL
+	var width: float = plate_rect(column, 2).end.x - first.position.x
+	return Rect2(first.position.x, top, width, WEEK_TAG_HEIGHT)
+
+
+## The week event's odds tag's line in `column` (v0.70; for tests).
+func week_odds_label(column: int = 0) -> MachineLine:
+	return _week_odds[column]
 
 
 ## The odds lines (column * 3 + rarity) and the sill legend's words, for layout tests.
@@ -261,7 +279,6 @@ static func percent_texts(shares: Array[float]) -> PackedStringArray:
 func frame(t: float) -> void:
 	var plan: MachinePlan = view.plan if view != null else null
 	var look: MachineLook = MachineLook.at(plan, t)
-	var week_odds: int = 0
 	for column: int in range(COLUMNS):
 		var shape: Array = look.column(column)
 		var gold: bool = shape[1]
@@ -273,8 +290,8 @@ func frame(t: float) -> void:
 		_column_lit[column] = lit
 		_column_offset[column] = shape[0]
 		_column_gold[column] = gold and look.premium()
-		if lit and info.week_odds > 0:
-			week_odds = info.week_odds
+		_week_shown[column] = info.week_odds if lit and info.week_odds > 0 else 0
+		_frame_week_tag(column, shape[0])
 		var texts: PackedStringArray = _column_texts(info) if lit else PackedStringArray()
 		for rarity: int in range(3):
 			var odds: MachineLine = _odds[column * 3 + rarity]
@@ -290,13 +307,23 @@ func frame(t: float) -> void:
 			odds.centre_in(plate)
 			odds.position.y += MachineArt.PIXEL  # The digits stand an art px over the capitals.
 		_texts[column] = texts
-	_week_odds.visible = week_odds > 0
-	if _week_odds.visible and _week_odds.text() != WEEK_ODDS_TEXT % week_odds:
-		_week_odds.show_text(WEEK_ODDS_TEXT % week_odds, Palette.GOLD)
-		_week_odds.centre_in(Rect2(0, WEEK_ODDS_TOP, SIZE.x, _week_odds.size.y))
 	queue_redraw()
 	_tickets.queue_redraw()
 	_faded.queue_redraw()
+
+
+## `column`'s week odds tag line, `dy` px down (a restock's offset): shown while it has a raise.
+func _frame_week_tag(column: int, dy: float) -> void:
+	var line: MachineLine = _week_odds[column]
+	var raise: int = _week_shown[column]
+	line.visible = raise > 0
+	if not line.visible:
+		return
+	if line.text() != WEEK_ODDS_TEXT % raise:
+		line.show_text(WEEK_ODDS_TEXT % raise, Palette.GOLD)
+	var tag: Rect2 = week_tag_rect(column)
+	tag.position.y += dy + RIM_HEIGHT / 2.0  # Centred in the LED under its rim.
+	line.centre_in(tag)
 
 
 ## `info`'s three rarity shares as the window prints them (percent_texts).
@@ -416,6 +443,8 @@ func _draw_column(column: int, cell: Rect2) -> void:
 		var foot: Rect2 = Rect2(top.position + Vector2(0, 2.0 * p), Vector2(top.size.x, p))
 		draw_rect(foot, Palette.BRASS_DARK if gold else Palette.STEEL_SHADE)
 		_draw_plate(column, rarity, dy, hover)
+	if _week_shown[column] > 0:
+		_draw_week_tag(column, dy)
 
 
 ## Rarity `rarity`'s odds plate in `column`, `dy` px down: a plain charcoal LED window with
@@ -433,6 +462,17 @@ func _draw_plate(column: int, rarity: int, dy: float, hover: bool) -> void:
 		y += p * 2.0
 	var rim: Rect2 = Rect2(led.position, Vector2(led.size.x, RIM_HEIGHT))
 	draw_rect(rim, RIM_HOVER_INK[rarity] if hover else RIM_INK[rarity])
+
+
+## `column`'s week odds tag, `dy` px down: an LED strip like the plates', its rim gold.
+func _draw_week_tag(column: int, dy: float) -> void:
+	var tag: Rect2 = week_tag_rect(column)
+	tag.position.y += dy
+	var p: float = MachineArt.PIXEL
+	draw_rect(tag, Palette.INK)
+	var led: Rect2 = tag.grow(-p)
+	draw_rect(led, Palette.CHARCOAL)
+	draw_rect(Rect2(led.position, Vector2(led.size.x, RIM_HEIGHT)), Palette.GOLD)
 
 
 ## The lit columns' sealed tickets, on the 2 px grid (the art at an integer 2x): the shares

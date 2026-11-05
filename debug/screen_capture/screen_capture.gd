@@ -776,6 +776,7 @@ func _fill_cart(run: RunState) -> void:
 ## - hover=<i> (v0.53): once the prizes are armed, the pointer rests on prize i (its popup opens);
 ## - premium (v0.50; v0.61 a rarity boost): the shift's ticket visit is PREMIUM, so the machine
 ##   turns PREMIUM;
+## - weekodds: shift 1's week event raises the odds a level (the stock window's week odds);
 ## - rm: reduced motion; resume: the visit as a resumed run shows it (at its wait point, no
 ##   replay; with a chute, the run was saved after that chute's draw: resumed at the pick).
 ## The seconds count from the last step: the machine's open, the choice, or the pick. A spec
@@ -843,6 +844,11 @@ func _check_out_machine_shift(run: RunState, options: PackedStringArray) -> bool
 	if options.has("premium"):
 		run.machine.machine = run.machine.machine.duplicate() as MachineDefinition
 		run.machine.machine.premium_shifts = PackedInt32Array([run.shift_index + 1])
+	if options.has("weekodds"):  # Shift 1's week event raises the odds a level, on copies.
+		run.balance = run.balance.duplicate() as BalanceDefinition
+		run.balance.weeks = run.balance.weeks.duplicate()
+		run.balance.weeks[0] = run.balance.weeks[0].duplicate()
+		run.balance.weeks[0].odds_level_delta = 1
 	if options.has("cartfull"):
 		while run.deck.size() < run.balance.deck_limit:
 			run.deck.add_card(_card(FILLER_ID))

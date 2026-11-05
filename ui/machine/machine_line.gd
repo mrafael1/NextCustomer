@@ -10,7 +10,11 @@ extends PixelLine
 ## Pixelify lacks) is a small pixel pattern; the rest are words. The runs follow each other one
 ## art px apart, a space keeping its own advance, so "SPEND 109€ ✓ THANK YOU!" reads as one line.
 ## The control's top left is the words' cap top at the line's left; its size is the line's width
-## and the capitals' height. Display only.
+## and the capitals' height. A chunky line (`chunky`, v0.97: the display's message and the prize
+## bay's header, the user's 2026-11-05 note that PICK 1 and YOUR PRIZES were hard to read) draws
+## its words in the chunky capitals too (PixelWords.Sheet.CHUNKY_CAPS: 2 px stems, the digits'
+## 8 rows), so its height is CHUNKY_ROWS art px and its words and digits share one cap top.
+## Display only.
 
 ## The number runs: digits and the signs printed with them.
 const NUMBER_RUN := "[+−<×-]?[0-9]+(?:[.,/][0-9]+)?[€%]?"
@@ -24,8 +28,13 @@ const MARKS: Dictionary[String, Array] = {
 }
 ## Between two runs, in art px.
 const RUN_GAP := 1
+## A chunky line's capitals and digits: this many art px tall.
+const CHUNKY_ROWS := 8
 
 static var _mark_textures: Dictionary[String, ImageTexture] = {}
+
+## Its words in the chunky capitals (set before show_text; make's `chunky`).
+var chunky: bool = false
 
 var _runs: Array[String] = []
 var _ink: Color = Palette.INK
@@ -57,12 +66,20 @@ func show_text(
 			x += _add_icon(mark_texture(run, numbers), x, CENTRED)
 		elif _is_number_run(run):
 			x += _add_chunky(run, x, numbers, number_shadow)
+		elif chunky:
+			x += _add_caps(run, x, colour)
 		else:
 			x += _add_word(run, x, colour)
 	_width = x
 	_text = line
 	_ink = colour
 	size = Vector2(_width, ArtStyle.PIXEL_CAP_HEIGHT * art * word_scale)
+	if chunky:
+		# The chunky rows stand one art px over Pixelify's capitals: the line's top moves up to them.
+		var rise: float = (CHUNKY_ROWS - ArtStyle.PIXEL_CAP_HEIGHT) * art * word_scale
+		for child: Node in get_children():
+			(child as Control).position.y += rise
+		size.y = CHUNKY_ROWS * art * word_scale
 
 
 ## A new line showing `line` (show_text's arguments), named `line_name`.
@@ -72,10 +89,12 @@ static func make(
 	colour: Color,
 	number_colour: Color = Color(Palette.INK, 0.0),
 	word_scale: int = 1,
-	number_shadow: Color = Color(Palette.INK, 0.0)
+	number_shadow: Color = Color(Palette.INK, 0.0),
+	chunky_words: bool = false
 ) -> MachineLine:
 	var made: MachineLine = MachineLine.new()
 	made.name = line_name
+	made.chunky = chunky_words
 	made.show_text(line, colour, number_colour, word_scale, number_shadow)
 	return made
 
@@ -125,8 +144,9 @@ static func runs_of(line: String) -> Array[String]:
 	return runs
 
 
-## `line`'s width in canvas px at `word_scale` (as show_text lays it out).
-static func width_of(line: String, word_scale: int = 1) -> float:
+## `line`'s width in canvas px at `word_scale` (as show_text lays it out), its words in the chunky
+## capitals when `chunky_words`.
+static func width_of(line: String, word_scale: int = 1, chunky_words: bool = false) -> float:
 	var art: float = ArtStyle.ART_SCALE
 	var total: float = 0.0
 	var runs: Array[String] = runs_of(line)
@@ -138,6 +158,8 @@ static func width_of(line: String, word_scale: int = 1) -> float:
 			total += (MARKS[run][0] as String).length() * art
 		elif _is_number_run(run):
 			total += PixelWords.text_size(run, PixelWords.Sheet.CHUNKY, art * word_scale).x
+		elif chunky_words:
+			total += PixelWords.text_size(run, PixelWords.Sheet.CHUNKY_CAPS, art * word_scale).x
 		else:
 			total += word_width(run, word_scale)
 	return total
@@ -202,10 +224,31 @@ func _add_chunky(number: String, x: float, colour: Color, shadow: Color) -> floa
 	return PixelWords.text_size(number, sheet, cell).x
 
 
+## A word run in the chunky capitals at the words' scale, on the digits' rows.
+func _add_caps(word: String, x: float, colour: Color) -> float:
+	var cell: float = ArtStyle.ART_SCALE * _scale_factor
+	var sheet: PixelWords.Sheet = PixelWords.Sheet.CHUNKY_CAPS
+	var caps: PixelWords = PixelWords.new(word, sheet, cell, colour)
+	caps.name = "Words"
+	caps.position = Vector2(x, (ArtStyle.PIXEL_CAP_HEIGHT - CHUNKY_ROWS) * cell)
+	add_child(caps)
+	return PixelWords.text_size(word, sheet, cell).x
+
+
 ## The number runs' PixelWords (chunky digits), for tests.
 func number_words() -> Array[PixelWords]:
+	return _sheet_words(PixelWords.Sheet.CHUNKY)
+
+
+## A chunky line's word runs' PixelWords (chunky capitals), for tests.
+func caps_words() -> Array[PixelWords]:
+	return _sheet_words(PixelWords.Sheet.CHUNKY_CAPS)
+
+
+func _sheet_words(sheet: PixelWords.Sheet) -> Array[PixelWords]:
 	var found: Array[PixelWords] = []
 	for child: Node in get_children():
-		if child is PixelWords:
-			found.append(child as PixelWords)
+		var words: PixelWords = child as PixelWords
+		if words != null and words.sheet == sheet:
+			found.append(words)
 	return found

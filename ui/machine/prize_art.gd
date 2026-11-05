@@ -14,6 +14,12 @@ extends Control
 ##   (UpgradeDefinition.icon_ref; Big basket's "+1 slot" ticket) or, with none, its initials. A
 ##   level-up (#108, LV 2 or LV 3) stamps as many slots as its level and shows an "LV n" chip in
 ##   the art's bottom right corner (chip_rect): the ticket's band carries only the perk's name.
+## On a LEGENDARY card (v0.97, CardFoil) the art breaks out of its window over the gold plate
+## (break_out): a sprite whose top stays under BREAKOUT canvas px (6 art px, the mock-up's) above
+## the window climbs up to CLIMB_MAX on landing (climb: 0.15-0.45 s, a back ease; at once under
+## reduced motion), and
+## what pokes over the window wears a 1 art px ink outline (a GOLDEN sprite all round, so a gold
+## item keeps apart from the gold card).
 
 const SIZE := Vector2(132, 100)
 ## The item's sprite (ItemView.SPRITE_SIZE) and where it sits.
@@ -36,14 +42,29 @@ const BOLD_WEIGHT := 800
 const INITIALS_SIZE := 9
 const STAMP_RING := preload("res://art/icons/stamp_ring.png")
 const STAMP_EMPTY := preload("res://art/icons/stamp_ring_empty.png")
+## The breakout: the sprite's top climbs to BREAKOUT canvas px over the window, CLIMB_MAX at most,
+## between CLIMB_FROM and CLIMB_TO seconds after landing.
+const BREAKOUT := 12.0
+const CLIMB_MAX := 12.0
+const CLIMB_FROM := 0.15
+const CLIMB_TO := 0.45
 ## The perk's icon on the badge: a small glyph (6 art px or less) at 3x art, else 2x or 1x art,
 ## whichever fits inside the badge (icon_scale).
 const SMALL_ICON := 6
+
+static var _ink_tops: Dictionary[Texture2D, int] = {}
+static var _images: Dictionary[Texture2D, Image] = {}
 
 var prize: MachinePrize
 var _preview: MachinePreview
 var _chip: String = ""
 var _icon: Texture2D
+## The breakout (break_out): the sprite, its outline's clip and outline, its rest and full climb.
+var _sprite: TextureRect
+var _outline_clip: Control
+var _outline: TextureRect
+var _sprite_rest: Vector2 = Vector2.ZERO
+var _climb_full: float = 0.0
 
 
 func _init(shown_prize: MachinePrize, preview: MachinePreview) -> void:
@@ -119,6 +140,125 @@ func _add_sprite(card: CardDefinition, at: Vector2) -> void:
 	art.name = "Sprite"
 	art.position = at
 	add_child(art)
+	_sprite = art
+	_sprite_rest = at
+
+
+## The sprite (null: a LOYALTY prize's punch card).
+func sprite() -> TextureRect:
+	return _sprite
+
+
+## Breaks the art out of a window whose top is `window_top` (art box px) on a LEGENDARY card: an
+## ink outline (clipped to above the window, or all round for a GOLDEN item) behind the sprite,
+## and the climb it makes on landing (climb).
+func break_out(window_top: float) -> void:
+	if _sprite == null or _sprite.texture == null:
+		return
+	var texture: Texture2D = _sprite.texture
+	var texel: float = _sprite.size.x / texture.get_size().x
+	var ink_top: float = _sprite_rest.y + ink_top_of(texture) * texel
+	_climb_full = clampf(ink_top - (window_top - BREAKOUT), 0.0, CLIMB_MAX)
+	var golden: bool = _shown_tier() == CardDefinition.Tier.GOLDEN
+	_outline_clip = Control.new()
+	_outline_clip.name = "BreakoutClip"
+	_outline_clip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_outline_clip.clip_contents = not golden
+	_outline_clip.position = Vector2(-SIZE.x, -SIZE.y)
+	_outline_clip.size = Vector2(SIZE.x * 3.0, (SIZE.y * 3.0) if golden else (SIZE.y + window_top))
+	_outline = TextureRect.new()
+	_outline.name = "BreakoutOutline"
+	_outline.texture = texture
+	_outline.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_outline.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_outline.stretch_mode = TextureRect.STRETCH_SCALE
+	_outline.material = ArtStyle.rim_material(
+		PackedColorArray([Palette.INK, Color(Palette.INK, 0.0)])
+	)
+	_outline.size = _sprite.size + Vector2.ONE * 4.0 * texel
+	_outline_clip.add_child(_outline)
+	add_child(_outline_clip)
+	move_child(_outline_clip, _sprite.get_index())
+	climb(-1.0, false)
+
+
+## The breakout's climb `since` seconds after landing (below 0: at rest in the window; reduced
+## motion `rm`: all the way at once).
+func climb(since: float, rm: bool) -> void:
+	if _outline == null:
+		return
+	var k: float = 0.0
+	if rm and since >= 0.0:
+		k = 1.0
+	elif since >= 0.0:
+		k = MachineArt.ease_back(MachineArt.seg(since, CLIMB_FROM, CLIMB_TO))
+	_sprite.position = _sprite_rest - Vector2(0, MachineArt.snap(_climb_full * k))
+	var texel: float = _sprite.size.x / _sprite.texture.get_size().x
+	_outline.position = _sprite.position - Vector2.ONE * 2.0 * texel - _outline_clip.position
+
+
+## How far the breakout climbs at most (canvas px), and its outline (null: none).
+func climb_full() -> float:
+	return _climb_full
+
+
+func breakout_outline() -> TextureRect:
+	return _outline
+
+
+## The first texel row of `texture` with ink (cached per texture).
+static func ink_top_of(texture: Texture2D) -> int:
+	if not _ink_tops.has(texture):
+		var image: Image = _image_of(texture)
+		_ink_tops[texture] = image.get_used_rect().position.y if image != null else 0
+	return _ink_tops[texture]
+
+
+## How many of the sprite's ink texels, at its full climb (climb_full), fall in `rect` (art box
+## px); 0 without a sprite. The ticket places a LEGENDARY card's chips and price by it.
+func ink_texels(rect: Rect2) -> int:
+	if _sprite == null or _sprite.texture == null:
+		return 0
+	var image: Image = _image_of(_sprite.texture)
+	if image == null:
+		return 0
+	var texel: float = _sprite.size.x / image.get_width()
+	var at: Vector2 = _sprite_rest - Vector2(0, MachineArt.snap(_climb_full))
+	var from: Vector2i = Vector2i(((rect.position - at) / texel).floor()).max(Vector2i.ZERO)
+	var to: Vector2i = Vector2i(((rect.end - at) / texel).ceil()).min(image.get_size())
+	var count: int = 0
+	for y: int in range(from.y, to.y):
+		for x: int in range(from.x, to.x):
+			if image.get_pixel(x, y).a > 0.0:
+				count += 1
+	return count
+
+
+## `texture`'s image, decompressed (cached per texture; null: none).
+static func _image_of(texture: Texture2D) -> Image:
+	if not _images.has(texture):
+		var image: Image = texture.get_image()
+		if image != null and image.is_compressed():
+			image.decompress()
+		_images[texture] = image
+	return _images[texture]
+
+
+## Keeps the art's words (a coupon's printed name, a perk's initials) on linear filtering under
+## the card's nearest-filtered icons.
+func keep_text_smooth() -> void:
+	for found: Node in find_children("*", "Label", true, false):
+		(found as Label).texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+
+
+## The tier the art shows (an upgrade's new tier; PLAIN for a perk).
+func _shown_tier() -> int:
+	match prize.kind:
+		MachinePrize.Kind.REGISTER:
+			return CardDefinition.Tier.PLAIN
+		MachinePrize.Kind.UPGRADE:
+			return upgraded_card().tier if not has_shelf() else prize.card.tier
+	return prize.card.tier if prize.card != null else CardDefinition.Tier.PLAIN
 
 
 func _add_loyalty() -> void:

@@ -6,8 +6,10 @@ extends RefCounted
 ## better), which the same machine turns into after its receipt is read (MachinePlan.premium_at)
 ## and stays for the whole visit: the sign flashes to a dark night face with lit gold PREMIUM
 ## REWARDS and its bulbs chase on, a 3 px gold trim runs down both cabinet edges, the gold receipt
-## stays in the slot, the tray goes gold, the key plate goes dark, the keys sink and rise back, and
-## the stock window's columns restock one by one onto gold pedestals.
+## pops up in the slot and is swallowed (v0.97: it used to stay half inserted for the whole visit,
+## which read as a stuck ticket; the user's play test), the tray goes gold, the key plate goes
+## dark, the keys sink and rise back, and the stock window's columns restock one by one onto gold
+## pedestals.
 ## at() reads only the plan and `t`, so every part shows the same transform; the times are the
 ## mock-up's (seconds into the transform), scaled to MachineTuning.premium_ms; under reduced
 ## motion the transform is a cut at its end.
@@ -32,6 +34,10 @@ const WINDOW_FROM := 1.0
 const WINDOW_STAGGER := 0.24
 const WINDOW_OUT := 0.12
 const WINDOW_IN := 0.26
+## The gold receipt in the slot: sticking out from the transform's start, fed in from STUB_IN_FROM
+## to STUB_IN_TO (gone after, as a classic receipt is).
+const STUB_IN_FROM := 0.2
+const STUB_IN_TO := 0.8
 ## The chasing bulbs' step rate (a step every tenth of a second) and the sign's shine period.
 const CHASE_RATE := 10.0
 const SHINE_PERIOD := 2.4
@@ -89,6 +95,14 @@ func bulb_lit(index: int, t: float) -> bool:
 ## How far down the cabinet's gold trim has run (0 .. 1).
 func trim() -> float:
 	return MachineArt.ease_out(MachineArt.seg(d, TRIM_FROM, TRIM_TO)) if d >= 0.0 else 0.0
+
+
+## How much of the gold receipt sticks out of the slot (1 whole .. 0 swallowed; 0 outside the
+## transform, so a resumed, reduced-motion or held PREMIUM visit never shows it).
+func stub_left() -> float:
+	if d < 0.0 or d >= STUB_IN_TO:
+		return 0.0
+	return 1.0 - clampf((d - STUB_IN_FROM) / (STUB_IN_TO - STUB_IN_FROM), 0.0, 1.0)
 
 
 func tray_gold() -> bool:

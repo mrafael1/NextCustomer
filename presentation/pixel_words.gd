@@ -8,11 +8,14 @@ extends Control
 ## mock-up docs/art/mockups/machine_relook_v2.html: 6x8, 2 px strokes, with € % + − × / . <,
 ## read from art/fonts/chunky_digits.png, built from art/src/fonts/chunky_digits.txt; an ASCII
 ## '-' prints as its −). A cell that is a multiple of the art's 2 px keeps the words on the art's
-## grid. Its minimum size is the words' (text_size()); it draws them from its top left, with no
-## line or glyph padding, and an optional `shadow` colour one font px down and right under them.
-## A character the sheet lacks draws as a blank. Display only.
+## grid. CHUNKY_CAPS (v0.97) are the chunky digits' capitals for the machine's display and prize
+## bay header words (6x8, 2 px stems: A to Z, ! ? ·, read from art/fonts/chunky_caps.png, built
+## from art/src/fonts/chunky_caps.txt; a small letter prints as its capital). Its minimum size
+## is the words' (text_size()); it draws them from its top left, with no line or glyph padding,
+## and an optional `shadow` colour one font px down and right under them. A character the sheet
+## lacks draws as a blank. Display only.
 
-enum Sheet { DIGITS, CAPS, CHUNKY }
+enum Sheet { DIGITS, CAPS, CHUNKY, CHUNKY_CAPS }
 
 ## One font pixel between two characters.
 const GAP := 1
@@ -37,6 +40,9 @@ const CHUNKY_SHEET := preload("res://art/fonts/chunky_digits.png")
 const CHUNKY_ORDER := "0123456789€%+−×/.<"
 const CHUNKY_CELL := 8
 const CHUNKY_SPACE := 3
+## The chunky capitals' sheet, read as the digits' (CHUNKY_CELL-wide cells, CHUNKY_SPACE spaces).
+const CHUNKY_CAPS_SHEET := preload("res://art/fonts/chunky_caps.png")
+const CHUNKY_CAPS_ORDER := "ABCDEFGHIJKLMNOPQRSTUVWXYZ!?·"
 ## The 3x5 capitals (the mock-up's CAPS sheet), '#' ink.
 const CAPS_GLYPHS: Dictionary[String, Array] = {
 	"A": [".#.", "#.#", "###", "#.#", "#.#"],
@@ -66,6 +72,7 @@ const CAPS_GLYPHS: Dictionary[String, Array] = {
 }
 
 static var _chunky: Dictionary[String, Array] = {}
+static var _chunky_caps: Dictionary[String, Array] = {}
 
 ## The words, the sheet they are drawn from, a font pixel's size (px) and their colour.
 var text: String = "":
@@ -149,18 +156,35 @@ static func _glyphs(from: Sheet) -> Dictionary[String, Array]:
 			return DIGIT_GLYPHS
 		Sheet.CHUNKY:
 			return chunky_glyphs()
+		Sheet.CHUNKY_CAPS:
+			return chunky_caps_glyphs()
 	return CAPS_GLYPHS
 
 
 ## The chunky digits' glyphs ('#' ink), read once from CHUNKY_SHEET: each cell cropped to its ink.
 static func chunky_glyphs() -> Dictionary[String, Array]:
-	if not _chunky.is_empty():
-		return _chunky
-	var image: Image = CHUNKY_SHEET.get_image()
+	if _chunky.is_empty():
+		_read_sheet(CHUNKY_SHEET, CHUNKY_ORDER, _chunky)
+	return _chunky
+
+
+## The chunky capitals' glyphs ('#' ink), read once from CHUNKY_CAPS_SHEET, as the digits'.
+static func chunky_caps_glyphs() -> Dictionary[String, Array]:
+	if _chunky_caps.is_empty():
+		_read_sheet(CHUNKY_CAPS_SHEET, CHUNKY_CAPS_ORDER, _chunky_caps)
+	return _chunky_caps
+
+
+## Fills `into` with `sheet`'s glyphs, one CHUNKY_CELL-wide cell per character of `order`, each
+## cropped to its ink, and a CHUNKY_SPACE blank for the space.
+static func _read_sheet(
+	sheet_texture: Texture2D, order: String, into: Dictionary[String, Array]
+) -> void:
+	var image: Image = sheet_texture.get_image()
 	if image.is_compressed():
 		image.decompress()
 	var rows: int = image.get_height()
-	for index: int in range(CHUNKY_ORDER.length()):
+	for index: int in range(order.length()):
 		var left: int = index * CHUNKY_CELL
 		var width: int = 0
 		var glyph: Array[String] = []
@@ -174,15 +198,16 @@ static func chunky_glyphs() -> Dictionary[String, Array]:
 			glyph.append(line)
 		for y: int in range(rows):
 			glyph[y] = glyph[y].left(width)
-		_chunky[CHUNKY_ORDER[index]] = glyph
+		into[order[index]] = glyph
 	var blank: Array[String] = []
 	for y: int in range(rows):
 		blank.append(".".repeat(CHUNKY_SPACE))
-	_chunky[" "] = blank
-	return _chunky
+	into[" "] = blank
 
 
 static func _glyph(glyphs: Dictionary[String, Array], character: String) -> Array:
 	if character == "-" and glyphs.has("−"):
 		return glyphs["−"]
+	if not glyphs.has(character) and glyphs.has(character.to_upper()):
+		return glyphs[character.to_upper()]
 	return glyphs.get(character, glyphs[" "])

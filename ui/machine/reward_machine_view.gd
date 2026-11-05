@@ -369,7 +369,7 @@ func show_draw(run_state: RunState, resumed: bool = false) -> void:
 		_jump_to(plan.choose_at)  # Chosen before the keys lit (debug, tests).
 	var rarities: Array[int] = []
 	for prize: MachinePrize in prizes:
-		rarities.append(prize.rarity)
+		rarities.append(CardFoil.look_of(prize))  # The card's look sets its landing.
 	plan.set_draw(rarities)
 	_until = MachinePlan.WaitPoint.PICK
 	_fired = minf(_fired, clock - SAME_TIME)

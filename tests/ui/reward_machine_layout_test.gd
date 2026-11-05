@@ -144,9 +144,10 @@ func test_the_prize_row_sits_on_the_stage() -> void:
 
 
 ## V3 on the stage at the pick (3, 2 and 1 tickets), on the widest case (LOYALTY stamps at
-## LEGENDARY, each with a two-row win sticker): every ticket with its rim (TicketRim.OUTER_AT out)
-## stays inside the prize bay; each sticker, tilted and with its shadow, stays inside the bay and
-## the stage, its body clear of the next ticket's rim; its family chips sit inside its art box.
+## LEGENDARY, each with a two-row win sticker): every ticket with its pick rim
+## (TicketRim.PICK_RINGS[0] out) stays inside the prize bay; each sticker, tilted and with its
+## shadow, stays inside the bay and the stage, its body clear of the next ticket's rim; its family
+## chips sit inside its art box.
 func test_the_rims_stickers_and_chips_stay_in_the_bay() -> void:
 	var regulars: UpgradeDefinition = load(DAIRY_REGULARS)
 	var on_stage: Rect2 = Rect2(Vector2.ZERO, ShiftStage.SIZE)
@@ -171,7 +172,7 @@ func test_the_rims_stickers_and_chips_stay_in_the_bay() -> void:
 		var bay: Rect2 = view.bay.get_global_rect()
 		var rims: Array[Rect2] = []
 		for ticket: PrizeTicket in view.tickets:
-			rims.append(ticket.get_global_rect().grow(TicketRim.OUTER_AT))
+			rims.append(ticket.get_global_rect().grow(TicketRim.PICK_RINGS[0]))
 		for index: int in range(count):
 			var ticket: PrizeTicket = view.tickets[index]
 			var what: String = "ticket %d of %d" % [index, count]
@@ -193,7 +194,7 @@ func test_the_rims_stickers_and_chips_stay_in_the_bay() -> void:
 					. is_false()
 				)
 			var art_box: Rect2 = ticket.get_global_transform() * PrizeTicket.ART_RECT
-			var chips: Array[Rect2] = PrizeTicket.chip_rects(ticket.family_chips().size())
+			var chips: Array[Rect2] = ticket.family_rects()
 			assert_int(chips.size()).is_greater(0)
 			for chip: Rect2 in chips:
 				var placed: Rect2 = ticket.get_global_transform() * chip

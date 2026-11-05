@@ -5,18 +5,20 @@ extends Control
 ## view.plan.ticket_flight: a back ease, from 0.45x at the tray's mouth) and lands face up at its
 ## reveal (reveal_at), where its rarity's effect plays:
 ## - COMMON: a clean drop, a 2 px bump and a puff of dust;
-## - RARE: its rim lights (TicketRim, C2: a hard pixel rim with notched corners and chase lights,
-##   pulsing), a sheen crosses it, four sparkles (and a two-note chime, MachineSounds);
+## - RARE: the foil's sweep crosses it (CardFoil), four sparkles (and a two-note chime,
+##   MachineSounds);
 ## - LEGENDARY: it lands a beat later (the plan), a white flash, a dithered sunburst behind it
 ##   (presentation/dither_burst.gdshader) that grows, then shrinks to a small glow within about a
-##   second, coins, orbiting sparkles, its gold rim with an outer line and five chase lights, the
-##   sheen, the scene's short shake (MachineLayers) and a sting.
-## The rim, the chase and the sunburst stand behind every ticket of the row (z order), the
-## sparkles, the coins, the sheen and the corner glints in front; the sheen comes back every few
-## seconds. Its rarity shows by its tab (RarityTab: COMMON / RARE! / LEGENDARY!!), its pips (one
-## dot, two diamonds, three stars, drawn shapes), its rim and its effect, never by colour alone.
-## Under reduced motion it appears in place at its reveal, its burst still, its rim steady, its
-## chase held and its sparkles and glints on.
+##   second, coins, orbiting sparkles, its art climbing out over the plate, the gold sweep, the
+##   scene's short shake (MachineLayers) and a sting.
+## The sunburst stands behind every ticket of the row (z order), the sparkles, the coins and the
+## corner glints in front; the sweep comes back every few seconds. Since v0.97 the card itself
+## carries its rarity (CardFoil, the user's picks on mock-up card_rarity.html: COMMON a shelf label,
+## RARE a teal holo laminate, LEGENDARY gold foil with its plate, flecks, rays and breakout), with
+## its tab (RarityTab: COMMON / RARE! / LEGENDARY!!) and its pips (one dot, two diamonds, three
+## stars, drawn shapes): never by colour alone; the C2 rim and chase lights behind it are gone.
+## Under reduced motion it appears in place at its reveal, its burst still, its foil still and its
+## sparkles and glints on.
 ##
 ## The face (V3's 144x244 ticket in v0.96, mock-ups machine_relook_v2.html and _v3.html: paper
 ## with an ink outline and a cream edge) holds the art window (PrizeArt, in the kind's colour:
@@ -41,7 +43,7 @@ signal unhovered(index: int)
 
 const SIZE := Vector2(144, 244)
 const RARITY_TEXTS: Array[String] = RarityTab.TEXTS
-const PIP_INKS: Array[Color] = [Palette.GREY, Palette.TEAL, Palette.BRASS_DARK]
+const PIP_INKS: Array[Color] = [Palette.GREY, Palette.TEAL, Palette.BRASS_DARKEST]
 const TIER_WORDS: Array[String] = ["PLAIN", "BIG", "GOLDEN"]
 ## The face: the art window, the band (the name in hard pixel rows, BAND_PITCH apart from
 ## BAND_PAD down; a name too long for NAME_LINES of them in bold Atkinson NAME_SIZE) and the rule
@@ -51,6 +53,9 @@ const ART_RECT := Rect2(6, 6, 132, 100)
 const BAND_TOP := 108.0
 const BAND_LEFT := 4.0
 const BAND_WIDTH := 136.0
+## RARE and LEGENDARY bands stand inside their 3 art px foil frames (v0.97).
+const FOIL_BAND_LEFT := 6.0
+const FOIL_BAND_WIDTH := 132.0
 const BAND_PAD := 6.0
 const BAND_PITCH := 20.0
 const NAME_SIZE := 13
@@ -83,6 +88,12 @@ const PIP_TOP := 10.0
 const PIP_PIXEL := 2.0
 ## The family chips (B2) under the pips: CHIP_SIZE square, CHIP_STEP apart from CHIP_AT.
 const CHIP_AT := Vector2(8, 22)
+## A LEGENDARY card's chips and price window: under its plate (CardFoil.PLATE), at its window's
+## foot (CHIP_FOOT, PRICE_FOOT), or (the price) at the top right as on every card, wherever they
+## cover the least of the climbed art (_corner_tops).
+const LEGENDARY_CHIP_TOP := 26.0
+const CHIP_FOOT := 76.0
+const PRICE_FOOT := 78.0
 const CHIP_SIZE := 26.0
 const CHIP_STEP := 28.0
 ## A NEW ITEM's price window at the art box's top right: its chunky digits on paper.
@@ -135,6 +146,11 @@ var doomed: bool = false
 var view: RewardMachineView
 var tab: RarityTab
 var art: PrizeArt
+## The card's rarity look (CardFoil.look_of) and its foil (stripes, rays, sweep). Every rarity cue
+## on the ticket reads it (the stock, foil, band, chips, tab, pips, glints and landing effects),
+## and the machine plans its landing from it (RewardMachineView), so they never disagree.
+var look: int = 0
+var foil: CardFoil
 ## Where it lands (machine coordinates) and where it leaves the tray from (its top-left at 1x).
 var rest: Vector2 = Vector2.ZERO
 var launch: Vector2 = Vector2.ZERO
@@ -153,6 +169,9 @@ var _price: MachineLine
 var _rule: Label
 ## The family chips' looks (B2).
 var _families: Array[FamilyStyle] = []
+## The family chips' and the price window's tops (_corner_tops; V3's on COMMON and RARE).
+var _chip_top: float = CHIP_AT.y
+var _price_top: float = PRICE_TOP
 ## What the prize would have won on the run's rows (PrizeWin), or null; its sticker.
 var _win: PrizeWin
 var _sticker: WinSticker
@@ -161,6 +180,7 @@ var _te: float = -1.0
 var _idle: float = 0.0
 var _rm: bool = false
 var _gold: bool = false
+var _hovered: bool = false
 
 
 func _init(
@@ -174,8 +194,8 @@ func _init(
 	pivot_offset = Vector2(SIZE.x / 2.0, SIZE.y)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	mouse_entered.connect(func() -> void: hovered.emit(index))
-	mouse_exited.connect(func() -> void: unhovered.emit(index))
+	mouse_entered.connect(_on_hover.bind(true))
+	mouse_exited.connect(_on_hover.bind(false))
 	visible = false
 	# The tickets stand a z step up, their back effects a step down again: every ticket's rim and
 	# sunburst draw behind all the tickets' faces, never over a neighbour's card.
@@ -199,12 +219,23 @@ func _init(
 	_fx_back.add_child(_burst)
 	_card = _layer("Card")
 	_card.draw.connect(_draw_card)
+	look = CardFoil.look_of(prize)
+	foil = CardFoil.new(look, prize.kind)
+	_card.add_child(foil)
 	art = PrizeArt.new(prize, preview)
 	art.position = ART_RECT.position
 	_card.add_child(art)
+	if look == MachinePrize.Rarity.LEGENDARY:
+		art.break_out(CardFoil.window_rect(look).position.y - ART_RECT.position.y)
 	_families = FamilyPalette.shared().styles(chip_families(prize))
+	if look == MachinePrize.Rarity.LEGENDARY and not _families.is_empty():
+		var width: float = CHIP_SIZE + CHIP_STEP * (_families.size() - 1)
+		var row: Rect2 = Rect2(CHIP_AT, Vector2(width, CHIP_SIZE))
+		var chip_tops: Array[float] = [LEGENDARY_CHIP_TOP, CHIP_FOOT]
+		_chip_top = _corner_tops(row, chip_tops)
 	_win = PrizeWin.of(run, preview)
 	_add_texts()
+	foil.set_band(band_rect(_name_rows, look))
 	var chip: Control = _layer("Chip", _card)
 	chip.draw.connect(_draw_chip.bind(chip))
 	_add_price()
@@ -219,9 +250,14 @@ func _init(
 	_shred = _layer("Shred")
 	_shred.draw.connect(_draw_shred)
 	_shred.visible = false
-	tab = RarityTab.new(prize.rarity)
+	tab = RarityTab.new(look)
 	tab.position = MachineArt.snap_point(TAB_MIDDLE - tab.size / 2.0)
 	add_child(tab)
+	# The card's icons are whole art px at an integer scale: nearest keeps them crisp (the
+	# default linear filter blurred the family glyphs, the stamp rings and the sparkles).
+	for crisp: CanvasItem in [chip, art, _fx_back, _fx_front]:
+		crisp.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	art.keep_text_smooth()
 
 
 ## A NEW ITEM's price as its window prints it ("2€"); "" for any other prize.
@@ -266,17 +302,27 @@ static func chip_families(shown: MachinePrize) -> PackedStringArray:
 	return FamilyPalette.shared().ticket_families(shown.card)
 
 
-## The family chips' rects on the ticket (B2), for `count` families.
-static func chip_rects(count: int) -> Array[Rect2]:
+## The family chips' rects on the ticket (B2), for `count` families, on a card of `rarity` (a
+## LEGENDARY card's under its plate), their top at `top` when given (a ticket's: family_rects).
+static func chip_rects(count: int, rarity: int = 0, top: float = -1.0) -> Array[Rect2]:
 	var rects: Array[Rect2] = []
+	var at: Vector2 = CHIP_AT
+	if top >= 0.0:
+		at.y = top
+	elif rarity == MachinePrize.Rarity.LEGENDARY:
+		at.y = LEGENDARY_CHIP_TOP
 	for chip: int in range(count):
-		rects.append(Rect2(CHIP_AT + Vector2(CHIP_STEP * chip, 0), Vector2.ONE * CHIP_SIZE))
+		rects.append(Rect2(at + Vector2(CHIP_STEP * chip, 0), Vector2.ONE * CHIP_SIZE))
 	return rects
 
 
-## The band's rect for a name of `rows` rows.
-static func band_rect(rows: int) -> Rect2:
-	return Rect2(BAND_LEFT, BAND_TOP, BAND_WIDTH, BAND_PAD + BAND_PITCH * rows)
+## The band's rect for a name of `rows` rows on a card of `rarity` (inside a foil frame on RARE
+## and LEGENDARY).
+static func band_rect(rows: int, rarity: int = 0) -> Rect2:
+	var height: float = BAND_PAD + BAND_PITCH * rows
+	if rarity == MachinePrize.Rarity.COMMON:
+		return Rect2(BAND_LEFT, BAND_TOP, BAND_WIDTH, height)
+	return Rect2(FOIL_BAND_LEFT, BAND_TOP, FOIL_BAND_WIDTH, height)
 
 
 ## The rule's lines and its size (an index into RULE_SIZES) under a band of `row_count` rows,
@@ -408,6 +454,9 @@ func frame(t: float) -> void:
 		at += _after_pick(plan, t)
 	position = MachineArt.snap_point(at + Vector2(0, bump))
 	tab.show_at(_te, _rm)
+	foil.frame(_idle, _te, index, _hovered, _rm)
+	if look == MachinePrize.Rarity.LEGENDARY:
+		art.climb(_te, _rm)
 	if _sticker != null:
 		_sticker.frame(_te, _rm)
 	_frame_burst()
@@ -487,7 +536,7 @@ func burst_radius() -> float:
 
 ## The pips' text (● / ◆◆ / ★★★), drawn as shapes.
 func pips_text() -> String:
-	return ["●", "◆◆", "★★★"][prize.rarity]
+	return ["●", "◆◆", "★★★"][look]
 
 
 ## Seconds since it landed face up (below 0: not yet).
@@ -505,7 +554,50 @@ func price_rect() -> Rect2:
 	if _price == null:
 		return Rect2()
 	var width: float = _price.width() + 2.0 * PRICE_PAD
-	return Rect2(PRICE_RIGHT - width, PRICE_TOP, width, PRICE_HEIGHT)
+	return Rect2(PRICE_RIGHT - width, _price_top, width, PRICE_HEIGHT)
+
+
+## This ticket's family chips' rects (chip_rects at their placed top).
+func family_rects() -> Array[Rect2]:
+	return chip_rects(_families.size(), look, _chip_top)
+
+
+## Of the tops `tops` for `rect` (ticket coordinates), the one whose rect covers the fewest of the
+## art's ink texels once it has climbed (PrizeArt.ink_texels), never over the art's own chip; the
+## first on a tie. When the art climbs out over the plate the window's foot (the last top) comes
+## first, as mock-up card_rarity_B.html drops the chips and the price there.
+func _corner_tops(rect: Rect2, tops: Array[float]) -> float:
+	var order: Array[float] = tops.duplicate()
+	if art.climb_full() > 0.0:
+		var foot: float = tops[tops.size() - 1]
+		order.remove_at(order.size() - 1)
+		order.insert(0, foot)
+	var art_chip: Rect2 = art.chip_rect()
+	art_chip.position += ART_RECT.position
+	var best: float = order[0]
+	var least: int = -1
+	for top: float in order:
+		var spot: Rect2 = Rect2(rect.position.x, top, rect.size.x, rect.size.y)
+		if art_chip.has_area() and spot.intersects(art_chip):
+			continue
+		var ink: int = art.ink_texels(Rect2(spot.position - ART_RECT.position, spot.size))
+		if least < 0 or ink < least:
+			least = ink
+			best = top
+	return best
+
+
+## Whether the pointer rests on it (the RARE foil runs faster under it).
+func is_hovered() -> bool:
+	return _hovered
+
+
+func _on_hover(on: bool) -> void:
+	_hovered = on
+	if on:
+		hovered.emit(index)
+	else:
+		unhovered.emit(index)
 
 
 func _gui_input(event: InputEvent) -> void:
@@ -542,7 +634,7 @@ func _picked() -> bool:
 ## The LEGENDARY sunburst's life: grows (BURST_GROW), holds, then shrinks to a small glow by
 ## BURST_SHRINK; it turns on view.idle_time (still under reduced motion, at its glow).
 func _frame_burst() -> void:
-	var legendary: bool = prize.rarity == MachinePrize.Rarity.LEGENDARY
+	var legendary: bool = look == MachinePrize.Rarity.LEGENDARY
 	_burst.visible = legendary and _te >= 0.0
 	if not _burst.visible:
 		return
@@ -559,10 +651,10 @@ func _frame_burst() -> void:
 			var k: float = MachineArt.ease_in_out(MachineArt.seg(_te, BURST_HOLD, BURST_SHRINK))
 			radius = lerpf(BURST_RADIUS, BURST_RADIUS * GLOW_SHARE, k)
 			alpha = lerpf(1.0, GLOW_ALPHA, k)
-	var look: ShaderMaterial = _burst.material as ShaderMaterial
-	look.set_shader_parameter("radius", MachineArt.snap(radius))
-	look.set_shader_parameter("alpha", alpha)
-	look.set_shader_parameter("rotation", _idle * BURST_SPIN)
+	var burst: ShaderMaterial = _burst.material as ShaderMaterial
+	burst.set_shader_parameter("radius", MachineArt.snap(radius))
+	burst.set_shader_parameter("alpha", alpha)
+	burst.set_shader_parameter("rotation", _idle * BURST_SPIN)
 
 
 ## The band's name (hard pixel rows, centred, or the bold fallback) and the rule under it.
@@ -571,7 +663,7 @@ func _add_texts() -> void:
 	var rows: PackedStringArray = name_rows(_name_text)
 	var ink: Color = _band_ink()
 	if not rows.is_empty():
-		var band: Rect2 = band_rect(rows.size())
+		var band: Rect2 = band_rect(rows.size(), look)
 		var holder: Control = Control.new()
 		holder.name = "Name"
 		holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -594,7 +686,7 @@ func _add_texts() -> void:
 		var label: Label = _label(_name_text, NAME_SIZE, bold, ink)
 		label.name = "Name"
 		label.max_lines_visible = NAME_LINES
-		var band: Rect2 = band_rect(NAME_LINES)
+		var band: Rect2 = band_rect(NAME_LINES, look)
 		var middle: float = band.position.y + BAND_PAD / 2.0
 		_fit_pitched(label, bold, NAME_SIZE, BAND_PITCH, Vector2(NAME_WIDTH, middle), NAME_LINES)
 		_name = label
@@ -622,6 +714,9 @@ func _add_price() -> void:
 	if price.is_empty():
 		return
 	_price = MachineLine.make("Price", price, Palette.INK)
+	if look == MachinePrize.Rarity.LEGENDARY:
+		var price_tops: Array[float] = [PRICE_TOP, LEGENDARY_CHIP_TOP, PRICE_FOOT]
+		_price_top = _corner_tops(price_rect(), price_tops)
 	var window: Rect2 = price_rect()
 	# The chunky digits stand an art px over the line's capitals: their top 4 px into the window.
 	_price.position = window.position + Vector2(PRICE_PAD, PRICE_PAD)
@@ -632,7 +727,7 @@ func _add_price() -> void:
 func _draw_chip(chip: Control) -> void:
 	art.draw_chip(chip, ART_RECT.position)
 	_draw_pips(chip)
-	var rects: Array[Rect2] = chip_rects(_families.size())
+	var rects: Array[Rect2] = family_rects()
 	var p: float = MachineArt.PIXEL
 	for chip_index: int in range(_families.size()):
 		var family: FamilyStyle = _families[chip_index]
@@ -693,16 +788,6 @@ func _band_ink() -> Color:
 	return Palette.PAPER if prize.kind == MachinePrize.Kind.COUPON else Palette.INK
 
 
-## The art window's colour and its foot's, by kind.
-func _art_colour() -> Array[Color]:
-	match prize.kind:
-		MachinePrize.Kind.REGISTER, MachinePrize.Kind.UPGRADE:
-			return [Palette.MUSTARD_PALE, Palette.MUSTARD_LIGHT]
-		MachinePrize.Kind.COUPON:
-			return [Palette.TEAL_PALE, Palette.TEAL_LIGHT]
-	return [Palette.CREAM, Palette.CREAM_SHADE]
-
-
 func _layer(layer_name: String, parent: Control = null) -> Control:
 	var layer: Control = Control.new()
 	layer.name = layer_name
@@ -712,24 +797,19 @@ func _layer(layer_name: String, parent: Control = null) -> Control:
 	return layer
 
 
-## The face: its shadow, paper in an ink outline and a cream edge, the art window (its foot
-## shaded), the band.
+## The face: its rarity's stock (CardFoil.draw_stock: frame, paper, the art window in the kind's
+## colour, the band).
 func _draw_card() -> void:
-	var p: float = MachineArt.PIXEL
-	var rect: Rect2 = Rect2(Vector2.ZERO, SIZE)
-	_card.draw_rect(Rect2(Vector2(6, 6), SIZE), Color(Palette.INK, 0.35))
-	_card.draw_rect(rect, Palette.INK)
-	_card.draw_rect(rect.grow(-p), Palette.CREAM_DARKEST)
-	_card.draw_rect(rect.grow(-2.0 * p), Palette.PAPER)
-	var colours: Array[Color] = _art_colour()
-	_card.draw_rect(ART_RECT, colours[0])
-	_card.draw_rect(Rect2(ART_RECT.position.x, ART_RECT.end.y - p, ART_RECT.size.x, p), colours[1])
-	_card.draw_rect(band_rect(_name_rows), _band_colour())
+	var chip: Rect2 = art.chip_rect()
+	var chip_left: bool = chip.has_area() and chip.get_center().x < PrizeArt.SIZE.x / 2.0
+	CardFoil.draw_stock(
+		_card, look, prize.kind, band_rect(_name_rows, look), _band_colour(), chip_left
+	)
 
 
 func _draw_pips(item: CanvasItem) -> void:
-	var grid: String = PIP_GRIDS[prize.rarity]
-	var count: int = prize.rarity + 1
+	var grid: String = PIP_GRIDS[look]
+	var count: int = look + 1
 	var origin: Vector2 = Vector2(PIP_LEFT, PIP_TOP)
 	for pip: int in range(count):
 		for cell: int in range(25):
@@ -737,7 +817,7 @@ func _draw_pips(item: CanvasItem) -> void:
 				var at: Vector2 = (
 					origin + Vector2(pip * 6 + cell % 5, floori(cell / 5.0)) * PIP_PIXEL
 				)
-				item.draw_rect(Rect2(at, Vector2(PIP_PIXEL, PIP_PIXEL)), PIP_INKS[prize.rarity])
+				item.draw_rect(Rect2(at, Vector2(PIP_PIXEL, PIP_PIXEL)), PIP_INKS[look])
 
 
 ## The shred mark of a doomed ticket: tomato strips down the face and a cross on the art.
@@ -757,30 +837,22 @@ func _draw_shred() -> void:
 		_shred.draw_line(from, to, Palette.TOMATO, CROSS_WIDTH)
 
 
-## Behind the ticket: the picked ticket's gold rim, else its rarity's rim and chase lights.
+## Behind the ticket: the picked ticket's gold rim (the card's own foil carries its rarity, v0.97:
+## no rim or chase lights behind it).
 func _draw_back() -> void:
 	if _gold:
 		TicketRim.draw_pick(_fx_back, SIZE)
-		return
-	if _te < 0.0:
-		return
-	TicketRim.draw_back(_fx_back, prize.rarity, _idle, _rm, SIZE)
 
 
-## Over the ticket: COMMON's dust, the sheen and the corner glints, RARE's sparkles,
-## LEGENDARY's flash, orbiting sparkles and coins.
+## Over the ticket: COMMON's dust, the corner glints, RARE's sparkles, LEGENDARY's flash,
+## orbiting sparkles and coins (the sweep is the foil's, under the art and the words).
 func _draw_front() -> void:
 	if _te < 0.0:
 		return
 	var te: float = _te
 	if not _gold:
-		var sheen: float = TicketRim.sheen_at(prize.rarity, te, _idle, _rm, index)
-		var legendary: bool = prize.rarity == MachinePrize.Rarity.LEGENDARY
-		var landed: bool = te >= TicketRim.SHEEN_LAND_S
-		var tint: Color = Palette.MUSTARD_PALE if legendary and landed else Palette.PAPER
-		TicketRim.draw_sheen(_fx_front, sheen, tint, SIZE)
-		TicketRim.draw_glints(_fx_front, prize.rarity, _idle, _rm, SIZE)
-	match prize.rarity:
+		TicketRim.draw_glints(_fx_front, look, _idle, _rm, SIZE)
+	match look:
 		MachinePrize.Rarity.COMMON:
 			if _rm:
 				return
