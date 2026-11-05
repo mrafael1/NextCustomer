@@ -47,6 +47,8 @@ extends Control
 signal finished
 ## The player took `pack` from the starter pack choice (#107).
 signal pack_taken(pack: StarterPackDefinition)
+## Esc on the opening board's store page: the screen leaves for the title.
+signal title_requested
 
 const TUNING_PATH := "res://data/balance/cart_reveal.tres"
 ## The dim under the top bar, over the store.
@@ -78,6 +80,12 @@ var requested: bool = false
 var reduced_motion: bool = false
 ## How long the pointer stays on a tile before its popup opens (ms).
 var hover_hold_ms: int = 0
+## The full opening-time board (v4 B); the older reveal remains for fixed-deck captures.
+var board: StartBoard
+## The OPEN STORE shutter after clock-in (its child), or null. Shift 1 is built behind it while it
+## is down: the close() that start makes (during _handing_over) keeps it; any other frees it.
+var _shutter: RollerShutter
+var _handing_over: bool = false
 var _panel: RevealPanel
 ## The scan popup, over the panel, and the tile it shows (null: hidden); the tile under the
 ## pointer and how long it has stayed there (s).
@@ -138,9 +146,21 @@ static func request() -> void:
 
 ## Opens the reveal for `run`'s dealt starting deck (a recipe's: a fixed deck has no picks and
 ## shows nothing; returns whether it opened), folding into `cart` at the end.
-## A run waiting for its starter pack (#107) opens on the choice instead.
-func play(run: RunState, cart: Control, reduced: bool) -> bool:
+## A run waiting for its starter pack (#107) opens on the choice instead: with `profile` and
+## `actions`, a run with a start setup opens the two-page opening board (StartBoard) and never
+## builds the older panel.
+func play(
+	run: RunState,
+	cart: Control,
+	reduced: bool,
+	profile: ProfileState = null,
+	actions: StartBoardActions = null
+) -> bool:
 	close()
+	var choosing: bool = run.phase == RunState.Phase.CHOOSE_START and run.start_offer != null
+	if choosing and actions != null and profile != null and run.start_setup != null:
+		_show_setup(run, profile, actions)
+		return true
 	_cart = cart
 	reduced_motion = reduced
 	_core = run.starter.core_cards.duplicate()
@@ -176,7 +196,14 @@ func play(run: RunState, cart: Control, reduced: bool) -> bool:
 
 ## Closes the reveal at once (a new run, a resume), with no fold and no signal.
 func close() -> void:
-	visible = false
+	if board != null:
+		board.queue_free()
+		board = null
+	if _shutter != null and not _handing_over:
+		_shutter.cancel()
+		_shutter = null
+	visible = _shutter != null
+	queue_redraw()
 	set_process(false)
 	_outro = -1.0
 	_hover_tile = null
@@ -217,6 +244,9 @@ func is_choosing() -> bool:
 
 ## Raises pack `index` of the choice (#107; a click on its face, or its 1 to 3 key).
 func raise_pack(index: int) -> void:
+	if board != null:
+		board.pick(index)
+		return
 	if not is_choosing() or index < 0 or index >= _panel.choice.faces.size():
 		return
 	_skip_to_choice()
@@ -229,6 +259,8 @@ func raise_pack(index: int) -> void:
 ## Takes the raised pack (#107; the push bar or Enter): emits pack_taken, then the pack's cards
 ## and today's products fly into the cart. False when no pack is raised.
 func take_pack() -> bool:
+	if board != null:
+		return board.clock_in()
 	if not is_choosing():
 		return false
 	var pack: StarterPackDefinition = _panel.choice.raised_pack()
@@ -322,6 +354,13 @@ func advance(seconds: float) -> void:
 
 
 func _process(delta: float) -> void:
+	if board != null:
+		# The board's card tiles show this reveal's popup, with the same hold.
+		hover(board.hovered_card())
+		hover_for(delta)
+		return
+	if _panel == null:
+		return
 	if not _frozen:
 		advance(delta)
 	hover_for(delta)
@@ -404,11 +443,14 @@ func show_popup(tile: Control) -> void:
 
 ## Places the popup beside its tile over the panel, on the stage (ScanPopup.place_at).
 func _place_popup() -> void:
-	if _shown_tile == null or _panel == null:
+	if _shown_tile == null:
 		return
 	var tile_rect: Rect2 = _shown_tile.get_global_rect()
-	var stage_rect: Rect2 = _stage.get_global_rect()
-	_popup.place_at(tile_rect, tile_rect, stage_rect, _panel.get_global_rect())
+	if board != null:
+		_popup.place_at(tile_rect, tile_rect, board.stage_rect(), board.stage_rect())
+	elif _panel != null:
+		var stage_rect: Rect2 = _stage.get_global_rect()
+		_popup.place_at(tile_rect, tile_rect, stage_rect, _panel.get_global_rect())
 
 
 ## The card a popup target shows: a tile's, or a dispenser item's.
@@ -416,6 +458,8 @@ func _card_of(target: Control) -> CardDefinition:
 	var tile: RevealTile = target as RevealTile
 	if tile != null:
 		return tile.card
+	if target.has_meta("card"):
+		return target.get_meta("card") as CardDefinition
 	if _panel == null:
 		return null
 	return _panel.dispenser.card_at(target.get_global_rect().get_center())
@@ -433,6 +477,9 @@ func _notification(what: int) -> void:
 
 
 func _gui_input(event: InputEvent) -> void:
+	if board != null or _panel == null:
+		accept_event()
+		return
 	var motion: InputEventMouseMotion = event as InputEventMouseMotion
 	if motion != null:
 		var point: Vector2 = get_global_transform() * motion.position
@@ -463,7 +510,7 @@ func _click_choice(point: Vector2) -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if not visible:
+	if board != null or _panel == null or not visible:
 		return
 	var key: InputEventKey = event as InputEventKey
 	if key == null or not key.pressed or key.echo:
@@ -486,6 +533,53 @@ func _input(event: InputEvent) -> void:
 	if TAP_KEYS.has(key.keycode):
 		get_viewport().set_input_as_handled()
 		tap()
+
+
+## Opens the waiting choice on the store / staff-room board (no RevealPanel, so none of its
+## sounds play). Only a run with a setup: an older save keeps its old reveal, so its already-dealt
+## stock and regulars are never rerolled.
+func _show_setup(run: RunState, profile: ProfileState, actions: StartBoardActions) -> void:
+	reduced_motion = profile.reduced_motion()
+	_choosing = true
+	_offer = run.start_offer
+	_t = 0.0
+	_outro = -1.0
+	board = StartBoard.new(run, profile, actions)
+	board.slide_s = tuning.page_slide_s
+	add_child(board)
+	# The popup draws over the board (the shutter, added at clock-in, covers both).
+	move_child(_popup, -1)
+	board.back_to_title.connect(func() -> void: title_requested.emit())
+	board.clocked_in.connect(
+		func(pack: StarterPackDefinition) -> void:
+			_open_shutter(pack, profile.reduced_motion(), run.shift_count())
+	)
+	visible = true
+	set_process(true)
+	Sfx.play_at(self, "ui_open")
+	queue_redraw()
+
+
+func _open_shutter(pack: StarterPackDefinition, reduced: bool, shift_count: int) -> void:
+	if _shutter != null:
+		return
+	_shutter = RollerShutter.new()
+	_shutter.reduced = reduced
+	_shutter.shift_count = shift_count
+	_shutter.covered.connect(
+		func() -> void:
+			# The screen starts shift 1 behind the shutter, closing its overlays: this close keeps
+			# the shutter.
+			_handing_over = true
+			pack_taken.emit(pack)
+			_handing_over = false
+	)
+	_shutter.opened.connect(
+		func() -> void:
+			_shutter = null
+			_finish()
+	)
+	add_child(_shutter)
 
 
 func _finish() -> void:
@@ -535,6 +629,8 @@ func _render() -> void:
 
 
 func _draw() -> void:
+	if _panel == null:
+		return
 	var top: float = _stage.position.y + ShiftStage.TOP_BAR_BOTTOM
 	draw_rect(Rect2(0, top, size.x, size.y - top), Color(DIM, DIM.a * _dim_alpha))
 	if _ring_alpha > 0.0 and _cart != null and is_instance_valid(_cart):

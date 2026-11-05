@@ -103,11 +103,12 @@ func show_tip(glyph: TipTarget) -> void:
 		_shown.tip_shown(false)
 	_shown = glyph
 	_candidate = glyph
-	_place(glyph)
-	_tip.visible = true
+	# Listeners first: PlanningEffects writes the belt's part of the text (tip_more) on it.
 	if changed:
 		glyph.tip_shown(true)
 		shown_changed.emit(glyph)
+	_place(glyph)
+	_tip.visible = true
 	if _pop != null:
 		_pop.kill()
 		_pop = null
@@ -207,7 +208,7 @@ func _place(glyph: TipTarget) -> void:
 	if glyph.tip_below and is_instance_valid(glyph.tip_anchor):
 		anchor = to_local * glyph.tip_anchor.get_global_rect()
 	var screen: Rect2 = to_local * get_viewport_rect()
-	_tip.show_for(glyph.tip_text, glyph_rect, anchor, glyph.tip_below, screen)
+	_tip.show_for(glyph.full_tip(), glyph_rect, anchor, glyph.tip_below, screen)
 
 
 func _is_blocked() -> bool:

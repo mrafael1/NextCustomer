@@ -6,7 +6,7 @@ extends RefCounted
 ## better), which the same machine turns into after its receipt is read (MachinePlan.premium_at)
 ## and stays for the whole visit: the sign flashes to a dark night face with lit gold PREMIUM
 ## REWARDS and its bulbs chase on, a 3 px gold trim runs down both cabinet edges, the gold receipt
-## pops up in the slot and is swallowed (v0.97: it used to stay half inserted for the whole visit,
+## pops up in the slot and is swallowed (v0.99: it used to stay half inserted for the whole visit,
 ## which read as a stuck ticket; the user's play test), the tray goes gold, the key plate goes
 ## dark, the keys sink and rise back, and the stock window's columns restock one by one onto gold
 ## pedestals.

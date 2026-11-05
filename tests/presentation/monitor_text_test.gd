@@ -23,3 +23,21 @@ func test_a_leading_amount_splits_off_its_line() -> void:
 	)
 	assert_array(Array(MonitorText.step_parts("×2 Eggs"))).is_equal(["×2 Eggs", "×2"])
 	assert_array(Array(MonitorText.step_parts("Pays  17€"))).is_equal(["Pays", "17€"])
+
+
+## A row says its amount once (#138 review): a factor only as the amount, an override's "= 0" as
+## "0€" (or not at all when the words say it), a name ending in its amount loses it there.
+func test_a_row_says_its_amount_once() -> void:
+	assert_array(Array(MonitorText.row_parts("×3 Multipack"))).is_equal(["Multipack", "×3"])
+	assert_array(Array(MonitorText.row_parts("Soup beside Frozen  = 0"))).is_equal(
+		["Soup beside Frozen", "0€"]
+	)
+	assert_array(Array(MonitorText.row_parts("Spot check: slot 3 pays 0€  = 0"))).is_equal(
+		["Spot check: slot 3 pays 0€", ""]
+	)
+	assert_array(Array(MonitorText.row_parts("+2€ Bakery festival: Bakery +2€"))).is_equal(
+		["Bakery festival: Bakery", "+2€"]
+	)
+	assert_array(Array(MonitorText.row_parts("+1€ Eggs before it"))).is_equal(
+		["Eggs before it", "+1€"]
+	)

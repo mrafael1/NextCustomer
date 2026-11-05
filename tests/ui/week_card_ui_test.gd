@@ -198,7 +198,7 @@ func test_the_final_review_reads_pass_to_win() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
 	screen._week.skip()
-	screen.run.debug_skip_to_shift(11)
+	screen.run.debug_skip_to_shift(screen.run.shift_count() - 1)
 	screen.debug_show_shift()
 	screen._week.skip()
 	screen._week.reopen()
@@ -207,7 +207,13 @@ func test_the_final_review_reads_pass_to_win() -> void:
 	var last: String = _texts(card.rows()[3])
 	assert_str(last).contains("FINAL REVIEW · 2 MALUSES")
 	assert_str(last).contains(WeekCardModel.FINAL_REWARD)
-	assert_str(_texts(card.banner())).contains("HOLIDAY RUSH")
+	# Week 4 (v0.96): Clearance week, its banner in its own colour (orange dark).
+	assert_str(_texts(card.banner())).contains("CLEARANCE WEEK")
+	assert_bool(WeekCard.colour_of(4) == Palette.ORANGE_DARK).is_true()
+	var colours: Array[Color] = []
+	for week: int in range(1, 5):
+		assert_bool(colours.has(WeekCard.colour_of(week))).is_false()
+		colours.append(WeekCard.colour_of(week))
 	var punched: Array[bool] = []
 	for punch: Label in card.punches():
 		punched.append(punch.modulate.a > 0.5)
@@ -267,7 +273,7 @@ func test_the_week_bonus_plays_in_the_count_up_from_the_week_chip() -> void:
 
 ## Holiday rush raises the machine's odds a level (v0.70): after shift 9 the stock window's lit
 ## columns show the raised level's shares and a gold "ODDS +1 · WEEK" tag inside the window (under
-## its odds plates since v0.97), clear of every odds label; after shift 8 (Bakery festival) there
+## its odds plates since v0.99), clear of every odds label; after shift 8 (Bakery festival) there
 ## is none.
 func test_the_stock_window_shows_the_week_odds() -> void:
 	for shift: int in [8, 9]:
@@ -375,6 +381,10 @@ func test_the_card_waits_for_the_upgrade_swap() -> void:
 	machine.swap.show_at(machine.swap.length())
 	assert_bool(machine.is_swapping()).is_false()
 	await _frames(3)
+	assert_bool(screen._week.card.is_open()).is_true()
+	# Skip the slide-in so the rect is settled however long the frames took (a busy batch run).
+	screen._week.card.finish()
+	await _frames(1)
 	assert_bool(screen._week.card.is_open()).is_true()
 	(
 		assert_bool(screen.get_global_rect().encloses(screen._week.card.card().get_global_rect()))

@@ -237,3 +237,28 @@ static func _card(display_name: String, base: int, rule: Rule) -> CardDefinition
 	if rule != null:
 		card.rules.append(rule)
 	return card
+
+
+## The monitor's description (PR #138 monitor): its template with the sticker's keys, a rule's
+## cap, a chain bonus in words (counted by its factor) and a factor in words; a variant with none
+## of its own reads its base card's.
+func test_monitor_text_fills_its_keys_from_the_data() -> void:
+	var chain: AdjacentMatchBonusRule = AdjacentMatchBonusRule.new()
+	chain.bonus_is_previous_price = true
+	var banana: CardDefinition = _card("Banana", 2, chain)
+	banana.monitor_text = "{chain} Adds {previous} when placed right after it."
+	assert_str(CardText.monitor_text(banana)).is_equal(
+		"CHAIN Adds the previous Banana's price when placed right after it."
+	)
+	var golden_chain: AdjacentMatchBonusRule = AdjacentMatchBonusRule.new()
+	golden_chain.bonus_is_previous_price = true
+	golden_chain.bonus_factor = 2
+	var golden: CardDefinition = _card("Golden Banana", 4, golden_chain)
+	golden.variant_of = banana
+	assert_str(CardText.monitor_template(golden)).is_equal(banana.monitor_text)
+	assert_str(CardText.monitor_text(golden)).contains("twice the previous Banana's price")
+	assert_str(CardText.times_words(1)).is_empty()
+	assert_str(CardText.times_words(3)).is_equal("three times")
+	assert_str(CardText.times_words(7)).is_equal("7 times")
+	var plain: CardDefinition = _card("Bread", 3, null)
+	assert_str(CardText.monitor_text(plain)).is_empty()

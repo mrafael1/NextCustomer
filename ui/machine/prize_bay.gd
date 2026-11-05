@@ -1,6 +1,6 @@
 class_name PrizeBay
 extends Control
-## V3's prize bay (v0.96, mock-ups docs/art/mockups/machine_relook_v2.html "V3 polished" and
+## V3's prize bay (v0.98, mock-ups docs/art/mockups/machine_relook_v2.html "V3 polished" and
 ## machine_relook_v3.html), right of the cabinet's middle pillar (RewardMachineView.BAY_POSITION):
 ## the prize tickets land here, each on its own pedestal under a spotlight, so the row reads as a
 ## prize counter. A steel frame (ink, steel dark, ink, a charcoal floor 8 px in; on the night face
@@ -9,7 +9,7 @@ extends Control
 ## once the tickets drop, "GOOD PICK" (gold) after a pick, blank while idle. Under it each ticket's
 ## lamp (lit mustard pale once the tickets drop) and its dithered cone of light; under each ticket
 ## a pedestal with a steel lip (brass once the tray turns gold, PREMIUM) and a light strip that
-## turns on as its ticket is revealed (reveal_at), in its card's rarity (v0.97, mock-up
+## turns on as its ticket is revealed (reveal_at), in its card's rarity (v0.99, mock-up
 ## card_rarity.html: cream shade, teal pale, gold; STRIP_LIGHTS). Before the draw each slot is a
 ## dashed placeholder with a "?" and the bay says how many sealed prizes drop here. The floor (a
 ## line and a grid of ticks) has the SKIP bin's hatch. frame(t) reads only view.plan, t,

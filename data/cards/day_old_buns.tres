@@ -22,6 +22,7 @@ base = 2
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_day_old_buns")])
 rule_text = "+3 if right after a Clearance item"
 sticker_text = "+{bonus} after {match_value}"
+monitor_text = "Gets +{bonus} when placed right after a {match_value} item."
 art_ref = "res://art/items_v2/day_old_buns.png"
 mini_art_ref = "res://art/minis/day_old_buns.png"
 mini_golden_art_ref = "res://art/minis/day_old_buns_golden.png"

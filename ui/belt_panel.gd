@@ -32,8 +32,8 @@ const VANISHING_POINT := Vector2(640, -1600)
 const TOP_FACE := Rect2(12, 12, 894, 74)
 const LIP := Rect2(0, 86, 918, 14)
 const APRON := Rect2(4, 100, 910, 8)
-const RAIL := Rect2(4, 108, 910, 68)
-const RAIL_SHADOW := Rect2(6, 176, 910, 4)
+const RAIL := Rect2(4, 108, 910, 80)
+const RAIL_SHADOW := Rect2(6, 188, 910, 4)
 const RAIL_SHADOW_ALPHA := 0.35
 ## The guard's lit face (belt_top's rows 4 to 7, where a standee's shadow lies, CheerShadow),
 ## and the columns the belt's art covers on the counter's top line (ShiftStage.COUNTER_TOP), its
@@ -42,7 +42,7 @@ const GUARD_FACE := Rect2(12, 4, 880, 4)
 const FOOT_SPAN := Vector2(10, 896)
 ## The art: the top face over the guard's top to the lip, and the front from the lip down.
 const TOP_RECT := Rect2(0, 0, 918, 86)
-const FRONT_RECT := Rect2(0, 86, 918, 90)
+const FRONT_RECT := Rect2(0, 86, 918, 102)
 const FRONT_MARGIN := 3
 ## A bolt head in each gap between two tickets of the 7-slot row (the mirrored mock-up B2: 8 px
 ## before each cell's left edge), on the apron.

@@ -22,6 +22,7 @@ base = 1
 rules = Array[ExtResource("1_tkmva")]([SubResource("Resource_bythu")])
 rule_text = "The next Food item pays ×2 (a second Eggs replaces this, they don't add up)"
 sticker_text = "×{factor} next {tag}"
+monitor_text = "The next {tag} item pays ×{factor}. A second {name} replaces this one instead of adding up."
 generally_useful = true
 art_ref = "res://art/items_v2/eggs.png"
 mini_art_ref = "res://art/minis/eggs.png"

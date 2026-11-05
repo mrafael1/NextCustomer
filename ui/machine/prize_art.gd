@@ -1,7 +1,7 @@
 class_name PrizeArt
 extends Control
 ## The art box on a prize ticket (v0.50, mock-up premium_machine_v1.html; M5; 132x100 on V3's
-## 144x244 ticket in v0.96, mock-up machine_relook_v3.html): the real sprites, never a stand-in.
+## 144x244 ticket in v0.98, mock-up machine_relook_v3.html): the real sprites, never a stand-in.
 ## - a product: its item sprite (plain, BIG or GOLDEN as drawn), a BIG or GOLDEN one (NEW ITEMS
 ##   since v0.61: an item can arrive upgraded) with its tier chip; a coupon: the coupon slip with
 ##   its icon, or its name printed on it (ItemView.item_art, as the game shows items everywhere);
@@ -14,7 +14,7 @@ extends Control
 ##   (UpgradeDefinition.icon_ref; Big basket's "+1 slot" ticket) or, with none, its initials. A
 ##   level-up (#108, LV 2 or LV 3) stamps as many slots as its level and shows an "LV n" chip in
 ##   the art's bottom right corner (chip_rect): the ticket's band carries only the perk's name.
-## On a LEGENDARY card (v0.97, CardFoil) the art breaks out of its window over the gold plate
+## On a LEGENDARY card (v0.99, CardFoil) the art breaks out of its window over the gold plate
 ## (break_out): a sprite whose top stays under BREAKOUT canvas px (6 art px, the mock-up's) above
 ## the window climbs up to CLIMB_MAX on landing (climb: 0.15-0.45 s, a back ease; at once under
 ## reduced motion), and

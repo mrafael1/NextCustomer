@@ -24,9 +24,10 @@ extends Node
 ## motion; the checks still show. The belt shows no paid chips in the count
 ## (ItemView.shows_paid_chip).
 ##
-## As a giver's effect lands (CountUp.step_landed with another item as giver), the rail
-## light (#86, kept by #105 piece 2: RailLight, ShiftStage.rail_light) runs gold along the price
-## rail from the giver's ticket (the rail's left end once it is bagged) to the target's.
+## The rail light (#86, kept by #105 piece 2) is gone from the count (PR #138 round 7, the user's
+## "remove yellow line filling when an item is scanned under first item": the gold run along the
+## price rail from a giver's ticket, or the rail's left end once it is bagged, to the scanned
+## item's): the giver's hop, sparks and sticker say it.
 ##
 ## Where an item is now (source_rect, CountUp.source_rect while counting): its sprite on the belt,
 ## or the bag's mouth once bagged, for the count's flights and puffs. A resumed checkout shows the
@@ -41,6 +42,9 @@ const SWEEP_S := 0.16
 ## A giver's sparks: each one's run at speed 1 (s) and the gap between targets.
 const SPARK_S := 0.3
 const SPARK_GAP_S := 0.06
+## A counted pay's window pops from this scale back to 1 over PAID_POP_S.
+const PAID_POP := 1.2
+const PAID_POP_S := 0.18
 
 var _count: CountUp
 var _stage: ShiftStage
@@ -53,7 +57,8 @@ var _reduced: bool = false
 var _active: bool = false
 ## The slots hopped into the bag so far.
 var _bagged: Dictionary[int, bool] = {}
-var _count_tags: Array[PayTag] = []
+## The tickets whose window shows a counted pay (put back to their printed price by _stop).
+var _paid_tickets: Array[PriceSticker] = []
 ## The slot at the scanner, or -1.
 var _scanning: int = -1
 var _slide: Tween
@@ -74,10 +79,7 @@ func setup(count_up: CountUp, stage: ShiftStage) -> void:
 	count_up.ride.connect(_on_ride)
 	count_up.step_landed.connect(_on_step_landed)
 	count_up.beat_started.connect(_on_beat_started)
-	count_up.landing.connect(_on_landing)
 	count_up.finished.connect(_on_finished)
-	if _stage.rail_light != null:
-		_stage.rail_light.make_tween = count_up.tween_maker()
 
 
 ## The CHECKOUT click (after the refresh that rebuilt the belt items `views`): `result` is about
@@ -109,7 +111,7 @@ func ticket_rect(slot: int) -> Rect2:
 	var item: ItemView = _item(slot)
 	if item == null or _bagged.has(slot) or not item.is_visible_in_tree():
 		return Rect2()
-	var local: Rect2 = Rect2(ItemView.BELT_STICKER, PriceSticker.SIZE)
+	var local: Rect2 = Rect2(ItemView.BELT_STICKER, item.sticker().size)
 	var to_global: Transform2D = item.get_global_transform()
 	return Rect2(to_global * local.position, local.size * to_global.get_scale())
 
@@ -308,7 +310,6 @@ func _on_step_landed(index: int) -> void:
 		step.step_type
 		in [ScoreStep.StepType.FLAT, ScoreStep.StepType.MULTIPLIER, ScoreStep.StepType.COPY]
 	):
-		_light_step(step)
 		if step.source_kind == ScoreStep.SourceKind.CARD and _bagged.has(step.card_giver_slot()):
 			_stage.bag.land(_reduced)
 	var sticker: EffectSticker = _sticker_of(step.slot, index)
@@ -409,45 +410,12 @@ func _on_finished() -> void:
 	_count.source_rect = Callable()
 
 
-## CountUp.landing: a giver's effect pays (a +N or a × from another item): the rail light runs
-## from the giver's ticket (the rail's left end once it is bagged) to the target's.
-func _on_landing(_beat: CountUpBeat) -> void:
-	# Register landings are payouts; effect rails fire with their own sticker's step.
-	pass
-
-
-func _light_step(step: ScoreStep) -> void:
-	var light: RailLight = _stage.rail_light
-	if not _active or light == null:
-		return
-	if step.source_kind != ScoreStep.SourceKind.CARD:
-		return
-	if step.card_giver_slot() < 0 or step.card_giver_slot() == step.slot:
-		return
-	var to_local: Transform2D = light.get_global_transform().affine_inverse()
-	var giver: Rect2 = _to(to_local, ticket_rect(step.card_giver_slot()))
-	var target: Rect2 = _to(to_local, ticket_rect(step.slot))
-	if not target.has_area():
-		return
-	var rail_left: float = ShiftStage.BELT_RECT.position.x + BeltPanel.RAIL.position.x
-	var from_x: float = giver.get_center().x if giver.has_area() else rail_left
-	light.reduced_motion = func() -> bool: return _reduced
-	light.run(from_x, target.get_center().x, giver, target)
-
-
-static func _to(transform: Transform2D, rect: Rect2) -> Rect2:
-	if not rect.has_area():
-		return Rect2()
-	return Rect2(transform * rect.position, rect.size * transform.get_scale())
-
-
 ## Stops the slide, the hops (their copies go) and the sparks, and clears the scanner.
 func _stop() -> void:
-	for tag: PayTag in _count_tags:
-		if is_instance_valid(tag):
-			tag.get_parent().remove_child(tag)
-			tag.queue_free()
-	_count_tags.clear()
+	for ticket: PriceSticker in _paid_tickets:
+		if is_instance_valid(ticket):
+			ticket.clear_pay()
+	_paid_tickets.clear()
 	if _slide != null and _slide.is_valid():
 		_slide.kill()
 	_slide = null
@@ -456,8 +424,6 @@ func _stop() -> void:
 			hop.kill()
 	_hops.clear()
 	_sparks.clear()
-	if _stage.rail_light != null:
-		_stage.rail_light.clear()
 	_stage.scan_layer.clear()
 
 
@@ -473,30 +439,24 @@ func _item(slot: int) -> ItemView:
 	return _views[slot] as ItemView
 
 
-## A paid item's final ticket stays legible until its cell drops off into the bag.
+## A paid item's counted pay shows in its ticket's price window (tickets v5) until its cell drops
+## off into the bag: the window pops from PAID_POP about its middle (not under reduced motion).
 func _show_paid_ticket(step: ScoreStep) -> void:
 	var item: ItemView = _item(step.slot)
 	if item == null or _bagged.has(step.slot):
 		return
 	var ticket: PriceSticker = item.sticker()
-	var pay: PlanningModel.Pay = (
-		PlanningModel.Pay.BOOSTED
-		if step.value > item.card.definition.base
-		else PlanningModel.Pay.LOWERED
-	)
-	if step.value == 0:
+	var base: int = item.card.definition.base
+	var pay: PlanningModel.Pay = PlanningModel.Pay.PLAIN
+	if step.value == 0 and base > 0:
 		pay = PlanningModel.Pay.ZERO
-	var tag: PayTag = PayTag.new(
-		pay, PriceSticker.price_text(step.value), PlanningModel.Glyph.NONE, true
-	)
-	var rect: Rect2 = Rect2(Vector2.ZERO, PriceSticker.SIZE)
-	var at: Rect2 = tag.rect_on(rect, ticket, 1.0)
-	tag.position = at.position
-	ticket.set_pay(step.value != item.card.definition.base, at)
-	ticket.add_child(tag)
-	_count_tags.append(tag)
+	elif step.value != base:
+		pay = PlanningModel.Pay.BOOSTED if step.value > base else PlanningModel.Pay.LOWERED
+	ticket.set_pay(pay, step.value)
+	_paid_tickets.append(ticket)
 	if not _reduced:
-		tag.pivot_offset = tag.size / 2.0
-		tag.scale = Vector2.ONE * 1.2
+		var window: PriceWindow = ticket.window()
+		window.pivot_offset = window.size / 2.0
+		window.scale = Vector2.ONE * PAID_POP
 		var pulse: Tween = _count.tween_maker().call() as Tween
-		pulse.tween_property(tag, "scale", Vector2.ONE, 0.18)
+		pulse.tween_property(window, "scale", Vector2.ONE, PAID_POP_S)

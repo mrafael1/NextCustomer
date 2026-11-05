@@ -1,10 +1,10 @@
 class_name RarityTab
 extends Control
 ## A prize ticket's rarity tab (v0.50, mock-up premium_machine_v1.html, R1 "drop"), above the
-## ticket: COMMON (v0.97, look C: a flat cream shelf label, ink, a cream dark foot line), RARE!
+## ticket: COMMON (v0.99, look C: a flat cream shelf label, ink, a cream dark foot line), RARE!
 ## (teal, paper, a bright teal top line) or LEGENDARY!! (gold, brass darkest, a mustard pale top
 ## line and a mustard dark foot line), in hard pixel capitals (MachineLine, 2x; the relook,
-## v0.86) on a box with a soft shadow. It shows as its ticket lands face up and punches in: a
+## v0.98) on a box with a soft shadow. It shows as its ticket lands face up and punches in: a
 ## RARE from 1.3x over 0.15 s, a LEGENDARY from 1.7x over 0.2 s (reduced motion: at rest).
 ## The word, the ticket's pips and the effects tell the rarities apart, never the colour alone.
 

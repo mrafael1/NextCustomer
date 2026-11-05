@@ -9,7 +9,7 @@ extends GdUnitTestSuite
 ## kind of visit, its sealed tickets crisp and its odds on plates (v0.53); a lit key's glow hugs its
 ## shape (v0.53). The cart drawer sits below the top bar, left of the machine. Every label fits its
 ## box, and Pixelify is only ever 12 or 24 px (full build plan 6.1), but for the relook's hard
-## pixel lettering (v0.86, MachineLine: the 11 px raster at 2x or 4x). The views are driven
+## pixel lettering (v0.98, MachineLine: the 11 px raster at 2x or 4x). The views are driven
 ## directly (no input events).
 
 const Rush := preload("res://tests/ui/count_up_rush.gd")
@@ -44,7 +44,7 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-## On the real screen (V3's prize counter, v0.96: it fills the view): the machine at MACHINE_RECT,
+## On the real screen (V3's prize counter, v0.98: it fills the view): the machine at MACHINE_RECT,
 ## wholly inside the stage with its plinth, its shadow and its beacons; the marquee over the
 ## cabinet, centred, below the top bar; the display, the slot plate, the stock window, the key bay
 ## and the tray inside the machine's module, left of the middle pillar; the prize bay right of it,
@@ -385,7 +385,7 @@ func test_a_lit_key_glow_follows_its_shape() -> void:
 
 
 ## The cart drawer at its widest (a landing product with more copies than it shows) rests below
-## the top bar, over the machine's stock window side (v0.96: the counter fills the view), clear of
+## the top bar, over the machine's stock window side (v0.98: the counter fills the view), clear of
 ## the prize bay, and above the stock window's sill legend; its labels fit.
 func test_the_cart_drawer_sits_over_the_stock_window_side() -> void:
 	var run: RunState = _passed_run(18, _with_milks)
@@ -472,7 +472,7 @@ func test_pixelify_is_only_12_or_24_and_every_label_fits() -> void:
 ## The prize tickets of a NEW ITEMS draw holding its coupon and an item that arrived BIG or GOLDEN
 ## (v0.61, #108), and of an UPGRADE draw holding a perk's level-up and an item upgrade: every
 ## ticket inside the stage and apart; its chip (the item's tier, the level-up's "LV 2") inside its
-## ticket and its art box, clear of the face's labels; the band holds the prize's name (v0.96: no
+## ticket and its art box, clear of the face's labels; the band holds the prize's name (v0.98: no
 ## kind word; a level-up's level is its art's "LV 2" chip); every label fits.
 func test_new_items_and_upgrade_tickets_fit_with_their_marks() -> void:
 	var on_stage: Rect2 = Rect2(Vector2.ZERO, ShiftStage.SIZE)
@@ -582,7 +582,7 @@ func test_the_dim_veil_follows_the_silhouette() -> void:
 	assert_float(pieces[1].size.x).is_equal(MachineCabinet.SIZE.x)
 
 
-## The marquee's title (the relook, v0.86) is hard pixel lettering at 4x, engraved (a line one art
+## The marquee's title (the relook, v0.98) is hard pixel lettering at 4x, engraved (a line one art
 ## px under it), over the sub line at 2x, both inside the plate, on the classic and premium faces.
 func test_the_marquee_title_is_hard_pixel_lettering() -> void:
 	var head: MachineHead = auto_free(MachineHead.new())

@@ -1,0 +1,700 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Start Screen Redesign</title>
+<style>
+/* House style of the shift mock-ups (v4/v5): the store's dark teal wall; each frame is drawn at
+   1920x1080 screen px, art px = 2 or 3 screen px (integer), image-rendering: pixelated. */
+@font-face{font-family:'NCPix';font-weight:400 700;src:url(../../../fonts/PixelifySans-Variable.ttf)}
+@font-face{font-family:'NCMono';src:url(../../../fonts/JetBrainsMono-Regular.ttf)}
+@font-face{font-family:'NCAtk';font-weight:200 800;src:url(../../../fonts/AtkinsonHyperlegibleNext-Variable.ttf)}
+:root{
+  color-scheme:dark;
+  --wall:#1f3b3a; --bay:#172c2b; --panel:#2a4d4b; --paper:#fbf7ee; --cream:#f3e9d2; --cream-shade:#ddcba5;
+  --cream-dark:#b39f78; --teal:#4f9a94; --teal-shade:#3a7672; --teal-dark:#2a4d4b; --teal-black:#172c2b;
+  --teal-pale:#c3e0d4; --teal-light:#86c2b6; --teal-bright:#5fb0a8;
+  --mustard:#e2b33c; --mustard-dark:#b38425; --mustard-light:#f1d27a; --mustard-pale:#faecbc; --gold:#ffcf3f;
+  --brass:#c8932b; --brass-dark:#8a5d1a; --brass-darkest:#4a3010;
+  --tomato:#d9534f; --tomato-dark:#a83a3c; --tomato-light:#ec8a6e; --tomato-darkest:#6e2630;
+  --ink:#2b2420; --ink-light:#4a3f38; --grey:#8a8172; --grey-light:#c7beab; --muted:#a9a59b;
+  --green:#5fae5a; --green-dark:#3d7a45; --green-light:#a5d17e;
+  --steel-hi:#ecebe4; --steel-light:#c7c3b8; --steel-pale:#a9a59b; --steel:#8d8a83; --steel-shade:#6f6b63;
+  --steel-dark:#57534c; --steel-darkest:#45423d; --charcoal:#24221f; --rubber:#3d3a36;
+  --wood:#a8703a; --wood-dark:#6e4524; --wood-light:#c98c4e;
+  --display:'NCPix','Pixelify Sans','Courier New',monospace;
+  --body:'NCAtk','Atkinson Hyperlegible Next','Segoe UI',system-ui,sans-serif;
+  --mono:'NCMono','JetBrains Mono',Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--wall);color:var(--paper)}
+body{font-family:var(--body);font-size:15px;line-height:1.5;overflow-x:hidden}
+main{max-width:1400px;margin:0 auto;padding:28px 16px 64px;display:grid;gap:40px}
+main>*,section>*{min-width:0}
+h1,h2,h3{font-family:var(--display);font-weight:700;margin:0;letter-spacing:.02em;text-wrap:balance}
+h1{font-size:34px;color:var(--gold)} h2{font-size:24px} h3{font-size:17px;color:var(--teal-pale)}
+p{margin:0;max-width:84ch}
+code{overflow-wrap:anywhere;color:var(--mustard-pale);font-size:13px}
+.lede{display:grid;gap:10px}
+.eyebrow{font-family:var(--display);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--teal-light)}
+section{display:grid;gap:16px}
+.verdict{background:var(--panel);border:2px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.35);padding:14px 16px;display:grid;gap:8px}
+.verdict strong{color:var(--gold)}
+.opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.opt{background:var(--bay);border:2px solid var(--ink);padding:12px 14px;display:grid;gap:8px;align-content:start}
+.opt.rec{border-color:var(--mustard)}
+.opt header{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.tag{font-family:var(--display);font-size:15px;background:var(--paper);color:var(--ink);padding:0 7px;border:2px solid var(--ink)}
+.opt.rec .tag{background:var(--mustard)}
+.pick{font-family:var(--display);font-size:12px;color:var(--gold);letter-spacing:.08em}
+.opt p{font-size:14px;color:var(--teal-pale)} .opt p b{color:var(--paper)}
+.controls{display:flex;gap:8px 12px;flex-wrap:wrap;align-items:center;max-width:1400px;margin:0 auto}
+.controls .lbl{font-family:var(--display);font-size:13px;color:var(--teal-light);letter-spacing:.06em}
+.seg{display:inline-flex;border:2px solid var(--ink);box-shadow:0 3px 0 var(--ink);flex-wrap:wrap}
+.seg button{box-shadow:none;border:0;border-right:2px solid var(--ink)}
+.seg button:last-child{border-right:0}
+button{font-family:var(--display);font-size:15px;color:var(--paper);background:var(--teal-shade);border:2px solid var(--ink);box-shadow:0 3px 0 var(--ink);padding:4px 12px;cursor:pointer}
+button:active{transform:translateY(2px)}
+button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+button[aria-pressed="true"]{background:var(--mustard);color:var(--ink)}
+.toolbar{position:sticky;top:0;z-index:50;background:rgba(23,44,43,.96);border-bottom:2px solid var(--ink);padding:8px 16px}
+.fwrap{position:relative;border:2px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.35);overflow:hidden;background:#111}
+body.one .fwrap{overflow:auto}
+.fscale{position:relative;transform-origin:0 0;width:1920px;height:1080px}
+ul,ol{margin:0;padding-left:20px;display:grid;gap:6px;max-width:88ch}
+.answers{background:var(--paper);color:var(--ink);border:3px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.4);padding:16px 18px;display:grid;gap:10px}
+.answers h2{color:var(--ink)} .answers li b{color:var(--tomato-dark)}
+.answers code{color:var(--tomato-darkest);background:var(--cream)}
+.cap{font-size:12px;color:var(--muted)}
+.scroll{overflow-x:auto;max-width:100%}
+table.spec{border-collapse:collapse;font-size:13px;min-width:760px;width:100%}
+table.spec th,table.spec td{border-bottom:1px solid var(--teal-shade);padding:6px 8px;text-align:left;vertical-align:top}
+table.spec th{font-family:var(--display);color:var(--teal-light);font-weight:500}
+table.spec td:first-child{white-space:nowrap;color:var(--mustard-pale)}
+.caps{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+.caps figure{margin:0;display:grid;gap:4px} .caps img{width:100%;border:2px solid var(--ink)}
+
+/* ===================== the frame (1920x1080 screen px) ===================== */
+.F{position:absolute;inset:0;width:1920px;height:1080px;overflow:hidden;font-family:var(--body);color:var(--paper);background:var(--bay)}
+.F img{image-rendering:pixelated;display:block}
+.F .bd{position:absolute;inset:0;background:url(start_screen_src/backdrop_1080.png) 0 0/1920px 1080px;image-rendering:pixelated}
+.F .dim{position:absolute;inset:0;background:rgba(23,44,43,.86)}
+.F .abs{position:absolute}
+.px{font-family:var(--body);font-weight:800;letter-spacing:.03em}
+/* steel panel with brass rivets */
+.steel{position:absolute;background:var(--teal-dark);border:6px solid var(--charcoal);
+  box-shadow:inset 0 0 0 4px var(--steel-light),inset 0 0 0 8px var(--steel-dark),inset 0 0 0 10px var(--charcoal),0 9px 0 rgba(0,0,0,.45)}
+.rivet{position:absolute;width:12px;height:12px;background:var(--brass);box-shadow:inset 3px 3px 0 var(--mustard-light),inset -3px -3px 0 var(--brass-dark),0 0 0 3px var(--charcoal)}
+.plate{position:absolute;background:var(--brass);color:var(--brass-darkest);border:3px solid var(--charcoal);
+  box-shadow:inset 0 3px 0 var(--mustard-light),inset 0 -3px 0 var(--brass-dark);font-family:var(--body);font-weight:800;letter-spacing:.04em}
+.sect{font-family:var(--body);font-weight:800;font-size:30px;color:var(--gold);letter-spacing:.04em;display:flex;align-items:center;gap:12px;white-space:nowrap}
+.sect .n{display:inline-grid;place-items:center;width:38px;height:38px;background:var(--gold);color:var(--ink);font-family:var(--body);font-weight:800;font-size:24px;border:3px solid var(--ink)}
+.sect small{font-family:var(--body);font-weight:600;font-size:18px;color:var(--teal-pale);letter-spacing:0}
+.paper{position:absolute;background:var(--paper);color:var(--ink);border:3px solid var(--ink);box-shadow:inset 0 -6px 0 var(--cream-shade),0 9px 0 rgba(0,0,0,.4)}
+/* item ticket tile */
+.tk{position:relative;width:120px;background:var(--paper);border:3px solid var(--ink);color:var(--ink);
+  box-shadow:inset 0 -3px 0 var(--cream-shade),0 6px 0 rgba(0,0,0,.35);transition:transform .14s, box-shadow .14s;cursor:help}
+.tk .art{width:96px;height:96px;margin:6px auto 0;position:relative}
+.tk .art img{width:96px;height:96px}
+.tk .art img.cicon{position:absolute;left:28px;top:38px;width:40px;height:28px}
+.tk .nm{font-weight:700;font-size:15px;line-height:16px;text-align:center;padding:0 3px 2px;height:36px;display:flex;align-items:center;justify-content:center}
+.tk .band{height:30px;display:flex;align-items:center;gap:4px;padding:0 5px;border-top:3px solid var(--ink)}
+.tk .band img{width:18px;height:18px;outline:2px solid var(--paper)}
+.tk .band .pr{margin-left:auto;font-family:var(--body);font-weight:800;font-size:19px}
+.tk .cnt{position:absolute;right:-12px;top:-14px;min-width:44px;height:36px;padding:0 6px;background:var(--gold);border:3px solid var(--ink);
+  font-family:var(--body);font-weight:800;font-size:21px;display:grid;place-items:center;color:var(--ink);box-shadow:0 3px 0 var(--brass-dark)}
+.tk .lock{position:absolute;left:-8px;top:-12px;width:36px;height:36px;background:var(--mustard);border:3px solid var(--ink);display:grid;place-items:center}
+.tk .lock img{width:18px;height:20px}
+.tk .ctab{position:absolute;left:8px;top:-15px;background:var(--tomato);color:var(--paper);font-family:var(--body);font-weight:800;font-size:13px;letter-spacing:.04em;padding:0 6px;border:2px solid var(--ink)}
+.tk.coupon{background:var(--paper);outline:3px dashed var(--tomato);outline-offset:-9px}
+.tk.ghost{opacity:.92;border-style:dashed}
+.tk.empty{background:transparent;border:3px dashed var(--cream-dark);box-shadow:none;height:174px;color:var(--cream-dark);display:grid;place-items:center;font-family:var(--display);font-weight:500;font-size:42px}
+.tk.lit{transform:translateY(-8px);box-shadow:0 0 0 4px var(--gold),0 12px 0 rgba(0,0,0,.4)}
+.tk.dimmed{opacity:.35}
+.tk.popin{animation:popin .32s cubic-bezier(.2,1.6,.4,1) both}
+@keyframes popin{0%{transform:scale(.4) translateY(30px);opacity:0}100%{transform:none;opacity:1}}
+.F.rm .tk.popin{animation:none}
+.tk.nob{width:108px}.tk.sm{width:96px} .tk.sm .art,.tk.sm .art img{width:72px;height:72px}
+.tk.sm .art img.cicon{left:21px;top:28px;width:30px;height:21px}
+/* pack card */
+.pack{position:absolute;background:var(--paper);color:var(--ink);border:4px solid var(--ink);cursor:pointer;
+  box-shadow:inset 0 -6px 0 var(--cream-shade),0 8px 0 rgba(0,0,0,.45);transition:transform .16s, box-shadow .16s}
+.pack .hd{height:54px;display:flex;align-items:center;gap:10px;padding:0 12px;border-bottom:4px solid var(--ink)}
+.pack .hd img{width:27px;height:27px;outline:3px solid var(--paper)}
+.pack .hd .t{font-family:var(--display);font-weight:500;font-size:32px;letter-spacing:.02em}
+.pack .hd .k{margin-left:auto;font-family:var(--display);font-weight:500;font-size:22px;width:32px;height:32px;display:grid;place-items:center;background:var(--paper);color:var(--ink);border:3px solid var(--ink)}
+.pack .row{display:flex;gap:12px;justify-content:center;padding:20px 10px 4px}
+.pack .hint{font-weight:600;font-size:17px;line-height:21px;padding:2px 14px 10px}
+.pack.hov{transform:translateY(-6px);box-shadow:0 0 0 4px var(--teal-light),0 14px 0 rgba(0,0,0,.45)}
+.pack.sel{transform:translateY(-12px);box-shadow:0 0 0 6px var(--gold),0 0 0 9px var(--ink),0 18px 0 rgba(0,0,0,.45)}
+.pack .first{position:absolute;right:10px;top:-22px;background:var(--gold);color:var(--ink);font-family:var(--body);font-weight:800;font-size:15px;letter-spacing:.08em;padding:1px 8px;border:3px solid var(--ink)}
+.pack .taken{position:absolute;left:10px;top:-22px;background:var(--green);color:var(--ink);font-family:var(--body);font-weight:800;font-size:15px;letter-spacing:.06em;padding:1px 8px;border:3px solid var(--ink)}
+/* group brackets in the cart */
+.grp{position:absolute;color:var(--ink)}
+.grp .gh{font-family:var(--body);font-weight:800;font-size:21px;letter-spacing:.05em;display:flex;align-items:center;gap:8px;white-space:nowrap}
+.grp .gh .c{font-family:var(--body);font-weight:800;font-size:19px;padding:0 6px;border:3px solid var(--ink);background:var(--cream)}
+.grp .gs{font-size:16px;font-weight:600;color:var(--ink-light);letter-spacing:0;white-space:nowrap}
+.grp .tiles{display:flex;gap:18px;margin-top:22px}
+.grp .br{height:6px;margin-top:12px;border:2px solid var(--ink)}
+/* aisle rows */
+.aisle{position:absolute;left:0;right:0;height:56px;display:flex;align-items:center;gap:12px;padding:0 12px;border-bottom:3px solid var(--teal-black);cursor:default}
+.aisle .sg{width:42px;height:42px;display:grid;place-items:center;border:3px solid var(--ink)}
+.aisle .sg img{width:27px;height:27px}
+.aisle .an{font-family:var(--body);font-weight:800;font-size:23px;width:200px;white-space:nowrap}
+.aisle .ac{font-size:17px;font-weight:700;width:104px;white-space:nowrap;color:var(--teal-pale)}
+.aisle .st{margin-left:auto;font-family:var(--body);font-weight:800;font-size:15px;letter-spacing:.05em;padding:2px 8px;border:3px solid var(--ink);white-space:nowrap}
+.st.deal{background:var(--green-light);color:var(--ink)}
+.st.prize{background:var(--mustard-pale);color:var(--ink)}
+.st.off{background:var(--steel-dark);color:var(--steel-light)}
+.st.lock{background:var(--charcoal);color:var(--grey-light)}
+.aisle.locked .an,.aisle.locked .ac{color:var(--grey)} .aisle.locked .sg{filter:grayscale(1) brightness(.6)}
+.aisle.hov{background:rgba(255,207,63,.14)}
+/* pins */
+.pinf{position:relative;border-radius:50%;border:4px solid var(--ink);display:grid;place-items:center;font-family:var(--display);font-weight:600;color:var(--paper);text-shadow:0 2px 0 rgba(0,0,0,.35)}
+.pinf::after{content:"";position:absolute;left:18%;top:14%;width:16%;height:16%;background:rgba(255,255,255,.55)}
+.pinf.empty{border:4px dashed var(--grey-light);background:transparent!important;box-shadow:none!important;color:var(--grey-light);text-shadow:none}
+.pinf.empty::after{display:none}
+/* buttons */
+.key{position:absolute;display:grid;place-items:center;cursor:pointer;font-family:var(--body);font-weight:800;letter-spacing:.04em;border:4px solid var(--ink);transition:transform .08s}
+.key.red{background:var(--tomato);color:var(--paper);box-shadow:inset 0 6px 0 var(--tomato-light),inset 0 -8px 0 var(--tomato-dark),0 9px 0 var(--charcoal)}
+.key.red.off{background:var(--steel-dark);color:var(--steel-light);box-shadow:inset 0 6px 0 var(--steel),inset 0 -8px 0 var(--steel-darkest),0 9px 0 var(--charcoal);cursor:not-allowed}
+.key.teal{background:var(--teal);color:var(--paper);box-shadow:inset 0 4px 0 var(--teal-light),inset 0 -6px 0 var(--teal-shade),0 6px 0 var(--charcoal)}
+.key.cream{background:var(--cream);color:var(--ink);box-shadow:inset 0 4px 0 var(--paper),inset 0 -6px 0 var(--cream-dark),0 6px 0 var(--charcoal)}
+.key:hover{filter:brightness(1.07)} .key:active{transform:translateY(4px)}
+.key.red.glow{animation:glow 1.4s ease-in-out infinite}
+@keyframes glow{50%{box-shadow:inset 0 6px 0 var(--tomato-light),inset 0 -8px 0 var(--tomato-dark),0 9px 0 var(--charcoal),0 0 0 6px rgba(255,207,63,.55)}}
+.F.rm .key.red.glow{animation:none}
+/* popup */
+.pop{position:absolute;z-index:30;width:420px;background:var(--paper);color:var(--ink);border:4px solid var(--ink);box-shadow:0 9px 0 rgba(0,0,0,.45);padding:12px 16px 14px;pointer-events:none;display:none}
+.pop .pt{font-family:var(--display);font-weight:500;font-size:32px;line-height:32px;display:flex;align-items:center;gap:8px}
+.pop .pt img{width:27px;height:27px}
+.pop .pf{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
+.pop .pf span{font-family:var(--body);font-weight:800;font-size:14px;padding:0 6px;border:2px solid var(--ink)}
+.pop .pr{font-size:20px;font-weight:600;line-height:26px}
+.pop .pm{font-size:15px;color:var(--ink-light);margin-top:6px}
+/* drawer */
+.drawer{position:absolute;z-index:40;background:var(--teal-dark);border:6px solid var(--charcoal);box-shadow:inset 0 0 0 4px var(--steel-light),inset 0 0 0 8px var(--steel-dark),0 12px 0 rgba(0,0,0,.5);display:none}
+.drawer.on{display:block;animation:drop .22s ease-out both}
+@keyframes drop{0%{transform:translateY(-24px);opacity:0}100%{transform:none;opacity:1}}
+.prow{position:absolute;left:24px;right:24px;height:70px;display:flex;align-items:center;gap:14px;border-bottom:3px solid var(--teal-black)}
+.prow .pn{font-family:var(--body);font-weight:800;font-size:21px;width:220px;white-space:nowrap}
+.prow .pr{font-size:16px;font-weight:600;color:var(--teal-pale);flex:1;line-height:19px}
+.prow .pb{width:140px;height:44px;font-size:20px;position:relative}
+.toast{position:absolute;z-index:60;left:50%;top:46%;transform:translate(-50%,-50%);font-family:var(--display);font-weight:500;font-size:54px;color:var(--ink);background:var(--gold);border:6px solid var(--ink);padding:10px 34px;box-shadow:0 12px 0 rgba(0,0,0,.5);display:none;white-space:nowrap}
+.fold{animation:fold .7s cubic-bezier(.5,0,.8,.4) both;transform-origin:1760px 50px}
+@keyframes fold{100%{transform:scale(.06);opacity:0}}
+.F.rm .fold{animation-duration:.01s}
+/* receipt (variant B) */
+.rc{font-family:var(--mono);color:var(--ink)}
+.rc .ln{display:flex;align-items:center;gap:10px;height:34px;font-size:21px;padding:0 22px}
+.rc .ln img{width:21px;height:21px}
+.rc .ln .q{margin-left:auto;font-weight:700}
+.rc .ln.ghost{color:var(--teal-shade)}
+.rc .ln.lit{background:var(--mustard-pale)}
+.rc .hdr{font-family:var(--body);font-weight:800;font-size:19px;letter-spacing:.08em;padding:10px 22px 2px;color:var(--tomato-dark);display:flex;gap:10px;align-items:center}
+.rc .hdr .q{margin-left:auto;color:var(--ink)}
+.rc .dash{border-top:3px dashed var(--cream-dark);margin:6px 22px}
+.feed{animation:feed .4s steps(8) both}
+@keyframes feed{0%{clip-path:inset(0 0 100% 0)}100%{clip-path:inset(0 0 0 0)}}
+.F.rm .feed{animation:none}
+</style>
+
+<div class="toolbar">
+  <div class="controls">
+    <span class="lbl">LAYOUT</span>
+    <div class="seg" id="segV"><button data-v="A" aria-pressed="true">A Clock-in board (Recommended)</button><button data-v="B">B Cart receipt</button><button data-v="C">C Shelf wall</button></div>
+    <span class="lbl">PROFILE</span>
+    <div class="seg" id="segS"><button data-s="0" aria-pressed="true">Run 1, fresh</button><button data-s="1">Fresh, a pin worn</button><button data-s="2">Veteran, list on</button></div>
+    <span class="lbl">PIN SLOTS</span>
+    <div class="seg" id="segP"><button data-p="1" aria-pressed="true">1 (today)</button><button data-p="2">2</button></div>
+    <span class="lbl">MOTION</span>
+    <div class="seg" id="segM"><button data-m="0" aria-pressed="true">On</button><button data-m="1">Reduced</button></div>
+    <span class="lbl">SCALE</span>
+    <div class="seg" id="segZ"><button data-z="fit" aria-pressed="true">Fit</button><button data-z="one">1:1 (1920×1080 px)</button></div>
+    <button id="reset">Reset frame</button>
+  </div>
+</div>
+
+<main>
+  <div class="lede">
+    <div class="eyebrow">Next Customer · new-run flow · mock-up for the start screen redesign · 2026-11-03</div>
+    <h1>Start screen: see the whole cart before you open the store</h1>
+    <p>Today the start is a step inside the cart reveal (#107). It shows the staples and the three packs, but today's 6 products sit half hidden as pictures in the dispenser window, and the pins and the stock's aisles aren't shown at all. You see the cart as a whole only <b>after</b> you take a pack. This page redraws that step so that one 1080p screen shows, before you confirm: <b>(1)</b> the three starter packs, <b>(2)</b> the aisles the 6 products are dealt from, <b>(3)</b> the badge pins you wear, with their rules, and <b>(4)</b> the resulting cart as real tickets, grouped and counted. Then one confirm: <b>OPEN STORE ›</b>.</p>
+    <p><b>Try it:</b> hover a pack and the cart preview swaps to it live. Click a pack (or press 1, 2 or 3) to pick it. Hover a ticket to read its rule, hover an aisle to see which of today's 6 came from it, and hover a pin for its rule. Use CHANGE PINS to wear a different pin, then Enter or OPEN STORE to confirm. The three profiles are real deals from <code>StartingDeck.deal_offer</code>, run headless on this branch's data (seeds 20261103 and 20261014 on a new profile, seed 99 on a profile with Fruit &amp; veg listed).</p>
+  </div>
+
+  <section>
+    <div class="fwrap" id="fwrap"><div class="fscale" id="fscale"><div class="F" id="F"></div></div></div>
+    <p class="cap" id="capline">1920×1080 frame, scaled to fit. Item art at 2× (96 px tickets) and glyphs at 3×, nearest-neighbour. The backdrop is the game's 1080p shift capture from shift_scene_polish v5, dimmed as the cart reveal dims it.</p>
+  </section>
+
+  <section>
+    <h2>Variants</h2>
+    <div class="opts">
+      <div class="opt rec"><header><span class="tag">A</span><h3>Clock-in board</h3><span class="pick">RECOMMENDED</span></header>
+        <p>One steel board over the store, in four numbered parts read left to right: <b>① packs</b> on top, <b>② YOUR CART</b> on a sheet of receipt paper under them (staples · pack · today's deal · pins, each a labelled bracket of tickets with ×N counts and the 13/15 equation), and on the right <b>③ TODAY'S STOCK</b> (the aisle signs, each marked DEALT FROM, PRIZES ONLY, NOT LISTED or LOCKED) and <b>④ BADGE PINS</b> (the name badge and its rules). <b>OPEN STORE ›</b> is the red register key at the bottom right.</p></div>
+      <div class="opt"><header><span class="tag">B</span><h3>Cart receipt</h3></header>
+        <p>The packs are stacked as three rows on the left, and the cart prints as a <b>long receipt</b> in the centre in the shift's receipt language: mini glyphs, names and ×N, under section headers. It reprints on each hover. Stock and pins sit on the right. It is the most compact to read, but it shows the items as text lines, not as tickets.</p></div>
+      <div class="opt"><header><span class="tag">C</span><h3>Shelf wall</h3></header>
+        <p>The most diegetic option. The packs stand on a top shelf as shrink-wrapped bundles, the aisle signs hang from the ceiling, today's 6 stand on a wooden shelf with price tags, and the staples and the pack's cards fill a basket. The badge hangs on its lanyard. It is charming, but the cart is split across a shelf and a basket, so the 13/15 total reads less clearly.</p></div>
+    </div>
+    <div class="verdict"><strong>Why A</strong>
+      <ul>
+        <li>It's the only layout where the cart reads as one object: one sheet, one 13/15 equation, every card as the same ticket it will be on the belt, grouped by where it came from. That is the user's point (4), the part the current screen leaves until after the pick.</li>
+        <li>The cause and the effect sit side by side: hover a pack and its bracket swaps in the sheet just below. Hover an aisle and its dealt tickets light up. The connection never has to be explained.</li>
+        <li>It keeps the reveal's agreed language: padlocked staples, family-coloured pack faces, GOOD FIRST PICK, 1 to 3 and Enter. So the build is a rework of <code>PackChoice</code> and <code>RevealPanel</code>, not a new screen, and the 2026-10-22 decision of "no pre-run screen" stands: it is still the reveal over shift 1.</li>
+        <li>It fits 1080p with room to spare. Ticket names are 15 px bold, rules are 17 to 20 px, and nothing is under 15 px. At 1280×720 it is the same layout at 2/3 scale, because art sits at whole art px on the 1280 stage.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2>What the screen must say: findings from the current flow</h2>
+    <ul>
+      <li><b>The deal is already made before the pick.</b> <code>StartingDeck.deal_offer</code> draws the three packs and today's 6 together, the 6 are the same whichever pack you take, and the run is saved with them before the choice opens (<code>StartChoice.begin_if_choosing</code>). So <b>showing the whole cart before the confirm needs no earlier deal and no rule change</b>. It is display only. The reveal only hides the 6 today by heaping them in the dispenser window.</li>
+      <li><b>No re-deal.</b> #107 ruled the reroll out, and the saved offer stops a quit from rerolling it. The seed shows in the header for the record, the same as on the shift's register. Nothing is clickable.</li>
+      <li><b>Where the 6 come from:</b> the stock's fresh-stock products that have a tier chain. Capsule products are never dealt (<code>random_capsules</code> is off). On a new profile that means the 6 staples plus the 14 base items of Cold cases, Pantry and Household, 20 products in all. <b>A machine-opened aisle is never dealt from:</b> when Fruit &amp; veg is listed, its items are in the stock for the machine's NEW ITEMS prizes, but the deal draws only from the staples and Cold cases, 11 products (the seed 99 profile). The screen marks such an aisle PRIZES ONLY so it doesn't look like a dealt pool.</li>
+      <li><b>Copies:</b> at most 2 of a card, staples counted. The 2 Bananas are already the limit, so a Banana is never dealt. Only Banana bunch goes past it on purpose (Banana ×4, marked on the ticket).</li>
+      <li><b>Pins:</b> <code>pin_slots</code> is 1 today (the toggle shows how 2 would look). The run copies the worn pins in <code>StartChoice.new_run</code>, before the choice. Today you change pins only in REWARDS › BADGE PINS. No pin has starting cards now (Recycle's two 2 for 1 coupons went with v0.90), so the cart's FROM YOUR PINS bracket shows only when a pin brings cards.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Build spec (layout A)</h2>
+    <div class="scroll"><table class="spec">
+      <tr><th>Piece</th><th>What it is and does</th><th>Where in code</th><th>1080p size (stage px = ×2/3)</th></tr>
+      <tr><td>Board</td><td>The reveal panel, redrawn as a steel board with a charcoal rim, steel bevel and brass rivets at the corners. A header plate reads OPENING TIME · SHIFT 1 OF 12, with the seed and build on the right. It dims the store as today.</td><td><code>RevealPanel</code> (RECT, frame), <code>CartReveal</code> DIM</td><td>x 32 to 1888, y 104 to 1052</td></tr>
+      <tr><td>① Packs</td><td>The three <code>PackFace</code>s in a row: a family-colour band with a glyph (3×), the name (30 px) and the key number; 3 tickets (2× art); the hint (17 px). Hover lifts a pack (teal ring) and <b>previews</b> it in the cart. A click (or 1 to 3) <b>picks</b> it: gold ring, a PICKED tab and the cart bracket filled. Another click changes the pick. GOOD FIRST PICK is kept, and the first pick is raised from the start.</td><td><code>PackChoice</code>, <code>PackFace</code></td><td>3 × 372×290, gap 24, top 196</td></tr>
+      <tr><td>② YOUR CART</td><td>A cream sheet with YOUR CART n/15 and the equation chips (4 staples + 3 pack + 6 today's deal [+ n pins]). Under them are brackets: STAPLES (padlocks, "in every run"), the PACK in its family colour (empty dashed slots and "pick a pack ↑" until a pack is hovered or picked), TODAY'S DEAL ("same for every pack") and FROM YOUR PINS (only when a worn pin brings cards). Identical cards are <b>grouped</b> into one ticket with a gold ×N, a count across the whole cart (Milk in the staples and the deal shows ×2 on both). A ticket's rule popup is the planning's <code>ScanPopup</code>, here opened at once on hover (not after the scanner's hold), with "×N in your cart" added.</td><td>New <code>CartSheet</code> (ui/cart_reveal/), reusing <code>RevealTile</code>; the popup is <code>ScanPopup</code></td><td>x 64 to 1236, y 520 to 1020; tickets 120×178</td></tr>
+      <tr><td>③ TODAY'S STOCK</td><td>One row per shelf: STAPLES first, then the aisles in data order. Each row has its sign plate in <code>sign_color</code> with the aisle glyph, its name and its count, and a state tag: <b>DEALT FROM</b> (green: its fresh-stock items are in the deal's pool), <b>PRIZES ONLY</b> (stocked, but its items are capsule items: machine prizes, never dealt), <b>NOT LISTED</b> (listable but not on today's list) or <b>LOCKED</b> (opens at its toy machine). The footer reads "6 dealt from these N · max 2 of a card". Hovering a row lights its dealt tickets in the cart and says "k of today's 6".</td><td>New <code>StockShelves</code>; data from <code>RunStock</code> (aisle_ids, list_skipped) and <code>StartingDeck.drawable</code></td><td>x 1272 to 1856, rows 56 high</td></tr>
+      <tr><td>④ BADGE PINS</td><td>The name badge (<code>pin_badge.png</code> at 2×, pin faces 64 px) with the run's worn pins (<code>RunState.pins</code>) and an empty dashed ring per free slot. Beside it are each pin's name and rule. Hovering a face shows the badge's own <code>PinTip</code>. <b>CHANGE PINS ›</b> opens the badge screen over the reveal (proposed, see Q1). Without Q1 the button reads "Change pins in REWARDS".</td><td><code>NameBadge</code>, <code>PinFace</code>, <code>PinTip</code>, <code>BadgeScreen</code></td><td>panel 584×300</td></tr>
+      <tr><td>Confirm</td><td>The red register key <b>OPEN STORE ›</b>, with a sub line "Start shift 1 with &lt;pack&gt; · 13 cards". It is grey ("PICK A PACK FIRST") with no pick, and it glows once a pack is picked. Enter does the same. It emits <code>pack_taken</code>, and the board folds into the Cart button as today. The fly-in and drop animation after the pick can be kept, faster, or cut (Q4).</td><td><code>PackChoice</code> bar → key; <code>CartReveal</code> fold</td><td>584×104 at y 912</td></tr>
+      <tr><td>Keys</td><td>1 to 3 pick, Enter opens the store, P opens the pins, Esc closes the pins drawer (Esc doesn't skip the choice, as today). Hover never changes the pick.</td><td><code>CartReveal._unhandled_input</code></td><td></td></tr>
+      <tr><td>Motion</td><td>Tickets pop in (0.32 s overshoot, 30 ms stagger) when the pack bracket changes. Reduced motion swaps them at once and drops the glow and the fold.</td><td><code>CartRevealTuning</code> new values</td><td></td></tr>
+      <tr><td>1280×720</td><td>The same layout on the 1280 stage (every number × 2/3). Art stays at whole art px on the stage (items 2× → 64 stage px tickets, glyphs 2×). Pixel text uses <code>ArtStyle.use_pixel_text_material</code>.</td><td></td><td></td></tr>
+      <tr><td>Tests</td><td>A layout test (on-screen geometry: no overlap, everything inside the board at 1280 and 1920), the cart's group counts per offered pack, the stock-row states for a new profile and a listed machine aisle, and the key flow.</td><td><code>tests/ui/cart_reveal_*</code></td><td></td></tr>
+      <tr><td>Capture</td><td><code>--reveal</code> keeps raise=, pick= and stock=, and adds <code>hover=pack&lt;n&gt;</code>, <code>aisle=&lt;id&gt;</code> and <code>pins</code> (drawer open).</td><td><code>debug/screen_capture</code></td><td></td></tr>
+    </table></div>
+  </section>
+
+  <section class="answers">
+    <h2>Questions for you (rules and flow; nothing here is decided)</h2>
+    <ol>
+      <li><b>Q1 · Change pins on this screen?</b> Today pins change only in REWARDS, and the run copies them before the choice. My proposed default is yes: CHANGE PINS opens the badge screen over the board, saves to the profile and re-wears the waiting run (<code>RunPins.wear</code>, then the run save). It does not change the deal, because the fair-deal check doesn't read pins. That is a flow change, so it needs your yes. If you say no, the panel is read-only and points to REWARDS.</li>
+      <li><b>Q2 · The fair-deal check ignores pins.</b> Express lane's −2 slots and Double checkout's two rows of 4 aren't in the check that guarantees a playable shift 1. Should the check see the worn pins? That would be a rule change, and with Q1 a pin change could then re-deal.</li>
+      <li><b>Q3 · Listed machine aisles add nothing to the deal.</b> With <code>random_capsules</code> off (TODO(S2)), a listed Fruit &amp; veg shrinks the deal's pool to the staples plus one base aisle (11 products). The screen shows this honestly as PRIZES ONLY. Keep it, or turn <code>random_capsules</code> on?</li>
+      <li><b>Q4 · After OPEN STORE:</b> keep the short fly-in of the pack's cards and the deal's drop (today's 3 s, now that you've already seen everything), shorten it to the fold alone, or keep it only on run 1?</li>
+      <li><b>Q5 · A pack hint is out of date.</b> Bargain bin's hint says "Dented can pays +2 for each Clearance before it", but the card's rule is "+2 for each card redrawn this shift" (<code>data/cards/dented_can.tres</code>). The new screen puts the hint and the card's popup side by side, so the mismatch will show. Should the hint follow the card, or the card follow the hint? This may be one of the "3 stale pack hints" already noted under #128.</li>
+      <li>Defaults I took (say if any is wrong): no re-deal and no seed field; the second pin slot is shown only when <code>pin_slots</code> is 2; the stock panel lists every aisle, locked ones too, as a progress hint; a pin's starting cards get their own bracket; the confirm reads OPEN STORE, with START SHIFT 1 in the sub line.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>The current screens (game captures, 1920×1080, this branch)</h2>
+    <div class="caps">
+      <figure><img src="start_screen_build/shift_screen_reveal_30_1920x1080.png" alt="Current starter pack choice"><figcaption class="cap">The choice today: the staples, the 3 packs and today's stock in the dispenser window (3 of the 6 visible). No pins, no aisles, no cart.</figcaption></figure>
+      <figure><img src="start_screen_build/shift_screen_reveal_stock2_30_1920x1080.png" alt="Current stock hover"><figcaption class="cap">Hovering today's product 2 in the dispenser opens its popup.</figcaption></figure>
+      <figure><img src="start_screen_build/shift_screen_reveal_pick1_40_1920x1080.png" alt="Current after-pick summary"><figcaption class="cap">The whole cart shows only after the pick: CART 13/15 = 4 staples + 3 from Breakfast run + 6 from today's stock.</figcaption></figure>
+    </div>
+  </section>
+</main>
+
+<script src="start_screen_src/cards.js"></script>
+<script>
+const SRC = 'start_screen_src/';
+const CARD = Object.fromEntries(CARDS.map(c => [c.id, c]));
+const FAM = { // data/families/*.tres: ticket face, light, shade, glyph
+  Bakery:['#d2a874','#ddcba5','#a87a4e','aisle_bakery'], Breakfast:['#e2b33c','#f1d27a','#b38425','family_breakfast'],
+  Clearance:['#a83a3c','#d9534f','#6e2630','family_clearance'], Coupon:[null,null,null,'family_coupon'],
+  Dairy:['#4f9a94','#86c2b6','#3a7672','family_dairy'], Food:['#ec8a6e','#f5bfa0','#d9534f','aisle_pantry'],
+  Frozen:['#c3e0d4','#fbf7ee','#86c2b6','aisle_cold_cases'], Household:['#5e574d','#8a8172','#4a3f38','aisle_household'],
+  Produce:['#5fae5a','#a5d17e','#3d7a45','aisle_fruit_and_veg'], Snack:['#7a5232','#a87a4e','#4a3022','aisle_snacks']};
+const DARK_FACE = new Set(['Clearance','Household','Snack','Dairy','Produce']);
+const PACKS = {
+  breakfast_run:{name:'Breakfast run',fam:'Breakfast',cards:['breakfast_sticker','coffee','tea_bags'],hint:'Line up Breakfast items: Coffee and Tea bags boost the next one.'},
+  bargain_bin:{name:'Bargain bin',fam:'Clearance',cards:['clearance_tag','dented_can','flickering_bulb'],hint:'Clearance in a row: Dented can pays +2 for each Clearance before it.'},
+  banana_bunch:{name:'Banana bunch',fam:'Produce',cards:['two_for_one','banana','banana'],hint:'4 Bananas in a row pay 2, 4, 6, 8. 2 for 1 between two doubles the 2nd.'},
+  coupon_clipper:{name:'Coupon clipper',fam:'Coupon',cards:['repeat','shelf_swap','scissors'],hint:'Two coupons, then Scissors: +2 for each coupon before it.'},
+  deli_counter:{name:'Deli counter',fam:'Bakery',cards:['bread','cheese','butter'],hint:'Butter, Bread, Cheese in a row: +3 beside Bread, +4 right after it.'},
+  big_shop:{name:'Big shop',fam:'Food',cards:['final_markdown','yogurt','carrier_bag'],hint:'Carrier bag between two Food: +8 for each Food beside it.'}};
+const CORE = ['banana','banana','milk','eggs'];
+const STAPLES = ['banana','bread','milk','eggs','coffee','soup'];
+const AISLES = [ // data/aisles: base, capsules, sign colour
+  {id:'cold_cases',name:'Cold cases',sign:'#4f9a94',base:['cheese','frozen_peas','butter','yogurt','reduced_yogurt'],caps:7},
+  {id:'pantry',name:'Pantry',sign:'#e2b33c',base:['cereal','tea_bags','crackers','dented_can','day_old_buns'],caps:7},
+  {id:'household',name:'Household',sign:'#8a8172',base:['carrier_bag','scissors','batteries','flickering_bulb'],caps:7},
+  {id:'fruit_and_veg',name:'Fruit & veg',sign:'#3d7a45',base:[],caps:8},
+  {id:'bakery',name:'Bakery',sign:'#d2a874',base:[],caps:8},
+  {id:'snacks',name:'Snacks',sign:'#7a5232',base:[],caps:7}];
+const PINS = [ // data/pins: face text, PinFace.COLOURS[face_colour-1], rule, milestone
+  {id:'recycle',name:'Recycle',face:'RE',c:['#5fae5a','#3d7a45'],rule:'Redrawn items go back in the pile; +1 redraw a shift',lock:'Finish a run'},
+  {id:'repack',name:'Repack',face:'MIX',c:['#4f9a94','#2a4d4b'],rule:'Move items between baskets while planning',lock:'Win a run'},
+  {id:'double_checkout',name:'Double checkout',face:'×2',c:['#8a1f33','#561327'],rule:'Check out two rows of 4 every shift; both count',lock:'Score 100€ in one checkout'},
+  {id:'stock_list',name:'Stock list',face:'NXT',c:['#2c3533','#172c2b'],rule:'See the next 3 items in the pile while planning'},
+  {id:'day_off',name:'Day off',face:'OFF',c:['#d9534f','#a83a3c'],rule:'Once a week, skip any day but a review: it passes on quota'},
+  {id:'golden_basket',name:'Golden basket',face:'GLD',c:['#ffcf3f','#8a5d1a'],rule:"Keep 2 checked-out items for the next shift's first basket"},
+  {id:'price_gun',name:'Price gun',face:'TAG',c:['#e2b33c','#b38425'],rule:'Once a shift, an item gains a family of your choice'},
+  {id:'express_lane',name:'Express lane',face:'EXP',c:['#a87a4e','#4a3022'],rule:'2 fewer slots; the first and last items pay ×2'}];
+const PIN = Object.fromEntries(PINS.map(p => [p.id, p]));
+// Real offers: StartingDeck.deal_offer on this branch's data (headless run, 2026-11-03).
+const STATES = [
+  {label:'Run 1, fresh profile', seed:20261103, first:'breakfast_run', packs:['banana_bunch','breakfast_run','deli_counter'],
+   shared:['bread','eggs','soup','yogurt','reduced_yogurt','cereal'], listed:null, unlocked:{}, owned:['stock_list','day_off','golden_basket','price_gun','express_lane'], worn:[], run:1},
+  {label:'Fresh profile, Price gun worn', seed:20261014, first:'breakfast_run', packs:['big_shop','breakfast_run','coupon_clipper'],
+   shared:['milk','eggs','cereal','cereal','dented_can','day_old_buns'], listed:null, unlocked:{}, owned:['stock_list','day_off','golden_basket','price_gun','express_lane','recycle'], worn:['price_gun'], run:3},
+  {label:'Veteran, Fruit & veg listed', seed:99, first:null, packs:['breakfast_run','coupon_clipper','banana_bunch'],
+   shared:['coffee','frozen_peas','frozen_peas','butter','yogurt','yogurt'], listed:['cold_cases','fruit_and_veg'], unlocked:{fruit_and_veg:4,cold_cases:1}, owned:PINS.map(p=>p.id).filter(i=>i!=='double_checkout'), worn:['repack','express_lane'], run:6}];
+
+let V='A', S=0, SLOTS=1, RM=false, hovPack=-1, sel=-1, worn=[], drawer=false, hovAisle=null;
+const F=document.getElementById('F');
+const st=()=>STATES[S];
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+const ticketFam = c => c.kind===2 ? 'Coupon' : (c.tags.find(t=>t!=='Food') || c.tags[0] || 'Food');
+function famsOf(c){ return c.kind===2 ? ['Coupon'] : c.tags.slice(); }
+function artHTML(id, sm){
+  const c=CARD[id];
+  if(c.kind===2) return `<div class="art"><img src="${SRC}items/coupon_slip.png" alt=""><img class="cicon" src="${SRC}icons/coupon_${id}_v2.png" alt=""></div>`;
+  return `<div class="art"><img src="${SRC}items/${id}.png" alt=""></div>`;
+}
+function tile(id, opt={}){
+  const c=CARD[id], f=ticketFam(c), fc=FAM[f]||FAM.Food;
+  const coupon=c.kind===2;
+  const bandBg = coupon ? 'var(--tomato)' : fc[0];
+  const ink = coupon || DARK_FACE.has(f) ? 'var(--paper)' : 'var(--ink)';
+  const glyphs = famsOf(c).filter(t=>t!=='Food'||c.tags.length===1).slice(0,3).map(t=>`<img src="${SRC}icons/${FAM[t][3]}.png" alt="${t}">`).join('');
+  const cls=['tk', coupon?'coupon':'', opt.sm?'sm':'', opt.nob?'nob':'', opt.ghost?'ghost':'', opt.pop?'popin':'', opt.lit?'lit':'', opt.dim?'dimmed':''].join(' ');
+  return `<div class="${cls}" data-card="${id}" data-n="${opt.total||1}" style="${opt.delay!=null?`animation-delay:${opt.delay}ms`:''}">
+    ${opt.lock?`<div class="lock"><img src="${SRC}icons/padlock.png" alt="locked"></div>`:''}
+    ${coupon?`<div class="ctab">COUPON</div>`:''}
+    ${opt.count>1?`<div class="cnt">×${opt.count}</div>`:''}
+    ${artHTML(id)}<div class="nm">${esc(c.name)}</div>
+    ${opt.nob?'':`<div class="band" style="background:${bandBg};color:${ink}">${glyphs}<span class="pr">${coupon?'':c.base+'€'}</span></div>`}</div>`;
+}
+function group(ids){ const m=new Map(); ids.forEach(i=>m.set(i,(m.get(i)||0)+1)); return [...m.entries()]; }
+function packIdShown(){ const s=st(); if(hovPack>=0) return s.packs[hovPack]; if(sel>=0) return s.packs[sel]; return null; }
+function deckOf(packId){ const p=packId?PACKS[packId].cards:[]; return CORE.concat(p, st().shared); }
+function totals(packId){ const t={}; deckOf(packId).forEach(i=>t[i]=(t[i]||0)+1); return t; }
+function stockRows(){
+  const s=st(); const rows=[{id:'staples',name:'Staples',sign:'#f3e9d2',glyph:null,count:6,state:'deal',items:STAPLES}];
+  const listable=AISLES.filter(a=>a.base.length||(s.unlocked[a.id]||0)>=4);
+  const stocked = s.listed ? s.listed : listable.map(a=>a.id);
+  AISLES.forEach(a=>{
+    const capsHeld=s.unlocked[a.id]||0, n=a.base.length+capsHeld;
+    let state;
+    if(!a.base.length && capsHeld===0) state='lock';
+    else if(!stocked.includes(a.id)) state='off';
+    else if(a.base.length) state='deal'; else state='prize';
+    rows.push({id:a.id,name:a.name,sign:a.sign,glyph:'aisle_'+a.id,count:n,state,items:a.base,capsHeld,caps:a.caps});
+  });
+  return rows;
+}
+function poolSize(){ return stockRows().filter(r=>r.state==='deal').reduce((n,r)=>n+r.items.length,0); }
+function aisleOf(id){ if(STAPLES.includes(id)) return 'staples'; const a=AISLES.find(a=>a.base.includes(id)); return a?a.id:null; }
+function pinFace(p, d){
+  if(!p) return `<div class="pinf empty" style="width:${d}px;height:${d}px;font-size:${d*.42}px">+</div>`;
+  const light = p.id==='golden_basket'||p.id==='price_gun';
+  return `<div class="pinf" data-pin="${p.id}" style="width:${d}px;height:${d}px;font-size:${d*(p.face.length>2?.3:.38)}px;background:${p.c[0]};box-shadow:inset 0 0 0 ${d/12}px ${p.c[1]};color:${light?'var(--ink)':'var(--paper)'}">${esc(p.face)}</div>`;
+}
+function rivets(x,y,w,h){ return [[x+10,y+10],[x+w-22,y+10],[x+10,y+h-22],[x+w-22,y+h-22]].map(([a,b])=>`<div class="rivet" style="left:${a}px;top:${b}px"></div>`).join(''); }
+
+/* ---------- shared blocks ---------- */
+function headerPlate(){
+  const s=st();
+  return `<div class="abs" style="left:0;top:0;width:1920px;height:100px;background:var(--teal-black);border-bottom:4px solid var(--charcoal)"></div><div class="plate" style="left:32px;top:26px;height:62px;padding:0 22px 0 14px;display:flex;align-items:center;gap:14px;font-size:30px">
+      <img src="${SRC}wall_clock.png" style="width:44px;height:44px" alt="">OPENING TIME <span style="color:var(--paper);text-shadow:0 2px 0 var(--brass-dark)">· SHIFT 1 OF 12</span></div>
+    <div class="abs" style="right:290px;top:36px;font-size:20px;color:var(--teal-light);font-weight:700">Seed ${s.seed} · run ${s.run} · fb-p3</div>
+    <div class="abs" id="cartChip" style="right:32px;top:22px;height:62px;width:230px;background:var(--teal);border:3px solid var(--charcoal);box-shadow:inset 0 3px 0 var(--teal-light),inset 0 -4px 0 var(--teal-shade);display:flex;align-items:center;justify-content:center;gap:10px" class="px">
+      <img src="${SRC}icons/cart.png" style="width:36px;height:27px" alt=""><span style="font-family:var(--body);font-weight:800;font-size:26px" id="cartChipN">Cart 13/15</span></div>`;
+}
+function confirmKey(x,y,w,h,big){
+  const s=st(), p=sel>=0?PACKS[s.packs[sel]]:null, n=deckOf(sel>=0?s.packs[sel]:null).length;
+  return `<div class="key red ${p?'glow':'off'}" id="go" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px">
+     <div style="text-align:center;line-height:1"><div style="font-family:var(--display);font-weight:500;letter-spacing:.02em;font-size:${big||46}px">${p?'OPEN STORE ›':'PICK A PACK FIRST'}</div>
+     <div style="font-family:var(--body);font-weight:700;font-size:18px;margin-top:8px;letter-spacing:0">${p?`Start shift 1 with ${esc(p.name)} · ${n} cards`:'Click a pack, or press 1, 2 or 3'}</div></div></div>`;
+}
+function packCard(i,x,y,w,opts={}){
+  const s=st(), id=s.packs[i], p=PACKS[id], fc=FAM[p.fam];
+  const face = p.fam==='Coupon' ? '#d9534f' : fc[0];
+  const ink = (p.fam==='Coupon'||DARK_FACE.has(p.fam)) ? 'var(--paper)' : 'var(--ink)';
+  const tot=totals(id);
+  const tiles=group(p.cards).map(([c,n])=>tile(c,{count:n,sm:opts.sm,nob:opts.nob})).join('');
+  return `<div class="pack ${hovPack===i?'hov':''} ${sel===i?'sel':''}" data-pack="${i}" style="left:${x}px;top:${y}px;width:${w}px${opts.h?`;height:${opts.h}px`:''}">
+    ${s.first===id?`<div class="first">GOOD FIRST PICK</div>`:''}${sel===i?`<div class="taken">✓ PICKED</div>`:''}
+    <div class="hd" style="background:${face};color:${ink}"><img src="${SRC}icons/${fc[3]}.png" alt=""><span class="t">${esc(p.name)}</span><span class="k">${i+1}</span></div>
+    <div class="row">${tiles}</div><div class="hint">${esc(p.hint)}</div></div>`;
+}
+function badgeBlock(x,y){
+  const s=st();
+  const faces=[]; for(let k=0;k<SLOTS;k++) faces.push(pinFace(PIN[worn[k]],64));
+  return `<div class="abs" style="left:${x}px;top:${y}px;width:200px;height:204px">
+     <img src="${SRC}pin_badge.png" style="width:200px;height:204px" alt="name badge">
+     <div class="abs px" style="left:8px;top:22px;width:184px;text-align:center;font-size:21px;line-height:23px;color:var(--paper)">NEXT<br>CUSTOMER</div>
+     <div class="abs" style="left:18px;top:94px;font-family:var(--body);font-weight:800;font-size:14px;letter-spacing:.08em;color:var(--teal-shade)">CASHIER</div>
+     <div class="abs" style="left:8px;top:114px;width:184px;height:76px;display:flex;align-items:center;justify-content:center;gap:12px">${faces.join('')}</div></div>`;
+}
+function pinLines(){
+  if(!worn.slice(0,SLOTS).length) return `<div class="px" style="font-size:24px;color:var(--grey-light)">No pin worn</div>
+     <div style="font-size:17px;font-weight:600;color:var(--teal-pale);margin-top:4px">${SLOTS} slot free. Pins give new ways to play, never a bigger payout.</div>`;
+  return worn.slice(0,SLOTS).map(id=>{const p=PIN[id];return `<div style="margin-bottom:12px"><div class="px" style="font-size:24px;color:var(--gold)">${esc(p.name)}</div>
+     <div style="font-size:17px;font-weight:600;line-height:21px;color:var(--paper)">${esc(p.rule)}</div></div>`;}).join('') +
+     (worn.length<SLOTS?`<div style="font-size:16px;color:var(--teal-light)">${SLOTS-worn.length} slot free</div>`:'');
+}
+function drawerHTML(x,y,w){
+  const s=st();
+  const rows=PINS.map((p,i)=>{
+    const own=s.owned.includes(p.id), on=worn.slice(0,SLOTS).includes(p.id);
+    const btn = !own ? `<div class="key cream pb off" style="position:relative;background:var(--steel-dark);color:var(--grey-light);font-size:16px;cursor:not-allowed">LOCKED</div>`
+      : on ? `<div class="key teal pb" data-wear="${p.id}" style="position:relative;background:var(--green);color:var(--ink)">✓ WORN</div>` : `<div class="key cream pb" data-wear="${p.id}" style="position:relative">WEAR</div>`;
+    return `<div class="prow" style="top:${92+i*72}px">${own?pinFace(p,52):`<div class="pinf" style="width:52px;height:52px;background:var(--grey-light);box-shadow:inset 0 0 0 4px var(--grey);color:var(--ink);font-size:24px">?</div>`}
+      <div class="pn" style="${own?'':'color:var(--grey-light)'}">${esc(p.name)}</div><div class="pr">${own?esc(p.rule):'Unlock: '+esc(p.lock)}</div>${btn}</div>`;}).join('');
+  return `<div class="drawer ${drawer?'on':''}" id="drawer" style="left:${x}px;top:${y}px;width:${w}px;height:${92+PINS.length*72+80}px">
+    <div class="abs sect" style="left:24px;top:22px;font-size:28px">BADGE PINS <small>${SLOTS===1?'1 slot':'2 slots'} · wearing one with every slot taken replaces the first</small></div>
+    ${rows}
+    <div class="key teal" id="drawerClose" style="left:24px;bottom:18px;width:150px;height:46px;font-size:22px">DONE</div>
+    <div class="abs" style="left:196px;bottom:22px;font-size:16px;font-weight:600;color:var(--teal-pale);width:${w-230}px;line-height:19px">Saved to your profile and worn from this run. Today's deal stays the same, because the fair-deal check doesn't read pins (Q1, Q2).</div></div>`;
+}
+
+/* ---------- variant A: clock-in board ---------- */
+function renderA(){
+  const s=st(), shown=packIdShown(), tot=totals(shown), preview=hovPack>=0&&hovPack!==sel;
+  let h=`<div class="bd"></div><div class="dim"></div>${headerPlate()}
+   <div class="steel" style="left:32px;top:104px;width:1856px;height:948px"></div>${rivets(32,104,1856,948)}`;
+  // 1 packs
+  h+=`<div class="abs sect" style="left:72px;top:122px"><span class="n">1</span>PICK A STARTER PACK <small>3 cards that start your build. Hover to preview, click to pick.</small></div>`;
+  s.packs.forEach((_,i)=>{ h+=packCard(i,72+i*396,184,372,{h:282,nob:true}); });
+  // 2 cart sheet
+  const T=486, n=deckOf(shown).length, pk=shown?PACKS[shown]:null;
+  h+=`<div class="paper" style="left:64px;top:${T}px;width:1176px;height:550px"></div>`;
+  h+=`<div class="abs sect" style="left:92px;top:${T+12}px;color:var(--tomato-dark)"><span class="n" style="background:var(--tomato-dark);color:var(--paper)">2</span>YOUR CART
+      <span style="font-size:40px;color:var(--ink)" id="cartN">${n}/15</span></div>`;
+  h+=`<div class="abs" style="left:520px;top:${T+22}px;display:flex;gap:8px;align-items:center;font-weight:700;font-size:19px;color:var(--ink);white-space:nowrap">
+      <span>= 4 staples</span><b>+</b><span style="${pk?'':'color:var(--grey)'}">${pk?'3 from '+esc(pk.name):'3 from your pack'}</span><b>+</b><span>6 from today's deal</span></div>`;
+  const R1=T+62, R2=T+312;
+  const stapleT=group(CORE).map(([c])=>tile(c,{count:tot[c],lock:true})).join('');
+  h+=`<div class="grp" style="left:92px;top:${R1}px"><div class="gh">STAPLES <span class="c">4</span><span class="gs" style="margin:0 0 0 4px">in every run</span></div>
+      <div class="tiles" style="margin-top:16px">${stapleT}</div><div class="br" style="width:396px;background:var(--mustard)"></div></div>`;
+  let packT;
+  if(pk) packT=group(pk.cards).map(([c],j)=>tile(c,{count:tot[c],pop:true,delay:j*30,ghost:preview})).join('');
+  else packT=[0,1,2].map(()=>`<div class="tk empty">?</div>`).join('');
+  const pf=pk?FAM[pk.fam]:null, pcol=pk?(pk.fam==='Coupon'?'#d9534f':pf[0]):'var(--grey-light)';
+  h+=`<div class="grp" style="left:540px;top:${R1}px"><div class="gh">${pk?`<img src="${SRC}icons/${pf[3]}.png" style="width:27px;height:27px" alt="">`+esc(pk.name).toUpperCase():'YOUR PACK'} <span class="c">3</span>
+      ${preview?`<span class="px" style="font-size:15px;background:var(--teal-pale);color:var(--ink);border:3px solid var(--ink);padding:0 8px;letter-spacing:.06em">PREVIEW · CLICK TO PICK</span>`:`<span class="gs" style="margin:0 0 0 4px">${pk?'your pick':'pick a pack above ↑'}</span>`}</div>
+      <div class="tiles" style="margin-top:16px">${packT}</div><div class="br" style="width:${pk?group(pk.cards).length*138-18:396}px;background:${pcol}"></div></div>`;
+  // pins' starting cards would get their own bracket here (none today)
+  h+=`<div class="abs" style="left:984px;top:${R1+44}px;width:232px;height:192px;border:3px dashed var(--cream-dark);padding:10px 12px;color:var(--ink-light)">
+      <div class="px" style="font-size:19px;color:var(--ink);white-space:nowrap">FROM YOUR PINS <span style="border:3px solid var(--ink);background:var(--cream);padding:0 6px">0</span></div>
+      <div style="font-size:15px;font-weight:600;line-height:19px;margin-top:8px">${worn.slice(0,SLOTS).length?'Your pins bring no cards: they change how you play (④).':'No pin worn.'} A pin that brings starting cards lists them here.</div></div>`;
+  h+=`<div class="abs" style="left:92px;top:${R2-9}px;width:1120px;border-top:3px dashed var(--cream-dark)"></div>`;
+  const dealT=group(s.shared).map(([c])=>tile(c,{count:tot[c],lit:hovAisle&&aisleOf(c)===hovAisle,dim:hovAisle&&aisleOf(c)!==hovAisle})).join('');
+  h+=`<div class="grp" style="left:92px;top:${R2}px"><div class="gh">TODAY'S DEAL <span class="c">6</span><span class="gs" style="margin:0 0 0 4px">from ③ · the same whichever pack you pick</span></div>
+      <div class="tiles" style="margin-top:16px">${dealT}</div><div class="br" style="width:${group(s.shared).length*138-18}px;background:var(--teal)"></div></div>`;
+  // family tally of the whole cart
+  const fam={}; deckOf(shown).forEach(c=>famsOf(CARD[c]).forEach(f=>fam[f]=(fam[f]||0)+1));
+  const fl=Object.entries(fam).sort((x,y)=>y[1]-x[1]);
+  const fx=92+group(s.shared).length*138+14;
+  h+=`<div class="abs" style="left:${fx}px;top:${R2}px;width:${Math.min(400,1216-fx)}px">
+      <div class="px" style="font-size:20px;color:var(--ink)">BY FAMILY</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin-top:12px">${fl.slice(0,10).map(([f,k])=>`<div style="display:flex;align-items:center;gap:5px;font-weight:700;font-size:15px;color:var(--ink)"><span style="display:grid;place-items:center;width:24px;height:24px;border:2px solid var(--ink);background:${FAM[f][0]||'#d9534f'}"><img src="${SRC}icons/${FAM[f][3]}.png" style="width:18px;height:18px" alt=""></span>${f}<span style="margin-left:auto;font-family:var(--display);font-size:19px">${k}</span></div>`).join('')}</div></div>`;
+  // 3 stock
+  const rows=stockRows(), pool=poolSize();
+  h+=`<div class="abs sect" style="left:1276px;top:128px"><span class="n">3</span>TODAY'S STOCK</div>
+      <div class="abs" style="left:1276px;top:172px;font-size:18px;font-weight:600;color:var(--teal-pale)">Today's 6 are dealt from the green shelves.</div>
+      <div class="abs" style="left:1268px;top:204px;width:592px;height:${rows.length*56}px;background:var(--teal-black);border:3px solid var(--charcoal)">
+      ${rows.map((r,k)=>{
+        const tagTxt={deal:'DEALT FROM',prize:'PRIZES ONLY',off:'NOT LISTED',lock:'LOCKED'}[r.state];
+        const cnt = r.state==='lock'?`0/${r.caps}`:(r.id==='staples'?'6 items':(r.items.length?`${r.items.length} items`:`${r.count} prizes`)+(r.items.length&&r.capsHeld?` +${r.capsHeld}`:''));
+        const g = r.glyph?`<img src="${SRC}icons/${r.glyph}.png" alt="">`:`<img src="${SRC}icons/padlock.png" style="width:18px;height:20px" alt="">`;
+        const dealtHere = s.shared.filter(c=>aisleOf(c)===r.id).length;
+        return `<div class="aisle ${r.state==='lock'?'locked':''} ${hovAisle===r.id?'hov':''}" data-aisle="${r.id}" style="top:${k*56}px">
+          <div class="sg" style="background:${r.sign}">${g}</div><div class="an">${esc(r.name)}</div><div class="ac">${cnt}</div>
+          ${hovAisle===r.id&&r.state==='deal'?`<span style="font-weight:800;font-size:16px;color:var(--gold);white-space:nowrap">${dealtHere} of the 6</span>`:''}
+          <span class="st ${r.state}">${tagTxt}</span></div>`;}).join('')}</div>
+      <div class="abs" style="left:1276px;top:${204+rows.length*56+12}px;width:580px;font-size:16px;font-weight:600;line-height:20px;color:var(--teal-pale)">
+        ${pool} products in the deal's pool · at most 2 of a card (the staples count).${s.listed?' PRIZES ONLY: its items are capsule items, so they come only from the machine.':' LOCKED aisles open at their toy machine.'}</div>`;
+  // 4 pins
+  const py=204+rows.length*56+72;
+  h+=`<div class="abs sect" style="left:1276px;top:${py}px"><span class="n">4</span>BADGE PINS</div>`;
+  h+=badgeBlock(1272,py+48);
+  h+=`<div class="abs" style="left:1490px;top:${py+56}px;width:370px">${pinLines()}</div>`;
+  h+=`<div class="key teal" id="pinsBtn" style="left:1490px;top:${py+196}px;width:240px;height:50px;font-size:22px">CHANGE PINS ›</div>
+`;
+  // confirm
+  h+=confirmKey(1272,940,584,96);
+  h+=drawerHTML(1100,150,760);
+  h+=`<div class="pop" id="pop"></div><div class="toast" id="toast">SHIFT 1 · CLOCKED IN</div>`;
+  return h;
+}
+
+/* ---------- variant B: cart receipt ---------- */
+function renderB(){
+  const s=st(), shown=packIdShown(), tot=totals(shown), preview=hovPack>=0&&hovPack!==sel;
+  let h=`<div class="bd"></div><div class="dim"></div>${headerPlate()}
+   <div class="steel" style="left:32px;top:104px;width:1856px;height:948px"></div>${rivets(32,104,1856,948)}`;
+  h+=`<div class="abs sect" style="left:72px;top:128px;font-size:26px"><span class="n">1</span>PICK A PACK</div>`;
+  s.packs.forEach((id,i)=>{
+    const p=PACKS[id], fc=FAM[p.fam], face=p.fam==='Coupon'?'#d9534f':fc[0], ink=(p.fam==='Coupon'||DARK_FACE.has(p.fam))?'var(--paper)':'var(--ink)';
+    h+=`<div class="pack ${hovPack===i?'hov':''} ${sel===i?'sel':''}" data-pack="${i}" style="left:72px;top:${188+i*282}px;width:560px;height:258px">
+      ${s.first===id?`<div class="first">GOOD FIRST PICK</div>`:''}${sel===i?`<div class="taken">✓ PICKED</div>`:''}
+      <div class="hd" style="background:${face};color:${ink}"><img src="${SRC}icons/${fc[3]}.png" alt=""><span class="t">${esc(p.name)}</span><span class="k">${i+1}</span></div>
+      <div class="row" style="justify-content:flex-start;padding:16px 14px 4px">${group(p.cards).map(([c,n])=>tile(c,{count:n,sm:true})).join('')}</div>
+      <div class="hint" style="font-size:16px;line-height:20px">${esc(p.hint)}</div></div>`;
+  });
+  // receipt
+  const lines=(ids,cls,lockIt)=>group(ids).map(([c,k])=>{const cd=CARD[c];return `<div class="ln ${cls||''} ${hovAisle&&aisleOf(c)===hovAisle?'lit':''}" data-card="${c}" data-n="${tot[c]}"><img src="${SRC}${cd.kind===2?'icons/coupon_'+c+'_mini':'minis/'+c}.png" style="${cd.kind===2?'width:auto;height:21px':''}" onerror="this.style.visibility='hidden'" alt="">${esc(cd.name)}${lockIt?`<img src="${SRC}icons/padlock.png" style="width:14px;height:16px" alt="">`:''}<span class="q">×${k}${tot[c]>k?` <span style="color:var(--grey);font-weight:400">(${tot[c]} in cart)</span>`:''}</span></div>`;}).join('');
+  const pk=shown?PACKS[shown]:null, n=deckOf(shown).length;
+  h+=`<div class="paper rc" style="left:672px;top:128px;width:560px;height:900px;padding-top:14px">
+    <div style="text-align:center;font-family:var(--body);font-weight:800;letter-spacing:.12em;font-size:20px;color:var(--tomato-dark)">YOUR CART</div>
+    <div style="text-align:center;font-family:var(--body);font-weight:800;font-size:88px;line-height:92px;color:var(--tomato-dark)">${n}<span style="font-size:44px">/15</span></div>
+    <div style="border-top:4px solid var(--tomato);border-bottom:2px solid var(--tomato);height:9px;margin:4px 22px 6px"></div>
+    <div style="font-size:19px;padding:0 22px">NEXT CUSTOMER · REG 1 · SHIFT 1/12</div>
+    <div class="dash"></div>
+    <div class="hdr">STAPLES<span class="q">4</span></div>${lines(CORE,'',true)}
+    <div class="dash"></div>
+    <div class="hdr" style="color:${pk?'var(--ink)':'var(--grey)'}">${pk?esc(pk.name).toUpperCase():'YOUR PACK: PICK ONE ←'}<span class="q">3</span></div>
+    <div id="rcPack" class="${pk?'feed':''}">${pk?lines(pk.cards,preview?'ghost':''):'<div class="ln" style="color:var(--grey)">· · · · ·</div><div class="ln" style="color:var(--grey)">· · · · ·</div><div class="ln" style="color:var(--grey)">· · · · ·</div>'}</div>
+    <div class="dash"></div>
+    <div class="hdr">TODAY'S DEAL<span class="q">6</span></div>${lines(s.shared)}
+    <div class="dash"></div>
+    <div style="font-size:17px;padding:2px 22px;color:var(--ink-light)">${preview?'PREVIEW · click the pack to pick it':'max 2 of a card · no re-deal'}</div></div>`;
+  const rows=stockRows(), pool=poolSize();
+  h+=`<div class="abs sect" style="left:1276px;top:128px;font-size:26px"><span class="n">2</span>TODAY'S STOCK</div>`;
+  h+=`<div class="abs" style="left:1268px;top:180px;width:592px;display:grid;grid-template-columns:1fr 1fr;gap:10px">${rows.map(r=>{
+     const tagTxt={deal:'DEALT FROM',prize:'PRIZES ONLY',off:'NOT LISTED',lock:'LOCKED'}[r.state];
+     return `<div class="aisle ${r.state==='lock'?'locked':''} ${hovAisle===r.id?'hov':''}" data-aisle="${r.id}" style="position:relative;height:auto;padding:8px;flex-wrap:wrap;gap:6px 10px;border:3px solid var(--charcoal);background:var(--teal-black)">
+       <div class="sg" style="background:${r.sign}">${r.glyph?`<img src="${SRC}icons/${r.glyph}.png" alt="">`:`<img src="${SRC}icons/padlock.png" style="width:18px;height:20px" alt="">`}</div><div class="an" style="width:auto;font-size:21px">${esc(r.name)}</div>
+       <span class="st ${r.state}" style="margin-left:0;font-size:14px">${tagTxt}</span></div>`;}).join('')}</div>
+     <div class="abs" style="left:1276px;top:${180+Math.ceil(rows.length/2)*108+4}px;width:580px;font-size:16px;font-weight:600;color:var(--teal-pale)">${pool} products in the deal's pool · max 2 of a card</div>`;
+  const py=180+Math.ceil(rows.length/2)*108+50;
+  h+=`<div class="abs sect" style="left:1276px;top:${py}px;font-size:26px"><span class="n">3</span>BADGE PINS</div>`;
+  h+=badgeBlock(1272,py+44);
+  h+=`<div class="abs" style="left:1490px;top:${py+52}px;width:370px">${pinLines()}</div>
+      <div class="key teal" id="pinsBtn" style="left:1490px;top:${py+190}px;width:240px;height:50px;font-size:22px">CHANGE PINS ›</div>`;
+  h+=confirmKey(1272,940,584,96);
+  h+=drawerHTML(1100,150,760);
+  h+=`<div class="pop" id="pop"></div><div class="toast" id="toast">SHIFT 1 · CLOCKED IN</div>`;
+  return h;
+}
+
+/* ---------- variant C: shelf wall ---------- */
+function renderC(){
+  const s=st(), shown=packIdShown(), tot=totals(shown), preview=hovPack>=0&&hovPack!==sel;
+  let h=`<div class="bd"></div><div class="dim" style="background:rgba(23,44,43,.9)"></div>${headerPlate()}`;
+  // hanging aisle signs
+  const rows=stockRows();
+  rows.forEach((r,k)=>{
+    const x=60+k*262, tagTxt={deal:'DEALT FROM',prize:'PRIZES ONLY',off:'NOT LISTED',lock:'LOCKED'}[r.state];
+    h+=`<div class="abs" style="left:${x+60}px;top:96px;width:3px;height:22px;background:var(--steel-pale)"></div><div class="abs" style="left:${x+180}px;top:96px;width:3px;height:22px;background:var(--steel-pale)"></div>
+     <div class="aisle ${r.state==='lock'?'locked':''} ${hovAisle===r.id?'hov':''}" data-aisle="${r.id}" style="left:${x}px;right:auto;top:118px;width:246px;height:84px;flex-direction:column;align-items:flex-start;gap:2px;padding:6px 10px;border:3px solid var(--charcoal);background:${r.state==='lock'?'var(--slate,#2c3533)':'var(--teal-dark)'};box-shadow:0 6px 0 rgba(0,0,0,.4)">
+       <div style="display:flex;gap:8px;align-items:center"><div class="sg" style="background:${r.sign};width:34px;height:34px">${r.glyph?`<img src="${SRC}icons/${r.glyph}.png" style="width:18px;height:18px" alt="">`:`<img src="${SRC}icons/padlock.png" style="width:18px;height:20px" alt="">`}</div><div class="an" style="width:auto;font-size:21px">${esc(r.name)}</div></div>
+       <span class="st ${r.state}" style="margin-left:0;font-size:13px;padding:0 6px">${tagTxt}</span></div>`;
+  });
+  // shelf 1: packs as bundles
+  h+=`<div class="abs sect" style="left:72px;top:226px;font-size:26px">PICK A PACK <small>Hover to preview, click to pick.</small></div>`;
+  s.packs.forEach((id,i)=>{ h+=packCard(i,72+i*390,282,370,{h:276,nob:true}); });
+  h+=`<div class="abs" style="left:56px;top:566px;width:1190px;height:24px;background:var(--wood);border:3px solid var(--charcoal);box-shadow:inset 0 4px 0 var(--wood-light),inset 0 -5px 0 var(--wood-dark)"></div>`;
+  // shelf 2: today's deal standing with price tags
+  h+=`<div class="abs sect" style="left:72px;top:606px;font-size:26px">TODAY'S DEAL <small>The same 6 whichever pack you pick.</small></div>`;
+  h+=`<div class="abs" style="left:72px;top:660px;display:flex;gap:30px;align-items:flex-end">${group(s.shared).map(([c,k])=>`<div style="position:relative;${hovAisle&&aisleOf(c)!==hovAisle?'opacity:.35':''}" data-card="${c}" data-n="${tot[c]}" class="tkC">
+      <img src="${SRC}items/${c}.png" style="width:144px;height:144px" alt="">${k>1?`<div style="position:absolute;right:-10px;top:-6px;min-width:44px;height:36px;padding:0 6px;background:var(--gold);border:3px solid var(--ink);font-family:var(--body);font-weight:800;font-size:21px;display:grid;place-items:center;color:var(--ink)">×${k}</div>`:''}
+      <div class="px" style="background:var(--paper);color:var(--ink);border:3px solid var(--ink);font-size:16px;letter-spacing:0;text-align:center;margin-top:-6px;padding:0 4px">${esc(CARD[c].name)}</div></div>`).join('')}</div>`;
+  h+=`<div class="abs" style="left:56px;top:862px;width:1190px;height:24px;background:var(--wood);border:3px solid var(--charcoal);box-shadow:inset 0 4px 0 var(--wood-light),inset 0 -5px 0 var(--wood-dark)"></div>`;
+  // basket with staples + pack
+  const n=deckOf(shown).length, pk=shown?PACKS[shown]:null;
+  h+=`<div class="abs" style="left:1260px;top:226px;width:620px;height:520px;background:rgba(23,44,43,.7);border:3px solid var(--charcoal)"></div>
+     <div class="abs sect" style="left:1282px;top:240px;font-size:26px">YOUR CART <span style="font-size:40px;color:var(--paper)">${n}/15</span></div>
+     <div class="abs" style="left:1282px;top:292px;font-size:17px;font-weight:600;color:var(--teal-pale)">4 staples + ${pk?'3 from '+esc(pk.name):'your pack'} + the 6 on the shelf</div>`;
+  const inBasket=CORE.concat(pk?pk.cards:[]);
+  h+=`<div class="abs" style="left:1330px;top:470px;display:flex;flex-wrap:nowrap;gap:0;width:540px;justify-content:center;z-index:0">${group(inBasket).map(([c,k],j)=>`<div style="position:relative;margin:0 -6px" class="${pk&&PACKS[shown].cards.includes(c)&&!CORE.includes(c)?'popin':''}" data-card="${c}" data-n="${tot[c]}">${CARD[c].kind===2?`<div style="position:relative;width:96px;height:96px"><img src="${SRC}items/coupon_slip.png" style="width:96px" alt=""><img src="${SRC}icons/coupon_${c}_v2.png" style="position:absolute;left:28px;top:38px;width:40px;height:28px" alt=""></div>`:`<img src="${SRC}items/${c}.png" style="width:96px;height:96px" alt="">`}${tot[c]>1?`<div class="cnt" style="position:absolute;right:-6px;top:-6px;min-width:38px;height:30px;font-size:18px;background:var(--gold);border:3px solid var(--ink);font-family:var(--body);font-weight:800;display:grid;place-items:center;color:var(--ink)">×${tot[c]}</div>`:''}</div>`).join('')}</div>
+     <img src="${SRC}basket_front.png" style="position:absolute;left:1368px;top:560px;width:432px;height:176px" alt="">`;
+  // badge on lanyard
+  h+=`<div class="abs" style="left:1300px;top:770px;width:4px;height:40px;background:var(--teal)"></div>`;
+  h+=badgeBlock(1262,790);
+  h+=`<div class="abs" style="left:1480px;top:800px;width:260px">${pinLines()}</div>
+      <div class="key teal" id="pinsBtn" style="left:1480px;top:960px;width:200px;height:46px;font-size:20px">CHANGE PINS ›</div>`;
+  h+=confirmKey(72,920,560,104,40);
+  h+=`<div class="abs" style="left:660px;top:938px;width:560px;font-size:17px;font-weight:600;color:var(--teal-pale)">${poolSize()} products in the deal's pool · max 2 of a card · the signs above show which shelves deal</div>`;
+  h+=drawerHTML(1100,150,760);
+  h+=`<div class="pop" id="pop"></div><div class="toast" id="toast">SHIFT 1 · CLOCKED IN</div>`;
+  return h;
+}
+
+function render(){
+  F.className='F'+(RM?' rm':'');
+  F.innerHTML = V==='A'?renderA():V==='B'?renderB():renderC();
+  const chip=document.getElementById('cartChipN'); if(chip) chip.textContent=`Cart ${deckOf(packIdShown()).length}/15`;
+}
+function popFor(el){
+  const pop=document.getElementById('pop'); if(!pop) return;
+  const id=el.dataset.card, c=CARD[id]; if(!c){pop.style.display='none';return;}
+  const fams=famsOf(c).map(t=>{const f=FAM[t];return `<span style="background:${f[0]||'#d9534f'};color:${(t==='Coupon'||DARK_FACE.has(t))?'var(--paper)':'var(--ink)'}">${t}</span>`;}).join('');
+  const where=aisleOf(id), wn=where==='staples'?'Staple':(AISLES.find(a=>a.id===where)||{}).name;
+  pop.innerHTML=`<div class="pt">${esc(c.name)}${c.kind===1?`<span style="margin-left:auto;font-family:var(--body);font-weight:800;font-size:28px">${c.base}€</span>`:''}</div>
+    <div class="pf">${fams}${wn?`<span style="background:var(--cream)">${wn}</span>`:''}</div>
+    <div class="pr">${esc(c.rule)}</div><div class="pm">×${el.dataset.n} in your cart</div>`;
+  const fr=F.getBoundingClientRect(), r=el.getBoundingClientRect(), k=fr.width/1920;
+  let x=(r.right-fr.left)/k+12, y=(r.top-fr.top)/k-10;
+  if(x+430>1910) x=(r.left-fr.left)/k-432;
+  pop.style.left=x+'px'; pop.style.top=Math.max(10,Math.min(y,1080-240))+'px'; pop.style.display='block';
+}
+F.addEventListener('mousemove',e=>{
+  const t=e.target.closest('[data-card]'); const pop=document.getElementById('pop');
+  if(t) popFor(t); else if(pop) pop.style.display='none';
+  const pinEl=e.target.closest('.pinf[data-pin]');
+  if(pinEl && !e.target.closest('.drawer')){ const p=PIN[pinEl.dataset.pin]; pop.innerHTML=`<div class="pt">${esc(p.name)}</div><div class="pr">${esc(p.rule)}</div><div class="pm">Badge pin · worn this run</div>`;
+    const fr=F.getBoundingClientRect(), r=pinEl.getBoundingClientRect(), k=fr.width/1920; pop.style.left=((r.left-fr.left)/k-440)+'px'; pop.style.top=((r.top-fr.top)/k)+'px'; pop.style.display='block'; }
+});
+F.addEventListener('mouseover',e=>{
+  const p=e.target.closest('[data-pack]'); const hp=p?+p.dataset.pack:-1;
+  const a=e.target.closest('[data-aisle]'); const ha=a?a.dataset.aisle:null;
+  if(e.target.closest('.drawer')) return;
+  if(hp!==hovPack||ha!==hovAisle){ hovPack=hp; hovAisle=ha; render(); }
+});
+F.addEventListener('mouseleave',()=>{hovPack=-1;hovAisle=null;render();});
+F.addEventListener('click',e=>{
+  const w=e.target.closest('[data-wear]');
+  if(w){ const id=w.dataset.wear; const i=worn.indexOf(id); if(i>=0&&i<SLOTS) worn.splice(i,1); else { if(worn.length>=SLOTS) worn.splice(0,1); worn.push(id);} worn=worn.slice(0,SLOTS); render(); return; }
+  if(e.target.closest('#drawerClose')){drawer=false;render();return;}
+  if(e.target.closest('.drawer')) return;
+  if(e.target.closest('#pinsBtn')){drawer=true;render();return;}
+  const p=e.target.closest('[data-pack]'); if(p){ sel=+p.dataset.pack; render(); return; }
+  if(e.target.closest('#go')) go();
+});
+function go(){
+  if(sel<0) return;
+  const t=document.getElementById('toast'); t.textContent=`SHIFT 1 · ${PACKS[st().packs[sel]].name.toUpperCase()} · ${deckOf(st().packs[sel]).length} CARDS`;
+  [...F.children].forEach(c=>{ if(!c.classList.contains('bd')&&c.id!=='toast'&&c.id!=='cartChip') c.classList.add('fold'); });
+  setTimeout(()=>{t.style.display='block';},RM?0:520);
+  setTimeout(()=>{t.style.display='none';reset();},RM?1400:2200);
+}
+document.addEventListener('keydown',e=>{
+  if(['1','2','3'].includes(e.key)){sel=+e.key-1;render();}
+  else if(e.key==='Enter'){go();}
+  else if(e.key==='p'||e.key==='P'){drawer=!drawer;render();}
+  else if(e.key==='Escape'&&drawer){drawer=false;render();}
+});
+function reset(){ const s=st(); sel=s.first?s.packs.indexOf(s.first):-1; worn=s.worn.slice(0,SLOTS); hovPack=-1; hovAisle=null; drawer=false; render(); }
+function seg(id,attr,fn){ const g=document.getElementById(id); g.addEventListener('click',e=>{const b=e.target.closest('button'); if(!b)return; g.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b)); fn(b.dataset[attr]);}); }
+seg('segV','v',v=>{V=v;render();});
+seg('segS','s',v=>{S=+v;reset();});
+seg('segP','p',v=>{SLOTS=+v;worn=st().worn.slice(0,SLOTS);render();});
+seg('segM','m',v=>{RM=v==='1';render();});
+seg('segZ','z',v=>{document.body.classList.toggle('one',v==='one');fit();});
+document.getElementById('reset').onclick=reset;
+function fit(){ const w=document.getElementById('fwrap'), sc=document.getElementById('fscale');
+  const k=document.body.classList.contains('one')?1:Math.min(1,w.clientWidth/1920);
+  sc.style.transform=`scale(${k})`; w.style.height=(1080*k+4)+'px'; }
+window.addEventListener('resize',fit);
+// URL hooks for captures: ?v=A&s=0&hover=1&sel=0&aisle=pantry&drawer=1&slots=2&solo=1
+const Q=new URLSearchParams(location.search);
+if(Q.get('v')) V=Q.get('v'); if(Q.get('s')) S=+Q.get('s'); if(Q.get('slots')) SLOTS=+Q.get('slots');
+document.querySelectorAll('#segV button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===V));
+document.querySelectorAll('#segS button').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.s===S));
+document.querySelectorAll('#segP button').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.p===SLOTS));
+reset();
+if(Q.get('sel')) sel=+Q.get('sel'); if(Q.get('hover')) hovPack=+Q.get('hover'); if(Q.get('aisle')) hovAisle=Q.get('aisle'); if(Q.get('drawer')) drawer=true;
+render();
+if(Q.get('solo')){ document.body.style.overflow='hidden'; const fw=document.getElementById('fwrap'); document.body.prepend(fw); fw.style.cssText='position:fixed;left:0;top:0;border:0;z-index:99;width:1920px;height:1080px'; document.querySelector('.toolbar').style.display='none'; document.querySelector('main').style.display='none'; document.getElementById('fscale').style.transform='none'; }
+else fit();
+if(Q.get('card')){ setTimeout(()=>{const el=F.querySelector(`[data-card="${Q.get('card')}"]`); if(el) popFor(el);},300); }
+</script>
+</html>

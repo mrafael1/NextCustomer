@@ -11,13 +11,13 @@ const REPEAT := "res://data/cards/repeat.tres"
 
 func test_balance_matches_the_plan() -> void:
 	var balance: BalanceDefinition = load(BALANCE)
-	# 12 shifts in 3 weeks of 4 since v0.65 (8 fitted with the balance simulator before, plan
-	# v0.28, issue #41; shift 1 lowered to 29 in v0.54): placeholders until the refit.
+	# 16 shifts in 4 weeks of 4 since v0.96, refit with the balance simulator and
+	# tools/quota_fit.py (12 in 3 since v0.65, 8 fitted before, plan v0.28, issue #41).
 	assert_array(Array(balance.quotas)).is_equal(
-		[29, 35, 53, 61, 73, 85, 98, 111, 125, 140, 155, 175]
+		[30, 35, 36, 37, 59, 60, 61, 62, 88, 101, 102, 103, 146, 147, 148, 149]
 	)
-	assert_array(Array(balance.inspection_shifts)).is_equal([3, 7, 11])
-	assert_array(Array(balance.review_shifts)).is_equal([4, 8, 12])
+	assert_array(Array(balance.inspection_shifts)).is_equal([3, 7, 11, 15])
+	assert_array(Array(balance.review_shifts)).is_equal([4, 8, 12, 16])
 	assert_int(balance.review_inspection_count).is_equal(2)
 	assert_int(balance.write_up_limit).is_equal(2)
 	assert_int(balance.write_up_last_shift).is_equal(4)
@@ -31,7 +31,7 @@ func test_start_shift_draws_a_hand_and_empties_the_row() -> void:
 	var run: RunState = _run(1)
 	assert_int(run.hand().size()).is_equal(8)
 	assert_array(run.row).is_empty()
-	assert_int(run.quota()).is_equal(29)
+	assert_int(run.quota()).is_equal(30)
 	assert_int(run.phase).is_equal(RunState.Phase.PLANNING)
 
 

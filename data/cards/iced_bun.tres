@@ -21,6 +21,7 @@ base = 1
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_iced_bun")])
 rule_text = "Doubles the last item of its Bakery batch"
 sticker_text = "{batch} ×{factor} the last"
+monitor_text = "{batch} The last item of its {tag} batch pays ×{factor}."
 art_ref = "res://art/items_v2/iced_bun.png"
 mini_art_ref = "res://art/minis/iced_bun.png"
 mini_golden_art_ref = "res://art/minis/iced_bun_golden.png"

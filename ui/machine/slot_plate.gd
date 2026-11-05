@@ -1,12 +1,12 @@
 class_name SlotPlate
 extends Control
 ## The machine's receipt slot (#77; redrawn front-on in v0.50; the relook's 112x60 plate in
-## v0.86, mock-up machine_relook.html V2): a cream bevelled plate right of the display, on the
+## v0.98, mock-up machine_relook.html V2): a cream bevelled plate right of the display, on the
 ## same strip, with the mouth (charcoal, a steel dark lip) the receipt feeds into, the brass arrow
 ## under it, the status lamp at the bottom right (green dark, green once the receipt is read) and
 ## the red scan bar under the mouth, blinking while the receipt is fed and read (reduced motion:
 ## steady). As a visit turns PREMIUM (MachineLook) the gold receipt pops up in the slot with a
-## shine and is fed in (MachineLook.stub_left), gone once swallowed as a classic receipt is (v0.97:
+## shine and is fed in (MachineLook.stub_left), gone once swallowed as a classic receipt is (v0.99:
 ## it used to stay half inserted for the whole visit).
 
 const SIZE := Vector2(112, 60)

@@ -1,0 +1,1353 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Start Screen End-cap</title>
+<style>
+/* Round 3 of the start screen: two pages, YOUR STORE and YOUR BUILD. House style of start_screen_v2.html.
+   The frame is 1920x1080 screen px = the 640x360 art grid at 3 screen px per art px (stage 1280x720 at 2).
+   Every frame is a pixel 9-slice built at boot from the art/src/frames recipes (palette.txt keys);
+   words are hard Pixelify pixels, numbers the chunky 6x8 price-gun digits, sentences Atkinson. */
+@font-face{font-family:'NCPix';font-weight:400 700;src:url(../../../fonts/PixelifySans-Variable.ttf)}
+@font-face{font-family:'NCMono';src:url(../../../fonts/JetBrainsMono-Regular.ttf)}
+@font-face{font-family:'NCAtk';font-weight:200 800;src:url(../../../fonts/AtkinsonHyperlegibleNext-Variable.ttf)}
+:root{
+  color-scheme:dark;
+  --wall:#1f3b3a; --bay:#172c2b; --panel:#2a4d4b; --paper:#fbf7ee; --cream:#f3e9d2; --cream-shade:#ddcba5;
+  --cream-dark:#b39f78; --teal:#4f9a94; --teal-shade:#3a7672; --teal-dark:#2a4d4b; --teal-black:#172c2b;
+  --teal-pale:#c3e0d4; --teal-light:#86c2b6; --teal-bright:#5fb0a8;
+  --mustard:#e2b33c; --mustard-dark:#b38425; --mustard-darkest:#7a5a1c; --mustard-light:#f1d27a; --mustard-pale:#faecbc; --gold:#ffcf3f;
+  --brass:#c8932b; --brass-dark:#8a5d1a; --brass-darkest:#4a3010;
+  --tomato:#d9534f; --tomato-dark:#a83a3c; --tomato-light:#ec8a6e; --tomato-pale:#f5bfa0; --tomato-darkest:#6e2630;
+  --ink:#2b2420; --ink-light:#4a3f38; --grey-dark:#5e574d; --grey:#8a8172; --grey-light:#c7beab; --muted:#a9a59b;
+  --green:#5fae5a; --green-dark:#3d7a45; --green-light:#a5d17e;
+  --steel-hi:#ecebe4; --steel-light:#c7c3b8; --steel-pale:#a9a59b; --steel:#8d8a83; --steel-shade:#6f6b63;
+  --steel-dark:#57534c; --steel-darkest:#45423d; --charcoal:#24221f; --rubber:#3d3a36; --rubber-dark:#2c2926;
+  --display:'NCPix','Pixelify Sans','Courier New',monospace;
+  --body:'NCAtk','Atkinson Hyperlegible Next','Segoe UI',system-ui,sans-serif;
+  --mono:'NCMono','JetBrains Mono',Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--wall);color:var(--paper)}
+body{font-family:var(--body);font-size:15px;line-height:1.5;overflow-x:hidden}
+main{max-width:1400px;margin:0 auto;padding:28px 16px 64px;display:grid;gap:40px}
+main>*,section>*{min-width:0}
+h1,h2,h3{font-family:var(--display);font-weight:700;margin:0;letter-spacing:.02em;text-wrap:balance}
+h1{font-size:34px;color:var(--mustard-light)} h2{font-size:24px} h3{font-size:17px;color:var(--teal-pale)}
+p{margin:0;max-width:88ch}
+code{overflow-wrap:anywhere;color:var(--mustard-pale);font-size:13px}
+.lede{display:grid;gap:10px}
+.eyebrow{font-family:var(--display);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--teal-light)}
+section{display:grid;gap:16px}
+.opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.opt{background:var(--bay);border:2px solid var(--ink);padding:12px 14px;display:grid;gap:8px;align-content:start}
+.opt header{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.tag{font-family:var(--display);font-size:15px;background:var(--paper);color:var(--ink);padding:0 7px;border:2px solid var(--ink)}
+.opt p,.opt li{font-size:14px;color:var(--teal-pale)} .opt p b,.opt li b{color:var(--paper)}
+.controls{display:flex;gap:8px 12px;flex-wrap:wrap;align-items:center;max-width:1400px;margin:0 auto}
+.controls .lbl{font-family:var(--display);font-size:13px;color:var(--teal-light);letter-spacing:.06em}
+.seg{display:inline-flex;border:2px solid var(--ink);box-shadow:0 3px 0 var(--ink);flex-wrap:wrap}
+.seg button{box-shadow:none;border:0;border-right:2px solid var(--ink)}
+.seg button:last-child{border-right:0}
+button{font-family:var(--display);font-size:15px;color:var(--paper);background:var(--teal-shade);border:2px solid var(--ink);box-shadow:0 3px 0 var(--ink);padding:4px 12px;cursor:pointer}
+button:active{transform:translateY(2px)}
+button:focus-visible{outline:3px solid var(--mustard);outline-offset:2px}
+button[aria-pressed="true"]{background:var(--mustard);color:var(--ink)}
+.toolbar{position:sticky;top:0;z-index:50;background:var(--teal-black);border-bottom:2px solid var(--ink);padding:8px 16px}
+.fwrap{position:relative;border:2px solid var(--ink);box-shadow:4px 4px 0 rgba(43,36,32,.6);overflow:hidden;background:var(--bay)}
+body.one .fwrap{overflow:auto}
+.fscale{position:relative;transform-origin:0 0;width:1920px;height:1080px}
+ul,ol{margin:0;padding-left:20px;display:grid;gap:6px;max-width:92ch}
+.answers{background:var(--paper);color:var(--ink);border:3px solid var(--ink);box-shadow:4px 4px 0 rgba(43,36,32,.6);padding:16px 18px;display:grid;gap:10px}
+.answers h2{color:var(--ink)} .answers li b{color:var(--tomato-dark)}
+.answers code{color:var(--tomato-darkest);background:var(--cream)}
+.cap{font-size:13px;color:var(--muted)}
+.cap.bad{color:var(--tomato-light);font-weight:700}
+.scroll{overflow-x:auto;max-width:100%}
+table.spec{border-collapse:collapse;font-size:13.5px;min-width:820px;width:100%}
+table.spec th,table.spec td{border-bottom:1px solid var(--teal-shade);padding:6px 8px;text-align:left;vertical-align:top}
+table.spec th{font-family:var(--display);color:var(--teal-light);font-weight:500}
+table.spec td:first-child{white-space:nowrap;color:var(--mustard-pale)}
+.dec,.prop,.new{display:inline-block;font-family:var(--display);font-size:12px;letter-spacing:.06em;padding:0 6px;border:2px solid var(--ink);white-space:nowrap;line-height:18px}
+.dec{background:var(--green-light);color:var(--ink)} .prop{background:var(--mustard);color:var(--ink)} .new{background:var(--teal-pale);color:var(--ink)}
+.caps{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+.caps figure{margin:0;display:grid;gap:4px} .caps img{width:100%;border:2px solid var(--ink)}
+.moved{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:8px}
+.moved div{background:var(--bay);border:2px solid var(--ink);padding:8px 10px;font-size:14px;color:var(--teal-pale)}
+.moved b{display:block;font-family:var(--display);font-size:18px;color:var(--mustard-light)}
+
+/* ===================== the frame (1920x1080 screen px; 1 art px = 3 screen px) ===================== */
+.F{position:absolute;inset:0;width:1920px;height:1080px;overflow:hidden;font-family:var(--body);color:var(--paper);background:var(--wall)}
+.F *{image-rendering:pixelated}
+.F img{display:block}
+.F .a{position:absolute}
+.F .row{display:flex;align-items:center}
+.F .pl{display:inline-flex;align-items:flex-end;gap:9px;white-space:nowrap}
+.F .pl img{flex:none}
+.F .fr{border-style:solid;border-color:transparent}
+.bt{font-family:var(--body);font-weight:700;font-size:21px;line-height:27px;color:var(--teal-pale)}
+.bt b{color:var(--paper);font-weight:800}
+.on-paper b{color:var(--ink)}
+.pg{position:absolute;left:0;top:0;width:1920px;height:1080px}
+.pg.off{display:none}
+.pg.anim{animation-duration:.3s;animation-timing-function:steps(6,end);animation-fill-mode:both}
+.pg.out-l{animation-name:outl} .pg.out-r{animation-name:outr} .pg.in-r{animation-name:inr} .pg.in-l{animation-name:inl}
+@keyframes outl{from{transform:none}to{transform:translateX(-1920px)}}
+@keyframes outr{from{transform:none}to{transform:translateX(1920px)}}
+@keyframes inr{from{transform:translateX(1920px)}to{transform:none}}
+@keyframes inl{from{transform:translateX(-1920px)}to{transform:none}}
+.hop{animation:hop .24s steps(3,end) both}
+@keyframes hop{0%{transform:translateY(-12px)}100%{transform:none}}
+.F.rm .hop,.F.rm .drop,.F.rm .blink{animation:none}
+/* tiles */
+.tk{position:relative;background:var(--paper);border:3px solid var(--ink);box-shadow:0 6px 0 rgba(43,36,32,.45);cursor:help}
+.tk .win{position:relative;background:var(--cream);display:grid;place-items:center;overflow:hidden}
+.tk .win.cp{background:var(--teal-pale)}
+.tk .win .ci{position:absolute}
+.tk .band{position:relative;border-top:3px solid var(--ink);display:flex;align-items:center;gap:6px;padding:0 0 0 6px;background:var(--paper)}
+.tk .band .gl{outline:3px solid var(--ink);flex:none}
+.tk .band .pr{margin-left:auto;align-self:stretch;display:flex;align-items:center;justify-content:flex-end;min-width:72px;padding:0 6px 0 9px;border-left:3px solid var(--ink);background:var(--paper)}
+.tk .win .fs{position:absolute;left:0;right:0;bottom:0;height:6px}
+.tk.lit{box-shadow:0 0 0 3px var(--ink),0 0 0 9px var(--mustard),0 0 0 12px var(--ink),0 6px 0 12px rgba(43,36,32,.45)}
+.tk.dim::after,.dk::after{content:'';position:absolute;inset:-3px;background:rgba(44,41,38,.62);pointer-events:none} /* RUB_DK at 62%, as the machine dims */
+.dk{position:relative}
+.tk.ghost{border-style:dashed}
+.tk.empty{background:var(--steel-pale);border:3px dashed var(--paper);box-shadow:none;display:grid;place-items:center}
+.drop{animation:drop .3s steps(4,end) both}
+@keyframes drop{0%{transform:translateY(-36px)}70%{transform:translateY(6px)}100%{transform:none}}
+.blink{animation:blink .6s steps(2,jump-none) 2 both}
+@keyframes blink{0%{background:var(--mustard-darkest)}100%{background:transparent}}
+/* staple slots */
+.slot{position:absolute}
+.slot.can{cursor:pointer}
+.slot.can .tk{cursor:pointer}
+.slot.can:hover .tk{transform:translateY(-6px)}
+.slot.picking .tk{transform:translateY(-12px);box-shadow:0 0 0 3px var(--ink),0 0 0 9px var(--mustard),0 0 0 12px var(--ink)}
+/* stock rows */
+.ai{position:absolute;left:0;right:0;height:45px;display:flex;align-items:center;padding:0 12px;border-bottom:3px solid var(--teal-dark)}
+.ai.hov{background:var(--teal-dark)}
+.ai .sgn{flex:none}
+.ai .nm{position:absolute;left:66px}
+.ai .pn{position:absolute;left:300px}
+.ai .st{position:absolute;right:12px}
+.arrow{position:absolute}
+/* keys and plates */
+.key{position:absolute;display:grid;place-items:center;cursor:pointer;box-shadow:9px 9px 0 rgba(43,36,32,.45)}
+.key:active{transform:translate(6px,6px);box-shadow:3px 3px 0 rgba(43,36,32,.45)}
+.key.dis{transform:translate(6px,6px);box-shadow:3px 3px 0 rgba(43,36,32,.45);cursor:default}
+.key .tick{position:absolute;left:-36px;top:50%;margin-top:-10px;display:none}
+.key.on:hover,.key.on.mk{border-image-source:var(--redlit-frame)!important}
+.key.on:hover .tick,.key.on.mk .tick{display:block}
+.plate{position:absolute;display:flex;align-items:center;gap:9px;cursor:pointer}
+.plate:hover{transform:translateX(6px)}
+.plate:active{transform:translate(6px,3px)}
+.plate.dis{cursor:default;transform:none}
+/* pack card */
+.pack{position:absolute;cursor:pointer;background:var(--paper);border:3px solid var(--ink);box-shadow:0 9px 0 rgba(43,36,32,.45)}
+.pack .hd{height:75px;display:flex;align-items:center;gap:12px;padding:0 12px;border-bottom:3px solid var(--ink)}
+.pack .hd .nmw{min-width:0;overflow:hidden;flex:1;display:flex}
+.pack .hd .nmw img{margin-bottom:0!important}
+.pack .hd .kb{flex:none}
+.pack .kb.call{animation:callb 1s steps(2,jump-none) infinite}
+@keyframes callb{0%{background:var(--cream)}100%{background:var(--mustard)}}
+.F.rm .pack .kb.call{animation:none;background:var(--mustard)}
+.pack.hov{transform:translateY(-6px)}
+.pack.sel{box-shadow:0 0 0 3px var(--ink),0 0 0 9px var(--mustard),0 0 0 12px var(--ink),0 9px 0 12px rgba(43,36,32,.45)}
+.pack.sel.mus{box-shadow:0 0 0 6px var(--paper),0 0 0 9px var(--ink),0 0 0 15px var(--mustard),0 0 0 18px var(--ink),0 9px 0 18px rgba(43,36,32,.45)}
+/* price-gun stickers on the picked pack (the machine's -4° slap: 1.5 → 1, back ease) and the GOOD FIRST PICK shelf talker */
+.stk{position:absolute;z-index:3;display:grid;justify-items:center;gap:6px;padding:9px 12px;border:3px solid var(--ink);filter:drop-shadow(6px 6px 0 rgba(43,36,32,.45))}
+.stk.pk{transform:rotate(-4deg);background:var(--gold)}
+.stk.gf{transform:rotate(3deg);background:var(--mustard-pale)}
+.stk.slap{animation:slap .24s steps(4,end) both}
+@keyframes slap{0%{transform:rotate(-4deg) scale(1.5)}60%{transform:rotate(-4deg) scale(.9)}100%{transform:rotate(-4deg) scale(1)}}
+.F.rm .stk.slap{animation:none}
+/* pins */
+.pinsarea{cursor:pointer}
+.pinsarea:hover .badge{transform:translateY(-6px)}
+/* tips and sheets */
+.tip{position:absolute;z-index:70;width:450px;padding:6px 9px 9px;pointer-events:none;display:none;color:var(--ink);filter:drop-shadow(9px 9px 0 rgba(43,36,32,.45))}
+.tip .tr{font-size:21px;font-weight:700;line-height:27px;margin-top:9px}
+.tip .tm{font-size:19px;font-weight:700;color:var(--ink-light);line-height:24px;margin-top:6px}
+.dim{position:absolute;inset:0;z-index:35;background:rgba(23,44,43,.78)}
+.sheet{position:absolute;z-index:40;color:var(--ink);filter:drop-shadow(12px 12px 0 rgba(43,36,32,.45))}
+.sheet.anim{animation:sheet .18s steps(3,end) both}
+@keyframes sheet{from{transform:translateY(24px);opacity:.34}to{transform:none;opacity:1}}
+.F.rm .sheet.anim{animation:none}
+.sheet .bt{color:var(--ink-light)} .sheet .bt b{color:var(--ink)}
+.pcol{position:absolute;background:var(--cream);border:3px solid var(--ink)}
+.pcol .ph{height:57px;display:flex;align-items:center;gap:9px;padding:0 9px;border-bottom:3px solid var(--ink);background:var(--cream-shade)}
+.pcol .ph .sgn{flex:none}
+.pcol .ph .nmw{min-width:0;overflow:hidden;flex:1;display:flex;padding:6px 0 12px;margin:-6px 0 -12px}
+.pcol .ph .cnt{flex:none}
+.pit{position:relative;height:63px;display:flex;align-items:center;gap:9px;padding:0 9px;border-bottom:3px solid var(--cream-shade);cursor:pointer}
+.pit .t{display:grid;line-height:22px;min-width:0}
+.pit .t b{font-size:20px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pit .t span{font-size:18px;font-weight:700;color:var(--ink-light);white-space:nowrap}
+.pit .t span.why{color:var(--tomato-dark);font-weight:800}
+.pit .p{margin-left:auto}
+.pit:hover{box-shadow:inset 0 0 0 6px var(--mustard)}
+.pit.no{cursor:default;background:var(--cream-shade)}
+.pit.no:hover{box-shadow:none}
+.pit.cur{background:var(--green-light)}
+.rchip{position:relative;display:inline-flex;align-items:center;gap:9px;height:57px;padding:0 12px 0 9px;cursor:pointer;background:var(--cream);border:3px solid var(--ink);box-shadow:0 6px 0 var(--cream-dark)}
+.rchip.on{background:var(--mustard-pale);box-shadow:0 0 0 3px var(--ink),0 0 0 9px var(--mustard),0 0 0 12px var(--ink)}
+.prow{position:absolute;left:24px;right:24px;height:72px;display:flex;align-items:center;gap:15px;border-bottom:3px solid var(--cream-shade)}
+.prow .pr{font-size:21px;font-weight:700;line-height:25px;color:var(--ink-light);flex:1}
+.flood{position:absolute;inset:0;z-index:90;background:var(--mustard-pale);display:none;place-items:center;animation:flood .2s steps(3,jump-start) both}
+@keyframes flood{from{opacity:0}to{opacity:1}}
+.F.rm .flood{animation:none}
+.sheet .key.dis{transform:none;box-shadow:9px 9px 0 rgba(43,36,32,.45)}
+.bd{position:absolute;left:0;top:0;width:1920px;height:1080px;pointer-events:none}
+.cone{position:absolute;pointer-events:none}
+/* page 2, direction C: the display end-cap */
+.bulbA{animation:bA .6s steps(1,end) infinite} .bulbB{animation:bB .6s steps(1,end) infinite}
+@keyframes bA{0%{opacity:1}50%{opacity:0}} @keyframes bB{0%{opacity:0}50%{opacity:1}}
+.F.rm .bulbA,.F.rm .bulbB{animation:none;opacity:1}
+.kbulb{position:absolute;top:0;width:6px;height:6px;background:var(--gold);box-shadow:0 0 0 3px rgba(241,210,122,.35)}
+.bay{position:absolute;cursor:pointer}
+.bay>*{position:absolute}
+.topper{left:12px;top:6px;width:564px;height:78px;border:3px solid var(--ink);display:flex;align-items:center;gap:18px;padding:0 9px 0 15px}
+.topper .nmw{flex:1;min-width:0;overflow:hidden;display:flex}
+.topper .nmw img{margin-bottom:0!important}
+.bay.hov .topper{transform:translateY(-6px)}
+.emb{left:24px;top:96px;width:78px;height:78px}
+.bay .stk.pk{display:flex;align-items:center;gap:9px;padding:9px 12px}
+.bay .stk.gf{gap:3px}
+.prod{position:absolute;width:96px;height:96px;cursor:help}
+.prod>img{position:relative;display:block} .prod>img.ci{position:absolute}
+.prod .psh{position:absolute;left:12px;right:12px;bottom:-3px;height:6px;background:rgba(23,44,43,.8)}
+.ptag{height:33px;min-width:66px;display:grid;place-items:center;padding:0 6px;background:var(--paper);border:3px solid var(--ink)}
+.ptag.cp{background:var(--teal-pale)}
+.clip{top:240px;width:18px;height:15px;background:var(--brass);border:3px solid var(--ink);box-shadow:inset 0 3px 0 var(--mustard-light)}
+.talker{left:12px;top:246px;width:564px;height:60px;background:var(--paper);border:3px solid var(--ink);box-shadow:0 6px 0 rgba(23,44,43,.6);padding:3px 12px;display:flex;align-items:center}
+.stag{position:absolute;height:33px;display:flex;align-items:center;gap:9px;padding:0 9px;background:var(--paper);border:3px solid var(--ink);white-space:nowrap}
+.stag.mus,.stag.warn{background:var(--mustard-pale)}
+.efc{position:absolute;width:96px;height:96px;border:3px dashed var(--teal-shade);background:var(--teal-black);display:grid;place-items:center}
+.pvw{position:absolute;border:3px dashed var(--mustard)}
+.led{position:absolute;display:flex;align-items:center;justify-content:center;gap:15px}
+.fcard{position:absolute;background:var(--paper);border:3px solid var(--ink);box-shadow:0 6px 0 rgba(23,44,43,.6);padding:9px 9px 3px;display:grid;gap:3px;cursor:help}
+.fcard .fct{position:absolute;left:0;right:0;top:0;height:6px}
+.selfcheck{position:absolute;left:0;right:0;top:0;z-index:99;background:var(--tomato);color:var(--paper);font:800 18px var(--body);padding:4px 12px;display:none}
+</style>
+
+<div class="toolbar">
+  <div class="controls">
+    <span class="lbl">PAGE</span>
+    <div class="seg" id="segG"><button data-g="1" aria-pressed="true">1 Your store</button><button data-g="2">2 Your build</button></div>
+    <span class="lbl">PROFILE</span>
+    <div class="seg" id="segS"><button data-s="0" aria-pressed="true">New save (0)</button><button data-s="1">1 complete</button><button data-s="2">3 complete</button><button data-s="3">6 complete</button></div>
+    <span class="lbl">PIN SLOTS</span>
+    <div class="seg" id="segP"><button data-p="1" aria-pressed="true">1</button><button data-p="2">2</button></div>
+    <span class="lbl">MOTION</span>
+    <div class="seg" id="segM"><button data-m="0" aria-pressed="true">On</button><button data-m="1">Reduced</button></div>
+    <span class="lbl">SCALE</span>
+    <div class="seg" id="segZ"><button data-z="fit" aria-pressed="true">Fit</button><button data-z="one">1:1</button></div>
+    <button id="reset">Reset frame</button>
+  </div>
+</div>
+
+<main>
+  <div class="lede">
+    <div class="eyebrow">Next Customer · start screen v3 · page 2, direction C: the display end-cap · 2026-11-03</div>
+    <h1>Page 2, direction C: the display end-cap</h1>
+    <p><b>This page redoes only page 2 (YOUR BUILD).</b> Page 1 is v3 as you liked it. Your note was that page 2 felt like sections with item placeholders, so here page 2 is a <b>place in the store</b>: the promotional <b>end-cap</b> at the head of an aisle, at night, in the premium toy machine's language (brass, a charcoal marquee with bulbs, spot light). A lit <b>STARTER PACKS</b> marquee sits on four brass uprights. Under it are three promo bays, one per pack: a topper in the family colour with the name and key, the 3 products standing on a brass shelf with paper price tags, a display light with its dithered cone, and a paper shelf talker with the hint. <b>Picking a bay lights it like a prize</b>: its bulbs chase, its frame warms to brass, its light burns hot, a gold ring wraps the topper, a gold <b>★ PICKED ★</b> price-gun sticker slaps onto the bay's empty promo corner (never over the products), and the other bays' pegboards go dark. Below, <b>YOUR CART</b> is a two-shelf gondola: the cards stand on the shelves, shelf-edge tags name each group, an <b>LED shelf display</b> counts n/15, and three family price cards stand on the bottom shelf. <b>BADGE PINS</b> hang on a velvet display card in a brass frame, with a CHANGE › plate. OPEN STORE is the counter key, and its plaque lights up with bulbs once a pack is picked.</p>
+    <p>You liked v2's three parts: aisle completion, badge pins and pick a starter pack. Your note was that it put <b>too much on one screen</b>. The screen has to be clear and quick to read without losing the player. Round 3 splits it into <b>two pages</b>, each with <b>one obvious next action</b>, fewer and bigger pieces, and room around them.</p>
+    <p><b>Page 1, YOUR STORE</b>, is the store-side setup, and most of it is saved to your profile: today's stock (aisles with n/m and ★, the four states, RESTOCK or CHOOSE AISLES, the next goal), <b>today's deal</b> and your 4 staples with their swap chips. The big tomato <b>NEXT</b> key (Enter) leads on, and <b>◀ TITLE</b> (or Esc) goes back to the title menu. <b>Page 2, YOUR BUILD</b>, holds the choice you make each run: pick a starter pack, badge pins, and the full cart of 15 slots with its family counts. <b>OPEN STORE</b> (Enter) starts the run, and <b>◀ STORE</b> goes back with your choices kept.</p>
+    <p><b>What moved, and why.</b> The deal moved to page 1 because RESTOCK changes it. On the same page, you see that these aisles deal these 6, and a RESTOCK re-deals them in front of you. The pins moved to page 2 because, like the pack, they are a choice for this build. Page 1 is shown every time, even on a new save. There it takes a few seconds: a look at the aisles and the next goal. Enter, Enter goes through both pages.</p>
+    <p><b>Try it:</b> use PAGE and PROFILE in the toolbar, or play through the frame. On page 1, hover a stock row to light the cards it deals. Click a staple with <b>SWAP ›</b> to open the picker. From 3 completed aisles, try <b>RESTOCK ›</b>. Then press NEXT. On page 2, hover a pack to preview it in the cart, click one or press 1 to 3, click the badge to change pins, and press OPEN STORE. Esc closes a panel; with no panel open it goes back one step (page 2 → page 1 → the title). The look follows the shift scene, the title's menu plates and the toy machine. Teal plates are secondary actions and the tomato plate is the one primary action. Words are hard Pixelify pixels, numbers are the chunky price-gun digits, and sentences are Atkinson. The frames are pixel 9-slices built from <code>art/src/frames</code>, and every colour comes from <code>palette.txt</code> (greyed states use palette greys and the machine's 62% rubber-dark dim, never a CSS filter). Behind the panels is the dim store: StoreArt's back shelving, with recessed spot lamps whose dithered StorefrontArt cones light the one area that matters, the deal on page 1 and the packs on page 2 (the picked pack's lamp burns hot).</p>
+  </div>
+
+  <section>
+    <div class="fwrap" id="fwrap"><div class="fscale" id="fscale"><div class="F" id="F"></div></div></div>
+    <p class="cap" id="capline"></p>
+  </section>
+
+  <section>
+    <h2>The two pages</h2>
+    <div class="opts">
+      <div class="opt"><header><span class="tag">1</span><h3>YOUR STORE (page 1)</h3></header>
+        <p><b>Left: TODAY'S STOCK.</b> The rows are sorted by what they do today. First come the three that deal (the Staples shelf, then the 2 aisles, all three marked DEALT FROM), then the NOT DEALT aisle, which the one line above the list spells out ("in stock, but only as machine prizes"). A mustard rule and a NOT IN STOCK TODAY label then split off NOT TODAY and the locked aisles, whose pill gives the way in: a padlock and OPENS AT 4. An ITEMS column head sits over n/m (items you own of the aisle's items, ★ when complete), so 5/7 on a new save doesn't read as progress you made. The three dealing rows feed a green <b>source rail</b> (the shift scene's rail light): a stub from each row, a bus in the gap, and a rail under the deal that lights under each group. RESTOCK › (3–5 ★) or CHOOSE AISLES › (6 ★) sits in the panel's header. Below it, the <b>NEXT GOAL</b> slip is a 6-stamp track: ★1 swap, ★3 RESTOCK, ★4 every staple, ★6 choose the pair.</p>
+        <p><b>Right, top: TODAY'S DEAL.</b> The 6 cards are grouped under the sign of the shelf or aisle they came from, in the same colour, glyph and name as the stock row, standing on the source rail. When three full names don't fit, the tiles step down from 162 to 150 px, then the Staples shelf group keeps its sign alone. Hovering a row lights its stub, its rail segment and its cards; the rest go dark. Prices sit in the V5a ticket's paper window, the family colour only in the glyphs and a thin strip at the window's foot, so no price looks boosted or lowered. A RESTOCK drops the new 6 in one by one, and the FIRST DEAL / RESTOCKED switch sits in this header (the stock header then just says RESTOCK USED). <b>Right, bottom: YOUR STAPLES.</b> The 4 slots have chips as wide as their tile (SWAP ›, WAS + the old staple's mini, NO SWAP) and a SWAPS meter (used/open). On a new save there are no chips and no meter, only one lock strip under the four, aligned with them.</p>
+        <p><b>Counter:</b> a ribbed belt strip over the rubber, <b>◀ TITLE</b> (teal plate) on its own riveted steel plaque at the left, keycap hints (ENTER, ESC), and the tomato NEXT key on a matching plaque at the right. The key rests on the title's tomato face; the lit face and the price-gun tick show only while it holds the marker (hover).</p></div>
+      <div class="opt"><header><span class="tag">2</span><h3>YOUR BUILD (page 2): the end-cap</h3></header>
+        <p><b>Top: the end-cap.</b> The marquee reads STARTER PACKS, with PICK 1 OF 3 on the left and the status on the right ("Pick one to open the store." until a pick). Each bay has a family-colour topper (name at 2 art px, key 1–3 blinking mustard until a pick), the products standing on a pegboard shelf with paper price tags in the brass price channel (a teal tag for a coupon), the family emblem in the promo corner, and a clipped paper shelf talker with the hint. GOOD FIRST PICK is a mustard-pale talker in the promo corner (it replaces the emblem), and the gold PICKED sticker slaps in under it at -4° (the 1.5 → 1 back-ease), so no tag covers a product. Hover a bay to light its bulbs steady, lift its topper and preview it in the cart; click it or press 1–3.</p>
+        <p><b>Bottom left: YOUR CART gondola.</b> Shelf 1: STAPLES 4, YOUR PACK 3 (empty dashed facings with a mustard "pick one above" tag before a pick; a dashed mustard frame and a PREVIEW tag on hover), PIN CARDS, and the LED shelf display n/15 (tomato past 15). Shelf 2: TODAY'S DEAL 6 and the top 3 families as price cards (big count, glyph, name). The header line is the equation. <b>Bottom right: the velvet pins card.</b> An engraved brass title plate, the cashier badge with its worn pins, CHANGE › and the P key; the pin names and rules on a paper card. Click anywhere on the card to open BADGE PINS.</p>
+        <p><b>Counter:</b> as in v3 (◀ STORE, key hints, OPEN STORE greyed as PICK A PACK FIRST until a pick). Once a pack is picked, bulbs light around the key's plaque.</p></div>
+      <div class="opt"><header><span class="tag">⇄</span><h3>Both pages, and the move between them</h3></header>
+        <p><b>Top bar:</b> OPENING TIME · SHIFT 1/12, the six aisle signs with n/6 ★, the seed, and Cart n/15. <b>Step rail:</b> the 1 YOUR STORE › 2 YOUR BUILD tabs. The current tab is a paper chip in a mustard selection frame (no tick: the tick is the one marker, and it belongs to the counter key), and a done step gets a green check. The rail has no explanation line beside it (the counter says what is saved, once). Tab 1 keeps the check's room on both pages, so the rail never moves. The tabs can be clicked too.</p>
+        <p><b>Changing pages</b> is a stepped slide in 6 steps of 320 px over 0.3 s (whole art px, like the title's plate slide-in). The new tab hops in 3 steps. Reduced motion: the page is swapped with no slide. OPEN STORE ends in the title's stepped mustard-pale flood.</p></div>
+    </div>
+    <div class="moved">
+      <div><b>Moved to page 1</b>TODAY'S DEAL, because RESTOCK changes it. Cause and effect now sit on one page.</div>
+      <div><b>Moved to page 2</b>BADGE PINS, a choice for this build like the pack. Their cards land in the cart beside them.</div>
+      <div><b>Shown once</b>The cart recap is on page 2 only. Page 1 shows just the parts the cart is made from.</div>
+      <div><b>Removed</b>The aisle progress pips (n/m and ★ say it), card names on the faces (they are in the tips), and the deal's ×2 badges (each copy has its own slot).</div>
+      <div><b>Review fixes (round 3b)</b>Cart on page 1 counts only what page 1 makes, ◀ TITLE, the source rail, ITEMS and OPENS AT 4, the store backdrop and lamps, stickers on the picked pack, palette-only greys.</div>
+    </div>
+  </section>
+
+  <section>
+    <h2>The four profile states</h2>
+    <div class="opts">
+      <div class="opt"><header><span class="tag">0</span><h3>New save · 0 completed</h3></header>
+        <p>Page 1 is a quick look. All 3 base aisles are today's stock (the seed deals from Cold cases and Pantry, and Household is NOT DEALT). The fixed staples have one lock strip under them, RESTOCK reads AT 3★, and the goal slip says which capsules complete the nearest aisle. Page 1's Cart reads 10/15 (4 staples + 6 dealt); page 2 already has GOOD FIRST PICK (Breakfast run) picked, so it reads 13/15 there and Enter, Enter opens the store.</p></div>
+      <div class="opt"><header><span class="tag">1</span><h3>1 completed</h3></header>
+        <p>Cold cases is ★. Fruit & veg (4/8) is unlocked and deals today. Pantry is NOT DEALT and Household is NOT TODAY. 1 swap is open, so all 4 staples show SWAP ›. After one swap, the others read NO SWAP.</p></div>
+      <div class="opt"><header><span class="tag">3</span><h3>3 completed</h3></header>
+        <p>The saved swaps show (WAS BANANA, WAS EGGS) with 1 swap still open. RESTOCK › is live. After it, the new 6 drop into the deal, the rows re-sort, and the FIRST DEAL / RESTOCKED switch appears. The page captures use the default 1 pin slot (only Repack is worn, PIN CARDS reads None, Cart 10/15 on both pages). With PIN SLOTS 2 (the pins capture), Repack and <i>Coupon book</i> are worn, and Coupon book's 2 for 1 card fills a PIN CARDS slot (Cart 11/15). Coupon book is an example pin, not decided; the frame shows it as a normal pin.</p></div>
+      <div class="opt"><header><span class="tag">6</span><h3>6 completed</h3></header>
+        <p>Every sign is ★. Three staples are swapped and one is open. CHOOSE AISLES › picks any 2 of the 6 to deal from (saved for the next runs), and the goal slip reads ALL 6 COMPLETE.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Rules spec</h2>
+    <p class="cap">v2's rules, with your answers of 2026-11-03 marked DECIDED and the split's new rules marked NEW.</p>
+    <div class="scroll"><table class="spec">
+      <tr><th>Rule</th><th>What it says</th><th>Status</th></tr>
+      <tr><td>Two pages</td><td>The start screen has page 1, YOUR STORE (stock, deal, staples), and page 2, YOUR BUILD (pack, pins, cart). Page 1 is always shown first, even on a new save. NEXT or Enter goes to page 2. ◀ STORE, Esc (with no panel open) or the step tab goes back. On page 1, ◀ TITLE or Esc (with no panel open) goes back to the title menu. Every choice is kept across pages and through the title.</td><td><span class="dec">DECIDED</span></td></tr>
+      <tr><td>One action per page</td><td>Page 1's primary is NEXT. Page 2's is OPEN STORE, greyed out as PICK A PACK FIRST until a pack is picked. On a profile with a GOOD FIRST PICK, that pack is picked already, so Enter, Enter starts the run.</td><td><span class="new">NEW</span></td></tr>
+      <tr><td>Keys</td><td>Page 1: Enter (NEXT), Esc (close the picker or the restock panel, else back to the title). Page 2: 1–3 (pick a pack), P (pins), Enter (OPEN STORE), Esc (close pins, else back to page 1). The two tabs on the step rail can be clicked.</td><td><span class="prop">PROPOSAL</span></td></tr>
+      <tr><td>Page on resume</td><td>The page is UI state and is not saved. A run waiting at the start screen resumes on page 1, with its swaps, restock, pack and pins as saved.</td><td><span class="prop">PROPOSAL</span></td></tr>
+      <tr><td>Completed aisle</td><td>An aisle is complete when every item of it is collected, capsules included (Cold cases 7, Pantry 7, Household 7, Fruit & veg 8, Bakery 8, Snacks 7). Derived from <code>ProfileState.unlocked_items</code>. Shown as n/m with ★ on each stock row, and as n/6 ★ in the top bar.</td><td><span class="dec">DECIDED</span></td></tr>
+      <tr><td>Unlocked aisle</td><td>Base aisles always. A machine aisle at <code>aisle_listable_min</code> (4) items.</td><td><span class="dec">DECIDED</span> (default)</td></tr>
+      <tr><td>Today's stock</td><td>3 aisles drawn from the unlocked ones, on the run seed's <code>stock_aisles</code> stream. The deal comes from the 6-product staples shelf plus the first 2 drawn (capsule products dealt, <code>random_capsules</code> on). The 3rd is NOT DEALT and only gives prizes (NEW ITEMS). Unlocked aisles that weren't drawn read NOT TODAY.</td><td><span class="dec">DECIDED</span></td></tr>
+      <tr><td>Each dealt aisle deals</td><td>Each of the 2 DEALT FROM aisles gives at least 1 of the 6. The rest is drawn from the whole pool as today. Without this rule, a uniform draw can deal 0 from an aisle (v2's stand-in dealt no Bakery at 3 ★), and page 1 would then show a green DEALT FROM sign with no cards under it. The JS stand-in here follows the rule.</td><td><span class="prop">PROPOSAL</span></td></tr>
+      <tr><td>Stock row order</td><td>Rows sort by today's state: Staples shelf, DEALT FROM (in draw order), NOT DEALT, NOT TODAY, then LOCKED (each group in data order). This puts the deal's three sources beside the deal.</td><td><span class="new">NEW</span></td></tr>
+      <tr><td>Staple swaps</td><td>Each completed aisle opens one swap, up to the 4 staples. A swap takes the plain tier of any collected product of a completed aisle (capsules allowed; no BIG or GOLDEN, no coupons), with at most 2 of a card in the cart and at most 2 swapped staples from one aisle. Swaps are saved to the profile, changed on page 1, and never re-deal.</td><td><span class="dec">DECIDED</span></td></tr>
+      <tr><td>RESTOCK (3–5 ★)</td><td>Once a run, on page 1. Take out a dealt aisle and put in an unlocked aisle that isn't in today's stock; the NOT DEALT aisle stays. You choose blind. The new 6 come from <code>starting_deck_restock</code> (the same choice gives the same 6) and are saved at once. You can switch between FIRST DEAL and RESTOCKED. The packs never change.</td><td><span class="dec">DECIDED</span></td></tr>
+      <tr><td>CHOOSE AISLES (6 ★)</td><td>Pick the 2 dealt aisles. The pair is saved to the profile and is dealt from in the next runs too. It uses the same once-a-run token.</td><td><span class="dec">DECIDED</span> (default)</td></tr>
+      <tr><td>Pins on page 2</td><td>Click the badge or the pin text to open BADGE PINS. The choice is saved to the profile and worn by the waiting run. A pin's cards show up in the cart's PIN CARDS slots and count toward 15 (4 + 3 + 6 = 13 leaves 2 slots, so today's pins can't overfill it; a WEAR "cart full" state is needed only if a pin ever brings 3+ cards). A pin change never re-deals.</td><td><span class="dec">DECIDED</span></td></tr>
+      <tr><td>Cart on page 1</td><td>Page 1 has no cart recap. Its top-bar Cart counts what page 1 makes, plus pin cards: staples + deal (10/15, or 11/15 with a card pin), never the pack, even a pre-picked GOOD FIRST PICK the player hasn't seen. On page 2 the pack joins (13/15).</td><td><span class="prop">PROPOSAL</span></td></tr>
+      <tr><td>NOT DEALT and LOCKED on screen</td><td>NOT DEALT is spelled out above the list ("in stock, but only as machine prizes"). A locked aisle's pill reads OPENS AT 4 with the padlock (<code>aisle_listable_min</code>). The RESTOCK sheet lists only the 2 dealt aisles under TAKE OUT; the NOT DEALT aisle is a note ("Household stays"), never a padlocked chip.</td><td><span class="new">NEW</span></td></tr>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>Data, save fields and telemetry</h2>
+    <div class="scroll"><table class="spec">
+      <tr><th>Where</th><th>Field or event</th><th>Notes</th></tr>
+      <tr><td>Profile save</td><td><code>staple_swaps: Array[StringName]</code> (one per core slot, "" = kept), <code>stock_pair: Array[StringName]</code></td><td><code>ProfileState</code> format 3 → 4, read leniently, as in v2.</td></tr>
+      <tr><td>Profile (derived)</td><td><code>completed_aisles</code>, <code>unlocked_aisles</code>, <code>swap_count</code></td><td>Never saved.</td></tr>
+      <tr><td>Run save</td><td><code>stock_aisles</code>, <code>core_cards</code>, <code>start_restock</code>, <code>start_deal</code></td><td>Run save 7 → 8 with a migration, as in v2. No page field (resume opens page 1).</td></tr>
+      <tr><td>UI state</td><td><code>StartChoice.page</code> (1 or 2)</td><td>Not saved. Pack, pins, swaps and restock live in the run and profile, so going back never loses them.</td></tr>
+      <tr><td>Balance data</td><td><code>stock_aisle_count</code> 3, <code>dealt_aisle_count</code> 2, <code>restock_min_completed</code> 3, <code>pair_choice_min_completed</code> 6, <code>restocks_per_run</code> 1, <code>staple_swap_aisle_max</code> 2</td><td><code>@export</code> fields in <code>data/</code>, never in scripts.</td></tr>
+      <tr><td>Telemetry</td><td><code>run_start</code> + <code>stock_aisles</code>, <code>dealt_aisles</code>, <code>core_cards</code>, <code>completed_aisles</code></td><td>Additive fields.</td></tr>
+      <tr><td>Telemetry</td><td><code>start_choice</code> + <code>staple_swaps</code>, <code>restock</code>, <code>deal_used</code>, <code>pins_worn</code>, <code>cart</code>, <b>+ <code>ms_store</code>, <code>ms_build</code>, <code>page_changes</code></b></td><td>Logged at OPEN STORE. The time on each page tells whether page 1 slows players down (the user's "without losing the player").</td></tr>
+      <tr><td>Telemetry (new)</td><td><code>start_page</code> {page, from, key: "enter" | "click" | "esc" | "tab"}; page 0 = back to the title</td><td>One per page change. Cheap, and it shows whether players go back to page 1 or leave to the title.</td></tr>
+      <tr><td>Telemetry</td><td><code>staple_swap</code>, <code>restock</code> (+ <code>restock_view</code>), <code>pin_change</code> {screen: "start"}</td><td>As in v2.</td></tr>
+      <tr><td>Log summary</td><td>Swap and restock rates, which aisles go out and in, win rate by completed count, <b>time per page and the back rate</b></td><td><code>tools/log_summary.py</code> and its tests.</td></tr>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>Code places to change</h2>
+    <div class="scroll"><table class="spec">
+      <tr><th>File</th><th>Change</th></tr>
+      <tr><td>core/aisle_definition.gd, core/profile_state.gd, core/run_stock.gd, core/starting_deck.gd, core/start_offer.gd, core/run_state.gd, core/run_save*.gd</td><td>As in v2: completion, swaps, the 3-aisle draw, the deal pool, <code>redeal_shared</code>, save format 8.</td></tr>
+      <tr><td>ui/start_choice.gd</td><td>Gains <code>page</code>, <code>show_page(n, key)</code> (logs <code>start_page</code>), and <code>swap_staple</code>, <code>restock</code>, <code>wear_pins</code> (each saving at once).</td></tr>
+      <tr><td>ui/cart_reveal/start_board.gd → split</td><td><code>store_page.gd</code> (stock, deal, staples, goal slip) and <code>build_page.gd</code> (packs, cart recap, pins), under one <code>start_board.gd</code> that owns the top bar, step rail, counter keys, modals and keys.</td></tr>
+      <tr><td>ui/cart_reveal/step_rail.gd (new)</td><td>The two tabs: a paper chip in a mustard frame for the current one (no tick; the tick belongs to the counter key), a teal chip for the other, and a green check when done. Clickable. Hops on change.</td></tr>
+      <tr><td>ui/cart_reveal/page_slide.gd (new)</td><td>The stepped slide: 6 steps of 320 px (stage 1280/6, snapped to 2 px) over 0.3 s. Reduced motion swaps the page with no slide. The same pattern as <code>TitleMenu._slide</code>.</td></tr>
+      <tr><td>ui/cart_reveal/stock_shelves.gd</td><td>Sorted rows under ITEMS / TODAY heads, n/m + ★ (chunky digits), state chips (frames chip_green, chip_warn, chip_steel, chip_lock; padlock + OPENS AT 4 on locked rows), the NOT DEALT line, the NOT IN STOCK TODAY rule, and the RESTOCK / CHOOSE AISLES plate in the header.</td></tr>
+      <tr><td>ui/cart_reveal/deal_shelf.gd (new)</td><td>The 6 grouped under their source sign and full name, hover links with the stock rows, the drop-in after RESTOCK, and the FIRST DEAL / RESTOCKED switch.</td></tr>
+      <tr><td>ui/cart_reveal/source_rail.gd (new)</td><td>The green rail from the 3 dealing rows to the deal's groups (stubs, bus, lit segments under each group; dark on hover elsewhere). Drawn as pixel rects in the shift scene's rail-light colours.</td></tr>
+      <tr><td>ui/store_art.gd (reuse)</td><td>A <code>StoreArt</code> variant for the start screen: the back shelving with recessed spot lamps over the deal (page 1) or the packs (page 2), and the cone dithered over that panel, under its content (StorefrontArt.cone, one px in four, a checker in the hot lamp's top quarter).</td></tr>
+      <tr><td>ui/cart_reveal/goal_slip.gd (new)</td><td>The NEXT GOAL paper slip and its 6-stamp track (DaySlip's box and head style).</td></tr>
+      <tr><td>ui/cart_reveal/cart_sheet.gd → cart_recap.gd</td><td>The page 2 recap: 15 slots in two rows of 96 px tiles (STAPLES, YOUR PACK, PIN CARDS / TODAY'S DEAL) plus the top 3 BY FAMILY chips. The pack preview fills the YOUR PACK slots (dashed edge while previewing).</td></tr>
+      <tr><td>ui/cart_reveal/staple_picker.gd, restock_panel.gd (new), board_pins.gd</td><td>As in v2, as TitlePopup sheets (popup.png, teal-black dim at 78%, stepped open).</td></tr>
+      <tr><td>art/src/frames (new)</td><td><code>chip_green</code>, <code>chip_steel</code>, <code>chip_lock</code> (state pills), <code>button_off</code> (greyed primary, ink caption), <code>board_plate</code> (lit top row), <code>counter_plaque</code> + rivet (from the machine's steel_frame), <code>board_well</code>, <code>aisle_sign_staples</code> (cream derive), <code>price_sticker</code> (the PICKED sticker), <code>shelf_talker</code>. Plus the chunky 6x8 digits as a bitmap (shared with the machine, A2) and 7x7 pin face glyphs in <code>art/src/pins</code>.</td></tr>
+      <tr><td>debug/screen_capture</td><td><code>--reveal</code> + <code>page=1|2</code>, <code>picker=&lt;slot&gt;</code>, <code>restock</code>, <code>pins</code>.</td></tr>
+      <tr><td>tests</td><td>UI: the geometry of each page at 1280 and 1920 (nothing past the frame, the deal beside the stock, the counter keys clear of the plates), Enter, Enter starting a run, back keeping the choices, the <code>start_page</code> events. Core tests as in v2.</td></tr>
+      <tr><td>docs</td><td>FULL_BUILD_PLAN 7.1 / 7.2, PROTOTYPE_PLAN 8 (the <code>start_page</code> event), changelog.</td></tr>
+    </table></div>
+  </section>
+
+  <section class="answers">
+    <h2>Open questions for you</h2>
+    <ol>
+      <li><b>Q1 · Rename the 4 "staples"?</b> Page 1 now shows the <i>Staples shelf</i> (6 products in the deal's pool) and <i>YOUR STAPLES</i> (the 4 fixed cards) side by side, so the clash is easier to see than in v2. A name like "regulars" for the 4 would fix it.</li>
+      <li><b>Q2 · Run 1 on a new save:</b> is the dealt pair seeded (as shown) or fixed to Cold cases + Pantry?</li>
+      <li><b>Q3 · The 5th completed aisle</b> still gives nothing new: the goal track's stamp 5 has no label. Should it give something (a 2nd RESTOCK, or the pair choice at 5)?</li>
+      <li><b>Q4 · Names on the card faces:</b> page 1's tiles show the sprite, family glyphs and price (V5a's "icon → price → rule"), with the name in the tip. Is that enough for a new player, or do you want a name line under each tile? It costs 27 px per row.</li>
+    </ol>
+    <p><b>Defaults I took (say if any is wrong):</b> Esc goes back one step (page 2 → page 1 → the title); the page isn't saved (resume opens page 1); 1–3 work on page 2 only; page 1's Cart counts staples + deal + pin cards, the pack joins on page 2; the swap fair-deal warning stays off (v2 Q5, still open as a default).</p>
+  </section>
+
+  <section>
+    <h2>Key frames (page 2, direction C)</h2>
+    <div class="caps">
+      <figure><img src="start_screen_p2_C_build/p2_s0_nopick.png" alt="New save, no pack"><figcaption class="cap">New save, no pack picked (?sel=-1): keys blink, empty facings, PICK A PACK FIRST.</figcaption></figure>
+      <figure><img src="start_screen_p2_C_build/p2_s0.png" alt="New save, picked"><figcaption class="cap">New save: Breakfast run is the GOOD FIRST PICK and is picked; its bay lights up, cart 13/15.</figcaption></figure>
+      <figure><img src="start_screen_p2_C_build/p2_s2.png" alt="3 completed, no pack"><figcaption class="cap">3 completed, no pack yet (cart 10/15).</figcaption></figure>
+      <figure><img src="start_screen_p2_C_build/p2_s2_sel.png" alt="3 completed, picked"><figcaption class="cap">3 completed, Deli counter picked (?sel=0).</figcaption></figure>
+      <figure><img src="start_screen_p2_C_build/p2_s2_hov.png" alt="Hover preview"><figcaption class="cap">Deli counter picked, hovering Banana bunch: steady bulbs, lifted topper, PREVIEW in the cart.</figcaption></figure>
+      <figure><img src="start_screen_p2_C_build/p2_s3.png" alt="6 completed"><figcaption class="cap">6 completed: two pins worn on the velvet card.</figcaption></figure>
+      <figure><img src="start_screen_p2_C_build/p2_s2_pins.png" alt="Badge pins sheet"><figcaption class="cap">BADGE PINS over the end-cap (PIN SLOTS 2: Repack + Coupon book, its card on the PIN CARDS shelf).</figcaption></figure>
+    </div>
+  </section>
+</main>
+
+<script src="start_screen_v2_src/cards.js"></script>
+<script>
+/* ======================= self-check: JS errors, Pixelify digits, frame overflow ======================= */
+const CHECK = [];
+function bad(m){ if(!CHECK.includes(m)) CHECK.push(m); }
+window.addEventListener('error', e => bad('js: ' + e.message));
+
+const SRC = 'start_screen_v2_src/';
+const CARD = Object.fromEntries(CARDS.map(c => [c.id, c]));
+/* palette.txt, key → hex */
+const P = {'#':'#2b2420','%':'#4a3f38','=':'#5e574d','-':'#8a8172',':':'#c7beab','a':'#b39f78','b':'#ddcba5','c':'#f3e9d2','w':'#fbf7ee',
+  '1':'#1f3b3a','2':'#2a4d4b','3':'#3a7672','4':'#4f9a94','5':'#86c2b6','6':'#c3e0d4','7':'#5fb0a8','8':'#172c2b',
+  'q':'#6e2630','r':'#a83a3c','R':'#d9534f','o':'#ec8a6e','O':'#f5bfa0','u':'#7a5a1c','m':'#b38425','M':'#e2b33c','y':'#f1d27a','Y':'#faecbc',
+  'g':'#3d7a45','G':'#5fae5a','z':'#a5d17e','e':'#4a3022','f':'#7a5232','F':'#a87a4e','h':'#d2a874','k':'#4a3010','l':'#8a5d1a','L':'#c8932b','n':'#ffcf3f',
+  'A':'#ecebe4','B':'#c7c3b8','C':'#a9a59b','D':'#8d8a83','E':'#6f6b63','H':'#57534c','I':'#45423d','J':'#3d3a36','K':'#2c2926','N':'#24221f'};
+const INK=P['#'], PAPER=P.w;
+
+/* ======================= pixel frames (9-slices from art/src/frames recipes) ======================= */
+const rep=(r,n)=>Array(n).fill(r);
+const RIM10 = (top, mid, bot, ledge, corner='.') => [corner+'########'+corner, top].concat(rep(mid,5), [bot, ledge], [corner+'########'+corner]);
+const FRAMES = {
+  teal: RIM10('#66666666#','#54444443#','#33333333#','#22222222#'),            // button_teal.txt
+  teal_lit: RIM10('#wwwwwwww#','#65555553#','#33333333#','#22222222#'),        // button_teal_lit.txt
+  red: RIM10('#OOOOOOOO#','#oRRRRRRr#','#rrrrrrrr#','#qqqqqqqq#'),             // button.txt
+  red_lit: RIM10('#wwwwwwww#','#Ooooooor#','#rrrrrrrr#','#qqqqqqqq#'),         // button_lit.txt
+  off: RIM10('#BBBBBBBB#','#CDDDDDDE#','#EEEEEEEE#','#HHHHHHHH#'),             // new: button_off (steel)
+  cream: RIM10('#wwwwwwww#','#wccccccb#','#bbbbbbbb#','#aaaaaaaa#'),           // a cream plate (toy_plate's face)
+  chip: ['..######..','.#222222#.'].concat(rep('#22222222#',6),['.#111111#.','..######..']),
+  chip_warn: ['..######..','.#wwwwww#.'].concat(rep('#wwwwwwww#',6),['.#::::::#.','..######..']),
+  chip_green: ['..######..','.#zzzzzz#.'].concat(rep('#zGGGGGGg#',6),['.#gggggg#.','..######..']),
+  chip_np: ['..######..','.#wwwwww#.'].concat(rep('#wYYYYYYy#',6),['.#yyyyyy#.','..######..']),
+  chip_steel: ['..######..','.#DDDDDD#.'].concat(rep('#DHHHHHHI#',6),['.#IIIIII#.','..######..']),
+  chip_lock: ['..######..','.#JJJJJJ#.'].concat(rep('#JNNNNNNK#',6),['.#KKKKKK#.','..######..']),
+  chip_mus: ['..######..','.#yyyyyy#.'].concat(rep('#yMMMMMMm#',6),['.#mmmmmm#.','..######..']),
+  top: ['..######..','.#444444#.'].concat(rep('#44444444#',5),['#33333333#','.#333333#.','..######..']),   // top_button.txt
+  plate: ['##########','#44444443#'].concat(rep('#32222221#',6),['#11111111#','##########']),             // board plate (lit top row, lit left, shade right/bottom)
+  plaque: ['##########','#AAAAAAAB#'].concat(rep('#BCCCCCCE#',6),['#EEEEEEEE#','##########']),           // steel plaque behind the counter keys (machine_relook_v3 steel_frame)
+  well: ['##########','#NNNNNNNN#'].concat(rep('#N8888881#',6),['#11111111#','##########']),              // board well (inset)
+  slip: ['##########','#wwwwwwww#'].concat(rep('#wwwwwwwb#',6),['#bbbbbbbb#','##########']),              // paper slip
+  led: ['##########','#DDDDDDDD#','#D######H#'].concat(rep('#D#NNNN#H#',4),['#D######H#','#HHHHHHHH#','##########']), // LED shelf display (machine ledGlass)
+  sheet: ['.########.','#wwwwwwww#','#wnnnnnLw#'].concat(rep('#wnwwwwLw#',4),['#wnLLLLLw#','#wwwwwwww#','.########.']), // popup.txt
+};
+const FMARGIN = {sheet:4};
+const SIGN = ['##########','#55555555#'].concat(rep('#54444443#',7),['#22222222#','##########']);   // aisle_sign.txt
+const AISLE_MAP = {cold_cases:'2345', pantry:'mmMy', household:'==-:', fruit_and_veg:'1ggG', bakery:'FFhb', snacks:'eefF', staples:'abcw'}; // pixel_art.py AISLE_MAPS
+for(const [id,keys] of Object.entries(AISLE_MAP)) FRAMES['sign_'+id] = SIGN.map(r=>r.replace(/[2345]/g,ch=>keys['2345'.indexOf(ch)]));
+FRAMES.sign_off = SIGN.map(r=>r.replace(/[2345]/g,ch=>'8112'['2345'.indexOf(ch)]));
+const FURL = {};
+function gridURL(rows, pal=P){ const h=rows.length, w=rows[0].length, c=document.createElement('canvas'); c.width=w; c.height=h; const x=c.getContext('2d');
+  rows.forEach((r,j)=>{ for(let i=0;i<w;i++){ const k=r[i]; if(k==='.') continue; x.fillStyle=pal[k]||k; x.fillRect(i,j,1,1);} }); return c.toDataURL(); }
+function buildFrames(){
+  let css='';
+  for(const [n,rows] of Object.entries(FRAMES)){ FURL[n]=gridURL(rows); const m=FMARGIN[n]||3;
+    css+=`.f-${n}{border-style:solid;border-color:transparent;border-width:${m*3}px;border-image:url(${FURL[n]}) ${m} fill / ${m*3}px stretch}\n`; }
+  css+=`:root{--red-frame:url(${FURL.red});--redlit-frame:url(${FURL.red_lit})}`;
+  const s=document.createElement('style'); s.textContent=css; document.head.appendChild(s);
+}
+
+/* ======================= hard pixel words (Pixelify) and chunky digits ======================= */
+const RAST = new Map(); let CAPTOP = 7;
+function rast(s, hex, fam='NCPix', size=11, weight=400){
+  const mixed=/[a-z]/.test(s);
+  const key=[s,hex,fam,size,weight].join('|'); if(RAST.has(key)) return RAST.get(key);
+  const font=`${weight} ${size}px ${fam}`, m=document.createElement('canvas').getContext('2d'); m.font=font;
+  let w=10; for(const ch of s) w+=Math.max(1,Math.round(m.measureText(ch).width));
+  const H=size+12, base=size+4, c=document.createElement('canvas'); c.width=w; c.height=H;
+  const x=c.getContext('2d'); x.font=font; x.fillStyle='#000'; x.textBaseline='alphabetic';
+  let cx=3; for(const ch of s){ x.fillText(ch,cx,base); cx+=Math.max(1,Math.round(x.measureText(ch).width)); }
+  const id=x.getImageData(0,0,w,H), d=id.data; const [r,g,b]=[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16));
+  let left=w, right=-1;
+  for(let y=0;y<H;y++) for(let xx=0;xx<w;xx++){ const i=(y*w+xx)*4, on=d[i+3]>=110; d[i]=r;d[i+1]=g;d[i+2]=b;d[i+3]=on?255:0; if(on){left=Math.min(left,xx);right=Math.max(right,xx);} }
+  x.putImageData(id,0,0);
+  const top = base-CAPTOP-(mixed?1:0), bot = mixed? base+3 : base;
+  if(right<0){ left=0; right=2; }
+  const o=document.createElement('canvas'); o.width=right-left+1; o.height=bot-top; o.getContext('2d').drawImage(c,-left,-top);
+  const out={url:o.toDataURL(), w:o.width, h:o.height, desc: mixed?3:0}; RAST.set(key,out); return out;
+}
+function measureCap(){ // cap height of the hard raster ("H"), so caps-only words crop to exactly their caps
+  const c=document.createElement('canvas'); c.width=20; c.height=24; const x=c.getContext('2d'); x.font='400 11px NCPix'; x.fillText('H',2,15);
+  const d=x.getImageData(0,0,20,24).data; let top=99; for(let y=0;y<24;y++) for(let i=0;i<20;i++) if(d[(y*20+i)*4+3]>=110) top=Math.min(top,y);
+  if(top<99) CAPTOP=15-top;
+}
+/* A2 chunky price-gun digits (machine_relook_v3.html CH) + ★ › ‹ */
+const CH = {
+  '0':['.####.','##..##','##..##','##..##','##..##','##..##','##..##','.####.'], '1':['.##.','###.','.##.','.##.','.##.','.##.','.##.','####'],
+  '2':['.####.','##..##','....##','...##.','..##..','.##...','##....','######'], '3':['#####.','....##','....##','.####.','....##','....##','##..##','.####.'],
+  '4':['...##.','..###.','.####.','##.##.','######','...##.','...##.','...##.'], '5':['######','##....','#####.','....##','....##','....##','##..##','.####.'],
+  '6':['.####.','##....','##....','#####.','##..##','##..##','##..##','.####.'], '7':['######','....##','...##.','...##.','..##..','..##..','.##...','.##...'],
+  '8':['.####.','##..##','##..##','.####.','##..##','##..##','##..##','.####.'], '9':['.####.','##..##','##..##','##..##','.#####','....##','....##','.####.'],
+  '€':['...###','..##..','.##...','#####.','.##...','#####.','..##..','...###'], '%':['.##...##','.##..##.','....##..','...##...','...##...','..##....','.##..##.','##...##.'],
+  '+':['......','..##..','..##..','######','######','..##..','..##..','......'], '-':['....','....','....','####','####','....','....','....'],
+  '×':['......','##..##','.####.','..##..','.####.','##..##','......','......'], '/':['....##','....##','...##.','..##..','..##..','.##...','##....','##....'],
+  '.':['..','..','..','..','..','..','##','##'], ' ':['...','...','...','...','...','...','...','...'],
+  '★':['...#...','...#...','..###..','#######','.#####.','..###..','.##.##.','##...##'],
+  '›':['....','##..','.##.','..##','..##','.##.','##..','....'], '‹':['....','..##','.##.','##..','##..','.##.','..##','....'],
+  '–':['....','....','....','####','####','....','....','....'],
+};
+const NRAST=new Map();
+function nrast(s, hex, shadow){
+  const key=s+'|'+hex+'|'+(shadow||''); if(NRAST.has(key)) return NRAST.get(key);
+  let w=0; for(const ch of s) w+=(CH[ch]?CH[ch][0].length:3)+1; w=Math.max(1,w-1)+(shadow?1:0);
+  const h=8+(shadow?1:0), c=document.createElement('canvas'); c.width=w; c.height=h; const x=c.getContext('2d');
+  const draw=(ox,oy,col)=>{ x.fillStyle=col; let cx=ox; for(const ch of s){ const g=CH[ch]; if(!g) bad('no chunky glyph '+ch); else g.forEach((r,j)=>{ for(let i=0;i<r.length;i++) if(r[i]==='#') x.fillRect(cx+i,oy+j,1,1); }); cx+=(g?g[0].length:3)+1; } };
+  if(shadow) draw(1,1,shadow); draw(0,0,hex);
+  const out={url:c.toDataURL(), w, h, desc:0}; NRAST.set(key,out); return out;
+}
+const img=(r,sc,extra='')=>`<img src="${r.url}" style="width:${r.w*sc}px;height:${r.h*sc}px;${r.desc?`margin-bottom:${-r.desc*sc}px;`:''}${extra}" alt="">`;
+/* PT: one hard-pixel word run (never digits). NM: chunky number. L: a PixelLine of mixed tokens on one baseline. */
+function PT(s, hex, sc=3){ if(/[0-9€]/.test(s)) bad('Pixelify digit: '+s); return img(rast(s,hex),sc); }
+function NM(s, hex, sc=3, shadow){ return img(nrast(s,hex,shadow),sc); }
+const NUMTOK=/([+−×]?[0-9][0-9€%.\/k]*★?|[★›‹–])/;
+function L(s, hex, sc=3, o={}){
+  const parts=s.split(NUMTOK).map(t=>t.trim()).filter(Boolean);
+  const nh=o.num||hex;
+  return `<span class="pl" style="gap:${3*sc}px">${parts.map(t=>NUMTOK.test(t)&&t.match(NUMTOK)[0]===t ? NM(t.replace('−','-'),nh,sc,o.shadow) : PT(t,hex,sc)).join('')}</span>`;
+}
+const PTW=(s,sc=3)=>rast(s,'#000000').w*sc;
+
+/* the till 3x5 caps for props (pin faces), StorefrontArt.TILL / v5 CAPS */
+const TILL = {A:['.#.','#.#','###','#.#','#.#'],B:['##.','#.#','##.','#.#','##.'],C:['.##','#..','#..','#..','.##'],D:['##.','#.#','#.#','#.#','##.'],E:['###','#..','##.','#..','###'],F:['###','#..','##.','#..','#..'],
+  G:['.##','#..','#.#','#.#','.##'],I:['###','.#.','.#.','.#.','###'],K:['#.#','#.#','##.','#.#','#.#'],L:['#..','#..','#..','#..','###'],M:['#...#','##.##','#.#.#','#...#','#...#'],N:['#..#','##.#','#.##','#..#','#..#'],
+  O:['.#.','#.#','#.#','#.#','.#.'],P:['##.','#.#','##.','#..','#..'],R:['##.','#.#','##.','#.#','#.#'],S:['.##','#..','.#.','..#','##.'],T:['###','.#.','.#.','.#.','.#.'],X:['#.#','#.#','.#.','#.#','#.#'],
+  '2':['##.','..#','.#.','#..','###'],'×':['...','#.#','.#.','#.#','...'],'?':['##.','..#','.#.','...','.#.'],'+':['...','.#.','###','.#.','...']};
+/* pin face glyphs (art px), drawn 2x on a 25 px disc and 1x on a 19 px one; ×2 stays two till letters */
+const PINGLYPH = {
+  recycle:['..###..','.#...##','#....##','#......','#.....#','.#...#.','..###..'],
+  repack:['....#..','######.','....#..','.......','..#....','.######','..#....'],
+  stock_list:['#.####','......','#.####','......','#.####'],
+  day_off:['..###','.##..','##...','##...','##...','.##..','..###'],
+  golden_basket:['..###..','.#...#.','#######','#.#.#.#','#.#.#.#','.#####.'],
+  price_gun:['..####','.#...#','#..#.#','.#...#','..####'],
+  express_lane:['#..#...','.#..#..','..#..#.','.#..#..','#..#...'],
+  coupon_book:['#...#','.#.#.','..#..','.#.#.','##.##','##.##']};
+/* a badge pin: a pixel disc d art px with an ink outline, rim shade, face, a 2x2 glint and till letters */
+const DISC=new Map();
+function disc(face, rim, text, d, textHex, dashed){
+  const key=[face,rim,text,d,textHex,dashed].join('|'); if(DISC.has(key)) return DISC.get(key);
+  const c=document.createElement('canvas'); c.width=d; c.height=d; const x=c.getContext('2d'); const r=d/2;
+  for(let j=0;j<d;j++) for(let i=0;i<d;i++){ const dist=Math.hypot(i+.5-r,j+.5-r);
+    let col=null; if(dist<=r){ if(dist>r-1) col=dashed?(((Math.atan2(j-r,i-r)*8/Math.PI|0)+16)%2?null:dashed):INK; else if(!dashed){ col=dist>r-2.6?rim:face; if(dist>r-2.6&&(i<r&&j<r)) col=face; } }
+    if(col){ x.fillStyle=col; x.fillRect(i,j,1,1);} }
+  if(!dashed){ x.fillStyle='rgba(251,247,238,.75)'; x.fillRect(Math.round(d*.28),Math.round(d*.2),2,2); }
+  const gly=text&&PINGLYPH[text];
+  if(gly){ const k=d>=24?2:1, gw=gly[0].length*k, gh=gly.length*k, ox=Math.round((d-gw)/2), oy=Math.round((d-gh)/2); x.fillStyle=textHex;
+    gly.forEach((row,jj)=>{ for(let ii=0;ii<row.length;ii++) if(row[ii]==='#') x.fillRect(ox+ii*k,oy+jj*k,k,k); }); }
+  else if(text){ let w=0; for(const ch of text) w+=(TILL[ch]||TILL['?'])[0].length+1; w--; let cx=Math.round((d-w)/2); const y=Math.round((d-5)/2);
+    x.fillStyle=textHex; for(const ch of text){ const g=TILL[ch]||TILL['?']; g.forEach((row,jj)=>{ for(let ii=0;ii<row.length;ii++) if(row[ii]==='#') x.fillRect(cx+ii,y+jj,1,1); }); cx+=g[0].length+1; } }
+  const out={url:c.toDataURL(), w:d, h:d}; DISC.set(key,out); return out;
+}
+
+/* ======================= game data (from v2: data/cards, decks, aisles, pins) ======================= */
+const FAM = {
+  Bakery:['#d2a874','#ddcba5','#a87a4e','aisle_bakery'], Breakfast:['#e2b33c','#f1d27a','#b38425','family_breakfast'],
+  Clearance:['#a83a3c','#d9534f','#6e2630','family_clearance'], Coupon:['#4f9a94','#86c2b6','#3a7672','family_coupon'],
+  Dairy:['#4f9a94','#86c2b6','#3a7672','family_dairy'], Food:['#ec8a6e','#f5bfa0','#d9534f','aisle_pantry'],
+  Frozen:['#c3e0d4','#fbf7ee','#86c2b6','aisle_cold_cases'], Household:['#5e574d','#8a8172','#4a3f38','aisle_household'],
+  Produce:['#5fae5a','#a5d17e','#3d7a45','aisle_fruit_and_veg'], Snack:['#7a5232','#a87a4e','#4a3022','aisle_snacks']};
+const DARK_FACE = new Set(['Clearance','Household','Snack','Coupon','Dairy']);
+const PACKS = {
+  breakfast_run:{name:'Breakfast run',fam:'Breakfast',cards:['breakfast_sticker','coffee','tea_bags'],hint:'Line up Breakfast items: Coffee and Tea bags boost the next one.'},
+  bargain_bin:{name:'Bargain bin',fam:'Clearance',cards:['clearance_tag','dented_can','flickering_bulb'],hint:'Clearance in a row: Dented can pays +2 for each Clearance before it.'},
+  banana_bunch:{name:'Banana bunch',fam:'Produce',cards:['two_for_one','banana','banana'],hint:'4 Bananas in a row pay 2, 4, 6, 8. 2 for 1 between two doubles the 2nd.'},
+  coupon_clipper:{name:'Coupon clipper',fam:'Coupon',cards:['repeat','shelf_swap','scissors'],hint:'Two coupons, then Scissors: +2 for each coupon before it.'},
+  deli_counter:{name:'Deli counter',fam:'Bakery',cards:['bread','cheese','butter'],hint:'Butter, Bread, Cheese in a row: +3 beside Bread, +4 right after it.'},
+  big_shop:{name:'Big shop',fam:'Food',cards:['final_markdown','yogurt','carrier_bag'],hint:'Carrier bag between two Food: +8 for each Food beside it.'}};
+const CORE = ['banana','banana','milk','eggs'];
+const STAPLES = ['banana','bread','milk','eggs','coffee','soup'];
+const COPY_MAX = 2, AISLE_MAX = 2, DECK_LIMIT = 15;
+const AISLES = [
+  {id:'cold_cases',name:'Cold cases',sign:'#4f9a94',base:['cheese','frozen_peas','butter','yogurt','reduced_yogurt'],caps:['cream','ham_ends']},
+  {id:'pantry',name:'Pantry',sign:'#e2b33c',base:['cereal','tea_bags','crackers','dented_can','day_old_buns'],caps:['sugar_cubes','mixed_herbs']},
+  {id:'household',name:'Household',sign:'#8a8172',base:['carrier_bag','scissors','batteries','flickering_bulb'],caps:['egg_timer','chipped_mug','odd_socks']},
+  {id:'fruit_and_veg',name:'Fruit & veg',sign:'#3d7a45',base:[],caps:['fruit_salad','strawberries','grapefruit','wonky_carrot','lemon','bruised_apples','soft_tomatoes','potatoes']},
+  {id:'bakery',name:'Bakery',sign:'#d2a874',base:[],caps:['baguette','scone','croissant','broken_biscuit','iced_bun','birthday_candles','squashed_cake','stale_doughnut']},
+  {id:'snacks',name:'Snacks',sign:'#7a5232',base:[],caps:['crisps','cereal_bar','bent_lolly','pick_n_mix','stale_popcorn','breadsticks','dusty_toffees']}];
+const AISLE = Object.fromEntries(AISLES.map(a=>[a.id,a]));
+const PINS = [
+  {id:'recycle',name:'Recycle',face:'RE',c:['#5fae5a','#3d7a45'],rule:'Redrawn items go back in the pile; +1 redraw a shift',lock:'Finish a run'},
+  {id:'repack',name:'Repack',face:'MIX',c:['#4f9a94','#2a4d4b'],rule:'Move items between baskets while planning',lock:'Win a run'},
+  {id:'double_checkout',name:'Double checkout',face:'×2',c:['#8a1f33','#561327'],rule:'Check out two rows of 4 every shift; both count',lock:'Score 100€ in one checkout'},
+  {id:'stock_list',name:'Stock list',face:'NXT',c:['#2c3533','#172c2b'],rule:'See the next 3 items in the pile while planning'},
+  {id:'day_off',name:'Day off',face:'OFF',c:['#d9534f','#a83a3c'],rule:'Once a week, skip any day but a review: it passes on quota'},
+  {id:'golden_basket',name:'Golden basket',face:'GLD',c:['#ffcf3f','#8a5d1a'],rule:"Keep 2 checked-out items for the next shift's first basket"},
+  {id:'price_gun',name:'Price gun',face:'TAG',c:['#e2b33c','#b38425'],rule:'Once a shift, an item gains a family of your choice'},
+  {id:'express_lane',name:'Express lane',face:'EXP',c:['#a87a4e','#4a3022'],rule:'2 fewer slots; the first and last items pay ×2'},
+  {id:'coupon_book',name:'Coupon book',face:'CPN',c:['#fbf7ee','#d9534f'],rule:'Start every run with a 2 for 1 coupon',lock:'(example)',example:true,cards:['two_for_one']}];
+const PIN = Object.fromEntries(PINS.map(p => [p.id, p]));
+const LIGHT_PIN = new Set(['golden_basket','price_gun','coupon_book']);
+const ALLCAPS = AISLES.flatMap(a=>a.caps);
+const STATES = [
+  {key:'s0',label:'New save (0 completed)',seed:20261103,run:1,first:'breakfast_run',packs:['banana_bunch','breakfast_run','deli_counter'],
+   caps:[], order:['cold_cases','pantry','household'], swaps:[null,null,null,null], pair:null,
+   realShared:['bread','eggs','soup','yogurt','reduced_yogurt','cereal'],
+   owned:['stock_list','day_off','golden_basket','price_gun','express_lane'], worn:[]},
+  {key:'s1',label:'1 completed',seed:20261117,run:9,first:'breakfast_run',packs:['big_shop','breakfast_run','coupon_clipper'],
+   caps:['cream','ham_ends','sugar_cubes','fruit_salad','strawberries','lemon','potatoes'], order:['cold_cases','fruit_and_veg','pantry','household'], swaps:[null,null,null,null], pair:null,
+   owned:['stock_list','day_off','golden_basket','price_gun','express_lane','recycle'], worn:['price_gun']},
+  {key:'s3',label:'3 completed',seed:20261201,run:21,first:null,packs:['deli_counter','bargain_bin','banana_bunch'],
+   caps:['cream','ham_ends','sugar_cubes','mixed_herbs',...AISLE.fruit_and_veg.caps,'egg_timer','chipped_mug','baguette','scone','croissant','iced_bun','squashed_cake','crisps','cereal_bar'],
+   order:['pantry','bakery','household','cold_cases','fruit_and_veg'], swaps:['strawberries',null,null,'tea_bags'], pair:null,
+   owned:PINS.map(p=>p.id).filter(i=>i!=='double_checkout'), worn:['repack','coupon_book']},
+  {key:'s6',label:'6 completed',seed:20270115,run:38,first:null,packs:['coupon_clipper','big_shop','breakfast_run'],
+   caps:ALLCAPS.slice(), order:['household','fruit_and_veg','bakery','snacks','pantry','cold_cases'], swaps:['croissant',null,'scone','cheese'], pair:['bakery','snacks'],
+   owned:PINS.map(p=>p.id), worn:['double_checkout','golden_basket']}];
+
+let S=0, PAGE=1, SLOTS=1, RM=false, POOL='all', hovPack=-1, sel=-1, worn=[], hovAisle=null;
+let lastPack=null, lastSel=-2, modal=null, swaps=[], restock=null, useRestock=false, dealPop=false, flashRows=[], baseShared=[], modalAnim=false, ANIM=null, hopTab=false;
+const F=document.getElementById('F');
+const st=()=>STATES[S];
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+
+/* ---------- profile derivations (v2) ---------- */
+const owns=id=>st().caps.includes(id);
+function held(a){ return a.base.length + a.caps.filter(owns).length; }
+function total(a){ return a.base.length + a.caps.length; }
+function complete(a){ return held(a)===total(a); }
+function unlocked(a){ return a.base.length>0 || held(a)>=4; }
+function ownedItems(a){ return a.base.concat(a.caps.filter(owns)); }
+const completed=()=>AISLES.filter(complete);
+const swapCount=()=>Math.min(completed().length, CORE.length);
+const usedSwaps=()=>swaps.filter(Boolean).length;
+const staples=()=>CORE.map((c,i)=>swaps[i]||c);
+function stock(){
+  const s=st(), ord=s.order.filter(id=>unlocked(AISLE[id]));
+  let dealt = useRestock&&restock ? restock.pair : (s.pair || ord.slice(0,2));
+  const shelf = useRestock&&restock&&restock.shelf ? restock.shelf : (s.pair ? ord.find(id=>!s.pair.includes(id)) : ord[2]);
+  return {dealt, shelf};
+}
+function aisleOf(id){ if(STAPLES.includes(id)) return 'staples'; const a=AISLES.find(a=>a.base.includes(id)||a.caps.includes(id)); return a?a.id:null; }
+function maxPack(id){ return Math.max(0,...st().packs.map(p=>PACKS[p].cards.filter(c=>c===id).length)); }
+function rng(seedStr){ let h=1779033703^seedStr.length; for(let i=0;i<seedStr.length;i++){h=Math.imul(h^seedStr.charCodeAt(i),3432918353);h=h<<13|h>>>19;}
+  let a=h>>>0; return ()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;}; }
+function dealFor(pair, core, stream){ // JS stand-in for StartingDeck.deal_offer's shared draw (v2)
+  const pool=STAPLES.concat(...pair.map(id=>ownedItems(AISLE[id])));
+  const copies={}; core.forEach(c=>copies[c]=(copies[c]||0)+1);
+  const allP=new Set(st().packs.flatMap(p=>PACKS[p].cards)); allP.forEach(c=>copies[c]=(copies[c]||0)+maxPack(c));
+  const r=rng(`${st().seed}/${stream}/${pair.join('+')}`), out=[];
+  pair.forEach(id=>{ const ok=ownedItems(AISLE[id]).filter(c=>(copies[c]||0)<COPY_MAX); if(ok.length){ const c=ok[Math.floor(r()*ok.length)]; out.push(c); copies[c]=(copies[c]||0)+1; } }); // each dealt aisle gives 1+ (proposal)
+  while(out.length<6){ const ok=pool.filter(c=>(copies[c]||0)<COPY_MAX); if(!ok.length) break; const c=ok[Math.floor(r()*ok.length)]; out.push(c); copies[c]=(copies[c]||0)+1; }
+  return out.sort((x,y)=>pool.indexOf(x)-pool.indexOf(y));
+}
+function shared(){ return useRestock&&restock ? restock.shared : baseShared; }
+function pinCards(){ return worn.slice(0,SLOTS).flatMap(id=>(PIN[id]&&PIN[id].cards)||[]); }
+function packIdShown(){ const s=st(); if(hovPack>=0) return s.packs[hovPack]; if(sel>=0) return s.packs[sel]; return null; }
+function deckOf(packId){ const p=packId?PACKS[packId].cards:[]; return staples().concat(p, shared(), pinCards()); }
+function swapReason(id, slot){
+  if((swaps[slot]||CORE[slot])===id) return 'IN THIS SLOT';
+  const others=staples().filter((_,i)=>i!==slot);
+  const n=others.filter(c=>c===id).length + 1 + shared().filter(c=>c===id).length + maxPack(id);
+  if(n>COPY_MAX) return `max ${COPY_MAX} in the cart`;
+  const a=aisleOf(id); const same=swaps.filter((c,i)=>c&&i!==slot&&aisleOf(c)===a).length;
+  if(same>=AISLE_MAX) return `${AISLE_MAX} from this aisle`;
+  return '';
+}
+function goalText(){
+  const n=completed().length, inc=AISLES.filter(a=>unlocked(a)&&!complete(a)).map(a=>({a,miss:a.caps.filter(c=>!owns(c))})).sort((x,y)=>x.miss.length-y.miss.length);
+  const near=inc[0];
+  const nm=near?`<b>${esc(near.a.name)}</b> needs ${near.miss.length<=2?near.miss.map(c=>'<b>'+esc(CARD[c].name)+'</b>').join(' and '):near.miss.length+' capsules'}`:'';
+  if(n===0) return `Complete an aisle to swap your first staple: ${nm}.`;
+  if(n<3) return `${nm}. Aisle ${n+1} gives ${n+1===3?'a 3rd swap and RESTOCK':'a 2nd swap'}.`;
+  if(n<4) return `${nm}. A 4th aisle swaps every staple.`;
+  if(n<6) return `${nm}. All 6 let you choose the dealt aisles.`;
+  return `<b>ALL 6 COMPLETE.</b> Every swap is open, and your aisles are saved for the next runs.`;
+}
+
+/* ---------- tiles ---------- */
+const ticketFam = c => c.kind===2 ? 'Coupon' : (c.tags.find(t=>t!=='Food') || c.tags[0] || 'Food');
+function famsOf(c){ return c.kind===2 ? ['Coupon'] : c.tags.slice(); }
+function glyphsOf(c){ return famsOf(c).filter(t=>t!=='Food'||c.tags.length===1).slice(0,2); }
+function sprite(id, px){
+  const c=CARD[id];
+  if(c.kind===2) return `<img src="${SRC}items/coupon_slip.png" style="width:${px}px;height:${px}px" alt=""><img class="ci" src="${SRC}icons/coupon_${id}_v2.png" style="width:${px*40/96}px;height:${px*28/96}px;left:calc(50% - ${px*20/96}px);top:calc(50% - ${px*10/96}px)" alt="">`;
+  return `<img src="${SRC}items/${id}.png" style="width:${px}px;height:${px}px" alt="">`;
+}
+/* page 1 tile: 54 art wide (V5a's ticket width), cream window with the sprite at 3x, family band with glyphs + price */
+function tileBig(id, opt={}){
+  const c=CARD[id], f=ticketFam(c), fc=FAM[f], coupon=c.kind===2, dark=DARK_FACE.has(f);
+  const gl=glyphsOf(c).map(t=>`<img class="gl" src="${SRC}icons/${FAM[t][3]}.png" style="width:27px;height:27px;background:${FAM[t][0]}" alt="${t}">`).join('');
+  const price = coupon ? PT('COUPON', INK, 3) : NM(c.base+'€', INK, 3);
+  const strip = coupon ? '' : `<span class="fs" style="background:${fc[0]};border-top:3px solid var(--ink)"></span>`;
+  return `<div class="tk ${opt.lit?'lit':''} ${opt.dim?'dim':''} ${opt.pop?'drop':''}" data-card="${id}" ${opt.slot!=null?`data-slot="${opt.slot}"`:''} ${opt.src?`data-src="${opt.src}"`:''}
+    style="width:${opt.tw||162}px;${opt.delay!=null?`animation-delay:${opt.delay}ms;`:''}"><div class="win ${coupon?'cp':''}" style="height:150px">${sprite(id,144)}${strip}</div>
+    <div class="band" style="height:39px">${coupon?'':gl}<span class="pr">${price}</span></div></div>`;
+}
+/* recap and pack tiles: the window only (names, prices and families in the tip) */
+function tileWin(id, px, opt={}){
+  const coupon=CARD[id].kind===2;
+  return `<div class="tk ${opt.pop?'drop':''} ${opt.ghost?'ghost':''}" data-card="${id}" style="width:${px+12}px;${opt.delay!=null?`animation-delay:${opt.delay}ms;`:''}"><div class="win ${coupon?'cp':''}" style="height:${px}px">${sprite(id,px)}</div></div>`;
+}
+function emptyTile(px, label){ return `<div class="tk empty" style="width:${px+12}px;height:${px+6}px">${label?NM(label,P.w,3):''}</div>`; }
+function signTile(id, big){
+  const sz=big?39:39, g = id==='staples' ? `${SRC}minis/banana.png` : `${SRC}icons/aisle_${id}.png`, gs = id==='staples'?21:27;
+  const off = id!=='staples' && !unlocked(AISLE[id]);
+  return `<span class="fr f-sign_${off?'off':id} sgn" style="position:relative;display:inline-block;width:${sz}px;height:${sz}px"><span class="${off?'dk':''}" style="position:absolute;left:${(sz-gs)/2-9}px;top:${(sz-gs)/2-9}px;width:${gs}px;height:${gs}px"><img src="${g}" style="width:${gs}px;height:${gs}px" alt=""></span></span>`;
+}
+function pinDisc(p, d, ts){
+  if(!p) return img(disc(null,null,'+',d,P['-'],P[':']),3);
+  return img(disc(p.c[0],p.c[1],PINGLYPH[p.id]?p.id:p.face,d,LIGHT_PIN.has(p.id)?INK:PAPER),3,'cursor:pointer');
+}
+const arrowR = col => `<svg class="arrow" width="21" height="27" viewBox="0 0 7 9" shape-rendering="crispEdges"><path fill="${INK}" d="M0 0h2v1h1v1h1v1h1v1h1v1h-1v1h-1v1h-1v1h-1v1h-2z"/><path fill="${col}" d="M1 2h1v1h1v1h1v1h-1v1h-1v1h-1z"/></svg>`;
+const TICK = `<svg class="tick" width="15" height="21" viewBox="0 0 5 7" shape-rendering="crispEdges"><path fill="${INK}" d="M0 0h1v7h-1z"/><path fill="${P.R}" d="M1 0h1v1h1v1h1v1h1v1h-1v1h-1v1h-1v1h-1z"/></svg>`;
+
+/* ======================= the store behind the panels (StoreArt / StorefrontArt style) ======================= */
+/* Painted on the 640x360 art grid, shown at 3x: the ceiling seam under the top bar, dim back shelving with flat blocks of
+   stock (unlit colours), and recessed spot lamps whose cones (StorefrontArt.cone: 2-row steps, one px in four of
+   mustard-darkest, a checker in the top quarter of the lit one) light the stock blocks' lit colours. The same cone is
+   dithered over the one panel that matters (the deal on page 1, the packs on page 2), under its content. */
+const LAMPS = {1:{y1:170,w:[14,150],xs:[332,532]}, 2:{y1:170,w:[14,170],xs:[114,318,522]}, 3:{y1:170,w:[14,150],xs:[]}}; // 3: page 2's end-cap brings its own lights
+const STOCK_COL=[['#4a3022','#7a5232'],['#3d3a36','#5e574d'],['#6e2630','#a83a3c'],['#2a4d4b','#3a7672'],['#7a5a1c','#b38425'],['#172c2b','#2a4d4b']];
+function coneAt(x,y,cx,y1,w){ if(y<28||y>=y1) return 0; const sh=(y-28)/(y1-28), wd=Math.round((w[0]+(w[1]-w[0])*sh)/2)*2;
+  if(Math.abs(x+.5-cx)>wd/2) return 0; return sh<.25?2:1; }
+function coneDot(lv,x,y,hot){ return lv===2&&hot ? (x+y)%2===0 : (x%2===0&&y%2===0); }
+const BDC={}, BDCV={};
+function backdrop(page,hotIdx){
+  const key=page+'|'+hotIdx; if(BDC[key]) return BDC[key];
+  const c=document.createElement('canvas'); c.width=640; c.height=360; const x=c.getContext('2d');
+  const L=LAMPS[page], r=rng('backdrop'), occ=new Uint8Array(640*360);
+  const lit=(i,j)=>{ let best=0, hot=false; L.xs.forEach((cx,k)=>{ const v=coneAt(i,j,cx,L.y1+40,L.w); if(v>best||(v&&k===hotIdx)){ best=v; hot=k===hotIdx; } }); return {lv:best,hot}; };
+  x.fillStyle=P['1']; x.fillRect(0,0,640,360);
+  for(let sy=40; sy<300; sy+=30){ // a run of shelving: flat blocks of stock on each shelf, the shelf board under them
+    let bx=2; while(bx<636){ const bw=4+Math.floor(r()*8), bh=8+Math.floor(r()*12), col=STOCK_COL[Math.floor(r()*STOCK_COL.length)];
+      for(let i=bx;i<Math.min(636,bx+bw);i++) for(let j=sy+24-bh;j<sy+24;j++){ const l=lit(i,j); x.fillStyle=l.lv?col[1]:col[0]; x.fillRect(i,j,1,1); occ[j*640+i]=1; }
+      bx+=bw+1+Math.floor(r()*3); }
+    x.fillStyle=P['8']; x.fillRect(0,sy+24,640,2); x.fillStyle=P['2']; x.fillRect(0,sy+26,640,1); occ.fill(1,(sy+24)*640,(sy+27)*640); }
+  for(let j=28;j<L.y1+40;j++) for(let i=0;i<640;i++){ const l=lit(i,j); if(l.lv&&coneDot(l.lv,i,j,l.hot)){ if(!occ[j*640+i]){ x.fillStyle=l.hot?P.m:P.u; x.fillRect(i,j,1,1);} } }
+  x.fillStyle=P['8']; x.fillRect(0,28,640,3);   // the ceiling seam under the top bar
+  L.xs.forEach((cx,k)=>{ // a recessed spot: ink rim, brass housing, a lit lens
+    x.fillStyle=INK; x.fillRect(cx-8,28,16,5); x.fillStyle=P.L; x.fillRect(cx-7,28,14,3); x.fillStyle=P.l; x.fillRect(cx-7,30,14,1);
+    x.fillStyle=k===hotIdx||hotIdx<0?P.n:P.y; x.fillRect(cx-5,31,10,1); });
+  BDCV[key]=c; return BDC[key]=c.toDataURL();
+}
+/* the cone over a panel (screen rect), under the panel's content: dots only, inside the frame's rim */
+const PCC={};
+function panelCone(page,hotIdx,X,Y,W,H){
+  const key=[page,hotIdx,X,Y,W,H].join('|'); if(PCC[key]) return PCC[key];
+  const ax=X/3, ay=Y/3, aw=W/3, ah=H/3, c=document.createElement('canvas'); c.width=aw; c.height=ah; const x=c.getContext('2d'), L=LAMPS[page];
+  for(let j=3;j<ah-3;j++) for(let i=3;i<aw-3;i++){ let best=0,hot=false; L.xs.forEach((cx,k)=>{ const v=coneAt(ax+i,ay+j,cx,L.y1+40,L.w); if(v>best||(v&&k===hotIdx)){best=v;hot=k===hotIdx;} });
+    if(best&&coneDot(best,ax+i,ay+j,hot)){ x.fillStyle=hot?P.m:P.u; x.fillRect(i,j,1,1);} }
+  return PCC[key]=`<img class="cone" src="${c.toDataURL()}" style="left:${X}px;top:${Y}px;width:${W}px;height:${H}px" alt="">`;
+}
+
+/* ======================= chrome: top bar, step rail, counter ======================= */
+function topBar(){
+  const s=st(), n=deckOf(PAGE===2?packIdShown():null).length, nc=completed().length;
+  let h=`<div class="a" style="left:0;top:0;width:1920px;height:84px;background:var(--wall);border-bottom:3px solid var(--ink)"></div>`;
+  h+=`<div class="a row fr f-chip" style="left:24px;top:12px;height:60px;padding:0 6px;gap:12px"><img src="${SRC}wall_clock.png" style="width:44px;height:44px" alt="">${PT('OPENING TIME',P.Y)}<span style="width:3px"></span>${L('SHIFT 1/12',P['5'],3,{num:PAPER})}</div>`;
+  h+=`<div class="a row fr f-chip" style="left:528px;top:12px;height:60px;padding:0 6px;gap:6px">${AISLES.map(a=>{const ok=complete(a);return `<span class="${ok?'':'dk'}" style="display:grid;place-items:center;width:33px;height:33px;border:3px solid var(--ink);background:${ok?a.sign:P['8']}"><img src="${SRC}icons/aisle_${a.id}.png" style="width:27px;height:27px" alt=""></span>`;}).join('')}
+    <span style="width:6px"></span>${NM(nc+'/6',PAPER)}${NM('★',nc?P.y:P['-'])}${PT('AISLES',P['5'])}</div>`;
+  h+=`<div class="a bt" style="right:300px;top:27px;color:var(--muted);font-size:20px">Seed ${s.seed} · run ${s.run}</div>`;
+  h+=`<div class="a row fr f-top" style="right:24px;top:12px;width:252px;height:60px;justify-content:center;gap:12px"><img src="${SRC}icons/cart.png" style="width:36px;height:27px" alt="">${L('Cart '+n+'/15',PAPER,3,{num:n>DECK_LIMIT?P.O:PAPER})}</div>`;
+  return h;
+}
+function stepRail(){
+  const tab=(k,label)=>{
+    const cur=PAGE===k, done=k===1&&PAGE===2;
+    const badge=`<span style="display:grid;place-items:center;width:39px;height:39px;background:${cur?P.M:P['3']};border:3px solid var(--ink)">${NM(String(k),cur?INK:PAPER)}</span>`;
+    return `<div class="row fr ${cur?'f-chip_warn':'f-chip'} ${cur&&hopTab?'hop':''}" data-tab="${k}" style="position:relative;height:63px;padding:0 9px;gap:12px;cursor:${cur?'default':'pointer'};${cur?'box-shadow:0 0 0 3px var(--ink),0 0 0 9px var(--mustard),0 0 0 12px var(--ink);':''}">
+      ${badge}${PT(label,cur?INK:P['5'])}${k===1?`<img src="${SRC}icons/mark_check.png" style="width:39px;height:39px;${done?'':'visibility:hidden'}" alt="${done?'done':''}">`:''}</div>`;
+  };
+  return `<div class="a row" style="left:24px;top:96px;gap:27px">${tab(1,'YOUR STORE')}${NM('›',P['5'],3)}${tab(2,'YOUR BUILD')}</div>`;
+}
+function counter(){
+  let h=`<div class="a counter" style="left:0;top:903px;width:1920px;height:177px">
+    <div class="a" style="left:0;top:0;width:1920px;height:3px;background:var(--ink)"></div>
+    <div class="a" style="left:0;top:3px;width:1920px;height:3px;background:var(--steel-hi)"></div>
+    <div class="a" style="left:0;top:6px;width:1920px;height:3px;background:var(--steel-light)"></div>
+    <div class="a" style="left:0;top:9px;width:1920px;height:6px;background:var(--steel)"></div>
+    <div class="a" style="left:0;top:15px;width:1920px;height:3px;background:var(--steel-dark)"></div>
+    <div class="a" style="left:0;top:18px;width:1920px;height:3px;background:var(--ink)"></div>
+    <div class="a" style="left:0;top:21px;width:1920px;height:156px;background:var(--rubber-dark)"></div>
+    <div class="a" style="left:0;top:21px;width:1920px;height:24px;background:repeating-linear-gradient(90deg,var(--rubber) 0 9px,var(--rubber-dark) 9px 18px);border-bottom:3px solid var(--charcoal)"></div>
+    <div class="a" style="left:0;top:48px;width:1920px;height:3px;background:var(--rubber)"></div>
+    ${plaque(1386,48,516,126)}${plaque(18,48,354,126)}`;
+  const backPlate=(id,cap)=>`<div class="plate fr f-teal" id="${id}" style="left:48px;top:75px;width:294px;height:72px;padding:0 15px;justify-content:center">${NM('‹',PAPER)}${PT(cap,PAPER)}</div>`;
+  if(PAGE===1){
+    h+=backPlate('toTitle','TITLE');
+    h+=`<div class="a bt" style="left:402px;top:69px;color:var(--steel-light)">Staple swaps and aisle choices are saved to your profile.</div>`;
+    h+=`<div class="a row bt" style="left:402px;top:111px;gap:9px;color:var(--steel-pale)">${keycap('ENTER')} next ${keycap('ESC')} close a panel, else the title</div>`;
+    h+=primaryKey('NEXT ›','Your build: pack, pins, cart',true,'next');
+  } else {
+    const s=st(), p=sel>=0?PACKS[s.packs[sel]]:null, n=deckOf(sel>=0?s.packs[sel]:null).length;
+    h+=backPlate('back','STORE');
+    h+=`<div class="a bt" style="left:402px;top:69px;color:var(--steel-light)">Your store choices are kept. Pins are saved; your pack is for this run.</div>`;
+    h+=`<div class="a row bt" style="left:402px;top:111px;gap:9px;color:var(--steel-pale)">${keycap('ESC')} back ${keycap('1')}${keycap('2')}${keycap('3')} pick a pack ${keycap('P')} pins</div>`;
+    if(p){ const bl=[]; for(let k=0;k<19;k++) bl.push([33+k*24,3]); for(let k=0;k<4;k++){ bl.push([9,33+k*24]); bl.push([501,33+k*24]); }
+      h+=`<div class="a" style="left:1386px;top:48px;width:516px;height:126px">${bl.map(([x,y],k)=>`<span class="kbulb ${k%2?'bulbB':'bulbA'}" style="left:${x}px;top:${y}px"></span>`).join('')}</div>`; } // the counter key's plaque lights up like the end-cap
+    h+= p ? primaryKey('OPEN STORE ›',`Shift 1 with ${p.name} · ${n} cards`,true,'go')
+          : primaryKey('PICK A PACK FIRST','Click a pack above, or press 1, 2 or 3',false,'go');
+  }
+  return h+`</div>`;
+}
+function primaryKey(cap, sub, on, id){
+  const big = PTW(cap.replace(' ›',''),6) + 48 <= 420;
+  const capHTML = big ? L(cap, on?PAPER:INK, 6) : L(cap, on?PAPER:INK, 3);
+  return `<div class="key fr ${on?'f-red on':'f-off dis'}" id="${id}" style="left:1413px;top:63px;width:462px;height:102px">${on?TICK:''}
+    <div style="display:grid;justify-items:center;gap:6px;margin-top:-6px">${capHTML}<div class="bt" style="color:${on?'var(--paper)':'var(--ink)'};font-size:21px;line-height:24px;white-space:nowrap">${esc(sub)}</div></div></div>`;
+}
+/* a steel plaque with four rivets (machine_relook_v3's steel_frame + rivet) behind the primary key */
+function plaque(x,y,w,h){
+  const rv=(l,t)=>`<span class="a" style="left:${l}px;top:${t}px;width:12px;height:12px;background:var(--steel-hi);border:3px solid var(--ink);box-shadow:inset -3px -3px 0 var(--steel)"></span>`;
+  return `<div class="a fr f-plaque" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px"></div>${rv(x+9,y+9)}${rv(x+w-21,y+9)}`;
+}
+/* a keycap glyph for the key hints (TopBar key labels) */
+function keycap(k){ return `<span class="fr f-cream" style="display:inline-grid;place-items:center;min-width:${k.length>1?0:39}px;height:39px;padding:0 3px">${/[0-9]/.test(k)?NM(k,INK):PT(k,INK)}</span>`; }
+function sectionHead(x, y, title, sub){
+  return `<div class="a" style="left:${x}px;top:${y}px;display:flex;align-items:flex-end;gap:18px">${L(title,P.y,3)}${sub?`<span class="bt" style="line-height:21px;color:var(--teal-light);font-size:20px">${sub}</span>`:''}</div>`;
+}
+
+/* ======================= page 1: YOUR STORE ======================= */
+function stockRows(){
+  const stk=stock();
+  const rank={deal:1,shelf:2,off:3,lock:4};
+  const rows=AISLES.map((a,i)=>{ let state; if(!unlocked(a)) state='lock'; else if(stk.dealt.includes(a.id)) state='deal'; else if(stk.shelf===a.id) state='shelf'; else state='off'; return {a,state,i}; });
+  rows.sort((x,y)=> rank[x.state]-rank[y.state] || (x.state==='deal' ? stk.dealt.indexOf(x.a.id)-stk.dealt.indexOf(y.a.id) : x.i-y.i));
+  return rows;
+}
+function page1(){
+  const s=st(), stk=stock(), n=completed().length;
+  let h=`<img class="bd" src="${backdrop(1,-1)}" alt="">`;
+  /* --- left: TODAY'S STOCK --- */
+  h+=`<div class="a fr f-plate" style="left:24px;top:168px;width:648px;height:720px"></div>`;
+  h+=sectionHead(48,186,"TODAY'S STOCK");
+  if(n<3) h+=`<div class="a row fr f-off" style="left:402px;top:177px;width:246px;height:51px;justify-content:center" title="RESTOCK opens at 3 completed aisles">${L('RESTOCK AT 3★',INK,3)}</div>`;
+  else if(restock){ const t=n>=6?'PAIR CHOSEN':'RESTOCK USED'; h+=`<div class="a row fr f-chip_steel" style="right:${1920-648}px;top:177px;height:51px;padding:0 6px" title="once a run">${PT(t,P.A)}</div>`; }
+  else h+=`<div class="plate fr f-teal" id="rsBtn" style="left:${n>=6?378:414}px;top:177px;height:54px;padding:0 15px">${L(n>=6?'CHOOSE AISLES ›':'RESTOCK ›',PAPER)}</div>`;
+  h+=`<div class="a bt" style="left:48px;top:234px;font-size:20px;line-height:24px"><b>NOT DEALT:</b> in stock, but only as machine prizes.</div>`;
+  const rows=[{id:'staples',state:'deal'}].concat(stockRows().map(r=>({id:r.a.id,state:r.state,a:r.a})));
+  const RH=45, DIV=33, HD=33, nIn=rows.filter(r=>r.state==='deal'||r.state==='shelf').length;
+  const rowTop=k=>HD+k*RH+(k>=nIn?DIV:0);
+  const WT=267;
+  h+=`<div class="a fr f-well" style="left:36px;top:${WT}px;width:624px;height:${HD+rows.length*RH+DIV+12}px">`;
+  // column heads: ITEMS (owned of the aisle's items, ★ = complete) and TODAY
+  h+=`<div class="ai" style="top:0;height:${HD}px;border-bottom:0;margin:0 -9px;background:var(--teal-black)"><span class="pn">${PT('ITEMS',P['5'])}</span><span class="st" style="right:21px">${PT('TODAY',P['5'])}</span></div>`;
+  // the in-stock bracket: a mustard rule under the in-stock rows, then the not-in-stock label
+  h+=`<div class="a" style="left:-9px;right:-9px;top:${HD+nIn*RH}px;height:${DIV}px;background:var(--teal-black);border-top:3px solid var(--mustard-dark);display:flex;align-items:center;padding:3px 12px 0">${PT('NOT IN STOCK TODAY',P['5'])}</div>`;
+  rows.forEach((r,k)=>{
+    const chip={deal:['chip_green','DEALT FROM',INK],shelf:['chip_warn','NOT DEALT',INK],off:['chip_steel','NOT TODAY',P.B],lock:['chip_lock','OPENS AT 4',P[':']]}[r.state];
+    const top=rowTop(k);
+    if(r.id==='staples'){
+      h+=`<div class="ai ${hovAisle==='staples'?'hov':''}" data-aisle="staples" style="top:${top}px;margin:0 -9px">${signTile('staples')}<span class="nm">${PT('Staples shelf',PAPER)}</span>
+        <span class="pn row">${NM('6',PAPER)}</span><span class="st fr f-chip_green row" style="height:39px;padding:0 3px">${PT('DEALT FROM',INK)}</span></div>`;
+      return; }
+    const a=r.a, hd=held(a), tt=total(a), done=hd===tt, locked=r.state==='lock';
+    const pn = NM(hd+'/'+tt, locked?P['-']:done?P.y:PAPER) + (done?NM('★',P.y):'');
+    h+=`<div class="ai ${locked?'locked':''} ${hovAisle===a.id?'hov':''} ${flashRows.includes(a.id)?'blink':''}" data-aisle="${a.id}" style="top:${top}px;margin:0 -9px">${signTile(a.id)}
+      <span class="nm">${PT(a.name,locked?P['-']:PAPER)}</span><span class="pn row" style="gap:6px">${pn}</span>
+      <span class="st fr f-${chip[0]} row" style="height:39px;padding:0 3px;gap:6px">${locked?`<img src="${SRC}icons/padlock.png" style="width:18px;height:20px" alt="">`:''}${L(chip[1],chip[2])}</span></div>`;
+  });
+  h+=`</div>`;
+  /* goal slip */
+  const gy=WT+HD+rows.length*RH+DIV+12+15, gb=873;
+  h+=`<div class="a fr f-slip" style="left:36px;top:${gy}px;width:624px;height:${gb-gy}px;color:var(--ink)">
+    <div style="display:flex;align-items:center;gap:12px;padding:0 3px 9px;border-bottom:3px solid var(--ink)">${PT('NEXT GOAL',P.u)}<span style="margin-left:auto">${L(n+'/6 ★',P.u,3)}</span></div>
+    <div class="bt on-paper" style="color:var(--ink-light);font-size:20px;line-height:24px;margin-top:9px;padding:0 3px">${goalText()}</div></div>`;
+  // the 6-stamp track, clear of the slip's foot
+  const lab=['swap','swap','restock','swap','','choose'];
+  const ty=gb-9-12-63;
+  h+=`<div class="a" style="left:57px;top:${ty}px;display:flex;gap:15px">${[1,2,3,4,5,6].map(i=>{const on=i<=n, key=i!==5;
+    return `<div style="display:grid;justify-items:center;gap:3px;width:84px"><span style="display:grid;place-items:center;width:39px;height:39px;border:3px solid var(--ink);background:${on?P.M:key?P.c:P.b}">${on?NM('★',INK):NM(String(i),key?P['%']:P.a)}</span>
+      <span style="font:800 21px/21px var(--body);color:${key?'var(--ink)':'var(--cream-dark)'};white-space:nowrap">${lab[i-1]}</span></div>`;}).join('')}</div>`;
+
+  /* --- right top: TODAY'S DEAL, lit by the two spot lamps --- */
+  h+=`<div class="a fr f-plate" style="left:696px;top:168px;width:1200px;height:345px"></div>`+panelCone(1,-1,696,168,1200,345);
+  h+=sectionHead(720,186,"TODAY'S DEAL", restock?'from the 3 DEALT FROM rows':'from the 3 DEALT FROM rows · RESTOCK re-deals it');
+  if(restock){
+    h+=`<div class="a row" style="left:1476px;top:177px;gap:0">
+      <div class="plate fr ${useRestock?'f-cream':'f-chip_mus'}" data-view="first" style="position:relative;height:54px;padding:0 12px">${PT('FIRST DEAL',INK)}</div>
+      <div class="plate fr ${useRestock?'f-chip_mus':'f-cream'}" data-view="restock" style="position:relative;height:54px;padding:0 12px;margin-left:6px">${PT('RESTOCKED',INK)}</div></div>`;
+  }
+  const sh=shared(), srcs=['staples'].concat(stk.dealt);
+  // every group keeps its full name (the stock row's name); if the three don't fit, the tiles step down to 150, then the
+  // Staples shelf group shows its sign alone (its name is in the stock row and the tip)
+  const AV=1872-720;
+  const mk=(tw,signOnly)=>srcs.map(src=>{ const cards=sh.filter(c=>aisleOf(c)===src); const gw=cards.length*tw+Math.max(0,cards.length-1)*12;
+    const name = src==='staples' ? 'Staples shelf' : AISLE[src].name, nameOn=!(signOnly&&src==='staples');
+    return {src,cards,name,nameOn,w:Math.max(gw,nameOn?PTW(name)+51:39)}; }).filter(g=>g.cards.length);
+  const need=gs=>gs.reduce((a,g)=>a+g.w,0)+18*(gs.length-1);
+  let TW=162, groups=mk(162,false);
+  if(need(groups)>AV){ TW=150; groups=mk(150,false); }
+  if(need(groups)>AV){ groups=mk(150,true); }
+  const gap = Math.min(36, Math.floor((AV-groups.reduce((a,g)=>a+g.w,0))/Math.max(1,groups.length-1)/3)*3);
+  if(gap<18) bad('deal groups too wide');
+  /* the source rail (the shift scene's rail light): a stub from each dealing row, a bus in the gap, and a rail under
+     the deal's groups, lit under each group. Hover a row or a group: the others go dark. Ink first, fills over it. */
+  const RY=282, RB=WT+9+HD+16, stubY=k=>RB+k*RH, endX=720+groups.reduce((a,g)=>a+g.w,0)+gap*(groups.length-1);
+  const ink=(x,y,w,hh)=>`<div class="a" style="left:${x}px;top:${y}px;width:${w}px;height:${hh}px;background:var(--ink)"></div>`;
+  const fill=(x,y,w,hh,on)=>`<div class="a" style="left:${x}px;top:${y}px;width:${w}px;height:${hh}px;background:${on===2?P.G:on===1?P.g:P['2']}${on===2?`;background-image:repeating-linear-gradient(90deg,${P.z} 0 6px,transparent 6px 18px);background-size:100% 3px;background-repeat:no-repeat`:''}"></div>`;
+  const litSrc=src=>!hovAisle||hovAisle===src?2:0;
+  h+=ink(678,RY,endX-678,12)+ink(678,RY,12,stubY(2)+12-RY)+[0,1,2].map(k=>ink(660,stubY(k),30,12)).join('');
+  h+=fill(681,RY+3,endX-681-3,6,1)+fill(681,RY+3,6,stubY(2)+6-RY,1);
+  srcs.forEach((src,k)=>{ h+=fill(663,stubY(k)+3,24,6,litSrc(src)); });
+  let gx=720;
+  groups.forEach((g,gi)=>{
+    const {src,cards,w,name,nameOn}=g, dim=!!(hovAisle&&hovAisle!==src);
+    h+=`<div class="a row" data-aisle="${src}" style="left:${gx}px;top:237px;gap:12px;cursor:default">${signTile(src)}${nameOn?PT(name,dim?P['3']:PAPER):''}</div>`;
+    h+=fill(gx,RY+3,w,6,litSrc(src));
+    h+=`<div class="a" style="left:${gx}px;top:303px;display:flex;gap:12px">${cards.map((c,j)=>tileBig(c,{src,tw:TW,pop:dealPop,delay:(gi*2+j)*70,lit:hovAisle===src,dim})).join('')}</div>`;
+    gx+=w+gap;
+  });
+
+  /* --- right bottom: YOUR STAPLES --- */
+  const nSw=swapCount(), used=usedSwaps(), free=nSw-used;
+  h+=`<div class="a fr f-plate" style="left:696px;top:531px;width:1200px;height:357px"></div>`;
+  h+=sectionHead(720,549,'YOUR STAPLES', nSw===0 ? 'in every run' : 'in every run · click one to swap it');
+  staples().forEach((c,i)=>{
+    const sw=!!swaps[i], picking=modal&&modal.t==='pick'&&modal.slot===i;
+    let chip, can=false;
+    if(sw){ chip=`<div class="fr f-chip_warn row" style="height:42px;justify-content:center;gap:9px">${PT('WAS',P.u)}<img src="${SRC}minis/${CORE[i]}.png" style="width:21px;height:21px" alt="${esc(CARD[CORE[i]].name)}"></div>`; can=true; }
+    else if(nSw===0) chip='';
+    else if(free>0){ chip=`<div class="fr f-teal row" style="height:42px;justify-content:center">${L('SWAP ›',PAPER)}</div>`; can=true; }
+    else chip=`<div class="fr f-chip row" style="height:42px;justify-content:center">${PT('NO SWAP',P['5'])}</div>`;
+    h+=`<div class="slot ${can?'can':''} ${picking?'picking':''}" data-slotbox="${i}" style="left:${720+i*198}px;top:600px;width:162px">${tileBig(c,{slot:i})}${chip?`<div style="margin-top:15px">${chip}</div>`:''}</div>`;
+  });
+  // new save: one lock strip under the four, no meter (the NEXT GOAL slip says how to open it)
+  if(nSw===0){ h+=`<div class="a fr f-chip_lock row" style="left:720px;top:813px;width:756px;height:45px;justify-content:center;gap:12px"><img src="${SRC}icons/padlock.png" style="width:18px;height:20px" alt="">${PT('SWAPS OPEN WHEN AN AISLE IS COMPLETE',P[':'])}</div>`; return h; }
+  // swaps meter
+  h+=`<div class="a fr f-well" style="left:1494px;top:600px;width:378px;height:255px;padding:6px 12px">
+    <div class="row" style="gap:15px">${PT('SWAPS',P['5'])}<span style="margin-left:auto">${NM(used+'/'+nSw,nSw?PAPER:P['-'],6)}</span></div>
+    <div class="row" style="gap:9px;margin-top:15px">${[0,1,2,3].map(i=>{const st_= i<used?'used':i<nSw?'open':'lock';
+      return `<span style="width:72px;height:24px;border:3px solid var(--ink);background:${st_==='used'?P.y:st_==='open'?P['4']:P.N}"></span>`;}).join('')}</div>
+    <div class="bt" style="font-size:21px;line-height:27px;margin-top:15px;color:var(--teal-pale)">${free>0?`<b>${free} open.</b> A swap takes any item of a completed aisle.`:`All ${nSw} used. Click a swapped staple to change it.`}</div></div>`;
+  return h;
+}
+
+/* ======================= page 2: YOUR BUILD, the display end-cap ======================= */
+/* Direction C. Page 2 is a place in the store: the promotional END-CAP at the head of an aisle, at night.
+   A lit marquee header (the premium toy machine's sign: charcoal glass, brass ring, bulbs) sits on four brass
+   uprights. Under it, three promo bays, one per starter pack: a family-colour topper with the pack's name and key,
+   a pegboard with the 3 products standing on a brass shelf (paper price tags in the shelf channel), a display light
+   under the topper with its dithered cone, and a paper shelf talker with the hint. Picking a bay lights it like a
+   prize: its bulbs chase, its light burns hot and a gold PICKED price-gun sticker slaps on its promo corner.
+   Below: YOUR CART is a two-shelf gondola (shelf-edge tags name each group, an LED shelf display counts n/15,
+   family price cards on the bottom shelf), and BADGE PINS hang on a velvet display card in a brass frame.
+   Everything is painted on the 640x360 art grid (shown at 3x); the words, numbers and products are DOM on top. */
+const BAYX = i => 48 + i*612;      // screen x of bay i (art 16 + 204 i), 588 wide, from y 258 to 558
+const BAY_Y = 258, BAY_W = 588;
+const PROD_L = 252, PROD_STEP = 108; // products inside a bay: 96 px, 12 apart
+const SC2 = {}, BL2 = {};
+function bulbSockets(selI, hovI){ // [x, y, group, k] on the art grid; group 'm' = marquee, 0..2 = bay
+  const out=[]; let k=0;
+  for(let bx=13; bx<626; bx+=8){ out.push([bx,59,'m',k]); out.push([bx,83,'m',k+1]); k++; }
+  for(let i=0;i<3;i++){ const bx=16+204*i; let n=0;
+    for(let x=bx+6; x<bx+192; x+=6) out.push([x,86,i,n++]);
+    for(let y=91; y<152; y+=6){ out.push([bx+1,y,i,n]); out.push([bx+193,y,i,n+1]); n++; }
+    for(let y=169; y<186; y+=6){ out.push([bx+1,y,i,n]); out.push([bx+193,y,i,n+1]); n++; } }
+  return out;
+}
+function scene2(selI, hovI){
+  const key=selI+'|'+hovI; if(SC2[key]) return SC2[key];
+  backdrop(3,-1);
+  const c=document.createElement('canvas'); c.width=640; c.height=360; const x=c.getContext('2d'); x.drawImage(BDCV['3|-1'],0,0);
+  const A=(X,Y,W,H,col)=>{ x.fillStyle=col; x.fillRect(X,Y,W,H); };
+  /* --- the end-cap unit: back, marquee header, uprights --- */
+  A(8,58,624,134,INK); A(9,86,622,104,P.N);
+  A(8,58,624,28,INK); A(9,59,622,26,P.l); A(9,59,622,1,P.L); A(9,84,622,1,P.k); A(11,61,618,22,INK); A(12,62,616,20,P.N);
+  for(let j=63;j<82;j+=2) A(12,j,616,1,P.K);                      // the sign's dark glass, faint scan rows
+  for(let bx=10; bx<630; bx+=40){ A(bx,61,1,1,P.L); A(bx,82,1,1,P.L); } // brass screws in the inner ring
+  /* --- three promo bays --- */
+  for(let i=0;i<3;i++){
+    const bx=16+204*i, on=i===selI, hv=i===hovI&&!on, off=selI>=0&&!on&&!hv; // off: another bay is picked, this one rests
+    A(bx,86,196,104,P['8']);
+    const strip=on?P.l:P.k;                                           // the picked bay's frame warms to brass
+    A(bx,86,196,2,strip); A(bx,86,4,102,strip); A(bx+192,86,4,102,strip);  // the bulb strips (top and both sides)
+    if(on){ A(bx,88,196,1,P.L); A(bx+3,86,1,102,P.L); A(bx+192,86,1,102,P.L); }
+    // pegboard
+    A(bx+4,114,188,40,off?P['1']:P['2']); A(bx+4,114,188,1,off?P['2']:P['3']);
+    const hole=(k,j)=>(k-bx-2)%4===0&&(j-116)%4===0;
+    for(let j=116;j<154;j+=4) for(let k=bx+6;k<bx+190;k+=4) A(k,j,1,1,P['8']);
+    // the display light under the topper and its dithered cone over the products (StorefrontArt.cone dots)
+    const cx=bx+136;
+    for(let j=117;j<154;j++){ const sh=(j-117)/37, half=Math.round(16+(52-16)*sh);
+      for(let k=Math.max(bx+5,cx-half);k<Math.min(bx+191,cx+half);k++){ if(hole(k,j)) continue;
+        const hot=on, dot = hot&&sh<.3 ? (k+j)%2===0 : (k%2===0&&j%2===0);
+        if(dot&&!off){ A(k,j,1,1, hot?P.m:hv?P.l:P.u); } } }
+    A(cx-18,114,36,3,INK); A(cx-17,114,34,1,P.L); A(cx-17,115,34,1,P.l); A(cx-14,116,28,1,on?P.n:hv?P.y:off?P.l:P.Y);
+    // promo corner: a brass hook rail for the emblem and stickers
+    A(bx+8,117,72,1,P.k);
+    // the shelf: ink, lit lip, brass, a brass-dark price channel, ink, shadow
+    A(bx,154,196,1,INK); A(bx,155,196,1,P.y); A(bx,156,196,1,P.L); A(bx,157,196,9,P.l); A(bx,158,196,1,P.k); A(bx,166,196,1,INK); A(bx,167,196,1,P.N);
+    A(bx,188,196,2,INK); A(bx,187,196,1,P.k);                         // kick plate
+    for(const [sx,sy,g] of bulbSockets(selI,hovI)) if(g===i && !(sy>=154&&sy<168)) A(sx,sy,2,2,P.l);
+  }
+  for(const [sx,sy,g] of bulbSockets(selI,hovI)) if(g==='m') A(sx,sy,2,2,P.k);
+  for(const px of [8,212,416,624]){ A(px,86,8,104,INK); A(px+1,86,6,104,P.L); A(px+2,86,1,104,P.y); A(px+5,86,1,104,P.l);
+    for(let j=92;j<186;j+=8) A(px+3,j,2,3,P.k); }
+  A(4,190,632,2,INK); A(4,192,632,1,P['8']);                         // the floor line under the unit
+  /* --- YOUR CART: a two-shelf gondola (art 8..452 x 190..298) --- */
+  A(8,194,444,104,INK); A(9,195,442,11,P['8']); A(9,205,442,1,P.H);
+  A(14,206,432,92,P['1']); for(let j=211;j<298;j+=6) A(14,j,432,1,P['8']);  // slatwall back
+  for(const ux of [9,446]){ A(ux,206,5,92,P.D); A(ux,206,1,92,P.B); A(ux+4,206,1,92,P.E); for(let j=210;j<296;j+=6) A(ux+2,j,1,3,P.I); }
+  const shelf=y=>{ A(14,y,432,1,INK); A(14,y+1,432,1,P.A); A(14,y+2,432,1,P.B); A(14,y+3,432,8,P.H); A(14,y+4,432,1,P.I); A(14,y+11,432,1,INK); };
+  shelf(240); A(14,252,432,1,P.N); shelf(286);
+  /* --- BADGE PINS: a velvet display card in a brass frame (art 460..632 x 190..298) --- */
+  A(460,194,172,104,INK); A(461,195,170,102,P.L); A(461,195,170,1,P.y); A(461,195,1,102,P.y); A(461,296,170,1,P.l); A(630,195,1,102,P.l);
+  A(463,197,166,98,P.l); A(464,198,164,96,INK); A(465,199,162,94,P.q);
+  for(let j=199;j<293;j++) for(let i=465;i<627;i++){
+    const edge=Math.min(i-465,626-i,j-199,292-j);
+    if(edge<2&&(i+j)%2===0) A(i,j,1,1,'#561327');
+    else if((i*7+j*13)%17===0) A(i,j,1,1,P.r); }
+  // the engraved brass title plate with two screws
+  A(468,202,96,14,INK); A(469,203,94,12,P.L); A(469,203,94,1,P.y); A(469,214,94,1,P.l); A(471,208,2,2,P.k); A(560,208,2,2,P.k);
+  return SC2[key]=c.toDataURL();
+}
+/* lit bulbs, two phases: the marquee and the picked bay chase (phase A / B), a hovered bay burns steady */
+function bulbs2(phase, selI, hovI){
+  const key=phase+'|'+selI+'|'+hovI; if(BL2[key]) return BL2[key];
+  const c=document.createElement('canvas'); c.width=640; c.height=360; const x=c.getContext('2d');
+  for(const [sx,sy,g,k] of bulbSockets(selI,hovI)){
+    if(g!=='m'&&sy>=154&&sy<168) continue;
+    let col=null;
+    if(g==='m') col = k%2===phase ? P.n : null;
+    else if(g===selI) col = k%2===phase ? P.n : P.y;
+    else if(g===hovI) col = P.y;
+    if(!col) continue;
+    x.globalAlpha=.35; x.fillStyle=P.y; x.fillRect(sx-1,sy-1,4,4); x.globalAlpha=1;
+    x.fillStyle=col; x.fillRect(sx,sy,2,2); }
+  return BL2[key]=c.toDataURL();
+}
+function prod(id, l, t, opt={}){
+  return `<div class="prod ${opt.pop?'drop':''}" data-card="${id}" style="left:${l}px;top:${t}px;${opt.delay!=null?`animation-delay:${opt.delay}ms;`:''}"><span class="psh"></span>${sprite(id,96)}</div>`;
+}
+function priceTag(id, l, t){
+  const c=CARD[id];
+  return c.kind===2 ? `<span class="ptag cp" style="left:${l}px;top:${t}px"><img src="${SRC}icons/family_coupon.png" style="width:27px;height:27px" alt="coupon"></span>`
+                    : `<span class="ptag" style="left:${l}px;top:${t}px">${NM(c.base+'€',INK)}</span>`;
+}
+function stag(l, t, inner, cls=''){ return `<div class="stag ${cls}" style="left:${l}px;top:${t}px">${inner}</div>`; }
+function page2(){
+  const s=st(), shown=packIdShown(), preview=hovPack>=0&&hovPack!==sel;
+  let h=`<img class="bd" src="${scene2(sel,hovPack)}" alt=""><img class="bd bulbA" src="${bulbs2(0,sel,hovPack)}" alt=""><img class="bd bulbB" src="${bulbs2(1,sel,hovPack)}" alt="">`;
+  /* --- the marquee: STARTER PACKS --- */
+  h+=`<div class="a" style="left:36px;top:195px;width:1848px;display:flex;justify-content:center">${PT('STARTER PACKS',P.k,6)}</div>`;
+  h+=`<div class="a" style="left:33px;top:192px;width:1848px;display:flex;justify-content:center">${PT('STARTER PACKS',P.n,6)}</div>`;
+  h+=`<div class="a" style="left:72px;top:204px">${L('PICK 1 OF 3',P.y,3,{num:P.n})}</div>`;
+  h+=`<div class="a bt" style="right:72px;top:201px;color:${sel<0?'var(--paper)':'var(--mustard-pale)'}">${sel<0?'Pick one to open the store.':'3 cards that start your build'}</div>`;
+  /* --- the three bays --- */
+  const slapNow = sel!==lastSel; lastSel=sel;
+  s.packs.forEach((id,i)=>{
+    const p=PACKS[id], fc=FAM[p.fam], dark=DARK_FACE.has(p.fam), on=sel===i, hv=hovPack===i&&!on;
+    const avail=564-15-9-48-18, nameSc = PTW(p.name,6)<=avail ? 6 : 3;
+    if(nameSc<6) bad('pack name steps down: '+p.name);
+    h+=`<div class="bay ${on?'on':''} ${hv?'hov':''}" data-pack="${i}" style="left:${BAYX(i)}px;top:${BAY_Y}px;width:${BAY_W}px;height:312px">
+      <div class="topper" style="background:${fc[0]};box-shadow:inset 0 3px 0 ${fc[1]},inset 0 -3px 0 ${fc[2]}${on?',0 0 0 3px var(--gold),0 0 0 6px var(--ink)':''},0 6px 0 rgba(23,44,43,.6)"><span class="nmw">${PT(p.name,dark?PAPER:INK,nameSc)}</span>
+        <span class="kb fr f-cream ${sel<0?'call':''}" style="display:grid;place-items:center;width:48px;height:48px">${NM(String(i+1),INK)}</span></div>
+      ${s.first===id?'':`<span class="emb">${img(disc(fc[0],fc[2],null,26,INK),3)}<img src="${SRC}icons/${fc[3]}.png" style="position:absolute;left:12px;top:12px;width:54px;height:54px" alt="${p.fam}"></span>`}
+      ${s.first===id?`<div class="stk gf" style="left:24px;top:90px">${PT('GOOD',INK)}${PT('FIRST',INK)}${PT('PICK',INK)}</div>`:''}
+      ${on?`<div class="stk pk ${slapNow&&!RM?'slap':''}" style="left:12px;top:${s.first===id?195:183}px">${NM('★',INK)}${PT('PICKED',INK)}${NM('★',INK)}</div>`:''}
+      ${p.cards.map((c,k)=>prod(c,PROD_L+k*PROD_STEP,108)+priceTag(c,PROD_L+k*PROD_STEP+15,207)).join('')}
+      <div class="talker"><span class="bt" style="color:var(--ink-light);font-size:20px;line-height:24px">${esc(p.hint)}</span></div>
+      <span class="clip" style="left:60px"></span><span class="clip" style="left:510px"></span></div>`;
+  });
+  /* --- YOUR CART: the two-shelf gondola --- */
+  const deck=deckOf(shown), n=deck.length, pk=shown?PACKS[shown]:null, pc=pinCards();
+  h+=`<div class="a" style="left:48px;top:588px;display:flex;align-items:flex-end;gap:18px">${PT('YOUR CART',P.y)}
+     <span class="bt" style="line-height:21px;font-size:20px;color:var(--teal-light)">4 staples + ${pk?(preview?'3 from '+esc(pk.name)+' (preview)':'3 from '+esc(pk.name))+' + ':''}6 dealt${pc.length?` + ${pc.length} from pins`:''}${pk?'':' · <b style="color:var(--tomato-pale)">+3 when you pick a pack</b>'}</span></div>`;
+  const R1=624, R2=762, T1=723, T2=861;
+  // shelf 1: STAPLES 4 · YOUR PACK 3 · PIN CARDS · the LED shelf display
+  h+=staples().map((c,k)=>prod(c,48+k*102,R1)).join('');
+  h+=stag(48,T1,L('STAPLES 4',INK,3));
+  const popNow = shown!==lastPack; lastPack=shown;
+  if(pk){
+    if(preview) h+=`<div class="pvw" style="left:474px;top:${R1-12}px;width:324px;height:${96+15}px"></div>`;
+    h+=pk.cards.map((c,j)=>prod(c,486+j*102,R1,{pop:popNow,delay:j*40})).join('');
+    h+=stag(486,T1,L((preview?'PREVIEW':'YOUR PACK')+' 3',INK,3),preview?'mus':'');
+  } else {
+    h+=[0,1,2].map(j=>`<div class="efc" style="left:${486+j*102}px;top:${R1}px">${PT('?',P['3'],6)}</div>`).join('');
+    h+=stag(486,T1,`${PT('YOUR PACK',INK)}<span class="bt" style="font-size:19px;line-height:21px;color:var(--tomato-dark)">pick one above</span>`,'warn');
+  }
+  if(pc.length){ h+=pc.map((c,j)=>prod(c,822+j*102,R1,{pop:true})).join(''); h+=stag(822,T1,L('PIN CARDS '+pc.length,INK,3)); }
+  else { h+=`<div class="a bt" style="left:822px;top:${R1+6}px;width:228px;font-size:19px;line-height:23px;color:var(--teal-light)">No pin cards. A pin that brings cards puts them on this shelf.</div>`; h+=stag(822,T1,PT('PIN CARDS',INK)); }
+  h+=`<div class="led fr f-led" style="left:1077px;top:${R1+3}px;width:255px;height:90px"><img src="${SRC}icons/cart.png" style="width:36px;height:27px" alt="">${NM(n+'/15',n>DECK_LIMIT?P.o:P.n,6,P.k)}</div>`;
+  h+=stag(1077,T1,PT('IN YOUR CART',INK));
+  // shelf 2: TODAY'S DEAL 6 · family price cards (top 3)
+  h+=shared().map((c,k)=>prod(c,48+k*102,R2)).join('');
+  h+=stag(48,T2,L("TODAY'S DEAL 6",INK,3));
+  const fam={}; deck.forEach(c=>famsOf(CARD[c]).forEach(f=>fam[f]=(fam[f]||0)+1));
+  const fl=Object.entries(fam).sort((x,y)=>y[1]-x[1]).slice(0,3);
+  let fx=690;
+  fl.forEach(([f,k])=>{
+    const w=Math.max(39+12+nrast(String(k),INK).w*6, PTW(f))+24;
+    h+=`<div class="fcard" data-fam="${f}" style="left:${fx}px;top:${R2+3}px;width:${w}px"><span class="fct" style="background:${FAM[f][0]}"></span>
+      <div class="row" style="gap:12px"><span style="display:grid;place-items:center;width:39px;height:39px;border:3px solid var(--ink);background:${FAM[f][0]};flex:none"><img src="${SRC}icons/${FAM[f][3]}.png" style="width:27px;height:27px" alt=""></span>${NM(String(k),INK,6)}</div>
+      <div>${PT(f,P['%'])}</div></div>`;
+    fx+=w+15; });
+  if(fx-15>1332) bad('family cards past the gondola');
+  h+=stag(690,T2,`${PT('BY FAMILY',INK)}<span class="bt" style="font-size:19px;line-height:21px;color:var(--ink-light)">top 3 · a card can be in 2</span>`);
+  /* --- BADGE PINS on the velvet card --- */
+  const ws=worn.slice(0,SLOTS);
+  h+=`<div class="pinsarea" id="pinsArea"><div class="a" style="left:1380px;top:582px;width:516px;height:312px"></div>`;
+  h+=`<div class="a" style="left:1407px;top:615px;width:282px;display:flex;justify-content:center">${PT('BADGE PINS',P.k)}</div>`;
+  h+=`<div class="a row bt" style="left:1716px;top:609px;gap:9px;color:var(--tomato-pale);font-size:19px">${keycap('P')} to change</div>`;
+  h+=`<div class="a badge" style="left:1407px;top:657px;width:177px;height:165px;background:var(--cream);border:3px solid var(--ink);box-shadow:9px 9px 0 rgba(23,8,12,.55);display:flex;flex-direction:column">
+     <div style="height:60px;flex:none;background:var(--teal);border-bottom:3px solid var(--ink);display:grid;place-items:center;gap:3px;padding:6px 0">${PT('NEXT',PAPER)}${PT('CUSTOMER',PAPER)}</div>
+     <div style="display:grid;justify-items:center;padding-top:6px">${PT('CASHIER',P['3'])}</div>
+     <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:9px;padding-bottom:3px">${Array.from({length:SLOTS},(_,k)=>pinDisc(PIN[ws[k]],SLOTS>1?19:25)).join('')}</div></div>`;
+  h+=`<div class="plate fr f-teal" style="left:1407px;top:831px;width:177px;height:48px;justify-content:center">${L('CHANGE ›',PAPER)}</div>`;
+  h+=`<div class="a fr f-slip" style="left:1605px;top:657px;width:270px;height:219px;color:var(--ink);padding-top:12px">${ws.length?ws.map(id=>{const p=PIN[id];return `<div style="margin-bottom:12px">${PT(p.name,P.r)}<div class="bt on-paper" style="font-size:19px;line-height:23px;margin-top:6px;color:var(--ink-light)">${esc(p.rule)}${p.cards?` · <b style="color:var(--green-dark)">+1 card in your cart</b>`:''}</div></div>`;}).join(''):`<div>${PT('No pin worn',P['%'])}</div>`}
+     ${ws.length<SLOTS?`<div class="bt on-paper" style="font-size:19px;line-height:23px;color:var(--ink-light)">${SLOTS-ws.length} slot free · click the badge</div>`:''}</div></div>`;
+  return h;
+}
+
+/* ======================= modals (TitlePopup sheets) ======================= */
+function sheetOpen(x,y,w,h,inner){ return `<div class="dim" data-close="1"></div><div class="sheet fr f-sheet ${modalAnim?'anim':''}" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px">${inner}</div>`; }
+function pinsModal(){
+  const s=st(), w=900, x=1920-w-48, y=108;
+  const list=PINS.filter(p=>!p.example||s.owned.includes(p.id));
+  const rows=list.map((p,i)=>{
+    const own=s.owned.includes(p.id), on=worn.slice(0,SLOTS).includes(p.id);
+    const btn = !own ? `<div class="fr f-off row" style="width:156px;height:54px;justify-content:center">${PT('LOCKED',INK)}</div>`
+      : on ? `<div class="plate fr f-chip_green" data-wear="${p.id}" style="position:relative;width:156px;height:54px;justify-content:center">${PT('WORN',INK)}</div>`
+           : `<div class="plate fr f-teal" data-wear="${p.id}" style="position:relative;width:156px;height:54px;justify-content:center">${PT('WEAR',PAPER)}</div>`;
+    return `<div class="prow" style="top:${90+i*72}px">${own?pinDisc(p,19):img(disc(P[':'],P['-'],'?',19,INK),3)}
+      <div style="width:250px">${PT(p.name,own?INK:P['-'])}</div>
+      <div class="pr">${own?esc(p.rule)+(p.cards?' · <b style="color:var(--green-dark)">+1 card in your cart</b>':''):'Unlock: '+esc(p.lock)}</div>${btn}</div>`;}).join('');
+  const hgt=90+list.length*72+117;
+  return sheetOpen(x,y,w,hgt,`<div class="a" style="left:24px;top:24px;display:flex;align-items:flex-end;gap:18px">${PT('BADGE PINS',INK,6)}<span class="bt" style="font-size:20px;line-height:21px">${SLOTS} slot${SLOTS>1?'s':''} · a new pin replaces the first</span></div>
+    ${rows}<div class="plate fr f-teal" data-close="1" style="left:24px;bottom:21px;height:57px;padding:0 21px">${PT('DONE',PAPER)}</div>
+    <div class="a bt" style="left:186px;bottom:21px;width:${w-240}px;font-size:20px;line-height:24px">Pins are saved to your profile; your pack is for this run. The deal stays the same. A pin's cards join your cart at once.</div>`);
+}
+function pickerModal(){
+  const slot=modal.slot, cur=swaps[slot]||CORE[slot], orig=CORE[slot];
+  const comp=completed(), n=comp.length;
+  const w=n>=4?1824:(n===3?1500:1200), x=Math.round((1920-w)/2/3)*3, y=105;
+  const colW=Math.floor((w-48-(n-1)*15)/n), sub=Math.max(1,Math.floor(colW/290)), subW=Math.floor(colW/sub);
+  const cols=comp.map((a,k)=>{
+    const items = a.base.concat(a.caps);
+    const body = items.map(id=>{
+      const why=swapReason(id,slot), c=CARD[id], isCur=cur===id;
+      return `<div class="pit ${why&&!isCur?'no':''} ${isCur?'cur':''}" ${why?'':`data-take="${id}"`}><img src="${SRC}items/${id}.png" style="width:48px;height:48px" alt="">
+        <div class="t"><b>${esc(c.name)}</b><span class="${why&&!isCur?'why':''}">${isCur?'in this slot':why?why:(a.base.includes(id)?'base item':'capsule item')}</span></div><span class="p">${NM(c.base+'€',INK)}</span></div>`;}).join('');
+    return `<div class="pcol" style="left:${24+k*(colW+15)}px;top:105px;width:${colW}px"><div class="ph">${signTile(a.id)}<span class="nmw">${PT(a.name,INK)}</span>${n>=5?'':`<span class="cnt row">${NM(held(a)+'/'+total(a)+'★',P.u)}</span>`}</div><div style="display:grid;grid-template-columns:repeat(${sub},${subW-2}px)">${body}</div></div>`;
+  }).join('');
+  const maxRows=Math.max(1,...comp.map(a=>Math.ceil(a.base.concat(a.caps).length/sub)));
+  const hgt=Math.min(960, 105+60+maxRows*66+108);
+  return sheetOpen(x,y,w,hgt,`<div class="a" style="left:24px;top:24px;display:flex;align-items:flex-end;gap:18px">${PT('SWAP A STAPLE',INK,6)}
+      <span class="bt" style="font-size:20px;line-height:21px">Replacing <b>${esc(CARD[cur].name)}</b> · slot ${slot+1} of 4 · ${swapCount()-usedSwaps()+(swaps[slot]?1:0)} of ${swapCount()} swaps free · saved for your next runs</span></div>
+    ${cols}
+    ${swaps[slot]?`<div class="plate fr f-teal" data-take="__keep" style="right:228px;bottom:21px;height:57px;padding:0 18px">${PT('BACK TO '+CARD[orig].name.toUpperCase(),PAPER)}</div>`:''}
+    <div class="plate fr f-teal" data-close="1" style="right:30px;bottom:21px;height:57px;padding:0 18px">${PT('CANCEL',PAPER)}</div>
+    <div class="a bt" style="left:24px;bottom:24px;width:${w-560}px;font-size:19px;line-height:23px">Max ${COPY_MAX} of a card in the cart · max ${AISLE_MAX} swapped staples from one aisle · plain tier, no coupons · the deal is not re-dealt.</div>`);
+}
+function restockModal(){
+  const stk=stock(), n=completed().length, w=840, x=1920-w-48, y=150;
+  const unl=AISLES.filter(unlocked);
+  const rc=(a,on,attr)=>`<div class="rchip ${on?'on':''}" ${attr}>${signTile(a.id)}${PT(a.name,INK)}</div>`;
+  let body;
+  if(n>=6){
+    body=`<div class="a" style="left:24px;top:102px">${L('DEAL FROM · PICK 2',INK,3,{num:INK})}</div>
+      <div class="a" style="left:24px;top:144px;right:24px;display:flex;flex-wrap:wrap;gap:21px 18px">${unl.map(a=>rc(a,modal.pair.includes(a.id),`data-pairpick="${a.id}"`)).join('')}</div>
+      <div class="a bt" style="left:24px;top:300px;right:24px;font-size:20px;line-height:25px">The 3rd aisle (NOT DEALT) stays the seed's. The pair is saved for your next runs.</div>`;
+  } else {
+    const ins=unl.filter(a=>!stk.dealt.includes(a.id)&&a.id!==stk.shelf);
+    body=`<div class="a" style="left:24px;top:102px">${PT('TAKE OUT',INK)}</div>
+      <div class="a" style="left:24px;top:138px;display:flex;gap:18px">${stk.dealt.map(id=>rc(AISLE[id],modal.out===id,`data-rsout="${id}"`)).join('')}<span class="bt" style="align-self:center;margin-left:6px"><b>${esc(AISLE[stk.shelf].name)}</b> stays (NOT DEALT)</span></div>
+      <div class="a" style="left:24px;top:228px">${PT('PUT IN',INK)}</div>
+      <div class="a" style="left:24px;top:264px;display:flex;gap:18px;flex-wrap:wrap;right:24px">${ins.length?ins.map(a=>rc(a,modal.in===a.id,`data-rsin="${a.id}"`)).join(''):`<div class="bt" style="color:var(--tomato-dark)">No other unlocked aisle.</div>`}</div>`;
+  }
+  const ready = n>=6 ? (modal.pair.length===2 && modal.pair.slice().sort().join()!==stk.dealt.slice().sort().join()) : (modal.out&&modal.in);
+  return sheetOpen(x,y,w,576,`<div class="a" style="left:24px;top:24px;display:flex;align-items:flex-end;gap:18px">${PT(n>=6?'CHOOSE AISLES':'RESTOCK',INK,6)}<span class="bt" style="font-size:20px;line-height:21px">${n>=6?'pick the 2 aisles that deal':'swap one dealt aisle'}</span></div>
+    ${body}
+    <div class="a" style="left:24px;right:24px;top:357px;padding:6px 12px 9px;border-top:3px solid var(--ink);border-bottom:3px solid var(--ink);background:var(--cream)">${PT('ONCE A RUN',P.r)}<div class="bt" style="font-size:20px;line-height:24px;color:var(--ink-light);margin-top:6px">You see the new 6 only after you confirm. The packs stay. You can switch back to the first deal, but not restock again this run. Quitting keeps it.</div></div>
+    <div class="key fr ${ready?'f-red on':'f-off dis'}" id="rsGo" style="left:24px;bottom:24px;width:330px;height:63px">${ready?TICK:''}${L(n>=6?'DEAL FROM THESE ›':'RESTOCK ›',ready?PAPER:INK)}</div>
+    <div class="plate fr f-teal" data-close="1" style="left:390px;bottom:24px;height:63px;padding:0 21px">${PT('CANCEL',PAPER)}</div>`);
+}
+
+/* ======================= render ======================= */
+function pageClass(k){
+  if(ANIM){ const el=performance.now()-ANIM.t0, d=`style="animation-delay:${-Math.min(el,299)}ms"`;
+    if(k===ANIM.from) return `pg anim ${ANIM.dir>0?'out-l':'out-r'}" ${d} data-x="`;
+    if(k===ANIM.to) return `pg anim ${ANIM.dir>0?'in-r':'in-l'}" ${d} data-x="`; }
+  return k===PAGE ? 'pg on' : 'pg off';
+}
+function render(){
+  F.className='F'+(RM?' rm':'');
+  let h=`<div class="${pageClass(1)}" id="P1">${(PAGE===1||(ANIM&&(ANIM.from===1||ANIM.to===1)))?page1():''}</div>`;
+  h+=`<div class="${pageClass(2)}" id="P2">${(PAGE===2||(ANIM&&(ANIM.from===2||ANIM.to===2)))?page2():''}</div>`;
+  h+=`<div class="chrome">${topBar()}${stepRail()}${counter()}</div>`;
+  if(modal&&modal.t==='pins') h+=pinsModal();
+  if(modal&&modal.t==='pick') h+=pickerModal();
+  if(modal&&modal.t==='restock') h+=restockModal();
+  h+=`<div class="tip fr f-sheet" id="tip"></div><div class="flood" id="flood"></div><div class="selfcheck" id="selfcheck"></div>`;
+  F.innerHTML=h;
+  dealPop=false; flashRows=[]; modalAnim=false; hopTab=false;
+  selfCheck(); updateCap();
+}
+function selfCheck(){
+  if(ANIM) return;
+  const fr=F.getBoundingClientRect(), k=fr.width/1920;
+  F.querySelectorAll('.pg.on *, .chrome *, .sheet *').forEach(el=>{
+    if(el.closest('.tip')) return;
+    const r=el.getBoundingClientRect(); if(!r.width&&!r.height) return;
+    const L_=(r.left-fr.left)/k, R_=(r.right-fr.left)/k, T_=(r.top-fr.top)/k, B_=(r.bottom-fr.top)/k;
+    if(L_<-1||T_<-1||R_>1921||B_>1081) bad(`overflow: ${el.className||el.tagName} (${Math.round(L_)},${Math.round(T_)})-(${Math.round(R_)},${Math.round(B_)}) p${PAGE} s${S}`);
+  });
+  document.documentElement.dataset.check = CHECK.length ? 'FAIL' : 'ok';
+  const sc=document.getElementById('selfcheck');
+  if(CHECK.length&&sc){ sc.style.display='block'; sc.textContent='SELF-CHECK: '+CHECK.slice(0,4).join(' | '); }
+}
+function updateCap(){
+  const s=st(), stk=stock(), c=document.getElementById('capline');
+  c.className='cap'+(CHECK.length?' bad':'');
+  c.innerHTML = `Page ${PAGE} · ${esc(s.label)} · ${completed().length} of 6 aisles complete · ${swapCount()} staple swap${swapCount()===1?'':'s'} open · dealt from ${AISLE[stk.dealt[0]].name} + ${AISLE[stk.dealt[1]].name}, ${AISLE[stk.shelf].name} NOT DEALT. `+
+   (s.realShared&&!(useRestock&&restock) ? `Today's deal is the real <code>StartingDeck.deal_offer</code> for seed ${s.seed}.` : `Today's deal is a JS stand-in for <code>deal_offer</code> (uniform draw, copy_max 2), not a game deal.`)+
+   ` Self-check: ${CHECK.length?CHECK.join(' | '):'no JS errors, no Pixelify digits, nothing past the 1920×1080 frame.'}`;
+}
+
+/* ---------- tips ---------- */
+function showTip(html, el, side){
+  const tip=document.getElementById('tip'); tip.innerHTML=html; tip.style.display='block';
+  const fr=F.getBoundingClientRect(), r=el.getBoundingClientRect(), k=fr.width/1920;
+  let x=(r.right-fr.left)/k+15, y=(r.top-fr.top)/k-6;
+  if(side==='left'||x+460>1910) x=(r.left-fr.left)/k-465;
+  const th=tip.offsetHeight||200;
+  tip.style.left=Math.round(Math.max(6,x)/3)*3+'px'; tip.style.top=Math.round(Math.max(90,Math.min(y,1074-th))/3)*3+'px';
+}
+function cardTip(el){
+  const id=el.dataset.card, c=CARD[id]; if(!c) return;
+  const fams=famsOf(c).map(t=>`<span class="row fr f-chip_warn" style="height:39px;padding:0 3px;gap:6px"><img src="${SRC}icons/${FAM[t][3]}.png" style="width:27px;height:27px;background:${FAM[t][0]};outline:3px solid var(--ink)" alt="">${PT(t,INK)}</span>`).join('');
+  const where=aisleOf(id), wn=where==='staples'?'Staples shelf':(AISLE[where]||{}).name;
+  const cnt=deckOf(PAGE===2?packIdShown():null).filter(x=>x===id).length;
+  let extra='';
+  if(el.dataset.slot!=null){ const i=+el.dataset.slot, nSw=swapCount();
+    if(swaps[i]) extra=`Swapped staple (was ${CARD[CORE[i]].name}). Click to change it or put it back.`;
+    else if(nSw===0) extra=`Swap locked: complete an aisle at the toy machines.`;
+    else if(usedSwaps()<nSw) extra=`Click to swap it for an item of a completed aisle.`;
+    else extra=`No swap left (${nSw} of ${nSw} used).`; }
+  showTip(`<div class="row" style="gap:12px">${PT(c.name,INK)}<span style="margin-left:auto">${c.kind===1?NM(c.base+'€',INK):''}</span></div>
+    <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:12px">${fams}</div>
+    <div class="tr">${esc(c.rule)}</div><div class="tm">${wn?esc(wn)+' · ':''}×${cnt} in your cart${extra?'<br>'+extra:''}</div>`, el);
+}
+F.addEventListener('mousemove',e=>{
+  const tip=document.getElementById('tip'); if(!tip) return;
+  if(e.target.closest('.sheet')||ANIM){ tip.style.display='none'; return; }
+  const t=e.target.closest('[data-card]'); if(t){ cardTip(t); return; }
+  const fm=e.target.closest('[data-fam]');
+  if(fm){ const f=fm.dataset.fam, k=deckOf(packIdShown()).filter(c=>famsOf(CARD[c]).includes(f)).length; showTip(`${PT(f,INK)}<div class="tr">${k} of your cards are ${f}.</div>`, fm); return; }
+  const pinEl=e.target.closest('.pinsarea img');
+  if(pinEl){ tip.style.display='none'; return; }
+  const ai=e.target.closest('.ai[data-aisle]');
+  if(ai&&ai.dataset.aisle!=='staples'){ const a=AISLE[ai.dataset.aisle], stk=stock(), miss=a.caps.filter(c=>!owns(c));
+    const state=!unlocked(a)?`Locked: it opens at 4 items (${held(a)} now). Its capsules still ride the next runs as new arrivals.`:stk.dealt.includes(a.id)?`Dealt from today: ${shared().filter(c=>aisleOf(c)===a.id).length} of today's 6.`:stk.shelf===a.id?'In today\'s stock but NOT DEALT: its items can come from the machine\'s NEW ITEMS.':'Unlocked, not in today\'s stock.';
+    showTip(`<div class="row" style="gap:12px">${PT(a.name,INK)}<span style="margin-left:auto" class="row">${NM(held(a)+'/'+total(a),INK)}</span></div><div class="tr">${state}</div><div class="tm">${miss.length?`Missing: ${miss.slice(0,4).map(c=>CARD[c].name).join(', ')}${miss.length>4?'…':''}. Complete it for a staple swap.`:'Complete ★: it gives one staple swap.'}</div>`, ai, 'right'); return; }
+  if(ai){ showTip(`${PT('Staples shelf',INK)}<div class="tr">Banana, Bread, Milk, Eggs, Coffee and Soup. Always in the deal's pool, next to the 2 dealt aisles.</div>`, ai); return; }
+  tip.style.display='none';
+});
+F.addEventListener('mouseover',e=>{
+  if(modal||ANIM) return;
+  const p=e.target.closest('[data-pack]'); const hp=p?+p.dataset.pack:-1;
+  const a=e.target.closest('[data-aisle]'); const ha=a?a.dataset.aisle:null;
+  if(hp!==hovPack||ha!==hovAisle){ hovPack=hp; hovAisle=ha; render(); }
+});
+F.addEventListener('mouseleave',()=>{ if(ANIM) return; hovPack=-1; hovAisle=null; render(); });
+F.addEventListener('click',e=>{
+  const T=e.target; if(ANIM) return;
+  if(T.closest('[data-close]')){ modal=null; render(); return; }
+  const w=T.closest('[data-wear]');
+  if(w){ const id=w.dataset.wear; const i=worn.indexOf(id); if(i>=0&&i<SLOTS) worn.splice(i,1); else { if(worn.length>=SLOTS) worn.splice(0,1); worn.push(id);} worn=worn.slice(0,SLOTS); render(); return; }
+  const tk=T.closest('[data-take]');
+  if(tk&&modal&&modal.t==='pick'){ const id=tk.dataset.take; swaps[modal.slot]= id==='__keep'?null:id; modal=null; render(); return; }
+  const po=T.closest('[data-rsout]'); if(po){ modal.out=po.dataset.rsout; render(); return; }
+  const pi=T.closest('[data-rsin]'); if(pi){ modal.in=pi.dataset.rsin; render(); return; }
+  const pp=T.closest('[data-pairpick]'); if(pp){ const id=pp.dataset.pairpick, pr=modal.pair; const k=pr.indexOf(id); if(k>=0) pr.splice(k,1); else { if(pr.length>=2) pr.shift(); pr.push(id);} render(); return; }
+  if(T.closest('#rsGo')) { doRestock(); return; }
+  if(T.closest('.sheet')) return;
+  const tab=T.closest('[data-tab]'); if(tab){ goPage(+tab.dataset.tab); return; }
+  if(T.closest('#next')){ goPage(2); return; }
+  if(T.closest('#back')){ goPage(1); return; }
+  if(T.closest('#toTitle')){ toTitle(); return; }
+  const vw=T.closest('[data-view]'); if(vw){ useRestock=vw.dataset.view==='restock'; dealPop=true; render(); return; }
+  if(T.closest('#rsBtn')){ if(completed().length>=3&&!restock){ modal={t:'restock',out:null,in:null,pair:stock().dealt.slice()}; modalAnim=true; render(); } return; }
+  if(T.closest('#pinsArea')){ modal={t:'pins'}; modalAnim=true; render(); return; }
+  const sb=T.closest('[data-slotbox]');
+  if(sb){ const i=+sb.dataset.slotbox; if(swaps[i]||(swapCount()>usedSwaps())){ modal={t:'pick',slot:i}; modalAnim=true; render(); } return; }
+  const p=T.closest('[data-pack]'); if(p){ sel=+p.dataset.pack; render(); return; }
+  if(T.closest('#go')) go();
+});
+function goPage(p){
+  if(p===PAGE||modal||ANIM) return;
+  hovPack=-1; hovAisle=null;
+  if(RM){ PAGE=p; hopTab=false; render(); return; }
+  ANIM={from:PAGE,to:p,dir:p>PAGE?1:-1,t0:performance.now()}; PAGE=p; render();
+  setTimeout(()=>{ ANIM=null; hopTab=true; render(); },300);
+}
+function doRestock(){
+  const stk=stock(), n=completed().length, s=st();
+  let pair, shelf=stk.shelf;
+  if(n>=6){ if(modal.pair.length!==2) return; pair=modal.pair.slice(); shelf=s.order.find(id=>!pair.includes(id)); }
+  else { if(!modal.out||!modal.in) return; pair=stk.dealt.map(id=>id===modal.out?modal.in:id); }
+  restock={pair, shelf, shared:dealFor(pair, staples(), 'starting_deck_restock')};
+  useRestock=true; dealPop=true; flashRows=pair.concat(shelf); modal=null; render();
+}
+/* page 1's way out: back to the title menu (here a short stepped flood, then the frame resets) */
+function toTitle(){
+  if(modal||ANIM) return;
+  const fl=document.getElementById('flood');
+  fl.style.background='var(--teal-black)';
+  fl.innerHTML=`<div style="display:grid;justify-items:center;gap:24px">${PT('TITLE MENU',P.y,6)}<div class="bt">The start screen reopens on page 1 with your choices kept.</div></div>`; fl.style.display='grid';
+  setTimeout(()=>{ fl.style.display='none'; fl.style.background=''; QP.page=1; reset(); }, RM?900:1400);
+}
+function go(){
+  if(sel<0||modal){ const k=document.getElementById('go'); if(k&&!RM){ k.animate([{transform:'translate(6px,6px)'},{transform:'translate(0,6px)'},{transform:'translate(12px,6px)'},{transform:'translate(6px,6px)'}],{duration:180,easing:'steps(4,end)'}); } return; }
+  const k=document.getElementById('go'); k.style.transform='translate(6px,6px)'; k.style.boxShadow='3px 3px 0 rgba(43,36,32,.45)';
+  const fl=document.getElementById('flood');
+  setTimeout(()=>{ fl.innerHTML=`<div style="display:grid;justify-items:center;gap:24px">${L('SHIFT 1/12',INK,6,{num:INK})}${L(PACKS[st().packs[sel]].name.toUpperCase()+' · '+deckOf(st().packs[sel]).length+' CARDS',P.u,3,{num:P.u})}</div>`; fl.style.display='grid'; }, RM?0:120);
+  setTimeout(()=>{ fl.style.display='none'; reset(); }, RM?1200:1800);
+}
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){ if(modal){ modal=null; render(); } else if(ANIM){} else if(PAGE===2) goPage(1); else toTitle(); return; }
+  if(modal||ANIM) return;
+  if(PAGE===2&&['1','2','3'].includes(e.key)){ sel=+e.key-1; render(); }
+  else if(e.key==='Enter'){ if(PAGE===1) goPage(2); else go(); }
+  else if(PAGE===2&&(e.key==='p'||e.key==='P')){ modal={t:'pins'}; modalAnim=true; render(); }
+});
+function reset(){
+  const s=st(); sel=s.first?s.packs.indexOf(s.first):-1; worn=s.worn.slice(0,SLOTS); hovPack=-1; hovAisle=null; modal=null;
+  swaps=s.swaps.slice(); restock=null; useRestock=false; PAGE=QP.page||1; ANIM=null;
+  baseShared = s.realShared ? s.realShared.slice() : dealFor(stock().dealt, staples(), 'starting_deck');
+  syncSegs(); render();
+}
+function seg(id,attr,fn){ const g=document.getElementById(id); g.addEventListener('click',e=>{const b=e.target.closest('button'); if(!b)return; g.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b)); fn(b.dataset[attr]);}); }
+function syncSegs(){
+  document.querySelectorAll('#segS button').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.s===S));
+  document.querySelectorAll('#segP button').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.p===SLOTS));
+  document.querySelectorAll('#segG button').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.g===PAGE));
+  document.querySelectorAll('#segM button').forEach(b=>b.setAttribute('aria-pressed',(b.dataset.m==='1')===RM));
+}
+seg('segS','s',v=>{S=+v;QP.page=PAGE;reset();});
+seg('segG','g',v=>{ if(modal){modal=null;} goPage(+v); });
+seg('segP','p',v=>{SLOTS=+v;worn=st().worn.slice(0,SLOTS);render();});
+seg('segM','m',v=>{RM=v==='1';render();});
+seg('segZ','z',v=>{document.body.classList.toggle('one',v==='one');fit();});
+document.getElementById('reset').onclick=()=>{QP.page=PAGE;reset();};
+function fit(){ const w=document.getElementById('fwrap'), sc=document.getElementById('fscale');
+  const k=document.body.classList.contains('one')?1:Math.min(1,w.clientWidth/1920);
+  sc.style.transform=`scale(${k})`; w.style.height=(1080*k+4)+'px'; }
+window.addEventListener('resize',fit);
+const _gp=goPage; // keep the segmented PAGE control in step with every page change
+goPage = p => { _gp(p); setTimeout(syncSegs, 0); };
+
+/* URL hooks: ?page=1|2&s=0..3&slots=2&take=<slot>:<id>&restock=out:in|pair:a+b&rsopen=1&pick=<slot>&pins=1&sel=0..2|-1&rm=1&solo=1 */
+const Q=new URLSearchParams(location.search), QP={};
+if(Q.get('s')) S=+Q.get('s'); if(Q.get('slots')) SLOTS=+Q.get('slots'); if(Q.get('rm')) RM=true;
+if(Q.get('page')) QP.page=+Q.get('page');
+if(Q.get('pins')) QP.page=2;                                                      // the pins sheet belongs to page 2
+if(Q.get('pick')||Q.get('rsopen')||Q.get('restock')) QP.page=1;    // the picker and restock sheet to page 1
+window.addEventListener('unhandledrejection', e => { bad('js: '+((e.reason&&e.reason.message)||e.reason)); selfCheck(); });
+Promise.all([document.fonts.load('400 11px NCPix'), document.fonts.load('700 21px NCAtk'), document.fonts.load('800 21px NCAtk')]).catch(()=>bad('fonts did not load')).then(()=>{
+  measureCap(); buildFrames(); reset();
+  if(Q.get('sel')) sel=+Q.get('sel');
+  if(Q.get('hov')) hovPack=+Q.get('hov');
+  if(Q.get('take')){ const [sl,id]=Q.get('take').split(':'); if(CARD[id]&&+sl>=0&&+sl<4) swaps[+sl]=id; else bad('take hook: unknown slot or id '+Q.get('take')); }
+  if(Q.get('restock')){ const r=Q.get('restock'); if(r.startsWith('pair:')) modal={pair:r.slice(5).split(/[+ ,]/).filter(Boolean)}; else { const [o,i]=r.split(':'); modal={out:o,in:i}; } if(!Q.get('rsopen')){ doRestock(); if(modal&&!modal.t){ bad('restock hook failed: '+r); modal=null; } } else modal.t='restock'; }
+  if(Q.get('rsopen')&&!modal) modal={t:'restock',out:null,in:null,pair:stock().dealt.slice()};
+  if(Q.get('pick')) modal={t:'pick',slot:+Q.get('pick')};
+  if(Q.get('pins')) modal={t:'pins'};
+  render();
+  if(Q.get('keys')){ Q.get('keys').split(',').forEach((k,i)=>setTimeout(()=>document.dispatchEvent(new KeyboardEvent('keydown',{key:k})),300+i*500)); }
+  if(Q.get('solo')){ soloSetup(); render(); }
+  else fit();
+}).catch(e=>{ bad('js: '+(e&&e.message||e)); if(Q.get('solo')) soloSetup(); selfCheck(); updateCap(); });
+function soloSetup(){ document.body.style.overflow='hidden'; const fw=document.getElementById('fwrap'); document.body.prepend(fw); fw.style.cssText='position:fixed;left:0;top:0;border:0;z-index:99;width:1920px;height:1080px'; document.querySelector('.toolbar').style.display='none'; document.querySelector('main').style.display='none'; document.getElementById('fscale').style.transform='none'; }
+</script>
+</html>

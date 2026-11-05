@@ -48,3 +48,4 @@ hint_hz = 2.5
 fold_s = 0.35
 ring_start_s = 0.2
 outro_s = 0.6
+page_slide_s = 0.3

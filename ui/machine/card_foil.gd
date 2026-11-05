@@ -1,6 +1,6 @@
 class_name CardFoil
 extends ColorRect
-## A prize card's rarity look (v0.97, the user's picks of 2026-11-04 on
+## A prize card's rarity look (v0.99, the user's picks of 2026-11-04 on
 ## docs/art/mockups/card_rarity.html; spec in card_rarity_B.html and card_rarity_C.html): the
 ## card itself changes per rarity, on V3's 72x122 art px card (PrizeTicket.SIZE), its name band,
 ## chips, pips and win sticker kept where V3 put them.

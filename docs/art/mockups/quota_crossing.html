@@ -1,0 +1,355 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Quota crossing: making SPEND MET land</title>
+<style>
+@font-face{font-family:'Pixelify';font-weight:400 700;src:url(../../../fonts/PixelifySans-Variable.ttf)}
+@font-face{font-family:'Atkinson';font-weight:200 800;src:url(../../../fonts/AtkinsonHyperlegibleNext-Variable.ttf)}
+:root{--ink:#2b2420;--paper:#fbf7ee;--mustard:#e2b33c;--mlight:#f1d27a;--mpale:#faecbc;--mdark:#b38425;--gold:#ffcf3f;--teal:#2a4d4b}
+*{box-sizing:border-box}
+body{margin:0;background:#172c2b;color:var(--paper);font:15px/1.45 system-ui,sans-serif}
+header,section.notes{max-width:1280px;margin:0 auto;padding:14px 18px}
+h1{font:700 26px Pixelify,monospace;margin:0 0 4px;color:var(--mlight)}
+header p{margin:0;color:#c3e0d4}
+#bar{max-width:1280px;margin:0 auto;padding:8px 18px;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}
+#bar label{display:flex;gap:6px;align-items:center;background:#2a4d4b;padding:5px 10px;border:2px solid var(--ink);cursor:pointer;font:600 14px Pixelify,monospace}
+#bar button{font:700 14px Pixelify,monospace;background:var(--mustard);color:var(--ink);border:2px solid var(--ink);padding:6px 12px;cursor:pointer;box-shadow:0 3px 0 var(--mdark)}
+#bar button.alt{background:#4f9a94;color:var(--paper);box-shadow:0 3px 0 #2a4d4b}
+#bar .t{font:600 14px Pixelify,monospace;color:#86c2b6;min-width:70px}
+#wrap{max-width:1280px;margin:0 auto;position:relative}
+#stage{position:relative;width:1280px;height:720px;transform-origin:0 0;overflow:hidden;background:#000}
+#cam{position:absolute;inset:0}
+video{position:absolute;inset:0;width:1280px;height:720px;display:block}
+canvas#fx{position:absolute;inset:0;pointer-events:none;image-rendering:pixelated}
+#flash{position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at 34% 30%,rgba(255,207,63,.55),rgba(255,207,63,0) 60%);opacity:0}
+#gate{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(23,44,43,.55);cursor:pointer;font:700 34px Pixelify,monospace;color:var(--mlight);text-shadow:0 3px 0 var(--ink)}
+section.notes h2{font:700 19px Pixelify,monospace;color:var(--mlight);margin:18px 0 6px}
+section.notes li{margin:3px 0}
+section.notes code{color:var(--mpale)}
+.k{display:inline-block;background:var(--mustard);color:var(--ink);font:700 12px Pixelify,monospace;padding:0 5px;border:2px solid var(--ink);margin-right:4px}
+</style>
+
+<header>
+  <h1>Quota crossing: making SPEND MET land</h1>
+  <p>A real recording of the current game (the #123 clean scene merged with <code>main</code>, shift 5, quota €80, ends at €147). The crossing happens at 8.4 s. The overlays are mock-ups, toggle each one to compare. Pick ideas, mix them, or say none.</p>
+</header>
+
+<div id="bar">
+  <button id="play">▶ Play</button>
+  <button id="jump" class="alt">Jump to the crossing</button>
+  <button id="slow" class="alt">Speed 1×</button>
+  <span class="t" id="clock">0.0 s</span>
+  <label><input type="checkbox" id="o_ribbon" checked> A · flag on the item</label>
+  <label><input type="checkbox" id="o_stop" checked> B · hit-stop + streak</label>
+  <label><input type="checkbox" id="o_ding" checked> C · ka-ching</label>
+  <label><input type="checkbox" id="o_bonus" checked> D · bonus lights</label>
+  <label><input type="checkbox" id="o_laps" checked> E · ×2 pop</label>
+  <button id="none" class="alt">Game as it is</button>
+  <button id="all" class="alt">All ideas</button>
+</div>
+
+<div id="wrap">
+  <div id="stage">
+    <div id="cam">
+      <video id="v" src="quota_crossing_src/checkout.mp4" preload="auto" playsinline></video>
+      <div id="flash"></div>
+      <canvas id="fx" width="1280" height="720"></canvas>
+    </div>
+    <div id="gate">▶ Click to play (with sound)</div>
+  </div>
+</div>
+
+<section class="notes">
+  <h2>What each idea does</h2>
+  <ul>
+    <li><span class="k">A</span><b>Flag on the item.</b> The item whose count passes the quota gets the gauge's own flag planted on it: a mustard pennant reading SPEND MET ✓. The player sees it where they're looking (the scanner), and it says <i>this</i> item did it. It stays on the item until it's bagged.</li>
+    <li><span class="k">B</span><b>Hit-stop + streak.</b> The game freezes for 0.13 s and the camera dips 3 px, with a warm flash. A gold spark flies from the item to the quota mark on the gauge, and the gauge pulses when it lands. Your eye travels to the top-left corner at the one moment it matters.</li>
+    <li><span class="k">C</span><b>Ka-ching.</b> A one-off register bell at the crossing, apart from the counting ladder. The real game would use a CC0 recording through <code>make_sfx.py</code>. This one is synthesised in the page.</li>
+    <li><span class="k">D</span><b>Bonus lights.</b> After the crossing, the belt's front rail lights up in chasing gold for the rest of the count. Everything past this point is extra, and the scene says so. In game this could also lift the count's pitch ladder one step.</li>
+    <li><span class="k">E</span><b>×2 pop (revised).</b> Nothing extra at the quota itself: the gauge behaves as it does now until the total reaches twice the quota (quota €40 → pops at €80). Then the bar flashes white, banks in gold, a big ×2 stamp slams onto the gauge with sparkles and a bell, and settles as the flag at the bar's end; the tag turns to "€N to ×3" and the next lap fills from there (×3, ×4 …, each popping the same way). <i>This clip ends at €147, short of ×2 (€160), so for E only the page pretends ×2 is €146 and pops it on the last item.</i></li>
+  </ul>
+  <h2>Kept as it is</h2>
+  <ul>
+    <li>Before the crossing: the red/orange liquid, the "€N to go" tag and the 80% glow already build tension.</li>
+    <li>The monitor's SPEND MET stamp and the LED.</li>
+  </ul>
+</section>
+
+<script>
+const T = 8.40;            // the frame where the total meets €80
+const END = 12.4;          // loop before the receipt tears
+const QUOTA = 80;
+// E: the clip never reaches ×2 (€160), so E pretends the lap is €73 and pops ×2 on the last item (€147).
+const LAP_DEMO = 73;
+// Totals after the crossing (read from the recording) for the laps gauge.
+const TOTALS = [[8.40, 84], [10.70, 105], [10.80, 126], [10.90, 147]];
+const ITEM = {x: 432, y: 318};       // the €48 Milk in the scanner bay at the crossing
+const GAUGE = {x: 276, y: 18, w: 96, h: 20};
+const QUOTA_MARK = {x: 370, y: 28};
+const TAG = {x: 470, y: 18, w: 87, h: 23};
+const RAIL = {x: 354, y: 446, w: 906, h: 8};
+const C = {ink:'#2b2420', paper:'#fbf7ee', mustard:'#e2b33c', mlight:'#f1d27a', mpale:'#faecbc', mdark:'#b38425',
+  gold:'#ffcf3f', gLight:'#a5d17e', good:'#6aaa4e', gDark:'#3d7a45', shade:'#23211e'};
+
+const v = document.getElementById('v');
+const fx = document.getElementById('fx');
+const g = fx.getContext('2d');
+const cam = document.getElementById('cam');
+const flash = document.getElementById('flash');
+const stage = document.getElementById('stage');
+const wrap = document.getElementById('wrap');
+const opt = id => document.getElementById(id).checked;
+
+function fit() {
+  const s = Math.min(1, wrap.clientWidth / 1280);
+  stage.style.transform = `scale(${s})`;
+  wrap.style.height = (720 * s) + 'px';
+}
+addEventListener('resize', fit); fit();
+
+let actx = null;
+function audio() { if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)(); return actx; }
+function kaching() {
+  const a = audio(), t0 = a.currentTime;
+  // The drawer's click.
+  const n = a.createBuffer(1, a.sampleRate * 0.05, a.sampleRate), d = n.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 3);
+  const ns = a.createBufferSource(); ns.buffer = n; const ng = a.createGain(); ng.gain.value = 0.35;
+  ns.connect(ng).connect(a.destination); ns.start(t0);
+  // Two bell strikes.
+  [[0.03, [1568, 3136, 4700]], [0.13, [2093, 4186, 6270]]].forEach(([dt, fs]) => {
+    fs.forEach((f, k) => {
+      const o = a.createOscillator(), og = a.createGain();
+      o.type = 'sine'; o.frequency.value = f;
+      const peak = [0.22, 0.08, 0.04][k];
+      og.gain.setValueAtTime(0, t0 + dt);
+      og.gain.linearRampToValueAtTime(peak, t0 + dt + 0.005);
+      og.gain.exponentialRampToValueAtTime(0.0001, t0 + dt + 0.9 - k * 0.2);
+      o.connect(og).connect(a.destination); o.start(t0 + dt); o.stop(t0 + dt + 1);
+    });
+  });
+}
+function chime() {
+  const a = audio(), t0 = a.currentTime;
+  [2637, 3136].forEach((f, k) => {
+    const o = a.createOscillator(), og = a.createGain(); o.type = 'triangle'; o.frequency.value = f;
+    og.gain.setValueAtTime(0, t0 + k * 0.06); og.gain.linearRampToValueAtTime(0.08, t0 + k * 0.06 + 0.005);
+    og.gain.exponentialRampToValueAtTime(0.0001, t0 + k * 0.06 + 0.4);
+    o.connect(og).connect(a.destination); o.start(t0 + k * 0.06); o.stop(t0 + k * 0.06 + 0.5);
+  });
+}
+
+// Wall-clock state for the crossing's effects (they keep running through the hit-stop).
+let crossed = false, crossWall = 0, stopping = false, lastLapTotal = 0, gaugePulse = 0, lapWall = 0, lapShown = 1;
+let rate = 1;
+function reset() { crossed = false; stopping = false; lastLapTotal = 0; gaugePulse = 0; lapWall = 0; lapShown = 1; }
+function totalAt(t) { let n = 0; for (const [tt, val] of TOTALS) if (t >= tt) n = val; return n; }
+
+function onCross() {
+  crossed = true; crossWall = performance.now();
+  if (opt('o_ding')) kaching();
+  if (opt('o_stop')) {
+    stopping = true; v.pause();
+    flash.animate([{opacity: .9}, {opacity: 0}], {duration: 380, easing: 'ease-out'});
+    cam.animate([{transform: 'translate(0,0)'}, {transform: 'translate(0,3px)'}, {transform: 'translate(-2px,1px)'},
+      {transform: 'translate(0,0)'}], {duration: 220, easing: 'steps(4)'});
+    setTimeout(() => { stopping = false; if (playing) v.play(); }, 130 / rate);
+  }
+}
+
+let playing = false;
+function loop() {
+  const now = performance.now();
+  const t = v.currentTime;
+  document.getElementById('clock').textContent = t.toFixed(1) + ' s';
+  if (playing && !v.paused && t >= END) { v.currentTime = 0; reset(); }
+  if (!crossed && t >= T - 0.001 && t < T + 0.5) onCross();
+  if (crossed && t < T - 0.2) reset();
+  draw(now, t);
+  requestAnimationFrame(loop);
+}
+
+// Pixel helpers: everything on the 2x art grid.
+function px(x, y, w, h, c) { g.fillStyle = c; g.fillRect(Math.round(x / 2) * 2, Math.round(y / 2) * 2, Math.round(w / 2) * 2, Math.round(h / 2) * 2); }
+function text(s, x, y, size, color, align = 'center', weight = 700) {
+  g.font = `${weight} ${size}px Pixelify, monospace`; g.textAlign = align; g.textBaseline = 'middle';
+  g.fillStyle = C.ink;
+  for (const [dx, dy] of [[-2, 0], [2, 0], [0, -2], [0, 2], [0, 3]]) g.fillText(s, x + dx, y + dy);
+  g.fillStyle = color; g.fillText(s, x, y);
+}
+function atk(s, x, y, size, color) {
+  g.font = `750 ${size}px Atkinson, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillStyle = color; g.fillText(s, x, y);
+}
+function ease(x) { return 1 - Math.pow(1 - Math.min(1, Math.max(0, x)), 3); }
+function back(x) { x = Math.min(1, Math.max(0, x)); const c = 2.2; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+
+function draw(now, t) {
+  g.clearRect(0, 0, 1280, 720);
+  const since = crossed ? (now - crossWall) / 1000 * rate : -1;   // wall seconds since the crossing
+  const after = t >= T;
+
+  // D: bonus lights on the belt's front rail.
+  if (opt('o_bonus') && after) {
+    const on = Math.min(1, since / 0.4);
+    px(RAIL.x, RAIL.y, RAIL.w, RAIL.h, `rgba(122,90,28,${0.9 * on})`);
+    const n = 38, step = RAIL.w / n, phase = (now / 90) % n;
+    for (let i = 0; i < n; i++) {
+      // Lights switch on from the scanner outward, then chase toward the register.
+      if (i / n > since / 0.5) continue;
+      const lit = ((i + phase) % 4) < 1.2;
+      px(RAIL.x + i * step + 6, RAIL.y + 2, 10, 4, lit ? C.gold : C.mdark);
+    }
+  }
+
+  // E: the laps gauge (covers the real one from the crossing on).
+  if (opt('o_laps') && after) drawLaps(now, t);
+
+  // B: the streak from the item to the quota mark.
+  if (opt('o_stop') && crossed && since >= 0.04 && since < 0.7) {
+    const k = ease((since - 0.04) / 0.26);
+    const p = qb(ITEM.x, ITEM.y - 10, 300, 120, QUOTA_MARK.x, QUOTA_MARK.y, k);
+    for (let i = 1; i <= 7; i++) {
+      const q = qb(ITEM.x, ITEM.y - 10, 300, 120, QUOTA_MARK.x, QUOTA_MARK.y, Math.max(0, k - i * 0.05));
+      const s = 8 - i;
+      px(q.x - s / 2, q.y - s / 2, s, s, i < 3 ? C.gold : C.mlight);
+    }
+    if (k < 1) { px(p.x - 6, p.y - 6, 12, 12, C.ink); px(p.x - 4, p.y - 4, 8, 8, C.gold); px(p.x - 2, p.y - 4, 4, 2, '#fff'); }
+    if (k >= 1 && gaugePulse === 0) gaugePulse = now;
+    if (k >= 1) burst(QUOTA_MARK.x, QUOTA_MARK.y, (since - 0.3) / 0.35);
+  }
+  if (gaugePulse && now - gaugePulse < 400) {
+    const a = 1 - (now - gaugePulse) / 400;
+    g.strokeStyle = `rgba(255,207,63,${a})`; g.lineWidth = 4;
+    const grow = (1 - a) * 10;
+    g.strokeRect(GAUGE.x - 6 - grow, GAUGE.y - 6 - grow, GAUGE.w + 12 + 2 * grow, GAUGE.h + 12 + 2 * grow);
+  }
+
+  // A: the flag planted on the item.
+  if (opt('o_ribbon') && crossed && since < 1.15) drawFlag(since);
+}
+
+function qb(x0, y0, cx, cy, x1, y1, k) {
+  const a = (1 - k) * (1 - k), b = 2 * (1 - k) * k, c = k * k;
+  return {x: a * x0 + b * cx + c * x1, y: a * y0 + b * cy + c * y1};
+}
+function burst(x, y, k) {
+  if (k < 0 || k > 1) return;
+  for (let i = 0; i < 10; i++) {
+    const ang = i / 10 * Math.PI * 2, r = 6 + ease(k) * 26, s = 6 * (1 - k) + 2;
+    px(x + Math.cos(ang) * r - s / 2, y + Math.sin(ang) * r - s / 2, s, s, i % 2 ? C.gold : '#fff');
+  }
+}
+
+function drawFlag(since) {
+  // Planted fast, flaps, then folds away as the item goes to the bag.
+  const grow = back(since / 0.22);
+  const out = since > 0.95 ? ease((since - 0.95) / 0.2) : 0;
+  const poleH = 64 * grow * (1 - out);
+  if (poleH < 2) return;
+  const bx = ITEM.x - 6, by = ITEM.y + 6;
+  px(bx - 2, by - poleH - 2, 6, poleH + 2, C.ink);
+  px(bx, by - poleH, 2, poleH, C.paper);
+  const w = 104 * grow * (1 - out), h = 30;
+  if (w < 8) return;
+  const top = by - poleH;
+  const wave = Math.sin(since * 22) * 2;
+  // The pennant: ink border, mustard face, a light band on top, a notched tail.
+  g.save();
+  g.translate(bx + 2, top);
+  g.fillStyle = C.ink;
+  g.beginPath(); g.moveTo(0, -2); g.lineTo(w + 4, -2 + wave); g.lineTo(w - 8, h / 2 + wave); g.lineTo(w + 4, h + 2 + wave); g.lineTo(0, h + 2); g.closePath(); g.fill();
+  g.fillStyle = C.mustard;
+  g.beginPath(); g.moveTo(0, 0); g.lineTo(w, wave); g.lineTo(w - 12, h / 2 + wave); g.lineTo(w, h + wave); g.lineTo(0, h); g.closePath(); g.fill();
+  g.fillStyle = C.mlight; g.fillRect(0, 0, w - 4, 4);
+  g.restore();
+  if (w > 80) {
+    text('SPEND MET', bx + 46, top + h / 2 + 1 + wave / 2, 15, C.paper);
+    // The ✓ badge at the pole's top.
+    px(bx - 10, top - 14, 18, 16, C.ink); px(bx - 8, top - 12, 14, 12, C.good);
+    px(bx - 5, top - 7, 2, 2, '#fff'); px(bx - 3, top - 5, 2, 2, '#fff'); px(bx - 1, top - 7, 2, 2, '#fff'); px(bx + 1, top - 9, 2, 2, '#fff');
+  }
+  // Sparkles round the planting.
+  if (since < 0.35) burst(bx, by - 4, since / 0.35);
+}
+
+function drawLaps(now, t) {
+  const total = totalAt(t);
+  const lap = Math.floor(total / LAP_DEMO), part = (total - lap * LAP_DEMO) / LAP_DEMO;
+  // Only from ×2 on: below it the real gauge stays as it is.
+  if (lap < 2) { lastLapTotal = total; return; }
+  if (lap > lapShown) {
+    lapShown = lap; lapWall = now;
+    if (opt('o_ding')) kaching();
+  } else if (total > lastLapTotal && opt('o_ding')) chime();
+  lastLapTotal = total;
+  const since = (now - lapWall) / 1000 * rate;   // wall seconds since this lap popped
+  const {x, y, w, h} = GAUGE;
+  // Cover the real gauge (and its sliding flag) with the chip, then draw the bar.
+  px(x - 4, 0, w + 16, 10, '#223a34');
+  px(x - 4, 10, w + 16, 2, '#1f2c2c');
+  px(x + w, 12, 12, 6, '#284c4c');
+  px(x - 4, 12, w + 8, 32, '#284c4c');
+  px(x, y, w, h, C.ink);
+  const ix = x + 2, iy = y + 2, iw = w - 4, ih = h - 4;
+  // The pop: the bar flashes white, banks in gold, then the next lap pours in over it.
+  const bank = ease(since / 0.35);
+  px(ix, iy, iw, ih, bank < 1 ? '#fff' : C.mdark);
+  if (bank >= 1) px(ix, iy, iw, 4, C.mustard);
+  const shown = ease((since - 0.5) / 0.5) * part;
+  const fw = Math.round(iw * shown / 2) * 2;
+  if (fw > 0) {
+    px(ix, iy, fw, ih, C.gold);
+    px(ix, iy, fw, 4, C.mpale);
+    const wob = Math.round(Math.sin(now / 80) * 1.5) * 2;
+    px(ix + fw - 2, iy + 2 + wob, 4, ih - 6, '#fff');
+  }
+  // The ×N stamp slams onto the gauge, then shrinks into the flag.
+  if (since < 0.75) {
+    const k = since / 0.75, sc = since < 0.15 ? 2.6 - 1.4 * ease(since / 0.15) : 1.2 - 0.2 * ease((since - 0.45) / 0.3);
+    const fade = since > 0.55 ? 1 - ease((since - 0.55) / 0.2) : 1;
+    g.globalAlpha = fade;
+    const cx = x + w / 2, cy = y + h + 24, bw = 70 * sc, bh = 40 * sc;
+    px(cx - bw / 2 - 3, cy - bh / 2 - 3, bw + 6, bh + 6, C.ink);
+    px(cx - bw / 2, cy - bh / 2, bw, bh, C.gold);
+    px(cx - bw / 2, cy - bh / 2, bw, 4, '#fff');
+    text('×' + lap, cx, cy + 1, Math.round(26 * sc), C.paper);
+    g.globalAlpha = 1;
+    burst(cx, cy, k * 1.4);
+    burst(x + w - 4, y + h / 2, (since - 0.1) / 0.4);
+  }
+  // The flag at the bar's end now names the next lap: ×2 (then ×3 ...).
+  const pulse = since < 0.9 ? back((since - 0.5) / 0.3) : 1;
+  const poleTop = 2, poleX = x + w - 4;
+  if (pulse > 0) {
+    px(poleX - 1, poleTop - 1, 4, y + h - poleTop + 1, C.ink);
+    px(poleX, poleTop, 2, y + h - poleTop, C.paper);
+    const fwid = 26 * pulse, fh = 14;
+    px(poleX - fwid - 2, poleTop - 1, fwid + 2, fh + 2, C.ink);
+    px(poleX - fwid, poleTop + 1, fwid, fh - 2, C.mustard);
+    px(poleX - fwid, poleTop + 1, fwid, 2, C.mlight);
+    if (pulse > 0.8) atk('×' + (lap + 1), poleX - fwid / 2 - 1, poleTop + fh / 2, 11, C.ink);
+  }
+  // The tag: how far to the next lap.
+  px(TAG.x - 2, TAG.y - 2, TAG.w + 4, TAG.h + 4, '#284c4c');
+  px(TAG.x, TAG.y, TAG.w, TAG.h, C.ink); px(TAG.x + 2, TAG.y + 2, TAG.w - 4, TAG.h - 4, C.mustard);
+  const left = (lap + 1) * LAP_DEMO - total;
+  atk(`€${left} to ×${lap + 1}`, TAG.x + TAG.w / 2, TAG.y + TAG.h / 2 + 1, 13, C.ink);
+}
+
+const gate = document.getElementById('gate');
+function start() { gate.style.display = 'none'; audio(); v.muted = false; v.playbackRate = rate; v.play(); playing = true; document.getElementById('play').textContent = '❚❚ Pause'; }
+gate.onclick = start;
+document.getElementById('play').onclick = () => {
+  if (gate.style.display !== 'none') return start();
+  if (v.paused && !stopping) { v.play(); playing = true; document.getElementById('play').textContent = '❚❚ Pause'; }
+  else { v.pause(); playing = false; document.getElementById('play').textContent = '▶ Play'; }
+};
+document.getElementById('jump').onclick = () => { reset(); v.currentTime = T - 1.6; if (gate.style.display !== 'none') start(); else if (!playing) document.getElementById('play').click(); };
+document.getElementById('slow').onclick = e => { rate = rate === 1 ? 0.5 : rate === 0.5 ? 0.25 : 1; v.playbackRate = rate; e.target.textContent = `Speed ${rate}×`; };
+const ids = ['o_ribbon', 'o_stop', 'o_ding', 'o_bonus', 'o_laps'];
+document.getElementById('none').onclick = () => ids.forEach(i => document.getElementById(i).checked = false);
+document.getElementById('all').onclick = () => ids.forEach(i => document.getElementById(i).checked = true);
+v.addEventListener('seeked', () => { if (v.currentTime < T) reset(); });
+document.fonts.load('700 15px Pixelify'); document.fonts.load('750 13px Atkinson');
+requestAnimationFrame(loop);
+</script>

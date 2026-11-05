@@ -70,12 +70,10 @@ const ITEM_NAME_SIZE := 22
 const NAME_FALLBACK_WEIGHT := 700
 ## A family glyph's size on screen: its 9x9 art at 2x (a ticket's adds a one-texel paper rim).
 const FAMILY_GLYPH_SIZE := 18
-## A ticket's short text (the sticker summary): the body font at TICKET_TEXT_WEIGHT,
-## TICKET_TEXT_SIZE px on a TICKET_TEXT_LINE px pitch, at most TICKET_TEXT_LINES lines.
+## A ticket's short text (the sticker summary): the body font at TICKET_TEXT_WEIGHT; its sizes
+## are PriceSticker.TEXT_FITS (14, 13, 12 px), TICKET_TEXT_SIZE the keyword chips' middle one.
 const TICKET_TEXT_WEIGHT := 800
 const TICKET_TEXT_SIZE := 13
-const TICKET_TEXT_LINE := 15
-const TICKET_TEXT_LINES := 2
 ## The stacked price: the new price's digits in the burst (BURST_PRICE_SIZE, or
 ## BURST_PRICE_SIZE_3 for three characters such as "10€"), the struck old price under it.
 const BURST_PRICE_SIZE := 22
@@ -273,11 +271,6 @@ static func rim_material(bands: PackedColorArray) -> ShaderMaterial:
 		material.set_shader_parameter(&"bands", bands)
 		_rim_materials[key] = material
 	return _rim_materials[key]
-
-
-## A changed price's die-cut (#105): a paper texel, then an ink one, round the tag's art.
-static func cut_material() -> ShaderMaterial:
-	return rim_material(PackedColorArray([Palette.PAPER, INK]))
 
 
 ## A family glyph's paper rim on a ticket (#105): one paper texel round the glyph's art.

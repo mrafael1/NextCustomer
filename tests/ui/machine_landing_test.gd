@@ -144,7 +144,7 @@ func test_the_receipt_travels_into_the_slot() -> void:
 	assert_float(rect.size.x).is_equal_approx(mouth.size.x * view.tuning.feed_fit, PX)
 	view.show_at(plan.fly_end / 2.0)
 	var mid: Rect2 = _stage_rect(screen, feed.paper)
-	# It heads for the slot's live mouth, which mid-glide is still on its way in (v0.96: the V3
+	# It heads for the slot's live mouth, which mid-glide is still on its way in (v0.98: the V3
 	# counter fills the view, so the slot starts far right of where it ends; as store_camera_test):
 	# between its rest and the furthest of its end and the plate's live right edge, give or take
 	# the tear's tilt (half its height's sine).

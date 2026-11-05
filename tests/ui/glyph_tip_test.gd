@@ -126,13 +126,18 @@ func test_mounted_tips_show_for_the_glyph_under_the_pointer() -> void:
 	tips.blocked = func() -> bool: return blocked[0]
 	holder.add_child(tips)
 	await _frames(2)
-	var glyphs: Array[FamilyGlyph] = scissors.glyphs() + scissors.summary().glyphs()
+	# Its icon label's glyph, its written family (tickets v5) and its price window.
+	var glyphs: Array[TipTarget] = [scissors.window()]
+	for glyph: FamilyGlyph in scissors.glyphs() + scissors.summary().glyphs():
+		glyphs.append(glyph)
+	for word: FamilyWord in scissors.summary().words():
+		glyphs.append(word)
 	assert_int(glyphs.size()).is_greater_equal(2)
 	var ticket: Rect2 = scissors.get_global_rect()
-	for glyph: FamilyGlyph in glyphs:
+	for glyph: TipTarget in glyphs:
 		var shown: GlyphTip = await _tip_for(tips, glyph)
 		var box: Rect2 = shown.get_global_rect()
-		var message: String = "%s: %s" % [glyph.family, box]
+		var message: String = "%s: %s" % [glyph.name, box]
 		assert_str(shown.tip_text()).is_equal(glyph.tip_text)
 		assert_bool(shown.below).override_failure_message(message).is_true()
 		assert_float(box.position.y).override_failure_message(message).is_equal(
@@ -239,7 +244,9 @@ func test_a_belt_glyph_tips_and_keeps_its_item() -> void:
 	var tip: GlyphTip = tips.tip()
 	var box: Rect2 = tip.get_global_rect()
 	assert_bool(tip.below).is_true()
-	assert_str(tip.tip_text()).is_equal(glyph.tip_text)
+	assert_str(tip.tip_text()).is_equal(glyph.full_tip())
+	# On the belt the membership tip names the family's other items there (tickets v5).
+	assert_str(glyph.tip_more).is_equal("No other Breakfast item on the belt")
 	assert_float(box.position.y).is_equal(sticker.get_global_rect().end.y + GlyphTip.BELOW_GAP)
 	assert_bool(screen.get_global_rect().encloses(box)).override_failure_message(str(box)).is_true()
 	# A press hides it (the item takes the press).

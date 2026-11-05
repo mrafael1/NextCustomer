@@ -1,7 +1,7 @@
 class_name MachineHead
 extends Control
-## The machine's marquee (#77; redrawn front-on in v0.50; the steel-and-brass relook in v0.86,
-## mock-up docs/art/mockups/machine_relook.html V2; v0.96 one marquee over both of V3's modules,
+## The machine's marquee (#77; redrawn front-on in v0.50; the steel-and-brass relook in v0.98,
+## mock-up docs/art/mockups/machine_relook.html V2; v0.98 one marquee over both of V3's modules,
 ## machine_relook_v2.html): an engraved brass plate over the cabinet,
 ## like the gauge's € plate (an ink outline, a mustard light top row, brass dark at its foot and
 ## right, a gold rivet in each corner), with "RECEIPT REWARDS" in hard pixel lettering at 4x,

@@ -13,7 +13,7 @@ extends Control
 ## mirrors the register's reading (LedDisplay, follow), as the monitor's number does: the running
 ## total, so the gauge never shows the final total early. Blank alone: an empty tube.
 ##
-## The liquid is coloured by status (red, orange, green: SHORT_RAMP, NEAR_RAMP, MET_RAMP), lit
+## The liquid is coloured by status (teal, orange, green: SHORT_RAMP, NEAR_RAMP, MET_RAMP), lit
 ## on its left columns and dark on its right ones (light from the top left), with a paper meniscus
 ## on its surface. The first lap is full exactly at the quota. Each gain sloshes the surface and
 ## sprays droplets; bubbles rise through the liquid; meeting the quota and each new lap flash it.
@@ -38,7 +38,7 @@ extends Control
 ## drop would give (paler for a gain, a dark stretch for a loss; show_hypothetical) until the drag
 ## ends; the monitor prints the would-be total. A drop that leaves the lap previews in its own
 ## lap's terms (_preview_plan): a loss darkens the tube down to the would-be level, under it the
-## would-be lap's colour (red or orange back under the quota); a gain fills the lap to the top
+## would-be lap's colour (teal or orange back under the quota); a gain fills the lap to the top
 ## and pours the would-be lap's colour from the foot. A Double checkout's rows (#122) show as
 ## RowPips on the housing's plate (RegisterTower places them). Display only: the amounts are the
 ## screen's preview and the LED's.
@@ -76,12 +76,13 @@ const FLASH_SECONDS := 0.5
 const FLASH_ALPHA := 0.8
 const RANDOM_SEED := 73
 ## The well, and the first lap's columns (lit, mid, dark) by status, the user's idea from their
-## play test of 2026-10-19: red (tomato) while short, orange from NEAR_SHARE of the quota, money
-## green once it is met. The colour eases to a new status over about 1 / STATUS_EASE_RATE seconds
+## play test of 2026-10-19: teal while short (the PR #138 review: teal in place of red, so a
+## shift under way never reads as a fault), orange from NEAR_SHARE of the quota, money green once
+## it is met. The colour eases to a new status over about 1 / STATUS_EASE_RATE seconds
 ## (at once under reduced motion). The receipt's foot says the same, so the status never shows by
 ## colour alone.
 const WELL_COLOR := Palette.CHARCOAL
-const SHORT_RAMP: Array[Color] = [Palette.TOMATO_LIGHT, Palette.TOMATO, Palette.TOMATO_DARK]
+const SHORT_RAMP: Array[Color] = [Palette.TEAL_LIGHT, Palette.TEAL, Palette.TEAL_SHADE]
 const NEAR_RAMP: Array[Color] = [Palette.MUSTARD, Palette.BRASS, Palette.BRASS_DARK]
 const MET_RAMP: Array[Color] = [Palette.GREEN_LIGHT, Palette.GOOD, Palette.GREEN_DARK]
 const STATUS_EASE_RATE := 6.0

@@ -89,9 +89,11 @@ const BANNER_BORDER := 3
 const BANNER_TEXT_WIDTH := (
 	CARD_WIDTH - 2.0 * (CARD_PADDING + CARD_BORDER) - 2.0 * (BANNER_PADDING + BANNER_BORDER)
 )
-## The weeks' banner colours (the mock-up's teal shade, mustard dark, ink light), by week; later
-## weeks reuse the last.
-const WEEK_COLOURS: Array[Color] = [Palette.TEAL_SHADE, Palette.MUSTARD_DARK, Palette.INK_LIGHT]
+## The weeks' banner colours (the mock-up's teal shade, mustard dark, ink light, then orange dark
+## for the fourth week, v0.96), by week; later weeks reuse the last.
+const WEEK_COLOURS: Array[Color] = [
+	Palette.TEAL_SHADE, Palette.MUSTARD_DARK, Palette.INK_LIGHT, Palette.ORANGE_DARK
+]
 
 const WARNING := preload("res://art/icons/warning.png")
 const BOON := preload("res://art/icons/boon.png")

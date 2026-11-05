@@ -147,8 +147,8 @@ func test_stickers_never_cover_a_sticker_a_sprite_or_a_mark() -> void:
 				var ticket: PriceSticker = view.sticker()
 				stickers.append(ticket.get_global_rect())
 				var to_global: Transform2D = ticket.get_global_transform()
-				if ticket.is_struck():
-					texts.append(to_global * ticket.struck_rect())
+				var window: PriceWindow = ticket.window()
+				texts.append(to_global * Rect2(window.position, window.size))
 				if ticket.summary_text_rect().has_area():
 					texts.append(to_global * ticket.summary_text_rect())
 			others.append(view.sprite().get_global_rect())
@@ -234,7 +234,9 @@ func test_every_printed_character_has_its_glyph() -> void:
 	if not printed.has(chip):
 		chip = effect
 	var caption: String = RowStrip.CLOSED_CAPTION_TEXT
-	for required: String in [RowStrip.CLOSED_TEXT, "COUPON", caption, chip, "5", "6", "Multipack"]:
+	# The scanned multipack's bay plate reads SCAN COMPLETE (PR #138 monitor; COUPON before).
+	var plate: String = MonitorText.SCAN_COMPLETE
+	for required: String in [RowStrip.CLOSED_TEXT, plate, caption, chip, "5", "6", "Multipack"]:
 		assert_bool(printed.has(required)).override_failure_message(required).is_true()
 
 

@@ -22,6 +22,7 @@ base = 2
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_ham_ends")])
 rule_text = "+3 if right after a Dairy item"
 sticker_text = "+{bonus} after {match_value}"
+monitor_text = "Gets +{bonus} when placed right after a {match_value} item."
 art_ref = "res://art/items_v2/ham_ends.png"
 mini_art_ref = "res://art/minis/ham_ends.png"
 mini_golden_art_ref = "res://art/minis/ham_ends_golden.png"

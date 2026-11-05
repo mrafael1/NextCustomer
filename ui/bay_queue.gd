@@ -8,9 +8,10 @@ extends Control
 ## the texts (pip_layout): PIP px in one row, else SMALL_PIP px in one row, else in two. With no
 ## count (start(0)) it reads "SCANNER" with no pips. In planning (show_slots, the monitor bay
 ## follow-up, mock-up monitor_bay_v1.html) it reads NEXT_TEXT or SCAN_TEXT, with one pip per belt
-## slot: gold for slot 1 holding an item, teal light for the other filled slots, teal shade for the
-## empty ones. The text is the header's bold Atkinson (ScannerBay.header_font). Display only: the
-## count and the order are the count-up's, the slots the belt's.
+## slot: gold for the shown item's slot (show_slots' `at`: by default the last placed), teal light
+## for the other filled slots, teal shade for the empty ones. The text is the header's bold
+## Atkinson (ScannerBay.header_font). Display only: the count and the order are the count-up's,
+## the slots the belt's.
 
 ## The header's rect (bay coordinates), the text's left and lift, the pips' right edge and their
 ## gap to the widest text.
@@ -39,7 +40,7 @@ const BAGGED_COLOR := Palette.GOLD
 const IN_COLOR := Palette.TOMATO_LIGHT
 const IN_MET_COLOR := Palette.GREEN_LIGHT
 const TO_COME_COLOR := Palette.TEAL_SHADE
-## Planning's pips: slot 1 filled, another slot filled, an empty slot.
+## Planning's pips: the shown item's slot, another slot filled, an empty slot.
 const FIRST_SLOT_COLOR := Palette.GOLD
 const FILLED_SLOT_COLOR := Palette.TEAL_LIGHT
 const EMPTY_SLOT_COLOR := Palette.TEAL_SHADE
@@ -54,6 +55,8 @@ var _rects: Array[Rect2] = []
 ## Planning's belt (show_slots): the filled slots (the first ones: the belt is compacted), or -1
 ## in the count.
 var _filled: int = -1
+## Planning's slot of the item the monitor shows (its pip gold), -1 for none.
+var _at: int = 0
 
 
 func _init() -> void:
@@ -127,10 +130,12 @@ func restart() -> void:
 
 
 ## Planning (see the class comment): `header` (NEXT_TEXT or SCAN_TEXT) over a pip per belt slot
-## (`slots`), the first `filled` of them holding items.
-func show_slots(slots: int, filled: int, header: String) -> void:
+## (`slots`), the first `filled` of them holding items, slot `at`'s the shown item's (gold; -1 for
+## none).
+func show_slots(slots: int, filled: int, header: String, at: int = 0) -> void:
 	_items = maxi(0, slots)
 	_filled = clampi(filled, 0, _items)
+	_at = at
 	_last_in = -1
 	_bagged.clear()
 	_bagged.resize(_items)
@@ -162,7 +167,7 @@ func pip_colours() -> Array[Color]:
 			if index >= _filled:
 				colours.append(EMPTY_SLOT_COLOR)
 			else:
-				colours.append(FIRST_SLOT_COLOR if index == 0 else FILLED_SLOT_COLOR)
+				colours.append(FIRST_SLOT_COLOR if index == _at else FILLED_SLOT_COLOR)
 		elif _bagged[index]:
 			colours.append(BAGGED_COLOR)
 		elif index <= _last_in:

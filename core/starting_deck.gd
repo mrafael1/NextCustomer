@@ -11,12 +11,12 @@ extends RefCounted
 ## The drawable coupons are the stock's coupons (its coupon pool, RunStock), in stock order. The
 ## drawable products are the stock's products that have an item-tier chain (a chain's plain card
 ## in the balance's MachineDefinition.item_upgrades), so UPGRADES can grow every dealt card; a
-## capsule product only when the recipe's random_capsules is on (v0.52, off in the game's). A
-## card never goes past the recipe's copy_max, its core copies included. Each draw picks one of
-## the cards still below copy_max, equally likely (one randi_range per draw); a draw ends short
-## when none is left. The dealt cards follow the core cards: the coupons, then the products, each
-## in stock order.
-
+## capsule product only when the recipe's random_capsules is on (v0.52; on in the pack
+## starter's, off in the others). A card never goes past the recipe's copy_max, its core copies
+## included. Each draw picks one of the cards still below copy_max, equally likely (one
+## randi_range per draw); a draw ends short when none is left. The dealt cards follow the core
+## cards: the coupons, then the products, each in stock order.
+##
 ## A recipe with starter packs (#107, v0.63) is dealt in two steps instead: deal_offer draws the
 ## packs offered and today's shared products (with the fair-deal check on each pack's cart), then
 ## the player's pick makes the deck (with_pack). The shared products follow the copy rule with
@@ -131,7 +131,7 @@ static func fair_passes(
 static func _deal_once(
 	recipe: DeckDefinition, stock: RunStock, balance: BalanceDefinition, rng: RandomNumberGenerator
 ) -> DeckDefinition:
-	var chains: Array[ItemUpgradeDefinition] = _chains(recipe, balance)
+	var chains: Array[ItemUpgradeDefinition] = chains_for(recipe, balance)
 	var copies: Dictionary[CardDefinition, int] = {}
 	for core: CardDefinition in recipe.core_cards:
 		copies[core] = int(copies.get(core, 0)) + 1
@@ -229,13 +229,14 @@ static func could_deal(
 ## Deals a starter pack offer for `recipe` (#107, v0.63) on `rng` (the run's starting-deck
 ## stream): `first_pick` (a profile that has never won) puts the recipe's first_pick_pack in the
 ## offer, in its middle place. The other packs are drawn one randi_range each from the recipe's
-## packs, then the shared products as a recipe deals its products (copies_for_offer). The
-## fair-deal check (the recipe's fair_deal_* fields) runs on each pack's cart (core + pack +
-## shared): a pack whose cart fails is swapped for the first unoffered pack (recipe order) whose
-## cart passes with the same shared products and fits the copy rule; the first pick is never
-## swapped. If a pack still fails, the shared products are dealt again (up to fair_deal_redeals
-## times, from the packs first drawn) and the deal with the most passing carts is kept. The same
-## recipe, stock, flag and stream state give the same offer.
+## packs (draw_packs), then the shared products as a recipe deals its products (copies_for_offer).
+## The fair-deal check (the recipe's fair_deal_* fields) runs on each pack's cart (core + pack +
+## shared, fit_packs): a pack whose cart fails is swapped for the first unoffered pack (recipe
+## order) whose cart passes with the same shared products and fits the copy rule; the first pick
+## is never swapped. If a pack still fails, the shared products are dealt again (up to
+## fair_deal_redeals times, from the packs first drawn) and the deal with the most passing carts
+## is kept. The same recipe, stock, flag and stream state give the same offer. The opening-time
+## setup (StartSetupRules.lock_in) deals its baskets with the same steps instead.
 static func deal_offer(
 	recipe: DeckDefinition,
 	stock: RunStock,
@@ -245,66 +246,179 @@ static func deal_offer(
 	quota: int = -1
 ) -> StartOffer:
 	var offer: StartOffer = StartOffer.new()
-	var forced: StarterPackDefinition = null
-	if first_pick and recipe.starter_packs.has(recipe.first_pick_pack):
-		forced = recipe.first_pick_pack
-	var drawn: Array[StarterPackDefinition] = []
-	var left: Array[StarterPackDefinition] = recipe.starter_packs.duplicate()
-	left.erase(forced)
-	var count: int = mini(recipe.packs_offered, recipe.starter_packs.size())
-	while drawn.size() < count - (1 if forced != null else 0) and not left.is_empty():
-		var pick: StarterPackDefinition = left[rng.randi_range(0, left.size() - 1)]
-		drawn.append(pick)
-		left.erase(pick)
-	if forced != null:
-		drawn.insert(mini(drawn.size(), floori(count / 2.0)), forced)
-	offer.first_pick = forced
-	var products: Array[CardDefinition] = drawable(stock, _chains(recipe, balance))
-	var upgrades: Array[UpgradeDefinition] = []
-	if recipe.starting_upgrade != null:
-		upgrades.append(recipe.starting_upgrade)
-	var limits: ShiftLimits = ShiftLimits.for_shift(balance, upgrades, 0)
-	var target: int = quota if quota >= 0 else limits.quota
-	var climber: RowClimb = RowClimb.new(upgrades)
+	var draw: PackDraw = draw_packs(recipe, recipe.starter_packs, rng, first_pick)
+	offer.first_pick = draw.forced
+	var products: Array[CardDefinition] = drawable(stock, chains_for(recipe, balance))
+	var check: FairCheck = fair_check(recipe, balance, quota)
 	var best_passing: int = -1
 	for deal_index: int in range(maxi(recipe.fair_deal_redeals, 0) + 1):
-		var copies: Dictionary[CardDefinition, int] = copies_for_offer(recipe, drawn)
+		var copies: Dictionary[CardDefinition, int] = copies_for_offer(recipe, draw.packs)
 		var shared: Array[CardDefinition] = _draw(
 			products, recipe.random_count, recipe.copy_max, copies, rng
 		)
-		var packs: Array[StarterPackDefinition] = drawn.duplicate()
-		var swaps: int = 0
-		var passing: int = 0
-		if recipe.fair_deal_hands > 0:
-			for index: int in range(packs.size()):
-				if _cart_passes(
-					recipe, packs[index], shared, balance, limits, target, climber, rng
-				):
-					passing += 1
-					continue
-				if packs[index] == forced:
-					continue
-				for candidate: StarterPackDefinition in recipe.starter_packs:
-					if packs.has(candidate) or not fits_copies(recipe, candidate.cards, shared):
-						continue
-					if _cart_passes(
-						recipe, candidate, shared, balance, limits, target, climber, rng
-					):
-						packs[index] = candidate
-						swaps += 1
-						passing += 1
-						break
-		else:
-			passing = packs.size()
-		if passing > best_passing:
-			best_passing = passing
-			offer.packs = packs
+		var fit: PackFit = fit_packs(
+			recipe, draw.packs, draw.forced, shared, recipe.starter_packs, check, rng
+		)
+		if fit.passing > best_passing:
+			best_passing = fit.passing
+			offer.packs = fit.packs
 			offer.shared = shared
-			offer.swaps = swaps
+			offer.swaps = fit.swaps
 		offer.deals = deal_index + 1
-		if passing >= packs.size():
+		if fit.passing >= fit.packs.size():
 			break
 	return offer
+
+
+## The packs an offer draws (draw_packs): in offer order, and the forced first pick (or null).
+class PackDraw:
+	extends RefCounted
+	var packs: Array[StarterPackDefinition] = []
+	var forced: StarterPackDefinition
+
+
+## Draws an offer's packs from `pool` on `rng`: with `first_pick` and the recipe's first_pick_pack
+## in `pool`, that pack in the middle place; the others drawn one randi_range each from `pool`
+## (in its order), up to the recipe's packs_offered.
+static func draw_packs(
+	recipe: DeckDefinition,
+	pool: Array[StarterPackDefinition],
+	rng: RandomNumberGenerator,
+	first_pick: bool
+) -> PackDraw:
+	var draw: PackDraw = PackDraw.new()
+	if first_pick and pool.has(recipe.first_pick_pack):
+		draw.forced = recipe.first_pick_pack
+	var left: Array[StarterPackDefinition] = pool.duplicate()
+	left.erase(draw.forced)
+	var count: int = mini(recipe.packs_offered, pool.size())
+	while draw.packs.size() < count - (1 if draw.forced != null else 0) and not left.is_empty():
+		var pick: StarterPackDefinition = left[rng.randi_range(0, left.size() - 1)]
+		draw.packs.append(pick)
+		left.erase(pick)
+	if draw.forced != null:
+		draw.packs.insert(mini(draw.packs.size(), floori(count / 2.0)), draw.forced)
+	return draw
+
+
+## The fair-deal check's settings for a recipe (fair_check).
+class FairCheck:
+	extends RefCounted
+	var hand_size: int = 0
+	var limits: ShiftLimits
+	var target: int = 0
+	var climber: RowClimb
+
+
+## The fair-deal check's settings for `recipe`: the balance's hand size, shift 1's limits with
+## its starting upgrade, the quota (`quota`, -1 for shift 1's) and the sensible climber.
+static func fair_check(
+	recipe: DeckDefinition, balance: BalanceDefinition, quota: int = -1
+) -> FairCheck:
+	var check: FairCheck = FairCheck.new()
+	var upgrades: Array[UpgradeDefinition] = []
+	if recipe.starting_upgrade != null:
+		upgrades.append(recipe.starting_upgrade)
+	check.hand_size = balance.hand_size
+	check.limits = ShiftLimits.for_shift(balance, upgrades, 0)
+	check.target = quota if quota >= 0 else check.limits.quota
+	check.climber = RowClimb.new(upgrades)
+	return check
+
+
+## How fit_packs left an offer: its packs, the swaps made and the packs whose cart passes.
+class PackFit:
+	extends RefCounted
+	var packs: Array[StarterPackDefinition] = []
+	var swaps: int = 0
+	var passing: int = 0
+
+
+## The fair-deal check on each of `packs`' carts with `shared` (hands sampled on `rng`): a failing
+## pack other than `forced` is swapped for the first of `candidates` not in the offer whose cart
+## passes and fits the copy rule. Without a check (fair_deal_hands 0) every pack passes.
+static func fit_packs(
+	recipe: DeckDefinition,
+	packs: Array[StarterPackDefinition],
+	forced: StarterPackDefinition,
+	shared: Array[CardDefinition],
+	candidates: Array[StarterPackDefinition],
+	check: FairCheck,
+	rng: RandomNumberGenerator
+) -> PackFit:
+	var fit: PackFit = PackFit.new()
+	fit.packs = packs.duplicate()
+	if recipe.fair_deal_hands <= 0:
+		fit.passing = fit.packs.size()
+		return fit
+	for index: int in range(fit.packs.size()):
+		if cart_passes(recipe, fit.packs[index], shared, check, rng):
+			fit.passing += 1
+			continue
+		if fit.packs[index] == forced:
+			continue
+		for candidate: StarterPackDefinition in candidates:
+			if fit.packs.has(candidate) or not fits_copies(recipe, candidate.cards, shared):
+				continue
+			if cart_passes(recipe, candidate, shared, check, rng):
+				fit.packs[index] = candidate
+				fit.swaps += 1
+				fit.passing += 1
+				break
+	return fit
+
+
+## How many of `packs`' carts with `shared` pass the fair-deal check (all without a check).
+static func passing_carts(
+	recipe: DeckDefinition,
+	packs: Array[StarterPackDefinition],
+	shared: Array[CardDefinition],
+	check: FairCheck,
+	rng: RandomNumberGenerator
+) -> int:
+	if recipe.fair_deal_hands <= 0:
+		return packs.size()
+	var passing: int = 0
+	for pack: StarterPackDefinition in packs:
+		if cart_passes(recipe, pack, shared, check, rng):
+			passing += 1
+	return passing
+
+
+## The card sets an opening-time basket can hold: every set of min(`size`, open cards) distinct
+## cards of `options`, an open card being one below `copy_max` in `copies`. Each set lists its
+## cards in options order, and the sets come in lexicographic order of their places (one set,
+## empty, when no card is open).
+static func basket_sets(
+	options: Array[CardDefinition],
+	size: int,
+	copies: Dictionary[CardDefinition, int],
+	copy_max: int
+) -> Array[Array]:
+	var open: Array[CardDefinition] = []
+	for card: CardDefinition in options:
+		if not open.has(card) and int(copies.get(card, 0)) < copy_max:
+			open.append(card)
+	var count: int = mini(size, open.size())
+	var sets: Array[Array] = []
+	var places: Array[int] = []
+	for index: int in count:
+		places.append(index)
+	while true:
+		var chosen: Array[CardDefinition] = []
+		for place: int in places:
+			chosen.append(open[place])
+		sets.append(chosen)
+		# The next combination of `count` places out of open.size().
+		var moved: int = count - 1
+		while moved >= 0 and places[moved] == open.size() - count + moved:
+			moved -= 1
+		if moved < 0:
+			break
+		places[moved] += 1
+		for later: int in range(moved + 1, count):
+			places[later] = places[later - 1] + 1
+	return sets
 
 
 ## The copies the shared products start from (#107): the core cards' copies, plus for each card
@@ -373,23 +487,23 @@ static func shared_of(deck: DeckDefinition) -> Array[CardDefinition]:
 
 
 ## Whether `pack`'s cart (the core cards, its cards, `shared`) passes the fair-deal check.
-static func _cart_passes(
+static func cart_passes(
 	recipe: DeckDefinition,
 	pack: StarterPackDefinition,
 	shared: Array[CardDefinition],
-	balance: BalanceDefinition,
-	limits: ShiftLimits,
-	target: int,
-	climber: RowClimb,
+	check: FairCheck,
 	rng: RandomNumberGenerator
 ) -> bool:
 	var cards: Array[CardDefinition] = recipe.core_cards + pack.cards + shared
-	var passes: int = fair_passes(cards, recipe, balance.hand_size, limits, target, climber, rng)
+	var passes: int = fair_passes(
+		cards, recipe, check.hand_size, check.limits, check.target, check.climber, rng
+	)
 	return passes >= recipe.fair_deal_passes
 
 
 ## The chains a recipe draws its products from (capsule products only with random_capsules).
-static func _chains(
+## Public for the opening-time setup (StartSetupRules), which draws from the same products.
+static func chains_for(
 	recipe: DeckDefinition, balance: BalanceDefinition
 ) -> Array[ItemUpgradeDefinition]:
 	var chains: Array[ItemUpgradeDefinition] = []

@@ -4,13 +4,13 @@ extends PixelLine
 ## docs/art/mockups/machine_relook.html V2): PixelLine's words (Pixelify's 11 px raster at 2x or
 ## 4x) and numbers, from plain text. show_text() splits a line into runs: a number run is digits
 ## with the signs that go with them (€, %, +, −, <, ×, /), drawn in the chunky price-gun digits
-## (v0.96, A2 of mock-up machine_relook_v2.html: PixelWords.Sheet.CHUNKY, 6x8 font px at one art
+## (v0.98, A2 of mock-up machine_relook_v2.html: PixelWords.Sheet.CHUNKY, 6x8 font px at one art
 ## px each, at the words' scale; Pixelify never prints a digit), their foot on the words'
 ## baseline, with an optional shadow one font px down and right; a mark (✓ ✕ ● ◆ ★, which
 ## Pixelify lacks) is a small pixel pattern; the rest are words. The runs follow each other one
 ## art px apart, a space keeping its own advance, so "SPEND 109€ ✓ THANK YOU!" reads as one line.
 ## The control's top left is the words' cap top at the line's left; its size is the line's width
-## and the capitals' height. A chunky line (`chunky`, v0.97: the display's message and the prize
+## and the capitals' height. A chunky line (`chunky`, v0.99: the display's message and the prize
 ## bay's header, the user's 2026-11-05 note that PICK 1 and YOUR PRIZES were hard to read) draws
 ## its words in the chunky capitals too (PixelWords.Sheet.CHUNKY_CAPS: 2 px stems, the digits'
 ## 8 rows), so its height is CHUNKY_ROWS art px and its words and digits share one cap top.

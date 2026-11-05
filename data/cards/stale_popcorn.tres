@@ -21,6 +21,7 @@ base = 2
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_stale_popcorn")])
 rule_text = "The next Snack item pays ×1, plus ×1 for each redraw left this shift (×3 with 2 left)"
 sticker_text = "×{factor} next {tag}"
+monitor_text = "The next {tag} item pays ×{own_factor}, plus ×{redraw_step} for each redraw left this shift{live_now}."
 art_ref = "res://art/items_v2/stale_popcorn.png"
 mini_art_ref = "res://art/minis/stale_popcorn.png"
 mini_golden_art_ref = "res://art/minis/stale_popcorn_golden.png"

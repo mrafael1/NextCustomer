@@ -1,16 +1,16 @@
 class_name TicketRim
 extends RefCounted
-## A prize ticket's sheen timing, corner glints and pick rim (C2, v0.96, mock-up
+## A prize ticket's sheen timing, corner glints and pick rim (C2, v0.98, mock-up
 ## docs/art/mockups/machine_relook_v2.html and _v3.html), kept out of PrizeTicket so it stays
 ## under gdlint's file length. Pure statics: PrizeTicket and its CardFoil use them.
 ## - The sheen (RARE and LEGENDARY): crosses the card once on landing (SHEEN_LAND_S), then every
-##   SHEEN_PERIOD seconds (SHEEN_S), staggered per ticket; since v0.97 it is the card foil's sweep
+##   SHEEN_PERIOD seconds (SHEEN_S), staggered per ticket; since v0.99 it is the card foil's sweep
 ##   (CardFoil), under the art and the words.
 ## - The corner glints: RARE's two (top left, bottom right, 5x5 art px), LEGENDARY's four (7x7),
 ##   twinkling every GLINT_S (always on under reduced motion).
 ## Under reduced motion the sheen never crosses. COMMON has neither. The picked ticket wears a 4 px
 ## gold rim (PICK_RINGS). The C2 rim and chase lights behind RARE and LEGENDARY tickets went in
-## v0.97: the card itself carries its rarity (CardFoil, look B's foil).
+## v0.99: the card itself carries its rarity (CardFoil, look B's foil).
 
 const SHEEN_LAND_S := 0.45
 const SHEEN_S := 0.45

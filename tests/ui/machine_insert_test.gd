@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## The RECEIPT REWARDS machine's insert and its week odds tag (v0.97, the user's play test: "prenium
+## The RECEIPT REWARDS machine's insert and its week odds tag (v0.99, the user's play test: "prenium
 ## machine has ticket that stay mid inserted" and "weeks odd + 1 is just sitting weirdly"). After
 ## the feed nothing sticks out of the slot on a CLASSIC, a PREMIUM or a PREMIUM BONUS visit (the
 ## gold receipt pops up during the transform and is swallowed); the week's odds raise is a tag under

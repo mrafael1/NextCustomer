@@ -12,6 +12,9 @@ const GROUP := &"tip_target"
 
 ## Its tooltip's text.
 var tip_text: String = ""
+## What the tip adds while it shows on the belt (tickets v5: a family's items there, or what a
+## written family's rule counts; PlanningEffects sets it when the tip opens), or "".
+var tip_more: String = ""
 ## The tooltip opens below `tip_anchor` (a rail or shelf ticket), else above the target.
 var tip_below: bool = false
 var tip_anchor: Control
@@ -26,6 +29,11 @@ func _init() -> void:
 ## lights while its tip shows (KeywordChip). Nothing by default.
 func tip_shown(_shown: bool) -> void:
 	pass
+
+
+## The tooltip's whole text: tip_text, then tip_more after a " · ".
+func full_tip() -> String:
+	return tip_text if tip_more.is_empty() else "%s · %s" % [tip_text, tip_more]
 
 
 ## Whether the target shows on screen now (GlyphTips only shows a tooltip for one that does).

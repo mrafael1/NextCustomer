@@ -30,13 +30,13 @@ func test_the_balance_uses_the_machine_file() -> void:
 	assert_int(_machine.prizes_per_visit).is_equal(3)
 	assert_int(_machine.register_cap).is_equal(3)
 	assert_int(_machine.shelf_min_copies).is_equal(2)
-	# v0.68, Payday: an inspection is only a hurdle; a passed review (shifts 4 and 8) pays two
-	# PREMIUM tickets.
+	# v0.68, Payday: an inspection is only a hurdle; a passed review (shifts 4, 8 and 12 since
+	# v0.96's four weeks; the final review ends the run) pays two PREMIUM tickets.
 	assert_bool(_machine.bonus_after_inspection).is_false()
 	assert_bool(_machine.new_arrival_first_visit).is_true()
-	assert_array(Array(_machine.bonus_extra_shifts)).is_equal([4, 8])
-	for shift_number: int in range(1, 13):
-		var payday: bool = [4, 8].has(shift_number)
+	assert_array(Array(_machine.bonus_extra_shifts)).is_equal([4, 8, 12])
+	for shift_number: int in range(1, 17):
+		var payday: bool = [4, 8, 12].has(shift_number)
 		assert_bool(_machine.is_payday_shift(shift_number)).is_equal(payday)
 	# #108: NEW ITEMS draws 1 coupon a draw; UPGRADE a loyalty perk and an item upgrade, then
 	# either. PREMIUM: RARE or better, BIG or better.
@@ -167,19 +167,22 @@ func test_the_rarities_follow_the_approved_table_with_r3b() -> void:
 
 
 ## The shift lists fit the run: each is a shift with a visit after it (1 to shift count - 1). The
-## PREMIUM shifts are 3, 5 and 7 (#108), and each shift's odds level is the approved one (1-2
-## level 0, 3-4 1, 5-6 2, 7 3), never falling and always a level there is. STAMP DAY is gone.
+## PREMIUM shifts are the reviews before the last (4, 8 and 12, v0.96), and each shift's odds
+## level is the approved one (one per shift: week 1 0,0,1,1, week 2 1,2,2,2, week 3 3, week 4 4),
+## never falling and always a level there is. STAMP DAY is gone.
 func test_the_shift_lists_fit_the_run() -> void:
 	var last: int = _balance.quotas.size() - 1
 	for shifts: PackedInt32Array in [_machine.premium_shifts, _machine.bonus_extra_shifts]:
 		for shift_number: int in shifts:
 			assert_int(shift_number).is_between(1, last)
-	# PREMIUM after the Manager's reviews of weeks 1 and 2 (v0.65; shifts 3, 5 and 7 before).
-	assert_array(Array(_machine.premium_shifts)).is_equal([4, 8])
+	# PREMIUM after the Manager's reviews of weeks 1 to 3 (v0.96; weeks 1 and 2 in v0.65, shifts
+	# 3, 5 and 7 before).
+	assert_array(Array(_machine.premium_shifts)).is_equal([4, 8, 12])
 	var levels: Array[int] = []
 	for shift_number: int in range(1, last + 1):
 		levels.append(_machine.odds_level_after(shift_number))
-	assert_array(levels).is_equal([0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3])
+	assert_array(levels).is_equal([0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4])
+	assert_int(_machine.shift_odds_levels.size()).is_equal(_balance.quotas.size())
 	for index: int in _machine.shift_odds_levels.size():
 		var level: int = _machine.shift_odds_levels[index]
 		assert_int(level).is_between(0, _machine.max_level())

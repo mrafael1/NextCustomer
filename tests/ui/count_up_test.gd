@@ -82,14 +82,14 @@ func test_the_full_row_counts_up_on_screen_in_five_to_nine_seconds() -> void:
 
 	_assert_sounds(sfx, plan, count_up.printer_feed_ms)
 	_assert_rides(rides, plan)
-	# Shift 1's quota (29) is reached mid-row: the ding, then the quota met for good.
+	# Shift 1's quota (30) is reached mid-row: the ding, then the quota met for good.
 	assert_int(plan.ding_beat).is_greater_equal(0)
 	assert_int(_sounds(sfx, "ding")).is_equal(1)
 	assert_bool(probe["met_before_total"]).is_true()
 	# It was met at the ding beat, the subtotal past the quota but short of the total, and stayed
 	# met on every frame after.
 	var quota: int = screen.run.quota()
-	assert_int(quota).is_equal(29)
+	assert_int(quota).is_equal(30)
 	assert_int(int(probe["met_subtotal"])).is_between(quota, plan.total - 1)
 	var ding: CountUpBeat = plan.beats[plan.ding_beat]
 	assert_int(int(probe["met_subtotal"])).is_equal(ding.ticks[ding.ding_tick])

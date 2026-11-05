@@ -26,9 +26,8 @@ extends Control
 ## storefront. TOY MACHINES opens the machines (#63) over it on the peeked profile (an unreadable
 ## one opens them switched off, left for the shift screen to report and back up); a draw while a
 ## run is saved gets that run's index (its item rides the runs after it). Done closes them and
-## refreshes the coins. BADGE PINS (#122) shows the peeked profile's badge and opens the badge
-## screen (BadgeScreen) over REWARDS, on the peeked profile (an unreadable one: shown, every change
-## refused); its changes are saved there. BACK or Esc close REWARDS.
+## refreshes the coins. The badge pins (#122) are no longer here: a run's pins are chosen on the
+## start screen's page 2 (BADGE PINS, 2026-11-05). BACK or Esc close REWARDS.
 ## While a popup or the machines are open, nothing on the title starts a run.
 ##
 ## A start opens the doors (the leaves slide apart, the light floods out) before the shift screen
@@ -43,7 +42,6 @@ enum Target { NONE, DOORS, BAY, SIGN }
 
 const SHIFT_SCREEN := "res://ui/shift_screen.tscn"
 const BALANCE := "res://data/balance/balance.tres"
-const CATALOGUE := "res://data/catalogue/catalogue.tres"
 const MUSIC := &"front"
 ## The sign stays dark this long before it lights by itself (the mock-up's 2.5 s).
 const INTRO_DARK := 2.5
@@ -85,9 +83,6 @@ var _menu: TitleMenu
 ## The entry the doors or the bay marked (NONE when the mouse is on neither).
 var _scene_entry: TitleMenu.Entry = TitleMenu.Entry.NONE
 var _rewards: RewardsMenu
-var _catalogue: CatalogueDefinition
-## The badge pins over REWARDS (#122).
-var _badge: BadgeScreen
 ## The bay's glass is sliding before REWARDS opens.
 var _rewards_pending: bool = false
 ## The New run question (only with a run saved).
@@ -140,14 +135,7 @@ func _ready() -> void:
 	_rewards = RewardsMenu.new(_balance)
 	_rewards.still = _still
 	_rewards.toy_machines_requested.connect(_on_toy_machines_pressed)
-	_rewards.badge_requested.connect(_on_badge_pressed)
 	add_child(_rewards)
-	_catalogue = load(CATALOGUE)
-	_badge = BadgeScreen.new(_catalogue, _balance)
-	_badge.still = _still
-	_badge.profile_changed.connect(_on_badge_changed)
-	add_child(_badge)
-	_show_badge(profile)
 	if _saved_run != null:
 		_confirm = AbandonConfirm.new()
 		_confirm.still = _still
@@ -229,10 +217,6 @@ func menu() -> TitleMenu:
 
 func rewards() -> RewardsMenu:
 	return _rewards
-
-
-func badge_screen() -> BadgeScreen:
-	return _badge
 
 
 ## The New run question, or null without a run save.
@@ -400,9 +384,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if key == null or not key.pressed or _starting or toy_machines_open() or _rewards_pending:
 		return
 	var handled: bool = false
-	if _badge.is_open():
-		handled = _badge.handle_key(event)
-	elif _rewards.is_open():
+	if _rewards.is_open():
 		handled = _rewards.handle_key(event)
 	elif _confirm != null and _confirm.is_open():
 		handled = _confirm.handle_key(event)
@@ -467,35 +449,6 @@ func _on_toy_machines_pressed() -> void:
 		profile, saves, _balance, _log, _saved_run != null, peeked != null
 	)
 	_toys.open(counter, _balance)
-
-
-## BADGE PINS: the badge screen over REWARDS, on the peeked profile.
-func _on_badge_pressed() -> void:
-	if _starting:
-		return
-	var saves: SaveService = SaveService.new(SaveService.default_folder())
-	var peeked: ProfileState = saves.peek_profile()
-	var profile: ProfileState = peeked if peeked != null else ProfileState.new()
-	_badge.open(profile, saves, _log, peeked != null and saves.can_save_profile())
-
-
-## The badge screen saved a change: the coins and the REWARDS card follow it.
-func _on_badge_changed() -> void:
-	_coins = _badge.profile().coins
-	_menu.set_coins(_coins)
-	_rewards.set_coins(_coins)
-	_show_badge(_badge.profile())
-
-
-## The REWARDS card's badge for `profile` (none: nothing worn or unlocked).
-func _show_badge(profile: ProfileState) -> void:
-	var shown: ProfileState = profile if profile != null else ProfileState.new()
-	var worn: Array[PinDefinition] = ProfilePins.worn(shown, _catalogue)
-	var indexes: Array[int] = []
-	for pin: PinDefinition in worn:
-		indexes.append(_catalogue.pins.find(pin))
-	var owned: int = _catalogue.pins.size() - ProfilePins.locked(shown, _catalogue).size()
-	_rewards.show_badge(worn, _balance.pin_slots, indexes, owned, _catalogue.pins.size())
 
 
 ## Done: the coins on REWARDS and its LED follow the draws.

@@ -1,7 +1,7 @@
 class_name ChuteKey
 extends Control
 ## One of the machine's chute keys (#77; redrawn front-on in v0.50, mock-up
-## premium_machine_v1.html; the relook's chunky keycap in v0.86, mock-up machine_relook.html V2): a
+## premium_machine_v1.html; the relook's chunky keycap in v0.98, mock-up machine_relook.html V2): a
 ## wide 232x88 key in the cabinet's rubber key plate with the chute's icon on its left (the cart,
 ## the up arrow, at 2x), its name in hard pixel capitals (MachineLine, 2x) and what it does (bold
 ## Atkinson 12) beside it. Since v0.61 (#108)

@@ -1,0 +1,903 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Start Screen Progression</title>
+<style>
+/* House style of start_screen.html (layout A, clock-in board): the store's dark teal wall; the frame is
+   drawn at 1920x1080 screen px, art px = 1, 2 or 3 screen px (integer), image-rendering: pixelated. */
+@font-face{font-family:'NCPix';font-weight:400 700;src:url(../../../fonts/PixelifySans-Variable.ttf)}
+@font-face{font-family:'NCMono';src:url(../../../fonts/JetBrainsMono-Regular.ttf)}
+@font-face{font-family:'NCAtk';font-weight:200 800;src:url(../../../fonts/AtkinsonHyperlegibleNext-Variable.ttf)}
+:root{
+  color-scheme:dark;
+  --wall:#1f3b3a; --bay:#172c2b; --panel:#2a4d4b; --paper:#fbf7ee; --cream:#f3e9d2; --cream-shade:#ddcba5;
+  --cream-dark:#b39f78; --teal:#4f9a94; --teal-shade:#3a7672; --teal-dark:#2a4d4b; --teal-black:#172c2b;
+  --teal-pale:#c3e0d4; --teal-light:#86c2b6; --teal-bright:#5fb0a8;
+  --mustard:#e2b33c; --mustard-dark:#b38425; --mustard-light:#f1d27a; --mustard-pale:#faecbc; --gold:#ffcf3f;
+  --brass:#c8932b; --brass-dark:#8a5d1a; --brass-darkest:#4a3010;
+  --tomato:#d9534f; --tomato-dark:#a83a3c; --tomato-light:#ec8a6e; --tomato-darkest:#6e2630;
+  --ink:#2b2420; --ink-light:#4a3f38; --grey:#8a8172; --grey-light:#c7beab; --muted:#a9a59b;
+  --green:#5fae5a; --green-dark:#3d7a45; --green-light:#a5d17e;
+  --steel-hi:#ecebe4; --steel-light:#c7c3b8; --steel-pale:#a9a59b; --steel:#8d8a83; --steel-shade:#6f6b63;
+  --steel-dark:#57534c; --steel-darkest:#45423d; --charcoal:#24221f; --rubber:#3d3a36;
+  --display:'NCPix','Pixelify Sans','Courier New',monospace;
+  --body:'NCAtk','Atkinson Hyperlegible Next','Segoe UI',system-ui,sans-serif;
+  --mono:'NCMono','JetBrains Mono',Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--wall);color:var(--paper)}
+body{font-family:var(--body);font-size:15px;line-height:1.5;overflow-x:hidden}
+main{max-width:1400px;margin:0 auto;padding:28px 16px 64px;display:grid;gap:40px}
+main>*,section>*{min-width:0}
+h1,h2,h3{font-family:var(--display);font-weight:700;margin:0;letter-spacing:.02em;text-wrap:balance}
+h1{font-size:34px;color:var(--gold)} h2{font-size:24px} h3{font-size:17px;color:var(--teal-pale)}
+p{margin:0;max-width:88ch}
+code{overflow-wrap:anywhere;color:var(--mustard-pale);font-size:13px}
+.lede{display:grid;gap:10px}
+.eyebrow{font-family:var(--display);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--teal-light)}
+section{display:grid;gap:16px}
+.verdict{background:var(--panel);border:2px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.35);padding:14px 16px;display:grid;gap:8px}
+.verdict strong{color:var(--gold)}
+.opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.opt{background:var(--bay);border:2px solid var(--ink);padding:12px 14px;display:grid;gap:8px;align-content:start}
+.opt header{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.tag{font-family:var(--display);font-size:15px;background:var(--paper);color:var(--ink);padding:0 7px;border:2px solid var(--ink)}
+.opt p,.opt li{font-size:14px;color:var(--teal-pale)} .opt p b,.opt li b{color:var(--paper)}
+.controls{display:flex;gap:8px 12px;flex-wrap:wrap;align-items:center;max-width:1400px;margin:0 auto}
+.controls .lbl{font-family:var(--display);font-size:13px;color:var(--teal-light);letter-spacing:.06em}
+.seg{display:inline-flex;border:2px solid var(--ink);box-shadow:0 3px 0 var(--ink);flex-wrap:wrap}
+.seg button{box-shadow:none;border:0;border-right:2px solid var(--ink)}
+.seg button:last-child{border-right:0}
+button{font-family:var(--display);font-size:15px;color:var(--paper);background:var(--teal-shade);border:2px solid var(--ink);box-shadow:0 3px 0 var(--ink);padding:4px 12px;cursor:pointer}
+button:active{transform:translateY(2px)}
+button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+button[aria-pressed="true"]{background:var(--mustard);color:var(--ink)}
+.toolbar{position:sticky;top:0;z-index:50;background:rgba(23,44,43,.96);border-bottom:2px solid var(--ink);padding:8px 16px}
+.fwrap{position:relative;border:2px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.35);overflow:hidden;background:#111}
+body.one .fwrap{overflow:auto}
+.fscale{position:relative;transform-origin:0 0;width:1920px;height:1080px}
+ul,ol{margin:0;padding-left:20px;display:grid;gap:6px;max-width:92ch}
+.answers{background:var(--paper);color:var(--ink);border:3px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.4);padding:16px 18px;display:grid;gap:10px}
+.answers h2{color:var(--ink)} .answers li b{color:var(--tomato-dark)}
+.answers code{color:var(--tomato-darkest);background:var(--cream)}
+.cap{font-size:13px;color:var(--muted)}
+.scroll{overflow-x:auto;max-width:100%}
+table.spec{border-collapse:collapse;font-size:13.5px;min-width:820px;width:100%}
+table.spec th,table.spec td{border-bottom:1px solid var(--teal-shade);padding:6px 8px;text-align:left;vertical-align:top}
+table.spec th{font-family:var(--display);color:var(--teal-light);font-weight:500}
+table.spec td:first-child{white-space:nowrap;color:var(--mustard-pale)}
+.dec,.prop{display:inline-block;font-family:var(--display);font-size:12px;letter-spacing:.06em;padding:0 6px;border:2px solid var(--ink);white-space:nowrap;line-height:18px}
+.dec{background:var(--green-light);color:var(--ink)} .prop{background:var(--mustard);color:var(--ink)}
+.caps{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+.caps figure{margin:0;display:grid;gap:4px} .caps img{width:100%;border:2px solid var(--ink)}
+.ladder{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.ladder div{background:var(--bay);border:2px solid var(--ink);padding:8px 10px;font-size:14px;color:var(--teal-pale)}
+.ladder b{display:block;font-family:var(--display);font-size:20px;color:var(--gold)}
+
+/* ===================== the frame (1920x1080 screen px) ===================== */
+.F{position:absolute;inset:0;width:1920px;height:1080px;overflow:hidden;font-family:var(--body);color:var(--paper);background:var(--bay)}
+.F img{image-rendering:pixelated;display:block}
+.F .bd{position:absolute;inset:0;background:url(start_screen_v2_src/backdrop_1080.png) 0 0/1920px 1080px;image-rendering:pixelated}
+.F .dim{position:absolute;inset:0;background:rgba(23,44,43,.86)}
+.F .abs{position:absolute}
+.px{font-family:var(--body);font-weight:800;letter-spacing:.03em}
+.steel{position:absolute;background:var(--teal-dark);border:6px solid var(--charcoal);
+  box-shadow:inset 0 0 0 4px var(--steel-light),inset 0 0 0 8px var(--steel-dark),inset 0 0 0 10px var(--charcoal),0 9px 0 rgba(0,0,0,.45)}
+.rivet{position:absolute;width:12px;height:12px;background:var(--brass);box-shadow:inset 3px 3px 0 var(--mustard-light),inset -3px -3px 0 var(--brass-dark),0 0 0 3px var(--charcoal)}
+.plate{position:absolute;background:var(--brass);color:var(--brass-darkest);border:3px solid var(--charcoal);
+  box-shadow:inset 0 3px 0 var(--mustard-light),inset 0 -3px 0 var(--brass-dark);font-family:var(--body);font-weight:800;letter-spacing:.04em}
+.sect{font-family:var(--body);font-weight:800;font-size:30px;color:var(--gold);letter-spacing:.04em;display:flex;align-items:center;gap:12px;white-space:nowrap}
+.sect .n{display:inline-grid;place-items:center;width:38px;height:38px;background:var(--gold);color:var(--ink);font-family:var(--body);font-weight:800;font-size:24px;border:3px solid var(--ink)}
+.sect small{font-family:var(--body);font-weight:600;font-size:18px;color:var(--teal-pale);letter-spacing:0}
+.paper{position:absolute;background:var(--paper);color:var(--ink);border:3px solid var(--ink);box-shadow:inset 0 -6px 0 var(--cream-shade),0 9px 0 rgba(0,0,0,.4)}
+/* item ticket tile */
+.tk{position:relative;width:120px;background:var(--paper);border:3px solid var(--ink);color:var(--ink);
+  box-shadow:inset 0 -3px 0 var(--cream-shade),0 6px 0 rgba(0,0,0,.35);transition:transform .14s, box-shadow .14s;cursor:help}
+.tk .art{width:96px;height:96px;margin:6px auto 0;position:relative}
+.tk .art img{width:96px;height:96px}
+.tk .art img.cicon{position:absolute;left:28px;top:38px;width:40px;height:28px}
+.tk .nm{font-weight:700;font-size:15px;line-height:16px;text-align:center;padding:0 3px 2px;height:36px;display:flex;align-items:center;justify-content:center}
+.tk .band{height:30px;display:flex;align-items:center;gap:4px;padding:0 5px;border-top:3px solid var(--ink)}
+.tk .band img{width:18px;height:18px;outline:2px solid var(--paper)}
+.tk .band .pr{margin-left:auto;font-family:var(--body);font-weight:800;font-size:19px}
+.tk .cnt{position:absolute;right:-12px;top:-14px;min-width:44px;height:36px;padding:0 6px;background:var(--gold);border:3px solid var(--ink);
+  font-family:var(--body);font-weight:800;font-size:21px;display:grid;place-items:center;color:var(--ink);box-shadow:0 3px 0 var(--brass-dark)}
+.tk .lock{position:absolute;left:-8px;top:-12px;width:36px;height:36px;background:var(--mustard);border:3px solid var(--ink);display:grid;place-items:center}
+.tk .lock img{width:18px;height:20px}
+.tk .lock.open{background:var(--teal-pale)}
+.tk .swp{position:absolute;right:-10px;top:-12px;height:30px;padding:0 6px;background:var(--teal);color:var(--paper);border:3px solid var(--ink);font-weight:800;font-size:16px;display:grid;place-items:center}
+.tk .ctab{position:absolute;left:8px;top:-15px;background:var(--tomato);color:var(--paper);font-family:var(--body);font-weight:800;font-size:15px;letter-spacing:.04em;padding:0 6px;border:2px solid var(--ink)}
+.tk.coupon{background:var(--paper);outline:3px dashed var(--tomato);outline-offset:-9px}
+.tk.ghost{opacity:.92;border-style:dashed}
+.tk.empty{background:transparent;border:3px dashed var(--cream-dark);box-shadow:none;height:174px;color:var(--cream-dark);display:grid;place-items:center;font-family:var(--display);font-weight:500;font-size:42px}
+.tk.lit{transform:translateY(-8px);box-shadow:0 0 0 4px var(--gold),0 12px 0 rgba(0,0,0,.4)}
+.tk.dimmed{opacity:.35}
+.tk.popin{animation:popin .32s cubic-bezier(.2,1.6,.4,1) both}
+@keyframes popin{0%{transform:scale(.4) translateY(30px);opacity:0}100%{transform:none;opacity:1}}
+.F.rm .tk.popin{animation:none}
+.tk.nob{width:108px}
+/* staple slots */
+.slot{position:relative;cursor:default}
+.slot.can{cursor:pointer}
+.slot.can .tk{cursor:pointer}
+.slot.can:hover .tk{transform:translateY(-6px);box-shadow:0 0 0 4px var(--teal-light),0 12px 0 rgba(0,0,0,.4)}
+.slot.picking .tk{transform:translateY(-8px);box-shadow:0 0 0 5px var(--gold),0 0 0 8px var(--ink),0 12px 0 rgba(0,0,0,.4)}
+.chip{margin-top:8px;height:26px;border:3px solid var(--ink);display:grid;place-items:center;font-weight:800;font-size:15px;letter-spacing:.03em;white-space:nowrap}
+.chip.open{background:var(--gold);color:var(--ink)}
+.chip.was{background:var(--teal);color:var(--paper)}
+.chip.lockd{background:var(--steel-dark);color:var(--steel-hi)}
+.chip.used{background:var(--cream);color:var(--ink-light)}
+/* pack card */
+.pack{position:absolute;background:var(--paper);color:var(--ink);border:4px solid var(--ink);cursor:pointer;
+  box-shadow:inset 0 -6px 0 var(--cream-shade),0 8px 0 rgba(0,0,0,.45);transition:transform .16s, box-shadow .16s}
+.pack .hd{height:54px;display:flex;align-items:center;gap:10px;padding:0 12px;border-bottom:4px solid var(--ink)}
+.pack .hd img{width:27px;height:27px;outline:3px solid var(--paper)}
+.pack .hd .t{font-family:var(--display);font-weight:500;font-size:32px;letter-spacing:.02em}
+.pack .hd .k{margin-left:auto;font-family:var(--display);font-weight:500;font-size:22px;width:32px;height:32px;display:grid;place-items:center;background:var(--paper);color:var(--ink);border:3px solid var(--ink)}
+.pack .row{display:flex;gap:12px;justify-content:center;padding:20px 10px 4px}
+.pack .hint{font-weight:600;font-size:17px;line-height:21px;padding:2px 14px 10px}
+.pack.hov{transform:translateY(-6px);box-shadow:0 0 0 4px var(--teal-light),0 14px 0 rgba(0,0,0,.45)}
+.pack.sel{transform:translateY(-12px);box-shadow:0 0 0 6px var(--gold),0 0 0 9px var(--ink),0 18px 0 rgba(0,0,0,.45)}
+.pack .first{position:absolute;right:10px;top:-22px;background:var(--gold);color:var(--ink);font-family:var(--body);font-weight:800;font-size:15px;letter-spacing:.08em;padding:1px 8px;border:3px solid var(--ink)}
+.pack .taken{position:absolute;left:10px;top:-22px;background:var(--green);color:var(--ink);font-family:var(--body);font-weight:800;font-size:15px;letter-spacing:.06em;padding:1px 8px;border:3px solid var(--ink)}
+/* group brackets in the cart */
+.grp{position:absolute;color:var(--ink)}
+.grp .gh{font-family:var(--body);font-weight:800;font-size:21px;letter-spacing:.05em;display:flex;align-items:center;gap:8px;white-space:nowrap}
+.grp .gh .c{font-family:var(--body);font-weight:800;font-size:19px;padding:0 6px;border:3px solid var(--ink);background:var(--cream)}
+.grp .gs{font-size:16px;font-weight:600;color:var(--ink-light);letter-spacing:0;white-space:nowrap}
+.grp .tiles{display:flex;gap:14px;margin-top:12px}
+.grp .br{height:6px;margin-top:10px;border:2px solid var(--ink)}
+/* aisle rows */
+.aisle{position:absolute;left:0;right:0;height:56px;display:flex;align-items:center;gap:10px;padding:0 10px;border-bottom:3px solid var(--teal-black);cursor:default}
+.aisle .sg{width:42px;height:42px;display:grid;place-items:center;border:3px solid var(--ink);flex:none}
+.aisle .sg img{width:27px;height:27px}
+.aisle .an{font-family:var(--body);font-weight:800;font-size:22px;width:150px;white-space:nowrap}
+.aisle .pg{display:flex;align-items:center;gap:6px;width:150px}
+.aisle .pips{display:flex;gap:3px}
+.aisle .pips i{display:block;width:8px;height:16px;background:var(--teal-black);border:2px solid var(--steel-dark)}
+.aisle .pips i.on{background:var(--teal-light);border-color:var(--charcoal)}
+.aisle.done .pips i.on{background:var(--gold)}
+.aisle .pn{font-family:var(--body);font-weight:800;font-size:18px;color:var(--paper);white-space:nowrap}
+.aisle.done .pn{color:var(--gold)}
+.aisle .pg img{width:26px;height:26px}
+.aisle .st{margin-left:auto;font-family:var(--body);font-weight:800;font-size:15px;letter-spacing:.05em;padding:2px 8px;border:3px solid var(--ink);white-space:nowrap;display:flex;align-items:center;gap:5px}
+.aisle .st img{width:9px;height:10px}
+.st.deal{background:var(--green-light);color:var(--ink)}
+.st.shelf{background:var(--mustard-pale);color:var(--ink)}
+.st.off{background:var(--steel-dark);color:var(--steel-light)}
+.st.lock{background:var(--charcoal);color:var(--grey-light)}
+.aisle.locked .an{color:var(--grey)} .aisle.locked .sg{filter:grayscale(1) brightness(.6)}
+.aisle.hov{background:rgba(255,207,63,.14)}
+.aisle.isnew{animation:rowflash 1s ease-out both}
+@keyframes rowflash{0%{background:rgba(255,207,63,.55)}100%{background:transparent}}
+.F.rm .aisle.isnew{animation:none}
+/* pins */
+.pinf{position:relative;border-radius:50%;border:4px solid var(--ink);display:grid;place-items:center;font-family:var(--display);font-weight:600;color:var(--paper);text-shadow:0 2px 0 rgba(0,0,0,.35);flex:none}
+.pinf::after{content:"";position:absolute;left:18%;top:14%;width:16%;height:16%;background:rgba(255,255,255,.55)}
+.pinf.empty{border:4px dashed var(--grey-light);background:transparent!important;box-shadow:none!important;color:var(--grey-light);text-shadow:none}
+.pinf.empty::after{display:none}
+.pinsarea{cursor:pointer}
+.pinsarea:hover .pinring{box-shadow:0 0 0 4px var(--teal-light)}
+.pinsarea .pinf{cursor:pointer}
+.pinsarea .pinf:hover{transform:translateY(-3px)}
+/* buttons */
+.key{position:absolute;display:grid;place-items:center;cursor:pointer;font-family:var(--body);font-weight:800;letter-spacing:.04em;border:4px solid var(--ink);transition:transform .08s}
+.key.red{background:var(--tomato);color:var(--paper);box-shadow:inset 0 6px 0 var(--tomato-light),inset 0 -8px 0 var(--tomato-dark),0 9px 0 var(--charcoal)}
+.key.red.off,.key.dis{background:var(--steel-dark);color:var(--steel-light);box-shadow:inset 0 6px 0 var(--steel),inset 0 -8px 0 var(--steel-darkest),0 9px 0 var(--charcoal);cursor:not-allowed}
+.key.teal{background:var(--teal);color:var(--paper);box-shadow:inset 0 4px 0 var(--teal-light),inset 0 -6px 0 var(--teal-shade),0 6px 0 var(--charcoal)}
+.key.cream{background:var(--cream);color:var(--ink);box-shadow:inset 0 4px 0 var(--paper),inset 0 -6px 0 var(--cream-dark),0 6px 0 var(--charcoal)}
+.key.gold{background:var(--gold);color:var(--ink);box-shadow:inset 0 4px 0 var(--mustard-pale),inset 0 -6px 0 var(--mustard-dark),0 6px 0 var(--charcoal)}
+.key.inl{position:relative}
+.key:hover{filter:brightness(1.07)} .key:active{transform:translateY(4px)}
+.key.dis:hover{filter:none} .key.dis:active{transform:none}
+.key.red.glow{animation:glow 1.4s ease-in-out infinite}
+@keyframes glow{50%{box-shadow:inset 0 6px 0 var(--tomato-light),inset 0 -8px 0 var(--tomato-dark),0 9px 0 var(--charcoal),0 0 0 6px rgba(255,207,63,.55)}}
+.F.rm .key.red.glow{animation:none}
+/* popup */
+.pop{position:absolute;z-index:70;width:430px;background:var(--paper);color:var(--ink);border:4px solid var(--ink);box-shadow:0 9px 0 rgba(0,0,0,.45);padding:12px 16px 14px;pointer-events:none;display:none}
+.pop .pt{font-family:var(--display);font-weight:500;font-size:32px;line-height:32px;display:flex;align-items:center;gap:8px}
+.pop .pf{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
+.pop .pf span{font-family:var(--body);font-weight:800;font-size:15px;padding:0 6px;border:2px solid var(--ink)}
+.pop .pr{font-size:19px;font-weight:600;line-height:25px}
+.pop .pm{font-size:16px;color:var(--ink-light);margin-top:6px}
+/* modal panels (pins drawer, staple picker, restock) */
+.scrim{position:absolute;inset:100px 0 0 0;z-index:35;background:rgba(23,44,43,.6)}
+.drawer{position:absolute;z-index:40;background:var(--teal-dark);border:6px solid var(--charcoal);box-shadow:inset 0 0 0 4px var(--steel-light),inset 0 0 0 8px var(--steel-dark),0 12px 0 rgba(0,0,0,.5)}
+.drawer.anim{animation:drop .22s ease-out both}
+.F.rm .drawer.anim{animation:none}
+@keyframes drop{0%{transform:translateY(-24px);opacity:0}100%{transform:none;opacity:1}}
+.prow{position:absolute;left:24px;right:24px;height:70px;display:flex;align-items:center;gap:14px;border-bottom:3px solid var(--teal-black)}
+.prow .pn{font-family:var(--body);font-weight:800;font-size:21px;width:240px;white-space:nowrap}
+.prow .pr{font-size:16px;font-weight:600;color:var(--teal-pale);flex:1;line-height:19px}
+.prow .pb{width:140px;height:44px;font-size:20px;position:relative}
+.exm{font-family:var(--body);font-weight:800;font-size:15px;background:var(--mustard);color:var(--ink);border:2px solid var(--ink);padding:0 5px;letter-spacing:.04em;margin-left:6px}
+/* picker */
+.pcol{position:absolute;top:118px;background:var(--teal-black);border:3px solid var(--charcoal)}
+.pcol .ph{height:56px;display:flex;align-items:center;gap:8px;padding:0 10px;border-bottom:3px solid var(--charcoal)}
+.pcol .ph .sg{width:40px;height:40px;display:grid;place-items:center;border:3px solid var(--ink)}
+.pcol .ph .sg img{width:27px;height:27px}
+.pcol .ph .nm{font-weight:800;font-size:21px;white-space:nowrap}
+.pcol .ph .ok{margin-left:auto;display:flex;align-items:center;gap:4px;font-weight:800;font-size:15px;color:var(--gold);white-space:nowrap}
+.pcol .ph .ok img{width:26px;height:26px}
+.pit{height:66px;display:flex;align-items:center;gap:10px;padding:0 10px;border-bottom:2px solid var(--teal-dark);cursor:pointer}
+.pit img{width:48px;height:48px;flex:none}
+.pit .t{display:grid;line-height:20px;min-width:0}
+.pit .t b{font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pit .t span{font-size:15px;color:var(--teal-pale);white-space:nowrap}
+.pit .t span.why{color:var(--tomato-light);font-weight:800}
+.pit .p{margin-left:auto;font-weight:800;font-size:20px}
+.pit:hover{background:rgba(255,207,63,.18)}
+.pit.no{cursor:not-allowed;opacity:.5}
+.pit.no:hover{background:transparent}
+.pit.cur{background:rgba(95,174,90,.25)}
+/* restock */
+.rchip{position:relative;display:inline-flex;align-items:center;gap:8px;height:52px;padding:0 12px;border:4px solid var(--ink);background:var(--cream);color:var(--ink);font-weight:800;font-size:20px;cursor:pointer;white-space:nowrap}
+.rchip .sg{width:34px;height:34px;display:grid;place-items:center;border:3px solid var(--ink)}
+.rchip .sg img{width:18px;height:18px}
+.rchip.on{background:var(--gold);box-shadow:0 0 0 4px var(--ink)}
+.rchip.no{background:var(--steel-dark);color:var(--steel-light);cursor:not-allowed}
+.toast{position:absolute;z-index:80;left:50%;top:46%;transform:translate(-50%,-50%);font-family:var(--display);font-weight:500;font-size:54px;color:var(--ink);background:var(--gold);border:6px solid var(--ink);padding:10px 34px;box-shadow:0 12px 0 rgba(0,0,0,.5);display:none;white-space:nowrap}
+.fold{animation:fold .7s cubic-bezier(.5,0,.8,.4) both;transform-origin:1760px 50px}
+@keyframes fold{100%{transform:scale(.06);opacity:0}}
+.F.rm .fold{animation-duration:.01s}
+</style>
+
+<div class="toolbar">
+  <div class="controls">
+    <span class="lbl">PROFILE</span>
+    <div class="seg" id="segS"><button data-s="0" aria-pressed="true">New save (0 complete)</button><button data-s="1">1 complete</button><button data-s="2">3 complete</button><button data-s="3">6 complete</button></div>
+    <span class="lbl">PIN SLOTS</span>
+    <div class="seg" id="segP"><button data-p="1" aria-pressed="true">1 (today)</button><button data-p="2">2</button></div>
+    <span class="lbl">SWAP POOL</span>
+    <div class="seg" id="segQ"><button data-q="all" aria-pressed="true">Every collected item (proposed)</button><button data-q="base">Base cards only</button></div>
+    <span class="lbl">MOTION</span>
+    <div class="seg" id="segM"><button data-m="0" aria-pressed="true">On</button><button data-m="1">Reduced</button></div>
+    <span class="lbl">SCALE</span>
+    <div class="seg" id="segZ"><button data-z="fit" aria-pressed="true">Fit</button><button data-z="one">1:1</button></div>
+    <button id="reset">Reset frame</button>
+  </div>
+</div>
+
+<main>
+  <div class="lede">
+    <div class="eyebrow">Next Customer · start screen v2 · progression on the clock-in board · 2026-11-03</div>
+    <h1>Start screen v2: pins, completed aisles, staple swaps and today's stock</h1>
+    <p>Layout A of <code>start_screen.html</code> (the clock-in board) with the four requests decided on 2026-11-03: <b>(1)</b> click the badge or a worn pin to change pins before launching; <b>(2)</b> every TODAY'S STOCK sign shows its aisle's completion (5/7, 8/8 ★); <b>(3)</b> each completed aisle opens one <b>staple swap</b>: click a staple and pick a base item from a completed aisle; <b>(4)</b> today's stock is <b>3 aisles drawn from your unlocked ones</b>, 6 products are dealt from 2 of them and the 3rd is NOT DEALT. Completing 3 aisles opens <b>RESTOCK</b> (swap one dealt aisle), and completing all 6 lets you choose both dealt aisles.</p>
+    <p><b>Try it:</b> pick a PROFILE (new save, 1, 3 or 6 completed aisles). Click a staple that has a gold <b>SWAP ›</b> chip to open the picker, then pick an item and watch the cart change. Click a swapped staple to change it back. Use <b>RESTOCK ›</b> (from 3 completed) to swap a dealt aisle; the new 6 drop into the deal. Click the badge to change pins: the EXAMPLE pin <i>Coupon book</i> shows how a pin that brings cards fills the cart. Hover tickets, aisles and pins for their rules. Esc closes a panel, 1 to 3 pick a pack, Enter opens the store. Gold <span class="prop">PROPOSAL</span> tags below mark my proposals. Green <span class="dec">DECIDED</span> tags mark your decisions.</p>
+  </div>
+
+  <section>
+    <div class="fwrap" id="fwrap"><div class="fscale" id="fscale"><div class="F" id="F"></div></div></div>
+    <p class="cap" id="capline"></p>
+  </section>
+
+  <section>
+    <h2>The four profile states</h2>
+    <div class="opts">
+      <div class="opt"><header><span class="tag">0</span><h3>New save · 0 completed</h3></header>
+        <p>Only the 3 base aisles are unlocked, so <b>all 3 are today's stock</b>. The seed picks the 2 that are dealt from (Cold cases and Pantry), and Household is NOT DEALT. The deal is the real one from v1 (seed 20261103), and it happens to fit this rule. All 4 staples show <b>LOCKED</b>, RESTOCK reads "at 3 completed aisles (0/3)", and the hint says <b>NEXT: complete Cold cases or Pantry (2 capsules each) for your first staple swap</b>. The machine aisles read LOCKED 0/8 and "opens at 4 items".</p></div>
+      <div class="opt"><header><span class="tag">1</span><h3>1 completed</h3></header>
+        <p>Cold cases is 7/7 ★. Fruit & veg holds 4 of 8, so it is unlocked and joins the draw: today it's <b>Cold cases + Fruit & veg dealt, Pantry NOT DEALT, Household NOT TODAY</b>. <b>1 swap open</b>: every staple shows SWAP ›, and the picker lists Cold cases' 7 items. After one swap the others read NO SWAP. Hint: "NEXT: complete a 2nd aisle (Pantry needs Mixed herbs) for a 2nd swap. RESTOCK at 3 (1/3)."</p></div>
+      <div class="opt"><header><span class="tag">3</span><h3>3 completed</h3></header>
+        <p>Cold cases, Pantry and Fruit & veg are complete. The saved swaps show (<b>Banana → Strawberries, Eggs → Tea bags</b>, "WAS BANANA") and 1 swap is still open. Stock: Pantry + Bakery dealt, Household NOT DEALT. <b>RESTOCK ›</b> is live: take out Pantry or Bakery, put in Cold cases or Fruit & veg (unlocked, not in today's stock). The new 6 are shown only after you confirm, once a run, and you can switch back to the first deal. Snacks 2/7 is still LOCKED.</p></div>
+      <div class="opt"><header><span class="tag">6</span><h3>6 completed (30/30)</h3></header>
+        <p>Every aisle is ★. All 4 staples can be swapped (3 are swapped: Croissant, Scone, Cheese; 1 is open), with the proposed extra rule <b>at most 2 staples from one aisle</b>. RESTOCK becomes <b>CHOOSE AISLES ›</b>: pick any 2 of the 6 to deal from. The pair is saved as your choice for the next runs, and the 3rd aisle stays the seed's NOT DEALT one. The hint reads "Everything is open. Your choices are saved for the next runs."</p></div>
+    </div>
+    <div class="ladder">
+      <div><b>0 ★</b>4 fixed staples · seed picks the 2 dealt of 3</div>
+      <div><b>1 ★</b>1 staple swap</div>
+      <div><b>2 ★</b>2 staple swaps</div>
+      <div><b>3 ★</b>3 swaps · RESTOCK once a run</div>
+      <div><b>4 ★</b>4 swaps (all staples)</div>
+      <div><b>5 ★</b>nothing new <span class="prop">PROPOSAL</span> (Q7)</div>
+      <div><b>6 ★</b>choose the 2 dealt aisles</div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Rules spec</h2>
+    <div class="scroll"><table class="spec">
+      <tr><th>Rule</th><th>What it says</th><th>Status</th></tr>
+      <tr><td>Completed aisle</td><td>An aisle is complete when every item of it is collected. For the base aisles that means their capsules too: Cold cases 5 base + Cream, Ham ends (7); Pantry 5 + Sugar cubes, Mixed herbs (7); Household 4 + Egg timer, Chipped mug, Odd socks (7). Machine aisles: Fruit & veg 8, Bakery 8, Snacks 7. Derived from <code>ProfileState.unlocked_items</code>, never saved separately. Shown as n/m on each stock sign, with ★ when complete.</td><td><span class="dec">DECIDED</span></td></tr>
+      <tr><td>Tiers don't count</td><td>Completion counts products, not their BIG and GOLDEN tiers. Tiers are never stocked or collected.</td><td><span class="prop">PROPOSAL</span></td></tr>
+      <tr><td>Unlocked aisle</td><td>A base aisle is always unlocked. A machine aisle is unlocked once it holds <code>aisle_listable_min</code> (4) items, today's "listable" rule. Before that its items still reach runs as new arrivals (the end-cap).</td><td><span class="prop">PROPOSAL</span></td></tr>
+      <tr><td>Today's stock</td><td>Each run draws 3 aisles from your unlocked aisles. The 6 shared products are dealt from 2 of them. The 3rd stays in the run's stock but is not dealt from.</td><td><span class="dec">DECIDED</span></td></tr>
+      <tr><td>How the 3 are drawn</td><td>A partial Fisher-Yates over the unlocked aisles in data order, on the run seed's derived stream <code>stock_aisles</code> (it replaces <code>surprise_list</code>). The first 2 drawn are dealt from, the 3rd is NOT DEALT. Same seed and profile, same stock. It is saved in the run, as today's stock is.</td><td><span class="prop">PROPOSAL</span></td></tr>
+      <tr><td>The NOT DEALT aisle</td><td>Its items stay in the run's stock, so the RECEIPT REWARDS machine's NEW ITEMS can still give them. They are only left out of the starting deal. Unlocked aisles that weren't drawn read NOT TODAY and give nothing this run (apart from new arrivals).</td><td><span class="prop">PROPOSAL</span> (my reading of "stays locked")</td></tr>
+      <tr><td>Staples shelf in the deal</td><td>The deal's pool is the 6 staples (Banana, Bread, Milk, Eggs, Coffee, Soup) <b>plus</b> the 2 dealt aisles' collected items, as today. This keeps the <code>generally_useful</code> guarantee and the data test "the staples alone fill a deal".</td><td><span class="prop">PROPOSAL</span> (Q2)</td></tr>
+      <tr><td>Capsule products dealt</td><td>A machine aisle can only deal if capsule products can be dealt, so <code>random_capsules</code> goes on, with only the items you own (Fruit & veg at 4/8 deals those 4). Today it is off (TODO(S2)), and with it off a machine aisle would deal nothing.</td><td><span class="prop">PROPOSAL</span> (Q3)</td></tr>
+      <tr><td>New save</td><td>3 unlocked aisles means all 3 are stock, and the seed picks which 2 are dealt from. The alternative is to fix run 1 to Cold cases + Pantry (food only, no Household) as a tutorial deal.</td><td><span class="prop">PROPOSAL</span> (Q4)</td></tr>
+      <tr><td>Staple swaps</td><td>Each completed aisle opens one swap, capped at the 4 staples: with N completed, up to min(N, 4) staples are swapped. A swap replaces one staple with any base item of a completed aisle. The choice is saved to the profile for the next runs and can be changed on this screen.</td><td><span class="dec">DECIDED</span></td></tr>
+      <tr><td>Swaps aren't tied to aisles</td><td>Swaps are a count, not slots tied to particular aisles. Any open swap can take an item from any completed aisle.</td><td><span class="prop">PROPOSAL</span></td></tr>
+      <tr><td>Swap pool</td><td>"Base item" read as <b>the plain tier of any collected product of a completed aisle</b>, capsule products included. Read literally as "<code>base_cards</code> only", completing Fruit & veg, Bakery or Snacks would open a swap with nothing new to pick (they have no base cards). The SWAP POOL toggle shows both.</td><td><span class="prop">PROPOSAL</span> (Q1)</td></tr>
+      <tr><td>copy_max across the cart</td><td>A swapped-in item counts with the other staples, today's deal and the most copies any offered pack holds (<code>copies_for_offer</code>'s rule) and stays at 2 or fewer. The picker greys it out with "MAX 2 IN CART". The Banana bunch exception is unchanged.</td><td><span class="prop">PROPOSAL</span></td></tr>
+      <tr><td>Plain tier only</td><td>No BIG or GOLDEN tiers and no coupons. A staple is a plain product, and UPGRADES can still grow it in the run.</td><td><span class="prop">PROPOSAL</span></td></tr>
+      <tr><td>Max 2 from one aisle</td><td>At most 2 swapped staples from the same aisle, so a full set of swaps doesn't turn the staples into a single aisle's set. This is the "maybe with some rules" for 4 swaps.</td><td><span class="prop">PROPOSAL</span></td></tr>
+      <tr><td>Swaps don't re-deal</td><td>The deal is made with the saved staples (they count toward its copies). Changing a staple on this screen keeps today's deal and packs. It can't re-deal, so it is never a reroll. The fair-deal check is not run again: the player chose the change.</td><td><span class="prop">PROPOSAL</span> (Q5)</td></tr>
+      <tr><td>Losing completion</td><td>If an aisle stops being complete (the debug panel's reset collection), its swaps fall back to the original staples, last swap first.</td><td><span class="prop">PROPOSAL</span></td></tr>
+      <tr><td>RESTOCK (3–5 ★)</td><td>With 3 completed aisles you can swap one stock aisle for another unlocked aisle. The NOT DEALT aisle stays NOT DEALT.</td><td><span class="dec">DECIDED</span></td></tr>
+      <tr><td>RESTOCK's fairness</td><td>Once a run, before OPEN STORE. You choose the aisle to take out and the one to put in, and only then the new 6 are dealt, so you never preview the options. The deal comes from a derived stream <code>starting_deck_restock</code> of the run seed with the new pair: deterministic, so the same choice gives the same 6. The packs stay. The run is saved right after it (run save <code>start_restock</code>), so quitting neither rerolls it nor gives the token back. You may switch between the first deal and the restocked one (both are known), and that's all.</td><td><span class="prop">PROPOSAL</span></td></tr>
+      <tr><td>Fair-deal check after RESTOCK</td><td>The check runs on the new 6 as it does today, but may only re-deal the 6 (up to <code>fair_deal_redeals</code> on the restock stream). It never swaps a pack, so the packs on screen never change under the player.</td><td><span class="prop">PROPOSAL</span></td></tr>
+      <tr><td>Choose the pair (6 ★)</td><td>With 6 completed aisles you choose the 2 aisles dealt from.</td><td><span class="dec">DECIDED</span></td></tr>
+      <tr><td>How the pair is chosen</td><td>The pair is a profile preference (<code>stock_pair</code>), applied when the next run is dealt, so its deal is never shopped. On this screen, changing it uses the same once-a-run token as RESTOCK and is saved for the next runs. The 3rd aisle is the seed's: the first in the seed's aisle order that isn't in the pair.</td><td><span class="prop">PROPOSAL</span></td></tr>
+      <tr><td>Pins on this screen</td><td>Click the badge, a worn pin or the pin text to open BADGE PINS over the board. It lists your owned pins and <code>pin_slots</code> (1 now, 2 later), saves to the profile and re-wears the waiting run (<code>RunPins.wear</code>, then the run save). A pin's starting cards show live in FROM YOUR PINS and count toward 15.</td><td><span class="dec">DECIDED</span></td></tr>
+      <tr><td>Pins and the deal</td><td>A pin change never re-deals. The fair-deal check still ignores pins, as v1 Q2 left it.</td><td><span class="prop">PROPOSAL</span></td></tr>
+      <tr><td>Cart over 15</td><td>If a pin's cards would take the cart past <code>deck_limit</code> (15), WEAR is greyed out with "cart full". No pin brings cards today.</td><td><span class="prop">PROPOSAL</span></td></tr>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>Data, save fields and telemetry</h2>
+    <div class="scroll"><table class="spec">
+      <tr><th>Where</th><th>Field or event</th><th>Notes</th></tr>
+      <tr><td>Profile save</td><td><code>staple_swaps: Array[StringName]</code>, one entry per core slot ("" = kept)</td><td><code>ProfileState</code> <code>FORMAT_VERSION</code> 3 → 4. Read leniently: an id that is unknown, from an aisle that isn't complete or over the swap count is dropped to "", and the profile is still read.</td></tr>
+      <tr><td>Profile save</td><td><code>stock_pair: Array[StringName]</code> (2 aisle ids, only used at 6 ★)</td><td>Empty until first chosen. When empty, the seed's draw is used.</td></tr>
+      <tr><td>Profile (derived)</td><td><code>completed_aisles(balance)</code>, <code>unlocked_aisles(balance)</code>, <code>swap_count(balance)</code></td><td>Derived from <code>unlocked_items</code> and <code>AisleDefinition.base_cards + capsule_cards</code>. Never saved.</td></tr>
+      <tr><td>Run save</td><td><code>stock_aisles</code> (3 ids, dealt first), <code>core_cards</code> (the run's staples after swaps), <code>start_restock</code> ({out, in} or the chosen pair; null if unused), <code>start_deal</code> ("first" or "restock")</td><td>Run save format 7 → 8, with a migration. <code>could_deal</code> must accept swapped core cards: it checks them against the run's own saved <code>core_cards</code>, not the recipe's.</td></tr>
+      <tr><td>Balance data</td><td><code>stock_aisle_count</code> 3, <code>dealt_aisle_count</code> 2, <code>restock_min_completed</code> 3, <code>pair_choice_min_completed</code> 6, <code>restocks_per_run</code> 1, <code>staple_swap_aisle_max</code> 2</td><td>All <code>@export</code> fields in <code>data/balance/balance.tres</code> or the deck recipe, never in scripts (AGENTS.md).</td></tr>
+      <tr><td>Telemetry</td><td><code>run_start</code> + <code>stock_aisles</code>, <code>dealt_aisles</code>, <code>core_cards</code>, <code>completed_aisles</code></td><td>Additive fields.</td></tr>
+      <tr><td>Telemetry</td><td><code>start_choice</code> + <code>staple_swaps</code> (final), <code>restock</code> ({out, in} or pair, null), <code>deal_used</code> ("first" or "restock"), <code>pins_worn</code>, <code>cart</code> (card ids)</td><td>Logged at OPEN STORE, as now.</td></tr>
+      <tr><td>Telemetry (new)</td><td><code>staple_swap</code> {slot, from, to, aisle, completed}</td><td>Each picker choice, including a change back.</td></tr>
+      <tr><td>Telemetry (new)</td><td><code>restock</code> {out, in, pair, shared_before, shared_after, fair_deals}</td><td>Each RESTOCK or CHOOSE AISLES confirm, plus <code>restock_view</code> {deal} when the player switches between the two deals.</td></tr>
+      <tr><td>Telemetry (new)</td><td><code>pin_change</code> {before, after, slots, screen: "start"}</td><td>Also from REWARDS › BADGE PINS, with <code>screen: "rewards"</code>.</td></tr>
+      <tr><td>Log summary</td><td>Swap rates per item, restock rate and which aisles go out and in, and win rate by completed count.</td><td><code>tools/log_summary.py</code> and its tests.</td></tr>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>Code places to change (read from <code>C:/dev/projects/NC-start</code>, branch feature/start-screen)</h2>
+    <div class="scroll"><table class="spec">
+      <tr><th>File</th><th>Change</th></tr>
+      <tr><td>core/aisle_definition.gd</td><td><code>items()</code> (base + capsule), <code>held(unlocked)</code>, <code>is_complete(unlocked)</code>.</td></tr>
+      <tr><td>core/profile_state.gd</td><td><code>staple_swaps</code>, <code>stock_pair</code>, derived counts, to/from_dictionary, format 4. <code>reset_collection</code> trims the swaps.</td></tr>
+      <tr><td>core/run_stock.gd</td><td>Replace the list (<code>needs_list</code>, <code>surprise_list</code>, <code>prefill_list</code>, <code>last_list</code>) with <code>draw_aisles(unlocked, pair, rng)</code> → 3 aisles, dealt first. Keep the staples, new arrivals and coupons as today.</td></tr>
+      <tr><td>core/starting_deck.gd</td><td><code>deal_pool</code> reads the staples + the dealt aisles only (capsule items allowed). <code>deal_offer</code> takes the run's core cards (swapped) instead of <code>recipe.core_cards</code>. New <code>redeal_shared</code> for RESTOCK (stream <code>starting_deck_restock</code>, no pack swaps). <code>could_deal</code> and <code>copies_for_offer</code> read the saved core. New <code>swap_allowed(card, slot, ...)</code> for the picker's reasons.</td></tr>
+      <tr><td>core/start_offer.gd, core/run_state.gd, core/run_save.gd, core/run_save_migration.gd</td><td>Restock state, the run's core cards and stock aisles. Save format 8.</td></tr>
+      <tr><td>ui/start_choice.gd</td><td><code>new_run</code> applies the profile's swaps and pair. New: <code>swap_staple</code>, <code>restock</code>, <code>wear_pins</code>, each saving the profile and the waiting run at once (no reroll on quit).</td></tr>
+      <tr><td>ui/cart_reveal/stock_shelves.gd</td><td>Rows with progress pips, n/m, ★, the four states (DEALT FROM, NOT DEALT, NOT TODAY, LOCKED), the next-unlock hint and the RESTOCK or CHOOSE AISLES key.</td></tr>
+      <tr><td>ui/cart_reveal/cart_sheet.gd, cart_ticket.gd</td><td>Staples as 4 single slots (not grouped) with a chip under each (SWAP ›, WAS BANANA, NO SWAP, LOCKED). The deal bracket re-pops after a RESTOCK. FROM YOUR PINS lists the pins' cards.</td></tr>
+      <tr><td>ui/cart_reveal/ (new)</td><td><code>staple_picker.gd</code> (columns per completed aisle, reasons, KEEP) and <code>restock_panel.gd</code>.</td></tr>
+      <tr><td>ui/cart_reveal/board_pins.gd</td><td>The whole panel becomes a button. It opens <code>BadgeScreen</code> (or a drawer) over the board, re-wears and refreshes the cart.</td></tr>
+      <tr><td>ui/cart_reveal/start_board.gd, cart_reveal.gd</td><td>Modal handling (Esc closes the top one), keys, and the refresh after each change.</td></tr>
+      <tr><td>data/balance/balance.tres, data/decks/pack_starter.tres</td><td>The new numbers above. <code>random_capsules</code> on if Q3 is yes.</td></tr>
+      <tr><td>tools/balance_sim</td><td>The chained player completes aisles and needs a staple-swap strategy (e.g. greedy by the row climb) and a restock rule. <code>--profile</code> saves with swaps.</td></tr>
+      <tr><td>debug/screen_capture, debug panel</td><td><code>--reveal</code> + <code>picker=&lt;slot&gt;</code>, <code>restock</code>, <code>pins</code>. Profile tools: complete an aisle.</td></tr>
+      <tr><td>tests</td><td>Core: completion and unlock, the 3-aisle draw by seed, deal_pool, swap rules (copy_max, same-aisle max, tiers), restock determinism and the once-a-run token across save and resume, run save migration. UI: layout geometry of the picker and restock panel at 1280 and 1920, and the chip states per profile.</td></tr>
+      <tr><td>docs</td><td>FULL_BUILD_PLAN 7.2 (stock, deal, swaps), 7.1 (completion), PROTOTYPE_PLAN 8 (events), changelog.</td></tr>
+    </table></div>
+  </section>
+
+  <section class="answers">
+    <h2>Open questions for you</h2>
+    <ol>
+      <li><b>Q1 · What is a "base item" of a machine aisle?</b> Fruit & veg, Bakery and Snacks have no <code>base_cards</code>, only capsule items. My proposal: the plain tier of any collected product of the aisle (capsule items included). If you meant "<code>base_cards</code> only", completing a machine aisle opens a swap but adds nothing new to pick from. See the SWAP POOL toggle on the 3 and 6 profiles.</li>
+      <li><b>Q2 · Do the 6 staples stay in the deal's pool</b> next to the 2 dealt aisles (today's behaviour, my default)? Or are the 6 dealt from the 2 aisles only? Then a small pair (Household 4 base) could be thin, and the <code>generally_useful</code> guarantee needs another home.</li>
+      <li><b>Q3 · Turn <code>random_capsules</code> on?</b> Without it, a dealt machine aisle deals nothing, and the "dealt from 2 aisles" rule only works for the base aisles. That is v1's Q3, now forced.</li>
+      <li><b>Q4 · Run 1 on a new save:</b> does the seed pick which 2 of the 3 base aisles are dealt from (my default), or is run 1 fixed to Cold cases + Pantry?</li>
+      <li><b>Q5 · Staple swaps and the fair-deal check:</b> a swap made on this screen keeps today's deal and doesn't run the check again (my default). Or should the screen warn when the new cart fails shift 1's check?</li>
+      <li><b>Q6 · RESTOCK:</b> once a run, choose blind, then you may switch between the two known deals. Is that the right strength? Or should it be blind with no going back, or allowed every run with no limit?</li>
+      <li><b>Q7 · The 5th completed aisle unlocks nothing new</b> (4 swaps is the cap). Should it give something, e.g. a 2nd RESTOCK a run, or should "choose the pair" move to 5?</li>
+      <li><b>Q8 · Unlocked machine aisle:</b> at 4 items (my default, today's listable rule), or from its first capsule?</li>
+      <li><b>Q9 · The NOT DEALT aisle:</b> I read "stays locked" as "in today's stock for NEW ITEMS prizes, not dealt from". Or should it give nothing at all this run? Then it is only a teaser sign.</li>
+      <li><b>Q10 · Naming:</b> "staples" now means two things: the 4 padlocked cards and the 6-product staples shelf. Should the 4 cards be renamed (e.g. "regulars") on this screen?</li>
+      <li>Defaults I took (say if any is wrong): swap choices persist across runs; KEEP returns a staple to its original; staple tiles are shown one per slot (not grouped); the picker shows every completed aisle's items, greyed with a reason when blocked; the EXAMPLE pin <i>Coupon book</i> is only there to show a pin's cards in the cart, it is not a content proposal.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>Key frames</h2>
+    <div class="caps">
+      <figure><img src="start_screen_v2_src/s0_new_save.png" alt="New save"><figcaption class="cap">New save: everything locked, with the next-unlock hints.</figcaption></figure>
+      <figure><img src="start_screen_v2_src/s1_picker.png" alt="1 completed, picker"><figcaption class="cap">1 completed: the picker for Banana (slot 1), Cold cases' items.</figcaption></figure>
+      <figure><img src="start_screen_v2_src/s1_swapped.png" alt="1 completed, swapped"><figcaption class="cap">1 completed after a swap: WAS BANANA, the others NO SWAP.</figcaption></figure>
+      <figure><img src="start_screen_v2_src/s3_restock_panel.png" alt="3 completed, restock"><figcaption class="cap">3 completed: the RESTOCK panel (out Bakery, in Fruit & veg).</figcaption></figure>
+      <figure><img src="start_screen_v2_src/s3_restocked.png" alt="3 completed, restocked"><figcaption class="cap">3 completed after RESTOCK: new 6, FIRST / RESTOCKED switch.</figcaption></figure>
+      <figure><img src="start_screen_v2_src/s6_choose.png" alt="6 completed"><figcaption class="cap">6 completed: CHOOSE AISLES, any 2 of 6.</figcaption></figure>
+      <figure><img src="start_screen_v2_src/s6_picker.png" alt="6 completed, picker"><figcaption class="cap">6 completed: the picker with all six aisles and the 2-per-aisle rule.</figcaption></figure>
+      <figure><img src="start_screen_v2_src/s3_base_only_picker.png" alt="Base cards only"><figcaption class="cap">SWAP POOL "base cards only" (Q1): completed Fruit & veg adds nothing to pick.</figcaption></figure>
+      <figure><img src="start_screen_v2_src/s6_board.png" alt="6 completed board"><figcaption class="cap">6 completed, 2 pin slots: the whole board with every sign ★.</figcaption></figure>
+      <figure><img src="start_screen_v2_src/s3_pins.png" alt="Pins drawer"><figcaption class="cap">BADGE PINS over the board, 2 slots, the EXAMPLE pin with cards.</figcaption></figure>
+    </div>
+  </section>
+</main>
+
+<script src="start_screen_v2_src/cards.js"></script>
+<script>
+const SRC = 'start_screen_v2_src/';
+const CARD = Object.fromEntries(CARDS.map(c => [c.id, c]));
+const FAM = {
+  Bakery:['#d2a874','#ddcba5','#a87a4e','aisle_bakery'], Breakfast:['#e2b33c','#f1d27a','#b38425','family_breakfast'],
+  Clearance:['#a83a3c','#d9534f','#6e2630','family_clearance'], Coupon:[null,null,null,'family_coupon'],
+  Dairy:['#4f9a94','#86c2b6','#3a7672','family_dairy'], Food:['#ec8a6e','#f5bfa0','#d9534f','aisle_pantry'],
+  Frozen:['#c3e0d4','#fbf7ee','#86c2b6','aisle_cold_cases'], Household:['#5e574d','#8a8172','#4a3f38','aisle_household'],
+  Produce:['#5fae5a','#a5d17e','#3d7a45','aisle_fruit_and_veg'], Snack:['#7a5232','#a87a4e','#4a3022','aisle_snacks']};
+const DARK_FACE = new Set(['Clearance','Household','Snack','Dairy','Produce']);
+const PACKS = {
+  breakfast_run:{name:'Breakfast run',fam:'Breakfast',cards:['breakfast_sticker','coffee','tea_bags'],hint:'Line up Breakfast items: Coffee and Tea bags boost the next one.'},
+  bargain_bin:{name:'Bargain bin',fam:'Clearance',cards:['clearance_tag','dented_can','flickering_bulb'],hint:'Clearance in a row: Dented can pays +2 for each Clearance before it.'},
+  banana_bunch:{name:'Banana bunch',fam:'Produce',cards:['two_for_one','banana','banana'],hint:'4 Bananas in a row pay 2, 4, 6, 8. 2 for 1 between two doubles the 2nd.'},
+  coupon_clipper:{name:'Coupon clipper',fam:'Coupon',cards:['repeat','shelf_swap','scissors'],hint:'Two coupons, then Scissors: +2 for each coupon before it.'},
+  deli_counter:{name:'Deli counter',fam:'Bakery',cards:['bread','cheese','butter'],hint:'Butter, Bread, Cheese in a row: +3 beside Bread, +4 right after it.'},
+  big_shop:{name:'Big shop',fam:'Food',cards:['final_markdown','yogurt','carrier_bag'],hint:'Carrier bag between two Food: +8 for each Food beside it.'}};
+const CORE = ['banana','banana','milk','eggs'];
+const STAPLES = ['banana','bread','milk','eggs','coffee','soup'];
+const COPY_MAX = 2, AISLE_MAX = 2, DECK_LIMIT = 15;
+const AISLES = [ // data/aisles: base_cards, capsule_cards (key item first), sign colour
+  {id:'cold_cases',name:'Cold cases',sign:'#4f9a94',base:['cheese','frozen_peas','butter','yogurt','reduced_yogurt'],caps:['cream','ham_ends']},
+  {id:'pantry',name:'Pantry',sign:'#e2b33c',base:['cereal','tea_bags','crackers','dented_can','day_old_buns'],caps:['sugar_cubes','mixed_herbs']},
+  {id:'household',name:'Household',sign:'#8a8172',base:['carrier_bag','scissors','batteries','flickering_bulb'],caps:['egg_timer','chipped_mug','odd_socks']},
+  {id:'fruit_and_veg',name:'Fruit & veg',sign:'#3d7a45',base:[],caps:['fruit_salad','strawberries','grapefruit','wonky_carrot','lemon','bruised_apples','soft_tomatoes','potatoes']},
+  {id:'bakery',name:'Bakery',sign:'#d2a874',base:[],caps:['baguette','scone','croissant','broken_biscuit','iced_bun','birthday_candles','squashed_cake','stale_doughnut']},
+  {id:'snacks',name:'Snacks',sign:'#7a5232',base:[],caps:['crisps','cereal_bar','bent_lolly','pick_n_mix','stale_popcorn','breadsticks','dusty_toffees']}];
+const AISLE = Object.fromEntries(AISLES.map(a=>[a.id,a]));
+const PINS = [
+  {id:'recycle',name:'Recycle',face:'RE',c:['#5fae5a','#3d7a45'],rule:'Redrawn items go back in the pile; +1 redraw a shift',lock:'Finish a run'},
+  {id:'repack',name:'Repack',face:'MIX',c:['#4f9a94','#2a4d4b'],rule:'Move items between baskets while planning',lock:'Win a run'},
+  {id:'double_checkout',name:'Double checkout',face:'×2',c:['#8a1f33','#561327'],rule:'Check out two rows of 4 every shift; both count',lock:'Score 100€ in one checkout'},
+  {id:'stock_list',name:'Stock list',face:'NXT',c:['#2c3533','#172c2b'],rule:'See the next 3 items in the pile while planning'},
+  {id:'day_off',name:'Day off',face:'OFF',c:['#d9534f','#a83a3c'],rule:'Once a week, skip any day but a review: it passes on quota'},
+  {id:'golden_basket',name:'Golden basket',face:'GLD',c:['#ffcf3f','#8a5d1a'],rule:"Keep 2 checked-out items for the next shift's first basket"},
+  {id:'price_gun',name:'Price gun',face:'TAG',c:['#e2b33c','#b38425'],rule:'Once a shift, an item gains a family of your choice'},
+  {id:'express_lane',name:'Express lane',face:'EXP',c:['#a87a4e','#4a3022'],rule:'2 fewer slots; the first and last items pay ×2'},
+  {id:'coupon_book',name:'Coupon book',face:'CPN',c:['#fbf7ee','#d9534f'],rule:'Start every run with a 2 for 1 coupon',lock:'(example)',example:true,cards:['two_for_one']}];
+const PIN = Object.fromEntries(PINS.map(p => [p.id, p]));
+const ALLCAPS = AISLES.flatMap(a=>a.caps);
+// Profile states. S0's deal is real (StartingDeck.deal_offer, seed 20261103, v1); the others are dealt by the JS stand-in below.
+const STATES = [
+  {key:'s0',label:'New save (0 completed)',seed:20261103,run:1,first:'breakfast_run',packs:['banana_bunch','breakfast_run','deli_counter'],
+   caps:[], order:['cold_cases','pantry','household'], swaps:[null,null,null,null], pair:null,
+   realShared:['bread','eggs','soup','yogurt','reduced_yogurt','cereal'],
+   owned:['stock_list','day_off','golden_basket','price_gun','express_lane'], worn:[]},
+  {key:'s1',label:'1 completed',seed:20261117,run:9,first:'breakfast_run',packs:['big_shop','breakfast_run','coupon_clipper'],
+   caps:['cream','ham_ends','sugar_cubes','fruit_salad','strawberries','lemon','potatoes'], order:['cold_cases','fruit_and_veg','pantry','household'], swaps:[null,null,null,null], pair:null,
+   owned:['stock_list','day_off','golden_basket','price_gun','express_lane','recycle'], worn:['price_gun']},
+  {key:'s3',label:'3 completed',seed:20261201,run:21,first:null,packs:['deli_counter','bargain_bin','banana_bunch'],
+   caps:['cream','ham_ends','sugar_cubes','mixed_herbs',...AISLE.fruit_and_veg.caps,'egg_timer','chipped_mug','baguette','scone','croissant','iced_bun','squashed_cake','crisps','cereal_bar'],
+   order:['pantry','bakery','household','cold_cases','fruit_and_veg'], swaps:['strawberries',null,null,'tea_bags'], pair:null,
+   owned:PINS.map(p=>p.id).filter(i=>i!=='double_checkout'), worn:['repack','coupon_book']},
+  {key:'s6',label:'6 completed',seed:20270115,run:38,first:null,packs:['coupon_clipper','big_shop','breakfast_run'],
+   caps:ALLCAPS.slice(), order:['household','fruit_and_veg','bakery','snacks','pantry','cold_cases'], swaps:['croissant',null,'scone','cheese'], pair:['bakery','snacks'],
+   owned:PINS.map(p=>p.id), worn:['double_checkout','golden_basket']}];
+
+let S=0, SLOTS=1, RM=false, POOL='all', hovPack=-1, sel=-1, worn=[], hovAisle=null;
+let modal=null; // null | {t:'pins'} | {t:'pick',slot} | {t:'restock',out,in,pair}
+let swaps=[], restock=null, useRestock=false, dealPop=false, flashRows=[], baseShared=[], modalAnim=false;
+const F=document.getElementById('F');
+const st=()=>STATES[S];
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+
+/* ---------- profile derivations ---------- */
+const owns=id=>st().caps.includes(id);
+function held(a){ return a.base.length + a.caps.filter(owns).length; }
+function total(a){ return a.base.length + a.caps.length; }
+function complete(a){ return held(a)===total(a); }
+function unlocked(a){ return a.base.length>0 || held(a)>=4; }
+function ownedItems(a){ return a.base.concat(a.caps.filter(owns)); }
+const completed=()=>AISLES.filter(complete);
+const swapCount=()=>Math.min(completed().length, CORE.length);
+const usedSwaps=()=>swaps.filter(Boolean).length;
+const staples=()=>CORE.map((c,i)=>swaps[i]||c);
+function stock(){ // {dealt:[a,b], shelf:c}
+  const s=st(), ord=s.order.filter(id=>unlocked(AISLE[id]));
+  let dealt = useRestock&&restock ? restock.pair : (s.pair || ord.slice(0,2));
+  const shelf = useRestock&&restock&&restock.shelf ? restock.shelf : (s.pair ? ord.find(id=>!s.pair.includes(id)) : ord[2]);
+  return {dealt, shelf};
+}
+function aisleOf(id){ if(STAPLES.includes(id)) return 'staples'; const a=AISLES.find(a=>a.base.includes(id)||a.caps.includes(id)); return a?a.id:null; }
+function maxPack(id){ return Math.max(0,...st().packs.map(p=>PACKS[p].cards.filter(c=>c===id).length)); }
+/* JS stand-in for StartingDeck.deal_offer's shared draw: uniform among the pool's products still under copy_max
+   (staples + the most copies an offered pack holds count), mulberry32 on a hash of (seed, stream, pair). */
+function rng(seedStr){ let h=1779033703^seedStr.length; for(let i=0;i<seedStr.length;i++){h=Math.imul(h^seedStr.charCodeAt(i),3432918353);h=h<<13|h>>>19;}
+  let a=h>>>0; return ()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;}; }
+function dealFor(pair, core, stream){
+  const pool=STAPLES.concat(...pair.map(id=>ownedItems(AISLE[id])));
+  const copies={}; core.forEach(c=>copies[c]=(copies[c]||0)+1);
+  const allP=new Set(st().packs.flatMap(p=>PACKS[p].cards)); allP.forEach(c=>copies[c]=(copies[c]||0)+maxPack(c));
+  const r=rng(`${st().seed}/${stream}/${pair.join('+')}`), out=[];
+  while(out.length<6){ const ok=pool.filter(c=>(copies[c]||0)<COPY_MAX); if(!ok.length) break; const c=ok[Math.floor(r()*ok.length)]; out.push(c); copies[c]=(copies[c]||0)+1; }
+  return out.sort((x,y)=>pool.indexOf(x)-pool.indexOf(y));
+}
+function shared(){ return useRestock&&restock ? restock.shared : baseShared; }
+function pinCards(){ return worn.slice(0,SLOTS).flatMap(id=>(PIN[id]&&PIN[id].cards)||[]); }
+function packIdShown(){ const s=st(); if(hovPack>=0) return s.packs[hovPack]; if(sel>=0) return s.packs[sel]; return null; }
+function deckOf(packId){ const p=packId?PACKS[packId].cards:[]; return staples().concat(p, shared(), pinCards()); }
+function totals(packId){ const t={}; deckOf(packId).forEach(i=>t[i]=(t[i]||0)+1); return t; }
+function swapReason(id, slot){ // why a picker item can't go in this slot ('' = allowed)
+  if((swaps[slot]||CORE[slot])===id) return 'IN THIS SLOT';
+  const others=staples().filter((_,i)=>i!==slot);
+  const n=others.filter(c=>c===id).length + 1 + shared().filter(c=>c===id).length + maxPack(id);
+  if(n>COPY_MAX) return `MAX ${COPY_MAX} IN CART`;
+  const a=aisleOf(id); const same=swaps.filter((c,i)=>c&&i!==slot&&aisleOf(c)===a).length;
+  if(same>=AISLE_MAX) return `${AISLE_MAX} FROM THIS AISLE`;
+  return '';
+}
+function nextHint(){
+  const n=completed().length, inc=AISLES.filter(a=>unlocked(a)&&!complete(a)).map(a=>({a,miss:a.caps.filter(c=>!owns(c))})).sort((x,y)=>x.miss.length-y.miss.length);
+  const near=inc[0];
+  const nm=near?`${near.a.name} needs ${near.miss.length<=2?near.miss.map(c=>CARD[c].name).join(' and '):near.miss.length+' capsules'}`:'';
+  if(n===0) return `<b style="color:var(--gold)">NEXT:</b> complete an aisle (${nm}) to swap your first staple. RESTOCK opens at 3 completed.`;
+  if(n<3) return `<b style="color:var(--gold)">NEXT:</b> ${nm}: a ${n+1}${n+1===2?'nd':'rd'} completed aisle gives ${n+1===3?'a 3rd swap and RESTOCK':'a 2nd swap'} (${n}/3).`;
+  if(n<4) return `<b style="color:var(--gold)">NEXT:</b> ${nm}: a 4th completed aisle swaps every staple. Choose the 2 dealt aisles at 6.`;
+  if(n<6) return `<b style="color:var(--gold)">NEXT:</b> ${nm}. Complete all 6 to choose the 2 dealt aisles.`;
+  return `<b style="color:var(--gold)">ALL 6 COMPLETE.</b> Everything is open. Your swaps and aisles are saved for the next runs.`;
+}
+
+/* ---------- tiles ---------- */
+const ticketFam = c => c.kind===2 ? 'Coupon' : (c.tags.find(t=>t!=='Food') || c.tags[0] || 'Food');
+function famsOf(c){ return c.kind===2 ? ['Coupon'] : c.tags.slice(); }
+function artHTML(id){
+  const c=CARD[id];
+  if(c.kind===2) return `<div class="art"><img src="${SRC}items/coupon_slip.png" alt=""><img class="cicon" src="${SRC}icons/coupon_${id}_v2.png" alt=""></div>`;
+  return `<div class="art"><img src="${SRC}items/${id}.png" alt=""></div>`;
+}
+function tile(id, opt={}){
+  const c=CARD[id], f=ticketFam(c), fc=FAM[f]||FAM.Food, coupon=c.kind===2;
+  const bandBg = coupon ? 'var(--tomato)' : fc[0];
+  const ink = coupon || DARK_FACE.has(f) ? 'var(--paper)' : 'var(--ink)';
+  const glyphs = famsOf(c).filter(t=>t!=='Food'||c.tags.length===1).slice(0,3).map(t=>`<img src="${SRC}icons/${FAM[t][3]}.png" alt="${t}">`).join('');
+  const cls=['tk', coupon?'coupon':'', opt.nob?'nob':'', opt.ghost?'ghost':'', opt.pop?'popin':'', opt.lit?'lit':'', opt.dim?'dimmed':''].join(' ');
+  return `<div class="${cls}" data-card="${id}" data-n="${opt.total||1}" ${opt.slot!=null?`data-slot="${opt.slot}"`:''} style="${opt.delay!=null?`animation-delay:${opt.delay}ms`:''}">
+    ${opt.lock?`<div class="lock ${opt.lock==='open'?'open':''}"><img src="${SRC}icons/${opt.lock==='open'?'padlock_dim':'padlock'}.png" alt="staple"></div>`:''}
+    ${opt.swapped?`<div class="swp">↻</div>`:''}
+    ${coupon?`<div class="ctab">COUPON</div>`:''}
+    ${opt.count>1?`<div class="cnt">×${opt.count}</div>`:''}
+    ${artHTML(id)}<div class="nm">${esc(c.name)}</div>
+    ${opt.nob?'':`<div class="band" style="background:${bandBg};color:${ink}">${glyphs}<span class="pr">${coupon?'':c.base+'€'}</span></div>`}</div>`;
+}
+function group(ids){ const m=new Map(); ids.forEach(i=>m.set(i,(m.get(i)||0)+1)); return [...m.entries()]; }
+function pinFace(p, d){
+  if(!p) return `<div class="pinf empty" style="width:${d}px;height:${d}px;font-size:${d*.42}px">+</div>`;
+  const light = ['golden_basket','price_gun','coupon_book'].includes(p.id);
+  return `<div class="pinf" data-pin="${p.id}" style="width:${d}px;height:${d}px;font-size:${d*(p.face.length>2?.3:.38)}px;background:${p.c[0]};box-shadow:inset 0 0 0 ${d/12}px ${p.c[1]};color:${light?'var(--ink)':'var(--paper)'}">${esc(p.face)}</div>`;
+}
+function rivets(x,y,w,h){ return [[x+10,y+10],[x+w-22,y+10],[x+10,y+h-22],[x+w-22,y+h-22]].map(([a,b])=>`<div class="rivet" style="left:${a}px;top:${b}px"></div>`).join(''); }
+function signHTML(a, sz){ return `<div class="sg" style="background:${a.sign}"><img src="${SRC}icons/aisle_${a.id}.png" alt=""></div>`; }
+
+/* ---------- blocks ---------- */
+function headerPlate(){
+  const s=st(), n=deckOf(packIdShown()).length;
+  return `<div class="abs" style="left:0;top:0;width:1920px;height:100px;background:var(--teal-black);border-bottom:4px solid var(--charcoal)"></div><div class="plate" style="left:32px;top:26px;height:62px;padding:0 22px 0 14px;display:flex;align-items:center;gap:14px;font-size:30px">
+      <img src="${SRC}wall_clock.png" style="width:44px;height:44px" alt="">OPENING TIME <span style="color:var(--paper);text-shadow:0 2px 0 var(--brass-dark)">· SHIFT 1 OF 12</span></div>
+    <div class="abs" style="left:640px;top:30px;height:46px;display:flex;align-items:center;gap:10px;font-size:20px;font-weight:800;color:var(--teal-pale);white-space:nowrap">
+      ${AISLES.map(a=>`<span title="${esc(a.name)}" style="display:grid;place-items:center;width:34px;height:34px;border:3px solid var(--ink);background:${complete(a)?a.sign:'var(--teal-black)'};${complete(a)?'':'opacity:.55'}"><img src="${SRC}icons/aisle_${a.id}.png" style="width:18px;height:18px;${complete(a)?'':'filter:grayscale(1)'}" alt=""></span>`).join('')}
+      <span style="margin-left:6px;color:var(--gold)">${completed().length}/6 AISLES COMPLETE</span></div>
+    <div class="abs" style="right:290px;top:36px;font-size:20px;color:var(--teal-light);font-weight:700">Seed ${s.seed} · run ${s.run}</div>
+    <div class="abs" id="cartChip" style="right:32px;top:22px;height:62px;width:230px;background:var(--teal);border:3px solid var(--charcoal);box-shadow:inset 0 3px 0 var(--teal-light),inset 0 -4px 0 var(--teal-shade);display:flex;align-items:center;justify-content:center;gap:10px">
+      <img src="${SRC}icons/cart.png" style="width:36px;height:27px" alt=""><span style="font-family:var(--body);font-weight:800;font-size:26px">Cart ${n}/15</span></div>`;
+}
+function confirmKey(x,y,w,h){
+  const s=st(), p=sel>=0?PACKS[s.packs[sel]]:null, n=deckOf(sel>=0?s.packs[sel]:null).length;
+  return `<div class="key red ${p?'glow':'off'}" id="go" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px">
+     <div style="text-align:center;line-height:1"><div style="font-family:var(--display);font-weight:500;letter-spacing:.02em;font-size:46px">${p?'OPEN STORE ›':'PICK A PACK FIRST'}</div>
+     <div style="font-family:var(--body);font-weight:700;font-size:18px;margin-top:8px;letter-spacing:0">${p?`Start shift 1 with ${esc(p.name)} · ${n} cards`:'Click a pack, or press 1, 2 or 3'}</div></div></div>`;
+}
+function packCard(i,x,y,w,h){
+  const s=st(), id=s.packs[i], p=PACKS[id], fc=FAM[p.fam];
+  const face = p.fam==='Coupon' ? '#d9534f' : fc[0];
+  const ink = (p.fam==='Coupon'||DARK_FACE.has(p.fam)) ? 'var(--paper)' : 'var(--ink)';
+  const tiles=group(p.cards).map(([c,n])=>tile(c,{count:n,nob:true})).join('');
+  return `<div class="pack ${hovPack===i?'hov':''} ${sel===i?'sel':''}" data-pack="${i}" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px">
+    ${s.first===id?`<div class="first">GOOD FIRST PICK</div>`:''}${sel===i?`<div class="taken">✓ PICKED</div>`:''}
+    <div class="hd" style="background:${face};color:${ink}"><img src="${SRC}icons/${fc[3]}.png" alt=""><span class="t">${esc(p.name)}</span><span class="k">${i+1}</span></div>
+    <div class="row">${tiles}</div><div class="hint">${esc(p.hint)}</div></div>`;
+}
+
+function renderBoard(){
+  const s=st(), shown=packIdShown(), tot=totals(shown), preview=hovPack>=0&&hovPack!==sel;
+  let h=`<div class="bd"></div><div class="dim"></div>${headerPlate()}
+   <div class="steel" style="left:32px;top:104px;width:1856px;height:948px"></div>${rivets(32,104,1856,948)}`;
+  // 1 packs
+  h+=`<div class="abs sect" style="left:72px;top:122px"><span class="n">1</span>PICK A STARTER PACK <small>3 cards that start your build. Hover to preview, click to pick.</small></div>`;
+  s.packs.forEach((_,i)=>{ h+=packCard(i,72+i*396,184,372,282); });
+  // 2 cart sheet
+  const T=480, n=deckOf(shown).length, pk=shown?PACKS[shown]:null, pc=pinCards();
+  h+=`<div class="paper" style="left:64px;top:${T}px;width:1176px;height:560px"></div>`;
+  h+=`<div class="abs sect" style="left:92px;top:${T+10}px;color:var(--tomato-dark)"><span class="n" style="background:var(--tomato-dark);color:var(--paper)">2</span>YOUR CART
+      <span style="font-size:40px;color:${n>DECK_LIMIT?'var(--tomato)':'var(--ink)'}">${n}/15</span></div>`;
+  h+=`<div class="abs" style="left:500px;top:${T+20}px;display:flex;gap:8px;align-items:center;font-weight:700;font-size:19px;color:var(--ink);white-space:nowrap">
+      <span>= 4 staples</span><b>+</b><span style="${pk?'':'color:var(--grey)'}">${pk?'3 from '+esc(pk.name):'3 from your pack'}</span><b>+</b><span>6 from today's deal</span>${pc.length?`<b>+</b><span>${pc.length} from pins</span>`:''}</div>`;
+  const R1=T+52, R2=T+322;
+  // staples: one slot per card
+  const nSw=swapCount(), used=usedSwaps(), free=nSw-used;
+  const sub = nSw===0 ? 'Complete an aisle to swap one' : `${used} of ${nSw} swap${nSw>1?'s':''} used · saved for next runs`;
+  const slots=staples().map((c,i)=>{
+    const sw=!!swaps[i], picking=modal&&modal.t==='pick'&&modal.slot===i;
+    let chip, can=false;
+    if(sw){ chip=`<div class="chip was">WAS ${esc(CARD[CORE[i]].name).toUpperCase()}</div>`; can=true; }
+    else if(nSw===0) chip=`<div class="chip lockd">LOCKED</div>`;
+    else if(free>0){ chip=`<div class="chip open">SWAP ›</div>`; can=true; }
+    else chip=`<div class="chip used">NO SWAP</div>`;
+    return `<div class="slot ${can?'can':''} ${picking?'picking':''}" data-slotbox="${i}" style="width:120px">${tile(c,{lock:(can&&!sw)?'open':true,swapped:sw,total:tot[c],slot:i})}${chip}</div>`;
+  }).join('');
+  h+=`<div class="grp" style="left:92px;top:${R1}px"><div class="gh">STAPLES <span class="c">4</span><span class="gs" style="margin-left:4px;${nSw===0?'color:var(--tomato-dark);font-weight:800':''}">${sub}</span></div>
+      <div class="tiles">${slots}</div></div>`;
+  let packT;
+  if(pk) packT=group(pk.cards).map(([c],j)=>tile(c,{count:tot[c],total:tot[c],pop:true,delay:j*30,ghost:preview})).join('');
+  else packT=[0,1,2].map(()=>`<div class="tk empty">?</div>`).join('');
+  const pf=pk?FAM[pk.fam]:null, pcol=pk?(pk.fam==='Coupon'?'#d9534f':pf[0]):'var(--grey-light)';
+  const pw=pk?group(pk.cards).length*134-14:388;
+  h+=`<div class="grp" style="left:640px;top:${R1}px"><div class="gh">${pk?`<img src="${SRC}icons/${pf[3]}.png" style="width:27px;height:27px" alt="">`+esc(pk.name).toUpperCase():'YOUR PACK'} <span class="c">3</span>
+      ${preview?`<span class="px" style="font-size:15px;background:var(--teal-pale);color:var(--ink);border:3px solid var(--ink);padding:0 6px;letter-spacing:.04em">PREVIEW</span>`:`<span class="gs" style="margin-left:4px">${pk?'your pick':'pick above ↑'}</span>`}</div>
+      <div class="tiles">${packT}</div><div class="br" style="width:${pw}px;background:${pcol};margin-top:16px"></div></div>`;
+  // pins' cards
+  if(pc.length){
+    const g=group(pc);
+    h+=`<div class="grp" style="left:1060px;top:${R1}px"><div class="gh">FROM PINS <span class="c">${pc.length}</span></div>
+      <div class="tiles">${g.slice(0,1).map(([c])=>tile(c,{count:tot[c],total:tot[c],pop:true})).join('')}</div><div class="br" style="width:120px;background:var(--teal);margin-top:16px"></div></div>`;
+  } else {
+    h+=`<div class="abs" style="left:1056px;top:${R1+42}px;width:160px;height:178px;border:3px dashed var(--cream-dark);padding:8px 10px;color:var(--ink-light)">
+      <div class="px" style="font-size:17px;color:var(--ink);white-space:nowrap">FROM PINS <span style="border:3px solid var(--ink);background:var(--cream);padding:0 5px">0</span></div>
+      <div style="font-size:15px;font-weight:600;line-height:19px;margin-top:6px">${worn.slice(0,SLOTS).length?'Your pins bring no cards.':'No pin worn.'} A pin that brings cards puts them here.</div></div>`;
+  }
+  h+=`<div class="abs" style="left:92px;top:${R2-10}px;width:1120px;border-top:3px dashed var(--cream-dark)"></div>`;
+  const sh=shared(), stk=stock();
+  const dealT=group(sh).map(([c],j)=>tile(c,{count:tot[c],total:tot[c],pop:dealPop,delay:j*60,lit:hovAisle&&aisleOf(c)===hovAisle,dim:hovAisle&&aisleOf(c)!==hovAisle})).join('');
+  const dealSub = `from Staples, ${AISLE[stk.dealt[0]].name}, ${AISLE[stk.dealt[1]].name} · same for every pack`;
+  h+=`<div class="grp" style="left:92px;top:${R2}px"><div class="gh">TODAY'S DEAL <span class="c">6</span>${restock&&useRestock?`<span class="px" style="font-size:15px;background:var(--gold);border:3px solid var(--ink);padding:0 6px">RESTOCKED</span>`:''}<span class="gs" style="margin-left:4px">${dealSub}</span></div>
+      <div class="tiles">${dealT}</div><div class="br" style="width:${group(sh).length*134-14}px;background:var(--teal);margin-top:10px"></div></div>`;
+  const fam={}; deckOf(shown).forEach(c=>famsOf(CARD[c]).forEach(f=>fam[f]=(fam[f]||0)+1));
+  const fl=Object.entries(fam).sort((x,y)=>y[1]-x[1]);
+  const fx=92+group(sh).length*134+10;
+  if(1216-fx>=250) h+=`<div class="abs" style="left:${fx}px;top:${R2+44}px;width:${Math.min(400,1216-fx)}px">
+      <div class="px" style="font-size:19px;color:var(--ink)">BY FAMILY</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;margin-top:6px">${fl.slice(0,8).map(([f,k])=>`<div style="display:flex;align-items:center;gap:5px;font-weight:700;font-size:15px;color:var(--ink);white-space:nowrap"><span style="display:grid;place-items:center;width:24px;height:24px;border:2px solid var(--ink);background:${FAM[f][0]||'#d9534f'}"><img src="${SRC}icons/${FAM[f][3]}.png" style="width:18px;height:18px" alt=""></span>${f}<span style="margin-left:auto;font-family:var(--display);font-size:19px">${k}</span></div>`).join('')}</div></div>`;
+  // 3 stock
+  h+=stockPanel();
+  // 4 pins
+  const py=664;
+  const ws=worn.slice(0,SLOTS);
+  h+=`<div class="pinsarea" id="pinsArea">
+    <div class="abs sect" style="left:1276px;top:${py}px"><span class="n">4</span>BADGE PINS <small>click to change</small></div>
+    <div class="abs pinring" style="left:1272px;top:${py+46}px;width:200px;height:204px">
+      <img src="${SRC}pin_badge.png" style="width:200px;height:204px" alt="name badge">
+      <div class="abs px" style="left:8px;top:22px;width:184px;text-align:center;font-size:21px;line-height:23px;color:var(--paper)">NEXT<br>CUSTOMER</div>
+      <div class="abs" style="left:18px;top:94px;font-weight:800;font-size:15px;letter-spacing:.08em;color:var(--teal-shade)">CASHIER</div>
+      <div class="abs" style="left:8px;top:114px;width:184px;height:76px;display:flex;align-items:center;justify-content:center;gap:12px">${Array.from({length:SLOTS},(_,k)=>pinFace(PIN[ws[k]],64)).join('')}</div></div>
+    <div class="abs" style="left:1490px;top:${py+52}px;width:370px;height:170px;overflow:hidden">${ws.length?ws.map(id=>{const p=PIN[id];return `<div style="margin-bottom:8px"><div class="px" style="font-size:22px;color:var(--gold);white-space:nowrap">${esc(p.name)}${p.example?'<span class="exm">EXAMPLE</span>':''}</div><div style="font-size:16px;font-weight:600;line-height:19px">${esc(p.rule)}</div></div>`;}).join(''):`<div class="px" style="font-size:22px;color:var(--grey-light)">No pin worn</div>`}
+      ${ws.length<SLOTS?`<div style="font-size:16px;font-weight:600;color:var(--teal-light)">${SLOTS-ws.length} slot free · click the badge</div>`:''}</div></div>`;
+  h+=confirmKey(1272,940,584,96);
+  return h;
+}
+function stockPanel(){
+  const s=st(), stk=stock(), n=completed().length;
+  let h=`<div class="abs sect" style="left:1276px;top:122px"><span class="n">3</span>TODAY'S STOCK</div>`;
+  // restock key
+  let rk;
+  if(n<3) rk=`<div class="key dis" id="rsBtn" style="left:1622px;top:120px;width:236px;height:46px;font-size:17px">RESTOCK · AT 3 ★ (${n}/3)</div>`;
+  else if(restock) rk=`<div class="abs" style="left:1600px;top:120px;display:flex;border:3px solid var(--ink)">
+      <div class="key inl ${useRestock?'cream':'gold'}" data-view="first" style="width:128px;height:44px;font-size:16px;border:0">FIRST DEAL</div>
+      <div class="key inl ${useRestock?'gold':'cream'}" data-view="restock" style="width:128px;height:44px;font-size:16px;border:0;border-left:3px solid var(--ink)">RESTOCKED</div></div>`;
+  else rk=`<div class="key teal" id="rsBtn" style="left:1622px;top:120px;width:236px;height:46px;font-size:19px">${n>=6?'CHOOSE AISLES ›':'RESTOCK ›'}</div>`;
+  h+=rk;
+  h+=`<div class="abs" style="left:1276px;top:170px;font-size:17px;font-weight:600;color:var(--teal-pale);white-space:nowrap">3 aisles today: the 6 are dealt from 2 of them (and Staples).</div>`;
+  const rows=[{id:'staples',name:'Staples',state:'deal'}].concat(AISLES.map(a=>{
+    let state; if(!unlocked(a)) state='lock'; else if(stk.dealt.includes(a.id)) state='deal'; else if(stk.shelf===a.id) state='shelf'; else state='off';
+    return {id:a.id,name:a.name,state,a};
+  }));
+  h+=`<div class="abs" style="left:1268px;top:200px;width:592px;height:${rows.length*56}px;background:var(--teal-black);border:3px solid var(--charcoal)">
+    ${rows.map((r,k)=>{
+      const tag={deal:'DEALT FROM',shelf:'NOT DEALT',off:'NOT TODAY',lock:'LOCKED'}[r.state];
+      const ic = r.state==='shelf'||r.state==='lock' ? `<img src="${SRC}icons/padlock.png" alt="">` : '';
+      if(r.id==='staples') return `<div class="aisle ${hovAisle==='staples'?'hov':''}" data-aisle="staples" style="top:0">
+         <div class="sg" style="background:var(--cream)"><img src="${SRC}icons/padlock.png" style="width:18px;height:20px" alt=""></div><div class="an">Staples</div>
+         <div class="pg"><span class="pn" style="color:var(--teal-pale);font-size:16px">6 items · every run</span></div><span class="st deal">IN THE DEAL</span></div>`;
+      const a=r.a, hd=held(a), tt=total(a), done=hd===tt;
+      const pips=Array.from({length:tt},(_,i)=>`<i class="${i<hd?'on':''}"></i>`).join('');
+      const extra = r.state==='lock' ? `<span style="font-size:15px;color:var(--grey-light);font-weight:700">opens at 4</span>` : '';
+      return `<div class="aisle ${r.state==='lock'?'locked':''} ${done?'done':''} ${hovAisle===r.id?'hov':''} ${flashRows.includes(r.id)?'isnew':''}" data-aisle="${r.id}" style="top:${k*56}px">
+        ${signHTML(a)}<div class="an">${esc(a.name)}</div>
+        <div class="pg"><span class="pips">${pips}</span><span class="pn">${hd}/${tt}</span>${done?`<img src="${SRC}icons/mark_check.png" alt="complete">`:''}</div>
+        ${extra}<span class="st ${r.state}">${ic}${tag}</span></div>`;}).join('')}</div>`;
+  h+=`<div class="abs" style="left:1276px;top:${200+rows.length*56+10}px;width:580px;font-size:16px;font-weight:600;line-height:20px;color:var(--teal-pale)">${nextHint()}</div>`;
+  return h;
+}
+
+/* ---------- modals ---------- */
+function pinsModal(){
+  const s=st(), x=1060, y=130, w=800;
+  const list=PINS.filter(p=>!p.example||s.owned.includes(p.id));
+  const rows=list.map((p,i)=>{
+    const own=s.owned.includes(p.id), on=worn.slice(0,SLOTS).includes(p.id);
+    const btn = !own ? `<div class="key pb dis" style="position:relative;font-size:16px">LOCKED</div>`
+      : on ? `<div class="key teal pb" data-wear="${p.id}" style="position:relative;background:var(--green);color:var(--ink)">✓ WORN</div>` : `<div class="key cream pb" data-wear="${p.id}" style="position:relative">WEAR</div>`;
+    return `<div class="prow" style="top:${84+i*70}px">${own?pinFace(p,52):`<div class="pinf" style="width:52px;height:52px;background:var(--grey-light);box-shadow:inset 0 0 0 4px var(--grey);color:var(--ink);font-size:24px">?</div>`}
+      <div class="pn" style="${own?'':'color:var(--grey-light)'}">${esc(p.name)}${p.example?'<span class="exm">EXAMPLE</span>':''}</div><div class="pr">${own?esc(p.rule)+(p.cards?` · <b style="color:var(--gold)">+1 card in your cart</b>`:''):'Unlock: '+esc(p.lock)}</div>${btn}</div>`;}).join('');
+  const hgt=84+list.length*70+86;
+  return `<div class="scrim" data-close="1"></div><div class="drawer ${modalAnim?'anim':''}" style="left:${x}px;top:${y}px;width:${w}px;height:${hgt}px">
+    <div class="abs sect" style="left:24px;top:20px;font-size:28px">BADGE PINS <small>${SLOTS} slot${SLOTS>1?'s':''} · wearing one with every slot taken replaces the first</small></div>
+    ${rows}
+    <div class="key teal" data-close="1" style="left:24px;bottom:18px;width:150px;height:48px;font-size:22px">DONE</div>
+    <div class="abs" style="left:196px;bottom:16px;font-size:16px;font-weight:600;color:var(--teal-pale);width:${w-230}px;line-height:20px">Saved to your profile and worn from this run. Today's deal stays the same. A pin's cards join your cart at once.</div></div>`;
+}
+function pickerModal(){
+  const slot=modal.slot, cur=swaps[slot]||CORE[slot], orig=CORE[slot];
+  const comp=completed(), n=comp.length;
+  const w=n>=4?1792:(n===3?1500:1180), x=Math.round((1920-w)/2), y=124;
+  const colW=Math.floor((w-48-(n-1)*14)/n), sub=Math.max(1,Math.floor(colW/290)), subW=Math.floor(colW/sub);
+  const cols=comp.map((a,k)=>{
+    const items = POOL==='base' ? a.base : a.base.concat(a.caps);
+    const body = items.length ? items.map(id=>{
+      const why=swapReason(id,slot), c=CARD[id], isCur=cur===id;
+      return `<div class="pit ${why&&!isCur?'no':''} ${isCur?'cur':''}" ${why?'':`data-take="${id}"`}><img src="${SRC}items/${id}.png" alt="">
+        <div class="t"><b>${esc(c.name)}</b><span class="${why&&!isCur?'why':''}">${isCur?'IN THIS SLOT':why?why:(a.base.includes(id)?'base item':'capsule item')}</span></div><span class="p">${c.base}€</span></div>`;}).join('')
+      : `<div style="padding:14px 12px;font-size:16px;font-weight:600;color:var(--tomato-light);line-height:21px">No base cards: with "base cards only", this completed aisle opens a swap but adds nothing to pick.</div>`;
+    return `<div class="pcol" style="left:${24+k*(colW+14)}px;width:${colW}px"><div class="ph">${signHTML(a)}<span class="nm">${esc(a.name)}</span><span class="ok"><img src="${SRC}icons/mark_check.png" alt="">${held(a)}/${total(a)}${colW>=330?' COMPLETE':''}</span></div><div style="display:grid;grid-template-columns:repeat(${sub},${subW-2}px)">${body}</div></div>`;
+  }).join('');
+  const maxRows=Math.max(1,...comp.map(a=>Math.ceil((POOL==='base'?a.base:a.base.concat(a.caps)).length/sub)));
+  const hgt=Math.min(920, 118+56+maxRows*68+116);
+  return `<div class="scrim" data-close="1"></div><div class="drawer ${modalAnim?'anim':''}" style="left:${x}px;top:${y}px;width:${w}px;height:${hgt}px">
+    <div class="abs sect" style="left:24px;top:18px;font-size:30px">SWAP A STAPLE <small>Replacing <b style="color:var(--paper)">${esc(CARD[cur].name)}</b> in slot ${slot+1} of 4 · ${swapCount()-usedSwaps()+(swaps[slot]?1:0)} of ${swapCount()} swap${swapCount()>1?'s':''} free</small></div>
+    <div class="abs" style="left:24px;top:66px;font-size:17px;font-weight:600;color:var(--teal-pale);white-space:nowrap">Pick an item from a completed aisle. It's saved for your next runs too.</div>
+    <div class="key cream" data-take="__keep" style="left:${w-470}px;bottom:20px;width:250px;height:52px;font-size:19px">${swaps[slot]?'BACK TO '+esc(CARD[orig].name).toUpperCase():'KEEP '+esc(CARD[orig].name).toUpperCase()}</div>
+    <div class="key teal" data-close="1" style="left:${w-204}px;bottom:20px;width:170px;height:52px;font-size:19px">CANCEL</div>
+    ${cols}
+    <div class="abs" style="left:24px;bottom:16px;width:${w-520}px;font-size:16px;font-weight:600;line-height:21px;color:var(--teal-pale)">
+      <span class="exm" style="margin:0 6px 0 0">PROPOSED</span>max ${COPY_MAX} of a card across the cart (staples + today's deal + the most any offered pack holds) · max ${AISLE_MAX} swapped staples from one aisle · plain tier only, no coupons · today's deal is not re-dealt.</div></div>`;
+}
+function restockModal(){
+  const stk=stock(), n=completed().length, s=st();
+  const x=1060, y=124, w=800;
+  const unl=AISLES.filter(unlocked);
+  let body;
+  if(n>=6){
+    const pair=modal.pair;
+    body=`<div class="abs px" style="left:24px;top:84px;font-size:21px">DEAL FROM <span style="color:var(--gold)">(pick 2)</span></div>
+      <div class="abs" style="left:24px;top:122px;width:${w-48}px;display:flex;flex-wrap:wrap;gap:12px">${unl.map(a=>`<div class="rchip ${pair.includes(a.id)?'on':''}" data-pairpick="${a.id}">${signHTML(a)}${esc(a.name)}</div>`).join('')}</div>
+      <div class="abs" style="left:24px;top:270px;width:${w-48}px;font-size:17px;font-weight:600;line-height:22px;color:var(--teal-pale)">The 3rd aisle (NOT DEALT) stays the seed's: the first aisle in today's draw order that isn't in your pair. The pair is saved for your next runs.</div>`;
+  } else {
+    const outs=stk.dealt, ins=unl.filter(a=>!stk.dealt.includes(a.id)&&a.id!==stk.shelf);
+    body=`<div class="abs px" style="left:24px;top:84px;font-size:21px">TAKE OUT <span style="color:var(--teal-pale);font-weight:600;font-size:17px">a dealt aisle</span></div>
+      <div class="abs" style="left:24px;top:120px;display:flex;gap:12px">${outs.map(id=>`<div class="rchip ${modal.out===id?'on':''}" data-rsout="${id}">${signHTML(AISLE[id])}${esc(AISLE[id].name)}</div>`).join('')}
+        <div class="rchip no">${signHTML(AISLE[stk.shelf])}${esc(AISLE[stk.shelf].name)} <img src="${SRC}icons/padlock.png" style="width:18px;height:20px" alt=""> NOT DEALT</div></div>
+      <div class="abs px" style="left:24px;top:196px;font-size:21px">PUT IN <span style="color:var(--teal-pale);font-weight:600;font-size:17px">an unlocked aisle not in today's stock</span></div>
+      <div class="abs" style="left:24px;top:232px;display:flex;gap:12px;flex-wrap:wrap;width:${w-48}px">${ins.length?ins.map(a=>`<div class="rchip ${modal.in===a.id?'on':''}" data-rsin="${a.id}">${signHTML(a)}${esc(a.name)}</div>`).join(''):`<div style="font-size:17px;color:var(--tomato-light);font-weight:700">No other unlocked aisle.</div>`}</div>`;
+  }
+  const ready = n>=6 ? (modal.pair.length===2 && modal.pair.slice().sort().join()!==stk.dealt.slice().sort().join()) : (modal.out&&modal.in);
+  const hgt=510;
+  return `<div class="scrim" data-close="1"></div><div class="drawer ${modalAnim?'anim':''}" style="left:${x}px;top:${y}px;width:${w}px;height:${hgt}px">
+    <div class="abs sect" style="left:24px;top:20px;font-size:30px">${n>=6?'CHOOSE AISLES':'RESTOCK'} <small>once a run</small></div>
+    ${body}
+    <div class="abs" style="left:24px;top:320px;width:${w-48}px;padding:10px 12px;border:3px dashed var(--mustard);font-size:17px;font-weight:600;line-height:22px;color:var(--mustard-pale)">
+      <span class="exm" style="margin:0 6px 0 0">PROPOSED</span>You see the new 6 only after you confirm. The packs stay. You can switch back to the first deal, but you can't restock again this run. Quitting keeps it.</div>
+    <div class="key ${ready?'gold':'dis'}" id="rsGo" style="left:24px;bottom:18px;width:300px;height:52px;font-size:21px">${n>=6?'DEAL FROM THESE ›':'RESTOCK ›'}</div>
+    <div class="key teal" data-close="1" style="left:344px;bottom:18px;width:170px;height:52px;font-size:21px">CANCEL</div></div>`;
+}
+
+function render(){
+  F.className='F'+(RM?' rm':'');
+  let h=renderBoard();
+  if(modal&&modal.t==='pins') h+=pinsModal();
+  if(modal&&modal.t==='pick') h+=pickerModal();
+  if(modal&&modal.t==='restock') h+=restockModal();
+  h+=`<div class="pop" id="pop"></div><div class="toast" id="toast"></div>`;
+  F.innerHTML=h;
+  dealPop=false; flashRows=[]; modalAnim=false;
+  updateCap();
+}
+function updateCap(){
+  const s=st(), stk=stock();
+  document.getElementById('capline').innerHTML = `${esc(s.label)} · ${completed().length} of 6 aisles complete · ${swapCount()} staple swap${swapCount()===1?'':'s'} open · dealt from ${AISLE[stk.dealt[0]].name} + ${AISLE[stk.dealt[1]].name}, ${AISLE[stk.shelf].name} NOT DEALT. `+
+   (s.realShared&&!(useRestock&&restock) ? `Today's deal is the real <code>StartingDeck.deal_offer</code> for seed ${s.seed} (v1).` : `Today's deal is a JS stand-in for <code>deal_offer</code> (uniform draw, copy_max 2, no fair-deal check), not a game deal.`)+
+   ` 1920×1080 frame; item art at 2× (pickers 1×), glyphs at 3×, nearest-neighbour.`;
+}
+
+/* ---------- popups ---------- */
+function showPop(html, el, side){
+  const pop=document.getElementById('pop'); pop.innerHTML=html;
+  const fr=F.getBoundingClientRect(), r=el.getBoundingClientRect(), k=fr.width/1920;
+  let x=(r.right-fr.left)/k+12, y=(r.top-fr.top)/k-10;
+  if(side==='left'||x+440>1910) x=(r.left-fr.left)/k-446;
+  pop.style.left=x+'px'; pop.style.top=Math.max(110,Math.min(y,1080-260))+'px'; pop.style.display='block';
+}
+function cardPop(el){
+  const id=el.dataset.card, c=CARD[id]; if(!c) return;
+  const fams=famsOf(c).map(t=>{const f=FAM[t];return `<span style="background:${f[0]||'#d9534f'};color:${(t==='Coupon'||DARK_FACE.has(t))?'var(--paper)':'var(--ink)'}">${t}</span>`;}).join('');
+  const where=aisleOf(id), wn=where==='staples'?'Staples shelf':(AISLE[where]||{}).name;
+  let extra='';
+  if(el.dataset.slot!=null){ const i=+el.dataset.slot, nSw=swapCount();
+    if(swaps[i]) extra=`<div class="pm"><b>Swapped staple</b> (was ${CARD[CORE[i]].name}). Click to change it or put it back.</div>`;
+    else if(nSw===0) extra=`<div class="pm"><b>Swap locked.</b> Complete an aisle to swap a staple: collect all of its items at the toy machines.</div>`;
+    else if(usedSwaps()<nSw) extra=`<div class="pm"><b>Click to swap</b> for an item of a completed aisle.</div>`;
+    else extra=`<div class="pm"><b>No swap left</b> (${nSw} of ${nSw} used). Complete another aisle for one more, or change a swapped staple.</div>`; }
+  showPop(`<div class="pt">${esc(c.name)}${c.kind===1?`<span style="margin-left:auto;font-family:var(--body);font-weight:800;font-size:28px">${c.base}€</span>`:''}</div>
+    <div class="pf">${fams}${wn?`<span style="background:var(--cream)">${wn}</span>`:''}</div>
+    <div class="pr">${esc(c.rule)}</div><div class="pm">×${el.dataset.n} in your cart</div>${extra}`, el);
+}
+F.addEventListener('mousemove',e=>{
+  const pop=document.getElementById('pop'); if(!pop) return;
+  if(e.target.closest('.drawer')){ pop.style.display='none'; return; }
+  const t=e.target.closest('[data-card]'); if(t){ cardPop(t); return; }
+  const pinEl=e.target.closest('.pinf[data-pin]');
+  if(pinEl){ const p=PIN[pinEl.dataset.pin]; showPop(`<div class="pt">${esc(p.name)}</div><div class="pr">${esc(p.rule)}</div><div class="pm">Badge pin · worn this run. Click to change.</div>`, pinEl, 'left'); return; }
+  const ai=e.target.closest('[data-aisle]');
+  if(ai&&ai.dataset.aisle!=='staples'){ const a=AISLE[ai.dataset.aisle], stk=stock(), miss=a.caps.filter(c=>!owns(c));
+    const state=!unlocked(a)?`Locked: opens at 4 items (${held(a)} now). Its capsules ride the next 3 runs as new arrivals.`:stk.dealt.includes(a.id)?`Dealt from today: ${shared().filter(c=>aisleOf(c)===a.id).length} of today's 6.`:stk.shelf===a.id?'In today\'s stock but NOT DEALT: its items can come from the machine\'s NEW ITEMS, not the deal.':'Unlocked, not in today\'s stock.';
+    showPop(`<div class="pt">${esc(a.name)} <span style="margin-left:auto;font-family:var(--body);font-weight:800;font-size:26px">${held(a)}/${total(a)}</span></div>
+      <div class="pr">${state}</div><div class="pm">${miss.length?`Missing: ${miss.map(c=>owns(c)?'':CARD[c].name).filter(Boolean).slice(0,4).join(', ')}${miss.length>4?'…':''}. Complete it for a staple swap.`:'<b>Complete ★</b>: it gives one staple swap.'}</div>`, ai, 'left'); return; }
+  pop.style.display='none';
+});
+F.addEventListener('mouseover',e=>{
+  if(modal) return;
+  const p=e.target.closest('[data-pack]'); const hp=p?+p.dataset.pack:-1;
+  const a=e.target.closest('[data-aisle]'); const ha=a?a.dataset.aisle:null;
+  if(hp!==hovPack||ha!==hovAisle){ hovPack=hp; hovAisle=ha; render(); }
+});
+F.addEventListener('mouseleave',()=>{hovPack=-1;hovAisle=null;render();});
+F.addEventListener('click',e=>{
+  const T=e.target;
+  if(T.closest('[data-close]')){ modal=null; render(); return; }
+  const w=T.closest('[data-wear]');
+  if(w){ const id=w.dataset.wear; const i=worn.indexOf(id); if(i>=0&&i<SLOTS) worn.splice(i,1); else { if(worn.length>=SLOTS) worn.splice(0,1); worn.push(id);} worn=worn.slice(0,SLOTS); render(); return; }
+  const tk=T.closest('[data-take]');
+  if(tk&&modal&&modal.t==='pick'){ const id=tk.dataset.take; swaps[modal.slot]= id==='__keep'?null:id; modal=null; render(); return; }
+  const po=T.closest('[data-rsout]'); if(po){ modal.out=po.dataset.rsout; render(); return; }
+  const pi=T.closest('[data-rsin]'); if(pi){ modal.in=pi.dataset.rsin; render(); return; }
+  const pp=T.closest('[data-pairpick]'); if(pp){ const id=pp.dataset.pairpick, pr=modal.pair; const k=pr.indexOf(id); if(k>=0) pr.splice(k,1); else { if(pr.length>=2) pr.shift(); pr.push(id);} render(); return; }
+  if(T.closest('#rsGo')) { doRestock(); return; }
+  if(T.closest('.drawer')) return;
+  const vw=T.closest('[data-view]'); if(vw){ useRestock=vw.dataset.view==='restock'; dealPop=true; render(); return; }
+  if(T.closest('#rsBtn')){ if(completed().length>=3&&!restock){ modal={t:'restock',out:null,in:null,pair:stock().dealt.slice()}; modalAnim=true; render(); } return; }
+  if(T.closest('#pinsArea')){ modal={t:'pins'}; modalAnim=true; render(); return; }
+  const sb=T.closest('[data-slotbox]');
+  if(sb){ const i=+sb.dataset.slotbox; if(swaps[i]||(swapCount()>usedSwaps())){ modal={t:'pick',slot:i}; modalAnim=true; render(); } return; }
+  const p=T.closest('[data-pack]'); if(p){ sel=+p.dataset.pack; render(); return; }
+  if(T.closest('#go')) go();
+});
+function doRestock(){
+  const stk=stock(), n=completed().length, s=st();
+  let pair, shelf=stk.shelf;
+  if(n>=6){ if(modal.pair.length!==2) return; pair=modal.pair.slice(); const ord=s.order; shelf=ord.find(id=>!pair.includes(id)); }
+  else { if(!modal.out||!modal.in) return; pair=stk.dealt.map(id=>id===modal.out?modal.in:id); }
+  restock={pair, shelf, shared:dealFor(pair, staples(), 'starting_deck_restock')};
+  useRestock=true; dealPop=true; flashRows=pair.concat(shelf); modal=null; render();
+}
+function go(){
+  if(sel<0||modal) return;
+  const t=document.getElementById('toast'); t.textContent=`SHIFT 1 · ${PACKS[st().packs[sel]].name.toUpperCase()} · ${deckOf(st().packs[sel]).length} CARDS`;
+  [...F.children].forEach(c=>{ if(!c.classList.contains('bd')&&c.id!=='toast'&&c.id!=='cartChip') c.classList.add('fold'); });
+  setTimeout(()=>{t.style.display='block';},RM?0:520);
+  setTimeout(()=>{t.style.display='none';reset();},RM?1400:2200);
+}
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&modal){ modal=null; render(); return; }
+  if(modal) return;
+  if(['1','2','3'].includes(e.key)){sel=+e.key-1;render();}
+  else if(e.key==='Enter'){go();}
+  else if(e.key==='p'||e.key==='P'){modal={t:'pins'};modalAnim=true;render();}
+});
+function reset(){
+  const s=st(); sel=s.first?s.packs.indexOf(s.first):-1; worn=s.worn.slice(0,SLOTS); hovPack=-1; hovAisle=null; modal=null;
+  swaps=s.swaps.slice(); restock=null; useRestock=false;
+  baseShared = s.realShared ? s.realShared.slice() : dealFor(stock().dealt, staples(), 'starting_deck');
+  render();
+}
+function seg(id,attr,fn){ const g=document.getElementById(id); g.addEventListener('click',e=>{const b=e.target.closest('button'); if(!b)return; g.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b)); fn(b.dataset[attr]);}); }
+seg('segS','s',v=>{S=+v;reset();});
+seg('segP','p',v=>{SLOTS=+v;worn=st().worn.slice(0,SLOTS);render();});
+seg('segQ','q',v=>{POOL=v;render();});
+seg('segM','m',v=>{RM=v==='1';render();});
+seg('segZ','z',v=>{document.body.classList.toggle('one',v==='one');fit();});
+document.getElementById('reset').onclick=reset;
+function fit(){ const w=document.getElementById('fwrap'), sc=document.getElementById('fscale');
+  const k=document.body.classList.contains('one')?1:Math.min(1,w.clientWidth/1920);
+  sc.style.transform=`scale(${k})`; w.style.height=(1080*k+4)+'px'; }
+window.addEventListener('resize',fit);
+// URL hooks for captures: ?s=0..3&slots=2&pool=base&pick=<slot>&take=<id>&restock=out:in | pair:a+b&rsopen=1&pins=1&sel=0&solo=1
+const Q=new URLSearchParams(location.search);
+if(Q.get('s')) S=+Q.get('s'); if(Q.get('slots')) SLOTS=+Q.get('slots'); if(Q.get('pool')) POOL=Q.get('pool');
+document.querySelectorAll('#segS button').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.s===S));
+document.querySelectorAll('#segP button').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.p===SLOTS));
+document.querySelectorAll('#segQ button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.q===POOL));
+reset();
+if(Q.get('sel')) sel=+Q.get('sel');
+if(Q.get('take')){ const [sl,id]=Q.get('take').split(':'); swaps[+sl]=id; }
+if(Q.get('restock')){ const r=Q.get('restock'); if(r.startsWith('pair:')) modal={pair:r.slice(5).split('+')}; else { const [o,i]=r.split(':'); modal={out:o,in:i}; } if(!Q.get('rsopen')) doRestock(); else modal.t='restock'; }
+if(Q.get('rsopen')&&!modal) modal={t:'restock',out:null,in:null,pair:stock().dealt.slice()};
+if(Q.get('pick')) modal={t:'pick',slot:+Q.get('pick')};
+if(Q.get('pins')) modal={t:'pins'};
+render();
+if(Q.get('solo')){ document.body.style.overflow='hidden'; const fw=document.getElementById('fwrap'); document.body.prepend(fw); fw.style.cssText='position:fixed;left:0;top:0;border:0;z-index:99;width:1920px;height:1080px'; document.querySelector('.toolbar').style.display='none'; document.querySelector('main').style.display='none'; document.getElementById('fscale').style.transform='none'; }
+else fit();
+</script>
+</html>

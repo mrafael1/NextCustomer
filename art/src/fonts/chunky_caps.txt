@@ -1,4 +1,4 @@
-; The machine's chunky capitals (v0.97, the user's 2026-11-05 note: PICK 1 and YOUR PRIZES were
+; The machine's chunky capitals (v0.99, the user's 2026-11-05 note: PICK 1 and YOUR PRIZES were
 ; hard to read in Pixelify's 1 px strokes): the chunky price-gun digits' style (chunky_digits.txt)
 ; for the words, 6x8 font px (M and W 7, I 4, ! and · 2), 2 px stems and 1 px bars, one 8-column
 ; cell per glyph, its ink left-aligned (PixelWords.Sheet.CHUNKY_CAPS crops each cell to its ink).

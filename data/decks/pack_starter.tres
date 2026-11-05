@@ -21,6 +21,7 @@ description = "A Banana pair, Milk and Eggs, the starter pack you pick, and 6 pr
 core_cards = Array[ExtResource("1_card")]([ExtResource("2_banana"), ExtResource("2_banana"), ExtResource("3_milk"), ExtResource("4_eggs")])
 random_count = 6
 copy_max = 2
+random_capsules = true
 fair_deal_hands = 8
 fair_deal_passes = 1
 fair_deal_changes = 3

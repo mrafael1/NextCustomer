@@ -1,0 +1,72 @@
+<main>
+  <div class="lede">
+    <div class="eyebrow">Next Customer · start screen v4 · page 2 gets a place of its own · 2026-11-03</div>
+    <h1>Start screen v4: YOUR BUILD as a place in the store</h1>
+    <p>You liked v3, so <b>page 1 (YOUR STORE) is v3 unchanged</b>. Your note on page 2 was that it should be polished and <b>have its own art direction, not just sections with item placeholders</b>. Round 4 redraws only page 2, in three directions. Each one turns page 2 into a place in the store, drawn in pixel art in the game's palette, and each keeps every v3 function: the 3 packs with a hover preview, click or 1–3, PICKED and GOOD FIRST PICK, badge pins with the pins sheet, the full cart of 15 with family counts, OPEN STORE greyed until a pack is picked, ◀ STORE, the keys, the step rail, the top bar and the self-check.</p>
+    <p>Three judges scored the first drafts (identity and clarity count 1.5×): <b>B 119</b>, C 109.5, A 97.5. Every direction below has all of its judges' must-fix notes applied, and B, the recommendation, also has the best ideas taken from A and C. <b>Try it:</b> use <b>PAGE 2 LOOK</b> in the toolbar (or <code>?p2=A|B|C</code>), go to page 2, hover a pack, pick with 1–3, press P for pins and Enter to open the store. The rules, data and code-place tables are unchanged from v3: see <a href="start_screen_v3.html" style="color:var(--mustard-light)">start_screen_v3.html</a>.</p>
+  </div>
+
+  <section>
+    <div class="fwrap" id="fwrap"><div class="fscale" id="fscale"><div class="F" id="F"></div></div></div>
+    <p class="cap" id="capline"></p>
+  </section>
+
+  <section>
+    <h2>Recommended: B, the staff room before the shift</h2>
+    <p><b>Why B:</b> it is the only draft that all three judges read as a real <b>place</b> (backstage, before the shift, while page 1 is the shop floor). It also tells a small story: you pick a crate, check the order sheet and clock in. Its order sheet is the clearest cart recap, because every line says where its card comes from. In v4 it keeps that, and its weak spots are fixed.</p>
+    <div class="opts">
+      <div class="opt"><header><span class="tag">B</span><h3>What changed from the first draft</h3></header>
+        <ul>
+          <li><b>Whole items on the crates.</b> The 3 cards now stand whole on top of each crate at v3's size, each with a price-gun tag on the lip ("5€", or a teal coupon tag). A shorter label sits below: the name, the key and the hint, with the family at its foot.</li>
+          <li><b>Every tag stays on its own crate.</b> PICKED is a gold price-gun sticker slapped on the crate's label. GOOD FIRST PICK is a spring wobbler planted in the crate's back rim, above its items, and it swings on a pick. Nothing sits on the lockers any more.</li>
+          <li><b>The pick lights up</b> (from C): a mustard frame, a mustard glow on the lockers behind its items, and bulbs that chase down the crate's posts, while the other two crates go dark. A hovered crate lifts and burns steady.</li>
+          <li><b>One locker for the pins.</b> Your locker No. 11 is now a double locker with a single cork board inside: the badge hangs on its lanyard from a brass hook (from A), with the WEARING note beside it.</li>
+          <li><b>The notice</b> asks PICK A STARTER PACK. Its second line answers your pick (from A): tomato "Pick one to open the store", then "Your pick rides in the cart". It now hangs lower, so the lockers' vents and brass numbers show above it.</li>
+          <li><b>Order sheet:</b> CART n/15 now sits on an LED glass in gold chunky digits. The sum line always fits on one line (with a pin it says "+ 1 pin"), and a hover shows a dashed PREVIEW mark instead of a "?". Before a pick, the three pack lines show dashed tomato "?" boxes and a mustard "press 1, 2 or 3" chip. BY FAMILY is now three count cards with a big digit, the glyph and the name (from C). The source column is wider, so "Coupon clipper" is no longer cut off.</li>
+          <li><b>The cart as items:</b> a wire trolley parked in front of the bench holds the same 15 cards as item art, in cart order, so you see your build as groceries and not only as text. Before a pick the pack's places are dashed "?", and the pin places are dashed until a pin brings a card.</li>
+          <li><b>The time clock</b> now hangs on the wall right of the pillar, clear of the bench. Its dial sits in the brass band, and its OPEN STORE key is as big as v3's. <b>Clocking in</b> punches the card into the clock, then the store's <b>roller shutter</b> comes down (brass trim, a lit NEXT CUSTOMER sign, handles and a lock, in two lamps' night light) and rolls up on the CLOCKED IN · SHIFT 1/12 flood (from A).</li>
+        </ul></div>
+      <div class="opt"><header><span class="tag">B</span><h3>How it reads</h3></header>
+        <p>Left to right: <b>your locker</b> (badge pins), <b>the bench</b> with three crates (the one choice), <b>the clipboard</b> (what goes in your cart, line by line) and <b>the time clock</b> (the one action). The trolley on the floor repeats the cart as item art. As in v3, the step rail and the top bar sit above the room, and ◀ STORE sits on its riveted plaque. The pins sheet opens beside the clipboard, so you can watch a pin's card land on line 14.</p>
+        <p><b>New art for the game:</b> <code>staff_room_art.gd</code> (wall, tube, lockers, bench, floor), <code>pack_crate.gd</code> (crate, tags, label, wobbler, post bulbs), <code>order_sheet.gd</code>, <code>time_clock.gd</code>, <code>cart_trolley.gd</code> and a <code>roller_shutter</code> transition shared with the title.</p></div>
+    </div>
+    <div class="caps">
+      <figure><img src="start_screen_v4_build/B_s0.png" alt="B, new save, picked"><figcaption class="cap">B, new save: Breakfast run is GOOD FIRST PICK and is picked, so its crate is lit and the other two are dark. Cart 13/15.</figcaption></figure>
+      <figure><img src="start_screen_v4_build/B_s0_nopick.png" alt="B, new save, no pick"><figcaption class="cap">B, new save, nothing picked: keys blink, the order lines and trolley places are dashed "?", and the key reads PICK A PACK FIRST.</figcaption></figure>
+      <figure><img src="start_screen_v4_build/B_s2.png" alt="B, 3 completed"><figcaption class="cap">B, 3 completed: no pack yet, swaps read "your swap", Repack is worn.</figcaption></figure>
+      <figure><img src="start_screen_v4_build/B_s2_hov.png" alt="B, hover"><figcaption class="cap">B, Deli counter picked, hovering Banana bunch: the crate lifts and burns steady, and its lines are pencilled in with PREVIEW.</figcaption></figure>
+      <figure><img src="start_screen_v4_build/B_s2_pins.png" alt="B, pins"><figcaption class="cap">B, pins sheet beside the clipboard (2 slots, Coupon book's 2 for 1 on line 14).</figcaption></figure>
+      <figure><img src="start_screen_v4_build/B_shutter.png" alt="Shutter"><figcaption class="cap">OPEN STORE in A and B: the shutter down, before it rolls up on SHIFT 1/12.</figcaption></figure>
+    </div>
+  </section>
+
+  <section>
+    <h2>A, the bagging counter</h2>
+    <p>The end of the belt, where a build gets bagged. <b>Fixes:</b> the packs are now <b>tall kraft carrier bags</b> with twisted paper handles and the family band printed on them, with the 3 items standing whole out of the top. The picked bag lifts higher, gets a big ★ PICKED ★ sticker, and the other two go dark. The empty band above the shelf is gone. The hanging sign is centred under the middle lamp, and its second line answers the pick. The GOOD FIRST PICK wobbler is planted in the shelf on its spring. The trolley holds the cards <b>loose in its wire basket</b>, not in tile frames. Places still to come are dashed outlines, and there are no grey boxes. YOUR CART, the sum and BY FAMILY sit together on the trolley's ad board. The cork board holds the badge on its lanyard and a note with each worn pin's disc. OPEN STORE drops the shutter (now with its sign, handles, lock and night light).</p>
+    <div class="caps">
+      <figure><img src="start_screen_v4_build/A_s0.png" alt="A, new save, picked"><figcaption class="cap">A, new save, Breakfast run picked.</figcaption></figure>
+      <figure><img src="start_screen_v4_build/A_s0_nopick.png" alt="A, no pick"><figcaption class="cap">A, nothing picked.</figcaption></figure>
+      <figure><img src="start_screen_v4_build/A_s2.png" alt="A, 3 completed"><figcaption class="cap">A, 3 completed.</figcaption></figure>
+    </div>
+  </section>
+
+  <section>
+    <h2>C, the display end-cap in its aisle</h2>
+    <p>The premium toy machine's language (brass, a bulb marquee, spot lights) on an end-cap at the head of an aisle. <b>Fixes:</b> the space now has <b>depth</b>: a lino floor in perspective, the end-cap's light pooled on it, a gondola run receding behind the pins, and the unit casting its shadow. The cart is no longer v3's grid: it is a <b>flatbed stock trolley</b> parked in front of the end-cap, with the 15 cards in one row in cart order and a tag on the deck edge under each group. The products stand <b>big (3×) and centred</b> on the brass shelf, so the bays' empty corner is gone. The key tag, GOOD FIRST PICK and the gold PICKED hang under the marquee. The bays that weren't picked go dark in stills too. The hints are balanced, with no one-word last lines. The pins hang on a velvet card on an easel, sized to what it holds (no blank paper). The LED n/15 and the family count cards stand on a price board.</p>
+    <div class="caps">
+      <figure><img src="start_screen_v4_build/C_s0.png" alt="C, new save, picked"><figcaption class="cap">C, new save, Breakfast run picked: its posts chase and the other bays are dark.</figcaption></figure>
+      <figure><img src="start_screen_v4_build/C_s0_nopick.png" alt="C, no pick"><figcaption class="cap">C, nothing picked.</figcaption></figure>
+      <figure><img src="start_screen_v4_build/C_s2.png" alt="C, 3 completed"><figcaption class="cap">C, 3 completed.</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="answers">
+    <h2>Open questions for you</h2>
+    <ol>
+      <li><b>Q1 · Which look for page 2?</b> B (staff room, recommended), A (bagging counter) or C (end-cap). A graft between them is fine too (for example, B with C's end-cap marquee over the bench).</li>
+      <li><b>Q2 · The default items: DECIDED.</b> The 4 cards in every run (Banana, Banana, Milk, Eggs; swappable from completed aisles) are now <b>YOUR REGULARS</b>. The 6-product shelf the deal draws from (Banana, Bread, Milk, Eggs, Coffee, Soup) keeps the name <b>Staples shelf</b>. Only one thing is called "staples".</li>
+      <li><b>Q3 · The shutter on OPEN STORE:</b> keep it for every start, or only for the first run of a session (later runs go straight to the flood)?</li>
+    </ol>
+    <p><b>Defaults I took (say if any is wrong):</b> page 1 is untouched. The cart on page 2 shows twice in B (order sheet and trolley), because the judges asked to see the build as items. The 1–3 keys, P, Enter and Esc work as in v3, and so do the hover and capture hooks (<code>?p2=</code>, <code>hov=</code>, <code>sel=</code>, <code>shutter=1</code>).</p>
+  </section>
+</main>

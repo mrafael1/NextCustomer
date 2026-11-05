@@ -264,7 +264,7 @@ func test_the_display_follows_the_visit() -> void:
 	view.show_at(plan.pick_at)
 	assert_str(display.texts()[0]).is_equal(RewardMachineView.pick_prompt(plan.n_prizes, run))
 	assert_bool(view.skip_bin.visible).is_true()
-	# The relook (v0.86): the bin and its word stand between the keys, over neither key's face.
+	# The relook (v0.98): the bin and its word stand between the keys, over neither key's face.
 	var bin: Rect2 = view.skip_bin.get_global_rect()
 	for key: ChuteKey in view.keys:
 		assert_bool(key.visible).is_true()
@@ -724,7 +724,7 @@ func test_a_premium_visit_turns_the_machine_gold() -> void:
 			assert_bool(head.get_global_rect().encloses(shown.get_global_rect())).is_true()
 		assert_float(view.cabinet.trim_shown()).is_equal(1.0)
 		assert_bool(view.cabinet.night_plate()).is_true()
-		assert_bool(view.slot_plate.stub_shown()).is_false()  # Swallowed (v0.97: no stuck ticket).
+		assert_bool(view.slot_plate.stub_shown()).is_false()  # Swallowed (v0.99: no stuck ticket).
 		assert_bool(view.tray.is_gold()).is_true()
 		view.show_at(plan.choose_at)
 		assert_array(Array(view.display.texts())).is_equal(

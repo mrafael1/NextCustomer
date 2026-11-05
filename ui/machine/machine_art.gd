@@ -117,7 +117,7 @@ static func rivet(item: CanvasItem, at: Vector2, gold: bool = false) -> void:
 	)
 
 
-## The gauge's € plate (the relook's brass, v0.86): an ink outline, brass lit along its top
+## The gauge's € plate (the relook's brass, v0.98): an ink outline, brass lit along its top
 ## (mustard light) and left (mustard), brass dark along its foot and right, a gold rivet in each
 ## corner.
 static func brass_plate(item: CanvasItem, rect: Rect2) -> void:
@@ -133,7 +133,7 @@ static func brass_plate(item: CanvasItem, rect: Rect2) -> void:
 		rivet(item, corner, true)
 
 
-## A steel frame round `rect` (the relook's housings, v0.86): an ink outline, steel lit on its top
+## A steel frame round `rect` (the relook's housings, v0.98): an ink outline, steel lit on its top
 ## and left (steel light), shaded on its foot and right, `thickness` art px of steel, an ink line
 ## inside it; `gold`: brass instead of steel.
 static func steel_frame(

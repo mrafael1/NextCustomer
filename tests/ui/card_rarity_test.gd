@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## The prize cards' rarity looks (v0.97, the user's picks of 2026-11-04 on
+## The prize cards' rarity looks (v0.99, the user's picks of 2026-11-04 on
 ## docs/art/mockups/card_rarity.html; CardFoil): every kind of prize at every rarity wears its own
 ## card (COMMON look C's shelf label, RARE and LEGENDARY look B's foil) with V3's name band, family
 ## chips, price window, rule and win sticker inside the card and clear of each other; the foil

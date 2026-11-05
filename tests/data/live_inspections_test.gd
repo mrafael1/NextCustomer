@@ -92,7 +92,8 @@ func test_no_live_day_event_grows_the_hand() -> void:
 
 
 ## v0.70's fixed week events: the balance's week list in order (Training week, Bakery festival,
-## Holiday rush), four shifts a week, each a WEEK-tone event with the plan's numbers.
+## Holiday rush, then v0.96's Clearance week), four shifts a week, each a WEEK-tone event with the
+## plan's numbers.
 func test_the_week_events_match_the_plan() -> void:
 	var balance: BalanceDefinition = load(BALANCE)
 	assert_int(balance.week_length).is_equal(4)
@@ -103,12 +104,17 @@ func test_the_week_events_match_the_plan() -> void:
 		assert_bool(week.is_boon()).override_failure_message(ids[-1]).is_false()
 		assert_str(week.chip_text).override_failure_message(ids[-1]).is_not_empty()
 		assert_str(week.notice_text).override_failure_message(ids[-1]).is_not_empty()
-	assert_array(Array(ids)).is_equal(["training_week", "bakery_festival", "holiday_rush"])
+	assert_array(Array(ids)).is_equal(
+		["training_week", "bakery_festival", "holiday_rush", "clearance_week"]
+	)
+	# One week event per week of the run (v0.96: 4 weeks of 4).
+	assert_int(ids.size()).is_equal(WeekSchedule.week_count(balance))
 	# id: [forgives_slips, quota_percent, odds_level_delta, rules]
 	var cases: Dictionary = {
 		"training_week": [true, 0, 0, 0],
 		"bakery_festival": [false, 10, 0, 1],
 		"holiday_rush": [false, 15, 1, 0],
+		"clearance_week": [false, 15, 0, 1],
 	}
 	for week: WeekEventDefinition in balance.weeks:
 		var id: String = week.resource_path.get_file().get_basename()
@@ -120,6 +126,8 @@ func test_the_week_events_match_the_plan() -> void:
 		assert_array(limits).override_failure_message(id).is_equal([0, 0, 0])
 	var bakery: TagFlatBonusRule = balance.weeks[1].rules[0]
 	assert_array([bakery.tag, bakery.bonus]).is_equal(["Bakery", 2])
+	var clearance: TagFlatBonusRule = balance.weeks[3].rules[0]
+	assert_array([clearance.tag, clearance.bonus]).is_equal(["Clearance", 2])
 	# The training week's slips are the write-ups' (v0.68): forgiven up to its last shift.
 	assert_int(balance.write_up_last_shift).is_equal(balance.week_length)
 	assert_int(balance.write_up_limit).is_equal(2)

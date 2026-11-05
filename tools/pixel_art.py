@@ -124,7 +124,7 @@ PALETTE_FILE = "palette.txt"
 TRANSPARENT = "."
 INK = "#"
 KINDS = frozenset({"item", "perk", "frame", "icon", "scenery", "font"})
-# A pixel font's sheet (art/src/fonts/, v0.96's chunky digits): one glyph per FONT_CELL-wide cell,
+# A pixel font's sheet (art/src/fonts/, v0.98's chunky digits): one glyph per FONT_CELL-wide cell,
 # FONT_HEIGHT rows, ink and transparent only, each glyph's ink left-aligned in its cell (the game
 # crops a cell to its ink).
 FONT_CELL = 8

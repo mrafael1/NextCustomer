@@ -2,8 +2,8 @@ class_name TitleMenu
 extends Control
 ## The title's menu (#56, mock-up title_premium_directions.html, direction C+): plates on the
 ## storefront's brick, left of the doors, under the sconce's light (MenuPlate). With a run saved:
-## CONTINUE (the tomato primary plate, the saved shift under it: SHIFT 3/12), NEW RUN and
-## REWARDS; without one: START RUN (the run's length under it: 12 SHIFTS · 3 WEEKS) and
+## CONTINUE (the tomato primary plate, the saved shift under it: SHIFT 3/16), NEW RUN and
+## REWARDS; without one: START RUN (the run's length under it: 16 SHIFTS · 4 WEEKS) and
 ## REWARDS. REWARDS carries a coin and the profile's coins.
 ##
 ## One marker lights an entry (its plate moves right onto its lit frame, the price-gun tick

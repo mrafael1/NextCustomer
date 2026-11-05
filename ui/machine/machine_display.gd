@@ -1,9 +1,9 @@
 class_name MachineDisplay
 extends Control
-## The machine's LED display (#77, look F; build spec 4.2-4.3; the relook in v0.86, mock-up
+## The machine's LED display (#77, look F; build spec 4.2-4.3; the relook in v0.98, mock-up
 ## docs/art/mockups/machine_relook.html V2): a charcoal glass with scanlines in a steel bezel,
 ## left of the receipt slot, 340 px wide. Its message is hard pixel lettering at 2x in gold
-## (MachineLine, chunky since v0.97: its words in the chunky capitals, PixelWords.Sheet.
+## (MachineLine, chunky since v0.99: its words in the chunky capitals, PixelWords.Sheet.
 ## CHUNKY_CAPS, its amounts in the chunky price-gun digits, PixelWords.Sheet.CHUNKY, its marks
 ## ✓ ✕ drawn as pixels), with its sub line in bold Atkinson 12 (teal pale) under it; a message
 ## too wide for the glass wraps onto a second line instead of shrinking (the sub line then gives

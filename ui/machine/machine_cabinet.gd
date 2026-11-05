@@ -1,7 +1,7 @@
 class_name MachineCabinet
 extends Control
-## The machine's cabinet, front-on (v0.50; the steel-and-brass relook in v0.86, mock-up
-## docs/art/mockups/machine_relook.html V2; V3's full-screen prize counter in v0.96, mock-ups
+## The machine's cabinet, front-on (v0.50; the steel-and-brass relook in v0.98, mock-up
+## docs/art/mockups/machine_relook.html V2; V3's full-screen prize counter in v0.98, mock-ups
 ## machine_relook_v2.html and _v3.html), drawn first under every other part: its plinth and
 ## shadow, the dark teal body with a teal band under the marquee, three steel pillars in the gauge
 ## housing's language (an ink outline, lit on the left and shaded on the right, a riveted cap at
@@ -23,7 +23,7 @@ extends Control
 
 const SIZE := Vector2(1040, 584)
 ## The side pillars (PILLAR_WIDTH wide at both edges, the full height) and their rivets; V3's
-## middle pillar (v0.96) between the machine's module and the prize bay, with its brass crest.
+## middle pillar (v0.98) between the machine's module and the prize bay, with its brass crest.
 const PILLAR_WIDTH := 24.0
 const MIDDLE_PILLAR_RECT := Rect2(488, 0, 20, 584)
 const CREST_RECT := Rect2(484, 164, 28, 40)

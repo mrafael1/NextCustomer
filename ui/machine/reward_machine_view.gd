@@ -7,7 +7,7 @@ extends Control
 ## it takes no click (mouse_behavior_recursive), so a click on it reaches the wall. A visit
 ## (open_visit) drives the StoreCamera (`camera`) and the stage's fore from its plan: a TICKET visit
 ## glides the camera to the machine at 2x, where its cabinet shows at ShiftStage.MACHINE_RECT at a
-## net scale of 1 (V3's prize counter, v0.96: it fills the view), and lights it (set_lit). Back to
+## net scale of 1 (V3's prize counter, v0.98: it fills the view), and lights it (set_lit). Back to
 ## front: the cabinet (MachineCabinet: body, trim, the machine's module left of the middle pillar
 ## and crest, key plate, kick panel with the bonus ticket's dock, a PREMIUM visit's beacons), the
 ## marquee over the whole counter (MachineHead), the display (MachineDisplay, with BIN IT) and the
@@ -108,7 +108,7 @@ const KEY_BAY_RECT := Rect2(24, 300, 464, 108)
 const KEY_X: Array[float] = [8.0, 236.0]
 const KEY_Y := 12.0
 const TRAY_POSITION := Vector2(24, 412)
-## V3's prize bay (v0.96, PrizeBay) right of the middle pillar: the tickets land on its pedestals.
+## V3's prize bay (v0.98, PrizeBay) right of the middle pillar: the tickets land on its pedestals.
 const BAY_POSITION := Vector2(512, 16)
 ## A beat planned at the clock's time when its segment starts (the pick press) still fires.
 const SAME_TIME := 0.000001
@@ -143,7 +143,7 @@ var slot_plate: SlotPlate
 var display: MachineDisplay
 var stock: StockWindow
 var tray: MachineTray
-## V3's prize bay (v0.96): its LED header, spotlights and pedestals.
+## V3's prize bay (v0.98): its LED header, spotlights and pedestals.
 var bay: PrizeBay
 ## The key plate's inside: the keys stand in it.
 var key_bay: Control

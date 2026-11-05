@@ -178,7 +178,7 @@ func test_mid_glide_states() -> void:
 	assert_float(screen._camera.zoom()).is_equal_approx(1.5, 0.01)
 	assert_float(screen._stage.fore.position.y).is_between(1.0, view.tuning.fore_drop_px - 1.0)
 	var at: Rect2 = feed.paper.get_global_rect()
-	# The paper heads for the slot's live mouth, which mid-glide is still on its way in (v0.96:
+	# The paper heads for the slot's live mouth, which mid-glide is still on its way in (v0.98:
 	# the V3 counter fills the view, so it starts far right of where it ends): between the rest
 	# and the furthest of the slot's end and the plate's live right edge. The tear's tilt swings
 	# its top left sideways by up to half its height's sine.

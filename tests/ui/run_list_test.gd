@@ -1,8 +1,6 @@
 extends GdUnitTestSuite
-## The run's list until #65 (#63): a run whose stock needs a list stocks RunStock.surprise_list's
-## aisles from the run seed's own stream, writes nothing to the profile's last_list, and the
-## debug replay of the same seed gives the same list; a run that needs none stocks every
-## listable aisle. The real saves and logs are never touched.
+## The opening board draws three stocked aisles on its named stream and leaves last_list
+## untouched. Replaying the seed keeps the stock; a new profile stocks its three base aisles.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 
@@ -23,7 +21,7 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-func test_a_run_that_needs_a_list_stocks_the_surprise_list() -> void:
+func test_the_opening_board_stocks_its_seeded_three_aisles() -> void:
 	var profile: ProfileState = ProfileState.new()
 	profile.run_count = 3
 	profile.unlocked_items = {&"cream": 0, &"sugar_cubes": 1, &"egg_timer": 2}
@@ -32,12 +30,17 @@ func test_a_run_that_needs_a_list_stocks_the_surprise_list() -> void:
 	var screen: ShiftScreen = runner.scene()
 	var balance: BalanceDefinition = screen._balance
 	var seed_value: int = screen.run.run_seed
-	var expected: Array[StringName] = RunStock.surprise_list(
+	var drawn: Array[StringName] = StartSetupRules.suggest_aisles(
 		balance,
-		profile.unlocked_items,
-		EventLogService.derived_stream(seed_value, EventLogService.SURPRISE_LIST_STREAM)
+		profile,
+		EventLogService.derived_stream(seed_value, EventLogService.STOCK_AISLES_STREAM)
 	)
-	assert_int(expected.size()).is_equal(2)
+	var expected: Array[StringName] = []
+	for aisle: AisleDefinition in balance.aisles:
+		if drawn.has(aisle.id):
+			expected.append(aisle.id)
+	assert_int(expected.size()).is_equal(balance.stock_aisle_count)
+	assert_array(screen.run.start_setup.stock_aisles).is_equal(drawn)
 	assert_array(screen.run.stock.aisle_ids).is_equal(expected)
 	assert_bool(screen.run.stock.list_skipped).is_false()
 	assert_array(screen.profile.last_list).is_empty()
@@ -53,7 +56,7 @@ func test_a_run_that_needs_a_list_stocks_the_surprise_list() -> void:
 func test_a_fresh_profile_stocks_every_base_aisle() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	assert_bool(screen.run.stock.list_skipped).is_true()
+	assert_bool(screen.run.stock.list_skipped).is_false()
 	assert_array(screen.run.stock.aisle_ids).is_equal([&"cold_cases", &"pantry", &"household"])
 	assert_array(screen.profile.last_list).is_empty()
 

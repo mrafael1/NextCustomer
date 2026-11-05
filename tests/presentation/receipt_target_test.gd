@@ -28,6 +28,8 @@ func test_the_quota_prints_in_whole_euros_with_the_euro_after() -> void:
 		receipt.add_line("Milk %d" % line, "1.00€", ReceiptView.LineStyle.ITEM)
 	await _frames(3)
 	assert_str(target.caption.text).is_equal("TODAY'S TARGET")
+	# The caption in ink (the PR #138 review), the number in tomato dark.
+	assert_that(target.caption.get_theme_color("font_color")).is_equal(Palette.INK)
 	assert_str(target.amount.text).is_equal("80€")
 	assert_that(target.amount.color).is_equal(Palette.TOMATO_DARK)
 	var block: Rect2 = target.get_global_rect()

@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## The V3 machine's parts (v0.96, mock-up docs/art/mockups/machine_relook_v2.html): the prize
+## The V3 machine's parts (v0.98, mock-up docs/art/mockups/machine_relook_v2.html): the prize
 ## bay's header and pedestal strips (pure, and on a machine through a visit), the PREMIUM beacons,
 ## and A2's chunky price-gun digits on a MachineLine. Saves and the event log go to a test folder.
 
@@ -109,7 +109,7 @@ func test_the_prize_bay_follows_the_visit_and_premium_lights_its_beacons() -> vo
 		await _close(night)
 
 
-## A2's chunky digits (v0.96): the sheet holds every CHUNKY_ORDER glyph, 8 rows high with ink; an
+## A2's chunky digits (v0.98): the sheet holds every CHUNKY_ORDER glyph, 8 rows high with ink; an
 ## ASCII '-' prints as its −; on a MachineLine every number run prints in them and no Pixelify
 ## label holds a digit.
 func test_the_machine_numbers_print_in_chunky_digits() -> void:

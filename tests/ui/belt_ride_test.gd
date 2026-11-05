@@ -254,7 +254,10 @@ func test_reduced_motion_snaps_the_ride() -> void:
 ## the stage, the scanned one at the scanner whenever it is marked; each landed step's sticker
 ## fires (it punches, and its check settles on its top right corner, on the stage); an armed
 ## giver's beat sends sparks (inside the stage) to its targets' stickers, which charge; the belt
-## ends empty, the bag holding every item, and the count's flights no longer ask the ride.
+## ends empty, the bag holding every item, and the count's flights no longer ask the ride. PR #138
+## round 7: the rail light never runs (the user's "remove yellow line filling when an item is
+## scanned under first item") and no "×N" pops over the items ("remove x2, x3... pop up on the
+## right of receipt on checkout"), though the row's multipliers land.
 func test_a_checkout_rides_every_item_into_the_bag_and_fires_the_stickers() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _full_row(screen)
@@ -268,6 +271,7 @@ func test_a_checkout_rides_every_item_into_the_bag_and_fires_the_stickers() -> v
 	var charged: Array[bool] = [false]
 	var sparks: Array[int] = [0]
 	var failures: Array[String] = []
+	var overlay: Control = screen._count_up._overlay
 	# The sparks draw over the stickers, under the hover's hot strips and the stack fan.
 	assert_object(ride.sparks().get_parent()).is_same(layer)
 	assert_int(ride.sparks().get_index()).is_equal(layer.fan().get_index() - 2)
@@ -275,6 +279,9 @@ func test_a_checkout_rides_every_item_into_the_bag_and_fires_the_stickers() -> v
 	assert_bool(screen._count_up.source_rect == Callable(ride, "source_rect")).is_true()
 	while screen._counting:
 		await get_tree().process_frame
+		for child: Node in overlay.get_children():
+			if child is Label and (child as Label).text.begins_with(MonitorStepRow.FACTOR_SIGN):
+				failures.append("a %s pops over the items" % (child as Label).text)
 		for slot: int in range(screen._row_views.size()):
 			var item: ItemView = screen._row_views[slot] as ItemView
 			if not item.is_visible_in_tree():
@@ -305,6 +312,10 @@ func test_a_checkout_rides_every_item_into_the_bag_and_fires_the_stickers() -> v
 				if not check.grow(1.0).has_point(corner) or not stage.encloses(check):
 					failures.append("a check at %s off its corner %s" % [check, corner])
 	assert_array(failures.slice(0, 5)).override_failure_message(str(failures)).is_empty()
+	var stamps: Array = ride._result.steps.filter(
+		func(step: ScoreStep) -> bool: return step.step_type == ScoreStep.StepType.MULTIPLIER
+	)
+	assert_int(stamps.size()).is_greater(0)
 	assert_int(fired.size()).is_greater(3)
 	assert_bool(punched[0]).is_true()
 	assert_int(sparks[0]).is_greater(0)

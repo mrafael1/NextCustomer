@@ -4,18 +4,21 @@ extends Control
 ## docs/art/mockups/shift_scene_polish_v4.html, its pixel sheets): the 6x8 bold digits with
 ## their € (DIGITS, TODAY'S TARGET's number on the receipt: 72 px tall at 1920x1080 with a 6 px
 ## cell, 2-art-px stems) and the 3x5 capitals (CAPS, the name badge's NEXT / CUSTOMER at a 2 px
-## cell, one art px per font px), and the machine's chunky price-gun digits (CHUNKY, v0.96, A2 of
+## cell, one art px per font px), and the machine's chunky price-gun digits (CHUNKY, v0.98, A2 of
 ## mock-up docs/art/mockups/machine_relook_v2.html: 6x8, 2 px strokes, with € % + − × / . <,
 ## read from art/fonts/chunky_digits.png, built from art/src/fonts/chunky_digits.txt; an ASCII
 ## '-' prints as its −). A cell that is a multiple of the art's 2 px keeps the words on the art's
-## grid. CHUNKY_CAPS (v0.97) are the chunky digits' capitals for the machine's display and prize
+## grid. CHUNKY_CAPS (v0.99) are the chunky digits' capitals for the machine's display and prize
 ## bay header words (6x8, 2 px stems: A to Z, ! ? ·, read from art/fonts/chunky_caps.png, built
 ## from art/src/fonts/chunky_caps.txt; a small letter prints as its capital). Its minimum size
 ## is the words' (text_size()); it draws them from its top left, with no line or glyph padding,
 ## and an optional `shadow` colour one font px down and right under them. A character the sheet
 ## lacks draws as a blank. Display only.
+## The 4x7 digits (SMALL_DIGITS, mock-up shift_scene_polish_v5_tickets.html's MID sheet) and the
+## "k" of DIGITS and SMALL_DIGITS print a ticket's price window when a 6x8 price would not fit it
+## (PriceWindow).
 
-enum Sheet { DIGITS, CAPS, CHUNKY, CHUNKY_CAPS }
+enum Sheet { DIGITS, CAPS, CHUNKY, CHUNKY_CAPS, SMALL_DIGITS }
 
 ## One font pixel between two characters.
 const GAP := 1
@@ -32,6 +35,7 @@ const DIGIT_GLYPHS: Dictionary[String, Array] = {
 	"8": [".####.", "##..##", "##..##", ".####.", "##..##", "##..##", "##..##", ".####."],
 	"9": [".####.", "##..##", "##..##", "##..##", ".#####", "....##", "....##", ".####."],
 	"€": ["..####", ".##...", "#####.", ".##...", "####..", ".##...", ".##...", "..####"],
+	"k": ["##....", "##....", "##..##", "##.##.", "####..", "##.##.", "##..##", "##..##"],
 	" ": ["...", "...", "...", "...", "...", "...", "...", "..."],
 }
 ## The chunky digits' sheet: one CHUNKY_CELL-wide cell per character of CHUNKY_ORDER, each
@@ -43,6 +47,22 @@ const CHUNKY_SPACE := 3
 ## The chunky capitals' sheet, read as the digits' (CHUNKY_CELL-wide cells, CHUNKY_SPACE spaces).
 const CHUNKY_CAPS_SHEET := preload("res://art/fonts/chunky_caps.png")
 const CHUNKY_CAPS_ORDER := "ABCDEFGHIJKLMNOPQRSTUVWXYZ!?·"
+## The 4x7 digits, their € and "k" (the v5 mock-up's MID sheet), '#' ink.
+const SMALL_DIGIT_GLYPHS: Dictionary[String, Array] = {
+	"0": [".##.", "#..#", "#..#", "#..#", "#..#", "#..#", ".##."],
+	"1": [".#.", "##.", ".#.", ".#.", ".#.", ".#.", "###"],
+	"2": [".##.", "#..#", "...#", "..#.", ".#..", "#...", "####"],
+	"3": ["###.", "...#", "...#", ".##.", "...#", "...#", "###."],
+	"4": ["..#.", ".##.", "#.#.", "#.#.", "####", "..#.", "..#."],
+	"5": ["####", "#...", "###.", "...#", "...#", "#..#", ".##."],
+	"6": [".##.", "#...", "###.", "#..#", "#..#", "#..#", ".##."],
+	"7": ["####", "...#", "..#.", "..#.", ".#..", ".#..", ".#.."],
+	"8": [".##.", "#..#", "#..#", ".##.", "#..#", "#..#", ".##."],
+	"9": [".##.", "#..#", "#..#", ".###", "...#", "...#", ".##."],
+	"€": ["..##", ".#..", "####", ".#..", "###.", ".#..", "..##"],
+	"k": ["#...", "#...", "#..#", "#.#.", "##..", "#.#.", "#..#"],
+	" ": ["..", "..", "..", "..", "..", "..", ".."],
+}
 ## The 3x5 capitals (the mock-up's CAPS sheet), '#' ink.
 const CAPS_GLYPHS: Dictionary[String, Array] = {
 	"A": [".#.", "#.#", "###", "#.#", "#.#"],
@@ -158,6 +178,8 @@ static func _glyphs(from: Sheet) -> Dictionary[String, Array]:
 			return chunky_glyphs()
 		Sheet.CHUNKY_CAPS:
 			return chunky_caps_glyphs()
+		Sheet.SMALL_DIGITS:
+			return SMALL_DIGIT_GLYPHS
 	return CAPS_GLYPHS
 
 

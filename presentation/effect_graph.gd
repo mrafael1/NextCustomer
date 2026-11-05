@@ -39,6 +39,7 @@ static func build(result: ScoreResult) -> EffectGraph:
 		if link == null:
 			continue
 		link.gain = gains[index]
+		link.value_after = steps[index].value_after
 		link.cancelled = link.kind != EffectLink.Kind.DENIED and _overridden_later(steps, index)
 		graph.links.append(link)
 		if link.kind == EffectLink.Kind.ARMED:

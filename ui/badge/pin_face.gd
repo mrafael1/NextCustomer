@@ -6,7 +6,7 @@ extends Control
 ## (PinDefinition.face_text) in the number font, centred (a face under 48 px a smaller size). A
 ## locked pin is
 ## grey with "?"; an empty slot is a dashed ring (show_empty). Its own UI object: the badge, the
-## badge screen's rows and the REWARDS card all show pins with it. Display only.
+## badge screen's rows and the start screen's pins card all show pins with it. Display only.
 
 ## The pins' colours: face, dark band, glint. A pin picks one (PinDefinition.face_colour), else
 ## it goes by its place in the catalogue (wrapping).

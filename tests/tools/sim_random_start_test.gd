@@ -90,3 +90,29 @@ func test_the_random_start_option_refuses_a_value_and_a_deck() -> void:
 
 static func _ids(cards: Array[CardDefinition]) -> Array:
 	return cards.map(func(card: CardDefinition) -> String: return String(card.id))
+
+
+## Each recorded shift holds the quota percent of its day and week events (v0.96), so
+## tools/quota_fit.py can apply them: Rush hour +10, Holiday rush +15, Clearance week +15 with
+## Rush hour +25, Bakery festival +10, none on shift 1; the JSON copy keeps them.
+func test_records_hold_each_shift_quota_percent() -> void:
+	var balance: BalanceDefinition = load(BALANCE)
+	var rush: InspectionDefinition = load("res://data/inspections/rush_hour.tres")
+	var cases: Array[Array] = [
+		[1, [], 0], [1, [rush], 10], [9, [], 15], [13, [rush], 25], [6, [], 10]
+	]
+	for case: Array in cases:
+		var record: ShiftRecord = ShiftRecord.new(case[0], 0, 0)
+		record.inspections.assign(case[1])
+		var got: int = SimPlayer.quota_percent(balance, record)
+		assert_int(got).override_failure_message(str(case)).is_equal(case[2])
+	var short: BalanceDefinition = balance.duplicate()
+	short.quotas = PackedInt32Array([100000])
+	var player: SimPlayer = SimPlayer.new(load(RECIPE), short, SimRowSearch.new(short), "skip", 1)
+	var played: SimRunRecord = player.play(4)
+	assert_int(played.shifts.size()).is_equal(1)
+	assert_int(played.shifts[0]["quota_percent"]).is_equal(0)
+	var copy: SimRunRecord = SimRunRecord.from_dictionary(
+		JSON.parse_string(JSON.stringify(played.to_dictionary()))
+	)
+	assert_array(copy.shifts).is_equal(played.shifts)

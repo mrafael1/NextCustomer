@@ -159,6 +159,16 @@ static func strip_of(result: ScoreResult, slot: int, names: PackedStringArray) -
 	return null
 
 
+## A coupon's contribution at `slot` in `result` (the monitor's "+N€", PR #138 round 7): what it
+## added to its targets (its strip's RailStripSpec.total_gain) and its own pay (Repeat's copy,
+## Final markdown's bonus), all of it counted in the total.
+static func contribution(result: ScoreResult, slot: int, names: PackedStringArray) -> int:
+	if slot < 0 or slot >= result.payouts.size():
+		return 0
+	var strip: RailStripSpec = strip_of(result, slot, names)
+	return (strip.total_gain() if strip != null else 0) + maxi(result.payouts[slot], 0)
+
+
 ## Gives each strip its lane (section 5.2): sorted by (lo, giver slot), a strip takes lane 0
 ## when no strip already in lane 0 shares a slot with it, else lane 1 likewise, else -1
 ## (overflow, drawn only on hover).
@@ -309,8 +319,7 @@ static func _pay(
 		planning.pay = Pay.PLAIN
 	if planning.pay != Pay.PLAIN:
 		planning.pay_text = PAY_TEXT % payout
-		# A coupon's title "COUPON" is never struck.
-		planning.struck = card.is_product()
+		planning.payout = payout
 
 
 ## The halo's rings for a boosted pay (section 2.3): 1, then one more at each ratio of the base
@@ -389,15 +398,23 @@ static func _strip(giver: int, display_name: String, links: Array) -> RailStripS
 		var tokens: PackedStringArray = PackedStringArray()
 		var gain: int = 0
 		var cancelled: bool = false
+		var first: EffectLink = null
+		var last: EffectLink = null
 		for link: EffectLink in links:
 			if link.target_slot != target:
 				continue
 			tokens.append(link.token)
 			gain += link.gain
 			cancelled = cancelled or link.cancelled
+			if first == null or link.step_index < first.step_index:
+				first = link
+			if last == null or link.step_index > last.step_index:
+				last = link
 		strip.targets.append(target)
 		strip.tokens.append(" ".join(tokens))
 		strip.gains.append(-1 if cancelled else gain)
+		strip.befores.append(first.value_after - first.gain)
+		strip.afters.append(last.value_after)
 	return strip
 
 

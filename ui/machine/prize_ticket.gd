@@ -12,7 +12,7 @@ extends Control
 ##   second, coins, orbiting sparkles, its art climbing out over the plate, the gold sweep, the
 ##   scene's short shake (MachineLayers) and a sting.
 ## The sunburst stands behind every ticket of the row (z order), the sparkles, the coins and the
-## corner glints in front; the sweep comes back every few seconds. Since v0.97 the card itself
+## corner glints in front; the sweep comes back every few seconds. Since v0.99 the card itself
 ## carries its rarity (CardFoil, the user's picks on mock-up card_rarity.html: COMMON a shelf label,
 ## RARE a teal holo laminate, LEGENDARY gold foil with its plate, flecks, rays and breakout), with
 ## its tab (RarityTab: COMMON / RARE! / LEGENDARY!!) and its pips (one dot, two diamonds, three
@@ -20,7 +20,7 @@ extends Control
 ## Under reduced motion it appears in place at its reveal, its burst still, its foil still and its
 ## sparkles and glints on.
 ##
-## The face (V3's 144x244 ticket in v0.96, mock-ups machine_relook_v2.html and _v3.html: paper
+## The face (V3's 144x244 ticket in v0.98, mock-ups machine_relook_v2.html and _v3.html: paper
 ## with an ink outline and a cream edge) holds the art window (PrizeArt, in the kind's colour:
 ## the real sprite, the coupon slip, a LOYALTY punch card, an upgrade's item at its new tier) with
 ## the pips at its top left, the family chips under them (B2: one 13x13 art px chip per family of
@@ -53,7 +53,7 @@ const ART_RECT := Rect2(6, 6, 132, 100)
 const BAND_TOP := 108.0
 const BAND_LEFT := 4.0
 const BAND_WIDTH := 136.0
-## RARE and LEGENDARY bands stand inside their 3 art px foil frames (v0.97).
+## RARE and LEGENDARY bands stand inside their 3 art px foil frames (v0.99).
 const FOIL_BAND_LEFT := 6.0
 const FOIL_BAND_WIDTH := 132.0
 const BAND_PAD := 6.0
@@ -679,7 +679,7 @@ func _add_texts() -> void:
 		_name = holder
 		_name_rows = rows.size()
 	else:
-		# Deliberate fallback (v0.96 changelog): an UPGRADES prize's long name ("Reduced yogurt ›
+		# Deliberate fallback (v0.98 changelog): an UPGRADES prize's long name ("Reduced yogurt ›
 		# GOLDEN", "Birthday candles +1 step") has no two-row split within NAME_WIDTH.
 		var bold: Font = ArtStyle.bold_font(BOLD_WEIGHT)
 		_name_rows = NAME_LINES
@@ -837,7 +837,7 @@ func _draw_shred() -> void:
 		_shred.draw_line(from, to, Palette.TOMATO, CROSS_WIDTH)
 
 
-## Behind the ticket: the picked ticket's gold rim (the card's own foil carries its rarity, v0.97:
+## Behind the ticket: the picked ticket's gold rim (the card's own foil carries its rarity, v0.99:
 ## no rim or chase lights behind it).
 func _draw_back() -> void:
 	if _gold:

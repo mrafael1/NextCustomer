@@ -109,7 +109,7 @@ func test_the_saved_form_round_trips_through_json() -> void:
 func test_the_saved_form_states_its_format_version() -> void:
 	var data: Dictionary = ProfileState.new().to_dictionary()
 	assert_int(data["format_version"]).is_equal(ProfileState.FORMAT_VERSION)
-	assert_int(ProfileState.FORMAT_VERSION).is_equal(3)
+	assert_int(ProfileState.FORMAT_VERSION).is_equal(4)
 
 
 func test_missing_fields_keep_defaults_and_unknown_ones_are_ignored() -> void:
@@ -236,7 +236,7 @@ func test_a_version_1_profile_reads_without_a_capsule_seed() -> void:
 	assert_int(read.capsule_draws).is_equal(0)
 	assert_int(read.coins).is_equal(3)
 	assert_str(read.to_dictionary()["capsule_seed"]).is_equal("")
-	assert_int(read.to_dictionary()["format_version"]).is_equal(3)
+	assert_int(read.to_dictionary()["format_version"]).is_equal(ProfileState.FORMAT_VERSION)
 
 
 ## The seed is a decimal string, so one past 2^31 (and any 64-bit one) survives JSON.

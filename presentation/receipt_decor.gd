@@ -35,6 +35,9 @@ const AMOUNT_MIN_FONT_SIZE := 18
 const FIZZLE_ICON := preload("res://art/icons/fizzle.png")
 const WARNING_ICON := preload("res://art/icons/warning.png")
 
+## The PROJECTED amount's bold font trimmed for each size (_size_amount).
+static var _trimmed: Dictionary[int, FontVariation] = {}
+
 
 ## Hangs an indented line's left `label`: its text starts past its lead and marker on every
 ## wrapped row (an empty "normal" style's left margin), the marker printed beside the first row
@@ -113,28 +116,53 @@ static func mark(line: HBoxContainer, kind: ReceiptView.Mark) -> void:
 	line.get_child(1).add_child(icon)
 
 
-## Colours the PROJECTED `line`'s amount by the shown `total` against `quota` (a display
-## difference): GOOD at or over it, TOMATO under it; and prints how far it is on the `against` line
-## under it, at the foot's size (FOOT_FONT_SIZE), right-aligned under the amount (the shift scene
-## polish: "+67.00€ over target" in green dark, "56.00€ short" in tomato:
-## ReceiptTarget.against_text), so the status never relies on colour alone.
-static func against_quota(line: HBoxContainer, against: Control, total: int, quota: int) -> void:
-	var passed: bool = ShiftMargin.of(total, quota).passed()
+## Prints how far the PROJECTED `line`'s `total` is from `quota` on the `against` line under it, at
+## the foot's size (FOOT_FONT_SIZE), right-aligned under the amount (the PR #138 left UI: the
+## amount stands at the paper's right, so the words end where it ends, inside the paper): "+67.00€
+## over" in green dark, "56.00€ short" in tomato (ReceiptTarget.against_text), so the status never
+## relies on colour alone. The amount itself stays ink (the PR #138 review: only the words under
+## it are coloured).
+static func against_quota(
+	line: HBoxContainer, against: HBoxContainer, total: int, quota: int
+) -> void:
 	var amount: Label = line.get_child(1) as Label
-	amount.add_theme_color_override("font_color", Palette.GOOD if passed else Palette.TOMATO)
+	amount.add_theme_color_override("font_color", Palette.INK)
 	against.name = "Against"
-	(against.get_child(0) as Label).add_theme_font_size_override(
-		"font_size", ReceiptView.FOOT_FONT_SIZE
-	)
+	var empty: Label = against.get_child(0) as Label
+	empty.add_theme_font_size_override("font_size", ReceiptView.FOOT_FONT_SIZE)
 	var words: Label = against.get_child(1) as Label
 	words.text = ReceiptTarget.against_text(total, quota)
 	words.add_theme_font_size_override("font_size", ReceiptView.FOOT_FONT_SIZE)
 	words.add_theme_color_override("font_color", ReceiptTarget.against_color(total, quota))
+	words.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	words.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
+	against.add_theme_constant_override("separation", 0)
 
 
-## Shrinks the PROJECTED `line`'s amount (TOTAL_FONT_SIZE) to fit beside its caption and its mark
-## column in `width` px of lines, down to AMOUNT_MIN_FONT_SIZE (a four-digit total). Nothing for
-## a width not laid out yet, or no line (null: the lines' width changed with no PROJECTED line).
+## Lays out the PROJECTED `line` (the PR #138 left UI): the caption at the left of the lines, the
+## amount at their right (PROJECTED never carries a mark, so it drops the mark column), both in
+## ink. The amount prints bold at PROJECTED_FONT_SIZE (the PR #138 round 2: it stands out), its
+## digits' middle on the caption's capitals' middle (_size_amount): half the number above the
+## caption's line, half below.
+static func spread_projected(line: HBoxContainer) -> void:
+	var caption: Label = line.get_child(0) as Label
+	var amount: Label = line.get_child(1) as Label
+	caption.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	amount.size_flags_horizontal = Control.SIZE_SHRINK_END
+	amount.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	for label: Label in [caption, amount]:
+		label.size_flags_vertical = Control.SIZE_FILL
+		label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+		label.add_theme_color_override("font_color", Palette.INK)
+	amount.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
+	_size_amount(line, ReceiptView.PROJECTED_FONT_SIZE)
+
+
+## Shrinks the PROJECTED `line`'s amount (PROJECTED_FONT_SIZE) to fit beside its caption (the
+## pair has no mark column: spread_projected) in `width` px of lines, down to
+## AMOUNT_MIN_FONT_SIZE (a four-digit total). Nothing for a width not laid out yet, or no line
+## (null: the lines' width changed with no PROJECTED line).
 static func fit_amount(line: HBoxContainer, width: float) -> void:
 	if width <= 0.0 or not is_instance_valid(line):
 		return
@@ -144,14 +172,57 @@ static func fit_amount(line: HBoxContainer, width: float) -> void:
 		width
 		- ReceiptView.text_width(caption.text, ReceiptView.MONO_FONT, ReceiptView.CAPTION_FONT_SIZE)
 		- line.get_theme_constant("separation")
-		- ReceiptView.MARK_COLUMN
 	)
-	amount.add_theme_font_size_override(
-		"font_size",
-		ReceiptInk.fit_font_size(
-			amount.text, room, ReceiptView.TOTAL_FONT_SIZE, AMOUNT_MIN_FONT_SIZE
-		)
+	var font_size: int = ReceiptInk.fit_font_size(
+		amount.text, room, ReceiptView.PROJECTED_FONT_SIZE, AMOUNT_MIN_FONT_SIZE
 	)
+	_size_amount(line, font_size)
+
+
+## Sets the PROJECTED `line`'s amount at `font_size` in bold, its line box trimmed above the
+## capitals to TOTAL_FONT_SIZE's height (the bigger number never takes the rows' room:
+## ReceiptRows), and drops the caption (both top-aligned on the line) so its capitals' middle is
+## the amount's digits' (cap_middle, on whole px): the number stands half above the caption's line
+## and half below it (the PR #138 left UI).
+static func _size_amount(line: HBoxContainer, font_size: int) -> void:
+	var caption: Label = line.get_child(0) as Label
+	var amount: Label = line.get_child(1) as Label
+	amount.add_theme_font_size_override("font_size", font_size)
+	var bold: FontVariation = ReceiptInk.bold_font()
+	var extra: float = bold.get_height(font_size) - bold.get_height(ReceiptView.TOTAL_FONT_SIZE)
+	if not _trimmed.has(font_size):
+		var trimmed: FontVariation = FontVariation.new()
+		trimmed.base_font = bold
+		trimmed.spacing_top = -maxi(roundi(extra), 0)
+		_trimmed[font_size] = trimmed
+	amount.add_theme_font_override("font", _trimmed[font_size])
+	amount.set_meta(ReceiptRows.BASE_FONT_META, bold)
+	var drop: StyleBoxEmpty = StyleBoxEmpty.new()
+	drop.content_margin_top = maxf(roundf(cap_middle(amount) - cap_middle(caption, false)), 0.0)
+	caption.add_theme_stylebox_override("normal", drop)
+
+
+## How far below `label`'s top the middle of its first character's ink sits (a capital or a
+## digit: from its top to the baseline), as the label prints it top-aligned: its style's top
+## margin (when `with_style`), its line's ascent, then half the glyph's height above the baseline.
+static func cap_middle(label: Label, with_style: bool = true) -> float:
+	var font: Font = label.get_theme_font("font")
+	var font_size: int = label.get_theme_font_size("font_size")
+	var shaped: TextLine = TextLine.new()
+	shaped.add_string(label.text, font, font_size)
+	var top: float = label.get_theme_stylebox("normal").get_margin(SIDE_TOP) if with_style else 0.0
+	return top + shaped.get_line_ascent() + glyph_top(font, font_size, label.text) / 2.0
+
+
+## The top of `text`'s first glyph in `font` at `font_size`, from the baseline (negative: above
+## it).
+static func glyph_top(font: Font, font_size: int, text: String) -> float:
+	var server: TextServer = TextServerManager.get_primary_interface()
+	var rid: RID = font.get_rids()[0]
+	var size: Vector2i = Vector2i(font_size, 0)
+	var glyph: int = server.font_get_glyph_index(rid, font_size, text.unicode_at(0), 0)
+	server.font_render_glyph(rid, size, glyph)
+	return server.font_get_glyph_offset(rid, size, glyph).y
 
 
 ## Marks `line` as a hovered item's target getting `token` (a mustard-pale fill behind it and the
@@ -260,14 +331,10 @@ static func line_label(text: String, style: ReceiptView.LineStyle) -> Label:
 	match style:
 		ReceiptView.LineStyle.CONTEXT:
 			color = Palette.TEAL
-		ReceiptView.LineStyle.FIZZLE, ReceiptView.LineStyle.FOOTER:
+		ReceiptView.LineStyle.FIZZLE:
 			# A fizzle's reason at B2's step-line size, so a long one keeps to two rows.
 			color = Palette.TOMATO_DARK
-			font_size = (
-				ReceiptView.FOOTER_FONT_SIZE
-				if style == ReceiptView.LineStyle.FIZZLE
-				else ReceiptView.FOOT_FONT_SIZE
-			)
+			font_size = ReceiptView.FOOTER_FONT_SIZE
 		ReceiptView.LineStyle.TOTAL, ReceiptView.LineStyle.PROJECTED:
 			font_size = ReceiptView.TOTAL_FONT_SIZE
 		ReceiptView.LineStyle.NOTICE:
@@ -331,12 +398,11 @@ static func _draw_dashes(rule: HSeparator) -> void:
 
 
 ## Whether a line of `style` keeps the mark column (ReceiptView.MARK_COLUMN) at its right end: all
-## but the footer, the margin, the notice and the tear, which run across it.
+## but the margin, the notice and the tear, which run across it.
 static func has_mark_column(style: ReceiptView.LineStyle) -> bool:
 	return (
 		style
 		not in [
-			ReceiptView.LineStyle.FOOTER,
 			ReceiptView.LineStyle.MARGIN,
 			ReceiptView.LineStyle.NOTICE,
 			ReceiptView.LineStyle.TEAR,

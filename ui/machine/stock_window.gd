@@ -1,6 +1,6 @@
 class_name StockWindow
 extends Control
-## The machine's stock window (v0.50, M4; the relook's vitrine in v0.86, mock-up
+## The machine's stock window (v0.50, M4; the relook's vitrine in v0.98, mock-up
 ## docs/art/mockups/machine_relook.html V2): the glass inside the cabinet's riveted steel frame
 ## (MachineCabinet.WINDOW_FRAME_RECT) over the keys, split in two columns by a steel mullion, each
 ## right above its key, with a sill along its foot. It shows no real prizes, so nothing in it reads
@@ -22,7 +22,7 @@ extends Control
 ##
 ## A week event that raises the odds (v0.70: Holiday rush's +1 level, MachineChuteInfo.week_odds)
 ## shows on a lit column whose odds include it as a gold tag right under its three odds plates
-## (v0.97, the user's "weeks odd + 1 is just sitting weirdly": it floated over the mullion and the
+## (v0.99, the user's "weeks odd + 1 is just sitting weirdly": it floated over the mullion and the
 ## tickets' tops): an LED strip as wide as the plates' row, with a gold rim: "ODDS +1 · WEEK".
 
 const SIZE := Vector2(448, 204)
@@ -71,7 +71,7 @@ const GLINT_X: Array[float] = [40.0, 200.0, 360.0]
 const GLINT_ALPHA := 0.35
 const CONE_ALPHA := 0.07
 const CONE_HOVER_ALPHA := 0.16
-## The week event's odds tag (v0.70; under the plates in v0.97): its text, the art px between the
+## The week event's odds tag (v0.70; under the plates in v0.99): its text, the art px between the
 ## plates and the tag, and the tag's height (a plate's); its words are chunky capitals, so they
 ## share the price-gun digits' cap top.
 const WEEK_ODDS_TEXT := "ODDS +%d · WEEK"

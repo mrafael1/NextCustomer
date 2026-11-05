@@ -446,12 +446,11 @@ func test_the_status_line_and_the_register_stay_clear() -> void:
 
 
 ## Every Redraw caption the run can show fits REDRAW_RECT without growing it, with every upgrade
-## that adds redraws: "Redraw" with its bare count M for each M (2 or more green, 1 amber, 0 red
-## and at full strength on the faded disabled key), "Redraw" with "none to draw" (an empty draw
-## pile, ink light) and, in redraw mode (plan section 3.8), "Pick a basket" with its count M, held
-## lit, for each M. The note sits beside the caption, on the
-## key's face, smaller; Redraw keeps its rect on the register column, clear of Cancel and
-## CHECKOUT.
+## that adds redraws: REDRAW with its count M in the counter window for each M (2 or more green,
+## 1 orange, 0 red and struck through on an unlit pane), NONE TO DRAW (an empty draw pile) and, in
+## redraw mode (plan section 3.8), PICK A BASKET held lit, for each M. The count is its own part
+## (the PR #138 left UI): the counter window and the key's face side by side inside the key's old
+## footprint; Redraw keeps its rect on the register column, clear of Cancel and CHECKOUT.
 func test_every_redraw_caption_fits() -> void:
 	var screen: ShiftScreen = await _screen()
 	var run: RunState = screen.run
@@ -471,63 +470,66 @@ func test_every_redraw_caption_fits() -> void:
 		captions.append("%s %s" % [screen._redraw_button.caption, screen._redraw_button.note()])
 		await _assert_redraw_in_place(screen)
 		_assert_redraw_count(screen, run.redraws_allowed - used)
-	assert_str(";".join(captions)).contains("Redraw %d" % run.redraws_allowed)
-	assert_str(";".join(captions)).contains("Redraw 0")
+	var redraw: String = RedrawNotice.REDRAW_CAPTION
+	assert_str(";".join(captions)).contains("%s %d" % [redraw, run.redraws_allowed])
+	assert_str(";".join(captions)).contains("%s 0" % redraw)
 	assert_str(";".join(captions)).not_contains("left")
 	for used: int in range(run.redraws_allowed):
 		run.redraws_used = used
 		screen._refresh()
 		screen._on_redraw_pressed()
 		assert_bool(screen._cancel_button.visible).is_true()
-		assert_str(screen._redraw_button.caption).is_equal("Pick a basket")
+		assert_str(screen._redraw_button.caption).is_equal(RedrawNotice.PICK_CAPTION)
 		assert_int(screen._redraw_button.look()).is_equal(RegisterKey.Look.LIT)
-		captions.append("%s %s" % [screen._redraw_button.caption, screen._redraw_button.note()])
 		await _assert_redraw_in_place(screen)
 		_assert_redraw_count(screen, run.redraws_allowed - used)
 		screen._on_cancel_pressed()
-	assert_str(";".join(captions)).contains("Pick a basket %d" % run.redraws_allowed)
 	assert_int(screen._redraw_button.look()).is_not_equal(RegisterKey.Look.LIT)
-	# An empty draw pile: nothing to draw.
+	# An empty draw pile: nothing to draw, the count still shown.
 	run.redraws_used = 0
 	while not run.deck.draw_pile().is_empty():
 		run.deck.redraw_places([0])
 	screen._refresh_buttons()
-	assert_str(screen._redraw_button.note()).is_equal("none to draw")
+	assert_str(screen._redraw_button.caption).is_equal(RedrawNotice.EMPTY_CAPTION)
 	assert_bool(screen._redraw_button.disabled).is_true()
-	var word: Label = screen._redraw_button.note_label()
-	assert_object(word.get_theme_color("font_color")).is_equal(Palette.INK_LIGHT)
-	assert_int(word.get_theme_constant("outline_size")).is_equal(0)
-	assert_int(word.get_theme_font_size("font_size")).is_equal(RegisterKey.NOTE_FONT_SIZE)
-	assert_float(word.modulate.a).is_equal_approx(RegisterKey.OFF_CAPTION_ALPHA, 0.001)
+	assert_float(screen._redraw_button.caption_label().modulate.a).is_equal_approx(
+		RegisterKey.OFF_CAPTION_ALPHA, 0.001
+	)
 	await _assert_redraw_in_place(screen)
+	_assert_redraw_count(screen, run.redraws_allowed)
 
 
-## The Redraw key shows `left` as a bare digit beside its caption, larger and heavier than a word
-## note, in RedrawNotice.count_color (2 or more green, 1 amber, 0 red); the red 0 keeps its full
-## strength while the disabled key's caption fades. Screen readers still hear "(N left)".
+## The Redraw key's counter window shows `left` in the 6x8 pixel digits, in
+## RedrawNotice.count_color (2 or more green, 1 orange, 0 red), the 0 in the window's alert look
+## (unlit, struck through), so it reads without the colour; LEFT under it. Unlike the key's face it
+## never fades or sinks: a display. Screen readers still hear "(N left)".
 func _assert_redraw_count(screen: ShiftScreen, left: int) -> void:
 	var button: RegisterKey = screen._redraw_button
-	var note: Label = button.note_label()
+	var counter: RegisterKey.CounterWindow = button.counter()
 	var color: Color = Palette.GREEN_DARK
 	if left == 1:
-		color = Palette.MUSTARD_DARKEST
+		color = Palette.ORANGE_DARK
 	elif left <= 0:
 		color = Palette.TOMATO_DARK
 	assert_str(button.note()).is_equal("%d" % left)
-	assert_object(note.get_theme_color("font_color")).is_equal(color)
-	assert_object(note.get_theme_color("font_outline_color")).is_equal(color)
-	assert_int(note.get_theme_constant("outline_size")).is_equal(RegisterKey.COUNT_OUTLINE)
-	assert_int(note.get_theme_font_size("font_size")).is_equal(RegisterKey.COUNT_FONT_SIZE)
-	assert_int(RegisterKey.COUNT_FONT_SIZE).is_greater(RegisterKey.NOTE_FONT_SIZE)
+	assert_bool(counter.visible).is_true()
+	assert_object(counter.colour).is_equal(color)
+	assert_object(counter.digits.color).is_equal(color)
+	assert_str(counter.digits.text).is_equal("%d" % left)
+	assert_int(counter.digits.sheet).is_equal(PixelWords.Sheet.DIGITS)
+	assert_bool(counter.alert).is_equal(left <= 0)
+	assert_str(counter.word.text).is_equal(RegisterKey.COUNTER_WORD)
 	assert_str(button.accessibility_name).contains("(%d left)" % left)
-	assert_float(note.modulate.a).is_equal(1.0)
+	assert_that(counter.modulate).is_equal(Color.WHITE)
+	assert_float(counter.position.y).is_equal(0.0)
 	if left <= 0:
 		assert_bool(button.disabled).is_true()
-		assert_float(button.caption_label().modulate.a).is_equal_approx(
-			RegisterKey.OFF_CAPTION_ALPHA, 0.001
-		)
 
 
+## The Redraw key in its rect, split in two (the PR #138 left UI): the counter window at its left
+## (COUNTER_WIDTH, the key's height) and its face COUNTER_GAP right of it to the key's end, side by
+## side inside the key's old footprint; the count's digits and LEFT inside the window's pane, on
+## the 2 px grid; the caption whole on the face.
 func _assert_redraw_in_place(screen: ShiftScreen) -> void:
 	await _frames(1)
 	var button: RegisterKey = screen._redraw_button
@@ -537,38 +539,37 @@ func _assert_redraw_in_place(screen: ShiftScreen) -> void:
 		. override_failure_message("'%s %s' needs %s" % [button.caption, button.note(), needed])
 		. is_true()
 	)
+	var key: Rect2 = button.get_global_rect()
+	var counter: Rect2 = button.counter().get_global_rect()
+	var face: Rect2 = button.face().get_global_rect()
+	var scale: float = key.size.x / ShiftStage.REDRAW_RECT.size.x
+	var why: String = "key %s counter %s face %s" % [key, counter, face]
+	assert_bool(key.encloses(counter)).override_failure_message(why).is_true()
+	assert_float(counter.position.x).is_equal_approx(key.position.x, 0.5)
+	assert_float(counter.position.y).is_equal_approx(key.position.y, 0.5)
+	assert_float(counter.size.y).is_equal_approx(key.size.y, 0.5)
+	assert_float(counter.size.x).is_equal_approx(RegisterKey.COUNTER_WIDTH * scale, 0.5)
+	var gap: float = face.position.x - counter.end.x
+	assert_float(gap).is_equal_approx(RegisterKey.COUNTER_GAP * scale, 0.5)
+	assert_float(face.end.x).is_equal_approx(key.end.x, 0.5)
+	assert_bool(face.intersects(counter)).is_false()
+	var pane: Rect2 = button.counter().pane()
+	for part: PixelWords in [button.counter().digits, button.counter().word]:
+		var rect: Rect2 = Rect2(part.position, part.size)
+		assert_bool(pane.encloses(rect)).override_failure_message(str(rect)).is_true()
+		assert_float(fmod(rect.position.x, 2.0)).is_equal(0.0)
+		assert_float(fmod(rect.position.y, 2.0)).is_equal(0.0)
 	var caption: Rect2 = button.caption_label().get_global_rect()
-	var caption_width: float = button.caption_label().get_minimum_size().x
+	var caption_width: float = button.caption_label().get_minimum_size().x * scale
+	assert_bool(face.encloses(caption)).override_failure_message(str(caption)).is_true()
 	assert_float(caption.size.x).is_greater_equal(caption_width - 0.5)
-	if not button.note().is_empty():
-		var note_label: Label = button.note_label()
-		var note: Rect2 = note_label.get_global_rect()
-		assert_bool(note_label.visible).is_true()
-		(
-			assert_bool(button.get_global_rect().encloses(note))
-			. override_failure_message(str(note))
-			. is_true()
-		)
-		assert_float(note.position.x).is_greater_equal(caption.end.x)
-		assert_float(note.size.x).is_greater_equal(note_label.get_minimum_size().x - 0.5)
-		assert_int(note_label.get_theme_font_size("font_size")).is_less(
-			button.caption_label().get_theme_font_size("font_size")
-		)
-		# The pair is centred on the face.
-		var middle: float = (caption.position.x + note.end.x) / 2.0
-		assert_float(middle).is_equal_approx(button.get_global_rect().get_center().x, 1.0)
-	elif button.note_label() != null:
-		assert_bool(button.note_label().visible).is_false()
-	assert_that(button.get_global_rect()).is_equal(_on_stage(screen, ShiftStage.REDRAW_RECT))
+	assert_that(key).is_equal(_on_stage(screen, ShiftStage.REDRAW_RECT))
 	var others: Array[Control] = [screen._checkout_button]
 	if screen._cancel_button.visible:
 		others.append(screen._cancel_button)
 	for other: Control in others:
-		assert_bool(button.get_global_rect().intersects(other.get_global_rect())).is_false()
-	(
-		assert_bool(_on_stage(screen, ShiftStage.COLUMN_RECT).encloses(button.get_global_rect()))
-		. is_true()
-	)
+		assert_bool(key.intersects(other.get_global_rect())).is_false()
+	assert_bool(_on_stage(screen, ShiftStage.COLUMN_RECT).encloses(key)).is_true()
 
 
 ## The wall and the counter cover the whole viewport, whatever its shape, and the top band and
@@ -652,7 +653,6 @@ func test_numbers_use_the_number_font() -> void:
 		screen._shift_label,
 		screen._monitor.checkout().total_number().slam_label(),
 		screen._deck_button.caption_label(),
-		screen._redraw_button.note_label(),
 	]
 	assert_int(screen._row_views.size()).is_greater(0)
 	# The paid chips show only in the count-up (#80, step 7), in the number font all the same.
@@ -668,6 +668,8 @@ func test_numbers_use_the_number_font() -> void:
 	# The receipt's TODAY'S TARGET (the shift scene polish) prints the quota in the 6x8 pixel
 	# digits (v4's D), drawn, not a font.
 	assert_int(screen._receipt.target.amount.sheet).is_equal(PixelWords.Sheet.DIGITS)
+	# So does the Redraw key's counter window (the PR #138 left UI).
+	assert_int(screen._redraw_button.counter().digits.sheet).is_equal(PixelWords.Sheet.DIGITS)
 
 
 ## Every character the screen prints is in the font that prints it, including "−" (U+2212) on

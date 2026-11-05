@@ -1,4 +1,4 @@
-// A prize card's foil (v0.97, the user's picks of 2026-11-04 on
+// A prize card's foil (v0.99, the user's picks of 2026-11-04 on
 // docs/art/mockups/card_rarity.html: look B "foil" for RARE and LEGENDARY, mock-up
 // card_rarity_B.html), drawn on a ColorRect over the whole card, under its art and its words
 // (CardFoil). Everything is hard art pixels (`art_px` canvas px each, from the rect's UV): no

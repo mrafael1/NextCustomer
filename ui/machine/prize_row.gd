@@ -1,7 +1,7 @@
 class_name PrizeRow
 extends Control
 ## The prize tickets' stage (v0.50, mock-up premium_machine_v1.html; R1 "drop"; the relook in
-## v0.86, mock-up machine_relook.html V2; V3 in v0.96, machine_relook_v3.html: no veil, the
+## v0.98, mock-up machine_relook.html V2; V3 in v0.98, machine_relook_v3.html: no veil, the
 ## vitrine's odds stay readable while picking), on the machine's stage layer: "KEEP ONE" lights on
 ## the tray's push bar once the tickets are all face up (keep_at) and goes at the pick (or the
 ## bin). The tickets themselves stand on the machine's card layer, over it, in a row centred on the
@@ -9,7 +9,7 @@ extends Control
 ## and t.
 
 ## The tickets' row, in machine coordinates: their top, their gap, the prize bay's middle (V3,
-## v0.96: they stand on the bay's pedestals, PrizeBay).
+## v0.98: they stand on the bay's pedestals, PrizeBay).
 const ROW_TOP := 76.0
 const ROW_GAP := 20.0
 const MIDDLE_X := 762.0

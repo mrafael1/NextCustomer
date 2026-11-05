@@ -1,8 +1,9 @@
 extends GdUnitTestSuite
 ## The scanner bay's family chip (#105 piece 2, FamilyChip): what every card's chip says (a family,
 ## a card, the item itself, both halves of a split ticket, or COUPON), in its ticket's first
-## family's colour, with the family's glyph for a one-family ticket and the colour's tooltip; a
-## word on paper (show_text) takes the colour, the glyph and the tooltip off.
+## family's colour, with no family glyph since PR #138's monitor (the item column's header is the
+## one place they show) and the colour's tooltip; a word on paper (show_text) takes the colour and
+## the tooltip off; the bay's status plate (show_status) is paper words on teal dark.
 
 const CARDS := "res://data/cards"
 
@@ -43,9 +44,8 @@ func test_every_cards_chip_says_what_its_ticket_works_with() -> void:
 		assert_int(kinds.get(kind, 0)).override_failure_message(kind).is_greater(0)
 
 
-## A card's chip: its text, the first family's face and light (paper for a coupon), the glyph only
-## for a one-family ticket, the colour's tooltip; show_text puts a word on paper with no glyph or
-## tooltip.
+## A card's chip: its text, the first family's face and light (paper for a coupon), no glyph, the
+## colour's tooltip; show_text puts a word on paper with no tooltip, show_status the plate's words.
 func test_the_chip_takes_its_tickets_colour_and_a_word_takes_it_off() -> void:
 	var palette: FamilyPalette = FamilyPalette.shared()
 	var chip: FamilyChip = auto_free(FamilyChip.new())
@@ -60,16 +60,20 @@ func test_the_chip_takes_its_tickets_colour_and_a_word_takes_it_off() -> void:
 		if not ids.is_empty() and palette.style(ids[0]).has_ticket_colours():
 			face = palette.style(ids[0]).face
 		assert_that(chip.face_color()).override_failure_message(message).is_equal(face)
-		var glyph: bool = ids.size() == 1 and palette.style(ids[0]).glyph != null
-		assert_bool(chip.glyph_sprite().visible).override_failure_message(message).is_equal(glyph)
-		if glyph:
-			assert_object(chip.glyph_sprite().texture).is_same(palette.style(ids[0]).glyph)
+		assert_bool(chip.glyph_sprite().visible).override_failure_message(message).is_false()
 	chip.show_text(ScannerBay.END_NAME)
 	assert_str(chip.chip_text()).is_equal(ScannerBay.END_NAME)
 	assert_that(chip.face_color()).is_equal(Palette.PAPER)
 	assert_bool(chip.glyph_sprite().visible).is_false()
 	assert_str(chip.tip_text).is_empty()
 	assert_vector(chip.size).is_equal(FamilyChip.SIZE)
+	chip.show_status(MonitorText.SCAN_COMPLETE)
+	assert_str(chip.chip_text()).is_equal(MonitorText.SCAN_COMPLETE)
+	assert_that(chip.face_color()).is_equal(Palette.TEAL_DARK)
+	assert_str(chip.tip_text).is_empty()
+	# The plate's words fit it whole.
+	var label: Label = chip.text_label()
+	assert_float(label.get_minimum_size().x).is_less_equal(label.size.x)
 
 
 static func _cards() -> Array[CardDefinition]:

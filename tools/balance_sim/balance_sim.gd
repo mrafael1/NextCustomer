@@ -867,8 +867,9 @@ func _write_json(summaries: Array[SimSummary], seconds: float) -> int:
 
 
 ## Every run record by scenario key, with the quota and coin data tools/quota_fit.py needs to
-## replay the runs under another quota curve: the quotas played and the coin amounts
-## (CoinPayout).
+## replay the runs under another quota curve: the quotas played, the coin amounts (CoinPayout),
+## and the training week's slips (TrainingWeek: write_up_limit, write_up_last_shift) with the
+## week length (v0.96). Each shift's entry holds its quota_percent (SimPlayer.quota_percent).
 func _write_records() -> int:
 	var scenarios: Dictionary[String, Array] = {}
 	for key: String in _records:
@@ -882,6 +883,9 @@ func _write_records() -> int:
 		"coins_by_shifts_passed": Array(_balance.coins_by_shifts_passed),
 		"overtime_coin_euros": _balance.overtime_coin_euros,
 		"overtime_coin_max": _balance.overtime_coin_max,
+		"write_up_limit": _balance.write_up_limit,
+		"write_up_last_shift": _balance.write_up_last_shift,
+		"week_length": _balance.week_length,
 		"scenarios": scenarios,
 	}
 	var status: int = _write_file(_options["records"], JSON.stringify(data))

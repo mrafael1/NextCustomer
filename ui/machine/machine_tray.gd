@@ -1,7 +1,7 @@
 class_name MachineTray
 extends Control
 ## The machine's prize tray (v0.50, mock-up premium_machine_v1.html; R1 "drop"; the relook's
-## riveted steel housing in v0.86, mock-up machine_relook.html V2): under the keys, its housing
+## riveted steel housing in v0.98, mock-up machine_relook.html V2): under the keys, its housing
 ## brass with gold rivets once a PREMIUM visit turns PREMIUM (MachineLook), the push bar on top
 ## (its words in hard pixel capitals: PUSH, PUSH TO CONFIRM · X, KEEP ONE's bar lit while the
 ## row waits for its pick) over a dark mouth with a light strip and "TAKE YOUR PRIZE" in it.

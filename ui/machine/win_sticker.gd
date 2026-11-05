@@ -1,6 +1,6 @@
 class_name WinSticker
 extends Control
-## A LOYALTY prize ticket's LAST ROW / BEST ROW sticker (S1, v0.96, mock-up
+## A LOYALTY prize ticket's LAST ROW / BEST ROW sticker (S1, v0.98, mock-up
 ## docs/art/mockups/machine_relook_v3.html; the price-gun sticker of #108 back on V3's ticket): a
 ## gold price-gun label slapped across the ticket's bottom edge at WIN_TILT, its right edge
 ## STICK_OUT past the ticket's and its top OVERLAP over the ticket's foot (sticker_rect), so it

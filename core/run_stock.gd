@@ -36,12 +36,13 @@ static func build(
 	balance: BalanceDefinition,
 	listed: Array[StringName],
 	unlocked: Dictionary[StringName, int],
-	run_index: int
+	run_index: int,
+	force_list: bool = false
 ) -> RunStock:
 	var stock: RunStock = RunStock.new()
 	stock._add_all(staples(balance))
 	var listable: Array[AisleDefinition] = listable_aisles(balance, unlocked)
-	stock.list_skipped = not needs_list(balance, unlocked)
+	stock.list_skipped = not force_list and not needs_list(balance, unlocked)
 	var stocked_aisles: Array[AisleDefinition] = []
 	for aisle: AisleDefinition in listable:
 		if stock.list_skipped or listed.has(aisle.id):
