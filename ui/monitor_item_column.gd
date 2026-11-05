@@ -24,7 +24,8 @@ extends Control
 ##    row's name in its amount's colour). A hand item's muted note stands alone.
 ## 4. Under the rows, clear of them and of the frame's foot, the payout zone (PAYOUT_RECT): only
 ##    "= 16€" (MonitorPayout), right-aligned under the amounts, in the ticket's payout ink (a
-##    coupon's "+N€" in teal, what its "gives" rows add, PR #138 round 7); it never moves.
+##    coupon's "+N€" in teal, what its "gives" rows add, PR #138 round 7; a coupon that adds
+##    nothing shown leaves it empty, v1.00); it never moves.
 ##
 ## In planning (show_item) rows that don't fit their room go on pages of whole rows
 ## (MonitorStepPages, `pages`), turning by themselves, their marker at the header's right end. In
@@ -152,6 +153,8 @@ var _fades: Array[Tween] = []
 var _punch: Tween
 var _counting: bool = false
 var _count_fizzled: bool = false
+## The count's coupon: what it adds in all ("+N€" in the payout's zone, as in planning; v1.00).
+var _count_given: int = 0
 var _count_lines: Array[Dictionary] = []
 var _pages: MonitorStepPages
 ## What planning shows now (show_item's arguments): the same again keeps the page and its wait.
@@ -199,8 +202,8 @@ func show_item(
 		for row: Control in built:
 			row.free()
 		built = _planning_rows(definition, shown, true)
-	# A coupon that gave something keeps its coupon window: only one that gave nothing is wasted
-	# (its fizzle rows say what went unused).
+	# A coupon that gave something is not wasted: only one that gave nothing is (its fizzle rows
+	# say what went unused).
 	var fizzled: bool = shown.fizzles.has(true) and not (definition.is_coupon() and shown.gives > 0)
 	var hand: bool = shown.payout < 0
 	_set_payout(shown.payout if not hand else _base_of(definition), fizzled, false, shown.given)
@@ -259,11 +262,15 @@ func _planning_rows(
 
 
 ## The count: `definition` comes into the bay at its base price, with no row yet (so no base line:
-## it joins with the first step, show_step); its parts fade in (`animate`) or show at once.
-func start_item(definition: CardDefinition, _tags: PackedStringArray, animate: bool = true) -> void:
+## it joins with the first step, show_step); its parts fade in (`animate`) or show at once. A
+## coupon that adds `given` in all shows "+given€" (as planning does), else nothing.
+func start_item(
+	definition: CardDefinition, _tags: PackedStringArray, animate: bool = true, given: int = 0
+) -> void:
 	_counting = true
 	# Laid as with its rows (the description's size leaves them room), shown with none yet.
 	_build(definition, 2, ROW_MAX_LINES, 1)
+	_count_given = given
 	_effect_rows = 0
 	_place_body(_effect_end())
 	_set_payout(_base_of(definition), false, false)
@@ -410,6 +417,7 @@ func clear() -> void:
 	_shown_key = []
 	_count_lines.clear()
 	_count_fizzled = false
+	_count_given = 0
 	_shown_value = -1
 	_panel = Rect2()
 	_effect_rows = 0
@@ -478,7 +486,7 @@ func step_texts() -> PackedStringArray:
 
 ## Where the base's chip takes off (global): the payout's middle.
 func price_point() -> Vector2:
-	if _payout.visible:
+	if _payout.visible and _payout.shows_pay():
 		return _payout.shown_rect().get_center()
 	return get_global_transform() * PAYOUT_RECT.get_center()
 
@@ -504,7 +512,8 @@ func step_point() -> Vector2:
 
 ## Every part shown, with its rect (global, at rest), for layout checks: the frame, the header, the
 ## name and its glyphs, the description and its MORE chip, the band, the base line, the rows, the
-## pages' marker, the rows' area and the payout (its shown digits or window, and its parts).
+## pages' marker, the rows' area and the payout (its shown digits and its parts; an empty rect at
+## its zone's right edge for a coupon that shows nothing).
 func part_rects() -> Dictionary[String, Rect2]:
 	var rects: Dictionary[String, Rect2] = {}
 	var transform: Transform2D = get_global_transform()
@@ -783,6 +792,10 @@ func _add_more(text: String) -> void:
 ## its "+N€"); `punch` grows it from its right edge (the count's landing).
 func _set_payout(value: int, fizzled: bool, punch: bool, given: int = 0) -> void:
 	var base: int = _base_of(_definition)
+	if _counting:
+		# As in planning (show_item): a coupon that gave something is not wasted.
+		given = _count_given
+		fizzled = fizzled and not (_definition.is_coupon() and given > 0)
 	var state: PriceWindow.State = MonitorPayout.state_of(
 		value, base, fizzled, _definition.is_coupon()
 	)

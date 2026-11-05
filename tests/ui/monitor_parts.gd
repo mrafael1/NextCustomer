@@ -15,8 +15,8 @@ extends RefCounted
 ##   PAYOUT_CLEARANCE px under the rows' area and its digits (with their shadow) at least
 ##   FOOT_CLEARANCE px over the frame's inside foot.
 ## - The header's family glyphs, with their rims, and the pages' marker inside the header band.
-## - The payout's digits (or a coupon's window) right-aligned at the same place for every item
-##   (PAYOUT_RECT).
+## - The payout's digits (none for a coupon that adds nothing, v1.00) right-aligned at the same
+##   place for every item (PAYOUT_RECT).
 ## - No text cut silently: the description fits or carries the MORE chip; a row's text shows all
 ##   its lines (no ellipsis).
 ## - The rows' amounts and the base line's: every euro amount's and WASTED's visible ink ends on
@@ -33,7 +33,6 @@ const CONTAINERS: Array[String] = [
 	"panel",
 	"payout_digits",
 	"payout_shadow",
-	"payout_pricewindow"
 ]
 ## A Latin font's cap height and descender depth, as fractions of its size.
 const CAP_HEIGHT := 0.72
@@ -302,7 +301,7 @@ static func _sections(parts: Dictionary[String, Rect2]) -> PackedStringArray:
 		if gap < PAYOUT_CLEARANCE - 0.5:
 			found.append("payout zone %s %s px under the rows' area" % [parts["footer"], gap])
 	var foot: float = frame.end.y - MonitorItemColumn.FRAME - FOOT_CLEARANCE
-	for name: String in ["payout", "payout_shadow", "payout_pricewindow"]:
+	for name: String in ["payout", "payout_shadow"]:
 		if parts.has(name) and parts[name].end.y > foot + 0.5:
 			found.append(
 				"%s %s within %s px of the frame's foot" % [name, parts[name], FOOT_CLEARANCE]
