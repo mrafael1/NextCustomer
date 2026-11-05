@@ -3,7 +3,8 @@ extends RefCounted
 ## The run's loop before v0.65's rework, for tests that script an 8-shift run around it: shifts 3,
 ## 5 and 7 inspected (one inspection each), no Manager's reviews, a miss ends the run (no
 ## write-ups), and the machine PREMIUM after shifts 3, 5 and 7 with the 8-shift odds levels and a
-## BONUS visit after every inspected pass (before v0.68's Payday). The
+## BONUS visit after every inspected pass (before v0.68's Payday), and no over-quota rewards
+## (before v1.03: their quotas of 1 would make every shift earn them). The
 ## live balance holds the 16-shift loop (full build plan section 5.3); these tests are about other
 ## things, and keep their runs.
 
@@ -20,5 +21,7 @@ static func apply(balance: BalanceDefinition) -> BalanceDefinition:
 		machine.bonus_after_inspection = true
 		machine.bonus_extra_shifts = PackedInt32Array()
 		machine.shift_odds_levels = PackedInt32Array([0, 0, 1, 1, 2, 2, 3, 3])
+		machine.overtime_ticket_laps = 0
+		machine.overtime_premium_laps = 0
 		balance.machine = machine
 	return balance

@@ -1,0 +1,473 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Over-Quota Rewards</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Silkscreen&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f3e9d2; --card:#fbf7ee; --ink:#2b2420; --muted:#5e574d; --line:#ddcba5;
+  --accent:#8a1f33; --accent2:#3a7672; --chip:#faecbc; --good:#3d7a45; --warn:#a83a3c;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#172c2b; --card:#1f3b3a; --ink:#fbf7ee; --muted:#c7beab; --line:#3a7672;
+    --accent:#f1d27a; --accent2:#86c2b6; --chip:#2a4d4b; --good:#a5d17e; --warn:#ec8a6e;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#172c2b; --card:#1f3b3a; --ink:#fbf7ee; --muted:#c7beab; --line:#3a7672;
+  --accent:#f1d27a; --accent2:#86c2b6; --chip:#2a4d4b; --good:#a5d17e; --warn:#ec8a6e;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;overflow-x:hidden}
+main{max-width:980px;margin:0 auto;padding:24px 16px 64px}
+h1{font-family:Silkscreen,ui-monospace,monospace;font-size:28px;line-height:1.2;margin:0 0 6px;letter-spacing:.5px}
+h2{font-family:Silkscreen,ui-monospace,monospace;font-size:19px;margin:36px 0 10px;letter-spacing:.5px}
+h3{font-size:16px;margin:16px 0 6px}
+p{margin:6px 0 10px}
+.lede{color:var(--muted);margin:0 0 18px}
+.card{background:var(--card);border:2px solid var(--line);border-radius:6px;padding:14px 16px;margin:12px 0}
+.tag{display:inline-block;font-size:12px;font-weight:700;padding:1px 8px;border-radius:10px;background:var(--chip);color:var(--ink);border:1px solid var(--line);vertical-align:middle}
+.rec{border-color:var(--accent)}
+ul{margin:6px 0 10px;padding-left:20px}
+li{margin:3px 0}
+.tiers{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:10px 0}
+.tier{background:var(--bg);border:2px solid var(--line);border-radius:6px;padding:10px 12px}
+.tier b{font-family:Silkscreen,ui-monospace,monospace;font-size:15px}
+.stars{color:#e2b33c;letter-spacing:1px}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-weight:700}
+code{font:13px ui-monospace,Consolas,monospace;background:var(--chip);padding:0 4px;border-radius:3px;word-break:break-word}
+.scroll{overflow-x:auto}
+ol.alts{padding-left:22px}
+ol.alts li{margin:8px 0}
+.why{color:var(--muted)}
+.q{border-left:4px solid var(--accent2)}
+.def{color:var(--good);font-weight:700}
+/* controls */
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}
+.controls button,.controls select{font:14px Silkscreen,ui-monospace,monospace;padding:7px 12px;border-radius:4px;border:2px solid #2b2420;background:#e2b33c;color:#2b2420;cursor:pointer;box-shadow:0 3px 0 #7a5a1c}
+.controls button:active{transform:translateY(2px);box-shadow:0 1px 0 #7a5a1c}
+.controls select{background:#fbf7ee;box-shadow:none}
+.controls button.alt{background:#c7c3b8;box-shadow:0 3px 0 #57534c}
+.controls label{font-size:14px;display:flex;gap:6px;align-items:center}
+/* stage */
+#stageWrap{width:100%;aspect-ratio:480/300;position:relative;overflow:hidden;border:3px solid #2b2420;border-radius:4px;background:#2a0e14}
+#fit{position:absolute;left:0;top:0;width:480px;height:300px;transform-origin:0 0}
+#shake{position:absolute;inset:0}
+.px{font-family:Silkscreen,ui-monospace,monospace;-webkit-font-smoothing:none;image-rendering:pixelated}
+#wall{position:absolute;inset:0 0 70px 0;background:
+  repeating-linear-gradient(90deg,#561327 0 14px,#8a1f33 14px 16px);}
+#counter{position:absolute;left:0;right:0;bottom:0;height:70px;background:#a8703a;border-top:4px solid #ddb07a;box-shadow:inset 0 -10px 0 #6e4524}
+#monitor{position:absolute;left:16px;top:16px;width:190px;height:112px;background:#45423d;border:3px solid #2b2420;border-radius:3px;padding:6px}
+#screen{position:absolute;inset:6px;background:#222a29;border:2px solid #24221f;padding:6px 8px;color:#bfe2dd}
+#screen .lbl{font-size:9px;color:#86c2b6}
+#total{font-size:34px;line-height:1;color:#ffcf3f;margin-top:4px;text-shadow:2px 2px 0 #7a5a1c}
+#quotaLbl{font-size:10px;margin-top:6px;color:#c3e0d4}
+#ratio{position:absolute;right:8px;bottom:6px;font-size:12px;color:#86c2b6}
+/* gauge */
+#gauge{position:absolute;left:222px;top:8px;width:56px;height:252px}
+#lamp{position:absolute;left:8px;top:0;width:40px;height:40px;border-radius:50%;background:#57534c;border:3px solid #2b2420;box-shadow:inset 3px 3px 0 #a9a59b}
+#lens{position:absolute;inset:5px;border-radius:50%;background:#2c2926;display:flex;align-items:center;justify-content:center;font-size:12px;color:#2b2420;transition:background .12s}
+#glow{position:absolute;left:-6px;top:-14px;width:68px;height:68px;border-radius:50%;opacity:0;pointer-events:none}
+#pips{position:absolute;left:-8px;top:44px;width:72px;display:flex;justify-content:space-between}
+.pip{width:22px;text-align:center}
+.pip i{display:block;width:18px;height:18px;margin:0 auto;font-style:normal;font-size:16px;line-height:18px;color:#45423d;text-shadow:1px 1px 0 #24221f}
+.pip.on i{color:#ffcf3f;text-shadow:1px 1px 0 #7a5a1c,0 0 6px #ffcf3f}
+.pip span{display:block;font-size:8px;color:#c7beab}
+#tube{position:absolute;left:12px;top:80px;width:32px;height:168px;background:#bfe2dd;border:3px solid #2b2420;box-shadow:0 0 0 3px #8d8a83;overflow:hidden}
+#tube .liq{position:absolute;left:0;right:0;bottom:0;height:0}
+#back{height:0}
+#tubeFlash{position:absolute;inset:0;background:#fff;opacity:0}
+#tube .shine{position:absolute;left:4px;top:4px;bottom:4px;width:4px;background:rgba(255,255,255,.35)}
+/* receipt */
+#receipt{position:absolute;left:300px;top:0;width:164px;height:0;background:#fbf7ee;border:2px solid #2b2420;border-top:none;color:#2b2420;font-size:9px;padding:0 8px;overflow:hidden;box-shadow:3px 3px 0 rgba(0,0,0,.3)}
+#slot{position:absolute;left:292px;top:0;width:180px;height:8px;background:#24221f}
+.rl{display:flex;justify-content:space-between;white-space:nowrap;margin:3px 0}
+.rl.hd{justify-content:center;border-bottom:1px dashed #8a8172;padding-bottom:3px;margin-top:8px}
+.rl.over{color:#3d7a45;font-size:10px}
+.rl.prem{background:#561327;color:#ffcf3f;justify-content:center;padding:2px 0;margin-top:5px}
+.rl .s{color:#b38425}
+#paid{position:absolute;font-size:22px;color:#d9534f;border:3px solid #d9534f;padding:0 6px;transform:rotate(-12deg);opacity:0;left:350px;top:110px}
+/* star card */
+#card{position:absolute;left:16px;top:140px;width:190px;height:62px;background:#f3e9d2;border:3px solid #2b2420;border-radius:3px;padding:4px 6px;color:#2b2420}
+#card .t{font-size:9px;display:flex;justify-content:space-between}
+#holes{display:grid;grid-template-columns:repeat(9,1fr);gap:2px;margin-top:4px}
+.hole{height:14px;border-radius:50%;background:#ddcba5;box-shadow:inset 1px 1px 0 #b39f78;display:flex;align-items:center;justify-content:center;font-size:10px;color:transparent}
+.hole.f{background:#ffcf3f;box-shadow:inset 1px 1px 0 #fbf7ee,0 0 0 1px #b38425;color:#7a5a1c}
+.hole.c{background:#c3e0d4;box-shadow:inset 1px 1px 0 #fbf7ee,0 0 0 1px #3a7672;color:#2a4d4b}
+/* cue ticker */
+#cues{position:absolute;left:16px;top:208px;width:198px;height:84px;color:#fbf7ee;font-size:9px;overflow:hidden}
+.cue{background:rgba(23,44,43,.85);border-left:3px solid #ffcf3f;padding:2px 5px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cue.big{border-left-color:#b23a55;color:#ffcf3f}
+/* fx */
+#fx{position:absolute;inset:0;pointer-events:none}
+.stamp{position:absolute;font-size:44px;color:#ffcf3f;text-shadow:3px 3px 0 #7a5a1c,-2px -2px 0 #2b2420,2px -2px 0 #2b2420,-2px 2px 0 #2b2420;white-space:nowrap}
+.band{position:absolute;left:-10px;width:500px;top:118px;height:30px;background:#561327;border-top:3px solid #ffcf3f;border-bottom:3px solid #ffcf3f;color:#ffcf3f;font-size:15px;display:flex;align-items:center;justify-content:center;gap:10px}
+.conf{position:absolute;width:5px;height:5px}
+.flystar{position:absolute;font-size:16px;color:#ffcf3f;text-shadow:1px 1px 0 #7a5a1c}
+#ticket{position:absolute;left:330px;top:232px;width:120px;height:40px;background:#fbf7ee;border:3px solid #2b2420;color:#2b2420;font-size:9px;padding:3px 5px;opacity:0}
+#ticket.prem{background:#2a0e14;color:#ffcf3f;border-color:#ffcf3f;box-shadow:0 0 0 2px #8a1f33,0 0 12px #b23a55}
+#coin{position:absolute;left:150px;top:150px;width:30px;height:30px;border-radius:50%;background:#ffcf3f;border:3px solid #7a5a1c;color:#7a5a1c;font-size:14px;display:flex;align-items:center;justify-content:center;opacity:0}
+.legend{font-size:13px;color:var(--muted)}
+.mini{font-family:Silkscreen,ui-monospace,monospace;font-size:12px;background:#fbf7ee;color:#2b2420;border:2px solid #2b2420;padding:8px 10px;max-width:300px}
+.mini .rl{font-size:12px}
+@media (prefers-reduced-motion: reduce){ .controls button{transition:none} }
+</style>
+</head>
+<body>
+<main>
+<h1>Rewarding over quota</h1>
+<p class="lede">Design study for the request "reward over quota (×2, ×3 etc)". Nothing in the game has been changed. All numbers are starting values for the one balance pass at the end of the phase.</p>
+
+<section class="card rec">
+  <h2 style="margin-top:4px">1. Recommended: STAR SHIFT <span class="tag">recommended</span></h2>
+  <p><b>In one line:</b> each shift you pass earns 0 to 3 stars depending on how many times you covered the quota. Stars fill a card that pays coins. Once a week, a 3-star shift turns your next machine visit into PREMIUM.</p>
+  <div class="tiers">
+    <div class="tier"><b>×1</b> quota met<br>Same as today: the lamp shows a check and you pass. <b>No star.</b></div>
+    <div class="tier"><b class="stars">★</b> first bar<br>Week 1: <b>×2</b>. The pip lights during the count, and you hear a xylophone step and a ka-ching.</div>
+    <div class="tier"><b class="stars">★★</b> second bar<br>Week 1: <b>×3</b>. A second pip, one step higher.</div>
+    <div class="tier"><b class="stars">★★★</b> top bar (the cap)<br>Week 1: <b>×4</b>. Bigger slam, confetti, cheering. <b>Once a week</b> the next CLASSIC visit becomes <b>PREMIUM</b>.</div>
+  </div>
+  <ul>
+    <li><b>The bars rise each week</b> (×2/3/4, ×2/3/5, ×3/4/6, ×3/5/8) because decks get stronger. A shift gives 3 stars at most, however far past the quota it goes.</li>
+    <li><b>The star card:</b> 18 stars pay 1 coin at the end of the run, 1 coin per run at most. Leftover stars carry over to your next run, so a lost run still counts. This replaces today's overtime coin, which only 9% of runs ever got.</li>
+    <li><b>When you see it:</b> live during the count-up (the pips light on each ×N stamp), then on the shift receipt ("+47€ OVER TARGET ★★"), then on the final receipt ("STARS 21 → +1 COIN").</li>
+    <li><b>No stars</b> on a day off, on a week-1 SLIP (a missed quota that is forgiven) or on a failed shift. Shift 16 earns stars, but they only go to the card, because no machine visit comes after it.</li>
+    <li><b>The PREMIUM upgrade</b> never applies on payday shifts 4/8/12 (already PREMIUM) or on shift 16. It has its own on/off switch in the data.</li>
+  </ul>
+  <h3>Why this one</h3>
+  <ul>
+    <li><b>×2 is not special.</b> It happens on 54% of all shifts, so a reward at plain ×2 would feel automatic. The stars are graded and capped.</li>
+    <li><b>The top end grows fast.</b> Late shifts reach ×10 or more for the top 10% of runs, so a reward that grows with each lap (×5 = 5 rewards) would explode. A cap of 3 stars and rising bars keep it fair.</li>
+    <li><b>Coins don't change who wins</b>, so the star card needs no quota refit. Only the weekly PREMIUM upgrade adds in-run power, and that is why it gets an on/off switch and its own balance check.</li>
+    <li><b>It fixes a playtest problem:</b> players thought a lower total wins. The ×N stamp that already exists now visibly pays something.</li>
+  </ul>
+  <p class="legend">Sample final receipt (end of run):</p>
+  <div class="mini px">
+    <div class="rl"><span>SHIFT 1 ...... 52€</span><span class="stars">★</span></div>
+    <div class="rl"><span>SHIFT 2 ...... 61€</span><span class="stars"></span></div>
+    <div class="rl"><span>SHIFT 3 ..... 151€</span><span class="stars">★★★</span></div>
+    <div class="rl"><span>&nbsp; OVERTIME → PREMIUM</span><span></span></div>
+    <div class="rl"><span>…</span><span></span></div>
+    <div class="rl" style="border-top:1px dashed #8a8172;padding-top:3px"><span>STARS 21 (+3 CARRIED)</span><span></span></div>
+    <div class="rl"><span>CARD 24/18 → +1 COIN</span><span></span></div>
+    <div class="rl"><span>6 STARS CARRY OVER</span><span></span></div>
+  </div>
+</section>
+
+<h2>2. Live mock-up: the moment it lands</h2>
+<p>Pick a week and a result. The count-up runs, the gauge refills once per lap (green for the quota, then gold, orange, velvet, violet), the lamp shows ×N, and the star pips light at the week's bars. Then the receipt prints and the stars fly onto the card. The card starts with 9 stars carried from earlier runs and keeps filling as you replay.</p>
+<div class="controls">
+  <select id="week" aria-label="Week">
+    <option value="0">Week 1 · shift 3 · quota 36€</option>
+    <option value="1">Week 2 · shift 7 · quota 61€</option>
+    <option value="2">Week 3 · shift 11 · quota 102€</option>
+    <option value="3">Week 4 · shift 15 · quota 148€</option>
+  </select>
+  <button data-r="1">×1</button>
+  <button data-r="2">×2</button>
+  <button data-r="3">×3</button>
+  <button data-r="5">×5</button>
+  <button data-r="8">×8</button>
+</div>
+<div class="controls">
+  <label><input type="checkbox" id="used"> PREMIUM upgrade already used this week</label>
+  <label><input type="checkbox" id="snd"> Sound (simple beeps)</label>
+  <button class="alt" id="resetCard">Reset card</button>
+</div>
+<div id="stageWrap" aria-label="Animated mock-up of the checkout">
+  <div id="fit" class="px"><div id="shake">
+    <div id="wall"></div><div id="counter"></div>
+    <div id="monitor"><div id="screen">
+      <div class="lbl">TOTAL</div>
+      <div id="total">0€</div>
+      <div id="quotaLbl">QUOTA 36€</div>
+      <div id="ratio"></div>
+    </div></div>
+    <div id="card"><div class="t"><span>STAR CARD</span><span id="cardN">9/18</span></div><div id="holes"></div></div>
+    <div id="cues"></div>
+    <div id="gauge">
+      <div id="glow"></div>
+      <div id="lamp"><div id="lens"></div></div>
+      <div id="pips"></div>
+      <div id="tube"><div class="liq" id="back"></div><div class="liq" id="front"></div><div class="shine"></div><div id="tubeFlash"></div></div>
+    </div>
+    <div id="slot"></div>
+    <div id="receipt"></div>
+    <div id="paid">PAID</div>
+    <div id="ticket"></div>
+    <div id="coin">€</div>
+    <div id="fx"></div>
+  </div></div>
+</div>
+<p class="legend">The text lines at the bottom left stand for the sound cues. Tick "Sound" to hear rough beeps (the real game uses the xylophone ladder and the ka-ching sample). The pip numbers under the stars are the week's bars. A tube that refills every lap can't hold notches for ×3 or ×5, so the bars sit on the pips instead.</p>
+
+<h2>3. Alternatives considered (ranked)</h2>
+<div class="card">
+<ol class="alts">
+  <li><b>Overtime upgrade alone</b> (beat the week's lap bar → next CLASSIC visit becomes PREMIUM, once a week). <span class="why">Strong goal, but on its own it rewards only the very top shifts and needs a quota refit. It is in the package as the 3-star bonus.</span></li>
+  <li><b>Tip card</b> (laps punch a card that turns into coins and carries over). <span class="why">Almost the same as stars. Its carry-over idea is in the package, but stars read better than punches next to the ×N lamp.</span></li>
+  <li><b>Bonus envelope</b> (the week's stars fill an envelope; a full one gives +1 odds on the Payday tickets). <span class="why">Bounded and safe, but the payoff comes at the review, far from the count, so the moment is weak. Good swap if you'd rather have no PREMIUM upgrade.</span></li>
+  <li><b>Tip jar</b> (bank tokens and spend them at the machine for +1 odds or a reroll). <span class="why">The most strategic option, but costly: a new save format, a simulator spending policy, machine UI, and reroll replay on resume. It also overlaps the machine's ADD/SWAP offer.</span></li>
+  <li><b>Lucky lap</b> (×3 gives the next visit +1 odds, ×5 gives +2). <span class="why">It pays on every shift, and ×3 happens on 33% of shifts, mostly in strong runs. That feeds the snowball.</span></li>
+  <li><b>Hot streak odds</b> (the same idea, one visit only). <span class="why">It does nothing from shift 13 on, where the odds are already at the top, so it is invisible exactly where the big laps happen.</span></li>
+  <li><b>Stretch goal</b> (call your target lap before the deal; hit it for a better visit, miss it for a worse one). <span class="why">Real decisions, but the most expensive option. The penalties work against "more is better", and it depends on how exact the planning projection is, which hasn't been checked.</span></li>
+  <li><b>Carry or Cash</b> (after a ×2 shift, choose a lower next quota or a coin). <span class="why">A lower quota as a prize risks the "lower total wins" mix-up. It also adds a prompt on about half the shifts and bends the quota curve.</span></li>
+</ol>
+</div>
+
+<h2>4. Numbers and balance</h2>
+<div class="card scroll">
+<table>
+<thead><tr><th>Field (file)</th><th>Start value</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><code>star_laps_by_week</code> (balance.tres)</td><td>[2,3,4] [2,3,5] [3,4,6] [3,5,8]</td><td>Laps needed for 1, 2 and 3 stars in weeks 1-4.</td></tr>
+<tr><td><code>star_coin_stars</code> (balance.tres)</td><td>18</td><td>Stars on a full card, worth 1 coin.</td></tr>
+<tr><td><code>star_coin_max</code> (balance.tres)</td><td>1</td><td>Most star coins per run.</td></tr>
+<tr><td><code>star_carry_over</code> (balance.tres)</td><td>true</td><td>Leftover stars go to the next run, at most <code>star_coin_stars</code> - 1 = 17. Stars beyond the per-run cap are dropped.</td></tr>
+<tr><td><code>overtime_coin_euros</code> / <code>_max</code> (balance.tres)</td><td>8567 / 1 → 0 / 0</td><td>The old overtime coin, switched off.</td></tr>
+<tr><td><code>star_premium_enabled</code> (machine.tres)</td><td>true</td><td>Kill switch for the weekly PREMIUM upgrade.</td></tr>
+<tr><td><code>star_premium_stars</code> (machine.tres)</td><td>3</td><td>Stars a shift needs to upgrade the next CLASSIC visit.</td></tr>
+<tr><td><code>star_premium_per_week</code> (machine.tres)</td><td>1</td><td>Most upgrades per week.</td></tr>
+<tr><td><code>ProfileState.star_carry</code> (profile save)</td><td>0..17</td><td>The one new saved value. The run save doesn't change: stars are worked out from each shift's total and quota.</td></tr>
+</tbody>
+</table>
+<p class="legend">Rough reads from the simulator's 322 check runs (no new runs): in week 1, ×2 is about 38% of shifts and ×4 about 6-9%. In week 4, ×3 is about 55% and ×8 about 15-20%. A clean run would go from 6 PREMIUM visits out of 18 to about 7-9.</p>
+</div>
+<div class="card scroll">
+<table>
+<thead><tr><th>Risk</th><th>How the end-of-phase balance pass checks it</th></tr></thead>
+<tbody>
+<tr><td>Coins come too fast, so unlocks run out early.</td><td>Coin report: median 1, top 10% 2-3, 30 unlocks in 25-40 runs. Tune <code>star_coin_stars</code> first, then the base coin table.</td></tr>
+<tr><td>The PREMIUM upgrade makes winning easier.</td><td>Win rate with the switch on and off (target 35-40%), shift 1 at 97% or more, shift 2 at 95% or more. If the win rate rises more than about 4 points, raise week 3-4's top bar before refitting the quotas.</td></tr>
+<tr><td>The upgrade is too rare or too common.</td><td>Upgrade rate per week: aim for 25-45% of the runs that reach that week.</td></tr>
+<tr><td>Late weeks collect almost all the stars.</td><td>Share of 1-, 2- and 3-star shifts per week. Adjust <code>star_laps_by_week</code>.</td></tr>
+<tr><td>Weak runs get nothing.</td><td>Stars per lost run (median). The carry-over softens this, and it is partly by design.</td></tr>
+</tbody>
+</table>
+<p class="legend">The simulator already plays to maximise its total, so it needs no new strategy. It only needs a stars field in its records. Making the margin give machine power goes against the plan's current default ("not in 1.0", section 12), so that part needs your OK and a changelog entry.</p>
+</div>
+
+<h2>5. Questions</h2>
+<div class="card q"><b>Q1. Can going over quota give machine power?</b> This is the weekly 3-star CLASSIC → PREMIUM upgrade. The plan currently says no for 1.0.<br><span class="def">Default: yes, behind its on/off switch, measured in the end balance pass.</span> The other option is coins and receipt only.</div>
+<div class="card q"><b>Q2. Flat bars (×2/×3/×5 every week) or rising bars (×2/3/4 … ×3/5/8)?</b><br><span class="def">Default: rising</span>, because late shifts reach ×10 or more and would otherwise take almost all the stars.</div>
+<div class="card q"><b>Q3. Should stars replace the overtime coin, with leftover stars carried to the next run?</b><br><span class="def">Default: yes to both.</span></div>
+<div class="card q"><b>Q4. How does this mock-up feel?</b> Is the 3-star slam big enough, and is the PREMIUM band clear? Should the star card sit on screen during the shift or only on the receipt?<br><span class="def">Default: as shown, with the card visible during the count.</span></div>
+</main>
+
+<script>
+(function(){
+  "use strict";
+  var WEEKS=[{w:1,shift:3,quota:36,th:[2,3,4]},{w:2,shift:7,quota:61,th:[2,3,5]},{w:3,shift:11,quota:102,th:[3,4,6]},{w:4,shift:15,quota:148,th:[3,5,8]}];
+  // lap 1 = met green, then gold, orange, velvet, violet (QuotaLaps.LAP_RAMPS)
+  var MET=["#a5d17e","#5fae5a","#3d7a45"];
+  var RAMPS=[["#faecbc","#ffcf3f","#b38425"],["#ffa23a","#ff6a1a","#b5470c"],["#b23a55","#8a1f33","#561327"],["#cdb2f2","#9468d8","#5c3a9c"]];
+  var CARD_SIZE=18;
+  function rampFor(lap){ return lap<=1?MET:RAMPS[(lap-2)%4]; }
+  function $(id){return document.getElementById(id);}
+  var fit=$("fit"), wrap=$("stageWrap"), shake=$("shake"), fx=$("fx");
+  function rescale(){ var s=wrap.clientWidth/480; fit.style.transform="scale("+s+")"; }
+  rescale();
+  try{ new ResizeObserver(rescale).observe(wrap); }catch(e){ window.addEventListener("resize",rescale); }
+
+  var card=9, token=0, audio=null;
+  var holes=$("holes");
+  for(var i=0;i<CARD_SIZE;i++){ var h=document.createElement("div"); h.className="hole"; h.textContent="★"; holes.appendChild(h); }
+  function drawCard(){ var hs=holes.children; for(var i=0;i<CARD_SIZE;i++){ hs[i].className="hole"+(i<card?(i<9&&carriedMark?" c":" f"):""); } $("cardN").textContent=card+"/"+CARD_SIZE; }
+  var carriedMark=true;
+  drawCard();
+
+  function beep(freq,dur,type,vol,delay){
+    if(!$("snd").checked) return;
+    try{
+      if(!audio) audio=new (window.AudioContext||window.webkitAudioContext)();
+      var t=audio.currentTime+(delay||0), o=audio.createOscillator(), g=audio.createGain();
+      o.type=type||"triangle"; o.frequency.value=freq; g.gain.setValueAtTime(vol||0.12,t); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+      o.connect(g); g.connect(audio.destination); o.start(t); o.stop(t+dur+0.02);
+    }catch(e){}
+  }
+  var PENTA=[523.25,587.33,659.25,783.99,880];
+  function xylo(step){ var f=PENTA[step%5]*Math.pow(2,Math.floor(step/5)); beep(f,0.35,"triangle",0.14); }
+  function kaching(){ beep(1318.5,0.09,"square",0.05); beep(1760,0.25,"square",0.05,0.07); }
+
+  function cue(text,big){
+    var c=document.createElement("div"); c.className="cue"+(big?" big":""); c.textContent=text;
+    var box=$("cues"); box.appendChild(c); while(box.children.length>6) box.removeChild(box.firstChild);
+    c.animate([{opacity:0,transform:"translateX(-20px)"},{opacity:1,transform:"none"}],{duration:180,easing:"ease-out"});
+  }
+  function later(tok,ms,fn){ setTimeout(function(){ if(tok===token) fn(); },ms); }
+
+  function setTube(value,quota){
+    var back=$("back"), front=$("front"), laps=Math.floor(value/quota), frac=value/quota-laps;
+    if(laps===0){
+      var near=frac>=0.8; back.style.height="0";
+      front.style.background=near?"#c8932b":"#d9534f"; front.style.height=(frac*100)+"%";
+    }else{
+      var prev=rampFor(laps), cur=rampFor(laps+1);
+      back.style.background="linear-gradient(90deg,"+prev[0]+" 0 30%,"+prev[1]+" 30% 80%,"+prev[2]+" 80%)"; back.style.height="100%";
+      front.style.background="linear-gradient(90deg,"+cur[0]+" 0 30%,"+cur[1]+" 30% 80%,"+cur[2]+" 80%)"; front.style.height=(frac*100)+"%";
+    }
+  }
+  function setLamp(laps){
+    var lens=$("lens"), glow=$("glow");
+    if(laps<=0){ lens.style.background="#2c2926"; lens.textContent=""; glow.style.opacity=0; return; }
+    var r=rampFor(laps); lens.style.background="radial-gradient(circle at 35% 35%,"+r[0]+","+r[1]+" 60%,"+r[2]+")";
+    lens.textContent=laps===1?"✓":(laps>=10?String(Math.min(laps,99)):"×"+laps);
+    lens.style.color=laps>=4?"#fbf7ee":"#2b2420";
+    glow.style.background="radial-gradient(circle,"+r[1]+"aa,transparent 65%)"; glow.style.opacity=1;
+    glow.animate([{transform:"scale(.8)",opacity:.4},{transform:"scale(1.15)",opacity:1},{transform:"scale(.9)",opacity:.6}],{duration:900,iterations:Infinity,direction:"alternate"});
+  }
+  function flashTube(){ $("tubeFlash").animate([{opacity:.9},{opacity:0}],{duration:260}); }
+  function drawPips(th){
+    var p=$("pips"); p.innerHTML="";
+    for(var i=0;i<3;i++){ var d=document.createElement("div"); d.className="pip"; d.innerHTML="<i>★</i><span>×"+th[i]+"</span>"; p.appendChild(d); }
+  }
+  function lightPip(i){
+    var pip=$("pips").children[i]; pip.className="pip on";
+    pip.firstChild.animate([{transform:"scale(2.6) rotate(-40deg)"},{transform:"scale(.8)"},{transform:"scale(1)"}],{duration:380,easing:"cubic-bezier(.2,1.6,.4,1)"});
+  }
+  function stamp(text,big,color){
+    var s=document.createElement("div"); s.className="stamp"; s.textContent=text;
+    s.style.left=(big?70:96)+"px"; s.style.top=(big?36:44)+"px"; s.style.fontSize=(big?58:42)+"px"; if(color) s.style.color=color;
+    fx.appendChild(s);
+    var a=s.animate([{transform:"scale("+(big?3.4:2.4)+") rotate(-14deg)",opacity:0},{transform:"scale(.9) rotate(-6deg)",opacity:1,offset:.35},{transform:"scale(1) rotate(-6deg)",opacity:1,offset:.75},{transform:"scale(1.05) rotate(-6deg)",opacity:0}],{duration:big?1300:850,easing:"ease-out"});
+    a.onfinish=function(){s.remove();};
+    if(big) shake.animate([{transform:"translate(0,0)"},{transform:"translate(-5px,3px)"},{transform:"translate(4px,-3px)"},{transform:"translate(-3px,2px)"},{transform:"translate(0,0)"}],{duration:300});
+    else shake.animate([{transform:"translate(0,0)"},{transform:"translate(0,2px)"},{transform:"translate(0,0)"}],{duration:140});
+  }
+  function confetti(n){
+    var cols=["#ffcf3f","#d9534f","#4f9a94","#ff6a1a","#9468d8","#fbf7ee","#5fae5a"];
+    for(var i=0;i<n;i++){
+      var c=document.createElement("div"); c.className="conf"; c.style.background=cols[i%cols.length];
+      var x0=250, y0=60; c.style.left=x0+"px"; c.style.top=y0+"px"; fx.appendChild(c);
+      var ang=Math.random()*Math.PI*2, sp=60+Math.random()*170, dx=Math.cos(ang)*sp, dy=Math.sin(ang)*sp*0.7-40;
+      var a=c.animate([{transform:"translate(0,0) rotate(0)",opacity:1},{transform:"translate("+dx+"px,"+(dy+160)+"px) rotate("+(Math.random()*720)+"deg)",opacity:0}],{duration:1100+Math.random()*600,easing:"cubic-bezier(.2,.7,.4,1)"});
+      a.onfinish=(function(el){return function(){el.remove();};})(c);
+    }
+  }
+  function band(text){
+    var b=document.createElement("div"); b.className="band"; b.innerHTML="<span>★★★</span><span>"+text+"</span><span>★★★</span>"; fx.appendChild(b);
+    var a=b.animate([{transform:"translateX(-520px)"},{transform:"translateX(0)",offset:.2},{transform:"translateX(0)",offset:.8},{transform:"translateX(520px)"}],{duration:1900,easing:"ease-in-out"});
+    a.onfinish=function(){b.remove();};
+  }
+  function receiptLine(html,cls){
+    var r=$("receipt"), d=document.createElement("div"); d.className="rl"+(cls?" "+cls:""); d.innerHTML=html; r.appendChild(d);
+    var h=0; for(var i=0;i<r.children.length;i++){ h+=r.children[i].offsetHeight+6; }
+    r.style.height=(h+8)+"px"; d.animate([{opacity:0},{opacity:1}],{duration:120});
+    beep(2200,0.03,"square",0.02);
+  }
+  function stars(n){ return n?'<span class="s">'+"★★★".slice(0,n)+'</span>':""; }
+
+  function reset(wk){
+    token++; fx.innerHTML=""; $("cues").innerHTML=""; $("receipt").innerHTML=""; $("receipt").style.height="0";
+    $("paid").style.opacity=0; $("ticket").style.opacity=0; $("ticket").className=""; $("coin").style.opacity=0;
+    $("total").textContent="0€"; $("ratio").textContent=""; $("quotaLbl").textContent="QUOTA "+wk.quota+"€";
+    setTube(0,wk.quota); setLamp(0); drawPips(wk.th);
+  }
+
+  function play(r){
+    var wk=WEEKS[+$("week").value]; reset(wk); var tok=token;
+    var ratio=r===1?1.32:r+0.18, total=Math.round(wk.quota*ratio);
+    var used=$("used").checked, starCount=0, premium=false;
+    var dur=Math.min(1500+r*650,6000), t0=null, lastLaps=0;
+    cue("SHIFT "+wk.shift+" · count-up starts");
+    function onLap(k){
+      flashTube(); setLamp(k);
+      if(k===1){ cue("QUOTA MET · ka-ching · lamp ✓"); kaching(); return; }
+      var idx=wk.th.indexOf(k);
+      if(idx>=0){
+        starCount=idx+1; lightPip(idx); xylo(4+idx*2); setTimeout(kaching,90);
+        if(starCount===3){
+          stamp("×"+k+" ★★★",true); confetti(46);
+          cue("★★★ TOP BAR · big slam + cheer",true);
+          if(!used){ premium=true; setTimeout(function(){ if(tok===token){ band("OVERTIME → PREMIUM"); cue("NEXT VISIT → PREMIUM",true); beep(392,0.5,"sawtooth",0.05); beep(587,0.6,"sawtooth",0.05,0.12);} },500); }
+          else cue("★★★ · this week's upgrade already used");
+        }else{
+          stamp("×"+k+" "+"★★".slice(0,starCount),false);
+          cue("★ STAR "+starCount+" · xylophone step "+starCount+" + ka-ching");
+        }
+      }else{
+        stamp("×"+k,false); xylo(Math.min(k,9)); cue("×"+k+" stamp"+(k<wk.th[0]?" · next star at ×"+wk.th[0]:""));
+      }
+    }
+    function frame(){
+      if(tok!==token) return;
+      var ts=performance.now();
+      if(t0===null) t0=ts;
+      var t=Math.min((ts-t0)/dur,1), p=1-Math.pow(1-t,1.5), v=total*p;
+      $("total").textContent=Math.floor(v)+"€"; $("ratio").textContent="×"+(v/wk.quota).toFixed(1);
+      setTube(Math.min(v,total),wk.quota);
+      var laps=Math.floor(v/wk.quota+1e-9);
+      while(laps>lastLaps){ lastLaps++; onLap(lastLaps); }
+      if(t<1) setTimeout(frame,16); else finish();
+    }
+    function finish(){
+      $("total").textContent=total+"€";
+      if(starCount===0 && r>1) cue("no star this week below ×"+wk.th[0]);
+      if(r===1) cue("passed · no star (first bar ×"+wk.th[0]+")");
+      var step=0, gap=230;
+      later(tok,500,function(){ receiptLine("<span>SHIFT "+wk.shift+" · WEEK "+wk.w+"</span>","hd"); });
+      later(tok,500+gap,function(){ receiptLine("<span>TOTAL</span><span>"+total+"€</span>"); });
+      later(tok,500+gap*2,function(){ receiptLine("<span>QUOTA</span><span>"+wk.quota+"€</span>"); });
+      later(tok,500+gap*3,function(){ receiptLine("<span>+"+(total-wk.quota)+"€ OVER TARGET</span>"+stars(starCount),"over"); });
+      step=500+gap*4;
+      if(premium){ later(tok,step,function(){ receiptLine("<span>OVERTIME → PREMIUM</span>","prem"); }); step+=gap; }
+      later(tok,step+150,function(){
+        var p=$("paid"); p.style.top=Math.min(30+$("receipt").offsetHeight-26,200)+"px";
+        p.animate([{transform:"rotate(-12deg) scale(2.4)",opacity:0},{transform:"rotate(-12deg) scale(1)",opacity:1}],{duration:220,easing:"ease-in",fill:"forwards"});
+        p.style.opacity=1; beep(160,0.15,"square",0.08); cue("PAID stamp");
+      });
+      var ts=step+600;
+      for(var s=0;s<starCount;s++){ (function(s){ later(tok,ts+s*320,function(){ flyStar(tok); }); })(s); }
+      later(tok,ts+starCount*320+250,function(){
+        var tk=$("ticket");
+        if(premium){ tk.className="prem"; tk.innerHTML="PREMIUM TICKET<br>★ night-sign trim<br>rare floor"; }
+        else { tk.className=""; tk.innerHTML="CLASSIC TICKET<br>next visit"; }
+        tk.style.opacity=1; tk.animate([{transform:"translateY(40px)",opacity:0},{transform:"translateY(0)",opacity:1}],{duration:380,easing:"ease-out"});
+        if(premium) cue("ticket prints PREMIUM",true);
+      });
+    }
+    frame();
+  }
+
+  function flyStar(tok){
+    var pipBox=$("gauge"), idxHole=Math.min(card,CARD_SIZE-1);
+    var hole=holes.children[idxHole];
+    var fr=fit.getBoundingClientRect(), sc=fr.width/480;
+    var hr=hole.getBoundingClientRect();
+    var tx=(hr.left-fr.left)/sc+hr.width/(2*sc)-6, ty=(hr.top-fr.top)/sc-4;
+    var st=document.createElement("div"); st.className="flystar"; st.textContent="★"; st.style.left="242px"; st.style.top="48px"; fx.appendChild(st);
+    var a=st.animate([{transform:"translate(0,0) scale(1.4)"},{transform:"translate("+((tx-242)*0.5)+"px,"+((ty-48)*0.5-50)+"px) scale(1.8)",offset:.5},{transform:"translate("+(tx-242)+"px,"+(ty-48)+"px) scale(.9)"}],{duration:520,easing:"ease-in"});
+    a.onfinish=function(){
+      st.remove(); if(tok!==token) return;
+      card++; carriedMark=true;
+      xylo(6+card%5);
+      if(card>=CARD_SIZE){
+        drawCard();
+        holes.animate([{transform:"scale(1)"},{transform:"scale(1.06)"},{transform:"scale(1)"}],{duration:300});
+        var c=$("coin"); c.style.opacity=1;
+        c.animate([{transform:"translateY(0) scale(.4)",opacity:0},{transform:"translateY(-30px) scale(1.3)",opacity:1},{transform:"translateY(0) scale(1)",opacity:1}],{duration:600,easing:"ease-out"});
+        cue("CARD FULL → +1 COIN (paid at run end)",true); kaching();
+        setTimeout(function(){ if(tok!==token) return; card=0; carriedMark=false; drawCard(); c.style.opacity=0; },1400);
+      }else{
+        drawCard(); holes.children[card-1].animate([{transform:"scale(2)"},{transform:"scale(1)"}],{duration:220});
+      }
+    };
+  }
+
+  var btns=document.querySelectorAll("button[data-r]");
+  for(var b=0;b<btns.length;b++){ btns[b].addEventListener("click",function(e){ play(+e.currentTarget.getAttribute("data-r")); }); }
+  $("week").addEventListener("change",function(){ reset(WEEKS[+$("week").value]); });
+  $("resetCard").addEventListener("click",function(){ card=9; carriedMark=true; drawCard(); });
+  reset(WEEKS[0]);
+  setTimeout(function(){ play(3); },600);
+})();
+</script>
+</body>
+</html>

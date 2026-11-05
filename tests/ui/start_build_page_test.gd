@@ -1,8 +1,8 @@
 extends GdUnitTestSuite
 ## Start v4 B page 2, the staff room (full build plan 7.2, reworked 2026-11-05): the pack-line
 ## highlight on the order sheet (the cart overview: the trolley is gone), the waiting state before
-## a pick, the sign naming the pick, NEW PACKS, the crates' strategy line and example slip, the
-## time clock's lines and the pins card.
+## a pick, the sign naming the pick, NEW PACKS, the crates (items, name and family only, v1.01),
+## the time clock's lines and parts, and the pins card.
 
 const SCREEN := preload("res://ui/shift_screen.tscn")
 const SEED := 20261103
@@ -124,43 +124,238 @@ func test_new_packs_redraws_the_crates_once_and_clears_the_pick() -> void:
 	assert_array(saved.run.start_offer.packs).is_equal(new_offer)
 
 
-## Each crate's strategy line and example slip (pack data) stay inside the crate's label and on
-## the stage, the slips apart from each other, from the footer's ‹ STORE key and the hints; the
-## slip names the example's total and holds its row's items. Both at 1280x720 and 1920x1080.
-func test_crate_strategy_and_example_fit() -> void:
+## The crates (v1.01): each shows its three items, name, key and family only (no strategy line,
+## prices, coupon icons or example row, and no strategy tooltip). They stand on the stage side by
+## side, clear of each other, the sign, NEW PACKS, the order sheet, the footer's ‹ STORE key and
+## the hints, the items (at their sprites' size) above the label and the label inside the crate.
+## A picked crate's PICKED tag sits inside it, clear of the label. NEW PACKS is mustard with ink
+## words. Both at 1280x720 and 1920x1080.
+func test_crates_show_items_name_and_family_only() -> void:
 	var screen: ShiftScreen = await _screen()
 	var board: StartBoard = screen._cart_reveal.board
 	board.show_page(2)
+	var staff: StaffBuildPage = board.staff
+	var key: Button = staff.new_packs_key
+	var normal: StyleBoxFlat = key.get_theme_stylebox("normal") as StyleBoxFlat
+	assert_object(normal.bg_color).is_equal(Palette.MUSTARD)
+	assert_object(StartBoardKit.key_caption(key).get_theme_color("font_color")).is_equal(
+		Palette.INK
+	)
+	board.pick(0)
 	for extent: Vector2 in [Vector2(1280, 720), Vector2(1920, 1080)]:
-		board.set_anchors_preset(Control.PRESET_TOP_LEFT)
-		board.size = extent
-		board._resize()
-		await get_tree().process_frame
+		await _resize(board, extent)
 		var stage: Rect2 = _stage_rect(board)
-		var hints: Rect2 = (board.staff.get_node("Hints") as Control).get_global_rect()
-		var slips: Array[Rect2] = []
-		for crate: PackCrate in board.staff.crates:
-			assert_str(crate.hint.text).is_equal(crate.pack.hint_text)
-			assert_int(crate.hint.get_visible_line_count()).is_equal(crate.hint.get_line_count())
-			var label: Rect2 = (crate.hint.get_parent() as Control).get_global_rect()
-			assert_bool(label.encloses(crate.hint.get_global_rect())).is_true()
-			assert_object(crate.slip).is_not_null()
-			var slip: Rect2 = crate.slip.get_global_rect()
-			assert_bool(stage.encloses(slip)).is_true()
-			assert_str(crate.slip.tooltip_text).is_equal(crate.pack.example_text)
-			var total: Label = crate.slip.get_node("Total")
-			assert_str(total.text).contains(str(crate.pack.example_total))
-			var steps: int = 0
-			for child: Node in crate.slip.get_children():
+		var keep_clear: Array[Rect2] = [
+			(staff.get_node("Hints") as Control).get_global_rect(),
+			board._back.get_global_rect(),
+			staff.order.get_global_rect(),
+			staff._notice.get_global_rect(),
+			key.get_global_rect(),
+		]
+		assert_bool(stage.encloses(key.get_global_rect())).is_true()
+		assert_bool(key.get_global_rect().intersects(staff._notice.get_global_rect())).is_false()
+		var placed: Array[Rect2] = []
+		for crate: PackCrate in staff.crates:
+			var rect: Rect2 = crate.get_global_rect()
+			assert_bool(stage.encloses(rect)).is_true()
+			assert_str(crate.tooltip_text).is_empty()
+			assert_object(crate.find_child("Example", true, false)).is_null()
+			assert_object(crate.find_child("Hint", true, false)).is_null()
+			for label: Node in crate.find_children("*", "Label", true, false):
+				var text: String = (label as Label).text
+				assert_bool(text.contains("€") or text.contains("✂")).is_false()
+			var items: int = 0
+			for child: Node in crate.get_children():
 				if child.has_meta("card"):
-					steps += 1
-					assert_bool(slip.encloses((child as Control).get_global_rect())).is_true()
-			assert_int(steps).is_equal(crate.pack.example_cards.size())
-			assert_bool(slip.intersects(board._back.get_global_rect())).is_false()
-			assert_bool(slip.intersects(hints)).is_false()
-			for other: Rect2 in slips:
-				assert_bool(slip.intersects(other)).is_false()
-			slips.append(slip)
+					items += 1
+					var item: Rect2 = (child as Control).get_global_rect()
+					assert_bool(rect.encloses(item)).is_true()
+					assert_bool(item.intersects(crate.label.get_global_rect())).is_false()
+					assert_float((child as Control).size.x).is_equal(ItemView.SPRITE_SIZE.x)
+			assert_int(items).is_equal(crate.pack.cards.size())
+			assert_bool(rect.encloses(crate.label.get_global_rect())).is_true()
+			var face: Rect2 = crate.label.get_global_rect()
+			for part: String in ["Name", "Family"]:
+				assert_bool(face.encloses(_caps(crate.label.get_node(part)))).is_true()
+			var key_rect: Rect2 = (crate.label.get_node("Key") as Control).get_global_rect()
+			assert_bool(face.encloses(key_rect)).is_true()
+			assert_bool(_caps(crate.label.get_node("Name")).intersects(key_rect)).is_false()
+			var tag: Control = crate.picked_tag()
+			assert_bool(tag.visible).is_equal(crate.selected)
+			assert_bool(rect.encloses(tag.get_global_rect())).is_true()
+			assert_bool(tag.get_global_rect().intersects(face)).is_false()
+			for other: Rect2 in keep_clear + placed:
+				assert_bool(rect.intersects(other)).is_false()
+			var first_sign: Control = crate.first_pick_sign()
+			if first_sign != null:
+				assert_bool(stage.encloses(first_sign.get_global_rect())).is_true()
+				for other: Rect2 in keep_clear:
+					assert_bool(first_sign.get_global_rect().intersects(other)).is_false()
+			placed.append(rect)
+
+
+## The time clock (v1.01): the IN card stands inside its slot with its IN word on its head, the
+## slot and OPEN STORE apart and inside the clock, the clock on the stage. A punch lifts the card
+## and puts it back where it was. Both at 1280x720 and 1920x1080.
+func test_time_clock_parts_fit() -> void:
+	var screen: ShiftScreen = await _screen()
+	var board: StartBoard = screen._cart_reveal.board
+	board.show_page(2)
+	var staff: StaffBuildPage = board.staff
+	for extent: Vector2 in [Vector2(1280, 720), Vector2(1920, 1080)]:
+		await _resize(board, extent)
+		var clock: Rect2 = staff._clock.get_global_rect()
+		var slot: Rect2 = (staff._clock.get_node("CardSlot") as Control).get_global_rect()
+		var card: Rect2 = staff._time_card.get_global_rect()
+		var word: Rect2 = _caps(staff._time_card.get_node("In"))
+		assert_bool(_stage_rect(board).encloses(clock)).is_true()
+		assert_bool(clock.encloses(slot)).is_true()
+		assert_bool(clock.encloses(staff.open_key.get_global_rect())).is_true()
+		assert_bool(slot.intersects(staff.open_key.get_global_rect())).is_false()
+		assert_bool(slot.encloses(card)).is_true()
+		assert_bool(card.encloses(word)).is_true()
+		assert_bool(clock.intersects(staff.order.get_global_rect())).is_false()
+	var rest: float = staff._time_card.position.y
+	var tween: Tween = staff.punch()
+	tween.custom_step(1.0)
+	assert_float(staff._time_card.position.y).is_equal(rest)
+
+
+## The right column (feedback 2026-11-05, "elements not centred"): the order sheet and the time
+## clock share the column's centre and width, COLUMN_MARGIN px from its sides, from each other and
+## from the stage's foot. On the sheet the clip and paper are centred, and the count box, the
+## ticks and the family cells end PAD px in from the paper's right side as the lines start PAD px
+## in from its left. In the clock the header and the row (slot, OPEN STORE) keep equal insets,
+## the title and the dial equal pads, the card is centred in its slot and the key's lines in the
+## key. Both at 1280x720 and 1920x1080, picked and not.
+func test_right_column_is_centred_and_aligned() -> void:
+	var screen: ShiftScreen = await _screen()
+	var board: StartBoard = screen._cart_reveal.board
+	board.show_page(2)
+	var staff: StaffBuildPage = board.staff
+	for selected: int in [-1, 1]:
+		board.selected = selected
+		board.refresh()
+		for extent: Vector2 in [Vector2(1280, 720), Vector2(1920, 1080)]:
+			await _resize(board, extent)
+			var stage: Rect2 = _stage_rect(board)
+			var k: float = board._stage.scale.x
+			var margin: float = StaffBuildPage.COLUMN_MARGIN * k
+			var left: float = stage.position.x + StaffBuildPage.COLUMN_LEFT * k
+			var sheet: Rect2 = staff.order.get_global_rect()
+			var clock: Rect2 = staff._clock.get_global_rect()
+			for rect: Rect2 in [sheet, clock]:
+				assert_float(rect.position.x - left).is_equal_approx(margin, 0.5)
+				assert_float(stage.end.x - rect.end.x).is_equal_approx(margin, 0.5)
+			assert_float(clock.position.y - sheet.end.y).is_equal_approx(margin, 0.5)
+			assert_float(stage.end.y - clock.end.y).is_equal_approx(margin, 0.5)
+			_assert_sheet_aligned(staff.order, k)
+			_assert_clock_aligned(staff, k)
+
+
+## A lifted (picked) crate's dithered halo stays under the badge pins board (it spilled onto the
+## board's frame).
+func test_pick_halo_clears_the_pins_board() -> void:
+	var screen: ShiftScreen = await _screen()
+	var board: StartBoard = screen._cart_reveal.board
+	board.show_page(2)
+	board.pick(0)
+	var crate: PackCrate = board.staff.crates[0]
+	var halo_top: float = crate.position.y + PackCrate.HALO_CENTRE_Y - PackCrate.HALO_RADIUS_Y
+	var pins_bottom: float = 2.0 * StaffRoomArt.PIN_BOARD.end.y
+	assert_float(halo_top).is_greater_equal(pins_bottom)
+
+
+func _assert_sheet_aligned(order: OrderSheet, k: float) -> void:
+	var sheet: Rect2 = order.get_global_rect()
+	var paper: Rect2 = (order.get_node("Paper") as Control).get_global_rect()
+	var clip: Rect2 = (order.get_node("Clip") as Control).get_global_rect()
+	assert_float(clip.get_center().x).is_equal_approx(sheet.get_center().x, 0.5)
+	assert_float(paper.get_center().x).is_equal_approx(sheet.get_center().x, 0.5)
+	var pad: float = OrderSheet.PAD * k
+	var right: float = paper.end.x - pad
+	var count_box: Rect2 = (order.find_child("CountBox", true, false) as Control).get_global_rect()
+	assert_float(count_box.end.x).is_equal_approx(right, 0.5)
+	assert_float(order.equation.get_global_rect().position.x).is_equal_approx(
+		paper.position.x + pad, 0.5
+	)
+	var ticks: int = 0
+	for tick: Node in order.find_children("Tick*", "", true, false):
+		ticks += 1
+		assert_float((tick as Control).get_global_rect().end.x).is_equal_approx(right, 0.5)
+	assert_int(ticks).is_greater(0)
+	var cells: Array[Node] = order.find_children("Family*", "", true, false)
+	assert_int(cells.size()).is_equal(3)
+	var first: Rect2 = (cells[0] as Control).get_global_rect()
+	var last: Rect2 = (cells[2] as Control).get_global_rect()
+	assert_float(first.position.x).is_equal_approx(paper.position.x + pad, 0.5)
+	assert_float(last.end.x).is_equal_approx(right, 0.5)
+	assert_float(paper.end.y - last.end.y).is_equal_approx(pad, 0.5)
+	_assert_sheet_header(order, k)
+	if order.pack_rows != null:
+		# The pack's highlight runs as far past the lines on the right as on the left.
+		var rows: Rect2 = order.pack_rows.get_global_rect()
+		assert_float(rows.end.x - right).is_equal_approx(
+			paper.position.x + pad - rows.position.x, 0.5
+		)
+	# Each line's number, name, source and price share one centre line.
+	var lines: int = 0
+	while order.find_child("RowNumber%d" % lines, true, false) != null:
+		var number: Control = order.find_child("RowNumber%d" % lines, true, false)
+		var centre: float = number.get_global_rect().get_center().y
+		for column: String in ["RowName", "RowSource", "RowPrice"]:
+			var part: Control = order.find_child("%s%d" % [column, lines], true, false)
+			if part != null:
+				assert_float(part.get_global_rect().get_center().y).is_equal_approx(centre, 1.0)
+		lines += 1
+	assert_int(lines).is_greater(order.shown_cards.size())
+
+
+## The count box clears the brass clip (they touched), and the title, the cart icon and the count
+## share the box's centre line.
+func _assert_sheet_header(order: OrderSheet, k: float) -> void:
+	var clip: Rect2 = (order.get_node("Clip") as Control).get_global_rect()
+	var box: Rect2 = (order.find_child("CountBox", true, false) as Control).get_global_rect()
+	assert_float(box.position.y - clip.end.y).is_greater_equal(2.0 * k)
+	var icon: Rect2 = (order.find_child("CountIcon", true, false) as Control).get_global_rect()
+	var count: Rect2 = (order.find_child("Count", true, false) as Control).get_global_rect()
+	assert_bool(box.encloses(icon)).is_true()
+	assert_float(icon.get_center().y).is_equal_approx(box.get_center().y, 0.5)
+	assert_float(absf(count.get_center().y - box.get_center().y)).is_less_equal(k)
+
+
+func _assert_clock_aligned(staff: StaffBuildPage, k: float) -> void:
+	var clock: Rect2 = staff._clock.get_global_rect()
+	var header: Rect2 = (staff._clock.get_node("ClockHeader") as Control).get_global_rect()
+	var inset: float = StaffBuildPage.HEADER_INSET * k
+	var pad: float = StaffBuildPage.CLOCK_PAD * k
+	assert_float(header.position.x - clock.position.x).is_equal_approx(inset, 0.5)
+	assert_float(clock.end.x - header.end.x).is_equal_approx(inset, 0.5)
+	assert_float(header.position.y - clock.position.y).is_equal_approx(inset, 0.5)
+	var title: Rect2 = _caps(staff._clock.get_node("ClockTitle"))
+	var dial: Rect2 = (staff._clock.get_node("Dial") as Control).get_global_rect()
+	assert_float(title.position.x - header.position.x).is_equal_approx(pad, 0.5)
+	assert_float(header.end.x - dial.end.x).is_equal_approx(pad, 0.5)
+	assert_float(dial.get_center().y).is_equal_approx(header.get_center().y, 0.5)
+	assert_float(absf(title.get_center().y - header.get_center().y)).is_less_equal(2.0 * k)
+	var slot: Rect2 = (staff._clock.get_node("CardSlot") as Control).get_global_rect()
+	var key: Rect2 = staff.open_key.get_global_rect()
+	assert_float(slot.position.x - clock.position.x).is_equal_approx(inset + pad, 0.5)
+	assert_float(clock.end.x - key.end.x).is_equal_approx(inset + pad, 0.5)
+	assert_float(key.position.x - slot.end.x).is_equal_approx(pad, 0.5)
+	for part: Rect2 in [slot, key]:
+		assert_float(part.position.y - header.end.y).is_equal_approx(pad, 0.5)
+		assert_float(clock.end.y - part.end.y).is_equal_approx(inset + pad, 0.5)
+	var card: Rect2 = staff._time_card.get_global_rect()
+	assert_float(card.get_center().x).is_equal_approx(slot.get_center().x, 0.5)
+	assert_float(card.get_center().y).is_equal_approx(slot.get_center().y, 0.5)
+	var caption: Rect2 = _caps(StartBoardKit.key_caption(staff.open_key))
+	assert_float(absf(caption.get_center().x - key.get_center().x)).is_less_equal(2.0 * k)
+	var line: Rect2 = staff.open_line.get_global_rect()
+	assert_float(line.get_center().x).is_equal_approx(key.get_center().x, 0.5)
+	assert_bool(key.encloses(caption)).is_true()
+	assert_bool(key.encloses(line)).is_true()
+	assert_bool(caption.intersects(line)).is_false()
 
 
 ## The pins card on the corkboard (mock-up v4 B_s2): an empty slot shows "+", the note says how
@@ -261,6 +456,22 @@ func test_badge_pins_wear_and_buy_from_the_pins_card() -> void:
 	assert_int(board.page).is_equal(2)
 
 
+## The capitals of pixel words (their label's box also holds the font's empty ascent), in global px.
+func _caps(pixel: Label) -> Rect2:
+	var font: Font = ArtStyle.pixel_display_font()
+	var cap_top: float = font.get_ascent(ArtStyle.PIXEL_TEXT_SIZE) - ArtStyle.PIXEL_CAP_HEIGHT
+	var factor: Vector2 = pixel.get_global_transform().get_scale()
+	var local: Vector2 = Vector2(StartBoardKit.text_width(pixel.text, 1), ArtStyle.PIXEL_CAP_HEIGHT)
+	return Rect2(pixel.global_position + Vector2(0, cap_top) * factor, local * factor)
+
+
+func _resize(board: StartBoard, extent: Vector2) -> void:
+	board.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	board.size = extent
+	board._resize()
+	await get_tree().process_frame
+
+
 func _stage_rect(board: StartBoard) -> Rect2:
 	return Rect2(board._stage.global_position, ShiftStage.SIZE * board._stage.scale)
 
@@ -272,7 +483,6 @@ func _screen() -> ShiftScreen:
 	screen.profile.set_reduced_motion(true)
 	screen.save_profile()
 	screen.start_new_run(SEED, true, true)
-	assert_bool(screen._cart_reveal.board.lock_in()).is_true()
 	return screen
 
 

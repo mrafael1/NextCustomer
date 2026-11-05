@@ -15,6 +15,10 @@ extends RefCounted
 ## (MachineDefinition.odds_level_after): rarity rises with the run's progress, not with use.
 ## STAMP DAY (the free loyalty visit before v0.61) is gone.
 ##
+## Over-quota rewards (2026-11-05, OvertimeTickets): a shift that made its overtime laps queues an
+## OVERTIME visit (CLASSIC) after its others, and one that made its premium laps turns its
+## ticket's visit PREMIUM; each at most so often a week.
+##
 ## The machine holds the run's RNG (a shared reference) but never the run: methods that read or
 ## change the run take it. It has its own stage and never writes RunState.phase. Cards from a pick
 ## go into the deck now; loyalty perks apply from the next shift (ShiftLimits reads the upgrades
@@ -67,9 +71,10 @@ func _init(machine_definition: MachineDefinition, rng: RandomNumberGenerator) ->
 
 
 ## RunState.checkout on a passed shift that isn't the last: keeps the played perks, queues the
-## ticket's visit (PREMIUM after a premium shift) and the bonus ticket's when due (PREMIUM by the
-## same rule), and waits for the ticket's chute. A visit none of whose chutes can draw is skipped:
-## the next queued one starts, else the machine idles.
+## ticket's visit (PREMIUM after a premium shift, or by its overtime premium laps), the bonus
+## ticket's when due (PREMIUM after a premium shift) and the OVERTIME ticket's when earned
+## (OvertimeTickets.grant, CLASSIC), and waits for the ticket's chute. A visit none of whose
+## chutes can draw is skipped: the next queued one starts, else the machine idles.
 func begin_after_checkout(run: RunState) -> void:
 	clear_visits()
 	if run.history.is_empty():
@@ -81,8 +86,12 @@ func begin_after_checkout(run: RunState) -> void:
 		return
 	_visit = MachineVisit.new(MachineVisit.Kind.TICKET)
 	_visit.premium = machine.is_premium_shift(record.shift)
+	OvertimeTickets.grant(run, record, _visit.premium)
+	_visit.premium = _visit.premium or record.overtime_premium
 	if _bonus_due(run):
 		_queue.append(MachineVisit.Kind.BONUS)
+	if record.overtime_ticket:
+		_queue.append(MachineVisit.Kind.OVERTIME)
 	stage = Stage.CHOOSE
 	if not _can_draw_any(run):
 		_visit = null
@@ -97,13 +106,13 @@ func chute_info(run: RunState, chute: int) -> MachineChuteInfo:
 	info.premium = is_premium()
 	info.week_odds = WeekSchedule.odds_delta(run.balance, _shift(run))
 	info.cart_full = chute == Chute.NEW_ITEMS and run.deck.size() >= run.balance.deck_limit
-	if _visit != null and _visit.kind == MachineVisit.Kind.BONUS:
+	if _visit != null and _visit.kind != MachineVisit.Kind.TICKET:
 		_first_pick_changes(run, chute, info)
 	return info
 
 
-## A BONUS visit's chute_info: what the shift's first visit changed for `chute` when it was made
-## there (a kept prize, the run's first-visit coupon spent by its draw).
+## A BONUS (or OVERTIME) visit's chute_info: what the shift's first visit changed for `chute`
+## when it was made there (a kept prize, the run's first-visit coupon spent by its draw).
 func _first_pick_changes(run: RunState, chute: int, info: MachineChuteInfo) -> void:
 	if run.history.is_empty() or run.history[-1].visits.is_empty():
 		return
@@ -444,7 +453,8 @@ func _end_visit(run: RunState) -> void:
 
 
 ## Starts the next queued visit that has something to draw (a BONUS visit none of whose chutes
-## can draw is skipped), else idles. A BONUS visit after a premium shift is PREMIUM too (v0.53).
+## can draw is skipped), else idles. A BONUS visit after a premium shift is PREMIUM too (v0.53);
+## an OVERTIME visit is always CLASSIC.
 func _next_visit(run: RunState) -> void:
 	while not _queue.is_empty():
 		var kind: int = _queue.pop_front()
@@ -459,6 +469,9 @@ func _next_visit(run: RunState) -> void:
 		_visit.premium = (
 			_legacy_premium if keeps_legacy_premium else machine.is_premium_shift(record.shift)
 		)
+		if kind == MachineVisit.Kind.OVERTIME:
+			_visit.why = ""
+			_visit.premium = false
 		stage = Stage.CHOOSE
 		if _can_draw_any(run):
 			return

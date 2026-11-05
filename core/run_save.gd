@@ -71,7 +71,13 @@ extends RefCounted
 ## checkout, it keeps its record's quota: its margin and pass read as played), and its week plan
 ## stands (weeks 1-3 are unchanged); a save on shift 12 plays it as a review with its payday, not
 ## the final review, and week 4 is drawn as it starts.
-const FORMAT_VERSION := 10
+## Version 11 (2026-11-05, the over-quota rewards in place of the overtime coin): each record's
+## `overtime_ticket` and `overtime_premium` (written only when earned: OvertimeTickets reads the
+## week's use from them) and the OVERTIME visit kind ("overtime", queued or under way). A version
+## 10 save reads as it is: its records earned none, so its week's rewards are all still there.
+const FORMAT_VERSION := 11
+## Version 10: version 11's form before the over-quota rewards, read as it is (none earned).
+const BEFORE_OVERTIME_VERSION := 10
 ## Version 9: version 10's form with the next shift's events and no week, read as it is.
 const BEFORE_WEEKS_VERSION := 9
 ## Version 8: version 9's form from before the boon days, read as it is (_add_next_boon).
@@ -83,6 +89,7 @@ const BEFORE_STARTER_PACKS_VERSION := 6
 ## The versions read as they are (older ones through RunSaveMigration).
 const READ_VERSIONS: Array[int] = [
 	FORMAT_VERSION,
+	BEFORE_OVERTIME_VERSION,
 	BEFORE_WEEKS_VERSION,
 	BEFORE_DAY_EVENTS_VERSION,
 	BEFORE_LOOP_VERSION,
@@ -290,7 +297,7 @@ static func from_dictionary(saved: Dictionary, lookup: ContentLookup) -> RunSave
 	restored.upgrades = reader.upgrades("upgrades")
 	restored.inspections = reader.inspections("inspections")
 	# Before v0.70 a save named the next shift's events (one inspection before v0.65), not the week.
-	var weeks: bool = int(version) >= FORMAT_VERSION or data.has("week")
+	var weeks: bool = int(version) >= BEFORE_OVERTIME_VERSION or data.has("week")
 	var saved_next: Array[InspectionDefinition] = []
 	if weeks:
 		restored.week = _read_week(data.get("week"), lookup)
@@ -857,12 +864,21 @@ static func _phase_fits(restored: RunState, legacy: bool = false) -> bool:
 		ok = ok and (record.inspection != null or extra) and not record.visits.is_empty()
 	elif visit.kind == MachineVisit.Kind.TICKET:
 		ok = ok and record.visits.is_empty()
-	# A PREMIUM visit is a premium shift's ticket or BONUS visit (a legacy save's: by its rules).
+	elif visit.kind == MachineVisit.Kind.OVERTIME:
+		# The over-quota ticket (v1.03) comes last, after the ticket's visit, and is CLASSIC.
+		ok = ok and record.overtime_ticket and not record.visits.is_empty() and not visit.premium
+	# Only an earned OVERTIME visit is queued.
+	if machine.pending_kinds().has(MachineVisit.Kind.OVERTIME):
+		ok = ok and record.overtime_ticket and visit.kind != MachineVisit.Kind.OVERTIME
+	# A PREMIUM visit is a premium shift's ticket or BONUS visit (a legacy save's: by its rules),
+	# or a ticket's made PREMIUM by its shift's overtime premium laps.
+	var overtime_premium: bool = record.overtime_premium and visit.kind == MachineVisit.Kind.TICKET
 	return (
 		ok
 		and (
 			not visit.premium
 			or legacy
+			or overtime_premium
 			or machine.keeps_legacy_premium
 			or machine.machine.is_premium_shift(record.shift)
 		)

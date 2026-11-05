@@ -108,7 +108,8 @@ func toggle_slip() -> void:
 	var tag: InspectionTag = _bar.inspection_tag
 	if tag.day() <= 0:
 		return
-	slip.open(tag.day(), run.inspections, run.limits, tag, _screen.profile.reduced_motion())
+	var week: WeekCardModel = WeekCardModel.of(run)
+	slip.open(tag.day(), run.inspections, run.limits, tag, _screen.profile.reduced_motion(), week)
 
 
 ## The top bar's week chip and day chip for the run's current shift. While the shift is counted

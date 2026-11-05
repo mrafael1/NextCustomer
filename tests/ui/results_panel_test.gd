@@ -106,7 +106,7 @@ func test_a_lost_run_lists_its_shifts_then_the_shortfall_and_the_coins() -> void
 	assert_array(Array(texts)).is_equal(expected)
 	assert_str(texts[-1]).ends_with("you have ?")
 	assert_int(screen._results.coin_line_index()).is_equal(8)
-	for index: int in [2, 3, 5, 8, 9, 10]:
+	for index: int in [2, 3, 5, 8, 9]:
 		assert_int(texts[index].length()).is_less_equal(FinalReceipt.WIDTH)
 
 
@@ -251,8 +251,8 @@ func test_a_full_receipt_fits_the_screen_with_the_card_and_the_coins() -> void:
 	var days: int = balance.inspection_shifts.size() + balance.review_shifts.size()
 	days += balance.boon_shifts.size()
 	# The headline, a rule, 4 week headers, the shifts, their visits and day events, a rule and
-	# 3 coin lines.
-	var expected: int = 2 + 4 + count + (count - 1) + paydays + days + 1 + 3
+	# 2 coin lines (no overtime coin since v1.03).
+	var expected: int = 2 + 4 + count + (count - 1) + paydays + days + 1 + 2
 	assert_int(results.texts().size()).is_equal(expected)
 	var headers: Array = Array(results.texts()).filter(
 		func(text: String) -> bool: return text.begins_with("WEEK ")

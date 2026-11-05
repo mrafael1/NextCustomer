@@ -7,8 +7,10 @@ var save_pick: Callable
 ## swap_staple(slot, card, via) and restore_regular(slot, via) -> bool.
 var swap_staple: Callable
 var restore_regular: Callable
-## lock_in(green, run_only, clicks) -> bool.
-var lock_in: Callable
+## change_aisle(basket, aisle_id) -> bool: a green basket dealt from another aisle.
+var change_aisle: Callable
+## mark_seen(id) -> bool: a NEW tag's first-seen flag.
+var mark_seen: Callable
 ## restock_basket(basket) -> bool.
 var restock_basket: Callable
 ## new_packs() -> bool.

@@ -27,8 +27,9 @@ signal guide_pressed
 const POSITION := Vector2(348, 9)
 const ROW_SIZE := Vector2(916, 38)
 const GAP := 12
-## The room fit_inspection keeps free at the row's end.
-const FIT_MARGIN := 8.0
+## The room fit_inspection keeps free at the row's end, past the spacer's two gaps (v1.02 review:
+## 0, as 8 dropped a review day's "Review ·" for want of 3 px).
+const FIT_MARGIN := 0.0
 ## A chip's padding left and right (B2's 0 12px); the container centres its contents vertically.
 const CHIP_PADDING := 12
 const CHIP_SEPARATION := 8
@@ -125,12 +126,15 @@ func _refresh_shift_chip() -> void:
 
 ## Keeps the row inside ROW_SIZE.x less FIT_MARGIN: the inspection chip's text is trimmed when the
 ## other chips and the bonus pill (#77 machine v2) leave it too little room, after the week chip's
-## name, then its pips, have given way (the day's effects come first).
+## name, then its pips, have given way (the day's effects come first; "W : 2/4" always says where
+## the run is). The name gives way to a review day's "Review ·" too (v1.02 review: it says two
+## inspections meet), the pips don't: only the longest pairs beside a 4-box loyalty card (Slot 3
+## pays 0€ with −1 hand item or Quota +10%) still lose it, a few px short.
 func fit_inspection() -> void:
 	week_chip.show_name(true)
 	week_chip.show_pips(true)
 	_fit_inspection_once()
-	if not inspection_tag.is_trimmed():
+	if not inspection_tag.is_shortened():
 		return
 	if week_chip.name_shown():
 		week_chip.show_name(false)

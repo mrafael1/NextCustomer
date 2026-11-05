@@ -231,6 +231,12 @@ func badge_text() -> String:
 	return LapLamp.text_for(_laps_made())
 
 
+## The whole multiples of the quota the amount shown has made (0 short of it), e.g. 3 at ×3: what
+## the quota crossing's over-quota chip reads as a count's total lands (v1.03).
+func multiples_made() -> int:
+	return QuotaLaps.lap_of(_amount, _quota) if _met else 0
+
+
 ## The lap lamp's rect (local px): LAMP_AT, LapLamp.SIZE art px square.
 func badge_rect() -> Rect2:
 	var cell: float = ArtStyle.ART_SCALE

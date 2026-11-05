@@ -676,6 +676,12 @@ class MachineTest(LogTestCase):
         summary = self.summary(path)
         machine = summary["machine"]
         self.assertEqual(machine["visit_kinds"], {"ticket": 2, "bonus": 2})
+        # v1.03: an OVERTIME visit (the over-quota extra ticket) is counted when present.
+        s.shift("m1", 3)
+        s.visit("m1", 3, "new_items", (("product", "eggs"),), picked=0)
+        s.visit("m1", 3, "new_items", (("product", "bread"),), picked=-1, kind="overtime")
+        overtime = self.summary(self.write("q.jsonl", s))["machine"]
+        self.assertEqual(overtime["visit_kinds"], {"ticket": 3, "bonus": 2, "overtime": 1})
         self.assertEqual(machine["visit_states"], {"classic": 2, "premium": 2})
         self.assertEqual(list(machine["chutes"]), ["new_items", "upgrade"])
         self.assertEqual(machine["chutes"]["upgrade"], ls.rate(3, 4))
@@ -1298,6 +1304,27 @@ class StartSetupTest(LogTestCase):
         self.assertEqual(setup["restock_by_kind"]["staples"]["count"], 0)
         self.assertEqual(setup["restock_by_kind"]["aisle"]["count"], 0)
         self.assertEqual(setup["changed_rate"]["n"], 0)
+
+    def test_aisle_changes_count_on_the_counter_page(self) -> None:
+        session = Session("counter")
+        for run_id, change in (("a", True), ("b", False)):
+            start = session.run_start(run_id, rack=())
+            start.update(stock_aisles=["dairy", "bakery", "pantry"], completed_aisles=6)
+            if change:
+                session.log("start_aisle", run_id, basket=1, to="snacks", before=["milk"],
+                            after=["chips"], kept=False, green=["bakery", "snacks"],
+                            **{"from": "dairy"})
+            session.run_end(run_id, False, 2)
+        start = session.run_start("c", rack=())
+        start.update(stock_aisles=["dairy", "bakery", "pantry"], completed_aisles=3)
+        session.run_end("c", False, 2)
+        summary = self.summary(self.write("counter.jsonl", session))
+        setup = summary["start_setup"]
+        self.assertEqual(setup["aisle_changes"], 1)
+        self.assertEqual(setup["aisle_change_rate"]["n"], 2)
+        self.assertEqual(setup["aisle_change_rate"]["rate"], 0.5)
+        self.assertEqual(setup["lock_ins"], 0)
+        self.assertIn("Aisle changes: 1", ls.render(summary))
 
     def test_final_deck_uses_the_confirmed_cart_including_pin_cards(self) -> None:
         session = Session("cart")

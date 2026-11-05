@@ -271,6 +271,7 @@ static func _none() -> Array[UpgradeDefinition]:
 static func _run(seed_value: int) -> RunState:
 	var balance: BalanceDefinition = (load(BALANCE) as BalanceDefinition).duplicate()
 	balance.quotas = PackedInt32Array([1, 1, 1, 1, 1, 1, 1, 1])
+	NoOvertime.apply(balance)  # Quotas of 1 would make every shift earn them (v1.03).
 	# No inspected shifts: an inspection's slot changes would hide the upgrades' here.
 	balance.inspection_shifts = PackedInt32Array()
 	balance.boon_shifts = PackedInt32Array()

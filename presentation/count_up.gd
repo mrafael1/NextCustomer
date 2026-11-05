@@ -157,6 +157,9 @@ var first_tap_ms: int = -1
 var dessert_skipped: bool = false
 ## The plan being played (or last played), built by play().
 var plan: CountUpPlan
+## The run around the count (play's `context`; null before one): the over-quota rewards' cue reads
+## what the shift earned from it (QuotaCrossing, v1.03).
+var run_context: CountUpContext
 ## The Music autoload the dessert ducks (#62), or null for none (the shift screen sets it).
 var music: MusicService
 ## The monitor's total the dessert slams onto (#105 piece 2: the checkout column's TotalNumber,
@@ -286,6 +289,7 @@ func play(
 	_names = names
 	_result = result
 	_steps = result.steps
+	run_context = context
 	plan = CountUpPlan.build(result.steps, quota, context, _tuning, _total_tuning)
 	_beats.begin(
 		plan,
@@ -370,13 +374,17 @@ func play(
 		if not context.boon_names.has(inspection_name):
 			inspected.append(inspection_name)
 	_dessert.inspection = ", ".join(inspected)
-	# A bonus ticket follows (#77 machine v2, Q2 = 2): the dessert prints its gold stub.
-	_dessert.bonus_stub = (
-		BonusTicket.sub_line(not inspected.is_empty(), context.shift, context.payday)
-		if context.bonus_ticket
-		else ""
-	)
-	_dessert.banner_text = Payday.BANNER if context.payday else CountUpDessert.BANNER_TEXT
+	# A bonus ticket follows (#77 machine v2, Q2 = 2): the dessert prints its gold stub; an
+	# OVERTIME ticket's when it is the only one (v1.03).
+	_dessert.bonus_stub = context.overtime_stub
+	_dessert.banner_text = CountUpDessert.BANNER_TEXT
+	if not context.overtime_stub.is_empty():
+		_dessert.banner_text = OvertimeWords.BANNER
+	if context.bonus_ticket:
+		_dessert.bonus_stub = BonusTicket.sub_line(
+			not inspected.is_empty(), context.shift, context.payday
+		)
+		_dessert.banner_text = Payday.BANNER if context.payday else CountUpDessert.BANNER_TEXT
 	_dessert.write_up = context.write_up
 	await _climax_ended()
 	await _dessert.play(

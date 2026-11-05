@@ -547,12 +547,13 @@ func _on_checkout_pressed() -> void:
 		"write_ups": run.write_ups,
 	}
 	checkout_data.merge(tracker.measures(committed.size()))
+	checkout_data.merge(OvertimeCue.checkout_fields(run))  # v1.03: the over-quota rewards.
 	_log.log_event("checkout", checkout_data)
 	if run.phase == RunState.Phase.WON or run.phase == RunState.Phase.LOST:
 		_run_ended_ms = Time.get_ticks_msec()
 		_log.log_event("run_end", RunEvents.run_end(run, _run_ended_ms - _run_started_ms))
 		# Saved at the click too, so closing the game during the count-up loses nothing.
-		profile.record_run(run, _catalogue)
+		_results.pin_news = PinUnlockNews.record(run, profile, _catalogue)  # Its unlock cards.
 		_profile_saved = _saves.save_profile(profile)
 		if _saves_run:
 			_saves.delete_run()
@@ -610,11 +611,7 @@ func count_up_context() -> CountUpContext:
 		profile.reduced_motion(),
 		receipt_header()
 	)
-	# A bonus ticket follows the visit (#77 machine v2, Q2 = 2): the dessert prints its stub.
-	context.bonus_ticket = (
-		run.machine != null and run.machine.pending_kinds().has(MachineVisit.Kind.BONUS)
-	)
-	context.payday = context.bonus_ticket and run.machine.is_payday(run)
+	OvertimeCue.dress(run, context)  # The extra tickets: BONUS, payday, overtime (v1.03).
 	context.write_up = WriteUp.stamp_text(run)
 	context.boon_names = WeekFlow.helper_names(run)
 	DoubleCheckoutFlow.dress(run, context)  # #122: row 1 stops early, row 2 counts on.

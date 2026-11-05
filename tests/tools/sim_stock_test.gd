@@ -219,14 +219,12 @@ func test_build_strategy_runs_record_builds_and_coins() -> void:
 		assert_str(record.main_build).is_equal(_builds().main_build(final_deck))
 		assert_array(Array(record.fitted_builds)).is_equal(Array(_builds().fitted(final_deck)))
 		var passed: int = 0
-		var overtime: int = 0
 		for shift: Dictionary in record.shifts:
 			if shift["passed"]:
 				passed += 1
-				overtime += int(shift["total"]) - int(shift["quota"])
-		var overtime_coins: int = mini(floori(overtime / 60.0), 1)
-		assert_int(record.overtime_coins).is_equal(overtime_coins)
-		assert_int(record.coins).is_equal(balance.coins_by_shifts_passed[passed] + overtime_coins)
+		# No overtime coin since v1.03: the table's coins only (a won run its last entry).
+		var index: int = balance.coins_by_shifts_passed.size() - 1 if record.won else passed
+		assert_int(record.coins).is_equal(balance.coins_by_shifts_passed[index])
 		var copy: SimRunRecord = SimRunRecord.from_dictionary(
 			JSON.parse_string(JSON.stringify(record.to_dictionary()))
 		)
@@ -270,11 +268,11 @@ func test_upgrades_listing_a_build_match_by_id() -> void:
 
 func test_summary_builds_bar_and_coins() -> void:
 	var summary: SimSummary = SimSummary.new("greedy", PackedInt32Array([10, 10, 10]))
-	summary.add(_record(true, 3, "a", 2, 0))
-	summary.add(_record(true, 3, "a", 1, 0))
-	summary.add(_record(true, 3, "b", 1, 0))
-	summary.add(_record(false, 2, "b", 1, 1))
-	summary.add(_record(false, 1, SimBuilds.NO_BUILD, 0, 0))
+	summary.add(_record(true, 3, "a", 2))
+	summary.add(_record(true, 3, "a", 1))
+	summary.add(_record(true, 3, "b", 1))
+	summary.add(_record(false, 2, "b", 1))
+	summary.add(_record(false, 1, SimBuilds.NO_BUILD, 0))
 	assert_float(summary.win_share("a")).is_equal_approx(2.0 / 3.0, 0.0001)
 	assert_array(summary.builds_over_bar()).is_equal(["a"])
 	assert_array([summary.build_runs["a"], summary.build_runs["b"]]).is_equal([2, 2])
@@ -285,19 +283,18 @@ func test_summary_builds_bar_and_coins() -> void:
 	assert_float(summary.runs_to_unlock_all()).is_equal(30.0)
 	assert_array(Array(summary.coin_counts())).is_equal([1, 3, 1])
 	assert_int(summary.lost_on_shift_2).is_equal(1)
-	assert_int(summary.lost_on_shift_2_overtime).is_equal(1)
 	assert_str(summary.format()).contains(
 		"40% bar (no main build over 40% of the won runs): WARNING (a)"
 	)
 	assert_str(summary.format()).contains("Runs to 30 unlocks (30 ÷ mean coins): 30.0")
 	# Only the greedy strategy is held to the bar, with either row player (#42).
 	var other: SimSummary = SimSummary.new("random", PackedInt32Array([10, 10, 10]))
-	other.add(_record(true, 3, "a", 2, 0))
+	other.add(_record(true, 3, "a", 2))
 	assert_str(other.format()).not_contains("40% bar")
 	assert_bool(SimSummary.is_bar_strategy("greedy@sensible")).is_true()
 	assert_bool(SimSummary.is_bar_strategy("random@sensible")).is_false()
 	var sensible: SimSummary = SimSummary.new("greedy@sensible", PackedInt32Array([10, 10, 10]))
-	sensible.add(_record(true, 3, "a", 2, 0))
+	sensible.add(_record(true, 3, "a", 2))
 	assert_str(sensible.format()).contains("40% bar")
 
 
@@ -305,7 +302,7 @@ func test_summary_builds_bar_and_coins() -> void:
 func test_no_build_is_never_over_the_bar() -> void:
 	var summary: SimSummary = SimSummary.new("greedy", PackedInt32Array([10]))
 	for build: String in [SimBuilds.NO_BUILD, SimBuilds.NO_BUILD, SimBuilds.NO_BUILD, "a"]:
-		summary.add(_record(true, 1, build, 0, 0))
+		summary.add(_record(true, 1, build, 0))
 	assert_float(summary.win_share(SimBuilds.NO_BUILD)).is_equal(0.75)
 	assert_array(summary.builds_over_bar()).is_empty()
 	assert_str(summary.format()).contains("40% bar (no main build over 40% of the won runs): pass")
@@ -321,7 +318,7 @@ func test_list_gate_verdicts() -> void:
 	# Within 5 points (77/100 against 8/10), wins spread over 3 builds, key cards at 87% and 90%.
 	var mixed: SimSummary = SimSummary.new("greedy", PackedInt32Array([10]))
 	for index: int in range(100):
-		mixed.add(_record(index < 77, 1, ["a", "b", "c"][index % 3], 0, 0))
+		mixed.add(_record(index < 77, 1, ["a", "b", "c"][index % 3], 0))
 	var passing: Dictionary = SimListGate.check(full, [mixed], fresh, good_chances, fresh_chances)
 	assert_bool(passing["passed"]).override_failure_message(str(passing["failures"])).is_true()
 	# 10 points off and key cards short; a build over the bar is only a warning (#42).
@@ -346,7 +343,7 @@ func test_list_gate_verdicts() -> void:
 	# A state whose only problem is the 40% bar passes with a warning.
 	var dominated: SimSummary = SimSummary.new("greedy", PackedInt32Array([10]))
 	for index: int in range(10):
-		dominated.add(_record(index < 8, 1, "a", 0, 0))
+		dominated.add(_record(index < 8, 1, "a", 0))
 	var warned: Dictionary = SimListGate.check(
 		first, [dominated], fresh, short_chances, fresh_chances
 	)
@@ -430,9 +427,8 @@ static func _balance() -> BalanceDefinition:
 	balance.deck_limit = 10
 	balance.machine = (load("res://data/balance/balance.tres") as BalanceDefinition).machine
 	balance.quotas = PackedInt32Array([5, 8, 12])
+	NoOvertime.apply(balance)  # Low quotas: no over-quota rewards (v1.03).
 	balance.coins_by_shifts_passed = PackedInt32Array([0, 1, 2, 3])
-	balance.overtime_coin_euros = 60
-	balance.overtime_coin_max = 1
 	balance.aisle_stock_budget = 3
 	balance.run_aisle_picks = 2
 	# The staples: _deck()'s products (v0.49: the balance's own list).
@@ -491,14 +487,11 @@ static func _builds() -> SimBuilds:
 
 
 ## A run that played `shifts` shifts, passing all but a lost run's last one.
-static func _record(
-	won: bool, shifts: int, build: String, coins: int, overtime_coins: int
-) -> SimRunRecord:
+static func _record(won: bool, shifts: int, build: String, coins: int) -> SimRunRecord:
 	var record: SimRunRecord = SimRunRecord.new()
 	record.won = won
 	record.main_build = build
 	record.coins = coins
-	record.overtime_coins = overtime_coins
 	for shift: int in range(1, shifts + 1):
 		(
 			record
@@ -521,7 +514,7 @@ static func _record(
 static func _spread_summary(runs: int, wins: int) -> SimSummary:
 	var summary: SimSummary = SimSummary.new("greedy", PackedInt32Array([10]))
 	for index: int in range(runs):
-		summary.add(_record(index < wins, 1, ["a", "b", "c"][index % 3], 0, 0))
+		summary.add(_record(index < wins, 1, ["a", "b", "c"][index % 3], 0))
 	return summary
 
 
@@ -542,7 +535,7 @@ static func _build_player(balance: BalanceDefinition, strategy: String) -> SimPl
 static func _summary_with(runs: int, wins: int, build: String) -> SimSummary:
 	var summary: SimSummary = SimSummary.new("greedy", PackedInt32Array([10]))
 	for index: int in range(runs):
-		summary.add(_record(index < wins, 1, build, 0, 0))
+		summary.add(_record(index < wins, 1, build, 0))
 	return summary
 
 

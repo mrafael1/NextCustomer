@@ -26,10 +26,14 @@ var inspection: InspectionDefinition:
 ## The cards checked out, in row order (coupon uses for unlocks, full build plan 7.3).
 var played: Array[CardDefinition] = []
 ## The RECEIPT REWARDS machine's visits after this shift (#77), in order: the ticket, the bonus
-## ticket. Empty after a missed (a write-up, v0.65) or the last shift.
+## ticket, the OVERTIME ticket. Empty after a missed (a write-up, v0.65) or the last shift.
 var visits: Array[MachineVisit] = []
 ## A Day off pin's skipped shift (#132): passed on its quota with nothing played.
 var day_off: bool = false
+## The over-quota rewards it earned at its checkout (2026-11-05, OvertimeTickets.grant): an
+## OVERTIME visit after it, and its ticket's visit turned PREMIUM. Each uses its week's.
+var overtime_ticket: bool = false
+var overtime_premium: bool = false
 
 
 func _init(shift_number: int, shift_quota: int, shift_total: int) -> void:
@@ -92,6 +96,11 @@ func to_dictionary() -> Dictionary:
 	}
 	if day_off:
 		data["day_off"] = true
+	# Written only when earned (a save or log from before them has neither: none earned).
+	if overtime_ticket:
+		data["overtime_ticket"] = true
+	if overtime_premium:
+		data["overtime_premium"] = true
 	return data
 
 
@@ -113,6 +122,8 @@ static func from_dictionary(data: Dictionary, lookup: ContentLookup) -> ShiftRec
 		record.inspection = reader.inspection("inspection")
 	record.played = reader.cards("played")
 	record.day_off = data.has("day_off") and reader.flag("day_off")
+	record.overtime_ticket = data.has("overtime_ticket") and reader.flag("overtime_ticket")
+	record.overtime_premium = data.has("overtime_premium") and reader.flag("overtime_premium")
 	for visit_data: Dictionary in reader.dictionaries("visits"):
 		var visit: MachineVisit = MachineVisit.from_dictionary(visit_data, lookup)
 		if visit == null:

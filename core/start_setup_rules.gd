@@ -9,12 +9,15 @@ extends RefCounted
 ##
 ## - An aisle is completed when all its items are collected (completed).
 ## - Today's stock is stock_aisle_count listable aisles: dealt_aisle_count STARTER CART (green)
-##   aisles and the RUN ONLY (orange) rest. Below pair_choice_min_completed completed aisles they
-##   are the seeded suggestion (suggest_aisles); from it the player sets them (choice_mode), and
-##   the profile keeps the last choice (stock_pair, stock_run_only).
-## - LOCK IN & DEAL (lock_in) commits the aisles, draws the pack offer and deals three baskets of
-##   start_basket_size distinct cards, each from its own source only (the staples shelf, each
-##   green aisle), with the fair-deal check met by swapping unseen packs or redrawing the baskets.
+##   aisles and the RUN ONLY (orange) rest, the seeded suggestion (suggest_aisles). From
+##   pair_choice_min_completed completed aisles (choice_mode) the green ones start as the
+##   profile's last choice (stock_pair) and each green basket can change its aisle
+##   (change_aisle); the RUN ONLY aisle is always drawn and never a green one's option.
+## - The deal (lock_in, at once for a new run since v1.07: no covered baskets) draws the pack
+##   offer and deals three baskets of start_basket_size distinct cards, each from its own source
+##   only (the staples shelf, each green aisle), with the fair-deal check met by swapping unseen
+##   packs or redrawing the baskets. Each source's pair is kept (StartSetup.dealt_sets): a basket
+##   switched to another aisle and back gets the same pair.
 ## - RESTOCK (restock, from restock_min_completed completed, restocks_per_run a run) redraws one
 ##   basket from the same source, a different set, the other baskets and the packs unchanged.
 ## - Each completed aisle unlocks one regular swap, at most one per regular slot: a 5th
@@ -52,9 +55,10 @@ static func choice_mode(balance: BalanceDefinition, profile: ProfileState) -> bo
 
 
 ## Today's suggested aisles: the green ones in data order, then the orange ones. In choice mode the
-## profile's saved choice (stock_pair green, stock_run_only orange) comes first, each place kept
-## only while its aisle is listable and distinct; the other places are drawn on `rng` (one
-## randi_range each over the listable aisles not yet taken; the first drawn fill the green places).
+## profile's saved green pair (stock_pair) comes first, each place kept only while its aisle is
+## listable and distinct; the other places, the RUN ONLY one always (v1.07: today's extra aisle
+## stays random), are drawn on `rng` (one randi_range each over the listable aisles not yet taken;
+## the first drawn fill the green places).
 static func suggest_aisles(
 	balance: BalanceDefinition, profile: ProfileState, rng: RandomNumberGenerator
 ) -> Array[StringName]:
@@ -67,9 +71,6 @@ static func suggest_aisles(
 		for id: StringName in profile.stock_pair:
 			if listable.has(id) and not green.has(id) and green.size() < green_count:
 				green.append(id)
-		var run_only: StringName = profile.stock_run_only
-		if listable.has(run_only) and not green.has(run_only) and green_count < size:
-			orange.append(run_only)
 	while green.size() + orange.size() < size:
 		var remaining: Array[StringName] = []
 		for id: StringName in listable:
@@ -170,8 +171,9 @@ static func prune_swaps(profile: ProfileState, run: RunState) -> bool:
 
 ## A new run with the opening-time setup in SELECT: today's suggested aisles drawn on
 ## `aisle_rng` (suggest_aisles), the recipe's run copy (recipe_for), an empty offer (no packs, no
-## baskets dealt) and the stock of the suggestion. The run waits for LOCK IN, then its pick. Call
-## prune_swaps after it to drop saved swaps it could not apply.
+## baskets dealt) and the stock of the suggestion. The caller deals it at once (lock_in with the
+## suggestion), then the run waits for its pick. Call prune_swaps after it to drop saved swaps it
+## could not apply.
 static func setup_run(
 	seed_value: int,
 	balance: BalanceDefinition,
@@ -229,7 +231,7 @@ static func lock_block(
 	return &""
 
 
-## LOCK IN & DEAL (lock_block first; returns its reason, changing nothing, when refused): today's
+## The deal (lock_block first; returns its reason, changing nothing, when refused): today's
 ## aisles become `green` and `run_only`, the stock is rebuilt, the pack offer is drawn on
 ## `pack_rng` (the run seed's starting-deck stream: the good first pick in its middle place while
 ## the profile has never won, the others from the run recipe's packs that fit the current
@@ -238,8 +240,8 @@ static func lock_block(
 ## first. The fair-deal check runs on each pack's cart (hands sampled on `pack_rng`): a failing
 ## pack is swapped for an unoffered passing one; if a cart still fails, all baskets are drawn
 ## again on their streams, up to fair_deal_redeals more times, and the deal with the most passing
-## carts is kept. The setup moves to REVEALED with the first pick picked; in choice mode the
-## profile keeps the choice.
+## carts is kept. Each basket's pair is kept as its source's (StartSetup.dealt_sets). The setup
+## moves to REVEALED with the first pick picked; in choice mode the profile keeps the green pair.
 static func lock_in(
 	run: RunState,
 	profile: ProfileState,
@@ -303,13 +305,13 @@ static func lock_in(
 			break
 	for index: int in setup.baskets.size():
 		setup.baskets[index].cards.assign(best[index])
+		setup.dealt_sets[setup.baskets[index].source] = setup.baskets[index].cards.duplicate()
 	offer.shared = setup.shared()
 	offer.first_pick = draw.forced
 	setup.picked = draw.forced.id if draw.forced != null else &""
 	setup.stage = StartSetup.Stage.REVEALED
 	if choice_mode(run.balance, profile):
 		profile.stock_pair = ordered_pair(run.balance, green)
-		profile.stock_run_only = run_only[0] if not run_only.is_empty() else &""
 	refresh_deck(run)
 	return &""
 
@@ -360,22 +362,9 @@ static func restock_block(run: RunState, profile: ProfileState, basket: int) -> 
 ## regulars, the most copies any offered pack holds and the other baskets counted, sharing no card
 ## with the basket's current set (a RESTOCK replaces both items).
 static func restock_options(run: RunState, basket: int) -> Array[Array]:
-	var setup: StartSetup = run.start_setup
-	var copies: Dictionary[CardDefinition, int] = StartingDeck.copies_for_offer(
-		run.starter, run.start_offer.packs
-	)
-	for index: int in setup.baskets.size():
-		if index != basket:
-			for card: CardDefinition in setup.baskets[index].cards:
-				copies[card] = int(copies.get(card, 0)) + 1
-	var current: Array[CardDefinition] = setup.baskets[basket].cards
+	var current: Array[CardDefinition] = run.start_setup.baskets[basket].cards
 	var found: Array[Array] = []
-	for cards: Array in StartingDeck.basket_sets(
-		source_cards(run, setup.baskets[basket].source),
-		run.balance.start_basket_size,
-		copies,
-		run.starter.copy_max
-	):
+	for cards: Array in basket_options(run, basket):
 		if not cards.any(func(card: CardDefinition) -> bool: return current.has(card)):
 			found.append(cards)
 	return found
@@ -393,7 +382,21 @@ static func restock(
 	if block != &"":
 		return block
 	var setup: StartSetup = run.start_setup
-	var options: Array[Array] = restock_options(run, basket)
+	var cards: Array[CardDefinition] = _draw_basket(run, basket, restock_options(run, basket), rng)
+	_fill_basket(run, basket, cards)
+	setup.restock_basket = basket
+	setup.restock_source = setup.baskets[basket].source
+	return &""
+
+
+## Basket `basket`'s new pair from `options` (each a card set): one drawn on `rng` (one
+## randi_range), the fair-deal check run on every offered pack's cart with it (hands sampled on
+## `rng`); up to fair_deal_redeals more draws, keeping the first whose carts all pass, else the
+## one with the most passing carts.
+static func _draw_basket(
+	run: RunState, basket: int, options: Array[Array], rng: RandomNumberGenerator
+) -> Array[CardDefinition]:
+	var setup: StartSetup = run.start_setup
 	var check: StartingDeck.FairCheck = StartingDeck.fair_check(run.starter, run.balance)
 	var packs: Array[StarterPackDefinition] = run.start_offer.packs
 	var best: Array[CardDefinition] = []
@@ -410,11 +413,115 @@ static func restock(
 			best = cards
 		if passing >= packs.size():
 			break
-	setup.baskets[basket].cards = best
-	setup.restock_basket = basket
+	return best
+
+
+## Puts `cards` in basket `basket` (kept as its source's pair) and refreshes the offer and deck.
+static func _fill_basket(run: RunState, basket: int, cards: Array[CardDefinition]) -> void:
+	var setup: StartSetup = run.start_setup
+	setup.baskets[basket].cards = cards.duplicate()
+	setup.dealt_sets[setup.baskets[basket].source] = cards.duplicate()
 	run.start_offer.shared = setup.shared()
 	refresh_deck(run)
+
+
+## The aisles green basket `basket` (1 to dealt_aisle_count) can change to (choice_mode only):
+## the completed aisles not stocked today (neither green basket's nor the RUN ONLY one), data
+## order. Empty for the Staples basket, outside choice mode or with nothing dealt.
+static func aisle_options(run: RunState, profile: ProfileState, basket: int) -> Array[StringName]:
+	var found: Array[StringName] = []
+	var setup: StartSetup = run.start_setup
+	if setup == null or setup.stage == StartSetup.Stage.SELECT:
+		return found
+	if basket < 1 or basket >= setup.baskets.size() or not choice_mode(run.balance, profile):
+		return found
+	var listable: Array[StringName] = listable_ids(run.balance, profile)
+	for aisle: AisleDefinition in completed(run.balance, profile):
+		if listable.has(aisle.id) and not setup.stock_aisles.has(aisle.id):
+			found.append(aisle.id)
+	return found
+
+
+## Why green basket `basket` can't change to aisle `aisle_id`, or &"" when it can: &"stage"
+## (nothing dealt), &"locked" (below pair_choice_min_completed completed aisles), &"basket" (the
+## Staples basket or no such basket) or &"option" (not one of aisle_options).
+static func aisle_block(
+	run: RunState, profile: ProfileState, basket: int, aisle_id: StringName
+) -> StringName:
+	var setup: StartSetup = run.start_setup
+	if setup == null or setup.stage == StartSetup.Stage.SELECT:
+		return &"stage"
+	if not choice_mode(run.balance, profile):
+		return &"locked"
+	if basket < 1 or basket >= setup.baskets.size():
+		return &"basket"
+	if not aisle_options(run, profile, basket).has(aisle_id):
+		return &"option"
 	return &""
+
+
+## Changes green basket `basket`'s aisle to `aisle_id` (aisle_block first; returns its reason,
+## changing nothing, when refused): the aisle takes the basket's place in today's stock (the
+## basket stays where it is), the stock is rebuilt and the basket is dealt from the new aisle: its
+## pair kept this run (StartSetup.dealt_sets) while it still keeps the copy rule, else one of its
+## sets (basket_sets, the regulars, the offered packs and the other baskets counted) drawn as a
+## restock is (_draw_basket) on `rng`, the aisle's own basket stream, so the same seed deals the
+## same pair. The packs, the pick and the RESTOCK (spent or not) stay; the profile keeps the green
+## pair.
+static func change_aisle(
+	run: RunState,
+	profile: ProfileState,
+	basket: int,
+	aisle_id: StringName,
+	rng: RandomNumberGenerator
+) -> StringName:
+	var block: StringName = aisle_block(run, profile, basket, aisle_id)
+	if block != &"":
+		return block
+	var setup: StartSetup = run.start_setup
+	setup.stock_aisles[basket - 1] = aisle_id
+	setup.baskets[basket].source = aisle_id
+	run.stock = RunStock.build(
+		run.balance, setup.stock_aisles, profile.unlocked_items, profile.run_count, true
+	)
+	var options: Array[Array] = basket_options(run, basket)
+	var kept: Array[CardDefinition] = setup.dealt_set(aisle_id)
+	var cards: Array[CardDefinition] = []
+	for option: Array in options:
+		if option.size() == kept.size() and all_in(option, kept):
+			cards = kept
+	if cards.is_empty() and not options.is_empty():
+		cards = _draw_basket(run, basket, options, rng)
+	_fill_basket(run, basket, cards)
+	profile.stock_pair = ordered_pair(run.balance, setup.green_ids(run.balance))
+	return &""
+
+
+## The card sets basket `basket` could hold: its source's sets (basket_sets) with the regulars,
+## the most copies any offered pack holds and the other baskets counted.
+static func basket_options(run: RunState, basket: int) -> Array[Array]:
+	var setup: StartSetup = run.start_setup
+	var copies: Dictionary[CardDefinition, int] = StartingDeck.copies_for_offer(
+		run.starter, run.start_offer.packs
+	)
+	for index: int in setup.baskets.size():
+		if index != basket:
+			for card: CardDefinition in setup.baskets[index].cards:
+				copies[card] = int(copies.get(card, 0)) + 1
+	return StartingDeck.basket_sets(
+		source_cards(run, setup.baskets[basket].source),
+		run.balance.start_basket_size,
+		copies,
+		run.starter.copy_max
+	)
+
+
+## Whether every item of `items` is in `others`.
+static func all_in(items: Array, others: Array) -> bool:
+	for item: Variant in items:
+		if not others.has(item):
+			return false
+	return true
 
 
 ## Regular `slot`'s offer from aisle `aisle_id`: the saved one when shown before; else up to
@@ -588,6 +695,18 @@ static func can_restore(run: RunState, slot: int) -> bool:
 	var recipe: DeckDefinition = StartingDeck.with_cards(run.starter, [])
 	recipe.core_cards[slot] = original
 	return _fits_all(run, recipe, original, false)
+
+
+## Puts swapped regular `slot` back to its original (can_restore) and clears the profile's saved
+## swap for that slot, so its swap is free again. False (nothing changed) when refused.
+static func restore(run: RunState, profile: ProfileState, slot: int) -> bool:
+	if not can_restore(run, slot):
+		return false
+	profile.staple_swaps.resize(run.starter.core_cards.size())
+	profile.staple_swaps[slot] = &""
+	run.starter.core_cards[slot] = run.start_setup.originals[slot]
+	refresh_deck(run)
+	return true
 
 
 ## Why NEW PACKS can't be used, or &"" when it can: &"stage" (nothing dealt yet), &"used" (the

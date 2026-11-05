@@ -418,6 +418,7 @@ func test_resume_run_sets_the_run_id() -> void:
 static func _passed_run(seed_value: int, premium: Array[int] = []) -> RunState:
 	var balance: BalanceDefinition = (load(BALANCE) as BalanceDefinition).duplicate()
 	balance.quotas = PackedInt32Array([1, 1, 1, 1, 1, 1, 1, 1])
+	NoOvertime.apply(balance)  # Quotas of 1 make every shift ×2 and more (v1.03).
 	if not premium.is_empty():
 		MachineSteps.premium_on(balance, premium)
 	var deck: DeckDefinition = load(STARTER)

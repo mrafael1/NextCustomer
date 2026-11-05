@@ -17,6 +17,7 @@ func before_test() -> void:
 	# Quotas of 1: every row with a product passes.
 	_balance = (load(BALANCE) as BalanceDefinition).duplicate()
 	_balance.quotas = PackedInt32Array([1, 1, 1, 1, 1, 1, 1, 1])
+	NoOvertime.apply(_balance)  # Quotas of 1 would make every shift earn them (v1.03).
 	_lookup = ContentLookup.new(_balance)
 
 

@@ -38,11 +38,12 @@ func test_the_tempo_loads_with_every_time_set() -> void:
 		assert_int(ms).is_greater(0)
 	assert_float(tuning.feed_fit).is_greater(0.0)
 	assert_float(tuning.rm_fade_alpha).is_equal_approx(0.85, 0.0001)
-	# Per visit kind (TICKET, BONUS; STAMP DAY is gone since #108) and per rarity.
+	# Per visit kind (TICKET, BONUS; STAMP DAY is gone since #108; an OVERTIME visit plays as a
+	# BONUS one, v1.03) and per rarity.
 	for list: PackedInt32Array in [
 		tuning.draw_ms, tuning.fly_ms, tuning.first_land_ms, tuning.pick_arm_ms, tuning.end_hold_ms
 	]:
-		assert_int(list.size()).is_equal(MachineVisit.KIND_NAMES.size())
+		assert_int(list.size()).is_equal(MachineVisit.Kind.OVERTIME)
 	for list: PackedInt32Array in [tuning.land_lead_ms, tuning.reveal_ms, tuning.reveal_rm_ms]:
 		assert_int(list.size()).is_equal(3)
 	# R1: the bigger the rarity, the longer its effect plays and the later it lands.
@@ -146,6 +147,9 @@ func test_a_premium_visit_turns_after_the_read() -> void:
 		assert_bool(classic.premium or classic.premium_held).is_false()
 	var premium: MachinePlan = MachinePlan.new(tuning, TICKET, false, true, false, true)
 	assert_bool(premium.resume_at(MachinePlan.WaitPoint.CHOOSE).premium).is_true()
+	# v1.03: an OVERTIME visit's plan stays one through a resume (its words).
+	premium.overtime = true
+	assert_bool(premium.resume_at(MachinePlan.WaitPoint.CHOOSE).overtime).is_true()
 
 
 ## R1's draw: the odds close, the tray packs over draw_ms (draw_rm_ms), then each ticket flies

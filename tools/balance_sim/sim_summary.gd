@@ -43,8 +43,9 @@ var needed: Dictionary[String, int] = {}
 var chutes: Dictionary[String, int] = {}
 var picks: Dictionary[String, int] = {}
 var skips: int = 0
-## Machine visits by kind (MachineVisit.KIND_NAMES: ticket, bonus; records from before v0.61 may
-## hold stamp_day), and the visits that can be binned (every visit since v0.61).
+## Machine visits by kind (MachineVisit.KIND_NAMES: ticket, bonus, overtime since v1.03; records
+## from before v0.61 may hold stamp_day), and the visits that can be binned (every visit since
+## v0.61).
 var visit_kinds: Dictionary[String, int] = {}
 var binnable_visits: int = 0
 ## Machine visits by state (RewardMachine.STATE_*: classic, premium; v0.61, #108).
@@ -70,10 +71,8 @@ var build_wins: Dictionary[String, int] = {}
 var build_fits: Dictionary[String, int] = {}
 ## Each run's coins, in the order added.
 var coins: PackedInt32Array = PackedInt32Array()
-## Runs lost on shift 2 (one shift passed), and how many of them paid the overtime coin from
-## shift 1's margin (full build plan 7.1 expects this to be rare).
+## Runs lost on shift 2 (one shift passed).
 var lost_on_shift_2: int = 0
-var lost_on_shift_2_overtime: int = 0
 
 
 func _init(strategy_name: String, run_quotas: PackedInt32Array, summary_title: String = "") -> void:
@@ -123,8 +122,6 @@ func add(record: SimRunRecord) -> void:
 	_add_machine(record)
 	if not record.won and record.shifts.size() == 2:
 		lost_on_shift_2 += 1
-		if record.overtime_coins > 0:
-			lost_on_shift_2_overtime += 1
 
 
 ## The machine at a run's end: its registers and BIG / GOLDEN copies.
@@ -181,10 +178,11 @@ func _machine_lines() -> PackedStringArray:
 		lines
 		. append(
 			(
-				"Machine visits per run: ticket %.2f, BONUS %.2f"
+				"Machine visits per run: ticket %.2f, BONUS %.2f, OVERTIME %.2f"
 				% [
 					visit_kinds.get("ticket", 0) / per_run,
 					visit_kinds.get("bonus", 0) / per_run,
+					visit_kinds.get("overtime", 0) / per_run,
 				]
 			)
 		)
@@ -512,12 +510,7 @@ func _coin_lines() -> PackedStringArray:
 			% [UNLOCKS, UNLOCKS, "%.1f" % runs_needed if runs_needed >= 0.0 else "-"]
 		)
 	)
-	lines.append(
-		(
-			"Lost on shift 2: %d runs, %d paid the overtime coin from shift 1"
-			% [lost_on_shift_2, lost_on_shift_2_overtime]
-		)
-	)
+	lines.append("Lost on shift 2: %d runs" % lost_on_shift_2)
 	return lines
 
 
@@ -586,7 +579,6 @@ func to_dictionary() -> Dictionary:
 			"runs_by_amount": Array(coin_counts()),
 			"runs_to_unlock_all": runs_to_unlock_all(),
 			"lost_on_shift_2": lost_on_shift_2,
-			"lost_on_shift_2_overtime_coin": lost_on_shift_2_overtime,
 		},
 	}
 

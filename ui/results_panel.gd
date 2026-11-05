@@ -22,6 +22,11 @@ extends PanelContainer
 ## each under its header, a tab in the week's colour (WeekCard.colour_of); the rules, the
 ## shortfall and the coins span both columns, and the lines print down the left column, then the
 ## right one, then the coins.
+##
+## Once the receipt has printed, the badge pins the run unlocked (pin_news, set by the shift screen
+## at the run's end) come one by one under a spotlight and stack right of the receipt (PinReveal,
+## over the whole window like the closed store, just in front of the panel). Return to menu, while
+## a card is still to come, shows every card in its place and stays; a second press leaves.
 
 signal menu_requested
 signal export_requested
@@ -63,6 +68,8 @@ const STAPLE_SIZE := Vector2(20, 5)
 
 ## Time.get_ticks_msec() when the coin lines started printing, or -1 before that.
 var coins_started_ms: int = -1
+## The badge pins the run unlocked, shown by the next show_results (then cleared).
+var pin_news: PinUnlockNews
 ## A tap printed the rest of the receipt at once.
 var print_skipped: bool = false
 var _tuning: CountUpTuning
@@ -95,6 +102,7 @@ var _week_font: FontVariation
 var _week_detail_font: FontVariation
 var _armed_ms: int = 0
 var _closed: StoreClosed
+var _reveal: PinReveal
 ## Returns the profile's reduced motion (the shift screen's), or is unset: full motion.
 var _reduced_motion: Callable
 
@@ -152,11 +160,15 @@ func _init(tuning: CountUpTuning = null, reduced_motion: Callable = Callable()) 
 	_reader.tapped.connect(func(_now_ms: int) -> void: skip_printing())
 	_closed = StoreClosed.new()
 	_closed.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_reveal = PinReveal.new()
+	_reveal.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_reveal.setup(self, is_printing)
 	visible = false
 
 
 ## The closed store goes in the panel's parent (the shift screen, over the whole window), just
-## behind the panel, once the parent has finished setting up its children.
+## behind the panel, and the pin cards just in front of it, once the parent has finished setting
+## up its children.
 func _ready() -> void:
 	_place_closed.call_deferred()
 
@@ -165,14 +177,19 @@ func _place_closed() -> void:
 	get_parent().add_child(_closed)
 	get_parent().move_child(_closed, get_index())
 	_closed.visible = visible
+	get_parent().add_child(_reveal)
+	get_parent().move_child(_reveal, get_index() + 1)
+	_reveal.visible = visible
 
 
 func _notification(what: int) -> void:
 	# Freed before the closed store was placed: it would be left orphaned.
 	if what == NOTIFICATION_PREDELETE and _closed != null and not _closed.is_inside_tree():
 		_closed.free()
+		_reveal.free()
 	if what == NOTIFICATION_VISIBILITY_CHANGED and _closed != null:
 		_closed.visible = visible
+		_reveal.visible = visible
 	if what == NOTIFICATION_VISIBILITY_CHANGED and not visible and _reader != null:
 		_reader.end()
 
@@ -214,6 +231,8 @@ func show_results(
 	_print_started_ms = Time.get_ticks_msec()
 	_reader.begin()
 	_print_due()
+	_reveal.show_news(pin_news, _reduced_motion.is_valid() and bool(_reduced_motion.call()))
+	pin_news = null
 
 
 ## Prints the rest of the receipt at once (a tap). The coins still clink and the music still
@@ -238,6 +257,11 @@ func coins_seconds() -> float:
 ## The closed store behind the receipt (for tests).
 func store_closed() -> StoreClosed:
 	return _closed
+
+
+## The badge pins' unlock cards (for tests and layout checks).
+func pin_reveal() -> PinReveal:
+	return _reveal
 
 
 ## Return to menu (for tests and layout checks).
@@ -273,8 +297,13 @@ func is_compact() -> bool:
 	return COMPACT_FITS.has(_fit) or texts().size() < _full_count
 
 
+## While a pin's card is still to come, the press shows them all in place and stays: a player
+## clicking through still sees the unlocks, and the next press leaves.
 func _on_menu_pressed() -> void:
 	skip_printing()
+	if _reveal.is_revealing():
+		_reveal.finish()
+		return
 	menu_requested.emit()
 
 

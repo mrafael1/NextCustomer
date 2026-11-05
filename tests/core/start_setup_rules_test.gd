@@ -66,18 +66,20 @@ func test_the_suggested_aisles_are_seeded() -> void:
 	assert_int(orders.size()).is_greater(1)
 
 
-## From 6 completed aisles the board opens on the profile's last choice; below 6 it never does.
+## From 6 completed aisles the board opens on the profile's last starter pair; below 6 it never
+## does. Today's extra (RUN ONLY) aisle is drawn each run (v1.07), never one of the pair, even
+## with an old profile's saved run-only aisle.
 func test_the_profiles_choice_is_suggested_only_with_every_aisle_complete() -> void:
 	var profile: ProfileState = Kit.profile(6)
 	profile.stock_pair = [&"snacks", &"bakery"]
 	profile.stock_run_only = &"pantry"
-	for seed_value: int in range(SEED, SEED + 5):
-		assert_array(Kit.suggest(profile, seed_value)).is_equal([&"bakery", &"snacks", &"pantry"])
-	# A saved aisle that is also green, or missing, leaves its place to the seeded draw.
-	profile.stock_run_only = &"snacks"
-	var drawn: Array[StringName] = Kit.suggest(profile, SEED)
-	assert_array(drawn.slice(0, 2)).is_equal([&"bakery", &"snacks"])
-	assert_bool(drawn[2] in [&"bakery", &"snacks"]).is_false()
+	var extras: Dictionary = {}
+	for seed_value: int in range(SEED, SEED + 20):
+		var drawn: Array[StringName] = Kit.suggest(profile, seed_value)
+		assert_array(drawn.slice(0, 2)).is_equal([&"bakery", &"snacks"])
+		assert_bool(drawn[2] in [&"bakery", &"snacks"]).is_false()
+		extras[drawn[2]] = true
+	assert_int(extras.size()).is_greater(1)
 	var five: ProfileState = Kit.profile(5)
 	five.stock_pair = [&"snacks", &"bakery"]
 	var other: bool = false
@@ -198,7 +200,8 @@ func test_lock_block_reasons_and_the_chosen_aisles() -> void:
 		chosen.start_setup.stock_aisles
 	)
 	assert_array(all.stock_pair).is_equal([&"bakery", &"snacks"])
-	assert_str(String(all.stock_run_only)).is_equal("pantry")
+	# Only the starter pair is saved since v1.07: the extra aisle is drawn each run.
+	assert_str(String(all.stock_run_only)).is_empty()
 	assert_str(String(StartSetupRules.lock_block(chosen, all, pair, run_only))).is_equal("stage")
 	# Missing a basket's stream: refused, nothing changed.
 	var missing: RunState = Kit.run(all, SEED)

@@ -55,22 +55,18 @@ static func start_setup_fields(run: RunState) -> Dictionary:
 	}
 
 
-## The `start_lock_in` event: LOCK IN & DEAL on YOUR STORE. `chosen`: the aisles were choosable;
-## `changed`: the locked aisles differ from those the board opened on; `clicks`: the aisle status
-## changes before it. The offer's fair-deal swaps and basket deals come from the run.
-static func start_lock_in(run: RunState, chosen: bool, changed: bool, clicks: int) -> Dictionary:
-	var setup: StartSetup = run.start_setup
-	var run_only: Array[StringName] = setup.run_only_ids(run.balance)
+## The `start_aisle` event (v1.07): green basket `basket` changed its aisle from `before`'s source
+## to its current one; `kept`: the new aisle's pair was dealt earlier this run and came back.
+static func start_aisle(run: RunState, basket: int, before: StartBasket, kept: bool) -> Dictionary:
+	var changed: StartBasket = run.start_setup.baskets[basket]
 	return {
-		"green": Array(setup.green_ids(run.balance)),
-		"run_only": String(run_only[0]) if not run_only.is_empty() else "",
-		"chosen": chosen,
-		"changed": changed,
-		"status_clicks": clicks,
-		"baskets": basket_ids(setup),
-		"offered": pack_ids(run.start_offer.packs),
-		"swaps": run.start_offer.swaps,
-		"deals": run.start_offer.deals,
+		"basket": basket,
+		"from": String(before.source),
+		"to": String(changed.source),
+		"before": definition_ids(before.cards),
+		"after": definition_ids(changed.cards),
+		"kept": kept,
+		"green": Array(run.start_setup.green_ids(run.balance)),
 	}
 
 
@@ -163,21 +159,21 @@ static func run_abandon(run: RunState, run_ms: int) -> Dictionary:
 	return {"shift": run.shift_index + 1, "phase": RunSave.phase_name(run.phase), "run_ms": run_ms}
 
 
-## The `machine_visit` event (#77), logged at each pick or bin of a RECEIPT REWARDS visit,
-## once RewardMachine.pick or bin has recorded `visit` (the run's last record holds it): the
-## shift (1-based), the visit's index in the shift (0: the ticket), its kind (ticket, bonus; until
-## v0.61 also stamp_day), its machine state (classic, premium; v0.61, #108: until then normal,
-## boosted, stamp_day), the inspections the bonus ticket's shift was played under (a BONUS
-## visit: their ids, comma-separated since v0.68, a Manager's review's two; "" otherwise), the chute
-## (new_items, upgrade; until v0.61 new_items, coupons, register, upgrades), the odds shown
-## (`odds`: the chosen chute's card: each rarity's % per drop, P(at least one RARE or better) and
-## P(a LEGENDARY), in %), whether the draw held its guarantee, the card's fallback notes, the
+## The `machine_visit` event (#77), logged at each pick or bin of a RECEIPT REWARDS visit, once
+## RewardMachine.pick or bin has recorded `visit` (the run's last record holds it): the shift
+## (1-based), the visit's index in the shift (0: the ticket), its kind (ticket, bonus, and since
+## v1.03 overtime; until v0.61 also stamp_day), its machine state (classic, premium; v0.61, #108:
+## until then normal, boosted, stamp_day), the inspections the bonus ticket's shift was played under
+## (a BONUS visit: their ids, comma-separated since v0.68, a Manager's review's two; "" otherwise),
+## the chute (new_items, upgrade; until v0.61 new_items, coupons, register, upgrades), the odds
+## shown (`odds`: the chosen chute's card: each rarity's % per drop, P(at least one RARE or better)
+## and P(a LEGENDARY), in %), whether the draw held its guarantee, the card's fallback notes, the
 ## chutes whose odds card was opened, in order, the prizes offered ({kind, id, rarity}, a loyalty
 ## perk with its `level`; reveal order), the reveal index picked (-1 for a bin), whether it was
 ## binned, the cart card it replaced, the upgraded copies ([instance id, from, to]), the cart size
-## after it, whether the cart was full at the pick, the loyalty boxes filled (`registers_owned`)
-## and each owned perk's level by family (`perk_levels`, v0.61), whether the visit was resumed
-## from a save, and the visit's times (`timing`).
+## after it, whether the cart was full at the pick, the loyalty boxes filled (`registers_owned`) and
+## each owned perk's level by family (`perk_levels`, v0.61), whether the visit was resumed from a
+## save, and the visit's times (`timing`).
 static func machine_visit(
 	run: RunState,
 	visit: MachineVisit,
