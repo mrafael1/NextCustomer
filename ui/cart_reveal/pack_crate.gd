@@ -1,23 +1,38 @@
 class_name PackCrate
 extends Control
-## A live starter pack on the staff bench. Whole items, price tags, paper label and post bulbs.
+## A live starter pack on the staff bench (reworked 2026-11-05, v1.01): its three items standing
+## big in a wood crate, and on the crate's paper label the pack's name in its family's colour,
+## its key (1 to 3) and its family. No strategy sentence, not even as a tooltip (the cards keep
+## their own popups on hover). The items stand at their sprites' own size, overlapping a little.
 
 signal picked(index: int)
 signal previewed(index: int)
 
-const SIZE := Vector2(264, 210)
+const SIZE := Vector2(272, 256)
 ## An unpicked crate once another is picked (mock-up v4 B_s0): clearly greyed back.
 const DIMMED := Color(0.58, 0.6, 0.6, 1.0)
-## The strategy sentence's box on the label, and the example slip under the bench (crate px).
-const HINT_RECT := Rect2(8, 30, 204, 50)
-## The strategy sentence's line spacing (px): three lines fit its box.
-const HINT_LINE_SPACING := -5
-const SLIP_RECT := Rect2(8, 222, 248, 50)
+## The items: ITEM px each, ITEM_STEP apart from ITEM_LEFT, standing on the crate's rim.
+const ITEM := 96.0
+const ITEM_STEP := 88.0
+const ITEM_LEFT := 0.0
+## The wood crate under them, and the paper label on its front (crate px).
+const CRATE_RECT := Rect2(0, 84, 272, 172)
+const LABEL_RECT := Rect2(22, 104, 228, 120)
+## The label's name bar, and the family line (glyph over name) under it (label px).
+const NAME_BAR := Rect2(0, 0, 228, 38)
+const FAMILY_GLYPH := Rect2(92, 44, 45, 45)
+const FAMILY_LINE := Rect2(8, 92, 212, 22)
+## The PICKED tag on the crate's bottom rail, under the label (crate px).
+const PICKED_RECT := Rect2(180, 229, 84, 24)
+## The dithered halo behind a picked or hovered crate's items (crate px): an ellipse as wide as the
+## crate, its top HALO_RADIUS_Y over HALO_CENTRE_Y, so a lifted crate's halo stays under the badge
+## pins board (feedback 2026-11-05: it spilled onto the board's frame).
+const HALO_CENTRE_Y := 58.0
+const HALO_RADIUS_Y := 68.0
 
 var pack: StarterPackDefinition
-## The strategy sentence and the example slip (null when the pack has no example row).
-var hint: Label
-var slip: Panel
+## The paper label on the crate's front (its name bar, key and family line).
+var label: Panel
 var index: int = 0
 var selected: bool = false
 var hovered: bool = false
@@ -40,119 +55,73 @@ func _init(definition: StarterPackDefinition, slot: int, first: bool) -> void:
 	var family_style: FamilyStyle = palette.style(pack.family)
 	_face = PackFrame.pack_colour(pack)
 	for card_index: int in pack.cards.size():
-		var card: CardDefinition = pack.cards[card_index]
-		StartBoardKit.item(self, card, Vector2(16 + card_index * 82, 0), 76)
-		var tag: Panel = StartBoardKit.panel(
-			self,
-			Rect2(26 + card_index * 82, 72, 54, 24),
-			Palette.TEAL_PALE if card.is_coupon() else Palette.PAPER
+		var item: Control = StartBoardKit.item(
+			self, pack.cards[card_index], Vector2(ITEM_LEFT + card_index * ITEM_STEP, 0), ITEM
 		)
-		var price: Label = StartBoardKit.number(
-			tag,
-			"✂" if card.is_coupon() else "%d€" % card.base,
-			Rect2(2, -2, 50, 24),
-			Palette.INK,
-			22
-		)
-		price.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	var label: Panel = StartBoardKit.panel(self, Rect2(22, 100, 220, 102), Palette.PAPER)
-	StartBoardKit.panel(label, Rect2(0, 0, 220, 28), _face)
+		item.name = "Item%d" % card_index
+	label = StartBoardKit.panel(self, LABEL_RECT, Palette.PAPER)
+	label.name = "Label"
+	StartBoardKit.panel(label, NAME_BAR, _face)
 	var heading: Label = StartBoardKit.words(
 		label,
 		pack.display_name,
-		Rect2(8, 0, 180, 28),
+		Rect2(8, 3, 180, 32),
 		(
 			Palette.PAPER
 			if pack.family in [&"Coupon", &"Dairy", &"Household", &"Snack", &"Clearance"]
 			else Palette.INK
 		)
 	)
+	heading.name = "Name"
 	heading.clip_text = true
-	StartBoardKit.centre(heading, Rect2(4, 0, 188, 28))
-	StartBoardKit.panel(label, Rect2(194, 2, 24, 24), Palette.CREAM)
-	StartBoardKit.number(label, str(index + 1), Rect2(198, 0, 22, 24))
-	# The strategy sentence (pack data).
-	hint = StartBoardKit.body(label, pack.hint_text, HINT_RECT, Palette.INK, 13)
-	hint.name = "Hint"
-	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	# Three lines of 12 px, set tight (the body font's line height is tall).
-	hint.add_theme_font_size_override("font_size", 12)
-	hint.add_theme_constant_override("line_spacing", HINT_LINE_SPACING)
-	_example_slip()
-	# The family line (glyph and name) centred as one group.
-	var family_name: String = String(pack.family).to_upper()
-	var has_glyph: bool = family_style != null and family_style.glyph != null
-	var family_width: float = (
-		StartBoardKit.text_width(family_name.replace(" ", "  ")) + (22.0 if has_glyph else 0.0)
-	)
-	var family_left: float = 2.0 * floorf((220.0 - family_width) / 4.0)
-	if has_glyph:
+	StartBoardKit.centre(heading, Rect2(4, 3, 188, 32))
+	var key: Panel = StartBoardKit.panel(label, Rect2(194, 5, 28, 28), Palette.CREAM)
+	key.name = "Key"
+	StartBoardKit.number(key, str(index + 1), Rect2(4, 0, 22, 26))
+	if family_style != null and family_style.glyph != null:
 		var glyph: TextureRect = UiKit.sprite(family_style.glyph)
-		glyph.position = Vector2(family_left, 80)
-		glyph.size = Vector2(18, 18)
+		glyph.name = "Glyph"
+		glyph.position = FAMILY_GLYPH.position
+		glyph.size = FAMILY_GLYPH.size
 		glyph.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		glyph.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		label.add_child(glyph)
-	StartBoardKit.words(
-		label,
-		family_name,
-		Rect2(family_left + (22.0 if has_glyph else 0.0), 80, 180, 20),
-		Palette.INK_LIGHT
+	var family: Label = StartBoardKit.words(
+		label, String(pack.family).to_upper(), FAMILY_LINE, Palette.INK_LIGHT
 	)
-	_picked_tag = StartBoardKit.panel(self, Rect2(170, 196, 88, 26), Palette.MUSTARD)
-	_picked_tag.rotation = deg_to_rad(-4)
-	var picked_words: Label = StartBoardKit.words(_picked_tag, "PICKED", Rect2(2, 0, 84, 24))
-	StartBoardKit.centre(picked_words, Rect2(2, 0, 84, 24))
+	family.name = "Family"
+	StartBoardKit.centre(family, FAMILY_LINE)
+	_picked_tag = StartBoardKit.panel(self, PICKED_RECT, Palette.MUSTARD)
+	_picked_tag.name = "Picked"
+	_picked_tag.pivot_offset = PICKED_RECT.size / 2.0
+	_picked_tag.rotation = deg_to_rad(-2)
+	var words_rect: Rect2 = Rect2(2, 0, PICKED_RECT.size.x - 4, PICKED_RECT.size.y)
+	var picked_words: Label = StartBoardKit.words(_picked_tag, "PICKED", words_rect)
+	StartBoardKit.centre(picked_words, words_rect)
 	_picked_tag.visible = false
 	if first:
-		_wobbler = StartBoardKit.panel(self, Rect2(188, -78, 74, 68), Palette.MUSTARD_PALE)
+		_wobbler = StartBoardKit.panel(self, Rect2(194, -56, 74, 56), Palette.MUSTARD_PALE)
+		_wobbler.name = "FirstPick"
 		_wobbler.rotation = deg_to_rad(5)
-		_wobbler.pivot_offset = Vector2(36, 68)
+		_wobbler.pivot_offset = Vector2(36, 56)
 		for line: int in 3:
 			var sign_words: Label = StartBoardKit.words(
-				_wobbler, ["GOOD", "FIRST", "PICK"][line], Rect2(2, 4 + line * 20, 70, 18)
+				_wobbler, ["GOOD", "FIRST", "PICK"][line], Rect2(2, 2 + line * 17, 70, 18)
 			)
-			StartBoardKit.centre(sign_words, Rect2(2, 4 + line * 20, 70, 18))
+			StartBoardKit.centre(sign_words, Rect2(2, 2 + line * 17, 70, 18))
 	mouse_entered.connect(_enter)
 	mouse_exited.connect(_exit)
 	gui_input.connect(_click)
 
 
-## The example slip hung under the crate (pack data): TRY THIS ROW, the row's items in order and
-## its total; the slip's tip is the worked example, each item keeps its scan popup.
-func _example_slip() -> void:
-	if pack.example_cards.is_empty():
-		return
-	slip = StartBoardKit.panel(self, SLIP_RECT, Palette.PAPER, Palette.INK)
-	slip.name = "Example"
-	slip.mouse_filter = Control.MOUSE_FILTER_PASS
-	slip.tooltip_text = pack.example_text
-	StartBoardKit.panel(slip, Rect2(SLIP_RECT.size.x / 2.0 - 30, -6, 60, 10), Palette.MUSTARD_PALE)
-	var heading: Label = StartBoardKit.tag(
-		slip, "TRY THIS ROW", Rect2(8, 2, 150, 20), Palette.INK_LIGHT
-	)
-	heading.name = "Heading"
-	var total: Label = StartBoardKit.number(
-		slip,
-		"= %d€" % pack.example_total,
-		Rect2(SLIP_RECT.size.x - 96, -4, 88, 28),
-		Palette.GREEN_DARK,
-		24
-	)
-	total.name = "Total"
-	total.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	var count: int = pack.example_cards.size()
-	var step: float = minf(34.0, floorf((SLIP_RECT.size.x - 16) / count))
-	var left: float = floorf((SLIP_RECT.size.x - step * count) / 2.0)
-	for at: int in count:
-		var card: CardDefinition = pack.example_cards[at]
-		var art: Control = StartBoardKit.item(
-			slip, card, Vector2(left + at * step + (step - 24) / 2.0, 22), 24
-		)
-		art.name = "Step%d" % at
-		art.tooltip_text = pack.example_text
-		if pack.cards.has(card):
-			StartBoardKit.panel(slip, Rect2(left + at * step + 6, 46, step - 12, 2), _face, _face)
+## The PICKED tag (shown once this crate is picked).
+func picked_tag() -> Control:
+	return _picked_tag
+
+
+## The GOOD FIRST PICK sign over the crate, or null.
+func first_pick_sign() -> Control:
+	return _wobbler
 
 
 func show_state(on: bool, other_picked: bool) -> void:
@@ -200,26 +169,28 @@ func _click(event: InputEvent) -> void:
 
 func _draw() -> void:
 	if selected or hovered:
-		for y: int in range(-44, 76, 2):
-			for x: int in range(0, 264, 2):
-				if pow((x - 132.0) / 132.0, 2) + pow((y - 36.0) / 82.0, 2) < 1 and (x + y) % 4 == 0:
+		for y: int in range(int(HALO_CENTRE_Y - HALO_RADIUS_Y), int(CRATE_RECT.position.y) + 12, 2):
+			for x: int in range(0, int(SIZE.x), 2):
+				var across: float = (x - SIZE.x / 2.0) / (SIZE.x / 2.0)
+				var down: float = (y - HALO_CENTRE_Y) / HALO_RADIUS_Y
+				if pow(across, 2) + pow(down, 2) < 1 and (x + y) % 4 == 0:
 					draw_rect(Rect2(x, y, 2, 2), Palette.MUSTARD_DARK)
-	var crate: Rect2 = Rect2(0, 56, SIZE.x, 148)
+	var crate: Rect2 = CRATE_RECT
 	draw_rect(crate, Palette.INK)
 	draw_rect(crate.grow(-2), Palette.BROWN_DARK)
-	for y: float in [60.0, 88.0, 124.0, 162.0, 198.0]:
-		draw_rect(Rect2(4, y, 256, 6), Palette.BROWN_LIGHT)
-	for x: float in [4.0, 250.0]:
-		draw_rect(Rect2(x, 64, 10, 138), Palette.WOOD)
-		for bulb: int in 8:
+	for y: float in [88.0, 128.0, 168.0, 208.0, 246.0]:
+		draw_rect(Rect2(4, y, SIZE.x - 8, 6), Palette.BROWN_LIGHT)
+	for x: float in [4.0, SIZE.x - 14.0]:
+		draw_rect(Rect2(x, 92, 10, 160), Palette.WOOD)
+		for bulb: int in 9:
 			var lit: bool = hovered or reduced or (bulb + int(_time * 10)) % 4 < 2
-			draw_rect(Rect2(x, 78 + bulb * 16, 10, 10), Palette.INK)
+			draw_rect(Rect2(x, 104 + bulb * 16, 10, 10), Palette.INK)
 			if selected or hovered:
 				draw_rect(
-					Rect2(x + 2, 80 + bulb * 16, 6, 6),
+					Rect2(x + 2, 106 + bulb * 16, 6, 6),
 					Palette.GOLD if lit else Palette.MUSTARD_DARK
 				)
 	if selected or hovered:
 		draw_rect(crate.grow(4), Palette.MUSTARD if selected else Palette.TEAL_LIGHT, false, 4)
 	if _wobbler != null:
-		draw_line(Vector2(240, -12), Vector2(240, 50), Palette.STEEL_LIGHT, 4)
+		draw_line(Vector2(232, 0), Vector2(232, CRATE_RECT.position.y), Palette.STEEL_LIGHT, 4)

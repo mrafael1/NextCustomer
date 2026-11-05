@@ -3,6 +3,10 @@ extends RefCounted
 ## The v4 B staff room, painted at 640x360 then nearest-scaled. Rectangles are art pixels.
 ## Cinder blocks, tube, open double locker, four teal lockers, wood bench and lino floor.
 
+## The badge pins corkboard's frame (art px; the stage is drawn 2x): a picked crate's halo stays
+## under it.
+const PIN_BOARD := Rect2i(42, 72, 138, 89)
+
 ## The painted room, made once (every board's page 2 shows the same one).
 static var _cached: ImageTexture
 
@@ -48,7 +52,7 @@ static func _paint() -> ImageTexture:
 	_rect(art, Rect2i(119, 60, 7, 8), Palette.CREAM)
 	_rect(art, Rect2i(119, 63, 7, 2), Palette.TOMATO)
 	_rect(art, Rect2i(160, 62, 18, 6), Palette.BRASS)
-	_rect(art, Rect2i(42, 72, 138, 89), Palette.INK)
+	_rect(art, PIN_BOARD, Palette.INK)
 	_rect(art, Rect2i(43, 73, 136, 87), Palette.BROWN_DARK)
 	_rect(art, Rect2i(44, 75, 134, 84), Palette.INK)
 	for y: int in range(76, 158):
@@ -89,13 +93,15 @@ static func _paint() -> ImageTexture:
 			art.set_pixel(
 				x, y, Palette.RUBBER if ((x >> 4) + floori(y / 6.0)) % 2 else Palette.CHARCOAL
 			)
-	_rect(art, Rect2i(10, 281, 422, 11), Palette.INK)
-	_rect(art, Rect2i(11, 282, 420, 1), Palette.WOOD_PALE)
-	_rect(art, Rect2i(11, 283, 420, 4), Palette.BROWN)
-	_rect(art, Rect2i(11, 287, 420, 4), Palette.BROWN_DARK)
-	for left: int in [30, 216, 404]:
-		_rect(art, Rect2i(left, 292, 7, 14), Palette.INK)
-		_rect(art, Rect2i(left + 1, 292, 5, 13), Palette.STEEL)
+	# The bench (v1.01: 17 art px lower, under the taller crates), its legs clear of the footer's
+	# ‹ STORE key.
+	_rect(art, Rect2i(10, 298, 422, 11), Palette.INK)
+	_rect(art, Rect2i(11, 299, 420, 1), Palette.WOOD_PALE)
+	_rect(art, Rect2i(11, 300, 420, 4), Palette.BROWN)
+	_rect(art, Rect2i(11, 304, 420, 4), Palette.BROWN_DARK)
+	for left: int in [124, 216, 404]:
+		_rect(art, Rect2i(left, 309, 7, 14), Palette.INK)
+		_rect(art, Rect2i(left + 1, 309, 5, 13), Palette.STEEL)
 	_rect(art, Rect2i(433, 28, 3, 332), Palette.INK)
 	_rect(art, Rect2i(436, 28, 6, 332), Palette.TEAL_DARK)
 	return ImageTexture.create_from_image(art)
