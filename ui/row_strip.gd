@@ -207,7 +207,6 @@ func show_cards(
 				child.queue_free()
 		var empty: bool = slot >= row.size()
 		_show_empty(panel, empty and _lane_in(panel) == null)
-		_hang_marks(panel, not empty)
 		if empty:
 			ticket_shadow(panel).visible = false
 		else:
@@ -220,6 +219,8 @@ func show_cards(
 			# The cell's last child: over the mat and the marks.
 			panel.add_child(view)
 			views.append(view)
+		# After the item: a GOLDEN ticket's ring hangs its marks lower (gold_drop).
+		_hang_marks(panel, not empty)
 		var ring: CanvasItem = _marks(panel).get_node(NodePath(RING_NAME))
 		ring.visible = slot <= placeable_until
 		set_hovered(panel, false)
@@ -272,8 +273,10 @@ static func slot_mark_rect(width: float, taken: float = 0.0) -> Rect2:
 
 ## Hangs the marks of `panel`'s slot under its ticket, a zero slot's mark as the cause-only chip
 ## while the slot is `filled`: side by side from the cell's right end, the first one rightmost
-## (slot_mark_rect), or a lone chip centred under the ticket on the art grid.
+## (slot_mark_rect), or a lone chip centred under the ticket on the art grid. Under a GOLDEN
+## ticket they hang gold_drop lower, so its ring never hides their tops (v1.00).
 static func _hang_marks(panel: PanelContainer, filled: bool) -> void:
+	var drop: Vector2 = Vector2(0.0, gold_drop(panel))
 	var marks: Array[SlotMark] = []
 	for child: Node in _talkers(panel).get_children():
 		var mark: SlotMark = child as SlotMark
@@ -282,13 +285,28 @@ static func _hang_marks(panel: PanelContainer, filled: bool) -> void:
 			marks.append(mark)
 	if marks.size() == 1 and marks[0].is_compact():
 		var left: float = TICKET_RECT.get_center().x - marks[0].size.x / 2.0
-		marks[0].position = Vector2(snappedf(left, ArtStyle.ART_SCALE), SLOT_MARK_TOP)
+		marks[0].position = Vector2(snappedf(left, ArtStyle.ART_SCALE), SLOT_MARK_TOP) + drop
 		return
 	var taken: float = 0.0
 	for mark: SlotMark in marks:
 		var rect: Rect2 = slot_mark_rect(mark.size.x, taken)
 		taken = SLOT_MARK_RIGHT - rect.position.x + SLOT_MARK_GAP
-		mark.position = rect.position
+		mark.position = rect.position + drop
+
+
+## How much lower `panel`'s slot marks hang (v1.00, the user's play test of 2026-11-05: Happy
+## hour's "+3€" hid under a GOLDEN ticket's ring): the gold ring's width
+## (PriceSticker.GOLD_RING_ART art px) while a GOLDEN card stands on the slot, else 0.
+static func gold_drop(panel: PanelContainer) -> float:
+	for child: Node in panel.get_children():
+		var view: CardView = child as CardView
+		if (
+			view != null
+			and not view.is_queued_for_deletion()
+			and view.card.definition.tier == CardDefinition.Tier.GOLDEN
+		):
+			return PriceSticker.GOLD_RING_ART * ArtStyle.ART_SCALE
+	return 0.0
 
 
 ## Whether `shown` are the marks `marks` would show: the same slot, upgrade and factor, in order

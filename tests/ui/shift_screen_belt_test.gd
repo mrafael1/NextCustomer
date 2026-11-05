@@ -105,15 +105,20 @@ func test_the_belt_art_lies_on_the_belt() -> void:
 	var tickets: Array[Rect2] = []
 	for panel: PanelContainer in screen._slots:
 		tickets.append(RowStrip.mat(panel).get_global_rect())
+	# One of each per cell of the 7-slot row; the widest row's last ones hidden (v1.00).
 	for index: int in range(BeltPanel.BOLT_COUNT):
 		var bolt: TextureRect = belt.get_node("Bolt%d" % index) as TextureRect
+		var chevrons: TextureRect = belt.get_node("Chevrons%d" % index) as TextureRect
+		assert_bool(bolt.visible).is_equal(index < tickets.size())
+		assert_bool(chevrons.visible).is_equal(index < tickets.size())
+		if index >= tickets.size():
+			continue
 		var rect: Rect2 = bolt.get_global_rect()
 		assert_vector(rect.size).is_equal(Vector2(bolt.texture.get_size()))
 		assert_bool(apron.encloses(rect)).override_failure_message(str(rect)).is_true()
 		assert_float(rect.end.x).is_less_equal(tickets[index].position.x)
 		if index > 0:
 			assert_float(rect.position.x).is_greater_equal(tickets[index - 1].end.x)
-		var chevrons: TextureRect = belt.get_node("Chevrons%d" % index) as TextureRect
 		var cue: Rect2 = chevrons.get_global_rect()
 		assert_object(chevrons.texture).is_same(BeltPanel.BELT_CHEVRONS)
 		assert_vector(cue.size).is_equal(Vector2(chevrons.texture.get_size()))
