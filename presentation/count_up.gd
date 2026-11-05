@@ -187,6 +187,7 @@ var _total_tuning: CountTotalTuning
 var _overlay: Control
 var _views: Array[CardView] = []
 var _names: PackedStringArray = PackedStringArray()
+var _result: ScoreResult
 var _steps: Array[ScoreStep] = []
 var _receipt: ReceiptView
 ## The register's LED: the running subtotal, then the total.
@@ -286,6 +287,7 @@ func play(
 		_tuning = load(TUNING_PATH) as CountUpTuning
 	_views = views
 	_names = names
+	_result = result
 	_steps = result.steps
 	run_context = context
 	plan = CountUpPlan.build(result.steps, quota, context, _tuning, _total_tuning)
@@ -414,6 +416,12 @@ func show_end_state(result: ScoreResult, quota: int, context: CountUpContext) ->
 ## the hit-stops, taps and holds, like the count's own.
 func tween_maker() -> Callable:
 	return _tween
+
+
+## What the played result's `slot` adds in all (its "gives" rows' gains and its own pay, as
+## planning's PlanningModel.contribution): a coupon's "+N€" on the monitor (v1.00); 0 before play.
+func contribution(slot: int) -> int:
+	return PlanningModel.contribution(_result, slot, _names) if _result != null else 0
 
 
 ## The monitor total's tuning (CountTotalTuning) this count-up plays with.

@@ -106,8 +106,9 @@ func test_a_pages_rows_share_one_text_size() -> void:
 
 
 ## A coupon prints no base price (#138 review): no base price line, its rows under its description;
-## one that gave something keeps the coupon's scissors window even with an unused part (its fizzle
-## row says it), and only one that gave nothing is wasted.
+## one that gave something stays a coupon even with an unused part (its fizzle row says it), and
+## only one that gave nothing is wasted. v1.00: a coupon that adds nothing shown leaves its payout
+## zone empty (no scissors window there).
 func test_a_coupon_has_no_base_line_and_wastes_only_when_it_gave_nothing() -> void:
 	var monitor: MonitorView = await _monitor()
 	var column: MonitorItemColumn = monitor.item_column()
@@ -123,15 +124,18 @@ func test_a_coupon_has_no_base_line_and_wastes_only_when_it_gave_nothing() -> vo
 	assert_bool(column.part_rects().has("base")).is_false()
 	assert_int(column.payout_view().pay_state()).is_equal(PriceWindow.State.COUPON)
 	# PR #138 round 7: what its "gives" rows added shows in its zone, "+10€" in the coupon's ink
-	# (the scissors window only while it added nothing).
+	# (v1.00: nothing at all while it added nothing).
 	var payout: MonitorPayout = column.payout_view()
-	assert_bool(payout.window().visible).is_true()
+	assert_bool(payout.shows_pay()).is_false()
+	assert_bool(payout.equals().visible).is_false()
+	assert_bool(payout.zero_glyph().visible).is_false()
+	assert_bool(column.part_rects()["payout"].has_area()).is_false()
 	lines.given = 10
 	monitor.show_scan(definition, definition.tags, lines)
 	await _frames(1)
 	assert_int(payout.pay_state()).is_equal(PriceWindow.State.COUPON)
 	assert_int(payout.given_amount()).is_equal(10)
-	assert_bool(payout.window().visible).is_false()
+	assert_bool(payout.shows_pay()).is_true()
 	assert_str(payout.equals().text).is_equal(MonitorPayout.GIVEN_SIGN)
 	assert_str(payout.digit_words().text).is_equal(MonitorText.euros(10))
 	assert_that(payout.digit_words().color).is_equal(MonitorPayout.GIVEN_INK)
@@ -143,10 +147,39 @@ func test_a_coupon_has_no_base_line_and_wastes_only_when_it_gave_nothing() -> vo
 	monitor.show_scan(definition, definition.tags, lines)
 	await _frames(1)
 	assert_int(column.payout_view().pay_state()).is_equal(PriceWindow.State.WASTED)
+	assert_bool(payout.shows_pay()).is_false()
+	assert_bool(column.part_rects()["payout"].has_area()).is_false()
+	assert_bool(column.part_rects().has("payout_digits")).is_false()
 	var milk: CardDefinition = _card("milk")
 	monitor.show_scan(milk, milk.tags, _lines(1, milk.base))
 	await _frames(1)
 	assert_object(column.base_line()).is_not_null()
+
+
+## v1.00 review: the count shows a coupon as planning does: "+N€" for what it adds in all (even
+## after an unused part's fizzle row), nothing for one that adds nothing.
+func test_the_count_shows_a_coupons_given_amount_as_planning_does() -> void:
+	var monitor: MonitorView = await _monitor()
+	var column: MonitorItemColumn = monitor.item_column()
+	var payout: MonitorPayout = column.payout_view()
+	var definition: CardDefinition = _card("two_for_one")
+	column.start_item(definition, definition.tags, false, 10)
+	column.show_step("×2 to Banana  +10€", false, true)
+	column.show_step("1 charge unused  WASTED", true)
+	column.set_value(0)
+	await _frames(1)
+	assert_int(payout.pay_state()).is_equal(PriceWindow.State.COUPON)
+	assert_bool(payout.shows_pay()).is_true()
+	assert_str(payout.equals().text).is_equal(MonitorPayout.GIVEN_SIGN)
+	assert_str(payout.digit_words().text).is_equal(MonitorText.euros(10))
+	assert_that(payout.digit_words().color).is_equal(MonitorPayout.GIVEN_INK)
+	column.clear()
+	column.start_item(definition, definition.tags, false)
+	column.show_step("1 charge unused  WASTED", true)
+	await _frames(1)
+	assert_int(payout.pay_state()).is_equal(PriceWindow.State.WASTED)
+	assert_bool(payout.shows_pay()).is_false()
+	assert_bool(column.part_rects()["payout"].has_area()).is_false()
 
 
 ## PR #138 round 7 review: a giver's "gives" rows go one per target only while the whole scan fits

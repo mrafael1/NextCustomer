@@ -7,11 +7,12 @@ extends Control
 ## its boost step against the base, on a one-cell PriceWindow.shadow_color shadow). A price too
 ## wide for the zone falls back to PriceWindow.form_for's shorter forms. A 0€ payout shows its
 ## reason's sign left of "=" (the fizzle icon for an unused effect, the warning sign for a denial,
-## as the ticket's 0€ tag). A coupon pays nothing itself: its zone shows the ticket's scissors
-## window (PriceWindow, framed: COUPON teal, or WASTED grey under a tomato slash) and no "=";
-## one whose "gives" rows added to other items shows what it `given` instead (PR #138 round 7, a
-## friend's suggestion the user passed on): "+72€", its "+" where the "=" sits (GIVEN_SIGN,
-## GIVEN_GAP from the digits) and its digits in the coupon's ink (GIVEN_INK), unshadowed.
+## as the ticket's 0€ tag). A coupon pays nothing itself: one whose "gives" rows added to other
+## items shows what it `given` (PR #138 round 7, a friend's suggestion the user passed on): "+72€",
+## its "+" where the "=" sits (GIVEN_SIGN, GIVEN_GAP from the digits) and its digits in the
+## coupon's ink (GIVEN_INK), unshadowed; one that adds nothing shown (COUPON with nothing given,
+## or WASTED) leaves its zone empty (v1.00, the user's play test of 2026-11-05: the scissors
+## window there read as a weird empty box), its rows saying what it did.
 ## Display only: the amount and its state are the caller's (the score's).
 
 const CELL := 3.0
@@ -35,7 +36,6 @@ var _group: Control
 var _equals: Label
 var _digits: PixelWords
 var _shadow: PixelWords
-var _window: PriceWindow
 var _glyph: TextureRect
 
 
@@ -58,16 +58,14 @@ func _init(zone: Vector2 = Vector2(258, 27)) -> void:
 	_digits = PixelWords.new("", PixelWords.Sheet.DIGITS, CELL)
 	_digits.name = "Digits"
 	_group.add_child(_digits)
-	_window = PriceWindow.new(PriceWindow.State.COUPON, 0, true)
-	_window.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_group.add_child(_window)
 	_glyph = UiKit.sprite(null)
 	_glyph.name = "Glyph"
 	_group.add_child(_glyph)
 
 
 ## Shows `amount` in `state` (against its item's `base`: a boost's ink step), with `glyph` (the
-## reason's sign) left of a 0€; a COUPON that `given` more than 0 to other items shows "+given€".
+## reason's sign) left of a 0€; a COUPON that `given` more than 0 to other items shows "+given€",
+## and any other coupon (COUPON or WASTED) shows nothing.
 func show_pay(
 	state: PriceWindow.State,
 	amount: int,
@@ -84,41 +82,34 @@ func show_pay(
 	)
 	_digits.visible = not coupon
 	_equals.visible = not coupon
-	_window.visible = coupon
-	var right: float = size.x
-	var left: float = right
+	_shadow.visible = false
+	_glyph.visible = false
 	if coupon:
-		_window.show_pay(state, 0)
-		_window.position = Vector2(
-			right - PriceWindow.SIZE.x - PriceWindow.FRAME,
-			roundf((size.y - PriceWindow.SIZE.y) / 2.0)
-		)
-		_shadow.visible = false
-		left = _window.position.x - PriceWindow.FRAME
-	else:
-		var form: Array = _form(_given if _given > 0 else amount)
-		var text: String = form[0]
-		var sheet: PixelWords.Sheet = form[1]
-		var shown: Vector2 = PixelWords.text_size(text, sheet, CELL)
-		var shadow_ink: Color = PriceWindow.shadow_color(state, _step)
-		# The digits' foot over the shadow's cell, both inside the zone.
-		var at: Vector2 = Vector2(right - shown.x - CELL, floorf((size.y - shown.y - CELL) / 2.0))
-		for words: PixelWords in [_digits, _shadow]:
-			words.sheet = sheet
-			words.text = text
-			words.size = shown
-			words.position = at
-		_digits.color = GIVEN_INK if _given > 0 else PriceWindow.digit_color(state, maxi(_step, 1))
-		_shadow.color = shadow_ink
-		_shadow.position = at + Vector2(CELL, CELL)
-		_shadow.visible = shadow_ink.a > 0.0 and _given == 0
-		_equals.text = GIVEN_SIGN if _given > 0 else EQUALS
-		_equals.add_theme_color_override("font_color", GIVEN_INK if _given > 0 else Palette.INK)
-		var equals_width: float = ceilf(_equals.get_combined_minimum_size().x)
-		_equals.size = Vector2(equals_width, shown.y)
-		var gap: float = GIVEN_GAP if _given > 0 else EQUALS_GAP
-		_equals.position = Vector2(at.x - gap - equals_width, at.y)
-		left = _equals.position.x
+		return
+	var right: float = size.x
+	var form: Array = _form(_given if _given > 0 else amount)
+	var text: String = form[0]
+	var sheet: PixelWords.Sheet = form[1]
+	var shown: Vector2 = PixelWords.text_size(text, sheet, CELL)
+	var shadow_ink: Color = PriceWindow.shadow_color(state, _step)
+	# The digits' foot over the shadow's cell, both inside the zone.
+	var at: Vector2 = Vector2(right - shown.x - CELL, floorf((size.y - shown.y - CELL) / 2.0))
+	for words: PixelWords in [_digits, _shadow]:
+		words.sheet = sheet
+		words.text = text
+		words.size = shown
+		words.position = at
+	_digits.color = GIVEN_INK if _given > 0 else PriceWindow.digit_color(state, maxi(_step, 1))
+	_shadow.color = shadow_ink
+	_shadow.position = at + Vector2(CELL, CELL)
+	_shadow.visible = shadow_ink.a > 0.0 and _given == 0
+	_equals.text = GIVEN_SIGN if _given > 0 else EQUALS
+	_equals.add_theme_color_override("font_color", GIVEN_INK if _given > 0 else Palette.INK)
+	var equals_width: float = ceilf(_equals.get_combined_minimum_size().x)
+	_equals.size = Vector2(equals_width, shown.y)
+	var gap: float = GIVEN_GAP if _given > 0 else EQUALS_GAP
+	_equals.position = Vector2(at.x - gap - equals_width, at.y)
+	var left: float = _equals.position.x
 	var texture: Texture2D = null
 	if glyph == PlanningModel.Glyph.FIZZLE:
 		texture = FIZZLE_ICON
@@ -209,27 +200,29 @@ func equals() -> Label:
 	return _equals
 
 
-func window() -> PriceWindow:
-	return _window
-
-
 func zero_glyph() -> TextureRect:
 	return _glyph
 
 
-## What shows the payout (global, at rest): the digits, or a coupon's window.
+## Whether the zone shows anything: false for a coupon that adds nothing shown (see show_pay).
+func shows_pay() -> bool:
+	return _digits.visible
+
+
+## What shows the payout (global, at rest): the digits; with nothing shown, the zone's right
+## edge (an empty rect at its middle height).
 func shown_rect() -> Rect2:
-	var part: Control = _digits
-	if _window.visible:
-		part = _window
-	return Rect2(get_global_transform() * (_group.position + part.position), part.size)
+	var transform: Transform2D = get_global_transform()
+	if not shows_pay():
+		return Rect2(transform * Vector2(size.x, size.y / 2.0), Vector2.ZERO)
+	return Rect2(transform * (_group.position + _digits.position), _digits.size)
 
 
 ## Every part shown (global, at rest), for layout checks.
 func part_rects() -> Dictionary[String, Rect2]:
 	var rects: Dictionary[String, Rect2] = {}
 	var transform: Transform2D = get_global_transform()
-	for part: Control in [_equals, _digits, _shadow, _window, _glyph]:
+	for part: Control in [_equals, _digits, _shadow, _glyph]:
 		if part.visible:
 			rects[String(part.name)] = Rect2(transform * part.position, part.size)
 	return rects
