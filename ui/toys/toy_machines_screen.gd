@@ -27,6 +27,12 @@ extends Control
 ## shut, padlocks on the price LEDs, a tomato 0 and a notice with 0 coins; otherwise the hint.
 ## FIGURINE SHELF is DONE's button in teal (v0.78: store fixtures, no plain boxes). Through the
 ## doors the street idles (ToyStreet, v0.79): a car's headlights now and then, the lamp's flicker.
+##
+## After the reveal's OK the figurine joins the drawn machine's lineup card (ToyLineupJoin, v1.05,
+## mock-up toy_shelf_unlock.html option B), and a capsule that completes its aisle ends on the
+## COMPLETED! card and the machine's SOLD OUT. Until the join's beats the screen holds what the
+## draw changed (the FIGURINES count, the machine's plate, window and SOLD OUT state, and
+## COLLECTION COMPLETE): only COINS changes at the draw.
 
 signal closed
 
@@ -55,6 +61,7 @@ const OFF_NOTICE := (
 	"YOUR COLLECTION CAN'T BE SAVED RIGHT NOW, " + "SO THE TOY MACHINES ARE SWITCHED OFF."
 )
 const SHELF_TEXT := "FIGURINE SHELF"
+## The run's regulars, which the COMPLETED! card's swap rows count (the starter's core cards).
 const DONE_TEXT := "DONE"
 ## The machines' row, in canvas px (twice the art px): six from MACHINE_X0, fewer centred in
 ## 0..ROW_WIDTH; MACHINE_PITCH apart. The row holds FULL_ROW machines at most: a seventh would
@@ -140,6 +147,13 @@ var _shelf: FigurineShelf
 var _hovered: ToyMachineView
 var _shown_coins: int = -1
 var _coins_hop: Tween
+var _join: ToyLineupJoin
+## What the screen holds back from the draw until the join's beats: "aisle" (the drawn one),
+## "left" (its items shown left) and "owned" (the FIGURINES count shown), until the tick and the
+## SOLD OUT; "strip" (no COLLECTION COMPLETE yet), until the collection beat.
+var _hold: Dictionary = {}
+## The draw's join, between the draw and the reveal's OK.
+var _pending: Dictionary = {}
 
 
 func _init() -> void:
@@ -175,11 +189,17 @@ func _init() -> void:
 	_machines_layer.add_child(_lineup)
 	_machines_layer.move_child(_lineup, _board.get_index() + 1)  # Its chains pass behind the LEDs.
 	_reveal = ToyReveal.new()
-	_reveal.dismissed.connect(_refresh)
+	_reveal.stay_on_dismiss = true
+	_reveal.dismissed.connect(_on_reveal_dismissed)
 	_stage.add_child(_reveal)
 	_shelf = FigurineShelf.new()
 	_shelf.back_pressed.connect(_close_shelf)
 	_stage.add_child(_shelf)
+	_join = ToyLineupJoin.new()
+	_join.setup(_lineup, _reveal, _figurines_chip, _machines_layer, _board, _strip)
+	_join.beat.connect(_on_join_beat)
+	_join.finished.connect(_on_join_finished)
+	_stage.add_child(_join)
 
 
 ## Opens the machines for the `capsules` counter's profile, one per aisle of `balance`.
@@ -190,6 +210,9 @@ func open(capsules: CapsuleCounter, balance: BalanceDefinition) -> void:
 	_counter.switched_off.connect(_refresh)
 	_balance = balance
 	_hovered = null
+	_join.finish()
+	_hold = {}
+	_pending = {}
 	_build_machines()
 	_reveal.visible = false
 	_shelf.visible = false
@@ -205,6 +228,7 @@ func open(capsules: CapsuleCounter, balance: BalanceDefinition) -> void:
 func close() -> void:
 	if not visible:
 		return
+	_join.finish()
 	_reveal.visible = false
 	_shelf.visible = false
 	visible = false
@@ -274,6 +298,11 @@ func reveal() -> ToyReveal:
 	return _reveal
 
 
+## The figurine's join to its lineup card after the reveal (and the COMPLETED! card).
+func lineup_join() -> ToyLineupJoin:
+	return _join
+
+
 func shelf_button() -> MenuPlate:
 	return _shelf_button
 
@@ -284,7 +313,7 @@ func done_button() -> MenuPlate:
 
 ## Every player-facing string the screen can show (the no-"gacha" check).
 static func copy() -> PackedStringArray:
-	return PackedStringArray(
+	var words: PackedStringArray = PackedStringArray(
 		[
 			TITLE_TEXT,
 			EXIT_TEXT,
@@ -310,6 +339,8 @@ static func copy() -> PackedStringArray:
 			ToyReveal.NEW_TEXT,
 			ToyReveal.OK_TEXT,
 			ToyReveal.TIP_TEXT,
+			ToyLineupJoin.NEW_TEXT,
+			ToyLineup.COLLECTED_TEXT,
 			FigurineShelf.TITLE_TEXT,
 			FigurineShelf.NONE_TEXT,
 			FigurineShelf.DONE_TEXT,
@@ -318,6 +349,8 @@ static func copy() -> PackedStringArray:
 			FigurineShelf.BACK_TEXT,
 		]
 	)
+	words.append_array(ToyCompletedCard.copy())
+	return words
 
 
 ## The left edge of the machine row for `count` machines (canvas px): MACHINE_X0 for a full row
@@ -336,7 +369,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if not visible or key == null or not key.pressed:
 		return
 	get_viewport().set_input_as_handled()
-	if _reveal.visible or _shelf.visible or _machines.is_empty():
+	if _reveal.visible or _shelf.visible or _join.is_active() or _machines.is_empty():
 		return
 	match key.keycode:
 		KEY_RIGHT, KEY_LEFT:
@@ -469,20 +502,23 @@ func _refresh() -> void:
 	var coins: int = profile.coins
 	var spent: bool = can_save and _shown_coins >= 0 and coins < _shown_coins
 	_shown_coins = coins if can_save else -1
-	var owned: int = profile.owned_capsules(_balance)
-	var all_empty: bool = true
+	var owned: int = int(_hold.get("owned", profile.owned_capsules(_balance)))
+	var all_empty: bool = not _hold.has("strip")
 	var broke: bool = false
 	for aisle: AisleDefinition in _balance.aisles:
 		all_empty = all_empty and _counter.items_left(aisle) == 0
 		broke = broke or _counter.machine_state(aisle) == CapsuleCounter.State.BROKE
 	for index: int in range(_machines.size()):
 		var aisle: AisleDefinition = _balance.aisles[index]
+		var left: int = _counter.items_left(aisle)
+		var state: CapsuleCounter.State = _counter.machine_state(aisle)
+		if _hold.get("aisle") == aisle and _hold.has("left"):
+			left = int(_hold["left"])
+			if state == CapsuleCounter.State.EMPTY:
+				var short: bool = coins < _counter.price()
+				state = CapsuleCounter.State.BROKE if short else CapsuleCounter.State.OK
 		_machines[index].set_machine(
-			aisle,
-			_counter.items_left(aisle),
-			aisle.capsule_cards.size(),
-			_counter.machine_state(aisle),
-			_counter.price()
+			aisle, left, aisle.capsule_cards.size(), state, _counter.price()
 		)
 	_show_chips(can_save, coins, owned)
 	if spent and not _reduced_motion():
@@ -578,6 +614,8 @@ func _show_hover() -> void:
 		if machine.state() == CapsuleCounter.State.OK:
 			kind = "hot" if machine.is_hot() else "on"
 		_lamps[index].texture = ToyExitArt.lamp(kind)
+	if _join.owns_lineup():
+		return  # The join's lineup card (kept up behind the reveal, then the join's stage).
 	var lineup_up: bool = (
 		_hovered != null
 		and _hovered.state() != CapsuleCounter.State.OFF
@@ -636,16 +674,84 @@ func _reduced_motion() -> bool:
 
 
 func _on_machine_picked(aisle: AisleDefinition) -> void:
-	if _reveal.visible or _shelf.visible or _counter == null:
+	if _reveal.visible or _shelf.visible or _join.is_active() or _counter == null:
 		return
+	var profile: ProfileState = _counter.profile
+	var before: Dictionary = profile.unlocked_items.duplicate()
+	var hold: Dictionary = {
+		"aisle": aisle,
+		"left": _counter.items_left(aisle),
+		"owned": profile.owned_capsules(_balance),
+		"strip": true,
+	}
+	var kept: bool = _lineup.visible and _hovered != null and _hovered.aisle() == aisle
 	var card: CardDefinition = _counter.draw(aisle)
-	_refresh()
 	if card == null:
+		_refresh()
 		return
+	_hold = hold
+	_pending = {"card": card, "aisle": aisle, "before": before}
+	_join.hold_lineup(kept)
+	_refresh()
 	Sfx.play_at(self, "coin")
 	_cool_machines()
 	_reveal.show_card(card, aisle, _counter.stock_line())
 	_show_hover()
+
+
+## The reveal's OK: the figurine joins its lineup card.
+func _on_reveal_dismissed() -> void:
+	if _pending.is_empty():
+		_reveal.leave(1.0)
+		_refresh()
+		return
+	var aisle: AisleDefinition = _pending["aisle"]
+	var profile: ProfileState = _counter.profile
+	var completed: Array[AisleDefinition] = []
+	if CapsuleDraw.is_empty(aisle, profile.unlocked_items):
+		completed = StartSetupRules.completed(_balance, profile)
+	var all_done: bool = profile.owned_capsules(_balance) == CapsuleDraw.capsule_count(_balance)
+	var index: int = _balance.aisles.find(aisle)
+	var starter: DeckDefinition = load(ShiftScreen.STARTER_DECK) as DeckDefinition
+	var options: Dictionary = {
+		"reduced": _reduced_motion(),
+		"regulars": starter.core_cards.size() if starter != null else 0,
+		"saved_run": _counter.stock_line() == CapsuleCounter.AFTER_SAVED_RUN_LINE,
+		"collection": all_done,
+	}
+	_join.play(
+		_pending["card"],
+		aisle,
+		_machines[index],
+		_lamps[index],
+		_pending["before"],
+		completed,
+		_balance,
+		options
+	)
+	_pending = {}
+
+
+## The join's beats: the tick shows the counts after the draw, SOLD OUT the machine's emptied
+## state, the collection beat COLLECTION COMPLETE.
+func _on_join_beat(id: StringName) -> void:
+	match id:
+		&"tick":
+			_hold["left"] = _counter.items_left(_hold["aisle"]) if _hold.has("aisle") else 0
+			_hold.erase("owned")
+		&"sold":
+			_hold.erase("aisle")
+			_hold.erase("left")
+		&"collection":
+			_hold.erase("strip")
+		_:
+			return
+	_refresh()
+
+
+func _on_join_finished() -> void:
+	_hold = {}
+	_refresh()
 
 
 func _open_shelf() -> void:

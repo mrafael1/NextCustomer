@@ -177,11 +177,15 @@ func test_the_lineup_takes_the_boards_place() -> void:
 		machine._on_hover(false)
 		assert_bool(lineup.visible).is_false()
 		assert_bool(screen.board().visible).is_true()
-	# The reveal hides it.
+	# The drawn machine's lineup stays up behind the reveal's shade (v1.05: the figurine then
+	# joins it, ToyLineupJoin); another machine's hover can't swap it.
 	screen.machines()[0]._on_hover(true)
 	screen.machines()[0]._gui_input(Kit.left_click())
 	assert_bool(screen.reveal().visible).is_true()
-	assert_bool(screen.lineup().visible).is_false()
+	assert_bool(screen.lineup().visible).is_true()
+	assert_int(screen.lineup().z_index).is_equal(0)
+	screen.machines()[2]._on_hover(true)
+	assert_object(screen.lineup().shown_aisle()).is_same(screen.machines()[0].aisle())
 	await await_idle_frame()
 
 

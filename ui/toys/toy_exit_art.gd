@@ -217,9 +217,17 @@ static func housing(area: Vector2i) -> ImageTexture:
 
 
 ## The lineup's price card `area` art px, hung from the ceiling `drop` rows above it: two chains
-## like the board's, a tomato band (CARD_BAND rows) over a paper body, a cream shade foot.
-static func price_card(area: Vector2i, drop: int) -> ImageTexture:
-	var key: String = "card_%d_%d_%d" % [area.x, area.y, drop]
+## like the board's, a tomato band (CARD_BAND rows) over a paper body, a cream shade foot. A
+## `gold` card (an aisle just completed, v1.05) has the shelf's ALL COLLECTED mustard band.
+static func price_card(area: Vector2i, drop: int, gold: bool = false) -> ImageTexture:
+	var key: String = "card_%d_%d_%d_%s" % [area.x, area.y, drop, gold]
+	var band: Array[Color] = [
+		Palette.TOMATO, Palette.TOMATO_LIGHT, Palette.TOMATO_DARK, Palette.TOMATO_DARKEST
+	]
+	if gold:
+		band = [
+			Palette.MUSTARD, Palette.MUSTARD_LIGHT, Palette.MUSTARD_DARK, Palette.MUSTARD_DARKEST
+		]
 	if not _layers.has(key):
 		var art: StorefrontArt = StorefrontArt.new(Vector2i(area.x, area.y + drop), Vector2i.ZERO)
 		var w: int = area.x
@@ -232,12 +240,12 @@ static func price_card(area: Vector2i, drop: int) -> ImageTexture:
 		art.rect(Rect2i(1, top, w - 2, h), Palette.INK)
 		art.rect(Rect2i(0, top + 1, w, h - 2), Palette.INK)
 		art.rect(Rect2i(1, top + 1, w - 2, h - 2), Palette.PAPER)
-		art.rect(Rect2i(1, top + 1, w - 2, CARD_BAND), Palette.TOMATO)
-		art.rect(Rect2i(1, top + 1, w - 2, 1), Palette.TOMATO_LIGHT)
-		art.rect(Rect2i(1, top + CARD_BAND, w - 2, 1), Palette.TOMATO_DARK)
+		art.rect(Rect2i(1, top + 1, w - 2, CARD_BAND), band[0])
+		art.rect(Rect2i(1, top + 1, w - 2, 1), band[1])
+		art.rect(Rect2i(1, top + CARD_BAND, w - 2, 1), band[2])
 		art.rect(Rect2i(1, top + h - 2, w - 2, 1), Palette.CREAM_SHADE)
 		for x: int in [CARD_CHAIN_INSET, w - CARD_CHAIN_INSET - 2]:
-			art.rect(Rect2i(x, top + 2, 2, 2), Palette.TOMATO_DARKEST)
+			art.rect(Rect2i(x, top + 2, 2, 2), band[3])
 		_layers[key] = ImageTexture.create_from_image(art.image)
 	return _layers[key]
 

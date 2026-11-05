@@ -46,7 +46,13 @@ const SHADE := Color(ArtStyle.INK, 0.45)
 const NEW_TEXT := "NEW!"
 const OK_TEXT := "OK"
 const TIP_TEXT := "Click anywhere"
+## The part of leave() over which the words, NEW!, the medallion and OK fade out.
+const LEAVE_FADE := 0.2
 
+## Dismissing keeps the reveal up for leave() (the join) instead of hiding it.
+var stay_on_dismiss: bool = false
+
+var _shade: ColorRect
 var _box: Control
 var _sunburst: Sunburst
 var _figurine: TextureRect
@@ -62,17 +68,18 @@ var _ok: FramedButton
 var _tip: Label
 var _armed: bool = false
 var _arm_at_ms: int = 0
+var _leaving: bool = false
 
 
 func _init() -> void:
 	size = STAGE
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	visible = false
-	var shade: ColorRect = ColorRect.new()
-	shade.color = SHADE
-	shade.size = STAGE
-	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(shade)
+	_shade = ColorRect.new()
+	_shade.color = SHADE
+	_shade.size = STAGE
+	_shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_shade)
 	_box = Control.new()
 	_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_box.custom_minimum_size = BOX_SIZE
@@ -123,6 +130,9 @@ func show_card(card: CardDefinition, aisle: AisleDefinition, stock: String) -> v
 	_stock.text = stock
 	_arm_at_ms = Time.get_ticks_msec() + ResultsPanel.ARM_MS
 	_armed = false
+	_leaving = false
+	_box.modulate.a = 1.0
+	_shade.color = SHADE
 	_ok.disabled = true
 	visible = true
 	_place_texts()
@@ -133,12 +143,50 @@ func is_armed() -> bool:
 	return _armed
 
 
-## Hides the reveal and reports it (OK, a click anywhere, Enter or Space once armed).
+## Arms the reveal at once (the screen capture's join stills).
+func arm_now() -> void:
+	if visible and not _leaving:
+		_armed = true
+		_ok.disabled = false
+
+
+## Up and not yet dismissed (a dismissed reveal can still be leaving, stay_on_dismiss).
+func is_open() -> bool:
+	return visible and not _leaving
+
+
+## Hides the reveal (or, with stay_on_dismiss, leaves it to leave()) and reports it (OK, a click
+## anywhere, Enter or Space once armed).
 func dismiss() -> void:
-	if not visible or not _armed:
+	if not visible or not _armed or _leaving:
 		return
-	visible = false
+	_armed = false
+	_ok.disabled = true
+	if stay_on_dismiss:
+		_leaving = true
+	else:
+		visible = false
 	dismissed.emit()
+
+
+## The dismissed reveal `progress` (0 to 1) of its way out: the figurine gone at once (the join
+## flies its own copy), the rest fading over LEAVE_FADE of it, the shade over all of it; hidden
+## at 1.
+func leave(progress: float) -> void:
+	if _figurine != null:
+		_figurine.visible = false
+	_box.modulate.a = 1.0 - clampf(progress / LEAVE_FADE, 0.0, 1.0)
+	_shade.color = Color(SHADE, SHADE.a * (1.0 - clampf(progress, 0.0, 1.0)))
+	if progress >= 1.0:
+		visible = false
+		_leaving = false
+		_box.modulate.a = 1.0
+		_shade.color = SHADE
+
+
+## The figurine's centre on the stage (where the join's flight starts).
+func medallion_centre() -> Vector2:
+	return _box.position + MEDALLION_CENTRE
 
 
 ## The pieces, for tests: the figurine, NEW!, the name, the aisle row, the stock line, OK, the
@@ -180,7 +228,7 @@ func pieces() -> Array[Control]:
 
 
 func _process(_delta: float) -> void:
-	if not visible or _armed or Time.get_ticks_msec() < _arm_at_ms:
+	if not visible or _armed or _leaving or Time.get_ticks_msec() < _arm_at_ms:
 		return
 	if not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 		_armed = true
