@@ -424,6 +424,14 @@ func contribution(slot: int) -> int:
 	return PlanningModel.contribution(_result, slot, _names) if _result != null else 0
 
 
+## The note under the played result's `slot` total when a later card copied its payout ("Copied
+## by Repeat", MonitorText.copied_by); "" when nothing did, or before play.
+func copied_note(slot: int) -> String:
+	if _result == null:
+		return ""
+	return MonitorText.copied_by(PlanningModel.copied_by(_result, slot, _names))
+
+
 ## The monitor total's tuning (CountTotalTuning) this count-up plays with.
 func total_tuning() -> CountTotalTuning:
 	if _total_tuning == null:

@@ -156,6 +156,23 @@ func turn(direction: int) -> void:
 	turned.emit(_page)
 
 
+## `lines` (rows) on pages `room` px tall, each placed under the one before it on its page, each
+## page's texts at one size (MonitorStepRow.even_sizes).
+static func lay_out(lines: Array[Control], room: float) -> Array[Array]:
+	var paged: Array[Array] = [[]]
+	var top: float = 0.0
+	for row: Control in lines:
+		if top + row.size.y > room + 0.5 and not paged[-1].is_empty():
+			paged.append([])
+			top = 0.0
+		row.position = Vector2(0, top)
+		paged[-1].append(row)
+		top += row.size.y
+	for shown: Array in paged:
+		MonitorStepRow.even_sizes(shown)
+	return paged
+
+
 ## Nothing turns any more (the item changed, the count started).
 func stop() -> void:
 	_timer.stop()

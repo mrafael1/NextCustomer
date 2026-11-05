@@ -594,11 +594,17 @@ func test_row_names_take_their_amounts_colour_and_the_numbers_align() -> void:
 			)
 			factors += 1
 	assert_int(factors).is_equal(5)
-	# A "gives" row keeps its teal name; its amount (round 7: "×2 · 5€ → 10€", unbracketed) takes
-	# its effect's ink, a factor's or a bonus's green.
-	for line: String in ["to Banana  ×2 · 5€ → 10€", "to Milk  +3€ · 4€ → 7€"]:
+	# A "gives" row keeps its teal name; its amount (round 7, unbracketed; v1.11: the effect alone)
+	# takes its effect's ink, a factor's or a bonus's green; its equation is a line of its own under
+	# the name, indented, the row a line taller.
+	var equations: Dictionary[String, String] = {
+		"to Banana  ×2": "5€ × 2 = 10€", "to Milk  +3€": "4€ + 3€ = 7€"
+	}
+	for line: String in equations:
 		var gives: Control = auto_free(
-			MonitorStepRow.make(line, MonitorStepRow.Tone.PLAIN, true, null, 2, 264.0)
+			MonitorStepRow.make(
+				line, MonitorStepRow.Tone.PLAIN, true, null, 2, 264.0, equations[line]
+			)
 		)
 		var gives_text: Label = gives.get_node("Text") as Label
 		assert_that(gives_text.get_theme_color("font_color")).is_equal(MonitorStepRow.TEXT_COLOR)
@@ -609,10 +615,15 @@ func test_row_names_take_their_amounts_colour_and_the_numbers_align() -> void:
 			gives_amount.text, MonitorStepRow.Tone.PLAIN
 		)
 		assert_that(gives_amount.get_theme_color("font_color")).is_equal(want)
-	(
-		assert_that(MonitorStepRow.amount_colour_of("+3€ · 4€ → 7€", MonitorStepRow.Tone.PLAIN))
-		. is_equal(MonitorStepRow.BONUS_COLOR)
-	)
+		var equation: Label = gives.get_node("Equation") as Label
+		assert_str(equation.text).is_equal(equations[line])
+		assert_float(equation.position.x).is_equal(
+			gives_text.position.x + MonitorStepRow.EQUATION_INDENT
+		)
+		assert_float(equation.position.y).is_equal(MonitorStepRow.ROW_PITCH)
+		assert_float(gives_amount.position.y).is_less(MonitorStepRow.ROW_PITCH)
+		assert_float(gives.size.y).is_equal(2.0 * MonitorStepRow.ROW_PITCH)
+		assert_that(equation.get_theme_color("font_color")).is_equal(MonitorStepRow.NOTE_COLOR)
 
 
 ## PR #138 round 3 and 4: a factor's ink follows its value, the higher the hotter (MonitorStepRow

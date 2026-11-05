@@ -41,3 +41,35 @@ func test_a_row_says_its_amount_once() -> void:
 	assert_array(Array(MonitorText.row_parts("+1€ Eggs before it"))).is_equal(
 		["Eggs before it", "+1€"]
 	)
+
+
+## A "gives" row's equation (v1.11): the target's price before, each effect as its operator and
+## its number, "=" and the price after; an effect that is no arithmetic says the change alone.
+func test_an_equation_spells_out_each_effect() -> void:
+	var arrow: String = "=>"
+	var times: PackedStringArray = PackedStringArray(["×2"])
+	assert_str(MonitorText.equation(2, times, 4, arrow)).is_equal("2€ × 2 = 4€")
+	var plus: PackedStringArray = PackedStringArray(["+3€"])
+	assert_str(MonitorText.equation(4, plus, 7, arrow)).is_equal("4€ + 3€ = 7€")
+	var minus: PackedStringArray = PackedStringArray(["−2€"])
+	assert_str(MonitorText.equation(6, minus, 4, arrow)).is_equal("6€ − 2€ = 4€")
+	var hyphen: PackedStringArray = PackedStringArray(["-2€"])
+	assert_str(MonitorText.equation(6, hyphen, 4, arrow)).is_equal("6€ - 2€ = 4€")
+	var both: PackedStringArray = PackedStringArray(["×2", "+3€"])
+	assert_str(MonitorText.equation(2, both, 7, arrow)).is_equal("2€ × 2 + 3€ = 7€")
+	var override: PackedStringArray = PackedStringArray(["=0"])
+	assert_str(MonitorText.equation(17, override, 0, arrow)).is_equal("17€ => 0€")
+	var after_times: PackedStringArray = PackedStringArray(["×2", "=0"])
+	assert_str(MonitorText.equation(17, after_times, 0, arrow)).is_equal("17€ => 0€")
+
+
+## Point A (2026-11-05): a copy's line on its copier names the source with the copied amount on
+## the amounts' column; its source's note names the copier, none without one.
+func test_copy_wording() -> void:
+	var line: String = MonitorText.copied_from("Golden Milk", 264)
+	assert_str(line).is_equal("Copied from Golden Milk  264€")
+	assert_array(MonitorText.row_parts(line)).is_equal(
+		PackedStringArray(["Copied from Golden Milk", "264€"])
+	)
+	assert_str(MonitorText.copied_by("Repeat")).is_equal("Copied by Repeat")
+	assert_str(MonitorText.copied_by("")).is_empty()

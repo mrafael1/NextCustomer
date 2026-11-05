@@ -619,7 +619,8 @@ static func is_combo(step: ScoreStep) -> bool:
 
 ## A step's line on one row, in whole euros (#75 and #80: the monitor's count-up line and a belt
 ## item's scan footer). A bonus reads as B2 words it, its amount first ("+15€ Category engine",
-## "×2 Multipack", "+3€ Repeat: copy of Bread"); a base "MILK  2", a payout "17€", an override
+## "×2 Multipack"; a copy names its source, "Copied from Bread  3€", MonitorText.copied_from); a
+## base "MILK  2", a payout "17€", an override
 ## "Spot check: the 3rd product pays 0€  = 0"; the others are the receipt's left side without its
 ## indent, then its right side two spaces after it ("Coffee: no Breakfast product after it
 ## WASTED"). Empty for a step that prints no line.
@@ -640,10 +641,7 @@ static func step_line(
 				+ ReceiptCause.multiplier(step, upgrade_names, inspection_names)
 			)
 		ScoreStep.StepType.COPY:
-			return (
-				"%s %s: copy of %s"
-				% [MonitorText.gain(step.value), step.text, names[step.linked_slot]]
-			)
+			return MonitorText.copied_from(names[step.linked_slot], step.value)
 		ScoreStep.StepType.BASE:
 			return joined_line(names[step.slot].to_upper(), str(step.value))
 		ScoreStep.StepType.PAYOUT:

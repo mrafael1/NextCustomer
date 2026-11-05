@@ -265,6 +265,41 @@ func test_a_belt_glyph_tips_and_keeps_its_item() -> void:
 	screen._counting = false
 
 
+## v1.11 (the user's "a small bag glyph beside the giver and put the wording in its tooltip"): the
+## count blocks the tips, but not a monitor count row's bag glyph, whose row shows only then:
+## resting the pointer on it during the count opens its "From the bag" tip, and the next step
+## (which rebuilds the rows) hands the tip to the rebuilt glyph without closing it. Other tips stay
+## blocked (test_a_belt_glyph_tips_and_keeps_its_item).
+func test_the_bag_glyph_tips_during_the_count() -> void:
+	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
+	var screen: ShiftScreen = runner.scene()
+	screen._week.skip()
+	await _frames(3)
+	screen._counting = true
+	var column: MonitorItemColumn = screen._monitor.item_column()
+	column.reduced_motion = func() -> bool: return true
+	column.start_item(_card("banana"), PackedStringArray(["Produce"]), false)
+	var eggs_mini: Texture2D = load("res://art/minis/eggs.png")
+	column.show_step("Eggs  ×2", false, true, eggs_mini, true, false, "Eggs")
+	await _frames(2)
+	var bag: TipTarget = column.step_rows()[-1].get_node("FromBag") as TipTarget
+	var tips: GlyphTips = screen._glyph_tips
+	var at: Vector2 = bag.get_global_rect().get_center()
+	_move(at)
+	await _seconds(GlyphTips.SHOW_DELAY_S + 0.1)
+	assert_object(tips.shown_glyph()).is_same(bag)
+	assert_str(tips.tip().tip_text()).is_equal(MonitorStepRow.bag_tip_of("Eggs"))
+	assert_str(tips.tip().tip_text()).starts_with("From the bag: Eggs is already bagged")
+	# The rows rebuilt (a step's line added under it): the glyph under the pointer keeps the tip.
+	column.show_step("Eggs  ×2", false, true, eggs_mini, true, false, "Eggs")
+	await _frames(2)
+	var rebuilt: TipTarget = column.step_rows()[0].get_node("FromBag") as TipTarget
+	assert_bool(rebuilt.get_global_rect().has_point(at)).is_true()
+	assert_object(tips.shown_glyph()).is_same(rebuilt)
+	assert_str(tips.tip().tip_text()).is_equal(MonitorStepRow.bag_tip_of("Eggs"))
+	screen._counting = false
+
+
 ## shown_changed says which tip shows, once per change (#105 piece 3: the mix highlight follows
 ## it): the glyph when its tip shows, null when it hides, nothing for a repeat.
 func test_the_shown_tip_is_signalled_once_per_change() -> void:

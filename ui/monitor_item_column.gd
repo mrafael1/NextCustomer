@@ -18,14 +18,16 @@ extends Control
 ##    "remove dash around price section"), under the band's foot (under the header with no
 ##    description), across the content's width (INSET, CONTENT_WIDTH, as the header and the
 ##    description): the base price line (MonitorBaseLine, a product's only, over at least one
-##    effect row; a row's height), then the applied effects in scoring order, then the unused ones
+##    effect row; a row's height), then the applied effects in scoring order (a "gives" row's
+##    equation on its own line under it, v1.11), then the unused ones
 ##    (MonitorStepRow: icon, name, a dotted leader (MonitorLeader), amount right-aligned; a bonus
 ##    green, a factor in its strength's ink, a harmful or unused one tomato, a bonus's or a harmful
 ##    row's name in its amount's colour). A hand item's muted note stands alone.
 ## 4. Under the rows, clear of them and of the frame's foot, the payout zone (PAYOUT_RECT): only
 ##    "= 16€" (MonitorPayout), right-aligned under the amounts, in the ticket's payout ink (a
 ##    coupon's "+N€" in teal, what its "gives" rows add, PR #138 round 7; a coupon that adds
-##    nothing shown leaves it empty, v1.00); it never moves.
+##    nothing shown leaves it empty, v1.00); it never moves. A copied item's quiet "Copied by
+##    Repeat" note sits at the zone's left (MonitorPayout.set_note; point A, 2026-11-05).
 ##
 ## In planning (show_item) rows that don't fit their room go on pages of whole rows
 ## (MonitorStepPages, `pages`), turning by themselves, their marker at the header's right end. In
@@ -62,6 +64,10 @@ const EFFECT_TIERS: Array[Vector3i] = [
 ## The description leaves room for the tallest row at least: when no tier does, it takes CUT_TIER
 ## (its MORE chip carrying the rest).
 const CUT_TIER := Vector3i(13, 16, 2)
+## A scan whose "gives" equation (v1.11) would page cuts its description to this tier's one line
+## (the smallest tier's size and pitch, its MORE chip carrying the rest) when that keeps it on one
+## page: the effect, its equation and the item's own rows read together.
+const EQUATION_CUT_TIER := Vector3i(12, 15, 1)
 ## Over a base line the tiers are tried first leaving TIER_SPARE px more under the rows (round 4's
 ## full base strip over its compact one), then without: the band keeps round 4's size and lines
 ## (the user approved that top section after round 4), never growing on the room the slim base
@@ -96,10 +102,6 @@ const ROW_MAX_LINES := MonitorStepRow.MAX_LINES
 const HARM_MARK := MonitorStepRow.HARM_MARK
 const NOTE_COLOR := MonitorStepRow.NOTE_COLOR
 const FOLDED_TEXT := "+%d earlier"
-## The count's note after a row whose giver is in the bag: its words, size and weight (teal).
-const FROM_BAG_TEXT := " · from the bag"
-const FROM_BAG_SIZE := 11
-const FROM_BAG_WEIGHT := 700
 ## The payout's zone, the same for every item: the payout on its right, under the rows' amounts
 ## (round 6: with the box gone, PAYOUT_DROP px under the rows' area so "= N€" breathes, and its
 ## digits' shadow 5 px clear of the frame's inside foot).
@@ -152,6 +154,8 @@ var _shown_value: int = -1
 var _fades: Array[Tween] = []
 var _punch: Tween
 var _counting: bool = false
+## Whether the description is cut for an equation (EQUATION_CUT_TIER).
+var _cut_for_equation: bool = false
 var _count_fizzled: bool = false
 ## The count's coupon: what it adds in all ("+N€" in the payout's zone, as in planning; v1.00).
 var _count_given: int = 0
@@ -180,8 +184,10 @@ func _init(tuning: CountTotalTuning = null) -> void:
 ## its payout, -1 for a hand item, its base price; its step lines, fizzles, harms and minis; its
 ## first `gives` "gives" rows; `given`, a coupon's "+N€" in the payout's zone, PR #138 round 7).
 ## The "gives" rows go one per target only when the whole scan fits on one page, else as its
-## `collapsed` row (round 7 review). `animate`: its parts fade in. Call it in the tree: the text is
-## measured with the real font.
+## `collapsed` row (round 7 review); a scan that still pages puts them after the item's own rows
+## (v1.11), so its first page explains its payout, unless a description cut to EQUATION_CUT_TIER
+## keeps a scan with an equation on one page. `animate`: its parts fade in. Call it in the
+## tree: the text is measured with the real font.
 func show_item(
 	definition: CardDefinition,
 	tags: PackedStringArray,
@@ -190,22 +196,26 @@ func show_item(
 ) -> void:
 	var key: Array = [definition, tags, redraws_left, shown.payout, shown.lines, shown.fizzles]
 	key.append_array([shown.gives, shown.minis, shown.harms, shown.given, shown.collapsed])
+	key.append_array([shown.equations, shown.copied_by])
 	if not _counting and _definition == definition and key == _shown_key:
 		return
 	_counting = false
+	_cut_for_equation = false
 	var built: Array[Control] = _planning_rows(definition, shown, false)
-	if (
-		shown.gives > 1
-		and not shown.collapsed.is_empty()
-		and _paged(built, _steps.size.y).size() > 1
-	):
-		for row: Control in built:
-			row.free()
-		built = _planning_rows(definition, shown, true)
+	var collapse: bool = shown.gives > 1 and not shown.collapsed.is_empty() and _pages_of(built) > 1
+	if collapse:
+		built = _planning_rows(definition, shown, true, false, built)
+	if _pages_of(built) > 1 and not "".join(shown.equations).is_empty():
+		_cut_for_equation = true
+		built = _planning_rows(definition, shown, collapse, false, built)
+		_cut_for_equation = _pages_of(built) == 1
+	if shown.gives > 0 and _pages_of(built) > 1:
+		built = _planning_rows(definition, shown, collapse, true, built)
 	# A coupon that gave something is not wasted: only one that gave nothing is (its fizzle rows
 	# say what went unused).
 	var fizzled: bool = shown.fizzles.has(true) and not (definition.is_coupon() and shown.gives > 0)
 	var hand: bool = shown.payout < 0
+	_payout.set_note(shown.copied_by)
 	_set_payout(shown.payout if not hand else _base_of(definition), fizzled, false, shown.given)
 	_fill_pages(built)
 	_place_marker()
@@ -214,13 +224,19 @@ func show_item(
 
 
 ## Planning's rows for `shown` (see show_item; its "gives" rows as its one `collapsed` row when
-## `collapse`), and the frame built for them (_build): the description leaves room for all their
-## lines, or for the tallest. The rows that make the payout first, in scoring order, then the
-## unused effects' (fizzles, which change no amount), so the first page explains the payout (#138
-## review).
+## `collapse`, after its own when `gives_last`), and the frame built for them (_build): the
+## description leaves room for all their lines, or for the tallest. The rows that make the payout
+## first, in scoring order, then the unused effects' (fizzles, which change no amount), so the first
+## page explains the payout (#138 review). The `old` rows are freed.
 func _planning_rows(
-	definition: CardDefinition, shown: ScanController.ItemLines, collapse: bool
+	definition: CardDefinition,
+	shown: ScanController.ItemLines,
+	collapse: bool,
+	gives_last: bool = false,
+	old: Array[Control] = []
 ) -> Array[Control]:
+	for row: Control in old:
+		row.free()
 	var lines: PackedStringArray = shown.lines
 	var hand: bool = shown.payout < 0
 	var built: Array[Control] = []
@@ -231,8 +247,9 @@ func _planning_rows(
 		if collapse
 		else null
 	)
+	var given: Array[Control] = []
 	if many != null:
-		built.append(many)
+		given.append(many)
 	var unused: Array[Control] = []
 	for index: int in range(lines.size()):
 		var gives: bool = index < shown.gives
@@ -243,21 +260,19 @@ func _planning_rows(
 			fizzle, index < shown.harms.size() and shown.harms[index]
 		)
 		var giver_mini: Texture2D = shown.minis[index] if index < shown.minis.size() else null
-		var row: Control = _make_row(lines[index], tone, gives, giver_mini)
+		var equation: String = shown.equations[index] if index < shown.equations.size() else ""
+		var row: Control = _make_row(lines[index], tone, gives, giver_mini, equation)
 		if row == null:
 			continue
 		if fizzle:
 			unused.append(row)
+		elif gives:
+			given.append(row)
 		else:
 			built.append(row)
-	built.append_array(unused)
-	var needed: int = 0
-	var tallest: int = 0
-	for row: Control in built:
-		var row_lines: int = roundi(row.size.y / ROW_PITCH)
-		needed += row_lines
-		tallest = maxi(tallest, row_lines)
-	_build(definition, needed, tallest, built.size() - (1 if hand and lines.is_empty() else 0))
+	built = MonitorStepRow.in_order(built, given, unused, gives_last)
+	var counted: Vector2i = MonitorStepRow.rows_lines(built)
+	_build(definition, counted.x, counted.y, built.size() - (1 if hand and lines.is_empty() else 0))
 	return built
 
 
@@ -268,6 +283,7 @@ func start_item(
 	definition: CardDefinition, _tags: PackedStringArray, animate: bool = true, given: int = 0
 ) -> void:
 	_counting = true
+	_cut_for_equation = false
 	# Laid as with its rows (the description's size leaves them room), shown with none yet.
 	_build(definition, 2, ROW_MAX_LINES, 1)
 	_count_given = given
@@ -309,21 +325,24 @@ func set_value(value: int, fizzled: bool = false) -> void:
 
 
 ## The count: the item's newest step `line` (a fizzle's, a `harmful` one's, a "gives" line, with its
-## source's `giver_mini`; `from_bag`: its giver is already in the bag, said after it in teal) joins
-## the rows, the newest highlighted; only earlier overflow folds into "+N earlier".
+## source's `giver_mini`; `from_bag`: its giver, `giver_name`, is already in the bag, the bag glyph
+## beside its icon saying so in its tip, v1.11) joins the rows, the newest highlighted; only
+## earlier overflow folds into "+N earlier".
 func show_step(
 	line: String,
 	fizzle: bool,
 	gives: bool = false,
 	giver_mini: Texture2D = null,
 	from_bag: bool = false,
-	harmful: bool = false
+	harmful: bool = false,
+	giver_name: String = ""
 ) -> void:
 	if line.is_empty():
 		return
 	var tone: MonitorStepRow.Tone = MonitorStepRow.tone_of(fizzle, harmful)
+	var bag_tip: String = MonitorStepRow.bag_tip_of(giver_name) if from_bag else ""
 	_count_lines.append(
-		{"line": line, "tone": tone, "gives": gives, "mini": giver_mini, "bag": from_bag}
+		{"line": line, "tone": tone, "gives": gives, "mini": giver_mini, "bag": bag_tip}
 	)
 	if _effect_rows == 0 and _definition != null:
 		_effect_rows = 1
@@ -345,7 +364,12 @@ func _show_count_lines() -> void:
 	for index: int in range(_count_lines.size() - 1, -1, -1):
 		var entry: Dictionary = _count_lines[index]
 		var row: Control = _make_row(
-			entry["line"], entry["tone"], entry["gives"], entry["mini"] as Texture2D
+			entry["line"],
+			entry["tone"],
+			entry["gives"],
+			entry["mini"] as Texture2D,
+			"",
+			entry["bag"]
 		)
 		if row == null:
 			first = index
@@ -355,9 +379,7 @@ func _show_count_lines() -> void:
 		if not built.is_empty() and used + row.size.y + fold > room + 0.5:
 			row.free()
 			break
-		if bool(entry["bag"]):
-			_add_from_bag(row)
-		row.set_meta(&"from_bag", bool(entry["bag"]))
+		row.set_meta(&"from_bag", not String(entry["bag"]).is_empty())
 		built.push_front(row)
 		used += row.size.y
 		first = index
@@ -395,20 +417,6 @@ func _show_count_lines() -> void:
 		_fades.append(pulse)
 
 
-## FROM_BAG_TEXT after `row`'s text, smaller and teal, the text making room.
-func _add_from_bag(row: Control) -> void:
-	var text: Label = row.get_node("Text") as Label
-	var note: Label = MonitorKit.bold(
-		FROM_BAG_TEXT, FROM_BAG_SIZE, FROM_BAG_WEIGHT, Palette.TEAL_DARK, ROW_PITCH
-	)
-	note.name = "FromBag"
-	row.add_child(note)
-	var note_width: float = MonitorStepRow.text_width(note)
-	text.size.x = minf(MonitorStepRow.text_width(text), maxf(0.0, text.size.x - note_width))
-	note.position = Vector2(text.position.x + text.size.x, text.position.y)
-	note.size = Vector2(note_width, ROW_PITCH)
-
-
 ## Nothing shown (the bay between items, or empty).
 func clear() -> void:
 	_definition = null
@@ -437,6 +445,7 @@ func clear() -> void:
 	_base = null
 	_clear_steps()
 	_payout.visible = false
+	_payout.set_note("")
 	_payout.group().scale = Vector2.ONE
 	queue_redraw()
 
@@ -525,7 +534,7 @@ func part_rects() -> Dictionary[String, Rect2]:
 			rects["panel"] = Rect2(transform * _panel.position, _panel.size)
 	if _name != null:
 		var name_rect: Rect2 = _name.get_global_rect()
-		name_rect.size.x = minf(name_rect.size.x, _name_width(_name))
+		name_rect.size.x = minf(name_rect.size.x, MonitorKit.name_width(_name))
 		rects["name"] = name_rect
 	for index: int in range(_glyphs.size()):
 		rects["glyph%d" % index] = _glyphs[index].get_global_rect()
@@ -622,7 +631,7 @@ func _place_marker() -> void:
 	_pages.marker_right = true
 	_pages.marker_foot = Vector2(right, foot) - _steps.position
 	var room: float = left - MARKER_GAP - _name_x
-	if _name_width(_name) > room:
+	if MonitorKit.name_width(_name) > room:
 		_make_name(room)
 
 
@@ -640,37 +649,9 @@ func _lay_description(needed: int, least: int) -> void:
 	var text: String = _description(_definition, redraws_left)
 	var bottom: float = -1.0
 	if not text.is_empty():
-		var ends: Array[float] = []
-		for fit: Vector3i in EFFECT_TIERS:
-			var label: GlyphLabel = _effect_label(text, fit)
-			ends.append(
-				EFFECT_TOP + maxi(label.line_count(), 1) * label.pitch() if label.fits() else -1.0
-			)
-			label.free()
-		var spares: Array[float] = [0.0]
-		if _has_base():
-			spares.push_front(TIER_SPARE)
-		var chosen: int = -1
-		var roomiest: int = -1
-		var most: int = -1
-		for spare: float in spares:
-			for tier: int in range(EFFECT_TIERS.size()):
-				if ends[tier] < 0.0:
-					continue
-				var room: int = _rows_room(_rows_top(ends[tier]) + spare)
-				if room > most:
-					most = room
-					roomiest = tier
-				if room >= needed:
-					chosen = tier
-					break
-			if chosen >= 0:
-				break
-		if chosen < 0:
-			chosen = roomiest if roomiest >= 0 else EFFECT_TIERS.size() - 1
-		var fit: Vector3i = EFFECT_TIERS[chosen]
-		if roomiest < 0 or _rows_room(_rows_top(_ends(text, fit))) < least:
-			fit = CUT_TIER
+		var fit: Vector3i = (
+			EQUATION_CUT_TIER if _cut_for_equation else _fit_for(text, needed, least)
+		)
 		_effect = _effect_label(text, fit)
 		_effect.name = "Effect"
 		_effect.position = Vector2(INSET, EFFECT_TOP)
@@ -679,6 +660,42 @@ func _lay_description(needed: int, least: int) -> void:
 			_add_more(text)
 		bottom = EFFECT_TOP + maxi(_effect.line_count(), 1) * _effect.pitch()
 	_place_body(bottom)
+
+
+## The description's tier for `text` (see _lay_description).
+func _fit_for(text: String, needed: int, least: int) -> Vector3i:
+	var ends: Array[float] = []
+	for fit: Vector3i in EFFECT_TIERS:
+		var label: GlyphLabel = _effect_label(text, fit)
+		ends.append(
+			EFFECT_TOP + maxi(label.line_count(), 1) * label.pitch() if label.fits() else -1.0
+		)
+		label.free()
+	var spares: Array[float] = [0.0]
+	if _has_base():
+		spares.push_front(TIER_SPARE)
+	var chosen: int = -1
+	var roomiest: int = -1
+	var most: int = -1
+	for spare: float in spares:
+		for tier: int in range(EFFECT_TIERS.size()):
+			if ends[tier] < 0.0:
+				continue
+			var room: int = _rows_room(_rows_top(ends[tier]) + spare)
+			if room > most:
+				most = room
+				roomiest = tier
+			if room >= needed:
+				chosen = tier
+				break
+		if chosen >= 0:
+			break
+	if chosen < 0:
+		chosen = roomiest if roomiest >= 0 else EFFECT_TIERS.size() - 1
+	var fit: Vector3i = EFFECT_TIERS[chosen]
+	if roomiest < 0 or _rows_room(_rows_top(_ends(text, fit))) < least:
+		fit = CUT_TIER
+	return fit
 
 
 ## The band, the base line and the rows' room under a description ending at `bottom` (-1: none).
@@ -816,7 +833,7 @@ func _set_payout(value: int, fizzled: bool, punch: bool, given: int = 0) -> void
 ## in the header (_place_marker).
 func _fill_pages(built: Array[Control]) -> void:
 	_clear_steps()
-	var paged: Array[Array] = _paged(built, _steps.size.y)
+	var paged: Array[Array] = MonitorStepPages.lay_out(built, _steps.size.y)
 	_pages = MonitorStepPages.new(paged, _steps.size, _tuning.page_interval_s, _tuning.page_fade_s)
 	_pages.reduced_motion = reduced_motion
 	var marker: Label = _pages.marker()
@@ -828,32 +845,28 @@ func _fill_pages(built: Array[Control]) -> void:
 	_rows = _pages.rows()
 
 
-## `rows` on pages `room` px tall, each placed under the one before it on its page, each page's
-## texts at one size (MonitorStepRow.even_sizes).
-static func _paged(rows: Array[Control], room: float) -> Array[Array]:
-	var paged: Array[Array] = [[]]
-	var top: float = 0.0
-	for row: Control in rows:
-		if top + row.size.y > room + 0.5 and not paged[-1].is_empty():
-			paged.append([])
-			top = 0.0
-		row.position = Vector2(0, top)
-		paged[-1].append(row)
-		top += row.size.y
-	for page: Array in paged:
-		MonitorStepRow.even_sizes(page)
-	return paged
+## How many pages `rows` take in the rows' room.
+func _pages_of(rows: Array[Control]) -> int:
+	return MonitorStepPages.lay_out(rows, _steps.size.y).size()
 
 
 func _on_page_turned(_page: int) -> void:
 	_rows = _pages.rows()
 
 
-## One row (MonitorStepRow.make) the content's width, on up to ROW_MAX_LINES lines, or null.
+## One row (MonitorStepRow.make) the content's width, on up to ROW_MAX_LINES lines (and its
+## `equation`'s, its `bag_tip`'s bag glyph), or null.
 func _make_row(
-	line: String, tone: MonitorStepRow.Tone, gives: bool, giver_mini: Texture2D
+	line: String,
+	tone: MonitorStepRow.Tone,
+	gives: bool,
+	giver_mini: Texture2D,
+	equation: String = "",
+	bag_tip: String = ""
 ) -> Control:
-	var row: Control = MonitorStepRow.make(line, tone, gives, giver_mini, ROW_MAX_LINES, ROWS_WIDTH)
+	var row: Control = MonitorStepRow.make(
+		line, tone, gives, giver_mini, ROW_MAX_LINES, ROWS_WIDTH, equation, bag_tip
+	)
 	if row != null:
 		row.add_child(MonitorLeader.new(row.size))
 	return row
@@ -961,16 +974,6 @@ func _effect_end() -> float:
 
 static func _base_of(definition: CardDefinition) -> int:
 	return definition.base if definition.is_product() else 0
-
-
-## The width of a name's text (ItemName.make's control).
-static func _name_width(shown_name: Control) -> float:
-	if shown_name is MixedLabel:
-		return shown_name.get_combined_minimum_size().x
-	var label: Label = shown_name as Label
-	var font: Font = label.get_theme_font("font")
-	var font_size: int = label.get_theme_font_size("font_size")
-	return font.get_string_size(label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
 
 
 func _new_tween(on_count: bool) -> Tween:

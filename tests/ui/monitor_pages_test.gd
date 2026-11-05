@@ -194,7 +194,7 @@ func test_gives_rows_collapse_when_the_scan_would_page() -> void:
 	lines.gives = 2
 	lines.given = 30
 	lines.collapsed = "to 2 items  +30€"
-	lines.lines = PackedStringArray(["to Milk  ×3 · 7€ => 21€", "to Milk  ×3 · 8€ => 24€"])
+	lines.lines = PackedStringArray(["to Milk  ×3", "to Milk  ×3"])
 	lines.fizzles = [false, false]
 	monitor.show_scan(definition, definition.tags, lines)
 	await _frames(1)
@@ -207,6 +207,7 @@ func test_gives_rows_collapse_when_the_scan_would_page() -> void:
 	long.given = 30
 	long.collapsed = lines.collapsed
 	long.lines = lines.lines.duplicate()
+	long.equations = PackedStringArray(["7€ × 3 = 21€", "8€ × 3 = 24€"])
 	long.fizzles = [false, false]
 	for index: int in range(_room(column)):
 		long.lines.append("1 charge unused  WASTED")

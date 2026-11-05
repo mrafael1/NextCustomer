@@ -598,14 +598,9 @@ func test_the_scans_hold_every_line_of_the_planning_receipt() -> void:
 	var gives: Dictionary[int, PackedStringArray] = {}
 	var given: Dictionary[int, int] = MonitorParts.gives_of(screen, result, gives, expected)
 	assert_array(gives.keys()).is_equal([0, 3])
-	var wanted: Array[String] = [MonitorParts.gives_line("Bread", "×2", result, 0, 1)]
-	assert_array(Array(gives[0])).is_equal(wanted)
-	wanted.assign(
-		range(4, 7).map(
-			func(at: int) -> String: return MonitorParts.gives_line("Milk", "×3", result, 3, at)
-		)
-	)
-	assert_array(Array(gives[3])).is_equal(wanted)
+	assert_array(Array(gives[0])).is_equal([MonitorParts.gives_line("Bread", "×2")])
+	var milk: String = MonitorParts.gives_line("Milk", "×3")
+	assert_array(Array(gives[3])).is_equal([milk, milk, milk])
 	var footers: Dictionary[int, PackedStringArray] = {}
 	var kinds: Dictionary[int, bool] = {}
 	for slot: int in range(screen._row_views.size()):
@@ -620,7 +615,8 @@ func test_the_scans_hold_every_line_of_the_planning_receipt() -> void:
 		footers[slot] = texts
 		if gives.has(slot):
 			# The "gives" rows come first (as one row when the scan would page: Multipack), their
-			# words teal under the target's mini, their amount in the factor's ink: "×2 · 5€ → 10€".
+			# words teal under the target's mini, their amount in the factor's ink: "×2" (v1.11: its
+			# equation under it, PlanningEffectsTest).
 			MonitorParts.collapse_gives(screen, result, slot, texts, gives, expected)
 			for index: int in range(mini(gives[slot].size(), rows.size())):
 				var amount: String = MonitorText.step_parts(gives[slot][index])[1]

@@ -27,30 +27,49 @@ func test_the_monitor_keeps_bonus_lines_and_folds_only_the_earliest_overflow() -
 	column.reduced_motion = func() -> bool: return true
 	column.start_item(load("res://data/cards/banana.tres"), PackedStringArray(["Produce"]))
 	var giver_icon: Texture2D = load("res://art/minis/banana.png")
-	column.show_step("Banana chain  +3€", false, false, giver_icon, true)
+	column.show_step("Banana chain  +3€", false, false, giver_icon, false)
+	var plain: Control = column.step_rows()[-1]
+	var plain_text: Rect2 = (plain.get_node("Text") as Label).get_global_rect()
+	assert_object(plain.get_node_or_null("FromBag")).is_null()
+	column.show_step("Banana chain  +3€", false, false, giver_icon, true, false, "Banana")
 	var newest: Control = column.step_rows()[-1]
 	assert_bool(newest.get_meta(&"from_bag")).is_true()
-	# The note after the giver's words: smaller, teal, on the same line, after the text (a bonus's
-	# words green, PR #138 round 6).
+	# v1.11: a small bag glyph beside the giver's icon, the words in its tip; the line stays the
+	# name's and the amount's (a bonus's words green, PR #138 round 6), whole on one line.
 	var text: Label = newest.get_node("Text") as Label
-	var note: Label = newest.get_node("FromBag") as Label
-	assert_str(note.text).contains("from the bag")
-	assert_that(note.get_theme_color("font_color")).is_equal(Palette.TEAL_DARK)
+	var mark: Control = newest.get_node("Mark") as Control
+	var bag: TipTarget = newest.get_node("FromBag") as TipTarget
+	assert_object(bag.texture).is_equal(MonitorStepRow.BAG_ICON)
+	assert_str(bag.tip_text).is_equal(MonitorStepRow.bag_tip_of("Banana"))
+	assert_str(bag.tip_text).contains("From the bag").contains("Banana")
 	assert_that(text.get_theme_color("font_color")).is_equal(MonitorStepRow.BONUS_COLOR)
-	assert_float(note.get_global_rect().position.x).is_greater_equal(text.get_global_rect().end.x)
+	var bag_rect: Rect2 = bag.get_global_rect()
+	var mark_rect: Rect2 = mark.get_global_rect()
+	assert_float(bag_rect.position.x).is_greater_equal(mark_rect.end.x)
+	assert_float(bag_rect.position.x - mark_rect.end.x).is_less_equal(MonitorStepRow.MARK_GAP)
+	assert_float(absf(bag_rect.get_center().y - mark_rect.get_center().y)).is_less_equal(1.0)
+	assert_float(text.get_global_rect().position.x).is_greater_equal(bag_rect.end.x)
+	assert_str(text.text).is_equal("Banana chain")
+	assert_float(newest.size.y).is_equal(MonitorStepRow.ROW_PITCH)
+	assert_float(text.get_global_rect().end.x).is_equal(plain_text.end.x)
 	var amount: Label = newest.get_node("Amount") as Label
-	assert_float(note.get_global_rect().end.x).is_less_equal(amount.get_global_rect().position.x)
+	assert_str(amount.text).is_equal("+3€")
+	assert_float(text.get_global_rect().position.x + MonitorStepRow.text_width(text)).is_less(
+		amount.get_global_rect().position.x
+	)
+	var leader: MonitorLeader = newest.get_node("Leader") as MonitorLeader
+	assert_float(leader.span().y).is_greater(leader.span().x)
 	column.show_step("Produce regulars  +2€", false)
 	column.show_step("Produce aisle run  ×3", false)
 	column.show_step("Multipack  ×3", false)
 	column.show_step("Slot engine  ×2", false)
 	column.show_step("Lemon squeezer  ×2", false)
-	# Six lines in the rows' room (PR #138 monitor): the newest that fit, the earlier ones folded
+	# Seven lines in the rows' room (PR #138 monitor): the newest that fit, the earlier ones folded
 	# into "+N earlier" (N the lines left out), every row inside the rows' area.
 	var texts: PackedStringArray = column.step_texts()
 	assert_str(texts[-1]).is_equal("Lemon squeezer  ×2")
-	assert_int(texts.size()).is_less(6)
-	assert_str(texts[0]).is_equal(MonitorItemColumn.FOLDED_TEXT % (6 - (texts.size() - 1)))
+	assert_int(texts.size()).is_less(7)
+	assert_str(texts[0]).is_equal(MonitorItemColumn.FOLDED_TEXT % (7 - (texts.size() - 1)))
 	var area: Rect2 = column.part_rects()["rows"]
 	for row: Control in column.step_rows():
 		assert_bool(area.grow(0.5).encloses(row.get_global_rect())).is_true()

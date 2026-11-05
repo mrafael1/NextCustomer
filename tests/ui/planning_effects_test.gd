@@ -26,6 +26,7 @@ const SCREEN_RECT := Rect2(0, 0, 1280, 720)
 ## The motion tests' slap frame and halo step: long enough that no frame outlasts one.
 const SLOW_FRAME_S := 0.4
 const Rush := preload("res://tests/ui/count_up_rush.gd")
+const MonitorParts := preload("res://tests/ui/monitor_parts.gd")
 ## Game time runs this much faster while the motion tests wait for the motion to settle (only
 ## then: every check runs at 1x), and through the click test's count, which it samples per frame.
 const SETTLE_FACTOR := 8.0
@@ -240,6 +241,41 @@ func test_item_badges_show_the_givers_mini() -> void:
 	for badge: GiverBadge in minis:
 		assert_bool(badge.is_drained()).is_false()
 	_assert_mixed(screen)
+
+
+## v1.11 (the user's "Put 2€ × 2 = 4€ directly under to Banana"): Eggs in slot 3 under the Spot
+## check gives Banana ×2; its scan shows "to Banana  ×2" over the equation (the score's prices
+## before and after, indented under the name), then the Spot check on a line of its own, all on one
+## page (its description cut to EQUATION_CUT_TIER, the MORE chip carrying the rest), and the payout
+## stays the score's 0€.
+func test_a_gives_row_shows_its_equation_under_it() -> void:
+	var screen: ShiftScreen = await _screen()
+	screen._debug.set_inspection("spot_check")
+	await _place(screen, ["bread", "milk", "eggs", "banana"] as Array[String])
+	var result: ScoreResult = screen.run.preview()
+	var lines: ScanController.ItemLines = screen._scan.item_lines(2)
+	screen._monitor.show_scan(screen.run.row[2].definition, result.tags[2], lines)
+	await _frames(1)
+	var column: MonitorItemColumn = screen._monitor.item_column()
+	assert_int(column.shown_value()).is_equal(result.payouts[2]).is_equal(0)
+	assert_int(column.pages.count()).is_equal(1)
+	var rows: Array[Control] = column.step_rows()
+	assert_int(rows.size()).is_equal(2)
+	var gives: Control = rows[0]
+	assert_str(String(gives.get_meta(&"line"))).is_equal(MonitorParts.gives_line("Banana", "×2"))
+	var equation: Label = gives.get_node("Equation") as Label
+	assert_str(equation.text).is_equal(MonitorParts.gives_equation("×2", result, 2, 3))
+	var name_x: float = (gives.get_node("Text") as Label).position.x
+	assert_float(equation.position.x).is_equal(name_x + MonitorStepRow.EQUATION_INDENT)
+	assert_float(equation.position.y).is_equal(MonitorStepRow.ROW_PITCH)
+	assert_float(gives.size.y).is_equal(2.0 * MonitorStepRow.ROW_PITCH)
+	var spot: Control = rows[1]
+	assert_str((spot.get_node("Text") as Label).text).starts_with("Spot check")
+	assert_float(spot.size.y).is_equal(MonitorStepRow.ROW_PITCH)
+	assert_float(spot.position.y).is_equal(gives.position.y + gives.size.y)
+	assert_object(spot.get_node_or_null("Equation")).is_null()
+	assert_object(column.get_node_or_null("More")).is_not_null()
+	assert_array(MonitorParts.problems(column)).is_empty()
 
 
 ## Moving Eggs after Bread changes the stickers (Eggs' ×2 has nothing after it, so Eggs' own

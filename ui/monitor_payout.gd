@@ -12,7 +12,13 @@ extends Control
 ## its "+" where the "=" sits (GIVEN_SIGN, GIVEN_GAP from the digits) and its digits in the
 ## coupon's ink (GIVEN_INK), unshadowed; one that adds nothing shown (COUPON with nothing given,
 ## or WASTED) leaves its zone empty (v1.00, the user's play test of 2026-11-05: the scissors
-## window there read as a weird empty box), its rows saying what it did.
+## window there read as a weird empty box), its rows saying what it did. An item whose payout a
+## later card copied (Repeat) has a quiet note (set_note, "Copied by Repeat"; the user's point A
+## of 2026-11-05) at the zone's left, its foot on the digits' foot, clear of the total's parts: it
+## takes no room from the rows above the zone and never punches with the total. It sits beside the
+## total, not beneath it as the user's note asked: the zone ends 5 px above the frame's inside foot
+## and the digits' shadow fills the rest, so a note under the digits would move the total or the
+## rows (flagged for the play test).
 ## Display only: the amount and its state are the caller's (the score's).
 
 const CELL := 3.0
@@ -26,6 +32,12 @@ const GIVEN_GAP := 2.0
 const GIVEN_INK := Palette.TEAL_DARK
 const FIZZLE_ICON := preload("res://art/icons/fizzle.png")
 const WARNING_ICON := preload("res://art/icons/warning.png")
+## The note: NOTE_SIZE px at NOTE_WEIGHT in NOTE_INK, NOTE_GAP px clear of the total's left part,
+## cut with an ellipsis when its room is short.
+const NOTE_SIZE := 12
+const NOTE_WEIGHT := 700
+const NOTE_INK := Palette.INK_LIGHT
+const NOTE_GAP := 8.0
 
 var _state: PriceWindow.State = PriceWindow.State.PRINTED
 var _amount: int = 0
@@ -37,6 +49,7 @@ var _equals: Label
 var _digits: PixelWords
 var _shadow: PixelWords
 var _glyph: TextureRect
+var _note: Label
 
 
 func _init(zone: Vector2 = Vector2(258, 27)) -> void:
@@ -61,6 +74,25 @@ func _init(zone: Vector2 = Vector2(258, 27)) -> void:
 	_glyph = UiKit.sprite(null)
 	_glyph.name = "Glyph"
 	_group.add_child(_glyph)
+	_note = MonitorKit.bold("", NOTE_SIZE, NOTE_WEIGHT, NOTE_INK, NOTE_SIZE + 4)
+	_note.name = "Note"
+	_note.custom_minimum_size = Vector2.ZERO
+	_note.clip_text = true
+	_note.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_note.visible = false
+	add_child(_note)
+
+
+## The quiet note at the zone's left ("" for none; see the class comment), laid out against the
+## total shown now and again at each show_pay.
+func set_note(text: String) -> void:
+	_note.text = text
+	_lay_note()
+
+
+## The note's text ("" for none).
+func note_text() -> String:
+	return _note.text
 
 
 ## Shows `amount` in `state` (against its item's `base`: a boost's ink step), with `glyph` (the
@@ -122,6 +154,23 @@ func show_pay(
 		_glyph.position = Vector2(
 			left - GLYPH_GAP - _glyph.size.x, roundf((size.y - _glyph.size.y) / 2.0)
 		)
+	_lay_note()
+
+
+## The note at the zone's left, its foot on the digits' foot (the zone's middle with no total),
+## as wide as the room left of the total's leftmost part.
+func _lay_note() -> void:
+	_note.visible = not _note.text.is_empty()
+	if not _note.visible:
+		return
+	var left: float = size.x
+	var foot: float = size.y / 2.0 + _note.size.y / 2.0
+	if shows_pay():
+		left = _glyph.position.x if _glyph.visible else _equals.position.x
+		foot = _digits.position.y + _digits.size.y
+	var height: float = NOTE_SIZE + 4.0
+	_note.size = Vector2(maxf(0.0, left - NOTE_GAP), height)
+	_note.position = Vector2(0.0, minf(foot, size.y) - height)
 
 
 ## The payout's state (the ticket's price window's, PriceWindow.state_for) for `value` against
@@ -225,4 +274,7 @@ func part_rects() -> Dictionary[String, Rect2]:
 	for part: Control in [_equals, _digits, _shadow, _glyph]:
 		if part.visible:
 			rects[String(part.name)] = Rect2(transform * part.position, part.size)
+	if _note.visible:
+		var shown: float = minf(_note.size.x, MonitorStepRow.text_width(_note))
+		rects["Note"] = Rect2(transform * _note.position, Vector2(shown, _note.size.y))
 	return rects

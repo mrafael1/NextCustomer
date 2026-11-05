@@ -7,7 +7,8 @@ extends Control
 ## size in POP_S about its tail (at once under reduced motion). The glyphs take no clicks, so this
 ## watches the pointer itself (_input, never marking an event handled): the item under a glyph keeps
 ## its hover, drag and clicks. A button press, a scroll or `blocked` (a drag, the count-up) hides
-## the tip.
+## the tip, but for a target that `shows_while_blocked` (a monitor count row's bag glyph, v1.11);
+## such a target rebuilt under the pointer (the count's rows are, each step) keeps its tip.
 ##
 ## Mount one over a screen (add it last, so it draws on top): it serves every glyph under its
 ## parent that no nearer GlyphTips serves. A glyph covered by a control that takes the pointer (a
@@ -35,6 +36,10 @@ var _candidate: TipTarget
 var _shown: TipTarget
 var _waited: float = 0.0
 var _pop: Tween
+## Whether `blocked` held on the last frame: then only targets that show while blocked serve.
+var _held: bool = false
+## The shown tip's text (_follow_rebuilt).
+var _shown_text: String = ""
 
 
 func _init() -> void:
@@ -78,10 +83,14 @@ func point_at(at: Vector2) -> void:
 
 
 func _process(delta: float) -> void:
-	if _is_blocked():
+	var held: bool = _is_blocked()
+	if held != _held:
+		_held = held
 		hide_tip()
-		_candidate = null
-		return
+		_candidate = glyph_at(_pointer)
+		_waited = 0.0
+	if _tip.visible and (not is_instance_valid(_shown) or not _shown.is_inside_tree()):
+		_follow_rebuilt()
 	if _candidate != null and not _serves(_candidate, _pointer):
 		_candidate = glyph_at(_pointer)
 		_waited = 0.0
@@ -103,6 +112,7 @@ func show_tip(glyph: TipTarget) -> void:
 		_shown.tip_shown(false)
 	_shown = glyph
 	_candidate = glyph
+	_shown_text = glyph.full_tip()
 	# Listeners first: PlanningEffects writes the belt's part of the text (tip_more) on it.
 	if changed:
 		glyph.tip_shown(true)
@@ -162,6 +172,8 @@ func glyph_at(at: Vector2) -> TipTarget:
 func _serves(glyph: TipTarget, at: Vector2) -> bool:
 	if not is_instance_valid(glyph) or not glyph.is_inside_tree() or not glyph.is_shown():
 		return false
+	if _held and not glyph.shows_while_blocked:
+		return false
 	if _scope_of(glyph) != self:
 		return false
 	if not glyph.get_global_rect().has_point(at) or is_clipped(glyph, at):
@@ -209,6 +221,21 @@ func _place(glyph: TipTarget) -> void:
 		anchor = to_local * glyph.tip_anchor.get_global_rect()
 	var screen: Rect2 = to_local * get_viewport_rect()
 	_tip.show_for(glyph.full_tip(), glyph_rect, anchor, glyph.tip_below, screen)
+
+
+## The shown target was freed: the one now under the pointer takes its tip at once when it says the
+## same (a count row rebuilt each step), else the tip hides.
+func _follow_rebuilt() -> void:
+	var next: TipTarget = glyph_at(_pointer)
+	_shown = null
+	if next == null or next.full_tip() != _shown_text:
+		hide_tip()
+		return
+	_shown = next
+	_candidate = next
+	next.tip_shown(true)
+	shown_changed.emit(next)
+	_place(next)
 
 
 func _is_blocked() -> bool:
