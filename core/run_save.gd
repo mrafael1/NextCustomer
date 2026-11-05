@@ -57,6 +57,12 @@ extends RefCounted
 ## (or older) save gets its week built as it loads (_legacy_week: the played days from the history,
 ## the current and announced ones as saved, the later ones drawn with the run's RNG), and its
 ## current shift keeps playing without its week event (RunState.pre_week_shift).
+## v0.96 (four weeks: 16 shifts) keeps version 10: the save holds no run length (the balance's
+## quotas give it), so a save from the 12-shift run resumes as a 16-shift run. Its played shifts
+## keep their saved quotas, the current one is rebuilt from today's curve (saved after its
+## checkout, it keeps its record's quota: its margin and pass read as played), and its week plan
+## stands (weeks 1-3 are unchanged); a save on shift 12 plays it as a review with its payday, not
+## the final review, and week 4 is drawn as it starts.
 const FORMAT_VERSION := 10
 ## Version 9: version 10's form with the next shift's events and no week, read as it is.
 const BEFORE_WEEKS_VERSION := 9
@@ -256,6 +262,11 @@ static func from_dictionary(saved: Dictionary, lookup: ContentLookup) -> RunSave
 	if restored.shift_index < restored.shift_count():
 		restored.limits = _limits(restored)
 	var history_ok: bool = _restore_history(restored, reader.dictionaries("history"), lookup)
+	# After the checkout, the shift was played under its record's quota: a save from an older
+	# curve (the 12-shift run's, v0.96) keeps it, so its margin and pass read as they were.
+	if history_ok and restored.limits != null and _after_checkout(restored):
+		if not restored.history.is_empty():
+			restored.limits.quota = restored.history[-1].quota
 	var cards_ok: bool = _restore_cards(restored, reader, data.has("first_row"))
 	# A hand dealt larger than today's events give (a retired boon's, Big trolleys before v0.70)
 	# keeps its items.

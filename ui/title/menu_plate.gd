@@ -4,7 +4,7 @@ extends FramedButton
 ## teal plate (frames/button_teal, the primary's family in teal; since v0.80, instead of a cream
 ## shelf label with an aisle stripe) with its caption in paper, or the primary plate (the tomato
 ## button.png) with a large paper caption and a sub-line under it in the number font (the run's
-## shift, SHIFT 5/12).
+## shift, SHIFT 5/16).
 ##
 ## The marker on it lights it: the plate moves HOT_SHIFT px right onto its lit frame
 ## (button_teal_lit, button_lit) and a tomato price-gun tick (icons/tick_marker) shows left of it.

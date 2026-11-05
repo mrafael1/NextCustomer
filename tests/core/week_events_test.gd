@@ -1,11 +1,12 @@
 extends GdUnitTestSuite
-## The week events (v0.70, plan section 3.9): a run of 12 shifts is 3 weeks of 4 (WeekSchedule),
-## each with its fixed week event from the shift number (Training week, Bakery festival, Holiday
-## rush). A week's day events are all drawn as its first shift starts (the time card shows them),
-## with the run's RNG, and every later day of the week plays them; the week event stacks with the
-## day's own events (the quota percents add up, Bakery festival's +2€ is an engine step of its own,
-## Holiday rush raises the machine's odds a level), and the run save keeps the week at every save
-## point, a save from before the weeks getting its week built as it loads.
+## The week events (v0.70, plan section 3.9): a run of 16 shifts is 4 weeks of 4 (WeekSchedule,
+## v0.96), each with its fixed week event from the shift number (Training week, Bakery festival,
+## Holiday rush, Clearance week). A week's day events are all drawn as its first shift starts
+## (the time card shows them), with the run's RNG, and every later day of the week plays them;
+## the week event stacks with the day's own events (the quota percents add up, Bakery festival's
+## +2€ is an engine step of its own, Holiday rush raises the machine's odds a level), and the run
+## save keeps the week at every save point, a save from before the weeks getting its week built
+## as it loads.
 
 const BALANCE := "res://data/balance/balance.tres"
 const STARTER := "res://data/decks/starter.tres"
@@ -28,12 +29,14 @@ func before_test() -> void:
 
 
 ## Shifts 1-4 are week 1 (Training week), 5-8 week 2 (Bakery festival), 9-12 week 3 (Holiday
-## rush); a week starts on shifts 1, 5 and 9.
+## rush), 13-16 week 4 (Clearance week, v0.96); a week starts on shifts 1, 5, 9 and 13.
 func test_the_weeks_follow_the_shift_number() -> void:
 	var balance: BalanceDefinition = load(BALANCE)
-	assert_int(WeekSchedule.week_count(balance)).is_equal(3)
-	var names: Array[String] = ["training_week", "bakery_festival", "holiday_rush"]
-	for shift: int in range(1, 13):
+	assert_int(WeekSchedule.week_count(balance)).is_equal(4)
+	var names: Array[String] = [
+		"training_week", "bakery_festival", "holiday_rush", "clearance_week"
+	]
+	for shift: int in range(1, 17):
 		var week: int = floori((shift - 1) / 4.0)
 		assert_int(WeekSchedule.week_of(balance, shift)).is_equal(week)
 		assert_int(WeekSchedule.first_shift(balance, shift)).is_equal(week * 4 + 1)
@@ -49,7 +52,7 @@ func test_the_week_is_drawn_when_it_starts() -> void:
 	var run: RunState = _new_run(7)
 	assert_object(run.week).is_null()
 	run.start_shift()
-	for week_start: int in [1, 5, 9]:
+	for week_start: int in [1, 5, 9, 13]:
 		assert_int(run.shift_index + 1).is_equal(week_start)
 		var plan: WeekPlan = run.week
 		assert_int(plan.first_shift).is_equal(week_start)
@@ -77,16 +80,17 @@ func test_the_week_is_drawn_when_it_starts() -> void:
 func test_the_weeks_are_drawn_with_the_run_rng() -> void:
 	var first: Array[String] = _weeks_of(_play_through(31))
 	assert_array(first).is_equal(_weeks_of(_play_through(31)))
-	assert_int(first.size()).is_equal(3)
+	assert_int(first.size()).is_equal(4)
 
 
 ## The week event stacks with the day's events: Rush hour's +10% and Bakery festival's +10% make
-## shift 5's quota +20%, Holiday rush's +15% shift 9's, and Training week changes nothing.
+## shift 5's quota +20%, Holiday rush's +15% shift 9's, Clearance week's +15% shift 13's, and
+## Training week changes nothing.
 func test_the_week_quota_stacks_with_the_day_events() -> void:
 	var balance: BalanceDefinition = load(BALANCE)
 	var none: Array[UpgradeDefinition] = []
 	var rush: Array[InspectionDefinition] = [load(DAY % "rush_hour")]
-	var cases: Dictionary = {1: 10, 5: 20, 9: 25}
+	var cases: Dictionary = {1: 10, 5: 20, 9: 25, 13: 25}
 	for shift: int in cases:
 		var events: Array[InspectionDefinition] = WeekSchedule.events_for(balance, shift, rush)
 		var limits: ShiftLimits = ShiftLimits.for_shift(balance, none, shift - 1, events)
@@ -137,6 +141,10 @@ func test_holiday_rush_raises_the_machine_odds() -> void:
 	assert_int(WeekSchedule.odds_delta(_balance, 8)).is_equal(0)
 	for shift: int in [9, 10, 11, 12]:
 		assert_int(WeekSchedule.odds_delta(_balance, shift)).is_equal(1)
+	# Week 4 (v0.96) has no delta: its own odds level is already the top one.
+	for shift: int in [13, 14, 15, 16]:
+		assert_int(WeekSchedule.odds_delta(_balance, shift)).is_equal(0)
+		assert_int(machine.odds_level_after(shift)).is_equal(machine.max_level())
 	for shift: int in [8, 9]:
 		var run: RunState = _new_run(9)
 		run.start_shift()
@@ -291,6 +299,131 @@ func test_a_save_from_before_the_weeks_plays_its_shift_without_the_week_event() 
 	assert_str(model.chip_name()).is_equal("")
 	# The run's own card names it.
 	assert_str(WeekCardModel.of(run).chip_name()).is_not_empty()
+
+
+## v0.96's four weeks keep the save format (10): a save from the 12-shift run (3 weeks, paydays
+## after 4 and 8, its final review on 12) resumes as a 16-shift run on today's balance. Saved in
+## shift 12's planning, its week 3 plan holds; shift 12 is a review that pays, not the FINAL
+## REVIEW, its checkout opens the machine with a payday's BONUS queued, and shift 13 opens week 4
+## (Clearance week) with its days drawn as it starts. A save at shift 11's SCORED point does the
+## same.
+func test_a_twelve_shift_save_resumes_as_a_sixteen_shift_run() -> void:
+	var old: BalanceDefinition = _twelve_shift_balance()
+	for at_scored: bool in [false, true]:
+		var run: RunState = RunState.new(5, load(STARTER), old, RunStock.starting(old))
+		run.start_shift()
+		while run.shift_index < 10 or run.phase != RunState.Phase.PLANNING:
+			if run.phase == RunState.Phase.PLANNING:
+				_fill(run)
+				run.checkout()
+			elif RunState.MACHINE_PHASES.has(run.phase):
+				MachineSteps.pass_visits(run)
+			elif run.phase == RunState.Phase.SCORED:
+				run.next_shift()
+		# Shift 11 checked out under the old run; then planning on 12, or its SCORED point.
+		_fill(run)
+		run.checkout()
+		MachineSteps.pass_visits(run)
+		assert_int(run.phase).is_equal(RunState.Phase.SCORED)
+		if not at_scored:
+			run.next_shift()
+			assert_int(run.shift_count()).is_equal(12)
+			assert_bool(WeekCardModel.of(run).days[3].final).is_true()
+		var save: RunSave = RunSave.from_dictionary(
+			_json(RunSave.to_dictionary(run, "id", 0)), _lookup
+		)
+		assert_object(save).override_failure_message(str(at_scored)).is_not_null()
+		var resumed: RunState = save.run
+		assert_int(resumed.shift_count()).is_equal(16)
+		assert_int(resumed.history.size()).is_equal(11)
+		if at_scored:
+			resumed.next_shift()
+		assert_int(resumed.shift_index).is_equal(11)
+		# The week 3 plan the old run drew stands: shift 12 is its review.
+		assert_str(_week_text(resumed.week)).is_equal(_week_text(run.week))
+		var day: WeekCardModel.WeekDay = WeekCardModel.of(resumed).days[3]
+		assert_bool(day.review).is_true()
+		assert_bool(day.final).is_false()
+		assert_bool(day.payday).is_true()
+		assert_int(InspectionDefinition.maluses(resumed.inspections).size()).is_equal(2)
+		_fill(resumed)
+		resumed.checkout()
+		assert_int(resumed.phase).is_equal(RunState.Phase.MACHINE_CHOOSE)
+		assert_bool(resumed.machine.is_payday(resumed)).is_true()
+		assert_array(resumed.machine.pending_kinds()).is_equal([MachineVisit.Kind.BONUS])
+		MachineSteps.pass_visits(resumed)
+		resumed.next_shift()
+		assert_int(resumed.shift_index).is_equal(12)
+		assert_int(resumed.week.first_shift).is_equal(13)
+		var week_four: WeekEventDefinition = WeekSchedule.event_for(resumed.balance, 13)
+		assert_str(String(week_four.id)).is_equal("clearance_week")
+		assert_bool(WeekSchedule.shift_events(resumed).has(week_four)).is_true()
+
+
+## A 12-shift save resumed on a curve other than the one it was played with (v0.96: the 16-shift
+## curve, here quotas of 1 against 1000): the played shifts keep their recorded quotas; saved
+## after its checkout, the current shift keeps its record's quota, so it still reads as passed
+## with its margin; saved in planning, the shift not yet played takes today's curve.
+func test_a_twelve_shift_save_keeps_its_played_quotas_on_a_new_curve() -> void:
+	var old: BalanceDefinition = _twelve_shift_balance()
+	var today: BalanceDefinition = _balance.duplicate()
+	var quotas: PackedInt32Array = PackedInt32Array()
+	for _shift: int in range(today.quotas.size()):
+		quotas.append(1000)
+	today.quotas = quotas
+	var lookup: ContentLookup = ContentLookup.new(today)
+	for at_scored: bool in [false, true]:
+		var run: RunState = RunState.new(5, load(STARTER), old, RunStock.starting(old))
+		run.start_shift()
+		while run.shift_index < 9 or run.phase != RunState.Phase.PLANNING:
+			if run.phase == RunState.Phase.PLANNING:
+				_fill(run)
+				run.checkout()
+			elif RunState.MACHINE_PHASES.has(run.phase):
+				MachineSteps.pass_visits(run)
+			elif run.phase == RunState.Phase.SCORED:
+				run.next_shift()
+		if at_scored:
+			# Shift 10 checked out (Holiday rush's +15% on its quota of 1).
+			_fill(run)
+			run.checkout()
+			MachineSteps.pass_visits(run)
+			assert_int(run.phase).is_equal(RunState.Phase.SCORED)
+		var save: RunSave = RunSave.from_dictionary(
+			_json(RunSave.to_dictionary(run, "id", 0)), lookup
+		)
+		assert_object(save).override_failure_message(str(at_scored)).is_not_null()
+		var resumed: RunState = save.run
+		assert_int(resumed.shift_count()).is_equal(16)
+		for index: int in range(resumed.history.size()):
+			assert_int(resumed.history[index].quota).is_equal(run.history[index].quota)
+		if at_scored:
+			assert_int(resumed.quota()).is_equal(run.quota())
+			assert_int(resumed.quota()).is_equal(resumed.history[-1].quota)
+			assert_bool(resumed.passed()).is_true()
+			assert_int(resumed.last_result.total - resumed.quota()).is_equal(
+				run.last_result.total - run.quota()
+			)
+		else:
+			assert_int(resumed.quota()).is_greater_equal(1000)
+
+
+## The live balance as the 12-shift run had it (v0.65-v0.95), its quotas at 1.
+func _twelve_shift_balance() -> BalanceDefinition:
+	var old: BalanceDefinition = _balance.duplicate()
+	old.quotas = old.quotas.slice(0, 12)
+	old.inspection_shifts = PackedInt32Array([3, 7, 11])
+	old.review_shifts = PackedInt32Array([4, 8, 12])
+	old.boon_shifts = PackedInt32Array([2, 5, 6, 9, 10])
+	var weeks: Array[WeekEventDefinition] = _balance.weeks.slice(0, 3)
+	old.weeks = weeks
+	old.coins_by_shifts_passed = PackedInt32Array([0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3])
+	var machine: MachineDefinition = _balance.machine.duplicate()
+	machine.premium_shifts = PackedInt32Array([4, 8])
+	machine.bonus_extra_shifts = PackedInt32Array([4, 8])
+	machine.shift_odds_levels = machine.shift_odds_levels.slice(0, 12)
+	old.machine = machine
+	return old
 
 
 func _new_run(seed_value: int) -> RunState:

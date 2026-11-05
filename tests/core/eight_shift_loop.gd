@@ -4,7 +4,7 @@ extends RefCounted
 ## 5 and 7 inspected (one inspection each), no Manager's reviews, a miss ends the run (no
 ## write-ups), and the machine PREMIUM after shifts 3, 5 and 7 with the 8-shift odds levels and a
 ## BONUS visit after every inspected pass (before v0.68's Payday). The
-## live balance holds the 12-shift loop (full build plan section 5.3); these tests are about other
+## live balance holds the 16-shift loop (full build plan section 5.3); these tests are about other
 ## things, and keep their runs.
 
 
