@@ -41,6 +41,10 @@ def item_source(rows: list[str]) -> str:
     return f"@size {len(rows[0])}x{len(rows)}\n@kind item\n" + "\n".join(rows) + "\n"
 
 
+def font_source(rows: list[str]) -> str:
+    return f"@size {len(rows[0])}x{len(rows)}\n@kind font\n" + "\n".join(rows) + "\n"
+
+
 def boxed_item(fill: str = "c", size: int = 32) -> list[str]:
     """A size x size item: an ink-outlined 10x10 box at the bottom, 11 pixels from the left."""
     right = size - 21
@@ -257,6 +261,34 @@ class LintTest(TempTestCase):
 
     def test_other_kinds_skip_the_item_rules(self) -> None:
         self.ws.add("frames/f", FRAME)
+        self.assertEqual(self.ws.load().errors, [])
+
+    def test_a_clean_font_passes(self) -> None:
+        self.ws.add("fonts/f", font_source(["#.......##......"] * 8))
+        self.assertEqual(self.ws.load().errors, [])
+
+    def test_a_font_is_ink_only_in_whole_cells_and_8_rows(self) -> None:
+        with self.subTest("colour"):
+            self.ws.add("fonts/f", font_source(["#c......"] * 8))
+            errors = self.ws.load().errors
+            self.assertTrue(any("a font uses only" in e for e in errors), errors)
+        with self.subTest("rows"):
+            self.ws.add("fonts/f", font_source(["#......."] * 7))
+            errors = self.ws.load().errors
+            self.assertTrue(any("8 rows tall, got 7" in e for e in errors), errors)
+        with self.subTest("cells"):
+            self.ws.add("fonts/f", font_source(["#........."] * 8))
+            errors = self.ws.load().errors
+            self.assertTrue(any("whole 8-px cells wide, got 10" in e for e in errors), errors)
+
+    def test_a_font_glyph_is_left_aligned(self) -> None:
+        self.ws.add("fonts/f", font_source(["#.........#....."] * 8))
+        errors = self.ws.load().errors
+        self.assertTrue(any("glyph 1's ink must start" in e for e in errors), errors)
+
+    def test_the_chunky_digits_pass(self) -> None:
+        source = pa.REPO / "art" / "src" / "fonts" / "chunky_digits.txt"
+        self.ws.add("fonts/chunky", source.read_text(encoding="utf-8"))
         self.assertEqual(self.ws.load().errors, [])
 
 

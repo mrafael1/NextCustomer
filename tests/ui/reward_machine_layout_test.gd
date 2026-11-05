@@ -8,8 +8,9 @@ extends GdUnitTestSuite
 ## them under the top bar; the back effects draw behind every ticket. The stock window fits on every
 ## kind of visit, its sealed tickets crisp and its odds on plates (v0.53); a lit key's glow hugs its
 ## shape (v0.53). The cart drawer sits below the top bar, left of the machine. Every label fits its
-## box, and Pixelify is only ever 12 or 24 px (full build plan 6.1). The views are driven directly
-## (no input events).
+## box, and Pixelify is only ever 12 or 24 px (full build plan 6.1), but for the relook's hard
+## pixel lettering (v0.98, MachineLine: the 11 px raster at 2x or 4x). The views are driven
+## directly (no input events).
 
 const Rush := preload("res://tests/ui/count_up_rush.gd")
 const SCREEN := "res://ui/shift_screen.tscn"
@@ -18,6 +19,7 @@ const STARTER := "res://data/decks/starter.tres"
 const SPOT_CHECK := "res://data/inspections/spot_check.tres"
 const MILK := "res://data/cards/milk.tres"
 const COUPON_ENGINE := "res://data/upgrades/coupon_engine.tres"
+const DAIRY_REGULARS := "res://data/upgrades/dairy_regulars.tres"
 ## Milk, Multipack, then five Milks (109): passes shift 1.
 const PASSING_ROW: Array[String] = ["milk", "multipack", "milk", "milk", "milk", "milk", "milk"]
 ## The only Pixelify sizes (full build plan 6.1).
@@ -42,11 +44,12 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-## On the real screen (v0.50 front-on redraw): the machine at MACHINE_RECT, wholly inside the stage
-## (its tray no longer cropped by the view's foot) and right of the register column and the
-## receipt; the marquee over the cabinet, below the top bar; the display, the slot plate, the stock
-## window, the key bay and the tray inside the cabinet.
-func test_the_machine_sits_beside_the_register_inside_the_stage() -> void:
+## On the real screen (V3's prize counter, v0.98: it fills the view): the machine at MACHINE_RECT,
+## wholly inside the stage with its plinth, its shadow and its beacons; the marquee over the
+## cabinet, centred, below the top bar; the display, the slot plate, the stock window, the key bay
+## and the tray inside the machine's module, left of the middle pillar; the prize bay right of it,
+## inside the cabinet.
+func test_the_v3_counter_fills_the_view() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
 	for id: String in PASSING_ROW:
@@ -63,8 +66,27 @@ func test_the_machine_sits_beside_the_register_inside_the_stage() -> void:
 	var machine: Rect2 = view.get_global_rect()
 	_assert_rect(machine, xform * ShiftStage.MACHINE_RECT, "machine")
 	assert_bool(stage.encloses(machine)).override_failure_message(str(machine)).is_true()
-	assert_float(machine.position.x).is_greater_equal((xform * ShiftStage.REGISTER_RECT).end.x)
-	assert_float(machine.position.x).is_greater_equal(screen._receipt.get_global_rect().end.x)
+	var to_global: Transform2D = view.get_global_transform()
+	var extras: Array[Rect2] = [MachineCabinet.PLINTH_RECT, MachineCabinet.SHADOW_RECT]
+	extras.append_array(MachineCabinet.BEACON_RECTS)
+	for extra: Rect2 in extras:
+		var shown: Rect2 = to_global * extra
+		assert_bool(stage.encloses(shown)).override_failure_message(str(shown)).is_true()
+	var pillar: Rect2 = to_global * MachineCabinet.MIDDLE_PILLAR_RECT
+	var bay: Rect2 = view.bay.get_global_rect()
+	_assert_rect(
+		bay,
+		(
+			xform
+			* Rect2(
+				ShiftStage.MACHINE_RECT.position + RewardMachineView.BAY_POSITION, PrizeBay.SIZE
+			)
+		),
+		"bay"
+	)
+	assert_bool(machine.encloses(bay)).is_true()
+	assert_float(bay.position.x).is_greater_equal(pillar.end.x)
+	assert_float(view.stock.get_global_rect().end.x).is_less_equal(pillar.position.x)
 	var head: Rect2 = view.head.get_global_rect()
 	assert_bool(stage.encloses(head)).is_true()
 	assert_float(head.position.y).is_greater_equal(
@@ -78,6 +100,7 @@ func test_the_machine_sits_beside_the_register_inside_the_stage() -> void:
 			. override_failure_message("%s %s" % [part.name, part.get_global_rect()])
 			. is_true()
 		)
+		assert_float(part.get_global_rect().end.x).is_less_equal(pillar.position.x)
 
 
 ## The prize row (3, 2 and 1 tickets) at PrizeRow.card_rect on the machine: every ticket inside the
@@ -117,6 +140,65 @@ func test_the_prize_row_sits_on_the_stage() -> void:
 			assert_str(prompt).is_equal("PICK 1 · ONLY %d IN STOCK" % count)
 		for label: Label in view.display.labels():
 			_assert_fits(label)
+		await _close(view)
+
+
+## V3 on the stage at the pick (3, 2 and 1 tickets), on the widest case (LOYALTY stamps at
+## LEGENDARY, each with a two-row win sticker): every ticket with its pick rim
+## (TicketRim.PICK_RINGS[0] out) stays inside the prize bay; each sticker, tilted and with its
+## shadow, stays inside the bay and the stage, its body clear of the next ticket's rim; its family
+## chips sit inside its art box.
+func test_the_rims_stickers_and_chips_stay_in_the_bay() -> void:
+	var regulars: UpgradeDefinition = load(DAIRY_REGULARS)
+	var on_stage: Rect2 = Rect2(Vector2.ZERO, ShiftStage.SIZE)
+	for count: int in [3, 2, 1]:
+		var run: RunState = _passed_run(12)
+		var earlier: ShiftRecord = ShiftRecord.new(0, 0, 0)
+		earlier.played.append(load(MILK) as CardDefinition)
+		run.history.insert(0, earlier)
+		var view: RewardMachineView = await _open(run)
+		assert_bool(run.machine.choose(run, RewardMachine.Chute.NEW_ITEMS)).is_true()
+		var drawn: Array[MachinePrize] = []
+		for index: int in range(count):
+			drawn.append(
+				MachinePrize.new(
+					MachinePrize.Kind.REGISTER, MachinePrize.Rarity.LEGENDARY, null, regulars
+				)
+			)
+		run.machine.current_visit().set_drawn(drawn)
+		view.show_draw(run)
+		view.show_at(view.plan.pick_at)
+		await _frames(2)
+		var bay: Rect2 = view.bay.get_global_rect()
+		var rims: Array[Rect2] = []
+		for ticket: PrizeTicket in view.tickets:
+			rims.append(ticket.get_global_rect().grow(TicketRim.PICK_RINGS[0]))
+		for index: int in range(count):
+			var ticket: PrizeTicket = view.tickets[index]
+			var what: String = "ticket %d of %d" % [index, count]
+			assert_bool(bay.encloses(rims[index])).override_failure_message(what).is_true()
+			var sticker: WinSticker = ticket.win_sticker()
+			assert_object(sticker).is_not_null()
+			assert_int(sticker.texts().size()).is_equal(2)
+			var local: Rect2 = Rect2(Vector2.ZERO, sticker.size)
+			var xform: Transform2D = sticker.get_global_transform()
+			var body: Rect2 = xform * local
+			var shadowed: Rect2 = xform * local.merge(Rect2(WinSticker.WIN_SHADOW, sticker.size))
+			var where: String = "%s: sticker %s" % [what, shadowed]
+			assert_bool(bay.encloses(shadowed)).override_failure_message(where).is_true()
+			assert_bool(on_stage.encloses(shadowed)).override_failure_message(where).is_true()
+			if index + 1 < count:
+				(
+					assert_bool(body.intersects(rims[index + 1]))
+					. override_failure_message("%s: sticker %s" % [what, body])
+					. is_false()
+				)
+			var art_box: Rect2 = ticket.get_global_transform() * PrizeTicket.ART_RECT
+			var chips: Array[Rect2] = ticket.family_rects()
+			assert_int(chips.size()).is_greater(0)
+			for chip: Rect2 in chips:
+				var placed: Rect2 = ticket.get_global_transform() * chip
+				assert_bool(art_box.encloses(placed)).override_failure_message(what).is_true()
 		await _close(view)
 
 
@@ -183,11 +265,10 @@ func test_the_stock_window_fits_on_every_visit() -> void:
 			assert_array(Array(view.display.texts())).is_equal(Array(lines))
 		var where: String = "stock %d, phase %d" % [run.stock.card_ids().size(), run.phase]
 		assert_int(lit).override_failure_message(where).is_greater(0)
-		for label: Label in view.stock.labels():
-			if not label.visible:
-				continue
-			assert_bool(window.encloses(label.get_global_rect())).is_true()
-			_assert_fits(label)
+		for line: MachineLine in view.stock.lines():
+			if line.is_visible_in_tree():
+				var rect: Rect2 = line.get_global_rect()
+				assert_bool(window.encloses(rect)).override_failure_message(str(rect)).is_true()
 		_assert_odds_plates(view.stock)
 		await _close(view)
 
@@ -304,8 +385,9 @@ func test_a_lit_key_glow_follows_its_shape() -> void:
 
 
 ## The cart drawer at its widest (a landing product with more copies than it shows) rests below
-## the top bar, left of the machine, and above the floor; its labels fit.
-func test_the_cart_drawer_sits_left_of_the_machine() -> void:
+## the top bar, over the machine's stock window side (v0.98: the counter fills the view), clear of
+## the prize bay, and above the stock window's sill legend; its labels fit.
+func test_the_cart_drawer_sits_over_the_stock_window_side() -> void:
 	var run: RunState = _passed_run(18, _with_milks)
 	var view: RewardMachineView = await _open(run)
 	assert_bool(run.machine.choose(run, RewardMachine.Chute.NEW_ITEMS)).is_true()
@@ -323,7 +405,16 @@ func test_the_cart_drawer_sits_left_of_the_machine() -> void:
 	assert_float(rest.position.y).is_greater_equal(ShiftStage.TOP_BAR_BOTTOM)
 	assert_float(rest.position.x).is_greater_equal(ShiftStage.CART_DRAWER_LEFT)
 	assert_float(rest.end.x).is_less_equal(ShiftStage.CART_DRAWER_REACH)
+	var bay_left: float = ShiftStage.MACHINE_RECT.position.x + RewardMachineView.BAY_POSITION.x
+	assert_float(rest.end.x).is_less_equal(bay_left)
 	assert_float(rest.end.y).is_less_equal(ShiftStage.FLOOR_TOP)
+	# Its foot, shadow included, stays above the stock window's sill, so the legend reads whole.
+	var sill_top: float = (
+		ShiftStage.MACHINE_RECT.position.y
+		+ RewardMachineView.WINDOW_POSITION.y
+		+ StockWindow.sill_rect().position.y
+	)
+	assert_float(rest.end.y + CartDrawer.SHADOW).is_less_equal(sill_top)
 	for label: Label in _labels(drawer):
 		_assert_fits(label)
 	await _close(view)
@@ -369,19 +460,20 @@ func test_pixelify_is_only_12_or_24_and_every_label_fits() -> void:
 		await _close(view)
 	for rarity: int in range(RarityTab.TEXTS.size()):
 		var tab: RarityTab = auto_free(RarityTab.new(rarity))
-		var label: Label = tab.label()
-		_assert_pixelify_size(
-			label.get_theme_font("font"), label.get_theme_font_size("font_size"), tab.text()
-		)
-		_assert_fits(label)
+		var line: MachineLine = tab.word_line()
+		assert_bool(Rect2(Vector2.ZERO, tab.size).encloses(line.get_rect())).is_true()
+		for label: Label in _labels(line):
+			_assert_pixelify_size(
+				label.get_theme_font("font"), label.get_theme_font_size("font_size"), tab.text()
+			)
 	assert_int(seen).is_greater(100)
 
 
 ## The prize tickets of a NEW ITEMS draw holding its coupon and an item that arrived BIG or GOLDEN
 ## (v0.61, #108), and of an UPGRADE draw holding a perk's level-up and an item upgrade: every
 ## ticket inside the stage and apart; its chip (the item's tier, the level-up's "LV 2") inside its
-## ticket and its art box, clear of the face's labels; the band says what the prize is; every
-## label fits.
+## ticket and its art box, clear of the face's labels; the band holds the prize's name (v0.98: no
+## kind word; a level-up's level is its art's "LV 2" chip); every label fits.
 func test_new_items_and_upgrade_tickets_fit_with_their_marks() -> void:
 	var on_stage: Rect2 = Rect2(Vector2.ZERO, ShiftStage.SIZE)
 	var engine: UpgradeDefinition = load(COUPON_ENGINE)
@@ -434,19 +526,24 @@ func test_new_items_and_upgrade_tickets_fit_with_their_marks() -> void:
 			. override_failure_message(str(chip))
 			. is_true()
 		)
+		var to_ticket: Transform2D = marked_ticket.get_global_transform().affine_inverse()
 		for label: Label in marked_ticket.face_labels():
-			assert_bool(label.get_rect().intersects(chip)).is_false()
+			var rect: Rect2 = to_ticket * label.get_global_rect()
+			assert_bool(rect.intersects(chip)).override_failure_message(label.text).is_false()
 		var band: String = marked_ticket.face_texts()[0]
 		if chute == RewardMachine.Chute.NEW_ITEMS:
 			assert_str(marked_ticket.art.chip_text()).is_equal("GOLDEN")
-			assert_str(band).is_equal("NEW ITEM · %d€" % visit.prizes[marked].card.base)
+			assert_str(band).is_equal(visit.prizes[marked].card.display_name)
+			var price: String = marked_ticket.price_line().text()
+			assert_str(price).is_equal("%d€" % visit.prizes[marked].card.base)
+			assert_bool(marked_ticket.price_rect().intersects(chip)).is_false()
 		else:
 			assert_str(marked_ticket.art.chip_text()).is_equal("LV 2")
-			assert_str(band).is_equal("LEVEL UP · LV 2")
-			# The perk's badge stays clear of the chip.
-			var badge: Rect2 = PrizeArt.BADGE_RECT
-			badge.position += PrizeTicket.ART_RECT.position
-			assert_bool(badge.intersects(chip)).is_false()
+			assert_str(band).is_equal(engine.next_level.display_name)
+			# The punch card stays clear of the chip.
+			var card: Rect2 = PrizeArt.PUNCH_RECT
+			card.position += PrizeTicket.ART_RECT.position
+			assert_bool(card.intersects(chip)).is_false()
 		await _close(view)
 
 
@@ -463,6 +560,7 @@ func test_the_dim_veil_follows_the_silhouette() -> void:
 		Rect2(Vector2.ZERO, MachineCabinet.SIZE),
 		MachineCabinet.PLINTH_RECT,
 	]
+	parts.append_array(MachineCabinet.BEACON_RECTS)
 	for index: int in range(MachineHead.bulb_count()):
 		var at: Vector2 = RewardMachineView.HEAD_POSITION + MachineHead.bulb_point(index)
 		parts.append(Rect2(at - Vector2(2, 2), Vector2(6, 6)))
@@ -484,21 +582,27 @@ func test_the_dim_veil_follows_the_silhouette() -> void:
 	assert_float(pieces[1].size.x).is_equal(MachineCabinet.SIZE.x)
 
 
-## The marquee's title is letter-spaced bold Atkinson: its width is the bold font's plus the
-## spacing between its glyphs, not the regular weight's (a wrapped FontVariation drops the weight).
-func test_the_marquee_title_is_bold() -> void:
+## The marquee's title (the relook, v0.98) is hard pixel lettering at 4x, engraved (a line one art
+## px under it), over the sub line at 2x, both inside the plate, on the classic and premium faces.
+func test_the_marquee_title_is_hard_pixel_lettering() -> void:
 	var head: MachineHead = auto_free(MachineHead.new())
-	var title: Label = head.title_labels()[0]
-	var font: Font = title.get_theme_font("font")
-	var font_size: int = title.get_theme_font_size("font_size")
-	var bold: Font = ArtStyle.bold_font(MachineHead.BOLD_WEIGHT)
-	for text: String in [MachineHead.TITLE, MachineHead.PREMIUM_TITLE]:
-		var spaced: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
-		var heavy: float = bold.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
-		var gaps: float = MachineHead.TITLE_SPACING * (text.length() - 1)
-		assert_float(spaced).override_failure_message(text).is_between(
-			heavy + gaps - 0.5, heavy + gaps + MachineHead.TITLE_SPACING + 0.5
-		)
+	var lines: Array[MachineLine] = head.title_lines()
+	assert_str(lines[0].text()).is_equal(MachineHead.TITLE)
+	assert_float(lines[0].size.y).is_equal(ArtStyle.PIXEL_CAP_HEIGHT * MachineArt.PIXEL * 2.0)
+	assert_float(lines[1].size.y).is_equal(ArtStyle.PIXEL_CAP_HEIGHT * MachineArt.PIXEL)
+	var plate: Rect2 = Rect2(Vector2.ZERO, MachineHead.SIZE)
+	for line: MachineLine in lines:
+		assert_bool(plate.encloses(line.get_rect())).override_failure_message(line.text()).is_true()
+		for label: Label in _labels(line):
+			assert_object(label.get_theme_font("font")).is_same(ArtStyle.pixel_display_font())
+	assert_float(lines[0].get_rect().end.y).is_less_equal(lines[1].position.y)
+	# Clear of both bulb rows by 2 art px (the engraving under the title included).
+	var engraved: Rect2 = lines[0].get_rect().grow_individual(0, 0, 0, MachineArt.PIXEL)
+	for index: int in range(MachineHead.bulb_count()):
+		var bulb: Rect2 = Rect2(MachineHead.bulb_point(index), Vector2.ONE * MachineHead.BULB_SIZE)
+		bulb = bulb.grow(MachineHead.BULB_CLEAR)
+		for shown: Rect2 in [engraved, lines[1].get_rect()]:
+			assert_bool(shown.intersects(bulb)).override_failure_message(str(bulb)).is_false()
 
 
 ## A LEGENDARY landing jolts the stage (6 px across, 4 px down and up, decaying over SHAKE_S); a
@@ -545,7 +649,7 @@ func test_a_legendary_landing_shakes_the_stage() -> void:
 ## holding its share (in the number font) and its word.
 func _assert_odds_plates(stock: StockWindow) -> void:
 	assert_object(stock.tickets_layer().material).is_same(ArtStyle.pixel_material())
-	var labels: Array[Label] = stock.labels()
+	var lines: Array[MachineLine] = stock.lines()
 	var pedestal_foot: float = (
 		StockWindow.TICKET_TOP + StockWindow.TICKET_SIZE.y + StockWindow.PEDESTAL_SIZE.y
 	)
@@ -556,16 +660,25 @@ func _assert_odds_plates(stock: StockWindow) -> void:
 			assert_float(fposmod(plate.position.y, MachineArt.PIXEL)).is_equal(0.0)
 			assert_bool(Rect2(Vector2.ZERO, StockWindow.SIZE).encloses(plate)).is_true()
 			assert_float(plate.position.y).is_greater_equal(pedestal_foot)
+			assert_float(plate.end.y).is_less_equal(StockWindow.GLASS_HEIGHT)
 			if rarity > 0:
 				var left: Rect2 = StockWindow.plate_rect(column, rarity - 1)
 				assert_bool(left.intersects(plate)).is_false()
-			var odds: Label = labels[column * 3 + rarity]
-			var word: Label = labels[StockWindow.COLUMNS * 3 + column * 3 + rarity]
+			var odds: MachineLine = lines[column * 3 + rarity]
 			if not odds.visible:
 				continue
-			assert_object(odds.get_theme_font("font")).is_same(ArtStyle.number_font())
-			for label: Label in [odds, word]:
-				assert_bool(plate.encloses(Rect2(label.position, label.size))).is_true()
+			# The share in hard pixel digits, inside its LED window.
+			for label: Label in _labels(odds):
+				var font: Font = label.get_theme_font("font")
+				assert_object(font).is_same(ArtStyle.pixel_number_font())
+			var shown: Rect2 = Rect2(odds.position, odds.size)
+			assert_bool(plate.encloses(shown)).override_failure_message(str(shown)).is_true()
+	# The sill's legend names every rarity under the glass.
+	var sill: Rect2 = StockWindow.sill_rect()
+	for rarity: int in range(3):
+		var word: MachineLine = lines[StockWindow.COLUMNS * 3 + rarity]
+		assert_str(word.text()).is_equal(StockWindow.RARITY_WORDS[rarity])
+		assert_bool(sill.encloses(Rect2(word.position, word.size))).is_true()
 
 
 func _audit(view: RewardMachineView, where: String) -> int:
@@ -574,7 +687,14 @@ func _audit(view: RewardMachineView, where: String) -> int:
 		var text: Control = found as Control
 		if not text.is_visible_in_tree():
 			continue
-		if text is Label:
+		if text is MachineLine:
+			# The hard pixel lines' own boxes (their ink across, their capitals down) stay in
+			# their holder: a plate, a key face, a ticket, the strip, the bin.
+			var line: MachineLine = text as MachineLine
+			if not line.text().strip_edges().is_empty() and not _tilted(line):
+				_assert_line_in_parent(line, where)
+				checked += 1
+		elif text is Label:
 			var label: Label = text as Label
 			if label.text.strip_edges().is_empty():
 				continue
@@ -583,9 +703,11 @@ func _audit(view: RewardMachineView, where: String) -> int:
 				label.get_theme_font_size("font_size"),
 				"%s: %s" % [where, label.text]
 			)
-			if label.autowrap_mode == TextServer.AUTOWRAP_OFF and not _tilted(label):
+			# A hard pixel line's glyphs sit on its cap row, bearing and ascent outside its box.
+			var hard: bool = label.get_parent() is PixelLine
+			if label.autowrap_mode == TextServer.AUTOWRAP_OFF and not _tilted(label) and not hard:
 				_assert_fits(label)
-			if not _tilted(label):
+			if not _tilted(label) and not hard:
 				_assert_in_parent(label, where)
 			checked += 1
 		elif text is Button:
@@ -622,6 +744,8 @@ static func _tilted(control: Control) -> bool:
 func _assert_pixelify_size(font: Font, font_size: int, what: String) -> void:
 	if font == null or not _is_pixelify(font):
 		return
+	if font == ArtStyle.pixel_display_font() and font_size == ArtStyle.PIXEL_TEXT_SIZE:
+		return  # The hard pixel lettering's raster (MachineLine, PixelLine).
 	(
 		assert_bool(PIXELIFY_SIZES.has(font_size))
 		. override_failure_message("Pixelify %d px: %s" % [font_size, what])
@@ -686,6 +810,22 @@ func _assert_in_parent(label: Label, where: String) -> void:
 			(
 				"%s: '%s' at %s outside its parent %s (%s)"
 				% [where, label.text, label.get_rect(), parent.name, parent.size]
+			)
+		)
+		. is_true()
+	)
+
+
+func _assert_line_in_parent(line: MachineLine, where: String) -> void:
+	var parent: Control = line.get_parent() as Control
+	if parent == null or parent.size == Vector2.ZERO:
+		return
+	(
+		assert_bool(Rect2(Vector2.ZERO, parent.size).grow(0.5).encloses(line.get_rect()))
+		. override_failure_message(
+			(
+				"%s: line '%s' at %s outside its parent %s (%s)"
+				% [where, line.text(), line.get_rect(), parent.name, parent.size]
 			)
 		)
 		. is_true()

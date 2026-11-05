@@ -1,12 +1,15 @@
 class_name MachineDisplay
-extends Panel
-## The machine's char display (#77, look F; build spec 4.2-4.3; v0.50: the LED strip left of the
-## receipt slot, 292 px wide, mock-up premium_machine_v1.html): the message in Pixelify 24
-## (mustard light; bold Atkinson 17, then 15, 13 or 12, when it doesn't fit) with its sub line (bold
-## Atkinson 11, grey light). Its BIN IT ✕ button went to the SKIP bin under the prize row
-## (2026-10-29, SkipBin).
-## Pixelify and Atkinson have no ✓ or ✕: the display's fonts fall back to JetBrains Mono
-## (ArtStyle.MONO_FONT) for them, the same on desktop and on the web build (marked_font).
+extends Control
+## The machine's LED display (#77, look F; build spec 4.2-4.3; the relook in v0.98, mock-up
+## docs/art/mockups/machine_relook.html V2): a charcoal glass with scanlines in a steel bezel,
+## left of the receipt slot, 340 px wide. Its message is hard pixel lettering at 2x in gold
+## (MachineLine, chunky since v0.99: its words in the chunky capitals, PixelWords.Sheet.
+## CHUNKY_CAPS, its amounts in the chunky price-gun digits, PixelWords.Sheet.CHUNKY, its marks
+## ✓ ✕ drawn as pixels), with its sub line in bold Atkinson 12 (teal pale) under it; a message
+## too wide for the glass wraps onto a second line instead of shrinking (the sub line then gives
+## way). The SKIP bin bins a draw (2026-10-29, SkipBin).
+## Atkinson has no ✓ or ✕: the sub line's font falls back to JetBrains Mono (ArtStyle.MONO_FONT)
+## for them, the same on desktop and on the web build (marked_font).
 ##
 ## RewardMachineView gives the message for each wait point (show_message: PICK A CHUTE, the pick
 ## prompt, the landing's word); frame(t) plays the visit's own lines around them from the plan:
@@ -16,23 +19,24 @@ extends Panel
 ## "Coupon engine LV 2"), and on the landing ENJOY!, UPGRADING…, the landing's word with the cart
 ## count and SEE YOU NEXT SHIFT. A PREMIUM visit's receipt read says so (PREMIUM_READ).
 ##
-## A pressed key no longer changes the display (v0.53: the tray's push bar confirms, MachineTray;
-## until then a title mode with a CONFIRM › key took the strip). A BONUS visit's feed reads the
-## ticket icon and "BONUS TICKET" / "inspection passed · feeding in".
+## A pressed key no longer changes the display (v0.53: the tray's push bar confirms, MachineTray).
+## A BONUS visit's feed reads the ticket icon and "BONUS TICKET" / "inspection passed · feeding
+## in".
 
-const SIZE := Vector2(292, 52)
-const MESSAGE_SIZE := 24
-## The message's size in bold Atkinson when Pixelify 24 doesn't fit (look F's 17 px), then the
-## smaller steps when that doesn't fit either (v0.50: the strip is 292 px).
-const FALLBACK_STEPS: Array[int] = [17, 15, 13, 12]
-## The sub line's smaller sizes when 11 doesn't fit.
-const SUB_STEPS: Array[int] = [11, 10, 9]
-const SUB_SIZE := 11
-const PAD := 10.0
-const MESSAGE_TOP := 2.0
-const MESSAGE_HEIGHT := 28.0
-const SUB_TOP := 30.0
-const SUB_HEIGHT := 16.0
+const SIZE := Vector2(340, 60)
+## The glass inside the bezel, and the room the message's lines have in it.
+const GLASS_RECT := Rect2(6, 6, 328, 48)
+const PAD := 8.0
+## The message's capitals (one line, or two when wrapped) and the sub line's box.
+const LINE_TOP := 14.0
+const LONE_TOP := 22.0
+const WRAP_TOPS: Array[float] = [10.0, 30.0]
+const SUB_TOP := 32.0
+const SUB_HEIGHT := 18.0
+const SUB_SIZE := 12
+## The sub line's smaller sizes when 12 doesn't fit.
+const SUB_STEPS: Array[int] = [12, 11, 10]
+const SCANLINE_ALPHA := 0.35
 ## A BONUS visit's feed: the ticket icon (2x) left of BONUS TICKET.
 const BONUS_TICKET := "BONUS TICKET"
 const TICKET_ICON := preload("res://art/icons/bonus_ticket.png")
@@ -56,7 +60,9 @@ static var _marked: Dictionary[int, FontVariation] = {}
 
 ## The machine this part belongs to (setup(), build spec 4.2).
 var view: RewardMachineView
-var _message: Label
+## The message's lines (one, or two when it wraps) and the sub line.
+var _lines: Array[MachineLine] = []
+var _message: String = ""
 var _sub: Label
 var _icon: TextureRect
 ## The wait point's message and sub line (show_message), shown when the plan has no line of its
@@ -71,20 +77,13 @@ func _init() -> void:
 	name = "MachineDisplay"
 	size = SIZE
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var style: StyleBoxFlat = StyleBoxFlat.new()
-	style.bg_color = Palette.CHARCOAL
-	style.border_color = Palette.INK
-	style.set_border_width_all(2)
-	add_theme_stylebox_override("panel", style)
-	_message = UiKit.display_label("", MESSAGE_SIZE, false)
-	_message.name = "Message"
-	_message.add_theme_font_override("font", marked_font(0))
-	_message.add_theme_color_override("font_color", Palette.MUSTARD_LIGHT)
-	_message.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_message.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_message.clip_text = true
-	add_child(_message)
-	_sub = UiKit.body_label("", SUB_SIZE, Palette.GREY_LIGHT)
+	for index: int in range(2):
+		var line: MachineLine = MachineLine.new()
+		line.name = "Message%d" % index
+		line.chunky = true
+		add_child(line)
+		_lines.append(line)
+	_sub = UiKit.body_label("", SUB_SIZE, Palette.TEAL_PALE)
 	_sub.name = "Sub"
 	_sub.add_theme_font_override("font", marked_font(BOLD_WEIGHT))
 	_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -130,7 +129,7 @@ static func marked_font(weight: int) -> Font:
 
 ## The message and its sub line shown now, for tests.
 func texts() -> PackedStringArray:
-	return PackedStringArray([_message.text, _sub.text])
+	return PackedStringArray([_message, _sub.text])
 
 
 ## The wait point's message and sub line (show_message).
@@ -138,9 +137,14 @@ func rest_texts() -> PackedStringArray:
 	return _rest.duplicate()
 
 
-## Whether the message is printed in Pixelify (true) or in the bold Atkinson fallback.
-func message_in_display_font() -> bool:
-	return _message.get_theme_font("font") == marked_font(0)
+## Whether the message wrapped onto a second line (too wide for the glass).
+func message_wrapped() -> bool:
+	return _lines[1].visible
+
+
+## The message's hard pixel lines (the second one shows when it wraps), for layout tests.
+func message_lines() -> Array[MachineLine]:
+	return _lines
 
 
 ## The ticket icon left of a BONUS TICKET line, for tests.
@@ -148,9 +152,9 @@ func ticket_icon() -> TextureRect:
 	return _icon
 
 
-## The message and sub labels, for layout tests.
+## The display's body text (its sub line), for layout tests.
 func labels() -> Array[Label]:
-	return [_message, _sub]
+	return [_sub]
 
 
 ## Hooks this part to the machine: RewardMachineView calls it once, when it builds the part
@@ -170,7 +174,7 @@ func frame(t: float) -> void:
 			shown = _denied
 		else:
 			_denied = PackedStringArray()
-	if shown[0] != _message.text or shown[1] != _sub.text:
+	if shown[0] != _message or shown[1] != _sub.text:
 		_show(shown[0], shown[1])
 
 
@@ -337,41 +341,58 @@ func _prize_name(index: int) -> String:
 	return prize.card.display_name if prize.card != null else ""
 
 
-## Shows the two lines: the message in Pixelify 24 if it fits the strip (else bold Atkinson 17),
-## both centred in it; a lone message centred in the display. BONUS TICKET
-## gets the ticket icon before it.
+## Shows the two lines: the message in hard pixel lettering, centred on the glass (on its own
+## line, or wrapped onto two), the sub line under it; a lone message centred in the display.
+## BONUS TICKET gets the ticket icon before it.
 func _show(message: String, sub: String) -> void:
-	_message.text = message
+	_message = message
 	_sub.text = sub
-	var left: float = PAD
-	var room: float = SIZE.x - 2.0 * PAD
-	var font: Font = marked_font(0)
-	var width: float = font.get_string_size(message, HORIZONTAL_ALIGNMENT_LEFT, -1, MESSAGE_SIZE).x
+	var room: float = GLASS_RECT.size.x - 2.0 * PAD
 	_icon.visible = message == BONUS_TICKET or message == Payday.TICKET_TITLE
+	var icon_room: float = _icon.size.x + ICON_GAP if _icon.visible else 0.0
+	var parts: PackedStringArray = wrap_message(message, room - icon_room)
+	var wrapped: bool = parts.size() > 1
+	_sub.visible = not sub.is_empty() and not wrapped
+	var tops: Array[float] = WRAP_TOPS.duplicate()
+	if not wrapped:
+		tops = [LINE_TOP if _sub.visible else LONE_TOP]
+	for index: int in range(_lines.size()):
+		var line: MachineLine = _lines[index]
+		line.visible = index < parts.size()
+		if not line.visible:
+			continue
+		line.show_text(parts[index], Palette.GOLD, Palette.GOLD)
+		line.centre_in(Rect2(icon_room, tops[index], SIZE.x - icon_room, line.size.y))
 	if _icon.visible:
 		# The icon and the line centred together.
-		var pair: float = _icon.size.x + ICON_GAP + width
-		var start: float = roundf((SIZE.x - pair) / 2.0)
-		_icon.position = Vector2(start, MESSAGE_TOP + roundf((MESSAGE_HEIGHT - _icon.size.y) / 2.0))
-		left = start + _icon.size.x + ICON_GAP
-		room = width
-	var fits: bool = width <= room
-	_message.add_theme_font_override("font", font if fits else marked_font(BOLD_WEIGHT))
-	_message.add_theme_font_size_override(
-		"font_size", MESSAGE_SIZE if fits else _step(message, BOLD_WEIGHT, FALLBACK_STEPS, room)
-	)
-	_message.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	var sub_room: float = room if not _icon.visible else SIZE.x - 2.0 * PAD
-	var sub_size: int = _step(sub, BOLD_WEIGHT, SUB_STEPS, sub_room)
-	_sub.add_theme_font_size_override("font_size", sub_size)
-	_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	var top: float = MESSAGE_TOP if not sub.is_empty() else (SIZE.y - MESSAGE_HEIGHT) / 2.0
-	_message.position = Vector2(left, top)
-	_message.size = Vector2(room, MESSAGE_HEIGHT)
-	var sub_left: float = left if not _icon.visible else PAD
-	_sub.position = Vector2(sub_left, SUB_TOP)
-	_sub.size = Vector2(sub_room, SUB_HEIGHT)
-	_sub.visible = not sub.is_empty()
+		var pair: float = _icon.size.x + ICON_GAP + _lines[0].width()
+		var start: float = MachineArt.snap((SIZE.x - pair) / 2.0)
+		var cap_middle: float = _lines[0].position.y + _lines[0].size.y / 2.0
+		_icon.position = Vector2(start, MachineArt.snap(cap_middle - _icon.size.y / 2.0))
+		_lines[0].position.x = start + _icon.size.x + ICON_GAP
+	_sub.add_theme_font_size_override("font_size", _step(sub, BOLD_WEIGHT, SUB_STEPS, room))
+	_sub.position = Vector2(GLASS_RECT.position.x + PAD, SUB_TOP)
+	_sub.size = Vector2(room, SUB_HEIGHT)
+
+
+## `message` as it fits `room` px of glass: one line, or split at the space nearest its middle
+## into two when it is too wide (a single long word stays one line).
+static func wrap_message(message: String, room: float) -> PackedStringArray:
+	if message.is_empty() or MachineLine.width_of(message, 1, true) <= room:
+		return PackedStringArray([message])
+	var words: PackedStringArray = message.split(" ")
+	var best: PackedStringArray = PackedStringArray([message])
+	var widest: float = INF
+	for cut: int in range(1, words.size()):
+		var first: String = " ".join(words.slice(0, cut))
+		var second: String = " ".join(words.slice(cut))
+		var wide: float = maxf(
+			MachineLine.width_of(first, 1, true), MachineLine.width_of(second, 1, true)
+		)
+		if wide < widest:
+			widest = wide
+			best = PackedStringArray([first, second])
+	return best
 
 
 ## The first of `steps` (font sizes, largest first) at which `text` in the marked font of
@@ -382,3 +403,21 @@ func _step(text: String, weight: int, steps: Array[int], room: float) -> int:
 		if font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x <= room:
 			return font_size
 	return steps[-1]
+
+
+## The steel bezel and the charcoal glass with its scanlines.
+func _draw() -> void:
+	var p: float = MachineArt.PIXEL
+	var rect: Rect2 = Rect2(Vector2.ZERO, SIZE)
+	draw_rect(rect, Palette.INK)
+	draw_rect(rect.grow(-p), Palette.STEEL_DARK)
+	draw_rect(Rect2(p, p, SIZE.x - 2.0 * p, p), Palette.STEEL_SHADE)
+	draw_rect(rect.grow(-2.0 * p), Palette.INK)
+	draw_rect(GLASS_RECT, Palette.CHARCOAL)
+	var y: float = GLASS_RECT.position.y + p
+	while y < GLASS_RECT.end.y:
+		draw_rect(
+			Rect2(GLASS_RECT.position.x, y, GLASS_RECT.size.x, p / 2.0),
+			Color(Palette.INK, SCANLINE_ALPHA)
+		)
+		y += 2.0 * p

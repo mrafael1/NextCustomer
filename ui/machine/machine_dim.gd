@@ -11,13 +11,16 @@ extends Control
 ## The idle machine's brightness and saturation.
 const DIM_BRIGHTNESS := 0.62
 const DIM_SATURATION := 0.55
-## The veil's pieces in the machine: the marquee and its bulb ring (RewardMachineView's
-## HEAD_POSITION, MachineHead's bulbs 10 px round it), the cabinet (MachineCabinet.SIZE, under the
-## marquee) and its plinth (MachineCabinet.PLINTH_RECT). The floor shadow is left out.
+## The veil's pieces in the machine: the marquee with its bulbs inside its rim (RewardMachineView's
+## HEAD_POSITION, MachineHead.SIZE, but for its foot over the cabinet's top band), the cabinet
+## (MachineCabinet.SIZE, under the marquee), its plinth (MachineCabinet.PLINTH_RECT) and the two
+## beacons on its outer pillars (MachineCabinet.BEACON_RECTS, v0.98). The floor shadow is left out.
 const VEIL_RECTS: Array[Rect2] = [
-	Rect2(-30, -66, 506, 72),
-	Rect2(0, 6, 448, 562),
-	Rect2(-8, 568, 464, 16),
+	Rect2(56, -60, 928, 60),
+	Rect2(0, 0, 1040, 584),
+	Rect2(-12, 584, 1064, 14),
+	Rect2(4, -18, 16, 18),
+	Rect2(1020, -18, 16, 18),
 ]
 const SHADER := preload("res://presentation/machine_dim.gdshader")
 

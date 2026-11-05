@@ -272,8 +272,9 @@ func test_the_week_bonus_plays_in_the_count_up_from_the_week_chip() -> void:
 
 
 ## Holiday rush raises the machine's odds a level (v0.70): after shift 9 the stock window's lit
-## columns show the raised level's shares and a gold "WEEK ODDS +1" line inside the window, clear
-## of every odds label; after shift 8 (Bakery festival) there is none.
+## columns show the raised level's shares and a gold "ODDS +1 · WEEK" tag inside the window (under
+## its odds plates since v0.99), clear of every odds label; after shift 8 (Bakery festival) there
+## is none.
 func test_the_stock_window_shows_the_week_odds() -> void:
 	for shift: int in [8, 9]:
 		var balance: BalanceDefinition = (load(BALANCE) as BalanceDefinition).duplicate()
@@ -293,18 +294,18 @@ func test_the_stock_window_shows_the_week_odds() -> void:
 		view.open_visit(run, null, null, false)
 		view.fast_forward()
 		await _frames(2)
-		var line: Label = view.stock.week_odds_label()
+		var line: MachineLine = view.stock.week_odds_label()
 		if shift == 8:
 			assert_bool(line.visible).is_false()
 		else:
 			assert_bool(line.visible).is_true()
-			assert_str(line.text).is_equal("WEEK ODDS +1")
+			assert_str(line.text()).is_equal("ODDS +1 · WEEK")
 			var window: Rect2 = view.stock.get_global_rect()
 			var rect: Rect2 = line.get_global_rect()
 			assert_bool(window.encloses(rect)).override_failure_message(str(rect)).is_true()
-			for label: Label in view.stock.labels():
-				if label.visible and label != line:
-					assert_bool(rect.intersects(label.get_global_rect())).is_false()
+			for other: MachineLine in view.stock.lines():
+				if other.is_visible_in_tree():
+					assert_bool(rect.intersects(other.get_global_rect())).is_false()
 			var level: int = run.machine.machine.odds_level_after(shift) + 1
 			assert_int(run.machine.odds_level(run)).is_equal(level)
 			var shares: Array[float] = []
