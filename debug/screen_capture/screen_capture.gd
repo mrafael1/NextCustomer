@@ -119,10 +119,12 @@ const DECK_ARGUMENT := "--deck="
 const TIP_ARGUMENT := "--tip="
 ## --stack's shift: planning_layout_test's stress row, with the upgrades it needs.
 const STACK_ARGUMENT := "--stack"
-## `--row=<card id>,...` (#128): the fixed shift with these cards on the belt (no inspection),
-## the file shift_screen_row_<width>x<height>.png; with --day, under those events
-## (shift_screen_row_day_<width>x<height>.png). `--monitor=<case>`: CaptureMonitor's cases.
+## `--row=<card id>,...` (#128): the fixed shift with these cards on the belt (no inspection, or
+## --day='s events, v1.00; `--upgrades=<id>,...` in place of UPGRADE_IDS, e.g. big_basket with
+## extra_till for 9 slots), the file shift_screen_[day_<ids>_]row_<width>x<height>.png.
+## `--monitor=<case>`: CaptureMonitor's cases.
 const ROW_ARGUMENT := "--row="
+const UPGRADES_ARGUMENT := "--upgrades="
 const WEEK_ARGUMENT := "--week"
 const WEEK_PREFIX := "week_"
 const TOYS_ARGUMENT := "--toys="
@@ -256,8 +258,14 @@ func _ready() -> void:
 	elif _argument(ROW_ARGUMENT) != "":
 		var row_ids: Array[String] = []
 		row_ids.assign(_argument(ROW_ARGUMENT).split(","))
-		_set_up_shift(_argument(DAY_ARGUMENT), row_ids)  # --row with --day: under those events.
-		_stack_part = "row_" if _argument(DAY_ARGUMENT) == "" else "row_day_"
+		# With --day= too (v1.00), the row runs under those day events.
+		if _argument(DAY_ARGUMENT) != "":
+			_day_part = "day_%s_" % _argument(DAY_ARGUMENT)
+		var upgrade_ids: Array[String] = UPGRADE_IDS.duplicate()
+		if _argument(UPGRADES_ARGUMENT) != "":
+			upgrade_ids.assign(_argument(UPGRADES_ARGUMENT).split(","))
+		_set_up_shift(_argument(DAY_ARGUMENT), row_ids, upgrade_ids)
+		_stack_part = "row_"
 	elif _argument(CaptureMonitor.ARGUMENT) != "":
 		var case: Dictionary = CaptureMonitor.spec(_argument(CaptureMonitor.ARGUMENT))
 		_set_up_shift(case.get("inspection", ""), case["row"], case["upgrades"])
