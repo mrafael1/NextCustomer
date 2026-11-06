@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="HandbookEntry" format=3]
+
+[ext_resource type="Script" path="res://presentation/handbook_entry.gd" id="1_entry"]
+
+[resource]
+script = ExtResource("1_entry")
+id = &"fam_produce"
+group = &"families"
+title = "Produce"
+mark = 3
+mark_value = "Produce"
+rule = "Items with the Produce glyph on their label. A rule that names Produce counts every one of them."
+example_row = PackedStringArray("grapefruit", "banana", "banana")
+example_total = 14
+example_note = "Grapefruit +3 the next Produce; the Bananas make a CHAIN."
+details = "Banana, Frozen peas, Fruit salad, Strawberries, Lemon, Potatoes, Grapefruit, Wonky carrot, Bruised apples and Soft tomatoes are Produce. Bananas make the CHAIN."
+cards = PackedStringArray("banana", "strawberries", "lemon", "wonky_carrot", "potatoes", "grapefruit")

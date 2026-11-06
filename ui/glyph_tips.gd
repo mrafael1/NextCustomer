@@ -19,6 +19,9 @@ extends Control
 
 ## The target whose tip shows changed: `target`, or null when no tip shows.
 signal shown_changed(target: TipTarget)
+## The player right-clicked while `target`'s tip showed (v1.06): the staff handbook's deep link
+## opens the target's entry (HandbookPage.mount). The tip hides as for any press.
+signal guide_requested(target: TipTarget)
 
 const SHOW_DELAY_S := 0.15
 const POP_S := 0.08
@@ -30,6 +33,9 @@ const SCOPE_META := &"glyph_tips"
 var blocked: Callable = Callable()
 ## Returns true when the player asked for reduced motion. None means false.
 var reduced_motion: Callable = Callable()
+## Returns true when right-clicking a target's tip opens the staff handbook (v1.06,
+## HandbookPage.has_entry_for): its tip then shows GlyphTip's footer. None: never.
+var guide_for: Callable = Callable()
 var _tip: GlyphTip
 var _pointer: Vector2 = Vector2(-INF, -INF)
 var _candidate: TipTarget
@@ -66,8 +72,11 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion:
 		point_at((event as InputEventMouseMotion).position)
 	elif event is InputEventMouseButton and (event as InputEventMouseButton).pressed:
+		var shown: TipTarget = shown_glyph()
 		hide_tip()
 		_candidate = null
+		if shown != null and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_RIGHT:
+			guide_requested.emit(shown)
 
 
 ## The pointer is at `at` (the viewport's coordinates): the glyph under it, if any, starts its
@@ -220,7 +229,8 @@ func _place(glyph: TipTarget) -> void:
 	if glyph.tip_below and is_instance_valid(glyph.tip_anchor):
 		anchor = to_local * glyph.tip_anchor.get_global_rect()
 	var screen: Rect2 = to_local * get_viewport_rect()
-	_tip.show_for(glyph.full_tip(), glyph_rect, anchor, glyph.tip_below, screen)
+	var guide: bool = guide_for.is_valid() and bool(guide_for.call(glyph))
+	_tip.show_for(glyph.full_tip(), glyph_rect, anchor, glyph.tip_below, screen, guide)
 
 
 ## The shown target was freed: the one now under the pointer takes its tip at once when it says the

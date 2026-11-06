@@ -111,6 +111,7 @@ func test_every_data_folder_is_loaded() -> void:
 		"weeks",
 		"toy_cabinets",
 		"pins",
+		"handbook",
 	]:
 		var prefix: String = "res://data/%s/" % folder
 		var found: bool = files.any(func(path: String) -> bool: return path.begins_with(prefix))

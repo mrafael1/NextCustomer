@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="HandbookEntry" format=3]
+
+[ext_resource type="Script" path="res://presentation/handbook_entry.gd" id="1_entry"]
+
+[resource]
+script = ExtResource("1_entry")
+id = &"pair"
+group = &"keywords"
+title = "PAIR"
+mark = 1
+mark_value = "PAIR"
+rule = "A PAIR item beside the partner its line names (Cheese beside Bread). Cream pays for each PAIR in the row."
+example_row = PackedStringArray("butter", "bread", "cheese", "cream")
+example_total = 23
+example_note = "Butter and Cheese both find their partner in Bread; Cream counts them."
+details = "On the belt a teal clasp crosses the gap between a PAIR item and its partner. Partners: Butter and a Bakery item, Cheese and Bread, Yogurt and a Banana, Reduced yogurt and a Clearance item, Scone and a Dairy item, Cereal and Milk. Either side works."
+cards = PackedStringArray("butter", "cheese", "yogurt", "cereal", "cream")

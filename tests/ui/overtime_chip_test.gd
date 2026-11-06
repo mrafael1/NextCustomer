@@ -52,6 +52,28 @@ func test_the_chip_shows_each_reward_once() -> void:
 	assert_array(Array(chip.texts())).is_equal(["×2 · USED THIS WEEK"])
 
 
+## A USED row (no ticket picture) is as tall as an earned one, so either covers the ceiling lamp's
+## shade beside the gauge's top (v1.13 review).
+func test_used_rows_are_as_tall_as_earned_rows() -> void:
+	var chip: OvertimeChip = auto_free(OvertimeChip.new())
+	chip.reduced_motion = true
+	add_child(chip)
+	chip.show_reward(false, EARNED, "×2")
+	chip.show_reward(true, EARNED, "×3")
+	await get_tree().process_frame
+	var earned: Array[Rect2] = chip.row_rects()
+	chip.clear()
+	await get_tree().process_frame
+	chip.show_reward(false, USED, "×2")
+	chip.show_reward(true, USED, "×3")
+	await get_tree().process_frame
+	var used: Array[Rect2] = chip.row_rects()
+	assert_int(used.size()).is_equal(2)
+	for row: int in 2:
+		assert_float(used[row].size.y).is_equal(earned[row].size.y)
+		assert_float(used[row].position.y).is_equal(earned[row].position.y)
+
+
 ## Alone: the laps pop the rows the count's context states, only while counting; a jump past both
 ## laps shows both; the count's end holds them, then fades them out; the next count clears them.
 func test_the_crossing_pops_the_rows_the_laps_reach() -> void:
@@ -161,8 +183,8 @@ func test_the_cue_states_nothing_for_a_double_checkouts_row_one() -> void:
 	assert_str(row_one.overtime_stub).is_empty()
 
 
-## On the real screen both rows sit under the ×N stamp, inside the viewport, clear of the register
-## tower (the receipt) and of the monitor, and apart.
+## On the real screen both rows sit under the top bar (where the "×N" stamp was until v1.13),
+## inside the viewport, clear of the register tower (the receipt) and of the monitor, and apart.
 func test_the_rows_sit_beside_the_gauge_clear_of_the_receipt_and_monitor() -> void:
 	_runner = scene_runner(SCREEN)
 	var screen: ShiftScreen = _runner.scene()
@@ -179,14 +201,14 @@ func test_the_rows_sit_beside_the_gauge_clear_of_the_receipt_and_monitor() -> vo
 	var to_global: Transform2D = crossing.get_global_transform()
 	var tower: Rect2 = to_global * ShiftStage.TOWER_RECT
 	var monitor: Rect2 = to_global * ShiftStage.MONITOR_RECT
-	var stamp: Rect2 = to_global * crossing.stamp_rect()
+	var top_bar_foot: float = (to_global * Vector2(0, ShiftStage.TOP_BAR_BOTTOM)).y
 	var screen_rect: Rect2 = Rect2(Vector2.ZERO, screen.get_viewport_rect().size)
 	for row: Rect2 in rows:
 		assert_bool(row.has_area()).is_true()
 		assert_bool(screen_rect.encloses(row)).override_failure_message(str(row)).is_true()
 		assert_bool(row.intersects(tower)).override_failure_message(str(row)).is_false()
 		assert_bool(row.intersects(monitor)).override_failure_message(str(row)).is_false()
-		assert_float(row.position.y).is_greater_equal(stamp.end.y)
+		assert_float(row.position.y).is_greater_equal(top_bar_foot)
 		assert_float(row.size.x).is_less_equal(OvertimeChip.MAX_WIDTH * to_global.get_scale().x)
 	assert_bool(rows[0].intersects(rows[1])).is_false()
 	assert_float(rows[1].position.y).is_greater(rows[0].end.y)

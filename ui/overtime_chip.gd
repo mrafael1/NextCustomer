@@ -1,8 +1,8 @@
 class_name OvertimeChip
 extends VBoxContainer
 ## The over-quota rewards' cue at the checkout (v1.03, OvertimeTickets): when the count's laps
-## reach a reward's ×N (QuotaMeter.lap_reached, through QuotaCrossing) a pill pops in under the
-## ×N stamp, beside the gauge's top: "×2 [ticket] +1 TICKET" in mustard (the bonus ticket's pill
+## reach a reward's ×N (QuotaMeter.lap_reached, through QuotaCrossing) a pill pops in beside the
+## gauge's top, under the top bar: "×2 [ticket] +1 TICKET" in mustard (the bonus ticket's pill
 ## look), "×3 [ticket] PREMIUM TICKET" in velvet with gold text (the PREMIUM machine's dressing),
 ## or, when the week's reward is already used, a subdued steel "×2 · USED THIS WEEK". Each pill
 ## stays under MAX_WIDTH, so the chip fits between the register tower and the monitor. A ×3 shift
@@ -159,6 +159,9 @@ func _make_row(premium: bool, state: int, laps: String) -> PanelContainer:
 	var line: HBoxContainer = HBoxContainer.new()
 	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	line.add_theme_constant_override("separation", GAP)
+	# Every row is as tall as an earned one (its ticket's height), USED rows too, so the first row
+	# covers the ceiling lamp's shade whatever the state (v1.13 review).
+	line.custom_minimum_size.y = TICKET.get_size().y * 2.0
 	panel.add_child(line)
 	line.add_child(_label((USED_LEAD if used else LEAD) % laps, ink))
 	if not used:

@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="HandbookEntry" format=3]
+
+[ext_resource type="Script" path="res://presentation/handbook_entry.gd" id="1_entry"]
+[ext_resource type="Texture2D" path="res://art/icons/up_arrow.png" id="2_icon"]
+
+[resource]
+script = ExtResource("1_entry")
+id = &"charge"
+group = &"shift"
+title = "Charge"
+mark = 5
+icon = ExtResource("2_icon")
+rule = "A \"×2 next\" waits for the next matching item, anywhere later, and is used once."
+example_row = PackedStringArray("eggs", "coffee", "bread")
+example_total = 16
+example_note = "Coffee is not Food, so the charge skips it and lands on Bread."
+details = "A second Eggs replaces the first instead of adding. Unused at the end: 1 charge unused, WASTED."
+cards = PackedStringArray("eggs", "tea_bags", "batteries")

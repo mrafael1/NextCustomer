@@ -83,6 +83,8 @@ var _menu: TitleMenu
 ## The entry the doors or the bay marked (NONE when the mouse is on neither).
 var _scene_entry: TitleMenu.Entry = TitleMenu.Entry.NONE
 var _rewards: RewardsMenu
+## The staff handbook (v1.06), opened by the GUIDE plate.
+var _guide: HandbookPage
 ## The bay's glass is sliding before REWARDS opens.
 var _rewards_pending: bool = false
 ## The New run question (only with a run saved).
@@ -128,6 +130,7 @@ func _ready() -> void:
 	_menu.start_pressed.connect(_on_start_pressed)
 	_menu.new_run_pressed.connect(_on_new_run_pressed)
 	_menu.rewards_pressed.connect(_on_rewards_pressed)
+	_menu.guide_pressed.connect(_on_guide_pressed)
 	stage.add_child(_menu)
 	_add_corner(stage)
 	_storefront.sign_lit.connect(_on_sign_lit)
@@ -141,6 +144,8 @@ func _ready() -> void:
 		_confirm.still = _still
 		_confirm.abandon_confirmed.connect(_on_abandon_confirmed)
 		add_child(_confirm)
+	_guide = HandbookPage.mount(self, null)
+	_guide.still = _still
 	if _still:
 		_storefront.light_now()
 	if take_lit_request():
@@ -295,6 +300,7 @@ func _busy() -> bool:
 		or toy_machines_open()
 		or _rewards.is_open()
 		or (_confirm != null and _confirm.is_open())
+		or (_guide != null and _guide.is_open())
 	)
 
 
@@ -383,6 +389,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	var key: InputEventKey = event as InputEventKey
 	if key == null or not key.pressed or _starting or toy_machines_open() or _rewards_pending:
 		return
+	if _guide != null and _guide.is_open():
+		return
 	var handled: bool = false
 	if _rewards.is_open():
 		handled = _rewards.handle_key(event)
@@ -407,6 +415,18 @@ func _on_start_pressed() -> void:
 		return
 	_sfx.play(UiKit.CLICK_SOUND)
 	_start()
+
+
+## GUIDE: the staff handbook opens over the title, at the last entry viewed.
+func _on_guide_pressed() -> void:
+	if _busy():
+		return
+	_guide.open_at()
+
+
+## The staff handbook (null before the title is ready).
+func guide() -> HandbookPage:
+	return _guide
 
 
 func _on_new_run_pressed() -> void:

@@ -24,3 +24,22 @@ static func count(state: ScoreState) -> int:
 		if is_paired(state, slot):
 			paired += 1
 	return paired
+
+
+## Every PAIR of the row (#128, the belt's PAIR clasps): each paired product with each partner its
+## pair rule finds, as (left slot, right slot), in row order, each pair once.
+static func links(state: ScoreState) -> Array[Vector2i]:
+	var found: Array[Vector2i] = []
+	for slot: int in range(state.size()):
+		if not state.is_product(slot):
+			continue
+		for rule: Rule in state.definition(slot).rules:
+			var match_rule: AdjacentMatchBonusRule = rule as AdjacentMatchBonusRule
+			if match_rule == null or not match_rule.pair:
+				continue
+			for other: int in match_rule.partners(state, slot):
+				var link: Vector2i = Vector2i(mini(slot, other), maxi(slot, other))
+				if not found.has(link):
+					found.append(link)
+	found.sort()
+	return found

@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="HandbookEntry" format=3]
+
+[ext_resource type="Script" path="res://presentation/handbook_entry.gd" id="1_entry"]
+
+[resource]
+script = ExtResource("1_entry")
+id = &"pl_slots"
+group = &"place"
+title = "FIRST / LAST SLOT"
+mark = 2
+mark_value = "FIRST / LAST"
+rule = "The row's first filled slot, or its last."
+example_row = PackedStringArray("opening_deal", "bread", "final_markdown")
+example_total = 29
+example_note = "Opening deal works first, Final markdown last."
+details = "A coupon between two products breaks BESIDE and RIGHT AFTER, unless its own rule links them."

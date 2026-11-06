@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="HandbookEntry" format=3]
+
+[ext_resource type="Script" path="res://presentation/handbook_entry.gd" id="1_entry"]
+[ext_resource type="Texture2D" path="res://art/icons/warning.png" id="2_icon"]
+
+[resource]
+script = ExtResource("1_entry")
+id = &"day_events"
+group = &"shift"
+title = "Day events"
+mark = 5
+icon = ExtResource("2_icon")
+rule = "Each day can bring one rule for the whole shift, shown on the top bar's day chip and the day slip."
+example_row = PackedStringArray("bread", "milk")
+example_events = PackedStringArray("happy_hour")
+example_total = 13
+example_note = "Under Happy hour: the last slot gets +3."
+details = "Inspections (the warning sign): Spot check, Short belt, Rush hour, Till jam, Small baskets, Late delivery. Boons: Extra till, Free samples, Happy hour, Quiet morning, Regulars' day, Fresh delivery. Week events (Bakery festival, Holiday rush, Training week) last the whole week. Click the day or week chip for the details."

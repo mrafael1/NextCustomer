@@ -69,7 +69,7 @@ func test_the_sign_lights_by_itself() -> void:
 func test_without_a_run_save_the_doors_start() -> void:
 	var title: TitleScreen = await _title()
 	assert_array(title.menu().entries()).is_equal(
-		[TitleMenu.Entry.PRIMARY, TitleMenu.Entry.REWARDS]
+		[TitleMenu.Entry.PRIMARY, TitleMenu.Entry.REWARDS, TitleMenu.Entry.GUIDE]
 	)
 	var primary: MenuPlate = title.menu().plate(TitleMenu.Entry.PRIMARY)
 	assert_str(primary.caption).is_equal(TitleMenu.START_TEXT)
@@ -102,8 +102,16 @@ func test_a_run_save_offers_continue_and_new_run() -> void:
 	_save_run_at_shift(3)
 	var title: TitleScreen = await _title()
 	var menu: TitleMenu = title.menu()
-	assert_array(menu.entries()).is_equal(
-		[TitleMenu.Entry.PRIMARY, TitleMenu.Entry.NEW_RUN, TitleMenu.Entry.REWARDS]
+	(
+		assert_array(menu.entries())
+		. is_equal(
+			[
+				TitleMenu.Entry.PRIMARY,
+				TitleMenu.Entry.NEW_RUN,
+				TitleMenu.Entry.REWARDS,
+				TitleMenu.Entry.GUIDE,
+			]
+		)
 	)
 	var primary: MenuPlate = menu.plate(TitleMenu.Entry.PRIMARY)
 	assert_str(primary.caption).is_equal(TitleMenu.CONTINUE_TEXT)
@@ -361,6 +369,8 @@ func test_the_keys_walk_the_menu() -> void:
 	title._unhandled_key_input(_key(KEY_DOWN))
 	assert_int(menu.marked_entry()).is_equal(TitleMenu.Entry.PRIMARY)
 	assert_bool(title.storefront().doors_hot).is_true()
+	title._unhandled_key_input(_key(KEY_UP))
+	assert_int(menu.marked_entry()).is_equal(TitleMenu.Entry.GUIDE)
 	title._unhandled_key_input(_key(KEY_UP))
 	assert_int(menu.marked_entry()).is_equal(TitleMenu.Entry.REWARDS)
 	assert_bool(title.storefront().bay_hot).is_true()

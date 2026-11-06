@@ -82,7 +82,8 @@ extends Control
 ## and where they touch the belt) hangs under the chip on the fixed shift, under that day event
 ## (default the fixed shift's, `none` a plain day); the file is
 ## shift_screen_slip_<id>_<width>x<height>.png. `--redraws=` and `--notice=` (CaptureStates) set
-## the Redraw key's count and a monitor notice.
+## the Redraw key's count and a monitor notice; `--handbook=<entry id>` (v1.06) opens the staff
+## handbook at that entry.
 ## With `--at-shift=<n>` or `--results=<won|lost>` (v0.96), see CaptureWeeks.
 
 const SCREEN := preload("res://ui/shift_screen.tscn")

@@ -32,7 +32,7 @@ extends Control
 ## flights into the Cart and its sparks, over the top bar). Over the fore's parts the quota
 ## crossing's bonus lights (BonusLights, over the count's quota light, QuotaLight: the band filling
 ## toward the belt's far end with the running total against the quota). Over them all the quota
-## crossing (QuotaCrossing: its streak and lap stamps), the scan layer (ScanOverlay: the
+## crossing (QuotaCrossing: its streak), the scan layer (ScanOverlay: the
 ## scan's brackets and beam) and the popup layer, all taking no clicks. A belt or hand item's scan
 ## shows on the monitor (#80); the popup layer only parks the hidden scan popup, which opens over
 ## the offers alone, in the layer an offer's scan moves it to (ScanController.cover_offers). The
@@ -405,6 +405,8 @@ func _build_belt(slot_count: int) -> void:
 	# Over the items and their tickets, under the top bar, the hand and the scan layers (#71).
 	planning_layer = PlanningLayer.new()
 	fore.add_child(planning_layer)
+	# The MORNING ribbon keeps clear of the slot marks under the tickets (v1.06).
+	KeywordMarks.of(planning_layer).obstacles = row_strip.mark_rects
 
 
 ## Fits the belt to the row's `cells` (#122: a Double checkout's short rows get a short belt).

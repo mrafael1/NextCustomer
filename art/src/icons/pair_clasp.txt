@@ -1,0 +1,12 @@
+; The belt's PAIR mark (v1.06, the keywords handbook): a Dairy teal clasp across the gap between
+; a PAIR item's ticket and its partner's, a teal pale top row and an ink rivet over each ticket's
+; edge. 12x7, shown at 2x (KeywordMarks).
+@size 12x7
+@kind icon
+.##########.
+#6666666666#
+#5#555555#5#
+#5555555555#
+#5#555555#5#
+#4444444444#
+.##########.

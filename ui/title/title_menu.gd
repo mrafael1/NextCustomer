@@ -24,11 +24,14 @@ signal start_pressed
 signal new_run_pressed
 ## REWARDS was pressed.
 signal rewards_pressed
+## GUIDE was pressed (v1.06): the staff handbook opens.
+signal guide_pressed
 ## The marked entry changed (NONE: none).
 signal hot_changed(entry: Entry)
 
-## NONE: no entry; PRIMARY: CONTINUE or START RUN; NEW_RUN (only with a run saved); REWARDS.
-enum Entry { NONE, PRIMARY, NEW_RUN, REWARDS }
+## NONE: no entry; PRIMARY: CONTINUE or START RUN; NEW_RUN (only with a run saved); REWARDS;
+## GUIDE (v1.06, the staff handbook, under REWARDS).
+enum Entry { NONE, PRIMARY, NEW_RUN, REWARDS, GUIDE }
 
 ## Where the menu stands on the storefront's stage, in canvas px (36,160 art at 2x): the
 ## primary plate's top left.
@@ -36,7 +39,7 @@ const STAGE_AT := Vector2(72, 320)
 ## Each plate's top, in canvas px from the menu's: the primary plate, then a shelf label
 ## PLATE_TOPS[1] down and the next PLATE_TOPS[2] (the mock-up's 8 art px gaps, the second one
 ## 2 more for the ledge).
-const PLATE_TOPS: Array[float] = [0.0, 96.0, 152.0]
+const PLATE_TOPS: Array[float] = [0.0, 96.0, 152.0, 208.0]
 ## The step in: each plate STEP_DELAY after the one above, sliding SLIDE canvas px in SLIDE_STEP
 ## steps over SLIDE_TIME (the mock-up's 70 ms, 24 art px in 4 art px steps over 160 ms).
 const STEP_DELAY := 0.07
@@ -47,6 +50,7 @@ const CONTINUE_TEXT := "CONTINUE"
 const START_TEXT := "START RUN"
 const NEW_RUN_TEXT := "NEW RUN"
 const REWARDS_TEXT := "REWARDS"
+const GUIDE_TEXT := "GUIDE"
 
 ## Shows the plates at once when they step in (the profile's reduced motion).
 var still: bool = false
@@ -66,7 +70,7 @@ var _stepping: Tween
 func _init(saved: bool, sub_line: String, coins: int) -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	position = STAGE_AT
-	_entries = [Entry.PRIMARY, Entry.REWARDS]
+	_entries = [Entry.PRIMARY, Entry.REWARDS, Entry.GUIDE]
 	if saved:
 		_entries.insert(1, Entry.NEW_RUN)
 	for i: int in _entries.size():
@@ -78,7 +82,7 @@ func _init(saved: bool, sub_line: String, coins: int) -> void:
 			)
 			entry_plate.sub_line = sub_line
 		else:
-			entry_plate = MenuPlate.new(NEW_RUN_TEXT if entry == Entry.NEW_RUN else REWARDS_TEXT)
+			entry_plate = MenuPlate.new(_plate_text(entry))
 		entry_plate.position = Vector2(0.0, PLATE_TOPS[i])
 		entry_plate.visible = false
 		entry_plate.mouse_entered.connect(mark.bind(entry))
@@ -204,6 +208,8 @@ func activate(entry: Entry) -> void:
 			new_run_pressed.emit()
 		Entry.REWARDS:
 			rewards_pressed.emit()
+		Entry.GUIDE:
+			guide_pressed.emit()
 
 
 ## A key for the menu: Up and Down move the marker, Enter or Space press the marked entry (the
@@ -224,6 +230,15 @@ func handle_key(event: InputEvent) -> bool:
 		_:
 			return false
 	return true
+
+
+static func _plate_text(entry: Entry) -> String:
+	match entry:
+		Entry.NEW_RUN:
+			return NEW_RUN_TEXT
+		Entry.GUIDE:
+			return GUIDE_TEXT
+	return REWARDS_TEXT
 
 
 func _last_entry() -> Entry:

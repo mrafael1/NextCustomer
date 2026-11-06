@@ -1,0 +1,979 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Keywords Guide</title>
+<style>
+/* House style of the 2026-11 mock-ups: store's dark teal wall, live stage, verdicts beside it.
+   The stage is the game's 1280x720 canvas in CSS px; art px = 2 canvas px, so every sprite is drawn
+   at an integer 2x (1x for the compact pop-up's clip). Monitor captures are shown at 1x (their real
+   424 px width). Backdrop: a real 1280x720 capture. Numbers use the number font (Atkinson
+   Hyperlegible Next, bold), never Pixelify (presentation/art_style.gd). */
+@font-face{font-family:'NCPix';font-weight:400 700;src:url(../../../fonts/PixelifySans-Variable.ttf)}
+@font-face{font-family:'NCMono';src:url(../../../fonts/JetBrainsMono-Regular.ttf)}
+@font-face{font-family:'NCAtk';font-weight:200 800;src:url(../../../fonts/AtkinsonHyperlegibleNext-Variable.ttf)}
+:root{
+  color-scheme:dark;
+  --wall:#1f3b3a; --bay:#172c2b; --panel:#2a4d4b; --paper:#fbf7ee; --cream:#f3e9d2; --cream-shade:#ddcba5;
+  --teal:#4f9a94; --teal-pale:#c3e0d4; --teal-light:#86c2b6; --teal-shade:#3a7672; --teal-dark:#2a4d4b;
+  --mustard:#e2b33c; --mustard-light:#f1d27a; --mustard-pale:#faecbc; --mustard-dark:#b38425; --mustard-darkest:#7a5a1c; --gold:#ffcf3f;
+  --brass:#c8932b; --brass-dark:#8a5d1a; --brass-darkest:#4a3010;
+  --tomato:#d9534f; --tomato-light:#ec8a6e; --tomato-pale:#f5bfa0; --tomato-dark:#a83a3c; --tomato-darkest:#6e2630;
+  --orange:#ff6a1a; --orange-dark:#b5470c;
+  --green:#5fae5a; --green-light:#a5d17e; --green-dark:#3d7a45;
+  --ink:#2b2420; --ink-light:#4a3f38; --grey:#8a8172; --grey-light:#c7beab; --muted:#a9a59b;
+  --rubber:#3d3a36; --rubber-dark:#2c2926;
+  --display:'NCPix','Pixelify Sans','Courier New',monospace;
+  --body:'NCAtk','Atkinson Hyperlegible Next','Segoe UI',system-ui,sans-serif;
+  --num:'NCAtk','Atkinson Hyperlegible Next','Segoe UI',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--wall);color:var(--paper)}
+body{font-family:var(--body);font-size:15px;line-height:1.5;overflow-x:hidden}
+main{max-width:1400px;margin:0 auto;padding:24px 16px 64px;display:grid;gap:40px}
+main>*,section>*{min-width:0}
+h1,h2,h3{font-family:var(--display);font-weight:700;margin:0;letter-spacing:.02em;text-wrap:balance}
+h1{font-size:34px;color:var(--gold)}
+h2{font-size:24px}
+h3{font-size:17px;color:var(--teal-pale)}
+p{margin:0;max-width:82ch}
+code{overflow-wrap:anywhere;color:#faecbc;font-size:13px}
+.eyebrow{font-family:var(--display);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--teal-light)}
+section{display:grid;gap:14px;min-width:0}
+.lede{display:grid;gap:10px}
+.verdict{background:var(--panel);border:2px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.35);padding:14px 16px;display:grid;gap:8px}
+.verdict strong{color:var(--gold)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:14px}
+.opt{background:var(--bay);border:2px solid var(--ink);padding:12px;display:grid;gap:8px;align-content:start}
+.opt.rec{border-color:var(--mustard)}
+.opt header{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.tag{font-family:var(--display);font-size:15px;background:var(--paper);color:var(--ink);padding:0 7px;border:2px solid var(--ink)}
+.opt.rec .tag{background:var(--mustard)}
+.pick{font-family:var(--display);font-size:12px;color:var(--gold);letter-spacing:.08em}
+.opt p,.opt li{font-size:14px;color:var(--teal-pale)}
+.opt b{color:var(--paper)}
+ul{margin:0;padding-left:20px;display:grid;gap:5px;max-width:86ch}
+.controls{display:flex;gap:8px 10px;flex-wrap:wrap;align-items:center}
+.controls .lbl{font-family:var(--display);font-size:13px;color:var(--teal-light);letter-spacing:.06em}
+.seg{display:inline-flex;border:2px solid var(--ink);box-shadow:0 3px 0 var(--ink);flex-wrap:wrap}
+.seg button{box-shadow:none;border:0;border-right:2px solid var(--ink)}
+.seg button:last-child{border-right:0}
+button{font-family:var(--display);font-size:15px;color:var(--paper);background:#3a7672;border:2px solid var(--ink);box-shadow:0 3px 0 var(--ink);padding:4px 12px;cursor:pointer}
+button:active{transform:translateY(2px)}
+button:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+button[aria-pressed="true"]{background:var(--mustard);color:var(--ink)}
+label.chk{display:inline-flex;gap:6px;align-items:center;font-family:var(--display);font-size:14px;cursor:pointer}
+.toolbar{position:sticky;top:0;z-index:50;background:rgba(23,44,43,.96);border-bottom:2px solid var(--ink);padding:8px 16px}
+.toolbar .controls{max-width:1400px;margin:0 auto}
+@media (max-width:700px){.toolbar{position:static}}
+.cap{font-size:12px;color:var(--muted)}
+.answers{background:var(--paper);color:var(--ink);border:3px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.4);padding:16px 18px;display:grid;gap:10px}
+.answers h2{color:var(--ink)}
+.answers li b{color:var(--tomato-dark)}
+.answers .def{display:inline-block;font-family:var(--display);font-size:12px;background:var(--mustard);border:2px solid var(--ink);padding:0 6px;margin-left:4px}
+.scroll{overflow-x:auto;max-width:100%}
+table.spec{border-collapse:collapse;font-size:13px;min-width:720px}
+table.spec th,table.spec td{border-bottom:1px solid #3a7672;padding:5px 8px;text-align:left;vertical-align:top}
+table.spec th{font-family:var(--display);color:var(--teal-light);font-weight:500}
+table.spec td:first-child{white-space:nowrap;color:#faecbc}
+.new{font-family:var(--display);font-size:11px;background:var(--tomato);color:var(--paper);border:2px solid var(--ink);padding:0 4px;letter-spacing:.06em;vertical-align:2px;line-height:1.3}
+.px,img.px{image-rendering:pixelated}
+
+/* ------------ the stage: 1280x720 canvas px ------------ */
+.fwrap{position:relative;border:2px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.35);overflow:hidden;background:#111;max-width:100%}
+body.one .fwrap{overflow:auto}
+.stage{position:absolute;left:0;top:0;width:1280px;height:720px;transform-origin:0 0;overflow:hidden;font-family:var(--body);color:var(--ink);user-select:none}
+.stage .bg{position:absolute;inset:0;width:1280px;height:720px}
+.stage .shade{position:absolute;inset:0;background:rgba(23,20,18,.72);opacity:0;transition:opacity .12s steps(3)}
+.stage.open .shade{opacity:1}
+.rm .stage *,.rm .ix *{transition:none!important;animation:none!important}
+
+.mpop{position:absolute;right:16px;top:58px;background:var(--cream);border:2px solid var(--ink);box-shadow:4px 4px 0 var(--ink);padding:8px;display:none;gap:6px;z-index:6}
+.mpop.show{display:grid}
+.mpop div{font-family:var(--body);font-weight:700;font-size:14px;border:2px solid var(--ink);background:var(--paper);padding:3px 12px;width:150px}
+.mpop div.hot{background:var(--mustard)}
+.cursor{position:absolute;width:22px;height:30px;z-index:20;display:none;left:0;top:0;transition:left .5s steps(10),top .5s steps(10)}
+.cursor.show{display:block}
+.cursor .ring{position:absolute;left:-12px;top:-12px;width:24px;height:24px;border:3px solid var(--gold);border-radius:50%;opacity:0}
+.cursor.click .ring{animation:ring .35s steps(5)}
+@keyframes ring{0%{opacity:1;transform:scale(.4)}100%{opacity:0;transform:scale(1.6)}}
+.gtip{position:absolute;z-index:8;background:var(--ink-light);border:2px solid var(--ink);box-shadow:4px 4px 0 var(--ink);color:var(--paper);font-weight:600;font-size:13px;padding:6px 10px;display:none;max-width:300px;line-height:1.35}
+.gtip.show{display:block}
+.gtip .foot{margin-top:5px;padding-top:4px;border-top:2px dashed #6e6258;font-family:var(--display);font-size:12px;color:var(--gold);letter-spacing:.06em}
+.gtip:after{content:"";position:absolute;left:50%;bottom:-10px;margin-left:-8px;border:8px solid transparent;border-top-color:var(--ink);border-bottom:0}
+.chiplit{position:absolute;z-index:7;border:2px solid var(--gold);display:none}
+.chiplit.show{display:block}
+
+/* ---- shared content pieces ---- */
+.kchip{display:inline-flex;align-items:center;gap:3px;font-family:var(--display);font-weight:500;font-size:11px;line-height:1;color:var(--ink);padding:2px 3px 1px;border:2px solid var(--ink);border-radius:2px;vertical-align:1px;letter-spacing:.03em;white-space:nowrap}
+.kchip.big{font-size:16px;padding:3px 6px 2px}
+.kchip.wasted{background:var(--tomato)!important;color:var(--paper)}
+.kchip .xc{display:none;width:6px;height:6px}
+.kchip.wasted .xc{display:inline-block}
+.kchip.big .xc{width:12px;height:12px}
+.fchip{display:inline-flex;align-items:center;font-weight:800;font-size:inherit;line-height:1.1;padding:0 4px;border-radius:2px;white-space:nowrap}
+.rulebox{font-weight:700;font-size:17px;line-height:1.35;color:var(--ink)}
+.eqline{font-family:var(--num);font-weight:800;font-size:17px;color:var(--ink);letter-spacing:.01em}
+.eqline b{color:var(--orange-dark)}
+.hint{font-size:13px;line-height:1.4;color:var(--ink-light)}
+.hint b{color:var(--ink)}
+.hint .mon{font-family:var(--display);font-size:12px;letter-spacing:.08em;color:var(--teal-shade);display:block;margin-bottom:2px}
+.shot{border:2px solid var(--ink);display:block;background:#111;image-rendering:pixelated;flex:none}
+.retake{width:428px;max-width:none;height:92px;border:2px dashed var(--grey);display:grid;place-items:center;text-align:center;font-family:var(--display);font-size:13px;letter-spacing:.06em;color:var(--grey);background:repeating-linear-gradient(135deg,transparent 0 10px,rgba(138,129,114,.12) 10px 20px);padding:6px;flex:none}
+.readers{display:flex;flex-wrap:wrap;gap:2px 4px;align-items:center}
+.readers img{width:48px;height:48px}
+.noclip{border:2px dashed var(--grey-light);display:grid;place-items:center;align-content:center;gap:6px;color:var(--grey);font-size:13px;text-align:center;padding:8px}
+.fammem{font-size:13px;color:var(--ink-light)}
+
+/* ---- the belt clip ---- */
+.clip{position:relative;background:linear-gradient(#efe4cb,#e7d9bb);border:2px solid var(--ink);overflow:hidden;flex:none}
+.clip .belt{position:absolute;left:0;right:0;background:repeating-linear-gradient(90deg,var(--rubber) 0 14px,var(--rubber-dark) 14px 16px);border-top:2px solid var(--ink);border-bottom:2px solid var(--ink)}
+.clip .rail{position:absolute;left:0;right:0;background:var(--rubber-dark);border-bottom:2px solid var(--ink)}
+.clip .slot{position:absolute;top:0;left:0;transition:transform .18s steps(4),opacity .18s steps(3)}
+.clip .slot.off{transform:translateX(48px);opacity:0}
+.clip .it{position:absolute;transition:transform .08s steps(2)}
+.clip .it.bump{transform:translateY(-8px)}
+.s1 .it.bump{transform:translateY(-4px)}
+.clip .it.shake{animation:shake .24s steps(4)}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+.clip .it img{position:absolute;left:0;top:0}
+.clip .stk{position:absolute;display:flex;flex-direction:column-reverse;align-items:flex-start;gap:2px;z-index:4}
+.st{font-family:var(--num);font-weight:800;font-size:16px;line-height:1;border:2px solid var(--ink);border-radius:4px;padding:3px 5px 2px;box-shadow:0 2px 0 var(--ink);animation:pop .16s steps(3);white-space:nowrap;display:inline-flex;align-items:center;gap:3px;color:var(--ink)}
+@keyframes pop{0%{transform:scale(.5)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
+.st.plus{background:var(--paper)}
+.st.times{background:var(--gold);border-radius:10px}
+.st.waste{background:var(--grey-light);font-family:var(--display);font-weight:600;font-size:12px}
+.st.waste img{width:13px;height:13px}
+.st.zero{background:var(--tomato-pale);color:var(--tomato-dark);display:grid;justify-items:center;gap:1px;padding:4px 6px;transform:rotate(-4deg);animation:none}
+.st.zero small{font-family:var(--display);font-size:9px;letter-spacing:.06em;font-weight:500}
+.s1 .st{font-size:11px;padding:2px 3px 1px;border-radius:3px}
+.s1 .st.waste{font-size:9px}
+.s1 .st.waste img{display:none}
+.s1 .st.zero small{display:none}
+/* the v0.95 ticket (ui/ticket_face.gd, price_window.gd, price_sticker.gd) at 2x */
+.tk{position:absolute;width:108px;height:76px;z-index:2}
+.tk .o{position:absolute;inset:0;background:var(--ink);clip-path:polygon(4px 0,104px 0,104px 2px,106px 2px,106px 4px,108px 4px,108px 72px,106px 72px,106px 74px,104px 74px,104px 76px,4px 76px,4px 74px,2px 74px,2px 72px,0 72px,0 4px,2px 4px,2px 2px,4px 2px)}
+.tk .f{position:absolute;left:2px;top:2px;right:2px;bottom:2px;background:var(--f);box-shadow:inset 2px 2px 0 var(--l),inset -2px -2px 0 var(--d);clip-path:polygon(2px 0,calc(100% - 2px) 0,calc(100% - 2px) 2px,100% 2px,100% calc(100% - 2px),calc(100% - 2px) calc(100% - 2px),calc(100% - 2px) 100%,2px 100%,2px calc(100% - 2px),0 calc(100% - 2px),0 2px,2px 2px)}
+.tk .lb{position:absolute;left:4px;top:4px;width:42px;height:22px;background:var(--paper);display:flex;gap:2px;align-items:center;padding-left:2px}
+.tk .lb img{width:18px;height:18px}
+.tk .win{position:absolute;left:48px;top:4px;width:56px;height:22px;background:var(--paper);display:grid;place-items:center;font-family:var(--num);font-weight:800;font-size:18px;line-height:1;letter-spacing:-.02em}
+.tk .win svg{position:absolute;left:0;top:0}
+.tk .pl{position:absolute;left:6px;top:28px;width:96px;height:44px;background:var(--cream);box-shadow:inset 2px 2px 0 var(--cream-shade);padding:4px 2px 0 5px;font-weight:800;font-size:12.5px;line-height:13px;color:var(--ink);overflow:hidden}
+.tk .pl .kchip{font-size:10px;line-height:9px;padding:1px 2px 0;height:13px;vertical-align:0}
+.tk .pl .fchip{font-size:12px;line-height:13px;height:13px;vertical-align:0}
+.tk.gold{z-index:4}
+.tk .pl .nm{display:grid;place-items:center;height:100%;font-size:14px}
+.tk .perf{position:absolute;left:4px;right:4px;bottom:2px;height:2px;background:repeating-linear-gradient(90deg,var(--paper) 0 4px,transparent 4px 8px)}
+.tk .gr{position:absolute;left:-6px;top:-6px;right:-6px;bottom:-6px;background:var(--brass-darkest);z-index:-1}
+.tk .gr:before{content:"";position:absolute;inset:2px;border:4px solid;border-color:var(--gold) var(--brass) var(--brass) var(--gold)}
+.tk .spk{position:absolute;width:10px;height:10px;z-index:3}
+.mini{position:absolute;width:48px;height:20px;display:grid;place-items:center;font-family:var(--num);font-weight:800;font-size:13px;background:var(--paper);border:2px solid var(--ink);box-shadow:inset 0 -3px 0 var(--f,var(--cream-shade));z-index:2}
+/* rail strip (ui/rail_strip.gd): who gives what to whom */
+.rs{position:absolute;z-index:3;opacity:0;transition:opacity .15s steps(3)}
+.rs.on{opacity:1}
+.rs .body{position:absolute;height:14px;background:linear-gradient(var(--ink) 0 2px,var(--mustard) 2px 4px,var(--mustard-dark) 4px 10px,var(--brass-dark) 10px 12px,var(--ink) 12px 14px)}
+.rs.hot .body{background:linear-gradient(var(--ink) 0 2px,var(--mustard-pale) 2px 4px,var(--mustard) 4px 10px,var(--mustard-dark) 10px 12px,var(--ink) 12px 14px)}
+.rs .plug{position:absolute;width:12px;height:18px;background:var(--ink)}
+.rs .plug:after{content:"";position:absolute;left:4px;top:5px;width:4px;height:8px;background:var(--mustard)}
+.rs.hot .plug:after{background:var(--paper)}
+.rs .stem{position:absolute;width:6px;background:var(--ink)}
+.rs .stem:after{content:"";position:absolute;left:2px;top:0;bottom:0;width:2px;background:var(--mustard-dark)}
+.rs .nm{position:absolute;height:14px;background:var(--ink);color:var(--paper);font-family:var(--display);font-size:13px;line-height:14px;padding:0 6px 0 4px;letter-spacing:.06em;border-right:2px solid var(--mustard-light);white-space:nowrap}
+.rs.hot .nm{color:var(--gold)}
+.rs img{position:absolute}
+.rs .hotimg{display:none}
+.rs.hot .hotimg{display:block}
+.rs.hot .calm{display:none}
+.s1 .rs .body{height:6px;background:linear-gradient(var(--ink) 0 1px,var(--mustard-dark) 1px 5px,var(--ink) 5px 6px)}
+.s1 .rs.hot .body{background:linear-gradient(var(--ink) 0 1px,var(--gold) 1px 5px,var(--ink) 5px 6px)}
+.s1 .rs .tri{position:absolute;width:0;height:0;border:4px solid transparent;border-top:5px solid var(--ink);border-bottom:0}
+/* frames (ui/batch_frame.gd, ui/chain_frame.gd) drawn as rects in one SVG over the tickets */
+.clip svg.frm{position:absolute;left:0;top:0;z-index:3;pointer-events:none;opacity:0;transition:opacity .2s steps(4)}
+.clip svg.frm.on{opacity:1}
+.clip .rib{position:absolute;height:18px;background:var(--mustard-light);border:2px solid var(--ink);box-shadow:inset 0 2px 0 var(--mustard-pale),inset 0 -2px 0 var(--mustard-dark);font-family:var(--display);font-size:12px;line-height:14px;padding-left:6px;letter-spacing:.08em;clip-path:inset(0 100% 0 0);transition:clip-path .3s steps(6);z-index:3}
+.clip .rib.on{clip-path:inset(0 0 0 0)}
+.clip .ptag{position:absolute;height:16px;font-family:var(--display);font-size:11px;line-height:12px;background:var(--teal-light);border:2px solid var(--ink);padding:0 4px;opacity:0;transition:opacity .15s steps(3);z-index:3}
+.clip .ptag.on{opacity:1}
+.s1 .ptag{height:4px;padding:0;font-size:0;background:var(--teal-light)}
+.clip .nwt{position:absolute;z-index:5}
+.clip .tot{position:absolute;right:8px;display:grid;justify-items:end;gap:2px;z-index:4}
+.clip .tot small{font-family:var(--display);font-size:12px;letter-spacing:.12em;color:var(--ink-light)}
+.clip .tot b{font-family:var(--num);font-weight:800;font-size:34px;line-height:1;color:var(--ink)}
+.clip .tot.win b{color:var(--orange-dark);animation:pop .2s steps(3)}
+.clip.s1 .tot b{font-size:24px}
+.clip.fade{opacity:0;transition:opacity .3s steps(3)}
+.clip .rp{position:absolute;right:6px;top:6px;font-size:12px;padding:1px 7px;z-index:6}
+.clip .cap2{position:absolute;left:8px;top:6px;font-family:var(--display);font-size:11px;letter-spacing:.1em;color:var(--ink-light)}
+
+/* ---- Variant A: staff handbook ---- */
+.vA{position:absolute;left:64px;top:36px;width:1152px;height:648px;display:none;z-index:5;transform:translateY(24px);opacity:0;transition:transform .16s steps(4),opacity .16s steps(2)}
+.stage.open .vA.on{transform:none;opacity:1}
+.vA.on{display:block}
+.vA .tabs{position:absolute;left:24px;top:0;height:40px;display:flex;gap:4px}
+.vA .tab{font-family:var(--display);font-size:15px;letter-spacing:.06em;background:var(--cream-shade);border:2px solid var(--ink);border-bottom:0;padding:8px 12px 0;height:40px;cursor:pointer;color:var(--ink-light);display:flex;gap:6px;align-items:flex-start}
+.vA .tab.on{background:var(--paper);color:var(--ink);height:42px;position:relative;z-index:2}
+.vA .tab .n{font-family:var(--num);font-weight:800;font-size:11px;color:var(--grey)}
+.vA .book{position:absolute;left:0;top:40px;width:1152px;height:608px;background:var(--paper);border:2px solid var(--ink);box-shadow:6px 6px 0 var(--ink)}
+.vA .rings{position:absolute;left:286px;top:10px;bottom:10px;width:12px;background:repeating-linear-gradient(var(--grey-light) 0 10px,transparent 10px 44px)}
+.vA .idx{position:absolute;left:16px;top:16px;width:262px;bottom:16px;overflow:auto;display:grid;align-content:start;gap:4px}
+.vA .idx h4{margin:4px 0 2px;font-family:var(--display);font-size:12px;letter-spacing:.12em;color:var(--grey);font-weight:500}
+.vA .row{display:flex;align-items:center;gap:8px;padding:5px 8px;border:2px solid transparent;cursor:pointer;font-weight:700;font-size:15px;min-height:40px}
+.vA .row:hover{border-color:var(--cream-shade)}
+.vA .row.on{background:var(--mustard-pale);border-color:var(--ink)}
+.vA .det{position:absolute;left:310px;top:16px;right:12px;bottom:28px;display:grid;gap:10px;align-content:start;overflow-y:auto;overflow-x:hidden;padding-right:8px}
+.vA .hd{display:flex;align-items:center;gap:12px}
+.vA .hd h3{font-family:var(--display);font-size:30px;color:var(--ink);letter-spacing:.02em}
+.vA .foot{display:flex;gap:14px;align-items:flex-start}
+.vA .x{position:absolute;right:-2px;top:-2px;width:40px;height:40px;background:var(--tomato);color:var(--paper);border:2px solid var(--ink);font-family:var(--display);font-size:22px;display:grid;place-items:center;cursor:pointer;z-index:3}
+.vA .esc{position:absolute;right:14px;bottom:6px;font-family:var(--display);font-size:12px;color:var(--grey-light);letter-spacing:.06em}
+
+/* ---- Variant B: the monitor ---- */
+.vB{position:absolute;left:100px;top:24px;width:1080px;height:672px;display:none;z-index:5;opacity:0;transition:opacity .16s steps(3)}
+.vB.on{display:block}
+.stage.open .vB.on{opacity:1}
+.vB .case{position:absolute;left:0;top:0;width:1080px;height:300px;background:var(--bay);border:2px solid var(--ink);box-shadow:6px 6px 0 var(--ink);padding:12px}
+.vB .bay{position:absolute;left:12px;top:12px;width:276px;height:272px;background:#1d3a38;border:2px solid var(--ink);background-image:linear-gradient(rgba(134,194,182,.12) 2px,transparent 2px),linear-gradient(90deg,rgba(134,194,182,.12) 2px,transparent 2px);background-size:24px 24px}
+.vB .bayh{position:absolute;left:10px;top:8px;right:10px;display:flex;justify-content:space-between;font-family:var(--display);font-size:13px;letter-spacing:.14em;color:var(--teal-pale)}
+.vB .bayh i{display:inline-block;width:10px;height:10px;background:var(--tomato);margin-right:6px}
+.vB .bayart{position:absolute;left:42px;top:34px;width:192px;height:192px}
+.vB .bayf{position:absolute;left:24px;right:24px;bottom:14px;text-align:center;font-family:var(--display);font-size:13px;letter-spacing:.1em;color:var(--teal-pale);border:2px solid var(--teal-shade);padding:3px}
+.vB .scr{position:absolute;left:300px;top:12px;right:12px;height:272px;background:var(--paper);border:2px solid var(--ink);padding:10px 16px;display:grid;gap:8px;align-content:start;overflow-y:auto}
+.vB .scr .hint{font-size:12.5px}
+.vB .scr h3{font-family:var(--display);font-size:28px;color:var(--ink)}
+.vB .scr .hd{display:flex;gap:10px;align-items:center;border-bottom:2px solid var(--cream-shade);padding-bottom:6px}
+.vB .scr .hd .grp{margin-left:auto;font-family:var(--display);font-size:12px;letter-spacing:.12em;color:var(--grey)}
+.vB .monbtn{justify-self:start;font-size:12px;padding:1px 8px}
+.vB .monov{position:absolute;left:300px;top:12px;right:12px;height:272px;background:var(--paper);border:2px solid var(--ink);display:none;place-items:center;align-content:center;gap:8px;padding:10px;z-index:2}
+.vB .monov.on{display:grid}
+.vB .beltzone{position:absolute;left:0;top:308px;width:1080px;height:290px;display:grid;place-items:center}
+.vB .strip{position:absolute;left:0;top:604px;width:1080px;height:66px;background:var(--bay);border:2px solid var(--ink);box-shadow:6px 6px 0 var(--ink);padding:6px 8px;display:grid;gap:6px}
+.vB .grps,.vB .chips{display:flex;gap:4px;flex-wrap:nowrap;overflow:hidden}
+.vB .grps span{font-family:var(--display);font-size:12px;letter-spacing:.08em;color:var(--teal-pale);border:2px solid var(--teal-shade);padding:0 6px;cursor:pointer}
+.vB .grps span.on{background:var(--mustard);color:var(--ink);border-color:var(--ink)}
+.vB .chips span{cursor:pointer;font-weight:800;font-size:13px;background:var(--cream);border:2px solid var(--ink);padding:0 6px;white-space:nowrap}
+.vB .chips span.on{background:var(--gold)}
+.vB .x{position:absolute;right:-2px;top:-2px;width:36px;height:36px;background:var(--tomato);color:var(--paper);border:2px solid var(--ink);font-family:var(--display);font-size:20px;display:grid;place-items:center;cursor:pointer;z-index:3}
+
+/* ---- Variant C: pop-up card ---- */
+.vC{position:absolute;width:560px;display:none;z-index:9;background:var(--paper);border:2px solid var(--ink);box-shadow:6px 6px 0 var(--ink);padding:12px 14px;transform:scale(.6);opacity:0;transform-origin:50% 100%;transition:transform .14s steps(3),opacity .1s steps(2)}
+.vC.on{display:grid;gap:8px}
+.stage.open .vC.on{transform:none;opacity:1}
+.vC.tail:after{content:"";position:absolute;left:var(--tx,50%);bottom:-14px;margin-left:-10px;border:10px solid transparent;border-top-color:var(--ink);border-bottom:0}
+.vC .hd{display:flex;gap:10px;align-items:center}
+.vC .hd h3{font-family:var(--display);font-size:24px;color:var(--ink)}
+.vC .hd .x{margin-left:auto;width:28px;height:28px;background:var(--tomato);color:var(--paper);border:2px solid var(--ink);display:grid;place-items:center;font-family:var(--display);cursor:pointer}
+.vC .rulebox{font-size:15px}
+.vC .monbtn{justify-self:start;font-size:12px;padding:1px 8px}
+.vC .nav{display:flex;gap:8px;align-items:center;font-family:var(--display);font-size:13px;border-top:2px solid var(--cream-shade);padding-top:6px}
+.vC .nav span{cursor:pointer;border:2px solid var(--ink);padding:1px 8px;background:var(--cream)}
+.vC .nav .all{margin-left:auto;background:var(--mustard)}
+.vC .list{display:grid;gap:6px;max-height:330px;overflow:auto}
+.vC .list h4{margin:0;font-family:var(--display);font-size:12px;letter-spacing:.12em;color:var(--grey);font-weight:500}
+.vC .list div{display:flex;flex-wrap:wrap;gap:4px}
+.vC .list span{cursor:pointer;font-weight:800;font-size:13px;border:2px solid var(--ink);padding:0 6px;background:var(--cream)}
+
+/* readable index under the stage */
+.ix{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));gap:14px}
+.ix .g{background:var(--bay);border:2px solid var(--ink);padding:10px 12px;display:grid;gap:6px;align-content:start;min-width:0}
+.ix .g h3{display:flex;gap:8px;align-items:center}
+.ix .e{display:grid;gap:1px;font-size:13.5px;color:var(--teal-pale);cursor:pointer;padding:3px 4px;border:2px solid transparent;min-width:0}
+.ix .e:hover{border-color:var(--teal-shade)}
+.ix .e b{color:var(--paper);font-size:14px}
+.ix .e .full{font-family:var(--display);font-size:11px;color:var(--gold);letter-spacing:.06em}
+.ix .e em{font-style:normal;color:#faecbc;font-family:var(--num);font-weight:700}
+.ix .inl{display:none;cursor:default;background:var(--paper);color:var(--ink);border:2px solid var(--ink);padding:10px;gap:8px;margin-top:4px;min-width:0}
+.ix .e.open .inl{display:grid}
+.ix .inl .sx{overflow-x:auto;max-width:100%}
+.ix .inl b{color:var(--ink);font-size:inherit}
+</style>
+
+<div class="toolbar"><div class="controls">
+  <span class="lbl">VARIANT</span>
+  <div class="seg" role="group" aria-label="Variant">
+    <button data-v="A" aria-pressed="true">A · Handbook ★</button>
+    <button data-v="B" aria-pressed="false">B · Monitor</button>
+    <button data-v="C" aria-pressed="false">C · Pop-up card</button>
+  </div>
+  <span class="lbl">OPEN FROM</span>
+  <button id="openMenu">≡ Menu → Guide</button>
+  <button id="openChip">Right-click a tooltip (deep link)</button>
+  <button id="replayClip">↻ Replay clip</button>
+  <div class="seg" role="group" aria-label="Scale">
+    <button id="v_fit" aria-pressed="true">Fit</button>
+    <button id="v_one" aria-pressed="false">1:1</button>
+  </div>
+  <label class="chk"><input type="checkbox" id="rm"> Reduced motion</label>
+</div></div>
+
+<main>
+  <div class="lede">
+    <div class="eyebrow">Mock-up · keywords guide · v2 · 2026-11-05 · rules and ticket look read from NC-polish <code>feature/shift-scene-polish</code> 1b7fd731 (v0.95, fb-p3)</div>
+    <h1>Keywords guide: one page that explains every word on the tickets</h1>
+    <p>The tickets and the monitor use short words: families (<b>Breakfast</b>, <b>Bakery</b>…), keyword chips (<b>CHAIN</b>, <b>BATCH</b>, <b>PAIR</b>, <b>MORNING</b>, <b>WASTED</b>), coupons, tiers (<b>BIG</b>, <b>GOLDEN</b>) and shift words (<b>redraw</b>, <b>Spot check</b>). Today each one is explained only in its hover tooltip (a family's is one line, a keyword's two or three sentences). This page is <b>NEW</b>: a guide you open from the in-run <b>≡</b> menu (and the title screen), or straight from any tooltip by <b>right-clicking</b> while it shows. Each entry has the rule in one sentence, a worked example with real numbers, a short looping <b>clip</b> made from the game's own sprites and v0.95 tickets (items ride in, then pay out one by one, with the rail strip lighting up from whoever gives a ×), and a real monitor capture at 1×.</p>
+    <p>The stage below is the game's 1280×720 screen, with a real capture of the shift as its backdrop. Click any entry in the guide to switch. <b>11 entries are fully built</b> (CHAIN, BATCH, PAIR, MORNING, WASTED, Breakfast, 2 for 1, Multipack, GOLDEN, BIG, Spot check); the others show their rule and example, with the clip marked "in the build". Every number was checked against the scoring rules (<code>docs/PROTOTYPE_PLAN.md</code> sections 3 and 5) and the card files in <code>data/cards/</code>.</p>
+  </div>
+
+  <section>
+    <div class="fwrap" id="fwrap"><div class="stage" id="stage">
+      <img class="bg px" src="keywords_guide_src/shots/shift_effects.png" alt="The shift screen while planning (real capture)">
+      <div class="shade"></div>
+      <div class="mpop" id="mpop"><div>Export log</div><div class="hot">Guide <span class="new">NEW</span></div></div>
+      <div class="chiplit" id="chiplit" style="left:880px;top:506px;width:80px;height:20px"></div>
+      <div class="gtip" id="gtip"></div>
+      <div class="cursor" id="cursor"><svg width="22" height="30" viewBox="0 0 11 15" class="px" shape-rendering="crispEdges"><path d="M0 0h1v1h1v1h1v1h1v1h1v1h1v1h1v1h1v1h1v1H7v1h1v2H7v1H6v-2H5v-1H4v1H3v1H1v1H0z" fill="#2b2420"/><path d="M1 2h1v1h1v1h1v1h1v1h1v1h1v1h1v1H6v1h1v2H6v-2H5v-1H4v1H3v1H1z" fill="#fbf7ee"/></svg><div class="ring"></div></div>
+      <div class="vA" id="vA"></div>
+      <div class="vB" id="vB"></div>
+      <div class="vC" id="vC"></div>
+    </div></div>
+    <p class="cap">Fit scales the 1280×720 screen to your window (pixels soften). Use 1:1 on a desktop to see the real size. On a phone, read the entries in the index below: tapping one opens it right there, with its clip and capture at full size.</p>
+  </section>
+
+  <section>
+    <h2>The three variants</h2>
+    <div class="cards">
+      <div class="opt rec"><header><span class="tag">A</span><h3>Staff handbook</h3><span class="pick">RECOMMENDED</span></header>
+        <p>A cream ring binder over the shaded shift. Group tabs across the top, the index on the left, one entry on the right: rule, clip, worked example, a monitor capture. <b>Right-clicking a tooltip opens it at that entry.</b></p>
+        <ul><li><b>+</b> Room for all <span id="nEntries">37</span> entries, a clip with tickets at full 2× size and the capture at 1×.</li><li><b>+</b> Same page from the menu and from a tooltip: one place to learn.</li><li><b>−</b> It covers the whole belt while open.</li></ul></div>
+      <div class="opt"><header><span class="tag">B</span><h3>On the monitor</h3></header>
+        <p>The shop monitor grows into a big screen: the bay shows the key item, the paper side the rule and example (a button swaps in the real capture); the clip plays on a belt under it; a chip strip at the bottom picks the entry.</p>
+        <ul><li><b>+</b> Feels part of the shop; ties straight to "see it on the monitor".</li><li><b>−</b> The chip strip holds one group at a time and gets crowded; the capture and the text can't show together.</li></ul></div>
+      <div class="opt"><header><span class="tag">C</span><h3>Pop-up card</h3></header>
+        <p>A card pops up right above the tooltip you right-clicked, with a small 1× clip; ◀ ▶ steps through its group; ALL opens a compact list.</p>
+        <ul><li><b>+</b> Fastest: you never leave the belt; the belt stays visible.</li><li><b>−</b> The 1× clip has no tickets or frames, only prices; poor as a page to browse from the menu.</li></ul></div>
+    </div>
+    <div class="verdict"><strong>Recommended: A, the staff handbook.</strong><p>It is the only one that fits both jobs, browsing from the menu and a quick look from a tooltip, without shrinking the clip (the clip is the part that teaches: you watch the order, the frames, who gives the ×, and the payout). It reuses pieces players already know: the v0.95 tickets, the chain and batch frames, the rail strips, the stickers (+2, ×2, WASTED) and the monitor's wording. B is a good fallback if you want it more in-world; C's "opens right where you clicked" can be kept as A's deep link, which jumps straight to the entry.</p></div>
+  </section>
+
+  <section>
+    <h2>Every entry (readable index)</h2>
+    <p class="cap">Grouped as in the guide's tabs. <span style="color:var(--gold)">FULL</span> = clip + capture built in this mock-up. <span class="new">NEW</span> = not in the game yet (the guide itself, the MORNING ribbon and PAIR tags in the clips, and the place-words group, which today are plain words on stickers, not chips).</p>
+    <div class="ix" id="ix"></div>
+  </section>
+
+  <section>
+    <h2>Behaviour spec of A (recommended)</h2>
+    <div class="scroll"><table class="spec">
+      <tr><th>Part</th><th>Spec</th></tr>
+      <tr><td>Opens from</td><td>1) In-run <b>≡</b> menu (top bar, today only "Export log"): new row <b>Guide</b>, opens at the last entry viewed (first time: CHAIN, or the tab of the first keyword in the hand). 2) Title screen: new plate <b>GUIDE</b> under REWARDS (question 2). 3) <b>Right-click while a tooltip shows</b>: opens the entry for that tooltip (keyword chip, family glyph or word, coupon name, tier, day slip, monitor line). Chips take no clicks themselves (<code>TipTarget</code> sets <code>MOUSE_FILTER_IGNORE</code>), so the right-click is routed by <code>GlyphTips</code>, which knows which tip is showing. Right-click does nothing new during cart placement (there it cancels, <code>ui/cart_placing.gd</code>) or while a day slip or the pin lanyard is open (there it closes them, <code>ui/day_slip.gd</code>, <code>ui/badge/pin_lanyard.gd</code>). Every tooltip gets a second line: <b>RIGHT-CLICK · GUIDE</b>.</td></tr>
+      <tr><td>Closes</td><td>✕ (top right), Esc, right-click anywhere outside the binder. Returns to the exact screen state; nothing in the run is timed, so planning just waits.</td></tr>
+      <tr><td>Open motion</td><td>Shade (ink at 72%) fades in 3 steps over 120 ms; the binder rises 12 art px in 4 steps over 160 ms (same rhythm as the title menu plates). Reduced motion: both appear at once.</td></tr>
+      <tr><td>Size and place</td><td>Binder 576×324 art px (1152×648 canvas px) at canvas (64, 36), tabs 20 art px tall on its top edge, page 576×304 art px. Index column 131 art px wide; detail column from art x 155, scrolls when an entry is taller than the page. Ink 1 art px outline, 3 art px hard ink shadow.</td></tr>
+      <tr><td>Tabs (groups)</td><td>KEYWORDS (5) · FAMILIES (9) · COUPONS (9: what a coupon is + the 8 pooled coupons) · TIERS (2) · SHIFT (6) · PLACE WORDS (6, NEW). The index lists the tab's entries with their chip, glyph or coupon mark at 2×; the picked row is mustard-pale with an ink box.</td></tr>
+      <tr><td>Entry layout</td><td>Head: chip or glyph at 2× + name (display font 30 px) + group. Rule: one sentence, body font bold 17 px (the keyword tooltip's text where one exists, <code>GlyphText.KEYWORD_TIPS</code>). Clip box <span id="clipDims">790×258</span> canvas px (395×129 art px; 24 px taller with a MORNING ribbon). Worked example line (number font, bold 17 px). Foot: monitor capture at 1× (424 px wide, cropped to the lines that matter) + "See it on the monitor" hint + the cards that use it (item sprites 1×).</td></tr>
+      <tr><td>Clip pieces</td><td>The real belt pieces at 2×: item sprites (48 art px), v0.95 tickets (54×38 art: family-coloured face, label and price window framed in it, the price ramp: ink at base, amber, orange from 2× the base, red from 5×, grey at 0€; a coupon's window shows the scissors, a wasted one the cut line; GOLDEN's gold ring and two sparkles), <code>ChainFrame</code> (green ring, interlocked rings in each gap) and <code>BatchFrame</code> (mustard ring, two binding bars per gap), and <code>RailStrip</code> from each giver (Eggs, Tea bags, a coupon) to its targets. NEW, not in the game: the MORNING ribbon under the tickets and the PAIR tag across a pair's gap.</td></tr>
+      <tr><td>Clip timeline</td><td>Belt empty → items ride in from the right one per 110 ms (each 180 ms, 24 art px, 4 steps) → frames, strips and tags appear (300 ms) → each slot counts in turn: item hops 4 art px (80 ms), its stickers pop one per 380 ms (scale .5→1.15→1, 160 ms), the price window steps up the ramp. A × from a giver: the strip turns hot (gold) and the giver hops at the same moment its sticker lands, for 500 ms. The total adds the payout → total pops orange → hold 2 s → fade 300 ms → loop. WASTED: grey sticker with the fizzle mark, item shakes 2 art px, its chip turns tomato with the pixel cross (as on the belt). Reduced motion: the final state, no loop.</td></tr>
+      <tr><td>Data it reads</td><td>Rule text: <code>GlyphText.KEYWORD_TIPS</code> for chips; family glyphs and colours from <code>data/families/*.tres</code> (one role throughout: the face colour, as <code>FamilyWord</code> does); card lines from <code>CardText.sticker_summary</code> / <code>monitor_text</code>. Clip rows: a new small data file per entry (<code>data/guide/*.tres</code>, NEW: card ids in order + the expected total), scored by the real <code>Scoring</code> so the numbers can never drift from the rules; a test fails if a row's total changes. Captures: <code>debug/screen_capture</code> crops (5 marked "capture to retake").</td></tr>
+      <tr><td>What it never does</td><td>No new rule, no scoring of its own: the clip plays a <code>ScoreResult</code>'s steps like the count-up does.</td></tr>
+    </table></div>
+  </section>
+
+  <section class="answers" id="ans">
+    <h2>What I need from you (4 questions)</h2>
+    <ol>
+      <li><b>Which variant?</b> A handbook, B monitor, or C pop-up card. <span class="def">Default: A</span></li>
+      <li><b>Where does the title screen open it?</b> A new <b>GUIDE</b> plate under REWARDS, or only from inside a run (≡ menu + right-click). <span class="def">Default: GUIDE plate under REWARDS</span></li>
+      <li><b>Right-click as the deep link?</b> Right-click while a tooltip shows opens its entry (the tooltip says so), or a small "?" corner on the tooltip that you click. <span class="def">Default: right-click</span></li>
+      <li><b>Show entries before you meet them?</b> All entries from the start, or an entry stays greyed ("not seen yet") until its card has been in your hand once. <span class="def">Default: all entries from the start</span></li>
+    </ol>
+    <p>Everything else is stated above as the default (groups, clip pieces and timing, close keys, captures). The MORNING ribbon and PAIR tag are only drawn in the guide's clips; adding them to the belt would be a separate change.</p>
+  </section>
+</main>
+
+<script>
+(function(){
+const SRC='keywords_guide_src/';
+const I=n=>SRC+'items/'+n+'.png', G=n=>SRC+'icons/'+n+'.png', S=n=>SRC+'shots/'+n+'.png';
+const rmBox=document.getElementById('rm');
+const RM=()=>rmBox.checked;
+const PHONE=()=>window.innerWidth<700;
+
+/* families (data/families/*.tres): glyph + face/light/shade; paper = paper_text */
+const FAM={
+  Food:{g:'aisle_pantry',f:'#ec8a6e',l:'#f5bfa0',d:'#d9534f'},
+  Breakfast:{g:'family_breakfast',f:'#e2b33c',l:'#f1d27a',d:'#b38425'},
+  Bakery:{g:'aisle_bakery',f:'#d2a874',l:'#ddcba5',d:'#a87a4e'},
+  Produce:{g:'aisle_fruit_and_veg',f:'#5fae5a',l:'#a5d17e',d:'#3d7a45'},
+  Dairy:{g:'family_dairy',f:'#4f9a94',l:'#86c2b6',d:'#3a7672'},
+  Frozen:{g:'aisle_cold_cases',f:'#c3e0d4',l:'#fbf7ee',d:'#86c2b6'},
+  Snack:{g:'aisle_snacks',f:'#7a5232',l:'#a87a4e',d:'#4a3022',paper:1},
+  Household:{g:'aisle_household',f:'#5e574d',l:'#8a8172',d:'#4a3f38',paper:1},
+  Clearance:{g:'family_clearance',f:'#a83a3c',l:'#d9534f',d:'#6e2630',paper:1},
+  /* no colours in data: the plain coupon teal (PriceSticker.fallback_style) */
+  Coupon:{g:'family_coupon',f:'#3a7672',l:'#4f9a94',d:'#2a4d4b',paper:1}
+};
+/* keyword chips (ui/keyword_chip.gd CALM_FACES) */
+const KW={CHAIN:'#a5d17e',BATCH:'#ddcba5',PAIR:'#86c2b6',MORNING:'#f1d27a',WASTED:'#f5bfa0'};
+/* the chip's 6x6 pixel cross (KeywordChip.CROSS_RUNS) */
+const XC=`<svg class="xc" viewBox="0 0 6 6" shape-rendering="crispEdges"><path fill="currentColor" d="M0 0h2v1H0zM4 0h2v1H4zM1 1h2v1H1zM3 1h2v1H3zM2 2h2v2H2zM1 4h2v1H1zM3 4h2v1H3zM0 5h2v1H0zM4 5h2v1H4z"/></svg>`;
+
+/* products in clips: glyphs = the label's printed families (shelf_families: tags minus Food);
+   face = the family the card works with (CardFamilies.ticket_families); t = sticker summary */
+const P={
+  banana:{n:'Banana',gl:['Produce'],face:'Produce',b:2,t:'{CHAIN} +prev'},
+  banana_big:{n:'Big Banana',gl:['Produce'],face:'Produce',b:4,t:'{CHAIN} +prev',tier:'BIG'},
+  banana_golden:{n:'Golden Banana',gl:['Produce'],face:'Produce',b:4,t:'{CHAIN} +2× prev',tier:'GOLDEN'},
+  bread:{n:'Bread',gl:['Breakfast','Bakery'],face:'Bakery',b:5,t:''},
+  eggs:{n:'Eggs',gl:['Breakfast'],face:'Food',b:1,t:'×2 next [Food]'},
+  milk:{n:'Milk',gl:['Breakfast','Dairy'],face:'Breakfast',b:4,t:'+1 per earlier [Breakfast]'},
+  coffee:{n:'Coffee',gl:['Breakfast'],face:'Breakfast',b:2,t:'+1 per {MORNING}'},
+  tea_bags:{n:'Tea bags',gl:['Breakfast'],face:'Breakfast',b:1,t:'×4 last {MORNING}'},
+  potatoes:{n:'Potatoes',gl:['Produce'],face:'Produce',b:3,t:''},
+  butter:{n:'Butter',gl:['Dairy'],face:'Bakery',b:2,t:'+3 {PAIR} with [Bakery]'},
+  cheese:{n:'Cheese',gl:['Dairy'],face:'Bakery',b:3,t:'+4 {PAIR} with Bread'},
+  cream:{n:'Cream',gl:['Dairy'],face:'Dairy',b:2,t:'+2 per {PAIR}'},
+  croissant:{n:'Croissant',gl:['Bakery','Breakfast'],face:'Bakery',b:2,t:'{BATCH} 1st: +2 to the rest'},
+  baguette:{n:'Baguette',gl:['Bakery'],face:'Bakery',b:2,t:'{BATCH} +4 per earlier'},
+  stale_doughnut:{n:'Stale doughnut',gl:['Bakery','Clearance'],face:'Bakery',b:1,t:'{BATCH} last: +3 each'},
+  dusty_toffees:{n:'Dusty toffees',gl:['Snack','Clearance'],face:'Clearance',b:1,t:'+3 per earlier {WASTED}'},
+  two_for_one:{n:'2 for 1',gl:['Coupon'],face:'Coupon',b:0,t:'Same both sides: 2nd ×2',coupon:1,giver:'2 FOR 1'},
+  multipack:{n:'Multipack',gl:['Coupon'],face:'Coupon',b:0,t:'×3 later of the family before',coupon:1,giver:'MULTIPACK'}
+};
+P.eggs.giver='EGGS';P.tea_bags.giver='TEA BAGS';
+
+/* ---------- entries ---------- */
+const GROUPS=[['kw','KEYWORDS'],['fam','FAMILIES'],['cpn','COUPONS'],['tier','TIERS'],['shift','SHIFT'],['place','PLACE WORDS']];
+const E={};
+function add(id,o){o.id=id;E[id]=o;}
+/* KEYWORDS (ui/keyword_chip.gd, presentation/glyph_text.gd KEYWORD_TIPS) */
+add('chain',{g:'kw',name:'CHAIN',chip:'CHAIN',
+  rule:'2 or more Bananas linked one after another. Each Banana adds the price of the one before it.',
+  eq:'Banana, Banana, Banana, Banana = 2 + <b>4</b> + <b>6</b> + <b>8</b> = <b>20€</b>',
+  more:'On the belt a green frame runs round the chain, with linked rings in each gap. Helpers have one place by it: Strawberries just before (+1 to each Banana, a clasp on the frame\'s left), Lemon inside (ties two Bananas), Wonky carrot just after (+2 per Banana, a clasp on the right). Anything else between two Bananas breaks it.',
+  readers:['banana','strawberries','lemon','wonky_carrot'],
+  shot:{src:'mon_chain',hint:'Rest the pointer on a Banana: the monitor lists <b>Banana chain +3€</b> and <b>Strawberries feed the chain +1€</b> (page 1 of 3; total cropped).'},
+  clip:{slots:[{p:'banana',steps:[]},{p:'banana',steps:[['+',2]]},{p:'banana',steps:[['+',4]]},{p:'banana',steps:[['+',6]]}],
+   chain:[0,3],total:20}});
+add('batch',{g:'kw',name:'BATCH',chip:'BATCH',
+  rule:'2 or more Bakery side by side make one batch. Each card\'s line says where in its batch it works.',
+  eq:'Croissant, Baguette, Stale doughnut = 2 + <b>8</b> + <b>12</b> = <b>22€</b>',
+  more:'On the belt a mustard frame binds the batch, two bars across each gap. Croissant first (+2 to the rest) · Baguette +4 per earlier item, up to 2 · Stale doughnut last (+3 per item) · Iced bun ×2 the last · Birthday candles +3 to each item of a batch of 3+ right after them. Out of place, a role is WASTED.',
+  readers:['croissant','baguette','stale_doughnut','iced_bun','bread'],
+  shot:{retake:'a batch item on the monitor (Stale doughnut: "last of its batch")'},
+  clip:{slots:[{p:'croissant',steps:[]},{p:'baguette',steps:[['+',4],['+',2]]},{p:'stale_doughnut',steps:[['+',9],['+',2]]}],
+   batch:[0,2],total:22}});
+add('pair',{g:'kw',name:'PAIR',chip:'PAIR',
+  rule:'A PAIR item beside the partner its line names (Cheese beside Bread). Cream pays for each PAIR in the row.',
+  eq:'Butter, Bread, Cheese, Cream = <b>5</b> + 5 + <b>7</b> + <b>6</b> = <b>23€</b>',
+  more:'Partners: Butter + a Bakery item · Cheese + Bread · Yogurt + a Banana · Reduced yogurt + a Clearance item · Scone + a Dairy item · Cereal + Milk. Either side works. Cream: +2 per PAIR item (here Butter and Cheese). The teal PAIR tags in the clip are NEW: the belt has no PAIR mark yet.',
+  readers:['butter','cheese','yogurt','cereal','cream'],
+  shot:{retake:'a PAIR item on the monitor (Cheese beside Bread)'},
+  clip:{slots:[{p:'butter',steps:[['+',3]]},{p:'bread',steps:[]},{p:'cheese',steps:[['+',4]]},{p:'cream',steps:[['+',4]]}],
+   pairs:[[0,1],[1,2]],total:23}});
+add('morning',{g:'kw',name:'MORNING',chip:'MORNING',
+  rule:'The row\'s opening run of Breakfast items, from the first item until one without Breakfast. Coupons don\'t end it.',
+  eq:'Tea bags, Bread, Milk, Potatoes, Coffee = 1 + 5 + <b>24</b> + 3 + <b>5</b> = <b>38€</b>',
+  more:'Potatoes is not Breakfast, so the MORNING stops there (3 items). Coffee counts it from anywhere (+1 each). Tea bags gives ×4 to the last MORNING item: Milk (4 + 2 earlier Breakfast = 6, ×4). The MORNING ribbon in the clip is NEW.',
+  readers:['coffee','tea_bags','milk','bread','eggs'],
+  shot:{src:'mon_morning',hint:'Rest the pointer on Coffee in the hand: the monitor shows its rule with the <b>MORNING</b> chip.'},
+  clip:{slots:[{p:'tea_bags',steps:[]},{p:'bread',steps:[]},{p:'milk',steps:[['+',2],['x',4,0]]},{p:'potatoes',steps:[]},{p:'coffee',steps:[['+',3]]}],
+   givers:[[0,[2]]],morning:[0,2],total:38}});
+add('wasted',{g:'kw',name:'WASTED',chip:'WASTED',
+  rule:'An item whose rule did nothing where it stands. Some Clearance items pay for WASTED items.',
+  eq:'Banana, Bread, Banana, Dusty toffees = 2 + 5 + 2 + <b>7</b> = <b>16€</b>',
+  more:'A WASTED item still pays its own price; it only missed its bonus. Its chip turns tomato with a cross. Two lone Bananas here, so Dusty toffees gets +3 for each. Flickering bulb pays ×3 right after a WASTED item.',
+  readers:['dusty_toffees','flickering_bulb','banana'],
+  shot:{retake:'a lone Banana on the monitor ("WASTED" in red)'},
+  clip:{slots:[{p:'banana',steps:[['w']]},{p:'bread',steps:[]},{p:'banana',steps:[['w']]},{p:'dusty_toffees',steps:[['+',6]]}],total:16}});
+
+/* FAMILIES (data/families, data/cards tags). One shared line on what a family is. */
+const FAMLINE=f=>`Items with the ${f} glyph on their label. A rule that names ${f} counts every one of them.`;
+const famE=[
+ ['Food','Most things you can eat: its glyph is left off the label when the item has another family.','Members: almost every product except Coffee, Tea bags and Household goods. Readers: Eggs ×2 the next Food item; Mixed herbs +3 the next Food; Carrier bag +8 per Food beside it. Multipack ignores Food.',['eggs','soup','carrier_bag']],
+ ['Breakfast',null,'Members: Bread, Eggs, Milk, Coffee, Tea bags, Yogurt, Cereal, Croissant, Grapefruit, Egg timer, Cereal bar. Readers: Milk +1 per earlier Breakfast; Coffee and Tea bags read the MORNING; the Breakfast sticker makes the next item Breakfast. Multipack ignores Breakfast.',['bread','eggs','milk','coffee','tea_bags','yogurt','cereal','croissant']],
+ ['Bakery',null,'Members: Bread, Crackers, Day-old buns, Baguette, Scone, Iced bun, Croissant, Broken biscuit, Squashed cake, Stale doughnut. Side by side they make a BATCH; Butter pairs with any Bakery item.',['bread','croissant','baguette','stale_doughnut','iced_bun']],
+ ['Produce',null,'Members: Banana, Frozen peas, Fruit salad, Strawberries, Lemon, Potatoes, Grapefruit, Wonky carrot, Bruised apples, Soft tomatoes. Bananas make the CHAIN; Grapefruit +3 the next Produce.',['banana','strawberries','lemon','wonky_carrot','potatoes','frozen_peas']],
+ ['Dairy',null,'Members: Milk, Cheese, Butter, Yogurt, Reduced yogurt, Cream. Most make a PAIR with a partner; Cream pays per PAIR; Scone pairs with Dairy.',['milk','cheese','butter','yogurt','cream']],
+ ['Frozen',null,'Members: only Frozen peas for now. Soup pays nothing beside Frozen; Frozen peas get their price again beside another Frozen.',['frozen_peas','soup']],
+ ['Snack',null,'Members: Crisps, Pick \'n\' mix, Breadsticks, Cereal bar, Bent lolly, Stale popcorn, Dusty toffees. Pick \'n\' mix pays per lone Snack, Bent lolly per item to the next Snack; Crisps and Stale popcorn grow with redraws left.',['crisps','dusty_toffees']],
+ ['Household',null,'Members: Carrier bag, Scissors, Batteries, Flickering bulb, Chipped mug, Odd socks, Egg timer, Birthday candles. Batteries ×2 the next Household item; Odd socks +5 in an exact Household pair. Not Food, so Eggs skip them.',['carrier_bag','scissors','flickering_bulb']],
+ ['Clearance',null,'Members: Bruised apples, Dented can, Day-old buns, Stale doughnut, Dusty toffees and more. Bruised apples beside Clearance, Day-old buns after it; Dusty toffees and Flickering bulb profit from WASTED items. The Clearance tag makes the next item Clearance.',['dusty_toffees','flickering_bulb','stale_doughnut']]
+];
+famE.forEach(([n,rule,more,items])=>add('fam_'+n.toLowerCase(),{g:'fam',name:n,fam:n,rule:rule||FAMLINE(n),more,readers:items,eq:null,shot:null,clip:null}));
+E.fam_food.rule='Most things you can eat. A rule that names Food counts every one of them; its glyph is left off the label when the item has another family.';
+E.fam_frozen.shot={src:'mon_frozen',hint:'Soup beside Frozen peas: <b>Soup beside Frozen 0€</b>.'};
+Object.assign(E.fam_breakfast,{
+  eq:'Bread, Eggs, Milk = 5 + 1 + <b>12</b> = <b>18€</b>',
+  more:'Milk +1 per earlier Breakfast (Bread and Eggs: +2) = 6, then Eggs\' ×2 (Milk is Food) = 12; the EGGS rail strip shows where it comes from. '+E.fam_breakfast.more,
+  shot:{src:'mon_breakfast',hint:'Rest the pointer on Milk: <b>Milk: earlier Breakfast +2€</b>.'},
+  clip:{slots:[{p:'bread',steps:[]},{p:'eggs',steps:[]},{p:'milk',steps:[['+',2],['x',2,1]]}],givers:[[1,[2]]],total:18}});
+
+/* COUPONS (data/cards, plan 3.4) */
+add('coupon',{g:'cpn',name:'Coupon',fam:'Coupon',rule:'A slip, not a product: it pays 0 and takes a slot. It carries the Coupon glyph but no product family.',
+  eq:null,more:'Between two products, a coupon breaks "beside" unless its own rule links them (2 for 1, Shelf swap). Coupons never take an Egg charge or a bonus aimed at products. Scissors +2 per earlier coupon. The machine\'s NEW ITEMS draw always ends with one coupon.',readers:['coupon_slip','scissors'],clip:null,shot:null});
+add('two_for_one',{g:'cpn',name:'2 for 1',coupon:'two_for_one',
+  rule:'With the same item on both sides, they count as side by side and the second pays ×2.',
+  eq:'Milk, 2 for 1, Milk = 4 + 0 + <b>10</b> = <b>14€</b>',
+  more:'The second Milk: 4 +1 (one earlier Breakfast) = 5, ×2 = 10. Not the same item on both sides (Milk, 2 for 1, Bread): WASTED, and its window shows the cut line. A BIG or GOLDEN copy counts as the same item.',
+  readers:['milk','banana'],
+  shot:{src:'mon_2for1',hint:'Rest the pointer on the coupon: the monitor says who it boosted, <b>to Banana ×2 · 10€ => 20€</b>.'},
+  clip:{slots:[{p:'milk',steps:[]},{p:'two_for_one',steps:[]},{p:'milk',steps:[['+',1],['x',2,1]]}],givers:[[1,[2]]],total:14}});
+add('multipack',{g:'cpn',name:'Multipack',coupon:'multipack',
+  rule:'Later items that share a family with the item right before it pay ×3. Food and Breakfast don\'t count.',
+  eq:'Milk, Multipack, Milk, Milk = 4 + 0 + <b>15</b> + <b>18</b> = <b>37€</b>',
+  more:'Milk is Food, Breakfast and Dairy; only Dairy counts. Each later Dairy item pays ×3 (Milk 4+1 → 15, Milk 4+2 → 18). After an item that is only Food or Breakfast (Eggs, Coffee, Soup), it is WASTED.',
+  readers:['milk','cheese','butter'],
+  shot:{src:'mon_multipack',hint:'On the coupon, the monitor lists every item it reached: <b>to Milk ×3 · 7€ => 21€</b>…'},
+  clip:{slots:[{p:'milk',steps:[]},{p:'multipack',steps:[]},{p:'milk',steps:[['+',1],['x',3,1]]},{p:'milk',steps:[['+',2],['x',3,1]]}],givers:[[1,[2,3]]],total:37}});
+add('shelf_swap',{g:'cpn',name:'Shelf swap',coupon:'shelf_swap',rule:'The item in the next slot also counts as right after the first item.',
+  eq:'Coffee, Bread, Shelf swap, Sugar cubes = 4 + 5 + 0 + <b>6</b> = <b>15€</b>',more:'Sugar cubes (+4 right after Coffee) now also follows Coffee in slot 1. WASTED with no product in the next slot.',readers:['coffee'],clip:null,shot:{src:'mon_swap',hint:'The coupon\'s rule on the monitor.'}});
+add('repeat',{g:'cpn',name:'Repeat',coupon:'repeat',rule:'Copies what the item right before it pays.',
+  eq:'Eggs, Bread, Repeat = 1 + <b>10</b> + <b>10</b> = <b>21€</b>',more:'It copies the final payout, ×2 and all. With no product right before it: WASTED.',readers:['eggs','bread'],clip:null,shot:{src:'mon_repeat',hint:'<b>Repeat: copy of Bread +7€</b>.'}});
+add('opening_deal',{g:'cpn',name:'Opening deal',coupon:'opening_deal',rule:'In the first slot, the next item pays ×5.',
+  eq:'Opening deal, Bread = 0 + <b>25</b> = <b>25€</b>',more:'Anywhere but slot 1: WASTED.',readers:['bread'],clip:null,shot:{src:'mon_opening',hint:'<b>to Milk ×5 · 4€ => 20€</b>.'}});
+add('final_markdown',{g:'cpn',name:'Final markdown',coupon:'final_markdown',rule:'Gets +4 when it sits in the last slot.',
+  eq:'…, Final markdown (last) = … + <b>4</b>',more:'Anywhere else: WASTED. Its ticket is Clearance-coloured (its data says so).',readers:[],clip:null,shot:{src:'mon_markdown',hint:'<b>Final markdown +4€</b>.'}});
+add('breakfast_sticker',{g:'cpn',name:'Breakfast sticker',coupon:'breakfast_sticker',rule:'The item in the next slot joins the Breakfast family.',
+  eq:'Breakfast sticker, Potatoes, Milk = 0 + 3 + <b>5</b> = <b>8€</b>',more:'Potatoes counts as Breakfast for this checkout (its ticket says GAINED), so Milk gets +1. WASTED on a coupon, an empty slot or an item already Breakfast.',readers:['potatoes','milk'],
+  shot:{src:'mon_bsticker',hint:'A wasted sticker reads <b>Already Breakfast · WASTED</b>.'},clip:null});
+add('clearance_tag',{g:'cpn',name:'Clearance tag',coupon:'clearance_tag',rule:'The item in the next slot joins the Clearance family.',
+  eq:'Clearance tag, Bread, Bruised apples = 0 + 5 + <b>5</b> = <b>10€</b>',more:'Bread is now Clearance, so Bruised apples (+3 beside Clearance) pays. Same WASTED cases as the Breakfast sticker.',readers:['bread'],clip:null,shot:{src:'mon_ctag',hint:'The coupon\'s rule on the monitor.'}});
+
+/* TIERS (plan 3.4 item tiers, data/item_upgrades) */
+const tierClip={slots:[{p:'banana',steps:[]},{p:'banana_big',steps:[['+',2]]},{p:'banana_golden',steps:[['+',12]]}],chain:[0,2],total:24};
+add('golden',{g:'tier',name:'GOLDEN',tag:'GOLDEN',
+  rule:'The top tier: a higher price and one number on its line raised. Its ticket wears a gold ring with two sparkles.',
+  eq:'Banana, Big Banana, Golden Banana = 2 + <b>6</b> + <b>16</b> = <b>24€</b>',
+  more:'Golden Banana adds twice the previous price (4 + 2×6). Golden Milk +2 per earlier Breakfast; Golden Eggs ×2 the next 2 Food. Still the same product: it counts as its plain card everywhere (2 for 1, CHAIN, PAIR partners). No gold inside the ticket, so a boosted price never reads as GOLDEN.',
+  readers:['banana_golden','milk_golden'],
+  shot:{src:'mon_golden',hint:'The title names the tier and the line says it in words: <b>Adds twice the previous Banana\'s price</b>.'},clip:tierClip});
+add('big',{g:'tier',name:'BIG',tag:'BIG',
+  rule:'The middle tier: the same item with a higher price.',
+  eq:'Banana 2€ → Big Banana 4€ · Milk 4€ → Big Milk 6€',
+  more:'From the machine: NEW ITEMS can hand out a BIG or GOLDEN item; UPGRADE turns a copy in your cart into the next tier. A BIG ticket looks like the plain one; only the price and the sprite change.',
+  readers:['banana_big','milk_big'],shot:{retake:'a Big Banana on the monitor (title "Big Banana", base 4€)'},clip:tierClip});
+
+/* SHIFT */
+add('spot_check',{g:'shift',name:'Spot check',icon:'padlock',
+  rule:'A day event: slot 3 pays 0€ today.',
+  eq:'Bread, Eggs, Milk = 5 + 1 + <b>0</b> = <b>6€</b> (Milk would pay 12)',
+  more:'Put a cheap item or a coupon in slot 3. The padlock is its icon on the day slip.',
+  readers:[],shot:{src:'mon_spot',hint:'The monitor ends the item\'s list with <b>Spot check: slot 3 pays 0€</b>, and the top bar says it all day.'},
+  clip:{slots:[{p:'bread',steps:[]},{p:'eggs',steps:[]},{p:'milk',steps:[['+',2],['x',2,1],['0']]}],givers:[[1,[2]]],total:6}});
+add('redraw',{g:'shift',name:'Redraw',tag:'REDRAW',rule:'Swap one basket (2 items) for 2 new ones. 2 per shift.',
+  eq:'Crisps with 2 redraws left = 2 + <b>6</b> = <b>8€</b>',more:'Swapped items are set aside until the shift ends. Some cards care: Crisps +3 per redraw left, Stale popcorn grows ×1 per redraw left, Dented can +2 per card redrawn.',readers:['crisps'],
+  shot:{src:'mon_redraw',hint:'Stale popcorn reads the redraws left: <b>(now ×3)</b>, so <b>to Crisps ×3</b>.'},clip:null});
+add('target',{g:'shift',name:'Quota (target)',icon:'target_euro',rule:'Each shift\'s quota is shown as TODAY\'S TARGET. Check out at or above it to go on.',
+  eq:null,more:'Quota and target are the same number. Below it, the run ends, except in Training week, where a miss is a slip and the run goes on. The receipt shows PROJECTED and how far over or under you are.',readers:[],clip:null,shot:null});
+add('charge',{g:'shift',name:'Charge',icon:'up_arrow',rule:'A "×2 next" waits for the next matching item, anywhere later, and is used once.',
+  eq:'Eggs, Coffee, Bread = 1 + 5 + <b>10</b> = <b>16€</b>',more:'Coffee is not Food, so Eggs\' ×2 skips it and lands on Bread. A second Eggs replaces the first instead of adding. Unused at the end: "1 charge unused · WASTED".',readers:['eggs','tea_bags'],
+  shot:{src:'mon_charge',hint:'An unused charge: <b>1 charge unused · WASTED</b>.'},clip:null});
+add('gained',{g:'shift',name:'GAINED',tag:'GAINED',rule:'This item joined a family for this checkout only, from a sticker coupon or the Price gun.',
+  eq:null,more:'It counts for every rule in the row, never for builds or the cart. The ticket grows a second label row for the gained glyph.',readers:[],clip:null,shot:null});
+add('day_events',{g:'shift',name:'Day events',icon:'warning',rule:'Each day can bring one rule for the whole shift, shown on the top bar\'s day tag and the day slip.',
+  eq:null,more:'Inspections (warning sign): Spot check (slot 3 pays 0€), Short belt (−1 slot), Rush hour (Quota +10%), Till jam (−1 redraw), Small baskets (−1 hand item), Late delivery (Dairy −2€). Boons: Extra till (+1 slot), Free samples (1st product ×2), Happy hour (last slot +3€), Quiet morning (quota −10%), Regulars\' day (+1 redraw), Fresh delivery (Fruit & veg +1€). Week events (Bakery festival, Holiday rush, Training week) last the whole week.',readers:[],clip:null,shot:null});
+
+/* PLACE WORDS (NEW group: plain words on stickers today) */
+const placeE=[
+ ['beside','BESIDE','Just before or just after it, either side.','Cheese +4 beside Bread.'],
+ ['right_after','RIGHT AFTER','The item in the slot just before it.','Sugar cubes +4 right after Coffee.'],
+ ['next','NEXT','The next item of that family, anywhere later in the row.','Eggs: ×2 next Food.'],
+ ['earlier','EARLIER','Any slot before it.','Milk +1 per earlier Breakfast.'],
+ ['lone','LONE','A Snack with no Snack beside it.','Pick \'n\' mix +3 per lone Snack.'],
+ ['slots','FIRST / LAST SLOT','The row\'s first filled slot, or its last.','Opening deal (first), Final markdown (last).']];
+placeE.forEach(([id,n,r,ex])=>add('pl_'+id,{g:'place',name:n,word:n,isnew:true,rule:r,eq:ex,more:'A coupon between two products breaks BESIDE and RIGHT AFTER, unless its rule links them.',readers:[],clip:null,shot:null}));
+
+const FULL=['chain','batch','pair','morning','wasted','fam_breakfast','two_for_one','multipack','golden','big','spot_check'];
+document.getElementById('nEntries').textContent=Object.keys(E).length;
+
+/* ---------- small renderers ---------- */
+function px(src,w,h,cls,style){return `<img class="px ${cls||''}" src="${src}" width="${w}" height="${h}" alt=""${style?` style="${style}"`:''}>`;}
+function kchip(word,big,wasted){return `<span class="kchip${big?' big':''}${wasted?' wasted':''}" style="background:${KW[word]||'#ddcba5'}">${word}${XC}</span>`;}
+function fchip(f){const c=FAM[f];return `<span class="fchip" style="background:${c.f};color:${c.paper?'#fbf7ee':'#2b2420'};box-shadow:inset 0 2px 0 ${c.l},inset 0 -2px 0 ${c.d}">${f}</span>`;}
+function richText(t){return t.replace(/\{(\w+)\}/g,(m,w)=>kchip(w)).replace(/\[(\w+)\]/g,(m,f)=>fchip(f));}
+function mark(e,size){
+  const s=size||2;
+  if(e.chip) return kchip(e.chip,s>1);
+  if(e.fam) return px(G(FAM[e.fam].g),9*s,9*s);
+  if(e.coupon) return px(G('coupon_'+e.coupon+'_v2'),20*s,14*s);
+  if(e.tag) return `<span class="kchip${s>1?' big':''}" style="background:${e.tag==='GOLDEN'?'#ffcf3f':e.tag==='BIG'?'#faecbc':e.tag==='REDRAW'?'#c3e0d4':'#f5bfa0'}">${e.tag}</span>`;
+  if(e.icon){const sz={warning:[13,11],target_euro:[10,14],up_arrow:[9,9],padlock:[9,10]}[e.icon];return px(G(e.icon),sz[0]*s,sz[1]*s);}
+  if(e.word) return `<span class="kchip${s>1?' big':''}" style="background:#fbf7ee">${e.word}</span>`;
+  return '';
+}
+function readersHTML(e){return e.readers.length?`<div class="readers">${e.readers.map(r=>`<img class="px" src="${I(r)}" width="48" height="48" alt="${r}" title="${r}">`).join('')}</div>`:'';}
+function shotHTML(e){
+  if(!e.shot) return '';
+  if(e.shot.retake) return `<div class="retake">CAPTURE TO RETAKE<br>${e.shot.retake}</div>`;
+  return `<img class="shot" src="${S(e.shot.src)}" width="424" alt="Real monitor capture, 1x">`;
+}
+function hintHTML(e){return e.shot&&e.shot.hint?`<span class="mon">SEE IT ON THE MONITOR</span>${e.shot.hint}`:'';}
+function grpName(g){return GROUPS.find(x=>x[0]===g)[1];}
+
+/* ---------- ticket (v0.95) ---------- */
+const SCI=[".##....#","#..#..#.",".##..#..","...##...",".##..#..","#..#..#.",".##....#"];
+function scissorsSVG(wasted){
+  let r='';SCI.forEach((row,y)=>[...row].forEach((c,x)=>{if(c==='#')r+=`<rect x="${(19+x)*2}" y="${(2+y)*2}" width="2" height="2"/>`;}));
+  let slash='';
+  if(wasted){for(let x=1;x<=26;x++){const y=9-Math.round((x-1)*7/25);slash+=`<rect x="${x*2}" y="${y*2}" width="2" height="2"/>`;}}
+  return `<svg width="56" height="22" shape-rendering="crispEdges"><g fill="${wasted?'#8a8172':'#3a7672'}">${r}</g><g fill="#a83a3c">${slash}</g></svg>`;
+}
+/* PriceWindow.boost_step with pay_ink_ratios (2, 5) */
+function priceInk(v,base){
+  if(v===0||v<base) return ['#8a8172','transparent'];
+  if(v===base) return ['#2b2420','transparent'];
+  const b=Math.max(base,1);let step=1;if(v>=b*2)step++;if(v>=b*5)step++;
+  return [['#b38425','#7a5a1c'],['#ff6a1a','#b5470c'],['#d9534f','#6e2630']][step-1];
+}
+function ticketHTML(p,x,y){
+  const c=FAM[p.face];
+  const gl=p.gl.map(f=>px(G(FAM[f].g),18,18)).join('');
+  const win=p.coupon?scissorsSVG(false):`<span class="pv">${p.b}€</span>`;
+  const plate=p.t?richText(p.t):`<span class="nm">${p.n}</span>`;
+  const gold=p.tier==='GOLDEN'?`<div class="gr"></div><img class="px spk" src="${G('sparkle')}" style="left:-6px;top:-6px" alt=""><img class="px spk" src="${G('sparkle')}" style="left:100px;top:68px" alt="">`:'';
+  return `<div class="tk${p.tier==='GOLDEN'?' gold':''}" style="left:${x}px;top:${y}px;--f:${c.f};--l:${c.l};--d:${c.d}">${gold}<div class="o"></div><div class="f"></div>${p.coupon?'<div class="perf"></div>':''}<div class="lb">${gl}</div><div class="win">${win}</div><div class="pl">${plate}</div></div>`;
+}
+
+/* ---------- frames (BatchFrame / ChainFrame), rects in canvas px, scaled by k ---------- */
+function stepPoly(x,y,w,h,st){const a=st,b=st*2;return `M${x+b} ${y}H${x+w-b}V${y+a}H${x+w-a}V${y+b}H${x+w}V${y+h-b}H${x+w-a}V${y+h-a}H${x+w-b}V${y+h}H${x+b}V${y+h-a}H${x+a}V${y+h-b}H${x}V${y+b}H${x+a}V${y+a}H${x+b}Z`;}
+function holeRect(x,y,w,h){return `M${x} ${y}V${y+h}H${x+w}V${y}Z`;}
+function ringPath(x,y,w,h,width,st){return stepPoly(x,y,w,h,st)+holeRect(x+width,y+width,w-2*width,h-2*width);}
+function bandRing(x,y,w,h,ink,face,faceC,lightC,clip){
+  // ink | face | ink band, stepped outside, square hole; face's top row light
+  const cl=clip?` clip-path="url(#${clip})"`:'';
+  return `<g${cl}><path fill-rule="evenodd" fill="#2b2420" d="${ringPath(x,y,w,h,ink*2+face,ink)}"/>`+
+    `<path fill-rule="evenodd" fill="${faceC}" d="${ringPath(x+ink,y+ink,w-2*ink,h-2*ink,face,ink/2)}"/>`+
+    `<rect x="${x+ink*2}" y="${y+ink}" width="${w-ink*4}" height="${ink}" fill="${lightC}"/></g>`;
+}
+let clipUid=0;
+function framesSVG(c,geo,W,H){
+  const k=geo.k, out=[], defs=[];
+  const tk=i=>({x:geo.tkX(i),y:geo.tkY,w:geo.tkW,h:geo.tkH});
+  function frame(from,to,face,light){
+    const a=tk(from),b=tk(to);
+    const x=a.x-8*k,y=a.y-6*k,w=b.x+b.w+8*k-x,h=a.h+8*k;
+    out.push(bandRing(x,y,w,h,2*k,4*k,face,light));
+  }
+  if(c.batch){
+    frame(c.batch[0],c.batch[1],'#e2b33c','#f1d27a');
+    if(geo.s===2) for(let i=c.batch[0];i<c.batch[1];i++){
+      const a=tk(i),b=tk(i+1);
+      [34,48].forEach(t=>{const x=a.x+a.w-2,w=b.x+2-x,y=a.y+t;
+        out.push(`<rect x="${x}" y="${y}" width="${w}" height="8" fill="#2b2420"/><rect x="${x}" y="${y+2}" width="${w}" height="4" fill="#e2b33c"/><rect x="${x}" y="${y+2}" width="${w}" height="2" fill="#f1d27a"/>`);});
+    }
+  }
+  if(c.chain){
+    frame(c.chain[0],c.chain[1],'#a5d17e','#faecbc');
+    if(geo.s===2) for(let i=c.chain[0];i<c.chain[1];i++){
+      const a=tk(i),b=tk(i+1),mid=(a.x+a.w+b.x)/2,y=a.y+36;
+      const L=Math.round((mid-16)/2)*2,R=L+10;
+      const id='cl'+(clipUid++);
+      defs.push(`<clipPath id="${id}"><rect x="${R}" y="${y+14}" width="16" height="6"/></clipPath>`);
+      out.push(bandRing(R,y,22,20,2,2,'#a5d17e','#faecbc'));
+      out.push(bandRing(L,y,22,20,2,2,'#a5d17e','#faecbc'));
+      out.push(bandRing(R,y,22,20,2,2,'#a5d17e','#faecbc',id));
+    }
+  }
+  if(!out.length) return '';
+  return `<svg class="frm" width="${W}" height="${H}" shape-rendering="crispEdges"><defs>${defs.join('')}</defs>${out.join('')}</svg>`;
+}
+
+/* ---------- rail strip (RailStrip, lane 0) ---------- */
+function stripHTML(gi,targets,name,geo,k){
+  const s=geo.s, laneY=geo.laneY;
+  const x0=geo.tkX(gi)+6*s/2, last=Math.max(...targets), end=geo.tkX(last)+26*s/2+28*s/2;
+  let h=`<div class="rs" data-g="${k}" style="left:0;top:0">`;
+  if(s===2){
+    h+=`<div class="stem" style="left:${x0+1}px;top:${laneY+16}px;height:${geo.tkY-laneY-16}px"></div>`;
+    h+=`<div class="body" style="left:${x0-2}px;top:${laneY}px;width:${end-x0+2}px"></div>`;
+    h+=`<div class="plug" style="left:${x0-2}px;top:${laneY-2}px"></div>`;
+    h+=`<div class="nm" style="left:${x0+12}px;top:${laneY}px">${name}</div>`;
+    const plateEnd=x0+12+name.length*9+14;
+    targets.forEach(t=>{const tx=geo.tkX(t)+26;
+      h+=px(G('rail_notch'),18,10,'calm',`left:${tx-9}px;top:${laneY+12}px`)+px(G('rail_notch_hot'),18,10,'hotimg',`left:${tx-9}px;top:${laneY+12}px`);});
+    let prevT=plateEnd+8;
+    for(let cx=prevT;cx<end-14;cx+=16){
+      if(targets.some(t=>Math.abs(geo.tkX(t)+26-cx-3)<14)) continue;
+      h+=px(G('rail_chevron'),6,10,'calm',`left:${cx}px;top:${laneY+2}px`)+px(G('rail_chevron_hot'),6,10,'hotimg',`left:${cx}px;top:${laneY+2}px`);
+    }
+    h+=px(G('rail_cap'),10,18,'calm',`left:${end}px;top:${laneY-2}px`)+px(G('rail_cap_hot'),10,18,'hotimg',`left:${end}px;top:${laneY-2}px`);
+  } else {
+    h+=`<div class="body" style="left:${x0}px;top:${laneY}px;width:${end-x0}px"></div>`;
+    targets.forEach(t=>{h+=`<div class="tri" style="left:${geo.tkX(t)+20}px;top:${laneY+6}px"></div>`;});
+  }
+  return h+'</div>';
+}
+
+/* ---------- the clip engine ---------- */
+let clipRun=null;
+function stopClip(){if(clipRun){clipRun.stop();clipRun=null;}}
+function clipGeo(c,s){
+  if(s===2){
+    const pitch=128,padL=22,itemY=40,laneY=140,tkY=172,tkW=108,tkH=76;
+    const H=tkY+tkH+10+(c.morning?24:0);
+    return {s,k:1,pitch,padL,itemY,itemS:96,laneY,tkY,tkW,tkH,H,beltY:itemY+60,beltH:30,
+      tkX:i=>padL+i*pitch, itX:i=>padL+i*pitch+6, need:padL+c.slots.length*pitch+120};
+  }
+  const pitch=62,padL=10,itemY=24,laneY=78,tkY=90,tkW=48,tkH=20;
+  const H=tkY+tkH+8+(c.morning?14:0);
+  return {s,k:.5,pitch,padL,itemY,itemS:48,laneY,tkY,tkW,tkH,H,beltY:itemY+30,beltH:16,
+    tkX:i=>padL+i*pitch+7, itX:i=>padL+i*pitch+7, need:padL+c.slots.length*pitch+80};
+}
+function makeClip(c,s,w){
+  const geo=clipGeo(c,s), H=geo.H, W=Math.max(w||0,geo.need);
+  const el=document.createElement('div');
+  el.className='clip s'+s;el.style.width=W+'px';el.style.height=H+'px';
+  let html=`<div class="cap2">${s===2?'CLIP · LOOPS':''}</div><div class="belt" style="top:${geo.beltY}px;height:${geo.beltH}px"></div>`;
+  c.slots.forEach((sl,i)=>{
+    const p=P[sl.p];
+    let art=px(I(p.coupon?'coupon_slip':sl.p),geo.itemS,geo.itemS);
+    if(p.coupon) art+=px(G('coupon_'+sl.p+'_v2'),20*s,14*s,'',`left:${14*s}px;top:${17*s}px`);
+    const tkHTML=s===2?ticketHTML(p,geo.tkX(i),geo.tkY):`<div class="mini" style="left:${geo.tkX(i)}px;top:${geo.tkY}px;--f:${FAM[p.face].f}">${p.coupon?'0€':p.b+'€'}</div>`;
+    html+=`<div class="slot off" data-i="${i}" style="width:${W}px;height:${H}px">`+
+      `<div class="it" style="left:${geo.itX(i)}px;top:${geo.itemY}px;width:${geo.itemS}px;height:${geo.itemS}px">${art}</div>`+
+      `<div class="stk" style="left:${geo.itX(i)+geo.itemS*0.55}px;bottom:${H-geo.itemY-geo.itemS*0.6}px"></div>${tkHTML}</div>`;
+  });
+  (c.givers||[]).forEach(([gi,ts],k)=>{html+=stripHTML(gi,ts,P[c.slots[gi].p].giver,geo,k);});
+  (c.pairs||[]).forEach(([a,b],k)=>{
+    const x=(geo.tkX(a)+geo.tkW+geo.tkX(b))/2;
+    html+=s===2?`<div class="ptag" data-l="${k}" style="left:${x-20}px;top:${geo.laneY}px">PAIR</div>`:`<div class="ptag" data-l="${k}" style="left:${x-10}px;top:${geo.laneY+2}px;width:20px"></div>`;
+  });
+  if(c.pairs&&s===2){const x=(geo.tkX(0)+geo.tkW+geo.tkX(1))/2;html+=`<span class="new nwt" style="left:${x-18}px;top:${geo.laneY-20}px">NEW</span>`;}
+  if(c.morning){
+    const a=geo.tkX(c.morning[0]), b=geo.tkX(c.morning[1])+geo.tkW;
+    html+=s===2?`<div class="rib" style="left:${a}px;top:${geo.tkY+geo.tkH+8}px;width:${b-a}px">MORNING · 3 ITEMS</div><span class="new nwt" style="left:${b+6}px;top:${geo.tkY+geo.tkH+9}px">NEW</span>`
+      :`<div class="rib" style="left:${a}px;top:${geo.tkY+geo.tkH+4}px;width:${b-a}px;height:8px;font-size:0;padding:0"></div>`;
+  }
+  html+=framesSVG(c,geo,W,H);
+  html+=`<div class="tot" style="top:${geo.itemY+(s===2?14:2)}px"><small>TOTAL</small><b>0€</b></div>`;
+  el.innerHTML=html;
+  const timers=[];
+  const at=(ms,fn)=>timers.push(setTimeout(fn,ms));
+  const slots=[...el.querySelectorAll('.slot')], totB=el.querySelector('.tot b'), tot=el.querySelector('.tot');
+  const items=slots.map(d=>d.querySelector('.it'));
+  const strips=[...el.querySelectorAll('.rs')];
+  function setPrice(i,v){
+    const p=P[c.slots[i].p];if(p.coupon)return;
+    const d=slots[i];const pv=d.querySelector('.pv');const [ink,sh]=priceInk(v,p.b);
+    if(pv){pv.textContent=v+'€';pv.style.color=ink;pv.style.textShadow=sh==='transparent'?'none':`2px 2px 0 ${sh}`;}
+    const m=d.querySelector('.mini');if(m){m.textContent=v+'€';m.style.color=ink;}
+  }
+  function setWastedCoupon(i,on){const p=P[c.slots[i].p];if(!p.coupon)return;const w=slots[i].querySelector('.win');if(w)w.innerHTML=scissorsSVG(on);}
+  function sticker(i,st){
+    const box=slots[i].querySelector('.stk');const d=document.createElement('span');
+    if(st[0]==='+'){d.className='st plus';d.textContent='+'+st[1];}
+    else if(st[0]==='x'){d.className='st times';d.textContent='×'+st[1];}
+    else if(st[0]==='w'){d.className='st waste';d.innerHTML=px(G('mark_fizzle'),13,13)+'WASTED';}
+    else if(st[0]==='0'){d.className='st zero';d.innerHTML='0€<small>SPOT CHECK</small>';}
+    box.appendChild(d);
+  }
+  function payOf(sl){let v=P[sl.p].b;sl.steps.forEach(st=>{if(st[0]==='+')v+=st[1];else if(st[0]==='x')v*=st[1];else if(st[0]==='0')v=0;});return v;}
+  const sum=c.slots.reduce((a,sl)=>a+payOf(sl),0);
+  if(sum!==c.total) console.warn('clip total mismatch',c,sum);
+  function stripOf(gi){const k=(c.givers||[]).findIndex(g=>g[0]===gi);return k<0?null:strips[k];}
+  function wasteChip(i,on){const k=slots[i].querySelector('.kchip');if(k)k.classList.toggle('wasted',on);}
+  function finalState(){
+    slots.forEach((d,i)=>{d.classList.remove('off');const sl=c.slots[i];sl.steps.forEach(st=>sticker(i,st));setPrice(i,payOf(sl));
+      if(sl.steps.some(st=>st[0]==='w')){wasteChip(i,true);setWastedCoupon(i,true);}});
+    el.querySelectorAll('.rs,.ptag,.rib,svg.frm').forEach(b=>b.classList.add('on'));
+    totB.textContent=c.total+'€';tot.classList.add('win');
+  }
+  function reset(){
+    el.classList.remove('fade');tot.classList.remove('win');totB.textContent='0€';
+    slots.forEach((d,i)=>{d.classList.add('off');d.querySelector('.stk').innerHTML='';setPrice(i,P[c.slots[i].p].b);wasteChip(i,false);setWastedCoupon(i,false);});
+    el.querySelectorAll('.rs,.ptag,.rib,svg.frm').forEach(b=>b.classList.remove('on','hot'));
+  }
+  function hop(i){items[i].classList.add('bump');setTimeout(()=>items[i].classList.remove('bump'),90);}
+  function run(){
+    reset();
+    let t=250;
+    slots.forEach((d,i)=>at(t+i*110,()=>d.classList.remove('off')));
+    t+=slots.length*110+260;
+    at(t,()=>el.querySelectorAll('.rs,.ptag,.rib,svg.frm').forEach(b=>b.classList.add('on')));
+    t+=450;
+    let running=0;
+    c.slots.forEach((sl,i)=>{
+      const p=P[sl.p];
+      at(t,()=>hop(i));
+      let v=p.b;
+      sl.steps.forEach((st,j)=>{
+        if(st[0]==='+')v+=st[1];else if(st[0]==='x')v*=st[1];else if(st[0]==='0')v=0;
+        const vv=v;
+        at(t+140+j*380,()=>{sticker(i,st);setPrice(i,vv);
+          if(st[0]==='x'&&st[2]!==undefined){const r=stripOf(st[2]);if(r){r.classList.add('hot');setTimeout(()=>r.classList.remove('hot'),500);}hop(st[2]);}
+          if(st[0]==='w'){items[i].classList.add('shake');setTimeout(()=>items[i].classList.remove('shake'),260);wasteChip(i,true);setWastedCoupon(i,true);}});
+      });
+      const dur=140+Math.max(1,sl.steps.length)*380;
+      running+=payOf(sl);const r=running;
+      at(t+dur-100,()=>{totB.textContent=r+'€';});
+      t+=dur;
+    });
+    at(t,()=>tot.classList.add('win'));
+    at(t+2000,()=>el.classList.add('fade'));
+    at(t+2350,run);
+  }
+  return {el,start(){if(RM()){reset();finalState();}else run();},stop(){timers.forEach(clearTimeout);timers.length=0;}};
+}
+function mountClip(holder,e,s,w){
+  stopClip();holder.innerHTML='';
+  if(!e.clip){
+    holder.innerHTML=`<div class="noclip" style="width:${w}px;max-width:100%;height:${s===2?150:90}px"><div>${readersHTML(e)||mark(e,3)}</div><div>Clip in the build · text-only in this mock-up</div></div>`;
+    return;
+  }
+  const c=makeClip(e.clip,s,w);
+  const rp=document.createElement('button');rp.className='rp';rp.textContent='↻';rp.title='Replay clip';
+  rp.onclick=()=>{c.stop();c.start();};
+  c.el.appendChild(rp);
+  holder.appendChild(c.el);clipRun=c;c.start();
+}
+document.getElementById('clipDims').textContent='790×'+clipGeo({slots:[]},2).H;
+
+/* ---------- state ---------- */
+const stage=document.getElementById('stage');
+let variant='A', cur='chain', tab='kw', isOpen=false, cListMode=false, cAnchor=null, monOn=false;
+const vA=document.getElementById('vA'), vB=document.getElementById('vB'), vC=document.getElementById('vC');
+const headHTML=e=>`${mark(e,2)}<h3>${e.name}</h3>${e.isnew?'<span class="new">NEW</span>':''}`;
+
+function renderA(){
+  const e=E[cur];
+  const tabs=GROUPS.map(([g,n])=>`<div class="tab${g===tab?' on':''}" data-tab="${g}">${n}${g==='place'?' <span class="new">NEW</span>':''}<span class="n">${Object.values(E).filter(x=>x.g===g).length}</span></div>`).join('');
+  const rows=Object.values(E).filter(x=>x.g===tab).map(x=>`<div class="row${x.id===cur?' on':''}" data-id="${x.id}">${mark(x,2)}<span>${x.name}</span></div>`).join('');
+  vA.innerHTML=`<div class="tabs">${tabs}</div><div class="book"><div class="x" data-close>✕</div><div class="esc">ESC · RIGHT-CLICK TO CLOSE</div>
+   <div class="idx"><h4>${grpName(tab)}</h4>${rows}</div><div class="rings"></div>
+   <div class="det"><div class="hd">${headHTML(e)}</div><div class="rulebox">${e.rule}</div><div class="clipH"></div>${e.eq?`<div class="eqline">${e.eq}</div>`:''}
+     <div class="foot">${shotHTML(e)}<div class="hint">${hintHTML(e)}${e.shot&&e.shot.hint?'<br><br>':''}${e.more||''}${e.shot?'':'<div style="margin-top:8px">'+readersHTML(e)+'</div>'}</div></div>
+   </div></div>`;
+  mountClip(vA.querySelector('.clipH'),e,2,790);
+}
+function renderB(){
+  const e=E[cur];
+  const art=e.clip?e.clip.slots[e.clip.slots.length-1].p:(e.readers[0]||null);
+  const bayArt=art?px(I(art),192,192,'bayart'):`<div class="bayart" style="display:grid;place-items:center">${mark(e,6)}</div>`;
+  const grps=GROUPS.map(([g,n])=>`<span class="${g===tab?'on':''}" data-tab="${g}">${n}</span>`).join('');
+  const chips=Object.values(E).filter(x=>x.g===tab).map(x=>`<span class="${x.id===cur?'on':''}" data-id="${x.id}">${x.name}</span>`).join('');
+  vB.innerHTML=`<div class="case"><div class="x" data-close>✕</div>
+    <div class="bay"><div class="bayh"><span><i></i>GUIDE</span><span>${grpName(e.g)}</span></div>${bayArt}<div class="bayf">${e.name}</div></div>
+    <div class="scr"><div class="hd">${headHTML(e)}<span class="grp">${grpName(e.g)}</span></div><div class="rulebox">${e.rule}</div>${e.eq?`<div class="eqline">${e.eq}</div>`:''}
+      ${e.shot?'<button class="monbtn" data-mon>SEE IT ON THE MONITOR ▸</button>':''}<div class="hint">${e.more}</div></div>
+    <div class="monov${monOn&&e.shot?' on':''}">${shotHTML(e)}<div class="hint">${hintHTML(e)}</div><button class="monbtn" data-mon>◂ BACK TO THE RULE</button></div></div>
+    <div class="beltzone"><div class="clipH"></div></div>
+    <div class="strip"><div class="grps">${grps}</div><div class="chips">${chips}</div></div>`;
+  mountClip(vB.querySelector('.clipH'),e,2,800);
+}
+function renderC(){
+  const e=E[cur];
+  if(cListMode){
+    stopClip();
+    const list=GROUPS.map(([g,n])=>`<h4>${n}</h4><div>${Object.values(E).filter(x=>x.g===g).map(x=>`<span data-id="${x.id}">${x.name}</span>`).join('')}</div>`).join('');
+    vC.innerHTML=`<div class="hd"><h3>All keywords</h3><span class="x" data-close>✕</span></div><div class="list">${list}</div>`;
+  } else {
+    const same=Object.values(E).filter(x=>x.g===e.g), k=same.findIndex(x=>x.id===cur);
+    const prev=same[(k-1+same.length)%same.length], next=same[(k+1)%same.length];
+    vC.innerHTML=`<div class="hd">${headHTML(e)}<span class="x" data-close>✕</span></div>
+     <div class="rulebox">${e.rule}</div><div class="clipH"></div>${e.eq?'<div class="eqline" style="font-size:15px">'+e.eq+'</div>':''}
+     ${e.shot?`<button class="monbtn" data-mon>${monOn?'▾':'▸'} SEE IT ON THE MONITOR</button>`+(monOn?`<div style="display:grid;gap:6px">${shotHTML(e)}<div class="hint">${e.shot.hint||''}</div></div>`:''):''}
+     <div class="nav"><span data-id="${prev.id}">◀ ${prev.name}</span><span data-id="${next.id}">${next.name} ▶</span><span class="all" data-all>ALL ▸</span></div>`;
+    mountClip(vC.querySelector('.clipH'),e,1,530);
+  }
+  vC.classList.toggle('tail',!!cAnchor);
+  requestAnimationFrame(()=>{
+    const h=vC.offsetHeight;
+    if(cAnchor){
+      const left=Math.max(16,Math.min(1280-16-560,cAnchor.x-280));
+      vC.style.left=left+'px';vC.style.top=Math.max(16,cAnchor.y-h-18)+'px';vC.style.setProperty('--tx',(cAnchor.x-left)+'px');
+    } else {vC.style.left='360px';vC.style.top=Math.max(20,(720-h)/2)+'px';}
+  });
+}
+function render(){
+  vA.classList.toggle('on',variant==='A'&&isOpen);
+  vB.classList.toggle('on',variant==='B'&&isOpen);
+  vC.classList.toggle('on',variant==='C'&&isOpen);
+  if(!isOpen){stopClip();return;}
+  if(variant==='A')renderA();else if(variant==='B')renderB();else renderC();
+}
+function show(id,anchor){
+  if(id){if(id!==cur)monOn=false;cur=id;tab=E[id].g;}
+  cAnchor=anchor||null;cListMode=false;
+  const wasOpen=isOpen;isOpen=true;
+  if(!wasOpen){stage.classList.remove('open');render();void stage.offsetWidth;requestAnimationFrame(()=>stage.classList.add('open'));}
+  else render();
+  stage.classList.add('open');
+}
+function close(){isOpen=false;stage.classList.remove('open');render();}
+
+stage.addEventListener('click',ev=>{
+  const t=ev.target.closest('[data-id],[data-tab],[data-close],[data-all],[data-mon]');
+  if(!t)return;
+  if(t.dataset.close!==undefined){close();return;}
+  if(t.dataset.mon!==undefined){monOn=!monOn;render();return;}
+  if(t.dataset.all!==undefined){cListMode=true;render();return;}
+  if(t.dataset.tab){tab=t.dataset.tab;const first=Object.values(E).find(x=>x.g===tab);cur=first.id;monOn=false;render();return;}
+  if(t.dataset.id){if(cur!==t.dataset.id)monOn=false;cur=t.dataset.id;tab=E[cur].g;cListMode=false;render();}
+});
+stage.addEventListener('contextmenu',ev=>{ev.preventDefault();if(isOpen&&!ev.target.closest('.vA,.vB,.vC'))close();});
+document.addEventListener('keydown',ev=>{if(ev.key==='Escape'&&isOpen)close();});
+
+/* ---------- the two ways in ---------- */
+const mpop=document.getElementById('mpop'), cursor=document.getElementById('cursor'), gtip=document.getElementById('gtip'), chiplit=document.getElementById('chiplit');
+let demoT=[];
+function demoClear(){demoT.forEach(clearTimeout);demoT=[];mpop.classList.remove('show');cursor.classList.remove('show','click');gtip.classList.remove('show');chiplit.classList.remove('show');}
+const later=(ms,fn)=>demoT.push(setTimeout(fn,ms));
+function moveCursor(x,y){cursor.style.left=x+'px';cursor.style.top=y+'px';}
+document.getElementById('openMenu').onclick=()=>{
+  demoClear();close();
+  if(RM()){show(cur);return;}
+  cursor.style.transition='none';moveCursor(1000,300);cursor.classList.add('show');void cursor.offsetWidth;cursor.style.transition='';
+  later(50,()=>moveCursor(1244,30));
+  later(650,()=>{cursor.classList.add('click');mpop.classList.add('show');});
+  later(1000,()=>{cursor.classList.remove('click');moveCursor(1180,104);});
+  later(1600,()=>{cursor.classList.add('click');});
+  later(1850,()=>{demoClear();show(cur);});
+};
+document.getElementById('openChip').onclick=()=>{
+  demoClear();close();
+  const tipAt=()=>{gtip.innerHTML='Works with Breakfast<div class="foot">RIGHT-CLICK · GUIDE <span class="new">NEW</span></div>';gtip.classList.add('show');
+    gtip.style.left=(920-gtip.offsetWidth/2)+'px';gtip.style.top=(500-gtip.offsetHeight-12)+'px';chiplit.classList.add('show');};
+  if(RM()){show('fam_breakfast',{x:920,y:506});return;}
+  cursor.style.transition='none';moveCursor(700,640);cursor.classList.add('show');void cursor.offsetWidth;cursor.style.transition='';
+  later(50,()=>moveCursor(918,514));
+  later(650,tipAt);
+  later(1900,()=>cursor.classList.add('click'));
+  later(2200,()=>{demoClear();show('fam_breakfast',{x:920,y:506});});
+};
+document.getElementById('replayClip').onclick=()=>{if(!isOpen)show(cur);else if(clipRun){clipRun.stop();clipRun.start();}};
+
+/* ---------- toolbar ---------- */
+document.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{
+  variant=b.dataset.v;document.querySelectorAll('[data-v]').forEach(x=>x.setAttribute('aria-pressed',x===b));
+  demoClear();if(!isOpen)show(cur);else render();
+});
+rmBox.onchange=()=>{document.body.classList.toggle('rm',RM());if(isOpen)render();const o=document.querySelector('.ix .e.open');if(o)openInline(o,true);};
+const fwrap=document.getElementById('fwrap');
+let one=false;
+function fit(){
+  const w=fwrap.clientWidth;const s=one?1:Math.min(1,w/1280);
+  stage.style.transform=`scale(${s})`;
+  fwrap.style.height=(720*s+(one?16:0))+'px';
+  if(one){stage.style.position='relative';fwrap.style.height='';} else stage.style.position='absolute';
+}
+document.getElementById('v_fit').onclick=()=>{one=false;document.body.classList.remove('one');document.getElementById('v_fit').setAttribute('aria-pressed',true);document.getElementById('v_one').setAttribute('aria-pressed',false);fit();};
+document.getElementById('v_one').onclick=()=>{one=true;document.body.classList.add('one');document.getElementById('v_one').setAttribute('aria-pressed',true);document.getElementById('v_fit').setAttribute('aria-pressed',false);fit();};
+window.addEventListener('resize',fit);
+
+/* ---------- readable index (on a phone, an entry opens in place) ---------- */
+const ix=document.getElementById('ix');
+ix.innerHTML=GROUPS.map(([g,n])=>`<div class="g"><h3>${n}${g==='place'?' <span class="new">NEW</span>':''}</h3>${Object.values(E).filter(x=>x.g===g).map(x=>
+  `<div class="e" data-go="${x.id}"><b>${x.name} ${FULL.includes(x.id)?'<span class="full">FULL</span>':''}</b><span>${x.rule}</span>${x.eq?'<em>'+x.eq.replace(/<\/?b>/g,'')+'</em>':''}<div class="inl"></div></div>`).join('')}</div>`).join('');
+function openInline(t,refresh){
+  const e=E[t.dataset.go], box=t.querySelector('.inl');
+  if(!refresh){const was=t.classList.contains('open');ix.querySelectorAll('.e.open').forEach(o=>{o.classList.remove('open');o.querySelector('.inl').innerHTML='';});stopClip();if(was)return;}
+  t.classList.add('open');
+  box.innerHTML=`<div class="hint">${e.more||''}</div><div class="sx clipH"></div>${e.shot?`<div class="sx">${shotHTML(e)}</div><div class="hint">${hintHTML(e)}</div>`:''}`;
+  if(isOpen)close();
+  mountClip(box.querySelector('.clipH'),e,2,0);
+}
+ix.addEventListener('click',ev=>{
+  if(ev.target.closest('.inl'))return;
+  const t=ev.target.closest('[data-go]');if(!t)return;
+  if(PHONE()){openInline(t,false);return;}
+  show(t.dataset.go);fwrap.scrollIntoView({behavior:RM()?'auto':'smooth',block:'center'});
+});
+
+/* URL options for review captures: ?rm=1 (reduced motion), ?v=B, ?e=<entry id> */
+const q=new URLSearchParams(location.search);
+if(q.get('rm')==='1'){rmBox.checked=true;document.body.classList.add('rm');}
+if(q.get('v')&&'ABC'.includes(q.get('v'))){variant=q.get('v');document.querySelectorAll('[data-v]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.v===variant));}
+fit();
+show(E[q.get('e')]?q.get('e'):'chain');
+})();
+</script>
+</html>

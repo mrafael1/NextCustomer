@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="HandbookEntry" format=3]
+
+[ext_resource type="Script" path="res://presentation/handbook_entry.gd" id="1_entry"]
+
+[resource]
+script = ExtResource("1_entry")
+id = &"breakfast_sticker"
+group = &"coupons"
+title = "Breakfast sticker"
+mark = 4
+mark_value = "breakfast_sticker"
+rule = "The item in the next slot joins the Breakfast family."
+example_row = PackedStringArray("breakfast_sticker", "potatoes", "milk")
+example_total = 8
+example_note = "Potatoes counts as Breakfast for this checkout, so Milk gets +1."
+details = "Its ticket says GAINED. WASTED on a coupon, an empty slot or an item already Breakfast."
+cards = PackedStringArray("potatoes", "milk")

@@ -341,6 +341,20 @@ func summary_text_rect() -> Rect2:
 	return drawn
 
 
+## The card this ticket shows (null before it is set up).
+func card() -> CardDefinition:
+	return _definition
+
+
+## The ticket that `node` is on (itself, or its nearest PriceSticker ancestor), or null.
+static func of(node: Node) -> PriceSticker:
+	while node != null:
+		if node is PriceSticker:
+			return node as PriceSticker
+		node = node.get_parent()
+	return null
+
+
 ## The GOLDEN ring (null on any other tier).
 func gold_ring() -> TextureRect:
 	return get_node_or_null(GOLD_RING_NAME) as TextureRect

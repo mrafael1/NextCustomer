@@ -24,8 +24,16 @@ func _key(keycode: Key) -> InputEventKey:
 func test_the_plates_stand_on_the_brick() -> void:
 	var menu: TitleMenu = _menu(true)
 	assert_vector(menu.position).is_equal(Vector2(72, 320))
-	assert_array(menu.entries()).is_equal(
-		[TitleMenu.Entry.PRIMARY, TitleMenu.Entry.NEW_RUN, TitleMenu.Entry.REWARDS]
+	(
+		assert_array(menu.entries())
+		. is_equal(
+			[
+				TitleMenu.Entry.PRIMARY,
+				TitleMenu.Entry.NEW_RUN,
+				TitleMenu.Entry.REWARDS,
+				TitleMenu.Entry.GUIDE,
+			]
+		)
 	)
 	var primary: MenuPlate = menu.plate(TitleMenu.Entry.PRIMARY)
 	assert_str(primary.caption).is_equal("CONTINUE")
@@ -45,7 +53,9 @@ func test_the_plates_stand_on_the_brick() -> void:
 		var ink: Color = plate.caption_label().get_theme_color("font_color")
 		assert_object(ink).is_equal(Palette.PAPER)
 	var fresh: TitleMenu = auto_free(TitleMenu.new(false, "12 SHIFTS", 0))
-	assert_array(fresh.entries()).is_equal([TitleMenu.Entry.PRIMARY, TitleMenu.Entry.REWARDS])
+	assert_array(fresh.entries()).is_equal(
+		[TitleMenu.Entry.PRIMARY, TitleMenu.Entry.REWARDS, TitleMenu.Entry.GUIDE]
+	)
 	assert_str(fresh.plate(TitleMenu.Entry.PRIMARY).caption).is_equal("START RUN")
 	assert_object(fresh.plate(TitleMenu.Entry.NEW_RUN)).is_null()
 
@@ -90,16 +100,17 @@ func test_one_marker_lights_an_entry_and_enter_presses_it() -> void:
 	menu.start_pressed.connect(func() -> void: pressed.append("start"))
 	menu.new_run_pressed.connect(func() -> void: pressed.append("new_run"))
 	menu.rewards_pressed.connect(func() -> void: pressed.append("rewards"))
+	menu.guide_pressed.connect(func() -> void: pressed.append("guide"))
 	# Enter with no marker presses the primary entry.
 	assert_bool(menu.handle_key(_key(KEY_ENTER))).is_true()
 	assert_array(pressed).is_equal(["start"])
 	assert_bool(menu.handle_key(_key(KEY_UP))).is_true()
-	assert_int(menu.marked_entry()).is_equal(TitleMenu.Entry.REWARDS)
-	assert_bool(menu.plate(TitleMenu.Entry.REWARDS).is_lit()).is_true()
+	assert_int(menu.marked_entry()).is_equal(TitleMenu.Entry.GUIDE)
+	assert_bool(menu.plate(TitleMenu.Entry.GUIDE).is_lit()).is_true()
 	menu.handle_key(_key(KEY_DOWN))
 	assert_int(menu.marked_entry()).is_equal(TitleMenu.Entry.PRIMARY)
 	menu.handle_key(_key(KEY_DOWN))
-	assert_bool(menu.plate(TitleMenu.Entry.REWARDS).is_lit()).is_false()
+	assert_bool(menu.plate(TitleMenu.Entry.GUIDE).is_lit()).is_false()
 	assert_bool(menu.plate(TitleMenu.Entry.NEW_RUN).is_lit()).is_true()
 	menu.handle_key(_key(KEY_SPACE))
 	assert_array(pressed).is_equal(["start", "new_run"])
@@ -113,7 +124,7 @@ func test_one_marker_lights_an_entry_and_enter_presses_it() -> void:
 		assert_array(hot)
 		. is_equal(
 			[
-				TitleMenu.Entry.REWARDS,
+				TitleMenu.Entry.GUIDE,
 				TitleMenu.Entry.PRIMARY,
 				TitleMenu.Entry.NEW_RUN,
 				TitleMenu.Entry.REWARDS,
@@ -125,6 +136,10 @@ func test_one_marker_lights_an_entry_and_enter_presses_it() -> void:
 	# A plate's own press is its entry's.
 	menu.plate(TitleMenu.Entry.REWARDS).pressed.emit()
 	assert_array(pressed).is_equal(["start", "new_run", "rewards"])
+	# GUIDE (v1.06): the staff handbook, its plate under REWARDS.
+	menu.plate(TitleMenu.Entry.GUIDE).pressed.emit()
+	assert_array(pressed).is_equal(["start", "new_run", "rewards", "guide"])
+	assert_float(menu.plate(TitleMenu.Entry.GUIDE).position.y).is_equal(208.0)
 
 
 ## 2026-11-05: one card, TOY MACHINES, centred across the sheet (the BADGE PINS card is gone:

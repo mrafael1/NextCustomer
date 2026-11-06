@@ -2,10 +2,11 @@ extends GdUnitTestSuite
 ## The quota crossing (QuotaCrossing and BonusLights, mock-up docs/art/mockups/quota_crossing.html)
 ## on the real shift screen: the ding's crossing flies its streak from the item that met the
 ## quota (no flag since the user's feedback of 2026-11-03), dips the stage and puts it back,
-## lights the belt's rail and sounds the ka-ching; twice the quota slams the ×2 stamp over the
-## belt's start with another ka-ching; the rail's lights go out after the count; reduced motion
-## keeps the crossing, the lights and the sounds with no dip or flash; a resumed checkout pops
-## nothing. Alone: a lap stamps only while counting. The real saves and logs are never touched.
+## lights the belt's rail and sounds the ka-ching; twice the quota rings another ka-ching with no
+## pop beside the receipt (v1.13: no "×N" stamp, and the row's Multipack ×3 stickers neither punch
+## nor flash); the rail's lights go out after the count; reduced motion keeps the crossing, the
+## lights and the sounds with no dip or flash; a resumed checkout pops nothing. Alone: a lap rings
+## only while counting and draws nothing. The real saves and logs are never touched.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 const RECORDING_SFX := preload("res://tests/presentation/recording_sfx.gd")
@@ -19,8 +20,19 @@ var _runner: GdUnitSceneRunner
 ## At the crossing: [crossing shown, lights lit, the streak's start, the paying item's rect
 ## (local)].
 var _at_cross: Array = []
-## At each lap: [lap, stamp shown, the gauge's rect, the meter's bar rect (local)].
+## At each lap: [lap, the crossing drawing, the gauge's rect, the meter's bar rect (local)].
 var _at_laps: Array[Array] = []
+## Frames, from the first lap on, where the crossing still drew or processed past its own show
+## (a lap's pop), and where a MULTIPLY sticker ("×3") was scaled up or flashed (a checkout ×N
+## pop, v1.00 and v1.13).
+var _lap_pops: int = 0
+## The visible Controls between the register tower and the monitor, above the belt (where the
+## ×N stamp popped), before the count; and those that showed there only from the first lap on,
+## other than the chip's rows and the belt's stickers.
+var _beside_before: Dictionary = {}
+var _beside_pops: Array[String] = []
+var _multiply_pops: Array[String] = []
+var _multiply_stickers: int = 0
 ## The picture's offsets from its rest (the viewport's canvas transform) seen on any frame.
 var _dips: Array[Vector2] = []
 var _rest: Vector2 = Vector2.ZERO
@@ -35,6 +47,11 @@ func before_test() -> void:
 	_at_laps.clear()
 	_dips.clear()
 	_flash_seen = false
+	_lap_pops = 0
+	_beside_before.clear()
+	_beside_pops.clear()
+	_multiply_pops.clear()
+	_multiply_stickers = 0
 
 
 func after_test() -> void:
@@ -61,12 +78,16 @@ func test_the_crossing_streaks_from_the_item_dips_lights_and_rings() -> void:
 		. override_failure_message("Streak start %s off the item %s" % [_at_cross[2], item])
 		. is_true()
 	)
-	# Twice the quota: one ×2 stamp, over the belt's start.
+	# Twice the quota: one lap, rung with the ka-ching, and no "×N" pop beside the receipt
+	# (v1.13), nor a punched or flashed "×3" sticker (v1.00).
 	assert_int(_at_laps.size()).is_equal(1)
 	assert_int(_at_laps[0][0]).is_equal(2)
-	assert_bool(_at_laps[0][1]).is_true()
 	assert_that(_at_laps[0][2]).is_equal(_at_laps[0][3])
 	assert_int(_sounds(sfx, "kaching")).is_equal(2)
+	assert_int(_lap_pops).is_equal(0)
+	assert_array(_beside_pops).is_empty()
+	assert_int(_multiply_stickers).is_greater(0)
+	assert_array(_multiply_pops).is_empty()
 	# The stage dipped and came back to rest; the flash showed.
 	assert_bool(_dips.any(func(offset: Vector2) -> bool: return offset.y > 0.0)).is_true()
 	assert_that(screen.get_viewport().canvas_transform.origin).is_equal(_rest)
@@ -98,7 +119,7 @@ func test_a_resumed_checkout_pops_nothing() -> void:
 	screen._count_up.show_end_state(screen.run.preview(), QUOTA, context)
 	await _frames(3)
 	assert_bool(crossing.crossing_shown()).is_false()
-	assert_bool(crossing.stamp_shown()).is_false()
+	assert_bool(crossing.drawing()).is_false()
 	assert_bool(screen._stage.bonus_lights.is_lit()).is_false()
 	assert_int(_sounds(sfx, "kaching")).is_equal(0)
 
@@ -110,19 +131,20 @@ func test_an_idle_screen_stays_dark() -> void:
 	await _seconds(1.5)
 	assert_bool(screen._stage.bonus_lights.is_lit()).is_false()
 	assert_bool(screen._stage.quota_crossing.crossing_shown()).is_false()
-	assert_bool(screen._stage.quota_crossing.stamp_shown()).is_false()
+	assert_bool(screen._stage.quota_crossing.drawing()).is_false()
 
 
-## Alone: its hard pixel text (SPEND MET, the ×N stamp) goes through the sharp-pixel material
-## with linear filtering, so its strokes stay even at 1920x1080 (the 1.5x stretch).
-func test_its_pixel_text_takes_the_pixel_material() -> void:
+## Alone: its hard pixel shapes (the streak, the ring and the sparkles) go through the
+## sharp-pixel material with linear filtering, so they stay even at 1920x1080 (the 1.5x stretch).
+func test_its_pixel_shapes_take_the_pixel_material() -> void:
 	var crossing: QuotaCrossing = auto_free(QuotaCrossing.new())
 	assert_object(crossing.material).is_same(ArtStyle.pixel_material())
 	assert_int(crossing.texture_filter).is_equal(CanvasItem.TEXTURE_FILTER_LINEAR)
 
 
-## Alone: a gauge's lap stamps only between a count's start and its end.
-func test_a_lap_stamps_only_while_counting() -> void:
+## Alone: a gauge's lap rings only between a count's start and its end, and never draws: no
+## "×N" stamp pops beside the receipt at checkout (v1.13), nor its sparkles.
+func test_a_lap_rings_only_while_counting_and_pops_nothing() -> void:
 	var meter: QuotaMeter = auto_free(QuotaMeter.new())
 	meter.size = ShiftStage.TUBE_RECT.size
 	add_child(meter)
@@ -133,15 +155,22 @@ func test_a_lap_stamps_only_while_counting() -> void:
 	var count_up: CountUp = auto_free(CountUp.new())
 	add_child(count_up)
 	crossing.follow(count_up, meter, lights)
+	var sfx: Sfx = RECORDING_SFX.new()
+	add_child(sfx)
+	auto_free(sfx)
 	meter.lap_reached.emit(2)
-	assert_bool(crossing.stamp_shown()).is_false()
+	assert_int(_sounds(sfx, "kaching")).is_equal(0)
 	crossing.begin()
-	meter.lap_reached.emit(2)
-	assert_bool(crossing.stamp_shown()).is_true()
+	for lap: int in [2, 3]:
+		meter.lap_reached.emit(lap)
+		await _frames(2)
+		assert_bool(crossing.drawing()).is_false()
+		assert_bool(crossing.is_processing()).is_false()
+		assert_int(crossing.get_child_count()).is_equal(2)  # The flash and the chip only.
+	assert_int(_sounds(sfx, "kaching")).is_equal(2)
 	crossing.end()
-	await _seconds(QuotaCrossing.STAMP_SECONDS + 0.1)
-	meter.lap_reached.emit(3)
-	assert_bool(crossing.stamp_shown()).is_false()
+	meter.lap_reached.emit(4)
+	assert_int(_sounds(sfx, "kaching")).is_equal(2)
 
 
 func _play(screen: ShiftScreen, reduced: bool) -> void:
@@ -152,8 +181,10 @@ func _play(screen: ShiftScreen, reduced: bool) -> void:
 	screen._stage.quota_meter.lap_reached.connect(
 		func(lap: int) -> void:
 			var bar: Rect2 = crossing._local_rect(screen._stage.quota_meter.bar().get_global_rect())
-			_at_laps.append([lap, crossing.stamp_shown(), crossing._gauge, bar])
+			_at_laps.append([lap, crossing.drawing(), crossing._gauge, bar])
 	)
+	for control: Control in _beside(screen):
+		_beside_before[control] = true
 	get_tree().process_frame.connect(_sample.bind(screen))
 	count_up.play(
 		screen.run.preview(),
@@ -176,9 +207,62 @@ func _on_quota_met(with_pop: bool, screen: ShiftScreen) -> void:
 
 func _sample(screen: ShiftScreen) -> void:
 	_dips.append(screen.get_viewport().canvas_transform.origin - _rest)
-	var flash: TextureRect = screen._stage.quota_crossing.get_node("Flash") as TextureRect
+	var crossing: QuotaCrossing = screen._stage.quota_crossing
+	var flash: TextureRect = crossing.get_node("Flash") as TextureRect
 	if flash.modulate.a > 0.0:
 		_flash_seen = true
+	if not _at_laps.is_empty() and not crossing.crossing_shown():
+		if crossing.drawing() or crossing.is_processing():
+			_lap_pops += 1
+		for control: Control in _beside(screen):
+			var seen: String = "%s %s" % [screen.get_path_to(control), control.get_global_rect()]
+			if not _beside_before.has(control) and not _beside_pops.has(seen):
+				_beside_pops.append(seen)
+	for node: Node in screen._stage.planning_layer.find_children("*", "EffectSticker", true, false):
+		var sticker: EffectSticker = node as EffectSticker
+		if sticker.spec().kind != StickerSpec.Kind.MULTIPLY or not sticker.is_visible_in_tree():
+			continue
+		_multiply_stickers += 1
+		var inner: Control = sticker._inner
+		if inner.scale.x > 1.0 or inner.modulate != Color.WHITE:
+			_multiply_pops.append("%s %s" % [inner.scale, inner.modulate])
+
+
+## The visible Controls drawn whole between the register tower and the monitor, above the belt
+## (in the crossing's layer; a pop such as the old 70x40 stamp, not a layer spanning the screen),
+## other than the chip's rows and the belt's items (their stickers, and the price a counted item
+## lifts over the belt).
+func _beside(screen: ShiftScreen) -> Array[Control]:
+	var crossing: QuotaCrossing = screen._stage.quota_crossing
+	var area: Rect2 = Rect2(
+		ShiftStage.TOWER_RECT.end.x,
+		0.0,
+		ShiftStage.MONITOR_RECT.position.x - ShiftStage.TOWER_RECT.end.x,
+		ShiftStage.BELT_RECT.position.y
+	)
+	var found: Array[Control] = []
+	for node: Node in screen.find_children("*", "Control", true, false):
+		var control: Control = node as Control
+		if not control.is_visible_in_tree() or control.size == Vector2.ZERO:
+			continue
+		if control.modulate.a == 0.0 or control.self_modulate.a == 0.0:
+			continue
+		if control == crossing.chip or crossing.chip.is_ancestor_of(control):
+			continue
+		if control is EffectSticker or control is ItemView or _on_an_item(control):
+			continue
+		if area.encloses(crossing._local_rect(control.get_global_rect())):
+			found.append(control)
+	return found
+
+
+func _on_an_item(node: Node) -> bool:
+	var parent: Node = node.get_parent()
+	while parent != null:
+		if parent is EffectSticker or parent is ItemView or parent is CardView:
+			return true
+		parent = parent.get_parent()
+	return false
 
 
 ## A recording Sfx on the screen: Sfx.find finds it from the stage.

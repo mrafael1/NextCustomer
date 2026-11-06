@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="HandbookEntry" format=3]
+
+[ext_resource type="Script" path="res://presentation/handbook_entry.gd" id="1_entry"]
+
+[resource]
+script = ExtResource("1_entry")
+id = &"fam_dairy"
+group = &"families"
+title = "Dairy"
+mark = 3
+mark_value = "Dairy"
+rule = "Items with the Dairy glyph on their label. A rule that names Dairy counts every one of them."
+example_row = PackedStringArray("scone", "milk", "cream")
+example_total = 13
+example_note = "Scone pairs with Milk; Cream counts the PAIR."
+details = "Milk, Cheese, Butter, Yogurt, Reduced yogurt and Cream are Dairy. Most make a PAIR with a partner; Cream pays per PAIR; Scone pairs with Dairy."
+cards = PackedStringArray("milk", "cheese", "butter", "yogurt", "cream", "scone")
