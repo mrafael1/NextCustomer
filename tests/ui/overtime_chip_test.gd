@@ -52,6 +52,28 @@ func test_the_chip_shows_each_reward_once() -> void:
 	assert_array(Array(chip.texts())).is_equal(["×2 · USED THIS WEEK"])
 
 
+## A USED row (no ticket picture) is as tall as an earned one, so either covers the ceiling lamp's
+## shade beside the gauge's top (v1.13 review).
+func test_used_rows_are_as_tall_as_earned_rows() -> void:
+	var chip: OvertimeChip = auto_free(OvertimeChip.new())
+	chip.reduced_motion = true
+	add_child(chip)
+	chip.show_reward(false, EARNED, "×2")
+	chip.show_reward(true, EARNED, "×3")
+	await get_tree().process_frame
+	var earned: Array[Rect2] = chip.row_rects()
+	chip.clear()
+	await get_tree().process_frame
+	chip.show_reward(false, USED, "×2")
+	chip.show_reward(true, USED, "×3")
+	await get_tree().process_frame
+	var used: Array[Rect2] = chip.row_rects()
+	assert_int(used.size()).is_equal(2)
+	for row: int in 2:
+		assert_float(used[row].size.y).is_equal(earned[row].size.y)
+		assert_float(used[row].position.y).is_equal(earned[row].position.y)
+
+
 ## Alone: the laps pop the rows the count's context states, only while counting; a jump past both
 ## laps shows both; the count's end holds them, then fades them out; the next count clears them.
 func test_the_crossing_pops_the_rows_the_laps_reach() -> void:

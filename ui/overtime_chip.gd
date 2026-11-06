@@ -159,6 +159,9 @@ func _make_row(premium: bool, state: int, laps: String) -> PanelContainer:
 	var line: HBoxContainer = HBoxContainer.new()
 	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	line.add_theme_constant_override("separation", GAP)
+	# Every row is as tall as an earned one (its ticket's height), USED rows too, so the first row
+	# covers the ceiling lamp's shade whatever the state (v1.13 review).
+	line.custom_minimum_size.y = TICKET.get_size().y * 2.0
 	panel.add_child(line)
 	line.add_child(_label((USED_LEAD if used else LEAD) % laps, ink))
 	if not used:

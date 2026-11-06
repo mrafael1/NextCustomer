@@ -141,7 +141,8 @@ func test_the_week_name_stays_beside_every_day_event() -> void:
 	assert_str(chip.name_label().text).is_equal("TRAINING")
 	# Lettered as the week's number (v1.10), unscaled.
 	assert_vector(chip.name_label().scale).is_equal(Vector2.ONE)
-	assert_int(WeekChip.PADDING).is_equal(6)
+	# v1.12: 5, for the wider gaps the outlined words need.
+	assert_int(WeekChip.PADDING).is_equal(5)
 	var tag: InspectionTag = screen._inspection_tag
 	var promised: int = 0
 	for file_name: String in DirAccess.get_files_at(INSPECTIONS):

@@ -183,10 +183,11 @@ func test_the_bar_has_no_spend_chip() -> void:
 	assert_float(bar.menu_button.get_rect().end.x).is_equal_approx(TopBar.ROW_SIZE.x, 0.5)
 
 
-## One lettering (v1.10, the user's review of 2026-11-05): "W :", "/4" and the week's name use the
-## week's number's font, in paper, smaller and quieter (a thin ink outline, no drop) than the
-## number, which stays the largest, outlined widest, dropped and in its week's ink; the parts'
-## outlines stay clear of the number's (no merged ink), all on whole pixels at 1920x1080's 1.5x.
+## One lettering (v1.10, v1.12; the user's reviews of 2026-11-05): "W :", "/4" and the week's
+## name are lettered as the week's number, in paper: its font, its thick ink outline in proportion
+## to their size and its ink drop, only smaller, so they read as strong as the number, which
+## stands out by its size and its week's ink; neighbouring outlines stay clear of each other (no
+## merged ink), all on whole pixels at 1920x1080's 1.5x.
 func test_the_chip_letters_its_words_as_its_number() -> void:
 	var chip: WeekChip = auto_free(WeekChip.new())
 	add_child(chip)
@@ -210,27 +211,69 @@ func test_the_chip_letters_its_words_as_its_number() -> void:
 		)
 		assert_object(part.get_theme_color("font_color")).is_equal(Palette.PAPER)
 		assert_object(part.get_theme_color("font_outline_color")).is_equal(Palette.INK)
-		# No drop: only the number casts one.
-		assert_float(part.get_theme_color("font_shadow_color").a).is_equal(0.0)
+		# The number's ink drop, as deep and as wide as its outline.
+		assert_object(part.get_theme_color("font_shadow_color")).is_equal(Palette.INK)
+		assert_int(part.get_theme_constant("shadow_offset_y")).is_equal(drop)
+		assert_int(part.get_theme_constant("shadow_offset_x")).is_equal(0)
 		var outline: int = part.get_theme_constant("outline_size")
+		assert_int(part.get_theme_constant("shadow_outline_size")).is_equal(outline)
 		assert_int(outline).is_equal(WeekChip.SMALL_OUTLINE)
 		assert_float(fmod(outline * 1.5, 1.0)).is_equal(0.0)
-		# Quiet: at most half the number's outline.
-		assert_int(outline * 2).is_greater(0).is_less_equal(number_outline)
 		var part_size: int = part.get_theme_font_size("font_size")
 		assert_int(part_size).is_equal(WeekChip.SMALL_SIZE).is_less(number_size)
+		# As strong as the number: its outline in proportion to the size (within a pixel).
+		var scaled: float = float(number_outline) * part_size / number_size
+		assert_float(float(outline)).is_equal_approx(scaled, 1.0)
 		assert_vector(part.scale).is_equal(Vector2.ONE)
 		assert_float(part.get_minimum_size().y).is_less(number.get_minimum_size().y)
-	# The outlines stay apart: each part's text grown by half its outline, the number's by half its
-	# own, leave at least a canvas pixel of the chip between them.
-	var inked: Rect2 = number.get_rect().grow(number_outline / 2.0 + 1.0)
-	for part: Label in [chip.key_label(), chip.count_label()]:
-		var outline: float = part.get_theme_constant("outline_size") / 2.0
-		(
-			assert_bool(part.get_rect().grow(outline).intersects(inked))
-			. override_failure_message("%s's outline meets the number's" % part.name)
-			. is_false()
+	# The outlines stay apart: each part's text grown by half its outline, its neighbour's by half
+	# its own, leave at least a canvas pixel of the chip between them ("W :" and "/4" beside the
+	# number, the name after "/4", and the last word before the pips, with the name and without).
+	var pairs: Array[Array] = [
+		[chip.key_label(), number],
+		[number, chip.count_label()],
+		[chip.count_label(), chip.name_label()],
+		[chip.name_label(), chip.pips_view()]
+	]
+	_assert_apart(pairs)
+	# Every part stands on the number's baseline (its box's foot less its margin and descent),
+	# within half a pixel: its lift is a whole pixel that stays whole at the 1.5x stretch.
+	for part: Label in [chip.key_label(), chip.count_label(), chip.name_label()]:
+		var lift: float = part.get_theme_stylebox("normal").get_margin(SIDE_BOTTOM)
+		assert_float(fmod(lift * 1.5, 1.0)).override_failure_message(part.name).is_equal(0.0)
+		assert_float(_baseline(part)).override_failure_message(part.name).is_equal_approx(
+			_baseline(number), 0.5
 		)
+	chip.show_name(false)
+	await _frames(2)
+	_assert_apart([[chip.count_label(), chip.pips_view()]])
+
+
+## Each pair's outlines (a label's text grown by half its outline; the pips have none) leave at
+## least a canvas pixel between them.
+func _assert_apart(pairs: Array[Array]) -> void:
+	for pair: Array in pairs:
+		var left: Control = pair[0]
+		var right: Control = pair[1]
+		var left_ink: float = left.get_global_rect().end.x + _outline_of(left) / 2.0
+		var right_ink: float = right.get_global_rect().position.x - _outline_of(right) / 2.0
+		(
+			assert_float(right_ink - left_ink)
+			. override_failure_message("%s's outline meets %s's" % [left.name, right.name])
+			. is_greater_equal(1.0)
+		)
+
+
+## `label`'s baseline (one line, bottom-aligned), in global coordinates.
+static func _baseline(label: Label) -> float:
+	var foot: float = label.get_global_rect().end.y
+	foot -= label.get_theme_stylebox("normal").get_margin(SIDE_BOTTOM)
+	var size: int = label.get_theme_font_size("font_size")
+	return foot - label.get_theme_font("font").get_descent(size)
+
+
+static func _outline_of(part: Control) -> int:
+	return part.get_theme_constant("outline_size") if part is Label else 0
 
 
 func _frames(count: int) -> void:

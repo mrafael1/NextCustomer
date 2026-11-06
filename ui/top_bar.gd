@@ -4,14 +4,14 @@ extends HBoxContainer
 ## band, GAP apart, right of the register's tower (the shift scene polish, mock-up
 ## shift_scene_polish_v2.html section 2, A2: the SPEND chip is gone; the quota is the receipt's
 ## TODAY'S TARGET and its gauge a tube beside the receipt): SHIFT n/m, the week chip (v0.70,
-## WeekChip: "W2", the week's name, its day pips), the inspection chip (the day chip since v0.70:
-## "D6" and the day's events, paper, with the mustard warning sign and "Inspection · <effect>", the
-## name in its hover text; hidden on shifts without one), the LOYALTY chip with its stamps, then
-## (pushed to the row's end by a spacer) the Cart button with its trolley and the menu button (three
-## drawn bars) whose menu holds Guide (the staff handbook, v1.06) and Export log. With weeks
-## (show_weeks, v0.82: the week and day chips say where the run is) the SHIFT chip hides, so the
-## row breathes; the training week's slips show as the week chip's crosses (v0.84 retired the slip
-## sign under it). Cart and the menu stay clickable behind every panel: the shade starts under
+## WeekChip: "W : 2/4", the week's name, its day pips), the inspection chip (the day chip since
+## v0.70: "D6" and the day's events, paper, with the mustard warning sign and "Inspection ·
+## <effect>", the name in its hover text; hidden on shifts without one), the LOYALTY chip with its
+## stamps, then (pushed to the row's end by a spacer) the Cart button with its trolley and the menu
+## button (three drawn bars) whose menu holds Guide (the staff handbook, v1.06) and Export log. With
+## weeks (show_weeks, v0.82: the week and day chips say where the run is) the SHIFT chip hides, so
+## the row breathes; the training week's slips show as the week chip's crosses (v0.84 retired the
+## slip sign under it). Cart and the menu stay clickable behind every panel: the shade starts under
 ## the band (ShiftScreen), and the menu opens in its own popup window.
 ##
 ## It only builds and lays out; ShiftStage passes the buttons' signals on and the screen fills
