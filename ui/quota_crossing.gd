@@ -13,19 +13,19 @@ extends Control
 ##   which pulses with a ring as it lands (CROSS_SECONDS in all).
 ## - C, ka-ching: the register's drawer and bell (Sfx "kaching"), one-off, apart from the ladder.
 ## - D, bonus lights: BonusLights light the belt's rail for the rest of the count.
-## - E, laps: from twice the quota on, each multiple reached (QuotaMeter.lap_reached) slams a ×N
-##   stamp over the belt's start, beside the tube's top and clear of the receipt, with sparkles
-##   and the ka-ching, shrinking away as the tube's badge names the next lap.
+## - E, laps: from twice the quota on, each multiple reached (QuotaMeter.lap_reached) rings the
+##   ka-ching while the tube's lap lamp names the lap. Since v1.13 (the user's review of
+##   2026-11-05: the multiplier pop on the right of the receipt still popped at checkout) nothing
+##   pops beside the receipt: the gold "×N" stamp and its sparkles are gone.
 ## - F, over-quota rewards (v1.03): a lap reaching a reward's ×N (the extra ticket's ×2, the
-##   PREMIUM ticket's ×3) pops its row on the OvertimeChip under E's stamp (`chip`), earned or
-##   "used this week", as the count's context says (CountUp.run_context). As the total lands, the
+##   PREMIUM ticket's ×3) pops its row on the OvertimeChip beside the tube's top (`chip`), earned
+##   or "used this week", as the count's context says (CountUp.run_context). As the total lands, the
 ##   rows of every reward the total's laps reach show too (a lap a skip or a Double checkout's
 ##   row 1 went past, v1.03 review). The rows hold past the count's end, then fade.
 ##
-## Real time (the ding's hit-stop freezes the count, not these). Reduced motion keeps the sound,
-## the lights and the stamp standing still for its time, with no dip, flash, streak, ring or
-## sparkles. Stage coordinates (the layer covers the stage), over the fore, under the
-## scan layer.
+## Real time (the ding's hit-stop freezes the count, not these). Reduced motion keeps the sound
+## and the lights, with no dip, flash, streak, ring or sparkles. Stage coordinates (the layer
+## covers the stage), over the fore, under the scan layer.
 
 ## B: the dip's offsets (px, one per DIP_STEP_SECONDS), the flash, the streak's flight (from
 ## STREAK_START_SECONDS, STREAK_SECONDS long) and the gauge's ring.
@@ -47,25 +47,15 @@ const BURST_RADIUS := 26.0
 const BURST_SECONDS := 0.35
 ## C: the ka-ching's volume.
 const KACHING_DB := 0.0
-## E: the stamp over the belt's start, beside the tube's top: STAMP_DOWN_PX under the tube's top
-## (under the top bar's band since the housing raised the glass, v4's A1) and STAMP_BESIDE_PX
-## right of the register tower (ShiftStage.TOWER_RECT, which holds the
-## receipt) even at its slam's full scale, so it never covers the receipt's TODAY'S TARGET
-## (STAMP_SIZE at scale 1); slammed from STAMP_SLAM_SCALE over STAMP_SLAM_SECONDS, settling, then
-## fading over its last STAMP_FADE_SECONDS.
-const STAMP_SIZE := Vector2(70, 40)
-const STAMP_BESIDE_PX := 12.0
-const STAMP_DOWN_PX := 20.0
-const STAMP_SLAM_SCALE := 2.6
-const STAMP_SLAM_SECONDS := 0.15
-const STAMP_SECONDS := 0.75
-const STAMP_FADE_SECONDS := 0.2
-const STAMP_TEXT := "×%d"
-## F: the chip's top left, CHIP_GAP_PX under E's stamp at rest, as far right of the register
-## tower as the stamp's slam (clear of the receipt and of the monitor on its right).
-const CHIP_GAP_PX := 12.0
+## F: the chip's top left: CHIP_DOWN_PX under the tube's top (under the top bar's band) and
+## CHIP_BESIDE_PX right of the register tower (ShiftStage.TOWER_RECT, which holds the receipt),
+## clear of the receipt and of the monitor on its right. Its rows name a reward's laps ("×2").
+## At 30 px the first row covers the hanging ceiling lamp's shade whole (v1.13: at 20 px a gold
+## sliver of the shade peeked out between the rows).
+const CHIP_BESIDE_PX := 12.0
+const CHIP_DOWN_PX := 30.0
+const LAPS_TEXT := "×%d"
 const GRID := 2.0
-const ART := ArtStyle.ART_SCALE
 
 ## Returns where item `slot` is now (a global Rect2, CountUp.source_rect), set by follow().
 var item_rect: Callable = Callable()
@@ -81,10 +71,8 @@ var _count_up: CountUp
 var _counting: bool = false
 ## The slot of the latest beat's item (the one paying when the quota is met).
 var _slot: int = -1
-## Seconds since the crossing (-1: none) and since the last lap's stamp (-1: none), and that lap.
+## Seconds since the crossing (-1: none).
 var _since: float = -1.0
-var _lap_since: float = -1.0
-var _lap: int = 0
 ## The streak's ends, in this layer's coordinates, taken at the crossing: the item that met the
 ## quota, and the quota mark on the gauge.
 var _launch: Vector2 = Vector2.ZERO
@@ -99,7 +87,7 @@ var _flash: TextureRect
 func _init() -> void:
 	name = "QuotaCrossing"
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# Its SPEND MET and ×N are hard pixel text, drawn 2x and up (its shapes are untextured).
+	# Its shapes are hard pixel cells, drawn 2x and up (untextured).
 	ArtStyle.use_pixel_text_material(self)
 	_flash = TextureRect.new()
 	_flash.name = "Flash"
@@ -135,8 +123,6 @@ func begin() -> void:
 	_counting = true
 	_slot = -1
 	_since = -1.0
-	_lap_since = -1.0
-	_lap = 0
 	if _count_up != null and _count_up.plan != null:
 		reduced_motion = _count_up.plan.reduced_motion
 	if lights != null:
@@ -175,14 +161,9 @@ func cross() -> void:
 	queue_redraw()
 
 
-## The count reached lap `lap` (twice the quota or more): E's stamp and the ka-ching.
-func stamp_lap(lap: int) -> void:
-	_lap = lap
-	_lap_since = 0.0
-	_gauge = _gauge_rect()
+## The count reached a lap (twice the quota or more): E's ka-ching, and nothing drawn.
+func ring_lap() -> void:
 	_play_kaching()
-	set_process(true)
-	queue_redraw()
 
 
 ## Whether the crossing's show (B: the streak and its ring) runs now.
@@ -195,42 +176,20 @@ func launch_point() -> Vector2:
 	return _launch
 
 
-## Whether a lap's stamp (E) shows now.
-func stamp_shown() -> bool:
-	return _lap_since >= 0.0 and _lap_since < STAMP_SECONDS
-
-
-## The lap stamp's centre in this layer (stage coordinates): over the belt's start, clear of the
-## tower at the slam's full scale, its top STAMP_DOWN_PX under the tube's top.
-func stamp_centre() -> Vector2:
-	var reach: float = STAMP_SIZE.x * STAMP_SLAM_SCALE / 2.0
-	return Vector2(
-		ShiftStage.TOWER_RECT.end.x + STAMP_BESIDE_PX + reach,
-		_gauge_rect().position.y + STAMP_DOWN_PX + STAMP_SIZE.y / 2.0
-	)
-
-
-## The lap stamp's rect at `scale_now` (1: at rest), in this layer.
-func stamp_rect(scale_now: float = 1.0) -> Rect2:
-	var box: Vector2 = (STAMP_SIZE * scale_now / GRID).round() * GRID
-	return Rect2(_snap(stamp_centre() - box / 2.0), box)
+## Whether anything of the crossing is drawn now: only B's streak and ring (a lap draws nothing).
+func drawing() -> bool:
+	return _since >= 0.0
 
 
 func _process(delta: float) -> void:
-	# Godot turns processing on when the node is ready: off until cross() or stamp_lap().
-	if _since < 0.0 and _lap_since < 0.0:
+	# Godot turns processing on when the node is ready: off until cross().
+	if _since < 0.0:
 		set_process(false)
 		return
-	if _since >= 0.0:
-		_since += delta
-		_move_dip()
-		if _since >= CROSS_SECONDS:
-			_since = -1.0
-	if _lap_since >= 0.0:
-		_lap_since += delta
-		if _lap_since >= STAMP_SECONDS:
-			_lap_since = -1.0
-	if _since < 0.0 and _lap_since < 0.0:
+	_since += delta
+	_move_dip()
+	if _since >= CROSS_SECONDS:
+		_since = -1.0
 		_stop_dip()
 		set_process(false)
 	queue_redraw()
@@ -240,8 +199,6 @@ func _draw() -> void:
 	if _since >= 0.0:
 		_draw_streak()
 		_draw_ring()
-	if _lap_since >= 0.0:
-		_draw_stamp()
 
 
 ## B: the spark flies from the item to the quota mark, its trail behind it; then it bursts.
@@ -279,58 +236,6 @@ func _draw_ring() -> void:
 	draw_rect(ring, Color(Palette.GOLD, a), false, 4.0)
 
 
-## E: the ×N stamp slams over the belt's start, settles and fades, with sparkles.
-func _draw_stamp() -> void:
-	var t: float = _lap_since
-	var scale_now: float = 1.0
-	if not reduced_motion:
-		if t < STAMP_SLAM_SECONDS:
-			scale_now = lerpf(STAMP_SLAM_SCALE, 1.2, _ease(t / STAMP_SLAM_SECONDS))
-		else:
-			scale_now = lerpf(1.2, 1.0, _ease((t - STAMP_SLAM_SECONDS) / 0.3))
-	var alpha: float = 1.0
-	var fade_from: float = STAMP_SECONDS - STAMP_FADE_SECONDS
-	if t > fade_from:
-		alpha = 1.0 - _ease((t - fade_from) / STAMP_FADE_SECONDS)
-	var centre: Vector2 = stamp_centre()
-	var rect: Rect2 = stamp_rect(scale_now)
-	draw_rect(rect.grow(3.0), Color(Palette.INK, alpha))
-	draw_rect(rect, Color(Palette.GOLD, alpha))
-	draw_rect(Rect2(rect.position, Vector2(rect.size.x, 4.0)), Color(Palette.PAPER, alpha))
-	var text: String = STAMP_TEXT % _lap
-	var font: Font = ArtStyle.pixel_number_font()
-	var size_px: int = ArtStyle.PIXEL_NUMBER_SIZE
-	var text_scale: float = ART * scale_now
-	var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size_px).x
-	var ascent: float = font.get_ascent(size_px)
-	var descent: float = font.get_descent(size_px)
-	var origin: Vector2 = centre - Vector2(width, ascent - descent) * text_scale / 2.0
-	draw_set_transform(origin.round(), 0.0, Vector2.ONE * text_scale)
-	for offset: Vector2 in [Vector2.LEFT, Vector2.RIGHT, Vector2.UP, Vector2.DOWN]:
-		draw_string(
-			font,
-			Vector2(0, ascent) + offset,
-			text,
-			HORIZONTAL_ALIGNMENT_LEFT,
-			-1,
-			size_px,
-			Color(Palette.INK, alpha)
-		)
-	draw_string(
-		font,
-		Vector2(0, ascent),
-		text,
-		HORIZONTAL_ALIGNMENT_LEFT,
-		-1,
-		size_px,
-		Color(Palette.PAPER, alpha)
-	)
-	draw_set_transform_matrix(Transform2D.IDENTITY)
-	if not reduced_motion:
-		_burst(centre, t / (STAMP_SECONDS * 0.7))
-		_burst(Vector2(_gauge.get_center().x, _gauge.position.y), (t - 0.1) / 0.4)
-
-
 ## BURST_DOTS sparkles round `at`, `k` from 0 to 1 (none outside).
 func _burst(at: Vector2, k: float) -> void:
 	if k < 0.0 or k > 1.0:
@@ -356,7 +261,7 @@ func _on_quota_met(with_pop: bool) -> void:
 
 func _on_lap_reached(lap: int) -> void:
 	if _counting:
-		stamp_lap(lap)
+		ring_lap()
 		show_rewards(lap)
 
 
@@ -377,14 +282,16 @@ func show_rewards(lap: int) -> void:
 		var needed: int = context.overtime_premium_laps if premium else context.overtime_ticket_laps
 		if needed > 0 and lap >= needed:
 			var state: int = context.overtime_premium if premium else context.overtime_ticket
-			chip.show_reward(premium, state, STAMP_TEXT % needed)
+			chip.show_reward(premium, state, LAPS_TEXT % needed)
 
 
-## F: the chip's top left in this layer: under E's stamp at rest, STAMP_BESIDE_PX right of the
-## register tower.
+## F: the chip's top left in this layer: CHIP_BESIDE_PX right of the register tower,
+## CHIP_DOWN_PX under the tube's top.
 func chip_position() -> Vector2:
-	var rest: Rect2 = stamp_rect()
-	return _snap(Vector2(ShiftStage.TOWER_RECT.end.x + STAMP_BESIDE_PX, rest.end.y + CHIP_GAP_PX))
+	var at: Vector2 = Vector2(
+		ShiftStage.TOWER_RECT.end.x + CHIP_BESIDE_PX, _gauge_rect().position.y + CHIP_DOWN_PX
+	)
+	return _snap(at)
 
 
 ## The flash: a warm glow round `centre` fading over FLASH_SECONDS.

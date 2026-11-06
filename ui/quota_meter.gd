@@ -30,7 +30,7 @@ extends Control
 ## the quota, then lit in the newest full lap's colour, green with a check for the first, "×N"
 ## once N laps are made, glowing, and popping as a lap is made while counting; inside the column's
 ## margin, clear of the receipt's well. While counting, reaching twice the quota and each later
-## multiple emits lap_reached (the quota crossing stamps it). Reduced motion (`reduced_motion`)
+## multiple emits lap_reached (the quota crossing rings it). Reduced motion (`reduced_motion`)
 ## keeps the levels, the colours, the lamp and the glows (steady) and drops the slosh, the spray,
 ## the bubbles and the lamp's pop.
 ##
