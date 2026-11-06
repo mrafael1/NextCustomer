@@ -1,8 +1,8 @@
 class_name OvertimeChip
 extends VBoxContainer
 ## The over-quota rewards' cue at the checkout (v1.03, OvertimeTickets): when the count's laps
-## reach a reward's ×N (QuotaMeter.lap_reached, through QuotaCrossing) a pill pops in under the
-## ×N stamp, beside the gauge's top: "×2 [ticket] +1 TICKET" in mustard (the bonus ticket's pill
+## reach a reward's ×N (QuotaMeter.lap_reached, through QuotaCrossing) a pill pops in beside the
+## gauge's top, under the top bar: "×2 [ticket] +1 TICKET" in mustard (the bonus ticket's pill
 ## look), "×3 [ticket] PREMIUM TICKET" in velvet with gold text (the PREMIUM machine's dressing),
 ## or, when the week's reward is already used, a subdued steel "×2 · USED THIS WEEK". Each pill
 ## stays under MAX_WIDTH, so the chip fits between the register tower and the monitor. A ×3 shift
