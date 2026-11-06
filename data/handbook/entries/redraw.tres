@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="HandbookEntry" format=3]
+
+[ext_resource type="Script" path="res://presentation/handbook_entry.gd" id="1_entry"]
+[ext_resource type="Texture2D" path="res://art/icons/redraw_arrow.png" id="2_icon"]
+
+[resource]
+script = ExtResource("1_entry")
+id = &"redraw"
+group = &"shift"
+title = "Redraw"
+mark = 5
+icon = ExtResource("2_icon")
+rule = "Swap one basket (2 items) for 2 new ones. 2 per shift."
+example_row = PackedStringArray("crisps")
+example_redraws_left = 2
+example_total = 8
+example_note = "With 2 redraws left."
+details = "Swapped items are set aside until the shift ends. Some cards care: Crisps +3 per redraw left, Stale popcorn grows ×1 per redraw left, Dented can +2 per card redrawn."
+cards = PackedStringArray("crisps", "stale_popcorn", "dented_can")

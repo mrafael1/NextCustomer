@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="HandbookEntry" format=3]
+
+[ext_resource type="Script" path="res://presentation/handbook_entry.gd" id="1_entry"]
+
+[resource]
+script = ExtResource("1_entry")
+id = &"fam_snack"
+group = &"families"
+title = "Snack"
+mark = 3
+mark_value = "Snack"
+rule = "Items with the Snack glyph on their label. A rule that names Snack counts every one of them."
+example_row = PackedStringArray("crisps", "bread", "pick_n_mix")
+example_total = 14
+example_note = "Crisps is a lone Snack: Pick 'n' mix pays for it."
+details = "Crisps, Pick 'n' mix, Breadsticks, Cereal bar, Bent lolly, Stale popcorn and Dusty toffees are Snacks. Pick 'n' mix pays per lone Snack, Bent lolly per item up to the next Snack; Crisps and Stale popcorn grow with redraws left."
+cards = PackedStringArray("crisps", "pick_n_mix", "bent_lolly", "dusty_toffees")

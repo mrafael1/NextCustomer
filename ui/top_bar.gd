@@ -8,17 +8,19 @@ extends HBoxContainer
 ## "D6" and the day's events, paper, with the mustard warning sign and "Inspection · <effect>", the
 ## name in its hover text; hidden on shifts without one), the LOYALTY chip with its stamps, then
 ## (pushed to the row's end by a spacer) the Cart button with its trolley and the menu button (three
-## drawn bars) whose menu holds Export log. With weeks (show_weeks, v0.82: the week and day chips
-## say where the run is) the SHIFT chip hides, so the row breathes; the training week's slips show
-## as the week chip's crosses (v0.84 retired the slip sign under it). Cart and the menu stay
-## clickable behind every panel: the shade starts under the band (ShiftScreen), and the menu opens
-## in its own popup window.
+## drawn bars) whose menu holds Guide (the staff handbook, v1.06) and Export log. With weeks
+## (show_weeks, v0.82: the week and day chips say where the run is) the SHIFT chip hides, so the
+## row breathes; the training week's slips show as the week chip's crosses (v0.84 retired the slip
+## sign under it). Cart and the menu stay clickable behind every panel: the shade starts under
+## the band (ShiftScreen), and the menu opens in its own popup window.
 ##
 ## It only builds and lays out; ShiftStage passes the buttons' signals on and the screen fills
 ## the chips. Its controls are public for the same reason as ShiftStage's.
 
 signal deck_pressed
 signal export_pressed
+## The menu's Guide was pressed (v1.06): the staff handbook opens (HandbookPage.mount).
+signal guide_pressed
 
 ## B2's row: 9 px down, 38 px tall, the chips 12 px apart, from over the belt's left end (right of
 ## the register's tower) to 16 px short of the stage's right edge.
@@ -59,8 +61,9 @@ var loyalty_card: LoyaltyCard
 ## The Cart button (the deck: "Cart" in player strings only, default 1).
 var deck_button: FramedButton
 var menu_button: FramedButton
-## The menu's popup and its one entry.
+## The menu's popup and its entries.
 var menu: PopupPanel
+var guide_button: FramedButton
 var export_button: FramedButton
 var _weeks: bool = false
 ## The SHIFT chip's key caption (hidden with weeks).
@@ -236,11 +239,19 @@ func _build_menu() -> void:
 	var column: VBoxContainer = VBoxContainer.new()
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	frame.add_child(column)
+	guide_button = UiKit.framed_button(
+		column, "Guide", _on_guide, BUTTON_FONT_SIZE, BUTTON_FRAME, Vector2(0, ROW_SIZE.y)
+	)
 	export_button = UiKit.framed_button(
 		column, "Export log", _on_export, BUTTON_FONT_SIZE, BUTTON_FRAME, Vector2(0, ROW_SIZE.y), ""
 	)
 	# Internal, so the bar's children are its chips and buttons alone.
 	add_child(menu, false, Node.INTERNAL_MODE_BACK)
+
+
+func _on_guide() -> void:
+	menu.hide()
+	guide_pressed.emit()
 
 
 func _on_export() -> void:

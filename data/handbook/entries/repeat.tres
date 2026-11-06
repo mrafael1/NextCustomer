@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="HandbookEntry" format=3]
+
+[ext_resource type="Script" path="res://presentation/handbook_entry.gd" id="1_entry"]
+
+[resource]
+script = ExtResource("1_entry")
+id = &"repeat"
+group = &"coupons"
+title = "Repeat"
+mark = 4
+mark_value = "repeat"
+rule = "Copies what the item right before it pays."
+example_row = PackedStringArray("eggs", "bread", "repeat")
+example_total = 21
+example_note = "It copies the final payout, ×2 and all."
+details = "With no product right before it: WASTED."
+cards = PackedStringArray("eggs", "bread")

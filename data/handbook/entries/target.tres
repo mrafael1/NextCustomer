@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="HandbookEntry" format=3]
+
+[ext_resource type="Script" path="res://presentation/handbook_entry.gd" id="1_entry"]
+[ext_resource type="Texture2D" path="res://art/icons/target_euro.png" id="2_icon"]
+
+[resource]
+script = ExtResource("1_entry")
+id = &"target"
+group = &"shift"
+title = "Today's target"
+mark = 5
+icon = ExtResource("2_icon")
+rule = "Each shift's quota is shown as TODAY'S TARGET. Check out at or above it to go on."
+details = "Below it, the run ends, except in Training week, where a miss is a slip and the run goes on. The receipt shows PROJECTED and how far over or under you are."

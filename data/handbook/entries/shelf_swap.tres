@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="HandbookEntry" format=3]
+
+[ext_resource type="Script" path="res://presentation/handbook_entry.gd" id="1_entry"]
+
+[resource]
+script = ExtResource("1_entry")
+id = &"shelf_swap"
+group = &"coupons"
+title = "Shelf swap"
+mark = 4
+mark_value = "shelf_swap"
+rule = "The item in the next slot also counts as right after the first item."
+example_row = PackedStringArray("coffee", "bread", "shelf_swap", "sugar_cubes")
+example_total = 15
+example_note = "Sugar cubes (+4 right after Coffee) also follows Coffee in slot 1."
+details = "WASTED with no product in the next slot."
+cards = PackedStringArray("coffee", "sugar_cubes")

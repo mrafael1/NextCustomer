@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="HandbookEntry" format=3]
+
+[ext_resource type="Script" path="res://presentation/handbook_entry.gd" id="1_entry"]
+
+[resource]
+script = ExtResource("1_entry")
+id = &"morning"
+group = &"keywords"
+title = "MORNING"
+mark = 1
+mark_value = "MORNING"
+rule = "The row's opening run of Breakfast items, from the first item until one without Breakfast. Coupons don't end it."
+example_row = PackedStringArray("tea_bags", "bread", "milk", "potatoes", "coffee")
+example_total = 38
+example_note = "Potatoes is not Breakfast, so the MORNING stops there: 3 items."
+details = "On the belt a mustard ribbon with a rising sun hangs under the MORNING's tickets. Coffee counts the MORNING from anywhere (+1 each); Tea bags gives ×4 to the last MORNING item."
+cards = PackedStringArray("coffee", "tea_bags", "milk", "bread", "eggs")

@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="HandbookEntry" format=3]
+
+[ext_resource type="Script" path="res://presentation/handbook_entry.gd" id="1_entry"]
+
+[resource]
+script = ExtResource("1_entry")
+id = &"coupon"
+group = &"coupons"
+title = "Coupon"
+mark = 3
+mark_value = "Coupon"
+rule = "A slip, not a product: it pays 0 and takes a slot. It carries the Coupon glyph but no product family."
+example_row = PackedStringArray("bread", "repeat", "scissors")
+example_total = 13
+example_note = "Scissors +2 per earlier coupon."
+details = "Between two products, a coupon breaks BESIDE unless its own rule links them (2 for 1, Shelf swap). Coupons never take an Egg charge or a bonus aimed at products. The machine's NEW ITEMS draw always ends with one coupon."
+cards = PackedStringArray("scissors")

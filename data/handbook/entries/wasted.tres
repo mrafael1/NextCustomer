@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="HandbookEntry" format=3]
+
+[ext_resource type="Script" path="res://presentation/handbook_entry.gd" id="1_entry"]
+
+[resource]
+script = ExtResource("1_entry")
+id = &"wasted"
+group = &"keywords"
+title = "WASTED"
+mark = 1
+mark_value = "WASTED"
+rule = "An item whose rule did nothing where it stands. Some Clearance items pay for WASTED items."
+example_row = PackedStringArray("banana", "bread", "banana", "dusty_toffees")
+example_total = 16
+example_note = "Two lone Bananas: Dusty toffees gets +3 for each."
+details = "A WASTED item still pays its own price; it only missed its bonus. Its chip turns tomato with a cross. Flickering bulb pays ×3 right after a WASTED item."
+cards = PackedStringArray("dusty_toffees", "flickering_bulb", "banana")

@@ -8,17 +8,26 @@ extends BatchFrames
 ## followed live) and the place over the gap lights. light() lights the chain a hovered CHAIN chip
 ## names: the chain holding its slot, or the chain its FEED or TALLY helper at its place serves.
 ## Decor only.
+##
+## It also carries the MORNING's ribbon and the PAIRs' clasps (KeywordMarks, v1.06): the other
+## family keywords' marks, shown, laid out and cleared with the chains (marks()), drawn over the
+## chains' frames (kept the last child).
+
+var _marks: KeywordMarks
 
 
 func _init() -> void:
 	super()
 	name = "ChainFrames"
+	_marks = KeywordMarks.new()
+	add_child(_marks)
 
 
 ## A frame for each run of `model`'s chains (PlanningModel.chain_runs), replacing any shown;
 ## laid out by follow or lay_out.
 func show_chains(model: PlanningModel) -> void:
 	clear_frames()
+	_marks.show_marks(model)
 	for index: int in range(model.chain_runs.size()):
 		var run: PackedInt32Array = model.chain_runs[index]
 		if run.is_empty():
@@ -31,7 +40,31 @@ func show_chains(model: PlanningModel) -> void:
 		var feed: int = model.chain_feeds[chain] if chain < model.chain_feeds.size() else -1
 		var tally: int = model.chain_tallies[chain] if chain < model.chain_tallies.size() else -1
 		_adopt(ChainFrame.new(run, model.chains[chain], knots, feed, tally))
+	move_child(_marks, -1)
 	_paint()
+
+
+func clear_frames() -> void:
+	super()
+	if _marks != null:
+		_marks.clear_frames()
+
+
+func follow(layer: Control, items: Array[ItemView], ghost: ItemView) -> void:
+	_marks.note_rings(layer, items)
+	super(layer, items, ghost)
+
+
+func lay_out(
+	tickets: Dictionary[int, Rect2], skipped: PackedInt32Array = PackedInt32Array()
+) -> void:
+	super(tickets, skipped)
+	_marks.lay_out(tickets, skipped)
+
+
+## The MORNING's ribbon and the PAIRs' clasps (KeywordMarks), laid out with the chains.
+func marks() -> KeywordMarks:
+	return _marks
 
 
 ## The chain frames, in the chains' order (hidden ones included).

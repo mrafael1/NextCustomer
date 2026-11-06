@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="HandbookEntry" format=3]
+
+[ext_resource type="Script" path="res://presentation/handbook_entry.gd" id="1_entry"]
+
+[resource]
+script = ExtResource("1_entry")
+id = &"fam_breakfast"
+group = &"families"
+title = "Breakfast"
+mark = 3
+mark_value = "Breakfast"
+rule = "Items with the Breakfast glyph on their label. A rule that names Breakfast counts every one of them."
+example_row = PackedStringArray("bread", "eggs", "milk")
+example_total = 18
+example_note = "Milk +1 per earlier Breakfast, then Eggs' ×2."
+details = "Bread, Eggs, Milk, Coffee, Tea bags, Yogurt, Cereal, Croissant, Grapefruit, Egg timer and Cereal bar are Breakfast. Milk +1 per earlier Breakfast; Coffee and Tea bags read the MORNING; the Breakfast sticker makes the next item Breakfast. Multipack ignores Breakfast."
+cards = PackedStringArray("bread", "eggs", "milk", "coffee", "tea_bags", "cereal", "croissant")

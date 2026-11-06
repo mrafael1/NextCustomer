@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="HandbookEntry" format=3]
+
+[ext_resource type="Script" path="res://presentation/handbook_entry.gd" id="1_entry"]
+[ext_resource type="Texture2D" path="res://art/icons/padlock.png" id="2_icon"]
+
+[resource]
+script = ExtResource("1_entry")
+id = &"spot_check"
+group = &"shift"
+title = "Spot check"
+mark = 5
+icon = ExtResource("2_icon")
+rule = "A day event: slot 3 pays 0 today."
+example_row = PackedStringArray("bread", "eggs", "milk")
+example_events = PackedStringArray("spot_check")
+example_total = 6
+example_note = "Put a cheap item or a coupon in slot 3."
+details = "The padlock is its icon on the day slip, and the mustard warning sign hangs under the slot on the belt; the monitor ends the item's list with it, and the top bar says it all day."

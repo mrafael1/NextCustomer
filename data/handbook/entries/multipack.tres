@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="HandbookEntry" format=3]
+
+[ext_resource type="Script" path="res://presentation/handbook_entry.gd" id="1_entry"]
+
+[resource]
+script = ExtResource("1_entry")
+id = &"multipack"
+group = &"coupons"
+title = "Multipack"
+mark = 4
+mark_value = "multipack"
+rule = "Later items that share a family with the item right before it pay ×3. Food and Breakfast don't count."
+example_row = PackedStringArray("milk", "multipack", "milk", "milk")
+example_total = 37
+example_note = "Milk is Food, Breakfast and Dairy: only Dairy counts."
+details = "After an item that is only Food or Breakfast (Eggs, Coffee, Soup), it is WASTED."
+cards = PackedStringArray("milk", "cheese", "butter")
