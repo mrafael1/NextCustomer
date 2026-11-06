@@ -19,24 +19,28 @@ extends PanelContainer
 ## no room on crowded days): "/4" says the run's length. The pips are drawn in whole screen pixels
 ## (pip_metrics): at the 1920x1080 window's 1.5x stretch each is 13 px with a 3 px gap and its
 ## glyph's pixels one screen pixel each, so every pip, gap and stroke is the same size.
-## One lettering (v1.10, the user's review of 2026-11-05): "W :", "/4" and the week's name are
-## lettered in the week's number's font, in paper, smaller (SMALL_SIZE) and quieter: a thin ink
-## outline (SMALL_OUTLINE) and no drop, KEY_GAP clear of the number's outline, so the number stays
-## the one that stands out (big, in its week's ink, outlined wide and dropped). The pips stay
-## quiet.
+## One lettering (v1.10, v1.12; the user's reviews of 2026-11-05): "W :", "/4" and the week's
+## name are lettered as the week's number, in paper: the same font, the same thick ink outline
+## (SMALL_OUTLINE, the number's in proportion) and the same ink drop (SMALL_DROP), only smaller
+## (SMALL_SIZE), so the chip reads as one strong sticker family (v1.12: v1.10's thin, undropped
+## words read weaker than the 1). The number still stands out by its size and its week's ink.
+## KEY_GAP and NAME_GAP keep each part's outline clear of its neighbour's. The pips stay quiet.
 
 signal pressed
 
 ## "W :", the week's number and "/4" (the run's week count), KEY_GAP px apart: half the
-## number's outline plus half the small outline plus 2 px, so their outlines never touch and the
-## number's stands alone.
-## The number is the chip's big one (NUMBER_SIZE), "W :", "/4" and the name smaller (SMALL_SIZE,
-## outlined SMALL_OUTLINE px, no drop), so the chip stays narrow and the review day's chip keeps
-## its words.
+## number's outline plus half the small outline plus 1 px, so their outlines never touch and the
+## number's stands alone. The name sits NAME_GAP px after "/4": the two small outlines' halves
+## plus 1 px.
+## The number is the chip's big one (NUMBER_SIZE), "W :", "/4" and the name smaller (SMALL_SIZE),
+## so the chip stays narrow and the review day's chip keeps its words. Now that the words share its
+## outline and drop, the number stands out by size alone beside its ink (v1.12 review: at 20 the
+## narrow green 1 lost to the bold paper words), so it is 22.
 const KEY_TEXT := "W :"
-const KEY_GAP := 7
+const KEY_GAP := 8
+const NAME_GAP := 7
 const WEEK_TEXT := "%d"
-const NUMBER_SIZE := 20
+const NUMBER_SIZE := 22
 const SMALL_SIZE := 15
 ## The week's number's inks by week (the quota tube's, in lap order: QuotaMeter.MET_RAMP's lit
 ## green for week 1, then QuotaLaps.LAP_RAMPS' gold, orange light, velvet sheen and violet light;
@@ -52,21 +56,26 @@ const NUMBER_INKS: Array[Color] = [
 ]
 const NUMBER_OUTLINE := 8
 const NUMBER_DROP := 2
-## The small lettering's outline: thin (a quarter of the number's), with no drop, so the words
-## read as quiet paper type beside the number's heavy ink sticker (v1.10 review: at the number's
-## weight they buried it). Whole pixels at the 1.5x stretch (3 screen px).
-const SMALL_OUTLINE := 2
+## The small lettering's outline and drop: the number's style at its size (the number's outline
+## scaled by SMALL_SIZE / NUMBER_SIZE, the drop the number's), whole pixels at the 1.5x stretch
+## (9 and 3 screen px). v1.10's thin 2 px outline with no drop read weaker than the 1.
+const SMALL_OUTLINE := 6
+const SMALL_DROP := 2
+## The small parts' lift onto the number's baseline is a multiple of this (lift_of): whole canvas
+## pixels that land on whole screen pixels at the 1.5x stretch.
+const LIFT_STEP := 2
 ## An ink too dark on the ink outline (WCAG contrast under DARK_INK_CONTRAST: the velvet's 4,
 ## v1.02 review) is outlined in paper instead, a sticker on the chip, its drop still ink.
 const DARK_INK_CONTRAST := 3.0
 ## The pips: 9 px squares (v0.83: 1.5x the mock-up's 6 px, easier to read), 2 px apart, on whole
 ## pixels; today's has an ink ring. The chip's padding is narrower than the other chips'
 ## (PADDING): the bar has little room left (v4's D: 8 to 6, and its gaps 6 to 4, for the bigger
-## name). A result's glyph is GLYPH_CELLS pixels square (CHECK_PIXELS, CROSS_PIXELS).
+## name; v1.12: 6 to 5, room for the outlined words' wider gaps, so every review day keeps its
+## "Review ·" caption). A result's glyph is GLYPH_CELLS pixels square (CHECK_PIXELS, CROSS_PIXELS).
 const PIP_SIZE := 9.0
 const PIP_GAP := 2.0
 const GLYPH_CELLS := 9
-const PADDING := 6
+const PADDING := 5
 const SEPARATION := 4
 const RING_WIDTH := 2.0
 const TIP := "%s\nTap to open the time card"
@@ -147,22 +156,29 @@ func _init() -> void:
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_theme_constant_override("separation", SEPARATION)
 	add_child(row)
+	var words: HBoxContainer = HBoxContainer.new()
+	words.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# As tall as the number, centred on the chip: the smaller words, bottom-aligned in it, stand on
+	# the number's baseline (their feet and drops level with its).
+	words.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	words.add_theme_constant_override("separation", NAME_GAP)
+	row.add_child(words)
 	var number_row: HBoxContainer = HBoxContainer.new()
 	number_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	number_row.add_theme_constant_override("separation", KEY_GAP)
-	row.add_child(number_row)
-	_key = _lettered(KEY_TEXT, SMALL_SIZE, SMALL_OUTLINE, 0)
+	words.add_child(number_row)
+	_key = _lettered(KEY_TEXT, SMALL_SIZE, SMALL_OUTLINE, SMALL_DROP)
 	_key.name = "Key"
 	number_row.add_child(_key)
 	_number = _lettered("", NUMBER_SIZE, NUMBER_OUTLINE, NUMBER_DROP)
 	_number.name = "Number"
 	number_row.add_child(_number)
-	_count = _lettered("", SMALL_SIZE, SMALL_OUTLINE, 0)
+	_count = _lettered("", SMALL_SIZE, SMALL_OUTLINE, SMALL_DROP)
 	_count.name = "Count"
 	number_row.add_child(_count)
-	_name = _lettered("", SMALL_SIZE, SMALL_OUTLINE, 0)
+	_name = _lettered("", SMALL_SIZE, SMALL_OUTLINE, SMALL_DROP)
 	_name.name = "Name"
-	row.add_child(_name)
+	words.add_child(_name)
 	_pips_view = Control.new()
 	_pips_view.name = "Pips"
 	_pips_view.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -176,21 +192,34 @@ func _init() -> void:
 
 
 ## The chip's lettering: the number font at `font_size` in paper, outlined `outline` px in ink with
-## an ink drop `drop` px down (none at 0; show_week recolours the number's ink and outline).
+## an ink drop `drop` px down, as wide as the outline (show_week recolours the number's ink and
+## outline). Bottom-aligned in the words box (as tall as the number), raised by the number's
+## descent less its own, rounded to whole pixels that stay whole at 1920x1080's 1.5x (LIFT_STEP),
+## so every part stands on the number's baseline (within a third of a pixel) and stays crisp.
 static func _lettered(text: String, font_size: int, outline: int, drop: int) -> Label:
 	var label: Label = UiKit.number_label(text, font_size, false)
+	var font: Font = label.get_theme_font("font")
+	var raise: StyleBoxEmpty = StyleBoxEmpty.new()
+	raise.content_margin_bottom = lift_of(font, font_size)
+	label.add_theme_stylebox_override("normal", raise)
 	label.add_theme_color_override("font_color", Palette.PAPER)
 	label.add_theme_constant_override("outline_size", outline)
 	label.add_theme_color_override("font_outline_color", Palette.INK)
-	if drop > 0:
-		label.add_theme_constant_override("shadow_outline_size", outline)
-		label.add_theme_constant_override("shadow_offset_x", 0)
-		label.add_theme_constant_override("shadow_offset_y", drop)
-		label.add_theme_color_override("font_shadow_color", Palette.INK)
-	else:
-		label.add_theme_color_override("font_shadow_color", Color(Palette.INK, 0.0))
-	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.add_theme_constant_override("shadow_outline_size", outline)
+	label.add_theme_constant_override("shadow_offset_x", 0)
+	label.add_theme_constant_override("shadow_offset_y", drop)
+	label.add_theme_color_override("font_shadow_color", Palette.INK)
+	label.size_flags_vertical = Control.SIZE_FILL
+	label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
 	return label
+
+
+## How far a part at `font_size` is raised to stand on the number's baseline: the descents'
+## difference in whole LIFT_STEP px (v1.12 review: the exact 1.667 px put the words on half
+## pixels at 1.5x and softened them).
+static func lift_of(font: Font, font_size: int) -> int:
+	var exact: float = font.get_descent(NUMBER_SIZE) - font.get_descent(font_size)
+	return LIFT_STEP * roundi(exact / LIFT_STEP)
 
 
 ## Week `week`'s number's ink (1-based; NUMBER_INKS, a week past them the last).
