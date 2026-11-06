@@ -50,8 +50,9 @@ const KACHING_DB := 0.0
 ## F: the chip's top left: CHIP_DOWN_PX under the tube's top (under the top bar's band) and
 ## CHIP_BESIDE_PX right of the register tower (ShiftStage.TOWER_RECT, which holds the receipt),
 ## clear of the receipt and of the monitor on its right. Its rows name a reward's laps ("×2").
-## At 30 px the first row covers the hanging ceiling lamp's shade whole (v1.13: at 20 px a gold
-## sliver of the shade peeked out between the rows).
+## At 30 px the first row covers the hanging ceiling lamp's shade whole, earned or USED (every
+## row is an earned row's height, OvertimeChip; v1.13: at 20 px a gold sliver of the shade peeked
+## out between the rows).
 const CHIP_BESIDE_PX := 12.0
 const CHIP_DOWN_PX := 30.0
 const LAPS_TEXT := "×%d"
