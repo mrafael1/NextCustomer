@@ -5,7 +5,9 @@ extends RefCounted
 ## card on the belt, or in the hand), pinned on the monitor, with the shift's opening notice
 ## cleared so nothing covers the item column. The file is shift_screen_monitor_<case>_<w>x<h>.png.
 ## A case with a "page" (from 0) holds the item column's rows on that page (MonitorStepPages), so
-## every page of a paged item is captured (#138 review).
+## every page of a paged item is captured (#138 review). A case's "cue" (v1.14 review) shows the
+## page cue at "rest" (the pointer off the monitor: its ground unlit) or "hot" (under the pointer);
+## else it is lit, as while the pages are held.
 
 const ARGUMENT := "--monitor="
 const FILE_PART := "monitor_%s_"
@@ -15,6 +17,10 @@ const SETTLE_FRAMES := 2
 const SETTLE_S := ScannerBay.PLAN_OUT_S + BayBed.FALL_S + 1.0
 ## The wait for a turned page's fade.
 const PAGE_S := 0.6
+## The "carry" cases' upgrades (v1.14).
+const CARRY_UPGRADES: Array[String] = [
+	"category_engine_lv2", "dairy_regulars", "dairy_aisle_run_lv2", "breakfast_aisle_run_lv3"
+]
 ## Each case: its belt, its inspection ("" for none), its upgrades, the card scanned and which of
 ## its copies (from 0; "hand" scans the hand's).
 const CASES: Dictionary[String, Dictionary] = {
@@ -126,6 +132,43 @@ const CASES: Dictionary[String, Dictionary] = {
 	"repeat_none": {"row": ["repeat", "milk_golden", "butter"], "scan": "milk_golden"},
 	"repeat_none_copy": {"row": ["repeat", "milk_golden", "butter"], "scan": "repeat"},
 	"unused": {"row": ["eggs", "batteries"], "scan": "eggs"},
+	# v1.14 (the user's "fix the missing subtotal across pages"): Golden Milk 6€, +8 +12 +3 = 29€
+	# on page 1, then ×2 ×4 ×5 = 1160€ on page 2, which starts "Carried forward 29€".
+	"carry":
+	{
+		"row": ["eggs", "milk", "milk", "milk_golden", "two_for_one", "milk_golden"],
+		"upgrades": CARRY_UPGRADES,
+		"scan": "milk_golden",
+		"nth": 1
+	},
+	"carry_p2":
+	{
+		"row": ["eggs", "milk", "milk", "milk_golden", "two_for_one", "milk_golden"],
+		"upgrades": CARRY_UPGRADES,
+		"scan": "milk_golden",
+		"nth": 1,
+		"page": 1
+	},
+	"carry_rest":
+	{
+		"row": ["eggs", "milk", "milk", "milk_golden", "two_for_one", "milk_golden"],
+		"upgrades": CARRY_UPGRADES,
+		"scan": "milk_golden",
+		"nth": 1,
+		"cue": "rest"
+	},
+	"carry_hot":
+	{
+		"row": ["eggs", "milk", "milk", "milk_golden", "two_for_one", "milk_golden"],
+		"upgrades": CARRY_UPGRADES,
+		"scan": "milk_golden",
+		"nth": 1,
+		"page": 1,
+		"cue": "hot"
+	},
+	# v1.14 review: a huge payout on 4 pages (BIG_LINES at BIG_PAYOUT, debug only, as the ladder):
+	# the total keeps clear of the cue, which goes compact.
+	"big": {"row": ["potatoes"], "upgrades": ["extra_redraw"], "scan": "potatoes", "big": true},
 	"hand": {"row": ["bread"], "scan": "coffee", "hand": true},
 	"ladder":
 	{"row": ["potatoes"], "upgrades": ["extra_redraw"], "scan": "potatoes", "ladder": true},
@@ -141,6 +184,8 @@ const LADDER_LINES: Array[String] = [
 	"× Banana stand  ×5",
 ]
 const LADDER_PAYOUT := 90
+const BIG_PAYOUT := 12345678
+const BIG_ROWS := 14
 const UPGRADE_IDS: Array[String] = ["coupon_engine", "slot_engine", "category_engine"]
 
 
@@ -186,6 +231,11 @@ static func scan(node: Node, screen: ShiftScreen, case: Dictionary) -> String:
 		ladder.fizzles.fill(false)
 		column.show_item(shown, shown.tags, ladder)
 		await node.get_tree().process_frame
+	if bool(case.get("big", false)):
+		var column: MonitorItemColumn = screen._monitor.item_column()
+		var shown: CardDefinition = column.shown_definition()
+		column.show_item(shown, shown.tags, _big_lines(shown.base))
+		await node.get_tree().process_frame
 	var page: int = int(case.get("page", -1))
 	var pages: MonitorStepPages = screen._monitor.item_column().pages
 	if pages != null:
@@ -194,4 +244,25 @@ static func scan(node: Node, screen: ShiftScreen, case: Dictionary) -> String:
 			while pages.page() != page:
 				pages.turn(1)
 			await node.get_tree().create_timer(PAGE_S).timeout
+		var cue: MonitorPager = pages.pager()
+		if cue != null and case.get("cue", "") == "rest":
+			cue.lit = false
+		elif cue != null and case.get("cue", "") == "hot":
+			cue.mouse_entered.emit()
 	return FILE_PART % case["name"]
+
+
+## The "big" case's lines: BIG_ROWS bonuses then factors from `base` to BIG_PAYOUT (debug only).
+static func _big_lines(base: int) -> ScanController.ItemLines:
+	var big: ScanController.ItemLines = ScanController.ItemLines.new()
+	var value: int = base
+	for index: int in range(BIG_ROWS - 1):
+		value += 10 * (index + 1)
+		big.lines.append("+ Bonus %d  +%d€" % [index + 1, 10 * (index + 1)])
+		big.runs.append(value)
+	big.lines.append("× Override  =%d€" % BIG_PAYOUT)
+	big.runs.append(BIG_PAYOUT)
+	big.fizzles.resize(big.lines.size())
+	big.fizzles.fill(false)
+	big.payout = BIG_PAYOUT
+	return big

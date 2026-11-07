@@ -51,7 +51,7 @@ const FOOT_CLEARANCE := 4.0
 ## most a 1080p pixel apart on the screen).
 const DIGIT_TOLERANCE := 1.5
 const EDGE_TOLERANCE := 1.0
-const ORDER: Array[String] = ["header", "effect", "base", "step0", "payout"]
+const ORDER: Array[String] = ["header", "effect", "base", "carry", "step0", "payout"]
 
 
 static func problems(column: MonitorItemColumn) -> PackedStringArray:
@@ -118,8 +118,8 @@ static func problems(column: MonitorItemColumn) -> PackedStringArray:
 	if effect != null and not effect.fits() and not parts.has("more"):
 		found.append("the description is cut with no MORE chip")
 	var lines: Array[Control] = []
-	if column.base_line() != null:
-		lines.append(column.base_line())
+	if head(column) != null:
+		lines.append(head(column))
 	lines.append_array(column.step_rows())
 	for row: Control in lines:
 		found.append_array(_leader(row))
@@ -129,6 +129,15 @@ static func problems(column: MonitorItemColumn) -> PackedStringArray:
 				found.append("row '%s' cut" % text.text)
 	found.append_array(amounts_aligned(lines))
 	return found
+
+
+## The line over the rows shown (v1.14): the page shown's head on pages (the base line or the
+## carried line; a coupon's inline, as its page's first row), else the base line; null with none.
+static func head(column: MonitorItemColumn) -> Control:
+	var pages: MonitorStepPages = column.pages
+	if pages != null and pages.has_heads():
+		return pages.head()
+	return column.base_line()
 
 
 ## The amounts of `lines` (base line and rows; "gives" amounts, in parentheses, left out): every
@@ -221,16 +230,17 @@ static func _header_and_base(
 			found.append("glyph %s %s outside the header %s" % [glyph.family, drawn, header])
 	if parts.has("pager") and not header.encloses(parts["pager"]):
 		found.append("the pages' marker %s outside the header %s" % [parts["pager"], header])
-	if not parts.has("base"):
+	if not parts.has("base") and not parts.has("carry"):
 		return found
-	var base: Rect2 = parts["base"]
+	var base: Rect2 = parts["base"] if parts.has("base") else parts["carry"]
 	if absf(base.size.x - MonitorItemColumn.ROWS_WIDTH) > 0.5:
 		found.append("base line %s not the rows' width" % base)
 	if absf(base.size.y - MonitorItemColumn.ROW_PITCH) > 0.5:
 		found.append("base line %s not a row's pitch tall" % base)
-	if base.end.y > parts["rows"].position.y + 0.5:
+	var inline: bool = bool(head(column).get_meta(MonitorCarry.INLINE, false))
+	if not inline and base.end.y > parts["rows"].position.y + 0.5:
 		found.append("base line %s over the rows' area %s" % [base, parts["rows"]])
-	var line: Control = column.base_line()
+	var line: Control = head(column)
 	var pieces: Array[Rect2] = []
 	for piece: String in ["Mark", "Text", "Amount"]:
 		var node: Control = line.get_node_or_null(piece) as Control
@@ -293,7 +303,7 @@ static func _sections(parts: Dictionary[String, Rect2]) -> PackedStringArray:
 	var content: Rect2 = Rect2(
 		frame.position.x + inset, top, MonitorItemColumn.CONTENT_WIDTH, frame.end.y - top
 	)
-	for name: String in ["base", "rows", "footer", "payout"]:
+	for name: String in ["base", "carry", "rows", "footer", "payout", "page_cue"]:
 		if parts.has(name) and not content.grow(0.5).encloses(parts[name]):
 			found.append("%s %s outside the section %s" % [name, parts[name], content])
 	if parts.has("footer") and parts.has("rows"):

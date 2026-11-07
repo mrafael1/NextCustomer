@@ -654,7 +654,8 @@ func _on_beat_started(
 			_giver_mini(step),
 			from_bag,
 			beat.harmful,
-			giver.display_name if giver != null else ""
+			giver.display_name if giver != null else "",
+			ScanController.running_value(step)
 		)
 		_show_line_in_beat(beat, line_shown)
 
@@ -773,7 +774,9 @@ func _show_last_item(plan: CountUpPlan, result: ScoreResult, line_of: Callable) 
 				false,
 				_giver_mini(step),
 				step.source_kind == ScoreStep.SourceKind.CARD and step.card_giver_slot() < slot,
-				beat.harmful
+				beat.harmful,
+				"",
+				ScanController.running_value(step)
 			)
 	var fizzled: bool = last != null and last.step_type == ScoreStep.StepType.WASTED
 	_items.set_value(result.payouts[slot], fizzled)
