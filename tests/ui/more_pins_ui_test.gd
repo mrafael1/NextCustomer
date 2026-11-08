@@ -351,7 +351,7 @@ func _assert_picker_layout(screen: ShiftScreen, picker: PriceGunPicker, view: It
 
 
 ## Express lane is a run-wide pin, not a daily event: a normal day with it worn reads "Normal
-## day" in the plain day's grey, its tooltip and an inspection day's effects leave it out (the
+## day" in the plain day's grey, its tooltip and an inspection day's chip leave it out (the
 ## belt's end marks show it), and the chip stays inside the window.
 func test_express_lane_stays_off_the_day_chip() -> void:
 	var screen: ShiftScreen = await _screen([EXPRESS_LANE], true)
@@ -366,8 +366,8 @@ func test_express_lane_stays_off_the_day_chip() -> void:
 	screen.run.inspections = [load("res://data/inspections/spot_check.tres")]
 	screen._refresh()
 	await _frames(2)
-	assert_str(chip._effects_text).not_contains("Ends ×2")
-	assert_str(chip._effects_text).not_contains("Express lane")
+	assert_str(chip._label.text).is_equal(InspectionTag.CAPTION)  # The kind only (v1.16).
+	assert_str(chip._label.text).not_contains("Ends ×2")
 	assert_str(chip._label.text).not_contains("Express lane")
 	assert_str(chip._tips).not_contains("Express lane")
 	assert_bool(screen.get_viewport_rect().encloses(chip.get_global_rect())).is_true()

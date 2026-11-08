@@ -37,19 +37,17 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-## BONUS TICKET! blinks in once the ticket reaches the slot (machine v2), landing from 2.2x on a
-## back ease, and covers the title (between the blinks too); at rest it carries the inspection
-## passed; it lifts 0.6 s after the landing's settle (`punch_end`). Reduced motion: at rest once
-## the ticket reaches the slot.
+## BONUS TICKET! blinks in at the later draw's start (2026-11-06: nothing is fed, AGAIN!),
+## landing from 2.2x on a back ease, and covers the title (between the blinks too); at rest it
+## carries the inspection passed; it lifts 0.6 s after the landing's settle (`punch_end`). Reduced
+## motion: at rest from the start.
 func test_the_head_stamps_land_and_lift() -> void:
 	var view: RewardMachineView = auto_free(RewardMachineView.new())
 	var head: MachineHead = view.head
 	head.set_stamp("BONUS TICKET!", "Spot check passed")
 	view.plan = MachinePlan.new(view.tuning, MachineVisit.Kind.BONUS, false)
-	head.frame(0.0)
-	assert_bool(head.stamp_shown()).is_false()  # Machine v2: it waits for the ticket at the slot.
 	var at: float = view.plan.fly_end
-	assert_float(at).is_greater(0.0)
+	assert_float(at).is_equal(0.0)  # No ticket to wait for at the slot.
 	head.frame(at)
 	assert_bool(head.stamp_shown()).is_true()
 	assert_float(head.stamp_scale()).is_equal_approx(MachineHead.BONUS_STAMP_FROM, EPSILON)
@@ -305,9 +303,9 @@ func test_the_display_shows_a_bin() -> void:
 
 
 ## A real BONUS visit (inspected, and a bonus extra shift; #77 machine v2's B4): the head's
-## BONUS TICKET! over INSPECTION PASSED (or "shift 1"), the display's BONUS TICKET with the ticket
-## icon and "inspection passed · feeding in" until the stub is fed, then "… · 1 more prize · pick a
-## chute" at the wait; never PREMIUM (v0.50); a pressed key's title sub says "bonus ticket".
+## BONUS TICKET! over INSPECTION PASSED (or "shift 1"), the display's AGAIN! (2026-11-06: a later
+## draw of the same receipt, nothing fed, no ticket icon) with "inspection passed · draw 2 of 2",
+## then "… · 1 more prize · pick a chute" at the wait; never PREMIUM (v0.50).
 func test_a_bonus_visit_says_its_inspection_passed() -> void:
 	for inspected: bool in [true, false]:
 		var run: RunState = _bonus_run(24, inspected)
@@ -320,14 +318,11 @@ func test_a_bonus_visit_says_its_inspection_passed() -> void:
 		var under: String = "INSPECTION PASSED" if inspected else "shift 1"
 		assert_array(Array(view.head.stamp_texts())).is_equal(["BONUS TICKET!", under])
 		view.show_at(0.1)
-		assert_array(Array(view.display.texts())).is_equal(
-			["BONUS TICKET", "%s · feeding in" % why]
-		)
-		var icon: TextureRect = view.display.ticket_icon()
-		assert_bool(icon.visible).is_true()
+		var again: Array = [OvertimeWords.AGAIN, "%s · draw 2 of 2" % why]
+		assert_array(Array(view.display.texts())).is_equal(again)
+		assert_bool(view.display.ticket_icon().visible).is_false()
 		var message: Rect2 = view.display.message_lines()[0].get_global_rect()
-		assert_float(icon.get_global_rect().end.x).is_less_equal(message.position.x)
-		assert_bool(view.display.get_global_rect().encloses(icon.get_global_rect())).is_true()
+		assert_bool(view.display.get_global_rect().encloses(message)).is_true()
 		view.show_at(plan.choose_at)
 		assert_array(Array(view.display.texts())).is_equal(
 			[RewardMachineView.BONUS_TITLE, RewardMachineView.BONUS_SUB % why]
@@ -339,7 +334,7 @@ func test_a_bonus_visit_says_its_inspection_passed() -> void:
 		view._armed = true  # Headless: no mouse release arms it.
 		view.press_key(RewardMachine.Chute.NEW_ITEMS)
 		assert_array(Array(view.tray.texts())).is_equal(
-			["PUSH TO CONFIRM · NEW ITEMS", "BONUS TICKET · 3 PRIZES, KEEP 1"]
+			["PUSH TO CONFIRM · NEW ITEMS", "BONUS DRAW · 3 PRIZES, KEEP 1"]
 		)
 		view.close()
 		remove_child(view)
@@ -866,9 +861,9 @@ func test_the_cabinet_on_the_stage() -> void:
 		)
 		var mouth: Rect2 = view.slot_plate.mouth_global_rect()
 		assert_bool(machine.encloses(mouth)).is_true()
-		var dock: Rect2 = view.cabinet.dock_global_rect()
-		assert_bool(machine.encloses(dock)).is_true()
-		assert_bool(dock.intersects(view.tray.get_global_rect())).is_false()
+		var plate: Transform2D = view.slot_plate.get_global_transform()  # A draw lamp (2026-11-06).
+		var lamp: Rect2 = plate * Rect2(SlotPlate.LAMP_AT, Vector2.ONE * SlotPlate.LAMP_SIZE)
+		assert_bool(machine.encloses(lamp) and not lamp.intersects(mouth)).is_true()
 		view.close()
 		remove_child(view)
 		remove_child(stage)

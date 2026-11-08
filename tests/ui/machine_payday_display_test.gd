@@ -1,7 +1,8 @@
 extends GdUnitTestSuite
 ## The machine's display on a payday and on a BONUS visit after a Manager's review (v0.68): a
-## payday reads as one reward (REVIEW PASSED, PREMIUM TICKET, the 2nd premium ticket's lines and
-## keys), and a BONUS visit after two inspections names both. Visits are stepped on the view's
+## payday reads as one reward (REVIEW PASSED on the sign's right half; since 2026-11-06 the receipt
+## feeds once and lights two draw lamps, the second draw opening on AGAIN!), and a BONUS visit
+## after two inspections names both. Visits are stepped on the view's
 ## clock (show_at), headless.
 
 const BALANCE := "res://data/balance/balance.tres"
@@ -29,10 +30,11 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-## A payday (v0.68): the ticket's read says REVIEW PASSED; the BONUS visit is the 2nd PREMIUM
-## ticket: PREMIUM TICKET with the ticket icon and "2nd premium ticket · feeding in", then "· pick a
-## chute" at the wait, its keys' title "premium 2/2", PACKING… from the 2nd premium ticket, and its
-## end "2 premium prizes this shift".
+## A payday (v0.68): the ticket's read says REVIEW PASSED and lights 2 draw lamps; the head stamp
+## sits on the sign's right half with no line under it; the BONUS visit is the 2nd PREMIUM draw of
+## the same receipt (no ticket, no icon): AGAIN! with "review passed · draw 2 of 2", then "review
+## passed · premium · pick a chute" at the wait, its keys' title "premium draw", PACKING… with its
+## draw, its lamp going out after the prize, and its end "2 premium prizes this shift".
 func test_a_payday_reads_as_one_reward() -> void:
 	var run: RunState = _passed_run(26, _payday_after_shift_one)
 	var review: Array[InspectionDefinition] = [load(SPOT_CHECK), load(SHORT_BELT)]
@@ -43,6 +45,14 @@ func test_a_payday_reads_as_one_reward() -> void:
 	view.open_visit(run, null, null, false)
 	view.show_at(view.plan.read_end - EPSILON)
 	assert_str(view.display.texts()[1]).ends_with(Payday.READ)
+	assert_int(view.plan.draws).is_equal(2)
+	view.show_at(view.plan.choose_at)
+	assert_int(view.slot_plate.lamp_count()).is_equal(2)
+	assert_int(view.slot_plate.lamps_lit()).is_equal(2)
+	assert_array(Array(view.head.stamp_texts())).is_equal([Payday.STAMP, ""])
+	var stamp: Rect2 = view.head.stamp_rect()
+	assert_float(stamp.position.x).is_greater_equal(MachineHead.SIZE.x / 2.0)
+	assert_float(stamp.end.x).is_less_equal(MachineHead.SIZE.x)
 	view.close()
 	remove_child(view)
 	MachineSteps.choose(run, RewardMachine.Chute.NEW_ITEMS)
@@ -53,11 +63,15 @@ func test_a_payday_reads_as_one_reward() -> void:
 	add_child(bonus)
 	bonus.open_visit(run, null, null, false)
 	var plan: MachinePlan = bonus.plan
+	assert_int(plan.draw_index).is_equal(1)
+	assert_int(plan.draws).is_equal(2)
 	bonus.show_at(0.1)
-	assert_array(Array(bonus.display.texts())).is_equal([Payday.TICKET_TITLE, Payday.FEED_SUB])
-	assert_bool(bonus.display.ticket_icon().visible).is_true()
+	var again: Array = [OvertimeWords.AGAIN, "%s · draw 2 of 2" % Payday.REASON]
+	assert_array(Array(bonus.display.texts())).is_equal(again)
+	assert_bool(bonus.display.ticket_icon().visible).is_false()
+	assert_int(bonus.slot_plate.lamps_lit()).is_equal(1)
 	bonus.show_at(plan.choose_at)
-	assert_array(Array(bonus.display.texts())).is_equal([Payday.TICKET_TITLE, Payday.CHUTE_SUB])
+	assert_array(Array(bonus.display.texts())).is_equal([OvertimeWords.AGAIN, Payday.CHUTE_SUB])
 	for chute: int in RewardMachine.CHUTES:
 		assert_str(bonus.title_sub(chute)).contains(Payday.KEY_LEAD)
 	assert_bool(run.machine.choose(run, RewardMachine.Chute.NEW_ITEMS)).is_true()
@@ -65,12 +79,17 @@ func test_a_payday_reads_as_one_reward() -> void:
 	plan = bonus.plan
 	bonus.show_at(plan.choose_at + EPSILON)
 	assert_array(Array(bonus.display.texts())).is_equal(
-		[MachineDisplay.PACKING, "2nd premium ticket"]
+		[MachineDisplay.PACKING, "%s · draw 2 of 2" % Payday.REASON]
 	)
 	bonus.land(MachineSteps.take(run, 0))
 	plan = bonus.plan
+	bonus.show_at(plan.lamp_out + EPSILON)
+	assert_bool(bonus.slot_plate.lamp_flashing()).is_true()
 	bonus.show_at(plan.end_at - EPSILON)
-	assert_array(Array(bonus.display.texts())).is_equal([MachineDisplay.SEE_YOU, Payday.END_SUB])
+	assert_int(bonus.slot_plate.lamps_lit()).is_equal(0)
+	assert_array(Array(bonus.display.texts())).is_equal(
+		[MachineDisplay.SEE_YOU, Payday.END_SUB % 2]
+	)
 	bonus.close()
 	remove_child(bonus)
 	await _frames(2)  # Let the parts' queued frees run (no orphans).

@@ -1,11 +1,12 @@
 extends GdUnitTestSuite
 ## MachinePlan (#77, build spec 4.3-4.4; v0.50 mock-up premium_machine_v1.html): every time of a
 ## visit follows MachineTuning (data/balance/machine_tempo.tres). The intros (machine v2: the
-## receipt's travel with the camera's glide, the stub's snap, the bonus ticket's feed; v0.50: the
-## premium transform after the read), R1's draw (the tray packs, then each ticket flies out of it
-## and lands face up, the LEGENDARY one a beat later), the landing and the holds, at 1x and under
-## reduced motion; TICKET, BONUS with and without an inspection (STAMP DAY is gone since #108);
-## resume_at for each wait point. Pure data: no saves, no event log, no Node.
+## receipt's travel with the camera's glide; v0.50: the premium transform after the read; a later
+## draw's AGAIN!, 2026-11-06), the draw lamps (one per draw the receipt pays), R1's draw (the
+## tray packs, then each ticket flies out of it and lands face up, the LEGENDARY one a beat later),
+## the landing and the holds, at 1x and under reduced motion; TICKET, BONUS with and without an
+## inspection (STAMP DAY is gone since #108); resume_at for each wait point. Pure data: no saves,
+## no event log, no Node.
 
 const TUNING := "res://data/balance/machine_tempo.tres"
 const TOLERANCE := 0.000001
@@ -23,11 +24,11 @@ func test_the_tempo_loads_with_every_time_set() -> void:
 		tuning.travel_ms,
 		tuning.glide_ms,
 		tuning.feed_ms,
-		tuning.snap_ms,
-		tuning.dock_flight_ms,
 		tuning.return_glide_ms,
-		tuning.bonus_to_slot_ms,
-		tuning.bonus_feed_ms,
+		tuning.again_ms,
+		tuning.lamp_out_ms,
+		tuning.lamp_out_rm_ms,
+		tuning.relight_stagger_ms,
 		tuning.rm_cut_ms,
 		tuning.rm_fade_ms,
 		tuning.premium_ms,
@@ -54,48 +55,83 @@ func test_the_tempo_loads_with_every_time_set() -> void:
 
 ## The TICKET intro (machine v2): the receipt travels over travel_ms and is fed over feed_ms
 ## (feed_rm_ms under reduced motion); the camera glides from glide_lead_ms over glide_ms (a cut
-## behind the fade under reduced motion) and the machine lights over its last lit_ramp_ms; with a
-## bonus ticket to come the stub snaps snap_lead_ms before the feed, then flies to the dock.
+## behind the fade under reduced motion) and the machine lights over its last lit_ramp_ms. No stub
+## snaps off the receipt (2026-11-06: it pays every draw itself).
 func test_a_ticket_intro_follows_the_tuning() -> void:
 	var tuning: MachineTuning = _tuning()
 	for rm: bool in [false, true]:
-		for stub: bool in [false, true]:
-			var tag: String = "rm %s stub %s" % [rm, stub]
-			var plan: MachinePlan = MachinePlan.new(tuning, TICKET, rm, true, stub)
-			var travel: float = MachineTuning.sec(tuning.travel_ms)
-			var feed: float = MachineTuning.sec(tuning.feed_rm_ms if rm else tuning.feed_ms)
-			_near(plan.fly, 0.0, tag + " fly")
-			_near(plan.fly_end, travel, tag + " fly end")
-			_near(plan.feed_end, travel + feed, tag + " feed end")
-			_near(plan.read_end, plan.feed_end + MachineTuning.sec(tuning.read_ms), tag + " read")
-			_near(plan.glide, MachineTuning.sec(tuning.glide_lead_ms), tag + " glide")
-			_near(plan.glide_end, plan.glide + MachineTuning.sec(tuning.glide_ms), tag + " glided")
-			assert_float(plan.beat_time(&"glide")).is_equal(plan.glide)
-			assert_float(plan.camera_at(0.0)).is_equal(0.0)
-			assert_float(plan.camera_at(plan.choose_at)).is_equal(1.0)
-			assert_float(plan.lit_at(0.0)).is_equal(0.0)
-			assert_float(plan.lit_at(plan.glide_end)).is_equal(1.0)
-			if stub:
-				_near(plan.snap, travel - MachineTuning.sec(tuning.snap_lead_ms), tag + " snap")
-				assert_float(plan.beat_time(&"snap")).is_equal(plan.snap)
-				assert_float(plan.stub_left(plan.snap - 0.01)).is_equal(1.0)
-				assert_float(plan.dock_flight(plan.snap - 0.01)).is_equal(MachinePlan.NOT_SET)
-				var docked: float = plan.snap + MachineTuning.sec(tuning.dock_flight_ms)
-				assert_float(plan.dock_flight(docked)).is_equal(1.0)
-				assert_float(plan.stub_left(docked)).is_equal(0.0)
-			else:
-				assert_float(plan.snap).is_equal(MachinePlan.NOT_SET)
-				assert_float(plan.beat_time(&"snap")).is_equal(MachinePlan.NOT_SET)
-			if rm:
-				var cut: float = plan.glide + MachineTuning.sec(tuning.rm_cut_ms)
-				assert_float(plan.camera_at(cut - 0.001)).is_equal(0.0)
-				assert_float(plan.camera_at(cut)).is_equal(1.0)
-				var peak: float = plan.glide + MachineTuning.sec(tuning.rm_fade_ms) / 2.0
-				_near(plan.fade_at(peak), tuning.rm_fade_alpha, tag + " fade peak")
-			else:
-				assert_float(plan.fade_at(plan.glide + 0.3)).is_equal(0.0)
-				var mid: float = (plan.glide + plan.glide_end) / 2.0
-				_near(plan.camera_at(mid), 0.5, tag + " mid glide")
+		var tag: String = "rm %s" % rm
+		var plan: MachinePlan = MachinePlan.new(tuning, TICKET, rm, true)
+		var travel: float = MachineTuning.sec(tuning.travel_ms)
+		var feed: float = MachineTuning.sec(tuning.feed_rm_ms if rm else tuning.feed_ms)
+		_near(plan.fly, 0.0, tag + " fly")
+		_near(plan.fly_end, travel, tag + " fly end")
+		_near(plan.feed_end, travel + feed, tag + " feed end")
+		_near(plan.read_end, plan.feed_end + MachineTuning.sec(tuning.read_ms), tag + " read")
+		_near(plan.glide, MachineTuning.sec(tuning.glide_lead_ms), tag + " glide")
+		_near(plan.glide_end, plan.glide + MachineTuning.sec(tuning.glide_ms), tag + " glided")
+		assert_float(plan.beat_time(&"glide")).is_equal(plan.glide)
+		assert_float(plan.beat_time(&"snap")).is_equal(MachinePlan.NOT_SET)
+		assert_float(plan.camera_at(0.0)).is_equal(0.0)
+		assert_float(plan.camera_at(plan.choose_at)).is_equal(1.0)
+		assert_float(plan.lit_at(0.0)).is_equal(0.0)
+		assert_float(plan.lit_at(plan.glide_end)).is_equal(1.0)
+		if rm:
+			var cut: float = plan.glide + MachineTuning.sec(tuning.rm_cut_ms)
+			assert_float(plan.camera_at(cut - 0.001)).is_equal(0.0)
+			assert_float(plan.camera_at(cut)).is_equal(1.0)
+			var peak: float = plan.glide + MachineTuning.sec(tuning.rm_fade_ms) / 2.0
+			_near(plan.fade_at(peak), tuning.rm_fade_alpha, tag + " fade peak")
+		else:
+			assert_float(plan.fade_at(plan.glide + 0.3)).is_equal(0.0)
+			var mid: float = (plan.glide + plan.glide_end) / 2.0
+			_near(plan.camera_at(mid), 0.5, tag + " mid glide")
+
+
+## The draw lamps (2026-11-06, mock-up week_medals.html section 5): one per draw the receipt pays.
+## The TICKET visit's lamps are dark until the feed's end and light RELIGHT apart; a later draw
+## opens with the lamps left lit; after each prize the visit's lamp flashes over lamp_out_ms
+## (lamp_out_rm_ms) from the settle's end and goes dark; setting draws or draw_index replans, and
+## a resume keeps them.
+func test_the_draw_lamps_light_and_go_out() -> void:
+	var tuning: MachineTuning = _tuning()
+	var stagger: float = MachineTuning.sec(tuning.relight_stagger_ms)
+	for rm: bool in [false, true]:
+		for draws: int in [1, 2, 3]:
+			var tag: String = "rm %s draws %d" % [rm, draws]
+			var plan: MachinePlan = _full(TICKET, rm, [COMMON], MachinePlan.Landing.NEW_CARD)
+			plan.draws = draws
+			assert_int(plan.lamps_on(plan.feed_end - 0.01)).is_equal(0)
+			assert_int(plan.lamps_on(plan.feed_end)).is_equal(1)
+			assert_int(plan.lamps_on(plan.feed_end + stagger * (draws - 1))).is_equal(draws)
+			assert_int(plan.lamps_on(plan.choose_at)).is_equal(draws)
+			_near(plan.lamp_out, plan.punch_end, tag + " lamp out")
+			var flash: float = MachineTuning.sec(
+				tuning.lamp_out_rm_ms if rm else tuning.lamp_out_ms
+			)
+			_near(plan.lamp_out_end, plan.lamp_out + flash, tag + " lamp dark")
+			assert_float(plan.lamp_flash(plan.lamp_out - 0.01)).is_less(0.0)
+			assert_float(plan.lamp_flash(plan.lamp_out)).is_equal(0.0)
+			assert_float(plan.lamp_flash(plan.lamp_out_end)).is_less(0.0)
+			assert_float(plan.beat_time(&"lamp_out")).is_equal(plan.lamp_out)
+			assert_int(plan.lamps_on(plan.lamp_out)).is_equal(draws)
+			assert_int(plan.lamps_on(plan.lamp_out_end)).is_equal(draws - 1)
+			assert_float(plan.end_at).is_greater_equal(plan.lamp_out_end)
+			assert_bool(plan.is_again()).is_false()
+	# The second of three draws: two lamps lit from its start, one once its own has gone out.
+	var again: MachinePlan = _full(BONUS, false, [RARE], MachinePlan.Landing.NEW_CARD)
+	again.draws = 3
+	again.draw_index = 1
+	assert_bool(again.is_again()).is_true()
+	assert_int(again.lamps_on(0.0)).is_equal(2)
+	assert_int(again.lamps_on(again.lamp_out_end)).is_equal(1)
+	var resumed: MachinePlan = again.resume_at(MachinePlan.WaitPoint.PICK)
+	assert_int(resumed.draws).is_equal(3)
+	assert_int(resumed.draw_index).is_equal(1)
+	# With a draw after it, the visit holds until its lamp is dark.
+	var to_next: MachinePlan = _full(TICKET, false, [COMMON], MachinePlan.Landing.NEW_CARD, BONUS)
+	to_next.draws = 2
+	assert_float(to_next.end_at).is_greater_equal(to_next.lamp_out_end)
 
 
 ## A PREMIUM visit (v0.50) turns the machine PREMIUM right after its receipt is read, over
@@ -107,7 +143,7 @@ func test_a_premium_visit_turns_after_the_read() -> void:
 	for rm: bool in [false, true]:
 		var tag: String = "rm %s" % rm
 		var plain: MachinePlan = MachinePlan.new(tuning, TICKET, rm)
-		var plan: MachinePlan = MachinePlan.new(tuning, TICKET, rm, true, false, true)
+		var plan: MachinePlan = MachinePlan.new(tuning, TICKET, rm, true, true)
 		var length: float = MachineTuning.sec(tuning.premium_rm_ms if rm else tuning.premium_ms)
 		assert_bool(plan.premium).is_true()
 		_near(plan.premium_at, plan.read_end, tag + " premium at")
@@ -123,7 +159,7 @@ func test_a_premium_visit_turns_after_the_read() -> void:
 		assert_float(plain.beat_time(&"premium")).is_equal(MachinePlan.NOT_SET)
 	for rm: bool in [false, true]:
 		var bonus: MachinePlan = MachinePlan.new(tuning, BONUS, rm)
-		var held: MachinePlan = MachinePlan.new(tuning, BONUS, rm, true, false, true, true)
+		var held: MachinePlan = MachinePlan.new(tuning, BONUS, rm, true, true, true)
 		assert_bool(held.premium).is_true()
 		assert_bool(held.premium_held).is_true()
 		assert_float(held.premium_at).is_equal(0.0)
@@ -137,15 +173,15 @@ func test_a_premium_visit_turns_after_the_read() -> void:
 		assert_bool(look.keys_gold()).is_true()
 		assert_bool(MachineLook.at(bonus, 0.0).keys_gold()).is_false()
 		assert_bool(held.resume_at(MachinePlan.WaitPoint.CHOOSE).premium_held).is_true()
-		var turning: MachinePlan = MachinePlan.new(tuning, BONUS, rm, true, false, true, false)
+		var turning: MachinePlan = MachinePlan.new(tuning, BONUS, rm, true, true, false)
 		assert_bool(turning.premium_held).is_false()
 		_near(turning.premium_at, turning.read_end, "bonus premium at")
 		assert_float(turning.beat_time(&"premium")).is_equal(turning.premium_at)
 		assert_bool(MachineLook.at(turning, 0.0).premium()).is_false()
 		# Held without a PREMIUM visit means nothing.
-		var classic: MachinePlan = MachinePlan.new(tuning, BONUS, rm, true, false, false, true)
+		var classic: MachinePlan = MachinePlan.new(tuning, BONUS, rm, true, false, true)
 		assert_bool(classic.premium or classic.premium_held).is_false()
-	var premium: MachinePlan = MachinePlan.new(tuning, TICKET, false, true, false, true)
+	var premium: MachinePlan = MachinePlan.new(tuning, TICKET, false, true, true)
 	assert_bool(premium.resume_at(MachinePlan.WaitPoint.CHOOSE).premium).is_true()
 	# v1.03: an OVERTIME visit's plan stays one through a resume (its words).
 	premium.overtime = true
@@ -187,7 +223,7 @@ func test_a_ticket_flies_out_of_the_tray() -> void:
 
 ## The landing after the pick: the flight leaves pick_lead_flight_ms after the press and lands
 ## pick_flight_ms later (pick_flight_rm_ms); the glint, the settle and the holds follow; the next
-## visit's hold replaces the end hold.
+## visit's hold (at least the lamp's flash) replaces the end hold; the end waits for the lamp.
 func test_the_landing_follows_the_tuning() -> void:
 	var tuning: MachineTuning = _tuning()
 	for rm: bool in [false, true]:
@@ -208,11 +244,11 @@ func test_the_landing_follows_the_tuning() -> void:
 			var settle: float = MachineTuning.sec(tuning.punch_length_ms)
 			_near(plan.punch_end, plan.punch + settle, tag + " settle")
 			var hold: float = MachineTuning.seconds(tuning.end_hold_ms, TICKET)
-			_near(plan.end_at, plan.punch_end + hold, tag + " end")
+			_near(plan.end_at, maxf(plan.punch_end + hold, plan.lamp_out_end), tag + " end")
 			var drawer: float = MachineTuning.sec(tuning.drawer_lead_ms)
 			_near(plan.drawer_in, plan.fly_out - drawer, tag + " drawer")
 	var to_bonus: MachinePlan = _full(TICKET, false, [COMMON], MachinePlan.Landing.NEW_CARD, BONUS)
-	var gap: float = MachineTuning.sec(tuning.before_bonus_ms)
+	var gap: float = MachineTuning.sec(maxi(tuning.before_bonus_ms, tuning.lamp_out_ms))
 	_near(to_bonus.end_at, to_bonus.punch_end + gap, "before bonus")
 
 
@@ -288,7 +324,9 @@ func test_beats_are_ordered_and_grow_with_the_visit() -> void:
 		[&"draw", &"packed", &"reveal_0", &"reveal_1", &"reveal_2"]
 	)
 	plan.set_landing(MachinePlan.Landing.NEW_CARD, 1, MachinePlan.NO_VISIT)
-	assert_array(plan.beats_between(plan.pick_at - 0.001, plan.end_at)).is_equal([&"pick", &"land"])
+	assert_array(plan.beats_between(plan.pick_at - 0.001, plan.end_at)).is_equal(
+		[&"pick", &"land", &"lamp_out"]
+	)
 	assert_float(plan.beat_time(&"punch")).is_equal(MachinePlan.NOT_SET)
 	assert_float(plan.punch).is_greater(plan.land)
 	var times: Array[float] = []
@@ -364,23 +402,22 @@ func _assert_draw(tag: String, plan: MachinePlan) -> void:
 	_near(plan.wait_time(MachinePlan.WaitPoint.PICK), plan.pick_at, tag + " pick wait")
 
 
-## The BONUS intro (machine v2): the ticket goes from the dock to over the slot in
-## bonus_to_slot_ms, is fed in over bonus_feed_ms, then read, relit and chosen again; the camera
-## is at the machine and the machine lit throughout.
+## A later draw's intro (2026-11-06): no ticket and no feed (fly, fly_end and feed_end at 0),
+## AGAIN! until again_ms, then the keys relight over bonus_lights_ms and the chute is chosen again;
+## the camera is at the machine and the machine lit throughout.
 func _assert_bonus_intro(tag: String, plan: MachinePlan) -> void:
 	var tuning: MachineTuning = plan.tuning
-	var fed: float = plan.fly_end + MachineTuning.sec(tuning.bonus_feed_ms)
-	var read: float = plan.feed_end + MachineTuning.sec(tuning.bonus_read_ms)
 	_near(plan.fly, 0.0, tag + " fly")
-	_near(plan.fly_end, MachineTuning.sec(tuning.bonus_to_slot_ms), tag + " fly end")
-	_near(plan.feed_end, fed, tag + " feed end")
-	_near(plan.read_end, read, tag + " read end")
+	_near(plan.fly_end, 0.0, tag + " fly end")
+	_near(plan.feed_end, 0.0, tag + " feed end")
+	_near(plan.read_end, MachineTuning.sec(tuning.again_ms), tag + " again")
+	_near(plan.lights, plan.read_end, tag + " lights")
 	_near(plan.lights_end, plan.lights + MachineTuning.sec(tuning.bonus_lights_ms), tag + " lit")
-	var again: float = plan.feed_end + MachineTuning.sec(tuning.again_ms)
-	_near(plan.choose_at, maxf(plan.lights_end, again), tag + " choose")
+	_near(plan.choose_at, plan.lights_end, tag + " choose")
 	assert_float(plan.camera_at(0.0)).is_equal(1.0)
 	assert_float(plan.lit_at(0.0)).is_equal(1.0)
-	assert_float(plan.snap).is_equal(MachinePlan.NOT_SET)
+	assert_float(plan.beat_time(&"snap")).is_equal(MachinePlan.NOT_SET)
+	assert_bool(plan.is_again()).is_true()
 
 
 func _near(actual: float, expected: float, tag: String) -> void:

@@ -408,18 +408,11 @@ func _assert_resume_frame(run: RunState, kind: int, picking: bool) -> void:
 	assert_float(view.clock).is_equal(view.plan.pick_at if picking else view.plan.choose_at)
 	assert_bool(view.is_armed()).override_failure_message(where).is_true()
 	# The receipt: already fed (#77 machine v2: the stage's own is torn off until the next shift),
-	# no copy; a bonus ticket to come waits in the dock.
+	# no copy; its draws' lamps lit as the plan says (2026-11-06: no ticket waits anywhere).
 	assert_object(view.receipt_feed.paper).is_null()
 	assert_bool(screen._receipt.visible).is_false()
-	var bonus: BonusTicket = view.receipt_feed.ticket
-	if kind == MachineVisit.Kind.TICKET and view.plan.stub:
-		assert_object(bonus).override_failure_message(where).is_not_null()
-		assert_bool(bonus.is_visible_in_tree()).is_true()
-		var dock: Rect2 = view.cabinet.dock_global_rect()
-		var shown: Rect2 = bonus.get_global_rect()
-		assert_vector(shown.get_center()).is_equal_approx(dock.get_center(), Vector2.ONE)
-	else:
-		assert_bool(bonus != null and bonus.visible).override_failure_message(where).is_false()
+	var left: int = view.plan.draws - view.plan.draw_index
+	assert_int(view.slot_plate.lamps_lit()).override_failure_message(where).is_equal(left)
 	# At the machine at once: no glide on a resume.
 	assert_float(screen._camera.progress()).override_failure_message(where).is_equal(1.0)
 	# The head stamp, at rest.

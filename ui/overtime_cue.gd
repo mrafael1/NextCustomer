@@ -1,10 +1,11 @@
 class_name OvertimeCue
 extends RefCounted
-## What the shift screen tells the count-up about the machine's extra tickets after a checkout
-## (v1.03): the BONUS ticket and the payday (#77 machine v2, v0.68) as before, and the over-quota
-## rewards (OvertimeTickets): each reward's state and laps for the gauge's chip (OvertimeChip), and
-## the OVERTIME ticket's stub when it is the shift's first extra visit. Reads the run, changes
-## nothing in it.
+## What the shift screen tells the count-up about the machine's extra draws after a checkout
+## (v1.03): the BONUS visit and the payday (#77 machine v2, v0.68), and the over-quota rewards
+## (OvertimeTickets, the week's medals since 2026-11-06): each medal's state and laps, for the
+## medals' flights and the receipt's silver and gold (ReceiptGoldFlow). Since 2026-11-06 the
+## receipt prints no stub for any of them: it feeds the machine once and its draw lamps count the
+## draws. Reads the run, changes nothing in it.
 
 
 ## Dresses `context` for `run`'s count after its checkout (the shift's record is the last).
@@ -12,7 +13,7 @@ static func dress(run: RunState, context: CountUpContext) -> void:
 	var pending: Array[int] = []
 	if run.machine != null:
 		pending = run.machine.pending_kinds()
-	# A bonus ticket follows the visit (#77 machine v2, Q2 = 2): the dessert prints its stub.
+	# A BONUS draw follows the visit (#77 machine v2; the machine's draw lamps say it).
 	context.bonus_ticket = pending.has(MachineVisit.Kind.BONUS)
 	context.payday = context.bonus_ticket and run.machine.is_payday(run)
 	if run.history.is_empty() or run.machine == null:
@@ -27,8 +28,6 @@ static func dress(run: RunState, context: CountUpContext) -> void:
 	context.overtime_premium = OvertimeTickets.state(run, record, true)
 	context.overtime_ticket_laps = machine.overtime_ticket_laps
 	context.overtime_premium_laps = machine.overtime_premium_laps
-	if not pending.is_empty() and pending[0] == MachineVisit.Kind.OVERTIME:
-		context.overtime_stub = OvertimeWords.ticket_sub(machine)
 
 
 ## Whether `record` is the record of `run`'s shift on screen, checked out (not a Double checkout's

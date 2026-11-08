@@ -707,7 +707,7 @@ func _refresh() -> void:
 func _refresh_bar() -> void:
 	_shift_label.text = "%d/%d" % [run.shift_index + 1, run.shift_count()]
 	_receipt.target.show_quota(run.quota())
-	_week.show_chips()
+	_week.show_chips()  # The week chip, its medals and the receipt's metal (ReceiptGoldFlow).
 	_inspection_tag.show_bonus(
 		InspectionTag.bonus_for(run, _counting, _inspection_tag.bonus_state())
 	)
@@ -789,6 +789,7 @@ func _show_projected(result: ScoreResult) -> void:
 	if _led.mode() != LedDisplay.Mode.BLANK:
 		_led.clear()
 	_quota_meter.show_projected(result.total, run.quota())
+	_week.show_pending(result.total)  # The medals it would spend (2026-11-06).
 	_monitor.show_plan(result.total, run.quota())
 	var slot: int = shown_slot()
 	var shown: CardDefinition = null if slot < 0 else run.row[slot].definition
@@ -821,6 +822,7 @@ func _show_checked_out(result: ScoreResult) -> void:
 	var upgrade_names: PackedStringArray = LoyaltyCard.names(run.upgrades)
 	var inspections: PackedStringArray = InspectionTag.names(WeekSchedule.shift_events(run))
 	var names: PackedStringArray = CardInstance.names(run.row)
+	_show_planning(result)  # The anchored receipt pays planning's rows in place (ReceiptPaidRows).
 	_receipt.show_result(result, names, upgrade_names, inspections, receipt_header(), cards)
 	_show_belt(result, true)
 

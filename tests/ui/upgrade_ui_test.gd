@@ -200,7 +200,9 @@ func test_upgrade_steps_play_from_the_loyalty_card() -> void:
 	await Rush.checkout(screen)
 	assert_int(screen._led.amount()).is_equal(preview.total)
 	assert_int(screen._monitor.checkout().total_number().value()).is_equal(preview.total)
-	assert_str(_receipt_text(screen)).contains("Coupon engine").contains("Category engine")
+	# The anchored receipt pays planning's rows in place: the upgrades play on the monitor, not as
+	# printed lines (2026-11-05).
+	assert_str(_receipt_text(screen)).not_contains("Coupon engine").not_contains("Category engine")
 	for step: ScoreStep in upgrade_steps:
 		var box: Control = screen._loyalty_card.box(step.source_index)
 		assert_object(box).is_not_null()
@@ -225,7 +227,7 @@ func test_an_upgrade_fizzle_plays_and_prints() -> void:
 	assert_int(wasted.size()).is_equal(1)
 	assert_int(wasted[0].step_type).is_equal(ScoreStep.StepType.WASTED)
 	await Rush.checkout(screen)
-	assert_str(_receipt_text(screen)).contains("Coupon engine: the first coupon paid nothing")
+	assert_str(_receipt_text(screen)).not_contains("Coupon engine")  # Anchored: no printed line.
 	assert_object(screen._count_up._beats._source_control(wasted[0])).is_same(
 		screen._loyalty_card.box(0)
 	)

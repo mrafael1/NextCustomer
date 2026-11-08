@@ -28,8 +28,8 @@ extends PanelContainer
 ## prints nothing. The line just printed (or filled; the item's line when the PAYOUT step prints
 ## nothing) is framed (mustard-pale fill, mustard frame), and the receipt keeps it in view.
 ## add_total fills the TOTAL line in plainly and drops the footer and the frame; the dessert (#61)
-## then prints the verdict on it, the margin (PAID on a pass), the BONUS stub (#77 machine v2,
-## `stub`), the tear and the next shift's notice under it, scrolled to the newest line. A resumed
+## then prints the verdict on it, the margin (PAID on a pass, INSPECTION PASSED under it), the
+## tear and the next shift's notice under it, scrolled to the newest line. A resumed
 ## checkout prints it all at once (show_result), through the same lines. Every line another
 ## source boosts (a combo, is_combo) is marked with a faint gold band (a loyalty perk's pale teal),
 ## a bar and a diamond. Each item line holds its card's mini before its name, × amounts print in
@@ -45,6 +45,12 @@ extends PanelContainer
 ## its last row (a fizzle's line has none: its mark says it, on its first row). The lines sit in
 ## an inset (FRAME_OUT on the left, FRAME_PAD on the right) that holds the frame, inside the
 ## scroll area; most lines keep B2's mark column (MARK_COLUMN) at their right end.
+##
+## `anchored` (the shift screen's, 2026-11-05): the count pays planning's rows in place
+## (ReceiptPaidRows) instead of printing its lines, so the paper never moves; the dessert's verdict
+## colours the TOTAL and its margin rewords planning's line against the quota. Its other lines
+## print under that foot (2026-11-07): the paper grows by them and rises (_fed_height), never
+## beside it. Its paper turns gold on a payday or past the overtime laps (`gold`, ReceiptGold).
 
 enum LineStyle {
 	DETAIL,
@@ -132,20 +138,22 @@ const COMBO_ICON_RECT := Rect2(4, 3, 10, 10)
 const COMBO_INDENT := 18.0
 const COMBO_DIAMOND := preload("res://art/icons/combo_diamond.png")
 
-## The gold BONUS stub line (#77 machine v2, ReceiptStamps.add_bonus_stub), or null: set, it
-## prints at the receipt's foot.
-var stub: ReceiptStub:
-	set(value):
-		stub = value
-		if value != null:
-			_lines.add_child(value)
-			scroll_to_end()
 ## TODAY'S TARGET, pinned at the top (hidden until its show_quota).
 var target: ReceiptTarget
 ## Fit-up mode at full length (B2): in planning the paper reaches its top however few its lines.
 var full_length: bool = false
-## Planning's PROJECTED line (its amount fits the lines' width: ReceiptDecor.fit_amount), or null.
+## The count pays planning's rows in place (ReceiptPaidRows) when they are the counted items'.
+var anchored: bool = false
+## The open slots the last planning receipt showed (show_planning), for a copy of it.
+var planned_slots: int = 0
+## The gold paper and its overtime stamp (ReceiptGold).
+var gold: ReceiptGold
+## Planning's PROJECTED line (its amount fits the lines' width: ReceiptDecor.fit_amount) and its
+## line against the quota, or null.
 var _projected: HBoxContainer
+var _against: HBoxContainer
+## An anchored count's rows paid in place, or null.
+var _paid: ReceiptPaidRows
 var _lines: VBoxContainer
 ## Holds the lines inside the scroll area, with room for the frame and the marks; draws the frame.
 var _inset: MarginContainer
@@ -223,6 +231,8 @@ func _init() -> void:
 	_lines.sort_children.connect(_inset.queue_redraw)
 	_lines.resized.connect(func() -> void: ReceiptDecor.fit_amount(_projected, _lines.size.x))
 	_inset.add_child(_lines)
+	gold = ReceiptGold.new(self, target)
+	add_child(gold)
 
 
 ## Fit-up mode (#80): the receipt stands on `bottom` (the parent's coordinates) and is as tall as
@@ -246,20 +256,22 @@ func fit_height() -> void:
 		return
 	var frame: float = get_theme_stylebox("panel").get_minimum_size().y
 	var room: float = _stand_bottom - _cap_top
-	if _planning and full_length:
+	var full: bool = (_planning or _paid != null) and full_length
+	# An anchored count keeps planning's pitch and header: its rows never move or tighten.
+	if full and _paid == null:
 		var pinned: float = target.get_combined_minimum_size().y if target.visible else 0.0
 		var margins: float = (
 			_inset.get_combined_minimum_size().y - _lines.get_combined_minimum_size().y
 		)
 		ReceiptRows.fit(_lines, _rows, _header, room - frame - pinned - margins)
-	var full: bool = _planning and full_length
-	var natural: float = maxf(natural_height(), room) if full else natural_height()
+	# An anchored count's dessert lines are fed on under its foot: the paper grows by them, past
+	# its room, and rises (its top may leave the screen), so nothing on it moves.
+	var fed: float = _fed_height()
+	var natural: float = maxf(natural_height(), room + fed) if full else natural_height()
 	# The newest line stays in view in the very frame the receipt grows or shrinks.
 	_snap_to_end = true
-	# A stub snapping off shrinks the receipt from its foot, its body kept where it was.
-	var lost: float = stub.lost() if is_instance_valid(stub) else 0.0
-	size.y = maxf(minf(natural + lost, room) - lost, frame)
-	position.y = _stand_bottom - size.y - lost
+	size.y = maxf(minf(natural, room + fed), frame)
+	position.y = _stand_bottom - size.y
 	# Sorted after the panel gives the scroll area its new size (the scroll area doesn't always
 	# sort itself on a resize), so _on_scroll_sorted sees it.
 	_scroll.queue_sort()
@@ -281,12 +293,13 @@ func scroll_to_end() -> void:
 
 
 func clear() -> void:
-	stub = null
 	_total_line = null
 	_total_rule = null
 	_footer = null
 	_framed = null
 	_projected = null
+	_against = null
+	_paid = null
 	_planning = false
 	_rows.clear()
 	_header.clear()
@@ -322,6 +335,11 @@ func begin_count(
 	footer: bool = true,
 	cards: Array[CardDefinition] = []
 ) -> void:
+	if anchored and _planning and ReceiptPaidRows.fits(_items, names.size()):
+		_planning = false
+		_cards = cards
+		_paid = ReceiptPaidRows.new(_items, _projected, _against, _set_frame)
+		return
 	begin(header)
 	_cards = cards
 	if not header.is_empty():
@@ -354,6 +372,7 @@ func show_planning(
 ) -> void:
 	begin(header)
 	_planning = true
+	planned_slots = open_slots
 	_cards = cards
 	_lines.add_child(ReceiptDecor.dashed_rule())
 	for slot: int in range(names.size()):
@@ -375,8 +394,8 @@ func show_planning(
 	# Its dashed rule takes the room the lines leave: the foot stands at the paper's bottom.
 	_lines.get_child(projected.get_index() - 1).size_flags_vertical = Control.SIZE_EXPAND_FILL
 	if quota >= 0:
-		var against: HBoxContainer = add_line("", "", LineStyle.MARGIN) as HBoxContainer
-		ReceiptDecor.against_quota(projected as HBoxContainer, against, result.total, quota)
+		_against = add_line("", "", LineStyle.MARGIN) as HBoxContainer
+		ReceiptDecor.against_quota(_projected, _against, result.total, quota)
 	_queue_fit()
 
 
@@ -475,6 +494,18 @@ func add_step(
 	names: PackedStringArray,
 	upgrade_names: PackedStringArray = PackedStringArray(),
 	inspection_names: PackedStringArray = PackedStringArray()
+) -> Control:
+	if _paid != null:
+		return _paid.step(step)
+	return _print_step(step, names, upgrade_names, inspection_names)
+
+
+## add_step's printed lines (not an anchored count's).
+func _print_step(
+	step: ScoreStep,
+	names: PackedStringArray,
+	upgrade_names: PackedStringArray,
+	inspection_names: PackedStringArray
 ) -> Control:
 	if step.step_type == ScoreStep.StepType.EFFECT_ARMED:
 		var card: CardDefinition = _cards[step.slot] if step.slot < _cards.size() else null
@@ -678,6 +709,9 @@ static func source_text(
 ## The TOTAL line ("TOTAL 22.00€"): after a count's lines, under its dashed rule (begin_count),
 ## which also ends the count-up's footer and frame; else a new one under a solid rule.
 func add_total(total: int) -> Control:
+	if _paid != null:
+		_total_line = _paid.total(total, TOTAL_TEXT)
+		return _total_line
 	_set_frame(null)
 	if is_instance_valid(_footer):
 		_lines.remove_child(_footer)
@@ -695,11 +729,9 @@ func add_notice(text: String) -> Control:
 
 
 ## The shift's end at once, as the dessert leaves it (#61): the verdict, the margin (PAID on a
-## pass), INSPECTION PASSED naming `inspection` (#77; none when empty), the BONUS stub with its
-## small line `sub` (#77 machine v2; none when empty), the tear and `notice` (none when empty).
-func show_shift_end(
-	total: int, quota: int, notice: String = "", inspection: String = "", sub: String = ""
-) -> void:
+## pass), INSPECTION PASSED naming `inspection` (#77; none when empty), the tear and `notice`
+## (none when empty).
+func show_shift_end(total: int, quota: int, notice: String = "", inspection: String = "") -> void:
 	var margin: ShiftMargin = ShiftMargin.of(total, quota)
 	show_verdict(total, quota)
 	var line: Control = add_margin(margin)
@@ -707,8 +739,6 @@ func show_shift_end(
 		ReceiptStamps.stamp_paid(line)
 		if not inspection.is_empty():
 			ReceiptStamps.stamp_inspection(self, inspection)
-		if not sub.is_empty():
-			ReceiptStamps.add_bonus_stub(self, sub).grow(BonusTicket.SIZE.y)
 	add_tear()
 	if not notice.is_empty():
 		add_notice(notice)
@@ -725,6 +755,8 @@ static func verdict_text(total: int, quota: int) -> String:
 ## fit beside TOTAL), green on a pass and red on a miss. Returns that label (null when no
 ## TOTAL line was printed).
 func show_verdict(total: int, quota: int) -> Label:
+	if _paid != null:
+		return _paid.verdict(total, quota)
 	var label: Label = total_label()
 	if label == null:
 		return null
@@ -759,6 +791,8 @@ func total_label() -> Label:
 ## The margin line under the total, showing the whole margin (ReceiptTarget.margin_text), red when
 ## short, else green. The dessert counts it up with ReceiptTarget.show_margin.
 func add_margin(margin: ShiftMargin) -> Control:
+	if _paid != null and _paid.margin(margin) != null:
+		return _against
 	var text: String = ReceiptTarget.margin_text(margin.kind(), margin.amount())
 	var line: Control = add_line(text, "", LineStyle.MARGIN)
 	var color: Color = Palette.TOMATO if margin.kind() == ShiftMargin.Kind.SHORT else Palette.GOOD
@@ -814,6 +848,22 @@ func add_line(left: String, right: String, style: LineStyle) -> Control:
 	_lines.add_child(line)
 	scroll_to_end()
 	return line
+
+
+## An anchored count's dessert lines under its foot (planning's line against the quota, else its
+## PROJECTED line, now the TOTAL): their height on the paper, which the printer feeds on
+## (fit_height); 0 for any other receipt.
+func _fed_height() -> float:
+	var foot: Control = _against if is_instance_valid(_against) else _projected
+	if _paid == null or not is_instance_valid(foot) or foot.get_parent() != _lines:
+		return 0.0
+	var gap: float = float(_lines.get_theme_constant("separation"))
+	var fed: float = 0.0
+	for index: int in range(foot.get_index() + 1, _lines.get_child_count()):
+		var line: Control = _lines.get_child(index) as Control
+		if line != null and line.visible:
+			fed += line.get_combined_minimum_size().y + gap
+	return fed
 
 
 static func text_width(text: String, font: Font, font_size: int) -> float:

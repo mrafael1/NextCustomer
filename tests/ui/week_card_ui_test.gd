@@ -66,7 +66,7 @@ func test_the_card_plays_at_the_week_start_and_flies_into_the_chip() -> void:
 	assert_array(punched).is_equal([true, false, false, false])
 	var review: String = _texts(rows[3])
 	assert_str(review).contains("MANAGER'S REVIEW · 2 MALUSES")
-	# The reward reads on two lines (v0.72): "REVIEW PASSED", "2 PREMIUM TICKETS".
+	# The reward reads on two lines (v0.72): "REVIEW PASSED", "2 PREMIUM DRAWS" (2026-11-06).
 	for part: String in Payday.BANNER_LINE.split(" · "):
 		assert_str(review).contains(part)
 	for event: InspectionDefinition in screen.run.week.day(4):
@@ -130,7 +130,8 @@ func test_the_chips_lay_out_in_the_top_bar() -> void:
 ## the name grew from 13 to 15 px, and TopBar.fit_inspection hides it first when the day chip runs
 ## short): TRAINING, the longest week name, beside each inspection's chip text, with the bonus
 ## ticket's pill where the inspection promises one, the chips still apart. A review's two maluses
-## hide the name, at 13 px as at 15 (the day's effects come first); the pips stay.
+## keep the pips (v1.16: the chip shows "Review" only, at its fixed width). Since the 2026-11-05
+## review the name also gives way to the week's overtime tickets packed small.
 func test_the_week_name_stays_beside_every_day_event() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
@@ -153,8 +154,12 @@ func test_the_week_name_stays_beside_every_day_event() -> void:
 		assert_str(screen.run.inspections[0].resource_path.get_file()).is_equal(file_name)
 		if tag.bonus_state() == InspectionTag.Bonus.PROMISED:
 			promised += 1
-		assert_bool(chip.name_shown()).override_failure_message(file_name).is_true()
+		# The week's medals (2026-11-06) sit after the pips; on a busy day the gap before Cart
+		# closes up first, then the name gives way to them (as it did to the tickets).
+		assert_bool(chip.medals().visible).override_failure_message(file_name).is_true()
 		assert_bool(tag.is_trimmed()).override_failure_message(file_name).is_false()
+		# The bonus pulse scales the chip a moment past its slot (BonusNotice): its rest size.
+		screen._machine.notice.stop()
 		_assert_chips_fit(screen)
 	assert_int(promised).is_greater(0)
 	var run: RunState = screen.run
@@ -287,7 +292,9 @@ func test_the_week_bonus_plays_in_the_count_up_from_the_week_chip() -> void:
 	assert_array(kinds).is_equal([CountUpBeat.Kind.BONUS])
 	var source: Control = screen._count_up._beats._source_control(week_step)
 	assert_object(source).is_same(screen._stage.top_bar.week_chip)
-	assert_str(_receipt_text(screen)).contains("Bakery festival")
+	# The anchored receipt pays planning's rows in place: the bonus plays on the monitor, not as a
+	# printed line (2026-11-05).
+	assert_str(_receipt_text(screen)).not_contains("Bakery festival")
 
 
 ## Holiday rush raises the machine's odds a level (v0.70): after shift 9 the stock window's lit
@@ -671,6 +678,8 @@ func _assert_chips_fit(screen: ShiftScreen) -> void:
 		parts.append(bar.week_chip.count_label())
 	if bar.week_chip.pips_shown():
 		parts.append(bar.week_chip.pips_view())
+	if bar.week_chip.medals().visible:
+		parts.append(bar.week_chip.medals())  # After the pips (2026-11-06).
 	if bar.week_chip.name_shown():
 		parts.append(bar.week_chip.name_label())
 	var previous_end: float = week.position.x
@@ -751,7 +760,7 @@ static func _event_log() -> EventLogService:
 ## run, at 1280x720 and 1920x1080, the week chip reads "W :", the week's number in its week's ink
 ## (WeekChip.number_ink) and "/<week count>" (from the balance), with one pip per day of the
 ## current week only (no box for the other weeks), and the chips keep inside the stage and apart:
-## on the review days too, where the day chip keeps its "Review" caption, untrimmed. The number's
+## on the review days too, where the day chip reads "Review" alone (v1.16), untrimmed. The number's
 ## inks follow the big numbers' colours (_assert_the_number_inks).
 func test_the_week_chip_reads_the_week_out_of_the_run() -> void:
 	_assert_the_number_inks()
@@ -795,24 +804,24 @@ func test_the_week_chip_reads_the_week_out_of_the_run() -> void:
 			var tag: InspectionTag = screen._stage.top_bar.inspection_tag
 			if InspectionSchedule.is_review_shift(run.balance, shift_index + 1):
 				reviews += 1
-				# The whole line, "Review · " first: neither trimmed nor without its caption.
+				# "Review" alone (v1.16: no effects), at the chip's full fixed width.
 				assert_bool(tag.is_shortened()).override_failure_message(message).is_false()
-				assert_str(tag.label().text).override_failure_message(message).starts_with(
-					InspectionTag.REVIEW_CAPTION + " · "
+				assert_str(tag.label().text).override_failure_message(message).is_equal(
+					InspectionTag.REVIEW_CAPTION
 				)
 				assert_bool(chip.pips_shown()).override_failure_message(message).is_true()
 		assert_int(reviews).is_greater(0)
-	await _assert_every_review_day_keeps_its_caption()
+	await _assert_every_review_day_reads_review()
 
 
-## The week's number's ink (v1.02 review): the quota tube's colours in lap order, week 1 the met
-## green, then the laps' gold, orange and velvet, a week past them the last; each reads apart from
-## the paper "W :" and "/4" beside it and on its ink outline.
+## The week's number's ink (v1.02 review): week 1 the met green, then gold, orange and velvet
+## (the tube's lap colours before the week medals' metals, kept by the v1.12 badge), a week past
+## them the last; each reads apart from the paper "W :" and "/4" beside it and on its ink outline.
 func _assert_the_number_inks() -> void:
 	assert_object(WeekChip.number_ink(1)).is_equal(QuotaMeter.MET_RAMP[0])
-	assert_object(WeekChip.number_ink(2)).is_equal(QuotaLaps.lap_ramp(2)[1])
-	assert_object(WeekChip.number_ink(3)).is_equal(QuotaLaps.lap_ramp(3)[0])
-	assert_object(WeekChip.number_ink(4)).is_equal(QuotaLaps.lap_ramp(4)[0])
+	assert_object(WeekChip.number_ink(2)).is_equal(Palette.GOLD)
+	assert_object(WeekChip.number_ink(3)).is_equal(Palette.ORANGE_LIGHT)
+	assert_object(WeekChip.number_ink(4)).is_equal(Palette.VELVET_SHEEN)
 	var last: Color = WeekChip.NUMBER_INKS[-1]
 	assert_object(WeekChip.number_ink(WeekChip.NUMBER_INKS.size() + 3)).is_equal(last)
 	var balance: BalanceDefinition = load(BALANCE)
@@ -837,11 +846,11 @@ static func _contrast(a: Color, b: Color) -> float:
 	return maxf(la, lb) / minf(la, lb)
 
 
-## A review day keeps its "Review ·" whenever it fits (v1.02 review: D12 and D16 dropped it for
-## want of 3 px): on every week's review shift, at 1280x720 and 1920x1080, beside a 4-box loyalty
-## card, any two of the pool's inspections show whole with the week chip's pips beside them, and
-## caption first unless the row's spare room is narrower than "Review · " (the longest pairs).
-func _assert_every_review_day_keeps_its_caption() -> void:
+## A review day reads "Review" (v1.16, the user's play-test note of 2026-11-07: no effects on the
+## day chip): on every week's review shift, at 1280x720 and 1920x1080, beside a 4-box loyalty
+## card, any two of the pool's inspections leave the chip at the same fixed width, untrimmed and
+## unshortened, with the week chip's name and pips beside it.
+func _assert_every_review_day_reads_review() -> void:
 	var balance: BalanceDefinition = load(BALANCE)
 	var pool: Array[InspectionDefinition] = balance.inspection_pool
 	for window: Vector2 in [Vector2(1280, 720), Vector2(1920, 1080)]:
@@ -858,9 +867,7 @@ func _assert_every_review_day_keeps_its_caption() -> void:
 		for id: String in FULL_CARD:
 			run.upgrades.append(load("res://data/upgrades/%s.tres" % id) as UpgradeDefinition)
 		assert_int(run.upgrades.size()).is_equal(run.balance.machine.register_cap + 1)
-		var caption: String = InspectionTag.REVIEW_CAPTION + " · "
-		var fitted: int = 0
-		var dropped: int = 0
+		var widths: Array[float] = []
 		for shift_index: int in range(run.shift_count()):
 			if not InspectionSchedule.is_review_shift(run.balance, shift_index + 1):
 				continue
@@ -871,42 +878,17 @@ func _assert_every_review_day_keeps_its_caption() -> void:
 					screen._on_shift_started()
 					screen._week.drop()
 					await _frames(2)
+					var tag: InspectionTag = bar.inspection_tag
 					var message: String = (
-						"shift %d, %s at %s"
-						% [shift_index + 1, bar.inspection_tag.full_text(), window]
+						"shift %d, %s at %s" % [shift_index + 1, tag.tooltip_text, window]
 					)
-					# The pips stay; the caption too, unless the row's spare room is narrower.
-					(
-						assert_bool(bar.week_chip.pips_shown())
-						. override_failure_message(message)
-						. is_true()
+					assert_str(tag.label().text).override_failure_message(message).is_equal(
+						InspectionTag.REVIEW_CAPTION
 					)
-					(
-						assert_bool(bar.inspection_tag.is_trimmed())
-						. override_failure_message(message)
-						. is_false()
-					)
-					var label: Label = bar.inspection_tag.label()
-					if label.text.begins_with(caption):
-						assert_bool(bar.inspection_tag.is_shortened()).is_false()
-					else:
-						dropped += 1
-						var spare: float = TopBar.ROW_SIZE.x - bar.get_combined_minimum_size().x
-						var needed: float = (
-							label
-							. get_theme_font("font")
-							. get_string_size(
-								caption,
-								HORIZONTAL_ALIGNMENT_LEFT,
-								-1,
-								label.get_theme_font_size("font_size")
-							)
-							. x
-						)
-						assert_float(spare).override_failure_message(message).is_less(needed)
-					fitted += 1
+					assert_bool(tag.is_trimmed()).override_failure_message(message).is_false()
+					assert_bool(tag.is_shortened()).override_failure_message(message).is_false()
+					var week: WeekChip = bar.week_chip
+					assert_bool(week.pips_shown() and week.name_shown()).is_true()
+					widths.append(tag.size.x)
 					_assert_chips_fit(screen)
-		# Most pairs keep it (v1.02 review: all but the 2 or 3 longest).
-		assert_int(dropped * 4).override_failure_message("%d of %d" % [dropped, fitted]).is_less(
-			fitted
-		)
+		assert_float(float(widths.max()) - float(widths.min())).is_less_equal(0.01)

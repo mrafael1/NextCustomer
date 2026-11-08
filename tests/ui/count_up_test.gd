@@ -9,6 +9,7 @@ extends GdUnitTestSuite
 ## that end where they started; and the run context (the best so far leaves out the shift being
 ## counted) and the count_up event's fields. The saves and logs go to a temporary folder only.
 
+const Anchored := preload("res://tests/ui/anchored_receipt.gd")
 const SCREEN := "res://ui/shift_screen.tscn"
 const RECORDING_SFX := preload("res://tests/presentation/recording_sfx.gd")
 const Rush := preload("res://tests/ui/count_up_rush.gd")
@@ -718,6 +719,7 @@ func _assert_met(screen: ShiftScreen, met: bool) -> void:
 ## at skip speed), as a shift-1 count-up under the screen's receipt header.
 func _play_tapped(screen: ShiftScreen, result: ScoreResult, quota: int) -> void:
 	var count_up: CountUp = screen._count_up
+	screen._show_planning(result)  # As the screen does: the count pays planning's rows (anchored).
 	count_up.play(
 		result,
 		screen._row_views,
@@ -753,6 +755,7 @@ func _assert_receipt_of(
 	await _lines_shown(screen._receipt)
 	var run: RunState = screen.run
 	var expected: ReceiptView = auto_free(ReceiptView.new())
+	Anchored.plan(expected, screen, result)
 	expected.show_result(
 		result,
 		CardInstance.names(run.row),
@@ -790,8 +793,6 @@ static func _lines(receipt: ReceiptView) -> Array[String]:
 		if line is HSeparator:
 			lines.append("---")
 			continue
-		if line is ReceiptStub:
-			continue  # The BONUS stub (#77 machine v2), checked on its own.
 		var texts: PackedStringArray = PackedStringArray()
 		for label: Node in line.get_children():
 			texts.append((label as Label).text)

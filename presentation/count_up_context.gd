@@ -17,11 +17,12 @@ var reduced_motion: bool = false
 ## starts (ReceiptView.begin), so its lines print under the planning stub's header. None by
 ## default.
 var receipt_header: PackedStringArray = PackedStringArray()
-## A BONUS visit follows this shift's TICKET visit (#77 machine v2, Q2 = 2: the dessert prints
-## the gold stub that becomes the bonus ticket). The shift screen sets it after the checkout.
+## A BONUS visit follows this shift's TICKET visit (#77 machine v2; since 2026-11-06 the receipt
+## prints no stub for it: the machine's draw lamps count the draws). The shift screen sets it after
+## the checkout.
 var bonus_ticket: bool = false
-## The shift was a payday (v0.68, Payday): its two tickets are PREMIUM, so the stub and its banner
-## read as one reward (Payday.BANNER). The shift screen sets it after the checkout.
+## The shift was a payday (v0.68, Payday): its two draws are PREMIUM, read as one reward. The
+## shift screen sets it after the checkout.
 var payday: bool = false
 ## A missed quota the run goes on after (v0.68's training week): the slip's stamp ("SLIP 1/2"),
 ## else empty (a pass, or the miss that ends the run). The shift screen sets it after the
@@ -38,14 +39,13 @@ var more_rows: bool = false
 var start_total: int = 0
 ## The over-quota rewards (v1.03, OvertimeTickets): what the shift's checkout made of the extra
 ## ticket and of the PREMIUM transform (OvertimeTickets.State: NONE, EARNED, USED) and the laps
-## each needs, for the quota gauge's chip (OvertimeChip); and, when the shift's first extra visit
-## is the OVERTIME one (no BONUS visit), its ticket's small line, so the dessert prints its stub
-## ("" otherwise). The shift screen sets them after the checkout (OvertimeCue.dress).
+## each needs, for the week medals' flights and the receipt's silver and gold (ReceiptGoldFlow).
+## The dessert prints no stub for any extra draw since 2026-11-06 (the receipt feeds the machine
+## once). The shift screen sets them after the checkout (OvertimeCue.dress).
 var overtime_ticket: int = 0
 var overtime_premium: int = 0
 var overtime_ticket_laps: int = 0
 var overtime_premium_laps: int = 0
-var overtime_stub: String = ""
 
 
 func _init(

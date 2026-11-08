@@ -497,9 +497,13 @@ func checkout(seconds: float) -> void:
 	for _frame: int in range(SCAN_SETTLE_FRAMES):
 		await get_tree().process_frame
 	CaptureOvertime.before_checkout(_screen.run)  # --laps (v1.03).
+	_screen._refresh_bar()  # The new quota on planning's receipt (its margin line) too.
+	_screen._refresh_preview()
+	CaptureOvertime.before_receipt_checkout(_screen)  # --receipt (2026-11-05).
 	# As the debug panel's checkout (ShiftDebug): the player's press.
 	_screen._on_checkout_pressed()
 	_checkout_s = seconds
+	await CaptureOvertime.after_receipt_checkout(_screen)
 	await get_tree().create_timer(seconds).timeout
 
 
@@ -765,7 +769,9 @@ func _fill_cart(run: RunState) -> void:
 ## - premium (v0.50; v0.61 a rarity boost): the shift's ticket visit is PREMIUM, so the machine
 ##   turns PREMIUM;
 ## - weekodds: shift 1's week event raises the odds a level (the stock window's week odds);
-## - overtime, x3 (v1.03): the row makes ×2 (the OVERTIME visit shown) or ×3 (CaptureOvertime);
+## - overtime, x3, lamps (v1.03; the week medals): ×2 (the SILVER's draw shown), ×3 (the GOLD's
+##   PREMIUM visit), or ×2 with the TICKET visit's 2 draw lamps, payday a payday shift (with
+##   lamps: 3 draw lamps) (CaptureOvertime);
 ## - rm: reduced motion; resume: the visit as a resumed run shows it (at its wait point, no
 ##   replay; with a chute, the run was saved after that chute's draw: resumed at the pick).
 ## The seconds count from the last step: the machine's open, the choice, or the pick. A spec

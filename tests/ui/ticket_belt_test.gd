@@ -2,8 +2,8 @@ extends GdUnitTestSuite
 ## The v5 tickets on a full belt of the real shift screen (tickets v5, V5a), at 1280x720 and at
 ## 1920x1080 (the stage's 1.5x stretch), for 7 slots, 6 (Short belt) and 9 (Big basket and Extra
 ## till): every ticket lies on the screen, clear of its neighbours; its price window, glyphs and
-## text stay apart inside it; a GOLDEN ring stays on the screen; the tall ticket of a gained
-## family (the Price gun) grows down, still clear of the hand. On an unscaled row at 1920x1080
+## text stay apart inside it; a GOLDEN ring stays on the screen; a gained family's ticket (the
+## Price gun) keeps its height, clear of the hand. On an unscaled row at 1920x1080
 ## every ticket lands on whole screen pixels, so its pixel art stays sharp. The real saves and
 ## logs are never touched.
 
@@ -23,6 +23,12 @@ const ROW: Array[String] = [
 	"soup_golden",
 	"eggs",
 ]
+## 2026-11-05: a relabelled Banana (one printed family and the gained one) and a Milk with two
+## printed families and a gained one (the wide label), their prices and rules still inside them.
+const RELABEL_ROW: Array[String] = [
+	"banana", "milk", "croissant_golden", "multipack", "eggs", "bread", "cereal"
+]
+const RELABELS: Dictionary[int, String] = {0: "Snack", 1: "Household"}
 const TOLERANCE := 0.01
 
 var _folder: String = ""
@@ -60,8 +66,18 @@ func test_a_full_belt_of_9() -> void:
 		await _assert_belt(resolution, ["big_basket"], "extra_till", 9)
 
 
+func test_a_relabelled_banana_and_milk_fit() -> void:
+	for resolution: Vector2i in RESOLUTIONS:
+		await _assert_belt(resolution, [], "", 7, RELABEL_ROW, RELABELS)
+
+
 func _assert_belt(
-	resolution: Vector2i, upgrades: Array[String], inspection: String, slots: int
+	resolution: Vector2i,
+	upgrades: Array[String],
+	inspection: String,
+	slots: int,
+	row: Array[String] = ROW,
+	relabels: Dictionary[int, String] = {0: "Household"}
 ) -> void:
 	get_tree().root.size = resolution
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
@@ -72,15 +88,16 @@ func _assert_belt(
 	screen._debug.set_inspection(inspection)
 	await _frames(2)
 	var case: String = "%d slots at %s" % [slots, resolution]
-	for id: String in ROW.slice(0, slots):
+	for id: String in row.slice(0, slots):
 		screen._debug.add_card(id)
 		screen._on_hand_card_clicked(_view_for(screen, screen.run.hand()[-1]))
 		screen._on_slot_input(_left_click(), screen.run.row.size())
 	assert_int(screen.run.row.size()).override_failure_message(case).is_equal(slots)
 	await _frames(3)
-	# The Price gun's relabel on the first ticket: the tall one.
+	# The Price gun's relabels (each glyph joins its label's row).
+	for index: int in relabels:
+		(screen._row_views[index] as ItemView).sticker().show_gained(relabels[index])
 	var first: PriceSticker = (screen._row_views[0] as ItemView).sticker()
-	first.show_gained("Household")
 	await _frames(2)
 	var tickets: Array[Rect2] = []
 	var problems: PackedStringArray = PackedStringArray()
@@ -97,13 +114,19 @@ func _assert_belt(
 		problems.append_array(_inside_problems(ticket, label))
 		if ticket.gold_ring() != null and not STAGE.encloses(ticket.gold_ring().get_global_rect()):
 			problems.append("%s: gold ring off the screen" % label)
-		# A short ticket ends over the hand; the tall one over the baskets' back rim.
-		var foot: float = (
-			HandBaskets.RIM_BACK_Y if ticket.is_tall() else ShiftStage.HAND_RECT.position.y
-		)
+		# Every ticket ends over the hand, a relabelled one too (2026-11-05: one height).
+		var foot: float = ShiftStage.HAND_RECT.position.y
 		if rect.end.y > foot:
 			problems.append("%s: ticket foot %f under %f" % [label, rect.end.y, foot])
-	assert_bool(first.is_tall()).is_true()
+	assert_object(first.gained()).is_not_null()
+	for index: int in relabels:
+		var sticker: PriceSticker = (screen._row_views[index] as ItemView).sticker()
+		assert_vector(sticker.size).is_equal(PriceSticker.SIZE)
+		var three: bool = sticker.glyphs().size() > PriceSticker.ICONS_PER_ROW
+		assert_bool(sticker.is_wide()).override_failure_message(case).is_equal(three)
+	if row == RELABEL_ROW:
+		assert_bool((screen._row_views[1] as ItemView).sticker().is_wide()).is_true()
+	assert_vector(first.size).is_equal(PriceSticker.SIZE)
 	if slots <= 7 and resolution != RESOLUTIONS[0]:
 		problems.append_array(_grid_problems(screen, case))
 	assert_array(problems).override_failure_message("\n".join(problems)).is_empty()
@@ -122,6 +145,15 @@ static func _inside_problems(ticket: PriceSticker, label: String) -> PackedStrin
 		problems.append("%s: text %s outside %s" % [label, text, rect])
 	if window.intersects(text):
 		problems.append("%s: window over the text" % label)
+	var digits: Rect2 = (
+		to_global
+		* Rect2(
+			ticket.window().position + ticket.window().digits_rect().position,
+			ticket.window().digits_rect().size
+		)
+	)
+	if ticket.window().digits_rect().has_area() and not window.grow(TOLERANCE).encloses(digits):
+		problems.append("%s: price %s outside its window %s" % [label, digits, window])
 	for glyph: FamilyGlyph in ticket.glyphs():
 		var rim: Rect2 = to_global * glyph.rim_rect()
 		if rim.intersects(window) or rim.intersects(text) or not rect.encloses(rim):

@@ -1,6 +1,6 @@
 extends GdUnitTestSuite
 ## Day events on the real shift screen (v0.69, plan section 3.9): a boon day's green chip in the
-## top bar ("Today: Quiet morning (quota −10%)", the boon coin) lies inside the chip, the bar and
+## top bar ("Quiet morning" since v1.16, the boon coin) lies inside the chip, the bar and
 ## the stage between the QUOTA and LOYALTY chips, and the quota reads the boon's; the next shift's
 ## boon prints in green on the receipt ("TOMORROW: ..."), on screen; a boon day's pass earns no
 ## INSPECTION PASSED; and a boon's steps play in the count-up from its chip (Happy hour's +3€,
@@ -36,7 +36,8 @@ func test_a_boon_chip_lays_out_in_the_top_bar() -> void:
 	var tag: InspectionTag = screen._inspection_tag
 	assert_bool(tag.visible).is_true()
 	assert_bool(tag.is_boon()).is_true()
-	assert_str(tag.text()).is_equal("Today: Quiet morning (quota −10%)")
+	# The boon's name only (v1.16); its effect is in the tooltip and the day's slip.
+	assert_str(tag.text()).is_equal("Quiet morning")
 	assert_str(tag.tooltip_text).contains("TODAY: Quiet morning")
 	# Green, never the inspection's tomato pale; the boon coin, not the warning sign.
 	assert_float(tag.self_modulate.g).is_greater(tag.self_modulate.r)
@@ -209,7 +210,11 @@ func _check_boon_count_up(id: String, expected: CountUpBeat.Kind) -> void:
 	var boon_name: String = (
 		(load("res://data/inspections/%s.tres" % id) as InspectionDefinition).display_name
 	)
-	assert_str(_receipt_text(screen)).contains(boon_name)
+	# The anchored receipt pays planning's rows in place: the boon plays on the monitor, not as a
+	# printed line (2026-11-05).
+	# (The next day's notice may name the same event: "TOMORROW: Free samples".)
+	for line: String in _receipt_text(screen).split(char(10)):
+		assert_bool(line.begins_with(boon_name)).override_failure_message(line).is_false()
 
 
 func _pass_shift(screen: ShiftScreen) -> void:

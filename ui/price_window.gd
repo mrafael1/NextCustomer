@@ -23,6 +23,10 @@ extends TipTarget
 ## Resting the pointer on it shows its tip (TipTarget: the printed price and the pay, set by its
 ## ticket). Dimmed (an unrelated item while another is hovered) it fades to `dimmed_alpha` over
 ## the ticket's paper. Decor only: every number is a payout from the score.
+##
+## Beside a wide icon label (a gained family's third icon, 2026-11-05, TicketFace.WINDOW_WIDE) it
+## is narrower (set_art_width): its digits take the first of form_for's forms that fits its room
+## (form_in), so "21€" prints in the 4x7 digits there.
 
 enum State { PRINTED, BOOSTED, LOWERED, ZERO, COUPON, WASTED }
 
@@ -90,6 +94,8 @@ var _digits: PixelWords
 var _shadow: PixelWords
 var _dimmed: bool = false
 var _tween: Tween
+## Its width in art px (ART.x, or a narrower window's: set_art_width).
+var _art_width: int = ART.x
 
 
 ## A window showing `amount` in `state` (against its item's `base`); `framed` off a ticket.
@@ -121,9 +127,9 @@ func show_pay(state: State, amount: int, base: int = 0) -> void:
 	var shadow_ink: Color = shadow_color(state, _step)
 	_shadow.visible = not coupon and shadow_ink.a > 0.0
 	if not coupon:
-		var form: Array = form_for(amount)
+		var form: Array = form_in(amount, _art_width - (ART.x - (DIGITS_RIGHT - DIGITS_LEFT + 1)))
 		var art: Vector2i = PixelWords.font_size_of(form[0], form[1])
-		var at: Vector2 = Vector2(digits_at(art)) * _px()
+		var at: Vector2 = Vector2(digits_at(art, _art_width)) * _px()
 		for words: PixelWords in [_digits, _shadow]:
 			words.sheet = form[1]
 			words.text = form[0]
@@ -134,6 +140,16 @@ func show_pay(state: State, amount: int, base: int = 0) -> void:
 		_shadow.color = shadow_ink
 		_shadow.position = at + Vector2(SHADOW_OFFSET) * _px()
 	queue_redraw()
+
+
+## Narrows (or widens back) the window to `art_width` art px, its height kept, and lays its digits
+## out again.
+func set_art_width(art_width: int) -> void:
+	_art_width = art_width
+	# The minimum first: a size under the old minimum would not take.
+	custom_minimum_size = Vector2(art_width, ART.y) * _px()
+	size = custom_minimum_size
+	show_pay(_state, _amount)
 
 
 func pay_state() -> State:
@@ -201,12 +217,32 @@ static func form_for(amount: int) -> Array:
 	return [short, PixelWords.Sheet.SMALL_DIGITS]
 
 
-## Where digits `art` art px in size sit (their top left, art px from the window's): centred in the
-## window, on the art's grid (an odd room leaves the spare art px right of them and under them,
-## where the shadow falls), and inside the digits' room. Pure.
-static func digits_at(art: Vector2i) -> Vector2i:
-	var at: Vector2i = Vector2i(floori((ART.x - art.x) / 2.0), floori((ART.y - art.y) / 2.0))
-	at.x = clampi(at.x, DIGITS_LEFT, maxi(DIGITS_RIGHT + 1 - art.x, DIGITS_LEFT))
+## How `amount` prints in a window whose digits' room is `room` art px wide: the first of
+## form_for's ladder (the 6x8 digits, the 4x7 ones, "Nk€" in 6x8, then in 4x7) that fits it, from
+## form_for's own form on (never a "0k€"); form_for's form at the full room. Pure.
+static func form_in(amount: int, room: int) -> Array:
+	var forms: Array[Array] = [
+		[MonitorText.euros(amount), PixelWords.Sheet.DIGITS],
+		[MonitorText.euros(amount), PixelWords.Sheet.SMALL_DIGITS],
+	]
+	if amount >= 1000:
+		var short: String = THOUSANDS % floori(amount / 1000.0)
+		forms.append([short, PixelWords.Sheet.DIGITS])
+		forms.append([short, PixelWords.Sheet.SMALL_DIGITS])
+	var first: int = forms.find(form_for(amount))
+	for index: int in range(maxi(first, 0), forms.size()):
+		if PixelWords.font_size_of(forms[index][0], forms[index][1]).x <= room:
+			return forms[index]
+	return forms[-1]
+
+
+## Where digits `art` art px in size sit (their top left, art px from the window's, `width` art px
+## wide): centred in the window, on the art's grid (an odd room leaves the spare art px right of
+## them and under them, where the shadow falls), and inside the digits' room. Pure.
+static func digits_at(art: Vector2i, width: int = ART.x) -> Vector2i:
+	var right: int = DIGITS_RIGHT - (ART.x - width)
+	var at: Vector2i = Vector2i(floori((width - art.x) / 2.0), floori((ART.y - art.y) / 2.0))
+	at.x = clampi(at.x, DIGITS_LEFT, maxi(right + 1 - art.x, DIGITS_LEFT))
 	at.y = clampi(at.y, 0, maxi(DIGITS_FOOT + 1 - art.y, 0))
 	return at
 

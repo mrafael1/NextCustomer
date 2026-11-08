@@ -5,8 +5,8 @@ extends HBoxContainer
 ## shift_scene_polish_v2.html section 2, A2: the SPEND chip is gone; the quota is the receipt's
 ## TODAY'S TARGET and its gauge a tube beside the receipt): SHIFT n/m, the week chip (v0.70,
 ## WeekChip: "W : 2/4", the week's name, its day pips), the inspection chip (the day chip since
-## v0.70: "D6" and the day's events, paper, with the mustard warning sign and "Inspection ·
-## <effect>", the name in its hover text; hidden on shifts without one), the LOYALTY chip with its
+## v0.70: "D6" and the day's kind, paper, with the mustard warning sign and "Inspection" (v1.16:
+## no effect, a fixed width), the effects in its hover text and its slip), the LOYALTY chip with its
 ## stamps, then (pushed to the row's end by a spacer) the Cart button with its trolley and the menu
 ## button (three drawn bars) whose menu holds Guide (the staff handbook, v1.06) and Export log. With
 ## weeks (show_weeks, v0.82: the week and day chips say where the run is) the SHIFT chip hides, so
@@ -27,6 +27,9 @@ signal guide_pressed
 const POSITION := Vector2(348, 9)
 const ROW_SIZE := Vector2(916, 38)
 const GAP := 12
+## The chips' gap on a tight day (fit_inspection, 2026-11-06: the week medals' room): the chips
+## this far apart, none of them shrunk.
+const TIGHT_GAP := 6
 ## The room fit_inspection keeps free at the row's end, past the spacer's two gaps (v1.02 review:
 ## 0, as 8 dropped a review day's "Review ·" for want of 3 px).
 const FIT_MARGIN := 0.0
@@ -66,6 +69,8 @@ var menu: PopupPanel
 var guide_button: FramedButton
 var export_button: FramedButton
 var _weeks: bool = false
+## The spacer pushing Cart to the row's end.
+var _spacer: Control
 ## The SHIFT chip's key caption (hidden with weeks).
 var _shift_key: Label
 
@@ -89,11 +94,11 @@ func _init() -> void:
 	add_child(inspection_tag)
 	loyalty_card = LoyaltyCard.new(true)
 	add_child(loyalty_card)
-	var spacer: Control = Control.new()
-	spacer.name = "Spacer"
-	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	add_child(spacer)
+	_spacer = Control.new()
+	_spacer.name = "Spacer"
+	_spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	add_child(_spacer)
 	# The deck view and the export sound themselves.
 	deck_button = UiKit.framed_button(
 		self, "", deck_pressed.emit, BUTTON_FONT_SIZE, BUTTON_FRAME, Vector2(0, ROW_SIZE.y), ""
@@ -124,22 +129,30 @@ func _refresh_shift_chip() -> void:
 	shift_chip.visible = not _weeks
 
 
-## Keeps the row inside ROW_SIZE.x less FIT_MARGIN: the inspection chip's text is trimmed when the
-## other chips and the bonus pill (#77 machine v2) leave it too little room, after the week chip's
-## name, then its pips, have given way (the day's effects come first; "W : 2/4" always says where
-## the run is). The name gives way to a review day's "Review ·" too (v1.02 review: it says two
-## inspections meet), the pips don't: only the longest pairs beside a 4-box loyalty card (Slot 3
-## pays 0€ with −1 hand item or Quota +10%) still lose it, a few px short.
+## Keeps the row inside ROW_SIZE.x less FIT_MARGIN. The day chip has a fixed width since v1.16
+## (InspectionTag.reserved_width: the day's kind only, never its effects, so the bar stands still
+## from day to day); when the other chips leave it less, the chips first close up to TIGHT_GAP
+## apart (2026-11-06, the week medals' room, mock-up week_medals.html: "the bar makes room by
+## shortening the empty gap before Cart, so no chip shrinks"; the spacer stays, so Cart keeps the
+## row's end and the day chip its width); then the week chip's name gives way, then its pips
+## ("W : 2/4" always says where the run is); only then is the chip's text trimmed. Each step asks
+## whether the chip got its fixed width, which depends on the run (its event pools, a worn Day
+## off, the loyalty card), never on the day's kind.
 func fit_inspection() -> void:
 	week_chip.show_name(true)
 	week_chip.show_pips(true)
+	add_theme_constant_override("separation", GAP)
+	_fit_inspection_once()
+	if not inspection_tag.is_shortened():
+		return
+	add_theme_constant_override("separation", TIGHT_GAP)
 	_fit_inspection_once()
 	if not inspection_tag.is_shortened():
 		return
 	if week_chip.name_shown():
 		week_chip.show_name(false)
 		_fit_inspection_once()
-		if not inspection_tag.is_trimmed():
+		if not inspection_tag.is_shortened():
 			return
 	week_chip.show_pips(false)
 	_fit_inspection_once()
@@ -180,7 +193,7 @@ func _fit_inspection_once() -> void:
 			continue
 		used += fresh_width(control)
 		shown += 1
-	used += GAP * shown
+	used += get_theme_constant("separation") * shown
 	inspection_tag.fit_width(ROW_SIZE.x - FIT_MARGIN - used)
 
 

@@ -28,7 +28,7 @@ var _at_laps: Array[Array] = []
 var _lap_pops: int = 0
 ## The visible Controls between the register tower and the monitor, above the belt (where the
 ## ×N stamp popped), before the count; and those that showed there only from the first lap on,
-## other than the chip's rows and the belt's stickers.
+## other than the belt's stickers.
 var _beside_before: Dictionary = {}
 var _beside_pops: Array[String] = []
 var _multiply_pops: Array[String] = []
@@ -166,7 +166,7 @@ func test_a_lap_rings_only_while_counting_and_pops_nothing() -> void:
 		await _frames(2)
 		assert_bool(crossing.drawing()).is_false()
 		assert_bool(crossing.is_processing()).is_false()
-		assert_int(crossing.get_child_count()).is_equal(2)  # The flash and the chip only.
+		assert_int(crossing.get_child_count()).is_equal(1)  # The flash only (no pill, 2026-11-06).
 	assert_int(_sounds(sfx, "kaching")).is_equal(2)
 	crossing.end()
 	meter.lap_reached.emit(4)
@@ -230,8 +230,7 @@ func _sample(screen: ShiftScreen) -> void:
 
 ## The visible Controls drawn whole between the register tower and the monitor, above the belt
 ## (in the crossing's layer; a pop such as the old 70x40 stamp, not a layer spanning the screen),
-## other than the chip's rows and the belt's items (their stickers, and the price a counted item
-## lifts over the belt).
+## other than the belt's items (their stickers, and the price a counted item lifts over the belt).
 func _beside(screen: ShiftScreen) -> Array[Control]:
 	var crossing: QuotaCrossing = screen._stage.quota_crossing
 	var area: Rect2 = Rect2(
@@ -246,8 +245,6 @@ func _beside(screen: ShiftScreen) -> Array[Control]:
 		if not control.is_visible_in_tree() or control.size == Vector2.ZERO:
 			continue
 		if control.modulate.a == 0.0 or control.self_modulate.a == 0.0:
-			continue
-		if control == crossing.chip or crossing.chip.is_ancestor_of(control):
 			continue
 		if control is EffectSticker or control is ItemView or _on_an_item(control):
 			continue

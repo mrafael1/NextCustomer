@@ -30,7 +30,11 @@ extends PanelContainer
 ## outline, not the font's descent or line gap; the drop, the same under all, aside) is centred on
 ## the chip's height, not stood on the number's baseline (v1.12's smaller words sat low). The
 ## number sits exactly centred; the words' baselines snap to the screen's whole pixels nearest
-## theirs (centre_parts), so they stay crisp, within half a screen pixel of the number's middle.
+## theirs (_centre_parts), so they stay crisp, within half a screen pixel of the number's middle.
+## The week's medals (2026-11-06, WeekMedals, MedalSockets): two round sockets after the pips,
+## SILVER then GOLD, a plain coin while the week's medal is still to spend, shimmering while the
+## plan would spend it, an engraved empty socket once spent (medals(), WeekFlow.show_medals); the
+## count's flight takes a coin out of its socket (MedalFlight).
 
 signal pressed
 
@@ -48,9 +52,9 @@ const NAME_GAP := 7
 const WEEK_TEXT := "%d"
 const NUMBER_SIZE := 22
 const SMALL_SIZE := 15
-## The week's number's inks by week (the quota tube's, in lap order: QuotaMeter.MET_RAMP's lit
-## green for week 1, then QuotaLaps.LAP_RAMPS' gold, orange light, velvet sheen and violet light;
-## the gold lap's body, as its pale reads as the paper around it), a week past them the last. Each
+## The week's number's inks by week (the quota tube's lap colours before the medals' metals:
+## QuotaMeter.MET_RAMP's lit green for week 1, then gold, orange light, velvet sheen and violet
+## light; the gold body, as its pale reads as the paper around it), a week past them the last. Each
 ## is outlined in ink (NUMBER_OUTLINE px, with an ink drop NUMBER_DROP px down), as TotalNumber's
 ## gold, so it reads on every week's chip colour.
 const NUMBER_INKS: Array[Color] = [
@@ -128,7 +132,7 @@ const CROSS_PIXELS: Array[Vector2i] = [
 ]
 const CHIP_FRAME := preload("res://art/frames/chip_warn.png")
 
-## ink_middle's results by font, size and text: centre_parts reruns whenever the chip moves, so a
+## ink_middle's results by font, size and text: _centre_parts reruns whenever the chip moves, so a
 ## text is shaped once, not on every move.
 static var _ink_middles: Dictionary[String, float] = {}
 
@@ -142,6 +146,8 @@ var _count: Label
 ## The week's short name, lettered as "W :" and "/4".
 var _name: Label
 var _pips_view: Control
+## The week's two medals, after the pips.
+var _medals: MedalSockets
 var _pips: Array[WeekCardModel.Pip] = []
 var _ringed: bool = false
 ## Seconds into flash() (-1: none), and the pip it lights.
@@ -154,14 +160,14 @@ func _init() -> void:
 	var style: StyleBoxTexture = ArtStyle.frame_style(CHIP_FRAME, FramedButton.FRAME_MARGIN)
 	style.content_margin_left = PADDING
 	style.content_margin_right = PADDING
-	# The parts fill the chip's whole height, so a lowered line never outgrows it: centre_parts
+	# The parts fill the chip's whole height, so a lowered line never outgrows it: _centre_parts
 	# places their ink. The chip keeps v1.12's height (height_of), so the bar keeps its own.
 	style.content_margin_top = 0
 	style.content_margin_bottom = 0
 	add_theme_stylebox_override("panel", style)
 	custom_minimum_size.y = height_of(style)
 	ArtStyle.use_pixel_material(self)
-	# A moved chip re-centres its words on the screen's pixels (centre_parts).
+	# A moved chip re-centres its words on the screen's pixels (_centre_parts).
 	set_notify_transform(true)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
@@ -171,7 +177,7 @@ func _init() -> void:
 	add_child(row)
 	var words: HBoxContainer = HBoxContainer.new()
 	words.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# As tall as the chip's inside, as every part: each one's ink is centred in it (centre_parts).
+	# As tall as the chip's inside, as every part: each one's ink is centred in it (_centre_parts).
 	words.add_theme_constant_override("separation", NAME_GAP)
 	row.add_child(words)
 	var number_row: HBoxContainer = HBoxContainer.new()
@@ -182,6 +188,7 @@ func _init() -> void:
 	_key.name = "Key"
 	number_row.add_child(_key)
 	_number = _lettered("", NUMBER_SIZE, NUMBER_OUTLINE, NUMBER_DROP)
+	_number.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_number.name = "Number"
 	number_row.add_child(_number)
 	_count = _lettered("", SMALL_SIZE, SMALL_OUTLINE, SMALL_DROP)
@@ -198,6 +205,8 @@ func _init() -> void:
 	# The pips snap to the screen's pixels: a moved chip redraws them.
 	item_rect_changed.connect(_pips_view.queue_redraw)
 	row.add_child(_pips_view)
+	_medals = MedalSockets.new()
+	row.add_child(_medals)
 	visible = false
 	set_process(false)
 
@@ -205,7 +214,7 @@ func _init() -> void:
 ## The chip's lettering: the number font at `font_size` in paper, outlined `outline` px in ink with
 ## an ink drop `drop` px down, as wide as the outline (show_week recolours the number's ink and
 ## outline). As tall as the chip's inside, its line at the top, lowered by its box's top margin so
-## its ink is centred on the chip (centre_parts).
+## its ink is centred on the chip (_centre_parts).
 static func _lettered(text: String, font_size: int, outline: int, drop: int) -> Label:
 	var label: Label = UiKit.number_label(text, font_size, false)
 	label.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
@@ -263,7 +272,7 @@ static func _measure_ink_middle(font: Font, font_size: int, text: String) -> flo
 ## line so that its baseline sits the ink's middle under the chip's middle. The number's is exact;
 ## the words' baselines take the screen's whole pixel nearest theirs (the window's stretch: 1.5x
 ## at 1920x1080), so their feet stay crisp and their middles within half a screen pixel of it.
-func centre_parts() -> void:
+func _centre_parts() -> void:
 	if not is_inside_tree() or size.y <= 0.0:
 		return
 	var screen: Transform2D = screen_transform(self)
@@ -308,14 +317,20 @@ static func contrast(a: Color, b: Color) -> float:
 ## run without weeks (a model of one week with no event).
 func show_week(model: WeekCardModel) -> void:
 	visible = model.event != null or model.week_count > 1
+	_number.custom_minimum_size.x = _widest(_number, _week_numbers(model.week_count))
 	_number.text = WEEK_TEXT % model.week_number
 	_number.add_theme_color_override("font_color", number_ink(model.week_number))
 	_number.add_theme_color_override("font_outline_color", number_outline(model.week_number))
 	_count.text = model.count_text()
 	_count.visible = model.week_count > 1
+	var names: PackedStringArray = model.chip_names.duplicate()
+	names.append(model.chip_name())
+	# Its outline reaches past its glyphs: the widest name keeps it clear of the pips too.
+	var widest_name: float = _widest(_name, names)
+	_name.custom_minimum_size.x = widest_name + SMALL_OUTLINE if widest_name > 0.0 else 0.0
 	_name.text = model.chip_name()
-	_name.visible = not _name.text.is_empty()
-	centre_parts()
+	_name.visible = _name.custom_minimum_size.x > 0.0
+	_centre_parts()
 	_pips = model.pips()
 	if hold_result:
 		_hold_last_result()
@@ -329,9 +344,42 @@ func show_week(model: WeekCardModel) -> void:
 	tooltip_text = TIP % head
 
 
-## Shows the short name, or hides it when the bar has no room (TopBar.fit_inspection).
+## How wide `label` is at its widest with any of `texts` (0 with none but empty ones): the room the
+## number and the name keep (v1.16, the user's "bar is expanding too much depending on days": every
+## week's chip is as wide as the widest, so the top bar's chips keep their places all run).
+static func _widest(label: Label, texts: PackedStringArray) -> float:
+	var kept: String = label.text
+	var kept_min: Vector2 = label.custom_minimum_size
+	label.custom_minimum_size = Vector2.ZERO
+	var widest: float = 0.0
+	for text: String in texts:
+		if text.is_empty():
+			continue
+		label.text = text
+		widest = maxf(widest, label.get_minimum_size().x)
+	label.text = kept
+	label.custom_minimum_size = kept_min
+	return ceilf(widest)
+
+
+## The run's week numbers' texts, 1 to `count`.
+static func _week_numbers(count: int) -> PackedStringArray:
+	var texts: PackedStringArray = PackedStringArray()
+	for week: int in range(1, maxi(count, 1) + 1):
+		texts.append(WEEK_TEXT % week)
+	return texts
+
+
+## The medal sockets (WeekFlow shows the week's medals on them, the count's flight takes a coin
+## out of one).
+func medals() -> MedalSockets:
+	return _medals
+
+
+## Shows the short name, or hides it when the bar has no room (TopBar.fit_inspection). Shown, it
+## keeps the room of the run's widest week name, even on a week without one (v1.16).
 func show_name(shown: bool) -> void:
-	_name.visible = shown and not _name.text.is_empty()
+	_name.visible = shown and _name.custom_minimum_size.x > 0.0
 
 
 func name_shown() -> bool:
@@ -446,11 +494,11 @@ func has_relation() -> bool:
 func _notification(what: int) -> void:
 	match what:
 		NOTIFICATION_ENTER_TREE:
-			get_viewport().size_changed.connect(centre_parts)
+			get_viewport().size_changed.connect(_centre_parts)
 		NOTIFICATION_EXIT_TREE:
-			get_viewport().size_changed.disconnect(centre_parts)
+			get_viewport().size_changed.disconnect(_centre_parts)
 		NOTIFICATION_RESIZED, NOTIFICATION_TRANSFORM_CHANGED:
-			centre_parts()
+			_centre_parts()
 
 
 func _gui_input(event: InputEvent) -> void:

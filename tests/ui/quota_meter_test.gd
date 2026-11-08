@@ -69,18 +69,19 @@ func test_lap_fill() -> void:
 	assert_float(QuotaLaps.lap_fill(30.0, 0, 3)).is_equal(1.0)
 
 
-## The lap colours (v4's A1): gold, orange, velvet, violet, then gold again; each over a full tube
-## of the lap before's (the met green behind lap 2); all of them the art palette's, none shared
-## with the first lap's short or near ramps.
+## The lap colours (the week medals' metals, 2026-11-06): silver from the quota to 2x, gold to 3x,
+## then a brighter gold from lap 4 on; each over a full tube of the lap before's (the met green
+## behind lap 2, the silver behind the gold, the plain gold behind every brighter one); all of them
+## the art palette's, none shared with the first lap's short or near ramps.
 func test_the_lap_colours_by_total_and_quota() -> void:
 	var expected: Array = [
-		[40, 2, Palette.GOLD, Palette.GOOD],
-		[60, 2, Palette.GOLD, Palette.GOOD],
-		[80, 3, Palette.ORANGE, Palette.GOLD],
-		[100, 3, Palette.ORANGE, Palette.GOLD],
-		[130, 4, Palette.VELVET, Palette.ORANGE],
-		[170, 5, Palette.VIOLET, Palette.VELVET],
-		[210, 6, Palette.GOLD, Palette.VIOLET],
+		[40, 2, Palette.STEEL_LIGHT, Palette.GOOD],
+		[60, 2, Palette.STEEL_LIGHT, Palette.GOOD],
+		[80, 3, Palette.GOLD, Palette.STEEL_LIGHT],
+		[100, 3, Palette.GOLD, Palette.STEEL_LIGHT],
+		[130, 4, Palette.MUSTARD_PALE, Palette.GOLD],
+		[170, 5, Palette.MUSTARD_PALE, Palette.GOLD],
+		[210, 6, Palette.MUSTARD_PALE, Palette.GOLD],
 	]
 	for row: Array in expected:
 		var lap: int = QuotaLaps.lap_for(row[0], 40, true)
@@ -95,7 +96,9 @@ func test_the_lap_colours_by_total_and_quota() -> void:
 			assert_bool(palette.has(colour)).override_failure_message(str(colour)).is_true()
 	# No lap shares a colour with the short or near tube, and each lap's body differs from the
 	# one behind it.
-	for lap: int in range(QuotaLaps.FIRST_LAP, QuotaLaps.FIRST_LAP + QuotaLaps.LAP_RAMPS.size()):
+	for lap: int in range(
+		QuotaLaps.FIRST_LAP, QuotaLaps.FIRST_LAP + QuotaLaps.LAP_RAMPS.size() + 2
+	):
 		for colour: Color in QuotaLaps.lap_ramp(lap):
 			var why: String = "lap %d %s" % [lap, colour]
 			assert_bool(QuotaMeter.SHORT_RAMP.has(colour)).override_failure_message(why).is_false()
@@ -104,9 +107,9 @@ func test_the_lap_colours_by_total_and_quota() -> void:
 
 
 ## The lap ramps: lit, body and dark from light to dark, and every lap's body HUE_GAP degrees or
-## more from the short tube's teal (PR #138) and the near tube's brass, or (gold, by decision:
-## QuotaLaps.VALUE_SEPARATED) VALUE_GAP of value from the warning body it comes near in hue. The
-## orange, velvet and violet ramps keep the hue gap.
+## more from the short tube's teal (PR #138) and the near tube's brass, or (the golds, by decision:
+## QuotaLaps.VALUE_SEPARATED) VALUE_GAP of value from the warning body it comes near in hue, or (the
+## silver, a grey) CHROMA_GAP less saturated than it.
 func test_every_lap_keeps_clear_of_the_warning_hues() -> void:
 	for lap: int in range(QuotaLaps.FIRST_LAP, QuotaLaps.FIRST_LAP + QuotaLaps.LAP_RAMPS.size()):
 		var lap_ramp: Array[Color] = QuotaLaps.lap_ramp(lap)
@@ -117,20 +120,19 @@ func test_every_lap_keeps_clear_of_the_warning_hues() -> void:
 			var gap: float = absf(body.h - warning.h) * 360.0
 			gap = minf(gap, 360.0 - gap)
 			var why: String = "lap %d %s is %.1f deg from %s" % [lap, body, gap, warning]
-			if gap >= QuotaLaps.HUE_GAP:
+			if gap >= QuotaLaps.HUE_GAP or warning.s - body.s >= QuotaLaps.CHROMA_GAP:
 				continue
 			assert_bool(QuotaLaps.VALUE_SEPARATED.has(body)).override_failure_message(why).is_true()
 			assert_float(absf(body.v - warning.v)).override_failure_message(why).is_greater_equal(
 				QuotaLaps.VALUE_GAP
 			)
-	for by_hue: Color in [Palette.ORANGE, Palette.VELVET, Palette.VIOLET]:
-		assert_bool(QuotaLaps.VALUE_SEPARATED.has(by_hue)).is_false()
+	assert_array(QuotaLaps.lap_ramp(2)).is_equal(
+		[Palette.STEEL_HIGHLIGHT, Palette.STEEL_LIGHT, Palette.STEEL]
+	)
 	assert_array(QuotaLaps.lap_ramp(3)).is_equal(
-		[Palette.ORANGE_LIGHT, Palette.ORANGE, Palette.ORANGE_DARK]
+		[Palette.MUSTARD_PALE, Palette.GOLD, Palette.MUSTARD_DARK]
 	)
-	assert_array(QuotaLaps.lap_ramp(5)).is_equal(
-		[Palette.VIOLET_LIGHT, Palette.VIOLET, Palette.VIOLET_DARK]
-	)
+	assert_array(QuotaLaps.lap_ramp(9)).is_equal(QuotaLaps.lap_ramp(QuotaLaps.TWINKLE_LAP))
 
 
 ## During a count: lap 2 pours gold over the full green tube from the foot up, lap 3 orange over
@@ -207,8 +209,8 @@ func test_the_lamp_names_the_laps_made() -> void:
 	assert_that(QuotaLaps.lamp_ink(QuotaMeter.MET_RAMP)).is_equal(Palette.INK)
 	assert_that(QuotaLaps.lamp_ink(QuotaLaps.lap_ramp(2))).is_equal(Palette.INK)
 	assert_that(QuotaLaps.lamp_ink(QuotaLaps.lap_ramp(3))).is_equal(Palette.INK)
-	assert_that(QuotaLaps.lamp_ink(QuotaLaps.lap_ramp(4))).is_equal(Palette.PAPER)
-	assert_that(QuotaLaps.lamp_ink(QuotaLaps.lap_ramp(5))).is_equal(Palette.PAPER)
+	assert_that(QuotaLaps.lamp_ink(QuotaLaps.lap_ramp(4))).is_equal(Palette.INK)
+	assert_that(QuotaLaps.lamp_ink(QuotaLaps.lap_ramp(5))).is_equal(Palette.INK)
 	var meter: QuotaMeter = await _meter()
 	meter.show_projected(30, 40)
 	assert_str(meter.badge_text()).is_empty()

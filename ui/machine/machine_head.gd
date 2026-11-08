@@ -6,22 +6,25 @@ extends Control
 ## like the gauge's € plate (an ink outline, a mustard light top row, brass dark at its foot and
 ## right, a gold rivet in each corner), with "RECEIPT REWARDS" in hard pixel lettering at 4x,
 ## engraved (brass darkest letters over a mustard light row one art px under them), over "ONE
-## PRIZE PER RECEIPT" at 2x, and a row of BULBS_ALONG dark bulbs along its top and its foot. On a
+## PRIZE PER DRAW" at 2x (2026-11-06: "PER RECEIPT" until a medal's extra draw lit 2 lamps), and
+## a row of BULBS_ALONG dark bulbs along its top and its foot. On a
 ## PREMIUM visit the same sign turns PREMIUM (MachineLook, dressing A): a white flash frame, then
 ## the night face (ink, a brass dark ring, charcoal) with gold "PREMIUM REWARDS" over "RARE OR
 ## BETTER" (v0.61, #108: a PREMIUM visit is a rarity boost), its bulbs coming on in turn, then
 ## chasing (one in four dark), and a hard shine band crossing it every 2.4 s, for the whole visit.
 ## The chase and the shine run on view.idle_time (still under reduced motion).
 ##
-## The visit's head stamp: BONUS TICKET! (-4°, with the inspection passed, or "shift n" for a
-## bonus extra shift, under it), paper with a tomato-dark double border, its words hard pixel
-## lettering (4x, the line under at 2x). A stamp covers the title. It blinks in and lands from
+## The visit's head stamp (-4°): BONUS TICKET! with the inspection passed (or "shift n" for a bonus
+## extra shift) under it, REVIEW PASSED on a payday, SILVER MEDAL! or GOLD MEDAL! for the week
+## medals' draws (2026-11-06); paper with a tomato-dark double border, its words hard pixel
+## lettering (4x, the line under at 2x), on the sign's right half (2026-11-06, so the receipt
+## feeding under it stays in view; it covers the title's right part). It blinks in and lands from
 ## twice its size at the visit's start (reduced motion: at rest), and lifts once the visit's
 ## landing is over (the punch's end + 0.6 s).
 
 const SIZE := Vector2(928, 74)
 const TITLE := "RECEIPT REWARDS"
-const SUB_LINE := "ONE PRIZE PER RECEIPT"
+const SUB_LINE := "ONE PRIZE PER DRAW"
 const PREMIUM_TITLE := "PREMIUM REWARDS"
 const PREMIUM_SUB := "RARE OR BETTER"
 ## The title's and the sub line's boxes (their capitals centred in them): the title at 4x (word
@@ -44,6 +47,11 @@ const STAMP_RIM := 6.0
 const STAMP_PAD := 10.0
 const STAMP_GAP := 2.0
 const STAMP_TOP := 0.0
+## The stamp sits on the sign's right half (2026-11-06, mock-up week_medals.html section 5), so the
+## receipt feeding into the slot under the sign's left half stays in view: centred at this share of
+## the sign, STAMP_EDGE px clear of its right end at most.
+const STAMP_CENTRE := 0.75
+const STAMP_EDGE := 8.0
 const BONUS_TILT := -4.0
 const BONUS_TEXT := "BONUS TICKET!"
 ## Look F's stamp motion: it lands from STAMP_FROM x its size in MachineTuning.head_stamp_land_ms,
@@ -102,7 +110,10 @@ func set_stamp(text: String, under: String) -> void:
 		Vector2(inner + 2.0 * (STAMP_PAD + STAMP_RIM), lines + 2.0 * (STAMP_RIM + STAMP_GAP))
 	)
 	_stamp.size = stamp_size
-	_stamp.position = Vector2(MachineArt.snap((SIZE.x - stamp_size.x) / 2.0), STAMP_TOP)
+	var left: float = SIZE.x * STAMP_CENTRE - stamp_size.x / 2.0
+	var right_most: float = SIZE.x - stamp_size.x - STAMP_EDGE
+	left = clampf(left, minf(SIZE.x / 2.0, right_most), right_most)
+	_stamp.position = Vector2(MachineArt.snap(left), STAMP_TOP)
 	_stamp.pivot_offset = stamp_size / 2.0
 	_stamp.rotation_degrees = BONUS_TILT
 	var top: float = STAMP_RIM + STAMP_GAP
@@ -116,6 +127,11 @@ func set_stamp(text: String, under: String) -> void:
 ## while it blinks).
 func stamp_texts() -> PackedStringArray:
 	return PackedStringArray([_stamp_text, _under_text if not _stamp_text.is_empty() else ""])
+
+
+## The stamp's rect on the sign (local px).
+func stamp_rect() -> Rect2:
+	return Rect2(_stamp.position, _stamp.size)
 
 
 ## Whether the stamp shows now (frame(t): blinking in, at rest, or lifted).

@@ -13,15 +13,15 @@ extends Control
 ##
 ## RewardMachineView gives the message for each wait point (show_message: PICK A CHUTE, the pick
 ## prompt, the landing's word); frame(t) plays the visit's own lines around them from the plan:
-## READING…, then SPEND N€ ✓ THANK YOU! with the quota met (a BONUS visit: BONUS TICKET! until
-## its stub is fed), on a PREMIUM visit PREMIUM / PREMIUM RECEIPT blinking while the machine turns
+## READING…, then SPEND N€ ✓ THANK YOU! with the quota met (a later draw of the same receipt,
+## 2026-11-06: AGAIN! blinking, with its reason and "draw 2 of 3"), on a PREMIUM visit PREMIUM /
+## PREMIUM RECEIPT blinking while the machine turns
 ## PREMIUM, PACKING… while the tray packs, each landed ticket's rarity and prize (a level-up's
 ## "Coupon engine LV 2"), and on the landing ENJOY!, UPGRADING…, the landing's word with the cart
 ## count and SEE YOU NEXT SHIFT. A PREMIUM visit's receipt read says so (PREMIUM_READ).
 ##
 ## A pressed key no longer changes the display (v0.53: the tray's push bar confirms, MachineTray).
-## A BONUS visit's feed reads the ticket icon and "BONUS TICKET" / "inspection passed · feeding
-## in".
+## No ticket feeds since 2026-11-06: the receipt pays every draw (the reader plate's lamps).
 
 const SIZE := Vector2(340, 60)
 ## The glass inside the bezel, and the room the message's lines have in it.
@@ -37,7 +37,8 @@ const SUB_SIZE := 12
 ## The sub line's smaller sizes when 12 doesn't fit.
 const SUB_STEPS: Array[int] = [12, 11, 10]
 const SCANLINE_ALPHA := 0.35
-## A BONUS visit's feed: the ticket icon (2x) left of BONUS TICKET.
+## A BONUS line's ticket icon (2x) left of BONUS TICKET (a legacy line; no ticket feeds since
+## 2026-11-06).
 const BONUS_TICKET := "BONUS TICKET"
 const TICKET_ICON := preload("res://art/icons/bonus_ticket.png")
 const ICON_SCALE := 2.0
@@ -46,6 +47,8 @@ const BOLD_WEIGHT := 700
 const RARITY_WORDS: Array[String] = ["COMMON", "RARE!", "LEGENDARY!!"]
 const READING := "READING…"
 const PACKING := "PACKING…"
+## AGAIN! blinks this often (on, then off) while a later draw opens.
+const AGAIN_BLINK := 2.5
 ## A PREMIUM visit's transform (v0.50): the lines blink this often.
 const PREMIUM_LINES: Array[String] = ["PREMIUM", "PREMIUM RECEIPT"]
 const PREMIUM_BLINK := 6.0
@@ -189,15 +192,15 @@ func _timed(plan: MachinePlan, t: float) -> PackedStringArray:
 	return _intro_text(plan, t) if t < plan.choose_at else PackedStringArray()
 
 
-## The intro: READING…, then the receipt read (a BONUS visit: BONUS TICKET! until its stub is
-## fed); none after it.
+## The intro: READING…, then the receipt read (a later draw: AGAIN! blinking with its reason and
+## its number, until the keys relight); none after it.
 func _intro_text(plan: MachinePlan, t: float) -> PackedStringArray:
-	if plan.kind == MachineVisit.Kind.BONUS:
-		if t < plan.feed_end:
-			if _payday():
-				return PackedStringArray([Payday.TICKET_TITLE, Payday.FEED_SUB])
-			var title: String = OvertimeWords.TICKET_TITLE if plan.overtime else BONUS_TICKET
-			return PackedStringArray([title, "%s · feeding in" % why_words()])
+	if plan.is_again():
+		if t < plan.read_end:
+			var on: bool = plan.reduced_motion or fmod(t * AGAIN_BLINK, 1.0) < 0.6
+			return PackedStringArray([OvertimeWords.AGAIN if on else "", again_sub(plan)])
+		if plan.premium and t >= plan.premium_at and t < plan.premium_end:
+			return PackedStringArray(PREMIUM_LINES)
 		return PackedStringArray()
 	if t < plan.feed_end:
 		return PackedStringArray([READING, ""])
@@ -219,7 +222,7 @@ func _read_text() -> PackedStringArray:
 	if _payday():
 		met += Payday.READ
 	elif OvertimeTickets.is_premium_visit(view.run):
-		met += OvertimeWords.PREMIUM_READ % OvertimeWords.laps_text(view.run.machine.machine, true)
+		met += OvertimeWords.GOLD_READ
 	elif view.run.machine.is_premium():
 		met += PREMIUM_READ
 	elif record.inspection != null:
@@ -235,9 +238,7 @@ func _draw_text(plan: MachinePlan, t: float) -> PackedStringArray:
 		var count: String = "1 PRIZE" if plan.n_prizes == 1 else "%d PRIZES" % plan.n_prizes
 		var from: String = "%s from %s" % [count.to_lower(), _chute_name().to_lower()]
 		if bonus:
-			from = "2nd premium ticket" if _payday() else "bonus ticket"
-			if plan.overtime:
-				from = OvertimeWords.KEY_LEAD
+			from = "%s · draw %d of %d" % [why_words(), plan.draw_index + 1, plan.draws]
 		return PackedStringArray([PACKING, from])
 	var last: int = plan.n_prizes - 1
 	if t >= plan.reveal_at[last] + plan.reveal_length[last]:
@@ -283,21 +284,25 @@ func _toast() -> String:
 
 
 func _end_sub(plan: MachinePlan) -> String:
-	if plan.kind != MachineVisit.Kind.BONUS:
+	if plan.draws <= 1:
 		return ""
-	if _payday():
-		return Payday.END_SUB
-	# The shift's tickets so far (a BONUS and an OVERTIME visit make 3, v1.03).
-	var record: ShiftRecord = _record()
-	var tickets: int = maxi(record.visits.size(), 2) if record != null else 2
-	return "%d prizes this shift · %s" % [tickets, _why()]
+	if _payday() and not _overtime():
+		return Payday.END_SUB % plan.draws
+	return "%d prizes this shift · %s" % [plan.draws, _why()]
 
 
-## Why a bonus ticket was given, as the BONUS visit's lines say it (#77 machine v2): "inspection
-## passed", or "shift n" for a bonus extra shift; an OVERTIME visit's (v1.03) "×2 over quota".
+## A later draw's sub line: its reason and its number ("silver medal · draw 2 of 2").
+func again_sub(plan: MachinePlan) -> String:
+	return OvertimeWords.AGAIN_SUB % [why_words(), plan.draw_index + 1, plan.draws]
+
+
+## Why a later draw was given, as its lines say it: the SILVER medal's (2026-11-06), a payday's
+## "review passed", "inspection passed", or "shift n" for a bonus extra shift.
 func why_words() -> String:
 	if _overtime():
-		return OvertimeWords.over_quota(view.run.machine.machine)
+		return OvertimeWords.SILVER_REASON
+	if _payday():
+		return Payday.REASON
 	var record: ShiftRecord = _record()
 	if record == null or record.inspection != null:
 		return "inspection passed"
@@ -371,7 +376,7 @@ func _show(message: String, sub: String) -> void:
 	_message = message
 	_sub.text = sub
 	var room: float = GLASS_RECT.size.x - 2.0 * PAD
-	_icon.visible = message in [BONUS_TICKET, Payday.TICKET_TITLE, OvertimeWords.TICKET_TITLE]
+	_icon.visible = message in [BONUS_TICKET, Payday.TICKET_TITLE]
 	var icon_room: float = _icon.size.x + ICON_GAP if _icon.visible else 0.0
 	var parts: PackedStringArray = wrap_message(message, room - icon_room)
 	var wrapped: bool = parts.size() > 1

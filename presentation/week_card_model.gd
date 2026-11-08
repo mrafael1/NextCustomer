@@ -4,7 +4,7 @@ extends RefCounted
 ## docs/art/mockups/rota_card_v1.html, layout C): the run's current week, its fixed week event,
 ## and every day of the week in full (the week plan, RunState.week, drawn as the week started): its
 ## day events, whether it is a Manager's review (its two maluses, then "REVIEW PASSED · 2 PREMIUM
-## TICKETS", or on the run's last shift "PASS = RUN WON"), and whether it is punched in (played,
+## DRAWS", or on the run's last shift "PASS = RUN WON"), and whether it is punched in (played,
 ## or today's), and how a played day ended (v0.72: PAID, or a training week's SLIP 1/2). Pure:
 ## built from the run, read by WeekCard, WeekChip and InspectionTag.
 
@@ -54,6 +54,9 @@ var week_number: int = 1
 var week_count: int = 1
 ## The week's fixed event, or null.
 var event: WeekEventDefinition
+## Every week's short name in the run (each week event's chip_text, none empty; v1.16): the week
+## chip keeps room for the widest, so the top bar doesn't move as a new week starts.
+var chip_names: PackedStringArray = PackedStringArray()
 ## The misses the training week forgives in all (0 outside it, or with a balance without slips).
 var allowed_misses: int = 0
 ## The week's days, in order.
@@ -122,6 +125,9 @@ static func of(run: RunState) -> WeekCardModel:
 	model.week_number = WeekSchedule.week_of(balance, shift) + 1
 	model.week_count = WeekSchedule.week_count(balance)
 	model.event = WeekSchedule.event_for(balance, shift)
+	for week_event: WeekEventDefinition in balance.weeks:
+		if week_event != null and not week_event.chip_text.is_empty():
+			model.chip_names.append(week_event.chip_text)
 	# A shift a save from before v0.70 was on plays without its week event
 	# (WeekSchedule.shift_events), so the card and chips don't name it; the training week's,
 	# which has no rules, stays for its slips.

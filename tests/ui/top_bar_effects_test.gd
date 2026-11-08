@@ -72,7 +72,9 @@ func test_the_inspection_chip_rings_and_names_its_cause() -> void:
 	]
 	tag.show_inspections(inspections)
 	await _frames(2)
+	# The day's kind only (v1.16): two inspections make a review.
 	var effects: String = tag.text()
+	assert_str(effects).is_equal(InspectionTag.REVIEW_CAPTION)
 	var seen: Array[String] = []
 	tag.hovered.connect(func() -> void: seen.append("in"))
 	tag.unhovered.connect(func() -> void: seen.append("out"))
@@ -107,8 +109,11 @@ func test_the_inspection_chip_rings_and_names_its_cause() -> void:
 	# A new shift's inspections drop the named cause.
 	tag.set_relation(true, 0)
 	tag.show_inspections(inspections.slice(0, 1))
-	assert_str(tag.text()).is_equal("Inspection · %s" % inspections[0].chip_text)
-	assert_float(tag.custom_minimum_size.x).is_equal(0.0)
+	assert_str(tag.text()).is_equal(InspectionTag.CAPTION)
+	# The fixed width (v1.16): the same for one inspection as for two.
+	assert_float(tag.custom_minimum_size.x).is_equal(tag.reserved_width())
+	await _frames(2)
+	assert_float(tag.size.x).is_equal_approx(width, 0.01)
 
 
 func _bar() -> TopBar:

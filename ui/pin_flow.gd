@@ -280,15 +280,17 @@ func _pin_card_blocked() -> bool:
 	return _screen._busy() or _screen._deck_view.visible
 
 
-## The day chip's SKIP tag: while today can be taken off, in planning, outside redraw mode.
+## The day chip's SKIP tag: while today can be taken off, in planning, outside redraw mode. While
+## the run wears a Day off, the chip keeps the tag's room on every day (v1.16: the bar stands
+## still).
 func _show_skip(planning: bool) -> void:
 	var tag: InspectionTag = _screen._inspection_tag
 	var pending: bool = day_off_pending()
 	var shown: bool = planning and (not _screen._redraw_mode or pending)
 	shown = shown and PinPlay.can_take_day_off(_screen.run)
 	var before: bool = tag.skip_tag().visible
-	tag.show_skip(shown, pending)
-	if before != shown:
+	var worn: bool = PinPlay.days_off_per_week(_screen.run) > 0
+	if tag.show_skip(shown, pending, worn) or before != shown:
 		(_screen._top_bar as TopBar).fit_inspection()
 
 

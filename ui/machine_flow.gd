@@ -10,8 +10,8 @@ extends Node
 ## machine_visit event, saves (the next visit's save point, or SCORED after the shift's last
 ## visit) and lands the prize; at the landing's beat the top bar shows what changed (the Cart
 ## count, the loyalty card, with the plain stamp while view.plain_landing); once the landing is
-## over (the view's `finished`) it opens the next visit (the bonus ticket's, waiting at
-## MACHINE_CHOOSE) or starts the next shift. A resumed run
+## over (the view's `finished`) it opens the next visit (the receipt's next draw, AGAIN!, waiting
+## at MACHINE_CHOOSE) or starts the next shift. A resumed run
 ## (MACHINE_CHOOSE or MACHINE_PICK) opens here at its wait point, with no replay. A tap that
 ## fast-forwards the view's clock up to the pick is logged as the visit's presentation_skipped;
 ## one during the landing, after the visit was logged, as a machine_landing_skipped event.
@@ -164,8 +164,8 @@ func play_swaps() -> int:
 ## (the music comes back there), or `resumed` from a save (its prizes shown at once, no replay).
 func open(resumed: bool) -> void:
 	var run: RunState = _screen.run
-	# v1.03: the gauge's over-quota pills (held past the count) fade as it glides in.
-	_screen._stage.quota_crossing.chip.fade_now()
+	# A week medal still in flight (2026-11-06) lands at once: the receipt feeds in its metal.
+	_screen._stage.gold_flow.flight.finish()
 	if (
 		run.phase == RunState.Phase.MACHINE_CHOOSE
 		and run.machine.current_visit().kind == MachineVisit.Kind.TICKET

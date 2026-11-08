@@ -7,7 +7,7 @@ extends Control
 ## with its "IN" punch on the left (played days and today), and on the right every day event by
 ## name and effect (a day without one: "Normal day · No event"); a Manager's review's row is
 ## mustard, headed "MANAGER'S REVIEW · 2 MALUSES" and closed by its reward ("REVIEW PASSED · 2
-## PREMIUM TICKETS", or day 12's "PASS = RUN WON").
+## PREMIUM DRAWS", or day 12's "PASS = RUN WON").
 ##
 ## play(): the card arrives (print), the banner stamps, the rows fill in one by one (today's
 ## punch), the card holds HOLD seconds and shrinks into the week chip. reopen(): the whole card at
@@ -703,7 +703,7 @@ func _event_row(event: InspectionDefinition) -> Control:
 	return panel
 
 
-## A review's reward: gold with two tickets ("REVIEW PASSED · 2 PREMIUM TICKETS"), or the last
+## A review's reward: gold with two draws ("REVIEW PASSED · 2 PREMIUM DRAWS"), or the last
 ## review's mustard light with the check mark ("PASS = RUN WON").
 func _reward_row(day: WeekCardModel.WeekDay) -> Control:
 	var fill: Color = Palette.MUSTARD_LIGHT if day.final else Palette.GOLD
@@ -721,7 +721,7 @@ func _reward_row(day: WeekCardModel.WeekDay) -> Control:
 		icon.custom_minimum_size = texture.get_size()
 		icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		row.add_child(icon)
-	# "REVIEW PASSED · 2 PREMIUM TICKETS" on two lines, as on the mock-up.
+	# "REVIEW PASSED · 2 PREMIUM DRAWS" on two lines, as on the mock-up.
 	var line: Label = _bold(day.reward().replace(" · ", "\n"), REWARD_SIZE, Palette.INK)
 	line.name = "RewardText"
 	line.size_flags_vertical = Control.SIZE_SHRINK_CENTER

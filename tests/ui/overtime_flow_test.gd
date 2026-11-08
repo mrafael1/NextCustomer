@@ -1,10 +1,14 @@
 extends GdUnitTestSuite
-## The over-quota rewards (v1.03, OvertimeTickets) through the real machine on the real shift
-## screen, the rewards on (the live balance, never NoOvertime): a shift-1 row making ×3 earns the
-## PREMIUM ticket and the week's extra ticket; the ticket's visit opens PREMIUM with its own head
-## stamp and the dock's OVERTIME caption; picking there brings the OVERTIME visit in the BONUS
-## ticket's look, CLASSIC again, in its own words; picking there starts shift 2. A run saved at the
-## OVERTIME visit resumes on it. Clicks are sent to the handlers (headless runs deliver no input).
+## The over-quota rewards (v1.03, OvertimeTickets; the week medals since 2026-11-06, mock-up
+## docs/art/mockups/week_medals.html) through the real machine on the real shift screen, the
+## rewards on (the live balance, never NoOvertime): a shift-1 row making ×3 spends the week's
+## SILVER and GOLD medals (both sockets empty, the receipt gold); the receipt feeds once and lights
+## 2 draw lamps; the ticket's visit opens PREMIUM with the GOLD MEDAL! stamp; after its prize the
+## lamp goes out and the SILVER medal's extra draw opens on AGAIN! from the same receipt, PREMIUM
+## too (the GOLD made the visit premium), with no ticket anywhere: no stub, no dock, no queued
+## ticket; picking there starts shift 2. With a bonus extra shift on top the receipt lights 3
+## lamps. A run saved at the extra draw resumes on it. Clicks are sent to the handlers (headless
+## runs deliver no input).
 
 const SCREEN := "res://ui/shift_screen.tscn"
 const BALANCE := "res://data/balance/balance.tres"
@@ -12,6 +16,21 @@ const STARTER := "res://data/decks/starter.tres"
 const Rush := preload("res://tests/ui/count_up_rush.gd")
 ## Milk, Multipack, Milk x5 = 109: ×3 the first shift's quota (30).
 const PASSING_ROW: Array[String] = ["milk", "multipack", "milk", "milk", "milk", "milk", "milk"]
+const USED: Array[int] = [WeekMedals.State.USED, WeekMedals.State.USED]
+## The removed ticket nodes' names (TicketQueue's dock, its icon, the top bar's ticket slots, the
+## gauge's OvertimeChip, the receipt's BONUS stub and the dessert's banner beside it): none is
+## left anywhere on the screen.
+const GONE_NODES: Array[String] = [
+	"Dock",
+	"QueueIcon",
+	"OvertimeTickets",
+	"OvertimeChip",
+	"TicketClip",
+	"TicketSlot",
+	"BonusTicket",
+	"BonusStub",
+	"BonusBanner",
+]
 
 var _folder: String = ""
 
@@ -30,7 +49,7 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-func test_a_x3_shift_plays_its_premium_ticket_then_the_overtime_visit() -> void:
+func test_a_x3_shift_spends_both_medals_and_draws_twice_from_one_receipt() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
 	screen._week.skip()
@@ -42,63 +61,67 @@ func test_a_x3_shift_plays_its_premium_ticket_then_the_overtime_visit() -> void:
 	assert_bool(record.overtime_ticket).is_true()
 	assert_bool(record.overtime_premium).is_true()
 	assert_int(run.phase).is_equal(RunState.Phase.MACHINE_CHOOSE)
-	# The gauge's pills, held past the count, fade at once as the machine opens.
-	var chip: OvertimeChip = screen._stage.quota_crossing.chip
-	assert_int(chip.texts().size()).is_equal(2)
-	assert_bool(chip.fading()).is_true()
-	await _frames(2)
-	assert_float(chip.modulate.a).is_less(1.0)
-	# The ticket's visit: PREMIUM (the ×3), the OVERTIME visit next.
+	# Both medals left their sockets; the receipt turned gold; no stub was printed.
+	screen._stage.gold_flow.flight.finish()
+	assert_array(screen._stage.top_bar.week_chip.medals().states()).is_equal(USED)
+	assert_bool(screen._stage.receipt.gold.is_gold()).is_true()
+	assert_object(screen._receipt.find_child("BonusStub", true, false)).is_null()
+	# The ticket's visit: PREMIUM (the GOLD), the SILVER's extra draw next; 2 lamps.
 	var view: RewardMachineView = screen._machine.view
 	assert_int(run.machine.current_visit().kind).is_equal(MachineVisit.Kind.TICKET)
 	assert_bool(run.machine.current_visit().premium).is_true()
 	assert_array(run.machine.pending_kinds()).is_equal([MachineVisit.Kind.OVERTIME])
 	assert_bool(view.plan.premium).is_true()
-	assert_bool(view.plan.overtime).is_true()
+	assert_bool(view.plan.overtime).is_false()
+	assert_int(view.plan.draws).is_equal(2)
+	assert_int(view.plan.draw_index).is_equal(0)
 	await _until_armed(screen)
-	assert_str(view.head.stamp_texts()[0]).is_equal(OvertimeWords.PREMIUM_STAMP)
+	assert_str(view.head.stamp_texts()[0]).is_equal(OvertimeWords.GOLD_STAMP)
 	for key: ChuteKey in view.keys:
 		assert_bool(key.gold).is_true()
-	# The dock waits for the OVERTIME ticket's stub, its caption saying so, inside the dock.
-	var caption: MachineLine = view.cabinet.dock_label()
-	assert_str(caption.text()).is_equal(OvertimeWords.DOCK_TEXT)
-	var icon: Control = view.cabinet.get_node("DockIcon")
-	var caption_rect: Rect2 = Rect2(caption.position, caption.size).merge(
-		Rect2(icon.position, icon.size)
-	)
-	(
-		assert_bool(MachineCabinet.DOCK_RECT.encloses(caption_rect))
-		. override_failure_message(str(caption_rect))
-		. is_true()
-	)
+	assert_int(view.slot_plate.lamp_count()).is_equal(2)
+	assert_int(view.slot_plate.lamps_lit()).is_equal(2)
+	_assert_no_ticket(screen)
 	await _pick_upgrade(screen)
 	assert_str(_last_event("machine_visit")["kind"]).is_equal("ticket")
-	# The OVERTIME visit: CLASSIC, shown as a BONUS visit in its own words.
+	# The SILVER's extra draw: AGAIN!, PREMIUM too (the GOLD's visit), from the same receipt.
 	assert_int(run.shift_index).is_equal(0)
 	assert_int(run.phase).is_equal(RunState.Phase.MACHINE_CHOOSE)
 	var overtime: MachineVisit = run.machine.current_visit()
 	assert_int(overtime.kind).is_equal(MachineVisit.Kind.OVERTIME)
-	assert_bool(overtime.premium).is_false()
+	assert_bool(overtime.premium).is_true()
 	assert_int(view.plan.kind).is_equal(MachineVisit.Kind.BONUS)
 	assert_bool(view.plan.overtime).is_true()
+	assert_bool(view.plan.is_again()).is_true()
+	assert_int(view.plan.draw_index).is_equal(1)
+	assert_int(view.plan.draws).is_equal(2)
+	view.show_at(0.1)
+	var again: Array = [OvertimeWords.AGAIN, "%s · draw 2 of 2" % OvertimeWords.SILVER_REASON]
+	assert_array(Array(view.display.texts())).is_equal(again)
+	assert_bool(view.display.ticket_icon().visible).is_false()
 	await _until_armed(screen)
-	assert_str(view.head.stamp_texts()[0]).is_equal(OvertimeWords.STAMP)
-	assert_str(view.display.texts()[0]).is_equal(OvertimeWords.TICKET_TITLE)
+	assert_str(view.head.stamp_texts()[0]).is_equal(OvertimeWords.SILVER_STAMP)
+	assert_str(view.display.texts()[0]).is_equal(OvertimeWords.AGAIN)
+	assert_int(view.slot_plate.lamps_lit()).is_equal(1)
 	for key: ChuteKey in view.keys:
-		assert_bool(key.gold).is_false()
+		assert_bool(key.gold).is_true()
+	_assert_no_ticket(screen)
 	await _pick_upgrade(screen)
 	var logged: Dictionary = _last_event("machine_visit")
 	assert_str(logged["kind"]).is_equal("overtime")
 	assert_str(logged["chute"]).is_equal("upgrade")
-	# Shift 2 starts, the machine closed.
+	# Shift 2 starts, the machine closed; the week's medals stay spent.
 	assert_int(run.shift_index).is_equal(1)
 	assert_int(run.phase).is_equal(RunState.Phase.PLANNING)
 	assert_bool(screen._machine.is_open()).is_false()
+	await _frames(2)
+	assert_array(screen._stage.top_bar.week_chip.medals().states()).is_equal(USED)
 
 
-## A run saved at its OVERTIME visit (the PREMIUM ticket's pick made) resumes on that visit,
-## CLASSIC, in its own words, armed at once; picking there starts shift 2.
-func test_a_run_saved_at_the_overtime_visit_resumes_on_it() -> void:
+## A run saved at its extra draw (the PREMIUM ticket's pick made) resumes on that draw: PREMIUM,
+## AGAIN! with the SILVER MEDAL! stamp, one lamp lit, armed at once; picking there starts shift 2.
+## The week's medals stay spent through the resume.
+func test_a_run_saved_at_the_extra_draw_resumes_on_it() -> void:
 	var balance: BalanceDefinition = load(BALANCE)
 	var run: RunState = RunState.new(7, load(STARTER), balance, RunStock.starting(balance))
 	run.start_shift()
@@ -118,18 +141,82 @@ func test_a_run_saved_at_the_overtime_visit_resumes_on_it() -> void:
 	var view: RewardMachineView = screen._machine.view
 	assert_int(resumed.phase).is_equal(RunState.Phase.MACHINE_CHOOSE)
 	assert_int(resumed.machine.current_visit().kind).is_equal(MachineVisit.Kind.OVERTIME)
-	assert_bool(resumed.machine.current_visit().premium).is_false()
+	assert_bool(resumed.machine.current_visit().premium).is_true()
 	assert_bool(resumed.history[-1].overtime_ticket).is_true()
 	assert_bool(view.plan.resumed).is_true()
 	assert_bool(view.plan.overtime).is_true()
 	assert_bool(view.is_armed()).is_true()
-	assert_str(view.head.stamp_texts()[0]).is_equal(OvertimeWords.STAMP)
-	assert_str(view.display.texts()[0]).is_equal(OvertimeWords.TICKET_TITLE)
+	assert_int(view.plan.draw_index).is_equal(1)
+	assert_int(view.plan.draws).is_equal(2)
+	assert_int(view.slot_plate.lamps_lit()).is_equal(1)
+	assert_str(view.head.stamp_texts()[0]).is_equal(OvertimeWords.SILVER_STAMP)
+	assert_str(view.display.texts()[0]).is_equal(OvertimeWords.AGAIN)
 	for key: ChuteKey in view.keys:
-		assert_bool(key.gold).is_false()
+		assert_bool(key.gold).is_true()
+	assert_array(screen._stage.top_bar.week_chip.medals().states()).is_equal(USED)
 	await _pick_upgrade(screen)
 	assert_int(resumed.shift_index).is_equal(1)
 	assert_int(resumed.phase).is_equal(RunState.Phase.PLANNING)
+	await _frames(2)
+	assert_array(screen._stage.top_bar.week_chip.medals().states()).is_equal(USED)
+
+
+## With a bonus extra shift on top (a machine copy), the receipt pays 3 draws: 3 lamps lit at the
+## ticket's visit, 2 at the BONUS draw, 1 at the SILVER's; each later draw opens on AGAIN!.
+func test_three_draws_light_three_lamps() -> void:
+	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
+	var screen: ShiftScreen = runner.scene()
+	screen._week.skip()
+	await _frames(2)
+	var run: RunState = screen.run
+	run.machine.machine = run.machine.machine.duplicate() as MachineDefinition
+	run.machine.machine.bonus_extra_shifts = PackedInt32Array([1])
+	_place(screen)
+	await Rush.checkout(screen)
+	assert_array(run.machine.pending_kinds()).is_equal(
+		[MachineVisit.Kind.BONUS, MachineVisit.Kind.OVERTIME]
+	)
+	var view: RewardMachineView = screen._machine.view
+	await _until_armed(screen)
+	assert_int(view.plan.draws).is_equal(3)
+	assert_int(view.slot_plate.lamp_count()).is_equal(3)
+	assert_int(view.slot_plate.lamps_lit()).is_equal(3)
+	for index: int in range(2):
+		var at: Rect2 = view.slot_plate.lamp_rect(index)
+		var next: Rect2 = view.slot_plate.lamp_rect(index + 1)
+		assert_float(next.position.x - at.end.x).is_greater(0.0)
+		assert_bool(SlotPlate.FACE_RECT.encloses(at)).is_true()
+	for index: int in range(3):
+		var lamp: Rect2 = view.slot_plate.lamp_rect(index)
+		assert_bool(SlotPlate.FACE_RECT.encloses(lamp)).is_true()
+		assert_bool(lamp.intersects(SlotPlate.ARROW_RECT)).is_false()
+	await _pick_upgrade(screen)
+	assert_int(run.machine.current_visit().kind).is_equal(MachineVisit.Kind.BONUS)
+	assert_int(view.plan.draw_index).is_equal(1)
+	await _until_armed(screen)
+	assert_int(view.slot_plate.lamps_lit()).is_equal(2)
+	assert_str(view.display.texts()[0]).is_equal(OvertimeWords.AGAIN)
+	await _pick_upgrade(screen)
+	assert_int(run.machine.current_visit().kind).is_equal(MachineVisit.Kind.OVERTIME)
+	assert_int(view.plan.draw_index).is_equal(2)
+	await _until_armed(screen)
+	assert_int(view.slot_plate.lamps_lit()).is_equal(1)
+	assert_str(view.display.texts()[0]).is_equal(OvertimeWords.AGAIN)
+	_assert_no_ticket(screen)
+
+
+## No ticket anywhere (2026-11-06): no bonus ticket in the machine's feed, none of the removed
+## ticket nodes on the screen.
+func _assert_no_ticket(screen: ShiftScreen) -> void:
+	var found: Array[String] = []
+	var stack: Array[Node] = [screen]
+	while not stack.is_empty():
+		var node: Node = stack.pop_back()
+		for gone: String in GONE_NODES:
+			if String(node.name).begins_with(gone):
+				found.append(str(node.get_path()))
+		stack.append_array(node.get_children())
+	assert_array(found).is_empty()
 
 
 func _place(screen: ShiftScreen) -> void:
@@ -141,13 +228,14 @@ func _place(screen: ShiftScreen) -> void:
 
 ## UPGRADE, then its register prize picked and landed (stamped on the loyalty card).
 func _pick_upgrade(screen: ShiftScreen) -> void:
+	var view: RewardMachineView = screen._machine.view
 	assert_bool(screen._machine._choose(RewardMachine.Chute.UPGRADE)).is_true()
 	await _until_armed(screen)
 	var index: int = MachineSteps.register_index(screen.run)
 	assert_int(index).is_greater_equal(0)
-	screen._machine.view.pick(index)
+	view.pick(index)
 	screen._machine.on_deck_added()
-	screen._machine.view.fast_forward()  # The landing plays to its end.
+	view.fast_forward()  # The landing plays to its end.
 	await _frames(2)
 
 

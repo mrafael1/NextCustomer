@@ -7,10 +7,14 @@ extends TipTarget
 ## tip says so ("Works with Breakfast"); on the belt PlanningEffects adds what the rule counts
 ## there (RuleReach: "counts Cereal (4)", or that nothing matches) and lights only those items.
 ## It takes no clicks.
+##
+## Its lettering has room above and below (2026-11-05, the keyword chips CHAIN and MORNING as the
+## reference): the chip is 8 art px tall, one more than v5's 7, at the rule's own type size, and
+## the name's capitals sit centred down it (baseline_for), not on its line's baseline.
 
-## The name's room inside the chip on each side, and the chip's height (7 art px).
+## The name's room inside the chip on each side, and the chip's height (8 art px).
 const PADDING_X := 3.0
-const HEIGHT := 14.0
+const HEIGHT := 16.0
 const WORKS_WITH := "Works with %s"
 
 ## The family it names (a FamilyStyle id).
@@ -18,7 +22,7 @@ var family: String = ""
 var _style: FamilyStyle
 var _font: Font
 var _font_size: int
-var _baseline: float = 11.0
+var _baseline: float = 0.0
 
 
 ## The chip of `style`'s name in `font` at `font_size`.
@@ -32,6 +36,7 @@ func _init(style: FamilyStyle, font: Font, font_size: int) -> void:
 	tip_text = WORKS_WITH % style.display_name
 	size = Vector2(width_for(style, font, font_size), HEIGHT)
 	custom_minimum_size = size
+	_baseline = baseline_for(font, font_size)
 
 
 ## The chip's width for `style`'s name: the name plus PADDING_X on each side, on the 2 px grid.
@@ -56,10 +61,16 @@ func face_color() -> Color:
 	return _style.face
 
 
-## Draws the chip with the name's baseline at `baseline` (this chip's coordinates).
-func draw_at(baseline: float) -> void:
-	_baseline = baseline
-	queue_redraw()
+## The name's baseline in a chip (its coordinates) in `font` at `font_size`: its capitals' ink
+## (a capital's top to the baseline, ReceiptRows.ink_span) centred down HEIGHT, on whole px.
+static func baseline_for(font: Font, font_size: int) -> float:
+	var cap: float = -ReceiptRows.ink_span(font, font_size).x
+	return roundf((HEIGHT + cap) / 2.0)
+
+
+## The name's baseline (this chip's coordinates).
+func baseline() -> float:
+	return _baseline
 
 
 func _draw() -> void:

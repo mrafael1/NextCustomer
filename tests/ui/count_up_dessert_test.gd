@@ -1,11 +1,13 @@
 extends GdUnitTestSuite
 ## V3 keeps the register's paid total stable while the receipt finishes: verdict sounds,
-## margin, PAID stamp, bonus stub, tear, notice and printer feed retain their order and timing.
+## margin, PAID stamp, tear, notice and printer feed retain their order and timing (no bonus stub
+## since 2026-11-06).
 ## Covers passes, misses, Fast, reduced motion and skipping, with isolated saves and logs.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 const RECORDING_SFX := preload("res://tests/presentation/recording_sfx.gd")
 const Rush := preload("res://tests/ui/count_up_rush.gd")
+const ReceiptFed := preload("res://tests/ui/receipt_fed_lines.gd")
 const MUSIC_SCRIPT := preload("res://presentation/music.gd")
 const SCREEN_RECT := Rect2(0, 0, 1280, 720)
 ## Milk, Multipack, Milk x5 = 109.
@@ -97,6 +99,13 @@ func test_a_pass_slams_counts_stamps_tears_and_feeds() -> void:
 	assert_that(_color(screen._receipt.total_label())).is_equal(Palette.GOOD)
 	assert_that(_color(_line_label(screen._receipt, -2, 0))).is_equal(Palette.GOOD)
 	await _assert_lines_on_screen(screen, 3)
+	# A full belt: the tear prints on the paper under its foot, the paper fed on and risen by it,
+	# and nothing prints right of the paper (2026-11-07).
+	assert_int(ReceiptFed.lines(screen._receipt).size()).is_equal(1)
+	var failures_fed: Array[String] = ReceiptFed.failures(
+		screen._receipt, ReceiptFed.planned_rect(screen), SCREEN_RECT
+	)
+	assert_array(failures_fed).override_failure_message("\n".join(failures_fed)).is_empty()
 
 
 ## A miss: miss, fail, then the tear once fail has rung out, and no PAID, notice or feed;
@@ -151,6 +160,53 @@ func test_before_an_inspected_shift_the_notice_prints_under_the_tear() -> void:
 	assert_str(lines[-2]).is_equal(ReceiptView.TEAR_PATTERN.repeat(60) + " | ")
 	assert_str(lines[-1]).is_equal(NOTICE + " | ")
 	await _assert_lines_on_screen(screen, 4)
+
+
+## A full belt passing an inspection before an inspected shift (2026-11-07, the user's "no weird
+## half receipt next to the receipt"): INSPECTION PASSED, the tear and the notice print on the
+## paper under its foot, the printer feeding them on, so the paper grows at its foot and rises by
+## them, every paid row keeping its place on it, nothing covered and nothing right of the paper.
+func test_a_full_belt_prints_its_dessert_on_the_paper() -> void:
+	var screen: ShiftScreen = await _screen()
+	await _place(screen, PASSING_ROW)
+	assert_bool(RowCapacity.fits(screen.run.limits, screen.run.row)).is_false()
+	screen._show_planning(screen.run.preview())
+	for frame: int in range(3):
+		await get_tree().process_frame
+	var receipt: ReceiptView = screen._receipt
+	var planned: Rect2 = ReceiptFed.planned_rect(screen)
+	assert_bool(receipt.get_global_rect().is_equal_approx(planned)).is_true()
+	var rows: Array[Vector2] = _row_offsets(receipt)
+	var count_up: CountUp = screen._count_up
+	count_up.music = null
+	count_up.play(
+		screen.run.preview(),
+		screen._row_views,
+		CardInstance.names(screen.run.row),
+		34,
+		CountUpContext.new(1, 0),
+		screen._loyalty_card.stamped_boxes(),
+		LoyaltyCard.names(screen.run.upgrades),
+		[],
+		PackedStringArray(["Spot check"]),
+		NOTICE
+	)
+	Rush.rush(count_up)
+	await _played(screen)
+	for frame: int in range(3):
+		await get_tree().process_frame
+	var fed: Array[Control] = ReceiptFed.lines(receipt)
+	assert_int(fed.size()).is_equal(3)
+	assert_object(ReceiptStamps.inspection_of(fed[0])).is_not_null()
+	assert_str((fed[1].get_child(0) as Label).text).starts_with(ReceiptView.TEAR_PATTERN)
+	assert_str((fed[2].get_child(0) as Label).text).is_equal(NOTICE)
+	var failures: Array[String] = ReceiptFed.failures(receipt, planned, SCREEN_RECT)
+	assert_array(failures).override_failure_message("\n".join(failures)).is_empty()
+	# The paper rose by its fed lines: its rows kept their places on it.
+	assert_float(receipt.get_global_rect().position.y).is_less(planned.position.y)
+	assert_array(_row_offsets(receipt)).is_equal(rows)
+	for line: Control in fed:
+		assert_bool(SCREEN_RECT.encloses(line.get_global_rect())).is_true()
 
 
 ## Exactly on the quota: a pass of 0€, "ON TARGET" in green with PAID.
@@ -258,7 +314,7 @@ func test_a_skipped_dessert_leaves_the_same_receipt_and_sounds() -> void:
 			assert_int(count_up.printer_feed_ms - count_up.total_shown_ms).is_less(
 				floori(took / 3.0)
 			)
-		for line: Node in screen._receipt._lines.get_children():
+		for line: Node in _printed(screen._receipt):
 			assert_float((line as CanvasItem).modulate.a).is_equal(1.0)
 
 
@@ -338,83 +394,28 @@ func test_the_shake_steps_up_with_the_intensity() -> void:
 	assert_float(CountUpDessert.shake_px(false, intensity, _tuning)).is_equal(6.0)
 
 
-## A pass with a bonus ticket to come (#77 machine v2, Q2 = 2): PAID, then the gold stub prints
-## at the receipt's foot (`print`), growing to the ticket's height over dessert_stub_ms, then the
-## tear under it; "+1 BONUS TICKET" shows beside the receipt (right of it, on screen) and fades
-## out once the stub has printed.
-func test_a_bonus_ticket_prints_its_stub_before_the_tear() -> void:
-	var screen: ShiftScreen = await _screen()
-	var sfx: Sfx = _recording_sfx(screen)
-	await _place(screen, PASSING_ROW)
-	var count_up: CountUp = screen._count_up
-	var context: CountUpContext = CountUpContext.new(1, 0)
-	context.bonus_ticket = true
-	_play(screen, 34, "", context)
-	var dessert: CountUpDessert = count_up._dessert
-	var brightest: float = 0.0
-	var receipt_end: float = 0.0
-	var banner_x: float = 0.0
-	while count_up._playing:
-		await get_tree().process_frame
-		if dessert.banner != null:
-			brightest = maxf(brightest, dessert.banner.modulate.a)
-			receipt_end = screen._receipt.get_global_rect().end.x
-			banner_x = dessert.banner.get_global_rect().position.x
-			assert_bool(SCREEN_RECT.encloses(dessert.banner.get_global_rect())).is_true()
-	var heard: Array[Dictionary] = _dessert_sounds(sfx, count_up)
-	assert_array(_names_of(heard)).is_equal(["total", "pass", "stamp_paid", "print", "rip"])
-	var printed: int = _ms_of(heard[3], count_up)
-	var tear: int = _ms_of(heard[4], count_up)
-	var stub_ms: int = _tuning.dessert_stub_ms + _tuning.dessert_tear_ms
-	assert_int(tear - printed).is_greater_equal(stub_ms - EARLY_MS)
-	var stub: ReceiptStub = screen._receipt.stub
-	assert_object(stub).is_not_null()
-	assert_float(stub.shown_height()).is_equal(BonusTicket.SIZE.y)
-	assert_str(stub.ticket.texts()[1]).is_equal(BonusTicket.sub_line(false, 1))
-	var lines: Array[Node] = screen._receipt._lines.get_children()
-	var at: int = lines.find(stub)
-	var tear_line: Label = lines[at + 1].get_child(0) as Label
-	assert_bool(tear_line.text.begins_with(ReceiptView.TEAR_PATTERN)).is_true()
-	assert_float(brightest).is_equal_approx(1.0, 0.05)
-	assert_float(banner_x).is_greater_equal(receipt_end)
-	# It fades out, then goes (none left behind on the overlay).
-	var shown: Label = dessert.banner
-	var start: int = Time.get_ticks_msec()
-	while is_instance_valid(shown) and Time.get_ticks_msec() - start < 2000:
-		await get_tree().process_frame
-	assert_bool(is_instance_valid(shown)).is_false()
-	assert_object(dessert.banner).is_null()
-
-
-## A payday (v0.68): the stub is the PREMIUM TICKET ("review passed · 2 of 2"), its title fitting
-## the ticket's title room, and the banner beside the receipt reads REVIEW PASSED / 2 PREMIUM
-## TICKETS, on screen and right of the receipt.
-func test_a_payday_prints_one_banner_and_a_premium_stub() -> void:
-	var screen: ShiftScreen = await _screen()
-	await _place(screen, PASSING_ROW)
-	var count_up: CountUp = screen._count_up
-	var context: CountUpContext = CountUpContext.new(4, 0)
-	context.bonus_ticket = true
-	context.payday = true
-	_play(screen, 34, "", context)
-	var dessert: CountUpDessert = count_up._dessert
-	var seen: String = ""
-	while count_up._playing:
-		await get_tree().process_frame
-		if dessert.banner != null and is_instance_valid(dessert.banner):
-			seen = dessert.banner.text
-			var box: Rect2 = dessert.banner.get_global_rect()
-			assert_bool(SCREEN_RECT.encloses(box)).override_failure_message(str(box)).is_true()
-			assert_float(box.position.x).is_greater_equal(screen._receipt.get_global_rect().end.x)
-	assert_str(seen).is_equal(Payday.BANNER)
-	var stub: ReceiptStub = screen._receipt.stub
-	assert_object(stub).is_not_null()
-	assert_array(Array(stub.ticket.texts())).is_equal([Payday.TICKET_TITLE, Payday.TICKET_SUB])
-	var title: Label = stub.ticket.labels()[0]
-	var font: Font = title.get_theme_font("font")
-	var font_size: int = title.get_theme_font_size("font_size")
-	var width: float = font.get_string_size(title.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
-	assert_float(width).is_less_equal(BonusTicket.TITLE_RECT.size.x)
+## A pass with a later draw to come (an inspection's BONUS draw, a payday's second PREMIUM draw):
+## since 2026-11-06 (the week medals) the receipt itself pays every draw, so the dessert prints no
+## stub and shows no banner: PAID, then the tear, with no `print` between them.
+func test_a_later_draw_prints_no_stub() -> void:
+	for payday: bool in [false, true]:
+		var screen: ShiftScreen = await _screen()
+		var sfx: Sfx = _recording_sfx(screen)
+		await _place(screen, PASSING_ROW)
+		var count_up: CountUp = screen._count_up
+		var context: CountUpContext = CountUpContext.new(4 if payday else 1, 0)
+		context.bonus_ticket = true
+		context.payday = payday
+		_play(screen, 34, "", context)
+		var beside: Array[String] = []
+		while count_up._playing:
+			await get_tree().process_frame
+			beside.append_array(ReceiptFed.beside(screen, screen._receipt.get_global_rect()))
+		var heard: Array[Dictionary] = _dessert_sounds(sfx, count_up)
+		assert_array(_names_of(heard)).is_equal(["total", "pass", "stamp_paid", "rip"])
+		assert_array(beside).override_failure_message("payday %s: %s" % [payday, beside]).is_empty()
+		var tear_line: Label = ReceiptFed.lines(screen._receipt)[0].get_child(0) as Label
+		assert_bool(tear_line.text.begins_with(ReceiptView.TEAR_PATTERN)).is_true()
 
 
 # --- Helpers ---------------------------------------------------------------------------------
@@ -454,16 +455,23 @@ static func _drawn_rect(control: Control) -> Rect2:
 	return Rect2(xform * Vector2.ZERO, Vector2.ZERO).expand(xform * control.size)
 
 
-## The receipt's last `count` lines, after a few frames: inside the receipt's scroll area and
-## the screen, one under the other without overlapping.
+## The receipt's last `count` lines, after a few frames: inside the receipt's scroll area (an
+## anchored count's dessert lines too, fed on under its foot, 2026-11-07) and the screen, one under
+## the other without overlapping.
 func _assert_lines_on_screen(screen: ShiftScreen, count: int) -> void:
 	for frame: int in range(3):
 		await get_tree().process_frame
-	var lines: Array[Node] = screen._receipt._lines.get_children()
+	var lines: Array[Node] = _printed(screen._receipt)
 	var scroll: Rect2 = screen._receipt._scroll.get_global_rect().grow(1.0)
 	var above: Rect2 = Rect2()
-	for line: Node in lines.slice(-count):
+	var shown: Array[Node] = lines.slice(-count)
+	shown.sort_custom(
+		func(a: Node, b: Node) -> bool:
+			return (a as Control).global_position.y < (b as Control).global_position.y
+	)
+	for line: Node in shown:
 		var rect: Rect2 = (line as Control).get_global_rect()
+		assert_bool((line as Control).is_visible_in_tree()).is_true()
 		assert_bool(rect.size.y > 0.0).is_true()
 		assert_bool(SCREEN_RECT.encloses(rect)).override_failure_message(str(rect)).is_true()
 		(
@@ -577,14 +585,27 @@ static func _color(label: Label) -> Color:
 
 ## The label at `index` of the receipt line at `line_index` (negative from the end).
 static func _line_label(receipt: ReceiptView, line_index: int, index: int) -> Label:
-	var lines: Array[Node] = receipt._lines.get_children()
+	var lines: Array[Node] = _printed(receipt)
 	return lines[line_index].get_child(index) as Label
+
+
+## Each item row's place on the paper (from its top-left), in slot order.
+static func _row_offsets(receipt: ReceiptView) -> Array[Vector2]:
+	var offsets: Array[Vector2] = []
+	for slot: int in range(receipt._items.size()):
+		offsets.append(receipt._items[slot].global_position - receipt.global_position)
+	return offsets
+
+
+## A receipt's lines in print order (an anchored count's dessert lines under its foot, 2026-11-07).
+static func _printed(receipt: ReceiptView) -> Array[Node]:
+	return receipt._lines.get_children()
 
 
 ## A receipt's lines as text ("left | right"; "---" for the rule above the total).
 static func _lines(receipt: ReceiptView) -> Array[String]:
 	var lines: Array[String] = []
-	for line: Node in receipt._lines.get_children():
+	for line: Node in _printed(receipt):
 		if line is HSeparator:
 			lines.append("---")
 			continue
@@ -615,6 +636,8 @@ func _start(
 	_frame_delta_ms.clear()
 	if not get_tree().process_frame.is_connected(_record_frame):
 		get_tree().process_frame.connect(_record_frame)
+	# As the screen does: planning's receipt first, which the count pays in place (anchored).
+	screen._show_planning(screen.run.preview())
 	count_up.play(
 		screen.run.preview(),
 		screen._row_views,

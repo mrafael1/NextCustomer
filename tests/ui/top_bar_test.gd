@@ -292,7 +292,7 @@ func test_the_chip_centres_its_words_ink() -> void:
 
 ## At the 1920x1080 window's 1.5x stretch (here the bar scaled 1.5x, half a screen pixel down, so
 ## no part's line lands on a whole pixel by chance): every word's baseline is on a whole screen
-## pixel (centre_parts' snap), and its ink middle within half a canvas pixel (0.75 screen px) of
+## pixel (_centre_parts' snap), and its ink middle within half a canvas pixel (0.75 screen px) of
 ## the number's and of the chip's middle, on every shift's chip.
 func test_the_chip_centres_its_words_on_whole_pixels_at_1_5x() -> void:
 	var bar: TopBar = auto_free(TopBar.new())

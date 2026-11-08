@@ -12,6 +12,7 @@ const HAPPY_HOUR := "res://data/inspections/happy_hour.tres"
 const EXTRA_TILL := "res://data/inspections/extra_till.tres"
 ## Checkouts rush their count (one tap): the suite tests what follows it.
 const Rush := preload("res://tests/ui/count_up_rush.gd")
+const ReceiptFed := preload("res://tests/ui/receipt_fed_lines.gd")
 const NOTICE := "INSPECTION NEXT SHIFT: Slot 3 pays 0€"
 const RECEIPT_LINE := "Spot check: slot 3 pays 0€"
 
@@ -56,8 +57,9 @@ func test_the_notice_comes_before_the_machine() -> void:
 	# Shift 3 is: the notice prints in red under shift 2's dessert (after the tear, #61), on the
 	# receipt beside the machine, so the pick can take it into account.
 	await _pass_shift(screen)
-	# Each line is a left and a right label: TOTAL and its verdict, the margin and PAID, the
-	# tear, then the notice; the last two with an empty right side.
+	# Each line is a left and a right label. The anchored receipt (2026-11-05) prints the tear and
+	# the notice (empty right sides) under its foot (2026-11-07), after TOTAL and its verdict, the
+	# margin and PAID.
 	var lines: PackedStringArray = _receipt_lines(screen)
 	var quota: int = run.quota()
 	(
@@ -75,7 +77,21 @@ func test_the_notice_comes_before_the_machine() -> void:
 			]
 		)
 	)
+	# A full belt: the tear and the notice print on the paper under its foot, the paper fed on and
+	# risen by them, covering no paid row, and nothing prints right of the paper (2026-11-07).
+	var fed: Array[Control] = ReceiptFed.lines(screen._receipt)
+	assert_int(fed.size()).is_equal(2)
+	var planned: Rect2 = ReceiptFed.planned_rect(screen)
+	var failures: Array[String] = ReceiptFed.failures(
+		screen._receipt, planned, screen.get_viewport_rect()
+	)
+	assert_array(failures).override_failure_message("\n".join(failures)).is_empty()
 	var notice: Label = _receipt_label(screen, NOTICE)
+	# 109€ is three laps of the quota, but shift 1 spent the week's medals (WeekMedals,
+	# 2026-11-06): the paper stays plain, the notice its plain red.
+	var spent: Array[int] = [WeekMedals.State.USED, WeekMedals.State.USED]
+	assert_array(screen._stage.top_bar.week_chip.medals().states()).is_equal(spent)
+	assert_bool(screen._receipt.gold.is_gold() or screen._receipt.gold.is_silver()).is_false()
 	assert_bool(notice.get_theme_color("font_color") == Palette.TOMATO).is_true()
 	assert_bool(screen._machine.is_open()).is_true()
 	await _frames(3)
@@ -87,12 +103,11 @@ func test_the_notice_comes_before_the_machine() -> void:
 	assert_str(_last_event("checkout")["next_inspection"]).is_equal("spot_check")
 	screen._machine.debug_skip()
 
-	# Shift 3: the chip shows the inspection's effect in the top bar (its name and notice on
-	# hover), never on the loyalty card.
+	# Shift 3: the chip shows the day's kind in the top bar (v1.16: no effect; its name and
+	# notice on hover), never on the loyalty card.
 	assert_int(run.shift_index).is_equal(2)
 	assert_bool(screen._inspection_tag.visible).is_true()
-	# The bonus pill's chip may drop "Inspection · " to fit the bar (#77 machine v2).
-	assert_str(screen._inspection_tag.text()).ends_with("Slot 3 pays 0€")
+	assert_str(screen._inspection_tag.text()).is_equal(InspectionTag.CAPTION)
 	assert_str(screen._inspection_tag.tooltip_text).contains("Spot check")
 	assert_str(screen._inspection_tag.tooltip_text).contains("Slot 3 pays 0€")
 	assert_bool(screen._loyalty_card.is_ancestor_of(screen._inspection_tag)).is_false()
@@ -146,7 +161,9 @@ func test_inspection_steps_print_and_play_from_the_tag() -> void:
 	assert_int(steps.size()).is_equal(1)
 	await Rush.checkout(screen)
 	assert_object(screen._count_up._beats._source_control(steps[0])).is_same(screen._inspection_tag)
-	assert_str(_receipt_text(screen)).contains(RECEIPT_LINE)
+	# The anchored receipt pays planning's rows in place: the step plays on the monitor, not as a
+	# printed line (2026-11-05).
+	assert_str(_receipt_text(screen)).not_contains(RECEIPT_LINE)
 	assert_object(screen.run.history[0].inspection).is_not_null()
 	assert_int(dead.fired_count()).is_equal(1)
 
@@ -270,14 +287,15 @@ func test_the_planning_notice_promises_and_earns_the_bonus_ticket() -> void:
 	assert_str(tag.tooltip_text).contains("PASS › +1 BONUS TICKET")
 	assert_str(tag.full_text()).contains("+1")
 	await _frames(3)
-	# The effect is cut only once everything else gave way (InspectionTag.fit_width; since v0.70
-	# the week chip's name and pips too, TopBar.fit_inspection), and the tooltip keeps it whole.
-	var effect: String = (load(SPOT_CHECK) as InspectionDefinition).chip_text
+	# The kind is cut only once everything else gave way (InspectionTag.fit_width; since v0.70
+	# the week chip's name and pips too, TopBar.fit_inspection), and the tooltip keeps the effect.
+	var effect: String = (load(SPOT_CHECK) as InspectionDefinition).notice_text
 	if tag.is_trimmed():
 		var week_chip: WeekChip = screen._stage.top_bar.week_chip
 		assert_bool(week_chip.name_shown() or week_chip.pips_shown()).is_false()
 	else:
-		assert_str(tag.label().text).contains(effect)
+		assert_str(tag.label().text).is_equal(InspectionTag.CAPTION)
+	assert_str(tag.tooltip_text).contains(effect)
 	assert_str(tag.tooltip_text).contains((load(SPOT_CHECK) as InspectionDefinition).display_name)
 	assert_str(tag.tooltip_text).contains(InspectionTag.PILL_TIP)
 	var chip: Rect2 = tag.get_global_rect()
@@ -484,7 +502,8 @@ func test_a_closed_slot_shows_on_the_row() -> void:
 	assert_bool(closed_rect.intersects(screen._receipt.get_global_rect())).is_false()
 	assert_int(screen.run.limits.slot_count).is_equal(6)
 	assert_int(screen.run.limits.closed_slots).is_equal(1)
-	assert_str(screen._inspection_tag.text()).is_equal("Inspection · −1 slot")
+	assert_str(screen._inspection_tag.text()).is_equal(InspectionTag.CAPTION)
+	assert_str(screen._inspection_tag.tooltip_text).contains("Short belt")
 	screen._row_strip.closed_clicked.emit()
 	assert_str(screen._notice_label.text).contains("Closed by the inspection")
 
@@ -512,7 +531,7 @@ func test_a_full_row_explains_why_a_card_does_not_fit() -> void:
 	var caption: Label = RowStrip.closed_caption_label(screen._row_strip.closed[0])
 	assert_str(caption.text).is_equal("inspection")
 	assert_str(screen._row_strip.closed[0].tooltip_text).contains("Short belt")
-	assert_str(screen._inspection_tag.text()).is_equal("Inspection · −1 slot")
+	assert_str(screen._inspection_tag.text()).is_equal(InspectionTag.CAPTION)
 
 
 ## Day events aimed at a slot wear its mark (2026-10-31: "day event that impact a specific slot

@@ -15,8 +15,8 @@ extends RefCounted
 ##
 ## Pure: it reads only its MachineTuning (data/balance/machine_tempo.tres) and its inputs. Every
 ## machine node's frame(t) reads only the plan and t, a test seam like the page's `?at=`.
-## TICKET t = 0 is the dessert's printer feed (page T.fly); BONUS t = 0 is the page's b0 (the
-## first visit's punch end + 0.3). (STAMP DAY, the page's T.sd, went in v0.61.)
+## TICKET t = 0 is the dessert's printer feed (page T.fly); BONUS t = 0 is the end of the draw
+## before it. (STAMP DAY, the page's T.sd, went in v0.61.)
 ##
 ## v0.50 (mock-up docs/art/mockups/premium_machine_v1.html): a PREMIUM visit (`premium`; since v0.61
 ## a rarity boost, #108) turns the machine PREMIUM after its receipt is read (premium_at ..
@@ -29,11 +29,17 @@ extends RefCounted
 ##
 ## Machine v2 (Q1 = A, docs/art/mockups/machine_77_v2.html): the machine stands on the back wall
 ## and a TICKET visit's intro glides the camera to it (glide .. glide_end, camera_at) while the
-## torn receipt travels to the slot (fly .. fly_end) and is fed (.. feed_end); with a BONUS
-## pending (Q2 = 2, `stub`) the receipt's gold stub snaps off at `snap` and flies to the slot
-## plate's dock. A BONUS visit's ticket goes from the dock to over the slot (fly .. fly_end) and is
-## fed (.. feed_end). The return glide after the shift's last visit has its own static times
-## (return_camera, return_fade, return_lit, return_length).
+## torn receipt travels to the slot (fly .. fly_end) and is fed (.. feed_end). The return glide
+## after the shift's last visit has its own static times (return_camera, return_fade, return_lit,
+## return_length).
+##
+## Draw lamps (2026-11-06, the week medals; mock-up docs/art/mockups/week_medals.html section 5):
+## the receipt feeds once and pays every draw of its shift (`draws`: the ticket's, a payday's
+## second PREMIUM draw, the SILVER medal's extra draw), one round lamp each on the reader plate.
+## The TICKET visit's read lights them (lamps_on), RELIGHT apart; after each prize the visit's lamp
+## flashes and goes dark (lamp_out .. lamp_out_end), and a later draw (`draw_index` 1 on; a BONUS
+## plan, the OVERTIME draw shown as one) opens on AGAIN! (0 .. read_end) while the bay refills: no
+## ticket ever goes into the machine.
 
 enum WaitPoint { CHOOSE, PICK, END }
 ## What the pick did: a card added (NEW ITEMS, COUPONS), copies upgraded, a register stamped, or
@@ -53,29 +59,35 @@ var kind: int = MachineVisit.Kind.TICKET
 var reduced_motion: bool = false
 ## BONUS: an inspection was passed (false: a bonus extra shift). Texts only; same times.
 var inspected: bool = true
-## TICKET: a BONUS visit follows, so the receipt carries the gold stub that snaps off (Q2 = 2).
-var stub: bool = false
 ## TICKET or BONUS (v0.53): a PREMIUM visit (#108: after a premium shift), so the machine turns
 ## PREMIUM after the receipt is read (v0.50).
 var premium: bool = false
 ## BONUS (v0.53): the shift's ticket visit was PREMIUM too, so the machine is PREMIUM from the
 ## visit's start (no transform, no snap back to classic between the two visits).
 var premium_held: bool = false
-## v1.03: the extra ticket is the over-quota OVERTIME one (OvertimeTickets): on a BONUS plan, its
-## visit is an OVERTIME visit (shown as a BONUS visit with its own words, OvertimeWords); on a
-## TICKET plan with a stub, the stub is the OVERTIME ticket's. Texts only; same times.
+## v1.03: on a BONUS plan, the draw is the over-quota OVERTIME one (the SILVER medal's extra draw,
+## shown as a BONUS draw with its own words, OvertimeWords). Texts only; same times.
 var overtime: bool = false
+## The draws the shift's receipt pays (the reader plate's lamps, 1 to 3) and which one this visit
+## is (0: the ticket's, which feeds the receipt). Setting either replans.
+var draws: int = 1:
+	set(value):
+		draws = maxi(1, value)
+		_build()
+var draw_index: int = 0:
+	set(value):
+		draw_index = maxi(0, value)
+		_build()
 ## Positioned at a wait point by resume_at(): the clock starts at `start` and nothing before it
 ## replays (every node shows the resume frame of build spec 4.3).
 var resumed: bool = false
 var start: float = 0.0
 
 # INTRO. TICKET: the receipt travels (fly .. fly_end) while the camera glides (glide ..
-# glide_end) and its stub snaps at `snap` (NOT_SET without one); BONUS: the ticket goes from the
-# dock to the slot (fly .. fly_end). Both are then fed (.. feed_end).
+# glide_end), then it is fed (.. feed_end) and read (.. read_end). BONUS (a later draw): no feed
+# (fly, fly_end and feed_end are 0), AGAIN! until read_end.
 var glide: float = 0.0
 var glide_end: float = 0.0
-var snap: float = NOT_SET
 var fly: float = 0.0
 var fly_end: float = 0.0
 var feed_end: float = 0.0
@@ -119,6 +131,9 @@ var punch: float = NOT_SET
 var punch_end: float = NOT_SET
 var drawer_in: float = NOT_SET
 var drawer_out: float = NOT_SET
+## The visit's lamp flashes from lamp_out (the punch's end) and is dark from lamp_out_end.
+var lamp_out: float = NOT_SET
+var lamp_out_end: float = NOT_SET
 var end_at: float = NOT_SET
 
 var _beat_names: Array[StringName] = []
@@ -130,7 +145,6 @@ func _init(
 	visit_kind: int,
 	rm: bool,
 	has_inspection: bool = true,
-	has_stub: bool = false,
 	is_premium: bool = false,
 	held: bool = false
 ) -> void:
@@ -138,7 +152,6 @@ func _init(
 	kind = visit_kind
 	reduced_motion = rm
 	inspected = has_inspection
-	stub = has_stub and visit_kind == MachineVisit.Kind.TICKET
 	premium = is_premium
 	premium_held = premium and held and visit_kind == MachineVisit.Kind.BONUS
 	_build()
@@ -174,8 +187,10 @@ func wait_time(point: int) -> float:
 ## A copy positioned at `point` for a resume: resumed, starting at that wait point.
 func resume_at(point: int) -> MachinePlan:
 	var copy: MachinePlan = MachinePlan.new(
-		tuning, kind, reduced_motion, inspected, stub, premium, premium_held
+		tuning, kind, reduced_motion, inspected, premium, premium_held
 	)
+	copy.draws = draws
+	copy.draw_index = draw_index
 	if has_draw:
 		copy.set_draw(rarities)
 	if has_landing:
@@ -261,25 +276,34 @@ func fade_at(t: float) -> float:
 	return triangle(t - glide, MachineTuning.sec(tuning.rm_fade_ms)) * tuning.rm_fade_alpha
 
 
-## The stub's height share at `t` (1 whole .. 0 snapped off): it shrinks from snap +
-## snap_delay_ms over snap_ms (reduced motion: gone at the snap). 1 without a stub.
-func stub_left(t: float) -> float:
-	if snap < 0.0 or t < snap:
-		return 1.0
-	if reduced_motion:
-		return 0.0
-	var from: float = snap + MachineTuning.sec(tuning.snap_delay_ms)
-	return 1.0 - _seg(t, from, from + MachineTuning.sec(tuning.snap_ms))
+## The draw lamps lit at `t` (from the left; the rest dark): none before the TICKET's read lights
+## them, RELIGHT (relight_stagger_ms) apart from feed_end; then the draws left including this one,
+## one fewer once this visit's lamp has gone out (lamp_out_end).
+func lamps_on(t: float) -> int:
+	var left: int = maxi(draws - draw_index, 0)
+	if lamp_out_end >= 0.0 and t >= lamp_out_end:
+		return maxi(left - 1, 0)
+	if draw_index > 0 or kind != MachineVisit.Kind.TICKET:
+		return left
+	if t < feed_end:
+		return 0
+	var stagger: float = MachineTuning.sec(tuning.relight_stagger_ms)
+	if stagger <= 0.0:
+		return left
+	return mini(left, floori((t - feed_end) / stagger) + 1)
 
 
-## The bonus ticket's flight from the stub to the dock at `t` (0 at the snap .. 1 docked;
-## reduced motion: docked at the snap), or NOT_SET before the snap or without a stub.
-func dock_flight(t: float) -> float:
-	if snap < 0.0 or t < snap:
-		return NOT_SET
-	if reduced_motion:
-		return 1.0
-	return _seg(t, snap, snap + MachineTuning.sec(tuning.dock_flight_ms))
+## The lamp of this visit (the last lit one) flashing at `t`: below 0 outside its flash, else its
+## progress (0 .. 1) through lamp_out_ms.
+func lamp_flash(t: float) -> float:
+	if lamp_out < 0.0 or t < lamp_out or t >= lamp_out_end:
+		return -1.0
+	return (t - lamp_out) / maxf(lamp_out_end - lamp_out, MachineTuning.sec(1))
+
+
+## Whether this visit is a later draw of the shift's receipt (AGAIN!, no feed).
+func is_again() -> bool:
+	return kind != MachineVisit.Kind.TICKET
 
 
 ## The return glide's camera progress `t` seconds after it starts (1 at the machine .. 0 back in
@@ -346,17 +370,17 @@ func _build() -> void:
 
 func _build_intro() -> void:
 	var rm: bool = reduced_motion
-	snap = NOT_SET
 	premium_at = NOT_SET
 	premium_end = NOT_SET
 	glide = 0.0
 	glide_end = 0.0
 	match kind:
 		MachineVisit.Kind.BONUS:
+			# A later draw of the same receipt (2026-11-06): AGAIN! and the keys relight.
 			fly = 0.0
-			fly_end = fly + MachineTuning.sec(tuning.bonus_to_slot_ms)
-			feed_end = fly_end + MachineTuning.sec(tuning.bonus_feed_ms)
-			read_end = feed_end + MachineTuning.sec(tuning.bonus_read_ms)
+			fly_end = 0.0
+			feed_end = 0.0
+			read_end = MachineTuning.sec(tuning.again_ms)
 			lights = read_end
 			if premium_held:
 				premium_at = 0.0
@@ -364,7 +388,7 @@ func _build_intro() -> void:
 			elif premium:
 				lights = _plan_premium(read_end)
 			lights_end = lights + MachineTuning.sec(tuning.bonus_lights_ms)
-			choose_at = maxf(lights_end, feed_end + MachineTuning.sec(tuning.again_ms))
+			choose_at = lights_end
 			_beat(&"bonus", 0.0)
 		_:
 			fly = 0.0
@@ -379,9 +403,6 @@ func _build_intro() -> void:
 			glide = MachineTuning.sec(tuning.glide_lead_ms)
 			glide_end = glide + MachineTuning.sec(tuning.glide_ms)
 			_beat(&"glide", glide)
-			if stub:
-				snap = maxf(fly, fly_end - MachineTuning.sec(tuning.snap_lead_ms))
-				_beat(&"snap", snap)
 	_beat(&"feed", fly)
 	_beat(&"read", feed_end)
 	_beat(&"lights", lights)
@@ -473,10 +494,14 @@ func _build_landing() -> void:
 	if landing != Landing.BIN:
 		drawer_in = fly_out - MachineTuning.sec(tuning.drawer_lead_ms)
 		drawer_out = punch + MachineTuning.sec(tuning.drawer_tail_ms)
-	if next_visit == MachineVisit.Kind.BONUS:
-		end_at = punch_end + MachineTuning.sec(tuning.before_bonus_ms)
+	# The visit's draw lamp flashes and goes dark after its prize (2026-11-06).
+	lamp_out = punch_end
+	lamp_out_end = lamp_out + MachineTuning.sec(tuning.lamp_out_rm_ms if rm else tuning.lamp_out_ms)
+	if next_visit != NO_VISIT:
+		end_at = maxf(punch_end + MachineTuning.sec(tuning.before_bonus_ms), lamp_out_end)
 	else:
-		end_at = punch_end + MachineTuning.seconds(tuning.end_hold_ms, kind)
+		end_at = maxf(punch_end + MachineTuning.seconds(tuning.end_hold_ms, kind), lamp_out_end)
+	_beat(&"lamp_out", lamp_out)
 	_beat(&"pick", press)
 
 

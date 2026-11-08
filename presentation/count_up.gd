@@ -374,17 +374,6 @@ func play(
 		if not context.boon_names.has(inspection_name):
 			inspected.append(inspection_name)
 	_dessert.inspection = ", ".join(inspected)
-	# A bonus ticket follows (#77 machine v2, Q2 = 2): the dessert prints its gold stub; an
-	# OVERTIME ticket's when it is the only one (v1.03).
-	_dessert.bonus_stub = context.overtime_stub
-	_dessert.banner_text = CountUpDessert.BANNER_TEXT
-	if not context.overtime_stub.is_empty():
-		_dessert.banner_text = OvertimeWords.BANNER
-	if context.bonus_ticket:
-		_dessert.bonus_stub = BonusTicket.sub_line(
-			not inspected.is_empty(), context.shift, context.payday
-		)
-		_dessert.banner_text = Payday.BANNER if context.payday else CountUpDessert.BANNER_TEXT
 	_dessert.write_up = context.write_up
 	await _climax_ended()
 	await _dessert.play(

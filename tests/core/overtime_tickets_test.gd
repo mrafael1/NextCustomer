@@ -115,8 +115,9 @@ func test_the_x2_ticket_is_once_a_week() -> void:
 	assert_array(run.machine.pending_kinds()).is_equal([MachineVisit.Kind.OVERTIME])
 
 
-## ×3 turns the ticket's visit PREMIUM and, reaching ×2 too, also takes the week's extra ticket,
-## which stays CLASSIC.
+## ×3 turns the ticket's visit PREMIUM and, reaching ×2 too, also takes the week's extra draw,
+## which is PREMIUM too (2026-11-06: one receipt's draws share its look, "a premium visit with 2
+## draws").
 func test_x3_makes_the_ticket_premium_and_takes_the_extra_ticket() -> void:
 	var run: RunState = _run()
 	_check_out(run, X3)
@@ -130,7 +131,8 @@ func test_x3_makes_the_ticket_premium_and_takes_the_extra_ticket() -> void:
 	assert_bool(OvertimeTickets.is_premium_visit(run)).is_true()
 	assert_array(run.machine.pending_kinds()).is_equal([MachineVisit.Kind.OVERTIME])
 	_bin_visit(run)
-	assert_bool(run.machine.current_visit().premium).is_false()
+	assert_int(run.machine.current_visit().kind).is_equal(MachineVisit.Kind.OVERTIME)
+	assert_bool(run.machine.current_visit().premium).is_true()
 	assert_bool(OvertimeTickets.is_premium_visit(run)).is_false()
 	assert_int(OvertimeTickets.state(run, record, true)).is_equal(OvertimeTickets.State.EARNED)
 
@@ -159,7 +161,8 @@ func test_the_weekly_caps_are_separate() -> void:
 
 
 ## A ticket already PREMIUM (a premium shift's) is not transformed and uses nothing: the week's
-## transform stays for a later ×3 shift. Its BONUS visit is unchanged, the extra ticket CLASSIC.
+## transform stays for a later ×3 shift. Its BONUS visit is unchanged, the extra draw PREMIUM as
+## the ticket's (2026-11-06: the payday's two premium draws and the SILVER's make 3).
 func test_an_already_premium_ticket_keeps_the_transform() -> void:
 	_balance.machine.premium_shifts = PackedInt32Array([2])
 	_balance.machine.bonus_extra_shifts = PackedInt32Array([2])
@@ -180,7 +183,7 @@ func test_an_already_premium_ticket_keeps_the_transform() -> void:
 	assert_bool(run.machine.current_visit().premium).is_true()  # The premium shift's BONUS.
 	_bin_visit(run)
 	assert_int(run.machine.current_visit().kind).is_equal(MachineVisit.Kind.OVERTIME)
-	assert_bool(run.machine.current_visit().premium).is_false()
+	assert_bool(run.machine.current_visit().premium).is_true()
 	_next(run)
 	assert_bool(OvertimeTickets.available(run, true)).is_true()
 	_check_out(run, X3)
@@ -243,7 +246,11 @@ func test_the_rewards_round_trip_through_the_save() -> void:
 	_bin_visit(restored)
 	var again: RunState = _round_trip(restored)
 	assert_int(again.machine.current_visit().kind).is_equal(MachineVisit.Kind.OVERTIME)
-	assert_bool(again.machine.current_visit().premium).is_false()
+	assert_bool(again.machine.current_visit().premium).is_true()  # The GOLD receipt's 2nd draw.
+	# A save from before 2026-11-06 (its OVERTIME draw CLASSIC after a PREMIUM ticket) still loads.
+	var older: Dictionary = _json(RunSave.to_dictionary(restored, "id", 0))
+	_set_visit_premium(older, false)
+	assert_object(RunSave.from_dictionary(older, _lookup)).is_not_null()
 	MachineSteps.choose(run, RewardMachine.Chute.NEW_ITEMS)
 	MachineSteps.choose(again, RewardMachine.Chute.NEW_ITEMS)
 	assert_array(_prize_keys(again)).is_equal(_prize_keys(run))
@@ -268,6 +275,14 @@ func test_a_save_with_an_unearned_reward_is_refused() -> void:
 	data = _json(RunSave.to_dictionary(run, "id", 0))
 	history = data["history"]
 	(history[-1] as Dictionary).erase("overtime_ticket")
+	assert_object(RunSave.from_dictionary(data, _lookup)).is_null()
+	# A PREMIUM OVERTIME draw after a CLASSIC ticket (no GOLD medal spent) does not fit either.
+	var silver: RunState = _run()
+	_check_out(silver, X2)
+	_bin_visit(silver)
+	data = _json(RunSave.to_dictionary(silver, "id", 0))
+	assert_object(RunSave.from_dictionary(data, _lookup)).is_not_null()
+	_set_visit_premium(data, true)
 	assert_object(RunSave.from_dictionary(data, _lookup)).is_null()
 
 
@@ -344,6 +359,12 @@ func _bin_visit(run: RunState) -> void:
 	if run.phase == RunState.Phase.MACHINE_CHOOSE:
 		MachineSteps.choose(run, MachineSteps.first_lit(run, RewardMachine.Chute.NEW_ITEMS))
 	assert_bool(run.machine.bin(run)).is_true()
+
+
+## Sets the saved visit under way's PREMIUM flag in `data` (a run save's dictionary).
+static func _set_visit_premium(data: Dictionary, premium: bool) -> void:
+	var machine: Dictionary = data["machine"]
+	(machine["visit"] as Dictionary)["premium"] = premium
 
 
 func _round_trip(run: RunState) -> RunState:

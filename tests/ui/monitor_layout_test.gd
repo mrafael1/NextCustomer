@@ -526,7 +526,9 @@ func test_the_description_band_and_the_open_equation() -> void:
 ## negative in red" and "multiplier should be aligned with other number"): over a ladder of
 ## amounts (the base price, bonuses, factors from ×1 to ×5, a harmful factor, a minus amount, a
 ## 0€ denial and WASTED), a bonus's name green as its amount, a harmful row's and an unused one's
-## tomato, a factor's and the base line's names their own (teal, ink); every euro amount's and
+## tomato, a factor's over ×1 green too (v1.16, the user's "multiplier (if > 1.0) should also put
+## text on green"; its amount keeps its strength's ink), a ×1 factor's and the base line's names
+## their own (teal, ink); every euro amount's and
 ## WASTED's visible ink on one right edge, every factor's digits ending on the euro amounts' digits,
 ## all at one size on one baseline (MonitorParts.amounts_aligned); the same at 1080p's scale.
 func test_row_names_take_their_amounts_colour_and_the_numbers_align() -> void:
@@ -536,9 +538,10 @@ func test_row_names_take_their_amounts_colour_and_the_numbers_align() -> void:
 		["+2€ Strawberries before it", false, false, MonitorStepRow.BONUS_COLOR],
 		["+1032€ Banana chain", false, false, MonitorStepRow.BONUS_COLOR],
 		["× Snack deal  ×1", false, false, MonitorStepRow.TEXT_COLOR],
-		["× 2 for 1  ×2", false, false, MonitorStepRow.TEXT_COLOR],
-		["× Multipack  ×3", false, false, MonitorStepRow.TEXT_COLOR],
-		["× Banana stand  ×5", false, false, MonitorStepRow.TEXT_COLOR],
+		["× Stale popcorn  ×1.5", false, false, MonitorStepRow.BONUS_COLOR],
+		["× 2 for 1  ×2", false, false, MonitorStepRow.BONUS_COLOR],
+		["× Multipack  ×3", false, false, MonitorStepRow.BONUS_COLOR],
+		["× Banana stand  ×5", false, false, MonitorStepRow.BONUS_COLOR],
 		["× Markdown  ×0.5", false, false, MonitorStepRow.HARM_COLOR],
 		["-2€ Frozen peas after it", false, true, MonitorStepRow.HARM_COLOR],
 		["Spot check: 0€", false, true, MonitorStepRow.HARM_COLOR],
@@ -593,7 +596,7 @@ func test_row_names_take_their_amounts_colour_and_the_numbers_align() -> void:
 				MonitorParts.DIGIT_TOLERANCE
 			)
 			factors += 1
-	assert_int(factors).is_equal(5)
+	assert_int(factors).is_equal(6)
 	# A "gives" row keeps its teal name; its amount (round 7, unbracketed; v1.11: the effect alone)
 	# takes its effect's ink, a factor's or a bonus's green; its equation is a line of its own under
 	# the name, indented, the row a line taller.
@@ -735,6 +738,49 @@ func _assert_band_on_paper(column: MonitorItemColumn, case_name: String) -> void
 		if is_equal_approx(rect.position.y, band.end.y - line) and rect.size.y == line:
 			feet += 1
 	assert_int(feet).override_failure_message(case_name).is_greater(0)
+
+
+## v1.16 (the user's "multiplier (if > 1.0) should also put text on green"): a factor over ×1
+## ("×1.25", "×1.5", "×2", "×5") names its row in the bonuses' green, legible on the monitor's
+## paper (3:1 or more), its amount keeping its strength's ink; a ×1 factor's name stays teal, a
+## factor under ×1 tomato, and a "gives" row's teal whatever its factor (its amount is another
+## item's).
+func test_a_factor_over_one_names_its_row_in_green() -> void:
+	var plain: MonitorStepRow.Tone = MonitorStepRow.Tone.PLAIN
+	for amount: String in ["×1.25", "×1.5", "×2", "×5"]:
+		assert_bool(MonitorStepRow.raises(amount)).override_failure_message(amount).is_true()
+		(
+			assert_that(MonitorStepRow.name_colour_of(amount, plain, false))
+			. override_failure_message(amount)
+			. is_equal(MonitorStepRow.BONUS_COLOR)
+		)
+		(
+			assert_that(MonitorStepRow.amount_colour_of(amount, plain))
+			. override_failure_message(amount)
+			. is_equal(MonitorStepRow.factor_ink(MonitorStepRow.factor_step(amount)))
+		)
+		(
+			assert_that(MonitorStepRow.name_colour_of(amount, plain, true))
+			. override_failure_message(amount)
+			. is_equal(MonitorStepRow.TEXT_COLOR)
+		)
+	for amount: String in ["×1", "×1.0", "+2€", "4€", ""]:
+		assert_bool(MonitorStepRow.raises(amount)).override_failure_message(amount).is_false()
+	assert_that(MonitorStepRow.name_colour_of("×1", plain, false)).is_equal(
+		MonitorStepRow.TEXT_COLOR
+	)
+	assert_that(MonitorStepRow.name_colour_of("×0.5", plain, false)).is_equal(
+		MonitorStepRow.HARM_COLOR
+	)
+	assert_float(_contrast(MonitorStepRow.BONUS_COLOR, Palette.PAPER)).is_greater_equal(3.0)
+	var row: Control = auto_free(
+		MonitorStepRow.make("× Week bonus  ×1.25", plain, false, null, 2, 264.0)
+	)
+	var text: Label = row.get_node("Text") as Label
+	assert_that(text.get_theme_color("font_color")).is_equal(MonitorStepRow.BONUS_COLOR)
+	var amount_label: Label = row.get_node("Amount") as Label
+	assert_str(amount_label.text).is_equal("×1.25")
+	assert_float(text.position.x + text.size.x).is_less_equal(amount_label.position.x)
 
 
 ## The WCAG contrast of two colours.

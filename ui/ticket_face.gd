@@ -1,69 +1,67 @@
 class_name TicketFace
 extends RefCounted
-## A ticket's art (tickets v5, V5a of mock-up shift_scene_polish_v5_tickets.html): 54x38 art, or
-## 54x48 for an item with a gained family (`tall`), shown at 2x (PriceSticker.SIZE, TALL_SIZE).
+## A ticket's art (tickets v5, V5a of mock-up shift_scene_polish_v5_tickets.html): 54x38 art, shown
+## at 2x (PriceSticker.SIZE), the same height for every item (2026-11-05: a gained family's glyph
+## joins the printed ones on the label's one row; the tall ticket went).
 ## An ink outline with its corners cut two steps; the face in the colours of the family the card
 ## works with (FamilyStyle, data): its light colour on the top row and the left column, its shade
 ## on the right column and the bottom row. A split ticket (two families) is a 45° pixel stair:
 ## a pixel past SPLIT_SUM takes the second family, the stair's seam (x + y == SPLIT_SUM + 1) the
 ## second family's light colour. A coupon's bottom row is perforated in paper.
 ##
-## Three fixed zones sit on the face. Top left, the icon label (LABEL: two rows of icons on a tall
-## ticket, LABEL_TALL) and top right, the price window's place (WINDOW: PriceWindow draws it,
-## painted paper here so a dimmed window fades to paper): two paper boxes framed by the face
+## Three zones sit on the face. Top left, the icon label (LABEL: one row of two icons; LABEL_WIDE,
+## three icons, for an item with two printed families and a gained one, `wide`) and top right, the
+## price window's place (WINDOW, WINDOW_WIDE beside the wide label: PriceWindow draws it, painted
+## paper here so a dimmed window fades to paper): two paper boxes framed by the face
 ## itself, one art px of the family's colours round each (the light row over them, the light
 ## column left, the shade column right, the face between them and under them; the user's play
 ## test of 2026-11-03: "badge and price sections should still have a border ... with family
 ## color"). A split ticket's frame follows its stair, so the window's frame is the second family's
-## from the stair on. Under them, the rule plate (PLATE, PLATE_TALL): cream with a cream-shade top
+## from the stair on. Under them, the rule plate (PLATE): cream with a cream-shade top
 ## row and left column. Built from the data's colours (no PNG per family), each look once (a cache
-## by its colours and height).
+## by its colours and its label).
 
 const ART_SIZE := Vector2i(54, 38)
-const TALL_ART_SIZE := Vector2i(54, 48)
 const SPLIT_SUM := 41
 ## The icon label (art px), paper; the face's column between it and the window is at LABEL.end.x.
 const LABEL := Rect2i(2, 2, 21, 11)
-const LABEL_TALL := Rect2i(2, 2, 21, 21)
+## A third icon's room: the label reaches 10 art px further (an icon's step), the window starts
+## after it, one face column between them, and keeps its right edge.
+const LABEL_WIDE := Rect2i(2, 2, 31, 11)
 ## The price window (art px, PriceWindow's rect at 2x), paper; the face's row under it is at
 ## WINDOW.end.y.
 const WINDOW := Rect2i(24, 2, 28, 11)
+const WINDOW_WIDE := Rect2i(34, 2, 18, 11)
 ## The rule plate (art px), the face's row over it at its top - 1.
 const PLATE := Rect2i(3, 14, 48, 22)
-const PLATE_TALL := Rect2i(3, 24, 48, 22)
 
 static var _cache: Dictionary[String, ImageTexture] = {}
 
 
-## The face of a ticket in `families` (one, or two for a split), perforated for a `coupon`, tall
-## for an item with a gained family.
-static func texture(families: Array[FamilyStyle], coupon: bool, tall: bool = false) -> Texture2D:
-	var key: String = ("c" if coupon else "p") + ("t" if tall else "s")
+## The face of a ticket in `families` (one, or two for a split), perforated for a `coupon`, with the
+## wide label for three icons (`wide`).
+static func texture(families: Array[FamilyStyle], coupon: bool, wide: bool = false) -> Texture2D:
+	var key: String = ("c" if coupon else "p") + ("w" if wide else "s")
 	for family: FamilyStyle in families:
 		key += "|%s%s%s" % [family.face.to_html(), family.light.to_html(), family.shade.to_html()]
 	if not _cache.has(key):
-		_cache[key] = ImageTexture.create_from_image(image(families, coupon, tall))
+		_cache[key] = ImageTexture.create_from_image(image(families, coupon, wide))
 	return _cache[key]
 
 
-## The art size of a ticket, tall or not.
-static func art_size(tall: bool) -> Vector2i:
-	return TALL_ART_SIZE if tall else ART_SIZE
+## The icon label's rect (art px) on a ticket, wide (three icons) or not.
+static func label_rect(wide: bool) -> Rect2i:
+	return LABEL_WIDE if wide else LABEL
 
 
-## The icon label's rect (art px) on a ticket, tall or not.
-static func label_rect(tall: bool) -> Rect2i:
-	return LABEL_TALL if tall else LABEL
-
-
-## The rule plate's rect (art px) on a ticket, tall or not.
-static func plate_rect(tall: bool) -> Rect2i:
-	return PLATE_TALL if tall else PLATE
+## The price window's rect (art px) on a ticket, beside the wide label or not.
+static func window_rect(wide: bool) -> Rect2i:
+	return WINDOW_WIDE if wide else WINDOW
 
 
 ## The face's art (see the class comment). Pure.
-static func image(families: Array[FamilyStyle], coupon: bool, tall: bool = false) -> Image:
-	var art: Vector2i = art_size(tall)
+static func image(families: Array[FamilyStyle], coupon: bool, wide: bool = false) -> Image:
+	var art: Vector2i = ART_SIZE
 	var out: Image = Image.create_empty(art.x, art.y, false, Image.FORMAT_RGBA8)
 	var split: bool = families.size() > 1
 	var right: int = art.x - 1
@@ -85,15 +83,15 @@ static func image(families: Array[FamilyStyle], coupon: bool, tall: bool = false
 			if coupon and y == bottom - 1 and x >= 3 and x < right - 2 and x % 3 != 2:
 				colour = Palette.PAPER
 			_put(out, x, y, colour)
-	_paint_zones(out, tall)
+	_paint_zones(out, wide)
 	return out
 
 
-static func _paint_zones(out: Image, tall: bool) -> void:
+static func _paint_zones(out: Image, wide: bool) -> void:
 	# The face round the two paper boxes is their frame.
-	_fill(out, label_rect(tall), Palette.PAPER)
-	_fill(out, WINDOW, Palette.PAPER)
-	var plate: Rect2i = plate_rect(tall)
+	_fill(out, label_rect(wide), Palette.PAPER)
+	_fill(out, window_rect(wide), Palette.PAPER)
+	var plate: Rect2i = PLATE
 	_fill(out, plate, Palette.CREAM)
 	_fill(out, Rect2i(plate.position, Vector2i(plate.size.x, 1)), Palette.CREAM_SHADE)
 	_fill(out, Rect2i(plate.position, Vector2i(1, plate.size.y)), Palette.CREAM_SHADE)

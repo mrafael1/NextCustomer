@@ -14,8 +14,8 @@ extends Control
 ## flight, the bounce, the sunburst and the sparkles and keeps the tag still (no glint). Display
 ## only: the shift screen says when (show_tag, clear) and `active` says whether the tag still
 ## belongs on screen (planning, or the count-up).
-## A payday (v0.68, `payday`: passing the Manager's review pays two PREMIUM tickets) reads as one
-## announce: "PASS THE REVIEW", PAYDAY, "2 PREMIUM TICKETS" and "EVERY TICKET RARE+", and the tag
+## A payday (v0.68, `payday`: passing the Manager's review pays two PREMIUM draws) reads as one
+## announce: "PASS THE REVIEW", PAYDAY, "2 PREMIUM DRAWS" and "EVERY TICKET RARE+", and the tag
 ## "PAYDAY NEXT" (Payday's texts); the inspection chip then promises no separate bonus ticket.
 ## Drawn in code on the screen's own coordinates, at the art's 2 px grid.
 
