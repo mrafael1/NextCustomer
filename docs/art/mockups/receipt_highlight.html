@@ -1,0 +1,686 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Receipt Highlight</title>
+<style>
+/* House style of the mock-ups: the stage is a 1920x1080 frame in screen px, the 1280x720 game
+   stage at 1.5x, so 1 art px = 2 stage px = 3 screen px. Item sprites and minis come from art/. */
+@font-face{font-family:'NCPix';font-weight:400 700;src:url(../../../fonts/PixelifySans-Variable.ttf)}
+@font-face{font-family:'NCMono';src:url(../../../fonts/JetBrainsMono-Regular.ttf)}
+@font-face{font-family:'NCAtk';font-weight:200 800;src:url(../../../fonts/AtkinsonHyperlegibleNext-Variable.ttf)}
+:root{
+  color-scheme:dark;
+  --wall:#1f3b3a; --bay:#172c2b; --panel:#2a4d4b; --paper:#fbf7ee; --cream:#f3e9d2; --teal-pale:#c3e0d4; --teal-light:#86c2b6; --teal:#4f9a94; --teal-shade:#3a7672;
+  --mustard:#e2b33c; --mustard-light:#f1d27a; --mustard-pale:#faecbc; --mustard-dark:#b38425; --mustard-darkest:#7a5a1c; --gold:#ffcf3f;
+  --tomato:#d9534f; --tomato-dark:#a83a3c; --tomato-light:#ec8a6e; --ink:#2b2420; --ink-light:#4a3f38; --grey:#8a8172; --grey-light:#c7beab;
+  --muted:#a9a59b; --good:#5fae5a; --green-dark:#3d7a45;
+  --display:'NCPix','Pixelify Sans','Courier New',monospace;
+  --mono:'NCMono','JetBrains Mono',Consolas,monospace;
+  --body:'NCAtk','Atkinson Hyperlegible Next','Segoe UI',system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--wall:#1f3b3a}}
+:root[data-theme="dark"]{--wall:#1f3b3a}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--wall);color:var(--paper)}
+body{font-family:var(--body);font-size:15px;line-height:1.5}
+main{max-width:1400px;margin:0 auto;padding:28px 16px 64px;display:grid;grid-template-columns:minmax(0,1fr);gap:44px}
+main>*,section>*{min-width:0}
+h1,h2,h3{font-family:var(--display);font-weight:700;margin:0;letter-spacing:.02em;text-wrap:balance}
+h1{font-size:34px;color:var(--gold)}
+h2{font-size:24px}
+h3{font-size:17px;color:var(--teal-pale)}
+p{margin:0;max-width:88ch}
+code{overflow-wrap:anywhere;color:var(--mustard-pale);font-size:13px}
+.lede{display:grid;gap:10px}
+.eyebrow{font-family:var(--display);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--teal-light)}
+section{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;min-width:0}
+.verdict{background:var(--panel);border:2px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.35);padding:14px 16px;display:grid;gap:8px}
+.verdict strong{color:var(--gold)}
+.opt{background:var(--bay);border:2px solid var(--ink);padding:12px;display:grid;grid-template-columns:minmax(0,1fr);gap:10px;align-content:start;min-width:0}
+.opt.rec{border-color:var(--mustard)}
+.opt header{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.tag{font-family:var(--display);font-size:15px;background:var(--paper);color:var(--ink);padding:0 7px;border:2px solid var(--ink)}
+.opt.rec .tag{background:var(--mustard)}
+.pick{font-family:var(--display);font-size:12px;color:var(--gold);letter-spacing:.08em}
+.opt p,.opt li{font-size:14px;color:var(--teal-pale)}
+.opt p b,.opt li b{color:var(--paper)}
+.controls{display:flex;gap:8px 10px;flex-wrap:wrap;align-items:center}
+.controls .lbl{font-family:var(--display);font-size:13px;color:var(--teal-light);letter-spacing:.06em}
+.seg{display:inline-flex;border:2px solid var(--ink);box-shadow:0 3px 0 var(--ink);flex-wrap:wrap}
+.seg button{box-shadow:none;border:0;border-right:2px solid var(--ink)}
+.seg button:last-child{border-right:0}
+button{font-family:var(--display);font-size:15px;color:var(--paper);background:var(--teal-shade);border:2px solid var(--ink);box-shadow:0 3px 0 var(--ink);padding:4px 12px;cursor:pointer}
+button:active{transform:translateY(2px)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+button[aria-pressed="true"]{background:var(--mustard);color:var(--ink)}
+select{font-family:var(--display);font-size:15px;background:var(--teal-shade);color:var(--paper);border:2px solid var(--ink);padding:3px 6px;max-width:100%}
+label.chk{display:inline-flex;gap:6px;align-items:center;font-family:var(--display);font-size:14px;cursor:pointer}
+.toolbar{position:sticky;top:0;z-index:5;background:rgba(23,44,43,.96);border-bottom:2px solid var(--ink);padding:8px 16px}
+.toolbar .controls{max-width:1400px;margin:0 auto}
+@media (max-width:700px){.toolbar{position:static}.controls .lbl{flex-basis:100%}h1{font-size:28px}}
+.hint{font-size:13px;color:var(--teal-pale)}
+.cues{font-family:var(--mono);font-size:12px;color:var(--mustard-pale);min-height:1.6em;display:flex;gap:6px;flex-wrap:wrap}
+.cues span{background:var(--bay);border:1px solid var(--ink);padding:0 6px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:14px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:14px}
+figure{margin:0;display:grid;gap:6px;min-width:0;align-content:start}
+figure img{width:100%;height:auto;border:2px solid var(--ink);display:block}
+figcaption{font-size:13px;color:var(--teal-pale)}
+ul,ol{margin:0;padding-left:20px;display:grid;gap:6px;max-width:92ch}
+table{border-collapse:collapse;width:100%;font-size:13px;background:var(--bay);border:2px solid var(--ink)}
+th,td{border:1px solid var(--ink);padding:5px 8px;text-align:left;vertical-align:top}
+th{font-family:var(--display);font-weight:600;color:var(--gold);background:#132524}
+td.num{font-family:var(--mono);white-space:nowrap}
+tr.win td{background:#3a3a1c}
+tr.win td:first-child{box-shadow:inset 4px 0 0 var(--gold)}
+tr.off td{color:var(--muted)}
+.tablewrap{overflow-x:auto;max-width:100%}
+.answers{background:var(--paper);color:var(--ink);border:3px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.35);padding:14px 18px;display:grid;gap:10px}
+.answers h2{color:var(--ink)}
+.answers li{color:var(--ink)}
+.answers b{color:var(--mustard-darkest)}
+.chip{font-family:var(--display);font-size:11px;padding:0 5px;border:1px solid var(--ink);color:var(--ink);background:var(--mustard);white-space:nowrap}
+.chip.today{background:var(--good)}
+.chip.new{background:var(--tomato-light)}
+
+/* ---------- the stage ---------- */
+.fwrap{position:relative;border:2px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.35);overflow:hidden;max-width:100%;background:#111;aspect-ratio:16/9;cursor:pointer}
+#stage{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0;overflow:hidden;font-family:var(--mono);color:var(--ink)}
+.shutter{position:absolute;inset:0;background:
+  repeating-linear-gradient(180deg,#a9a59b 0 6px,#c7c3b8 6px 9px,#a9a59b 9px 33px,#8d8a83 33px 39px,#6f6b63 39px 42px);}
+.shutter::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(31,59,58,.0),rgba(31,59,58,.32))}
+.shutter .sign{position:absolute;left:50%;bottom:28px;transform:translateX(-50%);font-family:var(--display);font-weight:700;font-size:27px;letter-spacing:.2em;background:var(--ink);color:var(--grey-light);padding:3px 18px;border:3px solid #24221f}
+/* the receipt panel */
+.panel{position:absolute;left:395px;width:1130px;background:var(--paper);border:6px solid var(--ink);border-radius:12px;box-shadow:0 0 0 3px #57534c,9px 9px 0 rgba(0,0,0,.35);padding:22px 27px 22px 27px}
+.hrow{display:flex;justify-content:space-between;align-items:flex-start;height:96px}
+.headline{font-family:var(--display);font-weight:700;font-size:96px;line-height:.9;letter-spacing:.02em;margin-top:6px}
+.headline.won{color:var(--good)}
+.headline.lost{color:var(--tomato)}
+.loyalty{display:flex;align-items:center;gap:9px;background:var(--cream);border:4px solid var(--ink);box-shadow:inset 0 0 0 3px var(--teal-light);padding:6px 9px 6px 12px;position:relative}
+.loyalty::before{content:"";position:absolute;top:-9px;left:50%;width:30px;height:9px;background:var(--grey);margin-left:-15px}
+.loyalty .lt{font-family:var(--display);font-size:16px;font-weight:600;line-height:1.1;color:var(--ink)}
+.loyalty i{width:48px;height:48px;border-radius:50%;background:var(--teal-shade);border:3px solid var(--ink);display:grid;place-items:center}
+.loyalty i img{width:21px;height:21px;image-rendering:pixelated}
+.rule{height:3px;margin:15px 0 12px;background:repeating-linear-gradient(90deg,var(--grey) 0 9px,transparent 9px 15px)}
+.cols{display:grid;grid-template-columns:1fr 1fr;column-gap:36px}
+.cols.one{grid-template-columns:1fr}
+.col{display:flex;flex-direction:column;position:relative}
+.wk{align-self:flex-start;font-size:22px;line-height:27px;color:var(--paper);padding:0 9px;margin:3px 0 2px;letter-spacing:.06em}
+.wk1{background:var(--teal-shade)} .wk2{background:var(--mustard-dark)} .wk3{background:var(--ink-light)} .wk4{background:var(--tomato-dark)}
+.sl{font-size:24px;line-height:22px;white-space:pre;padding-top:2px;color:var(--ink)}
+.sl.f{color:var(--tomato)}
+.dl{font-size:19px;line-height:18.5px;white-space:pre;color:var(--grey)}
+.dl.f{color:var(--tomato-light)}
+.short{font-size:24px;line-height:26px;color:var(--tomato);white-space:pre;margin-top:3px}
+.coin{display:flex;justify-content:space-between;font-size:24px;line-height:26px;white-space:pre}
+.coin.tot{color:var(--teal-shade)}
+.btns{display:flex;justify-content:center;gap:24px;margin-top:14px}
+.btn{font-family:var(--display);font-weight:700;font-size:34px;line-height:1;padding:9px 18px 12px;border:4px solid var(--ink);box-shadow:inset 0 -6px 0 rgba(0,0,0,.22);color:var(--paper)}
+.btn.menu{background:var(--tomato)} .btn.log{background:var(--teal)}
+/* printing: lines are hidden until printed */
+.pl{visibility:hidden}
+.pl.on{visibility:visible}
+
+/* ---------- Direction A: one line ---------- */
+.hl{position:relative;display:flex;align-items:center;gap:15px;height:57px;margin:2px 0 4px;padding:0 15px 0 87px;font-size:25px;white-space:pre;overflow:hidden}
+.hl .band{position:absolute;inset:6px 0;background:var(--mustard-pale);border-top:3px solid var(--mustard);border-bottom:3px solid var(--mustard);transform-origin:0 50%}
+.hl .burst{position:absolute;left:6px;top:50%;width:69px;height:69px;margin-top:-34px;display:grid;place-items:center;z-index:2}
+.hl .burst svg{position:absolute;inset:0}
+.hl .burst b{position:relative;font-family:var(--display);font-weight:700;font-size:16px;color:var(--ink);letter-spacing:.04em;line-height:.95;text-align:center}
+.hl .k{position:relative;font-family:var(--display);font-weight:700;font-size:21px;letter-spacing:.1em;color:var(--mustard-darkest)}
+.hl .t{position:relative;color:var(--ink)}
+.hl .t em{font-style:normal;color:var(--mustard-darkest)}
+.hl .mini{position:relative;width:21px;height:21px;image-rendering:pixelated}
+.hl .when{position:relative;margin-left:auto;color:var(--grey);font-size:19px}
+.hl .glint{position:absolute;top:6px;bottom:6px;width:60px;left:-80px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.85),transparent);transform:skewX(-20deg);opacity:0}
+.hl.on .band{animation:band .2s steps(8) both}
+.hl.on .burst{animation:slam .12s steps(4) .2s both}
+.hl.on .t,.hl.on .k,.hl.on .mini,.hl.on .when{animation:show 0s .2s both}
+.hl.on .glint{animation:glint .45s steps(12) .34s both}
+@keyframes band{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes slam{0%{transform:scale(1.6);opacity:0}40%{opacity:1}100%{transform:scale(1)}}
+@keyframes show{from{visibility:hidden}to{visibility:visible}}
+@keyframes glint{0%{left:-80px;opacity:1}100%{left:1100px;opacity:1}}
+
+/* ---------- Direction B: the highlight stub ---------- */
+.stub{position:absolute;left:54px;top:250px;width:318px;background:var(--mustard-pale);border:6px solid var(--ink);box-shadow:9px 9px 0 rgba(0,0,0,.35);padding:15px 18px 18px;display:none;text-align:center;font-family:var(--mono);color:var(--ink);transform:rotate(-3deg)}
+.stub::before,.stub::after{content:"";position:absolute;top:-21px;width:69px;height:30px;background:rgba(243,233,210,.8);border:2px solid rgba(43,36,32,.25)}
+.stub::before{left:24px;transform:rotate(-8deg)} .stub::after{right:24px;transform:rotate(7deg)}
+.stub .perf{position:absolute;left:-6px;right:-6px;bottom:-15px;height:12px;background:radial-gradient(circle at 9px 0,var(--mustard-pale) 6px,transparent 7px) 0 0/18px 12px repeat-x}
+.stub .sk{font-family:var(--display);font-weight:700;font-size:24px;letter-spacing:.14em;color:var(--mustard-darkest);border-bottom:3px dashed var(--mustard-dark);padding-bottom:9px}
+.stub .art{position:relative;height:168px;display:grid;place-items:center;margin:9px 0 3px}
+.stub .art .ray{position:absolute;inset:0;margin:auto;width:168px;height:168px}
+.stub .art img{position:relative;width:144px;height:144px;image-rendering:pixelated}
+.stub .art .x{position:absolute;right:36px;bottom:9px;font-family:var(--display);font-weight:700;font-size:36px;color:var(--ink);background:var(--gold);border:3px solid var(--ink);padding:0 6px;line-height:1.05}
+.stub .kind{font-family:var(--display);font-weight:700;font-size:21px;letter-spacing:.08em;color:var(--teal-shade)}
+.stub .name{font-size:24px;margin-top:3px}
+.stub .val{font-family:var(--display);font-weight:700;font-size:72px;line-height:1;color:var(--mustard-darkest);margin-top:6px;text-shadow:3px 3px 0 var(--gold)}
+.stub .val small{font-family:var(--mono);font-size:42px;text-shadow:none;margin-left:4px}
+.stub .when{font-size:18px;color:var(--grey);margin-top:6px}
+body.dirB .stub{display:block}
+.stub.pl{visibility:hidden}
+.stub.pl.on{visibility:visible;animation:stubin .5s steps(10) both}
+@keyframes stubin{0%{transform:translate(220px,0) rotate(0)}70%{transform:translate(-6px,0) rotate(-3deg)}100%{transform:translate(0,0) rotate(-3deg)}}
+.stub.pl.on .art img{animation:pop .24s steps(6) .45s both}
+@keyframes pop{0%{transform:scale(.4)}70%{transform:scale(1.12)}100%{transform:scale(1)}}
+.bline{font-size:19px;line-height:20px;color:var(--mustard-darkest);white-space:pre;margin:4px 0 0}
+
+/* ---------- Direction C: the pen circle ---------- */
+.pen{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;overflow:visible;z-index:3}
+.pen ellipse{fill:none;stroke:var(--tomato);stroke-width:5;stroke-linecap:round;stroke-dasharray:1400;stroke-dashoffset:1400}
+.pen.on ellipse{animation:draw .55s steps(14) forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+.note{position:absolute;font-family:var(--display);font-weight:700;font-size:25px;line-height:1.05;color:var(--tomato);transform:rotate(-4deg);white-space:nowrap;z-index:3;visibility:hidden}
+.note small{font-family:var(--mono);font-size:24px;font-weight:400}
+.note.on{visibility:visible;animation:write .4s steps(8) .55s both}
+@keyframes write{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+
+/* reduced motion: final states, no travel or glint (timings stay) */
+body.rm .hl.on .band,body.rm .hl.on .burst,body.rm .stub.pl.on,body.rm .stub.pl.on .art img,body.rm .note small{font-family:var(--mono);font-size:24px;font-weight:400}
+.note.on{animation:none}
+body.rm .hl.on .glint{animation:none;opacity:0}
+body.rm .pen.on ellipse{animation:none;stroke-dashoffset:0}
+body.skip .hl.on *,body.skip .stub.pl.on,body.skip .stub.pl.on *,body.skip .note small{font-family:var(--mono);font-size:24px;font-weight:400}
+.note.on{animation:none!important}
+body.skip .pen.on ellipse{animation:none;stroke-dashoffset:0}
+body.skip .hl.on .glint{opacity:0}
+
+/* the PNG preview (#68) */
+.pngbox{background:#0d1a19;border:2px solid var(--ink);padding:14px;overflow:auto}
+.pngsheet{position:relative;transform-origin:0 0;font-family:var(--mono);color:var(--ink)}
+.pngsheet .panel{position:relative;left:0;top:0}
+.pngsheet .stub{position:absolute}
+.pngfoot{font-family:var(--mono);font-size:21px;color:var(--grey);text-align:center;margin-top:12px;white-space:pre}
+</style>
+<body class="dirA">
+<div class="toolbar">
+  <div class="controls">
+    <span class="lbl">DIRECTION</span>
+    <span class="seg" id="dirs"><button data-d="A" aria-pressed="true">A · One line</button><button data-d="B" aria-pressed="false">B · Highlight stub</button><button data-d="C" aria-pressed="false">C · Pen circle</button></span>
+    <span class="lbl">RUN</span>
+    <select id="run">
+      <option value="won">Won · 16 shifts</option>
+      <option value="lost">Lost · shift 11</option>
+      <option value="early">Lost · week 1 (shift 4)</option>
+    </select>
+    <span class="lbl">HIGHLIGHT</span>
+    <select id="kind"></select>
+    <span class="lbl">SPEED</span>
+    <span class="seg" id="speeds"><button data-s="1" aria-pressed="true">×1</button><button data-s="0.33" aria-pressed="false">slow ×⅓</button></span>
+    <button id="replay">Replay</button>
+    <button id="skip" title="Same as a tap in the game: prints the rest at once">Tap (skip)</button>
+    <label class="chk"><input type="checkbox" id="rm"> Reduced motion</label>
+  </div>
+</div>
+<main>
+  <section class="lede">
+    <div class="eyebrow">Mock-up · final receipt highlight · 2026-11-05 · from main (5c7aa77)</div>
+    <h1>One line for the run's best moment</h1>
+    <p>Your idea: the final receipt prints one line that sums up the run's best moment, like <b>Biggest payout · Golden Milk · 264€</b>, so a player leaves with one result to remember or share. This page shows where that line goes on today's receipt, how it prints, which moments can be the highlight and how one is picked, and what the game would have to start recording. Click the stage (or <b>Tap</b>) to do what a tap does on the results screen: print the rest at once.</p>
+    <p class="hint">The receipt, the closed shutter, the week columns and the 80 ms line print are copied from today's results screen (<code>ui/final_receipt.gd</code>, <code>ui/results_panel.gd</code>). The item sprites and the 7x7 minis are the real ones from <code>art/items_v2/</code> and <code>art/minis/</code>. The runs are invented, but each line reads the way the game words it.</p>
+  </section>
+
+  <section>
+    <h2>1 · Live: the results screen with the highlight</h2>
+    <div class="fwrap" id="wrap" role="button" tabindex="0" aria-label="Results screen mock-up. Click to print the rest at once."><div id="stage"></div></div>
+    <div class="cues" id="cues" aria-live="polite"></div>
+    <p class="hint" id="caption"></p>
+  </section>
+
+  <section>
+    <h2>2 · Three directions</h2>
+    <div class="grid3">
+      <div class="opt rec"><header><span class="tag">A</span><h3>One line</h3><span class="pick">RECOMMENDED</span></header>
+        <p>Exactly your idea. After the shift history, below the rule, the receipt prints <b>one more line</b>: a gold band, a starburst sticker reading BEST, the item's 7x7 mini, then <b>Biggest payout · Golden Milk · 264€</b> and the shift on the right. Then the coins print as today.</p>
+        <p>It's printed when its turn comes, like any other line. The band wipes in (200 ms), the sticker lands with today's <code>stamp</code> sound and a 50 ms hit-stop, a glint crosses the band once, and the print holds 300 ms before the coins. That comes to about 0.65 s more than today.</p>
+        <p><b>Cost:</b> one receipt line, one sticker sprite (the planning stickers' burst, recoloured), no new sound.</p></div>
+      <div class="opt"><header><span class="tag">B</span><h3>Highlight stub</h3></header>
+        <p>The receipt prints a short gold line at its foot (<b>★ BEST MOMENT › see stub</b>). After the coins, a gold <b>stub</b> slides out from behind the receipt's left edge and is taped to the shutter: the item at full sprite size, the kind, the name, the amount in big gold digits, and the shift.</p>
+        <p>It's the most collectable version and the best-looking share image, and it sits on the left so the unlock cards (badge pins) can keep the right side. But it adds a card, a slide and a second place to read, and a "Closest call" or "Over quota" stub has no item to show.</p>
+        <p><b>Cost:</b> a stub scene, a sunburst, about 1 s more, and its own layout tests.</p></div>
+      <div class="opt"><header><span class="tag">C</span><h3>Pen circle</h3></header>
+        <p>No new line. When the coins have printed, a red marker <b>circles the shift line</b> where the moment happened, and a scrawled note beside it says what it was (<b>BEST! Golden Milk 264€</b>), like a manager marking up a till roll.</p>
+        <p>It costs no space (good for the 16-shift receipt that already steps its font down), and it points at <i>when</i> the moment happened. But it isn't a line you can quote, the note has little room in the right column, and on the compact receipt the circle covers its neighbours.</p>
+        <p><b>Cost:</b> a drawn ellipse and a note, positioned from the line's rect.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>3 · Which moment: the candidates and how one is picked</h2>
+    <p>Each kind finds its best case in the run. Its <b>score</b> is that value divided by a <b>bar</b> (the line where a moment feels special). The bars go in balance data, not in code. The highest score wins. On equal scores the kinds rank in the order of this table. When no kind reaches its bar (score under 1), the line still shows <b>Biggest payout</b>, so every run gets one. Within a kind, the bigger value wins, then the later shift (the bigger build, the fresher memory), then the earlier slot. A Day off shift has no checkout and is skipped. The table follows the run picked above; the gold row is the one the receipt prints.</p>
+    <div class="tablewrap"><table id="cands"></table></div>
+    <p class="hint">Considered and left out of the automatic pick: <b>Biggest checkout</b> (quotas climb every shift, so the raw biggest is nearly always one of the last shifts; <b>Over quota</b> is its fair version) and <b>Rarest prize</b> (a LEGENDARY ticket is the machine's luck, not the player's play). Both can still be shown with the HIGHLIGHT menu.</p>
+  </section>
+
+  <section>
+    <h2>4 · Data: what the run already records, and what it needs</h2>
+    <div class="tablewrap"><table>
+      <tr><th>Kind</th><th>Needs</th><th>Recorded today?</th><th>To add</th></tr>
+      <tr><td>Over quota</td><td>each shift's total and quota</td><td><span class="chip today">yes</span> <code>ShiftRecord.total</code>, <code>.quota</code></td><td>nothing</td></tr>
+      <tr><td>Closest call</td><td>each passed shift's total and quota</td><td><span class="chip today">yes</span> same</td><td>nothing</td></tr>
+      <tr><td>First GOLDEN</td><td>the first shift a GOLDEN card was played, and which card</td><td><span class="chip today">yes</span> <code>ShiftRecord.played</code> (each card's <code>tier</code>; "Golden Milk" is its <code>display_name</code>)</td><td>nothing</td></tr>
+      <tr><td>Rarest prize</td><td>the machine prizes and their rarity</td><td><span class="chip today">yes</span> <code>ShiftRecord.visits</code> (<code>MachinePrize.rarity</code>)</td><td>nothing</td></tr>
+      <tr><td>Biggest payout</td><td>each item's payout and which card it was</td><td><span class="chip new">no</span> only in the checkout's <code>ScoreResult.payouts</code>, kept for the last shift only (<code>run.last_result</code>)</td><td><code>ShiftRecord.best_payout</code>, <code>best_card</code></td></tr>
+      <tr><td>Longest combo</td><td>the longest CHAIN, BATCH or MORNING and what it paid</td><td><span class="chip new">no</span> <code>ScoreResult.chains</code> and <code>.batches</code> exist at checkout, but MORNING isn't in the result (<code>CardMorning</code> reads it), and none of them are kept</td><td><code>ShiftRecord.best_combo</code> (keyword, length, pay)</td></tr>
+    </table></div>
+    <p>The new fields are filled at checkout from the result the count-up already uses (a Double checkout's joined result covers both rows). <code>to_dictionary</code> writes them only when they're set, like <code>overtime_ticket</code>, so they're additive: a run saved before the change resumes with those two kinds missing for its earlier shifts, and the pick works with what it has. Telemetry: the <code>checkout</code> event gains <code>best_payout</code> and <code>best_card</code>, and <code>run_end</code> gains <code>highlight</code> (kind, value, shift), so <code>tools/log_summary.py</code> can count which kinds show up (additive, old logs still read).</p>
+  </section>
+
+  <section>
+    <h2>5 · Lost runs, ties and edge cases</h2>
+    <ul>
+      <li><b>Lost runs</b> get the line too, picked the same way over every shift played, including the one that ended the run. A loss is when a bright spot helps most. Switch RUN to <b>Lost · shift 11</b>: no payout reached its bar, so <b>Closest call · Shift 9 · 102€ / 101€</b> wins (a pass by 1€). The line is gold even on a red receipt: it's a good memory, not a verdict.</li>
+      <li><b>A weak run</b> (<b>Lost · week 1</b>) reaches no bar at all, so it falls back to Biggest payout (Eggs, 12€). That's modest but true, and it shows the player what an item can pay.</li>
+      <li><b>Ties:</b> equal scores go to the higher kind in the table. Within a kind: the bigger value, then the later shift, then the earlier slot. The same run always prints the same line (no randomness, so a resumed run matches).</li>
+      <li><b>Copies:</b> Biggest payout names the card (Golden Milk), never "Milk ×3". A SHELF upgrade's copies each pay on their own line, so the best single copy counts.</li>
+      <li><b>Double checkout</b> (badge pin): both rows count as one shift's checkout. <b>Day off</b>: skipped. <b>Debug jumps</b> (<code>debug_jumped</code>): the line still prints, because the history is real.</li>
+      <li><b>Fit:</b> in week columns the line spans both columns (like the rules and the coins). On the compact receipt it stays one line and its band shrinks with the font step.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>6 · The PNG export (#68)</h2>
+    <p>#68 says the image "prints what the screen prints". With <b>A</b> the line is part of the receipt, so it lands in the PNG at no extra cost, and the share image says what was best without a caption. With <b>B</b> the stub goes in the image beside the receipt, which makes the image wider. With <b>C</b> the circle is drawn over a line, so the export has to capture the overlay too. The preview below follows the direction and run picked above: the receipt without its buttons or the shutter, plus a footer with the build label, the date and the seed (the extras #68 asks about).</p>
+    <div class="pngbox" id="pngbox"><div class="pngsheet" id="pngsheet"></div></div>
+    <p class="hint">A small extra for later, not part of this proposal: the same highlight text can be the file name's tail (<code>receipt_2026-11-05_1432_biggest-payout.png</code>) or a "copy line" for chat (<code>Next Customer · RUN WON 16/16 · Biggest payout · Golden Milk · 264€</code>).</p>
+  </section>
+
+  <section>
+    <h2>7 · What the game does today</h2>
+    <p>The results screen (#61, #56) closes the store's shutter and prints the final receipt one line every 80 ms: the headline, a rule, each shift's line (total / quota, pass, slip or fail) with dim lines for the machine visits and the day's events, the shortfall on a lost run, a rule, then the coins. A 16-shift run prints in week columns. Then the badge pins it unlocked come one by one on the right. Nothing on the receipt names a single item or moment: the biggest number a player sees is a shift total, and the item payouts from the count-up are gone once the shift ends (only the last checkout's result is kept). Captures below are from the four-weeks build (<code>docs/art/mockups/four_weeks_build/</code>). The coins have lost their "Overtime" line since (v1.03).</p>
+    <div class="grid2">
+      <figure><img src="receipt_highlight_src/today_won.png" alt="Today's results screen after a won 16-shift run" loading="lazy"><figcaption>Won run, 16 shifts, week columns.</figcaption></figure>
+      <figure><img src="receipt_highlight_src/today_lost.png" alt="Today's results screen after a run lost on shift 11" loading="lazy"><figcaption>Lost on shift 11: the shortfall closes week 3's column.</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="verdict">
+    <h2>Recommended: <strong>A · One line</strong>, between the history and the coins</h2>
+    <ul>
+      <li>It's the request as written: <b>one line</b> you can read aloud or share. The format <code>Kind · Subject · Value</code> works for every kind, including the ones without an item.</li>
+      <li>It <b>follows the receipt's own rhythm</b> (one more printed line, a sticker, a short hold) and comes just before the coins, so the run's story ends on its best moment before the reward. It adds about 0.65 s, and a tap still prints everything at once.</li>
+      <li>It's the <b>cheapest</b> to build: one line and a recoloured sticker, no new screen space beyond one line. It leaves the right side free for the badge-pin cards, and it goes into #68's PNG for free.</li>
+      <li>B's stub is a good later step if #68 is built and the share image wants an item at full size. It can reuse A's pick and data unchanged.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>8 · Behaviour spec (A)</h2>
+    <ul>
+      <li><b>Core</b>: a pure <code>RunHighlight</code> (<code>core/run_highlight.gd</code>) builds the candidates from <code>run.history</code> and picks one by the section 3 rules. Its bars are <code>@export</code> fields on a <code>HighlightDefinition</code> resource in <code>data/balance/</code> (illustrative values: payout ≥ 0.5 × that shift's quota, over quota ≥ ×2.0, a combo of ≥ 5, a pass by ≤ 1€). Kind order and wording live there too.</li>
+      <li><b>ShiftRecord</b> gains <code>best_payout</code>, <code>best_card</code> and <code>best_combo</code>, filled in <code>RunState.checkout</code> from the <code>ScoreResult</code>. They're written to the save and the log only when set (additive; no save version bump).</li>
+      <li><b>FinalReceipt</b> gains <code>Tone.HIGHLIGHT</code>: one line after the second rule, before the coins. It's <code>WIDE_WIDTH</code> in week columns and fits the compact receipt (the <code>FITS</code> search counts it).</li>
+      <li><b>ResultsPanel</b> prints it in its turn: the band wipes in for 200 ms, then the BEST sticker lands with <code>stamp</code> and a 50 ms hit-stop. The glint takes 450 ms and the hold before the coins 300 ms. The timings are <code>final_highlight_*</code> fields in <code>CountUpTuning</code>. A tap prints it in its final state with the rest. Reduced motion: no wipe, slam or glint, the hold stays. The music's duck and the coin sounds still start with the coin lines.</li>
+      <li><b>Art</b>: the sticker is <code>sticker_burst_polished</code> recoloured gold with "BEST" (a new <code>@derive</code> source), plus the existing 7x7 minis. A kind without an item (Over quota, Closest call) shows <code>target_euro</code> instead.</li>
+      <li><b>Telemetry</b>: <code>checkout</code> gains <code>best_payout</code> and <code>best_card</code>, <code>run_end</code> gains <code>highlight</code>. These go into <code>docs/PROTOTYPE_PLAN.md</code> section 8's table, with an optional count in <code>log_summary.py</code>.</li>
+      <li><b>Tests</b>: core tests for each kind, the bars, the fallback, ties, Day off, Double checkout and an old save without the fields. A UI geometry test checks that the highlight line sits inside the panel and above the buttons on the won 16-shift receipt and on the compact one.</li>
+      <li><b>Docs</b>: the plan's section 6.2 receipt list and a changelog row (playtest-facing).</li>
+    </ul>
+  </section>
+
+  <section class="answers">
+    <h2>Questions (each has a default)</h2>
+    <ol>
+      <li><b>Direction?</b> Default: <b>A</b>, one line between the history and the coins. B's stub can come later with #68.</li>
+      <li><b>Which kinds go into the automatic pick?</b> Default: <b>Biggest payout, Over quota, Longest combo (CHAIN / BATCH / MORNING), First GOLDEN, Closest call</b>. Biggest checkout and Rarest prize stay out.</li>
+      <li><b>Lost runs?</b> Default: <b>yes, every run gets the line</b>, with the same pick and Biggest payout as the fallback, even after a week-1 loss.</li>
+      <li><b>Wording of the label?</b> Default: <b>BEST</b> on the sticker and <code>Kind · Subject · Value</code> as the line (the format from your example). The alternatives are "HIGHLIGHT", "BEST MOMENT" or "RECORD".</li>
+    </ol>
+  </section>
+</main>
+
+<script>
+(() => {
+'use strict';
+const SRC = 'receipt_highlight_src/';
+const ITEM = n => SRC + n + '.png';
+const MINI = n => SRC + 'minis/' + n + '.png';
+
+/* ---------- the runs ----------
+   Each shift: n, total, quota, res ('pass'|'slip'|'fail'), details (dim lines),
+   pay: [card name, art key, payout], combo: [keyword, length, pay, label] or null, golden: first GOLDEN played.
+   Week events follow the four-weeks capture (WEEK 1 TRAINING, 2 BAKERY, 3 HOLIDAY, 4 CLEARANCE). */
+const WEEKS = ['TRAINING', 'BAKERY', 'HOLIDAY', 'CLEARANCE'];
+const RUNS = {
+  won: {
+    won: true, label: 'RUN WON 16/16', coins: ['Shifts passed 16', '+2', 'COINS +2', 'you have 14'], seed: 20261105,
+    shifts: [
+      [1, 35, 30, 'pass', ['NEW ITEMS: Carrier bag'], ['Milk', 'milk', 9]],
+      [2, 41, 35, 'pass', ['NEW ITEMS: Cereal', 'today Free samples'], ['Eggs', 'eggs', 12]],
+      [3, 40, 36, 'pass', ['UPGRADE: Scissors +1 step', 'inspection Late delivery'], ['Coffee', 'coffee', 11]],
+      [4, 45, 37, 'pass', ['NEW ITEMS: Banana', 'PREMIUM · UPGRADE: Dairy aisle run', 'inspection Short belt, Spot check'], ['Milk', 'milk', 13]],
+      [5, 73, 59, 'pass', ['NEW ITEMS: Lemon', 'today Quiet morning'], ['Milk', 'milk', 22], ['CHAIN', 3, 24, 'Bananas']],
+      [6, 79, 66, 'pass', ['UPGRADE: Milk +1 step', 'today Free samples'], ['Big Milk', 'milk', 28]],
+      [7, 75, 67, 'pass', ['NEW ITEMS: Butter', 'inspection Spot check'], ['Big Milk', 'milk', 26], ['CHAIN', 3, 27, 'Bananas']],
+      [8, 92, 68, 'pass', ['NEW ITEMS: 2 for 1', 'PREMIUM · UPGRADE: Milk › GOLDEN', 'inspection Spot check, Short belt'], ['Big Milk', 'milk', 31]],
+      [9, 102, 101, 'pass', ['NEW ITEMS: Strawberries', 'today Fresh delivery'], ['Golden Milk', 'milk_golden', 58], null, 'Golden Milk'],
+      [10, 122, 116, 'pass', ['UPGRADE: Banana +1 step', "today Regulars' day"], ['Golden Milk', 'milk_golden', 64], ['CHAIN', 4, 52, 'Bananas']],
+      [11, 138, 117, 'pass', ['NEW ITEMS: Coffee', 'inspection Late delivery'], ['Golden Milk', 'milk_golden', 71], ['MORNING', 4, 40, 'items']],
+      [12, 151, 118, 'pass', ['UPGRADE: Eggs +1 step', 'PREMIUM · UPGRADE: SHELF Banana ×3', 'inspection Till jam, Late delivery'], ['Golden Milk', 'milk_golden', 80], ['CHAIN', 4, 66, 'Bananas'], null, ['LEGENDARY', 'SHELF Banana ×3']],
+      [13, 171, 168, 'pass', ['NEW ITEMS: Reduced yogurt', 'today Fresh delivery'], ['Golden Milk', 'milk_golden', 77], ['CHAIN', 4, 70, 'Bananas']],
+      [14, 389, 169, 'pass', ['OVERTIME · NEW ITEMS: Mixed herbs', 'UPGRADE: Coffee +1 step', 'today Happy hour'], ['Golden Milk', 'milk_golden', 264], ['MORNING', 5, 61, 'items']],
+      [15, 236, 170, 'pass', ['UPGRADE: Cereal bar +1 step', 'inspection Small baskets'], ['Golden Milk', 'milk_golden', 92], ['CHAIN', 5, 118, 'Bananas']],
+      [16, 201, 171, 'pass', ['inspection Short belt, Small baskets'], ['Golden Milk', 'milk_golden', 88], ['CHAIN', 4, 81, 'Bananas']],
+    ],
+  },
+  lost: {
+    won: false, label: 'RUN OVER 10/16', coins: ['Shifts passed 9', '+1', 'COINS +1', 'you have 13'], seed: 20261014,
+    short: 'Shift 11 / 16: short by 6€',
+    shifts: [
+      [1, 35, 30, 'pass', ['NEW ITEMS: Carrier bag'], ['Milk', 'milk', 9]],
+      [2, 25, 35, 'slip', ['today Free samples'], ['Eggs', 'eggs', 8]],
+      [3, 40, 36, 'pass', ['UPGRADE: Scissors +1 step', 'inspection Late delivery'], ['Coffee', 'coffee', 11]],
+      [4, 45, 37, 'pass', ['NEW ITEMS: 2 for 1', 'PREMIUM · UPGRADE: Dairy aisle run', 'inspection Short belt, Spot check'], ['Milk', 'milk', 13]],
+      [5, 73, 59, 'pass', ['NEW ITEMS: Broken biscuit', 'today Quiet morning'], ['Eggs', 'eggs', 21], ['MORNING', 3, 22, 'items']],
+      [6, 79, 66, 'pass', ['UPGRADE: Bruised apples +1 step', 'today Free samples'], ['Eggs', 'eggs', 23]],
+      [7, 75, 67, 'pass', ['NEW ITEMS: Butter', 'inspection Spot check'], ['Bread', 'bread', 19], ['BATCH', 3, 25, 'Bakery']],
+      [8, 73, 68, 'pass', ['NEW ITEMS: 2 for 1', 'PREMIUM · UPGRADE: Bulk deal', 'inspection Spot check, Short belt'], ['Eggs', 'eggs', 24]],
+      [9, 102, 101, 'pass', ['UPGRADE: Frozen peas +1 step', 'today Fresh delivery'], ['Eggs', 'eggs', 27], ['MORNING', 4, 33, 'items']],
+      [10, 122, 116, 'pass', ['NEW ITEMS: Broken biscuit', "today Regulars' day"], ['Eggs', 'eggs', 31]],
+      [11, 111, 117, 'fail', ['inspection Late delivery'], ['Eggs', 'eggs', 29], ['MORNING', 4, 35, 'items']],
+    ],
+  },
+  early: {
+    won: false, label: 'RUN OVER 1/16', coins: ['Shifts passed 1', '+0', 'COINS +0', 'you have 12'], seed: 20261031,
+    short: 'Shift 4 / 16: short by 4€',
+    shifts: [
+      [1, 25, 30, 'slip', [], ['Milk', 'milk', 9]],
+      [2, 41, 35, 'pass', ['NEW ITEMS: Cereal', 'today Free samples'], ['Eggs', 'eggs', 12]],
+      [3, 31, 36, 'slip', ['inspection Late delivery'], ['Bread', 'bread', 10]],
+      [4, 33, 37, 'fail', ['inspection Short belt, Spot check'], ['Milk', 'milk', 11], ['CHAIN', 2, 9, 'Bananas']],
+    ],
+  },
+};
+for (const r of Object.values(RUNS)) r.shifts = r.shifts.map(s => ({
+  n: s[0], total: s[1], quota: s[2], res: s[3], details: s[4], pay: s[5], combo: s[6] || null, golden: s[7] || null, prize: s[8] || null,
+}));
+
+/* ---------- the pick (section 3) ---------- */
+const BARS = { payout: 0.5, over: 2.0, combo: 5, close: 1 };
+const KINDS = [
+  { id: 'payout', name: 'Biggest payout', auto: true },
+  { id: 'over', name: 'Over quota', auto: true },
+  { id: 'combo', name: 'Longest combo', auto: true },
+  { id: 'golden', name: 'First GOLDEN', auto: true },
+  { id: 'close', name: 'Closest call', auto: true },
+  { id: 'checkout', name: 'Biggest checkout', auto: false },
+  { id: 'prize', name: 'Rarest prize', auto: false },
+];
+const later = (a, b) => b.n - a.n; // within a kind: the later shift wins a tie
+function candidates(run) {
+  const S = run.shifts;
+  const out = [];
+  // Biggest payout: the bigger payout, then the later shift.
+  let p = null;
+  for (const s of S) if (!p || s.pay[2] > p.pay[2] || (s.pay[2] === p.pay[2] && s.n > p.n)) p = s;
+  out.push({ kind: 'payout', s: p, art: p.pay[1], value: p.pay[2] + '€', subject: p.pay[0],
+    text: `Biggest payout · ${p.pay[0]} · ${p.pay[2]}€`, bar: `${BARS.payout} × quota (${Math.ceil(BARS.payout * p.quota)}€)`,
+    score: p.pay[2] / (BARS.payout * p.quota), how: `${p.pay[2]}€ on a ${p.quota}€ quota` });
+  // Over quota: the best ratio among passed shifts.
+  let o = null;
+  for (const s of S) if (s.total >= s.quota) { const r = s.total / s.quota; if (!o || r > o.r + 1e-9 || (Math.abs(r - o.r) < 1e-9 && s.n > o.s.n)) o = { s, r }; }
+  if (o) out.push({ kind: 'over', s: o.s, art: null, value: '×' + o.r.toFixed(1), subject: 'Shift ' + o.s.n,
+    text: `Over quota · Shift ${o.s.n} · ×${o.r.toFixed(1)}`, bar: `×${BARS.over.toFixed(1)}`, score: o.r / BARS.over, how: `${o.s.total}€ / ${o.s.quota}€` });
+  // Longest combo: the longest, then the bigger pay, then the later shift.
+  let c = null;
+  for (const s of S) if (s.combo) { const k = s.combo; if (!c || k[1] > c.combo[1] || (k[1] === c.combo[1] && (k[2] > c.combo[2] || (k[2] === c.combo[2] && s.n > c.n)))) c = s; }
+  if (c) { const k = c.combo; out.push({ kind: 'combo', s: c, art: k[0] === 'CHAIN' ? 'banana' : k[0] === 'BATCH' ? 'bread' : 'coffee', value: k[2] + '€', subject: `${k[1]} ${k[3]}`,
+    text: `Longest ${k[0]} · ${k[1]} ${k[3]} · ${k[2]}€`, bar: `${BARS.combo} long`, score: k[1] / BARS.combo, how: `${k[0]} of ${k[1]}, shift ${c.n}`, x: '×' + k[1] }); }
+  // First GOLDEN: met whenever it happens (score 1).
+  const g = S.find(s => s.golden);
+  if (g) out.push({ kind: 'golden', s: g, art: g.pay[1], value: 'shift ' + g.n, subject: g.golden,
+    text: `First GOLDEN · ${g.golden} · shift ${g.n}`, bar: 'any', score: 1, how: 'first played GOLDEN' });
+  // Closest call: the smallest pass margin, met at ≤ the bar.
+  let cl = null;
+  for (const s of S) if (s.total >= s.quota) { const m = s.total - s.quota; if (!cl || m < cl.m || (m === cl.m && s.n > cl.s.n)) cl = { s, m }; }
+  if (cl) out.push({ kind: 'close', s: cl.s, art: null, value: `${cl.s.total}€ / ${cl.s.quota}€`, subject: 'Shift ' + cl.s.n,
+    text: `Closest call · Shift ${cl.s.n} · ${cl.s.total}€ / ${cl.s.quota}€`, bar: `≤ ${BARS.close}€ over`,
+    score: cl.m <= BARS.close ? 1 : BARS.close / cl.m * 0.5, how: `passed by ${cl.m}€` });
+  // Not in the automatic pick.
+  let b = null;
+  for (const s of S) if (!b || s.total > b.total || (s.total === b.total && s.n > b.n)) b = s;
+  out.push({ kind: 'checkout', s: b, art: null, value: b.total + '€', subject: 'Shift ' + b.n,
+    text: `Biggest checkout · Shift ${b.n} · ${b.total}€`, bar: '—', score: null, how: 'raw total, not in the pick' });
+  const pr = S.find(s => s.prize);
+  if (pr) out.push({ kind: 'prize', s: pr, art: 'banana_golden', value: pr.prize[0], subject: pr.prize[1],
+    text: `${pr.prize[0]} prize · ${pr.prize[1]}`, bar: '—', score: null, how: `after shift ${pr.n}, not in the pick` });
+  return out;
+}
+function pick(cands) {
+  const order = KINDS.filter(k => k.auto).map(k => k.id);
+  const auto = cands.filter(c => order.includes(c.kind));
+  let best = null;
+  for (const c of auto) if (!best || c.score > best.score + 1e-9 || (Math.abs(c.score - best.score) < 1e-9 && order.indexOf(c.kind) < order.indexOf(best.kind))) best = c;
+  if (best.score < 1) return { c: cands.find(c => c.kind === 'payout'), fallback: true };
+  return { c: best, fallback: false };
+}
+
+/* ---------- state ---------- */
+const st = { dir: 'A', run: 'won', kind: 'auto', speed: 1, rm: false };
+const stage = document.getElementById('stage');
+const wrap = document.getElementById('wrap');
+const cues = document.getElementById('cues');
+const caption = document.getElementById('caption');
+const kindSel = document.getElementById('kind');
+kindSel.innerHTML = '<option value="auto">Auto (the pick)</option>' + KINDS.map(k => `<option value="${k.id}">${k.name}${k.auto ? '' : ' (not in the pick)'}</option>`).join('');
+
+function fit() { stage.style.transform = `scale(${wrap.clientWidth / 1920})`; layoutPng(); }
+new ResizeObserver(fit).observe(wrap);
+
+const pad = (s, n) => (s + ' '.repeat(n)).slice(0, Math.max(n, s.length));
+const padL = (s, n) => (' '.repeat(n) + s).slice(-Math.max(n, String(s).length));
+function shiftText(s) { return `${padL(String(s.n), 3)}  ${pad(`${s.total}€ / ${s.quota}€`, 13)}  ${s.res}`; }
+function weekOf(n) { return Math.floor((n - 1) / 4); }
+const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+
+const BURST = `<svg viewBox="0 0 23 23" shape-rendering="crispEdges"><path fill="#2b2420" d="M9 0h5v2h2v-1h2v3h3v2h-1v2h2v5h-2v2h1v2h-3v3h-2v-1h-2v2h-5v-2h-2v1h-2v-3h-3v-2h1v-2h-2v-5h2v-2h-1v-2h3v-3h2v1h2z"/><path fill="#ffcf3f" d="M10 1h3v2h3v-1h1v3h3v1h-1v3h2v3h-2v3h1v1h-3v3h-1v-1h-3v2h-3v-2h-3v1h-1v-3h-3v-1h1v-3h-2v-3h2v-3h-1v-1h3v-3h1v1h3z"/><path fill="#e2b33c" d="M4 14h15v1h-1v3h-1v-1h-3v2h-3v-2h-3v1h-1v-3h-3z"/></svg>`;
+const RAYS = `<svg class="ray" viewBox="0 0 56 56" shape-rendering="crispEdges">${Array.from({ length: 12 }, (_, i) => `<path fill="${i % 2 ? '#f1d27a' : '#ffcf3f'}" transform="rotate(${i * 30} 28 28)" d="M26 28 L28 0 L30 28 Z" opacity=".7"/>`).join('')}</svg>`;
+
+let chosen = null; let fallback = false;
+function build() {
+  const run = RUNS[st.run];
+  const cands = candidates(run);
+  if (st.kind === 'auto') { const p = pick(cands); chosen = p.c; fallback = p.fallback; }
+  else { chosen = cands.find(c => c.kind === st.kind) || pick(cands).c; fallback = false; }
+  renderTable(cands);
+  const columns = run.shifts.length > 4;
+  const left = columns ? Math.ceil((weekOf(run.shifts[run.shifts.length - 1].n) + 1) / 2) : 1;
+  const colHtml = [[], []];
+  let week = -1;
+  run.shifts.forEach((s, i) => {
+    const w = weekOf(s.n);
+    const col = columns && w >= left ? 1 : 0;
+    const f = s.res !== 'pass';
+    if (columns && w !== week) { week = w; colHtml[col].push(`<div class="pl wk wk${w + 1}">WEEK ${w + 1} · ${WEEKS[w]}</div>`); }
+    colHtml[col].push(`<div class="pl sl${f ? ' f' : ''}" data-shift="${s.n}">${esc(shiftText(s))}</div>`);
+    for (const d of s.details) colHtml[col].push(`<div class="pl dl${f ? ' f' : ''}">     ${esc(d)}</div>`);
+    if (i === run.shifts.length - 1 && run.short) colHtml[col].push(`<div class="pl short">${esc(run.short)}</div>`);
+  });
+  const c = chosen;
+  const mini = c.art ? `<img class="mini" src="${MINI(c.art)}" alt="">` : `<img class="mini" src="${SRC}target_euro.png" alt="" style="width:30px;height:42px">`;
+  const t = c.text.split(' · ');
+  const tHtml = `<em>${esc(t[0])}</em> · ${t.slice(1).map(esc).join(' · ')}`;
+  const hlA = `<div class="pl hl" id="hl"><div class="band"></div><div class="glint"></div><div class="burst">${BURST}<b>BEST</b></div>${mini}<span class="t">${tHtml}</span><span class="when">shift ${c.s.n}</span></div>`;
+  const hlB = `<div class="pl bline" id="hl">★ BEST MOMENT › ${esc(t[0])}, shift ${c.s.n}</div>`;
+  const hl = st.dir === 'A' ? hlA : st.dir === 'B' ? hlB : '';
+  stage.innerHTML = `
+    <div class="shutter"></div>
+    ${stubHtml(c)}
+    <div class="panel" id="panel">
+      <div class="hrow"><div class="pl headline ${run.won ? 'won' : 'lost'}">${run.won ? 'RUN WON!' : 'RUN OVER'}</div>
+        <div class="loyalty"><span class="lt">LOYALTY<br>CARD</span><i><img src="${MINI('milk')}" alt=""></i><i><img src="${MINI('eggs')}" alt=""></i><i><img src="${MINI('banana')}" alt=""></i>${run.won ? `<i><img src="${MINI('coffee')}" alt=""></i>` : ''}</div></div>
+      <div class="pl rule"></div>
+      <div class="cols${columns ? '' : ' one'}"><div class="col">${colHtml[0].join('')}</div>${columns ? `<div class="col">${colHtml[1].join('')}</div>` : ''}</div>
+      <div class="pl rule"></div>
+      ${hl}
+      <div class="pl coin"><span>${esc(run.coins[0])}</span><span>${esc(run.coins[1])}</span></div>
+      <div class="pl coin tot"><span>${esc(run.coins[2])}</span><span>${esc(run.coins[3])}</span></div>
+      <div class="btns"><span class="btn menu">Return to menu</span><span class="btn log">Export log</span></div>
+      ${st.dir === 'C' ? '<svg class="pen" id="pen"></svg><div class="note" id="note"></div>' : ''}
+    </div>`;
+  const panel = document.getElementById('panel');
+  panel.style.top = Math.max(24, Math.round((1080 - panel.offsetHeight) / 2) - 12) + 'px';
+  const stub = document.getElementById('stub');
+  if (stub) stub.style.top = (panel.offsetTop + 150) + 'px';
+  if (st.dir === 'C') placePen(c);
+  caption.textContent = describe(run, c);
+}
+function stubHtml(c) {
+  if (st.dir !== 'B') return '';
+  const t = c.text.split(' · ');
+  const art = c.art ? `<img src="${ITEM(c.art)}" alt="">` : `<img src="${SRC}target_euro.png" alt="" style="width:60px;height:84px">`;
+  const x = c.x ? `<span class="x">${c.x}</span>` : '';
+  return `<div class="stub pl" id="stub"><div class="perf"></div><div class="sk">BEST MOMENT</div>
+    <div class="art">${RAYS}${art}${x}</div>
+    <div class="kind">${esc(t[0].toUpperCase())}</div><div class="name">${esc(c.subject)}</div>
+    <div class="val">${valHtml(c.kind === 'golden' ? '★' : c.kind === 'close' ? '+' + (c.s.total - c.s.quota) + '€' : c.value)}</div>
+    <div class="when">shift ${c.s.n} · week ${weekOf(c.s.n) + 1}</div></div>`;
+}
+function valHtml(v) { return esc(v).replace(/€$/, '<small>€</small>'); }
+function placePen(c) {
+  const panel = document.getElementById('panel');
+  const line = panel.querySelector(`.sl[data-shift="${c.s.n}"]`);
+  const pen = document.getElementById('pen');
+  const note = document.getElementById('note');
+  if (!line || !pen) return;
+  const x = line.offsetLeft + line.parentElement.offsetLeft, y = line.offsetTop + line.parentElement.offsetTop;
+  // offsetParent of the line is the panel (the columns are static), so offsets are already panel-relative.
+  const lx = x, ly = y;
+  const w = Math.round(line.textContent.trimEnd().length * 14.4) - 20, h = 22;
+  const cx = lx + w / 2 + 14, cy = ly + h / 2 + 1;
+  pen.innerHTML = `<ellipse cx="${cx}" cy="${cy}" rx="${w / 2 + 24}" ry="${h / 2 + 12}" transform="rotate(-2 ${cx} ${cy})"/>`;
+  const short = c.kind === 'payout' || c.kind === 'combo' ? c.value : c.kind === 'close' ? '+' + (c.s.total - c.s.quota) + '€' : c.kind === 'over' ? c.value : c.kind === 'golden' ? 'GOLD!' : c.value;
+  note.innerHTML = `BEST!<br>${valHtml(short)}`;
+  note.style.left = (lx + w + 54) + 'px';
+  note.style.top = (ly - 14) + 'px';
+}
+function describe(run, c) {
+  const why = st.kind !== 'auto' ? 'picked by hand in the HIGHLIGHT menu' : fallback ? 'no kind reached its bar, so the fallback, Biggest payout, prints' : `it has the best score (${c.score.toFixed(2)})`;
+  return `${run.won ? 'Won' : 'Lost'} run · highlight: "${c.text}", ${why}. Direction ${st.dir}: ` +
+    (st.dir === 'A' ? 'printed in its turn between the history and the coins.' : st.dir === 'B' ? 'a short line at the foot, then the stub slides out on the left after the coins.' : 'circled on its shift line after the coins have printed.');
+}
+function renderTable(cands) {
+  const tb = document.getElementById('cands');
+  const rows = KINDS.map(k => {
+    const c = cands.find(x => x.kind === k.id);
+    const win = c && chosen && c.kind === chosen.kind;
+    if (!c) return `<tr class="off"><td>${k.name}</td><td colspan="4">none in this run</td><td>—</td></tr>`;
+    const score = c.score == null ? '—' : c.score.toFixed(2) + (c.score >= 1 ? ' ✓' : '');
+    return `<tr class="${win ? 'win' : ''}${k.auto ? '' : ' off'}"><td>${k.name}${win ? ' <span class="chip">PRINTS</span>' : ''}</td><td>${esc(c.text)}</td><td>${esc(c.how)}</td><td class="num">${esc(c.bar)}</td><td class="num">${score}</td><td>${k.auto ? 'yes' : 'no'}</td></tr>`;
+  }).join('');
+  tb.innerHTML = `<tr><th>Kind</th><th>Its line in this run</th><th>From</th><th>Bar</th><th>Score</th><th>In the pick</th></tr>${rows}`;
+}
+
+/* ---------- printing ---------- */
+let timers = []; let token = 0;
+function clearTimers() { timers.forEach(clearTimeout); timers = []; }
+function at(ms, fn) { const my = token; timers.push(setTimeout(() => { if (my === token) fn(); }, ms / st.speed)); }
+function cue(t) { const s = document.createElement('span'); s.textContent = '♪ ' + t; cues.appendChild(s); while (cues.children.length > 8) cues.removeChild(cues.firstChild); }
+function printOrder() {
+  // Headline, rule, the left column, the right column, the rule, the highlight, the coins (ResultsPanel's order).
+  const panel = document.getElementById('panel');
+  const all = [...panel.querySelectorAll('.pl')];
+  const cols = [...panel.querySelectorAll('.col')];
+  const inCol = el => cols.findIndex(c => c.contains(el));
+  const head = all.filter(e => inCol(e) < 0 && all.indexOf(e) < all.indexOf(panel.querySelectorAll('.rule')[1]));
+  const colLines = cols.flatMap(c => [...c.querySelectorAll('.pl')]);
+  const tail = all.filter(e => inCol(e) < 0 && !head.includes(e));
+  return head.concat(colLines, tail);
+}
+function play() {
+  token++; clearTimers(); cues.innerHTML = '';
+  document.body.classList.remove('skip');
+  build();
+  const order = printOrder();
+  let t = 250;
+  for (const el of order) {
+    const isHl = el.id === 'hl';
+    const isCoin = el.classList.contains('coin');
+    at(t, () => { el.classList.add('on'); if (isHl && st.dir === 'A') { at(200, () => cue('stamp · 50 ms hit-stop')); } });
+    if (isCoin && !el.dataset.cued) { el.dataset.cued = 1; if (el === order.find(e => e.classList.contains('coin'))) at(t, () => cue('coins clink · music ducks')); }
+    t += isHl && st.dir === 'A' ? 200 + 120 + 450 * 0 + 300 + 80 : 80;
+  }
+  if (st.dir === 'B') { at(t + 200, () => { document.getElementById('stub').classList.add('on'); cue('print · tape'); }); }
+  if (st.dir === 'C') { at(t + 250, () => { document.getElementById('pen').classList.add('on'); document.getElementById('note').classList.add('on'); cue('marker scribble'); }); }
+  at(250, () => cue('print (80 ms per line)'));
+}
+function skip() {
+  token++; clearTimers();
+  document.body.classList.add('skip');
+  document.querySelectorAll('#stage .pl').forEach(e => e.classList.add('on'));
+  const pen = document.getElementById('pen'); if (pen) pen.classList.add('on');
+  const note = document.getElementById('note'); if (note) note.classList.add('on');
+  cue('tap: the rest prints at once');
+  layoutPng();
+}
+
+/* ---------- PNG preview ---------- */
+function layoutPng() {
+  const sheet = document.getElementById('pngsheet');
+  const box = document.getElementById('pngbox');
+  if (!sheet.firstChild) return;
+  const w = sheet.dataset.w | 0, h = sheet.dataset.h | 0;
+  const s = Math.min(1, (box.clientWidth - 28) / w);
+  sheet.style.transform = `scale(${s})`;
+  sheet.style.width = w + 'px';
+  sheet.parentElement.style.height = (h * s + 28) + 'px';
+}
+function buildPng() {
+  const sheet = document.getElementById('pngsheet');
+  const panel = document.getElementById('panel').cloneNode(true);
+  panel.removeAttribute('id');
+  panel.querySelectorAll('[id]').forEach(e => e.removeAttribute('id'));
+  panel.querySelector('.btns').remove();
+  panel.querySelectorAll('.pl').forEach(e => e.classList.add('on'));
+  panel.querySelectorAll('.pen,.note').forEach(e => e.classList.add('on'));
+  panel.style.top = '0'; panel.style.left = (st.dir === 'B' ? 380 : 0) + 'px'; panel.style.position = 'relative';
+  const run = RUNS[st.run];
+  sheet.innerHTML = '';
+  sheet.className = 'pngsheet';
+  const holder = document.createElement('div');
+  holder.style.cssText = 'position:relative;padding:20px;background:#1f3b3a;';
+  if (st.dir === 'B') {
+    const stub = document.getElementById('stub').cloneNode(true);
+    stub.removeAttribute('id'); stub.classList.add('on'); stub.style.display = 'block'; stub.style.top = '120px'; stub.style.left = '30px'; stub.style.animation = 'none';
+    holder.appendChild(stub);
+  }
+  holder.appendChild(panel);
+  const foot = document.createElement('div');
+  foot.className = 'pngfoot';
+  foot.textContent = `Next Customer · fb-p3 · 2026-11-05 · seed ${run.seed}`;
+  holder.appendChild(foot);
+  sheet.appendChild(holder);
+  sheet.querySelectorAll('*').forEach(e => { e.style.animation = 'none'; });
+  sheet.querySelectorAll('ellipse').forEach(e => { e.style.strokeDashoffset = '0'; });
+  const w = (st.dir === 'B' ? 380 : 0) + 1130 + 40;
+  sheet.dataset.w = w;
+  sheet.dataset.h = holder.offsetHeight || 1000;
+  layoutPng();
+}
+
+/* ---------- controls ---------- */
+function seg(id, key, attr, conv) {
+  document.getElementById(id).addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    for (const x of document.getElementById(id).children) x.setAttribute('aria-pressed', x === b ? 'true' : 'false');
+    st[key] = conv(b.dataset[attr]);
+    if (key === 'dir') document.body.className = document.body.className.replace(/\bdir[ABC]\b/, '') + ' dir' + st.dir;
+    restart();
+  });
+}
+seg('dirs', 'dir', 'd', v => v);
+seg('speeds', 'speed', 's', v => +v);
+document.getElementById('run').addEventListener('change', e => { st.run = e.target.value; restart(); });
+kindSel.addEventListener('change', e => { st.kind = e.target.value; restart(); });
+document.getElementById('rm').addEventListener('change', e => { st.rm = e.target.checked; document.body.classList.toggle('rm', st.rm); restart(); });
+document.getElementById('replay').addEventListener('click', restart);
+document.getElementById('skip').addEventListener('click', skip);
+wrap.addEventListener('click', skip);
+wrap.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); skip(); } });
+function restart() { document.body.className = document.body.className.replace(/\s+/g, ' ').trim(); play(); buildPng(); fit(); }
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { restart(); }); else restart();
+})();
+</script>
+</body>
+</html>

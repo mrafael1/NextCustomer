@@ -1,0 +1,1206 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Training Shift</title>
+<style>
+/* House style of the shift mock-ups (run_info_clarity, shift_scene_polish_v4): the store's dark teal wall,
+   live stages, verdicts beside them. Stages are the game's 1280x720 stage; art px = 2 stage px. */
+@font-face{font-family:'NCPix';font-weight:400 700;src:url(training_shift_src/PixelifySans-Variable.ttf);unicode-range:U+0000-20AB,U+20AD-FFFF}
+@font-face{font-family:'NCMono';src:url(training_shift_src/JetBrainsMono-Regular.ttf)}
+@font-face{font-family:'NCAtk';font-weight:200 800;src:url(training_shift_src/AtkinsonHyperlegibleNext-Variable.ttf)}
+:root{
+  color-scheme:dark;
+  --wall:#1f3b3a; --bay:#172c2b; --panel:#2a4d4b; --paper:#fbf7ee; --cream:#f3e9d2; --cream-shade:#ddcba5; --teal-pale:#c3e0d4; --teal-light:#86c2b6;
+  --teal:#4f9a94; --teal-shade:#3a7672; --teal-dark:#2a4d4b; --mustard:#e2b33c; --mustard-pale:#faecbc; --mustard-light:#f1d27a; --mustard-dark:#b38425; --gold:#ffcf3f;
+  --tomato:#d9534f; --tomato-dark:#a83a3c; --tomato-pale:#f5bfa0; --tomato-light:#ec8a6e; --green:#5fae5a; --green-dark:#3d7a45; --green-light:#a5d17e;
+  --ink:#2b2420; --ink-light:#4a3f38; --muted:#a9a59b; --grey-light:#c7beab; --brass:#c8932b;
+  --display:'NCPix','NCAtk','Courier New',monospace;
+  --body:'NCAtk','Segoe UI',system-ui,sans-serif;
+  --mono:'NCMono',Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--wall);color:var(--paper)}
+body{font-family:var(--body);font-size:15px;line-height:1.5;overflow-x:hidden}
+main{max-width:1400px;margin:0 auto;padding:28px 16px 64px;display:grid;gap:48px;grid-template-columns:minmax(0,1fr)}
+main>*,section>*{min-width:0}
+h1,h2,h3{font-family:var(--display);font-weight:700;margin:0;letter-spacing:.02em;text-wrap:balance}
+h1{font-size:34px;color:var(--gold)}
+h2{font-size:24px}
+h3{font-size:17px;color:var(--teal-pale)}
+p{margin:0;max-width:84ch;overflow-wrap:break-word}
+code{overflow-wrap:anywhere;color:#faecbc;font-size:13px}
+.lede{display:grid;gap:10px}
+.eyebrow{font-family:var(--display);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--teal-light)}
+section{display:grid;gap:16px;min-width:0;grid-template-columns:minmax(0,1fr)}
+.verdict{background:var(--panel);border:2px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.35);padding:14px 16px;display:grid;gap:8px}
+.verdict strong{color:var(--gold)}
+.controls{display:flex;gap:8px 10px;flex-wrap:wrap;align-items:center}
+.controls .lbl{font-family:var(--display);font-size:13px;color:var(--teal-light);letter-spacing:.06em}
+button{font-family:var(--display);font-size:15px;color:var(--paper);background:#3a7672;border:2px solid var(--ink);box-shadow:0 3px 0 var(--ink);padding:4px 12px;cursor:pointer}
+button:active{transform:translateY(2px)}
+button:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+button[aria-pressed="true"]{background:var(--mustard);color:var(--ink)}
+button.go{background:var(--mustard);color:var(--ink)}
+label.chk{display:inline-flex;gap:6px;align-items:center;font-family:var(--display);font-size:14px;cursor:pointer}
+.toolbar{position:sticky;top:0;z-index:50;background:rgba(23,44,43,.96);border-bottom:2px solid var(--ink);padding:8px 16px}
+.toolbar .controls{max-width:1400px;margin:0 auto}
+.toolbar a{color:var(--mustard-light);font-family:var(--display);font-size:14px;text-decoration:none;padding:2px 6px;border:2px solid transparent}
+.toolbar a:hover{border-color:var(--mustard)}
+ul,ol{margin:0;padding-left:22px;display:grid;gap:6px;max-width:90ch}
+.answers{background:var(--paper);color:var(--ink);border:3px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.4);padding:16px 18px;display:grid;gap:10px}
+.answers h2{color:var(--ink)}
+.answers li b{color:#a83a3c}
+.answers code{color:#6e2630;background:#f3e9d2}
+.cap{font-size:12px;color:var(--muted)}
+.scroll{overflow-x:auto;max-width:100%}
+table.spec{border-collapse:collapse;font-size:13.5px;min-width:720px;width:100%}
+table.spec th,table.spec td{border-bottom:1px solid #3a7672;padding:6px 8px;text-align:left;vertical-align:top}
+table.spec th{font-family:var(--display);color:var(--teal-light);font-weight:500}
+table.spec td:first-child{white-space:nowrap;color:#faecbc}
+.cols{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr))}
+.tag{font-family:var(--display);font-size:15px;background:var(--paper);color:var(--ink);padding:0 7px;border:2px solid var(--ink)}
+.rec .tag{background:var(--mustard)}
+.dirhead{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.pick{font-family:var(--display);font-size:12px;color:var(--gold);letter-spacing:.08em;border:2px solid var(--gold);padding:0 6px}
+
+/* ---------- before: the captures with numbered problems ---------- */
+.shot{position:relative;border:2px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.35);max-width:100%}
+.shot img{display:block;width:100%;height:auto}
+.shot .pin{position:absolute;transform:translate(-50%,-50%);width:26px;height:26px;border-radius:50%;background:var(--gold);color:var(--ink);border:2px solid var(--ink);font-family:var(--display);font-weight:700;font-size:15px;display:grid;place-items:center;box-shadow:0 2px 0 var(--ink)}
+.probs{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr))}
+.prob{background:var(--bay);border:2px solid var(--ink);padding:10px 12px;display:grid;gap:4px;grid-template-columns:30px minmax(0,1fr);align-items:start}
+.prob .n{width:26px;height:26px;border-radius:50%;background:var(--gold);color:var(--ink);border:2px solid var(--ink);font-family:var(--display);font-weight:700;display:grid;place-items:center}
+.prob b{color:var(--paper)} .prob span{font-size:14px;color:var(--teal-pale)}
+
+/* ---------- flow strip + event log beside each stage ---------- */
+.flow{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.flow button{font-size:13px;padding:2px 8px;background:var(--bay)}
+.flow button.on{background:var(--mustard);color:var(--ink)}
+.flow .sep{color:var(--teal-light);font-family:var(--display)}
+.stagebox{display:grid;gap:10px;grid-template-columns:minmax(0,1fr)}
+.belowstage{display:grid;gap:12px;grid-template-columns:minmax(0,2fr) minmax(0,1fr)}
+@media (max-width:860px){.belowstage{grid-template-columns:minmax(0,1fr)}}
+.log{background:#11211f;border:2px solid var(--ink);font-family:var(--mono);font-size:11.5px;color:var(--teal-pale);padding:8px 10px;height:170px;overflow:auto;white-space:pre-wrap;margin:0}
+.log b{color:var(--gold);font-weight:400}
+.notes{background:var(--bay);border:2px solid var(--ink);padding:10px 12px;font-size:14px;color:var(--teal-pale);display:grid;gap:6px;align-content:start}
+.notes b{color:var(--paper)}
+
+/* ---------- the live stage (1280x720, scaled) ---------- */
+.stagewrap{position:relative;border:2px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.35);overflow:hidden;background:#111;max-width:100%;touch-action:none;user-select:none}
+.stage{position:absolute;left:0;top:0;width:1280px;height:720px;transform-origin:0 0;overflow:hidden;font-family:var(--body);color:var(--ink)}
+.stage img{image-rendering:pixelated}
+.scene{position:absolute;inset:0}
+.scene.off{display:none}
+.bg{position:absolute;left:0;top:0;width:1280px;height:720px;image-rendering:auto!important}
+.abs{position:absolute}
+.rm *{transition:none!important;animation-duration:0s!important}
+
+/* top bar */
+.topband{left:344px;top:6px;width:870px;height:44px;background:#1f3b3a}
+.chip{position:absolute;top:9px;height:38px;border:2px solid var(--ink);box-shadow:inset 0 2px 0 rgba(255,255,255,.25),inset 0 -3px 0 rgba(0,0,0,.25),2px 2px 0 rgba(0,0,0,.35);display:flex;align-items:center;gap:8px;padding:0 10px;white-space:nowrap}
+.chip .k{font-family:var(--display);font-weight:700;font-size:18px;letter-spacing:1px}
+.chip .t{font-weight:700;font-size:14px}
+.chip.train{left:348px;background:var(--mustard);color:var(--ink)}
+.chip.nosave{background:var(--teal-dark);color:var(--teal-pale);border-color:var(--ink)}
+.chip.steps{background:var(--cream);color:var(--ink)}
+.stp{display:flex;align-items:center;gap:5px;font-family:var(--body);font-weight:800;font-size:12px;letter-spacing:.5px;color:var(--ink-light)}
+.stp i{display:inline-block;width:12px;height:12px;border:2px solid var(--ink);background:var(--paper)}
+.stp.done i{background:var(--green)}
+.stp.now{color:var(--ink)}
+.stp.now i{background:var(--gold);animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{background:var(--paper)}}
+.menuhot{left:1221px;top:9px;width:42px;height:38px;cursor:pointer}
+.menuhot:hover{outline:3px solid var(--gold)}
+
+/* receipt */
+.rcpt{left:46px;top:14px;width:236px;height:321px;background:var(--paper);font-family:var(--mono);color:#2d2621;overflow:hidden}
+.rcpt .tt{position:absolute;left:0;right:0;top:6px;text-align:center;font-family:var(--display);font-size:13px;letter-spacing:3px;color:var(--ink-light)}
+.rcpt .tgt{position:absolute;left:0;right:0;top:16px;text-align:center;font-family:var(--display);font-weight:700;font-size:62px;line-height:62px;color:#a83a3c;letter-spacing:2px}
+.rcpt .tgt span{display:inline-block;transform:scaleX(1.2)}
+.rcpt .rule2{position:absolute;left:4px;right:4px;top:80px;height:7px;border-top:2px solid #d9534f;border-bottom:2px solid #d9534f}
+.rcpt .sh{position:absolute;left:6px;top:91px;font-size:14px;letter-spacing:.5px}
+.rcpt .dash{position:absolute;left:6px;right:6px;height:0;border-top:2px dashed var(--cream-shade)}
+.rl{position:absolute;left:6px;right:6px;height:20px;display:flex;align-items:center;gap:4px;font-size:14px;white-space:nowrap}
+.rl img{width:14px;height:14px}
+.rl .nm{flex:1;overflow:hidden}
+.rl .pr{text-align:right}
+.rl .mk{width:14px;height:14px;flex:none}
+.rl.empty{color:#a9a59b}
+.rl.wasted .pr{color:#d9534f}
+.rl.boost .pr{color:#8a5d1a;font-weight:700}
+.rl.hl{outline:3px solid #d9534f;outline-offset:0;background:#fff3ee}
+.rl.print{animation:print .28s steps(4)}
+@keyframes print{from{clip-path:inset(0 0 100% 0)}to{clip-path:inset(0 0 0 0)}}
+.rcpt .pj{position:absolute;left:6px;right:8px;top:262px;display:flex;align-items:baseline;justify-content:space-between}
+.rcpt .pj .l{font-size:15px;letter-spacing:.5px}
+.rcpt .pj .v{font-size:30px;line-height:34px;color:#2d2621}
+.rcpt .pj .v.short{color:#d9534f}
+.rcpt .pj .v.over{color:#3d7a45}
+.rcpt .gap{position:absolute;right:8px;top:298px;font-size:14px}
+.rcpt .gap.short{color:#dc635e}.rcpt .gap.over{color:#3d7a45}
+.rcpt .stamp{position:absolute;left:40px;top:150px;transform:rotate(-12deg) scale(1);border:4px solid currentColor;padding:2px 10px;font-family:var(--display);font-weight:700;font-size:34px;letter-spacing:3px;opacity:.88;display:none;background:rgba(251,247,238,.6)}
+.rcpt .stamp.paid{color:#3d7a45}.rcpt .stamp.short{color:#d9534f;font-size:28px}
+.rcpt .stamp.on{display:block;animation:stamp .26s steps(3)}
+@keyframes stamp{from{transform:rotate(-12deg) scale(2.2);opacity:0}to{transform:rotate(-12deg) scale(1);opacity:.88}}
+.rcpt .hi{position:absolute;left:4px;right:4px;top:228px;background:var(--mustard-pale);border:2px solid var(--mustard-dark);font-size:11.5px;line-height:14px;padding:2px 4px;display:none;color:#5a3d0e}
+.rcpt .hi.on{display:block}
+.rcpt .hi b{font-family:var(--body);font-weight:800;font-size:11px;letter-spacing:.5px}
+
+/* gauge */
+.gaugecover{left:9px;top:40px;width:25px;height:255px;background:#24221f;overflow:hidden}
+.gaugefill{position:absolute;left:0;right:0;bottom:0;height:0;background:#4f9a94;box-shadow:inset 0 3px 0 #86c2b6;transition:height .35s steps(6)}
+.gaugefill.met{background:#5fae5a;box-shadow:inset 0 3px 0 #a5d17e}
+.gaugeline{position:absolute;left:0;right:0;top:0;height:3px;background:#d9534f}
+
+/* register patches */
+.redrawoff{left:20px;top:516px;width:200px;height:58px;background:#45423d;border:2px dashed #6f6b63;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:14px;color:var(--grey-light);letter-spacing:1px}
+.seed{left:40px;top:584px;width:196px;height:20px;background:#45423d;font-family:var(--body);font-weight:700;font-size:12px;color:#a9a59b;text-align:center;line-height:20px}
+.cohot{left:22px;top:424px;width:291px;height:76px;cursor:pointer}
+.cohot.dim{background:rgba(43,36,32,.55);cursor:default}
+.cohot:not(.dim):hover{outline:3px solid var(--gold)}
+.cohot.press{background:rgba(43,36,32,.25)}
+
+/* monitor */
+.mon{left:494px;top:75px;width:406px;height:158px;background:#2b2420;border:2px solid #fbf7ee}
+.mon .lc{position:absolute;left:3px;top:3px;width:113px;height:148px;background:#1f3b3a;border:2px solid var(--ink)}
+.mon .lc .lab{position:absolute;left:0;right:0;top:2px;height:16px;font-family:var(--display);font-size:11px;letter-spacing:2px;color:var(--paper);display:flex;align-items:center;gap:6px;padding-left:6px}
+.mon .lc .lab i{width:7px;height:7px;background:#a83a3c;display:inline-block}
+.mon .lc .frame{position:absolute;left:6px;top:20px;width:97px;height:98px;background:#2a4d4b;background-image:linear-gradient(#3a7672 1px,transparent 1px),linear-gradient(90deg,#3a7672 1px,transparent 1px);background-size:12px 12px;border:2px solid #172c2b;display:grid;place-items:center}
+.mon .lc .frame img{width:88px;height:88px}
+.mon .lc .bot{position:absolute;left:6px;right:6px;bottom:4px;height:20px;border:2px solid #3a7672;background:#2a4d4b;font-family:var(--body);font-weight:700;font-size:11px;color:var(--paper);display:grid;place-items:center;letter-spacing:.5px}
+.mon .pp{position:absolute;left:119px;top:3px;width:281px;height:148px;background:var(--paper);border:2px solid #3a7672;overflow:hidden}
+.mon .hd{height:26px;background:#9cc4bc;border-bottom:2px solid #3a7672;display:flex;align-items:center;gap:6px;padding:0 6px}
+.mon .hd img{width:18px;height:18px}
+.mon .hd .nm{font-family:var(--display);font-size:21px;line-height:22px;color:var(--ink);flex:1;white-space:nowrap;overflow:hidden}
+.mon .hd .pg{font-family:var(--body);font-weight:800;font-size:12px}
+.mon .hd .pay{font-family:var(--body);font-weight:800;font-size:15px;background:var(--paper);border:2px solid var(--ink);padding:0 6px;line-height:18px;box-shadow:2px 2px 0 rgba(0,0,0,.3)}
+.mon .hd .pay.gold{background:var(--gold)}
+.mon .bd{padding:4px 7px 0;font-weight:700;font-size:13.5px;line-height:1.28;color:var(--ink)}
+.mon .ln{display:flex;gap:6px;align-items:center;padding:1px 7px;font-weight:700;font-size:12.5px;line-height:16px;white-space:nowrap}
+.mon .ln .x{flex:1;overflow:hidden;text-overflow:ellipsis}
+.mon .ln .v{font-weight:800}
+.mon .ln.gold .v{color:#8a5d1a}
+.mon .ln.green .v{color:#3d7a45}
+.mon .ln.bad{color:#a83a3c}
+.mon .ln.tr{color:#2a4d4b;font-weight:800;border-top:2px dashed var(--cream-shade);margin-top:3px;padding-top:3px;white-space:normal}
+.mon .sep{border-top:2px dashed var(--cream-shade);margin:4px 7px 2px}
+.kw{display:inline-block;font-family:var(--body);font-weight:800;font-size:10px;letter-spacing:.5px;padding:0 4px;border:2px solid var(--ink);line-height:13px;vertical-align:1px}
+.kw.chain{background:var(--green);color:var(--paper)}
+.kw.food{background:var(--tomato-light);color:var(--ink)}
+.kw.x2{background:var(--gold);color:var(--ink)}
+.mon .big{font-family:var(--display);font-weight:700;font-size:64px;line-height:64px;color:var(--ink);text-align:center;margin-top:8px}
+.mon .big.met{color:#3d7a45}
+.mon .tank{margin:6px 14px 0;height:16px;border:2px solid var(--ink);background:#e9e1cc;position:relative}
+.mon .tank i{position:absolute;left:0;top:0;bottom:0;background:var(--teal);transition:width .3s steps(5)}
+.mon .tank i.met{background:var(--green)}
+.mon .tank b{position:absolute;top:-6px;bottom:-6px;width:3px;background:#d9534f}
+.mon .cap2{text-align:center;font-weight:800;font-size:12px;margin-top:4px}
+.mon .btnrow{display:flex;gap:6px;padding:4px 7px}
+.mon .btnrow button{font-size:12px;padding:1px 8px;box-shadow:0 2px 0 var(--ink)}
+
+/* hand + belt */
+.hclip{position:absolute;top:500px;height:112px;overflow:hidden;pointer-events:none}
+.item{position:absolute;cursor:pointer;pointer-events:auto;transition:left .16s steps(3),top .16s steps(3),transform .12s steps(2)}
+.item img{width:100%;height:100%;display:block;pointer-events:none}
+.item.picked{transform:translateY(-14px);filter:drop-shadow(0 0 0 #ffcf3f) drop-shadow(2px 0 0 #ffcf3f) drop-shadow(-2px 0 0 #ffcf3f) drop-shadow(0 -2px 0 #ffcf3f)}
+.item.ghosted{opacity:.25}
+.item.hop{transform:translateY(-20px)}
+.item.hidden{visibility:hidden}
+.belt .item{filter:drop-shadow(0 4px 0 rgba(0,0,0,.35))}
+.belt.passthru .item{pointer-events:none}
+.slothot{position:absolute;top:300px;width:124px;height:236px;cursor:default}
+.slothot.armed{cursor:pointer}
+.slothot.armed::after{content:"";position:absolute;left:10px;top:66px;width:100px;height:58px;border:3px dashed var(--gold);animation:blink2 .8s steps(2) infinite}
+.slothot.armed:hover::after{background:rgba(255,207,63,.25);border-style:solid}
+@keyframes blink2{50%{border-color:rgba(255,207,63,.35)}}
+.ticket{position:absolute;top:458px;width:108px;height:76px;border:2px solid var(--ink);pointer-events:none}
+.ticket .lb{position:absolute;left:4px;top:4px;width:42px;height:22px;background:var(--paper);display:flex;align-items:center;justify-content:center;gap:2px}
+.ticket .lb img{width:14px;height:14px}
+.ticket .win{position:absolute;right:4px;top:4px;width:56px;height:22px;background:var(--paper);font-family:var(--body);font-weight:800;font-size:16px;line-height:22px;text-align:center;color:var(--ink)}
+.ticket .win.gold{background:url(training_shift_src/pay_burst.png) center/60px 32px no-repeat,var(--gold);image-rendering:pixelated}
+.ticket .win.bad{color:#d9534f}
+.ticket .pl{position:absolute;left:4px;right:4px;top:30px;bottom:4px;background:var(--cream);box-shadow:inset 2px 2px 0 var(--cream-shade);font-weight:800;font-size:12px;line-height:13px;padding:3px 4px;color:var(--ink)}
+.ticket.food{background:#ec8a6e;box-shadow:inset 2px 2px 0 #f5bfa0,inset -2px -2px 0 #d9534f}
+.ticket.produce{background:#5fae5a;box-shadow:inset 2px 2px 0 #a5d17e,inset -2px -2px 0 #3d7a45}
+.ticket.emptyt{display:none}
+.slotnum{position:absolute;top:478px;width:108px;text-align:center;font-family:var(--body);font-weight:800;font-size:26px;color:#6f6b63;pointer-events:none}
+.stk{position:absolute;display:flex;align-items:center;gap:3px;font-family:var(--body);font-weight:800;font-size:17px;padding:1px 6px;border:2px solid var(--ink);box-shadow:2px 2px 0 rgba(0,0,0,.35);pointer-events:none;white-space:nowrap;animation:pop .22s steps(3)}
+.stk img{width:14px;height:14px}
+.stk.x2{background:var(--gold);color:var(--ink);transform:rotate(-4deg)}
+.stk.add{background:var(--paper);color:var(--ink);transform:rotate(3deg)}
+.stk.wasted{background:#d6d2c8;color:#4a3f38;font-size:14px;letter-spacing:1px;border-bottom:4px solid #d9534f;transform:rotate(-3deg)}
+.stk.flash{animation:flash .35s steps(3)}
+@keyframes pop{from{transform:scale(.3)}}
+@keyframes flash{0%{filter:brightness(2)}100%{filter:none}}
+.chainf{position:absolute;top:318px;height:118px;border:4px solid #5fae5a;box-shadow:0 0 0 2px var(--ink),inset 0 0 0 2px var(--ink);pointer-events:none}
+.chainf .tb{position:absolute;right:6px;bottom:-14px;background:#5fae5a;border:2px solid var(--ink);font-family:var(--body);font-weight:800;font-size:11px;letter-spacing:1px;color:var(--paper);padding:0 5px;line-height:14px}
+.ring2{position:absolute;width:14px;height:14px;border:3px solid #5fae5a;border-radius:50%;box-shadow:0 0 0 2px var(--ink);pointer-events:none}
+.rail{position:absolute;top:444px;height:8px;background:var(--brass);border:2px solid var(--ink);pointer-events:none}
+.rail::after{content:"×2";position:absolute;right:-4px;top:-12px;font-family:var(--body);font-weight:800;font-size:12px;background:var(--gold);border:2px solid var(--ink);padding:0 3px;line-height:14px;color:var(--ink)}
+.brk{position:absolute;pointer-events:none;display:none}
+.brk.on{display:block}
+.brk i{position:absolute;width:16px;height:16px;border-color:#d9534f;border-style:solid;border-width:0}
+.brk i:nth-child(1){left:0;top:0;border-left-width:4px;border-top-width:4px}
+.brk i:nth-child(2){right:0;top:0;border-right-width:4px;border-top-width:4px}
+.brk i:nth-child(3){left:0;bottom:0;border-left-width:4px;border-bottom-width:4px}
+.brk i:nth-child(4){right:0;bottom:0;border-right-width:4px;border-bottom-width:4px}
+.holdbar{position:absolute;height:6px;background:#2b2420;border:2px solid var(--ink);display:none;pointer-events:none}
+.holdbar.on{display:block}
+.holdbar i{display:block;height:100%;width:0;background:#d9534f}
+.holdbar.on i{animation:hold .6s steps(6) forwards}
+@keyframes hold{to{width:100%}}
+.flyer{position:absolute;pointer-events:none;z-index:40;transition:left .22s steps(5),top .22s steps(5),width .22s steps(5),height .22s steps(5)}
+.flyer img{width:100%;height:100%;display:block}
+.drag{position:absolute;pointer-events:none;z-index:41;width:84px;height:84px;filter:drop-shadow(4px 6px 0 rgba(0,0,0,.35))}
+.drag img{width:100%;height:100%}
+
+/* guidance: A's note + rings */
+.ring{position:absolute;border:3px solid var(--gold);box-shadow:0 0 0 2px var(--ink);pointer-events:none;animation:ringp .9s steps(2) infinite;z-index:30}
+@keyframes ringp{50%{border-color:var(--paper);transform:scale(1.04)}}
+.parrow{position:absolute;width:24px;height:22px;pointer-events:none;z-index:31;animation:bob .7s steps(2) infinite}
+@keyframes bob{50%{transform:translateY(-6px)}}
+.note{position:absolute;left:916px;top:62px;width:276px;min-height:120px;background:var(--mustard-pale);border:2px solid var(--ink);box-shadow:4px 5px 0 rgba(0,0,0,.45);padding:14px 12px 10px;transform:rotate(-1.5deg);z-index:29;color:var(--ink)}
+.note.swap{animation:noteIn .3s steps(4)}
+@keyframes noteIn{from{transform:rotate(-8deg) translateY(-30px);opacity:0}}
+.note .tape{position:absolute;left:104px;top:-9px;width:66px;height:16px;background:rgba(195,224,212,.85);border:1px solid rgba(43,36,32,.4);transform:rotate(2deg)}
+.note .h{font-family:var(--display);font-weight:700;font-size:19px;letter-spacing:.5px;line-height:1.05}
+.note .b{font-weight:700;font-size:14px;line-height:1.3;margin-top:5px}
+.note .s{position:absolute;right:8px;top:6px;font-family:var(--display);font-size:11px;color:var(--ink-light)}
+.note.bad{background:#f5d3c0}
+.note .sig{font-family:var(--display);font-size:12px;color:#8a5d1a;margin-top:4px}
+/* B's clipboard */
+.clip{position:absolute;left:918px;top:56px;width:270px;height:206px;background:#a87a4e;border:2px solid var(--ink);box-shadow:4px 5px 0 rgba(0,0,0,.45);z-index:29}
+.clip .cl{position:absolute;left:96px;top:-8px;width:76px;height:20px;background:#c7c3b8;border:2px solid var(--ink);box-shadow:inset 0 -4px 0 #8d8a83}
+.clip .pa{position:absolute;left:10px;top:16px;right:10px;bottom:10px;background:var(--paper);border:2px solid var(--ink);padding:6px 8px;color:var(--ink)}
+.clip .ti{font-family:var(--display);font-weight:700;font-size:15px;display:flex;justify-content:space-between;border-bottom:2px solid var(--ink);padding-bottom:2px;margin-bottom:3px}
+.clip .row{display:flex;gap:6px;align-items:flex-start;font-weight:700;font-size:13px;line-height:15px;padding:3px 0}
+.clip .row i{flex:none;width:14px;height:14px;border:2px solid var(--ink);background:var(--paper);margin-top:1px;position:relative}
+.clip .row.done i{background:var(--green)}
+.clip .row.done i::after{content:"";position:absolute;left:3px;top:-1px;width:4px;height:8px;border:solid var(--ink);border-width:0 2px 2px 0;transform:rotate(40deg)}
+.clip .row.done span{text-decoration:line-through;text-decoration-thickness:2px;color:var(--ink-light)}
+.clip .row.next span{background:var(--mustard-pale)}
+.clip .row.next.nudge span{animation:nudge .8s steps(2) infinite}
+@keyframes nudge{50%{background:var(--gold)}}
+.clip .hint{position:absolute;left:8px;right:8px;bottom:6px;display:flex;gap:6px;align-items:center}
+.clip .hint button{font-size:12px;padding:0 6px;box-shadow:0 2px 0 var(--ink);background:var(--teal-shade)}
+.clip .hint span{font-size:11.5px;font-weight:700;line-height:13px;color:#2a4d4b}
+/* C's ghost cursor */
+.ghost{position:absolute;left:0;top:0;width:26px;height:30px;z-index:45;pointer-events:none;display:none;transition:left .5s steps(10),top .5s steps(10)}
+.ghost.on{display:block}
+.ghost.click svg{transform:scale(.85)}
+.demotag{position:absolute;left:360px;top:258px;background:var(--tomato);color:var(--paper);border:2px solid var(--ink);font-family:var(--display);font-weight:700;font-size:16px;letter-spacing:2px;padding:2px 10px;z-index:30;display:none;box-shadow:3px 3px 0 rgba(0,0,0,.4)}
+.demotag.on{display:block;animation:blink3 1s steps(2) infinite}
+@keyframes blink3{50%{opacity:.6}}
+
+/* shade + end card + pause */
+.lift{z-index:36}
+.shade{position:absolute;inset:0;background:rgba(23,44,43,.62);z-index:35;display:none}
+.shade.on{display:block}
+.shade.hole{background:transparent;box-shadow:none}
+.card{position:absolute;left:340px;top:150px;width:560px;background:var(--paper);border:3px solid var(--ink);box-shadow:6px 6px 0 rgba(0,0,0,.5);z-index:36;display:none;color:var(--ink)}
+.card.on{display:block;animation:cardIn .3s steps(4)}
+@keyframes cardIn{from{transform:translateY(40px);opacity:0}}
+.card .hb{padding:10px 16px;border-bottom:3px solid var(--ink);display:flex;align-items:center;justify-content:space-between;gap:10px}
+.card .hb .h{font-family:var(--display);font-weight:700;font-size:30px;letter-spacing:1px}
+.card.ok .hb{background:var(--mustard)}
+.card.bad .hb{background:var(--tomato-pale)}
+.card .hb .tm{font-family:var(--mono);font-size:14px}
+.card .bdy{padding:12px 16px;display:grid;gap:10px}
+.card .best{background:var(--mustard-pale);border:2px solid var(--mustard-dark);padding:6px 10px;display:flex;align-items:center;gap:10px}
+.card .best .k{font-family:var(--body);font-weight:800;font-size:12px;letter-spacing:1px;color:#8a5d1a}
+.card .best .v{font-weight:800;font-size:17px}
+.card .best img{width:40px;height:40px}
+.card .learn{display:grid;gap:4px;font-weight:700;font-size:14px}
+.card .learn div{display:flex;gap:8px;align-items:center}
+.card .learn img{width:20px;height:20px}
+.card .btns{display:flex;gap:10px;flex-wrap:wrap}
+.card .btns button{font-size:18px;padding:6px 16px}
+.card .btns .p{background:var(--tomato);color:var(--paper)}
+.card .btns .c{background:var(--cream);color:var(--ink)}
+.card .small{font-size:12.5px;color:var(--ink-light);font-weight:700}
+.pause{position:absolute;left:470px;top:170px;width:340px;background:var(--paper);border:3px solid var(--ink);box-shadow:6px 6px 0 rgba(0,0,0,.5);z-index:37;display:none;color:var(--ink)}
+.pause.on{display:block}
+.pause .hb{background:var(--teal-light);border-bottom:3px solid var(--ink);padding:8px 14px;font-family:var(--display);font-weight:700;font-size:24px}
+.pause .bdy{padding:12px 14px;display:grid;gap:8px}
+.pause button{font-size:18px;text-align:left;background:var(--teal);}
+.pause button.c{background:var(--cream);color:var(--ink)}
+.pause .small{font-size:12px;font-weight:700;color:var(--ink-light)}
+
+/* title scene */
+.plate{position:absolute;left:73px;border:2px solid var(--ink);box-shadow:inset 0 3px 0 rgba(255,255,255,.28),inset 0 -4px 0 rgba(0,0,0,.25),3px 3px 0 rgba(0,0,0,.45);font-family:var(--display);color:var(--paper);cursor:pointer;transition:transform .08s steps(2)}
+.plate:hover,.plate.hot{transform:translateX(6px);outline:3px solid var(--gold)}
+.plate.pri{top:321px;width:300px;height:76px;background:#d9534f;padding:6px 22px}
+.plate.pri .k{font-size:38px;line-height:40px;letter-spacing:1px}
+.plate.pri .s{font-family:var(--body);font-weight:800;font-size:13px;color:var(--tomato-pale)}
+.plate.sec{width:237px;height:40px;background:#4f9a94;padding:0 14px;display:flex;align-items:center;justify-content:space-between;font-size:20px;letter-spacing:.5px}
+.plate .coin{display:flex;align-items:center;gap:4px;font-family:var(--body);font-weight:800;font-size:16px;color:var(--gold)}
+.plate .coin i{width:18px;height:18px;border-radius:50%;background:var(--gold);border:2px solid var(--ink);display:inline-block}
+.newtag{font-family:var(--display);font-size:12px;background:var(--gold);color:var(--ink);border:2px solid var(--ink);padding:0 5px;letter-spacing:1px;line-height:16px;transform:rotate(4deg)}
+.plate .mins{font-family:var(--body);font-size:12px;font-weight:800;color:var(--teal-pale)}
+.popup{position:absolute;left:400px;top:236px;width:480px;background:var(--paper);border:3px solid var(--ink);box-shadow:6px 6px 0 rgba(0,0,0,.55);display:none;z-index:20;color:var(--ink)}
+.popup.on{display:block;animation:cardIn .25s steps(3)}
+.popup .hb{background:var(--mustard);border-bottom:3px solid var(--ink);padding:8px 14px;font-family:var(--display);font-weight:700;font-size:26px;display:flex;justify-content:space-between;align-items:center}
+.popup .bdy{padding:12px 14px;display:grid;gap:10px}
+.popup .basket{display:flex;gap:6px;align-items:center;font-weight:800}
+.popup .basket img{width:48px;height:48px}
+.popup .btns{display:flex;gap:10px}
+.popup .btns button{font-size:18px;padding:6px 14px}
+.popup .small{font-size:12.5px;font-weight:700;color:var(--ink-light)}
+.toast{position:absolute;left:50%;top:640px;transform:translateX(-50%);background:var(--ink);color:var(--paper);font-weight:800;font-size:15px;padding:6px 14px;border:2px solid var(--gold);z-index:60;display:none;white-space:nowrap}
+.toast.on{display:block}
+.flood{position:absolute;left:535px;top:262px;width:210px;height:318px;background:#fbf7ee;opacity:0;z-index:50;pointer-events:none}
+.flood.go{animation:flood .55s steps(6) forwards}
+@keyframes flood{0%{opacity:0}40%{opacity:.9}100%{opacity:1;left:0;top:0;width:1280px;height:720px}}
+.fadein{position:absolute;inset:0;background:#fbf7ee;z-index:50;pointer-events:none;opacity:0}
+.fadein.go{animation:fadeOut .45s steps(5) forwards}
+@keyframes fadeOut{from{opacity:1}to{opacity:0}}
+.rm .flood.go,.rm .fadein.go{animation:none;opacity:0}
+</style>
+<body>
+<div class="toolbar"><div class="controls">
+  <span class="lbl">TRAINING SHIFT</span>
+  <a href="#today">Today</a><a href="#dirA">A · Sticky notes</a><a href="#dirB">B · Clipboard</a><a href="#dirC">C · Watch, then you</a><a href="#rec">Recommendation</a><a href="#spec">Spec</a><a href="#q">Questions</a>
+  <span style="flex:1"></span>
+  <label class="chk"><input type="checkbox" id="rmToggle"> Reduced motion</label>
+  <label class="chk"><input type="checkbox" id="sndToggle" checked> Sound</label>
+</div></div>
+<main>
+<header class="lede">
+  <div class="eyebrow">Mock-up · phase 4 onboarding (plan section 3: "Tutorial shift, a fixed hand, guided, no penalty") · 2026-11-05</div>
+  <h1>A short, replayable training shift</h1>
+  <p>You get a fixed basket of <b>Eggs</b> and <b>two Bananas</b> and a <b>10€ target</b>. You arrange the row, scan a Banana to see what it will pay, and check out. Only one order reaches the target, so the one combo teaches placement, scanning and the receipt in one go. It takes under a minute, saves nothing to the run, and can be replayed from the title menu.</p>
+  <p>The numbers come from today's card data (<code>data/cards/eggs.tres</code>, <code>banana.tres</code>; plan v0.46's Banana chain): <b>Eggs, Banana, Banana = 1 + 4 + 6 = 11€</b>. The first Banana gets the Eggs' ×2 (2 → 4), and the second adds the 4€ before it (2 + 4). <b>Every other order pays 7€</b>: Banana, Banana, Eggs = 2 + 4 + 1 with the charge WASTED, and Banana, Eggs, Banana = 2 + 1 + 4 with both Bananas lone. A 10€ target therefore needs the combo, and a wrong order is 3€ short.</p>
+  <p class="cap">Each stage below is live. Click an item, then a belt slot (or drag it). Hold the pointer on a belt item for 0.6 s to scan it, then press CHECKOUT. The strip above each stage jumps to any state, ▶ Autoplay plays the whole flow, and the log beside it shows what telemetry would write. The art is the game's (a shift-1 capture with the belt and baskets cleared, item sprites from <code>art/items_v2/</code>, sounds from <code>audio/sfx/</code>). The notes, clipboard, end card and title plates are CSS approximations in the palette.</p>
+</header>
+
+<section id="today">
+  <h2>What the game does today</h2>
+  <div class="cols">
+    <div class="shot"><img src="training_shift_src/title_1280x720.png" alt="Title screen today">
+      <div class="pin" style="left:17%;top:50%">1</div></div>
+    <div class="shot"><img src="training_shift_src/today_shift1_1280x720.png" alt="Shift 1 today">
+      <div class="pin" style="left:35%;top:4%">2</div><div class="pin" style="left:62%;top:83%">3</div><div class="pin" style="left:57%;top:12%">4</div><div class="pin" style="left:13%;top:8%">5</div></div>
+  </div>
+  <div class="probs">
+    <div class="prob"><div class="n">1</div><div><b>No practice entry.</b> <span>The title has START RUN (or CONTINUE / NEW RUN) and REWARDS, plus GUIDE once the handbook (#143, open PR) is merged. START RUN goes straight to the opening-time board and then shift 1.</span></div></div>
+    <div class="prob"><div class="n">2</div><div><b>The "training week" is a rule, not a lesson.</b> <span>W1 TRAINING (v0.68) forgives misses on shifts 1–4 as slips, at most 2. It keeps new players in the run, but it never shows them why an order pays more.</span></div></div>
+    <div class="prob"><div class="n">3</div><div><b>The first shift is the whole game at once.</b> <span>13 items in 4 baskets, 7 slots, a 30€ target, redraws, a loyalty card and day and week events. The placement lesson is buried among all of it.</span></div></div>
+    <div class="prob"><div class="n">4</div><div><b>Scanning is never taught.</b> <span>The monitor shows the last placed item. Hovering an item does nothing until the pointer is held still for 0.6 s (opt-in since #80, sticky since 2026-11-04). Players find the scan by accident or not at all, and the scan is what explains an item's payout.</span></div></div>
+    <div class="prob"><div class="n">5</div><div><b>The receipt's story goes unnoticed.</b> <span>PROJECTED and "short" are live, but nothing shows that moving one item changes them. The handbook's example rows (CHAIN: 4 Bananas = 20) explain this, but they can't be played.</span></div></div>
+  </div>
+  <div class="scroll"><table class="spec">
+    <tr><th></th><th>Training week (today, W1 of the run)</th><th>Training shift (this mock-up)</th></tr>
+    <tr><td>What it is</td><td>The run's first 4 shifts, under a rule: misses are slips, at most 2 forgiven</td><td>A separate one-shift scene outside the run</td></tr>
+    <tr><td>Items</td><td>The dealt starting deck (13), redraws, events, loyalty</td><td>Fixed: Eggs, Banana, Banana. No redraw, events, loyalty or machine</td></tr>
+    <tr><td>Target</td><td>30€ (shift 1, lowered by v1.0 "fair deal")</td><td>10€, reachable only with the combo (11€)</td></tr>
+    <tr><td>Teaches</td><td>Nothing explicitly: the player has to work it out</td><td>Placement (the order matters), scanning (hold to read a payout) and the receipt (every line is an item)</td></tr>
+    <tr><td>Saves</td><td>The run save at each stable point, the profile at the run's end</td><td>No run save, no profile record, no coins and no pins. Only a <code>training_done</code> flag in the profile settings</td></tr>
+    <tr><td>Length</td><td>4 shifts, about 10–15 minutes</td><td>30–60 s (a 2-minute ceiling with a wrong try)</td></tr>
+    <tr><td>Replay</td><td>Only by starting a new run</td><td>Any time from the title menu (TRAINING) or the end card (REPLAY)</td></tr>
+  </table></div>
+  <p class="cap">The two complement each other. The training shift teaches the idea in a minute, and the training week stays as the safety net while players apply it with a real deck. The training week's rule is unchanged.</p>
+</section>
+
+<section id="dirA" class="rec">
+  <div class="dirhead"><span class="tag">A</span><h2>Sticky notes: the manager walks you through it</h2><span class="pick">RECOMMENDED</span></div>
+  <div class="verdict"><p><strong>Guided, one step at a time, but never locked.</strong> One sticky note on the back wall says what to do next, and a gold ring with a bouncing arrow marks where. The steps are Eggs first, a Banana after it, the second Banana, scan the last Banana, then CHECKOUT. Any action is allowed. A wrong order gets an honest note ("7€: 3€ short") that names the reason from the receipt's own WASTED lines. Time: about 40 s.</p></div>
+  <div class="stagebox" data-dir="A"></div>
+</section>
+
+<section id="dirB">
+  <div class="dirhead"><span class="tag">B</span><h2>Clipboard: a checklist, you work it out</h2></div>
+  <div class="verdict"><p><strong>Free play with goals.</strong> A clipboard on the wall lists four tasks (fill the belt, scan a Banana, reach 10€, CHECKOUT) and ticks them as you go. Nothing points at anything. A HINT button gives three hints in turn, and after 12 s idle the next task blinks. It's the most respectful of players who like puzzles, but a new player can stall at 7€ without knowing why. Time: 45–120 s.</p></div>
+  <div class="stagebox" data-dir="B"></div>
+</section>
+
+<section id="dirC">
+  <div class="dirhead"><span class="tag">C</span><h2>Watch, then you: the manager's try, then your turn</h2></div>
+  <div class="verdict"><p><strong>A contrast demo first.</strong> A ghost hand plays the natural but wrong order (Banana, Banana, Eggs = 7€, the charge WASTED) and the monitor explains it. The items then go back, and the monitor says "Your turn: beat 7€". The monitor is the only trainer, with no notes on the wall. The contrast teaches the "why" well, but players have to watch before they can act, and the demo is skippable. Time: about 60 s.</p></div>
+  <div class="stagebox" data-dir="C"></div>
+</section>
+
+<section id="rec">
+  <h2>Recommendation: A, with C's "why" built into its wrong-order note</h2>
+  <div class="verdict">
+    <p><strong>Why A.</strong> The goal is one minute that a first-time player can't get stuck in. A's note always says what to do next and where, and nothing is locked. The player still makes every move, so the combo feels like their own. The scan becomes a required step at the moment it pays off: the player reads "6€ = 2€ + the 4€ before it" on the monitor just before ringing it up.</p>
+    <p><strong>What A takes from B and C.</strong> C's contrast arrives in A only if the player makes the mistake: a wrong order gets the 7€ note with its reason, which is C's lesson without a forced demo. From B, A takes the three-step pips in the top bar (ARRANGE · SCAN · CHECKOUT), so progress shows without a second panel.</p>
+    <p><strong>Why not B or C alone.</strong> B is lovely for players who already know roguelikes, but the 7€ dead end has no explanation unless you ask for a hint, and the playtest (fb-p2) showed that players misread totals. C makes everyone watch 10 s before touching anything, and on a replay that becomes a chore.</p>
+  </div>
+</section>
+
+<section id="spec">
+  <h2>Behaviour spec (direction A)</h2>
+  <div class="scroll"><table class="spec">
+    <tr><th>Piece</th><th>What the build does</th></tr>
+    <tr><td>Entry points</td><td>Title menu: a <b>TRAINING</b> plate under GUIDE (#143; a "NEW" tag until <code>training_done</code>). First launch: START RUN with no run save and <code>training_done</code> false opens "First shift?", with TRY TRAINING or START RUN. It is offered once: either answer sets <code>training_offered</code>. Results screen: no entry.</td></tr>
+    <tr><td>Scene</td><td>The real <code>ShiftScreen</code> in a training mode: a <code>TrainingDefinition</code> (<code>data/training/training.tres</code>: cards eggs, banana, banana; target 10; the note texts) instead of the run's deck, stock and quota. No start screen, redraw, loyalty, week or day event, machine, pins or inspection. The top bar shows TRAINING SHIFT · NOTHING SAVED · step pips, and the Cart button is hidden.</td></tr>
+    <tr><td>Scoring</td><td>Unchanged <code>core/</code> scoring of the row. The notes read the <code>ScoreResult</code> (steps, WASTED reasons). No new rule, and no card value changes.</td></tr>
+    <tr><td>Steps</td><td><code>TrainingCoach</code> (ui) picks the note from the row and the scan state: EGGS FIRST → NOW A BANANA → BANANAS CHAIN → SCAN IT (a full scan of a belt Banana, the existing <code>ScanController</code>) → RING IT UP. A row that isn't a prefix of the right order shows the wrong-order note, worded from the result's fizzles. The ring and arrow sit on the next target (the hand item while nothing is picked, the slot while one is).</td></tr>
+    <tr><td>Checkout</td><td>Always allowed with at least one item. The normal count-up plays (reduced motion respected). At 10€ or more, the receipt gets PAID and the end card "TRAINING COMPLETE" opens, with its best-moment line (it shares the receipt-highlight idea) and REPLAY · START A RUN · TITLE. Below 10€, it gets "3€ SHORT", "No penalty in training", and TRY AGAIN · TITLE. TRY AGAIN puts the items back in the baskets.</td></tr>
+    <tr><td>Pause</td><td>The menu button (or Esc) pauses with RESUME · RESTART TRAINING · LEAVE TRAINING. Options and How to Play are the pause menu's own (see the options/pause mock-up).</td></tr>
+    <tr><td>Save</td><td>Never writes or deletes the run save. A saved run stays resumable, and leaving training returns to the title with CONTINUE intact. Profile: <code>settings.training_done</code> (set on the first PAID) and <code>settings.training_offered</code>. No coins, pins, unlocks or run counts.</td></tr>
+    <tr><td>Telemetry</td><td>New events with the session id and an empty run id: <code>training_start {entry: first_launch|title|replay}</code>, <code>training_place {card, slot, order}</code>, <code>training_scan {card, slot, pay}</code>, <code>training_checkout {order, total, passed, ms}</code>, <code>training_end {result: complete|left, ms, tries}</code>, <code>training_skip</code> (the first-launch prompt declined). <code>tools/log_summary.py</code> reports offered, taken, completed, median time and tries.</td></tr>
+    <tr><td>Accessibility</td><td>Reduced motion: notes swap in place, with no ring pulse, arrow bob or item flights. Text size scales the note and the end card. Click-to-place and drag both work, as in the shift.</td></tr>
+    <tr><td>Tests</td><td>A UI test drives the right order to PAID and a wrong order to SHORT (asserting the note texts), checks that no run save file is written, and asserts the note and ring geometry are on-screen. The training resource joins the resource-loading test's folders.</td></tr>
+    <tr><td>Changelog</td><td>Playtest-facing, a new mode with no rule change: the plan's changelog gets a line.</td></tr>
+  </table></div>
+</section>
+
+<section id="q">
+  <div class="answers">
+    <h2>Questions (my default in bold)</h2>
+    <ol>
+      <li>Which direction? <b>A, sticky notes</b>, with C's reason built into the wrong-order note.</li>
+      <li>Can you check out below the target? <b>Yes: the count-up plays, the receipt reads "3€ SHORT", and TRY AGAIN appears, with no penalty.</b> The alternative is a CHECKOUT that stays dim until 10€.</li>
+      <li>Where is it offered? <b>A TRAINING plate on the title, plus a one-time "First shift?" prompt on the first START RUN.</b> No forced tutorial.</li>
+      <li>Keep the basket at exactly Eggs, Banana, Banana with a 10€ target, or add a decoy (Bread) to make the choice less obvious? <b>Keep 3 items.</b> It's shorter and the combo is the whole lesson.</li>
+    </ol>
+  </div>
+</section>
+</main>
+
+<template id="stageTpl">
+  <div class="flow"></div>
+  <div class="stagewrap"><div class="stage">
+    <!-- title scene -->
+    <div class="scene sTitle">
+      <img class="bg" src="training_shift_src/title_1280x720.png" alt="">
+      <div class="plate pri" data-p="start"><div class="k">START RUN</div><div class="s">16 SHIFTS · 4 WEEKS</div></div>
+      <div class="plate sec" style="top:416px" data-p="rewards"><span>REWARDS</span><span class="coin"><i></i>63</span></div>
+      <div class="plate sec" style="top:472px" data-p="guide"><span>GUIDE</span><span class="mins">#143</span></div>
+      <div class="plate sec" style="top:528px" data-p="training"><span>TRAINING</span><span class="newtag">NEW · 1 MIN</span></div>
+      <div class="popup">
+        <div class="hb"><span>FIRST SHIFT?</span><span style="font-size:14px">1 MIN</span></div>
+        <div class="bdy">
+          <div style="font-weight:800;font-size:16px">Try a quick training shift first: three items, one combo, one checkout.</div>
+          <div class="basket"><img src="training_shift_src/eggs.png" alt=""><img src="training_shift_src/banana.png" alt=""><img src="training_shift_src/banana.png" alt=""><span>→ 10€</span></div>
+          <div class="btns"><button class="go" data-a="train">TRY TRAINING</button><button style="background:var(--cream);color:var(--ink)" data-a="skip">START RUN</button></div>
+          <div class="small">Nothing is saved. TRAINING stays on the title menu.</div>
+        </div>
+      </div>
+    </div>
+    <!-- shift scene -->
+    <div class="scene sShift off">
+      <img class="bg" src="training_shift_src/shift_clean_1920x1080.png" alt="">
+      <div class="abs topband"></div>
+      <div class="chip train"><span class="k">TRAINING SHIFT</span></div>
+      <div class="chip nosave" style="left:588px"><span class="t">NOTHING SAVED</span></div>
+      <div class="chip steps" style="left:752px"><span class="stp" data-s="0"><i></i>ARRANGE</span><span class="stp" data-s="1"><i></i>SCAN</span><span class="stp" data-s="2"><i></i>CHECKOUT</span></div>
+      <div class="abs menuhot" title="Pause"></div>
+      <div class="abs gaugecover"><div class="gaugefill"></div><div class="gaugeline"></div></div>
+      <div class="abs rcpt"></div>
+      <div class="abs mon"></div>
+      <div class="abs redrawoff">NO REDRAW IN TRAINING</div>
+      <div class="abs seed">Training · nothing saved</div>
+      <div class="abs cohot dim"></div>
+      <div class="tickets"></div>
+      <div class="slots"></div>
+      <div class="belt"></div>
+      <div class="hand"></div>
+      <div class="fx"></div>
+      <div class="brk"><i></i><i></i><i></i><i></i></div>
+      <div class="holdbar"><i></i></div>
+      <div class="guide"></div>
+      <div class="demotag">WATCH</div>
+      <div class="shade"></div>
+      <div class="card"></div>
+      <div class="pause">
+        <div class="hb">PAUSED · TRAINING</div>
+        <div class="bdy">
+          <button data-a="resume">RESUME</button>
+          <button class="c" data-a="restart">RESTART TRAINING</button>
+          <button class="c" data-a="leave">LEAVE TRAINING</button>
+          <div class="small">Options and How to Play sit here too (options/pause mock-up). Leaving saves nothing and doesn't touch a saved run.</div>
+        </div>
+      </div>
+    </div>
+    <div class="ghost"><svg width="26" height="30" viewBox="0 0 13 15" shape-rendering="crispEdges"><path fill="#2b2420" d="M0 0h2v1h1v1h1v1h1v1h1v1h1v1h1v1h1v1h1v2H8v1h1v2H7v1H6v-2H5v-1H4v1H3v1H1v1H0z"/><path fill="#fbf7ee" d="M1 2h1v1h1v1h1v1h1v1h1v1h1v1h1v1H7v1h1v2H7v-2H6v-1H4v1H3v1H1z"/></svg></div>
+    <div class="flood"></div><div class="fadein"></div>
+    <div class="toast"></div>
+  </div></div>
+  <div class="belowstage"><pre class="log"></pre><div class="notes"></div></div>
+</template>
+
+<script>
+(() => {
+'use strict';
+const SRC = 'training_shift_src/';
+let RM = false, SND = true;
+document.getElementById('rmToggle').addEventListener('change', e => { RM = e.target.checked; document.querySelectorAll('.stage').forEach(s => s.classList.toggle('rm', RM)); });
+document.getElementById('sndToggle').addEventListener('change', e => { SND = e.target.checked; });
+const AUD = {};
+function sfx(name, vol) {
+  if (!SND) return;
+  try {
+    if (!AUD[name]) AUD[name] = new Audio(SRC + name + '.wav');
+    const a = AUD[name].cloneNode(); a.volume = vol == null ? 0.45 : vol; a.play().catch(() => {});
+  } catch (e) { /* audio is optional */ }
+}
+const sleep = ms => new Promise(r => setTimeout(r, RM ? Math.min(ms, 60) : ms));
+function el(tag, cls, parent, html) { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; if (parent) parent.appendChild(e); return e; }
+
+// ---------- geometry (stage px) ----------
+const SL = k => 368 + 127.5 * k;           // ticket left of slot k
+const SC = k => SL(k) + 54;                // slot centre
+const BL = k => 358.7 + 228.2 * k;          // basket left
+const ITEMS = { e: { id: 'eggs', home: [0, 0] }, b1: { id: 'banana', home: [0, 1] }, b2: { id: 'banana', home: [1, 0] } };
+const NAME = { eggs: 'Eggs', banana: 'Banana' };
+const homeRect = uid => { const [b, s] = ITEMS[uid].home; return { x: BL(b) + (s ? 118 : 26), y: 546, w: 72, h: 72 }; };
+const beltRect = k => ({ x: SC(k) - 48, y: 322, w: 96, h: 96 });
+const TARGET = 10;
+const RIGHT = ['eggs', 'banana', 'banana'];
+
+// ---------- scoring (mirrors core: Eggs charge ×2 next Food; Banana chain, plan v0.46) ----------
+function score(rowIds) {
+  const res = rowIds.map(id => ({ id, base: id === 'eggs' ? 1 : 2, pay: 0, value: 0, wasted: [], chain: 0, chained: false, boostFrom: -1, target: -1 }));
+  let charge = -1;
+  rowIds.forEach((id, i) => {
+    const r = res[i];
+    if (id === 'eggs') {
+      if (charge >= 0) res[charge].wasted.push('replaced by a later Eggs');
+      r.value = 1; r.pay = 1; charge = i;
+    } else {
+      const prevB = i > 0 && rowIds[i - 1] === 'banana';
+      const nextB = i < rowIds.length - 1 && rowIds[i + 1] === 'banana';
+      let v = 2;
+      if (prevB) { const p = res[i - 1]; const price = p.chained ? p.value : p.pay; v += price; r.chain = price; r.chained = true; }
+      r.value = v; let pay = v;
+      if (charge >= 0) { pay = v * 2; r.boostFrom = charge; res[charge].target = i; charge = -1; }
+      r.pay = pay;
+      if (!prevB && !nextB) r.wasted.push('no Banana beside it');
+    }
+  });
+  if (charge >= 0) res[charge].wasted.push('1 charge unused');
+  const total = res.reduce((s, r) => s + r.pay, 0);
+  return { res, total };
+}
+const eur = n => n.toFixed(2) + '€';
+
+// ---------- the stage ----------
+class Trainer {
+  constructor(box, dir) {
+    this.box = box; this.dir = dir;
+    box.appendChild(document.getElementById('stageTpl').content.cloneNode(true));
+    this.wrap = box.querySelector('.stagewrap'); this.st = box.querySelector('.stage');
+    const q = s => this.st.querySelector(s);
+    this.q = q;
+    this.sTitle = q('.sTitle'); this.sShift = q('.sShift');
+    this.rcpt = q('.rcpt'); this.mon = q('.mon'); this.gfill = q('.gaugefill');
+    this.ticketsL = q('.tickets'); this.slotsL = q('.slots'); this.beltL = q('.belt'); this.handL = q('.hand'); this.fxL = q('.fx'); this.guideL = q('.guide');
+    this.brk = q('.brk'); this.holdbar = q('.holdbar'); this.cohot = q('.cohot'); this.shade = q('.shade'); this.card = q('.card'); this.pauseEl = q('.pause');
+    this.ghostEl = q('.ghost'); this.toastEl = q('.toast'); this.demotag = q('.demotag');
+    this.logEl = box.querySelector('.log'); this.notesEl = box.querySelector('.notes');
+    this.token = 0; this.autoTok = 0;
+    this.buildFlow(); this.buildStatic(); this.fit();
+    new ResizeObserver(() => this.fit()).observe(this.wrap);
+    this.toTitle(true);
+    this.notesEl.innerHTML = {
+      A: '<b>Try:</b> follow the notes, or put a Banana first to see the wrong-order note. <b>Rings</b> sit on the hand item until one is picked, then on its slot. The step pips in the top bar fill as you go.',
+      B: '<b>Try:</b> work it out from the clipboard. Press <b>HINT</b> for the three hints, or wait 12 s to see the next task blink. Tasks tick in any order, and "Reach 10€" ticks off the live PROJECTED.',
+      C: '<b>Try:</b> the demo starts by itself when the shift opens (SKIP on the monitor). Then it\'s your turn: the monitor is the trainer, and its last line updates as you play.'
+    }[this.dir];
+  }
+  fit() { const w = this.wrap.clientWidth; const s = w / 1280; this.st.style.transform = `scale(${s})`; this.wrap.style.height = (720 * s) + 'px'; this.scale = s; }
+  log(ev, data) {
+    const t = this.t0 ? ((performance.now() - this.t0) / 1000).toFixed(1).padStart(5) : '  -  ';
+    this.logEl.innerHTML += `${t}s <b>${ev}</b> ${data ? JSON.stringify(data) : ''}\n`;
+    this.logEl.scrollTop = this.logEl.scrollHeight;
+  }
+  toast(msg) { this.toastEl.textContent = msg; this.toastEl.classList.add('on'); clearTimeout(this._tt); this._tt = setTimeout(() => this.toastEl.classList.remove('on'), 2200); }
+
+  // ----- flow strip -----
+  buildFlow() {
+    const f = this.box.querySelector('.flow');
+    const steps = [['title', 'Title'], ['offer', 'First launch'], ...(this.dir === 'C' ? [['demo', 'Demo']] : []), ['arrange', 'Arrange'], ['wrong', 'Wrong order'], ['scan', 'Scan'], ['ready', 'Ready'], ['count', 'Checkout'], ['done', 'Success'], ['short', 'Short'], ['pause', 'Pause']];
+    el('span', 'lbl', f, 'STATES').style.cssText = 'font-family:var(--display);font-size:13px;color:var(--teal-light);margin-right:4px';
+    steps.forEach(([k, label], i) => { const b = el('button', '', f, label); b.dataset.k = k; b.onclick = () => this.jump(k); if (i < steps.length - 1) el('span', 'sep', f, '›'); });
+    el('span', '', f).style.flex = '1';
+    const ap = el('button', 'go', f, '▶ Autoplay'); ap.onclick = () => this.autoplay();
+    const rs = el('button', '', f, 'Reset'); rs.onclick = () => { this.autoTok++; this.toTitle(true); };
+    this.flowBtns = [...f.querySelectorAll('button[data-k]')];
+  }
+  markFlow(k) { this.flowBtns.forEach(b => b.classList.toggle('on', b.dataset.k === k)); }
+
+  // ----- static parts -----
+  buildStatic() {
+    // title plates
+    this.sTitle.querySelectorAll('.plate').forEach(p => p.addEventListener('click', () => this.plate(p.dataset.p)));
+    this.sTitle.querySelector('[data-a="train"]').onclick = () => { this.log('training_offer_answer', { answer: 'train' }); this.startTraining('first_launch'); };
+    this.sTitle.querySelector('[data-a="skip"]').onclick = () => { this.log('training_skip'); this.sTitle.querySelector('.popup').classList.remove('on'); this.first = false; this.toast('The run starts (its start screen): not in this mock-up'); };
+    // slots
+    for (let k = 0; k < 7; k++) {
+      const h = el('div', 'slothot', this.slotsL); h.style.left = (SL(k) - 8) + 'px'; h.dataset.k = k;
+      h.addEventListener('click', () => { if (this.picked && !this.busy) this.place(this.picked, k); });
+      const n = el('div', 'slotnum', this.ticketsL, String(k + 1)); n.style.left = SL(k) + 'px'; n.dataset.k = k;
+    }
+    this.cohot.addEventListener('click', () => this.checkout());
+    this.q('.menuhot').addEventListener('click', () => this.pause(true));
+    this.pauseEl.querySelector('[data-a="resume"]').onclick = () => this.pause(false);
+    this.pauseEl.querySelector('[data-a="restart"]').onclick = () => { this.pause(false); this.log('training_end', { result: 'restart', ms: this.ms() }); this.startTraining('replay', true); };
+    this.pauseEl.querySelector('[data-a="leave"]').onclick = () => { this.pause(false); this.log('training_end', { result: 'left', ms: this.ms() }); this.toTitle(false); };
+    // drag + hover
+    this.st.addEventListener('pointermove', e => this.onMove(e));
+    window.addEventListener('pointerup', e => this.onUp(e));
+    this.st.addEventListener('click', e => { if (this.picked && !this.dragging && !e.target.closest('.item,.slothot') && this.sShift.contains(e.target)) { this.returnHome(this.picked); } });
+  }
+  ms() { return this.t0 ? Math.round(performance.now() - this.t0) : 0; }
+  stagePt(e) { const r = this.st.getBoundingClientRect(); return { x: (e.clientX - r.left) / this.scale, y: (e.clientY - r.top) / this.scale }; }
+
+  // ----- scenes -----
+  toTitle(first) {
+    this.token++;
+    this.first = first; this.scene = 'title';
+    this.sTitle.classList.remove('off'); this.sShift.classList.add('off');
+    this.sTitle.querySelector('.popup').classList.remove('on');
+    this.sTitle.querySelector('.newtag').style.display = first ? '' : 'none';
+    this.ghost(false); this.markFlow('title');
+  }
+  plate(p) {
+    sfx('ui_click_1');
+    if (p === 'start') {
+      if (this.first) { this.sTitle.querySelector('.popup').classList.add('on'); sfx('ui_open'); this.log('training_offer', { entry: 'first_launch' }); this.markFlow('offer'); }
+      else this.toast('The run starts (its start screen): not in this mock-up');
+    } else if (p === 'training') this.startTraining('title');
+    else this.toast(p === 'guide' ? 'GUIDE opens the staff handbook (#143)' : 'REWARDS opens the toy machines');
+  }
+  async startTraining(entry, instant) {
+    const tok = ++this.token;
+    if (!instant && this.scene === 'title') {
+      sfx('register_bell', .35);
+      const f = this.q('.flood'); f.classList.remove('go'); void f.offsetWidth; f.classList.add('go');
+      await sleep(520); if (tok !== this.token) return;
+      f.classList.remove('go');
+      const fi = this.q('.fadein'); fi.classList.remove('go'); void fi.offsetWidth; fi.classList.add('go');
+    }
+    this.scene = 'shift';
+    this.sTitle.classList.add('off'); this.sShift.classList.remove('off');
+    this.row = []; this.picked = null; this.scanned = null; this.scannedEver = false; this.busy = false; this.counted = null; this.ended = false;
+    this.tries = (entry === 'replay' || entry === 'retry') ? (this.tries || 1) + (entry === 'retry' ? 1 : 0) : 1;
+    this.t0 = performance.now();
+    this.shade.classList.remove('on'); this.card.classList.remove('on'); this.pauseEl.classList.remove('on'); this.rcpt.classList.remove('lift'); this.q('.gaugecover').classList.remove('lift');
+    this.mode = 'intro'; this.demo = false; this.hintIdx = 0; this.lastAct = performance.now();
+    this.log('training_start', { entry, direction: this.dir });
+    this.renderAll();
+    this.markFlow('arrange');
+    clearInterval(this.idleT);
+    if (this.dir === 'B') this.idleT = setInterval(() => this.renderGuide(), 1000);
+    if (this.dir === 'C' && entry !== 'retry' && !this._skipDemo) { await sleep(500); if (tok === this.token) this.runDemo(tok); }
+    this._skipDemo = false;
+  }
+
+  // ----- rendering -----
+  get ids() { return this.row.map(u => ITEMS[u].id); }
+  renderAll() { this.renderHand(); this.renderBelt(); this.renderReceipt(); this.renderMonitor(); this.renderGauge(); this.renderGuide(); this.renderSteps(); }
+  itemEl(uid, rect, parent) {
+    const d = el('div', 'item', parent); d.dataset.uid = uid;
+    Object.assign(d.style, { left: rect.x + 'px', top: rect.y + 'px', width: rect.w + 'px', height: rect.h + 'px' });
+    const img = el('img', '', d); img.src = SRC + ITEMS[uid].id + '.png'; img.alt = NAME[ITEMS[uid].id]; img.draggable = false;
+    if (this.picked === uid) d.classList.add('picked');
+    d.addEventListener('pointerdown', e => this.onDown(e, uid));
+    d.addEventListener('pointerenter', () => this.hoverIn(uid));
+    d.addEventListener('pointerleave', () => this.hoverOut(uid));
+    return d;
+  }
+  renderHand() {
+    this.handL.innerHTML = '';
+    for (let b = 0; b < 4; b++) { const c = el('div', 'hclip', this.handL); c.style.left = BL(b) + 'px'; c.style.width = '215px'; c.dataset.b = b; }
+    Object.keys(ITEMS).forEach(uid => {
+      if (this.row.includes(uid)) return;
+      const [b] = ITEMS[uid].home; const r = homeRect(uid); const clip = this.handL.children[b];
+      this.itemEl(uid, { x: r.x - BL(b), y: r.y - 500, w: r.w, h: r.h }, clip);
+    });
+  }
+  renderBelt() {
+    this.beltL.innerHTML = ''; this.fxL.innerHTML = '';
+    this.beltL.classList.toggle('passthru', !!this.picked);
+    const sc = score(this.ids); this.sc = sc;
+    this.row.forEach((uid, k) => { const d = this.itemEl(uid, beltRect(k), this.beltL); if (this._hidden === uid) d.classList.add('hidden'); });
+    // tickets
+    this.ticketsL.querySelectorAll('.ticket').forEach(t => t.remove());
+    this.ticketsL.querySelectorAll('.slotnum').forEach(n => n.style.display = (+n.dataset.k < this.row.length) ? 'none' : '');
+    sc.res.forEach((r, k) => {
+      const t = el('div', 'ticket ' + (r.id === 'eggs' ? 'food' : 'produce'), this.ticketsL); t.style.left = SL(k) + 'px';
+      const lb = el('div', 'lb', t);
+      lb.innerHTML = r.id === 'eggs' ? `<img src="${SRC}family_breakfast.png" alt=""><img src="${SRC}mini_eggs.png" alt="">` : `<img src="${SRC}aisle_fruit_and_veg.png" alt="">`;
+      const w = el('div', 'win' + (r.boostFrom >= 0 ? ' gold' : '') + (r.wasted.length ? ' bad' : ''), t, r.pay + '€');
+      el('div', 'pl', t, r.id === 'eggs' ? '×2 next <span class="kw food">FOOD</span>' : '+ the Banana before it <span class="kw chain">CHAIN</span>');
+    });
+    // stickers (planning effects h1: stickers on the item, in apply order)
+    sc.res.forEach((r, k) => {
+      let n = 0; const put = (cls, html) => { const s = el('div', 'stk ' + cls, this.fxL, html); s.style.left = (SC(k) - 30) + 'px'; s.style.top = (296 - 30 * n) + 'px'; s.dataset.k = k; n++; return s; };
+      if (r.chain) put('add', `<img src="${SRC}mini_banana.png" alt="">+${r.chain}`);
+      if (r.boostFrom >= 0) put('x2', `<img src="${SRC}mini_eggs.png" alt="">×2`);
+      r.wasted.forEach(() => put('wasted', 'WASTED'));
+    });
+    // chain frame
+    let s = -1;
+    for (let k = 0; k <= sc.res.length; k++) {
+      const isB = k < sc.res.length && sc.res[k].id === 'banana';
+      if (isB && s < 0) s = k;
+      if (!isB && s >= 0) { if (k - s >= 2) this.chainFrame(s, k - 1); s = -1; }
+    }
+    // rail from the Eggs to its target
+    sc.res.forEach((r, k) => { if (r.id === 'eggs' && r.target >= 0) { const rl = el('div', 'rail', this.fxL); rl.style.left = SC(k) + 'px'; rl.style.width = (SC(r.target) - SC(k)) + 'px'; } });
+    // slot hot areas
+    this.slotsL.querySelectorAll('.slothot').forEach(h => h.classList.toggle('armed', !!this.picked && +h.dataset.k <= this.row.length));
+    // checkout key
+    this.cohot.classList.toggle('dim', this.row.length === 0 || this.busy);
+  }
+  chainFrame(a, b) {
+    const f = el('div', 'chainf', this.fxL); f.style.left = (SL(a) - 2) + 'px'; f.style.width = (SL(b) + 112 - SL(a)) + 'px';
+    el('div', 'tb', f, 'CHAIN');
+    for (let k = a; k < b; k++) { const r = el('div', 'ring2', this.fxL); r.style.left = (SL(k) + 110) + 'px'; r.style.top = '370px'; }
+  }
+  renderReceipt(printed) {
+    const R = this.rcpt; const sc = this.sc || score(this.ids);
+    const counting = printed != null; const n = counting ? printed : sc.res.length;
+    let h = `<div class="tt">TODAY'S TARGET</div><div class="tgt"><span>${TARGET}€</span></div><div class="rule2"></div><div class="sh">TRAINING · ${this.row.length} ITEM${this.row.length === 1 ? '' : 'S'}</div><div class="dash" style="top:112px"></div>`;
+    for (let k = 0; k < 7; k++) {
+      const top = 118 + k * 20;
+      if (k < n && sc.res[k]) {
+        const r = sc.res[k];
+        const cls = 'rl' + (r.wasted.length ? ' wasted' : '') + (r.boostFrom >= 0 || r.chain ? ' boost' : '') + (this.scanned != null && this.row.indexOf(this.scanned) === k ? ' hl' : '') + (counting && k === n - 1 ? ' print' : '');
+        h += `<div class="${cls}" style="top:${top}px"><img src="${SRC}mini_${r.id}.png" alt=""><span class="nm">${NAME[r.id]}</span><span class="pr">${eur(r.pay)}</span>${r.wasted.length ? `<img class="mk" src="${SRC}mark_fizzle.png" alt="wasted">` : '<span class="mk"></span>'}</div>`;
+      } else if (k < 3) h += `<div class="rl empty" style="top:${top}px">${k + 1} ·····</div>`;
+    }
+    const tot = counting ? sc.res.slice(0, n).reduce((s, r) => s + r.pay, 0) : sc.total;
+    const diff = tot - TARGET;
+    h += `<div class="dash" style="top:254px"></div>`;
+    h += `<div class="pj"><span class="l">${counting ? 'TOTAL' : 'PROJECTED'}</span><span class="v ${this.row.length ? (diff >= 0 ? 'over' : 'short') : ''}">${eur(tot)}</span></div>`;
+    if (this.row.length) h += `<div class="gap ${diff >= 0 ? 'over' : 'short'}">${diff >= 0 ? (diff === 0 ? 'on target' : eur(diff) + ' over') : eur(-diff) + ' short'}</div>`;
+    else h += `<div class="gap" style="color:#a9a59b">place an item</div>`;
+    const wasted = sc.res.slice(0, n).reduce((s, r) => s + r.wasted.length, 0);
+    if (wasted && !counting) h = h.replace('</div><div class="gap', `</div><div class="gap`).replace(/<div class="gap ([a-z]+)">/, `<div class="gap $1" style="left:6px;text-align:right">${wasted} WASTED · `);
+    h += `<div class="hi"></div><div class="stamp"></div>`;
+    R.innerHTML = h;
+  }
+  renderGauge(tot) {
+    const t = tot == null ? (this.sc ? this.sc.total : 0) : tot;
+    this.gfill.style.height = Math.min(1, t / TARGET) * 255 + 'px';
+    this.gfill.classList.toggle('met', t >= TARGET);
+  }
+  renderSteps() {
+    const ok = this.ids.join() === RIGHT.join();
+    const done = [ok, this.scannedBanana(), !!this.ended && this.counted >= TARGET];
+    const now = done.indexOf(false);
+    this.q('.chip.steps').querySelectorAll('.stp').forEach((s, i) => { s.classList.toggle('done', done[i]); s.classList.toggle('now', i === now); });
+  }
+  scannedBanana() { return !!this.scannedEver; }
+
+  // ----- the monitor -----
+  renderMonitor() {
+    const M = this.mon; let left, right;
+    const lcol = (lab, art, bot) => `<div class="lc"><div class="lab"><i></i>${lab}</div><div class="frame">${art ? `<img src="${SRC}${art}.png" alt="">` : ''}</div><div class="bot">${bot}</div></div>`;
+    if (this.mode === 'count') {
+      const t = this.countTot || 0; const met = t >= TARGET;
+      left = lcol('TOTAL', this.countArt, 'COUNTING');
+      right = `<div class="pp"><div class="hd"><span class="nm">${met ? 'TARGET MET!' : 'CHECKOUT'}</span><span class="pg">${TARGET}€ target</span></div><div class="big ${met ? 'met' : ''}">${t}€</div><div class="tank"><i class="${met ? 'met' : ''}" style="width:${Math.min(100, t / TARGET * 100)}%"></i><b style="left:calc(100% - 3px)"></b></div><div class="cap2">${met ? (t - TARGET) + '€ over the target' : (TARGET - t) + '€ to go'}</div></div>`;
+    } else if (this.mode === 'demo') {
+      left = lcol('WATCH', 'banana', 'MANAGER');
+      right = `<div class="pp"><div class="hd"><span class="nm">WATCH FIRST</span><span class="pg">DEMO</span></div><div class="bd">${this.demoText || ''}</div><div class="btnrow">${this.demoBtn ? `<button class="go" data-m="turn">YOUR TURN ›</button>` : `<button data-m="skip">SKIP ›</button>`}</div></div>`;
+    } else if (this.scanned) {
+      const uid = this.scanned; const id = ITEMS[uid].id; const k = this.row.indexOf(uid); const onBelt = k >= 0;
+      const r = onBelt ? this.sc.res[k] : null;
+      left = lcol('SCAN', id, onBelt ? 'ON THE BELT' : 'IN THE BASKET');
+      let lines = '';
+      if (id === 'eggs') {
+        if (r && r.target >= 0) lines += `<div class="ln gold"><span class="x">to Banana · ×2 · ${this.sc.res[r.target].value}€ → ${this.sc.res[r.target].pay}€</span></div>`;
+        if (r) r.wasted.forEach(w => lines += `<div class="ln bad"><span class="x">✕ ${w}</span><span class="v">WASTED</span></div>`);
+      } else if (r) {
+        lines += `<div class="ln"><span class="x">Banana</span><span class="v">2€</span></div>`;
+        if (r.chain) lines += `<div class="ln green"><span class="x"><span class="kw chain">CHAIN</span> + the Banana before it</span><span class="v">+${r.chain}€</span></div>`;
+        if (r.boostFrom >= 0) lines += `<div class="ln gold"><span class="x"><img src="${SRC}mini_eggs.png" style="width:14px;height:14px;vertical-align:-2px" alt=""> Eggs ×2 · ${r.value}€ → ${r.pay}€</span><span class="v">×2</span></div>`;
+        r.wasted.forEach(w => lines += `<div class="ln bad"><span class="x">✕ ${w}</span><span class="v">WASTED</span></div>`);
+      }
+      const rule = id === 'eggs' ? 'The next <span class="kw food">FOOD</span> item pays ×2.' : '+ the price of the Banana right before it. <span class="kw chain">CHAIN</span>';
+      const tr = this.dir === 'C' ? this.cLine() : '';
+      right = `<div class="pp"><div class="hd" style="background:${id === 'eggs' ? '#f5bfa0' : '#a5d17e'}"><img src="${SRC}mini_${id}.png" alt=""><span class="nm">${NAME[id]}</span>${r ? `<span class="pay ${r.boostFrom >= 0 ? 'gold' : ''}">${r.pay}€</span>` : `<span class="pg">${id === 'eggs' ? 1 : 2}€</span>`}</div><div class="bd">${rule}</div><div class="sep"></div>${lines}${tr ? `<div class="ln tr">${tr}</div>` : ''}</div>`;
+    } else {
+      left = lcol('TRAINING', null, 'SHIFT 0');
+      left = left.replace('<div class="frame"></div>', `<div class="frame" style="display:flex;gap:0;flex-wrap:wrap;align-content:center;justify-content:center"><img src="${SRC}eggs.png" style="width:44px;height:44px" alt=""><img src="${SRC}banana.png" style="width:44px;height:44px" alt=""><img src="${SRC}banana.png" style="width:44px;height:44px" alt=""></div>`);
+      let body;
+      if (this.dir === 'C') body = `<div class="bd">${this.cIntro()}</div>`;
+      else if (this.dir === 'B') body = `<div class="bd">Today's basket: Eggs and two Bananas. Reach <b>${TARGET}€</b> in one checkout.</div><div class="sep"></div><div class="ln"><span class="x"><img src="${SRC}mini_eggs.png" style="width:14px;height:14px;vertical-align:-2px" alt=""> Eggs: the next <span class="kw food">FOOD</span> item pays ×2</span></div><div class="ln"><span class="x"><img src="${SRC}mini_banana.png" style="width:14px;height:14px;vertical-align:-2px" alt=""> Banana: + the Banana before it</span></div>`;
+      else body = `<div class="bd">Today's basket: Eggs and two Bananas.<br>Reach <b>${TARGET}€</b> in one checkout.</div><div class="sep"></div><div class="ln"><span class="x">Follow the note on the wall →</span></div>`;
+      right = `<div class="pp"><div class="hd" style="background:var(--mustard-light)"><span class="nm">TRAINING SHIFT</span><span class="pg">${TARGET}€</span></div>${body}</div>`;
+    }
+    M.innerHTML = left + right;
+    M.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { sfx('ui_click_1'); this.endDemo(); });
+  }
+  cIntro() {
+    if (this.demoSeen) return `<b>YOUR TURN.</b> Beat the manager's 7€ and reach ${TARGET}€.<br><img src="${SRC}mini_eggs.png" style="width:14px;height:14px;vertical-align:-2px" alt=""> Eggs: the <b>next</b> <span class="kw food">FOOD</span> pays ×2.<br><img src="${SRC}mini_banana.png" style="width:14px;height:14px;vertical-align:-2px" alt=""> A Banana adds the Banana <b>before</b> it.<div style="color:#2a4d4b;margin-top:2px">${this.cLine()}</div>`;
+    return `Today's basket: Eggs and two Bananas. Watch the manager try first.`;
+  }
+  cLine() {
+    const ok = this.ids.join() === RIGHT.join();
+    if (ok && !this.scannedEver) return 'Hold the pointer on a Banana to scan it.';
+    if (ok) return `11€ ≥ ${TARGET}€: press CHECKOUT.`;
+    if (this.row.length === 3) return `${this.sc.total}€ again. What comes after the Eggs?`;
+    return 'Hold the pointer on any item to scan it.';
+  }
+
+  // ----- guidance per direction -----
+  renderGuide() {
+    if (this.scene !== 'shift') return;
+    const G = this.guideL;
+    if (this.busy || this.ended || this.demo) { G.innerHTML = ''; return; }
+    if (this.dir === 'A') this.guideA(G);
+    else if (this.dir === 'B') this.guideB(G);
+    else G.innerHTML = '';
+  }
+  ringAt(G, r, arrow) {
+    const d = el('div', 'ring', G); Object.assign(d.style, { left: (r.x - 6) + 'px', top: (r.y - 6) + 'px', width: (r.w + 12) + 'px', height: (r.h + 12) + 'px' });
+    if (arrow !== false) { const a = el('div', 'parrow', G, `<svg width="24" height="22" viewBox="0 0 12 11" shape-rendering="crispEdges"><path fill="#2b2420" d="M3 0h6v5h3v1h-1v1h-1v1H9v1H8v1H7v1H5v-1H4V9H3V8H2V7H1V6H0V5h3z"/><path fill="#ffcf3f" d="M4 1h4v5h2v1H9v1H8v1H7v1H5V9H4V8H3V7H2V6h2z"/></svg>`); a.style.left = (r.x + r.w / 2 - 12) + 'px'; a.style.top = (r.y - 34) + 'px'; }
+  }
+  noteHTML(step, h, b, bad) { return `<div class="note ${bad ? 'bad' : ''}"><div class="tape"></div><div class="s">${step}</div><div class="h">${h}</div><div class="b">${b}</div><div class="sig">· the manager</div></div>`; }
+  guideA(G) {
+    const ids = this.ids; const ok = ids.join() === RIGHT.join(); const prefix = RIGHT.slice(0, ids.length).join() === ids.join();
+    const handUid = id => Object.keys(ITEMS).find(u => ITEMS[u].id === id && !this.row.includes(u) && u !== this.picked);
+    let key, html, ring = null;
+    if (!prefix) {
+      const sc = this.sc; const why = [];
+      if (!ids.includes('eggs')) why.push('The Eggs go first: they boost what comes <b>after</b> them.');
+      else if (ids[0] !== 'eggs') why.push('The Eggs only boost what comes <b>after</b> them.');
+      if (sc.res.some(r => r.wasted.includes('1 charge unused'))) why.push('Nothing follows the Eggs, so their ×2 is WASTED.');
+      if (ids.length > 1 && sc.res.some(r => r.wasted.includes('no Banana beside it'))) why.push('A Banana chains only with a Banana <b>right beside</b> it.');
+      key = 'bad' + ids.join();
+      html = this.noteHTML('', ids.length === 3 ? `SO CLOSE: ${sc.total}€` : 'HOLD ON', `${why.join(' ')} Click a belt item to take it back.`, true);
+      const firstBad = ids.findIndex((id, i) => id !== RIGHT[i]);
+      ring = this.picked ? null : beltRect(Math.max(0, firstBad));
+    } else if (ids.length === 0) {
+      key = 's1'; html = this.noteHTML('1/4', 'EGGS FIRST', 'Click the Eggs, then slot 1.<br>Eggs make the <b>next</b> Food item pay <b>×2</b>.');
+      ring = this.picked === 'e' ? { x: SL(0) + 2, y: 384, w: 104, h: 54 } : (this.picked ? null : homeRect('e'));
+    } else if (ids.length === 1) {
+      key = 's2'; html = this.noteHTML('2/4', 'NOW A BANANA', 'Put a Banana <b>right after</b> the Eggs. It gets the ×2: 2€ → 4€.');
+      ring = this.picked && ITEMS[this.picked].id === 'banana' ? { x: SL(1) + 2, y: 384, w: 104, h: 54 } : (this.picked ? null : homeRect(handUid('banana')));
+    } else if (ids.length === 2) {
+      key = 's3'; html = this.noteHTML('3/4', 'BANANAS CHAIN', 'The other Banana goes right after the first. A Banana <b>adds the price</b> of the Banana before it. (A lone Banana shows WASTED until it has a partner.)');
+      ring = this.picked && ITEMS[this.picked].id === 'banana' ? { x: SL(2) + 2, y: 384, w: 104, h: 54 } : (this.picked ? null : homeRect(handUid('banana')));
+    } else if (ok && !this.scannedEver) {
+      key = 's4'; html = this.noteHTML('4/4', 'SCAN IT', 'Hold the pointer still on the last Banana. The monitor shows what it pays.');
+      ring = beltRect(2);
+    } else if (ok) {
+      key = 's5'; html = this.noteHTML('✓', 'RING IT UP!', `6€ = 2€ + the 4€ before it.<br>Projected <b>11€</b>, over the ${TARGET}€ target. Press <b>CHECKOUT</b>.`);
+      ring = { x: 22, y: 424, w: 291, h: 76 };
+    }
+    const changed = key !== this._noteKey; this._noteKey = key;
+    G.innerHTML = html || '';
+    const n = G.querySelector('.note'); if (n && changed && !RM) n.classList.add('swap');
+    if (ring) this.ringAt(G, ring, !RM);
+  }
+  guideB(G) {
+    const ids = this.ids; const sc = this.sc || score(ids);
+    const tasks = [
+      ['Put all 3 items on the belt', ids.length === 3],
+      ['Scan a Banana: hold the pointer still on it', !!this.scannedEver],
+      [`Reach ${TARGET}€ PROJECTED (on the receipt)`, sc.total >= TARGET],
+      ['Press CHECKOUT', false]
+    ];
+    const next = tasks.findIndex(t => !t[1]);
+    const idle = performance.now() - this.lastAct > 12000;
+    const hints = ['Eggs make the <b>next</b> Food item pay ×2.', 'A Banana adds the price of the Banana <b>right before</b> it.', 'Try: Eggs, Banana, Banana.'];
+    const sig = tasks.map(t => t[1]).join() + next + idle + this.hintIdx;
+    if (sig === this._bSig && G.firstChild) return; this._bSig = sig;
+    let h = `<div class="clip"><div class="cl"></div><div class="pa"><div class="ti"><span>TRAINING</span><span>${TARGET}€</span></div>`;
+    tasks.forEach((t, i) => { h += `<div class="row ${t[1] ? 'done' : ''} ${i === next ? 'next' + (idle ? ' nudge' : '') : ''}"><i></i><span>${t[0]}</span></div>`; });
+    h += `<div class="hint"><button data-h>HINT ${Math.min(this.hintIdx, 3)}/3</button><span>${this.hintIdx ? hints[Math.min(this.hintIdx, 3) - 1] : ''}</span></div></div></div>`;
+    G.innerHTML = h;
+    G.querySelector('[data-h]').onclick = () => { sfx('ui_click_1'); this.hintIdx = this.hintIdx >= 3 ? 1 : this.hintIdx + 1; this.lastAct = performance.now(); this.log('training_hint', { n: this.hintIdx }); this.renderGuide(); };
+    if (idle) {
+      const r = next === 0 ? (Object.keys(ITEMS).filter(u => !this.row.includes(u)).map(homeRect)[0]) : next === 1 ? beltRect(Math.max(0, ids.indexOf('banana'))) : next === 2 ? { x: 46, y: 262, w: 236, h: 60 } : { x: 22, y: 424, w: 291, h: 76 };
+      if (r) this.ringAt(G, r, false);
+    }
+  }
+
+  // ----- input: pick, place, drag -----
+  onDown(e, uid) {
+    if (this.busy || this.ended || this.demo || this.scene !== 'shift') return;
+    e.preventDefault();
+    this.press = { uid, x: e.clientX, y: e.clientY, wasPicked: this.picked === uid };
+    this.lastAct = performance.now();
+  }
+  onMove(e) {
+    if (!this.press) return;
+    if (!this.dragging && Math.hypot(e.clientX - this.press.x, e.clientY - this.press.y) > 6) {
+      this.dragging = true; this.cancelHold();
+      if (this.picked !== this.press.uid) this.pick(this.press.uid, true);
+      this.dragEl = el('div', 'drag', this.st, `<img src="${SRC}${ITEMS[this.press.uid].id}.png" alt="">`);
+      const it = this.st.querySelector(`.item[data-uid="${this.press.uid}"]`); if (it) it.classList.add('ghosted');
+    }
+    if (this.dragging) {
+      const p = this.stagePt(e); this.dragEl.style.left = (p.x - 42) + 'px'; this.dragEl.style.top = (p.y - 52) + 'px';
+      this.slotsL.querySelectorAll('.slothot').forEach(h => { const k = +h.dataset.k; h.style.background = (this.slotAt(p) === k) ? 'rgba(255,207,63,.12)' : ''; });
+    }
+  }
+  onUp(e) {
+    if (!this.press) return;
+    const uid = this.press.uid; const was = this.press.wasPicked; this.press = null;
+    if (this.dragging) {
+      this.dragging = false; const p = this.stagePt(e); this.dragEl.remove(); this.dragEl = null;
+      this.slotsL.querySelectorAll('.slothot').forEach(h => h.style.background = '');
+      const k = this.slotAt(p);
+      if (k != null) this.place(uid, k, true); else this.returnHome(uid);
+      return;
+    }
+    // a click
+    if (was) { this.returnHome(uid); return; }
+    this.pick(uid);
+  }
+  slotAt(p) { if (p.y < 300 || p.y > 540 || p.x < SL(0) - 8 || p.x > SL(6) + 116) return null; const k = Math.max(0, Math.min(6, Math.floor((p.x - SL(0) + 8) / 127.5))); return Math.min(k, this.row.filter(u => u !== this.picked).length); }
+  pick(uid, quiet) {
+    this.cancelHold();
+    if (this.row.includes(uid)) { this.pickedFrom = this.row.indexOf(uid); this.row = this.row.filter(u => u !== uid); this.log('card_pickup', { card: ITEMS[uid].id, from: 'belt' }); }
+    else { this.pickedFrom = -1; this.log('card_pickup', { card: ITEMS[uid].id, from: 'basket' }); }
+    this.picked = uid; sfx('card_pickup_1');
+    this.renderAll();
+    if (this.pickedFrom >= 0 && !quiet) {
+      // a belt item picked back up floats above its old slot
+      const d = el('div', 'item picked', this.beltL, `<img src="${SRC}${ITEMS[uid].id}.png" alt="">`);
+      Object.assign(d.style, { left: (SC(this.pickedFrom) - 48) + 'px', top: '322px', width: '96px', height: '96px', pointerEvents: 'auto' });
+      d.dataset.uid = uid; d.addEventListener('pointerdown', ev => this.onDown(ev, uid));
+    }
+  }
+  returnHome(uid) {
+    if (!uid) return;
+    this.picked = null; sfx('card_return_1', .35);
+    this.log('card_return', { card: ITEMS[uid].id });
+    this.renderAll();
+  }
+  async place(uid, k, fromDrag) {
+    if (this.row.length >= 7) return;
+    const from = this.pickedFrom >= 0 ? beltRect(this.pickedFrom) : homeRect(uid);
+    this.row = this.row.filter(u => u !== uid);
+    const idx = Math.min(k, this.row.length); this.row.splice(idx, 0, uid);
+    this.picked = null; this.pickedFrom = -1; this.lastAct = performance.now();
+    sfx('card_place_1');
+    this.log('training_place', { card: ITEMS[uid].id, slot: idx + 1, order: this.ids });
+    if (!RM && !fromDrag) { this._hidden = uid; this.renderAll(); await this.fly(ITEMS[uid].id, from, beltRect(idx)); this._hidden = null; }
+    this.renderAll();
+  }
+  fly(id, a, b) {
+    return new Promise(res => {
+      const f = el('div', 'flyer', this.st, `<img src="${SRC}${id}.png" alt="">`);
+      Object.assign(f.style, { left: a.x + 'px', top: a.y + 'px', width: a.w + 'px', height: a.h + 'px' });
+      requestAnimationFrame(() => requestAnimationFrame(() => Object.assign(f.style, { left: b.x + 'px', top: (b.y) + 'px', width: b.w + 'px', height: b.h + 'px' })));
+      setTimeout(() => { f.remove(); res(); }, RM ? 0 : 240);
+    });
+  }
+
+  // ----- the hover scanner (hold 0.6 s, ScanTuning.hold_ms) -----
+  itemRect(uid) { const k = this.row.indexOf(uid); return k >= 0 ? beltRect(k) : homeRect(uid); }
+  hoverIn(uid) {
+    if (this.busy || this.ended || this.picked || this.dragging || this.demo) return;
+    this.cancelHold();
+    const r = this.itemRect(uid);
+    Object.assign(this.holdbar.style, { left: (r.x + 8) + 'px', top: (r.y + r.h + 2) + 'px', width: (r.w - 16) + 'px' });
+    this.holdbar.classList.remove('on'); void this.holdbar.offsetWidth; this.holdbar.classList.add('on');
+    this.holdT = setTimeout(() => this.doScan(uid), 600);
+  }
+  hoverOut(uid) { this.cancelHold(); this.brk.classList.remove('on'); }
+  cancelHold() { clearTimeout(this.holdT); this.holdbar.classList.remove('on'); }
+  doScan(uid) {
+    this.holdbar.classList.remove('on');
+    const r = this.itemRect(uid);
+    Object.assign(this.brk.style, { left: (r.x - 6) + 'px', top: (r.y - 6) + 'px', width: (r.w + 12) + 'px', height: (r.h + 12) + 'px' });
+    this.brk.classList.add('on');
+    this.scanned = uid; sfx('scan', .5);
+    const k = this.row.indexOf(uid);
+    if (k >= 0 && ITEMS[uid].id === 'banana') this.scannedEver = true;
+    this.lastAct = performance.now();
+    this.log('training_scan', { card: ITEMS[uid].id, slot: k >= 0 ? k + 1 : null, pay: k >= 0 ? this.sc.res[k].pay : null });
+    this.renderReceipt(); this.renderMonitor(); this.renderGuide(); this.renderSteps();
+    if (k >= 0 && this.ids.join() === RIGHT.join() && ITEMS[uid].id === 'banana') this.markFlow('ready');
+  }
+
+  // ----- checkout + count-up -----
+  async checkout() {
+    if (this.busy || this.ended || this.demo || !this.row.length || this.scene !== 'shift') return;
+    const tok = this.token;
+    this.busy = true; this.picked = null; this.cancelHold(); this.brk.classList.remove('on');
+    this.cohot.classList.add('press'); sfx('checkout', .5); setTimeout(() => this.cohot.classList.remove('press'), 160);
+    this.markFlow('count');
+    this.renderAll(); this.guideL.innerHTML = '';
+    this.mode = 'count'; this.countTot = 0; this.countArt = null; this.scanned = null;
+    this.renderMonitor(); this.renderReceipt(0); this.renderGauge(0);
+    const sc = score(this.ids); let tot = 0; let crossed = false;
+    await sleep(350);
+    for (let k = 0; k < sc.res.length; k++) {
+      if (tok !== this.token) return;
+      const r = sc.res[k]; const it = this.beltL.querySelector(`.item[data-uid="${this.row[k]}"]`);
+      if (it) it.classList.add('hop'); sfx('scan', .4);
+      this.countArt = r.id;
+      await sleep(180);
+      const stk = [...this.fxL.querySelectorAll(`.stk[data-k="${k}"]`)];
+      stk.forEach(s => { s.classList.remove('flash'); void s.offsetWidth; s.classList.add('flash'); });
+      if (r.boostFrom >= 0) sfx('stamp_1', .4); else if (r.chain) sfx('bonus_02', .4);
+      if (r.wasted.length) sfx('fizzle', .4);
+      tot += r.pay; this.countTot = tot;
+      this.renderReceipt(k + 1); this.renderMonitor(); this.renderGauge(tot); sfx(['bonus_00', 'bonus_02', 'bonus_04'][Math.min(k, 2)], .35); sfx('print', .2);
+      if (!crossed && tot >= TARGET) { crossed = true; sfx('ding', .5); }
+      await sleep(260); if (it) it.classList.remove('hop');
+      await sleep(320);
+    }
+    if (tok !== this.token) return;
+    this.counted = tot; this.ended = true; this.busy = false;
+    const pass = tot >= TARGET;
+    const st = this.rcpt.querySelector('.stamp');
+    st.className = 'stamp ' + (pass ? 'paid' : 'short'); st.textContent = pass ? 'PAID' : (TARGET - tot) + '€ SHORT';
+    void st.offsetWidth; st.classList.add('on'); sfx(pass ? 'stamp_paid' : 'denied', .5);
+    if (pass) { const hi = this.rcpt.querySelector('.hi'); hi.innerHTML = `<b>BEST COMBO</b> · Eggs ×2 → Banana CHAIN · 6€`; hi.classList.add('on'); sfx('kaching', .4); }
+    this.log('training_checkout', { order: this.ids, total: tot, passed: pass, ms: this.ms() });
+    this.renderSteps();
+    await sleep(900); if (tok !== this.token) return;
+    this.endCard(pass, tot);
+  }
+  endCard(pass, tot) {
+    const C = this.card; const secs = Math.round(this.ms() / 1000);
+    const mm = Math.floor(secs / 60) + ':' + String(secs % 60).padStart(2, '0');
+    this.shade.classList.add('on'); this.rcpt.classList.add('lift'); this.q('.gaugecover').classList.add('lift');
+    if (pass) {
+      C.className = 'card ok';
+      C.innerHTML = `<div class="hb"><span class="h">TRAINING COMPLETE</span><span class="tm">${mm} · ${tot}€ / ${TARGET}€</span></div><div class="bdy">
+        <div class="best"><img src="${SRC}banana.png" alt=""><div><div class="k">BEST MOMENT</div><div class="v">Eggs ×2 → Banana CHAIN · ${tot}€ from 5€ of items</div></div></div>
+        <div class="learn"><div><img src="${SRC}mark_check.png" alt="">Placement: an item boosts what comes <u>after</u> it</div><div><img src="${SRC}mark_check.png" alt="">Scan: hold the pointer still on an item to read its pay</div><div><img src="${SRC}mark_check.png" alt="">Receipt: one line per item, PROJECTED before you ring up</div></div>
+        <div class="btns"><button class="p" data-e="run">START A RUN</button><button class="c" data-e="replay">REPLAY</button><button class="c" data-e="title">TITLE</button></div>
+        <div class="small">Nothing was saved. TRAINING stays on the title menu.</div></div>`;
+      this.markFlow('done');
+      this.log('training_end', { result: 'complete', ms: this.ms(), tries: this.tries });
+    } else {
+      C.className = 'card bad';
+      C.innerHTML = `<div class="hb"><span class="h">${TARGET - tot}€ SHORT</span><span class="tm">${mm} · ${tot}€ / ${TARGET}€</span></div><div class="bdy">
+        <div style="font-weight:800;font-size:16px">No penalty in training. ${this.ids[this.ids.length - 1] === 'eggs' ? 'The Eggs came last, so their ×2 had nothing to boost.' : 'Look at the WASTED lines on the receipt: they say what was missing.'}</div>
+        <div class="btns"><button class="p" data-e="retry">TRY AGAIN</button><button class="c" data-e="title">TITLE</button></div>
+        <div class="small">In a run, a miss in week 1 is a slip (at most 2 are forgiven).</div></div>`;
+      this.markFlow('short');
+    }
+    C.classList.remove('on'); void C.offsetWidth; C.classList.add('on'); sfx('ui_open', .4);
+    C.querySelectorAll('[data-e]').forEach(b => b.onclick = () => {
+      sfx('ui_click_1'); const e = b.dataset.e;
+      if (e === 'replay' || e === 'retry') { if (e === 'retry') this.log('training_retry'); this._skipDemo = e === 'retry' || this.demoSeen; this.startTraining(e, true); }
+      else if (e === 'title') { if (!pass) this.log('training_end', { result: 'left', ms: this.ms(), tries: this.tries }); this.toTitle(false); }
+      else { this.toTitle(false); this.toast('START A RUN opens the run\'s start screen: not in this mock-up'); }
+    });
+  }
+  pause(on) {
+    if (this.scene !== 'shift') return;
+    this.pauseEl.classList.toggle('on', on); this.guideL.style.visibility = on ? 'hidden' : ''; this.shade.classList.toggle('on', on || this.card.classList.contains('on'));
+    sfx(on ? 'ui_open' : 'ui_close', .4); if (on) { this.markFlow('pause'); this.log('pause'); }
+  }
+
+  // ----- C: the manager's demo -----
+  ghost(on) { this.ghostEl.classList.toggle('on', on); }
+  async ghostTo(x, y, ms) {
+    const g = this.ghostEl; g.style.transition = RM ? 'none' : `left ${ms || 500}ms steps(10),top ${ms || 500}ms steps(10)`;
+    g.style.left = x + 'px'; g.style.top = y + 'px'; await sleep(ms || 520);
+  }
+  async ghostClick() { this.ghostEl.classList.add('click'); await sleep(110); this.ghostEl.classList.remove('click'); }
+  async runDemo(tok) {
+    this.demo = true; this.mode = 'demo'; this.demoBtn = false; this.markFlow('demo');
+    this.demoText = 'The manager tries the obvious order first: <b>Banana, Banana, Eggs</b>.';
+    this.renderAll(); this.demotag.classList.add('on'); this.ghost(true);
+    this.ghostEl.style.left = '700px'; this.ghostEl.style.top = '700px';
+    this.log('training_demo', { order: ['banana', 'banana', 'eggs'] });
+    for (const uid of ['b1', 'b2', 'e']) {
+      if (tok !== this.token || !this.demo) return;
+      const r = homeRect(uid); await this.ghostTo(r.x + 36, r.y + 24, 520); await this.ghostClick();
+      if (tok !== this.token || !this.demo) return;
+      this.picked = uid; this.pickedFrom = -1; sfx('card_pickup_1'); this.renderHand();
+      const k = this.row.length; await this.ghostTo(SC(k), 400, 480); await this.ghostClick();
+      if (tok !== this.token || !this.demo) return;
+      this.picked = null; this.row.push(uid); sfx('card_place_1'); this._hidden = uid; this.renderAll();
+      await this.fly(ITEMS[uid].id, homeRect(uid), beltRect(k)); this._hidden = null; this.renderAll();
+    }
+    if (tok !== this.token || !this.demo) return;
+    await this.ghostTo(140, 300, 500);
+    this.demoText = `<b style="color:#a83a3c">7€: 3€ short.</b> The Eggs came <b>last</b>, so their ×2 had nothing after it: <b>WASTED</b>.`;
+    this.demoBtn = true; this.renderMonitor(); sfx('fizzle', .45);
+    await sleep(RM ? 0 : 5000);
+    if (tok === this.token && this.demo) this.endDemo();
+  }
+  async endDemo() {
+    if (!this.demo) return;
+    const tok = this.token;
+    this.demo = false; this.demoSeen = true; this.ghost(false); this.demotag.classList.remove('on');
+    this.log('training_demo_end');
+    const back = this.row.slice(); this.mode = 'intro';
+    this.beltL.querySelectorAll('.item').forEach(i => i.classList.add('hidden'));
+    if (!RM) await Promise.all(back.map((u, k) => this.fly(ITEMS[u].id, beltRect(k), homeRect(u))));
+    if (tok !== this.token) return;
+    this.row = [];
+    sfx('card_return_1', .35);
+    this.renderAll(); this.markFlow('arrange');
+  }
+
+  // ----- jumps + autoplay -----
+  async jump(k) {
+    this.token++; this.autoTok++; this.ghost(false); this.demotag.classList.remove('on');
+    if (k === 'title') return this.toTitle(true);
+    if (k === 'offer') { this.toTitle(true); this.plate('start'); return; }
+    this._skipDemo = k !== 'demo';
+    this.demoSeen = this.dir === 'C' && k !== 'demo';
+    await this.startTraining('title', true);
+    const set = (order, scan) => { this.row = order.slice(); this.demo = false; this.mode = 'intro'; if (scan) { this.scannedEver = true; } this.renderAll(); if (scan) this.doScan(scan); };
+    if (k === 'arrange') { this.renderAll(); this.markFlow('arrange'); }
+    if (k === 'wrong') { set(['b1', 'b2', 'e']); this.markFlow('wrong'); }
+    if (k === 'scan') { set(['e', 'b1', 'b2']); this.markFlow('scan'); }
+    if (k === 'ready') { set(['e', 'b1', 'b2'], 'b2'); this.markFlow('ready'); }
+    if (k === 'count') { set(['e', 'b1', 'b2'], 'b2'); this.checkout(); }
+    if (k === 'done') { set(['e', 'b1', 'b2'], 'b2'); this.fastEnd(); }
+    if (k === 'short') { set(['b1', 'b2', 'e']); this.fastEnd(); }
+    if (k === 'pause') { set(['e', 'b1']); this.pause(true); }
+  }
+  fastEnd() {
+    const sc = score(this.ids); this.mode = 'count'; this.countTot = sc.total; this.countArt = sc.res[sc.res.length - 1].id;
+    this.busy = false; this.ended = true; this.counted = sc.total; this.scanned = null; this.brk.classList.remove('on');
+    this.renderAll(); this.renderReceipt(sc.res.length); this.renderGauge(sc.total); this.guideL.innerHTML = '';
+    const pass = sc.total >= TARGET; const st = this.rcpt.querySelector('.stamp');
+    st.className = 'stamp on ' + (pass ? 'paid' : 'short'); st.textContent = pass ? 'PAID' : (TARGET - sc.total) + '€ SHORT';
+    if (pass) { const hi = this.rcpt.querySelector('.hi'); hi.innerHTML = `<b>BEST COMBO</b> · Eggs ×2 → Banana CHAIN · 6€`; hi.classList.add('on'); }
+    this.endCard(pass, sc.total);
+  }
+  async autoplay() {
+    const my = ++this.autoTok; this.toTitle(true); this.demoSeen = false;
+    const ok = () => my === this.autoTok;
+    this.ghost(true); this.ghostEl.style.left = '640px'; this.ghostEl.style.top = '650px';
+    await sleep(300); if (!ok()) return;
+    await this.ghostTo(200, 350, 600); await this.ghostClick(); if (!ok()) return;
+    this.plate('start'); await sleep(1200); if (!ok()) return;
+    const tb = this.sTitle.querySelector('[data-a="train"]').getBoundingClientRect(), sr = this.st.getBoundingClientRect();
+    await this.ghostTo((tb.left - sr.left) / this.scale + 60, (tb.top - sr.top) / this.scale + 16, 600); await this.ghostClick(); if (!ok()) return;
+    this.log('training_offer_answer', { answer: 'train' });
+    this._skipDemo = this.dir === 'C' ? false : true;
+    await this.startTraining('first_launch');
+    if (!ok()) return;
+    this.ghost(true);
+    if (this.dir === 'C') { await sleep(400); while (this.demo && ok()) await sleep(200); this.ghost(true); }
+    if (!ok()) return;
+    const moves = this.dir === 'A' ? [['b1', 0], ['b1', 'back'], ['e', 0], ['b1', 1], ['b2', 2]] : [['e', 0], ['b1', 1], ['b2', 2]];
+    for (const [uid, k] of moves) {
+      if (!ok()) return;
+      if (k === 'back') {
+        await sleep(1600); if (!ok()) return;
+        await this.ghostTo(SC(0) + 10, 360, 450); await this.ghostClick(); this.pick(uid); await sleep(250);
+        await this.ghostTo(homeRect(uid).x + 36, 560, 450); await this.ghostClick(); this.returnHome(uid); await sleep(700); continue;
+      }
+      const r = homeRect(uid); await this.ghostTo(r.x + 36, r.y + 24, 520); await this.ghostClick(); if (!ok()) return;
+      this.pick(uid); await sleep(RM ? 0 : 500); if (!ok()) return;
+      await this.ghostTo(SC(k), 400, 480); await this.ghostClick(); if (!ok()) return;
+      await this.place(uid, k); await sleep(RM ? 0 : 1100);
+    }
+    if (!ok()) return;
+    await this.ghostTo(SC(2), 372, 500); this.hoverIn('b2'); await new Promise(r => setTimeout(r, 750)); if (!ok()) return;
+    this.markFlow('scan'); await sleep(RM ? 0 : 2400); if (!ok()) return;
+    this.hoverOut('b2');
+    await this.ghostTo(170, 460, 600); await this.ghostClick(); if (!ok()) return;
+    this.ghost(false);
+    this.checkout();
+  }
+}
+
+document.querySelectorAll('.stagebox').forEach(b => new Trainer(b, b.dataset.dir));
+window.addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelectorAll('.pause.on').forEach(p => p.querySelector('[data-a="resume"]').click()); });
+})();
+</script>
+</body>
+</html>
