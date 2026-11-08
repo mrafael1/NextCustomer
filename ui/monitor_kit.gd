@@ -90,3 +90,41 @@ static func name_width(shown_name: Control) -> float:
 	var font: Font = label.get_theme_font("font")
 	var font_size: int = label.get_theme_font_size("font_size")
 	return font.get_string_size(label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+
+
+## The item column's (MonitorItemColumn) frame, header tint and foot and description band's foot,
+## as [rect, colour] pairs in a `size` column: its families' `faces` and their `lights` (a split
+## ticket's halves left and right); `panel` the description's band (empty: none). The band adds
+## only its foot line: its ground stays the paper (round 7).
+static func column_fills(
+	size: Vector2, faces: PackedColorArray, lights: PackedColorArray, panel: Rect2
+) -> Array[Array]:
+	var found: Array[Array] = []
+	var frame: float = MonitorItemColumn.FRAME
+	var header: Rect2 = MonitorItemColumn.HEADER_RECT
+	var halves: Array[Rect2] = [Rect2(Vector2.ZERO, size)]
+	if faces.size() > 1:
+		var half: float = floorf(size.x / 2.0)
+		halves = [Rect2(0, 0, half, size.y), Rect2(half, 0, size.x - half, size.y)]
+	var inside: Rect2 = Rect2(Vector2.ONE * frame, size - Vector2.ONE * 2.0 * frame)
+	for index: int in range(halves.size()):
+		var side: int = mini(index, faces.size() - 1)
+		var area: Rect2 = halves[index]
+		var tint: Color = Color(lights[side], MonitorItemColumn.HEADER_TINT_ALPHA)
+		found.append([area.intersection(header), tint])
+		var ink: Color = faces[side]
+		found.append([Rect2(area.position.x, 0, area.size.x, frame), ink])
+		found.append([Rect2(area.position.x, size.y - frame, area.size.x, frame), ink])
+		var header_foot: Rect2 = Rect2(
+			area.position.x, header.end.y, area.size.x, MonitorItemColumn.HEADER_FOOT
+		)
+		found.append([header_foot.intersection(inside), ink])
+		if index == 0:
+			found.append([Rect2(0, 0, frame, size.y), ink])
+		if index == halves.size() - 1:
+			found.append([Rect2(size.x - frame, 0, frame, size.y), ink])
+		if panel.has_area():
+			var line: float = MonitorItemColumn.PANEL_LINE
+			var foot: Rect2 = Rect2(panel.position.x, panel.end.y - line, panel.size.x, line)
+			found.append([foot.intersection(area), ink])
+	return found

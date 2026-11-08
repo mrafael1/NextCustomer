@@ -30,12 +30,15 @@ extends Control
 ##    Repeat" note sits at the zone's left (MonitorPayout.set_note; point A, 2026-11-05).
 ##
 ## In planning (show_item) rows that don't fit their room go on pages of whole rows
-## (MonitorStepPages, `pages`), turning by themselves, their marker at the header's right end. In
-## the count (start_item, set_value, show_step) the item comes in at its base price with no row;
-## each landing moves the payout (punching it) and adds its row, the newest highlighted, earlier
-## overflow folding into "+N earlier". The last item stays at the count's end. When the item
-## changes its parts fade in one after another (CountTotalTuning's part_delays and part_fade_s; at
-## once under reduced motion). Display only: the prices and lines are the caller's (the score's).
+## (MonitorStepPages, `pages`), turning by themselves, their marker at the header's right end, the
+## page cue (MonitorPager) on the total's line at the payout zone's left; a later page starts
+## with the carried line (the running value the score reached before it, MonitorCarry) instead
+## of the base price (v1.15). In the count (start_item, set_value, show_step) the item comes in
+## at its base price with no row; each landing moves the payout (punching it) and adds its row,
+## the newest highlighted, earlier overflow folding into "Carried forward (N steps)" with the
+## value after them. The last item stays at the count's end. When the item changes its parts fade
+## in one after another (CountTotalTuning's part_delays and part_fade_s; at once under reduced
+## motion). Display only: the prices and lines are the caller's (the score's).
 
 ## The column's size (MonitorView.ITEM_RECT's; PR #138 round 2: its frame 2 px from the paper's
 ## edge), its frame (family colour) and the content's inset from its edge (frame + padding).
@@ -101,7 +104,6 @@ const ROW_PITCH := MonitorStepRow.ROW_PITCH
 const ROW_MAX_LINES := MonitorStepRow.MAX_LINES
 const HARM_MARK := MonitorStepRow.HARM_MARK
 const NOTE_COLOR := MonitorStepRow.NOTE_COLOR
-const FOLDED_TEXT := "+%d earlier"
 ## The payout's zone, the same for every item: the payout on its right, under the rows' amounts
 ## (round 6: with the box gone, PAYOUT_DROP px under the rows' area so "= N€" breathes, and its
 ## digits' shadow 5 px clear of the frame's inside foot).
@@ -196,7 +198,7 @@ func show_item(
 ) -> void:
 	var key: Array = [definition, tags, redraws_left, shown.payout, shown.lines, shown.fizzles]
 	key.append_array([shown.gives, shown.minis, shown.harms, shown.given, shown.collapsed])
-	key.append_array([shown.equations, shown.copied_by])
+	key.append_array([shown.equations, shown.copied_by, shown.runs])
 	if not _counting and _definition == definition and key == _shown_key:
 		return
 	_counting = false
@@ -264,6 +266,8 @@ func _planning_rows(
 		var row: Control = _make_row(lines[index], tone, gives, giver_mini, equation)
 		if row == null:
 			continue
+		row.set_meta(MonitorCarry.RUN, shown.runs[index] if index < shown.runs.size() else -1)
+		row.set_meta(MonitorCarry.GIVES, gives)
 		if fizzle:
 			unused.append(row)
 		elif gives:
@@ -327,7 +331,8 @@ func set_value(value: int, fizzled: bool = false) -> void:
 ## The count: the item's newest step `line` (a fizzle's, a `harmful` one's, a "gives" line, with its
 ## source's `giver_mini`; `from_bag`: its giver, `giver_name`, is already in the bag, the bag glyph
 ## beside its icon saying so in its tip, v1.11) joins the rows, the newest highlighted; only
-## earlier overflow folds into "+N earlier".
+## earlier overflow folds (MonitorCarry.fold_row). `run`: the item's running value after it
+## (ScanController.running_value; -1 for none), which the fold carries (v1.15).
 func show_step(
 	line: String,
 	fizzle: bool,
@@ -335,14 +340,15 @@ func show_step(
 	giver_mini: Texture2D = null,
 	from_bag: bool = false,
 	harmful: bool = false,
-	giver_name: String = ""
+	giver_name: String = "",
+	run: int = -1
 ) -> void:
 	if line.is_empty():
 		return
 	var tone: MonitorStepRow.Tone = MonitorStepRow.tone_of(fizzle, harmful)
 	var bag_tip: String = MonitorStepRow.bag_tip_of(giver_name) if from_bag else ""
 	_count_lines.append(
-		{"line": line, "tone": tone, "gives": gives, "mini": giver_mini, "bag": bag_tip}
+		{"line": line, "tone": tone, "gives": gives, "mini": giver_mini, "bag": bag_tip, "run": run}
 	)
 	if _effect_rows == 0 and _definition != null:
 		_effect_rows = 1
@@ -354,7 +360,7 @@ func show_step(
 
 
 ## The count's rows: the newest that fit (each on up to ROW_MAX_LINES lines, the earlier ones
-## folding into "+N earlier"), the newest highlighted and its icon pulsing.
+## folding into MonitorCarry.fold_row), the newest highlighted and its icon pulsing.
 func _show_count_lines() -> void:
 	_clear_steps()
 	var room: float = maxf(_steps.size.y, ROW_PITCH)
@@ -385,10 +391,11 @@ func _show_count_lines() -> void:
 		first = index
 	var top: float = 0.0
 	if first > 0:
-		var folded: Label = MonitorKit.bold(FOLDED_TEXT % first, 12, 700, NOTE_COLOR, ROW_PITCH)
-		folded.name = "Folded"
-		folded.set_meta(&"line", folded.text)
-		folded.size = Vector2(_steps.size.x, ROW_PITCH)
+		var carried: int = -1
+		for index: int in range(first):
+			var run: int = int(_count_lines[index]["run"])
+			carried = run if run >= 0 else carried
+		var folded: Control = MonitorCarry.fold_row(first, carried, _steps.size.x)
 		_steps.add_child(folded)
 		_rows.append(folded)
 		top += ROW_PITCH
@@ -471,9 +478,15 @@ func effect() -> GlyphLabel:
 	return _effect
 
 
-## The base price line (MonitorBaseLine), or null with none.
+## The base price line (MonitorBaseLine), or null with none (on pages: the first page's head).
 func base_line() -> Control:
 	return _base
+
+
+## The line over the rows shown: on pages the page shown's head (the base line or the carried
+## line, v1.15; MonitorStepPages.head), else the base line; null with none.
+func _head_line() -> Control:
+	return _pages.head() if _pages != null and _pages.has_heads() else _base
 
 
 func payout_view() -> MonitorPayout:
@@ -545,14 +558,16 @@ func part_rects() -> Dictionary[String, Rect2]:
 		)
 	if _more != null:
 		rects["more"] = _more.get_global_rect()
-	if _base != null:
-		rects["base"] = _base.get_global_rect()
+	var head: Control = _head_line()
+	if head != null:
+		rects["carry" if head.name == "CarryLine" else "base"] = head.get_global_rect()
 	if _definition != null:
 		rects["rows"] = _steps.get_global_rect()
 	for index: int in range(_rows.size()):
 		rects["step%d" % index] = _rows[index].get_global_rect()
 	if _pages != null and _pages.marker() != null:
 		rects["pager"] = _pages.marker().get_global_rect()
+		rects["page_cue"] = _pages.pager().get_global_rect()
 	if _payout.visible:
 		rects["payout"] = _payout.shown_rect()
 		var parts: Dictionary[String, Rect2] = _payout.part_rects()
@@ -705,7 +720,7 @@ func _place_body(bottom: float) -> void:
 		var top: float = HEADER_RECT.end.y + HEADER_FOOT
 		_panel = Rect2(FRAME, top, size.x - 2.0 * FRAME, panel_foot(bottom) - top)
 	if _base != null:
-		remove_child(_base)
+		_base.get_parent().remove_child(_base)
 		_base.queue_free()
 		_base = null
 	if _has_base():
@@ -833,9 +848,14 @@ func _set_payout(value: int, fizzled: bool, punch: bool, given: int = 0) -> void
 ## in the header (_place_marker).
 func _fill_pages(built: Array[Control]) -> void:
 	_clear_steps()
-	var paged: Array[Array] = MonitorStepPages.lay_out(built, _steps.size.y)
-	_pages = MonitorStepPages.new(paged, _steps.size, _tuning.page_interval_s, _tuning.page_fade_s)
+	var paged: Array[Array] = MonitorCarry.lay_out(built, _steps.size.y, _base == null)
+	var heads: Array[Control] = MonitorCarry.heads(paged, _base, _base_of(_definition), ROWS_WIDTH)
+	_pages = MonitorStepPages.new(
+		paged, _steps.size, _tuning.page_interval_s, _tuning.page_fade_s, heads
+	)
 	_pages.reduced_motion = reduced_motion
+	MonitorCarry.fit_cue(_pages.pager(), _payout, paged)
+	_pages.pager_foot = PAYOUT_RECT.position + Vector2(0, _payout.line_foot()) - _steps.position
 	var marker: Label = _pages.marker()
 	if marker != null:
 		marker.add_theme_font_size_override("font_size", MARKER_SIZE)
@@ -850,8 +870,9 @@ func _pages_of(rows: Array[Control]) -> int:
 	return MonitorStepPages.lay_out(rows, _steps.size.y).size()
 
 
-func _on_page_turned(_page: int) -> void:
+func _on_page_turned(page: int) -> void:
 	_rows = _pages.rows()
+	_payout.mute_equals(page < _pages.count() - 1)
 
 
 ## One row (MonitorStepRow.make) the content's width, on up to ROW_MAX_LINES lines (and its
@@ -908,6 +929,8 @@ func _clear_steps() -> void:
 	if _pages != null:
 		_pages.stop()
 		_pages = null
+	_payout.set_note_inset(0.0)
+	_payout.mute_equals(false)
 	for child: Node in _steps.get_children():
 		_steps.remove_child(child)
 		child.queue_free()
@@ -921,36 +944,12 @@ func _draw() -> void:
 		draw_rect(fill[0], fill[1])
 
 
-## What _draw fills, as [rect, colour] pairs in the column's coordinates (none with no item). The
-## description's band adds only its foot line: its ground stays the paper (round 7).
+## What _draw fills, as [rect, colour] pairs in the column's coordinates (none with no item):
+## MonitorKit.column_fills.
 func fills() -> Array[Array]:
-	var found: Array[Array] = []
 	if _definition == null or _faces.is_empty():
-		return found
-	var halves: Array[Rect2] = [Rect2(Vector2.ZERO, size)]
-	if _faces.size() > 1:
-		var half: float = floorf(size.x / 2.0)
-		halves = [Rect2(0, 0, half, size.y), Rect2(half, 0, size.x - half, size.y)]
-	var inside: Rect2 = Rect2(Vector2.ONE * FRAME, size - Vector2.ONE * 2.0 * FRAME)
-	for index: int in range(halves.size()):
-		var side: int = mini(index, _faces.size() - 1)
-		var area: Rect2 = halves[index]
-		found.append([area.intersection(HEADER_RECT), Color(_lights[side], HEADER_TINT_ALPHA)])
-		var ink: Color = _faces[side]
-		found.append([Rect2(area.position.x, 0, area.size.x, FRAME), ink])
-		found.append([Rect2(area.position.x, size.y - FRAME, area.size.x, FRAME), ink])
-		var header_foot: Rect2 = Rect2(area.position.x, HEADER_RECT.end.y, area.size.x, HEADER_FOOT)
-		found.append([header_foot.intersection(inside), ink])
-		if index == 0:
-			found.append([Rect2(0, 0, FRAME, size.y), ink])
-		if index == halves.size() - 1:
-			found.append([Rect2(size.x - FRAME, 0, FRAME, size.y), ink])
-		if _panel.has_area():
-			var foot: Rect2 = Rect2(
-				_panel.position.x, _panel.end.y - PANEL_LINE, _panel.size.x, PANEL_LINE
-			)
-			found.append([foot.intersection(area), ink])
-	return found
+		return []
+	return MonitorKit.column_fills(size, _faces, _lights, _panel)
 
 
 func _stop_fades() -> void:

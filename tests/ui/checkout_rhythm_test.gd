@@ -69,7 +69,7 @@ func test_the_monitor_keeps_bonus_lines_and_folds_only_the_earliest_overflow() -
 	var texts: PackedStringArray = column.step_texts()
 	assert_str(texts[-1]).is_equal("Lemon squeezer  ×2")
 	assert_int(texts.size()).is_less(7)
-	assert_str(texts[0]).is_equal(MonitorItemColumn.FOLDED_TEXT % (7 - (texts.size() - 1)))
+	assert_str(texts[0]).is_equal(MonitorCarry.fold_caption(7 - (texts.size() - 1)))
 	var area: Rect2 = column.part_rects()["rows"]
 	for row: Control in column.step_rows():
 		assert_bool(area.grow(0.5).encloses(row.get_global_rect())).is_true()

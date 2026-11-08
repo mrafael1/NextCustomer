@@ -38,11 +38,17 @@ const NOTE_SIZE := 12
 const NOTE_WEIGHT := 700
 const NOTE_INK := Palette.INK_LIGHT
 const NOTE_GAP := 8.0
+## The "=" while the rows shown are not the item's last page (mute_equals, v1.15): it reads as the
+## item's total, not as the result of the rows above it, whose subtotal the page cue shows.
+const EQUALS_MUTED := Palette.GREY
 
 var _state: PriceWindow.State = PriceWindow.State.PRINTED
 var _amount: int = 0
 var _step: int = 0
 var _given: int = 0
+var _base: int = 0
+var _glyph_kind: PlanningModel.Glyph = PlanningModel.Glyph.NONE
+var _muted: bool = false
 ## Every part sits in this group, which a punch scales from its right edge.
 var _group: Control
 var _equals: Label
@@ -50,6 +56,9 @@ var _digits: PixelWords
 var _shadow: PixelWords
 var _glyph: TextureRect
 var _note: Label
+## Where the note starts and how much of the zone's left the total keeps clear (v1.15: the item
+## column's page cue's room on the same line; 0: none).
+var _note_inset: float = 0.0
 
 
 func _init(zone: Vector2 = Vector2(258, 27)) -> void:
@@ -95,6 +104,36 @@ func note_text() -> String:
 	return _note.text
 
 
+## The note starts `inset` px from the zone's left and the total keeps clear of that room (v1.15:
+## the page cue's; a total too wide beside it takes its shorter forms, see _form).
+func set_note_inset(inset: float) -> void:
+	if is_equal_approx(_note_inset, maxf(inset, 0.0)):
+		return
+	_note_inset = maxf(inset, 0.0)
+	if shows_pay():
+		show_pay(_state, _amount, _base, _glyph_kind, _given)
+	_lay_note()
+
+
+## The "=" in EQUALS_MUTED (`muted`: a page of rows before the last shown) or in ink.
+func mute_equals(muted: bool) -> void:
+	_muted = muted
+	if _given == 0:
+		_equals.add_theme_color_override("font_color", EQUALS_MUTED if muted else Palette.INK)
+
+
+func equals_muted() -> bool:
+	return _muted and _given == 0
+
+
+## The total's line foot in the zone: the digits' foot, else the zone's middle plus half a note
+## line (where the note and the page cue sit).
+func line_foot() -> float:
+	if shows_pay():
+		return minf(_digits.position.y + _digits.size.y, size.y)
+	return size.y / 2.0 + (NOTE_SIZE + 4.0) / 2.0
+
+
 ## Shows `amount` in `state` (against its item's `base`: a boost's ink step), with `glyph` (the
 ## reason's sign) left of a 0€; a COUPON that `given` more than 0 to other items shows "+given€",
 ## and any other coupon (COUPON or WASTED) shows nothing.
@@ -107,6 +146,8 @@ func show_pay(
 ) -> void:
 	_state = state
 	_amount = amount
+	_base = base
+	_glyph_kind = glyph
 	_step = PriceWindow.boost_step(amount, base) if state == PriceWindow.State.BOOSTED else 0
 	_given = given if state == PriceWindow.State.COUPON and given > 0 else 0
 	var coupon: bool = (
@@ -136,7 +177,8 @@ func show_pay(
 	_shadow.position = at + Vector2(CELL, CELL)
 	_shadow.visible = shadow_ink.a > 0.0 and _given == 0
 	_equals.text = GIVEN_SIGN if _given > 0 else EQUALS
-	_equals.add_theme_color_override("font_color", GIVEN_INK if _given > 0 else Palette.INK)
+	var ink: Color = EQUALS_MUTED if _muted else Palette.INK
+	_equals.add_theme_color_override("font_color", GIVEN_INK if _given > 0 else ink)
 	var equals_width: float = ceilf(_equals.get_combined_minimum_size().x)
 	_equals.size = Vector2(equals_width, shown.y)
 	var gap: float = GIVEN_GAP if _given > 0 else EQUALS_GAP
@@ -164,13 +206,16 @@ func _lay_note() -> void:
 	if not _note.visible:
 		return
 	var left: float = size.x
-	var foot: float = size.y / 2.0 + _note.size.y / 2.0
 	if shows_pay():
 		left = _glyph.position.x if _glyph.visible else _equals.position.x
-		foot = _digits.position.y + _digits.size.y
 	var height: float = NOTE_SIZE + 4.0
-	_note.size = Vector2(maxf(0.0, left - NOTE_GAP), height)
-	_note.position = Vector2(0.0, minf(foot, size.y) - height)
+	_note.size = Vector2(maxf(0.0, left - NOTE_GAP - _reserved()), height)
+	_note.position = Vector2(_reserved(), line_foot() - height)
+
+
+## The zone's left the cue takes, with its gap (0 with none).
+func _reserved() -> float:
+	return _note_inset + NOTE_GAP if _note_inset > 0.0 else 0.0
 
 
 ## The payout's state (the ticket's price window's, PriceWindow.state_for) for `value` against
@@ -186,15 +231,26 @@ static func state_of(value: int, base: int, fizzled: bool, coupon: bool) -> Pric
 	return PriceWindow.state_for(pay, coupon)
 
 
-## The text and sheet `amount` prints in: the 6x8 digits when they fit the zone, else the 4x7
-## ones, else PriceWindow.form_for's shorter forms.
+## The text and sheet `amount` prints in: the 6x8 digits when they fit the zone right of the note's
+## inset (the page cue's room), else the 4x7 ones, else PriceWindow.form_for's shorter forms.
 func _form(amount: int) -> Array:
 	var text: String = MonitorText.euros(amount)
-	var room: float = size.x - needed_width(0, false) + digits_width(0)
+	var room: float = size.x - _reserved() - needed_width(0, false) + digits_width(0)
 	for sheet: PixelWords.Sheet in [PixelWords.Sheet.DIGITS, PixelWords.Sheet.SMALL_DIGITS]:
 		if PixelWords.text_size(text, sheet, CELL).x <= room:
 			return [text, sheet]
-	return PriceWindow.form_for(amount)
+	var short: Array = PriceWindow.form_for(amount)
+	if PixelWords.text_size(short[0], short[1], CELL).x > room:
+		short[1] = PixelWords.Sheet.SMALL_DIGITS
+	return short
+
+
+## The total's left edge in the zone (its zero sign's, else its "="'s; the zone's right with
+## nothing shown), which the page cue keeps clear of.
+func left_edge() -> float:
+	if not shows_pay():
+		return size.x
+	return _glyph.position.x if _glyph.visible else _equals.position.x
 
 
 ## The 6x8 digits' width for `amount` (with their shadow's cell).
