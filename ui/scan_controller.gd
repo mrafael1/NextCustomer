@@ -140,7 +140,10 @@ var _framed: bool = false
 ## `collapsed_mini`) the one GIVES_MANY row the monitor shows instead when the scan would not fit
 ## on one page ("" with fewer than two); `given` a coupon's contribution, its "+N€"
 ## (PlanningModel.contribution; 0 for a product), PR #138 round 7; `equations`, each line's
-## equation shown under it (a "gives" line's, GivesRow.equation; "" for none), v1.11.
+## equation shown under it (a "gives" line's, GivesRow.equation; "" for none), v1.11; `runs`, each
+## line's running value of the item after it (running_value: its step's value_after; -1 for a line
+## that moves no amount of the item: a "gives" line, a fizzle, a tag or a link), so a later page of
+## rows starts from the value the score reached before it (v1.15).
 class ItemLines:
 	extends RefCounted
 
@@ -153,6 +156,7 @@ class ItemLines:
 	var fizzles: Array[bool] = []
 	var harms: Array[bool] = []
 	var minis: Array[Texture2D] = []
+	var runs: PackedInt32Array = PackedInt32Array()
 	var gives: int = 0
 	var given: int = 0
 	var collapsed: String = ""
@@ -362,6 +366,7 @@ func item_lines(slot: int) -> ItemLines:
 		shown.harms.append(false)
 		# The target's own mini (the friend's "[item icon] to item"); the many row's, the giver's.
 		shown.minis.append(_own_mini(row.target if row.target >= 0 else slot))
+		shown.runs.append(-1)
 		shown.gives += 1
 	if shown.gives > 1:
 		shown.collapsed = gives_rows(_result, slot, _names, gives_arrow(), 0)[0].line
@@ -383,7 +388,21 @@ func item_lines(slot: int) -> ItemLines:
 		shown.fizzles.append(fizzle)
 		shown.harms.append(CountUpPlan.is_harmful(_result.steps, _result.steps.find(step)))
 		shown.minis.append(_giver_mini(step))
+		shown.runs.append(running_value(step))
 	return shown
+
+
+## The item's running value after `step` (its value_after) when the step moves the item's own
+## amount (a bonus, a factor, a copy, an override), else -1 (v1.15: what a later page of rows, or
+## the count's "+N earlier", carries forward). Read from the score, never worked out.
+static func running_value(step: ScoreStep) -> int:
+	var moves: Array[ScoreStep.StepType] = [
+		ScoreStep.StepType.FLAT,
+		ScoreStep.StepType.MULTIPLIER,
+		ScoreStep.StepType.COPY,
+		ScoreStep.StepType.PAYOUT_OVERRIDE,
+	]
+	return step.value_after if moves.has(step.step_type) else -1
 
 
 ## `step`'s receipt line (ReceiptView.step_line) with the names of the last set_result.
