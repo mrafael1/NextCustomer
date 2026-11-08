@@ -5,7 +5,7 @@ extends RefCounted
 ## card on the belt, or in the hand), pinned on the monitor, with the shift's opening notice
 ## cleared so nothing covers the item column. The file is shift_screen_monitor_<case>_<w>x<h>.png.
 ## A case with a "page" (from 0) holds the item column's rows on that page (MonitorStepPages), so
-## every page of a paged item is captured (#138 review). A case's "cue" (v1.14 review) shows the
+## every page of a paged item is captured (#138 review). A case's "cue" (v1.15 review) shows the
 ## page cue at "rest" (the pointer off the monitor: its ground unlit) or "hot" (under the pointer);
 ## else it is lit, as while the pages are held.
 
@@ -17,7 +17,7 @@ const SETTLE_FRAMES := 2
 const SETTLE_S := ScannerBay.PLAN_OUT_S + BayBed.FALL_S + 1.0
 ## The wait for a turned page's fade.
 const PAGE_S := 0.6
-## The "carry" cases' upgrades (v1.14).
+## The "carry" cases' upgrades (v1.15).
 const CARRY_UPGRADES: Array[String] = [
 	"category_engine_lv2", "dairy_regulars", "dairy_aisle_run_lv2", "breakfast_aisle_run_lv3"
 ]
@@ -132,7 +132,7 @@ const CASES: Dictionary[String, Dictionary] = {
 	"repeat_none": {"row": ["repeat", "milk_golden", "butter"], "scan": "milk_golden"},
 	"repeat_none_copy": {"row": ["repeat", "milk_golden", "butter"], "scan": "repeat"},
 	"unused": {"row": ["eggs", "batteries"], "scan": "eggs"},
-	# v1.14 (the user's "fix the missing subtotal across pages"): Golden Milk 6€, +8 +12 +3 = 29€
+	# v1.15 (the user's "fix the missing subtotal across pages"): Golden Milk 6€, +8 +12 +3 = 29€
 	# on page 1, then ×2 ×4 ×5 = 1160€ on page 2, which starts "Carried forward 29€".
 	"carry":
 	{
@@ -166,7 +166,7 @@ const CASES: Dictionary[String, Dictionary] = {
 		"page": 1,
 		"cue": "hot"
 	},
-	# v1.14 review: a huge payout on 4 pages (BIG_LINES at BIG_PAYOUT, debug only, as the ladder):
+	# v1.15 review: a huge payout on 4 pages (BIG_LINES at BIG_PAYOUT, debug only, as the ladder):
 	# the total keeps clear of the cue, which goes compact.
 	"big": {"row": ["potatoes"], "upgrades": ["extra_redraw"], "scan": "potatoes", "big": true},
 	"hand": {"row": ["bread"], "scan": "coffee", "hand": true},

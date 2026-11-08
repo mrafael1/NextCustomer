@@ -8,7 +8,7 @@ extends RefCounted
 ## aligned in the rows' amount column, in ink. A product's only, over at least one effect row
 ## (MonitorItemColumn decides). Pure maker: no state.
 ##
-## v1.14 (the user's "fix the missing subtotal across pages"): a later page of rows starts with the
+## v1.15 (the user's "fix the missing subtotal across pages"): a later page of rows starts with the
 ## carried line instead (make_carried): a return arrow drawn on the 2 px grid in CARRY_INK,
 ## CARRY_CAPTION muted (CARRY_INK, CARRY_WEIGHT), the leader, then the running value the item
 ## reached at the end of the page before (the score's own; MonitorItemColumn reads it from its

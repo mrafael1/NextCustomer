@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## v1.14, the user's request of 2026-11-07: "Fix the missing subtotal across pages. Page 2/2 shows a
+## v1.15, the user's request of 2026-11-07: "Fix the missing subtotal across pages. Page 2/2 shows a
 ## 6€ base, then ×2, ×4 and ×5, ending at 1160€. Those visible steps read like 240€. If this page
 ## starts from the earlier subtotal, show 29€ carried forward instead of repeating base price
 ## there, assuming the scoring steps confirm that subtotal. Make the page affordance discoverable

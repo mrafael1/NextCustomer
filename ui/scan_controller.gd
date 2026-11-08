@@ -143,7 +143,7 @@ var _framed: bool = false
 ## equation shown under it (a "gives" line's, GivesRow.equation; "" for none), v1.11; `runs`, each
 ## line's running value of the item after it (running_value: its step's value_after; -1 for a line
 ## that moves no amount of the item: a "gives" line, a fizzle, a tag or a link), so a later page of
-## rows starts from the value the score reached before it (v1.14).
+## rows starts from the value the score reached before it (v1.15).
 class ItemLines:
 	extends RefCounted
 
@@ -393,7 +393,7 @@ func item_lines(slot: int) -> ItemLines:
 
 
 ## The item's running value after `step` (its value_after) when the step moves the item's own
-## amount (a bonus, a factor, a copy, an override), else -1 (v1.14: what a later page of rows, or
+## amount (a bonus, a factor, a copy, an override), else -1 (v1.15: what a later page of rows, or
 ## the count's "+N earlier", carries forward). Read from the score, never worked out.
 static func running_value(step: ScoreStep) -> int:
 	var moves: Array[ScoreStep.StepType] = [

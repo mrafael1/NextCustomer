@@ -9,7 +9,7 @@ extends Control
 ## itself; turn (the mouse wheel) shows the next or previous one and starts the wait again.
 ## Its timer and fades are its own (real time, never the count's clock) and go with it.
 ##
-## v1.14 (the user's "fix the missing subtotal across pages"): each page may have a head, the line
+## v1.15 (the user's "fix the missing subtotal across pages"): each page may have a head, the line
 ## over its rows (the item column's base price line on the first page, the carried line,
 ## MonitorBaseLine.make_carried, on a later one), in the page so it turns with it, a row's pitch
 ## above the rows (an INLINE head, a coupon's, as its first row). The page cue (MonitorPager, at

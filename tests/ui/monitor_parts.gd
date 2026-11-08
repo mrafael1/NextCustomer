@@ -131,7 +131,7 @@ static func problems(column: MonitorItemColumn) -> PackedStringArray:
 	return found
 
 
-## The line over the rows shown (v1.14): the page shown's head on pages (the base line or the
+## The line over the rows shown (v1.15): the page shown's head on pages (the base line or the
 ## carried line; a coupon's inline, as its page's first row), else the base line; null with none.
 static func head(column: MonitorItemColumn) -> Control:
 	var pages: MonitorStepPages = column.pages

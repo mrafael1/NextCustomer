@@ -1,6 +1,6 @@
 class_name MonitorCarry
 extends RefCounted
-## The item column's carried subtotal (v1.14, the user's "fix the missing subtotal across pages":
+## The item column's carried subtotal (v1.15, the user's "fix the missing subtotal across pages":
 ## a later page repeated the base price, so its visible steps did not add up to the total). Each
 ## planning row keeps its line's running value (RUN meta: ScanController.ItemLines.runs, the
 ## score's value_after, -1 for a row that moves no amount) and whether it is a "gives" row (GIVES

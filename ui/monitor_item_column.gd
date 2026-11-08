@@ -33,7 +33,7 @@ extends Control
 ## (MonitorStepPages, `pages`), turning by themselves, their marker at the header's right end, the
 ## page cue (MonitorPager) on the total's line at the payout zone's left; a later page starts
 ## with the carried line (the running value the score reached before it, MonitorCarry) instead
-## of the base price (v1.14). In the count (start_item, set_value, show_step) the item comes in
+## of the base price (v1.15). In the count (start_item, set_value, show_step) the item comes in
 ## at its base price with no row; each landing moves the payout (punching it) and adds its row,
 ## the newest highlighted, earlier overflow folding into "Carried forward (N steps)" with the
 ## value after them. The last item stays at the count's end. When the item changes its parts fade
@@ -332,7 +332,7 @@ func set_value(value: int, fizzled: bool = false) -> void:
 ## source's `giver_mini`; `from_bag`: its giver, `giver_name`, is already in the bag, the bag glyph
 ## beside its icon saying so in its tip, v1.11) joins the rows, the newest highlighted; only
 ## earlier overflow folds (MonitorCarry.fold_row). `run`: the item's running value after it
-## (ScanController.running_value; -1 for none), which the fold carries (v1.14).
+## (ScanController.running_value; -1 for none), which the fold carries (v1.15).
 func show_step(
 	line: String,
 	fizzle: bool,
@@ -484,7 +484,7 @@ func base_line() -> Control:
 
 
 ## The line over the rows shown: on pages the page shown's head (the base line or the carried
-## line, v1.14; MonitorStepPages.head), else the base line; null with none.
+## line, v1.15; MonitorStepPages.head), else the base line; null with none.
 func _head_line() -> Control:
 	return _pages.head() if _pages != null and _pages.has_heads() else _base
 

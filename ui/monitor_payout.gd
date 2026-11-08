@@ -38,7 +38,7 @@ const NOTE_SIZE := 12
 const NOTE_WEIGHT := 700
 const NOTE_INK := Palette.INK_LIGHT
 const NOTE_GAP := 8.0
-## The "=" while the rows shown are not the item's last page (mute_equals, v1.14): it reads as the
+## The "=" while the rows shown are not the item's last page (mute_equals, v1.15): it reads as the
 ## item's total, not as the result of the rows above it, whose subtotal the page cue shows.
 const EQUALS_MUTED := Palette.GREY
 
@@ -56,7 +56,7 @@ var _digits: PixelWords
 var _shadow: PixelWords
 var _glyph: TextureRect
 var _note: Label
-## Where the note starts and how much of the zone's left the total keeps clear (v1.14: the item
+## Where the note starts and how much of the zone's left the total keeps clear (v1.15: the item
 ## column's page cue's room on the same line; 0: none).
 var _note_inset: float = 0.0
 
@@ -104,7 +104,7 @@ func note_text() -> String:
 	return _note.text
 
 
-## The note starts `inset` px from the zone's left and the total keeps clear of that room (v1.14:
+## The note starts `inset` px from the zone's left and the total keeps clear of that room (v1.15:
 ## the page cue's; a total too wide beside it takes its shorter forms, see _form).
 func set_note_inset(inset: float) -> void:
 	if is_equal_approx(_note_inset, maxf(inset, 0.0)):

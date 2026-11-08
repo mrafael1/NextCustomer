@@ -1,6 +1,6 @@
 class_name MonitorPager
 extends Control
-## The item column's page cue (v1.14, the user's "make the page affordance discoverable enough
+## The item column's page cue (v1.15, the user's "make the page affordance discoverable enough
 ## that 2/2 isn't the only clue"): at the payout zone's left, on the total's line, one pip a page
 ## (PIP px squares, the page shown in INK, the others filled OTHER), then, while later pages follow,
 ## the subtotal the page reached (its last running value, the score's: set_subtotals; none when the
