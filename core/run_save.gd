@@ -865,14 +865,15 @@ static func _phase_fits(restored: RunState, legacy: bool = false) -> bool:
 	elif visit.kind == MachineVisit.Kind.TICKET:
 		ok = ok and record.visits.is_empty()
 	elif visit.kind == MachineVisit.Kind.OVERTIME:
-		# The over-quota ticket (v1.03) comes last, after the ticket's visit, and is CLASSIC.
-		ok = ok and record.overtime_ticket and not record.visits.is_empty() and not visit.premium
+		# The over-quota draw (v1.03, the SILVER medal) comes last, after the ticket's visit.
+		ok = ok and record.overtime_ticket and not record.visits.is_empty()
 	# Only an earned OVERTIME visit is queued.
 	if machine.pending_kinds().has(MachineVisit.Kind.OVERTIME):
 		ok = ok and record.overtime_ticket and visit.kind != MachineVisit.Kind.OVERTIME
-	# A PREMIUM visit is a premium shift's ticket or BONUS visit (a legacy save's: by its rules),
-	# or a ticket's made PREMIUM by its shift's overtime premium laps.
-	var overtime_premium: bool = record.overtime_premium and visit.kind == MachineVisit.Kind.TICKET
+	# A PREMIUM visit is a premium shift's (a legacy save's: by its rules), or a ticket's made
+	# PREMIUM by its shift's overtime premium laps (the GOLD medal) and the OVERTIME draw after it
+	# (2026-11-06: the same receipt's draws share its look; a save from before, CLASSIC, loads too).
+	var overtime_premium: bool = record.overtime_premium and visit.kind != MachineVisit.Kind.BONUS
 	return (
 		ok
 		and (

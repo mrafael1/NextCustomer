@@ -1,29 +1,31 @@
 class_name Payday
 extends RefCounted
-## Payday's words (v0.68, the loop rework): passing a Manager's review pays two PREMIUM tickets
+## Payday's words (v0.68, the loop rework): passing a Manager's review pays two PREMIUM draws
 ## (MachineDefinition.is_payday_shift: a premium shift with a BONUS visit), shown as one reward. In
 ## the review's planning the PREMIUM announce reads PAYDAY (PremiumAnnounce) and the inspection
-## chip promises no separate bonus ticket; at the checkout the receipt's stub banner, then the
-## machine's head stamp across both visits, read REVIEW PASSED · 2 PREMIUM TICKETS.
+## chip promises no separate bonus ticket; at the machine the head stamp across both draws reads
+## REVIEW PASSED. Since 2026-11-06 (the week medals) the receipt feeds once and the reader plate's
+## draw lamps count the draws: no second ticket, no stub on the receipt.
 
-## The one banner, in two lines (the dessert's, beside the receipt) or one (logs, tests).
-const BANNER := "REVIEW PASSED\n2 PREMIUM TICKETS"
-const BANNER_LINE := "REVIEW PASSED · 2 PREMIUM TICKETS"
-## The machine's head stamp and the line under it, on both of the payday's visits.
+## The one reward's line (the week card's payday day, logs, tests).
+const BANNER_LINE := "REVIEW PASSED · 2 PREMIUM DRAWS"
+## The machine's head stamp and the line under it (none since 2026-11-06: the lamps count the
+## draws), on every one of the payday's draws.
 const STAMP := "REVIEW PASSED"
-const STAMP_UNDER := "2 PREMIUM TICKETS"
-## The second ticket (the BONUS visit's): its title, its small line and the display's lines.
+const STAMP_UNDER := ""
+## The display's title for a payday's draw (MachineDisplay; no second ticket since 2026-11-06).
 const TICKET_TITLE := "PREMIUM TICKET"
-const TICKET_SUB := "review passed · 2 of 2"
+## The display's lines: the receipt read's ending, a later draw's reason, the chute's sub line, the
+## landing's end ("%d": the draws).
 const READ := " · REVIEW PASSED"
-const FEED_SUB := "2nd premium ticket · feeding in"
-const CHUTE_SUB := "2nd premium ticket · pick a chute"
-const END_SUB := "2 premium prizes this shift"
-const KEY_LEAD := "premium 2/2"
+const REASON := "review passed"
+const CHUTE_SUB := "review passed · premium · pick a chute"
+const END_SUB := "%d premium prizes this shift"
+const KEY_LEAD := "premium draw"
 ## The planning announce's texts (PremiumAnnounce) and its hanging tag.
 const ANNOUNCE_HEAD := "PASS THE REVIEW"
 const ANNOUNCE_TITLE := "PAYDAY"
-const ANNOUNCE_BOOSTS: Array[String] = ["2 PREMIUM TICKETS", "EVERY TICKET RARE+"]
+const ANNOUNCE_BOOSTS: Array[String] = ["2 PREMIUM DRAWS", "EVERY TICKET RARE+"]
 const TAG := "PAYDAY NEXT"
 
 

@@ -69,7 +69,6 @@ func test_nothing_stays_in_the_slot_after_the_insert() -> void:
 					. is_false()
 				)
 				assert_bool(feed.clip.visible and feed.paper != null).is_false()
-				assert_bool(feed.ticket != null and feed.ticket.visible).is_false()
 				assert_bool(view.slot_plate.stub_shown()).override_failure_message(at).is_false()
 			view.close()
 			remove_child(view)

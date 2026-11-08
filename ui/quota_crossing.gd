@@ -17,11 +17,8 @@ extends Control
 ##   ka-ching while the tube's lap lamp names the lap. Since v1.13 (the user's review of
 ##   2026-11-05: the multiplier pop on the right of the receipt still popped at checkout) nothing
 ##   pops beside the receipt: the gold "×N" stamp and its sparkles are gone.
-## - F, over-quota rewards (v1.03): a lap reaching a reward's ×N (the extra ticket's ×2, the
-##   PREMIUM ticket's ×3) pops its row on the OvertimeChip beside the tube's top (`chip`), earned
-##   or "used this week", as the count's context says (CountUp.run_context). As the total lands, the
-##   rows of every reward the total's laps reach show too (a lap a skip or a Double checkout's
-##   row 1 went past, v1.03 review). The rows hold past the count's end, then fade.
+## - F, over-quota rewards: since 2026-11-06 the week badge's medals fly into the lap lamp
+##   (MedalFlight, from ReceiptGoldFlow): the ×2 / ×3 reward rows beside the tube are gone.
 ##
 ## Real time (the ding's hit-stop freezes the count, not these). Reduced motion keeps the sound
 ## and the lights, with no dip, flash, streak, ring or sparkles. Stage coordinates (the layer
@@ -47,15 +44,6 @@ const BURST_RADIUS := 26.0
 const BURST_SECONDS := 0.35
 ## C: the ka-ching's volume.
 const KACHING_DB := 0.0
-## F: the chip's top left: CHIP_DOWN_PX under the tube's top (under the top bar's band) and
-## CHIP_BESIDE_PX right of the register tower (ShiftStage.TOWER_RECT, which holds the receipt),
-## clear of the receipt and of the monitor on its right. Its rows name a reward's laps ("×2").
-## At 30 px the first row covers the hanging ceiling lamp's shade whole, earned or USED (every
-## row is an earned row's height, OvertimeChip; v1.13: at 20 px a gold sliver of the shade peeked
-## out between the rows).
-const CHIP_BESIDE_PX := 12.0
-const CHIP_DOWN_PX := 30.0
-const LAPS_TEXT := "×%d"
 const GRID := 2.0
 
 ## Returns where item `slot` is now (a global Rect2, CountUp.source_rect), set by follow().
@@ -63,8 +51,6 @@ var item_rect: Callable = Callable()
 var meter: QuotaMeter
 var lights: BonusLights
 var reduced_motion: bool = false
-## F: the over-quota rewards' rows (v1.03).
-var chip: OvertimeChip
 
 var _count_up: CountUp
 ## A count is running (from count_started to the printer feed or its end): only then do the
@@ -97,9 +83,6 @@ func _init() -> void:
 	_flash.modulate.a = 0.0
 	_flash.show_behind_parent = true
 	add_child(_flash)
-	chip = OvertimeChip.new()
-	chip.visible = false
-	add_child(chip)
 	set_process(false)
 
 
@@ -112,7 +95,6 @@ func follow(count_up: CountUp, quota_meter: QuotaMeter, bonus_lights: BonusLight
 	count_up.count_started.connect(func(_views: Array[CardView]) -> void: begin())
 	count_up.beat_started.connect(_on_beat_started)
 	count_up.quota_met.connect(_on_quota_met)
-	count_up.total_landed.connect(_on_total_landed)
 	count_up.printer_feed.connect(end)
 	count_up.finished.connect(end)
 	quota_meter.lap_reached.connect(_on_lap_reached)
@@ -130,17 +112,13 @@ func begin() -> void:
 		lights.reduced_motion = func() -> bool: return reduced_motion
 		lights.clear()
 	_flash.modulate.a = 0.0
-	chip.clear()
-	chip.reduced_motion = reduced_motion
 	set_process(false)
 	queue_redraw()
 
 
-## The count ends: the lights fade and the chip's rows hold a moment, then fade (so a skipped
-## dessert still shows them); nothing else pops until the next count.
+## The count ends: the lights fade; nothing else pops until the next count.
 func end() -> void:
 	_counting = false
-	chip.fade_out()
 	if lights != null:
 		lights.fade()
 
@@ -260,39 +238,9 @@ func _on_quota_met(with_pop: bool) -> void:
 		cross()
 
 
-func _on_lap_reached(lap: int) -> void:
+func _on_lap_reached(_lap: int) -> void:
 	if _counting:
 		ring_lap()
-		show_rewards(lap)
-
-
-## F: the total landed: the rows of every reward its laps reach, any lap's pop missed.
-func _on_total_landed() -> void:
-	if _counting and meter != null:
-		show_rewards(meter.multiples_made())
-
-
-## F: the rows of the over-quota rewards `lap` laps reach (both at once when a lap jumps past
-## both), as the count's context states them; nothing without a context.
-func show_rewards(lap: int) -> void:
-	var context: CountUpContext = _count_up.run_context if _count_up != null else null
-	if context == null:
-		return
-	chip.position = chip_position()
-	for premium: bool in [false, true]:
-		var needed: int = context.overtime_premium_laps if premium else context.overtime_ticket_laps
-		if needed > 0 and lap >= needed:
-			var state: int = context.overtime_premium if premium else context.overtime_ticket
-			chip.show_reward(premium, state, LAPS_TEXT % needed)
-
-
-## F: the chip's top left in this layer: CHIP_BESIDE_PX right of the register tower,
-## CHIP_DOWN_PX under the tube's top.
-func chip_position() -> Vector2:
-	var at: Vector2 = Vector2(
-		ShiftStage.TOWER_RECT.end.x + CHIP_BESIDE_PX, _gauge_rect().position.y + CHIP_DOWN_PX
-	)
-	return _snap(at)
 
 
 ## The flash: a warm glow round `centre` fading over FLASH_SECONDS.

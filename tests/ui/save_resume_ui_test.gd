@@ -411,7 +411,7 @@ func test_a_new_screen_resumes_a_bonus_visit() -> void:
 	assert_int(resumed.run.machine.current_visit().kind).is_equal(MachineVisit.Kind.BONUS)
 	assert_str(_last_event("run_resume")["phase"]).is_equal("machine")
 	_assert_bonus_faces(resumed)
-	assert_str(resumed._machine.view.display.texts()[0]).is_equal(Payday.TICKET_TITLE)
+	assert_str(resumed._machine.view.display.texts()[0]).is_equal(OvertimeWords.AGAIN)
 	await _assert_on_screen(resumed, resumed._machine.view)
 	var chute: int = MachineSteps.first_lit(first.run, RewardMachine.Chute.NEW_ITEMS)
 	assert_bool(first._machine._choose(chute)).is_true()
@@ -440,9 +440,10 @@ func test_a_new_screen_resumes_a_bonus_visit() -> void:
 	assert_array(_errors).is_empty()
 
 
-## A payday's bonus visit (#77 machine v2, v0.68): the head's REVIEW PASSED stamp over 2 PREMIUM
-## TICKETS, on the PREMIUM face (a passed review's visits are both PREMIUM) with gold keys and,
-## once drawn, the chosen chute's gold column (v0.61, #108).
+## A payday's bonus visit (#77 machine v2, v0.68): the head's REVIEW PASSED stamp (no line under
+## it since 2026-11-06: the draw lamps count the draws), on the PREMIUM face (a passed review's
+## visits are both PREMIUM) with gold keys and, once drawn, the chosen chute's gold column (v0.61,
+## #108).
 func _assert_bonus_faces(screen: ShiftScreen) -> void:
 	var view: RewardMachineView = screen._machine.view
 	assert_str(view.head.stamp_texts()[0]).is_equal(Payday.STAMP)

@@ -390,10 +390,12 @@ static func _draw_dashes(rule: HSeparator) -> void:
 	# At its foot when the rule is stretched (planning's rule over the foot at full length).
 	var natural: float = rule.get_combined_minimum_size().y
 	var y: float = rule.size.y - natural + roundf((natural - ArtStyle.ART_SCALE) / 2.0)
+	# Amber on a gold paper, steel on a silver one (ReceiptGold).
+	var ink: Color = ReceiptGold.rule_ink(rule, Palette.CREAM_SHADE)
 	var x: float = 0.0
 	while x < rule.size.x:
 		var dash: float = minf(ReceiptView.RULE_DASH, rule.size.x - x)
-		rule.draw_rect(Rect2(x, y, dash, ArtStyle.ART_SCALE), Palette.CREAM_SHADE)
+		rule.draw_rect(Rect2(x, y, dash, ArtStyle.ART_SCALE), ink)
 		x += 2.0 * ReceiptView.RULE_DASH
 
 

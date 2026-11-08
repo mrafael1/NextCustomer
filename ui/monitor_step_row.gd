@@ -5,8 +5,9 @@ extends RefCounted
 ## upgrade's icon, an event's badge; the fizzle icon), its readable name and its amount (said
 ## once, MonitorText.row_parts) right-aligned in one column (AMOUNT_MIN wide): a bonus ("+6€")
 ## name and amount in green (PR #138 round 2; round 6: its name too), a factor ("×2") in its
-## strength's ink (factor_step, PR #138 round 3: the higher, the hotter) under a teal name, its
-## digits ending where the euro amounts' digits end (round 6: the "€" column left to the euros), a
+## strength's ink (factor_step, PR #138 round 3: the higher, the hotter) under a green name when
+## over ×1 (v1.15; a "×1" one's teal), its digits ending where the euro amounts' digits end
+## (round 6: the "€" column left to the euros), a
 ## harmful row's (a factor under ×1 or a minus amount too) name and amount in tomato with its sign
 ## kept and a "!" when it has no icon, a fizzle's reason in tomato with WASTED, a "gives" row (what
 ## it gives another item, not its own payout; PR #138 round 7: "to Banana  ×2", under the
@@ -282,13 +283,22 @@ static func amount_colour_of(amount: String, tone: Tone) -> Color:
 ## A row's name's colour (PR #138 round 6, the user's "positive bonus ... names in green and
 ## negative in red"): a "gives" row's teal (its amount is someone else's); a fizzle's, a harmful
 ## row's and one whose `amount` lowers the pay (lowers) tomato, as their amount; a bonus's ("+6€")
-## green, as its amount; else (a factor of ×1 or more, a row with no amount) teal.
+## and a factor's over ×1 (raises; v1.15, the user's "multiplier (if > 1.0) should also put text
+## on green") green, its amount keeping its strength's ink; else (a factor of exactly ×1, a row
+## with no amount) teal.
 static func name_colour_of(amount: String, tone: Tone, gives: bool) -> Color:
 	if gives:
 		return TEXT_COLOR
 	if tone != Tone.PLAIN or lowers(amount):
 		return HARM_COLOR
-	return BONUS_COLOR if amount.begins_with("+") else TEXT_COLOR
+	return BONUS_COLOR if amount.begins_with("+") or raises(amount) else TEXT_COLOR
+
+
+## Whether `amount` is a factor over ×1 ("×1.5", "×2"): it raises the pay; "×1" does not.
+static func raises(amount: String) -> bool:
+	if not amount.begins_with(FACTOR_SIGN):
+		return false
+	return amount.substr(FACTOR_SIGN.length()).strip_edges().to_float() > 1.0
 
 
 ## Whether `amount` lowers the pay: a minus amount ("−2€") or a factor under ×1 ("×0.5").

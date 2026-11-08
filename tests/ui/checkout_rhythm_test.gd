@@ -80,7 +80,9 @@ func test_the_monitor_keeps_bonus_lines_and_folds_only_the_earliest_overflow() -
 
 ## The count's lines keep every maths symbol: a multiplier reads "Multipack" with its "×3" as its
 ## amount, in its strength's ink (PR #138 round 3; the factor shows once); a + amount is green
-## (PR #138 round 2) and so are its giver's words (round 6); a multiplier's words are teal. The
+## (PR #138 round 2) and so are its giver's words (round 6); a multiplier's words over ×1 are green
+## too (v1.15, the user's "multiplier (if > 1.0) should also put text on green"; "×1.5" as well),
+## a ×1 one's teal. The
 ## payout shows only its result at the foot (PR #138 monitor: "= 24€", no equation row, no "Pays"
 ## row).
 ## Reduced motion or not.
@@ -96,7 +98,7 @@ func test_multipliers_keep_their_symbol_and_the_payout_shows_only_its_result() -
 		assert_str((add.get_node("Text") as Label).text).is_equal("Eggs")
 		assert_that(_colour(add, "Amount")).is_equal(MonitorStepRow.BONUS_COLOR)
 		assert_that(_colour(add, "Text")).is_equal(MonitorStepRow.BONUS_COLOR)
-		for line: String in ["×3 Multipack", "×2 Golden Strawberries aisle"]:
+		for line: String in ["×3 Multipack", "×2 Golden Strawberries aisle", "×1.5 Stale popcorn"]:
 			column.show_step(line, false)
 			var row: Control = column.step_rows()[-1]
 			var text: Label = row.get_node("Text") as Label
@@ -105,10 +107,14 @@ func test_multipliers_keep_their_symbol_and_the_payout_shows_only_its_result() -
 			assert_str(text.text).is_equal(line.substr(line.find(" ") + 1))
 			var step: int = MonitorStepRow.factor_step(factor.text)
 			assert_that(_colour(row, "Amount")).is_equal(MonitorStepRow.factor_ink(step))
+			assert_that(_colour(row, "Text")).is_equal(MonitorStepRow.BONUS_COLOR)
 			assert_int(text.get_line_count()).is_less_equal(text.max_lines_visible)
 			assert_float(text.get_global_rect().end.x).is_less_equal(
 				factor.get_global_rect().position.x
 			)
+		column.show_step("×1 Snack deal", false)
+		var plain: Control = column.step_rows()[-1]
+		assert_that(_colour(plain, "Text")).is_equal(MonitorStepRow.TEXT_COLOR)
 		var shown_rows: int = column.step_rows().size()
 		column.set_value(24)
 		assert_int(column.step_rows().size()).is_equal(shown_rows)
@@ -183,7 +189,8 @@ func _assert_good(row: Control) -> void:
 	var mark: Label = row.get_node("Mark") as Label
 	assert_str(mark.text).is_empty()
 	var amount: String = (row.get_node("Amount") as Label).text
-	var words: Color = MonitorStepRow.BONUS_COLOR if amount.begins_with("+") else Palette.TEAL_DARK
+	var green: bool = amount.begins_with("+") or MonitorStepRow.raises(amount)
+	var words: Color = MonitorStepRow.BONUS_COLOR if green else Palette.TEAL_DARK
 	assert_that(_colour(row, "Text")).is_equal(words)
 	var good: Color = MonitorStepRow.BONUS_COLOR if amount.begins_with("+") else Palette.INK
 	if amount.begins_with("×"):

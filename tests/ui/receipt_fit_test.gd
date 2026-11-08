@@ -10,6 +10,7 @@ extends GdUnitTestSuite
 
 const SCREEN := "res://ui/shift_screen.tscn"
 const DOUBLE := "res://data/pins/double_checkout.tres"
+const ReceiptFed := preload("res://tests/ui/receipt_fed_lines.gd")
 
 var _folder: String = ""
 
@@ -202,10 +203,19 @@ func test_a_resumed_end_of_shift_takes_the_same_fit() -> void:
 	screen._receipt.show_shift_end(result.total, run.quota(), "Spot check next shift")
 	await _frames(2)
 	var receipt: ReceiptView = screen._receipt
-	# As tall as its lines, up to its room: only planning's receipt is full length (B2).
+	# The anchored receipt (2026-11-05) keeps planning's full length through the shift's end, as
+	# the checkout left it, fed on at its foot by the end's lines (2026-11-07: the margin's PAID,
+	# INSPECTION PASSED, the tear and the notice under its foot, the paper rising by them, nothing
+	# beside it); another is as tall as its lines, up to its room (B2).
 	var room: float = ShiftStage.RECEIPT_BOTTOM - ShiftStage.RECEIPT_TOP
-	assert_float(receipt.size.y).is_equal(minf(receipt.natural_height(), room))
+	assert_bool(receipt.anchored).is_true()
+	assert_float(receipt._fed_height()).is_greater(0.0)
+	assert_float(receipt.size.y).is_equal_approx(room + receipt._fed_height(), 0.01)
 	assert_float(receipt.position.y + receipt.size.y).is_equal(ShiftStage.RECEIPT_BOTTOM)
+	var failures: Array[String] = ReceiptFed.failures(
+		receipt, ReceiptFed.planned_rect(screen), screen.get_viewport_rect()
+	)
+	assert_array(failures).override_failure_message("\n".join(failures)).is_empty()
 	_assert_newest_in_view(receipt)
 
 

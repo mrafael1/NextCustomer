@@ -5,11 +5,14 @@ extends RefCounted
 ## redraws (the key shows what is left), `--notice=<name>` shows one of NOTICES on the monitor.
 ## `--handbook=<entry id>` (v1.06) opens the staff handbook over the shift at that entry (its
 ## example clip on its final state); `--handbook=<entry id>,tab=<group id>` then picks that tab.
-## Each adds its part to the file name (redraws<used>_, notice_<name>_, handbook_<id>_).
+## `--pending=<laps>` (2026-11-06, the week medals) makes planning's projection reach that many
+## laps of the quota (CaptureOvertime.pending). Each adds its part to the file name
+## (redraws<used>_, notice_<name>_, handbook_<id>_, pending<laps>_).
 
 const REDRAWS_ARGUMENT := "--redraws="
 const NOTICE_ARGUMENT := "--notice="
 const HANDBOOK_ARGUMENT := "--handbook="
+const PENDING_ARGUMENT := "--pending="
 const NOTICES: Dictionary[String, String] = {
 	"day_off": PinFlow.DAY_OFF_ARMED,
 	"gun_empty": PinFlow.GUN_EMPTY,
@@ -41,4 +44,8 @@ static func apply(screen: ShiftScreen, arguments: PackedStringArray) -> String:
 			if spec.size() > 1 and spec[1].begins_with("tab="):
 				page.show_group(StringName(spec[1].trim_prefix("tab=")))
 			part += "handbook_%s_" % spec[0]
+		elif argument.begins_with(PENDING_ARGUMENT):
+			var laps: int = maxi(argument.trim_prefix(PENDING_ARGUMENT).to_int(), 1)
+			CaptureOvertime.pending(screen, laps)
+			part += "pending%d_" % laps
 	return part

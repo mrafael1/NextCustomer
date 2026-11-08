@@ -174,12 +174,11 @@ func test_a_belt_items_scan_frames_its_line() -> void:
 	screen._scan.clear()
 
 
-## The click starts the count-up under the planning receipt's header, every item waiting. At
-## every frame of the count-up the receipt has the header, the footer last, and its step lines
-## (the lines but the items', the rules, TOTAL and the footer) in show_result's order; the framed
-## line is in the scroll area once it has had a few frames to get there, every bonus beat frames
-## its bonus line (not its item's), and every combo line printed has its diamond. The receipt
-## ends as show_result prints it, every combo line marked.
+## The click pays the planning receipt in place (2026-11-05, ReceiptView.anchored): at every
+## frame of the count-up the receipt keeps planning's lines, in their order and where planning
+## left them (no line printed, moved or taken away), the framed line is an item's row (a bonus
+## beat frames its item's), and the receipt ends with every item's payout on its row and the
+## total on the foot, PROJECTED become TOTAL (the dessert's lines then follow planning's).
 func test_the_count_up_receipt_fills_in_as_it_counts() -> void:
 	var screen: ShiftScreen = await _screen()
 	screen._debug.give_upgrade("coupon_engine")
@@ -188,29 +187,16 @@ func test_the_count_up_receipt_fills_in_as_it_counts() -> void:
 	_place(screen, FULL_ROW)
 	await _frames(2)
 	var run: RunState = screen.run
-	var header: PackedStringArray = screen.receipt_header()
-	var expected: ReceiptView = auto_free(ReceiptView.new())
-	expected.show_result(
-		run.preview(),
-		CardInstance.names(run.row),
-		LoyaltyCard.names(run.upgrades),
-		InspectionTag.names(run.inspections),
-		header,
-		ReceiptInk.cards_of(run.row)
-	)
-	var full: Array[String] = _step_lines(expected)
-	var combos: int = 0
-	for step: ScoreStep in run.preview().steps:
-		combos += int(ReceiptView.is_combo(step))
-	assert_int(combos).is_greater(1)
+	var preview: ScoreResult = run.preview()
+	var receipt: ReceiptView = screen._receipt
+	var planned: Array[Node] = receipt._lines.get_children()
+	var at: Array[Vector2] = []
+	for line: Node in planned:
+		at.append((line as Control).global_position)
+	var planned_lines: Array[String] = _receipt_lines(receipt)
 	screen._on_checkout_pressed()
 	var count_up: CountUp = screen._count_up
-	var receipt: ReceiptView = screen._receipt
-	var most: int = 0
-	var framed: Control = null
-	var framed_frames: int = 0
 	var failures: Array[String] = []
-	# The bonus beats started since the last frame: their lines print as they start.
 	var bonuses: Array[ScoreStep] = []
 	var bonus_beats: Array[int] = [0]
 	count_up.beat_started.connect(
@@ -219,41 +205,35 @@ func test_the_count_up_receipt_fills_in_as_it_counts() -> void:
 				bonuses.append(step)
 	)
 	while screen._counting and not count_up._verdict_shown:
+		var framed: Control = receipt._framed_line()
 		for bonus: ScoreStep in bonuses:
 			bonus_beats[0] += 1
-			_check_bonus_frame(receipt, bonus, failures)
+			if framed != receipt._items.get(bonus.slot):
+				failures.append("bonus %s: framed %s, not its item's row" % [bonus.text, framed])
 		bonuses.clear()
-		var shown: Array[String] = _step_lines(receipt)
-		most = maxi(most, shown.size())
-		if not _is_subsequence(shown, full):
-			failures.append("%s is not in the order of %s" % [shown, full])
-		var all: Array[String] = _receipt_lines(receipt)
-		if all.size() < header.size() or all[0] != header[0] + " | ":
-			failures.append("no header: %s" % [all])
-		elif all[-1] != ReceiptView.COUNT_FOOTER_TEXT + " | ":
-			failures.append("no footer: %s" % all[-1])
-		var current: Control = receipt._framed_line()
-		framed_frames = framed_frames + 1 if current == framed else 0
-		framed = current
-		var scroll: Rect2 = receipt._scroll.get_global_rect().grow(1.0)
-		if framed != null and framed_frames >= 3 and not scroll.encloses(framed.get_global_rect()):
-			failures.append("framed line %s outside %s" % [framed.get_global_rect(), scroll])
-		if framed_frames >= 3:
-			_check_combo_marks(receipt, scroll, failures)
+		if framed != null and not receipt._items.values().has(framed):
+			failures.append("framed %s, not an item's row" % framed)
+		var lines: Array[Node] = receipt._lines.get_children()
+		if lines != planned:
+			failures.append("lines changed: %s" % [_receipt_lines(receipt)])
+		else:
+			for index: int in range(lines.size()):
+				if (lines[index] as Control).global_position != at[index]:
+					failures.append("%s moved" % planned_lines[index])
 		await get_tree().process_frame
 	assert_array(failures).is_empty()
-	assert_int(most).is_greater(3)
 	assert_int(bonus_beats[0]).is_greater(0)
 	while screen._counting:
 		await get_tree().process_frame
-	# Up to the TOTAL line, whose amount the dessert then turns into the verdict.
-	var printed: Array[String] = _receipt_lines(expected).slice(0, -1)
-	assert_array(_receipt_lines(receipt).slice(0, printed.size())).is_equal(printed)
-	var marked: int = 0
-	for line: Node in receipt._lines.get_children():
-		if line is HBoxContainer and line.get_child(0).has_node("ComboDiamond"):
-			marked += 1
-	assert_int(marked).is_equal(combos)
+	# The dessert's lines (PAID, the tear) come after planning's, which are all still there.
+	assert_array(receipt._lines.get_children().slice(0, planned.size())).is_equal(planned)
+	for slot: int in range(run.row.size()):
+		var row: HBoxContainer = receipt._items[slot]
+		assert_str((row.get_child(1) as Label).text).is_equal(
+			ReceiptView.money(run.last_result.payouts[slot])
+		)
+	assert_array(Array(run.last_result.payouts)).is_equal(Array(preview.payouts))
+	assert_str((receipt._projected.get_child(0) as Label).text).is_equal(ReceiptView.TOTAL_TEXT)
 
 
 ## The planning receipt on screen: inside the screen and over the register column, standing on
@@ -309,41 +289,6 @@ func _assert_planning_on_screen(screen: ShiftScreen, marked: bool = true) -> voi
 		assert_int(marks).is_greater(0)
 
 
-## A bonus beat's line is the framed one: a step line under its item (not an item's line) with
-## the bonus's amount, and a combo's band left off while it is framed.
-static func _check_bonus_frame(
-	receipt: ReceiptView, step: ScoreStep, failures: Array[String]
-) -> void:
-	var framed: Control = receipt._framed_line()
-	if framed == null or receipt._items.values().has(framed):
-		failures.append("bonus %s: framed %s, not its line" % [step.text, framed])
-		return
-	var amount: String = (framed.get_child(1) as Label).text
-	if amount != ReceiptView.money(step.value, true):
-		failures.append("bonus %s: framed line reads %s" % [step.text, amount])
-	if not framed.get_meta("framed", false):
-		failures.append("bonus %s: framed line not marked framed" % step.text)
-
-
-## Every combo line in the receipt has its diamond, which (on a line in view) is in the scroll
-## area too.
-static func _check_combo_marks(
-	receipt: ReceiptView, scroll: Rect2, failures: Array[String]
-) -> void:
-	for line: Node in receipt._lines.get_children():
-		if not line is HBoxContainer:
-			continue
-		var left: Label = line.get_child(0) as Label
-		var diamond: Control = left.get_node_or_null("ComboDiamond") as Control
-		if diamond == null:
-			continue
-		var line_rect: Rect2 = (line as Control).get_global_rect()
-		if scroll.encloses(line_rect) and not scroll.encloses(diamond.get_global_rect()):
-			failures.append("diamond outside the scroll area on %s" % left.text)
-		if not line_rect.grow(0.5).encloses(diamond.get_global_rect()):
-			failures.append("diamond outside its line %s" % left.text)
-
-
 ## The planning receipt's lines for `shift_line` on the screen's preview: each belt item's name and
 ## payout, then the open empty slots, PROJECTED and the shortfall's row under the quota (no fizzle
 ## footer: the PR #138 left UI).
@@ -372,34 +317,6 @@ static func _wasted(result: ScoreResult) -> int:
 	return count
 
 
-## A receipt's step lines: every line but the header, the items', the rules, TOTAL and the
-## footer.
-static func _step_lines(receipt: ReceiptView) -> Array[String]:
-	var lines: Array[String] = []
-	var all: Array[String] = _receipt_lines(receipt)
-	var children: Array[Node] = receipt._lines.get_children()
-	var items: Array = receipt._items.values()
-	for index: int in range(2, children.size()):
-		var line: Node = children[index]
-		if line is HSeparator or items.has(line) or line == receipt._total_line:
-			continue
-		if all[index] == ReceiptView.COUNT_FOOTER_TEXT + " | ":
-			continue
-		lines.append(all[index])
-	return lines
-
-
-## Whether `part`'s lines appear in `whole` in the same order.
-static func _is_subsequence(part: Array[String], whole: Array[String]) -> bool:
-	var at: int = 0
-	for text: String in part:
-		at = whole.find(text, at)
-		if at < 0:
-			return false
-		at += 1
-	return true
-
-
 static func _lines(screen: ShiftScreen) -> Array[String]:
 	return _receipt_lines(screen._receipt)
 
@@ -412,8 +329,6 @@ static func _receipt_lines(receipt: ReceiptView) -> Array[String]:
 		if line is HSeparator:
 			lines.append("---")
 			continue
-		if line is ReceiptStub:
-			continue  # The BONUS stub (#77 machine v2), checked on its own.
 		var left: Label = line.get_child(0) as Label
 		var marker: Label = left.get_node_or_null("Marker") as Label
 		var words: String = left.get_meta(ReceiptInk.WORDS_META, left.text)

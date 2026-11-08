@@ -4,6 +4,7 @@ extends GdUnitTestSuite
 ## item) and prints its reason as a fizzle line on the receipt, on screen. The real saves and logs
 ## are never touched: both go to a temporary folder.
 
+const Anchored := preload("res://tests/ui/anchored_receipt.gd")
 const SCREEN := "res://ui/shift_screen.tscn"
 const Rush := preload("res://tests/ui/count_up_rush.gd")
 const SCREEN_RECT := Rect2(0, 0, 1280, 720)
@@ -67,17 +68,15 @@ func test_a_failed_condition_fizzles_in_the_count_up_and_on_the_receipt() -> voi
 	var over_cubes: Vector2 = (rect_of.call(0) as Rect2).get_center() + Vector2(0, -30)
 	assert_float(puffs[0].distance_to(over_cubes)).is_less(1.0)
 	await _assert_receipt_of(screen, result, 500)
+	# The anchored receipt (2026-11-05) prints no fizzle line: the Sugar cubes' row keeps
+	# planning's fizzle mark, inside the paper and on screen; the monitor told the fizzle.
 	var wanted: String = "Sugar cubes after Coffee: no Coffee right before it"
-	var found: Control = null
-	for line: Node in screen._receipt._lines.get_children():
-		if line is HSeparator:
-			continue
-		var label: Label = line.get_child(0) as Label
-		if label != null and label.text.strip_edges() == wanted:
-			found = line as Control
+	assert_array(_lines(screen._receipt)).not_contains([wanted + " | "])
+	var found: Control = screen._receipt._items[0].find_child("Mark", true, false) as Control
 	assert_object(found).override_failure_message(str(_lines(screen._receipt))).is_not_null()
 	if found == null:
 		return
+	assert_int(found.get_meta("mark")).is_equal(ReceiptView.Mark.FIZZLED)
 	var receipt_rect: Rect2 = screen._receipt.get_global_rect()
 	assert_bool(receipt_rect.grow(1.0).encloses(found.get_global_rect())).is_true()
 	assert_bool(screen.get_viewport_rect().encloses(found.get_global_rect())).is_true()
@@ -183,19 +182,14 @@ func test_an_upgrade_condition_fizzles_in_planning_the_count_up_and_the_receipt(
 		assert_float(puffs[0].distance_to(puff_from)).is_less(1.5)
 		assert_bool(SCREEN_RECT.has_point(puffs[0])).is_true()
 	await _assert_receipt_of(screen, result, 500)
-	var found: Control = null
-	for line: Node in screen._receipt._lines.get_children():
-		if line is HSeparator:
-			continue
-		var label: Label = line.get_child(0) as Label
-		if label != null and label.text.strip_edges() == "Coupon engine: no coupon in the row":
-			found = line as Control
-	assert_object(found).override_failure_message(str(_lines(screen._receipt))).is_not_null()
-	if found == null:
-		return
+	# The anchored receipt (2026-11-05) prints no fizzle line (the monitor told it): its rows are
+	# planning's, paid, inside the paper and on screen.
+	var wanted: String = "Coupon engine: no coupon in the row"
+	assert_array(_lines(screen._receipt)).not_contains([wanted + " | "])
 	var receipt_rect: Rect2 = screen._receipt.get_global_rect()
-	assert_bool(receipt_rect.grow(1.0).encloses(found.get_global_rect())).is_true()
-	assert_bool(SCREEN_RECT.encloses(found.get_global_rect())).is_true()
+	for row: HBoxContainer in screen._receipt._items.values():
+		assert_bool(receipt_rect.grow(1.0).encloses(row.get_global_rect())).is_true()
+		assert_bool(SCREEN_RECT.encloses(row.get_global_rect())).is_true()
 
 
 ## Plays `result` on the screen's row against `quota`, tapped twice (the count and the dessert
@@ -227,6 +221,7 @@ func _assert_receipt_of(screen: ShiftScreen, result: ScoreResult, quota: int) ->
 	await _lines_shown(screen._receipt)
 	var run: RunState = screen.run
 	var expected: ReceiptView = auto_free(ReceiptView.new())
+	Anchored.plan(expected, screen, result)
 	expected.show_result(
 		result,
 		CardInstance.names(run.row),

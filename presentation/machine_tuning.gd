@@ -28,16 +28,6 @@ extends Resource
 @export var glide_ms: int = 0
 @export var fore_drop_px: float = 0.0
 @export var lit_ramp_ms: int = 0
-## The BONUS stub (Q2 = 2) snaps off the receipt snap_lead_ms before the travel's end: after
-## snap_delay_ms its height shrinks to 0 over snap_ms, while the ticket flies to the slot plate's
-## dock over dock_flight_ms (with `rip`, snap_db softer). The dock's caption hides dock_label_ms
-## after the travel's end.
-@export var snap_lead_ms: int = 0
-@export var snap_delay_ms: int = 0
-@export var snap_ms: int = 0
-@export var dock_flight_ms: int = 0
-@export var dock_label_ms: int = 0
-@export var snap_db: float = 0.0
 ## The receipt fed under the slot's clip.
 @export var feed_ms: int = 0
 @export var feed_rm_ms: int = 0
@@ -63,15 +53,17 @@ extends Resource
 @export var rm_fade_alpha: float = 0.0
 
 @export_group("Bonus intro")
-## The bonus ticket moves from the slot plate's dock to over the slot, then is fed under the clip.
-@export var bonus_to_slot_ms: int = 0
-@export var bonus_feed_ms: int = 0
-## The read line after the feed, then the keys going unlit and relit by relight_stagger_ms.
-@export var bonus_read_ms: int = 0
+## A later draw's keys going unlit and relit by relight_stagger_ms (which also staggers the draw
+## lamps lighting at the TICKET visit's read). No ticket feeds since 2026-11-06: the stub's snap,
+## the dock and the bonus ticket's feed are gone.
 @export var bonus_lights_ms: int = 0
 @export var relight_stagger_ms: int = 0
-## The BONUS TICKET line from the feed's end to the chute wait.
+## A later draw of the same receipt (2026-11-06): AGAIN! from its start to the keys relighting.
 @export var again_ms: int = 0
+## After each prize the visit's draw lamp flashes this long, then goes dark (reduced motion: the
+## shorter one, steady).
+@export var lamp_out_ms: int = 0
+@export var lamp_out_rm_ms: int = 0
 
 @export_group("Chute press")
 ## The pressed chute settles this long after CONFIRM before the draw starts, per kind.

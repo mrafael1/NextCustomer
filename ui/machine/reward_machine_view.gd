@@ -118,13 +118,14 @@ const SPEND_LINE := "SPEND %d€ ✓ THANK YOU!"
 const CHOOSE_SUB := "pick a chute"
 ## A PREMIUM visit (v0.50: the PREMIUM machine; v0.61 a rarity boost): the chute wait's sub line.
 const PREMIUM_SUB := "premium · rare or better · pick a chute"
-const BONUS_TITLE := MachineDisplay.BONUS_TICKET
+## A later draw's chute wait (2026-11-06): AGAIN!, its reason, pick a chute.
+const BONUS_TITLE := OvertimeWords.AGAIN
 const BONUS_SUB := "%s · 1 more prize · pick a chute"
 ## A pressed key's title sub line: what the chute does (on a BONUS or PREMIUM visit the visit's
 ## word in its place, v0.50: the strip beside CONFIRM is 160 px and the key already says it), the
 ## prizes.
 const TITLE_SUB := "%s · %d prizes, keep 1"
-const TITLE_BONUS := "bonus ticket"
+const TITLE_BONUS := "bonus draw"
 const TITLE_PREMIUM := "premium"
 ## A pressed key's click.
 const PRESS_SOUND := "ui_click"
@@ -309,7 +310,8 @@ func open_visit(
 	_clear_tickets()
 	var visit: MachineVisit = run.machine.current_visit()
 	var kind: int = visit.kind if visit != null else MachineVisit.Kind.TICKET
-	# An OVERTIME visit (v1.03) shows as a BONUS visit, in its own words (MachinePlan.overtime).
+	# An OVERTIME visit (v1.03, the SILVER medal's draw) shows as a BONUS draw, in its own words
+	# (MachinePlan.overtime).
 	var overtime: bool = kind == MachineVisit.Kind.OVERTIME
 	if overtime:
 		kind = MachineVisit.Kind.BONUS
@@ -318,16 +320,12 @@ func open_visit(
 		(visit != null and not visit.why.is_empty())
 		or (not run.history.is_empty() and run.history[-1].inspection != null and not overtime)
 	)
-	var pending: Array[int] = run.machine.pending_kinds()
-	var stub: bool = not pending.is_empty()
 	var premium: bool = run.machine.is_premium()
 	var visit_plan: MachinePlan = MachinePlan.new(
-		tuning, kind, reduced_motion.call(), inspected, stub, premium, _ticket_was_premium()
+		tuning, kind, reduced_motion.call(), inspected, premium, _ticket_was_premium()
 	)
-	# A TICKET visit's stub is the OVERTIME ticket's when that visit comes next (a BONUS visit
-	# prints no stub, so one followed by OVERTIME stays a BONUS visit).
-	var next_overtime: bool = stub and pending[0] == MachineVisit.Kind.OVERTIME
-	visit_plan.overtime = overtime or (kind == MachineVisit.Kind.TICKET and next_overtime)
+	visit_plan.overtime = overtime
+	_count_draws(visit_plan)
 	_start(visit_plan)
 	_show_head(kind, visit)
 	_show_keys(run.phase == RunState.Phase.MACHINE_PICK)
@@ -337,10 +335,8 @@ func open_visit(
 	if resumed:
 		_resume(MachinePlan.WaitPoint.CHOOSE)
 	skip_bin.set_offered(false, false)
-	if kind == MachineVisit.Kind.BONUS and run.machine.is_payday(run):
-		display.show_message(Payday.TICKET_TITLE, Payday.CHUTE_SUB)
-	elif overtime:
-		display.show_message(OvertimeWords.TICKET_TITLE, BONUS_SUB % display.why_words())
+	if kind == MachineVisit.Kind.BONUS and run.machine.is_payday(run) and not overtime:
+		display.show_message(BONUS_TITLE, Payday.CHUTE_SUB)
 	elif kind == MachineVisit.Kind.BONUS:
 		display.show_message(BONUS_TITLE, BONUS_SUB % display.why_words())
 	elif premium:
@@ -365,18 +361,17 @@ func show_draw(run_state: RunState, resumed: bool = false) -> void:
 	var prizes: Array[MachinePrize] = run.machine.prizes()
 	if plan == null:
 		var overtime: bool = visit.kind == MachineVisit.Kind.OVERTIME  # Shown as a BONUS visit.
-		_start(
-			MachinePlan.new(
-				tuning,
-				MachineVisit.Kind.BONUS if overtime else visit.kind,
-				reduced_motion.call(),
-				true,
-				false,
-				visit.premium,
-				_ticket_was_premium()
-			)
+		var started: MachinePlan = MachinePlan.new(
+			tuning,
+			MachineVisit.Kind.BONUS if overtime else visit.kind,
+			reduced_motion.call(),
+			true,
+			visit.premium,
+			_ticket_was_premium()
 		)
-		plan.overtime = overtime
+		started.overtime = overtime
+		_count_draws(started)
+		_start(started)
 	if not resumed and clock < plan.choose_at:
 		_jump_to(plan.choose_at)  # Chosen before the keys lit (debug, tests).
 	var rarities: Array[int] = []
@@ -567,7 +562,7 @@ func title_sub(chute: int) -> String:
 	if visit != null and visit.kind == MachineVisit.Kind.BONUS:
 		lead = Payday.KEY_LEAD if run.machine.is_payday(run) else TITLE_BONUS
 	elif visit != null and visit.kind == MachineVisit.Kind.OVERTIME:
-		lead = OvertimeWords.KEY_LEAD
+		lead = OvertimeWords.SILVER_KEY_LEAD
 	elif visit != null and visit.premium:
 		lead = TITLE_PREMIUM
 	var prizes: int = run.machine.machine.prizes_per_visit if run != null else 3
@@ -828,6 +823,16 @@ func _pick_sub(run_state: RunState, can_bin: bool) -> String:
 	return SKIP_SUB if can_bin else "you must pick one"
 
 
+## The draws the shift's receipt pays (`plan`'s lamps, 2026-11-06) and which one the visit on
+## show is: the visits done this shift, this one, and those still queued.
+func _count_draws(visit_plan: MachinePlan) -> void:
+	var done: int = 0
+	if not run.history.is_empty() and RunState.MACHINE_PHASES.has(run.phase):
+		done = run.history[-1].visits.size()
+	visit_plan.draw_index = done
+	visit_plan.draws = done + 1 + run.machine.pending_kinds().size()
+
+
 ## Whether the shift's visit before this one (a BONUS visit's ticket) was PREMIUM: the machine is
 ## then PREMIUM already and a PREMIUM BONUS visit keeps it so from its start (v0.53).
 func _ticket_was_premium() -> bool:
@@ -843,11 +848,12 @@ func _show_head(kind: int, visit: MachineVisit) -> void:
 		return
 	var machine_data: MachineDefinition = run.machine.machine
 	if visit != null and visit.kind == MachineVisit.Kind.OVERTIME:
-		head.set_stamp(OvertimeWords.STAMP, OvertimeWords.over_quota(machine_data))
+		# The SILVER medal's extra draw (2026-11-06).
+		head.set_stamp(OvertimeWords.SILVER_STAMP, OvertimeWords.stamp_under(machine_data, false))
 		return
 	if OvertimeTickets.is_premium_visit(run):
-		# v1.03: the shift's ×3 made its ticket PREMIUM.
-		head.set_stamp(OvertimeWords.PREMIUM_STAMP, OvertimeWords.over_quota(machine_data, true))
+		# The GOLD medal made the shift's ticket PREMIUM.
+		head.set_stamp(OvertimeWords.GOLD_STAMP, OvertimeWords.stamp_under(machine_data, true))
 		return
 	match kind:
 		MachineVisit.Kind.BONUS:

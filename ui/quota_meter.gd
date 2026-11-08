@@ -22,14 +22,15 @@ extends Control
 ## Laps (the user's feedback of 2026-11-03, replacing the flag and the re-scaling past the
 ## quota): once the quota is met (the count-up's ding, or a projected total reaching it) the tube
 ## never re-scales. The full green tube stays as the backdrop and lap 2 refills it from the
-## foot in gold, from the quota to twice the quota; lap 3 (to three times) in orange over a full
-## gold tube, lap 4 in velvet, lap 5 in violet, then the colours cycle from gold again
-## (QuotaLaps). So the tube's top is always the lap's target: lap N is full at N times the quota,
-## and a lap fills to the top before the next one pours (the eased level's lap is drawn). The lap
-## badge is a round lamp over the housing (LapLamp, badge_rect): dark until the liquid reaches
-## the quota, then lit in the newest full lap's colour, green with a check for the first, "×N"
-## once N laps are made, glowing, and popping as a lap is made while counting; inside the column's
-## margin, clear of the receipt's well. While counting, reaching twice the quota and each later
+## foot in silver, from the quota to twice the quota; lap 3 (to three times) in gold over a full
+## silver tube, and from lap 4 on a brighter gold over the gold, with twinkles (the week medals'
+## metals, 2026-11-06; QuotaLaps). So the tube's top is always the lap's target: lap N is full at
+## N times the quota, and a lap fills to the top before the next one pours (the eased level's
+## lap is drawn). The lap badge is a round lamp over the housing (LapLamp, badge_rect): dark
+## until the liquid reaches the quota, then lit in the newest full lap's colour, green with a
+## check for the first, "×N" once N laps are made, glowing, and popping as a lap is made while
+## counting (and as a week medal lands in it, pop_lamp); inside the column's margin, clear of the
+## receipt's well. While counting, reaching twice the quota and each later
 ## multiple emits lap_reached (the quota crossing rings it). Reduced motion (`reduced_motion`)
 ## keeps the levels, the colours, the lamp and the glows (steady) and drops the slosh, the spray,
 ## the bubbles and the lamp's pop.
@@ -96,6 +97,12 @@ const LAMP_GLOW_PULSE := 0.08
 const LAMP_GLOW_SECONDS := 1.05
 const LAMP_POP := 0.45
 const LAMP_POP_SECONDS := 0.3
+## A medal landing in the lamp flashes the tube this much (MedalFlight).
+const LAMP_LAND_FLASH := 0.6
+## From lap QuotaLaps.TWINKLE_LAP on, TWINKLES paper pixels twinkle in the liquid, each lit for a
+## quarter of its own TWINKLE_SECONDS period.
+const TWINKLES := 5
+const TWINKLE_SECONDS := 0.9
 ## The glass's tick marks (paper at TICK_ALPHA on its right side, at these shares of a lap):
 ## TICK_LENGTH art px long, HALF_TICK_LENGTH at half a lap.
 const TICKS: Array[float] = [0.25, 0.5, 0.75]
@@ -241,6 +248,25 @@ func multiples_made() -> int:
 func badge_rect() -> Rect2:
 	var cell: float = ArtStyle.ART_SCALE
 	return Rect2(Vector2(LAMP_AT) * cell, Vector2.ONE * LapLamp.SIZE * cell)
+
+
+## The lap lamp's rect on the canvas (with its layer's transform): where a week medal's flight
+## lands (MedalFlight).
+func lamp_canvas_rect() -> Rect2:
+	return get_global_transform_with_canvas() * badge_rect() if is_inside_tree() else Rect2()
+
+
+## A week medal landed in the lap lamp (MedalFlight): it pops and the tube flashes, as at a new lap
+## (reduced motion: no pop).
+func pop_lamp() -> void:
+	_pop = 0.0 if _reduced() else 1.0
+	_flash = maxf(_flash, LAMP_LAND_FLASH)
+	queue_redraw()
+
+
+## Whether the lamp's pop is under way (tests).
+func lamp_popping() -> bool:
+	return _pop > 0.0
 
 
 ## The first lap's ramp as drawn now (for tests).
@@ -490,6 +516,8 @@ func _draw_liquid(art: Vector2i) -> void:
 			_draw_preview(plan, Vector3i(x, column, top), foot, liquid, backdrop)
 	if not reduced:
 		_draw_motion(art, front, liquid)
+		if lap >= QuotaLaps.TWINKLE_LAP:
+			_draw_twinkles(art, front)
 	if _flash > 0.0:
 		_cell(1, 1, art.x - 2, art.y - 2, Color(Palette.PAPER, _flash * FLASH_ALPHA))
 
@@ -559,6 +587,21 @@ func _draw_motion(art: Vector2i, front: float, liquid: Array[Color]) -> void:
 			continue
 		var y: float = maxf(at.y, 1.0)
 		_cell(floori(at.x), floori(y), 1, 1, liquid[0] if life > SPRAY_LIFE / 2.0 else liquid[1])
+
+
+## The brighter gold laps' twinkles: TWINKLES paper pixels in the liquid under its surface, each
+## lit a moment in its own period.
+func _draw_twinkles(art: Vector2i, front: float) -> void:
+	var foot: float = art.y - 1.0
+	for index: int in range(TWINKLES):
+		var bubble: Vector3 = _bubbles[index % _bubbles.size()]
+		var phase: float = fmod(_time / TWINKLE_SECONDS + bubble.y * 3.0, 1.0)
+		if phase > 0.25:
+			continue
+		var x: int = 2 + floori(fmod(bubble.x + index * 0.37, 1.0) * (art.x - 5.0))
+		var y: int = floori(foot - 2.0 - fmod(bubble.z * 7.0, maxf(1.0, front - 3.0)))
+		if y > 1:
+			_cell(x, y, 1, 1, Palette.PAPER)
 
 
 func _cell(x: int, y: int, width: int, height: int, colour: Color) -> void:

@@ -57,11 +57,12 @@ extends Resource
 @export var bonus_after_inspection: bool = false
 ## 1-based shifts whose pass gives a BONUS visit, inspected or not (empty: none). A shift that is
 ## also in premium_shifts is a payday (v0.68, is_payday_shift): its two visits are both PREMIUM
-## and the game shows them as one reward ("REVIEW PASSED · 2 PREMIUM TICKETS").
+## and the game shows them as one receipt's two PREMIUM draws (REVIEW PASSED, 2026-11-06).
 @export var bonus_extra_shifts: PackedInt32Array = PackedInt32Array()
-## Over-quota rewards (2026-11-05, OvertimeTickets): a passed shift whose total makes this many
-## laps of its quota (whole multiples, the gauge's ×N) gives an OVERTIME visit after it (CLASSIC),
-## at most overtime_ticket_per_week times a week (0 laps: off).
+## Over-quota rewards (2026-11-05, OvertimeTickets; the week's SILVER and GOLD medals since
+## 2026-11-06): a passed shift whose total makes this many laps of its quota (whole multiples, the
+## gauge's ×N) gives an OVERTIME visit after it (one more draw, PREMIUM when the ticket's visit
+## is), at most overtime_ticket_per_week times a week (0 laps: off).
 @export var overtime_ticket_laps: int = 0
 @export var overtime_ticket_per_week: int = 0
 ## A passed shift making this many laps turns its ticket's visit PREMIUM (one already PREMIUM
@@ -110,7 +111,7 @@ func is_premium_shift(shift_number: int) -> bool:
 
 
 ## Whether a passed 1-based shift is a payday (v0.68, the Manager's review's pay): PREMIUM, with a
-## BONUS visit of its own (bonus_extra_shifts), so it pays two PREMIUM tickets.
+## BONUS visit of its own (bonus_extra_shifts), so it pays two PREMIUM draws.
 func is_payday_shift(shift_number: int) -> bool:
 	return premium_shifts.has(shift_number) and bonus_extra_shifts.has(shift_number)
 

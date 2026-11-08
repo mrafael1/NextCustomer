@@ -6,7 +6,8 @@ extends RefCounted
 ## was done with them. RewardMachine fills it in and appends it to the shift's ShiftRecord.visits at
 ## the pick or bin; to_dictionary is the form the run save and the event log use.
 
-## OVERTIME (2026-11-05): the extra CLASSIC ticket of a shift that made its overtime laps.
+## OVERTIME (2026-11-05): the extra draw of a shift that made its overtime laps (the SILVER medal,
+## 2026-11-06), PREMIUM when its shift's ticket visit was.
 enum Kind { TICKET, BONUS, OVERTIME }
 
 ## Kind names, as saved (STAMP DAY's "stamp_day" went in v0.61; RunSaveMigration turns it into a
@@ -25,7 +26,7 @@ var chute: int = NO_CHUTE
 var why: String = ""
 ## A PREMIUM visit (#108: every drop at least RARE, products at least BIG), decided when it starts:
 ## the ticket's and the BONUS visit after a premium shift, and the ticket's after a shift that made
-## its overtime premium laps (OvertimeTickets). An OVERTIME visit is always CLASSIC.
+## its overtime premium laps (OvertimeTickets), and an OVERTIME visit after a PREMIUM ticket's.
 var premium: bool = false
 ## The prizes in reveal order (rarity ascending, drop order within a rarity).
 var prizes: Array[MachinePrize] = []

@@ -228,11 +228,8 @@ func test_every_printed_character_has_its_glyph() -> void:
 	# The basket items show no stickers (#80, step 8), and the counter no hint lines (step 12):
 	# only the belt's tickets print item text.
 	assert_int(checked).is_greater(1000)
-	# The day chip (v0.70) leaves out the "Inspection ·" caption when the bar is tight.
-	var effect: String = load("res://data/inspections/short_belt.tres").chip_text
-	var chip: String = "Inspection · " + effect
-	if not printed.has(chip):
-		chip = effect
+	# The day chip (v0.70) names the day's kind only (v1.15): "Inspection", no effect.
+	var chip: String = InspectionTag.CAPTION
 	var caption: String = RowStrip.CLOSED_CAPTION_TEXT
 	# The scanned multipack's bay plate reads SCAN COMPLETE (PR #138 monitor; COUPON before).
 	var plate: String = MonitorText.SCAN_COMPLETE

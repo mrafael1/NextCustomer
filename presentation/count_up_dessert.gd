@@ -14,11 +14,13 @@ extends RefCounted
 ## and an inspected pass then INSPECTION PASSED under it (`stamp_notice`, #77); the receipt tears
 ## (`rip`), on a miss after `fail` has rung out; the next shift's notice prints in red with the
 ## printer's feed, then the clerk's stamp (`stamp_notice`). A pass ends at the printer feed, where
-## the RECEIPT REWARDS machine takes over (#77); a miss a little after the tear. A pass with a bonus
-## ticket to come (`bonus_stub`, #77 machine v2, Q2 = 2) prints the gold stub at the receipt's foot
-## after PAID (and INSPECTION PASSED), with `print` and "+1 BONUS TICKET" beside the receipt, before
-## the tear. Under reduced motion the slam fades in at full size and nothing shakes (CountUpMotion);
-## the small punches stay.
+## the RECEIPT REWARDS machine takes over (#77); a miss a little after the tear. No stub prints for
+## a later draw (2026-11-06, the week medals: the receipt feeds the machine once and its draw lamps
+## count the draws). Every line prints on the paper, never beside it: on the shift screen's
+## anchored receipt under its foot, the paper fed on and rising (ReceiptView.anchored,
+## 2026-11-07). Under reduced
+## motion the slam fades in at full size and nothing shakes (CountUpMotion); the small punches
+## stay.
 
 ## The INSPECTION PASSED stamp landed on the receipt (CountUp passes it on).
 signal inspection_stamped
@@ -33,13 +35,6 @@ const PAID_SLAM_SCALE := 2.0
 const PAID_SLAM := 0.1
 ## The next-shift notice: the clerk's stamp lands this long after the printer feeds the line.
 const NOTICE_STAMP_GAP := 0.08
-## "+1 BONUS TICKET" beside the receipt: gold Pixelify, ink outlined, BANNER_GAP right of the
-## receipt and BANNER_RISE above its foot.
-const BANNER_TEXT := "+1 BONUS TICKET"
-const BANNER_SIZE := 24
-const BANNER_OUTLINE := 2
-const BANNER_GAP := 18.0
-const BANNER_RISE := 90.0
 
 ## The shift's margin against its quota, set when the dessert starts; null before that.
 var margin: ShiftMargin
@@ -51,19 +46,10 @@ var inspection: String = ""
 ## The player's speed setting, the speed the dessert's waits run at without taps or holds
 ## (CountUp sets it before each dessert).
 var speed_setting: float = 1.0
-## The bonus stub's small line (#77 machine v2): a pass prints the stub with it (none when
-## empty: no bonus ticket follows). CountUp sets it before each dessert.
-var bonus_stub: String = ""
 ## A slip's stamp text (v0.68's training week, "SLIP 1/2"): a miss the run goes on after stamps
 ## it on the margin line, prints WriteUp.NO_TICKET under it and, like a pass, the next shift's
 ## notice; empty for a pass or the miss that ends the run. CountUp sets it before each dessert.
 var write_up: String = ""
-## The banner beside the receipt while the bonus stub prints: BANNER_TEXT, or a payday's
-## (v0.68, Payday.BANNER). CountUp sets it before each dessert.
-var banner_text: String = BANNER_TEXT
-## The banner beside the receipt while the stub prints (null before it and once it has faded),
-## for tests.
-var banner: Label
 ## The monitor's number the total slams onto (CountUp sets it before each dessert); null leaves
 ## the slam out.
 var target: TotalNumber
@@ -128,8 +114,6 @@ func play(
 		if not inspection.is_empty():
 			await _wait_ms(_tuning.dessert_paid_ms)
 			_stamp_inspection()
-		if not bonus_stub.is_empty():
-			await _print_stub(print_pitch)
 	else:
 		# The music stays ducked through the whole fail sound (#62, Q6), then the receipt tears.
 		# The sound plays in real time but the waits run at the speed setting, so its length is
@@ -257,50 +241,6 @@ func _stamp_inspection() -> void:
 	stamp.scale = Vector2(PAID_SLAM_SCALE, PAID_SLAM_SCALE)
 	var slam: Tween = _fx.scale_tween(stamp).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	slam.tween_property(stamp, "scale", Vector2.ONE, PAID_SLAM)
-
-
-## The gold bonus stub prints at the receipt's foot (#77 machine v2): its height grows from 0 to
-## the ticket's over dessert_stub_ms (reduced motion: dessert_stub_rm_ms), with `print`, while
-## "+1 BONUS TICKET" fades in beside the receipt, and out once the stub has printed (not waited).
-## `print_pitch` is the printer's.
-func _print_stub(print_pitch: float) -> void:
-	var stub: ReceiptStub = ReceiptStamps.add_bonus_stub(_receipt, bonus_stub)
-	sfx.play("print", print_pitch)
-	var ms: int = _tuning.dessert_stub_rm_ms if _reduced_motion else _tuning.dessert_stub_ms
-	_show_banner()
-	var grow: Tween = _tween()
-	grow.tween_method(stub.grow, 0.0, BonusTicket.SIZE.y, ms / 1000.0)
-	await grow.finished
-	stub.grow(BonusTicket.SIZE.y)
-	var out: Tween = _tween()
-	out.tween_property(banner, "modulate:a", 0.0, _tuning.dessert_banner_out_ms / 1000.0)
-	out.finished.connect(_free_banner.bind(banner))
-
-
-func _show_banner() -> void:
-	if is_instance_valid(banner):
-		_free_banner(banner)
-	banner = UiKit.display_label(banner_text, BANNER_SIZE, false)
-	banner.name = "BonusBanner"
-	banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	banner.add_theme_color_override("font_color", Palette.GOLD)
-	banner.add_theme_color_override("font_outline_color", Palette.INK)
-	banner.add_theme_constant_override("outline_size", BANNER_OUTLINE * 2)
-	_overlay.add_child(banner)
-	banner.size = banner.get_minimum_size()
-	var paper: Rect2 = _receipt.get_global_rect()
-	var spot: Vector2 = Vector2(paper.end.x + BANNER_GAP, paper.end.y - BANNER_RISE)
-	banner.position = _overlay.get_global_transform().affine_inverse() * spot
-	banner.modulate.a = 0.0
-	_tween().tween_property(banner, "modulate:a", 1.0, _tuning.dessert_banner_in_ms / 1000.0)
-
-
-## The banner has faded out (or a new one replaces it): it goes.
-func _free_banner(shown: Label) -> void:
-	if banner == shown:
-		banner = null
-	if is_instance_valid(shown):
-		shown.queue_free()
 
 
 ## The receipt tears off under the shift's lines, with `rip`.

@@ -1,16 +1,17 @@
 class_name OvertimeTickets
 extends RefCounted
-## The over-quota rewards (decided with the user on 2026-11-05, replacing the overtime coin): a
-## passed shift whose total makes MachineDefinition.overtime_ticket_laps laps of its quota (the ×N
-## the quota gauge's lamp shows: whole multiples of the quota) gives an OVERTIME visit after it, a
-## CLASSIC extra machine ticket, at most overtime_ticket_per_week times a week; one making
-## overtime_premium_laps laps turns its ticket's visit PREMIUM, at most overtime_premium_per_week
-## times a week, a cap of its own. A ×3 shift reaches ×2 too, so it also gets the extra ticket while
-## the week's is unused (that ticket stays CLASSIC). A ticket visit already PREMIUM (a premium
-## shift's) is not transformed and does not use the week's transform. The run's last shift has no
-## machine visit, so it uses nothing. The shift's record keeps what it earned
-## (ShiftRecord.overtime_ticket, overtime_premium): the week's use is read from the history, and
-## saved with it. 0 laps turns a reward off. Pure.
+## The over-quota rewards (decided with the user on 2026-11-05, replacing the overtime coin; shown
+## as the week's two medals since 2026-11-06, WeekMedals): a passed shift whose total makes
+## MachineDefinition.overtime_ticket_laps laps of its quota (the ×N the quota gauge's lamp shows:
+## whole multiples of the quota) spends the SILVER medal on an OVERTIME visit after it, one more
+## draw of the same receipt (PREMIUM when the shift's ticket visit is), at most
+## overtime_ticket_per_week times a week; one making overtime_premium_laps laps spends the GOLD
+## medal to turn its ticket's visit PREMIUM, at most overtime_premium_per_week times a week, a cap
+## of its own. A ×3 shift reaches ×2 too, so it also spends the SILVER while the week's is unused.
+## A ticket visit already PREMIUM (a premium shift's) is not transformed and does not use the
+## week's GOLD. The run's last shift has no machine visit, so it uses nothing. The shift's record
+## keeps what it earned (ShiftRecord.overtime_ticket, overtime_premium): the week's use is read
+## from the history, and saved with it. 0 laps turns a reward off. Pure.
 
 ## A reward's state for a shift, for the UI: NONE (not reached, off, a failed or last shift, or a
 ## PREMIUM ticket left as it was), EARNED, or USED (reached, but the week's reward is gone).

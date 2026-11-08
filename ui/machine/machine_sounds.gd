@@ -5,9 +5,10 @@ extends RefCounted
 ## passes their moments on view.plan (cues), never while the clock jumps (a fast-forward, a
 ## resume, show_at): a jump plays nothing, as `skipping` beats do.
 ##
-## - the receipt's (or the BONUS stub's) flight lands: `tick` x5 (x3), then `slot_tick` as it is
-##   fed; a PREMIUM visit turning PREMIUM (v0.50): `stamp_notice` as its sign flips and a rising
-##   run (G4 C5 E5 G5 C6), then `ui_switch` as the keys rise back gold; the keys light: one
+## - the receipt's flight lands: `tick` x5, then `slot_tick` as it is fed (a later draw of the
+##   same receipt, 2026-11-06, feeds nothing: AGAIN!'s `stamp_notice`); a PREMIUM visit turning
+##   PREMIUM (v0.50): `stamp_notice` as its sign flips and a rising run (G4 C5 E5 G5 C6), then
+##   `ui_switch` as the keys rise back gold; the keys light: one
 ##   ladder note each (C5 D5 E5 G5), staggered as the keys;
 ## - the chute confirmed: `ui_confirm` (CONFIRM › plays it as it is pressed, #77 machine v2);
 ##   the tray packs: `rattle_s`; PACKED: `stamp_1`; each ticket out of the tray: a quiet
@@ -17,7 +18,7 @@ extends RefCounted
 ##   reduced motion;
 ## - the pick: `ui_click` (a bin: `ui_back`); the landing: a new card `card_place`, a LOYALTY stamp
 ##   (a new perk or a level-up) `stamp_loyalty`, an upgrade's glint `ding` and G5 C6 E6;
-## - the BONUS TICKET's stamp: `stamp_notice` and the stub's `print`.
+## - after each prize the draw lamp going out: `tick`.
 ## The padlocked key's `denied` is the machine's own (RewardMachineView.press_key).
 ##
 ## Built by MachineFlyer (the landing's part), framed with it.
@@ -142,17 +143,14 @@ func _grow(plan: MachinePlan, acted: bool) -> void:
 
 
 func _add_intro(plan: MachinePlan) -> void:
-	match plan.kind:
-		MachineVisit.Kind.BONUS:
-			# The head's stamp lands as the bonus ticket reaches the slot (#77 machine v2).
-			_cue(plan.fly_end, SOUND, "stamp_notice")
-	if plan.snap >= 0.0:
-		# The bonus stub snaps off the receipt, quietly (#77 machine v2).
-		_cue(plan.snap, SOUND, "rip", view.tuning.snap_db)
-	var ticks: int = FEED_TICKS[plan.kind]
-	if not plan.reduced_motion:
-		cues.append([plan.fly_end, SERIES, "tick", ticks])
-	_cue(plan.feed_end, SOUND, "slot_tick")
+	if plan.is_again():
+		# AGAIN! (2026-11-06): the same receipt's next draw, nothing fed.
+		_cue(0.0, SOUND, "stamp_notice")
+	else:
+		var ticks: int = FEED_TICKS[plan.kind]
+		if not plan.reduced_motion:
+			cues.append([plan.fly_end, SERIES, "tick", ticks])
+		_cue(plan.feed_end, SOUND, "slot_tick")
 	var stagger: int = view.tuning.key_stagger_ms
 	if plan.kind == MachineVisit.Kind.BONUS:
 		stagger = view.tuning.relight_stagger_ms
@@ -198,6 +196,8 @@ func _add_draw(plan: MachinePlan) -> void:
 
 
 func _add_landing(plan: MachinePlan) -> void:
+	if plan.lamp_out >= 0.0:
+		_cue(plan.lamp_out, SOUND, "tick")  # The draw lamp goes out.
 	match plan.landing:
 		MachinePlan.Landing.NEW_CARD:
 			_cue(plan.land, SOUND, "card_place")

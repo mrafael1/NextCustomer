@@ -8,18 +8,15 @@ extends Control
 ## the top and the foot, a rivet every PILLAR_RIVET_STEP down the middle): the outer two at both
 ## edges and the middle one between the machine's module (left) and the prize bay (PrizeBay,
 ## right), with a brass crest; the stock window's riveted steel frame, the rubber key plate the
-## keys stand on (charcoal once PREMIUM) and the kick panel, dithered at its top, with the bonus
-## dock under the module and vents under the bay. Once a PREMIUM visit turns PREMIUM (MachineLook)
+## keys stand on (charcoal once PREMIUM) and the kick panel, dithered at its top, with vents under
+## the bay. Once a PREMIUM visit turns PREMIUM (MachineLook)
 ## the brass runs down the pillars (MachineLook.trim: their steel turns brass from the top, a spark
 ## at its tip), their caps, rivets and the crest turn gold once it has run, then two sparks glide
 ## down the outer ones; with the night face the beacons on the outer caps blink (held lit under
 ## reduced motion).
 ##
-## The bonus ticket's dock (#77 machine v2, Q2 = 2) is on the kick panel (DOCK_RECT: a dashed
-## border, the ticket icon and "BONUS TICKET HERE" in hard pixel lettering): it shows while a bonus
-## ticket is on its way, through a TICKET visit with a stub (its border turns mustard as the
-## receipt reaches the slot, and its caption goes MachineTuning's dock_label_ms later) and a BONUS
-## visit until its ticket reaches the slot (mustard, no caption).
+## No ticket dock since 2026-11-06 (the week medals): the receipt feeds once and the reader
+## plate's draw lamps count its draws (SlotPlate).
 
 const SIZE := Vector2(1040, 584)
 ## The side pillars (PILLAR_WIDTH wide at both edges, the full height) and their rivets; V3's
@@ -54,14 +51,6 @@ const VENT_SIZE := Vector2(24, 4)
 const VENT_SPAN := 472.0
 const VENT_ROW := 8.0
 const VENTS := 9
-## The bonus ticket's dock on the kick panel under the stock window, on its dark box.
-const DOCK_RECT := Rect2(136, 542, 232, 32)
-const DOCK_BOX_RECT := Rect2(132, 540, 240, 36)
-const DOCK_TEXT := "BONUS TICKET HERE"
-const DOCK_ICON := preload("res://art/icons/bonus_ticket.png")
-## The dock's dashed border: DOCK_DASH long, DOCK_DASH apart.
-const DOCK_DASH := 4.0
-const BORDER := 2.0
 ## The trim's two sparks once it has run (one each outer pillar), gliding down in this many
 ## seconds.
 const SPARK_PERIOD := 2.0
@@ -72,61 +61,18 @@ var _trim: float = 0.0
 var _night_plate: bool = false
 var _beacons: bool = false
 var _spark: float = 0.0
-var _dock_on: bool = false
-var _dock_lit: bool = false
-var _dock_label: MachineLine
-var _dock_icon: TextureRect
 
 
 func _init() -> void:
 	name = "MachineCabinet"
 	size = SIZE
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var p: float = MachineArt.PIXEL
-	_dock_icon = UiKit.sprite(DOCK_ICON)
-	_dock_icon.name = "DockIcon"
-	_dock_icon.size = DOCK_ICON.get_size() * p
-	_dock_label = MachineLine.make("DockLabel", DOCK_TEXT, Palette.TEAL_LIGHT)
-	_lay_dock(DOCK_TEXT)
-	_dock_label.visible = false
-	_dock_icon.visible = false
-	add_child(_dock_icon)
-	add_child(_dock_label)
-
-
-## The dock's caption `caption` (DOCK_TEXT, or the OVERTIME ticket's, v1.03), the icon and the
-## words centred together in the dock.
-func _lay_dock(caption: String) -> void:
-	var p: float = MachineArt.PIXEL
-	if _dock_label.text() != caption:
-		_dock_label.show_text(caption, Palette.TEAL_LIGHT)
-	var pair: float = _dock_icon.size.x + 3.0 * p + _dock_label.width()
-	var left: float = MachineArt.snap(DOCK_RECT.get_center().x - pair / 2.0)
-	var middle: float = DOCK_RECT.get_center().y
-	_dock_icon.position = Vector2(left, MachineArt.snap(middle - _dock_icon.size.y / 2.0))
-	var text_left: float = left + _dock_icon.size.x + 3.0 * p
-	_dock_label.centre_in(Rect2(text_left, DOCK_RECT.position.y, _dock_label.width(), 32.0))
 
 
 ## Hooks this part to the machine: RewardMachineView calls it once, when it builds the part
 ## (build spec 4.2).
 func setup(machine: RewardMachineView) -> void:
 	view = machine
-
-
-## The dock's rect on screen, where the bonus ticket waits.
-func dock_global_rect() -> Rect2:
-	return get_global_transform() * DOCK_RECT
-
-
-## Whether the dock shows, whether its border is mustard, whether its caption shows.
-func dock_state() -> Array[bool]:
-	return [_dock_on, _dock_lit, _dock_label.visible]
-
-
-## The dock's caption (hard pixel lettering), for layout tests.
-func dock_label() -> MachineLine:
-	return _dock_label
 
 
 ## How far the brass has run down the pillars (0 .. 1).
@@ -144,23 +90,9 @@ func night_plate() -> bool:
 	return _night_plate
 
 
-## The trim, the beacons, the key plate and the dock at time `t` (seconds) of view.plan.
+## The trim, the beacons and the key plate at time `t` (seconds) of view.plan.
 func frame(t: float) -> void:
 	var plan: MachinePlan = view.plan if view != null else null
-	var dock: bool = false
-	var dock_lit: bool = false
-	var caption: bool = false
-	if plan != null and plan.kind == MachineVisit.Kind.TICKET and plan.stub:
-		dock = true
-		dock_lit = t >= plan.fly_end
-		caption = t < plan.fly_end + MachineTuning.sec(view.tuning.dock_label_ms)
-		# v1.03: the stub is the OVERTIME ticket's (MachinePlan.overtime).
-		_lay_dock(OvertimeWords.DOCK_TEXT if plan.overtime else DOCK_TEXT)
-	elif plan != null and plan.kind == MachineVisit.Kind.BONUS and t < plan.fly_end:
-		dock = true
-		dock_lit = true
-	_dock_label.visible = caption
-	_dock_icon.visible = caption
 	var look: MachineLook = MachineLook.at(plan, t)
 	var trim: float = look.trim()
 	var night: bool = look.night_plate()
@@ -168,15 +100,12 @@ func frame(t: float) -> void:
 	if plan != null and look.night_face():
 		beacons = plan.reduced_motion or int(floorf(view.idle_time * BEACON_RATE)) % 2 == 0
 	var spark: float = fposmod(view.idle_time, SPARK_PERIOD) / SPARK_PERIOD if view != null else 0.0
-	var changed: bool = trim != _trim or dock != _dock_on or dock_lit != _dock_lit
-	changed = changed or beacons != _beacons or night != _night_plate
+	var changed: bool = trim != _trim or beacons != _beacons or night != _night_plate
 	if changed or (trim >= 1.0 and spark != _spark):
 		_trim = trim
 		_night_plate = night
 		_beacons = beacons
 		_spark = spark
-		_dock_on = dock
-		_dock_lit = dock_lit
 		queue_redraw()
 
 
@@ -211,8 +140,7 @@ func _draw() -> void:
 	draw_rect(Rect2(plate.position, Vector2(plate.size.x, p)), plate_top)
 
 
-## The kick panel: its top line, a dithered shade into its dark face, the vents under the bay and,
-## while the dock shows, its dark box with its dashed border.
+## The kick panel: its top line, a dithered shade into its dark face and the vents under the bay.
 func _draw_kick() -> void:
 	var p: float = MachineArt.PIXEL
 	var inner: float = SIZE.x - 2.0 * PILLAR_WIDTH
@@ -224,9 +152,6 @@ func _draw_kick() -> void:
 		for index: int in range(VENTS):
 			var x: float = MachineArt.snap(VENT_AT.x + index * VENT_SPAN / VENTS)
 			draw_rect(Rect2(Vector2(x, VENT_AT.y + row * VENT_ROW), VENT_SIZE), Palette.INK)
-	if _dock_on:
-		draw_rect(DOCK_BOX_RECT, Palette.TEAL_DARK)
-		_dashed_rect(DOCK_RECT, Palette.MUSTARD if _dock_lit else Palette.TEAL_LIGHT)
 
 
 ## A pillar at `x`, `w` wide: steel (the brass run down it `_trim` of the way, PREMIUM), its caps
@@ -312,19 +237,3 @@ func _dither_rect(rect: Rect2) -> void:
 			x += 2.0 * p
 		y += p
 		row += 1
-
-
-## A dashed 2 px border inside `rect`, in `colour`.
-func _dashed_rect(rect: Rect2, colour: Color) -> void:
-	var x: float = rect.position.x
-	while x < rect.end.x:
-		var w: float = minf(DOCK_DASH, rect.end.x - x)
-		draw_rect(Rect2(x, rect.position.y, w, BORDER), colour)
-		draw_rect(Rect2(x, rect.end.y - BORDER, w, BORDER), colour)
-		x += DOCK_DASH * 2.0
-	var y: float = rect.position.y
-	while y < rect.end.y:
-		var h: float = minf(DOCK_DASH, rect.end.y - y)
-		draw_rect(Rect2(rect.position.x, y, BORDER, h), colour)
-		draw_rect(Rect2(rect.end.x - BORDER, y, BORDER, h), colour)
-		y += DOCK_DASH * 2.0

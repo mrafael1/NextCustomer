@@ -25,6 +25,10 @@ extends PanelContainer
 ## (SMALL_SIZE), so the chip reads as one strong sticker family (v1.12: v1.10's thin, undropped
 ## words read weaker than the 1). The number still stands out by its size and its week's ink.
 ## KEY_GAP and NAME_GAP keep each part's outline clear of its neighbour's. The pips stay quiet.
+## The week's medals (2026-11-06, WeekMedals, MedalSockets): two round sockets after the pips,
+## SILVER then GOLD, a plain coin while the week's medal is still to spend, shimmering while the
+## plan would spend it, an engraved empty socket once spent (medals(), WeekFlow.show_medals); the
+## count's flight takes a coin out of its socket (MedalFlight).
 
 signal pressed
 
@@ -42,9 +46,9 @@ const NAME_GAP := 7
 const WEEK_TEXT := "%d"
 const NUMBER_SIZE := 22
 const SMALL_SIZE := 15
-## The week's number's inks by week (the quota tube's, in lap order: QuotaMeter.MET_RAMP's lit
-## green for week 1, then QuotaLaps.LAP_RAMPS' gold, orange light, velvet sheen and violet light;
-## the gold lap's body, as its pale reads as the paper around it), a week past them the last. Each
+## The week's number's inks by week (the quota tube's lap colours before the medals' metals:
+## QuotaMeter.MET_RAMP's lit green for week 1, then gold, orange light, velvet sheen and violet
+## light; the gold body, as its pale reads as the paper around it), a week past them the last. Each
 ## is outlined in ink (NUMBER_OUTLINE px, with an ink drop NUMBER_DROP px down), as TotalNumber's
 ## gold, so it reads on every week's chip colour.
 const NUMBER_INKS: Array[Color] = [
@@ -135,6 +139,8 @@ var _count: Label
 ## The week's short name, lettered as "W :" and "/4".
 var _name: Label
 var _pips_view: Control
+## The week's two medals, after the pips.
+var _medals: MedalSockets
 var _pips: Array[WeekCardModel.Pip] = []
 var _ringed: bool = false
 ## Seconds into flash() (-1: none), and the pip it lights.
@@ -171,6 +177,7 @@ func _init() -> void:
 	_key.name = "Key"
 	number_row.add_child(_key)
 	_number = _lettered("", NUMBER_SIZE, NUMBER_OUTLINE, NUMBER_DROP)
+	_number.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_number.name = "Number"
 	number_row.add_child(_number)
 	_count = _lettered("", SMALL_SIZE, SMALL_OUTLINE, SMALL_DROP)
@@ -187,6 +194,8 @@ func _init() -> void:
 	# The pips snap to the screen's pixels: a moved chip redraws them.
 	item_rect_changed.connect(_pips_view.queue_redraw)
 	row.add_child(_pips_view)
+	_medals = MedalSockets.new()
+	row.add_child(_medals)
 	visible = false
 	set_process(false)
 
@@ -244,13 +253,19 @@ static func contrast(a: Color, b: Color) -> float:
 ## run without weeks (a model of one week with no event).
 func show_week(model: WeekCardModel) -> void:
 	visible = model.event != null or model.week_count > 1
+	_number.custom_minimum_size.x = _widest(_number, _week_numbers(model.week_count))
 	_number.text = WEEK_TEXT % model.week_number
 	_number.add_theme_color_override("font_color", number_ink(model.week_number))
 	_number.add_theme_color_override("font_outline_color", number_outline(model.week_number))
 	_count.text = model.count_text()
 	_count.visible = model.week_count > 1
+	var names: PackedStringArray = model.chip_names.duplicate()
+	names.append(model.chip_name())
+	# Its outline reaches past its glyphs: the widest name keeps it clear of the pips too.
+	var widest_name: float = _widest(_name, names)
+	_name.custom_minimum_size.x = widest_name + SMALL_OUTLINE if widest_name > 0.0 else 0.0
 	_name.text = model.chip_name()
-	_name.visible = not _name.text.is_empty()
+	_name.visible = _name.custom_minimum_size.x > 0.0
 	_pips = model.pips()
 	if hold_result:
 		_hold_last_result()
@@ -264,9 +279,42 @@ func show_week(model: WeekCardModel) -> void:
 	tooltip_text = TIP % head
 
 
-## Shows the short name, or hides it when the bar has no room (TopBar.fit_inspection).
+## How wide `label` is at its widest with any of `texts` (0 with none but empty ones): the room the
+## number and the name keep (v1.15, the user's "bar is expanding too much depending on days": every
+## week's chip is as wide as the widest, so the top bar's chips keep their places all run).
+static func _widest(label: Label, texts: PackedStringArray) -> float:
+	var kept: String = label.text
+	var kept_min: Vector2 = label.custom_minimum_size
+	label.custom_minimum_size = Vector2.ZERO
+	var widest: float = 0.0
+	for text: String in texts:
+		if text.is_empty():
+			continue
+		label.text = text
+		widest = maxf(widest, label.get_minimum_size().x)
+	label.text = kept
+	label.custom_minimum_size = kept_min
+	return ceilf(widest)
+
+
+## The run's week numbers' texts, 1 to `count`.
+static func _week_numbers(count: int) -> PackedStringArray:
+	var texts: PackedStringArray = PackedStringArray()
+	for week: int in range(1, maxi(count, 1) + 1):
+		texts.append(WEEK_TEXT % week)
+	return texts
+
+
+## The medal sockets (WeekFlow shows the week's medals on them, the count's flight takes a coin
+## out of one).
+func medals() -> MedalSockets:
+	return _medals
+
+
+## Shows the short name, or hides it when the bar has no room (TopBar.fit_inspection). Shown, it
+## keeps the room of the run's widest week name, even on a week without one (v1.15).
 func show_name(shown: bool) -> void:
-	_name.visible = shown and not _name.text.is_empty()
+	_name.visible = shown and _name.custom_minimum_size.x > 0.0
 
 
 func name_shown() -> bool:

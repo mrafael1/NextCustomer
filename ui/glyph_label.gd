@@ -10,9 +10,9 @@ extends Control
 ## can keep clear of something at its right (set_end_inset: a ticket's MORE chip). Display only.
 ##
 ## Written (tickets v5, a ticket's rule plate): a family named by its id is a FamilyWord, its name
-## on a chip in its colours (what the item works with), not a glyph, HEIGHT tall in its line; a
-## family's other words ("coupon") stay text, and nothing is glued to a family, so a chip may start
-## a line.
+## on a chip in its colours (what the item works with), not a glyph, HEIGHT tall, centred on its
+## line; a family's other words ("coupon") stay text, and nothing is glued to a family, so a chip
+## may start a line.
 ##
 ## A keyword run (#128, GlyphText: BATCH) is a KeywordChip, CHIP_MARGIN clear of its neighbours
 ## (set_chip_room: the monitor's roomier chips, PR #138 round 2), centred on its line;
@@ -346,7 +346,7 @@ func _add_glyphs() -> void:
 				continue
 			var style: FamilyStyle = _palette.style(family)
 			if _written and style != null:
-				_add_word(style, float(run["x"]), index, baseline)
+				_add_word(style, float(run["x"]), index)
 				continue
 			if style == null or style.glyph == null:
 				continue
@@ -373,11 +373,13 @@ func _add_chip(run: Dictionary, line: int) -> void:
 	_chips.append(chip)
 
 
-func _add_word(style: FamilyStyle, x: float, line: int, baseline: float) -> void:
+## A written family's chip, centred down its line on the art's grid (its name centred in it).
+func _add_word(style: FamilyStyle, x: float, line: int) -> void:
 	var word: FamilyWord = FamilyWord.new(style, _font, _font_size)
-	var top: float = line * _pitch + snappedf(_pitch - FamilyWord.HEIGHT, ArtStyle.ART_SCALE)
+	var top: float = (
+		line * _pitch + snappedf((_pitch - FamilyWord.HEIGHT) / 2.0, ArtStyle.ART_SCALE)
+	)
 	word.position = Vector2(x + _chip_margin, top)
-	word.draw_at(baseline - top)
 	word.tip_below = _tip_below
 	word.tip_anchor = _tip_anchor
 	add_child(word)

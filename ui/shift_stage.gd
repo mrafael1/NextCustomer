@@ -196,6 +196,8 @@ var machine: Control
 ## The checkout cheering's cardboard standees (#120): over the machine, under the monitor.
 var crowd: CheckoutCrowd
 var top_bar: TopBar
+## The receipt's gold and silver and the week medals' flights through a count (follow_count).
+var gold_flow: ReceiptGoldFlow
 var shift_label: Label
 var loyalty_card: LoyaltyCard
 var inspection_tag: InspectionTag
@@ -296,6 +298,9 @@ func follow_count(count_up: CountUp) -> void:
 	quota_light.reduced_motion = func() -> bool:
 		return count_up.plan != null and count_up.plan.reduced_motion
 	quota_crossing.follow(count_up, quota_meter, bonus_lights)
+	# The gold and silver paper, and the week badge's medals flying into the lap lamp.
+	gold_flow = ReceiptGoldFlow.new(count_up, quota_meter, receipt, top_bar.week_chip.medals())
+	add_child(gold_flow)
 
 
 ## Puts the machine in the store right of the stage, behind the fore, at half size.
@@ -366,6 +371,7 @@ func _build_register() -> void:
 	receipt.size = Vector2(RECEIPT_WIDTH, 0.0)
 	fore.add_child(receipt)
 	receipt.full_length = true
+	receipt.anchored = true
 	receipt.fit_up(RECEIPT_BOTTOM, RECEIPT_TOP)
 	printer_lip = UiKit.sprite(PRINTER_LIP)
 	printer_lip.name = "PrinterLip"

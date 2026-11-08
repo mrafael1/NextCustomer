@@ -117,11 +117,56 @@ func toggle_slip() -> void:
 func show_chips() -> void:
 	var run: RunState = _screen.run
 	var weeks: bool = has_weeks(run)
+	if _screen._stage.gold_flow != null:
+		_screen._stage.gold_flow.refresh(run, _screen._counting, _screen.profile.reduced_motion())
 	_bar.week_chip.hold_result = _screen._counting
 	if weeks:
 		_bar.week_chip.show_week(WeekCardModel.of(run))
+		show_medals(-1)
 	_bar.show_weeks(weeks)
-	_bar.inspection_tag.show_inspections(day_events(run), run.shift_index + 1 if weeks else 0)
+	_bar.inspection_tag.show_inspections(
+		day_events(run), run.shift_index + 1 if weeks else 0, event_pool(run)
+	)
+
+
+## Every day event `run` may draw (its balance's inspection and boon pools): the day chip keeps
+## room for each one's name (v1.15), so its width is the same every day.
+static func event_pool(run: RunState) -> Array[InspectionDefinition]:
+	return run.balance.inspection_pool + run.balance.boon_pool
+
+
+## The week chip's medals as `run` stands (WeekMedals): while counting, the shift's own spend
+## waits for its flight; in planning, `projected` (the preview's total, below 0: none) shows the
+## medals it would spend as PENDING.
+func show_medals(projected: int) -> void:
+	var run: RunState = _screen.run
+	if run == null or not has_weeks(run):
+		return
+	var states: Array[int] = WeekMedals.states(run, _screen._counting, projected)
+	var flow: ReceiptGoldFlow = _screen._stage.gold_flow
+	for index: int in range(states.size()):
+		if _screen._counting and flow != null and flow.has_flown(index == 1):
+			states[index] = WeekMedals.State.USED  # Its flight left the socket: no pop back.
+	var tips: PackedStringArray = PackedStringArray()
+	for index: int in range(states.size()):
+		tips.append(WeekMedals.tip_of(run, index == 1, states[index]))
+	var sockets: MedalSockets = _bar.week_chip.medals()
+	sockets.reduced_motion = _screen.profile.reduced_motion()
+	sockets.show_states(states, tips)
+
+
+## Planning's preview projects `projected`: the medals it would spend shimmer (show_medals) and
+## the receipt's edges glow in their metal (ReceiptGoldFlow.show_pending).
+func show_pending(projected: int) -> void:
+	show_medals(projected)
+	var run: RunState = _screen.run
+	if run != null and _screen._stage.gold_flow != null:
+		var states: Array[int] = WeekMedals.states(run, false, projected)
+		_screen._stage.gold_flow.show_pending(
+			states[0] == WeekMedals.State.PENDING,
+			states[1] == WeekMedals.State.PENDING,
+			_screen.profile.reduced_motion()
+		)
 
 
 ## The events the day chip shows: the day's only (run.inspections). A worn pin's events (#132:

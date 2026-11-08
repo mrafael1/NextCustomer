@@ -7,6 +7,7 @@ extends GdUnitTestSuite
 ## scene runner (the count-up reads the input events); the checkout itself is sent to the screen's
 ## handler. A tapped or held count plays the same step-driven sounds as an untouched one (#62).
 
+const Anchored := preload("res://tests/ui/anchored_receipt.gd")
 const SCREEN := "res://ui/shift_screen.tscn"
 const RecordingSfx := preload("res://tests/presentation/recording_sfx.gd")
 const Rush := preload("res://tests/ui/count_up_rush.gd")
@@ -336,6 +337,7 @@ func _assert_full_receipt(screen: ShiftScreen) -> void:
 	await _lines_shown(screen._receipt)
 	var run: RunState = screen.run
 	var expected: ReceiptView = auto_free(ReceiptView.new())
+	Anchored.plan(expected, screen, run.last_result)
 	expected.show_result(
 		run.last_result,
 		CardInstance.names(run.row),
@@ -378,10 +380,11 @@ static func _lines(receipt: ReceiptView) -> Array[String]:
 	return lines
 
 
-## With the over-quota rewards on (v1.03), a count tapped through and its dessert skipped still
-## shows the gauge's reward rows as it ends (the total landing shows them; they hold a moment):
-## the passing row makes ×3 on shift 1, so both rewards are earned.
-func test_a_skipped_count_still_shows_the_over_quota_rewards() -> void:
+## With the over-quota rewards on (v1.03; the week medals since 2026-11-06), a count tapped through
+## and its dessert skipped still spends both medals as it ends (the total landing flies them): the
+## passing row makes ×3 on shift 1, so the SILVER and the GOLD leave their sockets, land in the lap
+## lamp and the receipt ends gold.
+func test_a_skipped_count_still_spends_the_week_medals() -> void:
 	NoOvertime.live_restore(_live_machine)
 	_live_machine = null
 	var screen: ShiftScreen = await _screen()
@@ -394,9 +397,13 @@ func test_a_skipped_count_still_shows_the_over_quota_rewards() -> void:
 	await _count_up_end(screen)
 	assert_bool(_last_event("count_up")["dessert_skipped"]).is_true()
 	assert_bool(screen.run.history[-1].overtime_premium).is_true()
-	var chip: OvertimeChip = screen._stage.quota_crossing.chip
-	assert_array(Array(chip.texts())).is_equal(["×2 +1 TICKET", "×3 PREMIUM TICKET"])
-	assert_bool(chip.visible).is_true()
+	var flow: ReceiptGoldFlow = screen._stage.gold_flow
+	assert_bool(flow.has_flown(false) and flow.has_flown(true)).is_true()
+	flow.flight.finish()
+	assert_bool(flow.flight.is_flying()).is_false()
+	var used: Array[int] = [WeekMedals.State.USED, WeekMedals.State.USED]
+	assert_array(screen._stage.top_bar.week_chip.medals().states()).is_equal(used)
+	assert_bool(screen._stage.receipt.gold.is_gold()).is_true()
 
 
 ## Plays `result` on the screen's row from the same context every time (shift 1, no best yet).

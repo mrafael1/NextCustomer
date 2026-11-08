@@ -10,9 +10,11 @@ extends Control
 ## printed families' glyphs (FamilyPalette.shelf_families of its tags; a coupon's coupon mark) side
 ## by side, each with a paper rim and its own tip (FamilyGlyph: "Dairy · Milk is a Dairy item";
 ## while it shows PlanningEffects lights the matching items). An item that gained a family this
-## shift (the Price gun's relabel, show_gained) is the TALL_SIZE ticket: its label grows a second
-## row for the gained glyph, GAINED written in the face beside it; only that ticket grows,
-## downward, so the prices still form one row. What it pays: the price window, top right
+## shift (the Price gun's relabel, show_gained) shows the gained glyph right after the printed ones
+## on the label's one row, in a thin amber frame (GainedFrame) so it reads apart from the printed
+## families (2026-11-05: no GAINED word, no taller ticket); a third icon widens the label and
+## narrows the window beside it (TicketFace.LABEL_WIDE), the price kept at the right and the
+## ticket's height kept. What it pays: the price window, top right
 ## (PriceWindow, the same box on every ticket), the printed price at rest and the planned or
 ## counted pay (set_pay) in its state's ink on the window's one paper fill (a boost's ink steps up
 ## with the pay, PriceWindow.boost_step); never a struck price: the printed price and the pay are
@@ -67,19 +69,34 @@ class GotRing:
 			draw_rect(side, Palette.GOLD)
 
 
+## The thin amber frame round a gained family's glyph (2026-11-05): one art px round its 9x9 art,
+## behind it, so the glyph reads apart from the printed ones beside it.
+class GainedFrame:
+	extends Control
+
+	func _init() -> void:
+		name = GAINED_FRAME_NAME
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		show_behind_parent = true
+		var px: float = ArtStyle.ART_SCALE
+		position = -Vector2.ONE * px
+		size = Vector2.ONE * (ArtStyle.FAMILY_GLYPH_SIZE + 2.0 * px)
+
+	func _draw() -> void:
+		for side: Rect2 in PriceSticker.ring_sides(Rect2(Vector2.ZERO, size), ArtStyle.ART_SCALE):
+			draw_rect(side, PriceSticker.gained_frame_ink())
+
+
 const SIZE := Vector2(108, 76)
-const TALL_SIZE := Vector2(108, 96)
 ## The ticket's ink outline (one art pixel).
 const OUTLINE := 2.0
-## The icon label's glyph places (stage px): the printed families on row 1, a gained one on row 2,
-## one every ICON_STEP (10 art px: a glyph's 9 columns and its rim never covered).
+## The icon label's glyph places (stage px): one row, the printed families then a gained one, one
+## every ICON_STEP (10 art px: a glyph's 9 columns and its rim never covered). Past ICONS_PER_ROW
+## icons the label is the wide one.
 const ICON_FIRST := Vector2(6, 6)
 const ICON_STEP := 20.0
-const ICON_ROW_2 := 20.0
 const ICONS_PER_ROW := 2
-## GAINED (the CAPS sheet at one art px a font px) in the face beside the gained row.
-const GAINED_TEXT := "GAINED"
-const GAINED_AT := Vector2(52, 30)
+const GAINED_FRAME_NAME := "GainedFrame"
 ## The price window's place (TicketFace.WINDOW at 2x).
 const WINDOW_AT := Vector2(48, 4)
 ## The rule's text: from TEXT_LEFT, TEXT_WIDTH wide, centred down the plate; TEXT_FITS are
@@ -111,7 +128,6 @@ const FACE_NAME := "Face"
 const WINDOW_NAME := "PriceWindow"
 ## The name of a Price gun's gained glyph (show_gained), by family.
 const GAINED_NAME := "Gained%s"
-const GAINED_WORDS_NAME := "GainedWords"
 const SUMMARY_NAME := "Summary"
 const MORE_NAME := "More"
 const GOT_RING_NAME := "GotRing"
@@ -145,7 +161,6 @@ var redraws_left: int = -1:
 
 var _families: PackedStringArray = PackedStringArray()
 var _styles: Array[FamilyStyle] = []
-var _text_color: Color = Palette.INK
 var _face: TextureRect
 var _glyphs: Array[FamilyGlyph] = []
 var _window: PriceWindow
@@ -153,8 +168,7 @@ var _summary: GlyphLabel
 var _more: KeywordChip
 var _got_ring: GotRing
 var _colour_spot: ColourSpot
-var _gained_words: PixelWords
-## The family a Price gun gave the item (#132), its glyph on the label's second row; null for none.
+## The family a Price gun gave the item (#132), its glyph after the printed ones; null for none.
 var _gained: FamilyGlyph
 var _definition: CardDefinition
 var _palette: FamilyPalette
@@ -175,7 +189,6 @@ func _init(definition: CardDefinition, palette: FamilyPalette = null) -> void:
 	for style: FamilyStyle in families.styles(_families):
 		if style.has_ticket_colours():
 			_styles.append(style)
-	_text_color = families.text_color(_families) if not _styles.is_empty() else Palette.PAPER
 	if _styles.is_empty():
 		_styles.append(fallback_style(definition))
 	_face = UiKit.sprite(TicketFace.texture(_styles, definition.is_coupon()))
@@ -254,6 +267,12 @@ func set_wrong_job(reason: String) -> void:
 
 
 ## The ring's sides (`width` wide) just inside `rect`, in its coordinates: top, bottom, left, right.
+## The gained glyph's frame ink: one art px of amber round its 9x9 art (on the label's paper). A
+## function, not a constant: the scan pieces hold no Color constant (palette_colours_test).
+static func gained_frame_ink() -> Color:
+	return Palette.MUSTARD_DARK
+
+
 static func ring_sides(rect: Rect2, width: float) -> Array[Rect2]:
 	return [
 		Rect2(rect.position, Vector2(rect.size.x, width)),
@@ -290,8 +309,9 @@ func glyphs() -> Array[FamilyGlyph]:
 	return _glyphs
 
 
-## Shows the family `family` a Price gun gave the item this shift (#132) on the label's second
-## row, the ticket growing to TALL_SIZE; "" takes it off. Products only (none for a family it has).
+## Shows the family `family` a Price gun gave the item this shift (#132) after its printed glyphs,
+## in its amber frame (the label widening for a third icon); "" takes it off. Products only (none
+## for a family it has).
 func show_gained(family: String) -> void:
 	if _definition.is_coupon():
 		return
@@ -307,20 +327,26 @@ func show_gained(family: String) -> void:
 	if _gained == null and style != null and style.glyph != null and not has:
 		_gained = _new_glyph(style, GAINED_TIP % style.display_name)
 		_gained.name = GAINED_NAME % family
+		_gained.add_child(GainedFrame.new())
 		add_child(_gained)
 		_glyphs.append(_gained)
-	_set_tall(_gained != null)
 	_lay_out_glyphs()
+	_set_wide(_glyphs.size() > ICONS_PER_ROW)
 
 
-## Whether it is the tall ticket (a gained family).
-func is_tall() -> bool:
-	return _gained != null
+## Whether its icon label is the wide one (three icons: two printed families and a gained one).
+func is_wide() -> bool:
+	return _window.size.x < PriceWindow.SIZE.x
+
+
+## The gained family's glyph, or null.
+func gained() -> FamilyGlyph:
+	return _gained
 
 
 ## The rule plate's rect (this ticket's coordinates).
 func plate_rect() -> Rect2:
-	var plate: Rect2i = TicketFace.plate_rect(is_tall())
+	var plate: Rect2i = TicketFace.PLATE
 	return Rect2(plate.position * ArtStyle.ART_SCALE, plate.size * ArtStyle.ART_SCALE)
 
 
@@ -536,45 +562,25 @@ func _place_summary() -> void:
 		)
 
 
+## Lays the glyphs out on the label's one row, the gained one last (glyphs() keeps it last).
 func _lay_out_glyphs() -> void:
-	var printed: int = 0
-	for glyph: FamilyGlyph in _glyphs:
-		if glyph == _gained:
-			glyph.position = ICON_FIRST + Vector2(0, ICON_ROW_2)
-			continue
-		var row: int = floori(printed / float(ICONS_PER_ROW))
-		var column: int = printed % ICONS_PER_ROW
-		glyph.position = ICON_FIRST + Vector2(ICON_STEP * column, ICON_ROW_2 * row)
-		printed += 1
+	for index: int in _glyphs.size():
+		_glyphs[index].position = ICON_FIRST + Vector2(ICON_STEP * index, 0.0)
 
 
-## Grows the ticket to TALL_SIZE (a gained family) or back: its face, rings, spot and text.
-func _set_tall(tall: bool) -> void:
-	var ticket: Vector2 = TALL_SIZE if tall else SIZE
-	if size == ticket:
+## Widens the icon label for a third icon (`wide`) or back: its face, and its window narrowed
+## beside it (TicketFace.window_rect), keeping its right edge and its height.
+func _set_wide(wide: bool) -> void:
+	if wide == is_wide():
 		return
-	# The minimum first: a size under the old minimum would not take.
-	custom_minimum_size = ticket
-	size = ticket
-	_face.texture = TicketFace.texture(_styles, _definition.is_coupon(), tall)
-	_face.size = ticket
-	for part: Control in [_got_ring, _colour_spot]:
-		part.size = ticket
-	if _gained_words == null:
-		_gained_words = PixelWords.new(
-			GAINED_TEXT, PixelWords.Sheet.CAPS, ArtStyle.ART_SCALE, _text_color
-		)
-		_gained_words.name = GAINED_WORDS_NAME
-		_gained_words.position = GAINED_AT
-		add_child(_gained_words)
-	_gained_words.visible = tall
-	if _definition.tier == CardDefinition.Tier.GOLDEN:
-		_place_gold()
-	_place_summary()
+	_face.texture = TicketFace.texture(_styles, _definition.is_coupon(), wide)
+	var room: Rect2i = TicketFace.window_rect(wide)
+	_window.position = Vector2(room.position * ArtStyle.ART_SCALE)
+	_window.set_art_width(room.size.x)
 
 
 func _add_gold() -> void:
-	var ring: TextureRect = UiKit.sprite(_gold_ring(false))
+	var ring: TextureRect = UiKit.sprite(_gold_ring())
 	ring.name = GOLD_RING_NAME
 	add_child(ring)
 	for index: int in 2:
@@ -588,21 +594,20 @@ func _add_gold() -> void:
 
 func _place_gold() -> void:
 	var ring: TextureRect = gold_ring()
-	var tall: bool = size.y > SIZE.y
-	ring.texture = _gold_ring(tall)
+	ring.texture = _gold_ring()
 	var grow: float = GOLD_RING_ART * ArtStyle.ART_SCALE
 	ring.position = -Vector2.ONE * grow
 	ring.size = size + Vector2.ONE * 2.0 * grow
-	var foot: Vector2i = SPARKLE_FOOT_AT + Vector2i(0, TicketFace.art_size(tall).y)
+	var foot: Vector2i = SPARKLE_FOOT_AT + Vector2i(0, TicketFace.ART_SIZE.y)
 	(get_node(SPARKLE_NAME % 0) as Control).position = Vector2(foot * ArtStyle.ART_SCALE)
 	(get_node(SPARKLE_NAME % 1) as Control).position = Vector2(SPARKLE_TOP_AT * ArtStyle.ART_SCALE)
 
 
-## The GOLDEN ring's art round a ticket, tall or not (mock-up V5a): the ticket's shape grown by
-## one art px three times (8 neighbours, so the cut corners follow), the first two rings gold with
-## brass on the lower right, the third brass's darkest. Cached by height.
-static func _gold_ring(tall: bool) -> ImageTexture:
-	var art: Vector2i = TicketFace.art_size(tall)
+## The GOLDEN ring's art round a ticket (mock-up V5a): the ticket's shape grown by one art px three
+## times (8 neighbours, so the cut corners follow), the first two rings gold with brass on the
+## lower right, the third brass's darkest. Cached by height.
+static func _gold_ring() -> ImageTexture:
+	var art: Vector2i = TicketFace.ART_SIZE
 	if _gold_rings.has(art.y):
 		return _gold_rings[art.y]
 	var pad: int = GOLD_RING_ART

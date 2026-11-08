@@ -7,11 +7,11 @@ extends GdUnitTestSuite
 ## 14 px, else 3 at 13, else 3 at 12, the same size for each tier of a card, never cut (no card in
 ## data/ needs the MORE chip). The face is in the colours of the family it works with
 ## (FamilyPalette, data); a works-with family is written as a chip (FamilyWord). A gained family
-## (the Price gun) grows the ticket to TALL_SIZE with a GAINED row. GOLDEN wears a gold ring
-## outside the outline (its own TextureRect), never gold in the window, so a boosted pay (green
-## or violet digits on the window's one paper fill) reads apart from it. Its colour says what it
-## means in a tooltip (ColourSpot); every glyph, word and window tips below the ticket. No ticket
-## carries the staple padlock.
+## (the Price gun) joins the label's row in an amber frame, the ticket's height kept. GOLDEN wears
+## a gold ring outside the outline (its own TextureRect), never gold in the window, so a boosted
+## pay (green or violet digits on the window's one paper fill) reads apart from it. Its colour says
+## what it means in a tooltip (ColourSpot); every glyph, word and window tips below the ticket.
+## No ticket carries the staple padlock.
 
 const LiveCardCount := preload("res://tests/data/live_card_count.gd")
 const CARDS := "res://data/cards"
@@ -558,38 +558,49 @@ static func _contrast(a: Color, b: Color) -> float:
 	return (maxf(la, lb) + 0.05) / (minf(la, lb) + 0.05)
 
 
-## A gained family (the Price gun) grows only that ticket, downward, to TALL_SIZE: the glyph on the
-## label's second row, GAINED beside it, the plate moved down; the window stays put. Taking it off
-## puts the short ticket back.
-func test_a_gained_family_makes_the_tall_ticket() -> void:
-	var definition: CardDefinition = _card("milk_golden")
-	var milk: PriceSticker = auto_free(PriceSticker.new(definition))
-	add_child(milk)
-	var printed: int = milk.glyphs().size()
-	milk.show_gained("Household")
-	assert_bool(milk.is_tall()).is_true()
-	assert_vector(milk.size).is_equal(PriceSticker.TALL_SIZE)
-	assert_vector(milk.face().texture.get_size()).is_equal(Vector2(TicketFace.TALL_ART_SIZE))
-	assert_int(milk.glyphs().size()).is_equal(printed + 1)
-	var gained: FamilyGlyph = milk.glyphs()[-1]
-	assert_str(String(gained.name)).is_equal(PriceSticker.GAINED_NAME % "Household")
+## A gained family (the Price gun, 2026-11-05) joins the label's one row right after the printed
+## glyphs, in its thin amber frame; no GAINED word, and the ticket keeps its height, its window
+## and its plate (Banana: one printed family, so two icons fit the label).
+func test_a_gained_family_sits_after_the_printed_glyphs() -> void:
+	var definition: CardDefinition = _card("banana")
+	var banana: PriceSticker = auto_free(PriceSticker.new(definition))
+	add_child(banana)
+	var printed: int = banana.glyphs().size()
+	assert_int(printed).is_equal(1)
+	banana.show_gained("Snack")
+	await get_tree().process_frame
+	var gained: FamilyGlyph = banana.gained()
+	assert_object(gained).is_same(banana.glyphs()[-1])
+	assert_str(String(gained.name)).is_equal(PriceSticker.GAINED_NAME % "Snack")
 	assert_vector(gained.position).is_equal(
-		PriceSticker.ICON_FIRST + Vector2(0, PriceSticker.ICON_ROW_2)
+		PriceSticker.ICON_FIRST + Vector2(PriceSticker.ICON_STEP * printed, 0.0)
 	)
+	assert_float(gained.position.y).is_equal(banana.glyphs()[0].position.y)
 	assert_str(gained.tip_text).contains("gained from the Price gun")
-	var words: PixelWords = milk.get_node(PriceSticker.GAINED_WORDS_NAME) as PixelWords
-	assert_bool(words.visible).is_true()
-	assert_str(words.text).is_equal(PriceSticker.GAINED_TEXT)
-	assert_vector(milk.window().position).is_equal(PriceSticker.WINDOW_AT)
-	_assert_layout(milk, definition)
-	var grow: float = 2.0 * PriceSticker.GOLD_RING_ART * ArtStyle.ART_SCALE
-	assert_float(milk.gold_ring().size.y).is_equal(PriceSticker.TALL_SIZE.y + grow)
-	milk.show_gained("")
-	assert_bool(milk.is_tall()).is_false()
-	assert_vector(milk.size).is_equal(PriceSticker.SIZE)
-	assert_bool(words.visible).is_false()
-	assert_int(milk.glyphs().size()).is_equal(printed)
-	_assert_layout(milk, definition)
+	assert_bool(banana.is_wide()).is_false()
+	assert_vector(banana.size).is_equal(PriceSticker.SIZE)
+	assert_vector(banana.face().texture.get_size()).is_equal(Vector2(TicketFace.ART_SIZE))
+	assert_vector(banana.window().position).is_equal(PriceSticker.WINDOW_AT)
+	assert_vector(banana.window().size).is_equal(PriceWindow.SIZE)
+	assert_object(banana.find_child("GainedWords", true, false)).is_null()
+	_assert_gained_frame(gained)
+	_assert_layout(banana, definition)
+	banana.show_gained("")
+	await get_tree().process_frame
+	assert_object(banana.gained()).is_null()
+	assert_int(banana.glyphs().size()).is_equal(printed)
+	_assert_layout(banana, definition)
+
+
+## A gained glyph's amber frame: one art px round its 9x9 art, behind it.
+func _assert_gained_frame(gained: FamilyGlyph) -> void:
+	var frame: Control = gained.get_node(PriceSticker.GAINED_FRAME_NAME) as Control
+	assert_object(frame).is_not_null()
+	assert_bool(frame.show_behind_parent).is_true()
+	assert_object(Rect2(frame.position, frame.size)).is_equal(
+		Rect2(Vector2.ZERO, gained.size).grow(ArtStyle.ART_SCALE)
+	)
+	assert_object(PriceSticker.gained_frame_ink()).is_equal(Palette.MUSTARD_DARK)
 
 
 ## A hovered giver's target (#71) gets a gold ring inside its outline, its face unchanged.
@@ -704,7 +715,8 @@ static func _layout_problems(
 	if sticker.find_children("*Lock*", "", true, false).size() > 0:
 		problems.append("%s: a padlock" % id)
 	var window: Rect2 = Rect2(sticker.window().position, sticker.window().size)
-	if window != Rect2(PriceSticker.WINDOW_AT, PriceWindow.SIZE) or not face.encloses(window):
+	var room: Rect2i = TicketFace.window_rect(sticker.is_wide())
+	if window != Rect2(room.position * 2, room.size * 2) or not face.encloses(window):
 		problems.append("%s: window at %s" % [id, window])
 	if window.intersects(text) or window.intersects(plate):
 		problems.append("%s: window over the plate" % id)
@@ -721,7 +733,7 @@ static func _glyph_problems(
 ) -> PackedStringArray:
 	var problems: PackedStringArray = PackedStringArray()
 	var id: String = String(definition.id)
-	var label: Rect2i = TicketFace.label_rect(sticker.is_tall())
+	var label: Rect2i = TicketFace.label_rect(sticker.is_wide())
 	var label_rect: Rect2 = Rect2(label.position * 2, label.size * 2)
 	var expected: PackedStringArray = PackedStringArray(["Coupon"])
 	if definition.is_product():
@@ -729,12 +741,11 @@ static func _glyph_problems(
 	var shown: PackedStringArray = PackedStringArray()
 	for glyph: FamilyGlyph in sticker.glyphs():
 		var rim: Rect2 = glyph.rim_rect()
+		var index: int = sticker.glyphs().find(glyph)
+		var at: Vector2 = PriceSticker.ICON_FIRST + Vector2(PriceSticker.ICON_STEP * index, 0)
+		if glyph.position != at:
+			problems.append("%s: glyph %d at %s" % [id, index, glyph.position])
 		if not String(glyph.name).begins_with("Gained"):
-			var at: Vector2 = (
-				PriceSticker.ICON_FIRST + Vector2(PriceSticker.ICON_STEP * shown.size(), 0)
-			)
-			if glyph.position != at:
-				problems.append("%s: glyph %d at %s" % [id, shown.size(), glyph.position])
 			shown.append(glyph.family)
 		if not label_rect.grow(1).encloses(rim):
 			problems.append("%s: glyph %s outside the label" % [id, glyph.family])
