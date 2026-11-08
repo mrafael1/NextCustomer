@@ -6,7 +6,7 @@ extends RefCounted
 ## once, MonitorText.row_parts) right-aligned in one column (AMOUNT_MIN wide): a bonus ("+6€")
 ## name and amount in green (PR #138 round 2; round 6: its name too), a factor ("×2") in its
 ## strength's ink (factor_step, PR #138 round 3: the higher, the hotter) under a green name when
-## over ×1 (v1.15; a "×1" one's teal), its digits ending where the euro amounts' digits end
+## over ×1 (v1.16; a "×1" one's teal), its digits ending where the euro amounts' digits end
 ## (round 6: the "€" column left to the euros), a
 ## harmful row's (a factor under ×1 or a minus amount too) name and amount in tomato with its sign
 ## kept and a "!" when it has no icon, a fizzle's reason in tomato with WASTED, a "gives" row (what
@@ -283,7 +283,7 @@ static func amount_colour_of(amount: String, tone: Tone) -> Color:
 ## A row's name's colour (PR #138 round 6, the user's "positive bonus ... names in green and
 ## negative in red"): a "gives" row's teal (its amount is someone else's); a fizzle's, a harmful
 ## row's and one whose `amount` lowers the pay (lowers) tomato, as their amount; a bonus's ("+6€")
-## and a factor's over ×1 (raises; v1.15, the user's "multiplier (if > 1.0) should also put text
+## and a factor's over ×1 (raises; v1.16, the user's "multiplier (if > 1.0) should also put text
 ## on green") green, its amount keeping its strength's ink; else (a factor of exactly ×1, a row
 ## with no amount) teal.
 static func name_colour_of(amount: String, tone: Tone, gives: bool) -> Color:

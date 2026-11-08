@@ -526,7 +526,7 @@ func test_the_description_band_and_the_open_equation() -> void:
 ## negative in red" and "multiplier should be aligned with other number"): over a ladder of
 ## amounts (the base price, bonuses, factors from ×1 to ×5, a harmful factor, a minus amount, a
 ## 0€ denial and WASTED), a bonus's name green as its amount, a harmful row's and an unused one's
-## tomato, a factor's over ×1 green too (v1.15, the user's "multiplier (if > 1.0) should also put
+## tomato, a factor's over ×1 green too (v1.16, the user's "multiplier (if > 1.0) should also put
 ## text on green"; its amount keeps its strength's ink), a ×1 factor's and the base line's names
 ## their own (teal, ink); every euro amount's and
 ## WASTED's visible ink on one right edge, every factor's digits ending on the euro amounts' digits,
@@ -740,7 +740,7 @@ func _assert_band_on_paper(column: MonitorItemColumn, case_name: String) -> void
 	assert_int(feet).override_failure_message(case_name).is_greater(0)
 
 
-## v1.15 (the user's "multiplier (if > 1.0) should also put text on green"): a factor over ×1
+## v1.16 (the user's "multiplier (if > 1.0) should also put text on green"): a factor over ×1
 ## ("×1.25", "×1.5", "×2", "×5") names its row in the bonuses' green, legible on the monitor's
 ## paper (3:1 or more), its amount keeping its strength's ink; a ×1 factor's name stays teal, a
 ## factor under ×1 tomato, and a "gives" row's teal whatever its factor (its amount is another

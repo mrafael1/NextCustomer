@@ -130,7 +130,7 @@ func test_the_chips_lay_out_in_the_top_bar() -> void:
 ## the name grew from 13 to 15 px, and TopBar.fit_inspection hides it first when the day chip runs
 ## short): TRAINING, the longest week name, beside each inspection's chip text, with the bonus
 ## ticket's pill where the inspection promises one, the chips still apart. A review's two maluses
-## keep the pips (v1.15: the chip shows "Review" only, at its fixed width). Since the 2026-11-05
+## keep the pips (v1.16: the chip shows "Review" only, at its fixed width). Since the 2026-11-05
 ## review the name also gives way to the week's overtime tickets packed small.
 func test_the_week_name_stays_beside_every_day_event() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
@@ -760,7 +760,7 @@ static func _event_log() -> EventLogService:
 ## run, at 1280x720 and 1920x1080, the week chip reads "W :", the week's number in its week's ink
 ## (WeekChip.number_ink) and "/<week count>" (from the balance), with one pip per day of the
 ## current week only (no box for the other weeks), and the chips keep inside the stage and apart:
-## on the review days too, where the day chip reads "Review" alone (v1.15), untrimmed. The number's
+## on the review days too, where the day chip reads "Review" alone (v1.16), untrimmed. The number's
 ## inks follow the big numbers' colours (_assert_the_number_inks).
 func test_the_week_chip_reads_the_week_out_of_the_run() -> void:
 	_assert_the_number_inks()
@@ -804,7 +804,7 @@ func test_the_week_chip_reads_the_week_out_of_the_run() -> void:
 			var tag: InspectionTag = screen._stage.top_bar.inspection_tag
 			if InspectionSchedule.is_review_shift(run.balance, shift_index + 1):
 				reviews += 1
-				# "Review" alone (v1.15: no effects), at the chip's full fixed width.
+				# "Review" alone (v1.16: no effects), at the chip's full fixed width.
 				assert_bool(tag.is_shortened()).override_failure_message(message).is_false()
 				assert_str(tag.label().text).override_failure_message(message).is_equal(
 					InspectionTag.REVIEW_CAPTION
@@ -846,7 +846,7 @@ static func _contrast(a: Color, b: Color) -> float:
 	return maxf(la, lb) / minf(la, lb)
 
 
-## A review day reads "Review" (v1.15, the user's play-test note of 2026-11-07: no effects on the
+## A review day reads "Review" (v1.16, the user's play-test note of 2026-11-07: no effects on the
 ## day chip): on every week's review shift, at 1280x720 and 1920x1080, beside a 4-box loyalty
 ## card, any two of the pool's inspections leave the chip at the same fixed width, untrimmed and
 ## unshortened, with the week chip's name and pips beside it.

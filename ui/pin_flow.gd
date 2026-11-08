@@ -281,7 +281,7 @@ func _pin_card_blocked() -> bool:
 
 
 ## The day chip's SKIP tag: while today can be taken off, in planning, outside redraw mode. While
-## the run wears a Day off, the chip keeps the tag's room on every day (v1.15: the bar stands
+## the run wears a Day off, the chip keeps the tag's room on every day (v1.16: the bar stands
 ## still).
 func _show_skip(planning: bool) -> void:
 	var tag: InspectionTag = _screen._inspection_tag

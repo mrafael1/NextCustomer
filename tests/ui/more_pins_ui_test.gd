@@ -366,7 +366,7 @@ func test_express_lane_stays_off_the_day_chip() -> void:
 	screen.run.inspections = [load("res://data/inspections/spot_check.tres")]
 	screen._refresh()
 	await _frames(2)
-	assert_str(chip._label.text).is_equal(InspectionTag.CAPTION)  # The kind only (v1.15).
+	assert_str(chip._label.text).is_equal(InspectionTag.CAPTION)  # The kind only (v1.16).
 	assert_str(chip._label.text).not_contains("Ends ×2")
 	assert_str(chip._label.text).not_contains("Express lane")
 	assert_str(chip._tips).not_contains("Express lane")

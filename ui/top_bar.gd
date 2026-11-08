@@ -5,7 +5,7 @@ extends HBoxContainer
 ## shift_scene_polish_v2.html section 2, A2: the SPEND chip is gone; the quota is the receipt's
 ## TODAY'S TARGET and its gauge a tube beside the receipt): SHIFT n/m, the week chip (v0.70,
 ## WeekChip: "W : 2/4", the week's name, its day pips), the inspection chip (the day chip since
-## v0.70: "D6" and the day's kind, paper, with the mustard warning sign and "Inspection" (v1.15:
+## v0.70: "D6" and the day's kind, paper, with the mustard warning sign and "Inspection" (v1.16:
 ## no effect, a fixed width), the effects in its hover text and its slip), the LOYALTY chip with its
 ## stamps, then (pushed to the row's end by a spacer) the Cart button with its trolley and the menu
 ## button (three drawn bars) whose menu holds Guide (the staff handbook, v1.06) and Export log. With
@@ -129,7 +129,7 @@ func _refresh_shift_chip() -> void:
 	shift_chip.visible = not _weeks
 
 
-## Keeps the row inside ROW_SIZE.x less FIT_MARGIN. The day chip has a fixed width since v1.15
+## Keeps the row inside ROW_SIZE.x less FIT_MARGIN. The day chip has a fixed width since v1.16
 ## (InspectionTag.reserved_width: the day's kind only, never its effects, so the bar stands still
 ## from day to day); when the other chips leave it less, the chips first close up to TIGHT_GAP
 ## apart (2026-11-06, the week medals' room, mock-up week_medals.html: "the bar makes room by

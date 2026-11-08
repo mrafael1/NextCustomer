@@ -22,7 +22,7 @@ enum Tone { MALUS, BOON, WEEK }
 ## "Slot 3 pays 0€".
 @export_multiline var notice_text: String = ""
 ## The effect in a few words ("−1 slot"; a boon's "quota −10%"), for the time card and a boon's
-## notice ("TOMORROW: Quiet morning (quota −10%)"). Since v1.15 the top bar's day chip names the
+## notice ("TOMORROW: Quiet morning (quota −10%)"). Since v1.16 the top bar's day chip names the
 ## day's kind only ("Inspection", the boon's name); its hover text gives the name and the notice.
 @export var chip_text: String = ""
 ## The event's icon on the time card (v0.70, mock-up rota_card_v1.html), a res:// path drawn at

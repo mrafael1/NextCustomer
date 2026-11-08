@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## The day chip names the day's kind only, at one fixed width (v1.15, the user's play-test note of
+## The day chip names the day's kind only, at one fixed width (v1.16, the user's play-test note of
 ## 2026-11-07: "Days shouldn't show quick effect (exemple : "D12 review . slot 3 pays 0 . quota +
 ## 10%"). bar is expanding too much depending on days"): "D5 Normal day", "D6 Inspection", "D7
 ## Fresh delivery" (a boon day's boon), "D8 Review", the effects only in the tooltip and the slip.
@@ -75,7 +75,7 @@ func test_every_kind_of_day_keeps_the_bar_still() -> void:
 			assert_array(_bar_rects(bar)).override_failure_message(message).is_equal(first)
 
 
-## A new week (v1.15 review: the week chip's name, TRAINING to CLEARANCE, moved the bar on D5, D9
+## A new week (v1.16 review: the week chip's name, TRAINING to CLEARANCE, moved the bar on D5, D9
 ## and D13): the week chip keeps the room of the run's widest week name and number, so every top
 ## bar chip keeps its place across weeks too, at both window sizes.
 func test_a_new_week_keeps_the_bar_still() -> void:

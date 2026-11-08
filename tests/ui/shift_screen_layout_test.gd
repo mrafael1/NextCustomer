@@ -339,7 +339,7 @@ func test_the_top_bar_fits_its_longest_texts() -> void:
 		assert_int(screen._quota_meter.amount()).is_equal(9999)
 		assert_int(screen._quota_meter.shown_lap()).is_greater_equal(QuotaLaps.FIRST_LAP)
 		assert_int(screen._loyalty_card.box_texts().size()).is_equal(4)
-		# The day's kind only (v1.15): a boon's name, else "Inspection"; no effect.
+		# The day's kind only (v1.16): a boon's name, else "Inspection"; no effect.
 		var chip_text: String = (
 			inspection.display_name if inspection.is_boon() else InspectionTag.CAPTION
 		)
@@ -671,7 +671,7 @@ func test_numbers_use_the_number_font() -> void:
 
 
 ## Every character the screen prints is in the font that prints it, including "−" (U+2212) on
-## the receipt's end-of-shift lines (the day chip names the day's kind only since v1.15).
+## the receipt's end-of-shift lines (the day chip names the day's kind only since v1.16).
 func test_every_printed_character_has_its_glyph() -> void:
 	var screen: ShiftScreen = await _rich_screen()
 	assert_str(screen._inspection_tag.text()).is_equal(InspectionTag.CAPTION)

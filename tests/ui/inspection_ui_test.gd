@@ -103,7 +103,7 @@ func test_the_notice_comes_before_the_machine() -> void:
 	assert_str(_last_event("checkout")["next_inspection"]).is_equal("spot_check")
 	screen._machine.debug_skip()
 
-	# Shift 3: the chip shows the day's kind in the top bar (v1.15: no effect; its name and
+	# Shift 3: the chip shows the day's kind in the top bar (v1.16: no effect; its name and
 	# notice on hover), never on the loyalty card.
 	assert_int(run.shift_index).is_equal(2)
 	assert_bool(screen._inspection_tag.visible).is_true()

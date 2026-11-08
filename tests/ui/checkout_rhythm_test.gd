@@ -81,7 +81,7 @@ func test_the_monitor_keeps_bonus_lines_and_folds_only_the_earliest_overflow() -
 ## The count's lines keep every maths symbol: a multiplier reads "Multipack" with its "×3" as its
 ## amount, in its strength's ink (PR #138 round 3; the factor shows once); a + amount is green
 ## (PR #138 round 2) and so are its giver's words (round 6); a multiplier's words over ×1 are green
-## too (v1.15, the user's "multiplier (if > 1.0) should also put text on green"; "×1.5" as well),
+## too (v1.16, the user's "multiplier (if > 1.0) should also put text on green"; "×1.5" as well),
 ## a ×1 one's teal. The
 ## payout shows only its result at the foot (PR #138 monitor: "= 24€", no equation row, no "Pays"
 ## row).

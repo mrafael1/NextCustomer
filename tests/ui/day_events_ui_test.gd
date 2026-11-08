@@ -1,6 +1,6 @@
 extends GdUnitTestSuite
 ## Day events on the real shift screen (v0.69, plan section 3.9): a boon day's green chip in the
-## top bar ("Quiet morning" since v1.15, the boon coin) lies inside the chip, the bar and
+## top bar ("Quiet morning" since v1.16, the boon coin) lies inside the chip, the bar and
 ## the stage between the QUOTA and LOYALTY chips, and the quota reads the boon's; the next shift's
 ## boon prints in green on the receipt ("TOMORROW: ..."), on screen; a boon day's pass earns no
 ## INSPECTION PASSED; and a boon's steps play in the count-up from its chip (Happy hour's +3€,
@@ -36,7 +36,7 @@ func test_a_boon_chip_lays_out_in_the_top_bar() -> void:
 	var tag: InspectionTag = screen._inspection_tag
 	assert_bool(tag.visible).is_true()
 	assert_bool(tag.is_boon()).is_true()
-	# The boon's name only (v1.15); its effect is in the tooltip and the day's slip.
+	# The boon's name only (v1.16); its effect is in the tooltip and the day's slip.
 	assert_str(tag.text()).is_equal("Quiet morning")
 	assert_str(tag.tooltip_text).contains("TODAY: Quiet morning")
 	# Green, never the inspection's tomato pale; the boon coin, not the warning sign.

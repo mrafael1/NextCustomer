@@ -8,8 +8,8 @@ extends GdUnitTestSuite
 ## quota_meter_test); the menu opens under its button
 ## with Export log, drawn sharp, which closes it and says so; Cart's trolley sits left of its
 ## caption inside the button and the menu's bars in its middle; the chips' decor takes no clicks.
-## Its place on the screen: shift_screen_layout_test. The week chip's lettering (v1.10) is
-## checked here; its layout in week_card_ui_test.
+## Its place on the screen: shift_screen_layout_test. The week chip's lettering (v1.10) and its
+## centred ink (v1.14) are checked here; its layout in week_card_ui_test.
 
 const BALANCE := "res://data/balance/balance.tres"
 const STARTER := "res://data/decks/starter.tres"
@@ -236,17 +236,150 @@ func test_the_chip_letters_its_words_as_its_number() -> void:
 		[chip.name_label(), chip.pips_view()]
 	]
 	_assert_apart(pairs)
-	# Every part stands on the number's baseline (its box's foot less its margin and descent),
-	# within half a pixel: its lift is a whole pixel that stays whole at the 1.5x stretch.
-	for part: Label in [chip.key_label(), chip.count_label(), chip.name_label()]:
-		var lift: float = part.get_theme_stylebox("normal").get_margin(SIDE_BOTTOM)
-		assert_float(fmod(lift * 1.5, 1.0)).override_failure_message(part.name).is_equal(0.0)
-		assert_float(_baseline(part)).override_failure_message(part.name).is_equal_approx(
-			_baseline(number), 0.5
-		)
 	chip.show_name(false)
 	await _frames(2)
 	_assert_apart([[chip.count_label(), chip.pips_view()]])
+
+
+## Centred ink (v1.14; the user's play of main on 2026-11-06: "Week box has main week centered but
+## other texts aren't centered"): on every week's chip in the bar, "W :", "/4" and the week's name
+## sit centred on the chip's height as the number does: each one's ink middle (half way between
+## its glyphs' highest and lowest outline points, measured from the font, not the label's box) is
+## within half a pixel of the number's and of the chip's middle, on a whole-pixel baseline; the
+## pips are centred too, and the chip keeps its height (the number's line in the frame's margins).
+## The baselines are the layout's (each label's box, top margin and the font's ascent), so this
+## checks where the chip places each line; the captures check the drawn pixels.
+func test_the_chip_centres_its_words_ink() -> void:
+	var bar: TopBar = auto_free(TopBar.new())
+	add_child(bar)
+	bar.show_weeks(true)
+	var balance: BalanceDefinition = load(BALANCE)
+	var run: RunState = RunState.new(43, load(STARTER), balance, RunStock.starting(balance))
+	run.start_shift()
+	var chip: WeekChip = bar.week_chip
+	var number: Label = chip.number_label()
+	var font: Font = number.get_theme_font("font")
+	var frame: StyleBoxTexture = chip.get_theme_stylebox("panel")
+	var height: float = ceilf(font.get_height(WeekChip.NUMBER_SIZE))
+	height += frame.texture_margin_top + frame.texture_margin_bottom
+	var names: Dictionary[String, bool] = {}
+	for shift_index: int in range(run.shift_count()):
+		run.debug_skip_to_shift(shift_index)
+		chip.show_week(WeekCardModel.of(run))
+		await _frames(2)
+		var message: String = "shift %d" % (shift_index + 1)
+		var middle: float = chip.get_global_rect().get_center().y
+		var number_ink: float = _ink_middle(number)
+		assert_float(number_ink).override_failure_message(message).is_equal_approx(middle, 0.5)
+		for part: Label in [chip.key_label(), chip.count_label(), chip.name_label()]:
+			if not part.visible:
+				continue
+			var what: String = "%s's %s (%s)" % [message, part.name, part.text]
+			var ink: float = _ink_middle(part)
+			assert_float(ink).override_failure_message(what).is_equal_approx(number_ink, 0.5)
+			assert_float(ink).override_failure_message(what).is_equal_approx(middle, 0.5)
+			assert_bool(_is_whole(_baseline(part))).override_failure_message(what).is_true()
+		names[chip.name_label().text] = true
+		var pip: Rect2 = chip.pips_view().get_global_transform() * chip.pip_rect(0)
+		assert_float(pip.get_center().y).override_failure_message(message).is_equal_approx(
+			middle, 0.5
+		)
+		assert_float(chip.size.y).override_failure_message(message).is_equal(height)
+		assert_float(bar.size.y).is_equal(height)
+	# Every week's name was measured.
+	assert_int(names.size()).is_greater(1)
+
+
+## At the 1920x1080 window's 1.5x stretch (here the bar scaled 1.5x, half a screen pixel down, so
+## no part's line lands on a whole pixel by chance): every word's baseline is on a whole screen
+## pixel (_centre_parts' snap), and its ink middle within half a canvas pixel (0.75 screen px) of
+## the number's and of the chip's middle, on every shift's chip.
+func test_the_chip_centres_its_words_on_whole_pixels_at_1_5x() -> void:
+	var bar: TopBar = auto_free(TopBar.new())
+	add_child(bar)
+	bar.show_weeks(true)
+	bar.position = Vector2(0.0, 0.5)
+	bar.scale = Vector2(1.5, 1.5)
+	var balance: BalanceDefinition = load(BALANCE)
+	var run: RunState = RunState.new(43, load(STARTER), balance, RunStock.starting(balance))
+	run.start_shift()
+	var chip: WeekChip = bar.week_chip
+	var number: Label = chip.number_label()
+	var off_pixel: int = 0
+	for shift_index: int in range(run.shift_count()):
+		run.debug_skip_to_shift(shift_index)
+		chip.show_week(WeekCardModel.of(run))
+		await _frames(2)
+		var message: String = "shift %d at 1.5x" % (shift_index + 1)
+		var screen: Transform2D = WeekChip.screen_transform(chip)
+		assert_float(screen.get_scale().y).is_equal_approx(1.5, 0.001)
+		var middle: float = (screen * Vector2(0.0, chip.size.y / 2.0)).y
+		var number_ink: float = _screen_baseline(number) + _ink_offset(number) * 1.5
+		assert_float(number_ink).override_failure_message(message).is_equal_approx(middle, 0.75)
+		for part: Label in [chip.key_label(), chip.count_label(), chip.name_label()]:
+			if not part.visible:
+				continue
+			var what: String = "%s's %s (%s)" % [message, part.name, part.text]
+			var baseline: float = _screen_baseline(part)
+			assert_bool(_is_whole(baseline)).override_failure_message(what).is_true()
+			var ink: float = baseline + _ink_offset(part) * 1.5
+			assert_float(ink).override_failure_message(what).is_equal_approx(number_ink, 0.75)
+			assert_float(ink).override_failure_message(what).is_equal_approx(middle, 0.75)
+		if not _is_whole(_screen_baseline(number)):
+			off_pixel += 1
+	# The number is placed exactly, so off the screen's pixels on some chip: the words' whole
+	# baselines are the snap's, not the layout's chance.
+	assert_int(off_pixel).is_greater(0)
+
+
+## Whether `value` is a whole number (within float error).
+static func _is_whole(value: float) -> bool:
+	return absf(value - roundf(value)) < 0.001
+
+
+## `label`'s baseline (one line, top-aligned, lowered by its box's top margin), in global
+## coordinates.
+static func _baseline(label: Label) -> float:
+	return label.get_global_rect().position.y + _line_top(label)
+
+
+## `label`'s baseline in the window's pixels (WeekChip.screen_transform: its canvas, then the
+## stretch).
+static func _screen_baseline(label: Label) -> float:
+	return (WeekChip.screen_transform(label) * Vector2(0.0, _line_top(label))).y
+
+
+## `label`'s baseline in its own coordinates: its box's top margin plus the font's ascent.
+static func _line_top(label: Label) -> float:
+	var top: float = label.get_theme_stylebox("normal").get_margin(SIDE_TOP)
+	return top + label.get_theme_font("font").get_ascent(label.get_theme_font_size("font_size"))
+
+
+## The middle of `label`'s ink in global coordinates (its baseline plus _ink_offset).
+static func _ink_middle(label: Label) -> float:
+	return _baseline(label) + _ink_offset(label)
+
+
+## The middle of `label`'s ink from its baseline, in its own pixels: half way between its glyphs'
+## highest and lowest outline points (the font's glyph contours, character by character). Its ink
+## outline grows round the glyphs, so it keeps this middle.
+static func _ink_offset(label: Label) -> float:
+	var server: TextServer = TextServerManager.get_primary_interface()
+	var font: Font = label.get_theme_font("font")
+	var size: int = label.get_theme_font_size("font_size")
+	var top: float = INF
+	var bottom: float = -INF
+	for character: String in label.text:
+		for rid: RID in font.get_rids():
+			var glyph: int = server.font_get_glyph_index(rid, size, character.unicode_at(0), 0)
+			if glyph == 0:
+				continue
+			var contours: Dictionary = server.font_get_glyph_contours(rid, size, glyph)
+			for point: Vector3 in contours.get("points", PackedVector3Array()):
+				top = minf(top, point.y)
+				bottom = maxf(bottom, point.y)
+			break
+	return (top + bottom) / 2.0
 
 
 ## Each pair's outlines (a label's text grown by half its outline; the pips have none) leave at
@@ -262,14 +395,6 @@ func _assert_apart(pairs: Array[Array]) -> void:
 			. override_failure_message("%s's outline meets %s's" % [left.name, right.name])
 			. is_greater_equal(1.0)
 		)
-
-
-## `label`'s baseline (one line, bottom-aligned), in global coordinates.
-static func _baseline(label: Label) -> float:
-	var foot: float = label.get_global_rect().end.y
-	foot -= label.get_theme_stylebox("normal").get_margin(SIDE_BOTTOM)
-	var size: int = label.get_theme_font_size("font_size")
-	return foot - label.get_theme_font("font").get_descent(size)
 
 
 static func _outline_of(part: Control) -> int:

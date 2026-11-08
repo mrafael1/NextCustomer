@@ -54,7 +54,7 @@ var week_number: int = 1
 var week_count: int = 1
 ## The week's fixed event, or null.
 var event: WeekEventDefinition
-## Every week's short name in the run (each week event's chip_text, none empty; v1.15): the week
+## Every week's short name in the run (each week event's chip_text, none empty; v1.16): the week
 ## chip keeps room for the widest, so the top bar doesn't move as a new week starts.
 var chip_names: PackedStringArray = PackedStringArray()
 ## The misses the training week forgives in all (0 outside it, or with a balance without slips).

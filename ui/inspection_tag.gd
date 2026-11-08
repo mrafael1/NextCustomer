@@ -3,7 +3,7 @@ extends PanelContainer
 ## The current shift's day events in the top bar (plan section 3.9; #80 step 10, mock-up B2): an
 ## inspection's (a MALUS) chip is tomato pale with the mustard warning sign and "Inspection" in the
 ## body font; a boon day's (v0.69) is green with the boon coin and the boon's name ("Quiet
-## morning"). Since v1.15 (the user's play-test note of 2026-11-07: "Days shouldn't show quick
+## morning"). Since v1.16 (the user's play-test note of 2026-11-07: "Days shouldn't show quick
 ## effect", the bar grew and shrank from day to day) the chip names only the day's kind, no
 ## effect; its hover text and the slip that drops on a tap (DaySlip) keep the effects. Its width is
 ## fixed (reserved_width: its longest text, the run's event names among them), so the top bar
@@ -51,7 +51,7 @@ const NEXT_REVIEW_NOTICE := "MANAGER'S REVIEW NEXT SHIFT: %s"
 ## A boon day's notice (v0.69), in green (ReceiptView.BOON_NOTICE_PREFIX): "TOMORROW: Quiet
 ## morning (quota −10%)".
 const NEXT_BOON_NOTICE := ReceiptView.BOON_NOTICE_PREFIX + "%s"
-## The chip's text (v1.15: the day's kind only): an inspected shift's, and a Manager's review's
+## The chip's text (v1.16: the day's kind only): an inspected shift's, and a Manager's review's
 ## (several at once, v0.65); a boon day's is the boon's name, a day without an event NO_EVENT.
 const CAPTION := "Inspection"
 const REVIEW_CAPTION := "Review"
@@ -154,7 +154,7 @@ func _init() -> void:
 
 
 ## Shows the shift's day events by their kind (empty: hidden): "Inspection", "Review" for several,
-## a boon day's boon name (v1.15: no effect; hovering shows each one's name and notice). With a
+## a boon day's boon name (v1.16: no effect; hovering shows each one's name and notice). With a
 ## 1-based `day_number` (v0.70) the chip leads with "D<day>", shows "Normal day" without an event
 ## and can be tapped. `pool`: every day event the run may draw (its balance's pools), whose names
 ## the chip keeps room for (reserved_width), so its width is the same every day.
@@ -300,7 +300,7 @@ func fit_width(width: float) -> void:
 	custom_minimum_size.x = minf(reserved_width(), width)
 
 
-## The chip's fixed width (v1.15): its padding, the day ("D88": its widest digits), the widest icon
+## The chip's fixed width (v1.16): its padding, the day ("D88": its widest digits), the widest icon
 ## and its widest text (every day kind, the run's event names: show_inspections' `pool`), the SKIP
 ## tag's room while the run wears a Day off (show_skip), and the pill while it shows (no default
 ## balance shows it: a review's pass pays a payday instead).
@@ -343,7 +343,7 @@ func text_width(words: String) -> float:
 	return ceilf(font.get_string_size(words, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x)
 
 
-## The day's kind on the chip (v1.15): "Review" for several inspections, "Inspection" for one, a
+## The day's kind on the chip (v1.16): "Review" for several inspections, "Inspection" for one, a
 ## boon day's boon name, else NO_EVENT.
 static func kind_text(events: Array[InspectionDefinition]) -> String:
 	match WeekCardModel.kind_of(events):

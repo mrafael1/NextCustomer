@@ -130,7 +130,7 @@ func show_chips() -> void:
 
 
 ## Every day event `run` may draw (its balance's inspection and boon pools): the day chip keeps
-## room for each one's name (v1.15), so its width is the same every day.
+## room for each one's name (v1.16), so its width is the same every day.
 static func event_pool(run: RunState) -> Array[InspectionDefinition]:
 	return run.balance.inspection_pool + run.balance.boon_pool
 

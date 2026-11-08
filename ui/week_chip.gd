@@ -25,6 +25,12 @@ extends PanelContainer
 ## (SMALL_SIZE), so the chip reads as one strong sticker family (v1.12: v1.10's thin, undropped
 ## words read weaker than the 1). The number still stands out by its size and its week's ink.
 ## KEY_GAP and NAME_GAP keep each part's outline clear of its neighbour's. The pips stay quiet.
+## Centred ink (v1.14; the user's play of main on 2026-11-06: "Week box has main week centered but
+## other texts aren't centered"): every part's ink (its glyphs' outlines, so its caps and its ink
+## outline, not the font's descent or line gap; the drop, the same under all, aside) is centred on
+## the chip's height, not stood on the number's baseline (v1.12's smaller words sat low). The
+## number sits exactly centred; the words' baselines snap to the screen's whole pixels nearest
+## theirs (_centre_parts), so they stay crisp, within half a screen pixel of the number's middle.
 ## The week's medals (2026-11-06, WeekMedals, MedalSockets): two round sockets after the pips,
 ## SILVER then GOLD, a plain coin while the week's medal is still to spend, shimmering while the
 ## plan would spend it, an engraved empty socket once spent (medals(), WeekFlow.show_medals); the
@@ -65,9 +71,6 @@ const NUMBER_DROP := 2
 ## (9 and 3 screen px). v1.10's thin 2 px outline with no drop read weaker than the 1.
 const SMALL_OUTLINE := 6
 const SMALL_DROP := 2
-## The small parts' lift onto the number's baseline is a multiple of this (lift_of): whole canvas
-## pixels that land on whole screen pixels at the 1.5x stretch.
-const LIFT_STEP := 2
 ## An ink too dark on the ink outline (WCAG contrast under DARK_INK_CONTRAST: the velvet's 4,
 ## v1.02 review) is outlined in paper instead, a sticker on the chip, its drop still ink.
 const DARK_INK_CONTRAST := 3.0
@@ -129,6 +132,10 @@ const CROSS_PIXELS: Array[Vector2i] = [
 ]
 const CHIP_FRAME := preload("res://art/frames/chip_warn.png")
 
+## ink_middle's results by font, size and text: _centre_parts reruns whenever the chip moves, so a
+## text is shaped once, not on every move.
+static var _ink_middles: Dictionary[String, float] = {}
+
 ## Today's result waits for flash(): its pip shows as today's (WeekFlow.show_chips, counting).
 var hold_result: bool = false
 
@@ -153,9 +160,15 @@ func _init() -> void:
 	var style: StyleBoxTexture = ArtStyle.frame_style(CHIP_FRAME, FramedButton.FRAME_MARGIN)
 	style.content_margin_left = PADDING
 	style.content_margin_right = PADDING
+	# The parts fill the chip's whole height, so a lowered line never outgrows it: _centre_parts
+	# places their ink. The chip keeps v1.12's height (height_of), so the bar keeps its own.
+	style.content_margin_top = 0
+	style.content_margin_bottom = 0
 	add_theme_stylebox_override("panel", style)
-	custom_minimum_size.y = TopBar.ROW_SIZE.y
+	custom_minimum_size.y = height_of(style)
 	ArtStyle.use_pixel_material(self)
+	# A moved chip re-centres its words on the screen's pixels (_centre_parts).
+	set_notify_transform(true)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	var row: HBoxContainer = HBoxContainer.new()
@@ -164,9 +177,7 @@ func _init() -> void:
 	add_child(row)
 	var words: HBoxContainer = HBoxContainer.new()
 	words.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# As tall as the number, centred on the chip: the smaller words, bottom-aligned in it, stand on
-	# the number's baseline (their feet and drops level with its).
-	words.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	# As tall as the chip's inside, as every part: each one's ink is centred in it (_centre_parts).
 	words.add_theme_constant_override("separation", NAME_GAP)
 	row.add_child(words)
 	var number_row: HBoxContainer = HBoxContainer.new()
@@ -202,15 +213,11 @@ func _init() -> void:
 
 ## The chip's lettering: the number font at `font_size` in paper, outlined `outline` px in ink with
 ## an ink drop `drop` px down, as wide as the outline (show_week recolours the number's ink and
-## outline). Bottom-aligned in the words box (as tall as the number), raised by the number's
-## descent less its own, rounded to whole pixels that stay whole at 1920x1080's 1.5x (LIFT_STEP),
-## so every part stands on the number's baseline (within a third of a pixel) and stays crisp.
+## outline). As tall as the chip's inside, its line at the top, lowered by its box's top margin so
+## its ink is centred on the chip (_centre_parts).
 static func _lettered(text: String, font_size: int, outline: int, drop: int) -> Label:
 	var label: Label = UiKit.number_label(text, font_size, false)
-	var font: Font = label.get_theme_font("font")
-	var raise: StyleBoxEmpty = StyleBoxEmpty.new()
-	raise.content_margin_bottom = lift_of(font, font_size)
-	label.add_theme_stylebox_override("normal", raise)
+	label.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
 	label.add_theme_color_override("font_color", Palette.PAPER)
 	label.add_theme_constant_override("outline_size", outline)
 	label.add_theme_color_override("font_outline_color", Palette.INK)
@@ -219,16 +226,73 @@ static func _lettered(text: String, font_size: int, outline: int, drop: int) -> 
 	label.add_theme_constant_override("shadow_offset_y", drop)
 	label.add_theme_color_override("font_shadow_color", Palette.INK)
 	label.size_flags_vertical = Control.SIZE_FILL
-	label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+	label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 	return label
 
 
-## How far a part at `font_size` is raised to stand on the number's baseline: the descents'
-## difference in whole LIFT_STEP px (v1.12 review: the exact 1.667 px put the words on half
-## pixels at 1.5x and softened them).
-static func lift_of(font: Font, font_size: int) -> int:
-	var exact: float = font.get_descent(NUMBER_SIZE) - font.get_descent(font_size)
-	return LIFT_STEP * roundi(exact / LIFT_STEP)
+## The chip's height in `frame`: the number's line (rounded up) in the frame's art margins, as
+## v1.12's chip, and never under the bar's row (TopBar.ROW_SIZE).
+static func height_of(frame: StyleBoxTexture) -> float:
+	var line: float = ceilf(ArtStyle.number_font().get_height(NUMBER_SIZE))
+	return maxf(TopBar.ROW_SIZE.y, line + frame.texture_margin_top + frame.texture_margin_bottom)
+
+
+## The middle of `text`'s ink at `font_size` in `font`, in px from its baseline (up is negative):
+## half way between its glyphs' highest and lowest outline points (the caps and their overshoots,
+## a slash's foot; none of the font's descent or line gap). An outline drawn round the glyphs
+## keeps this middle. 0 for a text with no ink. Measured once per font, size and text.
+static func ink_middle(font: Font, font_size: int, text: String) -> float:
+	var key: String = "%d|%d|%s" % [font.get_instance_id(), font_size, text]
+	if not _ink_middles.has(key):
+		_ink_middles[key] = _measure_ink_middle(font, font_size, text)
+	return _ink_middles[key]
+
+
+static func _measure_ink_middle(font: Font, font_size: int, text: String) -> float:
+	var server: TextServer = TextServerManager.get_primary_interface()
+	var shaped: RID = server.create_shaped_text()
+	server.shaped_text_add_string(
+		shaped, text, font.get_rids(), font_size, font.get_opentype_features()
+	)
+	var top: float = INF
+	var bottom: float = -INF
+	for glyph: Dictionary in server.shaped_text_get_glyphs(shaped):
+		var font_rid: RID = glyph["font_rid"]
+		var index: int = glyph["index"]
+		var offset: Vector2 = glyph["offset"]
+		var contours: Dictionary = server.font_get_glyph_contours(font_rid, font_size, index)
+		for point: Vector3 in contours.get("points", PackedVector3Array()):
+			top = minf(top, point.y + offset.y)
+			bottom = maxf(bottom, point.y + offset.y)
+	server.free_rid(shaped)
+	return (top + bottom) / 2.0 if top <= bottom else 0.0
+
+
+## Centres every part's ink (ink_middle) on the chip's height: each label's top margin lowers its
+## line so that its baseline sits the ink's middle under the chip's middle. The number's is exact;
+## the words' baselines take the screen's whole pixel nearest theirs (the window's stretch: 1.5x
+## at 1920x1080), so their feet stay crisp and their middles within half a screen pixel of it.
+func _centre_parts() -> void:
+	if not is_inside_tree() or size.y <= 0.0:
+		return
+	var screen: Transform2D = screen_transform(self)
+	var scale_y: float = screen.get_scale().y
+	var top: float = get_theme_stylebox("panel").get_margin(SIDE_TOP)
+	for label: Label in [_key, _number, _count, _name]:
+		if label.text.is_empty():
+			continue
+		var font: Font = label.get_theme_font("font")
+		var font_size: int = label.get_theme_font_size("font_size")
+		var baseline: float = size.y / 2.0 - ink_middle(font, font_size, label.text)
+		if label != _number:
+			var on_screen: float = roundf(screen.origin.y + baseline * scale_y)
+			baseline = (on_screen - screen.origin.y) / scale_y
+		var margin: float = maxf(0.0, baseline - top - font.get_ascent(font_size))
+		var box: StyleBox = label.get_theme_stylebox("normal")
+		if absf(box.content_margin_top - margin) > 0.001:
+			box.content_margin_top = margin
+			label.update_minimum_size()
+			label.queue_redraw()
 
 
 ## Week `week`'s number's ink (1-based; NUMBER_INKS, a week past them the last).
@@ -266,6 +330,7 @@ func show_week(model: WeekCardModel) -> void:
 	_name.custom_minimum_size.x = widest_name + SMALL_OUTLINE if widest_name > 0.0 else 0.0
 	_name.text = model.chip_name()
 	_name.visible = _name.custom_minimum_size.x > 0.0
+	_centre_parts()
 	_pips = model.pips()
 	if hold_result:
 		_hold_last_result()
@@ -280,7 +345,7 @@ func show_week(model: WeekCardModel) -> void:
 
 
 ## How wide `label` is at its widest with any of `texts` (0 with none but empty ones): the room the
-## number and the name keep (v1.15, the user's "bar is expanding too much depending on days": every
+## number and the name keep (v1.16, the user's "bar is expanding too much depending on days": every
 ## week's chip is as wide as the widest, so the top bar's chips keep their places all run).
 static func _widest(label: Label, texts: PackedStringArray) -> float:
 	var kept: String = label.text
@@ -312,7 +377,7 @@ func medals() -> MedalSockets:
 
 
 ## Shows the short name, or hides it when the bar has no room (TopBar.fit_inspection). Shown, it
-## keeps the room of the run's widest week name, even on a week without one (v1.15).
+## keeps the room of the run's widest week name, even on a week without one (v1.16).
 func show_name(shown: bool) -> void:
 	_name.visible = shown and _name.custom_minimum_size.x > 0.0
 
@@ -424,6 +489,16 @@ func set_relation(related: bool) -> void:
 
 func has_relation() -> bool:
 	return _ringed
+
+
+func _notification(what: int) -> void:
+	match what:
+		NOTIFICATION_ENTER_TREE:
+			get_viewport().size_changed.connect(_centre_parts)
+		NOTIFICATION_EXIT_TREE:
+			get_viewport().size_changed.disconnect(_centre_parts)
+		NOTIFICATION_RESIZED, NOTIFICATION_TRANSFORM_CHANGED:
+			_centre_parts()
 
 
 func _gui_input(event: InputEvent) -> void:
