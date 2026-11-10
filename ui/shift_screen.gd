@@ -92,10 +92,9 @@ var _redraw_button: RegisterKey
 var _cancel_button: FramedButton
 var _checkout_button: FramedButton
 var _results: ResultsPanel
-## The RECEIPT REWARDS machine's visits (#77) and the machine on screen.
-var _machine: MachineFlow
-## Dims the screen and blocks clicks behind the deck view and the results.
-var _shade: ScreenShade
+var _machine: MachineFlow  # The RECEIPT REWARDS machine's visits (#77) and its view.
+var _shade: ScreenShade  # Dims the screen behind the deck view and the results.
+var _pause: PauseFlow  # The pause and the options (Esc, P, the ☰ button).
 var _deck_view: DeckView
 var _row_strip: RowStrip
 ## The register: the count-up's rattle target (the same node as `_cabinet`); its
@@ -180,6 +179,7 @@ func start_new_run(seed_value: int, saves_run: bool = true, reveal: bool = false
 	run.start_shift()
 	_on_shift_started()
 	if reveal and _cart_reveal.play(run, _deck_button, profile.reduced_motion()):
+		_pause.reveal_started_ms = Time.get_ticks_msec()
 		_machine.hold_notice()  # Planning takes input after the reveal (_on_cart_reveal_finished).
 
 
@@ -982,6 +982,7 @@ func _build() -> void:
 	add_child(_glyph_tips)
 	_effects.watch_glyphs(_glyph_tips, _deck_view)  # A glyph's family lights (#105 piece 3).
 	HandbookPage.mount(self, _glyph_tips, _top_bar as TopBar)  # The staff handbook (v1.06).
+	_pause = PauseFlow.new(self, _log)
 
 
 ## Scanning the counter's items is off while the shift is counted, an item is dragged, outside
