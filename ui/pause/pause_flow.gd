@@ -18,6 +18,8 @@ const REVEAL_GUARD_MS := 300
 ## The music's duck under the pause.
 const DUCK_DB := -9.0
 const DUCK_FADE := 0.15
+## How long the SAVED sign shows before the title opens.
+const SAVED_SECONDS := 0.35
 ## The pause's layer, over every other layer of the screen.
 const LAYER := 90
 
@@ -26,6 +28,8 @@ var options: OptionsCard
 var settings: GameSettings = GameSettings.new()
 ## When the cart reveal started playing (Time ms), or -1.
 var reveal_started_ms: int = -1
+## The WELCOME BACK slip of a resumed run.
+var welcome: WelcomeSlip
 
 var _screen: ShiftScreen
 var _log: EventLogService
@@ -46,6 +50,8 @@ func _init(screen: ShiftScreen, log_service: EventLogService) -> void:
 	options = OptionsCard.new()
 	options.still = pause.still
 	layer.add_child(options)
+	welcome = WelcomeSlip.new()
+	layer.add_child(welcome)
 	# First in the tree: unhandled keys reach the screen's other nodes (the picker) first.
 	screen.add_child(layer)
 	screen.move_child(layer, 0)
@@ -127,22 +133,34 @@ func close() -> void:
 
 
 ## SAVE & QUIT: no new save point (the run is saved at its last wait); a drag snaps back, the
-## tree runs again and the title opens with its sign lit.
+## sign flips to SAVED, and the title opens with its sign lit.
 func save_and_quit() -> void:
 	if _screen._drag.is_dragging():
 		_screen._drag.cancel()
 	_log.log_event("run_quit", _where())
-	pause.close()
-	_screen.get_tree().paused = false
+	pause.lane_sign().show_saved()
+	TitleScreen.request_lit()
 	if _ducked:
 		_screen._music.unduck(0.0)
 		_ducked = false
-	TitleScreen.request_lit()
-	if _screen.changes_scene:
-		var sounds: Sfx = Sfx.find(_screen)
-		if sounds != null:
-			sounds.outlive_scene()
-		_screen.get_tree().change_scene_to_file(ShiftScreen.TITLE_SCREEN)
+	if not _screen.changes_scene:
+		pause.close()
+		_screen.get_tree().paused = false
+		return
+	var sounds: Sfx = Sfx.find(_screen)
+	if sounds != null:
+		sounds.play("ui_confirm")
+		sounds.outlive_scene()
+	await _screen.get_tree().create_timer(SAVED_SECONDS).timeout
+	_screen.get_tree().paused = false
+	_screen.get_tree().change_scene_to_file(ShiftScreen.TITLE_SCREEN)
+
+
+## A saved run resumed: the WELCOME BACK slip under the top bar (not on a run's first start).
+func welcome_back() -> void:
+	var run: RunState = _screen.run
+	var centre: float = (pause.size.x + PauseMenu.REGISTER_COLUMN) / 2.0
+	welcome.show_for("Shift %d/%d" % [run.shift_index + 1, run.shift_count()], centre)
 
 
 ## Keys while the screen runs (opening) and while paused (the pause's, the options').

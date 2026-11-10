@@ -44,6 +44,7 @@ var still: bool = false
 var quit_note: String = ""
 
 var _shade: ScreenShade
+var _sign: LaneClosedSign
 var _column: Control
 var _plates: Array[MenuPlate] = []
 var _note: Label
@@ -62,6 +63,8 @@ func _init() -> void:
 	_shade.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_shade.gui_input.connect(_on_shade_input)
 	add_child(_shade)
+	_sign = LaneClosedSign.new()
+	add_child(_sign)
 	_column = Control.new()
 	_column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_column)
@@ -106,6 +109,10 @@ func shade() -> ScreenShade:
 	return _shade
 
 
+func lane_sign() -> LaneClosedSign:
+	return _sign
+
+
 func marked_entry() -> int:
 	return _marked
 
@@ -118,6 +125,7 @@ func open(sub_line: String, hole: Rect2) -> void:
 	_shade.set_hole(hole)
 	_note.add_theme_font_size_override("font_size", UiKit.text_size(NOTE_FONT))
 	_place()
+	_sign.drop(still)
 	mark(Entry.RESUME)
 	if _stepping != null:
 		_stepping.kill()

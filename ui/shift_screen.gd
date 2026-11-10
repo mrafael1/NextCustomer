@@ -71,8 +71,7 @@ var _redraw_busy: bool = false
 var _counting: bool = false
 var _run_started_ms: int = 0
 var _run_ended_ms: int = -1
-## The 1280x720 stage, centred in the window (its hud; its world is in the camera).
-var _stage: ShiftStage
+var _stage: ShiftStage  # The 1280x720 stage, centred (its hud; its world in the camera).
 ## The store's camera (#77 machine v2) and the wall in it, which takes the background clicks.
 var _camera: StoreCamera
 var _wall: ColorRect
@@ -235,6 +234,7 @@ func _resume_run(saved: RunSave) -> void:
 	_run_ended_ms = -1
 	_log.resume_run(saved.run_id)
 	_log.log_event("run_resume", RunEvents.run_resume(run, saved.run_ms))
+	_pause.welcome_back()
 	_machine.reset_swaps()
 	_close_overlays()
 	# A resume never plays a count-up (saves are taken at the click and the machine's visits).

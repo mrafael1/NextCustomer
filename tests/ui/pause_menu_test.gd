@@ -106,6 +106,14 @@ func test_the_plates_stand_clear_of_the_register_column() -> void:
 	var key: Rect2 = screen._checkout_button.get_global_rect()
 	var pause: PauseMenu = screen._pause.pause
 	var window: Rect2 = Rect2(Vector2.ZERO, pause.size)
+	# The LANE CLOSED sign hangs settled over the column, clear of the key and the plates.
+	var hung: LaneClosedSign = pause.lane_sign()
+	assert_bool(hung.is_settled()).is_true()
+	var board: Rect2 = hung.get_global_rect()
+	assert_bool(window.encloses(board)).is_true()
+	assert_bool(board.intersects(key)).is_false()
+	var first: Rect2 = pause.plate(PauseMenu.Entry.RESUME).get_global_rect()
+	assert_float(board.end.y).is_less_equal(first.position.y)
 	for entry: int in PauseMenu.Entry.size():
 		var rect: Rect2 = pause.plate(entry as PauseMenu.Entry).get_global_rect()
 		assert_bool(window.encloses(rect)).is_true()
@@ -141,6 +149,18 @@ func test_save_and_quit_goes_to_the_title_with_the_run_as_saved() -> void:
 		func(card: CardInstance) -> StringName: return card.definition.id
 	)
 	assert_array(saved_hand).is_equal(hand)
+
+
+func test_welcome_back_shows_on_a_resume_not_on_a_first_start() -> void:
+	var first: ShiftScreen = await _screen()
+	assert_bool(first._pause.welcome.visible).is_false()
+	first.changes_scene = false
+	first._pause.save_and_quit()
+	var runner: GdUnitSceneRunner = scene_runner(SCREEN)  # CONTINUE: the save is resumed.
+	var resumed: ShiftScreen = runner.scene()
+	await get_tree().process_frame
+	assert_bool(resumed._pause.welcome.visible).is_true()
+	assert_int(resumed.run.shift_index).is_equal(first.run.shift_index)
 
 
 func _screen() -> ShiftScreen:
