@@ -21,17 +21,17 @@ extends Control
 ## count-up's, so it follows its taps, holds and hit-stops). Reduced motion (`reduced_motion`)
 ## keeps every state (the item shows at its opening beat and goes at once) and drops the motion.
 ##
-## In planning (show_planning) the header reads NEXT over the last placed belt item (an empty bed
-## and GONE_NAME when the belt is empty) with a pip per belt slot, the shown item's gold (BayQueue
-## show_slots; SCANNER with no belt slots), or SCAN while a scan is pinned to an item (belt or
-## hand, ScanController: until another is scanned or placed): that item, the fan
-## and BEEP, the light on in HELD_COLOR. When the item to show changes, the one in the bay slides
-## out over PLAN_OUT_S and the new one drops in (BayBed.FALL_S); the chip keeps the old item until
-## it has slid out, is blank while the new one falls and shows the new one once it has landed. A
-## hold on the item already in the bay just scans it (fan, BEEP, wobble), with no drop. Planning's
-## motion runs on the bay's own tweens. start() (the count) keeps the item in the bay when it is
-## the count's first one, so the first scan needs no drop-in. Reduced motion swaps at once.
-## Display only: the item and the beat are the count-up's.
+## In planning (show_planning) the header reads "SLOT n" over the last placed belt item (an empty
+## bed and GONE_NAME when the belt is empty) with a pip per belt slot, the shown item's gold
+## (BayQueue show_slots; SCANNER with no belt slots), or SCAN while a scan is pinned to an item
+## (belt or hand, ScanController: until another is scanned or placed): that item, the fan and BEEP,
+## the light on in HELD_COLOR. When the item to show changes, the one in the bay slides out over
+## PLAN_OUT_S and the new one drops in (BayBed.FALL_S); the chip keeps the old item until it has
+## slid out, is blank while the new one falls and shows the new one once it has landed. A hold on
+## the item already in the bay just scans it (fan, BEEP, wobble), with no drop. Planning's motion
+## runs on the bay's own tweens. start() (the count) keeps the item in the bay when it is the
+## count's first one, so the first scan needs no drop-in. Reduced motion swaps at once. Display
+## only: the item and the beat are the count-up's.
 
 ## The bay's size, and its parts in its own coordinates: the header (inside the BORDER-wide ink
 ## border), the scan light (7x7 inside a one-pixel ink ring), the header's text from
@@ -428,11 +428,13 @@ func _show_planning_label() -> void:
 
 
 ## The header's text in planning: SCAN while the bay shows a scan (or a held item drops in),
-## else NEXT over the belt (SCANNER with no belt slots).
+## else the shown belt item's "SLOT n" (NEXT on an empty belt; SCANNER with no belt slots).
 func _header_text() -> String:
 	if _label_scan:
 		return BayQueue.SCAN_TEXT
-	return BayQueue.NEXT_TEXT if _slots > 0 else BayQueue.IDLE_TEXT
+	if _slots <= 0:
+		return BayQueue.IDLE_TEXT
+	return BayQueue.SLOT_TEXT % (_at + 1) if _at >= 0 else BayQueue.NEXT_TEXT
 
 
 ## The header in planning: its text over the belt's pips.

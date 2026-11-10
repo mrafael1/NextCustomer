@@ -35,7 +35,8 @@ func after_test() -> void:
 func test_no_pin_shows_nothing() -> void:
 	var screen: ShiftScreen = await _screen([])
 	assert_bool(screen._pins.gun_shown()).is_false()
-	assert_bool(screen._cabinet.keypad.visible).is_true()
+	# The keypad's place shows (under the week glass on a run with weeks).
+	assert_bool(screen._cabinet.keypad.visible or screen._cabinet.week_glass.visible).is_true()
 	assert_object(screen._stage.baskets.holder(0).get_child(0)).is_not_null()
 	assert_bool(_golden(screen, 0)).is_false()
 
@@ -72,22 +73,23 @@ func test_stock_list_shows_a_baskets_coming_items() -> void:
 func test_day_off_skips_the_shift_to_the_machine() -> void:
 	var screen: ShiftScreen = await _screen([DAY_OFF], true)
 	var run: RunState = screen.run
-	var chip: InspectionTag = screen._inspection_tag
-	var tag: Control = chip.skip_tag()
+	var chip: DayCalendar = screen._calendar
+	var tag: Control = chip.tags.skip_tag()
 	assert_bool(tag.is_visible_in_tree()).is_true()
-	assert_bool(chip.get_global_rect().grow(1.0).encloses(tag.get_global_rect())).is_true()
+	# Above the desk calendar's pad (DayTags, left column v2).
+	assert_float(tag.get_global_rect().end.y).is_less_equal(chip.get_global_rect().position.y + 0.5)
 	assert_bool(screen.get_viewport_rect().encloses(tag.get_global_rect())).is_true()
 	assert_bool(screen._pins.gun_shown()).is_false()  # Day off has no gun.
-	assert_str(chip._skip_label.text).is_equal(InspectionTag.SKIP_TEXT)
+	assert_str(chip.tags._skip_label.text).is_equal(DayTags.SKIP_TEXT)
 	var placed: CardInstance = run.hand()[0]
 	assert_bool(run.place(placed, 0)).is_true()
 	screen._refresh()
 	await _frames(2)
-	var width: float = chip.size.x
+	var width: float = chip.reserved_width()
 	screen._pins.press_day_off()
 	await _frames(2)
-	assert_str(chip._skip_label.text).is_equal(InspectionTag.SKIP_ARMED_TEXT)
-	assert_float(chip.size.x).is_equal_approx(width, 0.5)  # Arming never moves the top bar.
+	assert_str(chip.tags._skip_label.text).is_equal(DayTags.SKIP_ARMED_TEXT)
+	assert_float(chip.reserved_width()).is_equal_approx(width, 0.5)  # Arming never moves the bar.
 	assert_array(run.row).is_empty()
 	assert_bool(run.hand().has(placed)).is_true()
 	var pile: DayOffPile = screen._pins.pile()
@@ -107,7 +109,7 @@ func test_day_off_skips_the_shift_to_the_machine() -> void:
 	screen._pins.press_day_off()
 	await _frames(2)
 	assert_object(screen._pins.pile()).is_null()
-	assert_str(chip._skip_label.text).is_equal(InspectionTag.SKIP_TEXT)
+	assert_str(chip.tags._skip_label.text).is_equal(DayTags.SKIP_TEXT)
 	screen._pins.press_day_off()
 	await _frames(2)
 	screen._pins.pile().pressed.emit()
@@ -138,13 +140,13 @@ func test_day_off_skips_an_inspection_day_but_not_a_review() -> void:
 	screen.run.inspections = [load("res://data/inspections/short_belt.tres")]
 	screen._refresh()
 	await _frames(2)
-	assert_bool(screen._inspection_tag.skip_tag().is_visible_in_tree()).is_true()
+	assert_bool(screen._calendar.tags.skip_tag().is_visible_in_tree()).is_true()
 	var balance: BalanceDefinition = screen.run.balance.duplicate()
 	balance.review_shifts = PackedInt32Array([1])
 	screen.run.balance = balance
 	screen._refresh()
 	await _frames(2)
-	assert_bool(screen._inspection_tag.skip_tag().visible).is_false()
+	assert_bool(screen._calendar.tags.skip_tag().visible).is_false()
 
 
 ## Price gun: the labeller lies on the counter (clear of the receipt, the keys, the keypad and
@@ -158,7 +160,12 @@ func test_price_gun_gives_an_item_a_family() -> void:
 	assert_bool(screen._pins.gun_shown()).is_true()
 	var gun: PriceGunItem = screen._pins.gun()
 	_assert_gun_place(screen, gun)
-	assert_bool(screen._cabinet.keypad.is_visible_in_tree()).is_true()  # The keypad stays.
+	# The keypad's place stays (under the week glass on a run with weeks).
+	var cabinet: RegisterCabinet = screen._cabinet
+	(
+		assert_bool(cabinet.keypad.is_visible_in_tree() or cabinet.week_glass.is_visible_in_tree())
+		. is_true()
+	)
 	assert_str(gun.tag_label().text).is_equal(PriceGunItem.LEFT_TEXT % 1)
 	assert_str(gun.tooltip_text).is_equal(PriceGunItem.TIP)
 	var product: CardInstance = null
@@ -351,30 +358,30 @@ func _assert_picker_layout(screen: ShiftScreen, picker: PriceGunPicker, view: It
 
 
 ## Express lane is a run-wide pin, not a daily event: a normal day with it worn reads "Normal
-## day" in the plain day's grey, its tooltip and an inspection day's chip leave it out (the
-## belt's end marks show it), and the chip stays inside the window.
+## day" in the plain day's look (the grey binding), today's slip and an inspection day's page
+## leave it out (the belt's end marks show it), and the calendar stays inside the window.
 func test_express_lane_stays_off_the_day_chip() -> void:
 	var screen: ShiftScreen = await _screen([EXPRESS_LANE], true)
-	var chip: InspectionTag = screen._inspection_tag
-	assert_str(chip._label.text).is_equal("Normal day")
-	assert_str(chip._tips).not_contains("Express lane")
-	var grey: Color = InspectionTag.tint_of(WeekCardModel.Kind.NONE)
-	var paper: Color = Palette.PAPER
-	var tint: Color = Color(grey.r / paper.r, grey.g / paper.g, grey.b / paper.b)
-	assert_bool(chip.self_modulate.is_equal_approx(tint)).is_true()
-	assert_bool(chip.is_boon()).is_false()
+	var chip: DayCalendar = screen._calendar
+	assert_str(chip.text()).is_equal("Normal day")
+	var said: String = _slip_text(screen)
+	assert_str(said).contains(DaySlip.NO_EVENT_EFFECT)
+	assert_str(said).not_contains("Express lane")
+	assert_int(chip.look()).is_equal(DayCalendarArt.Look.NORMAL)
 	screen.run.inspections = [load("res://data/inspections/spot_check.tres")]
 	screen._refresh()
 	await _frames(2)
-	assert_str(chip._label.text).is_equal(InspectionTag.CAPTION)  # The kind only (v1.16).
-	assert_str(chip._label.text).not_contains("Ends ×2")
-	assert_str(chip._label.text).not_contains("Express lane")
-	assert_str(chip._tips).not_contains("Express lane")
+	assert_str(chip.text()).is_equal(InspectionTag.CAPTION)  # The kind only (v1.16).
+	assert_str(chip.full_text()).not_contains("Ends ×2")
+	assert_str(chip.full_text()).not_contains("Express lane")
+	said = _slip_text(screen)
+	assert_str(said).contains("Spot check")
+	assert_str(said).not_contains("Express lane")
 	assert_bool(screen.get_viewport_rect().encloses(chip.get_global_rect())).is_true()
 
 
-## Hovering an item Express lane doubles (the row's first end) rings neither the day chip nor the
-## week chip: the pin is run-wide (WeekFlow.day_index is -1 for its event).
+## Hovering an item Express lane doubles (the row's first end) rings neither the day calendar nor
+## the week glass: the pin is run-wide (WeekFlow.day_index is -1 for its event).
 func test_express_lane_end_item_rings_no_chip() -> void:
 	var screen: ShiftScreen = await _screen([EXPRESS_LANE], true)
 	var run: RunState = screen.run
@@ -392,8 +399,8 @@ func test_express_lane_end_item_rings_no_chip() -> void:
 	assert_bool(caused).is_true()
 	var item: ItemView = screen._row_views[0] as ItemView
 	item.hovered.emit(item)
-	assert_bool(screen._inspection_tag.has_relation()).is_false()
-	assert_bool(screen._stage.top_bar.week_chip.has_relation()).is_false()
+	assert_bool(screen._calendar.has_relation()).is_false()
+	assert_bool(screen._stage.week_glass.has_relation()).is_false()
 	screen._effects.unfocus()
 
 
@@ -418,28 +425,28 @@ func test_a_day_event_on_an_express_lane_end_still_rings_the_day_chip() -> void:
 	assert_dict(kinds).is_equal({"pin": true, "day": true})
 	var item: ItemView = screen._row_views[last] as ItemView
 	item.hovered.emit(item)
-	assert_bool(screen._inspection_tag.has_relation()).is_true()
-	assert_bool(screen._stage.top_bar.week_chip.has_relation()).is_false()
+	assert_bool(screen._calendar.has_relation()).is_true()
+	assert_bool(screen._stage.week_glass.has_relation()).is_false()
 	screen._effects.unfocus()
 
 
 ## The count-up's step sources: a worn pin's event maps to no chip (null, so its steps fly from the
-## item), the day's to the day chip and the week event to the week chip.
+## item), the day's to the day calendar and the week event to the week glass.
 func test_express_lane_steps_have_no_chip_source() -> void:
 	var screen: ShiftScreen = await _screen([EXPRESS_LANE])
 	var run: RunState = screen.run
-	var bar: TopBar = screen._stage.top_bar
+	var stage: ShiftStage = screen._stage
 	var events: Array[InspectionDefinition] = WeekSchedule.shift_events(run)
-	var sources: Array[Control] = bar.event_sources(events, RunPins.pin_events(run).size())
+	var sources: Array[Control] = stage.event_sources(events, RunPins.pin_events(run).size())
 	assert_int(sources.size()).is_equal(events.size())
 	var event: InspectionDefinition = (load(EXPRESS_LANE) as PinDefinition).events[0]
 	assert_object(sources[events.find(event)]).is_null()
 	for at: int in range(events.size()):
 		if events[at] == event:
 			continue
-		var chip: Control = bar.inspection_tag
+		var chip: Control = stage.day_calendar
 		if events[at].is_week():
-			chip = bar.week_chip
+			chip = stage.week_glass
 		assert_object(sources[at]).is_same(chip)
 
 
@@ -729,6 +736,7 @@ func _assert_gun_place(screen: ShiftScreen, gun: PriceGunItem) -> void:
 		"checkout": screen._cabinet.checkout_key.get_global_rect(),
 		"redraw": screen._cabinet.redraw_key.get_global_rect(),
 		"keypad": screen._cabinet.keypad.get_global_rect(),
+		"glass": screen._stage.week_glass.get_global_rect(),
 		"belt": _on_stage(screen, ShiftStage.BELT_RECT),
 	}
 	for part: Control in [gun, gun.tag()]:
@@ -791,3 +799,13 @@ func _frames(count: int) -> void:
 
 static func _event_log() -> EventLogService:
 	return (Engine.get_main_loop() as SceneTree).root.get_node("/root/EventLog")
+
+
+## Today's slip's words (play test 2026-11-09: the slip in place of the calendar's tooltip), opened
+## as a tap on the calendar opens it, then closed.
+static func _slip_text(screen: ShiftScreen) -> String:
+	screen._week.drop()  # The time card (a week's first shift) would keep the slip shut.
+	screen._week.toggle_slip()
+	var text: String = screen._week.slip.slip_text()
+	screen._week.slip.clear()
+	return text

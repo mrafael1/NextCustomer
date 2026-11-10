@@ -1,9 +1,12 @@
 class_name KeywordChip
 extends TipTarget
 ## A keyword on a sticker line (#128, the approved Bound strip mock-up): the word ("BATCH") boxed
-## like a family glyph's chip, in the display font as hard pixels (ArtStyle.pixel_display_font at
-## its native PIXEL_TEXT_SIZE), ink on its family's light colour (CALM_FACES: BATCH the Bakery's
-## cream, CHAIN the Produce green, #128) in a BORDER px ink box with its corner pixels cut.
+## in the display font as hard pixels (ArtStyle.pixel_display_font at its native PIXEL_TEXT_SIZE),
+## ink on paper in a BORDER px ink box with its corner pixels cut. One chip style everywhere (main
+## scene v2, 2026-11-08): a keyword of a family (KEYWORD_FAMILIES: MORNING the Breakfast's, BATCH
+## the Bakery's, CHAIN the Produce's, PAIR the Dairy's, WASTED the Clearance's) carries a round dot
+## in that family's colour (its FamilyStyle face, data/families) after the left border, the word
+## after it (FamilyWord's chips are drawn the same way).
 ## Resting the pointer on it shows the keyword's tooltip (GlyphText.keyword_tip, through
 ## GlyphTips) and lights it mustard while the tip shows (and PlanningEffects lights a BATCH chip's
 ## batch frame on the belt).
@@ -41,17 +44,25 @@ const CROSS_RUNS: Array[Vector3i] = [
 	Vector3i(0, 5, 2),
 	Vector3i(4, 5, 2),
 ]
-const CALM_FACE := Palette.CREAM_SHADE
-## Each keyword's calm face, its family's light colour (#128): BATCH the Bakery's cream, CHAIN the
-## Produce green, WASTED (v3 Clearance) the pale tomato, PAIR the Dairy teal, MORNING the
-## Breakfast mustard; any other keyword CALM_FACE.
-const CALM_FACES: Dictionary[String, Color] = {
-	CardText.BATCH_WORD: Palette.CREAM_SHADE,
-	CardText.CHAIN_WORD: Palette.GREEN_LIGHT,
-	CardText.WASTED_WORD: Palette.TOMATO_PALE,
-	CardText.PAIR_WORD: Palette.TEAL_LIGHT,
-	CardText.MORNING_WORD: Palette.MUSTARD_LIGHT,
+## Every chip's calm face (main scene v2: paper; it was each family's light colour, #128).
+const CALM_FACE := Palette.PAPER
+## The family each keyword belongs to (a FamilyStyle id): its dot's colour is that family's face.
+const KEYWORD_FAMILIES: Dictionary[String, String] = {
+	CardText.BATCH_WORD: "Bakery",
+	CardText.CHAIN_WORD: "Produce",
+	CardText.WASTED_WORD: "Clearance",
+	CardText.PAIR_WORD: "Dairy",
+	CardText.MORNING_WORD: "Breakfast",
 }
+## Where the families' colours live (FamilyPalette.PATH, data/families).
+const PALETTE_PATH := "res://data/families/family_palette.tres"
+## The family dot: a DOT px ink octagon DOT_LEAD px past the left border at DOT_TOP, centred
+## between the borders (1 px of face above and below it), the family's colour inside its 1 px rim;
+## the word starts DOT_GAP px after it.
+const DOT := 9.0
+const DOT_LEAD := 2.0
+const DOT_TOP := 3.0
+const DOT_GAP := 4.0
 ## A live value chip's calm face (#128 v3: Stale popcorn's ×N, a multiplier's gold).
 const LIVE_FACE := Palette.GOLD
 const LIT_FACE := Palette.MUSTARD
@@ -91,8 +102,8 @@ func _init(
 	custom_minimum_size = size
 
 
-## A chip's width for `word` (wider by its cross when `wasted`), `padding` each side of it, on the
-## 2 px grid.
+## A chip's width for `word` (wider by its family dot, and by its cross when `wasted`), `padding`
+## each side of it, on the 2 px grid.
 static func width_for(
 	word: String, wasted: bool, live: bool = false, padding: float = PADDING_X
 ) -> float:
@@ -100,6 +111,8 @@ static func width_for(
 	var shown_size: int = ArtStyle.TICKET_TEXT_SIZE if live else text_size()
 	var text: float = shown.get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, shown_size).x
 	var width: float = BORDER * 2.0 + padding * 2.0 + ceilf(text)
+	if not live and dot_family(word) != null:
+		width += dot_room(padding)
 	if wasted:
 		width += CROSS_GAP + CROSS_CELLS
 	return ceilf(width / ArtStyle.ART_SCALE) * ArtStyle.ART_SCALE
@@ -149,9 +162,50 @@ func is_live() -> bool:
 	return _live
 
 
-## The calm face of `word`'s chip (CALM_FACES, else CALM_FACE).
-static func calm_face(word: String) -> Color:
-	return CALM_FACES.get(word, CALM_FACE)
+## The calm face of every chip (main scene v2: paper; `word` kept for its callers).
+static func calm_face(_word: String) -> Color:
+	return CALM_FACE
+
+
+## The family whose dot `word`'s chip carries (KEYWORD_FAMILIES, from data/families: a FamilyStyle),
+## or null. Typed as Resource: naming FamilyStyle here closes a script cycle through KeywordMarks
+## that leaks at exit on its parse check.
+static func dot_family(word: String) -> Resource:
+	if not KEYWORD_FAMILIES.has(word):
+		return null
+	# The palette's resource by its path (FamilyPalette.PATH), not through FamilyPalette: naming that
+	# class here closes a script cycle that leaks at exit on a parse check.
+	var palette: Resource = load(PALETTE_PATH)
+	var families: Array = palette.get("families") if palette != null else []
+	for family: Resource in families:
+		if family.get("id") == KEYWORD_FAMILIES[word]:
+			return family
+	return null
+
+
+## How much wider a chip is with a dot than without: the dot's lead, the dot and its gap, less the
+## word's own padding they replace.
+static func dot_room(padding: float = PADDING_X) -> float:
+	return DOT_LEAD + DOT + DOT_GAP - padding
+
+
+## The dot's rect (this chip's coordinates), or an empty rect for a chip with none.
+func dot_rect() -> Rect2:
+	if _live or dot_family(keyword) == null:
+		return Rect2()
+	return Rect2(BORDER + DOT_LEAD, DOT_TOP, DOT, DOT)
+
+
+## Draws a family dot on `item` at `at` (its top-left): an ink octagon, `face` inside its rim.
+static func draw_dot(item: CanvasItem, at: Vector2, face: Color) -> void:
+	_octagon(item, at, DOT, Palette.INK)
+	_octagon(item, at + Vector2.ONE, DOT - 2.0, face)
+
+
+static func _octagon(item: CanvasItem, at: Vector2, side: float, colour: Color) -> void:
+	item.draw_rect(Rect2(at + Vector2(2, 0), Vector2(side - 4.0, side)), colour)
+	item.draw_rect(Rect2(at + Vector2(1, 1), Vector2(side - 2.0, side - 2.0)), colour)
+	item.draw_rect(Rect2(at + Vector2(0, 2), Vector2(side, side - 4.0)), colour)
 
 
 ## Its word's (and cross's) colour: ink, paper on a wasted chip.
@@ -178,6 +232,11 @@ func _draw() -> void:
 	draw_rect(Rect2(1, 0, rect.size.x - 2, rect.size.y), Palette.INK)
 	draw_rect(Rect2(0, 1, rect.size.x, rect.size.y - 2), Palette.INK)
 	draw_rect(rect.grow(-BORDER), face_color())
+	var text_x: float = BORDER + _padding
+	var dot: Rect2 = dot_rect()
+	if dot.has_area():
+		draw_dot(self, dot.position, dot_family(keyword).face)
+		text_x = dot.end.x + DOT_GAP
 	var text_font: Font = font()
 	var shown_size: int = text_size()
 	var baseline: float = CAP_TOP + ArtStyle.PIXEL_CAP_HEIGHT
@@ -190,7 +249,7 @@ func _draw() -> void:
 		baseline = roundf((size.y + ascent - descent) / 2.0)
 	draw_string(
 		text_font,
-		Vector2(BORDER + _padding, baseline),
+		Vector2(text_x, baseline),
 		keyword,
 		HORIZONTAL_ALIGNMENT_LEFT,
 		-1,

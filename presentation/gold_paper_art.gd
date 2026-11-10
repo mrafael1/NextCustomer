@@ -11,7 +11,9 @@ extends RefCounted
 ## "x2 bonus ticket should transform receipt to silver") is the same material in Palette's steels
 ## (`silver`: SILVER's face, edge, trim, highlight, dithers and star). While planning's projection
 ## would spend a week medal (2026-11-06) only the paper's edges glow faintly in its metal
-## (draw_glow). Display only.
+## (draw_glow). Since left column v2 (2026-11-09) the metal wipes on from the top: draw's `wipe`
+## is the y (the item's px) it reaches, nothing under it drawn, so a gold wipe covers the silver
+## row by row. Display only.
 
 const FACE := Palette.GOLD
 const EDGE := Palette.BRASS_DARKEST
@@ -73,29 +75,92 @@ const SILVER_GLOW: Array[Color] = [Palette.STEEL_SHADE, Palette.STEEL_PALE, Pale
 const GLOW_WIDE_ALPHA := 0.3
 
 
+## Draws on an item what lies above `clip` (its y) only: MachineArt's box, ring and shine, cut at
+## the wipe's front.
+class Pen:
+	extends RefCounted
+	var item: CanvasItem
+	var clip: float
+
+	func _init(on: CanvasItem, clip_y: float) -> void:
+		item = on
+		clip = clip_y
+
+	func rect(area: Rect2, colour: Color) -> void:
+		if area.position.y >= clip or colour.a <= 0.0:
+			return
+		if area.end.y > clip:
+			area.size.y = clip - area.position.y
+		item.draw_rect(area, colour)
+
+	## MachineArt.box: a 1 art px `line` outline with notched corners, `fill` inside.
+	func box(area: Rect2, fill: Color, line: Color) -> void:
+		var p: float = MachineArt.PIXEL
+		var x: float = area.position.x
+		var y: float = area.position.y
+		rect(Rect2(x + p, y, area.size.x - 2.0 * p, area.size.y), line)
+		rect(Rect2(x, y + p, area.size.x, area.size.y - 2.0 * p), line)
+		rect(area.grow(-p), fill)
+
+	## MachineArt.ring: a 1 art px ring inside `area`, its corners notched.
+	func ring(area: Rect2, colour: Color) -> void:
+		var p: float = MachineArt.PIXEL
+		var x: float = area.position.x
+		var y: float = area.position.y
+		var w: float = area.size.x
+		var h: float = area.size.y
+		rect(Rect2(x + p, y, w - 2.0 * p, p), colour)
+		rect(Rect2(x + p, y + h - p, w - 2.0 * p, p), colour)
+		rect(Rect2(x, y + p, p, h - 2.0 * p), colour)
+		rect(Rect2(x + w - p, y + p, p, h - 2.0 * p), colour)
+
+	## MachineArt.shine: a slanted band `band` art px wide, `at` (0 .. 1) of the way across.
+	func shine(area: Rect2, at: float, colour: Color, band: float) -> void:
+		if at <= 0.0 or at >= 1.0:
+			return
+		var p: float = MachineArt.PIXEL
+		var h: float = area.size.y
+		var bw: float = band * p
+		var sx: float = area.position.x - h / 2.0 - bw + at * (area.size.x + h / 2.0 + bw * 2.0)
+		var j: float = 0.0
+		while j < h:
+			var x0: float = maxf(MachineArt.snap(sx + (h - j) / 2.0), area.position.x)
+			var x1: float = minf(MachineArt.snap(sx + (h - j) / 2.0) + bw, area.end.x)
+			if x1 > x0:
+				rect(Rect2(x0, area.position.y + j, x1 - x0, minf(p, h - j)), colour)
+			j += p
+
+
 ## The gold (`silver`: the silver) over `rect` of `item`, `k` (0 .. 1) of the way in; the glint at
 ## `shine` (0 .. 1 across; none outside) and the sparkles `sparkle` seconds after it turned gold
-## (none below 0).
+## (none below 0); nothing at or under `wipe` (the item's y: the wipe's front).
 static func draw(
-	item: CanvasItem, rect: Rect2, k: float, shine: float, sparkle: float, silver: bool = false
+	item: CanvasItem,
+	rect: Rect2,
+	k: float,
+	shine: float,
+	sparkle: float,
+	silver: bool = false,
+	wipe: float = INF
 ) -> void:
-	if k <= 0.0 or rect.size.x <= 0.0 or rect.size.y <= 0.0:
+	if k <= 0.0 or rect.size.x <= 0.0 or rect.size.y <= 0.0 or wipe <= rect.position.y:
 		return
+	var pen: Pen = Pen.new(item, wipe)
 	var metal: Array[Color] = SILVER if silver else GOLD
 	var p: float = MachineArt.PIXEL
-	MachineArt.box(item, rect, _faded(metal[0], k), _faded(metal[1], k))
+	pen.box(rect, _faded(metal[0], k), _faded(metal[1], k))
 	var inner: Rect2 = rect.grow(-p)
-	MachineArt.ring(item, inner, _faded(metal[2], k))
+	pen.ring(inner, _faded(metal[2], k))
 	var face: Rect2 = inner.grow(-p)
-	item.draw_rect(Rect2(face.position, Vector2(face.size.x, p)), _faded(metal[3], k))
+	pen.rect(Rect2(face.position, Vector2(face.size.x, p)), _faded(metal[3], k))
 	var rows: float = DITHER_ROWS * p
-	_dither(item, Rect2(face.position.x, face.position.y + p, face.size.x, rows), metal[4], k)
-	_dither(item, Rect2(face.position.x, face.end.y - rows, face.size.x, rows), metal[5], k)
+	_dither(pen, Rect2(face.position.x, face.position.y + p, face.size.x, rows), metal[4], k)
+	_dither(pen, Rect2(face.position.x, face.end.y - rows, face.size.x, rows), metal[5], k)
 	for x: float in [face.position.x + STAR_INSET * p, face.end.x - STAR_INSET * p]:
-		_star(item, Vector2(x, face.position.y + STAR_DROP * p), _faded(metal[6], k))
+		_star(pen, Vector2(x, face.position.y + STAR_DROP * p), _faded(metal[6], k))
 	if shine > 0.0 and shine < 1.0:
 		var glint: Color = Color(Palette.PAPER, GLINT_ALPHA * k)
-		MachineArt.shine(item, face, shine, glint, GLINT_BAND)
+		pen.shine(face, shine, glint, GLINT_BAND)
 	if sparkle < 0.0:
 		return
 	for index: int in SPARKLE_SPOTS.size():
@@ -103,7 +168,8 @@ static func draw(
 		if age <= 0.0 or age >= 1.0:
 			continue
 		var at: Vector2 = rect.position + rect.size * SPARKLE_SPOTS[index]
-		MachineArt.sparkle(item, at, 2.0 if age < 0.35 else 1.0, sin(PI * age))
+		if at.y < wipe:
+			MachineArt.sparkle(item, at, 2.0 if age < 0.35 else 1.0, sin(PI * age))
 
 
 ## The pending glow (2026-11-06, the week medals): while planning's projection would spend a
@@ -162,7 +228,7 @@ static func _faded(colour: Color, k: float) -> Color:
 
 
 ## A checker of `colour` over `rect`: every other art px, the rows alternating.
-static func _dither(item: CanvasItem, rect: Rect2, colour: Color, k: float) -> void:
+static func _dither(pen: Pen, rect: Rect2, colour: Color, k: float) -> void:
 	var p: float = MachineArt.PIXEL
 	var ink: Color = _faded(colour, k)
 	var row: int = 0
@@ -170,17 +236,17 @@ static func _dither(item: CanvasItem, rect: Rect2, colour: Color, k: float) -> v
 	while y < rect.end.y:
 		var x: float = rect.position.x + (row % 2) * p
 		while x < rect.end.x:
-			item.draw_rect(Rect2(x, y, p, p), ink)
+			pen.rect(Rect2(x, y, p, p), ink)
 			x += 2.0 * p
 		y += p
 		row += 1
 
 
 ## The announce's 5x5 pixel star centred on `centre`.
-static func _star(item: CanvasItem, centre: Vector2, colour: Color) -> void:
+static func _star(pen: Pen, centre: Vector2, colour: Color) -> void:
 	var p: float = MachineArt.PIXEL
 	var origin: Vector2 = MachineArt.snap_point(centre - Vector2(5, 5))
 	for cell: int in range(25):
 		if PremiumAnnounce.STAR_GRID[cell] == "x":
 			var at: Vector2 = origin + Vector2(cell % 5, floori(cell / 5.0)) * p
-			item.draw_rect(Rect2(at, Vector2(p, p)), colour)
+			pen.rect(Rect2(at, Vector2(p, p)), colour)

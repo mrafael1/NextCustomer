@@ -464,6 +464,12 @@ static func _sprites(screen: ShiftScreen) -> Array[Rect2]:
 func _screen() -> ShiftScreen:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
+	# The week's medals already spent (caps of 0): no medal prelude (MedalPrelude) before the
+	# count these tests watch from the click (week_medals_test covers the prelude).
+	var machine: MachineDefinition = screen.run.machine.machine.duplicate()
+	machine.overtime_ticket_per_week = 0
+	machine.overtime_premium_per_week = 0
+	screen.run.machine.machine = machine
 	await _frames(2)
 	return screen
 

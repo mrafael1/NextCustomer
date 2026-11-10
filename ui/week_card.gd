@@ -9,14 +9,15 @@ extends Control
 ## mustard, headed "MANAGER'S REVIEW · 2 MALUSES" and closed by its reward ("REVIEW PASSED · 2
 ## PREMIUM DRAWS", or day 12's "PASS = RUN WON").
 ##
-## play(): the card arrives (print), the banner stamps, the rows fill in one by one (today's
-## punch), the card holds HOLD seconds and shrinks into the week chip. reopen(): the whole card at
-## once (a pop), open until tapped. Reduced motion shows the whole card at once and keeps it open
-## until tapped. Tapping the card closes it (it shrinks into the chip; at once with reduced
-## motion), then `closed`. A timeline in seconds (advance, finish), so tests drive it frame-free.
+## play(): the card arrives (print), the banner stamps, the rows fill in one by one (today's punch),
+## the card holds HOLD seconds and shrinks into the week glass (v1.17, the register's). reopen():
+## the whole card at once (a pop), open until tapped. Reduced motion shows the whole card at once
+## and keeps it open until tapped. Tapping the card closes it (it shrinks into the glass; at once
+## with reduced motion), then `closed`. A timeline in seconds (advance, finish), so tests drive it
+## frame-free.
 ##
 ## Every played day keeps its stamp whenever the card shows (v0.72): PAID (green) or, in the
-## training week, SLIP 1/2 (tomato); since v0.75 (#119) the week chip lights the result after
+## training week, SLIP 1/2 (tomato); since v0.75 (#119) the day calendar lights the result after
 ## the verdict, and the card no longer pops in to stamp it. The rows read by time (#119): today's
 ## has a TODAY tab (no ring since v0.78), played days fade under their stamp, and the days to come
 ## are dimmed.
@@ -25,7 +26,7 @@ signal closed
 
 ## The timeline (s): the card's arrival (from 55% of its height lower), the banner's stamp, the
 ## days' fill (one step per day, a review's longer), each row's own pop, the hold before the card
-## flies into the chip, and the flight.
+## flies into the week glass, and the flight.
 const ARRIVE := 0.65
 const STAMP_AT := 0.65
 const STAMP_LENGTH := 0.42
@@ -119,7 +120,7 @@ var _today_tab: Label
 var _model: WeekCardModel
 ## Each row's start on the timeline.
 var _row_at: Array[float] = []
-## The chip the card flies into.
+## The week glass the card flies into (WeekGlass).
 var _target: Control
 ## Seconds into the timeline (-1: no intro: a reopened card), and into the flight (-1: none).
 var _t: float = -1.0
@@ -162,7 +163,7 @@ func play(model: WeekCardModel, target: Control, reduced: bool) -> void:
 	_render()
 
 
-## Reopens the card (the week or day chip tapped in planning): whole at once, open until tapped.
+## Reopens the card (the week glass tapped in planning): whole at once, open until tapped.
 func reopen(model: WeekCardModel, target: Control, reduced: bool) -> void:
 	_open(model, target, reduced)
 	_stays = true
@@ -175,7 +176,7 @@ func reopen(model: WeekCardModel, target: Control, reduced: bool) -> void:
 		UiKit.pop_in(_card)  # Its open sound too.
 
 
-## Closes the card: it flies into the chip (at once with reduced motion), then `closed`.
+## Closes the card: it flies into the week glass (at once with reduced motion), then `closed`.
 func close() -> void:
 	if not visible or _shrink_t >= 0.0:
 		return
@@ -201,7 +202,7 @@ func is_open() -> bool:
 	return visible
 
 
-## Whether the card is flying into the chip.
+## Whether the card is flying into the week glass.
 func is_shrinking() -> bool:
 	return _shrink_t >= 0.0
 
@@ -355,7 +356,7 @@ func _sound(intro: float) -> void:
 		_sounded += 1
 
 
-## The flight into the chip: the card moves to the chip's centre, shrinks and fades, as the dim.
+## The flight into the glass: the card moves to the glass's centre, shrinks and fades, as the dim.
 func _render_shrink(k: float) -> void:
 	var eased: float = k * k
 	var target: Vector2 = _target_centre()
@@ -368,12 +369,12 @@ func _render_shrink(k: float) -> void:
 	_dim.modulate.a = 1.0 - k
 
 
-## The chip's centre in the card's coordinates.
+## The glass's centre in the card's coordinates.
 func _target_centre() -> Vector2:
 	if _target == null or not is_instance_valid(_target):
 		return size / 2.0
-	var chip: Rect2 = _target.get_global_rect()
-	return get_global_transform().affine_inverse() * chip.get_center()
+	var glass: Rect2 = _target.get_global_rect()
+	return get_global_transform().affine_inverse() * glass.get_center()
 
 
 func _step_of(index: int) -> float:
@@ -775,6 +776,8 @@ class ShadowPanel:
 	var box: StyleBoxFlat
 	var shadow: int = 0
 	var notch: bool = false
+	## The notch on the foot instead, its open side down (DaySlip over the desk calendar).
+	var notch_bottom: bool = false
 	var ruled: bool = false
 
 	func _init(panel_box: StyleBoxFlat, shadow_px: int) -> void:
@@ -801,9 +804,15 @@ class ShadowPanel:
 			tab.bg_color = Palette.CHARCOAL
 			tab.border_color = Palette.INK
 			tab.set_border_width_all(CARD_BORDER)
-			tab.border_width_top = 0
-			tab.corner_radius_bottom_left = NOTCH_CORNER
-			tab.corner_radius_bottom_right = NOTCH_CORNER
 			tab.anti_aliasing = false
 			var at: Vector2 = Vector2((size.x - NOTCH_SIZE.x) / 2.0, -CARD_BORDER).round()
+			if notch_bottom:
+				tab.border_width_bottom = 0
+				tab.corner_radius_top_left = NOTCH_CORNER
+				tab.corner_radius_top_right = NOTCH_CORNER
+				at.y = size.y - NOTCH_SIZE.y + CARD_BORDER
+			else:
+				tab.border_width_top = 0
+				tab.corner_radius_bottom_left = NOTCH_CORNER
+				tab.corner_radius_bottom_right = NOTCH_CORNER
 			draw_style_box(tab, Rect2(at, NOTCH_SIZE))

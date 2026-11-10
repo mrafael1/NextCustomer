@@ -428,7 +428,8 @@ func _probe_count_up(screen: ShiftScreen) -> Dictionary:
 			newest = last
 			newest_frames = 0
 		newest_frames += 1
-		if newest != null and newest_frames >= SCROLL_FRAMES:
+		var feeding: bool = screen._receipt.hang != null and screen._receipt.hang.is_feeding()
+		if newest != null and newest_frames >= SCROLL_FRAMES and not feeding:
 			var scroll: Rect2 = screen._receipt._scroll.get_global_rect().grow(1.0)
 			if not scroll.encloses(newest.get_global_rect()):
 				failures.append("newest line %s outside %s" % [newest.get_global_rect(), scroll])
@@ -563,7 +564,7 @@ func _assert_sounds(sfx: Sfx, plan: CountUpPlan, feed_ms: int) -> void:
 
 ## #62: every armed beat plays its shimmer; every rattling payout and a large total's pause play
 ## a rattle take for their pixels, at the volume for their pixels (louder for more); a huge total
-## rings the register bell.
+## rings the register bell; CHECKOUT rang the service bell (its own sound, play test 2026-11-09).
 func _assert_rattle_and_armed_sounds(sfx: Sfx, plan: CountUpPlan) -> void:
 	var armed: int = 0
 	var rattle_px: Array[float] = []
@@ -593,6 +594,7 @@ func _assert_rattle_and_armed_sounds(sfx: Sfx, plan: CountUpPlan) -> void:
 		assert_float(float(heard[index]["volume_db"])).is_equal_approx(volume, 0.01)
 	var bell: int = 1 if plan.pause_ms > 0 and plan.size == CountUpPlan.Size.HUGE else 0
 	assert_int(_sounds(sfx, "register_bell")).is_equal(bell)
+	assert_int(_sounds(sfx, "service_bell")).is_greater_equal(1)
 
 
 static func _rattle_take(px: float) -> String:
@@ -619,9 +621,10 @@ func test_a_stronger_rattle_plays_a_bigger_take_louder() -> void:
 		assert_float(volumes[index]).is_equal_approx(expected[index], 0.01)
 
 
-## #62, Q5: the next shift's notice prints with the printer's feed (at the printer's pitch), and
-## the clerk's stamp lands just after it, last of all.
-func test_the_notice_prints_then_its_stamp_lands() -> void:
+## #62, Q5, until the 2026-11-09 play test: the shift screen's anchored receipt no longer prints
+## the next shift's notice, so neither its printer feed nor its clerk's stamp sounds; the tear's
+## rip is the dessert's last sound and no notice line is on the paper.
+func test_the_notice_no_longer_prints_on_the_anchored_receipt() -> void:
 	var screen: ShiftScreen = await _screen()
 	var sfx: Sfx = _recording_sfx(screen)
 	await _place(screen, ["milk"])
@@ -634,22 +637,21 @@ func test_the_notice_prints_then_its_stamp_lands() -> void:
 		CountUpContext.new(1, 0),
 		screen._loyalty_card.stamped_boxes(),
 		LoyaltyCard.names(screen.run.upgrades),
-		screen._inspection_tag.sources(screen.run.inspections),
+		screen._stage.event_sources(screen.run.inspections),
 		InspectionTag.names(screen.run.inspections),
 		"Next shift: test notice"
 	)
 	await _played(screen)
-	var sounds: Array[Dictionary] = sfx.get("sounds")
-	assert_int(sounds.size()).is_greater(2)
-	var stamp: Dictionary = sounds[-1]
-	var feed: Dictionary = sounds[-2]
-	assert_str(String(stamp["sound"])).is_equal("stamp_notice")
-	assert_str(String(feed["sound"])).is_equal("print")
-	var tuning: CountUpTuning = load(CountUp.TUNING_PATH)
-	var pitch: float = minf(count_up.plan.printer_speed, tuning.print_pitch_max)
-	assert_float(float(feed["pitch"])).is_equal_approx(pitch, 0.0001)
-	var gap_ms: float = (int(stamp["usec"]) - int(feed["usec"])) / 1000.0
-	assert_float(gap_ms).is_between(CountUpDessert.NOTICE_STAMP_GAP * 1000.0 - 5.0, 200.0)
+	var heard: Array[String] = []
+	for entry: Dictionary in sfx.get("sounds"):
+		var sound: String = String(entry["sound"])
+		if not sound.begins_with("ui_") and not sound.begins_with("card_"):
+			heard.append(sound)
+	assert_int(heard.size()).is_greater(2)
+	assert_str(heard[-1]).is_equal("rip")
+	assert_bool(heard.slice(heard.rfind("total")).has("stamp_notice")).is_false()
+	for label: Node in screen._receipt.find_children("*", "Label", true, false):
+		assert_str((label as Label).text).is_not_equal("Next shift: test notice")
 
 
 ## Records the count-up's rides as [bag_slot, scan_slot, ride_ms, Time.get_ticks_usec(), the
@@ -728,7 +730,7 @@ func _play_tapped(screen: ShiftScreen, result: ScoreResult, quota: int) -> void:
 		CountUpContext.new(1, 0, 1.0, false, screen.receipt_header()),
 		screen._loyalty_card.stamped_boxes(),
 		LoyaltyCard.names(screen.run.upgrades),
-		screen._inspection_tag.sources(screen.run.inspections),
+		screen._stage.event_sources(screen.run.inspections),
 		InspectionTag.names(screen.run.inspections)
 	)
 	count_up._tap(Time.get_ticks_msec())
@@ -764,7 +766,9 @@ func _assert_receipt_of(
 		screen.receipt_header(),
 		ReceiptInk.cards_of(run.row)
 	)
-	assert_str(_lines(expected)[0]).is_equal(screen.receipt_header()[0] + " | ")
+	# A Double checkout's row line heads it (main scene v2: no SHIFT line), else the first row.
+	if not screen.receipt_header().is_empty():
+		assert_str(_lines(expected)[0]).is_equal(screen.receipt_header()[0] + " | ")
 	expected.show_shift_end(
 		result.total, quota, notice, ", ".join(InspectionTag.names(run.inspections))
 	)
@@ -874,6 +878,12 @@ func _screen() -> ShiftScreen:
 	_runner = scene_runner(SCREEN)
 	var screen: ShiftScreen = _runner.scene()
 	screen._week.skip()  # The time card (v0.70) stays out of the way.
+	# The week's medals already spent (caps of 0): no medal prelude (MedalPrelude) before the
+	# counts these tests time and listen to (week_medals_test covers the prelude).
+	var machine: MachineDefinition = screen.run.machine.machine.duplicate()
+	machine.overtime_ticket_per_week = 0
+	machine.overtime_premium_per_week = 0
+	screen.run.machine.machine = machine
 	await _frames(2)
 	return screen
 
@@ -893,6 +903,13 @@ func _place(screen: ShiftScreen, ids: Array[String]) -> void:
 		screen._on_slot_input(_left_click(), screen.run.row.size())
 	assert_int(screen.run.row.size()).is_equal(ids.size())
 	await _frames(3)
+	# The top bar gauge's pours and lap notes (GaugePanel, after each placement) ring out; a
+	# recording Sfx then starts the count from a clean slate.
+	await get_tree().create_timer(GaugePanel.LAP_NOTE_DELAY + 0.1).timeout
+	await _frames(3)
+	var sfx: Sfx = Sfx.find(screen)
+	if sfx != null and sfx.has_method("clear"):
+		sfx.call("clear")
 
 
 func _count_up_end(screen: ShiftScreen) -> void:

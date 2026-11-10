@@ -5,7 +5,7 @@ extends RefCounted
 ## its run and display.
 ## - Stock list: in redraw mode a hovered basket's monitor panel shows the items its redraw
 ##   would bring (RedrawNotice.of_run, PinPlay.peek; the user's call of 2026-11-02).
-## - Day off: the day chip's SKIP tag (InspectionTag.show_skip; the user's calls of 2026-11-02)
+## - Day off: the day calendar's SKIP tag (DayTags.show_skip; the user's calls of 2026-11-02)
 ##   puts a pile of gold with the quota's burst on belt slot 1 (DayOffPile): the belt's items go
 ##   back to the hand and the belt takes none while it is there; the tag reads UNDO. A click on
 ##   the tag or the pile takes it back. CHECKOUT takes the day off (take_day_off): the shift
@@ -54,7 +54,7 @@ func _init(screen: ShiftScreen, event_log: EventLogService) -> void:
 	_screen = screen
 	_log = event_log
 	repack = RepackFlow.new(screen, event_log)
-	_screen._inspection_tag.skip_pressed.connect(press_day_off)
+	_screen._calendar.skip_pressed.connect(press_day_off)
 	_screen._stage.pin_lanyard.reduced_motion = _reduced
 	_screen._stage.pin_lanyard.blocked = _pin_card_blocked
 
@@ -206,7 +206,7 @@ func press_gun() -> void:
 
 
 ## CHECKOUT with the pile on the belt (false, doing nothing, without one): the skipped shift,
-## logged, saved (the machine is a save point), the day's check lit on the week chip, then the
+## logged, saved (the machine is a save point), the day's pip lit on the calendar, then the
 ## machine opens as after a checkout (or, with no visit, the next shift starts).
 func take_day_off() -> bool:
 	var run: RunState = _screen.run
@@ -223,7 +223,7 @@ func take_day_off() -> bool:
 	if result == null:
 		return true
 	_log.log_event("day_off", {"shift": run.shift_index + 1, "quota": run.quota()})
-	_screen._sfx.play("checkout")
+	_screen._stage.bell.ding()  # CHECKOUT's sound: the service bell (play test 2026-11-09).
 	_screen._save_run()
 	_screen._refresh()
 	_screen._notice_label.show_notice(DAY_OFF_DONE)
@@ -280,18 +280,18 @@ func _pin_card_blocked() -> bool:
 	return _screen._busy() or _screen._deck_view.visible
 
 
-## The day chip's SKIP tag: while today can be taken off, in planning, outside redraw mode. While
-## the run wears a Day off, the chip keeps the tag's room on every day (v1.16: the bar stands
-## still).
+## The day calendar's SKIP tag: while today can be taken off, in planning, outside redraw mode.
+## While the run wears a Day off, the calendar's tags (DayTags.show_skip's `reserved`) keep the
+## tag's room on every day (v1.16: the bar stands still).
 func _show_skip(planning: bool) -> void:
-	var tag: InspectionTag = _screen._inspection_tag
+	var tags: DayTags = _screen._calendar.tags
 	var pending: bool = day_off_pending()
 	var shown: bool = planning and (not _screen._redraw_mode or pending)
 	shown = shown and PinPlay.can_take_day_off(_screen.run)
-	var before: bool = tag.skip_tag().visible
+	var before: bool = tags.skip_tag().visible
 	var worn: bool = PinPlay.days_off_per_week(_screen.run) > 0
-	if tag.show_skip(shown, pending, worn) or before != shown:
-		(_screen._top_bar as TopBar).fit_inspection()
+	if tags.show_skip(shown, pending, worn) or before != shown:
+		(_screen._top_bar as TopBar).fit_day()
 
 
 ## Puts a price tag with the family's glyph on every relabelled item (hand and belt), and gives

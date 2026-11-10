@@ -13,9 +13,8 @@ var best_so_far: int = 0
 var speed_setting: float = 1.0
 ## Reduced motion (ProfileState.settings "reduced_motion"): no shakes or rattles.
 var reduced_motion: bool = false
-## The receipt's header lines (#75, ReceiptView.header_lines), printed at once when the count-up
-## starts (ReceiptView.begin), so its lines print under the planning stub's header. None by
-## default.
+## The receipt's small header lines (a Double checkout's row line, DoubleCheckoutFlow.header),
+## printed at once when the count-up starts (ReceiptView.begin), above the rows. None by default.
 var receipt_header: PackedStringArray = PackedStringArray()
 ## A BONUS visit follows this shift's TICKET visit (#77 machine v2; since 2026-11-06 the receipt
 ## prints no stub for it: the machine's draw lamps count the draws). The shift screen sets it after

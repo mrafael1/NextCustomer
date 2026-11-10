@@ -1,19 +1,21 @@
 class_name RegisterCabinet
 extends Control
-## The shift screen's cash register (#80, mock-up B2): the printer box on the counter top that the
-## receipt rises from (pixel art, step 5; the slot's lip over the paper is the stage's
-## ShiftStage.printer_lip, drawn above the receipt), and under it the register column (step 9): its
+## The shift screen's cash register (#80, mock-up B2; its printer box on the counter top went up to
+## the tower's top as the overhead printer in left column v2, OverheadPrinter): the register column
+## (step 9): its
 ## charcoal front (#123), the charcoal key deck with the keys on it (CHECKOUT's bar key, Redraw, and
-## Cancel in redraw mode, all RegisterKeys), the quiet keypad, the seed line under Redraw, and the
-## cash drawer (CashDrawer, v0.84: each paid item's coins arc into it, on a layer over the keys
-## and the display). It stands at
+## Cancel in redraw mode, all RegisterKeys), the quiet keypad and over it the week glass
+## (WeekGlass, v1.17: "WEEK" over "3/4"; the keypad shows only while the glass doesn't), the seed
+## line under Redraw, and the cash drawer (CashDrawer, v0.84: each paid item's coins arc into it,
+## on a layer over the keys and the display), its front this week's medal case (MedalCase, v1.17).
+## It stands at
 ## ShiftStage.REGISTER_RECT and is the count-up's rattle target, so the keys shake with it; its
 ## parts are placed in its own coordinates (the stage rects less its position). Only the keys take
-## clicks: the stage connects them to its signals.
+## clicks: the stage connects them to its signals. On a payday (show_payday; the user's picks of
+## 2026-11-10, mock-up payday_day.html) the deck's top lip is brass (PaydayTrim) and CHECKOUT is
+## a brass key with an ink caption (RegisterKey.Kind.PAYDAY), in every state; tomato with a paper
+## caption on every other day. Its label and its place never change.
 
-## The printer box (art/src/scenery/printer_box.txt), drawn 1:1 at ShiftStage.PRINTER_RECT with
-## its paper slot at ShiftStage.PRINTER_SLOT_RECT; its PrinterRoll over the front's window.
-const PRINTER_BOX := preload("res://art/scenery/printer_box.png")
 ## The column's charcoal front and the key deck, 9-slices with COLUMN_MARGIN and DECK_MARGIN art px.
 const COLUMN_FRAME := preload("res://art/frames/register_column.png")
 const COLUMN_MARGIN := 4
@@ -43,6 +45,11 @@ const REDRAW_FONT_SIZE := 18
 const CHECKOUT_FONT_SIZE := 30
 ## The seed line: B2's .foot, the body font at SEED_FONT_WEIGHT.
 const SEED_FONT_SIZE := 11
+## CHECKOUT's caption and "›": paper on the tomato key, ink on payday's brass key.
+const CHECKOUT_INK := Palette.PAPER
+const PAYDAY_CHECKOUT_INK := Palette.INK
+## Payday's brass on the deck's top lip (stage px): its two steel rows inside the ink outline.
+const PAYDAY_LIP_RECT := Rect2(14, 414, 310, 4)
 const SEED_FONT_WEIGHT := 600
 
 var total_display: RegisterTotal
@@ -52,12 +59,15 @@ var redraw_key: RegisterKey
 var cancel_key: RegisterKey
 var seed_label: Label
 var keypad: TextureRect
+## The week glass over the keypad (v1.17), and the drawer's medal case.
+var week_glass: WeekGlass
+var medal_case: MedalCase
 ## CHECKOUT's "›", a child of its caption label (so it sinks and fades with it).
 var checkout_arrow: Label
+## Payday's brass on the deck's top lip (hidden on other days).
+var payday_lip: PaydayTrim
 
 var drawer: CashDrawer
-## The printer's roll window, turning while the receipt prints (over the printer's front).
-var printer_roll: PrinterRoll
 var _count: CountUp
 
 
@@ -68,9 +78,6 @@ func _init() -> void:
 	size = ShiftStage.REGISTER_RECT.size
 	var column: PanelContainer = UiKit.frame_panel(COLUMN_FRAME, COLUMN_MARGIN)
 	_add(column, local_rect(ShiftStage.COLUMN_RECT)).name = "Column"
-	_add(UiKit.sprite(PRINTER_BOX), local_rect(ShiftStage.PRINTER_RECT)).name = "Printer"
-	printer_roll = PrinterRoll.new()
-	_add(printer_roll, PrinterRoll.front_rect(local_rect(ShiftStage.PRINTER_RECT)))
 	var shadow: ColorRect = ColorRect.new()
 	shadow.color = Color(Palette.INK, DECK_SHADOW_ALPHA)
 	var shadow_rect: Rect2 = local_rect(ShiftStage.DECK_RECT)
@@ -79,10 +86,23 @@ func _init() -> void:
 	_add(shadow, shadow_rect).name = "DeckShadow"
 	var deck: PanelContainer = UiKit.frame_panel(DECK_FRAME, DECK_MARGIN)
 	_add(deck, local_rect(ShiftStage.DECK_RECT)).name = "Deck"
+	payday_lip = PaydayTrim.new(
+		"PaydayLip", PaydayTrim.Kind.ROWS, local_rect(PAYDAY_LIP_RECT), PaydayTrim.LIP_ROWS
+	)
+	add_child(payday_lip)
 	keypad = UiKit.sprite(KEYPAD)
 	_add(keypad, local_rect(ShiftStage.KEYPAD_RECT)).name = "Keypad"
+	week_glass = WeekGlass.new()
+	var glass: Rect2 = local_rect(ShiftStage.WEEK_GLASS_RECT)
+	week_glass.position = glass.position
+	week_glass.size = glass.size
+	add_child(week_glass)
+	# The glass covers the keypad whole; hidden under it, the keypad never shows past the glass
+	# while the count's motion pops it (a week event's source).
+	week_glass.visibility_changed.connect(_refresh_keypad)
 	drawer = CashDrawer.new()
 	_add(drawer, local_rect(ShiftStage.DRAWER_RECT))
+	medal_case = drawer.medal_case
 	_build_keys()
 	total_display = RegisterTotal.new()
 	total_display.position = local_rect(ShiftStage.CHECKOUT_RECT).position + Vector2(4, 8)
@@ -105,6 +125,21 @@ func _ready() -> void:
 ## Puts CHECKOUT down (the shift is being counted: its held look) or up.
 func set_total_down(down: bool) -> void:
 	checkout_key.held = down
+
+
+## A payday shift (`on`): the deck's lip in brass and CHECKOUT a brass key with an ink caption;
+## off: the steel lip and the tomato key with its paper caption.
+func show_payday(on: bool) -> void:
+	payday_lip.visible = on
+	checkout_key.set_kind(RegisterKey.Kind.PAYDAY if on else RegisterKey.Kind.CHECKOUT)
+	var ink: Color = PAYDAY_CHECKOUT_INK if on else CHECKOUT_INK
+	checkout_key.caption_label().add_theme_color_override("font_color", ink)
+	checkout_arrow.add_theme_color_override("font_color", ink)
+
+
+## Whether CHECKOUT wears payday's brass.
+func is_payday() -> bool:
+	return checkout_key.key_kind() == RegisterKey.Kind.PAYDAY
 
 
 ## A stage rect in the cabinet's own coordinates.
@@ -133,7 +168,7 @@ func _build_keys() -> void:
 func _set_checkout_caption(caption: Label) -> void:
 	var word_font: Font = ArtStyle.spaced_display_font(CHECKOUT_SPACING)
 	caption.add_theme_font_override("font", word_font)
-	caption.add_theme_color_override("font_color", Palette.PAPER)
+	caption.add_theme_color_override("font_color", CHECKOUT_INK)
 	caption.add_theme_constant_override("outline_size", 0)
 	var arrow_width: float = (
 		ArtStyle
@@ -145,7 +180,7 @@ func _set_checkout_caption(caption: Label) -> void:
 	checkout_arrow = UiKit.display_label(CHECKOUT_ARROW, CHECKOUT_ARROW_SIZE, false)
 	checkout_arrow.name = "Arrow"
 	checkout_arrow.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	checkout_arrow.add_theme_color_override("font_color", Palette.PAPER)
+	checkout_arrow.add_theme_color_override("font_color", CHECKOUT_INK)
 	checkout_arrow.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	# The word is centred on the caption, so the "›" stands its half width and the gap after that.
 	checkout_arrow.anchor_left = 0.5
@@ -205,9 +240,16 @@ func _key(
 	return key
 
 
-## Cancel stands in the keypad's place: the keypad hides while Cancel shows.
+## Cancel stands in the keypad's place: the keypad and the week glass hide while Cancel shows.
 func _on_cancel_shown() -> void:
-	keypad.visible = not cancel_key.visible
+	week_glass.covered = cancel_key.visible
+	_refresh_keypad()
+
+
+## The keypad shows only when neither Cancel nor the week glass stands in its place.
+func _refresh_keypad() -> void:
+	var cancel: bool = cancel_key != null and cancel_key.visible
+	keypad.visible = not cancel and not week_glass.visible
 
 
 func _add(node: Control, rect: Rect2) -> Control:
@@ -224,4 +266,3 @@ func follow_count(count_up: CountUp, reading: LedDisplay) -> void:
 	total_display.follow(count_up, reading)
 	count_up.climax_running = total_display.is_celebrating
 	drawer.follow(count_up)
-	printer_roll.follow(count_up)

@@ -10,8 +10,8 @@ func test_whole_euros_put_the_sign_after_the_number() -> void:
 	assert_str(MonitorText.signed_euros(2)).is_equal("+2€")
 	assert_str(MonitorText.signed_euros(0)).is_equal("+0€")
 	assert_str(MonitorText.signed_euros(-2)).is_equal("−2€")
-	assert_str(ReceiptView.money(80)).is_equal("80.00€")
-	assert_str(ReceiptView.money(-3, true)).is_equal("−3.00€")
+	assert_str(ReceiptView.money(80)).is_equal("80€")
+	assert_str(ReceiptView.money(-3, true)).is_equal("−3€")
 
 
 func test_a_leading_amount_splits_off_its_line() -> void:

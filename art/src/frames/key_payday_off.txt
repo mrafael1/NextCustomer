@@ -1,0 +1,21 @@
+; CHECKOUT's bar key on a payday (the user's pick of 2026-11-10, mock-up payday_day.html round 3,
+; "Brass key, ink caption"), off (disabled and held): key_checkout_off's 9-slice (margins 8 top, 3 sides,
+; 4 bottom art px) with its tomato ramp taken to the mustard brass ramp (pale, light, mustard,
+; dark, darkest), the trims' own. Its caption prints in ink (RegisterCabinet).
+@size 8x14
+@kind frame
+@scale 2
+..####..
+.######.
+###MM###
+##MMMM##
+##MMMM##
+##MMMM##
+##MMMM##
+##MMMM##
+##mmmu##
+##mmmu##
+##uuuu##
+###uu###
+.######.
+..####..

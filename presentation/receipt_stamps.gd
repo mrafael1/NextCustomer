@@ -24,16 +24,23 @@ const PAD_Y := 2
 const STAMP_INSET := 4.0
 const STAMP_ROOM := 6.0
 const TITLE_NAME := "Title"
+## A line whose stamp already re-tilts as it sorts.
+const TILT_META := &"stamp_tilts"
 
 
-## PAID is stamped on a passed shift's margin `line`, tilted. Returns the stamp's label.
+## PAID is stamped on a passed shift's margin `line` (its child 1), tilted: a paper margin line,
+## or an anchored count's header over row (ReceiptTarget.over_row, after its margin words; the
+## header stamps every shift on the same label). Returns the stamp's label.
 static func stamp_paid(line: Control) -> Label:
 	var stamp: Label = line.get_child(1) as Label
 	stamp.text = PAID_TEXT
+	stamp.visible = true
 	stamp.add_theme_color_override("font_color", Palette.TOMATO)
 	tilt(stamp, PAID_TILT_DEG, true)
-	# A container sets its children's rotation back to 0 whenever it sorts them.
-	(line as Container).sort_children.connect(tilt.bind(stamp, PAID_TILT_DEG, true))
+	# A container sets its children's rotation back to 0 whenever it sorts them (once per line).
+	if not line.has_meta(TILT_META):
+		line.set_meta(TILT_META, true)
+		(line as Container).sort_children.connect(tilt.bind(stamp, PAID_TILT_DEG, true))
 	return stamp
 
 

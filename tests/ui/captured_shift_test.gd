@@ -73,9 +73,9 @@ func test_everything_lies_inside_the_stage() -> void:
 			)
 
 
-## The top bar's parts (the week chip, the day chip, LOYALTY, the spacer, Cart and the menu; the
-## SHIFT chip hides with weeks, and the register tower took the SPEND chip): apart, under the
-## stage's top edge and above the belt.
+## The top bar's parts (the gauge's room, LOYALTY, Cart and the menu; the SHIFT chip hides with
+## weeks, the register tower took the SPEND chip and the desk calendar stands on the register since
+## left column v2): apart, under the stage's top edge and above the belt.
 func test_the_top_bar_parts_are_apart_above_the_belt() -> void:
 	for scan: String in SCANS:
 		var screen: ShiftScreen = await _captured(scan)
@@ -84,14 +84,18 @@ func test_the_top_bar_parts_are_apart_above_the_belt() -> void:
 			var part: Control = child as Control
 			if part != null and part.visible and part.size.x > 0.0:
 				parts.append(part.get_global_rect())
-		# The week chip and the day chip (v0.70) are always shown.
-		assert_bool(screen._inspection_tag.visible).is_true()
-		assert_int(parts.size()).is_equal(6)
+		# The gauge's room (left column v2, where v1.17's calendar lay; it fills the row up to
+		# LOYALTY, so the spacer takes no room), LOYALTY, Cart and the menu; the calendar shows.
+		assert_bool(screen._calendar.visible).is_true()
+		assert_int(parts.size()).is_equal(4)
 		var bottom: float = _y(screen, ShiftStage.TOP_BAR_BOTTOM)
 		for rect: Rect2 in parts:
 			assert_float(rect.end.y).override_failure_message(str(rect)).is_less_equal(bottom)
 			assert_float(rect.end.y).is_less_equal(_y(screen, ShiftStage.BELT_RECT.position.y))
 		_assert_apart(parts, "top bar")
+		var gauge: Rect2 = screen._stage.gauge_panel.get_global_rect()
+		assert_float(gauge.end.y).override_failure_message(str(gauge)).is_less_equal(bottom)
+		assert_float(gauge.end.x).is_less_equal(screen._loyalty_card.get_global_rect().position.x)
 
 
 ## Every cell (the CLOSED one too) lies on the belt, apart from the others; each belt item's
@@ -228,12 +232,14 @@ func test_every_printed_character_has_its_glyph() -> void:
 	# The basket items show no stickers (#80, step 8), and the counter no hint lines (step 12):
 	# only the belt's tickets print item text.
 	assert_int(checked).is_greater(1000)
-	# The day chip (v0.70) names the day's kind only (v1.16): "Inspection", no effect.
-	var chip: String = InspectionTag.CAPTION
+	# The day calendar (v1.17) names the day's kind only (v1.16): "Inspection", no effect; it paints
+	# its page, so its words are checked on it, not among the labels.
+	var screen_shown: ShiftScreen = await _captured(SCANS[0])
+	assert_str(screen_shown._calendar.text()).is_equal(InspectionTag.CAPTION)
 	var caption: String = RowStrip.CLOSED_CAPTION_TEXT
 	# The scanned multipack's bay plate reads SCAN COMPLETE (PR #138 monitor; COUPON before).
 	var plate: String = MonitorText.SCAN_COMPLETE
-	for required: String in [RowStrip.CLOSED_TEXT, plate, caption, chip, "5", "6", "Multipack"]:
+	for required: String in [RowStrip.CLOSED_TEXT, plate, caption, "5", "6", "Multipack"]:
 		assert_bool(printed.has(required)).override_failure_message(required).is_true()
 
 

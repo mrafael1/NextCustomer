@@ -222,7 +222,8 @@ func _slide_to(progress: float) -> void:
 	var eased: float = progress * progress * (3.0 - 2.0 * progress)
 	var left: float = snappedf(_slide_width * (1.0 - eased), ArtStyle.ART_SCALE)
 	_stage.row_strip.box.position.x = left
-	# The stickers follow their items in the same frame (the layer's own check runs before it).
+	# The stickers follow their items in the same frame (the layer's own check runs before it);
+	# the stuck price labels follow by themselves (PriceWindow tells their layer).
 	_stage.planning_layer.follow_views()
 	# The slats lag the items where the slide is fast: BeltPanel.scroll moves at most MAX_STEP_PX
 	# a frame, as a step past half the slat pitch would look like the belt running backwards.

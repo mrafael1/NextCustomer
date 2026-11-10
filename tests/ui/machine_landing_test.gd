@@ -79,8 +79,9 @@ func test_the_receipt_stamps_paid_and_inspection_passed() -> void:
 	await _frames(2)  # The cleared lines are freed.
 
 
-## The dessert of an inspected pass: PAID, then INSPECTION PASSED with `stamp_notice`, then the
-## tear.
+## The dessert of an inspected pass: PAID, then INSPECTION PASSED's `stamp_notice` (and the
+## count-up's inspection_passed, the monitor's cue), then the tear's rip; since the 2026-11-09 play
+## test the shift screen's receipt prints no INSPECTION PASSED stamp (the machine's fed copy does).
 func test_an_inspected_pass_stamps_inspection_passed_in_the_dessert() -> void:
 	var screen: ShiftScreen = await _screen()
 	var sfx: Sfx = RECORDING_SFX.new()
@@ -102,8 +103,11 @@ func test_an_inspected_pass_stamps_inspection_passed_in_the_dessert() -> void:
 		PackedStringArray(["Spot check"]),
 		""
 	)
+	var passed: Array[bool] = [false]
+	count_up.inspection_passed.connect(func() -> void: passed[0] = true)
 	Rush.rush(count_up)
 	await _until(func() -> bool: return not count_up._playing, 30000)
+	assert_bool(passed[0]).is_true()
 	var heard: Array[String] = []
 	for entry: Dictionary in sfx.get("sounds"):
 		var sound: String = String(entry["sound"])
@@ -111,9 +115,7 @@ func test_an_inspected_pass_stamps_inspection_passed_in_the_dessert() -> void:
 			if not sound.begins_with("ui_"):
 				heard.append(sound)
 	assert_array(heard).is_equal(["total", "pass", "stamp_paid", "stamp_notice", "rip"])
-	var stamp: PanelContainer = _inspection_stamp(screen._receipt)
-	assert_object(stamp).is_not_null()
-	assert_array(Array(_texts(stamp))).contains(["Spot check"])
+	assert_object(_inspection_stamp(screen._receipt)).is_null()
 
 
 ## The ticket's feed (#77 machine v2): the stage receipt itself travels (2026-11-05: its lines as

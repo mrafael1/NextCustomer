@@ -18,7 +18,10 @@ extends Control
 ## (PriceWindow, the same box on every ticket), the printed price at rest and the planned or
 ## counted pay (set_pay) in its state's ink on the window's one paper fill (a boost's ink steps up
 ## with the pay, PriceWindow.boost_step); never a struck price: the printed price and the pay are
-## in its tip and the scan popup. What it does: the rule plate, its short
+## in its tip and the scan popup. A price too wide for the window is not shrunk: it prints on a
+## yellow paper label stuck over this corner, which leaks past the ticket's right edge and top
+## (PriceLabel, the price leak of 2026-11-10), over the gold ring and the got ring. What it
+## does: the rule plate, its short
 ## text (CardDefinition.sticker_summary, formatted in core from the card's own data) in ink on
 ## cream, the families it works with written as chips (FamilyWord), a keyword as its chip
 ## (KeywordChip). The text takes the first of TEXT_FITS that fits the plate (2 lines at 14 px,
@@ -217,6 +220,8 @@ func _init(definition: CardDefinition, palette: FamilyPalette = null) -> void:
 	_place_summary()
 	_got_ring = GotRing.new(SIZE)
 	add_child(_got_ring)
+	# Under the window: a stuck price label lies over the ticket's top rows, where the ring runs.
+	move_child(_got_ring, _window.get_index())
 
 
 ## "N€": a price as tickets print it.
@@ -384,6 +389,34 @@ static func of(node: Node) -> PriceSticker:
 ## The GOLDEN ring (null on any other tier).
 func gold_ring() -> TextureRect:
 	return get_node_or_null(GOLD_RING_NAME) as TextureRect
+
+
+## The GOLDEN sparkles (none on any other tier): the foot's, then the top corner's.
+func sparkles() -> Array[TextureRect]:
+	var found: Array[TextureRect] = []
+	for index: int in 2:
+		var sparkle: TextureRect = get_node_or_null(SPARKLE_NAME % index) as TextureRect
+		if sparkle != null:
+			found.append(sparkle)
+	return found
+
+
+## Hides the GOLDEN ring and its sparkles while a batch or chain frame binds this ticket (#128):
+## the frame's band is its outline then (the ring's foot would hang under the frame's, its sides
+## in the gaps); false shows them again. The gold sprite and the GOLDEN tier text stay.
+func set_framed(framed: bool) -> void:
+	var ring: TextureRect = gold_ring()
+	if ring == null:
+		return
+	ring.visible = not framed
+	for index: int in 2:
+		(get_node(SPARKLE_NAME % index) as CanvasItem).visible = not framed
+
+
+## Whether a frame hides the GOLDEN ring (set_framed); false on any other tier.
+func is_framed() -> bool:
+	var ring: TextureRect = gold_ring()
+	return ring != null and not ring.visible
 
 
 ## A card's tier tag ("BIG", "GOLDEN"), or "" for a plain card.

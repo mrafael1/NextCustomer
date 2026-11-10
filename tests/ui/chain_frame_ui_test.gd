@@ -242,6 +242,25 @@ func test_the_count_shows_no_chain_frame() -> void:
 		assert_bool(part is BatchFrame).is_false()
 
 
+## A GOLDEN ticket a chain frame binds (inside the chain or at its end) wears the frame for its
+## outline: its gold ring and sparkles hide (no gold reaches past the frame); a GOLDEN ticket
+## outside any frame keeps them, and the count (no frames) shows them all again.
+func test_a_framed_golden_ticket_hides_its_ring() -> void:
+	var screen: ShiftScreen = await _screen()
+	await _place(screen, ["banana", "banana_golden", "banana_golden", "bread", "banana_golden"])
+	var frames: Array[ChainFrame] = _chain_frames(screen)
+	assert_int(frames.size()).is_equal(1)
+	assert_array(Array(frames[0].slots)).is_equal([0, 1, 2])
+	for slot: int in [1, 2]:
+		_assert_gold_shown(screen, slot, false)
+	_assert_gold_shown(screen, 4, true)
+	screen._on_checkout_pressed()
+	await _frames(2)
+	assert_array(_chain_frames(screen)).is_empty()
+	for slot: int in [1, 2, 4]:
+		_assert_gold_shown(screen, slot, true)
+
+
 ## A gap too narrow for a pair (a scaled 8-slot row's) gets one jump ring bridging it, LINK_REACH
 ## onto each ticket (half an art pixel more where the scaled tickets fall off the art grid); a
 ## pair's rings overlap by LINK_OVERLAP, centred on their gap.
@@ -431,6 +450,19 @@ func _assert_plate_cells(frame: ChainFrame, index: int) -> void:
 			assert_that(rects[at].size).is_equal(Vector2.ONE * ChainFrame.PLATE_CELL)
 			cells += 1
 	assert_int(cells).is_equal(expected)
+
+
+## Whether `slot`'s GOLDEN ticket shows its gold ring and both sparkles (`shown`), or hides them.
+func _assert_gold_shown(screen: ShiftScreen, slot: int, shown: bool) -> void:
+	var sticker: PriceSticker = _item(screen, slot).sticker()
+	var ring: TextureRect = sticker.gold_ring()
+	assert_object(ring).is_not_null()
+	var message: String = "slot %d" % slot
+	assert_bool(ring.is_visible_in_tree()).override_failure_message(message).is_equal(shown)
+	assert_bool(sticker.is_framed()).override_failure_message(message).is_equal(not shown)
+	for index: int in 2:
+		var sparkle: CanvasItem = sticker.get_node(PriceSticker.SPARKLE_NAME % index) as CanvasItem
+		assert_bool(sparkle.is_visible_in_tree()).override_failure_message(message).is_equal(shown)
 
 
 ## Each line of `sticker`'s short text: its pitch tall, as wide as its text (global).

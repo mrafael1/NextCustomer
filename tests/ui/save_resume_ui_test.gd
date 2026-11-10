@@ -141,15 +141,15 @@ func test_a_new_screen_resumes_the_hand_the_row_and_the_redraws() -> void:
 	assert_int(plan_column.total_number().value()).is_equal(first.run.preview().total)
 	assert_int(resumed._quota_meter.amount()).is_equal(first.run.preview().total)
 	assert_bool(resumed._cabinet.checkout_key.held).is_false()
-	# The receipt is the itemised planning receipt (#80): the header, the items and PROJECTED.
+	# The receipt is the planning receipt (main scene v2): the header's target and PROJECTED total,
+	# the band in place of item rows, as before the save.
 	var stub: PackedStringArray = _receipt_lines(resumed)
 	assert_array(stub).is_equal(_receipt_lines(first))
 	assert_int(resumed._receipt.target.shown_quota()).is_equal(resumed.run.quota())
-	# A line's left text, then its (empty) right text.
-	var shift_line: String = ReceiptView.SHIFT_TEXT % [1, resumed.run.shift_count(), 2]
-	assert_array(Array(stub.slice(0, 2))).is_equal([shift_line, ""])
-	assert_bool(stub.has(ReceiptView.PROJECTED_TEXT)).is_true()
-	assert_bool(stub.has(ReceiptView.money(first.run.preview().total))).is_true()
+	assert_bool(resumed._receipt._items.is_empty()).is_true()
+	var target: ReceiptTarget = resumed._receipt.target
+	assert_str(target.total_caption.text).is_equal(ReceiptTarget.PROJECTED_TEXT)
+	assert_str(target.hero.text).is_equal(ReceiptTarget.AMOUNT_TEXT % first.run.preview().total)
 	assert_str(_event_log().run_id).is_equal(run_id)
 	var resume: Dictionary = _last_event("run_resume")
 	assert_str(resume["run_id"]).is_equal(run_id)
@@ -213,10 +213,9 @@ func test_quitting_during_the_count_up_resumes_on_the_machine() -> void:
 
 	await _count_up_end(first)
 	# The receipt	await _count_up_end(first)
-	# The receipt (under the shift's header, #75), totals and met state beside the machine, as
-	# the count-up left them.
-	assert_str(_receipt_lines(resumed)[0]).is_equal(resumed.receipt_header()[0])
-	assert_bool(_receipt_lines(resumed).has(ReceiptView.PROJECTED_TEXT)).is_false()
+	# The receipt (its rows, main scene v2), totals and met state beside the machine, as the
+	# count-up left them: TOTAL over the hero.
+	assert_str(resumed._receipt.target.total_caption.text).is_equal(ReceiptTarget.TOTAL_TEXT)
 	assert_array(_receipt_lines(resumed)).is_equal(_receipt_lines(first))
 	# It keeps TODAY'S TARGET pinned at its top (the shift scene polish).
 	assert_int(resumed._receipt.target.shown_quota()).is_equal(first.run.quota())
@@ -583,13 +582,13 @@ func _assert_on_screen(screen: ShiftScreen, panel: Control) -> void:
 	assert_bool(screen.get_global_rect().encloses(rect)).is_true()
 
 
-## Waits for the screen's checkout to end, the count rushed (one tap, Rush), and ends the week
-## chip's light on the day (#119): call it only once what needs the count still running has been
+## Waits for the screen's checkout to end, the count rushed (one tap, Rush), and ends the day
+## calendar's light on the day (#119): call it only once what needs the count still running has been
 ## checked.
 func _count_up_end(screen: ShiftScreen) -> void:
 	await Rush.finish(screen)
 	await _frames(1)
-	screen._stage.top_bar.week_chip.finish_flash()
+	screen._stage.day_calendar.advance(DayCalendar.FLASH)
 	await _frames(2)
 
 

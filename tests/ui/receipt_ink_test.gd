@@ -34,29 +34,43 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-## Planning: every item's mini sits inside its line and the receipt, left of its name's first
-## character, centred on its first row; no item line is taller than its name would be without
-## the slot, and the receipt is as tall with the minis as without them. Every payout is bold.
+## Planning (main scene v2) prints no minis (2026-11-08: no band); at checkout (an anchored count)
+## each row printed
+## has its mini inside its line and the receipt, left of its name's first character, centred on its
+## first row; no row is taller than its name would be without the slot, and every printed amount
+## sits in the row's amount label.
 func test_planning_minis_sit_inside_their_lines_and_keep_the_height() -> void:
 	var row: Array[CardInstance] = _row(PLANNING_ROW)
 	var result: ScoreResult = Scoring.score(row)
 	var names: PackedStringArray = CardInstance.names(row)
-	var plain: ReceiptView = await _receipt()
-	plain.show_planning(PackedStringArray(), result, names, row.size())
 	var receipt: ReceiptView = await _receipt()
+	receipt.anchored = true
+	receipt.reduced_motion = true
 	receipt.show_planning(PackedStringArray(), result, names, row.size(), -1, _cards(row))
 	await _frames(3)
-	assert_float(receipt.natural_height()).is_equal(plain.natural_height())
+	assert_int(receipt._lines.get_child_count()).is_equal(0)
+	# A plate, a GOLDEN plate, the coupon's sprite: each card's mini.
+	assert_str(ReceiptInk.item_art(row[0].definition).resource_path).is_equal(
+		"res://art/giver_badges/banana.png"
+	)
+	assert_str(ReceiptInk.item_art(row[5].definition).resource_path).ends_with("_golden.png")
+	assert_str(ReceiptInk.item_art(row[3].definition).resource_path).is_equal(
+		row[3].definition.art_ref
+	)
 	var paper: Rect2 = receipt.get_global_rect()
+	# The count prints each item's row with its mini.
+	receipt.begin_count(PackedStringArray(), names, true, _cards(row))
+	for step: ScoreStep in result.steps:
+		receipt.add_step(step, names)
+	receipt.add_total(result.total)
+	await _frames(3)
+	paper = receipt.get_global_rect()
+	var rows: Array[Control] = receipt.printed_rows()
+	assert_int(rows.size()).is_equal(row.size())
 	for slot: int in range(row.size()):
-		var line: HBoxContainer = receipt._items[slot]
+		var line: HBoxContainer = rows[slot] as HBoxContainer
 		var left: Label = line.get_child(0) as Label
 		var what: String = names[slot]
-		(
-			assert_bool(ReceiptInk.is_bold(line.get_child(1) as Label))
-			. override_failure_message(what)
-			. is_true()
-		)
 		assert_float(line.size.y).override_failure_message(what).is_less_equal(_unslotted(left))
 		var icon: TextureRect = ReceiptInk.item_mini(line)
 		if row[slot].definition.id == &"bundle":
@@ -79,16 +93,8 @@ func test_planning_minis_sit_inside_their_lines_and_keep_the_height() -> void:
 		assert_float(absf(rect.get_center().y - left.global_position.y - row_height / 2.0)).is_less(
 			1.01
 		)
-	# A plate, a GOLDEN plate, the coupon's sprite.
-	assert_str(ReceiptInk.item_mini(receipt._items[0]).texture.resource_path).is_equal(
-		"res://art/giver_badges/banana.png"
-	)
-	assert_str(ReceiptInk.item_mini(receipt._items[5]).texture.resource_path).ends_with(
-		"_golden.png"
-	)
-	assert_str(ReceiptInk.item_mini(receipt._items[3]).texture.resource_path).is_equal(
-		row[3].definition.art_ref
-	)
+		var amount: Label = line.get_child(1) as Label
+		assert_str(amount.text).is_equal(ReceiptView.money(result.payouts[slot]))
 	_assert_lines_apart(receipt)
 
 
@@ -123,15 +129,15 @@ func test_the_count_prints_inks_and_the_arm_line() -> void:
 			assert_array(texts)
 			. is_equal(
 				[
-					"Eggs  1.00€",
+					"Eggs  1€",
 					arm,
-					"Bread  3.00€",
-					"+ Bread bonus  +2.00€",
+					"Bread  3€",
+					"+ Bread bonus  +2€",
 					"Eggs  ×2",
-					"  = 10.00€",
-					"Milk  2.00€",
-					"Dairy regulars  +1.00€",
-					"TOTAL  14.00€",
+					"  = 10€",
+					"Milk  2€",
+					"Dairy regulars  +1€",
+					"TOTAL  14€",
 				]
 			)
 		)

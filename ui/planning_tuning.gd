@@ -34,6 +34,12 @@ extends Resource
 @export var mix_saturation: float = 0.0
 @export var mix_fade_s: float = 0.0
 
+## The most a ticket's stuck price label leaks past the ticket's right edge, in art px (price
+## leak, the user's pick of 2026-11-10: 11, so a 3-digit price prints in the 6x8 digits beside a
+## 3-icon label). A price whose label would leak further prints shorter (PriceLabel.print_for).
+## Display only.
+@export var price_leak_cap: int = 0
+
 ## The pay tag's alpha of an item unrelated to the hovered one.
 @export var dim_ticket_alpha: float = 0.0
 

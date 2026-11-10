@@ -1,11 +1,11 @@
 extends GdUnitTestSuite
-## Day events on the real shift screen (v0.69, plan section 3.9): a boon day's green chip in the
-## top bar ("Quiet morning" since v1.16, the boon coin) lies inside the chip, the bar and
-## the stage between the QUOTA and LOYALTY chips, and the quota reads the boon's; the next shift's
-## boon prints in green on the receipt ("TOMORROW: ..."), on screen; a boon day's pass earns no
-## INSPECTION PASSED; and a boon's steps play in the count-up from its chip (Happy hour's +3€,
-## Free samples' ×2). Clicks are sent to the screen's handlers, because headless runs don't
-## deliver input events.
+## Day events on the real shift screen (v0.69, plan section 3.9): a boon day's green chip in the top
+## bar ("Quiet morning" since v1.16, the boon coin) lies inside the chip, the bar and the stage
+## between the QUOTA and LOYALTY chips, and the quota reads the boon's; the next shift's boon
+## ("TOMORROW: ...") no longer prints on the anchored receipt (the 2026-11-09 play test: the desk
+## calendar says it); a boon day's pass earns no INSPECTION PASSED; and a boon's steps play in the
+## count-up from its chip (Happy hour's +3€, Free samples' ×2). Clicks are sent to the screen's
+## handlers, because headless runs don't deliver input events.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 const Rush := preload("res://tests/ui/count_up_rush.gd")
@@ -28,23 +28,23 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-func test_a_boon_chip_lays_out_in_the_top_bar() -> void:
+func test_a_boon_chip_lays_out_on_the_register() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
 	var quota: int = screen.run.quota()
 	screen._debug.set_inspection("quiet_morning")
-	var tag: InspectionTag = screen._inspection_tag
+	var tag: DayCalendar = screen._calendar
 	assert_bool(tag.visible).is_true()
-	assert_bool(tag.is_boon()).is_true()
-	# The boon's name only (v1.16); its effect is in the tooltip and the day's slip.
+	assert_int(tag.look()).is_equal(DayCalendarArt.Look.BOON)
+	# The boon's name only (v1.16); its effect is on the day's slip (no tooltip, 2026-11-09).
 	assert_str(tag.text()).is_equal("Quiet morning")
-	assert_str(tag.tooltip_text).contains("TODAY: Quiet morning")
-	# Green, never the inspection's tomato pale; the boon coin, not the warning sign.
-	assert_float(tag.self_modulate.g).is_greater(tag.self_modulate.r)
-	var icons: Array[Node] = tag.find_children("*", "TextureRect", true, false)
-	assert_object((icons[0] as TextureRect).texture).is_same(InspectionTag.BOON)
+	assert_str(tag.tooltip_text).is_empty()
+	assert_str(_slip_text(screen)).contains("Quiet morning")
+	# The green binding, never the inspection's tomato; the boon coin, not the warning sign.
+	var band: Array[Color] = DayCalendarArt.band(tag.look())
+	assert_float(band[0].g).is_greater(band[0].r)
 	# No bonus ticket for a boon.
-	assert_bool(tag.pill().visible).is_false()
+	assert_bool(tag.tags.pill().visible).is_false()
 	# The quota the shift plays is the boon's.
 	assert_int(screen.run.quota()).is_equal(ShiftLimits.with_percent(quota, -10))
 	await _frames(3)
@@ -52,23 +52,26 @@ func test_a_boon_chip_lays_out_in_the_top_bar() -> void:
 	assert_float(screen._top_bar.get_combined_minimum_size().x).is_less_equal(stage.size.x - 40)
 	var chip: Rect2 = tag.get_global_rect()
 	assert_bool(stage.encloses(chip)).override_failure_message(str(chip)).is_true()
-	assert_float(chip.end.y).is_less_equal(stage.position.y + ShiftStage.PANEL_TOP)
-	var quota_chip: Rect2 = (screen._top_bar.get_child(1) as Control).get_global_rect()
-	assert_float(chip.position.x).is_greater_equal(quota_chip.end.x)
-	assert_float(chip.end.x).is_less_equal(screen._loyalty_card.get_global_rect().position.x)
-	var icon: Rect2 = (icons[0] as Control).get_global_rect()
-	var text: Rect2 = tag.label().get_global_rect()
+	# On the register's top (left column v2's desk calendar).
+	var desk: Rect2 = screen._stage.get_global_transform() * ShiftStage.DESK_CALENDAR_RECT
+	assert_bool(desk.grow(1.0).encloses(chip)).override_failure_message(str(chip)).is_true()
+	var parts: Dictionary = tag.part_rects()
+	var signs: Array = parts["signs"]
+	assert_int(signs.size()).is_equal(1)
+	var icon: Rect2 = signs[0]
+	var text: Rect2 = parts["day"]
 	assert_bool(chip.encloses(icon) and chip.encloses(text)).is_true()
 	assert_bool(icon.intersects(text)).is_false()
-	# An inspection's chip is tomato pale (red), with the warning sign.
+	# An inspection's binding is tomato (red), with the warning sign.
 	screen._debug.set_inspection("spot_check")
-	assert_bool(tag.is_boon()).is_false()
-	assert_float(tag.self_modulate.r).is_greater(tag.self_modulate.g)
+	assert_int(tag.look()).is_equal(DayCalendarArt.Look.INSPECTION)
+	band = DayCalendarArt.band(tag.look())
+	assert_float(band[0].r).is_greater(band[0].g)
 
 
-## Shift 2 is a boon day: its boon is announced in green under shift 1's tear, on screen, and
-## passing it earns no INSPECTION PASSED.
-func test_the_next_boon_prints_in_green_and_earns_no_stamp() -> void:
+## Shift 2 is a boon day: its notice ("TOMORROW: ...") is not printed under shift 1's rows
+## (2026-11-09), the desk calendar turns to the boon, and passing it earns no INSPECTION PASSED.
+func test_the_next_boon_prints_nothing_and_earns_no_stamp() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
 	var run: RunState = screen.run
@@ -77,19 +80,11 @@ func test_the_next_boon_prints_in_green_and_earns_no_stamp() -> void:
 	assert_int(boons.size()).is_equal(1)
 	var notice_text: String = InspectionTag.next_notice(run.next_inspections)
 	assert_str(notice_text).starts_with("TOMORROW: %s (" % boons[0].display_name)
-	var notice: Label = _receipt_label(screen, notice_text)
-	assert_object(notice).is_not_null()
-	assert_bool(notice.get_theme_color("font_color") == Palette.GREEN_DARK).is_true()
-	await _frames(3)
-	assert_bool(screen.get_global_rect().encloses(notice.get_global_rect())).is_true()
-	(
-		assert_bool(screen._machine.view.get_global_rect().intersects(notice.get_global_rect()))
-		. is_false()
-	)
+	assert_object(_receipt_label(screen, notice_text)).is_null()
 	screen._machine.debug_skip()
 	assert_int(run.shift_index).is_equal(1)
 	assert_array(run.inspections).is_equal(boons)
-	assert_bool(screen._inspection_tag.is_boon()).is_true()
+	assert_int(screen._calendar.look()).is_equal(DayCalendarArt.Look.BOON)
 	await _pass_shift(screen)
 	assert_str(_receipt_text(screen)).not_contains("INSPECTION PASSED")
 	assert_object(run.history[-1].inspection).is_null()
@@ -206,7 +201,7 @@ func _check_boon_count_up(id: String, expected: CountUpBeat.Kind) -> void:
 				kinds.append(beat.kind)
 	assert_array(kinds).is_equal([expected])
 	var source: Control = screen._count_up._beats._source_control(boon_step)
-	assert_object(source).is_same(screen._inspection_tag)
+	assert_object(source).is_same(screen._calendar)
 	var boon_name: String = (
 		(load("res://data/inspections/%s.tres" % id) as InspectionDefinition).display_name
 	)
@@ -267,3 +262,12 @@ static func _left_click() -> InputEventMouseButton:
 
 static func _event_log() -> EventLogService:
 	return (Engine.get_main_loop() as SceneTree).root.get_node("/root/EventLog")
+
+
+## Today's slip's words (play test 2026-11-09: the slip in place of the calendar's tooltip), opened
+## as a tap on the calendar opens it, then closed.
+static func _slip_text(screen: ShiftScreen) -> String:
+	screen._week.toggle_slip()
+	var text: String = screen._week.slip.slip_text()
+	screen._week.slip.clear()
+	return text

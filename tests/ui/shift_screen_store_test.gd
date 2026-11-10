@@ -2,7 +2,8 @@ extends GdUnitTestSuite
 ## The shift screen's store look (#80, mock-up B2's greybox): the backdrop's window bands (the
 ## top bar's band, the plaster wall, which keeps the background clicks, the counter's wood and
 ## the floor) at 1280x720 and at 1920x1080; the belt's bands; the register (RegisterCabinet) with
-## its printer, column, key deck, keypad, drawer and keys at their rects, and the keys' looks;
+## its column, key deck, keypad, drawer and keys at their rects (the printer hangs overhead since
+## left column v2), and the keys' looks;
 ## decor that never takes a click (a click on an empty slot, a hand card or a register key still
 ## reaches it, and one on the bare belt, the monitor, the keypad or the drawer reaches the wall);
 ## the hand's basket items under a shade while the shift is counted. The real saves and logs are
@@ -136,8 +137,10 @@ func test_decor_takes_no_clicks() -> void:
 			Control.MOUSE_FILTER_IGNORE
 		)
 		for child: Node in decor.get_children():
-			# The row's cells and the register's keys take their own clicks.
-			if child is Control and child != stage.row_strip and not child is RegisterKey:
+			# The row's cells, the register's keys and its week glass (v1.17: a tap opens the time
+			# card) take their own clicks.
+			var own: bool = child is RegisterKey or child == stage.week_glass
+			if child is Control and child != stage.row_strip and not own:
 				(
 					assert_int((child as Control).mouse_filter)
 					. override_failure_message(str(child.name))
@@ -156,13 +159,24 @@ func test_decor_takes_no_clicks() -> void:
 	assert_object(left_hit).is_same(RowStrip.drop_target(screen._slots[1]))
 	var right_hit: Control = _topmost_at(screen, Vector2(gap_middle + 2.0, centre_y))
 	assert_object(right_hit).is_same(RowStrip.drop_target(slot))
-	# The register: its keys take their clicks; its keypad, drawer and bare deck don't.
+	# The register: its keys and its week glass (over the keypad) take their clicks; its drawer
+	# (but its medals' tooltips) and bare deck don't.
 	for key: RegisterKey in [stage.checkout_button, stage.redraw_button]:
 		assert_object(_topmost_at(screen, key.get_global_rect().get_center())).is_same(key)
 	var cabinet: RegisterCabinet = stage.cabinet
-	for part_name: String in ["Keypad", "Drawer"]:
-		var part_rect: Rect2 = (cabinet.get_node(part_name) as Control).get_global_rect()
-		assert_object(_topmost_at(screen, part_rect.get_center())).is_same(wall)
+	var keypad: Rect2 = (cabinet.get_node("Keypad") as Control).get_global_rect()
+	assert_object(_topmost_at(screen, keypad.get_center())).is_same(stage.week_glass)
+	# Under the shown glass the keypad hides, so none of it shows past the glass while the count
+	# pops the glass (a week event's source); it shows again with the glass hidden.
+	assert_bool(stage.week_glass.visible).is_true()
+	assert_bool(cabinet.keypad.visible).is_false()
+	stage.week_glass.show_week(WeekCardModel.of(screen.run), false)
+	assert_bool(cabinet.keypad.visible).is_true()
+	stage.week_glass.show_week(WeekCardModel.of(screen.run), true)
+	assert_bool(cabinet.keypad.visible).is_false()
+	var drawer: Rect2 = (cabinet.get_node("Drawer") as Control).get_global_rect()
+	var drawer_hit: Control = _topmost_at(screen, drawer.get_center())
+	assert_object(drawer_hit).override_failure_message(str(drawer_hit.get_path())).is_same(wall)
 	var bare_deck: Vector2 = _on_stage(screen, ShiftStage.DECK_RECT).position + Vector2(4, 100)
 	assert_object(_topmost_at(screen, bare_deck)).is_same(wall)
 	var bezel: Rect2 = stage.monitor.get_global_rect()
@@ -205,11 +219,11 @@ func _assert_checkout_caption(checkout: RegisterKey, arrow: Label) -> void:
 
 
 ## The register (RegisterCabinet) at its rect, the stage's rattle target (#80, step 9): its
-## column, printer, key deck (its shadow down and right on the column), keypad and drawer at their
-## stage rects, inside the column and taking no click; the printer, keypad and drawer are their
-## art at 1:1, and the slot's lip art sits at the slot rect over the receipt, drawn after it. The
-## keys (CHECKOUT, Redraw, Cancel) and the seed line are the cabinet's, so they rattle with it, on
-## the key deck clear of the keypad and of each other, with the drawer under the deck.
+## column, key deck (its shadow down and right on the column), keypad and drawer at their stage
+## rects, inside the column and taking no click; the keypad and drawer are their art at 1:1, and
+## the overhead printer (left column v2) sits at its rect over the receipt's top, drawn after it.
+## The keys (CHECKOUT, Redraw, Cancel) and the seed line are the cabinet's, so they rattle with
+## it, on the key deck clear of the keypad and of each other, with the drawer under the deck.
 func test_the_register_cabinet() -> void:
 	var screen: ShiftScreen = await _screen()
 	var cabinet: RegisterCabinet = screen._cabinet
@@ -220,7 +234,6 @@ func test_the_register_cabinet() -> void:
 	shadow.size.y -= RegisterCabinet.DECK_SHADOW_SHORTER
 	var parts: Dictionary[String, Rect2] = {
 		"Column": ShiftStage.COLUMN_RECT,
-		"Printer": ShiftStage.PRINTER_RECT,
 		"DeckShadow": shadow,
 		"Deck": ShiftStage.DECK_RECT,
 		"Keypad": ShiftStage.KEYPAD_RECT,
@@ -232,12 +245,10 @@ func test_the_register_cabinet() -> void:
 		assert_that(part.get_global_rect()).is_equal(_on_stage(screen, parts[part_name]))
 		assert_bool(cabinet.get_global_rect().encloses(part.get_global_rect())).is_true()
 		assert_int(part.mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
-		if part_name != "Printer":
-			var inside: bool = column.encloses(part.get_global_rect())
-			assert_bool(inside).override_failure_message(part_name).is_true()
+		var inside: bool = column.encloses(part.get_global_rect())
+		assert_bool(inside).override_failure_message(part_name).is_true()
 	assert_object(cabinet.get_node_or_null("Pull")).is_null()
 	var arts: Dictionary[String, Texture2D] = {
-		"Printer": RegisterCabinet.PRINTER_BOX,
 		"Keypad": RegisterCabinet.KEYPAD,
 		"Drawer/Front": CashDrawer.DRAWER,
 	}
@@ -245,15 +256,14 @@ func test_the_register_cabinet() -> void:
 		var sprite: TextureRect = cabinet.get_node(part_name) as TextureRect
 		assert_object(sprite.texture).is_same(arts[part_name])
 		assert_that(Vector2(sprite.texture.get_size())).is_equal(sprite.size)
-	var lip: TextureRect = screen._stage.printer_lip
-	assert_object(lip.texture).is_same(ShiftStage.PRINTER_LIP)
-	assert_int(lip.mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
-	assert_that(lip.get_global_rect()).is_equal(_on_stage(screen, ShiftStage.PRINTER_SLOT_RECT))
-	assert_that(Vector2(lip.texture.get_size())).is_equal(ShiftStage.PRINTER_SLOT_RECT.size)
-	# The lip is the stage's, after the receipt (drawn over its foot), and stays at the slot.
-	assert_object(lip.get_parent()).is_same(screen._receipt.get_parent())
-	assert_int(lip.get_index()).is_greater(screen._receipt.get_index())
-	assert_bool(lip.get_global_rect().intersects(screen._receipt.get_global_rect())).is_true()
+	# The overhead printer (left column v2) over the receipt's top: the stage's, after the receipt's
+	# slot, at PRINTER_RECT, taking no click.
+	var printer: OverheadPrinter = screen._stage.printer
+	assert_int(printer.mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
+	assert_that(printer.get_global_rect()).is_equal(_on_stage(screen, ShiftStage.PRINTER_RECT))
+	assert_object(printer.get_parent()).is_same(screen._stage.receipt_slot.get_parent())
+	assert_int(printer.get_index()).is_greater(screen._stage.receipt_slot.get_index())
+	assert_bool(printer.get_global_rect().intersects(screen._receipt.get_global_rect())).is_true()
 
 	# The keys and the seed line on the deck: the cabinet's, apart, clear of the keypad (Cancel
 	# stands in its place), with the drawer under the deck.
@@ -291,14 +301,16 @@ func test_the_register_cabinet() -> void:
 	cabinet.position.x += 5.0
 	assert_that(cabinet.checkout_key.get_global_rect().position).is_equal(rest + Vector2(5, 0))
 	cabinet.position.x -= 5.0
-	# Cancel takes the keypad's place in redraw mode.
-	assert_bool(cabinet.keypad.visible).is_true()
+	# Cancel takes the keypad's place in redraw mode (the week glass's, which hides the keypad).
+	assert_bool(cabinet.week_glass.visible).is_true()
+	assert_bool(cabinet.keypad.visible).is_false()
 	screen._on_redraw_pressed()
 	assert_bool(cabinet.cancel_key.visible).is_true()
-	assert_bool(cabinet.keypad.visible).is_false()
+	assert_bool(cabinet.keypad.visible or cabinet.week_glass.visible).is_false()
 	screen._on_cancel_pressed()
 	assert_bool(cabinet.cancel_key.visible).is_false()
-	assert_bool(cabinet.keypad.visible).is_true()
+	assert_bool(cabinet.keypad.visible).is_false()
+	assert_bool(cabinet.week_glass.visible).is_true()  # The week glass over the keypad (v1.17).
 
 
 ## The keys' looks (#80, step 9): CHECKOUT's tomato frames and the cream ones (Redraw, Cancel),
@@ -465,7 +477,11 @@ static func _topmost_at(node: Node, point: Vector2) -> Control:
 		and control.mouse_filter != Control.MOUSE_FILTER_IGNORE
 		and control.get_global_rect().has_point(point)
 	):
-		return control
+		# The medal case takes the mouse on its medals only (its _has_point, v1.17).
+		var medals: MedalCase = control as MedalCase
+		var local: Vector2 = control.get_global_transform().affine_inverse() * point
+		if medals == null or medals._has_point(local):
+			return control
 	return null
 
 

@@ -1,33 +1,30 @@
 class_name ReceiptGold
 extends Node
-## The receipt's gold paper (2026-11-05): on a payday shift (the PAYDAY NEXT announce's check,
-## ReceiptGoldFlow) the whole paper turns warm gold as the shift opens, and on a shift whose paid
-## total reaches the overtime PREMIUM laps (MachineDefinition.overtime_premium_laps) it turns gold
-## as they are reached, with a small "3× QUOTA" stamp on its TODAY'S TARGET (a payday's paper,
-## gold already, only gets the stamp). Its gold is the PREMIUM / PAYDAY NEXT announce's gold slip
-## (GoldPaperArt, the user's "it should feel golden like the previous text box"): the slip's gold
-## face with a darker brass edge and trim, its highlight and dithered shading, a pixel star in each
-## top corner, the announce's glint sweeping across every SHINE_PERIOD and a few sparkles as it
-## turns gold, all drawn on the paper's own canvas, under its ink. It fades in place over
-## FADE_SECONDS; under reduced motion (`instant`) it switches at once, with no glint and no
-## sparkles. On the gold the ink stays dark and the lighter inks step darker (INKS: a short margin's
-## tomato, a waiting amount's grey, a pass's green, a link's teal), so the warnings keep reading;
-## the dashed rules turn amber. Display only: ReceiptGoldFlow says when.
+## The receipt's silver and gold paper (2026-11-05; since left column v2, the user's pick of
+## 2026-11-09, mock-up docs/art/mockups/left_column_v2.html): the gauge hides at CHECKOUT and the
+## paper carries the week medals the checkout wins. When the count earns the overtime ticket's
+## medal (twice the target, MachineDefinition.overtime_ticket_laps) the paper turns SILVER; when it
+## earns the PREMIUM medal (three times) it turns GOLD (ReceiptGoldFlow says when). Each metal
+## wipes on from the paper's top down in whole art px over WIPE_SECONDS (GoldPaperArt's `wipe`),
+## then a stepped shine band crosses it once (SHINE_SECONDS) and its sparkles twinkle round it;
+## gold wipes over the silver, so a total jumping past both shows two beats in one count, silver
+## then gold. The material
+## is the PREMIUM / PAYDAY NEXT announce's gold slip (GoldPaperArt: its face, a darker edge and
+## trim, its highlight and dithered shading, a pixel star in each top corner), in Palette's steels
+## for the silver, drawn on the paper's own canvas under its ink: the ink stays ink, and the lighter
+## inks step darker (INKS: a short margin's tomato, a waiting amount's grey, a pass's green, a
+## link's teal), so the warnings keep reading; the dashed rules turn amber (steel on silver). Under
+## reduced motion (`instant`) it switches at once, with no shine and no sparkles. No stamp: the
+## medal is the paper's metal alone. A payday is the paycheck design (ReceiptPayday), not a metal.
 ##
-## The SILVER paper (2026-11-05 review: "x2 bonus ticket should transform receipt to silver"): a
-## shift whose paid total reaches the overtime ticket's laps
-## (MachineDefinition.overtime_ticket_laps) turns silver the same way (GoldPaperArt's material in
-## Palette's steels, its glint and sparkles, its "2× QUOTA" stamp in steel: show_silver,
-## show_stamp's `silver`), under the gold: gold (the ×3, or a payday) wins over silver, drawn over
-## it. The inks step darker on silver as on gold.
-##
-## The week medals (2026-11-06): the paper is silver or gold only when its checkout spends the
-## medal (ReceiptGoldFlow), so a metal receipt always pays. While planning's projection would spend
-## one, only its edges glow faintly in that metal, a glint running round them (show_pending,
-## GoldPaperArt.draw_glow), fading in and out over FADE_SECONDS; the full metal waits for the
-## checkout.
+## While planning's projection would spend a week medal (2026-11-06) only the paper's edges glow
+## faintly in that metal, a glint running round them (show_pending, GoldPaperArt.draw_glow),
+## fading in and out over FADE_SECONDS. Display only.
 
 const FADE_SECONDS := 0.3
+## The metal's wipe from the top, then its one shine across.
+const WIPE_SECONDS := 0.36
+const SHINE_SECONDS := 0.42
 ## The inks that step darker on the gold paper.
 const INKS: Dictionary[Color, Color] = {
 	Palette.TOMATO: Palette.TOMATO_DARK,
@@ -47,33 +44,10 @@ const PENDING_SILVER := 1
 const PENDING_GOLD := 2
 ## A retinted label keeps its cream ink here.
 const CREAM_META := &"cream_ink"
-## The stamp: "3× QUOTA" (the laps from the data), the display font at STAMP_SIZE, brass's darkest
-## on mustard pale (lighter than the gold paper) in a STAMP_BORDER px border, tilted, at the right
-## of the target's number.
-const STAMP_NAME := "QuotaStamp"
-const STAMP_TEXT := "%d%s QUOTA"
-const STAMP_SIZE := 12
-const STAMP_BORDER := 2
-const STAMP_PAD := Vector2(4, 1)
-const STAMP_TILT_DEG := -8.0
-const STAMP_INSET := 2.0
-const STAMP_FACE := Palette.MUSTARD_PALE
-const STAMP_INK := Palette.BRASS_DARKEST
-## The silver stamp ("2× QUOTA"): light steel (darker than the silver paper), the darkest steel.
-const SILVER_STAMP_FACE := Palette.STEEL_LIGHT
-const SILVER_STAMP_INK := Palette.STEEL_DARKEST
-## The stamp lands from STAMP_SLAM times its size over STAMP_SLAM_SECONDS (not under reduced
-## motion).
-const STAMP_SLAM := 1.6
-const STAMP_SLAM_SECONDS := 0.2
-
 var _paper: Control
 var _target: ReceiptTarget
 var _gold: bool = false
 var _silver: bool = false
-var _laps: int = 0
-var _stamp_silver: bool = false
-var _stamp: PanelContainer
 var _tween: Tween
 var _silver_tween: Tween
 ## The pending glow: its metal (PENDING_*), how far it is in (0 .. 1), its tween and its clock.
@@ -81,21 +55,21 @@ var _pending: int = PENDING_NONE
 var _pending_k: float = 0.0
 var _pending_tween: Tween
 var _glow_time: float = 0.0
-## How far the gold is in (0: cream .. 1: gold), and the silver under it.
+## How far the gold's wipe is down the paper (0 .. 1), and the silver's under it.
 var _k: float = 0.0
 var _ks: float = 0.0
-## Reduced motion: the gold switches at once, with no glint and no sparkles.
+## Reduced motion: the metal switches at once, with no shine and no sparkles.
 var _still: bool = false
-## Seconds since the paper turned gold (the glint's clock), and the sparkles' (below 0: none).
-var _time: float = 0.0
-var _sparkle: float = -1.0
+## Seconds since the gold's wipe ended, and the silver's (below 0: no shine or sparkles).
+var _time: float = -1.0
+var _silver_time: float = -1.0
 ## The paper's labels and rules the retint walks (found again only when a node joins the paper).
 var _inked: Array[Node] = []
 var _inked_stale: bool = true
 
 
-## The gold of `paper` (a ReceiptView: drawn on its canvas, its labels retint), its stamp on
-## `target`'s number row.
+## The metal of `paper` (a ReceiptView: drawn on its canvas, its labels retint); `target` is its
+## header.
 func _init(paper: Control, target: ReceiptTarget = null) -> void:
 	name = "Gold"
 	_paper = paper
@@ -104,8 +78,8 @@ func _init(paper: Control, target: ReceiptTarget = null) -> void:
 	set_process(false)
 
 
-## Turns the paper gold (`on`) or back to cream, fading in place with its sparkles unless `instant`
-## (reduced motion: no glint either).
+## Turns the paper gold (`on`: wiping on from its top, then its shine and sparkles) or back to
+## cream at once; `instant` (reduced motion): at once, with no shine or sparkles.
 func show_gold(on: bool, instant: bool = false) -> void:
 	_still = instant
 	if on == _gold and (_tween == null or not _tween.is_running()):
@@ -114,13 +88,13 @@ func show_gold(on: bool, instant: bool = false) -> void:
 	if _tween != null:
 		_tween.kill()
 		_tween = null
-	_time = 0.0
-	_sparkle = 0.0 if on and not instant else -1.0
-	if instant or not _paper.is_inside_tree():
+	_time = -1.0
+	if not on or instant or not _paper.is_inside_tree():
 		_set_amount(1.0 if on else 0.0)
 	else:
 		_tween = _paper.create_tween()
-		_tween.tween_method(_set_amount, _k, 1.0 if on else 0.0, FADE_SECONDS)
+		_tween.tween_method(_set_amount, 0.0, 1.0, WIPE_SECONDS)
+		_tween.finished.connect(func() -> void: _time = 0.0)
 	_retint()
 	set_process(true)
 
@@ -129,7 +103,7 @@ func is_gold() -> bool:
 	return _gold
 
 
-## Turns the paper silver (`on`) or back, as show_gold does (under the gold: gold wins).
+## Turns the paper silver (`on`) or back, as show_gold does (under the gold: gold wipes over it).
 func show_silver(on: bool, instant: bool = false) -> void:
 	_still = instant
 	if on == _silver and (_silver_tween == null or not _silver_tween.is_running()):
@@ -138,14 +112,13 @@ func show_silver(on: bool, instant: bool = false) -> void:
 	if _silver_tween != null:
 		_silver_tween.kill()
 		_silver_tween = null
-	if on and not _gold:
-		_time = 0.0
-		_sparkle = -1.0 if instant else 0.0
-	if instant or not _paper.is_inside_tree():
+	_silver_time = -1.0
+	if not on or instant or not _paper.is_inside_tree():
 		_set_silver(1.0 if on else 0.0)
 	else:
 		_silver_tween = _paper.create_tween()
-		_silver_tween.tween_method(_set_silver, _ks, 1.0 if on else 0.0, FADE_SECONDS)
+		_silver_tween.tween_method(_set_silver, 0.0, 1.0, WIPE_SECONDS)
+		_silver_tween.finished.connect(func() -> void: _silver_time = 0.0)
 	_retint()
 	set_process(true)
 
@@ -156,9 +129,11 @@ func is_silver() -> bool:
 
 ## The edges glow faintly in `metal` (PENDING_SILVER, PENDING_GOLD) while planning's projection
 ## would spend that medal, or go quiet (PENDING_NONE), fading unless `instant` (reduced motion: no
-## glint either).
+## glint either); the target's PROJECTED number takes the same metal (ReceiptTarget).
 func show_pending(metal: int, instant: bool = false) -> void:
 	_still = instant
+	if _target != null:
+		_target.show_pending_metal(metal)
 	if metal == _pending and (_pending_tween == null or not _pending_tween.is_running()):
 		return
 	var was: int = _pending
@@ -186,89 +161,47 @@ func pending_amount() -> float:
 	return _pending_k
 
 
-## How far the silver is in (0 .. 1), as drawn now (under the gold).
+## How far the silver's wipe is down the paper (0 .. 1), as drawn now (under the gold).
 func silver_amount() -> float:
 	return _ks
 
 
-## How far the gold is in (0: cream .. 1: gold), as drawn now.
+## How far the gold's wipe is down the paper (0: cream .. 1: gold), as drawn now.
 func amount() -> float:
 	return _k
 
 
-## Whether the glint and the sparkles play (not under reduced motion).
+## The wipe's front for `k` (0 .. 1) on the paper (its px, whole art px): the metal is drawn above.
+func wipe_y(k: float) -> float:
+	var cell: float = ArtStyle.ART_SCALE
+	return roundf(_paper.size.y * clampf(k, 0.0, 1.0) / cell) * cell
+
+
+## Whether the shine and the sparkles play (not under reduced motion).
 func shines() -> bool:
 	return _metal() and not _still
 
 
-## The paper's face colour now (cream, silver, gold, or between while they fade), for what paints
-## over it.
+## Whether a metal's shine band crosses the paper now.
+func is_shining() -> bool:
+	return _shine_of(_time) >= 0.0 or _shine_of(_silver_time) >= 0.0
+
+
+## The paper's face colour at its foot now (cream, silver once its wipe is down, gold once its
+## is), for what paints under it (the torn tail).
 func face_colour() -> Color:
 	if _k >= 1.0:
 		return GoldPaperArt.FACE
-	return Palette.PAPER.lerp(GoldPaperArt.SILVER[0], _ks).lerp(GoldPaperArt.FACE, _k)
+	if _ks >= 1.0:
+		return GoldPaperArt.SILVER[0]
+	return Palette.PAPER
 
 
-## Stamps "N× QUOTA" (`laps`, the data's) on the target, slamming in unless `instant`, in steel
-## when `silver` (the ×2's); 0 takes it off.
-func show_stamp(laps: int, instant: bool = false, silver: bool = false) -> void:
-	if laps == _laps and silver == _stamp_silver:
-		return
-	_laps = laps
-	_stamp_silver = silver
-	if is_instance_valid(_stamp):
-		_stamp.queue_free()
-	_stamp = null
-	if laps <= 0 or _target == null:
-		return
-	_stamp = quota_stamp(laps, silver)
-	var row: Control = _target.get_node("AmountRow") as Control
-	row.add_child(_stamp)
-	_place_stamp()
-	if not row.resized.is_connected(_place_stamp):
-		row.resized.connect(_place_stamp)
-	if not instant and _stamp.is_inside_tree():
-		_stamp.scale = Vector2.ONE * STAMP_SLAM
-		var slam: Tween = _stamp.create_tween()
-		slam.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-		slam.tween_property(_stamp, "scale", Vector2.ONE, STAMP_SLAM_SECONDS)
-
-
-## The stamp shown, or null.
-func stamp() -> PanelContainer:
-	return _stamp if is_instance_valid(_stamp) else null
-
-
-## Shows `other`'s gold and stamp at once (a copy of its receipt), glinting as it does.
+## Shows `other`'s metal at once (a copy of its receipt).
 func copy_from(other: ReceiptGold) -> void:
 	show_gold(other.is_gold(), true)
 	show_silver(other.is_silver(), true)
-	show_stamp(other._laps, true, other._stamp_silver)
 	_still = other._still
-
-
-## The stamp alone: "N× QUOTA", tilted (`silver`: in steel).
-static func quota_stamp(laps: int, silver: bool = false) -> PanelContainer:
-	var ink: Color = SILVER_STAMP_INK if silver else STAMP_INK
-	var made: PanelContainer = PanelContainer.new()
-	made.name = STAMP_NAME
-	made.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var style: StyleBoxFlat = StyleBoxFlat.new()
-	style.bg_color = SILVER_STAMP_FACE if silver else STAMP_FACE
-	style.border_color = ink
-	style.set_border_width_all(STAMP_BORDER)
-	style.content_margin_left = STAMP_PAD.x
-	style.content_margin_right = STAMP_PAD.x
-	style.content_margin_top = STAMP_PAD.y
-	style.content_margin_bottom = STAMP_PAD.y
-	made.add_theme_stylebox_override("panel", style)
-	var words: Label = UiKit.display_label(
-		STAMP_TEXT % [laps, OvertimeWords.TIMES], STAMP_SIZE, false
-	)
-	words.add_theme_color_override("font_color", ink)
-	made.add_child(words)
-	made.size = made.get_combined_minimum_size()
-	return made
 
 
 ## `color` as a label on the gold paper shows it (itself unless INKS steps it darker).
@@ -290,12 +223,28 @@ func _process(delta: float) -> void:
 		_glow_time += delta
 		_paper.queue_redraw()
 	if (_k > 0.0 or _ks > 0.0) and not _still:
-		_time += delta
-		if _sparkle >= 0.0:
-			_sparkle += delta
+		if _time >= 0.0:
+			_time += delta
+		if _silver_time >= 0.0:
+			_silver_time += delta
 		_paper.queue_redraw()
-	elif not _metal() and not _fading() and _pending_k <= 0.0:
+	if not _fading() and _pending_k <= 0.0 and not _lively():
 		set_process(false)
+
+
+## Whether a metal's shine or sparkles still play.
+func _lively() -> bool:
+	if _still:
+		return false
+	var span: float = maxf(SHINE_SECONDS, GoldPaperArt.SPARKLE_SECONDS)
+	return (_time >= 0.0 and _time < span) or (_silver_time >= 0.0 and _silver_time < span)
+
+
+## The shine's progress `time` seconds after a wipe ended (below 0 when none crosses).
+func _shine_of(time: float) -> float:
+	if _still or time < 0.0 or time >= SHINE_SECONDS:
+		return -1.0
+	return time / SHINE_SECONDS
 
 
 ## Whether the paper is silver or gold (its inks stepped darker).
@@ -326,17 +275,17 @@ func _set_pending(k: float) -> void:
 	_paper.queue_redraw()
 
 
-## The silver, then the gold over it, under the paper's lines (its own canvas, over its panel); the
-## glint and the sparkles on the top metal only.
+## The silver, then the gold wiping over it, under the paper's lines (its own canvas, over its
+## panel), each with its shine and sparkles once its wipe is down.
 func _draw_gold() -> void:
-	var shine: float = -1.0 if _still else GoldPaperArt.shine_at(_time)
-	var sparkle: float = -1.0 if _still else _sparkle
 	var rect: Rect2 = Rect2(Vector2.ZERO, _paper.size)
+	if _ks > 0.0:
+		var sparkle: float = -1.0 if _still else _silver_time
+		var wipe: float = wipe_y(_ks)
+		GoldPaperArt.draw(_paper, rect, 1.0, _shine_of(_silver_time), sparkle, true, wipe)
 	if _k > 0.0:
-		GoldPaperArt.draw(_paper, rect, _ks, -1.0, -1.0, true)
-		GoldPaperArt.draw(_paper, rect, _k, shine, sparkle)
-	else:
-		GoldPaperArt.draw(_paper, rect, _ks, shine, sparkle, true)
+		var sparkle: float = -1.0 if _still else _time
+		GoldPaperArt.draw(_paper, rect, 1.0, _shine_of(_time), sparkle, false, wipe_y(_k))
 	if _pending_k > 0.0:
 		var run: float = -1.0
 		if not _still:
@@ -358,6 +307,7 @@ func _exit_tree() -> void:
 func _on_node_added(node: Node) -> void:
 	if not _inked_stale and (node is Label or node is HSeparator) and _paper.is_ancestor_of(node):
 		_inked_stale = true
+		set_process(true)  # The next frame retints it.
 
 
 ## Every label's ink and every dashed rule as the paper is now: stepped darker on gold or silver,
@@ -393,15 +343,3 @@ func _retint() -> void:
 			node.set_meta(RULE_META, _metal())
 			node.set_meta(SILVER_RULE_META, silver)
 			(node as CanvasItem).queue_redraw()
-
-
-## The stamp at the right of the target's number row, its middle on the row's.
-func _place_stamp() -> void:
-	if not is_instance_valid(_stamp):
-		return
-	var row: Control = _stamp.get_parent() as Control
-	_stamp.size = _stamp.get_combined_minimum_size()
-	_stamp.position = Vector2(
-		row.size.x - _stamp.size.x - STAMP_INSET, roundf((row.size.y - _stamp.size.y) / 2.0)
-	)
-	ReceiptStamps.tilt(_stamp, STAMP_TILT_DEG, true)

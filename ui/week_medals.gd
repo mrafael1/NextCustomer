@@ -1,13 +1,13 @@
 class_name WeekMedals
 extends RefCounted
-## The week badge's two medals (2026-11-06, mock-up docs/art/mockups/week_medals.html, the "spend"
-## model): the over-quota rewards (OvertimeTickets) as two coins in sockets at the week chip's
-## right end, SILVER (the overtime ticket's laps, 2×: one extra machine draw) then GOLD (the
-## PREMIUM laps, 3×: the shift's machine visit turns PREMIUM). Every week starts with both
+## The week's two medals (2026-11-06, mock-up docs/art/mockups/week_medals.html, the "spend"
+## model; since v1.17 in the register's medal case, MedalCase): the over-quota rewards
+## (OvertimeTickets), SILVER (the overtime ticket's laps, 2×: one extra machine draw) then GOLD
+## (the PREMIUM laps, 3×: the shift's machine visit turns PREMIUM). Every week starts with both
 ## AVAILABLE; a checkout reaching a medal's laps while it is available spends it, and its socket
 ## stays empty (USED) until the next week. While planning, a medal the preview's projected total
 ## would spend is PENDING (it shimmers, and the receipt's edges glow in its metal). A medal whose
-## reward is off (0 laps) is OFF (no socket). Read from the run (the shift records), so a resume
+## reward is off (0 laps) is OFF (not shown). Read from the run (the shift records), so a resume
 ## shows the week as it was. Display only.
 
 enum State { OFF, AVAILABLE, PENDING, USED }
@@ -25,6 +25,12 @@ static func laps_of(machine: MachineDefinition, gold: bool) -> int:
 	if machine == null:
 		return 0
 	return machine.overtime_premium_laps if gold else machine.overtime_ticket_laps
+
+
+## The total medal `gold` needs on `run`'s shift (v1.17, the medal case's "at 258€"): its laps of
+## today's quota (OvertimeTickets.total_for); 0 while it is off.
+static func threshold_of(run: RunState, gold: bool) -> int:
+	return OvertimeTickets.total_for(run.quota(), laps_of(machine_data(run), gold))
 
 
 ## Medal `gold`'s state in `run`'s week (never PENDING: pending_of says that). While `counting`,

@@ -6,10 +6,9 @@ extends RefCounted
 ## is not exported).
 
 
-## Shows planning's rows of `screen`'s run for `result` on `expected`, anchored at full length.
+## Shows planning's rows of `screen`'s run for `result` on `expected`, anchored.
 static func plan(expected: ReceiptView, screen: ShiftScreen, result: ScoreResult) -> void:
 	expected.anchored = true
-	expected.full_length = true
 	expected.show_planning(
 		screen.receipt_header(),
 		result,

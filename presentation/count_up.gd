@@ -208,6 +208,9 @@ var _playing: bool = false
 var _presses: PressReader
 ## A tap has sped the count up (to the verdict, unless it skipped the dessert).
 var _tapped: bool = false
+## A tap made before the count (CHECKOUT's medal prelude skipped: tap_ahead): the next play()
+## starts with it.
+var _tap_ahead: bool = false
 ## The final total is shown: what follows is the dessert.
 var _verdict_shown: bool = false
 ## This count-up ducked the music and hasn't brought it back.
@@ -319,6 +322,9 @@ func play(
 	_ducked = false
 	_presses.begin()
 	_playing = true
+	if _tap_ahead:
+		_tap_ahead = false
+		_tap(Time.get_ticks_msec())
 	# The receipt starts over: the shift's header (#80); each item's line prints as it scans.
 	var cards: Array[CardDefinition] = []
 	for view: CardView in _views:
@@ -426,6 +432,12 @@ func total_tuning() -> CountTotalTuning:
 	if _total_tuning == null:
 		_total_tuning = load(CountUpPlan.TOTAL_TUNING_PATH) as CountTotalTuning
 	return _total_tuning
+
+
+## A tap that skipped what plays before the count (MedalPrelude): the next play() starts tapped,
+## as by a first tap at its start (skip_at_ms 0), skipping it to the verdict.
+func tap_ahead() -> void:
+	_tap_ahead = true
 
 
 ## How much faster a tap or a hold runs real-time motion now (1 for neither): the climax (#105

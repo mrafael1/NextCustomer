@@ -539,6 +539,8 @@ func _set_grey(amount: float) -> void:
 		return
 	ArtStyle.set_mix_grey(_stand, amount, dim_greyness)
 	ArtStyle.set_mix_grey(_sticker, amount, dim_greyness)
+	# A stuck price label's paper is drawn, not art: it greys by its own colour.
+	_sticker.window().label().grey = amount * (1.0 - dim_greyness.y)
 
 
 ## The mix mark of `mix_look` over the brackets' box (made at the first mark): a basket item's

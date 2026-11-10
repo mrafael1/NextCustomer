@@ -22,11 +22,10 @@ const REASON := "review passed"
 const CHUTE_SUB := "review passed · premium · pick a chute"
 const END_SUB := "%d premium prizes this shift"
 const KEY_LEAD := "premium draw"
-## The planning announce's texts (PremiumAnnounce) and its hanging tag.
+## The planning announce's texts (PremiumAnnounce; it leaves no tag since 2026-11-10).
 const ANNOUNCE_HEAD := "PASS THE REVIEW"
 const ANNOUNCE_TITLE := "PAYDAY"
 const ANNOUNCE_BOOSTS: Array[String] = ["2 PREMIUM DRAWS", "EVERY TICKET RARE+"]
-const TAG := "PAYDAY NEXT"
 
 
 ## Whether passing `run`'s current shift is a payday (its pass pays two PREMIUM tickets). False on

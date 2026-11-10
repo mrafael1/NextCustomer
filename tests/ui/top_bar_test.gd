@@ -8,11 +8,14 @@ extends GdUnitTestSuite
 ## quota_meter_test); the menu opens under its button
 ## with Export log, drawn sharp, which closes it and says so; Cart's trolley sits left of its
 ## caption inside the button and the menu's bars in its middle; the chips' decor takes no clicks.
-## Its place on the screen: shift_screen_layout_test. The week chip's lettering (v1.10) and its
-## centred ink (v1.14) are checked here; its layout in week_card_ui_test.
+## Its place on the screen: shift_screen_layout_test. The week glass's and the desk calendar's
+## lettering on whole pixels (v1.17; the calendar on the register's top since left column v2) are
+## checked here; their layout in week_card_ui_test and day_calendar_test.
 
 const BALANCE := "res://data/balance/balance.tres"
 const STARTER := "res://data/decks/starter.tres"
+## The gauge's glass in the bar (GaugePanel.glass_rect at GAUGE_PANEL_RECT's width).
+const GLASS := Vector2(360, 26)
 
 
 func test_the_quota_gauge_follows_the_led() -> void:
@@ -122,8 +125,8 @@ func test_cart_and_menu_icons_sit_in_their_buttons() -> void:
 	assert_str(bar.menu_button.accessibility_name).is_equal("Menu")
 
 
-## The chips, their texts, the spacer and icons are decor: no clicks (the inspection chip and the
-## stamps only pass the mouse on for their hover text).
+## The chips, their texts, the spacer and icons are decor: no clicks (the day calendar and the
+## stamps only pass the mouse on for their hover text; the calendar's SKIP tag alone takes a tap).
 func test_the_decor_takes_no_clicks() -> void:
 	var bar: TopBar = auto_free(TopBar.new())
 	add_child(bar)
@@ -138,19 +141,34 @@ func test_the_decor_takes_no_clicks() -> void:
 			. override_failure_message(str(node.get_path()))
 			. is_equal(Control.MOUSE_FILTER_IGNORE)
 		)
-	assert_int(bar.inspection_tag.mouse_filter).is_equal(Control.MOUSE_FILTER_PASS)
-	for node: Node in bar.inspection_tag.find_children("*", "Control", true, false):
-		assert_int((node as Control).mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
+	# The desk calendar (left column v2: on the register's top, no longer in the bar).
+	var calendar: DayCalendar = auto_free(DayCalendar.new())
+	add_child(calendar)
+	assert_int(calendar.mouse_filter).is_equal(Control.MOUSE_FILTER_PASS)
+	var skip: Control = calendar.tags.skip_tag()
+	assert_int(skip.mouse_filter).is_equal(Control.MOUSE_FILTER_STOP)
+	# The bonus pill passes its hover and tap to the calendar (the slip).
+	var pill: Control = calendar.tags.pill()
+	assert_int(pill.mouse_filter).is_equal(Control.MOUSE_FILTER_PASS)
+	for node: Node in calendar.find_children("*", "Control", true, false):
+		if node == skip or node == pill:
+			continue
+		(
+			assert_int((node as Control).mouse_filter)
+			. override_failure_message(str(node.name))
+			. is_equal(Control.MOUSE_FILTER_IGNORE)
+		)
 
 
-## The quota gauge (the tube beside the receipt) keeps its size through a count and a drag (#71):
-## it prints nothing, so nothing in it can grow or move.
+## The quota gauge (lying in the bar's gauge chip since left column v2) keeps its size through a
+## count and a drag (#71): it prints nothing, so nothing in it can grow or move.
 func test_the_quota_gauge_keeps_its_size() -> void:
 	var led: LedDisplay = auto_free(LedDisplay.new())
 	add_child(led)
 	var meter: QuotaMeter = auto_free(QuotaMeter.new())
 	meter.reduced_motion = func() -> bool: return true
-	meter.size = ShiftStage.TUBE_RECT.size
+	meter.horizontal = true
+	meter.size = GLASS
 	add_child(meter)
 	meter.follow(led)
 	meter.show_projected(73, 900)
@@ -160,245 +178,116 @@ func test_the_quota_gauge_keeps_its_size() -> void:
 		led.show_subtotal(subtotal, subtotal >= 900)
 		await _frames(2)
 		assert_bool(_met(meter)).is_equal(subtotal >= 900)
-		assert_vector(meter.size).is_equal(ShiftStage.TUBE_RECT.size)
+		assert_vector(meter.size).is_equal(GLASS)
 	led.clear()
 	for case: Array in [[52, 6], [40, -6], [9999, 999], [1, -999]]:
 		meter.show_hypothetical(case[0], case[1], 900)
 		await _frames(2)
 		assert_int(meter.hypothetical()).is_equal(case[0])
-		assert_vector(meter.size).is_equal(ShiftStage.TUBE_RECT.size)
+		assert_vector(meter.size).is_equal(GLASS)
 	assert_array(meter.find_children("*", "Label", true, false)).is_empty()
 
 
-## The SPEND chip is gone (the shift scene polish): the bar holds no gauge, and a spacer keeps Cart
-## and the menu at the row's end.
+## The SPEND chip is gone (the shift scene polish): the bar's only gauge is the quota gauge's chip
+## (left column v2), and a spacer keeps Cart and the menu at the row's end.
 func test_the_bar_has_no_spend_chip() -> void:
 	var bar: TopBar = auto_free(TopBar.new())
 	add_child(bar)
 	await _frames(2)
-	assert_array(bar.find_children("*", "QuotaMeter", true, false)).is_empty()
+	var meters: Array[Node] = bar.find_children("*", "QuotaMeter", true, false)
+	assert_array(meters).is_equal([bar.gauge_panel.quota_meter])
 	var spacer: Control = bar.get_node("Spacer") as Control
 	assert_int(spacer.size_flags_horizontal).is_equal(Control.SIZE_EXPAND_FILL)
 	assert_int(spacer.get_index()).is_less(bar.deck_button.get_index())
 	assert_float(bar.menu_button.get_rect().end.x).is_equal_approx(TopBar.ROW_SIZE.x, 0.5)
 
 
-## One lettering (v1.10, v1.12; the user's reviews of 2026-11-05): "W :", "/4" and the week's
-## name are lettered as the week's number, in paper: its font, its thick ink outline in proportion
-## to their size and its ink drop, only smaller, so they read as strong as the number, which
-## stands out by its size and its week's ink; neighbouring outlines stay clear of each other (no
-## merged ink), all on whole pixels at 1920x1080's 1.5x.
-func test_the_chip_letters_its_words_as_its_number() -> void:
-	var chip: WeekChip = auto_free(WeekChip.new())
-	add_child(chip)
+## The week glass's words (v1.17, in place of the week chip's lettering): WEEK in the 3x5
+## capitals, the week's number in the chunky digits with "/4" after it, their feet level;
+## on every shift, at 1x and at 1920x1080's 1.5x (the glass where the stretched stage puts it),
+## each word's corner lies on whole pixels of the screen, the words inside the glass's inside
+## and apart, the number's group centred on it within a canvas pixel.
+func test_the_glass_letters_its_week_on_whole_pixels() -> void:
+	var glass: WeekGlass = auto_free(WeekGlass.new())
+	add_child(glass)
+	glass.size = ShiftStage.WEEK_GLASS_RECT.size
 	var balance: BalanceDefinition = load(BALANCE)
 	var run: RunState = RunState.new(43, load(STARTER), balance, RunStock.starting(balance))
 	run.start_shift()
-	chip.show_week(WeekCardModel.of(run))
-	await _frames(2)
-	var number: Label = chip.number_label()
-	var number_size: int = number.get_theme_font_size("font_size")
-	var number_outline: int = number.get_theme_constant("outline_size")
-	var drop: int = number.get_theme_constant("shadow_offset_y")
-	assert_int(number_size).is_equal(WeekChip.NUMBER_SIZE)
-	assert_int(number_outline).is_equal(WeekChip.NUMBER_OUTLINE)
-	assert_object(number.get_theme_color("font_color")).is_equal(WeekChip.number_ink(1))
-	assert_float(fmod(drop * 1.5, 1.0)).is_equal(0.0)
-	assert_str(chip.name_label().text).is_equal("TRAINING")
-	for part: Label in [chip.key_label(), chip.count_label(), chip.name_label()]:
-		assert_object(part.get_theme_font("font")).override_failure_message(part.name).is_same(
-			number.get_theme_font("font")
-		)
-		assert_object(part.get_theme_color("font_color")).is_equal(Palette.PAPER)
-		assert_object(part.get_theme_color("font_outline_color")).is_equal(Palette.INK)
-		# The number's ink drop, as deep and as wide as its outline.
-		assert_object(part.get_theme_color("font_shadow_color")).is_equal(Palette.INK)
-		assert_int(part.get_theme_constant("shadow_offset_y")).is_equal(drop)
-		assert_int(part.get_theme_constant("shadow_offset_x")).is_equal(0)
-		var outline: int = part.get_theme_constant("outline_size")
-		assert_int(part.get_theme_constant("shadow_outline_size")).is_equal(outline)
-		assert_int(outline).is_equal(WeekChip.SMALL_OUTLINE)
-		assert_float(fmod(outline * 1.5, 1.0)).is_equal(0.0)
-		var part_size: int = part.get_theme_font_size("font_size")
-		assert_int(part_size).is_equal(WeekChip.SMALL_SIZE).is_less(number_size)
-		# As strong as the number: its outline in proportion to the size (within a pixel).
-		var scaled: float = float(number_outline) * part_size / number_size
-		assert_float(float(outline)).is_equal_approx(scaled, 1.0)
-		assert_vector(part.scale).is_equal(Vector2.ONE)
-		assert_float(part.get_minimum_size().y).is_less(number.get_minimum_size().y)
-	# The outlines stay apart: each part's text grown by half its outline, its neighbour's by half
-	# its own, leave at least a canvas pixel of the chip between them ("W :" and "/4" beside the
-	# number, the name after "/4", and the last word before the pips, with the name and without).
-	var pairs: Array[Array] = [
-		[chip.key_label(), number],
-		[number, chip.count_label()],
-		[chip.count_label(), chip.name_label()],
-		[chip.name_label(), chip.pips_view()]
-	]
-	_assert_apart(pairs)
-	chip.show_name(false)
-	await _frames(2)
-	_assert_apart([[chip.count_label(), chip.pips_view()]])
+	for scale: float in [1.0, 1.5]:
+		glass.scale = Vector2(scale, scale)
+		glass.position = ShiftStage.WEEK_GLASS_RECT.position * scale  # The stage stretched.
+		for shift_index: int in range(run.shift_count()):
+			run.debug_skip_to_shift(shift_index)
+			glass.show_week(WeekCardModel.of(run), true)
+			await _frames(1)
+			var message: String = "shift %d at %sx" % [shift_index + 1, scale]
+			assert_bool(glass.visible).override_failure_message(message).is_true()
+			var inner: Rect2 = glass.get_global_transform() * WeekGlass.INSIDE_RECT
+			var words: Array[PixelWords] = [glass.week_label, glass.number_label, glass.count_label]
+			for index: int in range(words.size()):
+				var rect: Rect2 = words[index].get_global_rect()
+				var what: String = "%s: %s" % [message, words[index].text]
+				assert_bool(inner.encloses(rect)).override_failure_message(what).is_true()
+				(
+					assert_bool(_is_whole(rect.position.x) and _is_whole(rect.position.y))
+					. override_failure_message(what)
+					. is_true()
+				)
+				for other: int in range(index + 1, words.size()):
+					var apart: bool = not rect.intersects(words[other].get_global_rect())
+					assert_bool(apart).override_failure_message(what).is_true()
+			var number: Rect2 = glass.number_label.get_global_rect()
+			var count: Rect2 = glass.count_label.get_global_rect()
+			assert_float(count.end.y).is_equal_approx(number.end.y, 0.01)
+			var group: float = (number.position.x + count.end.x) / 2.0
+			assert_float(group).override_failure_message(message).is_equal_approx(
+				inner.get_center().x, 2.0 * scale
+			)
 
 
-## Centred ink (v1.14; the user's play of main on 2026-11-06: "Week box has main week centered but
-## other texts aren't centered"): on every week's chip in the bar, "W :", "/4" and the week's name
-## sit centred on the chip's height as the number does: each one's ink middle (half way between
-## its glyphs' highest and lowest outline points, measured from the font, not the label's box) is
-## within half a pixel of the number's and of the chip's middle, on a whole-pixel baseline; the
-## pips are centred too, and the chip keeps its height (the number's line in the frame's margins).
-## The baselines are the layout's (each label's box, top margin and the font's ascent), so this
-## checks where the chip places each line; the captures check the drawn pixels.
-func test_the_chip_centres_its_words_ink() -> void:
-	var bar: TopBar = auto_free(TopBar.new())
-	add_child(bar)
-	bar.show_weeks(true)
+## The desk calendar's parts (left column v2) lie on whole art pixels: at 1x on even canvas pixels,
+## and at the 1920x1080 window's 1.5x on whole screen pixels, on every day of the run and every
+## kind.
+func test_the_calendar_draws_on_whole_pixels() -> void:
+	var calendar: DayCalendar = auto_free(DayCalendar.new())
+	add_child(calendar)
 	var balance: BalanceDefinition = load(BALANCE)
+	var pool: Array[InspectionDefinition] = balance.inspection_pool + balance.boon_pool
 	var run: RunState = RunState.new(43, load(STARTER), balance, RunStock.starting(balance))
 	run.start_shift()
-	var chip: WeekChip = bar.week_chip
-	var number: Label = chip.number_label()
-	var font: Font = number.get_theme_font("font")
-	var frame: StyleBoxTexture = chip.get_theme_stylebox("panel")
-	var height: float = ceilf(font.get_height(WeekChip.NUMBER_SIZE))
-	height += frame.texture_margin_top + frame.texture_margin_bottom
-	var names: Dictionary[String, bool] = {}
-	for shift_index: int in range(run.shift_count()):
-		run.debug_skip_to_shift(shift_index)
-		chip.show_week(WeekCardModel.of(run))
-		await _frames(2)
-		var message: String = "shift %d" % (shift_index + 1)
-		var middle: float = chip.get_global_rect().get_center().y
-		var number_ink: float = _ink_middle(number)
-		assert_float(number_ink).override_failure_message(message).is_equal_approx(middle, 0.5)
-		for part: Label in [chip.key_label(), chip.count_label(), chip.name_label()]:
-			if not part.visible:
-				continue
-			var what: String = "%s's %s (%s)" % [message, part.name, part.text]
-			var ink: float = _ink_middle(part)
-			assert_float(ink).override_failure_message(what).is_equal_approx(number_ink, 0.5)
-			assert_float(ink).override_failure_message(what).is_equal_approx(middle, 0.5)
-			assert_bool(_is_whole(_baseline(part))).override_failure_message(what).is_true()
-		names[chip.name_label().text] = true
-		var pip: Rect2 = chip.pips_view().get_global_transform() * chip.pip_rect(0)
-		assert_float(pip.get_center().y).override_failure_message(message).is_equal_approx(
-			middle, 0.5
-		)
-		assert_float(chip.size.y).override_failure_message(message).is_equal(height)
-		assert_float(bar.size.y).is_equal(height)
-	# Every week's name was measured.
-	assert_int(names.size()).is_greater(1)
-
-
-## At the 1920x1080 window's 1.5x stretch (here the bar scaled 1.5x, half a screen pixel down, so
-## no part's line lands on a whole pixel by chance): every word's baseline is on a whole screen
-## pixel (_centre_parts' snap), and its ink middle within half a canvas pixel (0.75 screen px) of
-## the number's and of the chip's middle, on every shift's chip.
-func test_the_chip_centres_its_words_on_whole_pixels_at_1_5x() -> void:
-	var bar: TopBar = auto_free(TopBar.new())
-	add_child(bar)
-	bar.show_weeks(true)
-	bar.position = Vector2(0.0, 0.5)
-	bar.scale = Vector2(1.5, 1.5)
-	var balance: BalanceDefinition = load(BALANCE)
-	var run: RunState = RunState.new(43, load(STARTER), balance, RunStock.starting(balance))
-	run.start_shift()
-	var chip: WeekChip = bar.week_chip
-	var number: Label = chip.number_label()
-	var off_pixel: int = 0
-	for shift_index: int in range(run.shift_count()):
-		run.debug_skip_to_shift(shift_index)
-		chip.show_week(WeekCardModel.of(run))
-		await _frames(2)
-		var message: String = "shift %d at 1.5x" % (shift_index + 1)
-		var screen: Transform2D = WeekChip.screen_transform(chip)
-		assert_float(screen.get_scale().y).is_equal_approx(1.5, 0.001)
-		var middle: float = (screen * Vector2(0.0, chip.size.y / 2.0)).y
-		var number_ink: float = _screen_baseline(number) + _ink_offset(number) * 1.5
-		assert_float(number_ink).override_failure_message(message).is_equal_approx(middle, 0.75)
-		for part: Label in [chip.key_label(), chip.count_label(), chip.name_label()]:
-			if not part.visible:
-				continue
-			var what: String = "%s's %s (%s)" % [message, part.name, part.text]
-			var baseline: float = _screen_baseline(part)
-			assert_bool(_is_whole(baseline)).override_failure_message(what).is_true()
-			var ink: float = baseline + _ink_offset(part) * 1.5
-			assert_float(ink).override_failure_message(what).is_equal_approx(number_ink, 0.75)
-			assert_float(ink).override_failure_message(what).is_equal_approx(middle, 0.75)
-		if not _is_whole(_screen_baseline(number)):
-			off_pixel += 1
-	# The number is placed exactly, so off the screen's pixels on some chip: the words' whole
-	# baselines are the snap's, not the layout's chance.
-	assert_int(off_pixel).is_greater(0)
+	for scale: float in [1.0, 1.5]:
+		# The bar where the stage puts it, the stage scaled as the window stretches it.
+		calendar.scale = Vector2(scale, scale)
+		calendar.position = ShiftStage.DESK_CALENDAR_RECT.position * scale
+		for shift_index: int in range(run.shift_count()):
+			run.debug_skip_to_shift(shift_index)
+			calendar.show_inspections(run.inspections, shift_index + 1, pool, run.shift_count())
+			calendar.show_week(WeekCardModel.of(run))
+			await _frames(1)
+			var parts: Dictionary = calendar.part_rects()
+			var rects: Array[Rect2] = [parts["pad"], parts["number"], parts["day"]]
+			for sign_rect: Rect2 in parts["signs"]:
+				rects.append(sign_rect)
+			var step: float = DayCalendarArt.CELL * scale
+			for rect: Rect2 in rects:
+				var message: String = "day %d at %sx: %s" % [shift_index + 1, scale, rect]
+				var cells: Vector2 = rect.size / step
+				(
+					assert_bool(_is_whole(cells.x) and _is_whole(cells.y))
+					. override_failure_message(message)
+					. is_true()
+				)
+				(
+					assert_bool(_is_whole(rect.position.x) and _is_whole(rect.position.y))
+					. override_failure_message(message)
+					. is_true()
+				)
 
 
 ## Whether `value` is a whole number (within float error).
 static func _is_whole(value: float) -> bool:
 	return absf(value - roundf(value)) < 0.001
-
-
-## `label`'s baseline (one line, top-aligned, lowered by its box's top margin), in global
-## coordinates.
-static func _baseline(label: Label) -> float:
-	return label.get_global_rect().position.y + _line_top(label)
-
-
-## `label`'s baseline in the window's pixels (WeekChip.screen_transform: its canvas, then the
-## stretch).
-static func _screen_baseline(label: Label) -> float:
-	return (WeekChip.screen_transform(label) * Vector2(0.0, _line_top(label))).y
-
-
-## `label`'s baseline in its own coordinates: its box's top margin plus the font's ascent.
-static func _line_top(label: Label) -> float:
-	var top: float = label.get_theme_stylebox("normal").get_margin(SIDE_TOP)
-	return top + label.get_theme_font("font").get_ascent(label.get_theme_font_size("font_size"))
-
-
-## The middle of `label`'s ink in global coordinates (its baseline plus _ink_offset).
-static func _ink_middle(label: Label) -> float:
-	return _baseline(label) + _ink_offset(label)
-
-
-## The middle of `label`'s ink from its baseline, in its own pixels: half way between its glyphs'
-## highest and lowest outline points (the font's glyph contours, character by character). Its ink
-## outline grows round the glyphs, so it keeps this middle.
-static func _ink_offset(label: Label) -> float:
-	var server: TextServer = TextServerManager.get_primary_interface()
-	var font: Font = label.get_theme_font("font")
-	var size: int = label.get_theme_font_size("font_size")
-	var top: float = INF
-	var bottom: float = -INF
-	for character: String in label.text:
-		for rid: RID in font.get_rids():
-			var glyph: int = server.font_get_glyph_index(rid, size, character.unicode_at(0), 0)
-			if glyph == 0:
-				continue
-			var contours: Dictionary = server.font_get_glyph_contours(rid, size, glyph)
-			for point: Vector3 in contours.get("points", PackedVector3Array()):
-				top = minf(top, point.y)
-				bottom = maxf(bottom, point.y)
-			break
-	return (top + bottom) / 2.0
-
-
-## Each pair's outlines (a label's text grown by half its outline; the pips have none) leave at
-## least a canvas pixel between them.
-func _assert_apart(pairs: Array[Array]) -> void:
-	for pair: Array in pairs:
-		var left: Control = pair[0]
-		var right: Control = pair[1]
-		var left_ink: float = left.get_global_rect().end.x + _outline_of(left) / 2.0
-		var right_ink: float = right.get_global_rect().position.x - _outline_of(right) / 2.0
-		(
-			assert_float(right_ink - left_ink)
-			. override_failure_message("%s's outline meets %s's" % [left.name, right.name])
-			. is_greater_equal(1.0)
-		)
-
-
-static func _outline_of(part: Control) -> int:
-	return part.get_theme_constant("outline_size") if part is Label else 0
 
 
 func _frames(count: int) -> void:

@@ -9,7 +9,8 @@ extends GdUnitTestSuite
 ## in its lane's band and the belt's x-range, its notches, plate, plug, stem and cap in the lip
 ## band, a notch (lane 0) or a drop (lane 1) on each target's ticket and no factor badge on any
 ## strip, calm or hot (the factor is the target's sticker only, since the h1 build's play test),
-## its lit gaps off every ticket, and no two strips of one lane meet; hovered, the hot strips' gain
+## nothing lit between the tickets, and no two strips of one lane meet; hovered, the hot strips'
+## gain
 ## badges stand on their targets, inside the lip band and the screen, none on another; every part
 ## lies on the screen; and nothing is drawn over a CLOSED cell's sign and plate or an empty
 ## slot's mat and ticket. The real saves and logs are never touched.
@@ -130,18 +131,16 @@ func test_a_target_of_many_givers_shows_two_hot_strips() -> void:
 	screen._effects.unfocus()
 
 
-## Eggs gives its ×2 to Bread over Batteries (not Food): its lane-0 strip lights both ticket gaps
-## it spans, the two beside Batteries too, calm and hot.
-func test_a_strip_lights_every_gap_it_spans() -> void:
+## Eggs gives its ×2 to Bread over Batteries (not Food): its lane-0 strip spans the unrelated
+## item and lights nothing between the tickets (no gap lights since 2026-11-10), calm and hot.
+func test_a_strip_spans_an_unrelated_item() -> void:
 	var screen: ShiftScreen = await _shift([], "", ["eggs", "batteries", "bread"])
 	var layer: PlanningLayer = _layer(screen)
 	var strips: Array[RailStrip] = layer.strips()
 	assert_int(strips.size()).is_equal(1)
 	assert_array(Array(strips[0].spec().targets)).is_equal([2])
 	assert_int(strips[0].spec().lane).is_equal(0)
-	assert_int(strips[0].gap_rects().size()).is_equal(2)
-	for fill: Control in strips[0].fills():
-		assert_bool(fill.visible).is_true()
+	assert_object(layer.find_child("RailGap*", true, false)).is_null()
 	_assert_laid_out(screen, "skipped item")
 	screen._effects.pointer = func() -> Vector2: return Vector2(-500, -500)
 	var eggs: ItemView = screen._row_views[0] as ItemView
@@ -149,7 +148,7 @@ func test_a_strip_lights_every_gap_it_spans() -> void:
 	await _frames(1)
 	var hot: Array[RailStrip] = layer.hot_strips()
 	assert_int(hot.size()).is_equal(1)
-	assert_int(hot[0].gap_rects().size()).is_equal(2)
+	assert_object(layer.find_child("RailGap*", true, false)).is_null()
 	screen._effects.unfocus()
 
 
@@ -296,22 +295,6 @@ func _assert_strips(screen: ShiftScreen, case: String) -> void:
 				and drop.end.x <= belt.end.x + TOLERANCE
 			)
 			assert_bool(inside).override_failure_message("%s drop %s" % [message, drop]).is_true()
-		# Lane 0 lights every ticket gap of its span wide enough, over unrelated items too.
-		var wide: int = 0
-		for slot: int in range(strip.spec().lo(), strip.spec().hi()):
-			if tickets[slot + 1].position.x - tickets[slot].end.x >= RailStrip.GAP_WIDTH:
-				wide += 1
-		assert_int(strip.gap_rects().size()).override_failure_message(message).is_equal(
-			wide if lane == 0 else 0
-		)
-		for gap: Rect2 in strip.gap_rects():
-			assert_int(lane).is_equal(0)
-			for ticket: Rect2 in tickets:
-				(
-					assert_bool(gap.intersects(ticket))
-					. override_failure_message("%s gap %s on %s" % [message, gap, ticket])
-					. is_false()
-				)
 		var span: Rect2 = strip.parts_rect()
 		for other: Rect2 in spans[lane]:
 			var meet: bool = span.position.x < other.end.x and other.position.x < span.end.x

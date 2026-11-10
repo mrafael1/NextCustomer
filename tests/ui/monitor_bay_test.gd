@@ -1,15 +1,15 @@
 extends GdUnitTestSuite
 ## The monitor bay (the follow-up of #86, mock-up monitor_bay_v1.html; #105 piece 2, mock-up
 ## readability_v3.html; MonitorView, ScannerBay, CheckoutColumn). The checkout column's number: the
-## group ("N€") sized for the count's final total (CountTotalTuning.number_sizes, fit_size),
-## centred on its column, for one- to four-digit totals, inside the column and the paper at the
-## largest punch, clear of the caption, and its widest status texts fitting their line. Planning's
-## bay: at BAY_RECT in every mode, belt slot 1's item under NEXT with a pip per belt slot and its
-## family chip, the held item under SCAN, the bare bed and "–" for an empty slot 1, SCANNER with no
-## belt slots; swaps slide out then drop in on the bay's own tweens (cut under reduced motion); on
-## the real screen the last placed item follows every refresh, a scan replaces it until it is let
-## go, and the count starts with its first item in the bay when that was the last placed. The real
-## saves and logs are never touched.
+## group ("N€") sized for the count's final total (CountTotalTuning.number_sizes, fit_size), centred
+## on its column, for one- to four-digit totals, inside the column and the paper at the largest
+## punch, clear of the caption, and its widest status texts fitting their line. Planning's bay: at
+## BAY_RECT in every mode, belt slot 1's item under "SLOT n" with a pip per belt slot and its family
+## chip, the held item under SCAN, the bare bed and "–" for an empty slot 1, SCANNER with no belt
+## slots; swaps slide out then drop in on the bay's own tweens (cut under reduced motion); on the
+## real screen the last placed item follows every refresh, a scan replaces it until it is let go,
+## and the count starts with its first item in the bay when that was the last placed. The real saves
+## and logs are never touched.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 const CARDS := "res://data/cards"
@@ -95,8 +95,8 @@ func test_the_count_number_fits_the_column() -> void:
 
 
 ## Planning's bay (the monitor bay follow-up of #86, mock-up monitor_bay_v1.html), under reduced
-## motion (every swap at once): at BAY_RECT in every mode; belt slot 1's item under NEXT over the
-## ON THE BELT status plate (PR #138 monitor), a pip per belt slot (slot 1's gold, the other
+## motion (every swap at once): at BAY_RECT in every mode; belt slot 1's item under "SLOT 1" over
+## the ON THE BELT status plate (PR #138 monitor), a pip per belt slot (slot 1's gold, the other
 ## filled ones teal light, the empty ones teal shade); a new slot 1 replaces it; a held scan shows
 ## the held item under SCAN over SCAN COMPLETE and the light on, then slot 1's item comes back; a
 ## hold on the item already in the bay scans it there (no new art); an empty slot 1 shows the bare
@@ -117,7 +117,7 @@ func test_planning_bay_shows_slot_one_and_the_held_item() -> void:
 	assert_object(bay.bed().art().texture).is_same(ArtStyle.item_sprite(milk))
 	assert_str(bay.chip().chip_text()).is_equal(MonitorText.ON_BELT)
 	assert_bool(bay.shows_scan()).is_false()
-	assert_str(queue.text()).is_equal(BayQueue.NEXT_TEXT)
+	assert_str(queue.text()).is_equal(BayQueue.SLOT_TEXT % 1)
 	var shade: Color = BayQueue.EMPTY_SLOT_COLOR
 	assert_array(queue.pip_colours()).is_equal(
 		[BayQueue.FIRST_SLOT_COLOR, BayQueue.FILLED_SLOT_COLOR, shade, shade, shade]
@@ -144,11 +144,11 @@ func test_planning_bay_shows_slot_one_and_the_held_item() -> void:
 	monitor.show_scan(coupon, coupon.tags)
 	assert_object(bay.bed().shown_definition()).is_same(coupon)
 	assert_str(bay.chip().chip_text()).is_equal(MonitorText.SCAN_COMPLETE)
-	# The scan ends: slot 1's item again, under NEXT.
+	# The scan ends: slot 1's item again, under SLOT 1.
 	monitor.end_scan()
 	assert_object(bay.bed().shown_definition()).is_same(bread)
 	assert_str(bay.chip().chip_text()).is_equal(MonitorText.ON_BELT)
-	assert_str(queue.text()).is_equal(BayQueue.NEXT_TEXT)
+	assert_str(queue.text()).is_equal(BayQueue.SLOT_TEXT % 1)
 	assert_bool(bay.shows_scan()).is_false()
 	await get_tree().create_timer(ScannerBay.LIGHT_S + 0.05).timeout
 	assert_that(bay.light_colour()).is_equal(ScannerBay.LIGHT_OFF_COLOR)
@@ -161,7 +161,8 @@ func test_planning_bay_shows_slot_one_and_the_held_item() -> void:
 	assert_object(bay.bed().art()).is_same(art)
 	assert_str(bay.chip().chip_text()).is_equal(MonitorText.ON_BELT)
 	# An empty slot 1: the bare bed and "–", every pip shaded.
-	monitor.show_next(null, 5, 0)
+	monitor.show_next(null, 5, 0, PackedStringArray(), null, -1)
+	assert_str(queue.text()).is_equal(BayQueue.NEXT_TEXT)
 	assert_object(bay.bed().art()).is_null()
 	assert_object(bay.bed().shown_definition()).is_null()
 	assert_str(bay.chip().chip_text()).is_equal(ScannerBay.GONE_NAME)
@@ -206,6 +207,7 @@ func test_planning_bay_swaps_slide_out_then_drop_in() -> void:
 	await get_tree().create_timer(BayBed.FALL_S + 0.1).timeout
 	assert_str(chip.chip_text()).is_equal(MonitorText.ON_BELT)
 	monitor.show_scan(milk, milk.tags)
+	# A held item off the belt has no slot: NEXT until its scan lands (then SCAN).
 	assert_str(bay.queue().text()).is_equal(BayQueue.NEXT_TEXT)
 	await get_tree().create_timer(ScannerBay.PLAN_OUT_S + 0.05).timeout
 	assert_object(bay.bed().shown_definition()).is_same(milk)
@@ -233,7 +235,7 @@ func test_the_shift_screen_keeps_the_last_placed_in_the_bay() -> void:
 	var run: RunState = screen.run
 	assert_str(run.row[1].definition.id).is_equal("bread")
 	assert_object(bay.bed().shown_definition()).is_same(run.row[1].definition)
-	assert_str(bay.queue().text()).is_equal(BayQueue.NEXT_TEXT)
+	assert_str(bay.queue().text()).is_equal(BayQueue.SLOT_TEXT % 2)
 	assert_int(bay.queue().pip_rects().size()).is_equal(RowCapacity.card_limit(run.limits))
 	var gold: Color = BayQueue.FIRST_SLOT_COLOR
 	assert_that(bay.queue().pip_colours()[1]).is_equal(gold)

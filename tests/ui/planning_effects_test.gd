@@ -378,21 +378,21 @@ func test_hovering_an_item_highlights_its_givers_and_targets() -> void:
 	_assert_lit(screen, -1)
 
 
-## The denied Milk names the Spot check on the ringed inspection chip; hovering a loyalty box
+## The denied Milk names the Spot check on the ringed day calendar; hovering a loyalty box
 ## relates its targets, lights only its stickers and rings it; hovering the chip relates the
 ## inspection's target, drains every sticker and keeps its stamp lit.
 func test_the_top_bar_relates_both_ways() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _full_row(screen)
 	var effects: PlanningEffects = screen._effects
-	var tag: InspectionTag = screen._inspection_tag
+	var tag: DayCalendar = screen._calendar
 	var milk: ItemView = _item(screen, 2)
 	milk.hovered.emit(milk)
 	assert_bool(tag.has_relation()).is_true()
-	assert_str(tag.label().text).is_equal(screen.run.inspections[0].display_name)
+	assert_str(tag.text()).is_equal(screen.run.inspections[0].display_name)
 	effects.unfocus()
 	assert_bool(tag.has_relation()).is_false()
-	assert_str(tag.label().text).is_not_equal(screen.run.inspections[0].display_name)
+	assert_str(tag.text()).is_not_equal(screen.run.inspections[0].display_name)
 	# Slot engine (the 2nd upgrade) stamps slot 6.
 	screen._loyalty_card.box_hovered.emit(1)
 	assert_bool(screen._loyalty_card.has_relation(1)).is_true()
@@ -421,10 +421,10 @@ func test_the_top_bar_relates_both_ways() -> void:
 			assert_bool(sticker.is_drained()).is_true()
 
 
-## In a Bakery festival week with no day event (shift 7), hovering Bread rings the week chip (not
-## the day chip); hovering the "Normal day" day chip relates no item, since the Bakery step is the
-## week event's; the CHECKOUT click takes the week chip's ring off.
-func test_the_week_chip_owns_the_week_event_items() -> void:
+## In a Bakery festival week with no day event (shift 7), hovering Bread rings the week glass
+## (v1.17, not the day calendar); hovering the "Normal day" calendar relates no item, since the
+## Bakery step is the week event's; the CHECKOUT click takes the glass's ring off.
+func test_the_week_glass_owns_the_week_event_items() -> void:
 	var screen: ShiftScreen = await _screen()
 	screen._week.skip()
 	screen._debug.skip_to_shift(7)
@@ -433,14 +433,14 @@ func test_the_week_chip_owns_the_week_event_items() -> void:
 	assert_array(screen.run.inspections).is_empty()
 	await _place(screen, ["bread", "milk"])
 	var effects: PlanningEffects = screen._effects
-	var tag: InspectionTag = screen._inspection_tag
-	var week_chip: WeekChip = screen._stage.top_bar.week_chip
+	var tag: DayCalendar = screen._calendar
+	var glass: WeekGlass = screen._stage.week_glass
 	var bread: ItemView = _item(screen, 0)
 	bread.hovered.emit(bread)
-	assert_bool(week_chip.has_relation()).is_true()
+	assert_bool(glass.has_relation()).is_true()
 	assert_bool(tag.has_relation()).is_false()
 	effects.unfocus()
-	assert_bool(week_chip.has_relation()).is_false()
+	assert_bool(glass.has_relation()).is_false()
 	tag.hovered.emit()
 	for slot: int in range(screen._row_views.size()):
 		var relation: ItemView.Relation = _item(screen, slot).relation
@@ -449,17 +449,18 @@ func test_the_week_chip_owns_the_week_event_items() -> void:
 		)
 	effects.unfocus()
 	bread.hovered.emit(bread)
-	assert_bool(week_chip.has_relation()).is_true()
+	assert_bool(glass.has_relation()).is_true()
 	screen._on_checkout_pressed()
 	await _frames(2)
-	assert_bool(week_chip.has_relation()).is_false()
+	assert_bool(glass.has_relation()).is_false()
 
 
 ## Hovering Multipack (as mock-up h1's hover): its own rail strip turns hot, drawn again on top in
-## lane 0 with each Milk's gain; its calm copy hides and Eggs' strip dims; its ticket is ringed,
-## the Milks' tickets get the "got" face; the receipt frames its line, puts "×3" on each Milk's
-## line and names it in the footer. Hovering a Milk makes Multipack's strip hot with that Milk's
-## gain only. A loyalty box's or the chip's hover dims every strip; unfocused, all is calm again.
+## lane 0 with each Milk's gain; its calm copy hides and Eggs' strip dims; its ticket is ringed, the
+## Milks' tickets get the "got" face. The receipt prints no item rows in planning (main scene v2,
+## 2026-11-08: its band), so it frames and explains nothing. Hovering a Milk makes Multipack's strip
+## hot with that Milk's gain only. A loyalty box's or the chip's hover dims every strip; unfocused,
+## all is calm again.
 func test_a_hovered_giver_lights_its_strip_and_explains_it() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _full_row(screen)
@@ -503,11 +504,8 @@ func test_a_hovered_giver_lights_its_strip_and_explains_it() -> void:
 	assert_bool(layer.ticket_ring().encloses(ticket)).is_true()
 	for slot: int in range(screen._row_views.size()):
 		assert_bool(_item(screen, slot).sticker().got_ring().visible).is_equal(slot in [4, 5, 6])
-	assert_object(receipt._framed_line()).is_same(receipt._items[3])
-	for slot: int in [4, 5, 6]:
-		assert_str(ReceiptDecor.relation_chip(receipt._items[slot]).text).is_equal("×3")
-	assert_object(ReceiptDecor.relation_chip(receipt._items[1])).is_null()
-	# No footer names the hovered item (the PR #138 left UI): its framed line does.
+	assert_bool(receipt._items.is_empty()).is_true()
+	assert_object(receipt._framed_line()).is_null()
 	assert_object(receipt._footer).is_null()
 	# A Milk: Multipack's strip hot in its lane with that Milk's gain only.
 	var milk: ItemView = _item(screen, 5)
@@ -522,11 +520,11 @@ func test_a_hovered_giver_lights_its_strip_and_explains_it() -> void:
 	assert_array(Array(hot[0].gain_texts())).is_equal([RailStrip.GAIN_TEXT % spec.gains[1]])
 	assert_bool(layer.strips()[0].is_dimmed()).is_true()
 	assert_bool(_item(screen, 4).sticker().got_ring().visible).is_false()
-	assert_object(receipt._framed_line()).is_same(receipt._items[5])
+	assert_object(receipt._framed_line()).is_null()
 	# A box, then the chip: no strip hot, every strip dimmed.
 	for hover: Callable in [
 		func() -> void: screen._loyalty_card.box_hovered.emit(1),
-		func() -> void: screen._inspection_tag.hovered.emit(),
+		func() -> void: screen._calendar.hovered.emit(),
 	]:
 		hover.call()
 		assert_array(layer.hot_strips()).is_empty()
@@ -542,7 +540,6 @@ func test_a_hovered_giver_lights_its_strip_and_explains_it() -> void:
 	_assert_strips_shown(screen, effects.committed_model())
 	for slot: int in range(screen._row_views.size()):
 		assert_bool(_item(screen, slot).sticker().got_ring().visible).is_false()
-		assert_object(ReceiptDecor.relation_chip(receipt._items[slot])).is_null()
 	assert_object(receipt._framed_line()).is_null()
 
 
@@ -686,7 +683,7 @@ func test_the_click_keeps_only_the_stickers() -> void:
 		assert_int(stickers).is_greater(3)
 		for index: int in range(screen.run.upgrades.size()):
 			assert_bool(screen._loyalty_card.has_relation(index)).is_false()
-		assert_bool(screen._inspection_tag.has_relation()).is_false()
+		assert_bool(screen._calendar.has_relation()).is_false()
 		assert_object(screen._effects.focused_card()).is_null()
 		var failures: Array[String] = []
 		# Every check above ran at 1x: the count's start is the subject there.
@@ -883,6 +880,12 @@ func _screen() -> ShiftScreen:
 		DirAccess.remove_absolute(_folder.path_join(SaveService.RUN_FILE))
 	_runner = scene_runner(SCREEN)
 	var screen: ShiftScreen = _runner.scene()
+	# The week's medals already spent (caps of 0): no medal prelude (MedalPrelude) before the
+	# count these tests watch from the click (week_medals_test covers the prelude).
+	var machine: MachineDefinition = screen.run.machine.machine.duplicate()
+	machine.overtime_ticket_per_week = 0
+	machine.overtime_premium_per_week = 0
+	screen.run.machine.machine = machine
 	await _frames(2)
 	return screen
 

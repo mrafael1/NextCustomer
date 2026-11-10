@@ -40,7 +40,7 @@ func test_two_rows_make_one_shift() -> void:
 	assert_float(stage.bonus_lights.belt_cut).is_equal(BeltPanel.cut_of(4))
 	assert_float(stage.quota_light.belt_cut).is_equal(BeltPanel.cut_of(4))
 	assert_str(_checkout_caption(screen)).is_equal("CHECKOUT 1/2")
-	var pips: RowPips = screen._stage.tower.row_pips
+	var pips: RowPips = screen._stage.row_pips
 	assert_bool(pips.is_visible_in_tree()).is_true()
 	assert_int(pips.done_count()).is_equal(0)
 	var row_one: Array[CardInstance] = await _place(screen, 4)
@@ -85,6 +85,27 @@ func test_two_rows_make_one_shift() -> void:
 	assert_int(int(checkout["score"])).is_equal(first_total + second_total)
 	assert_int((checkout["final_order"] as Array).size()).is_equal(row_one.size() + row_two.size())
 	assert_int(screen._count_up.plan.start_total).is_equal(first_total)
+
+
+## Row 1's CHECKOUT plays no medal prelude (MedalPrelude, 2026-11-09), even making three times
+## the target alone: the gauge runs no laps, no medal leaves its socket and the paper stays plain;
+## the medals wait for row 2, the shift's own checkout.
+func test_row_one_has_no_medal_prelude() -> void:
+	var screen: ShiftScreen = await _screen()
+	var run: RunState = screen.run
+	run.limits.quota = 1
+	screen._refresh()
+	await _place(screen, 4)
+	assert_int(run.preview().total).is_greater_equal(3)
+	var steps: Array[int] = []
+	screen._stage.gauge_panel.lap_run_step.connect(func(laps: int) -> void: steps.append(laps))
+	var medals: Array[int] = screen._stage.medal_case.states()
+	await Rush.checkout(screen)
+	assert_int(run.phase).is_equal(RunState.Phase.PLANNING)
+	assert_array(steps).is_empty()
+	assert_bool(screen._stage.medal_prelude.is_playing()).is_false()
+	assert_array(screen._stage.medal_case.states()).is_equal(medals)
+	assert_bool(screen._receipt.gold.is_gold() or screen._receipt.gold.is_silver()).is_false()
 
 
 static func _checkout_caption(screen: ShiftScreen) -> String:

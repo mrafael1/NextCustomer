@@ -25,11 +25,13 @@ const AGREED_SOUNDS: Array[String] = [
 	"rattle_l",
 	"register_bell",
 	"kaching",
+	"service_bell",
 	"ding",
 	"tag",
 	"link",
 	"copy",
 	"fizzle",
+	"pour",
 	"denied",
 	"total",
 	"miss",
@@ -357,6 +359,10 @@ func test_notes_rise_across_the_row() -> void:
 		screen._on_hand_card_clicked(_hand_view(screen, card))
 		screen._on_slot_input(_left_click(), screen.run.row.size())
 	assert_int(screen.run.row.size()).is_equal(LADDER_ROW.size())
+	# The planning's own lap notes (the top bar gauge, GaugePanel.LAP_NOTES) ring before the count.
+	await get_tree().create_timer(GaugePanel.LAP_NOTE_DELAY + 0.1).timeout
+	await _frames(3)
+	sfx.clear()
 	await screen._on_checkout_pressed()
 	var plan: CountUpPlan = screen._count_up.plan
 	var gains: Array[int] = []

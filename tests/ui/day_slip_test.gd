@@ -1,12 +1,16 @@
 extends GdUnitTestSuite
-## Today's slip (DaySlip, 2026-10-31) on the real shift screen: tapping the day chip ("D5") drops
-## the slip under it, inside the screen at 1280x720 and 1920x1080, reading "DAY 5 · TODAY", the
-## day event's name, effect and where it touches the belt (Short belt's closed slot, Spot check's
-## 0€ slot, none on a plain day); a second tap, a click elsewhere or Esc closes it; the week chip
-## still opens the time card, which closes the slip, and the day chip no longer does. Clicks are
-## sent to the handlers, because headless runs don't deliver input events. The event's icon sits
-## on the left of its block, centred on its height (2026-11-01). Under the day's events the week's
-## bonus is reminded (v1.02): "WEEK 2 · BAKERY FESTIVAL" and its effect, in the paper.
+## Today's slip (DaySlip, 2026-10-31) on the real shift screen: tapping the day calendar (v1.17, in
+## place of the day chip) pops the slip up over it (play test 2026-11-09: over the planning
+## receipt, clear of CHECKOUT, the week glass, the medals and the belt; a review day prints compact
+## where it must; a long hover opens it, leaving closes it, a tap pins it), inside the screen at
+## 1280x720 and 1920x1080,
+## reading "DAY 5 · TODAY", the day event's name, effect and where it touches the belt (Short belt's
+## closed slot, Spot check's 0€ slot, none on a plain day); a second tap, a click elsewhere or Esc
+## closes it; the week glass opens the time card, which closes the slip, and the calendar never
+## does. Clicks are sent to the handlers, because headless runs don't deliver input events. The
+## event's icon sits on the left of its block, centred on its height (2026-11-01). Under the day's
+## events the week's bonus is reminded (v1.02): "WEEK 2 · BAKERY FESTIVAL" and its effect, in the
+## paper.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 const BALANCE := "res://data/balance/balance.tres"
@@ -53,9 +57,12 @@ func test_where_lines_come_from_the_events_data() -> void:
 		assert_array(Array(lines)).override_failure_message(id).is_equal(Array(cases[id]))
 
 
-## In a 1280x720 and a 1920x1080 window, the day chip drops the slip under the chip, inside the
-## screen, its lines inside the paper and apart; Short belt reads its name, effect and closed slot.
-func test_the_slip_hangs_under_the_day_chip_inside_the_screen() -> void:
+## In a 1280x720 and a 1920x1080 window, the day calendar pops the slip up over its pad (play test
+## 2026-11-09: "needs to be higher"): its foot GAP over the pad and its tags, its right edge on the
+## pad's, inside the screen and the receipt's column, clear of the register's keys, the week glass,
+## the medals and the belt; its lines inside the paper and apart; Short belt reads its name,
+## effect and closed slot.
+func test_the_slip_pops_up_over_the_calendar_inside_the_screen() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
 	screen.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
@@ -64,19 +71,14 @@ func test_the_slip_hangs_under_the_day_chip_inside_the_screen() -> void:
 		_set_event(screen, "short_belt")
 		await _frames(3)
 		var slip: DaySlip = screen._week.slip
-		var chip: InspectionTag = screen._stage.top_bar.inspection_tag
+		var chip: DayCalendar = screen._stage.day_calendar
 		chip.call("_gui_input", _left_click())
 		assert_bool(slip.is_open()).is_true()
 		slip.settle()
 		await _frames(2)
-		var bounds: Rect2 = screen.get_global_rect()
 		var paper: Rect2 = slip.paper().get_global_rect()
-		var tag: Rect2 = chip.get_global_rect()
-		var message: String = "%s %s in %s" % [window_size, paper, bounds]
-		assert_bool(bounds.encloses(paper)).override_failure_message(message).is_true()
-		assert_float(paper.position.y).is_greater_equal(tag.end.y)
-		assert_float(paper.position.y - tag.end.y).is_less_equal(DaySlip.GAP + 1.0)
-		assert_float(paper.position.x).is_equal_approx(tag.position.x, 1.0)
+		_assert_over_the_calendar(screen, paper, "%s" % window_size)
+		assert_bool(slip.is_compact()).is_false()
 		# It fits its content: every line inside the paper, the lines apart, top to bottom.
 		var lines: Array[Label] = [slip.paper().find_child("Head", true, false) as Label]
 		lines.append_array(slip.name_labels())
@@ -123,11 +125,129 @@ func test_the_slip_hangs_under_the_day_chip_inside_the_screen() -> void:
 		await _frames(2)
 
 
+## A review day's two events and the week's line: the paper still stands over the calendar inside
+## the screen at both sizes (compact at 1280x720, where the full print is taller than its room),
+## every event's name inside it; a promised bonus ticket reads its whole line under the head.
+func test_a_review_day_fits_over_the_calendar() -> void:
+	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
+	var screen: ShiftScreen = runner.scene()
+	screen.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+	var events: Array[InspectionDefinition] = [
+		load(INSPECTIONS % "short_belt") as InspectionDefinition,
+		load(INSPECTIONS % "spot_check") as InspectionDefinition,
+	]
+	for window_size: Vector2 in WINDOWS:
+		screen.size = window_size
+		_set_event(screen, "")
+		screen.run.inspections = events.duplicate()
+		screen._on_shift_started()
+		screen._week.skip()
+		screen._stage.day_calendar.show_bonus(InspectionTag.Bonus.PROMISED)
+		await _frames(3)
+		var slip: DaySlip = screen._week.slip
+		screen._stage.day_calendar.call("_gui_input", _left_click())
+		assert_bool(slip.is_open()).is_true()
+		slip.settle()
+		await _frames(2)
+		var paper: Rect2 = slip.paper().get_global_rect()
+		var message: String = "%s review" % window_size
+		_assert_over_the_calendar(screen, paper, message)
+		assert_int(slip.name_labels().size()).is_equal(2)
+		for label: Label in slip.name_labels():
+			assert_bool(paper.encloses(label.get_global_rect())).is_true()
+		assert_str(slip.slip_text()).contains(DayCalendar.PILL_TIP)
+		if window_size.y <= 720.0:
+			assert_bool(slip.is_compact()).override_failure_message(message).is_true()
+		slip.clear()
+
+
+## A long hover on the calendar (HOVER_OPEN_S) opens the slip quietly, over the calendar; leaving
+## the calendar for HOVER_GRACE closes it (no sound), coming onto the paper keeps it; a tap while
+## hover-opened pins it (leaving no longer closes it) and a second tap closes it. The calendar has
+## no native tooltip any more: the slip says it. No long hover while an item is dragged.
+func test_a_long_hover_opens_the_slip_and_a_tap_pins_it() -> void:
+	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
+	var screen: ShiftScreen = runner.scene()
+	var chip: DayCalendar = screen._stage.day_calendar
+	var slip: DaySlip = screen._week.slip
+	_set_event(screen, "short_belt")
+	await _frames(2)
+	assert_str(chip.tooltip_text).is_empty()
+	assert_str(chip.tags.pill().tooltip_text).is_empty()
+	assert_float(DayCalendar.HOVER_OPEN_S).is_between(0.3, 0.6)
+	var dwell: Timer = chip.get_node("Dwell") as Timer
+	# Hover: the wait starts, and leaving before it ends opens nothing.
+	chip.notification(Control.NOTIFICATION_MOUSE_ENTER_SELF)
+	assert_bool(dwell.is_stopped()).is_false()
+	assert_float(dwell.wait_time).is_equal(DayCalendar.HOVER_OPEN_S)
+	chip.notification(Control.NOTIFICATION_MOUSE_EXIT_SELF)
+	assert_bool(dwell.is_stopped()).is_true()
+	assert_bool(slip.is_open()).is_false()
+	# A long hover opens it, quietly, over the calendar.
+	chip.notification(Control.NOTIFICATION_MOUSE_ENTER_SELF)
+	dwell.stop()
+	dwell.timeout.emit()
+	assert_bool(slip.is_open()).is_true()
+	assert_bool(slip.is_hover_open()).is_true()
+	slip.settle()
+	await _frames(2)
+	_assert_over_the_calendar(screen, slip.paper().get_global_rect(), "hover")
+	assert_str(slip.slip_text()).contains("Short belt")
+	# Off the calendar, onto the paper within the grace: it stays.
+	chip.notification(Control.NOTIFICATION_MOUSE_EXIT_SELF)
+	slip.advance(DaySlip.HOVER_GRACE * 0.5)
+	slip.paper().mouse_entered.emit()
+	slip.advance(DaySlip.HOVER_GRACE * 2.0)
+	assert_bool(slip.is_open()).is_true()
+	# Off the paper and the calendar: it closes after the grace.
+	slip.paper().mouse_exited.emit()
+	slip.advance(DaySlip.HOVER_GRACE * 0.5)
+	assert_bool(slip.is_open()).is_true()
+	slip.advance(DaySlip.HOVER_GRACE)
+	assert_bool(slip.is_open()).is_false()
+	slip.clear()
+	# Hover open, then a tap pins it: leaving no longer closes it; a second tap closes it.
+	chip.notification(Control.NOTIFICATION_MOUSE_ENTER_SELF)
+	dwell.stop()
+	dwell.timeout.emit()
+	chip.call("_gui_input", _left_click())
+	assert_bool(slip.is_open()).is_true()
+	assert_bool(slip.is_hover_open()).is_false()
+	chip.notification(Control.NOTIFICATION_MOUSE_EXIT_SELF)
+	slip.advance(DaySlip.HOVER_GRACE * 4.0)
+	assert_bool(slip.is_open()).override_failure_message("pinned").is_true()
+	chip.call("_gui_input", _left_click())
+	assert_bool(slip.is_open()).is_false()
+	slip.clear()
+	# A tap stops the hover's wait: a slip tapped open and shut never reopens on its own.
+	chip.notification(Control.NOTIFICATION_MOUSE_ENTER_SELF)
+	chip.call("_gui_input", _left_click())
+	assert_bool(dwell.is_stopped()).override_failure_message("tap stops the dwell").is_true()
+	chip.call("_gui_input", _left_click())
+	assert_bool(slip.is_open()).is_false()
+	slip.clear()
+	chip.notification(Control.NOTIFICATION_MOUSE_EXIT_SELF)
+	# A tap-opened slip stays when the pointer leaves, as before.
+	chip.call("_gui_input", _left_click())
+	chip.notification(Control.NOTIFICATION_MOUSE_EXIT_SELF)
+	slip.advance(DaySlip.HOVER_GRACE * 4.0)
+	assert_bool(slip.is_open()).is_true()
+	slip.clear()
+	# A long hover while the slip is open (tapped) changes nothing; none while the count runs.
+	screen._counting = true
+	chip.notification(Control.NOTIFICATION_MOUSE_ENTER_SELF)
+	dwell.stop()
+	dwell.timeout.emit()
+	assert_bool(slip.is_open()).is_false()
+	screen._counting = false
+	chip.notification(Control.NOTIFICATION_MOUSE_EXIT_SELF)
+
+
 ## Spot check reads its 0€ slot; a plain day reads "Normal day", "No event today" and no slot.
 func test_the_slip_reads_spot_check_and_a_plain_day() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	var chip: InspectionTag = screen._stage.top_bar.inspection_tag
+	var chip: DayCalendar = screen._stage.day_calendar
 	var slip: DaySlip = screen._week.slip
 	_set_event(screen, "spot_check")
 	await _frames(2)
@@ -154,7 +274,7 @@ func test_the_slip_reads_spot_check_and_a_plain_day() -> void:
 func test_a_click_elsewhere_or_esc_closes_the_slip() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	var chip: InspectionTag = screen._stage.top_bar.inspection_tag
+	var chip: DayCalendar = screen._stage.day_calendar
 	var slip: DaySlip = screen._week.slip
 	_set_event(screen, "short_belt")
 	await _frames(2)
@@ -190,37 +310,76 @@ func test_a_click_elsewhere_or_esc_closes_the_slip() -> void:
 	assert_bool(slip.is_open()).is_false()
 
 
-## The week chip still opens the time card, which closes the slip; the day chip no longer opens
-## the card, and never drops the slip over it; the slip never opens while the shift is counted.
-func test_the_week_chip_opens_the_card_and_the_day_chip_the_slip() -> void:
+## The week glass opens the time card, which closes the slip; the day calendar never opens the
+## card, and never drops the slip over it; the slip never opens while the shift is counted.
+func test_the_week_glass_opens_the_card_and_the_calendar_the_slip() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	var bar: TopBar = screen._stage.top_bar
 	var slip: DaySlip = screen._week.slip
 	var card: WeekCard = screen._week.card
 	_set_event(screen, "spot_check")
 	await _frames(2)
-	bar.inspection_tag.call("_gui_input", _left_click())
+	screen._stage.day_calendar.call("_gui_input", _left_click())
 	assert_bool(slip.is_open()).is_true()
 	assert_bool(card.is_open()).is_false()
-	bar.week_chip.call("_gui_input", _left_click())
+	screen._stage.week_glass.call("_gui_input", _left_click())
 	assert_bool(card.is_open()).is_true()
 	assert_bool(slip.visible).is_false()
-	bar.inspection_tag.call("_gui_input", _left_click())
+	screen._stage.day_calendar.call("_gui_input", _left_click())
 	assert_bool(slip.is_open()).override_failure_message("never over the card").is_false()
 	card.call("_gui_input", _left_click())
 	card.advance(WeekCard.SHRINK)
 	assert_bool(card.is_open()).is_false()
 	screen._counting = true
-	bar.inspection_tag.call("_gui_input", _left_click())
+	screen._stage.day_calendar.call("_gui_input", _left_click())
 	assert_bool(slip.is_open()).override_failure_message("never in the count").is_false()
 	screen._counting = false
-	bar.inspection_tag.call("_gui_input", _left_click())
+	screen._stage.day_calendar.call("_gui_input", _left_click())
 	assert_bool(slip.is_open()).is_true()
 	screen._counting = true
 	await _frames(2)
 	assert_bool(slip.visible).override_failure_message("the count closes it").is_false()
 	screen._counting = false
+
+
+## The slip's `paper` stands over the day calendar (play test 2026-11-09): its foot GAP over the
+## pad and its tags, its right edge on the pad's (clamped to the margin at most), inside the screen
+## and left of the top bar's start, never over the register's keys, the week glass, the medal case,
+## the bag or the belt.
+func _assert_over_the_calendar(screen: ShiftScreen, paper: Rect2, message: String) -> void:
+	var bounds: Rect2 = screen.get_global_rect()
+	var chip: DayCalendar = screen._stage.day_calendar
+	var pad: Rect2 = chip.get_global_rect()
+	var reach: Rect2 = pad
+	var tags: Rect2 = chip.part_rects()["tags"]
+	if tags.has_area():
+		reach = reach.merge(tags)
+	var info: String = "%s: %s, pad %s in %s" % [message, paper, reach, bounds]
+	(
+		assert_bool(bounds.grow(-DaySlip.MARGIN + 0.5).encloses(paper))
+		. override_failure_message(info)
+		. is_true()
+	)
+	assert_float(paper.end.y).override_failure_message(info).is_less_equal(reach.position.y)
+	assert_float(reach.position.y - paper.end.y).override_failure_message(info).is_less_equal(
+		DaySlip.GAP + 1.0
+	)
+	assert_float(paper.end.x).override_failure_message(info).is_equal_approx(pad.end.x, 1.0)
+	var stage: ShiftStage = screen._stage
+	var clear_of: Dictionary[String, Rect2] = {
+		"checkout": screen._cabinet.checkout_key.get_global_rect(),
+		"week glass": stage.week_glass.get_global_rect(),
+		"medals": stage.medal_case.get_global_rect(),
+		"belt": stage.belt.get_global_rect(),
+		"calendar": pad,
+	}
+	for part: String in clear_of:
+		var rect: Rect2 = clear_of[part]
+		(
+			assert_bool(rect.has_area() and paper.intersects(rect))
+			. override_failure_message("%s over %s %s" % [info, part, rect])
+			. is_false()
+		)
 
 
 ## Starts the fixed shift (day 5) under the day event `id` (none when empty), the card skipped.

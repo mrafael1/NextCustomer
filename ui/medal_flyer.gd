@@ -1,7 +1,7 @@
 class_name MedalFlyer
 extends Control
-## A week medal in flight (MedalFlight): its coin (MedalArt) on the art grid, as big as the rect it
-## is placed in. Display only.
+## A week medal in flight (MedalFlight): the medal case's medal (MedalArt.draw_medal, v1.17) on
+## its art grid, as big as the rect it is placed in. Display only.
 
 var gold: bool = false
 
@@ -20,4 +20,4 @@ func place(rect: Rect2) -> void:
 
 
 func _draw() -> void:
-	MedalArt.draw_coin(self, Vector2.ZERO, MedalArt.SIZE, size.x / MedalArt.SIZE, gold)
+	MedalArt.draw_medal(self, Vector2.ZERO, MedalArt.SIZE, size.x / MedalArt.SIZE, gold)
