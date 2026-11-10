@@ -1,9 +1,12 @@
 extends RefCounted
 ## The anchored receipt's dessert lines (2026-11-07, ReceiptView.anchored: the user's "no weird half
 ## receipt next to the receipt"): INSPECTION PASSED, the tear and the next shift's notice print on
-## the paper under its foot, the printer feeding that much more paper, so the paper grows at its
-## foot and rises, nothing on it moving or covered, and nothing ever prints beside it. Load it
-## with preload("res://tests/ui/receipt_fed_lines.gd") (no class_name: tests/ is not exported).
+## the paper under its foot (main scene v2: the last row the count printed), nothing on it covered
+## and nothing ever prints beside it. Since H2 (v1.18 review) the count's paper reaches its room's
+## top (planning's is its header alone since the 2026-11-08 feedback), so its header (the hero,
+## the target, BEATEN!) never rises off the screen: lines past its room scroll the oldest rows up
+## under the header, the newest line in view. Load it with
+## preload("res://tests/ui/receipt_fed_lines.gd") (no class_name: tests/ is not exported).
 
 ## How far (px) a rect may stray for rounding.
 const SLACK := 1.0
@@ -12,8 +15,8 @@ const SLACK := 1.0
 const GONE_NODES: Array[String] = ["BonusBanner", "BonusStub"]
 
 
-## The dessert's lines under `receipt`'s foot (planning's line against the quota, else its
-## PROJECTED line, now the TOTAL), top to bottom; none before the dessert prints any.
+## The lines under `receipt`'s foot (the margin's line, then the dessert's), top to bottom; none
+## before the count prints its rows.
 static func lines(receipt: ReceiptView) -> Array[Control]:
 	var found: Array[Control] = []
 	var foot: Control = foot_of(receipt)
@@ -24,8 +27,8 @@ static func lines(receipt: ReceiptView) -> Array[Control]:
 	return found
 
 
-## Planning's paper on `screen` (global): the stage's receipt from RECEIPT_TOP to the printer's
-## slot (ShiftStage).
+## The count's paper's room on `screen` (global): the stage's receipt from the overhead printer's
+## slot (RECEIPT_TOP) down to RECEIPT_BOTTOM (ShiftStage, left column v2).
 static func planned_rect(screen: ShiftScreen) -> Rect2:
 	var stage: Rect2 = Rect2(
 		ShiftStage.RECEIPT_X,
@@ -36,19 +39,18 @@ static func planned_rect(screen: ShiftScreen) -> Rect2:
 	return screen._stage.fore.get_global_transform() * stage
 
 
-## The foot's last line (planning's line against the quota, else its PROJECTED line), or null.
+## The foot: the last row the count printed (main scene v2), or null.
 static func foot_of(receipt: ReceiptView) -> Control:
-	if is_instance_valid(receipt._against):
-		return receipt._against
-	return receipt._projected if is_instance_valid(receipt._projected) else null
+	var rows: Array[Control] = receipt.printed_rows()
+	return rows[-1] if not rows.is_empty() else null
 
 
 ## What `receipt`'s fed lines get wrong, or none: each shows on the paper, under the foot and
-## inside the paper's frame, one under the other; the paper grew by them alone (its left edge,
-## width and foot are `planned`'s, planning's paper, and it is exactly their height taller); nothing
-## in the receipt reaches right of the paper, nothing in the screen's count-up overlay stands beside
-## it and no removed beside node (GONE_NODES) is left; the paid rows, the TOTAL and the margin
-## show inside `screen_rect`.
+## inside the paper's frame and the scroll area's view, one under the other; the paper is
+## in `planned`, its room (its left edge, width and top, its foot no lower); nothing in the receipt
+## reaches right of the paper, nothing in the screen's count-up overlay stands beside it and no
+## removed beside node (GONE_NODES) is left; the header shows whole inside `screen_rect` and the
+## paper.
 static func failures(receipt: ReceiptView, planned: Rect2, screen_rect: Rect2) -> Array[String]:
 	var found: Array[String] = []
 	var paper: Rect2 = receipt.get_global_rect()
@@ -56,15 +58,14 @@ static func failures(receipt: ReceiptView, planned: Rect2, screen_rect: Rect2) -
 		found.append("paper moved sideways: %s, planned %s" % [paper, planned])
 	if absf(paper.size.x - planned.size.x) > SLACK:
 		found.append("paper changed width: %s, planned %s" % [paper, planned])
-	if absf(paper.end.y - planned.end.y) > SLACK:
+	# Left column v2: the paper hangs from the overhead printer's slot, down to its room's foot.
+	if absf(paper.position.y - planned.position.y) > SLACK:
 		found.append("paper left the printer: %s, planned %s" % [paper, planned])
-	var scale: float = receipt.get_global_transform().get_scale().y
-	var grown: float = paper.size.y - planned.size.y
-	if absf(grown - receipt._fed_height() * scale) > SLACK:
-		found.append("paper grew %.1f, its fed lines %.1f" % [grown, receipt._fed_height() * scale])
+	if paper.end.y > planned.end.y + SLACK:
+		found.append("paper %.1f tall, its room %.1f" % [paper.size.y, planned.size.y])
 	var foot: Control = foot_of(receipt)
 	var above: float = foot.get_global_rect().end.y if foot != null else -INF
-	var inner: Rect2 = paper.grow(SLACK)
+	var inner: Rect2 = paper.intersection(receipt._scroll.get_global_rect()).grow(SLACK)
 	for line: Control in lines(receipt):
 		if not line.is_visible_in_tree():
 			continue
@@ -78,13 +79,12 @@ static func failures(receipt: ReceiptView, planned: Rect2, screen_rect: Rect2) -
 	var screen: ShiftScreen = _screen_of(receipt)
 	if screen != null:
 		found.append_array(beside(screen, paper))
-	var kept: Array[Control] = []
-	if receipt._paid != null:
-		kept.append_array(receipt._paid.rows())
-	kept.append_array([receipt._projected, receipt._against])
-	for kept_line: Control in kept:
-		if is_instance_valid(kept_line) and not screen_rect.encloses(kept_line.get_global_rect()):
-			found.append("%s left the screen: %s" % [kept_line.name, kept_line.get_global_rect()])
+	# The header (the hero, the target, BEATEN!) stays whole on the screen and the paper.
+	var header: Rect2 = receipt.target.get_global_rect()
+	if receipt.target.visible and not screen_rect.grow(SLACK).encloses(header):
+		found.append("header left the screen: %s" % header)
+	if receipt.target.visible and not paper.grow(SLACK).encloses(header):
+		found.append("header off the paper: %s, paper %s" % [header, paper])
 	return found
 
 

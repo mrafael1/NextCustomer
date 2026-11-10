@@ -23,6 +23,11 @@ extends Control
 ## right end, end cap and roller come CELL_PITCH px in for each cell under the 7-slot row's
 ## (the short art tools/belt_art.py bakes, belt_top_c<n>), with the front, the rail's shadow,
 ## the bolts and the chevrons cut to match; the counter shows past it.
+##
+## On a payday (show_payday; the user's pick of 2026-11-10, mock-up payday_day.html round 2,
+## "Brass rail") the lip's lit and body rows and the back guard's long steel rows are brass
+## (PaydayTrim's colours, drawn over the art and under the row, its bolts and the scanner): the
+## guard's rows are read off the top face's art, so a short belt's brass ends with its guard.
 
 ## The vanishing point far above the stage's centre (stage pixels).
 const VANISHING_POINT := Vector2(640, -1600)
@@ -49,8 +54,9 @@ const FRONT_MARGIN := 3
 ## till) closes its gaps and scales to the 7-slot width (RowStrip), so its bolts and chevrons
 ## follow its own cells (v1.00, the user's play test of 2026-11-05: at 9 slots they stood at the
 ## 7-slot places, out of line with the tickets): a bolt centred on each cell's left edge, the
-## chevrons centred under each ticket, at the row's pitch (cue_pitch). BOLT_COUNT is the widest
-## row's cells.
+## chevrons centred under each ticket, at the row's pitch (cue_pitch) from its first cell
+## (cells_left: the 8-slot row's opened gaps make it overhang the 7-slot one). BOLT_COUNT is the
+## widest row's cells.
 const BOLT_FIRST := Vector2(8, 102)
 const BOLT_PITCH := 128.0
 const BOLT_COUNT := 9
@@ -72,6 +78,13 @@ const SCANNER_RECT := Rect2(8, 16, 134, 68)
 const SCANNER_CENTER_X := 66.0
 const SCANNER_NAME := &"ScannerPlate"
 const TOP_NAME := &"BeltTop"
+const PAYDAY_NAME := &"PaydayTrim"
+## Payday's brass: the lip's rows from LIP's top, inside its ink ends (PAYDAY_LIP_INSET px), and
+## the guard's rows of the top face's art (PAYDAY_GUARD_ROWS: from, to), where a run of one steel
+## at least PAYDAY_GUARD_RUN px long is the guard's (shorter: an end cap, left steel).
+const PAYDAY_LIP_INSET := 2.0
+const PAYDAY_GUARD_ROWS := Vector2i(2, 18)
+const PAYDAY_GUARD_RUN := 20
 const FRONT_NAME := &"BeltFront"
 
 const BELT_TOP := preload("res://art/scenery/belt_top.png")
@@ -109,6 +122,11 @@ var _front: NinePatchRect
 ## The top face's frames for the belt's length (TOP_FRAMES on the full belt).
 var _frames: Array[Texture2D] = TOP_FRAMES
 var _cells: int = FULL_CELLS
+## Payday's brass over the art (hidden on other days), and the guard's brass runs for the belt's
+## length ([rect, colour] pairs; read when first shown).
+var _payday: Control
+var _guard_runs: Array[Array] = []
+var _guard_cells: int = -1
 
 
 func _init() -> void:
@@ -124,6 +142,12 @@ func _init() -> void:
 	_front.patch_margin_right = FRONT_MARGIN * ArtStyle.ART_SCALE
 	ArtStyle.use_pixel_material(_front)
 	_place(_front, FRONT_RECT)
+	_payday = Control.new()
+	_payday.name = PAYDAY_NAME
+	_payday.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_payday.visible = false
+	_payday.draw.connect(_draw_payday)
+	_place(_payday, Rect2(Vector2.ZERO, ShiftStage.BELT_RECT.size))
 	for index: int in range(BOLT_COUNT):
 		var bolt: TextureRect = UiKit.sprite(BELT_BOLT)
 		bolt.name = "Bolt%d" % index
@@ -155,7 +179,68 @@ func set_cells(cells: int) -> void:
 	_frames = TOP_FRAMES if fitted == FULL_CELLS else short_frames(fitted)
 	_top.texture = _frames[frame()]
 	_front.size.x = FRONT_RECT.size.x - cut()
+	_payday.queue_redraw()
 	queue_redraw()
+
+
+## Shows payday's brass on the lip and the guard (`on`), or takes it off.
+func show_payday(on: bool) -> void:
+	_payday.visible = on
+	_payday.queue_redraw()
+
+
+## Whether payday's brass shows.
+func is_payday() -> bool:
+	return _payday.visible
+
+
+## Payday's brass lip in the belt's coordinates: the lip's lit and body rows inside its ink ends.
+func payday_lip_rect() -> Rect2:
+	var rows: float = PaydayTrim.BELT_LIP_ROWS.size() * ArtStyle.ART_SCALE
+	var width: float = LIP.size.x - cut() - 2.0 * PAYDAY_LIP_INSET
+	return Rect2(LIP.position.x + PAYDAY_LIP_INSET, LIP.position.y, width, rows)
+
+
+## Payday's brass on the guard: [rect, colour] for each long steel run of the top face's art.
+func payday_guard_runs() -> Array[Array]:
+	if _guard_cells == _cells:
+		return _guard_runs
+	_guard_cells = _cells
+	_guard_runs = []
+	var image: Image = _frames[0].get_image()
+	if image == null:
+		return _guard_runs
+	if image.is_compressed():
+		image.decompress()
+	var step: int = roundi(ArtStyle.ART_SCALE)
+	for y: int in range(PAYDAY_GUARD_ROWS.x, mini(PAYDAY_GUARD_ROWS.y, image.get_height()), step):
+		var from: int = 0
+		while from < image.get_width():
+			var steel: Color = image.get_pixel(from, y)
+			var to: int = from + 1
+			while to < image.get_width() and image.get_pixel(to, y).is_equal_approx(steel):
+				to += 1
+			var brass: Variant = _guard_brass(steel)
+			if brass != null and to - from >= PAYDAY_GUARD_RUN:
+				_guard_runs.append([Rect2(from, y, to - from, step), brass])
+			from = to
+	return _guard_runs
+
+
+## The brass a guard's `steel` turns (PaydayTrim.GUARD), or null for any other colour.
+static func _guard_brass(steel: Color) -> Variant:
+	if steel.a < 1.0:
+		return null
+	for key: Color in PaydayTrim.GUARD:
+		if key.is_equal_approx(steel):
+			return PaydayTrim.GUARD[key]
+	return null
+
+
+func _draw_payday() -> void:
+	for run: Array in payday_guard_runs():
+		_payday.draw_rect(run[0] as Rect2, run[1] as Color)
+	PaydayTrim.draw_rows(_payday, payday_lip_rect(), PaydayTrim.BELT_LIP_ROWS)
 
 
 ## Shows the first `shown` bolts and chevrons at a `shown`-cell row's places; the hidden ones wait
@@ -177,10 +262,13 @@ func _place_cues(shown: int) -> void:
 static func cue_pitch(cells: int) -> float:
 	if cells <= FULL_CELLS:
 		return BOLT_PITCH
-	var separation: int = RowStrip.separation_for(cells)
-	var natural: float = RowStrip.row_width(cells, separation)
-	var factor: float = minf(1.0, RowStrip.row_width(RowStrip.LAID_OUT_SLOTS) / natural)
-	return (RowStrip.CELL_SIZE.x + separation) * factor
+	return (RowStrip.CELL_SIZE.x + RowStrip.separation_for(cells)) * RowStrip.scale_for(cells)
+
+
+## The first cell's left edge in a row of `cells` cells, in the belt's coordinates: CELLS_LEFT,
+## less half the row's overhang (ShiftStage centres a row wider than the 7-slot one).
+static func cells_left(cells: int) -> float:
+	return CELLS_LEFT - RowStrip.overhang(cells) / 2.0
 
 
 ## Bolt `index`'s top left in a row of `cells` cells (whole pixels): BOLT_FIRST's place before
@@ -188,7 +276,7 @@ static func cue_pitch(cells: int) -> float:
 static func bolt_at(index: int, cells: int) -> Vector2:
 	if cells <= FULL_CELLS:
 		return BOLT_FIRST + Vector2(index * BOLT_PITCH, 0)
-	var left: float = CELLS_LEFT + index * cue_pitch(cells)
+	var left: float = cells_left(cells) + index * cue_pitch(cells)
 	return Vector2(roundf(left - BELT_BOLT.get_width() / 2.0), BOLT_FIRST.y)
 
 
@@ -197,10 +285,8 @@ static func bolt_at(index: int, cells: int) -> Vector2:
 static func chevrons_at(index: int, cells: int) -> Vector2:
 	if cells <= FULL_CELLS:
 		return CHEVRONS_FIRST + Vector2(index * BOLT_PITCH, 0)
-	var factor: float = cue_pitch(cells) / (RowStrip.CELL_SIZE.x + RowStrip.separation_for(cells))
-	var centre: float = (
-		CELLS_LEFT + (index * cue_pitch(cells)) + RowStrip.CELL_SIZE.x * factor / 2.0
-	)
+	var half_cell: float = RowStrip.CELL_SIZE.x * RowStrip.scale_for(cells) / 2.0
+	var centre: float = cells_left(cells) + (index * cue_pitch(cells)) + half_cell
 	return Vector2(roundf(centre - BELT_CHEVRONS.get_width() / 2.0), CHEVRONS_FIRST.y)
 
 

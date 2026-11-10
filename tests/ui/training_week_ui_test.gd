@@ -33,7 +33,8 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-## Two slips, then the third miss: each slip's receipt carries SLIP n/2 and NO TICKET, no visit
+## Two slips, then the third miss: each slip's receipt carries SLIP n/2 on its header (no NO
+## TICKET line since the 2026-11-09 play test: the anchored paper ends at its rows), no visit
 ## opens, the music is back and the next shift's planning shows the notice; the third miss shows
 ## the results, whose final receipt reads "slip" for the slips and "fail" for the last miss.
 func test_slips_then_fired() -> void:
@@ -43,7 +44,11 @@ func test_slips_then_fired() -> void:
 		var printed: PackedStringArray = await _checkout_empty(screen)
 		var stamp: String = "SLIP %d/2" % slip
 		assert_bool(printed.has(stamp)).override_failure_message(str(printed)).is_true()
-		assert_bool(printed.has(WriteUp.NO_TICKET)).override_failure_message(str(printed)).is_true()
+		(
+			assert_bool(printed.has(WriteUp.NO_TICKET))
+			. override_failure_message(str(printed))
+			. is_false()
+		)
 		assert_str(screen._count_up._dessert.write_up).is_equal(stamp)
 		assert_int(screen.run.phase).is_equal(RunState.Phase.PLANNING)
 		assert_int(screen.run.shift_index).is_equal(slip)
@@ -112,7 +117,8 @@ func test_training_is_over_waits_for_the_glide_back() -> void:
 
 
 ## A slip on shift 3, then shift 4 (a review and a payday): the slip's notice waits until the
-## PAYDAY announce has printed on the monitor, so they never cover each other.
+## PAYDAY announce has printed on the monitor and gone (it leaves no tag, so no landing ring to
+## wait for), so they never cover each other.
 func test_a_slip_notice_waits_for_the_payday_announce() -> void:
 	var screen: ShiftScreen = await _screen()
 	screen._debug.skip_to_shift(3)
@@ -136,9 +142,7 @@ func test_a_slip_notice_waits_for_the_payday_announce() -> void:
 			assert_float(announce.print_left()).is_less_equal(STEP)
 	assert_bool(printed).override_failure_message("the announce never printed").is_true()
 	assert_float(shown_at).override_failure_message("the notice never showed").is_greater(0.0)
-	assert_float(shown_at).is_greater_equal(
-		PremiumAnnounce.FLY_TO + PremiumAnnounce.RING_LENGTH - 2.0 * STEP
-	)
+	assert_float(shown_at).is_greater_equal(PremiumAnnounce.FLY_TO - 2.0 * STEP)
 	assert_str(screen._notice_label.text).starts_with("Training week: slip 1/2")
 	assert_array(_errors).is_empty()
 
@@ -205,15 +209,16 @@ static func _left_click() -> InputEventMouseButton:
 	return click
 
 
-## The training week's slips show only as the week chip's crosses (v0.84): no sign hangs under
-## the week chip, and the SHIFT chip stays hidden.
-func test_no_slip_sign_under_the_week_chip() -> void:
+## The training week's slips show only as the day calendar's crossed pips (v0.84; v1.17 in place of
+## the week chip's crosses): no sign hangs under the top bar, and the SHIFT chip stays hidden.
+func test_no_slip_sign_under_the_top_bar() -> void:
 	var screen: ShiftScreen = await _screen()
 	var bar: TopBar = screen._top_bar as TopBar
 	await _checkout_empty(screen)
 	await _frames(2)
 	assert_bool(bar.shift_chip.visible).is_false()
 	assert_array(bar.find_children("*", "SlipSign", true, false)).is_empty()
+	assert_bool(screen._calendar.pips().has(WeekCardModel.Pip.SLIP)).is_true()
 	assert_array(_errors).is_empty()
 
 

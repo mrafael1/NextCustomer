@@ -9,8 +9,9 @@ extends Control
 ## read from art/fonts/chunky_digits.png, built from art/src/fonts/chunky_digits.txt; an ASCII
 ## '-' prints as its −). A cell that is a multiple of the art's 2 px keeps the words on the art's
 ## grid. CHUNKY_CAPS (v0.99) are the chunky digits' capitals for the machine's display and prize
-## bay header words (6x8, 2 px stems: A to Z, ! ? ·, read from art/fonts/chunky_caps.png, built
-## from art/src/fonts/chunky_caps.txt; a small letter prints as its capital). Its minimum size
+## bay header words (6x8, 2 px stems: A to Z, ! ? · and, since v1.17, ' and ,), read from
+## art/fonts/chunky_caps.png, built from art/src/fonts/chunky_caps.txt; a small letter prints as
+## its capital). Its minimum size
 ## is the words' (text_size()); it draws them from its top left, with no line or glyph padding,
 ## and an optional `shadow` colour one font px down and right under them. A character the sheet
 ## lacks draws as a blank. Display only.
@@ -46,7 +47,7 @@ const CHUNKY_CELL := 8
 const CHUNKY_SPACE := 3
 ## The chunky capitals' sheet, read as the digits' (CHUNKY_CELL-wide cells, CHUNKY_SPACE spaces).
 const CHUNKY_CAPS_SHEET := preload("res://art/fonts/chunky_caps.png")
-const CHUNKY_CAPS_ORDER := "ABCDEFGHIJKLMNOPQRSTUVWXYZ!?·"
+const CHUNKY_CAPS_ORDER := "ABCDEFGHIJKLMNOPQRSTUVWXYZ!?·',"
 ## The 4x7 digits, their € and "k" (the v5 mock-up's MID sheet), '#' ink.
 const SMALL_DIGIT_GLYPHS: Dictionary[String, Array] = {
 	"0": [".##.", "#..#", "#..#", "#..#", "#..#", "#..#", ".##."],
@@ -63,7 +64,7 @@ const SMALL_DIGIT_GLYPHS: Dictionary[String, Array] = {
 	"k": ["#...", "#...", "#..#", "#.#.", "##..", "#.#.", "#..#"],
 	" ": ["..", "..", "..", "..", "..", "..", ".."],
 }
-## The 3x5 capitals (the mock-up's CAPS sheet), '#' ink.
+## The 3x5 capitals (the mock-up's CAPS sheet) and, since v1.17, its lamp digits, '#' ink.
 const CAPS_GLYPHS: Dictionary[String, Array] = {
 	"A": [".#.", "#.#", "###", "#.#", "#.#"],
 	"B": ["##.", "#.#", "##.", "#.#", "##."],
@@ -89,6 +90,17 @@ const CAPS_GLYPHS: Dictionary[String, Array] = {
 	"X": ["#.#", "#.#", ".#.", "#.#", "#.#"],
 	"Y": ["#.#", "#.#", ".#.", ".#.", ".#."],
 	" ": [".", ".", ".", ".", "."],
+	# The 3x5 lamp digits (v1.17, the mock-up's LAMP sheet; the week glass no longer prints any).
+	"0": ["###", "#.#", "#.#", "#.#", "###"],
+	"1": [".#.", "##.", ".#.", ".#.", "###"],
+	"2": ["###", "..#", "###", "#..", "###"],
+	"3": ["###", "..#", ".##", "..#", "###"],
+	"4": ["#.#", "#.#", "###", "..#", "..#"],
+	"5": ["###", "#..", "###", "..#", "###"],
+	"6": ["###", "#..", "###", "#.#", "###"],
+	"7": ["###", "..#", "..#", ".#.", ".#."],
+	"8": ["###", "#.#", "###", "#.#", "###"],
+	"9": ["###", "#.#", "###", "..#", "###"],
 }
 
 static var _chunky: Dictionary[String, Array] = {}
@@ -225,6 +237,11 @@ static func _read_sheet(
 	for y: int in range(rows):
 		blank.append(".".repeat(CHUNKY_SPACE))
 	into[" "] = blank
+
+
+## `character`'s glyph rows in sheet `from` ('#' ink; a blank for a character it lacks).
+static func glyph_of(character: String, from: Sheet) -> Array:
+	return _glyph(_glyphs(from), character)
 
 
 static func _glyph(glyphs: Dictionary[String, Array], character: String) -> Array:

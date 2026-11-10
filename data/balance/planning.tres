@@ -6,6 +6,7 @@
 script = ExtResource("1_tuning")
 halo_ratios = PackedInt32Array(5, 20)
 pay_ink_ratios = PackedInt32Array(2, 5)
+price_leak_cap = 11
 focus_fade_s = 0.12
 unfocus_delay_s = 0.08
 mix_brightness = 0.78

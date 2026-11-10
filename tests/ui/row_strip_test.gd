@@ -537,7 +537,10 @@ func test_every_closed_caption_fits() -> void:
 
 
 ## Plan 3.8: the 7 slots fill the belt at pitch 128 unscaled; 8 or 9 slots close their gaps,
-## then scale to the 7-slot width, their cells touching but never overlapping, each item's
+## then scale to the 7-slot width; the 8-slot row then opens each gap by one art px (the user's
+## note of 2026-11-10), which makes it about 13 px wider than the 7-slot row (its tickets 9.5 px
+## apart on screen, from 7.6), while the 9-slot row keeps to that width; their cells never overlap,
+## each item's
 ## sprite above its ticket and its plaque and chips in its cell, and the sticker's summary still at
 ## least MIN_SUMMARY_PX tall on screen. A closed slot never rescales the row (plan 3.9), since
 ## the row keeps its usual cell count.
@@ -546,14 +549,42 @@ func test_wide_rows_close_their_gaps_then_scale() -> void:
 	assert_vector(seven.box.scale).is_equal(Vector2.ONE)
 	assert_float(seven.box.get_global_rect().size.x).is_equal(RowStrip.row_width(7))
 	assert_float(RowStrip.row_width(7)).is_equal(884.0)
+	assert_float(RowStrip.overhang(7)).is_equal(0.0)
+	assert_float(RowStrip.overhang(4)).is_equal(0.0)
+	assert_float(RowStrip.scale_for(7)).is_equal(1.0)
+	assert_int(seven.box.get_theme_constant("separation")).is_equal(RowStrip.SEPARATION)
 	for count: int in [8, 9]:
 		var strip: RowStrip = await _strip(count)
-		assert_int(RowStrip.separation_for(count)).is_equal(RowStrip.WIDE_SEPARATION)
+		var separation: int = RowStrip.WIDE_SEPARATION if count == 8 else RowStrip.CLOSED_SEPARATION
+		assert_int(RowStrip.separation_for(count)).is_equal(separation)
+		assert_int(strip.box.get_theme_constant("separation")).is_equal(separation)
 		var width: float = strip.box.get_global_rect().size.x
-		assert_float(width).is_equal_approx(RowStrip.row_width(RowStrip.LAID_OUT_SLOTS), 0.5)
 		var factor: float = strip.box.scale.x
-		var natural: float = RowStrip.row_width(count, RowStrip.WIDE_SEPARATION)
-		assert_float(factor).is_equal_approx(RowStrip.row_width(7) / natural, 0.001)
+		var packed: float = RowStrip.row_width(count, RowStrip.CLOSED_SEPARATION)
+		assert_float(factor).is_equal_approx(RowStrip.row_width(7) / packed, 0.001)
+		assert_float(factor).is_equal_approx(RowStrip.scale_for(count), 0.0001)
+		var overhang: float = RowStrip.overhang(count)
+		assert_float(overhang).is_equal_approx((count - 1) * separation * factor, 0.001)
+		assert_float(width).is_equal_approx(RowStrip.row_width(7) + overhang, 0.5)
+		assert_float(strip.custom_minimum_size.x).is_equal_approx(width, 0.01)
+		# The gap between two tickets on screen: the cells' insets and the row's gap, scaled.
+		var inset: float = RowStrip.TICKET_RECT.position.x
+		var room: float = RowStrip.CELL_SIZE.x - RowStrip.TICKET_RECT.end.x
+		var first_ticket: Rect2 = strip.slots[0].get_global_transform() * RowStrip.TICKET_RECT
+		var next_ticket: Rect2 = strip.slots[1].get_global_transform() * RowStrip.TICKET_RECT
+		var gap: float = next_ticket.position.x - first_ticket.end.x
+		assert_float(gap).is_equal_approx((inset + room + separation) * factor, 0.01)
+		if count == 8:
+			assert_float(gap).is_equal_approx(9.53, 0.01)
+			assert_float(gap - (inset + room) * factor).is_equal_approx(1.9, 0.01)
+			# Half the overhang past each end stays in the room the stage's band leaves.
+			assert_float(overhang).is_equal_approx(13.34, 0.01)
+			assert_float(overhang / 2.0).is_less(
+				(ShiftStage.ROW_AREA.size.x - RowStrip.row_width(7)) / 2.0
+			)
+		else:
+			assert_float(overhang).is_equal(0.0)
+			assert_float(gap).is_equal_approx(6.77, 0.01)
 		assert_float(ArtStyle.TICKET_TEXT_SIZE * factor).is_greater_equal(MIN_SUMMARY_PX)
 		var row: Array[CardInstance] = []
 		for slot: int in range(count):
@@ -569,11 +600,18 @@ func test_wide_rows_close_their_gaps_then_scale() -> void:
 			var message: String = "%d slots, cell %d" % [count, slot]
 			if slot > 0:
 				assert_float(cell.position.x).is_greater_equal(previous.end.x - 0.01)
-			# With no gap, a slot's drop target is its cell's column: it meets its neighbours'.
+			# A slot's drop target is its cell's column and half the gap on each side (none on
+			# a 9-slot row): it meets its neighbours'.
 			var drop: Rect2 = RowStrip.drop_rect(strip.slots[slot])
-			assert_bool(cell.grow(0.01).encloses(drop)).override_failure_message(message).is_true()
-			assert_float(drop.position.x).is_equal_approx(cell.position.x, 0.01)
-			assert_float(drop.end.x).is_equal_approx(cell.end.x, 0.01)
+			var half_gap: float = separation / 2.0 * factor
+			var column: Rect2 = cell.grow_individual(half_gap, 0.0, half_gap, 0.0)
+			(
+				assert_bool(column.grow(0.01).encloses(drop))
+				. override_failure_message(message)
+				. is_true()
+			)
+			assert_float(drop.position.x).is_equal_approx(column.position.x, 0.01)
+			assert_float(drop.end.x).is_equal_approx(column.end.x, 0.01)
 			previous = cell
 			var mat: Rect2 = RowStrip.mat(strip.slots[slot]).get_global_rect()
 			var sprite: Rect2 = item.body.get_global_rect()

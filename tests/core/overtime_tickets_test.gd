@@ -54,6 +54,20 @@ func test_laps_count_whole_multiples() -> void:
 	assert_int(OvertimeTickets.laps(30, 0)).is_equal(0)
 
 
+## The smallest total making a number of laps (the medal case's "at 258€", v1.17): laps' inverse,
+## 0 for no laps or no quota.
+func test_the_total_for_a_number_of_laps() -> void:
+	assert_int(OvertimeTickets.total_for(129, 2)).is_equal(258)
+	assert_int(OvertimeTickets.total_for(129, 3)).is_equal(387)
+	for quota: int in [1, 7, 10, 65, 129]:
+		for made: int in [1, 2, 3, 4]:
+			var total: int = OvertimeTickets.total_for(quota, made)
+			assert_int(OvertimeTickets.laps(total, quota)).is_equal(made)
+			assert_int(OvertimeTickets.laps(total - 1, quota)).is_equal(made - 1)
+	assert_int(OvertimeTickets.total_for(129, 0)).is_equal(0)
+	assert_int(OvertimeTickets.total_for(0, 2)).is_equal(0)
+
+
 func test_a_shift_under_x2_earns_nothing() -> void:
 	var run: RunState = _run()
 	_check_out(run, X1 + 1)  # 15€: ×1.

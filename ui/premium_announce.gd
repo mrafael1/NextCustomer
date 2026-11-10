@@ -15,8 +15,14 @@ extends Control
 ## only: the shift screen says when (show_tag, clear) and `active` says whether the tag still
 ## belongs on screen (planning, or the count-up).
 ## A payday (v0.68, `payday`: passing the Manager's review pays two PREMIUM draws) reads as one
-## announce: "PASS THE REVIEW", PAYDAY, "2 PREMIUM DRAWS" and "EVERY TICKET RARE+", and the tag
-## "PAYDAY NEXT" (Payday's texts); the inspection chip then promises no separate bonus ticket.
+## announce: "PASS THE REVIEW", PAYDAY, "2 PREMIUM DRAWS" and "EVERY TICKET RARE+"; the inspection
+## chip then promises no separate bonus ticket. A payday leaves no tag (the user's call of
+## 2026-11-10, after playing the tag on the CHECKOUT key: "you can remove the golden payday on top
+## of checkout"; the shift's brass look and the calendar's PAYDAY band say it for the rest of the
+## shift): its receipt shrinks and flies to the calendar's PAYDAY band (setup's `calendar`),
+## fading out on the way, and the announce is then over (is_shown() false). Reduced motion shows
+## a payday's receipt still, with no print, sunburst or sparkles, then takes it away at once
+## (FLY_FROM); a resumed payday shows nothing.
 ## Drawn in code on the screen's own coordinates, at the art's 2 px grid.
 
 ## The mock-up's times (s): the print, the flight to the tag.
@@ -41,11 +47,17 @@ const FLOWN_SCALE := 0.5
 const BURST_RADIUS := 200.0
 const BURST_SPIN := 0.5
 const BURST_SHADER := preload("res://presentation/dither_burst.gdshader")
-## The tag: its size, how far it reaches into the monitor's screen under the top bezel (the
-## brief's text starts lower), and its gap from the screen's left edge.
+## The tag: its height and its shortest width (it is as wide as its text: tag_width()), how far it
+## reaches into the monitor's screen under the top bezel (the brief's text starts lower), and its
+## gap from the screen's left edge. Its text starts TAG_TEXT_X px in (the eyelet and the star
+## before it) and ends TAG_TEXT_END px before its right edge.
 const TAG_SIZE := Vector2(152, 22)
+const TAG_TEXT_X := 28.0
+const TAG_TEXT_END := 12.0
 const TAG_INTO := 4.0
 const TAG_MARGIN := 12.0
+## A payday's receipt has no tag to fly to: how far through its flight it starts to fade out.
+const PAYDAY_FADE_FROM := 0.4
 ## The star before PREMIUM NEXT and round PREMIUM: a 5x5 pixel star (PrizeTicket's LEGENDARY pip).
 const STAR_GRID := "..x..xxxxx.xxx..x.x.x...x"
 const STRING_DOTS := 10
@@ -60,7 +72,9 @@ const BOOST_SIZES: Array[int] = [16, 13]
 const DIAMOND_GRID := "..x...xxx.xxxxx.xxx...x.."
 const DIAMOND_GAP := 14.0
 const TITLE_SIZE := 28
-const TAG_FONT_SIZE := 12
+## The tag's words: bold Atkinson at TAG_FONT_SIZE, TAG_SPACING px between glyphs (the mock-up's).
+const TAG_FONT_SIZE := 13
+const TAG_SPACING := 1
 const MONO_SIZE := 13
 const SMALL_MONO_SIZE := 12
 const BOLD_WEIGHT := 800
@@ -73,6 +87,9 @@ var active: Callable = func() -> bool: return true
 var payday: bool = false
 var _monitor: Control
 var _bar: Control
+## The day calendar whose PAYDAY band a payday's receipt flies to (setup), or null: it shrinks
+## where it is.
+var _calendar: DayCalendar
 var _shown: bool = false
 ## Seconds on the announce's clock (FLY_TO and later: the tag hangs).
 var _time: float = 0.0
@@ -106,19 +123,24 @@ func _init() -> void:
 	_burst_clip.add_child(_burst)
 
 
-## The monitor the receipt prints on and the top bar the tag's string hangs from.
-func setup(monitor: Control, top_bar: Control) -> void:
+## The monitor the receipt prints on, the top bar the tag's string hangs from and the day
+## calendar a payday's receipt flies to (null: it shrinks where it is).
+func setup(monitor: Control, top_bar: Control, calendar: DayCalendar = null) -> void:
 	_monitor = monitor
 	_bar = top_bar
+	_calendar = calendar
 
 
 ## Shows the announce: printed from the start (`printing`, a shift that just started) or as the
 ## hanging tag (a resumed run), as a payday's when `is_payday` (v0.68). Reduced motion always
-## shows the tag.
+## shows the tag. A payday's has no tag: it prints (reduced motion: its receipt shows still) and
+## is then over; a resumed one shows nothing.
 func show_tag(printing: bool, is_payday: bool = false) -> void:
 	_shown = true
 	payday = is_payday
-	_time = 0.0 if printing and not reduced_motion.call() else FLY_TO + RING_LENGTH + SHINE_PERIOD
+	var printed: bool = printing and (payday or not reduced_motion.call())
+	_time = 0.0 if printed else FLY_TO + RING_LENGTH + SHINE_PERIOD
+	self_modulate.a = 1.0
 	queue_redraw()
 
 
@@ -128,36 +150,79 @@ func clear() -> void:
 	queue_redraw()
 
 
-## Whether the announce is up (printing or hanging).
+## Whether the announce is up (printing or hanging); never once a payday's receipt has gone.
 func is_shown() -> bool:
-	return _shown and bool(active.call())
+	return _shown and bool(active.call()) and not (payday and _time >= receipt_end())
 
 
-## Whether the tag hangs (the print and the flight are over).
+## Whether the tag hangs (the print and the flight are over); never on a payday.
 func tag_hangs() -> bool:
-	return is_shown() and _time >= FLY_TO
+	return is_shown() and not payday and _time >= FLY_TO
 
 
-## Seconds until the receipt has flown up and the tag's landing ring is over (0: none printing),
-## so the bonus notice can wait for it.
+## When the receipt leaves the monitor (s on the announce's clock): at the flight's end, or for a
+## payday's under reduced motion at once when the flight would start.
+func receipt_end() -> float:
+	return FLY_FROM if payday and reduced_motion.call() else FLY_TO
+
+
+## Seconds until the receipt has flown up and the tag's landing ring is over (a payday: until its
+## receipt has gone; 0: none printing), so the bonus notice can wait for it.
 func print_left() -> float:
 	if not is_shown():
 		return 0.0
-	return maxf(0.0, FLY_TO + RING_LENGTH - _time)
+	return maxf(0.0, (receipt_end() if payday else FLY_TO + RING_LENGTH) - _time)
 
 
 ## The tag's rect on screen (bounce included): on the monitor's top bezel, TAG_MARGIN inside its
 ## screen's left edge, reaching TAG_INTO into its screen and never lower (its bounce only lifts
-## it).
+## it). PREMIUM NEXT's only: a payday has no tag.
 func tag_rect() -> Rect2:
-	var screen: Rect2 = monitor_screen()
 	var bounce: float = 0.0
 	if not reduced_motion.call():
 		var k: float = maxf(0.0, _time - FLY_TO)
 		bounce = -absf(sin(k * BOUNCE_RATE) * BOUNCE_HEIGHT * exp(-k * BOUNCE_DECAY))
+	var tag_size: Vector2 = Vector2(tag_width(), TAG_SIZE.y)
+	var screen: Rect2 = monitor_screen()
 	var x: float = screen.position.x + TAG_MARGIN
 	var y: float = screen.position.y + TAG_INTO - TAG_SIZE.y + bounce
-	return Rect2(Vector2(floorf(x / 2.0), floorf(y / 2.0)) * 2.0, TAG_SIZE)
+	return Rect2(Vector2(floorf(x / 2.0), floorf(y / 2.0)) * 2.0, tag_size)
+
+
+## The tag's width: its text's (tag_font()) and the room before and after it, on even px, at
+## least TAG_SIZE.x.
+func tag_width() -> float:
+	var text: float = MachineArt.text_width(TAG_TEXT, tag_font(), TAG_FONT_SIZE)
+	var fitted: float = ceilf((TAG_TEXT_X + text + TAG_TEXT_END) / 2.0) * 2.0
+	return maxf(fitted, TAG_SIZE.x)
+
+
+## The receipt's rect on screen now: receipt_rect(), then shrinking on its way to the tag (a
+## payday's: until its centre is on payday_target()).
+func flying_rect() -> Rect2:
+	var rect: Rect2 = receipt_rect()
+	var fly: float = MachineArt.ease_in_out(MachineArt.seg(_time, FLY_FROM, FLY_TO))
+	var to: Vector2 = tag_rect().position
+	if payday:
+		to = payday_target() - rect.size * FLOWN_SCALE / 2.0
+	return Rect2(rect.position.lerp(to, fly), rect.size * lerpf(1.0, FLOWN_SCALE, fly))
+
+
+## Where a payday's receipt flies to, in this control's coordinates: the centre of the day
+## calendar's PAYDAY band, or the receipt's own centre when no band shows.
+func payday_target() -> Vector2:
+	var band: Rect2 = Rect2()
+	if _calendar != null and _calendar.is_visible_in_tree():
+		band = _calendar.part_rects()["payday_band"]
+	if not band.has_area():
+		return receipt_rect().get_center()
+	var mine: Transform2D = get_global_transform().affine_inverse()
+	return mine * band.get_center()
+
+
+## The tag's font: bold Atkinson, TAG_SPACING px between glyphs.
+static func tag_font() -> Font:
+	return MachineArt.spaced(ArtStyle.bold_font(BOLD_WEIGHT), TAG_SPACING)
 
 
 ## The tag's string, from where it hangs (the top bar's foot, straight above the eyelet) to the
@@ -192,11 +257,6 @@ func monitor_screen() -> Rect2:
 	return (mine * to_screen) * MonitorView.local(ShiftStage.MONITOR_SCREEN_RECT)
 
 
-## The tag's text.
-func tag_text() -> String:
-	return Payday.TAG if payday else TAG_TEXT
-
-
 ## The printed receipt's texts, top to bottom: the head, the title, the two boosts, the foot.
 func receipt_texts() -> PackedStringArray:
 	var boosts: Array[String] = Payday.ANNOUNCE_BOOSTS if payday else BOOST_TEXTS
@@ -216,8 +276,22 @@ func _process(delta: float) -> void:
 		_burst_clip.visible = false
 		return
 	_time += delta
+	if payday and _time >= receipt_end():
+		clear()  # A payday's receipt has gone: it leaves no tag.
+		_burst_clip.visible = false
+		return
+	self_modulate.a = receipt_alpha()
 	_frame_burst()
 	queue_redraw()
+
+
+## The receipt's and the tag's opacity now: 1, but a payday's receipt fades out over the end of
+## its flight (from PAYDAY_FADE_FROM of the way).
+func receipt_alpha() -> float:
+	if not payday or reduced_motion.call():
+		return 1.0
+	var fly: float = MachineArt.seg(_time, FLY_FROM, FLY_TO)
+	return 1.0 - MachineArt.seg(fly, PAYDAY_FADE_FROM, 1.0)
 
 
 ## Whether the sunburst shows now (for tests).
@@ -249,22 +323,32 @@ func _draw() -> void:
 	if not is_shown() or _monitor == null or _bar == null:
 		return
 	if _time < FLY_TO:
-		_draw_receipt()
+		if payday and reduced_motion.call():
+			_draw_still_receipt()
+		else:
+			_draw_receipt()
 		return
 	_draw_tag()
 
 
-## The gold receipt: printing down (its height grows), then shrinking on its way to the tag.
+## A payday's receipt under reduced motion: whole and still until it goes (is_shown).
+func _draw_still_receipt() -> void:
+	var scale_by: float = print_scale()
+	draw_set_transform(receipt_rect().position, 0.0, Vector2(scale_by, scale_by))
+	_draw_slip(Rect2(Vector2.ZERO, RECEIPT_SIZE))
+	draw_set_transform(Vector2.ZERO)
+
+
+## The gold receipt: printing down (its height grows), then shrinking on its way to the tag (a
+## payday's: to the calendar's PAYDAY band, its centre landing on the band's, fading out).
 func _draw_receipt() -> void:
 	if _time < PRINT_FROM:
 		return
 	var rect: Rect2 = receipt_rect()
 	var fly: float = MachineArt.ease_in_out(MachineArt.seg(_time, FLY_FROM, FLY_TO))
 	var shown: float = MachineArt.ease_out(MachineArt.seg(_time, PRINT_FROM, PRINT_TO))
-	var to: Vector2 = tag_rect().position
-	var origin: Vector2 = rect.position.lerp(to, fly)
-	var scale_by: float = print_scale() * lerpf(1.0, FLOWN_SCALE, fly)
-	draw_set_transform(origin, 0.0, Vector2(scale_by, scale_by))
+	var scale_by: float = flying_rect().size.x / RECEIPT_SIZE.x
+	draw_set_transform(flying_rect().position, 0.0, Vector2(scale_by, scale_by))
 	var height: float = MachineArt.snap(RECEIPT_SIZE.y * shown)
 	_draw_slip(Rect2(Vector2.ZERO, Vector2(RECEIPT_SIZE.x, height)))
 	draw_set_transform(Vector2.ZERO)
@@ -359,12 +443,12 @@ func _draw_tag() -> void:
 	var low: Vector2 = rect.position + Vector2(2, rect.size.y - 4)
 	draw_rect(Rect2(low, Vector2(rect.size.x - 4, 2)), Palette.BRASS)
 	draw_rect(Rect2(rect.position + Vector2(6, 8), Vector2(6, 6)), Palette.BRASS_DARKEST)
-	var bold: Font = ArtStyle.bold_font(BOLD_WEIGHT)
-	var centre: Vector2 = rect.get_center() + Vector2(12, 0)
-	var tag: String = tag_text()
-	MachineArt.centred_text(self, tag, centre, bold, TAG_FONT_SIZE, Palette.BRASS_DARKEST)
-	var half: float = MachineArt.text_width(tag, bold, TAG_FONT_SIZE) / 2.0
-	_draw_star(Vector2(centre.x - half - 10.0, centre.y), Palette.BRASS_DARKEST)
+	var font: Font = tag_font()
+	var tag: String = TAG_TEXT
+	var half: float = MachineArt.text_width(tag, font, TAG_FONT_SIZE) / 2.0
+	var centre: Vector2 = Vector2(rect.position.x + TAG_TEXT_X + half, rect.get_center().y)
+	MachineArt.centred_text(self, tag, centre, font, TAG_FONT_SIZE, Palette.BRASS_DARKEST)
+	_draw_star(Vector2(rect.position.x + TAG_TEXT_X - 8.0, centre.y), Palette.BRASS_DARKEST)
 	if reduced_motion.call():
 		return
 	var k: float = _time - FLY_TO
@@ -380,12 +464,8 @@ func _draw_tag() -> void:
 			MachineArt.sparkle(self, spot, 1.0, 1.0 - k / RING_LENGTH)
 
 
+## The top bar's rect in this control's coordinates (through the store camera's zoom, if any).
 func _bar_rect() -> Rect2:
-	return _screen_rect(_bar)
-
-
-## `item`'s rect in this control's coordinates (through the store camera's zoom, if any).
-func _screen_rect(item: Control) -> Rect2:
-	var to_screen: Transform2D = item.get_global_transform_with_canvas()
+	var to_screen: Transform2D = _bar.get_global_transform_with_canvas()
 	var mine: Transform2D = get_global_transform_with_canvas().affine_inverse()
-	return (mine * to_screen) * Rect2(Vector2.ZERO, item.size)
+	return (mine * to_screen) * Rect2(Vector2.ZERO, _bar.size)

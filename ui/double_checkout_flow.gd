@@ -49,26 +49,22 @@ static func counted(run: RunState) -> ScoreResult:
 	return ScoreResult.continued(run.row_result, run.first_result.total)
 
 
-## The receipt header (ReceiptView.header_lines), with its row line on a Double checkout shift.
+## The receipt's header lines: only a Double checkout shift's row line (main scene v2 dropped the
+## SHIFT line); none otherwise.
 static func header(run: RunState) -> PackedStringArray:
-	var lines: PackedStringArray = ReceiptView.header_lines(
-		run.shift_index + 1, run.shift_count(), run.row.size()
-	)
 	if RunPins.row_slots(run) <= 0:
-		return lines
+		return PackedStringArray()
 	var row_line: String = ROW_ONE_TEXT
 	if run.first_result != null:
 		row_line = ROW_TWO_TEXT % ReceiptView.money(run.first_result.total)
-	var with_row: PackedStringArray = lines.duplicate()
-	with_row.append(row_line)
-	return with_row
+	return PackedStringArray([row_line])
 
 
 ## The row on the key and the gauge's pips (none without the pin): row 1 until its count ends,
 ## then row 2, both pips gold once the shift is checked out.
 static func refresh(screen: ShiftScreen) -> void:
 	var run: RunState = screen.run
-	var pips: RowPips = screen._stage.tower.row_pips
+	var pips: RowPips = screen._stage.row_pips
 	if RunPins.row_slots(run) <= 0:
 		screen._cabinet.set_checkout_row("")
 		pips.show_rows(0, 0)
@@ -168,9 +164,7 @@ static func count_row_one(screen: ShiftScreen, committed: Array[CardInstance]) -
 		context,
 		screen._loyalty_card.stamped_boxes(),
 		LoyaltyCard.names(run.upgrades),
-		(screen._top_bar as TopBar).event_sources(
-			WeekSchedule.shift_events(run), RunPins.pin_events(run).size()
-		),
+		screen._stage.event_sources(WeekSchedule.shift_events(run), RunPins.pin_events(run).size()),
 		InspectionTag.names(WeekSchedule.shift_events(run))
 	))
 	screen._counting = false

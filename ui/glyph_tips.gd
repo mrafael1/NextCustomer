@@ -162,22 +162,24 @@ func shown_glyph() -> TipTarget:
 	return _shown if _tip.visible else null
 
 
-## The topmost target (a glyph over a ticket's colour) this serves under `at` (viewport
-## coordinates), or null.
+## The topmost target (a glyph over a ticket's colour, a stuck price label over the next ticket)
+## this serves under `at` (viewport coordinates), or null.
 func glyph_at(at: Vector2) -> TipTarget:
 	var found: TipTarget = null
 	for node: Node in get_tree().get_nodes_in_group(TipTarget.GROUP):
 		var glyph: TipTarget = node as TipTarget
 		if glyph == null or not _serves(glyph, at):
 			continue
-		if found == null or glyph.is_greater_than(found):
+		if found == null or glyph.drawn_from().is_greater_than(found.drawn_from()):
 			found = glyph
 	return found
 
 
-## Whether `glyph` is this one's, shown, under `at` (inside every clipping ancestor: a glyph
-## scrolled out of a ScrollContainer, or outside a sliding page, shows nothing), and not covered
-## by a control that takes the pointer (one later in the tree that is not its ancestor).
+## Whether `glyph` is this one's, shown, under `at` (its hover_rect; inside every clipping
+## ancestor: a glyph scrolled out of a ScrollContainer, or outside a sliding page, shows
+## nothing), and not covered by a control that takes the pointer (one later in the tree that is
+## not its ancestor; later than the layer that draws it over its row for a price label,
+## TipTarget.drawn_from).
 func _serves(glyph: TipTarget, at: Vector2) -> bool:
 	if not is_instance_valid(glyph) or not glyph.is_inside_tree() or not glyph.is_shown():
 		return false
@@ -185,12 +187,12 @@ func _serves(glyph: TipTarget, at: Vector2) -> bool:
 		return false
 	if _scope_of(glyph) != self:
 		return false
-	if not glyph.get_global_rect().has_point(at) or is_clipped(glyph, at):
+	if not glyph.hover_rect().has_point(at) or is_clipped(glyph, at):
 		return false
 	var hovered: Control = get_viewport().gui_get_hovered_control()
 	if hovered == null or hovered.is_ancestor_of(glyph):
 		return true
-	return glyph.is_greater_than(hovered)
+	return glyph.drawn_from().is_greater_than(hovered)
 
 
 ## Whether `at` (viewport coordinates) is outside the rect of one of `node`'s ancestors that clip

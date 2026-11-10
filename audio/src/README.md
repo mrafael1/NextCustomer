@@ -14,7 +14,7 @@ Godot never imports this folder (`.gdignore`), so none of it reaches an export. 
 | `vcsl/` | Versilian Community Sample Library instrument samples (github.com/sgossner/VCSL): xylophone, glockenspiel, hand chime, bell tree, marimba | `vcsl/LICENSE` |
 | `freesound/` | Freesound recordings, one row each in `freesound/ledger.tsv` (id, title, author, URL, licence, check date, the cut times) | `freesound/ledger.tsv` |
 
-Two sounds are synthesised in `make_sfx.py` instead: `scan` (a soft C7 beep) and `fizzle`.
+Three sounds are synthesised in `make_sfx.py` instead: `scan` (a soft C7 beep), `fizzle` and `pour` (the top bar gauge filling in planning: seeded bubbles over a sine glide rising C5 to G5).
 
 ## Rebuilding the sounds
 
@@ -63,6 +63,8 @@ its docstring has the commands. It is not part of the build.
   C5, G5, C6 and G6 (apart from the tuning fix) and shifts of at most 3 semitones elsewhere. Soft
   mallets pp for G4 to E5, soft ff for G5 to C6, medium mallets ff for D6 to G6.
 - **The register bell** rings at A6 - 39 cents and is moved down 1.61 semitones to G6.
+- **The service bell** (desk bell 221515) rings at about 3620 Hz, with an inharmonic partial near
+  6740 Hz, and is moved down 0.49 semitones to A7 (3520 Hz).
 
 ## Production log
 

@@ -1,5 +1,5 @@
 """Builds every sound effect in audio/sfx/ (#62) from the CC0 source excerpts in audio/src/, plus
-two synthesised sounds (the scan beep and the fizzle). Standard-library Python and
+three synthesised sounds (the scan beep, the fizzle and the gauge's pour). Standard-library Python and
 deterministic: the same code and sources write the same bytes. Re-run after changing a sound or a
 source excerpt, then re-import (sh tools/import.sh):
 
@@ -84,7 +84,9 @@ GAINS = {
     "stamp_1": 0.9, "stamp_2": 0.9, "stamp_3": 0.9, "stamp_paid": 0.95, "stamp_loyalty": 0.85,
     "stamp_notice": 0.6,
     "rattle_s": 0.5, "rattle_m": 0.65, "rattle_l": 0.8, "register_bell": 0.7, "kaching": 0.75,
-    "ding": 0.55, "tag": 0.5, "link": 0.45, "copy": 0.45, "fizzle": 0.4, "denied": 0.5,
+    "service_bell": 0.8,
+    "ding": 0.55, "tag": 0.5, "link": 0.45, "copy": 0.45, "fizzle": 0.4, "pour": 0.35,
+    "denied": 0.5,
     "total": 0.85, "miss": 0.6, "pass": 0.7, "fail": 0.55, "rip": 0.65, "armed": 0.3,
     "card_place_1": 0.5, "card_place_2": 0.5, "card_place_3": 0.5, "card_place_4": 0.5,
     "card_pickup_1": 0.4, "card_pickup_2": 0.4, "card_pickup_3": 0.4,
@@ -384,6 +386,41 @@ def fizzle() -> list[float]:
     return finish(mix((noise, 0.0, 0.0), (glide, 0.0, -14.0)), fade_out_s=0.06)
 
 
+def pour() -> list[float]:
+    """The quota gauge filling (left column v2's top bar gauge): a quick "glug" of liquid poured
+    into a glass, fizzle's opposite. Seeded bubbles (short sine chirps rising an octave, 15 to 25 ms,
+    600 Hz to 1.4 kHz, band-passed) at random times over a soft low-passed noise bed, under a quiet
+    sine glide from C5 up to G5 at -14 dB; 350 ms."""
+    n = int(0.35 * RATE)
+    rng = random.Random(11)
+    bubbles = [0.0] * n
+    for _ in range(12):
+        at = int(rng.uniform(0.0, 0.26) * RATE)
+        length = int(rng.uniform(0.015, 0.025) * RATE)
+        f = rng.uniform(600.0, 1400.0)
+        level = rng.uniform(0.5, 1.0)
+        phase = 0.0
+        for i in range(min(length, n - at)):
+            k = i / length
+            phase += 2 * math.pi * f * 2 ** k / RATE
+            bubbles[at + i] += level * math.sin(phase) * math.sin(math.pi * k) ** 2
+    bubbles = biquad(bubbles, "bandpass", 1000.0, q=0.8)
+    bed = []
+    for i in range(n):
+        t = i / RATE
+        bed.append(rng.uniform(-1.0, 1.0) * swell(t, 0.04, 0.12))
+    bed = lowpass(lowpass(bed, 900.0), 900.0)
+    lo, hi = note_hz("C5"), note_hz("G5")
+    glide = []
+    phase = 0.0
+    for i in range(n):
+        t = i / RATE
+        phase += 2 * math.pi * lo * (hi / lo) ** min(1.0, t / 0.28) / RATE
+        glide.append(math.sin(phase) * swell(t, 0.01, 0.12))
+    return finish(mix((bubbles, 0.0, 0.0), (bed, 0.0, -10.0), (glide, 0.0, -14.0)),
+                  fade_out_s=0.06)
+
+
 # --- Recipes --------------------------------------------------------------------------------
 
 
@@ -442,6 +479,15 @@ def register_bell() -> list[float]:
     shift = 12 * math.log2(note_hz("G6") / 1720.6)
     x = highpass(align(src("freesound/452572_bell.wav", shift)), 200.0)
     return finish(tail(x, 0.3, 0.9))
+
+
+def service_bell() -> list[float]:
+    """The service bell on the register: one tap of the CC0 desk bell with its natural ring,
+    moved down 0.49 semitones from 3620 Hz to A7 so it sits in key, high-passed at 300 Hz and
+    rung out by 1.6 s. Its own recording, apart from the register bell and the ka-ching."""
+    shift = 12 * math.log2(note_hz("A7") / 3620.0)
+    x = highpass(align(src("freesound/221515_desk_bell_ring.wav", shift)), 300.0)
+    return finish(tail(x, 0.25, 1.6), fade_in_s=0.0005)
 
 
 def kaching() -> list[float]:
@@ -585,7 +631,7 @@ def coin(take: int) -> list[float]:
 
 def recipes() -> dict:
     """Every sound by name, as a function that builds it."""
-    out = {"scan": scan, "fizzle": fizzle}
+    out = {"scan": scan, "fizzle": fizzle, "pour": pour}
     for i in range(len(LADDER)):
         out["bonus_%02d" % i] = lambda i=i: bonus(i)
     out["print"] = lambda: finish(
@@ -599,7 +645,8 @@ def recipes() -> dict:
     out["rattle_s"] = lambda: rattle("s", 0.18, 0.06)
     out["rattle_m"] = lambda: rattle("m", 0.3, 0.1)
     out["rattle_l"] = lambda: rattle("l", 0.5, 0.15)
-    out.update({"register_bell": register_bell, "kaching": kaching, "ding": ding, "tag": tag, "link": link,
+    out.update({"register_bell": register_bell, "kaching": kaching, "service_bell": service_bell,
+                "ding": ding, "tag": tag, "link": link,
                 "copy": copy, "denied": denied, "total": total, "miss": miss, "pass": pass_,
                 "fail": fail, "rip": rip, "armed": armed, "checkout": checkout})
     for take in (1, 2, 3, 4):

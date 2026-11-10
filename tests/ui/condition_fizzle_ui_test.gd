@@ -68,11 +68,14 @@ func test_a_failed_condition_fizzles_in_the_count_up_and_on_the_receipt() -> voi
 	var over_cubes: Vector2 = (rect_of.call(0) as Rect2).get_center() + Vector2(0, -30)
 	assert_float(puffs[0].distance_to(over_cubes)).is_less(1.0)
 	await _assert_receipt_of(screen, result, 500)
-	# The anchored receipt (2026-11-05) prints no fizzle line: the Sugar cubes' row keeps
-	# planning's fizzle mark, inside the paper and on screen; the monitor told the fizzle.
+	# The anchored receipt (2026-11-05) prints no fizzle line: the Sugar cubes' row, printed as
+	# the count reached it (main scene v2), wears the fizzle mark, inside the paper and on screen;
+	# the monitor told the fizzle.
 	var wanted: String = "Sugar cubes after Coffee: no Coffee right before it"
 	assert_array(_lines(screen._receipt)).not_contains([wanted + " | "])
-	var found: Control = screen._receipt._items[0].find_child("Mark", true, false) as Control
+	var printed: Array[Control] = screen._receipt.printed_rows()
+	assert_int(printed.size()).is_equal(2)
+	var found: Control = printed[0].find_child("Mark", true, false) as Control
 	assert_object(found).override_failure_message(str(_lines(screen._receipt))).is_not_null()
 	if found == null:
 		return
@@ -103,8 +106,9 @@ func test_a_failed_condition_shows_a_wasted_sticker_in_planning() -> void:
 
 ## A conditional card that another card boosts while its own condition fails (Eggs, Cheese: the
 ## Egg doubles Cheese, which has no Bread just before it) keeps its "WASTED" sticker, but its belt
-## ticket is BOOSTED and its planning receipt line shows the fizzle icon (the receipt draws no
-## raised check), on screen inside the receipt.
+## ticket is BOOSTED and its receipt row shows the fizzle icon once the count prints it (main
+## scene v2: planning prints no rows; the receipt draws no raised check), on screen inside the
+## receipt.
 func test_a_boosted_card_with_a_failed_condition_shows_the_fizzle_mark() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _place(screen, ["eggs", "cheese"])
@@ -114,10 +118,13 @@ func test_a_boosted_card_with_a_failed_condition_shows_the_fizzle_mark() -> void
 	assert_object(_sticker(screen, 1, "WASTED")).is_not_null()
 	var model: PlanningModel = screen._stage.planning_layer.model()
 	assert_int(model.slots[1].pay).is_equal(PlanningModel.Pay.BOOSTED)
-	var line: HBoxContainer = screen._receipt._items.get(1) as HBoxContainer
-	assert_object(line).is_not_null()
-	if line == null:
+	_play_tapped(screen, result, 500)
+	await _played(screen)
+	var printed: Array[Control] = screen._receipt.printed_rows()
+	assert_int(printed.size()).is_equal(2)
+	if printed.size() < 2:
 		return
+	var line: HBoxContainer = printed[1] as HBoxContainer
 	var mark: TextureRect = line.get_child(1).get_node_or_null("Mark") as TextureRect
 	assert_object(mark).is_not_null()
 	if mark == null:
@@ -204,7 +211,7 @@ func _play_tapped(screen: ShiftScreen, result: ScoreResult, quota: int) -> void:
 		CountUpContext.new(1, 0, 1.0, false, screen.receipt_header()),
 		screen._loyalty_card.stamped_boxes(),
 		LoyaltyCard.names(screen.run.upgrades),
-		screen._inspection_tag.sources(screen.run.inspections),
+		screen._stage.event_sources(screen.run.inspections),
 		InspectionTag.names(screen.run.inspections)
 	)
 	count_up._tap(Time.get_ticks_msec())

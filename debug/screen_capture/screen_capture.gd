@@ -266,7 +266,8 @@ func _ready() -> void:
 		if _argument(UPGRADES_ARGUMENT) != "":
 			upgrade_ids.assign(_argument(UPGRADES_ARGUMENT).split(","))
 		_set_up_shift(_argument(DAY_ARGUMENT), row_ids, upgrade_ids)
-		_stack_part = "row_"
+		await _hover(focus_id)  # --effects=<card id> with --row=: that card hovered, row_focus_.
+		_stack_part = "row_focus_" if _focused else "row_"
 	elif _argument(CaptureMonitor.ARGUMENT) != "":
 		var case: Dictionary = CaptureMonitor.spec(_argument(CaptureMonitor.ARGUMENT))
 		_set_up_shift(case.get("inspection", ""), case["row"], case["upgrades"])
@@ -443,10 +444,15 @@ func scan(card_id: String) -> void:
 ## under the Spot check) and, for a `card_spec` (a card id, with ",hand" for the hand's item),
 ## hovers the first belt (or basket) item of that card once the items are laid out and scans it,
 ## as the player's resting pointer would; capture() then names its file
-## shift_screen_effects_[focus_[hand_]]<w>x<h>.png. A card that isn't there goes to report_error.
+## shift_screen_effects_[focus_[hand_]]<w>x<h>.png (_hover; --row= hovers on its row too, the
+## file row_focus_). A card that isn't there goes to report_error.
 func effects(card_spec: String = "") -> void:
 	_set_up_shift(EFFECTS_INSPECTION, EFFECTS_ROW_IDS)
 	_effects = true
+	await _hover(card_spec)
+
+
+func _hover(card_spec: String) -> void:
 	_focused = false
 	if card_spec == "":
 		return

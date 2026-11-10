@@ -28,9 +28,11 @@ extends Node
 ## (MachineLanding.upgraded's pairs, `pending_swaps`) become `shown_swaps` as the next shift
 ## starts: their items show the old art through the glide back, then upgrade_after_ms after it an
 ## UpgradeSwap plays on the screen's overlay for those on screen. Once planning takes input,
-## BonusNotice pulses the inspection chip when passing the shift earns the bonus ticket, and
+## BonusNotice pulses the day calendar when passing the shift earns the bonus ticket, and
 ## PremiumAnnounce (v0.50) prints its gold receipt on the monitor and hangs the PREMIUM NEXT
 ## tag when passing it earns a PREMIUM visit (RewardMachine.premium_if_passed; a resume: the tag).
+## A payday's receipt reads PAYDAY and leaves no tag (2026-11-10): it flies to the day calendar's
+## PAYDAY band and is gone; a resumed payday shows nothing of it.
 ##
 ## A part of the shift screen, split out to keep that file short (like ShiftDebug): it works on
 ## the screen's run and display through the screen's own members.
@@ -116,12 +118,13 @@ func setup(screen: ShiftScreen, event_log: EventLogService) -> RewardMachineView
 		var run: RunState = screen.run
 		return run != null and (run.phase == RunState.Phase.PLANNING or screen._counting)
 	screen._overlay.add_child(announce)
-	announce.setup(screen._monitor, screen._stage.top_bar)
+	announce.setup(screen._monitor, screen._stage.top_bar, screen._stage.day_calendar)
 	return view
 
 
 ## A new shift's planning (or a resumed one, `printing` false) opened: the notice pulses and the
-## premium announce prints (a resume: hangs its tag) once planning takes input.
+## premium announce prints (a resume: hangs its tag; a payday's has none) once planning takes
+## input.
 func shift_started(printing: bool = true) -> void:
 	notice.stop()
 	announce.clear()
@@ -525,7 +528,7 @@ func _play_notice() -> void:
 		return
 	if not run.machine.bonus_if_passed(run) or Payday.if_passed(run):
 		return  # A payday's announce says it all (v0.68).
-	notice.play(_screen._inspection_tag, _reduced())
+	notice.play(_screen._calendar, _reduced())
 
 
 func _play_announce() -> void:

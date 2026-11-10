@@ -13,8 +13,15 @@ extends RefCounted
 const MAX_WAIT_MS := 60000
 
 
-## Taps `count_up` once if it is counting, untapped, before its verdict.
+## Taps `count_up` once if it is counting, untapped, before its verdict; during CHECKOUT's medal
+## prelude (MedalPrelude, before the count) the tap skips the prelude, and the count starts with
+## it (CountUp.tap_ahead), as the player's own tap does.
 static func rush(count_up: CountUp) -> void:
+	var prelude: MedalPrelude = _prelude_of(count_up)
+	if prelude != null and prelude.is_playing():
+		if not prelude.was_skipped():
+			prelude.skip(Time.get_ticks_msec())
+		return
 	if count_up._playing and not count_up._tapped and not count_up._verdict_shown:
 		count_up._tap(Time.get_ticks_msec())
 
@@ -73,6 +80,14 @@ static func restore() -> void:
 	Engine.physics_ticks_per_second = ProjectSettings.get_setting(
 		"physics/common/physics_ticks_per_second"
 	)
+
+
+## The medal prelude of the shift screen playing `count_up`, or null (a count-up alone).
+static func _prelude_of(count_up: CountUp) -> MedalPrelude:
+	var screen: ShiftScreen = count_up.get_parent() as ShiftScreen
+	if screen == null or screen._stage == null:
+		return null
+	return screen._stage.medal_prelude
 
 
 static func _tree() -> SceneTree:

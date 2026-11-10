@@ -1,18 +1,20 @@
 class_name TopBar
 extends HBoxContainer
-## The shift screen's top bar (#80 step 10, mock-up B2): one row of teal chips on the dark teal
-## band, GAP apart, right of the register's tower (the shift scene polish, mock-up
-## shift_scene_polish_v2.html section 2, A2: the SPEND chip is gone; the quota is the receipt's
-## TODAY'S TARGET and its gauge a tube beside the receipt): SHIFT n/m, the week chip (v0.70,
-## WeekChip: "W : 2/4", the week's name, its day pips), the inspection chip (the day chip since
-## v0.70: "D6" and the day's kind, paper, with the mustard warning sign and "Inspection" (v1.16:
-## no effect, a fixed width), the effects in its hover text and its slip), the LOYALTY chip with its
-## stamps, then (pushed to the row's end by a spacer) the Cart button with its trolley and the menu
-## button (three drawn bars) whose menu holds Guide (the staff handbook, v1.06) and Export log. With
-## weeks (show_weeks, v0.82: the week and day chips say where the run is) the SHIFT chip hides, so
-## the row breathes; the training week's slips show as the week chip's crosses (v0.84 retired the
-## slip sign under it). Cart and the menu stay clickable behind every panel: the shade starts under
-## the band (ShiftScreen), and the menu opens in its own popup window.
+## The shift screen's top bar (#80 step 10, mock-up B2): one row on the dark teal band, right of
+## the register's tower (the shift scene polish, mock-up shift_scene_polish_v2.html section 2, A2:
+## the SPEND chip is gone; the quota is the receipt's TODAY'S TARGET). Since left column v2 (the
+## user's pick of 2026-11-09, mock-up docs/art/mockups/left_column_v2.html) it holds, between the
+## register's tower and LOYALTY, the quota gauge lying on its side (GaugePanel: one steel-bezelled
+## instrument on the band, no chip since the play test of 2026-11-09, in a clipping room it slides
+## up out of at CHECKOUT); then the LOYALTY chip with its
+## stamps where it stood (LOYALTY_X, its look unchanged), then (pushed to the row's end by a
+## spacer) the Cart button with its trolley and the menu button (three drawn bars) whose menu holds
+## Guide (the staff handbook, v1.06) and Export log. The day is the desk calendar on the register's
+## top (DayCalendar, ShiftStage.DESK_CALENDAR_RECT), the week the register's week glass (WeekGlass)
+## and its medals the medal case (MedalCase). A run without weeks shows the SHIFT chip
+## ("SHIFT n/m") first, and the gauge's chip shortens. Cart and the menu stay clickable behind
+## every panel: the shade starts under the band (ShiftScreen), and the menu opens in its own popup
+## window.
 ##
 ## It only builds and lays out; ShiftStage passes the buttons' signals on and the screen fills
 ## the chips. Its controls are public for the same reason as ShiftStage's.
@@ -27,12 +29,11 @@ signal guide_pressed
 const POSITION := Vector2(348, 9)
 const ROW_SIZE := Vector2(916, 38)
 const GAP := 12
-## The chips' gap on a tight day (fit_inspection, 2026-11-06: the week medals' room): the chips
-## this far apart, none of them shrunk.
-const TIGHT_GAP := 6
-## The room fit_inspection keeps free at the row's end, past the spacer's two gaps (v1.02 review:
-## 0, as 8 dropped a review day's "Review ·" for want of 3 px).
-const FIT_MARGIN := 0.0
+## The row's height: v1.12's week chip's, kept so LOYALTY, Cart and the menu keep their look.
+const ROW_HEIGHT := 42.0
+## LOYALTY's left edge, where the week and day chips left it in the default run (measured on
+## 2026-11-08); the gauge's chip (ShiftStage.GAUGE_PANEL_RECT) stands in the room before it.
+const LOYALTY_X := 834.0
 ## A chip's padding left and right (B2's 0 12px); the container centres its contents vertically.
 const CHIP_PADDING := 12
 const CHIP_SEPARATION := 8
@@ -57,9 +58,8 @@ const MENU_ICON := preload("res://art/icons/menu.png")
 var shift_label: Label
 ## The SHIFT chip ("SHIFT n/m"; hidden with weeks: show_weeks).
 var shift_chip: PanelContainer
-## The week chip (v0.70; hidden for a balance without weeks).
-var week_chip: WeekChip
-var inspection_tag: InspectionTag
+## The quota gauge's chip (left column v2), in the gauge's room before LOYALTY.
+var gauge_panel: GaugePanel
 var loyalty_card: LoyaltyCard
 ## The Cart button (the deck: "Cart" in player strings only, default 1).
 var deck_button: FramedButton
@@ -68,9 +68,11 @@ var menu_button: FramedButton
 var menu: PopupPanel
 var guide_button: FramedButton
 var export_button: FramedButton
-var _weeks: bool = false
+
 ## The spacer pushing Cart to the row's end.
 var _spacer: Control
+## The room before LOYALTY (fit_day): the gauge's chip stands in it, clipped to the bar's row.
+var _day_room: Control
 ## The SHIFT chip's key caption (hidden with weeks).
 var _shift_key: Label
 
@@ -88,10 +90,15 @@ func _init() -> void:
 	shift_label = value_label(Palette.PAPER)
 	shift_row.add_child(shift_label)
 	add_child(shift_chip)
-	week_chip = WeekChip.new()
-	add_child(week_chip)
-	inspection_tag = InspectionTag.new()
-	add_child(inspection_tag)
+	_day_room = Control.new()
+	_day_room.name = "GaugeRoom"
+	_day_room.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_day_room.clip_contents = true
+	_day_room.custom_minimum_size = Vector2(LOYALTY_X - POSITION.x - GAP, ROW_HEIGHT)
+	add_child(_day_room)
+	gauge_panel = GaugePanel.new()
+	_day_room.add_child(gauge_panel)
+	_place_gauge(_day_room.custom_minimum_size.x)
 	loyalty_card = LoyaltyCard.new(true)
 	add_child(loyalty_card)
 	_spacer = Control.new()
@@ -117,61 +124,29 @@ func _init() -> void:
 		button.caption_label().add_theme_constant_override("outline_size", 0)
 
 
-## Whether the run has weeks (WeekFlow.has_weeks): the week chip shows, the SHIFT chip hides.
+## Whether the run has weeks (WeekFlow.has_weeks): the SHIFT chip hides (the desk calendar and the
+## week glass say where the run is).
 func show_weeks(shown: bool) -> void:
-	_weeks = shown
-	week_chip.visible = shown
-	_refresh_shift_chip()
+	shift_chip.visible = not shown
 
 
-## The SHIFT chip: "SHIFT n/m" without weeks, hidden with them.
-func _refresh_shift_chip() -> void:
-	shift_chip.visible = not _weeks
+## Keeps LOYALTY at LOYALTY_X and the gauge's chip in the room before it: the room takes what the
+## SHIFT chip (a run without weeks) leaves, and the chip fills it.
+func fit_day() -> void:
+	var start: float = POSITION.x
+	if shift_chip.visible:
+		start += fresh_width(shift_chip) + GAP
+	var room: float = maxf(LOYALTY_X - GAP - start, 0.0)
+	_day_room.custom_minimum_size.x = room
+	_place_gauge(room)
 
 
-## Keeps the row inside ROW_SIZE.x less FIT_MARGIN. The day chip has a fixed width since v1.16
-## (InspectionTag.reserved_width: the day's kind only, never its effects, so the bar stands still
-## from day to day); when the other chips leave it less, the chips first close up to TIGHT_GAP
-## apart (2026-11-06, the week medals' room, mock-up week_medals.html: "the bar makes room by
-## shortening the empty gap before Cart, so no chip shrinks"; the spacer stays, so Cart keeps the
-## row's end and the day chip its width); then the week chip's name gives way, then its pips
-## ("W : 2/4" always says where the run is); only then is the chip's text trimmed. Each step asks
-## whether the chip got its fixed width, which depends on the run (its event pools, a worn Day
-## off, the loyalty card), never on the day's kind.
-func fit_inspection() -> void:
-	week_chip.show_name(true)
-	week_chip.show_pips(true)
-	add_theme_constant_override("separation", GAP)
-	_fit_inspection_once()
-	if not inspection_tag.is_shortened():
-		return
-	add_theme_constant_override("separation", TIGHT_GAP)
-	_fit_inspection_once()
-	if not inspection_tag.is_shortened():
-		return
-	if week_chip.name_shown():
-		week_chip.show_name(false)
-		_fit_inspection_once()
-		if not inspection_tag.is_shortened():
-			return
-	week_chip.show_pips(false)
-	_fit_inspection_once()
-
-
-## Where each of a shift's events (WeekSchedule.shift_events: the day's, then the week's, then
-## the `pin_count` worn pins' last) is shown, indexed like a step's source_index, for the
-## count-up: the week event on the week chip, the day events on the day chip, a pin's on no chip
-## (null: its steps fly from the item, CountUpBeats).
-func event_sources(events: Array[InspectionDefinition], pin_count: int = 0) -> Array[Control]:
-	var controls: Array[Control] = []
-	for index: int in range(events.size()):
-		var source: Control = inspection_tag
-		if index >= events.size() - pin_count:
-			source = null
-		elif events[index].is_week():
-			source = week_chip
-		controls.append(source)
-	return controls
+## The gauge's chip at ShiftStage.GAUGE_PANEL_RECT's height, from its left inset in the room to
+## the room's end (`room` px wide).
+func _place_gauge(room: float) -> void:
+	var inset: Vector2 = ShiftStage.GAUGE_PANEL_RECT.position - POSITION
+	var height: float = ShiftStage.GAUGE_PANEL_RECT.size.y
+	gauge_panel.place(inset, Vector2(maxf(room - inset.x, 0.0), height))
 
 
 ## The minimum width `control` needs now: a container learns of a child's new text or visibility
@@ -181,20 +156,6 @@ static func fresh_width(control: Control) -> float:
 		(child as Control).update_minimum_size()
 	control.update_minimum_size()
 	return control.get_combined_minimum_size().x
-
-
-func _fit_inspection_once() -> void:
-	_refresh_shift_chip()
-	var used: float = 0.0
-	var shown: int = 0
-	for child: Node in get_children():
-		var control: Control = child as Control
-		if control == null or not control.visible or control == inspection_tag:
-			continue
-		used += fresh_width(control)
-		shown += 1
-	used += get_theme_constant("separation") * shown
-	inspection_tag.fit_width(ROW_SIZE.x - FIT_MARGIN - used)
 
 
 ## A teal chip (or the inspection's paper one): the frame, B2's padding, the row's height.

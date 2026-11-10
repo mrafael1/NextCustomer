@@ -16,11 +16,13 @@ extends RefCounted
 ## printer's feed, then the clerk's stamp (`stamp_notice`). A pass ends at the printer feed, where
 ## the RECEIPT REWARDS machine takes over (#77); a miss a little after the tear. No stub prints for
 ## a later draw (2026-11-06, the week medals: the receipt feeds the machine once and its draw lamps
-## count the draws). Every line prints on the paper, never beside it: on the shift screen's
-## anchored receipt under its foot, the paper fed on and rising (ReceiptView.anchored,
-## 2026-11-07). Under reduced
-## motion the slam fades in at full size and nothing shakes (CountUpMotion); the small punches
-## stay.
+## count the draws). Every line prints on the paper, never beside it. The shift screen's anchored
+## receipt (left column v2) prints none (ReceiptView.anchored; the user's play test of
+## 2026-11-09): its paper ends at its last item row, the margin counts on its header and PAID or
+## SLIP stamps there, and the tear, INSPECTION PASSED, NO TICKET and the next shift's notice keep
+## only their sounds (the rip, INSPECTION PASSED's stamp and its signal for the monitor) and their
+## waits, so the timing and the machine's handoff stay. Under reduced motion the slam fades in at
+## full size and nothing shakes (CountUpMotion); the small punches stay.
 
 ## The INSPECTION PASSED stamp landed on the receipt (CountUp passes it on).
 signal inspection_stamped
@@ -123,7 +125,8 @@ func play(
 		if not write_up.is_empty():
 			_stamp_write_up(line)
 			await _wait_ms(_tuning.dessert_paid_ms)
-			_fade_in(_receipt.add_notice(WriteUp.NO_TICKET))
+			if not _receipt.anchored:
+				_fade_in(_receipt.add_notice(WriteUp.NO_TICKET))
 	await _wait_ms(_tuning.dessert_tear_ms)
 	_tear()
 	if not passed and write_up.is_empty():
@@ -233,9 +236,11 @@ func _stamp_write_up(line: Control) -> void:
 ## INSPECTION PASSED lands under PAID with the clerk's stamp (#77: the shift earned the BONUS
 ## TICKET).
 func _stamp_inspection() -> void:
-	var line: Control = ReceiptStamps.stamp_inspection(_receipt, inspection)
 	sfx.play("stamp_notice")
 	inspection_stamped.emit()
+	if _receipt.anchored:
+		return
+	var line: Control = ReceiptStamps.stamp_inspection(_receipt, inspection)
 	_fade_in(line)
 	var stamp: Control = ReceiptStamps.inspection_of(line)
 	stamp.scale = Vector2(PAID_SLAM_SCALE, PAID_SLAM_SCALE)
@@ -246,16 +251,20 @@ func _stamp_inspection() -> void:
 ## The receipt tears off under the shift's lines, with `rip`.
 func _tear() -> void:
 	sfx.play("rip")
-	_fade_in(_receipt.add_tear())
+	if not _receipt.anchored:
+		_fade_in(_receipt.add_tear())
 
 
 ## The next shift's inspection prints in red under the tear: the printer feeds it, then the
-## clerk's stamp lands (#62, Q5).
+## clerk's stamp lands (#62, Q5). An anchored receipt prints nothing and keeps the wait alone.
 func _print_notice(notice: String, print_pitch: float) -> void:
-	_fade_in(_receipt.add_notice(notice))
-	sfx.play("print", print_pitch)
+	var on_paper: bool = not _receipt.anchored
+	if on_paper:
+		_fade_in(_receipt.add_notice(notice))
+		sfx.play("print", print_pitch)
 	await _wait(NOTICE_STAMP_GAP)
-	sfx.play("stamp_notice")
+	if on_paper:
+		sfx.play("stamp_notice")
 
 
 func _fade_in(line: Control) -> void:

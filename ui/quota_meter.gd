@@ -2,8 +2,10 @@ class_name QuotaMeter
 extends Control
 ## The quota gauge (#86 gauge TA of mock-up count_up_86_v4_live.html; a tube since the shift scene
 ## polish, mock-up docs/art/mockups/shift_scene_polish_v2.html section 2, variant A2; the glass of
-## a steel housing since v4's A1, GaugeHousing): a vertical liquid tube in the register's column,
-## beside the receipt, that fills up toward the shift's quota. Its top is the target: a tomato
+## a steel housing since v4's A1; laid `horizontal` in the top bar's GaugePanel since left column
+## v2, mock-up docs/art/mockups/left_column_v2.html: its art turned a quarter, filling from the
+## left toward the target line on the right): a liquid tube that fills up toward the shift's
+## quota. Its top is the target: a tomato
 ## line across the glass's top row, red like the receipt's big TODAY'S TARGET number
 ## (ReceiptTarget). Tick marks at a quarter, half and three quarters of a lap and a highlight down
 ## the glass's left side sit over the liquid. It prints no number: the receipt says the target,
@@ -28,8 +30,9 @@ extends Control
 ## N times the quota, and a lap fills to the top before the next one pours (the eased level's
 ## lap is drawn). The lap badge is a round lamp over the housing (LapLamp, badge_rect): dark
 ## until the liquid reaches the quota, then lit in the newest full lap's colour, green with a
-## check for the first, "×N" once N laps are made, glowing, and popping as a lap is made while
-## counting (and as a week medal lands in it, pop_lamp); inside the column's margin, clear of the
+## check for the first, "×N" once N laps are made (the check alone without `names_laps`), glowing,
+## and popping as a lap is made while counting or by a planning gain (and as it sends its token to
+## a week medal, pop_lamp); inside the column's margin, clear of the
 ## receipt's well. While counting, reaching twice the quota and each later
 ## multiple emits lap_reached (the quota crossing rings it). Reduced motion (`reduced_motion`)
 ## keeps the levels, the colours, the lamp and the glows (steady) and drops the slosh, the spray,
@@ -46,6 +49,13 @@ extends Control
 
 ## The count's amount reached `multiple` times the quota (2 or more): lap `multiple` + 1 starts.
 signal lap_reached(multiple: int)
+## The lamp's laps made changed (the drawn liquid's, 0 short of the quota), `popped` as a count or a
+## planning gain made a new lap (the top bar's ×N readout follows it, LapReadout).
+signal lamp_changed(laps: int, popped: bool)
+## A planning projection rose (show_projected, never a drag's preview): to `amount_shown` against
+## `quota`, from `laps_from` to `laps_to` whole multiples of it (the gauge's pour and lap notes,
+## GaugePanel). A first projection after a blank tube rises nothing.
+signal projection_rose(amount_shown: int, quota: int, laps_from: int, laps_to: int)
 
 ## The glow: the glass's rim (its ink edge) in mustard light, pulsing every GLOW_SECONDS, from
 ## this share of the quota while short.
@@ -97,7 +107,7 @@ const LAMP_GLOW_PULSE := 0.08
 const LAMP_GLOW_SECONDS := 1.05
 const LAMP_POP := 0.45
 const LAMP_POP_SECONDS := 0.3
-## A medal landing in the lamp flashes the tube this much (MedalFlight).
+## The lamp sending its token to a week medal flashes the tube this much (MedalFlight).
 const LAMP_LAND_FLASH := 0.6
 ## From lap QuotaLaps.TWINKLE_LAP on, TWINKLES paper pixels twinkle in the liquid, each lit for a
 ## quarter of its own TWINKLE_SECONDS period.
@@ -125,6 +135,18 @@ const LOSS_PREVIEW_ALPHA := 0.8
 
 ## Returns whether to reduce motion (the profile's setting); an empty Callable means no.
 var reduced_motion: Callable = Callable()
+## The glass lies on its side (left column v2, 2026-11-09: the gauge in the top bar, GaugePanel):
+## the tube is drawn turned a quarter clockwise, so its foot is at the left and its target line at
+## the right end; the lap lamp is drawn unturned at `lamp_offset`.
+var horizontal: bool = false:
+	set(value):
+		horizontal = value
+		queue_redraw()
+## The lap lamp's top left (local px) when `horizontal` (else LAMP_AT art px over the tube's top).
+var lamp_offset: Vector2 = Vector2.ZERO
+## The lamp names the laps ("×N"); off, a lit lamp shows the check alone in its lap's colour
+## (the top bar's gauge, whose ×N readout grows beside the glass: LapReadout).
+var names_laps: bool = true
 
 var _amount: int = 0
 var _quota: int = 0
@@ -134,8 +156,11 @@ var _blank: bool = true
 ## The quota is met: the count-up's ding while counting, the projected total reaching it in
 ## planning.
 var _met: bool = false
-## The amount is the count's reading (not the planning projection): only a count pops the lamp.
+## The amount is the count's reading (not the planning projection).
 var _live: bool = false
+## The last planning projection was a gain (show_projected): a lap it makes pops the lamp as a
+## count's does; a drag's preview never does.
+var _rising: bool = false
 ## The amount's lap (1 while short, 0 blank); the lap drawn follows the eased level (_drawn_lap).
 var _lap: int = 0
 var _led: LedDisplay
@@ -173,7 +198,34 @@ func follow(led: LedDisplay) -> void:
 ## Planning: the preview's projected `amount_shown` against `quota`; met once it reaches it.
 func show_projected(amount_shown: int, quota: int) -> void:
 	_hypothetical = -1
+	var rose: bool = not _blank and amount_shown > _amount
+	var laps_from: int = QuotaLaps.lap_of(_amount, _quota)
+	_rising = rose
 	_show(amount_shown, quota, quota > 0 and amount_shown >= quota)
+	if rose:
+		projection_rose.emit(amount_shown, quota, laps_from, QuotaLaps.lap_of(amount_shown, quota))
+
+
+## A lap run's roll (GaugePanel.run_laps on a long run): `amount_shown` against `quota` drawn at
+## once, with no easing, slosh, spray, flash or lamp pop, so a run through many laps a second
+## stays calm (lamp_changed still names the laps, unpopped). `landed` is the roll's end: the
+## amount sloshes and sprays once and the lap it makes flashes the tube and pops the lamp, as a
+## planning gain's does. It emits no projection_rose (the run plays its own sounds).
+func show_rolled(amount_shown: int, quota: int, landed: bool = false) -> void:
+	_hypothetical = -1
+	_rising = landed
+	if landed and not _reduced():
+		_slosh = SLOSH_MAX
+		_spray(SPRAY_MAX)
+	_blank = false
+	_live = false
+	_amount = amount_shown
+	_quota = quota
+	_met = quota > 0 and amount_shown >= quota
+	_lap = QuotaLaps.lap_for(amount_shown, quota, _met)
+	_shown = float(amount_shown)
+	_follow_badge()
+	queue_redraw()
 
 
 ## A drag's landing (#71): the total `total` the drop would give, `delta` more (or less) than the
@@ -229,6 +281,8 @@ func bar() -> Control:
 ## the glass's top row (every lap is full at its target).
 func quota_mark() -> Vector2:
 	var cell: float = ArtStyle.ART_SCALE
+	if horizontal:
+		return get_global_transform() * Vector2(size.x - cell * 1.5, size.y / 2.0)
 	return get_global_transform() * Vector2(size.x / 2.0, cell * 1.5)
 
 
@@ -247,17 +301,22 @@ func multiples_made() -> int:
 ## The lap lamp's rect (local px): LAMP_AT, LapLamp.SIZE art px square.
 func badge_rect() -> Rect2:
 	var cell: float = ArtStyle.ART_SCALE
-	return Rect2(Vector2(LAMP_AT) * cell, Vector2.ONE * LapLamp.SIZE * cell)
+	return Rect2(_lamp_at(), Vector2.ONE * LapLamp.SIZE * cell)
 
 
-## The lap lamp's rect on the canvas (with its layer's transform): where a week medal's flight
-## lands (MedalFlight).
+## The lamp's top left (local px): `lamp_offset` when horizontal, else LAMP_AT art px.
+func _lamp_at() -> Vector2:
+	return lamp_offset if horizontal else Vector2(LAMP_AT) * ArtStyle.ART_SCALE
+
+
+## The lap lamp's rect on the canvas (with its layer's transform): where the token to a week
+## medal takes off (MedalFlight).
 func lamp_canvas_rect() -> Rect2:
 	return get_global_transform_with_canvas() * badge_rect() if is_inside_tree() else Rect2()
 
 
-## A week medal landed in the lap lamp (MedalFlight): it pops and the tube flashes, as at a new lap
-## (reduced motion: no pop).
+## The lamp sends its token to a week medal (MedalFlight): it pops and the tube flashes, as at a
+## new lap (reduced motion: no pop).
 func pop_lamp() -> void:
 	_pop = 0.0 if _reduced() else 1.0
 	_flash = maxf(_flash, LAMP_LAND_FLASH)
@@ -335,6 +394,7 @@ func _show(amount_shown: int, quota: int, met: bool, counting: bool = false) -> 
 
 func _on_reading(amount_shown: int, quota: int, met: bool) -> void:
 	_hypothetical = -1
+	_rising = false
 	var counting: bool = _led != null and _counting(_led.mode())
 	_show(amount_shown, quota, met and counting, counting)
 
@@ -345,9 +405,10 @@ func _on_mode(mode: LedDisplay.Mode) -> void:
 		_hypothetical = -1
 		_met = false
 		_live = false
+		_rising = false
 		_lap = 0
-		_badge_lap = 0
 		_drops.clear()
+		_follow_badge()
 	queue_redraw()
 
 
@@ -369,14 +430,22 @@ func _drawn_lap() -> int:
 	return mini(_lap, QuotaLaps.lap_for(floori(_shown), _quota, _met))
 
 
-## A new lap drawn while counting flashes the tube and pops the lamp (planning's projection laps
-## quietly: a drag back and forth over a multiple does not blink).
+## A new lap drawn while counting, or after a planning gain (the user's play test of
+## 2026-11-09), flashes the tube and pops the lamp; a drag's preview never does (a drag back and
+## forth over a multiple does not blink). Any change of the laps made emits lamp_changed.
 func _follow_badge() -> void:
 	var lap: int = _drawn_lap()
-	if lap > _badge_lap and lap >= QuotaLaps.FIRST_LAP and _live:
+	if lap == _badge_lap:
+		return
+	var popped: bool = lap > _badge_lap and lap >= QuotaLaps.FIRST_LAP and (_live or _rising)
+	if popped:
 		_flash = 1.0
 		_pop = 0.0 if _reduced() else 1.0
+	var laps_before: int = maxi(_badge_lap - 1, 0)
 	_badge_lap = lap
+	var laps: int = maxi(lap - 1, 0)
+	if laps != laps_before or popped:
+		lamp_changed.emit(laps, popped)
 
 
 ## The laps the drawn liquid has filled: 0 short of the quota (or blank), then one per multiple.
@@ -385,8 +454,11 @@ func _laps_made() -> int:
 
 
 ## The tube's size in art pixels.
+## Lying on its side (`horizontal`), the tube's across is the control's height and its length the
+## control's width.
 func _art_size() -> Vector2i:
-	return Vector2i((size / ArtStyle.ART_SCALE).floor())
+	var art: Vector2i = Vector2i((size / ArtStyle.ART_SCALE).floor())
+	return Vector2i(art.y, art.x) if horizontal else art
 
 
 ## The inside's height in art pixels (inside the 1 art px ink border).
@@ -438,6 +510,9 @@ func _draw() -> void:
 	var art: Vector2i = _art_size()
 	if art.x < 3 or art.y < 3:
 		return
+	if horizontal:
+		# The tube's space turned a quarter clockwise: its foot at the left, its top at the right.
+		draw_set_transform(Vector2(size.x, 0.0), PI / 2.0)
 	_cell(0, 0, art.x, art.y, Palette.INK)
 	_cell(1, 1, art.x - 2, art.y - 2, WELL_COLOR)
 	if not _blank:
@@ -447,6 +522,7 @@ func _draw() -> void:
 	_cell(1, 1, art.x - 2, 1, TARGET_COLOR)
 	if is_near():
 		_draw_glow(art)
+	draw_set_transform(Vector2.ZERO)
 	_draw_lamp()
 
 
@@ -487,7 +563,10 @@ func _draw_lamp() -> void:
 		if not _reduced():
 			glow += LAMP_GLOW_PULSE * sin(TAU * _time / LAMP_GLOW_SECONDS)
 	var pop: float = 1.0 + LAMP_POP * pow(_pop, 3.0)
-	LapLamp.draw(self, Vector2(LAMP_AT) * cell, cell, colours, badge_text(), glow, pop)
+	var text: String = badge_text()
+	if not names_laps and not text.is_empty():
+		text = LapLamp.CHECK_TEXT
+	LapLamp.draw(self, _lamp_at(), cell, colours, text, glow, pop)
 
 
 func _draw_liquid(art: Vector2i) -> void:

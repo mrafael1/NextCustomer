@@ -5,44 +5,49 @@ extends Control
 ## (StoreBackdrop.screen_parts()). Every position is a stage constant taken from the mirrored B2
 ## mock-up: the register, the printer with its receipt and the cashier stand at the left, so the
 ## belt runs toward them and slot 1 is the slot next to the register. The stage itself never scales.
-## Machine v2 (#77, Q1 = A): the stage is two layers. `world` holds the store (the monitor, the
-## RECEIPT REWARDS machine in the store at MACHINE_WALL_RECT, half size, and the `fore`: the
-## register, the receipt, the belt with its row, the planning layer, the bag, the hand and its
-## baskets). ShiftScreen hands it to the StoreCamera, which zooms it to 2x on the machine during its
-## visits (the fore drops out of frame: set_fore_drop). The stage keeps the `hud`, which never
-## zooms: the top bar, the scan layer and the popup layer. Every Rect2 below is in stage coordinates
-## (the world's at 1x), except the MACHINE_* rects the camera puts on screen.  On the stage, back to
-## front: the checkout cheering's standees (CheckoutCrowd, #120) on the back wall, the hung monitor
-## (MonitorView: two rods, its bezel and paper screen, with the scanner bay, the item column, the
-## checkout column and the notices on it), the badge pins' lanyard hung from it (PinLanyard), the
-## register (RegisterCabinet, the count-up's rattle
-## target: the printer box on the counter top and the register column under it, with the key deck
-## and its keys, Cancel, Redraw and CHECKOUT, the keypad, the seed line under Redraw and the cash
-## drawer) under the register's tower (RegisterTower: its charcoal front from the printer up to the
-## top of the screen, the receipt's well and the quota gauge, a tube beside the receipt), the
-## receipt rising from the printer's slot, the bagging shelf behind the belt's first cell with the
-## store's kraft bag on it (PaperBag, #86 v6 and #123: the counted items go in), the belt
-## (BeltPanel: the steel guard, the rubber top face, the lip, the apron and the price rail, then the
-## row of items standing on the belt with their tickets on the rail), the planning layer
-## (PlanningLayer: #71's stickers, stamps and pay tags over the items), the top bar (TopBar: the
-## SHIFT, week, inspection and LOYALTY chips, Cart and the menu with Export log, all above
-## PANEL_TOP, right of the tower), the hand's baskets on the steel ledge (HandBaskets: their backs,
-## the hand in them, the basket redraw's pop layer, their fronts, and the redraw's targets and tags,
-## BasketTags), the shade that darkens them while counting and the redraw layer (the basket redraw's
-## flights into the Cart and its sparks, over the top bar). Over the fore's parts the quota
-## crossing's bonus lights (BonusLights, over the count's quota light, QuotaLight: the band filling
-## toward the belt's far end with the running total against the quota). Over them all the quota
-## crossing (QuotaCrossing: its streak), the scan layer (ScanOverlay: the
-## scan's brackets and beam) and the popup layer, all taking no clicks. A belt or hand item's scan
-## shows on the monitor (#80); the popup layer only parks the hidden scan popup, which opens over
-## the offers alone, in the layer an offer's scan moves it to (ScanController.cover_offers). The
-## receipt stands on the printer's slot and grows up as its lines print, up to near the top of the
-## screen (the shift scene polish: its TODAY'S TARGET block stays pinned at its top); past that it
-## scrolls to its newest line.  It only builds and lays out: the screen fills the controls, and its
-## buttons emit the signals below. Its controls are public on purpose: the stage is ShiftScreen's
-## layout part (as ShiftDebug is its debug part), built and owned by the screen alone, so the screen
-## fills them directly instead of through a setter each. No other scene reaches into it.  The
-## receipt never shakes with the register, so the dessert's slam lands on a still TOTAL line.
+## Left column v2 (the user's pick of 2026-11-09, mock-up docs/art/mockups/left_column_v2.html): the
+## printer hangs at the top of the register's column and the receipt feeds down from it; the quota
+## gauge lies in the top bar (GaugePanel), hiding at CHECKOUT; the day is a desk calendar and a
+## service bell stands beside it on the register's top. Machine v2 (#77, Q1 = A): the stage is two
+## layers. `world` holds the store (the monitor, the RECEIPT REWARDS machine in the store at
+## MACHINE_WALL_RECT, half size, and the `fore`: the register, the receipt, the belt with its row,
+## the planning layer, the bag, the hand and its baskets). ShiftScreen hands it to the StoreCamera,
+## which zooms it to 2x on the machine during its visits (the fore drops out of frame:
+## set_fore_drop). The stage keeps the `hud`, which never zooms: the top bar, the scan layer and the
+## popup layer. Every Rect2 below is in stage coordinates (the world's at 1x), except the MACHINE_*
+## rects the camera puts on screen.  On the stage, back to front: the checkout cheering's standees
+## (CheckoutCrowd, #120) on the back wall, the hung monitor (MonitorView: two rods, its bezel and
+## paper screen, with the scanner bay, the item column, the checkout column and the notices on it),
+## the badge pins' lanyard hung from it (PinLanyard), the register (RegisterCabinet, the count-up's
+## rattle target: the register column, with the key deck and its keys, Cancel, Redraw and CHECKOUT,
+## the week glass in the keypad's place (WeekGlass, v1.17), the seed line under Redraw and the cash
+## drawer, its front the week's medal case) under the register's tower (RegisterTower: its charcoal
+## front from the register's top up to the top of the screen and the receipt's well), the service
+## bell and the desk calendar standing on the register's top (ServiceBell, DayCalendar), the receipt
+## hanging from the printer's slot in its clipping slot (receipt_slot), the overhead printer over it
+## (OverheadPrinter), the bagging shelf behind the belt's first cell with the store's kraft bag on
+## it (PaperBag, #86 v6 and #123: the counted items go in), the belt (BeltPanel: the steel guard,
+## the rubber top face, the lip, the apron and the price rail, then the row of items standing on the
+## belt with their tickets on the rail), the planning layer (PlanningLayer: #71's stickers, stamps
+## and pay tags over the items), the top bar (TopBar: the quota gauge's chip (GaugePanel), the
+## LOYALTY chip, Cart and the menu with Export log, all above PANEL_TOP, right of the tower), the
+## hand's baskets on the steel ledge (HandBaskets: their backs, the hand in them, the basket
+## redraw's pop layer, their fronts, and the redraw's targets and tags, BasketTags), the shade that
+## darkens them while counting and the redraw layer (the basket redraw's flights into the Cart and
+## its sparks, over the top bar). Over the fore's parts the quota crossing's bonus lights
+## (BonusLights, over the count's quota light, QuotaLight: the band filling toward the belt's far
+## end with the running total against the quota). Over them all the quota crossing (QuotaCrossing:
+## its streak), the scan layer (ScanOverlay: the scan's brackets and beam) and the popup layer, all
+## taking no clicks. A belt or hand item's scan shows on the monitor (#80); the popup layer only
+## parks the hidden scan popup, which opens over the offers alone, in the layer an offer's scan
+## moves it to (ScanController.cover_offers). The receipt hangs from the printer's slot and feeds
+## down as its lines print (its TODAY'S TARGET block stays pinned at its top, at the slot), down to
+## the tower's foot; past that it scrolls to its newest line.  It only builds and lays out: the
+## screen fills the controls, and its buttons emit the signals below. Its controls are public on
+## purpose: the stage is ShiftScreen's layout part (as ShiftDebug is its debug part), built and
+## owned by the screen alone, so the screen fills them directly instead of through a setter each. No
+## other scene reaches into it.  The receipt never shakes with the register, so the dessert's slam
+## lands on a still TOTAL line.
 
 signal checkout_pressed
 signal redraw_pressed
@@ -55,19 +60,25 @@ const SIZE := Vector2(1280, 720)
 ## it, and a scan popup never reaches it.
 const TOP_BAR_BOTTOM := 56.0
 ## The register's tower (the shift scene polish, mock-up shift_scene_polish_v2.html section 2,
-## A2; v4's A1): the column's rubber front from the top of the screen down to the printer, left of
-## the bagging shelf, with a steel trim on its top and left edges and rivets on its right strip.
-## The top bar's band starts at its right edge (StoreBackdrop.top_parts). On it the receipt's
-## recessed well (its left edge on the receipt's), and in the column's left margin the gauge's
-## steel housing (GaugeHousing) with the quota gauge's glass in it (its top row is the target line;
-## past the quota it refills lap by lap, its lap lamp over the housing's top cap), and under it a
-## brass plate with an engraved €, where a Double checkout's row pips show instead.
-const TOWER_RECT := Rect2(0, 0, 298, 332)
-const RECEIPT_WELL_RECT := Rect2(40, 4, 252, 328)
-const HOUSING_RECT := Rect2(0, 30, 42, 276)
-const TUBE_RECT := Rect2(6, 38, 30, 258)
-const PLATE_RECT := Rect2(2, 308, 38, 22)
-const ROW_PIPS_POSITION := Vector2(7, 313)
+## A2; v4's A1; left column v2): the column's rubber front from the top of the screen down to the
+## register's top, left of the bagging shelf, with a steel trim on its top and left edges and
+## rivets on its right strip. The top bar's band starts at its right edge (StoreBackdrop.top_parts).
+## On it the receipt's recessed well across its width (left column v2: the gauge left its margin).
+const TOWER_RECT := Rect2(0, 0, 298, 404)
+const RECEIPT_WELL_RECT := Rect2(4, 0, 290, 402)
+## The overhead printer at the well's top (OverheadPrinter, 135 x 24 art px): brackets up to the
+## ceiling, its body, and its slot and cutter's teeth at its foot, where the paper comes out at
+## RECEIPT_TOP.
+const PRINTER_RECT := Rect2(14, 0, 270, 48)
+## The quota gauge's chip in the top bar (GaugePanel, in TopBar's gauge room): from over the
+## belt's left end to LOYALTY's gap (TopBar.LOYALTY_X less TopBar.GAP), on the bar's row.
+const GAUGE_PANEL_RECT := Rect2(352, 10, 470, 38)
+## On the register's top (its key deck's top edge, DECK_RECT's ink outline: the steel lip under it
+## is the surface seen): the service bell left of the desk calendar, which stands at the column's
+## right (44 x 44 art px). Their ink foot rows lie on the deck's ink outline.
+const REGISTER_TOP := 414.0
+const DESK_CALENDAR_RECT := Rect2(194, 322, 92, 92)
+const BELL_RECT := Rect2(66, 374, 72, 40)
 ## Where the store meets the belt's back: the counter is below it. The clean scene (#123, mock-up
 ## docs/art/mockups/scene_123.html, direction A) brings the belt 34 px down onto the baskets, so
 ## the counter reads as one surface and the store above it gets the room.
@@ -100,24 +111,24 @@ const MONITOR_RECT := Rect2(484, 66, 424, 176)
 const MONITOR_SCREEN_RECT := Rect2(493, 75, 406, 158)
 const MONITOR_UNDER_RECT := Rect2(490, 240, 412, 8)
 const ROD_RECTS: Array[Rect2] = [Rect2(542, 56, 8, 12), Rect2(842, 56, 8, 12)]
-## The register (RegisterCabinet): the printer box on the counter top with its slot, and the
-## register column under it: the key deck (the keys, the keypad and the seed line stand on it)
-## and the cash drawer.
+## The register (RegisterCabinet): the register column, its key deck (the keys, the keypad and the
+## seed line stand on it) and the cash drawer.
 const REGISTER_RECT := Rect2(0, 330, 336, 370)
-const PRINTER_RECT := Rect2(32, 330, 264, 62)
-const PRINTER_SLOT_RECT := Rect2(42, 336, 244, 8)
 const COLUMN_RECT := Rect2(0, 400, 336, 300)
 const DECK_RECT := Rect2(12, 412, 314, 204)
 const KEYPAD_RECT := Rect2(226, 516, 88, 86)
+## The week glass over the keypad (WeekGlass, v1.17; mock-up main_scene_v2.html drawRegA, its
+## glass 4 px wider): its steel backdrop, inside the key deck, right of
+## Redraw and the seed line, over the keypad.
+const WEEK_GLASS_RECT := Rect2(226, 514, 94, 94)
 const DRAWER_RECT := Rect2(12, 624, 314, 76)
-## The receipt stands on the printer's slot (RECEIPT_BOTTOM), in its well on the tower, always
-## reaching RECEIPT_TOP (ReceiptView.full_length, B2 of mock-up shift_scene_polish_v4: one row per
-## belt slot in planning, so no dark well shows over a short receipt); its lines wrap as the
-## plan's examples do.
-const RECEIPT_X := 42.0
-const RECEIPT_WIDTH := 244.0
-const RECEIPT_BOTTOM := 340.0
-const RECEIPT_TOP := 10.0
+## The receipt hangs from the printer's slot (RECEIPT_TOP), in its well on the tower, as tall as its
+## lines down to RECEIPT_BOTTOM (the tower's foot; a long checkout hangs over the bell and the
+## calendar); its lines wrap as the plan's examples do.
+const RECEIPT_X := 24.0
+const RECEIPT_WIDTH := 246.0
+const RECEIPT_TOP := 46.0
+const RECEIPT_BOTTOM := 404.0
 const RECEIPT_PADDING := 8
 ## The keys on the register's key deck (RegisterCabinet builds them). Redraw keeps its left
 ## edge, so a longer caption grows it toward the keypad, never off the column; Cancel (redraw
@@ -178,9 +189,6 @@ const CART_DRAWER_TOP := 194.0
 const FORE_FADE := 0.9
 
 const RECEIPT_PAPER := preload("res://art/frames/receipt_paper.png")
-## The printer slot's steel lip with its tear teeth (art/src/scenery/printer_lip.txt), drawn 1:1
-## at PRINTER_SLOT_RECT over the receipt's foot, so the paper seems to come out of the slot.
-const PRINTER_LIP := preload("res://art/scenery/printer_lip.png")
 ## The bagging shelf the bag stands on (art/src/scenery/bagging_shelf.txt), 1:1 at
 ## BAGGING_SHELF_RECT.
 const BAGGING_SHELF := preload("res://art/scenery/bagging_shelf.png")
@@ -196,11 +204,22 @@ var machine: Control
 ## The checkout cheering's cardboard standees (#120): over the machine, under the monitor.
 var crowd: CheckoutCrowd
 var top_bar: TopBar
-## The receipt's gold and silver and the week medals' flights through a count (follow_count).
+## The quota gauge's chip in the top bar (left column v2).
+var gauge_panel: GaugePanel
+## The receipt's gold and silver and the week medals' flights at a checkout (follow_count).
 var gold_flow: ReceiptGoldFlow
+## CHECKOUT's medal prelude, before the count (follow_count).
+var medal_prelude: MedalPrelude
+## The receipt following the count (follow_count).
+var receipt_flow: ReceiptCountFlow
 var shift_label: Label
 var loyalty_card: LoyaltyCard
-var inspection_tag: InspectionTag
+## The desk calendar and the service bell on the register's top (left column v2), and the
+## register's week glass and medal case.
+var day_calendar: DayCalendar
+var bell: ServiceBell
+var week_glass: WeekGlass
+var medal_case: MedalCase
 var deck_button: FramedButton
 var export_button: FramedButton
 ## The hung monitor: its rods, bezel and screen, with the register's reading (the LED) and the
@@ -212,14 +231,17 @@ var pin_lanyard: PinLanyard
 ## The register: the count-up's rattle target (the same node as `cabinet`).
 var register: Control
 var cabinet: RegisterCabinet
-## The register's tower over it, with the quota gauge (the tube) and the row pips.
+## The register's tower over it; the quota gauge (the glass in the gauge's chip) and the row pips.
 var tower: RegisterTower
 var quota_meter: QuotaMeter
+var row_pips: RowPips
 ## The monitor's LED: the projected total, the count-up's subtotal and the total.
 var led: LedDisplay
 var receipt: ReceiptView
-## The printer slot's lip, over the receipt's foot (fixed: it never scrolls or shakes).
-var printer_lip: TextureRect
+## The receipt's clipping slot, from the printer's slot down: the paper pops out of it.
+var receipt_slot: Control
+## The overhead printer, over the receipt's top (fixed: it never scrolls or shakes).
+var printer: OverheadPrinter
 ## The belt under the row (a fixed size; the row rests on its rail).
 var belt: BeltPanel
 var row_strip: RowStrip
@@ -258,6 +280,8 @@ var redraw_button: RegisterKey
 var checkout_button: RegisterKey
 var hand: HandRow
 var seed_label: Label
+## The stage wears payday's brass (show_payday).
+var payday: bool = false
 
 
 ## A stage whose row starts with `slot_count` slots.
@@ -283,24 +307,111 @@ func _init(slot_count: int) -> void:
 	world.add_child(crowd.confetti)
 	_build_monitor()
 	world.add_child(fore)
+	_build_top_bar()
 	_build_register()
 	_build_belt(slot_count)
-	_build_top_bar()
+	add_child(top_bar)
 	_build_counter()
 	_build_keys()
 	_build_scan_layers()
 
 
-## Follows `count_up`'s checkouts: the checkout cheering's standees (#120) and the quota
-## crossing.
+## Follows `count_up`'s checkouts: the checkout cheering's standees (#120), the quota
+## crossing, the receipt's metal and its hero, rows and BEATEN! (ReceiptCountFlow).
 func follow_count(count_up: CountUp) -> void:
 	crowd.follow(count_up)
 	quota_light.reduced_motion = func() -> bool:
 		return count_up.plan != null and count_up.plan.reduced_motion
 	quota_crossing.follow(count_up, quota_meter, bonus_lights)
-	# The gold and silver paper, and the week badge's medals flying into the lap lamp.
-	gold_flow = ReceiptGoldFlow.new(count_up, quota_meter, receipt, top_bar.week_chip.medals())
+	quota_crossing.aim = receipt_target_rect
+	# The gold and silver paper, and the medal case's medals, called by the gauge's lap lamp,
+	# flying onto the receipt in CHECKOUT's medal prelude.
+	gold_flow = ReceiptGoldFlow.new(count_up, quota_meter, receipt, medal_case)
 	add_child(gold_flow)
+	medal_prelude = MedalPrelude.new(gauge_panel, gold_flow, bell, count_up)
+	add_child(medal_prelude)
+	printer.follow(count_up)
+	# CHECKOUT: the gauge slides up out of the bar and the bell dings (left column v2).
+	count_up.count_started.connect(func(_views: Array[CardView]) -> void: _on_count_started())
+	# The receipt's hero, rows and BEATEN! follow the count (main scene v2, H2).
+	receipt_flow = ReceiptCountFlow.new(count_up, led, receipt)
+	add_child(receipt_flow)
+
+
+## Dresses the stage for a payday shift (`on`; the user's picks of 2026-11-10, mock-up
+## docs/art/mockups/payday_day.html), or undresses it: the brass moulding round the monitor and
+## the receipt's well and on the register's and the belt's lips (PaydayTrim), and CHECKOUT's brass
+## key. Nothing changes place. The calendar's PAYDAY page, the receipt's ribbon and the PAYDAY
+## tag on CHECKOUT are WeekFlow's, ReceiptGoldFlow's and MachineFlow's.
+func show_payday(on: bool) -> void:
+	if on == payday:
+		return
+	payday = on
+	monitor.payday = on
+	tower.show_payday(on)
+	cabinet.show_payday(on)
+	belt.show_payday(on)
+
+
+## Where each of a shift's events (WeekSchedule.shift_events: the day's, then the week's, then
+## the `pin_count` worn pins' last) is shown, indexed like a step's source_index, for the
+## count-up: the week event on the week glass, the day events on the day calendar, a pin's on
+## neither (null: its steps fly from the item, CountUpBeats).
+func event_sources(events: Array[InspectionDefinition], pin_count: int = 0) -> Array[Control]:
+	var controls: Array[Control] = []
+	for index: int in range(events.size()):
+		var source: Control = day_calendar
+		if index >= events.size() - pin_count:
+			source = null
+		elif events[index].is_week():
+			source = week_glass
+		controls.append(source)
+	return controls
+
+
+## The printer's, the bell's and the planning receipt's reduced motion (`reduced`: returns a bool).
+func use_reduced_motion(reduced: Callable) -> void:
+	printer.reduced_motion = reduced
+	bell.reduced_motion = reduced
+	receipt.planning_still = reduced
+
+
+## The receipt's target on the canvas (its number row): where the quota crossing's streak lands
+## while the gauge is hidden (QuotaCrossing.aim).
+func receipt_target_rect() -> Rect2:
+	var row: Control = receipt.target.get_node_or_null("AmountRow") as Control
+	var part: Control = row if row != null and row.size.x > 0.0 else receipt.target
+	if not part.is_inside_tree() or not receipt.target.visible:
+		return Rect2()
+	return part.get_global_rect()
+
+
+## CHECKOUT (the count starts): the gauge slides up out of the top bar, the bell dings (its
+## sound is CHECKOUT's own: the screen plays no key), unless the medal prelude did both already.
+func _on_count_started() -> void:
+	gauge_panel.hide_gauge(true)
+	if medal_prelude.rang_bell:
+		medal_prelude.rang_bell = false
+	else:
+		bell.ding()
+
+
+## The receipt's count paper shows (a resumed checkout's too): the gauge is up out of the bar.
+func _on_count_paper() -> void:
+	if not gauge_panel.is_hidden():
+		gauge_panel.hide_gauge(false)
+
+
+## Planning's stub printed: after a count it pops out (the next day's) as the gauge comes back
+## down; any other planning shows the gauge at once. The bell dings after every count, under
+## reduced motion too (its sound only), never on a resumed or first planning.
+func _on_stub_printed(popped: bool, after_count: bool) -> void:
+	if popped:
+		gauge_panel.show_gauge(true)
+	elif gauge_panel.is_hidden():
+		gauge_panel.show_gauge(false)
+	if after_count:
+		bell.ding()
 
 
 ## Puts the machine in the store right of the stage, behind the fore, at half size.
@@ -329,14 +440,16 @@ func apply_theme(screen_theme: Theme) -> void:
 	fore.theme = screen_theme
 
 
+## The top bar (added to the hud after the fore's parts are built: _init), with the gauge's chip.
 func _build_top_bar() -> void:
 	top_bar = TopBar.new()
-	add_child(top_bar)
 	top_bar.deck_pressed.connect(deck_pressed.emit)
 	top_bar.export_pressed.connect(export_pressed.emit)
 	shift_label = top_bar.shift_label
 	loyalty_card = top_bar.loyalty_card
-	inspection_tag = top_bar.inspection_tag
+	gauge_panel = top_bar.gauge_panel
+	quota_meter = gauge_panel.quota_meter
+	row_pips = gauge_panel.row_pips
 	deck_button = top_bar.deck_button
 	export_button = top_bar.export_button
 
@@ -351,14 +464,30 @@ func _build_monitor() -> void:
 	world.add_child(pin_lanyard)
 
 
+## The tower, the register, the bell and the desk calendar on its top, the receipt hanging in its
+## slot and the printer over it.
 func _build_register() -> void:
 	tower = RegisterTower.new()
 	fore.add_child(tower)
-	quota_meter = tower.quota_meter
 	quota_meter.follow(led)
 	cabinet = RegisterCabinet.new()
 	fore.add_child(cabinet)
 	register = cabinet
+	week_glass = cabinet.week_glass
+	medal_case = cabinet.medal_case
+	bell = ServiceBell.new()
+	bell.position = BELL_RECT.position
+	bell.size = BELL_RECT.size
+	fore.add_child(bell)
+	day_calendar = DayCalendar.new()
+	day_calendar.position = DESK_CALENDAR_RECT.position
+	fore.add_child(day_calendar)
+	day_calendar.fit_width(DESK_CALENDAR_RECT.end.x - RECEIPT_X)
+	receipt_slot = _layer("ReceiptSlot")
+	receipt_slot.clip_contents = true
+	receipt_slot.position = Vector2(0.0, RECEIPT_TOP)
+	receipt_slot.size = Vector2(SIZE.x, SIZE.y - RECEIPT_TOP)
+	fore.add_child(receipt_slot)
 	receipt = ReceiptView.new()
 	var paper: StyleBoxTexture = ArtStyle.frame_style(RECEIPT_PAPER, 2)
 	paper.set_content_margin_all(RECEIPT_PADDING)
@@ -367,17 +496,17 @@ func _build_register() -> void:
 	paper.content_margin_right = RECEIPT_PADDING - ReceiptView.FRAME_OUT
 	receipt.add_theme_stylebox_override("panel", paper)
 	ArtStyle.use_pixel_material(receipt)
-	receipt.position = Vector2(RECEIPT_X, RECEIPT_BOTTOM)
+	receipt.position = Vector2(RECEIPT_X, 0.0)
 	receipt.size = Vector2(RECEIPT_WIDTH, 0.0)
-	fore.add_child(receipt)
-	receipt.full_length = true
+	receipt_slot.add_child(receipt)
 	receipt.anchored = true
-	receipt.fit_up(RECEIPT_BOTTOM, RECEIPT_TOP)
-	printer_lip = UiKit.sprite(PRINTER_LIP)
-	printer_lip.name = "PrinterLip"
-	printer_lip.position = PRINTER_SLOT_RECT.position
-	printer_lip.size = PRINTER_SLOT_RECT.size
-	fore.add_child(printer_lip)
+	receipt.fit_up(RECEIPT_BOTTOM - RECEIPT_TOP, 0.0, true)
+	receipt.count_paper_started.connect(_on_count_paper)
+	receipt.stub_printed.connect(_on_stub_printed)
+	printer = OverheadPrinter.new()
+	printer.position = PRINTER_RECT.position
+	printer.size = PRINTER_RECT.size
+	fore.add_child(printer)
 
 
 ## Darkens the hand and its baskets while the shift is counted (`counting`), or lifts the shade.
@@ -411,7 +540,9 @@ func _build_belt(slot_count: int) -> void:
 	# Over the items and their tickets, under the top bar, the hand and the scan layers (#71).
 	planning_layer = PlanningLayer.new()
 	fore.add_child(planning_layer)
-	# The MORNING ribbon keeps clear of the slot marks under the tickets (v1.06).
+	# A stuck price label lies over its ticket's batch or chain frame, which this layer draws.
+	row_strip.labels.mount_after(planning_layer.get_node(^"ChainFrames"))
+	# The MORNING's pins and chain keep clear of the slot marks under the tickets (v1.06, v1.24).
 	KeywordMarks.of(planning_layer).obstacles = row_strip.mark_rects
 
 
@@ -424,11 +555,14 @@ func _fit_belt(cells: int) -> void:
 		quota_light.belt_cut = belt.cut()
 
 
-## Rests the row on ROW_BOTTOM: a scaled row is shorter, so it starts lower. The scanner's plate
-## goes under its first cell.
+## Rests the row on ROW_BOTTOM: a scaled row is shorter, so it starts lower. A row wider than the
+## 7-slot one (RowStrip.overhang: the 8-slot row's opened gaps) is centred on it, half its
+## overhang past each end, inside ROW_AREA. The scanner's plate goes under its first cell.
 func _place_row() -> void:
 	var height: float = row_strip.get_combined_minimum_size().y
-	row_strip.position = Vector2(ROW_POSITION.x, ROW_BOTTOM - height) - BELT_RECT.position
+	var cells: int = row_strip.slots.size() + row_strip.closed.size()
+	var left: float = ROW_POSITION.x - RowStrip.overhang(cells) / 2.0
+	row_strip.position = Vector2(left, ROW_BOTTOM - height) - BELT_RECT.position
 	var half_cell: float = RowStrip.CELL_SIZE.x * row_strip.box.scale.x / 2.0
 	belt.place_scanner(row_strip.position.x + half_cell)
 

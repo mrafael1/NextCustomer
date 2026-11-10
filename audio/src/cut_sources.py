@@ -85,6 +85,7 @@ for out, sound_id, start, length in [
     ("452572_drawer_slam.wav", "452572", 57.53, 0.30),
     ("448474_self_inking_stamp.wav", "448474", 1.07, 0.38),
     ("221515_desk_bell.wav", "221515", 0.275, 0.06),
+    ("221515_desk_bell_ring.wav", "221515", 0.275, 1.8),
     ("564128_card_tap.wav", "564128", 6.10, 0.08),
     ("451644_perforated_tear.wav", "451644", 0.415, 0.42),
     ("367273_coin_1.wav", "367273", 1.585, 0.27),

@@ -1,40 +1,52 @@
 class_name WeekFlow
 extends Node
 ## The time card on the shift screen (v0.70, WeekCard; mock-up docs/art/mockups/rota_card_v1.html,
-## layout C) and the top bar's week and day chips. The card plays as a week's first shift opens
-## (shifts 1, 5 and 9; a resume on one plays it again, a resume mid-week never does), once
-## planning can take input: after the cart reveal, the glide back from the machine and the count.
-## The machine's planning notices (MachineFlow) wait for it (holds_planning). Tapping the week
-## chip reopens it in planning; tapping the card closes it. Tapping the day chip drops today's
-## slip under it instead (DaySlip, 2026-10-31: today's events and where they touch the belt);
-## the card and the slip never show together, and the slip shows only when the card could. After
-## each shift's verdict the week chip lights today's pip, a green check or a red cross (v0.75,
-## #119, light_day), before the machine or the next shift; the card keeps the day's PAID or SLIP
-## stamp.
+## layout C), the top bar's day calendar (DayCalendar) and the register's week glass and medal case
+## (WeekGlass, MedalCase; v1.17, in place of the week and day chips). The card plays as a week's
+## first shift opens (shifts 1, 5 and 9; a resume on one plays it again, a resume mid-week never
+## does), once planning can take input: after the cart reveal, the glide back from the machine and
+## the count. The machine's planning notices (MachineFlow) wait for it (holds_planning). Tapping
+## the week glass reopens it in planning; tapping the card closes it. Tapping the calendar pops
+## today's slip up over it instead (DaySlip, 2026-10-31: today's events and where they touch the
+## belt; play test 2026-11-09: above the desk calendar, over the planning receipt), and so does a
+## long hover (closing as the pointer leaves, unless a tap pinned it); the card and the slip never
+## show together, and the slip shows only when the card could.
+## After each shift's verdict the calendar lights today's pip (v0.75, #119, light_day), before the
+## machine or the next shift; the card keeps the day's PAID or SLIP stamp. A new day's page tears
+## off the calendar once planning can show it and the time card has gone (DayCalendar.play_change;
+## on a week's first day the card plays first), never on a resume.
 
 var card: WeekCard
-## Today's slip under the day chip.
+## Today's slip under the day calendar.
 var slip: DaySlip
 var _screen: ShiftScreen
-var _bar: TopBar
+var _calendar: DayCalendar
+var _glass: WeekGlass
+## The run the calendar last showed: a new one (a resume, a new run) snaps its page.
+var _shown_run: RunState
 ## The card waits to play (a week's first shift opened).
 var _due: bool = false
 ## The card stays out of the way (skip(): the screen capture, tests): no day stamps either.
 var _quiet: bool = false
 
 
-## Builds the card over `screen` (added last, over the cart reveal) and wires the chips.
+## Builds the card over `screen` (added last, over the cart reveal) and wires the calendar and
+## the glass.
 func _init(screen: ShiftScreen) -> void:
 	name = "WeekFlow"
 	_screen = screen
-	_bar = screen._top_bar as TopBar
+	_calendar = screen._stage.day_calendar
+	_glass = screen._stage.week_glass
 	screen.add_child(self)
 	slip = DaySlip.new()
 	screen.add_child(slip)
 	card = WeekCard.new()
 	screen.add_child(card)
-	_bar.week_chip.pressed.connect(reopen)
-	_bar.inspection_tag.pressed.connect(toggle_slip)
+	_glass.pressed.connect(reopen)
+	_calendar.pressed.connect(toggle_slip)
+	_calendar.long_hovered.connect(hover_slip)
+	_calendar.unhovered.connect(slip.pointer_left)
+	_calendar.hovered.connect(slip.pointer_back)
 	screen._machine.week_holds = holds_planning
 	screen._machine.week_started = shift_started
 
@@ -61,20 +73,20 @@ func drop() -> void:
 	slip.clear()
 
 
-## Lights the shift just checked out on the week chip (v0.75, #119: a green check for PAID, a red
-## cross for a training week's SLIP; until then the time card popped in and stamped it) and waits
-## for the light: on every shift of a run with weeks that goes on (a won or lost run goes to its
-## results), unless skipped.
+## Lights the shift just checked out on the calendar's pips (v0.75, #119: PAID's sound, a training
+## week's SLIP its red cross; until then the time card popped in and stamped it) and waits for the
+## light: on every shift of a run with weeks that goes on (a won or lost run goes to its results),
+## unless skipped.
 func light_day() -> void:
 	var run: RunState = _screen.run
 	if _quiet or run == null or not has_weeks(run):
 		return
 	if run.phase == RunState.Phase.WON or run.phase == RunState.Phase.LOST:
 		return
-	var chip: WeekChip = _bar.week_chip
-	chip.show_week(WeekCardModel.of(run))
-	chip.flash(_screen.profile.reduced_motion())
-	while chip.is_flashing():
+	_calendar.hold_result = false
+	_calendar.show_week(WeekCardModel.of(run))
+	_calendar.flash(_screen.profile.reduced_motion())
+	while _calendar.is_flashing():
 		await get_tree().process_frame
 
 
@@ -87,57 +99,85 @@ func is_open() -> bool:
 	return card.is_open()
 
 
-## Reopens the card (a chip tapped) in planning, when nothing else covers it.
+## Reopens the card (the week glass tapped) in planning, when nothing else covers it.
 func reopen() -> void:
 	var run: RunState = _screen.run
 	if run == null or not has_weeks(run) or card.is_open() or not _can_show():
 		return
 	slip.clear()
-	card.reopen(WeekCardModel.of(run), _bar.week_chip, _screen.profile.reduced_motion())
+	card.reopen(WeekCardModel.of(run), _glass, _screen.profile.reduced_motion())
 
 
-## Drops today's slip under the day chip (the chip tapped), or closes it when it is open; only
-## when the card could show (planning takes input), never over the card.
+## Pops today's slip up over the day calendar (the pad tapped), pins it when a long hover opened
+## it, or closes it when it is open; only when the card could show (planning takes input), never
+## over the card.
 func toggle_slip() -> void:
+	if slip.is_hover_open():
+		slip.pin()
+		return
 	if slip.is_open():
 		slip.close()
 		return
+	_open_slip(false)
+
+
+## The pointer rested on the day calendar: today's slip opens, quietly, until the pointer leaves
+## (not while an item is dragged).
+func hover_slip() -> void:
+	if slip.is_open() or _screen._drag.is_dragging():
+		return
+	_open_slip(true)
+
+
+func _open_slip(hover: bool) -> void:
 	var run: RunState = _screen.run
 	if run == null or not has_weeks(run) or card.is_open() or not _can_show():
 		return
-	var tag: InspectionTag = _bar.inspection_tag
-	if tag.day() <= 0:
+	if _calendar.day() <= 0:
 		return
 	var week: WeekCardModel = WeekCardModel.of(run)
-	slip.open(tag.day(), run.inspections, run.limits, tag, _screen.profile.reduced_motion(), week)
+	var reduced: bool = _screen.profile.reduced_motion()
+	var bonus: String = bonus_line(_calendar.bonus_state(), run.inspections)
+	var options: Dictionary = {"above": true, "hover": hover, "bonus": bonus}
+	slip.open(_calendar.day(), run.inspections, run.limits, _calendar, reduced, week, options)
 
 
-## The top bar's week chip and day chip for the run's current shift. While the shift is counted
-## today's pip stays today's (v0.78): its check or cross waits for light_day().
+## The day calendar, the week glass and the medal case for the run's current shift. While the
+## shift is counted today's pip stays today's (v0.78): its result waits for light_day(). A new
+## run (a resume) snaps the calendar's page; a next day waits for planning (_process).
 func show_chips() -> void:
 	var run: RunState = _screen.run
 	var weeks: bool = has_weeks(run)
 	if _screen._stage.gold_flow != null:
 		_screen._stage.gold_flow.refresh(run, _screen._counting, _screen.profile.reduced_motion())
-	_bar.week_chip.hold_result = _screen._counting
+	# A payday's brass on the stage and PAYDAY on the calendar's page (2026-11-10).
+	var payday: bool = ReceiptGoldFlow.payday(run)
+	_screen._stage.show_payday(payday)
+	_calendar.hold_result = _screen._counting
+	_calendar.reduced_motion = _screen.profile.reduced_motion()
+	var model: WeekCardModel = WeekCardModel.of(run)
+	# The day first: a next day keeps the page last seen (its own pips) as the one that tears off.
+	var day: int = run.shift_index + 1 if weeks else 0
+	_calendar.show_inspections(day_events(run), day, event_pool(run), run.shift_count(), payday)
 	if weeks:
-		_bar.week_chip.show_week(WeekCardModel.of(run))
+		_calendar.show_week(model)
 		show_medals(-1)
-	_bar.show_weeks(weeks)
-	_bar.inspection_tag.show_inspections(
-		day_events(run), run.shift_index + 1 if weeks else 0, event_pool(run)
-	)
+	_glass.show_week(model, weeks)
+	(_screen._top_bar as TopBar).show_weeks(weeks)
+	if _shown_run != run or _quiet:
+		_calendar.play_change(false)
+	_shown_run = run
 
 
-## Every day event `run` may draw (its balance's inspection and boon pools): the day chip keeps
+## Every day event `run` may draw (its balance's inspection and boon pools): the calendar keeps
 ## room for each one's name (v1.16), so its width is the same every day.
 static func event_pool(run: RunState) -> Array[InspectionDefinition]:
 	return run.balance.inspection_pool + run.balance.boon_pool
 
 
-## The week chip's medals as `run` stands (WeekMedals): while counting, the shift's own spend
-## waits for its flight; in planning, `projected` (the preview's total, below 0: none) shows the
-## medals it would spend as PENDING.
+## The medal case's medals as `run` stands (WeekMedals), with the totals that win them: while
+## counting, the shift's own spend waits for its flight; in planning, `projected` (the preview's
+## total, below 0: none) shows the medals it would spend as PENDING.
 func show_medals(projected: int) -> void:
 	var run: RunState = _screen.run
 	if run == null or not has_weeks(run):
@@ -146,13 +186,14 @@ func show_medals(projected: int) -> void:
 	var flow: ReceiptGoldFlow = _screen._stage.gold_flow
 	for index: int in range(states.size()):
 		if _screen._counting and flow != null and flow.has_flown(index == 1):
-			states[index] = WeekMedals.State.USED  # Its flight left the socket: no pop back.
+			states[index] = WeekMedals.State.USED  # Its flight left the case: no pop back.
 	var tips: PackedStringArray = PackedStringArray()
 	for index: int in range(states.size()):
 		tips.append(WeekMedals.tip_of(run, index == 1, states[index]))
-	var sockets: MedalSockets = _bar.week_chip.medals()
-	sockets.reduced_motion = _screen.profile.reduced_motion()
-	sockets.show_states(states, tips)
+	var medals: MedalCase = _screen._stage.medal_case
+	medals.reduced_motion = _screen.profile.reduced_motion()
+	medals.show_states(states, tips)
+	medals.show_thresholds(WeekMedals.threshold_of(run, false), WeekMedals.threshold_of(run, true))
 
 
 ## Planning's preview projects `projected`: the medals it would spend shimmer (show_medals) and
@@ -169,14 +210,26 @@ func show_pending(projected: int) -> void:
 		)
 
 
-## The events the day chip shows: the day's only (run.inspections). A worn pin's events (#132:
-## Express lane's) are run-wide, not the day's, so the chip leaves them out (the belt's end marks
-## show Express lane); the week event is the week chip's.
+## The bonus ticket's line on today's slip (play test 2026-11-09: the calendar's tooltip is gone,
+## so the "+1" pill's whole words read here): PASS › +1 BONUS TICKET while promised, "Spot check
+## passed" once earned, empty without a ticket.
+static func bonus_line(
+	state: InspectionTag.Bonus, inspections: Array[InspectionDefinition]
+) -> String:
+	if state == InspectionTag.Bonus.EARNED:
+		var passed: Array[InspectionDefinition] = InspectionDefinition.maluses(inspections)
+		return DayCalendar.EARNED_TIP % ", ".join(InspectionTag.names(passed))
+	return DayCalendar.PILL_TIP if state == InspectionTag.Bonus.PROMISED else ""
+
+
+## The events the day calendar shows: the day's only (run.inspections). A worn pin's events
+## (#132: Express lane's) are run-wide, not the day's, so it leaves them out (the belt's end marks
+## show Express lane); the week event is the week glass's.
 static func day_events(run: RunState) -> Array[InspectionDefinition]:
 	return run.inspections.duplicate()
 
 
-## Where the shift's event `index` (WeekSchedule.shift_events) is on the day chip (day_events), -1
+## Where the shift's event `index` (WeekSchedule.shift_events) is on the calendar (day_events), -1
 ## when it isn't there (the week event, a worn pin's event, or no event).
 static func day_index(run: RunState, index: int) -> int:
 	var events: Array[InspectionDefinition] = WeekSchedule.shift_events(run)
@@ -214,7 +267,9 @@ func _process(_delta: float) -> void:
 		_due = false
 		slip.clear()
 		var run: RunState = _screen.run
-		card.play(WeekCardModel.of(run), _bar.week_chip, _screen.profile.reduced_motion())
+		card.play(WeekCardModel.of(run), _glass, _screen.profile.reduced_motion())
+	if _calendar.is_changing() and _can_show() and not card.is_open():
+		_calendar.play_change(not _quiet)  # The new day's page, once planning shows, after the card.
 
 
 ## Planning takes input: no count, no cart reveal, no machine visit or glide back, and the item

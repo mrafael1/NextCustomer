@@ -21,6 +21,10 @@ var tip_anchor: Control
 ## Its tip still shows while GlyphTips is `blocked` (the count-up): a monitor count row's bag glyph
 ## (v1.11), which only shows during the count.
 var shows_while_blocked: bool = false
+## A control that draws part of the target over later ones (a price label's layer over its row,
+## PriceLabelLayer): what covers the target is then what covers that control (drawn_from). Null:
+## the target draws itself.
+var tip_cover: Control
 
 
 func _init() -> void:
@@ -37,6 +41,20 @@ func tip_shown(_shown: bool) -> void:
 ## The tooltip's whole text: tip_text, then tip_more after a " · ".
 func full_tip() -> String:
 	return tip_text if tip_more.is_empty() else "%s · %s" % [tip_text, tip_more]
+
+
+## Where the pointer finds the target (global): its rect; a price window adds its stuck label's
+## (PriceWindow).
+func hover_rect() -> Rect2:
+	return get_global_rect()
+
+
+## The control whose place in the tree says what covers the target: `tip_cover` while it is in
+## the tree, else the target.
+func drawn_from() -> Control:
+	if is_instance_valid(tip_cover) and tip_cover.is_inside_tree():
+		return tip_cover
+	return self
 
 
 ## Whether the target shows on screen now (GlyphTips only shows a tooltip for one that does).

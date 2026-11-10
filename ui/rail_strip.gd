@@ -5,16 +5,17 @@ extends Control
 ## pointed cap past its last target: the giver's name printed on an ink plate at its start,
 ## chevrons pointing from the giver to the targets, and at each target a notch dropping onto its
 ## ticket. The factor itself ("×3") is only the sticker on the target, never a badge on the strip
-## (since the h1 build's play test). On lane 0 (the lip) it lights the rail's gaps between the
-## tickets it spans; on lane 1 (the top face's front edge, for a strip sharing a slot with a lane-0
+## (since the h1 build's play test). Nothing is lit between the tickets it spans (the gold gap
+## lights went after the user's play test of 2026-11-10: the chevrons already show the path). On
+## lane 1 (the top face's front edge, for a strip sharing a slot with a lane-0
 ## one) its targets are the tickets' right halves, each with a plain ink drop instead of a notch,
 ## so they never meet lane 0's, and its stems and drops cross lane 0 on top. A backward strip
 ## (every target before the giver) keeps its plug at the giver and points left, its cap at the
 ## leftmost target.
 ##
-## PlanningLayer owns it: the strip's body parts are its own children, while its gap fills and
-## gain badges (fills(), gains()) go in the layer's own z-ordered boxes (section 6), all in layer
-## coordinates. lay_out places everything from the tickets' rects, so a scaled 8-slot row
+## PlanningLayer owns it: the strip's body parts are its own children, while its gain badges
+## (gains()) go in the layer's own z-ordered boxes (section 6), all in layer coordinates. lay_out
+## places everything from the tickets' rects, so a scaled 8-slot row
 ## moves the anchors (the offsets scale) while the art never scales. Calm strips are brass and
 ## nothing loops. Hot (set_hot: its giver or a target hovered, section 5.3) it turns bright gold
 ## in a pale ring and a gain badge ("+14€", the target's summed gain) stands on each target (or
@@ -73,9 +74,6 @@ const GAIN_SHADOW_ALPHA := 0.45
 ## A hot strip's ring under its body: ink HOT_RING_OUTER past the body, pale HOT_RING_INNER past it.
 const HOT_RING_OUTER := 6.0
 const HOT_RING_INNER := 4.0
-## A hot lit gap's three pale pips (HOT_PIP square), their tops from the gap's top.
-const HOT_PIP := 4.0
-const HOT_PIP_TOPS: Array[float] = [12.0, 28.0, 44.0]
 ## The chevrons' step (step_chevrons): one texel, held for CHEVRON_STEP_FRAMES slap frames.
 const CHEVRON_STEP := 2.0
 const CHEVRON_STEP_FRAMES := 2.0
@@ -107,22 +105,15 @@ const CHEVRON_SKIP := Vector2(16, 10)
 const SHADOW_OFFSET := Vector2(2, 2)
 const SHADOW_ALPHA := 0.5
 const BODY_MARGIN := 2
-## A lit rail gap: GAP_WIDTH wide, centred in the gap between two tickets at least that wide, as
-## tall as the tickets; its 9-slice margins in art pixels.
-const GAP_WIDTH := 12.0
-const GAP_MARGIN_TOP := 2
-const GAP_MARGIN_BOTTOM := 3
 
 const BODY := preload("res://art/effects/rail_strip.png")
 const CAP := preload("res://art/effects/rail_cap.png")
 const CHEVRON := preload("res://art/effects/rail_chevron.png")
 const NOTCH := preload("res://art/effects/rail_notch.png")
-const GAP := preload("res://art/effects/rail_gap.png")
 const BODY_HOT := preload("res://art/effects/rail_strip_hot.png")
 const CAP_HOT := preload("res://art/effects/rail_cap_hot.png")
 const CHEVRON_HOT := preload("res://art/effects/rail_chevron_hot.png")
 const NOTCH_HOT := preload("res://art/effects/rail_notch_hot.png")
-const GAP_HOT := preload("res://art/effects/rail_gap_hot.png")
 
 ## The alpha a dimmed strip fades to (PlanningTuning.dim_strip_alpha).
 var dimmed_alpha: float = 1.0
@@ -135,14 +126,11 @@ var _name: Label
 var _cap: TextureRect
 var _chevrons: Array[TextureRect] = []
 var _notches: Array[TextureRect] = []
-## The gap fills (one per gap of the span), parented by the layer.
-var _fills: Array[Control] = []
 ## The last layout's rects, in layer coordinates.
 var _body_rect: Rect2 = Rect2()
 var _plate_rect: Rect2 = Rect2()
 var _lip_rects: Array[Rect2] = []
 var _drop_rects: Array[Rect2] = []
-var _gap_rects: Array[Rect2] = []
 ## Hot (set_hot), and each target's gain badge (null: none shown), parented by the layer.
 var _hot: bool = false
 var _gains: Array[Control] = []
@@ -157,7 +145,6 @@ var _gain_top: float = 0.0
 ## The last layout's arguments (set_hot lays the strip out again).
 var _anchors: Dictionary[int, Rect2] = {}
 var _lane_rect: Rect2 = Rect2()
-var _gap_fill: bool = false
 
 
 ## The strip of `strip_spec`.
@@ -195,33 +182,14 @@ func _init(strip_spec: RailStripSpec) -> void:
 	_cap.size = CAP_SIZE
 	_cap.flip_h = strip_spec.backward
 	add_child(_cap)
-	for _gap: int in range(strip_spec.hi() - strip_spec.lo()):
-		var fill: Panel = Panel.new()
-		fill.name = "RailGap"
-		fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		fill.add_theme_stylebox_override("panel", _gap_style(GAP))
-		ArtStyle.use_pixel_material(fill)
-		for top: float in HOT_PIP_TOPS:
-			var pip: ColorRect = ColorRect.new()
-			pip.name = "HotPip"
-			pip.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			pip.color = Palette.MUSTARD_PALE
-			pip.position = Vector2((GAP_WIDTH - HOT_PIP) / 2.0, top)
-			pip.size = Vector2(HOT_PIP, HOT_PIP)
-			pip.visible = false
-			fill.add_child(pip)
-		fill.visible = false
-		_fills.append(fill)
 
 
 ## Places the strip by `anchors` (slot: its ticket's rect in layer coordinates, for the giver,
-## every target and the items between them) on `lane_rect` (one of LANE_RECTS), lighting the
-## rail's gaps between the spanned tickets when `gap_fill` (lane 0 only). Lane 1's targets are the
-## tickets' right halves, with a plain drop instead of a notch.
-func lay_out(anchors: Dictionary[int, Rect2], lane_rect: Rect2, gap_fill: bool) -> void:
+## every target and the items between them) on `lane_rect` (one of LANE_RECTS). Lane 1's targets
+## are the tickets' right halves, with a plain drop instead of a notch.
+func lay_out(anchors: Dictionary[int, Rect2], lane_rect: Rect2) -> void:
 	_anchors = anchors
 	_lane_rect = lane_rect
-	_gap_fill = gap_fill
 	var lane: int = 0 if is_equal_approx(lane_rect.position.y, LANE_RECTS[0].position.y) else 1
 	var giver: Rect2 = anchors[_spec.giver_slot]
 	var row_scale: float = giver.size.x / PriceSticker.SIZE.x
@@ -343,7 +311,6 @@ func lay_out(anchors: Dictionary[int, Rect2], lane_rect: Rect2, gap_fill: bool) 
 			_notches[index].position = notches[index].position - origin
 	_cap.position = cap_at - origin
 	_lay_out_chevrons(x0, name_end, centres, origin)
-	_lay_out_fills(anchors, gap_fill)
 	place_gains([])
 
 
@@ -427,10 +394,6 @@ func set_hot(hot: bool, gain_target: int = -1) -> void:
 		chevron.texture = CHEVRON_HOT if hot else CHEVRON
 	for notch: TextureRect in _notches:
 		notch.texture = NOTCH_HOT if hot else NOTCH
-	for fill: Control in _fills:
-		fill.add_theme_stylebox_override("panel", _gap_style(GAP_HOT if hot else GAP))
-		for pip: Node in fill.get_children():
-			(pip as CanvasItem).visible = hot
 	_name.add_theme_color_override("font_color", Palette.PAPER if hot else Palette.MUSTARD_PALE)
 	var parent: Node = null
 	for index: int in range(_gains.size()):
@@ -445,14 +408,14 @@ func set_hot(hot: bool, gain_target: int = -1) -> void:
 			if parent != null:
 				parent.add_child(_gains[index])
 	if not _anchors.is_empty():
-		lay_out(_anchors, _lane_rect, _gap_fill)
+		lay_out(_anchors, _lane_rect)
 
 
 func is_hot() -> bool:
 	return _hot
 
 
-## Fades the strip, its gains and its lit gaps to `dimmed_alpha` (`dimmed`) or back, over `fade`
+## Fades the strip and its gains to `dimmed_alpha` (`dimmed`) or back, over `fade`
 ## seconds (0: at once).
 func set_dimmed(dimmed: bool, fade: float = 0.0) -> void:
 	_dimmed = dimmed
@@ -462,7 +425,6 @@ func set_dimmed(dimmed: bool, fade: float = 0.0) -> void:
 	var alpha: float = dimmed_alpha if dimmed else 1.0
 	var parts: Array[Control] = [self]
 	parts.append_array(gains())
-	parts.append_array(_fills)
 	if fade > 0.0 and is_inside_tree():
 		_dim_tween = create_tween().set_parallel()
 		for part: Control in parts:
@@ -496,11 +458,6 @@ func is_stepping() -> bool:
 	return _chevron_tween != null and _chevron_tween.is_running()
 
 
-## The lit rail gaps (one per gap of the span; hidden when not laid out), for the layer's gap box.
-func fills() -> Array[Control]:
-	return _fills
-
-
 func spec() -> RailStripSpec:
 	return _spec
 
@@ -526,26 +483,19 @@ func drop_rects() -> Array[Rect2]:
 	return _drop_rects
 
 
-## The lit rail gaps shown at the last layout, in layer coordinates.
-func gap_rects() -> Array[Rect2]:
-	return _gap_rects
-
-
-## Every part's rect (the strip's own, its shown gains and gap fills), in layer coordinates.
+## Every part's rect (the strip's own and its shown gains), in layer coordinates.
 func parts_rect() -> Rect2:
 	var bounds: Rect2 = Rect2(position, size)
 	for gain: Control in gains():
 		if gain.visible:
 			bounds = bounds.merge(Rect2(gain.position, gain.size))
-	for rect: Rect2 in _gap_rects:
-		bounds = bounds.merge(rect)
 	return bounds
 
 
-## The gains' and gap fills' nodes go with the strip.
+## The gains' nodes go with the strip.
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_PREDELETE:
-		for part: Control in gains() + _fills:
+		for part: Control in gains():
 			if is_instance_valid(part):
 				part.queue_free()
 
@@ -620,29 +570,6 @@ static func _clear_of(x: float, centres: PackedFloat32Array) -> bool:
 	return true
 
 
-## The lit rail gaps between the spanned tickets that are at least GAP_WIDTH apart (lane 0).
-func _lay_out_fills(anchors: Dictionary[int, Rect2], gap_fill: bool) -> void:
-	_gap_rects.clear()
-	var lo: int = _spec.lo()
-	for index: int in range(_fills.size()):
-		var fill: Control = _fills[index]
-		fill.visible = false
-		var slot: int = lo + index
-		if not gap_fill or not anchors.has(slot) or not anchors.has(slot + 1):
-			continue
-		var here: Rect2 = anchors[slot]
-		var next: Rect2 = anchors[slot + 1]
-		var gap: float = next.position.x - here.end.x
-		if gap < GAP_WIDTH:
-			continue
-		var x: float = snappedf(here.end.x + (gap - GAP_WIDTH) / 2.0, ArtStyle.ART_SCALE)
-		var rect: Rect2 = Rect2(x, here.position.y, GAP_WIDTH, here.size.y)
-		fill.position = rect.position
-		fill.size = rect.size
-		fill.visible = true
-		_gap_rects.append(rect)
-
-
 ## A hot strip's gain badge showing `shown` ("+14€"): a paper box with an ink border and shadow,
 ## the gain in the number font in mustard darkest, GAIN_PADDING each side of it, GAIN_HEIGHT tall.
 static func _make_gain(shown: String) -> Control:
@@ -683,15 +610,6 @@ static func _make_gain(shown: String) -> Control:
 static func _text_width(token: String, text_size: int) -> float:
 	var font: Font = ArtStyle.number_font()
 	return font.get_string_size(token, HORIZONTAL_ALIGNMENT_LEFT, -1, text_size).x
-
-
-## A lit gap's 9-slice of `texture`.
-static func _gap_style(texture: Texture2D) -> StyleBoxTexture:
-	var style: StyleBoxTexture = StyleBoxTexture.new()
-	style.texture = texture
-	style.texture_margin_top = GAP_MARGIN_TOP * ArtStyle.ART_SCALE
-	style.texture_margin_bottom = GAP_MARGIN_BOTTOM * ArtStyle.ART_SCALE
-	return style
 
 
 ## A rect `width` wide at `x` from `from` down to `to` (none when `to` is above `from`).

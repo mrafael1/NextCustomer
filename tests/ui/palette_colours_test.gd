@@ -20,9 +20,9 @@ const PALETTE_SIZE := 73
 ## CheckoutColumn, TotalNumber, CountChips, RailLight, MonitorClimax, PixelSunburst, MonitorKit,
 ## Sunburst), and the RECEIPT REWARDS machine's
 ## parts (#77, build spec 4.2: ui/machine/, and the receipt's stamps, ReceiptStamps), listed ahead
-## of their builds, and the quota gauge's pieces (QuotaMeter, QuotaLaps with v4's orange and violet
-## laps, LapLamp, GaugeHousing). A class is checked once its script exists, so each step of the
-## adoption is covered as it lands.
+## of their builds, the quota gauge's pieces (QuotaMeter, QuotaLaps with v4's orange and violet
+## laps, LapLamp) and payday's paycheck design (ReceiptPayday, left column v2). A class is
+## checked once its script exists, so each step of the adoption is covered as it lands.
 const SCRIPTS: Array[String] = [
 	"res://ui/palette.gd",
 	"res://presentation/art_style.gd",
@@ -33,6 +33,8 @@ const SCRIPTS: Array[String] = [
 	"res://ui/register_cabinet.gd",
 	"res://ui/led_display.gd",
 	"res://ui/price_sticker.gd",
+	"res://ui/price_window.gd",
+	"res://ui/price_label.gd",
 	"res://ui/scan_popup.gd",
 	"res://ui/scan_overlay.gd",
 	"res://ui/effect_mark.gd",
@@ -92,10 +94,11 @@ const SCRIPTS: Array[String] = [
 	"res://ui/quota_meter.gd",
 	"res://ui/quota_laps.gd",
 	"res://ui/lap_lamp.gd",
-	"res://ui/gauge_housing.gd",
+	"res://presentation/receipt_payday.gd",
 ]
 ## The scan pieces, the items and the planning effects' pieces (#71), the giver sparks (#86 v6)
-## and the bay's family chip (#105 piece 2), and the gauge's lap lamp and housing (v4's A1) name
+## and the bay's family chip (#105 piece 2), the gauge's lap lamp (v4's A1), and left column v2's
+## overhead printer, service bell, desk calendar art and hanging receipt's tail name
 ## no colour of their own: every colour they draw is a Palette constant.
 const PALETTE_ONLY: Array[String] = [
 	"res://ui/price_sticker.gd",
@@ -113,7 +116,10 @@ const PALETTE_ONLY: Array[String] = [
 	"res://ui/family_chip.gd",
 	"res://ui/giver_sparks.gd",
 	"res://ui/lap_lamp.gd",
-	"res://ui/gauge_housing.gd",
+	"res://ui/overhead_printer.gd",
+	"res://ui/service_bell.gd",
+	"res://ui/desk_calendar_art.gd",
+	"res://presentation/receipt_hang.gd",
 ]
 ## The machine's parts (test_the_machine_parts_use_the_palette) and the colour literals they may
 ## not write.

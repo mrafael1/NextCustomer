@@ -109,7 +109,7 @@ func test_a_fall_reads_with_its_sign() -> void:
 		step, PackedStringArray(["Cheese"]), PackedStringArray(), names
 	)
 	assert_str(line).is_equal("−2€ Late delivery: Dairy pays less")
-	assert_str(ReceiptView.money(-2, true)).is_equal("−2.00€")
+	assert_str(ReceiptView.money(-2, true)).is_equal("−2€")
 	assert_str(EffectLinks.token_text(step)).is_equal("−2")
 
 

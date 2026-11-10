@@ -2,12 +2,14 @@ extends GdUnitTestSuite
 ## The week badge's medals (2026-11-06, the "spend" model, mock-up
 ## docs/art/mockups/week_medals.html): WeekMedals' states from the run (AVAILABLE, PENDING with the
 ## projection, USED once spent, both back at the next week's start, OFF with the reward off), the
-## sockets as drawn (MedalSockets: a medal back from USED pops in, a PENDING one wobbles, a launch
-## empties its socket), the flight into the gauge's lap lamp (MedalFlight: the coin lands on the
-## lamp's rect, the lamp pops, the receipt turns its metal), planning's projection on the real
+## medal case as drawn (MedalCase, v1.17: a medal back from USED pops in, a PENDING one shimmers, a
+## launch empties its socket), the chain from the gauge to the receipt (MedalFlight: the lap lamp
+## pops and sends its token to the medal, which flies onto the receipt's target, and the receipt
+## turns its metal), planning's projection on the real
 ## screen (the medals it would spend shimmer and the receipt's edges glow in their metal, quiet
-## again when it drops) and a medal already spent moving nothing at the checkout (the receipt
-## stays plain). Runs play Breads (5€ each) against quotas of 10 in weeks of 4 shifts.
+## again when it drops; the PROJECTED number takes the metal) and a medal already spent moving
+## nothing at the checkout (the receipt stays plain). Runs play Breads (5€ each) against quotas of
+## 10 in weeks of 4 shifts.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 const STARTER := "res://data/decks/starter.tres"
@@ -116,72 +118,245 @@ func test_the_last_shift_tip_says_no_machine_follows() -> void:
 	assert_str(WeekMedals.tip_of(run, false, USED)).contains(OvertimeWords.STATE_USED)
 
 
-## The sockets as drawn: their states and tooltips, a launch empties a socket, a PENDING medal
-## wobbles (not under reduced motion), a medal back from USED pops in (not under reduced motion),
-## and two coins never overlap, both inside the sockets' rect.
+## The medal case as drawn (v1.17, in place of the week chip's sockets): its states and tooltips,
+## a launch leaves the engraved socket and "WON ✓", a PENDING medal shimmers (not under reduced
+## motion), a medal back from USED pops in (not under reduced motion), the two medals never
+## overlap, both inside the case, and an OFF medal shows nothing.
 func test_the_sockets_show_the_states() -> void:
-	var sockets: MedalSockets = auto_free(MedalSockets.new())
+	var sockets: MedalCase = auto_free(MedalCase.new())
 	add_child(sockets)
+	sockets.size = ShiftStage.DRAWER_RECT.size
 	var tips: PackedStringArray = PackedStringArray(["silver", "gold"])
 	sockets.show_states([AVAILABLE, PENDING] as Array[int], tips)
-	sockets.size = sockets.get_combined_minimum_size()
-	assert_bool(sockets.visible).is_true()
-	assert_bool(sockets.wobbling(true)).is_true()
-	assert_bool(sockets.wobbling(false)).is_false()
+	sockets.show_thresholds(20, 30)
+	assert_bool(sockets.shimmering(true)).is_true()
+	assert_bool(sockets.shimmering(false)).is_false()
 	var silver: Rect2 = sockets.medal_rect(false)
 	var gold: Rect2 = sockets.medal_rect(true)
 	assert_bool(silver.intersects(gold)).is_false()
 	assert_float(silver.position.x).is_less(gold.position.x)
-	var bounds: Rect2 = Rect2(Vector2.ZERO, sockets.size).grow(0.5)
+	var bounds: Rect2 = Rect2(Vector2.ZERO, sockets.size)
 	assert_bool(bounds.encloses(silver) and bounds.encloses(gold)).is_true()
 	assert_str(sockets._get_tooltip(gold.get_center())).is_equal("gold")
+	assert_str(sockets.line_text(false)).is_equal("at 20€")
+	assert_str(sockets.line_text(true)).is_equal("at 30€")
 	sockets.launch(true)
 	assert_int(sockets.state_of(true)).is_equal(USED)
+	assert_str(sockets.line_text(true)).is_equal("WON ✓")
 	sockets.show_states([USED, USED] as Array[int], tips)
 	assert_bool(sockets.popping(false)).is_false()
 	sockets.show_states([AVAILABLE, AVAILABLE] as Array[int], tips)
 	assert_bool(sockets.popping(false) and sockets.popping(true)).is_true()
-	sockets.advance(MedalSockets.POP_SECONDS + 0.01)
+	sockets.advance(MedalCase.POP_SECONDS + 0.01)
 	assert_bool(sockets.popping(false) or sockets.popping(true)).is_false()
 	sockets.reduced_motion = true
 	sockets.show_states([USED, PENDING] as Array[int], tips)
-	assert_bool(sockets.wobbling(true)).is_false()
+	assert_bool(sockets.shimmering(true)).is_false()
 	sockets.show_states([AVAILABLE, AVAILABLE] as Array[int], tips)
 	assert_bool(sockets.popping(false)).is_false()
 	sockets.show_states([OFF, OFF] as Array[int], tips)
-	assert_bool(sockets.visible).is_false()
+	(
+		assert_bool(sockets.medal_rect(false).has_area() or sockets.medal_rect(true).has_area())
+		. is_false()
+	)
+	assert_str(sockets._get_tooltip(gold.get_center())).is_empty()
 
 
-## The flight on the real screen: the SILVER leaves its socket (USED at once), flies on its own
-## layer and lands on the gauge's lap lamp, which pops; `landed` is told which medal landed.
-## Reduced motion: no coin flies, it lands at once.
-func test_a_medal_flies_into_the_lap_lamp() -> void:
+## The chain on the real screen (the user's play test of 2026-11-10: the gauge activates the
+## medal, the medal the receipt): the gauge's lap lamp pops and its token flies on its own layer
+## from the lamp to the SILVER, still in its case; as the token lands the SILVER leaves its socket
+## (USED) and flies onto the receipt's target digits, where `landed` is told which medal landed.
+## Reduced motion: nothing flies, it lands at once.
+func test_the_lamp_sends_a_medal_to_the_receipt() -> void:
 	var screen: ShiftScreen = await _screen()
 	var flight: MedalFlight = screen._stage.gold_flow.flight
-	var sockets: MedalSockets = screen._stage.top_bar.week_chip.medals()
+	var sockets: MedalCase = screen._stage.medal_case
+	var meter: QuotaMeter = screen._stage.quota_meter
+	var target: ReceiptTarget = screen._stage.receipt.target
 	assert_int(sockets.state_of(false)).is_equal(AVAILABLE)
 	var landed: Array[bool] = []
 	var on_land: Callable = func(gold: bool) -> void: landed.append(gold)
+	var lamp: Rect2 = meter.lamp_canvas_rect()
+	var medal: Rect2 = sockets.medal_canvas_rect(false)
+	assert_bool(lamp.has_area() and medal.has_area()).is_true()
 	flight.fly(false, false, on_land)
-	assert_int(sockets.state_of(false)).is_equal(USED)
 	assert_bool(flight.is_flying()).is_true()
-	var flyer: Control = flight.flyers()[0]
-	var lamp: Rect2 = screen._stage.quota_meter.lamp_canvas_rect()
-	assert_bool(lamp.has_area()).is_true()
 	await _frames(2)
-	assert_bool(flyer.get_global_rect().is_equal_approx(lamp)).is_false()
+	# The token first: off the lamp (which popped), the medal still in its case.
+	assert_int(flight.flyers().size()).is_equal(1)
+	var token: Control = flight.flyers()[0]
+	assert_bool(token is MedalFlight.LampToken).is_true()
+	assert_vector(token.size).is_equal(lamp.size)
+	assert_bool(token.get_global_rect().is_equal_approx(lamp)).is_false()
+	assert_float(meter._pop).is_greater(0.0)
+	assert_int(sockets.state_of(false)).is_equal(AVAILABLE)
+	assert_array(landed).is_empty()
+	# Then the medal: out of the case as the token lands, on its way to the receipt's target.
+	var flyer: Control = null
+	for _frame: int in range(120):
+		await get_tree().process_frame
+		if not flight.flyers().is_empty() and flight.flyers()[0] is MedalFlyer:
+			flyer = flight.flyers()[0]
+			break
+	assert_object(flyer).is_not_null()
+	assert_int(sockets.state_of(false)).is_equal(USED)
+	assert_int(flight.flyers().size()).is_equal(1)
+	assert_array(landed).is_empty()
+	var to: Rect2 = flight._destination(medal.size)
+	var digits: Rect2 = target.get_global_transform_with_canvas() * target.digits_rect()
+	assert_vector(to.size).is_equal(medal.size)
+	assert_vector(to.get_center()).is_equal_approx(digits.get_center(), Vector2.ONE)
 	flight.finish()
 	assert_bool(flight.is_flying()).is_false()
+	assert_array(flight.flyers()).is_empty()
 	assert_array(landed).is_equal([false])
-	assert_bool(screen._stage.quota_meter.lamp_popping()).is_true()
 	flight.fly(true, true, on_land)
 	assert_bool(flight.is_flying()).is_false()
 	assert_array(landed).is_equal([false, true])
 	assert_int(sockets.state_of(true)).is_equal(USED)
 
 
-## The flyer's last frame sits on the lamp (the arc's end is the lamp's rect).
-func test_the_flight_ends_on_the_lamp() -> void:
+## CHECKOUT's medal prelude (the user's proposition, 2026-11-09) on a row making x3 with both
+## medals free: the bell, then the gauge runs its laps x1, x2, x3 before the count; the SILVER
+## flies into the lap lamp as x2 is made and the paper turns silver, then the GOLD at x3 and the
+## paper turns gold over it; then the gauge slides up, all before the count starts, and the
+## count never turns the paper back.
+func test_the_medal_prelude_runs_before_the_count() -> void:
+	var screen: ShiftScreen = await _screen()
+	_place_milks(screen, 7)
+	await _frames(2)
+	var stage: ShiftStage = screen._stage
+	var gold: ReceiptGold = stage.receipt.gold
+	var count_up: CountUp = screen._count_up
+	var order: Array[String] = []
+	var on_step: Callable = func(laps: int) -> void:
+		order.append("lap %d%s" % [laps, " counting" if count_up._playing else ""])
+	stage.gauge_panel.lap_run_step.connect(on_step)
+	var at_count: Callable = func(_views: Array[CardView]) -> void:
+		order.append("count up %.2f" % stage.gauge_panel.up_amount())
+	count_up.count_started.connect(at_count, CONNECT_ONE_SHOT)
+	screen._on_checkout_pressed()
+	assert_bool(stage.medal_prelude.is_playing()).is_true()
+	assert_bool(stage.medal_prelude.rang_bell).is_true()
+	var seen: Dictionary = {}
+	for _frame: int in range(600):
+		await get_tree().process_frame
+		_first(seen, "silver", gold.is_silver(), order)
+		_first(seen, "gold", gold.is_gold(), order)
+		_first(seen, "flying", stage.gold_flow.flight.is_flying(), order)
+		if stage.gauge_panel.is_hidden() and not seen.has("hidden"):
+			seen["laps"] = stage.gauge_panel.quota_meter.multiples_made()  # The run's end: x3.
+		_first(seen, "hidden", stage.gauge_panel.is_hidden(), order)
+		if count_up._playing:
+			break
+	var expected: Array[String] = [
+		"lap 1", "lap 2", "flying", "lap 3", "silver", "gold", "hidden", "count up 1.00"
+	]
+	assert_array(order).is_equal(expected)
+	assert_array(stage.medal_case.states()).is_equal([USED, USED])
+	assert_int(int(seen.get("laps", 0))).is_equal(3)
+	var lost: Array[bool] = [false]
+	for _frame: int in range(30):
+		await get_tree().process_frame
+		lost[0] = lost[0] or not gold.is_gold()
+	assert_bool(lost[0]).is_false()
+	await Rush.finish(screen)
+	assert_dict(_end_state(screen)).is_equal(_expected_end())
+
+
+## A long run (the user's play test of 2026-11-10, a ×50+ checkout with both medals earned): the
+## gauge steps to the medals' laps, rolls through the rest and lands; the silver and the gold
+## still turn the paper in order, the gauge slides up only once its readout reads the final ×N,
+## and the count starts about 2.65 s after CHECKOUT whatever the laps.
+func test_a_long_prelude_rolls_and_hides_after_its_final_laps() -> void:
+	var screen: ShiftScreen = await _screen()
+	screen.run.limits.quota = 2
+	_place_milks(screen, 7)
+	await _frames(2)
+	var stage: ShiftStage = screen._stage
+	var made: int = QuotaLaps.lap_of(screen.run.preview().total, screen.run.quota())
+	assert_int(made).is_greater_equal(50)
+	var gold: ReceiptGold = stage.receipt.gold
+	var count_up: CountUp = screen._count_up
+	var steps: Array[int] = []
+	stage.gauge_panel.lap_run_step.connect(func(laps: int) -> void: steps.append(laps))
+	var order: Array[String] = []
+	var seen: Dictionary = {}
+	var started: int = Time.get_ticks_msec()
+	screen._on_checkout_pressed()
+	assert_bool(stage.medal_prelude.is_playing()).is_true()
+	for _frame: int in range(900):
+		await get_tree().process_frame
+		_first(seen, "silver", gold.is_silver(), order)
+		_first(seen, "gold", gold.is_gold(), order)
+		if stage.gauge_panel.is_hidden() and not seen.has("hidden"):
+			seen["readout"] = stage.gauge_panel.readout.text()
+			seen["laps"] = stage.gauge_panel.quota_meter.multiples_made()
+			seen["turning"] = stage.gold_flow.is_turning()
+		_first(seen, "hidden", stage.gauge_panel.is_hidden(), order)
+		if count_up._playing:
+			seen["count_s"] = (Time.get_ticks_msec() - started) / 1000.0
+			break
+	assert_array(order).is_equal(["silver", "gold", "hidden"])
+	assert_str(String(seen.get("readout", ""))).is_equal("×%d" % made)
+	assert_int(int(seen.get("laps", 0))).is_equal(made)
+	assert_bool(bool(seen.get("turning", true))).is_false()
+	assert_int(steps.size()).is_equal(made)
+	assert_int(steps[-1]).is_equal(made)
+	var count_s: float = seen.get("count_s", 0.0)
+	assert_float(count_s).override_failure_message("count at %.2f s" % count_s).is_between(2.3, 3.3)
+	assert_array(stage.medal_case.states()).is_equal([USED, USED])
+	await Rush.finish(screen)
+	assert_dict(_end_state(screen)).is_equal(_expected_end())
+
+
+## A tap during the prelude (the player's own skip, Rush) lands it all at once, to the same end
+## state as one played out, and the count starts tapped (skip_used).
+func test_a_tap_skips_the_prelude_to_the_same_end() -> void:
+	var screen: ShiftScreen = await _screen()
+	_place_milks(screen, 7)
+	await _frames(2)
+	await Rush.checkout(screen)
+	assert_bool(screen._stage.medal_prelude.was_skipped()).is_true()
+	assert_int(screen._count_up.first_tap_ms).is_greater_equal(0)
+	assert_dict(_end_state(screen)).is_equal(_expected_end())
+
+
+## Under reduced motion the prelude is instant: the medals are spent, the paper is gold and the
+## gauge up as the count starts, in the click's own frame; it ends as one played out.
+func test_the_prelude_is_instant_under_reduced_motion() -> void:
+	var still: ShiftScreen = await _screen()
+	still.profile.settings[ProfileState.REDUCED_MOTION_KEY] = true
+	_place_milks(still, 7)
+	await _frames(2)
+	still._on_checkout_pressed()
+	assert_bool(still._count_up._playing).is_true()
+	assert_bool(still._stage.medal_prelude.is_playing()).is_false()
+	assert_bool(still._stage.receipt.gold.is_gold()).is_true()
+	assert_bool(still._stage.gold_flow.has_flown(false)).is_true()
+	assert_bool(still._stage.gold_flow.has_flown(true)).is_true()
+	assert_float(still._stage.gauge_panel.up_amount()).is_equal(1.0)
+	await Rush.finish(still)
+	assert_dict(_end_state(still)).is_equal(_expected_end())
+
+
+## A new checkout forgets the last one's flights at its click: a medal flown on an earlier day
+## (stale flags) never reads USED through a count that spends none.
+func test_a_new_checkout_forgets_the_last_flights() -> void:
+	var screen: ShiftScreen = await _screen()
+	var flow: ReceiptGoldFlow = screen._stage.gold_flow
+	flow._flown = [true, true]
+	_place_milks(screen, 1)
+	await _frames(2)
+	screen._on_checkout_pressed()
+	assert_bool(screen._counting).is_true()
+	assert_bool(flow.has_flown(false) or flow.has_flown(true)).is_false()
+	assert_array(screen._stage.medal_case.states()).is_equal([AVAILABLE, AVAILABLE])
+	await Rush.finish(screen)
+
+
+## A flyer's last frame sits on its landing (the arc's end is the landing's rect).
+func test_the_flight_ends_on_its_landing() -> void:
 	var from: Rect2 = Rect2(10, 10, 13, 13)
 	var to: Rect2 = Rect2(300, 400, 26, 26)
 	assert_object(MedalFlight._arc(from, to, 0.0)).is_equal(from)
@@ -193,47 +368,58 @@ func test_the_flight_ends_on_the_lamp() -> void:
 	assert_float(mid.get_center().y).is_less(line_y)
 
 
-## Planning on the real screen: the medals the preview's projection would spend shimmer and the
-## receipt's edges glow in their metal (gold over silver), quiet again when it drops; the count
-## begins with no glow.
+## Planning on the real screen: the medals the preview's projection would spend shimmer, the
+## receipt's edges glow in their metal and the PROJECTED number takes it (gold over silver), all
+## quiet (ink) again when it drops; the count begins with no glow and its TOTAL in ink.
 func test_the_projection_lights_the_pending_medals_and_the_receipt() -> void:
 	var screen: ShiftScreen = await _screen()
-	var sockets: MedalSockets = screen._stage.top_bar.week_chip.medals()
+	var sockets: MedalCase = screen._stage.medal_case
 	var gold: ReceiptGold = screen._stage.receipt.gold
+	var target: ReceiptTarget = screen._stage.receipt.target
+	var ink: Array[Color] = [ReceiptTarget.HERO_COLOR, ReceiptTarget.NO_SHADOW]
+	var silver: Array[Color] = [ReceiptTarget.SILVER_HERO_COLOR, ReceiptTarget.SILVER_HERO_SHADOW]
+	var golden: Array[Color] = [ReceiptTarget.GOLD_HERO_COLOR, ReceiptTarget.GOLD_HERO_SHADOW]
 	screen._week.show_pending(0)
 	assert_array(sockets.states()).is_equal([AVAILABLE, AVAILABLE])
 	assert_int(gold.pending()).is_equal(ReceiptGold.PENDING_NONE)
+	assert_array(target.hero_ink()).is_equal(ink)
 	var quota: int = screen.run.quota()
 	screen._week.show_pending(quota * 2)
 	assert_array(sockets.states()).is_equal([PENDING, AVAILABLE])
 	assert_int(gold.pending()).is_equal(ReceiptGold.PENDING_SILVER)
+	assert_array(target.hero_ink()).is_equal(silver)
 	screen._week.show_pending(quota * 3)
 	assert_array(sockets.states()).is_equal([PENDING, PENDING])
 	assert_int(gold.pending()).is_equal(ReceiptGold.PENDING_GOLD)
+	assert_array(target.hero_ink()).is_equal(golden)
 	screen._week.show_pending(quota)
 	assert_array(sockets.states()).is_equal([AVAILABLE, AVAILABLE])
 	assert_int(gold.pending()).is_equal(ReceiptGold.PENDING_NONE)
+	assert_array(target.hero_ink()).is_equal(ink)
 	# The real preview: a row making ×3 shows both pending.
 	_place_milks(screen, 7)
 	await _frames(2)
 	assert_int(OvertimeTickets.laps(screen.run.preview().total, quota)).is_greater_equal(3)
 	assert_array(sockets.states()).is_equal([PENDING, PENDING])
 	assert_int(gold.pending()).is_equal(ReceiptGold.PENDING_GOLD)
+	assert_array(target.hero_ink()).is_equal(golden)
 	await Rush.checkout(screen)
 	assert_int(gold.pending()).is_equal(ReceiptGold.PENDING_NONE)
+	assert_array(target.hero_ink()).is_equal(ink)
 
 
 ## A medal already spent this week moves nothing at the checkout (a cap of 0 stands for one spent
-## earlier): reaching its laps, no coin flies, the socket stays empty and the receipt stays plain
-## cream with no stamp; the lap still fills in its colour.
-func test_a_spent_medal_leaves_the_receipt_plain() -> void:
+## earlier): reaching its laps, the PROJECTED number stays ink, no coin flies, the socket stays
+## empty and the paper stays plain (the user's play test of 2026-11-09: the metal is the medal won);
+## the gauge still makes its laps.
+func test_a_spent_medal_flies_nothing() -> void:
 	var screen: ShiftScreen = await _screen()
 	var run: RunState = screen.run
 	run.machine.machine = run.machine.machine.duplicate() as MachineDefinition
 	run.machine.machine.overtime_ticket_per_week = 0
 	run.machine.machine.overtime_premium_per_week = 0
 	screen._week.show_chips()
-	var sockets: MedalSockets = screen._stage.top_bar.week_chip.medals()
+	var sockets: MedalCase = screen._stage.medal_case
 	assert_array(sockets.states()).is_equal([USED, USED])
 	_place_milks(screen, 7)
 	await _frames(2)
@@ -241,15 +427,59 @@ func test_a_spent_medal_leaves_the_receipt_plain() -> void:
 	assert_int(OvertimeTickets.laps(run.preview().total, quota)).is_greater_equal(3)
 	assert_array(sockets.states()).is_equal([USED, USED])
 	assert_int(screen._stage.receipt.gold.pending()).is_equal(ReceiptGold.PENDING_NONE)
+	var ink: Array[Color] = screen._stage.receipt.target.hero_ink()
+	assert_array(ink).is_equal([ReceiptTarget.HERO_COLOR, ReceiptTarget.NO_SHADOW])
+	var steps: Array[int] = []
+	screen._stage.gauge_panel.lap_run_step.connect(func(laps: int) -> void: steps.append(laps))
 	await Rush.checkout(screen)
+	assert_array(steps).is_empty()  # No medal prelude: the gauge runs no laps.
+	assert_bool(screen._stage.medal_prelude.was_skipped()).is_false()
 	var flow: ReceiptGoldFlow = screen._stage.gold_flow
 	assert_bool(flow.has_flown(false) or flow.has_flown(true)).is_false()
 	assert_bool(flow.flight.is_flying()).is_false()
 	var receipt: ReceiptView = screen._stage.receipt
-	assert_bool(receipt.gold.is_gold() or receipt.gold.is_silver()).is_false()
-	assert_object(receipt.gold.stamp()).is_null()
+	assert_bool(receipt.gold.is_gold()).is_false()
+	assert_bool(receipt.gold.is_silver()).is_false()
 	assert_array(sockets.states()).is_equal([USED, USED])
 	assert_int(screen._stage.quota_meter.multiples_made()).is_greater_equal(3)
+
+
+## What a x3 checkout with both medals earned leaves once it ends: both spent, the paper gold all
+## the way (the record's metal: gold alone, ReceiptGoldFlow.refresh), nothing in flight, the
+## gauge up out of the bar.
+static func _expected_end() -> Dictionary:
+	return {
+		"flown": [true, true],
+		"silver": false,
+		"silver_amount": 0.0,
+		"gold": true,
+		"gold_amount": 1.0,
+		"flying": false,
+		"gauge_up": 1.0,
+		"medals": [USED, USED] as Array[int],
+	}
+
+
+static func _end_state(screen: ShiftScreen) -> Dictionary:
+	var stage: ShiftStage = screen._stage
+	var metal: ReceiptGold = stage.receipt.gold
+	return {
+		"flown": [stage.gold_flow.has_flown(false), stage.gold_flow.has_flown(true)],
+		"silver": metal.is_silver(),
+		"silver_amount": metal.silver_amount(),
+		"gold": metal.is_gold(),
+		"gold_amount": metal.amount(),
+		"flying": stage.gold_flow.flight.is_flying(),
+		"gauge_up": stage.gauge_panel.up_amount(),
+		"medals": stage.medal_case.states(),
+	}
+
+
+## Appends `label` to `order` the first time `now` holds.
+static func _first(seen: Dictionary, label: String, now: bool, order: Array[String]) -> void:
+	if now and not seen.has(label):
+		seen[label] = true
+		order.append(label)
 
 
 func _run() -> RunState:

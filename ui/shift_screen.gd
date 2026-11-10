@@ -78,7 +78,7 @@ var _camera: StoreCamera
 var _wall: ColorRect
 var _top_bar: HBoxContainer
 var _shift_label: Label
-var _inspection_tag: InspectionTag
+var _calendar: DayCalendar
 var _loyalty_card: LoyaltyCard
 var _deck_button: FramedButton
 var _seed_label: Label
@@ -123,7 +123,7 @@ var _belt_chips: BeltChips = BeltChips.new()
 var _ride: BeltRide  # The belt in the count (#86 v6): items ride to the scanner and bag.
 var _effects: PlanningEffects  # The planning effects (#71, mock-up h1).
 var _cart_reveal: CartReveal
-var _week: WeekFlow  # The time card and the week and day chips (v0.70).
+var _week: WeekFlow  # The time card, the day calendar and the week glass (v1.17).
 var _start_choice: StartChoice  # The starter pack choice's part of a run's start (#107).
 var _glyph_tips: GlyphTips  # Family glyphs' tooltips (#105): none in a drag or the count.
 ## The basket redraw's targets and tags, and its motion.
@@ -517,8 +517,9 @@ func _on_checkout_pressed() -> void:
 		return
 	if await _pins.take_day_off():  # #132: a Day off's pile on the belt: CHECKOUT takes it.
 		return
-	_sfx.play("checkout")
+	# No key sound: the count's start dings the service bell (ShiftStage, play test 2026-11-09).
 	_counting = true
+	_stage.gold_flow.begin_award()  # No medal flown yet: the case reads this checkout's alone.
 	# CHECKOUT stays held through the count and the dessert; the hand fades: the belt reads first.
 	_cabinet.set_total_down(true)
 	_stage.dim_hand(true)
@@ -565,6 +566,8 @@ func _on_checkout_pressed() -> void:
 	_effects.show_count(counted, _row_views, run)  # Only the stickers stay, to fire.
 	var context: CountUpContext = count_up_context()
 	_monitor.use_sources(run.upgrades, WeekSchedule.shift_events(run))
+	# The medal prelude (play test 2026-11-09): the gauge's laps fly the earned medals in.
+	await _stage.medal_prelude.play(context, result.total, run.quota())
 	_ride.begin(counted, _row_views, context.reduced_motion)
 	await _count_up.play(
 		counted,
@@ -574,19 +577,18 @@ func _on_checkout_pressed() -> void:
 		context,
 		_loyalty_card.stamped_boxes(),
 		LoyaltyCard.names(run.upgrades),
-		(_top_bar as TopBar).event_sources(
-			WeekSchedule.shift_events(run), RunPins.pin_events(run).size()
-		),
+		_stage.event_sources(WeekSchedule.shift_events(run), RunPins.pin_events(run).size()),
 		InspectionTag.names(WeekSchedule.shift_events(run)),
 		InspectionTag.next_notice(run.next_inspections)
 	)
 	var shift: int = run.shift_index + 1
-	_log.log_event("count_up", RunEvents.count_up_of(_count_up, shift, _click_ms, context))
+	var count_ms: int = _click_ms + _stage.medal_prelude.played_ms  # The count's own length.
+	_log.log_event("count_up", RunEvents.count_up_of(_count_up, shift, count_ms, context))
 	_counting = false
-	_refresh_bar()  # The inspection chip's EARNED (#77 machine v2).
+	_refresh_bar()  # The day calendar's EARNED (#77 machine v2).
 	_cabinet.set_total_down(false)
 	_stage.dim_hand(false)
-	await _week.light_day()  # The week chip lights the day's check or cross (#119).
+	await _week.light_day()  # The calendar lights the day's pip (#119).
 	await _pins.keep_items()  # A Golden basket's keep panel (#132).
 	if run.phase == RunState.Phase.MACHINE_CHOOSE:
 		_machine.open(false)
@@ -618,8 +620,8 @@ func count_up_context() -> CountUpContext:
 	return context
 
 
-## The receipt's header for the shift on screen (#75): the shift, and the belt's items with its
-## coupons. The planning stub, the count-up and a resumed checkout all print it.
+## The receipt's header lines for the shift on screen: a Double checkout's row line, else none.
+## The planning stub, the count-up and a resumed checkout all print it.
 func receipt_header() -> PackedStringArray:
 	return DoubleCheckoutFlow.header(run)  # #122: with its row line on a Double checkout.
 
@@ -707,13 +709,11 @@ func _refresh() -> void:
 func _refresh_bar() -> void:
 	_shift_label.text = "%d/%d" % [run.shift_index + 1, run.shift_count()]
 	_receipt.target.show_quota(run.quota())
-	_week.show_chips()  # The week chip, its medals and the receipt's metal (ReceiptGoldFlow).
-	_inspection_tag.show_bonus(
-		InspectionTag.bonus_for(run, _counting, _inspection_tag.bonus_state())
-	)
+	_week.show_chips()  # The calendar, the glass, the medals, the receipt's metal (ReceiptGoldFlow).
+	_calendar.show_bonus(InspectionTag.bonus_for(run, _counting, _calendar.bonus_state()))
 	_refresh_loyalty_card()
 	_deck_button.caption = "Cart %d/%d" % [run.deck.size(), run.balance.deck_limit]
-	(_top_bar as TopBar).fit_inspection()
+	(_top_bar as TopBar).fit_day()
 
 
 ## The items on screen: the hand's baskets, then the belt's (the upgrade swap's, #77 machine v2).
@@ -804,15 +804,15 @@ func shown_slot() -> int:
 	return slot if slot >= 0 else run.row.size() - 1
 
 
-## The preview: the planning receipt (#80; a row for every belt slot, B2 of shift_scene_polish_v4)
-## and the belt's marks.
+## The preview: the planning receipt (#80; H2 of main scene v2: the projected total, rolling to
+## it) and the belt's marks.
 func _show_planning(result: ScoreResult) -> void:
 	var slots: int = RowCapacity.card_limit(run.limits)
 	var cards: Array[CardDefinition] = ReceiptInk.cards_of(run.row)
 	_receipt.show_planning(
 		receipt_header(), result, CardInstance.names(run.row), slots, run.quota(), cards
 	)
-	_cabinet.printer_roll.print_burst()
+	_stage.printer.print_burst()
 	_show_belt(result)
 
 
@@ -822,7 +822,7 @@ func _show_checked_out(result: ScoreResult) -> void:
 	var upgrade_names: PackedStringArray = LoyaltyCard.names(run.upgrades)
 	var inspections: PackedStringArray = InspectionTag.names(WeekSchedule.shift_events(run))
 	var names: PackedStringArray = CardInstance.names(run.row)
-	_show_planning(result)  # The anchored receipt pays planning's rows in place (ReceiptPaidRows).
+	_show_planning(result)  # The anchored receipt prints its rows from planning (ReceiptPrintRows).
 	_receipt.show_result(result, names, upgrade_names, inspections, receipt_header(), cards)
 	_show_belt(result, true)
 
@@ -883,7 +883,7 @@ func _build() -> void:
 	_top_bar = _stage.top_bar
 	_shift_label = _stage.shift_label
 	_loyalty_card = _stage.loyalty_card
-	_inspection_tag = _stage.inspection_tag
+	_calendar = _stage.day_calendar
 	_deck_button = _stage.deck_button
 	_seed_label = _stage.seed_label
 	_register = _stage.register
@@ -926,7 +926,7 @@ func _build() -> void:
 	_monitor.follow(_count_up)
 	_stage.follow_count(_count_up)  # The standees (#120) and the quota crossing.
 	_cabinet.follow_count(_count_up, _led)
-	_cabinet.printer_roll.reduced_motion = _monitor.reduced_motion
+	_stage.use_reduced_motion(_monitor.reduced_motion)  # The printer roll and the receipt.
 	_drag = CardDrag.new()
 	add_child(_drag)
 	_drag.setup(_overlay, _slots, _hand_box, _landing_slot)

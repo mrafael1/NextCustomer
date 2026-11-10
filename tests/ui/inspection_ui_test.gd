@@ -1,9 +1,9 @@
 extends GdUnitTestSuite
-## Inspections on the real shift screen (plan section 3.9): the next shift's notice printed in
-## red under a passed total, before the RECEIPT REWARDS machine (#77) opens; the red tag in
-## the top bar during the inspected shift (never on the loyalty card); inspection steps in the
-## receipt and the count-up; the log fields; and the debug panel's inspection. Clicks are sent
-## to the screen's handlers, because headless runs don't deliver input events.
+## Inspections on the real shift screen (plan section 3.9): the next shift's notice no longer
+## printed on the anchored receipt (2026-11-09), before the RECEIPT REWARDS machine (#77) opens; the
+## red tag in the top bar during the inspected shift (never on the loyalty card); inspection steps
+## in the receipt and the count-up; the log fields; and the debug panel's inspection. Clicks are
+## sent to the screen's handlers, because headless runs don't deliver input events.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 const SPOT_CHECK := "res://data/inspections/spot_check.tres"
@@ -45,90 +45,70 @@ func test_the_notice_comes_before_the_machine() -> void:
 	var screen: ShiftScreen = runner.scene()
 	_only_spot_check(screen)
 	var run: RunState = screen.run
-	assert_str(screen._inspection_tag.text()).is_equal(WeekCardModel.NO_EVENT)  # The day chip.
+	assert_str(screen._calendar.text()).is_equal(DayCalendar.NORMAL_WORD)  # The day calendar.
 
 	# Shift 2 is not inspected: no notice after shift 1.
 	await _pass_shift(screen)
 	assert_str(_receipt_text(screen)).not_contains("INSPECTION")
 	assert_str(_last_event("checkout")["next_inspection"]).is_empty()
 	screen._machine.debug_skip()
-	assert_str(screen._inspection_tag.text()).is_equal(WeekCardModel.NO_EVENT)  # The day chip.
+	assert_str(screen._calendar.text()).is_equal(DayCalendar.NORMAL_WORD)  # The day calendar.
 
-	# Shift 3 is: the notice prints in red under shift 2's dessert (after the tear, #61), on the
-	# receipt beside the machine, so the pick can take it into account.
+	# Shift 3 is: since the user's play test of 2026-11-09 the anchored receipt prints nothing
+	# under its last row (no tear, no next-shift notice: the desk calendar, its tooltip and the
+	# deck's "Next shift" say it); PAID stamps on the header after the margin's words.
 	await _pass_shift(screen)
-	# Each line is a left and a right label. The anchored receipt (2026-11-05) prints the tear and
-	# the notice (empty right sides) under its foot (2026-11-07), after TOTAL and its verdict, the
-	# margin and PAID.
 	var lines: PackedStringArray = _receipt_lines(screen)
-	var quota: int = run.quota()
-	(
-		assert_array(Array(lines.slice(-8)))
-		. is_equal(
-			[
-				"TOTAL",
-				ReceiptView.verdict_text(109, quota),
-				ReceiptTarget.margin_text(ShiftMargin.Kind.OVER, 109 - quota),
-				ReceiptView.PAID_TEXT,
-				ReceiptView.TEAR_PATTERN.repeat(ReceiptView.TEAR_REPEAT),
-				"",
-				NOTICE,
-				"",
-			]
-		)
-	)
-	# A full belt: the tear and the notice print on the paper under its foot, the paper fed on and
-	# risen by them, covering no paid row, and nothing prints right of the paper (2026-11-07).
+	assert_str(screen._receipt.target.hero.text).is_equal(ReceiptTarget.AMOUNT_TEXT % 109)
+	assert_bool(lines.has(NOTICE)).is_false()
+	assert_bool(lines.has(ReceiptView.TEAR_PATTERN.repeat(ReceiptView.TEAR_REPEAT))).is_false()
+	assert_str(screen._receipt.target.stamp.text).is_equal(ReceiptView.PAID_TEXT)
+	# A full belt: nothing under the foot, the header kept on the screen, and nothing prints
+	# right of the paper (2026-11-07, v1.18).
 	var fed: Array[Control] = ReceiptFed.lines(screen._receipt)
-	assert_int(fed.size()).is_equal(2)
+	assert_array(fed).is_empty()
 	var planned: Rect2 = ReceiptFed.planned_rect(screen)
 	var failures: Array[String] = ReceiptFed.failures(
 		screen._receipt, planned, screen.get_viewport_rect()
 	)
 	assert_array(failures).override_failure_message("\n".join(failures)).is_empty()
-	var notice: Label = _receipt_label(screen, NOTICE)
 	# 109€ is three laps of the quota, but shift 1 spent the week's medals (WeekMedals,
-	# 2026-11-06): the paper stays plain, the notice its plain red.
+	# 2026-11-06): the paper stays plain (its metal is the medal won, the 2026-11-09 play test).
 	var spent: Array[int] = [WeekMedals.State.USED, WeekMedals.State.USED]
-	assert_array(screen._stage.top_bar.week_chip.medals().states()).is_equal(spent)
-	assert_bool(screen._receipt.gold.is_gold() or screen._receipt.gold.is_silver()).is_false()
-	assert_bool(notice.get_theme_color("font_color") == Palette.TOMATO).is_true()
+	assert_array(screen._stage.medal_case.states()).is_equal(spent)
+	assert_bool(screen._receipt.gold.is_gold()).is_false()
+	assert_bool(screen._receipt.gold.is_silver()).is_false()
 	assert_bool(screen._machine.is_open()).is_true()
-	await _frames(3)
-	var notice_rect: Rect2 = notice.get_global_rect()
-	assert_bool(screen.get_global_rect().encloses(notice_rect)).is_true()
-	# The notice is not under the machine.
-	var machine_rect: Rect2 = screen._machine.view.get_global_rect()
-	assert_bool(machine_rect.intersects(notice_rect)).is_false()
 	assert_str(_last_event("checkout")["next_inspection"]).is_equal("spot_check")
 	screen._machine.debug_skip()
 
-	# Shift 3: the chip shows the day's kind in the top bar (v1.16: no effect; its name and
-	# notice on hover), never on the loyalty card.
+	# Shift 3: the calendar shows the day's kind in the top bar (v1.16: no effect; its name and
+	# notice on today's slip), never on the loyalty card.
 	assert_int(run.shift_index).is_equal(2)
-	assert_bool(screen._inspection_tag.visible).is_true()
-	assert_str(screen._inspection_tag.text()).is_equal(InspectionTag.CAPTION)
-	assert_str(screen._inspection_tag.tooltip_text).contains("Spot check")
-	assert_str(screen._inspection_tag.tooltip_text).contains("Slot 3 pays 0€")
-	assert_bool(screen._loyalty_card.is_ancestor_of(screen._inspection_tag)).is_false()
+	assert_bool(screen._calendar.visible).is_true()
+	assert_str(screen._calendar.text()).is_equal(InspectionTag.CAPTION)
+	var said: String = _slip_text(screen)
+	assert_str(said).contains("Spot check")
+	assert_str(said).contains("Slot 3 pays 0€")
+	assert_bool(screen._loyalty_card.is_ancestor_of(screen._calendar)).is_false()
 	assert_int(screen._loyalty_card.stamped_boxes().size()).is_equal(run.upgrades.size())
 	assert_array(_last_event("shift_start")["inspections"]).is_equal(["spot_check"])
-	# The top bar still fits the stage with the chip in it, above the shade, between the QUOTA
-	# chip and the LOYALTY chip (B2's order).
+	# The top bar still fits the stage; the desk calendar stands on the register's top (left
+	# column v2), inside the stage.
 	await _frames(3)
 	var top: Control = screen._top_bar
 	var stage: Rect2 = screen._stage.get_global_rect()
 	assert_float(top.get_combined_minimum_size().x).is_less_equal(stage.size.x - 40)
-	var tag: Rect2 = screen._inspection_tag.get_global_rect()
+	var parts: Dictionary = screen._calendar.part_rects()
+	var tag: Rect2 = parts["pad"]
 	assert_bool(stage.encloses(tag)).override_failure_message(str(tag)).is_true()
-	assert_float(tag.end.y).is_less_equal(stage.position.y + ShiftStage.PANEL_TOP)
-	var quota_chip: Rect2 = (screen._top_bar.get_child(1) as Control).get_global_rect()
-	assert_float(tag.position.x).is_greater_equal(quota_chip.end.x)
-	assert_float(tag.end.x).is_less_equal(screen._loyalty_card.get_global_rect().position.x)
-	# The warning sign and the name lie inside the chip, apart.
-	var icons: Array[Node] = screen._inspection_tag.find_children("*", "TextureRect", true, false)
-	var icon: Rect2 = (icons[0] as Control).get_global_rect()
-	var name_rect: Rect2 = screen._inspection_tag.label().get_global_rect()
+	assert_float(tag.end.y).is_equal_approx(stage.position.y + ShiftStage.REGISTER_TOP, 0.01)
+	assert_int(screen._calendar.look()).is_equal(DayCalendarArt.Look.INSPECTION)
+	# The warning sign and DAY lie inside the pad, apart (no kind word on the desk calendar).
+	var signs: Array = parts["signs"]
+	assert_int(signs.size()).is_equal(1)
+	var icon: Rect2 = signs[0]
+	var name_rect: Rect2 = parts["day"]
 	assert_bool(tag.encloses(icon) and tag.encloses(name_rect)).is_true()
 	assert_bool(icon.intersects(name_rect)).is_false()
 
@@ -140,7 +120,7 @@ func test_inspection_steps_print_and_play_from_the_tag() -> void:
 	Rush.no_write_ups(screen)
 	_only_spot_check(screen)
 	screen._debug.set_inspection("spot_check")
-	assert_bool(screen._inspection_tag.visible).is_true()
+	assert_bool(screen._calendar.visible).is_true()
 	assert_str(_last_event("debug")["action"]).is_equal("set_inspection")
 	# Slot 3 wears the inspection's "0€" mark on the empty belt already (2026-10-28).
 	var dead: SlotMark = screen._row_strip.inspection_mark(2, 0)
@@ -160,7 +140,7 @@ func test_inspection_steps_print_and_play_from_the_tag() -> void:
 	)
 	assert_int(steps.size()).is_equal(1)
 	await Rush.checkout(screen)
-	assert_object(screen._count_up._beats._source_control(steps[0])).is_same(screen._inspection_tag)
+	assert_object(screen._count_up._beats._source_control(steps[0])).is_same(screen._calendar)
 	# The anchored receipt pays planning's rows in place: the step plays on the monitor, not as a
 	# printed line (2026-11-05).
 	assert_str(_receipt_text(screen)).not_contains(RECEIPT_LINE)
@@ -257,7 +237,7 @@ func test_the_debug_panel_clears_the_inspection() -> void:
 	screen._debug.set_inspection("spot_check")
 	assert_array(_last_event("shift_start")["inspections"]).is_equal(["spot_check"])
 	screen._debug.set_inspection("")
-	assert_str(screen._inspection_tag.text()).is_equal(WeekCardModel.NO_EVENT)  # The day chip.
+	assert_str(screen._calendar.text()).is_equal(DayCalendar.NORMAL_WORD)  # The day calendar.
 	assert_array(screen.run.inspections).is_empty()
 	assert_array(_last_event("shift_start")["inspections"]).is_empty()
 	# An unknown id changes nothing.
@@ -281,33 +261,31 @@ func test_the_planning_notice_promises_and_earns_the_bonus_ticket() -> void:
 	screen._debug.set_inspection("spot_check")
 	var run: RunState = screen.run
 	assert_bool(run.machine.bonus_if_passed(run)).is_true()
-	var tag: InspectionTag = screen._inspection_tag
+	var tag: DayCalendar = screen._calendar
 	assert_int(tag.bonus_state()).is_equal(InspectionTag.Bonus.PROMISED)
-	# The whole promise is in the tooltip; a tight top bar shortens the pill to its ticket and "+1".
-	assert_str(tag.tooltip_text).contains("PASS › +1 BONUS TICKET")
+	# The whole promise is on today's slip; a tight top bar shortens the pill to its ticket and "+1".
+	assert_str(_slip_text(screen)).contains("PASS › +1 BONUS TICKET")
 	assert_str(tag.full_text()).contains("+1")
 	await _frames(3)
-	# The kind is cut only once everything else gave way (InspectionTag.fit_width; since v0.70
-	# the week chip's name and pips too, TopBar.fit_inspection), and the tooltip keeps the effect.
+	# The calendar keeps the day's kind (its width holds every page, v1.17); today's slip keeps the
+	# effect.
 	var effect: String = (load(SPOT_CHECK) as InspectionDefinition).notice_text
-	if tag.is_trimmed():
-		var week_chip: WeekChip = screen._stage.top_bar.week_chip
-		assert_bool(week_chip.name_shown() or week_chip.pips_shown()).is_false()
-	else:
-		assert_str(tag.label().text).is_equal(InspectionTag.CAPTION)
-	assert_str(tag.tooltip_text).contains(effect)
-	assert_str(tag.tooltip_text).contains((load(SPOT_CHECK) as InspectionDefinition).display_name)
-	assert_str(tag.tooltip_text).contains(InspectionTag.PILL_TIP)
+	assert_bool(tag.is_shortened()).is_false()
+	assert_str(tag.text()).is_equal(InspectionTag.CAPTION)
+	var said: String = _slip_text(screen)
+	assert_str(said).contains(effect)
+	assert_str(said).contains((load(SPOT_CHECK) as InspectionDefinition).display_name)
+	assert_str(said).contains(DayCalendar.PILL_TIP)
 	var chip: Rect2 = tag.get_global_rect()
-	var pill: Rect2 = tag.pill().get_global_rect()
-	assert_bool(tag.pill().visible).is_true()
-	assert_bool(chip.encloses(pill)).override_failure_message("%s in %s" % [pill, chip]).is_true()
-	assert_float(pill.position.x).is_greater_equal(tag.label().get_global_rect().end.x)
+	var pill: Rect2 = tag.tags.pill().get_global_rect()
+	assert_bool(tag.tags.pill().visible).is_true()
+	# The pill stands over the pad (DayTags, left column v2), its right edge on the pad's.
+	assert_float(pill.end.y).is_less_equal(chip.position.y)
+	assert_float(pill.end.x).is_less_equal(chip.end.x + 0.5)
 	var stage: Rect2 = screen._stage.get_global_rect()
-	assert_bool(stage.encloses(chip)).is_true()
-	assert_float(chip.end.y).is_less_equal(stage.position.y + ShiftStage.PANEL_TOP)
-	assert_float(chip.end.x).is_less_equal(screen._loyalty_card.get_global_rect().position.x)
-	for label: Label in tag.pill().find_children("*", "Label", true, false):
+	assert_bool(stage.encloses(chip) and stage.encloses(pill)).is_true()
+	assert_float(pill.end.x).is_less_equal(screen._loyalty_card.get_global_rect().position.x)
+	for label: Label in tag.tags.pill().find_children("*", "Label", true, false):
 		var font: Font = label.get_theme_font("font")
 		var font_size: int = label.get_theme_font_size("font_size")
 		var width: float = (
@@ -338,18 +316,20 @@ func test_the_planning_notice_promises_and_earns_the_bonus_ticket() -> void:
 	assert_bool(screen._monitor.get_global_rect().encloses(passed.get_global_rect())).is_true()
 	assert_bool(run.machine.bonus_earned(run)).is_true()
 	assert_int(tag.bonus_state()).is_equal(InspectionTag.Bonus.EARNED)
-	assert_str(tag.label().text).is_equal("Spot check passed")
-	assert_str(tag.full_text()).starts_with("Spot check passed +1")
-	# EARNED tints the paper frame teal pale (unearned, it is tomato pale).
-	var pale: Color = Palette.TEAL_PALE
-	var paper: Color = Palette.PAPER
-	var earned_tint: Color = Color(pale.r / paper.r, pale.g / paper.g, pale.b / paper.b)
-	assert_bool(tag.self_modulate.is_equal_approx(earned_tint)).is_true()
+	# EARNED (v1.17): the binding teal, the check mark and "Passed"; today's slip's line names it.
+	assert_str(tag.text()).is_equal(DayCalendar.EARNED_WORD)
+	assert_str(tag.full_text()).starts_with(DayCalendar.EARNED_WORD + " +1")
+	assert_str(WeekFlow.bonus_line(tag.bonus_state(), run.inspections)).contains(
+		"Spot check passed"
+	)
+	assert_int(tag.look()).is_equal(DayCalendarArt.Look.EARNED)
+	# The pill without "PASS ›": whole, or "+1" where the bar has no room (DayTags.fit).
+	assert_array([DayTags.PILL_TEXT, DayTags.PILL_SHORT]).contains([tag.tags.pill_text()])
 	screen._machine.debug_skip()  # The ticket's visit and the bonus ticket's.
 	# Shift 2 is not inspected: no pill.
 	assert_int(run.phase).is_equal(RunState.Phase.PLANNING)
 	assert_int(run.history[-1].shift).is_equal(1)
-	assert_str(tag.text()).is_equal(WeekCardModel.NO_EVENT)  # The day chip (v0.70).
+	assert_str(tag.text()).is_equal(DayCalendar.NORMAL_WORD)  # The day calendar.
 	assert_int(tag.bonus_state()).is_equal(InspectionTag.Bonus.NONE)
 
 
@@ -394,13 +374,6 @@ static func _scan_text(screen: ShiftScreen, slot: int) -> String:
 
 static func _receipt_text(screen: ShiftScreen) -> String:
 	return "\n".join(_receipt_lines(screen))
-
-
-static func _receipt_label(screen: ShiftScreen, text: String) -> Label:
-	for label: Node in screen._receipt.find_children("*", "Label", true, false):
-		if (label as Label).text == text and not label.is_queued_for_deletion():
-			return label
-	return null
 
 
 func _frames(count: int) -> void:
@@ -502,8 +475,8 @@ func test_a_closed_slot_shows_on_the_row() -> void:
 	assert_bool(closed_rect.intersects(screen._receipt.get_global_rect())).is_false()
 	assert_int(screen.run.limits.slot_count).is_equal(6)
 	assert_int(screen.run.limits.closed_slots).is_equal(1)
-	assert_str(screen._inspection_tag.text()).is_equal(InspectionTag.CAPTION)
-	assert_str(screen._inspection_tag.tooltip_text).contains("Short belt")
+	assert_str(screen._calendar.text()).is_equal(InspectionTag.CAPTION)
+	assert_str(_slip_text(screen)).contains("Short belt")
 	screen._row_strip.closed_clicked.emit()
 	assert_str(screen._notice_label.text).contains("Closed by the inspection")
 
@@ -531,7 +504,7 @@ func test_a_full_row_explains_why_a_card_does_not_fit() -> void:
 	var caption: Label = RowStrip.closed_caption_label(screen._row_strip.closed[0])
 	assert_str(caption.text).is_equal("inspection")
 	assert_str(screen._row_strip.closed[0].tooltip_text).contains("Short belt")
-	assert_str(screen._inspection_tag.text()).is_equal(InspectionTag.CAPTION)
+	assert_str(screen._calendar.text()).is_equal(InspectionTag.CAPTION)
 
 
 ## Day events aimed at a slot wear its mark (2026-10-31: "day event that impact a specific slot
@@ -602,3 +575,13 @@ func _assert_on_slot(screen: ShiftScreen, mark: SlotMark, slot: int) -> void:
 			other_panel.get_global_transform() * Rect2(Vector2.ZERO, other_panel.size)
 		)
 		assert_bool(other_cell.intersects(rect)).override_failure_message(message).is_false()
+
+
+## Today's slip's words (play test 2026-11-09: the slip in place of the calendar's tooltip), opened
+## as a tap on the calendar opens it, then closed.
+static func _slip_text(screen: ShiftScreen) -> String:
+	screen._week.drop()  # The time card (a week's first shift) would keep the slip shut.
+	screen._week.toggle_slip()
+	var text: String = screen._week.slip.slip_text()
+	screen._week.slip.clear()
+	return text

@@ -10,9 +10,7 @@ extends Node
 ## on the monitor, until another item gets the full scan or the owner lets it go
 ## (release_monitor: a card placed on the belt, the count's start, a new shift). Each refresh
 ## (watch) shows the pinned card again with its new lines (on the belt its slot's, in the hand none)
-## and lets it go once it is in neither. A belt item's full scan also frames its line on the
-## planning receipt
-## (ReceiptView.highlight_slot) until the scan ends; a hand item's frames none. The pointer
+## and lets it go once it is in neither. The pointer
 ## leaving the item cancels a pending hold, and back on the item the hold starts again; another
 ## item starts its own. Dragging an item ends the scan, a pending hold with it (`blocked`).
 ##
@@ -95,8 +93,6 @@ var tuning: ScanTuning
 var _stage: ShiftStage
 var _overlay: ScanOverlay
 var _monitor: MonitorView
-## The stage's receipt: a belt item's scan frames its line.
-var _receipt: ReceiptView
 var _popup: ScanPopup
 ## The offers' panel (cover_offers), the layer over it that an offer's scan opens in, that
 ## layer's marks, and the offered items.
@@ -129,8 +125,6 @@ var _hold_from: int = -1
 var _beep_ms: int = -THROTTLE_MS
 ## A refresh rebuilt the items: the scan is shown again once they are laid out (_reshow).
 var _reshow_queued: bool = false
-## Whether the scan framed a line on the receipt (_highlight).
-var _framed: bool = false
 
 
 ## A belt item's payout and step lines for the monitor's item column (#105 piece 2): `payout` (-1
@@ -189,7 +183,6 @@ func setup(stage: ShiftStage) -> void:
 	_stage = stage
 	_overlay = stage.scan_layer
 	_monitor = stage.monitor
-	_receipt = stage.receipt
 	_popup = ScanPopup.new()
 	_popup.name = "ScanPopup"
 	_popup.visible = false
@@ -265,7 +258,6 @@ func clear() -> void:
 	_reshow_queued = false
 	if _popup != null:
 		_popup.visible = false
-	_highlight(-1)
 	for marks: ScanOverlay in [_overlay, _offer_overlay]:
 		if marks != null:
 			marks.dock()
@@ -624,7 +616,6 @@ func _show(view: ItemView) -> void:
 	set_process(true)
 	if not _full:
 		_popup.visible = false
-		_highlight(-1)
 		for docked: ScanOverlay in [_overlay, _offer_overlay]:
 			if docked != null:
 				docked.dock()
@@ -650,13 +641,11 @@ func _show(view: ItemView) -> void:
 		_popup.place_at(
 			sprite, view.below_rect(), _stage.get_global_rect(), _offer_panel.get_global_rect()
 		)
-		_highlight(-1)
 	else:
 		_popup.visible = false
 		var belt: bool = view.form == ItemView.Form.BELT and slot >= 0
 		_monitor_card = view.card
 		_monitor.show_scan(definition, view.tags(), shown, slot if belt else -1)
-		_highlight(slot if belt else -1)
 	marks.pose_hover(sprite)
 	if _wants_reduced_motion():
 		marks.stop_beam_loop()
@@ -679,15 +668,6 @@ func _show_pinned() -> void:
 			_monitor.show_scan(_monitor_card.definition, item.tags(), ItemLines.new())
 			return
 	release_monitor()
-
-
-## Frames `slot`'s line on the planning receipt, or none for -1. Unframing only takes the scan's
-## own frame off: a hovered item's (PlanningEffects, #71) stays.
-func _highlight(slot: int) -> void:
-	if _receipt == null or (slot < 0 and not _framed):
-		return
-	_framed = slot >= 0
-	_receipt.highlight_slot(slot)
 
 
 func _beep() -> void:

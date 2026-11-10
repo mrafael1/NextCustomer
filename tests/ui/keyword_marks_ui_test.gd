@@ -2,15 +2,18 @@ extends GdUnitTestSuite
 ## The belt's MORNING and PAIR marks (v1.06, the keywords handbook: "MORNING and PAIR miss a
 ## visual on the ticket"). The score records the MORNING (when a card in the row reads it) and
 ## every PAIR (ScoreResult.mornings, pairs), the planning model passes them on, and on the real
-## shift screen KeywordMarks hangs the MORNING ribbon (its sun and MORNING chip) under exactly the
-## MORNING's tickets and puts a teal clasp across each PAIR's gap, inside the screen, clear of the
-## tickets' text. The real saves and logs are never touched.
+## shift screen KeywordMarks draws the MORNING's line (v1.24: a pin on each of its tickets' feet,
+## joined by one chain from a post at the row's start, clear of the marks hanging there) and puts
+## a teal clasp across each PAIR's gap, inside the screen, clear of the tickets' text. The real
+## saves and logs are never touched.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 const CARDS := "res://data/cards/%s.tres"
 const SCREEN_RECT := Rect2(0, 0, 1280, 720)
 ## A MORNING of three (Potatoes ends it) read by Tea bags and Coffee, then Butter beside Bread.
 const ROW: Array[String] = ["tea_bags", "bread", "milk", "potatoes", "coffee", "butter", "bread"]
+## How far under the tickets' feet v1.06's ribbon reached: nothing of the line hangs lower.
+const RIBBON_REACH := 20.0
 
 var _folder: String = ""
 var _window_size: Vector2i
@@ -65,29 +68,79 @@ func test_a_joined_result_moves_the_second_rows_marks() -> void:
 	assert_array(ScoreResult.continued(second, 10).pairs).is_equal([Vector2i(0, 1)])
 
 
-## The ribbon hangs under exactly the MORNING's tickets (from the first's left to the last's
-## right), its top tucked under their feet, inside the screen, its sun and chip inside it; a clasp
-## crosses the Butter and Bread gap at the tickets' middle, clear of both tickets' text.
+## The MORNING's line: a pin on each of its tickets, the first one's too, at the same place on each
+## foot (PIN_LEFT in, PIN_OVER over it); the anchor post before the first ticket, in the belt's
+## margin at the row's start, level with the pins; one chain from the post's middle to the last
+## pin's, through the gaps between the run's tickets, under the pins. All of it inside the screen,
+## no lower than v1.06's ribbon hung, clear of the tickets' text, and nothing on Potatoes, which
+## ends the MORNING. A clasp crosses the Butter and Bread gap at the tickets' middle, clear of
+## both tickets' text.
 func test_the_marks_sit_on_the_belt() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _place(screen, ROW)
 	var marks: KeywordMarks = _marks(screen)
 	assert_array(Array(marks.morning_slots())).is_equal([0, 1, 2])
-	var ribbon: MorningRibbon = marks.ribbon()
-	assert_bool(ribbon.is_visible_in_tree()).is_true()
-	var band: Rect2 = ribbon.get_global_rect()
+	assert_int(marks.pins().size()).is_equal(3)
 	var first: Rect2 = _ticket(screen, 0)
-	var last: Rect2 = _ticket(screen, 2)
-	assert_float(band.position.x).is_equal_approx(first.position.x, 1.0)
-	assert_float(band.end.x).is_equal_approx(last.end.x, 1.0)
-	assert_float(band.position.y).is_equal_approx(first.end.y - KeywordMarks.RIBBON_TUCK, 1.0)
-	assert_bool(SCREEN_RECT.encloses(band)).is_true()
-	assert_bool(band.encloses(ribbon.sun().get_global_rect())).is_true()
-	assert_bool(ribbon.chip().visible).is_true()
-	assert_bool(band.encloses(ribbon.chip().get_global_rect())).is_true()
-	assert_str(ribbon.chip().keyword).is_equal(CardText.MORNING_WORD)
-	# Not under Potatoes, which ends the MORNING.
-	assert_float(band.end.x).is_less(_ticket(screen, 3).position.x)
+	var parts: Array[Rect2] = []
+	for index: int in range(3):
+		var pin: MorningPin = marks.pins()[index]
+		assert_bool(pin.is_visible_in_tree()).is_true()
+		var ticket: Rect2 = _ticket(screen, index)
+		var rect: Rect2 = pin.get_global_rect()
+		assert_vector(rect.size).is_equal(Vector2(MorningPin.SIDE, MorningPin.SIDE))
+		assert_float(rect.position.x).is_equal_approx(
+			ticket.position.x + KeywordMarks.PIN_LEFT, 1.0
+		)
+		assert_float(rect.position.y).is_equal_approx(ticket.end.y - KeywordMarks.PIN_OVER, 1.0)
+		# On the ticket's foot edge: it starts on the ticket and ends under it.
+		assert_float(rect.position.y).is_less(ticket.end.y)
+		assert_float(rect.end.y).is_greater(ticket.end.y)
+		assert_float(rect.end.x).is_less(ticket.end.x)
+		assert_bool(pin.face_color().is_equal_approx(Palette.MUSTARD)).is_true()
+		parts.append(Rect2(rect.position, rect.size + MorningPin.SHADOW))
+	# The post: before the first ticket, level with the pins, the line's start.
+	var post: Rect2 = marks.post().get_global_rect()
+	assert_bool(marks.post().is_visible_in_tree()).is_true()
+	assert_float(post.end.x).is_less_equal(first.position.x)
+	assert_float(post.position.x).is_equal_approx(first.position.x - KeywordMarks.POST_OUT, 1.0)
+	assert_float(post.get_center().y).is_equal_approx(
+		parts[0].position.y + MorningPin.SIDE / 2.0, 1.0
+	)
+	parts.append(Rect2(post.position, post.size + MorningPin.SHADOW))
+	# One chain, from the post's middle to the last pin's, crossing every gap of the run.
+	var links: Array[Rect2] = _link_rects(marks)
+	assert_int(links.size()).is_equal(1)
+	assert_float(links[0].position.x).is_equal_approx(post.get_center().x, 1.0)
+	var last: Rect2 = marks.pins()[2].get_global_rect()
+	assert_float(links[0].end.x).is_equal_approx(last.get_center().x, 1.0)
+	assert_float(links[0].get_center().y).is_equal_approx(last.get_center().y, 1.0)
+	# A ring links each two tickets of the run, in the middle of their gap.
+	var link: MorningLink = marks.links()[0]
+	assert_int(link.ring_rects().size()).is_equal(2)
+	for gap: int in [0, 1]:
+		var ring: Rect2 = link.get_global_transform() * link.ring_rects()[gap]
+		var middle: float = (_ticket(screen, gap).end.x + _ticket(screen, gap + 1).position.x) / 2.0
+		assert_float(ring.get_center().x).is_equal_approx(middle, 2.0)
+		assert_bool(links[0].encloses(ring)).is_true()
+	parts.append_array(links)
+	# The pins and the post draw over the chain.
+	for pin: MorningPin in marks.pins():
+		assert_int(pin.get_index()).is_greater(marks.links()[0].get_index())
+	assert_int(marks.post().get_index()).is_greater(marks.links()[0].get_index())
+	for part: Rect2 in parts:
+		assert_bool(SCREEN_RECT.encloses(part)).is_true()
+		# No lower than the ribbon hung, so clear of the hand baskets as it was.
+		assert_float(part.end.y).is_less_equal(first.end.y + RIBBON_REACH)
+		assert_float(part.end.y).is_less_equal(first.end.y + KeywordMarks.PIN_REACH)
+		# Not on Potatoes, which ends the MORNING.
+		assert_float(part.end.x).is_less(_ticket(screen, 3).position.x)
+	# Clear of each ticket's text.
+	for slot: int in [0, 1, 2]:
+		var summary: PriceSticker = _item(screen, slot).sticker()
+		var words: Rect2 = summary.get_global_transform() * summary.summary_text_rect()
+		for part: Rect2 in parts:
+			assert_bool(part.intersects(words)).override_failure_message(str(slot)).is_false()
 	assert_array(marks.clasp_gaps()).is_equal([Vector2i(5, 6)])
 	var clasp: Rect2 = marks.clasps()[0].get_global_rect()
 	var butter: Rect2 = _ticket(screen, 5)
@@ -105,15 +158,57 @@ func test_the_marks_sit_on_the_belt() -> void:
 		assert_bool(clasp.intersects(text)).override_failure_message(str(slot)).is_false()
 
 
-## The ribbon keeps clear of the marks hanging in its band: the Spot check's sign under slot 3, the
-## Slot engine's talker under slot 6 and a GOLDEN Breakfast ticket's gold ring (it hangs under the
-## ring). Its pieces, its sun and its chip meet none of them, and it still spans the MORNING.
-func test_the_ribbon_keeps_clear_of_the_hanging_marks(
+## A MORNING of one is its pin, joined to the post at the row's start; a MORNING of five a pin on
+## each of its tickets, all on one chain from the post.
+func test_runs_of_one_and_five_are_one_line_from_the_row_start(
+	row: String,
+	run: int,
+	_test_parameters := [
+		["coffee,potatoes,milk", 1],
+		["tea_bags,bread,milk,cereal,coffee,potatoes", 5],
+	]
+) -> void:
+	var screen: ShiftScreen = await _screen()
+	var ids: Array[String] = []
+	ids.assign(row.split(","))
+	await _place(screen, ids)
+	var marks: KeywordMarks = _marks(screen)
+	assert_int(marks.morning_slots().size()).is_equal(run)
+	for index: int in range(run):
+		var pin: MorningPin = marks.pins()[index]
+		assert_bool(pin.is_visible_in_tree()).is_true()
+		var ticket: Rect2 = _ticket(screen, marks.morning_slots()[index])
+		var rect: Rect2 = pin.get_global_rect()
+		assert_float(rect.position.x).is_equal_approx(
+			ticket.position.x + KeywordMarks.PIN_LEFT, 1.0
+		)
+		assert_float(rect.position.y).is_equal_approx(ticket.end.y - KeywordMarks.PIN_OVER, 1.0)
+	var start: float = marks.post().get_global_rect().get_center().x
+	var end: float = marks.pins()[run - 1].get_global_rect().get_center().x
+	_assert_continuous(_link_rects(marks), start, end, screen._row_strip.mark_rects())
+	assert_float(start).is_less(_ticket(screen, 0).position.x)
+	# Nothing past the run's last ticket.
+	assert_float(_link_rects(marks)[-1].end.x).is_less(_ticket(screen, run - 1).end.x)
+	# A ring in each gap the line crosses: one fewer than the run's tickets.
+	var rings: int = 0
+	for link: MorningLink in marks.links():
+		rings += link.ring_rects().size()
+	assert_int(rings).is_equal(run - 1)
+
+
+## The line keeps clear of the marks hanging on the tickets' feet (the Spot check's sign under
+## slot 3, the Slot engine's talker under slot 6, a chain's knot plate) and stays one line: a pin
+## that would meet one steps aside on its ticket's foot, and the chain is cut round each mark and
+## goes on after it, from the post at the row's start (before the coupons that open a row, whose
+## tickets it crosses) to the last pin. Under a GOLDEN Breakfast ticket's gold ring its pin sits on
+## the ring's foot.
+func test_the_line_keeps_clear_of_the_hanging_marks(
 	row: String,
 	_test_parameters := [
 		["tea_bags,bread,milk_golden,potatoes,coffee,butter,bread"],
 		["tea_bags,bread,milk,cereal,coffee,milk,potatoes"],
 		["tea_bags,bread_golden,milk,cereal,coffee,milk_golden,potatoes"],
+		["two_for_one,multipack,milk,bread,coffee,potatoes"],
 	]
 ) -> void:
 	var screen: ShiftScreen = await _screen()
@@ -125,36 +220,220 @@ func test_the_ribbon_keeps_clear_of_the_hanging_marks(
 	var marks: KeywordMarks = _marks(screen)
 	var morning: PackedInt32Array = marks.morning_slots()
 	assert_bool(morning.has(2)).override_failure_message(str(morning)).is_true()
-	var pieces: Array[Rect2] = _ribbon_pieces(marks)
-	assert_array(pieces).is_not_empty()
 	var hanging: Array[Rect2] = screen._row_strip.mark_rects()
 	assert_array(hanging).is_not_empty()
-	for slot: int in morning:
+	var parts: Array[Rect2] = _link_rects(marks)
+	var end: float = NAN
+	for index: int in range(morning.size()):
+		var slot: int = morning[index]
+		var ticket: Rect2 = _ticket(screen, slot)
+		var foot: float = ticket.end.y
 		var ring: TextureRect = _item(screen, slot).sticker().gold_ring()
-		if ring != null:
-			var foot: float = ring.get_global_rect().end.y - KeywordMarks.RIBBON_TUCK
-			assert_float(pieces[0].position.y).is_greater_equal(foot - 1.0)
-	var ribbon: MorningRibbon = marks.ribbon()
-	var parts: Array[Rect2] = pieces.duplicate()
-	parts.append(ribbon.sun().get_global_rect())
-	if ribbon.chip().visible:
-		parts.append(ribbon.chip().get_global_rect())
+		if ring != null and ring.is_visible_in_tree():
+			foot = ring.get_global_rect().end.y
+			assert_float(foot).is_greater(ticket.end.y)
+		var pin: MorningPin = marks.pins()[index]
+		var shown: String = "no pin on slot %d" % slot
+		assert_bool(pin.is_visible_in_tree()).override_failure_message(shown).is_true()
+		var part: Rect2 = Rect2(pin.get_global_position(), MorningPin.footprint())
+		assert_float(part.position.y).is_equal_approx(foot - KeywordMarks.PIN_OVER, 1.0)
+		assert_float(part.position.x).is_greater_equal(ticket.position.x)
+		assert_float(part.end.x).is_less_equal(ticket.end.x)
+		assert_float(part.end.y).is_less_equal(foot + RIBBON_REACH)
+		parts.append(part)
+		end = pin.get_global_rect().get_center().x
+	var post: Rect2 = marks.post().get_global_rect()
+	assert_float(post.end.x).is_less_equal(_ticket(screen, 0).position.x)
+	parts.append(post)
 	for part: Rect2 in parts:
 		assert_bool(SCREEN_RECT.encloses(part)).is_true()
 		for mark: Rect2 in hanging:
 			var met: String = "%s meets %s" % [part, mark]
 			assert_bool(part.intersects(mark)).override_failure_message(met).is_false()
-	assert_bool(ribbon.sun().visible).is_true()
-	var inside: bool = false
-	for piece: Rect2 in pieces:
-		inside = inside or piece.encloses(ribbon.sun().get_global_rect())
-	assert_bool(inside).is_true()
-	# The ribbon spans the MORNING (a cut at its end leaves that end open).
-	var band: Rect2 = ribbon.get_global_rect()
-	assert_float(band.position.x).is_equal_approx(_ticket(screen, morning[0]).position.x, 1.0)
-	assert_float(band.end.x).is_equal_approx(_ticket(screen, morning[-1]).end.x, 1.0)
-	assert_float(pieces[0].position.x).is_greater_equal(band.position.x)
-	assert_float(pieces[-1].end.x).is_less_equal(band.end.x)
+	_assert_continuous(_link_rects(marks), post.get_center().x, end, hanging)
+	if row.begins_with("two_for_one"):
+		# The MORNING opens on slot 3, under the Spot check's sign: the chain runs from the row's
+		# start under the coupons' tickets, and is cut round the sign.
+		assert_float(post.end.x).is_less(_ticket(screen, 0).position.x + 1.0)
+		assert_int(_link_rects(marks).size()).is_greater(1)
+
+
+## A place on a ticket's foot (KeywordMarks._free_x): the usual one when free, else the nearest
+## that keeps PIN_GAP clear of every hanging mark, inside the ticket; none when nothing is left.
+func test_a_part_steps_aside_to_the_nearest_free_place() -> void:
+	var ticket: Rect2 = Rect2(100, 400, 108, 76)
+	var room: Rect2 = Rect2(0, 470, 20, 20)
+	var none: Array[Rect2] = []
+	assert_float(KeywordMarks._free_x(ticket, room, 1.0, none)).is_equal(110.0)
+	# A mark far along the foot, or above or under the part's band, changes nothing.
+	var far: Array[Rect2] = [
+		Rect2(170, 474, 30, 22), Rect2(104, 440, 40, 28), Rect2(104, 492, 40, 9)
+	]
+	assert_float(KeywordMarks._free_x(ticket, room, 1.0, far)).is_equal(110.0)
+	# A mark on the usual place: just after it when that is nearer, else just before it.
+	var on_it: Array[Rect2] = [Rect2(104, 474, 20, 22)]
+	assert_float(KeywordMarks._free_x(ticket, room, 1.0, on_it)).is_equal(126.0)
+	var wide: Array[Rect2] = [Rect2(126, 474, 82, 22)]
+	assert_float(KeywordMarks._free_x(ticket, room, 1.0, wide)).is_equal(104.0)
+	# No room on either side: none.
+	var full: Array[Rect2] = [Rect2(110, 474, 90, 22)]
+	assert_bool(is_nan(KeywordMarks._free_x(ticket, room, 1.0, full))).is_true()
+
+
+## The line stays one line whatever its pins do: a pin a mark pushes aside keeps its ticket and
+## the chain still runs through it; a pin with no room hides, and the chain still runs to that
+## ticket's pin place, cut only round the marks. A drag's ghost is skipped (the post moves to the
+## first ticket left), and a ticket missing from the row hides the whole line.
+func test_the_line_stays_continuous_when_pins_step_aside_or_hide() -> void:
+	var marks: KeywordMarks = auto_free(KeywordMarks.new())
+	add_child(marks)
+	var model: PlanningModel = _model("tea_bags,bread,milk,potatoes")
+	marks.show_marks(model)
+	var tickets: Dictionary[int, Rect2] = {}
+	for slot: int in range(4):
+		tickets[slot] = Rect2(100.0 + 128.0 * slot, 400, 108, 76)
+	var blocked: Array[Rect2] = [Rect2(104, 474, 20, 22)]
+	marks.obstacles = func() -> Array[Rect2]: return blocked
+	marks.lay_out(tickets)
+	var pins: Array[MorningPin] = marks.pins()
+	assert_float(pins[0].position.x).is_equal(126.0)
+	assert_float(marks.post().position.x).is_equal(100.0 - KeywordMarks.POST_OUT)
+	var start: float = marks.post().get_global_rect().get_center().x
+	var end: float = pins[2].get_global_rect().get_center().x
+	_assert_continuous(_link_rects(marks), start, end, blocked)
+	assert_int(_link_rects(marks).size()).is_equal(2)
+	# The last ticket's foot full: its pin hides, the chain runs on to its pin place.
+	blocked.assign([Rect2(104, 474, 20, 22), Rect2(358, 474, 104, 22)])
+	marks.lay_out(tickets)
+	assert_bool(pins[2].visible).is_false()
+	assert_bool(pins[1].visible).is_true()
+	var place: float = 356.0 + KeywordMarks.PIN_LEFT + MorningPin.SIDE / 2.0
+	_assert_continuous(_link_rects(marks), start, place, blocked)
+	# The ghost's slot is skipped: no pin there, the line still from the row's first ticket left.
+	blocked.clear()
+	var dragged: Dictionary[int, Rect2] = tickets.duplicate()
+	dragged.erase(0)
+	marks.lay_out(dragged, PackedInt32Array([0]))
+	assert_bool(pins[0].visible).is_false()
+	assert_float(marks.post().position.x).is_equal(228.0 - KeywordMarks.POST_OUT)
+	_assert_continuous(
+		_link_rects(marks),
+		marks.post().get_global_rect().get_center().x,
+		pins[2].get_global_rect().get_center().x,
+		blocked
+	)
+	tickets.erase(2)
+	marks.lay_out(tickets)
+	assert_bool(marks.post().visible).is_false()
+	assert_array(marks.links()).is_empty()
+	for pin: MorningPin in pins:
+		assert_bool(pin.visible).is_false()
+
+
+## On Big basket's scaled 8-slot row the line scales with the tickets: each pin keeps its place on
+## its ticket's foot, the chain and the post scale with them and the chain still runs from the post
+## to the last pin.
+func test_the_line_follows_a_scaled_row() -> void:
+	var screen: ShiftScreen = await _screen()
+	screen._debug.give_upgrade("big_basket")
+	await _frames(2)
+	var ids: Array[String] = [
+		"tea_bags", "bread", "milk", "cereal", "coffee", "milk", "bread", "potatoes"
+	]
+	await _place(screen, ids)
+	var marks: KeywordMarks = _marks(screen)
+	var morning: PackedInt32Array = marks.morning_slots()
+	assert_int(morning.size()).is_equal(7)
+	var first: Rect2 = _ticket(screen, 0)
+	var by: float = first.size.y / PriceSticker.SIZE.y
+	assert_float(by).is_less(1.0)
+	var last_end: float = -INF
+	for index: int in range(morning.size()):
+		var pin: MorningPin = marks.pins()[index]
+		assert_bool(pin.is_visible_in_tree()).is_true()
+		var ticket: Rect2 = _ticket(screen, morning[index])
+		var rect: Rect2 = pin.get_global_rect()
+		assert_float(rect.size.x).is_equal_approx(MorningPin.SIDE * by, 0.01)
+		assert_float(rect.position.x).is_equal_approx(
+			ticket.position.x + KeywordMarks.PIN_LEFT * by, 1.0
+		)
+		assert_float(rect.position.y).is_equal_approx(
+			ticket.end.y - KeywordMarks.PIN_OVER * by, 1.0
+		)
+		assert_float(rect.end.x).is_less(ticket.end.x)
+		assert_float(rect.position.x).is_greater(last_end)
+		assert_bool(SCREEN_RECT.encloses(rect)).is_true()
+		last_end = rect.end.x
+	var post: Rect2 = marks.post().get_global_rect()
+	assert_float(post.size.y).is_equal_approx(MorningPin.SIDE * by, 0.01)
+	assert_bool(SCREEN_RECT.encloses(post)).is_true()
+	for link: MorningLink in marks.links():
+		assert_float(link.get_global_rect().size.y).is_equal_approx(MorningLink.RING.y * by, 0.01)
+	_assert_continuous(
+		_link_rects(marks),
+		post.get_center().x,
+		marks.pins()[-1].get_global_rect().get_center().x,
+		screen._row_strip.mark_rects()
+	)
+
+
+## The line is the MORNING keyword's own on the belt: resting on a pin, the post or the chain
+## (their place tall enough to hit) shows MORNING's tooltip and lights the whole line gold (as a
+## ticket's MORNING chip does), and a right-click then opens the handbook at MORNING.
+func test_the_line_explains_the_morning() -> void:
+	var screen: ShiftScreen = await _screen()
+	await _place(screen, ROW)
+	var marks: KeywordMarks = _marks(screen)
+	var tips: GlyphTips = screen._glyph_tips
+	var page: HandbookPage = screen.find_child("HandbookPage", false, false) as HandbookPage
+	var link: MorningLink = marks.links()[0]
+	# Between two pins, on the chain.
+	var on_chain: Vector2 = Vector2(
+		(
+			(marks.pins()[0].get_global_rect().end.x + marks.pins()[1].get_global_rect().position.x)
+			/ 2.0
+		),
+		link.get_global_rect().get_center().y
+	)
+	assert_float(link.hover_rect().size.y).is_greater_equal(MorningMark.HOVER_HEIGHT)
+	var targets: Dictionary[MorningMark, Vector2] = {
+		marks.pins()[1]: marks.pins()[1].get_global_rect().get_center(),
+		marks.post(): marks.post().get_global_rect().get_center(),
+		link: on_chain,
+	}
+	for target: MorningMark in targets:
+		assert_str(target.tip_text).is_equal(GlyphText.keyword_tip(CardText.MORNING_WORD))
+		assert_object(tips.glyph_at(targets[target])).is_same(target)
+		assert_bool(page.has_entry_for(target)).is_true()
+		assert_str(page.entry_for_target(target).id).is_equal("morning")
+	tips.point_at(on_chain)
+	tips.show_tip(link)
+	for part: MorningMark in _line(marks):
+		assert_bool(part.is_lit()).is_true()
+		assert_that(part.face_color()).is_equal(Palette.GOLD)
+	tips.hide_tip()
+	for part: MorningMark in _line(marks):
+		assert_bool(part.is_lit()).is_false()
+	# A ticket's own MORNING chip lights it too.
+	var ticket_chip: KeywordChip = _item(screen, 0).sticker().summary().keywords()[0]
+	assert_str(ticket_chip.keyword).is_equal(CardText.MORNING_WORD)
+	tips.show_tip(ticket_chip)
+	assert_bool(marks.pins()[1].is_lit()).is_true()
+	assert_bool(link.is_lit()).is_true()
+	tips.hide_tip()
+	assert_bool(link.is_lit()).is_false()
+	var pin: MorningPin = marks.pins()[2]
+	tips.point_at(pin.get_global_rect().get_center())
+	tips.show_tip(pin)
+	var click: InputEventMouseButton = InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_RIGHT
+	click.pressed = true
+	click.position = pin.get_global_rect().get_center()
+	click.global_position = click.position
+	tips._input(click)
+	assert_bool(page.is_open()).is_true()
+	assert_str(page.shown_entry().id).is_equal("morning")
+	page.close()
 
 
 ## A PAIR clasp in a gap a batch or chain frame's side runs through draws over the frame, and it
@@ -221,12 +500,15 @@ func test_a_pair_clasp_beside_a_frame_keeps_clear_of_its_parts(
 		assert_bool(rect.intersects(text)).override_failure_message(str(slot)).is_false()
 
 
-## A row with neither shows no ribbon and no clasp.
+## A row with neither shows no pin, no post, no chain and no clasp: Breakfast items open it, but
+## no card reads the MORNING.
 func test_a_plain_row_shows_no_marks() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _place(screen, ["bread", "milk", "potatoes"])
 	var marks: KeywordMarks = _marks(screen)
-	assert_bool(marks.ribbon().visible).is_false()
+	assert_bool(marks.post().is_visible_in_tree()).is_false()
+	assert_array(marks.links()).is_empty()
+	assert_array(marks.pins()).is_empty()
 	assert_array(marks.clasps()).is_empty()
 
 
@@ -238,13 +520,51 @@ static func _layer(screen: ShiftScreen) -> PlanningLayer:
 	return screen._stage.planning_layer
 
 
-## The ribbon's pieces, global rects.
-static func _ribbon_pieces(marks: KeywordMarks) -> Array[Rect2]:
-	var to_global: Transform2D = (marks.get_parent().get_parent() as Control).get_global_transform()
-	var pieces: Array[Rect2] = []
-	for piece: Rect2 in marks.ribbon_rects():
-		pieces.append(to_global * piece)
-	return pieces
+## The chain's stretches shown, global rects, left to right.
+static func _link_rects(marks: KeywordMarks) -> Array[Rect2]:
+	var rects: Array[Rect2] = []
+	for link: MorningLink in marks.links():
+		rects.append(link.get_global_rect())
+	rects.sort_custom(func(a: Rect2, b: Rect2) -> bool: return a.position.x < b.position.x)
+	return rects
+
+
+## Every part of the MORNING's line shown: its pins, post and chain.
+static func _line(marks: KeywordMarks) -> Array[MorningMark]:
+	var parts: Array[MorningMark] = []
+	for pin: MorningPin in marks.pins():
+		if pin.visible:
+			parts.append(pin)
+	parts.append(marks.post())
+	parts.append_array(marks.links())
+	return parts
+
+
+## The chain `links` (global, left to right) covers `start` to `end` but for the hanging `marks`
+## (each grown by KeywordMarks.PIN_GAP): every gap between two stretches, and an end left open,
+## lies in one, and nothing of it runs past either end.
+func _assert_continuous(links: Array[Rect2], start: float, end: float, marks: Array[Rect2]) -> void:
+	assert_array(links).is_not_empty()
+	if links.is_empty():
+		return
+	assert_float(links[0].position.x).is_equal_approx(start, 1.0)
+	assert_float(links[-1].end.x).is_less_equal(end + 1.0)
+	var at: float = start
+	var spans: Array[Vector2] = []
+	for link: Rect2 in links:
+		spans.append(Vector2(link.position.x, link.end.x))
+	spans.append(Vector2(end, end))
+	for span: Vector2 in spans:
+		if span.x > at + 1.0:
+			var covered: bool = false
+			for mark: Rect2 in marks:
+				var grown: float = KeywordMarks.PIN_GAP + 1.0
+				covered = (
+					covered or (mark.position.x - grown <= at and mark.end.x + grown >= span.x)
+				)
+			var open: String = "the chain is open from %s to %s" % [at, span.x]
+			assert_bool(covered).override_failure_message(open).is_true()
+		at = maxf(at, span.y)
 
 
 static func _row(ids: String) -> Array[CardInstance]:
