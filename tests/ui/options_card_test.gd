@@ -150,6 +150,8 @@ func test_keys_walk_the_rows_and_change_the_marked_one() -> void:
 	card.handle_key(_key(KEY_ESCAPE))
 	assert_array(closed).is_equal([true])
 	assert_bool(card.is_open()).is_false()
+	# The TEXT SIZE change rebuilt the rows: the old ones are freed at the frame's end.
+	await await_idle_frame()
 
 
 func test_volumes_and_the_display_apply_through_the_setters() -> void:

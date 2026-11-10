@@ -35,6 +35,7 @@ func _init() -> void:
 	_minus = RegisterKey.new(RegisterKey.Kind.CREAM, "-", 16, KEY_SIZE)
 	_minus.pressed.connect(func() -> void: value_picked.emit(maxi(value - 1, 0)))
 	add_child(_minus)
+	OptionChip.pixel_caption(_minus, "-")
 	var pips_end: float = PIP_LEFT + PIP_STEP * ProfileState.VOLUME_MAX
 	_plus = RegisterKey.new(RegisterKey.Kind.CREAM, "+", 16, KEY_SIZE)
 	_plus.position = Vector2(pips_end + 8, 0)
@@ -42,6 +43,7 @@ func _init() -> void:
 		func() -> void: value_picked.emit(mini(value + 1, ProfileState.VOLUME_MAX))
 	)
 	add_child(_plus)
+	OptionChip.pixel_caption(_plus, "+")
 	_window_x = pips_end + 52
 	_number = UiKit.pixel_label("", 4, Palette.INK)
 	_number.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -97,7 +99,9 @@ func _draw() -> void:
 	draw_rect(Rect2(wx + 2, 2, 44, 36), Palette.CREAM_SHADE if mute else Palette.PAPER)
 	draw_rect(Rect2(wx + 2, 2, 44, 2), Palette.CREAM_SHADE)
 	draw_rect(Rect2(wx + 2, 2, 2, 36), Palette.CREAM_SHADE)
-	var number_size: Vector2 = UiKit.pixel_text_size(_number)
-	_number.position = (Vector2(wx + 26 - number_size.x / 2.0, 4)).round()
+	# The digits centred on the paper (right of its shaded column), on the 2 px grid.
+	var number_width: float = UiKit.pixel_text_size(_number).x
+	var number_left: float = wx + 4.0 + 2.0 * floorf((42.0 - number_width) / 4.0)
+	UiKit.place_pixel_label(_number, Rect2(number_left, 4, number_width, 34), true)
 	if mute:
 		draw_rect(Rect2(wx + 8, 18, 34, 4), Palette.TOMATO_DARK)

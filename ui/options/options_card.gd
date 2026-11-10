@@ -55,6 +55,8 @@ var _chips: Dictionary[int, Array] = {}
 var _volumes: Dictionary[int, VolumePips] = {}
 var _motion_key: RegisterKey
 var _motion_note: Label
+## The motion key's pixel caption (OptionChip.pixel_caption): OFF or ON.
+var _motion_words: Label
 var _done: MenuPlate
 ## The dashed rules between the rows, by their top (canvas px on the sheet), and the hint's.
 var _rules: Array[float] = []
@@ -266,7 +268,7 @@ func _refresh() -> void:
 	var on: bool = profile.reduced_motion()
 	_motion_key.set_kind(RegisterKey.Kind.PAYDAY if on else RegisterKey.Kind.CREAM)
 	_motion_key.held = on
-	_motion_key.caption = "ON" if on else "OFF"
+	OptionChip.set_key_caption(_motion_key, _motion_words, "ON" if on else "OFF")
 	_motion_note.visible = on
 
 
@@ -366,6 +368,7 @@ func _add_row(row: Row, y: float) -> float:
 			_motion_key.position = at
 			_motion_key.pressed.connect(func() -> void: _set_motion(not profile.reduced_motion()))
 			_content.add_child(_motion_key)
+			_motion_words = OptionChip.pixel_caption(_motion_key, "OFF")
 			_motion_note = UiKit.pixel_label("THE STORE STANDS STILL", 2, Palette.GREY)
 			UiKit.place_pixel_label(_motion_note, Rect2(at.x + 132, y + 14, 0, 0))
 			_content.add_child(_motion_note)

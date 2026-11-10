@@ -166,8 +166,13 @@ func centre_caption(text_scale: int = 0) -> void:
 		UiKit.use_pixel_text(caption_node, text_scale)
 	caption_node.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	var bottom: float = PLATE_FACE_BOTTOM if _kind == Kind.PLATE else PRIMARY_SINK + 4.0
+	# Placed at its own width, centred on the 2 px grid: a label left wider by _build_content's
+	# left-aligned rect kept that width and centred the words off the face's middle.
+	var text_width: float = UiKit.pixel_text_size(caption_node).x
+	var left: float = 2.0 * floorf((_face_size.x - text_width) / 4.0)
 	_put(
-		caption_node, Rect2(0, PLATE_FACE_TOP, _face_size.x, _face_size.y - PLATE_FACE_TOP - bottom)
+		caption_node,
+		Rect2(left, PLATE_FACE_TOP, text_width, _face_size.y - PLATE_FACE_TOP - bottom)
 	)
 
 
