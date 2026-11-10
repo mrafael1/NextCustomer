@@ -2,8 +2,9 @@ extends GdUnitTestSuite
 ## The machine's exact odds (#77, build spec 1.5 and 9; #108's two chutes): MachineOdds against
 ## the approved draw process (tables generated from draw77.js, tests/fixtures/machine_odds/, whose
 ## one-kind states a mixed chute draws the same way), against a prize-by-prize enumeration of
-## MachineDraw's own steps on random small mixed pools (drop kinds, PREMIUM floors, tiers,
-## level-ups), and (issue #77's list, item 3) against the frequencies of many seeded forward draws.
+## MachineDraw's own steps on random small mixed pools (drop kinds, PREMIUM floors, products at
+## every tier of their chain, a tier's rarity its own since v1.25, draw weights, level-ups), and
+## (issue #77's list, item 3) against the frequencies of many seeded forward draws.
 
 const FIXTURES := "res://tests/fixtures/machine_odds"
 const FIXTURE_FILES: Array[String] = [
@@ -60,9 +61,10 @@ func test_odds_equal_the_approved_draw() -> void:
 
 
 ## 60 seeded random small mixed pools with every extension on (perk fits, level-ups, a full card,
-## the new arrival held, the first coupon draw, chains with tiers, a PREMIUM floor), random weights,
-## floors and drop kinds: the class enumeration equals a prize-by-prize enumeration of MachineDraw's
-## own steps (drop_kind, land, swaps, new_arrival_swap, the tier roll).
+## the new arrival held, the first coupon draw, chains with tiers, a PREMIUM floor, products with
+## draw weights 0 to 3), random weights, floors and drop kinds: the class enumeration equals a
+## prize-by-prize enumeration of MachineDraw's own steps (drop_kind, land, pick, swaps,
+## swap_weights, new_arrival_swap).
 func test_classes_equal_a_prize_by_prize_enumeration() -> void:
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = 108
@@ -77,8 +79,9 @@ func test_classes_equal_a_prize_by_prize_enumeration() -> void:
 
 
 ## Exact shares add up to 100% per drop on both chutes; drops 2 to n can be empty when no draw
-## reaches drop 2. The tier shares add up too. The machine's odds cards, at every level, leave its
-## RNG untouched.
+## reaches drop 2. The prizes' chances add up to the drops a draw holds, and a product's chances
+## over its tiers to at most 1 (one tier a draw). The machine's odds cards, at every level, leave
+## its RNG untouched.
 func test_odds_add_up_and_use_no_rng() -> void:
 	var run: RunState = _fresh_run()
 	var machine: MachineDefinition = _balance.machine
@@ -92,9 +95,10 @@ func test_odds_add_up_and_use_no_rng() -> void:
 					continue
 				checked += 1
 				for shares: PackedFloat64Array in [
-					odds.all_share, odds.first_share, odds.rarity_share, odds.tier_share
+					odds.all_share, odds.first_share, odds.rarity_share
 				]:
 					assert_float(shares[0] + shares[1] + shares[2]).is_equal_approx(1.0, EXACT)
+				_assert_chances_add_up(odds, context)
 				var rest: float = odds.rest_share[0] + odds.rest_share[1] + odds.rest_share[2]
 				assert_bool(is_equal_approx(rest, 1.0) or is_zero_approx(rest)).is_true()
 				assert_bool(odds.premium).is_equal(premium)
@@ -146,10 +150,10 @@ func test_item_upgrades_without_plain_copies_note_the_floor_falling() -> void:
 	assert_array(met.notes).not_contains([MachineOddsCard.NOTE_FLOOR_FALLS])
 
 
-## Issue #77 item 3: over many seeded draws, rarity, prize and tier frequencies match the card, at
-## odds levels 0 to 3 (20,000 draws each), on the fresh stock's first coupon draw under R3b: no
-## Legendary product and only first-offer coupons (none LEGENDARY), so every LEGENDARY roll falls
-## (the card says so).
+## Issue #77 item 3: over many seeded draws, rarity and prize frequencies match the card, at odds
+## levels 0 to 3 (20,000 draws each), on the fresh stock's first coupon draw. Since v1.25 a
+## product's rarity is its tier: every LEGENDARY roll lands a GOLDEN product (only first-offer
+## coupons, none LEGENDARY), and each product key's rarity is its card's tier.
 func test_fresh_new_items_frequencies_match_the_card() -> void:
 	var run: RunState = _fresh_run()
 	var context: MachineContext = MachineContext.from_run(run, _balance.machine, false, true)
@@ -157,34 +161,46 @@ func test_fresh_new_items_frequencies_match_the_card() -> void:
 		var odds: MachineOddsCard = _assert_frequencies(
 			RewardMachine.Chute.NEW_ITEMS, context, level, 20000, "fresh NEW ITEMS %d" % level
 		)
-		assert_array(odds.notes).contains([MachineOddsCard.NOTE_LEGENDARY_NONE_IN_STOCK])
-		assert_float(odds.p_legendary).is_equal(0.0)
+		assert_array(odds.notes).not_contains([MachineOddsCard.NOTE_LEGENDARY_NONE_IN_STOCK])
+		assert_float(odds.p_legendary).is_greater(0.0)
 		assert_float(odds.p_guarantee_held).is_equal_approx(1.0, EXACT)
-		var weights: PackedInt32Array = _balance.machine.odds_level(level).tier_weights()
-		var total: float = weights[0] + weights[1] + weights[2]
-		for tier: int in 3:
-			assert_float(odds.tier_share[tier]).is_equal_approx(weights[tier] / total, EXACT)
+		var tiers_seen: Array[int] = [0, 0, 0]
+		for key: String in odds.in_draw:
+			if not key.begins_with("product:"):
+				continue
+			var card: CardDefinition = load("%s/%s.tres" % [CARDS_DIR, key.get_slice(":", 1)])
+			assert_int(int(key.get_slice(":", 2))).override_failure_message(key).is_equal(card.tier)
+			tiers_seen[card.tier] += 1
+		assert_bool(tiers_seen.all(func(count: int) -> bool: return count > 0)).is_true()
 		if level == 3:
 			assert_float(odds.first_share[MachinePrize.Rarity.COMMON]).is_equal(0.0)
 			assert_int(odds.first_drop_min_rarity).is_equal(1)
 			assert_array(Array(odds.rarity_share)).is_equal(Array(odds.rest_share))
 
 
-## The other NEW ITEMS states (5,000 draws each): a two-aisle stock without Legendaries, the first
-## NEW ITEMS draw with a Legendary new arrival (held, in one of its tiers), the first coupon draw
-## and a later one (one coupon a draw), and a PREMIUM draw (RARE or better, BIG or better).
+## The other NEW ITEMS states (5,000 draws each): a two-aisle stock without upgrade chains (so no
+## LEGENDARY product), the first NEW ITEMS draw with a new arrival (held, at one of its tiers), the
+## first coupon draw and a later one (one coupon a draw), a PREMIUM draw (RARE or better, so every
+## product BIG or better) and a stock with draw weights 0, 1 and 3.
 func test_other_new_items_frequencies_match_the_card() -> void:
 	var machine: MachineDefinition = _balance.machine
 	var run: RunState = _fresh_run()
-	# Two aisles without a Legendary product.
+	# Two aisles without upgrade chains: plain products only, so no LEGENDARY one.
 	var two_aisles: RunState = _fresh_run()
 	two_aisles.stock = _stock_with_aisles([&"cold_cases", &"snacks"])
-	var no_legendary: MachineContext = MachineContext.from_run(two_aisles, machine, false, true)
+	var no_chains: MachineDefinition = machine.duplicate()
+	var none: Array[ItemUpgradeDefinition] = []
+	no_chains.item_upgrades = none
+	var no_legendary: MachineContext = MachineContext.from_run(two_aisles, no_chains, false, true)
 	var products: Array[MachinePrize] = no_legendary.pools(RewardMachine.Chute.NEW_ITEMS)[2]
 	assert_array(products).is_empty()
 	for level: int in [0, 3]:
-		_assert_frequencies(RewardMachine.Chute.NEW_ITEMS, no_legendary, level, 5000, "two aisles")
-	# The first NEW ITEMS draw holds a Legendary new arrival.
+		var plain_odds: MachineOddsCard = _assert_frequencies(
+			RewardMachine.Chute.NEW_ITEMS, no_legendary, level, 5000, "two aisles"
+		)
+		assert_array(plain_odds.notes).contains([MachineOddsCard.NOTE_LEGENDARY_NONE_IN_STOCK])
+		assert_float(plain_odds.p_legendary).is_equal(0.0)
+	# The first NEW ITEMS draw holds a new arrival (Lemon, at any of its tiers).
 	var arrival: RunState = _fresh_run()
 	var lemon: CardDefinition = load("%s/lemon.tres" % CARDS_DIR)
 	var cards: Array[CardDefinition] = arrival.stock.cards.duplicate()
@@ -197,9 +213,11 @@ func test_other_new_items_frequencies_match_the_card() -> void:
 			RewardMachine.Chute.NEW_ITEMS, held, level, 5000, "new arrival"
 		)
 		var lemon_chance: float = 0.0
-		for id: String in ["lemon", "lemon_big", "lemon_golden"]:
-			lemon_chance += odds.in_draw.get("product:%s:2" % id, 0.0)
+		var lemon_ids: Array[String] = ["lemon", "lemon_big", "lemon_golden"]
+		for tier: int in lemon_ids.size():
+			lemon_chance += odds.in_draw.get("product:%s:%d" % [lemon_ids[tier], tier], 0.0)
 		assert_float(lemon_chance).is_equal_approx(1.0, EXACT)
+		assert_float(odds.in_draw.get("product:lemon_golden:2", 0.0)).is_greater(0.0)
 		assert_array(odds.notes).contains([MachineOddsCard.NOTE_NEW_ARRIVAL_HELD])
 	# The first coupon draw and a later one: one coupon a draw, first-offer ones first.
 	for first_done: bool in [false, true]:
@@ -216,7 +234,7 @@ func test_other_new_items_frequencies_match_the_card() -> void:
 					if chance > 0.0 and not first_done:
 						assert_bool(_balance.first_offer_pool.has(card)).is_true()
 			assert_float(coupon_chance).is_equal_approx(1.0, EXACT)
-	# PREMIUM: every drop RARE or better, products BIG or better.
+	# PREMIUM: every drop RARE or better, so every product BIG or better.
 	var premium: MachineContext = MachineContext.from_run(run, machine, true, true, true)
 	for level: int in [0, 3]:
 		var odds: MachineOddsCard = _assert_frequencies(
@@ -225,8 +243,45 @@ func test_other_new_items_frequencies_match_the_card() -> void:
 		assert_bool(odds.premium).is_true()
 		assert_int(odds.min_rarity).is_equal(1)
 		assert_float(odds.all_share[MachinePrize.Rarity.COMMON]).is_equal(0.0)
-		assert_float(odds.tier_share[CardDefinition.Tier.PLAIN]).is_equal(0.0)
+		for key: String in odds.in_draw:
+			if key.begins_with("product:"):
+				var card: CardDefinition = load("%s/%s.tres" % [CARDS_DIR, key.get_slice(":", 1)])
+				assert_int(card.tier).override_failure_message(key).is_not_equal(
+					CardDefinition.Tier.PLAIN
+				)
 		assert_array(odds.notes).not_contains([MachineOddsCard.NOTE_FLOOR_FALLS])
+	_assert_weighted_frequencies(run)
+
+
+## A fresh stock with three products not generally useful copied (so the shared cards stay as they
+## are, and each copy is outside every chain: plain, COMMON only), two of them reweighted: the one
+## at 3 shows more than twice the chance of the one at 1 on the odds card, the one at 0 never
+## shows; the forward draws agree.
+func _assert_weighted_frequencies(run: RunState) -> void:
+	var context: MachineContext = MachineContext.from_run(run, _balance.machine, true, true)
+	var stocked: Array[CardDefinition] = []
+	var plain_ids: Array[StringName] = []
+	for card: CardDefinition in context.products:
+		var copy: CardDefinition = card
+		if not card.generally_useful and plain_ids.size() < 3:
+			copy = card.duplicate()
+			plain_ids.append(copy.id)
+		stocked.append(copy)
+	assert_int(plain_ids.size()).is_equal(3)
+	context.products = stocked
+	for card: CardDefinition in context.products:
+		if card.id == plain_ids[0]:
+			card.draw_weight = 3
+		elif card.id == plain_ids[1]:
+			card.draw_weight = 0
+	var odds: MachineOddsCard = _assert_frequencies(
+		RewardMachine.Chute.NEW_ITEMS, context, 0, 5000, "weights"
+	)
+	var heavy: float = odds.in_draw.get("product:%s:0" % plain_ids[0], 0.0)
+	var light: float = odds.in_draw.get("product:%s:0" % plain_ids[2], 0.0)
+	assert_float(light).is_greater(0.0)
+	assert_float(heavy).is_greater(2.0 * light)
+	assert_bool(odds.in_draw.has("product:%s:0" % plain_ids[1])).is_false()
 
 
 ## The UPGRADE states (5,000 draws each): 0 / 1 / 2 perks owned (their level-ups drawn too), a full
@@ -307,7 +362,7 @@ func test_upgrade_frequencies_match_the_card() -> void:
 
 
 ## Forward draws from one prebuilt context, compared value by value with the card:
-## 4·sqrt(p(1−p)/N) + 0.002 each. Forward draws already hold their tier, so they aren't split.
+## 4·sqrt(p(1−p)/N) + 0.002 each.
 func _assert_frequencies(
 	chute: int, context: MachineContext, level: int, draws: int, label: String
 ) -> MachineOddsCard:
@@ -430,65 +485,37 @@ func _brute_step(
 		if found.is_empty():
 			_brute_finish(chute, context, level, drawn, rolled, stats)
 			continue
+		var weight_total: int = 0
+		for prize: MachinePrize in found:
+			weight_total += MachineDraw.draw_weight(prize)
 		for prize: MachinePrize in found:
 			var next: Array[MachinePrize] = drawn.duplicate()
 			next.append(prize)
-			_brute_step(chute, context, level, next, rolled / found.size(), stats)
+			var share: float = float(MachineDraw.draw_weight(prize)) / weight_total
+			_brute_step(chute, context, level, next, rolled * share, stats)
 
 
 func _brute_finish(
 	chute: int,
 	context: MachineContext,
-	level: int,
+	_level: int,
 	drawn: Array[MachinePrize],
 	chance: float,
 	stats: Dictionary
 ) -> void:
 	var held_ids: Dictionary = context.guarantee(chute)
 	var alternatives: Array = MachineDraw.swaps(context.pools(chute), drawn, held_ids)
-	for alternative: Array[MachinePrize] in alternatives:
+	var weights: PackedInt32Array = MachineDraw.swap_weights(alternatives, drawn)
+	var weight_total: int = 0
+	for weight: int in weights:
+		weight_total += weight
+	for index: int in alternatives.size():
+		var alternative: Array[MachinePrize] = alternatives[index]
 		var final: Array[MachinePrize] = alternative
 		if chute == RewardMachine.Chute.NEW_ITEMS:
 			final = MachineDraw.new_arrival_swap(context, alternative)
-		var weight: float = chance / alternatives.size()
-		var holds: bool = MachineDraw.holds(final, held_ids)
-		if chute != RewardMachine.Chute.NEW_ITEMS:
-			_add_draw(stats, final, weight, holds, context)
-			continue
-		var tiers: PackedInt32Array = context.machine.odds_level(level).tier_weights(
-			context.min_tier()
-		)
-		_add_tiered(stats, final, weight, holds, context, tiers)
-
-
-## Adds one finished NEW ITEMS draw as every tier combination of its products with a chain (from
-## drop `start` on), each with its chance from the tier weights (the forward draw's roll_tiers,
-## enumerated).
-func _add_tiered(
-	stats: Dictionary,
-	drawn: Array[MachinePrize],
-	chance: float,
-	held: bool,
-	context: MachineContext,
-	tiers: PackedInt32Array,
-	start: int = 0
-) -> void:
-	var total: int = tiers[0] + tiers[1] + tiers[2]
-	for index: int in range(start, drawn.size()):
-		var chain: ItemUpgradeDefinition = MachineDraw.chain_of(context.machine, drawn[index])
-		if chain == null:
-			continue
-		for tier: int in 3:
-			if tiers[tier] <= 0 or chain.tiers()[tier] == null:
-				continue
-			var tiered: Array[MachinePrize] = drawn.duplicate()
-			tiered[index] = MachinePrize.new(
-				MachinePrize.Kind.PRODUCT, drawn[index].rarity, chain.tiers()[tier]
-			)
-			var tier_chance: float = chance * tiers[tier] / total
-			_add_tiered(stats, tiered, tier_chance, held, context, tiers, index + 1)
-		return
-	_add_draw(stats, drawn, chance, held, context)
+		var share: float = chance * weights[index] / weight_total
+		_add_draw(stats, final, share, MachineDraw.holds(final, held_ids), context)
 
 
 func _empty_stats() -> Dictionary:
@@ -554,13 +581,12 @@ func _fixture_context(odds: Array, state: Dictionary) -> MachineContext:
 	var input: Dictionary = state["input"]
 	match state["chute"]:
 		"new_items":
+			# draw77's products have a rarity each: since v1.25 that is a tier, so each is a
+			# product at the tier of its rarity, with no chain.
 			for entry: Dictionary in input["stock"]:
-				var card: CardDefinition = _card(entry["id"], CardDefinition.Kind.PRODUCT)
+				var card: CardDefinition = _tiered(entry["id"], int(entry["rarity"]))
 				card.generally_useful = entry["gu"]
 				context.products.append(card)
-				_rank(
-					context.machine.rare_products, context.machine.legendary_products, card, entry
-				)
 		"coupons":
 			context.first_coupons = input["first"]
 			for entry: Dictionary in input["coupons"]:
@@ -600,8 +626,8 @@ func _rank(rare: Array, legendary: Array, item: Resource, entry: Dictionary) -> 
 			legendary.append(item)
 
 
-## A machine with these odds (draw77 ODDS: the top level's drop 1 rolls RARE or better), the live
-## drop kinds and no tier roll (its chains, if any, are plain only).
+## A machine with these odds (draw77 ODDS: the top level's drop 1 rolls RARE or better) and the
+## live drop kinds.
 func _odds_machine(odds: Array) -> MachineDefinition:
 	var machine: MachineDefinition = MachineDefinition.new()
 	machine.prizes_per_visit = 3
@@ -620,8 +646,8 @@ func _odds_machine(odds: Array) -> MachineDefinition:
 	return machine
 
 
-## A random small mixed pool for the chute, with random weights (some zero), floors, drop kinds,
-## tier weights and a PREMIUM visit now and then.
+## A random small mixed pool for the chute, with random weights (some zero), floors, drop kinds
+## and a PREMIUM visit now and then.
 func _random_context(chute: int, rng: RandomNumberGenerator) -> MachineContext:
 	var context: MachineContext = MachineContext.new()
 	var machine: MachineDefinition = MachineDefinition.new()
@@ -632,7 +658,6 @@ func _random_context(chute: int, rng: RandomNumberGenerator) -> MachineContext:
 	machine.loyalty_per_draw = rng.randi_range(0, 2)
 	machine.item_upgrades_per_draw = rng.randi_range(0, 1)
 	machine.premium_min_rarity = rng.randi_range(0, 2)
-	machine.premium_min_tier = rng.randi_range(0, 2)
 	machine.item_upgrades = _chains()
 	for index: int in rng.randi_range(1, 4):
 		var level: MachineOddsLevel = MachineOddsLevel.new()
@@ -640,9 +665,6 @@ func _random_context(chute: int, rng: RandomNumberGenerator) -> MachineContext:
 		level.rare_weight = rng.randi_range(0, 9)
 		level.legendary_weight = rng.randi_range(1, 9)
 		level.first_drop_min_rarity = rng.randi_range(0, 2) if rng.randf() < 0.4 else 0
-		level.plain_weight = rng.randi_range(0, 9)
-		level.big_weight = rng.randi_range(0, 9)
-		level.golden_weight = rng.randi_range(0, 3)
 		machine.odds_levels.append(level)
 	context.machine = machine
 	context.premium = rng.randf() < 0.3
@@ -655,20 +677,20 @@ func _random_context(chute: int, rng: RandomNumberGenerator) -> MachineContext:
 	return context
 
 
-## Products (made-up ones and live ones with a chain) and coupons, the first coupon draw and the
-## new arrival held now and then.
+## Products (made-up ones at one random tier with no chain and a draw weight of 0 to 3, and live
+## ones with a chain, at each of its tiers) and coupons, the first coupon draw and the new arrival
+## held now and then.
 func _random_new_items(context: MachineContext, rng: RandomNumberGenerator) -> void:
 	var machine: MachineDefinition = context.machine
 	for index: int in rng.randi_range(0, 4):
-		var card: CardDefinition = _card("p%d" % index, CardDefinition.Kind.PRODUCT)
+		var card: CardDefinition = _tiered("p%d" % index, rng.randi_range(0, 2))
 		card.generally_useful = rng.randf() < 0.4
+		card.draw_weight = rng.randi_range(0, 3)
 		context.products.append(card)
-		_rank(machine.rare_products, machine.legendary_products, card, _rarity(rng))
 	for product: String in CHAINS:
 		if rng.randf() < 0.4:
 			var card: CardDefinition = load("%s/%s.tres" % [CARDS_DIR, product])
 			context.products.append(card)
-			_rank(machine.rare_products, machine.legendary_products, card, _rarity(rng))
 	context.first_coupons = rng.randf() < 0.5
 	for index: int in rng.randi_range(0, 3):
 		var card: CardDefinition = _card("c%d" % index, CardDefinition.Kind.COUPON)
@@ -723,6 +745,32 @@ func _card(id: String, kind: CardDefinition.Kind) -> CardDefinition:
 	card.id = StringName(id)
 	card.kind = kind
 	return card
+
+
+## A made-up product with no chain at a tier (CardDefinition.Tier), so at that tier's rarity.
+func _tiered(id: String, tier: int) -> CardDefinition:
+	var card: CardDefinition = _card(id, CardDefinition.Kind.PRODUCT)
+	card.tier = tier as CardDefinition.Tier
+	return card
+
+
+## The prizes' chances add up to the drops a draw holds on average (every drop when no draw is
+## short), and a product's chances over its tiers to at most 1.
+func _assert_chances_add_up(odds: MachineOddsCard, context: MachineContext) -> void:
+	var total: float = 0.0
+	var lines: Dictionary = {}
+	for key: String in odds.in_draw:
+		var chance: float = odds.in_draw[key]
+		total += chance
+		if key.begins_with("product:"):
+			var card: CardDefinition = load("%s/%s.tres" % [CARDS_DIR, key.get_slice(":", 1)])
+			var line: StringName = card.product_card().id
+			lines[line] = lines.get(line, 0.0) + chance
+	if is_zero_approx(odds.p_short):
+		var drops: float = context.machine.prizes_per_visit
+		assert_float(total).is_equal_approx(drops, EXACT)
+	for line: StringName in lines:
+		assert_float(lines[line]).override_failure_message(String(line)).is_less_equal(1.0 + EXACT)
 
 
 func _chains() -> Array[ItemUpgradeDefinition]:

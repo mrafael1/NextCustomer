@@ -10,8 +10,8 @@ extends RefCounted
 ## you own: loyalty perks, new or a level-up of an owned one up to LV 3, and item upgrades). Every
 ## visit offers both. The machine is CLASSIC, or PREMIUM on the ticket's visit after one of
 ## MachineDefinition.premium_shifts and on the BONUS visit that follows it: PREMIUM raises every
-## drop to at least premium_min_rarity and every product with a chain to at least
-## premium_min_tier. Every visit after a shift draws at that shift's odds level
+## drop to at least premium_min_rarity (a product's rarity is its tier since v1.25, so a PREMIUM
+## product is BIG or better). Every visit after a shift draws at that shift's odds level
 ## (MachineDefinition.odds_level_after): rarity rises with the run's progress, not with use.
 ## STAMP DAY (the free loyalty visit before v0.61) is gone.
 ##
