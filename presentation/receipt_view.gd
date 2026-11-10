@@ -1,56 +1,53 @@
 class_name ReceiptView
 extends PanelContainer
 ## The receipt: printed from a ScoreResult's payouts and steps alone, so it can never disagree
-## with the score. Every money amount on it prints with cents (money(): "3.00€", "+15.00€"); the
-## values stay whole euros.
+## with the score. Every money amount on it prints in whole euros (money(): "3€", "+15€"), as
+## every score is (main scene v2, 2026-11-08: the cents were decoration only).
 ##
-## In planning (show_planning, #80) it is itemised: the header and a dashed rule, one line per
-## belt item in scan order (its name, its payout, then its mark: the fizzle icon when one of its
-## effects fizzles, the warning icon when an inspection denies it), a muted "5 ·····" for each
-## open empty slot (B2 of shift_scene_polish_v4: every slot, one row each at full length,
-## ReceiptRows), a dashed rule, then the foot: the caption PROJECTED at the paper's left and the
-## total ("22.00€", in ink) at its right, centred on the caption's line (the PR #138 left UI), over
-## a line against the quota under the total ("+N.00€ over", "N.00€ short":
-## ReceiptTarget.against_text). The fizzles show on their item lines' marks only (the PR #138 left
-## UI dropped the "2 WASTED · hover an item" footer, its room going to the rows). The belt item
-## being scanned frames its line (highlight_slot). A hovered belt item (#71) frames its line too
-## and marks its targets' lines with a mustard-pale fill and the token it gives them
-## (show_relations).
+## Its header (`target`, ReceiptTarget: H2 of mock-up docs/art/mockups/main_scene_v2.html) is
+## pinned at its top, outside the scroll area, once the screen shows the quota: BEAT TODAY'S
+## TARGET over the quota, then PROJECTED (planning) or TOTAL (the count) with the hero number and
+## the line against the target, then a dashed rule.
 ##
-## The count-up (begin_count) pre-prints the header, every item's line greyed ("Multipack
-## ·····"), the dashed rule, "TOTAL •••••" and the footer "tap: skip · hold: fast". Each step
-## then prints into its item's group (add_step): the BASE step fills the item's line in with its
-## base amount, which it keeps; the other steps print an indented line under the item's earlier
-## lines, a fizzle's in dark tomato with the fizzle icon. Every item's lines add up: its base, its
-## bonus and copy lines ("+15.00€") and an override's "= 0.00€" (which the item's amount is from
-## then on) come to its PAYOUT step's value, or (a multiplier) the PAYOUT step closes the item
-## with a small "= 3.00€" line (CLOSING_TEXT, LineStyle.CLOSING), its last line; when they do, it
-## prints nothing. The line just printed (or filled; the item's line when the PAYOUT step prints
-## nothing) is framed (mustard-pale fill, mustard frame), and the receipt keeps it in view.
-## add_total fills the TOTAL line in plainly and drops the footer and the frame; the dessert (#61)
-## then prints the verdict on it, the margin (PAID on a pass, INSPECTION PASSED under it), the
-## tear and the next shift's notice under it, scrolled to the newest line. A resumed
-## checkout prints it all at once (show_result), through the same lines. Every line another
-## source boosts (a combo, is_combo) is marked with a faint gold band (a loyalty perk's pale teal),
-## a bar and a diamond. Each item line holds its card's mini before its name, × amounts print in
-## dark amber, each item's final payout in bold, and an armed effect prints its "arms" sub line
-## when it arms (ReceiptInk: `cards` passed to show_planning, begin_count and show_result).
+## In planning (show_planning) nothing is printed under the header (2026-11-08 feedback: no band,
+## no minis): the paper is the header alone, as short as it, and the hero shows the projected
+## total, rolling to each new one (ReceiptRoll).
 ##
-## Its `target` block (ReceiptTarget, the shift scene polish: TODAY'S TARGET and the quota as a
-## big number) is pinned at its top, outside the scroll area, once the screen shows the quota. On
-## the shift screen it stands on the printer's slot (fit_up, #80), at its full length
-## (`full_length`, B2: in planning, up to ShiftStage.RECEIPT_TOP however few its lines, the foot
-## pinned at its bottom; the count's receipt still fits up to its lines). An indented step line
-## hangs (#55): wrapped, it starts past its lead and marker on every row, and its amount sits on
-## its last row (a fizzle's line has none: its mark says it, on its first row). The lines sit in
-## an inset (FRAME_OUT on the left, FRAME_PAD on the right) that holds the frame, inside the
-## scroll area; most lines keep B2's mark column (MARK_COLUMN) at their right end.
+## `anchored` (the shift screen's): the count prints each item's row as it reaches the item
+## (ReceiptPrintRows), in slot order, its amount rolling with the count's reading (show_running,
+## which also moves the hero), so the rows always add up to the TOTAL; the dessert's margin words
+## count on the header's line against the target, and its other lines (PAID's line, INSPECTION
+## PASSED, the tear, the next shift's notice) print under the rows. From the count's start the
+## paper reaches its room's top (fit_height; planning's is the header alone), so the rows print in
+## place: the header (the hero, the target, BEATEN!) never leaves the screen, and lines past the
+## paper's room scroll the oldest rows up under the header, the newest line in view. Its paper
+## turns gold on a payday or past the overtime laps (`gold`, ReceiptGold).
 ##
-## `anchored` (the shift screen's, 2026-11-05): the count pays planning's rows in place
-## (ReceiptPaidRows) instead of printing its lines, so the paper never moves; the dessert's verdict
-## colours the TOTAL and its margin rewords planning's line against the quota. Its other lines
-## print under that foot (2026-11-07): the paper grows by them and rises (_fed_height), never
-## beside it. Its paper turns gold on a payday or past the overtime laps (`gold`, ReceiptGold).
+## Any other count (begin_count without planning, show_result: a copy of the receipt, the tests'
+## expected receipts) prints its lines in detail: each step into its item's group (add_step), the
+## BASE step filling the item's line in with its base amount, the other steps an indented line
+## under it, a fizzle's in dark tomato with the fizzle icon, a multiplier's PAYOUT closing the item
+## with "= 3€" (CLOSING_TEXT); every combo line is marked with a faint gold band (a loyalty perk's
+## pale teal); the TOTAL line, then the dessert's verdict, margin, tear and notice under it. The
+## line just printed is framed (mustard-pale fill, mustard frame) and kept in view. On the shift
+## screen it stood on the printer's slot (fit_up, #80); since left column v2 (the user's pick of
+## 2026-11-09, mock-up docs/art/mockups/left_column_v2.html) it hangs from the overhead printer
+## (fit_up's `hang_down`, ReceiptHang): its top, the header, stays at the slot and the paper feeds
+## DOWN.
+## At an anchored count each printed line lengthens the paper by its height (whole art px) at its
+## free end, where the line prints, until the paper reaches its room's foot (then the rows scroll
+## under the header, as before). Planning's stub is the header alone; the next planning after a
+## count (the next day, a Double checkout's row 2) clears the count's paper and POPS the new stub
+## down out of the slot (at once under reduced motion), `stub_printed` telling the stage. A torn
+## edge hangs under the paper's foot. A payday wears the paycheck design (payday_ribbon,
+## ReceiptPayday: its brass ribbon over the header and brass foot band; no side frame).
+
+## An anchored count's paper started (its count's first line, or a resumed checkout's): the stage
+## hides the gauge.
+signal count_paper_started
+## Planning's stub printed (`popped`: it pops out after a count's paper, the next day's;
+## `after_count`: it follows an anchored count, popped or still under reduced motion).
+signal stub_printed(popped: bool, after_count: bool)
 
 enum LineStyle {
 	DETAIL,
@@ -77,8 +74,6 @@ const MONO_FONT := preload("res://fonts/JetBrainsMono-Regular.ttf")
 ## The TOTAL and PROJECTED amounts' font size; their captions print at CAPTION_FONT_SIZE (v4's D:
 ## 39 and 24 px at 1920x1080).
 const TOTAL_FONT_SIZE := 26
-## Planning's PROJECTED amount: bigger, and bold (the PR #138 round 2: it stands out).
-const PROJECTED_FONT_SIZE := 30
 const CAPTION_FONT_SIZE := 16
 ## The verdict "total€ / quota€" on the TOTAL line, smaller than the total so it fits; a long
 ## one (a four-digit total) shrinks down to VERDICT_MIN_FONT_SIZE to stay on the line.
@@ -97,26 +92,20 @@ const PAID_TEXT := ReceiptStamps.PAID_TEXT
 ## The torn edge: this pattern repeated, clipped to the receipt's width.
 const TEAR_PATTERN := "/\\"
 const TEAR_REPEAT := 60
-## The receipt's header (#75; one line since B2 at D's sizes, v4: the shop's line went): the shift
-## and how many items are on the belt (coupons count as items), ITEM_TEXT for just one.
-const SHIFT_TEXT := "SHIFT %d/%d · %d ITEMS"
-const ITEM_TEXT := "SHIFT %d/%d · 1 ITEM"
-## The planning receipt's last line (#80: PROJECTED, never TOTAL, which only the count-up prints).
-const PROJECTED_TEXT := "PROJECTED"
-const TOTAL_TEXT := "TOTAL"
+## Planning's caption (#80: PROJECTED, never TOTAL, which only the count prints).
+const PROJECTED_TEXT := ReceiptTarget.PROJECTED_TEXT
+const TOTAL_TEXT := ReceiptTarget.TOTAL_TEXT
 ## The dashed rules: a dash RULE_DASH long, then a gap as long.
 const RULE_DASH := 4.0
 ## The count-up's footer, from its start to the TOTAL line.
 const COUNT_FOOTER_TEXT := "tap: skip · hold: fast"
-## An open empty slot on the planning receipt: its number, then dots.
-const EMPTY_SLOT_TEXT := "%d ·····"
-## The line closing an item whose lines don't add up to its payout (add_step): "= 3.00€", at
+## The line closing an item whose lines don't add up to its payout (add_step): "= 3€", at
 ## FOOTER_FONT_SIZE in ink (LineStyle.CLOSING), with no left side.
 const CLOSING_TEXT := "= "
 ## How a multiplier's receipt text ends in its factor ("Multipack ×3", ReceiptCause.multiplier).
 const FACTOR_MARK := " ×"
-## A money amount on the receipt (money()).
-const MONEY_TEXT := "%d.00€"
+## A money amount on the receipt (money()): whole euros, as every score is.
+const MONEY_TEXT := "%d€"
 ## The inset around the lines: the frame reaches FRAME_OUT past their left and FRAME_PAD past
 ## their right (B2: 4 px of padding, then its 2 px frame).
 const FRAME_OUT := 4.0
@@ -137,23 +126,26 @@ const COMBO_BAR := 2.0
 const COMBO_ICON_RECT := Rect2(4, 3, 10, 10)
 const COMBO_INDENT := 18.0
 const COMBO_DIAMOND := preload("res://art/icons/combo_diamond.png")
-
 ## TODAY'S TARGET, pinned at the top (hidden until its show_quota).
 var target: ReceiptTarget
-## Fit-up mode at full length (B2): in planning the paper reaches its top however few its lines.
-var full_length: bool = false
-## The count pays planning's rows in place (ReceiptPaidRows) when they are the counted items'.
+## The count prints planning's items' rows as it reaches them (ReceiptPrintRows).
 var anchored: bool = false
+## Reduced motion: the rows print without their wipe (the count's flow sets it).
+var reduced_motion: bool = false
+## Planning's reduced motion (returns a bool; the screen's profile setting): the projected number
+## shows at once, without its roll. Unset: it rolls.
+var planning_still: Callable = Callable()
 ## The open slots the last planning receipt showed (show_planning), for a copy of it.
 var planned_slots: int = 0
-## The gold paper and its overtime stamp (ReceiptGold).
+## The silver and gold paper (ReceiptGold).
 var gold: ReceiptGold
-## Planning's PROJECTED line (its amount fits the lines' width: ReceiptDecor.fit_amount) and its
-## line against the quota, or null.
-var _projected: HBoxContainer
-var _against: HBoxContainer
-## An anchored count's rows paid in place, or null.
-var _paid: ReceiptPaidRows
+## Payday's ribbon over the header (ReceiptPayday; hidden on other days): the paper's paycheck
+## design shows while it does.
+var payday_ribbon: ReceiptPayday
+## Fit-down mode's feed, pop and tail (ReceiptHang; null unless it hangs: fit_up's `hang_down`).
+var hang: ReceiptHang
+## An anchored count's printed rows, or null.
+var _print: ReceiptPrintRows
 var _lines: VBoxContainer
 ## Holds the lines inside the scroll area, with room for the frame and the marks; draws the frame.
 var _inset: MarginContainer
@@ -178,11 +170,8 @@ var _figures: Dictionary[int, Label] = {}
 var _cards: Array[CardDefinition] = []
 ## The framed line (the counted step's, or the scanned item's in planning), or null.
 var _framed: Control
-## The receipt shows planning's lines (show_planning): highlight_slot frames them. Its slot rows
-## and its header lines (ReceiptRows.fit).
+## The receipt shows planning (show_planning): an anchored count prints its rows.
 var _planning: bool = false
-var _rows: Array[Control] = []
-var _header: Array[Control] = []
 ## In fit-up mode (fit_up()): the bottom the receipt stands on and the highest its top may reach,
 ## in the parent's coordinates; -1 otherwise.
 var _stand_bottom: float = -1.0
@@ -205,6 +194,9 @@ func _init() -> void:
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.add_theme_constant_override("separation", 0)
 	add_child(column)
+	payday_ribbon = ReceiptPayday.new()
+	column.add_child(payday_ribbon)
+	payday_ribbon.visibility_changed.connect(_on_payday_shown)
 	target = ReceiptTarget.new()
 	column.add_child(target)
 	_scroll = ScrollContainer.new()
@@ -229,17 +221,23 @@ func _init() -> void:
 	_lines.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_lines.add_theme_constant_override("separation", 1)
 	_lines.sort_children.connect(_inset.queue_redraw)
-	_lines.resized.connect(func() -> void: ReceiptDecor.fit_amount(_projected, _lines.size.x))
 	_inset.add_child(_lines)
 	gold = ReceiptGold.new(self, target)
 	add_child(gold)
+	# Over the metal (ReceiptGold draws first), under the ink: payday's design, then the tail.
+	draw.connect(_draw_extras)
 
 
 ## Fit-up mode (#80): the receipt stands on `bottom` (the parent's coordinates) and is as tall as
 ## its lines, up to `top` at most; past that it ends there, scrolled to its newest line (or its
 ## framed one), with no scroll bar (the mouse wheel still scrolls). It fits again whenever its
-## lines change.
-func fit_up(bottom: float, top: float) -> void:
+## lines change. With `hang_down` (fit-down mode, left column v2) it hangs from `top` instead (the
+## printer's slot) and grows down to `bottom` at most (ReceiptHang: an anchored count's lines feed
+## it down, the next day's stub pops).
+func fit_up(bottom: float, top: float, hang_down: bool = false) -> void:
+	if hang_down and hang == null:
+		hang = ReceiptHang.new(self, top)
+		hang.on_step = func() -> void: _scroll.scroll_vertical = _scroll_target()
 	_stand_bottom = bottom
 	_cap_top = top
 	_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
@@ -248,29 +246,31 @@ func fit_up(bottom: float, top: float) -> void:
 	fit_height()
 
 
-## Fits the receipt's height to its lines (fit-up mode only; see fit_up()), then scrolls to its
-## end (or its framed line).
+## Fits the receipt's height to its lines (fit-up and fit-down modes only; see fit_up()), then
+## scrolls to its end (or its framed line).
 func fit_height() -> void:
 	_fit_queued = false
 	if _stand_bottom < 0.0:
 		return
+	if hang != null:
+		_snap_to_end = true
+		hang.fit(_hang_height(), _print != null and not reduced_motion)
+		_scroll.queue_sort()
+		scroll_to_end()
+		return
 	var frame: float = get_theme_stylebox("panel").get_minimum_size().y
 	var room: float = _stand_bottom - _cap_top
-	var full: bool = (_planning or _paid != null) and full_length
-	# An anchored count keeps planning's pitch and header: its rows never move or tighten.
-	if full and _paid == null:
-		var pinned: float = target.get_combined_minimum_size().y if target.visible else 0.0
-		var margins: float = (
-			_inset.get_combined_minimum_size().y - _lines.get_combined_minimum_size().y
-		)
-		ReceiptRows.fit(_lines, _rows, _header, room - frame - pinned - margins)
-	# An anchored count's dessert lines are fed on under its foot: the paper grows by them, past
-	# its room, and rises (its top may leave the screen), so nothing on it moves.
-	var fed: float = _fed_height()
-	var natural: float = maxf(natural_height(), room + fed) if full else natural_height()
+	# As tall as its lines, up to its room; planning's paper is the header alone (2026-11-08
+	# feedback: no empty band). An anchored count's paper reaches its room's top from its start, so
+	# its rows print in place and never move: longer lines (a full belt's rows, then the dessert's)
+	# scroll under the pinned header, so the header (H2: the hero, the target, BEATEN!) never rises
+	# off the screen.
+	var tall: float = minf(natural_height(), room)
+	if _print != null:
+		tall = room
 	# The newest line stays in view in the very frame the receipt grows or shrinks.
 	_snap_to_end = true
-	size.y = maxf(minf(natural, room + fed), frame)
+	size.y = maxf(tall, frame)
 	position.y = _stand_bottom - size.y
 	# Sorted after the panel gives the scroll area its new size (the scroll area doesn't always
 	# sort itself on a resize), so _on_scroll_sorted sees it.
@@ -278,13 +278,26 @@ func fit_height() -> void:
 	scroll_to_end()
 
 
-## The lines' natural height plus the target's and the paper's frame: how tall the receipt is when
-## nothing stops it. (A ScrollContainer reports no content height: the inset's own minimum is the
-## content.)
-func natural_height() -> float:
-	var pinned: float = target.get_combined_minimum_size().y if target.visible else 0.0
+## The paper's height in fit-down mode: its lines', its room's at most, its frame's at least.
+func _hang_height() -> float:
 	var frame: float = get_theme_stylebox("panel").get_minimum_size().y
-	return _inset.get_combined_minimum_size().y + pinned + frame
+	return clampf(natural_height(), frame, maxf(_stand_bottom - _cap_top, frame))
+
+
+## The lines' natural height plus the target's (and payday's ribbon's) and the paper's frame: how
+## tall the receipt is when nothing stops it. (A ScrollContainer reports no content height: the
+## inset's own minimum is the content.)
+func natural_height() -> float:
+	var frame: float = get_theme_stylebox("panel").get_minimum_size().y
+	return _inset.get_combined_minimum_size().y + _pinned_height() + frame
+
+
+## The header's height over the scrolling lines: the target and payday's ribbon.
+func _pinned_height() -> float:
+	var pinned: float = target.get_combined_minimum_size().y if target.visible else 0.0
+	if payday_ribbon.visible:
+		pinned += ReceiptPayday.height()
+	return pinned
 
 
 ## Shows the newest line (or the framed one): scrolls once the new lines are laid out.
@@ -297,12 +310,8 @@ func clear() -> void:
 	_total_rule = null
 	_footer = null
 	_framed = null
-	_projected = null
-	_against = null
-	_paid = null
+	_print = null
 	_planning = false
-	_rows.clear()
-	_header.clear()
 	_inset.add_theme_constant_override("margin_bottom", int(FRAME_GROW))
 	_items.clear()
 	_last.clear()
@@ -317,28 +326,39 @@ func clear() -> void:
 		line.queue_free()
 
 
-## Starts a receipt: clears it, then prints `header` (header_lines(); none when empty).
+## Starts a receipt: clears it, then prints `header` (a Double checkout's row line; none when
+## empty), small.
 func begin(header: PackedStringArray = PackedStringArray()) -> void:
 	clear()
 	for text: String in header:
-		_header.append(add_line(text, "", LineStyle.DETAIL))
+		var line: Control = add_line(text, "", LineStyle.DETAIL)
+		(line.get_child(0) as Label).add_theme_font_size_override("font_size", FOOTER_FONT_SIZE)
 
 
-## Starts the count-up's receipt (and a resumed checkout's, show_result): `header` and its dashed
-## rule (none without a header), then (with `footer`) "tap: skip · hold: fast". The items print
-## line by line as they scan (#61, #105 piece 2: the lines still to come are not printed yet),
-## each named from `names`, above the TOTAL line's dashed rule, which shows with the TOTAL at the
-## end (add_total). `cards` are the items' cards (their minis and arm words).
+## Starts the count-up's receipt (and a resumed checkout's, show_result). An anchored receipt
+## showing planning prints the items' rows under its header as the count reaches them
+## (ReceiptPrintRows: `header` above them, the header's caption TOTAL). Any other prints `header`
+## and its dashed rule (none without a header), then (with `footer`) "tap: skip · hold: fast";
+## the items print line by line as they scan (#61, #105 piece 2), each named from `names`, above
+## the TOTAL line's dashed rule, which shows with the TOTAL at the end (add_total). `cards` are the
+## items' cards (their minis and arm words).
 func begin_count(
 	header: PackedStringArray,
 	names: PackedStringArray,
 	footer: bool = true,
 	cards: Array[CardDefinition] = []
 ) -> void:
-	if anchored and _planning and ReceiptPaidRows.fits(_items, names.size()):
-		_planning = false
+	if anchored and _planning:
+		begin(header)
 		_cards = cards
-		_paid = ReceiptPaidRows.new(_items, _projected, _against, _set_frame)
+		target.begin_count(0)
+		_print = ReceiptPrintRows.new(
+			self, _lines, names, cards, _row_pitch(names.size()), reduced_motion
+		)
+		if hang != null:
+			hang.finish_pop()
+		_queue_fit()
+		count_paper_started.emit()
 		return
 	begin(header)
 	_cards = cards
@@ -354,14 +374,11 @@ func begin_count(
 		(_footer.get_child(0) as Label).add_theme_font_size_override("font_size", FOOT_FONT_SIZE)
 
 
-## The planning receipt (#80): `header` and a dashed rule; for each belt item (`names`, in scan
-## order) its name, its payout in `result` and its mark (slot_mark()); "n ·····" for each open
-## slot past them up to `open_slots`; a dashed rule and the foot: PROJECTED at the left and the
-## total at the right in ink (ReceiptDecor.spread_projected), against `quota` (none when negative),
-## with how far it is on its own row under the total, green at or over it, red under it
-## (ReceiptDecor.against_quota). Each item's payout prints bold, its mini from `cards`. Each slot's
-## line is one row; at full length the rows share the paper's room and the foot stands at its
-## bottom (ReceiptRows).
+## The planning receipt (H2 of main scene v2): `header` (a Double checkout's row line; none when
+## empty) and no item rows. The header shows PROJECTED with `result`'s total against `quota` (none
+## when negative), rolling to it from the number shown (ReceiptTarget.show_planned; at once under
+## `reduced_motion` or a first show). `names`, `cards` and `open_slots` are kept for the count's
+## rows and a copy (planned_slots).
 func show_planning(
 	header: PackedStringArray,
 	result: ScoreResult,
@@ -370,67 +387,46 @@ func show_planning(
 	quota: int = -1,
 	cards: Array[CardDefinition] = []
 ) -> void:
+	var after_count: bool = _print != null
 	begin(header)
 	_planning = true
 	planned_slots = open_slots
 	_cards = cards
-	_lines.add_child(ReceiptDecor.dashed_rule())
 	for slot: int in range(names.size()):
-		var payout: int = result.payouts[slot] if slot < result.payouts.size() else 0
-		var line: HBoxContainer = _add_item(slot, names[slot], money(payout))
-		ReceiptInk.embolden(line.get_child(1) as Label)
-		ReceiptDecor.mark(line, slot_mark(result, slot))
-		_rows.append(line)
-	for slot: int in range(names.size(), open_slots):
-		_rows.append(add_line(EMPTY_SLOT_TEXT % (slot + 1), "", LineStyle.WAITING))
-	for row: Control in _rows + _header:
-		ReceiptRows.one_row(row.get_child(0) as Label)
-	# Only the SHIFT line may drop (ReceiptRows.fit): a Double checkout's row line always prints.
-	_header.resize(mini(_header.size(), 1))
-	var projected: Control = add_line(PROJECTED_TEXT, money(result.total), LineStyle.PROJECTED)
-	_projected = projected as HBoxContainer
-	ReceiptDecor.spread_projected(_projected)
-	ReceiptDecor.fit_amount(_projected, _lines.size.x)
-	# Its dashed rule takes the room the lines leave: the foot stands at the paper's bottom.
-	_lines.get_child(projected.get_index() - 1).size_flags_vertical = Control.SIZE_EXPAND_FILL
-	if quota >= 0:
-		_against = add_line("", "", LineStyle.MARGIN) as HBoxContainer
-		ReceiptDecor.against_quota(_projected, _against, result.total, quota)
+		_item_names[slot] = names[slot]
+	target.show_planned(result.total, quota, not _still())
 	_queue_fit()
+	if hang != null:
+		var followed: bool = after_count and anchored and is_inside_tree()
+		var pop: bool = followed and not _still()
+		if pop:
+			hang.pop(_hang_height())
+		stub_printed.emit(pop, followed)
 
 
-## Planning only: frames `slot`'s item line (the belt item being scanned), or none for -1 (or a
-## slot with no line). Does nothing outside planning: the count-up frames its own lines.
-func highlight_slot(slot: int) -> void:
-	if not _planning:
+## The count's reading `value` (the LED's, ReceiptCountFlow): an anchored count's hero and its
+## rolling row's amount follow it. Nothing for any other receipt.
+func show_running(value: int) -> void:
+	if _print == null:
 		return
-	_set_frame(_item_line_of(slot))
+	target.show_running(value)
+	_print.roll(value)
 
 
-## Planning only (#71): the hovered belt item at `focus_slot` (-1: none) frames its line, and each
-## slot of `tokens` (its targets) gets a mustard-pale fill and the token it gives them before its
-## amount (ReceiptDecor.relate). The previous relations go. (One call, not two: gdlint allows the
-## class 20 public methods.)
-func show_relations(focus_slot: int, tokens: Dictionary[int, String] = {}) -> void:
-	if not _planning:
-		return
-	for slot: int in _items:
-		if _item_line_of(slot) != null:
-			ReceiptDecor.relate(_item_line_of(slot), tokens.get(slot, ""))
-	highlight_slot(focus_slot)
+## The rows an anchored count printed (ReceiptPrintRows), in slot order; none for any other.
+func printed_rows() -> Array[Control]:
+	var none: Array[Control] = []
+	return _print.rows() if _print != null else none
 
 
-## The header's line for 1-based `shift` of `shifts` with `items` on the belt (coupons included):
-## "SHIFT n/m · k ITEMS" ("· 1 ITEM" for one).
-static func header_lines(shift: int, shifts: int, items: int) -> PackedStringArray:
-	var shift_text: String = (
-		ITEM_TEXT % [shift, shifts] if items == 1 else SHIFT_TEXT % [shift, shifts, items]
-	)
-	return PackedStringArray([shift_text])
+## Whether planning's projected number shows at once (planning_still).
+func _still() -> bool:
+	return planning_still.is_valid() and bool(planning_still.call())
 
 
-## A money amount as the receipt prints it: "3.00€", or "+15.00€" when `signed` ("−2.00€" for a
-## fall: Late delivery's, v0.69). Values are whole euros: only the receipt shows cents.
+## A money amount as the receipt prints it: "3€", or "+15€" when `signed` ("−2€" for a fall: Late
+## delivery's, v0.69). Every score is whole euros (ScoreResult, ScoreStep: ints), so nothing
+## rounds.
 static func money(euros: int, signed: bool = false) -> String:
 	var prefix: String = "" if not signed else "+" if euros >= 0 else "−"
 	return prefix + MONEY_TEXT % (absi(euros) if signed else euros)
@@ -457,7 +453,7 @@ static func slot_mark(result: ScoreResult, slot: int) -> Mark:
 	return Mark.NONE
 
 
-## The whole receipt at once, under `header` (header_lines(); none when empty): a resumed
+## The whole receipt at once, under `header` (none when empty): a resumed
 ## checkout's, as the count-up printed it (begin_count without its footer, then every step and
 ## the total), and the tests' expected receipts. `upgrade_names` are the run's upgrades' names in
 ## pick order and `inspection_names` the shift's inspections' names, for the lines they cause;
@@ -495,8 +491,8 @@ func add_step(
 	upgrade_names: PackedStringArray = PackedStringArray(),
 	inspection_names: PackedStringArray = PackedStringArray()
 ) -> Control:
-	if _paid != null:
-		return _paid.step(step)
+	if _print != null:
+		return _print.step(step)
 	return _print_step(step, names, upgrade_names, inspection_names)
 
 
@@ -577,7 +573,7 @@ func _add_group_line(
 
 
 ## The receipt's words for one step: its left side (with its indent and marker) and its right
-## side (the amount, with cents, or nothing: a fizzle's mark says "WASTED"), or none for a step
+## side (the amount, or nothing: a fizzle's mark says "WASTED"), or none for a step
 ## that prints no line. A BASE or PAYOUT step's left side is its item's name: they fill the
 ## item's line in (add_step).
 static func step_text(
@@ -706,12 +702,14 @@ static func source_text(
 	return ReceiptCause.of(step, step.text, upgrade_names, inspection_names)
 
 
-## The TOTAL line ("TOTAL 22.00€"): after a count's lines, under its dashed rule (begin_count),
-## which also ends the count-up's footer and frame; else a new one under a solid rule.
+## The TOTAL line ("TOTAL 22€"): after a count's lines, under its dashed rule (begin_count),
+## which also ends the count-up's footer and frame; else a new one under a solid rule. An
+## anchored count's header shows `total` instead (every row at its payout); returns the header.
 func add_total(total: int) -> Control:
-	if _paid != null:
-		_total_line = _paid.total(total, TOTAL_TEXT)
-		return _total_line
+	if _print != null:
+		_print.finish()
+		target.show_running(total)
+		return target
 	_set_frame(null)
 	if is_instance_valid(_footer):
 		_lines.remove_child(_footer)
@@ -730,13 +728,17 @@ func add_notice(text: String) -> Control:
 
 ## The shift's end at once, as the dessert leaves it (#61): the verdict, the margin (PAID on a
 ## pass), INSPECTION PASSED naming `inspection` (#77; none when empty), the tear and `notice`
-## (none when empty).
+## (none when empty). An anchored count's paper ends at its rows (the user's play test of
+## 2026-11-09): the margin and PAID on its header, nothing printed under them.
 func show_shift_end(total: int, quota: int, notice: String = "", inspection: String = "") -> void:
 	var margin: ShiftMargin = ShiftMargin.of(total, quota)
 	show_verdict(total, quota)
 	var line: Control = add_margin(margin)
 	if margin.passed():
 		ReceiptStamps.stamp_paid(line)
+	if _print != null:
+		return
+	if margin.passed():
 		if not inspection.is_empty():
 			ReceiptStamps.stamp_inspection(self, inspection)
 	add_tear()
@@ -745,7 +747,7 @@ func show_shift_end(total: int, quota: int, notice: String = "", inspection: Str
 
 
 ## The TOTAL line's "total€ / quota€" (#61; since #80 it prints plainly, and the dessert's slam
-## lands on the monitor), with cents.
+## lands on the monitor).
 static func verdict_text(total: int, quota: int) -> String:
 	return "%s / %s" % [money(total), money(quota)]
 
@@ -753,10 +755,10 @@ static func verdict_text(total: int, quota: int) -> String:
 ## Shows the verdict on the TOTAL line at once: its right side reads "total€ / quota€" at
 ## VERDICT_FONT_SIZE across the mark column (down to VERDICT_MIN_FONT_SIZE when it would not
 ## fit beside TOTAL), green on a pass and red on a miss. Returns that label (null when no
-## TOTAL line was printed).
+## TOTAL line was printed, and for an anchored count: its hero and target say it).
 func show_verdict(total: int, quota: int) -> Label:
-	if _paid != null:
-		return _paid.verdict(total, quota)
+	if _print != null:
+		return null
 	var label: Label = total_label()
 	if label == null:
 		return null
@@ -789,10 +791,12 @@ func total_label() -> Label:
 
 
 ## The margin line under the total, showing the whole margin (ReceiptTarget.margin_text), red when
-## short, else green. The dessert counts it up with ReceiptTarget.show_margin.
+## short, else green. The dessert counts it up with ReceiptTarget.show_margin. An anchored count's
+## margin words go on its header's line against the target (returned), its PAID or SLIP stamped
+## after them there: no line prints under the rows.
 func add_margin(margin: ShiftMargin) -> Control:
-	if _paid != null and _paid.margin(margin) != null:
-		return _against
+	if _print != null:
+		return target.show_margin_words(margin)
 	var text: String = ReceiptTarget.margin_text(margin.kind(), margin.amount())
 	var line: Control = add_line(text, "", LineStyle.MARGIN)
 	var color: Color = Palette.TOMATO if margin.kind() == ShiftMargin.Kind.SHORT else Palette.GOOD
@@ -850,20 +854,15 @@ func add_line(left: String, right: String, style: LineStyle) -> Control:
 	return line
 
 
-## An anchored count's dessert lines under its foot (planning's line against the quota, else its
-## PROJECTED line, now the TOTAL): their height on the paper, which the printer feeds on
-## (fit_height); 0 for any other receipt.
-func _fed_height() -> float:
-	var foot: Control = _against if is_instance_valid(_against) else _projected
-	if _paid == null or not is_instance_valid(foot) or foot.get_parent() != _lines:
-		return 0.0
-	var gap: float = float(_lines.get_theme_constant("separation"))
-	var fed: float = 0.0
-	for index: int in range(foot.get_index() + 1, _lines.get_child_count()):
-		var line: Control = _lines.get_child(index) as Control
-		if line != null and line.visible:
-			fed += line.get_combined_minimum_size().y + gap
-	return fed
+## An anchored count's rows' pitch for `count` items: what the paper leaves under the header and
+## its lines so far, shared by them (ReceiptRows), MAX_PITCH at most, MIN_PITCH at least.
+func _row_pitch(count: int) -> float:
+	if _stand_bottom < 0.0:
+		return ReceiptRows.MAX_PITCH
+	var frame: float = get_theme_stylebox("panel").get_minimum_size().y
+	var room: float = _stand_bottom - _cap_top - frame - _pinned_height()
+	room -= _inset.get_combined_minimum_size().y
+	return maxf(ReceiptRows.pitch_for(room, count), ReceiptRows.MIN_PITCH)
 
 
 static func text_width(text: String, font: Font, font_size: int) -> float:
@@ -976,6 +975,24 @@ func _scroll_to_end() -> void:
 		_scroll.scroll_vertical = _scroll_target()
 
 
-## Where the scroll goes (ReceiptDecor.scroll_target).
+## Where the scroll goes (ReceiptDecor.scroll_target): in fit-down mode the top while the paper
+## still has room for its lines (a feed reveals the newest line at the free end).
 func _scroll_target() -> int:
+	if hang != null and natural_height() <= _stand_bottom - _cap_top + 0.5:
+		return 0
 	return ReceiptDecor.scroll_target(_scroll, _lines, _framed_line())
+
+
+## Over the metal, under the ink: payday's design (its brass foot on the tail), else the tail.
+func _draw_extras() -> void:
+	if payday_ribbon.visible:
+		var header: float = get_theme_stylebox("panel").get_margin(SIDE_TOP) + _pinned_height()
+		payday_ribbon.draw_paper(self, header, gold, hang != null)
+	elif hang != null:
+		ReceiptHang.draw_tail(self, size, gold.face_colour())
+
+
+## Payday's ribbon shows or hides: the paper redraws its design and fits its new header.
+func _on_payday_shown() -> void:
+	queue_redraw()
+	_queue_fit()

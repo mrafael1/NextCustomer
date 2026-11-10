@@ -223,7 +223,6 @@ func test_shift_screen_frames() -> void:
 	var margins: Dictionary[Texture2D, Vector2i] = {
 		TopBar.CHIP_FRAME: Vector2i(2 * square, 2 * square),
 		TopBar.BUTTON_FRAME: Vector2i(2 * square, 2 * square),
-		InspectionTag.CHIP_FRAME: Vector2i(2 * square, 2 * square),
 		LoyaltyCard.CARD_FRAME: Vector2i.ONE * 2 * LoyaltyCard.FRAME_MARGIN,
 		RegisterCabinet.COLUMN_FRAME: Vector2i.ONE * 2 * RegisterCabinet.COLUMN_MARGIN,
 		RegisterCabinet.DECK_FRAME: Vector2i.ONE * 2 * RegisterCabinet.DECK_MARGIN,

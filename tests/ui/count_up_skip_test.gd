@@ -291,6 +291,10 @@ func test_a_tapped_or_held_count_plays_the_same_sounds() -> void:
 	screen._debug.give_upgrade("slot_engine")
 	screen._debug.set_inspection("spot_check")
 	_place(screen, FULL_ROW)
+	# The top bar gauge's pours and lap notes (GaugePanel, after each placement) ring out first.
+	await get_tree().create_timer(GaugePanel.LAP_NOTE_DELAY + 0.1).timeout
+	await _frames(3)
+	sfx.clear()
 	var result: ScoreResult = screen.run.preview()
 	_play(screen, result)
 	await _played(screen)
@@ -346,7 +350,9 @@ func _assert_full_receipt(screen: ShiftScreen) -> void:
 		screen.receipt_header(),
 		ReceiptInk.cards_of(run.row)
 	)
-	assert_str(_lines(expected)[0]).is_equal(screen.receipt_header()[0] + " | ")
+	# A Double checkout's row line heads it (main scene v2: no SHIFT line), else the first row.
+	if not screen.receipt_header().is_empty():
+		assert_str(_lines(expected)[0]).is_equal(screen.receipt_header()[0] + " | ")
 	var notice: String = InspectionTag.next_notice(run.next_inspections)
 	expected.show_shift_end(run.last_result.total, run.quota(), notice)
 	assert_array(_lines(screen._receipt)).is_equal(_lines(expected))
@@ -402,7 +408,7 @@ func test_a_skipped_count_still_spends_the_week_medals() -> void:
 	flow.flight.finish()
 	assert_bool(flow.flight.is_flying()).is_false()
 	var used: Array[int] = [WeekMedals.State.USED, WeekMedals.State.USED]
-	assert_array(screen._stage.top_bar.week_chip.medals().states()).is_equal(used)
+	assert_array(screen._stage.medal_case.states()).is_equal(used)
 	assert_bool(screen._stage.receipt.gold.is_gold()).is_true()
 
 
@@ -416,7 +422,7 @@ func _play(screen: ShiftScreen, result: ScoreResult) -> void:
 		CountUpContext.new(1, 0),
 		screen._loyalty_card.stamped_boxes(),
 		LoyaltyCard.names(screen.run.upgrades),
-		screen._inspection_tag.sources(screen.run.inspections),
+		screen._stage.event_sources(screen.run.inspections),
 		InspectionTag.names(screen.run.inspections)
 	)
 

@@ -59,3 +59,5 @@ sfx/ui_switch	kenney/switch_002	CC0 1.0	low-pass 9 kHz; 140 ms; peak 0.3	1	0		pe
 sfx/coin_1	freesound/367273_coin_1	CC0 1.0	high-pass 300 Hz; 250 ms from onset, 60 ms fade; peak 0.55	2	0		pending
 sfx/coin_2	freesound/367273_coin_2 (+2 st)	CC0 1.0	as coin_1	1	0		pending
 sfx/coin_3	freesound/367273_coin_3 (+4 st)	CC0 1.0	as coin_1	1	0		pending
+sfx/service_bell	freesound/221515_desk_bell_ring (Freesound 221515)	CC0 1.0	48 to 44.1 kHz; one tap with its natural ring, -0.49 st (3620 Hz to A7); high-pass 300 Hz; 1.6 s, fade from 0.25 s; peak 0.8	4	0		pending	The register's service bell (CHECKOUT press and the next day's stub); new 1.8 s excerpt cut 2026-11-09 from the same HQ preview, its first 60 ms identical to 221515_desk_bell.wav
+sfx/pour	synthesised (make_sfx.pour)	project	12 seeded sine chirps (15-25 ms, rising an octave, 600 Hz-1.4 kHz) band-passed at 1 kHz; noise bed low-passed twice at 900 Hz at -10 dB; sine glide C5 to G5 at -14 dB; 350 ms; peak 0.35	3	0		pending	The top bar gauge's fill on a planning gain (2026-11-09 play test), played pitched by the glass's fill

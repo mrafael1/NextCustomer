@@ -1,7 +1,8 @@
 class_name MonitorView
 extends Control
 ## The hung monitor (#80, mock-up B2; ShiftStage.MONITOR_RECT): two rods from the ceiling, the
-## shade under it, a rubber bezel with a little bevel and the paper screen, drawn flat in code.
+## shade under it, a rubber bezel with a little bevel and the paper screen, drawn flat in code. On
+## a payday (`payday`) a brass moulding runs round the bezel (PaydayTrim; nothing else changes).
 ## Since #105 piece 2 (mock-up readability_v3.html, monitor b, the user's pick of 2026-10-24) it
 ## shows one screen in every mode, with no switching: two columns on the paper (PAPER_RECT).
 ## - The scanner bay (ScannerBay, BAY_RECT): the item at the scanner, with the queue over it and
@@ -91,6 +92,11 @@ const WHEEL_BUTTONS: Array[MouseButton] = [
 
 ## Returns true when the player asked for reduced motion. None means false.
 var reduced_motion: Callable = Callable()
+## A payday shift (ShiftStage.show_payday): the brass moulding runs round the bezel (PaydayTrim).
+var payday: bool = false:
+	set(value):
+		payday = value
+		queue_redraw()
 ## The register's reading (the model the checkout column and the top bar follow) and the notices.
 var upgrades: Array[UpgradeDefinition] = []
 ## The shift's events (WeekSchedule.shift_events): an INSPECTION step's source_index is one of them.
@@ -238,6 +244,8 @@ func _draw() -> void:
 		_draw_hung(local(rod), Palette.RUBBER)
 	_draw_hung(local(ShiftStage.MONITOR_UNDER_RECT), Palette.CHARCOAL)
 	var bezel: Rect2 = local(ShiftStage.MONITOR_RECT)
+	if payday:
+		PaydayTrim.draw_round(self, bezel)
 	draw_rect(bezel, Palette.INK)
 	var face: Rect2 = bezel.grow(-OUTLINE)
 	draw_rect(face, BEVEL_DARK)

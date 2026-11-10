@@ -19,7 +19,8 @@ extends Node
 ## the inspection). The hovered item's ticket is ringed and its targets' tickets get the "got"
 ## face; its own rail strip turns hot on top in lane 0 with each target's gain ("+14€"), the strips
 ## giving to it turn hot with its gain, and every other strip dims (a box's or the chip's hover dims
-## them all). The receipt frames the item's line and marks its targets' lines with their tokens.
+## them all). (The planning receipt has no item rows since main scene v2's H2: the relations
+## show on the belt only.)
 ## An item with no effect stays quiet, as #80's hover.
 ## The scan's hold is unchanged (its scan adds a "gives" line: ScanController). Leaving waits the
 ## tuning's unfocus_delay_s, so sweeping across the belt never flickers, and the focus is kept by
@@ -83,8 +84,9 @@ var _model: PlanningModel = PlanningModel.new()
 var _total: int = 0
 var _quota: int = 0
 var _run: RunState
-## The top bar's week chip (v0.70): rung, not the day chip, when the cause is the week event.
-var _week_chip: WeekChip
+## The register's week glass (v1.17; the week chip's since v0.70): rung, not the day calendar,
+## when the cause is the week event.
+var _week_glass: WeekGlass
 var _views: Array[CardView] = []
 ## The hand's items (#105 piece 3: the mix highlight lights and greys them too).
 var _hand: Array[Control] = []
@@ -107,12 +109,11 @@ var _shown: bool = false
 ## The landing slot whose effects show during a drag, or -1.
 var _landing: int = -1
 var _loyalty: LoyaltyCard
-var _tag: InspectionTag
+var _tag: DayCalendar
 var _quota_meter: QuotaMeter
 var _drag: CardDrag
 var _layer: PlanningLayer
 var _monitor: MonitorView
-var _receipt: ReceiptView
 var _unfocus_timer: Timer
 var _focus: Focus = Focus.NONE
 var _focus_card: CardInstance
@@ -126,12 +127,12 @@ var _grey_tween: Tween
 
 
 ## Takes `stage`'s loyalty card, inspection chip, quota chip, planning layer, monitor (for a drag's
-## PLAN number) and receipt (to explain the hover; the screen's layout part: ShiftScreen owns them),
+## PLAN number) (the screen's layout part: ShiftScreen owns them),
 ## and follows `drag`'s landings and the top bar's hovers.
 func setup(stage: ShiftStage, drag: CardDrag) -> void:
 	_loyalty = stage.loyalty_card
-	_tag = stage.inspection_tag
-	_week_chip = stage.top_bar.week_chip
+	_tag = stage.day_calendar
+	_week_glass = stage.week_glass
 	_quota_meter = stage.quota_meter
 	_drag = drag
 	_layer = stage.planning_layer
@@ -139,7 +140,6 @@ func setup(stage: ShiftStage, drag: CardDrag) -> void:
 	_layer.fan().blocked = _blocked
 	_layer.fan().fanned_changed.connect(_on_fanned)
 	_monitor = stage.monitor
-	_receipt = stage.receipt
 	_unfocus_timer = Timer.new()
 	_unfocus_timer.one_shot = true
 	_unfocus_timer.wait_time = maxf(tuning.unfocus_delay_s, 0.001)
@@ -217,7 +217,6 @@ func show_hypothetical(
 	_paint_items(looks, Callable(), PackedInt32Array(), -1, _fade(tuning.mix_fade_s))
 	_grey_stickers(items, looks, 0.0)
 	_ring({}, -2)
-	_explain(-1, {})
 
 
 ## Highlights what the card's item relates to (see the class comment).
@@ -275,11 +274,10 @@ func clear() -> void:
 		_grey_tween = null
 	_sticker_grey.clear()
 	_layer.clear()
-	_explain(-1, {})
 	_paint_items({}, Callable(), PackedInt32Array(), -1, 0.0)
 	_loyalty.clear_relations()
 	_tag.set_relation(false)
-	_week_chip.set_relation(false)
+	_week_glass.set_relation(false)
 
 
 ## The CHECKOUT click (#86 v6), after the refresh that rebuilt the belt items `views`: everything
@@ -354,7 +352,7 @@ func _apply_focus(fade: bool) -> void:
 						and spec.cause_index == index
 					)
 		Focus.INSPECTION:
-			# The day chip's own events only: the week event's is the week chip's, a pin's no chip's.
+			# The calendar's own events only: the week event's is the glass's, a pin's neither's.
 			for link: EffectLink in graph.links:
 				if link.cause_kind != ScoreStep.SourceKind.INSPECTION or _run == null:
 					continue
@@ -379,7 +377,6 @@ func _apply_focus(fade: bool) -> void:
 	_layer.apply_focus(lit, related, hot, fade_time, focused)
 	_grey_stickers(_items_in(_views, -1, null), looks, mix_fade)
 	_ring(boxes, cause[0])
-	_explain(focused, _tokens(_model, focused))
 
 
 ## The items' looks: with mix `looks` (not empty) each belt and hand item's (SELF focused, a grey
@@ -517,27 +514,6 @@ static func _hot_strips(model: PlanningModel, slot: int) -> Dictionary[int, int]
 	return hot
 
 
-## The tokens the item at `slot` gives each target (target slot: "×3"), from its rail strip.
-static func _tokens(model: PlanningModel, slot: int) -> Dictionary[int, String]:
-	var tokens: Dictionary[int, String] = {}
-	for spec: RailStripSpec in model.strips:
-		if spec.giver_slot == slot:
-			for index: int in range(spec.targets.size()):
-				tokens[spec.targets[index]] = spec.tokens[index]
-	return tokens
-
-
-## The receipt's explanation of the hovered item at `slot` (-1: none): its line framed, its
-## targets' lines marked with `tokens`.
-func _explain(slot: int, tokens: Dictionary[int, String]) -> void:
-	if _receipt == null:
-		return
-	if slot < 0 or _item(slot) == null:
-		_receipt.show_relations(-1)
-		return
-	_receipt.show_relations(slot, tokens)
-
-
 ## Relates `item` to the focus: `relation` (fading over `fade` seconds to DIM's `greyness`) and
 ## the mix highlight's mark of `look` (a FOCUS for SELF, a DIM for a greying look).
 static func _relate(
@@ -559,7 +535,7 @@ static func _relate(
 ## Fills `boxes` (the upgrades to ring) and `cause` (its first entry: the inspection to name, -2
 ## not to ring the chip) with the upgrades and inspections causing the effects on `slot`. A worn
 ## pin's event (an index from `pin_from` on) is the cause only when no day or week event acts on
-## the slot too, so Happy hour on an Express lane end still rings the day chip.
+## the slot too, so Happy hour on an Express lane end still rings the day calendar.
 static func _card_causes(
 	graph: EffectGraph,
 	slot: int,
@@ -593,9 +569,9 @@ static func _add_slot(slots: PackedInt32Array, slot: int) -> void:
 
 
 ## Rings the loyalty boxes in `boxes` (and only those) and, for a `cause` of -1 or more, the
-## inspection chip (naming inspection `cause` when it is one), or the week chip when `cause` is
+## day calendar (naming inspection `cause` when it is one), or the week glass when `cause` is
 ## the week event (v0.70: after the day events in WeekSchedule.shift_events). A worn pin's events
-## come last and ring neither chip (they are run-wide, not the day's: WeekFlow.is_pin_event).
+## come last and ring neither (they are run-wide, not the day's: WeekFlow.is_pin_event).
 func _ring(boxes: Dictionary[int, bool], cause: int) -> void:
 	for index: int in range(_loyalty.stamped_boxes().size()):
 		_loyalty.set_relation(index, boxes.has(index))
@@ -607,7 +583,7 @@ func _ring(boxes: Dictionary[int, bool], cause: int) -> void:
 		var events: Array[InspectionDefinition] = WeekSchedule.shift_events(_run)
 		week = cause >= 0 and cause < events.size() and events[cause].is_week()
 		pin = cause >= 0 and WeekFlow.is_pin_event(_run, cause)
-	_week_chip.set_relation(week)
+	_week_glass.set_relation(week)
 	_tag.set_relation(cause >= -1 and not week and not pin, named)
 
 
@@ -725,11 +701,14 @@ func _fade(seconds: float) -> float:
 ## family's other items there, a written family's what its rule counts (RuleReach), and only
 ## those light.
 func _on_tip_shown(target: TipTarget) -> void:
-	# A BATCH chip on a belt ticket lights its batch's frame, a CHAIN chip its chain's (#128); any
-	# other tip, none.
+	# A BATCH chip on a belt ticket lights its batch's frame, a CHAIN chip its chain's (#128), a
+	# MORNING chip the MORNING's line (v1.24); any other tip, none.
 	var chip: KeywordChip = target as KeywordChip
 	var word: String = chip.keyword if chip != null and _shown else ""
-	_layer.light_frames(_belt_slot_of(chip) if not word.is_empty() else -1, word)
+	# A part of the belt's MORNING line (v1.24) is the MORNING keyword's own.
+	if target is MorningMark and _shown:
+		word = CardText.MORNING_WORD
+	_layer.light_frames(_belt_slot_of(chip) if chip != null and not word.is_empty() else -1, word)
 	# A family glyph (what an item is) and a ticket's written family (what it works with) both
 	# light their family.
 	var glyph: FamilyGlyph = target as FamilyGlyph

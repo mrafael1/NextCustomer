@@ -1,7 +1,7 @@
 class_name BonusNotice
 extends Node
 ## The planning notice's pulse (#77 machine v2, B1): when passing the shift earns the bonus ticket,
-## the inspection chip pulses once as planning opens (PlanningTuning.notice_pulse_ms), scaling by
+## the day calendar pulses once as planning opens (PlanningTuning.notice_pulse_ms), scaling by
 ## 1 ± notice_pulse_scale at notice_pulse_rate (rad/s) about its pivot, and is back at 1 after.
 ## None under reduced motion. (The monitor's PASS IT plate went with the store channel, #105
 ## piece 2.) Its clock is its own (`time`, seconds; show_at for tests).
@@ -71,5 +71,5 @@ static func _scale(control: Control, factor: float) -> void:
 	if is_equal_approx(factor, 1.0):
 		control.scale = Vector2.ONE
 		return
-	control.pivot_offset = control.size / 2.0 if control is InspectionTag else control.pivot_offset
+	control.pivot_offset = control.size / 2.0 if control is DayCalendar else control.pivot_offset
 	control.scale = Vector2(factor, factor)

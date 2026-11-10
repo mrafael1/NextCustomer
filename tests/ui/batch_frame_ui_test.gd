@@ -135,7 +135,16 @@ func test_a_batch_cards_ticket_prints_the_batch_chip() -> void:
 		assert_bool(chip.tip_below).is_true()
 		assert_object(chip.tip_anchor).is_same(sticker)
 		assert_bool(chip.is_wasted()).is_false()
-		assert_that(chip.face_color()).is_equal(Palette.CREAM_SHADE)
+		assert_that(chip.face_color()).is_equal(Palette.PAPER)
+		assert_str(KeywordChip.PALETTE_PATH).is_equal(FamilyPalette.PATH)
+		var bakery: FamilyStyle = FamilyPalette.shared().style("Bakery")
+		assert_that(KeywordChip.dot_family(chip.keyword).face).is_equal(bakery.face)
+		assert_bool(Rect2(Vector2.ZERO, chip.size).encloses(chip.dot_rect())).is_true()
+		var dot: Rect2 = chip.dot_rect()
+		var above: float = dot.position.y - KeywordChip.BORDER
+		var below: float = chip.size.y - KeywordChip.BORDER - dot.end.y
+		assert_float(above).override_failure_message("dot gap above").is_equal(below)
+		assert_float(above).is_greater(0.0)
 		var rect: Rect2 = Rect2(sticker.summary().position + chip.position, chip.size)
 		var box: Rect2 = sticker.plate_rect()
 		assert_bool(box.grow(1).encloses(rect)).override_failure_message(str(rect)).is_true()
@@ -145,7 +154,8 @@ func test_a_batch_cards_ticket_prints_the_batch_chip() -> void:
 	for id: String in ["bread", "milk", "eggs"]:
 		var plain: PriceSticker = auto_free(PriceSticker.new(_card(id)))
 		assert_array(plain.summary().keywords()).is_empty()
-	# The Produce chain cards (#128 Produce links) print a CHAIN chip, Produce green when calm.
+	# The Produce chain cards (#128 Produce links) print a CHAIN chip, paper when calm, its dot
+	# Produce's.
 	for id: String in ["banana", "strawberries", "lemon", "wonky_carrot"]:
 		var chain: PriceSticker = auto_free(PriceSticker.new(_card(id)))
 		add_child(chain)
@@ -153,7 +163,9 @@ func test_a_batch_cards_ticket_prints_the_batch_chip() -> void:
 		assert_int(chain_chips.size()).override_failure_message(id).is_equal(1)
 		assert_str(chain_chips[0].keyword).is_equal(CardText.CHAIN_WORD)
 		assert_str(chain_chips[0].tip_text).starts_with("CHAIN · 2 or more Bananas")
-		assert_that(chain_chips[0].face_color()).is_equal(Palette.GREEN_LIGHT)
+		assert_that(chain_chips[0].face_color()).is_equal(Palette.PAPER)
+		var produce: FamilyStyle = FamilyPalette.shared().style("Produce")
+		assert_that(KeywordChip.dot_family(CardText.CHAIN_WORD).face).is_equal(produce.face)
 		assert_bool(chain.summary().fits()).override_failure_message(id).is_true()
 
 
@@ -253,6 +265,40 @@ func test_the_frame_binds_exactly_the_batch() -> void:
 	# The frame draws no tomato over a wrong job's ticket.
 	for paint: int in frame.drawn_paints():
 		assert_that(frame.paint_color(paint as BatchFrame.Paint)).is_not_equal(Palette.TOMATO)
+
+
+## A framed ticket's stuck price label (price leak, 2026-11-10) lies over its frame: the row's
+## label layer sits in the planning layer, after the batch and chain frames and their keyword
+## marks and under every other part, and draws the label where the frame's band runs.
+func test_a_stuck_price_label_lies_over_the_frame() -> void:
+	var screen: ShiftScreen = await _screen()
+	await _place(screen, WRONG_ROW)
+	var layer: PlanningLayer = _layer(screen)
+	var labels: PriceLabelLayer = screen._stage.row_strip.labels
+	assert_object(labels.get_parent()).is_same(layer)
+	var chains: Node = layer.get_node("ChainFrames")
+	assert_int(labels.get_index()).is_equal(chains.get_index() + 1)
+	assert_bool(labels.is_greater_than(layer.get_node("BatchFrames"))).is_true()
+	assert_bool(labels.is_greater_than(KeywordMarks.of(layer))).is_true()
+	assert_bool(labels.is_greater_than(_item(screen, 4))).is_true()
+	assert_bool(layer.fan().is_greater_than(labels)).is_true()
+	assert_bool(screen._stage.hand.is_greater_than(labels)).is_true()
+	# The run's last ticket: its label crosses the frame's top band and its side band.
+	var frame: BatchFrame = layer.frames()[0]
+	var sticker: PriceSticker = _item(screen, frame.slots[-1]).sticker()
+	sticker.set_pay(PlanningModel.Pay.BOOSTED, 9999)
+	var window: PriceWindow = sticker.window()
+	assert_array(labels.labelled()).contains([window])
+	assert_bool(window.label().covered).is_true()
+	await _frames(2)
+	var shown: Rect2 = window.label().get_global_rect()
+	var outer: Rect2 = layer.get_global_transform() * frame.frame_rect()
+	assert_bool(outer.intersects(shown)).is_true()
+	assert_float(shown.end.x).is_greater(outer.end.x)
+	var drawn: Array[Rect2] = labels.drawn_rects()
+	assert_int(drawn.size()).is_equal(1)
+	assert_vector(drawn[0].position).is_equal_approx(shown.position, Vector2.ONE * 0.01)
+	assert_vector(drawn[0].size).is_equal_approx(shown.size, Vector2.ONE * 0.01)
 
 
 ## In their places (Croissant first) no job is wrong, and the frame binds the same tickets. The

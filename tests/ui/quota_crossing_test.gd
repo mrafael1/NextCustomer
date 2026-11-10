@@ -146,7 +146,7 @@ func test_its_pixel_shapes_take_the_pixel_material() -> void:
 ## "×N" stamp pops beside the receipt at checkout (v1.13), nor its sparkles.
 func test_a_lap_rings_only_while_counting_and_pops_nothing() -> void:
 	var meter: QuotaMeter = auto_free(QuotaMeter.new())
-	meter.size = ShiftStage.TUBE_RECT.size
+	meter.size = Vector2(360, 26)  # The top bar's glass (GaugePanel).
 	add_child(meter)
 	var lights: BonusLights = auto_free(BonusLights.new())
 	add_child(lights)
@@ -180,8 +180,9 @@ func _play(screen: ShiftScreen, reduced: bool) -> void:
 	count_up.quota_met.connect(_on_quota_met.bind(screen))
 	screen._stage.quota_meter.lap_reached.connect(
 		func(lap: int) -> void:
-			var bar: Rect2 = crossing._local_rect(screen._stage.quota_meter.bar().get_global_rect())
-			_at_laps.append([lap, crossing.drawing(), crossing._gauge, bar])
+			# The streak aims at the receipt's target (left column v2: the gauge hides at CHECKOUT).
+			var aim: Rect2 = crossing._local_rect(crossing._aimed())
+			_at_laps.append([lap, crossing.drawing(), crossing._gauge, aim])
 	)
 	for control: Control in _beside(screen):
 		_beside_before[control] = true

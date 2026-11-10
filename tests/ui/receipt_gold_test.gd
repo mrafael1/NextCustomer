@@ -1,17 +1,18 @@
 extends GdUnitTestSuite
-## The receipt's gold paper and its anchored count (2026-11-05: ReceiptGold, ReceiptGoldFlow,
-## ReceiptPaidRows) on the real shift screen and alone: a payday shift's receipt is gold from its
-## opening (a resume's too, at once under reduced motion) through its verdict, passed or missed, and
-## cream again at the next ordinary shift; an ordinary shift's turns gold, with the "3× QUOTA"
-## stamp, when its paid total reaches the overtime PREMIUM laps (reached on its last item too); the
-## count pays planning's rows in place, every row keeping its place on the paper, and its dessert
-## covers no paid row (a passed payday's inspection, a full belt: its lines print on the paper under
-## its foot, which grows and rises by them, 2026-11-07, never on a slip beside it; no stub prints
-## since 2026-11-06, the receipt pays every draw; nor the TOTAL, the margin, the target with its
-## stamp or the header), and the machine feeds that very paper, its whole length. The gold is the
-## announce slip's material (GoldPaperArt: its glint and sparkles, none under reduced motion). On
-## the gold the ink stays dark and the warnings legible. Layout asserts on-screen geometry (memory:
-## UI tests check layout).
+## The receipt's silver and gold paper and its anchored count on the real shift screen and alone
+## (2026-11-05: ReceiptGold, ReceiptGoldFlow; since left column v2, the user's pick of 2026-11-09,
+## mock-up docs/art/mockups/left_column_v2.html, the paper carries the week medal the checkout wins:
+## the gauge hides at CHECKOUT). A count earning the overtime ticket's medal (twice the target)
+## turns the paper SILVER, the PREMIUM medal (three times) GOLD, wiping over the silver; each wipe
+## runs from the paper's top down in whole art px, then one stepped shine band crosses it; under
+## reduced motion the metal is at once, with no shine. No stamp. A payday wears the paycheck design
+## (ReceiptPayday: its brass PAYDAY ribbon, foot band and € watermark) from its opening (a
+## resume's too) through its verdict, passed or missed, never a metal of its own; the next ordinary
+## shift opens plain. The count pays planning's rows in place, every row keeping its place on the
+## paper, and its dessert prints nothing under its foot (the 2026-11-09 play test: no tear, no
+## INSPECTION PASSED, nothing on a slip beside it); the machine feeds that very paper, its whole
+## length. On the metals the ink stays dark and the warnings legible. Layout asserts on-screen
+## geometry (memory: UI tests check layout).
 
 const Rush := preload("res://tests/ui/count_up_rush.gd")
 const ReceiptFed := preload("res://tests/ui/receipt_fed_lines.gd")
@@ -26,6 +27,8 @@ const ORDINARY_SHIFT := 5
 ## The gold paper's face: the announce slip's gold.
 const PAPER_GOLD := GoldPaperArt.FACE
 const MAX_FRAMES := 3000
+## A metal's whole beat: its wipe, then its shine.
+const BEAT := ReceiptGold.WIPE_SECONDS + ReceiptGold.SHINE_SECONDS + 0.1
 
 var _folder: String = ""
 
@@ -44,11 +47,10 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-## The gold paper alone: gold at once when `instant` (no glint, no sparkles), after its fade
-## otherwise (glinting); on it the light inks step darker (tomato, the waiting grey, green, teal)
-## and the dashed rules turn amber; back on cream every ink is its own again. Every ink on the gold
-## reads: the ink dark (7:1 and more), the stepped ones 3:1 and more. The paper is never tinted
-## flat: its gold is drawn (GoldPaperArt).
+## The gold paper alone: gold at once when `instant` (no shine, no sparkles); on it the light inks
+## step darker (tomato, the waiting grey, green, teal) and the dashed rules turn amber; back on
+## cream every ink is its own again. Every ink on the gold reads: the ink dark (7:1 and more), the
+## stepped ones 3:1 and more. The paper is never tinted flat: its gold is drawn (GoldPaperArt).
 func test_the_gold_paper_keeps_its_inks_legible() -> void:
 	var receipt: ReceiptView = auto_free(ReceiptView.new())
 	add_child(receipt)
@@ -56,7 +58,7 @@ func test_the_gold_paper_keeps_its_inks_legible() -> void:
 	var waiting: Label = (
 		receipt.add_line("5 ·····", "", ReceiptView.LineStyle.WAITING).get_child(0) as Label
 	)
-	var projected: Control = receipt.add_line("PROJECTED", "9.00€", ReceiptView.LineStyle.PROJECTED)
+	var projected: Control = receipt.add_line("PROJECTED", "9€", ReceiptView.LineStyle.PROJECTED)
 	var rule: HSeparator = receipt._lines.get_child(projected.get_index() - 1) as HSeparator
 	assert_object(_ink(notice)).is_equal(Palette.TOMATO)
 	receipt.gold.show_gold(true, true)
@@ -86,18 +88,49 @@ func test_the_gold_paper_keeps_its_inks_legible() -> void:
 	assert_object(_ink(notice)).is_equal(Palette.TOMATO)
 	assert_object(_ink(waiting)).is_equal(Palette.MUTED_INK)
 	assert_bool(rule.get_meta(ReceiptGold.RULE_META, true)).is_false()
-	# A brief change in place: the gold fades in, glinting, the paper never moves.
+
+
+## The wipe (left column v2): a metal wipes on from the paper's top down, its front on whole art px
+## at every step, the paper never moving; once down its stepped shine band crosses once, then
+## stops. Gold wipes over silver (the face gold once down; gold implies silver's beat first in a
+## count, ReceiptGoldFlow). Under reduced motion: at once, no shine.
+func test_a_metal_wipes_down_then_shines_once() -> void:
+	var receipt: ReceiptView = auto_free(ReceiptView.new())
+	add_child(receipt)
+	receipt.size = Vector2(ShiftStage.RECEIPT_WIDTH, 301.0)
+	await _frames(1)
+	var cell: float = ArtStyle.ART_SCALE
+	for k: float in [0.0, 0.13, 0.5, 0.77, 1.0]:
+		var front: float = receipt.gold.wipe_y(k)
+		assert_float(fposmod(front, cell)).override_failure_message(str(k)).is_equal(0.0)
+		assert_float(front).is_between(0.0, receipt.size.y + cell)
 	var rect: Rect2 = receipt.get_global_rect()
+	receipt.gold.show_silver(true)
+	assert_float(receipt.gold.silver_amount()).is_less(1.0)
+	assert_object(receipt.gold.face_colour()).is_equal(Palette.PAPER)
+	await get_tree().create_timer(ReceiptGold.WIPE_SECONDS + 0.05).timeout
+	assert_float(receipt.gold.silver_amount()).is_equal(1.0)
+	assert_object(receipt.gold.face_colour()).is_equal(GoldPaperArt.SILVER[0])
+	assert_bool(receipt.gold.is_shining()).is_true()
+	await get_tree().create_timer(ReceiptGold.SHINE_SECONDS).timeout
+	assert_bool(receipt.gold.is_shining()).is_false()
 	receipt.gold.show_gold(true)
 	assert_float(receipt.gold.amount()).is_less(1.0)
-	assert_bool(receipt.gold.shines()).is_true()
-	await get_tree().create_timer(ReceiptGold.FADE_SECONDS + 0.1).timeout
+	await get_tree().create_timer(BEAT).timeout
 	assert_float(receipt.gold.amount()).is_equal(1.0)
+	assert_object(receipt.gold.face_colour()).is_equal(PAPER_GOLD)
 	assert_object(receipt.get_global_rect()).is_equal(rect)
+	# Reduced motion: at once, still.
+	receipt.gold.show_gold(false, true)
+	receipt.gold.show_silver(false, true)
+	receipt.gold.show_gold(true, true)
+	assert_float(receipt.gold.amount()).is_equal(1.0)
+	assert_bool(receipt.gold.shines()).is_false()
+	assert_bool(receipt.gold.is_shining()).is_false()
 
 
 ## The gold is the PAYDAY / PREMIUM NEXT announce slip's: its gold face, its glint every
-## SHINE_PERIOD (sweeping across, then gone till the next), its sparkles only as it turns gold.
+## SHINE_PERIOD (sweeping across, then gone till the next).
 func test_the_gold_paper_is_the_announce_slips() -> void:
 	assert_object(GoldPaperArt.FACE).is_equal(Palette.GOLD)
 	assert_float(GoldPaperArt.SHINE_PERIOD).is_equal(PremiumAnnounce.SHINE_PERIOD)
@@ -111,38 +144,39 @@ func test_the_gold_paper_is_the_announce_slips() -> void:
 	assert_float(GoldPaperArt.shine_at(gone)).is_greater(1.0)
 
 
-## A payday shift opens gold (PAYDAY NEXT's check), its planning receipt's short line stepped to
-## tomato dark; an ordinary shift opens cream; under reduced motion the switch is at once; a
-## resumed payday planning is gold too.
-func test_a_payday_shift_opens_gold() -> void:
+## A payday shift opens with the paycheck design (PAYDAY NEXT's check): the PAYDAY ribbon over the
+## header, inside the paper, the paper cream (no metal); an ordinary shift opens plain; a resumed
+## payday planning wears the design too. The design never hides the target's number.
+func test_a_payday_shift_opens_as_a_paycheck() -> void:
 	var screen: ShiftScreen = await _screen()
 	screen._debug.skip_to_shift(PAYDAY_SHIFT)
 	await _frames(2)
+	var receipt: ReceiptView = screen._receipt
 	assert_bool(ReceiptGoldFlow.payday(screen.run)).is_true()
-	assert_bool(screen._receipt.gold.is_gold()).is_true()
-	await get_tree().create_timer(ReceiptGold.FADE_SECONDS + 0.1).timeout
-	assert_float(screen._receipt.gold.amount()).is_equal(1.0)
-	var against: Label = screen._receipt._against.get_child(1) as Label
-	assert_object(_ink(against)).is_equal(ReceiptGold.ink_on_gold(Palette.TOMATO))
-	assert_object(screen._receipt.gold.stamp()).is_null()
+	assert_bool(receipt.payday_ribbon.visible).is_true()
+	assert_bool(receipt.gold.is_gold()).is_false()
+	assert_bool(receipt.gold.is_silver()).is_false()
+	var ribbon: Rect2 = receipt.payday_ribbon.get_global_rect()
+	var paper: Rect2 = receipt.get_global_rect()
+	assert_bool(paper.encloses(ribbon)).override_failure_message(str(ribbon)).is_true()
+	assert_float(ribbon.size.y).is_equal(ReceiptPayday.height())
+	var target: Rect2 = receipt.target.get_global_rect()
+	assert_float(ribbon.end.y).is_less_equal(target.position.y + 0.5)
 	screen._debug.skip_to_shift(ORDINARY_SHIFT)
 	await _frames(1)
 	assert_bool(ReceiptGoldFlow.payday(screen.run)).is_false()
-	assert_bool(screen._receipt.gold.is_gold()).is_false()
-	screen.profile.settings[ProfileState.REDUCED_MOTION_KEY] = true
+	assert_bool(receipt.payday_ribbon.visible).is_false()
 	screen._debug.skip_to_shift(PAYDAY_SHIFT)
-	# Reduced motion: gold in the very frame the shift opens, with no glint.
-	assert_float(screen._receipt.gold.amount()).is_equal(1.0)
-	assert_bool(screen._receipt.gold.shines()).is_false()
+	await _frames(1)
 	var resumed: ShiftScreen = await _screen()
 	assert_int(resumed.run.shift_index).is_equal(PAYDAY_SHIFT - 1)
 	assert_int(resumed.run.phase).is_equal(RunState.Phase.PLANNING)
-	assert_bool(resumed._receipt.gold.is_gold()).is_true()
+	assert_bool(resumed._receipt.payday_ribbon.visible).is_true()
 
 
-## A passed payday keeps its gold through the count and the verdict (the TOTAL green dark on the
-## gold), its dessert covering no paid row at any frame, then the next ordinary shift opens cream.
-func test_a_passed_payday_stays_gold_through_its_verdict() -> void:
+## A passed payday keeps its paycheck design through the count and the verdict (the TOTAL green
+## dark), its dessert covering no paid row at any frame, then the next ordinary shift opens plain.
+func test_a_passed_payday_stays_a_paycheck_through_its_verdict() -> void:
 	var screen: ShiftScreen = await _screen()
 	_low_quotas(screen, 5)
 	screen._debug.skip_to_shift(PAYDAY_SHIFT)
@@ -150,29 +184,27 @@ func test_a_passed_payday_stays_gold_through_its_verdict() -> void:
 	_place_milks(screen, 2)
 	await _frames(2)
 	var rows: Array[Rect2] = _row_rects(screen)
-	var paper: Rect2 = screen._receipt.get_global_rect()
+	var paper: Rect2 = ReceiptFed.planned_rect(screen)
 	assert_bool(_header_shown(screen)).is_true()
 	var seen: Dictionary = await _checkout_watching(screen, rows)
-	assert_bool(seen["cream_frames"] as bool).is_false()
+	assert_bool(seen["plain_frames"] as bool).is_false()
 	assert_bool(screen.run.history[-1].passed).is_true()
-	assert_bool(screen._receipt.gold.is_gold()).is_true()
 	await _frames(1)
 	_assert_anchored(screen, seen, rows, paper)
 	_assert_dessert_clear(screen, seen, paper)
-	var total: Label = screen._receipt.total_label()
-	var verdict: String = ReceiptView.verdict_text(screen.run.last_result.total, screen.run.quota())
-	assert_str(total.text).is_equal(verdict)
-	assert_object(_ink(total)).is_equal(Palette.GREEN_DARK)
+	var target: ReceiptTarget = screen._receipt.target
+	var total: int = screen.run.last_result.total
+	assert_str(target.hero.text).is_equal(ReceiptTarget.AMOUNT_TEXT % total)
+	assert_object(_ink(target.over)).is_equal(Palette.GREEN_DARK)
 	screen._machine.debug_skip()
 	await _frames(2)
 	assert_int(screen.run.shift_index).is_equal(ORDINARY_SHIFT - 1)
-	assert_bool(screen._receipt.gold.is_gold()).is_false()
-	assert_object(screen._receipt.gold.stamp()).is_null()
+	assert_bool(screen._receipt.payday_ribbon.visible).is_false()
 
 
-## A missed payday keeps its gold through the verdict (the TOTAL and SHORT tomato dark), then the
-## next ordinary shift (its slip moves the run on) opens cream.
-func test_a_missed_payday_stays_gold_through_its_verdict() -> void:
+## A missed payday keeps its paycheck design through the verdict (the TOTAL and SHORT tomato
+## dark), then the next ordinary shift (its slip moves the run on) opens plain.
+func test_a_missed_payday_stays_a_paycheck_through_its_verdict() -> void:
 	var screen: ShiftScreen = await _screen()
 	screen._debug.skip_to_shift(PAYDAY_SHIFT)
 	await _frames(2)
@@ -180,18 +212,16 @@ func test_a_missed_payday_stays_gold_through_its_verdict() -> void:
 	assert_int(screen.run.preview().total).is_less(screen.run.quota())
 	await _frames(2)
 	var rows: Array[Rect2] = _row_rects(screen)
-	var paper: Rect2 = screen._receipt.get_global_rect()
+	var paper: Rect2 = ReceiptFed.planned_rect(screen)
 	var seen: Dictionary = await _checkout_watching(screen, rows)
-	assert_bool(seen["cream_frames"] as bool).is_false()
-	assert_bool(seen["verdict_gold"] as bool).is_true()
+	assert_bool(seen["plain_frames"] as bool).is_false()
 	assert_bool(screen.run.history[-1].passed).is_false()
 	var inks: Array = seen["verdict_inks"]
 	assert_array(inks).contains([Palette.TOMATO_DARK])
 	await _frames(1)
 	_assert_anchored(screen, seen, rows, paper)
-	assert_bool(screen._receipt.gold.is_gold()).is_true()
-	# A missed shift has no machine visit: the run moves on to the next (ordinary) shift by itself
-	# (its slip), which opens on cream, with no stamp.
+	assert_bool(screen._receipt.payday_ribbon.visible).is_true()
+	assert_bool(screen._receipt.gold.is_gold()).is_false()
 	assert_int(screen.run.phase).is_equal(RunState.Phase.SCORED)
 	for _frame: int in range(MAX_FRAMES):
 		if screen.run.phase != RunState.Phase.SCORED:
@@ -200,17 +230,15 @@ func test_a_missed_payday_stays_gold_through_its_verdict() -> void:
 	assert_int(screen.run.phase).is_equal(RunState.Phase.PLANNING)
 	assert_int(screen.run.shift_index).is_equal(ORDINARY_SHIFT - 1)
 	assert_bool(ReceiptGoldFlow.payday(screen.run)).is_false()
-	assert_bool(screen._receipt.gold.is_gold()).is_false()
-	await get_tree().create_timer(ReceiptGold.FADE_SECONDS + 0.1).timeout
-	assert_float(screen._receipt.gold.amount()).is_equal(0.0)
-	assert_object(screen._receipt.gold.stamp()).is_null()
+	assert_bool(screen._receipt.payday_ribbon.visible).is_false()
 
 
 ## An ordinary shift reaching the PREMIUM laps (×3) only with its last item: the paper is cream
-## until that item is counted, then gold with the "3× QUOTA" stamp; through the count the paper
-## never moves and every row keeps its place, paid in place; the stamp sits on the target, inside
-## the paper. A resumed screen shows it all at once.
-func test_overtime_on_the_last_item_turns_the_receipt_gold() -> void:
+## at the click, turns silver and gold (gold over silver) in CHECKOUT's medal prelude, before the
+## count starts (MedalPrelude, the 2026-11-09 play test), and stays gold through the count; the
+## paper never moves and every row keeps its place, paid in place. A resumed screen shows the
+## gold at once.
+func test_overtime_on_the_last_item_turns_the_receipt_gold_before_the_count() -> void:
 	var screen: ShiftScreen = await _screen()
 	var laps: int = ReceiptGoldFlow.premium_laps(screen.run)
 	assert_int(laps).is_equal(screen.run.balance.machine.overtime_premium_laps)
@@ -218,71 +246,62 @@ func test_overtime_on_the_last_item_turns_the_receipt_gold() -> void:
 	await _last_item_reaches(screen, laps)
 	assert_bool(screen._receipt.gold.is_gold()).is_false()
 	var rows: Array[Rect2] = _row_rects(screen)
-	var paper: Rect2 = screen._receipt.get_global_rect()
+	var paper: Rect2 = ReceiptFed.planned_rect(screen)
 	var last: int = screen.run.row.size() - 1
 	var seen: Dictionary = await _checkout_watching(screen, rows, last)
 	assert_bool(seen["moved"] as bool).override_failure_message(str(seen["moved_at"])).is_false()
-	assert_bool(seen["early_gold"] as bool).is_false()
-	assert_bool(seen["gold_while_counting"] as bool).is_true()
+	assert_bool(seen["gold_before_count"] as bool).is_true()
+	assert_bool(seen["early_gold"] as bool).is_true()
+	assert_bool(seen["cream_while_counting"] as bool).is_false()
+	assert_bool(seen["silver_seen"] as bool).is_true()
 	_assert_fed_paper(screen, paper)
 	assert_bool(screen._receipt.gold.is_gold()).is_true()
-	var stamp: PanelContainer = screen._receipt.gold.stamp()
-	assert_object(stamp).is_not_null()
-	assert_str((stamp.get_child(0) as Label).text).is_equal(
-		"%d%s QUOTA" % [laps, OvertimeWords.TIMES]
-	)
-	assert_bool(screen._receipt.get_global_rect().encloses(stamp.get_global_rect())).is_true()
-	var digits: Rect2 = screen._receipt.target.digits_rect()
-	var target: Rect2 = screen._receipt.target.get_global_rect()
-	var number: Rect2 = Rect2(target.position + digits.position, digits.size)
-	assert_bool(stamp.get_global_rect().intersects(number)).is_false()
-	# The rows were paid in place: each item's amount is its payout, in ink.
+	await get_tree().create_timer(ReceiptGold.WIPE_SECONDS + 0.05).timeout
+	assert_object(screen._receipt.gold.face_colour()).is_equal(PAPER_GOLD)
+	# The rows printed at checkout: each item's amount is its payout, in ink.
+	var printed: Array[Control] = screen._receipt.printed_rows()
+	assert_int(printed.size()).is_equal(screen.run.row.size())
 	for slot: int in range(screen.run.row.size()):
-		var amount: Label = screen._receipt._items[slot].get_child(1) as Label
+		var amount: Label = printed[slot].get_child(1) as Label
 		assert_str(amount.text).is_equal(ReceiptView.money(screen.run.last_result.payouts[slot]))
 		assert_object(_ink(amount)).is_equal(Palette.INK)
-	assert_str((screen._receipt._projected.get_child(0) as Label).text).is_equal(
-		ReceiptView.TOTAL_TEXT
-	)
+	assert_str(screen._receipt.target.total_caption.text).is_equal(ReceiptTarget.TOTAL_TEXT)
 	var resumed: ShiftScreen = await _screen()
 	assert_int(resumed.run.phase).is_equal(RunState.Phase.MACHINE_CHOOSE)
 	assert_bool(resumed._receipt.gold.is_gold()).is_true()
-	assert_object(resumed._receipt.gold.stamp()).is_not_null()
-	assert_str((resumed._receipt._projected.get_child(0) as Label).text).is_equal(
-		ReceiptView.TOTAL_TEXT
-	)
-	assert_int(resumed._receipt._items.size()).is_equal(screen.run.row.size())
+	assert_float(resumed._receipt.gold.amount()).is_equal(1.0)
+	assert_str(resumed._receipt.target.total_caption.text).is_equal(ReceiptTarget.TOTAL_TEXT)
+	assert_int(resumed._receipt.printed_rows().size()).is_equal(screen.run.row.size())
 
 
-## A payday reaching the PREMIUM laps only with its last item: the paper is gold from the
-## shift's opening and never fades again; the GOLD medal stays in its socket (a payday's visit is
-## PREMIUM already, 2026-11-06), while the SILVER, still to spend, lands its "2× QUOTA" stamp once
-## its lap is counted; the rows stay put through the dessert.
-func test_a_payday_reaching_overtime_gets_the_stamp_only() -> void:
+## A payday reaching the PREMIUM laps with its last item: the paycheck design all along; the GOLD
+## medal stays in its socket (a payday's visit is PREMIUM already, 2026-11-06), so the paper never
+## turns gold, but the SILVER is spent: the paper turns silver under the design (the metal is the
+## medal won, the user's play test of 2026-11-09).
+func test_a_payday_reaching_overtime_turns_silver_under_its_design() -> void:
 	var screen: ShiftScreen = await _screen()
 	screen._debug.skip_to_shift(PAYDAY_SHIFT)
-	await get_tree().create_timer(ReceiptGold.FADE_SECONDS + 0.1).timeout
+	await _frames(2)
 	var laps: int = ReceiptGoldFlow.premium_laps(screen.run)
 	await _last_item_reaches(screen, laps)
 	assert_bool(ReceiptGoldFlow.payday(screen.run)).is_true()
-	assert_bool(screen._receipt.gold.is_gold()).is_true()
-	assert_float(screen._receipt.gold.amount()).is_equal(1.0)
-	assert_object(screen._receipt.gold.stamp()).is_null()
+	assert_bool(screen._receipt.gold.is_gold()).is_false()
 	var rows: Array[Rect2] = _row_rects(screen)
-	var paper: Rect2 = screen._receipt.get_global_rect()
-	var silver: int = ReceiptGoldFlow.ticket_laps(screen.run)
-	var seen: Dictionary = await _checkout_watching(screen, rows, -1, silver)
-	assert_bool(seen["cream_frames"] as bool).is_false()
-	assert_bool(seen["tint_changed"] as bool).is_false()
-	assert_bool(seen["stamp_while_counting"] as bool).is_true()
-	assert_str(_stamp_text(screen._receipt)).starts_with(str(silver))
+	var paper: Rect2 = ReceiptFed.planned_rect(screen)
+	var seen: Dictionary = await _checkout_watching(screen, rows)
+	assert_bool(seen["plain_frames"] as bool).is_false()
+	assert_bool(seen["gold_while_counting"] as bool).is_false()
+	assert_bool(seen["silver_seen"] as bool).is_true()
+	assert_bool(screen._receipt.gold.is_gold()).is_false()
+	assert_bool(screen._receipt.gold.is_silver()).is_true()
+	assert_bool(screen._receipt.payday_ribbon.visible).is_true()
 	var spent: Array[int] = [WeekMedals.State.USED, WeekMedals.State.AVAILABLE]
-	assert_array(screen._stage.top_bar.week_chip.medals().states()).is_equal(spent)
+	assert_array(screen._stage.medal_case.states()).is_equal(spent)
 	_assert_anchored(screen, seen, rows, paper)
 
 
-## Under reduced motion the overtime's gold switches at once: the first gold frame of the count is
-## already all gold, with no glint and no sparkles, and the stamp lands at its size.
+## Under reduced motion the overtime's metal switches at once: the first gold frame of the count is
+## already all gold, with no shine and no sparkles.
 func test_overtime_gold_is_instant_under_reduced_motion() -> void:
 	var screen: ShiftScreen = await _screen()
 	screen.profile.settings[ProfileState.REDUCED_MOTION_KEY] = true
@@ -290,15 +309,13 @@ func test_overtime_gold_is_instant_under_reduced_motion() -> void:
 	var seen: Dictionary = await _checkout_watching(screen)
 	assert_float(seen["first_gold_tint"] as float).is_equal(1.0)
 	assert_bool(screen._receipt.gold.shines()).is_false()
-	var stamp: PanelContainer = screen._receipt.gold.stamp()
-	assert_object(stamp.scale).is_equal(Vector2.ONE)
+	assert_bool(screen._receipt.gold.is_shining()).is_false()
 
 
-## The 2026-11-05 review: a shift reaching the overtime ticket's laps (×2) only with its last item
-## turns its receipt SILVER as that item is counted (not gold), with a steel "2× QUOTA" stamp, its
-## lighter inks stepped darker as on gold; no OVERTIME stub prints at its foot; the week badge's
-## SILVER medal is spent (its socket empty), the GOLD still there (2026-11-06). A resumed screen
-## shows the silver, the stamp and the empty socket at once.
+## A shift reaching the overtime ticket's laps (×2) only with its last item turns its receipt
+## SILVER as that item is counted (not gold), its lighter inks stepped darker as on gold; no stub
+## prints at its foot; the week badge's SILVER medal is spent (its socket empty), the GOLD still
+## there (2026-11-06). A resumed screen shows the silver and the empty socket at once.
 func test_the_tickets_laps_turn_the_receipt_silver() -> void:
 	var screen: ShiftScreen = await _screen()
 	var laps: int = ReceiptGoldFlow.ticket_laps(screen.run)
@@ -308,12 +325,11 @@ func test_the_tickets_laps_turn_the_receipt_silver() -> void:
 	var receipt: ReceiptView = screen._receipt
 	assert_bool(receipt.gold.is_silver()).is_false()
 	await Rush.checkout(screen)
-	await get_tree().create_timer(ReceiptGold.FADE_SECONDS + 0.1).timeout
+	await get_tree().create_timer(BEAT).timeout
 	assert_bool(receipt.gold.is_silver()).is_true()
 	assert_bool(receipt.gold.is_gold()).is_false()
 	assert_float(receipt.gold.silver_amount()).is_equal(1.0)
 	assert_object(receipt.gold.face_colour()).is_equal(GoldPaperArt.SILVER[0])
-	# The ink stays legible on the silver as on the gold.
 	assert_float(_contrast(Palette.INK, GoldPaperArt.SILVER[0])).is_greater_equal(7.0)
 	for ink: Color in ReceiptGold.INKS.values():
 		(
@@ -321,48 +337,18 @@ func test_the_tickets_laps_turn_the_receipt_silver() -> void:
 			. override_failure_message(ink.to_html())
 			. is_greater_equal(3.0)
 		)
-	var stamp: PanelContainer = receipt.gold.stamp()
-	assert_object(stamp).is_not_null()
-	assert_str((stamp.get_child(0) as Label).text).is_equal(
-		"%d%s QUOTA" % [laps, OvertimeWords.TIMES]
-	)
-	var style: StyleBoxFlat = stamp.get_theme_stylebox("panel") as StyleBoxFlat
-	assert_object(style.bg_color).is_equal(ReceiptGold.SILVER_STAMP_FACE)
 	assert_object(receipt.find_child("BonusStub", true, false)).is_null()
-	var rule: HSeparator = receipt.find_children("*", "HSeparator", true, false)[0] as HSeparator
-	assert_object(ReceiptGold.rule_ink(rule, Palette.CREAM_SHADE)).is_equal(
-		ReceiptGold.SILVER_RULE_INK
-	)
 	var spent: Array[int] = [WeekMedals.State.USED, WeekMedals.State.AVAILABLE]
-	assert_array(screen._stage.top_bar.week_chip.medals().states()).is_equal(spent)
+	assert_array(screen._stage.medal_case.states()).is_equal(spent)
 	var resumed: ShiftScreen = await _screen()
 	assert_bool(resumed._receipt.gold.is_silver()).is_true()
-	assert_object(resumed._receipt.gold.stamp()).is_not_null()
-	assert_array(resumed._stage.top_bar.week_chip.medals().states()).is_equal(spent)
-
-
-## The stamp alone: "N× QUOTA" with the data's laps; 0 takes it off.
-func test_the_quota_stamp_reads_the_laps() -> void:
-	var receipt: ReceiptView = auto_free(ReceiptView.new())
-	add_child(receipt)
-	receipt.size = Vector2(ShiftStage.RECEIPT_WIDTH, 300.0)
-	receipt.target.show_quota(65)
-	await _frames(2)
-	receipt.gold.show_stamp(3, true)
-	var stamp: PanelContainer = receipt.gold.stamp()
-	assert_str((stamp.get_child(0) as Label).text).is_equal("3× QUOTA")
-	assert_bool(receipt.get_global_rect().encloses(stamp.get_global_rect())).is_true()
-	receipt.gold.show_stamp(0, true)
-	await _frames(1)
-	assert_object(receipt.gold.stamp()).is_null()
+	assert_array(resumed._stage.medal_case.states()).is_equal(spent)
 
 
 ## A full belt on a passed payday with its review (the inspection): through the count and the
-## dessert nothing on the paper is ever covered; the dessert's lines (INSPECTION PASSED, the tear)
-## print on the gold paper under its foot, the paper growing at its foot and rising by them, and
-## nothing prints beside it (2026-11-07); no BONUS stub prints and no banner shows (2026-11-06: the
-## receipt itself pays the payday's two PREMIUM draws). The machine then feeds that very paper,
-## its whole length, every row where it stood.
+## dessert nothing on the paper is ever covered; the dessert prints nothing under its foot (no
+## INSPECTION PASSED, no tear) and nothing beside it; no BONUS stub and no banner.
+## The machine then feeds that very paper, its whole length, every row where it stood.
 func test_a_full_belt_keeps_every_row_in_sight() -> void:
 	var screen: ShiftScreen = await _screen()
 	_low_quotas(screen, 5)
@@ -372,13 +358,13 @@ func test_a_full_belt_keeps_every_row_in_sight() -> void:
 	await _frames(2)
 	assert_bool(RowCapacity.fits(screen.run.limits, screen.run.row)).is_false()
 	var rows: Array[Rect2] = _row_rects(screen)
-	var paper: Rect2 = screen._receipt.get_global_rect()
+	var paper: Rect2 = ReceiptFed.planned_rect(screen)
 	var seen: Dictionary = await _checkout_watching(screen, rows)
 	assert_bool(screen.run.history[-1].passed).is_true()
 	assert_object(screen.run.history[-1].inspection).is_not_null()
 	_assert_anchored(screen, seen, rows, paper)
 	_assert_dessert_clear(screen, seen, paper)
-	assert_bool(screen._receipt.gold.is_gold()).is_true()
+	assert_bool(screen._receipt.payday_ribbon.visible).is_true()
 	(
 		assert_bool(seen["banner_seen"] as bool)
 		. override_failure_message(str(seen.get("banner_at", "")))
@@ -431,58 +417,57 @@ func _last_item_reaches(screen: ShiftScreen, laps: int) -> void:
 	assert_int(OvertimeTickets.laps(short_of, quota)).is_less(laps)
 
 
-## Checks out (rushed) and watches every frame until the checkout ends: whether the paper was
-## ever cream (`cream_frames`), the rows moved from `rows` before the total (`moved`), gold showed
-## before item `last` was counted (`early_gold`) or while counting (`gold_while_counting`), the
-## tint of the first gold frame, and the TOTAL's inks once the verdict showed.
-func _checkout_watching(
-	screen: ShiftScreen, rows: Array[Rect2] = [], last: int = -1, laps: int = -1
-) -> Dictionary:
-	var stamp_laps: int = laps if laps > 0 else ReceiptGoldFlow.premium_laps(screen.run)
+## Checks out (rushed) and watches every frame until the checkout ends: whether the paper ever
+## lost a payday's design (`plain_frames`), a printed row moved (`moved`), gold showed before item
+## `last` was counted (`early_gold`), at all (`gold_while_counting`), as the count started (after
+## the medal prelude: `gold_before_count`) and the count then lost it (`cream_while_counting`),
+## silver showed (`silver_seen`), the tint of the first gold frame, and the TOTAL's inks once the
+## verdict showed.
+func _checkout_watching(screen: ShiftScreen, rows: Array[Rect2] = [], last: int = -1) -> Dictionary:
+	var payday: bool = screen._receipt.payday_ribbon.visible
 	var seen: Dictionary = {
-		"cream_frames": false,
+		"plain_frames": false,
+		"silver_seen": false,
 		"moved": false,
 		"moved_at": "",
 		"early_gold": false,
 		"gold_while_counting": false,
+		"gold_before_count": false,
+		"cream_while_counting": false,
 		"first_gold_tint": -1.0,
 		"covered": false,
 		"covered_at": "",
 		"verdict_gold": false,
 		"verdict_inks": [],
 		"header_lost": false,
-		"tint_changed": false,
-		"early_stamp": false,
-		"stamp_while_counting": false,
 		"banner_seen": false,
 	}
-	var opening_tint: float = screen._receipt.gold.amount()
+	var printed: Array[Rect2] = rows.duplicate()
 	var count_up: CountUp = screen._count_up
+	var receipt: ReceiptView = screen._receipt
+	var at_count: Callable = func(_views: Array[CardView]) -> void:
+		seen["gold_before_count"] = receipt.gold.is_gold()
+	count_up.count_started.connect(at_count, CONNECT_ONE_SHOT)
 	(func() -> void: Rush.rush(count_up)).call_deferred()
 	screen._on_checkout_pressed()
-	var receipt: ReceiptView = screen._receipt
 	for frame: int in range(MAX_FRAMES):
 		await get_tree().process_frame
 		var gold: bool = receipt.gold.is_gold()
-		seen["cream_frames"] = (seen["cream_frames"] as bool) or not gold
-		var framed: Control = receipt._framed_line()
+		var plain: bool = payday and not receipt.payday_ribbon.visible
+		seen["plain_frames"] = (seen["plain_frames"] as bool) or plain
+		if receipt.gold.is_silver():
+			seen["silver_seen"] = true
+		# Whether item `last`'s row has printed (the count reached it).
+		var reached: bool = receipt._print != null and receipt._print.row_of(last) != null
 		if gold and (seen["first_gold_tint"] as float) < 0.0:
 			seen["first_gold_tint"] = receipt.gold.amount()
-		# A medal lands a flight after its lap (MedalFlight, 2026-11-06): under the rushed count
-		# that can be after the count, before the machine feeds the paper.
+		# The medals land in the prelude, before the count (MedalPrelude, 2026-11-09).
 		if gold:
 			seen["gold_while_counting"] = true
-			var counting: bool = count_up._playing and last >= 0 and framed != null
-			if counting and framed != receipt._items.get(last):
+			if count_up._playing and last >= 0 and not reached:
 				seen["early_gold"] = true
-		# The `stamp_laps` stamp (the ×2's silver stamp may land earlier: it is the SILVER's).
-		var stamped: bool = _stamp_text(receipt).begins_with(str(stamp_laps))
-		if stamped and screen._counting:
-			seen["stamp_while_counting"] = true
-			if last >= 0 and framed != null and framed != receipt._items.get(last):
-				seen["early_stamp"] = true
-		if receipt.gold.amount() != opening_tint:
-			seen["tint_changed"] = true
+		elif count_up._playing and (seen["gold_before_count"] as bool):
+			seen["cream_while_counting"] = true
 		var beside: Array[String] = ReceiptFed.beside(screen, receipt.get_global_rect())
 		if not beside.is_empty() and not (seen["banner_seen"] as bool):
 			seen["banner_seen"] = true
@@ -491,36 +476,44 @@ func _checkout_watching(
 		if not cover.is_empty() and not (seen["covered"] as bool):
 			seen["covered"] = true
 			seen["covered_at"] = "frame %d: %s" % [frame, cover]
-		# Through the count and the dessert, to the checkout's end: rows and header stay put.
-		if not rows.is_empty() and _row_rects(screen) != rows:
-			seen["moved"] = true
-			seen["moved_at"] = "frame %d: %s" % [frame, _row_rects(screen)]
-		if not rows.is_empty() and not _header_shown(screen):
+		# Through the count and the dessert, to the checkout's end: a printed row stays put (main
+		# scene v2: the rows print as the count reaches them) and the header shows.
+		var now: Array[Rect2] = _row_rects(screen)
+		for index: int in range(mini(printed.size(), now.size())):
+			if now[index] != printed[index] and not (seen["moved"] as bool):
+				seen["moved"] = true
+				seen["moved_at"] = "frame %d: %s after %s" % [frame, now, printed]
+		if now.size() >= printed.size():
+			printed = now
+		if not _header_shown(screen):
 			seen["header_lost"] = true
-		if count_up._verdict_shown and receipt.total_label() != null:
+		if count_up._verdict_shown:
 			seen["verdict_gold"] = gold
-			(seen["verdict_inks"] as Array).append(_ink(receipt.total_label()))
+			(seen["verdict_inks"] as Array).append(_ink(receipt.target.over))
 		if not screen._counting and not screen._stage.gold_flow.flight.is_flying():
 			break
-	await get_tree().create_timer(ReceiptGold.STAMP_SLAM_SECONDS + 0.1).timeout  # Settled.
+	# The paper's last feed (left column v2: it lengthens to each line it printed) ends.
+	for _frame: int in range(MAX_FRAMES):
+		if receipt.hang == null or not receipt.hang.is_feeding():
+			break
+		await get_tree().process_frame
 	return seen
 
 
-## The checkout left every row where planning put it on the paper and the SHIFT line showed at
-## every frame, through the dessert's end; the paper only grew at its foot by the dessert's lines
-## (_assert_fed_paper).
+## The checkout left every row where it printed on the paper (one per item) and the header showed
+## at every frame, through the dessert's end; the paper only grew at its foot (_assert_fed_paper).
 func _assert_anchored(
-	screen: ShiftScreen, seen: Dictionary, rows: Array[Rect2], paper: Rect2
+	screen: ShiftScreen, seen: Dictionary, _planned: Array[Rect2], paper: Rect2
 ) -> void:
 	assert_bool(seen["moved"] as bool).override_failure_message(str(seen["moved_at"])).is_false()
 	assert_bool(seen["header_lost"] as bool).is_false()
-	assert_array(_row_rects(screen)).is_equal(rows)
+	assert_int(_row_rects(screen).size()).is_equal(screen.run.row.size())
 	assert_bool(_header_shown(screen)).is_true()
 	_assert_fed_paper(screen, paper)
 
 
-## The paper is `paper` (planning's) fed on by the dessert's lines alone: its foot on the printer,
-## its left edge and width kept, as much taller as its fed lines, which lie on it under its foot;
+## The paper hangs in `paper` (the count's room) fed on by the dessert's lines alone: its top on the
+## printer's slot, its left edge and width kept, its fed lines on it under its foot;
 ## nothing right of it; its paid rows, TOTAL and margin on screen (ReceiptFed).
 func _assert_fed_paper(screen: ShiftScreen, paper: Rect2) -> void:
 	var failures: Array[String] = ReceiptFed.failures(
@@ -529,8 +522,9 @@ func _assert_fed_paper(screen: ShiftScreen, paper: Rect2) -> void:
 	assert_array(failures).override_failure_message("\n".join(failures)).is_empty()
 
 
-## The passed shift's dessert covered no paid row at any frame: INSPECTION PASSED is its first
-## fed line, on the paper under its foot; no BONUS stub (2026-11-06).
+## The passed shift's dessert covered no paid row at any frame and printed nothing under the foot
+## (the 2026-11-09 play test: no INSPECTION PASSED or tear line), PAID stamped on the header after
+## the margin's words; no BONUS stub (2026-11-06).
 func _assert_dessert_clear(screen: ShiftScreen, seen: Dictionary, paper: Rect2) -> void:
 	(
 		assert_bool(seen["covered"] as bool)
@@ -538,16 +532,17 @@ func _assert_dessert_clear(screen: ShiftScreen, seen: Dictionary, paper: Rect2) 
 		. is_false()
 	)
 	var receipt: ReceiptView = screen._receipt
-	var fed: Array[Control] = ReceiptFed.lines(receipt)
-	assert_bool(fed.is_empty()).is_false()
-	assert_object(ReceiptStamps.inspection_of(fed[0])).is_not_null()
+	assert_array(ReceiptFed.lines(receipt)).is_empty()
+	var stamps: Array[Node] = receipt.find_children(ReceiptStamps.INSPECTION_NAME, "", true, false)
+	assert_array(stamps).is_empty()
+	assert_str(receipt.target.stamp.text).is_equal(ReceiptStamps.PAID_TEXT)
 	assert_object(receipt.find_child("BonusStub", true, false)).is_null()
 	_assert_fed_paper(screen, paper)
 
 
 ## The first thing on the paper a dessert line fed under the foot (INSPECTION PASSED's stamp too,
 ## once it has landed: it slams in from twice its size) covers: a paid row, the TOTAL
-## or the margin line, TODAY'S TARGET (its quota stamp too) or the header; or "".
+## or the margin line, TODAY'S TARGET or the header; or "".
 static func _covered_row(screen: ShiftScreen) -> String:
 	var receipt: ReceiptView = screen._receipt
 	var covers: Array[Rect2] = []
@@ -557,18 +552,11 @@ static func _covered_row(screen: ShiftScreen) -> String:
 		if stamp_of != null and stamp_of.scale.is_equal_approx(Vector2.ONE):
 			covers.append(stamp_of.get_global_rect())
 	var shown: Dictionary[String, Rect2] = {}
-	for slot: int in receipt._items:
-		shown["row %d" % slot] = receipt._items[slot].get_global_rect()
-	var lines: Array[Control] = [receipt._projected, receipt._against, receipt.target]
-	for line: Control in lines:
-		if is_instance_valid(line) and line.is_visible_in_tree():
-			shown[str(line.name)] = line.get_global_rect()
-	for line: Control in receipt._header:
-		if line.is_visible_in_tree():
-			shown["header"] = line.get_global_rect()
-	var stamp: PanelContainer = receipt.gold.stamp()
-	if stamp != null:
-		shown["quota stamp"] = stamp.get_global_rect()
+	var printed: Array[Control] = receipt.printed_rows()
+	for slot: int in range(printed.size()):
+		shown["row %d" % slot] = printed[slot].get_global_rect()
+	if receipt.target.is_visible_in_tree():
+		shown["header"] = receipt.target.get_global_rect()
 	for what: String in shown:
 		var rect: Rect2 = shown[what].grow(-0.5)
 		for cover: Rect2 in covers:
@@ -581,8 +569,9 @@ static func _covered_row(screen: ShiftScreen) -> String:
 ## machine it is the shift screen's receipt, its rows (`rows`, where planning put them on it) and
 ## its fed lines where the dessert left them on it, covering nothing; once the visit ends it is back
 ## on the stage, hidden.
-func _assert_fed_as_is(screen: ShiftScreen, rows: Array[Rect2]) -> void:
+func _assert_fed_as_is(screen: ShiftScreen, _planned: Array[Rect2]) -> void:
 	var receipt: ReceiptView = screen._receipt
+	var rows: Array[Rect2] = _row_rects(screen)
 	var fed: Array[Vector2] = _fed_offsets(receipt)
 	var paper_at: Rect2 = receipt.get_global_rect()
 	var length: float = receipt.size.y
@@ -602,25 +591,23 @@ func _assert_fed_as_is(screen: ShiftScreen, rows: Array[Rect2]) -> void:
 	assert_str(_covered_row(screen)).is_empty()
 	screen._machine.debug_skip()
 	await _frames(2)
-	assert_object(receipt.get_parent()).is_same(screen._stage.fore)
+	assert_object(receipt.get_parent()).is_same(screen._stage.receipt_slot)
 	assert_float(receipt.get_global_rect().position.x).is_equal(paper_at.position.x)
 
 
-## Whether the receipt's header (its SHIFT line) shows.
+## Whether the receipt's header (main scene v2: the target and the hero) shows.
 static func _header_shown(screen: ShiftScreen) -> bool:
-	for line: Control in screen._receipt._header:
-		if not line.is_visible_in_tree():
-			return false
-	return not screen._receipt._header.is_empty()
+	return screen._receipt.target.is_visible_in_tree()
 
 
-## Each item row's rect on the paper (its own coordinates: the paper rises as the printer feeds
-## the dessert's lines on, 2026-11-07, its rows with it), in slot order.
+## Each item row's rect on the printed strip (the receipt's lines' own coordinates: past the
+## paper's room the dessert's lines scroll the strip up under the header, v1.18 review, its rows
+## with it), in slot order.
 static func _row_rects(screen: ShiftScreen) -> Array[Rect2]:
 	var rects: Array[Rect2] = []
-	var on_paper: Transform2D = screen._receipt.get_global_transform().affine_inverse()
-	for slot: int in range(screen._receipt._items.size()):
-		rects.append(on_paper * screen._receipt._items[slot].get_global_rect())
+	var on_paper: Transform2D = screen._receipt._lines.get_global_transform().affine_inverse()
+	for row: Control in screen._receipt.printed_rows():
+		rects.append(on_paper * row.get_global_rect())
 	return rects
 
 
@@ -648,11 +635,6 @@ func _frames(count: int) -> void:
 
 static func _ink(label: Label) -> Color:
 	return label.get_theme_color("font_color")
-
-
-static func _stamp_text(receipt: ReceiptView) -> String:
-	var stamp: PanelContainer = receipt.gold.stamp()
-	return (stamp.get_child(0) as Label).text if stamp != null else ""
 
 
 static func _contrast(a: Color, b: Color) -> float:

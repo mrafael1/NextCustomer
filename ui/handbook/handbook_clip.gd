@@ -2,7 +2,7 @@ class_name HandbookClip
 extends Control
 ## A handbook entry's example row (v1.06, mock-up keywords_guide.html's clip): the example's items
 ## on a strip of belt, each with its real ticket (PriceSticker) on the rail under it, bound by the
-## belt's own marks (BatchFrames, ChainFrames with the MORNING ribbon and PAIR clasps), all from a
+## belt's own marks (BatchFrames, ChainFrames with the MORNING line and PAIR clasps), all from a
 ## PlanningModel of the example's real score (HandbookExample), and the total at the row's end.
 ##
 ## play() loops the mock-up's clip: the items ride in from the right one by one (RIDE_EVERY apart,
@@ -42,6 +42,7 @@ var _example: HandbookExample
 var _model: PlanningModel
 var _items: Array[TextureRect] = []
 var _tickets: Array[PriceSticker] = []
+var _labels: PriceLabelLayer
 var _batches: BatchFrames
 var _chains: ChainFrames
 var _total: Label
@@ -68,6 +69,11 @@ func _init(example: HandbookExample, width: float) -> void:
 		_add_slot(slot, example.cards[slot])
 	_chains = ChainFrames.new()
 	add_child(_chains)
+	# A price too wide for its window prints on a label that leaks over the next ticket, which
+	# is drawn after its own: the layer draws the labels over the row and its frames.
+	_labels = PriceLabelLayer.new()
+	_labels.windows = _price_windows
+	add_child(_labels)
 	_caption = UiKit.pixel_label(TOTAL_CAPTION, 2, Palette.INK_LIGHT)
 	add_child(_caption)
 	UiKit.place_pixel_label(_caption, Rect2(width - TOTAL_WIDTH + 16, 80, TOTAL_WIDTH - 24, 20))
@@ -115,6 +121,18 @@ func stop() -> void:
 
 func is_playing() -> bool:
 	return _tween != null and _tween.is_running()
+
+
+## The row's stuck price labels (PriceLabelLayer), over the tickets and the frames.
+func price_labels() -> PriceLabelLayer:
+	return _labels
+
+
+func _price_windows() -> Array[PriceWindow]:
+	var found: Array[PriceWindow] = []
+	for ticket: PriceSticker in _tickets:
+		found.append(ticket.window())
+	return found
 
 
 ## The tickets, in row order.

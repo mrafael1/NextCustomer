@@ -387,7 +387,9 @@ func test_the_tuning_defaults_are_neutral_and_the_file_holds_the_values() -> voi
 		"halo_step_s",
 	]:
 		assert_float(neutral.get(property)).override_failure_message(property).is_equal(0.0)
+	assert_int(neutral.price_leak_cap).is_equal(0)
 	var tuning: PlanningTuning = load(TUNING)
+	assert_int(tuning.price_leak_cap).is_equal(11)
 	assert_float(tuning.focus_fade_s).is_equal_approx(0.12, 0.0001)
 	assert_float(tuning.unfocus_delay_s).is_equal_approx(0.08, 0.0001)
 	assert_float(tuning.mix_brightness).is_equal_approx(0.78, 0.0001)

@@ -1,6 +1,6 @@
 class_name Sfx
 extends Node
-## Plays the sound effects in audio/sfx/ (#62: CC0 recordings and two synthesised sounds, built
+## Plays the sound effects in audio/sfx/ (#62: CC0 recordings and three synthesised sounds, built
 ## by tools/make_sfx.py), each a mono 16-bit 44100 Hz WAV named after its sound. A small pool of
 ## players, so overlapping sounds don't cut each other off: play() takes an idle player, and only
 ## when all are busy the one nearest its end. Every player plays on the SFX bus
@@ -40,11 +40,13 @@ const SOUNDS: Array[String] = [
 	"rattle_l",
 	"register_bell",
 	"kaching",
+	"service_bell",
 	"ding",
 	"tag",
 	"link",
 	"copy",
 	"fizzle",
+	"pour",
 	"denied",
 	"total",
 	"miss",

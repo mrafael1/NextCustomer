@@ -1,18 +1,19 @@
 class_name WeekCardModel
 extends RefCounted
-## What the time card and the top bar's week and day chips show (v0.70, mock-up
+## What the time card, the day calendar and the week glass show (v0.70, mock-up
 ## docs/art/mockups/rota_card_v1.html, layout C): the run's current week, its fixed week event,
 ## and every day of the week in full (the week plan, RunState.week, drawn as the week started): its
 ## day events, whether it is a Manager's review (its two maluses, then "REVIEW PASSED · 2 PREMIUM
 ## DRAWS", or on the run's last shift "PASS = RUN WON"), and whether it is punched in (played,
 ## or today's), and how a played day ended (v0.72: PAID, or a training week's SLIP 1/2). Pure:
-## built from the run, read by WeekCard, WeekChip and InspectionTag.
+## built from the run, read by WeekCard, the day calendar (DayCalendar: its day pips) and the week
+## glass (WeekGlass: "WEEK" over "3/4"; both v1.17, in place of the week and day chips).
 
 ## A day's kind, its chip's tint: grey (no event), green (a boon), tomato (an inspection),
 ## mustard (a Manager's review).
 enum Kind { NONE, BOON, MALUS, REVIEW }
-## A week chip pip: a day to come, a played one with no result, today's, and a played one by
-## its result (v0.75, #119: a green check for PAID, a red cross for a SLIP).
+## A day pip (the day calendar's since v1.17): a day to come, a played one with no result, today's,
+## and a played one by its result (v0.75, #119: a green check for PAID, a red cross for a SLIP).
 enum Pip { TODO, DONE, NOW, PAID, SLIP }
 ## How a day ended (v0.72), its stamp on the card: not played yet, passed, or a forgiven miss.
 enum Result { NONE, PAID, SLIP }
@@ -54,8 +55,8 @@ var week_number: int = 1
 var week_count: int = 1
 ## The week's fixed event, or null.
 var event: WeekEventDefinition
-## Every week's short name in the run (each week event's chip_text, none empty; v1.16): the week
-## chip keeps room for the widest, so the top bar doesn't move as a new week starts.
+## Every week's short name in the run (each week event's chip_text, none empty; v1.16, the old
+## week chip's room).
 var chip_names: PackedStringArray = PackedStringArray()
 ## The misses the training week forgives in all (0 outside it, or with a balance without slips).
 var allowed_misses: int = 0
@@ -187,7 +188,7 @@ func head() -> String:
 	return WEEK_HEAD % [week_number, week_count]
 
 
-## The week's number out of the run's ("/4", the week chip's count after "W : 2").
+## The week's number out of the run's ("/4", the week glass's count after its big "2").
 func count_text() -> String:
 	return WEEK_COUNT % week_count
 
@@ -243,12 +244,12 @@ func misses_text() -> String:
 	return MISSES_ONE if allowed_misses == 1 else MISSES % allowed_misses
 
 
-## The week chip's short name (the week event's chip_text, "BAKERY"), or "".
+## The week event's short name (its chip_text, "BAKERY"), or "".
 func chip_name() -> String:
 	return event.chip_text if event != null else ""
 
 
-## The week chip's pips, one per day: a played day's result (today's too, once checked out),
+## The day pips, one per day: a played day's result (today's too, once checked out),
 ## today's, played, to come.
 func pips() -> Array[Pip]:
 	var found: Array[Pip] = []

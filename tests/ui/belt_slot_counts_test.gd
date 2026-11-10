@@ -99,6 +99,22 @@ func test_a_golden_ring_never_hides_a_slot_mark() -> void:
 		assert_bool(_viewport(screen).encloses(mark.get_global_rect())).is_true()
 
 
+## Under a GOLDEN item a chain frame binds (#128), its ring hidden (the frame is its outline),
+## Happy hour's mark tucks under the ticket as under a plain one: no ring, no drop.
+func test_a_framed_golden_ticket_drops_no_slot_mark() -> void:
+	var screen: ShiftScreen = await _screen()
+	await _set_up(screen, [7, [], [HAPPY_HOUR]])
+	_place(screen, ["bread", "banana", "banana_golden"])
+	await _frames(3)
+	var item: ItemView = screen._row_views[2] as ItemView
+	assert_bool(item.sticker().is_framed()).is_true()
+	var mark: SlotMark = screen._row_strip.inspection_mark(2)
+	assert_object(mark).is_not_null()
+	var ticket: Rect2 = item.sticker().get_global_rect()
+	var top: float = mark.get_global_rect().position.y
+	assert_float(top).is_equal_approx(ticket.end.y - SlotMark.TUCKED, TOLERANCE)
+
+
 ## What is out of line on the screen now (`where` names the case).
 func _problems(screen: ShiftScreen, where: String) -> PackedStringArray:
 	var found: PackedStringArray = PackedStringArray()

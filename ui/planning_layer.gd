@@ -106,7 +106,6 @@ var _strips: Array[RailStrip] = []
 ## Whether the rail strips show (off during a drag).
 var _strips_shown: bool = true
 ## The z-ordered parts' parents (section 6), and the ghost's parts' parent (a child of the ghost).
-var _gap_box: Control
 var _batches: BatchFrames
 var _chains: ChainFrames
 var _lane_boxes: Array[Control] = []
@@ -143,7 +142,6 @@ func _init() -> void:
 	name = "PlanningLayer"
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	size = ShiftStage.SIZE
-	_gap_box = _box("RailGaps")
 	_batches = BatchFrames.new()
 	add_child(_batches)
 	_chains = ChainFrames.new()
@@ -256,8 +254,10 @@ func frames(chains: bool = false) -> Array[BatchFrame]:
 	return (_chains if chains else _batches).frames()
 
 
-## Lights the frames `slot`'s `word` chip (BATCH or CHAIN) names; -1 lights none.
+## Lights the frames `slot`'s `word` chip (BATCH or CHAIN) names; -1 lights none. A MORNING chip
+## on a ticket, or a part of the belt's MORNING line, lights that line (v1.24).
 func light_frames(slot: int, word: String) -> void:
+	_chains.marks().light_morning(word == CardText.MORNING_WORD)
 	_batches.light(slot if word == CardText.BATCH_WORD else -1)
 	_chains.light(slot if word == CardText.CHAIN_WORD else -1)
 
@@ -400,7 +400,7 @@ func sparkles(slot: int) -> Array[TextureRect]:
 	return shown
 
 
-## Every part shown: rail strips, their gap fills and gain badges, stickers, stamps and sparkles
+## Every part shown: rail strips, their gain badges, stickers, stamps and sparkles
 ## (the ghost's too, its price window included).
 func parts() -> Array[Control]:
 	var shown: Array[Control] = []
@@ -482,9 +482,9 @@ func _lay_out() -> void:
 			_lay_out_belt(slot, planning, item)
 	for strip: RailStrip in strips():
 		var lane: int = strip.spec().lane
-		strip.lay_out(_anchors(strip.spec()), RailStrip.LANE_RECTS[lane], lane == 0)
+		strip.lay_out(_anchors(strip.spec()), RailStrip.LANE_RECTS[lane])
 	_batches.follow(self, _items, _ghost)
-	_chains.follow(self, _items, _ghost)
+	_chains.follow_binding(_batches, self, _items, _ghost)
 	_lay_out_focus()
 	_hide_hot_calm()
 	_fan.track(_folded_stacks())
@@ -495,7 +495,7 @@ func _lay_out_focus() -> void:
 	for index: int in range(_hot_strips.size()):
 		var strip: RailStrip = _hot_strips[index]
 		var lane: int = _hot_lanes[index]
-		strip.lay_out(_anchors(strip.spec()), RailStrip.LANE_RECTS[lane], lane == 0)
+		strip.lay_out(_anchors(strip.spec()), RailStrip.LANE_RECTS[lane])
 	# Each gain clear of the other hot strip's gains (the hovered giver's own placed first).
 	var taken: Array[Rect2] = []
 	for strip: RailStrip in hot_strips():
@@ -553,9 +553,6 @@ func _build_hot() -> void:
 				continue
 			var strip: RailStrip = RailStrip.new(placed[index])
 			strip.set_hot(true, _hot[placed[index].giver_slot])
-			if pass_lane == 0:
-				for fill: Control in strip.fills():
-					_hot_box.add_child(fill)
 			_hot_box.add_child(strip)
 			gains.append_array(strip.gains())
 			_hot_strips.append(strip)
@@ -569,15 +566,10 @@ func _build_hot() -> void:
 		_ring_box.add_child(_ring)
 
 
-## Hides each hot strip's calm strip and lit gaps (its hot copy is drawn on top) and shows the
-## others' (their gaps as their layout left them).
+## Hides each hot strip's calm strip (its hot copy is drawn on top) and shows the others'.
 func _hide_hot_calm() -> void:
 	for strip: RailStrip in strips():
-		var hot: bool = _has_hot(strip.spec().giver_slot)
-		strip.visible = not hot
-		if hot:
-			for fill: Control in strip.fills():
-				fill.visible = false
+		strip.visible = not _has_hot(strip.spec().giver_slot)
 
 
 ## Dims every calm strip but the hot ones while something is focused, over `fade` seconds.
@@ -835,8 +827,7 @@ func _reset() -> void:
 
 
 ## A calm rail strip for every strip of the model in a lane whose giver and targets are all shown
-## on the belt (none touches the ghost: the strips hide during a drag anyway). Lane 0's strips
-## light the rail's gaps.
+## on the belt (none touches the ghost: the strips hide during a drag anyway).
 func _build_strips() -> void:
 	for spec: RailStripSpec in _model.strips:
 		if spec.lane < 0 or _anchors(spec).is_empty():
@@ -844,15 +835,12 @@ func _build_strips() -> void:
 		var strip: RailStrip = RailStrip.new(spec)
 		strip.dimmed_alpha = tuning.dim_strip_alpha if tuning != null else 1.0
 		_lane_boxes[spec.lane].add_child(strip)
-		if spec.lane == 0:
-			for fill: Control in strip.fills():
-				_gap_box.add_child(fill)
 		_strips.append(strip)
 	show_strips(_strips_shown)
 
 
 ## The tickets' rects (layer coordinates) of every slot `spec` spans (its giver, its targets and
-## the items it passes over, whose gaps it lights too), or empty when its giver or a target has no
+## the items it passes over), or empty when its giver or a target has no
 ## belt view (none, freed, or the ghost).
 func _anchors(spec: RailStripSpec) -> Dictionary[int, Rect2]:
 	var anchors: Dictionary[int, Rect2] = {}
@@ -869,9 +857,7 @@ func _anchors(spec: RailStripSpec) -> Dictionary[int, Rect2]:
 
 
 func _strip_boxes() -> Array[Control]:
-	var boxes: Array[Control] = [_gap_box]
-	boxes.append_array(_lane_boxes)
-	return boxes
+	return _lane_boxes.duplicate()
 
 
 ## The view showing `slot`, or null (none, or freed).

@@ -54,12 +54,13 @@ func test_the_stage_is_laid_out_without_overlaps() -> void:
 
 	var bar_bottom: float = stage.position.y + ShiftStage.TOP_BAR_BOTTOM
 	assert_float(ShiftStage.TOP_BAR_BOTTOM).is_less_equal(ShiftStage.PANEL_TOP)
-	var top_parts: Array[Control] = []
+	# The quota gauge's chip (left column v2, in its room in the row), then the chips and buttons.
+	var top_parts: Array[Control] = [screen._stage.gauge_panel]
 	for child: Node in screen._top_bar.get_children():
 		var part: Control = child as Control
 		if part != null and part.visible and (part is PanelContainer or part is Button):
 			top_parts.append(part)
-	assert_int(top_parts.size()).is_greater_equal(5)
+	assert_int(top_parts.size()).is_greater_equal(4)
 	for part: Control in top_parts:
 		var rect: Rect2 = part.get_global_rect()
 		assert_bool(stage.encloses(rect)).override_failure_message(str(rect)).is_true()
@@ -91,32 +92,25 @@ func test_the_stage_is_laid_out_without_overlaps() -> void:
 	assert_bool(paper.encloses(notice)).is_true()
 	assert_bool(notice.intersects(bay)).is_false()
 
-	# The register: the printer box on the counter top, the column under it; the receipt stands on
-	# the printer's slot.
+	# The register: the column under the counter top; the receipt hangs from the overhead
+	# printer's slot (left column v2), its top at RECEIPT_TOP, its foot no lower than
+	# RECEIPT_BOTTOM; the printer draws over its top.
 	var register: Rect2 = screen._register.get_global_rect()
 	assert_that(register).is_equal(_on_stage(screen, ShiftStage.REGISTER_RECT))
 	assert_bool(stage.encloses(register)).is_true()
-	var printer: Rect2 = _on_stage(screen, ShiftStage.PRINTER_RECT)
-	var slot: Rect2 = _on_stage(screen, ShiftStage.PRINTER_SLOT_RECT)
+	var printer: Rect2 = screen._stage.printer.get_global_rect()
+	assert_that(printer).is_equal(_on_stage(screen, ShiftStage.PRINTER_RECT))
 	var column: Rect2 = _on_stage(screen, ShiftStage.COLUMN_RECT)
-	for part: Rect2 in [printer, column]:
-		assert_bool(register.encloses(part)).override_failure_message(str(part)).is_true()
-	assert_bool(printer.encloses(slot)).is_true()
+	assert_bool(register.encloses(column)).is_true()
 	var receipt: Rect2 = screen._receipt.get_global_rect()
 	assert_bool(stage.encloses(receipt)).override_failure_message(str(receipt)).is_true()
-	assert_float(receipt.end.y).is_equal(stage.position.y + ShiftStage.RECEIPT_BOTTOM)
+	assert_float(receipt.position.y).is_equal(stage.position.y + ShiftStage.RECEIPT_TOP)
+	assert_float(receipt.end.y).is_less_equal(stage.position.y + ShiftStage.RECEIPT_BOTTOM)
 	assert_float(receipt.position.x).is_equal(stage.position.x + ShiftStage.RECEIPT_X)
 	assert_float(receipt.size.x).is_equal(ShiftStage.RECEIPT_WIDTH)
-	assert_bool(slot.has_point(Vector2(receipt.get_center().x, receipt.end.y))).is_true()
-	assert_float(slot.position.x).is_less_equal(receipt.position.x)
-	assert_float(slot.end.x).is_greater_equal(receipt.end.x)
-	# The slot's lip covers the receipt's foot: its teeth over the paper, its edge under it.
-	var lip: Rect2 = screen._stage.printer_lip.get_global_rect()
-	assert_that(lip).is_equal(slot)
-	assert_float(lip.position.y).is_less(receipt.end.y)
-	assert_float(lip.end.y).is_greater(receipt.end.y)
-	assert_int(screen._stage.printer_lip.get_index()).is_greater(screen._receipt.get_index())
-	assert_float(receipt.position.y).is_greater_equal(stage.position.y + ShiftStage.RECEIPT_TOP)
+	assert_float(printer.position.x).is_less_equal(receipt.position.x)
+	assert_float(printer.end.x).is_greater_equal(receipt.end.x)
+	assert_float(printer.end.y).is_greater_equal(receipt.position.y)
 	assert_bool(receipt.intersects(monitor)).is_false()
 
 	# The belt, right of the register, with the row's cells on it: each item on the top face, each
@@ -343,12 +337,13 @@ func test_the_top_bar_fits_its_longest_texts() -> void:
 		var chip_text: String = (
 			inspection.display_name if inspection.is_boon() else InspectionTag.CAPTION
 		)
-		assert_str(screen._inspection_tag.text()).is_equal(chip_text)
+		assert_str(screen._calendar.text()).is_equal(chip_text)
 		# With weeks the SHIFT chip is gone past the training week (v0.82).
 		assert_bool(top_bar.shift_chip.visible).is_false()
+		# The gauge's chip starts the row (left column v2; the day is on the desk calendar, the week
+		# on the register's glass).
 		var parts: Array[Control] = [
-			top_bar.week_chip,
-			screen._inspection_tag,
+			screen._stage.gauge_panel,
 			screen._loyalty_card,
 			screen._deck_button,
 			top_bar.menu_button,
@@ -377,7 +372,7 @@ func test_the_top_bar_fits_its_longest_texts() -> void:
 			assert_float(parts[index].get_global_rect().position.x).is_greater(
 				parts[index - 1].get_global_rect().end.x
 			)
-		assert_float(top_bar.week_chip.get_global_rect().position.x).is_greater_equal(
+		assert_float(screen._stage.gauge_panel.get_global_rect().position.x).is_greater_equal(
 			stage.position.x + ShiftStage.TOWER_RECT.end.x
 		)
 
@@ -394,33 +389,31 @@ func test_the_top_bar_fits_its_longest_texts() -> void:
 		assert_bool(seed_line.intersects(other.get_global_rect())).is_false()
 
 
-## The receipt stands on the printer's slot at its full length (B2 of shift_scene_polish_v4): its
-## top at RECEIPT_TOP however few its lines, and a long one stays there, under the top bar, still
-## standing on the slot, and clear of the monitor.
-func test_the_receipt_stands_full_length_on_the_printer() -> void:
+## The receipt hangs from the overhead printer's slot (left column v2, the user's pick of
+## 2026-11-09): its top stays at RECEIPT_TOP, it is as tall as its lines (planning's: its header
+## alone) and a line lengthens it DOWN; a long one stops at RECEIPT_BOTTOM (the tower's foot,
+## over the bell and the calendar), left of the top bar and clear of the monitor.
+func test_the_receipt_hangs_from_the_printer() -> void:
 	var screen: ShiftScreen = await _screen()
 	var stage: Rect2 = screen._stage.get_global_rect()
 	var receipt: ReceiptView = screen._receipt
+	var top: float = stage.position.y + ShiftStage.RECEIPT_TOP
 	var bottom: float = stage.position.y + ShiftStage.RECEIPT_BOTTOM
-	assert_float(receipt.get_global_rect().end.y).is_equal(bottom)
-	assert_float(receipt.get_global_rect().position.y).is_equal(
-		stage.position.y + ShiftStage.RECEIPT_TOP
-	)
+	assert_float(receipt.get_global_rect().position.y).is_equal(top)
+	var short_foot: float = receipt.get_global_rect().end.y
+	assert_float(short_foot).is_less(bottom)
 	receipt.add_line("LINE", "1€", ReceiptView.LineStyle.ITEM)
 	await _frames(2)
-	assert_float(receipt.get_global_rect().end.y).is_equal(bottom)
-	assert_float(receipt.get_global_rect().position.y).is_equal(
-		stage.position.y + ShiftStage.RECEIPT_TOP
-	)
+	assert_float(receipt.get_global_rect().position.y).is_equal(top)
+	assert_float(receipt.get_global_rect().end.y).is_greater(short_foot)
 	while receipt.natural_height() <= ShiftStage.RECEIPT_BOTTOM - ShiftStage.RECEIPT_TOP:
 		receipt.add_line("LINE", "1€", ReceiptView.LineStyle.ITEM)
 		await _frames(1)
 	receipt.add_line("LINE", "1€", ReceiptView.LineStyle.ITEM)
 	await _frames(2)
 	var rect: Rect2 = receipt.get_global_rect()
+	assert_float(rect.position.y).is_equal(top)
 	assert_float(rect.end.y).is_equal(bottom)
-	assert_float(rect.position.y).is_equal(stage.position.y + ShiftStage.RECEIPT_TOP)
-	# Since the shift scene polish it rises above the top bar's foot, in the tower left of the bar.
 	assert_float(rect.end.x).is_less_equal(screen._stage.top_bar.get_global_rect().position.x)
 	assert_bool(rect.intersects(_on_stage(screen, ShiftStage.MONITOR_RECT))).is_false()
 
@@ -674,7 +667,7 @@ func test_numbers_use_the_number_font() -> void:
 ## the receipt's end-of-shift lines (the day chip names the day's kind only since v1.16).
 func test_every_printed_character_has_its_glyph() -> void:
 	var screen: ShiftScreen = await _rich_screen()
-	assert_str(screen._inspection_tag.text()).is_equal(InspectionTag.CAPTION)
+	assert_str(screen._calendar.text()).is_equal(InspectionTag.CAPTION)
 	var checked: int = 0
 	for text: Control in _texts(screen):
 		var label: Label = text as Label

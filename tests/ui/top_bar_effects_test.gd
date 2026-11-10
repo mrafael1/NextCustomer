@@ -64,8 +64,8 @@ func test_loyalty_boxes_report_hovers_and_take_rings() -> void:
 
 
 func test_the_inspection_chip_rings_and_names_its_cause() -> void:
-	var bar: TopBar = await _bar()
-	var tag: InspectionTag = bar.inspection_tag
+	var tag: DayCalendar = auto_free(DayCalendar.new())
+	add_child(tag)
 	var inspections: Array[InspectionDefinition] = [
 		load(INSPECTIONS.path_join("spot_check.tres")) as InspectionDefinition,
 		load(INSPECTIONS.path_join("short_belt.tres")) as InspectionDefinition,
@@ -78,12 +78,18 @@ func test_the_inspection_chip_rings_and_names_its_cause() -> void:
 	var seen: Array[String] = []
 	tag.hovered.connect(func() -> void: seen.append("in"))
 	tag.unhovered.connect(func() -> void: seen.append("out"))
-	tag.notification(Control.NOTIFICATION_MOUSE_ENTER)
-	tag.notification(Control.NOTIFICATION_MOUSE_EXIT)
+	tag.notification(Control.NOTIFICATION_MOUSE_ENTER_SELF)
+	tag.notification(Control.NOTIFICATION_MOUSE_EXIT_SELF)
+	# The tags outside the pad report their own hover (the bonus pill, a Day off's SKIP tag).
+	tag.tags.pill().mouse_entered.emit()
+	tag.tags.pill().mouse_exited.emit()
+	assert_array(seen).is_equal(["in", "out", "in", "out"])
+	seen.clear()
+	tag.notification(Control.NOTIFICATION_MOUSE_ENTER_SELF)
+	tag.notification(Control.NOTIFICATION_MOUSE_EXIT_SELF)
 	assert_array(seen).is_equal(["in", "out"])
 	# h1: no hit count on the chip.
 	assert_object(tag.find_child("Hits", true, false)).is_null()
-	assert_bool(bar.get_global_rect().encloses(tag.get_global_rect())).is_true()
 	assert_bool(tag.has_relation()).is_false()
 	var width: float = tag.size.x
 	tag.set_relation(true, 0)
@@ -103,15 +109,22 @@ func test_the_inspection_chip_rings_and_names_its_cause() -> void:
 	assert_bool(tag.has_relation()).is_false()
 	assert_str(tag.text()).is_equal(effects)
 	assert_int(tag.mouse_filter).is_equal(Control.MOUSE_FILTER_PASS)
-	assert_str(tag.tooltip_text).contains(inspections[0].display_name)
+	# No native tooltip (play test 2026-11-09): a long hover opens today's slip, which names them.
+	assert_str(tag.tooltip_text).is_empty()
 	for node: Node in tag.find_children("*", "Control", true, false):
+		if node == tag.tags.skip_tag():
+			continue  # The SKIP tag takes its tap (#132).
+		if node == tag.tags.pill():
+			assert_int(tag.tags.pill().mouse_filter).is_equal(Control.MOUSE_FILTER_PASS)
+			continue  # Its hover, its tap passed up to the pad.
 		assert_int((node as Control).mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
 	# A new shift's inspections drop the named cause.
 	tag.set_relation(true, 0)
 	tag.show_inspections(inspections.slice(0, 1))
 	assert_str(tag.text()).is_equal(InspectionTag.CAPTION)
 	# The fixed width (v1.16): the same for one inspection as for two.
-	assert_float(tag.custom_minimum_size.x).is_equal(tag.reserved_width())
+	assert_float(tag.size.x).is_equal_approx(width, 0.01)
+	assert_float(tag.custom_minimum_size.x).is_equal(tag.size.x)
 	await _frames(2)
 	assert_float(tag.size.x).is_equal_approx(width, 0.01)
 

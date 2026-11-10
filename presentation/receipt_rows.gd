@@ -1,19 +1,15 @@
 class_name ReceiptRows
 extends RefCounted
-## The planning receipt at full length (mock-up docs/art/mockups/shift_scene_polish_v4.html, B2 at
-## D's sizes, picked on 2026-11-03): one row per belt slot between the header and the foot, every
-## row the same pitch, so the rows fill the paper and nothing scrolls or moves as items are placed.
-## The pitch is what the paper leaves the rows, MAX_PITCH at most (30 px at 1920x1080: 6 slots),
-## 18 for 7 and 15 for 8; the header's SHIFT line drops at HEADER_SLOTS slots (9: 16), or when it
-## would leave the rows under MIN_PITCH (a Double checkout's row line taking its room; that line
-## always prints). A row's labels keep their font but get its pitch as their line height (a
-## FontVariation's top and bottom spacing), so the text sits centred in it, and its mark is
-## centred again. Display only: ReceiptView builds the rows and says when to fit them.
+## The count's printed rows at one pitch (mock-up docs/art/mockups/shift_scene_polish_v4.html, B2
+## at D's sizes, picked on 2026-11-03; since main scene v2's H2 the rows print at checkout under
+## the header, ReceiptPrintRows): every row the same pitch, what the paper leaves under the header
+## shared by the belt's slots, MAX_PITCH at most and MIN_PITCH at least (ReceiptView._row_pitch).
+## A row's labels keep their font but get its pitch as their line height (a FontVariation's top
+## and bottom spacing), so the text sits centred in it, and its mark is centred again. Display
+## only: ReceiptView builds the rows.
 
 const MAX_PITCH := 20.0
 const MIN_PITCH := 15.0
-## The SHIFT line drops at this many slots (the page's "info line dropped at 9 slots").
-const HEADER_SLOTS := 9
 ## A row label's own font (before its pitch's spacing), kept in its meta.
 const BASE_FONT_META := "row_base_font"
 
@@ -32,38 +28,6 @@ static func one_row(label: Label) -> void:
 	label.clip_text = false
 	label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	label.custom_minimum_size.x = 1.0
-
-
-## Fits `rows` (children of `lines`) into `room` px of lines: the header lines (`header`) show
-## under HEADER_SLOTS rows when the rows' pitch with them is at least MIN_PITCH, else they hide;
-## every row then takes the pitch (less the lines' separation). Every other visible child of
-## `lines` keeps its own height. Returns the pitch (0 for no rows).
-static func fit(
-	lines: VBoxContainer, rows: Array[Control], header: Array[Control], room: float
-) -> float:
-	if rows.is_empty():
-		return 0.0
-	var separation: float = float(lines.get_theme_constant("separation"))
-	var fixed: float = -separation
-	var header_height: float = 0.0
-	for child: Node in lines.get_children():
-		var control: Control = child as Control
-		if control == null or rows.has(control):
-			continue
-		var height: float = control.get_combined_minimum_size().y + separation
-		if header.has(control):
-			header_height += height
-		elif control.visible:
-			fixed += height
-	var pitch: float = pitch_for(room - fixed - header_height, rows.size())
-	var with_header: bool = rows.size() < HEADER_SLOTS and pitch >= MIN_PITCH
-	if not with_header:
-		pitch = pitch_for(room - fixed, rows.size())
-	for line: Control in header:
-		line.visible = with_header
-	for row: Control in rows:
-		set_height(row, pitch - separation)
-	return pitch
 
 
 ## Gives the row `line` (an HBoxContainer of labels) `height` px: each label's line height becomes

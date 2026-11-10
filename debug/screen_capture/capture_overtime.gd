@@ -54,6 +54,7 @@ static func before_checkout(run: RunState) -> void:
 
 ## --receipt's options before CHECKOUT is pressed: reduced motion, the pointer parked.
 static func before_receipt_checkout(screen: ShiftScreen) -> void:
+	CaptureStates.before_checkout(screen)  # --payday=quiet (2026-11-10).
 	var options: PackedStringArray = _argument(RECEIPT_ARGUMENT).split(",", false)
 	if options.is_empty():
 		return

@@ -5,13 +5,16 @@ extends Control
 ## COIN_MAX big coins by the payout (one per COIN_EUROS) arc in from the item, each with a short
 ## trail; the drawer kicks open with an overshoot as the first one flies, showing its dark tray;
 ## each coin lands with a squash and sparks and bumps it; it slams shut SHUT_AFTER_S after the
-## last one, its € and handle flashing gold. The quota's kick (kick) opens it too, in real time,
-## for MET_HOLD_S. Nothing moves under reduced motion. Decor only: it never scores.
+## last one, its lit lip flashing gold. The quota's kick (kick) opens it too, in real time, for
+## MET_HOLD_S. Nothing moves under reduced motion. Decor only: it never scores.
+## Since v1.17 (the user's pick of 2026-11-08, mock-up main_scene_v2.html, MED 'case') its front
+## is this week's medal case: the lock, the pull and the euro sign are gone (medal_case.png) and
+## the week's two medals hang on it (MedalCase, `medal_case`), riding its kick.
 ##
 ## RegisterCabinet places it at ShiftStage.DRAWER_RECT and gives it the layer the coins fly on
 ## (above the register's keys and display) and the count-up whose tweens time the coins.
 
-const DRAWER := preload("res://art/scenery/cash_drawer.png")
+const DRAWER := preload("res://art/scenery/medal_case.png")
 const COIN := preload("res://art/icons/coin.png")
 ## The coins: COIN_SCALE times the art, one per COIN_EUROS of the payout (at least one, at most
 ## COIN_MAX), COIN_GAP_S apart, each flying COIN_FLY_S on an arc COIN_ARC px high, COIN_SPREAD px
@@ -36,17 +39,17 @@ const SPARK_REACH := 18.0
 const SPARK_S := 0.25
 const BUMP_PX := 2.0
 ## The drawer: how far it opens (with an overshoot, over KICK_S), the quota's open hold, how long
-## after the last coin it shuts and how fast, and its flash (over the € glyph and the handle, in
-## the art's px) fading over FLASH_S.
+## after the last coin it shuts and how fast, and its flash (over the front's lit lip, in the
+## art's px; v1.17: the € glyph and the handle it lit are gone) fading over FLASH_S.
 const KICK_PX := 16.0
 const KICK_S := 0.14
 const MET_HOLD_S := 0.45
 const SHUT_AFTER_S := 0.12
 const SHUT_S := 0.07
 const FLASH_S := 0.26
-const FLASH_RECTS: Array[Rect2] = [Rect2(282, 33, 12, 17), Rect2(100, 36, 112, 6)]
+const FLASH_RECTS: Array[Rect2] = [Rect2(2, 14, 310, 4)]
 ## The tray's dark mouth the open drawer shows. Its dividers continue the art's tray dividers
-## (art/src/scenery/cash_drawer.txt: 2 px steel shade, the first at MOUTH_DIVIDER_FIRST px, then
+## (art/src/scenery/medal_case.txt: 2 px steel shade, the first at MOUTH_DIVIDER_FIRST px, then
 ## every MOUTH_DIVIDER_STEP px), and its sides are the art's MOUTH_SIDE px ink outline.
 const MOUTH_HEIGHT := 22.0
 const MOUTH_DIVIDER_FIRST := 22.0
@@ -56,6 +59,8 @@ const MOUTH_SIDE := 2.0
 
 ## Where the coins fly (a layer over the register; this drawer when unset).
 var coin_layer: Control
+## This week's medals on the front (v1.17).
+var medal_case: MedalCase
 var _count: CountUp
 var _front: TextureRect
 var _flash: Control
@@ -75,6 +80,9 @@ func _init() -> void:
 	_front.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_front.size = size
 	add_child(_front)
+	medal_case = MedalCase.new()
+	medal_case.size = size
+	_front.add_child(medal_case)
 	_flash = _flash_layer()
 	_front.add_child(_flash)
 
@@ -238,7 +246,7 @@ func _open(motion: Tween) -> void:
 	)
 
 
-## Slams the drawer shut and flashes its € and handle, once no coin flies and the quota's hold is
+## Slams the drawer shut and flashes its lit lip, once no coin flies and the quota's hold is
 ## over.
 func _shut() -> void:
 	if _in_flight > 0 or _met_hold or _still() or _front.position.y <= 0.0:
@@ -278,7 +286,7 @@ static func _mouth_bar(mouth: ColorRect, x: float, width: float, colour: Color) 
 	mouth.add_child(bar)
 
 
-## The gold flash over the €  and the handle (FLASH_RECTS), clear until the drawer slams shut.
+## The gold flash over the lit lip (FLASH_RECTS), clear until the drawer slams shut.
 static func _flash_layer() -> Control:
 	var layer: Control = Control.new()
 	layer.name = "Flash"

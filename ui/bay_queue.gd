@@ -4,14 +4,14 @@ extends Control
 ## ScannerBay.HEADER_RECT, the scan light aside, which the bay draws): how many items wait behind
 ## the one in the bay ("4 LEFT", then LAST, then DONE once all are bagged) and one pip per item,
 ## right-aligned: gold once bagged, tomato light from the drop-in until it is bagged (green light
-## once the quota is met), teal shade still to come. The pips shrink to fit beside the widest of
-## the texts (pip_layout): PIP px in one row, else SMALL_PIP px in one row, else in two. With no
-## count (start(0)) it reads "SCANNER" with no pips. In planning (show_slots, the monitor bay
-## follow-up, mock-up monitor_bay_v1.html) it reads NEXT_TEXT or SCAN_TEXT, with one pip per belt
-## slot: gold for the shown item's slot (show_slots' `at`: by default the last placed), teal light
-## for the other filled slots, teal shade for the empty ones. The text is the header's bold
-## Atkinson (ScannerBay.header_font). Display only: the count and the order are the count-up's,
-## the slots the belt's.
+## once the quota is met), teal shade still to come. The pips shrink to fit beside the widest of the
+## texts (pip_layout): PIP px in one row, else SMALL_PIP px in one row, else in two. With no count
+## (start(0)) it reads "SCANNER" with no pips. In planning (show_slots, the monitor bay follow-up,
+## mock-up monitor_bay_v1.html) it reads SLOT_TEXT, NEXT_TEXT or SCAN_TEXT, one pip per belt slot:
+## gold for the shown item's slot (show_slots' `at`: by default the last placed), teal light for the
+## other filled slots, teal shade for the empty ones. The text is the header's bold Atkinson
+## (ScannerBay.header_font). Display only: the count and the order are the count-up's, the slots the
+## belt's.
 
 ## The header's rect (bay coordinates), the text's left and lift, the pips' right edge and their
 ## gap to the widest text.
@@ -32,7 +32,9 @@ const IDLE_TEXT := "SCANNER"
 const LEFT_TEXT := "%d LEFT"
 const LAST_TEXT := "LAST"
 const DONE_TEXT := "DONE"
-## Planning's header: belt slot 1's item (NEXT_TEXT), or the item held in a scan (SCAN_TEXT).
+## Planning's header: the shown belt item's slot (SLOT_TEXT, 1-based: main scene v2, 2026-11-08),
+## NEXT_TEXT on an empty belt, or the item held in a scan (SCAN_TEXT).
+const SLOT_TEXT := "SLOT %d"
 const NEXT_TEXT := "NEXT"
 const SCAN_TEXT := "SCAN"
 const TEXT_COLOR := Palette.MUSTARD_PALE
@@ -129,9 +131,9 @@ func restart() -> void:
 	start(_items)
 
 
-## Planning (see the class comment): `header` (NEXT_TEXT or SCAN_TEXT) over a pip per belt slot
-## (`slots`), the first `filled` of them holding items, slot `at`'s the shown item's (gold; -1 for
-## none).
+## Planning (see the class comment): `header` (SLOT_TEXT, NEXT_TEXT or SCAN_TEXT) over a pip per
+## slot (`slots`), the first `filled` of them holding items, slot `at`'s the shown item's (gold; -1
+## for none).
 func show_slots(slots: int, filled: int, header: String, at: int = 0) -> void:
 	_items = maxi(0, slots)
 	_filled = clampi(filled, 0, _items)
@@ -211,7 +213,7 @@ static func pip_layout(items: int) -> Array[Rect2]:
 static func widest_text(items: int) -> float:
 	var font: Font = ScannerBay.header_font()
 	var widest: float = 0.0
-	for shown: String in [LEFT_TEXT % maxi(1, items - 1), LAST_TEXT, DONE_TEXT]:
+	for shown: String in [LEFT_TEXT % maxi(1, items - 1), LAST_TEXT, DONE_TEXT, SLOT_TEXT % items]:
 		var width: float = font.get_string_size(shown, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE).x
 		widest = maxf(widest, width)
 	return widest

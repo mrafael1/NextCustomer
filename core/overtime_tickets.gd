@@ -25,6 +25,14 @@ static func laps(total: int, quota: int) -> int:
 	return floori(float(maxi(total, 0)) / quota)
 
 
+## The smallest total that makes `laps` laps of `quota` (laps' inverse: the week medals' "at
+## 258€" on the medal case, v1.17); 0 for no laps or a quota of 0 or less.
+static func total_for(quota: int, made_laps: int) -> int:
+	if quota <= 0 or made_laps <= 0:
+		return 0
+	return made_laps * quota
+
+
 ## Sets what the just-recorded `record` (the run's last) earns at its checkout:
 ## `ticket_premium`, its ticket's visit is PREMIUM already. Call it once, at the checkout, before
 ## the visits are queued.

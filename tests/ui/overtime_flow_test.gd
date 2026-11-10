@@ -63,7 +63,7 @@ func test_a_x3_shift_spends_both_medals_and_draws_twice_from_one_receipt() -> vo
 	assert_int(run.phase).is_equal(RunState.Phase.MACHINE_CHOOSE)
 	# Both medals left their sockets; the receipt turned gold; no stub was printed.
 	screen._stage.gold_flow.flight.finish()
-	assert_array(screen._stage.top_bar.week_chip.medals().states()).is_equal(USED)
+	assert_array(screen._stage.medal_case.states()).is_equal(USED)
 	assert_bool(screen._stage.receipt.gold.is_gold()).is_true()
 	assert_object(screen._receipt.find_child("BonusStub", true, false)).is_null()
 	# The ticket's visit: PREMIUM (the GOLD), the SILVER's extra draw next; 2 lamps.
@@ -115,7 +115,7 @@ func test_a_x3_shift_spends_both_medals_and_draws_twice_from_one_receipt() -> vo
 	assert_int(run.phase).is_equal(RunState.Phase.PLANNING)
 	assert_bool(screen._machine.is_open()).is_false()
 	await _frames(2)
-	assert_array(screen._stage.top_bar.week_chip.medals().states()).is_equal(USED)
+	assert_array(screen._stage.medal_case.states()).is_equal(USED)
 
 
 ## A run saved at its extra draw (the PREMIUM ticket's pick made) resumes on that draw: PREMIUM,
@@ -153,12 +153,12 @@ func test_a_run_saved_at_the_extra_draw_resumes_on_it() -> void:
 	assert_str(view.display.texts()[0]).is_equal(OvertimeWords.AGAIN)
 	for key: ChuteKey in view.keys:
 		assert_bool(key.gold).is_true()
-	assert_array(screen._stage.top_bar.week_chip.medals().states()).is_equal(USED)
+	assert_array(screen._stage.medal_case.states()).is_equal(USED)
 	await _pick_upgrade(screen)
 	assert_int(resumed.shift_index).is_equal(1)
 	assert_int(resumed.phase).is_equal(RunState.Phase.PLANNING)
 	await _frames(2)
-	assert_array(screen._stage.top_bar.week_chip.medals().states()).is_equal(USED)
+	assert_array(screen._stage.medal_case.states()).is_equal(USED)
 
 
 ## With a bonus extra shift on top (a machine copy), the receipt pays 3 draws: 3 lamps lit at the

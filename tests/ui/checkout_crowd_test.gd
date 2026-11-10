@@ -469,8 +469,8 @@ func test_the_placement_is_seeded() -> void:
 
 
 ## On the real screen in a `window` sized window: a full crowd's ink (at its highest hop) never
-## reaches the receipt, the printer, the monitor, the bag or its shelf (their global rects), and
-## each shadow lies on the guard under the belt's top.
+## reaches the receipt, the overhead printer, the monitor, the bag or its shelf (their global
+## rects), and each shadow lies on the guard under the belt's top.
 func _check_clear_at(window: Vector2i) -> void:
 	get_tree().root.size = window
 	var screen: ShiftScreen = await _screen()
@@ -479,7 +479,7 @@ func _check_clear_at(window: Vector2i) -> void:
 	var tuning: CountUpTuning = load(CountUp.TUNING_PATH)
 	var parts: Dictionary[String, Rect2] = {
 		"receipt": stage.receipt.get_global_rect(),
-		"printer lip": stage.printer_lip.get_global_rect(),
+		"printer": stage.printer.get_global_rect(),
 		"monitor": stage.monitor.get_global_rect(),
 		"bag": stage.bag.get_global_rect(),
 		"shelf": stage.get_global_transform() * ShiftStage.BAGGING_SHELF_RECT,

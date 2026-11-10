@@ -100,6 +100,9 @@ func test_a_drag_ticks_over_the_slots() -> void:
 		screen._on_hand_card_clicked(_view_for(screen, screen.run.hand()[-1]))
 		screen._on_slot_input(_left_click(), screen.run.row.size())
 	var card: CardInstance = _add(screen, "bread")
+	# The top bar gauge's pours (GaugePanel, after each placement) ring out first.
+	await get_tree().create_timer(GaugePanel.LAP_NOTE_DELAY + 0.1).timeout
+	await _frames(3)
 	sfx.clear()
 	await _wall_ms(CardDrag.SLOT_TICK_MS + 10)
 	screen._on_hand_card_clicked(_view_for(screen, card))
@@ -186,7 +189,8 @@ func test_the_redraw_fans_shuffles_and_deals() -> void:
 	assert_int(heard_ms).is_greater_equal(int(tuning.pop_start(1, false) * 1000.0) - 100)
 
 
-## CHECKOUT plays its key (not a click) as the count-up starts.
+## CHECKOUT rings the service bell (not a click, and no longer the old key: play test 2026-11-09)
+## as the count-up starts, at full level; the next day's stub dings it again.
 func test_checkout_plays_its_key() -> void:
 	var screen: ShiftScreen = await _screen()
 	var sfx: RecordingSfx = _recording_sfx(screen)
@@ -195,11 +199,40 @@ func test_checkout_plays_its_key() -> void:
 	screen._on_slot_input(_left_click(), 0)
 	sfx.clear()
 	screen._checkout_button.pressed.emit()
-	assert_array(sfx.sound_names()).is_equal(["checkout"])
+	assert_array(sfx.sound_names()).is_equal(["service_bell"])
+	assert_float(float(sfx.sounds[0]["volume_db"])).is_equal(ServiceBell.DING_DB)
+	assert_float(ServiceBell.DING_DB).is_greater_equal(0.0)
 	while screen._counting:
 		await get_tree().process_frame
 	assert_int(sfx.count("ui_click")).is_equal(0)
-	assert_int(sfx.count("checkout")).is_equal(1)
+	assert_int(sfx.count("checkout")).is_equal(0)
+
+
+## The next day's stub dings the service bell after a count, under reduced motion too (its sound
+## only, no press or shake: play test 2026-11-09); a planning that follows no count stays quiet.
+func test_the_next_days_stub_dings_under_reduced_motion() -> void:
+	var screen: ShiftScreen = await _screen()
+	screen.profile.set_reduced_motion(true)
+	var sfx: RecordingSfx = _recording_sfx(screen)
+	screen._show_planning(screen.run.preview())
+	assert_int(sfx.count("service_bell")).is_equal(0)
+	_add(screen, "milk")
+	screen._on_hand_card_clicked(_view_for(screen, screen.run.hand()[-1]))
+	screen._on_slot_input(_left_click(), 0)
+	screen._checkout_button.pressed.emit()
+	assert_int(sfx.count("service_bell")).is_equal(1)
+	assert_bool(screen._stage.bell.is_ringing()).is_false()
+	while screen._counting:
+		await get_tree().process_frame
+	# The next planning printed its stub at the count's end: the bell rang again, last.
+	assert_int(screen.run.phase).is_equal(RunState.Phase.PLANNING)
+	assert_int(sfx.count("service_bell")).is_equal(2)
+	assert_str(sfx.sound_names()[-1]).is_equal("service_bell")
+	assert_bool(screen._stage.bell.is_ringing()).is_false()
+	# Planning shown again without a count: no ding.
+	sfx.clear()
+	screen._show_planning(screen.run.preview())
+	assert_int(sfx.count("service_bell")).is_equal(0)
 
 
 ## The deck view fans out as it pops in, its tabs switch with ui_switch and Close plays ui_close;

@@ -17,8 +17,12 @@ extends Control
 ##   ka-ching while the tube's lap lamp names the lap. Since v1.13 (the user's review of
 ##   2026-11-05: the multiplier pop on the right of the receipt still popped at checkout) nothing
 ##   pops beside the receipt: the gold "×N" stamp and its sparkles are gone.
-## - F, over-quota rewards: since 2026-11-06 the week badge's medals fly into the lap lamp
+## - F, over-quota rewards: since 2026-11-06 the week's medals fly at the checkout
 ##   (MedalFlight, from ReceiptGoldFlow): the ×2 / ×3 reward rows beside the tube are gone.
+##
+## Left column v2 (2026-11-09): the gauge slides up out of the top bar at CHECKOUT, so the streak
+## and its ring land on `aim` when it gives a rect (ShiftStage.receipt_target_rect: the receipt's
+## target, where BEATEN! slams), and on the gauge's target line only when it does not.
 ##
 ## Real time (the ding's hit-stop freezes the count, not these). Reduced motion keeps the sound
 ## and the lights, with no dip, flash, streak, ring or sparkles. Stage coordinates (the layer
@@ -46,6 +50,8 @@ const BURST_SECONDS := 0.35
 const KACHING_DB := 0.0
 const GRID := 2.0
 
+## Where the streak lands (returns a global Rect2; empty or unset: the gauge's target line).
+var aim: Callable = Callable()
 ## Returns where item `slot` is now (a global Rect2, CountUp.source_rect), set by follow().
 var item_rect: Callable = Callable()
 var meter: QuotaMeter
@@ -322,18 +328,31 @@ func _source_rect(slot: int) -> Rect2:
 	return _count_up.source_rect.call(slot) as Rect2
 
 
-## The gauge's rect in this layer, or a stand-in at the tube's place.
+## The streak's target's rect in this layer: `aim`'s (the receipt's target), else the gauge's, else
+## a stand-in at the gauge chip's place.
 func _gauge_rect() -> Rect2:
+	var aimed: Rect2 = _aimed()
+	if aimed.has_area():
+		return _local_rect(aimed)
 	if meter == null or not meter.is_inside_tree():
-		return ShiftStage.TUBE_RECT
+		return ShiftStage.GAUGE_PANEL_RECT
 	return _local_rect(meter.bar().get_global_rect())
 
 
-## Where the quota stands on the gauge, in this layer (the streak's end).
+## Where the streak ends, in this layer: `aim`'s middle, else the quota on the gauge.
 func _quota_mark() -> Vector2:
+	if _aimed().has_area():
+		return _gauge.get_center()
 	if meter == null or not meter.is_inside_tree():
-		return Vector2(_gauge.get_center().x, _gauge.position.y)
+		return Vector2(_gauge.end.x, _gauge.get_center().y)
 	return get_global_transform().affine_inverse() * meter.quota_mark()
+
+
+## `aim`'s rect (global), empty without one.
+func _aimed() -> Rect2:
+	if not aim.is_valid():
+		return Rect2()
+	return aim.call() as Rect2
 
 
 func _local_rect(rect: Rect2) -> Rect2:

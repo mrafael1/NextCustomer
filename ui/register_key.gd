@@ -19,6 +19,10 @@ extends FramedButton
 ## pressable key face with the caption centred on it. Every state (hover, press, lit, disabled,
 ## held) shows on the face only, its shadow included. Without a count the face takes the whole
 ## footprint.
+##
+## On a payday CHECKOUT is the PAYDAY kind (set_kind; the user's pick of 2026-11-10, mock-up
+## payday_day.html round 3, "Brass key, ink caption"): the same key in the mustard brass ramp, in
+## every look; its owner prints the caption in ink (RegisterCabinet.show_payday).
 
 
 ## The counter window left of a key's face (the PR #138 left UI): a recessed display framed like
@@ -106,7 +110,7 @@ class CounterWindow:
 			draw_rect(Rect2(x, y, px * 2.0, px), colour)
 
 
-enum Kind { CHECKOUT, CREAM }
+enum Kind { CHECKOUT, CREAM, PAYDAY }
 enum Look { NORMAL, LIT, OFF }
 ## A count's look (show_caption): a plain count, or one that says "none left" (Redraw's 0).
 enum NoteLook { COUNT, ALERT }
@@ -125,11 +129,17 @@ const FRAMES: Dictionary[Kind, Array] = {
 		preload("res://art/frames/key_cream_lit.png"),
 		preload("res://art/frames/key_cream_off.png"),
 	],
+	Kind.PAYDAY:
+	[
+		preload("res://art/frames/key_payday.png"),
+		preload("res://art/frames/key_payday_lit.png"),
+		preload("res://art/frames/key_payday_off.png"),
+	],
 }
 ## The frames' 9-slice margins in art pixels: the top one holds the outline, the top face band
 ## and its arris (5 band rows on CHECKOUT, 4 on a cream key); the bottom one the front face's
 ## shaded rows and the outline.
-const TOP_MARGINS: Dictionary[Kind, int] = {Kind.CHECKOUT: 8, Kind.CREAM: 7}
+const TOP_MARGINS: Dictionary[Kind, int] = {Kind.CHECKOUT: 8, Kind.CREAM: 7, Kind.PAYDAY: 8}
 const SIDE_MARGIN := 3
 const BOTTOM_MARGIN := 4
 ## How far a pressed, disabled or held key sits lower, in canvas pixels (mock-up B2's .off).
@@ -192,12 +202,39 @@ func _init(
 	_kind = kind
 	var frames: Array = FRAMES[kind]
 	super(caption_text, font_size, frames[Look.NORMAL] as Texture2D, button_size)
-	for frame: Texture2D in frames:
+	_build_styles()
+	_show_state(get_draw_mode())
+
+
+## Turns the key into `new_kind` (CHECKOUT's brass PAYDAY look and back): its three frames
+## change; its state, caption and place stay.
+func set_kind(new_kind: Kind) -> void:
+	if new_kind == _kind:
+		return
+	_kind = new_kind
+	_build_styles()
+	_show_state(get_draw_mode())
+	queue_redraw()
+
+
+## The key's kind now.
+func key_kind() -> Kind:
+	return _kind
+
+
+## The frame the face shows now (its look's, of its kind), for tests.
+func frame_texture() -> Texture2D:
+	return (FRAMES[_kind] as Array)[look()] as Texture2D
+
+
+## The kind's three frames as the face's styles, in Look order.
+func _build_styles() -> void:
+	_styles.clear()
+	for frame: Texture2D in FRAMES[_kind]:
 		var style: StyleBoxTexture = ArtStyle.frame_style(frame, SIDE_MARGIN)
-		style.texture_margin_top = TOP_MARGINS[kind] * ArtStyle.ART_SCALE
+		style.texture_margin_top = TOP_MARGINS[_kind] * ArtStyle.ART_SCALE
 		style.texture_margin_bottom = BOTTOM_MARGIN * ArtStyle.ART_SCALE
 		_styles.append(style)
-	_show_state(get_draw_mode())
 
 
 ## Captions the key `caption_text`, with `count_text` in the counter window left of the face

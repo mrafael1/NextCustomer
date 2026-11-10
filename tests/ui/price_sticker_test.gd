@@ -2,7 +2,7 @@ extends GdUnitTestSuite
 ## The price ticket (tickets v5, V5a of mock-up shift_scene_polish_v5_tickets.html): every card in
 ## data/cards (every tier) reads in three fixed zones, inside the ticket and apart: its family
 ## glyphs in the icon label (ICON_FIRST + 20 px steps), its price in the fixed window (PriceWindow,
-## top right; its digits never leave it for any price, 1€ to 9999€ and the "Nk€" form), and its
+## top right; a price too wide for it prints on its stuck label, price_label_test), and its
 ## short text from core (CardDefinition.sticker_summary) on the cream plate, fitted to 2 lines at
 ## 14 px, else 3 at 13, else 3 at 12, the same size for each tier of a card, never cut (no card in
 ## data/ needs the MORE chip). The face is in the colours of the family it works with
@@ -317,10 +317,12 @@ func _assert_zone_frames(art: Image, left: FamilyStyle, right: FamilyStyle) -> v
 	assert_vector(PriceSticker.WINDOW_AT).is_equal(Vector2(window.position * ArtStyle.ART_SCALE))
 
 
-## The window holds every price in its fixed box by V5a's ladder: the 6x8 digits to 999€, the 4x7
-## ones from 1000€ to 9999€, then "12k€" (6x8) and "123k€" (4x7); the digits sit centred in the
-## window (within 1 px both ways, on the art's grid: the PR #138 review), the 4x7 ones included,
-## and never reach the icons or the plate.
+## The short forms (PriceWindow.form_for, the monitor's fallback) fit the window's room by V5a's
+## ladder: the 6x8 digits to 999€, the 4x7 ones from 1000€ to 9999€, then "12k€" (6x8) and "123k€"
+## (4x7). On a ticket a price that fits the window sits centred in it (within 1 px both ways, on
+## the art's grid: the PR #138 review); a wider one prints on its stuck label (price leak,
+## 2026-11-10; price_label_test), its digits inside the label, and never reaches the icons or the
+## plate.
 func test_the_window_holds_every_price() -> void:
 	var room: int = PriceWindow.DIGITS_RIGHT - PriceWindow.DIGITS_LEFT + 1
 	var problems: PackedStringArray = PackedStringArray()
@@ -353,6 +355,15 @@ func test_the_window_holds_every_price() -> void:
 		milk.set_pay(PlanningModel.Pay.BOOSTED, amount)
 		var digits: Rect2 = window.digits_rect()
 		var message: String = "%d€: %s" % [amount, digits]
+		var label: PriceLabel = window.label()
+		assert_bool(label.visible).override_failure_message(message).is_equal(
+			amount in [1000, 9999, 123456]
+		)
+		if label.visible:
+			var paper: Rect2 = Rect2(label.position, label.size)
+			assert_bool(paper.encloses(digits)).override_failure_message(message).is_true()
+			assert_float(paper.position.x).is_equal(0.0)
+			continue
 		var inside: bool = Rect2(Vector2.ZERO, window.size).encloses(digits)
 		assert_bool(inside).override_failure_message(message).is_true()
 		var off: Vector2 = (digits.get_center() - middle).abs()

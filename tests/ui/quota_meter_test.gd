@@ -11,6 +11,8 @@ extends GdUnitTestSuite
 ## colours; from twice the quota the count emits lap_reached once per multiple (the quota
 ## crossing's E).
 
+## A vertical tube (v4's, the meter's default orientation; the game's own lies in the top bar).
+const TUBE := Rect2(6, 38, 30, 258)
 const PALETTE_FILE := "res://art/src/palette.txt"
 
 
@@ -163,24 +165,14 @@ func test_the_tube_refills_lap_by_lap() -> void:
 	assert_array(meter.liquid_ramp()).is_equal(QuotaLaps.lap_ramp(3))
 
 
-## The lap lamp (v4's A1) sits over the housing's top cap, centred over the glass, inside the
-## tower's left margin (a gutter from the stage's left edge, clear of the receipt's well), with
-## its glyph inside it from "×2" to "×9".
-func test_the_lamp_sits_over_the_housing() -> void:
+## The lap lamp (v4's A1) sits over the vertical tube's top, centred over the glass, LapLamp.SIZE
+## art px wide, with its glyph inside it from "×2" to "×9".
+func test_the_lamp_sits_over_the_tube() -> void:
 	var meter: QuotaMeter = await _meter()
 	var cell: float = ArtStyle.ART_SCALE
 	var rect: Rect2 = meter.badge_rect()
-	var on_stage: Rect2 = Rect2(rect.position + ShiftStage.TUBE_RECT.position, rect.size)
-	var why: String = str(on_stage)
-	assert_bool(ShiftStage.TOWER_RECT.encloses(on_stage)).override_failure_message(why).is_true()
-	assert_float(on_stage.end.y).override_failure_message(why).is_less_equal(
-		ShiftStage.HOUSING_RECT.position.y
-	)
-	assert_float(on_stage.position.y).is_greater(0.0)
-	assert_float(on_stage.position.x).is_greater_equal(cell)
-	assert_float(on_stage.get_center().x).is_equal_approx(ShiftStage.TUBE_RECT.get_center().x, 0.01)
-	assert_bool(on_stage.intersects(ShiftStage.RECEIPT_WELL_RECT)).is_false()
-	assert_float(on_stage.end.x).is_less_equal(ShiftStage.RECEIPT_X)
+	assert_float(rect.end.y).is_less_equal(0.0)
+	assert_float(rect.get_center().x).is_equal_approx(meter.size.x / 2.0, 0.01)
 	assert_float(rect.size.x).is_equal(LapLamp.SIZE * cell)
 	for laps: int in range(2, 10):
 		var rows: PackedStringArray = LapLamp.glyph_rows(LapLamp.text_for(laps))
@@ -267,17 +259,27 @@ func test_a_drag_out_of_the_lap_previews_that_lap() -> void:
 	assert_bool(meter._preview_plan().is_empty()).is_true()
 
 
-## Planning laps quietly: a projection crossing a multiple refills the tube and names the lap but
-## neither flashes nor pops; a count does both.
-func test_only_a_count_pops_a_new_lap() -> void:
+## A drag's preview laps quietly: hovering over a drop past a multiple neither flashes nor pops
+## (a drag back and forth does not blink). A planning gain that makes a lap pops the lamp as the
+## liquid gets there (the user's play test of 2026-11-09), a loss does not; a count pops too.
+func test_a_gain_or_a_count_pops_a_new_lap_never_a_drag() -> void:
 	var meter: QuotaMeter = await _meter(false)
 	meter.show_projected(60, 40)
 	await _seconds(0.6)
-	for amount: int in [90, 70, 90]:
-		meter.show_projected(amount, 40)
-		await _seconds(0.6)
-	assert_str(meter.badge_text()).is_equal("×2")
+	for _pass: int in range(2):
+		meter.show_hypothetical(90, 30, 40)
+		await _seconds(0.3)
+		meter.show_projected(60, 40)
+		await _seconds(0.3)
+	assert_str(meter.badge_text()).is_equal(LapLamp.CHECK_TEXT)
 	assert_float(meter._pop).is_equal(0.0)
+	var popped: bool = await _pops_within(meter, func() -> void: meter.show_projected(90, 40))
+	assert_bool(popped).is_true()
+	assert_str(meter.badge_text()).is_equal("×2")
+	await _seconds(0.6)
+	popped = await _pops_within(meter, func() -> void: meter.show_projected(70, 40))
+	assert_bool(popped).is_false()
+	assert_str(meter.badge_text()).is_equal(LapLamp.CHECK_TEXT)
 	var led: LedDisplay = auto_free(LedDisplay.new())
 	add_child(led)
 	meter.follow(led)
@@ -285,7 +287,7 @@ func test_only_a_count_pops_a_new_lap() -> void:
 	led.show_subtotal(45, true)
 	await _seconds(0.6)
 	led.show_subtotal(85, true)
-	var popped: bool = false
+	popped = false
 	for _frame: int in range(60):
 		await _frames(1)
 		popped = popped or meter._pop > 0.0
@@ -331,7 +333,7 @@ func test_the_tube_keeps_its_size() -> void:
 		await _frames(1)
 		sizes.append(meter.size)
 	for tube_size: Vector2 in sizes:
-		assert_that(tube_size).is_equal(ShiftStage.TUBE_RECT.size)
+		assert_that(tube_size).is_equal(TUBE.size)
 
 
 ## The first lap's colour follows the status (the user's idea, 2026-10-19): red while short,
@@ -413,15 +415,62 @@ func test_lap_of() -> void:
 
 
 ## A tube the stage's size, with reduced motion unless `reduced` is false.
+## Whether `meter`'s lamp pops within a second after `change`.
+func _pops_within(meter: QuotaMeter, change: Callable) -> bool:
+	change.call()
+	var popped: bool = false
+	for _frame: int in range(60):
+		await _frames(1)
+		popped = popped or meter._pop > 0.0
+	return popped
+
+
 func _meter(reduced: bool = true) -> QuotaMeter:
 	var meter: QuotaMeter = auto_free(QuotaMeter.new())
 	if reduced:
 		meter.reduced_motion = func() -> bool: return true
-	meter.position = ShiftStage.TUBE_RECT.position
-	meter.size = ShiftStage.TUBE_RECT.size
+	meter.position = TUBE.position
+	meter.size = TUBE.size
 	add_child(meter)
 	await _frames(2)
 	return meter
+
+
+## Left column v2 (the user's pick of 2026-11-09): the gauge lying in the top bar's chip
+## (GaugePanel, QuotaMeter.horizontal). The glass fills from the left, the target's red line at its
+## right end (the quota mark there, at its middle height), its art the vertical tube's turned a
+## quarter (whole art px both ways); the lamp left of the glass inside the chip; a lap's level
+## the same share of the glass's length as the tube's of its height.
+func test_the_horizontal_gauge() -> void:
+	var panel: GaugePanel = auto_free(GaugePanel.new())
+	panel.quota_meter.reduced_motion = func() -> bool: return true
+	add_child(panel)
+	panel.place(Vector2(0, 0), ShiftStage.GAUGE_PANEL_RECT.size)
+	await _frames(2)
+	var meter: QuotaMeter = panel.quota_meter
+	var cell: float = ArtStyle.ART_SCALE
+	assert_bool(meter.horizontal).is_true()
+	var glass: Rect2 = panel.glass_rect()
+	assert_that(Rect2(meter.position, meter.size)).is_equal(glass)
+	assert_float(fposmod(glass.size.x, cell)).is_equal(0.0)
+	assert_float(fposmod(glass.size.y, cell)).is_equal(0.0)
+	var chip: Rect2 = Rect2(Vector2.ZERO, panel.size)
+	assert_bool(chip.encloses(glass)).is_true()
+	meter.show_projected(50, 100)
+	await _frames(1)
+	var mark: Vector2 = meter.quota_mark()
+	var global: Rect2 = meter.get_global_rect()
+	assert_float(mark.x).is_equal_approx(global.end.x - cell * 1.5, 0.5)
+	assert_float(mark.y).is_equal_approx(global.get_center().y, 0.5)
+	assert_float(meter.fill()).is_equal(0.5)
+	meter.show_projected(100, 100)
+	await _frames(1)
+	var badge: Rect2 = meter.badge_rect()
+	var badge_in_chip: Rect2 = Rect2(badge.position + meter.position, badge.size)
+	assert_bool(chip.encloses(badge_in_chip)).override_failure_message(str(badge_in_chip)).is_true()
+	assert_float(badge_in_chip.end.x).is_less_equal(glass.position.x)
+	assert_that(badge_in_chip.position).is_equal(GaugePanel.LAMP_AT)
+	assert_str(meter.badge_text()).is_equal(LapLamp.CHECK_TEXT)
 
 
 ## The quota mark stands on the target line across the glass's top row, at its middle.

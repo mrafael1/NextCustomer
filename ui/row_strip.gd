@@ -4,7 +4,12 @@ extends Control
 ## can add slots (Big basket), so the cells are rebuilt when the shift's card
 ## limit changes. A row wider than the 7 slots the screen was laid out for first closes the gap
 ## between its cells (the tickets keep their own inset apart), then scales down to the 7-slot
-## width (8 slots, with Big basket, about x0.95). The common 7-slot row is never scaled.
+## width (8 slots, with Big basket, about x0.95). The common 7-slot row is never scaled. The
+## 8-slot row then opens its gaps again by one art px (WIDE_SEPARATION, the user's note of
+## 2026-11-10: "8 slot could gain some breathing"), which makes it overhang() the 7-slot width
+## by about 13 px, half past each end, in the free room of the row's band (ShiftStage.ROW_AREA:
+## 10 px past each end); a 9-slot row keeps its gaps closed: its first cell is the scanner, whose
+## plate already lies at the belt's left end, so that row has no room to its left.
 ##
 ## The slots are cells on the belt (#80, mock-up B2): each open cell (ItemView.BELT_SIZE) stands
 ## its item on the belt's top face and clips its ticket (the item's sticker) on the price rail,
@@ -53,6 +58,11 @@ extends Control
 ## ride): ride_out hides the cells up to one, so the cells after it pack left a pitch() each, and
 ## moves the box right by the width they left, for the ride to slide back. show_cards brings
 ## every cell back.
+##
+## A stuck price label (PriceLabel: a price too wide for its ticket's window) leaks past its
+## ticket's right edge, over the gap and the next cell, which is drawn after its own: `labels`
+## (PriceLabelLayer), after the box, draws the row's labels over every cell (the shift screen
+## moves it into the planning layer, over the frames: ShiftStage).
 
 signal slot_input(event: InputEvent, slot: int)
 ## A click on a closed slot, so the screen can say why it is closed.
@@ -62,9 +72,12 @@ signal cells_changed(cells: int)
 
 ## The width of the 7 slots the screen was laid out for: wider rows are scaled to it.
 const LAID_OUT_SLOTS := 7
-## The gap between cells (mock-up B2's pitch, 128), and a wider row's.
+## The gap between cells (mock-up B2's pitch, 128); a row of WIDE_SLOTS cells' (one art px, in
+## the row's own scale), and a wider row's (closed).
 const SEPARATION := 12
-const WIDE_SEPARATION := 0
+const WIDE_SEPARATION := 2
+const CLOSED_SEPARATION := 0
+const WIDE_SLOTS := 8
 const CELL_SIZE := ItemView.BELT_SIZE
 ## An open cell's ticket on the rail (cell coordinates; the item's sticker covers it) and its
 ## shadow under a filled ticket; an empty slot's footprint on the belt's top face, its front edge
@@ -140,6 +153,8 @@ const VELVET_ROPE := preload("res://art/scenery/velvet_rope.png")
 
 ## The row of slot cells (scaled when wide), for the count-up and the drag.
 var box: HBoxContainer
+## The row's stuck price labels, drawn over its cells (the stage may move it up the tree).
+var labels: PriceLabelLayer
 var slots: Array[PanelContainer] = []
 ## The closed cells, after the open slots (never drop targets).
 var closed: Array[PanelContainer] = []
@@ -151,6 +166,9 @@ func _init() -> void:
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_theme_constant_override("separation", SEPARATION)
 	add_child(box)
+	labels = PriceLabelLayer.new()
+	labels.windows = _price_windows
+	add_child(labels)
 
 
 ## Makes one slot cell per card the shift allows, then `closed_count` CLOSED cells (their
@@ -178,7 +196,7 @@ func set_slot_count(
 		box.add_child(panel)
 	box.add_theme_constant_override("separation", separation)
 	var natural: Vector2 = Vector2(row_width(cells, separation), CELL_SIZE.y)
-	var factor: float = minf(1.0, row_width(LAID_OUT_SLOTS) / natural.x)
+	var factor: float = scale_for(cells)
 	box.scale = Vector2(factor, factor)
 	box.size = natural
 	custom_minimum_size = natural * factor
@@ -296,7 +314,9 @@ static func _hang_marks(panel: PanelContainer, filled: bool) -> void:
 
 ## How much lower `panel`'s slot marks hang (v1.00, the user's play test of 2026-11-05: Happy
 ## hour's "+3€" hid under a GOLDEN ticket's ring): the gold ring's width
-## (PriceSticker.GOLD_RING_ART art px) while a GOLDEN card stands on the slot, else 0.
+## (PriceSticker.GOLD_RING_ART art px) while a GOLDEN card stands on the slot, else 0; 0 too while
+## a batch or chain frame hides that ticket's ring (PriceSticker.is_framed, #128): the marks tuck
+## under the frame's foot like its plain neighbours'.
 static func gold_drop(panel: PanelContainer) -> float:
 	for child: Node in panel.get_children():
 		var view: CardView = child as CardView
@@ -305,8 +325,24 @@ static func gold_drop(panel: PanelContainer) -> float:
 			and not view.is_queued_for_deletion()
 			and view.card.definition.tier == CardDefinition.Tier.GOLDEN
 		):
+			var item: ItemView = view as ItemView
+			if item != null and item.sticker() != null and item.sticker().is_framed():
+				return 0.0
 			return PriceSticker.GOLD_RING_ART * ArtStyle.ART_SCALE
 	return 0.0
+
+
+## Hangs the slot marks again (_hang_marks) in the belt cell holding `node` (its nearest
+## PanelContainer ancestor with the cell's marks layer), after a frame hid or showed its GOLDEN
+## ticket's ring (ChainFrames.follow_binding, #128); outside a belt cell, nothing.
+static func rehang_marks_over(node: Node) -> void:
+	var at: Node = node.get_parent() if node != null else null
+	while at != null:
+		var panel: PanelContainer = at as PanelContainer
+		if panel != null and panel.get_node_or_null(NodePath(TALKERS_NAME)) != null:
+			_hang_marks(panel, _holds_card(panel))
+			return
+		at = at.get_parent()
 
 
 ## Whether `shown` are the marks `marks` would show: the same slot, upgrade and factor, in order
@@ -335,7 +371,7 @@ func _same_marks(shown: Array[SlotMark], marks: Array[SlotMark]) -> bool:
 
 
 ## The parts of the shown slot marks that hang under the tickets (SlotMark.visible_rect), global
-## rects: the MORNING ribbon keeps clear of them (KeywordMarks.obstacles).
+## rects: the MORNING's pins and chain keep clear of them (KeywordMarks.obstacles).
 func mark_rects() -> Array[Rect2]:
 	var rects: Array[Rect2] = []
 	for slot: int in range(slots.size()):
@@ -503,9 +539,25 @@ static func shows_empty_mat(panel: PanelContainer) -> bool:
 
 
 ## The gap between the cells of a row of `count` cells: a row wider than the laid-out one
-## closes it before it scales.
+## closes it before it scales; the WIDE_SLOTS row opens it again by an art px (see the class
+## comment).
 static func separation_for(count: int) -> int:
-	return SEPARATION if count <= LAID_OUT_SLOTS else WIDE_SEPARATION
+	if count <= LAID_OUT_SLOTS:
+		return SEPARATION
+	return WIDE_SEPARATION if count == WIDE_SLOTS else CLOSED_SEPARATION
+
+
+## The scale of a row of `count` cells: 1 up to the laid-out row; a wider row's brings it, its
+## gaps closed, to the laid-out row's width.
+static func scale_for(count: int) -> float:
+	return minf(1.0, row_width(LAID_OUT_SLOTS) / row_width(count, CLOSED_SEPARATION))
+
+
+## How much wider than the laid-out row a row of `count` cells shows (px): its gaps' width, in
+## its scale; 0 up to the laid-out row. The stage centres the row, half past each end.
+static func overhang(count: int) -> float:
+	var shown: float = row_width(count, separation_for(count)) * scale_for(count)
+	return maxf(shown - row_width(LAID_OUT_SLOTS), 0.0)
 
 
 ## The row's natural width for `count` cells, `separation` apart.
@@ -669,6 +721,17 @@ static func _new_marks() -> Control:
 	_child_at(marks, ring, TICKET_RECT.grow(RING_GROW))
 	ring.visible = false
 	return marks
+
+
+## The price windows of the row's tickets, in slot order (the label layer's).
+func _price_windows() -> Array[PriceWindow]:
+	var found: Array[PriceWindow] = []
+	for panel: PanelContainer in slots:
+		for child: Node in panel.get_children():
+			var item: ItemView = child as ItemView
+			if item != null and not item.is_queued_for_deletion() and item.sticker() != null:
+				found.append(item.sticker().window())
+	return found
 
 
 static func _talkers(panel: PanelContainer) -> Control:
