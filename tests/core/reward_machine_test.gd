@@ -729,13 +729,13 @@ func _assert_pick_matches_preview(run: RunState, machine: RewardMachine, index: 
 					assert_bool(run.deck.cards.has(card)).is_true()
 
 
-## Every waiting prize is RARE or better, and a product with a chain BIG or better.
+## Every waiting prize is RARE or better, and a product BIG or better (its rarity is its tier).
 func _assert_premium_prizes(machine: RewardMachine) -> void:
 	for prize: MachinePrize in machine.prizes():
 		assert_int(prize.rarity).override_failure_message(prize.key()).is_greater_equal(
 			MachinePrize.Rarity.RARE
 		)
-		if MachineDraw.chain_of(machine.machine, prize) != null:
+		if prize.kind == MachinePrize.Kind.PRODUCT:
 			assert_int(prize.card.tier).override_failure_message(prize.key()).is_not_equal(
 				CardDefinition.Tier.PLAIN
 			)

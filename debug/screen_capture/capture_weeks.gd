@@ -157,7 +157,12 @@ static func _ticket(
 	else:
 		visit.chute = RewardMachine.Chute.NEW_ITEMS
 		var coupon: bool = shift_number % 4 == 0
-		var pool: Array[CardDefinition] = machine.rare_coupons if coupon else machine.rare_products
+		# A RARE product is a BIG tier (v1.25: a product's rarity is its tier).
+		var pool: Array[CardDefinition] = machine.rare_coupons.duplicate()
+		if not coupon:
+			pool.clear()
+			for chain: ItemUpgradeDefinition in machine.item_upgrades:
+				pool.append(chain.big)
 		var card: CardDefinition = pool[rng.randi_range(0, pool.size() - 1)]
 		var kind: MachinePrize.Kind = (
 			MachinePrize.Kind.COUPON if coupon else MachinePrize.Kind.PRODUCT

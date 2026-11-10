@@ -24,7 +24,9 @@ func before_test() -> void:
 
 ## The recipe: the 4 staples, 6 products from today's stock and no dealt coupon, an offer of 3 of
 ## the 6 packs, Breakfast run as the good first pick. Each pack is 3 cards with exactly one RARE
-## and no LEGENDARY (the machine's rarities), and none holds Soup. The catalogue lists the recipe.
+## and no LEGENDARY (the machine's rarities: since v1.25 a product's rarity is its tier, so the
+## four packs whose RARE card was a product hold its BIG tier), and none holds Soup. The catalogue
+## lists the recipe.
 func test_the_recipe_and_its_packs() -> void:
 	assert_int(_recipe.random_count).is_equal(6)
 	assert_int(_recipe.random_coupon_count).is_equal(0)
@@ -45,7 +47,9 @@ func test_the_recipe_and_its_packs() -> void:
 		var rare: int = 0
 		for card: CardDefinition in pack.cards:
 			var rarity: int = (
-				machine.coupon_rarity(card) if card.is_coupon() else machine.product_rarity(card)
+				machine.coupon_rarity(card)
+				if card.is_coupon()
+				else MachineDefinition.product_rarity(card)
 			)
 			assert_int(rarity).override_failure_message(message).is_less(
 				MachinePrize.Rarity.LEGENDARY
@@ -260,6 +264,73 @@ func _pack(id: String) -> StarterPackDefinition:
 ## As the save file holds it: through JSON (numbers come back as floats).
 static func _json(data: Dictionary) -> Dictionary:
 	return JSON.parse_string(JSON.stringify(data))
+
+
+## v1.25: the four packs whose RARE card was a product hold its BIG tier (keeping the pack's
+## idea), counted as its product by the copy rule, and a run dealt before keeps its deal: a saved
+## cart with the plain card in the pack's place could still be dealt, one with another product or
+## the GOLDEN tier there could not.
+func test_packs_hold_a_big_item_and_old_carts_still_deal() -> void:
+	var big: Dictionary = {
+		"bargain_bin": "flickering_bulb",
+		"big_shop": "carrier_bag",
+		"breakfast_run": "tea_bags",
+		"deli_counter": "butter",
+	}
+	for id: String in big:
+		var pack: StarterPackDefinition = _pack(id)
+		var plain: CardDefinition = load("res://data/cards/%s.tres" % big[id])
+		var at: int = pack.cards.find_custom(plain.is_same_product)
+		assert_int(at).override_failure_message(id).is_not_equal(-1)
+		var held: CardDefinition = pack.cards[at]
+		assert_int(held.tier).override_failure_message(id).is_equal(CardDefinition.Tier.BIG)
+		assert_object(held.variant_of).override_failure_message(id).is_same(plain)
+		var offer: StartOffer = _offer(3, false)
+		var cart: DeckDefinition = StartingDeck.with_pack(_recipe, pack, offer.shared)
+		var old_cart: Array[CardDefinition] = cart.cards.duplicate()
+		old_cart[_recipe.core_cards.size() + at] = plain
+		(
+			assert_bool(StartingDeck.could_deal(_recipe, old_cart, pack))
+			. override_failure_message(id)
+			. is_true()
+		)
+		var other: Array[CardDefinition] = cart.cards.duplicate()
+		other[_recipe.core_cards.size() + at] = load("res://data/cards/soup.tres")
+		(
+			assert_bool(StartingDeck.could_deal(_recipe, other, pack))
+			. override_failure_message(id)
+			. is_false()
+		)
+		# Only the plain card stands in for the pack's BIG card, never the GOLDEN tier.
+		var chain: ItemUpgradeDefinition = ItemUpgrades.chain_for(
+			_balance.machine.item_upgrades, plain
+		)
+		var golden: Array[CardDefinition] = cart.cards.duplicate()
+		golden[_recipe.core_cards.size() + at] = chain.golden
+		(
+			assert_bool(StartingDeck.could_deal(_recipe, golden, pack))
+			. override_failure_message(id)
+			. is_false()
+		)
+		# The copy rule counts the BIG card as its product: the baskets add at most
+		# copy_max - 1 plain copies beside it.
+		var one: Array[CardDefinition] = [plain]
+		var two: Array[CardDefinition] = [plain, plain]
+		assert_bool(StartingDeck.fits_copies(_recipe, pack.cards, one)).is_true()
+		(
+			assert_bool(StartingDeck.fits_copies(_recipe, pack.cards, two))
+			. override_failure_message(id)
+			. is_false()
+		)
+		(
+			assert_int(StartingDeck.copies_for_offer(_recipe, [pack]).get(plain, 0))
+			. override_failure_message(id)
+			. is_equal(1)
+		)
+	for id: String in ["banana_bunch", "coupon_clipper"]:
+		var pack: StarterPackDefinition = _pack(id)
+		for card: CardDefinition in pack.cards:
+			assert_int(card.tier).override_failure_message(id).is_equal(CardDefinition.Tier.PLAIN)
 
 
 ## The opening-time board deals start_basket_size cards into each of its baskets (the Staples

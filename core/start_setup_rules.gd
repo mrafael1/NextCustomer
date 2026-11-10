@@ -235,7 +235,7 @@ static func lock_in(
 			var cards: Array[CardDefinition] = []
 			cards.assign(sets[rng.randi_range(0, sets.size() - 1)])
 			for card: CardDefinition in cards:
-				copies[card] = int(copies.get(card, 0)) + 1
+				copies[card.product_card()] = int(copies.get(card.product_card(), 0)) + 1
 			dealt.append(cards)
 			shared.append_array(cards)
 		var fit: StartingDeck.PackFit = StartingDeck.fit_packs(
@@ -453,7 +453,7 @@ static func basket_options(run: RunState, basket: int) -> Array[Array]:
 	for index: int in setup.baskets.size():
 		if index != basket:
 			for card: CardDefinition in setup.baskets[index].cards:
-				copies[card] = int(copies.get(card, 0)) + 1
+				copies[card.product_card()] = int(copies.get(card.product_card(), 0)) + 1
 	return StartingDeck.basket_sets(
 		source_cards(run, setup.baskets[basket].source),
 		run.balance.start_basket_size,
@@ -830,7 +830,10 @@ static func _packs_fitting(
 		var fits: bool = true
 		for index: int in core.size():
 			var card: CardDefinition = core[index]
-			if card != originals[index] and core.count(card) + pack.cards.count(card) > copy_max:
+			if (
+				card != originals[index]
+				and StartingDeck.product_count(core + pack.cards, card) > copy_max
+			):
 				fits = false
 		if fits:
 			kept.append(pack)
@@ -846,7 +849,7 @@ static func _fits_all(
 ) -> bool:
 	var setup: StartSetup = run.start_setup
 	if setup.stage == StartSetup.Stage.SELECT:
-		if swapped and recipe.core_cards.count(card) > recipe.copy_max:
+		if swapped and StartingDeck.product_count(recipe.core_cards, card) > recipe.copy_max:
 			return false
 		var needed: int = mini(recipe.packs_offered, run.starter.starter_packs.size())
 		var packs: Array[StarterPackDefinition] = _packs_fitting(
@@ -855,7 +858,7 @@ static func _fits_all(
 		return packs.size() >= needed
 	var shared: Array[CardDefinition] = setup.shared()
 	for pack: StarterPackDefinition in run.start_offer.packs:
-		var count: int = recipe.core_cards.count(card) + pack.cards.count(card) + shared.count(card)
+		var count: int = StartingDeck.product_count(recipe.core_cards + pack.cards + shared, card)
 		if swapped and count > recipe.copy_max:
 			return false
 		if not StartingDeck.fits_copies(recipe, pack.cards, shared):

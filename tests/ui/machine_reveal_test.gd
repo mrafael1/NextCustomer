@@ -388,11 +388,11 @@ func test_every_face_fits_the_ticket() -> void:
 	var prizes: Array[MachinePrize] = []
 	var previews: Array[MachinePreview] = []
 	var machine: MachineDefinition = load(MACHINE)
-	var cards: Array[CardDefinition] = []
-	cards.append_array(machine.rare_products)
-	cards.append_array(machine.legendary_products)
-	for card: CardDefinition in cards:
-		prizes.append(MachinePrize.new(MachinePrize.Kind.PRODUCT, 1, card))
+	# Every chain's product at one of its tiers in turn, at that tier's rarity (v1.25).
+	for index: int in machine.item_upgrades.size():
+		var card: CardDefinition = machine.item_upgrades[index].tiers()[index % 3]
+		var rarity: int = MachineDefinition.product_rarity(card)
+		prizes.append(MachinePrize.new(MachinePrize.Kind.PRODUCT, rarity, card))
 		previews.append(null)
 	var coupons: Array[CardDefinition] = []
 	coupons.append_array(machine.rare_coupons)

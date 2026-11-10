@@ -21,6 +21,8 @@ extends RefCounted
 ## packs offered and today's shared products (with the fair-deal check on each pack's cart), then
 ## the player's pick makes the deck (with_pack). The shared products follow the copy rule with
 ## every offered pack counted (copies_for_offer), and a pack's own cards may go past copy_max.
+## The copy rule counts a product's tiers as one product (v1.25: a pack's BIG card and a basket's
+## plain copy are two copies of it).
 
 
 ## How a recipe was dealt (`deal_counted`): the deck kept, how many deals were made (1 when the
@@ -134,7 +136,7 @@ static func _deal_once(
 	var chains: Array[ItemUpgradeDefinition] = chains_for(recipe, balance)
 	var copies: Dictionary[CardDefinition, int] = {}
 	for core: CardDefinition in recipe.core_cards:
-		copies[core] = int(copies.get(core, 0)) + 1
+		copies[core.product_card()] = int(copies.get(core.product_card(), 0)) + 1
 	var cards: Array[CardDefinition] = recipe.core_cards.duplicate()
 	var coupons: Array[CardDefinition] = drawable_coupons(stock)
 	cards.append_array(_draw(coupons, recipe.random_coupon_count, recipe.copy_max, copies, rng))
@@ -186,7 +188,9 @@ static func drawable_coupons(stock: RunStock) -> Array[CardDefinition]:
 ## card past copy_max copies. It doesn't check the stock: a resumed run keeps its deal even if the
 ## data's chains or coupon pool change. A recipe with starter packs (#107) dealt the core cards,
 ## then `pack`'s cards (none before the pick: `pack` null), then no more than random_count
-## products, no card past copy_max unless its core and pack copies already are.
+## products, no card past copy_max unless its core and pack copies already are. A pack card may
+## be saved at another tier of the same product (v1.25 gave four packs a BIG card in place of a
+## plain one): a run dealt before keeps its deal.
 static func could_deal(
 	recipe: DeckDefinition, cards: Array[CardDefinition], pack: StarterPackDefinition = null
 ) -> bool:
@@ -200,8 +204,9 @@ static func could_deal(
 		if pack != null and not recipe.starter_packs.has(pack):
 			return false
 		var rest: Array[CardDefinition] = cards.slice(core_size)
-		if rest.slice(0, pack_cards.size()) != pack_cards:
+		if not _holds_pack(rest.slice(0, pack_cards.size()), pack_cards):
 			return false
+		pack_cards = rest.slice(0, pack_cards.size())
 		var shared: Array[CardDefinition] = rest.slice(pack_cards.size())
 		return (
 			shared.size() <= recipe.random_count
@@ -397,7 +402,7 @@ static func basket_sets(
 ) -> Array[Array]:
 	var open: Array[CardDefinition] = []
 	for card: CardDefinition in options:
-		if not open.has(card) and int(copies.get(card, 0)) < copy_max:
+		if not open.has(card) and int(copies.get(card.product_card(), 0)) < copy_max:
 			open.append(card)
 	var count: int = mini(size, open.size())
 	var sets: Array[Array] = []
@@ -429,12 +434,12 @@ static func copies_for_offer(
 ) -> Dictionary[CardDefinition, int]:
 	var copies: Dictionary[CardDefinition, int] = {}
 	for core: CardDefinition in recipe.core_cards:
-		copies[core] = int(copies.get(core, 0)) + 1
+		copies[core.product_card()] = int(copies.get(core.product_card(), 0)) + 1
 	var most: Dictionary[CardDefinition, int] = {}
 	for pack: StarterPackDefinition in packs:
 		var held: Dictionary[CardDefinition, int] = {}
 		for card: CardDefinition in pack.cards:
-			held[card] = int(held.get(card, 0)) + 1
+			held[card.product_card()] = int(held.get(card.product_card(), 0)) + 1
 		for card: CardDefinition in held:
 			most[card] = maxi(int(most.get(card, 0)), held[card])
 	for card: CardDefinition in most:
@@ -450,12 +455,34 @@ static func fits_copies(
 ) -> bool:
 	var fixed: Dictionary[CardDefinition, int] = {}
 	for card: CardDefinition in recipe.core_cards + pack_cards:
-		fixed[card] = int(fixed.get(card, 0)) + 1
+		fixed[card.product_card()] = int(fixed.get(card.product_card(), 0)) + 1
 	var total: Dictionary[CardDefinition, int] = fixed.duplicate()
 	for card: CardDefinition in shared:
-		total[card] = int(total.get(card, 0)) + 1
+		total[card.product_card()] = int(total.get(card.product_card(), 0)) + 1
 	for card: CardDefinition in total:
 		if total[card] > maxi(recipe.copy_max, int(fixed.get(card, 0))):
+			return false
+	return true
+
+
+## How many of `cards` are `card`'s product (CardDefinition.product_card): the copy rule counts
+## a product's tiers as one product (v1.25, a pack's BIG card and a basket's plain copy).
+static func product_count(cards: Array[CardDefinition], card: CardDefinition) -> int:
+	var count: int = 0
+	for held: CardDefinition in cards:
+		if held.product_card() == card.product_card():
+			count += 1
+	return count
+
+
+## Whether `saved` (a run save's pack cards) is `pack_cards`, card for card, each one the pack's
+## card or its plain card (a run dealt before v1.25 swapped four packs' plain card for its BIG
+## tier).
+static func _holds_pack(saved: Array[CardDefinition], pack_cards: Array[CardDefinition]) -> bool:
+	if saved.size() != pack_cards.size():
+		return false
+	for index: int in pack_cards.size():
+		if saved[index] != pack_cards[index] and saved[index] != pack_cards[index].product_card():
 			return false
 	return true
 
@@ -561,12 +588,12 @@ static func _draw(
 	for _draw_index: int in count:
 		var open: Array[CardDefinition] = []
 		for option: CardDefinition in pool:
-			if int(copies.get(option, 0)) < copy_max:
+			if int(copies.get(option.product_card(), 0)) < copy_max:
 				open.append(option)
 		if open.is_empty():
 			break
 		var card: CardDefinition = open[rng.randi_range(0, open.size() - 1)]
-		copies[card] = int(copies.get(card, 0)) + 1
+		copies[card.product_card()] = int(copies.get(card.product_card(), 0)) + 1
 		drawn[card] = int(drawn.get(card, 0)) + 1
 	var cards: Array[CardDefinition] = []
 	for card: CardDefinition in pool:

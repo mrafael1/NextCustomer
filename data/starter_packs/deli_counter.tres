@@ -4,15 +4,15 @@
 [ext_resource type="Script" path="res://core/card_definition.gd" id="2_card"]
 [ext_resource type="Resource" path="res://data/cards/bread.tres" id="c_bread"]
 [ext_resource type="Resource" path="res://data/cards/cheese.tres" id="c_cheese"]
-[ext_resource type="Resource" path="res://data/cards/butter.tres" id="c_butter"]
+[ext_resource type="Resource" path="res://data/cards/butter_big.tres" id="c_butter_big"]
 
 [resource]
 script = ExtResource("1_pack")
 id = &"deli_counter"
 display_name = "Deli counter"
 family = "Bakery"
-cards = Array[ExtResource("2_card")]([ExtResource("c_bread"), ExtResource("c_cheese"), ExtResource("c_butter")])
+cards = Array[ExtResource("2_card")]([ExtResource("c_bread"), ExtResource("c_cheese"), ExtResource("c_butter_big")])
 hint_text = "Bread in the middle: Butter pays +3 beside Bakery, Cheese +4 beside Bread."
-example_text = "Butter, Bread, Cheese: Butter pays 2 + 3, Bread 5, Cheese 3 + 4. Total 17."
-example_cards = Array[ExtResource("2_card")]([ExtResource("c_butter"), ExtResource("c_bread"), ExtResource("c_cheese")])
-example_total = 17
+example_text = "Big Butter, Bread, Cheese: Big Butter pays 4 + 3, Bread 5, Cheese 3 + 4. Total 19."
+example_cards = Array[ExtResource("2_card")]([ExtResource("c_butter_big"), ExtResource("c_bread"), ExtResource("c_cheese")])
+example_total = 19

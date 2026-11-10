@@ -2,27 +2,28 @@ class_name MachineDefinition
 extends Resource
 ## The RECEIPT REWARDS machine's rules data (#77, build spec 1.2): one file,
 ## data/balance/machine.tres, referenced from BalanceDefinition.machine. Every number the machine
-## uses lives here: the odds levels and the level each shift's visits draw at, the tier odds, the
-## rarity lists, the register cap, the PREMIUM shifts and their floors, the bonus ticket, what each
-## chute's draw holds, and the item upgrade chains.
+## uses lives here: the odds levels and the level each shift's visits draw at, the rarity lists,
+## the register cap, the PREMIUM shifts and their floor, the bonus ticket, what each chute's draw
+## holds, and the item upgrade chains (a product's hidden draw weight is on its card,
+## CardDefinition.draw_weight).
 ##
 ## One machine, two chutes (#108, v0.61): NEW ITEMS (new cards for the cart: products, which can
 ## arrive BIG or GOLDEN, and coupons_per_draw coupons) and UPGRADE (improve what you own: loyalty
 ## perks, new or a level-up, and item upgrades). The machine is CLASSIC, or PREMIUM after one of
 ## premium_shifts (and on the BONUS visit that follows it): every drop at least
-## premium_min_rarity, every NEW ITEMS product with a chain at least premium_min_tier. Rarity also
-## rises with the run's progress: the visits after a shift draw at that shift's odds level
-## (shift_odds_levels).
+## premium_min_rarity. Rarity also rises with the run's progress: the visits after a shift draw at
+## that shift's odds level (shift_odds_levels).
 ##
-## A prize's rarity comes from these lists: a card or upgrade in a rare list is RARE, in a
-## legendary list LEGENDARY, any other is COMMON. A perk's level takes its family's rarity.
+## A product's rarity is its tier (v1.25, decided with the user on 2026-11-08): plain COMMON, BIG
+## RARE, GOLDEN LEGENDARY, so one rarity roll picks a NEW ITEMS product's tier and a product with
+## no upgrade chain is always COMMON. A coupon's or perk's rarity comes from these lists: one in a
+## rare list is RARE, in a legendary list LEGENDARY, any other is COMMON. A perk's level takes its
+## family's rarity.
 
 ## Prizes one visit draws (fewer when the pools run out: a short draw).
 @export var prizes_per_visit: int = 0
 ## One entry per odds level, from 0; the highest level is size - 1.
 @export var odds_levels: Array[MachineOddsLevel] = []
-@export var rare_products: Array[CardDefinition] = []
-@export var legendary_products: Array[CardDefinition] = []
 @export var rare_coupons: Array[CardDefinition] = []
 @export var legendary_coupons: Array[CardDefinition] = []
 @export var rare_upgrades: Array[UpgradeDefinition] = []
@@ -34,10 +35,10 @@ extends Resource
 ## 1-based shifts after which the machine is PREMIUM: the ticket's visit and the BONUS visit that
 ## follows it.
 @export var premium_shifts: PackedInt32Array = PackedInt32Array()
-## A PREMIUM visit's rarity floor (MachinePrize.Rarity) on every drop, and its tier floor
-## (CardDefinition.Tier) for NEW ITEMS products with an upgrade chain (others stay plain).
+## A PREMIUM visit's rarity floor (MachinePrize.Rarity) on every drop: for a NEW ITEMS product the
+## tier its rarity is (a RARE floor: BIG or better; a product with no chain falls back as an empty
+## rarity does).
 @export var premium_min_rarity: int = 0
-@export var premium_min_tier: int = 0
 ## NEW ITEMS: how many of a draw's drops are coupons (the last drops; products when there is no
 ## coupon to draw).
 @export var coupons_per_draw: int = 0
@@ -50,7 +51,6 @@ extends Resource
 @export var shift_odds_levels: PackedInt32Array = PackedInt32Array()
 ## NEW ITEMS rolls its rarities this many odds levels above the visit's (clamped to the top
 ## level), so a new item is worth its risk against UPGRADE (decided with the user on 2026-10-28).
-## Its tier roll (MachineOddsLevel.tier_weights) stays at the visit's level.
 @export var new_items_rarity_levels: int = 0
 ## A passed inspected shift gives a BONUS visit (the bonus ticket). Off since v0.68's Payday: an
 ## inspection is only a hurdle, and the reviews pay through bonus_extra_shifts.
@@ -123,9 +123,15 @@ func odds_level(level: int) -> MachineOddsLevel:
 	return odds_levels[clampi(level, 0, odds_levels.size() - 1)]
 
 
-## A stocked product's rarity (MachinePrize.Rarity).
-func product_rarity(card: CardDefinition) -> int:
-	return _rarity(legendary_products.has(card), rare_products.has(card))
+## A product's rarity (MachinePrize.Rarity): its tier's (v1.25: plain COMMON, BIG RARE, GOLDEN
+## LEGENDARY).
+static func product_rarity(card: CardDefinition) -> int:
+	match card.tier:
+		CardDefinition.Tier.BIG:
+			return MachinePrize.Rarity.RARE
+		CardDefinition.Tier.GOLDEN:
+			return MachinePrize.Rarity.LEGENDARY
+	return MachinePrize.Rarity.COMMON
 
 
 func coupon_rarity(card: CardDefinition) -> int:

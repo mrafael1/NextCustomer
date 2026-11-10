@@ -52,6 +52,12 @@ enum Tier { PLAIN, BIG, GOLDEN }
 ## ItemUpgradeDefinition chain; tiers are run upgrades from the machine, never stocked or
 ## unlocked.
 @export var tier: Tier = Tier.PLAIN
+## The machine's hidden draw weight for this product (v1.25, decided with the user on
+## 2026-11-08): a NEW ITEMS drop picks among its candidates of one rarity weighted by it, so a
+## weight of 3 comes out three times as often as one of 1, and 0 never (MachineDraw.draw_weight).
+## Read from the plain card: a BIG or GOLDEN tier draws with its product's weight. Not shown to
+## the player. Every product keeps the neutral 1 until the end-of-phase balance pass.
+@export var draw_weight: int = 1
 ## The families this card's ticket is coloured by (#105), when its rules don't say it right: one
 ## family, or two for a split ticket. Empty (the default) derives them (CardFamilies).
 ## Presentation only: no rule reads it.
