@@ -38,6 +38,20 @@ const REDUCED_MOTION_KEY := "reduced_motion"
 ## The count-up speed setting's two values: Normal and Fast.
 const COUNT_UP_NORMAL := 1.0
 const COUNT_UP_FAST := 1.5
+## The settings keys of the options popup (#options): display mode, the two volumes and the
+## reading-text size, read with their accessors.
+const DISPLAY_KEY := "display"
+const MUSIC_VOLUME_KEY := "music_volume"
+const SOUND_VOLUME_KEY := "sound_volume"
+const TEXT_SIZE_KEY := "text_size"
+## The display setting's two values.
+const DISPLAY_WINDOWED := "windowed"
+const DISPLAY_FULLSCREEN := "fullscreen"
+## The volume settings' range and default (steps of a tenth).
+const VOLUME_MAX := 10
+const VOLUME_DEFAULT := 8
+## The text size setting's values, smallest first.
+const TEXT_SIZES: Array[String] = ["normal", "large", "larger"]
 ## The stats key of the runs won (#107).
 const RUNS_WON := &"runs_won"
 ## The derived stream name of a random pin purchase (#122), with the purchase's index:
@@ -85,7 +99,8 @@ var has_capsule_seed: bool = false
 ## item count when the seed is set, so an older profile's draws never repeat a stream.
 var capsule_draws: int = 0
 ## Player settings by name, JSON values only. Read and change the known ones with their
-## accessors (count_up_speed, reduced_motion), which tolerate a missing or wrong-typed value.
+## accessors (count_up_speed, reduced_motion; ProfileSettings for the options popup's), which
+## tolerate a missing or wrong-typed value.
 var settings: Dictionary = {}
 
 

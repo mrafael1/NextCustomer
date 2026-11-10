@@ -32,6 +32,7 @@ func test_the_plates_stand_on_the_brick() -> void:
 				TitleMenu.Entry.NEW_RUN,
 				TitleMenu.Entry.REWARDS,
 				TitleMenu.Entry.GUIDE,
+				TitleMenu.Entry.OPTIONS,
 			]
 		)
 	)
@@ -54,7 +55,12 @@ func test_the_plates_stand_on_the_brick() -> void:
 		assert_object(ink).is_equal(Palette.PAPER)
 	var fresh: TitleMenu = auto_free(TitleMenu.new(false, "12 SHIFTS", 0))
 	assert_array(fresh.entries()).is_equal(
-		[TitleMenu.Entry.PRIMARY, TitleMenu.Entry.REWARDS, TitleMenu.Entry.GUIDE]
+		[
+			TitleMenu.Entry.PRIMARY,
+			TitleMenu.Entry.REWARDS,
+			TitleMenu.Entry.GUIDE,
+			TitleMenu.Entry.OPTIONS
+		]
 	)
 	assert_str(fresh.plate(TitleMenu.Entry.PRIMARY).caption).is_equal("START RUN")
 	assert_object(fresh.plate(TitleMenu.Entry.NEW_RUN)).is_null()
@@ -85,7 +91,8 @@ func test_the_plates_step_in_or_show_at_once_when_still() -> void:
 	stepping.custom_step(1.0)
 	for each: MenuPlate in plates:
 		assert_bool(each.visible).is_true()
-		assert_float(each.position.x).is_equal(0.0)
+	assert_float(plates[0].position.x).is_equal(0.0)
+	assert_float(menu.plate(TitleMenu.Entry.OPTIONS).position.x).is_equal(124.0)
 	var still: TitleMenu = _menu(false)
 	still.still = true
 	assert_object(still.step_in()).is_null()
@@ -105,8 +112,11 @@ func test_one_marker_lights_an_entry_and_enter_presses_it() -> void:
 	assert_bool(menu.handle_key(_key(KEY_ENTER))).is_true()
 	assert_array(pressed).is_equal(["start"])
 	assert_bool(menu.handle_key(_key(KEY_UP))).is_true()
+	assert_int(menu.marked_entry()).is_equal(TitleMenu.Entry.OPTIONS)
+	menu.handle_key(_key(KEY_LEFT))
 	assert_int(menu.marked_entry()).is_equal(TitleMenu.Entry.GUIDE)
 	assert_bool(menu.plate(TitleMenu.Entry.GUIDE).is_lit()).is_true()
+	menu.handle_key(_key(KEY_RIGHT))
 	menu.handle_key(_key(KEY_DOWN))
 	assert_int(menu.marked_entry()).is_equal(TitleMenu.Entry.PRIMARY)
 	menu.handle_key(_key(KEY_DOWN))
@@ -124,7 +134,9 @@ func test_one_marker_lights_an_entry_and_enter_presses_it() -> void:
 		assert_array(hot)
 		. is_equal(
 			[
+				TitleMenu.Entry.OPTIONS,
 				TitleMenu.Entry.GUIDE,
+				TitleMenu.Entry.OPTIONS,
 				TitleMenu.Entry.PRIMARY,
 				TitleMenu.Entry.NEW_RUN,
 				TitleMenu.Entry.REWARDS,
@@ -326,3 +338,25 @@ func test_the_words_are_hard_pixel_text() -> void:
 func _hover(plate: MenuPlate) -> void:
 	plate.notification(Control.NOTIFICATION_MOUSE_ENTER)
 	plate.mouse_entered.emit()
+
+
+## GUIDE and OPTIONS share the last shelf as two half plates (116x42, 8 px apart), so the column
+## keeps its height; OPTIONS' tick points at it from the right, clear of GUIDE.
+func test_guide_and_options_are_half_plates_on_the_last_shelf() -> void:
+	var menu: TitleMenu = _menu(true)
+	menu.finish_step_in()
+	var guide: MenuPlate = menu.plate(TitleMenu.Entry.GUIDE)
+	var options: MenuPlate = menu.plate(TitleMenu.Entry.OPTIONS)
+	assert_vector(guide.face_size()).is_equal(Vector2(116, 42))
+	assert_vector(options.face_size()).is_equal(Vector2(116, 42))
+	assert_float(guide.position.y).is_equal(208.0)
+	assert_float(options.position.y).is_equal(208.0)
+	assert_float(options.position.x - (guide.position.x + 116.0)).is_equal(8.0)
+	assert_float(options.position.x + 116.0).is_less_equal(MenuPlate.PLATE_SIZE.x)
+	assert_float(menu.size.y).is_equal(208.0 + guide.size.y)
+	var pressed: Array[String] = []
+	menu.options_pressed.connect(func() -> void: pressed.append("options"))
+	menu.mark(TitleMenu.Entry.OPTIONS)
+	assert_float(options.tick().position.x).is_greater_equal(options.face_size().x)
+	menu.handle_key(_key(KEY_ENTER))
+	assert_array(pressed).is_equal(["options"])

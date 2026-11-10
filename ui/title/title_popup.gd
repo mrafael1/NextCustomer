@@ -30,6 +30,7 @@ var sheet_offset: Vector2 = Vector2.ZERO
 
 var _sheet: Control
 var _sheet_size: Vector2
+var _frame: PanelContainer
 ## The sheet's rise still to go (canvas px below its place, on the 2 px grid) while it steps in.
 var _drop: float = 0.0
 var _opening: Tween
@@ -53,9 +54,9 @@ func _init(sheet_art: Vector2i) -> void:
 	_sheet.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_sheet.size = _sheet_size
 	add_child(_sheet)
-	var frame: PanelContainer = UiKit.frame_panel(FRAME, FRAME_MARGIN)
-	frame.size = _sheet_size
-	_sheet.add_child(frame)
+	_frame = UiKit.frame_panel(FRAME, FRAME_MARGIN)
+	_frame.size = _sheet_size
+	_sheet.add_child(_frame)
 	resized.connect(_place_sheet)
 
 
@@ -131,6 +132,15 @@ func _show_popup() -> Tween:
 	_opening = create_tween()
 	_opening.tween_method(_open_share, 0.0, 1.0, OPEN_TIME)
 	return _opening
+
+
+## Gives the sheet a new size of `sheet_art` art px (a popup whose content grows, such as the
+## options at a larger TEXT SIZE) and centres it again.
+func _resize_sheet(sheet_art: Vector2i) -> void:
+	_sheet_size = Vector2(sheet_art) * ArtStyle.ART_SCALE
+	_sheet.size = _sheet_size
+	_frame.size = _sheet_size
+	_place_sheet()
 
 
 ## Adds `entry` to the key order: the mouse on it marks it, leaving it unmarks it.

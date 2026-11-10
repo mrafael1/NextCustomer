@@ -93,6 +93,12 @@ var _export: TextureButton
 var _build: Label
 ## The TOY MACHINES over the title, made the first time they open.
 var _toys: ToyMachinesScreen
+## The OPTIONS popup, the profile it edits (a fresh one, never saved, when the saved profile
+## can't be read) and how its settings apply.
+var _options: OptionsCard
+var _profile: ProfileState
+var _profile_readable: bool = true
+var _settings: GameSettings = GameSettings.new()
 @onready var _log: EventLogService = get_node("/root/EventLog")
 @onready var _music: MusicService = get_node("/root/Music")
 
@@ -108,6 +114,9 @@ func _ready() -> void:
 	_coins = peek_coins(saves)
 	var profile: ProfileState = saves.peek_profile()
 	_still = profile != null and profile.reduced_motion()
+	_profile_readable = profile != null
+	_profile = profile if profile != null else ProfileState.new()
+	_settings.apply(_profile, _music, true)
 
 	_storefront = Storefront.new()
 	_storefront.still = _still
@@ -131,6 +140,7 @@ func _ready() -> void:
 	_menu.new_run_pressed.connect(_on_new_run_pressed)
 	_menu.rewards_pressed.connect(_on_rewards_pressed)
 	_menu.guide_pressed.connect(_on_guide_pressed)
+	_menu.options_pressed.connect(_on_options_pressed)
 	stage.add_child(_menu)
 	_add_corner(stage)
 	_storefront.sign_lit.connect(_on_sign_lit)
@@ -146,6 +156,10 @@ func _ready() -> void:
 		add_child(_confirm)
 	_guide = HandbookPage.mount(self, null)
 	_guide.still = _still
+	_options = OptionsCard.new()
+	_options.still = _still
+	_options.closed.connect(_on_options_closed)
+	add_child(_options)
 	if _still:
 		_storefront.light_now()
 	if take_lit_request():
@@ -301,6 +315,7 @@ func _busy() -> bool:
 		or _rewards.is_open()
 		or (_confirm != null and _confirm.is_open())
 		or (_guide != null and _guide.is_open())
+		or (_options != null and _options.is_open())
 	)
 
 
@@ -357,6 +372,10 @@ func _mark_from_scene(entry: TitleMenu.Entry) -> void:
 ## start at once) leaves it to the shift screen's loop, so the front loop isn't loaded only to
 ## be faded out.
 func _input(event: InputEvent) -> void:
+	if _settings.toggle_on_key(event, _profile):
+		get_viewport().set_input_as_handled()
+		_save_settings()
+		return
 	if _music_started or not is_audio_gesture(event) or _presses_start_button(event):
 		return
 	_music_started = true
@@ -394,6 +413,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	var handled: bool = false
 	if _rewards.is_open():
 		handled = _rewards.handle_key(event)
+	elif _options.is_open():
+		handled = _options.handle_key(event)
 	elif _confirm != null and _confirm.is_open():
 		handled = _confirm.handle_key(event)
 	elif not key.echo and skip_intro():
@@ -422,6 +443,39 @@ func _on_guide_pressed() -> void:
 	if _busy():
 		return
 	_guide.open_at()
+
+
+## OPTIONS: the options popup opens over the dimmed storefront.
+func _on_options_pressed() -> void:
+	if _busy():
+		return
+	_sfx.play(UiKit.OPEN_SOUND)
+	_options.open(_profile, _settings, _music)
+
+
+## DONE or Esc: the profile is saved once, and each changed setting logged.
+func _on_options_closed() -> void:
+	for change: Dictionary in _options.changes():
+		_log.log_event("settings_change", change)
+	_save_settings()
+
+
+## Saves the settings into the saved profile as it is now (the TOY MACHINES may have saved it
+## since the title read it), unless it couldn't be read (then it is kept as it is).
+func _save_settings() -> void:
+	if not _profile_readable:
+		return
+	var saves: SaveService = SaveService.new(SaveService.default_folder())
+	var saved: ProfileState = saves.peek_profile()
+	if saved == null:
+		return
+	saved.settings = _profile.settings.duplicate(true)
+	saves.save_profile(saved)
+
+
+## The OPTIONS popup.
+func options() -> OptionsCard:
+	return _options
 
 
 ## The staff handbook (null before the title is ready).
