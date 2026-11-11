@@ -356,11 +356,11 @@ func _add_row(row: Row, y: float) -> float:
 			_add_chips(row, at, ["NORMAL", "LARGE", "LARGER"])
 			_content.add_child(preview)
 		Row.SPEED:
-			_add_chips(row, at, ["NORMAL", "FAST"])
+			_add_chips(row, at, ["NORMAL", "FAST"], ["", "(×1.5)"])
 		Row.MUSIC, Row.SOUND:
 			var pips: VolumePips = VolumePips.new()
 			pips.position = at
-			pips.value_picked.connect(_set_volume.bind(row))
+			pips.value_picked.connect(func(picked: int) -> void: _set_volume(row, picked))
 			_content.add_child(pips)
 			_volumes[row] = pips
 		Row.MOTION:
@@ -375,11 +375,15 @@ func _add_row(row: Row, y: float) -> float:
 	return height
 
 
-func _add_chips(row: Row, at: Vector2, captions: Array[String]) -> void:
+## Adds `row`'s chips at `at`: `captions` in words, each followed by its `numbers` entry (if any)
+## in the number font.
+func _add_chips(
+	row: Row, at: Vector2, captions: Array[String], numbers: Array[String] = []
+) -> void:
 	var row_chips: Array = []
 	var x: float = at.x
 	for i: int in captions.size():
-		var chip: OptionChip = OptionChip.new(captions[i])
+		var chip: OptionChip = OptionChip.new(captions[i], numbers[i] if i < numbers.size() else "")
 		chip.position = Vector2(x, at.y)
 		chip.pressed.connect(_pick_chip.bind(row, i))
 		_content.add_child(chip)

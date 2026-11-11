@@ -8,6 +8,10 @@ const HEIGHT := 30.0
 const PAD := 12.0
 const CHECK_GAP := 8.0
 const CHECK_WIDTH := 14.0
+## A chip's number (FAST's ×1.5): the number font (Pixelify never prints numbers), NUMBER_GAP px
+## right of the words.
+const NUMBER_SIZE := 18
+const NUMBER_GAP := 6.0
 ## The check (7x5 cells of 2 px).
 const CHECK: Array[String] = ["......#", ".....#.", "#...#..", ".#.#...", "..#...."]
 
@@ -18,13 +22,19 @@ var chosen: bool = false:
 		queue_redraw()
 
 var _caption: Label
+var _number: Label
 
 
-func _init(text: String) -> void:
+## A chip with the hard pixel words `text`, and `number_text` after them in the number font.
+func _init(text: String, number_text: String = "") -> void:
 	focus_mode = Control.FOCUS_NONE
 	_caption = UiKit.pixel_label(text, 2, Palette.INK)
 	add_child(_caption)
-	var text_width: float = OptionChip.pixel_width(text, 2)
+	_number = UiKit.number_label(number_text, NUMBER_SIZE, false)
+	_number.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_number.visible = not number_text.is_empty()
+	add_child(_number)
+	var text_width: float = _content_text_width()
 	size = Vector2(PAD + text_width + CHECK_GAP + CHECK_WIDTH + PAD, HEIGHT)
 	custom_minimum_size = size
 	mouse_entered.connect(queue_redraw)
@@ -49,12 +59,16 @@ func _draw() -> void:
 	var ledge_h: float = 2.0 if down else 4.0
 	draw_rect(Rect2(2, dy + h - 2 - ledge_h, w - 4, ledge_h), ledge)
 	# The words (and the check when chosen) centred on the face above the ledge, on the 2 px grid.
-	var text_width: float = OptionChip.pixel_width(_caption.text, 2)
+	var words_width: float = OptionChip.pixel_width(_caption.text, 2)
+	var text_width: float = _content_text_width()
 	var content_width: float = text_width + (CHECK_GAP + CHECK_WIDTH if chosen else 0.0)
 	var left: float = 2.0 * floorf((w - content_width) / 4.0)
 	var face_top: float = dy + 2.0
 	var face_height: float = h - 4.0 - ledge_h
-	UiKit.place_pixel_label(_caption, Rect2(left, face_top, text_width, face_height), true)
+	UiKit.place_pixel_label(_caption, Rect2(left, face_top, words_width, face_height), true)
+	if _number.visible:
+		_number.position = Vector2(left + words_width + NUMBER_GAP, face_top)
+		_number.size = Vector2(_number.get_minimum_size().x, face_height)
 	if chosen:
 		var check_x: float = left + text_width + CHECK_GAP
 		var check_top: float = face_top + 2.0 * floorf((face_height - CHECK.size() * 2.0) / 4.0)
@@ -62,6 +76,14 @@ func _draw() -> void:
 			for column: int in CHECK[row].length():
 				if CHECK[row][column] == "#":
 					draw_rect(Rect2(check_x + column * 2, check_top + row * 2, 2, 2), Palette.INK)
+
+
+## The words' width, with the number and its gap when there is one, in canvas px.
+func _content_text_width() -> float:
+	var width: float = OptionChip.pixel_width(_caption.text, 2)
+	if not _number.text.is_empty():
+		width += NUMBER_GAP + ceilf(_number.get_minimum_size().x)
+	return width
 
 
 ## `text`'s width in hard pixel words drawn `scale_factor` times larger, in canvas px.

@@ -12,6 +12,7 @@ const PIP_LEFT := 44.0
 const PIP_STEP := 16.0
 const PIP_WIDTH := 12.0
 const WINDOW_SIZE := Vector2(48, 40)
+const NUMBER_SIZE := 26
 
 var value: int = ProfileState.VOLUME_DEFAULT:
 	set(new_value):
@@ -45,8 +46,10 @@ func _init() -> void:
 	add_child(_plus)
 	OptionChip.pixel_caption(_plus, "+")
 	_window_x = pips_end + 52
-	_number = UiKit.pixel_label("", 4, Palette.INK)
+	# The number font: Pixelify never prints numbers (its 5 reads as an S).
+	_number = UiKit.number_label("", NUMBER_SIZE, false)
 	_number.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_number.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	add_child(_number)
 	_mute = UiKit.pixel_label("MUTE", 2, Palette.TOMATO_DARK)
 	_mute.position = Vector2(_window_x + 60, 14)
@@ -99,9 +102,8 @@ func _draw() -> void:
 	draw_rect(Rect2(wx + 2, 2, 44, 36), Palette.CREAM_SHADE if mute else Palette.PAPER)
 	draw_rect(Rect2(wx + 2, 2, 44, 2), Palette.CREAM_SHADE)
 	draw_rect(Rect2(wx + 2, 2, 2, 36), Palette.CREAM_SHADE)
-	# The digits centred on the paper (right of its shaded column), on the 2 px grid.
-	var number_width: float = UiKit.pixel_text_size(_number).x
-	var number_left: float = wx + 4.0 + 2.0 * floorf((42.0 - number_width) / 4.0)
-	UiKit.place_pixel_label(_number, Rect2(number_left, 4, number_width, 34), true)
+	# The digits centred on the paper, right of and under its shaded column and row.
+	_number.position = Vector2(wx + 4, 4)
+	_number.size = Vector2(42, 34)
 	if mute:
 		draw_rect(Rect2(wx + 8, 18, 34, 4), Palette.TOMATO_DARK)

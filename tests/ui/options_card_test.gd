@@ -154,6 +154,26 @@ func test_keys_walk_the_rows_and_change_the_marked_one() -> void:
 	await await_idle_frame()
 
 
+## The volume's - / + keys and its pips set that volume (value_picked reaches the right row).
+func test_volume_keys_and_pips_set_their_row() -> void:
+	var profile: ProfileState = ProfileState.new()
+	var card: OptionsCard = _open(profile)
+	var music: VolumePips = card.volume(OptionsCard.Row.MUSIC)
+	var sound: VolumePips = card.volume(OptionsCard.Row.SOUND)
+	music.minus_key().pressed.emit()
+	assert_int(ProfileSettings.music_volume(profile)).is_equal(ProfileState.VOLUME_DEFAULT - 1)
+	assert_int(music.value).is_equal(ProfileState.VOLUME_DEFAULT - 1)
+	assert_int(ProfileSettings.sound_volume(profile)).is_equal(ProfileState.VOLUME_DEFAULT)
+	sound.plus_key().pressed.emit()
+	assert_int(ProfileSettings.sound_volume(profile)).is_equal(ProfileState.VOLUME_DEFAULT + 1)
+	assert_array(_bus_calls[-1]).is_equal(
+		[GameSettings.SFX_BUS, GameSettings.volume_db(ProfileState.VOLUME_DEFAULT + 1), false]
+	)
+	sound.value_picked.emit(3)
+	assert_int(ProfileSettings.sound_volume(profile)).is_equal(3)
+	assert_int(ProfileSettings.music_volume(profile)).is_equal(ProfileState.VOLUME_DEFAULT - 1)
+
+
 func test_volumes_and_the_display_apply_through_the_setters() -> void:
 	var settings: GameSettings = _settings()
 	var profile: ProfileState = ProfileState.new()
