@@ -176,7 +176,9 @@ func show_for(
 	screen: Rect2,
 	guide: bool = false
 ) -> void:
-	_label.text = text
+	# The text goes in after the label has its width: an autowrapped label's least height is its
+	# lines at its current width, so a text set at an old, narrow width would clamp it far taller.
+	_label.text = ""
 	var wrapped: bool = wraps(text)
 	_label.autowrap_mode = (TextServer.AUTOWRAP_WORD_SMART if wrapped else TextServer.AUTOWRAP_OFF)
 	_label.horizontal_alignment = (
@@ -194,6 +196,7 @@ func show_for(
 	var footer: float = (HINT_ROOM + HINT_LIFT) if guide else 0.0
 	_label.position = Vector2(inset, 0.0)
 	_label.size = Vector2(size.x - inset * 2.0, size.y - footer)
+	_label.text = text
 	_hint.visible = guide
 	_hint.position = Vector2(0.0, size.y - footer)
 	_hint.size = Vector2(size.x, HINT_ROOM)

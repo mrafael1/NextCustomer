@@ -1,0 +1,15 @@
+; The picked staff handbook tab (2026-11-11, the guide polish): handbook_tab in paper, its right
+; edge cream shade, open at the foot onto the page it opens. 9-slice, 3 art px margins.
+@size 10x10
+@kind frame
+@scale 2
+..######..
+.#wwwwww#.
+#wwwwwwwb#
+#wwwwwwwb#
+#wwwwwwwb#
+#wwwwwwwb#
+#wwwwwwwb#
+#wwwwwwwb#
+#wwwwwwwb#
+#wwwwwwwb#
