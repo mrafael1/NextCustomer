@@ -63,6 +63,12 @@ const BUILD_FONT_SIZE := 14
 static var _lit_request: bool = false
 ## Tests turn this off so starting doesn't replace the test runner's scene.
 var changes_scene: bool = true
+## The title offers QUIT (the plate under GUIDE and OPTIONS, and Esc): the desktop game only, as
+## the web build's tab is closed instead. Set before the title enters the tree.
+var quit_offered: bool = not OS.has_feature("web")
+## Closes the game once QUIT GAME? is answered YES (tests record it instead).
+var quit_game: Callable = func() -> void: get_tree().quit()
+
 var _starting: bool = false
 ## The run save found at start, or null. Read without reporting or backing up anything: the
 ## shift screen does that when it loads the save.
@@ -89,6 +95,8 @@ var _guide: HandbookPage
 var _rewards_pending: bool = false
 ## The New run question (only with a run saved).
 var _confirm: AbandonConfirm
+## The quit question (only when quit_offered).
+var _quit: QuitConfirm
 var _export: TextureButton
 var _build: Label
 ## The TOY MACHINES over the title, made the first time they open.
@@ -133,7 +141,7 @@ func _ready() -> void:
 		if _saved_run == null
 		else TitleMenu.continue_line(_saved_run)
 	)
-	_menu = TitleMenu.new(_saved_run != null, sub_line, _coins)
+	_menu = TitleMenu.new(_saved_run != null, sub_line, _coins, quit_offered)
 	_menu.still = _still
 	_menu.hot_changed.connect(_on_hot_changed)
 	_menu.start_pressed.connect(_on_start_pressed)
@@ -141,6 +149,7 @@ func _ready() -> void:
 	_menu.rewards_pressed.connect(_on_rewards_pressed)
 	_menu.guide_pressed.connect(_on_guide_pressed)
 	_menu.options_pressed.connect(_on_options_pressed)
+	_menu.quit_pressed.connect(_on_quit_pressed)
 	stage.add_child(_menu)
 	_add_corner(stage)
 	_storefront.sign_lit.connect(_on_sign_lit)
@@ -154,6 +163,11 @@ func _ready() -> void:
 		_confirm.still = _still
 		_confirm.abandon_confirmed.connect(_on_abandon_confirmed)
 		add_child(_confirm)
+	if quit_offered:
+		_quit = QuitConfirm.new()
+		_quit.still = _still
+		_quit.quit_confirmed.connect(_on_quit_confirmed)
+		add_child(_quit)
 	_guide = HandbookPage.mount(self, null)
 	_guide.still = _still
 	_options = OptionsCard.new()
@@ -243,6 +257,11 @@ func abandon_confirm() -> AbandonConfirm:
 	return _confirm
 
 
+## The quit question, or null when the title offers no quit (the web build).
+func quit_confirm() -> QuitConfirm:
+	return _quit
+
+
 func export_button() -> TextureButton:
 	return _export
 
@@ -314,6 +333,7 @@ func _busy() -> bool:
 		or toy_machines_open()
 		or _rewards.is_open()
 		or (_confirm != null and _confirm.is_open())
+		or (_quit != null and _quit.is_open())
 		or (_guide != null and _guide.is_open())
 		or (_options != null and _options.is_open())
 	)
@@ -417,7 +437,12 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		handled = _options.handle_key(event)
 	elif _confirm != null and _confirm.is_open():
 		handled = _confirm.handle_key(event)
+	elif _quit != null and _quit.is_open():
+		handled = _quit.handle_key(event)
 	elif not key.echo and skip_intro():
+		handled = true
+	elif key.keycode == KEY_ESCAPE and not key.echo and _quit != null:
+		_on_quit_pressed()
 		handled = true
 	else:
 		handled = _menu.handle_key(event)
@@ -481,6 +506,18 @@ func options() -> OptionsCard:
 ## The staff handbook (null before the title is ready).
 func guide() -> HandbookPage:
 	return _guide
+
+
+## QUIT or Esc: QUIT GAME? opens over the dimmed storefront.
+func _on_quit_pressed() -> void:
+	if _busy() or _quit == null:
+		return
+	_quit.open(_saved_run != null)
+
+
+## YES: the settings are already saved (each change saves them), so the game closes.
+func _on_quit_confirmed() -> void:
+	quit_game.call()
 
 
 func _on_new_run_pressed() -> void:

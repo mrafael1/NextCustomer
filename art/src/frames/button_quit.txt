@@ -1,0 +1,17 @@
+; The title's QUIT plate (v1.27): the teal plate's shape in the dark tomato ramp, a step darker
+; than CONTINUE's tomato so the way out reads apart from the way in: a tomato top row and left
+; edge, a dark tomato face, a darkest shade edge and bottom row and an ink ledge. A 9-slice like
+; button.
+@size 10x10
+@kind frame
+@scale 2
+.########.
+#RRRRRRRR#
+#Rrrrrrrq#
+#Rrrrrrrq#
+#Rrrrrrrq#
+#Rrrrrrrq#
+#Rrrrrrrq#
+#qqqqqqqq#
+#%%%%%%%%#
+.########.

@@ -28,13 +28,15 @@ signal rewards_pressed
 signal guide_pressed
 ## OPTIONS was pressed: the options popup opens.
 signal options_pressed
+## QUIT was pressed (desktop only): the title asks first.
+signal quit_pressed
 ## The marked entry changed (NONE: none).
 signal hot_changed(entry: Entry)
 
 ## NONE: no entry; PRIMARY: CONTINUE or START RUN; NEW_RUN (only with a run saved); REWARDS;
 ## GUIDE (v1.06, the staff handbook, under REWARDS); OPTIONS (the options popup), GUIDE's half
-## plate's neighbour on the last shelf.
-enum Entry { NONE, PRIMARY, NEW_RUN, REWARDS, GUIDE, OPTIONS }
+## plate's neighbour on its shelf; QUIT (desktop only) under them.
+enum Entry { NONE, PRIMARY, NEW_RUN, REWARDS, GUIDE, OPTIONS, QUIT }
 
 ## Where the menu stands on the storefront's stage, in canvas px (36,160 art at 2x): the
 ## primary plate's top left.
@@ -55,10 +57,16 @@ const NEW_RUN_TEXT := "NEW RUN"
 const REWARDS_TEXT := "REWARDS"
 const GUIDE_TEXT := "GUIDE"
 const OPTIONS_TEXT := "OPTIONS"
+const QUIT_TEXT := "QUIT"
 ## GUIDE and OPTIONS share the last shelf as two half plates, HALF_GAP apart, so the column keeps
 ## its height (mock-up options_pause.html: 116x42 each, 8 px apart).
 const HALF_SIZE := Vector2(116, 42)
 const HALF_GAP := 8.0
+## QUIT's plate (normal, lit): the teal plate's shape in the dark tomato ramp (v1.27), apart from
+## CONTINUE's tomato.
+const QUIT_FRAMES: Array[Texture2D] = [
+	preload("res://art/frames/button_quit.png"), preload("res://art/frames/button_quit_lit.png")
+]
 
 ## Shows the plates at once when they step in (the profile's reduced motion).
 var still: bool = false
@@ -74,17 +82,23 @@ var _stepping: Tween
 
 
 ## The menu with a run saved (`saved`: CONTINUE, NEW RUN, REWARDS) or not (START RUN, REWARDS);
-## `sub_line` goes under the primary entry (continue_line or length_line), `coins` on REWARDS.
-func _init(saved: bool, sub_line: String, coins: int) -> void:
+## `sub_line` goes under the primary entry (continue_line or length_line), `coins` on REWARDS;
+## `quit`: QUIT under GUIDE and OPTIONS (the desktop game; the web build has none).
+func _init(saved: bool, sub_line: String, coins: int, quit: bool = false) -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	position = STAGE_AT
 	_entries = [Entry.PRIMARY, Entry.REWARDS, Entry.GUIDE, Entry.OPTIONS]
 	if saved:
 		_entries.insert(1, Entry.NEW_RUN)
+	if quit:
+		_entries.append(Entry.QUIT)
+	var shelf_top: float = PLATE_TOPS[_entries.find(Entry.GUIDE)]
 	for i: int in _entries.size():
 		var entry: Entry = _entries[i]
 		var entry_plate: MenuPlate
 		var at: Vector2 = Vector2(0.0, PLATE_TOPS[mini(i, _entries.find(Entry.GUIDE))])
+		if entry == Entry.QUIT:
+			at.y = shelf_top + PLATE_TOPS[3] - PLATE_TOPS[2]
 		if entry == Entry.PRIMARY:
 			entry_plate = MenuPlate.new(
 				CONTINUE_TEXT if saved else START_TEXT, MenuPlate.Kind.PRIMARY
@@ -94,14 +108,14 @@ func _init(saved: bool, sub_line: String, coins: int) -> void:
 			entry_plate = MenuPlate.new(_plate_text(entry), MenuPlate.Kind.PLATE, HALF_SIZE)
 			entry_plate.centre_caption()
 			if entry == Entry.OPTIONS:
-				at.x = HALF_SIZE.x + HALF_GAP
-				# Its tick points back at it from the right, clear of GUIDE (the mock-up's).
-				entry_plate.tick().flip_h = true
-				entry_plate.tick().position.x = (
-					HALF_SIZE.x + MenuPlate.HOT_SHIFT + MenuPlate.TICK_LEFT - MenuPlate.TICK_SIZE.x
-				)
+				# Its tick points back at it from the right, clear of GUIDE (the mock-up's), and
+				# lit, it moves left, away from the tick; its face rests HOT_SHIFT into the plate.
+				at.x = _home_x(entry)
+				entry_plate.tick_on_right()
 		else:
 			entry_plate = MenuPlate.new(_plate_text(entry))
+			if entry == Entry.QUIT:
+				entry_plate.use_frames(QUIT_FRAMES)
 		entry_plate.position = at
 		entry_plate.visible = false
 		entry_plate.mouse_entered.connect(mark.bind(entry))
@@ -166,10 +180,9 @@ func step_in() -> Tween:
 	_stepping = create_tween().set_parallel()
 	for i: int in _entries.size():
 		var shown_plate: MenuPlate = _plates[_entries[i]]
-		var delay_index: int = mini(i, _entries.find(Entry.OPTIONS))
 		_slide(0.0, shown_plate)
 		_stepping.tween_method(_slide.bind(shown_plate), 0.0, 1.0, SLIDE_TIME).set_delay(
-			delay_index * STEP_DELAY
+			i * STEP_DELAY
 		)
 	return _stepping
 
@@ -232,6 +245,8 @@ func activate(entry: Entry) -> void:
 			guide_pressed.emit()
 		Entry.OPTIONS:
 			options_pressed.emit()
+		Entry.QUIT:
+			quit_pressed.emit()
 
 
 ## A key for the menu: Up and Down move the marker, Enter or Space press the marked entry (the
@@ -266,12 +281,15 @@ static func _plate_text(entry: Entry) -> String:
 			return GUIDE_TEXT
 		Entry.OPTIONS:
 			return OPTIONS_TEXT
+		Entry.QUIT:
+			return QUIT_TEXT
 	return REWARDS_TEXT
 
 
 ## Where `entry`'s plate rests: OPTIONS beside GUIDE, the rest at the column's left.
 func _home_x(entry: Entry) -> float:
-	return HALF_SIZE.x + HALF_GAP if entry == Entry.OPTIONS else 0.0
+	# OPTIONS' face rests HOT_SHIFT into its plate (MenuPlate.tick_on_right).
+	return HALF_SIZE.x + HALF_GAP - MenuPlate.HOT_SHIFT if entry == Entry.OPTIONS else 0.0
 
 
 func _last_entry() -> Entry:
