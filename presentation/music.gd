@@ -53,8 +53,13 @@ var _fade_from: PackedFloat32Array = PackedFloat32Array([0.0, 0.0])
 var _streams: Dictionary[StringName, AudioStream] = {}
 ## The bus index, or -1 (the players' volume_db carry the duck instead).
 var _bus: int = -1
-## The bus volume with no duck.
+## The bus volume with no duck: the layout's level plus the player's MUSIC setting.
 var _base_db: float = 0.0
+## The bus layout's own level, read once (the MUSIC setting goes on top of it).
+var _layout_db: float = 0.0
+## The MUSIC setting's offset and mute (set_level).
+var _level_db: float = 0.0
+var _muted: bool = false
 ## The duck now (0 for none, negative when ducked), and where its tween is going.
 var _duck_db: float = 0.0
 var _duck_target_db: float = 0.0
@@ -69,7 +74,9 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_bus = AudioServer.get_bus_index(bus_name)
 	if _bus >= 0:
-		_base_db = AudioServer.get_bus_volume_db(_bus)
+		_layout_db = AudioServer.get_bus_volume_db(_bus)
+		_base_db = _layout_db + _level_db
+		AudioServer.set_bus_mute(_bus, _muted)
 	else:
 		_report("Music: no audio bus '%s'; ducking the music players instead." % bus_name)
 	for index: int in range(2):
@@ -190,9 +197,21 @@ func is_ducked() -> bool:
 	return _duck_target_db < 0.0
 
 
-## The Music bus volume with no duck (from default_bus_layout.tres).
+## The Music bus volume with no duck (default_bus_layout.tres's, plus the MUSIC setting).
 func base_db() -> float:
 	return _base_db
+
+
+## The MUSIC setting (GameSettings): `offset_db` on top of the layout's level, the bus muted when
+## `muted`. Ducking stays relative to it.
+func set_level(offset_db: float, muted: bool) -> void:
+	_level_db = offset_db
+	_muted = muted
+	if _bus < 0:
+		return
+	_base_db = _layout_db + offset_db
+	AudioServer.set_bus_mute(_bus, muted)
+	AudioServer.set_bus_volume_db(_bus, _base_db + _duck_db)
 
 
 ## True when the duck moves the bus, false when it moves the players (no bus).

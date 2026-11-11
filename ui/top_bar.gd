@@ -21,6 +21,8 @@ extends HBoxContainer
 
 signal deck_pressed
 signal export_pressed
+## The ☰ button was pressed while something listens (the shift's pause); else its menu opens.
+signal menu_pressed
 ## The menu's Guide was pressed (v1.06): the staff handbook opens (HandbookPage.mount).
 signal guide_pressed
 
@@ -113,7 +115,7 @@ func _init() -> void:
 	deck_button.use_number_font()
 	deck_button.set_icon(CART_ICON, CART_ICON_SIZE)
 	menu_button = UiKit.framed_button(
-		self, "", open_menu, BUTTON_FONT_SIZE, BUTTON_FRAME, MENU_BUTTON_SIZE
+		self, "", _on_menu_button, BUTTON_FONT_SIZE, BUTTON_FRAME, MENU_BUTTON_SIZE
 	)
 	menu_button.set_icon(MENU_ICON, MENU_ICON_SIZE)
 	menu_button.accessibility_name = "Menu"
@@ -221,6 +223,13 @@ func _build_menu() -> void:
 	)
 	# Internal, so the bar's children are its chips and buttons alone.
 	add_child(menu, false, Node.INTERNAL_MODE_BACK)
+
+
+func _on_menu_button() -> void:
+	if menu_pressed.get_connections().is_empty():
+		open_menu()
+	else:
+		menu_pressed.emit()
 
 
 func _on_guide() -> void:

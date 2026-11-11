@@ -26,6 +26,15 @@ const LIGHT_OUTLINE := 6
 ## The notices' body-font size.
 const NOTICE_FONT_SIZE := 16
 
+## The reading text's scale from the profile's TEXT SIZE (GameSettings.apply sets it): rules,
+## tips, notes and receipt lines read their size through text_size, the art and pixel words don't.
+static var reading_scale: float = 1.0
+
+
+## A reading text's font size at the current TEXT SIZE: `base` times text_scale, rounded.
+static func text_size(base: int) -> int:
+	return roundi(base * reading_scale)
+
 
 static func paper_panel(border: int = 4) -> PanelContainer:
 	var panel: PanelContainer = PanelContainer.new()
