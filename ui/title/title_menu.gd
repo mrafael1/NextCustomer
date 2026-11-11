@@ -26,12 +26,17 @@ signal new_run_pressed
 signal rewards_pressed
 ## GUIDE was pressed (v1.06): the staff handbook opens.
 signal guide_pressed
+## OPTIONS was pressed: the options popup opens.
+signal options_pressed
+## QUIT was pressed (desktop only): the title asks first.
+signal quit_pressed
 ## The marked entry changed (NONE: none).
 signal hot_changed(entry: Entry)
 
 ## NONE: no entry; PRIMARY: CONTINUE or START RUN; NEW_RUN (only with a run saved); REWARDS;
-## GUIDE (v1.06, the staff handbook, under REWARDS).
-enum Entry { NONE, PRIMARY, NEW_RUN, REWARDS, GUIDE }
+## GUIDE (v1.06, the staff handbook, under REWARDS); OPTIONS (the options popup), GUIDE's half
+## plate's neighbour on its shelf; QUIT (desktop only) under them.
+enum Entry { NONE, PRIMARY, NEW_RUN, REWARDS, GUIDE, OPTIONS, QUIT }
 
 ## Where the menu stands on the storefront's stage, in canvas px (36,160 art at 2x): the
 ## primary plate's top left.
@@ -51,6 +56,17 @@ const START_TEXT := "START RUN"
 const NEW_RUN_TEXT := "NEW RUN"
 const REWARDS_TEXT := "REWARDS"
 const GUIDE_TEXT := "GUIDE"
+const OPTIONS_TEXT := "OPTIONS"
+const QUIT_TEXT := "QUIT"
+## GUIDE and OPTIONS share the last shelf as two half plates, HALF_GAP apart, so the column keeps
+## its height (mock-up options_pause.html: 116x42 each, 8 px apart).
+const HALF_SIZE := Vector2(116, 42)
+const HALF_GAP := 8.0
+## QUIT's plate (normal, lit): the teal plate's shape in the dark tomato ramp (v1.27), apart from
+## CONTINUE's tomato.
+const QUIT_FRAMES: Array[Texture2D] = [
+	preload("res://art/frames/button_quit.png"), preload("res://art/frames/button_quit_lit.png")
+]
 
 ## Shows the plates at once when they step in (the profile's reduced motion).
 var still: bool = false
@@ -66,24 +82,41 @@ var _stepping: Tween
 
 
 ## The menu with a run saved (`saved`: CONTINUE, NEW RUN, REWARDS) or not (START RUN, REWARDS);
-## `sub_line` goes under the primary entry (continue_line or length_line), `coins` on REWARDS.
-func _init(saved: bool, sub_line: String, coins: int) -> void:
+## `sub_line` goes under the primary entry (continue_line or length_line), `coins` on REWARDS;
+## `quit`: QUIT under GUIDE and OPTIONS (the desktop game; the web build has none).
+func _init(saved: bool, sub_line: String, coins: int, quit: bool = false) -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	position = STAGE_AT
-	_entries = [Entry.PRIMARY, Entry.REWARDS, Entry.GUIDE]
+	_entries = [Entry.PRIMARY, Entry.REWARDS, Entry.GUIDE, Entry.OPTIONS]
 	if saved:
 		_entries.insert(1, Entry.NEW_RUN)
+	if quit:
+		_entries.append(Entry.QUIT)
+	var shelf_top: float = PLATE_TOPS[_entries.find(Entry.GUIDE)]
 	for i: int in _entries.size():
 		var entry: Entry = _entries[i]
 		var entry_plate: MenuPlate
+		var at: Vector2 = Vector2(0.0, PLATE_TOPS[mini(i, _entries.find(Entry.GUIDE))])
+		if entry == Entry.QUIT:
+			at.y = shelf_top + PLATE_TOPS[3] - PLATE_TOPS[2]
 		if entry == Entry.PRIMARY:
 			entry_plate = MenuPlate.new(
 				CONTINUE_TEXT if saved else START_TEXT, MenuPlate.Kind.PRIMARY
 			)
 			entry_plate.sub_line = sub_line
+		elif entry == Entry.GUIDE or entry == Entry.OPTIONS:
+			entry_plate = MenuPlate.new(_plate_text(entry), MenuPlate.Kind.PLATE, HALF_SIZE)
+			entry_plate.centre_caption()
+			if entry == Entry.OPTIONS:
+				# Its tick points back at it from the right, clear of GUIDE (the mock-up's), and
+				# lit, it moves left, away from the tick; its face rests HOT_SHIFT into the plate.
+				at.x = _home_x(entry)
+				entry_plate.tick_on_right()
 		else:
 			entry_plate = MenuPlate.new(_plate_text(entry))
-		entry_plate.position = Vector2(0.0, PLATE_TOPS[i])
+			if entry == Entry.QUIT:
+				entry_plate.use_frames(QUIT_FRAMES)
+		entry_plate.position = at
 		entry_plate.visible = false
 		entry_plate.mouse_entered.connect(mark.bind(entry))
 		entry_plate.mouse_exited.connect(unmark.bind(entry))
@@ -92,7 +125,7 @@ func _init(saved: bool, sub_line: String, coins: int) -> void:
 		_plates[entry] = entry_plate
 	set_coins(coins)
 	var last: MenuPlate = _plates[_last_entry()]
-	size = Vector2(MenuPlate.PRIMARY_SIZE.x, last.position.y) + last.size
+	size = Vector2(MenuPlate.PRIMARY_SIZE.x, last.position.y + last.size.y)
 
 
 ## The primary entry's sub-line for a saved run: its shift out of the run's shifts.
@@ -163,7 +196,7 @@ func finish_step_in() -> void:
 		_stepping = null
 	for entry: Entry in _entries:
 		_plates[entry].visible = true
-		_plates[entry].position.x = 0.0
+		_plates[entry].position.x = _home_x(entry)
 
 
 ## The plates are still sliding in.
@@ -210,6 +243,10 @@ func activate(entry: Entry) -> void:
 			rewards_pressed.emit()
 		Entry.GUIDE:
 			guide_pressed.emit()
+		Entry.OPTIONS:
+			options_pressed.emit()
+		Entry.QUIT:
+			quit_pressed.emit()
 
 
 ## A key for the menu: Up and Down move the marker, Enter or Space press the marked entry (the
@@ -224,6 +261,10 @@ func handle_key(event: InputEvent) -> bool:
 			move_marker(1)
 		KEY_UP:
 			move_marker(-1)
+		KEY_LEFT, KEY_RIGHT:
+			# Across the last shelf's half plates.
+			if _marked == Entry.GUIDE or _marked == Entry.OPTIONS:
+				mark(Entry.OPTIONS if _marked == Entry.GUIDE else Entry.GUIDE)
 		KEY_ENTER, KEY_KP_ENTER, KEY_SPACE:
 			if not key.echo:
 				activate(_marked if _marked != Entry.NONE else Entry.PRIMARY)
@@ -238,7 +279,17 @@ static func _plate_text(entry: Entry) -> String:
 			return NEW_RUN_TEXT
 		Entry.GUIDE:
 			return GUIDE_TEXT
+		Entry.OPTIONS:
+			return OPTIONS_TEXT
+		Entry.QUIT:
+			return QUIT_TEXT
 	return REWARDS_TEXT
+
+
+## Where `entry`'s plate rests: OPTIONS beside GUIDE, the rest at the column's left.
+func _home_x(entry: Entry) -> float:
+	# OPTIONS' face rests HOT_SHIFT into its plate (MenuPlate.tick_on_right).
+	return HALF_SIZE.x + HALF_GAP - MenuPlate.HOT_SHIFT if entry == Entry.OPTIONS else 0.0
 
 
 func _last_entry() -> Entry:
@@ -250,4 +301,5 @@ func _last_entry() -> Entry:
 func _slide(share: float, slid_plate: MenuPlate) -> void:
 	slid_plate.visible = share > 0.0
 	var left: float = SLIDE * (1.0 - share)
-	slid_plate.position.x = -SLIDE_STEP * roundf(left / SLIDE_STEP)
+	var home: float = _home_x(_plates.find_key(slid_plate))
+	slid_plate.position.x = home - SLIDE_STEP * roundf(left / SLIDE_STEP)

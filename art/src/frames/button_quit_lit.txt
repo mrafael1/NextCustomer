@@ -1,0 +1,15 @@
+; The QUIT plate (button_quit) lit (v1.27), like button_lit: a paper top row and its face one
+; step lighter, in tomato. A 9-slice like button.
+@size 10x10
+@kind frame
+@scale 2
+.########.
+#wwwwwwww#
+#oRRRRRRr#
+#oRRRRRRr#
+#oRRRRRRr#
+#oRRRRRRr#
+#oRRRRRRr#
+#rrrrrrrr#
+#qqqqqqqq#
+.########.

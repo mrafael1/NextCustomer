@@ -765,6 +765,39 @@ class ToyMachinesTest(LogTestCase):
         self.assertNotIn("Toy machines", ls.render(summary))
 
 
+class SettingsTest(LogTestCase):
+    """The options' and the pause's events: known, never a run of their own, one settings line
+    per player with the final values, the pauses and the Save & Quits."""
+
+    def test_final_settings_pauses_and_quits_per_player(self) -> None:
+        s = Session("opts", build="fb-p3")
+        s.log("settings_change", "", key="music_volume", **{"from": 8, "to": 5})
+        s.machine_start("r1")
+        s.shift("r1", 1)
+        s.log("pause_open", "r1", phase="planning", shift=1)
+        s.log("settings_change", "r1", key="music_volume", **{"from": 5, "to": 3})
+        s.log("pause_close", "r1", phase="planning", shift=1, paused_ms=4000)
+        s.log("pause_open", "r1", phase="planning", shift=1)
+        s.log("run_quit", "r1", phase="planning", shift=1)
+        summary = self.summary(self.write("p.jsonl", s))
+        self.assertEqual(summary["inputs"]["unknown_event_types"], {})
+        self.assertEqual(summary["players"][0]["runs"], 1)
+        row = summary["settings"][0]
+        self.assertEqual(row["final"], {"music_volume": 3})
+        self.assertEqual(row["pauses"], 2)
+        self.assertEqual(row["quits"], 1)
+        report = ls.render(summary)
+        self.assertIn("music_volume=3 · 2 pauses (4 s) · 1 save & quit", report)
+
+    def test_logs_without_settings_leave_the_block_out(self) -> None:
+        s = Session("plain", build="fb-p3")
+        s.machine_start("r1")
+        s.run_end("r1", True, 8)
+        summary = self.summary(self.write("p.jsonl", s))
+        self.assertEqual(summary["settings"], [])
+        self.assertNotIn("Settings", ls.render(summary))
+
+
 class ShiftAndListTest(LogTestCase):
     def test_win_rate_per_shift_and_per_list(self) -> None:
         s = Session("s")

@@ -168,6 +168,6 @@ func _turn(gold: bool, instant: bool) -> void:
 		_turning -= 1
 		return
 	if not instant and metal.is_silver() and metal.silver_amount() < 1.0 and is_inside_tree():
-		await get_tree().create_timer(ReceiptGold.WIPE_SECONDS).timeout
+		await get_tree().create_timer(ReceiptGold.WIPE_SECONDS, false).timeout
 	metal.show_gold(true, instant)
 	_turning -= 1

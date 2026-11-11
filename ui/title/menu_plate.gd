@@ -7,7 +7,8 @@ extends FramedButton
 ## shift, SHIFT 5/16).
 ##
 ## The marker on it lights it: the plate moves HOT_SHIFT px right onto its lit frame
-## (button_teal_lit, button_lit) and a tomato price-gun tick (icons/tick_marker) shows left of it.
+## (button_teal_lit, button_lit) and a tomato price-gun tick (icons/tick_marker) shows left of it
+## (or the tick shows right of it and the plate moves left: tick_on_right).
 ## The menu or popup owning it sets `marked`, from the mouse (it marks the plate the mouse enters)
 ## and from the keys, so only `marked` lights it: a plate the keys left stays dark under a
 ## resting mouse, and the mouse and the keys never light two plates. Like every FramedButton it
@@ -87,6 +88,8 @@ var _sub_label: Label
 var _coin: TextureRect
 var _count_label: Label
 var _tick: TextureRect
+## The tick sits right of the plate (tick_on_right), so a lit plate moves left, away from it.
+var _tick_right: bool = false
 
 
 ## A plate captioned `caption_text`, its face `plate_size` canvas px (the variant's default when
@@ -164,10 +167,19 @@ func centre_caption(text_scale: int = 0) -> void:
 	var caption_node: Label = caption_label()
 	if text_scale > 0:
 		UiKit.use_pixel_text(caption_node, text_scale)
-	caption_node.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	# Left-aligned at the centred left below: the scene can leave the label wider than its words
+	# (the title's GUIDE label grew to 50 font px for 28), and centred words then drift right.
+	caption_node.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	var bottom: float = PLATE_FACE_BOTTOM if _kind == Kind.PLATE else PRIMARY_SINK + 4.0
+	# Placed at its own width, centred on the 2 px grid: a label left wider by _build_content's
+	# left-aligned rect kept that width and centred the words off the face's middle.
+	# Measured from the pixel font: the label's minimum size can still be the one from before
+	# use_pixel_text (the TOY MACHINES' FIGURINE SHELF sat 4 px left of its face).
+	var text_width: float = OptionChip.pixel_width(caption_node.text, roundi(caption_node.scale.x))
+	var left: float = 2.0 * floorf((_face_size.x - text_width) / 4.0)
 	_put(
-		caption_node, Rect2(0, PLATE_FACE_TOP, _face_size.x, _face_size.y - PLATE_FACE_TOP - bottom)
+		caption_node,
+		Rect2(left, PLATE_FACE_TOP, text_width, _face_size.y - PLATE_FACE_TOP - bottom)
 	)
 
 
@@ -185,6 +197,16 @@ func coin_icon() -> TextureRect:
 
 func tick() -> TextureRect:
 	return _tick
+
+
+## Puts the tick right of the plate, pointing back at it, and makes a lit plate move HOT_SHIFT px
+## left instead of right (away from the tick, as a left tick pushes it right). The face rests
+## HOT_SHIFT px into the control, so the owner places the plate HOT_SHIFT px further left.
+func tick_on_right() -> void:
+	_tick_right = true
+	_tick.flip_h = true
+	_tick.position.x = _face_size.x + HOT_SHIFT + TICK_LEFT - TICK_SIZE.x
+	_show_plate(get_draw_mode())
 
 
 ## The caption, sub-line and coin count on a content layer that moves with the face; the
@@ -230,7 +252,7 @@ func _show_plate(mode: DrawMode) -> void:
 	var down: bool = mode == DRAW_PRESSED or mode == DRAW_HOVER_PRESSED
 	var lit: bool = _lit(mode)
 	var sink_depth: float = PRIMARY_SINK if _kind == Kind.PRIMARY else PLATE_SINK
-	var shift: float = HOT_SHIFT if lit else 0.0
+	var shift: float = HOT_SHIFT if lit != _tick_right else 0.0
 	var sink: float = sink_depth if down else 0.0
 	var face_panel: PanelContainer = face()
 	for layer: Control in [face_panel, _content] as Array[Control]:
