@@ -300,20 +300,26 @@ func _show_skip(planning: bool) -> void:
 func _show_tags() -> void:
 	var run: RunState = _screen.run
 	for view: ItemView in _screen.item_views():
-		var art: TextureRect = view.sprite()
-		var old: Node = price_tag(view)
-		if old != null:
-			art.remove_child(old)
-			old.queue_free()
-		var tag: String = PinPlay.relabel_of(run, view.card)
-		view.sticker().show_gained(tag)
-		if tag.is_empty():
-			continue
-		view.add_tag(tag)
-		var plate: Control = _price_tag(tag)
-		# On the sprite's bottom left, like a sticker on the item's foot.
-		plate.position = Vector2(0, ItemView.SPRITE_SIZE.y - TAG_SIZE.y) + TAG_OFFSET
-		art.add_child(plate)
+		show_relabel(view, PinPlay.relabel_of(run, view.card))
+
+
+## Shows `view`'s relabel to family `tag` (none: takes it off): the gained glyph on its ticket
+## (PriceSticker.show_gained), the family among its tags, and the gun's price tag stuck on its
+## art's foot. The handbook's GAINED example shows it the same way.
+static func show_relabel(view: ItemView, tag: String) -> void:
+	var art: TextureRect = view.sprite()
+	var old: Node = price_tag(view)
+	if old != null:
+		art.remove_child(old)
+		old.queue_free()
+	view.sticker().show_gained(tag)
+	if tag.is_empty():
+		return
+	view.add_tag(tag)
+	var plate: Control = _price_tag(tag)
+	# On the sprite's bottom left, like a sticker on the item's foot.
+	plate.position = Vector2(0, ItemView.SPRITE_SIZE.y - TAG_SIZE.y) + TAG_OFFSET
+	art.add_child(plate)
 
 
 ## The price tag the gun stuck on `view`'s item, or null.

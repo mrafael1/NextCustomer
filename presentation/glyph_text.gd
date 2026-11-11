@@ -20,40 +20,36 @@ extends RefCounted
 ## Punctuation that may follow a family's name (or a keyword) and stays text after its glyph (or
 ## chip); the ellipsis of a line the monitor cuts short (MonitorItemColumn) too.
 const TRAILING := ",.:;!?)…"
-## Each keyword's tooltip (#128, the approved Bound strip mock-up): the keyword, then what it
-## means; keyword_tip() fills in its least size (KEYWORD_SIZES).
+## Each keyword's tooltip (#128; the guide feedback of 2026-11-11, round 3: "change to match"):
+## the plain words of its handbook page's rule (HandbookMarkup.plain of its entry's rule), so the
+## chip and the handbook say the same thing (handbook_data_test pins them equal). The card and
+## family names in it are copies of data's: a renamed card fails that test until its tip follows.
 const KEYWORD_TIPS: Dictionary[String, String] = {
 	CardText.BATCH_WORD:
 	(
-		"BATCH · %d or more Bakery side by side make one batch. "
-		+ "Each card's line says where in its batch it works."
+		"Put Bakery items side by side to make a BATCH. Some cards care about their spot in it: "
+		+ "Croissant first, Stale doughnut last."
 	),
 	CardText.CHAIN_WORD:
 	(
-		"CHAIN · %d or more Bananas linked one after another. "
-		+ "Each Banana adds the price of the one before it. "
-		+ "Each card's line says where by the chain it works."
+		"Put Bananas next to each other to make a CHAIN. Each Banana adds the price of the one "
+		+ "before it, so longer chains pay more."
 	),
 	CardText.WASTED_WORD:
 	(
-		"WASTED · An item whose rule did nothing where it stands. "
-		+ "Some Clearance items pay for WASTED items."
+		"If an item's rule does nothing where it sits, it's WASTED. Some Clearance items, like "
+		+ "Dusty toffees, pay for WASTED items."
 	),
 	CardText.PAIR_WORD:
 	(
-		"PAIR · A PAIR item beside the partner its line names (Cheese beside Bread). "
+		"Put a PAIR item beside the partner its card names, like Cheese by Bread, for a bonus. "
 		+ "Cream pays for each PAIR in the row."
 	),
 	CardText.MORNING_WORD:
 	(
-		"MORNING · The row's opening run of Breakfast items, from the first item "
-		+ "until one without Breakfast. Coupons don't end it."
+		"Start the row with Breakfast items to make a MORNING; a Coupon doesn't break it. Cards "
+		+ "like Coffee and Tea bags pay for it."
 	),
-}
-## The least size each keyword's tooltip names (its `%d`).
-const KEYWORD_SIZES: Dictionary[String, int] = {
-	CardText.BATCH_WORD: CardBatch.MIN_SIZE,
-	CardText.CHAIN_WORD: CardChain.MIN_SIZE,
 }
 
 
@@ -113,11 +109,7 @@ static func runs(text: String, palette: FamilyPalette) -> Array[Dictionary]:
 
 ## The tooltip of `keyword` (a KEYWORD_TIPS key), or "".
 static func keyword_tip(keyword: String) -> String:
-	if not KEYWORD_TIPS.has(keyword):
-		return ""
-	if KEYWORD_SIZES.has(keyword):
-		return KEYWORD_TIPS[keyword] % KEYWORD_SIZES[keyword]
-	return KEYWORD_TIPS[keyword]
+	return str(KEYWORD_TIPS.get(keyword, ""))
 
 
 ## The keywords the text draws as chips, in order (repeats kept).
