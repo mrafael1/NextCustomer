@@ -12,4 +12,4 @@ mark_value = "LONE"
 rule = "A {fam:Snack} with no other {fam:Snack} beside it. {item:pick_n_mix} pays for each one."
 example_row = PackedStringArray("crisps", "bread", "pick_n_mix")
 example_redraws_left = 1
-example_total = 17
+example_total = 21

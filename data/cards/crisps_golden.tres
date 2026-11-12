@@ -7,7 +7,7 @@
 
 [sub_resource type="Resource" id="Resource_crisps"]
 script = ExtResource("2_crisps")
-bonus = 6
+bonus = 8
 receipt_text = "Crisps: redraws left"
 
 [resource]
@@ -18,7 +18,7 @@ kind = 1
 tags = PackedStringArray("Food", "Snack")
 base = 4
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_crisps")])
-rule_text = "+6 for each redraw left this shift"
+rule_text = "+8 for each redraw left this shift"
 generally_useful = true
 art_ref = "res://art/items_v2/crisps_golden.png"
 variant_of = ExtResource("9_plain")

@@ -17,16 +17,16 @@ func before() -> void:
 	_starter = load(STARTER)
 
 
-## Dairy regulars (each Dairy product +1 for each Dairy product before it): three Milks gain
-## 0 + 1 + 2, a row with no Dairy nothing; the last row is the one just checked out, the best the
-## most over the run.
+## Dairy regulars (each Dairy product +2 for each Dairy product before it, v1.29): three
+## Milks gain 0 + 2 + 4, a row with no Dairy nothing; the last row is the one just checked out,
+## the best the most over the run.
 func test_a_perk_wins_on_the_last_row_and_the_best_row() -> void:
 	var run: RunState = _run([["milk", "milk", "milk"], ["bread", "bread"]])
 	var win: PrizeWin = PrizeWin.of(run, _perk_preview(_upgrade("dairy_regulars")))
 	assert_object(win).is_not_null()
 	assert_int(win.rows).is_equal(2)
 	assert_int(win.last).is_equal(0)
-	assert_int(win.best).is_equal(3)
+	assert_int(win.best).is_equal(6)
 
 
 ## The gain is the real scorer's difference, row by row, with the run's own perks kept.
@@ -53,7 +53,7 @@ func test_a_level_up_wins_its_step_over_the_owned_level() -> void:
 	var lone: Array[UpgradeDefinition] = [level_two]
 	var stacked: int = Scoring.total(row, lone) - Scoring.total(row)
 	var win: PrizeWin = PrizeWin.of(run, _perk_preview(level_two))
-	assert_int(win.last).is_equal(stacked - 3)
+	assert_int(win.last).is_equal(stacked - 6)
 
 
 ## No sticker for a perk with no scoring rule (it changes the shift, not a row), a product, a

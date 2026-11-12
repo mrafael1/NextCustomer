@@ -72,6 +72,9 @@ var kept: PackedInt32Array = PackedInt32Array()
 ## A Price gun pin's relabels this shift (#132, PinPlay.relabel): instance id to the family the
 ## item gains; cleared when a shift starts.
 var relabels: Dictionary[int, String] = {}
+## The families picked for the run's Family stickers on the belt (v1.29, FamilySticker.pick):
+## instance id to family. Kept across shifts (and in the run save), never cleared.
+var sticker_families: Dictionary[int, String] = {}
 ## A Day off pin's pile waits on the belt (#132, PinPlay.set_day_off): the row is empty and takes
 ## no card, and the preview is the day off's (the quota). Not saved: a resumed shift has none.
 var day_off_pending: bool = false

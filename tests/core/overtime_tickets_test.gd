@@ -301,7 +301,7 @@ func test_a_save_with_an_unearned_reward_is_refused() -> void:
 
 
 ## A version 10 save (before v1.03: no flags, no OVERTIME kind) reads as it is, its week's rewards
-## unused, and is saved again as version 11.
+## unused, and is saved again in the current version.
 func test_a_version_10_save_reads_with_its_rewards_unused() -> void:
 	var run: RunState = _run()
 	_check_out(run, X1)
@@ -314,8 +314,8 @@ func test_a_version_10_save_reads_with_its_rewards_unused() -> void:
 	assert_bool(OvertimeTickets.available(save.run, false)).is_true()
 	assert_bool(OvertimeTickets.available(save.run, true)).is_true()
 	var again: Dictionary = RunSave.to_dictionary(save.run, "id", 0)
-	assert_int(int(again["format_version"])).is_equal(11)
-	assert_int(RunSave.FORMAT_VERSION).is_equal(11)
+	assert_int(int(again["format_version"])).is_equal(RunSave.FORMAT_VERSION)
+	assert_int(RunSave.BEFORE_STICKERS_VERSION).is_equal(11)
 	# A record in the old form (no flags) reads as none earned.
 	var record: ShiftRecord = ShiftRecord.from_dictionary(
 		{

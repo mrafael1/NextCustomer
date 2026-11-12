@@ -27,7 +27,7 @@ func test_batch_rows(
 		# Two glazes stack on the one closer: (1 + 3 × 3) × 2 × 2.
 		["iced_bun,iced_bun,stale_doughnut", [1, 1, 40]],
 		# Birthday candles: +3 to each product of the baked batch just after them.
-		["birthday_candles,bread,bread,bread", [1, 8, 8, 8]],
+		["birthday_candles,bread,bread,bread", [2, 8, 8, 8]],
 		# Golden tiers: opener +4, body +8 per earlier.
 		["croissant_golden,baguette_golden", [4, 16]],
 		["iced_bun_golden,bread,stale_doughnut", [3, 5, 30]],
@@ -58,11 +58,11 @@ func test_misplaced_roles_fizzle(
 		["baguette,bread", [2, 5], [[0, "first in its batch: nothing before it"]]],
 		["stale_doughnut,bread", [1, 5], [[0, "not last in its Bakery batch"]]],
 		["bread,iced_bun", [5, 1], [[1, "it closes its batch: nothing to glaze"]]],
-		["birthday_candles,bread,bread", [1, 5, 5], [[0, "no batch of 3 Bakery right after it"]]],
+		["birthday_candles,bread,bread", [2, 5, 5], [[0, "no batch of 3 Bakery right after it"]]],
 		# The candles must open the batch: one after a batch of 3 has none after it.
 		[
 			"bread,bread,bread,birthday_candles",
-			[5, 5, 5, 1],
+			[5, 5, 5, 2],
 			[
 				[3, "no batch of 3 Bakery right after it"],
 			]

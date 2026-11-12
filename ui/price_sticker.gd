@@ -119,7 +119,10 @@ const SPARKLE_TOP_AT := Vector2i(-3, -3)
 const GOT_RING_WIDTH := 2.0
 ## Tips (FamilyGlyph's, PriceWindow's).
 const MEMBER_TIP := "%s · %s is a %s item"
-const GAINED_TIP := "%s · gained from the Price gun this shift"
+const GAINED_TIP := "%s · gained from %s"
+## Where a gained family came from (show_gained): the Price gun, or a Family sticker (v1.29).
+const GUN_SOURCE := "the Price gun this shift"
+const STICKER_SOURCE := "the Family sticker before it"
 const PRINTED_TIP := "%s · %s, its printed price"
 const PAY_TIP := "%s pays %s (printed %s) · %s"
 const ZERO_TIP := "%s pays 0€ (printed %s) · %s"
@@ -160,6 +163,17 @@ var redraws_left: int = -1:
 		redraws_left = value
 		if _summary != null:
 			_summary.set_live(CardText.sticker_summary(_definition, value), _live_tips())
+			_place_summary()
+
+## The family a Family sticker's copy gives (v1.29): its ticket reads "Next joins Breakfast"; ""
+## reads CardText.PICK_WORDS. Other cards ignore it. Set by FamilyStickerFlow.
+var sticker_family: String = "":
+	set(value):
+		if value == sticker_family or not FamilySticker.is_family_sticker(_definition):
+			return
+		sticker_family = value
+		if _summary != null:
+			_summary.set_live(CardText.sticker_summary(_definition, redraws_left, value), {})
 			_place_summary()
 
 var _families: PackedStringArray = PackedStringArray()
@@ -314,10 +328,10 @@ func glyphs() -> Array[FamilyGlyph]:
 	return _glyphs
 
 
-## Shows the family `family` a Price gun gave the item this shift (#132) after its printed glyphs,
-## in its amber frame (the label widening for a third icon); "" takes it off. Products only (none
-## for a family it has).
-func show_gained(family: String) -> void:
+## Shows the family `family` a Price gun gave the item this shift (#132), or a Family sticker
+## before it (v1.29; `source` names it in the tip), after its printed glyphs, in its amber frame
+## (the label widening for a third icon); "" takes it off. Products only (none for a family it has).
+func show_gained(family: String, source: String = GUN_SOURCE) -> void:
 	if _definition.is_coupon():
 		return
 	var style: FamilyStyle = FamilyPalette.shared().style(family)
@@ -330,7 +344,7 @@ func show_gained(family: String) -> void:
 		_gained = null
 	var has: bool = _families.has(family) or _definition.tags.has(family)
 	if _gained == null and style != null and style.glyph != null and not has:
-		_gained = _new_glyph(style, GAINED_TIP % style.display_name)
+		_gained = _new_glyph(style, GAINED_TIP % [style.display_name, source])
 		_gained.name = GAINED_NAME % family
 		_gained.add_child(GainedFrame.new())
 		add_child(_gained)

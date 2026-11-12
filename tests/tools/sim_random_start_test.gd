@@ -88,6 +88,54 @@ func test_the_random_start_option_refuses_a_value_and_a_deck() -> void:
 	assert_str(BalanceSim.random_start_problem(options)).is_equal("--random-start takes no value")
 
 
+## --pack=<id> (v1.29) needs --random-start, and a player given that pack (forced_pack) takes it
+## every run, even one the fresh stock's offer never holds (the Snack stand needs the Snacks
+## aisle).
+func test_the_pack_option_gives_every_run_that_pack() -> void:
+	var options: Dictionary[String, String] = BalanceSim.SIMULATION_DEFAULTS.duplicate()
+	options["pack"] = "snack_stand"
+	assert_str(BalanceSim.random_start_problem(options)).is_equal(
+		"--pack takes a starter pack: it needs --random-start"
+	)
+	options["random-start"] = "true"
+	assert_str(BalanceSim.random_start_problem(options)).is_empty()
+	var balance: BalanceDefinition = (load(BALANCE) as BalanceDefinition).duplicate()
+	balance.quotas = PackedInt32Array([100000])
+	var recipe: DeckDefinition = load(BalanceSim.RANDOM_START_DECK)
+	var stand: StarterPackDefinition = load("res://data/starter_packs/snack_stand.tres")
+	var player: SimPlayer = SimPlayer.new(recipe, balance, SimRowSearch.new(balance), "greedy", 1)
+	player.forced_pack = stand
+	for seed_value: int in [4, 8]:
+		var record: SimRunRecord = player.play(seed_value)
+		assert_str(record.start_pack).is_equal("snack_stand")
+		for card: CardDefinition in stand.cards:
+			assert_bool(Array(record.final_deck).has(String(card.id))).is_true()
+
+
+## The measure-only builds (v1.29: Pair up, Snack lover, Household goods, Salvage) are measured
+## (fitted) but never a run's main build, and the list gate's key-card check leaves them out.
+func test_measure_only_builds_are_never_a_main_build() -> void:
+	var builds: SimBuilds = SimBuilds.new(SimBuilds.load_folder("res://data/builds"))
+	var measured: Array[String] = []
+	for build: BuildDefinition in builds.builds:
+		if build.measure_only:
+			measured.append(String(build.id))
+	measured.sort()
+	assert_array(measured).is_equal(["household_goods", "pair_up", "salvage", "snack_lover"])
+	var deck: Array[CardDefinition] = []
+	for id: String in ["butter", "cheese", "cereal", "yogurt", "bread"]:
+		deck.append(load("res://data/cards/%s.tres" % id))
+	assert_bool(Array(builds.fitted(deck)).has("pair_up")).is_true()
+	assert_str(builds.main_build(deck)).is_not_equal("pair_up")
+	var chances: Dictionary[String, float] = {}
+	for id: String in builds.ids():
+		chances[id] = 0.5
+	var kept: Dictionary[String, float] = builds.gate_chances(chances)
+	assert_int(kept.size()).is_equal(builds.ids().size() - measured.size())
+	for id: String in measured:
+		assert_bool(kept.has(id)).is_false()
+
+
 static func _ids(cards: Array[CardDefinition]) -> Array:
 	return cards.map(func(card: CardDefinition) -> String: return String(card.id))
 

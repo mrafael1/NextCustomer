@@ -8,7 +8,7 @@
 script = ExtResource("2_batteries")
 tag = "Household"
 factor = 2
-charges = 1
+charges = 2
 group = &"battery_charges"
 receipt_text = "Batteries charge"
 
@@ -18,11 +18,11 @@ id = &"batteries"
 display_name = "Batteries"
 kind = 1
 tags = PackedStringArray("Household")
-base = 1
+base = 2
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_batteries")])
-rule_text = "The next Household item pays ×2 (a second Batteries replaces this, they don't add up)"
-sticker_text = "×{factor} next {tag}"
-monitor_text = "The next {tag} item pays ×{factor}. A second {name} replaces this one instead of adding up."
+rule_text = "The next 2 Household items pay ×2 (a second Batteries replaces this, they don't add up)"
+sticker_text = "×{factor} next {charges} {tag}"
+monitor_text = "The next {charges} {tag} items each pay ×{factor}. A second {name} replaces this one instead of adding up."
 art_ref = "res://art/items_v2/batteries.png"
 mini_art_ref = "res://art/minis/batteries.png"
 mini_golden_art_ref = "res://art/minis/batteries_golden.png"

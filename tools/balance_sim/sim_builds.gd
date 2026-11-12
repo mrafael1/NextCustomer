@@ -5,7 +5,10 @@ extends RefCounted
 ##
 ## A run's **main build** is the build its final deck fits most strongly: the highest measure
 ## divided by min_count among the builds it fits (ties go to the earlier build), or NO_BUILD.
-## Every run has exactly one, so the shares of won runs add up to 100% (the 40% bar).
+## Every run has exactly one, so the shares of won runs add up to 100% (the 40% bar). A
+## measure-only build (BuildDefinition.measure_only, v1.29: pair_up, snack_lover,
+## household_goods, salvage) is never a main build and stays out of the list gate (gate_chances):
+## it is there for its `build:<id>` strategy and the fitted builds.
 ##
 ## A build's **key cards** are the cards that count towards its measure on their own
 ## (BuildDefinition.count of the card alone): the cards printing a tag build's tag, the coupons
@@ -55,13 +58,24 @@ func main_build(deck: Array[CardDefinition]) -> String:
 	var best: BuildDefinition = null
 	var best_strength: float = 0.0
 	for build: BuildDefinition in builds:
-		if not build.fits(deck):
+		if build.measure_only or not build.fits(deck):
 			continue
 		var strength: float = float(build.count(deck)) / maxf(build.min_count, 1)
 		if best == null or strength > best_strength:
 			best = build
 			best_strength = strength
 	return String(best.id) if best != null else NO_BUILD
+
+
+## `chances` (key-card offer chances by build id) without the measure-only builds' (the list
+## gate's, v1.29).
+func gate_chances(chances: Dictionary[String, float]) -> Dictionary[String, float]:
+	var kept: Dictionary[String, float] = {}
+	for build: BuildDefinition in builds:
+		var id: String = String(build.id)
+		if not build.measure_only and chances.has(id):
+			kept[id] = chances[id]
+	return kept
 
 
 ## The ids of every build the deck fits, in build order (viability's formation check, #42: a

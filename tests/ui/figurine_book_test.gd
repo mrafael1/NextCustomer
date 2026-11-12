@@ -174,7 +174,9 @@ func test_owned_cards_are_in_colour_and_the_rest_grey() -> void:
 func test_the_coupons_close_the_book() -> void:
 	var profile: ProfileState = Kit.profile(0, 0)
 	profile.coupon_uses[&"repeat"] = 3
-	profile.coupon_uses[&"breakfast_sticker"] = 1
+	profile.coupon_uses[&"family_sticker"] = 1
+	profile.coupon_uses[&"party_pack"] = 2
+	var pool: int = Kit.balance().coupon_pool.size()
 	var book: FigurineBook = await _book(profile, [&"repeat"])
 	var families: PackedStringArray = book.families()
 	assert_str(families[-1]).is_equal(BookEntry.COUPON_FAMILY)
@@ -191,9 +193,9 @@ func test_the_coupons_close_the_book() -> void:
 	menu.plate().pressed.emit()
 	menu.options()[last].pressed.emit()
 	await _frames(2)
-	assert_str(book.header(0).text()).is_equal("COUPONS 2/8")
+	assert_str(book.header(0).text()).is_equal("COUPONS 3/%d" % pool)
 	var cards: Array[BookCard] = book.cards()
-	assert_int(cards.size()).is_equal(8)
+	assert_int(cards.size()).is_equal(pool)
 	for card: BookCard in cards:
 		var entry: BookEntry = card.entry()
 		assert_bool(entry.coupon).is_true()
@@ -209,19 +211,22 @@ func test_the_coupons_close_the_book() -> void:
 			var glyph: TextureRect = card.get_node("Glyph") as TextureRect
 			assert_object(glyph.texture).is_same(mark)
 			_assert_coupon_fits(card)
-	# Its ticket colours: the plain Repeat in the coupon teal, Breakfast sticker in Breakfast's.
+	# Its ticket colours: the plain Repeat and the Family sticker (its family picked on the belt)
+	# in the coupon teal, Party pack in Snack's.
 	var by_id: Dictionary[StringName, BookCard] = {}
 	for card: BookCard in cards:
 		by_id[card.entry().card.id] = card
 	var band_y: int = BookArt.BAND_RECT.position.y + 4
 	var repeat: Image = by_id[&"repeat"].face().texture.get_image()
 	assert_bool(_near(repeat.get_pixel(10, band_y), Palette.TEAL_SHADE)).is_true()
-	var sticker: Image = by_id[&"breakfast_sticker"].face().texture.get_image()
-	var breakfast: FamilyStyle = FamilyPalette.shared().style("Breakfast")
-	assert_bool(_near(sticker.get_pixel(10, band_y), breakfast.face)).is_true()
+	var sticker: Image = by_id[&"family_sticker"].face().texture.get_image()
+	assert_bool(_near(sticker.get_pixel(10, band_y), Palette.TEAL_SHADE)).is_true()
+	var party: Image = by_id[&"party_pack"].face().texture.get_image()
+	var snack: FamilyStyle = FamilyPalette.shared().style("Snack")
+	assert_bool(_near(party.get_pixel(10, band_y), snack.face)).is_true()
 	# The cards' LED counts the played coupons with the items.
 	var items: Vector2i = BookOrder.count(_entries(Kit.profile(0, 0)))
-	assert_str(book.leds()[0].text()).is_equal("%d/%d CARDS" % [items.x + 2, items.y])
+	assert_str(book.leds()[0].text()).is_equal("%d/%d CARDS" % [items.x + 3, items.y])
 	await _frames(2)
 
 
@@ -233,7 +238,9 @@ func test_new_cards_wear_the_tag_and_their_options_a_dot() -> void:
 	var book: FigurineBook = await _book(profile, fresh)
 	assert_bool(book.leds()[1].visible).is_true()
 	assert_str(book.leds()[1].text()).is_equal("2 NEW")
-	assert_str(book.leds()[0].text()).is_equal("23/58 CARDS")
+	var collection: Vector2i = BookOrder.count(_entries(profile))
+	assert_str(book.leds()[0].text()).is_equal("%d/%d CARDS" % [collection.x, collection.y])
+	assert_int(collection.x).is_equal(23)
 	var entries: Array[BookEntry] = _entries(profile)
 	var menu: PixelDropdown = book.family_menu()
 	var families: PackedStringArray = book.families()
