@@ -11,4 +11,4 @@ mark = 1
 mark_value = "PAIR"
 rule = "Put a {kw:PAIR} item beside the partner its card names, like {item:cheese} by {item:bread}, for a bonus. {item:cream} pays for each {kw:PAIR} in the row."
 example_row = PackedStringArray("butter", "bread", "cheese", "cream")
-example_total = 23
+example_total = 29

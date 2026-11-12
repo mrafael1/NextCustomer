@@ -2,9 +2,9 @@ class_name TitlePopup
 extends Control
 ## A popup over the title (#56, mock-up title_premium_directions.html, direction C+): the whole
 ## window dimmed in teal black (DIM), and a sheet in the pixel popup frame (frames/popup.png, a
-## paper face with a gold inner trim) centred on it, on the 640x360 art grid at 2x. The REWARDS
-## menu and the New run question (RewardsMenu, AbandonConfirm) are popups; the dim takes every
-## click, so nothing behind it can be pressed while one is open.
+## paper face with a gold inner trim) centred on it, on the 640x360 art grid at 2x. The New run
+## question (AbandonConfirm) is one; the dim takes every click, so nothing behind it can be
+## pressed while one is open.
 ##
 ## It steps in: the sheet fades in OPEN_STEPS steps over OPEN_TIME as it rises OPEN_DROP art px
 ## into place (the mock-up's stepFrac). `still` (the profile's reduced motion) shows it at once.

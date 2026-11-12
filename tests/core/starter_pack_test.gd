@@ -1,14 +1,23 @@
 extends GdUnitTestSuite
 ## The starter pack choice's core (#107, full build plan 7.2, v0.63; mock-up
-## starter_choice_107.html, decided with the user on 2026-10-26: Q1 C, Q2 A, Q3 B, Q4 A): the six
-## packs and the recipe, the offer's deal (the good first pick, the shared products, the copy rule,
-## the fair-deal check), the run waiting for its pick, the run save and the profile's first win.
+## starter_choice_107.html, decided with the user on 2026-10-26: Q1 C, Q2 A, Q3 B, Q4 A): the nine
+## packs (three more in v1.29's family buffs: Milk bar, Snack stand, Home basics) and the recipe,
+## the offer's deal (the good first pick, the shared products, the copy rule, the fair-deal check),
+## the run waiting for its pick, the run save and the profile's first win.
 
 const RECIPE := "res://data/decks/pack_starter.tres"
 const BALANCE := "res://data/balance/balance.tres"
 const CATALOGUE := "res://data/catalogue/catalogue.tres"
 const PACKS := [
-	"breakfast_run", "bargain_bin", "banana_bunch", "coupon_clipper", "deli_counter", "big_shop"
+	"breakfast_run",
+	"bargain_bin",
+	"banana_bunch",
+	"coupon_clipper",
+	"deli_counter",
+	"big_shop",
+	"milk_bar",
+	"snack_stand",
+	"home_basics",
 ]
 
 var _balance: BalanceDefinition
@@ -23,7 +32,7 @@ func before_test() -> void:
 
 
 ## The recipe: the 4 staples, 6 products from today's stock and no dealt coupon, an offer of 3 of
-## the 6 packs, Breakfast run as the good first pick. Each pack is 3 cards with exactly one RARE
+## the 9 packs, Breakfast run as the good first pick. Each pack is 3 cards with exactly one RARE
 ## and no LEGENDARY (the machine's rarities: since v1.25 a product's rarity is its tier, so the
 ## four packs whose RARE card was a product hold its BIG tier), and none holds Soup. The catalogue
 ## lists the recipe.
@@ -266,16 +275,19 @@ static func _json(data: Dictionary) -> Dictionary:
 	return JSON.parse_string(JSON.stringify(data))
 
 
-## v1.25: the four packs whose RARE card was a product hold its BIG tier (keeping the pack's
-## idea), counted as its product by the copy rule, and a run dealt before keeps its deal: a saved
-## cart with the plain card in the pack's place could still be dealt, one with another product or
-## the GOLDEN tier there could not.
+## v1.25: the packs whose RARE card is a product hold its BIG tier (keeping the pack's idea; v1.29
+## gave Bargain bin Write-off as its RARE, so a plain Flickering bulb, and added Milk bar, Snack
+## stand and Home basics), counted as its product by the copy rule, and a run dealt before keeps its
+## deal: a saved cart with the plain card in the pack's place could still be dealt, one with another
+## product or the GOLDEN tier there could not.
 func test_packs_hold_a_big_item_and_old_carts_still_deal() -> void:
 	var big: Dictionary = {
-		"bargain_bin": "flickering_bulb",
 		"big_shop": "carrier_bag",
 		"breakfast_run": "tea_bags",
 		"deli_counter": "butter",
+		"milk_bar": "cream",
+		"snack_stand": "bent_lolly",
+		"home_basics": "egg_timer",
 	}
 	for id: String in big:
 		var pack: StarterPackDefinition = _pack(id)
@@ -327,7 +339,7 @@ func test_packs_hold_a_big_item_and_old_carts_still_deal() -> void:
 			. override_failure_message(id)
 			. is_equal(1)
 		)
-	for id: String in ["banana_bunch", "coupon_clipper"]:
+	for id: String in ["banana_bunch", "coupon_clipper", "bargain_bin"]:
 		var pack: StarterPackDefinition = _pack(id)
 		for card: CardDefinition in pack.cards:
 			assert_int(card.tier).override_failure_message(id).is_equal(CardDefinition.Tier.PLAIN)
@@ -365,3 +377,47 @@ func test_each_packs_example_row_scores_its_total() -> void:
 		assert_str(pack.example_text).override_failure_message(message).ends_with(
 			"Total %d." % pack.example_total
 		)
+
+
+## The Snack stand needs the Snacks aisle (v1.29, the user's answer 3): open_packs leaves it out
+## until that aisle is listable for the profile, and an offer dealt from a stock (deal_offer)
+## holds it only when the stock holds the aisle. The other packs need none.
+func test_the_snack_stand_needs_the_snacks_aisle() -> void:
+	var stand: StarterPackDefinition = _pack("snack_stand")
+	for pack: StarterPackDefinition in _recipe.starter_packs:
+		var expected: StringName = &"snacks" if pack == stand else &""
+		assert_str(String(pack.needs_aisle)).override_failure_message(String(pack.id)).is_equal(
+			expected
+		)
+	var none: Dictionary[StringName, int] = {}
+	var fresh: Array[StarterPackDefinition] = StartingDeck.open_packs(
+		_recipe.starter_packs, _balance, none
+	)
+	assert_bool(fresh.has(stand)).is_false()
+	assert_int(fresh.size()).is_equal(_recipe.starter_packs.size() - 1)
+	var snacks: AisleDefinition = null
+	for aisle: AisleDefinition in _balance.aisles:
+		if aisle.id == &"snacks":
+			snacks = aisle
+	var unlocked: Dictionary[StringName, int] = {}
+	for card: CardDefinition in snacks.capsule_cards.slice(0, _balance.aisle_listable_min - 1):
+		unlocked[card.id] = 0
+	(
+		assert_bool(StartingDeck.open_packs(_recipe.starter_packs, _balance, unlocked).has(stand))
+		. is_false()
+	)
+	unlocked[snacks.capsule_cards[_balance.aisle_listable_min - 1].id] = 0
+	assert_array(StartingDeck.open_packs(_recipe.starter_packs, _balance, unlocked)).is_equal(
+		_recipe.starter_packs
+	)
+	var stocked: RunStock = RunStock.starting(_balance)
+	stocked.aisle_ids.append(&"snacks")
+	var offered: int = 0
+	for seed_value: int in 24:
+		assert_bool(_offer(seed_value, false).packs.has(stand)).is_false()
+		var stream: RandomNumberGenerator = EventLogService.derived_stream(
+			seed_value, EventLogService.STARTING_DECK_STREAM
+		)
+		var offer: StartOffer = StartingDeck.deal_offer(_recipe, stocked, _balance, stream, false)
+		offered += 1 if offer.packs.has(stand) else 0
+	assert_int(offered).is_greater(0)

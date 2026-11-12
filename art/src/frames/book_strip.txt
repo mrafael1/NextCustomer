@@ -1,0 +1,17 @@
+; The FAMILY ribbon's list (v1.30 round 8): a paper strip unrolled from behind the ribbon, a
+; 9-slice (3 art px margins): its rolled top (a cream row over a cream shade row, under an ink
+; top edge), paper below, ink sides, open at the foot where the notched tail (book_strip_tail)
+; closes it.
+@size 10x10
+@kind frame
+@scale 2
+##########
+#cccccccc#
+#bbbbbbbb#
+#wwwwwwww#
+#wwwwwwww#
+#wwwwwwww#
+#wwwwwwww#
+#wwwwwwww#
+#wwwwwwww#
+#wwwwwwww#

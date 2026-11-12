@@ -9,7 +9,7 @@
 script = ExtResource("2_batteries")
 tag = "Household"
 factor = 2
-charges = 1
+charges = 2
 group = &"battery_charges"
 receipt_text = "Batteries charge"
 
@@ -19,9 +19,9 @@ id = &"batteries_big"
 display_name = "Big Batteries"
 kind = 1
 tags = PackedStringArray("Household")
-base = 3
+base = 4
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_batteries")])
-rule_text = "The next Household item pays ×2 (a second Batteries replaces this, they don't add up)"
+rule_text = "The next 2 Household items pay ×2 (a second Batteries replaces this, they don't add up)"
 art_ref = "res://art/items_v2/batteries_big.png"
 variant_of = ExtResource("9_plain")
 tier = 1

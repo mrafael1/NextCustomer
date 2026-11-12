@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="BuildDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/build_definition.gd" id="1_build"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="2_card"]
+
+[resource]
+script = ExtResource("1_build")
+id = &"household_goods"
+display_name = "Household goods"
+measure = 1
+tag = "Household"
+min_count = 4
+measure_only = true
+perk_ids = Array[StringName]([&"home_goods"])

@@ -8,7 +8,7 @@
 script = ExtResource("2_bent_lolly")
 spread = 2
 tag = "Snack"
-bonus_each = 2
+bonus_each = 3
 max_count = 3
 receipt_text = "Bent lolly: gap to Snack"
 
@@ -20,7 +20,7 @@ kind = 1
 tags = PackedStringArray("Food", "Snack", "Clearance")
 base = 2
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_bent_lolly")])
-rule_text = "+2 for each item between it and the nearest other Snack, up to 3"
+rule_text = "+3 for each item between it and the nearest other Snack, up to 3"
 sticker_text = "+{bonus_each} per item to another {tag}"
 monitor_text = "Gets +{bonus_each} for each item between it and the nearest other {tag}, up to {max_count}."
 art_ref = "res://art/items_v2/bent_lolly.png"

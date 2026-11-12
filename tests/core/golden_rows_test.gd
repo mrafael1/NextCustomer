@@ -12,6 +12,10 @@ const FIXTURE_DIR := "res://tests/fixtures/cards_v0_4"
 const FIXTURE_V0_5_DIR := "res://tests/fixtures/cards_v0_5"
 ## Clearance tag and Opening deal (plan section 3.7, v0.26) have their own frozen fixture too.
 const FIXTURE_V0_6_DIR := "res://tests/fixtures/cards_v0_6"
+## The coupon buffs of v1.29 (Shelf swap glues different items, Final markdown doubles the last
+## item, Write-off and Party pack) have their own frozen fixture, so every older row stays as it
+## was.
+const FIXTURE_V1_29_DIR := "res://tests/fixtures/cards_v1_29"
 
 
 func test_golden_row(
@@ -118,6 +122,154 @@ func test_golden_row_v0_6(
 	_check_row(FIXTURE_V0_6_DIR, row, payouts, total)
 
 
+## The v1.29 coupon buffs (docs/FULL_BUILD_PLAN.md v1.29, the user's answers of 2026-11-11):
+## Shelf swap (different items on both sides count as side by side, the second pays ×2), Final
+## markdown (the last item pays ×2), Write-off (the next item pays ×2 and counts as WASTED) and
+## Party pack (the next 3 Snacks pay ×2). Bread 5, Milk 4 (+1 per earlier Breakfast), Eggs 1.
+func test_golden_row_v1_29(
+	row: String,
+	payouts: Array,
+	total: int,
+	_test_parameters := [
+		# Shelf swap: different items glue, the second pays ×2; the same item fizzles.
+		["bread,shelf_swap,milk", [5, 0, 10], 15],
+		["bread,shelf_swap,bread", [5, 0, 5], 10],
+		["shelf_swap,bread", [0, 5], 5],
+		["bread,shelf_swap,shelf_swap,milk", [5, 0, 0, 5], 10],
+		# The glue's cost: Soup is now beside Frozen.
+		["soup,shelf_swap,frozen_peas", [0, 0, 6], 6],
+		["frozen_peas,shelf_swap,frozen_peas", [3, 0, 3], 6],
+		["bread,shelf_swap,milk,repeat", [5, 0, 10, 10], 25],
+		["bread,two_for_one,bread,shelf_swap,milk", [5, 0, 10, 0, 12], 27],
+		# Final markdown: the last item pays ×2 from anywhere before it; last itself it fizzles.
+		["final_markdown,bread", [0, 10], 10],
+		["bread,final_markdown", [5, 0], 5],
+		["final_markdown,bread,milk", [0, 5, 10], 15],
+		["final_markdown,bread,repeat", [0, 10, 10], 20],
+		["bread,final_markdown,milk,repeat", [5, 0, 10, 10], 25],
+		["final_markdown,final_markdown,bread", [0, 0, 20], 20],
+		["eggs,final_markdown,bread", [1, 0, 20], 21],
+		["opening_deal,bread,final_markdown,milk", [0, 25, 0, 10], 35],
+		["opening_deal,final_markdown,bread", [0, 0, 50], 50],
+		# Write-off: the next item pays ×2 and counts as WASTED.
+		["write_off,milk,flickering_bulb", [0, 8, 3], 11],
+		["write_off,bread,dusty_toffees", [0, 10, 4], 14],
+		["bread,write_off", [5, 0], 5],
+		["write_off,repeat,bread", [0, 0, 5], 5],
+		["write_off,bread,repeat", [0, 10, 10], 20],
+		["write_off,bread,write_off,milk,dusty_toffees", [0, 10, 0, 10, 7], 27],
+		["write_off,dusty_toffees", [0, 2], 2],
+		["write_off,bread,two_for_one,bread", [0, 10, 0, 10], 20],
+		# Party pack: the next 3 Snacks pay ×2, wherever they sit.
+		["party_pack,soup,breadsticks", [0, 5, 8], 13],
+		[
+			"party_pack,breadsticks,bread,breadsticks,breadsticks,breadsticks",
+			[0, 4, 5, 4, 4, 2],
+			19
+		],
+		["bread,party_pack", [5, 0], 5],
+		["party_pack,party_pack,breadsticks", [0, 0, 8], 8],
+		["party_pack,breadsticks,repeat", [0, 4, 4], 8],
+	]
+) -> void:
+	_check_row(FIXTURE_V1_29_DIR, row, payouts, total)
+
+
+## The v1.29 playstyle loyalty perks ("<keyword> items pay ×2", built here in code with their LV 1
+## factor, or LV 2's ×3, so tuning data/ never changes them) on the v1.29 fixture: Perfect pair
+## (PAIRED), Salvage desk (WASTED, a written-off item included, its own fizzle known before the
+## upgrade's multiplier), Grab bag (lone Snacks) and Home goods (Household). The fixture's Cereal
+## (+4 PAIR per Milk beside, base 2) and Carrier bag (+8 per Food beside, base 1) were added for
+## them; Breadsticks fizzle unless right after Soup. Each row also scores the same total through
+## Scoring.total.
+func test_golden_row_v1_29_perks(
+	keyword: KeywordMultiplierRule.Keyword,
+	tag: String,
+	factor: int,
+	row: String,
+	payouts: Array,
+	total: int,
+	_test_parameters := [
+		# Perfect pair: a Cereal beside Milk pays ×2; Milk has no PAIR rule of its own.
+		[KeywordMultiplierRule.Keyword.PAIRED, "", 2, "milk,cereal", [4, 12], 16],
+		[KeywordMultiplierRule.Keyword.PAIRED, "", 2, "milk,cereal,milk", [4, 20, 6], 30],
+		[KeywordMultiplierRule.Keyword.PAIRED, "", 2, "milk,cereal,repeat", [4, 12, 12], 28],
+		[KeywordMultiplierRule.Keyword.PAIRED, "", 3, "milk,cereal", [4, 18], 22],
+		[KeywordMultiplierRule.Keyword.PAIRED, "", 2, "cereal,bread", [2, 5], 7],
+		# Salvage desk: a WASTED item pays ×2, its own fizzle or a write-off.
+		[KeywordMultiplierRule.Keyword.WASTED, "", 2, "breadsticks", [4], 4],
+		[KeywordMultiplierRule.Keyword.WASTED, "", 2, "dusty_toffees", [2], 2],
+		[KeywordMultiplierRule.Keyword.WASTED, "", 2, "breadsticks,dusty_toffees", [4, 4], 8],
+		[
+			KeywordMultiplierRule.Keyword.WASTED,
+			"",
+			2,
+			"write_off,milk,flickering_bulb",
+			[0, 16, 3],
+			19
+		],
+		[
+			KeywordMultiplierRule.Keyword.WASTED,
+			"",
+			2,
+			"write_off,bread,dusty_toffees",
+			[0, 20, 4],
+			24
+		],
+		[KeywordMultiplierRule.Keyword.WASTED, "", 3, "write_off,bread", [0, 30], 30],
+		[KeywordMultiplierRule.Keyword.WASTED, "", 2, "write_off,repeat,bread", [0, 0, 5], 5],
+		# Grab bag: a Snack with no Snack beside it pays ×2; a coupon between keeps them apart.
+		[KeywordMultiplierRule.Keyword.LONE, "Snack", 2, "breadsticks", [4], 4],
+		[KeywordMultiplierRule.Keyword.LONE, "Snack", 2, "breadsticks,breadsticks", [2, 2], 4],
+		[
+			KeywordMultiplierRule.Keyword.LONE,
+			"Snack",
+			2,
+			"breadsticks,bread,breadsticks",
+			[4, 5, 4],
+			13
+		],
+		[
+			KeywordMultiplierRule.Keyword.LONE,
+			"Snack",
+			2,
+			"breadsticks,party_pack,breadsticks",
+			[4, 0, 8],
+			12
+		],
+		# Home goods: a Household item pays ×2.
+		[KeywordMultiplierRule.Keyword.TAG, "Household", 2, "carrier_bag", [2], 2],
+		[KeywordMultiplierRule.Keyword.TAG, "Household", 2, "bread,carrier_bag", [5, 18], 23],
+		[KeywordMultiplierRule.Keyword.TAG, "Household", 3, "bread,carrier_bag", [5, 27], 32],
+		[
+			KeywordMultiplierRule.Keyword.TAG,
+			"Household",
+			2,
+			"bread,carrier_bag,milk",
+			[5, 34, 5],
+			44
+		],
+	]
+) -> void:
+	var rule: KeywordMultiplierRule = KeywordMultiplierRule.new()
+	rule.keyword = keyword
+	rule.tag = tag
+	rule.factor = factor
+	var rules: Array[UpgradeRule] = [rule]
+	var perk: UpgradeDefinition = UpgradeDefinition.new()
+	perk.type = UpgradeDefinition.Type.KEYWORD
+	perk.rules = rules
+	var upgrades: Array[UpgradeDefinition] = [perk]
+	var cards: Array[CardInstance] = _row(row, FIXTURE_V1_29_DIR)
+	var result: ScoreResult = Scoring.score(cards, upgrades)
+	var failure: String = (
+		"%s ×%d: payouts %s, total %d" % [row, factor, result.payouts, result.total]
+	)
+	assert_array(Array(result.payouts)).override_failure_message(failure).is_equal(payouts)
+	assert_int(result.total).override_failure_message(failure).is_equal(total)
+	assert_int(Scoring.total(cards, upgrades)).override_failure_message(failure).is_equal(total)
+
+
 func _check_row(fixture: String, row: String, payouts: Array, total: int) -> void:
 	var result: ScoreResult = Scoring.score(_row(row, fixture))
 	(
@@ -145,7 +297,9 @@ func _check_row(fixture: String, row: String, payouts: Array, total: int) -> voi
 
 ## Upgrades that change no score: rules with neutral numbers, and a run modifier only.
 static func _neutral_upgrades() -> Array[UpgradeDefinition]:
-	var rules: Array[UpgradeRule] = [FirstCouponMultiplierRule.new(), DistinctTagBonusRule.new()]
+	var rules: Array[UpgradeRule] = [
+		FirstCouponMultiplierRule.new(), DistinctTagBonusRule.new(), KeywordMultiplierRule.new()
+	]
 	var neutral: UpgradeDefinition = UpgradeDefinition.new()
 	neutral.type = UpgradeDefinition.Type.COUPON_ENGINE
 	neutral.rules = rules

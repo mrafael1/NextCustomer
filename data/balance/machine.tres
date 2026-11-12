@@ -9,6 +9,7 @@
 [ext_resource type="Resource" path="res://data/cards/two_for_one.tres" id="c_two_for_one"]
 [ext_resource type="Resource" path="res://data/cards/multipack.tres" id="c_multipack"]
 [ext_resource type="Resource" path="res://data/cards/opening_deal.tres" id="c_opening_deal"]
+[ext_resource type="Resource" path="res://data/cards/write_off.tres" id="c_write_off"]
 [ext_resource type="Resource" path="res://data/upgrades/coupon_engine.tres" id="u_coupon_engine"]
 [ext_resource type="Resource" path="res://data/upgrades/category_engine.tres" id="u_category_engine"]
 [ext_resource type="Resource" path="res://data/upgrades/slot_engine.tres" id="u_slot_engine"]
@@ -21,6 +22,10 @@
 [ext_resource type="Resource" path="res://data/upgrades/clearance_aisle_run.tres" id="u_clearance_aisle_run"]
 [ext_resource type="Resource" path="res://data/upgrades/mixed_basket.tres" id="u_mixed_basket"]
 [ext_resource type="Resource" path="res://data/upgrades/bulk_deal.tres" id="u_bulk_deal"]
+[ext_resource type="Resource" path="res://data/upgrades/perfect_pair.tres" id="u_perfect_pair"]
+[ext_resource type="Resource" path="res://data/upgrades/salvage_desk.tres" id="u_salvage_desk"]
+[ext_resource type="Resource" path="res://data/upgrades/grab_bag.tres" id="u_grab_bag"]
+[ext_resource type="Resource" path="res://data/upgrades/home_goods.tres" id="u_home_goods"]
 [ext_resource type="Resource" path="res://data/upgrades/banana_stand.tres" id="u_banana_stand"]
 [ext_resource type="Resource" path="res://data/upgrades/lemon_squeezer.tres" id="u_lemon_squeezer"]
 [ext_resource type="Resource" path="res://data/upgrades/fire_sale.tres" id="u_fire_sale"]
@@ -111,9 +116,9 @@ first_drop_min_rarity = 1
 script = ExtResource("1_machine")
 prizes_per_visit = 3
 odds_levels = Array[ExtResource("2_odds_level")]([SubResource("level_0"), SubResource("level_1"), SubResource("level_2"), SubResource("level_3"), SubResource("level_4")])
-rare_coupons = Array[ExtResource("3_card")]([ExtResource("c_repeat"), ExtResource("c_two_for_one"), ExtResource("c_multipack")])
+rare_coupons = Array[ExtResource("3_card")]([ExtResource("c_repeat"), ExtResource("c_two_for_one"), ExtResource("c_multipack"), ExtResource("c_write_off")])
 legendary_coupons = Array[ExtResource("3_card")]([ExtResource("c_opening_deal")])
-rare_upgrades = Array[ExtResource("4_upgrade")]([ExtResource("u_coupon_engine"), ExtResource("u_category_engine"), ExtResource("u_bakery_aisle_run"), ExtResource("u_produce_aisle_run"), ExtResource("u_dairy_aisle_run"), ExtResource("u_snack_aisle_run"), ExtResource("u_household_aisle_run"), ExtResource("u_breakfast_aisle_run"), ExtResource("u_clearance_aisle_run"), ExtResource("u_mixed_basket"), ExtResource("u_bulk_deal")])
+rare_upgrades = Array[ExtResource("4_upgrade")]([ExtResource("u_coupon_engine"), ExtResource("u_category_engine"), ExtResource("u_bakery_aisle_run"), ExtResource("u_produce_aisle_run"), ExtResource("u_dairy_aisle_run"), ExtResource("u_snack_aisle_run"), ExtResource("u_household_aisle_run"), ExtResource("u_breakfast_aisle_run"), ExtResource("u_clearance_aisle_run"), ExtResource("u_mixed_basket"), ExtResource("u_bulk_deal"), ExtResource("u_perfect_pair"), ExtResource("u_salvage_desk"), ExtResource("u_grab_bag"), ExtResource("u_home_goods")])
 legendary_upgrades = Array[ExtResource("4_upgrade")]([ExtResource("u_slot_engine"), ExtResource("u_banana_stand"), ExtResource("u_lemon_squeezer"), ExtResource("u_fire_sale")])
 register_cap = 3
 premium_shifts = PackedInt32Array(4, 8, 12)

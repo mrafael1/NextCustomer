@@ -1,0 +1,15 @@
+; A FAMILY option on the ribbon's strip, marked (v1.30 round 8): a cream band with a cream shade
+; foot and clipped corners. A 9-slice like book_strip_row.
+@size 10x10
+@kind frame
+@scale 2
+.cccccccc.
+cccccccccc
+cccccccccc
+cccccccccc
+cccccccccc
+cccccccccc
+cccccccccc
+cccccccccc
+cccccccccc
+.bbbbbbbb.

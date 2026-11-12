@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="HandbookEntry" format=3]
+
+[ext_resource type="Script" path="res://presentation/handbook_entry.gd" id="1_entry"]
+
+[resource]
+script = ExtResource("1_entry")
+id = &"family_sticker"
+group = &"coupons"
+title = "Family sticker"
+mark = 4
+mark_value = "family_sticker"
+rule = "Pick a family for it on the belt: the item after it joins that family, so {item:milk} counts {item:potatoes} as {fam:Breakfast}."
+example_row = PackedStringArray("family_sticker", "potatoes", "milk")
+example_total = 8
+also_cards = PackedStringArray("breakfast_sticker", "clearance_tag")

@@ -8,14 +8,14 @@
 script = ExtResource("2_tag_bonus")
 tag = "Produce"
 bonus = 1
-receipt_text = "Fruit & veg +1€"
+receipt_text = "Produce +1€"
 
 [resource]
 script = ExtResource("3_inspection")
 id = &"fresh_delivery"
 display_name = "Fresh delivery"
 tone = 1
-notice_text = "Fruit & veg items pay +1€"
-chip_text = "Fruit & veg +1€"
+notice_text = "Produce items pay +1€"
+chip_text = "Produce +1€"
 icon_ref = "res://art/icons/aisle_fruit_and_veg.png"
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_tag_bonus")])

@@ -75,7 +75,12 @@ extends RefCounted
 ## `overtime_ticket` and `overtime_premium` (written only when earned: OvertimeTickets reads the
 ## week's use from them) and the OVERTIME visit kind ("overtime", queued or under way). A version
 ## 10 save reads as it is: its records earned none, so its week's rewards are all still there.
-const FORMAT_VERSION := 11
+## Version 12 (v1.29, the Family sticker): `sticker_families`, the families picked for the run's
+## Family stickers (instance id as text to family; RunState.sticker_families). A version 11 save
+## reads as it is: no family picked, so its stickers are preset or pre-filled.
+const FORMAT_VERSION := 12
+## Version 11: version 12's form before the Family sticker, read as it is (no family picked).
+const BEFORE_STICKERS_VERSION := 11
 ## Version 10: version 11's form before the over-quota rewards, read as it is (none earned).
 const BEFORE_OVERTIME_VERSION := 10
 ## Version 9: version 10's form with the next shift's events and no week, read as it is.
@@ -89,6 +94,7 @@ const BEFORE_STARTER_PACKS_VERSION := 6
 ## The versions read as they are (older ones through RunSaveMigration).
 const READ_VERSIONS: Array[int] = [
 	FORMAT_VERSION,
+	BEFORE_STICKERS_VERSION,
 	BEFORE_OVERTIME_VERSION,
 	BEFORE_WEEKS_VERSION,
 	BEFORE_DAY_EVENTS_VERSION,
@@ -166,6 +172,8 @@ static func to_dictionary(saved_run: RunState, saved_run_id: String, played_ms: 
 		# A Golden basket's kept items and a Price gun's relabels (#132); [] and {} otherwise.
 		"kept": Array(saved_run.kept),
 		"relabels": _relabels_data(saved_run.relabels),
+		# The Family stickers' picked families (v1.29), kept across shifts; {} for none.
+		"sticker_families": _relabels_data(saved_run.sticker_families),
 		"pins": _ids(saved_run.pins),
 		"upgrades": _ids(saved_run.upgrades),
 		"inspections": _ids(saved_run.inspections),
@@ -290,7 +298,10 @@ static func from_dictionary(saved: Dictionary, lookup: ContentLookup) -> RunSave
 		restored.redrawn_in = PackedInt32Array(reader.wholes("redrawn_in", 1))
 	if data.has("kept"):
 		restored.kept = PackedInt32Array(reader.wholes("kept", 1))
-	var relabels_ok: bool = _read_relabels(restored, data.get("relabels", {}))
+	var relabels_ok: bool = _read_relabels(restored.relabels, data.get("relabels", {}))
+	# Left out by saves made before v1.29 (version 11 and older): no family picked.
+	var stickers: Variant = data.get("sticker_families", {})
+	relabels_ok = relabels_ok and _read_relabels(restored.sticker_families, stickers)
 	# Left out by saves made before #122's badge pins: no pin worn.
 	if data.has("pins"):
 		restored.pins = reader.pins("pins")
@@ -366,7 +377,8 @@ static func _limits(restored: RunState) -> ShiftLimits:
 	)
 
 
-## The saved form of a Price gun's relabels (#132): instance id (as text, JSON's keys) to family.
+## The saved form of a Price gun's relabels (#132) or the Family stickers' families (v1.29):
+## instance id (as text, JSON's keys) to family.
 static func _relabels_data(relabels: Dictionary[int, String]) -> Dictionary:
 	var data: Dictionary = {}
 	for id: int in relabels:
@@ -374,15 +386,15 @@ static func _relabels_data(relabels: Dictionary[int, String]) -> Dictionary:
 	return data
 
 
-## Reads _relabels_data's form into `restored`; false for a malformed one.
-static func _read_relabels(restored: RunState, data: Variant) -> bool:
+## Reads _relabels_data's form into `into`; false for a malformed one.
+static func _read_relabels(into: Dictionary[int, String], data: Variant) -> bool:
 	if not data is Dictionary:
 		return false
 	for key: Variant in data as Dictionary:
 		var tag: Variant = (data as Dictionary)[key]
 		if not key is String or not (key as String).is_valid_int() or not tag is String:
 			return false
-		restored.relabels[(key as String).to_int()] = tag as String
+		into[(key as String).to_int()] = tag as String
 	return true
 
 

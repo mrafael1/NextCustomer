@@ -10,7 +10,7 @@ script = ExtResource("2_day_old_buns")
 match_by = 3
 match_value = "Clearance"
 position = 1
-bonus = 6
+bonus = 8
 receipt_text = "Day-old buns after Clearance"
 
 [resource]
@@ -21,7 +21,7 @@ kind = 1
 tags = PackedStringArray("Food", "Bakery", "Clearance")
 base = 4
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_day_old_buns")])
-rule_text = "+6 if right after a Clearance item"
+rule_text = "+8 if right after a Clearance item"
 art_ref = "res://art/items_v2/day_old_buns_golden.png"
 variant_of = ExtResource("9_plain")
 tier = 2

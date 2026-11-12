@@ -5,7 +5,12 @@ extends GdUnitTestSuite
 ## numbers), so the game scores what the user chose from. Updated when perk numbers are tuned.
 ## R1's totals changed by design with #128's Produce links (2026-11-02): its Lemon (no Banana
 ## before it) and Strawberries (no chain after them) are now out of place and WASTED, Fruit salad
-## counts kinds (+3 per kind), and Banana stand and Lemon squeezer skip the chain helpers.
+## counts kinds (+3 per kind), and Banana stand and Lemon squeezer skip the chain helpers. R3's
+## and R4's changed by design with v1.29's Final markdown (the last item pays ×2): in their last
+## slot it has no item after it and is WASTED, so each total is 4 lower (its old +4). R2, R3 and
+## R4 went up with v1.29's family buffs (Cheese, Scissors, Flickering bulb, Reduced yogurt,
+## Day-old buns). R4's Clearance regulars went up with v1.29's Regulars step (+2 for each Clearance
+## item before it, was +1).
 
 const UPGRADE_DIR := "res://data/upgrades"
 const CARDS_DIR := "res://data/cards"
@@ -44,34 +49,39 @@ const TOTALS: Dictionary[String, Dictionary] = {
 	},
 	"R2":
 	# #128 Dairy + Breakfast (Coffee +1 per MORNING product, Tea bags ×4 the last MORNING
-	# product, Cheese PAIR with Bread): was 57, 57, 86, 77, 69, 69, 57.
+	# product, Cheese PAIR with Bread): was 57, 57, 86, 77, 69, 69, 57; then 69, 69, 119, 149,
+	# 99, 72, 69 until v1.29's Cheese +5.
 	{
-		"": 69,
-		"produce_regulars": 69,
-		"breakfast_regulars": 119,
-		"breakfast_aisle_run": 149,
-		"mixed_basket": 99,
-		"bulk_deal": 72,
-		"banana_stand": 69,
+		"": 70,
+		"produce_regulars": 70,
+		"breakfast_regulars": 120,
+		"breakfast_aisle_run": 150,
+		"mixed_basket": 100,
+		"bulk_deal": 73,
+		"banana_stand": 70,
 	},
 	"R3":
+	# v1.29: Final markdown last pays no +4 any more (was 55, 56, 94, 58, 58), and Scissors pays
+	# 2 + 3 per earlier coupon (was 51, 52, 90, 54, 54 in between).
 	{
-		"": 55,
-		"produce_regulars": 56,
-		"mixed_basket": 94,
-		"bulk_deal": 58,
-		"produce_regulars_lv3": 58,
+		"": 54,
+		"produce_regulars": 55,
+		"mixed_basket": 93,
+		"bulk_deal": 57,
+		"produce_regulars_lv3": 57,
 	},
 	"R4":
 	# #128 v3 (Clearance: Dented can reads redraws, none here; Flickering bulb wants a WASTED
+	# product before it): was 44, 63, 54, 53, 50, 49; then v1.29 (Final markdown last pays no +4
+	# any more): 23, 42, 33, 32, 29, 28 and 19, 38, 29, 28, 25, 24; then v1.29's family buffs
+	# (Flickering bulb base 2, Reduced yogurt +4 for each Clearance partner, Day-old buns +4).
 	{
-		# product before it): was 44, 63, 54, 53, 50, 49.
-		"": 23,
-		"clearance_regulars": 42,
-		"clearance_aisle_run": 33,
-		"mixed_basket": 32,
-		"bulk_deal": 29,
-		"fire_sale": 28,
+		"": 26,
+		"clearance_regulars": 64,  # 45 at +1 each, before v1.29's Regulars step
+		"clearance_aisle_run": 38,
+		"mixed_basket": 35,
+		"bulk_deal": 32,
+		"fire_sale": 32,
 	},
 	"R5":
 	{

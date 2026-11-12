@@ -9,7 +9,7 @@
 script = ExtResource("2_pick_n_mix")
 spread = 1
 tag = "Snack"
-bonus_each = 6
+bonus_each = 8
 receipt_text = "Pick 'n' mix: lone Snacks"
 
 [resource]
@@ -18,9 +18,9 @@ id = &"pick_n_mix_golden"
 display_name = "Golden Pick 'n' mix"
 kind = 1
 tags = PackedStringArray("Food", "Snack")
-base = 3
+base = 4
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_pick_n_mix")])
-rule_text = "+6 for each lone Snack in the row (no Snack beside it)"
+rule_text = "+8 for each lone Snack in the row (no Snack beside it)"
 art_ref = "res://art/items_v2/pick_n_mix_golden.png"
 variant_of = ExtResource("9_plain")
 tier = 2

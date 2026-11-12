@@ -1,7 +1,8 @@
 extends GdUnitTestSuite
 ## Dairy and Breakfast (#128, decided with the user on 2026-11-02): Dairy's PAIR (a product beside
 ## its partner: Butter and Bakery, Cheese and Bread, Yogurt and Banana, Reduced yogurt and
-## Clearance, Scone and Dairy, Cereal and Milk; Cream +2 for each PAIR in the row) and
+## Clearance, Scone and Dairy, Cereal and Milk, +4 (Cheese +5) for each partner beside it since
+## v1.29; Cream +4 for each PAIR in the row) and
 ## Breakfast's MORNING (the row's opening run of Breakfast products, coupons skipped; Coffee +1
 ## for each MORNING product, Tea bags ×4 the last MORNING product after it). Live data: the
 ## numbers are placeholders for the end balance pass.
@@ -13,13 +14,15 @@ func test_rows(
 	row: String,
 	payouts: Array,
 	_test_parameters := [
-		# A PAIR is beside, either side: Cheese 3 + 4 before Bread too.
-		["cheese,bread", [7, 5]],
-		["bread,cheese", [5, 7]],
-		["yogurt,banana", [5, 2]],
-		# Cream 2 + 2 for each PAIR: Butter beside Bread (Bakery), Scone beside Butter (Dairy).
-		["bread,butter,scone,cream", [5, 5, 5, 6]],
-		["bread,cheese,cream", [5, 7, 4]],
+		# A PAIR is beside, either side: Cheese 3 + 5 before Bread too.
+		["cheese,bread", [8, 5]],
+		["bread,cheese", [5, 8]],
+		["yogurt,banana", [6, 2]],
+		# A PAIR pays for each partner beside it (v1.29): Butter beside Bread and Scone (both
+		# Bakery) 2 + 4 × 2, Scone beside Butter and Cream (both Dairy) 2 + 4 × 2. Cream 2 + 4 for
+		# each PAIR (Butter, Scone).
+		["bread,butter,scone,cream", [5, 10, 10, 10]],
+		["bread,cheese,cream", [5, 8, 6]],
 		# MORNING Coffee, Milk, Eggs (Crisps ends it): Coffee 2 + 3; Milk 4 + 1 earlier Breakfast;
 		# Crisps 2 x2 (Eggs).
 		["coffee,milk,eggs,crisps,bread", [5, 5, 1, 4, 5]],
@@ -61,8 +64,8 @@ func test_morning_and_pairs() -> void:
 	var state: ScoreResult = Scoring.score(_row("coffee,milk,crisps,eggs"))
 	assert_int(state.payouts[0]).is_equal(4)
 	var paired: ScoreResult = Scoring.score(_row("cereal,milk,bread,cheese,cream"))
-	# Cereal beside Milk and Cheese beside Bread: Cream 2 + 2 x 2.
-	assert_int(paired.payouts[4]).is_equal(6)
+	# Cereal beside Milk and Cheese beside Bread: Cream 2 + 4 x 2.
+	assert_int(paired.payouts[4]).is_equal(10)
 
 
 static func _wasted(result: ScoreResult) -> Array:

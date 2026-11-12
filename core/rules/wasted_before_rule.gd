@@ -2,8 +2,8 @@ class_name WastedBeforeRule
 extends Rule
 ## Clearance (#128 v3): profit from what went wrong. A WASTED product is an earlier product one
 ## of whose own rules fizzled (ScoreState.wasted: a card's own WASTED line, not an upgrade's,
-## a day event's or a lost effect's). Dusty toffees SALVAGE: +3 for each WASTED product before
-## it, up to `max_count` (0: no limit). Flickering bulb FAIL FORWARD (`factor`): ×3 if the
+## a day event's or a lost effect's). Dusty toffees SALVAGE: +5 for each WASTED product before
+## it, up to `max_count` (0: no limit). Flickering bulb FAIL FORWARD (`factor`): ×4 if the
 ## product just before it (ScoreState.products_before) was WASTED.
 
 @export var bonus_each: int = 0

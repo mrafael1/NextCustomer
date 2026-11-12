@@ -10,7 +10,7 @@ script = ExtResource("2_breadsticks")
 match_by = 2
 match_value = "soup"
 position = 1
-bonus = 2
+bonus = 4
 receipt_text = "Breadsticks after Soup"
 
 [resource]
@@ -21,7 +21,7 @@ kind = 1
 tags = PackedStringArray("Food", "Snack")
 base = 4
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_breadsticks")])
-rule_text = "+2 if right after Soup"
+rule_text = "+4 if right after Soup"
 art_ref = "res://art/items_v2/breadsticks_big.png"
 variant_of = ExtResource("9_plain")
 tier = 1
