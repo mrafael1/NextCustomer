@@ -1,0 +1,72 @@
+class_name BookEntry
+extends RefCounted
+## One card of the FIGURINE BOOK (v1.26, BookOrder): an item (a product of the balance, starters
+## included) in its main family (CardFamilies.main_family: the family its card shows), or a coupon
+## (round 3) in the book's COUPON_FAMILY; whether the player owns it (a starter always; a capsule
+## item once drawn; a coupon once played in a run that has ended, ProfileState.coupon_uses) and when
+## it was collected (its place in the profile's draw order; 0 for a played coupon, as the save keeps
+## no coupon play order; -1 for a starter or a card not collected yet). Round 4 (the user: "food
+## filter should show every item that is food"): an item also keeps its printed tags (its plain
+## card's tags, the ones the scoring reads; never a relabel's), and a family's tab (round 7: its
+## FAMILY option) shows every card carrying that tag (has_family), not only the cards whose main
+## family it is. Round 6 (the user: "if a family has less than 3 member it will go in other food"):
+## the card's `group` is where the FAMILY sort files it under ALL, its main family unless
+## BookOrder.regroup moved it (a Food-main card, or one whose main family is too small for an option
+## of its own, to OTHER_FOOD); `other_food` is whether the OTHER FOOD option shows it. The card
+## keeps its main family's look either way.
+
+## The coupons' family in the book (data/families/coupon.tres's id): their FAMILY option and their
+## pages.
+const COUPON_FAMILY := "Coupon"
+## The broad Food family (data/families/food.tres's id): the FIGURINE BOOK's FOOD and NON-FOOD
+## sorts (round 5) split the book by it.
+const FOOD_TAG := "Food"
+## The book's OTHER FOOD group and FAMILY option (round 6): no family's id, a name for the book
+## only.
+const OTHER_FOOD := "OtherFood"
+
+var card: CardDefinition
+var family: String = ""
+## Where the FAMILY sort files the card under ALL (round 6): its main family, OTHER_FOOD, or ""
+## (the unfamilied last pages), set by BookOrder.regroup.
+var group: String = ""
+## Whether the OTHER FOOD option shows the card (round 6, BookOrder.regroup).
+var other_food: bool = false
+## The item's printed tags (its plain card's); empty for a coupon.
+var tags: PackedStringArray = PackedStringArray()
+var owned: bool = false
+var starter: bool = false
+var coupon: bool = false
+## The item's place in ProfileState.unlocked_items' order (the draw order): higher is newer.
+## A played coupon has 0 (coupon_uses keeps no order once saved).
+var collected_at: int = -1
+
+
+func _init(
+	item: CardDefinition, main_family: String, is_starter: bool, draw_index: int = -1
+) -> void:
+	card = item
+	family = main_family
+	group = main_family
+	starter = is_starter
+	coupon = item.is_coupon()
+	collected_at = draw_index
+	owned = is_starter or draw_index >= 0
+	if not coupon:
+		tags = item.product_card().tags.duplicate()
+
+
+## Whether the card shows under the FAMILY pick `pick`: a coupon under COUPON_FAMILY only, an
+## item under its main family and every family it carries as a printed tag, and under OTHER_FOOD
+## when `other_food` (round 6).
+func has_family(pick: String) -> bool:
+	if coupon:
+		return pick == COUPON_FAMILY
+	if pick == OTHER_FOOD:
+		return other_food
+	return not pick.is_empty() and (pick == family or tags.has(pick))
+
+
+## Whether the card is printed Food (FOOD_TAG); a coupon never is.
+func is_food() -> bool:
+	return not coupon and tags.has(FOOD_TAG)

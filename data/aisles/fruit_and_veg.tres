@@ -14,6 +14,6 @@
 [resource]
 script = ExtResource("1_aisle")
 id = &"fruit_and_veg"
-display_name = "Fruit & veg"
+display_name = "Produce"
 sign_color = Color(0.2392, 0.4784, 0.2706, 1)
 capsule_cards = Array[ExtResource("2_card")]([ExtResource("3_fruit_salad"), ExtResource("4_strawberries"), ExtResource("5_grapefruit"), ExtResource("6_wonky_carrot"), ExtResource("7_lemon"), ExtResource("8_bruised_apples"), ExtResource("9_soft_tomatoes"), ExtResource("10_potatoes")])

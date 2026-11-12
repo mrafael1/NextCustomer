@@ -6,7 +6,11 @@ extends Control
 ## apart. The control's top left is the words' cap top at the line's left; its size is the
 ## line's width and the words' cap height (digits stand a little taller, icons are centred on
 ## the capitals). A word token is any text; a token of digits, "/" and "?" is a number (split
-## turns a sentence into tokens); a Texture2D token is an icon drawn at 2x.
+## turns a sentence into tokens); a Texture2D token is an icon drawn at 2x; a SEPARATOR token is
+## a drawn middle dot. v1.26 round 7 (the user: "non-food text has its '-' a bit weird"):
+## Pixelify's hyphen has no bearing (it touched the N of NON-FOOD) and stood wide, so a word's
+## hyphens are drawn by hand: DASH_WIDTH font px on the capitals' middle row (DASH_ROW), DASH_GAP
+## clear of the letters each side (NON-FOOD, DAY-OLD BUNS); word_width measures the same.
 
 ## The space between tokens, in art px.
 const GAP := 3
@@ -19,6 +23,17 @@ const LEFT_BEARING := 1
 const CENTRED := -100
 ## A number's digits stand DIGIT_GAP art px apart, each cropped to its ink (the mock-up's).
 const DIGIT_GAP := 1
+## A word's hyphen (round 7), in font px: DASH_WIDTH wide, one row tall on row DASH_ROW of the
+## capitals (0 their top row), DASH_GAP clear of the letters either side.
+const DASH := "-"
+const DASH_WIDTH := 3
+const DASH_ROW := 3
+const DASH_GAP := 1
+## The separator token (round 7: "BREAKFAST · NON-FOOD"): a SEPARATOR_SIZE font px square, its
+## top on row SEPARATOR_ROW of the capitals.
+const SEPARATOR := "·"
+const SEPARATOR_SIZE := 2
+const SEPARATOR_ROW := 2
 
 ## Each number glyph's ink: x its left edge from the pen (font px), y its width.
 static var _number_inks: Dictionary[String, Vector2i] = {}
@@ -56,6 +71,9 @@ func show_tokens(
 		var token: Variant = tokens[index]
 		if token is Texture2D:
 			x += _add_icon(token as Texture2D, x, icon_top)
+		elif str(token) == SEPARATOR:
+			x += _add_mark(x, SEPARATOR_ROW, Vector2i.ONE * SEPARATOR_SIZE, colour)
+			words.append(SEPARATOR)
 		elif is_number(str(token)):
 			x += _add_number(str(token), x, number_colour)
 			words.append(str(token))
@@ -99,13 +117,34 @@ static func split(sentence: String) -> Array:
 	return tokens
 
 
-## A word's ink width in canvas px at `word_scale` (its advance less the font's trailing pixel).
+## A word's ink width in canvas px at `word_scale` (its advance less the font's trailing pixel),
+## its hyphens drawn (round 7: DASH_WIDTH, DASH_GAP clear of a letter either side).
 static func word_width(word: String, word_scale: int = 1) -> float:
+	var parts: PackedStringArray = word.split(DASH)
+	var font_px: int = 0
+	for index: int in parts.size():
+		font_px += _plain_width(parts[index])
+		if index > 0:
+			font_px += _dash_advance(parts[index - 1], parts[index])
+	return font_px * ArtStyle.ART_SCALE * word_scale
+
+
+## A run of letters' ink width in font px (its advance less the font's trailing pixel).
+static func _plain_width(run: String) -> int:
+	if run.is_empty():
+		return 0
 	var font: Font = ArtStyle.pixel_display_font()
 	var advance: float = (
-		font.get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, ArtStyle.PIXEL_TEXT_SIZE).x
+		font.get_string_size(run, HORIZONTAL_ALIGNMENT_LEFT, -1, ArtStyle.PIXEL_TEXT_SIZE).x
 	)
-	return maxf(advance - 1.0, 0.0) * ArtStyle.ART_SCALE * word_scale
+	return maxi(roundi(advance) - 1, 0)
+
+
+## A drawn hyphen's width in font px between the runs `before` and `after`: the dash, and
+## DASH_GAP on each side that has a letter.
+static func _dash_advance(before: String, after: String) -> int:
+	var gaps: int = (0 if before.is_empty() else DASH_GAP) + (0 if after.is_empty() else DASH_GAP)
+	return DASH_WIDTH + gaps
 
 
 ## A number's width in canvas px: its digits' inks, DIGIT_GAP art px apart.
@@ -141,15 +180,40 @@ static func _number_ink(glyph: String) -> Vector2i:
 	return _number_inks[glyph]
 
 
+## A word: its runs of letters as labels, a drawn dash for each hyphen between them (round 7).
 func _add_word(word: String, x: float, colour: Color) -> float:
 	var scale_px: int = ArtStyle.ART_SCALE * _scale_factor
-	var label: Label = UiKit.pixel_label(word, scale_px, colour)
-	label.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	var font: Font = ArtStyle.pixel_display_font()
 	var cap_top: float = font.get_ascent(ArtStyle.PIXEL_TEXT_SIZE) - ArtStyle.PIXEL_CAP_HEIGHT
-	label.position = Vector2(x - LEFT_BEARING * scale_px, -cap_top * scale_px)
-	add_child(label)
-	return word_width(word, _scale_factor)
+	var parts: PackedStringArray = word.split(DASH)
+	var cursor: float = x
+	for index: int in parts.size():
+		if index > 0:
+			var before: int = 0 if parts[index - 1].is_empty() else DASH_GAP
+			_add_mark(cursor + before * scale_px, DASH_ROW, Vector2i(DASH_WIDTH, 1), colour)
+			cursor += _dash_advance(parts[index - 1], parts[index]) * scale_px
+		if parts[index].is_empty():
+			continue
+		var label: Label = UiKit.pixel_label(parts[index], scale_px, colour)
+		label.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		label.position = Vector2(cursor - LEFT_BEARING * scale_px, -cap_top * scale_px)
+		add_child(label)
+		cursor += _plain_width(parts[index]) * scale_px
+	return cursor - x
+
+
+## A drawn mark in `colour` at `x` (a hyphen's dash, the separator): `cells` font px, its top on
+## row `row` of the capitals; its advance in canvas px.
+func _add_mark(x: float, row: int, cells: Vector2i, colour: Color) -> float:
+	var scale_px: int = ArtStyle.ART_SCALE * _scale_factor
+	var mark: ColorRect = ColorRect.new()
+	mark.name = "Mark"
+	mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	mark.color = colour
+	mark.position = Vector2(x, row * scale_px)
+	mark.size = Vector2(cells) * scale_px
+	add_child(mark)
+	return cells.x * scale_px
 
 
 ## A number on the words' baseline (the cap top's PIXEL_CAP_HEIGHT rows down): one label per

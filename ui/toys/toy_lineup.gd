@@ -13,8 +13,8 @@ extends Control
 ## band gold with ALL COLLECTED (set_collected) and hops the minis (hop_mini).
 
 const TITLE_TEXT := "%s LINEUP"
-## The completed aisle's band (the shelf's own words, FigurineShelf.DONE_TEXT).
-const COLLECTED_TEXT := FigurineShelf.DONE_TEXT
+## The completed aisle's band (the FIGURINE SHELF's words until v1.26 round 2).
+const COLLECTED_TEXT := "ALL COLLECTED"
 ## The card's top on the stage (its chains hang from the stage's top) and its height; the card
 ## stays MARGIN art px inside the stage's left and inside RIGHT_LIMIT (left of the doors).
 const TOP := 66
@@ -27,7 +27,8 @@ const TEXT_AT := Vector2i(8, 4)
 const MINIS_AT := Vector2i(8, 14)
 const MINI_SIZE := 14
 const CELL := 16
-## The card is at least the title and TITLE_PADDING wide, or the minis and MINIS_PADDING.
+## The card is at least its words and TITLE_PADDING wide (the wider of the title and
+## COLLECTED_TEXT, so the completed band's words fit too), or the minis and MINIS_PADDING.
 const TITLE_PADDING := 16
 const MINIS_PADDING := 14
 ## The pointer: POINTER_ROWS rows from POINTER_GAP rows under the face's ledge.
@@ -63,7 +64,9 @@ func show_aisle(aisle: AisleDefinition, unlocked: Dictionary, centre_x: int) -> 
 	var cards: Array[CardDefinition] = aisle.capsule_cards
 	var title_text: String = TITLE_TEXT % aisle.display_name.to_upper()
 	var art: float = ArtStyle.ART_SCALE
-	var title_width: int = ceili(PixelLine.word_width(title_text) / art)
+	var title_width: int = ceili(
+		maxf(PixelLine.word_width(title_text), PixelLine.word_width(COLLECTED_TEXT)) / art
+	)
 	var width: int = maxi(title_width + TITLE_PADDING, MINIS_AT.x + 2 + cards.size() * CELL + 4)
 	var left: int = clampi(
 		roundi(centre_x - width / 2.0), MARGIN, maxi(MARGIN, RIGHT_LIMIT - width)
@@ -123,11 +126,13 @@ func mini_centre(index: int) -> Vector2:
 
 ## Shows mini `index` owned (in colour) or not (its grey shape), `squeeze` its width (1 flat out,
 ## the flip's ends; near 0 edge on, the flip's middle).
+## The join calls this every frame: the art is only looked up when the side shown changes.
 func flip_mini(index: int, owned: bool, squeeze: float = 1.0) -> void:
-	var figure: Texture2D = mini_art(_aisle.capsule_cards[index])
-	if figure != null:
-		_minis[index].texture = figure if owned else ToyExitArt.silhouette(figure)
-	_owned[index] = owned
+	if owned != _owned[index]:
+		var figure: Texture2D = mini_art(_aisle.capsule_cards[index])
+		if figure != null:
+			_minis[index].texture = figure if owned else ToyExitArt.silhouette(figure)
+		_owned[index] = owned
 	_minis[index].scale = Vector2(maxf(squeeze, 0.06), 1.0)
 
 

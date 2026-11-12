@@ -97,7 +97,7 @@ const UPGRADE_IDS: Array[String] = ["coupon_engine", "slot_engine", "category_en
 const HAND_IDS: Array[String] = [
 	"eggs", "tea_bags", "banana", "batteries", "two_for_one", "crisps", "coffee", "milk"
 ]
-## The cards on the belt: a product from Cold cases, Fruit & veg and Bakery, and a coupon.
+## The cards on the belt: a product from Cold cases, Produce and Bakery, and a coupon.
 const ROW_IDS: Array[String] = ["cheese", "strawberries", "croissant", "multipack"]
 ## --effects' shift (#71): #60's reference row on the belt under the Spot check.
 const EFFECTS_INSPECTION := "spot_check"

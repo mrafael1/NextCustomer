@@ -1,20 +1,21 @@
 class_name ToyLineupJoin
 extends Control
 ## A new figurine joins the collection (v1.05, mock-up toy_shelf_unlock.html, the user's pick:
-## option B, the lineup card): after the reveal's OK, on the TOY MACHINES stage, the drawn
-## machine's lineup card (ToyLineup) drops in where the board hangs (or the hovered one, already
-## up behind the reveal's shade, stays), the figurine flies from the medallion into its place on
-## the card on an arc (96, then 48, then its mini), its grey shape flips into colour with a
-## sparkle, then the counts tick: the FIGURINES LED and the machine's floor plate (both lifted
-## over the shade) hop, the window gives up one capsule. A NEW! burst sits under the mini for a
-## look (a tap ends it) and the card goes back up.
+## option B, the lineup card): once the reveal's hold is over (ToyReveal.HOLD_S), on the TOY
+## MACHINES stage, the drawn machine's lineup card (ToyLineup) drops in where the board hangs (or
+## the hovered one, already up behind the reveal's shade, stays), the icon flies from the
+## reveal's place into its place on the card on an arc as pixel art (2026-11-11: the 2x sprite,
+## then its mini, on the 2 px grid, moving every frame and landing in FLY_S), its grey shape
+## flips into colour with a sparkle, then the counts tick: the FIGURINES LED and the machine's
+## floor plate (both lifted over the shade) hop, the window gives up one capsule. A NEW! burst
+## sits under the mini for a look (a tap ends it) and the card goes back up.
 ##
 ## When the capsule completes its aisle (StartSetupRules.completed): the band turns gold with ALL
 ## COLLECTED, the stage shakes and the minis hop one after the other; the COMPLETED! card
-## (ToyCompletedCard) pops in, its rows one by one, the aisle's pip stamping in, and waits for
-## OK; then the card and the lineup leave, the machine's SOLD OUT card drops in and swings, its
-## plate flips to SOLD OUT and its lamp flickers off; at the whole collection the COLLECTION
-## COMPLETE strip opens from its centre.
+## (ToyCompletedCard) pops in, its COMPLETED stamp slams onto the aisle's band (v1.26), and
+## waits for OK; then the card and the lineup leave, the machine's SOLD OUT card drops in and
+## swings, its plate flips to SOLD OUT and its lamp flickers off; at the whole collection the
+## COLLECTION COMPLETE strip opens from its centre.
 ##
 ## The screen holds what the draw changed (ToyMachinesScreen: the FIGURINES count, the plate, the
 ## window and the machine's SOLD OUT state; only COINS changes at the draw) until this tells it
@@ -33,15 +34,18 @@ signal finished
 
 const STAGE := Vector2(1280, 720)
 ## Beat lengths (seconds), then under reduced motion.
-const TO_S := 0.75
+## 2026-11-11 feel pass (the user: the join felt slow, as if frames dropped): the flight lands in
+## FLY_S (well under a second), the look and the way out are short, so the machines are usable
+## again about JOIN_S after the reveal's hold.
+const TO_S := 0.5
 const TO_S_REDUCED := 0.25
-const TICK_S := 0.25
-const LOOK_S := 0.85
-const AWAY_S := 0.25
+const TICK_S := 0.2
+const LOOK_S := 0.5
+const AWAY_S := 0.2
 const AWAY_S_REDUCED := 0.2
 const SLAP_S := 0.65
 const SLAP_S_REDUCED := 0.3
-const CARD_IN_S := 0.9
+const CARD_IN_S := 0.8
 const CARD_IN_S_REDUCED := 0.3
 const CARD_OUT_S := 0.25
 const SOLD_S := 0.8
@@ -55,20 +59,28 @@ const SHADE_ALPHA := 0.2
 ## The card drops from at least this far above its place (and leaves the same way): from far
 ## enough that none of it, pointer included, shows above the screen's top.
 const DROP := 200.0
-## The flight: its share of the first beat, the arc's peak over the straight line, and the sizes
-## (the 48 px sprite at 2x, at 1x, then the mini at 2x) by the flight's eased share.
-const FLY_FROM := 0.25
+## The flight (the travel, inside the TO_S beat): its share of the first beat (from 0, so the
+## icon leaves the moment the 1 s hold ends; every frame, on the 2 px grid), the arc's peak over
+## the straight line (as much as the trip goes sideways) and the eased share from which the 2x
+## sprite becomes the mini at 2x, a puff of sparkles hiding the swap for PUFF_SHARE of the
+## flight. Its curve (_fly) leaves fast and still lands at speed (review fix: an ease in and out
+## stood still on the grid as it lifted off and crawled as it settled), so every frame of it
+## moves. FLY_S is the travel's length (TO_S * FLY_TO).
+const FLY_FROM := 0.0
 const FLY_TO := 0.8
+const FLY_S := TO_S * FLY_TO
 const ARC := 50.0
-const BIG_UNTIL := 0.35
-const MID_UNTIL := 0.7
-const MID_SIZE := Vector2(48, 48)
+const MINI_FROM := 0.7
 const MINI_SIZE := Vector2(28, 28)
-## Sparkles (sparkle.png at 2x): a trail of TRAIL behind the flight, a ring of RING round the
-## landed mini for RING_S.
+const PUFF_SHARE := 0.12
+const PUFF_SPREAD := 18.0
+## The curve's landing speed (its slope at the end; 1 at the start plus what the end loses).
+const LAND_SPEED := 0.4
+## The whole join of a capsule that completes nothing, in seconds (look included).
+const JOIN_S := TO_S + TICK_S + LOOK_S + AWAY_S
+## Sparkles (sparkle.png at 2x): a ring of RING round the landed mini for RING_S.
 const SPARKLE := preload("res://art/effects/sparkle.png")
 const SPARKLE_SIZE := Vector2(10, 10)
-const TRAIL := 4
 const RING := 6
 const RING_S := 0.5
 const RING_RADIUS := 26.0
@@ -89,14 +101,20 @@ const HOP_S := 0.24
 const HOP_RISE := 2
 const SHAKE := 2
 const SHAKE_SHARE := 0.3
-## The COMPLETED! card: pops over CARD_POP_SHARE of its beat from CARD_POP_FROM; its rows fade
-## in ROW_S apart from ROW_FROM of the beat; the new pip stamps in from PIP_FROM (2x to 1x).
+## The COMPLETED! card: pops over CARD_POP_SHARE of its beat from CARD_POP_FROM, the stage
+## dimmed to CARD_SHADE_ALPHA behind it; its stamp slams in from STAMP_FROM of the beat over
+## STAMP_SHARE (from STAMP_SIZE times its size to 1, eased in: it speeds up into the band, in
+## STAMP_STEPS only, whole canvas px per art px, so its pixels never smear), and the card jolts
+## JOLT art px down for JOLT_S at the impact.
 const CARD_POP_SHARE := 0.25
 const CARD_POP_FROM := 0.7
-const ROW_FROM := 0.3
-const ROW_SHARE := 0.15
-const PIP_FROM := 0.62
-const PIP_SHARE := 0.15
+const STAMP_FROM := 0.4
+const STAMP_SHARE := 0.18
+const STAMP_SIZE := 2.0
+const STAMP_STEPS: Array[float] = [2.0, 1.5, 1.0]
+const CARD_SHADE_ALPHA := 0.5
+const JOLT := 2
+const JOLT_S := 0.08
 ## SOLD OUT: the card drops SOLD_DROP px in SOLD_DROP_S and swings SWING_DEGREES, settling; the
 ## plate flips between SOLD_FLIP of the beat; the lamp flickers over its first half.
 const SOLD_DROP := 46.0
@@ -108,7 +126,7 @@ const FLICKER_STEPS := 20.0
 const LAND_SOUND := "card_place"
 const TICK_SOUND := "tick"
 const SLAP_SOUND := "stamp_paid"
-const PIP_SOUND := "stamp"
+const STAMP_SOUND := "stamp"
 const SOLD_SOUND := "stamp_notice"
 const COLLECTION_SOUND := "register_bell"
 
@@ -140,7 +158,8 @@ var _boost: float = 1.0
 var _card_closed: bool = false
 var _chip_rest: Vector2 = Vector2.ZERO
 var _sold_rest: Vector2 = Vector2.ZERO
-var _pip_stamped: bool = false
+var _stamped: bool = false
+var _card_rest: Vector2 = Vector2.ZERO
 var _landed: bool = false
 
 
@@ -211,18 +230,16 @@ func owns_lineup() -> bool:
 
 
 ## Plays the join of `card` (mini `index` of `aisle`'s lineup) from `machine` (its lamp `lamp`),
-## the lineup showing `before` (the collection before the draw), starting at the reveal's OK.
-## With `completed` (the completed aisles, the new one among them; empty when the capsule didn't
-## complete its aisle) the COMPLETED! card follows, built for `regulars` regulars and the
-## saved-run footer when `saved_run`; `collection` plays the COLLECTION COMPLETE strip at the end.
+## the lineup showing `before` (the collection before the draw), once the reveal's hold is over.
+## With `completed` (the capsule completed its aisle) the COMPLETED! card follows. Options:
+## `reduced` (reduced motion) and `collection` (the COLLECTION COMPLETE strip at the end).
 func play(
 	card: CardDefinition,
 	aisle: AisleDefinition,
 	machine: ToyMachineView,
 	lamp: TextureRect,
 	before: Dictionary,
-	completed: Array[AisleDefinition],
-	balance: BalanceDefinition,
+	completed: bool,
 	options: Dictionary
 ) -> void:
 	_machine = machine
@@ -230,10 +247,10 @@ func play(
 	_index = aisle.capsule_cards.find(card)
 	_figure = ArtStyle.item_sprite(card)
 	_mini = ToyLineup.mini_art(card)
-	_complete = not completed.is_empty()
+	_complete = completed
 	_reduced = bool(options.get("reduced", false))
 	_card_closed = false
-	_pip_stamped = false
+	_stamped = false
 	_landed = false
 	_boost = 1.0
 	if _dropped or _lineup.shown_aisle() != aisle:
@@ -246,14 +263,8 @@ func play(
 	_chip.z_index = 2
 	machine.lift_floor(true)
 	if _complete:
-		_card.build(
-			balance,
-			aisle,
-			completed,
-			int(options.get("regulars", 0)),
-			bool(options.get("saved_run", false)),
-			STAGE
-		)
+		_card.build(aisle, STAGE)
+		_card_rest = _card.position
 	_build_timeline(bool(options.get("collection", false)))
 	_t = 0.0
 	_active = true
@@ -507,6 +518,8 @@ func _apply() -> void:
 	_reveal.leave(1.0 if _reduced else to)
 	var leaving: float = _p(&"card_out") if _complete else _p(&"away")
 	var dim: float = SHADE_ALPHA * (1.0 if _reduced else to) * (1.0 - leaving)
+	if _complete and _card.visible and _started(&"card_in"):
+		dim = maxf(dim, CARD_SHADE_ALPHA * clampf(_p(&"card_in") * 4.0, 0.0, 1.0) * (1.0 - leaving))
 	if _complete and _started(&"sold"):
 		dim = 0.0
 	_shade.color = Color(Palette.INK, dim)
@@ -564,31 +577,31 @@ func _apply_lineup(to: float, leaving: float) -> void:
 		_lineup.hop_mini(index, rise)
 
 
-## The figurine's flight from the medallion to its mini, the trail and the landing's ring.
+## The icon's flight from the reveal's place to its mini (every frame, on the 2 px grid: the 2x
+## sprite, then the mini) and the landing's ring.
 func _apply_flight(to: float) -> void:
-	var start: Vector2 = _reveal.medallion_centre()
+	var start: Vector2 = _reveal.icon_centre()
 	var target: Vector2 = _lineup.mini_centre(maxi(_index, 0))
 	var fly: float = 1.0 if _reduced else _sub(to, FLY_FROM, FLY_TO)
 	_flyer.visible = fly < 1.0 and _index >= 0
 	for sparkle: TextureRect in _sparkles:
 		sparkle.visible = false
 	if _flyer.visible:
-		var q: float = _ease_in_out(fly)
-		var at: Vector2 = _arc(start, target, q)
+		var q: float = _fly(fly)
 		var shown: Vector2 = ItemView.SPRITE_SIZE
 		_flyer.texture = _figure
-		if q >= MID_UNTIL and _mini != null:
+		if q >= MINI_FROM and _mini != null:
 			shown = MINI_SIZE
 			_flyer.texture = _mini
-		elif q >= BIG_UNTIL:
-			shown = MID_SIZE
 		_flyer.size = shown
-		_flyer.position = (at - shown / 2.0).round()
-		if fly > 0.0:
-			for k: int in range(1, TRAIL + 1):
-				var back: Vector2 = _arc(start, target, _ease_in_out(maxf(0.0, fly - k * 0.08)))
-				var side: float = 6.0 if k % 2 == 1 else -6.0
-				_sparkle(k - 1, back + Vector2(side, 0), 0.9 - k * 0.2)
+		var centre: Vector2 = _arc(start, target, q)
+		_flyer.position = _grid_v(centre - shown / 2.0)
+		var puff: float = (fly - _unfly(MINI_FROM)) / PUFF_SHARE
+		if puff >= 0.0 and puff < 1.0 and _mini != null:
+			for k: int in range(0, RING, 2):
+				var angle: float = k * TAU / RING + PI / 6.0
+				var spread: float = lerpf(PUFF_SPREAD * 0.6, PUFF_SPREAD, puff)
+				_sparkle(k, centre + Vector2(cos(angle), sin(angle)) * spread, 1.0)
 		return
 	var since: float = _t - (float(_segments[0]["t1"]) if not _segments.is_empty() else 0.0)
 	if _reduced or since < 0.0 or since >= RING_S:
@@ -632,7 +645,8 @@ func _shake() -> Vector2:
 	return Vector2(roundf(sin(p * 90.0) * strength), roundf(cos(p * 70.0) * strength)) * art
 
 
-## The COMPLETED! card: popped (or faded) in, its rows one by one, the new pip stamping; out.
+## The COMPLETED! card: popped (or faded) in, its stamp slammed onto the band (the card jolts at
+## the impact); out.
 func _apply_card() -> void:
 	if not _complete or not _card.visible:
 		return
@@ -645,21 +659,18 @@ func _apply_card() -> void:
 	)
 	_card.scale = Vector2.ONE * (1.0 if _reduced else pop * (1.0 - 0.3 * out))
 	_card.modulate.a = alpha
-	var rows: Array[Control] = _card.rows()
-	for index: int in rows.size():
-		var shown: float = (
-			1.0 if _reduced else clampf((pin - ROW_FROM - index * ROW_SHARE) / ROW_SHARE, 0.0, 1.0)
-		)
-		rows[index].modulate.a = shown
-	var pip: Control = _card.new_pip()
-	if pip != null:
-		var stamp: float = 1.0 if _reduced else clampf((pin - PIP_FROM) / PIP_SHARE, 0.0, 1.0)
-		pip.modulate.a = 1.0 if stamp > 0.0 else 0.0
-		pip.pivot_offset = pip.size / 2.0
-		pip.scale = Vector2.ONE * lerpf(2.0, 1.0, _ease_out(stamp))
-		if stamp > 0.0 and not _pip_stamped:
-			_pip_stamped = true
-			Sfx.play_at(self, PIP_SOUND)
+	var stamp: Control = _card.stamp()
+	var slam: float = 1.0 if _reduced else clampf((pin - STAMP_FROM) / STAMP_SHARE, 0.0, 1.0)
+	stamp.modulate.a = 1.0 if slam > 0.0 else 0.0
+	stamp.scale = Vector2.ONE * _stamp_step(lerpf(STAMP_SIZE, 1.0, slam * slam), slam)
+	var jolt: int = 0
+	if not _reduced and slam >= 1.0:
+		var since: float = _since(&"card_in") - CARD_IN_S * (STAMP_FROM + STAMP_SHARE)
+		jolt = JOLT if since >= 0.0 and since < JOLT_S else 0
+	_card.position = _card_rest + Vector2(0, jolt * ArtStyle.ART_SCALE)
+	if slam >= 1.0 and not _stamped:
+		_stamped = true
+		Sfx.play_at(self, STAMP_SOUND)
 
 
 ## SOLD OUT drops in and swings (or fades in), the plate flips, the lamp flickers off.
@@ -684,8 +695,24 @@ func _apply_sold() -> void:
 	_lamp.texture = ToyExitArt.lamp("on" if on else "off")
 
 
+## The slam's scale `eased` held to the nearest of STAMP_STEPS above 1 until it lands (`slam` 1).
+static func _stamp_step(eased: float, slam: float) -> float:
+	if slam >= 1.0:
+		return 1.0
+	var best: float = STAMP_STEPS[0]
+	for step: float in STAMP_STEPS.slice(0, -1):
+		if absf(step - eased) < absf(best - eased):
+			best = step
+	return best
+
+
+## The flight's path at `q`: the straight line lifted by an arc of ARC at most, as much as the
+## trip goes sideways (review fix: on a trip straight up to the card, the arc lifted the icon
+## over its slot and it hung there before falling in).
 static func _arc(from: Vector2, to: Vector2, q: float) -> Vector2:
-	return from.lerp(to, q) - Vector2(0, sin(q * PI) * ARC)
+	var trip: Vector2 = to - from
+	var sideways: float = absf(trip.x) / maxf(trip.length(), 1.0)
+	return from.lerp(to, q) - Vector2(0, sin(q * PI) * ARC * sideways)
 
 
 static func _sub(p: float, from: float, to: float) -> float:
@@ -696,8 +723,17 @@ static func _ease_out(x: float) -> float:
 	return 1.0 - pow(1.0 - x, 3.0)
 
 
-static func _ease_in_out(x: float) -> float:
-	return 4.0 * x * x * x if x < 0.5 else 1.0 - pow(-2.0 * x + 2.0, 3.0) / 2.0
+## The flight's curve: quick off the mark (slope 2 - LAND_SPEED) and still moving as it lands
+## (slope LAND_SPEED), so on the 2 px grid it never stands still for a frame.
+static func _fly(x: float) -> float:
+	return x + (1.0 - LAND_SPEED) * x * (1.0 - x)
+
+
+## The flight's share `fly` at which _fly reaches `q`.
+static func _unfly(q: float) -> float:
+	var k: float = 1.0 - LAND_SPEED
+	var b: float = 1.0 + k
+	return (b - sqrt(b * b - 4.0 * k * q)) / (2.0 * k)
 
 
 static func _back_out(x: float, overshoot: float) -> float:

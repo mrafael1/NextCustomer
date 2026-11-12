@@ -149,7 +149,8 @@ func show_coins(count: int) -> void:
 
 
 ## Swaps the plate's frames (normal, lit; 9-slices with FRAME_MARGIN art px margins) for
-## `frames`: the TOY MACHINES' FIGURINE SHELF is a primary plate in teal (v0.78).
+## `frames`: the TOY MACHINES' FIGURINE BOOK (the FIGURINE SHELF until v1.26) is a primary
+## plate in teal (v0.78).
 func use_frames(frames: Array[Texture2D]) -> void:
 	_styles = []
 	for frame: Texture2D in frames:
@@ -164,10 +165,25 @@ func centre_caption(text_scale: int = 0) -> void:
 	var caption_node: Label = caption_label()
 	if text_scale > 0:
 		UiKit.use_pixel_text(caption_node, text_scale)
-	caption_node.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	# Left-aligned at the centred left below: the scene can leave the label wider than its words
+	# (the title's GUIDE label grew to 50 font px for 28), and centred words then drift right.
+	caption_node.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	var bottom: float = PLATE_FACE_BOTTOM if _kind == Kind.PLATE else PRIMARY_SINK + 4.0
+	# Placed at its own width, centred on the 2 px grid: a label left wider by _build_content's
+	# left-aligned rect kept that width and centred the words off the face's middle.
+	# Measured from the pixel font: the label's minimum size can still be the one from before
+	# use_pixel_text (the TOY MACHINES' FIGURINE SHELF sat 4 px left of its face).
+	# (NC-toys v1.26 round 4: OptionChip.pixel_width, PR #161, is not on this branch; the same
+	# measure inline. On merge, keep PR #161's OptionChip.pixel_width line.)
+	var font: Font = ArtStyle.pixel_display_font()
+	var text_size: Vector2 = font.get_string_size(
+		caption_node.text, HORIZONTAL_ALIGNMENT_LEFT, -1, ArtStyle.PIXEL_TEXT_SIZE
+	)
+	var text_width: float = text_size.x * roundi(caption_node.scale.x)
+	var left: float = 2.0 * floorf((_face_size.x - text_width) / 4.0)
 	_put(
-		caption_node, Rect2(0, PLATE_FACE_TOP, _face_size.x, _face_size.y - PLATE_FACE_TOP - bottom)
+		caption_node,
+		Rect2(left, PLATE_FACE_TOP, text_width, _face_size.y - PLATE_FACE_TOP - bottom)
 	)
 
 

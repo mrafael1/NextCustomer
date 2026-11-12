@@ -22,12 +22,12 @@ extends Control
 ## deleted, logged as run_abandon under its run id, and a new run starts. An abandoned run
 ## records nothing in the profile, like a restart before the end.
 ##
-## REWARDS (RewardsMenu): the bay's glass slides aside and the menu opens over the dimmed
-## storefront. TOY MACHINES opens the machines (#63) over it on the peeked profile (an unreadable
-## one opens them switched off, left for the shift screen to report and back up); a draw while a
-## run is saved gets that run's index (its item rides the runs after it). Done closes them and
-## refreshes the coins. The badge pins (#122) are no longer here: a run's pins are chosen on the
-## start screen's page 2 (BADGE PINS, 2026-11-05). BACK or Esc close REWARDS.
+## REWARDS: the bay's glass slides aside, then the TOY MACHINES (#63) open straight over the
+## title (2026-11-11: no REWARDS menu between them) on the peeked profile (an unreadable one
+## opens them switched off, left for the shift screen to report and back up); a draw while a run
+## is saved gets that run's index (its item rides the runs after it). DONE or Esc closes them,
+## back to the title, and refreshes the coins on the REWARDS plate. The badge pins (#122) are no
+## longer here: a run's pins are chosen on the start screen's page 2 (BADGE PINS, 2026-11-05).
 ## While a popup or the machines are open, nothing on the title starts a run.
 ##
 ## A start opens the doors (the leaves slide apart, the light floods out) before the shift screen
@@ -48,6 +48,8 @@ const INTRO_DARK := 2.5
 ## The start: the click, then the register's bell as the doors open.
 const START_SOUND := "register_bell"
 const EXPORT_SOUND := "ui_confirm"
+## The TOY MACHINES open once the bay's glass has slid aside.
+const REWARDS_SOUND := "ui_open"
 ## The Export log icon (icons/export_log, 12x12 art at 2x) and the build label on the stage, in
 ## canvas px (the mock-up's art px at 2x): the icon in the bottom left corner, the label's right
 ## edge at BUILD_RIGHT on the same line.
@@ -82,10 +84,9 @@ var _hit: Control
 var _menu: TitleMenu
 ## The entry the doors or the bay marked (NONE when the mouse is on neither).
 var _scene_entry: TitleMenu.Entry = TitleMenu.Entry.NONE
-var _rewards: RewardsMenu
 ## The staff handbook (v1.06), opened by the GUIDE plate.
 var _guide: HandbookPage
-## The bay's glass is sliding before REWARDS opens.
+## The bay's glass is sliding before the TOY MACHINES open.
 var _rewards_pending: bool = false
 ## The New run question (only with a run saved).
 var _confirm: AbandonConfirm
@@ -135,10 +136,6 @@ func _ready() -> void:
 	_add_corner(stage)
 	_storefront.sign_lit.connect(_on_sign_lit)
 
-	_rewards = RewardsMenu.new(_balance)
-	_rewards.still = _still
-	_rewards.toy_machines_requested.connect(_on_toy_machines_pressed)
-	add_child(_rewards)
 	if _saved_run != null:
 		_confirm = AbandonConfirm.new()
 		_confirm.still = _still
@@ -220,8 +217,9 @@ func menu() -> TitleMenu:
 	return _menu
 
 
-func rewards() -> RewardsMenu:
-	return _rewards
+## The TOY MACHINES (null until REWARDS first opens them).
+func toy_machines() -> ToyMachinesScreen:
+	return _toys
 
 
 ## The New run question, or null without a run save.
@@ -298,7 +296,6 @@ func _busy() -> bool:
 		_starting
 		or _rewards_pending
 		or toy_machines_open()
-		or _rewards.is_open()
 		or (_confirm != null and _confirm.is_open())
 		or (_guide != null and _guide.is_open())
 	)
@@ -392,9 +389,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if _guide != null and _guide.is_open():
 		return
 	var handled: bool = false
-	if _rewards.is_open():
-		handled = _rewards.handle_key(event)
-	elif _confirm != null and _confirm.is_open():
+	if _confirm != null and _confirm.is_open():
 		handled = _confirm.handle_key(event)
 	elif not key.echo and skip_intro():
 		handled = true
@@ -436,7 +431,7 @@ func _on_new_run_pressed() -> void:
 	_confirm.open(AbandonConfirm.lost_line(_saved_run))
 
 
-## REWARDS: the bay's glass slides aside, then the menu opens over the storefront.
+## REWARDS: the bay's glass slides aside, then the TOY MACHINES open over the storefront.
 func _on_rewards_pressed() -> void:
 	if _busy():
 		return
@@ -448,8 +443,10 @@ func _on_rewards_pressed() -> void:
 
 func _open_rewards() -> void:
 	_rewards_pending = false
-	if not _starting:
-		_rewards.open(_coins)
+	if _starting:
+		return
+	_sfx.play(REWARDS_SOUND)
+	_on_toy_machines_pressed()
 
 
 ## Opens the TOY MACHINES on the saved profile, read without reporting or backing anything up:
@@ -471,11 +468,10 @@ func _on_toy_machines_pressed() -> void:
 	_toys.open(counter, _balance)
 
 
-## Done: the coins on REWARDS and its LED follow the draws.
+## DONE or Esc: back to the title, the coins on the REWARDS plate following the draws.
 func _on_toy_machines_closed() -> void:
 	_coins = peek_coins(SaveService.new(SaveService.default_folder()))
 	_menu.set_coins(_coins)
-	_rewards.set_coins(_coins)
 
 
 ## Deletes the saved run and starts a new one. If the save can't be deleted (reported), the

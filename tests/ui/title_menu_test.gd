@@ -2,8 +2,8 @@ extends GdUnitTestSuite
 ## The title's menu and popups (#56, direction C+): the plates stand on the brick at the
 ## mock-up's places and step in (at once when still); one marker lights an entry, shared by the
 ## mouse, the keys and the storefront, and Enter presses it (the primary entry when none is
-## marked); REWARDS shows the coins and opens TOY MACHINES, while the locked LOYALTY only says
-## no; BACK and Esc close it; the New run question never abandons on a bare Enter.
+## marked); the New run question never abandons on a bare Enter. (REWARDS opens the TOY
+## MACHINES straight from the title since 2026-11-11: title_screen_test.)
 
 const BALANCE := "res://data/balance/balance.tres"
 
@@ -142,71 +142,6 @@ func test_one_marker_lights_an_entry_and_enter_presses_it() -> void:
 	assert_float(menu.plate(TitleMenu.Entry.GUIDE).position.y).is_equal(208.0)
 
 
-## 2026-11-05: one card, TOY MACHINES, centred across the sheet (the BADGE PINS card is gone:
-## pins are chosen on the start screen).
-func test_rewards_shows_the_coins_and_its_card_on_the_sheet() -> void:
-	var rewards: RewardsMenu = auto_free(RewardsMenu.new(load(BALANCE)))
-	rewards.still = true
-	add_child(rewards)
-	rewards.size = Vector2(1280, 720)
-	assert_bool(rewards.is_open()).is_false()
-	assert_object(rewards.open(59)).is_null()
-	assert_bool(rewards.is_open()).is_true()
-	assert_str(rewards.coin_label().text).is_equal("59")
-	var sheet: Rect2 = rewards.sheet().get_global_rect()
-	assert_vector(sheet.size).is_equal(Vector2(RewardsMenu.SHEET_ART) * ArtStyle.ART_SCALE)
-	assert_vector(sheet.get_center()).is_equal(Vector2(640, 360))
-	var machines: Rect2 = rewards.toy_machines_card().get_global_rect()
-	var back: Rect2 = rewards.back_plate().get_global_rect()
-	var led: Rect2 = rewards.coin_led().get_global_rect()
-	for rect: Rect2 in [machines, back, led]:
-		assert_bool(sheet.encloses(rect)).is_true()
-	assert_float(machines.get_center().x).is_equal(sheet.get_center().x)
-	assert_bool(machines.intersects(led)).is_false()
-	assert_float(back.position.y).is_greater_equal(machines.end.y)
-	assert_int(rewards.sheet().find_children("*", "NameBadge", true, false).size()).is_equal(0)
-	rewards.set_coins(7)
-	assert_str(rewards.coin_label().text).is_equal("7")
-
-
-func test_rewards_opens_toy_machines() -> void:
-	var rewards: RewardsMenu = auto_free(RewardsMenu.new(load(BALANCE)))
-	add_child(rewards)
-	var heard: Array[String] = []
-	rewards.toy_machines_requested.connect(func() -> void: heard.append("machines"))
-	rewards.closed.connect(func() -> void: heard.append("closed"))
-	var opening: Tween = rewards.open(3)
-	assert_object(opening).is_not_null()
-	assert_float(rewards.sheet().modulate.a).is_equal(0.0)
-	opening.custom_step(RewardsMenu.OPEN_TIME)
-	assert_float(rewards.sheet().modulate.a).is_equal(1.0)
-	# Enter with nothing marked presses nothing.
-	rewards.handle_key(_key(KEY_ENTER))
-	assert_array(heard).is_empty()
-	rewards.handle_key(_key(KEY_DOWN))
-	assert_bool(rewards.toy_machines_card().marked).is_true()
-	assert_bool(rewards.open_hint().visible).is_true()
-	rewards.handle_key(_key(KEY_ENTER))
-	assert_array(heard).is_equal(["machines"])
-	assert_bool(rewards.is_open()).is_true()
-	# The only other entry is BACK.
-	rewards.handle_key(_key(KEY_RIGHT))
-	assert_bool(rewards.back_plate().marked).is_true()
-	assert_bool(rewards.toy_machines_card().marked).is_false()
-	rewards.handle_key(_key(KEY_RIGHT))
-	assert_bool(rewards.toy_machines_card().marked).is_true()
-	rewards.handle_key(_key(KEY_SPACE))
-	assert_array(heard).is_equal(["machines", "machines"])
-	assert_bool(rewards.is_open()).is_true()
-	rewards.handle_key(_key(KEY_ESCAPE))
-	assert_bool(rewards.is_open()).is_false()
-	assert_array(heard).is_equal(["machines", "machines", "closed"])
-	assert_bool(rewards.handle_key(_key(KEY_DOWN))).is_false()
-	rewards.open(3)
-	rewards.back_plate().pressed.emit()
-	assert_bool(rewards.is_open()).is_false()
-
-
 func test_the_new_run_question_never_abandons_on_a_bare_enter() -> void:
 	var confirm: AbandonConfirm = auto_free(AbandonConfirm.new())
 	confirm.still = true
@@ -282,11 +217,6 @@ func test_a_frozen_menu_keeps_its_marker() -> void:
 func test_the_words_are_hard_pixel_text() -> void:
 	var menu: TitleMenu = _menu(true)
 	menu.finish_step_in()
-	var rewards: RewardsMenu = auto_free(RewardsMenu.new(load(BALANCE)))
-	rewards.still = true
-	add_child(rewards)
-	rewards.size = Vector2(1280, 720)
-	rewards.open(59)
 	var confirm: AbandonConfirm = auto_free(AbandonConfirm.new())
 	confirm.still = true
 	add_child(confirm)
@@ -294,7 +224,7 @@ func test_the_words_are_hard_pixel_text() -> void:
 	confirm.open("SHIFT 3/16 WILL BE LOST")
 	await get_tree().process_frame
 	var words: Array[Label] = []
-	for root: Node in [menu, rewards, confirm] as Array[Node]:
+	for root: Node in [menu, confirm] as Array[Node]:
 		for node: Node in root.find_children("*", "Label", true, false):
 			var label: Label = node as Label
 			if label.get_theme_font("font") == ArtStyle.pixel_display_font():
@@ -315,10 +245,10 @@ func test_the_words_are_hard_pixel_text() -> void:
 			. override_failure_message("%s at %s" % [label.text, at])
 			. is_equal(Vector2.ZERO)
 		)
-	for caption: String in ["CONTINUE", "NEW RUN", "REWARDS", "TOY MACHINES", "BACK"]:
+	for caption: String in ["CONTINUE", "NEW RUN", "REWARDS"]:
 		assert_array(texts).contains([caption])
 	assert_array(texts).not_contains(["BADGE PINS"])
-	for caption: String in ["ESC", "COINS", "ABANDON THIS RUN?", "ABANDON", "KEEP"]:
+	for caption: String in ["ABANDON THIS RUN?", "ABANDON", "KEEP"]:
 		assert_array(texts).contains([caption])
 
 

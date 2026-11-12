@@ -5,9 +5,11 @@ extends Control
 ## one toy machine per aisle (balance.aisles order; ToyMachineView, each aisle its own cabinet on
 ## the shared coin base) stands under its own recessed lamp by the glass doors. Pick a machine
 ## to spend a capsule's price on a capsule: CapsuleCounter draws, saves and logs it, the coin
-## clinks, the counts drop and the plain reveal (ToyReveal) shows the figurine. FIGURINE SHELF
-## opens the FIGURINE SHELF (its Back returns here); DONE closes the screen. Coins can be kept:
-## nothing asks to spend them.
+## clinks, the counts drop and the reveal (ToyReveal) shows the item's icon alone for
+## ToyReveal.HOLD_S. FIGURINE BOOK opens the FIGURINE BOOK (FigurineBook, v1.26 round 2: the
+## card book that replaced the shelf; its BACK returns here); DONE (or
+## Escape with no machine picked) closes the screen. Coins can be kept: nothing asks to spend
+## them.
 ##
 ## A full-screen overlay that blocks clicks behind it, holding a 1280x720 stage centred in the
 ## window (never scaled; the bands outside it are the night's teal black): one 640x360 art scene
@@ -25,11 +27,14 @@ extends Control
 ## every machine OUT OF ORDER with a notice when the profile can't be saved; every machine
 ## SOLD OUT and COLLECTION COMPLETE on the strip once the collection is complete; the lids
 ## shut, padlocks on the price LEDs, a tomato 0 and a notice with 0 coins; otherwise the hint.
-## FIGURINE SHELF is DONE's button in teal (v0.78: store fixtures, no plain boxes). Through the
-## doors the street idles (ToyStreet, v0.79): a car's headlights now and then, the lamp's flicker.
+## FIGURINE BOOK is DONE's button in teal (v0.78: store fixtures, no plain boxes); a NEW tag
+## (ToyNewTag, v1.26) hangs on it while a drawn figurine hasn't been seen in the book yet.
+## Through the doors the street idles (ToyStreet, v0.79): a car's headlights now and then, the
+## lamp's flicker.
 ##
-## After the reveal's OK the figurine joins the drawn machine's lineup card (ToyLineupJoin, v1.05,
-## mock-up toy_shelf_unlock.html option B), and a capsule that completes its aisle ends on the
+## Once the reveal's hold is over the icon flies into the drawn machine's lineup card by itself
+## (ToyLineupJoin, v1.05, mock-up toy_shelf_unlock.html option B; no OK since 2026-11-11), and a
+## capsule that completes its aisle ends on the
 ## COMPLETED! card and the machine's SOLD OUT. Until the join's beats the screen holds what the
 ## draw changed (the FIGURINES count, the machine's plate, window and SOLD OUT state, and
 ## COLLECTION COMPLETE): only COINS changes at the draw.
@@ -54,15 +59,15 @@ const UNKNOWN_COINS := "?"
 const HINT_TEXT := "PICK A MACHINE: %s A CAPSULE."
 const FULL_BANNER := "COLLECTION COMPLETE"
 const FULL_HINT := (
-	"EVERY FIGURINE IS ON YOUR SHELF. " + "YOUR COINS KEEP ADDING UP ON THE FINAL RECEIPT."
+	"EVERY FIGURINE IS IN YOUR BOOK. " + "YOUR COINS KEEP ADDING UP ON THE FINAL RECEIPT."
 )
 const BROKE_NOTICE := "NO COINS LEFT. RUNS THAT PASS SHIFT 4 PAY COINS ON THE FINAL RECEIPT."
 const OFF_NOTICE := (
 	"YOUR COLLECTION CAN'T BE SAVED RIGHT NOW, " + "SO THE TOY MACHINES ARE SWITCHED OFF."
 )
-const SHELF_TEXT := "FIGURINE SHELF"
-## The run's regulars, which the COMPLETED! card's swap rows count (the starter's core cards).
+const SHELF_TEXT := "FIGURINE BOOK"
 const DONE_TEXT := "DONE"
+const DONE_SOUND := "ui_back"
 ## The machines' row, in canvas px (twice the art px): six from MACHINE_X0, fewer centred in
 ## 0..ROW_WIDTH; MACHINE_PITCH apart. The row holds FULL_ROW machines at most: a seventh would
 ## stand on the doors (a layout test keeps the balance's aisles within it).
@@ -99,7 +104,7 @@ const COMPLETE_TOP := 289
 const COMPLETE_HEIGHT := 38
 const COMPLETE_CAP_TOPS: Array[int] = [6, 25]
 const STRIP_PADDING := Vector2i(12, 12)
-## FIGURINE SHELF (the 120x28 primary plate in teal) and DONE (the 80x28 primary plate), in
+## FIGURINE BOOK (the 120x28 primary plate in teal) and DONE (the 80x28 primary plate), in
 ## canvas px.
 const SHELF_BUTTON_RECT := Rect2(40, 656, 240, 56)
 const SHELF_FRAMES: Array[Texture2D] = [
@@ -140,19 +145,21 @@ var _strip: ToyLed
 var _strip_kind: Strip = Strip.HINT
 var _lineup: ToyLineup
 var _shelf_button: MenuPlate
+var _new_tag: ToyNewTag
 var _done_button: MenuPlate
 var _reveal: ToyReveal
-var _shelf: FigurineShelf
+var _book: FigurineBook
 ## The machine whose lineup shows: the one under the pointer or picked with the arrow keys.
 var _hovered: ToyMachineView
 var _shown_coins: int = -1
 var _coins_hop: Tween
 var _join: ToyLineupJoin
 ## What the screen holds back from the draw until the join's beats: "aisle" (the drawn one),
-## "left" (its items shown left) and "owned" (the FIGURINES count shown), until the tick and the
-## SOLD OUT; "strip" (no COLLECTION COMPLETE yet), until the collection beat.
+## "left" (its items shown left), "owned" (the FIGURINES count shown) and "new" (whether the
+## book button's NEW tag showed), until the tick and the SOLD OUT; "strip" (no COLLECTION COMPLETE
+## yet), until the collection beat.
 var _hold: Dictionary = {}
-## The draw's join, between the draw and the reveal's OK.
+## The draw's join, between the draw and the end of the reveal's hold.
 var _pending: Dictionary = {}
 
 
@@ -189,12 +196,11 @@ func _init() -> void:
 	_machines_layer.add_child(_lineup)
 	_machines_layer.move_child(_lineup, _board.get_index() + 1)  # Its chains pass behind the LEDs.
 	_reveal = ToyReveal.new()
-	_reveal.stay_on_dismiss = true
-	_reveal.dismissed.connect(_on_reveal_dismissed)
+	_reveal.held.connect(_on_reveal_held)
 	_stage.add_child(_reveal)
-	_shelf = FigurineShelf.new()
-	_shelf.back_pressed.connect(_close_shelf)
-	_stage.add_child(_shelf)
+	_book = FigurineBook.new()
+	_book.back_pressed.connect(_close_shelf)
+	_stage.add_child(_book)
 	_join = ToyLineupJoin.new()
 	_join.setup(_lineup, _reveal, _figurines_chip, _machines_layer, _board, _strip)
 	_join.beat.connect(_on_join_beat)
@@ -215,7 +221,7 @@ func open(capsules: CapsuleCounter, balance: BalanceDefinition) -> void:
 	_pending = {}
 	_build_machines()
 	_reveal.visible = false
-	_shelf.visible = false
+	_book.visible = false
 	_machines_layer.visible = true
 	_shown_coins = -1
 	_street.still = _reduced_motion()
@@ -230,7 +236,7 @@ func close() -> void:
 		return
 	_join.finish()
 	_reveal.visible = false
-	_shelf.visible = false
+	_book.visible = false
 	visible = false
 	closed.emit()
 
@@ -290,8 +296,8 @@ func lineup() -> ToyLineup:
 	return _lineup
 
 
-func shelf() -> FigurineShelf:
-	return _shelf
+func book() -> FigurineBook:
+	return _book
 
 
 func reveal() -> ToyReveal:
@@ -326,8 +332,6 @@ static func copy() -> PackedStringArray:
 			OFF_NOTICE,
 			SHELF_TEXT,
 			DONE_TEXT,
-			CapsuleCounter.NEXT_RUN_LINE,
-			CapsuleCounter.AFTER_SAVED_RUN_LINE,
 			ToyMachineView.LEFT_TEXT,
 			ToyMachineView.SOLD_OUT_TEXT,
 			ToyExitArt.SOLD_OUT_WORDS,
@@ -336,20 +340,27 @@ static func copy() -> PackedStringArray:
 			ToyLineup.TITLE_TEXT,
 			ToyExitArt.TAPE_WORDS[0],
 			ToyExitArt.TAPE_WORDS[1],
-			ToyReveal.NEW_TEXT,
-			ToyReveal.OK_TEXT,
-			ToyReveal.TIP_TEXT,
 			ToyLineupJoin.NEW_TEXT,
+			ToyNewTag.TEXT,
 			ToyLineup.COLLECTED_TEXT,
-			FigurineShelf.TITLE_TEXT,
-			FigurineShelf.NONE_TEXT,
-			FigurineShelf.DONE_TEXT,
-			FigurineShelf.FRESH_TEXT,
-			FigurineShelf.HINT_TEXT,
-			FigurineShelf.BACK_TEXT,
+			FigurineBook.TITLE_TEXT,
+			FigurineBook.CARDS_TEXT,
+			FigurineBook.NEW_TEXT,
+			FigurineBook.NEWEST_HEADER,
+			FigurineBook.FOOD_TEXT,
+			FigurineBook.NON_FOOD_TEXT,
+			FigurineBook.SORT_PREFIX,
+			FigurineBook.FAMILY_PREFIX,
+			FigurineBook.ALL_TEXT,
+			FigurineBook.OTHER_ITEMS_TEXT,
+			FigurineBook.EMPTY_TEXT,
+			FigurineBook.PAGE_TEXT,
+			FigurineBook.BACK_TEXT,
+			BookCard.PLAIN_TEXT,
 		]
 	)
 	words.append_array(ToyCompletedCard.copy())
+	words.append_array(FigurineBook.SORT_CAPTIONS)
 	return words
 
 
@@ -364,12 +375,13 @@ static func row_x0(count: int) -> float:
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	# The screen's own keys: nothing starts behind it (the title's Enter and Space). Left and
-	# Right pick a machine as the pointer would (its look and lineup), Escape lets it go.
+	# Right pick a machine as the pointer would (its look and lineup), Escape lets it go, or
+	# closes the screen as DONE does when none is picked.
 	var key: InputEventKey = event as InputEventKey
 	if not visible or key == null or not key.pressed:
 		return
 	get_viewport().set_input_as_handled()
-	if _reveal.visible or _shelf.visible or _join.is_active() or _machines.is_empty():
+	if _reveal.visible or _book.visible or _join.is_active() or _machines.is_empty():
 		return
 	match key.keycode:
 		KEY_RIGHT, KEY_LEFT:
@@ -379,7 +391,11 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			var next: int = (0 if step > 0 else count - 1) if current < 0 else current + step
 			_select(_machines[posmod(next, count)])
 		KEY_ESCAPE:
-			_select(null)
+			if _machines.find(_hovered) >= 0:
+				_select(null)
+			elif not key.echo:
+				Sfx.play_at(self, DONE_SOUND)
+				close()
 
 
 ## The LEDs, the hanging board and the EXIT lightbox's word.
@@ -418,10 +434,13 @@ func _build_footer() -> void:
 	_shelf_button.position = SHELF_BUTTON_RECT.position
 	_shelf_button.pressed.connect(func() -> void: Sfx.play_at(self, UiKit.CLICK_SOUND))
 	_shelf_button.pressed.connect(_open_shelf)
+	_new_tag = ToyNewTag.new()
+	_new_tag.position = ToyNewTag.ON_BUTTON
+	_shelf_button.add_child(_new_tag)
 	_done_button = MenuPlate.new(DONE_TEXT, MenuPlate.Kind.PRIMARY, DONE_BUTTON_RECT.size)
 	_done_button.centre_caption()
 	_done_button.position = DONE_BUTTON_RECT.position
-	_done_button.pressed.connect(func() -> void: Sfx.play_at(self, "ui_back"))
+	_done_button.pressed.connect(func() -> void: Sfx.play_at(self, DONE_SOUND))
 	_done_button.pressed.connect(close)
 	for plate: MenuPlate in [_shelf_button, _done_button] as Array[MenuPlate]:
 		plate.tick().position.x = -BUTTON_TICK_LEFT
@@ -521,6 +540,8 @@ func _refresh() -> void:
 			aisle, left, aisle.capsule_cards.size(), state, _counter.price()
 		)
 	_show_chips(can_save, coins, owned)
+	var fresh: bool = bool(_hold.get("new", not _counter.new_figurines().is_empty()))
+	_new_tag.set_shown(fresh, _reduced_motion())
 	if spent and not _reduced_motion():
 		_pop_coins()
 	if not can_save:
@@ -620,7 +641,7 @@ func _show_hover() -> void:
 		_hovered != null
 		and _hovered.state() != CapsuleCounter.State.OFF
 		and not _reveal.visible
-		and not _shelf.visible
+		and not _book.visible
 	)
 	if lineup_up:
 		var centre: int = roundi(_hovered.position.x / ArtStyle.ART_SCALE) + MACHINE_CENTRE
@@ -650,7 +671,7 @@ func _select(machine: ToyMachineView) -> void:
 	_show_hover()
 
 
-## Every machine cooled and no lineup (the reveal or the shelf covers them).
+## Every machine cooled and no lineup (the reveal or the book covers them).
 func _cool_machines() -> void:
 	for machine: ToyMachineView in _machines:
 		machine.clear_hover()
@@ -674,7 +695,7 @@ func _reduced_motion() -> bool:
 
 
 func _on_machine_picked(aisle: AisleDefinition) -> void:
-	if _reveal.visible or _shelf.visible or _join.is_active() or _counter == null:
+	if _reveal.visible or _book.visible or _join.is_active() or _counter == null:
 		return
 	var profile: ProfileState = _counter.profile
 	var before: Dictionary = profile.unlocked_items.duplicate()
@@ -682,6 +703,7 @@ func _on_machine_picked(aisle: AisleDefinition) -> void:
 		"aisle": aisle,
 		"left": _counter.items_left(aisle),
 		"owned": profile.owned_capsules(_balance),
+		"new": not _counter.new_figurines().is_empty(),
 		"strip": true,
 	}
 	var kept: bool = _lineup.visible and _hovered != null and _hovered.aisle() == aisle
@@ -695,30 +717,26 @@ func _on_machine_picked(aisle: AisleDefinition) -> void:
 	_refresh()
 	Sfx.play_at(self, "coin")
 	_cool_machines()
-	_reveal.show_card(card, aisle, _counter.stock_line())
+	_reveal.still = _reduced_motion()
+	_reveal.show_card(card)
 	_show_hover()
 
 
-## The reveal's OK: the figurine joins its lineup card.
-func _on_reveal_dismissed() -> void:
+## The reveal's hold is over: the icon flies into its lineup card.
+func _on_reveal_held() -> void:
 	if _pending.is_empty():
 		_reveal.leave(1.0)
 		_refresh()
 		return
 	var aisle: AisleDefinition = _pending["aisle"]
 	var profile: ProfileState = _counter.profile
-	var completed: Array[AisleDefinition] = []
-	if CapsuleDraw.is_empty(aisle, profile.unlocked_items):
-		completed = StartSetupRules.completed(_balance, profile)
+	var completed: bool = (
+		CapsuleDraw.is_empty(aisle, profile.unlocked_items)
+		and StartSetupRules.completed(_balance, profile).has(aisle)
+	)
 	var all_done: bool = profile.owned_capsules(_balance) == CapsuleDraw.capsule_count(_balance)
 	var index: int = _balance.aisles.find(aisle)
-	var starter: DeckDefinition = load(ShiftScreen.STARTER_DECK) as DeckDefinition
-	var options: Dictionary = {
-		"reduced": _reduced_motion(),
-		"regulars": starter.core_cards.size() if starter != null else 0,
-		"saved_run": _counter.stock_line() == CapsuleCounter.AFTER_SAVED_RUN_LINE,
-		"collection": all_done,
-	}
+	var options: Dictionary = {"reduced": _reduced_motion(), "collection": all_done}
 	_join.play(
 		_pending["card"],
 		aisle,
@@ -726,7 +744,6 @@ func _on_reveal_dismissed() -> void:
 		_lamps[index],
 		_pending["before"],
 		completed,
-		_balance,
 		options
 	)
 	_pending = {}
@@ -739,6 +756,7 @@ func _on_join_beat(id: StringName) -> void:
 		&"tick":
 			_hold["left"] = _counter.items_left(_hold["aisle"]) if _hold.has("aisle") else 0
 			_hold.erase("owned")
+			_hold.erase("new")
 		&"sold":
 			_hold.erase("aisle")
 			_hold.erase("left")
@@ -754,16 +772,27 @@ func _on_join_finished() -> void:
 	_refresh()
 
 
+## Opening the FIGURINE BOOK shows every new figurine: its cards wear the NEW tag this time
+## (CapsuleCounter.new_figurines, read first), then they are marked seen and saved
+## (CapsuleCounter.mark_all_seen) and the button's NEW tag goes.
 func _open_shelf() -> void:
 	if _reveal.visible:
 		return
-	_shelf.show_collection(_balance, _counter.profile.unlocked_items)
+	_book.show_collection(
+		_balance,
+		_counter.profile.unlocked_items,
+		_counter.profile.coupon_uses,
+		_counter.new_figurines(),
+		_reduced_motion()
+	)
+	_counter.mark_all_seen()
+	_new_tag.set_shown(false, true)
 	_cool_machines()
-	_shelf.visible = true
+	_book.visible = true
 	_machines_layer.visible = false
 
 
 func _close_shelf() -> void:
-	_shelf.visible = false
+	_book.visible = false
 	_machines_layer.visible = true
 	_refresh()

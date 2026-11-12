@@ -69,7 +69,7 @@ func test_phase_2_cards_score_the_design_examples(
 		["clearance_tag,bread,day_old_buns", 10],
 		# Opening deal in the first slot: Soup pays 5 x5 (0 + 25 + 5).
 		["opening_deal,soup,bread", 30],
-		# Fruit & veg since the Produce links (#128): Grapefruit 2; a lone Banana 2 + 3; the
+		# Produce aisle since the Produce links (#128): Grapefruit 2; a lone Banana 2 + 3; the
 		# Lemon, Strawberries and Wonky carrot out of place (1, 2, 2); Fruit salad 2 + 3 x 5
 		# kinds. Then the helpers in place: Grapefruit 2; Strawberries 2 + 3 (Grapefruit); Banana
 		# 2 + 1; the Lemon knot 1; Banana 2 + 3 x 2 + 1; Wonky carrot 2 + 2 x 2; Fruit salad

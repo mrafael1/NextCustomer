@@ -23,10 +23,6 @@ signal switched_off
 ## profile can't be saved, so no machine works.
 enum State { OK, EMPTY, BROKE, OFF }
 
-## The stock lines of the reveal (DECIDE_63), by where the draw's item first rides.
-const NEXT_RUN_LINE := "In stock from your next run"
-const AFTER_SAVED_RUN_LINE := "In stock after your saved run"
-
 ## The profile the draws change. Read it for the coins and the collection; change it only here.
 var profile: ProfileState
 var _saves: SaveService
@@ -70,11 +66,6 @@ func run_index() -> int:
 	return profile.capsule_run_index(_has_saved_run)
 
 
-## The reveal's stock line: NEXT_RUN_LINE, or AFTER_SAVED_RUN_LINE while a run is saved.
-func stock_line() -> String:
-	return AFTER_SAVED_RUN_LINE if _has_saved_run else NEXT_RUN_LINE
-
-
 ## The aisle's capsule items still in its machine.
 func items_left(aisle: AisleDefinition) -> int:
 	return CapsuleDraw.items_left(aisle, profile.unlocked_items).size()
@@ -90,6 +81,34 @@ func machine_state(aisle: AisleDefinition) -> State:
 	if profile.coins < price():
 		return State.BROKE
 	return State.OK
+
+
+## The figurines drawn and not yet seen in the FIGURINE BOOK (v1.26), in draw order: the
+## book button's NEW tag and the book's NEW cards show while there are any. Only the ones the
+## book can show count: a capsule item of the balance the profile owns (a stale id, from an item
+## removed from the data or a hand-edited profile, never tags the button with nothing to show).
+func new_figurines() -> Array[StringName]:
+	var shown: Array[StringName] = []
+	for id: StringName in profile.new_figurines:
+		if profile.unlocked_items.has(id) and _is_capsule_item(id):
+			shown.append(id)
+	return shown
+
+
+## The FIGURINE BOOK (or a card in it) has shown `ids`: they are no longer new. Saves the
+## profile when that changed anything and saves work; returns whether the change is saved (false
+## when nothing changed, saves are off or the save failed: the change then stays in memory and
+## rides the next save). A failed save here doesn't switch the machines off: no coin or item is
+## at stake.
+func mark_seen(ids: Array[StringName]) -> bool:
+	if not profile.mark_figurines_seen(ids) or not _can_save:
+		return false
+	return _saves.save_profile(profile)
+
+
+## Every new figurine seen at once (the book opened), stale ids included.
+func mark_all_seen() -> bool:
+	return mark_seen(profile.new_figurines.duplicate())
 
 
 ## Draws a capsule from the aisle's machine and saves the profile: the item, or null when the
@@ -134,3 +153,11 @@ func draw(aisle: AisleDefinition, spend: bool = true) -> CardDefinition:
 			"debug", {"action": "capsule", "machine": String(aisle.id), "item": String(card.id)}
 		)
 	return card
+
+
+func _is_capsule_item(id: StringName) -> bool:
+	for aisle: AisleDefinition in _balance.aisles:
+		for card: CardDefinition in aisle.capsule_cards:
+			if card != null and card.id == id:
+				return true
+	return false

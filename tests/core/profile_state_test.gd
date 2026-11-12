@@ -104,12 +104,13 @@ func test_the_saved_form_round_trips_through_json() -> void:
 	assert_dict(read.settings).is_equal({"volume": 0.5, "reduced_motion": true})
 	assert_array(read.worn_pins).is_equal([&"repack"])
 	assert_int(read.pins_bought).is_equal(1)
+	assert_array(read.new_figurines).is_equal([&"melon", &"apple"])
 
 
 func test_the_saved_form_states_its_format_version() -> void:
 	var data: Dictionary = ProfileState.new().to_dictionary()
 	assert_int(data["format_version"]).is_equal(ProfileState.FORMAT_VERSION)
-	assert_int(ProfileState.FORMAT_VERSION).is_equal(5)
+	assert_int(ProfileState.FORMAT_VERSION).is_equal(6)
 
 
 func test_missing_fields_keep_defaults_and_unknown_ones_are_ignored() -> void:
@@ -395,6 +396,7 @@ static func _full_profile() -> ProfileState:
 	profile.unlocked_pins.append(&"repack")
 	profile.worn_pins.append(&"repack")
 	profile.pins_bought = 1
+	profile.new_figurines.assign([&"melon", &"apple"])
 	return profile
 
 

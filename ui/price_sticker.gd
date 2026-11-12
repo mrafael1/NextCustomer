@@ -460,16 +460,22 @@ func _add_glyphs(definition: CardDefinition, families: FamilyPalette) -> void:
 
 ## The look of a ticket with no family colours: the coupon teal (a plain coupon), else cream.
 static func fallback_style(definition: CardDefinition) -> FamilyStyle:
-	var style: FamilyStyle = FamilyStyle.new()
 	if definition.is_coupon():
-		style.face = Palette.TEAL_SHADE
-		style.light = Palette.TEAL
-		style.shade = Palette.TEAL_DARK
-		style.paper_text = true
-	else:
-		style.face = Palette.CREAM_SHADE
-		style.light = Palette.CREAM
-		style.shade = Palette.CREAM_DARKEST
+		return coupon_teal()
+	var style: FamilyStyle = FamilyStyle.new()
+	style.face = Palette.CREAM_SHADE
+	style.light = Palette.CREAM
+	style.shade = Palette.CREAM_DARKEST
+	return style
+
+
+## The coupon teal: the ticket colours of a coupon that works with no family (paper words).
+static func coupon_teal() -> FamilyStyle:
+	var style: FamilyStyle = FamilyStyle.new()
+	style.face = Palette.TEAL_SHADE
+	style.light = Palette.TEAL
+	style.shade = Palette.TEAL_DARK
+	style.paper_text = true
 	return style
 
 

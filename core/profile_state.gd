@@ -27,8 +27,10 @@ extends RefCounted
 ## Version 4 adds staple_swaps, stock_pair and the optional stock_run_only (the opening-time
 ## board's last choice); older profiles read with none set. Version 5 (v1.08) drops staple_swaps:
 ## regular swaps belong to their run only (the user: "swap should reset at each new run"), so a
-## version 4 profile's saved swaps are read past and never applied.
-const FORMAT_VERSION := 5
+## version 4 profile's saved swaps are read past and never applied. Version 6 (v1.26) adds
+## new_figurines (figurines drawn and not yet seen in the FIGURINE BOOK); older profiles read
+## with nothing new.
+const FORMAT_VERSION := 6
 ## The settings key of the count-up's speed (full build plan 6.2): COUNT_UP_NORMAL or
 ## COUNT_UP_FAST, read with count_up_speed().
 const COUNT_UP_SPEED_KEY := "count_up_speed"
@@ -51,6 +53,9 @@ var run_count: int = 0
 ## Unlocked capsule items: id -> the run index at whose exit it came out, in draw order
 ## (RunStock's `unlocked`).
 var unlocked_items: Dictionary[StringName, int] = {}
+## Capsule items drawn but not yet seen in the FIGURINE BOOK (v1.26: its button's NEW tag), in
+## draw order. draw_capsule adds the item; mark_figurines_seen takes items off.
+var new_figurines: Array[StringName] = []
 ## The last shopping list (aisle ids), the next list's default (full build plan 7.2).
 var last_list: Array[StringName] = []
 ## The opening-time board's saved deal-source pair (its two STARTER CART aisles).
@@ -208,6 +213,8 @@ func draw_capsule(
 	var card: CardDefinition = CapsuleDraw.draw(aisle, unlocked_items, rng)
 	coins -= price
 	unlocked_items[card.id] = run_index
+	if not new_figurines.has(card.id):
+		new_figurines.append(card.id)
 	capsule_draws += 1
 	return card
 
@@ -217,7 +224,19 @@ func draw_capsule(
 func undo_capsule(card: CardDefinition, price: int, previous_draws: int) -> void:
 	if unlocked_items.erase(card.id):
 		coins += price
+	new_figurines.erase(card.id)
 	capsule_draws = previous_draws
+
+
+## Takes `ids` off the new figurines (seen in the book). Returns whether anything changed (the
+## caller saves then).
+func mark_figurines_seen(ids: Array[StringName]) -> bool:
+	var changed: bool = false
+	for id: StringName in ids:
+		while new_figurines.has(id):
+			new_figurines.erase(id)
+			changed = true
+	return changed
 
 
 ## The unlocked items that are capsule items of the balance's aisles (the FIGURINES count).
@@ -244,6 +263,7 @@ func unlock_all_capsules(balance: BalanceDefinition, run_index: int) -> void:
 ## restarts at 0, so the same draws come out again.
 func reset_collection() -> void:
 	unlocked_items.clear()
+	new_figurines.clear()
 	capsule_draws = 0
 	last_list.clear()
 	stock_pair.clear()
@@ -261,6 +281,7 @@ func to_dictionary() -> Dictionary:
 		"coins": coins,
 		"run_count": run_count,
 		"unlocked_items": items,
+		"new_figurines": _strings(new_figurines),
 		"last_list": _strings(last_list),
 		"stock_pair": _strings(stock_pair),
 		"stock_run_only": String(stock_run_only),
@@ -283,7 +304,8 @@ func to_dictionary() -> Dictionary:
 ## isn't a profile this version can read: a missing or newer format version, or a field of
 ## the wrong type (a capsule seed that isn't "" or a decimal of 0 or more). Version 1 reads
 ## with no capsule seed and 0 draws, version 2 with no pins, version 4's staple_swaps are
-## ignored. Unknown fields are ignored; missing fields keep their defaults.
+## ignored, version 5 and older with no new figurines. Unknown fields are ignored; missing
+## fields keep their defaults.
 static func from_dictionary(data: Dictionary) -> ProfileState:
 	var version: Variant = data.get("format_version")
 	if not _is_whole(version) or int(version) < 1 or int(version) > FORMAT_VERSION:
@@ -293,6 +315,7 @@ static func from_dictionary(data: Dictionary) -> ProfileState:
 	ok = ok and _read_int(data, "coins", profile, "coins")
 	ok = ok and _read_int(data, "run_count", profile, "run_count")
 	ok = ok and _read_items(data.get("unlocked_items", []), profile.unlocked_items)
+	ok = ok and _read_names(data.get("new_figurines", []), profile.new_figurines)
 	ok = ok and _read_names(data.get("last_list", []), profile.last_list)
 	ok = ok and _read_names(data.get("stock_pair", []), profile.stock_pair)
 	var run_only: Variant = data.get("stock_run_only", "")
