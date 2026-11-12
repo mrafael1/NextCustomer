@@ -83,7 +83,7 @@ func test_an_older_profile_reads_unchanged_with_nothing_new() -> void:
 	assert_array(read.worn_pins).is_equal([&"repack"])
 	assert_bool(read.reduced_motion()).is_true()
 	var saved: Dictionary = read.to_dictionary()
-	assert_int(saved["format_version"]).is_equal(6)
+	assert_int(saved["format_version"]).is_equal(ProfileState.FORMAT_VERSION)
 	assert_array(saved["new_figurines"]).is_empty()
 
 

@@ -31,16 +31,24 @@ extends Control
 ## the other GLYPH_PITCH apart, down the window's left edge clear of the figurine; each is a
 ## FamilyGlyph, naming its family in the game's tip (the book's GlyphTips) when the pointer rests
 ## on it; it takes no clicks, so the card under it still lifts.
+##
+## Round 10 (v1.30, decided with the user 2026-11-12): a loyalty perk's card (BookEntry.for_perk)
+## is in the LOYALTY teal (perks_family_style, the same on every perk), its name the perk's (LV 1),
+## the PERKS mark for its first glyph and the family it boosts for its second (a family perk's).
+## Its window (BookArt's perk window) holds the perk's stamp from the top bar's LOYALTY card
+## (LoyaltyCard.make_ring: its icon, its family's ring, an Aisle run's tag) at PERK_RING_SCALE,
+## with no level badge: the level pips in the window's bottom right light up to the highest level
+## picked (a perk that never levels up has none). Its description is the perk's LV 1 rule as the
+## LOYALTY ticket prints it (effect_text; families and keywords as chips). No price, never NEW.
+## Not picked yet: the shared grey face with its ?, no stamp and no pips, name and rule readable.
 
 ## The card in canvas px.
 const SIZE := Vector2(180, 240)
 ## Its name's row (the band, inside the rim) and the pixel words' cap top in it; a number in a
-## name (the coupon 2 for 1) sits NAME_GAP art px from its words (round 3: at 2 it read "2FOR1");
-## a name too wide sets its words NAME_TIGHT_GAP art px apart.
+## name (the coupon 2 for 1) sits NAME_GAP art px from its words (round 3: at 2 it read "2FOR1").
 const NAME_RECT := Rect2(8, 6, 164, 26)
 const NAME_CAP_TOP := 12.0
 const NAME_GAP := 4
-const NAME_TIGHT_GAP := 1
 ## The family glyph (9x9 art at 2x) in the window's top left.
 const GLYPH_AT := Vector2(12, 40)
 const GLYPH_SIZE := Vector2(18, 18)
@@ -75,10 +83,21 @@ const COUPONS_NAME := "Coupons"
 ## The book's OTHER FOOD group (round 6, BookEntry.OTHER_FOOD): its FAMILY option and its
 ## pages' header.
 const OTHER_FOOD_NAME := "Other food"
+## The book's loyalty perks as a family (round 10, BookEntry.PERK_FAMILY): their FAMILY option
+## and their pages' header, with the PERKS mark.
+const PERKS_NAME := "Perks"
+const PERK_MARK := preload("res://art/icons/family_perk.png")
+## A perk's stamp (LoyaltyCard.make_ring's chip, CHIP_BOX_SIZE) drawn PERK_RING_SCALE times in the
+## window, its top left PERK_RING_AT (centred in the window on the 2 px grid, standing on
+## BookArt.PERK_FLOOR); its level pips' top left (BookArt.PIPS_RECT at 2x).
+const PERK_RING_SCALE := 3.0
+const PERK_RING_AT := Vector2(50, 46)
+const PIPS_AT := Vector2(134, 120)
 ## How far the pointer lifts a card out of its pocket, in art px.
 const LIFT := 2
 
-## Each card's tier (its index in TEXT_TIERS), by card id, found the first time it is shown.
+## Each card's tier (its index in TEXT_TIERS), by card id (a perk's by perk_key), found the
+## first time it is shown.
 static var _tiers: Dictionary[StringName, int] = {}
 
 var _entry: BookEntry
@@ -89,6 +108,8 @@ var _figurine: TextureRect
 var _price: Label
 var _description: Control
 var _new_tag: ToyNewTag
+var _ring: Control
+var _pips: TextureRect
 var _rest_y: float = 0.0
 
 
@@ -106,15 +127,21 @@ func _init(
 	var body: Color = style.face if coloured else Palette.CREAM_SHADE
 	var light: Color = style.light if coloured else Palette.CREAM
 	var shade: Color = style.shade if coloured else Palette.GREY
-	_face = UiKit.sprite(BookArt.card_face(body, light, shade, grey, item.coupon))
+	var perk: bool = item.is_perk()
+	_face = UiKit.sprite(BookArt.card_face(body, light, shade, grey, item.coupon, perk))
 	_face.size = SIZE
 	add_child(_face)
 	var ink: Color = Palette.PAPER if coloured and style.paper_text and not grey else Palette.INK
-	_name = _make_name(item.card.display_name.to_upper(), ink)
+	_name = _make_name(item.display_name().to_upper(), ink)
 	add_child(_name)
 	var looks: FamilyPalette = palette if palette != null else FamilyPalette.shared()
 	var glyphs: Array[FamilyStyle] = []
-	if item.coupon and style != null:
+	if perk:
+		glyphs.append(perks_family_style())
+		var boosted: FamilyStyle = looks.style(item.perk.boosts_tag)
+		if not item.perk.boosts_tag.is_empty() and boosted != null:
+			glyphs.append(boosted)
+	elif item.coupon and style != null:
 		glyphs.append(style)
 	elif not item.coupon:
 		glyphs = looks.styles(glyph_families(item, looks))
@@ -127,7 +154,9 @@ func _init(
 		glyph.size = GLYPH_SIZE
 		add_child(glyph)
 		_glyphs.append(glyph)
-	if not grey and item.coupon:
+	if perk:
+		_add_perk_window(item, grey)
+	elif not grey and item.coupon:
 		_figurine = ItemView.item_art(item.card)
 		_figurine.name = "Figurine"
 		_figurine.position = coupon_slip_at()
@@ -146,7 +175,10 @@ func _init(
 		)
 		_price.position = (PRICE_RECT.get_center() - _price.size / 2.0).round()
 		add_child(_price)
-	_description = _make_description(item.card)
+	if perk:
+		_description = _make_description(item.perk.effect_text.strip_edges(), perk_key(item.perk))
+	else:
+		_description = _make_description(description_text(item.card), item.card.id)
 	add_child(_description)
 	if is_new:
 		_new_tag = ToyNewTag.new()
@@ -193,6 +225,16 @@ func new_tag() -> ToyNewTag:
 	return _new_tag
 
 
+## A perk card's stamp (null when not picked yet, or not a perk) and level pips (null too on a
+## perk that never levels up).
+func perk_ring() -> Control:
+	return _ring
+
+
+func level_pips() -> TextureRect:
+	return _pips
+
+
 ## The description's text rect in this card's coordinates.
 func description_rect() -> Rect2:
 	var glyphs: GlyphLabel = _description as GlyphLabel
@@ -221,14 +263,12 @@ func set_lifted(lifted: bool) -> void:
 
 
 ## The name in hard pixel words (PixelLine, as every word at the TOY MACHINES) on the band, its
-## cap top NAME_CAP_TOP down; a name too wide for NAME_RECT sets its words NAME_TIGHT_GAP apart,
-## and one still too wide falls back to the bold body font (ItemName.make's fallback, as the Cart
-## prints a long name).
+## cap top NAME_CAP_TOP down; a name too wide for NAME_RECT falls back to the bold body font
+## (ItemName.make's fallback, as the Cart prints a long name). Round 10: no tighter word gap first,
+## since at 1 art px (the letter spacing) or 2 CATEGORY ENGINE read as one word.
 func _make_name(text: String, ink: Color) -> Control:
 	var line: PixelLine = PixelLine.new()
 	line.show_tokens(PixelLine.split(text), ink, ink, 1, NAME_GAP)
-	if line.width() > NAME_RECT.size.x:
-		line.show_tokens(Array(text.split(" ", false)), ink, ink, 1, NAME_TIGHT_GAP)
 	if line.width() <= NAME_RECT.size.x:
 		line.name = "ItemName"
 		line.position = Vector2(NAME_RECT.position.x, NAME_CAP_TOP)
@@ -250,10 +290,42 @@ func _make_name(text: String, ink: Color) -> Control:
 	return label
 
 
-## The card's rule in plain language, at the first tier that fits TEXT_AREA (else the smallest);
-## the tier is found once per card id and kept, so later pages lay the rule out once.
-func _make_description(card: CardDefinition) -> Control:
-	var text: String = description_text(card)
+## A perk card's window (round 10): when picked, the perk's stamp (LoyaltyCard.make_ring of its
+## LV 1, so no level badge) at PERK_RING_SCALE, taking no pointer (the card under it lifts), and
+## the level pips of a perk that levels up.
+func _add_perk_window(item: BookEntry, grey: bool) -> void:
+	if grey:
+		return
+	var ring: PanelContainer = LoyaltyCard.make_ring(item.perk)
+	ring.name = "PerkRing"
+	ring.tooltip_text = ""
+	_ignore_pointer(ring)
+	ring.size = LoyaltyCard.CHIP_BOX_SIZE
+	ring.scale = Vector2.ONE * PERK_RING_SCALE
+	ring.position = PERK_RING_AT
+	add_child(ring)
+	_ring = ring
+	if item.levels > 1:
+		var pips: Texture2D = BookArt.level_pips(item.level, item.levels)
+		_pips = UiKit.sprite(pips)
+		_pips.name = "LevelPips"
+		_pips.size = pips.get_size() * ArtStyle.ART_SCALE
+		_pips.position = PIPS_AT
+		add_child(_pips)
+
+
+static func _ignore_pointer(node: Node) -> void:
+	var control: Control = node as Control
+	if control != null:
+		control.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for child: Node in node.get_children():
+		_ignore_pointer(child)
+
+
+## The card's rule in plain language (`text`, "" for none), at the first tier that fits TEXT_AREA
+## (else the smallest); the tier is found once per `key` (a card id, or perk_key) and kept, so
+## later pages lay the rule out once.
+func _make_description(text: String, key: StringName) -> Control:
 	if text.is_empty():
 		var plain: Label = UiKit.body_label(PLAIN_TEXT, TEXT_TIERS[0].x, Palette.MUTED_INK)
 		plain.add_theme_font_override("font", ArtStyle.bold_font(TEXT_WEIGHT))
@@ -262,14 +334,14 @@ func _make_description(card: CardDefinition) -> Control:
 		plain.size = Vector2(TEXT_AREA.size.x, 0)
 		return plain
 	var label: GlyphLabel = null
-	if _tiers.has(card.id):
-		label = _glyph_label(text, TEXT_TIERS[_tiers[card.id]])
+	if _tiers.has(key):
+		label = _glyph_label(text, TEXT_TIERS[_tiers[key]])
 	else:
 		for index: int in TEXT_TIERS.size():
 			var tier: Vector2i = TEXT_TIERS[index]
 			label = _glyph_label(text, tier)
 			var rows: int = floori(TEXT_AREA.size.y / tier.y)
-			_tiers[card.id] = index
+			_tiers[key] = index
 			if label.fits() and label.line_count() <= rows:
 				break
 			if index < TEXT_TIERS.size() - 1:
@@ -343,12 +415,24 @@ static func coupons_family_style(palette: FamilyPalette) -> FamilyStyle:
 	return _with_coupon_mark(PriceSticker.coupon_teal(), palette)
 
 
+## The perks' FAMILY option, page header and cards (round 10): the LOYALTY teal (the coupon
+## teal), the PERKS mark and PERKS_NAME.
+static func perks_family_style() -> FamilyStyle:
+	var look: FamilyStyle = PriceSticker.coupon_teal()
+	look.id = BookEntry.PERK_FAMILY
+	look.display_name = PERKS_NAME
+	look.glyph = PERK_MARK
+	return look
+
+
 ## A FAMILY option's and page header's look for `family`: the coupons' (coupons_family_style),
-## OTHER FOOD's (round 6: the Food family's colours and glyph, named OTHER_FOOD_NAME), else the
-## family's own (null when the palette has none).
+## the perks' (perks_family_style), OTHER FOOD's (round 6: the Food family's colours and
+## glyph, named OTHER_FOOD_NAME), else the family's own (null when the palette has none).
 static func family_style(family: String, palette: FamilyPalette) -> FamilyStyle:
 	if family == BookEntry.COUPON_FAMILY:
 		return coupons_family_style(palette)
+	if family == BookEntry.PERK_FAMILY:
+		return perks_family_style()
 	if family != BookEntry.OTHER_FOOD:
 		return palette.style(family)
 	var food: FamilyStyle = palette.style(BookEntry.FOOD_TAG)
@@ -380,3 +464,13 @@ static func description_text(card: CardDefinition) -> String:
 ## The TEXT_TIERS index `card`'s rule was laid out at (-1: not shown yet), for tests.
 static func tier_of(card: CardDefinition) -> int:
 	return _tiers.get(card.id, -1)
+
+
+## The TEXT_TIERS index `perk`'s rule was laid out at (-1: not shown yet), for tests.
+static func perk_tier_of(perk: UpgradeDefinition) -> int:
+	return _tiers.get(perk_key(perk), -1)
+
+
+## The key a perk's tier is kept under, apart from the card ids.
+static func perk_key(perk: UpgradeDefinition) -> StringName:
+	return StringName("perk:%s" % perk.id)

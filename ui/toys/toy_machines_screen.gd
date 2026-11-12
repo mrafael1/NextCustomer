@@ -356,6 +356,9 @@ static func copy() -> PackedStringArray:
 			FigurineBook.PAGE_TEXT,
 			FigurineBook.BACK_TEXT,
 			BookCard.PLAIN_TEXT,
+			BookCard.COUPONS_NAME,
+			BookCard.OTHER_FOOD_NAME,
+			BookCard.PERKS_NAME,
 		]
 	)
 	words.append_array(ToyCompletedCard.copy())
@@ -782,7 +785,8 @@ func _open_shelf() -> void:
 		_counter.profile.unlocked_items,
 		_counter.profile.coupon_uses,
 		_counter.new_figurines(),
-		_reduced_motion()
+		_reduced_motion(),
+		_counter.profile.perk_levels
 	)
 	_counter.mark_all_seen()
 	_new_tag.set_shown(false, true)

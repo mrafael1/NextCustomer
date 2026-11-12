@@ -13,7 +13,9 @@ extends RefCounted
 ## card's face in its family's colours (or grey, not collected yet, with a big ? where the
 ## figurine stands; a coupon's, round 3, in its ticket colours with no plinth and no price
 ## sticker: its window has the cart reveal's tomato scissors line instead) and the sleeves' sheen
-## laid over a card (round 7 dropped the divider tabs).
+## laid over a card (round 7 dropped the divider tabs). Round 10: a loyalty perk's card face
+## (its window lit like a coupon's, with no scissors line, plinth or sticker: the perk's stamp
+## stands in it on a shade floor) and its level pips (level_pips).
 
 ## The stage in art px.
 const STAGE := Vector2i(640, 360)
@@ -58,6 +60,13 @@ const COUPON_MARK_CLEAR := Rect2i(5, 19, 11, 11)
 ## A card not collected yet (review fix: grey read like an owned Household card): a pale empty
 ## sleeve card in pale grey, its ink outline broken every GREY_DASH texels, its window slate.
 const GREY_DASH := 3
+## A perk card's window (round 10): the floor line under its stamp (BookCard.PERK_RING_AT's
+## ring, art px in the card), and its level pips' place in the window's bottom right, each pip
+## PIP art px square, PIP_GAP apart.
+const PERK_FLOOR := Rect2i(27, 62, 36, 1)
+const PIPS_RECT := Rect2i(67, 60, 17, 5)
+const PIP := 5
+const PIP_GAP := 1
 ## The title board's height (TOY MACHINES' hanging board's style, its words a label on it).
 const TITLE_BOARD_HEIGHT := 25
 
@@ -81,13 +90,16 @@ static func backdrop() -> ImageTexture:
 ## A card's face (CARD_SIZE) in `face`, `light` and `shade` (a family's ticket colours), or grey
 ## with the ? in the window when `grey` (not collected yet; the colours are then ignored); a
 ## `coupon`'s window has the scissors line and no plinth or sticker (a grey coupon's is the
-## shared grey face).
+## shared grey face); a `perk`'s (round 10) has no plinth, sticker or scissors line, and a
+## floor line under its stamp (a grey perk's is the shared grey face too).
 static func card_face(
-	face: Color, light: Color, shade: Color, grey: bool, coupon: bool = false
+	face: Color, light: Color, shade: Color, grey: bool, coupon: bool = false, perk: bool = false
 ) -> ImageTexture:
 	coupon = coupon and not grey
+	perk = perk and not grey
 	var key: String = "card_grey" if grey else "card_%s_%s_%s" % [face, light, shade]
 	key += "_coupon" if coupon else ""
+	key += "_perk" if perk else ""
 	if not _layers.has(key):
 		if grey:
 			face = Palette.GREY_LIGHT
@@ -105,7 +117,9 @@ static func card_face(
 		art.rect(Rect2i(w - 2, 1, 1, h - 2), shade)
 		if grey:
 			_dash_outline(art)
-		if coupon:
+		if perk:
+			_paint_perk_window(art, light, shade)
+		elif coupon:
 			_paint_coupon_window(art, light, shade)
 		else:
 			_paint_window(art, light, shade, grey)
@@ -232,6 +246,39 @@ static func _paint_coupon_window(art: StorefrontArt, light: Color, shade: Color)
 	for dash: Vector2i in dashes:
 		if not COUPON_MARK_CLEAR.has_point(dash):
 			art.rect(Rect2i(dash, Vector2i.ONE), Palette.TOMATO)
+
+
+## A perk's window (round 10): lit like a coupon's, with no scissors line, plinth or sticker,
+## and a `shade` floor line under where its stamp stands (PERK_FLOOR).
+static func _paint_perk_window(art: StorefrontArt, light: Color, shade: Color) -> void:
+	_inset(art, WINDOW_RECT, shade)
+	var inner: Rect2i = WINDOW_RECT.grow(-1)
+	art.rect(inner, Palette.CREAM)
+	art.dither(Rect2i(inner.position, Vector2i(inner.size.x, 20)), light, 2)
+	art.dither(Rect2i(inner.position + Vector2i(0, 20), Vector2i(inner.size.x, 12)), light, 1)
+	art.rect(PERK_FLOOR, shade)
+
+
+## A perk's level pips (round 10): `levels` pips (PIP square, clipped corners, ink outline,
+## PIP_GAP apart), the first `reached` lit mustard with a mustard light glint, the others teal
+## dark.
+static func level_pips(reached: int, levels: int) -> ImageTexture:
+	var key: String = "pips_%d_%d" % [reached, levels]
+	if not _layers.has(key):
+		var width: int = maxi(levels * (PIP + PIP_GAP) - PIP_GAP, 1)
+		var art: StorefrontArt = StorefrontArt.new(Vector2i(width, PIP), Vector2i.ZERO)
+		for pip: int in levels:
+			var x: int = pip * (PIP + PIP_GAP)
+			var lit: bool = pip < reached
+			art.rect(Rect2i(x + 1, 0, PIP - 2, PIP), Palette.INK)
+			art.rect(Rect2i(x, 1, PIP, PIP - 2), Palette.INK)
+			art.rect(
+				Rect2i(x + 1, 1, PIP - 2, PIP - 2), Palette.MUSTARD if lit else Palette.TEAL_DARK
+			)
+			if lit:
+				art.px(x + 1, 1, Palette.MUSTARD_LIGHT)
+		_layers[key] = ImageTexture.create_from_image(art.image)
+	return _layers[key]
 
 
 ## The big ? of a card not collected yet: pale grey blocks with an ink shadow.

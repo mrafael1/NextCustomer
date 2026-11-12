@@ -1,0 +1,14 @@
+; The PERKS mark (v1.30 round 10, the FIGURINE BOOK's PERKS group and FAMILY option): a tiny
+; loyalty stamp, a mustard ring lit from the top left with an ink outline round a teal punch,
+; the LOYALTY card's stamp at glyph size. 9x9, shown at 2x like the family glyphs.
+@size 9x9
+@kind icon
+..#####..
+.#yMMMm#.
+#yM###Mm#
+#M#554#m#
+#M#543#m#
+#M#433#m#
+#mM###mm#
+.#mmmmm#.
+..#####..

@@ -20,6 +20,10 @@ extends GdUnitTestSuite
 ## inside the window and clear of the figurine and the price; pixel words draw their hyphens.
 ## Round 8: FAMILY is a ribbon bookmark over the binder's top edge (clear of the pockets and the
 ## headers, book_dropdowns_test) and SORT's plate stands in the top bar, where FAMILY's stood.
+## Round 10: the LOYALTY perks close the book after the coupons, in the LOYALTY teal with the
+## perk's stamp at 3x and its level pips, grey until picked in an ended run; never NEW, no price;
+## the CARDS LED and the PERKS header count them; a family perk shows under its family too
+## (book_perks_test).
 
 const Kit := preload("res://tests/ui/toy_test_kit.gd")
 const STAGE := Rect2(0, 0, 1280, 720)
@@ -65,7 +69,7 @@ func test_every_card_fits_its_pocket_in_every_view() -> void:
 			assert_int(cards.size()).is_between(1, FigurineBook.PER_SPREAD)
 			for index: int in cards.size():
 				var card: BookCard = cards[index]
-				seen[card.entry().card.id] = true
+				seen[card.entry().key()] = true
 				var rect: Rect2 = card.get_global_rect()
 				var side: int = 0 if rect.position.x < BookArt.SPINE_RECT.position.x * art else 1
 				var page: Rect2 = _art_rect(BookArt.PAGE_RECTS[side])
@@ -126,10 +130,15 @@ func test_owned_cards_are_in_colour_and_the_rest_grey() -> void:
 	var book: FigurineBook = await _book(profile, [])
 	book.set_filter("Bakery")
 	var cards: Array[BookCard] = book.cards()
-	assert_int(cards.size()).is_equal(10)
+	# Round 10: Bakery's two perks (Bakery regulars, Bakery aisle run) after its ten items.
+	assert_int(cards.size()).is_equal(12)
 	var grey_faces: Array[Texture2D] = []
 	for card: BookCard in cards:
 		var entry: BookEntry = card.entry()
+		if entry.is_perk():
+			assert_bool(entry.owned).is_false()
+			grey_faces.append(card.face().texture)
+			continue
 		var owned: bool = entry.starter or profile.unlocked_items.has(entry.card.id)
 		assert_bool(entry.owned).is_equal(owned)
 		assert_bool(card.figurine() != null).is_equal(owned)
@@ -143,7 +152,7 @@ func test_owned_cards_are_in_colour_and_the_rest_grey() -> void:
 		else:
 			grey_faces.append(card.face().texture)
 	# Every grey card shares the one grey face; Bakery's owned faces are another.
-	assert_int(grey_faces.size()).is_equal(10 - 2 - 3)
+	assert_int(grey_faces.size()).is_equal(12 - 2 - 3)
 	for face: Texture2D in grey_faces:
 		assert_object(face).is_same(grey_faces[0])
 	assert_object(cards[0].face().texture).is_not_same(grey_faces[0])
@@ -163,7 +172,7 @@ func test_owned_cards_are_in_colour_and_the_rest_grey() -> void:
 	var owned_face: Image = cards[0].face().texture.get_image()
 	assert_float(owned_face.get_pixel(BookArt.GREY_DASH * 3, 0).a).is_equal(1.0)
 	# The count: Bread, Crackers and Day-old buns are starters, two Bakery capsules drawn.
-	assert_str(book.header(0).text()).is_equal("BAKERY 5/10")
+	assert_str(book.header(0).text()).is_equal("BAKERY 5/12")
 	await _frames(2)
 
 
@@ -179,9 +188,10 @@ func test_the_coupons_close_the_book() -> void:
 	var pool: int = Kit.balance().coupon_pool.size()
 	var book: FigurineBook = await _book(profile, [&"repeat"])
 	var families: PackedStringArray = book.families()
-	assert_str(families[-1]).is_equal(BookEntry.COUPON_FAMILY)
+	# Round 10: COUPONS just before PERKS, the last option.
+	assert_str(families[-2]).is_equal(BookEntry.COUPON_FAMILY)
 	var menu: PixelDropdown = book.family_menu()
-	var last: int = families.size() - 1
+	var last: int = families.size() - 2
 	assert_str(menu.option_line(last).text()).is_equal("COUPONS")
 	var mark: Texture2D = FamilyPalette.shared().style(BookEntry.COUPON_FAMILY).glyph
 	var icon: TextureRect = (
@@ -249,7 +259,7 @@ func test_new_cards_wear_the_tag_and_their_options_a_dot() -> void:
 	for index: int in families.size():
 		var family: String = families[index]
 		var fresh_here: Callable = func(entry: BookEntry) -> bool:
-			return fresh.has(entry.card.id) and (family.is_empty() or entry.has_family(family))
+			return fresh.has(entry.key()) and (family.is_empty() or entry.has_family(family))
 		var expected: bool = entries.any(fresh_here)
 		if expected:
 			dotted.append(family)
@@ -261,7 +271,7 @@ func test_new_cards_wear_the_tag_and_their_options_a_dot() -> void:
 		book.set_filter(filter)
 		await _frames(2)
 		for card: BookCard in book.cards():
-			var is_new: bool = fresh.has(card.entry().card.id)
+			var is_new: bool = fresh.has(card.entry().key())
 			assert_bool(card.new_tag() != null).is_equal(is_new)
 			if is_new:
 				var tag: Rect2 = card.new_tag().get_global_rect()
@@ -371,6 +381,8 @@ func test_a_card_stacks_its_families_glyphs() -> void:
 			if entry.coupon:
 				assert_int(glyphs.size()).is_equal(1)
 				continue
+			if entry.is_perk():
+				continue  # Round 10: test_perk_cards_show_their_ring_pips_and_grey_state.
 			assert_int(glyphs.size()).is_equal(families.size())
 			if families.size() > 1:
 				assert_bool(families.has(BookEntry.FOOD_TAG)).is_false()
@@ -498,7 +510,7 @@ func test_the_food_sort_shows_every_food_card() -> void:
 	var entries: Array[BookEntry] = _entries(profile)
 	var food: Dictionary[StringName, bool] = {}
 	for entry: BookEntry in entries:
-		if not entry.coupon and entry.card.tags.has("Food"):
+		if entry.is_food():
 			food[entry.card.id] = true
 	assert_bool(book.families().has("Frozen")).is_false()
 	book.set_sort(BookOrder.Sort.FOOD)
@@ -550,7 +562,7 @@ func test_the_food_sort_shows_every_food_card() -> void:
 	for spread: int in book.spread_count():
 		await _frames(1)
 		for card: BookCard in book.cards():
-			var id: StringName = card.entry().card.id
+			var id: StringName = card.entry().key()
 			all_seen[id] = all_seen.get(id, 0) + 1
 		book.turn(1)
 		book.page_turn().finish()
@@ -728,6 +740,8 @@ func test_the_next_spread_is_built_ahead() -> void:
 	for card: BookCard in book.find_children("*", "BookCard", true, false):
 		if not card.is_visible_in_tree():
 			ahead.append(card)
+			if card.entry().is_perk():
+				continue
 			var rule: CardDefinition = card.entry().card
 			if not BookCard.description_text(rule).is_empty():
 				var tier: int = BookCard.tier_of(rule)
@@ -803,12 +817,12 @@ func _assert_card_fits(card: BookCard) -> void:
 	var name_box: Rect2 = Rect2(card.name_control().position, _name_size(card))
 	(
 		assert_bool(name_rect.grow(0.5).encloses(name_box))
-		. override_failure_message("%s name %s" % [card.entry().card.id, name_box])
+		. override_failure_message("%s name %s" % [card.entry().key(), name_box])
 		. is_true()
 	)
 	(
 		assert_bool(card.description_fits())
-		. override_failure_message("%s rule %s" % [card.entry().card.id, card.description_rect()])
+		. override_failure_message("%s rule %s" % [card.entry().key(), card.description_rect()])
 		. is_true()
 	)
 	if card.figurine() != null and card.entry().coupon:
@@ -845,7 +859,7 @@ func _assert_glyphs_fit(card: BookCard) -> void:
 	var glyphs: Array[TextureRect] = card.family_glyphs()
 	for index: int in glyphs.size():
 		var rect: Rect2 = glyphs[index].get_rect()
-		var id: String = str(card.entry().card.id)
+		var id: String = str(card.entry().key())
 		assert_bool(window.encloses(rect)).override_failure_message(id + str(rect)).is_true()
 		assert_float(fmod(rect.position.y, ArtStyle.ART_SCALE)).is_equal(0.0)
 		if index > 0:
@@ -951,7 +965,8 @@ static func _entries(profile: ProfileState) -> Array[BookEntry]:
 		Kit.balance(),
 		profile.unlocked_items,
 		FamilyPalette.shared().main_family_order,
-		profile.coupon_uses
+		profile.coupon_uses,
+		profile.perk_levels
 	)
 
 
@@ -959,7 +974,14 @@ func _book(profile: ProfileState, fresh: Array[StringName], still: bool = false)
 	var book: FigurineBook = FigurineBook.new()
 	add_child(book)
 	auto_free(book)
-	book.show_collection(Kit.balance(), profile.unlocked_items, profile.coupon_uses, fresh, still)
+	book.show_collection(
+		Kit.balance(),
+		profile.unlocked_items,
+		profile.coupon_uses,
+		fresh,
+		still,
+		profile.perk_levels
+	)
 	book.visible = true
 	await _frames(3)
 	return book

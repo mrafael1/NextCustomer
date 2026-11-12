@@ -5,6 +5,9 @@ extends RefCounted
 ## `next_level`; a level-up replaces the perk in its own loyalty box, so the box count never
 ## grows. Pure and static: callers pass the run's upgrades.
 
+## The top loyalty level (LV 3).
+const MAX_LEVEL := 3
+
 
 ## The index of the owned perk of the same family as `perk`, or -1.
 static func owned_index(upgrades: Array[UpgradeDefinition], perk: UpgradeDefinition) -> int:
@@ -45,3 +48,28 @@ static func is_level_up(perk: UpgradeDefinition) -> bool:
 ## Whether the run owns the level just below `perk` (so it can be taken as a level-up).
 static func owns_previous(upgrades: Array[UpgradeDefinition], perk: UpgradeDefinition) -> bool:
 	return upgrades.any(func(upgrade: UpgradeDefinition) -> bool: return upgrade.next_level == perk)
+
+
+## The highest level picked from the machine per perk (its LV 1 id, UpgradeDefinition.family),
+## from these shifts' visits (ShiftRecord.registers_taken: new perks and level-ups; never a deck's
+## starting_upgrade). The FIGURINE BOOK's PERKS read it (v1.30 round 10, ProfileState.perk_levels).
+static func picked_levels(history: Array[ShiftRecord]) -> Dictionary[StringName, int]:
+	var found: Dictionary[StringName, int] = {}
+	for record: ShiftRecord in history:
+		for perk: UpgradeDefinition in record.registers_taken():
+			if perk == null:
+				continue
+			var id: StringName = perk.family()
+			found[id] = maxi(found.get(id, 0), perk.level_number())
+	return found
+
+
+## How many levels `perk`'s chain has from it (1 for a perk that never levels up), following
+## next_level (at most MAX_LEVEL levels, so a loop in the data can't hang).
+static func chain_length(perk: UpgradeDefinition) -> int:
+	var levels: int = 1
+	var step: UpgradeDefinition = perk.next_level if perk != null else null
+	while step != null and levels < MAX_LEVEL:
+		levels += 1
+		step = step.next_level
+	return levels

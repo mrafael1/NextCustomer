@@ -10,9 +10,10 @@ extends GdUnitTestSuite
 ## pockets and the page headers. Open, SORT's list hangs under its plate, the ribbon's paper strip
 ## unrolls under the ribbon (its rows below the ribbon's foot), each inside the stage, clear of
 ## the footer, every option inside it with its words and dot on its face. FAMILY
-## lists ALL, the families in palette order, OTHER FOOD and COUPONS, each with its glyph; SORT
-## BOOK ORDER, NEWEST, FOOD and NON-FOOD, applied within the family (BREAKFAST + NON-FOOD: its
-## non-food cards, the header "BREAKFAST · NON-FOOD n/m"; a pick showing nothing says NO CARDS).
+## lists ALL, the families in palette order, OTHER FOOD, COUPONS and PERKS (round 10), each with
+## its glyph; SORT BOOK ORDER, NEWEST, FOOD and NON-FOOD, applied within the family (BREAKFAST +
+## NON-FOOD: its non-food cards, the header "BREAKFAST · NON-FOOD n/m"; a pick showing nothing says
+## NO CARDS).
 ## The mouse and the keys drive them; only one list is open at a time; a click outside closes it
 ## and does nothing more; Esc closes the open list before it leaves the book. Checked at 1280x720
 ## and through the TOY MACHINES in a 1920x1080 window.
@@ -130,8 +131,9 @@ func test_the_dropdowns_sit_on_the_stage_closed_and_open(
 		for option: MenuPlate in options.slice(1):
 			assert_bool(option.is_lit()).is_false()
 		menu.close_list()
-	# The options: FAMILY's ALL then every family (its glyph first), OTHER FOOD, COUPONS; SORT's
-	# the four sorts.
+	# The options: FAMILY's ALL then every family (its glyph first), OTHER FOOD, COUPONS, PERKS
+	# (round 10: eleven rows, the open strip still inside the stage, above); SORT's the four sorts.
+	assert_int(family.options().size()).is_equal(11)
 	var captions: Array[String] = []
 	for index: int in family.options().size():
 		captions.append(family.option_line(index).text())
@@ -153,6 +155,7 @@ func test_the_dropdowns_sit_on_the_stage_closed_and_open(
 				"CLEARANCE",
 				"OTHER FOOD",
 				"COUPONS",
+				"PERKS",
 			]
 		)
 	)
@@ -268,6 +271,40 @@ func test_the_ribbon_shows_the_family_picked() -> void:
 	await _frames(2)
 
 
+## Round 10: the ribbon's last option is PERKS with the PERKS mark; picking it shows the perks,
+## the ribbon in the LOYALTY teal with the mark, the strip's swatch teal with paper words; Up
+## from ALL wraps to PERKS, Down from PERKS back to ALL.
+func test_the_ribbon_picks_perks() -> void:
+	var book: FigurineBook = await _book(Kit.profile(0, 0))
+	var menu: FamilyRibbon = book.family_menu()
+	var last: int = book.families().size() - 1
+	assert_str(book.families()[last]).is_equal(BookEntry.PERK_FAMILY)
+	assert_str(menu.option_line(last).text()).is_equal("PERKS")
+	var icons: Array[Node] = menu.option_line(last).find_children("*", "TextureRect", false, false)
+	assert_object((icons[0] as TextureRect).texture).is_same(BookCard.PERK_MARK)
+	assert_object(menu.dot(last)).is_null()
+	menu.plate().pressed.emit()
+	menu.options()[last].pressed.emit()
+	await _frames(2)
+	assert_str(book.filter()).is_equal(BookEntry.PERK_FAMILY)
+	assert_object(menu.emblem().texture).is_same(BookCard.PERK_MARK)
+	var cloth: Image = menu.cloth().texture.get_image()
+	assert_bool(_near(cloth.get_pixelv(Vector2i(6, 20)), Palette.TEAL_SHADE)).is_true()
+	for card: BookCard in book.cards():
+		assert_bool(card.entry().is_perk()).is_true()
+	assert_str(book.header(0).text()).starts_with("PERKS 0/")
+	var frame: StyleBoxTexture = (
+		menu.options()[last].face().get_theme_stylebox("panel") as StyleBoxTexture
+	)
+	assert_bool(_near(frame.texture.get_image().get_pixel(4, 8), Palette.TEAL_SHADE)).is_true()
+	book._unhandled_key_input(Kit.key(KEY_DOWN))
+	assert_str(book.filter()).is_equal("")
+	book._unhandled_key_input(Kit.key(KEY_UP))
+	assert_str(book.filter()).is_equal(BookEntry.PERK_FAMILY)
+	assert_int(menu.value()).is_equal(last)
+	await _frames(2)
+
+
 ## Each sort within each family shows the cards carrying the family that the sort keeps (FOOD
 ## its food cards, NON-FOOD the others, NEWEST and BOOK ORDER all of them), once each, headed
 ## "<FAMILY> · <SORT> n/m" (BOOK ORDER: "<FAMILY> n/m"); under ALL, "FOOD n/m", "NON-FOOD n/m",
@@ -310,8 +347,8 @@ func test_each_sort_applies_within_the_family() -> void:
 						assert_str(header.text()).is_equal(expected + " " + count)
 				for card: BookCard in book.cards():
 					var entry: BookEntry = card.entry()
-					assert_bool(seen.has(entry.card.id)).is_false()
-					seen.append(entry.card.id)
+					assert_bool(seen.has(entry.key())).is_false()
+					seen.append(entry.key())
 					assert_bool(BookOrder.shows(entry, sort, family)).is_true()
 				book.turn(1)
 				book.page_turn().finish()

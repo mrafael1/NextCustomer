@@ -19,6 +19,10 @@ extends GdUnitTestSuite
 ## Round 7 (the FAMILY dropdown; FAMILY became the BOOK sort): a sort applies within the family
 ## picked (BREAKFAST + NON_FOOD: its non-food cards, Coffee and Tea bags among them), and a pick
 ## that shows nothing gives no page.
+## Round 10 (v1.30, decided with the user 2026-11-12): the loyalty perks of the live pool
+## (balance.upgrade_pool, one card per level chain) close the book after the coupons, owned once
+## picked in an ended run (the profile's perk_levels), their FAMILY option PERKS after COUPONS; a
+## family perk also shows under its family; perks are never Food and never change the item groups.
 
 const Kit := preload("res://tests/ui/toy_test_kit.gd")
 const PER_PAGE := 6
@@ -36,7 +40,7 @@ func test_every_product_once_with_starters_owned() -> void:
 				expected.append(card.id)
 	var ids: Array[StringName] = []
 	for entry: BookEntry in book:
-		if entry.coupon:
+		if entry.coupon or entry.is_perk():
 			continue
 		ids.append(entry.card.id)
 		assert_bool(entry.card.is_product()).is_true()
@@ -48,7 +52,10 @@ func test_every_product_once_with_starters_owned() -> void:
 	for aisle: AisleDefinition in balance.aisles:
 		starters += aisle.base_cards.size()
 	var coupons: int = _pool_coupons(balance).size()
-	assert_object(BookOrder.count(book)).is_equal(Vector2i(starters, expected.size() + coupons))
+	var perks: int = balance.upgrade_pool.size()
+	assert_object(BookOrder.count(book)).is_equal(
+		Vector2i(starters, expected.size() + coupons + perks)
+	)
 
 
 func test_the_families_follow_the_palette_with_cards_only() -> void:
@@ -56,10 +63,12 @@ func test_the_families_follow_the_palette_with_cards_only() -> void:
 	var book: Array[BookEntry] = _book(Kit.profile(0, 0))
 	var families: PackedStringArray = BookOrder.families(book, order)
 	var last: int = -1
-	assert_str(families[-1]).is_equal(BookEntry.COUPON_FAMILY)
+	# Round 10: PERKS last, after COUPONS.
+	assert_str(families[-1]).is_equal(BookEntry.PERK_FAMILY)
+	assert_str(families[-2]).is_equal(BookEntry.COUPON_FAMILY)
 	# Round 6: OTHER FOOD just before COUPONS.
-	assert_str(families[-2]).is_equal(BookEntry.OTHER_FOOD)
-	for family: String in families.slice(0, families.size() - 2):
+	assert_str(families[-3]).is_equal(BookEntry.OTHER_FOOD)
+	for family: String in families.slice(0, families.size() - 3):
 		var at: int = order.find(family)
 		assert_int(at).is_greater(last)
 		last = at
@@ -94,7 +103,7 @@ func test_family_pages_start_each_family_on_its_own_page() -> void:
 	# Each card once under ALL (round 4: a card carrying several families isn't repeated).
 	assert_int(seen.size()).is_equal(book.size())
 	for entry: BookEntry in book:
-		assert_int(seen.count(entry)).override_failure_message(str(entry.card.id)).is_equal(1)
+		assert_int(seen.count(entry)).override_failure_message(str(entry.key())).is_equal(1)
 	# Inside a family, data order.
 	for family: String in families:
 		var in_book: Array = book.filter(func(e: BookEntry) -> bool: return e.group == family)
@@ -109,13 +118,15 @@ func test_a_family_filter_keeps_every_card_carrying_that_family() -> void:
 	var book: Array[BookEntry] = _book(Kit.profile(0, 0))
 	var carrying: Array[BookEntry] = []
 	for entry: BookEntry in book:
-		if not entry.coupon and entry.card.tags.has("Produce"):
+		if entry.is_perk() and entry.perk.boosts_tag == "Produce":
+			carrying.append(entry)  # Round 10: the Produce perks too.
+		elif not entry.coupon and not entry.is_perk() and entry.card.tags.has("Produce"):
 			carrying.append(entry)
 	for sort: BookOrder.Sort in [BookOrder.Sort.BOOK, BookOrder.Sort.NEWEST]:
 		var shown: Array[BookEntry] = _shown(book, sort, "Produce")
 		assert_int(shown.size()).is_equal(carrying.size())
 		for entry: BookEntry in carrying:
-			assert_bool(shown.has(entry)).override_failure_message(str(entry.card.id)).is_true()
+			assert_bool(shown.has(entry)).override_failure_message(str(entry.key())).is_true()
 	assert_int(BookOrder.count(book, "Produce").y).is_equal(carrying.size())
 	# The group's own count (the ALL pages' header) stays its group's cards: Breakfast fewer
 	# than the cards carrying it.
@@ -185,7 +196,7 @@ func test_other_food_takes_the_small_families_and_the_food_main_cards() -> void:
 			assert_str(family).is_equal("Produce")
 		if page_groups.is_empty() or page_groups[-1] != family:
 			page_groups.append(family)
-	assert_str(page_groups[-2]).is_equal(BookEntry.OTHER_FOOD)
+	assert_str(page_groups[-3]).is_equal(BookEntry.OTHER_FOOD)
 	assert_int(_shown(book, BookOrder.Sort.BOOK, "").count(peas)).is_equal(1)
 	# FOOD and NON-FOOD unchanged: every food card, every other card.
 	var food: Array[BookEntry] = _shown(book, BookOrder.Sort.FOOD, "")
@@ -260,7 +271,7 @@ func test_food_and_non_food_split_the_book() -> void:
 	var other: Array[BookEntry] = []
 	var mains: PackedStringArray = PackedStringArray()
 	for entry: BookEntry in book:
-		if not entry.coupon and entry.card.tags.has("Food"):
+		if entry.is_food():
 			food.append(entry)
 			if not mains.has(entry.family):
 				mains.append(entry.family)
@@ -270,6 +281,9 @@ func test_food_and_non_food_split_the_book() -> void:
 	for id: StringName in [&"coffee", &"tea_bags", &"batteries"]:
 		assert_bool(other.has(_entry(book, id))).override_failure_message(str(id)).is_true()
 	assert_bool(other.any(func(e: BookEntry) -> bool: return e.coupon)).is_true()
+	# Round 10: the whole book, the perks among the non-food cards.
+	assert_bool(other.any(func(e: BookEntry) -> bool: return e.is_perk())).is_true()
+	assert_bool(food.any(func(e: BookEntry) -> bool: return e.is_perk())).is_false()
 	assert_int(food.size() + other.size()).is_equal(book.size())
 	for split: Array in [[BookOrder.Sort.FOOD, food], [BookOrder.Sort.NON_FOOD, other]]:
 		var sort: BookOrder.Sort = split[0]
@@ -288,9 +302,10 @@ func test_food_and_non_food_split_the_book() -> void:
 		var ranks: PackedStringArray = order.duplicate()
 		ranks.append("")
 		ranks.append(BookEntry.COUPON_FAMILY)
+		ranks.append(BookEntry.PERK_FAMILY)
 		var last: int = -1
 		for entry: BookEntry in shown:
-			assert_bool(kept.has(entry)).override_failure_message(str(entry.card.id)).is_true()
+			assert_bool(kept.has(entry)).override_failure_message(str(entry.key())).is_true()
 			var at: int = ranks.find(entry.family)
 			assert_int(at).is_greater_equal(last)
 			last = at
@@ -324,7 +339,7 @@ func test_a_card_shows_under_each_family_it_carries() -> void:
 	for entry: BookEntry in _shown(book, BookOrder.Sort.NEWEST, BookEntry.OTHER_FOOD):
 		assert_bool(entry.has_family(BookEntry.OTHER_FOOD)).is_true()
 	# A coupon only ever shows under COUPONS.
-	var coupon: BookEntry = book[-1]
+	var coupon: BookEntry = book.filter(func(e: BookEntry) -> bool: return e.coupon)[-1]
 	assert_bool(coupon.coupon).is_true()
 	assert_bool(coupon.has_family(BookEntry.COUPON_FAMILY)).is_true()
 	assert_bool(coupon.has_family("Food") or coupon.has_family("")).is_false()
@@ -387,11 +402,12 @@ func test_a_card_with_no_family_shows_under_all_only() -> void:
 	assert_int(count).is_equal(book.size())
 
 
-## Every coupon of the live pools once, after the items, in pool order (coupon_pool, then the
-## first offer's others), in the coupons' family; owned once played (a use counted at a run's
-## end). The profile goes through the save's JSON first: coupon_uses keeps no play order there
-## (its keys come back sorted), so the played coupons stay in book order in NEWEST too.
-func test_the_coupons_come_last_owned_once_played() -> void:
+## Every coupon of the live pools once, after the items and before the perks (round 10), in pool
+## order (coupon_pool, then the first offer's others), in the coupons' family; owned once played
+## (a use counted at a run's end). The profile goes through the save's JSON first: coupon_uses
+## keeps no play order there (its keys come back sorted), so the played coupons stay in book
+## order in NEWEST too.
+func test_the_coupons_then_the_perks_come_last_coupons_owned_once_played() -> void:
 	var balance: BalanceDefinition = Kit.balance()
 	var played_profile: ProfileState = Kit.profile(0, 0)
 	played_profile.coupon_uses[&"two_for_one"] = 1
@@ -404,7 +420,9 @@ func test_the_coupons_come_last_owned_once_played() -> void:
 	var book: Array[BookEntry] = _book(profile)
 	var pool: Array[StringName] = _pool_coupons(balance)
 	assert_int(pool.size()).is_greater(0)
-	var coupons: Array[BookEntry] = book.slice(book.size() - pool.size())
+	var perks: int = balance.upgrade_pool.size()
+	var items: int = book.size() - pool.size() - perks
+	var coupons: Array[BookEntry] = book.slice(items, items + pool.size())
 	var ids: Array[StringName] = []
 	for entry: BookEntry in coupons:
 		ids.append(entry.card.id)
@@ -414,20 +432,26 @@ func test_the_coupons_come_last_owned_once_played() -> void:
 		var played: bool = profile.coupon_uses.get(entry.card.id, 0) > 0
 		assert_bool(entry.owned).override_failure_message(str(entry.card.id)).is_equal(played)
 	assert_array(ids).is_equal(pool)
-	for entry: BookEntry in book.slice(0, book.size() - pool.size()):
-		assert_bool(entry.coupon).is_false()
+	for entry: BookEntry in book.slice(0, items):
+		assert_bool(entry.coupon or entry.is_perk()).is_false()
+	for entry: BookEntry in book.slice(items + pool.size()):
+		assert_bool(entry.is_perk()).is_true()
 	assert_object(BookOrder.count(book, BookEntry.COUPON_FAMILY)).is_equal(Vector2i(2, pool.size()))
 	# FAMILY: the coupons' pages are the last, coupons only.
 	var order: PackedStringArray = FamilyPalette.shared().main_family_order
 	var pages: Array[Array] = BookOrder.pages(book, BookOrder.Sort.BOOK, "", PER_PAGE, order)
 	var coupon_pages: int = ceili(pool.size() / float(PER_PAGE))
-	for page: Array in pages.slice(pages.size() - coupon_pages):
+	var perk_pages: int = ceili(perks / float(PER_PAGE))
+	var tail_pages: Array[Array] = pages.slice(pages.size() - coupon_pages - perk_pages)
+	for page: Array in tail_pages.slice(0, coupon_pages):
 		assert_str(BookOrder.page_family(page)).is_equal(BookEntry.COUPON_FAMILY)
+	for page: Array in tail_pages.slice(coupon_pages):
+		assert_str(BookOrder.page_family(page)).is_equal(BookEntry.PERK_FAMILY)
 	# NEWEST: after every item, the played coupons, then the ones not played yet, each in book
 	# order (the order they were played in is not saved).
 	var newest: Array[BookEntry] = BookOrder.newest_first(book)
 	var tail: Array[StringName] = []
-	for entry: BookEntry in newest.slice(newest.size() - pool.size()):
+	for entry: BookEntry in newest.slice(items, items + pool.size()):
 		tail.append(entry.card.id)
 	var played_ids: Array[StringName] = []
 	for id: StringName in pool:
@@ -435,7 +459,7 @@ func test_the_coupons_come_last_owned_once_played() -> void:
 			played_ids.append(id)
 	assert_int(played_ids.size()).is_equal(2)
 	assert_array(tail.slice(0, 2)).is_equal(played_ids)
-	for entry: BookEntry in newest.slice(newest.size() - pool.size() + 2):
+	for entry: BookEntry in newest.slice(items + 2):
 		assert_bool(entry.owned).is_false()
 	# The coupons' filter keeps the coupons only.
 	var filtered: Array[Array] = BookOrder.pages(
@@ -447,6 +471,123 @@ func test_the_coupons_come_last_owned_once_played() -> void:
 			assert_bool(entry.coupon).is_true()
 			count += 1
 	assert_int(count).is_equal(pool.size())
+
+
+## Round 10: one card per perk of balance.upgrade_pool (its LV 1 files: no level file, no Rule
+## bender), in pool order, last, in PERK_FAMILY; owned per the profile's perk_levels, the level
+## clamped to the chain; 3 levels for a chain, 1 for a perk that never levels up.
+func test_the_perks_close_the_book() -> void:
+	var balance: BalanceDefinition = Kit.balance()
+	var profile: ProfileState = Kit.profile(0, 0)
+	profile.perk_levels = {&"dairy_regulars": 2, &"banana_stand": 1, &"coupon_engine": 9}
+	var book: Array[BookEntry] = _book(profile)
+	var pool: Array[UpgradeDefinition] = balance.upgrade_pool
+	assert_int(pool.size()).is_equal(28)
+	var perks: Array[BookEntry] = book.slice(book.size() - pool.size())
+	for index: int in pool.size():
+		var entry: BookEntry = perks[index]
+		var perk: UpgradeDefinition = pool[index]
+		assert_bool(entry.is_perk()).is_true()
+		assert_object(entry.card).is_null()
+		assert_object(entry.perk).is_same(perk)
+		assert_int(perk.level_number()).is_equal(1)
+		assert_str(entry.family).is_equal(BookEntry.PERK_FAMILY)
+		assert_str(entry.group).is_equal(BookEntry.PERK_FAMILY)
+		assert_int(entry.levels).is_equal(3 if perk.next_level != null else 1)
+		var picked: int = profile.perk_levels.get(perk.id, 0)
+		assert_int(entry.level).is_equal(mini(picked, entry.levels))
+		assert_bool(entry.owned).override_failure_message(str(perk.id)).is_equal(picked > 0)
+		assert_int(entry.collected_at).is_equal(0 if picked > 0 else -1)
+		assert_bool(entry.starter or entry.coupon or entry.is_food()).is_false()
+	for entry: BookEntry in book.slice(0, book.size() - pool.size()):
+		assert_bool(entry.is_perk()).is_false()
+	var ids: Array = perks.map(func(e: BookEntry) -> StringName: return e.key())
+	assert_bool(ids.has(&"rule_bender") or ids.has(&"dairy_regulars_lv2")).is_false()
+	assert_int(_entry(book, &"coupon_engine").level).is_equal(3)
+	assert_int(_entry(book, &"banana_stand").levels).is_equal(1)
+	assert_object(BookOrder.count(book, BookEntry.PERK_FAMILY)).is_equal(Vector2i(3, pool.size()))
+
+
+## Round 10: a family perk (boosts_tag) shows under its family's option, after that family's
+## items; a jackpot with no boosts_tag (Lemon squeezer, Fire sale) only under PERKS.
+func test_a_family_perk_shows_under_its_family() -> void:
+	var book: Array[BookEntry] = _book(Kit.profile(0, 0))
+	var dairy: Array[BookEntry] = _shown(book, BookOrder.Sort.BOOK, "Dairy")
+	var perk_ids: Array[StringName] = []
+	var first_perk: int = -1
+	for index: int in dairy.size():
+		if dairy[index].is_perk():
+			perk_ids.append(dairy[index].key())
+			if first_perk == -1:
+				first_perk = index
+		else:
+			assert_int(first_perk).override_failure_message("item after a perk").is_equal(-1)
+	assert_array(perk_ids).is_equal([&"dairy_regulars", &"dairy_aisle_run", &"perfect_pair"])
+	for id: StringName in [&"lemon_squeezer", &"fire_sale"]:
+		var jackpot: BookEntry = _entry(book, id)
+		for family: String in BookOrder.families(book, FamilyPalette.shared().main_family_order):
+			assert_bool(jackpot.has_family(family)).is_equal(family == BookEntry.PERK_FAMILY)
+	assert_bool(_entry(book, &"dairy_regulars").has_family("")).is_false()
+	assert_bool(_entry(book, &"dairy_regulars").has_family(BookEntry.OTHER_FOOD)).is_false()
+
+
+## Round 10: the FAMILY options end ..., OTHER FOOD, COUPONS, PERKS; a book with no perk has no
+## PERKS option.
+func test_families_end_with_coupons_then_perks() -> void:
+	var order: PackedStringArray = FamilyPalette.shared().main_family_order
+	var book: Array[BookEntry] = _book(Kit.profile(0, 0))
+	var families: PackedStringArray = BookOrder.families(book, order)
+	assert_array(Array(families.slice(families.size() - 3))).is_equal(
+		[BookEntry.OTHER_FOOD, BookEntry.COUPON_FAMILY, BookEntry.PERK_FAMILY]
+	)
+	var no_perks: Array[BookEntry] = book.filter(func(e: BookEntry) -> bool: return not e.is_perk())
+	assert_bool(BookOrder.families(no_perks, order).has(BookEntry.PERK_FAMILY)).is_false()
+
+
+## Round 10: NEWEST puts the picked perks, then the others, after the coupons, each in book order.
+func test_newest_first_puts_perks_after_coupons() -> void:
+	var profile: ProfileState = Kit.profile(0, 0)
+	profile.coupon_uses[&"repeat"] = 1
+	profile.perk_levels = {&"home_goods": 1, &"extra_redraw": 2}
+	var book: Array[BookEntry] = _book(profile)
+	var newest: Array[BookEntry] = BookOrder.newest_first(book)
+	var perks: int = Kit.balance().upgrade_pool.size()
+	var tail: Array[BookEntry] = newest.slice(newest.size() - perks)
+	assert_bool(tail.all(func(e: BookEntry) -> bool: return e.is_perk())).is_true()
+	assert_str(String(tail[0].key())).is_equal("extra_redraw")
+	assert_str(String(tail[1].key())).is_equal("home_goods")
+	for entry: BookEntry in tail.slice(2):
+		assert_bool(entry.owned).is_false()
+	assert_bool(newest[newest.size() - perks - 1].coupon).is_true()
+
+
+## Round 10: FOOD hides every perk, NON_FOOD shows them all (as the coupons).
+func test_food_hides_perks_and_non_food_shows_them() -> void:
+	var book: Array[BookEntry] = _book(Kit.profile(0, 0))
+	var perks: int = Kit.balance().upgrade_pool.size()
+	var food: Array[BookEntry] = _shown(book, BookOrder.Sort.FOOD, "")
+	var non_food: Array[BookEntry] = _shown(book, BookOrder.Sort.NON_FOOD, "")
+	assert_bool(food.any(func(e: BookEntry) -> bool: return e.is_perk())).is_false()
+	(
+		assert_int(non_food.filter(func(e: BookEntry) -> bool: return e.is_perk()).size())
+		. is_equal(perks)
+	)
+	assert_array(_shown(book, BookOrder.Sort.FOOD, BookEntry.PERK_FAMILY)).is_empty()
+
+
+## Round 10: the perks never change the item groups or the small families.
+func test_perks_never_change_the_item_groups() -> void:
+	var order: PackedStringArray = FamilyPalette.shared().main_family_order
+	var book: Array[BookEntry] = _book(Kit.profile(0, 0))
+	var items: Array[BookEntry] = book.filter(func(e: BookEntry) -> bool: return not e.is_perk())
+	var groups: Array[String] = []
+	for entry: BookEntry in items:
+		groups.append(entry.group)
+	var small: PackedStringArray = BookOrder.small_families(book, order)
+	BookOrder.regroup(items, order)
+	assert_array(Array(BookOrder.small_families(items, order))).is_equal(Array(small))
+	for index: int in items.size():
+		assert_str(items[index].group).is_equal(groups[index])
 
 
 ## The live coupon pools' coupons once each, in pool order.
@@ -463,7 +604,7 @@ func _made_book(ids: Array[StringName]) -> Array[BookEntry]:
 	var order: PackedStringArray = FamilyPalette.shared().main_family_order
 	var made: Array[BookEntry] = []
 	for entry: BookEntry in _book(Kit.profile(0, 0)):
-		if ids.has(entry.card.id):
+		if not entry.is_perk() and ids.has(entry.card.id):
 			var family: String = CardFamilies.main_family(entry.card, order)
 			made.append(BookEntry.new(entry.card, family, true))
 	assert_int(made.size()).is_equal(ids.size())
@@ -488,7 +629,7 @@ func test_a_sort_applies_within_the_family_picked() -> void:
 		assert_bool(entry.has_family("Breakfast") and entry.is_food()).is_true()
 	var ids: Array[StringName] = []
 	for entry: BookEntry in non_food:
-		ids.append(entry.card.id)
+		ids.append(entry.key())
 	assert_array(ids).contains([&"coffee", &"tea_bags"])
 	var counted: Vector2i = BookOrder.count_shown(book, BookOrder.Sort.NON_FOOD, "Breakfast")
 	assert_int(counted.y).is_equal(non_food.size())
@@ -509,7 +650,8 @@ func _book(profile: ProfileState) -> Array[BookEntry]:
 		Kit.balance(),
 		profile.unlocked_items,
 		FamilyPalette.shared().main_family_order,
-		profile.coupon_uses
+		profile.coupon_uses,
+		profile.perk_levels
 	)
 
 
@@ -524,17 +666,18 @@ func _shown(book: Array[BookEntry], sort: BookOrder.Sort, filter: String) -> Arr
 
 static func _entry(book: Array[BookEntry], id: StringName) -> BookEntry:
 	for entry: BookEntry in book:
-		if entry.card.id == id:
+		if entry.key() == id:
 			return entry
 	return null
 
 
 ## The ALL groups with at least one card (each card in one, BookEntry.group), in `main_order`,
-## then OTHER_FOOD, then COUPON_FAMILY: the BOOK sort's groups under ALL.
+## then OTHER_FOOD, then COUPON_FAMILY, then PERK_FAMILY: the BOOK sort's groups under ALL.
 static func _groups(book: Array[BookEntry], main_order: PackedStringArray) -> PackedStringArray:
 	var order: PackedStringArray = main_order.duplicate()
 	order.append(BookEntry.OTHER_FOOD)
 	order.append(BookEntry.COUPON_FAMILY)
+	order.append(BookEntry.PERK_FAMILY)
 	var found: PackedStringArray = PackedStringArray()
 	for family: String in order:
 		if book.any(func(entry: BookEntry) -> bool: return entry.group == family):

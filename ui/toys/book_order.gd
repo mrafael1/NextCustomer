@@ -46,6 +46,15 @@ extends RefCounted
 ## ALL) and FAMILY the BOOK sort (the book order: ALL's groups, a family's run). A sort now applies
 ## within the family picked: NEWEST orders its cards, FOOD and NON_FOOD keep its food or non-food
 ## cards (BREAKFAST + NON_FOOD: Coffee, Tea bags), and neither resets the other.
+## Round 10 (v1.30, decided with the user 2026-11-12): the book closes with the PERKS, one card per
+## loyalty perk of the machine's live pool (balance.upgrade_pool, in its order; its LV 1 files
+## only, so a level chain is one card), in BookEntry.PERK_FAMILY: owned once picked in a run that
+## has ended (the profile's perk_levels, highest level each). ALL in BOOK ORDER gives them their
+## own pages after the coupons, and the FAMILY dropdown a PERKS option after COUPONS; a family
+## perk (boosts_tag) also shows under its family's option, after that family's items. NEWEST puts
+## the picked perks, then the others, after the coupons (the save keeps no pick order). A perk is
+## never Food: FOOD hides it, NON_FOOD shows it. Perks never change the item groups (regroup,
+## small_families) and count in every count.
 
 enum Sort { BOOK, NEWEST, FOOD, NON_FOOD }
 
@@ -55,12 +64,13 @@ const MIN_GROUP := 3
 
 
 ## Every card in the book, in data order (see above); `used_coupons` is the profile's
-## coupon_uses.
+## coupon_uses, `perk_levels` its perk_levels (round 10).
 static func entries(
 	balance: BalanceDefinition,
 	unlocked: Dictionary[StringName, int],
 	main_order: PackedStringArray,
-	used_coupons: Dictionary[StringName, int] = {}
+	used_coupons: Dictionary[StringName, int] = {},
+	perk_levels: Dictionary[StringName, int] = {}
 ) -> Array[BookEntry]:
 	var drawn: Array[StringName] = []
 	drawn.assign(unlocked.keys())
@@ -85,6 +95,12 @@ static func entries(
 		seen[card.id] = true
 		var played: bool = used_coupons.get(card.id, 0) > 0
 		found.append(BookEntry.new(card, BookEntry.COUPON_FAMILY, false, 0 if played else -1))
+	var perks: Dictionary[StringName, bool] = {}
+	for perk: UpgradeDefinition in balance.upgrade_pool:
+		if perk == null or perks.has(perk.family()):
+			continue
+		perks[perk.family()] = true
+		found.append(BookEntry.for_perk(perk, perk_levels.get(perk.family(), 0)))
 	regroup(found, main_order)
 	return found
 
@@ -100,10 +116,10 @@ static func regroup(book: Array[BookEntry], main_order: PackedStringArray) -> vo
 	var is_small: Callable = func(tag: String) -> bool: return small.has(tag)
 	var members: Dictionary[String, int] = {}
 	for entry: BookEntry in book:
-		if not entry.coupon:
+		if not entry.coupon and not entry.is_perk():
 			members[entry.family] = members.get(entry.family, 0) + 1
 	for entry: BookEntry in book:
-		if entry.coupon:
+		if entry.coupon or entry.is_perk():
 			continue
 		entry.group = entry.family
 		if entry.family == BookEntry.FOOD_TAG or small.has(entry.family):
@@ -123,7 +139,7 @@ static func small_families(
 ) -> PackedStringArray:
 	var carried: Dictionary[String, int] = {}
 	for entry: BookEntry in book:
-		if entry.coupon:
+		if entry.coupon or entry.is_perk():
 			continue
 		for tag: String in entry.tags:
 			carried[tag] = carried.get(tag, 0) + 1
@@ -136,10 +152,10 @@ static func small_families(
 
 ## The FAMILY dropdown's families (after its ALL): those with at least one card carrying them
 ## (BookEntry.has_family), in `main_order`, then OTHER_FOOD when a card shows under it, then
-## COUPON_FAMILY when the book holds a coupon. Never "" (the dropdown's ALL): a card with no family
-## shows under ALL only, on the FAMILY sort's last pages before the coupons'. Never
-## BookEntry.FOOD_TAG (round 5: the FOOD sort shows those cards), nor a small family (round 6: OTHER
-## FOOD takes its cards).
+## COUPON_FAMILY when the book holds a coupon, then PERK_FAMILY when it holds a perk (round 10).
+## Never "" (the dropdown's ALL): a card with no family shows under ALL only, on the FAMILY
+## sort's last pages before the coupons'. Never BookEntry.FOOD_TAG (round 5: the FOOD sort shows
+## those cards), nor a small family (round 6: OTHER FOOD takes its cards).
 static func families(book: Array[BookEntry], main_order: PackedStringArray) -> PackedStringArray:
 	var shown: PackedStringArray = _families_with(book, main_order)
 	shown.erase(BookEntry.FOOD_TAG)
@@ -170,6 +186,7 @@ static func pages(
 	groups.append(BookEntry.OTHER_FOOD)
 	groups.append("")
 	groups.append(BookEntry.COUPON_FAMILY)
+	groups.append(BookEntry.PERK_FAMILY)
 	var run: Array[BookEntry] = []
 	for family: String in groups:
 		var group: Array[BookEntry] = []
@@ -186,15 +203,20 @@ static func pages(
 
 ## `book` newest first: collected capsule items (the last drawn first), starters, the items not
 ## collected yet, then the played coupons and the coupons not played yet (both in book order:
-## the save keeps no coupon play order); each group in its book order otherwise.
+## the save keeps no coupon play order), then the picked perks and the perks not picked yet
+## (round 10, likewise); each group in its book order otherwise.
 static func newest_first(book: Array[BookEntry]) -> Array[BookEntry]:
 	var collected: Array[BookEntry] = []
 	var starters: Array[BookEntry] = []
 	var missing: Array[BookEntry] = []
 	var played: Array[BookEntry] = []
 	var unplayed: Array[BookEntry] = []
+	var picked: Array[BookEntry] = []
+	var unpicked: Array[BookEntry] = []
 	for entry: BookEntry in book:
-		if entry.coupon:
+		if entry.is_perk():
+			(picked if entry.owned else unpicked).append(entry)
+		elif entry.coupon:
 			(played if entry.owned else unplayed).append(entry)
 		elif entry.starter:
 			starters.append(entry)
@@ -206,7 +228,9 @@ static func newest_first(book: Array[BookEntry]) -> Array[BookEntry]:
 		return a.collected_at > b.collected_at
 	collected.sort_custom(newer)
 	var ordered: Array[BookEntry] = []
-	for group: Array[BookEntry] in [collected, starters, missing, played, unplayed]:
+	for group: Array[BookEntry] in [
+		collected, starters, missing, played, unplayed, picked, unpicked
+	]:
 		ordered.append_array(group)
 	return ordered
 
@@ -271,6 +295,7 @@ static func _families_with(
 	var order: PackedStringArray = main_order.duplicate()
 	order.append(BookEntry.OTHER_FOOD)
 	order.append(BookEntry.COUPON_FAMILY)
+	order.append(BookEntry.PERK_FAMILY)
 	for family: String in order:
 		var carried: Callable = func(entry: BookEntry) -> bool: return entry.has_family(family)
 		if book.any(carried):

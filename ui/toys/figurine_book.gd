@@ -49,6 +49,14 @@ extends Control
 ## FAMILY pick (wrapping); Tab and Shift+Tab step the SORT pick; Enter or Space opens the SORT
 ## list; while a list is open, Up and Down move its mark, Enter or Space picks, and Esc (or
 ## Backspace) closes it; with none open, Esc (or Backspace) leaves the book.
+##
+## Round 10 (v1.30, decided with the user 2026-11-12): the book closes with the PERKS, a card per
+## loyalty perk the machine can offer (BookOrder: balance.upgrade_pool, one card per level chain),
+## owned once picked in an ended run (the profile's perk_levels; its pips show the highest level
+## reached). ALL gives them their own pages after the coupons ("PERKS 3/28"), the FAMILY ribbon a
+## PERKS option after COUPONS (the PERKS mark, the LOYALTY teal), and a family perk also shows
+## under its family's option, after its items. The CARDS LED counts them; a perk never wears NEW
+## (nothing draws it at the machines).
 
 signal back_pressed
 
@@ -178,19 +186,23 @@ func _init() -> void:
 
 
 ## Fills the book with `balance`'s products, owned per `unlocked` (the profile's drawn items, in
-## draw order), and its coupons, owned per `used_coupons` (the profile's coupon_uses), the cards
-## of `fresh` wearing the NEW tag (dropping in unless `still`, which also turns pages at once).
-## It opens on its first spread, ALL in BOOK ORDER.
+## draw order), its coupons, owned per `used_coupons` (the profile's coupon_uses), and its
+## loyalty perks, owned per `picked_perks` (the profile's perk_levels; round 10), the cards of
+## `fresh` wearing the NEW tag (dropping in unless `still`, which also turns pages at once). It
+## opens on its first spread, ALL in BOOK ORDER.
 func show_collection(
 	balance: BalanceDefinition,
 	unlocked: Dictionary[StringName, int],
 	used_coupons: Dictionary[StringName, int],
 	fresh: Array[StringName],
-	still: bool = false
+	still: bool = false,
+	picked_perks: Dictionary[StringName, int] = {}
 ) -> void:
 	_still = still
 	_fresh = fresh.duplicate()
-	_book = BookOrder.entries(balance, unlocked, _palette.main_family_order, used_coupons)
+	_book = BookOrder.entries(
+		balance, unlocked, _palette.main_family_order, used_coupons, picked_perks
+	)
 	_families = PackedStringArray([""])
 	_families.append_array(BookOrder.families(_book, _palette.main_family_order))
 	var captions: Array[String] = []
@@ -432,6 +444,8 @@ func _make_page(index: int, side: int) -> Control:
 		var style: FamilyStyle = _family_style(entry.family)
 		if entry.coupon:
 			style = BookCard.coupon_style(entry.card, _palette)
+		elif entry.is_perk():
+			style = BookCard.perks_family_style()
 		var card: BookCard = BookCard.new(entry, style, _is_new(entry), _still, _palette)
 		card.mouse_filter = Control.MOUSE_FILTER_PASS
 		var pocket: Vector2i = BookArt.pocket_origin(side, slot)
@@ -491,10 +505,10 @@ func _family_style(family: String) -> FamilyStyle:
 
 
 ## Whether `entry`'s card wears the NEW tag: drawn since the book was last opened (an id the
-## profile lists but doesn't own, which a real draw never leaves, shows nothing; a coupon never:
-## the machines never draw one).
+## profile lists but doesn't own, which a real draw never leaves, shows nothing; a coupon or a
+## perk never: the machines never draw one).
 func _is_new(entry: BookEntry) -> bool:
-	return entry.owned and not entry.coupon and _fresh.has(entry.card.id)
+	return entry.owned and not entry.coupon and not entry.is_perk() and _fresh.has(entry.card.id)
 
 
 func _drop(layer: Control) -> void:
