@@ -16,7 +16,9 @@ extends Control
 ## control's action (opening the other list), so one click opens the other list. Opening emits
 ## `opened` (the owner closes any other list), picking emits `picked` and closes the list; the owner
 ## sets the shown option back with show_value. Nothing moves on its own, so reduced motion needs
-## nothing from it. Sizes in canvas px.
+## nothing from it. Sizes in canvas px. Round 8: the look is a set of hooks (_build_plate,
+## _layout_list, _option_rect, _options_parent, _dress_option, _show_on_plate, _open_changed) that
+## FamilyRibbon overrides to be the book's FAMILY ribbon bookmark, keeping this logic.
 
 signal picked(index: int)
 signal opened
@@ -56,7 +58,7 @@ var _icons: Array[Texture2D] = []
 var _dots: Array[bool] = []
 var _value: int = 0
 var _marked: int = 0
-var _plate: MenuPlate
+var _plate: BaseButton
 var _plate_line: PixelLine
 var _arrow: Control
 var _catcher: Control
@@ -79,13 +81,10 @@ func _init(prefix: String, plate_rect: Rect2, opens_down: bool, area: Vector2) -
 	_catcher.mouse_filter = Control.MOUSE_FILTER_STOP
 	_catcher.visible = false
 	add_child(_catcher)
-	_plate = _make_plate(plate_rect, PLATE_FRAMES)
+	_plate = _build_plate(plate_rect)
 	_plate.name = "Plate"
 	_plate.pressed.connect(_on_plate_pressed)
-	_plate.mouse_entered.connect(func() -> void: _plate.marked = true)
-	_plate.mouse_exited.connect(func() -> void: _plate.marked = false)
 	add_child(_plate)
-	_add_arrow()
 	_list = Control.new()
 	_list.name = "List"
 	_list.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -137,34 +136,19 @@ func set_options(
 	for index: int in _captions.size():
 		_icons.append(icons[index] if index < icons.size() else null)
 		_dots.append(dots[index] if index < dots.size() else false)
-	for option: MenuPlate in _options:
-		_list.remove_child(option)
-		option.free()
 	_options = []
 	for child: Node in _list.get_children():
 		_list.remove_child(child)
 		child.free()
 	var count: int = _captions.size()
-	var height: float = LIST_PADDING.y * 2.0 + count * OPTION_HEIGHT + (count - 1) * OPTION_GAP
-	_list.size = Vector2(_plate_rect.size.x + MenuPlate.HOT_SHIFT, height)
-	var top: float = _plate_rect.position.y - LIST_GAP - height
-	if _opens_down:
-		top = _plate_rect.end.y + PLATE_SINK_ROOM + LIST_GAP
-	_list.position = Vector2(_plate_rect.position.x, top)
-	var frame: PanelContainer = UiKit.frame_panel(FRAME, FRAME_MARGIN)
-	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	frame.size = _list.size
-	_list.add_child(frame)
-	var width: float = _list.size.x - LIST_PADDING.x * 2.0
+	_layout_list(count)
 	for index: int in count:
-		var row_top: float = LIST_PADDING.y + index * (OPTION_HEIGHT + OPTION_GAP)
-		var rect: Rect2 = Rect2(LIST_PADDING.x, row_top, width, OPTION_HEIGHT)
-		var option: MenuPlate = _make_plate(rect, PLATE_FRAMES)
+		var option: MenuPlate = _make_plate(_option_rect(index), PLATE_FRAMES)
 		option.name = "Option_%d" % index
 		_put_words(option, _tokens(index, false), _dots[index])
 		option.pressed.connect(_pick.bind(index))
 		option.mouse_entered.connect(_mark.bind(index))
-		_list.add_child(option)
+		_options_parent().add_child(option)
 		_options.append(option)
 	show_value(clampi(_value, 0, maxi(count - 1, 0)))
 
@@ -179,9 +163,9 @@ func pass_through(control: Control, action: Callable) -> void:
 func show_value(index: int) -> void:
 	_value = index
 	if index < _captions.size():
-		_plate_line = _put_words(_plate, _tokens(index, true), _dots.has(true))
+		_show_on_plate(index)
 	for option_index: int in _options.size():
-		_options[option_index].use_frames(PICKED_FRAMES if option_index == index else PLATE_FRAMES)
+		_dress_option(option_index, option_index == index)
 
 
 func value() -> int:
@@ -201,7 +185,7 @@ func open_list() -> void:
 	_cover_window()
 	_catcher.visible = true
 	_mark(_value)
-	_arrow.queue_redraw()
+	_open_changed(true)
 	opened.emit()
 
 
@@ -213,7 +197,7 @@ func close_list() -> void:
 	_catcher.visible = false
 	for option: MenuPlate in _options:
 		option.marked = false
-	_arrow.queue_redraw()
+	_open_changed(false)
 
 
 ## The keys while the list is open: Up and Down move the mark (wrapping), Enter or Space picks
@@ -244,7 +228,7 @@ func marked() -> int:
 
 ## The pieces, for tests and the screen capture: the plate, the list, the option plates, the
 ## arrow, the plate's words and an option's words (PixelLines) and whether a dot is shown.
-func plate() -> MenuPlate:
+func plate() -> BaseButton:
 	return _plate
 
 
@@ -270,8 +254,61 @@ func option_line(index: int) -> PixelLine:
 
 ## The NEW dot of option `index`, or of the plate (-1); null when it shows none.
 func dot(index: int = -1) -> Control:
-	var host: MenuPlate = _plate if index < 0 else _options[index]
+	var host: Control = _plate if index < 0 else _options[index]
 	return host.find_child("Dot", true, false) as Control
+
+
+## The look's hooks (round 8; FamilyRibbon overrides them). The plate in `rect`: here a teal
+## MenuPlate, lit under the mouse, with the arrow on its face.
+func _build_plate(rect: Rect2) -> BaseButton:
+	var made: MenuPlate = _make_plate(rect, PLATE_FRAMES)
+	made.mouse_entered.connect(func() -> void: made.marked = true)
+	made.mouse_exited.connect(func() -> void: made.marked = false)
+	_add_arrow(made)
+	return made
+
+
+## Sizes and places the list for `count` options and lays its backing in it: here the popup
+## frame, as wide as the plate, under it (opens_down) or above it.
+func _layout_list(count: int) -> void:
+	var height: float = LIST_PADDING.y * 2.0 + count * OPTION_HEIGHT + (count - 1) * OPTION_GAP
+	_list.size = Vector2(_plate_rect.size.x + MenuPlate.HOT_SHIFT, height)
+	var top: float = _plate_rect.position.y - LIST_GAP - height
+	if _opens_down:
+		top = _plate_rect.end.y + PLATE_SINK_ROOM + LIST_GAP
+	_list.position = Vector2(_plate_rect.position.x, top)
+	var frame: PanelContainer = UiKit.frame_panel(FRAME, FRAME_MARGIN)
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	frame.size = _list.size
+	_list.add_child(frame)
+
+
+## Option `index`'s face rect in the options' parent.
+func _option_rect(index: int) -> Rect2:
+	var width: float = _list.size.x - LIST_PADDING.x * 2.0
+	var row_top: float = LIST_PADDING.y + index * (OPTION_HEIGHT + OPTION_GAP)
+	return Rect2(LIST_PADDING.x, row_top, width, OPTION_HEIGHT)
+
+
+## Where the options go (inside the list).
+func _options_parent() -> Control:
+	return _list
+
+
+## Option `index`'s look, picked (`is_picked`) or not: here the tomato frames for the picked one.
+func _dress_option(index: int, is_picked: bool) -> void:
+	_options[index].use_frames(PICKED_FRAMES if is_picked else PLATE_FRAMES)
+
+
+## The plate showing option `index`: here its words after the prefix, a dot when any option has
+## one.
+func _show_on_plate(index: int) -> void:
+	_plate_line = _put_words(_plate as MenuPlate, _tokens(index, true), _dots.has(true))
+
+
+## The list opened (`open`) or closed: here the arrow turns.
+func _open_changed(_open: bool) -> void:
+	_arrow.queue_redraw()
 
 
 func _make_plate(rect: Rect2, frames: Array[Texture2D]) -> MenuPlate:
@@ -293,10 +330,12 @@ func _tokens(index: int, on_plate: bool) -> Array:
 	return tokens
 
 
-## Puts `tokens` in paper on `host`'s face (replacing its words), with the NEW dot after them
-## when `with_dot`; the pair centred on the face (between its pale top row and its shade row and
-## ledge), on the 2 px grid. Returns the words.
-func _put_words(host: MenuPlate, tokens: Array, with_dot: bool) -> PixelLine:
+## Puts `tokens` in `colour` (paper) on `host`'s face (replacing its words), with the NEW dot
+## after them when `with_dot`; the pair centred on the face (between its pale top row and its
+## shade row and ledge), on the 2 px grid. Returns the words.
+func _put_words(
+	host: MenuPlate, tokens: Array, with_dot: bool, colour: Color = Palette.PAPER
+) -> PixelLine:
 	var art: float = ArtStyle.ART_SCALE
 	var content: Node = host.caption_label().get_parent()
 	for old: String in ["Words", "Dot"]:
@@ -306,7 +345,7 @@ func _put_words(host: MenuPlate, tokens: Array, with_dot: bool) -> PixelLine:
 			found.free()
 	var line: PixelLine = PixelLine.new()
 	line.name = "Words"
-	line.show_tokens(tokens, Palette.PAPER, Palette.PAPER)
+	line.show_tokens(tokens, colour, colour)
 	var face: Vector2 = host.face_size()
 	var group: float = line.width() + ((DOT_GAP + DOT) * art if with_dot else 0.0)
 	var room: float = face.y - MenuPlate.PLATE_FACE_TOP - MenuPlate.PLATE_FACE_BOTTOM
@@ -314,33 +353,40 @@ func _put_words(host: MenuPlate, tokens: Array, with_dot: bool) -> PixelLine:
 	line.position = Vector2(art * floorf((face.x - group) / 2.0 / art), art * floorf(top / art))
 	content.add_child(line)
 	if with_dot:
-		var pip: ColorRect = ColorRect.new()
-		pip.name = "Dot"
-		pip.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		pip.color = Palette.INK
-		pip.size = Vector2(DOT, DOT) * art
+		var pip: ColorRect = make_dot()
 		pip.position = Vector2(
 			line.position.x + line.width() + DOT_GAP * art,
 			line.position.y + floorf((line.size.y - pip.size.y) / 2.0 / art) * art
 		)
-		var core: ColorRect = ColorRect.new()
-		core.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		core.color = Palette.TOMATO
-		core.position = Vector2(art, art)
-		core.size = Vector2(DOT - 2, DOT - 2) * art
-		pip.add_child(core)
 		content.add_child(pip)
 	return line
 
 
-## The arrow on the plate's face: pointing down, up while the list is open; in paper.
-func _add_arrow() -> void:
+## A NEW dot, named Dot: a tomato pip DOT art px square ringed in ink, `art` canvas px an art px
+## (FamilyRibbon's dot: its ribbon's scale).
+static func make_dot(art: float = ArtStyle.ART_SCALE) -> ColorRect:
+	var pip: ColorRect = ColorRect.new()
+	pip.name = "Dot"
+	pip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pip.color = Palette.INK
+	pip.size = Vector2(DOT, DOT) * art
+	var core: ColorRect = ColorRect.new()
+	core.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	core.color = Palette.TOMATO
+	core.position = Vector2(art, art)
+	core.size = Vector2(DOT - 2, DOT - 2) * art
+	pip.add_child(core)
+	return pip
+
+
+## The arrow on `host`'s face: pointing down, up while the list is open; in paper.
+func _add_arrow(host: MenuPlate) -> void:
 	var art: float = ArtStyle.ART_SCALE
 	_arrow = Control.new()
 	_arrow.name = "Arrow"
 	_arrow.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_arrow.size = Vector2(ARROW_ROWS * 2 - 1, ARROW_ROWS) * art
-	var face: Vector2 = _plate.face_size()
+	var face: Vector2 = host.face_size()
 	var lift: float = MenuPlate.PLATE_FACE_TOP - MenuPlate.PLATE_FACE_BOTTOM
 	var top_left: Vector2 = Vector2(
 		face.x - ARROW_RIGHT - _arrow.size.x, (face.y + lift - _arrow.size.y) / 2.0
@@ -354,7 +400,7 @@ func _add_arrow() -> void:
 				var rect: Rect2 = Rect2(Vector2(row, shown_row) * art, Vector2(cells, 1) * art)
 				_arrow.draw_rect(rect, Palette.PAPER)
 	)
-	_plate.caption_label().get_parent().add_child(_arrow)
+	host.caption_label().get_parent().add_child(_arrow)
 
 
 func _mark(index: int) -> void:

@@ -2,11 +2,14 @@ extends GdUnitTestSuite
 ## The FIGURINE BOOK's dropdowns (PixelDropdown; v1.30 round 5's SORT dropdown, round 7's FAMILY
 ## dropdown, the user: "sort by family can be removed from sort and have its own dropdown
 ## somewhere where old bookmarks where ... sort can keep newest / food / non-food. it will sort
-## selected first dropdown"; memory: UI tests check on-screen geometry). Closed, the FAMILY plate
-## ("FAMILY: ALL") stands over the binder's top left and the SORT plate ("SORT: BOOK ORDER") in
-## the footer, each with its arrow, on the stage clear of the pages and the other controls; open,
-## FAMILY's list hangs under its plate and SORT's stands on its plate, inside the stage, clear of
-## the footer's other controls, every option inside it with its words and dot on its face. FAMILY
+## selected first dropdown"; memory: UI tests check on-screen geometry). Round 8: FAMILY is a
+## ribbon bookmark (FamilyRibbon) and SORT moved up to the top bar. Closed, the SORT plate ("SORT:
+## BOOK ORDER", its arrow) stands over the binder's top left, on the stage clear of the pages and
+## the other controls; the ribbon hangs over the binder's top edge (in ALL's cream with the ALL
+## mark, a family's colours and glyph once picked), clear of the LEDs, the title, the plates, the
+## pockets and the page headers. Open, SORT's list hangs under its plate, the ribbon's paper strip
+## unrolls under the ribbon (its rows below the ribbon's foot), each inside the stage, clear of
+## the footer, every option inside it with its words and dot on its face. FAMILY
 ## lists ALL, the families in palette order, OTHER FOOD and COUPONS, each with its glyph; SORT
 ## BOOK ORDER, NEWEST, FOOD and NON-FOOD, applied within the family (BREAKFAST + NON-FOOD: its
 ## non-food cards, the header "BREAKFAST · NON-FOOD n/m"; a pick showing nothing says NO CARDS).
@@ -57,47 +60,60 @@ func test_the_dropdowns_sit_on_the_stage_closed_and_open(
 		book.leds()[1].get_global_rect(),
 		(book.get_node("Title") as Control).get_global_rect(),
 	]
-	var family: PixelDropdown = book.family_menu()
+	var family: FamilyRibbon = book.family_menu()
 	var sort: PixelDropdown = book.sort_menu()
 	var binder: Rect2 = _art_rect(BookArt.BINDER_RECT, stage.position)
-	for menu: PixelDropdown in [family, sort]:
-		var plate: Rect2 = menu.plate().get_global_rect()
-		# Closed: the plate on the stage, clear of the pages and of every other control; its
-		# words (and dot) and arrow on its face, apart.
-		assert_bool(stage.encloses(plate)).override_failure_message(str(plate)).is_true()
-		for rect: Rect2 in pages + footer + top:
-			assert_bool(plate.intersects(rect)).override_failure_message(str(rect)).is_false()
-		assert_bool(menu.is_open()).is_false()
-		assert_bool(menu.list().visible).is_false()
-		var face: Rect2 = menu.plate().face().get_global_rect()
-		var arrow: Rect2 = menu.arrow().get_global_rect()
-		var words: Rect2 = menu.caption_line().get_global_rect()
-		var end: float = words.end.x
-		if menu.dot() != null:
-			end = menu.dot().get_global_rect().end.x
-			assert_bool(face.encloses(menu.dot().get_global_rect())).is_true()
-		assert_bool(face.encloses(arrow)).override_failure_message(str(arrow)).is_true()
-		assert_bool(face.encloses(words)).override_failure_message(str(words)).is_true()
-		assert_float(arrow.position.x - end).is_greater_equal(4.0 * ArtStyle.ART_SCALE)
-		# Open: the list inside the stage on its side of the plate, its left edge the plate's,
-		# clear of the footer's other controls; its options inside it, apart, in order, each with
-		# its tick inside the list and its words (and dot) on its face.
+	# SORT closed: its plate in the top bar, on the stage, clear of the pages and of every other
+	# control, its face (sunk too) over the binder's top edge; its words and arrow on its face.
+	var plate: Rect2 = sort.plate().get_global_rect()
+	assert_bool(stage.encloses(plate)).override_failure_message(str(plate)).is_true()
+	for rect: Rect2 in pages + footer + top:
+		assert_bool(plate.intersects(rect)).override_failure_message(str(rect)).is_false()
+	var sort_plate: MenuPlate = sort.plate() as MenuPlate
+	var face: Rect2 = sort_plate.face().get_global_rect()
+	assert_float(face.end.y + MenuPlate.PLATE_SINK).is_less_equal(binder.position.y)
+	assert_float(plate.position.x).is_greater_equal(binder.position.x)
+	var arrow: Rect2 = sort.arrow().get_global_rect()
+	var words: Rect2 = sort.caption_line().get_global_rect()
+	assert_bool(face.encloses(arrow)).override_failure_message(str(arrow)).is_true()
+	assert_bool(face.encloses(words)).override_failure_message(str(words)).is_true()
+	assert_float(arrow.position.x - words.end.x).is_greater_equal(4.0 * ArtStyle.ART_SCALE)
+	assert_bool(sort.is_open()).is_false()
+	# The ribbon closed: on the stage, hanging over the binder's top edge (its top above it, its
+	# foot below it), clear of the LEDs, the title, the plates, every pocket and the headers.
+	var ribbon: Rect2 = family.plate().get_global_rect()
+	_assert_ribbon_clear(book, stage, top + footer + [plate])
+	assert_float(ribbon.position.y).is_less(binder.position.y)
+	assert_float(ribbon.end.y).is_greater(binder.position.y)
+	assert_bool(family.is_open()).is_false()
+	assert_bool(family.list().visible).is_false()
+	# Open: each list inside the stage under its plate (the ribbon's strip tucked under its foot,
+	# across the ribbon), clear of the footer; its options inside it, apart, in order (the strip's
+	# below the ribbon's foot), each with its tick inside the list and its words (and dot) on its
+	# face; the picked option marked (lit, its tick showing) on opening.
+	for menu: PixelDropdown in [sort, family]:
+		var shown: Rect2 = menu.plate().get_global_rect()
 		menu.plate().pressed.emit()
 		await _frames(1)
 		assert_bool(menu.is_open()).is_true()
 		var list: Rect2 = menu.list().get_global_rect()
 		assert_bool(stage.encloses(list)).override_failure_message(str(list)).is_true()
-		assert_float(list.position.x).is_equal(plate.position.x)
 		if menu == family:
-			assert_float(list.position.y).is_greater_equal(plate.end.y)
+			assert_float(list.position.y).is_less(shown.end.y)
+			assert_float(list.position.y).is_greater(shown.position.y)
+			assert_float(list.position.x).is_less_equal(shown.position.x)
+			assert_float(list.end.x).is_greater_equal(shown.end.x)
 		else:
-			assert_float(list.end.y).is_less_equal(plate.position.y)
+			assert_float(list.position.x).is_equal(shown.position.x)
+			assert_float(list.position.y).is_greater_equal(shown.end.y)
 		for rect: Rect2 in footer:
 			assert_bool(list.intersects(rect)).override_failure_message(str(rect)).is_false()
 		var options: Array[MenuPlate] = menu.options()
 		for index: int in options.size():
 			var option: Rect2 = options[index].get_global_rect()
 			assert_bool(list.encloses(option)).override_failure_message(str(option)).is_true()
+			if menu == family:
+				assert_float(option.position.y).is_greater_equal(shown.end.y)
 			var tick: Rect2 = options[index].tick().get_global_rect()
 			assert_bool(list.encloses(tick)).override_failure_message(str(tick)).is_true()
 			var option_face: Rect2 = options[index].face().get_global_rect()
@@ -108,7 +124,6 @@ func test_the_dropdowns_sit_on_the_stage_closed_and_open(
 			if index > 0:
 				var above: Rect2 = options[index - 1].get_global_rect()
 				assert_float(option.position.y).is_greater(above.end.y)
-		# The picked option in the tomato frames, marked (lit, its tick showing) on opening.
 		assert_int(menu.marked()).is_equal(0)
 		assert_bool(options[0].is_lit()).is_true()
 		assert_bool(options[0].tick().visible).is_true()
@@ -141,16 +156,14 @@ func test_the_dropdowns_sit_on_the_stage_closed_and_open(
 			]
 		)
 	)
-	assert_str(family.caption_line().text()).is_equal("FAMILY: ALL")
+	assert_object(family.emblem().texture).is_same(FamilyRibbon.ALL_MARK)
+	assert_object(family.cloth().texture).is_same(FamilyRibbon.RIBBON)
 	var sorts: Array[String] = []
 	for index: int in sort.options().size():
 		sorts.append(sort.option_line(index).text())
 	assert_array(sorts).is_equal(["BOOK ORDER", "NEWEST", "FOOD", "NON-FOOD"])
 	assert_str(sort.caption_line().text()).is_equal("SORT: BOOK ORDER")
-	# The FAMILY plate's face (sunk too) over the binder's top edge; the lists stand over
-	# everything on the stage: the dropdowns are the book's last children.
-	var sunk: float = family.plate().face().get_global_rect().end.y + MenuPlate.PLATE_SINK
-	assert_float(sunk).is_less_equal(binder.position.y)
+	# The lists stand over everything on the stage: the dropdowns are the book's last children.
 	# (Only the GlyphTips, drawing no control of its own but the cards' tips, is after them.)
 	assert_object(book.get_child(book.get_child_count() - 1)).is_instanceof(GlyphTips)
 	assert_int(family.get_index()).is_equal(book.get_child_count() - 2)
@@ -158,25 +171,100 @@ func test_the_dropdowns_sit_on_the_stage_closed_and_open(
 	await _frames(2)
 
 
-## The longest FAMILY caption still fits its plate with its glyph and dot before the arrow.
-func test_every_family_fits_the_plate_with_its_dot() -> void:
+## Round 8: the ribbon in the TOY MACHINES (not reduced motion) unrolls its strip from under its
+## foot over FamilyRibbon.UNROLL_SECONDS, then holds it whole; the mouse over the ribbon lifts it,
+## and it stays lifted while the list is open; under reduced motion the strip shows whole at once.
+func test_the_ribbon_lifts_and_unrolls() -> void:
+	var book: FigurineBook = await _book_in_machines()
+	var ribbon: FamilyRibbon = book.family_menu()
+	assert_bool(ribbon.still).is_false()
+	var rest: Vector2 = ribbon.cloth().get_global_rect().position
+	assert_bool(ribbon.is_lifted()).is_false()
+	_move(ribbon.plate().get_global_rect().get_center())
+	await _frames(1)
+	assert_bool(ribbon.is_lifted()).is_true()
+	var lifted: Vector2 = ribbon.cloth().get_global_rect().position
+	assert_vector(lifted).is_equal(rest - Vector2(0, FamilyRibbon.LIFT))
+	_move(Vector2.ZERO)
+	await _frames(1)
+	assert_bool(ribbon.is_lifted()).is_false()
+	ribbon.open_list()
+	await _frames(1)
+	assert_bool(ribbon.is_lifted()).is_true()
+	assert_float(ribbon.roll().size.y).is_less(ribbon.list().size.y)
+	await get_tree().create_timer(FamilyRibbon.UNROLL_SECONDS + 0.2).timeout
+	assert_float(ribbon.roll().size.y).is_equal(ribbon.list().size.y)
+	ribbon.close_list()
+	assert_bool(ribbon.is_lifted()).is_false()
+	var calm: FigurineBook = await _book(Kit.profile(0, 0))
+	calm.family_menu().open_list()
+	assert_float(calm.family_menu().roll().size.y).is_equal(calm.family_menu().list().size.y)
+	calm.family_menu().close_list()
+	await _frames(2)
+
+
+## Round 8: the ribbon shows the family picked: its glyph (ALL: the ALL mark) on the cloth, the
+## cloth in the family's face (ALL: cream), the NEW dot on the cloth clear of the glyph when any
+## option has one; it stays clear of the pockets, the headers and the other controls whichever
+## family and sort are shown. The picked option of the strip is a swatch in its family's face,
+## its words in paper on a family that prints them, else ink.
+func test_the_ribbon_shows_the_family_picked() -> void:
 	var profile: ProfileState = Kit.profile(0, 0, Kit.full_counts())
 	var fresh: Array[StringName] = []
 	fresh.assign(profile.unlocked_items.keys())
 	var book: FigurineBook = await _book(profile, fresh)
-	var menu: PixelDropdown = book.family_menu()
+	var menu: FamilyRibbon = book.family_menu()
+	var palette: FamilyPalette = FamilyPalette.shared()
+	var others: Array[Rect2] = [book.sort_menu().plate().get_global_rect()]
+	for led: ToyLed in book.leds():
+		others.append(led.get_global_rect())
+	others.append((book.get_node("Title") as Control).get_global_rect())
+	for plate: MenuPlate in [book.prev_button(), book.next_button(), book.back_button()]:
+		others.append(plate.get_global_rect())
+	var body: Vector2i = Vector2i(6, 20)
 	for index: int in book.families().size():
-		book.set_filter(book.families()[index])
-		var face: Rect2 = menu.plate().face().get_global_rect()
-		var words: Rect2 = menu.caption_line().get_global_rect()
-		var arrow: Rect2 = menu.arrow().get_global_rect()
-		assert_bool(face.encloses(words)).override_failure_message(str(words)).is_true()
-		if menu.dot() != null:
-			var dot: Rect2 = menu.dot().get_global_rect()
-			assert_float(dot.position.x).is_greater(words.end.x)
-			assert_float(arrow.position.x - dot.end.x).is_greater_equal(4.0 * ArtStyle.ART_SCALE)
+		var family: String = book.families()[index]
+		book.set_filter(family)
+		for sort: int in BookOrder.Sort.size():
+			book.set_sort(sort as BookOrder.Sort)
+			await _frames(1)
+			_assert_ribbon_clear(book, STAGE, others)
+		book.set_sort(BookOrder.Sort.BOOK)
+		assert_int(menu.value()).is_equal(index)
+		var cloth: Rect2 = menu.cloth().get_global_rect()
+		var emblem: Rect2 = menu.emblem().get_global_rect()
+		assert_bool(cloth.encloses(emblem)).override_failure_message(family).is_true()
+		var colours: Image = menu.cloth().texture.get_image()
+		var style: FamilyStyle = null
+		if family.is_empty():
+			assert_object(menu.emblem().texture).is_same(FamilyRibbon.ALL_MARK)
+			assert_bool(_near(colours.get_pixelv(body), Palette.CREAM)).is_true()
 		else:
-			assert_float(arrow.position.x - words.end.x).is_greater_equal(4.0 * ArtStyle.ART_SCALE)
+			style = BookCard.family_style(family, palette)
+			assert_object(menu.emblem().texture).is_same(style.glyph)
+			var face_ok: bool = _near(colours.get_pixelv(body), style.face)
+			assert_bool(face_ok).override_failure_message(family).is_true()
+		assert_object(menu.dot()).is_not_null()
+		var dot: Rect2 = menu.dot().get_global_rect()
+		assert_bool(cloth.encloses(dot)).override_failure_message(family).is_true()
+		assert_bool(dot.intersects(emblem)).override_failure_message(family).is_false()
+		# The picked option's swatch in the family's face, its words paper or ink.
+		var frame: StyleBoxTexture = (
+			menu.options()[index].face().get_theme_stylebox("panel") as StyleBoxTexture
+		)
+		var swatch: Image = frame.texture.get_image()
+		var expected: Color = Palette.CREAM if style == null else style.face
+		(
+			assert_bool(_near(swatch.get_pixel(4, 8), expected))
+			. override_failure_message(family)
+			. is_true()
+		)
+		var paper: bool = style != null and style.paper_text
+		var ink: Color = Palette.PAPER if paper else Palette.INK
+		var labels: Array[Node] = menu.option_line(index).find_children("*", "Label", true, false)
+		assert_array(labels).is_not_empty()
+		var label: Label = labels[0] as Label
+		assert_bool(_near(label.get_theme_color("font_color"), ink)).is_true()
 	await _frames(2)
 
 
@@ -340,7 +428,8 @@ func test_the_lists_close_when_the_book_hides_or_is_filled_again() -> void:
 		book.show_collection(Kit.balance(), profile.unlocked_items, profile.coupon_uses, [], true)
 		assert_bool(menu.is_open()).is_false()
 		assert_str(book.sort_menu().caption_line().text()).is_equal("SORT: BOOK ORDER")
-		assert_str(book.family_menu().caption_line().text()).is_equal("FAMILY: ALL")
+		assert_int(book.family_menu().value()).is_equal(0)
+		assert_object(book.family_menu().emblem().texture).is_same(FamilyRibbon.ALL_MARK)
 	await _frames(2)
 
 
@@ -493,6 +582,30 @@ static func _card_outside(book: FigurineBook, menu: PixelDropdown) -> BookCard:
 
 static func _art_rect(rect: Rect2i, origin: Vector2) -> Rect2:
 	return Rect2(origin + Vector2(rect.position) * 2.0, Vector2(rect.size) * 2.0)
+
+
+## The ribbon (closed, its cloth lifted or not) inside `stage`, clear of `others`, of every pocket
+## of the spread and of the shown page headers.
+func _assert_ribbon_clear(book: FigurineBook, stage: Rect2, others: Array) -> void:
+	var ribbon: Rect2 = book.family_menu().plate().get_global_rect()
+	ribbon = ribbon.merge(book.family_menu().cloth().get_global_rect())
+	assert_bool(stage.encloses(ribbon)).override_failure_message(str(ribbon)).is_true()
+	for other: Rect2 in others:
+		assert_bool(ribbon.intersects(other)).override_failure_message(str(other)).is_false()
+	for side: int in 2:
+		for slot: int in FigurineBook.PER_PAGE:
+			var pocket: Rect2 = _art_rect(
+				Rect2i(BookArt.pocket_origin(side, slot), BookArt.POCKET_SIZE), stage.position
+			)
+			assert_bool(ribbon.intersects(pocket)).override_failure_message(str(pocket)).is_false()
+		var header: PixelLine = book.header(side)
+		if header != null:
+			var words: Rect2 = header.get_global_rect()
+			assert_bool(ribbon.intersects(words)).override_failure_message(header.text()).is_false()
+
+
+static func _near(colour: Color, expected: Color) -> bool:
+	return colour.is_equal_approx(expected) or colour.to_html(false) == expected.to_html(false)
 
 
 func _book(profile: ProfileState, fresh: Array[StringName] = []) -> FigurineBook:

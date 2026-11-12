@@ -350,7 +350,6 @@ static func copy() -> PackedStringArray:
 			FigurineBook.FOOD_TEXT,
 			FigurineBook.NON_FOOD_TEXT,
 			FigurineBook.SORT_PREFIX,
-			FigurineBook.FAMILY_PREFIX,
 			FigurineBook.ALL_TEXT,
 			FigurineBook.OTHER_ITEMS_TEXT,
 			FigurineBook.EMPTY_TEXT,

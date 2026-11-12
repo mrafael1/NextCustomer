@@ -37,6 +37,14 @@ extends Control
 ## "NEWEST FIRST 31/58", "NON-FOOD 7/18"), and a pick that shows nothing says so (NO CARDS). One
 ## list is open at a time (opening one closes the other); a click outside closes it.
 ##
+## Round 8 (the user: "not sure about bottom left sort button placement, now that top is free from
+## bookmarks it can go up there", "instead of a classic button for family, maybe it can be a
+## bookmark"; one ribbon): FAMILY is a ribbon bookmark (FamilyRibbon, PixelDropdown's logic in a
+## ribbon's look) hanging over the binder's top edge at the right page's top right, in the picked
+## family's colours with its glyph (ALL: neutral, the ALL mark), its list a paper strip unrolling
+## under it; SORT's plate moves up to the top bar, where the tabs and the FAMILY plate stood, its
+## list opening down; the footer keeps the arrows, the page LED and BACK.
+##
 ## The keys: Left and Right (Page Up and Down) and the wheel turn the pages; Up and Down step the
 ## FAMILY pick (wrapping); Tab and Shift+Tab step the SORT pick; Enter or Space opens the SORT
 ## list; while a list is open, Up and Down move its mark, Enter or Space picks, and Esc (or
@@ -54,9 +62,9 @@ const COUNT_TEXT := "%d/%d"
 const NEWEST_HEADER := "NEWEST FIRST"
 const FOOD_TEXT := "FOOD"
 const NON_FOOD_TEXT := "NON-FOOD"
-## The dropdowns (round 7): FAMILY's prefix and first option, SORT's prefix and options (one per
-## BookOrder.Sort, in its order); a sort's word in a family's header (none for BOOK ORDER).
-const FAMILY_PREFIX := "FAMILY:"
+## The dropdowns (round 7): FAMILY's first option (round 8: the ribbon shows no words), SORT's
+## prefix and options (one per BookOrder.Sort, in its order); a sort's word in a family's header
+## (none for BOOK ORDER).
 const ALL_TEXT := "ALL"
 const SORT_PREFIX := "SORT:"
 const SORT_CAPTIONS: Array[String] = ["BOOK ORDER", "NEWEST", FOOD_TEXT, NON_FOOD_TEXT]
@@ -88,12 +96,15 @@ const TITLE_CAP_TOP := 4
 const TITLE_PADDING := 10
 ## A page's header: its cap top HEADER_AT art px from the page's top left.
 const HEADER_AT := Vector2i(6, 5)
-## The FAMILY dropdown's plate (canvas px; round 7), where the tabs stood: over the binder's
-## top left, under the count LED, its list opening down over the pages.
-const FAMILY_RECT := Rect2(36, 52, 320, 34)
-## The footer (canvas px): the SORT dropdown's plate, the arrows round the page LED and BACK (the
-## TOY MACHINES' DONE rect).
-const SORT_RECT := Rect2(36, 662, 264, 40)
+## The FAMILY ribbon's top left (art px; round 8): over the binder's top edge at the right
+## page's top right, under the NEW LED, its foot above the pockets and clear of the header.
+## Round 9: a size larger (FamilyRibbon.SCALE), so it starts higher and further left, clear of
+## the widest NEW LED ("58 NEW"), its foot still above the pockets.
+const RIBBON_AT := Vector2i(552, 14)
+## The SORT dropdown's plate (canvas px; round 8), where the tabs stood: over the binder's top
+## left, under the count LED, its list opening down over the pages.
+const SORT_RECT := Rect2(36, 52, 264, 34)
+## The footer (canvas px): the arrows round the page LED and BACK (the TOY MACHINES' DONE rect).
 const PREV_RECT := Rect2(476, 662, 52, 40)
 const NEXT_RECT := Rect2(752, 662, 52, 40)
 const PAGE_LED_CENTRE := 320
@@ -132,7 +143,7 @@ var _turn: BookPageTurn
 var _count_led: ToyLed
 var _new_led: ToyLed
 var _page_led: ToyLed
-var _family_menu: PixelDropdown
+var _family_menu: FamilyRibbon
 var _sort_menu: PixelDropdown
 var _prev: MenuPlate
 var _next: MenuPlate
@@ -185,13 +196,17 @@ func show_collection(
 	var captions: Array[String] = []
 	var icons: Array[Texture2D] = []
 	var dots: Array[bool] = []
+	var styles: Array[FamilyStyle] = []
 	for family: String in _families:
 		var style: FamilyStyle = _family_style(family) if not family.is_empty() else null
 		captions.append(style.display_name.to_upper() if style != null else ALL_TEXT)
 		icons.append(style.glyph if style != null else null)
+		styles.append(style)
 		var fresh_here: Callable = func(entry: BookEntry) -> bool:
 			return _is_new(entry) and (family.is_empty() or entry.has_family(family))
 		dots.append(_book.any(fresh_here))
+	_family_menu.still = still
+	_family_menu.set_styles(styles)
 	_family_menu.set_options(captions, icons, dots)
 	_sort_menu.close_list()
 	_sort = BookOrder.Sort.BOOK
@@ -283,7 +298,7 @@ func page_turn() -> BookPageTurn:
 	return _turn
 
 
-func family_menu() -> PixelDropdown:
+func family_menu() -> FamilyRibbon:
 	return _family_menu
 
 
@@ -564,12 +579,12 @@ func _build_footer() -> void:
 	_hover_marks(_back)
 	add_child(_back)
 	# Last, so their open lists stand over the pages and the footer; one open at a time.
-	_sort_menu = PixelDropdown.new(SORT_PREFIX, SORT_RECT, false, STAGE)
+	_sort_menu = PixelDropdown.new(SORT_PREFIX, SORT_RECT, true, STAGE)
 	_sort_menu.name = "SortMenu"
 	_sort_menu.set_options(SORT_CAPTIONS)
 	_sort_menu.picked.connect(_on_sort_picked)
 	add_child(_sort_menu)
-	_family_menu = PixelDropdown.new(FAMILY_PREFIX, FAMILY_RECT, true, STAGE)
+	_family_menu = FamilyRibbon.new(Vector2(RIBBON_AT) * ArtStyle.ART_SCALE, STAGE)
 	_family_menu.name = "FamilyMenu"
 	_family_menu.set_options([ALL_TEXT] as Array[String])
 	_family_menu.picked.connect(_on_family_picked)

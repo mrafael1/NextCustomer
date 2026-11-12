@@ -1,0 +1,9 @@
+; The FAMILY ribbon's ALL mark (v1.30 round 8): ALL in 3x5 ink capitals, 1 px apart, laid on the
+; ribbon where a family's glyph would be while the book shows every family. 11x5, shown at 3x (round 9).
+@size 11x5
+@kind icon
+.#..#...#..
+#.#.#...#..
+###.#...#..
+#.#.#...#..
+#.#.###.###

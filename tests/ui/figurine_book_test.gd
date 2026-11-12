@@ -18,6 +18,8 @@ extends GdUnitTestSuite
 ## picks the family, its options carrying a dot for NEW cards, and a sort applies within it
 ## ("BREAKFAST · NON-FOOD n/m"); a card stacks its other families' glyphs under its main one,
 ## inside the window and clear of the figurine and the price; pixel words draw their hyphens.
+## Round 8: FAMILY is a ribbon bookmark over the binder's top edge (clear of the pockets and the
+## headers, book_dropdowns_test) and SORT's plate stands in the top bar, where FAMILY's stood.
 
 const Kit := preload("res://tests/ui/toy_test_kit.gd")
 const STAGE := Rect2(0, 0, 1280, 720)
@@ -86,16 +88,12 @@ func test_every_card_fits_its_pocket_in_every_view() -> void:
 func test_the_controls_are_on_the_stage_clear_of_the_pages() -> void:
 	var book: FigurineBook = await _book(Kit.profile(0, 0), [&"cream"])
 	var pages: Array[Rect2] = [_art_rect(BookArt.PAGE_RECTS[0]), _art_rect(BookArt.PAGE_RECTS[1])]
-	var controls: Array[Rect2] = [book.family_menu().plate().get_global_rect()]
+	var sort_plate: MenuPlate = book.sort_menu().plate() as MenuPlate
+	var controls: Array[Rect2] = [sort_plate.get_global_rect()]
 	for led: ToyLed in book.leds():
 		controls.append(led.get_global_rect())
 	controls.append((book.get_node("Title") as Control).get_global_rect())
-	for plate: MenuPlate in [
-		book.sort_menu().plate(),
-		book.prev_button(),
-		book.next_button(),
-		book.back_button(),
-	]:
+	for plate: MenuPlate in [book.prev_button(), book.next_button(), book.back_button()]:
 		controls.append(plate.get_global_rect())
 	for index: int in controls.size():
 		var rect: Rect2 = controls[index]
@@ -104,12 +102,23 @@ func test_the_controls_are_on_the_stage_clear_of_the_pages() -> void:
 			assert_bool(rect.intersects(page)).override_failure_message(str(rect)).is_false()
 		for other: Rect2 in controls.slice(index + 1):
 			assert_bool(rect.intersects(other)).override_failure_message(str(rect)).is_false()
-	# Round 7: the FAMILY plate stands where the tabs stood, over the binder's top left edge (its
-	# sunk face too), its left edge inside the binder's.
+	# Round 8: the SORT plate stands where the tabs (and round 7's FAMILY plate) stood, over the
+	# binder's top left edge (its sunk face too), its left edge inside the binder's; nothing is
+	# left at the footer's left, under it. The FAMILY ribbon hangs over the binder's top edge,
+	# clear of every control and of the pockets.
 	var binder: Rect2 = _art_rect(BookArt.BINDER_RECT)
-	var face: Rect2 = book.family_menu().plate().face().get_global_rect()
+	var face: Rect2 = sort_plate.face().get_global_rect()
 	assert_float(face.end.y + MenuPlate.PLATE_SINK).is_less_equal(binder.position.y)
 	assert_float(controls[0].position.x).is_greater_equal(binder.position.x)
+	assert_float(controls[0].end.y).is_less(binder.position.y)
+	var ribbon: Rect2 = book.family_menu().plate().get_global_rect()
+	assert_bool(STAGE.encloses(ribbon)).is_true()
+	assert_float(ribbon.position.y).is_less(binder.position.y)
+	assert_float(ribbon.end.y).is_greater(binder.position.y)
+	for rect: Rect2 in controls:
+		assert_bool(ribbon.intersects(rect)).override_failure_message(str(rect)).is_false()
+	var pocket_top: float = (BookArt.PAGE_RECTS[0].position.y + BookArt.POCKET_ORIGIN.y) * 2.0
+	assert_float(ribbon.end.y).is_less_equal(pocket_top)
 
 
 func test_owned_cards_are_in_colour_and_the_rest_grey() -> void:
@@ -268,18 +277,24 @@ func test_new_cards_wear_the_tag_and_their_options_a_dot() -> void:
 ## Up and Down step it (wrapping), and a sort keeps the family: "PRODUCE · FOOD n/m".
 func test_the_family_dropdown_and_keys_filter_and_sort() -> void:
 	var book: FigurineBook = await _book(Kit.profile(0, 0), [])
-	var menu: PixelDropdown = book.family_menu()
+	var menu: FamilyRibbon = book.family_menu()
 	var order: PackedStringArray = book.families()
 	assert_str(order[0]).is_equal("")
-	assert_str(menu.caption_line().text()).is_equal("FAMILY: ALL")
+	assert_object(menu.emblem().texture).is_same(FamilyRibbon.ALL_MARK)
 	var produce: int = order.find("Produce")
-	menu.plate().pressed.emit()
+	# Round 8: through the ribbon, by real clicks: on the ribbon, then (the strip unrolled) on
+	# PRODUCE's row.
+	_click(menu.plate().get_global_rect().get_center())
+	await _frames(1)
 	assert_bool(menu.is_open()).is_true()
-	menu.options()[produce].pressed.emit()
+	await get_tree().create_timer(FamilyRibbon.UNROLL_SECONDS + 0.1).timeout
+	_click(menu.options()[produce].get_global_rect().get_center())
+	await _frames(1)
 	assert_bool(menu.is_open()).is_false()
 	assert_str(book.filter()).is_equal("Produce")
 	assert_int(menu.value()).is_equal(produce)
-	assert_str(menu.caption_line().text()).is_equal("FAMILY: PRODUCE")
+	var glyph: Texture2D = FamilyPalette.shared().style("Produce").glyph
+	assert_object(menu.emblem().texture).is_same(glyph)
 	for card: BookCard in book.cards():
 		assert_bool(card.entry().has_family("Produce")).is_true()
 	assert_str(book.header(0).text()).starts_with("PRODUCE")
@@ -416,6 +431,16 @@ func _move(at: Vector2) -> void:
 	motion.position = at
 	motion.global_position = at
 	get_tree().root.push_input(motion, true)
+
+
+func _click(at: Vector2) -> void:
+	for pressed: bool in [true, false]:
+		var click: InputEventMouseButton = InputEventMouseButton.new()
+		click.button_index = MOUSE_BUTTON_LEFT
+		click.pressed = pressed
+		click.position = at
+		click.global_position = at
+		get_tree().root.push_input(click, true)
 
 
 ## The user: "non-food text has its '-' a bit weird" (round 7): pixel words draw a hyphen as a
@@ -586,10 +611,15 @@ func test_the_unfamilied_pages_read_other_items() -> void:
 func test_the_plates_centre_their_words() -> void:
 	var book: FigurineBook = await _book(Kit.profile(0, 0), [&"cream"])
 	for menu: PixelDropdown in [book.family_menu(), book.sort_menu()]:
-		var plates: Array[MenuPlate] = [menu.plate()]
+		# Round 8: the ribbon has no words on it, only its strip's options.
+		var plates: Array[MenuPlate] = []
+		var lines: Array[PixelLine] = []
+		var dots: Array[Control] = []
+		if menu is not FamilyRibbon:
+			plates.append(menu.plate() as MenuPlate)
+			lines.append(menu.caption_line())
+			dots.append(menu.dot())
 		plates.append_array(menu.options())
-		var lines: Array[PixelLine] = [menu.caption_line()]
-		var dots: Array[Control] = [menu.dot()]
 		for index: int in menu.options().size():
 			lines.append(menu.option_line(index))
 			dots.append(menu.dot(index))

@@ -1,0 +1,9 @@
+; The FAMILY ribbon's list's foot (v1.30 round 8): one notched tooth of the paper strip's tail,
+; tiled along its foot (a V notch at each seam, the ink sides carried on at the strip's ends), so
+; the strip ends in the ribbon's swallow tail cut. 6x3, shown at 2x.
+@size 6x3
+@kind frame
+@scale 2
+#wwww#
+.#ww#.
+..##..
