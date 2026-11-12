@@ -34,9 +34,3 @@ extends Resource
 ## sticker), card for card: a run dealt before still resumes (StartingDeck.could_deal). Empty for a
 ## pack whose cards never changed that way.
 @export var former_cards: Array[CardDefinition] = []
-## The pack's loyalty perk (v1.29, the user's "Pool + pack guarantee"; Milk bar: Perfect pair,
-## Bargain bin: Salvage desk, Snack stand: Grab bag, Home basics: Home goods), or null: the machine
-## guarantees it among the LOYALTY offer of the run's first UPGRADE visit (MachineContext.pack_perk;
-## the player still picks it, and it takes a box), and the pack's family always fits your cart
-## (UpgradeDefinition.fits). The pack's face names it.
-@export var loyalty_perk: UpgradeDefinition

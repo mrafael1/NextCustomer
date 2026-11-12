@@ -8,7 +8,6 @@
 [ext_resource type="Resource" path="res://data/cards/milk.tres" id="e_milk"]
 [ext_resource type="Resource" path="res://data/cards/clearance_tag.tres" id="f_clearance_tag"]
 [ext_resource type="Resource" path="res://data/cards/flickering_bulb_big.tres" id="f_flickering_bulb_big"]
-[ext_resource type="Resource" path="res://data/upgrades/salvage_desk.tres" id="p_perk"]
 
 [resource]
 script = ExtResource("1_pack")
@@ -21,4 +20,3 @@ example_text = "Write-off, Milk, Flickering bulb: Write-off doubles Milk's 4 and
 example_cards = Array[ExtResource("2_card")]([ExtResource("c_write_off"), ExtResource("e_milk"), ExtResource("c_flickering_bulb")])
 example_total = 16
 former_cards = Array[ExtResource("2_card")]([ExtResource("f_clearance_tag"), ExtResource("c_dented_can"), ExtResource("f_flickering_bulb_big")])
-loyalty_perk = ExtResource("p_perk")

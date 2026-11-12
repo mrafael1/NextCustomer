@@ -30,13 +30,6 @@ var first_offer_pool: Array[CardDefinition] = []
 var premium: bool = false
 ## The loyalty card is full (register_cap new perks picked): UPGRADE offers only level-ups.
 var card_full: bool = false
-## The run's starter pack's loyalty perk (v1.29, StarterPackDefinition.loyalty_perk) while the run
-## has not had an UPGRADE visit yet, else null: that first UPGRADE draw holds it (MachineDraw.
-## pack_hold). Derived from the run's history, so a resume needs no field of its own.
-var pack_perk: UpgradeDefinition
-## The family of a starter pack that names a loyalty perk (the whole run), else empty: it always
-## fits your cart (UpgradeDefinition.fits' pack_family).
-var pack_family: String = ""
 var _pools: Dictionary = {}
 var _guarantees: Dictionary = {}
 
@@ -68,21 +61,7 @@ static func from_run(
 	context.card_full = RewardMachine.registers_picked(run) >= machine_definition.register_cap
 	if not run.stock.new_arrivals.is_empty():
 		context.new_arrival = run.stock.new_arrivals[0]
-	var pack: StarterPackDefinition = run.starter.starter_pack if run.starter != null else null
-	if pack != null and pack.loyalty_perk != null:
-		context.pack_family = pack.family
-		if not had_upgrade_visit(run):
-			context.pack_perk = pack.loyalty_perk
 	return context
-
-
-## Whether one of the run's finished machine visits chose the UPGRADE chute (picked or binned).
-static func had_upgrade_visit(run: RunState) -> bool:
-	for record: ShiftRecord in run.history:
-		for visit: MachineVisit in record.visits:
-			if visit.chute == RewardMachine.Chute.UPGRADE:
-				return true
-	return false
 
 
 ## The deck's cards as definitions (what a perk's "fits" reads); none without a deck.

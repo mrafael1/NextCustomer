@@ -83,21 +83,14 @@ func build_names() -> String:
 
 ## Whether this upgrade fits a deck (an UPGRADE draw guarantees a new perk that does): a jackpot
 ## when the deck holds its product, a family perk when its family is one of the deck's two most
-## common `families` (top_families) or is `pack_family` (v1.29: the run's starter pack names a
-## loyalty perk, so its family always fits your cart), else when one of its builds fits. An
-## Economy upgrade helps any deck, so it never counts as fitting one.
-func fits(
-	deck: Array[CardDefinition],
-	families: PackedStringArray = PackedStringArray(),
-	pack_family: String = ""
-) -> bool:
+## common `families` (top_families), else when one of its builds fits. An Economy upgrade helps
+## any deck, so it never counts as fitting one.
+func fits(deck: Array[CardDefinition], families: PackedStringArray = PackedStringArray()) -> bool:
 	if type == Type.ECONOMY:
 		return false
 	if needs_card != null:
 		return deck.any(needs_card.is_same_product)
 	if not boosts_tag.is_empty():
-		if not pack_family.is_empty() and boosts_tag == pack_family:
-			return true
 		return top_families(deck, families).has(boosts_tag)
 	return builds.any(func(build: BuildDefinition) -> bool: return build.fits(deck))
 

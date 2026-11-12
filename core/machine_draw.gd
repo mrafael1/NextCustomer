@@ -82,58 +82,11 @@ static func guarantee(chute: int, context: MachineContext) -> Dictionary:
 			for card: CardDefinition in fresh if not fresh.is_empty() else useful:
 				found[card.id] = true
 		RewardMachine.Chute.UPGRADE:
-			var held: UpgradeDefinition = pack_hold(context)
-			if held != null:
-				found[held.id] = true
-				return found
 			var deck_cards: Array[CardDefinition] = context.deck_cards()
 			for upgrade: UpgradeDefinition in _new_perks(context):
-				if upgrade.fits(deck_cards, context.machine.families, context.pack_family):
+				if upgrade.fits(deck_cards, context.machine.families):
 					found[upgrade.id] = true
 	return found
-
-
-## The starter pack's loyalty perk the first UPGRADE draw holds (v1.29, MachineContext.pack_perk):
-## when the run can take it as a new perk (_new_perks: not owned, the card not full, its family
-## stocked or in the deck), else null.
-static func pack_hold(context: MachineContext) -> UpgradeDefinition:
-	if context.pack_perk == null:
-		return null
-	return context.pack_perk if _new_perks(context).has(context.pack_perk) else null
-
-
-## The first UPGRADE draw's pack hold (v1.29): when the draw lacks the pack's perk
-## (pack_hold), it replaces the loyalty drop of its type, else the first loyalty drop, at its own
-## rarity (so no two loyalty drops share a type). A draw with no loyalty drop is kept as it is.
-static func pack_perk_swap(
-	context: MachineContext, drawn: Array[MachinePrize]
-) -> Array[MachinePrize]:
-	var perk: UpgradeDefinition = pack_hold(context)
-	if perk == null:
-		return drawn
-	var first: int = -1
-	var same_type: int = -1
-	for index: int in drawn.size():
-		var prize: MachinePrize = drawn[index]
-		if prize.kind != MachinePrize.Kind.REGISTER:
-			continue
-		if prize.upgrade == perk:
-			return drawn
-		if first == -1:
-			first = index
-		if same_type == -1 and prize.upgrade.type == perk.type:
-			same_type = index
-	var at: int = same_type if same_type != -1 else first
-	if at == -1:
-		return drawn
-	var rarity: int = context.machine.upgrade_rarity(perk)
-	var pool: Array[MachinePrize] = context.pools(RewardMachine.Chute.UPGRADE)[rarity]
-	for prize: MachinePrize in pool:
-		if prize.kind == MachinePrize.Kind.REGISTER and prize.upgrade == perk:
-			var swapped: Array[MachinePrize] = drawn.duplicate()
-			swapped[at] = prize
-			return swapped
-	return drawn
 
 
 ## The kind of prize (MachinePrize.Kind) drop `drop` (0-based) of a chute's draw takes, or
@@ -345,8 +298,6 @@ static func draw(
 		chosen = alternatives[maxi(roll(swap_weights(alternatives, drawn), rng), 0)]
 	if chute == RewardMachine.Chute.NEW_ITEMS:
 		chosen = new_arrival_swap(context, chosen)
-	elif chute == RewardMachine.Chute.UPGRADE:
-		chosen = pack_perk_swap(context, chosen)
 	return chosen
 
 
