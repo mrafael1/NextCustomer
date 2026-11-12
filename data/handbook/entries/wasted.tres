@@ -11,4 +11,4 @@ mark = 1
 mark_value = "WASTED"
 rule = "If an item's rule does nothing where it sits, it's {kw:WASTED}. Some {fam:Clearance} items, like {item:dusty_toffees}, pay for {kw:WASTED} items."
 example_row = PackedStringArray("banana", "bread", "banana", "dusty_toffees")
-example_total = 16
+example_total = 21

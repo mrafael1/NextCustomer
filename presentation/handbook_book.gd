@@ -67,9 +67,16 @@ func entry_for_family(family: String) -> HandbookEntry:
 	return entry_marked(HandbookEntry.Mark.FAMILY, family)
 
 
-## The entry of card `card_id` (a coupon's), or null.
+## The entry of card `card_id` (a coupon's, or a retired card one lists in its also_cards), or
+## null.
 func entry_for_card(card_id: String) -> HandbookEntry:
-	return entry_marked(HandbookEntry.Mark.CARD, card_id)
+	var found: HandbookEntry = entry_marked(HandbookEntry.Mark.CARD, card_id)
+	if found != null:
+		return found
+	for each: HandbookEntry in entries:
+		if each.also_cards.has(card_id):
+			return each
+	return null
 
 
 ## The entry whose title opens `text` (case-insensitive, a whole word: "Opening deal: ×5 on the

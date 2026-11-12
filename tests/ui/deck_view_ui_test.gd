@@ -287,7 +287,9 @@ func test_the_run_info_tab_shows_upgrades_inspections_and_stock() -> void:
 	for warning: Node in view.find_children("Warning", "TextureRect", true, false):
 		assert_float((warning as TextureRect).self_modulate.a).is_equal(0.0)
 	assert_int(view.card_views().size()).is_equal(screen.run.stock.cards.size())
-	assert_int(view.card_views().size()).is_equal(30)
+	# The starting stock and the 9 coupons of coupon_pool (v1.29: + Write-off, Party pack and the
+	# Family sticker, - the Breakfast sticker and the Clearance tag).
+	assert_int(view.card_views().size()).is_equal(29)
 	view._close()
 	screen._debug.give_upgrade("category_engine")
 	screen._debug.set_inspection("spot_check")

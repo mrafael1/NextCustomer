@@ -261,6 +261,7 @@ func test_every_ticket_shows_its_prize_in_full() -> void:
 ## and a perk with no scoring rule carry none. S1 (v0.98): tilted WIN_TILT across the ticket's
 ## foot, its right edge STICK_OUT past the ticket's and its top OVERLAP over the foot, clear of the
 ## rule; a won row's amount in green dark chunky digits inside the sticker, a WASTED row stamped.
+## Dairy regulars pay +2 a Dairy item since v1.29: three Milks win +6€.
 func test_a_loyalty_ticket_shows_its_win_sticker() -> void:
 	var view: RewardMachineView = _view(MachineVisit.Kind.TICKET, true, [0])
 	var milk: CardDefinition = load(MILK)
@@ -270,10 +271,10 @@ func test_a_loyalty_ticket_shows_its_win_sticker() -> void:
 	preview.prize = stamp
 	var run: RunState = _run_with_rows([[milk, milk, milk]])
 	var first: PrizeTicket = _ticket(view, 0, stamp, preview, 1, run)
-	assert_array(Array(first.win_texts())).is_equal(["LAST ROW +3€"])
+	assert_array(Array(first.win_texts())).is_equal(["LAST ROW +6€"])
 	run = _run_with_rows([[milk, milk, milk], [load(BREAD)]])
 	var later: PrizeTicket = _ticket(view, 0, stamp, preview, 1, run)
-	assert_array(Array(later.win_texts())).is_equal(["LAST ROW WASTED", "BEST ROW +3€"])
+	assert_array(Array(later.win_texts())).is_equal(["LAST ROW WASTED", "BEST ROW +6€"])
 	var strip: WinSticker = later.win_sticker()
 	var placed: Rect2 = WinSticker.sticker_rect(2, strip.size.x, PrizeTicket.SIZE)
 	# Its unrotated rect (get_rect() is the rotated one's).
@@ -291,10 +292,10 @@ func test_a_loyalty_ticket_shows_its_win_sticker() -> void:
 	assert_float(strip.sticker_scale()).is_equal(1.0)
 	assert_str(strip.shown_amount(0)).is_equal(WinSticker.WASTED)
 	assert_float(strip.stamp_scale(0)).is_equal(1.0)
-	assert_str(strip.shown_amount(1)).is_equal("+3€")
+	assert_str(strip.shown_amount(1)).is_equal("+6€")
 	var amount: MachineLine = strip.get_node("WinAmount1") as MachineLine
 	assert_bool(amount.visible).is_true()
-	assert_str(amount.text()).is_equal("+3€")
+	assert_str(amount.text()).is_equal("+6€")
 	assert_object(amount.ink()).is_equal(Palette.GREEN_DARK)
 	assert_bool(Rect2(Vector2.ZERO, strip.size).encloses(amount.get_rect())).is_true()
 	assert_bool((strip.get_node("WinAmount0") as MachineLine).visible).is_false()
