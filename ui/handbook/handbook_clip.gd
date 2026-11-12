@@ -17,15 +17,17 @@ extends Control
 ## RIDE_S over RIDE_FROM px, in RIDE_STEPS steps), the planning effects slap on (PlanningLayer
 ## slap_new) and hold PLAN_HOLD_S; then the count, as BeltRide plays it: the strips, halos and
 ## planned pays go (keep_stickers) and each score step lands in turn, STEP_S apart, its sticker
-## firing (EffectSticker.fire: a punch, then its check) and a day event's slot mark with it; each
-## payout pops its ticket's paid window (PAY_S apart) and the LED counts up. The total pops, holds
-## HOLD_S, the clip fades and starts over. Reduced motion (`still`) shows the planning state and
-## the total at once and never loops. Decor only: it takes no clicks (its tickets' glyphs and chips
-## still show their tooltips, as on the belt), and every number in it is the score's.
+## firing (EffectSticker.fire: a punch, then its check), a day event's slot mark and a batch job
+## card's bookends (BatchBookends.fire) with it; each payout pops its ticket's paid window (PAY_S
+## apart) and the LED counts up. The total pops, holds HOLD_S, the clip fades and starts over.
+## Reduced motion (`still`) shows the planning state and the total at once and never loops. Decor
+## only: it takes no clicks (its tickets' glyphs and chips still show their tooltips, as on the
+## belt), and every number in it is the score's.
 
 ## The stage band the window shows (ShiftStage coordinates): from over the stickers on the items'
-## shoulders down to the price rail's shadow; a taller stack raises its top and a slot mark or
-## MORNING pin hung under the tickets lowers its foot (_fit_view).
+## shoulders down to the price rail's shadow; a taller stack raises its top and a slot mark,
+## MORNING pin or batch frame's FIRST or LAST tab hung under the tickets lowers its foot
+## (_fit_view).
 const VIEW_TOP := 272.0
 const VIEW_BOTTOM := ShiftStage.BELT_RECT.position.y + 194.0
 ## The room kept over the highest sticker or stamp and under the lowest hung mark.
@@ -369,6 +371,7 @@ func _fit_view() -> void:
 	for pin: MorningPin in marks.pins():
 		if pin.is_visible_in_tree():
 			hung.append(pin.get_global_rect())
+	hung.append_array(_cap_tabs())
 	for rect: Rect2 in hung:
 		bottom = maxf(bottom, (to_stage * rect).end.y + VIEW_HEADROOM)
 	top = floorf(top / ArtStyle.ART_SCALE) * ArtStyle.ART_SCALE
@@ -379,14 +382,40 @@ func _fit_view() -> void:
 		_size_to(size.x)
 
 
+## The FIRST and LAST tabs the batch frames' bookends hang across their foot (global rects, each
+## at its lit size, TAB_LIT_SCALE about its centre), so the window's foot never cuts their words.
+func _cap_tabs() -> Array[Rect2]:
+	var tabs: Array[Rect2] = []
+	for frame: BatchFrame in _layer.frames():
+		var ends: BatchBookends = frame.bookends()
+		if ends == null or not frame.visible:
+			continue
+		for cap: BatchBookends.Cap in [BatchBookends.Cap.FIRST, BatchBookends.Cap.LAST]:
+			var tab: Rect2 = ends.tab_rect(cap)
+			if not tab.has_area():
+				continue
+			tab.position -= frame.frame_rect().position
+			tab = tab.grow_individual(
+				0, 0, 0, tab.size.y * (BatchBookends.TAB_LIT_SCALE - 1.0) * 0.5
+			)
+			tabs.append(ends.get_global_transform() * tab)
+	return tabs
+
+
 static func _snap(value: float) -> float:
 	return roundf(value / ArtStyle.ART_SCALE) * ArtStyle.ART_SCALE
 
 
-## Whether step `index` shows: it has a sticker on its slot, or fires a day event's mark.
+## Whether step `index` shows: it has a sticker on its slot, fires a day event's mark, or is a
+## batch job card's (its frame's bookends play it).
 func _shows_step(index: int) -> bool:
 	var step: ScoreStep = _example.result.steps[index]
-	return _sticker_of(step.slot, index) != null or _event_mark(step) != null
+	var job: bool = (
+		step.source_kind == ScoreStep.SourceKind.CARD
+		and _model.batch_roles.has(step.source_slot)
+		and step.step_type != ScoreStep.StepType.BASE
+	)
+	return _sticker_of(step.slot, index) != null or _event_mark(step) != null or job
 
 
 ## Shows the planning effects on the row; `slap`: the stickers slap on.
@@ -420,6 +449,8 @@ func _land(index: int, running: int) -> void:
 	var mark: SlotMark = _event_mark(step)
 	if mark != null:
 		mark.fire(still)
+	for frame: BatchFrame in _layer.frames():
+		frame.fire(step)
 	if step.step_type != ScoreStep.StepType.PAYOUT:
 		return
 	if step.slot >= 0 and step.slot < _views.size():

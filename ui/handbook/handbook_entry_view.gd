@@ -7,7 +7,9 @@ extends VBoxContainer
 ## families in their own colours), then for an entry with an example the example (HandbookClip:
 ## the shift's own counter on the entry's real score) and the worked equation printed on a receipt
 ## slip (frames/receipt_paper; the cards' names in the rule's item violet and coupon teal, every
-## payout that differs from its printed price in orange). A family's or the coupon intro's entry
+## payout that differs from its printed price in orange). The rule's later paragraphs, if any
+## (HandbookEntry.page_notes: BATCH's frame caps, 2026-11-12), follow under another dashed rule,
+## so the clip stays in view when the page opens. A family's or the coupon intro's entry
 ## has no example: its page ends at the rule (the guide feedback of 2026-11-11 removed the notes
 ## under the slip and the USED BY shelf). All text comes from the entry's data; every number from
 ## the score.
@@ -35,6 +37,7 @@ var _entry: HandbookEntry
 var _clip: HandbookClip
 var _equation: RichTextLabel
 var _rule: RichTextLabel
+var _notes: RichTextLabel
 
 
 ## The view of `shown`, `width` wide (its tab's title `group_title`); its clip is `still` under
@@ -47,7 +50,7 @@ func _init(shown: HandbookEntry, width: float, group_title: String, still: bool)
 	add_theme_constant_override("separation", SEPARATION)
 	_add_head(group_title)
 	add_child(DashedRule.new(width))
-	_rule = HandbookText.label(shown.rule, RULE_SIZE, Palette.INK, width, RULE_WEIGHT)
+	_rule = HandbookText.label(shown.tip_rule(), RULE_SIZE, Palette.INK, width, RULE_WEIGHT)
 	_rule.name = "Rule"
 	add_child(_rule)
 	var example: HandbookExample = HandbookExample.of(shown)
@@ -56,6 +59,12 @@ func _init(shown: HandbookEntry, width: float, group_title: String, still: bool)
 		_clip.still = still
 		add_child(_clip)
 		add_child(_slip(example, width))
+	var notes: String = shown.page_notes()
+	if not notes.is_empty():
+		add_child(DashedRule.new(width))
+		_notes = HandbookText.label(notes, RULE_SIZE, Palette.INK, width, RULE_WEIGHT)
+		_notes.name = "Notes"
+		add_child(_notes)
 
 
 func _ready() -> void:
@@ -77,9 +86,14 @@ func equation_text() -> String:
 	return _equation.get_parsed_text() if _equation != null else ""
 
 
-## The rule, its terms coloured (HandbookText).
+## The rule's first paragraph, its terms coloured (HandbookText).
 func rule_label() -> RichTextLabel:
 	return _rule
+
+
+## The rule's later paragraphs under the example, after a dashed rule (null for none).
+func notes_label() -> RichTextLabel:
+	return _notes
 
 
 func _add_head(group_title: String) -> void:

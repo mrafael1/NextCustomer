@@ -190,7 +190,8 @@ func test_every_entry_is_well_formed() -> void:
 
 ## A keyword's page explains its keyword in its own short words, naming it coloured ({kw:WORD}),
 ## and its chip's tooltip says exactly those words (the guide feedback of 2026-11-11, round 3:
-## "change to match"): the tooltip is the rule's plain text.
+## "change to match"): the tooltip is the plain text of the rule's first paragraph (a page may
+## teach the belt's look after it, BATCH's caps).
 func test_a_keywords_rule_is_its_tooltip() -> void:
 	var book: HandbookBook = _book()
 	for word: String in GlyphText.KEYWORD_TIPS:
@@ -198,7 +199,7 @@ func test_a_keywords_rule_is_its_tooltip() -> void:
 		assert_object(entry).override_failure_message(word).is_not_null()
 		if entry == null:
 			continue
-		var rule: String = entry.rule
+		var rule: String = entry.tip_rule()
 		assert_str(rule).override_failure_message(word).contains("{kw:%s}" % word)
 		assert_str(GlyphText.keyword_tip(word)).override_failure_message(word).is_equal(
 			HandbookMarkup.plain(rule)
@@ -282,3 +283,38 @@ func test_the_mock_ups_worked_examples() -> void:
 	assert_str(HandbookExample.of(book.entry(&"morning")).equation()).is_equal(
 		"Tea bags, Bread, Milk, Potatoes, Coffee = 1 + 5 + 24 + 3 + 5 = 38€"
 	)
+
+
+## BATCH's page teaches the bookends (2026-11-12, "guide need update"): the FIRST and LAST caps,
+## the cap each job card lights (Croissant FIRST; Stale doughnut and Iced bun LAST, the icing
+## drip; Baguette the foot band), the gold caps under a lit BATCH chip, a WASTED cap and a
+## Shelf swap's split frame capping only the batch's real ends; its tooltip stays the first
+## paragraph. The Bakery page names the caps too.
+func test_the_batch_page_teaches_the_bookends() -> void:
+	var book: HandbookBook = _book()
+	var batch: HandbookEntry = book.entry_for_keyword(CardText.BATCH_WORD)
+	var paragraphs: PackedStringArray = batch.rule.split(HandbookEntry.PARAGRAPH)
+	assert_int(paragraphs.size()).is_equal(3)
+	assert_str(batch.tip_rule()).is_equal(paragraphs[0])
+	var caps: String = paragraphs[1]
+	for words: String in [
+		"FIRST on its left end",
+		"LAST on its right end",
+		"Hover a card",
+		"{item:croissant} lights FIRST",
+		"{item:stale_doughnut} and {item:iced_bun} light LAST",
+		"icing drips",
+		"{item:baguette} fills the frame's foot",
+	]:
+		assert_str(caps).override_failure_message(words).contains(words)
+	var looks: String = paragraphs[2]
+	for words: String in [
+		"{kw:BATCH} chip turns both caps gold",
+		"{kw:WASTED} card turns its cap red when you hover it",
+		"{coupon:shelf_swap}",
+		"only the batch's real first and last items get a cap",
+	]:
+		assert_str(looks).override_failure_message(words).contains(words)
+	var tip: String = GlyphText.keyword_tip(CardText.BATCH_WORD)
+	assert_bool(tip.contains("cap")).is_false()
+	assert_str(book.entry_for_family("Bakery").rule).contains("a FIRST cap and a LAST cap")

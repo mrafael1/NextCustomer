@@ -17,7 +17,8 @@ extends Node
 ## bagged item shows in the bag at once, no sweep).
 ##
 ## The planning stickers ride on their items (PlanningEffects.show_count): as a step lands, the
-## sticker of that step fires (EffectSticker.fire: a punch, a flash, then a check), and a loyalty
+## sticker of that step fires (EffectSticker.fire: a punch, a flash, then a check), a batch job
+## card's step plays on its batch frame's bookends (BatchBookends.fire), and a loyalty
 ## upgrade's multiplier fires its slot's mark (SlotMark.fire: the Slot engine's talker); when an
 ## armed giver is scanned, gold sparks run from the scanner to the stickers of its targets still
 ## on the belt (GiverSparks), each charging as they land. No sparks or punches under reduced
@@ -316,6 +317,9 @@ func _on_step_landed(index: int) -> void:
 	var sticker: EffectSticker = _sticker_of(step.slot, index)
 	if sticker != null:
 		sticker.fire(_reduced, _count.tween_maker())
+	# A batch's job card plays its beat on the frame's bookends (BatchBookends.fire).
+	for frame: BatchFrame in _stage.planning_layer.frames():
+		frame.fire(step, _count.tween_maker())
 	# A loyalty upgrade's multiplier on its marked slot (the Slot engine's slot 6) fires the mark.
 	if (
 		step.step_type == ScoreStep.StepType.MULTIPLIER

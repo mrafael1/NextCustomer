@@ -100,6 +100,7 @@ func _init(
 	tally_slot: int = -1
 ) -> void:
 	super(run_slots, chain_slots)
+	has_bookends = false
 	name = "ChainFrame%d" % (run_slots[0] if not run_slots.is_empty() else -1)
 	knots = run_knots
 	feeder = feed

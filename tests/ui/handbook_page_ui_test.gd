@@ -164,7 +164,13 @@ func test_every_entry_opens() -> void:
 		var view: HandbookEntryView = page.entry_view()
 		assert_object(view.entry()).is_same(entry)
 		assert_str(page.shown_group()).is_equal(entry.group)
-		assert_str(_words(view.rule_label())).is_equal(_words_of(HandbookMarkup.plain(entry.rule)))
+		var tip: String = HandbookMarkup.plain(entry.tip_rule())
+		assert_str(_words(view.rule_label())).is_equal(_words_of(tip))
+		if entry.page_notes().is_empty():
+			assert_object(view.notes_label()).is_null()
+		else:
+			var notes: String = HandbookMarkup.plain(entry.page_notes())
+			assert_str(_words(view.notes_label())).is_equal(_words_of(notes))
 		assert_object(view.find_child("UsedBy", true, false)).is_null()
 		if entry.has_example():
 			view.clip().stop()
@@ -657,3 +663,41 @@ static func _left_click() -> InputEventMouseButton:
 
 static func _event_log() -> EventLogService:
 	return (Engine.get_main_loop() as SceneTree).root.get_node("/root/EventLog")
+
+
+## BATCH's page (2026-11-12, "guide need update"): its rule's first paragraph over the clip (the
+## chip's tooltip), the paragraphs on the frame's caps after the slip, under a dashed rule, inside
+## the entry column and tall enough for all their lines; the clip's frame wears both caps, their
+## FIRST and LAST tabs inside the clip's window (its foot lowered under them).
+func test_the_batch_page_shows_the_caps_after_its_example() -> void:
+	var page: HandbookPage = await _page()
+	page.open_at(&"batch")
+	await _frames(2)
+	var view: HandbookEntryView = page.entry_view()
+	var notes: RichTextLabel = view.notes_label()
+	assert_object(notes).is_not_null()
+	assert_str(_words(view.rule_label())).is_equal(
+		_words_of(GlyphText.keyword_tip(CardText.BATCH_WORD))
+	)
+	var slip: Control = view.find_child("Slip", true, false) as Control
+	assert_int(notes.get_index()).is_equal(view.get_child_count() - 1)
+	assert_object(view.get_child(notes.get_index() - 1)).is_instanceof(HandbookEntryView.DashedRule)
+	assert_int(slip.get_index()).is_equal(notes.get_index() - 2)
+	assert_str(notes.get_parsed_text()).contains("FIRST on its left end")
+	assert_str(notes.get_parsed_text()).contains("LAST on its right end")
+	var rect: Rect2 = notes.get_global_rect()
+	var column: Rect2 = page.entry_scroll().get_global_rect()
+	assert_float(rect.position.x).is_greater_equal(column.position.x)
+	assert_float(rect.end.x).is_less_equal(column.end.x)
+	assert_float(float(notes.get_content_height())).is_less_equal(rect.size.y + 0.5)
+	assert_float(rect.position.y).is_greater(slip.get_global_rect().end.y)
+	var clip: HandbookClip = view.clip()
+	var frames: Array[BatchFrame] = clip._layer.frames()
+	assert_int(frames.size()).is_equal(1)
+	var ends: BatchBookends = frames[0].bookends()
+	var window: Rect2 = clip._window.get_global_rect()
+	for cap: BatchBookends.Cap in [BatchBookends.Cap.FIRST, BatchBookends.Cap.LAST]:
+		assert_bool(ends.shows(cap)).is_true()
+		var tab: Rect2 = ends.tab_rect(cap)
+		tab.position -= frames[0].frame_rect().position
+		assert_bool(window.encloses(ends.get_global_transform() * tab)).is_true()

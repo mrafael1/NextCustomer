@@ -1,0 +1,14 @@
+; The gold spark that runs along a BATCH frame in the count (BATCH bookends, 2026-11-12: the
+; approved batch_positions mock-up's A, its glowing dot): a paper core in mustard pale, a gold
+; ring and a mustard rim for the glow. Decor, too small for an outline. 9x9, shown at 2x.
+@size 9x9
+@kind icon
+...MMM...
+..MnnnM..
+.MnYYYnM.
+MnYwwwYnM
+MnYwwwYnM
+MnYwwwYnM
+.MnYYYnM.
+..MnnnM..
+...MMM...
