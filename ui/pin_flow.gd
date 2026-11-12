@@ -38,7 +38,7 @@ const TAG_NODE := "PriceGunTag"
 
 ## Repack's drag between the hand's baskets (#122).
 var repack: RepackFlow
-## The Family stickers' family tags and picker (v1.28).
+## The Family stickers' family tags and picker (v1.29).
 var stickers: FamilyStickerFlow
 var _screen: ShiftScreen
 var _log: EventLogService
@@ -300,26 +300,35 @@ func _show_skip(planning: bool) -> void:
 
 ## Puts a price tag with the family's glyph on every relabelled item (hand and belt), and gives
 ## the item the family for its scan. The tag is stuck on the item's art (ItemView.sprite), so it
-## lifts and greys with the item. An item a Family sticker gives a family (v1.28) shows it as a
+## lifts and greys with the item. An item a Family sticker gives a family (v1.29) shows it as a
 ## gained glyph too, with no price tag (a relabel's comes first).
 func _show_tags() -> void:
 	var run: RunState = _screen.run
 	for view: ItemView in _screen.item_views():
-		var art: TextureRect = view.sprite()
-		var old: Node = price_tag(view)
-		if old != null:
-			art.remove_child(old)
-			old.queue_free()
 		var tag: String = PinPlay.relabel_of(run, view.card)
+		show_relabel(view, tag)
 		if tag.is_empty():
+			# No relabel: the ticket shows a Family sticker's gained family instead.
 			view.sticker().show_gained(stickers.gained_of(view.card), PriceSticker.STICKER_SOURCE)
-			continue
-		view.sticker().show_gained(tag)
-		view.add_tag(tag)
-		var plate: Control = _price_tag(tag)
-		# On the sprite's bottom left, like a sticker on the item's foot.
-		plate.position = Vector2(0, ItemView.SPRITE_SIZE.y - TAG_SIZE.y) + TAG_OFFSET
-		art.add_child(plate)
+
+
+## Shows `view`'s relabel to family `tag` (none: takes it off): the gained glyph on its ticket
+## (PriceSticker.show_gained), the family among its tags, and the gun's price tag stuck on its
+## art's foot. The handbook's GAINED example shows it the same way.
+static func show_relabel(view: ItemView, tag: String) -> void:
+	var art: TextureRect = view.sprite()
+	var old: Node = price_tag(view)
+	if old != null:
+		art.remove_child(old)
+		old.queue_free()
+	view.sticker().show_gained(tag)
+	if tag.is_empty():
+		return
+	view.add_tag(tag)
+	var plate: Control = _price_tag(tag)
+	# On the sprite's bottom left, like a sticker on the item's foot.
+	plate.position = Vector2(0, ItemView.SPRITE_SIZE.y - TAG_SIZE.y) + TAG_OFFSET
+	art.add_child(plate)
 
 
 ## The price tag the gun stuck on `view`'s item, or null.

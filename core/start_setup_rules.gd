@@ -30,7 +30,7 @@ extends RefCounted
 ##   them, and every new run starts with the recipe's regulars and its full swap allowance.
 ## - NEW PACKS (new_packs, packs_redraws_per_run a run) redraws the offered packs, keeping the
 ##   baskets, the regulars and the good first pick; the pick is cleared.
-## - A pack that needs an aisle (StarterPackDefinition.needs_aisle, v1.28: the Snack stand) is
+## - A pack that needs an aisle (StarterPackDefinition.needs_aisle, v1.29: the Snack stand) is
 ##   offered, dealt or redrawn only once that aisle is unlocked for the profile
 ##   (StartingDeck.open_packs).
 
@@ -732,7 +732,7 @@ static func _draw_packs_into(
 		pool.erase(pick)
 
 
-## The run recipe's packs that fit the cart: open to `profile` (StartingDeck.open_packs, v1.28),
+## The run recipe's packs that fit the cart: open to `profile` (StartingDeck.open_packs, v1.29),
 ## no swapped regular past copy_max with the pack (_packs_fitting) and the copy rule kept with the
 ## baskets (StartingDeck.fits_copies).
 static func _packs_for_cart(run: RunState, profile: ProfileState) -> Array[StarterPackDefinition]:

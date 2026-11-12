@@ -288,7 +288,7 @@ static func _scan(state: ScoreState, slot: int, registers: Array, checks: Array)
 
 
 ## Marks the product in `slot` WASTED (ScoreState.wasted) when one of its card's own rules fizzles
-## there, before the upgrades' multipliers (v1.28: Salvage desk's ×2 reads it). A card's own
+## there, before the upgrades' multipliers (v1.29: Salvage desk's ×2 reads it). A card's own
 ## WASTED reasons read only the row's context and the slots scanned before, never what is armed
 ## after its payout, so this is the same status _report_fizzles records later.
 static func _mark_own_waste(state: ScoreState, slot: int, rules: Array[Rule]) -> void:

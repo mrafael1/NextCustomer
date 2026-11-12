@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## The v1.28 playstyle loyalty perks on the live data (docs/FULL_BUILD_PLAN.md v1.28 section 5.2,
+## The v1.29 playstyle loyalty perks on the live data (docs/FULL_BUILD_PLAN.md v1.29 section 5.2,
 ## the user's answers of 2026-11-12: "loyalty" is the in-run LOYALTY card, "Pool + pack
 ## guarantee"): Perfect pair (PAIRED items), Salvage desk (WASTED items), Grab bag (lone Snacks)
 ## and Home goods (Household items) pay ×2, ×3, ×4 by level; their steps and fizzles, the
@@ -63,7 +63,7 @@ func test_the_perks_data() -> void:
 	assert_int(icons.size()).is_equal(PERKS.size())
 
 
-## The four weak families' Regulars step up one (v1.28): +2 › +3 › +4 each; the other three keep
+## The four weak families' Regulars step up one (v1.29): +2 › +3 › +4 each; the other three keep
 ## +1 › +2 › +3.
 func test_the_regulars_numbers() -> void:
 	for family: String in ["dairy", "clearance", "snack", "household", "bakery", "produce"]:

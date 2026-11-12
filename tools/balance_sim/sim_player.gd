@@ -76,7 +76,7 @@ const PACK_SAMPLE_HANDS := 8
 ## The quota a recipe's fair-deal check aims at (StartingDeck.deal, v0.54); -1: shift 1's quota
 ## of the balance played. The simulator sets the balance data's when --quotas plays others.
 var deal_quota: int = -1
-## The starter pack every run takes (--pack, v1.28), or null for the strategy's pick (pick_pack).
+## The starter pack every run takes (--pack, v1.29), or null for the strategy's pick (pick_pack).
 var forced_pack: StarterPackDefinition
 var _starter: DeckDefinition
 var _balance: BalanceDefinition
@@ -142,7 +142,7 @@ static func is_known_strategy(strategy: String) -> bool:
 ## first offered, any other the one whose cart (the staples, the pack, the shared products) has the
 ## best mean shift 1 total over PACK_SAMPLE_HANDS sampled hands, climbed by the sensible player
 ## (RowClimb, the recipe's fair-deal changes), sampled on the run's own simulator RNG. With
-## forced_pack (--pack, v1.28) in the offer, that pack (play puts it in the offer's first place).
+## forced_pack (--pack, v1.29) in the offer, that pack (play puts it in the offer's first place).
 func pick_pack(offer: StartOffer) -> StarterPackDefinition:
 	if forced_pack != null and offer.packs.has(forced_pack):
 		return forced_pack

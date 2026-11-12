@@ -2,7 +2,7 @@ class_name PackCrate
 extends Control
 ## A live starter pack on the staff bench (reworked 2026-11-05, v1.01): its three items standing
 ## big in a wood crate, and on the crate's paper label the pack's name in its family's colour,
-## its key (1 to 3) and its family (and since v1.28 its loyalty perk's icon and name, when it
+## its key (1 to 3) and its family (and since v1.29 its loyalty perk's icon and name, when it
 ## names one). No strategy sentence, not even as a tooltip (the cards keep their own popups on
 ## hover). The items stand at their sprites' own size, overlapping a little.
 
@@ -33,7 +33,7 @@ const LABEL_RECT := Rect2(22, 104, 228, 120)
 const NAME_BAR := Rect2(0, 0, 228, 38)
 const FAMILY_GLYPH := Rect2(92, 44, 45, 45)
 const FAMILY_LINE := Rect2(8, 92, 212, 22)
-## A pack that names a loyalty perk (v1.28, StarterPackDefinition.loyalty_perk): a smaller glyph and
+## A pack that names a loyalty perk (v1.29, StarterPackDefinition.loyalty_perk): a smaller glyph and
 ## family line, and under them the perk's teal strip (its icon at 2x, then its name in paper words),
 ## 4 px clear of the label's bottom edge (label px).
 const PERK_GLYPH := Rect2(96, 40, 36, 36)
@@ -149,7 +149,7 @@ func _init(definition: StarterPackDefinition, slot: int, first: bool) -> void:
 	gui_input.connect(_click)
 
 
-## The pack's loyalty perk on the label (v1.28): a teal strip, the loyalty card's colour, with the
+## The pack's loyalty perk on the label (v1.29): a teal strip, the loyalty card's colour, with the
 ## perk's icon and its name, so the player sees which perk the first UPGRADE visit guarantees.
 func _add_perk_strip(perk: UpgradeDefinition) -> void:
 	var strip: Panel = StartBoardKit.panel(label, PERK_STRIP, Palette.TEAL_DARK)

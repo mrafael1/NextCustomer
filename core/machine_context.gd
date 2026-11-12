@@ -30,7 +30,7 @@ var first_offer_pool: Array[CardDefinition] = []
 var premium: bool = false
 ## The loyalty card is full (register_cap new perks picked): UPGRADE offers only level-ups.
 var card_full: bool = false
-## The run's starter pack's loyalty perk (v1.28, StarterPackDefinition.loyalty_perk) while the run
+## The run's starter pack's loyalty perk (v1.29, StarterPackDefinition.loyalty_perk) while the run
 ## has not had an UPGRADE visit yet, else null: that first UPGRADE draw holds it (MachineDraw.
 ## pack_hold). Derived from the run's history, so a resume needs no field of its own.
 var pack_perk: UpgradeDefinition
@@ -106,7 +106,7 @@ func stocks(upgrade: UpgradeDefinition) -> bool:
 	return true
 
 
-## Whether the machine can offer `coupon` (v1.28): one with a `needs_tag` (Party pack) needs a
+## Whether the machine can offer `coupon` (v1.29): one with a `needs_tag` (Party pack) needs a
 ## stocked product or a deck card of that family, as a family perk does (stocks).
 func offers(coupon: CardDefinition) -> bool:
 	if coupon.needs_tag.is_empty():
@@ -144,7 +144,7 @@ func drawn_products() -> Array[CardDefinition]:
 
 ## The coupons NEW ITEMS' coupon drops draw from: on the run's first coupon draw only those in the
 ## first-offer pool (#36's first offer), else the coupon pool; either way only those the run can be
-## offered (offers, v1.28: Party pack needs a Snack).
+## offered (offers, v1.29: Party pack needs a Snack).
 func coupon_candidates() -> Array[CardDefinition]:
 	var found: Array[CardDefinition] = []
 	for card: CardDefinition in first_offer_pool if first_coupons else coupons:

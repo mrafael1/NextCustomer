@@ -22,11 +22,11 @@ enum Measure { UNSET, TAG, COUPONS, COPIES, DISTINCT_TAGS, CARDS }
 @export var cards: Array[CardDefinition] = []
 ## The deck fits once its measure reaches this.
 @export var min_count: int = 0
-## A measure-only build (v1.28: Pair up, Snack lover, Household goods, Salvage) is measured by the
+## A measure-only build (v1.29: Pair up, Snack lover, Household goods, Salvage) is measured by the
 ## balance simulator only: no upgrade lists it, it is never a run's main build and it is not one
 ## of the builds held to the viability gate (full build plan section 4).
 @export var measure_only: bool = false
-## The loyalty perks a measure-only build wants, by their LV 1 id (v1.28: Pair up's Perfect pair,
+## The loyalty perks a measure-only build wants, by their LV 1 id (v1.29: Pair up's Perfect pair,
 ## Salvage's Salvage desk, Snack lover's Grab bag, Household goods' Home goods): the balance
 ## simulator's build player takes them as perks listing the build (its `build:<id>` strategy).
 ## Their tickets keep their family's "decks" line: the build lists them, not they the build. Ids,

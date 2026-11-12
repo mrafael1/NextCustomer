@@ -71,7 +71,7 @@ func test_the_model_frames_the_batches_with_a_job_card(
 
 
 ## A batch a link joins across other products (the old Shelf swap of the frozen cards_v0_6 fixture,
-## _old_shelf_swap: Bread, the row's first, counts as beside the Croissant after it; since v1.28 no
+## _old_shelf_swap: Bread, the row's first, counts as beside the Croissant after it; since v1.29 no
 ## live card links products that are not neighbours, but a link may) is framed in runs round its
 ## own tickets, the products between left out; a coupon between two of its products stays inside
 ## its run.
@@ -133,7 +133,7 @@ func test_a_batch_cards_ticket_prints_the_batch_chip() -> void:
 		var chip: KeywordChip = chips[0]
 		assert_str(chip.keyword).is_equal(CardText.BATCH_WORD)
 		assert_str(chip.tip_text).is_equal(GlyphText.keyword_tip(CardText.BATCH_WORD))
-		assert_str(chip.tip_text).starts_with("BATCH · 2 or more Bakery side by side")
+		assert_str(chip.tip_text).starts_with("Put Bakery items side by side")
 		assert_bool(chip.tip_below).is_true()
 		assert_object(chip.tip_anchor).is_same(sticker)
 		assert_bool(chip.is_wasted()).is_false()
@@ -164,7 +164,7 @@ func test_a_batch_cards_ticket_prints_the_batch_chip() -> void:
 		var chain_chips: Array[KeywordChip] = chain.summary().keywords()
 		assert_int(chain_chips.size()).override_failure_message(id).is_equal(1)
 		assert_str(chain_chips[0].keyword).is_equal(CardText.CHAIN_WORD)
-		assert_str(chain_chips[0].tip_text).starts_with("CHAIN · 2 or more Bananas")
+		assert_str(chain_chips[0].tip_text).starts_with("Put Bananas next to each other")
 		assert_that(chain_chips[0].face_color()).is_equal(Palette.PAPER)
 		var produce: FamilyStyle = FamilyPalette.shared().style("Produce")
 		assert_that(KeywordChip.dot_family(CardText.CHAIN_WORD).face).is_equal(produce.face)
@@ -590,7 +590,7 @@ static func _card(id: String) -> CardDefinition:
 	return load(CARDS % id) as CardDefinition
 
 
-## The pre-v1.28 Shelf swap (the cards_v0_6 fixture's rule: the next product also counts as just
+## The pre-v1.29 Shelf swap (the cards_v0_6 fixture's rule: the next product also counts as just
 ## after the row's first product) on a copy of the live card, its art kept.
 static func _old_shelf_swap() -> CardDefinition:
 	var old: CardDefinition = (load(CARDS % "shelf_swap") as CardDefinition).duplicate()

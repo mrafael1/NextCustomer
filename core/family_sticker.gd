@@ -1,6 +1,6 @@
 class_name FamilySticker
 extends RefCounted
-## The Family sticker (v1.28, the user's answer 2 of 2026-11-11): one coupon whose next item joins
+## The Family sticker (v1.29, the user's answer 2 of 2026-11-11): one coupon whose next item joins
 ## a family the player picks, in place of the Breakfast sticker and the Clearance tag (their files
 ## stay for old saves). Its rule is a GrantTagToNextSlotRule with `choices` (the families it can
 ## give); the family is per card instance:

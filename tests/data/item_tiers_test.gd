@@ -70,7 +70,7 @@ const CHAINED: Array[StringName] = [
 ## hand instead: GOLDEN Iced
 ## bun glazes ×3 (#128 v3), as a glaze has no charge to gain; GOLDEN Lemon's knot is ×3 (#128
 ## Produce links, 2026-11-02), as a knot has no charge to gain either; GOLDEN Flickering bulb is
-## ×5 after a WASTED product (#128 v3, one step over the plain ×4 since v1.28), a multiplier with no
+## ×5 after a WASTED product (#128 v3, one step over the plain ×4 since v1.29), a multiplier with no
 ## charge; GOLDEN Stale popcorn adds 75%
 ## per redraw left in place of 50% (the user's call of 2026-11-02), keeping its one charge.
 const TIER_BASE_STEP := 2

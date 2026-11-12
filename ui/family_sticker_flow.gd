@@ -1,6 +1,6 @@
 class_name FamilyStickerFlow
 extends RefCounted
-## The Family sticker on the shift screen (v1.28, the user's answer 2 of 2026-11-11): a part of
+## The Family sticker on the shift screen (v1.29, the user's answer 2 of 2026-11-11): a part of
 ## PinFlow, like the Price gun, working on the screen's run and display. The UI only shows what
 ## FamilySticker resolves and asks it to pick; it never decides a family itself.
 ## - Each Family sticker on the belt wears a family tag on its art's bottom left (TAG_NODE, clear

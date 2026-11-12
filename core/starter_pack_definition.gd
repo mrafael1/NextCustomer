@@ -23,18 +23,18 @@ extends Resource
 @export var example_cards: Array[CardDefinition] = []
 @export var example_total: int = 0
 ## The aisle (an AisleDefinition id, e.g. &"snacks") the pack needs unlocked before it is offered
-## (v1.28, the Snack stand): empty for a pack offered from the first run. An aisle is unlocked
+## (v1.29, the Snack stand): empty for a pack offered from the first run. An aisle is unlocked
 ## once it is listable for the profile (RunStock.is_listable: its capsule items unlocked).
 @export var needs_aisle: StringName = &""
-## The family the pack's Family stickers come preset to (v1.28: the Breakfast run's is Breakfast;
+## The family the pack's Family stickers come preset to (v1.29: the Breakfast run's is Breakfast;
 ## FamilySticker.chosen), until the player picks another on the belt; empty: pre-filled from the
 ## row like any other.
 @export var sticker_family: String = ""
-## The pack's cards before a card was retired from it (v1.28: the Breakfast run held the Breakfast
+## The pack's cards before a card was retired from it (v1.29: the Breakfast run held the Breakfast
 ## sticker), card for card: a run dealt before still resumes (StartingDeck.could_deal). Empty for a
 ## pack whose cards never changed that way.
 @export var former_cards: Array[CardDefinition] = []
-## The pack's loyalty perk (v1.28, the user's "Pool + pack guarantee"; Milk bar: Perfect pair,
+## The pack's loyalty perk (v1.29, the user's "Pool + pack guarantee"; Milk bar: Perfect pair,
 ## Bargain bin: Salvage desk, Snack stand: Grab bag, Home basics: Home goods), or null: the machine
 ## guarantees it among the LOYALTY offer of the run's first UPGRADE visit (MachineContext.pack_perk;
 ## the player still picks it, and it takes a box), and the pack's family always fits your cart

@@ -53,7 +53,7 @@ func _is_lone(state: ScoreState, slot: int) -> bool:
 
 
 ## Whether the card in `slot` has no product with `family` beside it (after the context pass): a
-## lone Snack for Pick 'n' mix, and for the Grab bag perk (KeywordMultiplierRule, v1.28).
+## lone Snack for Pick 'n' mix, and for the Grab bag perk (KeywordMultiplierRule, v1.29).
 static func is_lone(state: ScoreState, slot: int, family: String) -> bool:
 	for other: int in state.products_beside(slot):
 		if state.has_tag(other, family):

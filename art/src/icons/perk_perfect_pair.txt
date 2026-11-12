@@ -1,4 +1,4 @@
-; Perfect pair's perk icon (v1.28, UpgradeDefinition.icon_ref; the LOYALTY prize's badge): two
+; Perfect pair's perk icon (v1.29, UpgradeDefinition.icon_ref; the LOYALTY prize's badge): two
 ; brown boxes held together by the belt's teal PAIR clasp (pair_clasp's ramp), "PAIRED items pay
 ; x2". No ink outline, like perk_rule_bender: the badge's teal shade parts the shapes. 9x7, shown
 ; at 2x art. A placeholder for the art review.

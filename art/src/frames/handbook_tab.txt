@@ -1,0 +1,17 @@
+; A staff handbook tab (2026-11-11, the guide polish): a binder index tab in the teal plate's
+; colours (button_teal): pale top row, light left edge, teal face, shade right edge, rounded top
+; corners in an ink outline, open at the foot where it tucks under the pages. 9-slice, 3 art px
+; margins.
+@size 10x10
+@kind frame
+@scale 2
+..######..
+.#666666#.
+#54444443#
+#54444443#
+#54444443#
+#54444443#
+#54444443#
+#54444443#
+#54444443#
+#54444443#

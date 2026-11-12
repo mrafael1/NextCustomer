@@ -1,6 +1,6 @@
 class_name KeywordMultiplierRule
 extends UpgradeRule
-## Upgrade (v1.28, a playstyle perk: "<keyword> items pay ×2", LV 2 ×3, LV 3 ×4): every product
+## Upgrade (v1.29, a playstyle perk: "<keyword> items pay ×2", LV 2 ×3, LV 3 ×4): every product
 ## the keyword names pays ×factor, as an upgrade multiplier (after its own and effect multipliers,
 ## plan section 3.8). The keywords read the row after the context pass:
 ## - PAIRED (Perfect pair): a product whose pair rule finds its partner beside it (CardPairs).

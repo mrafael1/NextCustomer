@@ -75,7 +75,7 @@ extends RefCounted
 ## `overtime_ticket` and `overtime_premium` (written only when earned: OvertimeTickets reads the
 ## week's use from them) and the OVERTIME visit kind ("overtime", queued or under way). A version
 ## 10 save reads as it is: its records earned none, so its week's rewards are all still there.
-## Version 12 (v1.28, the Family sticker): `sticker_families`, the families picked for the run's
+## Version 12 (v1.29, the Family sticker): `sticker_families`, the families picked for the run's
 ## Family stickers (instance id as text to family; RunState.sticker_families). A version 11 save
 ## reads as it is: no family picked, so its stickers are preset or pre-filled.
 const FORMAT_VERSION := 12
@@ -172,7 +172,7 @@ static func to_dictionary(saved_run: RunState, saved_run_id: String, played_ms: 
 		# A Golden basket's kept items and a Price gun's relabels (#132); [] and {} otherwise.
 		"kept": Array(saved_run.kept),
 		"relabels": _relabels_data(saved_run.relabels),
-		# The Family stickers' picked families (v1.28), kept across shifts; {} for none.
+		# The Family stickers' picked families (v1.29), kept across shifts; {} for none.
 		"sticker_families": _relabels_data(saved_run.sticker_families),
 		"pins": _ids(saved_run.pins),
 		"upgrades": _ids(saved_run.upgrades),
@@ -299,7 +299,7 @@ static func from_dictionary(saved: Dictionary, lookup: ContentLookup) -> RunSave
 	if data.has("kept"):
 		restored.kept = PackedInt32Array(reader.wholes("kept", 1))
 	var relabels_ok: bool = _read_relabels(restored.relabels, data.get("relabels", {}))
-	# Left out by saves made before v1.28 (version 11 and older): no family picked.
+	# Left out by saves made before v1.29 (version 11 and older): no family picked.
 	var stickers: Variant = data.get("sticker_families", {})
 	relabels_ok = relabels_ok and _read_relabels(restored.sticker_families, stickers)
 	# Left out by saves made before #122's badge pins: no pin worn.
@@ -377,7 +377,7 @@ static func _limits(restored: RunState) -> ShiftLimits:
 	)
 
 
-## The saved form of a Price gun's relabels (#132) or the Family stickers' families (v1.28):
+## The saved form of a Price gun's relabels (#132) or the Family stickers' families (v1.29):
 ## instance id (as text, JSON's keys) to family.
 static func _relabels_data(relabels: Dictionary[int, String]) -> Dictionary:
 	var data: Dictionary = {}

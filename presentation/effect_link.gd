@@ -15,7 +15,7 @@ enum Kind { BONUS, STAMP, COPY, DENIED, FIZZLE, ARMED }
 ## belt and in the scanner bay, the count-up's puff, the receipt's and monitor's fizzle lines and
 ## the receipt's count ("2 WASTED"). A failed condition and a wasted effect read the same.
 const WASTED_WORD := "WASTED"
-## A written-off product's label (v1.28, Write-off: ScoreStep.StepType.WRITTEN_OFF), a stamp,
+## A written-off product's label (v1.29, Write-off: ScoreStep.StepType.WRITTEN_OFF), a stamp,
 ## never a fizzle.
 const WRITTEN_OFF_WORD := "WRITTEN OFF"
 

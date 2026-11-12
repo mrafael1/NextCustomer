@@ -7,7 +7,7 @@ extends GdUnitTestSuite
 ## the next Snack ×1, +1 per redraw left, Golden ×2, +2 per redraw left). The redraws reach
 ## scoring as context (ScoreCredits.cards_redrawn and redraws_left, Scoring.total's): each redraw
 ## is a basket of 2. Live data: the numbers are placeholders for the end balance pass (raised in
-## v1.28's family buffs).
+## v1.29's family buffs).
 
 const CARDS := "res://data/cards/%s.tres"
 const STARTER := "res://data/decks/starter.tres"

@@ -56,7 +56,7 @@ func entry_marked(kind: HandbookEntry.Mark, value: String) -> HandbookEntry:
 	return null
 
 
-## The entry of a keyword chip's word (CHAIN, MORNING, GOLDEN...), or null.
+## The entry of a keyword chip's word (CHAIN, MORNING, PAIR...), or null.
 func entry_for_keyword(word: String) -> HandbookEntry:
 	var found: HandbookEntry = entry_marked(HandbookEntry.Mark.KEYWORD, word)
 	return found if found != null else entry_marked(HandbookEntry.Mark.WORD, word)
@@ -72,8 +72,9 @@ func entry_for_card(card_id: String) -> HandbookEntry:
 	return entry_marked(HandbookEntry.Mark.CARD, card_id)
 
 
-## The entry whose title opens `text` (case-insensitive, a whole word: "Spot check · slot 3 pays
-## 0€"), the longest such title, or null. One-word titles shorter than 4 letters never match.
+## The entry whose title opens `text` (case-insensitive, a whole word: "Opening deal: ×5 on the
+## first item"), the longest such title, or null. One-word titles shorter than 4 letters never
+## match.
 func entry_titled(text: String) -> HandbookEntry:
 	var found: HandbookEntry = null
 	var lowered: String = text.to_lower()

@@ -52,7 +52,7 @@ const LIVE: Dictionary[String, Array] = {
 	"tea_bags": ["Breakfast"],
 	"bruised_apples": ["Clearance"],
 	"clearance_tag": ["Clearance"],
-	# v1.28: its family is picked per copy, so its ticket is the plain coupon.
+	# v1.29: its family is picked per copy, so its ticket is the plain coupon.
 	"family_sticker": [],
 	"day_old_buns": ["Clearance"],
 	"dented_can": ["Clearance"],

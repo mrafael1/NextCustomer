@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## The v1.28 coupon buffs on the live data (docs/FULL_BUILD_PLAN.md v1.28, the user's answers of
+## The v1.29 coupon buffs on the live data (docs/FULL_BUILD_PLAN.md v1.29, the user's answers of
 ## 2026-11-11): Shelf swap glues different items and the second pays ×2, Final markdown doubles
 ## the row's last item, Write-off doubles the next item and writes it off (WASTED, a WRITTEN_OFF
 ## label, not a fizzle), Party pack doubles the next 3 Snacks and is offered only to a run with a

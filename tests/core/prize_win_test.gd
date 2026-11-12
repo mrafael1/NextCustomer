@@ -17,7 +17,7 @@ func before() -> void:
 	_starter = load(STARTER)
 
 
-## Dairy regulars (each Dairy product +2 for each Dairy product before it, v1.28): three
+## Dairy regulars (each Dairy product +2 for each Dairy product before it, v1.29): three
 ## Milks gain 0 + 2 + 4, a row with no Dairy nothing; the last row is the one just checked out,
 ## the best the most over the run.
 func test_a_perk_wins_on_the_last_row_and_the_best_row() -> void:

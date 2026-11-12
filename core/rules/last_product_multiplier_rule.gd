@@ -1,6 +1,6 @@
 class_name LastProductMultiplierRule
 extends Rule
-## Final markdown (v1.28, a Position coupon): the row's last product (ScoreState.last_product,
+## Final markdown (v1.29, a Position coupon): the row's last product (ScoreState.last_product,
 ## coupons skipped) pays ×factor, an armed multiplier for that one slot like Opening deal's, so it
 ## stacks with every other multiplier and a Repeat after that product copies the multiplied
 ## payout. With no product after it (it sits after the last product, or in the last slot) it

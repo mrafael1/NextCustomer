@@ -6,10 +6,10 @@ extends GdUnitTestSuite
 const FIXTURE_DIR := "res://tests/fixtures/cards_v0_4"
 const FIXTURE_V0_5_DIR := "res://tests/fixtures/cards_v0_5"
 const FIXTURE_V0_6_DIR := "res://tests/fixtures/cards_v0_6"
-const FIXTURE_V1_28_DIR := "res://tests/fixtures/cards_v1_28"
-const FIXTURE_DIRS := [FIXTURE_DIR, FIXTURE_V0_5_DIR, FIXTURE_V0_6_DIR, FIXTURE_V1_28_DIR]
+const FIXTURE_V1_29_DIR := "res://tests/fixtures/cards_v1_29"
+const FIXTURE_DIRS := [FIXTURE_DIR, FIXTURE_V0_5_DIR, FIXTURE_V0_6_DIR, FIXTURE_V1_29_DIR]
 const CARD_DIRS := [
-	"res://data/cards", FIXTURE_DIR, FIXTURE_V0_5_DIR, FIXTURE_V0_6_DIR, FIXTURE_V1_28_DIR
+	"res://data/cards", FIXTURE_DIR, FIXTURE_V0_5_DIR, FIXTURE_V0_6_DIR, FIXTURE_V1_29_DIR
 ]
 const NEUTRAL_SCRIPTS := [
 	"res://core/card_definition.gd",
@@ -151,7 +151,7 @@ func test_every_upgrade_states_its_type_and_id() -> void:
 		_assert_level_chain(upgrade, file)
 	# Extra coupon slot was removed in plan v0.46 (#106); #108 added LV 2 and LV 3 of four perks,
 	# then (piece 2) 7 Regulars and 7 Aisle runs, Mixed basket and Bulk deal at 3 levels each and
-	# the 3 jackpots; v1.28 added the four playstyle perks at 3 levels each.
+	# the 3 jackpots; v1.29 added the four playstyle perks at 3 levels each.
 	assert_int(ids.size()).is_equal(77)
 
 
@@ -181,7 +181,7 @@ func _assert_level_chain(upgrade: UpgradeDefinition, file: String) -> void:
 ## Plan section 5.2: like an upgrade's type, a build's measure has an UNSET default that no
 ## build file may keep. Ids are present, unique and match the file name, and every build needs
 ## at least one card to fit. The 5 builds of the viability gate, plus the 4 measure-only ones the
-## simulator measures (v1.28: Pair up, Snack lover, Household goods, Salvage).
+## simulator measures (v1.29: Pair up, Snack lover, Household goods, Salvage).
 func test_every_build_states_its_measure_and_id() -> void:
 	var ids: Dictionary = {}
 	var measure_only: Array[StringName] = []

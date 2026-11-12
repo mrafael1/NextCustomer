@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## The Family sticker (v1.28, the user's answer 2 of 2026-11-11; FamilySticker): its next item
+## The Family sticker (v1.29, the user's answer 2 of 2026-11-11; FamilySticker): its next item
 ## joins the family picked for that copy (ScoreCredits.sticker_families, like a Price gun's
 ## relabels), else its pack's preset, else the row's pre-fill. Picked on the belt while planning,
 ## kept across shifts and in the run save (format 12); a version 11 save reads with no family
@@ -233,7 +233,7 @@ func test_the_run_save_keeps_the_picks() -> void:
 	assert_object(RunSave.from_dictionary(broken, lookup)).is_null()
 
 
-## A run dealt the Breakfast run before v1.28 holds the old Breakfast sticker: its version 11 save
+## A run dealt the Breakfast run before v1.29 holds the old Breakfast sticker: its version 11 save
 ## still resumes (the pack's former cards) and its sticker still plays.
 func test_an_old_breakfast_run_save_resumes_and_plays() -> void:
 	var lookup: ContentLookup = ContentLookup.new(_balance)
@@ -262,7 +262,7 @@ func test_an_old_breakfast_run_save_resumes_and_plays() -> void:
 	assert_object(resumed.checkout()).is_not_null()
 
 
-## A run dealt the Bargain bin before v1.28 (Clearance tag, Dented can, Big Flickering bulb):
+## A run dealt the Bargain bin before v1.29 (Clearance tag, Dented can, Big Flickering bulb):
 ## its version 11 save still resumes (the pack's former cards) and its cards play.
 func test_an_old_bargain_bin_save_resumes_and_plays() -> void:
 	var lookup: ContentLookup = ContentLookup.new(_balance)

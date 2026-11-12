@@ -85,7 +85,7 @@ func amount_of(slot: int) -> Label:
 
 ## Counts `counted` on its row: a BASE or PAYOUT prints the row (a PAYOUT starts its amount's
 ## roll and returns the amount label, which the count fades in); a fizzle or an inspection's
-## override marks it; a write-off (v1.28) marks it with the Write-off's mini (not a fizzle; its
+## override marks it; a write-off (v1.29) marks it with the Write-off's mini (not a fizzle; its
 ## name prints whole, the receipt's context line and the count's tag beat say WRITTEN OFF).
 ## Returns the row (null for a step with no row).
 func step(counted: ScoreStep) -> Control:
@@ -159,7 +159,7 @@ func _settle(slot: int) -> void:
 		return
 	# By weak reference: the receipt may start over (and free the row) before the timer ends.
 	var held: WeakRef = weakref(amount)
-	amount.get_tree().create_timer(LIFT_SECONDS).timeout.connect(
+	amount.get_tree().create_timer(LIFT_SECONDS, false).timeout.connect(
 		func() -> void: _lift(held.get_ref() as Label, false)
 	)
 
@@ -193,7 +193,7 @@ func _print(slot: int) -> HBoxContainer:
 
 ## Marks `slot`'s row `kind` (pending until it prints). An inspection's DENIED wins over a fizzle
 ## whichever came first (a context pass's fizzle is counted before the slot's override), as
-## ReceiptView.slot_mark decides (and over a write-off's, v1.28); anything else keeps the first
+## ReceiptView.slot_mark decides (and over a write-off's, v1.29); anything else keeps the first
 ## mark.
 func _mark(slot: int, kind: ReceiptView.Mark) -> void:
 	var row: HBoxContainer = row_of(slot)

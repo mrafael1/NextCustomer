@@ -35,7 +35,7 @@ enum Type {
 	MIXED_BASKET,
 	BULK_DEAL,
 	JACKPOT,
-	## v1.28: "<keyword> items pay ×2" (Perfect pair, Salvage desk, Grab bag, Home goods).
+	## v1.29: "<keyword> items pay ×2" (Perfect pair, Salvage desk, Grab bag, Home goods).
 	KEYWORD,
 }
 
@@ -83,7 +83,7 @@ func build_names() -> String:
 
 ## Whether this upgrade fits a deck (an UPGRADE draw guarantees a new perk that does): a jackpot
 ## when the deck holds its product, a family perk when its family is one of the deck's two most
-## common `families` (top_families) or is `pack_family` (v1.28: the run's starter pack names a
+## common `families` (top_families) or is `pack_family` (v1.29: the run's starter pack names a
 ## loyalty perk, so its family always fits your cart), else when one of its builds fits. An
 ## Economy upgrade helps any deck, so it never counts as fitting one.
 func fits(

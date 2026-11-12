@@ -19,12 +19,12 @@ extends SceneTree
 ##                     from the coupon pool since v0.51)
 ##   --random-start    start each run from the game's recipe deck (RANDOM_START_DECK) instead
 ##                     of the fixed starter deck; not with --deck
-##   --pack=ID         with --random-start, every run takes this starter pack (v1.28, measuring
+##   --pack=ID         with --random-start, every run takes this starter pack (v1.29, measuring
 ##                     a pack): it replaces the offer's first pack when the offer lacks it, even
 ##                     one the stock would not offer (StarterPackDefinition.needs_aisle)
 ##   --balance=PATH    balance data (default the live balance data)
 ##   --builds=DIR      the build files (default res://data/builds); see SimBuilds (a
-##                     measure-only build, v1.28, can be a build: strategy's target but is never
+##                     measure-only build, v1.29, can be a build: strategy's target but is never
 ##                     a main build nor in the list gate)
 ##   --profile=PATH    stock the runs from this profile save (its unlocked items, run count and
 ##                     last list), as the game would for its next run (default a new profile)

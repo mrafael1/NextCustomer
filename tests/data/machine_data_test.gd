@@ -116,7 +116,7 @@ func test_the_rarities_follow_the_approved_draw() -> void:
 		["repeat", "two_for_one", "multipack", "write_off"]
 	)
 	assert_array(_ids(_machine.legendary_coupons)).is_equal(["opening_deal"])
-	# #108: the Aisle runs, Mixed basket and Bulk deal (and v1.28's playstyle perks) are
+	# #108: the Aisle runs, Mixed basket and Bulk deal (and v1.29's playstyle perks) are
 	# RARE, the jackpots LEGENDARY, and the Regulars COMMON (not listed).
 	assert_array(_ids(_machine.rare_upgrades)).contains_exactly_in_any_order(
 		[

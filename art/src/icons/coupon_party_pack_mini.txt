@@ -1,4 +1,4 @@
-; Coupon giver badge (v1.28): party pack, the teal-striped party bag under confetti (teal and
+; Coupon giver badge (v1.29): party pack, the teal-striped party bag under confetti (teal and
 ; mustard, so it never reads as Stale popcorn's red-striped tub).
 ; Trimmed to the drawing so it centres exactly inside the teal token.
 @size 9x9

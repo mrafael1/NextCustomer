@@ -120,7 +120,7 @@ const GOT_RING_WIDTH := 2.0
 ## Tips (FamilyGlyph's, PriceWindow's).
 const MEMBER_TIP := "%s · %s is a %s item"
 const GAINED_TIP := "%s · gained from %s"
-## Where a gained family came from (show_gained): the Price gun, or a Family sticker (v1.28).
+## Where a gained family came from (show_gained): the Price gun, or a Family sticker (v1.29).
 const GUN_SOURCE := "the Price gun this shift"
 const STICKER_SOURCE := "the Family sticker before it"
 const PRINTED_TIP := "%s · %s, its printed price"
@@ -165,7 +165,7 @@ var redraws_left: int = -1:
 			_summary.set_live(CardText.sticker_summary(_definition, value), _live_tips())
 			_place_summary()
 
-## The family a Family sticker's copy gives (v1.28): its ticket reads "Next joins Breakfast"; ""
+## The family a Family sticker's copy gives (v1.29): its ticket reads "Next joins Breakfast"; ""
 ## reads CardText.PICK_WORDS. Other cards ignore it. Set by FamilyStickerFlow.
 var sticker_family: String = "":
 	set(value):
@@ -329,7 +329,7 @@ func glyphs() -> Array[FamilyGlyph]:
 
 
 ## Shows the family `family` a Price gun gave the item this shift (#132), or a Family sticker
-## before it (v1.28; `source` names it in the tip), after its printed glyphs, in its amber frame
+## before it (v1.29; `source` names it in the tip), after its printed glyphs, in its amber frame
 ## (the label widening for a third icon); "" takes it off. Products only (none for a family it has).
 func show_gained(family: String, source: String = GUN_SOURCE) -> void:
 	if _definition.is_coupon():

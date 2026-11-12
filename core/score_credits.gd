@@ -15,7 +15,7 @@ var redrawn_in: PackedInt32Array = PackedInt32Array()
 ## A Price gun's relabels this shift (#132, RunState.relabels): instance id to the family the
 ## item gains (ScoreState adds it to the item's tags).
 var relabels: Dictionary[int, String] = {}
-## The families the run's Family stickers were given (v1.28, FamilySticker.chosen_all: picks and
+## The families the run's Family stickers were given (v1.29, FamilySticker.chosen_all: picks and
 ## a pack's preset): instance id to family. A sticker missing here is pre-filled from the row.
 var sticker_families: Dictionary[int, String] = {}
 ## The row's open slots this shift (ShiftLimits.slot_count; 0: unknown): Express lane's last slot

@@ -1,0 +1,20 @@
+; The staff handbook's binder board (2026-11-11, the guide polish), a 9-slice (5 art px margins;
+; the middle 2x2 stretches): teal dark board in an ink outline with rounded corners, lit teal
+; shade along its top and left, teal darkest along its right and bottom, a stitched groove inset
+; 3 art px (teal darkest, its inner edge lit), and brass corner caps (gold glint top left, darker
+; to the bottom right). The hard drop shadow is drawn by code.
+@size 12x12
+@kind frame
+@scale 2
+.##########.
+#nLl3333lLL#
+#Ll222222ll#
+#l21111112l#
+#3213333121#
+#3213222121#
+#3213222121#
+#3213222121#
+#l21111112k#
+#Ll222222kl#
+#Lll1111kll#
+.##########.

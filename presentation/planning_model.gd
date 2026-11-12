@@ -11,7 +11,7 @@ enum Glyph { NONE, FIZZLE, WARNING }
 
 ## The pay tag's text.
 const PAY_TEXT := MonitorText.EUROS
-## A written-off item's label caption (v1.28, Write-off): EffectLink.WRITTEN_OFF_WORD, one line.
+## A written-off item's label caption (v1.29, Write-off): EffectLink.WRITTEN_OFF_WORD, one line.
 const WRITTEN_OFF_CAPTION := EffectLink.WRITTEN_OFF_WORD
 ## A wrong job's tooltip (#128): WASTED, then its step's reason, capitalised.
 const WRONG_JOB_TIP := "%s · %s"
@@ -99,7 +99,7 @@ static func build(
 	return model
 
 
-## A written-off item's label (v1.28, Write-off): WRITTEN OFF (its pay kept as the amount), not a
+## A written-off item's label (v1.29, Write-off): WRITTEN OFF (its pay kept as the amount), not a
 ## denial (the item still pays, its stickers stay lit: written_off). A denial's own stamp wins.
 static func _stamp_write_off(planning: PlanningSlot, result: ScoreResult, slot: int) -> void:
 	if planning.has_stamp() or not written_off(result, slot):

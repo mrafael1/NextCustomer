@@ -12,10 +12,10 @@ const FIXTURE_DIR := "res://tests/fixtures/cards_v0_4"
 const FIXTURE_V0_5_DIR := "res://tests/fixtures/cards_v0_5"
 ## Clearance tag and Opening deal (plan section 3.7, v0.26) have their own frozen fixture too.
 const FIXTURE_V0_6_DIR := "res://tests/fixtures/cards_v0_6"
-## The coupon buffs of v1.28 (Shelf swap glues different items, Final markdown doubles the last
+## The coupon buffs of v1.29 (Shelf swap glues different items, Final markdown doubles the last
 ## item, Write-off and Party pack) have their own frozen fixture, so every older row stays as it
 ## was.
-const FIXTURE_V1_28_DIR := "res://tests/fixtures/cards_v1_28"
+const FIXTURE_V1_29_DIR := "res://tests/fixtures/cards_v1_29"
 
 
 func test_golden_row(
@@ -122,11 +122,11 @@ func test_golden_row_v0_6(
 	_check_row(FIXTURE_V0_6_DIR, row, payouts, total)
 
 
-## The v1.28 coupon buffs (docs/FULL_BUILD_PLAN.md v1.28, the user's answers of 2026-11-11):
+## The v1.29 coupon buffs (docs/FULL_BUILD_PLAN.md v1.29, the user's answers of 2026-11-11):
 ## Shelf swap (different items on both sides count as side by side, the second pays ×2), Final
 ## markdown (the last item pays ×2), Write-off (the next item pays ×2 and counts as WASTED) and
 ## Party pack (the next 3 Snacks pay ×2). Bread 5, Milk 4 (+1 per earlier Breakfast), Eggs 1.
-func test_golden_row_v1_28(
+func test_golden_row_v1_29(
 	row: String,
 	payouts: Array,
 	total: int,
@@ -172,17 +172,17 @@ func test_golden_row_v1_28(
 		["party_pack,breadsticks,repeat", [0, 4, 4], 8],
 	]
 ) -> void:
-	_check_row(FIXTURE_V1_28_DIR, row, payouts, total)
+	_check_row(FIXTURE_V1_29_DIR, row, payouts, total)
 
 
-## The v1.28 playstyle loyalty perks ("<keyword> items pay ×2", built here in code with their LV 1
-## factor, or LV 2's ×3, so tuning data/ never changes them) on the v1.28 fixture: Perfect pair
+## The v1.29 playstyle loyalty perks ("<keyword> items pay ×2", built here in code with their LV 1
+## factor, or LV 2's ×3, so tuning data/ never changes them) on the v1.29 fixture: Perfect pair
 ## (PAIRED), Salvage desk (WASTED, a written-off item included, its own fizzle known before the
 ## upgrade's multiplier), Grab bag (lone Snacks) and Home goods (Household). The fixture's Cereal
 ## (+4 PAIR per Milk beside, base 2) and Carrier bag (+8 per Food beside, base 1) were added for
 ## them; Breadsticks fizzle unless right after Soup. Each row also scores the same total through
 ## Scoring.total.
-func test_golden_row_v1_28_perks(
+func test_golden_row_v1_29_perks(
 	keyword: KeywordMultiplierRule.Keyword,
 	tag: String,
 	factor: int,
@@ -260,7 +260,7 @@ func test_golden_row_v1_28_perks(
 	perk.type = UpgradeDefinition.Type.KEYWORD
 	perk.rules = rules
 	var upgrades: Array[UpgradeDefinition] = [perk]
-	var cards: Array[CardInstance] = _row(row, FIXTURE_V1_28_DIR)
+	var cards: Array[CardInstance] = _row(row, FIXTURE_V1_29_DIR)
 	var result: ScoreResult = Scoring.score(cards, upgrades)
 	var failure: String = (
 		"%s ×%d: payouts %s, total %d" % [row, factor, result.payouts, result.total]

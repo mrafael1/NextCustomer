@@ -1,0 +1,13 @@
+; A staff handbook binder ring (2026-11-11, the guide polish): a steel ring lying across the
+; binder's gutter, lit steel highlight top left to steel dark bottom right, in an ink outline
+; with its hole open (transparent). 14x8, shown at 2x.
+@size 14x8
+@kind icon
+..##########..
+.#ABBBBBBBBC#.
+#AB########CD#
+#B#........#D#
+#C#........#E#
+#CD########EH#
+.#DEEEEEEEEH#.
+..##########..

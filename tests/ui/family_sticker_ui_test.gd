@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## The Family sticker on the real shift screen (v1.28, FamilyStickerFlow): on the belt it wears a
+## The Family sticker on the real shift screen (v1.29, FamilyStickerFlow): on the belt it wears a
 ## family tag on its art's bottom left (the family it gives now, pre-filled; its glyph inside it,
 ## a light focus ring) and its ticket reads that family; the item after it shows the family as a
 ## gained glyph on its ticket. A click on the tag opens the Price gun's family picker above it, at

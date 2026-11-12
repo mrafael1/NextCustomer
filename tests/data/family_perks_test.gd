@@ -6,10 +6,10 @@ extends GdUnitTestSuite
 ## R1's totals changed by design with #128's Produce links (2026-11-02): its Lemon (no Banana
 ## before it) and Strawberries (no chain after them) are now out of place and WASTED, Fruit salad
 ## counts kinds (+3 per kind), and Banana stand and Lemon squeezer skip the chain helpers. R3's
-## and R4's changed by design with v1.28's Final markdown (the last item pays ×2): in their last
+## and R4's changed by design with v1.29's Final markdown (the last item pays ×2): in their last
 ## slot it has no item after it and is WASTED, so each total is 4 lower (its old +4). R2, R3 and
-## R4 went up with v1.28's family buffs (Cheese, Scissors, Flickering bulb, Reduced yogurt,
-## Day-old buns). R4's Clearance regulars went up with v1.28's Regulars step (+2 for each Clearance
+## R4 went up with v1.29's family buffs (Cheese, Scissors, Flickering bulb, Reduced yogurt,
+## Day-old buns). R4's Clearance regulars went up with v1.29's Regulars step (+2 for each Clearance
 ## item before it, was +1).
 
 const UPGRADE_DIR := "res://data/upgrades"
@@ -50,7 +50,7 @@ const TOTALS: Dictionary[String, Dictionary] = {
 	"R2":
 	# #128 Dairy + Breakfast (Coffee +1 per MORNING product, Tea bags ×4 the last MORNING
 	# product, Cheese PAIR with Bread): was 57, 57, 86, 77, 69, 69, 57; then 69, 69, 119, 149,
-	# 99, 72, 69 until v1.28's Cheese +5.
+	# 99, 72, 69 until v1.29's Cheese +5.
 	{
 		"": 70,
 		"produce_regulars": 70,
@@ -61,7 +61,7 @@ const TOTALS: Dictionary[String, Dictionary] = {
 		"banana_stand": 70,
 	},
 	"R3":
-	# v1.28: Final markdown last pays no +4 any more (was 55, 56, 94, 58, 58), and Scissors pays
+	# v1.29: Final markdown last pays no +4 any more (was 55, 56, 94, 58, 58), and Scissors pays
 	# 2 + 3 per earlier coupon (was 51, 52, 90, 54, 54 in between).
 	{
 		"": 54,
@@ -72,12 +72,12 @@ const TOTALS: Dictionary[String, Dictionary] = {
 	},
 	"R4":
 	# #128 v3 (Clearance: Dented can reads redraws, none here; Flickering bulb wants a WASTED
-	# product before it): was 44, 63, 54, 53, 50, 49; then v1.28 (Final markdown last pays no +4
-	# any more): 23, 42, 33, 32, 29, 28 and 19, 38, 29, 28, 25, 24; then v1.28's family buffs
+	# product before it): was 44, 63, 54, 53, 50, 49; then v1.29 (Final markdown last pays no +4
+	# any more): 23, 42, 33, 32, 29, 28 and 19, 38, 29, 28, 25, 24; then v1.29's family buffs
 	# (Flickering bulb base 2, Reduced yogurt +4 for each Clearance partner, Day-old buns +4).
 	{
 		"": 26,
-		"clearance_regulars": 64,  # 45 at +1 each, before v1.28's Regulars step
+		"clearance_regulars": 64,  # 45 at +1 each, before v1.29's Regulars step
 		"clearance_aisle_run": 38,
 		"mixed_basket": 35,
 		"bulk_deal": 32,

@@ -171,7 +171,7 @@ func test_the_loyalty_card_has_one_empty_box_per_register() -> void:
 	assert_str(LoyaltyCard.initials("Category engine")).is_equal("CaE")
 
 
-## Coupon engine doubles Repeat's copy (Final markdown until v1.28, which pays nothing itself
+## Coupon engine doubles Repeat's copy (Final markdown until v1.29, which pays nothing itself
 ## since), Category engine pays on Milk (the last product): both come from their loyalty-card
 ## boxes, and the receipt names them.
 func test_upgrade_steps_play_from_the_loyalty_card() -> void:

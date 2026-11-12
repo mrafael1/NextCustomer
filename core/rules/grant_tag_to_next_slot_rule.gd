@@ -3,12 +3,12 @@ extends Rule
 ## Context pass: the product in the next slot gains a tag (Breakfast sticker). If that slot is
 ## a coupon or empty, or the product already has the tag, the sticker is wasted.
 ##
-## With `choices` (v1.28, the Family sticker) the tag is not fixed: each copy gives the family the
+## With `choices` (v1.29, the Family sticker) the tag is not fixed: each copy gives the family the
 ## player picked for it on the belt (or its pack's preset, else the row's pre-fill; FamilySticker),
 ## one of `choices`. Its fizzle step names that family too (ScoreStep.tag), so the belt shows it.
 
 @export var tag: String = ""
-## The families a Family sticker may give (v1.28), in its picker's order; empty: the fixed `tag`.
+## The families a Family sticker may give (v1.29), in its picker's order; empty: the fixed `tag`.
 @export var choices: PackedStringArray = PackedStringArray()
 
 

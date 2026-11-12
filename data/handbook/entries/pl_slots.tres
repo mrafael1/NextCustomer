@@ -6,11 +6,9 @@
 script = ExtResource("1_entry")
 id = &"pl_slots"
 group = &"place"
-title = "FIRST / LAST SLOT"
+title = "FIRST / LAST"
 mark = 2
 mark_value = "FIRST / LAST"
-rule = "The row's first filled slot, or its last."
+rule = "The row's first filled slot, or its last. {coupon:opening_deal} wants the first, {coupon:final_markdown} the last."
 example_row = PackedStringArray("opening_deal", "bread", "final_markdown")
 example_total = 29
-example_note = "Opening deal works first, Final markdown last."
-details = "A coupon between two products breaks BESIDE and RIGHT AFTER, unless its own rule links them."

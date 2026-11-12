@@ -1,7 +1,7 @@
 extends GdUnitTestSuite
 ## The starter pack choice's core (#107, full build plan 7.2, v0.63; mock-up
 ## starter_choice_107.html, decided with the user on 2026-10-26: Q1 C, Q2 A, Q3 B, Q4 A): the nine
-## packs (three more in v1.28's family buffs: Milk bar, Snack stand, Home basics) and the recipe,
+## packs (three more in v1.29's family buffs: Milk bar, Snack stand, Home basics) and the recipe,
 ## the offer's deal (the good first pick, the shared products, the copy rule, the fair-deal check),
 ## the run waiting for its pick, the run save and the profile's first win.
 
@@ -275,7 +275,7 @@ static func _json(data: Dictionary) -> Dictionary:
 	return JSON.parse_string(JSON.stringify(data))
 
 
-## v1.25: the packs whose RARE card is a product hold its BIG tier (keeping the pack's idea; v1.28
+## v1.25: the packs whose RARE card is a product hold its BIG tier (keeping the pack's idea; v1.29
 ## gave Bargain bin Write-off as its RARE, so a plain Flickering bulb, and added Milk bar, Snack
 ## stand and Home basics), counted as its product by the copy rule, and a run dealt before keeps its
 ## deal: a saved cart with the plain card in the pack's place could still be dealt, one with another
@@ -379,7 +379,7 @@ func test_each_packs_example_row_scores_its_total() -> void:
 		)
 
 
-## The Snack stand needs the Snacks aisle (v1.28, the user's answer 3): open_packs leaves it out
+## The Snack stand needs the Snacks aisle (v1.29, the user's answer 3): open_packs leaves it out
 ## until that aisle is listable for the profile, and an offer dealt from a stock (deal_offer)
 ## holds it only when the stock holds the aisle. The other packs need none.
 func test_the_snack_stand_needs_the_snacks_aisle() -> void:

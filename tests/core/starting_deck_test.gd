@@ -55,7 +55,7 @@ func test_a_deal_is_the_core_cards_then_a_coupon_then_eight_products() -> void:
 
 ## v0.51: the coupon is drawn from the whole coupon pool, equally likely, on the deal's stream
 ## before the products: over 200 seeds every pool coupon shows up, and the stream's first draw
-## picks it (in a deal the fair-deal check kept the first time, v0.54). Since v1.28 a coupon with a
+## picks it (in a deal the fair-deal check kept the first time, v0.54). Since v1.29 a coupon with a
 ## `needs_tag` (Party pack) is left out when no stocked product has its family (no Snack here).
 func test_the_coupon_is_random_from_the_coupon_pool() -> void:
 	var drawable: Array[CardDefinition] = StartingDeck.drawable_coupons(_stock)
@@ -349,7 +349,7 @@ func test_how_often_a_dealt_deck_fits_each_build_at_the_start() -> void:
 	for file: String in DirAccess.get_files_at("res://data/builds"):
 		if file.ends_with(".tres"):
 			var build: BuildDefinition = load("res://data/builds/" + file)
-			# The measure-only builds (v1.28) are the simulator's, not REGISTER's.
+			# The measure-only builds (v1.29) are the simulator's, not REGISTER's.
 			if not build.measure_only:
 				builds[build.id] = build
 	var starter: DeckDefinition = load(STARTER)

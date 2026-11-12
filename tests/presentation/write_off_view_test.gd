@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## Write-off's look (v1.28, the user's answers of 2026-11-11): a written-off item shows a WRITTEN
+## Write-off's look (v1.29, the user's answers of 2026-11-11): a written-off item shows a WRITTEN
 ## OFF stamp, never a red fizzle. Its WRITTEN_OFF step prints a receipt line in the context style,
 ## plays as a tag beat, marks no fizzle on the receipt or the belt, and the planning belt labels
 ## the item WRITTEN OFF without denying it. Pure data, but for the label's fit.

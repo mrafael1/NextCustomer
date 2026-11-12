@@ -24,7 +24,7 @@ const STEP_STYLES: Array[ReceiptView.LineStyle] = [
 
 const FIZZLE_ICON := preload("res://art/icons/fizzle.png")
 const WARNING_ICON := preload("res://art/icons/warning.png")
-## A written-off row's mark (v1.28): the Write-off coupon's mini, at twice its pixels in
+## A written-off row's mark (v1.29): the Write-off coupon's mini, at twice its pixels in
 ## WRITTEN_OFF_RECT (its 9 px don't scale to MARK_RECT's 14).
 const WRITTEN_OFF_ICON := preload("res://art/icons/coupon_write_off_mini.png")
 const WRITTEN_OFF_RECT := Rect2(-18, -9, 18, 18)
@@ -84,7 +84,7 @@ static func perk(line: Control) -> void:
 ## Puts `kind` on `line`: a "Mark" inside its right label, at MARK_RECT in the line's mark
 ## column, centred on its left label's first row (a wrapped fizzle's mark sits beside the
 ## reason's start): the fizzle icon (FIZZLED), the warning icon (DENIED, at its own aspect) or
-## the Write-off coupon's mini (WRITTEN_OFF, v1.28: no fizzle, the item still pays; at
+## the Write-off coupon's mini (WRITTEN_OFF, v1.29: no fizzle, the item still pays; at
 ## WRITTEN_OFF_RECT); nothing for NONE. Its "mark" meta holds `kind`.
 static func mark(line: HBoxContainer, kind: ReceiptView.Mark) -> void:
 	if kind == ReceiptView.Mark.NONE:

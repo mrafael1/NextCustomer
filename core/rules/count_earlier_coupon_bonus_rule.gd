@@ -1,7 +1,7 @@
 class_name CountEarlierCouponBonusRule
 extends Rule
 ## A flat bonus for each earlier coupon in the row, whether or not that coupon did anything
-## (decided with the user). Scissors: +3 for each earlier coupon (v1.28). With no earlier coupon it
+## (decided with the user). Scissors: +3 for each earlier coupon (v1.29). With no earlier coupon it
 ## fizzles.
 
 @export var bonus_each: int = 0

@@ -36,7 +36,7 @@ enum StepType {
 	## A perk's credit (#108 piece 2): what a perk with no scoring rule earned, a label only. Its
 	## value is the credited slot's payout, already in the total; value_after is that payout too.
 	CREDIT,
-	## A written-off product (v1.28, Write-off): a context-pass label on the product the coupon
+	## A written-off product (v1.29, Write-off): a context-pass label on the product the coupon
 	## writes off, which counts as WASTED for every rule that reads WASTED items (ScoreState.wasted)
 	## without being a fizzle. Value 0, like TAG_ADDED; source_slot is the Write-off.
 	WRITTEN_OFF,

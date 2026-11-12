@@ -93,7 +93,7 @@ static func guarantee(chute: int, context: MachineContext) -> Dictionary:
 	return found
 
 
-## The starter pack's loyalty perk the first UPGRADE draw holds (v1.28, MachineContext.pack_perk):
+## The starter pack's loyalty perk the first UPGRADE draw holds (v1.29, MachineContext.pack_perk):
 ## when the run can take it as a new perk (_new_perks: not owned, the card not full, its family
 ## stocked or in the deck), else null.
 static func pack_hold(context: MachineContext) -> UpgradeDefinition:
@@ -102,7 +102,7 @@ static func pack_hold(context: MachineContext) -> UpgradeDefinition:
 	return context.pack_perk if _new_perks(context).has(context.pack_perk) else null
 
 
-## The first UPGRADE draw's pack hold (v1.28): when the draw lacks the pack's perk
+## The first UPGRADE draw's pack hold (v1.29): when the draw lacks the pack's perk
 ## (pack_hold), it replaces the loyalty drop of its type, else the first loyalty drop, at its own
 ## rarity (so no two loyalty drops share a type). A draw with no loyalty drop is kept as it is.
 static func pack_perk_swap(

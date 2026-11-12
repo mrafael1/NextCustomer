@@ -88,7 +88,7 @@ func test_the_random_start_option_refuses_a_value_and_a_deck() -> void:
 	assert_str(BalanceSim.random_start_problem(options)).is_equal("--random-start takes no value")
 
 
-## --pack=<id> (v1.28) needs --random-start, and a player given that pack (forced_pack) takes it
+## --pack=<id> (v1.29) needs --random-start, and a player given that pack (forced_pack) takes it
 ## every run, even one the fresh stock's offer never holds (the Snack stand needs the Snacks
 ## aisle).
 func test_the_pack_option_gives_every_run_that_pack() -> void:
@@ -112,7 +112,7 @@ func test_the_pack_option_gives_every_run_that_pack() -> void:
 			assert_bool(Array(record.final_deck).has(String(card.id))).is_true()
 
 
-## The measure-only builds (v1.28: Pair up, Snack lover, Household goods, Salvage) are measured
+## The measure-only builds (v1.29: Pair up, Snack lover, Household goods, Salvage) are measured
 ## (fitted) but never a run's main build, and the list gate's key-card check leaves them out.
 func test_measure_only_builds_are_never_a_main_build() -> void:
 	var builds: SimBuilds = SimBuilds.new(SimBuilds.load_folder("res://data/builds"))

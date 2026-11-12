@@ -6,7 +6,7 @@ extends RefCounted
 ## A run's **main build** is the build its final deck fits most strongly: the highest measure
 ## divided by min_count among the builds it fits (ties go to the earlier build), or NO_BUILD.
 ## Every run has exactly one, so the shares of won runs add up to 100% (the 40% bar). A
-## measure-only build (BuildDefinition.measure_only, v1.28: pair_up, snack_lover,
+## measure-only build (BuildDefinition.measure_only, v1.29: pair_up, snack_lover,
 ## household_goods, salvage) is never a main build and stays out of the list gate (gate_chances):
 ## it is there for its `build:<id>` strategy and the fitted builds.
 ##
@@ -68,7 +68,7 @@ func main_build(deck: Array[CardDefinition]) -> String:
 
 
 ## `chances` (key-card offer chances by build id) without the measure-only builds' (the list
-## gate's, v1.28).
+## gate's, v1.29).
 func gate_chances(chances: Dictionary[String, float]) -> Dictionary[String, float]:
 	var kept: Dictionary[String, float] = {}
 	for build: BuildDefinition in builds:

@@ -381,7 +381,7 @@ func test_new_packs_with_no_other_pack_is_disabled() -> void:
 	assert_bool(run.start_setup.packs_redrawn).is_false()
 
 
-## A pack needing an aisle (v1.28: the Snack stand, Snacks) is in the run's packs, its offer and
+## A pack needing an aisle (v1.29: the Snack stand, Snacks) is in the run's packs, its offer and
 ## NEW PACKS only once that aisle is listable for the profile.
 func test_the_snack_stand_waits_for_the_snacks_aisle() -> void:
 	var stand: StarterPackDefinition = load("res://data/starter_packs/snack_stand.tres")

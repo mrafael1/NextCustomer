@@ -1,6 +1,6 @@
 class_name WriteOffRule
 extends Rule
-## Write-off (v1.28, a Clearance coupon): the product in the next slot is written off. In the
+## Write-off (v1.29, a Clearance coupon): the product in the next slot is written off. In the
 ## context pass it counts as WASTED (ScoreState.wasted, with a WRITTEN_OFF label, not a fizzle) for
 ## every rule that reads WASTED items (Dusty toffees, Flickering bulb), and it pays ×factor (an
 ## armed multiplier for that one slot, so a Repeat after it copies the multiplied payout). With no

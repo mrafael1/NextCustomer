@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## The starter pack crate's loyalty perk (v1.28, StarterPackDefinition.loyalty_perk): a pack that
+## The starter pack crate's loyalty perk (v1.29, StarterPackDefinition.loyalty_perk): a pack that
 ## names a perk shows it on its label (a teal strip with the perk's icon and name), so the player
 ## sees which perk the first UPGRADE visit guarantees; the glyph and the family line make room above
 ## it. Every part sits inside the label, nothing overlaps and the words fit. A pack with no perk

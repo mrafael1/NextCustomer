@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## Write-off on the real shift screen (v1.28, the user's answers of 2026-11-11): the written-off
+## Write-off on the real shift screen (v1.29, the user's answers of 2026-11-11): the written-off
 ## item wears a WRITTEN OFF label on the belt while planning (not denied: its caption inside the
 ## label, at its art's foot, on screen, and its stickers stay lit), the checkout's count plays it
 ## without a fizzle, and the receipt's row for it keeps the item's whole name with the Write-off's

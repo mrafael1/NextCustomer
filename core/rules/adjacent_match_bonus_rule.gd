@@ -9,7 +9,7 @@ extends Rule
 ## SAME_CARD: the Banana and its tiers) fizzles only when no match is on EITHER side, so the
 ## pair's first Banana never shows WASTED: only a lone one does ("no Banana beside it"). Its
 ## bonus still needs the match just before it. With `per_match` (Carrier bag, #128; the PAIR
-## cards since v1.28) the bonus counts once for each matching product in the position (+8 for
+## cards since v1.29) the bonus counts once for each matching product in the position (+8 for
 ## each Food product beside it; Cheese +5 for each Bread beside it).
 ## With `pair` (#128, Dairy's PAIR) a match beside it makes the product PAIRED (CardPairs), which
 ## Cream counts; its sticker names the PAIR keyword.

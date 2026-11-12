@@ -71,7 +71,7 @@ const MORNING_WORD := "MORNING"
 ## A live factor's tooltip (live_tip): the factor now, its percent per redraw left, the redraws
 ## left.
 const LIVE_TIP := "%s now · ×%s, plus %s for each redraw left this shift (%d left)"
-## A Family sticker's `{tag}` (v1.28) before a copy's family is known (the hand, the machine,
+## A Family sticker's `{tag}` (v1.29) before a copy's family is known (the hand, the machine,
 ## the deck view): its ticket on the belt reads the family it gives ("Next joins Breakfast").
 const PICK_WORDS := "your pick"
 ## What a chain bonus's `{bonus}` reads: the previous product's price.
@@ -121,7 +121,7 @@ const TIMES_FALLBACK := "%d times"
 ## The card's sticker summary, or "" when its template is empty (a card with no rule shows only
 ## its price).
 ## `redraws_left` (-1: unknown) fills a live factor (see `percent` above); `family` a Family
-## sticker's `{tag}` (the family one copy gives, v1.28; "": PICK_WORDS).
+## sticker's `{tag}` (the family one copy gives, v1.29; "": PICK_WORDS).
 static func sticker_summary(
 	definition: CardDefinition, redraws_left: int = -1, family: String = ""
 ) -> String:

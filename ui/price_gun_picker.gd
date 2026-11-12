@@ -11,7 +11,7 @@ extends Control
 ## pops in (at once under reduced motion). It covers the window to catch a click outside the
 ## card, which closes it, as Escape does.
 ##
-## The Family sticker (v1.28) opens the same picker above its belt tag (open_at's `prefer_above`),
+## The Family sticker (v1.29) opens the same picker above its belt tag (open_at's `prefer_above`),
 ## with its own art and title (`header_art`, `title`): select() marks the family it gives now (its
 ## shade face, a thick ink rim) and puts the keyboard focus on it, shown by a teal FOCUS_RING so
 ## the focused chip never looks like the current one (arrows move between the chips, Enter picks,

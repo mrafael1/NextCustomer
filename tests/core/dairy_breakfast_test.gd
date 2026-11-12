@@ -2,7 +2,7 @@ extends GdUnitTestSuite
 ## Dairy and Breakfast (#128, decided with the user on 2026-11-02): Dairy's PAIR (a product beside
 ## its partner: Butter and Bakery, Cheese and Bread, Yogurt and Banana, Reduced yogurt and
 ## Clearance, Scone and Dairy, Cereal and Milk, +4 (Cheese +5) for each partner beside it since
-## v1.28; Cream +4 for each PAIR in the row) and
+## v1.29; Cream +4 for each PAIR in the row) and
 ## Breakfast's MORNING (the row's opening run of Breakfast products, coupons skipped; Coffee +1
 ## for each MORNING product, Tea bags ×4 the last MORNING product after it). Live data: the
 ## numbers are placeholders for the end balance pass.
@@ -18,7 +18,7 @@ func test_rows(
 		["cheese,bread", [8, 5]],
 		["bread,cheese", [5, 8]],
 		["yogurt,banana", [6, 2]],
-		# A PAIR pays for each partner beside it (v1.28): Butter beside Bread and Scone (both
+		# A PAIR pays for each partner beside it (v1.29): Butter beside Bread and Scone (both
 		# Bakery) 2 + 4 × 2, Scone beside Butter and Cream (both Dairy) 2 + 4 × 2. Cream 2 + 4 for
 		# each PAIR (Butter, Scone).
 		["bread,butter,scone,cream", [5, 10, 10, 10]],

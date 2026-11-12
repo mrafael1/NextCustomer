@@ -97,7 +97,7 @@ class Enumeration:
 	## held at (its plain card's: COMMON).
 	var new_arrival: int = NO_CLASS
 	var arrival_rarity: int = MachinePrize.Rarity.COMMON
-	## The starter pack's perk's own class when the first UPGRADE draw holds it (v1.28,
+	## The starter pack's perk's own class when the first UPGRADE draw holds it (v1.29,
 	## MachineDraw.pack_hold), else NO_CLASS, and the rarity it is held at (its own).
 	var pack_class: int = NO_CLASS
 	var pack_rarity: int = MachinePrize.Rarity.COMMON

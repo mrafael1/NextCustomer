@@ -13,7 +13,7 @@ extends RefCounted
 ## whose rule counts, boosts or pairs with the tag it grants (WEAKly for a broad one), and a card
 ## zeroed beside it as a PENALTY. The rules in NAMES_NONE name no other card (slot rules, links,
 ## copies, 2 for 1 and Shelf swap, the shared multiplier, the connector, and #128's redraw and
-## WASTED readers, which count redraws or any WASTED product, not a card, and v1.28's Write-off,
+## WASTED readers, which count redraws or any WASTED product, not a card, and v1.29's Write-off,
 ## which writes off whatever product follows it). A spread rule (#128: Pick 'n' mix, Bent
 ## lolly) names its tag's products.
 ##

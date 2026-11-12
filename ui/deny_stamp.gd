@@ -7,7 +7,7 @@ extends Control
 ## (an unrelated item while another is hovered) its ink greys. Decor only: the amount is the
 ## PAYOUT_OVERRIDE step's value.
 ##
-## A written-off item (v1.28, Write-off; `written_off`) is not denied: it still pays (its ticket
+## A written-off item (v1.29, Write-off; `written_off`) is not denied: it still pays (its ticket
 ## shows how much), so it wears no tomato stamp over its art but a small paper label hung across
 ## its art's foot (WRITTEN_OFF_AT), WRITTEN OFF on one line in a coupon giver's teal ink and rim
 ## (the Write-off coupon did it; never the tomato of a denial or a fizzle), tilted like a stamp.

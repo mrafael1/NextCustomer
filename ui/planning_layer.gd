@@ -966,7 +966,7 @@ static func _shift(spec: StickerSpec, from_bottom: int) -> float:
 
 
 ## Whether a sticker of `spec` on `slot` is drained: on a denied item (not a written-off one,
-## v1.28: it still pays), or unlit by the focus.
+## v1.29: it still pays), or unlit by the focus.
 func _drained_spec(spec: StickerSpec, slot: int) -> bool:
 	var denied: bool = _stamps.has(slot) and not _stamps[slot].is_written_off()
 	return denied or (_lit.is_valid() and not bool(_lit.call(slot, spec)))
