@@ -10,8 +10,8 @@ extends GdUnitTestSuite
 ## hovering a BATCH chip lights its frame; a drag lays the frames out for its landing, binding
 ## the tickets round where the ghost lands; a link that skips products splits a batch's frame
 ## round its own tickets; a wrong job's ticket is never framed in tomato. The chip
-## shows on the monitor and in the deck too. The count shows no frame and no wrong job. The real
-## saves and logs are never touched.
+## shows on the monitor and in the deck too. The count keeps the frame and shows no wrong job. The
+## real saves and logs are never touched.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 const CARDS := "res://data/cards/%s.tres"
@@ -500,20 +500,42 @@ func test_a_drag_lays_out_the_frames_for_its_landing() -> void:
 	_assert_frame_geometry(screen, kept[0])
 
 
-## The CHECKOUT click takes every frame and wrong job off for the count.
-func test_the_count_shows_no_frame() -> void:
+## The CHECKOUT click takes every wrong job off for the count; the batch's frame stays for its
+## bookends' beats (BatchBookends, 2026-11-12): once its first two items are bagged it binds the
+## three tickets left on the belt (its sides RING outside them, its bars in their two gaps only),
+## inside the screen and clear of the Banana's ticket.
+func test_the_count_keeps_the_frame_and_no_wrong_job() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _place(screen, WRONG_ROW)
 	assert_array(_layer(screen).frames()).is_not_empty()
 	screen._on_checkout_pressed()
 	await _frames(2)
-	assert_array(_layer(screen).frames()).is_empty()
-	for part: Control in _layer(screen).parts():
-		assert_bool(part is BatchFrame).is_false()
+	var frames: Array[BatchFrame] = _layer(screen).frames()
+	assert_int(frames.size()).is_equal(1)
+	assert_bool(frames[0].visible).is_true()
 	for view: CardView in screen._row_views:
 		var sticker: PriceSticker = (view as ItemView).sticker()
 		for chip: KeywordChip in sticker.summary().keywords():
 			assert_bool(chip.is_wasted()).is_false()
+	# As the first items go into the bag, the frame binds the batch's tickets left on the belt.
+	var layer: PlanningLayer = _layer(screen)
+	while screen._counting and not screen._ride.is_bagged(1):
+		await get_tree().process_frame
+	await _frames(1)
+	var to_global: Transform2D = layer.get_global_transform()
+	var outer: Rect2 = to_global * frames[0].frame_rect()
+	var first: Rect2 = _ticket(screen, 2)
+	var last: Rect2 = _ticket(screen, 4)
+	assert_bool(frames[0].visible).is_true()
+	assert_float(outer.position.x).is_equal_approx(first.position.x - BatchFrame.RING, 0.5)
+	assert_float(outer.end.x).is_equal_approx(last.end.x + BatchFrame.RING, 0.5)
+	assert_float(outer.position.y).is_equal_approx(first.position.y - BatchFrame.TOP_OUT, 0.5)
+	assert_float(outer.end.y).is_less_equal(BatchFrames.FOOT_Y)
+	assert_bool(outer.intersects(_ticket(screen, 5))).is_false()
+	assert_bool(SCREEN_RECT.encloses(outer)).override_failure_message(str(outer)).is_true()
+	assert_array(frames[0].bar_rects()).has_size(BatchFrame.BAR_TOPS.size() * 2)
+	for bar: Rect2 in frames[0].bar_rects():
+		assert_float((to_global * bar).position.x).is_greater(first.position.x)
 
 
 ## `frame` binds exactly its batch's tickets: its sides RING outside the first and last tickets,

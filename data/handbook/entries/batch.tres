@@ -9,6 +9,10 @@ group = &"keywords"
 title = "BATCH"
 mark = 1
 mark_value = "BATCH"
-rule = "Put {fam:Bakery} items side by side to make a {kw:BATCH}. Some cards care about their spot in it: {item:croissant} first, {item:stale_doughnut} last."
+rule = "Put {fam:Bakery} items side by side to make a {kw:BATCH}. Some cards care about their spot in it: {item:croissant} first, {item:stale_doughnut} last.
+
+On the belt, the frame wears caps: FIRST on its left end, LAST on its right end. Hover a card to light the cap it needs: {item:croissant} lights FIRST; {item:stale_doughnut} and {item:iced_bun} light LAST, and the {item:iced_bun}'s icing drips over the LAST cap; {item:baguette} fills the frame's foot in gold up to itself, counting the items before it.
+
+A lit {kw:BATCH} chip turns both caps gold. A {kw:WASTED} card turns its cap red when you hover it and when the batch is counted."
 example_row = PackedStringArray("croissant", "baguette", "stale_doughnut")
 example_total = 22

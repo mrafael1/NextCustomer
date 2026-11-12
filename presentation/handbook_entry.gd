@@ -15,6 +15,10 @@ extends Resource
 ## `mark_value` (a coupon's, or an item's sprite); ICON `icon`.
 enum Mark { NONE, KEYWORD, WORD, FAMILY, CARD, ICON }
 
+## Where the rule's paragraphs part: the first is the keyword's tooltip (tip_rule); those after
+## it show on the page only (BATCH's frame caps, 2026-11-12).
+const PARAGRAPH := "\n\n"
+
 ## Its id: the handbook's deep links name it (HandbookBook.entry_for_keyword, entry_for_family).
 @export var id: StringName = &""
 ## The tab it sits in (an id of HandbookBook.group_ids).
@@ -23,7 +27,8 @@ enum Mark { NONE, KEYWORD, WORD, FAMILY, CARD, ICON }
 @export var mark: Mark = Mark.NONE
 @export var mark_value: String = ""
 @export var icon: Texture2D
-## The rule in one plain sentence, in HandbookMarkup ({kw:CHAIN}, {item:banana}, ...).
+## The rule in one plain sentence, in HandbookMarkup ({kw:CHAIN}, {item:banana}, ...); a page may
+## add paragraphs after it (PARAGRAPH apart) that teach what the belt shows.
 @export_multiline var rule: String = ""
 ## The worked example: these cards (ids in data/cards) in a row, scored with `example_events`
 ## (ids in data/inspections) and `example_redraws_left` redraws left; none for no example.
@@ -46,3 +51,15 @@ enum Mark { NONE, KEYWORD, WORD, FAMILY, CARD, ICON }
 ## Whether the entry has an example row.
 func has_example() -> bool:
 	return not example_row.is_empty()
+
+
+## The rule's first paragraph: a keyword's tooltip says its plain words (GlyphText.KEYWORD_TIPS).
+func tip_rule() -> String:
+	return rule.get_slice(PARAGRAPH, 0)
+
+
+## The rule's paragraphs after the first (PARAGRAPH apart), which the page shows under its example
+## (BATCH's frame caps); "" for none.
+func page_notes() -> String:
+	var at: int = rule.find(PARAGRAPH)
+	return "" if at < 0 else rule.substr(at + PARAGRAPH.length())

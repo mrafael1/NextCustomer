@@ -33,8 +33,9 @@ extends Control
 ##
 ## Batches and chains (#128): each batch and chain of the model (PlanningModel.batches, chains) is
 ## bound by a frame round its tickets (BatchFrames, ChainFrames), following the views; hovering a
-## BATCH or CHAIN chip lights its frame (light_frames). A wrong job (PlanningSlot.wrong_job) turns
-## its ticket's chip tomato with a cross (PriceSticker.set_wrong_job). The count shows neither.
+## BATCH or CHAIN chip lights its frame (light_frames), a hovered job card its batch's bookends.
+## A wrong job (PlanningSlot.wrong_job) turns its ticket's chip tomato with a cross
+## (PriceSticker.set_wrong_job). The count shows no wrong job, nor a chain; a batch's frame stays.
 ##
 ## Motion (none under `reduced_motion`, nothing loops): the stickers new since the last slap_new
 ## slap on, the fold chip pops in as a stack first folds and punches as more fold in (each newly
@@ -205,7 +206,8 @@ func show_model(shown: PlanningModel, items: Array[ItemView], ghost: ItemView = 
 	var run_batches: Array[PackedInt32Array] = []
 	for index: int in shown.run_batch:
 		run_batches.append(shown.batches[index])
-	_batches.show_batches(shown.runs, run_batches)
+	_batches.reduced_motion = reduced_motion
+	_batches.show_batches(shown.runs, run_batches, shown)
 	_chains.show_chains(shown)
 	_lay_out()
 	_paint_focus(0.0)
@@ -317,6 +319,7 @@ func apply_focus(
 	_build_hot()
 	if _model != null:
 		_lay_out()
+	_batches.focus(_focus_slot)
 	_paint_strips(fade_s)
 	for got: PriceSticker in _got:
 		if is_instance_valid(got):
@@ -333,8 +336,8 @@ func apply_focus(
 					_got.append(item.sticker())
 
 
-## The count's look (#86 v6): keeps the stickers and stamps of the model shown, takes the rail
-## strips, halos, sparkles, planned pays and the focus off, until the next show_model.
+## The count's look (#86 v6): keeps the stickers, stamps and batch frames of the model shown, takes
+## the rail strips, halos, sparkles, planned pays and the focus off, until the next show_model.
 func keep_stickers() -> void:
 	for item: ItemView in _painted:
 		if is_instance_valid(item):
@@ -346,7 +349,7 @@ func keep_stickers() -> void:
 			box.remove_child(child)
 			child.queue_free()
 	_clear_pays()
-	_batches.clear_frames()
+	_batches.count()
 	_chains.clear_frames()
 	_strips.clear()
 	_hot_strips.clear()

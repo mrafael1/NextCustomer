@@ -37,6 +37,14 @@ var batches: Array[PackedInt32Array] = []
 ## one frame round its tickets; run_batch holds each run's index in `batches`.
 var runs: Array[PackedInt32Array] = []
 var run_batch: PackedInt32Array = PackedInt32Array()
+## The framed batches' job cards and what the score says of them (the BATCH bookends, 2026-11-12,
+## the approved batch_positions mock-up's A): each job card's slot with its role
+## (BatchRoleRule.Role, its place in the batch: first, earlier items, last, or the last's glaze); a
+## working Baguette's earlier items counted (its own bonus step over its rule's bonus); and each
+## batch's last item a glaze multiplies, with the factor (its MULTIPLIER step's value).
+var batch_roles: Dictionary[int, int] = {}
+var batch_counts: Dictionary[int, int] = {}
+var glazes: Dictionary[int, int] = {}
 ## The chains the belt frames while planning (#128, Produce links): every chain of the score
 ## (ScoreResult.chains, each in slot order with any Lemon knot inside it), plain Banana pairs too.
 var chains: Array[PackedInt32Array] = []
@@ -83,6 +91,7 @@ static func build(
 		for run: PackedInt32Array in runs_of(model.batches[index], row):
 			model.runs.append(run)
 			model.run_batch.append(index)
+	_add_batch_readers(model, result, row)
 	model.chains = result.chains.duplicate()
 	for index: int in range(model.chains.size()):
 		for run: PackedInt32Array in runs_of(model.chains[index], row):
@@ -133,6 +142,44 @@ static func framed_batches(
 				framed.append(batch)
 				break
 	return framed
+
+
+## The job card's batch rule of `card` (a BatchRoleRule with a role), or null.
+static func batch_role_rule(card: CardDefinition) -> BatchRoleRule:
+	if card == null:
+		return null
+	for rule: Rule in card.rules:
+		var role_rule: BatchRoleRule = rule as BatchRoleRule
+		if role_rule != null and role_rule.role != BatchRoleRule.Role.NONE:
+			return role_rule
+	return null
+
+
+## Records `model`'s framed batches' job cards (batch_roles), from `result`'s steps what a working
+## Baguette counted (batch_counts) and the glazed last items (glazes); `row` the cards in order.
+static func _add_batch_readers(
+	model: PlanningModel, result: ScoreResult, row: Array[CardDefinition]
+) -> void:
+	for batch: PackedInt32Array in model.batches:
+		for slot: int in batch:
+			var rule: BatchRoleRule = batch_role_rule(row[slot]) if slot < row.size() else null
+			if rule != null:
+				model.batch_roles[slot] = rule.role
+	for step: ScoreStep in result.steps:
+		var giver: int = step.source_slot
+		if step.source_kind != ScoreStep.SourceKind.CARD or not model.batch_roles.has(giver):
+			continue
+		var role: int = model.batch_roles[giver]
+		if (
+			step.step_type == ScoreStep.StepType.FLAT
+			and role == BatchRoleRule.Role.BODY
+			and step.slot == giver
+		):
+			var bonus: int = batch_role_rule(row[giver]).bonus
+			if bonus > 0:
+				model.batch_counts[giver] = floori(float(step.value) / bonus)
+		elif step.step_type == ScoreStep.StepType.MULTIPLIER and role == BatchRoleRule.Role.GLAZE:
+			model.glazes[step.slot] = step.value
 
 
 ## `batch` (slots in order) in runs a frame can bind: a new run starts where a product outside the

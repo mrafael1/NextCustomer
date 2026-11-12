@@ -1,0 +1,26 @@
+; The Iced bun's icing drip on a BATCH's LAST cap (BATCH bookends, 2026-11-12: the approved
+; batch_positions mock-up's A with D's drip, docs/art/mockups/batch_positions.html): paper icing
+; poured over the cap's top, a cream shade down its right side, one tomato light sprinkle, and
+; two drips of different lengths running down the cap. No outline along its top (it pours over
+; the cap). 12x19, shown at 2x; it grows down from its top as the glaze lands.
+@size 12x19
+@kind icon
+#wwwwwwwwww#
+#wwwwwwwwwc#
+#wwwwwwwwwc#
+#woowwwwwwc#
+#woowwwwwwc#
+#wwwwwwwwwc#
+#wwwwwwwwwc#
+#wwwwwwwwcc#
+#wwwwc##wcc#
+#wwwc#..#cc#
+#wwwc#..#c#.
+.#wwc#..#c#.
+.#wwc#...#..
+.#wwc#......
+.#wwc#......
+.#wwc#......
+..#c#.......
+..#c#.......
+...#........

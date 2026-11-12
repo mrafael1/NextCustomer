@@ -21,9 +21,10 @@ extends RefCounted
 ## chip); the ellipsis of a line the monitor cuts short (MonitorItemColumn) too.
 const TRAILING := ",.:;!?)…"
 ## Each keyword's tooltip (#128; the guide feedback of 2026-11-11, round 3: "change to match"):
-## the plain words of its handbook page's rule (HandbookMarkup.plain of its entry's rule), so the
-## chip and the handbook say the same thing (handbook_data_test pins them equal). The card and
-## family names in it are copies of data's: a renamed card fails that test until its tip follows.
+## the plain words of its handbook page's rule (HandbookMarkup.plain of its entry's tip_rule, the
+## rule's first paragraph), so the chip and the handbook say the same thing (handbook_data_test
+## pins them equal). The card and family names in it are copies of data's: a renamed card fails
+## that test until its tip follows.
 const KEYWORD_TIPS: Dictionary[String, String] = {
 	CardText.BATCH_WORD:
 	(
