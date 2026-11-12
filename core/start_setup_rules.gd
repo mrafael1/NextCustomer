@@ -30,6 +30,9 @@ extends RefCounted
 ##   them, and every new run starts with the recipe's regulars and its full swap allowance.
 ## - NEW PACKS (new_packs, packs_redraws_per_run a run) redraws the offered packs, keeping the
 ##   baskets, the regulars and the good first pick; the pick is cleared.
+## - A pack that needs an aisle (StarterPackDefinition.needs_aisle, v1.29: the Snack stand) is
+##   offered, dealt or redrawn only once that aisle is unlocked for the profile
+##   (StartingDeck.open_packs).
 
 
 ## The completed aisles: every item collected, in data order.
@@ -137,6 +140,9 @@ static func setup_run(
 		balance, setup.stock_aisles, profile.unlocked_items, profile.run_count, true
 	)
 	var own: DeckDefinition = StartingDeck.with_cards(recipe, recipe.cards)
+	own.starter_packs = StartingDeck.open_packs(
+		recipe.starter_packs, balance, profile.unlocked_items
+	)
 	var offer: StartOffer = StartOffer.new()
 	var run: RunState = RunState.new(
 		seed_value, StartingDeck.before_pick(own, offer), balance, stock, offer
@@ -209,7 +215,10 @@ static func lock_in(
 	)
 	var recipe: DeckDefinition = run.starter
 	var pool: Array[StarterPackDefinition] = _packs_fitting(
-		recipe.starter_packs, recipe.core_cards, setup.originals, recipe.copy_max
+		StartingDeck.open_packs(recipe.starter_packs, run.balance, profile.unlocked_items),
+		recipe.core_cards,
+		setup.originals,
+		recipe.copy_max
 	)
 	var draw: StartingDeck.PackDraw = StartingDeck.draw_packs(
 		recipe, pool, pack_rng, not profile.has_won()
@@ -655,14 +664,14 @@ static func restore(run: RunState, slot: int) -> bool:
 
 ## Why NEW PACKS can't be used, or &"" when it can: &"stage" (nothing dealt yet), &"used" (the
 ## run's NEW PACKS is spent, or none allowed) or &"none" (no pack outside the offer fits the cart).
-static func new_packs_block(run: RunState, _profile: ProfileState) -> StringName:
+static func new_packs_block(run: RunState, profile: ProfileState) -> StringName:
 	var setup: StartSetup = run.start_setup
 	if setup == null or setup.stage == StartSetup.Stage.SELECT:
 		return &"stage"
 	if setup.packs_redrawn or run.balance.packs_redraws_per_run <= 0:
 		return &"used"
 	var fresh: Array[StarterPackDefinition] = []
-	for pack: StarterPackDefinition in _packs_for_cart(run):
+	for pack: StarterPackDefinition in _packs_for_cart(run, profile):
 		if not run.start_offer.packs.has(pack):
 			fresh.append(pack)
 	return &"none" if fresh.is_empty() else &""
@@ -683,7 +692,7 @@ static func new_packs(
 	var setup: StartSetup = run.start_setup
 	var offer: StartOffer = run.start_offer
 	var forced: StarterPackDefinition = offer.first_pick
-	var fitting: Array[StarterPackDefinition] = _packs_for_cart(run)
+	var fitting: Array[StarterPackDefinition] = _packs_for_cart(run, profile)
 	var fresh: Array[StarterPackDefinition] = []
 	var others: Array[StarterPackDefinition] = []
 	for pack: StarterPackDefinition in fitting:
@@ -723,13 +732,14 @@ static func _draw_packs_into(
 		pool.erase(pick)
 
 
-## The run recipe's packs that fit the cart: no swapped regular past copy_max with the pack
-## (_packs_fitting) and the copy rule kept with the baskets (StartingDeck.fits_copies).
-static func _packs_for_cart(run: RunState) -> Array[StarterPackDefinition]:
+## The run recipe's packs that fit the cart: open to `profile` (StartingDeck.open_packs, v1.29),
+## no swapped regular past copy_max with the pack (_packs_fitting) and the copy rule kept with the
+## baskets (StartingDeck.fits_copies).
+static func _packs_for_cart(run: RunState, profile: ProfileState) -> Array[StarterPackDefinition]:
 	var shared: Array[CardDefinition] = run.start_setup.shared()
 	var found: Array[StarterPackDefinition] = []
 	for pack: StarterPackDefinition in _packs_fitting(
-		run.starter.starter_packs,
+		StartingDeck.open_packs(run.starter.starter_packs, run.balance, profile.unlocked_items),
 		run.starter.core_cards,
 		run.start_setup.originals,
 		run.starter.copy_max

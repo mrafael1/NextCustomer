@@ -76,6 +76,8 @@ const PACK_SAMPLE_HANDS := 8
 ## The quota a recipe's fair-deal check aims at (StartingDeck.deal, v0.54); -1: shift 1's quota
 ## of the balance played. The simulator sets the balance data's when --quotas plays others.
 var deal_quota: int = -1
+## The starter pack every run takes (--pack, v1.29), or null for the strategy's pick (pick_pack).
+var forced_pack: StarterPackDefinition
 var _starter: DeckDefinition
 var _balance: BalanceDefinition
 var _stock: RunStock
@@ -139,8 +141,11 @@ static func is_known_strategy(strategy: String) -> bool:
 ## The starter pack this strategy takes from `offer` (#107): "random" one at random, "skip" the
 ## first offered, any other the one whose cart (the staples, the pack, the shared products) has the
 ## best mean shift 1 total over PACK_SAMPLE_HANDS sampled hands, climbed by the sensible player
-## (RowClimb, the recipe's fair-deal changes), sampled on the run's own simulator RNG.
+## (RowClimb, the recipe's fair-deal changes), sampled on the run's own simulator RNG. With
+## forced_pack (--pack, v1.29) in the offer, that pack (play puts it in the offer's first place).
 func pick_pack(offer: StartOffer) -> StarterPackDefinition:
+	if forced_pack != null and offer.packs.has(forced_pack):
+		return forced_pack
 	if _strategy == "random":
 		return offer.packs[_rng.randi_range(0, offer.packs.size() - 1)]
 	if _strategy == "skip":
@@ -187,6 +192,8 @@ func play(run_seed: int) -> SimRunRecord:
 		var offer: StartOffer = StartingDeck.deal_offer(
 			_starter, _stock, _balance, stream, false, deal_quota
 		)
+		if forced_pack != null and not offer.packs.has(forced_pack):
+			offer.packs[0] = forced_pack
 		var before: DeckDefinition = StartingDeck.before_pick(_starter, offer)
 		run = RunState.new(run_seed, before, _balance, _stock, offer)
 		var pack: StarterPackDefinition = pick_pack(offer)
@@ -685,7 +692,10 @@ static func upgrades_listing(
 ) -> Array[UpgradeDefinition]:
 	var listing: Array[UpgradeDefinition] = []
 	for upgrade: UpgradeDefinition in offer:
-		if upgrade.builds.any(func(listed: BuildDefinition) -> bool: return listed.id == build.id):
+		if (
+			upgrade.builds.any(func(listed: BuildDefinition) -> bool: return listed.id == build.id)
+			or build.wants(upgrade.family())
+		):
 			listing.append(upgrade)
 	return listing
 

@@ -38,6 +38,8 @@ const TAG_NODE := "PriceGunTag"
 
 ## Repack's drag between the hand's baskets (#122).
 var repack: RepackFlow
+## The Family stickers' family tags and picker (v1.29).
+var stickers: FamilyStickerFlow
 var _screen: ShiftScreen
 var _log: EventLogService
 var _gun_armed: bool = false
@@ -54,6 +56,7 @@ func _init(screen: ShiftScreen, event_log: EventLogService) -> void:
 	_screen = screen
 	_log = event_log
 	repack = RepackFlow.new(screen, event_log)
+	stickers = FamilyStickerFlow.new(screen, event_log)
 	_screen._calendar.skip_pressed.connect(press_day_off)
 	_screen._stage.pin_lanyard.reduced_motion = _reduced
 	_screen._stage.pin_lanyard.blocked = _pin_card_blocked
@@ -79,6 +82,7 @@ func _show_pins() -> void:
 	_screen._stage.basket_fronts.set_gold(gold)
 	_show_gun(planning)
 	_show_skip(planning)
+	stickers.refresh()
 	_show_tags()
 	_screen._stage.pin_lanyard.show_run(run)
 	if not planning:
@@ -296,11 +300,16 @@ func _show_skip(planning: bool) -> void:
 
 ## Puts a price tag with the family's glyph on every relabelled item (hand and belt), and gives
 ## the item the family for its scan. The tag is stuck on the item's art (ItemView.sprite), so it
-## lifts and greys with the item.
+## lifts and greys with the item. An item a Family sticker gives a family (v1.29) shows it as a
+## gained glyph too, with no price tag (a relabel's comes first).
 func _show_tags() -> void:
 	var run: RunState = _screen.run
 	for view: ItemView in _screen.item_views():
-		show_relabel(view, PinPlay.relabel_of(run, view.card))
+		var tag: String = PinPlay.relabel_of(run, view.card)
+		show_relabel(view, tag)
+		if tag.is_empty():
+			# No relabel: the ticket shows a Family sticker's gained family instead.
+			view.sticker().show_gained(stickers.gained_of(view.card), PriceSticker.STICKER_SOURCE)
 
 
 ## Shows `view`'s relabel to family `tag` (none: takes it off): the gained glyph on its ticket

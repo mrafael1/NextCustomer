@@ -62,7 +62,7 @@ func test_six_machines_fit_the_screen_without_overlaps() -> void:
 	assert_str(machines[0].floor_text()).is_equal("1 OF 2 LEFT")
 	assert_str(machines[1].floor_text()).is_equal(ToyMachineView.SOLD_OUT_TEXT)
 	assert_str(machines[3].floor_text()).is_equal("5 OF 8 LEFT")
-	assert_str((machines[3].part("sign_text") as PixelLine).text()).is_equal("FRUIT & VEG")
+	assert_str((machines[3].part("sign_text") as PixelLine).text()).is_equal("PRODUCE")
 	# LEDs, board, strip and buttons: inside, clear of the machines' click areas.
 	var parts: Array[Rect2] = _chip_rects(screen)
 	(

@@ -90,11 +90,13 @@ Coupons go through the same steps at their own slot. A coupon has base 0 and no 
 | Item tiers (v0.36, issue #77) | A product the RECEIPT REWARDS machine upgrades becomes BIG, then GOLDEN: one copy in the deck is replaced by a tier card (`CardDefinition.tier`), a variant of its plain card (`variant_of`), so it is the same product everywhere (the Banana chain, 2 for 1, rules that name a card, builds). Only the products with a chain in `data/item_upgrades/` can be upgraded (Banana, Milk, Eggs, Coffee; since v0.41 also Bread, Soup, Cheese, Frozen peas, Butter, Yogurt, Reduced yogurt, Cereal, Tea bags, Crackers, Dented can, Day-old buns, Carrier bag, Scissors, Batteries and Flickering bulb; since v0.44 also the 30 capsule products). Each tier has its own numbers in its card file: BIG raises the base, GOLDEN also raises one rule value (section 5). Tiers are never stocked or unlocked; "win with X" counts any tier of X. |
 | "First product" (since v0.23) | The row's first product, coupons skipped. |
 | 2 for 1 | When the same product is on both sides of it, the two count as adjacent (context pass), and the second pays ×2: an armed effect for that one slot, so it stacks with Eggs and Multipack and a Repeat after it copies the doubled payout. Otherwise it fizzles; two in a row both fizzle (each has a coupon beside it). |
-| Shelf swap | In the context pass, the product in the next slot also counts as just after the row's first product (and the first product as just before it). It fizzles when the next slot holds no product, or when that product is the row's first. |
+| Shelf swap | Since v0.62 (`docs/FULL_BUILD_PLAN.md` v1.29, decided with the user on 2026-11-11): 2 for 1's rule for **different** products (`TwoForOneRule.different`): when different products are on both sides of it, the two count as adjacent (context pass) and the second pays ×2, an armed effect for that one slot. It fizzles with "no item on both sides" (a coupon or nothing beside it; two in a row both fizzle) or "the same item on both sides". Until v0.62: in the context pass, the product in the next slot also counted as just after the row's first product (and the first product as just before it), fizzling when the next slot held no product or the row's first (`FirstProductLinkRule`, kept by the frozen fixtures). |
+| Write-off (v0.62) | In the context pass, the product in the next slot is **written off**: it counts as WASTED (`ScoreState.wasted`) for every rule that reads WASTED items (Dusty toffees, Flickering bulb), on a total-only score too, with a `WRITTEN_OFF` step (value 0, a label, not a fizzle). That product also pays ×2, an armed effect for that one slot, so it stacks with other multipliers and a Repeat after it copies the doubled payout. With no product in the next slot it fizzles: "no item in the next slot". |
 | Bundle | In the context pass, the product before Bundle and the product after it count as adjacent to each other (for both "immediately after" and "beside"). Several connector coupons in a row act as one bridge. When a neighbour isn't a product (Bundle at an end of the row, or next to a coupon that isn't a connector), Bundle bridges nothing and breaks adjacency like any coupon. |
 | Repeat after Bundle | Still pays 0. Repeat only copies a *product* in the slot just before it; Bundle does not change that. |
 | Breakfast sticker | Affects the next slot only. If that slot is a coupon or empty, or the product there is already Breakfast, the sticker is wasted. |
-| Clearance tag (v0.26) | Like Breakfast sticker, with the Clearance tag: the product in the next slot gains Clearance in the context pass, so every rule that reads Clearance sees it (Day-old buns, Reduced yogurt, Multipack's shared tags, Category engine; Dented can and Flickering bulb until v0.57). If that slot is a coupon or empty, or the product there is already Clearance, it is wasted. A tag gained in a score never counts toward a build: builds read the deck's printed tags (section 3.8). The coupon itself counts toward Clearance collector, as one Clearance card (v0.29). |
+| Family sticker (v0.62, stage 3) | The Breakfast sticker's rule with the family picked for that copy (`GrantTagToNextSlotRule.choices`: Breakfast, Bakery, Produce, Dairy, Frozen, Snack, Household, Clearance), passed into scoring by the run (`ScoreCredits.sticker_families`, like a Price gun's relabels): the product in the next slot gains it in the context pass; a coupon or nothing there, or a product that has it, wastes the sticker as before (its fizzle step names the family too). With no family picked (or preset by its pack) it is **pre-filled** from the row, the same in a bare total (`FamilySticker.prefill`): of the families the next product hasn't got, the one most cards in the row read (a family rule's tag or a TAG match; ties in its choices' order); with none read, a family of the product after the next one; else the first choice. Examples (live data): Coffee, Family sticker, Banana, Milk pre-fills Breakfast; Family sticker, Bread, Potatoes pre-fills Produce; Family sticker, Potatoes pre-fills Breakfast. |
+| Clearance tag (v0.26) | Like Breakfast sticker, with the Clearance tag: the product in the next slot gains Clearance in the context pass, so every rule that reads Clearance sees it (Day-old buns, Reduced yogurt, Multipack's shared tags, Category engine; Dented can and Flickering bulb until v0.57). If that slot is a coupon or empty, or the product there is already Clearance, it is wasted. A tag gained in a score never counts toward a build: builds read the deck's printed tags (section 3.8). The coupon itself counts toward Clearance collector, as one Clearance card (v0.29); since v0.62 the Family sticker takes that place in the build's list, whatever family it gives. |
 | Multipack | Uses the tags of the product just before it (after the context pass). In slot 1, or after a coupon, it does nothing. Since v0.29 (issue #42, decided with the user) it ignores the Food and Breakfast tags (`ignored_tags` on its rule), so it reads only the shelf tags (Dairy, Bakery, Produce, Frozen, Household, Clearance, Snack): with Food and Breakfast on almost every product it had become "×2 to the rest of the row". After a product that has only Food or Breakfast (Eggs, Coffee, Soup, Tea bags) it fizzles: "the product just before it has no tag but Food or Breakfast". A tag a relabeller adds counts like a printed one (a Clearance tag before it gives it Clearance to share). Its factor went from ×2 to ×3 in the same pass, so the narrower match still pays. The golden rows in section 3.7 keep the old rule on their frozen fixtures. |
 
 ### 3.5 Other rules
@@ -103,7 +105,9 @@ Coupons go through the same steps at their own slot. A coupon has base 0 and no 
 |---|---|
 | Eggs | Doubles the next Food payout (the next 2 until v0.29). An Egg is Food. An Egg does not boost itself, but it can use up a charge left by an earlier Egg. Coupons neither use up nor receive the charge. |
 | Coffee "+3 to the next Breakfast product" | The next Breakfast product anywhere later in the row, not only the adjacent slot. With no later Breakfast product, the bonus is lost. |
-| Opening deal (v0.26) | Works only in the row's first slot (the first filled slot, whatever its kind, like Final markdown's last slot). There it arms ×3 for the next product, coupons skipped: the row's first product (section 3.4), so Opening deal, Breakfast sticker, Banana works. It is an effect multiplier for that one slot, like 2 for 1's: after the product's flat bonuses, before any copy and any upgrade multiplier, so a Repeat after that product copies the tripled payout. Only one card can be first, so it never stacks. A ×3 aimed at a Soup beside Frozen is spent like an Egg charge (no `WASTED` step). A working Opening deal is the row's first coupon and pays 0, so the Coupon engine fizzles on it (decided with the user: its cost). |
+| Opening deal (v0.26) | Works only in the row's first slot (the first filled slot, whatever its kind). There it arms ×3 for the next product, coupons skipped: the row's first product (section 3.4), so Opening deal, Breakfast sticker, Banana works. It is an effect multiplier for that one slot, like 2 for 1's: after the product's flat bonuses, before any copy and any upgrade multiplier, so a Repeat after that product copies the tripled payout. Only one card can be first, so it never stacks. A ×3 aimed at a Soup beside Frozen is spent like an Egg charge (no `WASTED` step). A working Opening deal is the row's first coupon and pays 0, so the Coupon engine fizzles on it (decided with the user: its cost). |
+| Final markdown (v0.62) | The row's **last product** (coupons skipped) pays ×2: an armed effect for that one slot, like 2 for 1's, so a Repeat in the last slot copies the doubled payout. Final markdown itself pays 0. With no product after it, it fizzles: "no item after it". Until v0.62: +4 to itself in the row's last slot (the frozen fixtures keep it). |
+| Party pack (v0.62) | The next 3 Snack products after it, wherever they sit, pay ×2 (a charged multiplier by tag, with no group: two Party packs stack). Unused charges fizzle like other charges. |
 | Soup "pays 0 if beside a Frozen product" | The final payout becomes 0, after flat bonuses and multipliers. Bonuses aimed at Soup (e.g. a Coffee +3) are spent and lost. |
 | A product that pays 0 | Still uses up an Egg charge (Soup is Food). |
 | Drawing | Every shift draws 8 from the whole deck, freshly shuffled, into the hand's places: two per basket, in draw order (section 3.8). Places never change during a shift. Cards replaced by a redraw are set aside for the rest of that shift. |
@@ -181,7 +185,7 @@ The capsule items (full build phase 2, v0.27, issue #35) add one tag: **Snack**,
 | Eggs, Eggs, Bread, Bread, Bread | 1 + 2 + 6 + 6 + 3 = **18** | The second Egg uses a charge, then resets to 2 |
 | Repeat, Repeat | **0** | Repeat after a coupon (or in slot 1) pays 0 |
 | Soup, Frozen peas | 0 + 3 = **3** | Soup beside Frozen pays 0 |
-| Bread, Final markdown | 3 + 6 = **9** | Final markdown in the last slot |
+| Bread, Final markdown | 3 + 6 = **9** | Final markdown in the last slot (the v0.4 fixture's rule; since v0.62 see the v1.29 rows below) |
 | Final markdown, Bread | 0 + 3 = **3** | Final markdown outside the last slot pays nothing |
 | Eggs, Bread, Repeat, Bread | 1 + 6 + 6 + 6 = **19** | Repeat doesn't use up an Egg charge, so the second Bread is still doubled |
 | Bread, Multipack, Bread, Repeat | 3 + 0 + 6 + 6 = **15** | The Repeat copy is not multiplied again |
@@ -268,6 +272,41 @@ The capsule items (full build phase 2, v0.27, issue #35) add one tag: **Snack**,
 | Banana, Big Banana, Golden Banana, Banana | 2 + 6 + 16 + 18 = **42** | Mixed tiers: 4 + 2, 4 + 2 × 6, 2 + 16 |
 | Banana, Banana, coupon, Banana, with Rule bender | 2 + 4 + 0 + 6 = **12** | The bridged coupon keeps the chain |
 
+**Coupon buffs (v0.62, `docs/FULL_BUILD_PLAN.md` v1.29).** These rows run on their own frozen fixture, `tests/fixtures/cards_v1_29/` (Bread 5, Milk 4 with +1 for each earlier Breakfast product, Eggs, Soup, Frozen peas, Breadsticks, Dusty toffees, Flickering bulb, Repeat, 2 for 1, Opening deal, Shelf swap, Final markdown, Write-off, Party pack), so every older row stays as it was (`test_golden_row_v1_29`).
+
+| Row | Expected | Tests |
+|---|---|---|
+| Bread, Shelf swap, Milk | 5 + 0 + 10 = **15** | Different items glue; the second pays ×2 |
+| Bread, Shelf swap, Bread | 5 + 0 + 5 = **10** | The same item fizzles |
+| Bread, Shelf swap, Shelf swap, Milk | 5 + 0 + 0 + 5 = **10** | Two in a row both fizzle |
+| Bread, 2 for 1, Bread, Shelf swap, Milk | 5 + 0 + 10 + 0 + 12 = **27** | 2 for 1 and Shelf swap share a Bread |
+| Final markdown, Bread | 0 + 10 = **10** | The last item pays ×2 |
+| Bread, Final markdown | 5 + 0 = **5** | No item after it: a fizzle |
+| Final markdown, Bread, Repeat | 0 + 10 + 10 = **20** | A Repeat in the last slot copies the doubled payout |
+| Final markdown, Final markdown, Bread | 0 + 0 + 20 = **20** | Two stack |
+| Opening deal, Final markdown, Bread | 0 + 0 + 50 = **50** | ×5 and ×2 on the same item |
+| Write-off, Milk, Flickering bulb | 0 + 8 + 3 = **11** | The written-off Milk counts as WASTED for the bulb |
+| Write-off, Bread, Write-off, Milk, Dusty toffees | 0 + 10 + 0 + 10 + 7 = **27** | Two written-off items for the toffees |
+| Write-off, Repeat, Bread | 0 + 0 + 5 = **5** | No item in the next slot: a fizzle |
+| Write-off, Bread, Repeat | 0 + 10 + 10 = **20** | A Repeat copies the doubled payout |
+| Party pack, Breadsticks, Bread, Breadsticks, Breadsticks, Breadsticks | 0 + 4 + 5 + 4 + 4 + 2 = **19** | 3 Snacks wherever they sit; the fourth pays its own |
+| Party pack, Party pack, Breadsticks | 0 + 0 + 8 = **8** | Two stack (no group) |
+
+**Playstyle perks (v0.62 stage 4, `docs/FULL_BUILD_PLAN.md` v1.29 section 5.2).** The four keyword perks (section 3.8) are built in the test with their LV 1 factor (×2, or LV 2's ×3), so tuning `data/upgrades/` never changes these rows; they run on `tests/fixtures/cards_v1_29/`, which gained Cereal (base 2, PAIR +4 for each Milk beside it) and Carrier bag (Household, base 1, +8 for each Food beside it) for them (`test_golden_row_v1_29_perks`, which also checks `Scoring.total`).
+
+| Perk | Row | Expected | Tests |
+|---|---|---|---|
+| Perfect pair | Milk, Cereal | 4 + 12 = **16** | The PAIRED Cereal pays ×2; Milk has no PAIR rule |
+| Perfect pair | Milk, Cereal, Repeat | 4 + 12 + 12 = **28** | A Repeat copies the doubled item and is not PAIRED itself |
+| Perfect pair (LV 2) | Milk, Cereal | 4 + 18 = **22** | ×3 |
+| Salvage desk | Breadsticks | **4** | Its own fizzle (not after Soup) is known before the ×2 |
+| Salvage desk | Write-off, Milk, Flickering bulb | 0 + 16 + 3 = **19** | The written-off Milk pays the Write-off's ×2 and the desk's; the bulb isn't WASTED |
+| Salvage desk | Write-off, Bread, Dusty toffees | 0 + 20 + 4 = **24** | Toffees after a written-off item aren't WASTED |
+| Grab bag | Breadsticks, Bread, Breadsticks | 4 + 5 + 4 = **13** | Two lone Snacks |
+| Grab bag | Breadsticks, Breadsticks | 2 + 2 = **4** | Side by side, neither is lone |
+| Grab bag | Breadsticks, Party pack, Breadsticks | 4 + 0 + 8 = **12** | A coupon between keeps them lone; the pack's ×2 and the perk's stack |
+| Home goods | Bread, Carrier bag, Milk | 5 + 34 + 5 = **44** | The Household item's flat bonuses are doubled |
+
 Golden rows use a frozen copy of the card data, `tests/fixtures/cards_v0_4/` (named for the rules version it froze), so tuning values in `data/` between playtest rounds doesn't break them. The live data gets its own tests with expected totals that are updated when values change.
 
 How the fixture is built:
@@ -299,7 +338,7 @@ Decided with the user (v0.13, and v0.24 for phase 2's list). Register upgrades (
 
 | Upgrade | Type | Rule | Data |
 |---|---|---|---|
-| Coupon engine | Coupon engine | The first coupon in the row (the lowest slot holding a coupon) pays ×2, after its own rules: Final markdown's +4 becomes 8, and a Repeat's copy is doubled. Only the first coupon. If it has nothing to multiply (a Breakfast sticker, a Multipack, a Repeat with nothing to copy, a Final markdown outside the last slot, an Opening deal, v0.26), it fizzles with the reason "the first coupon paid nothing". With no coupon in the row it fizzles on the row's last slot ("no coupon in the row", v0.37, issue #45; before that it had no step). | `factor` 2 |
+| Coupon engine | Coupon engine | The first coupon in the row (the lowest slot holding a coupon) pays ×2, after its own rules: a Repeat's copy is doubled (and Final markdown's +4 became 8 until v0.62; since then Final markdown pays nothing itself). Only the first coupon. If it has nothing to multiply (a Breakfast sticker, a Multipack, a Repeat with nothing to copy, a Final markdown outside the last slot, an Opening deal, v0.26), it fizzles with the reason "the first coupon paid nothing". With no coupon in the row it fizzles on the row's last slot ("no coupon in the row", v0.37, issue #45; before that it had no step). | `factor` 2 |
 | Category engine | Category engine | +3 for each different tag among the row's products, using tags after the context pass (a Breakfast sticker's tag counts), as a flat bonus on the **last product** in the row (not the last slot: a coupon after it doesn't take the bonus, and a Repeat after it copies it). It comes after that product's own and effect flat bonuses, so the product's multipliers apply to it. With no product in the row it fizzles on the row's last slot ("no product in the row"), and with products but no tag among them too ("no tag on the products"; no live product is untagged) (v0.37, issue #45; before that, no step). | `bonus_per_tag` 3 |
 | Extra redraw | Economy | One more redraw each shift. No scoring step. Supports any build. | `extra_redraws` 1 (levels 2 and 3 since v0.48); since v0.49 its redraws' cards get a `CREDIT` step (above) |
 | Rule bender (v0.24; out of `upgrade_pool` since v0.29) | Rule bender | Coupons no longer break adjacency between products: in the context pass, the last product before a run of coupons and the first product after it count as adjacent (section 3.4), for "immediately after" and "beside" alike, so hazards bridge too (Soup beside Frozen through a coupon pays 0). Rules that read the real slot don't change: Repeat still copies the slot just before it, Multipack still reads the product just before it, and 2 for 1 still checks both sides. A pair a coupon already linked (2 for 1) isn't linked again. With nothing to bridge it does nothing and has no step. Its `LINKED` steps come from its loyalty-card box: the box punches and its name flies to the link. Banana, Multipack, Banana = 2 + 0 + 8 = **10**; Frozen peas, Repeat, Soup = 3 + 3 + 0 = **6**. Supports Bulk buyer. Cut from `upgrade_pool` in v0.29 (issue #42, decided with the user, `docs/FULL_BUILD_PLAN.md` section 10's "fewer upgrades that are more distinct"): on 250 re-optimised hands per strategy it never raised a best row, because the adjacency payoffs are small and a best row can almost always seat partners side by side. Its file and rule stay for a later rework. | none |
@@ -311,15 +350,19 @@ Decided with the user (v0.13, and v0.24 for phase 2's list). Register upgrades (
 
 | Perk | Type, rarity | Rule | Data (LV 1 › 2 › 3) |
 |---|---|---|---|
-| *Family* regulars (Bakery, Produce, Dairy, Snack, Household, Breakfast, Clearance) | Regulars, COMMON | Each product of the family pays a flat bonus for each earlier product of the family, anywhere in the row. Fewer than two in the row: it fizzles ("fewer than two Produce products"). Lemon, 3 Bananas, Strawberries, Fruit salad, Milk with Produce regulars = **49** (30 without; 62 and 40 until v0.56). | `FamilyRegularsRule`: `bonus_each` 1 › 2 › 3 |
+| *Family* regulars (Bakery, Produce, Dairy, Snack, Household, Breakfast, Clearance) | Regulars, COMMON | Each product of the family pays a flat bonus for each earlier product of the family, anywhere in the row. Fewer than two in the row: it fizzles ("fewer than two Produce products"). Lemon, 3 Bananas, Strawberries, Fruit salad, Milk with Produce regulars = **49** (30 without; 62 and 40 until v0.56). | `FamilyRegularsRule`: `bonus_each` 1 › 2 › 3 (Dairy, Clearance, Snack and Household 2 › 3 › 4 since v0.62) |
 | *Family* aisle run | Aisle run, RARE | The last product of a run of at least `min_run` (3) products of the family in a row (by adjacency) pays ×factor, as an upgrade multiplier; only the run's last product, once per run. No such run: it fizzles ("no 3 Produce products in a row"); a last product worth 0 fizzles there. The same row = **52** (64 until v0.56). | `AisleRunRule`: `min_run` 3, `factor` 3 › 4 › 5 |
 | Mixed basket | Mixed basket, RARE | Each product that brings a family no earlier product had pays a flat bonus. No family on any product: it fizzles. Supports Mixed basket (the build). | `NewFamilyBonusRule`: `families`, `bonus` 3 › 4 › 5 |
 | Bulk deal | Bulk deal, RARE | Each product pays a flat bonus per earlier copy of it in the row (a tier counts as its plain card). Six Bananas = **147** (42 without). No copy: it fizzles. Supports Bulk buyer. | `CopiesBonusRule`: `bonus_each` 3 › 4 › 5 |
 | Banana stand | Jackpot, LEGENDARY | Every Produce chains like a Banana (section 3.4): + the chain price of the Produce just before it, counted as many times as the card's own chain counts (a Golden Banana's twice); a card whose own chain matched takes only its own. Since v0.56 (#128) the CHAIN helpers (Strawberries, Lemon, Wonky carrot) neither take nor pass on a stand link: they keep their place by the chain. A Banana chained by the stand has no lone-Banana fizzle. No two Produce side by side: it fizzles. Grapefruit, Banana = 2 + (2 + 3 + 2) = **9** (Strawberries, Banana = 5 + 7 = 12 until v0.56). | `TagChainRule`: `tag` Produce, `skips_chain_helpers` |
 | Lemon squeezer | Jackpot, LEGENDARY | Since v0.56 (#128): a Lemon outside a CHAIN (one that ties no knot) still doubles the next Produce, as the perk's multiplier: the old Lemon back as a reward (until v0.56: Lemon's ×2 reached every later Produce, the Effects row above). Lemon, Bread, Banana = 1 + 5 + 4. No Lemon: it fizzles ("no Lemon in the row"); every Lemon a knot: "every Lemon is inside a CHAIN"; no Produce after a loose Lemon: "no more Produce products after the Lemon". | `LooseKnotMultiplierRule`: `card` Lemon, `tag` Produce, `factor` 2 |
 | Fire sale | Jackpot, LEGENDARY | Squashed cake's ×2 reaches every later Clearance product, the same way. | `EffectReachRule`: `card` Squashed cake |
+| Perfect pair (v0.62) | Keyword, RARE | Every PAIRED product (`CardPairs.is_paired`: its pair rule finds its partner beside it) pays ×factor, as an upgrade multiplier. No PAIRED product in the row: it fizzles ("no PAIRED item in the row"); a PAIRED product worth 0 fizzles there. Family Dairy. | `KeywordMultiplierRule`: `keyword` PAIRED, `factor` 2 › 3 › 4 |
+| Salvage desk (v0.62) | Keyword, RARE | Every WASTED product (`ScoreState.wasted`: one of its own rules fizzled, or a Write-off wrote it off) pays ×factor. **Scoring order:** with this perk owned (`UpgradeRule.reads_waste`), each product's own fizzle is marked before the upgrades' multipliers, not only after its payout (a card's own WASTED reasons read only the row's context and earlier slots, so the status is the same), and a total-only score marks it too; its WASTED step still follows the payout. Write-off, Milk, Flickering bulb = 0 + 16 + 3. No WASTED product: it fizzles ("no WASTED item in the row"). Family Clearance. | `KeywordMultiplierRule`: `keyword` WASTED, `factor` 2 › 3 › 4 |
+| Grab bag (v0.62) | Keyword, RARE | Every lone Snack (a Snack with no Snack beside it, after the context pass: `SnackSpreadRule.is_lone`) pays ×factor. None: "no lone Snack item in the row". Family Snack. | `KeywordMultiplierRule`: `keyword` LONE, `tag` Snack, `factor` 2 › 3 › 4 |
+| Home goods (v0.62) | Keyword, RARE | Every Household product pays ×factor, wherever it sits. None: "no Household item in the row". Family Household. | `KeywordMultiplierRule`: `keyword` TAG, `tag` Household, `factor` 2 › 3 › 4 |
 
-A family perk names its family (`UpgradeDefinition.boosts_tag`) and a jackpot that bends a product its product (`needs_card`): the machine draws such a perk only when the run's stock or deck holds that family or product (`MachineContext.stocks`: Snack perks join once Snack is stocked, Lemon squeezer once Lemon is), and it **fits the deck** when its family is one of the deck's two most common families (`UpgradeDefinition.top_families`: products only, ties with the second count) or the deck holds its product; the others fit by their builds as before, and the builds and #42's viability test are unchanged. Jackpots don't level. Their tickets show the family's glyph (a family's two perks share it) or the product's mini sprite; Mixed basket and Bulk deal have icons of their own (placeholders for the art review).
+A family perk names its family (`UpgradeDefinition.boosts_tag`) and a jackpot that bends a product its product (`needs_card`): the machine draws such a perk only when the run's stock or deck holds that family or product (`MachineContext.stocks`: Snack perks join once Snack is stocked, Lemon squeezer once Lemon is), and it **fits the deck** when its family is one of the deck's two most common families (`UpgradeDefinition.top_families`: products only, ties with the second count) or the deck holds its product; the others fit by their builds as before, and the builds and #42's viability test are unchanged. Jackpots don't level. **Since v0.62** the four keyword perks (one type, `KEYWORD`, so a draw never shows two) name their family too (Dairy, Clearance, Snack, Household) and are gated the same way; they are plain pool perks: no starter pack names or boosts one (the user's call of 2026-11-12). Their tickets show the family's glyph (a family's two perks share it) or the product's mini sprite; Mixed basket, Bulk deal and the four keyword perks have icons of their own (placeholders for the art review).
 
 **Shift limits (since v0.24).** Each shift's slots, redraws and quota are fixed when the shift starts (`ShiftLimits`), from the balance data plus the run modifiers of every upgrade owned then (`extra_slots`, `extra_redraws`), so an upgrade picked after a shift applies from the next one and a shift's quota never changes while it is played. There is one quota: the top bar, the pass check, the run history (`ShiftRecord.quota`), the overtime coins and telemetry all use it. (Until v0.46 the modifiers also held `extra_coupon_slots` and `quota_percent`, Big basket's quota raise.) A resumed run rebuilds its limits from its saved upgrades: every save point comes before the shift's upgrade pick. The shift screen shows one slot per card the shift allows; a row wider than 7 slots is scaled down to the width of 7 (8 slots, Big basket's row, about ×0.95), and the usual 7-slot row is never scaled. "+1 card drawn" was cut (it overlapped Extra redraw), so the hand stays at `hand_size`.
 
@@ -337,7 +380,7 @@ A family perk names its family (`UpgradeDefinition.boosts_tag`) and a jackpot th
 
 **Levels (since v0.48, #108, decided with the user on 2026-10-25).** An owned perk can be drawn again from UPGRADE as its next level, up to LV 3; each level steps the perk's number once: Coupon engine `factor` 2 › 3 › 4, Slot engine `factor` 2 › 3 › 4, Category engine `bonus_per_tag` 3 › 4 › 5, Extra redraw `extra_redraws` 1 › 2 › 3 (placeholders for the final balance pass). Big basket doesn't level. A level is a whole upgrade file of its own (`data/upgrades/<id>_lv2.tres`, `_lv3.tres`) with the same name, type, builds and icon, and taking it replaces the perk in its loyalty box (`PerkLevels.with_pick`), keeping its index in the run's upgrades, so scoring reads a level exactly like any upgrade and its steps name the same box. It acts from the next shift, like a new perk.
 
-`UpgradeDefinition` fields: `id`, `display_name`, `type` (`RULE_BENDER`, `SLOT_ENGINE`, `CATEGORY_ENGINE`, `COUPON_ENGINE`, `ECONOMY`, `RISKY`, and since v0.49 `REGULARS`, `AISLE_RUN`, `MIXED_BASKET`, `BULK_DEAL`, `JACKPOT`, added at the end; its default `UNSET` is rejected by a test, like `CardDefinition.kind`), `effect_text`, `condition_text` (its own line on the ticket; may be empty), `builds` (`BuildDefinition` files; none means any build; it replaced `supported_build` in v0.24), `rules` (scoring) and run modifiers (`extra_redraws`, `extra_slots`; `extra_coupon_slots` and `quota_percent` were removed in v0.46), and since v0.48 the level fields (`level`: 0 or 1 for LV 1, else 2 or 3; `family_id`: a level file's LV 1 id; `next_level`: the next level's file, none at the top or for a perk that never levels), and since v0.49 `boosts_tag` and `needs_card` (the family perks, above). Perk icons come later; the greybox shows the name's initials.
+`UpgradeDefinition` fields: `id`, `display_name`, `type` (`RULE_BENDER`, `SLOT_ENGINE`, `CATEGORY_ENGINE`, `COUPON_ENGINE`, `ECONOMY`, `RISKY`, and since v0.49 `REGULARS`, `AISLE_RUN`, `MIXED_BASKET`, `BULK_DEAL`, `JACKPOT`, and since v0.62 `KEYWORD`, added at the end; its default `UNSET` is rejected by a test, like `CardDefinition.kind`), `effect_text`, `condition_text` (its own line on the ticket; may be empty), `builds` (`BuildDefinition` files; none means any build; it replaced `supported_build` in v0.24), `rules` (scoring) and run modifiers (`extra_redraws`, `extra_slots`; `extra_coupon_slots` and `quota_percent` were removed in v0.46), and since v0.48 the level fields (`level`: 0 or 1 for LV 1, else 2 or 3; `family_id`: a level file's LV 1 id; `next_level`: the next level's file, none at the top or for a perk that never levels), and since v0.49 `boosts_tag` and `needs_card` (the family perks, above). Perk icons come later; the greybox shows the name's initials.
 
 ### 3.9 Inspections (full build phases 1 and 2)
 
@@ -447,7 +490,7 @@ The step contract (v0.11):
 |---|---|---|
 | Banana | 2 | **+ the previous Banana's price as a flat bonus** if immediately after another Banana: a chain, so 4 Bananas pay 2, 4, 6, 8 (section 3.4's Banana chain; until v0.46 + its base value, +2) |
 | Bread | 5 | No rule (other cards build on it). Base 3 until v0.29 |
-| Cheese | 3 | PAIR: +4 if beside Bread (v0.58; +4 if immediately after Bread until then) |
+| Cheese | 3 | PAIR: +5 for each Bread beside it (v0.62, `docs/FULL_BUILD_PLAN.md` v1.29; +4 if beside Bread until then; +4 if immediately after Bread until v0.58) |
 | Eggs | 1 | Double the next Food payout (resets, does not stack). The next 2 until v0.29: with Eggs doubling the last Milk, shifts passed 91% with Eggs in hand against 49% without (issue #42); 1 charge with Bread at 5 as a second payload spreads the row |
 | Milk | 4 | +1 for each earlier Breakfast product. Base 3 and +2 each until v0.29: with 8 Breakfast cards in the starter it carried every run |
 | Coffee | 2 | +1 for each MORNING product in the row (v0.58; +3 to the next Breakfast product until then, as the frozen fixtures keep) |
@@ -475,69 +518,69 @@ The step contract (v0.11):
 | Golden Bread | 9 | No rule |
 | Big Soup | 7 | As Soup: pays 0 if beside a Frozen product |
 | Golden Soup | 9 | As Soup: pays 0 if beside a Frozen product |
-| Big Cheese | 5 | As Cheese: +4 if immediately after Bread |
-| Golden Cheese | 5 | +8 if immediately after Bread |
+| Big Cheese | 5 | As Cheese: PAIR, +5 for each Bread beside it (v0.62) |
+| Golden Cheese | 5 | PAIR: +10 for each Bread beside it (v0.62) |
 | Big Frozen peas | 5 | As Frozen peas: + its base value (+5) if beside another Frozen product |
 | Golden Frozen peas | 5 | + 2 × its base value (+10) if beside another Frozen product (`bonus_factor` 2, as Golden Banana) |
-| Big Butter | 4 | As Butter: +3 if beside a Bakery product |
-| Golden Butter | 4 | +6 if beside a Bakery product |
-| Big Yogurt | 4 | As Yogurt: +3 if immediately after Banana |
-| Golden Yogurt | 4 | +6 if immediately after Banana |
-| Big Reduced yogurt | 4 | As Reduced yogurt: +3 if beside a Clearance product |
-| Golden Reduced yogurt | 4 | +6 if beside a Clearance product |
-| Big Cereal | 4 | As Cereal: +3 if beside Milk |
-| Golden Cereal | 4 | +6 if beside Milk |
+| Big Butter | 4 | As Butter: PAIR, +4 for each Bakery product beside it (v0.62) |
+| Golden Butter | 4 | PAIR: +8 for each Bakery product beside it (v0.62) |
+| Big Yogurt | 4 | As Yogurt: PAIR, +4 for each Banana beside it (v0.62) |
+| Golden Yogurt | 4 | PAIR: +8 for each Banana beside it (v0.62) |
+| Big Reduced yogurt | 4 | As Reduced yogurt: PAIR, +4 for each Clearance product beside it (v0.62) |
+| Golden Reduced yogurt | 4 | PAIR: +8 for each Clearance product beside it (v0.62) |
+| Big Cereal | 4 | As Cereal: PAIR, +4 for each Milk beside it (v0.62) |
+| Golden Cereal | 4 | PAIR: +8 for each Milk beside it (v0.62) |
 | Big Tea bags | 3 | As Tea bags: ×4 to the next Breakfast payout |
 | Golden Tea bags | 3 | ×4 to the next 2 Breakfast payouts (2 charges, same reset group as Tea bags) |
 | Big Crackers | 4 | As Crackers: +3 if beside Soup |
 | Golden Crackers | 4 | +6 if beside Soup |
-| Big Dented can | 4 | As Dented can: +2 for each card redrawn this shift (v0.57) |
-| Golden Dented can | 4 | +4 for each card redrawn this shift (v0.57) |
-| Big Day-old buns | 4 | As Day-old buns: +3 if immediately after a Clearance product |
-| Golden Day-old buns | 4 | +6 if immediately after a Clearance product |
+| Big Dented can | 4 | As Dented can: +3 for each card redrawn this shift (v0.62; +2 from v0.57) |
+| Golden Dented can | 4 | +6 for each card redrawn this shift (v0.62; +4 from v0.57) |
+| Big Day-old buns | 4 | As Day-old buns: +4 if immediately after a Clearance product (v0.62) |
+| Golden Day-old buns | 4 | +8 if immediately after a Clearance product (v0.62) |
 | Big Carrier bag | 3 | As Carrier bag: +8 for each Food product beside it |
 | Golden Carrier bag | 3 | +16 for each Food product beside it |
-| Big Scissors | 3 | As Scissors: +2 for each earlier coupon |
-| Golden Scissors | 3 | +4 for each earlier coupon |
-| Big Batteries | 3 | As Batteries: ×2 to the next Household product |
-| Golden Batteries | 3 | ×2 to the next 2 Household products (tier rule since v0.58; ×3 just after, set by hand, until then) |
-| Big Flickering bulb | 3 | As Flickering bulb: ×3 if the product just before it was WASTED (v0.57) |
-| Golden Flickering bulb | 3 | ×4 if the product just before it was WASTED (v0.57; set by hand: a multiplier with no charge to gain) |
+| Big Scissors | 4 | As Scissors: +3 for each earlier coupon (v0.62; base 3, +2 until then) |
+| Golden Scissors | 4 | +6 for each earlier coupon (v0.62) |
+| Big Batteries | 4 | As Batteries: ×2 to the next 2 Household products (v0.62; base 3 and one charge until then) |
+| Golden Batteries | 4 | ×2 to the next 3 Household products (v0.62; the next 2 from v0.58, the tier rule; ×3 just after, set by hand, until then) |
+| Big Flickering bulb | 4 | As Flickering bulb: ×4 if the product just before it was WASTED (v0.62; base 3 and ×3 from v0.57) |
+| Golden Flickering bulb | 4 | ×5 if the product just before it was WASTED (v0.62, one step over the plain ×4; ×4 from v0.57; set by hand: a multiplier with no charge to gain) |
 
 **Item tiers for the capsule products (v0.44).** The same tier rule for all 30 capsule products (`docs/FULL_BUILD_PLAN.md` v0.52): BIG adds +2 to the base and keeps the rule (BIG's rule is the plain one); GOLDEN keeps BIG's base and doubles the bonus, the charged multipliers (Iced bun, Squashed cake; Lemon until v0.56) gain 1 charge instead (same reset group), and Potatoes, which has no rule, adds +2 at each step. No value is set by hand but one (since v0.56, #128): the Golden Lemon's knot is ×3, as a knot has no charge to gain; no capsule product has a downside or a bonus as large as Carrier bag's. Only numbers change; every condition is the plain card's. Placeholders, tuned in the final balance pass (watch items: Golden Mixed herbs' +6 to the next Food product, nearly any product, and the "per earlier" cards at +4 each (Pick 'n' mix, Dusty toffees), as Golden Dented can, and Golden Fruit salad's +6 for each different Produce product before it, since v0.56; until then the five "per earlier" cards, Fruit salad among them, at +4 each):
 
 | Product (plain) | BIG base | GOLDEN base | GOLDEN rule |
 |---|---|---|---|
 | Baguette (2; +4 for each earlier product of its batch, up to 2) | 4 | 4 | +8 for each earlier product of its batch, up to 2 |
-| Scone (2; PAIR: +3 if beside a Dairy product) | 4 | 4 | PAIR: +6 if beside a Dairy product |
+| Scone (2; PAIR: +4 for each Dairy product beside it, v0.62) | 4 | 4 | PAIR: +8 for each Dairy product beside it |
 | Croissant (2; first of a batch: +2 to every later product of it) | 4 | 4 | First of a batch: +4 to every later product of it |
 | Broken biscuit (2; +3 if immediately after a Bakery product) | 4 | 4 | +6 if immediately after a Bakery product |
 | Iced bun (1; ×2 the last product of its batch) | 3 | 3 | ×3 the last product of its batch (set by hand: a glaze has no charge to gain) |
-| Birthday candles (1; +3 to each product of a batch of 3+ just after it) | 3 | 3 | +6 to each product of a batch of 3+ just after it |
+| Birthday candles (2 since v0.62; +3 to each product of a batch of 3+ just after it) | 4 | 4 | +6 to each product of a batch of 3+ just after it |
 | Squashed cake (2; Double the next Clearance payout) | 4 | 4 | Double the next 2 Clearance payouts |
 | Stale doughnut (1; last of a batch: +3 for each product of it) | 3 | 3 | Last of a batch: +6 for each product of it |
-| Cream (2; +2 for each PAIR in the row, since v0.58) | 4 | 4 | +4 for each PAIR in the row |
+| Cream (2; +4 for each PAIR in the row, v0.62; +2 from v0.58) | 4 | 4 | +8 for each PAIR in the row |
 | Ham ends (2; +3 if immediately after a Dairy product) | 4 | 4 | +6 if immediately after a Dairy product |
 | Fruit salad (2; +3 for each different Produce product before it, since v0.56) | 4 | 4 | +6 for each different Produce product before it |
 | Strawberries (2; just before a CHAIN: +1 to every Banana of it, since v0.56) | 4 | 4 | Just before a CHAIN: +2 to every Banana of it |
 | Grapefruit (2; +3 to the next Produce product) | 4 | 4 | +6 to the next Produce product |
 | Wonky carrot (2; just after a CHAIN: +2 for each Banana of it, since v0.56) | 4 | 4 | Just after a CHAIN: +4 for each Banana of it |
 | Lemon (1; a CHAIN knot between two Bananas, the link's bonus ×2, since v0.56) | 3 | 3 | Knot ×3 (set by hand: a knot has no charge to gain) |
-| Bruised apples (2; +3 if beside a Clearance product) | 4 | 4 | +6 if beside a Clearance product |
+| Bruised apples (2; +4 if beside a Clearance product, v0.62) | 4 | 4 | +8 if beside a Clearance product |
 | Soft tomatoes (2; +2 if beside Soup) | 4 | 4 | +4 if beside Soup |
 | Potatoes (3; no rule) | 5 | 7 | No rule |
-| Egg timer (1; +4 if immediately after Eggs) | 3 | 3 | +8 if immediately after Eggs |
-| Chipped mug (1; +3 if beside Coffee) | 3 | 3 | +6 if beside Coffee |
-| Odd socks (1; +5 in an exact Household pair) | 3 | 3 | +10 in an exact Household pair |
+| Egg timer (2; +5 if immediately after Eggs, v0.62) | 4 | 4 | +10 if immediately after Eggs |
+| Chipped mug (2; +4 if beside Coffee, v0.62) | 4 | 4 | +8 if beside Coffee |
+| Odd socks (2; +8 in an exact Household pair, v0.62) | 4 | 4 | +16 in an exact Household pair |
 | Sugar cubes (2; +4 if immediately after Coffee) | 4 | 4 | +8 if immediately after Coffee |
 | Mixed herbs (1; +3 to the next Food product) | 3 | 3 | +6 to the next Food product |
-| Crisps (2; +3 for each redraw left this shift, since v0.57) | 4 | 4 | +6 for each redraw left this shift |
-| Cereal bar (2; +2 if beside a Snack product) | 4 | 4 | +4 if beside a Snack product |
-| Bent lolly (2; +2 for each product between it and the nearest other Snack, up to 3, since v0.57) | 4 | 4 | +4 for each, up to 3 |
-| Pick 'n' mix (1; +3 for each lone Snack in the row, since v0.57) | 3 | 3 | +6 for each lone Snack in the row |
+| Crisps (2; +4 for each redraw left this shift, v0.62; +3 from v0.57) | 4 | 4 | +8 for each redraw left this shift |
+| Cereal bar (2; +4 if beside a Snack product, v0.62) | 4 | 4 | +8 if beside a Snack product |
+| Bent lolly (2; +3 for each product between it and the nearest other Snack, up to 3, v0.62; +2 from v0.57) | 4 | 4 | +6 for each, up to 3 |
+| Pick 'n' mix (2; +4 for each lone Snack in the row, v0.62; base 1 and +3 from v0.57) | 4 | 4 | +8 for each lone Snack in the row |
 | Stale popcorn (2; the next Snack product pays ×1, +1 for each redraw left this shift, since v0.57) | 4 | 4 | ×2, +2 for each redraw left (factor 2 set by hand, one charge kept) |
-| Breadsticks (2; +2 if immediately after Soup) | 4 | 4 | +4 if immediately after Soup |
-| Dusty toffees (1; +3 for each WASTED product before it, up to 3, since v0.57) | 3 | 3 | +6 for each, up to 3 |
+| Breadsticks (2; +4 if immediately after Soup, v0.62) | 4 | 4 | +8 if immediately after Soup |
+| Dusty toffees (2; +5 for each WASTED product before it, up to 3, v0.62; base 1 and +3 from v0.57) | 4 | 4 | +10 for each, up to 3 |
 
 ### Base aisles (full build phase 2, v0.22)
 
@@ -545,24 +588,24 @@ Decided with the user (issue #34). The 3 base aisles are open from the start (`d
 
 | Card | Aisle | Base | Rule | Generally useful |
 |---|---|---|---|---|
-| Cheese | Cold cases (teal) | 3 | PAIR: +4 if beside Bread (immediately after until v0.58) | |
+| Cheese | Cold cases (teal) | 3 | PAIR: +5 for each Bread beside it (v0.62; +4 if beside until then, immediately after until v0.58) | |
 | Frozen peas | Cold cases | 3 | + its base value (+3) as a flat bonus if beside another Frozen product | |
-| Butter | Cold cases | 2 | PAIR: +3 if beside a Bakery product | yes |
-| Yogurt | Cold cases | 2 | PAIR: +3 if beside a Banana (immediately after until v0.58) | |
-| Reduced yogurt | Cold cases | 2 | PAIR: +3 if beside a Clearance product | yes (v0.29) |
-| Cereal | Pantry (mustard) | 2 | PAIR: +3 if beside Milk | yes |
+| Butter | Cold cases | 2 | PAIR: +4 for each Bakery product beside it (v0.62; +3 if beside one until then) | yes |
+| Yogurt | Cold cases | 2 | PAIR: +4 for each Banana beside it (v0.62; +3 if beside one until then, immediately after until v0.58) | |
+| Reduced yogurt | Cold cases | 2 | PAIR: +4 for each Clearance product beside it (v0.62; +3 if beside one until then) | yes (v0.29) |
+| Cereal | Pantry (mustard) | 2 | PAIR: +4 for each Milk beside it (v0.62; +3 if beside Milk until then) | yes |
 | Tea bags | Pantry | 1 | ×4 to the last MORNING product after it (Golden: the last 2; v0.58, the next Breakfast payout until then; its own charges: it never resets Eggs; ×2 until v0.29) | |
 | Crackers | Pantry | 2 | +3 if beside Soup | |
-| Dented can | Pantry | 2 | LEFTOVERS: +2 for each card redrawn this shift (+2 for each earlier Clearance product until v0.57) | |
-| Day-old buns | Pantry | 2 | +3 if immediately after a Clearance product | |
+| Dented can | Pantry | 2 | LEFTOVERS: +3 for each card redrawn this shift (v0.62; +2 until then; +2 for each earlier Clearance product until v0.57) | |
+| Day-old buns | Pantry | 2 | +4 if immediately after a Clearance product (v0.62; +3 until then) | |
 | Carrier bag | Household (grey) | 1 | +8 for each Food product beside it (+5 for each earlier Food product until v0.55; +1 until v0.29) | yes |
-| Scissors | Household | 1 | +2 for each earlier coupon | |
-| Batteries | Household | 1 | ×2 to the next Household product, like Eggs on Food: one charge, WASTED if unused at the row's end (only the product just after it until v0.58; +4 if in the last slot until v0.55) | |
-| Flickering bulb | Household | 1 | FAIL FORWARD: ×3 if the product just before it was WASTED (+3 to the next Clearance product until v0.57) | yes (v0.29) |
+| Scissors | Household | 2 | +3 for each earlier coupon (v0.62; base 1 and +2 until then) | |
+| Batteries | Household | 2 | ×2 to the next 2 Household products, like Eggs on Food: two charges, WASTED if unused at the row's end (v0.62; base 1 and one charge until then; only the product just after it until v0.58; +4 if in the last slot until v0.55) | |
+| Flickering bulb | Household | 2 | FAIL FORWARD: ×4 if the product just before it was WASTED (v0.62; base 1 and ×3 until then; +3 to the next Clearance product until v0.57) | yes (v0.29) |
 
 - **Scissors** counts every coupon before it in the row, whether or not that coupon did anything (decided with the user), and none after it. With no earlier coupon it fizzles ("no coupon before it", section 3.5). It counts any coupon, not only coupons in the coupon-only slot.
 - **Tea bags** fizzles like Eggs when its charge is unused ("1 charge unused"). Every Tea bags prints Breakfast, so a second Tea always spends the first one's charge: its reset can't happen.
-- **Batteries** fizzles like Eggs ("1 charge unused": no Household product after it; "not in the last slot" until v0.55, "no Household product just after it" until v0.58; Flickering bulb fizzled like Coffee until v0.57, section on the redraw tension below).
+- **Batteries** fizzles like Eggs ("2 charges unused" with no Household product after it, "1 charge unused" with one, since v0.62; "not in the last slot" until v0.55, "no Household product just after it" until v0.58; Flickering bulb fizzled like Coffee until v0.57, section on the redraw tension below).
 - The other conditional products pay no bonus when their condition fails, like Banana, Cheese and Milk; since v0.37 (issue #45) each one fizzles then (section 3.5).
 
 ### Capsule items (full build phase 2, v0.27)
@@ -571,41 +614,41 @@ Decided with the user (issue #35). Each aisle's machine (`docs/FULL_BUILD_PLAN.m
 
 | Card | Aisle | Base | Rule | Generally useful |
 |---|---|---|---|---|
-| **Cream** (key) | Cold cases | 2 | +2 to the next Dairy product | |
+| **Cream** (key) | Cold cases | 2 | +4 for each PAIR in the row (v0.62; +2 from v0.58; +2 to the next Dairy product until then) | |
 | Ham ends | Cold cases | 2 | +3 if immediately after a Dairy product | |
 | **Sugar cubes** (key) | Pantry | 2 | +4 if immediately after Coffee | |
 | Mixed herbs | Pantry | 1 | +3 to the next Food product | yes |
-| **Egg timer** (key) | Household | 1 | +4 if immediately after Eggs | |
-| Chipped mug | Household | 1 | +3 if beside Coffee | |
-| Odd socks | Household | 1 | +5 in a pair: one Household product beside it, with no other Household product beside that one (a run of 3 pays none of its ends; +2 for each earlier Household product until v0.55) | |
+| **Egg timer** (key) | Household | 2 | +5 if immediately after Eggs (v0.62; base 1 and +4 until then) | |
+| Chipped mug | Household | 2 | +4 if beside Coffee (v0.62; base 1 and +3 until then) | |
+| Odd socks | Household | 2 | +8 (v0.62; base 1 and +5 until then) in a pair: one Household product beside it, with no other Household product beside that one (a run of 3 pays none of its ends; +2 for each earlier Household product until v0.55) | |
 | **Fruit salad** (key) | Fruit & veg | 2 | +3 for each different Produce product before it (a tier counts as its plain card; +2 for each earlier Produce product until v0.56) | |
 | Strawberries | Fruit & veg | 2 | FEED: just before a CHAIN's first Banana, +1 to every Banana of that chain, carried down the links (+3 if beside a Produce product until v0.56) | yes |
 | Grapefruit | Fruit & veg | 2 | +3 to the next Produce product | |
 | Wonky carrot | Fruit & veg | 2 | TALLY: just after a CHAIN's last Banana, +2 for each Banana of the chain (+3 if immediately after a Produce product until v0.56) | |
 | Lemon | Fruit & veg | 1 | KNOT: between two Bananas, the Banana after it chains on the one before it, that link's bonus ×2; the Lemon pays its base (double the next Produce payout until v0.56) | |
-| Bruised apples | Fruit & veg | 2 | +3 if beside a Clearance product | |
+| Bruised apples | Fruit & veg | 2 | +4 if beside a Clearance product (v0.62; +3 until then) | |
 | Soft tomatoes | Fruit & veg | 2 | +2 if beside Soup | |
 | Potatoes | Fruit & veg | 3 | No rule | |
 | **Baguette** (key) | Bakery | 2 | BODY: +4 for each earlier product of its Bakery batch, up to 2 (+2 for each earlier Bakery product until v0.55) || |
-| Scone | Bakery | 2 | PAIR: +3 if beside a Dairy product | yes |
+| Scone | Bakery | 2 | PAIR: +4 for each Dairy product beside it (v0.62; +3 if beside one until then) | yes |
 | Croissant | Bakery | 2 | OPENER: first of a Bakery batch, +2 to every later product of the batch (+2 if beside a Bakery product until v0.55) || |
 | Broken biscuit | Bakery | 2 | +3 if immediately after a Bakery product | |
 | Iced bun | Bakery | 1 | GLAZE: ×2 the last product of its Bakery batch, wherever the bun sits in it (double the next Bakery payout until v0.55) || |
-| Birthday candles | Bakery | 1 | PARTY: +3 to each product of a batch of 3 or more Bakery products that starts just after it (+3 to the next Bakery product until v0.55) || |
+| Birthday candles | Bakery | 2 (v0.62; 1 until then) | PARTY: +3 to each product of a batch of 3 or more Bakery products that starts just after it (+3 to the next Bakery product until v0.55) || |
 | Squashed cake | Bakery | 2 | Double the next Clearance payout | |
 | Stale doughnut | Bakery | 1 | CLOSER: last of a Bakery batch, +3 for each product of the batch (+3 if in the last slot until v0.55) || |
-| **Crisps** (key) | Snacks | 2 | IMPULSE: +3 for each redraw left this shift (+3 if beside Bread until v0.57) | yes |
-| Cereal bar | Snacks | 2 | +2 if beside a Snack product | |
-| Bent lolly | Snacks | 2 | GAP: +2 for each product between it and the nearest other Snack, up to 3 (+3 if immediately after a Snack product until v0.57) | |
-| Pick 'n' mix | Snacks | 1 | SPREAD: +3 for each lone Snack in the row, itself included (+2 for each earlier Snack product until v0.57) | |
+| **Crisps** (key) | Snacks | 2 | IMPULSE: +4 for each redraw left this shift (v0.62; +3 until then; +3 if beside Bread until v0.57) | yes |
+| Cereal bar | Snacks | 2 | +4 if beside a Snack product (v0.62; +2 until then) | |
+| Bent lolly | Snacks | 2 | GAP: +3 for each product between it and the nearest other Snack, up to 3 (v0.62; +2 until then; +3 if immediately after a Snack product until v0.57) | |
+| Pick 'n' mix | Snacks | 2 | SPREAD: +4 for each lone Snack in the row, itself included (v0.62; base 1 and +3 until then; +2 for each earlier Snack product until v0.57) | |
 | Stale popcorn | Snacks | 2 | IMPULSE: the next Snack product pays ×1, +1 for each redraw left this shift (×2 with 1, ×3 with 2; ×1 with none is WASTED; +3 to the next Snack product until v0.57) | |
-| Breadsticks | Snacks | 2 | +2 if immediately after Soup | |
-| Dusty toffees | Snacks | 1 | SALVAGE: +3 for each WASTED product before it, up to 3 (+2 for each earlier Clearance product until v0.57) | |
+| Breadsticks | Snacks | 2 | +4 if immediately after Soup (v0.62; +2 until then) | |
+| Dusty toffees | Snacks | 2 | SALVAGE: +5 for each WASTED product before it, up to 3 (v0.62; base 1 and +3 until then; +2 for each earlier Clearance product until v0.57) | |
 
 - **Bakery batches** (v0.55, #128): a batch is 2 or more Bakery products beside each other (a coupon's link counts, as everywhere in section 3.4), in slot order; Bread, Scone, Broken biscuit and Squashed cake are Bakery, so they fill batches too (`CardBatch`). Each role (`BatchRoleRule`, Birthday candles' `BakedBatchBonusRule`) fizzles out of place: "no Bakery product beside it", "not first in its Bakery batch", "first in its batch: nothing before it", "not last in its Bakery batch", "it closes its batch: nothing to glaze", "no batch of 3 Bakery just after it". Two glazes on one batch stack on its closer.
 - **Produce links** (v0.56, #128): only Bananas are the CHAIN (section 3.4: `CardChain`, 2 or more Bananas linked one after another, a Lemon knot inside it but not counted); each other Produce helper has one place by it (`ChainRoleRule`): Strawberries just before its first Banana (FEED), Lemon inside it (KNOT), Wonky carrot just after its last Banana (TALLY), Fruit salad anywhere later (it counts kinds, `CountEarlierTagBonusRule.distinct_cards`). Each fizzles out of place: Strawberries "no CHAIN just after it", Lemon "not inside a CHAIN" (no Banana on one side, or two Lemons side by side), Wonky carrot "no CHAIN just before it"; a lone Banana stays "no Banana beside it". Example rows: Strawberries, Banana, Banana, Banana, Wonky carrot = 2 + 3 + 6 + 9 + 8 = **28**; Banana, Banana, Lemon, Banana, Banana, Wonky carrot = 2 + 4 + 1 + 10 + 12 + 10 = **39**; Strawberries, Banana, Banana, Wonky carrot, Fruit salad = 2 + 3 + 6 + 6 + 11 = **28**; Banana, Golden Lemon, Banana = 2 + 3 + 8 = **13**; Lemon, Banana, Banana, Strawberries (every helper out of place) = 1 + 2 + 4 + 2 = **9**. Grapefruit, Bruised apples, Soft tomatoes, Potatoes and Frozen peas are unchanged.
-- **The redraw tension** (v0.57, #128): Clearance profits from what went wrong, Snacks spread out and keep the first hand. A **WASTED product** is one with a WASTED line of its own rules (section 3.5; not an upgrade's, a day event's or a lost effect's), recorded for a total-only score too (`ScoreState.wasted`, `Rule.reads_waste`). The **cards redrawn** are this shift's redraws times the basket size (2), extra redraws included, and the **redraws left** its allowed redraws less the used, both passed to scoring as context like the shift's events (`ScoreCredits.cards_redrawn` and `redraws_left`, `Scoring.total`'s): scoring stays pure, and the planning preview changes as the player redraws. A **fractional multiplier** (built for Stale popcorn's first ×1.5 on 2026-11-02; the user then chose whole steps, ×1/×2/×3, so no live card uses it now) multiplies in percent and rounds to the nearest euro, halves up (5 × 1.5 = 7.5 pays 8; `ScoreStep.times_percent`): its step's `value` is the factor rounded (×2) and its `percent` the exact one (150), which the receipt, count-up, monitor equation and planning tokens print ("×1.5"). A **lone Snack** has no Snack beside it (section 3.4). Dusty toffees (`WastedBeforeRule`) +3 for each WASTED product before it, up to 3, else "no WASTED product before it"; Flickering bulb ×3 if the product just before it was WASTED, else "the product just before it was not WASTED"; Dented can (`RedrawBonusRule`) +2 per card redrawn, else "no card redrawn this shift"; Crisps +3 per redraw left, Stale popcorn (`GrantChargedMultiplierRule.percent`) arms ×(1 + 0.5 per redraw left) for the next Snack, each with none left "no redraw left this shift"; Pick 'n' mix (`SnackSpreadRule` LONE) +3 per lone Snack, else "no lone Snack in the row"; Bent lolly (GAP) +2 per product to the nearest other Snack, up to 3, else "no other Snack in the row" or "no product between it and the next Snack". Example rows: Banana, Bread, Banana, Dusty toffees = 2 + 5 + 2 + 7 = **16**; Banana, Flickering bulb = 2 + 3 = **5**; Stale popcorn, Bread, Crisps with 2 redraws left = 2 + 5 + 8 × 2 = **23** (1 left: 2 + 5 + 5 × 1.5 = **15**, 7.5 rounded up; none left: 9); Crisps, Bread, Bent lolly, Potatoes, Potatoes, Pick 'n' mix with no redraw left = 2 + 5 + 4 + 3 + 3 + 10 = **27**. The stickers name WASTED as a keyword chip (`{wasted}`, like BATCH and CHAIN). Day-old buns' SHELF LIFE waits for the hand-action pass.
-- **PAIR and MORNING** (v0.58, #128, Dairy and Breakfast): a product is **PAIRED** when its pair rule (`AdjacentMatchBonusRule.pair`) finds its partner beside it, either side (`CardPairs`): Butter and a Bakery product, Cheese and Bread, Yogurt and a Banana, Reduced yogurt and a Clearance product, Scone and a Dairy product, Cereal and Milk; Cream pays +2 for each PAIRED product in the row (`PairCountRule`). The **MORNING** is the row's opening run of Breakfast products, from the first product until one without the tag (`CardMorning`; coupons neither join nor end it, a Breakfast sticker's tag counts); Coffee pays +1 for each MORNING product wherever it stands (`MorningCountRule`), and Tea bags' ×4 reaches only the last MORNING product after it (Golden: the last 2, its 2 charges; `GrantChargedMultiplierRule.morning_end`). Both are keyword chips on the tickets (PAIR teal, MORNING mustard). With none, Cream is WASTED ("no PAIR in the row"), Coffee too ("no MORNING product in the row"), and Tea bags ("no MORNING product after it").
+- **The redraw tension** (v0.57, #128): Clearance profits from what went wrong, Snacks spread out and keep the first hand. A **WASTED product** is one with a WASTED line of its own rules (section 3.5; not an upgrade's, a day event's or a lost effect's), recorded for a total-only score too (`ScoreState.wasted`, `Rule.reads_waste`). The **cards redrawn** are this shift's redraws times the basket size (2), extra redraws included, and the **redraws left** its allowed redraws less the used, both passed to scoring as context like the shift's events (`ScoreCredits.cards_redrawn` and `redraws_left`, `Scoring.total`'s): scoring stays pure, and the planning preview changes as the player redraws. A **fractional multiplier** (built for Stale popcorn's first ×1.5 on 2026-11-02; the user then chose whole steps, ×1/×2/×3, so no live card uses it now) multiplies in percent and rounds to the nearest euro, halves up (5 × 1.5 = 7.5 pays 8; `ScoreStep.times_percent`): its step's `value` is the factor rounded (×2) and its `percent` the exact one (150), which the receipt, count-up, monitor equation and planning tokens print ("×1.5"). A **lone Snack** has no Snack beside it (section 3.4). Dusty toffees (`WastedBeforeRule`) +5 for each WASTED product before it, up to 3 (+3 until v0.62), else "no WASTED product before it"; Flickering bulb ×4 (×3 until v0.62) if the product just before it was WASTED, else "the product just before it was not WASTED"; Dented can (`RedrawBonusRule`) +3 per card redrawn (+2 until v0.62), else "no card redrawn this shift"; Crisps +4 per redraw left (+3 until v0.62), Stale popcorn (`GrantChargedMultiplierRule.percent`) arms ×(1 + 1 per redraw left) for the next Snack, each with none left "no redraw left this shift"; Pick 'n' mix (`SnackSpreadRule` LONE) +4 per lone Snack (+3 until v0.62), else "no lone Snack in the row"; Bent lolly (GAP) +3 per product to the nearest other Snack, up to 3 (+2 until v0.62), else "no other Snack in the row" or "no product between it and the next Snack". Example rows (v0.62 numbers): Banana, Bread, Banana, Dusty toffees = 2 + 5 + 2 + 12 = **21**; Banana, Flickering bulb = 2 + 8 = **10**; Stale popcorn, Bread, Crisps with 2 redraws left = 2 + 5 + 10 × 3 = **37** (1 left: 2 + 5 + 6 × 2 = **19**; none left: 9); Crisps, Bread, Bent lolly, Potatoes, Potatoes, Pick 'n' mix with no redraw left = 2 + 5 + 5 + 3 + 3 + 14 = **32**. The stickers name WASTED as a keyword chip (`{wasted}`, like BATCH and CHAIN). Day-old buns' SHELF LIFE waits for the hand-action pass.
+- **PAIR and MORNING** (v0.58, #128, Dairy and Breakfast): a product is **PAIRED** when its pair rule (`AdjacentMatchBonusRule.pair`) finds its partner beside it, either side (`CardPairs`): Butter and a Bakery product, Cheese and Bread, Yogurt and a Banana, Reduced yogurt and a Clearance product, Scone and a Dairy product, Cereal and Milk; since v0.62 a PAIR card pays its bonus for each partner beside it (`per_match`: Butter between two Bakery products +4 × 2), and Cream pays +4 for each PAIRED product in the row (`PairCountRule`; +2 from v0.58). The **MORNING** is the row's opening run of Breakfast products, from the first product until one without the tag (`CardMorning`; coupons neither join nor end it, a Breakfast sticker's tag counts); Coffee pays +1 for each MORNING product wherever it stands (`MorningCountRule`), and Tea bags' ×4 reaches only the last MORNING product after it (Golden: the last 2, its 2 charges; `GrantChargedMultiplierRule.morning_end`). Both are keyword chips on the tickets (PAIR teal, MORNING mustard). With none, Cream is WASTED ("no PAIR in the row"), Coffee too ("no MORNING product in the row"), and Tea bags ("no MORNING product after it").
 - **Givers** (Mixed herbs, Grapefruit; Coffee until v0.58, Cream until v0.58, Stale popcorn until v0.57) work like the frozen fixtures' Coffee: the bonus goes once to the next product with the tag anywhere later, and fizzles when there is none ("no Dairy product after it").
 - **Doublers** (Squashed cake; Lemon until v0.56) work like Tea bags: one charge for the next payout with the tag, in their own charge groups (they never reset Eggs, Tea bags or each other), fizzling with "1 charge unused". Each prints the tag it doubles, so a second copy always spends the first one's charge.
 - The other conditional items pay no bonus when their condition fails; since v0.37 (issue #45) each one fizzles then (section 3.5).
@@ -619,20 +662,23 @@ Decided with the user (issue #35). Each aisle's machine (`docs/FULL_BUILD_PLAN.m
 | Coupon | Rule | What it tests |
 |---|---|---|
 | Repeat | Copy the payout of the product just before it | Plain amplification |
-| Final markdown | +4 if in the last slot (+6 until v0.29; the starter's coupon from v0.29 to v0.42, one of the starting deck's random coupons since v0.43) | Position pressure, competes with Repeat |
+| Final markdown | The last item in the row pays ×2 (since v0.62; +4 if in the last slot until then, +6 until v0.29; the starter's coupon from v0.29 to v0.42, one of the starting deck's random coupons since v0.43) | Position pressure, competes with Repeat |
 | **Bundle** | The products on either side of it count as adjacent to each other | Coupons that *enable* combinations instead of breaking them. Replaced by 2 for 1 (v0.23): out of every pool (`bundle.tres` stays in `data/cards/`), and its golden rows stay on `cards_v0_4` |
 | **2 for 1** (v0.23) | Same product on both sides: they count as adjacent; the second pays ×2 | An Amplifier that rewards placing a pair around it |
-| **Shelf swap** (v0.23) | The product in the next slot also counts as just after the first product | A Connector: adjacency between products that are not neighbours |
+| **Shelf swap** (v0.23) | Different items on both sides: they count as side by side, and the 2nd pays ×2 (since v0.62; until then the product in the next slot also counted as just after the first product) | A Connector: adjacency between products that are not neighbours |
 | **Breakfast sticker** | The product in the next slot gains the Breakfast tag | Changing tags creates new builds (Banana into a Milk build) |
 | **Multipack** | ×3 to later products sharing a tag with the product just before it (not Food or Breakfast; ×2 to any shared tag until v0.29) | A big multiplier with an ordering puzzle around it: since v0.29 a shelf-tag payoff (Dairy, Bakery, Clearance…) rather than ×2 to everything |
 | **Clearance tag** (v0.26) | The product in the next slot gains the Clearance tag | A second Relabeller: staples join the Clearance build (Bread before Day-old buns or Dented can) |
 | **Opening deal** (v0.26) | If in the first slot: the next product pays ×5 (×3 until v0.29) | A second Position coupon: it pulls a strong product to the front and competes with Final markdown for a coupon's place in the row |
+| **Write-off** (v0.62, RARE) | The next item pays ×2 and counts as WASTED | A Clearance coupon: it feeds the WASTED readers without losing an item's pay |
+| **Family sticker** (v0.62, COMMON) | The next item joins a family you pick (on the belt, any time before CHECKOUT, kept per copy; pre-filled) | One Relabeller for every family, in place of the Breakfast sticker and the Clearance tag (their files stay for old saves) |
+| **Party pack** (v0.62, COMMON) | The next 3 Snacks pay ×2 | A Snack payoff; offered only when a Snack is stocked or in the deck (`CardDefinition.needs_tag`) |
 
-Since v0.26 `coupon_pool` holds 8 coupons, meeting `docs/FULL_BUILD_PLAN.md` section 5.1: Amplifier 3 (Repeat, Multipack, 2 for 1), Relabeller 2 (Breakfast sticker, Clearance tag), Position 2 (Final markdown, Opening deal), Connector 1 (Shelf swap). Opening deal's ×3 (`factor` on `FirstSlotMultiplierRule`) was a starting value; the balance passes raised it to ×5 (v0.29, issue #42). Organic label (the next product gains Produce) stays held (decided with the user, issue #36, and kept in v0.27, issue #35): every Produce reader is in Fruit & veg (see Capsule items above).
+Since v0.62 `coupon_pool` holds 9 coupons: Write-off and Party pack added, and the Family sticker in place of the Breakfast sticker and the Clearance tag (`docs/FULL_BUILD_PLAN.md` v1.29; the first offer and the Breakfast run hold the Family sticker too). From v0.26 to v0.62 it held 8, meeting `docs/FULL_BUILD_PLAN.md` section 5.1: Amplifier 3 (Repeat, Multipack, 2 for 1), Relabeller 2 (Breakfast sticker, Clearance tag), Position 2 (Final markdown, Opening deal), Connector 1 (Shelf swap). Opening deal's ×3 (`factor` on `FirstSlotMultiplierRule`) was a starting value; the balance passes raised it to ×5 (v0.29, issue #42). Organic label (the next product gains Produce) stays held (decided with the user, issue #36, and kept in v0.27, issue #35): every Produce reader is in Fruit & veg (see Capsule items above).
 
 ### Starting deck (13 cards, with an early coupon)
 
-**Since v0.50 (#107, `docs/FULL_BUILD_PLAN.md` v0.63 section 7.2, decided with the user on 2026-10-26)** the start is a choice: the 4 staples (2 Banana, Milk, Eggs), **a starter pack of 3 cards** picked from an offer of 3 of 6 (Breakfast run, Bargain bin, Banana bunch, Coupon clipper, Deli counter, Big shop; `data/starter_packs/`), and 6 products dealt from today's stock, the same whichever pack is taken (`data/decks/pack_starter.tres`). No coupon is dealt: the cart's coupons come from its pack (Deli counter's none, Coupon clipper's 2). The Banana bunch puts 4 Bananas in the cart, past `copy_max` (a pack's cards may). Until the profile's first win the offer always holds Breakfast run, raised as the good first pick. The rest of this section is the deal before v0.50, kept for `random_starter.tres`.
+**Since v0.50 (#107, `docs/FULL_BUILD_PLAN.md` v0.63 section 7.2, decided with the user on 2026-10-26)** the start is a choice: the 4 staples (2 Banana, Milk, Eggs), **a starter pack of 3 cards** picked from an offer of 3 of 9 (Breakfast run, Bargain bin, Banana bunch, Coupon clipper, Deli counter, Big shop; since v0.62 also Milk bar, Snack stand and Home basics, the Snack stand only once the Snacks aisle is unlocked; `data/starter_packs/`), and 6 products dealt from today's stock, the same whichever pack is taken (`data/decks/pack_starter.tres`). No coupon is dealt: the cart's coupons come from its pack (Deli counter's none, Coupon clipper's 2). The Banana bunch puts 4 Bananas in the cart, past `copy_max` (a pack's cards may). Until the profile's first win the offer always holds Breakfast run, raised as the good first pick. The rest of this section is the deal before v0.50, kept for `random_starter.tres`.
 
 Since v0.42 (`docs/FULL_BUILD_PLAN.md` v0.49 section 7.2, decided with the user) the game deals the starting deck each run: 4 fixed cards, 2 Banana, 1 Milk, 1 Eggs, **+ 1 coupon** drawn from `coupon_pool` (since v0.43, `docs/FULL_BUILD_PLAN.md` v0.51; Final markdown, a fixed card, until then), plus 8 products drawn from the run's stock among those with an item-tier chain (the 20 fresh-stock products; the capsule products have chains since v0.44 but stay out of the draw, `random_capsules` off on the recipe, until the user decides), never more than 2 copies of a card (`data/decks/random_starter.tres`). The fixed starter deck below stays the deck of the tests and the balance simulator's `--deck` (`data/decks/starter.tres`); the golden rows never used it.
 
@@ -911,3 +957,4 @@ Rules for iterating: **one major variable per round**, card values tweaked only 
 | v0.59 | 2026-11-02 | `results_exit` event (`docs/FULL_BUILD_PLAN.md` v0.93): the results' Return to menu replaces New run, so `restart` is no longer logged from the results; the log summary knows the type (it attaches to the ended run and never makes a run) |
 | v0.60 | 2026-11-04, 2026-11-05 | The opening-time board's telemetry (`docs/FULL_BUILD_PLAN.md` v0.97 section 7.2; additive): `start_page`, `staple_swap`, `restock` and `pin_change`; `run_start` and `start_choice` gain the start setup's fields; the log summary's opening-time section and final decks from the logged cart (section 8). Reworked with the board's mechanics on 2026-11-05: `start_lock_in` and `new_packs` added, `restock` logs one basket (`basket`, `source`, card ids), `staple_swap` gains `aisle` and `via`, `restock_view` and `start_choice`'s `deal_used` removed (`baskets`, `restock_basket`, `new_packs` instead), `run_start` gains `baskets`. No scoring rule changes. |
 | v0.61 | 2026-11-05 | YOUR STORE as the "Counter" (`docs/FULL_BUILD_PLAN.md` v1.07 section 7.2; additive): `start_aisle` added; `start_lock_in` no longer logged (the baskets are dealt as the board opens); `staple_swap` via `key` is a number key on the open swap shelf; the log summary counts aisle changes (section 8). No scoring rule changes. |
+| v0.62 | 2026-11-11 | Coupon buffs, stage 1 (`docs/FULL_BUILD_PLAN.md` v1.29 section 5.1), decided with the user on 2026-11-11; **rule change**, buffs only · **Shelf swap:** different items on both sides count as adjacent and the second pays ×2 (3.4) · **Final markdown:** the row's last product pays ×2, "no item after it" otherwise (3.5) · **Write-off** (new): the next product pays ×2 and is written off, counting as WASTED with a `WRITTEN_OFF` step (3.4) · **Party pack** (new): the next 3 Snacks pay ×2 (3.5) · `coupon_pool` 10 (section 5) · the Coupon engine no longer has a Final markdown +4 to double · golden rows on `tests/fixtures/cards_v1_29/` (3.7); no older row changed · **stage 2, family buffs** (buffs only, the page's numbers): **PAIR** cards pay for each partner beside them (`per_match`), Butter, Yogurt, Cereal, Reduced yogurt and Scone +4, Cheese +5, Cream +4 per PAIR; **Clearance + WASTED**: Flickering bulb base 2 and ×4 (Golden ×5), Dusty toffees base 2 and +5, Dented can +3, Day-old buns and Bruised apples +4; **Snack**: Crisps +4, Pick 'n' mix base 2 and +4, Bent lolly +3, Cereal bar and Breadsticks +4; **Household**: every Household product but Carrier bag base 2 (BIG and GOLDEN 4), Batteries 2 charges (Golden 3), Odd socks +8, Egg timer +5, Chipped mug +4, Scissors +3 (section 5's tables, 3.4's example rows) · starter packs 9: Milk bar, Snack stand (needs the Snacks aisle), Home basics; Bargain bin reworked (Write-off, Dented can, Flickering bulb) · no golden row changed (they run on frozen fixtures) · **stage 3:** the Family sticker (section 3.5, section 5's coupons): the next item joins the family picked for that copy on the belt (kept across shifts, saved), else its pack's preset (the Breakfast run's: Breakfast), else pre-filled from the row; in place of the Breakfast sticker and the Clearance tag in the coupon pool (9), the first offer, the Breakfast run (example total unchanged, 39) and Clearance collector · **stage 4, the loyalty boost** (the user's answer 1 clarified on 2026-11-12: the in-run LOYALTY card's perks, "Pool + pack guarantee"): four RARE keyword perks (section 3.8), Perfect pair, Salvage desk, Grab bag and Home goods: PAIRED, WASTED, lone Snack or Household items pay ×2 › ×3 › ×4, each gated by its family; **rule change** (scoring order): with a perk that reads waste, a product's own WASTED status is marked before the upgrades' multipliers; no starter pack names or boosts a perk (a first build's pack guarantee was removed before it shipped); Dairy, Clearance, Snack and Household regulars +2 › +3 › +4; golden rows for the perks (3.7) on `cards_v1_29` with Cereal and Carrier bag added; no older row changed |

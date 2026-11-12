@@ -9,7 +9,7 @@ script = ExtResource("2_egg_timer")
 match_by = 2
 match_value = "eggs"
 position = 1
-bonus = 4
+bonus = 5
 receipt_text = "Egg timer after Eggs"
 
 [resource]
@@ -18,9 +18,9 @@ id = &"egg_timer"
 display_name = "Egg timer"
 kind = 1
 tags = PackedStringArray("Household", "Breakfast")
-base = 1
+base = 2
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_egg_timer")])
-rule_text = "+4 if right after Eggs"
+rule_text = "+5 if right after Eggs"
 sticker_text = "+{bonus} after Eggs"
 monitor_text = "Gets +{bonus} when placed right after Eggs."
 art_ref = "res://art/items_v2/egg_timer.png"

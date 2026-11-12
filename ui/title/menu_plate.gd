@@ -152,7 +152,8 @@ func show_coins(count: int) -> void:
 
 
 ## Swaps the plate's frames (normal, lit; 9-slices with FRAME_MARGIN art px margins) for
-## `frames`: the TOY MACHINES' FIGURINE SHELF is a primary plate in teal (v0.78).
+## `frames`: the TOY MACHINES' FIGURINE BOOK (the FIGURINE SHELF until v1.30) is a primary
+## plate in teal (v0.78).
 func use_frames(frames: Array[Texture2D]) -> void:
 	_styles = []
 	for frame: Texture2D in frames:

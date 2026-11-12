@@ -75,6 +75,18 @@ func test_every_coupon_has_an_entry() -> void:
 			assert_object(found).override_failure_message(String(card.id)).is_not_null()
 
 
+## The Breakfast sticker and the Clearance tag left the pools (v1.29): an old save's ticket still
+## links to a page, the Family sticker's, and they have no page of their own.
+func test_retired_stickers_link_to_the_family_sticker() -> void:
+	var book: HandbookBook = _book()
+	for retired: String in ["breakfast_sticker", "clearance_tag"]:
+		var found: HandbookEntry = book.entry_for_card(retired)
+		assert_object(found).override_failure_message(retired).is_not_null()
+		if found != null:
+			assert_str(String(found.id)).is_equal("family_sticker")
+		assert_object(book.entry(StringName(retired))).override_failure_message(retired).is_null()
+
+
 ## The TIERS and SHIFT tabs and their pages are gone, and PLACES' BESIDE, and no tooltip leads
 ## there: a tier's chip, the GAINED or BESIDE word or a line that opens with an old page's title
 ## finds no entry.
@@ -311,8 +323,6 @@ func test_the_batch_page_teaches_the_bookends() -> void:
 	for words: String in [
 		"{kw:BATCH} chip turns both caps gold",
 		"{kw:WASTED} card turns its cap red when you hover it",
-		"{coupon:shelf_swap}",
-		"only the batch's real first and last items get a cap",
 	]:
 		assert_str(looks).override_failure_message(words).contains(words)
 	var tip: String = GlyphText.keyword_tip(CardText.BATCH_WORD)

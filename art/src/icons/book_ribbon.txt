@@ -1,0 +1,43 @@
+; The FIGURINE BOOK's FAMILY ribbon (v1.30 round 8, the user: "instead of a classic button for
+; family, maybe it can be a bookmark"; one ribbon bookmark): a cloth ribbon hanging over the
+; binder's top edge, its top folded back (the back in cream shade, an ink light crease), its body
+; cream with a paper light left edge and a cream shade right edge, its foot cut in a notched
+; swallow tail; ink outline. Drawn in the cream ramp, ALL's neutral look: FamilyRibbon recolours
+; paper, cream and cream shade to the picked family's light, face and shade (FamilyStyle). The
+; family's glyph (or the ALL mark) and the NEW dot are laid on it in code. 15x34, shown at 3x (round 9: a size larger).
+@size 15x34
+@kind icon
+###############
+#bbbbbbbbbbbbb#
+#bbbbbbbbbbbbb#
+#%%%%%%%%%%%%%#
+#wcccccccccccb#
+#wcccccccccccb#
+#wcccccccccccb#
+#wcccccccccccb#
+#wcccccccccccb#
+#wcccccccccccb#
+#wcccccccccccb#
+#wcccccccccccb#
+#wcccccccccccb#
+#wcccccccccccb#
+#wcccccccccccb#
+#wcccccccccccb#
+#wcccccccccccb#
+#wcccccccccccb#
+#wcccccccccccb#
+#wcccccccccccb#
+#wcccccccccccb#
+#wcccccccccccb#
+#wcccccccccccb#
+#wcccccccccccb#
+#wcccccccccccb#
+#wcccccccccccb#
+#wcccccccccccb#
+#wcccccccccccb#
+#wcccccccccccb#
+#wccccc#cccccb#
+#wcccc#.#ccccb#
+#wccc#...#cccb#
+#wcc#.....#ccb#
+####.......####

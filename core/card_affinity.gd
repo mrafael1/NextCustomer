@@ -12,8 +12,9 @@ extends RefCounted
 ## (Scissors) names every coupon; a tag grant (Breakfast sticker, Clearance tag) names every card
 ## whose rule counts, boosts or pairs with the tag it grants (WEAKly for a broad one), and a card
 ## zeroed beside it as a PENALTY. The rules in NAMES_NONE name no other card (slot rules, links,
-## copies, 2 for 1, the shared multiplier, the connector, and #128's redraw and WASTED readers,
-## which count redraws or any WASTED product, not a card). A spread rule (#128: Pick 'n' mix, Bent
+## copies, 2 for 1 and Shelf swap, the shared multiplier, the connector, and #128's redraw and
+## WASTED readers, which count redraws or any WASTED product, not a card, and v1.29's Write-off,
+## which writes off whatever product follows it). A spread rule (#128: Pick 'n' mix, Bent
 ## lolly) names its tag's products.
 ##
 ## Presentation only, like CardFamilies: no rule reads it and it never scores. Which pairs pay in
@@ -31,6 +32,8 @@ const NAMES_NONE: Array[String] = [
 	"CopyPreviousPayoutRule",
 	"FirstSlotMultiplierRule",
 	"LastSlotBonusRule",
+	"LastProductMultiplierRule",
+	"WriteOffRule",
 	"GrantSharedTagMultiplierRule",
 	"RedrawBonusRule",
 	"WastedBeforeRule",

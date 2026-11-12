@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="HandbookEntry" format=3]
+
+[ext_resource type="Script" path="res://presentation/handbook_entry.gd" id="1_entry"]
+
+[resource]
+script = ExtResource("1_entry")
+id = &"write_off"
+group = &"coupons"
+title = "Write-off"
+mark = 4
+mark_value = "write_off"
+rule = "The next item pays ×2 and counts as {kw:WASTED}, so cards like {item:dusty_toffees} pay for it."
+example_row = PackedStringArray("write_off", "bread", "dusty_toffees")
+example_total = 17

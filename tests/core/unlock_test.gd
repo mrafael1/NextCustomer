@@ -125,8 +125,9 @@ func test_a_starting_upgrade_is_owned_from_the_first_shift() -> void:
 func test_a_starting_upgrade_scores_from_the_first_shift() -> void:
 	var run: RunState = _run_with_deck(57, _deck_with_upgrade(COUPON_ENGINE))
 	run.place(run.debug_add_to_hand(load(BREAD)), 0)
-	run.place(run.debug_add_to_hand(load("res://data/cards/final_markdown.tres")), 1)
-	assert_int(run.preview().total).is_equal(13)
+	# Bread 5, Repeat's copy 5 ×2 (Final markdown pays nothing itself since v1.29).
+	run.place(run.debug_add_to_hand(load("res://data/cards/repeat.tres")), 1)
+	assert_int(run.preview().total).is_equal(15)
 	var upgrade_steps: Array = run.preview().steps.filter(
 		func(step: ScoreStep) -> bool: return step.source_kind == ScoreStep.SourceKind.UPGRADE
 	)

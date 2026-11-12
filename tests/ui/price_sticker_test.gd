@@ -26,12 +26,12 @@ const READINGS: Dictionary[String, String] = {
 	# The Banana chain (#106) replaced v2's "+N after Banana"; its CHAIN keyword (#128 Produce
 	# links) is a chip.
 	"banana": "CHAIN +prev",
-	"batteries": "×N next Household",
+	"batteries": "×N next N Household",
 	"two_for_one": "Same both sides: 2nd ×N",
 	"crisps": "+N per redraw left",
 	"coffee": "+N per MORNING",
 	"milk": "+N per earlier Breakfast",
-	"cheese": "+N PAIR with Bread",
+	"cheese": "+N PAIR per Bread beside",
 	# Produce links (#128): Strawberries feed the chain just after them.
 	"strawberries": "+N each, next CHAIN",
 	# The Bakery batch roles (#128 v3) replaced Croissant's "+N beside Bakery"; its BATCH keyword

@@ -42,6 +42,10 @@ const PARAGRAPH := "\n\n"
 @export var example_quota: int = 0
 ## The example row's total, pinned by a test (HandbookExample scores it).
 @export var example_total: int = 0
+## Retired cards this page also explains (HandbookBook.entry_for_card, ids in data/cards): v1.29's
+## Family sticker page stands for the Breakfast sticker and the Clearance tag an old save still
+## holds.
+@export var also_cards: PackedStringArray = PackedStringArray()
 
 
 ## Whether the entry has an example row.

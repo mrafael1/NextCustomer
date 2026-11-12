@@ -24,6 +24,10 @@ const STEP_STYLES: Array[ReceiptView.LineStyle] = [
 
 const FIZZLE_ICON := preload("res://art/icons/fizzle.png")
 const WARNING_ICON := preload("res://art/icons/warning.png")
+## A written-off row's mark (v1.29): the Write-off coupon's mini, at twice its pixels in
+## WRITTEN_OFF_RECT (its 9 px don't scale to MARK_RECT's 14).
+const WRITTEN_OFF_ICON := preload("res://art/icons/coupon_write_off_mini.png")
+const WRITTEN_OFF_RECT := Rect2(-18, -9, 18, 18)
 
 
 ## Hangs an indented line's left `label`: its text starts past its lead and marker on every
@@ -79,14 +83,19 @@ static func perk(line: Control) -> void:
 
 ## Puts `kind` on `line`: a "Mark" inside its right label, at MARK_RECT in the line's mark
 ## column, centred on its left label's first row (a wrapped fizzle's mark sits beside the
-## reason's start): the fizzle icon (FIZZLED) or the warning icon (DENIED, at its own aspect);
-## nothing for NONE. Its "mark" meta holds `kind`.
+## reason's start): the fizzle icon (FIZZLED), the warning icon (DENIED, at its own aspect) or
+## the Write-off coupon's mini (WRITTEN_OFF, v1.29: no fizzle, the item still pays; at
+## WRITTEN_OFF_RECT); nothing for NONE. Its "mark" meta holds `kind`.
 static func mark(line: HBoxContainer, kind: ReceiptView.Mark) -> void:
 	if kind == ReceiptView.Mark.NONE:
 		return
 	var icon: TextureRect
+	var rect: Rect2 = MARK_RECT
 	if kind == ReceiptView.Mark.FIZZLED:
 		icon = _icon(FIZZLE_ICON)
+	elif kind == ReceiptView.Mark.WRITTEN_OFF:
+		icon = _icon(WRITTEN_OFF_ICON)
+		rect = WRITTEN_OFF_RECT
 	else:
 		icon = _icon(WARNING_ICON)
 		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -96,10 +105,10 @@ static func mark(line: HBoxContainer, kind: ReceiptView.Mark) -> void:
 	var left: Label = line.get_child(0) as Label
 	var row: float = left.get_theme_font("font").get_height(left.get_theme_font_size("font_size"))
 	var middle: float = roundf(row / 2.0)
-	icon.offset_left = MARK_RECT.position.x
-	icon.offset_right = MARK_RECT.end.x
-	icon.offset_top = middle + MARK_RECT.position.y
-	icon.offset_bottom = middle + MARK_RECT.end.y
+	icon.offset_left = rect.position.x
+	icon.offset_right = rect.end.x
+	icon.offset_top = middle + rect.position.y
+	icon.offset_bottom = middle + rect.end.y
 	line.get_child(1).add_child(icon)
 
 

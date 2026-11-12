@@ -11,6 +11,8 @@ enum Glyph { NONE, FIZZLE, WARNING }
 
 ## The pay tag's text.
 const PAY_TEXT := MonitorText.EUROS
+## A written-off item's label caption (v1.29, Write-off): EffectLink.WRITTEN_OFF_WORD, one line.
+const WRITTEN_OFF_CAPTION := EffectLink.WRITTEN_OFF_WORD
 ## A wrong job's tooltip (#128): WASTED, then its step's reason, capitalised.
 const WRONG_JOB_TIP := "%s · %s"
 ## The links that make rail strips.
@@ -102,7 +104,28 @@ static func build(
 	model.pairs = result.pairs.duplicate()
 	for slot: int in range(model.slots.size()):
 		model.slots[slot].wrong_job = wrong_job(result, slot, row[slot])
+		_stamp_write_off(model.slots[slot], result, slot)
 	return model
+
+
+## A written-off item's label (v1.29, Write-off): WRITTEN OFF (its pay kept as the amount), not a
+## denial (the item still pays, its stickers stay lit: written_off). A denial's own stamp wins.
+static func _stamp_write_off(planning: PlanningSlot, result: ScoreResult, slot: int) -> void:
+	if planning.has_stamp() or not written_off(result, slot):
+		return
+	planning.stamp_amount = PAY_TEXT % (result.payouts[slot] if slot < result.payouts.size() else 0)
+	planning.stamp_caption = WRITTEN_OFF_CAPTION
+	planning.written_off = true
+
+
+## Whether a Write-off wrote off the item at `slot` in `result` (a WRITTEN_OFF step on it).
+static func written_off(result: ScoreResult, slot: int) -> bool:
+	if result == null:
+		return false
+	for step: ScoreStep in result.steps:
+		if step.slot == slot and step.step_type == ScoreStep.StepType.WRITTEN_OFF:
+			return true
+	return false
 
 
 ## The batches of `result` (for `row`, the cards in slot order) the belt frames (#128): each

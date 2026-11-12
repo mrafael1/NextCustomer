@@ -7,7 +7,7 @@
 [sub_resource type="Resource" id="Resource_rule"]
 script = ExtResource("2_rule_script")
 tag = "Dairy"
-bonus_each = 3
+bonus_each = 4
 receipt_text = "Dairy regulars"
 
 [resource]
@@ -16,7 +16,7 @@ id = &"dairy_regulars_lv3"
 icon_ref = "res://art/icons/family_dairy.png"
 display_name = "Dairy regulars"
 type = 7
-effect_text = "Each Dairy product +3 for each Dairy product before it"
+effect_text = "Each Dairy product +4 for each Dairy product before it"
 condition_text = "Counts Dairy products anywhere earlier in the row"
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_rule")])
 level = 3

@@ -386,7 +386,7 @@ func test_the_bagged_items_tick_in_one_counter() -> void:
 ## a frame's end). An Iced bun on the first frame (Iced bun | Banana, Shelf swap | Bread) draws its
 ## dashed line (hover and count) only on the frame with the LAST cap, from its left end.
 func test_a_split_batch_plays_each_beat_once() -> void:
-	var row: Array[String] = ["croissant", "banana", "shelf_swap", "stale_doughnut"]
+	var row: Array[String] = ["croissant", "banana", "old_shelf_swap", "stale_doughnut"]
 	var frames: BatchFrames = _standalone(row)
 	var tickets: Dictionary[int, Rect2] = _rects(range(row.size()))
 	frames.lay_out(tickets)
@@ -416,7 +416,7 @@ func test_a_split_batch_plays_each_beat_once() -> void:
 		assert_array(Array(ends._pop_texts)).is_equal([str(side + 1)])
 		var x: float = ends._pop_xs[0] + origin
 		assert_float(x).is_equal(tickets[slots[side]].get_center().x)
-	var glazed: BatchFrames = _standalone(["iced_bun", "banana", "shelf_swap", "bread"])
+	var glazed: BatchFrames = _standalone(["iced_bun", "banana", "old_shelf_swap", "bread"])
 	glazed.lay_out(tickets)
 	var glazed_split: Array[BatchFrame] = glazed.frames()
 	assert_int(glazed_split.size()).is_equal(2)
@@ -553,12 +553,24 @@ func _model(row: Array[String]) -> PlanningModel:
 	var cards: Array[CardDefinition] = []
 	var instances: Array[CardInstance] = []
 	for id: String in row:
-		cards.append(load(CARDS % id) as CardDefinition)
+		cards.append(_card(id))
 		instances.append(CardInstance.new(cards[-1], instances.size() + 1))
 	var result: ScoreResult = Scoring.score(instances)
 	var none_upgrades: Array[UpgradeDefinition] = []
 	var none_events: Array[InspectionDefinition] = []
 	return PlanningModel.build(result, cards, none_upgrades, none_events, null)
+
+
+## The live card `id`, or "old_shelf_swap": the pre-v1.29 Shelf swap (the next product also counts
+## as just after the row's first product), the only link that skips products, so the one that
+## splits a batch (no live card does since v1.29).
+static func _card(id: String) -> CardDefinition:
+	if id != "old_shelf_swap":
+		return load(CARDS % id) as CardDefinition
+	var old: CardDefinition = (load(CARDS % "shelf_swap") as CardDefinition).duplicate()
+	var rules: Array[Rule] = [FirstProductLinkRule.new()]
+	old.rules = rules
+	return old
 
 
 ## `slot`'s ticket's global rect.

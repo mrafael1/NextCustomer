@@ -1,6 +1,6 @@
 class_name PairBonusRule
 extends Rule
-## A flat bonus in an exact pair, after the context pass (Odd socks, #128: +5 in a pair: one
+## A flat bonus in an exact pair, after the context pass (Odd socks, #128: +8 in a pair: one
 ## Household product beside it, with no other Household product beside that one). Beside is
 ## ScoreState.products_beside (a neighbour, or a product linked to it), so a run of 3 pays none
 ## of its ends: the sticker and the rule agree. With no pair it fizzles (#45): a WASTED step

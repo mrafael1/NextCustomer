@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="CardDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/rule.gd" id="1_rule"]
+[ext_resource type="Script" path="res://core/rules/grant_tag_to_next_slot_rule.gd" id="2_grant"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="3_card"]
+
+[sub_resource type="Resource" id="Resource_family_sticker"]
+script = ExtResource("2_grant")
+choices = PackedStringArray("Breakfast", "Bakery", "Produce", "Dairy", "Frozen", "Snack", "Household", "Clearance")
+receipt_text = "Family sticker"
+
+[resource]
+script = ExtResource("3_card")
+id = &"family_sticker"
+display_name = "Family sticker"
+kind = 2
+tags = PackedStringArray()
+rules = Array[ExtResource("1_rule")]([SubResource("Resource_family_sticker")])
+rule_text = "The next item joins a family you pick"
+sticker_text = "Next joins {tag}"
+monitor_text = "The item in the next slot joins the family you pick on the belt (click its tag to change it)."
+art_ref = "res://art/icons/coupon_family_sticker_v2.png"
+mini_art_ref = "res://art/icons/coupon_family_sticker_mini.png"

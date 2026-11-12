@@ -209,10 +209,11 @@ func test_builds_measure_the_deck() -> void:
 	var coupons: Array[CardDefinition] = starter.duplicate()
 	coupons.append(load(FINAL_MARKDOWN))
 	assert_bool((load(BUILDS % "coupon_specialist") as BuildDefinition).fits(coupons)).is_true()
-	# Clearance tag counts towards Clearance collector like a Clearance product (v0.27).
+	# The Family sticker (v1.29, the Clearance tag's place) counts towards Clearance collector like
+	# a Clearance product (v0.27).
 	var clearance: BuildDefinition = load(BUILDS % "clearance_collector")
 	var tagged: Array[CardDefinition] = starter.duplicate()
-	tagged.append(load("res://data/cards/clearance_tag.tres"))
+	tagged.append(load("res://data/cards/family_sticker.tres"))
 	assert_int(clearance.count(tagged)).is_equal(1)
 	tagged.append(load("res://data/cards/dented_can.tres"))
 	assert_bool(clearance.fits(tagged)).is_true()

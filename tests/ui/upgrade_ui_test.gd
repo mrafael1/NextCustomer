@@ -171,15 +171,16 @@ func test_the_loyalty_card_has_one_empty_box_per_register() -> void:
 	assert_str(LoyaltyCard.initials("Category engine")).is_equal("CaE")
 
 
-## Coupon engine doubles Final markdown, Category engine pays on Milk (the last product): both
-## come from their loyalty-card boxes, and the receipt names them.
+## Coupon engine doubles Repeat's copy (Final markdown until v1.29, which pays nothing itself
+## since), Category engine pays on Milk (the last product): both come from their loyalty-card
+## boxes, and the receipt names them.
 func test_upgrade_steps_play_from_the_loyalty_card() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
 	screen._debug.give_upgrade("coupon_engine")
 	screen._debug.give_upgrade("category_engine")
 	assert_int(screen.run.upgrades.size()).is_equal(2)
-	_place_ids(screen, ["bread", "milk", "final_markdown"])
+	_place_ids(screen, ["bread", "milk", "repeat"])
 	var preview: ScoreResult = screen.run.preview()
 	var upgrade_steps: Array[ScoreStep] = _upgrade_steps(preview)
 	var kinds: Array = upgrade_steps.map(func(step: ScoreStep) -> int: return step.step_type)

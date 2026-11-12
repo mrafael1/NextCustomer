@@ -1,77 +1,54 @@
 class_name ToyCompletedCard
 extends Control
-## The COMPLETED! card (v1.05, mock-up toy_shelf_unlock.html, "The COMPLETED! card"): when a
-## capsule completes its aisle (StartSetupRules.completed: every item of the aisle collected),
-## the TOY MACHINES' figurine join (ToyLineupJoin) pops this card over its shade. On the popup
-## frame: the aisle's sign band (its glyph and name), COMPLETED! in hard pixel lettering, one row
-## per start-screen rule the completion unlocks (lines: each row is a rule that already exists,
-## its numbers read from the balance and the regulars), the completed aisles' pips (the new one
-## stamps in, ToyLineupJoin), the next unlock ("Next at 3 completed aisles: RESTOCK"), the stock
-## footer and OK. It needs OK (it is rare and explains rules): it arms ResultsPanel.ARM_MS after
-## it is shown, once the mouse is up; then OK, a click anywhere on the join, Enter or Space close
-## it (`closed`). Sizes in canvas px.
+## The COMPLETED! card (v1.05, mock-up toy_shelf_unlock.html, "The COMPLETED! card"; v1.30
+## polish, the user's asks): when a capsule completes its aisle (StartSetupRules.completed: every
+## item of the aisle collected), the TOY MACHINES' figurine join (ToyLineupJoin) pops this card
+## over its shade. On the popup frame: the aisle's sign band (its glyph and name, both at 2x), a
+## COMPLETED rubber stamp slammed onto it, and OK. The stamp (stamp_art: an inked double ring
+## with breaks in the ink round a pale wash, the word in tomato dark hard pixel letters) is
+## stamped on the aisle's name (review fix: it sat under the band): its ring and wash cross the
+## lower part of the name, which still reads above and through it. No rules, pips or stock footer
+## since
+## v1.30: what a completion unlocks is for the next run's tutorial to explain. It needs OK: it
+## arms ResultsPanel.ARM_MS after it is shown, once the mouse is up; then OK, a click anywhere on
+## the join, Enter or Space close it (`closed`). Sizes in canvas px.
 
 signal closed
 
-## What a row's icon shows: the aisle's glyph between swap arrows, the RESTOCK cart, the aisles.
-enum Icon { SWAP, CART, AISLES }
-
-const WIDTH := 420.0
+const WIDTH := 380.0
 ## The card's top on the stage (a taller card is centred instead) and its shadow's offset.
-const TOP := 64.0
+const TOP := 150.0
 const SHADOW_OFFSET := Vector2(6, 8)
 const SHADOW_ALPHA := 0.35
 const FRAME := preload("res://art/frames/popup.png")
 const FRAME_MARGIN := 4
-const PADDING := Vector4(20, 16, 20, 18)
+const PADDING := Vector4(20, 18, 20, 18)
 const SIGN_PATH := "res://art/frames/aisle_sign_%s.png"
 const BASE_SIGN := preload("res://art/frames/aisle_sign.png")
-const BAND_HEIGHT := 36.0
-const GLYPH_SIZE := Vector2(18, 18)
-const CART := preload("res://art/icons/cart.png")
-const PADLOCK := preload("res://art/icons/padlock_dim.png")
-const ICON_BOX := Vector2(44, 44)
-const PIP_SIZE := Vector2(36, 36)
-const PIP_GAP := 8
-const TITLE_SIZE := 16
-const TEXT_SIZE := 13
-const TEXT_WIDTH := 300.0
-const NEXT_SIZE := 14
-const STOCK_SIZE := 15
-const STOCK_ROTATION := -2.0
+## The band: BAND_HEIGHT tall, the glyph at 4x, the name's font pixels 2 art px.
+const BAND_HEIGHT := 72.0
+const GLYPH_SIZE := Vector2(36, 36)
+const NAME_SCALE := 2
+## The stamp: its word's font pixels STAMP_SCALE art px, STAMP_PADDING art px round it (its size
+## a multiple of 4 art px, so the slam's 1.5x step stays on whole canvas px); it rises
+## STAMP_OVERLAP px into the band, over the name's foot. Its ink breaks at uneven texels of the
+## ring (a fixed scatter: 2 of every INK_BREAK) and its face is a STAMP_WASH of paper.
+const STAMP_SCALE := 2
+const STAMP_PADDING := Vector2i(8, 7)
+const STAMP_OVERLAP := 26.0
+const INK_BREAK := 23
+const STAMP_WASH := 0.55
+## The gap between the card's rows.
+const SEPARATION := 12
 const OK_SIZE := Vector2(150, 44)
-const HEADING_TEXT := "COMPLETED!"
-const SWAP_TITLE := "+1 REGULAR SWAP"
-const SWAP_TEXT := (
-	"You can now swap up to %d of your %d regulars for a plain product of a completed aisle. "
-	+ "%s joins the choices (max %d per aisle)."
-)
-const CHOICES_TITLE := "NEW SWAP CHOICES"
-const CHOICES_TEXT := (
-	"Plain %s products can now replace a regular. Still up to %d of your %d regulars "
-	+ "(max %d per aisle)."
-)
-const RESTOCK_TITLE := "RESTOCK UNLOCKED"
-const RESTOCK_TEXT := "Once a run, swap both items of one starting basket for a new pair."
-const RESTOCK_TEXT_PLURAL := (
-	"%d times a run, swap both items of one starting basket " + "for a new pair."
-)
-const RESTOCK_NAME := "RESTOCK"
-const AISLES_TITLE := "CHOOSE YOUR AISLES"
-const AISLES_TEXT := "Pick today's STARTER CART and RUN ONLY aisles yourself."
-const NEXT_TEXT := "Next at %d completed aisles: %s"
-const ALL_TEXT := "Every aisle completed."
-const PIPS_TEXT := "COMPLETED AISLES %d/%d"
-const NEXT_RUN_TEXT := "From your next run"
-const SAVED_RUN_TEXT := "After your saved run"
+const STAMP_TEXT := "COMPLETED"
 const OK_TEXT := "OK"
 
 var _shadow: ColorRect
 var _frame: PanelContainer
 var _column: VBoxContainer
-var _rows: Array[Control] = []
-var _pips: Array[Control] = []
-var _new_pip: Control
+var _band: PanelContainer
+var _stamp: TextureRect
 var _ok: FramedButton
 var _armed: bool = false
 var _arm_at_ms: int = 0
@@ -89,117 +66,24 @@ func _init() -> void:
 	add_child(_frame)
 
 
-## The rows the completion of the `completed_count`th aisle (`aisle`) unlocks, each
-## {"icon": Icon, "title": String, "text": String}, for `regulars` regulars. Every number is the
-## balance's: the swap cap (one per completed aisle, at most one per regular), its per-aisle
-## limit (staple_swap_aisle_max, 0: no swaps, no row), RESTOCK at restock_min_completed and
-## CHOOSE YOUR AISLES at pair_choice_min_completed (0: off, no row).
-static func lines(
-	balance: BalanceDefinition, completed_count: int, aisle: AisleDefinition, regulars: int
-) -> Array[Dictionary]:
-	var found: Array[Dictionary] = []
-	var aisle_max: int = balance.staple_swap_aisle_max
-	if aisle_max > 0 and regulars > 0:
-		var cap: int = mini(completed_count, regulars)
-		var aisle_name: String = aisle.display_name
-		if cap > mini(completed_count - 1, regulars):
-			var text: String = SWAP_TEXT % [cap, regulars, aisle_name, aisle_max]
-			found.append({"icon": Icon.SWAP, "title": SWAP_TITLE, "text": text})
-		else:
-			var text: String = CHOICES_TEXT % [aisle_name, cap, regulars, aisle_max]
-			found.append({"icon": Icon.SWAP, "title": CHOICES_TITLE, "text": text})
-	if balance.restock_min_completed > 0 and completed_count == balance.restock_min_completed:
-		var times: int = balance.restocks_per_run
-		var text: String = RESTOCK_TEXT if times == 1 else RESTOCK_TEXT_PLURAL % times
-		found.append({"icon": Icon.CART, "title": RESTOCK_TITLE, "text": text})
-	var pair_min: int = balance.pair_choice_min_completed
-	if pair_min > 0 and completed_count == pair_min:
-		found.append({"icon": Icon.AISLES, "title": AISLES_TITLE, "text": AISLES_TEXT})
-	return found
-
-
-## The next unlock after `completed_count` completed aisles (the nearest threshold still ahead),
-## "Every aisle completed." once all are, else "".
-static func next_line(balance: BalanceDefinition, completed_count: int) -> String:
-	var best: int = 0
-	var best_name: String = ""
-	var ahead: Array = [
-		[balance.restock_min_completed, RESTOCK_NAME],
-		[balance.pair_choice_min_completed, AISLES_TITLE],
-	]
-	for entry: Array in ahead:
-		var at: int = entry[0]
-		if at > completed_count and (best == 0 or at < best):
-			best = at
-			best_name = entry[1]
-	if best > 0:
-		return NEXT_TEXT % [best, best_name]
-	if completed_count >= balance.aisles.size():
-		return ALL_TEXT
-	return ""
-
-
 ## Every player-facing string the card can show (the no-"gacha" check).
 static func copy() -> PackedStringArray:
-	return PackedStringArray(
-		[
-			HEADING_TEXT,
-			SWAP_TITLE,
-			SWAP_TEXT,
-			CHOICES_TITLE,
-			CHOICES_TEXT,
-			RESTOCK_TITLE,
-			RESTOCK_TEXT,
-			RESTOCK_TEXT_PLURAL,
-			AISLES_TITLE,
-			AISLES_TEXT,
-			NEXT_TEXT,
-			ALL_TEXT,
-			PIPS_TEXT,
-			NEXT_RUN_TEXT,
-			SAVED_RUN_TEXT,
-			OK_TEXT,
-		]
-	)
+	return PackedStringArray([STAMP_TEXT, OK_TEXT])
 
 
-## Builds the card for `aisle`, just completed, with `completed` the completed aisles (data
-## order, the new one among them), `regulars` regulars and the saved-run footer when
-## `saved_run`. It is laid out on the stage (`stage_size`) but stays hidden: the join shows it.
-func build(
-	balance: BalanceDefinition,
-	aisle: AisleDefinition,
-	completed: Array[AisleDefinition],
-	regulars: int,
-	saved_run: bool,
-	stage_size: Vector2
-) -> void:
+## Builds the card for `aisle`, just completed. It is laid out on the stage (`stage_size`) but
+## stays hidden: the join shows it and slams the stamp in.
+func build(aisle: AisleDefinition, stage_size: Vector2) -> void:
 	for child: Node in _frame.get_children():
 		_frame.remove_child(child)
 		child.free()
-	_rows = []
-	_pips = []
-	_new_pip = null
 	_column = VBoxContainer.new()
 	_column.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_column.add_theme_constant_override("separation", 10)
+	_column.add_theme_constant_override("separation", SEPARATION)
 	_frame.add_child(_column)
-	_column.add_child(_band(aisle))
-	_column.add_child(_centred(_pixel_line([HEADING_TEXT], Palette.INK, 2)))
-	for row: Dictionary in lines(balance, completed.size(), aisle, regulars):
-		var built: Control = _row(row, aisle, balance)
-		_column.add_child(built)
-		_rows.append(built)
-	var pips_line: String = PIPS_TEXT % [completed.size(), balance.aisles.size()]
-	_column.add_child(_centred(_pixel_line(PixelLine.split(pips_line), Palette.INK_LIGHT, 1)))
-	_column.add_child(_pip_row(balance, aisle, completed))
-	var next: String = next_line(balance, completed.size())
-	if next != "":
-		var next_label: Label = UiKit.body_label(next, NEXT_SIZE, Palette.INK_LIGHT)
-		next_label.add_theme_font_override("font", ArtStyle.bold_font(700))
-		next_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		_column.add_child(next_label)
-	_column.add_child(_centred(_stock(SAVED_RUN_TEXT if saved_run else NEXT_RUN_TEXT)))
+	_band = _sign_band(aisle)
+	_column.add_child(_band)
+	_column.add_child(_stamp_holder())
 	_ok = UiKit.framed_button(null, OK_TEXT, close, 22, UiKit.BUTTON_FRAME, OK_SIZE, "")
 	_ok.disabled = true
 	_column.add_child(_centred(_ok))
@@ -245,18 +129,14 @@ func close() -> void:
 	closed.emit()
 
 
-## The pieces, for the join and the tests.
-func rows() -> Array[Control]:
-	return _rows
+## The pieces, for the join and the tests: the aisle's sign band, the COMPLETED stamp (the join
+## slams it in), OK and the frame.
+func band() -> PanelContainer:
+	return _band
 
 
-func pips() -> Array[Control]:
-	return _pips
-
-
-## The completed aisle's pip (it stamps in).
-func new_pip() -> Control:
-	return _new_pip
+func stamp() -> TextureRect:
+	return _stamp
 
 
 func ok_button() -> FramedButton:
@@ -275,170 +155,82 @@ func _process(_delta: float) -> void:
 		_ok.disabled = false
 
 
-## The aisle's sign band: its frame, glyph and name.
-func _band(aisle: AisleDefinition) -> Control:
+## The aisle's sign band: its frame, glyph and name, at 2x.
+func _sign_band(aisle: AisleDefinition) -> PanelContainer:
 	var path: String = SIGN_PATH % aisle.id
 	var sign_frame: Texture2D = (
 		load(path) as Texture2D if ResourceLoader.exists(path) else BASE_SIGN
 	)
-	var band: PanelContainer = UiKit.frame_panel(sign_frame, 3, Vector4(8, 0, 8, 2))
-	band.custom_minimum_size.y = BAND_HEIGHT
+	var plate: PanelContainer = UiKit.frame_panel(sign_frame, 3, Vector4(12, 0, 12, 2))
+	plate.custom_minimum_size.y = BAND_HEIGHT
 	var row: HBoxContainer = HBoxContainer.new()
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", 10)
-	band.add_child(row)
-	row.add_child(_glyph(aisle))
-	var name_line: Control = _pixel_line([aisle.display_name.to_upper()], Palette.PAPER, 1)
-	name_line.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	row.add_child(name_line)
-	return band
-
-
-## One rule's row: its icon box, title and text.
-func _row(row: Dictionary, aisle: AisleDefinition, balance: BalanceDefinition) -> Control:
-	var line: HBoxContainer = HBoxContainer.new()
-	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	line.add_theme_constant_override("separation", 12)
-	var box: PanelContainer = PanelContainer.new()
-	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	box.custom_minimum_size = ICON_BOX
-	box.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	box.add_theme_stylebox_override("panel", _box_style(Palette.TEAL_DARK))
-	box.add_child(_icon(row["icon"], aisle, balance))
-	line.add_child(box)
-	var words: VBoxContainer = VBoxContainer.new()
-	words.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	words.add_theme_constant_override("separation", 2)
-	var title: Label = UiKit.body_label(str(row["title"]), TITLE_SIZE, Palette.INK)
-	title.add_theme_font_override("font", ArtStyle.bold_font(800))
-	words.add_child(title)
-	var text: Label = UiKit.body_label(str(row["text"]), TEXT_SIZE, Palette.GREY_DARK)
-	text.add_theme_font_override("font", ArtStyle.bold_font(500))
-	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	text.custom_minimum_size.x = TEXT_WIDTH
-	words.add_child(text)
-	line.add_child(words)
-	return line
-
-
-## A row's icon, centred in its box.
-func _icon(kind: Icon, aisle: AisleDefinition, balance: BalanceDefinition) -> Control:
-	var holder: CenterContainer = CenterContainer.new()
-	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	match kind:
-		Icon.CART:
-			var cart: TextureRect = UiKit.sprite(CART)
-			cart.custom_minimum_size = Vector2(CART.get_size()) * ArtStyle.ART_SCALE
-			holder.add_child(cart)
-		Icon.AISLES:
-			var grid: GridContainer = GridContainer.new()
-			grid.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			grid.columns = 2
-			grid.add_theme_constant_override("h_separation", 2)
-			grid.add_theme_constant_override("v_separation", 2)
-			for shown: AisleDefinition in balance.aisles.slice(0, 4):
-				grid.add_child(_glyph(shown))
-			holder.add_child(grid)
-		_:
-			var swap: Control = Control.new()
-			swap.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			swap.custom_minimum_size = Vector2(28, 36)
-			var glyph: TextureRect = _glyph(aisle)
-			glyph.position = Vector2(5, 9)
-			glyph.size = GLYPH_SIZE
-			swap.add_child(glyph)
-			swap.draw.connect(_draw_arrows.bind(swap))
-			holder.add_child(swap)
-	return holder
-
-
-## The swap icon's two gold arrows over and under the glyph (whole art px).
-func _draw_arrows(swap: Control) -> void:
-	var gold: Color = Palette.GOLD
-	swap.draw_rect(Rect2(0, 2, 26, 2), gold)
-	swap.draw_rect(Rect2(22, 0, 2, 6), gold)
-	swap.draw_rect(Rect2(24, 2, 2, 2), gold)
-	swap.draw_rect(Rect2(2, 32, 26, 2), gold)
-	swap.draw_rect(Rect2(4, 30, 2, 6), gold)
-	swap.draw_rect(Rect2(2, 32, 2, 2), gold)
-
-
-## The completed aisles' pips: an aisle's sign colour with its glyph, a padlock while open.
-func _pip_row(
-	balance: BalanceDefinition, aisle: AisleDefinition, completed: Array[AisleDefinition]
-) -> Control:
-	var row: HBoxContainer = HBoxContainer.new()
-	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", PIP_GAP)
-	for shown: AisleDefinition in balance.aisles:
-		var pip: PanelContainer
-		var inside: TextureRect
-		if completed.has(shown):
-			var path: String = SIGN_PATH % shown.id
-			var art: Texture2D = (
-				load(path) as Texture2D if ResourceLoader.exists(path) else BASE_SIGN
-			)
-			pip = UiKit.frame_panel(art, 3, Vector4.ZERO)
-			inside = _glyph(shown)
-		else:
-			pip = PanelContainer.new()
-			pip.add_theme_stylebox_override("panel", _box_style(Palette.TEAL_DARK))
-			inside = UiKit.sprite(PADLOCK)
-			inside.custom_minimum_size = Vector2(PADLOCK.get_size()) * ArtStyle.ART_SCALE
-		pip.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		pip.custom_minimum_size = PIP_SIZE
-		var centre: CenterContainer = CenterContainer.new()
-		centre.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		centre.add_child(inside)
-		pip.add_child(centre)
-		row.add_child(pip)
-		_pips.append(pip)
-		if shown == aisle:
-			_new_pip = pip
-	return row
-
-
-## The footer: the reveal's stock panel look, tilted.
-func _stock(text: String) -> Control:
-	var panel: PanelContainer = PanelContainer.new()
-	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var style: StyleBoxFlat = _box_style(Palette.TEAL_DARK)
-	style.content_margin_left = 12
-	style.content_margin_right = 12
-	style.content_margin_top = 3
-	style.content_margin_bottom = 5
-	panel.add_theme_stylebox_override("panel", style)
-	panel.rotation_degrees = STOCK_ROTATION
-	var label: Label = UiKit.body_label(text, STOCK_SIZE, Palette.PAPER)
-	label.add_theme_font_override("font", ArtStyle.bold_font(700))
-	panel.add_child(label)
-	panel.resized.connect(func() -> void: panel.pivot_offset = panel.size / 2.0)
-	return panel
-
-
-static func _box_style(fill: Color) -> StyleBoxFlat:
-	var style: StyleBoxFlat = StyleBoxFlat.new()
-	style.bg_color = fill
-	style.border_color = Palette.INK
-	style.set_border_width_all(2)
-	return style
-
-
-static func _glyph(aisle: AisleDefinition) -> TextureRect:
+	row.add_theme_constant_override("separation", 12)
+	plate.add_child(row)
 	var glyph: TextureRect = UiKit.sprite(load(ArtStyle.glyph_path(aisle)) as Texture2D)
 	glyph.custom_minimum_size = GLYPH_SIZE
 	glyph.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	return glyph
+	row.add_child(glyph)
+	var name_line: Control = _pixel_line(aisle.display_name.to_upper(), Palette.PAPER, NAME_SCALE)
+	name_line.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(name_line)
+	return plate
+
+
+## The stamp, centred on the band and raised STAMP_OVERLAP px into it, over the name's lower
+## part (drawn over it: it comes later in the column).
+func _stamp_holder() -> Control:
+	var art: float = ArtStyle.ART_SCALE
+	var word: Control = _pixel_line(STAMP_TEXT, Palette.TOMATO_DARK, STAMP_SCALE)
+	var inside: Vector2i = Vector2i((word.custom_minimum_size / art).ceil()) + STAMP_PADDING * 2
+	var cells: Vector2i = Vector2i(ceili(inside.x / 4.0) * 4, ceili(inside.y / 4.0) * 4)
+	_stamp = UiKit.sprite(stamp_art(cells))
+	_stamp.name = "Stamp"
+	_stamp.size = Vector2(cells) * art
+	word.position = ((_stamp.size - word.custom_minimum_size) / 2.0 / art).floor() * art
+	_stamp.add_child(word)
+	# Its holder is a plain Control, so the join's scale isn't reset by a container's layout.
+	_stamp.pivot_offset = _stamp.size / 2.0
+	_stamp.position = Vector2(0, -STAMP_OVERLAP - SEPARATION)
+	var holder: Control = Control.new()
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	holder.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	holder.custom_minimum_size = _stamp.size - Vector2(0, STAMP_OVERLAP + SEPARATION)
+	holder.add_child(_stamp)
+	return holder
+
+
+## The rubber stamp's face `cells` art px: a tomato dark double ring (corners clipped, a texel
+## of wash between the rings) whose ink breaks at a fixed scatter of texels round it, as a real
+## stamp prints, round a STAMP_WASH paper face.
+static func stamp_art(cells: Vector2i) -> ImageTexture:
+	var art: StorefrontArt = StorefrontArt.new(cells, Vector2i.ZERO)
+	var w: int = cells.x
+	var h: int = cells.y
+	art.rect(Rect2i(1, 1, w - 2, h - 2), Color(Palette.PAPER, STAMP_WASH))
+	var ink: Color = Palette.TOMATO_DARK
+	var step: int = 0
+	for ring: int in [0, 2]:
+		var box: Rect2i = Rect2i(ring, ring, w - ring * 2, h - ring * 2)
+		var path: Array[Vector2i] = []
+		for x: int in range(box.position.x + 1, box.end.x - 1):
+			path.append_array([Vector2i(x, box.position.y), Vector2i(x, box.end.y - 1)])
+		for y: int in range(box.position.y + 1, box.end.y - 1):
+			path.append_array([Vector2i(box.position.x, y), Vector2i(box.end.x - 1, y)])
+		for at: Vector2i in path:
+			step += 1
+			if (step * 37) % INK_BREAK >= 2:
+				art.px(at.x, at.y, ink)
+	return ImageTexture.create_from_image(art.image)
 
 
 ## A PixelLine a container can lay out (its minimum size is its line).
-static func _pixel_line(tokens: Array, colour: Color, word_scale: int) -> Control:
+static func _pixel_line(text: String, colour: Color, word_scale: int) -> Control:
 	var holder: Control = Control.new()
 	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var line: PixelLine = PixelLine.new()
-	line.show_tokens(tokens, colour, colour, word_scale)
+	line.show_tokens(PixelLine.split(text), colour, colour, word_scale)
 	holder.add_child(line)
 	holder.custom_minimum_size = Vector2(line.width(), line.size.y)
 	return holder

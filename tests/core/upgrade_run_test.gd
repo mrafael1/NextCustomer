@@ -37,12 +37,16 @@ func test_balance_upgrade_data_fits_the_run() -> void:
 				"dairy_regulars",
 				"extra_redraw",
 				"fire_sale",
+				"grab_bag",
+				"home_goods",
 				"household_aisle_run",
 				"household_regulars",
 				"lemon_squeezer",
 				"mixed_basket",
+				"perfect_pair",
 				"produce_aisle_run",
 				"produce_regulars",
+				"salvage_desk",
 				"slot_engine",
 				"snack_aisle_run",
 				"snack_regulars",
@@ -51,8 +55,8 @@ func test_balance_upgrade_data_fits_the_run() -> void:
 	)
 	# One per type (Extra coupon slot, the second Economy one, left in v0.56, #106; Rule bender
 	# left the pool in #42), plus #108's family perks: Regulars and Aisle runs for 7 families,
-	# Mixed basket, Bulk deal and the jackpots.
-	assert_int(types.size()).is_equal(10)
+	# Mixed basket, Bulk deal and the jackpots, and v1.29's playstyle perks (one Keyword type).
+	assert_int(types.size()).is_equal(11)
 	# The loyalty card holds 3 machine registers (#77).
 	assert_int(balance.machine.register_cap).is_equal(3)
 
@@ -178,14 +182,15 @@ func test_preview_and_checkout_use_the_run_upgrades() -> void:
 	var run: RunState = _run(32)
 	run.upgrades.append(_upgrade("coupon_engine"))
 	run.place(run.debug_add_to_hand(load(BREAD)), 0)
-	run.place(run.debug_add_to_hand(load("res://data/cards/final_markdown.tres")), 1)
+	# Bread 5, Repeat's copy 5 ×2 (Final markdown pays nothing itself since v1.29).
+	run.place(run.debug_add_to_hand(load("res://data/cards/repeat.tres")), 1)
 	var preview: ScoreResult = run.preview()
-	assert_int(preview.total).is_equal(13)
+	assert_int(preview.total).is_equal(15)
 	var upgrade_steps: Array = preview.steps.filter(
 		func(step: ScoreStep) -> bool: return step.source_kind == ScoreStep.SourceKind.UPGRADE
 	)
 	assert_int(upgrade_steps.size()).is_equal(1)
-	assert_int(run.checkout().total).is_equal(13)
+	assert_int(run.checkout().total).is_equal(15)
 
 
 ## #108 piece 2: Extra redraw and Big basket print what they earned. A card a redraw past the base

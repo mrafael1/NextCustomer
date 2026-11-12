@@ -35,6 +35,8 @@ enum Type {
 	MIXED_BASKET,
 	BULK_DEAL,
 	JACKPOT,
+	## v1.29: "<keyword> items pay ×2" (Perfect pair, Salvage desk, Grab bag, Home goods).
+	KEYWORD,
 }
 
 @export var id: StringName = &""

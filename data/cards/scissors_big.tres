@@ -7,7 +7,7 @@
 
 [sub_resource type="Resource" id="Resource_scissors"]
 script = ExtResource("2_scissors")
-bonus_each = 2
+bonus_each = 3
 receipt_text = "Scissors: earlier coupons"
 
 [resource]
@@ -16,9 +16,9 @@ id = &"scissors_big"
 display_name = "Big Scissors"
 kind = 1
 tags = PackedStringArray("Household")
-base = 3
+base = 4
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_scissors")])
-rule_text = "+2 for each earlier coupon"
+rule_text = "+3 for each earlier coupon"
 art_ref = "res://art/items_v2/scissors_big.png"
 variant_of = ExtResource("9_plain")
 tier = 1

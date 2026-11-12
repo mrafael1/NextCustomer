@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="UpgradeDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/upgrades/upgrade_rule.gd" id="1_rule"]
+[ext_resource type="Script" path="res://core/upgrades/keyword_multiplier_rule.gd" id="2_rule_script"]
+[ext_resource type="Script" path="res://core/upgrade_definition.gd" id="3_upgrade"]
+[ext_resource type="Resource" path="res://data/upgrades/grab_bag_lv2.tres" id="9_next_level"]
+
+[sub_resource type="Resource" id="Resource_rule"]
+script = ExtResource("2_rule_script")
+keyword = 3
+tag = "Snack"
+factor = 2
+receipt_text = "Grab bag"
+
+[resource]
+script = ExtResource("3_upgrade")
+id = &"grab_bag"
+icon_ref = "res://art/icons/perk_grab_bag.png"
+display_name = "Grab bag"
+type = 12
+effect_text = "Lone Snacks pay ×2"
+condition_text = "A Snack with no other Snack beside it"
+rules = Array[ExtResource("1_rule")]([SubResource("Resource_rule")])
+next_level = ExtResource("9_next_level")
+boosts_tag = "Snack"

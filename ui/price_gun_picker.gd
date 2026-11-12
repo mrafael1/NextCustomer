@@ -10,6 +10,12 @@ extends Control
 ## notice): under a belt item, over the baskets, or over a hand item, on the belt (open_at). It
 ## pops in (at once under reduced motion). It covers the window to catch a click outside the
 ## card, which closes it, as Escape does.
+##
+## The Family sticker (v1.29) opens the same picker above its belt tag (open_at's `prefer_above`),
+## with its own art and title (`header_art`, `title`): select() marks the family it gives now (its
+## shade face, a thick ink rim) and puts the keyboard focus on it, shown by a teal FOCUS_RING so
+## the focused chip never looks like the current one (arrows move between the chips, Enter picks,
+## Escape closes); mark_held() dims the families the next item already has.
 
 ## Sent with the family chosen ("" for Remove tag).
 signal chosen(tag: String)
@@ -18,6 +24,11 @@ signal dismissed
 
 const TITLE := "Give %s a family"
 const REMOVE_TEXT := "Remove tag"
+## A held family's chip (mark_held): dimmed, its tooltip saying why.
+const HELD_ALPHA := 0.45
+const HELD_TIP := "%s: %s is %s already, so the sticker would do nothing"
+## The keyboard focus ring round a chip (select): teal, unlike the current family's ink rim.
+const FOCUS_RING := Palette.TEAL
 const GUN_ART := preload("res://art/scenery/price_gun.png")
 const TITLE_FONT_SIZE := 18
 const CHIP_FONT_SIZE := 14
@@ -52,6 +63,8 @@ const POP_FROM := 0.85
 
 var _card: PanelContainer
 var _chips: Array[Button] = []
+## The header's art (the gun, or the Family sticker's icon).
+var _art: Texture2D = GUN_ART
 var _remove: Button
 ## The notch's tip in the card's coordinates, and whether it points down (the card above).
 var _tip: Vector2 = Vector2.ZERO
@@ -59,9 +72,18 @@ var _down: bool = true
 
 
 ## A picker for the item `item_name` offering the families `families` (FamilyPalette's styles);
-## with `removable`, Remove tag too.
-func _init(item_name: String, families: Array[FamilyStyle], removable: bool) -> void:
+## with `removable`, Remove tag too. `header_art` and `title` replace the gun and "Give <item> a
+## family" (the Family sticker's picker; null and "": the gun's).
+func _init(
+	item_name: String,
+	families: Array[FamilyStyle],
+	removable: bool,
+	header_art: Texture2D = null,
+	title: String = ""
+) -> void:
 	name = "PriceGunPicker"
+	if header_art != null:
+		_art = header_art
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	_card = PanelContainer.new()
 	_card.name = "Card"
@@ -77,7 +99,7 @@ func _init(item_name: String, families: Array[FamilyStyle], removable: bool) -> 
 	var column: VBoxContainer = VBoxContainer.new()
 	column.add_theme_constant_override("separation", CHIP_GAP)
 	_card.add_child(column)
-	var header: HBoxContainer = _header(item_name)
+	var header: HBoxContainer = _header(TITLE % item_name if title.is_empty() else title)
 	column.add_child(header)
 	var grid: GridContainer = GridContainer.new()
 	grid.name = "Chips"
@@ -107,10 +129,12 @@ func _init(item_name: String, families: Array[FamilyStyle], removable: bool) -> 
 
 ## Covers `window` and places the card by the item at `target` (screen rects): under it with the
 ## notch up (a belt item: over the baskets), or, with no room there, over it with the notch down
-## (a hand item: on the belt); inside `area` (the stage right of the register column, under the
-## top bar) and clear of `avoid` (the monitor) when either side allows it; then pops it in (at
-## once when `reduced`).
-func open_at(target: Rect2, area: Rect2, window: Rect2, avoid: Rect2, reduced: bool) -> void:
+## (a hand item: on the belt); `prefer_above` (the Family sticker's tag) tries over it first;
+## inside `area` (the stage right of the register column, under the top bar) and clear of `avoid`
+## (the monitor) when either side allows it; then pops it in (at once when `reduced`).
+func open_at(
+	target: Rect2, area: Rect2, window: Rect2, avoid: Rect2, reduced: bool, prefer_above := false
+) -> void:
 	position = window.position
 	size = window.size
 	_card.reset_size()
@@ -129,7 +153,7 @@ func open_at(target: Rect2, area: Rect2, window: Rect2, avoid: Rect2, reduced: b
 	var clear_below: bool = fits_below and not Rect2(below, card_size).intersects(avoid)
 	var clear_above: bool = fits_above and not Rect2(above, card_size).intersects(avoid)
 	# Neither side clear: under the item, pushed up onto it, rather than over the monitor.
-	_down = not clear_below and clear_above
+	_down = clear_above and (prefer_above or not clear_below)
 	var at: Vector2 = above if _down else below
 	at.y = clampf(at.y, top, bottom - card_size.y)
 	_card.position = at
@@ -162,6 +186,44 @@ func chips() -> Array[Button]:
 	return _chips
 
 
+## Marks the chip of `tag` as the family given now (its shade face, a thick ink rim) and puts the
+## keyboard focus on it, every chip showing a focus rim; the first chip without one.
+func select(tag: String) -> void:
+	var focused: Button = _chips[0] if not _chips.is_empty() else null
+	for chip: Button in _chips:
+		var ring: StyleBoxFlat = StyleBoxFlat.new()
+		ring.draw_center = false
+		ring.border_color = FOCUS_RING
+		ring.set_border_width_all(3)
+		ring.set_corner_radius_all(5)
+		ring.set_expand_margin_all(3.0)
+		chip.add_theme_stylebox_override("focus", ring)
+		chip.focus_mode = Control.FOCUS_ALL
+		if chip.name == "Chip%s" % tag:
+			var box: StyleBoxFlat = chip.get_theme_stylebox("pressed").duplicate() as StyleBoxFlat
+			box.set_border_width_all(4)
+			chip.add_theme_stylebox_override("normal", box)
+			focused = chip
+	if focused != null:
+		focused.grab_focus.call_deferred()
+
+
+## Dims the chips of `tags` (the families the item `item_name` already has: a pick of one does
+## nothing), each tooltip saying so; they stay pickable.
+func mark_held(tags: PackedStringArray, item_name: String) -> void:
+	for chip: Button in _chips:
+		var tag: String = String(chip.name).trim_prefix("Chip")
+		if tags.has(tag):
+			chip.modulate.a = HELD_ALPHA
+			chip.tooltip_text = HELD_TIP % [tag, item_name, tag]
+
+
+## The chip holding the keyboard focus, or null.
+func focused_chip() -> Button:
+	var owner_focus: Control = get_viewport().gui_get_focus_owner() if is_inside_tree() else null
+	return owner_focus as Button if _chips.has(owner_focus) else null
+
+
 ## Remove tag, or null when the item has no tag.
 func remove_button() -> Button:
 	return _remove
@@ -185,16 +247,16 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		dismissed.emit()
 
 
-func _header(item_name: String) -> HBoxContainer:
+func _header(title_text: String) -> HBoxContainer:
 	var row: HBoxContainer = HBoxContainer.new()
 	row.name = "Header"
 	row.add_theme_constant_override("separation", 10)
-	var gun: TextureRect = UiKit.sprite(GUN_ART)
+	var gun: TextureRect = UiKit.sprite(_art)
 	gun.name = "Gun"
-	gun.custom_minimum_size = _gun_size()
+	gun.custom_minimum_size = _art_size()
 	gun.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(gun)
-	var title: Label = UiKit.display_label(TITLE % item_name, TITLE_FONT_SIZE, false)
+	var title: Label = UiKit.display_label(title_text, TITLE_FONT_SIZE, false)
 	title.name = "Title"
 	title.add_theme_color_override("font_color", Palette.INK)
 	title.add_theme_constant_override("outline_size", 0)
@@ -205,9 +267,9 @@ func _header(item_name: String) -> HBoxContainer:
 	return row
 
 
-## The header's gun at the art scale, like the rest of the art.
-static func _gun_size() -> Vector2:
-	return GUN_ART.get_size() * ArtStyle.ART_SCALE
+## The header's art at the art scale, like the rest of the art.
+func _art_size() -> Vector2:
+	return _art.get_size() * ArtStyle.ART_SCALE
 
 
 ## Remove tag's frame: a thin grey outline on `face`, so it reads as a button beside the title.
@@ -294,7 +356,7 @@ func _draw_card() -> void:
 	var hole: Vector2 = Vector2(HOLE_X, _card.size.y / 2.0)
 	_card.draw_circle(hole, HOLE_RADIUS + HOLE_RING, Palette.INK)
 	_card.draw_circle(hole, HOLE_RADIUS, Palette.CREAM_SHADE)
-	var perforation: float = MARGIN - 4 + _gun_size().y + CHIP_GAP / 2.0
+	var perforation: float = MARGIN - 4 + _art_size().y + CHIP_GAP / 2.0
 	var x: float = float(LEFT_MARGIN)
 	while x < _card.size.x - MARGIN:
 		_card.draw_rect(Rect2(x, perforation - 1.0, 6.0, 2.0), Palette.CREAM_SHADE)

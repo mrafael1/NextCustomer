@@ -1,0 +1,13 @@
+; Salvage desk's perk icon (v1.29, UpgradeDefinition.icon_ref): a grey written-off box crossed by
+; a tomato X (the WASTED item) with a small gold coin at its corner, "WASTED items pay x2". No ink
+; outline, like perk_bulk_deal. 9x8, shown at 2x art. A placeholder for the art review.
+@size 9x8
+@kind icon
+:::::::..
+:R---R=..
+:-R-R-=..
+:--R--=..
+:-R-R-=..
+:R---R=n.
+======nMm
+.......m.

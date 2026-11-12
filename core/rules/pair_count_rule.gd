@@ -1,6 +1,6 @@
 class_name PairCountRule
 extends Rule
-## Cream (#128, Dairy's PAIR): +2 for each PAIRED product in the row (CardPairs), itself included
+## Cream (#128, Dairy's PAIR): +4 for each PAIRED product in the row (CardPairs), itself included
 ## when it has a pair rule (`bonus_each`). With none in the row it is WASTED.
 
 @export var bonus_each: int = 0

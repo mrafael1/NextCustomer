@@ -23,7 +23,7 @@ signal picked(aisle: AisleDefinition)
 signal hover_changed(machine: ToyMachineView, inside: bool)
 
 const SIZE := Vector2(144, 280)
-## The title's machine keeps the old capsules (BareToyMachine, RewardsMenu).
+## The title's machine keeps the old capsules (BareToyMachine).
 const CAPSULE_PATH := "res://art/scenery/toy_capsule_%s.png"
 const CAPSULE_ART := 13
 ## The base for a cabinet with no art of its own, by ToyCabinet.Tone (lit, dim, off).
@@ -213,9 +213,13 @@ func lift_floor(on: bool) -> void:
 
 ## The join's tick (v1.05): the floor plate steps right and up `step` art px with the
 ## price-gun tick (0: back at rest).
+## The join calls this every frame: only a change moves the plate (its words stay as they are).
 func nudge_floor(step: int) -> void:
-	_floor_nudge = Vector2(step, -step) * ArtStyle.ART_SCALE
-	_show_look()
+	var nudge: Vector2 = Vector2(step, -step) * ArtStyle.ART_SCALE
+	if nudge == _floor_nudge:
+		return
+	_floor_nudge = nudge
+	_place_floor()
 
 
 ## Picks the machine with the arrow keys (true) or lets it go: a playable one looks hovered.
@@ -354,11 +358,7 @@ func _show_look() -> void:
 	if ok:
 		sign_mode = ToyPlate.Mode.LIT if hot else ToyPlate.Mode.NORMAL
 	_sign.set_mode(sign_mode)
-	var art: float = ArtStyle.ART_SCALE
-	_floor.position = (
-		Vector2(FLOOR_AT) * art + Vector2(FLOOR_STEP if hot else 0.0, 0.0) + _floor_nudge
-	)
-	_floor.show_tick(hot or _floor_nudge != Vector2.ZERO)
+	_place_floor()
 	var colour: Color = Palette.INK if ok else Palette.GREY_DARK
 	var words: String = LEFT_TEXT % [_left, _total]
 	# Held by the figurine join, an emptied machine still reads 0 OF n LEFT until its SOLD OUT.
@@ -370,6 +370,16 @@ func _show_look() -> void:
 		_floor.set_mode(sign_mode)
 	_floor_line.show_tokens(PixelLine.split(words), colour, colour)
 	_centre(_floor_line, FLOOR_TEXT_X, FLOOR_TEXT_TOP)
+
+
+## The floor plate's place (stepped right when hot, nudged by the join's tick) and its tick.
+func _place_floor() -> void:
+	var hot: bool = is_hot()
+	var art: float = ArtStyle.ART_SCALE
+	_floor.position = (
+		Vector2(FLOOR_AT) * art + Vector2(FLOOR_STEP if hot else 0.0, 0.0) + _floor_nudge
+	)
+	_floor.show_tick(hot or _floor_nudge != Vector2.ZERO)
 
 
 func _build_price() -> void:

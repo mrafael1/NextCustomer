@@ -71,9 +71,9 @@ func test_later_draws_keep_the_seed_and_use_the_next_stream() -> void:
 	assert_int(profile.capsule_seed).is_equal(123456)
 	assert_int(int(_last_event("capsule")["draw"])).is_equal(4)
 	assert_str(_last_event("capsule")["capsule_seed"]).is_equal("123456")
-	# A title draw while a run is saved: the saved run's index and its stock line.
+	# A title draw while a run is saved: the saved run's index.
 	assert_int(profile.unlocked_items[card.id]).is_equal(0)
-	assert_str(counter.stock_line()).is_equal(CapsuleCounter.AFTER_SAVED_RUN_LINE)
+	assert_int(counter.run_index()).is_equal(profile.capsule_run_index(true))
 
 
 ## The same seed and draw count on a fresh copy of the profile give the same capsule.
@@ -133,7 +133,7 @@ func test_the_machine_states() -> void:
 	profile.unlocked_items = {&"cream": 0, &"ham_ends": 0}
 	assert_int(counter.machine_state(cold)).is_equal(CapsuleCounter.State.EMPTY)
 	assert_int(counter.price()).is_equal(balance.capsule_price)
-	assert_str(counter.stock_line()).is_equal(CapsuleCounter.NEXT_RUN_LINE)
+	assert_int(counter.run_index()).is_equal(profile.capsule_run_index(false))
 	var off: CapsuleCounter = CapsuleCounter.new(
 		profile, _saves(_folder), balance, _event_log(), false, false
 	)
