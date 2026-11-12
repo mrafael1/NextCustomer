@@ -2,8 +2,8 @@ class_name SnackSpreadRule
 extends Rule
 ## Snacks spread out (#128 v2, kept in v3). A lone product with `tag` has no product with that
 ## tag beside it (ScoreState.products_beside, after the context pass).
-## Pick 'n' mix SPREAD (`spread` LONE): +3 (`bonus_each`) for each lone Snack in the row, itself
-## included. Bent lolly GAP (`spread` GAP): +2 for each product between it and the nearest other
+## Pick 'n' mix SPREAD (`spread` LONE): +4 (`bonus_each`) for each lone Snack in the row, itself
+## included. Bent lolly GAP (`spread` GAP): +3 for each product between it and the nearest other
 ## Snack (coupons don't count), up to `max_count` (0: no limit); no product between them, or no
 ## other Snack in the row, is WASTED.
 
@@ -49,8 +49,14 @@ func _lone_count(state: ScoreState) -> int:
 
 
 func _is_lone(state: ScoreState, slot: int) -> bool:
+	return is_lone(state, slot, tag)
+
+
+## Whether the card in `slot` has no product with `family` beside it (after the context pass): a
+## lone Snack for Pick 'n' mix, and for the Grab bag perk (KeywordMultiplierRule, v1.28).
+static func is_lone(state: ScoreState, slot: int, family: String) -> bool:
 	for other: int in state.products_beside(slot):
-		if state.has_tag(other, tag):
+		if state.has_tag(other, family):
 			return false
 	return true
 

@@ -174,11 +174,14 @@ static func without_capsules(
 	return kept
 
 
-## The stock's coupons a recipe can draw (the run's coupon pool), in stock order.
+## The stock's coupons a recipe can draw (the run's coupon pool), in stock order: one with a
+## `needs_tag` (v1.28, Party pack) only when a stocked product has that family.
 static func drawable_coupons(stock: RunStock) -> Array[CardDefinition]:
 	var found: Array[CardDefinition] = []
 	for card: CardDefinition in stock.cards:
-		if card.is_coupon():
+		if not card.is_coupon():
+			continue
+		if card.needs_tag.is_empty() or MachineContext.has_family(card.needs_tag, stock.cards):
 			found.append(card)
 	return found
 
@@ -190,7 +193,8 @@ static func drawable_coupons(stock: RunStock) -> Array[CardDefinition]:
 ## then `pack`'s cards (none before the pick: `pack` null), then no more than random_count
 ## products, no card past copy_max unless its core and pack copies already are. A pack card may
 ## be saved at another tier of the same product (v1.25 gave four packs a BIG card in place of a
-## plain one): a run dealt before keeps its deal.
+## plain one), or be the pack's former cards (v1.28's Breakfast sticker): a run dealt before keeps
+## its deal.
 static func could_deal(
 	recipe: DeckDefinition, cards: Array[CardDefinition], pack: StarterPackDefinition = null
 ) -> bool:
@@ -204,7 +208,8 @@ static func could_deal(
 		if pack != null and not recipe.starter_packs.has(pack):
 			return false
 		var rest: Array[CardDefinition] = cards.slice(core_size)
-		if not _holds_pack(rest.slice(0, pack_cards.size()), pack_cards):
+		var saved_pack: Array[CardDefinition] = rest.slice(0, pack_cards.size())
+		if not _holds_pack(saved_pack, pack_cards) and not _was_pack(saved_pack, pack):
 			return false
 		pack_cards = rest.slice(0, pack_cards.size())
 		var shared: Array[CardDefinition] = rest.slice(pack_cards.size())
@@ -231,17 +236,17 @@ static func could_deal(
 	return coupons <= recipe.random_coupon_count and products <= recipe.random_count
 
 
-## Deals a starter pack offer for `recipe` (#107, v0.63) on `rng` (the run's starting-deck
-## stream): `first_pick` (a profile that has never won) puts the recipe's first_pick_pack in the
-## offer, in its middle place. The other packs are drawn one randi_range each from the recipe's
-## packs (draw_packs), then the shared products as a recipe deals its products (copies_for_offer).
-## The fair-deal check (the recipe's fair_deal_* fields) runs on each pack's cart (core + pack +
-## shared, fit_packs): a pack whose cart fails is swapped for the first unoffered pack (recipe
-## order) whose cart passes with the same shared products and fits the copy rule; the first pick
-## is never swapped. If a pack still fails, the shared products are dealt again (up to
-## fair_deal_redeals times, from the packs first drawn) and the deal with the most passing carts
-## is kept. The same recipe, stock, flag and stream state give the same offer. The opening-time
-## setup (StartSetupRules.lock_in) deals its baskets with the same steps instead.
+## Deals a starter pack offer for `recipe` (#107, v0.63) on `rng` (the run's starting-deck stream):
+## `first_pick` (a profile that has never won) puts the recipe's first_pick_pack in the offer, in
+## its middle place. The other packs are drawn one randi_range each from the recipe's packs that
+## `stock` allows (stocked_packs, v1.28; draw_packs), then the shared products as a recipe deals its
+## products (copies_for_offer). The fair-deal check (the recipe's fair_deal_* fields) runs on each
+## pack's cart (core + pack + shared, fit_packs): a pack whose cart fails is swapped for the first
+## unoffered pack (recipe order) whose cart passes with the same shared products and fits the copy
+## rule; the first pick is never swapped. If a pack still fails, the shared products are dealt again
+## (up to fair_deal_redeals times, from the packs first drawn) and the deal with the most passing
+## carts is kept. The same recipe, stock, flag and stream state give the same offer. The
+## opening-time setup (StartSetupRules.lock_in) deals its baskets with the same steps instead.
 static func deal_offer(
 	recipe: DeckDefinition,
 	stock: RunStock,
@@ -251,7 +256,8 @@ static func deal_offer(
 	quota: int = -1
 ) -> StartOffer:
 	var offer: StartOffer = StartOffer.new()
-	var draw: PackDraw = draw_packs(recipe, recipe.starter_packs, rng, first_pick)
+	var pool: Array[StarterPackDefinition] = stocked_packs(recipe.starter_packs, stock)
+	var draw: PackDraw = draw_packs(recipe, pool, rng, first_pick)
 	offer.first_pick = draw.forced
 	var products: Array[CardDefinition] = drawable(stock, chains_for(recipe, balance))
 	var check: FairCheck = fair_check(recipe, balance, quota)
@@ -261,9 +267,7 @@ static func deal_offer(
 		var shared: Array[CardDefinition] = _draw(
 			products, recipe.random_count, recipe.copy_max, copies, rng
 		)
-		var fit: PackFit = fit_packs(
-			recipe, draw.packs, draw.forced, shared, recipe.starter_packs, check, rng
-		)
+		var fit: PackFit = fit_packs(recipe, draw.packs, draw.forced, shared, pool, check, rng)
 		if fit.passing > best_passing:
 			best_passing = fit.passing
 			offer.packs = fit.packs
@@ -273,6 +277,38 @@ static func deal_offer(
 		if fit.passing >= fit.packs.size():
 			break
 	return offer
+
+
+## The packs of `packs` the profile can be offered (v1.28): those needing no aisle, and those whose
+## needs_aisle is unlocked, listable with the profile's `unlocked` capsule items
+## (RunStock.is_listable). In order.
+static func open_packs(
+	packs: Array[StarterPackDefinition],
+	balance: BalanceDefinition,
+	unlocked: Dictionary[StringName, int]
+) -> Array[StarterPackDefinition]:
+	var found: Array[StarterPackDefinition] = []
+	for pack: StarterPackDefinition in packs:
+		if pack.needs_aisle == &"":
+			found.append(pack)
+			continue
+		for aisle: AisleDefinition in balance.aisles:
+			if aisle.id == pack.needs_aisle and RunStock.is_listable(aisle, balance, unlocked):
+				found.append(pack)
+	return found
+
+
+## The packs of `packs` an offer dealt from `stock` alone can hold (deal_offer, v1.28): those
+## needing no aisle, and those whose needs_aisle the stock holds (RunStock.aisle_ids: listed, or
+## every listable aisle when the list is skipped). In order.
+static func stocked_packs(
+	packs: Array[StarterPackDefinition], stock: RunStock
+) -> Array[StarterPackDefinition]:
+	var found: Array[StarterPackDefinition] = []
+	for pack: StarterPackDefinition in packs:
+		if pack.needs_aisle == &"" or stock.aisle_ids.has(pack.needs_aisle):
+			found.append(pack)
+	return found
 
 
 ## The packs an offer draws (draw_packs): in offer order, and the forced first pick (or null).
@@ -473,6 +509,14 @@ static func product_count(cards: Array[CardDefinition], card: CardDefinition) ->
 		if held.product_card() == card.product_card():
 			count += 1
 	return count
+
+
+## Whether `saved` (a run save's pack cards) is `pack`'s former cards (StarterPackDefinition
+## .former_cards, v1.28: a Breakfast run dealt with the Breakfast sticker).
+static func _was_pack(saved: Array[CardDefinition], pack: StarterPackDefinition) -> bool:
+	return (
+		pack != null and not pack.former_cards.is_empty() and _holds_pack(saved, pack.former_cards)
+	)
 
 
 ## Whether `saved` (a run save's pack cards) is `pack_cards`, card for card, each one the pack's

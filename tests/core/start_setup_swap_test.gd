@@ -220,6 +220,9 @@ func test_a_new_run_starts_with_the_recipes_regulars_and_every_swap() -> void:
 		var next: RunState = Kit.locked(shown, SEED + 1)
 		assert_array(next.starter.core_cards).is_equal(_recipe.core_cards)
 		assert_array(next.start_setup.originals).is_equal(_recipe.core_cards)
-		assert_array(next.starter.starter_packs).is_equal(_recipe.starter_packs)
+		# Every pack open to the profile (a pack needing a locked aisle, v1.28, is left out).
+		assert_array(next.starter.starter_packs).is_equal(
+			StartingDeck.open_packs(_recipe.starter_packs, next.balance, shown.unlocked_items)
+		)
 		assert_int(StartSetupRules.applied_swaps(next)).is_equal(0)
 		assert_int(StartSetupRules.swaps_left(next, shown)).is_equal(allowance)

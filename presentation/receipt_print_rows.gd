@@ -85,7 +85,9 @@ func amount_of(slot: int) -> Label:
 
 ## Counts `counted` on its row: a BASE or PAYOUT prints the row (a PAYOUT starts its amount's
 ## roll and returns the amount label, which the count fades in); a fizzle or an inspection's
-## override marks it. Returns the row (null for a step with no row).
+## override marks it; a write-off (v1.28) marks it with the Write-off's mini (not a fizzle; its
+## name prints whole, the receipt's context line and the count's tag beat say WRITTEN OFF).
+## Returns the row (null for a step with no row).
 func step(counted: ScoreStep) -> Control:
 	var slot: int = counted.slot
 	match counted.step_type:
@@ -98,6 +100,9 @@ func step(counted: ScoreStep) -> Control:
 		ScoreStep.StepType.WASTED:
 			if not counted.row_wide:
 				_mark(slot, ReceiptView.Mark.FIZZLED)
+		ScoreStep.StepType.WRITTEN_OFF:
+			# A context-pass step, before the row prints: its mark waits for it (_mark).
+			_mark(slot, ReceiptView.Mark.WRITTEN_OFF)
 		ScoreStep.StepType.PAYOUT_OVERRIDE:
 			if counted.source_kind == ScoreStep.SourceKind.INSPECTION:
 				_mark(slot, ReceiptView.Mark.DENIED)
@@ -188,7 +193,8 @@ func _print(slot: int) -> HBoxContainer:
 
 ## Marks `slot`'s row `kind` (pending until it prints). An inspection's DENIED wins over a fizzle
 ## whichever came first (a context pass's fizzle is counted before the slot's override), as
-## ReceiptView.slot_mark decides; anything else keeps the first mark.
+## ReceiptView.slot_mark decides (and over a write-off's, v1.28); anything else keeps the first
+## mark.
 func _mark(slot: int, kind: ReceiptView.Mark) -> void:
 	var row: HBoxContainer = row_of(slot)
 	if row == null:
@@ -196,7 +202,7 @@ func _mark(slot: int, kind: ReceiptView.Mark) -> void:
 			_pending_marks[slot] = kind
 		return
 	if _marked.has(slot):
-		if _marked[slot] != ReceiptView.Mark.FIZZLED or kind != ReceiptView.Mark.DENIED:
+		if _marked[slot] == ReceiptView.Mark.DENIED or kind != ReceiptView.Mark.DENIED:
 			return
 		var old: Node = row.get_child(1).get_node_or_null("Mark")
 		if old != null:

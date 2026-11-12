@@ -89,10 +89,10 @@ func test_remove_frees_capacity_again() -> void:
 ## Scoring has no row limit of its own: a 7-card row scores like any other (plan section 3.1).
 func test_a_seven_card_row_scores_as_usual() -> void:
 	var bread_six: Array = ["bread", "bread", "bread", "bread", "bread", "bread"]
-	# Six Breads, then Final markdown in the last slot: 6 * 5 + 4 = 34.
-	assert_int(_checkout_ids(19, bread_six + ["final_markdown"])).is_equal(34)
-	# Final markdown in slot 6 of 7 isn't the last slot: 5 * 5 + 0 + 5 = 30.
-	assert_int(_checkout_ids(20, bread_six.slice(1) + ["final_markdown", "bread"])).is_equal(30)
+	# Six Breads, then Final markdown in the last slot: no item after it (v1.28), 6 * 5 + 0 = 30.
+	assert_int(_checkout_ids(19, bread_six + ["final_markdown"])).is_equal(30)
+	# Final markdown in slot 6 of 7 doubles the 7th, the last item: 5 * 5 + 0 + 10 = 35.
+	assert_int(_checkout_ids(20, bread_six.slice(1) + ["final_markdown", "bread"])).is_equal(35)
 	# Repeat as the 7th card copies the Bread before it: 6 * 5 + 5 = 35.
 	assert_int(_checkout_ids(21, bread_six + ["repeat"])).is_equal(35)
 

@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="StarterPackDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/starter_pack_definition.gd" id="1_pack"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="2_card"]
+[ext_resource type="Resource" path="res://data/cards/crisps.tres" id="c_crisps"]
+[ext_resource type="Resource" path="res://data/cards/pick_n_mix.tres" id="c_pick_n_mix"]
+[ext_resource type="Resource" path="res://data/cards/bent_lolly_big.tres" id="c_bent_lolly_big"]
+[ext_resource type="Resource" path="res://data/cards/milk.tres" id="e_milk"]
+[ext_resource type="Resource" path="res://data/cards/banana.tres" id="e_banana"]
+[ext_resource type="Resource" path="res://data/upgrades/grab_bag.tres" id="p_perk"]
+
+[resource]
+script = ExtResource("1_pack")
+id = &"snack_stand"
+display_name = "Snack stand"
+family = "Snack"
+cards = Array[ExtResource("2_card")]([ExtResource("c_crisps"), ExtResource("c_pick_n_mix"), ExtResource("c_bent_lolly_big")])
+hint_text = "Keep Snacks apart: Pick 'n' mix +4 per lone Snack, Bent lolly +3 per gap item."
+example_text = "Crisps, Milk, Pick 'n' mix, Banana, Big Bent lolly: three lone Snacks, so Pick 'n' mix pays 2 + 12 and the lolly 4 + 3. Total 29."
+example_cards = Array[ExtResource("2_card")]([ExtResource("c_crisps"), ExtResource("e_milk"), ExtResource("c_pick_n_mix"), ExtResource("e_banana"), ExtResource("c_bent_lolly_big")])
+example_total = 29
+needs_aisle = &"snacks"
+loyalty_perk = ExtResource("p_perk")

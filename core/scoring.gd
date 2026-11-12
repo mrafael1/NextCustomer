@@ -84,6 +84,9 @@ static func _run(
 			upgrade_rules.append(upgrade.rules[number])
 			rule_upgrades.append(index)
 			rule_numbers.append(number)
+			if upgrade.rules[number].reads_waste():
+				state.upgrades_read_waste = true
+				state.tracks_waste = true
 	state.upgrade_rules = upgrade_rules
 	state.rule_upgrades = rule_upgrades
 	# The inspections' rules likewise, with the index of their inspection.
@@ -230,6 +233,8 @@ static func _scan(state: ScoreState, slot: int, registers: Array, checks: Array)
 	# a Repeat's copy). Those with nothing to multiply fizzle after the card's own fizzles.
 	var upgrade_fizzles: Array[Vector2i] = []
 	if has_upgrades:
+		if state.upgrades_read_waste and has_rules:
+			_mark_own_waste(state, slot, rules)
 		value = _upgrade_multipliers(state, slot, value, registers, upgrade_fizzles)
 	# Then the day events' (v0.69: Free samples' ×2); those with nothing to multiply fizzle last.
 	var check_fizzles: PackedInt32Array = PackedInt32Array()
@@ -280,6 +285,19 @@ static func _scan(state: ScoreState, slot: int, registers: Array, checks: Array)
 				state.wasted[slot] = 1
 	if not state.effects.is_empty():
 		state.drop_spent_effects()
+
+
+## Marks the product in `slot` WASTED (ScoreState.wasted) when one of its card's own rules fizzles
+## there, before the upgrades' multipliers (v1.28: Salvage desk's ×2 reads it). A card's own
+## WASTED reasons read only the row's context and the slots scanned before, never what is armed
+## after its payout, so this is the same status _report_fizzles records later.
+static func _mark_own_waste(state: ScoreState, slot: int, rules: Array[Rule]) -> void:
+	if not state.is_product(slot) or state.wasted[slot] == 1:
+		return
+	for rule: Rule in rules:
+		if not rule.wasted_reason(state, slot).is_empty():
+			state.wasted[slot] = 1
+			return
 
 
 ## A use an upgrade's reach gave past a card effect's own charges (#108: Fire sale): counted

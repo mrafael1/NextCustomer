@@ -20,7 +20,7 @@ enum Kind {
 	ARMED,
 	## WASTED.
 	FIZZLE,
-	## TAG_ADDED.
+	## TAG_ADDED, and WRITTEN_OFF (v1.28, a write-off: its label flies in).
 	TAG,
 	## LINKED.
 	LINK,

@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="CardDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/rule.gd" id="1_rule"]
+[ext_resource type="Script" path="res://core/rules/write_off_rule.gd" id="2_write_off"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="3_card"]
+
+[sub_resource type="Resource" id="Resource_write_off"]
+script = ExtResource("2_write_off")
+factor = 2
+receipt_text = "Write-off ×2"
+
+[resource]
+script = ExtResource("3_card")
+id = &"write_off"
+display_name = "Write-off"
+kind = 2
+tags = PackedStringArray()
+rules = Array[ExtResource("1_rule")]([SubResource("Resource_write_off")])
+rule_text = "The next item pays ×2 and counts as WASTED"

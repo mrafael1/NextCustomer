@@ -3,8 +3,9 @@ extends Rule
 ## After scanning, multiplies the next N products with a tag.
 ## Eggs: ×2 to the next Food product. A later card with the same `group` resets the
 ## charges instead of adding a second multiplier.
-## Batteries (#128) work like Eggs on Household: ×2 to the next Household product (the user's
-## call of 2026-11-02; until then only the product just after them could take the charge).
+## Batteries (#128) work like Eggs on Household: ×2 to the next 2 Household products (2 charges
+## since v1.28; the user's call of 2026-11-02: until then only the product just after them could
+## take the charge).
 ## With `percent` (Stale popcorn, #128 v3: the redraw tension, the user's call of 2026-11-02) its
 ## factor grows with the shift's redraws left (ScoreState.redraws_left): `factor` times (1 plus
 ## `percent`% for each), ×1/×2/×3 with 0/1/2 left at factor 1 and 100%, Golden factor 2:

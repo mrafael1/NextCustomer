@@ -186,7 +186,9 @@ func show_model(shown: PlanningModel, items: Array[ItemView], ghost: ItemView = 
 			window.dimmed_alpha = tuning.dim_ticket_alpha if tuning != null else 1.0
 			_pays[slot] = window
 		if planning.has_stamp():
-			var stamped: DenyStamp = DenyStamp.new(planning.stamp_amount, planning.stamp_caption)
+			var stamped: DenyStamp = DenyStamp.new(
+				planning.stamp_amount, planning.stamp_caption, planning.written_off
+			)
 			(_ghost_box if on_ghost else _stamp_box).add_child(stamped)
 			_stamps[slot] = stamped
 		if planning.rings >= SPARKLE_RINGS and not on_ghost:
@@ -623,7 +625,8 @@ func _lay_out_belt(slot: int, planning: PlanningSlot, item: ItemView) -> void:
 	item.sticker().set_wrong_job("" if _counting else planning.wrong_job)
 	var stamped: DenyStamp = _stamps.get(slot, null)
 	if stamped != null:
-		stamped.position = (sprite.position + STAMP_OFFSET * scale_x).snappedf(ArtStyle.ART_SCALE)
+		var on_art: Vector2 = stamped.art_offset(STAMP_OFFSET) * scale_x
+		stamped.position = (sprite.position + on_art).snappedf(ArtStyle.ART_SCALE)
 	var raised: Vector2 = Vector2(0, -ItemView.BOOST_LIFT * scale_x)
 	var made: Array = _sparkles.get(slot, [])
 	for index: int in range(made.size()):
@@ -643,7 +646,7 @@ func _lay_out_ghost(slot: int, planning: PlanningSlot, ghost: ItemView) -> void:
 		window.position = GHOST_PAY_AT
 	var stamped: DenyStamp = _stamps.get(slot, null)
 	if stamped != null:
-		stamped.position = sprite.position + STAMP_OFFSET
+		stamped.position = sprite.position + stamped.art_offset(STAMP_OFFSET)
 
 
 ## A stack's left edge `left`, moved left in art pixels when the `shown` stack (at `stack_scale`)
@@ -962,9 +965,11 @@ static func _shift(spec: StickerSpec, from_bottom: int) -> float:
 	return shift
 
 
-## Whether a sticker of `spec` on `slot` is drained: on a denied item, or unlit by the focus.
+## Whether a sticker of `spec` on `slot` is drained: on a denied item (not a written-off one,
+## v1.28: it still pays), or unlit by the focus.
 func _drained_spec(spec: StickerSpec, slot: int) -> bool:
-	return _stamps.has(slot) or (_lit.is_valid() and not bool(_lit.call(slot, spec)))
+	var denied: bool = _stamps.has(slot) and not _stamps[slot].is_written_off()
+	return denied or (_lit.is_valid() and not bool(_lit.call(slot, spec)))
 
 
 static func _specs_of(stickers: Array[EffectSticker]) -> Array[StickerSpec]:

@@ -2,8 +2,9 @@ class_name PackCrate
 extends Control
 ## A live starter pack on the staff bench (reworked 2026-11-05, v1.01): its three items standing
 ## big in a wood crate, and on the crate's paper label the pack's name in its family's colour,
-## its key (1 to 3) and its family. No strategy sentence, not even as a tooltip (the cards keep
-## their own popups on hover). The items stand at their sprites' own size, overlapping a little.
+## its key (1 to 3) and its family (and since v1.28 its loyalty perk's icon and name, when it
+## names one). No strategy sentence, not even as a tooltip (the cards keep their own popups on
+## hover). The items stand at their sprites' own size, overlapping a little.
 
 signal picked(index: int)
 signal previewed(index: int)
@@ -32,6 +33,14 @@ const LABEL_RECT := Rect2(22, 104, 228, 120)
 const NAME_BAR := Rect2(0, 0, 228, 38)
 const FAMILY_GLYPH := Rect2(92, 44, 45, 45)
 const FAMILY_LINE := Rect2(8, 92, 212, 22)
+## A pack that names a loyalty perk (v1.28, StarterPackDefinition.loyalty_perk): a smaller glyph and
+## family line, and under them the perk's teal strip (its icon at 2x, then its name in paper words),
+## 4 px clear of the label's bottom edge (label px).
+const PERK_GLYPH := Rect2(96, 40, 36, 36)
+const PERK_FAMILY_LINE := Rect2(8, 74, 212, 20)
+const PERK_STRIP := Rect2(8, 94, 212, 22)
+const PERK_ICON := Rect2(4, 2, 18, 18)
+const PERK_WORDS := Rect2(26, 0, 182, 22)
 ## The PICKED tag on the crate's bottom rail, under the label (crate px).
 const PICKED_RECT := Rect2(180, 229, 84, 24)
 ## The dithered halo behind a picked or hovered crate's items (crate px): an ellipse as wide as the
@@ -99,19 +108,24 @@ func _init(definition: StarterPackDefinition, slot: int, first: bool) -> void:
 	var key: Panel = StartBoardKit.panel(label, Rect2(194, 5, 28, 28), Palette.CREAM)
 	key.name = "Key"
 	StartBoardKit.number(key, str(index + 1), Rect2(4, 0, 22, 26))
+	var has_perk: bool = pack.loyalty_perk != null
+	var glyph_rect: Rect2 = PERK_GLYPH if has_perk else FAMILY_GLYPH
+	var family_rect: Rect2 = PERK_FAMILY_LINE if has_perk else FAMILY_LINE
 	if family_style != null and family_style.glyph != null:
 		var glyph: TextureRect = UiKit.sprite(family_style.glyph)
 		glyph.name = "Glyph"
-		glyph.position = FAMILY_GLYPH.position
-		glyph.size = FAMILY_GLYPH.size
+		glyph.position = glyph_rect.position
+		glyph.size = glyph_rect.size
 		glyph.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		glyph.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		label.add_child(glyph)
 	var family: Label = StartBoardKit.words(
-		label, String(pack.family).to_upper(), FAMILY_LINE, Palette.INK_LIGHT
+		label, String(pack.family).to_upper(), family_rect, Palette.INK_LIGHT
 	)
 	family.name = "Family"
-	StartBoardKit.centre(family, FAMILY_LINE)
+	StartBoardKit.centre(family, family_rect)
+	if has_perk:
+		_add_perk_strip(pack.loyalty_perk)
 	_picked_tag = StartBoardKit.panel(self, PICKED_RECT, Palette.MUSTARD)
 	_picked_tag.name = "Picked"
 	_picked_tag.pivot_offset = PICKED_RECT.size / 2.0
@@ -133,6 +147,29 @@ func _init(definition: StarterPackDefinition, slot: int, first: bool) -> void:
 	mouse_entered.connect(_enter)
 	mouse_exited.connect(_exit)
 	gui_input.connect(_click)
+
+
+## The pack's loyalty perk on the label (v1.28): a teal strip, the loyalty card's colour, with the
+## perk's icon and its name, so the player sees which perk the first UPGRADE visit guarantees.
+func _add_perk_strip(perk: UpgradeDefinition) -> void:
+	var strip: Panel = StartBoardKit.panel(label, PERK_STRIP, Palette.TEAL_DARK)
+	strip.name = "Perk"
+	var texture: Texture2D = null
+	if not perk.icon_ref.is_empty() and ResourceLoader.exists(perk.icon_ref):
+		texture = load(perk.icon_ref) as Texture2D
+	if texture != null:
+		var icon: TextureRect = UiKit.sprite(texture)
+		icon.name = "PerkIcon"
+		icon.position = PERK_ICON.position
+		icon.size = PERK_ICON.size
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		strip.add_child(icon)
+	var words: Label = StartBoardKit.words(
+		strip, perk.display_name.to_upper(), PERK_WORDS, Palette.PAPER
+	)
+	words.name = "PerkName"
+	StartBoardKit.centre(words, PERK_WORDS)
 
 
 ## The PICKED tag (shown once this crate is picked).

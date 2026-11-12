@@ -1,0 +1,15 @@
+; Grab bag's perk icon (v1.28, UpgradeDefinition.icon_ref): a brown paper snack bag tied with a
+; tomato twist, one mustard crisp showing on its front, "lone Snacks pay x2" (the Snacks aisle's
+; brown and mustard, aisle_snacks). No ink outline. 9x9, shown at 2x art. A placeholder for the
+; art review.
+@size 9x9
+@kind icon
+..R...R..
+...RRR...
+..hhhhh..
+.hFFFFFf.
+.hFyMFFf.
+.hFMmFFf.
+.hFFFFFf.
+.hFFFFFf.
+..fffff..

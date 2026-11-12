@@ -1,0 +1,13 @@
+; Home goods' perk icon (v1.28, UpgradeDefinition.icon_ref): a little house, a tomato roof over
+; paper walls (cream shade right) with a teal door and a teal pale window, "Household items pay
+; x2". No ink outline. 9x8, shown at 2x art. A placeholder for the art review.
+@size 9x8
+@kind icon
+....r....
+...rRr...
+..rRRRr..
+.rRRRRRr.
+.wwwwwwb.
+.w44w66b.
+.w44w66b.
+.w44wwwb.

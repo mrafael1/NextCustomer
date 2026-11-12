@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="StarterPackDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/starter_pack_definition.gd" id="1_pack"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="2_card"]
+[ext_resource type="Resource" path="res://data/cards/batteries.tres" id="c_batteries"]
+[ext_resource type="Resource" path="res://data/cards/odd_socks.tres" id="c_odd_socks"]
+[ext_resource type="Resource" path="res://data/cards/egg_timer_big.tres" id="c_egg_timer_big"]
+[ext_resource type="Resource" path="res://data/cards/eggs.tres" id="e_eggs"]
+[ext_resource type="Resource" path="res://data/upgrades/home_goods.tres" id="p_perk"]
+
+[resource]
+script = ExtResource("1_pack")
+id = &"home_basics"
+display_name = "Home basics"
+family = "Household"
+cards = Array[ExtResource("2_card")]([ExtResource("c_batteries"), ExtResource("c_odd_socks"), ExtResource("c_egg_timer_big")])
+hint_text = "Batteries double the next 2 Household items. Odd socks +8 in a Household pair."
+example_text = "Batteries, Eggs, Big Egg timer, Odd socks: Batteries doubles the timer's 4 + 5 and the socks' 2 + 8. Total 41."
+example_cards = Array[ExtResource("2_card")]([ExtResource("c_batteries"), ExtResource("e_eggs"), ExtResource("c_egg_timer_big"), ExtResource("c_odd_socks")])
+example_total = 41
+loyalty_perk = ExtResource("p_perk")

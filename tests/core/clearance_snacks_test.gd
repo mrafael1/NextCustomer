@@ -1,12 +1,13 @@
 extends GdUnitTestSuite
 ## Clearance and Snacks (#128 v3, the redraw tension, decided with the user on 2026-11-02):
-## Clearance profits from what went wrong (Dusty toffees +3 per WASTED product before it, up to
-## 3; Flickering bulb ×3 just after a WASTED product; Dented can +2 per card redrawn this
-## shift), Snacks spread out and keep their redraws (Pick 'n' mix +3 per lone Snack, Bent lolly
-## +2 per product to the nearest other Snack, up to 3; Crisps +3 per redraw left; Stale popcorn
+## Clearance profits from what went wrong (Dusty toffees +5 per WASTED product before it, up to
+## 3; Flickering bulb ×4 just after a WASTED product; Dented can +3 per card redrawn this
+## shift), Snacks spread out and keep their redraws (Pick 'n' mix +4 per lone Snack, Bent lolly
+## +3 per product to the nearest other Snack, up to 3; Crisps +4 per redraw left; Stale popcorn
 ## the next Snack ×1, +1 per redraw left, Golden ×2, +2 per redraw left). The redraws reach
 ## scoring as context (ScoreCredits.cards_redrawn and redraws_left, Scoring.total's): each redraw
-## is a basket of 2. Live data: the numbers are placeholders for the end balance pass.
+## is a basket of 2. Live data: the numbers are placeholders for the end balance pass (raised in
+## v1.28's family buffs).
 
 const CARDS := "res://data/cards/%s.tres"
 const STARTER := "res://data/decks/starter.tres"
@@ -19,45 +20,45 @@ func test_rows(
 	left: int,
 	payouts: Array,
 	_test_parameters := [
-		# Two lone Bananas are WASTED: Dusty toffees 1 + 3 × 2.
-		["banana,bread,banana,dusty_toffees", 0, 0, [2, 5, 2, 7]],
-		# Four WASTED, counted up to 3: 1 + 9. Golden: 3 + 6 × 1.
+		# Two lone Bananas are WASTED: Dusty toffees 2 + 5 × 2.
+		["banana,bread,banana,dusty_toffees", 0, 0, [2, 5, 2, 12]],
+		# Four WASTED, counted up to 3: 2 + 15. Golden: 4 + 10 × 1.
 		[
 			"banana,bread,banana,bread,banana,bread,banana,dusty_toffees",
 			0,
 			0,
-			[2, 5, 2, 5, 2, 5, 2, 10],
+			[2, 5, 2, 5, 2, 5, 2, 17],
 		],
-		["banana,dusty_toffees_golden", 0, 0, [2, 9]],
-		# Flickering bulb just after a WASTED product: 1 × 3; Golden 3 × 4.
-		["banana,flickering_bulb", 0, 0, [2, 3]],
-		["banana,flickering_bulb_golden", 0, 0, [2, 12]],
+		["banana,dusty_toffees_golden", 0, 0, [2, 14]],
+		# Flickering bulb just after a WASTED product: 2 × 4; Golden 4 × 5.
+		["banana,flickering_bulb", 0, 0, [2, 8]],
+		["banana,flickering_bulb_golden", 0, 0, [2, 20]],
 		# The bulb itself WASTED feeds the toffees after it.
-		["bread,flickering_bulb,dusty_toffees", 0, 0, [5, 1, 4]],
-		# Dented can: 2 + 2 per card redrawn (two redraws: 4 cards). Golden +4 each.
-		["dented_can", 4, 0, [10]],
-		["dented_can_golden", 2, 1, [12]],
-		# Crisps: +3 per redraw left; Golden +6.
-		["crisps", 0, 2, [8]],
-		["crisps", 2, 1, [5]],
+		["bread,flickering_bulb,dusty_toffees", 0, 0, [5, 2, 7]],
+		# Dented can: 2 + 3 per card redrawn (two redraws: 4 cards). Golden +6 each.
+		["dented_can", 4, 0, [14]],
+		["dented_can_golden", 2, 1, [16]],
+		# Crisps: +4 per redraw left; Golden +8.
+		["crisps", 0, 2, [10]],
+		["crisps", 2, 1, [6]],
 		["crisps", 4, 0, [2]],
-		["crisps_golden", 0, 2, [16]],
-		# Stale popcorn: the next Snack ×(1 + 1 per redraw left). 2 left: the Crisps' 8 × 3;
-		# 1 left: 5 × 2; none: WASTED. Golden ×2 that: 5 × 4, 8 × 6, and ×2 with none left.
-		["stale_popcorn,bread,crisps", 0, 2, [2, 5, 24]],
-		["stale_popcorn,bread,crisps", 2, 1, [2, 5, 10]],
+		["crisps_golden", 0, 2, [20]],
+		# Stale popcorn: the next Snack ×(1 + 1 per redraw left). 2 left: the Crisps' 10 × 3;
+		# 1 left: 6 × 2; none: WASTED. Golden ×2 that: 6 × 4, 10 × 6, and ×2 with none left.
+		["stale_popcorn,bread,crisps", 0, 2, [2, 5, 30]],
+		["stale_popcorn,bread,crisps", 2, 1, [2, 5, 12]],
 		["stale_popcorn,bread,crisps", 4, 0, [2, 5, 2]],
-		["stale_popcorn_golden,bread,crisps", 2, 1, [4, 5, 20]],
-		["stale_popcorn_golden,bread,crisps", 0, 2, [4, 5, 48]],
+		["stale_popcorn_golden,bread,crisps", 2, 1, [4, 5, 24]],
+		["stale_popcorn_golden,bread,crisps", 0, 2, [4, 5, 60]],
 		["stale_popcorn_golden,bread,crisps", 4, 0, [4, 5, 4]],
-		# Pick 'n' mix: the Crisps and itself are lone Snacks (1 + 3 × 2). Beside each other none is.
-		["crisps,bread,pick_n_mix", 0, 0, [2, 5, 7]],
-		["crisps,pick_n_mix", 0, 0, [2, 1]],
-		["crisps,bread,pick_n_mix_golden", 0, 0, [2, 5, 15]],
-		# Bent lolly: +2 per product between it and the nearest other Snack, up to 3.
-		["bent_lolly,bread,potatoes,crisps", 0, 0, [6, 5, 3, 2]],
-		["bent_lolly,bread,potatoes,bread,potatoes,crisps", 0, 0, [8, 5, 3, 5, 3, 2]],
-		["crisps,bread,bent_lolly,potatoes,potatoes,pick_n_mix", 0, 0, [2, 5, 4, 3, 3, 10]],
+		# Pick 'n' mix: the Crisps and itself are lone Snacks (2 + 4 × 2). Beside each other none is.
+		["crisps,bread,pick_n_mix", 0, 0, [2, 5, 10]],
+		["crisps,pick_n_mix", 0, 0, [2, 2]],
+		["crisps,bread,pick_n_mix_golden", 0, 0, [2, 5, 20]],
+		# Bent lolly: +3 per product between it and the nearest other Snack, up to 3.
+		["bent_lolly,bread,potatoes,crisps", 0, 0, [8, 5, 3, 2]],
+		["bent_lolly,bread,potatoes,bread,potatoes,crisps", 0, 0, [11, 5, 3, 5, 3, 2]],
+		["crisps,bread,bent_lolly,potatoes,potatoes,pick_n_mix", 0, 0, [2, 5, 5, 3, 3, 14]],
 	]
 ) -> void:
 	var result: ScoreResult = Scoring.score(_row(row), [], [], _credits(redrawn, left))
@@ -124,10 +125,10 @@ func test_a_live_multiplier_names_its_percent() -> void:
 	assert_int(multiplied[0].slot).is_equal(2)
 	assert_int(multiplied[0].value).is_equal(2)
 	assert_str(multiplied[0].factor_text()).is_equal("2")
-	assert_int(multiplied[0].value_after).is_equal(10)
+	assert_int(multiplied[0].value_after).is_equal(12)
 	assert_str(EffectLinks.token_text(multiplied[0])).is_equal("×2")
 	var equation: PaymentEquation = PaymentEquation.of(result.steps, 2)
-	assert_str(equation.text("→")).is_equal("5€ × 2 → 10€")
+	assert_str(equation.text("→")).is_equal("6€ × 2 → 12€")
 
 
 func test_percent_rounds_half_up(

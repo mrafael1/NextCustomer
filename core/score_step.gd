@@ -3,19 +3,19 @@ extends RefCounted
 ## One explanation line of a score. The preview, the receipt, the count-up and the tests all
 ## read the same steps, so they can never disagree.
 ##
-## Order: context-pass steps (TAG_ADDED, LINKED, and WASTED for stickers or connectors that
-## did nothing) come first. Then each slot in turn: BASE, FLAT (the card's own, effects,
+## Order: context-pass steps (TAG_ADDED, LINKED, WRITTEN_OFF, and WASTED for stickers or connectors
+## that did nothing) come first. Then each slot in turn: BASE, FLAT (the card's own, effects,
 ## upgrades, then the shift's day events, v0.69), MULTIPLIER (the card's own, then effects), COPY,
 ## MULTIPLIER (upgrades, then day events), PAYOUT_OVERRIDE (the card's own, then inspections, plan
 ## section 3.9), PAYOUT, then one EFFECT_ARMED for each effect the card arms for later cards, then
-## any WASTED step for that card's own rules, then WASTED steps for upgrades, then day events,
-## that had nothing to multiply there (plan section 3.8). An effect that replaces an earlier one (an
-## Egg reset) is armed first, then the replaced effect's WASTED step follows at once. WASTED
-## steps for effects that never found a target (a lost Coffee bonus, unused Egg charges) come
-## next, then one WASTED step for each upgrade whose condition the row never met (#45: no coupon
-## for the Coupon engine, too few cards for the Slot engine), on the row's last slot, then one for
-## each day event that found nothing to boost (v0.69: Free samples with no product), last.
-## An armed effect that later fizzles keeps its EFFECT_ARMED step.
+## any WASTED step for that card's own rules, then WASTED steps for upgrades, then day events, that
+## had nothing to multiply there (plan section 3.8). An effect that replaces an earlier one (an Egg
+## reset) is armed first, then the replaced effect's WASTED step follows at once. WASTED steps for
+## effects that never found a target (a lost Coffee bonus, unused Egg charges) come next, then one
+## WASTED step for each upgrade whose condition the row never met (#45: no coupon for the Coupon
+## engine, too few cards for the Slot engine), on the row's last slot, then one for each day event
+## that found nothing to boost (v0.69: Free samples with no product), last. An armed effect that
+## later fizzles keeps its EFFECT_ARMED step.
 ##
 ## Every step has a source: a card (SourceKind.CARD, the card in source_slot), a register
 ## upgrade (SourceKind.UPGRADE, entry source_index of the run's upgrades) or an inspection
@@ -36,6 +36,10 @@ enum StepType {
 	## A perk's credit (#108 piece 2): what a perk with no scoring rule earned, a label only. Its
 	## value is the credited slot's payout, already in the total; value_after is that payout too.
 	CREDIT,
+	## A written-off product (v1.28, Write-off): a context-pass label on the product the coupon
+	## writes off, which counts as WASTED for every rule that reads WASTED items (ScoreState.wasted)
+	## without being a fizzle. Value 0, like TAG_ADDED; source_slot is the Write-off.
+	WRITTEN_OFF,
 }
 
 enum SourceKind {
@@ -63,7 +67,8 @@ var source_slot: int = -1
 var source_index: int = 0
 ## BASE: base value. FLAT and COPY: amount added. MULTIPLIER: factor.
 ## PAYOUT_OVERRIDE and PAYOUT: the payout. EFFECT_ARMED: the armed effect's amount (a flat
-## bonus) or factor (a multiplier), from the rule's data. TAG_ADDED, LINKED and WASTED: 0.
+## bonus) or factor (a multiplier), from the rule's data. TAG_ADDED, LINKED, WRITTEN_OFF and
+## WASTED: 0.
 var value: int = 0
 ## The slot's running value after this step. WASTED steps carry the card's payout if it has
 ## been scanned, and 0 before that (context-pass fizzles). EFFECT_ARMED: the arming card's

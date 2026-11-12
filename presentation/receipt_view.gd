@@ -65,7 +65,7 @@ enum LineStyle {
 }
 
 ## An item line's mark in planning: none, fizzled, or denied by an inspection.
-enum Mark { NONE, FIZZLED, DENIED }
+enum Mark { NONE, FIZZLED, DENIED, WRITTEN_OFF }
 
 ## How a boon day's notice starts (v0.69: a shift is a day): its NOTICE line prints in green.
 const BOON_NOTICE_PREFIX := "TOMORROW: "
@@ -572,10 +572,9 @@ func _add_group_line(
 	return line
 
 
-## The receipt's words for one step: its left side (with its indent and marker) and its right
-## side (the amount, or nothing: a fizzle's mark says "WASTED"), or none for a step
-## that prints no line. A BASE or PAYOUT step's left side is its item's name: they fill the
-## item's line in (add_step).
+## The receipt's words for one step: its left side (with its indent and marker) and its right side
+## (the amount, or nothing: a fizzle's mark says "WASTED"), or none for a step that prints no
+## line. A BASE or PAYOUT step's left side is its item's name: it fills the item's line (add_step).
 static func step_text(
 	step: ScoreStep,
 	names: PackedStringArray,
@@ -592,6 +591,9 @@ static func step_text(
 			left = "  %s: %s gains %s" % [step.text, names[step.slot], step.tag]
 		ScoreStep.StepType.LINKED:
 			left = "  %s links %s + %s" % [step.text, names[step.slot], names[step.linked_slot]]
+		ScoreStep.StepType.WRITTEN_OFF:
+			left = "  %s: %s" % [step.text, names[step.slot]]
+			right = EffectLink.WRITTEN_OFF_WORD
 		ScoreStep.StepType.WASTED:
 			left = "  %s: %s" % [cause, step.reason]
 		ScoreStep.StepType.BASE, ScoreStep.StepType.PAYOUT:
@@ -619,11 +621,11 @@ static func step_text(
 	return PackedStringArray([left, right])
 
 
-## The style a step's line prints in: CONTEXT for a tag or a link, FIZZLE for a fizzle, ITEM for
+## A step's line style: CONTEXT for a tag, a link or a write-off, FIZZLE for a fizzle, ITEM for
 ## a base or a payout (its item's line), COMBO for a combo (is_combo), DETAIL for the rest.
 static func step_style(step: ScoreStep) -> LineStyle:
 	match step.step_type:
-		ScoreStep.StepType.TAG_ADDED, ScoreStep.StepType.LINKED:
+		ScoreStep.StepType.TAG_ADDED, ScoreStep.StepType.LINKED, ScoreStep.StepType.WRITTEN_OFF:
 			return LineStyle.CONTEXT
 		ScoreStep.StepType.WASTED:
 			return LineStyle.FIZZLE

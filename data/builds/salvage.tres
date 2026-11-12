@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="BuildDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/build_definition.gd" id="1_build"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="2_card"]
+[ext_resource type="Resource" path="res://data/cards/dusty_toffees.tres" id="3_c"]
+[ext_resource type="Resource" path="res://data/cards/flickering_bulb.tres" id="4_c"]
+[ext_resource type="Resource" path="res://data/cards/write_off.tres" id="5_c"]
+
+[resource]
+script = ExtResource("1_build")
+id = &"salvage"
+display_name = "Salvage"
+measure = 5
+min_count = 2
+cards = Array[ExtResource("2_card")]([ExtResource("3_c"), ExtResource("4_c"), ExtResource("5_c")])
+measure_only = true
+perk_ids = Array[StringName]([&"salvage_desk"])

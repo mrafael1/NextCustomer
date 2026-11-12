@@ -2,18 +2,23 @@
 
 [ext_resource type="Script" path="res://core/starter_pack_definition.gd" id="1_pack"]
 [ext_resource type="Script" path="res://core/card_definition.gd" id="2_card"]
-[ext_resource type="Resource" path="res://data/cards/clearance_tag.tres" id="c_clearance_tag"]
+[ext_resource type="Resource" path="res://data/cards/write_off.tres" id="c_write_off"]
 [ext_resource type="Resource" path="res://data/cards/dented_can.tres" id="c_dented_can"]
-[ext_resource type="Resource" path="res://data/cards/flickering_bulb_big.tres" id="c_flickering_bulb_big"]
-[ext_resource type="Resource" path="res://data/cards/eggs.tres" id="e_eggs"]
+[ext_resource type="Resource" path="res://data/cards/flickering_bulb.tres" id="c_flickering_bulb"]
+[ext_resource type="Resource" path="res://data/cards/milk.tres" id="e_milk"]
+[ext_resource type="Resource" path="res://data/cards/clearance_tag.tres" id="f_clearance_tag"]
+[ext_resource type="Resource" path="res://data/cards/flickering_bulb_big.tres" id="f_flickering_bulb_big"]
+[ext_resource type="Resource" path="res://data/upgrades/salvage_desk.tres" id="p_perk"]
 
 [resource]
 script = ExtResource("1_pack")
 id = &"bargain_bin"
 display_name = "Bargain bin"
 family = "Clearance"
-cards = Array[ExtResource("2_card")]([ExtResource("c_clearance_tag"), ExtResource("c_dented_can"), ExtResource("c_flickering_bulb_big")])
-hint_text = "Redraws grow Dented can, and Flickering bulb pays ×3 right after a WASTED item."
-example_text = "Clearance tag, Eggs, Dented can, Big Flickering bulb: Eggs doubles the can; with no redraw its bonus is WASTED, so the bulb pays 3 ×3. Total 14."
-example_cards = Array[ExtResource("2_card")]([ExtResource("c_clearance_tag"), ExtResource("e_eggs"), ExtResource("c_dented_can"), ExtResource("c_flickering_bulb_big")])
-example_total = 14
+cards = Array[ExtResource("2_card")]([ExtResource("c_write_off"), ExtResource("c_dented_can"), ExtResource("c_flickering_bulb")])
+hint_text = "Write-off makes the next item WASTED, so Flickering bulb pays ×4 after it."
+example_text = "Write-off, Milk, Flickering bulb: Write-off doubles Milk's 4 and makes it WASTED, so the bulb pays 2 ×4. Total 16."
+example_cards = Array[ExtResource("2_card")]([ExtResource("c_write_off"), ExtResource("e_milk"), ExtResource("c_flickering_bulb")])
+example_total = 16
+former_cards = Array[ExtResource("2_card")]([ExtResource("f_clearance_tag"), ExtResource("c_dented_can"), ExtResource("f_flickering_bulb_big")])
+loyalty_perk = ExtResource("p_perk")

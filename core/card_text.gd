@@ -71,6 +71,9 @@ const MORNING_WORD := "MORNING"
 ## A live factor's tooltip (live_tip): the factor now, its percent per redraw left, the redraws
 ## left.
 const LIVE_TIP := "%s now · ×%s, plus %s for each redraw left this shift (%d left)"
+## A Family sticker's `{tag}` (v1.28) before a copy's family is known (the hand, the machine,
+## the deck view): its ticket on the belt reads the family it gives ("Next joins Breakfast").
+const PICK_WORDS := "your pick"
 ## What a chain bonus's `{bonus}` reads: the previous product's price.
 const PREVIOUS_PRICE := "prev"
 ## The monitor's description (monitor_text) may name every sticker key and these: `max_count`, a
@@ -117,9 +120,15 @@ const TIMES_FALLBACK := "%d times"
 
 ## The card's sticker summary, or "" when its template is empty (a card with no rule shows only
 ## its price).
-## `redraws_left` (-1: unknown) fills a live factor (see `percent` above).
-static func sticker_summary(definition: CardDefinition, redraws_left: int = -1) -> String:
-	return sticker_template(definition).format(sticker_values(definition, redraws_left))
+## `redraws_left` (-1: unknown) fills a live factor (see `percent` above); `family` a Family
+## sticker's `{tag}` (the family one copy gives, v1.28; "": PICK_WORDS).
+static func sticker_summary(
+	definition: CardDefinition, redraws_left: int = -1, family: String = ""
+) -> String:
+	var values: Dictionary = sticker_values(definition, redraws_left)
+	if FamilySticker.is_family_sticker(definition):
+		values["tag"] = family if not family.is_empty() else PICK_WORDS
+	return sticker_template(definition).format(values)
 
 
 ## A live factor's words on the sticker ("×1.5", #128 v3 Stale popcorn), or "" for a card with

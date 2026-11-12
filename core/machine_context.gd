@@ -30,6 +30,13 @@ var first_offer_pool: Array[CardDefinition] = []
 var premium: bool = false
 ## The loyalty card is full (register_cap new perks picked): UPGRADE offers only level-ups.
 var card_full: bool = false
+## The run's starter pack's loyalty perk (v1.28, StarterPackDefinition.loyalty_perk) while the run
+## has not had an UPGRADE visit yet, else null: that first UPGRADE draw holds it (MachineDraw.
+## pack_hold). Derived from the run's history, so a resume needs no field of its own.
+var pack_perk: UpgradeDefinition
+## The family of a starter pack that names a loyalty perk (the whole run), else empty: it always
+## fits your cart (UpgradeDefinition.fits' pack_family).
+var pack_family: String = ""
 var _pools: Dictionary = {}
 var _guarantees: Dictionary = {}
 
@@ -61,12 +68,28 @@ static func from_run(
 	context.card_full = RewardMachine.registers_picked(run) >= machine_definition.register_cap
 	if not run.stock.new_arrivals.is_empty():
 		context.new_arrival = run.stock.new_arrivals[0]
+	var pack: StarterPackDefinition = run.starter.starter_pack if run.starter != null else null
+	if pack != null and pack.loyalty_perk != null:
+		context.pack_family = pack.family
+		if not had_upgrade_visit(run):
+			context.pack_perk = pack.loyalty_perk
 	return context
 
 
-## The deck's cards as definitions (what a perk's "fits" reads).
+## Whether one of the run's finished machine visits chose the UPGRADE chute (picked or binned).
+static func had_upgrade_visit(run: RunState) -> bool:
+	for record: ShiftRecord in run.history:
+		for visit: MachineVisit in record.visits:
+			if visit.chute == RewardMachine.Chute.UPGRADE:
+				return true
+	return false
+
+
+## The deck's cards as definitions (what a perk's "fits" reads); none without a deck.
 func deck_cards() -> Array[CardDefinition]:
 	var found: Array[CardDefinition] = []
+	if deck == null:
+		return found
 	for card: CardInstance in deck.cards:
 		found.append(card.definition)
 	return found
@@ -79,11 +102,23 @@ func stocks(upgrade: UpgradeDefinition) -> bool:
 	if upgrade.needs_card != null:
 		return cards.any(upgrade.needs_card.is_same_product)
 	if not upgrade.boosts_tag.is_empty():
-		return cards.any(
-			func(card: CardDefinition) -> bool:
-				return card.is_product() and card.tags.has(upgrade.boosts_tag)
-		)
+		return has_family(upgrade.boosts_tag, cards)
 	return true
+
+
+## Whether the machine can offer `coupon` (v1.28): one with a `needs_tag` (Party pack) needs a
+## stocked product or a deck card of that family, as a family perk does (stocks).
+func offers(coupon: CardDefinition) -> bool:
+	if coupon.needs_tag.is_empty():
+		return true
+	return has_family(coupon.needs_tag, products + deck_cards())
+
+
+## Whether one of `cards` is a product with `tag`.
+static func has_family(tag: String, cards: Array[CardDefinition]) -> bool:
+	return cards.any(
+		func(card: CardDefinition) -> bool: return card.is_product() and card.tags.has(tag)
+	)
 
 
 ## Whether this context's NEW ITEMS draw holds the new arrival (build spec 1.5, Q4): one it can
@@ -108,13 +143,12 @@ func drawn_products() -> Array[CardDefinition]:
 
 
 ## The coupons NEW ITEMS' coupon drops draw from: on the run's first coupon draw only those in the
-## first-offer pool (#36's first offer), else the coupon pool.
+## first-offer pool (#36's first offer), else the coupon pool; either way only those the run can be
+## offered (offers, v1.28: Party pack needs a Snack).
 func coupon_candidates() -> Array[CardDefinition]:
-	if not first_coupons:
-		return coupons
 	var found: Array[CardDefinition] = []
-	for card: CardDefinition in first_offer_pool:
-		if coupons.has(card):
+	for card: CardDefinition in first_offer_pool if first_coupons else coupons:
+		if (not first_coupons or coupons.has(card)) and offers(card):
 			found.append(card)
 	return found
 

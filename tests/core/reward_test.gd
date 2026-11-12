@@ -10,7 +10,7 @@ const BREAD := "res://data/cards/bread.tres"
 const BUNDLE := "res://data/cards/bundle.tres"
 const CHEESE := "res://data/cards/cheese.tres"
 ## Bundle returned as 2 for 1, which took its place in both pools (plan v0.23).
-const COMBINATION_COUPONS := [&"breakfast_sticker", &"multipack", &"two_for_one"]
+const COMBINATION_COUPONS := [&"family_sticker", &"multipack", &"two_for_one"]
 ## The starter's stock with the 3 base aisles: the staples, the aisles' products and every
 ## coupon but Bundle, in stock order.
 const STARTING_STOCK := [
@@ -36,12 +36,13 @@ const STARTING_STOCK := [
 	"flickering_bulb",
 	"repeat",
 	"final_markdown",
-	"breakfast_sticker",
+	"family_sticker",
 	"multipack",
 	"two_for_one",
 	"shelf_swap",
-	"clearance_tag",
 	"opening_deal",
+	"write_off",
+	"party_pack",
 ]
 
 
@@ -91,12 +92,13 @@ func test_coupon_pool_and_first_pool_hold_the_agreed_coupons() -> void:
 			[
 				"repeat",
 				"final_markdown",
-				"breakfast_sticker",
+				"family_sticker",
 				"multipack",
 				"two_for_one",
 				"shelf_swap",
-				"clearance_tag",
 				"opening_deal",
+				"write_off",
+				"party_pack",
 			]
 		)
 	)

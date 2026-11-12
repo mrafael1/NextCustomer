@@ -45,6 +45,13 @@ func spares_waste(_state: ScoreState, _slot: int) -> bool:
 	return false
 
 
+## Whether this rule reads ScoreState.wasted at a slot (v1.28's Salvage desk: WASTED items pay
+## ×2). Scoring then marks each product's own WASTED status before the upgrades' multipliers (and
+## on a total-only score too), so the rule sees that product's own fizzle.
+func reads_waste() -> bool:
+	return false
+
+
 ## When `card` arms an effect: whether this rule reaches it past its own charges (#108's Fire
 ## sale, and Lemon squeezer until v0.56 / #128: the card's charged multiplier reaches every
 ## later product with its tag). Those uses are this upgrade's steps; the card's own charges stay

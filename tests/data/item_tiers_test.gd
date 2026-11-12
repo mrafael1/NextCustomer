@@ -70,11 +70,12 @@ const CHAINED: Array[StringName] = [
 ## hand instead: GOLDEN Iced
 ## bun glazes ×3 (#128 v3), as a glaze has no charge to gain; GOLDEN Lemon's knot is ×3 (#128
 ## Produce links, 2026-11-02), as a knot has no charge to gain either; GOLDEN Flickering bulb is
-## ×4 after a WASTED product (#128 v3), a multiplier with no charge; GOLDEN Stale popcorn adds 75%
+## ×5 after a WASTED product (#128 v3, one step over the plain ×4 since v1.28), a multiplier with no
+## charge; GOLDEN Stale popcorn adds 75%
 ## per redraw left in place of 50% (the user's call of 2026-11-02), keeping its one charge.
 const TIER_BASE_STEP := 2
 const HAND_SET: Dictionary[StringName, Dictionary] = {
-	&"flickering_bulb": {"factor": 4},
+	&"flickering_bulb": {"factor": 5},
 	&"stale_popcorn": {"factor": 2, "charges": 1},
 	&"iced_bun": {"factor": 3},
 	&"lemon": {"factor": 3},
@@ -255,34 +256,34 @@ func test_tier_values_and_stickers(
 		["bread_golden", 9, ""],
 		["soup_big", 7, "Pays nothing beside Frozen"],
 		["soup_golden", 9, "Pays nothing beside Frozen"],
-		["cheese_big", 5, "+4 PAIR with Bread"],
-		["cheese_golden", 5, "+8 PAIR with Bread"],
+		["cheese_big", 5, "+5 PAIR per Bread beside"],
+		["cheese_golden", 5, "+10 PAIR per Bread beside"],
 		["frozen_peas_big", 5, "+5 beside Frozen"],
 		["frozen_peas_golden", 5, "+10 beside Frozen"],
-		["butter_big", 4, "+3 PAIR with Bakery"],
-		["butter_golden", 4, "+6 PAIR with Bakery"],
-		["yogurt_big", 4, "+3 PAIR with Banana"],
-		["yogurt_golden", 4, "+6 PAIR with Banana"],
-		["reduced_yogurt_big", 4, "+3 PAIR with Clearance"],
-		["reduced_yogurt_golden", 4, "+6 PAIR with Clearance"],
-		["cereal_big", 4, "+3 PAIR with Milk"],
-		["cereal_golden", 4, "+6 PAIR with Milk"],
+		["butter_big", 4, "+4 PAIR per Bakery beside"],
+		["butter_golden", 4, "+8 PAIR per Bakery beside"],
+		["yogurt_big", 4, "+4 PAIR per Banana beside"],
+		["yogurt_golden", 4, "+8 PAIR per Banana beside"],
+		["reduced_yogurt_big", 4, "+4 PAIR per Clearance"],
+		["reduced_yogurt_golden", 4, "+8 PAIR per Clearance"],
+		["cereal_big", 4, "+4 PAIR per Milk beside"],
+		["cereal_golden", 4, "+8 PAIR per Milk beside"],
 		["tea_bags_big", 3, "×4 last MORNING"],
 		["tea_bags_golden", 3, "×4 last 2 MORNING"],
 		["crackers_big", 4, "+3 beside Soup"],
 		["crackers_golden", 4, "+6 beside Soup"],
-		["dented_can_big", 4, "+2 per card redrawn"],
-		["dented_can_golden", 4, "+4 per card redrawn"],
-		["day_old_buns_big", 4, "+3 after Clearance"],
-		["day_old_buns_golden", 4, "+6 after Clearance"],
+		["dented_can_big", 4, "+3 per card redrawn"],
+		["dented_can_golden", 4, "+6 per card redrawn"],
+		["day_old_buns_big", 4, "+4 after Clearance"],
+		["day_old_buns_golden", 4, "+8 after Clearance"],
 		["carrier_bag_big", 3, "+8 per Food beside"],
 		["carrier_bag_golden", 3, "+16 per Food beside"],
-		["scissors_big", 3, "+2 per earlier coupon"],
-		["scissors_golden", 3, "+4 per earlier coupon"],
-		["batteries_big", 3, "×2 next Household"],
-		["batteries_golden", 3, "×2 next 2 Household"],
-		["flickering_bulb_big", 3, "×3 after WASTED"],
-		["flickering_bulb_golden", 3, "×4 after WASTED"],
+		["scissors_big", 4, "+3 per earlier coupon"],
+		["scissors_golden", 4, "+6 per earlier coupon"],
+		["batteries_big", 4, "×2 next 2 Household"],
+		["batteries_golden", 4, "×2 next 3 Household"],
+		["flickering_bulb_big", 4, "×4 after WASTED"],
+		["flickering_bulb_golden", 4, "×5 after WASTED"],
 		# A few of the capsule products' (v0.52): the knot and charged multipliers and the flat
 		# Potatoes; the Produce links (#128).
 		["lemon_big", 3, "CHAIN middle: ×2 prev"],
@@ -295,11 +296,11 @@ func test_tier_values_and_stickers(
 		["croissant_golden", 4, "BATCH 1st: +4 to the rest"],
 		["baguette_golden", 4, "BATCH +8 per earlier"],
 		["stale_doughnut_golden", 3, "BATCH last: +6 each"],
-		["birthday_candles_golden", 3, "+6 each, next BATCH of 3+"],
+		["birthday_candles_golden", 4, "+6 each, next BATCH of 3+"],
 		["squashed_cake_golden", 4, "×2 next 2 Clearance"],
 		["potatoes_big", 5, ""],
 		["potatoes_golden", 7, ""],
-		["pick_n_mix_golden", 3, "+6 per lone Snack"],
+		["pick_n_mix_golden", 4, "+8 per lone Snack"],
 	]
 ) -> void:
 	var card: CardDefinition = _card(id)
@@ -367,9 +368,9 @@ func test_tiers_score_as_their_product(
 		["coffee_golden,milk", [8, 5]],
 		# Coffee's +3 goes to Eggs; Golden Milk (6 + 2 x 2 earlier Breakfast) x2 from Eggs.
 		["coffee,eggs,milk_golden", [5, 1, 20]],
-		# Golden Cheese 5 + 8 after Bread; a plain Cheese still matches a Big Bread.
-		["bread,cheese_golden", [5, 13]],
-		["bread_big,cheese", [7, 7]],
+		# Golden Cheese 5 + 10 beside Bread; a plain Cheese still matches a Big Bread.
+		["bread,cheese_golden", [5, 15]],
+		["bread_big,cheese", [7, 8]],
 		# A Frozen pair across tiers: plain 3 + 3, Golden 5 + twice its base.
 		["frozen_peas,frozen_peas_golden", [6, 15]],
 		# Golden Tea bags: ×4 on the next 2 Breakfast payouts (Bread 5).

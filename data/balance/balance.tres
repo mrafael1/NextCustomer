@@ -4,12 +4,13 @@
 [ext_resource type="Script" path="res://core/card_definition.gd" id="2_card"]
 [ext_resource type="Resource" path="res://data/cards/repeat.tres" id="c11_repeat"]
 [ext_resource type="Resource" path="res://data/cards/final_markdown.tres" id="c12_final_markdown"]
-[ext_resource type="Resource" path="res://data/cards/breakfast_sticker.tres" id="c14_breakfast_sticker"]
+[ext_resource type="Resource" path="res://data/cards/family_sticker.tres" id="c14_family_sticker"]
 [ext_resource type="Resource" path="res://data/cards/multipack.tres" id="c15_multipack"]
 [ext_resource type="Resource" path="res://data/cards/two_for_one.tres" id="c16_two_for_one"]
 [ext_resource type="Resource" path="res://data/cards/shelf_swap.tres" id="c17_shelf_swap"]
-[ext_resource type="Resource" path="res://data/cards/clearance_tag.tres" id="c18_clearance_tag"]
 [ext_resource type="Resource" path="res://data/cards/opening_deal.tres" id="c19_opening_deal"]
+[ext_resource type="Resource" path="res://data/cards/write_off.tres" id="c20_write_off"]
+[ext_resource type="Resource" path="res://data/cards/party_pack.tres" id="c21_party_pack"]
 [ext_resource type="Resource" path="res://data/cards/banana.tres" id="s1_banana"]
 [ext_resource type="Resource" path="res://data/cards/bread.tres" id="s2_bread"]
 [ext_resource type="Resource" path="res://data/cards/milk.tres" id="s3_milk"]
@@ -48,6 +49,10 @@
 [ext_resource type="Resource" path="res://data/upgrades/banana_stand.tres" id="u_banana_stand"]
 [ext_resource type="Resource" path="res://data/upgrades/lemon_squeezer.tres" id="u_lemon_squeezer"]
 [ext_resource type="Resource" path="res://data/upgrades/fire_sale.tres" id="u_fire_sale"]
+[ext_resource type="Resource" path="res://data/upgrades/perfect_pair.tres" id="u_perfect_pair"]
+[ext_resource type="Resource" path="res://data/upgrades/salvage_desk.tres" id="u_salvage_desk"]
+[ext_resource type="Resource" path="res://data/upgrades/grab_bag.tres" id="u_grab_bag"]
+[ext_resource type="Resource" path="res://data/upgrades/home_goods.tres" id="u_home_goods"]
 [ext_resource type="Script" path="res://core/inspection_definition.gd" id="i1_inspection"]
 [ext_resource type="Resource" path="res://data/inspections/spot_check.tres" id="i2_spot_check"]
 [ext_resource type="Resource" path="res://data/inspections/short_belt.tres" id="i3_short_belt"]
@@ -78,14 +83,14 @@ slot_count = 7
 deck_limit = 15
 staples = Array[ExtResource("2_card")]([ExtResource("s1_banana"), ExtResource("s2_bread"), ExtResource("s3_milk"), ExtResource("s4_eggs"), ExtResource("s5_coffee"), ExtResource("s6_soup")])
 aisles = Array[ExtResource("a1_aisle")]([ExtResource("a2_cold_cases"), ExtResource("a3_pantry"), ExtResource("a4_household"), ExtResource("a5_fruit_and_veg"), ExtResource("a6_bakery"), ExtResource("a7_snacks")])
-coupon_pool = Array[ExtResource("2_card")]([ExtResource("c11_repeat"), ExtResource("c12_final_markdown"), ExtResource("c14_breakfast_sticker"), ExtResource("c15_multipack"), ExtResource("c16_two_for_one"), ExtResource("c17_shelf_swap"), ExtResource("c18_clearance_tag"), ExtResource("c19_opening_deal")])
+coupon_pool = Array[ExtResource("2_card")]([ExtResource("c11_repeat"), ExtResource("c12_final_markdown"), ExtResource("c14_family_sticker"), ExtResource("c15_multipack"), ExtResource("c16_two_for_one"), ExtResource("c17_shelf_swap"), ExtResource("c19_opening_deal"), ExtResource("c20_write_off"), ExtResource("c21_party_pack")])
 run_aisle_picks = 2
 aisle_stock_budget = 16
 aisle_listable_min = 4
 end_cap_max = 3
 end_cap_window_runs = 3
-first_offer_pool = Array[ExtResource("2_card")]([ExtResource("c14_breakfast_sticker"), ExtResource("c15_multipack"), ExtResource("c16_two_for_one")])
-upgrade_pool = Array[ExtResource("u1_upgrade")]([ExtResource("u2_coupon_engine"), ExtResource("u3_category_engine"), ExtResource("u4_extra_redraw"), ExtResource("u6_slot_engine"), ExtResource("u8_big_basket"), ExtResource("u_bakery_regulars"), ExtResource("u_produce_regulars"), ExtResource("u_dairy_regulars"), ExtResource("u_snack_regulars"), ExtResource("u_household_regulars"), ExtResource("u_breakfast_regulars"), ExtResource("u_clearance_regulars"), ExtResource("u_bakery_aisle_run"), ExtResource("u_produce_aisle_run"), ExtResource("u_dairy_aisle_run"), ExtResource("u_snack_aisle_run"), ExtResource("u_household_aisle_run"), ExtResource("u_breakfast_aisle_run"), ExtResource("u_clearance_aisle_run"), ExtResource("u_mixed_basket"), ExtResource("u_bulk_deal"), ExtResource("u_banana_stand"), ExtResource("u_lemon_squeezer"), ExtResource("u_fire_sale")])
+first_offer_pool = Array[ExtResource("2_card")]([ExtResource("c14_family_sticker"), ExtResource("c15_multipack"), ExtResource("c16_two_for_one")])
+upgrade_pool = Array[ExtResource("u1_upgrade")]([ExtResource("u2_coupon_engine"), ExtResource("u3_category_engine"), ExtResource("u4_extra_redraw"), ExtResource("u6_slot_engine"), ExtResource("u8_big_basket"), ExtResource("u_bakery_regulars"), ExtResource("u_produce_regulars"), ExtResource("u_dairy_regulars"), ExtResource("u_snack_regulars"), ExtResource("u_household_regulars"), ExtResource("u_breakfast_regulars"), ExtResource("u_clearance_regulars"), ExtResource("u_bakery_aisle_run"), ExtResource("u_produce_aisle_run"), ExtResource("u_dairy_aisle_run"), ExtResource("u_snack_aisle_run"), ExtResource("u_household_aisle_run"), ExtResource("u_breakfast_aisle_run"), ExtResource("u_clearance_aisle_run"), ExtResource("u_mixed_basket"), ExtResource("u_bulk_deal"), ExtResource("u_banana_stand"), ExtResource("u_lemon_squeezer"), ExtResource("u_fire_sale"), ExtResource("u_perfect_pair"), ExtResource("u_salvage_desk"), ExtResource("u_grab_bag"), ExtResource("u_home_goods")])
 inspection_shifts = PackedInt32Array(3, 7, 11, 15)
 inspection_pool = Array[ExtResource("i1_inspection")]([ExtResource("i2_spot_check"), ExtResource("i3_short_belt"), ExtResource("i4_till_jam"), ExtResource("i5_small_baskets"), ExtResource("i6_rush_hour"), ExtResource("i7_late_delivery")])
 review_shifts = PackedInt32Array(4, 8, 12, 16)

@@ -6,7 +6,7 @@
 
 [sub_resource type="Resource" id="Resource_dented_can"]
 script = ExtResource("2_dented_can")
-bonus_each = 2
+bonus_each = 3
 receipt_text = "Dented can: cards redrawn"
 
 [resource]
@@ -17,7 +17,7 @@ kind = 1
 tags = PackedStringArray("Food", "Clearance")
 base = 2
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_dented_can")])
-rule_text = "+2 for each card redrawn this shift"
+rule_text = "+3 for each card redrawn this shift"
 sticker_text = "+{bonus_each} per card redrawn"
 monitor_text = "Gets +{bonus_each} for each card redrawn this shift."
 art_ref = "res://art/items_v2/dented_can.png"

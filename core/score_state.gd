@@ -48,10 +48,16 @@ var cards_redrawn: int = 0
 ## The redraws this shift has left (#128 v3: Crisps, Stale popcorn), context like cards_redrawn.
 var redraws_left: int = 0
 ## 1 for each scanned slot one of whose card's own rules was WASTED (#128 v3, Clearance: Dusty
-## toffees, Flickering bulb). Kept for a total-only score too when a rule of the row reads it
-## (`tracks_waste`, Rule.reads_waste), so Scoring.total stays the total of Scoring.score.
+## toffees, Flickering bulb), or that a Write-off wrote off in the context pass (v1.28,
+## WriteOffRule). Kept for a total-only score too when a rule of the row reads it (`tracks_waste`,
+## Rule.reads_waste; a write-off always marks it), so Scoring.total stays the total of
+## Scoring.score.
 var wasted: PackedByteArray = PackedByteArray()
 var tracks_waste: bool = false
+## An owned upgrade reads `wasted` at the slot it multiplies (v1.28's Salvage desk,
+## UpgradeRule.reads_waste): Scoring marks each product's own WASTED status before the upgrades'
+## multipliers, not only after its payout. Set by Scoring.
+var upgrades_read_waste: bool = false
 ## Slots the shift has more (+) or fewer (-) than the balance data's, from the run's
 ## upgrades and the shift's inspections (Big basket +1, Short belt -1). Set by Scoring.score().
 ## No live rule reads it since the Slot engine keeps to slot 6 (2026-10-24, #106 follow-up); a

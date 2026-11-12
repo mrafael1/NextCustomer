@@ -1,15 +1,16 @@
 class_name AdjacentMatchBonusRule
 extends Rule
 ## A flat bonus when a matching product is adjacent, after the context pass.
-## Cheese: +4 if immediately after Bread. Frozen peas: + its base if beside another Frozen
+## Crackers: +3 if beside Soup. Frozen peas: + its base if beside another Frozen
 ## product. Banana (the chain, #106, `bonus_is_previous_price`): + the previous Banana's price
 ## if immediately after another Banana, so 4 Bananas pay 2, 4, 6, 8; the Golden Banana adds it
 ## twice (`bonus_factor` 2). With no match it fizzles (#45): a WASTED step
 ## that names what was missing, the total unchanged. A pair rule (one matching its own product,
 ## SAME_CARD: the Banana and its tiers) fizzles only when no match is on EITHER side, so the
 ## pair's first Banana never shows WASTED: only a lone one does ("no Banana beside it"). Its
-## bonus still needs the match just before it. With `per_match` (Carrier bag, #128) the bonus
-## counts once for each matching product in the position (+8 for each Food product beside it).
+## bonus still needs the match just before it. With `per_match` (Carrier bag, #128; the PAIR
+## cards since v1.28) the bonus counts once for each matching product in the position (+8 for
+## each Food product beside it; Cheese +5 for each Bread beside it).
 ## With `pair` (#128, Dairy's PAIR) a match beside it makes the product PAIRED (CardPairs), which
 ## Cream counts; its sticker names the PAIR keyword.
 

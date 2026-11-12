@@ -19,15 +19,19 @@ var glyph: PlanningModel.Glyph = PlanningModel.Glyph.NONE
 var rings: int = 0
 ## Denied to 0€: the sprite turns grey.
 var denied: bool = false
-## The denial stamp's big line ("0€"); empty when no stamp.
+## The denial stamp's big line ("0€"), or a written-off item's pay (v1.28); empty when no stamp.
 var stamp_amount: String = ""
-## The denial stamp's caption: the denier's name in uppercase ("SPOT CHECK", "SOUP").
+## The denial stamp's caption: the denier's name in uppercase ("SPOT CHECK", "SOUP"), or
+## WRITTEN OFF for a written-off item (v1.28: PlanningModel.WRITTEN_OFF_CAPTION, no denial).
 var stamp_caption: String = ""
+## Written off by a Write-off (v1.28): its stamp is the written-off label (DenyStamp), not a
+## denial, so its stickers stay lit.
+var written_off: bool = false
 ## A batch or chain card's wrong job (#128): its BATCH or CHAIN line's WASTED tooltip ("WASTED ·
 ## Not first in its Bakery batch"), or "" when it works (or is neither).
 var wrong_job: String = ""
 
 
-## Whether the slot has a denial stamp.
+## Whether the slot has a denial stamp (or a written-off label).
 func has_stamp() -> bool:
 	return not stamp_amount.is_empty()

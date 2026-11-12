@@ -4,5 +4,5 @@ extends RefCounted
 ## tests/ is not exported).
 
 ## The 67 cards before #89, its 32 BIG and GOLDEN tiers (v0.48) and the 60 tiers of the 30
-## capsule products (v0.52).
-const CARDS := 159
+## capsule products (v0.52), and the coupons Write-off, Party pack and Family sticker (v1.28).
+const CARDS := 162

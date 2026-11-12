@@ -4,8 +4,12 @@ extends Rule
 ## its base card) is on both sides of it, the two count as adjacent (context pass) and the
 ## second pays ×factor (an armed multiplier for that one slot). Otherwise it fizzles, so two
 ## in a row both fizzle: each has a coupon beside it.
+## Shelf swap (v1.28, `different`) is its mirror: different products on both sides count as
+## adjacent and the second pays ×factor; the same product on both sides fizzles.
 
 @export var factor: int = 1
+## If true (Shelf swap), the two products must differ instead of being the same product.
+@export var different: bool = false
 
 
 func modify_context(state: ScoreState, slot: int) -> void:
@@ -24,9 +28,12 @@ func wasted_reason(state: ScoreState, slot: int) -> String:
 	return _problem(state, slot)
 
 
-static func _problem(state: ScoreState, slot: int) -> String:
+func _problem(state: ScoreState, slot: int) -> String:
 	if not state.is_product(slot - 1) or not state.is_product(slot + 1):
 		return "no item on both sides"
-	if not state.definition(slot - 1).is_same_product(state.definition(slot + 1)):
+	var same: bool = state.definition(slot - 1).is_same_product(state.definition(slot + 1))
+	if different and same:
+		return "the same item on both sides"
+	if not different and not same:
 		return "not the same item on both sides"
 	return ""

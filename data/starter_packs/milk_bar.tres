@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="StarterPackDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/starter_pack_definition.gd" id="1_pack"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="2_card"]
+[ext_resource type="Resource" path="res://data/cards/cereal.tres" id="c_cereal"]
+[ext_resource type="Resource" path="res://data/cards/yogurt.tres" id="c_yogurt"]
+[ext_resource type="Resource" path="res://data/cards/cream_big.tres" id="c_cream_big"]
+[ext_resource type="Resource" path="res://data/cards/milk.tres" id="e_milk"]
+[ext_resource type="Resource" path="res://data/cards/banana.tres" id="e_banana"]
+[ext_resource type="Resource" path="res://data/upgrades/perfect_pair.tres" id="p_perk"]
+
+[resource]
+script = ExtResource("1_pack")
+id = &"milk_bar"
+display_name = "Milk bar"
+family = "Dairy"
+cards = Array[ExtResource("2_card")]([ExtResource("c_cereal"), ExtResource("c_yogurt"), ExtResource("c_cream_big")])
+hint_text = "PAIR up: Cereal beside Milk, Yogurt beside a Banana, +4 each. Cream +4 per PAIR."
+example_text = "Milk, Cereal, Banana, Yogurt, Big Cream: Cereal and Yogurt each PAIR for 2 + 4, Big Cream pays 4 + 8 for the two PAIRs. Total 30."
+example_cards = Array[ExtResource("2_card")]([ExtResource("e_milk"), ExtResource("c_cereal"), ExtResource("e_banana"), ExtResource("c_yogurt"), ExtResource("c_cream_big")])
+example_total = 30
+loyalty_perk = ExtResource("p_perk")

@@ -35,7 +35,8 @@ func test_placeholder_upgrades_match_the_plan() -> void:
 
 func test_live_upgrades_score_the_plan_examples() -> void:
 	var coupon: Array[UpgradeDefinition] = [_upgrade("coupon_engine")]
-	assert_int(Scoring.score(_row("bread,final_markdown"), coupon).total).is_equal(13)
+	# Final markdown pays nothing itself since v1.28 (it doubles the last item): nothing to double.
+	assert_int(Scoring.score(_row("final_markdown,bread"), coupon).total).is_equal(10)
 	assert_int(Scoring.score(_row("bread,repeat"), coupon).total).is_equal(15)
 	var category: Array[UpgradeDefinition] = [_upgrade("category_engine")]
 	assert_int(Scoring.score(_row("bread,banana"), category).total).is_equal(19)
@@ -56,7 +57,9 @@ func test_perk_levels_match_the_plan() -> void:
 		"bulk_deal": [3, 4, 5],
 	}
 	for aisle: String in FAMILIES:
-		numbers[aisle + "_regulars"] = [1, 2, 3]
+		# v1.28: only the four Regulars of the weak playstyles went up a step.
+		var boosted: bool = aisle in ["dairy", "snack", "household", "clearance"]
+		numbers[aisle + "_regulars"] = [2, 3, 4] if boosted else [1, 2, 3]
 		numbers[aisle + "_aisle_run"] = [3, 4, 5]
 	for family: String in numbers:
 		var upgrade: UpgradeDefinition = _upgrade(family)
@@ -73,12 +76,13 @@ func test_perk_levels_match_the_plan() -> void:
 		"big_basket", "rule_bender", "banana_stand", "lemon_squeezer", "fire_sale"
 	]:
 		assert_object(_upgrade(family).next_level).override_failure_message(family).is_null()
-	var row: String = "bread,final_markdown"
+	# Bread 5 and Repeat's copy of 5 ×2, ×3, ×4 (Final markdown's +4 until v1.28: 13, 17, 21).
+	var row: String = "bread,repeat"
 	var totals: Array[int] = []
 	for id: String in ["coupon_engine", "coupon_engine_lv2", "coupon_engine_lv3"]:
 		var perks: Array[UpgradeDefinition] = [_upgrade(id)]
 		totals.append(Scoring.score(_row(row), perks).total)
-	assert_array(totals).is_equal([13, 17, 21])
+	assert_array(totals).is_equal([15, 20, 25])
 	var balance: BalanceDefinition = load(BALANCE)
 	var top: Array[UpgradeDefinition] = [_upgrade("extra_redraw_lv3")]
 	var limits: ShiftLimits = ShiftLimits.for_shift(balance, top, 0)

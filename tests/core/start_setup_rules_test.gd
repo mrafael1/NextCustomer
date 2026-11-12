@@ -381,6 +381,22 @@ func test_new_packs_with_no_other_pack_is_disabled() -> void:
 	assert_bool(run.start_setup.packs_redrawn).is_false()
 
 
+## A pack needing an aisle (v1.28: the Snack stand, Snacks) is in the run's packs, its offer and
+## NEW PACKS only once that aisle is listable for the profile.
+func test_the_snack_stand_waits_for_the_snacks_aisle() -> void:
+	var stand: StarterPackDefinition = load("res://data/starter_packs/snack_stand.tres")
+	var fresh: ProfileState = Kit.profile(0)
+	for offset: int in 6:
+		var run: RunState = Kit.locked(fresh, SEED + offset)
+		assert_bool(run.starter.starter_packs.has(stand)).is_false()
+		assert_bool(run.start_offer.packs.has(stand)).is_false()
+		StartSetupRules.new_packs(run, fresh, Kit.new_packs_rng(run))
+		assert_bool(run.start_offer.packs.has(stand)).is_false()
+	var full: ProfileState = Kit.profile(_balance.aisles.size())
+	var open: RunState = Kit.locked(full, SEED)
+	assert_array(open.starter.starter_packs).is_equal(_recipe.starter_packs)
+
+
 func test_the_stage_moves_to_build_once() -> void:
 	var waiting: RunState = Kit.run(Kit.profile(0), SEED)
 	assert_bool(StartSetupRules.mark_build(waiting)).is_false()

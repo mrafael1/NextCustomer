@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="UpgradeDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/upgrades/upgrade_rule.gd" id="1_rule"]
+[ext_resource type="Script" path="res://core/upgrades/keyword_multiplier_rule.gd" id="2_rule_script"]
+[ext_resource type="Script" path="res://core/upgrade_definition.gd" id="3_upgrade"]
+[ext_resource type="Resource" path="res://data/upgrades/home_goods_lv2.tres" id="9_next_level"]
+
+[sub_resource type="Resource" id="Resource_rule"]
+script = ExtResource("2_rule_script")
+keyword = 4
+tag = "Household"
+factor = 2
+receipt_text = "Home goods"
+
+[resource]
+script = ExtResource("3_upgrade")
+id = &"home_goods"
+icon_ref = "res://art/icons/perk_home_goods.png"
+display_name = "Home goods"
+type = 12
+effect_text = "Household items pay ×2"
+condition_text = "Every Household item, wherever it sits"
+rules = Array[ExtResource("1_rule")]([SubResource("Resource_rule")])
+next_level = ExtResource("9_next_level")
+boosts_tag = "Household"

@@ -831,6 +831,8 @@ class FitUpgrade:
 	var fit: bool = false
 
 	func fits(
-		_deck: Array[CardDefinition], _families: PackedStringArray = PackedStringArray()
+		_deck: Array[CardDefinition],
+		_families: PackedStringArray = PackedStringArray(),
+		_pack_family: String = ""
 	) -> bool:
 		return fit
