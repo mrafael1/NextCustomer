@@ -1,16 +1,22 @@
 class_name HandbookPage
 extends Control
 ## The STAFF HANDBOOK (v1.06, mock-up keywords_guide.html, variant A, the user's pick: "a handbook
-## is the best"): a cream ring binder over the shaded screen that explains every word the tickets,
+## is the best"): a store ring binder over the shaded screen that explains every word the tickets,
 ## the monitor and the shift use, one entry at a time, all from data (HandbookBook).
 ##
-## The binder (BINDER at 1280x720) has its tabs (the book's groups) along its top edge and the
-## CLOSE plate at its right; under them the page: the picked tab's index on the left (each entry's
-## mark and title, the picked one mustard pale in an ink box), the binder rings down the spine, and
-## the picked entry on the right (HandbookEntryView) in a scrolling column, with the deep-link hint
-## under the index. Opening shades the screen and raises the binder RISE px in RISE_STEPS (at once
-## under `still`). It takes every click over the screen while open; Esc, CLOSE or a right-click
-## outside the binder closes it. It opens at the last entry viewed (the book's first at first).
+## Its look is the store's own pixel art (the guide polish of 2026-11-11): the binder's teal board
+## (frames/handbook_cover: a stitched groove, brass corner caps) with its index tabs (HandbookButton
+## TABs, the book's groups) tucked along its top edge and the CLOSE key (the primary tomato button)
+## at its right. On the board, left, the contents on a receipt (frames/receipt_paper): the teal
+## STAFF HANDBOOK sign (frames/sign) over the picked tab's entries (each one's mark and title, the
+## picked one marked by the price-gun tick on a mustard pale band) and the deep-link hint on a pin
+## card (frames/pin_card) at its foot (icons/right_click_hint: a tooltip and a mouse, its right
+## button lit; resting the pointer on it shows HINT_TIP); the steel binder rings
+## (icons/binder_ring) across the gutter; right, the picked entry (HandbookEntryView) on the popup
+## sheet (frames/popup, the title's popups' paper with its gold trim) in a scrolling column.
+## Opening shades the screen and raises the binder RISE px in RISE_STEPS (at once under `still`).
+## It takes every click over the screen while open; Esc, CLOSE or a right-click outside the binder
+## closes it. It opens at the last entry viewed (the book's first at first).
 ##
 ## Opened from the title's GUIDE plate, the shift's menu (TopBar's Guide), or a tooltip: a
 ## right-click while a tooltip shows opens that keyword's, family's or coupon's entry (mount wires
@@ -26,23 +32,48 @@ const BINDER := Rect2(64, 48, 1152, 640)
 const TAB_HEIGHT := 40.0
 const TAB_WIDTH := 160.0
 const TAB_GAP := 4.0
-const TAB_LEFT := 16.0
-const CLOSE_SIZE := Vector2(104, 34)
+const TAB_LEFT := 20.0
+## How far a tab tucks under the board's top edge (the picked one stands in front of it).
+const TAB_TUCK := 8.0
+const CLOSE_SIZE := Vector2(112, 40)
 const BORDER := 2.0
 const SHADOW := 6.0
 const SHADE_ALPHA := 0.72
-## The index column and the entry column, in the binder's coordinates.
-const INDEX_RECT := Rect2(16, 64, 262, 500)
-const ROW_SIZE := Vector2(262, 40)
+## The board's art and its 9-slice margin (art px), the pages', the hint card's and the rings'.
+const COVER := preload("res://art/frames/handbook_cover.png")
+const COVER_MARGIN := 5
+const INDEX_PAPER := preload("res://art/frames/receipt_paper.png")
+const INDEX_PAPER_MARGIN := 2
+const ENTRY_PAPER := preload("res://art/frames/popup.png")
+const ENTRY_PAPER_MARGIN := 4
+const HINT_CARD := preload("res://art/frames/pin_card.png")
+const HINT_CARD_MARGIN := 3
+const RING := preload("res://art/icons/binder_ring.png")
+const RING_SIZE := Vector2(28, 16)
+const RING_EVERY := 72.0
+## The pages on the board (binder coordinates): the contents receipt, the gutter the rings cross,
+## the entry's sheet.
+const INDEX_PAGE := Rect2(16, 16, 264, 608)
+const SPINE_X := 298.0
+const ENTRY_PAGE := Rect2(316, 16, 820, 608)
+## The index column, its rows, the sign over it and the hint card under it (binder coordinates).
+const TITLE_RECT := Rect2(28, 28, 240, 40)
+const INDEX_RECT := Rect2(28, 84, 240, 456)
+const ROW_SIZE := Vector2(240, 40)
 const ROW_GAP := 4.0
-const SPINE_X := 292.0
-const RING_SIZE := Vector2(16, 10)
-const RING_EVERY := 64.0
-const DETAIL_RECT := Rect2(318, 24, 818, 600)
-const HINT_RECT := Rect2(16, 582, 262, 44)
-const TITLE_RECT := Rect2(16, 20, 262, 28)
+const HINT_RECT := Rect2(28, 536, 240, 76)
+## The hint on the pin card (the guide feedback of 2026-11-11, round 3: "a mouse right clic icon"):
+## a tooltip beside a mouse with its right button lit, HINT_SCALE times its art, centred on the
+## card's paper face (above its HINT_FOOT px cream shade foot).
+const HINT_ICON := preload("res://art/icons/right_click_hint.png")
+const HINT_SCALE := 3.0
+const HINT_FOOT := 4.0
+## The hint's tooltip (round 4, "hovering it should show your textbox"): the game's own hover tip
+## (GlyphTips), so it takes no clicks and the page's wheel still scrolls.
+const HINT_TIP := "Right-click a tooltip to open its page."
+## The entry's scrolling column on the sheet, inside its gold trim.
+const DETAIL_RECT := Rect2(336, 32, 788, 584)
 const TITLE := "STAFF HANDBOOK"
-const HINT := "RIGHT-CLICK A TOOLTIP\nTO OPEN ITS PAGE"
 const CLOSE_TEXT := "CLOSE"
 const RISE := 24.0
 const RISE_STEPS := 4.0
@@ -88,14 +119,15 @@ func _init(book: HandbookBook = null) -> void:
 		)
 		tab_button.name = "Tab_%s" % group_id
 		tab_button.position = Vector2(
-			TAB_LEFT + (TAB_WIDTH + TAB_GAP) * index, -TAB_HEIGHT + BORDER
+			TAB_LEFT + (TAB_WIDTH + TAB_GAP) * index, -TAB_HEIGHT + TAB_TUCK
 		)
+		tab_button.show_behind_parent = true
 		tab_button.pressed.connect(show_group.bind(group_id))
 		_binder.add_child(tab_button)
 		_tabs[group_id] = tab_button
 	_close = HandbookButton.new(HandbookButton.Kind.CLOSE, CLOSE_TEXT, CLOSE_SIZE)
 	_close.name = "Close"
-	_close.position = Vector2(BINDER.size.x - CLOSE_SIZE.x - 12, -CLOSE_SIZE.y - 4)
+	_close.position = Vector2(BINDER.size.x - CLOSE_SIZE.x - 16, -CLOSE_SIZE.y - 2)
 	_close.pressed.connect(close)
 	_binder.add_child(_close)
 	_index = Control.new()
@@ -104,14 +136,31 @@ func _init(book: HandbookBook = null) -> void:
 	_index.position = INDEX_RECT.position
 	_index.size = INDEX_RECT.size
 	_binder.add_child(_index)
-	var title: Label = UiKit.pixel_label(TITLE, 2, Palette.INK)
+	var board: PanelContainer = UiKit.frame_panel(UiKit.SIGN_FRAME, FramedButton.FRAME_MARGIN)
+	board.name = "Sign"
+	board.position = TITLE_RECT.position
+	board.size = TITLE_RECT.size
+	_binder.add_child(board)
+	var title: Label = UiKit.pixel_label(TITLE, 2, Palette.PAPER)
 	title.name = "Title"
 	_binder.add_child(title)
-	UiKit.place_pixel_label(title, TITLE_RECT)
-	var hint: Label = UiKit.pixel_label(HINT, 2, Palette.TEAL_SHADE)
+	HandbookButton.centre_words(title, TITLE_RECT)
+	var card: PanelContainer = UiKit.frame_panel(HINT_CARD, HINT_CARD_MARGIN)
+	card.name = "HintCard"
+	card.position = HINT_RECT.position
+	card.size = HINT_RECT.size
+	_binder.add_child(card)
+	var hint: TipTarget = TipTarget.new()
 	hint.name = "Hint"
+	hint.texture = HINT_ICON
+	hint.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	hint.stretch_mode = TextureRect.STRETCH_SCALE
+	ArtStyle.use_pixel_material(hint)
+	hint.tip_text = HINT_TIP
+	hint.size = HINT_ICON.get_size() * HINT_SCALE
+	var face: Rect2 = HINT_RECT.grow_individual(0, 0, 0, -HINT_FOOT)
+	hint.position = (face.get_center() - hint.size / 2.0).round()
 	_binder.add_child(hint)
-	UiKit.place_pixel_label(hint, HINT_RECT)
 	_scroll = ScrollContainer.new()
 	_scroll.name = "Entry"
 	_scroll.position = DETAIL_RECT.position
@@ -218,7 +267,7 @@ func show_entry(entry_id: StringName) -> void:
 		_group = picked.group
 		_build_index()
 	for group_id: StringName in _tabs:
-		_tabs[group_id].picked = group_id == _group
+		_show_tab(_tabs[group_id], group_id == _group)
 	for index: int in range(_rows.size()):
 		_rows[index].picked = _row_entries[index] == entry_id
 	if _view != null:
@@ -234,7 +283,7 @@ func show_entry(entry_id: StringName) -> void:
 ## The entry a tooltip's target names: a keyword chip's keyword; on a coupon's ticket (its colour,
 ## its glyph, its price) that coupon's own entry; a family glyph's family; else its tip's first
 ## word (a ticket colour's "Breakfast colour", a family word) as a family or a keyword, or an
-## entry whose title opens the tip (a monitor line's "Spot check ...", "Opening deal ..."); a tip
+## entry whose title opens the tip (a monitor line's "Opening deal ...", "2 for 1 ..."); a tip
 ## that says WASTED opens WASTED. Null when none fits.
 func entry_for_target(target: TipTarget) -> HandbookEntry:
 	if target == null:
@@ -253,9 +302,14 @@ func entry_for_target(target: TipTarget) -> HandbookEntry:
 	return _entry_for_tip(target)
 
 
-## The entry a tip's text names (entry_for_target's last steps), or null.
+## The entry a tip's text names (entry_for_target's last steps): a keyword's tooltip's keyword,
+## else as entry_for_target says; or null.
 func _entry_for_tip(target: TipTarget) -> HandbookEntry:
 	var found: HandbookEntry = null
+	# A keyword's own tooltip (a MORNING mark's on the belt): its keyword's entry.
+	for keyword: String in GlyphText.KEYWORD_TIPS:
+		if target.tip_text == GlyphText.keyword_tip(keyword):
+			return _book.entry_for_keyword(keyword)
 	var words: PackedStringArray = target.tip_text.split(" ", false)
 	if not words.is_empty():
 		var first: String = words[0].rstrip(GlyphText.TRAILING)
@@ -323,6 +377,15 @@ func _input(event: InputEvent) -> void:
 			close()
 
 
+## A picked tab stands in front of the board, TAB_RISE taller; the others tuck behind it.
+static func _show_tab(tab_button: HandbookButton, picked: bool) -> void:
+	tab_button.picked = picked
+	tab_button.show_behind_parent = not picked
+	var rise: float = HandbookButton.TAB_RISE if picked else 0.0
+	tab_button.size.y = TAB_HEIGHT + rise
+	tab_button.position.y = -TAB_HEIGHT + TAB_TUCK - rise
+
+
 func _build_index() -> void:
 	for row: HandbookButton in _rows:
 		_index.remove_child(row)
@@ -330,10 +393,16 @@ func _build_index() -> void:
 	_rows.clear()
 	_row_entries.clear()
 	var listed: Array[HandbookEntry] = _book.entries_in(_group)
+	var marks: Array[Control] = []
+	var room: float = HandbookButton.MARK_ROOM
+	for listed_entry: HandbookEntry in listed:
+		var mark: Control = HandbookMark.make(listed_entry)
+		marks.append(mark)
+		room = maxf(room, mark.custom_minimum_size.x)
 	for index: int in range(listed.size()):
 		var listed_entry: HandbookEntry = listed[index]
 		var row: HandbookButton = HandbookButton.new(
-			HandbookButton.Kind.ROW, listed_entry.title, ROW_SIZE, HandbookMark.make(listed_entry)
+			HandbookButton.Kind.ROW, listed_entry.title, ROW_SIZE, marks[index], room
 		)
 		row.name = "Row_%s" % listed_entry.id
 		row.position = Vector2(0, (ROW_SIZE.y + ROW_GAP) * index)
@@ -364,29 +433,26 @@ func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), Color(Palette.INK, SHADE_ALPHA))
 
 
-## The binder's body: a hard ink shadow, an ink outline round the cream page, a cream shade
-## index column with its spine and the binder rings down it.
+## The binder's body: a hard ink shadow, the teal board, the contents receipt and the entry's sheet
+## on it with their hard shadows, and the steel rings across the gutter between them.
 class _Binder:
 	extends Control
 
 	func _init() -> void:
 		name = "Binder"
 		mouse_filter = Control.MOUSE_FILTER_STOP
+		ArtStyle.use_pixel_material(self)
 
 	func _draw() -> void:
 		var rect: Rect2 = Rect2(Vector2.ZERO, size)
 		draw_rect(Rect2(Vector2.ONE * SHADOW, size), Palette.INK)
-		draw_rect(rect, Palette.INK)
-		var page: Rect2 = rect.grow(-BORDER)
-		draw_rect(page, Palette.CREAM)
-		draw_rect(Rect2(page.position, Vector2(page.size.x, BORDER)), Palette.PAPER)
-		var column: Rect2 = Rect2(page.position, Vector2(SPINE_X - BORDER, page.size.y))
-		draw_rect(column, Palette.CREAM_SHADE)
-		draw_rect(Rect2(SPINE_X, BORDER, BORDER, page.size.y), Palette.INK)
-		var y: float = RING_EVERY
-		while y < size.y - RING_EVERY / 2.0:
-			var ring: Rect2 = Rect2(Vector2(SPINE_X - RING_SIZE.x / 2.0 + 1.0, y), RING_SIZE)
-			draw_rect(ring, Palette.INK)
-			draw_rect(ring.grow(-BORDER), Palette.STEEL_LIGHT)
-			draw_rect(Rect2(ring.position + Vector2(BORDER, BORDER), Vector2(4, 2)), Palette.PAPER)
+		draw_style_box(ArtStyle.frame_style(COVER, COVER_MARGIN), rect)
+		for page: Rect2 in [INDEX_PAGE, ENTRY_PAGE]:
+			draw_rect(Rect2(page.position + Vector2.ONE * BORDER, page.size), Palette.TEAL_BLACK)
+		draw_style_box(ArtStyle.frame_style(INDEX_PAPER, INDEX_PAPER_MARGIN), INDEX_PAGE)
+		draw_style_box(ArtStyle.frame_style(ENTRY_PAPER, ENTRY_PAPER_MARGIN), ENTRY_PAGE)
+		var y: float = ENTRY_PAGE.position.y + RING_EVERY / 2.0
+		while y < ENTRY_PAGE.end.y - RING_SIZE.y:
+			var at: Vector2 = Vector2(SPINE_X - RING_SIZE.x / 2.0, y)
+			draw_texture_rect(RING, Rect2(at, RING_SIZE), false)
 			y += RING_EVERY

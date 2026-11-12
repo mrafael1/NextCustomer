@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## The FIGURINE BOOK button's NEW tag (v1.26, ToyNewTag): a draw's new figurine puts it up once
+## The FIGURINE BOOK button's NEW tag (v1.30, ToyNewTag): a draw's new figurine puts it up once
 ## the figurine has joined its lineup card (not at the draw), it hangs over the button's top
 ## right corner inside the screen, clear of the LED strip and DONE, its word inside the tag; it
 ## stays up through reopening the screen and goes when the book opens, which marks the figurines

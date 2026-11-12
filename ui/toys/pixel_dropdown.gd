@@ -1,6 +1,6 @@
 class_name PixelDropdown
 extends Control
-## A dropdown in hard pixel words (v1.26 round 7; it generalises round 5's SORT dropdown, the user:
+## A dropdown in hard pixel words (v1.30 round 7; it generalises round 5's SORT dropdown, the user:
 ## "sort by family can be removed from sort and have its own dropdown"): one teal plate reading its
 ## prefix and the picked option ("SORT: BOOK ORDER", "FAMILY: [glyph] BAKERY") with a paper arrow at
 ## its right end, which opens a list in the pixel popup frame (frames/popup.png, the title popups')

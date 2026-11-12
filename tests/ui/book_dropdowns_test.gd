@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## The FIGURINE BOOK's dropdowns (PixelDropdown; v1.26 round 5's SORT dropdown, round 7's FAMILY
+## The FIGURINE BOOK's dropdowns (PixelDropdown; v1.30 round 5's SORT dropdown, round 7's FAMILY
 ## dropdown, the user: "sort by family can be removed from sort and have its own dropdown
 ## somewhere where old bookmarks where ... sort can keep newest / food / non-food. it will sort
 ## selected first dropdown"; memory: UI tests check on-screen geometry). Closed, the FAMILY plate

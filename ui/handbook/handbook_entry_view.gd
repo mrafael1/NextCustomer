@@ -1,27 +1,40 @@
 class_name HandbookEntryView
 extends VBoxContainer
-## One handbook entry on the binder's right page (v1.06, mock-up keywords_guide.html's entry
-## layout): its head (the mark at 2x, the title in the display font, the tab's name), the rule in
-## one bold sentence, the example (HandbookClip on the entry's real score, then the worked
-## equation with every payout that differs from its printed price in orange, and the note), the
-## longer details, and the cards that use it (their sprites, each with its name as a tooltip). All
-## text comes from the entry's data; every number from the score.
+## One handbook entry on the binder's sheet (v1.06, mock-up keywords_guide.html's entry layout;
+## dressed in the store's pixel art by the guide polish of 2026-11-11): its head (the mark at 2x,
+## the title in the display font, the tab's name on a teal store sign, frames/sign) over a dashed
+## receipt rule, the rule in one bold sentence (HandbookText: its keywords, items, coupons and
+## families in their own colours), then for an entry with an example the example (HandbookClip:
+## the shift's own counter on the entry's real score) and the worked equation printed on a receipt
+## slip (frames/receipt_paper; the cards' names in the rule's item violet and coupon teal, every
+## payout that differs from its printed price in orange). A family's or the coupon intro's entry
+## has no example: its page ends at the rule (the guide feedback of 2026-11-11 removed the notes
+## under the slip and the USED BY shelf). All text comes from the entry's data; every number from
+## the score.
 
 const TITLE_SIZE := 30
 const RULE_SIZE := 18
 const RULE_WEIGHT := 700
 const EQUATION_SIZE := 18
-const BODY_SIZE := 15
 const SEPARATION := 12
 const HEAD_SEPARATION := 14
-const USED_BY := "USED BY"
-const CARD_SIZE := Vector2(48, 48)
-const CAPTION_GAP := 10.0
+## The tab's name on its store sign, SIGN_HEIGHT tall, SIGN_PADDING px each side of the words.
+const SIGN_PADDING := 10.0
+const SIGN_HEIGHT := 28.0
+## The receipt's dashed rule under the head: DASH px on, DASH px off.
+const DASH := 4.0
+const RULE_HEIGHT := 2.0
+## The equation's receipt slip: its paper (2 art px margins) and the room round the text.
+const SLIP := preload("res://art/frames/receipt_paper.png")
+const SLIP_MARGIN := 2
+const SLIP_PADDING := Vector4(14, 8, 14, 8)
+## A payout that differs from its printed price, and the total, on the slip.
+const MARKED_INK := Palette.ORANGE_DARK
 
 var _entry: HandbookEntry
 var _clip: HandbookClip
 var _equation: RichTextLabel
-var _rule: Label
+var _rule: RichTextLabel
 
 
 ## The view of `shown`, `width` wide (its tab's title `group_title`); its clip is `still` under
@@ -33,22 +46,16 @@ func _init(shown: HandbookEntry, width: float, group_title: String, still: bool)
 	custom_minimum_size = Vector2(width, 0)
 	add_theme_constant_override("separation", SEPARATION)
 	_add_head(group_title)
-	_rule = _wrapped(shown.rule, RULE_SIZE, Palette.INK, width)
+	add_child(DashedRule.new(width))
+	_rule = HandbookText.label(shown.rule, RULE_SIZE, Palette.INK, width, RULE_WEIGHT)
 	_rule.name = "Rule"
-	_rule.add_theme_font_override("font", ArtStyle.bold_font(RULE_WEIGHT))
 	add_child(_rule)
 	var example: HandbookExample = HandbookExample.of(shown)
 	if example.is_scored():
 		_clip = HandbookClip.new(example, width)
 		_clip.still = still
 		add_child(_clip)
-		_equation = _equation_label(example, width)
-		add_child(_equation)
-	if not shown.example_note.is_empty():
-		add_child(_wrapped(shown.example_note, BODY_SIZE, Palette.INK_LIGHT, width))
-	if not shown.details.is_empty():
-		add_child(_wrapped(shown.details, BODY_SIZE, Palette.INK, width))
-	_add_cards()
+		add_child(_slip(example, width))
 
 
 func _ready() -> void:
@@ -70,7 +77,8 @@ func equation_text() -> String:
 	return _equation.get_parsed_text() if _equation != null else ""
 
 
-func rule_label() -> Label:
+## The rule, its terms coloured (HandbookText).
+func rule_label() -> RichTextLabel:
 	return _rule
 
 
@@ -86,15 +94,36 @@ func _add_head(group_title: String) -> void:
 	title.name = "Title"
 	title.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	head.add_child(title)
-	var group: Label = UiKit.pixel_label(group_title, 2, Palette.TEAL_SHADE)
-	group.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	var holder: Control = Control.new()
-	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	holder.custom_minimum_size = UiKit.pixel_text_size(group)
-	holder.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	holder.add_child(group)
-	head.add_child(holder)
+	head.add_child(_sign(group_title))
 	add_child(head)
+
+
+## The tab's name in paper pixel words on a teal store sign.
+static func _sign(text: String) -> Control:
+	var words: Label = UiKit.pixel_label(text, 2, Palette.PAPER)
+	var wide: float = HandbookButton.words_width(words) + SIGN_PADDING * 2.0
+	var board: Vector2 = Vector2(wide, SIGN_HEIGHT).snappedf(ArtStyle.ART_SCALE)
+	var holder: Control = Control.new()
+	holder.name = "Group"
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	holder.custom_minimum_size = board
+	holder.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var plate: PanelContainer = UiKit.frame_panel(UiKit.SIGN_FRAME, FramedButton.FRAME_MARGIN)
+	plate.size = board
+	holder.add_child(plate)
+	holder.add_child(words)
+	HandbookButton.centre_words(words, Rect2(Vector2.ZERO, board - Vector2(0, 2)))
+	return holder
+
+
+## The worked equation printed on a receipt slip.
+func _slip(example: HandbookExample, width: float) -> Control:
+	var slip: PanelContainer = UiKit.frame_panel(SLIP, SLIP_MARGIN, SLIP_PADDING)
+	slip.name = "Slip"
+	slip.custom_minimum_size = Vector2(width, 0)
+	_equation = _equation_label(example, width - SLIP_PADDING.x - SLIP_PADDING.z)
+	slip.add_child(_equation)
+	return slip
 
 
 func _equation_label(example: HandbookExample, width: float) -> RichTextLabel:
@@ -111,51 +140,41 @@ func _equation_label(example: HandbookExample, width: float) -> RichTextLabel:
 	var text: String = ""
 	for part: Array in example.equation_parts():
 		var shown: String = str(part[0]).replace("[", "[lb]")
-		if bool(part[1]):
-			text += "[color=#%s]%s[/color]" % [Palette.ORANGE_DARK.to_html(false), shown]
-		else:
+		var paint: HandbookExample.Paint = part[1]
+		var ink: Color = equation_ink(paint)
+		if ink == Palette.INK:
 			text += shown
+		else:
+			text += "[color=#%s]%s[/color]" % [ink.to_html(false), shown]
 	label.text = text
 	return label
 
 
-func _add_cards() -> void:
-	var cards: Array[CardDefinition] = []
-	for card_id: String in _entry.cards:
-		var card: CardDefinition = FamilyPalette.data_card(card_id)
-		if card != null:
-			cards.append(card)
-	if cards.is_empty():
-		return
-	var row: HBoxContainer = HBoxContainer.new()
-	row.name = "UsedBy"
-	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_theme_constant_override("separation", 6)
-	var caption: Label = UiKit.pixel_label(USED_BY, 2, Palette.TEAL_SHADE)
-	var holder: Control = Control.new()
-	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# The caption's drawn words (its font at PIXEL_TEXT_SIZE, scaled), CAPTION_GAP before the cards.
-	var words: Vector2 = ArtStyle.pixel_display_font().get_string_size(
-		USED_BY, HORIZONTAL_ALIGNMENT_LEFT, -1, ArtStyle.PIXEL_TEXT_SIZE
-	)
-	holder.custom_minimum_size = Vector2(
-		ceilf(words.x * caption.scale.x) + CAPTION_GAP, UiKit.pixel_text_size(caption).y
-	)
-	holder.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	holder.add_child(caption)
-	row.add_child(holder)
-	for card: CardDefinition in cards:
-		var sprite: TextureRect = UiKit.sprite(ArtStyle.item_sprite(card))
-		sprite.custom_minimum_size = CARD_SIZE
-		sprite.mouse_filter = Control.MOUSE_FILTER_PASS
-		sprite.tooltip_text = card.display_name
-		row.add_child(sprite)
-	add_child(row)
+## The ink of an equation part painted `paint`: a marked amount in orange dark, an item's name in
+## the rule's item ink, a coupon's in the coupon ticket's teal (HandbookText; no icon, no face, so
+## the slip keeps its one line); else ink.
+static func equation_ink(paint: HandbookExample.Paint) -> Color:
+	match paint:
+		HandbookExample.Paint.MARKED:
+			return MARKED_INK
+		HandbookExample.Paint.ITEM:
+			return HandbookText.ITEM_INK
+		HandbookExample.Paint.COUPON:
+			return HandbookText.COUPON_FACE
+	return Palette.INK
 
 
-## A body-font label `width` wide that wraps.
-static func _wrapped(text: String, font_size: int, color: Color, width: float) -> Label:
-	var label: Label = UiKit.body_label(text, font_size, color)
-	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	label.custom_minimum_size = Vector2(width, 0)
-	return label
+## The receipt's dashed rule, `width` wide, in grey light.
+class DashedRule:
+	extends Control
+
+	func _init(width: float) -> void:
+		name = "DashedRule"
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		custom_minimum_size = Vector2(width, RULE_HEIGHT)
+
+	func _draw() -> void:
+		var x: float = 0.0
+		while x < size.x:
+			draw_rect(Rect2(x, 0, minf(DASH, size.x - x), RULE_HEIGHT), Palette.GREY_LIGHT)
+			x += DASH * 2.0

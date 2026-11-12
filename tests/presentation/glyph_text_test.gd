@@ -86,8 +86,8 @@ func test_the_batch_keyword_is_a_chip_glued_to_the_next_word() -> void:
 	assert_array(Array(GlyphText.keywords("2 per batch", _palette()))).is_empty()
 	assert_str(GlyphText.keyword_tip("BATCH")).is_equal(
 		(
-			"BATCH · 2 or more Bakery side by side make one batch. "
-			+ "Each card's line says where in its batch it works."
+			"Put Bakery items side by side to make a BATCH. Some cards care about their spot "
+			+ "in it: Croissant first, Stale doughnut last."
 		)
 	)
 
@@ -102,9 +102,8 @@ func test_the_chain_keyword_is_a_chip() -> void:
 	assert_array(Array(GlyphText.keywords("+1 each, next CHAIN", _palette()))).is_equal(["CHAIN"])
 	assert_str(GlyphText.keyword_tip("CHAIN")).is_equal(
 		(
-			"CHAIN · 2 or more Bananas linked one after another. "
-			+ "Each Banana adds the price of the one before it. "
-			+ "Each card's line says where by the chain it works."
+			"Put Bananas next to each other to make a CHAIN. Each Banana adds the price of "
+			+ "the one before it, so longer chains pay more."
 		)
 	)
 	assert_str(GlyphText.keyword_tip("NOPE")).is_empty()

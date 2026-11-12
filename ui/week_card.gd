@@ -512,7 +512,7 @@ static func effect_line(
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	label.add_theme_font_override("normal_font", ArtStyle.bold_font(700))
-	label.add_theme_font_size_override("normal_font_size", font_size)
+	label.add_theme_font_size_override("normal_font_size", UiKit.text_size(font_size))
 	label.add_theme_color_override("default_color", ink)
 	label.text = effect_bbcode(model, on_paper)
 	return label
@@ -754,7 +754,7 @@ static func _column(separation: int) -> VBoxContainer:
 
 
 static func _bold(text: String, font_size: int, color: Color) -> Label:
-	var label: Label = UiKit.body_label(text, font_size, color)
+	var label: Label = UiKit.body_label(text, UiKit.text_size(font_size), color)
 	label.add_theme_font_override("font", ArtStyle.bold_font(700))
 	return label
 

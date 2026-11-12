@@ -167,7 +167,7 @@ func show_card(definition: CardDefinition, tags: PackedStringArray) -> void:
 	)
 	if not shown.is_empty():
 		y = _build_counts(shown, palette, y)
-	_rule = UiKit.body_label(definition.rule_text, RULE_SIZE, Palette.INK)
+	_rule = UiKit.body_label(definition.rule_text, UiKit.text_size(RULE_SIZE), Palette.INK)
 	_rule.add_theme_constant_override("line_spacing", RULE_LINE_SPACING)
 	_rule.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	y = _add_text(_rule, y, -1.0)
@@ -196,7 +196,9 @@ func show_upgrade(upgrade: UpgradeDefinition, now_text: String = "") -> void:
 	_build_title(upgrade.display_name, LOYALTY_TITLE if level <= 1 else "LV %d" % level, y)
 	y += HEADER_HEIGHT
 	var tag_label: Label = UiKit.body_label(
-		TAG_SEPARATOR.join([upgrade.type_label(), LOYALTY_WHEN]), TAG_SIZE, Palette.GREY_DARK
+		TAG_SEPARATOR.join([upgrade.type_label(), LOYALTY_WHEN]),
+		UiKit.text_size(TAG_SIZE),
+		Palette.GREY_DARK
 	)
 	y = _add_text(tag_label, y, TAG_HEIGHT)
 	var rule: String = upgrade.effect_text
@@ -204,7 +206,7 @@ func show_upgrade(upgrade: UpgradeDefinition, now_text: String = "") -> void:
 		rule += "\n" + upgrade.condition_text
 	if not now_text.is_empty():
 		rule += "\n" + LOYALTY_NOW % now_text
-	_rule = UiKit.body_label(rule, RULE_SIZE, Palette.INK)
+	_rule = UiKit.body_label(rule, UiKit.text_size(RULE_SIZE), Palette.INK)
 	_rule.add_theme_constant_override("line_spacing", RULE_LINE_SPACING)
 	_rule.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	y = _add_text(_rule, y, -1.0)
@@ -391,7 +393,7 @@ func _build_line(definition: CardDefinition, palette: FamilyPalette, top: float)
 	var font: Font = ArtStyle.bold_font(LINE_WEIGHT)
 	var glyph_room: float = ArtStyle.FAMILY_GLYPH_SIZE + LINE_GLYPH_GAP if named != null else 0.0
 	var width: float = CONTENT_WIDTH - LINE_SWATCH_ROOM - glyph_room
-	_line = UiKit.body_label(text, LINE_SIZE, Palette.INK)
+	_line = UiKit.body_label(text, UiKit.text_size(LINE_SIZE), Palette.INK)
 	_line.name = LINE_NAME
 	_line.add_theme_font_override("font", font)
 	_line.add_theme_constant_override("line_spacing", LINE_SPACING)

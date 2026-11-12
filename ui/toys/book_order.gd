@@ -1,6 +1,6 @@
 class_name BookOrder
 extends RefCounted
-## What the FIGURINE BOOK (v1.26 round 2) holds and in what order, from data alone: every
+## What the FIGURINE BOOK (v1.30 round 2) holds and in what order, from data alone: every
 ## product of the balance once (its staples, then each aisle's products in balance.aisles order,
 ## base ones before capsule ones), each in its main family (CardFamilies.main_family with the
 ## palette's main_family_order). A starter (a staple or an aisle's base product) is always owned;

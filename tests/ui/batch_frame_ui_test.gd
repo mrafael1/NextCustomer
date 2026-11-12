@@ -131,7 +131,7 @@ func test_a_batch_cards_ticket_prints_the_batch_chip() -> void:
 		var chip: KeywordChip = chips[0]
 		assert_str(chip.keyword).is_equal(CardText.BATCH_WORD)
 		assert_str(chip.tip_text).is_equal(GlyphText.keyword_tip(CardText.BATCH_WORD))
-		assert_str(chip.tip_text).starts_with("BATCH · 2 or more Bakery side by side")
+		assert_str(chip.tip_text).starts_with("Put Bakery items side by side")
 		assert_bool(chip.tip_below).is_true()
 		assert_object(chip.tip_anchor).is_same(sticker)
 		assert_bool(chip.is_wasted()).is_false()
@@ -162,7 +162,7 @@ func test_a_batch_cards_ticket_prints_the_batch_chip() -> void:
 		var chain_chips: Array[KeywordChip] = chain.summary().keywords()
 		assert_int(chain_chips.size()).override_failure_message(id).is_equal(1)
 		assert_str(chain_chips[0].keyword).is_equal(CardText.CHAIN_WORD)
-		assert_str(chain_chips[0].tip_text).starts_with("CHAIN · 2 or more Bananas")
+		assert_str(chain_chips[0].tip_text).starts_with("Put Bananas next to each other")
 		assert_that(chain_chips[0].face_color()).is_equal(Palette.PAPER)
 		var produce: FamilyStyle = FamilyPalette.shared().style("Produce")
 		assert_that(KeywordChip.dot_family(CardText.CHAIN_WORD).face).is_equal(produce.face)

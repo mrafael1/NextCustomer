@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## The FIGURINE BOOK (v1.26 round 2; memory: UI tests check on-screen geometry): on every spread,
+## The FIGURINE BOOK (v1.30 round 2; memory: UI tests check on-screen geometry): on every spread,
 ## in every sort and filter, each card sits in its pocket on its page inside the binder inside
 ## the 1280x720 stage, its name inside the band, its figurine inside the window and its whole
 ## description inside the paper (the longest rules included); the tabs, the LEDs, the title and

@@ -65,6 +65,12 @@ const BUILD_FONT_SIZE := 14
 static var _lit_request: bool = false
 ## Tests turn this off so starting doesn't replace the test runner's scene.
 var changes_scene: bool = true
+## The title offers QUIT (the plate under GUIDE and OPTIONS, and Esc): the desktop game only, as
+## the web build's tab is closed instead. Set before the title enters the tree.
+var quit_offered: bool = not OS.has_feature("web")
+## Closes the game once QUIT GAME? is answered YES (tests record it instead).
+var quit_game: Callable = func() -> void: get_tree().quit()
+
 var _starting: bool = false
 ## The run save found at start, or null. Read without reporting or backing up anything: the
 ## shift screen does that when it loads the save.
@@ -90,10 +96,18 @@ var _guide: HandbookPage
 var _rewards_pending: bool = false
 ## The New run question (only with a run saved).
 var _confirm: AbandonConfirm
+## The quit question (only when quit_offered).
+var _quit: QuitConfirm
 var _export: TextureButton
 var _build: Label
 ## The TOY MACHINES over the title, made the first time they open.
 var _toys: ToyMachinesScreen
+## The OPTIONS popup, the profile it edits (a fresh one, never saved, when the saved profile
+## can't be read) and how its settings apply.
+var _options: OptionsCard
+var _profile: ProfileState
+var _profile_readable: bool = true
+var _settings: GameSettings = GameSettings.new()
 @onready var _log: EventLogService = get_node("/root/EventLog")
 @onready var _music: MusicService = get_node("/root/Music")
 
@@ -109,6 +123,9 @@ func _ready() -> void:
 	_coins = peek_coins(saves)
 	var profile: ProfileState = saves.peek_profile()
 	_still = profile != null and profile.reduced_motion()
+	_profile_readable = profile != null
+	_profile = profile if profile != null else ProfileState.new()
+	_settings.apply(_profile, _music, true)
 
 	_storefront = Storefront.new()
 	_storefront.still = _still
@@ -125,13 +142,15 @@ func _ready() -> void:
 		if _saved_run == null
 		else TitleMenu.continue_line(_saved_run)
 	)
-	_menu = TitleMenu.new(_saved_run != null, sub_line, _coins)
+	_menu = TitleMenu.new(_saved_run != null, sub_line, _coins, quit_offered)
 	_menu.still = _still
 	_menu.hot_changed.connect(_on_hot_changed)
 	_menu.start_pressed.connect(_on_start_pressed)
 	_menu.new_run_pressed.connect(_on_new_run_pressed)
 	_menu.rewards_pressed.connect(_on_rewards_pressed)
 	_menu.guide_pressed.connect(_on_guide_pressed)
+	_menu.options_pressed.connect(_on_options_pressed)
+	_menu.quit_pressed.connect(_on_quit_pressed)
 	stage.add_child(_menu)
 	_add_corner(stage)
 	_storefront.sign_lit.connect(_on_sign_lit)
@@ -141,8 +160,17 @@ func _ready() -> void:
 		_confirm.still = _still
 		_confirm.abandon_confirmed.connect(_on_abandon_confirmed)
 		add_child(_confirm)
+	if quit_offered:
+		_quit = QuitConfirm.new()
+		_quit.still = _still
+		_quit.quit_confirmed.connect(_on_quit_confirmed)
+		add_child(_quit)
 	_guide = HandbookPage.mount(self, null)
 	_guide.still = _still
+	_options = OptionsCard.new()
+	_options.still = _still
+	_options.closed.connect(_on_options_closed)
+	add_child(_options)
 	if _still:
 		_storefront.light_now()
 	if take_lit_request():
@@ -227,6 +255,11 @@ func abandon_confirm() -> AbandonConfirm:
 	return _confirm
 
 
+## The quit question, or null when the title offers no quit (the web build).
+func quit_confirm() -> QuitConfirm:
+	return _quit
+
+
 func export_button() -> TextureButton:
 	return _export
 
@@ -297,7 +330,9 @@ func _busy() -> bool:
 		or _rewards_pending
 		or toy_machines_open()
 		or (_confirm != null and _confirm.is_open())
+		or (_quit != null and _quit.is_open())
 		or (_guide != null and _guide.is_open())
+		or (_options != null and _options.is_open())
 	)
 
 
@@ -354,6 +389,10 @@ func _mark_from_scene(entry: TitleMenu.Entry) -> void:
 ## start at once) leaves it to the shift screen's loop, so the front loop isn't loaded only to
 ## be faded out.
 func _input(event: InputEvent) -> void:
+	if _settings.toggle_on_key(event, _profile):
+		get_viewport().set_input_as_handled()
+		_save_settings()
+		return
 	if _music_started or not is_audio_gesture(event) or _presses_start_button(event):
 		return
 	_music_started = true
@@ -389,9 +428,16 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if _guide != null and _guide.is_open():
 		return
 	var handled: bool = false
-	if _confirm != null and _confirm.is_open():
+	if _options.is_open():
+		handled = _options.handle_key(event)
+	elif _confirm != null and _confirm.is_open():
 		handled = _confirm.handle_key(event)
+	elif _quit != null and _quit.is_open():
+		handled = _quit.handle_key(event)
 	elif not key.echo and skip_intro():
+		handled = true
+	elif key.keycode == KEY_ESCAPE and not key.echo and _quit != null:
+		_on_quit_pressed()
 		handled = true
 	else:
 		handled = _menu.handle_key(event)
@@ -419,9 +465,54 @@ func _on_guide_pressed() -> void:
 	_guide.open_at()
 
 
+## OPTIONS: the options popup opens over the dimmed storefront.
+func _on_options_pressed() -> void:
+	if _busy():
+		return
+	_sfx.play(UiKit.OPEN_SOUND)
+	_options.open(_profile, _settings, _music)
+
+
+## DONE or Esc: the profile is saved once, and each changed setting logged.
+func _on_options_closed() -> void:
+	for change: Dictionary in _options.changes():
+		_log.log_event("settings_change", change)
+	_save_settings()
+
+
+## Saves the settings into the saved profile as it is now (the TOY MACHINES may have saved it
+## since the title read it), unless it couldn't be read (then it is kept as it is).
+func _save_settings() -> void:
+	if not _profile_readable:
+		return
+	var saves: SaveService = SaveService.new(SaveService.default_folder())
+	var saved: ProfileState = saves.peek_profile()
+	if saved == null:
+		return
+	saved.settings = _profile.settings.duplicate(true)
+	saves.save_profile(saved)
+
+
+## The OPTIONS popup.
+func options() -> OptionsCard:
+	return _options
+
+
 ## The staff handbook (null before the title is ready).
 func guide() -> HandbookPage:
 	return _guide
+
+
+## QUIT or Esc: QUIT GAME? opens over the dimmed storefront.
+func _on_quit_pressed() -> void:
+	if _busy() or _quit == null:
+		return
+	_quit.open(_saved_run != null)
+
+
+## YES: the settings are already saved (each change saves them), so the game closes.
+func _on_quit_confirmed() -> void:
+	quit_game.call()
 
 
 func _on_new_run_pressed() -> void:

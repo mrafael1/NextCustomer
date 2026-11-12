@@ -1,6 +1,6 @@
 class_name FigurineBook
 extends Control
-## The FIGURINE BOOK (v1.26 round 2; it replaces the FIGURINE SHELF, the user: "transform to a
+## The FIGURINE BOOK (v1.30 round 2; it replaces the FIGURINE SHELF, the user: "transform to a
 ## glossary ... a card book, like a pokemon card book, with cards of items sorted by family,
 ## maybe a sorting feature too"): a 1280x720 stage (the TOY MACHINES' own, never scaled) of one
 ## 640x360 art scene at 2x (BookArt): the stock room after closing, a binder open on the counter

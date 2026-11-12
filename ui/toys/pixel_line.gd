@@ -7,7 +7,7 @@ extends Control
 ## line's width and the words' cap height (digits stand a little taller, icons are centred on
 ## the capitals). A word token is any text; a token of digits, "/" and "?" is a number (split
 ## turns a sentence into tokens); a Texture2D token is an icon drawn at 2x; a SEPARATOR token is
-## a drawn middle dot. v1.26 round 7 (the user: "non-food text has its '-' a bit weird"):
+## a drawn middle dot. v1.30 round 7 (the user: "non-food text has its '-' a bit weird"):
 ## Pixelify's hyphen has no bearing (it touched the N of NON-FOOD) and stood wide, so a word's
 ## hyphens are drawn by hand: DASH_WIDTH font px on the capitals' middle row (DASH_ROW), DASH_GAP
 ## clear of the letters each side (NON-FOOD, DAY-OLD BUNS); word_width measures the same.

@@ -1,6 +1,6 @@
 class_name BookCard
 extends Control
-## One card in the FIGURINE BOOK (v1.26 round 2; BookArt.card_face at 2x): an item as a trading
+## One card in the FIGURINE BOOK (v1.30 round 2; BookArt.card_face at 2x): an item as a trading
 ## card in its main family's ticket colours. Top down: its name in capitals on the
 ## family-coloured band (hard pixel words, in paper on a paper_text family; a name too wide sets
 ## its words closer, and only a name still too wide falls back to the bold body font), the

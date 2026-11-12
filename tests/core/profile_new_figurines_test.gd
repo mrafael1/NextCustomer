@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## The profile's new figurines (v1.26, the FIGURINE BOOK button's NEW tag): a draw adds its item,
+## The profile's new figurines (v1.30, the FIGURINE BOOK button's NEW tag): a draw adds its item,
 ## the rollback of a failed save takes it off again, the book marks items seen, the debug reset
 ## clears them, the saved form keeps them in draw order, and a profile saved before format 6
 ## (with no such field) reads unchanged with nothing new.
@@ -55,7 +55,7 @@ func test_the_saved_form_keeps_them_in_draw_order() -> void:
 	assert_object(ProfileState.from_dictionary(bad)).is_null()
 
 
-## A format 5 profile (before v1.26) reads with every field as it was and nothing new; saved
+## A format 5 profile (before v1.30) reads with every field as it was and nothing new; saved
 ## again, it writes format 6 with an empty list.
 func test_an_older_profile_reads_unchanged_with_nothing_new() -> void:
 	var old: Dictionary = {

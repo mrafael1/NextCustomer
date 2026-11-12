@@ -154,7 +154,7 @@ func _settle(slot: int) -> void:
 		return
 	# By weak reference: the receipt may start over (and free the row) before the timer ends.
 	var held: WeakRef = weakref(amount)
-	amount.get_tree().create_timer(LIFT_SECONDS).timeout.connect(
+	amount.get_tree().create_timer(LIFT_SECONDS, false).timeout.connect(
 		func() -> void: _lift(held.get_ref() as Label, false)
 	)
 

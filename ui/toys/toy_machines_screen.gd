@@ -6,7 +6,7 @@ extends Control
 ## the shared coin base) stands under its own recessed lamp by the glass doors. Pick a machine
 ## to spend a capsule's price on a capsule: CapsuleCounter draws, saves and logs it, the coin
 ## clinks, the counts drop and the reveal (ToyReveal) shows the item's icon alone for
-## ToyReveal.HOLD_S. FIGURINE BOOK opens the FIGURINE BOOK (FigurineBook, v1.26 round 2: the
+## ToyReveal.HOLD_S. FIGURINE BOOK opens the FIGURINE BOOK (FigurineBook, v1.30 round 2: the
 ## card book that replaced the shelf; its BACK returns here); DONE (or
 ## Escape with no machine picked) closes the screen. Coins can be kept: nothing asks to spend
 ## them.
@@ -28,7 +28,7 @@ extends Control
 ## SOLD OUT and COLLECTION COMPLETE on the strip once the collection is complete; the lids
 ## shut, padlocks on the price LEDs, a tomato 0 and a notice with 0 coins; otherwise the hint.
 ## FIGURINE BOOK is DONE's button in teal (v0.78: store fixtures, no plain boxes); a NEW tag
-## (ToyNewTag, v1.26) hangs on it while a drawn figurine hasn't been seen in the book yet.
+## (ToyNewTag, v1.30) hangs on it while a drawn figurine hasn't been seen in the book yet.
 ## Through the doors the street idles (ToyStreet, v0.79): a car's headlights now and then, the
 ## lamp's flicker.
 ##

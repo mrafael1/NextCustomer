@@ -1,6 +1,6 @@
 class_name BookEntry
 extends RefCounted
-## One card of the FIGURINE BOOK (v1.26, BookOrder): an item (a product of the balance, starters
+## One card of the FIGURINE BOOK (v1.30, BookOrder): an item (a product of the balance, starters
 ## included) in its main family (CardFamilies.main_family: the family its card shows), or a coupon
 ## (round 3) in the book's COUPON_FAMILY; whether the player owns it (a starter always; a capsule
 ## item once drawn; a coupon once played in a run that has ended, ProfileState.coupon_uses) and when

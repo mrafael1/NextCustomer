@@ -27,7 +27,7 @@ extends RefCounted
 ## Version 4 adds staple_swaps, stock_pair and the optional stock_run_only (the opening-time
 ## board's last choice); older profiles read with none set. Version 5 (v1.08) drops staple_swaps:
 ## regular swaps belong to their run only (the user: "swap should reset at each new run"), so a
-## version 4 profile's saved swaps are read past and never applied. Version 6 (v1.26) adds
+## version 4 profile's saved swaps are read past and never applied. Version 6 (v1.30) adds
 ## new_figurines (figurines drawn and not yet seen in the FIGURINE BOOK); older profiles read
 ## with nothing new.
 const FORMAT_VERSION := 6
@@ -40,6 +40,20 @@ const REDUCED_MOTION_KEY := "reduced_motion"
 ## The count-up speed setting's two values: Normal and Fast.
 const COUNT_UP_NORMAL := 1.0
 const COUNT_UP_FAST := 1.5
+## The settings keys of the options popup (#options): display mode, the two volumes and the
+## reading-text size, read with their accessors.
+const DISPLAY_KEY := "display"
+const MUSIC_VOLUME_KEY := "music_volume"
+const SOUND_VOLUME_KEY := "sound_volume"
+const TEXT_SIZE_KEY := "text_size"
+## The display setting's two values.
+const DISPLAY_WINDOWED := "windowed"
+const DISPLAY_FULLSCREEN := "fullscreen"
+## The volume settings' range and default (steps of a tenth).
+const VOLUME_MAX := 10
+const VOLUME_DEFAULT := 8
+## The text size setting's values, smallest first.
+const TEXT_SIZES: Array[String] = ["normal", "large", "larger"]
 ## The stats key of the runs won (#107).
 const RUNS_WON := &"runs_won"
 ## The derived stream name of a random pin purchase (#122), with the purchase's index:
@@ -53,7 +67,7 @@ var run_count: int = 0
 ## Unlocked capsule items: id -> the run index at whose exit it came out, in draw order
 ## (RunStock's `unlocked`).
 var unlocked_items: Dictionary[StringName, int] = {}
-## Capsule items drawn but not yet seen in the FIGURINE BOOK (v1.26: its button's NEW tag), in
+## Capsule items drawn but not yet seen in the FIGURINE BOOK (v1.30: its button's NEW tag), in
 ## draw order. draw_capsule adds the item; mark_figurines_seen takes items off.
 var new_figurines: Array[StringName] = []
 ## The last shopping list (aisle ids), the next list's default (full build plan 7.2).
@@ -90,7 +104,8 @@ var has_capsule_seed: bool = false
 ## item count when the seed is set, so an older profile's draws never repeat a stream.
 var capsule_draws: int = 0
 ## Player settings by name, JSON values only. Read and change the known ones with their
-## accessors (count_up_speed, reduced_motion), which tolerate a missing or wrong-typed value.
+## accessors (count_up_speed, reduced_motion; ProfileSettings for the options popup's), which
+## tolerate a missing or wrong-typed value.
 var settings: Dictionary = {}
 
 

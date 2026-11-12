@@ -1,6 +1,6 @@
 class_name ToyCompletedCard
 extends Control
-## The COMPLETED! card (v1.05, mock-up toy_shelf_unlock.html, "The COMPLETED! card"; v1.26
+## The COMPLETED! card (v1.05, mock-up toy_shelf_unlock.html, "The COMPLETED! card"; v1.30
 ## polish, the user's asks): when a capsule completes its aisle (StartSetupRules.completed: every
 ## item of the aisle collected), the TOY MACHINES' figurine join (ToyLineupJoin) pops this card
 ## over its shade. On the popup frame: the aisle's sign band (its glyph and name, both at 2x), a
@@ -9,7 +9,7 @@ extends Control
 ## stamped on the aisle's name (review fix: it sat under the band): its ring and wash cross the
 ## lower part of the name, which still reads above and through it. No rules, pips or stock footer
 ## since
-## v1.26: what a completion unlocks is for the next run's tutorial to explain. It needs OK: it
+## v1.30: what a completion unlocks is for the next run's tutorial to explain. It needs OK: it
 ## arms ResultsPanel.ARM_MS after it is shown, once the mouse is up; then OK, a click anywhere on
 ## the join, Enter or Space close it (`closed`). Sizes in canvas px.
 

@@ -1,6 +1,6 @@
 class_name ToyNewTag
 extends Control
-## The FIGURINE BOOK button's NEW tag (v1.26, the user: "when a new item is unlocked, show a new
+## The FIGURINE BOOK button's NEW tag (v1.30, the user: "when a new item is unlocked, show a new
 ## tag on figurine shelf button"): a tomato price tag (icons/new_tag.png at 2x, pointed left with
 ## its string hole) with NEW in paper hard pixel words, hung over the button's top right corner.
 ## It shows while the profile has figurines not yet seen in the book (ProfileState.

@@ -5,7 +5,7 @@ extends GdUnitTestSuite
 ## flips into colour, and only then do the FIGURINES LED, the plate and the window count it (held
 ## from the draw); a tap ends the look. A capsule that completes its aisle turns the band gold
 ## (ALL COLLECTED) and shows the COMPLETED! card, which waits for OK, then SOLD OUT; the last
-## capsule of all opens COLLECTION COMPLETE at the end. The card (v1.26) is the aisle's band with
+## capsule of all opens COLLECTION COMPLETE at the end. The card (v1.30) is the aisle's band with
 ## the COMPLETED stamp slammed onto it and OK, no rules, pips or footer. Every piece stays on
 ## screen, clear of the others. Saves and logs go to a temporary
 ## folder.

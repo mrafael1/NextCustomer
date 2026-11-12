@@ -1,6 +1,6 @@
 class_name BookPageTurn
 extends Control
-## The FIGURINE BOOK's page turn (v1.26 round 2): a sleeve page swinging over the rings, drawn on
+## The FIGURINE BOOK's page turn (v1.30 round 2): a sleeve page swinging over the rings, drawn on
 ## the 2 px art grid. Turning forward, the right page lifts and narrows towards the spine (the
 ## next spread's right page shows from under it), then opens over the left page and lands; back,
 ## the same mirrored. Its width follows an ease in and out over TURN_S, in whole art px every

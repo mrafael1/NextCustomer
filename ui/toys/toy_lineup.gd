@@ -13,7 +13,7 @@ extends Control
 ## band gold with ALL COLLECTED (set_collected) and hops the minis (hop_mini).
 
 const TITLE_TEXT := "%s LINEUP"
-## The completed aisle's band (the FIGURINE SHELF's words until v1.26 round 2).
+## The completed aisle's band (the FIGURINE SHELF's words until v1.30 round 2).
 const COLLECTED_TEXT := "ALL COLLECTED"
 ## The card's top on the stage (its chains hang from the stage's top) and its height; the card
 ## stays MARGIN art px inside the stage's left and inside RIGHT_LIMIT (left of the doors).

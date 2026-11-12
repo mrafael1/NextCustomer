@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## What the FIGURINE BOOK holds and in what order (v1.26 round 2, BookOrder): every product of the
+## What the FIGURINE BOOK holds and in what order (v1.30 round 2, BookOrder): every product of the
 ## balance once, starters (staples and aisle base products) owned from the start, capsule items
 ## owned once drawn; every product has a main family; the families in main_family_order with
 ## cards only; FAMILY gives each family its own pages of at most six in data order; a family

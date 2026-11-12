@@ -83,7 +83,7 @@ func machine_state(aisle: AisleDefinition) -> State:
 	return State.OK
 
 
-## The figurines drawn and not yet seen in the FIGURINE BOOK (v1.26), in draw order: the
+## The figurines drawn and not yet seen in the FIGURINE BOOK (v1.30), in draw order: the
 ## book button's NEW tag and the book's NEW cards show while there are any. Only the ones the
 ## book can show count: a capsule item of the balance the profile owns (a stale id, from an item
 ## removed from the data or a hand-edited profile, never tags the button with nothing to show).

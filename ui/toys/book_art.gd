@@ -1,6 +1,6 @@
 class_name BookArt
 extends RefCounted
-## The FIGURINE BOOK's pixel art (v1.26 round 2, the user: "a card book, like a pokemon card
+## The FIGURINE BOOK's pixel art (v1.30 round 2, the user: "a card book, like a pokemon card
 ## book"), painted once into images on the 640x360 art grid with StorefrontArt's rects and
 ## dithers (as ToyExitArt paints the TOY MACHINES) and shown at 2x with nearest filtering. Every
 ## colour is the palette's.

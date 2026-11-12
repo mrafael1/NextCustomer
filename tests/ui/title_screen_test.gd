@@ -50,7 +50,8 @@ func test_a_first_click_during_the_intro_only_ends_it() -> void:
 	for entry: TitleMenu.Entry in title.menu().entries():
 		var plate: MenuPlate = title.menu().plate(entry)
 		assert_bool(plate.visible).is_true()
-		assert_float(plate.position.x).is_equal(0.0)
+		var home: float = 120.0 if entry == TitleMenu.Entry.OPTIONS else 0.0
+		assert_float(plate.position.x).is_equal(home)
 	assert_bool(title.skip_intro()).is_false()
 
 
@@ -69,8 +70,17 @@ func test_the_sign_lights_by_itself() -> void:
 
 func test_without_a_run_save_the_doors_start() -> void:
 	var title: TitleScreen = await _title()
-	assert_array(title.menu().entries()).is_equal(
-		[TitleMenu.Entry.PRIMARY, TitleMenu.Entry.REWARDS, TitleMenu.Entry.GUIDE]
+	(
+		assert_array(title.menu().entries())
+		. is_equal(
+			[
+				TitleMenu.Entry.PRIMARY,
+				TitleMenu.Entry.REWARDS,
+				TitleMenu.Entry.GUIDE,
+				TitleMenu.Entry.OPTIONS,
+				TitleMenu.Entry.QUIT,
+			]
+		)
 	)
 	var primary: MenuPlate = title.menu().plate(TitleMenu.Entry.PRIMARY)
 	assert_str(primary.caption).is_equal(TitleMenu.START_TEXT)
@@ -111,6 +121,8 @@ func test_a_run_save_offers_continue_and_new_run() -> void:
 				TitleMenu.Entry.NEW_RUN,
 				TitleMenu.Entry.REWARDS,
 				TitleMenu.Entry.GUIDE,
+				TitleMenu.Entry.OPTIONS,
+				TitleMenu.Entry.QUIT,
 			]
 		)
 	)
@@ -352,6 +364,18 @@ func test_the_keys_walk_the_menu() -> void:
 	title._unhandled_key_input(_key(KEY_DOWN))
 	assert_int(menu.marked_entry()).is_equal(TitleMenu.Entry.PRIMARY)
 	assert_bool(title.storefront().doors_hot).is_true()
+	title._unhandled_key_input(_key(KEY_UP))
+	assert_int(menu.marked_entry()).is_equal(TitleMenu.Entry.QUIT)
+	title._unhandled_key_input(_key(KEY_UP))
+	assert_int(menu.marked_entry()).is_equal(TitleMenu.Entry.OPTIONS)
+	# OPTIONS opens the options popup over the title; its keys are its own, Esc closes it.
+	title._unhandled_key_input(_key(KEY_ENTER))
+	assert_bool(title.options().is_open()).is_true()
+	title._unhandled_key_input(_key(KEY_DOWN))
+	assert_int(title.options().marked_row()).is_equal(OptionsCard.Row.DISPLAY)
+	assert_int(menu.marked_entry()).is_equal(TitleMenu.Entry.OPTIONS)
+	title._unhandled_key_input(_key(KEY_ESCAPE))
+	assert_bool(title.options().is_open()).is_false()
 	title._unhandled_key_input(_key(KEY_UP))
 	assert_int(menu.marked_entry()).is_equal(TitleMenu.Entry.GUIDE)
 	title._unhandled_key_input(_key(KEY_UP))

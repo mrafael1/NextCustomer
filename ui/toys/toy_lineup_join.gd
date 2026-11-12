@@ -12,7 +12,7 @@ extends Control
 ##
 ## When the capsule completes its aisle (StartSetupRules.completed): the band turns gold with ALL
 ## COLLECTED, the stage shakes and the minis hop one after the other; the COMPLETED! card
-## (ToyCompletedCard) pops in, its COMPLETED stamp slams onto the aisle's band (v1.26), and
+## (ToyCompletedCard) pops in, its COMPLETED stamp slams onto the aisle's band (v1.30), and
 ## waits for OK; then the card and the lineup leave, the machine's SOLD OUT card drops in and
 ## swings, its plate flips to SOLD OUT and its lamp flickers off; at the whole collection the
 ## COLLECTION COMPLETE strip opens from its centre.

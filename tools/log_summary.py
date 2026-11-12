@@ -52,12 +52,16 @@ KNOWN_TYPES = frozenset({
     "machine_visit", "machine_landing_skipped", "run_end", "run_resume", "run_abandon", "restart",
     "results_exit", "log_export", "debug", "capsule", "start_choice", "start_page",
     "staple_swap", "restock", "restock_view", "pin_change", "start_lock_in", "new_packs",
-    "start_aisle",
+    "start_aisle", "settings_change", "pause_open", "pause_close", "run_quit",
 })
+# The options and the pause (settings_change on the title or in a run, pause_open / pause_close
+# and run_quit in a run): they attach to a run but never make one.
+SETTINGS_TYPES = frozenset({"settings_change", "pause_open", "pause_close", "run_quit"})
 # Events that make a run_id a run; the others (restart, results_exit: the results' Return to
 # menu, log_export, debug, and the TOY MACHINES' capsule draws, #63) only attach to one. A
 # capsule drawn on the title has no run_id.
 RUN_TYPES = KNOWN_TYPES - {"restart", "results_exit", "log_export", "debug", "capsule"}
+RUN_TYPES -= SETTINGS_TYPES
 
 # Section 8, "How to read the numbers": checkouts of 3+ cards are High when their
 # rearrangements are at least twice the cards committed.
@@ -394,6 +398,8 @@ class Player:
     other_build_runs: int = 0
     other_build_events: int = 0
     kept_loose: int = 0
+    # The options' and the pause's events (SETTINGS_TYPES), in log order.
+    settings_events: list[dict] = field(default_factory=list)
 
     def run_number(self, number: int) -> Run | None:
         """The player's run `number` (1 = their first run), when it is kept."""
@@ -532,6 +538,7 @@ def build_player(
         player.runs.append(run)
         player.restarts.extend(run.of_type("restart"))
         player.capsules.extend(run.of_type("capsule"))
+        player.settings_events.extend(e for e in run.events if e["type"] in SETTINGS_TYPES)
     for event in loose:
         if builds and build_label(event) not in builds:
             player.other_build_events += 1
@@ -541,6 +548,9 @@ def build_player(
             player.restarts.append(event)
         elif event["type"] == "capsule":
             player.capsules.append(event)
+        elif event["type"] in SETTINGS_TYPES:
+            player.settings_events.append(event)
+    player.settings_events.sort(key=lambda e: e["_order"])
     return player
 
 
@@ -1325,6 +1335,29 @@ def toy_machine_summary(players: list[Player]) -> dict:
     }
 
 
+def settings_summary(players: list[Player]) -> list[dict]:
+    """Per player with options or pause events: each changed setting's final value (its last
+    settings_change), and the pauses and Save & Quits."""
+    rows = []
+    for player in players:
+        events = player.settings_events
+        if not events:
+            continue
+        final: dict[str, Any] = {}
+        for event in events:
+            if event["type"] == "settings_change" and text(event, "key"):
+                final[text(event, "key")] = event.get("to")
+        paused = [num(e, "paused_ms") or 0.0 for e in events if e["type"] == "pause_close"]
+        rows.append({
+            "player": player.name,
+            "final": final,
+            "pauses": sum(1 for e in events if e["type"] == "pause_open"),
+            "paused_ms": sum(paused),
+            "quits": sum(1 for e in events if e["type"] == "run_quit"),
+        })
+    return rows
+
+
 def second_run_summary(players: list[Player]) -> dict:
     """Each player's second run (their runs in order of first event)."""
     return {
@@ -1380,6 +1413,7 @@ def summarise(players: list[Player], inputs: Inputs, catalogue: Catalogue,
         "non_interactive": non_interactive_summary(players),
         "count_up": count_up_summary(runs),
         "second_run": second_run_summary(players),
+        "settings": settings_summary(players),
         "start_setup": start_setup_summary(runs),
     }
 
@@ -1659,6 +1693,25 @@ def render_toy_machines(s: dict) -> list[str]:
     return lines + table(["machine", "draws"], rows)
 
 
+def render_settings(s: dict) -> list[str]:
+    """Only when the logs hold options or pause events, so older logs report as before."""
+    rows = s.get("settings")
+    if not rows:
+        return []
+    lines = heading(
+        "Settings",
+        "From settings_change, pause_open / pause_close and run_quit: each player's changed "
+        "settings at their final values, their pauses (and time paused) and Save & Quits.",
+    )
+    for row in rows:
+        final = ", ".join(f"{key}={value}" for key, value in row["final"].items()) or "defaults"
+        lines.append(
+            f"  {row['player']}: {final} · {row['pauses']} pauses "
+            f"({row['paused_ms'] / 1000:.0f} s) · {row['quits']} save & quit"
+        )
+    return lines
+
+
 def render_offer_times(s: dict) -> list[str]:
     lines = heading(
         "Offer presentation times (ms)",
@@ -1778,7 +1831,7 @@ def render(summary: dict) -> str:
     sections = [render_inputs, render_players, render_runs, render_checkouts, render_rewards,
                 render_builds, render_machine, render_toy_machines, render_shifts, render_lists,
                 render_offer_times, render_count_up, render_second_run, render_start_setup,
-                render_files]
+                render_settings, render_files]
     lines: list[str] = []
     for section in sections:
         lines += section(summary)
