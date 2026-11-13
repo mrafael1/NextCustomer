@@ -750,3 +750,4 @@ items_v2/banana_golden	derived (GOLDEN palette map)	n		2026-11-13T03:26:00		2	0	
 items_v2/banana	organic (bunch of curved fingers)	n		2026-11-13T21:00:00		3	0			Round 3 after the user's note "banana top still feels a bit weird": the long thin stalk is gone; V3 "tips only" (each finger ends in its own dark brown tip at a small crown), picked by the user ("banana v3 tips is perfect"). Bodies unchanged.
 items_v2/banana_big	organic (bunch of curved fingers)	n		2026-11-13T21:00:00		3	0			Round 3, V3 tips only, as the plain banana. Approved by the user.
 items_v2/banana_golden	derived (GOLDEN palette map)	n		2026-11-13T21:00:00		3	0			Rebuilt from the round-3 BIG (map unchanged).
+effects/sticker_burst_best	derived (recolour of sticker_burst_polished)	n	2026-11-13T23:00:00	2026-11-13T23:02:00	1	1	0			The final receipt's BEST sticker (v1.37, receipt highlight A): the polished burst recoloured gold, BEST drawn in code.

@@ -213,6 +213,8 @@ func test_run_start_and_run_end_fields() -> void:
 				"run_ms": 4321,
 				"upgrades": [],
 				"write_ups": 3,
+				# Nothing paid or passed: no BEST line (v1.37).
+				"highlight": {},
 			}
 		)
 	)
