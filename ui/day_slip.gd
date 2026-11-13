@@ -23,7 +23,9 @@ extends Control
 ## foot pointing down at the calendar; it rises from DROP_RISE lower about its foot's middle. Where
 ## the paper would not fit over the calendar (a review day's two events at 1280x720) it prints
 ## compact. A long hover opens it too (`hover`: no sound); leaving the calendar and the paper for
-## HOVER_GRACE closes it, unless a click pinned it (pin()).
+## HOVER_GRACE closes it, unless a click pinned it (pin()). A paper whose top would cut across the
+## planning receipt's heading ("MEET THE QUOTA", open's "heading") grows up to start HEADING_CLEAR
+## over it instead (v1.36, polish audit: the heading's top half showed over the slip).
 
 ## The slip's words.
 const HEAD := "SHIFT %d · TODAY"
@@ -47,6 +49,8 @@ const PADDING := 10
 const SHADOW := 4
 const GAP := 10.0
 const MARGIN := 8.0
+## How far over a covered heading the paper starts (see the class comment).
+const HEADING_CLEAR := 4.0
 ## The print: the head, an event's name, effect and where line.
 const HEAD_SIZE := 18
 const NAME_SIZE := 24
@@ -81,6 +85,8 @@ var _width: float = WIDTH
 var _compact: bool = false
 ## Opened by a long hover and not pinned by a click: leaving closes it.
 var _hover: bool = false
+## The receipt heading's global rect the paper's top never cuts across (open's "heading").
+var _heading: Rect2 = Rect2()
 ## Seconds the pointer has been off the chip and the paper (below 0: it is on one).
 var _away: float = -1.0
 ## The chip the slip hangs from (a click on it is the chip's, not "elsewhere").
@@ -129,8 +135,9 @@ static func where_lines(event: InspectionDefinition, limits: ShiftLimits) -> Pac
 ## Drops the slip for day `day` (1-based, as the chip reads) with `events` (none: a plain day)
 ## under `anchor`, the shift's `limits` saying where on the belt, and `week`'s event (if any)
 ## reminded under them. `options`: "above" (pops up over the anchor, its right edge on the
-## anchor's, compact when it must), "hover" (a long hover opened it: no sound, leaving closes it)
-## and "bonus" (a line under the head: the calendar's bonus ticket, WeekFlow.bonus_line).
+## anchor's, compact when it must), "hover" (a long hover opened it: no sound, leaving closes it),
+## "bonus" (a line under the head: the calendar's bonus ticket, WeekFlow.bonus_line) and
+## "heading" (above: the receipt heading's global Rect2 its top never cuts across).
 func open(
 	day: int,
 	events: Array[InspectionDefinition],
@@ -146,6 +153,7 @@ func open(
 	reduced_motion = reduced
 	_above = bool(options.get("above", false)) and anchor != null
 	_hover = bool(options.get("hover", false))
+	_heading = options.get("heading", Rect2()) as Rect2
 	_width = WIDTH
 	if _above:
 		_width = clampf(_local_reach().end.x - MARGIN, WIDTH * 0.75, WIDTH)
@@ -359,6 +367,12 @@ func _place() -> void:
 			at = Vector2(chip.end.x - _paper.size.x, chip.position.y - GAP - _paper.size.y)
 	at.x = clampf(at.x, MARGIN, maxf(size.x - _paper.size.x - MARGIN, MARGIN))
 	at.y = clampf(at.y, MARGIN, maxf(size.y - _paper.size.y - MARGIN, MARGIN))
+	if _above and _heading.has_area():
+		var heading: Rect2 = get_global_transform().affine_inverse() * _heading
+		var start: float = maxf(heading.position.y - HEADING_CLEAR, MARGIN)
+		if at.y > start and at.y < heading.end.y:
+			_paper.size.y += at.y - start  # Its foot stays GAP over the calendar.
+			at.y = start
 	_paper.position = at.round()
 	_paper.pivot_offset = Vector2(_paper.size.x / 2.0, _paper.size.y if _above else 0.0)
 

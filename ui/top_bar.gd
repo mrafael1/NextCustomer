@@ -46,6 +46,9 @@ const BUTTON_FONT_SIZE := 16
 ## icon tip; polish audit v1.36, after v1.33's "Save playtest file"). Playtest builds only: a
 ## release build hides every export entry (PlaytestUi).
 const EXPORT_TEXT := "EXPORT LOG"
+## The Menu key's tip (v1.36, polish audit: its body was empty).
+const MENU_TITLE := "Menu"
+const MENU_TIP := "Pause, options and the handbook. Esc opens it too"
 ## The key captions' letter spacing (B2's letter-spacing: 1px).
 const KEY_SPACING := 1
 ## The trolley (12x9 art) and the menu's bars (9x7 art), shown at 2x.
@@ -123,7 +126,7 @@ func _init() -> void:
 	)
 	menu_button.set_icon(MENU_ICON, MENU_ICON_SIZE)
 	menu_button.accessibility_name = "Menu"
-	TipTarget.cover_text(menu_button, "", TipSpec.Kind.WORD, "", "", "Menu")
+	TipTarget.cover_text(menu_button, MENU_TIP, TipSpec.Kind.WORD, "", "", MENU_TITLE)
 	_build_menu()
 	# B2's button captions are plain paper on the teal, without the sign's ink outline.
 	for button: FramedButton in [deck_button, export_button]:

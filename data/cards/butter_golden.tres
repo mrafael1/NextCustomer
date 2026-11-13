@@ -18,12 +18,12 @@ receipt_text = "Butter beside Bakery"
 [resource]
 script = ExtResource("3_card")
 id = &"butter_golden"
-display_name = "Golden Butter"
+display_name = "Golden butter"
 kind = 1
 tags = PackedStringArray("Food", "Dairy")
 base = 4
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_butter")])
-rule_text = "PAIR: +8€ for each Bakery item beside it"
+rule_text = "PAIR: +8€ per Bakery item beside it"
 generally_useful = true
 art_ref = "res://art/items_v2/butter_golden.png"
 variant_of = ExtResource("9_plain")

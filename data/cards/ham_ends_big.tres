@@ -16,7 +16,7 @@ receipt_text = "Ham ends after Dairy"
 [resource]
 script = ExtResource("3_card")
 id = &"ham_ends_big"
-display_name = "Big Ham ends"
+display_name = "Big ham ends"
 kind = 1
 tags = PackedStringArray("Food", "Clearance")
 base = 4

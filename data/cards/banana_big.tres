@@ -15,7 +15,7 @@ receipt_text = "Banana chain"
 [resource]
 script = ExtResource("3_0geey")
 id = &"banana_big"
-display_name = "Big Banana"
+display_name = "Big banana"
 kind = 1
 tags = PackedStringArray("Food", "Produce")
 base = 4

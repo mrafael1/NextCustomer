@@ -66,7 +66,8 @@ static func find(screen: ShiftScreen, what: String) -> TipTarget:
 	if what == "week":
 		return _cover(screen._stage.week_glass)
 	if what == "menu":
-		return _first(screen, "TopBar", "Tip")
+		# Its own cover (v1.36: the bar's first tip was the LOYALTY word's).
+		return _cover((screen._top_bar as TopBar).menu_button)
 	if what.begins_with("chute"):
 		return _first(screen, "ChuteKey%d" % what.trim_prefix("chute").to_int(), "Tip")
 	if what.begins_with("window"):

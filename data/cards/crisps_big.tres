@@ -13,7 +13,7 @@ receipt_text = "Crisps: redraws left"
 [resource]
 script = ExtResource("3_card")
 id = &"crisps_big"
-display_name = "Big Crisps"
+display_name = "Big crisps"
 kind = 1
 tags = PackedStringArray("Food", "Snack")
 base = 4

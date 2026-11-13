@@ -16,7 +16,7 @@ receipt_text = "Soft tomatoes beside Soup"
 [resource]
 script = ExtResource("3_card")
 id = &"soft_tomatoes_golden"
-display_name = "Golden Soft tomatoes"
+display_name = "Golden soft tomatoes"
 kind = 1
 tags = PackedStringArray("Food", "Produce", "Clearance")
 base = 4

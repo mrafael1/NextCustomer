@@ -16,7 +16,7 @@ receipt_text = "Egg timer after Eggs"
 [resource]
 script = ExtResource("3_card")
 id = &"egg_timer_golden"
-display_name = "Golden Egg timer"
+display_name = "Golden egg timer"
 kind = 1
 tags = PackedStringArray("Household", "Breakfast")
 base = 4

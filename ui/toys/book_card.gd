@@ -77,7 +77,7 @@ const TEXT_TIERS: Array[Vector2i] = [
 ]
 const CHIP_MARGIN := 2.0
 const CHIP_PADDING := 4.0
-const PLAIN_TEXT := "No rule: it pays its price."
+const PLAIN_TEXT := "Plain item: pays its price."
 ## The book's coupons as a family (their FAMILY option and their pages' header).
 const COUPONS_NAME := "Coupons"
 ## The book's OTHER FOOD group (round 6, BookEntry.OTHER_FOOD): its FAMILY option and its

@@ -105,6 +105,7 @@ func begin(result: ScoreResult, views: Array[CardView], reduced_motion: bool) ->
 	for cell: int in range(views.size(), cells.size()):
 		cells[cell].visible = false
 	_count.source_rect = source_rect
+	_count.stack_rect = stack_rect
 
 
 ## Item `slot`'s ticket on the rail now (global), or an empty rect once it is bagged (or no item).
@@ -124,6 +125,20 @@ func source_rect(slot: int) -> Rect2:
 	if item == null or _bagged.has(slot) or not item.is_visible_in_tree():
 		return _stage.bag.mouth_rect()
 	return sprite_rect(item)
+
+
+## The global rect item `slot`'s shown stickers cover now (their union), or an empty rect once it
+## is bagged (or no sticker shows): a fizzle's WASTED puff starts above it (v1.36).
+func stack_rect(slot: int) -> Rect2:
+	var covered: Rect2 = Rect2()
+	if _bagged.has(slot):
+		return covered
+	for sticker: EffectSticker in _stage.planning_layer.stack(slot):
+		if not sticker.is_visible_in_tree():
+			continue
+		var rect: Rect2 = sticker.get_global_rect()
+		covered = rect if not covered.has_area() else covered.merge(rect)
+	return covered
 
 
 ## A resumed checkout's belt, as the count left it: every cell hidden, the items `views` show in
@@ -413,6 +428,7 @@ func _sticker_of(slot: int, index: int) -> EffectSticker:
 func _on_finished() -> void:
 	_active = false
 	_count.source_rect = Callable()
+	_count.stack_rect = Callable()
 
 
 ## Stops the slide, the hops (their copies go) and the sparks, and clears the scanner.

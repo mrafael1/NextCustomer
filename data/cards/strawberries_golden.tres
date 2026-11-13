@@ -14,7 +14,7 @@ receipt_text = "Strawberries feed the chain"
 [resource]
 script = ExtResource("3_card")
 id = &"strawberries_golden"
-display_name = "Golden Strawberries"
+display_name = "Golden strawberries"
 kind = 1
 tags = PackedStringArray("Food", "Produce")
 base = 4

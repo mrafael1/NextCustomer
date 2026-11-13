@@ -34,8 +34,9 @@ func after_test() -> void:
 
 ## A conditional card whose condition fails fizzles like an effect (#45): Sugar cubes with no
 ## Coffee just before it (Cheese with no Bread until #128 Dairy's PAIR) gets a FIZZLE beat, puffs
-## "WASTED" over its own item and prints its reason as a fizzle line on the receipt, on screen
-## inside the receipt; the total is its plain payouts.
+## "WASTED" (the stack's grey label, v1.36) over its own item, clear above its sticker stack, and
+## prints its reason as a fizzle line on the receipt, on screen inside the receipt; the total is
+## its plain payouts.
 func test_a_failed_condition_fizzles_in_the_count_up_and_on_the_receipt() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _place(screen, ["sugar_cubes", "bread"])
@@ -43,10 +44,13 @@ func test_a_failed_condition_fizzles_in_the_count_up_and_on_the_receipt() -> voi
 	var rect_of: Callable = func(slot: int) -> Rect2:
 		return Rect2(Vector2(300.0 + 40.0 * slot, 200.0), Vector2(40, 40))
 	count_up.source_rect = rect_of
-	var puffs: Array[Vector2] = []
+	# Slot 0's stack stands 60 px over its item: the puff starts clear above it, not on it.
+	var pile: Rect2 = Rect2(Vector2(310, 140), Vector2(92, 60))
+	count_up.stack_rect = func(slot: int) -> Rect2: return pile if slot == 0 else Rect2()
+	var puffs: Array[Rect2] = []
 	var record: Callable = func(node: Control) -> void:
-		if node is Label and (node as Label).text == "WASTED":
-			puffs.append(node.get_global_rect().get_center())
+		if node is EffectSticker and (node as EffectSticker).text() == "WASTED":
+			puffs.append(node.get_global_rect())
 	var on_added: Callable = func(node: Node) -> void:
 		if node is Control:
 			record.call_deferred(node)
@@ -59,14 +63,20 @@ func test_a_failed_condition_fizzles_in_the_count_up_and_on_the_receipt() -> voi
 	await _played(screen)
 	screen._overlay.child_entered_tree.disconnect(on_added)
 	count_up.source_rect = Callable()
+	count_up.stack_rect = Callable()
 	var fizzle_beats: Array[int] = []
 	for beat: CountUpBeat in count_up.plan.beats:
 		if beat.kind == CountUpBeat.Kind.FIZZLE:
 			fizzle_beats.append(beat.slot)
 	assert_array(fizzle_beats).is_equal([0])
 	assert_int(puffs.size()).is_equal(1)
-	var over_cubes: Vector2 = (rect_of.call(0) as Rect2).get_center() + Vector2(0, -30)
-	assert_float(puffs[0].distance_to(over_cubes)).is_less(1.0)
+	var cubes_at: Vector2 = (rect_of.call(0) as Rect2).get_center()
+	assert_float(puffs[0].get_center().x).is_equal_approx(cubes_at.x, 1.0)
+	assert_float(puffs[0].end.y).is_equal_approx(pile.position.y - CountUpBeats.PUFF_CLEAR, 1.0)
+	# With no stack the puff starts 30 px over the item (a bagged item's, the bag's mouth).
+	var plate: Vector2 = puffs[0].size
+	var bare: Vector2 = CountUpBeats.puff_from(cubes_at, Rect2(), plate)
+	assert_vector(bare).is_equal(cubes_at + Vector2(0, -30))
 	await _assert_receipt_of(screen, result, 500)
 	# The anchored receipt (2026-11-05) prints no fizzle line: the Sugar cubes' row, printed as
 	# the count reached it (main scene v2), wears the fizzle mark, inside the paper and on screen;
@@ -164,13 +174,14 @@ func test_an_upgrade_condition_fizzles_in_planning_the_count_up_and_the_receipt(
 	assert_bool(SCREEN_RECT.encloses(sticker.get_global_rect())).is_true()
 	assert_int(sticker._spec.badge).is_equal(GiverBadge.Kind.LOYALTY)
 	assert_object(_sticker(screen, 0, EffectLink.WASTED_WORD)).is_null()
-	# The count-up: one FIZZLE beat on the last item, its puff out of the upgrade's box.
+	# The count-up: one FIZZLE beat on the last item, its puff (the WASTED label, v1.36) out of
+	# the upgrade's box.
 	var count_up: CountUp = screen._count_up
 	var box: Control = screen._loyalty_card.stamped_boxes()[0]
 	var puff_from: Vector2 = box.get_global_rect().get_center() + Vector2(0, 26)
 	var puffs: Array[Vector2] = []
 	var record: Callable = func(node: Control) -> void:
-		if node is Label and (node as Label).text == EffectLink.WASTED_WORD:
+		if node is EffectSticker and (node as EffectSticker).text() == EffectLink.WASTED_WORD:
 			puffs.append(node.get_global_rect().get_center())
 	var on_added: Callable = func(node: Node) -> void:
 		if node is Control:

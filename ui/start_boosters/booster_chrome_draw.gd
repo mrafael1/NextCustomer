@@ -258,14 +258,14 @@ static func _plate(
 
 
 ## The counter's plates: the regulars' (SWAP REGULARS with its ⇄ chip and the swaps left as
-## "⇄ N"; a padlock while none is unlocked) and each booster's.
+## "⇄ N"; until every booster is open the same words behind a padlock, v1.36's one name for the
+## chip in both states (it read SWAP AFTER OPENING); a padlock at its end while none is unlocked)
+## and each booster's.
 static func counter_plates(pen: ArtPen, page: BoosterPage) -> void:
 	var button: bool = crate_button(page)
 	var live: bool = page.swap.is_live()
 	var limit: int = page.counter.swap_limit()
-	var label: String = "YOUR REGULARS"
-	if button and limit > 0:
-		label = "SWAP REGULARS" if live else "SWAP AFTER OPENING"
+	var label: String = "SWAP REGULARS" if button and limit > 0 else "YOUR REGULARS"
 	var plate_lit: bool = button and live and page.is_hovered("crate")
 	pen.nine(
 		BoosterArt.PLATE_LIT if plate_lit else BoosterArt.PLATE,
@@ -280,6 +280,9 @@ static func counter_plates(pen: ArtPen, page: BoosterPage) -> void:
 		pen.r(10, 244 + DY, 11, 1, Palette.TEAL_PALE)
 		pen.tex(BoosterArt.SWAP, 11, 244 + DY)
 		pen.pix(label, 26, 246 + DY, Palette.INK)
+	elif button and limit > 0:
+		pen.tex(BoosterArt.PADLOCK, 11, 244 + DY)  # Locked until every booster is open.
+		pen.pix(label, 26, 246 + DY, Palette.BROWN_DARK)
 	else:
 		pen.pix(label, 10, 246 + DY, Palette.INK)
 	if limit < 1 and button:

@@ -16,7 +16,7 @@ receipt_text = "Chipped mug beside Coffee"
 [resource]
 script = ExtResource("3_card")
 id = &"chipped_mug_golden"
-display_name = "Golden Chipped mug"
+display_name = "Golden chipped mug"
 kind = 1
 tags = PackedStringArray("Household", "Clearance")
 base = 4

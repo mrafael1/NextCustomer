@@ -120,20 +120,25 @@ func fly_text(
 	duration: float,
 	fade_out: bool = false
 ) -> void:
-	var label: Label = text_label(text, color, font_size)
-	_overlay.add_child(label)
-	label.global_position = from - label.size / 2.0
-	label.pivot_offset = label.size / 2.0
+	await fly_part(text_label(text, color, font_size), from, to, duration, fade_out)
+
+
+## `part` (sized, in no parent yet) flies on the overlay from `from` to `to` (its centre, global)
+## over `duration`, growing a little or, with `fade_out`, fading away; it is freed when it arrives.
+func fly_part(part: Control, from: Vector2, to: Vector2, duration: float, fade_out: bool) -> void:
+	_overlay.add_child(part)
+	part.global_position = from - part.size / 2.0
+	part.pivot_offset = part.size / 2.0
 	var tween: Tween = _tween().set_parallel().set_trans(Tween.TRANS_CUBIC).set_ease(
 		Tween.EASE_IN_OUT
 	)
-	tween.tween_property(label, "global_position", to - label.size / 2.0, duration)
+	tween.tween_property(part, "global_position", to - part.size / 2.0, duration)
 	if fade_out:
-		tween.tween_property(label, "modulate:a", 0.0, duration)
+		tween.tween_property(part, "modulate:a", 0.0, duration)
 	else:
-		tween.tween_property(label, "scale", Vector2(1.25, 1.25), duration)
+		tween.tween_property(part, "scale", Vector2(1.25, 1.25), duration)
 	await tween.finished
-	label.queue_free()
+	part.queue_free()
 
 
 ## A label pops onto `at` (big, then its size over `seconds`) and fades away there.

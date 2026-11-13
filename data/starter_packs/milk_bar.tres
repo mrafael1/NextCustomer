@@ -15,6 +15,6 @@ display_name = "Milk bar"
 family = "Dairy"
 cards = Array[ExtResource("2_card")]([ExtResource("c_cereal"), ExtResource("c_yogurt"), ExtResource("c_cream_big")])
 hint_text = "PAIR up: Cereal beside Milk, Yogurt beside a Banana, +4€ each. Cream +4€ for each PAIRED item."
-example_text = "Milk, Cereal, Banana, Yogurt, Big Cream: Cereal and Yogurt each PAIR for 2 + 4, Big Cream pays 4 + 8 for the two PAIRs. Total 30."
+example_text = "Milk, Cereal, Banana, Yogurt, Big cream: Cereal and Yogurt each PAIR for 2 + 4, Big cream pays 4 + 8 for the two PAIRs. Total 30."
 example_cards = Array[ExtResource("2_card")]([ExtResource("e_milk"), ExtResource("c_cereal"), ExtResource("e_banana"), ExtResource("c_yogurt"), ExtResource("c_cream_big")])
 example_total = 30

@@ -16,7 +16,7 @@ receipt_text = "Squashed cake ×2"
 [resource]
 script = ExtResource("3_card")
 id = &"squashed_cake_golden"
-display_name = "Golden Squashed cake"
+display_name = "Golden squashed cake"
 kind = 1
 tags = PackedStringArray("Food", "Bakery", "Clearance")
 base = 4

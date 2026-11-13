@@ -174,6 +174,9 @@ var climax_running: Callable = Callable()
 ## the bag's mouth once bagged), for the flights and puffs that start from an item; unset, they
 ## start at the item view's centre.
 var source_rect: Callable
+## The global rect item `slot`'s sticker stack covers now (v1.36: the belt ride's stack_rect), an
+## empty rect for none; a fizzle's WASTED puff starts above it, never over the pile. Unset: none.
+var stack_rect: Callable
 ## How big the ending was, for what follows the total (#61); null until the total shows.
 var intensity: CountUpIntensity
 ## The shift's margin against its quota (#61), set when the dessert starts; null before that.

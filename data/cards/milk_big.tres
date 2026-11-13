@@ -14,7 +14,7 @@ receipt_text = "Milk: earlier Breakfast"
 [resource]
 script = ExtResource("3_8cl8l")
 id = &"milk_big"
-display_name = "Big Milk"
+display_name = "Big milk"
 kind = 1
 tags = PackedStringArray("Food", "Breakfast", "Dairy")
 base = 6

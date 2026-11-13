@@ -1,11 +1,12 @@
 class_name PriceGunItem
 extends Control
 ## Price gun's labeller (#132; the 2026-11-02 play review: a little tool on the counter, not a
-## key): the pixel-art gun (art/src/scenery/price_gun.txt, 40x22 texels drawn 2x) lying on the
-## counter in front of the printer's right end at ShiftStage-space RECT, over its contact shadow
-## (a stepped ink ellipse under its foot, ContactShadow), and a small paper tag on a string beside
-## it reading the relabels left ("1 left"). PinFlow shows it in planning while the pin is worn
-## (show_gun) and connects `pressed`.
+## key): the pixel-art gun (art/src/scenery/price_gun.txt, 40x22 texels drawn 2x) parked on the
+## bagging box's lid beside the desk calendar at ShiftStage-space RECT (v1.36, polish audit: on
+## the counter it hid the calendar's shift number), over its contact shadow (a stepped ink
+## ellipse under its foot, ContactShadow), and a small paper tag on a string hung on the box's
+## front under it reading the relabels left ("1 left"). PinFlow shows it in planning while the
+## pin is worn (show_gun) and connects `pressed`.
 ##
 ## A hover lifts it a little; armed, it is picked up (lifted and tilted back) in a 1-ring mustard
 ## halo (ArtStyle.halo_material), its shadow shrinking and fading under it. With no relabel left
@@ -17,15 +18,16 @@ extends Control
 signal pressed
 
 const TEXTURE := preload("res://art/scenery/price_gun.png")
-## Where it lies, in stage coordinates: right of the receipt's foot, left of the belt, over the
-## printer's right end and the bagging shelf's side, above the register column.
-const RECT := Rect2(262, 348, 80, 44)
+## Where it lies, in stage coordinates: on the bagging box's lid (ShiftStage.BAG_RECT), right of
+## the receipt and the desk calendar, above the belt, left of the lanyard's card.
+const RECT := Rect2(288, 222, 80, 44)
 const TIP := "PRICE GUN · Click the gun, then an item, to label it with a family."
 const TIP_SPENT := "PRICE GUN · Used: click the labelled item to move this shift's label."
 const LEFT_TEXT := "%d left"
-## The tag on its string: its top left from the gun's, its font size; the string runs from the
-## tag's top right to the gun's trigger (STRING_END, gun coordinates).
-const TAG_AT := Vector2(-46, 20)
+## The tag on its string: its top left from the gun's (under it, on the box's front), its font
+## size; the string runs from the tag's top right to the gun's trigger (STRING_END, gun
+## coordinates).
+const TAG_AT := Vector2(14, 46)
 const TAG_FONT_SIZE := 11
 const STRING_END := Vector2(42, 36)
 ## The contact shadow under its foot (gun coordinates), ink at SHADOW_ALPHA; picked up, it
