@@ -2,7 +2,7 @@ class_name DaySlip
 extends Control
 ## Today's slip (2026-10-31): tapping the top bar's day calendar (DayCalendar, v1.17) drops a
 ## small paper slip under it, in the time card's paper and print (WeekCard), showing only today's
-## events, big: "DAY 5 · TODAY", then each event's icon and name in its tone (a boon green, an
+## events, big: "SHIFT 5 · TODAY", then each event's icon and name in its tone (a boon green, an
 ## inspection tomato, as on the time card's rows), its effect (notice_text) and, when it touches
 ## the belt, where: "→ slot 7 closed" (Short belt), "→ slot 8 opens" (Extra till), "→ slot 3 pays
 ## 0€" (Spot check), "→ last filled slot" (Happy hour). Where is read from the event's data and the
@@ -26,15 +26,15 @@ extends Control
 ## HOVER_GRACE closes it, unless a click pinned it (pin()).
 
 ## The slip's words.
-const HEAD := "DAY %d · TODAY"
+const HEAD := "SHIFT %d · TODAY"
 const NO_EVENT := WeekCardModel.NO_EVENT
-const NO_EVENT_EFFECT := "No event today"
+const NO_EVENT_EFFECT := "No event this shift"
 const WHERE_CLOSED := "→ slot %d closed"
 const WHERE_CLOSED_MANY := "→ slots %d–%d closed"
 const WHERE_OPENS := "→ slot %d opens"
 const WHERE_OPEN_MANY := "→ slots %d–%d open"
 const WHERE_ZERO := "→ slot %d pays 0€"
-const WHERE_LAST := "→ last filled slot"
+const WHERE_LAST := "→ last card"
 ## The week's reminder: its head, and the week colour's square beside it.
 const WEEK_HEAD := "WEEK %d · %s"
 const WEEK_SIZE := 15

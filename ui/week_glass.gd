@@ -15,7 +15,10 @@ extends Control
 
 signal pressed
 
-const TIP := "%s\nTap to open the time card"
+const TIP := "%s\nClick to open the time card"
+const TIP_CLICK := "TIME CARD"
+const NO_EVENT := "No event this week."
+const CLOCK := preload("res://art/icons/clock.png")
 const TIP_EVENT := "%s · %s · %s"
 const WEEK_WORD := "WEEK"
 ## The glass in its rect (ShiftStage.WEEK_GLASS_RECT, local px): the steel backdrop, the ink
@@ -68,7 +71,22 @@ func show_week(model: WeekCardModel, weeks: bool) -> void:
 	var head: String = model.head()
 	if model.event != null:
 		head = TIP_EVENT % [head, model.title(), model.effect()]
-	tooltip_text = TIP % head
+	var made: TipSpec = TipSpec.make(TipSpec.Kind.STATUS, model.head(), "")
+	made.icon = CLOCK
+	made.click = TIP_CLICK
+	made.source = TIP % head
+	if model.event != null:
+		made.tag = model.title()
+		var notice: String = model.event.notice_text
+		if notice.is_empty():
+			# Its effect as a sentence: a capital first letter only (not String.capitalize).
+			notice = model.effect().left(1).to_upper() + model.effect().substr(1)
+		made.body = TipMarkup.auto(notice)
+		if model.event.forgives_slips:
+			made.live = model.misses_left_text()
+	else:
+		made.body = NO_EVENT
+	TipTarget.cover_control(self, made)
 	_layout()
 	_refresh_visible()
 

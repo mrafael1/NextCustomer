@@ -1,21 +1,22 @@
 extends GdUnitTestSuite
-## The family glyphs' tooltips (#105, mock-up readability v3, tipBox and tipHTML; GlyphTip and
-## GlyphTips). place() opens a tip below a ticket (its top BELOW_GAP under the ticket's foot, its
-## right end BELOW_RIGHT past the glyph's middle, its tail up) or above a glyph (centred on it,
-## ABOVE_GAP over its top, its tail down), flips above at the screen's foot and stays SCREEN_MARGIN
-## inside its sides; it is as wide as its text plus TEXT_ROOM, rounded up to even. Mounted, a tip
-## shows after SHOW_DELAY_S for the glyph under the pointer, inside the screen: below a ticket's
-## glyphs (its row's and its text's), above the popup's and the monitor's. On the real shift
-## screen the pointer on a belt ticket's glyph keeps the item hovered (the glyph takes no pointer,
-## so a press still reaches the item for its drag), a press hides the tip, and no tip shows while
-## the shift is counted. The real saves and logs are never touched.
+## The game's one hover tip (the hover tips revamp, design B "paper card": TipCard, mounted by
+## GlyphTips). TipCard.place() opens the card on a side of its target, GAP off it, flips to the
+## opposite side where there is no room and keeps it MARGIN inside the screen (its shadow too);
+## place_boxes() stacks the keyword boxes beside it, never over it. Mounted, a tip shows only after
+## SHOW_DELAY_S, for the target under the pointer, inside the viewport at 1280x720 and 1920x1080
+## with its boxes clear of it; Shift keeps it open (moving away no longer closes it, its footer says
+## SHIFT KEPT), Esc closes a kept tip and a right-click asks for the handbook (guide_requested).
+## Below a ticket's glyphs (its row's and its text's) a tip opens under the ticket. On the real
+## shift screen the pointer on a belt ticket's glyph keeps the item hovered (the glyph takes no
+## pointer, so a press still reaches the item for its drag), a press hides the tip, and no tip
+## shows while the shift is counted. The real saves and logs are never touched.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 const CARDS := "res://data/cards"
 const STAGE := Rect2(0, 0, 1280, 720)
-## A glyph on a ticket (its row's first, (4, 5) on a ticket at (96, 195)).
-const GLYPH := Rect2(100, 200, 18, 18)
-const TICKET := Rect2(96, 195, 108, 64)
+## The two window sizes the tips must fit (the game's 720p canvas and a 1080p one).
+const VIEWPORTS: Array[Vector2i] = [Vector2i(1280, 720), Vector2i(1920, 1080)]
+const CARD_SIZE := Vector2(256, 140)
 
 var _folder: String = ""
 
@@ -35,124 +36,326 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-func test_a_tip_opens_below_a_ticket_or_above_a_glyph() -> void:
-	var tip_size: Vector2 = Vector2(60, GlyphTip.HEIGHT)
-	# Below: x = 109 + 14 - 60, y = 259 + 12.
-	var below: Rect2 = GlyphTip.place(GLYPH, TICKET, true, tip_size, STAGE)
-	assert_that(below).is_equal(Rect2(63, 271, 60, 26))
-	assert_bool(GlyphTip.is_below(below, GLYPH)).is_true()
-	# Above: x = 109 - 30, y = 200 - 36.
-	var above: Rect2 = GlyphTip.place(GLYPH, TICKET, false, tip_size, STAGE)
-	assert_that(above).is_equal(Rect2(79, 164, 60, 26))
-	assert_bool(GlyphTip.is_below(above, GLYPH)).is_false()
-	# The tail points at the glyph's middle.
-	assert_float(GlyphTip.tail_x(below, GLYPH)).is_equal(109.0 - 63.0 - 7.0)
-	assert_float(GlyphTip.tail_x(above, GLYPH)).is_equal(109.0 - 79.0 - 7.0)
+## Each side: GAP off the target, centred on it; a side with no room flips to its opposite.
+func test_a_card_opens_on_its_side_and_flips_at_the_edges() -> void:
+	var target: Rect2 = Rect2(600, 300, 40, 20)
+	var below: Array = TipCard.place(target, target, TipCard.Opens.BELOW, CARD_SIZE, STAGE)
+	assert_int(below[1]).is_equal(TipCard.Opens.BELOW)
+	assert_float((below[0] as Rect2).position.y).is_equal(target.end.y + TipCard.GAP)
+	var above: Array = TipCard.place(target, target, TipCard.Opens.ABOVE, CARD_SIZE, STAGE)
+	assert_float((above[0] as Rect2).end.y).is_equal(target.position.y - TipCard.GAP)
+	var right: Array = TipCard.place(target, target, TipCard.Opens.RIGHT, CARD_SIZE, STAGE)
+	assert_float((right[0] as Rect2).position.x).is_equal(target.end.x + TipCard.GAP)
+	var left: Array = TipCard.place(target, target, TipCard.Opens.LEFT, CARD_SIZE, STAGE)
+	assert_float((left[0] as Rect2).end.x).is_equal(target.position.x - TipCard.GAP)
+	for placed: Array in [below, above]:
+		var centre: float = (placed[0] as Rect2).get_center().x
+		assert_float(centre).is_equal_approx(target.get_center().x, TipCard.PX)
+	# At the foot, BELOW flips ABOVE; at the top, ABOVE flips BELOW; at the sides likewise.
+	var foot: Rect2 = Rect2(600, 690, 40, 20)
+	var flipped: Array = TipCard.place(foot, foot, TipCard.Opens.BELOW, CARD_SIZE, STAGE)
+	assert_int(flipped[1]).is_equal(TipCard.Opens.ABOVE)
+	var top: Rect2 = Rect2(600, 4, 40, 20)
+	assert_int(TipCard.place(top, top, TipCard.Opens.ABOVE, CARD_SIZE, STAGE)[1]).is_equal(
+		TipCard.Opens.BELOW
+	)
+	var east: Rect2 = Rect2(1240, 300, 30, 20)
+	assert_int(TipCard.place(east, east, TipCard.Opens.RIGHT, CARD_SIZE, STAGE)[1]).is_equal(
+		TipCard.Opens.LEFT
+	)
+	var west: Rect2 = Rect2(8, 300, 30, 20)
+	assert_int(TipCard.place(west, west, TipCard.Opens.LEFT, CARD_SIZE, STAGE)[1]).is_equal(
+		TipCard.Opens.RIGHT
+	)
 
 
-func test_a_tip_stays_on_the_screen() -> void:
-	var tip_size: Vector2 = Vector2(80, GlyphTip.HEIGHT)
-	# A ticket at the screen's foot: the tip opens above its glyph instead.
-	var low_ticket: Rect2 = Rect2(400, 650, 108, 64)
-	var low_glyph: Rect2 = Rect2(404, 655, 18, 18)
-	var flipped: Rect2 = GlyphTip.place(low_glyph, low_ticket, true, tip_size, STAGE)
-	assert_bool(GlyphTip.is_below(flipped, low_glyph)).is_false()
-	assert_float(flipped.position.y).is_equal(655 - GlyphTip.ABOVE_GAP)
-	# At the sides: SCREEN_MARGIN inside.
-	var left: Rect2 = GlyphTip.place(Rect2(2, 300, 18, 18), TICKET, false, tip_size, STAGE)
-	assert_float(left.position.x).is_equal(GlyphTip.SCREEN_MARGIN)
-	var right: Rect2 = GlyphTip.place(Rect2(1270, 300, 18, 18), TICKET, false, tip_size, STAGE)
-	assert_float(right.end.x).is_equal(STAGE.end.x - GlyphTip.SCREEN_MARGIN)
-	for box: Rect2 in [flipped, left, right]:
-		assert_bool(STAGE.encloses(box)).override_failure_message(str(box)).is_true()
-	# The tail stays inside the box when the box is pushed off its glyph.
-	var tail: float = GlyphTip.tail_x(left, Rect2(2, 300, 18, 18))
-	assert_float(tail).is_equal(GlyphTip.TAIL_INSET)
+## At every corner and edge of both screens, on every side: the card (its shadow too) stays
+## MARGIN inside the screen, on the 2 px grid, and its boxes stay inside without covering it.
+func test_a_card_and_its_boxes_stay_on_screen_at_both_sizes() -> void:
+	var boxes: Array[Vector2] = [Vector2(172, 90), Vector2(172, 70)]
+	for viewport: Vector2i in VIEWPORTS:
+		var screen: Rect2 = Rect2(Vector2.ZERO, Vector2(viewport))
+		var inside: Rect2 = screen.grow(-TipCard.MARGIN)
+		for at: Vector2 in _spots(screen):
+			var target: Rect2 = Rect2(at, Vector2(36, 24))
+			for want: int in [0, 1, 2, 3]:
+				var placed: Array = TipCard.place(
+					target, target, want as TipCard.Opens, CARD_SIZE, screen
+				)
+				var card: Rect2 = placed[0]
+				var where: String = "%s at %s opens %d: %s" % [viewport, at, want, card]
+				var shadowed: Rect2 = card.merge(Rect2(card.position + TipCard.SHADOW, card.size))
+				assert_bool(inside.encloses(shadowed)).override_failure_message(where).is_true()
+				assert_float(fmod(card.position.x, TipCard.PX)).is_equal(0.0)
+				assert_float(fmod(card.position.y, TipCard.PX)).is_equal(0.0)
+				var rects: Array[Rect2] = TipCard.place_boxes(
+					card, placed[1], boxes, screen, target
+				)
+				assert_int(rects.size()).is_equal(2)
+				for rect: Rect2 in rects:
+					var message: String = "%s box %s" % [where, rect]
+					assert_bool(inside.encloses(rect)).override_failure_message(message).is_true()
+					(
+						assert_bool(rect.intersects(target))
+						. override_failure_message(message + " over the target")
+						. is_false()
+					)
+					(
+						assert_bool(rect.intersects(shadowed))
+						. override_failure_message(message)
+						. is_false()
+					)
+				assert_bool(rects[0].intersects(rects[1])).is_false()
 
 
-func test_a_tip_is_as_wide_as_its_text() -> void:
-	var font: Font = ArtStyle.bold_font(ArtStyle.TIP_TEXT_WEIGHT)
-	for text: String in ["Dairy", "Breakfast", "Fruit & veg", "Household"]:
-		var width: float = GlyphTip.width_for(text)
-		var text_width: float = (
-			font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, ArtStyle.TIP_TEXT_SIZE).x
-		)
-		assert_float(fmod(width, 2.0)).override_failure_message(text).is_equal(0.0)
-		assert_float(width).override_failure_message(text).is_between(
-			text_width + GlyphTip.TEXT_ROOM, text_width + GlyphTip.TEXT_ROOM + 2.0
-		)
+## A card flipped LEFT at the screen's right edge keeps its boxes on its far (left) side, away from
+## the target it came from; a card opening RIGHT with no room on its right stacks them under itself,
+## never back over the target (review of 2026-11-13).
+func test_boxes_keep_off_the_target() -> void:
+	var boxes: Array[Vector2] = [Vector2(172, 90), Vector2(172, 70)]
+	var screen: Rect2 = Rect2(Vector2.ZERO, Vector2(1280, 720))
+	var east: Rect2 = Rect2(1200, 300, 40, 24)
+	var placed: Array = TipCard.place(east, east, TipCard.Opens.RIGHT, CARD_SIZE, screen)
+	assert_int(placed[1]).is_equal(TipCard.Opens.LEFT)
+	var card: Rect2 = placed[0]
+	for rect: Rect2 in TipCard.place_boxes(card, placed[1], boxes, screen, east):
+		assert_bool(rect.intersects(east)).is_false()
+		assert_float(rect.end.x).is_less_equal(card.position.x)
+	var middle: Rect2 = Rect2(860, 200, 40, 24)
+	placed = TipCard.place(middle, middle, TipCard.Opens.RIGHT, CARD_SIZE, screen)
+	assert_int(placed[1]).is_equal(TipCard.Opens.RIGHT)
+	card = placed[0]
+	for rect: Rect2 in TipCard.place_boxes(card, placed[1], boxes, screen, middle):
+		assert_bool(rect.intersects(middle)).is_false()
+		assert_bool(screen.grow(-TipCard.MARGIN).encloses(rect)).is_true()
+	# No room beside or under: the stack stays on screen (over the card's top, not above the screen).
+	var tall: Rect2 = Rect2(0, 0, 1240, 640)
+	for rect: Rect2 in TipCard.place_boxes(tall, TipCard.Opens.BELOW, boxes, screen):
+		assert_float(rect.position.y).is_greater_equal(TipCard.MARGIN)
 
 
-## show_for: below, the tail flipped at TAIL_BELOW_Y and the pop's pivot at its top; above, the
-## tail at TAIL_ABOVE_Y and the pivot at the foot; the text in paper, inside the box.
-func test_a_shown_tip_points_its_tail_at_the_glyph() -> void:
-	var tip: GlyphTip = auto_free(GlyphTip.new())
-	add_child(tip)
-	tip.show_for("Dairy", GLYPH, TICKET, true, STAGE)
-	assert_bool(tip.below).is_true()
-	assert_str(tip.tip_text()).is_equal("Dairy")
-	assert_bool(tip.tail().flip_v).is_true()
-	assert_float(tip.tail().position.y).is_equal(GlyphTip.TAIL_BELOW_Y)
-	assert_float(tip.pivot_offset.y).is_equal(0.0)
-	assert_object(tip.label().get_theme_color("font_color")).is_equal(Palette.PAPER)
-	assert_int(tip.label().get_theme_font_size("font_size")).is_equal(ArtStyle.TIP_TEXT_SIZE)
-	tip.show_for("Dairy", GLYPH, TICKET, false, STAGE)
-	assert_bool(tip.below).is_false()
-	assert_bool(tip.tail().flip_v).is_false()
-	assert_float(tip.tail().position.y).is_equal(GlyphTip.TAIL_ABOVE_Y)
-	assert_float(tip.pivot_offset.y).is_equal(GlyphTip.HEIGHT)
-	var box: Rect2 = Rect2(Vector2.ZERO, tip.size)
-	assert_bool(box.encloses(Rect2(tip.label().position, tip.label().size))).is_true()
-
-
-## A tip whose right-click opens the guide shows the footer under its text: HINT_ROOM taller, at
-## least the footer's width, the footer and the text inside the box and apart; the tail still on
-## the glyph, below or above. Without it the tip is as before.
-func test_a_guide_tip_shows_its_footer() -> void:
-	var tip: GlyphTip = auto_free(GlyphTip.new())
-	add_child(tip)
-	tip.show_for("Dairy", GLYPH, TICKET, true, STAGE)
-	var plain: Vector2 = tip.size
-	assert_bool(tip.hint().visible).is_false()
-	for below: bool in [true, false]:
-		tip.show_for("Dairy", GLYPH, TICKET, below, STAGE, true)
-		assert_bool(tip.hint().visible).is_true()
-		assert_str(tip.hint().text).is_equal(GlyphTip.GUIDE_HINT)
-		assert_float(tip.size.y).is_equal(plain.y + GlyphTip.HINT_ROOM)
-		assert_vector(tip.size).is_equal(GlyphTip.size_with("Dairy", true))
-		var box: Rect2 = Rect2(Vector2.ZERO, tip.size)
-		var text: Rect2 = Rect2(tip.label().position, tip.label().size)
-		var hint: Rect2 = Rect2(tip.hint().position, tip.hint().size)
-		assert_bool(box.encloses(text)).is_true()
-		assert_bool(box.encloses(hint)).is_true()
-		assert_bool(text.intersects(hint)).is_false()
-		var font: Font = ArtStyle.BODY_FONT
-		var needed: float = (
-			font
-			. get_string_size(
-				GlyphTip.GUIDE_HINT, HORIZONTAL_ALIGNMENT_LEFT, -1, GlyphTip.HINT_SIZE
+## A card's tail sits on the edge facing its target and points at the target's middle.
+func test_a_cards_tail_points_at_its_target() -> void:
+	var card: TipCard = auto_free(TipCard.new())
+	add_child(card)
+	card.show_spec(TipWords.box(CardText.BATCH_WORD))
+	var target: Rect2 = Rect2(600, 300, 40, 20)
+	for want: int in [0, 1, 2, 3]:
+		var placed: Array = TipCard.place(target, target, want as TipCard.Opens, card.size, STAGE)
+		card.position = (placed[0] as Rect2).position
+		card.point_tail(placed[1], target)
+		# Its true middle (a side's tail is turned a quarter, which its rect ignores).
+		var tip_end: Vector2 = card.tail().get_global_transform() * (TipCard.TAIL_SIZE / 2.0)
+		var middle: Vector2 = target.get_center()
+		var message: String = "opens %d: tail at %s" % [want, tip_end]
+		if want == TipCard.Opens.BELOW or want == TipCard.Opens.ABOVE:
+			assert_float(tip_end.x).override_failure_message(message).is_equal_approx(
+				middle.x, TipCard.PX
 			)
-			. x
+		else:
+			assert_float(tip_end.y).override_failure_message(message).is_equal_approx(
+				middle.y, TipCard.PX
+			)
+		var card_rect: Rect2 = Rect2(card.position, card.size)
+		assert_bool(target.has_point(tip_end)).override_failure_message(message).is_false()
+		(
+			assert_bool(card_rect.grow(TipCard.TAIL_OUT).has_point(tip_end))
+			. override_failure_message(message)
+			. is_true()
 		)
-		assert_float(tip.size.x).is_greater_equal(needed)
-		assert_bool(STAGE.encloses(Rect2(tip.position, tip.size))).is_true()
-		var tail: Rect2 = Rect2(tip.position + tip.tail().position, GlyphTip.TAIL_SIZE)
-		assert_float(tail.get_center().x).is_equal_approx(GLYPH.get_center().x, 1.0)
-	tip.show_for("Dairy", GLYPH, TICKET, true, STAGE)
-	assert_bool(tip.hint().visible).is_false()
-	assert_vector(tip.size).is_equal(plain)
+
+
+## A spec's parts: the title in capitals, the kind's band, the body's chips, the footer's keys
+## (CLICK <action>, RIGHT-CLICK HANDBOOK when it opens a page, SHIFT KEPT when kept).
+func test_a_card_draws_its_spec() -> void:
+	var card: TipCard = auto_free(TipCard.new())
+	add_child(card)
+	var made: TipSpec = TipSpec.make(TipSpec.Kind.PERK, "Coupon engine", "Pays [BATCH] {x2}.")
+	made.tag = "PERK · LV 1"
+	made.click = "PICK"
+	made.guide = true
+	card.show_spec(made)
+	assert_str(card.title_text()).is_equal("COUPON ENGINE")
+	assert_object(card.band_colour()).is_equal(TipCard.KIND_BANDS[TipSpec.Kind.PERK][0])
+	assert_int(card.body().chips().size()).is_equal(1)
+	assert_array(card.keys()).is_equal(["CLICK", "PICK", "RIGHT-CLICK", "HANDBOOK"])
+	card.show_spec(made, true)
+	assert_array(card.keys()).is_equal(
+		["SHIFT", "KEPT", "CLICK", "PICK", "RIGHT-CLICK", "HANDBOOK"]
+	)
+	for part: Control in [card.body()]:
+		var rect: Rect2 = Rect2(part.position, part.size)
+		assert_bool(Rect2(Vector2.ZERO, card.size).encloses(rect)).is_true()
+	assert_float(card.size.x).is_equal(TipCard.WIDTH)
+	await _frames(1)  # The first build's parts are freed.
+	# Three key pairs need more than one row: every key cap stays inside the card's padding.
+	var inner: Rect2 = Rect2(
+		Vector2.ONE * TipCard.BORDER, card.size - Vector2.ONE * 2.0 * TipCard.BORDER
+	)
+	var caps: Array[Rect2] = []
+	for child: Node in card.get_children():
+		var part: Control = child as Control
+		if part == null or not part.name.begins_with("KeyCap"):
+			continue
+		var rect: Rect2 = Rect2(part.position, part.size)
+		caps.append(rect)
+		var said: String = "%s %s" % [part.name, rect]
+		assert_bool(inner.encloses(rect)).override_failure_message(said).is_true()
+	assert_int(caps.size()).is_equal(3)
+	for index: int in range(caps.size()):
+		for other: int in range(index + 1, caps.size()):
+			assert_bool(caps[index].intersects(caps[other])).is_false()
+
+
+## Mounted in a viewport of each size, a family glyph at every corner: no tip before SHOW_DELAY_S,
+## its tip after it, the card inside the viewport and its keyword box (FAMILY) beside it, clear of
+## it and inside too.
+func test_mounted_tips_wait_and_stay_inside_both_viewports() -> void:
+	for viewport: Vector2i in VIEWPORTS:
+		var sub: SubViewport = auto_free(SubViewport.new())
+		sub.size = viewport
+		add_child(sub)
+		var holder: Control = Control.new()
+		holder.size = Vector2(viewport)
+		sub.add_child(holder)
+		var tips: GlyphTips = GlyphTips.new()
+		tips.reduced_motion = func() -> bool: return true
+		holder.add_child(tips)
+		var screen: Rect2 = Rect2(Vector2.ZERO, Vector2(viewport))
+		var glyphs: Array[FamilyGlyph] = []
+		for at: Vector2 in _spots(screen):
+			var glyph: FamilyGlyph = FamilyGlyph.new(FamilyPalette.shared().style("Dairy"))
+			glyph.position = at
+			holder.add_child(glyph)
+			glyphs.append(glyph)
+		holder.move_child(tips, -1)
+		await _frames(2)
+		for glyph: FamilyGlyph in glyphs:
+			var where: String = "%s at %s" % [viewport, glyph.position]
+			tips.hide_tip()
+			tips.point_at(Vector2(-50, -50))
+			await _frames(1)
+			tips.point_at(glyph.get_global_rect().get_center())
+			await _seconds(GlyphTips.SHOW_DELAY_S * 0.4)
+			assert_object(tips.shown_glyph()).override_failure_message(where).is_null()
+			await _seconds(GlyphTips.SHOW_DELAY_S * 0.6 + 0.1)
+			assert_object(tips.shown_glyph()).override_failure_message(where).is_same(glyph)
+			var card: Rect2 = tips.tip().get_global_rect()
+			(
+				assert_bool(screen.grow(-TipCard.MARGIN).encloses(card))
+				. override_failure_message("%s: %s" % [where, card])
+				. is_true()
+			)
+			(
+				assert_bool(card.intersects(glyph.get_global_rect()))
+				. override_failure_message(where)
+				. is_false()
+			)
+			assert_int(tips.boxes().size()).override_failure_message(where).is_equal(1)
+			for box: TipCard in tips.boxes():
+				var rect: Rect2 = box.get_global_rect()
+				var message: String = "%s box %s card %s" % [where, rect, card]
+				assert_bool(screen.encloses(rect)).override_failure_message(message).is_true()
+				assert_bool(rect.intersects(card)).override_failure_message(message).is_false()
+				assert_str(box.title_text()).is_equal(TipWords.title_of("FAMILY").to_upper())
+		sub.remove_child(holder)
+		holder.free()
+
+
+## Shift keeps the shown tip: moving away no longer closes it and its footer says SHIFT KEPT; Esc
+## closes it. A right-click on a shown tip asks for its handbook page and closes it.
+func test_shift_keeps_a_tip_and_a_right_click_asks_for_the_handbook() -> void:
+	var holder: Control = auto_free(Control.new())
+	holder.size = STAGE.size
+	add_child(holder)
+	var glyph: FamilyGlyph = FamilyGlyph.new(FamilyPalette.shared().style("Bakery"))
+	glyph.position = Vector2(600, 400)
+	holder.add_child(glyph)
+	var tips: GlyphTips = GlyphTips.new()
+	tips.guide_for = func(_target: TipTarget) -> bool: return true
+	holder.add_child(tips)
+	await _frames(2)
+	await _tip_for(tips, glyph)
+	assert_bool(tips.tip().keys().has(TipCard.KEY_RIGHT_CLICK)).is_true()
+	tips._input(_key(KEY_SHIFT))
+	assert_bool(tips.is_kept()).is_true()
+	assert_array(tips.tip().keys().slice(0, 2)).is_equal([TipCard.KEY_SHIFT, TipCard.KEPT_WORD])
+	tips.point_at(Vector2(5, 5))
+	await _frames(3)
+	assert_object(tips.shown_glyph()).is_same(glyph)
+	tips._input(_key(KEY_ESCAPE))
+	assert_object(tips.shown_glyph()).is_null()
+	assert_bool(tips.is_kept()).is_false()
+	# Right-click: guide_requested with the target, the tip closed.
+	var asked: Array[TipTarget] = []
+	tips.guide_requested.connect(func(target: TipTarget) -> void: asked.append(target))
+	await _tip_for(tips, glyph)
+	var press: InputEventMouseButton = InputEventMouseButton.new()
+	press.button_index = MOUSE_BUTTON_RIGHT
+	press.pressed = true
+	press.position = glyph.get_global_rect().get_center()
+	tips._input(press)
+	assert_array(asked).is_equal([glyph])
+	assert_object(tips.shown_glyph()).is_null()
+
+
+## The switch grace and the leaving: a tip that isn't kept closes as the pointer leaves; the next
+## target within SWITCH_GRACE_S opens at once, one after it waits SHOW_DELAY_S again. A click on a
+## kept tip closes it and is used up.
+func test_a_tip_leaves_switches_at_once_and_a_click_closes_a_kept_one() -> void:
+	var holder: Control = auto_free(Control.new())
+	holder.size = STAGE.size
+	add_child(holder)
+	var bakery: FamilyGlyph = FamilyGlyph.new(FamilyPalette.shared().style("Bakery"))
+	bakery.position = Vector2(500, 400)
+	holder.add_child(bakery)
+	var dairy: FamilyGlyph = FamilyGlyph.new(FamilyPalette.shared().style("Dairy"))
+	dairy.position = Vector2(700, 400)
+	holder.add_child(dairy)
+	var tips: GlyphTips = GlyphTips.new()
+	holder.add_child(tips)
+	await _frames(2)
+	# Not kept: leaving closes it.
+	await _tip_for(tips, bakery)
+	tips.point_at(Vector2(5, 5))
+	await _frames(2)
+	assert_object(tips.shown_glyph()).is_null()
+	# Within the grace: the next target's tip opens on the next frame.
+	await _tip_for(tips, bakery)
+	tips.point_at(dairy.get_global_rect().get_center())
+	await _frames(2)
+	assert_object(tips.shown_glyph()).is_same(dairy)
+	# After the grace: it waits again.
+	tips.point_at(Vector2(5, 5))
+	await _seconds(GlyphTips.SWITCH_GRACE_S + 0.15)
+	tips.point_at(bakery.get_global_rect().get_center())
+	await _frames(2)
+	assert_object(tips.shown_glyph()).is_null()
+	await _seconds(GlyphTips.SHOW_DELAY_S + 0.1)
+	assert_object(tips.shown_glyph()).is_same(bakery)
+	# Kept: a left click closes it and the click is used up.
+	tips._input(_key(KEY_SHIFT))
+	assert_bool(tips.is_kept()).is_true()
+	var press: InputEventMouseButton = InputEventMouseButton.new()
+	press.button_index = MOUSE_BUTTON_LEFT
+	press.pressed = true
+	press.position = Vector2(5, 5)
+	tips._input(press)
+	assert_object(tips.shown_glyph()).is_null()
+	assert_bool(tips.is_kept()).is_false()
+	assert_bool(get_viewport().is_input_handled()).is_true()
 
 
 ## Mounted over a ticket and a popup (standing for the offers' popup, which stays while the
-## pointer is on it): the ticket's glyphs (its row's and its text's) tip below the ticket after
-## SHOW_DELAY_S, the popup's above their glyph; inside the screen; off the glyph, or `blocked`, no
-## tip.
+## pointer is on it): the ticket's glyphs (its row's and its text's) and its price window tip under
+## the ticket (or over it at the screen's foot) without covering it, the popup's clear of their
+## glyph; inside the screen; off the glyph, or `blocked`, no tip.
 func test_mounted_tips_show_for_the_glyph_under_the_pointer() -> void:
 	var holder: Control = auto_free(Control.new())
 	holder.size = STAGE.size
 	get_tree().root.add_child(holder)
 	var scissors: PriceSticker = PriceSticker.new(_card("scissors"))
-	scissors.position = Vector2(300, 400)
+	scissors.position = Vector2(300, 300)
 	holder.add_child(scissors)
 	var popup: ScanPopup = ScanPopup.new()
 	holder.add_child(popup)
@@ -160,11 +363,11 @@ func test_mounted_tips_show_for_the_glyph_under_the_pointer() -> void:
 	popup.show_card(milk, milk.tags)
 	popup.position = Vector2(700, 300)
 	var tips: GlyphTips = GlyphTips.new()
+	tips.reduced_motion = func() -> bool: return true
 	var blocked: Array[bool] = [false]
 	tips.blocked = func() -> bool: return blocked[0]
 	holder.add_child(tips)
 	await _frames(2)
-	# Its icon label's glyph, its written family (tickets v5) and its price window.
 	var glyphs: Array[TipTarget] = [scissors.window()]
 	for glyph: FamilyGlyph in scissors.glyphs() + scissors.summary().glyphs():
 		glyphs.append(glyph)
@@ -173,26 +376,25 @@ func test_mounted_tips_show_for_the_glyph_under_the_pointer() -> void:
 	assert_int(glyphs.size()).is_greater_equal(2)
 	var ticket: Rect2 = scissors.get_global_rect()
 	for glyph: TipTarget in glyphs:
-		var shown: GlyphTip = await _tip_for(tips, glyph)
+		var shown: TipCard = await _tip_for(tips, glyph)
 		var box: Rect2 = shown.get_global_rect()
 		var message: String = "%s: %s" % [glyph.name, box]
-		assert_str(shown.tip_text()).is_equal(glyph.tip_text)
-		assert_bool(shown.below).override_failure_message(message).is_true()
+		assert_str(shown.tip_text()).is_equal(glyph.full_tip())
 		assert_float(box.position.y).override_failure_message(message).is_equal(
-			ticket.end.y + GlyphTip.BELOW_GAP
+			ticket.end.y + TipCard.GAP
 		)
 		assert_bool(STAGE.encloses(box)).override_failure_message(message).is_true()
 		assert_bool(box.intersects(ticket)).override_failure_message(message).is_false()
 	assert_int(popup.glyphs().size()).is_greater_equal(1)
 	for glyph: FamilyGlyph in popup.glyphs():
-		var shown: GlyphTip = await _tip_for(tips, glyph)
+		var shown: TipCard = await _tip_for(tips, glyph)
 		var box: Rect2 = shown.get_global_rect()
 		var message: String = "%s: %s" % [glyph.family, box]
-		assert_bool(shown.below).override_failure_message(message).is_false()
-		assert_float(box.end.y).override_failure_message(message).is_less_equal(
-			glyph.get_global_rect().position.y
+		(
+			assert_bool(box.intersects(glyph.get_global_rect()))
+			. override_failure_message(message)
+			. is_false()
 		)
-		assert_bool(box.intersects(glyph.get_global_rect())).is_false()
 		assert_bool(STAGE.encloses(box)).override_failure_message(message).is_true()
 	# Off every glyph: none.
 	tips.point_at(Vector2(5, 5))
@@ -205,9 +407,9 @@ func test_mounted_tips_show_for_the_glyph_under_the_pointer() -> void:
 	assert_object(tips.shown_glyph()).is_null()
 
 
-## A ticket's colour (#105): resting the pointer on the ticket off its glyphs says what the colour
-## means, below the ticket; on a glyph the glyph's tip wins. A ticket clipped by its parent (a
-## scrolled shelf) shows nothing where it is cut off, its glyphs included.
+## A ticket's colour (#105): resting the pointer on the ticket off its glyphs shows its card (the
+## family's, or the coupon's), below the ticket; on a glyph the glyph's tip wins. A ticket clipped
+## by its parent (a scrolled shelf) shows nothing where it is cut off, its glyphs included.
 func test_a_tickets_colour_tips_below_it_and_a_clipped_ticket_shows_none() -> void:
 	var holder: Control = auto_free(Control.new())
 	holder.size = STAGE.size
@@ -225,16 +427,18 @@ func test_a_tickets_colour_tips_below_it_and_a_clipped_ticket_shows_none() -> vo
 	cut.position = Vector2(0, -34)
 	clip.add_child(cut)
 	var tips: GlyphTips = GlyphTips.new()
+	tips.reduced_motion = func() -> bool: return true
 	holder.add_child(tips)
 	await _frames(2)
 	var spot: PriceSticker.ColourSpot = _spot(milk)
-	var shown: GlyphTip = await _tip_for(
+	var shown: TipCard = await _tip_for(
 		tips, spot, milk.get_global_rect().position + Vector2(4, 60)
 	)
-	assert_str(shown.tip_text()).is_equal("Breakfast colour · works with Breakfast")
-	assert_bool(shown.below).is_true()
+	assert_str(shown.tip_text()).is_equal(spot.full_tip())
+	assert_str(shown.title_text()).is_not_empty()
+	assert_int(shown.side).is_equal(TipCard.Opens.BELOW)
 	var box: Rect2 = shown.get_global_rect()
-	assert_float(box.position.y).is_equal(milk.get_global_rect().end.y + GlyphTip.BELOW_GAP)
+	assert_float(box.position.y).is_equal(milk.get_global_rect().end.y + TipCard.GAP)
 	assert_bool(STAGE.encloses(box)).override_failure_message(str(box)).is_true()
 	# On a glyph, the glyph's tip.
 	var glyph: FamilyGlyph = milk.glyphs()[0]
@@ -251,8 +455,9 @@ func test_a_tickets_colour_tips_below_it_and_a_clipped_ticket_shows_none() -> vo
 
 
 ## On the real shift screen: the pointer on a belt ticket's glyph keeps its item hovered (a press
-## there reaches the item, which drags), the glyph's tip opens below the ticket inside the screen,
-## a press hides it, and none shows while the shift is counted.
+## there reaches the item, which drags), the glyph's tip opens off the ticket (under it, or over it
+## where the screen's foot leaves no room) inside the screen, a press hides it, and none shows
+## while the shift is counted.
 func test_a_belt_glyph_tips_and_keeps_its_item() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
@@ -279,13 +484,16 @@ func test_a_belt_glyph_tips_and_keeps_its_item() -> void:
 	)
 	var tips: GlyphTips = screen._glyph_tips
 	assert_object(tips.shown_glyph()).is_same(glyph)
-	var tip: GlyphTip = tips.tip()
+	var tip: TipCard = tips.tip()
 	var box: Rect2 = tip.get_global_rect()
-	assert_bool(tip.below).is_true()
 	assert_str(tip.tip_text()).is_equal(glyph.full_tip())
 	# On the belt the membership tip names the family's other items there (tickets v5).
-	assert_str(glyph.tip_more).is_equal("No other Breakfast item on the belt")
-	assert_float(box.position.y).is_equal(sticker.get_global_rect().end.y + GlyphTip.BELOW_GAP)
+	assert_str(glyph.tip_more).is_equal("No other Breakfast item in the row")
+	(
+		assert_bool(box.intersects(sticker.get_global_rect()))
+		. override_failure_message(str(box))
+		. is_false()
+	)
 	assert_bool(screen.get_global_rect().encloses(box)).override_failure_message(str(box)).is_true()
 	# A press hides it (the item takes the press).
 	var press: InputEventMouseButton = InputEventMouseButton.new()
@@ -327,7 +535,7 @@ func test_the_bag_glyph_tips_during_the_count() -> void:
 	await _seconds(GlyphTips.SHOW_DELAY_S + 0.1)
 	assert_object(tips.shown_glyph()).is_same(bag)
 	assert_str(tips.tip().tip_text()).is_equal(MonitorStepRow.bag_tip_of("Eggs"))
-	assert_str(tips.tip().tip_text()).starts_with("From the bag: Eggs is already bagged")
+	assert_str(tips.tip().tip_text()).starts_with("From Eggs (already scanned)")
 	# The rows rebuilt (a step's line added under it): the glyph under the pointer keeps the tip.
 	column.show_step("Eggs  ×2", false, true, eggs_mini, true, false, "Eggs")
 	await _frames(2)
@@ -365,13 +573,39 @@ func test_the_shown_tip_is_signalled_once_per_change() -> void:
 
 
 ## Rests the pointer on `glyph` (at `at`, else its middle) for the wait, returning the shown tip.
-func _tip_for(tips: GlyphTips, glyph: TipTarget, at: Vector2 = Vector2.INF) -> GlyphTip:
+func _tip_for(tips: GlyphTips, glyph: TipTarget, at: Vector2 = Vector2.INF) -> TipCard:
 	tips.hide_tip()
 	tips.point_at(Vector2(-50, -50))
 	tips.point_at(glyph.get_global_rect().get_center() if at == Vector2.INF else at)
 	await _seconds(GlyphTips.SHOW_DELAY_S + 0.1)
 	assert_object(tips.shown_glyph()).override_failure_message(glyph.tip_text).is_same(glyph)
 	return tips.tip()
+
+
+## A key press (`code`), as the keyboard sends it.
+func _key(code: Key) -> InputEventKey:
+	var key: InputEventKey = InputEventKey.new()
+	key.keycode = code
+	key.pressed = true
+	return key
+
+
+## Spots for a target on `screen`: its corners, its edges' middles and its centre (4 px in).
+static func _spots(screen: Rect2) -> Array[Vector2]:
+	var right: float = screen.end.x - 40.0
+	var foot: float = screen.end.y - 30.0
+	var middle: Vector2 = screen.get_center()
+	return [
+		Vector2(4, 4),
+		Vector2(right, 4),
+		Vector2(4, foot),
+		Vector2(right, foot),
+		Vector2(middle.x, 4),
+		Vector2(middle.x, foot),
+		Vector2(4, middle.y),
+		Vector2(right, middle.y),
+		middle,
+	]
 
 
 ## The pointer moves to `at` (the viewport's coordinates), as a real mouse motion.

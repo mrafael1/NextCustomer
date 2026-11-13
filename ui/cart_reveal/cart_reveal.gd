@@ -355,9 +355,7 @@ func advance(seconds: float) -> void:
 
 func _process(delta: float) -> void:
 	if board != null:
-		# The board's card tiles show this reveal's popup, with the same hold.
-		hover(board.hovered_card())
-		hover_for(delta)
+		# The board's cards show the game's hover tips (StartBoard's GlyphTips), not the popup.
 		return
 	if _panel == null:
 		return

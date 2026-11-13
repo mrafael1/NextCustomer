@@ -67,7 +67,7 @@ func test_the_regulars_numbers() -> void:
 			var rule: FamilyRegularsRule = level.rules[0] as FamilyRegularsRule
 			var expected: int = number + 1 if stepped else number
 			assert_int(rule.bonus_each).override_failure_message(family).is_equal(expected)
-			assert_str(level.effect_text).contains("+%d for each" % expected)
+			assert_str(level.effect_text).contains("+%d€ for each" % expected)
 			level = level.next_level
 	var milks: Array[CardInstance] = _row("milk,cream,yogurt")
 	# Dairy regulars LV 1: Cream +2 (one Dairy before it), Yogurt +4 (two).

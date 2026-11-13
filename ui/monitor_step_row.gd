@@ -80,8 +80,8 @@ const EQUATION_WEIGHT := 700
 const BAG_ICON := preload("res://art/icons/from_bag.png")
 const BAG_SIZE := Vector2(14, 14)
 const BAG_GAP := 2.0
-const BAG_TIP := "From the bag: %s is already bagged and still gives this"
-const BAG_TIP_UNNAMED := "From the bag: its giver is already bagged and still gives this"
+const BAG_TIP := "From %s (already scanned): still gives this"
+const BAG_TIP_UNNAMED := "From an item already scanned: still gives this"
 
 
 ## One row `width` px wide (see the class comment), in no parent yet, at most `max_lines` lines

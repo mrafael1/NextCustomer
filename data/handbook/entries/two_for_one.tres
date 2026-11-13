@@ -9,6 +9,6 @@ group = &"coupons"
 title = "2 for 1"
 mark = 4
 mark_value = "two_for_one"
-rule = "Put the same item on both sides of it, like {item:milk}: they count as side by side, and the second one pays ×2."
+rule = "Put the same item on both sides of it, like {item:milk}: they count as beside each other, and the second one pays ×2."
 example_row = PackedStringArray("milk", "two_for_one", "milk")
 example_total = 14

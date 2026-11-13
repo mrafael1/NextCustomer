@@ -11,7 +11,7 @@ const HEADING_POSITION := Vector2(158, 350)
 const SUB_POSITION := Vector2(158, 378)
 const HEADING_TEXT := "PICK A STARTER PACK"
 const SUB_TEXT := (
-	"Click a pack to raise it, then confirm. " + "Hover a pack, or today’s stock, to read it."
+	"Click a pack to look at it, then TAKE IT. " + "Hover a pack, or today’s stock, to read it."
 )
 const FACES_TOP := 410.0
 const FACE_GAP := 22.0
@@ -20,7 +20,7 @@ const SPAN_LEFT := 96.0
 const SPAN_WIDTH := 1088.0
 const BAR_RECT := Rect2(352, 622, 576, 44)
 const BAR_SIZE := 18
-const BAR_IDLE_TEXT := "RAISE A PACK, THEN CONFIRM"
+const BAR_IDLE_TEXT := "CLICK A PACK, THEN TAKE IT"
 const BAR_TAKE_TEXT := "TAKE %s ›"
 
 var offer: StartOffer

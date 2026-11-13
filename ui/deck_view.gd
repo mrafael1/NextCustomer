@@ -80,7 +80,7 @@ const LEGEND_SIZE := 14
 const LEGEND_CHIP := Vector2(18, 18)
 const PICK_LEGEND := "start pick"
 const COUPON_LEGEND := "start coupon"
-const STOCK_HEADING := "STOCK  (every item the RECEIPT REWARDS machine can offer this run)"
+const STOCK_HEADING := "MACHINE STOCK: every item the prize machine can give this run"
 
 ## The family whose glyph's tooltip shows in the view (#105 piece 3), or "": its cells light.
 var mix_family: String = "":
@@ -428,12 +428,12 @@ func _legend() -> HBoxContainer:
 
 func _fill_info_page(run: RunState) -> void:
 	_clear(_info_page)
-	_info_page.add_child(_heading("UPGRADES"))
+	_info_page.add_child(_heading("LOYALTY PERKS"))
 	if run.upgrades.is_empty():
 		_info_page.add_child(_line("None yet.", Palette.PAPER))
 	for upgrade: UpgradeDefinition in run.upgrades:
 		_info_page.add_child(_upgrade_row(upgrade))
-	_info_page.add_child(_heading("INSPECTIONS"))
+	_info_page.add_child(_heading("DAY EVENTS"))
 	var lines: Dictionary = _inspection_lines(run)
 	for line: String in lines:
 		var row: HBoxContainer = _icon_row(lines[line])
@@ -534,7 +534,7 @@ static func _inspection_lines(run: RunState) -> Dictionary:
 			run.next_inspections
 		))
 	elif InspectionSchedule.is_review_shift(run.balance, next_shift):
-		lines["Next shift: Manager's review (announced at checkout)."] = true
+		lines["Next shift: payday (announced at checkout)."] = true
 	elif InspectionSchedule.is_inspection_shift(run.balance, next_shift):
 		lines["Next shift: inspected (announced at checkout)."] = true
 	elif InspectionSchedule.is_boon_shift(run.balance, next_shift):
@@ -557,7 +557,7 @@ static func _inspection_line(when: String, inspections: Array[InspectionDefiniti
 	# A Manager's review (several inspections) says so, then names every one of them (a boon day's
 	# event too, v0.69).
 	var maluses: int = InspectionDefinition.maluses(inspections).size()
-	var review: String = "Manager's review: " if maluses > 1 else ""
+	var review: String = "Payday: " if maluses > 1 else ""
 	return "%s: %s%s" % [when, review, "  ·  ".join(notices)]
 
 

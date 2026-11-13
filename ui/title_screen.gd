@@ -56,7 +56,7 @@ const REWARDS_SOUND := "ui_open"
 const EXPORT_ICON := preload("res://art/icons/export_log.png")
 const EXPORT_ICON_HOT := preload("res://art/icons/export_log_hot.png")
 const EXPORT_RECT := Rect2(16, 680, 24, 24)
-const EXPORT_TIP := "Export log"
+const EXPORT_TIP := TopBar.EXPORT_TEXT
 const BUILD_RIGHT := 1264.0
 const BUILD_WIDTH := 240.0
 const BUILD_FONT_SIZE := 14
@@ -153,6 +153,10 @@ func _ready() -> void:
 	_menu.quit_pressed.connect(_on_quit_pressed)
 	stage.add_child(_menu)
 	_add_corner(stage)
+	# The stage's own hover tips (the Export log icon's; the handbook mounts its own).
+	var tips: GlyphTips = GlyphTips.new()
+	tips.reduced_motion = func() -> bool: return _still
+	stage.add_child(tips)
 	_storefront.sign_lit.connect(_on_sign_lit)
 
 	if _saved_run != null:
@@ -292,7 +296,7 @@ func _add_corner(stage: Control) -> void:
 	_export.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_export.focus_mode = Control.FOCUS_NONE
 	_export.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	_export.tooltip_text = EXPORT_TIP
+	TipTarget.cover_text(_export, "", TipSpec.Kind.WORD, "", "", EXPORT_TIP)
 	_export.accessibility_name = EXPORT_TIP
 	_export.position = EXPORT_RECT.position
 	_export.size = EXPORT_RECT.size

@@ -104,7 +104,7 @@ static func lines(
 	if not won:
 		var margin: ShiftMargin = ShiftMargin.of(result.total, run.quota())
 		var shortfall: String = (
-			"Shift %d / %d: short by %d€"
+			"Shift %d / %d missed the quota by %d€"
 			% [run.shift_index + 1, run.shift_count(), margin.amount()]
 		)
 		# In week columns it closes its week's column, under the shift that ended the run.
@@ -130,7 +130,7 @@ static func shift_texts(
 	)
 	var maluses: Array[InspectionDefinition] = InspectionDefinition.maluses(record.inspections)
 	if compact and not maluses.is_empty():
-		main = "%-28s  %s" % [main, "review" if maluses.size() > 1 else "inspected"]
+		main = "%-28s  %s" % [main, "payday" if maluses.size() > 1 else "inspected"]
 	var texts: PackedStringArray = PackedStringArray([main])
 	for visit: MachineVisit in record.visits:
 		texts.append(DETAIL_INDENT + visit_text(visit))
@@ -150,11 +150,11 @@ static func visit_text(visit: MachineVisit) -> String:
 	var chute: String = CHUTE_WORDS[visit.chute] if visit.chute >= 0 else "?"
 	var prefix: String = ""
 	if visit.kind == MachineVisit.Kind.BONUS:
-		prefix = "PREMIUM · " if visit.premium else "BONUS · "
+		prefix = "PREMIUM · " if visit.premium else "EXTRA DRAW · "
 	elif visit.kind == MachineVisit.Kind.OVERTIME:
-		prefix = "OVERTIME · "
+		prefix = "MEDAL · "
 	if visit.binned:
-		return prefix + "binned " + chute
+		return prefix + "thrown away " + chute
 	var prize: MachinePrize = visit.picked_prize()
 	var given: String = "—"
 	if prize != null and prize.kind == MachinePrize.Kind.REGISTER:
@@ -172,8 +172,8 @@ static func coin_lines(
 ) -> PackedStringArray:
 	return PackedStringArray(
 		[
-			_line("Shifts passed %d" % payout.shifts_passed, "+%d" % payout.shift_coins, width),
-			_line("COINS +%d" % payout.total(), "you have " + _owned_text(coins_owned), width),
+			_line("Shifts met %d" % payout.shifts_passed, "+%d" % payout.shift_coins, width),
+			_line("COINS +%d" % payout.total(), "(you have %s)" % _owned_text(coins_owned), width),
 		]
 	)
 
@@ -199,7 +199,7 @@ static func _upgrade_text(prize: MachinePrize, copies: int) -> String:
 			return "%s › GOLDEN" % prize.card.display_name
 		MachinePrize.Rarity.LEGENDARY:
 			return "SHELF %s ×%d" % [prize.card.display_name, copies]
-	return "%s +1 step" % prize.card.display_name
+	return "%s +1 level" % prize.card.display_name
 
 
 ## A dashed rule across the receipt, `width` characters.
@@ -210,7 +210,7 @@ static func rule(width: int = WIDTH) -> String:
 static func _result(record: ShiftRecord, went_on: bool) -> String:
 	if record.passed:
 		return "pass"
-	return "slip" if went_on else "fail"
+	return "miss" if went_on else "fail"
 
 
 static func _owned_text(coins_owned: int) -> String:

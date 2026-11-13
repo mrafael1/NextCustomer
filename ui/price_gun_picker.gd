@@ -215,7 +215,7 @@ func mark_held(tags: PackedStringArray, item_name: String) -> void:
 		var tag: String = String(chip.name).trim_prefix("Chip")
 		if tags.has(tag):
 			chip.modulate.a = HELD_ALPHA
-			chip.tooltip_text = HELD_TIP % [tag, item_name, tag]
+			TipTarget.cover_text(chip, HELD_TIP % [tag, item_name, tag], TipSpec.Kind.FAMILY)
 
 
 ## The chip holding the keyboard focus, or null.
@@ -294,7 +294,12 @@ func _chip(parent: Control, style: FamilyStyle) -> Button:
 	chip.name = "Chip%s" % tag
 	chip.custom_minimum_size = CHIP_SIZE
 	chip.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	chip.tooltip_text = style.display_name
+	var tip: TipTarget = TipTarget.cover_text(
+		chip, "", TipSpec.Kind.FAMILY, TipSpec.FAMILY_TAG, "", style.display_name
+	)
+	tip.spec.band = style.face if style.has_ticket_colours() else Palette.CREAM_SHADE
+	tip.spec.band_ink = Palette.PAPER if style.paper_text else Palette.INK
+	tip.spec.icon = style.glyph
 	var text: Color = Palette.PAPER if style.paper_text else Palette.INK
 	chip.add_theme_stylebox_override("normal", _chip_box(style.face))
 	chip.add_theme_stylebox_override("hover", _chip_box(style.light))

@@ -12,8 +12,8 @@ extends HBoxContainer
 ## The SKIP tag was tapped (PinFlow arms, then takes the day off).
 signal skip_pressed
 
-const PASS_WORD := "PASS ›"
-const PILL_TEXT := "+1 BONUS TICKET"
+const PASS_WORD := "QUOTA MET ›"
+const PILL_TEXT := "+1 EXTRA DRAW"
 ## The pill's text when the top bar has no room for it whole.
 const PILL_SHORT := "+1"
 const SKIP_TEXT := "SKIP ›"

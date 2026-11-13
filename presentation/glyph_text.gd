@@ -33,18 +33,18 @@ const KEYWORD_TIPS: Dictionary[String, String] = {
 	),
 	CardText.CHAIN_WORD:
 	(
-		"Put Bananas next to each other to make a CHAIN. Each Banana adds the price of the one "
+		"Put Bananas side by side to make a CHAIN. Each Banana adds the price of the one "
 		+ "before it, so longer chains pay more."
 	),
 	CardText.WASTED_WORD:
 	(
-		"If an item's rule does nothing where it sits, it's WASTED. Some Clearance items, like "
-		+ "Dusty toffees, pay for WASTED items."
+		"An item with a rule that does nothing where it sits is WASTED. Items with no rule and "
+		+ "coupons are never WASTED. Some Clearance items, like Dusty toffees, pay for WASTED items."
 	),
 	CardText.PAIR_WORD:
 	(
 		"Put a PAIR item beside the partner its card names, like Cheese by Bread, for a bonus. "
-		+ "Cream pays for each PAIR in the row."
+		+ "Cream pays for each PAIRED item in the row."
 	),
 	CardText.MORNING_WORD:
 	(

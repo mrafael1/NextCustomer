@@ -148,7 +148,7 @@ func _init(tuning: CountUpTuning = null, reduced_motion: Callable = Callable()) 
 	# The export confirms itself once done (ShiftScreen).
 	UiKit.framed_button(
 		buttons,
-		"Export log",
+		TopBar.EXPORT_TEXT,
 		func() -> void: export_requested.emit(),
 		18,
 		TopBar.BUTTON_FRAME,

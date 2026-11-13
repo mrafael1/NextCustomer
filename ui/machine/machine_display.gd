@@ -39,7 +39,7 @@ const SUB_STEPS: Array[int] = [12, 11, 10]
 const SCANLINE_ALPHA := 0.35
 ## A BONUS line's ticket icon (2x) left of BONUS TICKET (a legacy line; no ticket feeds since
 ## 2026-11-06).
-const BONUS_TICKET := "BONUS TICKET"
+const BONUS_TICKET := "EXTRA DRAW"
 const TICKET_ICON := preload("res://art/icons/bonus_ticket.png")
 const ICON_SCALE := 2.0
 const ICON_GAP := 6.0
@@ -228,7 +228,7 @@ func _read_text() -> PackedStringArray:
 	elif record.inspection != null:
 		var passed: Array[InspectionDefinition] = InspectionDefinition.maluses(record.inspections)
 		met += " · %s passed" % ", ".join(InspectionTag.names(passed))
-	return PackedStringArray([RewardMachineView.SPEND_LINE % record.total, met])
+	return PackedStringArray([RewardMachineView.TOTAL_LINE % record.total, met])
 
 
 ## The draw: packing, the prizes out, each reveal's rarity and prize.

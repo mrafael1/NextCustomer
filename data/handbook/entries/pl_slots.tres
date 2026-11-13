@@ -9,6 +9,6 @@ group = &"place"
 title = "FIRST / LAST"
 mark = 2
 mark_value = "FIRST / LAST"
-rule = "The row's first filled slot, or its last. {coupon:opening_deal} wants the first, {coupon:final_markdown} doubles the item in the last."
+rule = "FIRST: the row's first slot, where {coupon:opening_deal} wants to be. LAST ITEM: the last item in the row (coupons skipped), which {coupon:final_markdown} doubles."
 example_row = PackedStringArray("opening_deal", "bread", "final_markdown", "milk")
 example_total = 35

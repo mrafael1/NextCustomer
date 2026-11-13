@@ -2,7 +2,8 @@ class_name FamilyWord
 extends TipTarget
 ## A family written in a ticket's rule (tickets v5, the mock-up's works-with chip): the family's
 ## name on a chip. It says what the item works with, so it differs from the icon label's glyphs
-## (what the item is). Its tip says so ("Works with Breakfast"); on the belt PlanningEffects adds
+## (what the item is). Its tip (the FAMILY card) says so ("Works with Breakfast", or on a rule the
+## family's name and the rule's words, RULE_TIP); on the belt PlanningEffects adds
 ## what the rule counts there (RuleReach: "counts Cereal (4)", or that nothing matches) and lights
 ## only those items. It takes no clicks.
 ##
@@ -16,6 +17,10 @@ extends TipTarget
 const PADDING_X := KeywordChip.PADDING_X
 const HEIGHT := KeywordChip.HEIGHT
 const WORKS_WITH := "Works with %s"
+## Its tip on a rule (the hover tips revamp): the family's name, then the whole rule it is written
+## in, so the tip says what the rule does with the family (Multipack's "Food ... don't count" is
+## not "works with Food").
+const RULE_TIP := "%s · %s"
 
 ## The family it names (a FamilyStyle id).
 var family: String = ""
@@ -32,9 +37,16 @@ func _init(style: FamilyStyle, font: Font, font_size: int) -> void:
 	# The name is hard pixel text drawn at 1x, as a keyword chip's.
 	ArtStyle.use_pixel_text_material(self)
 	tip_text = WORKS_WITH % style.display_name
+	dress_family(style)
 	size = Vector2(width_for(style, font, font_size), HEIGHT)
 	custom_minimum_size = size
 	_baseline = baseline_for(font, font_size)
+
+
+## Its tip names the rule `line` it is written in (RULE_TIP).
+func set_rule_line(line: String) -> void:
+	if not line.strip_edges().is_empty():
+		tip_text = RULE_TIP % [_style.display_name, line]
 
 
 ## The chip's width for `style`'s name: a keyword chip's with its dot, on the 2 px grid.

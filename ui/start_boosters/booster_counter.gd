@@ -16,7 +16,7 @@ func _init(owner_page: BoosterPage) -> void:
 func arm_restock() -> bool:
 	var block: StringName = restock_block()
 	if block == &"locked":
-		page.flash("RESTOCK AT %d AISLES" % page.run.balance.restock_min_completed)
+		page.flash("RESTOCK AT %d FINISHED AISLES" % page.run.balance.restock_min_completed)
 		return false
 	if block == &"used":
 		page.flash("RESTOCK USED")

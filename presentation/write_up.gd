@@ -5,15 +5,15 @@ extends RefCounted
 ## line, and opens the next shift with a notice; week 1's planning shows a small hint with the
 ## slips left, and the shift after the training week opens with "Training is over".
 
-const STAMP := "SLIP %d/%d"
+const STAMP := "MISS %d/%d"
 ## Printed on the receipt under a slip's stamp: the forgiven shift pays no ticket.
 const NO_TICKET := "NO TICKET · TRAINING WEEK"
-const NOTICE := "Training week: slip %d/%d"
+const NOTICE := "Training week: miss %d/%d"
 ## The notice once the last slip is used: the next miss ends the run.
-const LAST_NOTICE := "Training week: slip %d/%d. The next miss ends the run"
+const LAST_NOTICE := "Training week: miss %d/%d. The next miss ends the run"
 ## The planning hint (top bar, week 1): the slips the training week still forgives.
-const HINT := "TRAINING WEEK · %d SLIPS"
-const HINT_ONE := "TRAINING WEEK · 1 SLIP"
+const HINT := "TRAINING WEEK · %d MISSES"
+const HINT_ONE := "TRAINING WEEK · 1 MISS"
 ## The notice the first shift after the training week opens with.
 const OVER_NOTICE := "Training is over: from now on, any miss ends the run"
 

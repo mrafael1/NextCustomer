@@ -29,11 +29,11 @@ const REGISTER_COLUMN := 336.0
 const PLATE_TOPS: Array[float] = [-16.0, 80.0, 136.0, 192.0]
 const NOTE_GAP := 16.0
 const NOTE_FONT := 14
-const CAPTIONS: Array[String] = ["RESUME", "OPTIONS", "HOW TO PLAY", "SAVE & QUIT"]
+const CAPTIONS: Array[String] = ["RESUME", "OPTIONS", "HANDBOOK", "SAVE & QUIT"]
 const NOTES: Array[String] = [
 	"Back to the shift, everything where it was.",
 	"Display, sound, text size, motion and count-up speed.",
-	"The staff handbook: controls, terms and families.",
+	"The staff handbook: keywords, families, coupons and places.",
 	"",
 ]
 const EXPORT_TEXT := "EXPORT LOG"

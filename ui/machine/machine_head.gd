@@ -26,7 +26,7 @@ const SIZE := Vector2(928, 74)
 const TITLE := "RECEIPT REWARDS"
 const SUB_LINE := "ONE PRIZE PER DRAW"
 const PREMIUM_TITLE := "PREMIUM REWARDS"
-const PREMIUM_SUB := "RARE OR BETTER"
+const PREMIUM_SUB := "RARE OR LEGENDARY"
 ## The title's and the sub line's boxes (their capitals centred in them): the title at 4x (word
 ## scale 2), the sub line at 2x, each at least BULB_CLEAR (2 art px) clear of its bulb row.
 const TITLE_RECT := Rect2(8, 10, 912, 28)
@@ -53,7 +53,7 @@ const STAMP_TOP := 0.0
 const STAMP_CENTRE := 0.75
 const STAMP_EDGE := 8.0
 const BONUS_TILT := -4.0
-const BONUS_TEXT := "BONUS TICKET!"
+const BONUS_TEXT := "EXTRA DRAW!"
 ## Look F's stamp motion: it lands from STAMP_FROM x its size in MachineTuning.head_stamp_land_ms,
 ## blinks (on every other tenth of a second) for head_stamp_blink_ms, and lifts
 ## head_stamp_lift_ms after the punch's end.

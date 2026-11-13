@@ -85,6 +85,7 @@ func show_item(definition: CardDefinition) -> void:
 	_label.text = item_text(definition)
 	_label.add_theme_color_override("font_color", ink)
 	tip_text = palette.colour_tip(definition)
+	dress_colour(definition)
 	_place_text(
 		TEXT_WITH_GLYPH if _glyph.visible else TEXT_ALONE,
 		HORIZONTAL_ALIGNMENT_LEFT if _glyph.visible else HORIZONTAL_ALIGNMENT_CENTER
@@ -112,6 +113,7 @@ func _show_word(text: String, face: Color, light: Color, ink: Color, font_size: 
 	_label.add_theme_font_size_override("font_size", font_size)
 	_label.add_theme_color_override("font_color", ink)
 	tip_text = ""
+	tip_title = ""
 	_place_text(TEXT_ALONE, HORIZONTAL_ALIGNMENT_CENTER)
 	queue_redraw()
 

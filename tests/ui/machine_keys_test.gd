@@ -44,7 +44,7 @@ func after_test() -> void:
 func test_the_head_stamps_land_and_lift() -> void:
 	var view: RewardMachineView = auto_free(RewardMachineView.new())
 	var head: MachineHead = view.head
-	head.set_stamp("BONUS TICKET!", "Spot check passed")
+	head.set_stamp("EXTRA DRAW!", "Spot check passed")
 	view.plan = MachinePlan.new(view.tuning, MachineVisit.Kind.BONUS, false)
 	var at: float = view.plan.fly_end
 	assert_float(at).is_equal(0.0)  # No ticket to wait for at the slot.
@@ -60,7 +60,7 @@ func test_the_head_stamps_land_and_lift() -> void:
 	assert_float(head.stamp_scale()).is_equal(1.0)
 	for line: MachineLine in head.title_lines():
 		assert_bool(line.visible).is_false()
-	assert_array(Array(head.stamp_texts())).is_equal(["BONUS TICKET!", "Spot check passed"])
+	assert_array(Array(head.stamp_texts())).is_equal(["EXTRA DRAW!", "Spot check passed"])
 	view.plan.set_draw([0, 0, 1] as Array[int])
 	view.plan.set_landing(MachinePlan.Landing.NEW_CARD, 1, MachinePlan.NO_VISIT)
 	assert_int(view.tuning.head_stamp_lift_ms).is_equal(600)
@@ -75,7 +75,7 @@ func test_the_head_stamps_land_and_lift() -> void:
 	assert_bool(head.title_lines()[0].visible).is_true()
 	# Reduced motion: no blink, no scale.
 	view.plan = MachinePlan.new(view.tuning, MachineVisit.Kind.BONUS, true)
-	head.set_stamp("BONUS TICKET!", "Spot check passed")
+	head.set_stamp("EXTRA DRAW!", "Spot check passed")
 	head.frame(view.plan.fly_end + 0.15)
 	assert_bool(head.stamp_shown()).is_true()
 	assert_float(head.stamp_scale()).is_equal(1.0)
@@ -126,7 +126,7 @@ func test_keys_light_in_turn_and_relight_on_a_bonus() -> void:
 	keys[1].show_state(RewardMachine.ChuteState.EMPTY, true)
 	assert_bool(keys[1].has_padlock()).is_true()
 	assert_str(keys[1].sub_text()).is_equal("NOTHING TO IMPROVE")
-	assert_str(keys[1].shown_labels()[0].text).is_equal("UPGRADE\nNOTHING TO IMPROVE")
+	assert_str(keys[1].shown_labels()[0].text).is_equal("IMPROVE\nNOTHING TO IMPROVE")
 	view.plan = MachinePlan.new(view.tuning, MachineVisit.Kind.TICKET, false)
 	_frame_keys(keys, view.plan.choose_at)
 	assert_bool(keys[1].looks_lit()).is_false()
@@ -192,7 +192,7 @@ func test_shut_keys_say_why_and_their_lines_fit() -> void:
 	var upgrade: ChuteKey = view.keys[RewardMachine.Chute.UPGRADE]
 	assert_int(upgrade.state).is_equal(RewardMachine.ChuteState.OPEN)
 	assert_bool(upgrade.has_padlock()).is_false()
-	assert_str(upgrade.sub_text()).is_equal("IMPROVE WHAT YOU OWN")
+	assert_str(upgrade.sub_text()).is_equal("BETTER CARDS, PERKS")
 	assert_object(upgrade.get_node_or_null("Face/CardStamps")).is_null()
 	upgrade.show_state(RewardMachine.ChuteState.EMPTY, true)
 	assert_bool(upgrade.has_padlock()).is_true()
@@ -231,11 +231,11 @@ func test_the_display_follows_the_visit() -> void:
 	assert_str(display.texts()[0]).is_equal("READING…")
 	view.show_at(plan.feed_end + EPSILON)
 	assert_array(Array(display.texts())).is_equal(
-		["SPEND %d€ ✓ THANK YOU!" % run.history[-1].total, "quota %d€ met" % run.history[-1].quota]
+		["TOTAL %d€ ✓ THANK YOU!" % run.history[-1].total, "quota %d€ met" % run.history[-1].quota]
 	)
 	view.show_at(plan.choose_at)
 	assert_array(Array(display.texts())).is_equal(
-		["SPEND %d€ ✓ THANK YOU!" % run.history[-1].total, RewardMachineView.CHOOSE_SUB]
+		["TOTAL %d€ ✓ THANK YOU!" % run.history[-1].total, RewardMachineView.CHOOSE_SUB]
 	)
 	assert_bool(run.machine.choose(run, RewardMachine.Chute.NEW_ITEMS)).is_true()
 	view.show_draw(run)
@@ -315,8 +315,8 @@ func test_a_bonus_visit_says_its_inspection_passed() -> void:
 		view.open_visit(run, null, null, false)
 		var plan: MachinePlan = view.plan
 		assert_int(plan.kind).is_equal(MachineVisit.Kind.BONUS)
-		var under: String = "INSPECTION PASSED" if inspected else "shift 1"
-		assert_array(Array(view.head.stamp_texts())).is_equal(["BONUS TICKET!", under])
+		var under: String = RewardMachineView.BONUS_UNDER if inspected else "shift 1"
+		assert_array(Array(view.head.stamp_texts())).is_equal(["EXTRA DRAW!", under])
 		view.show_at(0.1)
 		var again: Array = [OvertimeWords.AGAIN, "%s · draw 2 of 2" % why]
 		assert_array(Array(view.display.texts())).is_equal(again)
@@ -334,7 +334,7 @@ func test_a_bonus_visit_says_its_inspection_passed() -> void:
 		view._armed = true  # Headless: no mouse release arms it.
 		view.press_key(RewardMachine.Chute.NEW_ITEMS)
 		assert_array(Array(view.tray.texts())).is_equal(
-			["PUSH TO CONFIRM · NEW ITEMS", "BONUS DRAW · 3 PRIZES, KEEP 1"]
+			["PUSH TO CONFIRM · NEW ITEMS", "EXTRA DRAW · 3 PRIZES, KEEP 1"]
 		)
 		view.close()
 		remove_child(view)
@@ -393,12 +393,12 @@ func test_a_refused_key_says_why_for_a_moment() -> void:
 	var rest: Array = Array(view.display.texts())
 	view.press_key(RewardMachine.Chute.UPGRADE)
 	assert_int(view.pressed_chute()).is_equal(-1)
-	assert_array(Array(view.display.texts())).is_equal(["UPGRADE", "NOTHING TO IMPROVE"])
+	assert_array(Array(view.display.texts())).is_equal(["IMPROVE", "NOTHING TO IMPROVE"])
 	for label: Label in view.display.labels():
 		_assert_fits(label)
 	assert_array(Array(view.display.rest_texts())).is_equal(rest)
 	view.show_at(view.clock)
-	assert_str(view.display.texts()[0]).is_equal("UPGRADE")
+	assert_str(view.display.texts()[0]).is_equal("IMPROVE")
 	view.display._denied_at_ms -= MachineDisplay.DENIED_MS + 1
 	view.show_at(view.clock)
 	assert_array(Array(view.display.texts())).is_equal(rest)
@@ -544,7 +544,7 @@ func test_a_pressed_key_drops_and_confirm_confirms() -> void:
 	assert_bool(new_items.is_pressed()).is_false()
 	assert_bool(upgrade.is_pressed()).is_true()
 	assert_array(Array(tray.texts())).is_equal(
-		["PUSH TO CONFIRM · UPGRADE", "IMPROVE WHAT YOU OWN · 3 PRIZES, KEEP 1"]
+		["PUSH TO CONFIRM · IMPROVE", "BETTER CARDS, PERKS · 3 PRIZES, KEEP 1"]
 	)
 	var long_sub: float = MachineArt.text_width(tray.texts()[1], font, MachineTray.TAKE_SIZE)
 	assert_float(long_sub).is_less_equal(MachineTray.MOUTH_RECT.size.x - 16.0)
@@ -595,15 +595,15 @@ func test_machine_lines_use_glyphs_their_fonts_have() -> void:
 	assert_int(view.skip_bin.pressed.get_connections().size()).is_equal(1)
 	for line: Array in [
 		[RewardMachineView.BIN_ALL % 3, RewardMachineView.BIN_ALL_SUB],
-		["SPEND 114€ ✓ THANK YOU!", RewardMachineView.CHOOSE_SUB],
+		["TOTAL 114€ ✓ THANK YOU!", RewardMachineView.CHOOSE_SUB],
 		["BINNED ✕", "no prize this time"],
 		["NEW IN CART ✓", "1 swapped out · cart 15/15"],
 		["UPGRADED ✓", "cart stays 15/15"],
 		["STAMPED ✓", "Slot engine on your card"],
 		["LEVEL UP ✓", "Category engine LV 3 on your card"],
 		["READING…", "quota 99€ met · Spot check passed"],
-		["SPEND 114€ ✓ THANK YOU!", RewardMachineView.PREMIUM_SUB],
-		["SPEND 114€ ✓ THANK YOU!", "quota 99€ met" + MachineDisplay.PREMIUM_READ],
+		["TOTAL 114€ ✓ THANK YOU!", RewardMachineView.PREMIUM_SUB],
+		["TOTAL 114€ ✓ THANK YOU!", "quota 99€ met" + MachineDisplay.PREMIUM_READ],
 		[RewardMachineView.BONUS_TITLE, RewardMachineView.BONUS_SUB % "inspection passed"],
 		["BANANA › GOLDEN ✓", "cart stays 15/15"],
 	]:
@@ -640,9 +640,9 @@ func test_long_display_lines_fit() -> void:
 		["PICK 1 · ONLY 2 IN STOCK", RewardMachineView.CART_FULL_TEXT],
 		[RewardMachineView.BIN_ALL % 3, RewardMachineView.BIN_ALL_SUB],
 		[MachineDisplay.PACKING, "bonus ticket"],
-		["SPEND 999€ ✓ THANK YOU!", "quota 999€ met · Coupon slot closed passed"],
-		["SPEND 999€ ✓ THANK YOU!", RewardMachineView.PREMIUM_SUB],
-		["SPEND 999€ ✓ THANK YOU!", "quota 999€ met" + MachineDisplay.PREMIUM_READ],
+		["TOTAL 999€ ✓ THANK YOU!", "quota 999€ met · Coupon slot closed passed"],
+		["TOTAL 999€ ✓ THANK YOU!", RewardMachineView.PREMIUM_SUB],
+		["TOTAL 999€ ✓ THANK YOU!", "quota 999€ met" + MachineDisplay.PREMIUM_READ],
 		["LEVEL UP ✓", "Category engine LV 3 on your card"],
 	]:
 		display.show_message(line[0], line[1])
@@ -723,7 +723,7 @@ func test_a_premium_visit_turns_the_machine_gold() -> void:
 		assert_bool(view.tray.is_gold()).is_true()
 		view.show_at(plan.choose_at)
 		assert_array(Array(view.display.texts())).is_equal(
-			["SPEND %d€ ✓ THANK YOU!" % run.history[-1].total, RewardMachineView.PREMIUM_SUB]
+			["TOTAL %d€ ✓ THANK YOU!" % run.history[-1].total, RewardMachineView.PREMIUM_SUB]
 		)
 		for label: Label in view.display.labels():
 			_assert_fits(label)
@@ -767,7 +767,7 @@ func test_a_premium_visit_turns_the_machine_gold() -> void:
 	titled._armed = true  # Headless: no mouse release arms it.
 	titled.press_key(RewardMachine.Chute.UPGRADE)
 	assert_array(Array(titled.tray.texts())).is_equal(
-		["PUSH TO CONFIRM · UPGRADE", "PREMIUM · 3 PRIZES, KEEP 1"]
+		["PUSH TO CONFIRM · IMPROVE", "PREMIUM · 3 PRIZES, KEEP 1"]
 	)
 	for chute: int in RewardMachine.CHUTES:
 		assert_str(titled.title_sub(chute)).contains(RewardMachineView.TITLE_PREMIUM)

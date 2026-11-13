@@ -17,14 +17,14 @@ enum Direction { NONE, EARLIER, NEXT, NEXT_SLOT, BEFORE, BESIDE, BATCH_AFTER, BA
 
 ## The tip's "nothing matches" line for each direction.
 const NONE_TEXT: Dictionary[Direction, String] = {
-	Direction.EARLIER: "No %s item before it on the belt",
-	Direction.NEXT: "No %s item after it on the belt",
-	Direction.NEXT_SLOT: "No product in the next slot to take %s",
+	Direction.EARLIER: "No earlier %s item in the row",
+	Direction.NEXT: "No later %s item in the row",
+	Direction.NEXT_SLOT: "No item right after it to take %s",
 	Direction.BEFORE: "No %s item right before it",
 	Direction.BESIDE: "No %s item beside it",
-	Direction.BATCH_AFTER: "No %s batch right after it",
-	Direction.BATCH: "No other %s item in its batch",
-	Direction.ROW: "No other %s item on the belt",
+	Direction.BATCH_AFTER: "No %s BATCH right after it",
+	Direction.BATCH: "No other %s item in its BATCH",
+	Direction.ROW: "No other %s item in the row",
 }
 
 ## The direction of the card's first rule naming `family` (ROW when none does).

@@ -42,7 +42,7 @@ func test_slips_then_fired() -> void:
 	assert_int(screen.run.balance.write_up_limit).is_equal(2)
 	for slip: int in range(1, 3):
 		var printed: PackedStringArray = await _checkout_empty(screen)
-		var stamp: String = "SLIP %d/2" % slip
+		var stamp: String = "MISS %d/2" % slip
 		assert_bool(printed.has(stamp)).override_failure_message(str(printed)).is_true()
 		(
 			assert_bool(printed.has(WriteUp.NO_TICKET))
@@ -58,7 +58,7 @@ func test_slips_then_fired() -> void:
 		await _frames(2)  # The notice shows once planning takes input (MachineFlow).
 		assert_bool(screen._notice_label.is_showing()).is_true()
 		assert_str(screen._notice_label.text).is_equal(WriteUp.notice_text(screen.run))
-		assert_str(screen._notice_label.text).starts_with("Training week: slip %d/2" % slip)
+		assert_str(screen._notice_label.text).starts_with("Training week: miss %d/2" % slip)
 	assert_str(screen._notice_label.text).contains("The next miss ends the run")
 	await _checkout_empty(screen)
 	assert_int(screen.run.phase).is_equal(RunState.Phase.LOST)
@@ -68,10 +68,10 @@ func test_slips_then_fired() -> void:
 	var verdicts: Array[String] = []
 	for shift: int in range(1, 4):
 		verdicts.append(_shift_line(texts, shift))
-	assert_str(verdicts[0]).override_failure_message(str(texts)).contains("slip")
-	assert_str(verdicts[1]).override_failure_message(str(texts)).contains("slip")
+	assert_str(verdicts[0]).override_failure_message(str(texts)).contains("miss")
+	assert_str(verdicts[1]).override_failure_message(str(texts)).contains("miss")
 	assert_str(verdicts[2]).override_failure_message(str(texts)).contains("fail")
-	assert_str(verdicts[2]).not_contains("slip")
+	assert_str(verdicts[2]).not_contains("miss")
 	assert_array(_errors).is_empty()
 
 
@@ -143,7 +143,7 @@ func test_a_slip_notice_waits_for_the_payday_announce() -> void:
 	assert_bool(printed).override_failure_message("the announce never printed").is_true()
 	assert_float(shown_at).override_failure_message("the notice never showed").is_greater(0.0)
 	assert_float(shown_at).is_greater_equal(PremiumAnnounce.FLY_TO - 2.0 * STEP)
-	assert_str(screen._notice_label.text).starts_with("Training week: slip 1/2")
+	assert_str(screen._notice_label.text).starts_with("Training week: miss 1/2")
 	assert_array(_errors).is_empty()
 
 
@@ -232,10 +232,10 @@ func test_resuming_after_a_slip_shows_the_notice() -> void:
 	assert_int(resumed.run.shift_index).is_equal(1)
 	assert_int(resumed.run.phase).is_equal(RunState.Phase.PLANNING)
 	assert_bool(resumed._notice_label.is_showing()).is_true()
-	assert_str(resumed._notice_label.text).is_equal("Training week: slip 1/2")
+	assert_str(resumed._notice_label.text).is_equal("Training week: miss 1/2")
 	var again: ShiftScreen = await _screen()
 	assert_int(again.run.shift_index).is_equal(1)
-	assert_str(again._notice_label.text).is_equal("Training week: slip 1/2")
+	assert_str(again._notice_label.text).is_equal("Training week: miss 1/2")
 	assert_array(_errors).is_empty()
 
 

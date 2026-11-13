@@ -245,12 +245,14 @@ func _show() -> void:
 		for child: Node in place.get_children():
 			place.remove_child(child)
 			child.queue_free()
-		place.tooltip_text = ""
+		TipTarget.cover_text(place, "")
 		if index < kept.size():
 			var art: TextureRect = ItemView.item_art(kept[index].definition)
 			art.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			place.add_child(art)
-			place.tooltip_text = kept[index].definition.display_name
+			TipTarget.cover_text(
+				place, "", TipSpec.Kind.ITEM, "", "", kept[index].definition.display_name
+			)
 			if kept[index] == _popped:
 				_pop(art)
 	for child: Node in _list.get_children():
@@ -291,7 +293,7 @@ func _kept_cards() -> Array[CardInstance]:
 func _list_cell(card: CardInstance, side: float) -> Control:
 	var cell: Control = Control.new()
 	cell.name = "Keep%d" % card.instance_id
-	cell.tooltip_text = card.definition.display_name
+	TipTarget.cover_text(cell, "", TipSpec.Kind.ITEM, "", "", card.definition.display_name)
 	cell.custom_minimum_size = Vector2(side, side)
 	cell.mouse_filter = Control.MOUSE_FILTER_STOP
 	cell.mouse_default_cursor_shape = Control.CURSOR_DRAG

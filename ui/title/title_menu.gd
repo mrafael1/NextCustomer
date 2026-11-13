@@ -54,8 +54,8 @@ const SLIDE_TIME := 0.16
 const CONTINUE_TEXT := "CONTINUE"
 const START_TEXT := "START RUN"
 const NEW_RUN_TEXT := "NEW RUN"
-const REWARDS_TEXT := "REWARDS"
-const GUIDE_TEXT := "GUIDE"
+const REWARDS_TEXT := "TOYS"
+const GUIDE_TEXT := "HANDBOOK"
 const OPTIONS_TEXT := "OPTIONS"
 const QUIT_TEXT := "QUIT"
 ## GUIDE and OPTIONS share the last shelf as two half plates, HALF_GAP apart, so the column keeps

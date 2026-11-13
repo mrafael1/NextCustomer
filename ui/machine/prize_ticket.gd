@@ -389,10 +389,11 @@ static func upgrade_text(upgrade_prize: MachinePrize, preview: MachinePreview) -
 	var to_tier: int = preview.to_cards[0].tier
 	match upgrade_prize.rarity:
 		MachinePrize.Rarity.RARE:
-			return "1 plain copy, 2 steps"
+			return "1 copy: PLAIN › GOLDEN"
 		MachinePrize.Rarity.LEGENDARY:
 			return (
-				"SHELF ×%d · every %s +1 step" % [preview.copies, upgrade_prize.card.display_name]
+				"Every %s on the shelf (×%d): +1 level"
+				% [upgrade_prize.card.display_name, preview.copies]
 			)
 	return "1 copy: %s › %s" % [TIER_WORDS[from_tier], TIER_WORDS[to_tier]]
 
@@ -406,7 +407,7 @@ static func upgrade_name(upgrade_prize: MachinePrize) -> String:
 			return "%s › GOLDEN" % item_name
 		MachinePrize.Rarity.LEGENDARY:
 			return "Shelf upgrade"
-	return "%s +1 step" % item_name
+	return "%s +1 level" % item_name
 
 
 ## How many lines `text` takes in `font` at `font_size`, wrapped at `width`. Pure.

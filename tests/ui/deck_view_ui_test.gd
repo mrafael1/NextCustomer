@@ -271,7 +271,7 @@ func test_the_run_info_tab_shows_upgrades_inspections_and_stock() -> void:
 		assert_array(Array(texts))
 		. contains(
 			[
-				"UPGRADES",
+				"LOYALTY PERKS",
 				"None yet.",
 				"This shift: no inspection.",
 				# Shift 2 is a boon day (v0.69).
@@ -315,7 +315,7 @@ func test_the_run_info_tab_shows_upgrades_inspections_and_stock() -> void:
 				"Category engine",
 				"CATEGORY ENGINE",
 				(
-					"+3 for each different tag among your products  ·  Paid on the last product"
+					"+3€ for each different family in the row (Food counts)  ·  Paid on the last item"
 					+ " in the row"
 				),
 				"This shift: Spot check, Slot 3 pays 0€",
@@ -358,9 +358,7 @@ func test_run_info_announces_a_scheduled_inspection() -> void:
 	screen._debug.skip_to_shift(3)
 	screen._on_deck_button_pressed()
 	view.show_page(true)
-	assert_array(Array(view.texts())).contains(
-		["Next shift: Manager's review (announced at checkout)."]
-	)
+	assert_array(Array(view.texts())).contains(["Next shift: payday (announced at checkout)."])
 	view._close()
 	screen._debug.skip_to_shift(screen.run.shift_count())
 	screen._on_deck_button_pressed()
@@ -376,7 +374,7 @@ func test_run_info_announces_a_scheduled_inspection() -> void:
 	assert_int(screen.run.inspections.size()).is_equal(2)
 	var line: String = DeckView._inspection_line("This shift", screen.run.inspections)
 	assert_array(Array(texts)).contains([line])
-	assert_str(line).starts_with("This shift: Manager's review: ")
+	assert_str(line).starts_with("This shift: Payday: ")
 	for inspection: InspectionDefinition in screen.run.inspections:
 		assert_str(line).contains(inspection.display_name)
 

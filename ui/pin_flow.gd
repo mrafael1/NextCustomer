@@ -24,12 +24,14 @@ extends RefCounted
 ## Sent when the keep screen closes (keep_items awaits it).
 signal keep_done
 
-const DAY_OFF_ARMED := "Day off: CHECKOUT takes it (passed on quota), UNDO takes it back"
-const DAY_OFF_LOCKED := "Day off: the belt holds the pile. UNDO to play items"
-const DAY_OFF_DONE := "Day off: today passes on quota"
+## The price gun's label on an item: its tip.
+const GUN_TAG_TIP := "PRICE GUN · Labelled %s this shift."
+const DAY_OFF_ARMED := "Shift off: CHECKOUT takes it (counts as quota met), UNDO takes it back"
+const DAY_OFF_LOCKED := "Shift off: the belt holds the pile. UNDO to play items"
+const DAY_OFF_DONE := "Shift off: this shift counts as quota met"
 const GUN_ARMED := "Price gun: click an item to give it a family"
-const GUN_NONE := "Price gun: pick a product"
-const GUN_EMPTY := "Price gun: no tag left this shift; click the tagged item to move it"
+const GUN_NONE := "Price gun: pick an item"
+const GUN_EMPTY := "Price gun used: click the tagged item to move the tag"
 ## The price tag on a relabelled item: its size and offset from the item's sprite's
 ## bottom left.
 const TAG_SIZE := Vector2(26, 26)
@@ -349,7 +351,7 @@ static func _price_tag(tag: String) -> Control:
 	plate.add_theme_stylebox_override("panel", box)
 	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	plate.custom_minimum_size = TAG_SIZE
-	plate.tooltip_text = "Price gun: %s" % tag
+	TipTarget.cover_text(plate, GUN_TAG_TIP % tag, TipSpec.Kind.PIN)
 	if style != null and style.glyph != null:
 		var glyph: TextureRect = UiKit.sprite(style.glyph)
 		glyph.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED

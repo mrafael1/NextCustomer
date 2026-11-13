@@ -193,6 +193,8 @@ func show_medals(projected: int) -> void:
 	var medals: MedalCase = _screen._stage.medal_case
 	medals.reduced_motion = _screen.profile.reduced_motion()
 	medals.show_states(states, tips)
+	var machine: MachineDefinition = WeekMedals.machine_data(run)
+	medals.show_tags(OvertimeWords.cap_tag(machine, false), OvertimeWords.cap_tag(machine, true))
 	medals.show_thresholds(WeekMedals.threshold_of(run, false), WeekMedals.threshold_of(run, true))
 
 

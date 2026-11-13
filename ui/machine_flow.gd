@@ -380,8 +380,8 @@ static func placing_title(run: RunState, prize: MachinePrize, full: bool) -> Str
 	var count: String = "%d/%d" % [run.deck.size(), run.balance.deck_limit]
 	var item: String = prize.card.display_name
 	if full:
-		return "Cart full %s: drop %s on the item to swap out" % [count, item]
-	return "Cart %s: drop %s on +1, or on an item to swap" % [count, item]
+		return "Cart full %s: drop %s on a card to replace it" % [count, item]
+	return "Cart %s: drop %s on +1, or on a card to replace it" % [count, item]
 
 
 ## Takes the prize, logs the visit, saves and lands it (the next visit or shift follows the

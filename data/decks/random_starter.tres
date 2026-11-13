@@ -10,7 +10,7 @@
 script = ExtResource("6_deck")
 id = &"random_starter"
 display_name = "Starter deck"
-description = "A Banana pair, Milk and Eggs, plus a coupon and 8 products from today's stock."
+description = "2 Bananas, Milk and Eggs, plus a coupon and 8 items from today's stock."
 core_cards = Array[ExtResource("1_card")]([ExtResource("2_banana"), ExtResource("2_banana"), ExtResource("3_milk"), ExtResource("4_eggs")])
 random_count = 8
 random_coupon_count = 1

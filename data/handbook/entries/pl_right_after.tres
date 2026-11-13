@@ -9,6 +9,6 @@ group = &"place"
 title = "RIGHT AFTER"
 mark = 2
 mark_value = "RIGHT AFTER"
-rule = "Right after means in the very next slot: {item:sugar_cubes} pays when {item:coffee} sits just before it."
+rule = "Right after means in the very next slot: {item:sugar_cubes} pays when {item:coffee} sits right before it."
 example_row = PackedStringArray("coffee", "sugar_cubes")
 example_total = 9

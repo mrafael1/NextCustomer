@@ -257,7 +257,7 @@ func test_the_words_are_hard_pixel_text() -> void:
 			. override_failure_message("%s at %s" % [label.text, at])
 			. is_equal(Vector2.ZERO)
 		)
-	for caption: String in ["CONTINUE", "NEW RUN", "REWARDS"]:
+	for caption: String in ["CONTINUE", "NEW RUN", "TOYS"]:
 		assert_array(texts).contains([caption])
 	assert_array(texts).not_contains(["BADGE PINS"])
 	for caption: String in ["ABANDON THIS RUN?", "ABANDON", "KEEP"]:

@@ -98,7 +98,7 @@ const TOTAL_TEXT := ReceiptTarget.TOTAL_TEXT
 ## The dashed rules: a dash RULE_DASH long, then a gap as long.
 const RULE_DASH := 4.0
 ## The count-up's footer, from its start to the TOTAL line.
-const COUNT_FOOTER_TEXT := "tap: skip · hold: fast"
+const COUNT_FOOTER_TEXT := "click: skip · hold: fast"
 ## The line closing an item whose lines don't add up to its payout (add_step): "= 3€", at
 ## FOOTER_FONT_SIZE in ink (LineStyle.CLOSING), with no left side.
 const CLOSING_TEXT := "= "

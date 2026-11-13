@@ -125,7 +125,7 @@ func test_the_machine_numbers_print_in_chunky_digits() -> void:
 	assert_vector(PixelWords.font_size_of("-", chunky)).is_equal(minus)
 	assert_int(minus.x).is_not_equal(PixelWords.font_size_of(" ", chunky).x)
 	var digit: RegEx = RegEx.create_from_string("[0-9]")
-	for text: String in ["SPEND 114€ ✓", "-2€", "ODDS +12%", "LV 2"]:
+	for text: String in ["TOTAL 114€ ✓", "-2€", "ODDS +12%", "LV 2"]:
 		var line: MachineLine = auto_free(MachineLine.make("Sample", text, Palette.INK))
 		add_child(line)
 		var numbers: Array[PixelWords] = line.number_words()

@@ -171,12 +171,12 @@ func test_an_eighth_card_is_refused_with_a_notice() -> void:
 		screen._debug.add_card(id)
 		var card: CardInstance = screen.run.hand()[-1]
 		screen._on_hand_card_clicked(_view_for(screen, card))
-		assert_str(screen._notice_label.text).contains("Row full (7/7 items)")
+		assert_str(screen._notice_label.text).contains("Row full (7/7)")
 		screen._notice_label.text = ""
 		screen._on_slot_input(_left_click(), 2)
 		assert_int(screen.run.row.size()).is_equal(7)
 		assert_bool(screen.run.row.has(card)).is_false()
-		assert_str(screen._notice_label.text).contains("Row full (7/7 items)")
+		assert_str(screen._notice_label.text).contains("Row full (7/7)")
 		screen._notice_label.text = ""
 
 
@@ -189,7 +189,7 @@ func test_a_refused_pick_lets_a_row_card_be_taken_out() -> void:
 	screen._debug.add_card("bread")
 	var product: CardInstance = screen.run.hand()[-1]
 	screen._on_hand_card_clicked(_view_for(screen, product))
-	assert_str(screen._notice_label.text).contains("take an item out")
+	assert_str(screen._notice_label.text).contains("take a card out")
 	var row_card: CardInstance = screen.run.row[1]
 	screen._on_row_card_clicked(_row_view(screen, 1))
 	assert_int(screen.run.row.size()).is_equal(6)

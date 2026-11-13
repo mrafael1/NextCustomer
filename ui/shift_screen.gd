@@ -734,7 +734,7 @@ func item_views() -> Array[ItemView]:
 func _refresh_row() -> void:
 	var closed: int = run.limits.closed_slots
 	var closing: Array[InspectionDefinition] = InspectionDefinition.maluses(run.inspections)
-	var reason: String = "Closed by the inspection: %s" % ", ".join(InspectionTag.names(closing))
+	var reason: String = RowStrip.CLOSED_TIP % ", ".join(InspectionTag.names(closing))
 	_row_strip.set_slot_count(
 		RowCapacity.card_limit(run.limits), closed, reason, RowStrip.closed_caption(run.inspections)
 	)

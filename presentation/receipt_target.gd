@@ -23,10 +23,10 @@ extends Control
 ## it).
 
 ## BEAT, then the caption after it: the receipt's mono font at CAPTION_SIZE, letter-spaced, in ink.
-const BEAT_TEXT := "BEAT"
+const BEAT_TEXT := "MEET"
 const BEAT_CELL := 2.0
 const BEAT_GAP := 10.0
-const CAPTION_TEXT := "TODAY'S TARGET"
+const CAPTION_TEXT := "THE QUOTA"
 const CAPTION_SIZE := 13
 const CAPTION_SPACING := 1
 const CAPTION_COLOR := Palette.INK
@@ -79,8 +79,8 @@ const BUMP := 2.0
 const BUMP_SECONDS := 0.16
 ## The line against the target and the dessert's margin words (margin_text) share these words.
 const OVER_TEXT := "+%s over"
-const SHORT_TEXT := "%s short"
-const ON_TEXT := "on target"
+const SHORT_TEXT := "%s to go"
+const ON_TEXT := "on quota"
 const PROJECTED_TEXT := "PROJECTED"
 const TOTAL_TEXT := "TOTAL"
 ## The dessert's PAID or SLIP stamp lands on the over row after the margin words (stamp, the row's
@@ -88,7 +88,7 @@ const TOTAL_TEXT := "TOTAL"
 ## rows), at STAMP_SIZE; the words are sized to leave it the room of its text (a pass's PAID, a
 ## miss's longest slip STAMP_ROOM_TEXT), down to WORDS_MIN_SIZE, and again as it lands.
 const STAMP_SIZE := 14
-const STAMP_ROOM_TEXT := "SLIP 0/0"
+const STAMP_ROOM_TEXT := "MISS 0/0"
 const WORDS_MIN_SIZE := ReceiptView.VERDICT_MIN_FONT_SIZE
 
 var beat: PixelWords
@@ -301,10 +301,10 @@ static func against_color(total: int, quota: int) -> Color:
 static func margin_text(kind: ShiftMargin.Kind, euros: int) -> String:
 	match kind:
 		ShiftMargin.Kind.OVER:
-			return "%s OVER TARGET" % ReceiptView.money(euros, true)
+			return "%s OVER QUOTA" % ReceiptView.money(euros, true)
 		ShiftMargin.Kind.SHORT:
-			return "SHORT %s" % ReceiptView.money(euros)
-	return "ON TARGET"
+			return "MISSED BY %s" % ReceiptView.money(euros)
+	return "ON QUOTA"
 
 
 ## Shows `euros` on a margin `line` of `kind`, as its count passes them.

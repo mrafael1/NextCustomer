@@ -157,6 +157,7 @@ func _init(book: HandbookBook = null) -> void:
 	hint.stretch_mode = TextureRect.STRETCH_SCALE
 	ArtStyle.use_pixel_material(hint)
 	hint.tip_text = HINT_TIP
+	hint.tip_side = TipCard.Opens.ABOVE  # Just over the icon, clear of the entry.
 	hint.size = HINT_ICON.get_size() * HINT_SCALE
 	var face: Rect2 = HINT_RECT.grow_individual(0, 0, 0, -HINT_FOOT)
 	hint.position = (face.get_center() - hint.size / 2.0).round()
@@ -310,6 +311,13 @@ func _entry_for_tip(target: TipTarget) -> HandbookEntry:
 	for keyword: String in GlyphText.KEYWORD_TIPS:
 		if target.tip_text == GlyphText.keyword_tip(keyword):
 			return _book.entry_for_keyword(keyword)
+	# A dressed tip's title (a ticket colour's family): its family's or keyword's entry.
+	if not target.tip_title.is_empty():
+		found = _book.entry_for_family(target.tip_title)
+		if found == null:
+			found = _book.entry_for_keyword(target.tip_title.get_slice(" ", 0))
+		if found != null:
+			return found
 	var words: PackedStringArray = target.tip_text.split(" ", false)
 	if not words.is_empty():
 		var first: String = words[0].rstrip(GlyphText.TRAILING)

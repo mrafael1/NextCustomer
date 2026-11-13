@@ -66,7 +66,7 @@ const TITLE_TEXT := "PREMIUM"
 const HEAD_TEXT := "NEXT RECEIPT"
 const FOOT_TEXT := "MEET THIS SHIFT'S QUOTA"
 ## What a PREMIUM visit gives (v0.61, #108: a rarity boost), on two lines.
-const BOOST_TEXTS: Array[String] = ["EVERY TICKET RARE+", "ITEMS BIG OR BETTER"]
+const BOOST_TEXTS: Array[String] = ["RARE OR LEGENDARY", "ITEMS BIG OR GOLDEN"]
 const BOOST_SIZES: Array[int] = [16, 13]
 ## The RARE pip (PrizeTicket's) either side of the first line, its gap from the text.
 const DIAMOND_GRID := "..x...xxx.xxxxx.xxx...x.."

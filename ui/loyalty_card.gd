@@ -103,6 +103,15 @@ const RING := preload("res://art/icons/stamp_ring.png")
 const RING_EMPTY := preload("res://art/icons/stamp_ring_empty.png")
 ## The chip ring's rim alone, laid over a perk icon so its square corners tuck under the ring.
 const RING_RIM := preload("res://art/icons/stamp_ring_rim.png")
+## A perk tip's tag (tip_for).
+const PERK_TAG := "PERK · LV %d"
+## The LOYALTY word's tip: its title, tag, rule and fine print.
+const TITLE_TIP: Array[String] = [
+	"LOYALTY",
+	"THIS RUN",
+	"Perks you earned this run. Each one changes how items pay.",
+	"Hover a stamp to read it.",
+]
 
 var _boxes: HBoxContainer
 var _box_count: int = 0
@@ -140,6 +149,11 @@ func _init(chip: bool = false) -> void:
 	)
 	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	row.add_child(title)
+	var word: TipSpec = TipSpec.make(TipSpec.Kind.PERK, TITLE_TIP[0], TITLE_TIP[2])
+	word.tag = TITLE_TIP[1]
+	word.cond = TITLE_TIP[3]
+	word.icon = RING
+	TipTarget.cover_control(title, word)
 	_boxes = HBoxContainer.new()
 	_boxes.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_boxes.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -316,6 +330,19 @@ static func initials(display_name: String) -> String:
 	return text
 
 
+## A stamped box's tip (the hover tips revamp, TipCard): the perk's name, PERK · LV n, its effect
+## and its condition as the fine print, with its icon on the teal band.
+static func tip_for(upgrade: UpgradeDefinition) -> TipSpec:
+	var made: TipSpec = TipSpec.make(
+		TipSpec.Kind.PERK, upgrade.display_name, TipMarkup.auto(upgrade.effect_text)
+	)
+	made.tag = PERK_TAG % upgrade.level_number()
+	made.cond = TipMarkup.auto(upgrade.condition_text)
+	made.icon = face_icon(upgrade, false)
+	made.source = tooltip_for(upgrade)
+	return made
+
+
 ## A stamped box's hover text: the ticket's fields, so nothing is only in the animation.
 static func tooltip_for(upgrade: UpgradeDefinition) -> String:
 	var lines: PackedStringArray = PackedStringArray(
@@ -366,9 +393,9 @@ func _make_box(upgrade: UpgradeDefinition) -> PanelContainer:
 		style.border_color = Palette.INK
 		panel.add_theme_stylebox_override("panel", style)
 	if upgrade != null:
-		# PASS, not IGNORE: a tooltip needs the mouse.
+		# PASS, not IGNORE: its tip needs the mouse.
 		panel.mouse_filter = Control.MOUSE_FILTER_PASS
-		panel.tooltip_text = tooltip_for(upgrade)
+		TipTarget.cover_control(panel, tip_for(upgrade))
 	# The number font (MSDF Atkinson) stays crisp at the tilt and tells l from I and C from D:
 	# paper with a thin ink outline.
 	var label: Label = UiKit.number_label(stamp_text(upgrade, false), INITIALS_SIZE, true)
@@ -406,9 +433,9 @@ static func make_ring(upgrade: UpgradeDefinition) -> PanelContainer:
 	panel.add_child(label)
 	if upgrade == null:
 		return panel
-	# PASS, not IGNORE: a tooltip needs the mouse.
+	# PASS, not IGNORE: its tip needs the mouse.
 	panel.mouse_filter = Control.MOUSE_FILTER_PASS
-	panel.tooltip_text = tooltip_for(upgrade)
+	TipTarget.cover_control(panel, tip_for(upgrade))
 	label.text = stamp_text(upgrade, true)
 	label.add_theme_font_size_override("font_size", chip_initials_size(label.text))
 	add_perk_icon(panel, upgrade, true)

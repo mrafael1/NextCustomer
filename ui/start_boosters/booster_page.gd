@@ -92,13 +92,14 @@ var openings: BoosterOpenings
 var counter: BoosterCounter
 var fx: BoosterFx
 var swap: SwapWindow
+## The page's hover tips (the regulars, the opened booster cards, the swap window's cards).
+var tips: StartTips
 ## A RARE's hitstop: the page's clock holds until this wall-clock time (ms).
 var hitstop_until: int = 0
 var _scene: Control
 var _layers: Array[BoosterLayer] = []
 var _facade: Control
 var _swap_slide: Control
-var _hover_spot: Control
 var _shown_run: RunState
 
 
@@ -144,11 +145,8 @@ func _init() -> void:
 	)
 	_add_layer(window, "Swap").position = -window.position
 	_add_layer(_swap_slide, "SwapTop")
-	_hover_spot = Control.new()
-	_hover_spot.name = "HoverCard"
-	_hover_spot.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_hover_spot.visible = false
-	add_child(_hover_spot)
+	tips = StartTips.new()
+	add_child(tips)
 
 
 func _add_layer(parent: Control, layer_name: String, additive: bool = false) -> BoosterLayer:
@@ -304,6 +302,7 @@ func advance(dt: float) -> void:
 func _refresh_view() -> void:
 	hits = SwapWindowDraw.hits(self) if swap.visible() else BoosterPageDraw.hits(self)
 	_update_hover()
+	_update_tips()
 	_place_scene()
 	_swap_slide.visible = swap.visible()
 	_swap_slide.position.y = swap.slide() * ArtPen.UNIT
@@ -668,18 +667,37 @@ func _update_hover() -> void:
 		hover_id = id
 		hover_t0 = now
 	mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if id != "" else Control.CURSOR_ARROW
-	var card: CardDefinition = found.get("card") as CardDefinition
-	_hover_spot.visible = card != null
-	if card != null:
-		var rect: Rect2 = found.rect
-		_hover_spot.position = rect.position * ArtPen.UNIT
-		_hover_spot.size = rect.size * ArtPen.UNIT
-		_hover_spot.set_meta("card", card)
 
 
-## The control under the pointer that carries a hovered card (its scan popup), or null.
-func hovered_card() -> Control:
-	return _hover_spot if _hover_spot.visible else null
+## Lays the hover tips over this frame's targets (none while tips_blocked, or while the page slides:
+## no node is built during the board's page slide).
+func _update_tips() -> void:
+	if tips_blocked() or position.x != 0.0:
+		tips.clear()
+	elif swap.visible():
+		tips.show_entries(SwapWindowDraw.tip_entries(self))
+	else:
+		tips.show_entries(BoosterChromeDraw.tip_entries(self))
+
+
+## Whether no hover tip may show now: the shutter, the arrival, a booster opening (page 1's or the
+## swap window's), Space held, or in the swap window a held card or its slide.
+func tips_blocked() -> bool:
+	if run == null or shutter != Shutter.UP or hold_t >= 0.0:
+		return true
+	if openings.arrival_busy() or openings.opening_now() or openings.waiting_booster() != null:
+		return true
+	if swap.visible():
+		return not swap.active or swap.held != null or swap.slide() != 0.0 or _swap_opening()
+	return false
+
+
+## Whether one of the swap window's boosters is still opening.
+func _swap_opening() -> bool:
+	for b: BoosterOpening in swap.boosters:
+		if b.state == BoosterOpening.State.OPENING and not b.at_rest(tuning):
+			return true
+	return false
 
 
 func is_hovered(id: String) -> bool:

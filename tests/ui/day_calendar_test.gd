@@ -177,7 +177,7 @@ func test_every_page_word_has_its_glyphs() -> void:
 		DayCalendar.EARNED_WORD,
 		InspectionTag.CAPTION,
 		InspectionTag.REVIEW_CAPTION,
-		"DAY"
+		DeskCalendarArt.PAGE_WORD
 	]
 	for event: InspectionDefinition in balance.inspection_pool + balance.boon_pool:
 		words.append(event.display_name)

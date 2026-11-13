@@ -78,7 +78,7 @@ func test_the_menu_holds_export_log() -> void:
 	bar.menu_button.pressed.emit()
 	await _frames(2)
 	assert_bool(bar.menu.visible).is_true()
-	assert_str(bar.export_button.caption).is_equal("Export log")
+	assert_str(bar.export_button.caption).is_equal(TopBar.EXPORT_TEXT)
 	# The chip frame is drawn by a panel inside the popup, with the sharp-pixel material (a
 	# Window cannot take it); the popup's own style is empty.
 	assert_object(bar.menu.get_theme_stylebox("panel")).is_instanceof(StyleBoxEmpty)

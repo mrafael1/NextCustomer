@@ -167,7 +167,7 @@ func test_price_gun_gives_an_item_a_family() -> void:
 		. is_true()
 	)
 	assert_str(gun.tag_label().text).is_equal(PriceGunItem.LEFT_TEXT % 1)
-	assert_str(gun.tooltip_text).is_equal(PriceGunItem.TIP)
+	assert_str(TipTarget.tip_of(gun)).is_equal(PriceGunItem.TIP)
 	var product: CardInstance = null
 	for card: CardInstance in run.hand():
 		if card.definition.is_product():
@@ -363,7 +363,7 @@ func _assert_picker_layout(screen: ShiftScreen, picker: PriceGunPicker, view: It
 func test_express_lane_stays_off_the_day_chip() -> void:
 	var screen: ShiftScreen = await _screen([EXPRESS_LANE], true)
 	var chip: DayCalendar = screen._calendar
-	assert_str(chip.text()).is_equal("Normal day")
+	assert_str(chip.text()).is_equal("Normal shift")
 	var said: String = _slip_text(screen)
 	assert_str(said).contains(DaySlip.NO_EVENT_EFFECT)
 	assert_str(said).not_contains("Express lane")

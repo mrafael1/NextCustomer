@@ -10,7 +10,7 @@ match_by = 3
 match_value = "Frozen"
 position = 2
 bonus_is_base = true
-receipt_text = "Frozen pair"
+receipt_text = "Frozen peas beside Frozen"
 
 [resource]
 script = ExtResource("3_v6jfv")
@@ -20,7 +20,7 @@ kind = 1
 tags = PackedStringArray("Food", "Frozen", "Produce")
 base = 3
 rules = Array[ExtResource("1_rdeag")]([SubResource("Resource_6s4mr")])
-rule_text = "+3 if beside another Frozen item"
+rule_text = "+3€ if beside another Frozen item"
 sticker_text = "+{base} beside {match_value}"
 monitor_text = "Gets +{bonus} when placed beside another {match_value} item."
 art_ref = "res://art/items_v2/frozen_peas.png"

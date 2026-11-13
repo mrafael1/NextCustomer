@@ -55,9 +55,9 @@ func test_money_prints_whole_euros() -> void:
 	assert_str(ReceiptView.money(15, true)).is_equal("+15€")
 	assert_str(ReceiptView.money(0)).is_equal("0€")
 	assert_str(ReceiptView.verdict_text(51, 40)).is_equal("51€ / 40€")
-	assert_str(ReceiptTarget.margin_text(ShiftMargin.Kind.OVER, 11)).is_equal("+11€ OVER TARGET")
-	assert_str(ReceiptTarget.margin_text(ShiftMargin.Kind.SHORT, 4)).is_equal("SHORT 4€")
-	assert_str(ReceiptTarget.margin_text(ShiftMargin.Kind.ON, 0)).is_equal("ON TARGET")
+	assert_str(ReceiptTarget.margin_text(ShiftMargin.Kind.OVER, 11)).is_equal("+11€ OVER QUOTA")
+	assert_str(ReceiptTarget.margin_text(ShiftMargin.Kind.SHORT, 4)).is_equal("MISSED BY 4€")
+	assert_str(ReceiptTarget.margin_text(ShiftMargin.Kind.ON, 0)).is_equal("ON QUOTA")
 	# The receipt's font has every glyph its lines print (the dots, the bullets, € and ×; one test
 	# with the amounts' words, so the suite stays at gdlint's 20 public methods).
 	for text: String in [HEADER[0], "€×+=·"]:
@@ -120,9 +120,9 @@ func test_the_planning_receipt_prints_the_header_alone() -> void:
 			)
 		for text: String in _lines(_receipt):
 			assert_str(text).not_contains(EffectLink.WASTED_WORD)
-	assert_str(ReceiptTarget.against_text(8, 8)).is_equal("on target")
+	assert_str(ReceiptTarget.against_text(8, 8)).is_equal("on quota")
 	assert_str(ReceiptTarget.against_text(8, 5)).is_equal("+3€ over")
-	assert_str(ReceiptTarget.against_text(8, 9)).is_equal("1€ short")
+	assert_str(ReceiptTarget.against_text(8, 9)).is_equal("1€ to go")
 	assert_that(ReceiptTarget.against_color(8, 5)).is_equal(Palette.GREEN_DARK)
 	assert_that(ReceiptTarget.against_color(8, 9)).is_equal(Palette.TOMATO_DARK)
 
@@ -138,7 +138,7 @@ func test_the_count_up_prints_line_by_line() -> void:
 	var first: Array[String] = [
 		"SHIFT 5/8 · 4 ITEMS | ",
 		"---",
-		"tap: skip · hold: fast | ",
+		"click: skip · hold: fast | ",
 	]
 	assert_array(_lines(_receipt)).is_equal(first)
 	assert_object(_receipt._items.get(0)).is_null()

@@ -27,7 +27,8 @@ const TAG_SIZE := Vector2(34, 34)
 const TAG_OUT := Vector2(4, 2)
 ## The keyboard focus ring: light, so it shows on the dark belt round the tag's ink rim.
 const FOCUS_RING := Palette.MUSTARD_LIGHT
-const TAG_TIP := "Family sticker: the next item joins %s · click to pick another family"
+const TAG_TIP := "FAMILY STICKER · The next item becomes %s."
+const TAG_CLICK := "CHANGE"
 const PICKED := "Family sticker: the next item joins %s"
 const ART := preload("res://art/icons/coupon_family_sticker_v2.png")
 
@@ -165,7 +166,7 @@ func _new_tag(card: CardInstance, style: FamilyStyle) -> Button:
 	tag.custom_minimum_size = TAG_SIZE
 	tag.size = TAG_SIZE
 	tag.position = Vector2(-TAG_OUT.x, ItemView.SPRITE_SIZE.y - TAG_SIZE.y + TAG_OUT.y)
-	tag.tooltip_text = TAG_TIP % style.display_name
+	TipTarget.cover_text(tag, TAG_TIP % style.display_name, TipSpec.Kind.COUPON, "", TAG_CLICK)
 	tag.add_theme_stylebox_override("normal", _box(style.face, 2))
 	tag.add_theme_stylebox_override("hover", _box(style.light, 2))
 	tag.add_theme_stylebox_override("pressed", _box(style.shade, 2))

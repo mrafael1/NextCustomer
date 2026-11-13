@@ -29,6 +29,9 @@ var _face: Color = FALLBACK_FACE
 func _init() -> void:
 	super()
 	tip_text = GlyphText.keyword_tip(CardText.MORNING_WORD)
+	tip_kind = TipSpec.Kind.KEYWORD
+	tip_title = CardText.MORNING_WORD
+	tip_tag = TipSpec.KEYWORD_TAG
 	var family: Resource = KeywordChip.dot_family(CardText.MORNING_WORD)
 	if family != null:
 		_face = family.get("face")

@@ -20,7 +20,7 @@
 script = ExtResource("6_deck")
 id = &"pack_starter"
 display_name = "Starter deck"
-description = "A Banana pair, Milk and Eggs, the starter pack you pick, and 6 products from today's stock."
+description = "2 Bananas, Milk and Eggs, the starter pack you pick, and 6 items from today's stock."
 core_cards = Array[ExtResource("1_card")]([ExtResource("2_banana"), ExtResource("2_banana"), ExtResource("3_milk"), ExtResource("4_eggs")])
 random_count = 6
 copy_max = 2
