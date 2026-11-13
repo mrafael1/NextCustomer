@@ -5,11 +5,15 @@ extends Control
 ## NEXT CUSTOMER over the doors, the menu's plates on the brick left of them (TitleMenu) and the
 ## REWARDS bay on the right, everything pixel art on the 2 px grid.
 ##
-## The sign is dark when the title opens. After INTRO_DARK seconds it lights letter by letter,
-## then the plates step in; the first click or key before that lights it and shows the plates at
-## once (skip_intro), and does nothing else. A return from the results' Return to menu
-## (request_lit) skips the intro too. The profile's reduced motion lights it at once and holds
-## every loop and slide (Storefront, TitleMenu and the popups take `still`).
+## The opening (2026-11-13, mock-up title_opening.html, variant C "scanner sweep"; its times in
+## data/balance/title_opening.tres, TitleOpeningTuning): the sign is dark when the title opens;
+## after the tuning's dark_s its scan beam sweeps it and each tube lights as the line crosses it,
+## then the accepted scan's BEEP (beep_sound, the register's scan beep) and one blink, the € tag,
+## the wedge and the reflections (half, then full), and the plates step in plates_delay_s later.
+## The first click or key before that ends it on the final frame (skip_intro) and does nothing
+## else. A return from the results' or the pause menu's Return to menu (request_lit) skips the
+## intro too. The profile's reduced motion lights it from the first frame with only the BEEP,
+## and holds every loop and slide (Storefront, TitleMenu and the popups take `still`).
 ##
 ## The menu: without a run save, START RUN (the run's length under it, from balance data) and
 ## REWARDS (the profile's coins on it, read without reporting or backing anything up); with one
@@ -44,8 +48,8 @@ enum Target { NONE, DOORS, BAY, SIGN }
 const SHIFT_SCREEN := "res://ui/shift_screen.tscn"
 const BALANCE := "res://data/balance/balance.tres"
 const MUSIC := &"front"
-## The sign stays dark this long before it lights by itself (the mock-up's 2.5 s).
-const INTRO_DARK := 2.5
+## The opening's times and its BEEP (TitleOpeningTuning).
+const OPENING := "res://data/balance/title_opening.tres"
 ## The start: the click, then the register's bell as the doors open.
 const START_SOUND := "register_bell"
 const EXPORT_SOUND := "ui_confirm"
@@ -83,8 +87,11 @@ var _sfx: Sfx
 ## The first click or key press started the music.
 var _music_started: bool = false
 var _still: bool = false
-## Seconds the sign has been dark (it lights at INTRO_DARK).
+## Seconds the sign has been dark (its sweep starts at the tuning's dark_s), and whether it has
+## started.
 var _dark_for: float = 0.0
+var _sweep_started: bool = false
+var _opening: TitleOpeningTuning
 var _storefront: Storefront
 ## Takes the clicks and the mouse on the storefront (under the menu, on the stage).
 var _hit: Control
@@ -116,6 +123,7 @@ var _settings: GameSettings = GameSettings.new()
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	_balance = load(BALANCE)
+	_opening = load(OPENING)
 	_sfx = Sfx.new()
 	add_child(_sfx)
 	_sfx.warm_up()
@@ -159,6 +167,7 @@ func _ready() -> void:
 	tips.reduced_motion = func() -> bool: return _still
 	stage.add_child(tips)
 	_storefront.sign_lit.connect(_on_sign_lit)
+	_storefront.sign_swept.connect(_play_beep)
 
 	if _saved_run != null:
 		_confirm = AbandonConfirm.new()
@@ -176,9 +185,13 @@ func _ready() -> void:
 	_options.still = _still
 	_options.closed.connect(_on_options_closed)
 	add_child(_options)
+	# A return to the title opens lit and silent; reduced motion lit, with only the BEEP.
+	var lit_request: bool = take_lit_request()
 	if _still:
 		_storefront.light_now()
-	if take_lit_request():
+		if not lit_request:
+			_play_beep.call_deferred()
+	if lit_request:
 		skip_intro()
 
 
@@ -222,6 +235,12 @@ func skip_intro() -> bool:
 	_storefront.light_now()
 	_menu.finish_step_in()
 	return true
+
+
+## The profile's reduced motion, as the title read it (the boot loader asks, to skip its
+## hand-off).
+func reduced_motion() -> bool:
+	return _still
 
 
 ## Whether the TOY MACHINES are open over the title.
@@ -279,11 +298,18 @@ func scene_hit() -> Control:
 
 
 func _process(delta: float) -> void:
-	if _storefront.is_lit():
+	if _sweep_started or _storefront.is_lit():
 		return
 	_dark_for += delta
-	if _dark_for >= INTRO_DARK:
-		_storefront.light_up()
+	if _dark_for >= _opening.dark_s:
+		_sweep_started = true
+		_storefront.sweep_on(_opening)
+
+
+## The accepted scan's BEEP (the sweep's end, or reduced motion's first frame).
+func _play_beep() -> void:
+	if _opening.beep_sound != "":
+		_sfx.play(_opening.beep_sound)
 
 
 ## The Export log icon and the build label, discreet in the stage's bottom corners; playtest
@@ -318,9 +344,17 @@ func _add_corner(stage: Control) -> void:
 	stage.add_child(_build)
 
 
-## The plates step in once the sign is lit (at once when still or skipped).
+## Shows or hides the bottom corners (the Export log icon and the build label): the loader hides
+## them while the title waits under its shutters, as the boot frame leaves them out.
+func set_corner_shown(shown: bool) -> void:
+	_export.visible = shown
+	_build.visible = shown
+
+
+## The plates step in once the sign is lit, the tuning's plates_delay_s later (at once when
+## still or skipped).
 func _on_sign_lit() -> void:
-	_menu.step_in()
+	_menu.step_in(_opening.plates_delay_s)
 
 
 ## The storefront follows the marked entry: the doors stand ajar for the primary entry, the bay
