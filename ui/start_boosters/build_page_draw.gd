@@ -816,7 +816,7 @@ static func primary_label(page: BuildPage) -> Array:
 	elif page.now < page.busy_until:
 		label = ["SKIP ›", "DEAL EVERY CARD", true]
 	elif page.picked() >= 0:
-		label = ["OPEN STORE", "CLOCK IN · %d CARDS" % page.cart_target(), true]
+		label = ["OPEN STORE ›", "%d CARDS" % page.cart_target(), true]
 	elif first != null:
 		var at: int = page.run.start_offer.packs.find(first) + 1
 		label = ["TAKE PACK %d" % at, first.display_name.to_upper(), true]
@@ -833,7 +833,7 @@ static func hint_line(page: BuildPage) -> String:
 	elif page.hint != "":
 		line = page.hint
 	elif page.picked() >= 0:
-		line = "OPEN STORE TO CLOCK IN"
+		line = "OPEN STORE, THEN START SHIFT 1"
 	return line
 
 
@@ -856,3 +856,44 @@ static func top_view(page: BuildPage) -> Dictionary:
 		"punch_t": page.cart_punch_t,
 		"punch_s": page.cart_punch_s,
 	}
+
+
+## The page's hover tips this frame (StartTips entries): each landed strip's family band, then the
+## spread pack's cards, once spread and dealt, with their family chips, tagged with the pack's name.
+static func tip_entries(page: BuildPage) -> Array[Dictionary]:
+	var list: Array[Dictionary] = []
+	var palette: FamilyPalette = FamilyPalette.shared()
+	for n: int in page.stacks.size():
+		var held: StarterPackDefinition = page.stacks[n].pack
+		var style: FamilyStyle = palette.style(held.family)
+		if style == null or (not page.rm and _deal_age(page, n, 2) < page.tuning.p2_fly_s):
+			continue
+		var band: Rect2 = Rect2(BuildPage.STX[n] - 4, 88, 80, 11)
+		var key: String = "strip%d|%s|%s" % [n, held.id, style.id]
+		list.append(StartTips.entry_of(band, key, StartTips.pack_family_spec.bind(style, held)))
+	var k: int = page.spread
+	if k < 0 or k >= page.stacks.size() or page.now - page.spread_t <= page.tuning.p2_spread_s:
+		return list
+	var pack: StarterPackDefinition = page.stacks[k].pack
+	var tag: String = pack.display_name.to_upper()
+	for j: int in pack.cards.size():
+		if not page.rm and _deal_age(page, k, j) < page.tuning.p2_fly_s + page.tuning.p2_flip_s:
+			continue
+		var card: CardDefinition = pack.cards[j]
+		var at: Vector2 = Vector2(BuildPage.SPX[j], BuildPage.SPY - 4)
+		StartTips.card_entries(
+			list, card, rare(card, page.run.balance), at, "spread%d_%d" % [k, j], tag
+		)
+	return list
+
+
+## Whether no hover tip may show on `page` now: before the deal, during it, the BADGE PINS step or
+## the OPEN STORE flight.
+static func tips_blocked(page: BuildPage) -> bool:
+	return (
+		page.run == null
+		or not page.dealt
+		or page.flight != null
+		or page.pins_open
+		or page.now < page.busy_until
+	)

@@ -9,7 +9,10 @@ extends RefCounted
 ##   y), primary; the swap window (v1.32): win (opened from the crate), sb<i> (its booster i
 ##   opened), grab<n> (piece n pressed where it rests: booster 0's cards, booster 1's, then the
 ##   regulars), over<k> (the pointer over basket slot k), drop (the button let go there), done
-##   (DONE), esc; the file name gets the steps (do_<steps>_);
+##   (DONE), esc; tip<what> (v1.33 hover tips: the board's tip of the StartTips target <what> at
+##   full size: reg<k> a regular, card<b>_<k> an opened booster card, card<b>_<k>fam its first
+##   family chip, piece<n> a swap window card, slot<k> its basket's item; play it last); the file
+##   name gets the steps (do_<steps>_);
 ## - page 2 (YOUR BUILD, v1.32): pins=<n> leaves the catalogue's first n earned pins (those with an
 ##   unlock condition; the pins every profile starts with stay owned) unlocked and none worn on the
 ##   capture's temporary profile: n > 0 holds the packs for the BADGE PINS step, pins=0 deals them
@@ -18,7 +21,8 @@ extends RefCounted
 ##   pick), p2=<step>+<step>+... plays page 2 on its own clock: t<seconds>, hover<i> (the pointer
 ##   on pack i), deck (the pointer on the deck pile), corkboard (the pointer on it), pick<i>,
 ##   newpacks, pins (the step opens), wear<i> (owned pin i toggled), confirm, esc, open (OPEN
-##   STORE: the flight); the file name gets the steps (p2_<steps>_).
+##   STORE: the flight), tip<what> (as page 1's: spread<k>_<j> card j of the spread pack k, with
+##   fam for its first family chip); the file name gets the steps (p2_<steps>_).
 
 ## The capture's step on the page clock (s).
 const STEP_S := 1.0 / 60.0
@@ -92,7 +96,10 @@ static func show_board(screen: ShiftScreen, options: PackedStringArray, raised: 
 ## Plays one page-2 capture step (see the class doc).
 static func play_build(build: BuildPage, step: String) -> void:
 	var number: int = step.lstrip("abcdefghijklmnopqrstuvwxyz").to_int()
-	if step.begins_with("t"):
+	if step.begins_with("tip"):
+		build.advance(0.0)
+		show_tip(build.tips, step.trim_prefix("tip"))
+	elif step.begins_with("t"):
 		var left: float = step.trim_prefix("t").to_float()
 		while left > 0.0001:
 			build.advance(minf(STEP_S, left))
@@ -139,6 +146,9 @@ static func play(store: BoosterPage, step: String) -> void:
 		_play_swap(store, step, number)
 	elif step.begins_with("grab") or step.begins_with("over"):
 		_play_swap(store, step, number)
+	elif step.begins_with("tip"):
+		store.advance(0.0)
+		show_tip(store.tips, step.trim_prefix("tip"))
 	elif step.begins_with("t"):
 		var left: float = step.trim_prefix("t").to_float()
 		while left > 0.0001:
@@ -156,6 +166,34 @@ static func play(store: BoosterPage, step: String) -> void:
 		var xy: PackedStringArray = step.trim_prefix("at").split(":")
 		store.mouse = Vector2(xy[0].to_float(), xy[1].to_float())
 		store.advance(0.0)
+
+
+## Shows the board's hover tip of `tips`' target `what` (see the class doc) at full size, its pop
+## skipped, the pointer resting on it.
+static func show_tip(tips: StartTips, what: String) -> void:
+	var chip: bool = what.ends_with("fam")
+	var prefix: String = what.trim_suffix("fam") + "|"
+	var target: TipTarget = null
+	for shown: TipTarget in tips.shown_targets():
+		var key: String = shown.get_meta(StartTips.KEY_META, "")
+		if key.begins_with(prefix) and key.contains("|fam") == chip:
+			target = shown
+			break
+	var node: Node = tips.get_parent()
+	while node != null and not node is StartBoard:
+		node = node.get_parent()
+	if target == null or node == null:
+		push_warning("CaptureStart: no tip target for %s" % what)
+		return
+	var board_tips: GlyphTips = (node as StartBoard).tips
+	board_tips.hide_tip()
+	board_tips.point_at(target.get_global_rect().get_center())
+	board_tips.show_tip(target)
+	if board_tips._pop != null:
+		board_tips._pop.kill()
+	board_tips.tip().scale = Vector2.ONE
+	for box: TipCard in board_tips.boxes():
+		box.scale = Vector2.ONE
 
 
 ## One swap window step (see the class doc).

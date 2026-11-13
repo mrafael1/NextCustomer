@@ -89,6 +89,8 @@ var sparks: Array[Dictionary] = []
 var flight: StoreFlight
 var pins: BuildPins
 var order: OrderSheet
+## The page's hover tips (the spread pack's cards and their family chips).
+var tips: StartTips
 var _layers: Array[BuildLayer] = []
 
 
@@ -112,6 +114,8 @@ func _init() -> void:
 	_add_layer("Top")
 	_add_layer("Pins")
 	_add_layer("Store")
+	tips = StartTips.new()
+	add_child(tips)
 
 
 func _add_layer(layer_name: String, parent: Control = null) -> void:
@@ -250,6 +254,11 @@ func _refresh_view() -> void:
 	hits = BuildPageDraw.hits(self)
 	_update_hover()
 	_update_spread()
+	# No tip (and no node built) while the page slides in or out.
+	if BuildPageDraw.tips_blocked(self) or position.x != 0.0:
+		tips.clear()
+	else:
+		tips.show_entries(BuildPageDraw.tip_entries(self))
 	for layer: BuildLayer in _layers:
 		layer.queue_redraw()
 
@@ -493,7 +502,7 @@ func _pick_refusal(index: int) -> String:
 		if picked() == index:
 			why = "-"
 		elif block == &"copies":
-			why = "TOO MANY COPIES IN THE CART"
+			why = StartTips.COPY_LIMIT_LINE % run.starter.copy_max
 		elif block != &"":
 			why = "PICK A PACK FIRST"
 	return why

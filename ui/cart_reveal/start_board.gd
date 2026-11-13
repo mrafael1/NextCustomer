@@ -40,6 +40,8 @@ var profile: ProfileState
 var store: BoosterPage
 var staff: BuildPage
 var busy: bool = false
+## The board's hover tips (StartTips' targets on both pages; v1.33 hover tips B).
+var tips: GlyphTips
 ## The page slide's length (s): CartRevealTuning.page_slide_s, set by the reveal before it adds
 ## the board.
 var slide_s: float = 0.3
@@ -91,6 +93,11 @@ func _init(shown_run: RunState, shown_profile: ProfileState, choice: StartBoardA
 		page = 2
 		staff.visible = true
 		store.visible = false
+	# The pages' hover tips, over both pages (added last, so they draw on top).
+	tips = GlyphTips.new()
+	tips.blocked = tips_blocked
+	tips.reduced_motion = func() -> bool: return profile.reduced_motion()
+	_stage.add_child(tips)
 	resized.connect(_resize)
 	refresh()
 	if page == 2:
@@ -321,15 +328,12 @@ func _act_store(keycode: Key, enter: bool) -> void:
 		store.handle_key(keycode)
 
 
-## The card tile under the pointer that may show its scan popup (CartReveal's, with its hold):
-## a control carrying a "card" meta on the shown page; null while a pop-up, the pins or a slide
-## covers the board.
-func hovered_card() -> Control:
-	if busy or not is_visible_in_tree():
-		return null
-	if page == 1:
-		return store.hovered_card()
-	return null
+## Whether no hover tip may show: the page slide, the clock-in, or the shown page's own reasons (an
+## opening, a held card, the BADGE PINS step; BoosterPage and BuildPage tips_blocked).
+func tips_blocked() -> bool:
+	if busy or _slide_old != null or not is_visible_in_tree():
+		return true
+	return store.tips_blocked() if page == 1 else BuildPageDraw.tips_blocked(staff)
 
 
 ## The scaled stage's global rect (the popup stays on it).

@@ -322,10 +322,10 @@ func test_the_locked_window() -> void:
 	_run(page, 1.0)
 	assert_bool(page.swap.open_booster(0, "key")).is_false()
 	assert_str(page.swap.err_text).is_equal("SWAPS LOCKED")
-	assert_str(page.message).is_equal("SWAPS LOCKED · COMPLETE AN AISLE")
+	assert_str(page.message).is_equal("SWAPS LOCKED · 1 SWAP PER FINISHED AISLE")
 	assert_int(page.swap.boosters[0].state).is_equal(BoosterOpening.State.SEALED)
 	_run(page, 2.5)
-	assert_str(page.swap.hint_line).is_equal("SWAPS LOCKED · COMPLETE AN AISLE")
+	assert_str(page.swap.hint_line).is_equal("SWAPS LOCKED · 1 SWAP PER FINISHED AISLE")
 
 
 ## Two card pieces of one swap booster whose cards fit slot `slot` now.

@@ -51,7 +51,7 @@ static func _step(pen: ArtPen, page: BuildPage) -> void:
 	var slots: int = maxi(1, page.run.balance.pin_slots)
 	var slot_text: String = "1 SLOT" if slots == 1 else "%d SLOTS" % slots
 	pen.caps(
-		"WORN PINS SHAPE THIS RUN · " + slot_text,
+		"WORN PINS: ACTIVE THIS RUN · " + slot_text,
 		x + w - 10,
 		y + 11,
 		Palette.TEAL_SHADE,

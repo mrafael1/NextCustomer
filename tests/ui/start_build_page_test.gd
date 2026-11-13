@@ -247,7 +247,8 @@ func test_open_store_waits_for_a_pick() -> void:
 	assert_bool(staff.handle_key(KEY_2)).is_true()
 	assert_int(staff.picked()).is_equal(1)
 	label = BuildPageDraw.primary_label(staff)
-	assert_str(label[0]).is_equal("OPEN STORE")
+	assert_str(label[0]).is_equal("OPEN STORE ›")
+	assert_str(label[1]).is_equal("%d CARDS" % staff.cart_target())
 	assert_bool(label[2]).is_true()
 	assert_object(staff.order.waiting_note).is_null()
 	assert_bool(staff.order.pack_rows.dashed).is_false()
@@ -255,6 +256,9 @@ func test_open_store_waits_for_a_pick() -> void:
 	assert_bool(paper.encloses(staff.order.pack_rows.get_global_rect())).is_true()
 	var row: float = OrderSheet.ROW * staff.order.get_global_transform().get_scale().y
 	assert_float(staff.order.pack_rows.get_global_rect().size.y).is_equal_approx(packed * row, 0.5)
+	# Once the refusal's flash is over, the hint LED says what comes next.
+	staff.advance(2.5)
+	assert_str(BuildPageDraw.hint_line(staff)).is_equal("OPEN STORE, THEN START SHIFT 1")
 
 
 ## NEW PACKS (the deck, N) once a run: the packs not picked re-deal, the pick keeps its place,

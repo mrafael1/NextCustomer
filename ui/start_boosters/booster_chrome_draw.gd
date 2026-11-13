@@ -820,3 +820,43 @@ static func _booster_hits(page: BoosterPage, b: BoosterOpening, list: Array[Dict
 
 static func _hit(rect: Rect2, id: String, act: Callable) -> Dictionary:
 	return {"rect": rect, "id": id, "act": act}
+
+
+## The page's hover tips this frame (StartTips entries, bottom first): the crate's regulars while
+## the crate is the swap window's button (CLICK SWAP opens the window; locked, or waiting for the
+## boosters, their live line says so), then each opened booster's cards with their family chips.
+static func tip_entries(page: BoosterPage) -> Array[Dictionary]:
+	var list: Array[Dictionary] = []
+	if page.run == null:
+		return list
+	if crate_button(page):
+		var cards: Array[CardDefinition] = page.run.starter.core_cards
+		var limit: int = page.counter.swap_limit()
+		var live: bool = page.swap.is_live()
+		var click: String = StartTips.SWAP_CLICK if live and limit > 0 else ""
+		var line: String = ""
+		var kind: TipSpec.Live = TipSpec.Live.INFO
+		if limit < 1:
+			line = StartTips.SWAPS_LOCKED_LIVE
+			kind = TipSpec.Live.OFF
+		elif not live:
+			line = StartTips.SWAPS_WAIT_LIVE
+		for k: int in cards.size():
+			# The sprites overlap (48 art px on a 34 px step): each takes its step, the last its
+			# whole width, above the crate's front.
+			var w: float = float(BoosterArt.REG_STEP) if k < cards.size() - 1 else 40.0
+			var rect: Rect2 = Rect2(regular_x(k) + 7, 172 + DY, w, 32)
+			var key: String = "reg%d|%s|%s|%s" % [k, cards[k].id, click, line]
+			var make: Callable = StartTips.card_spec.bind(
+				cards[k], StartTips.REGULAR_TAG, click, line, kind
+			)
+			list.append(StartTips.entry_of(rect, key, make))
+	for b: BoosterOpening in page.boosters:
+		if b.state != BoosterOpening.State.OPEN:
+			continue
+		var tag: String = BoosterArt.short_name(BoosterPageDraw.aisle_def(page, b.aisle))
+		for k: int in b.cards.size():
+			var at: Vector2 = BoosterArt.card_rect(b.cx, k).position
+			var rare: bool = k < b.rares.size() and b.rares[k]
+			StartTips.card_entries(list, b.cards[k], rare, at, "card%d_%d" % [b.index, k], tag)
+	return list

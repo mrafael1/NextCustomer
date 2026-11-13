@@ -264,7 +264,7 @@ static func _sealed(pen: ArtPen, page: BoosterPage, w: SwapWindow, bi: int) -> v
 
 
 ## A card piece (or an OUT regular) at its pose: held with a shadow; at rest with its tab (OUT),
-## dimmed with "2 IN THE CART" when no slot can take it.
+## dimmed with "MAX 2 IN CART" when no slot can take it.
 static func _card(
 	pen: ArtPen, page: BoosterPage, w: SwapWindow, piece: SwapPiece, p: Dictionary, lift: float
 ) -> void:
@@ -288,7 +288,7 @@ static func _card(
 	pen.r(x + 2, y + BoosterArt.CH, BoosterArt.CW - 4, 1, Palette.INK)
 	if w.blocked(piece):
 		pen.r(x, y, BoosterArt.CW, BoosterArt.CH, Color(Palette.INK, 0.55))
-		var text: String = "%d IN THE CART" % page.run.starter.copy_max
+		var text: String = StartTips.COPY_LIMIT_TAG % page.run.starter.copy_max
 		var tw: float = ArtPen.word_texture(text, Palette.PAPER, false).get_width() + 8
 		var tx: float = roundf(at.x - tw / 2.0)
 		pen.rn(tx, y + BoosterArt.CH - 16, tw, 11, Palette.TOMATO)
@@ -572,7 +572,7 @@ static func hint_text(page: BoosterPage) -> String:
 	if page.message != "" and page.now - page.message_t < 2.0:
 		line = page.message
 	elif w.locked:
-		line = "SWAPS LOCKED · COMPLETE AN AISLE"
+		line = StartTips.SWAPS_LOCKED_LINE
 	elif w.held != null:
 		line = "BACK TO ITS SPOT" if w.held.regular else "DROP IT ON A REGULAR"
 	elif sealed > 0:
@@ -698,7 +698,54 @@ static func _piece_hits(page: BoosterPage, w: SwapWindow, add: Callable) -> void
 		var rect: Rect2 = Rect2(slot_cx(slot) - 44, ITEM_TOP + 4, 88, FRONT_Y - ITEM_TOP - 4)
 		var n: int = w.pieces.find(piece)
 		if piece.regular:
-			var words: String = "SWAPS LOCKED" if w.locked else "DRAG A CARD ONTO IT"
+			var words: String = StartTips.SWAPS_LOCKED_LINE if w.locked else "DRAG A CARD ONTO IT"
 			add.call(rect, "piece%d" % n, page.flash.bind(words), null)
 		else:
 			add.call(rect, "piece%d" % n, Callable(), piece)
+
+
+## The window's hover tips this frame (StartTips entries; none while a card is held): each shown
+## card with its family chips (tagged with its booster's aisle; dimmed by the copy limit, the limit
+## as its live line), an OUT regular, then the basket's items (YOUR REGULAR, or SWAPPED IN).
+static func tip_entries(page: BoosterPage) -> Array[Dictionary]:
+	var list: Array[Dictionary] = []
+	var w: SwapWindow = page.swap
+	if not w.active or w.held != null:
+		return list
+	var dy: float = w.slide()
+	var size: Vector2 = Vector2(BoosterArt.CW, BoosterArt.CH)
+	for n: int in w.pieces.size():
+		var piece: SwapPiece = w.pieces[n]
+		if not _shown(w, piece) or piece.flying(page.now) or piece.item:
+			continue
+		var at: Vector2 = piece.pos - size / 2.0 + Vector2(0, dy)
+		var key: String = "piece%d" % n
+		if piece.regular:
+			StartTips.card_entries(
+				list, piece.card, false, at, key, StartTips.REGULAR_TAG, StartTips.SWAPPED_OUT_LIVE
+			)
+			continue
+		var aisle: AisleDefinition = BoosterPageDraw.aisle_def(
+			page, w.boosters[piece.booster].aisle
+		)
+		var tag: String = BoosterArt.short_name(aisle)
+		if w.blocked(piece):
+			var limit: String = StartTips.COPY_LIMIT_LIVE % page.run.starter.copy_max
+			StartTips.card_entries(list, piece.card, false, at, key, tag, limit, TipSpec.Live.BAD)
+		else:
+			StartTips.card_entries(list, piece.card, false, at, key, tag)
+	for slot: int in page.run.starter.core_cards.size():
+		var piece: SwapPiece = _in_slot(page, w, slot)
+		if piece == null:
+			continue
+		var rect: Rect2 = Rect2(slot_cx(slot) - 44, ITEM_TOP + 4 + dy, 88, FRONT_Y - ITEM_TOP - 4)
+		var tag: String = StartTips.REGULAR_TAG if piece.regular else StartTips.SWAPPED_IN_TAG
+		var line: String = "" if piece.regular else StartTips.SWAPPED_IN_LIVE
+		var kind: TipSpec.Live = TipSpec.Live.INFO
+		if piece.regular and w.locked:
+			line = StartTips.SWAPS_LOCKED_LIVE
+			kind = TipSpec.Live.OFF
+		var key: String = "slot%d|%s|%s|%s" % [slot, piece.card.id, tag, line]
+		var make: Callable = StartTips.card_spec.bind(piece.card, tag, "", line, kind)
+		list.append(StartTips.entry_of(rect, key, make))
+	return list
