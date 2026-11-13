@@ -13,7 +13,7 @@ receipt_text = "Cream: PAIRs"
 [resource]
 script = ExtResource("3_card")
 id = &"cream_big"
-display_name = "Big Cream"
+display_name = "Big cream"
 kind = 1
 tags = PackedStringArray("Food", "Dairy")
 base = 4

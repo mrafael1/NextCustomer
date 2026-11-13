@@ -163,11 +163,34 @@ func test_welcome_back_shows_on_a_resume_not_on_a_first_start() -> void:
 	assert_int(resumed.run.shift_index).is_equal(first.run.shift_index)
 
 
+## v1.36 (polish batch 1): Esc closes the time card and the cart as a click on them does, and the
+## pause stays shut under them; with them closed, Esc opens the pause as before.
+func test_esc_closes_the_time_card_and_the_cart_before_the_pause() -> void:
+	var screen: ShiftScreen = await _screen()
+	var card: WeekCard = screen._week.card
+	screen._week.reopen()
+	assert_bool(card.is_open()).is_true()
+	await _press(KEY_ESCAPE)
+	assert_bool(screen._pause.is_open()).is_false()
+	card.advance(WeekCard.SHRINK)
+	assert_bool(card.is_open()).is_false()
+	screen._on_deck_button_pressed()
+	var cart: DeckView = screen._deck_view
+	assert_bool(cart.visible).is_true()
+	await _press(KEY_ESCAPE)
+	assert_bool(cart.visible).is_false()
+	assert_bool(screen._pause.is_open()).is_false()
+	await _press(KEY_ESCAPE)
+	assert_bool(screen._pause.is_open()).is_true()
+
+
 func _screen() -> ShiftScreen:
 	if FileAccess.file_exists(_folder.path_join(SaveService.RUN_FILE)):
 		DirAccess.remove_absolute(_folder.path_join(SaveService.RUN_FILE))
 	_runner = scene_runner(SCREEN)
 	var screen: ShiftScreen = _runner.scene()
+	# A new run's first week plays its time card, which takes Esc first since v1.36: nothing open.
+	screen._week.skip()
 	for i: int in 2:
 		await get_tree().process_frame
 	return screen

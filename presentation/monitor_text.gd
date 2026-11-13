@@ -48,6 +48,8 @@ const OVERRIDE_PREFIX := "="
 ## between them), the source's scan a quiet note under its total instead of a "gives" row.
 const COPIED_FROM := "Copied from %s"
 const COPIED_BY := "Copied by %s"
+## A tag's row (tag_line, v1.36): the item, then the family it gains as a chip word.
+const TAG_LINE := "%s +%s"
 ## A "gives" row's equation (equation): the operators it spells out, its "=", and the change alone
 ## for an effect that is no arithmetic.
 const EQUATION_SIGNS: Array[String] = ["×", "+", "−", "-"]
@@ -122,6 +124,13 @@ static func waste_line(step: ScoreStep) -> String:
 ## then the copied amount).
 static func copied_from(source: String, amount: int) -> String:
 	return ReceiptView.joined_line(COPIED_FROM % source, euros(amount))
+
+
+## A TAG_ADDED step's row (v1.36, polish audit): the item `item` and the family `tag` it gains as
+## a chip word, "Squashed cake +BREAKFAST"; the row's giver glyph names the sticker. (The
+## receipt's "Breakfast sticker: Squashed cake gains Breakfast" wrapped on the monitor.)
+static func tag_line(item: String, tag: String) -> String:
+	return TAG_LINE % [item, tag.to_upper()]
 
 
 ## The quiet note beside a copied item's total: "Copied by Repeat", "" when nothing copied it.

@@ -16,7 +16,7 @@ receipt_text = "Broken biscuit after Bakery"
 [resource]
 script = ExtResource("3_card")
 id = &"broken_biscuit_golden"
-display_name = "Golden Broken biscuit"
+display_name = "Golden broken biscuit"
 kind = 1
 tags = PackedStringArray("Food", "Bakery", "Clearance")
 base = 4

@@ -32,8 +32,7 @@ extends PanelContainer
 ## line just printed is framed (mustard-pale fill, mustard frame) and kept in view. On the shift
 ## screen it stood on the printer's slot (fit_up, #80); since left column v2 (the user's pick of
 ## 2026-11-09, mock-up docs/art/mockups/left_column_v2.html) it hangs from the overhead printer
-## (fit_up's `hang_down`, ReceiptHang): its top, the header, stays at the slot and the paper feeds
-## DOWN.
+## (fit_up's `hang_down`, ReceiptHang): its header stays at the slot and the paper feeds DOWN.
 ## At an anchored count each printed line lengthens the paper by its height (whole art px) at its
 ## free end, where the line prints, until the paper reaches its room's foot (then the rows scroll
 ## under the header, as before). Planning's stub is the header alone; the next planning after a
@@ -424,9 +423,8 @@ func _still() -> bool:
 	return planning_still.is_valid() and bool(planning_still.call())
 
 
-## A money amount as the receipt prints it: "3€", or "+15€" when `signed` ("−2€" for a fall: Late
-## delivery's, v0.69). Every score is whole euros (ScoreResult, ScoreStep: ints), so nothing
-## rounds.
+## A money amount as printed: "3€", or "+15€" when `signed` ("−2€" for a fall: Late delivery's,
+## v0.69). Every score is whole euros (ScoreResult, ScoreStep: ints), so nothing rounds.
 static func money(euros: int, signed: bool = false) -> String:
 	var prefix: String = "" if not signed else "+" if euros >= 0 else "−"
 	return prefix + MONEY_TEXT % (absi(euros) if signed else euros)
@@ -649,10 +647,10 @@ static func is_combo(step: ScoreStep) -> bool:
 ## A step's line on one row, in whole euros (#75 and #80: the monitor's count-up line and a belt
 ## item's scan footer). A bonus reads as B2 words it, its amount first ("+15€ Category engine",
 ## "×2 Multipack"; a copy names its source, "Copied from Bread  3€", MonitorText.copied_from); a
-## base "MILK  2", a payout "17€", an override
-## "Spot check: the 3rd product pays 0€  = 0"; the others are the receipt's left side without its
-## indent, then its right side two spaces after it ("Coffee: no Breakfast product after it
-## WASTED"). Empty for a step that prints no line.
+## base "MILK  2", a payout "17€", an override "Spot check: the 3rd product pays 0€  = 0", a tag
+## "Squashed cake +BREAKFAST" (MonitorText.tag_line, v1.36); the others are the receipt's left
+## side without its indent, then its right side two spaces after it ("Coffee: no Breakfast
+## product after it  WASTED"). Empty for a step that prints no line.
 static func step_line(
 	step: ScoreStep,
 	names: PackedStringArray,
@@ -679,6 +677,8 @@ static func step_line(
 			return joined_line(cause, "= %d" % step.value)
 		ScoreStep.StepType.WASTED:
 			return joined_line("%s: %s" % [cause, step.reason], EffectLink.WASTED_WORD)
+		ScoreStep.StepType.TAG_ADDED:
+			return MonitorText.tag_line(names[step.slot], step.tag)
 	var text: PackedStringArray = step_text(step, names, upgrade_names, inspection_names)
 	if text.is_empty():
 		return ""

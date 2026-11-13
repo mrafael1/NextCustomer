@@ -347,6 +347,10 @@ func test_step_lines_word_bonuses_amount_first() -> void:
 	var override: ScoreStep = _step(ScoreStep.StepType.PAYOUT_OVERRIDE, "the 3rd product pays 0€")
 	override.value = 0
 	assert_str(ReceiptView.step_line(override, names)).is_equal("the 3rd product pays 0€  = 0")
+	# A tag names the item and the family as a chip word (v1.36); the receipt keeps "gains".
+	var tag: ScoreStep = _step(ScoreStep.StepType.TAG_ADDED, "Breakfast sticker")
+	tag.tag = "Breakfast"
+	assert_str(ReceiptView.step_line(tag, names)).is_equal("%s +BREAKFAST" % names[tag.slot])
 
 
 ## A combo is a bonus or multiplier another item, an upgrade or an inspection caused, or a copy;

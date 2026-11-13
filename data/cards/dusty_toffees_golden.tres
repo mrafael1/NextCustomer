@@ -14,7 +14,7 @@ receipt_text = "Dusty toffees: WASTED before"
 [resource]
 script = ExtResource("3_card")
 id = &"dusty_toffees_golden"
-display_name = "Golden Dusty toffees"
+display_name = "Golden dusty toffees"
 kind = 1
 tags = PackedStringArray("Food", "Snack", "Clearance")
 base = 4

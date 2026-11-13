@@ -16,7 +16,7 @@ receipt_text = "Bent lolly: gap to Snack"
 [resource]
 script = ExtResource("3_card")
 id = &"bent_lolly_big"
-display_name = "Big Bent lolly"
+display_name = "Big bent lolly"
 kind = 1
 tags = PackedStringArray("Food", "Snack", "Clearance")
 base = 4

@@ -15,7 +15,7 @@ receipt_text = "Birthday candles party"
 [resource]
 script = ExtResource("3_card")
 id = &"birthday_candles_golden"
-display_name = "Golden Birthday candles"
+display_name = "Golden birthday candles"
 kind = 1
 tags = PackedStringArray("Household")
 base = 4

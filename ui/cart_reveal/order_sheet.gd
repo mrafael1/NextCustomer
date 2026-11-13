@@ -19,10 +19,13 @@ const COUNT_TOP := 14.0
 const COUNT_HEIGHT := 40.0
 const COUNT_FONT := 38
 const COUNT_BASELINE := 46.0
+## The equation's red tail while the pack's lines wait: after the BADGE PINS step, or for a pick.
+const WAITING_PINS := "· +%d after your pins"
+const WAITING_PACK := "· +%d from a pack"
 
 var shown_cards: Array[CardDefinition] = []
-## The cart equation under the title, and its red "+n when you pick a pack" tail (null once a
-## pack is picked or previewed).
+## The cart equation under the title, and its red "+n from a pack" tail (null once a pack is
+## picked or previewed; v1.36: "when you pick a pack" ran off the paper).
 var equation: Label
 var waiting_note: Label
 ## The highlight behind the pack's lines (null while no pack is picked or previewed).
@@ -122,7 +125,7 @@ func show_cart(
 		equation.size.x = used + 2
 		waiting_note = StartBoardKit.body(
 			paper,
-			("· +%d after your pins" if held else "· +%d when you pick a pack") % packed,
+			(WAITING_PINS if held else WAITING_PACK) % packed,
 			Rect2(14 + used, 62, 336 - used, 22),
 			Palette.TOMATO_DARK,
 			13

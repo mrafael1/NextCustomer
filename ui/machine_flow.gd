@@ -375,13 +375,14 @@ func _on_prize_picked(index: int) -> void:
 	_screen._deck_view.open_placing(run, placing_title(run, prize, full), prize.card, room)
 
 
-## The cart's title while `prize` is placed: what a drop does.
+## The cart's title while `prize` is placed: what a drop does, after the cart's own header (v1.36,
+## polish audit: one header pattern, "Your cart (13/15)").
 static func placing_title(run: RunState, prize: MachinePrize, full: bool) -> String:
 	var count: String = "%d/%d" % [run.deck.size(), run.balance.deck_limit]
 	var item: String = prize.card.display_name
 	if full:
-		return "Cart full %s: drop %s on a card to replace it" % [count, item]
-	return "Cart %s: drop %s on +1, or on a card to replace it" % [count, item]
+		return "Your cart (%s): drop %s on a card to replace it" % [count, item]
+	return "Your cart (%s): drop %s on +1, or on a card to replace it" % [count, item]
 
 
 ## Takes the prize, logs the visit, saves and lands it (the next visit or shift follows the

@@ -2,20 +2,29 @@ class_name PinStepDraw
 extends RefCounted
 ## YOUR BUILD's BADGE PINS step (BuildPage, v1.32; the mock-up start_boosters_v3's F5): over the
 ## dimmed room, a popup with the CASHIER badge wearing the pins being chosen, a row per owned pin
-## (its face, name, rule and a WEAR / WORN key; compact rows past FULL_ROWS pins), "+N MORE PINS
-## TO EARN", the packs' gate note and
-## the confirm key (WEAR 1 PIN / NO PINS). On confirm the worn pin flies to the corkboard badge.
+## (its face, name, rule and a WEAR / WORN key), then a grey row per pin still locked (its
+## milestone in place of the rule; polish audit v1.36, in place of "+N MORE PINS TO EARN" over an
+## empty band), compact rows past FULL_ROWS rows, the packs' gate note with ESC · BACK and the
+## confirm key (WEAR 1 PIN / NO PINS). NO PIN IS FINE TOO stands under the badge's NO PIN. The
+## number keys still wear the owned rows in order; the rows show no numbers.
+## On confirm the worn pin flies to the corkboard badge.
 ## Pin faces copy PinFace's look on the art grid: an ink rim, a dark band, a glint, the letters.
 
 const ROW_X := 102
 const ROW_TOP := 30
 const KEY_MARGINS := Vector4i(3, 7, 3, 4)
-## Up to this many owned pins, a row each at full height (face, name, two rule lines, WEAR key);
-## more (every pin owned is 8) use compact rows, so all of them fit above the packs' gate note.
+## Up to this many rows (owned and locked pins), a row each at full height (face, name, two rule
+## lines, WEAR key); more (the catalogue's 8) use compact rows, so all of them fit above the packs'
+## gate note.
 const FULL_ROWS := 5
 const COMPACT_ROW_H := 18
 ## The rows' bottom limit under the step's top: the gate note's divider (the box height - 66).
 const ROWS_BOTTOM := 186
+## Under the badge's NO PIN (the choice the packs' note used to carry); the step's way back;
+## a locked row's key.
+const NO_PIN_NOTE := "NO PIN IS FINE TOO"
+const BACK_NOTE := "ESC · BACK"
+const LOCKED_TEXT := "LOCKED"
 
 static var _faces: Dictionary[String, ImageTexture] = {}
 
@@ -78,6 +87,10 @@ static func _step(pen: ArtPen, page: BuildPage) -> void:
 			1.0,
 			HORIZONTAL_ALIGNMENT_CENTER
 		)
+	if names.is_empty():
+		pen.caps(
+			NO_PIN_NOTE, x + 51, y + 140, Palette.STEEL_SHADE, 1.0, HORIZONTAL_ALIGNMENT_CENTER
+		)
 	var note: String = (
 		"One slot: picking another pin swaps the worn one."
 		if slots == 1
@@ -87,18 +100,18 @@ static func _step(pen: ArtPen, page: BuildPage) -> void:
 	for j: int in note_lines.size():
 		pen.atk(note_lines[j], x + 51, y + 152 + j * 6.4, 5.2, Palette.INK_LIGHT, 700)
 	var owned: Array[PinDefinition] = page.pins.owned()
+	var locked: Array[PinDefinition] = locked_pins(page)
+	var count: int = owned.size() + locked.size()
 	for k: int in owned.size():
-		_row(pen, page, owned[k], k, owned.size(), y)
-	var more: int = page.pins.catalogue().size() - owned.size()
-	if more > 0:
-		var more_at: Vector2 = more_position(owned.size(), y)
-		pen.caps(more_text(more), more_at.x, more_at.y, Palette.STEEL_SHADE)
+		_row(pen, page, owned[k], k, count, y)
+	for k: int in locked.size():
+		_locked_row(pen, page, locked[k], owned.size() + k, count, y)
 	_gate_note(pen, page, x, y, w, h)
 	var rect: Rect2 = confirm_rect(y)
-	var count: int = page.pins_sel.size()
+	var worn: int = page.pins_sel.size()
 	var label: String = "NO PINS"
-	if count > 0:
-		label = "WEAR 1 PIN" if count == 1 else "WEAR %d PINS" % count
+	if worn > 0:
+		label = "WEAR 1 PIN" if worn == 1 else "WEAR %d PINS" % worn
 	var sub: String = "ENTER · DEAL PACKS" if page.packs_held() else "ENTER · KEEP PACKS"
 	var armed: float = page.pins_t + 0.3 if page.now - page.pins_t > 0.3 else INF
 	BuildPageDraw.key_button(pen, page, rect, label, sub, true, "pinsok", armed)
@@ -109,7 +122,8 @@ static func confirm_rect(top: float) -> Rect2:
 	return Rect2(box.position.x + box.size.x - 134, top + box.size.y - 42, 120, 28)
 
 
-## Row `k` of `count` owned pins under the step's top `top` (compact rows past FULL_ROWS).
+## Row `k` of `count` rows (owned, then locked) under the step's top `top` (compact rows past
+## FULL_ROWS).
 static func row_rect(k: int, count: int, top: float) -> Rect2:
 	var box: Rect2i = BuildPage.PIN_BOX
 	var h: int = row_height(count)
@@ -126,17 +140,21 @@ static func row_gap(count: int) -> int:
 	return 2 if count <= FULL_ROWS else 1
 
 
-## Where "+N MORE PINS TO EARN" goes under `count` rows (its top left).
-static func more_position(count: int, top: float) -> Vector2:
-	var box: Rect2i = BuildPage.PIN_BOX
-	return Vector2(
-		box.position.x + ROW_X + 2, top + ROW_TOP + count * (row_height(count) + row_gap(count)) + 1
-	)
+## The catalogue's pins the profile doesn't own yet, in data order (their grey rows follow the
+## owned ones).
+static func locked_pins(page: BuildPage) -> Array[PinDefinition]:
+	var owned: Array[PinDefinition] = page.pins.owned()
+	var found: Array[PinDefinition] = []
+	for pin: PinDefinition in page.pins.catalogue():
+		if not owned.has(pin):
+			found.append(pin)
+	return found
 
 
-## "+1 MORE PIN TO EARN" / "+N MORE PINS TO EARN".
-static func more_text(more: int) -> String:
-	return "+%d MORE %s TO EARN" % [more, "PIN" if more == 1 else "PINS"]
+## A locked pin's line: its milestone ("Unlock: Win a run").
+static func unlock_text(pin: PinDefinition) -> String:
+	var condition: UnlockCondition = pin.unlock_condition
+	return "Unlock: %s" % condition.summary() if condition != null else pin.rule_text
 
 
 static func _row(
@@ -189,9 +207,6 @@ static func _row(
 	)
 	if on:
 		pen.tex(BoosterArt.TICK, rx - 8, ry + 9)
-	pen.caps(
-		str(k + 1), rx + rw - 4, ry + rh - 7, Palette.STEEL_PALE, 1.0, HORIZONTAL_ALIGNMENT_RIGHT
-	)
 
 
 ## A compact row (more than FULL_ROWS pins owned): a smaller face, the name, one rule line (a
@@ -237,7 +252,55 @@ static func _compact_row(
 		1.0,
 		HORIZONTAL_ALIGNMENT_CENTER
 	)
-	pen.caps(str(k + 1), kx - 3, ry + 11, Palette.STEEL_PALE, 1.0, HORIZONTAL_ALIGNMENT_RIGHT)
+
+
+## A locked pin's grey row (row `k` of `count`): a grey face, the name, its milestone in place of
+## the rule and LOCKED in place of the key; it takes no click.
+static func _locked_row(
+	pen: ArtPen, _page: BuildPage, pin: PinDefinition, k: int, count: int, y: float
+) -> void:
+	var compact: bool = count > FULL_ROWS
+	var rect: Rect2 = row_rect(k, count, y)
+	var rx: float = rect.position.x
+	var ry: float = rect.position.y
+	var rw: float = rect.size.x
+	var rh: float = rect.size.y
+	pen.r(rx, ry, rw, rh, Palette.STEEL_PALE)
+	pen.r(rx + 1, ry + 1, rw - 2, rh - 2, Palette.CREAM_SHADE)
+	var d: int = 14 if compact else 20
+	var key: String = "locked|%d" % d
+	if not _faces.has(key):
+		_faces[key] = _disc(d, Palette.STEEL_PALE, Palette.STEEL_SHADE, Palette.CREAM_SHADE)
+	var fx: float = rx + (4 if compact else 5)
+	var fy: float = ry + (2 if compact else 3)
+	pen.tex(_faces[key], fx, fy)
+	pen.caps(
+		pin.face_text,
+		fx + d / 2.0,
+		fy + d / 2.0 - 3,
+		Palette.CREAM,
+		1.0,
+		HORIZONTAL_ALIGNMENT_CENTER
+	)
+	var tx: float = rx + (22 if compact else 30)
+	pen.pix(pin.display_name.to_upper(), tx, ry + (2 if compact else 3), Palette.STEEL_SHADE)
+	pen.atk(
+		unlock_text(pin),
+		tx,
+		ry + (15.5 if compact else 17.0),
+		5.2 if not compact else compact_rule_size(unlock_text(pin), compact_rule_width(rw)),
+		Palette.STEEL_SHADE,
+		700,
+		HORIZONTAL_ALIGNMENT_LEFT
+	)
+	pen.caps(
+		LOCKED_TEXT,
+		rx + rw - (17 if compact else 18),
+		ry + (5 if compact else 7),
+		Palette.STEEL_SHADE,
+		1.0,
+		HORIZONTAL_ALIGNMENT_CENTER
+	)
 
 
 ## A compact row's rule width (art px) in a row `rw` wide: from the name's left to the row's
@@ -266,7 +329,7 @@ static func _gate_note(
 		pen.tex(BoosterArt.PADLOCK, x + 22, y + h - 30)
 		pen.pix("3 STARTER PACKS", x + 44, y + h - 45, Palette.INK)
 		pen.caps("DEAL WHEN YOU CONFIRM", x + 44, y + h - 33, Palette.TOMATO_DARK)
-		pen.caps("NONE IS FINE TOO", x + 44, y + h - 24, Palette.STEEL_SHADE)
+		pen.caps(BACK_NOTE, x + 44, y + h - 24, Palette.STEEL_SHADE)
 	else:
 		pen.pix("PACKS ALREADY DEALT", x + 12, y + h - 45, Palette.INK)
 		pen.caps("CHANGING PINS KEEPS YOUR PACKS", x + 12, y + h - 33, Palette.TEAL_SHADE)
@@ -409,10 +472,11 @@ static func hits(page: BuildPage, list: Array[Dictionary]) -> void:
 	)
 	var top: float = BuildPage.PIN_BOX.position.y
 	var owned: Array[PinDefinition] = page.pins.owned()
+	var count: int = owned.size() + locked_pins(page).size()
 	for k: int in owned.size():
 		list.append(
 			{
-				"rect": row_rect(k, owned.size(), top),
+				"rect": row_rect(k, count, top),
 				"id": "pin_%s" % owned[k].id,
 				"act": page.pins.toggle.bind(owned[k])
 			}

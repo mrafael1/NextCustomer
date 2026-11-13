@@ -9,7 +9,8 @@ extends Control
 ## beside the item, never over the monitor (the 2026-11-02 review: it hid the monitor's item and
 ## notice): under a belt item, over the baskets, or over a hand item, on the belt (open_at). It
 ## pops in (at once under reduced motion). It covers the window to catch a click outside the
-## card, which closes it, as Escape does.
+## card, which closes it, as Escape does; a quiet ESC key at the header's right end says so and
+## closes it too (v1.36, polish audit: the picker showed no way out).
 ##
 ## The Family sticker (v1.29) opens the same picker above its belt tag (open_at's `prefer_above`),
 ## with its own art and title (`header_art`, `title`): select() marks the family it gives now (its
@@ -24,6 +25,7 @@ signal dismissed
 
 const TITLE := "Give %s a family"
 const REMOVE_TEXT := "Remove tag"
+const CLOSE_TEXT := "ESC"
 ## A held family's chip (mark_held): dimmed, its tooltip saying why.
 const HELD_ALPHA := 0.45
 const HELD_TIP := "%s: %s is %s already, so the sticker would do nothing"
@@ -66,6 +68,7 @@ var _chips: Array[Button] = []
 ## The header's art (the gun, or the Family sticker's icon).
 var _art: Texture2D = GUN_ART
 var _remove: Button
+var _close: Button
 ## The notch's tip in the card's coordinates, and whether it points down (the card above).
 var _tip: Vector2 = Vector2.ZERO
 var _down: bool = true
@@ -111,20 +114,10 @@ func _init(
 		_chips.append(_chip(grid, family))
 	if removable:
 		var take_back: Callable = chosen.emit.bind("")
-		_remove = UiKit.button(header, REMOVE_TEXT, take_back, REMOVE_FONT_SIZE, "ui_back")
+		_remove = _quiet_key(header, REMOVE_TEXT, take_back)
 		_remove.name = "Remove"
-		_remove.add_theme_stylebox_override("normal", _remove_box(Palette.PAPER))
-		_remove.add_theme_stylebox_override("hover", _remove_box(Palette.CREAM))
-		_remove.add_theme_stylebox_override("pressed", _remove_box(Palette.CREAM))
-		_remove.add_theme_stylebox_override("hover_pressed", _remove_box(Palette.CREAM))
-		_remove.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-		_remove.size_flags_horizontal = Control.SIZE_SHRINK_END
-		_remove.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		_remove.add_theme_font_override("font", ArtStyle.bold_font(600))
-		_remove.add_theme_color_override("font_color", Palette.GREY_DARK)
-		_remove.add_theme_color_override("font_hover_color", Palette.INK)
-		_remove.add_theme_color_override("font_pressed_color", Palette.INK)
-		_remove.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	_close = _quiet_key(header, CLOSE_TEXT, dismissed.emit)
+	_close.name = "Close"
 
 
 ## Covers `window` and places the card by the item at `target` (screen rects): under it with the
@@ -229,6 +222,11 @@ func remove_button() -> Button:
 	return _remove
 
 
+## The quiet ESC key at the header's right end.
+func close_button() -> Button:
+	return _close
+
+
 ## The notch's tip in screen coordinates.
 func notch_tip() -> Vector2:
 	return _card.get_global_transform() * _tip
@@ -270,6 +268,25 @@ func _header(title_text: String) -> HBoxContainer:
 ## The header's art at the art scale, like the rest of the art.
 func _art_size() -> Vector2:
 	return _art.get_size() * ArtStyle.ART_SCALE
+
+
+## A quiet key (Remove tag, ESC) in `parent` saying `text`, calling `action`: grey words
+## in a thin grey frame (_remove_box), ink on hover, at the end of its row.
+static func _quiet_key(parent: Control, text: String, action: Callable) -> Button:
+	var key: Button = UiKit.button(parent, text, action, REMOVE_FONT_SIZE, "ui_back")
+	key.add_theme_stylebox_override("normal", _remove_box(Palette.PAPER))
+	key.add_theme_stylebox_override("hover", _remove_box(Palette.CREAM))
+	key.add_theme_stylebox_override("pressed", _remove_box(Palette.CREAM))
+	key.add_theme_stylebox_override("hover_pressed", _remove_box(Palette.CREAM))
+	key.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	key.size_flags_horizontal = Control.SIZE_SHRINK_END
+	key.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	key.add_theme_font_override("font", ArtStyle.bold_font(600))
+	key.add_theme_color_override("font_color", Palette.GREY_DARK)
+	key.add_theme_color_override("font_hover_color", Palette.INK)
+	key.add_theme_color_override("font_pressed_color", Palette.INK)
+	key.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	return key
 
 
 ## Remove tag's frame: a thin grey outline on `face`, so it reads as a button beside the title.

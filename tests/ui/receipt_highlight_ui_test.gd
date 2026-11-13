@@ -36,7 +36,7 @@ func after_test() -> void:
 ## A won 16-shift run (week columns, a ticket after every shift, the longest names): the BEST
 ## line is the Biggest payout's, after the second rule and before the coins, out of the columns,
 ## its band inside the paper between the rule and the coins, as wide as the rules; its sticker
-## and Golden Milk mini sit in its indent, on the band. It fits both window sizes.
+## and Golden milk mini sit in its indent, on the band. It fits both window sizes.
 func test_the_won_receipt_prints_the_line_between_the_history_and_the_coins() -> void:
 	for window: Vector2i in SIZES:
 		get_tree().root.size = window
@@ -50,7 +50,7 @@ func test_the_won_receipt_prints_the_line_between_the_history_and_the_coins() ->
 		assert_object(highlight).is_not_null()
 		var texts: PackedStringArray = results.texts()
 		var at: int = results.coin_line_index() - 1
-		assert_str(texts[at]).contains("Biggest payout · Golden Milk · 1800€")
+		assert_str(texts[at]).contains("Biggest payout · Golden milk · 1800€")
 		assert_str(texts[at]).ends_with("shift 14")
 		assert_str(texts[at - 1]).is_equal(FinalReceipt.rule(FinalReceipt.WIDE_WIDTH))
 		assert_object(results._lines[at]).is_same(highlight)
@@ -207,7 +207,7 @@ func _assert_inside_the_receipt(results: ResultsPanel, at: int, window: Vector2i
 
 ## results_panel_test's won 16-shift run (a ticket after every shift with the longest card name,
 ## the inspected shifts' longest inspection), each shift's best item Milk paying a fifth of its
-## quota, and Golden Milk paying 1800€ on shift 14.
+## quota, and Golden milk paying 1800€ on shift 14.
 func _won_run(screen: ShiftScreen) -> void:
 	var run: RunState = screen.run
 	var history: Array[ShiftRecord] = []

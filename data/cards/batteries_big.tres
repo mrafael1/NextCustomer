@@ -16,7 +16,7 @@ receipt_text = "Batteries charge"
 [resource]
 script = ExtResource("3_card")
 id = &"batteries_big"
-display_name = "Big Batteries"
+display_name = "Big batteries"
 kind = 1
 tags = PackedStringArray("Household")
 base = 4

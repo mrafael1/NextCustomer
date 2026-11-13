@@ -144,7 +144,7 @@ func test_a_weak_run_falls_back_to_the_biggest_payout() -> void:
 ## Each kind wins when it alone reaches its bar, and prints its line.
 func test_each_kind_wins_at_its_bar() -> void:
 	var payout: Array[ShiftRecord] = [_record(1, 100, 110, MILK_GOLDEN, 60)]
-	_assert_pick(payout, RunHighlight.Kind.BIGGEST_PAYOUT, "Biggest payout · Golden Milk · 60€")
+	_assert_pick(payout, RunHighlight.Kind.BIGGEST_PAYOUT, "Biggest payout · Golden milk · 60€")
 	var over: Array[ShiftRecord] = [_record(1, 100, 230, MILK, 20)]
 	_assert_pick(over, RunHighlight.Kind.OVER_QUOTA, "Over quota · Shift 1 · ×2.3")
 	var combo: Array[ShiftRecord] = [_record(1, 100, 150, MILK, 20)]
@@ -152,7 +152,7 @@ func test_each_kind_wins_at_its_bar() -> void:
 	_assert_pick(combo, RunHighlight.Kind.LONGEST_COMBO, "Longest CHAIN · 6 items · 70€")
 	var golden: Array[ShiftRecord] = [_record(1, 100, 150, MILK, 20), _record(2, 100, 140, EGGS, 8)]
 	golden[1].played.assign([load(EGGS), load(MILK_GOLDEN), load(MILK_GOLDEN)])
-	_assert_pick(golden, RunHighlight.Kind.FIRST_GOLDEN, "First GOLDEN · Golden Milk")
+	_assert_pick(golden, RunHighlight.Kind.FIRST_GOLDEN, "First GOLDEN · Golden milk")
 	var close: Array[ShiftRecord] = [_record(1, 101, 102, MILK, 20), _record(2, 100, 150, EGGS, 8)]
 	_assert_pick(close, RunHighlight.Kind.CLOSEST_CALL, "Closest call · Shift 1 · 102€ / 101€")
 
@@ -163,9 +163,9 @@ func test_the_highest_score_wins_then_the_kind_order() -> void:
 	var history: Array[ShiftRecord] = [_record(1, 100, 300, MILK, 60)]
 	_assert_pick(history, RunHighlight.Kind.OVER_QUOTA, "Over quota · Shift 1 · ×3.0")
 	history = [_record(1, 100, 150, MILK_GOLDEN, 50)]
-	_assert_pick(history, RunHighlight.Kind.BIGGEST_PAYOUT, "Biggest payout · Golden Milk · 50€")
+	_assert_pick(history, RunHighlight.Kind.BIGGEST_PAYOUT, "Biggest payout · Golden milk · 50€")
 	history = [_record(1, 100, 101, MILK_GOLDEN, 20)]
-	_assert_pick(history, RunHighlight.Kind.FIRST_GOLDEN, "First GOLDEN · Golden Milk")
+	_assert_pick(history, RunHighlight.Kind.FIRST_GOLDEN, "First GOLDEN · Golden milk")
 	# A kind left out of kind_order never takes part.
 	var without: HighlightDefinition = _definition.duplicate()
 	without.kind_order = PackedStringArray(["biggest_payout", "closest_call"])

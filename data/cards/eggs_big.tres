@@ -16,7 +16,7 @@ receipt_text = "Eggs ×2"
 [resource]
 script = ExtResource("3_2wrse")
 id = &"eggs_big"
-display_name = "Big Eggs"
+display_name = "Big eggs"
 kind = 1
 tags = PackedStringArray("Food", "Breakfast")
 base = 3

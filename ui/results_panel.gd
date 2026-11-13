@@ -40,7 +40,8 @@ signal export_requested
 ## Return to menu arms this long after the panel appears, once the mouse is up, like the
 ## machine's picks: the click that ended the run never leaves the results.
 const ARM_MS := 350
-const MENU_TEXT := "Return to menu"
+## In caps like every pixel key (polish audit v1.36: the only lowercase pixel button).
+const MENU_TEXT := "RETURN TO MENU"
 const HEADLINE_SIZE := 44
 const LINE_SIZE := 16
 ## The machine visits and the inspection under a shift's line are smaller and dim.
@@ -99,6 +100,8 @@ var _coin_sounds: int = 0
 var _coins_s: float = 0.0
 var _reader: PressReader
 var _menu_button: FramedButton
+## EXPORT LOG, right of Return to menu (hidden in a release build).
+var _export_button: FramedButton
 var _column: VBoxContainer
 ## The FITS entry the receipt is laid out with.
 var _fit: Vector3i = FITS[0]
@@ -154,10 +157,10 @@ func _init(tuning: CountUpTuning = null, reduced_motion: Callable = Callable()) 
 	buttons.add_theme_constant_override("separation", 16)
 	column.add_child(buttons)
 	# The game's pixel buttons (#56): Return to menu in the red frame, Export log in the top bar's
-	# teal.
+	# teal (playtest builds only, PlaytestUi).
 	_menu_button = UiKit.framed_button(buttons, MENU_TEXT, _on_menu_pressed, 22)
 	# The export confirms itself once done (ShiftScreen).
-	UiKit.framed_button(
+	_export_button = UiKit.framed_button(
 		buttons,
 		TopBar.EXPORT_TEXT,
 		func() -> void: export_requested.emit(),
@@ -166,6 +169,7 @@ func _init(tuning: CountUpTuning = null, reduced_motion: Callable = Callable()) 
 		Vector2.ZERO,
 		""
 	)
+	_export_button.visible = PlaytestUi.shown()
 	_reader = PressReader.new()
 	add_child(_reader)
 	_reader.tapped.connect(func(_now_ms: int) -> void: skip_printing())
@@ -278,6 +282,10 @@ func pin_reveal() -> PinReveal:
 ## Return to menu (for tests and layout checks).
 func menu_button() -> FramedButton:
 	return _menu_button
+
+
+func export_button() -> FramedButton:
+	return _export_button
 
 
 ## Every line's text in print order, the headline first (for tests).

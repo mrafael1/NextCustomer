@@ -38,9 +38,9 @@ func after_test() -> void:
 
 
 ## BONUS TICKET! blinks in at the later draw's start (2026-11-06: nothing is fed, AGAIN!),
-## landing from 2.2x on a back ease, and covers the title (between the blinks too); at rest it
-## carries the inspection passed; it lifts 0.6 s after the landing's settle (`punch_end`). Reduced
-## motion: at rest from the start.
+## landing from 2.2x on a back ease, the title and sub line left of it (between the blinks too;
+## v1.36: never a blank sign); at rest it carries the inspection passed; it lifts 0.6 s after
+## the landing's settle (`punch_end`). Reduced motion: at rest from the start.
 func test_the_head_stamps_land_and_lift() -> void:
 	var view: RewardMachineView = auto_free(RewardMachineView.new())
 	var head: MachineHead = view.head
@@ -53,13 +53,11 @@ func test_the_head_stamps_land_and_lift() -> void:
 	assert_float(head.stamp_scale()).is_equal_approx(MachineHead.BONUS_STAMP_FROM, EPSILON)
 	head.frame(at + 0.15)
 	assert_bool(head.stamp_shown()).is_false()  # Blinking in.
-	for line: MachineLine in head.title_lines():
-		assert_bool(line.visible).is_false()  # No title between the blinks.
+	assert_bool(head.title_lines()[0].visible).is_true()  # Beside it (polish_batch_one_shift).
 	head.frame(at + MachineTuning.sec(view.tuning.bonus_stamp_land_ms) + 0.01)
 	assert_bool(head.stamp_shown()).is_true()
 	assert_float(head.stamp_scale()).is_equal(1.0)
-	for line: MachineLine in head.title_lines():
-		assert_bool(line.visible).is_false()
+	assert_bool(head.title_lines()[1].visible).is_true()
 	assert_array(Array(head.stamp_texts())).is_equal(["EXTRA DRAW!", "Spot check passed"])
 	view.plan.set_draw([0, 0, 1] as Array[int])
 	view.plan.set_landing(MachinePlan.Landing.NEW_CARD, 1, MachinePlan.NO_VISIT)
@@ -637,7 +635,7 @@ func test_long_display_lines_fit() -> void:
 	var display: MachineDisplay = view.display
 	for line: Array in [
 		["PICK 1", RewardMachineView.SKIP_SUB],
-		["PICK 1 · ONLY 2 IN STOCK", RewardMachineView.CART_FULL_TEXT],
+		["KEEP 1 · ONLY 2 IN STOCK", RewardMachineView.CART_FULL_TEXT],
 		[RewardMachineView.BIN_ALL % 3, RewardMachineView.BIN_ALL_SUB],
 		[MachineDisplay.PACKING, "bonus ticket"],
 		["TOTAL 999€ ✓ THANK YOU!", "quota 999€ met · Coupon slot closed passed"],

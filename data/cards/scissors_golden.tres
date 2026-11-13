@@ -13,7 +13,7 @@ receipt_text = "Scissors: earlier coupons"
 [resource]
 script = ExtResource("3_card")
 id = &"scissors_golden"
-display_name = "Golden Scissors"
+display_name = "Golden scissors"
 kind = 1
 tags = PackedStringArray("Household")
 base = 4

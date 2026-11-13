@@ -3,7 +3,13 @@ extends Control
 ## The shift's pause (mock-up options_pause.html, direction A): a ScreenShade in ink at 72 % over
 ## the whole window with its hole on the ☰ button, and a column of MenuPlates stepping in like the
 ## title's: RESUME (primary, its sub-line the shift and phase), OPTIONS, HOW TO PLAY and
-## SAVE & QUIT, the marked plate's note under them in the body font, and a small EXPORT LOG link.
+## SAVE & QUIT, the marked plate's note under them in the body font, and a small EXPORT LOG link
+## (playtest builds only, PlaytestUi).
+##
+## Since the polish audit (v1.36) the column stands on a board (the back-room board: teal black
+## in a steel rim, a steel rail along its top) from under the top bar to under the link, so
+## nothing of the shift shows between the plates and the note reads on it; the sign hangs from
+## the board's rail in front of it, so its rods no longer cross the monitor's text.
 ##
 ## The column stands in the dimmed space right of the register column, under the sign's place,
 ## so the receipt, the target and the CHECKOUT key stay clear and the note never runs over the
@@ -36,7 +42,17 @@ const NOTES: Array[String] = [
 	"The staff handbook: keywords, families, coupons and places.",
 	"",
 ]
-const EXPORT_TEXT := "EXPORT LOG"
+const EXPORT_TEXT := TopBar.EXPORT_TEXT
+## The board: its top under the top bar's band, its rail's height, its padding round the sign and
+## the column (the tick's room on the left), the note's lines and the gaps under it, in canvas px.
+const BOARD_TOP := 56.0
+const BOARD_RAIL := 6.0
+const BOARD_PAD := 16.0
+const TICK_ROOM := 28.0
+const NOTE_LINES := 2
+const LINK_GAP := 8.0
+const BOARD_BOTTOM_PAD := 14.0
+const LINK_HEIGHT := 28.0
 
 ## Shows the plates at once (reduced motion).
 var still: bool = false
@@ -44,6 +60,9 @@ var still: bool = false
 var quit_note: String = ""
 
 var _shade: ScreenShade
+## The back-room board behind the sign and the column (its rect in this control's px).
+var _board: Control
+var _board_rect: Rect2 = Rect2()
 var _sign: LaneClosedSign
 var _column: Control
 var _plates: Array[MenuPlate] = []
@@ -63,6 +82,11 @@ func _init() -> void:
 	_shade.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_shade.gui_input.connect(_on_shade_input)
 	add_child(_shade)
+	_board = Control.new()
+	_board.name = "Board"
+	_board.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_board.draw.connect(_draw_board)
+	add_child(_board)
 	_sign = LaneClosedSign.new()
 	add_child(_sign)
 	_column = Control.new()
@@ -85,6 +109,7 @@ func _init() -> void:
 	_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_column.add_child(_note)
 	_export = _export_link()
+	_export.visible = PlaytestUi.shown()
 	_column.add_child(_export)
 	resized.connect(_place)
 
@@ -107,6 +132,11 @@ func export_link() -> Control:
 
 func shade() -> ScreenShade:
 	return _shade
+
+
+## The board behind the sign and the column, in global coordinates.
+func board_rect() -> Rect2:
+	return Rect2(_board.global_position + _board_rect.position, _board_rect.size)
 
 
 func lane_sign() -> LaneClosedSign:
@@ -212,8 +242,31 @@ func _place() -> void:
 	var last: MenuPlate = _plates[Entry.QUIT]
 	_note.position = Vector2(2, last.position.y + MenuPlate.PLATE_SIZE.y + NOTE_GAP)
 	_note.size = Vector2(MenuPlate.PRIMARY_SIZE.x, 0)
-	var link_top: float = size.y - top - 36.0
-	_export.position = Vector2(0, link_top)
+	var note_end: float = _note.position.y + NOTE_LINES * _note.get_line_height()
+	_export.position = Vector2(0, 2.0 * ceilf((note_end + LINK_GAP) / 2.0))
+	var column_end: float = _export.position.y + LINK_HEIGHT if _export.visible else note_end
+	var half: float = maxf(
+		_sign.size.x / 2.0, MenuPlate.PRIMARY_SIZE.x / 2.0 + MenuPlate.HOT_SHIFT + TICK_ROOM
+	)
+	half = 2.0 * ceilf((half + BOARD_PAD) / 2.0)
+	var centre: float = left + MenuPlate.PRIMARY_SIZE.x / 2.0
+	var bottom: float = 2.0 * ceilf((top + column_end + BOARD_BOTTOM_PAD) / 2.0)
+	_board_rect = Rect2(centre - half, BOARD_TOP, 2.0 * half, bottom - BOARD_TOP)
+	_sign.rail_y = BOARD_TOP + BOARD_RAIL
+	_board.queue_redraw()
+
+
+## The board: teal black in an ink and steel rim, a steel rail along its top for the sign's rods.
+func _draw_board() -> void:
+	var r: Rect2 = _board_rect
+	if not r.has_area():
+		return
+	_board.draw_rect(r, Palette.INK)
+	_board.draw_rect(r.grow(-2.0), Palette.STEEL_DARKEST)
+	_board.draw_rect(r.grow(-4.0), Palette.TEAL_BLACK)
+	var rail: Rect2 = Rect2(r.position + Vector2(2, 2), Vector2(r.size.x - 4.0, BOARD_RAIL - 2.0))
+	_board.draw_rect(rail, Palette.STEEL_DARK)
+	_board.draw_rect(Rect2(rail.position, Vector2(rail.size.x, 2.0)), Palette.STEEL_LIGHT)
 
 
 ## The EXPORT LOG link: small pixel words that light under the mouse.

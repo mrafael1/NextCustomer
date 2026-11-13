@@ -16,7 +16,7 @@ receipt_text = "Day-old buns after Clearance"
 [resource]
 script = ExtResource("3_card")
 id = &"day_old_buns_golden"
-display_name = "Golden Day-old buns"
+display_name = "Golden day-old buns"
 kind = 1
 tags = PackedStringArray("Food", "Bakery", "Clearance")
 base = 4

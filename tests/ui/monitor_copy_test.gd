@@ -74,12 +74,12 @@ func test_a_copy_shows_on_the_copier_and_a_note_on_its_source() -> void:
 	var repeat: ScanController.ItemLines = screen._scan.item_lines(2)
 	assert_str(repeat.copied_by).is_empty()
 	var copied: String = MonitorText.copied_from(names[1], result.payouts[1])
-	assert_str(copied).is_equal("Copied from Golden Milk  %d€" % result.payouts[1])
+	assert_str(copied).is_equal("Copied from Golden milk  %d€" % result.payouts[1])
 	assert_bool(repeat.lines.has(copied)).is_true()
 	screen._monitor.show_scan(screen.run.row[2].definition, result.tags[2], repeat)
 	await _frames(1)
 	var row: Control = column.step_rows()[0]
-	assert_str((row.get_node("Text") as Label).text).is_equal("Copied from Golden Milk")
+	assert_str((row.get_node("Text") as Label).text).is_equal("Copied from Golden milk")
 	assert_str((row.get_node("Amount") as Label).text).is_equal("%d€" % result.payouts[1])
 	assert_int(payout.given_amount()).is_equal(result.payouts[2])
 	assert_int(payout.given_amount()).is_equal(PlanningModel.contribution(result, 2, names))
@@ -146,7 +146,7 @@ func test_the_count_shows_a_copy_on_the_copier_and_a_note_on_its_source() -> voi
 	assert_str(notes.get(0, "?")).is_empty()
 	assert_str(notes.get(2, "?")).is_empty()
 	assert_array(copies).is_equal(
-		PackedStringArray([MonitorText.copied_from("Golden Milk", result.payouts[1])])
+		PackedStringArray([MonitorText.copied_from("Golden milk", result.payouts[1])])
 	)
 	assert_int(values.get(1, -1)).is_equal(result.payouts[1])
 	assert_int(values.get(2, -1)).is_equal(result.payouts[2])

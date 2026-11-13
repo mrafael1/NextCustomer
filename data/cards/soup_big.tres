@@ -13,7 +13,7 @@ receipt_text = "Soup beside Frozen"
 [resource]
 script = ExtResource("3_ookye")
 id = &"soup_big"
-display_name = "Big Soup"
+display_name = "Big soup"
 kind = 1
 tags = PackedStringArray("Food")
 base = 7

@@ -690,10 +690,7 @@ func _on_focus_entered() -> void:
 
 func _refresh() -> void:
 	_refresh_bar()
-	_seed_label.text = (
-		"Seed %d  ·  %s"
-		% [run.run_seed, str(ProjectSettings.get_setting("next_customer/build_label", ""))]
-	)
+	_seed_label.text = PlaytestUi.seed_line(run.run_seed)
 	_refresh_row()
 	_refresh_hand()
 	_refresh_buttons()

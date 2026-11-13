@@ -12,6 +12,18 @@ const CRATE_RECT := Rect2(4, 158 + DY, 156, 74)
 const CRATE_OUTLINE := Rect2(1, 155 + DY, 162, 80)
 const SPARKLE := BoosterArt.SPARKLE
 const STAMP_RING := preload("res://art/icons/stamp_ring.png")
+## The top bar's AISLES LED (v1.36: widened into the gap before CART for its label), its word and
+## the step between its aisle glyphs (art px).
+const AISLES_LED := Rect2i(326, 4, 188, 20)
+const AISLES_LABEL := "AISLES"
+const AISLE_GLYPH_STEP := 13
+## The returns tote's word, the paper its plate leaves either side of it, and the plate's height
+## (its 1 px ink lines, a paper row, the 5 rows of caps, a paper row; art px).
+const RETURNS_LABEL := "RETURNS"
+const PLATE_PAD := 3
+const PLATE_H := 9
+## The top bar's CART LED (art px).
+const CART_LED := Rect2i(520, 4, 116, 20)
 
 ## The item sprites drawn so far, held so they stay loaded: a texture loaded for the first time
 ## inside a draw call (or freed and loaded again there) is drawn blank white on that frame.
@@ -246,14 +258,14 @@ static func _plate(
 
 
 ## The counter's plates: the regulars' (SWAP REGULARS with its ⇄ chip and the swaps left as
-## "⇄ N"; a padlock while none is unlocked) and each booster's.
+## "⇄ N"; until every booster is open the same words behind a padlock, v1.36's one name for the
+## chip in both states (it read SWAP AFTER OPENING); a padlock at its end while none is unlocked)
+## and each booster's.
 static func counter_plates(pen: ArtPen, page: BoosterPage) -> void:
 	var button: bool = crate_button(page)
 	var live: bool = page.swap.is_live()
 	var limit: int = page.counter.swap_limit()
-	var label: String = "YOUR REGULARS"
-	if button and limit > 0:
-		label = "SWAP REGULARS" if live else "SWAP AFTER OPENING"
+	var label: String = "SWAP REGULARS" if button and limit > 0 else "YOUR REGULARS"
 	var plate_lit: bool = button and live and page.is_hovered("crate")
 	pen.nine(
 		BoosterArt.PLATE_LIT if plate_lit else BoosterArt.PLATE,
@@ -268,6 +280,9 @@ static func counter_plates(pen: ArtPen, page: BoosterPage) -> void:
 		pen.r(10, 244 + DY, 11, 1, Palette.TEAL_PALE)
 		pen.tex(BoosterArt.SWAP, 11, 244 + DY)
 		pen.pix(label, 26, 246 + DY, Palette.INK)
+	elif button and limit > 0:
+		pen.tex(BoosterArt.PADLOCK, 11, 244 + DY)  # Locked until every booster is open.
+		pen.pix(label, 26, 246 + DY, Palette.BROWN_DARK)
 	else:
 		pen.pix(label, 10, 246 + DY, Palette.INK)
 	if limit < 1 and button:
@@ -353,9 +368,16 @@ static func tote(pen: ArtPen, page: BoosterPage) -> void:
 	while rib < tx + tw - 3:
 		pen.r(rib, ty + 10, 1, 5, Palette.TEAL_SHADE if armed else Palette.TEAL_BLACK)
 		rib += 4
-	pen.rn(tx + tw / 2.0 - 20, ty + 9, 40, 7, Palette.CREAM_DARKEST if used else Palette.PAPER)
+	var plate_w: float = returns_plate_width()
+	pen.rn(
+		roundf(tx + tw / 2.0 - plate_w / 2.0),
+		ty + 8,
+		plate_w,
+		PLATE_H,
+		Palette.CREAM_DARKEST if used else Palette.PAPER
+	)
 	pen.caps(
-		"RETURNS",
+		RETURNS_LABEL,
 		tx + tw / 2.0,
 		ty + 10,
 		Palette.STEEL_DARK if used else Palette.INK,
@@ -702,24 +724,36 @@ static func top_bar_view(pen: ArtPen, v: Dictionary) -> void:
 		)
 		if not on and v.blink and not rm and int(floorf(now * 3)) % 2 == 1:
 			pen.r(x + 82 - 6, y + 4, 2, 2, Palette.GOLD)
-	pen.nine(BoosterArt.LED, 326, 4, 144, 20, Vector4i(4, 4, 4, 4))
+	var led: Rect2i = AISLES_LED
+	pen.nine(
+		BoosterArt.LED, led.position.x, led.position.y, led.size.x, led.size.y, Vector4i(4, 4, 4, 4)
+	)
+	pen.pix(AISLES_LABEL, aisles_label_x(), 11, Palette.MUSTARD_LIGHT)
 	var completed: Array[AisleDefinition] = v.completed
 	var aisles: Array[AisleDefinition] = v.aisles
 	for k: int in aisles.size():
 		var glyph: Texture2D = BoosterArt.glyph(aisles[k].id)
+		var gx: float = aisle_glyph_x(k)
 		if completed.has(aisles[k]):
-			pen.tex(glyph, 333 + k * 13, 10)
+			pen.tex(glyph, gx, 10)
 		else:
-			pen.tex(ArtPen.silhouette(glyph, Palette.BRASS_DARK), 333 + k * 13, 10)
+			pen.tex(ArtPen.silhouette(glyph, Palette.BRASS_DARK), gx, 10)
 	pen.chunky(
 		"%d/%d" % [completed.size(), aisles.size()],
-		463,
+		aisles_count_right(),
 		10,
 		Palette.GOLD,
 		1.0,
 		HORIZONTAL_ALIGNMENT_RIGHT
 	)
-	pen.nine(BoosterArt.LED, 520, 4, 116, 20, Vector4i(4, 4, 4, 4))
+	pen.nine(
+		BoosterArt.LED,
+		CART_LED.position.x,
+		CART_LED.position.y,
+		CART_LED.size.x,
+		CART_LED.size.y,
+		Vector4i(4, 4, 4, 4)
+	)
 	pen.tex(BoosterArt.CART, 528, 10)
 	pen.pix("CART", 545, 11, Palette.MUSTARD_LIGHT)
 	var pu: float = now - (v.punch_t as float)
@@ -748,6 +782,27 @@ static func top_bar_view(pen: ArtPen, v: Dictionary) -> void:
 			1.0,
 			HORIZONTAL_ALIGNMENT_RIGHT
 		)
+
+
+## The returns tote's label plate: its caps plus PLATE_PAD px of paper and the 1 px ink line a
+## side (v1.36: the caps filled a fixed 40 x 7 plate's paper top to bottom and touched its line).
+static func returns_plate_width() -> float:
+	return ArtPen.word_texture(RETURNS_LABEL, Palette.INK, false).get_width() + 2 * (PLATE_PAD + 1)
+
+
+## The AISLES LED's label (v1.36: the LED was the only one in the bar with no word) and where its
+## parts sit (art px): the label from the LED's left, the glyphs 13 px apart after it, the count
+## right-aligned 7 px in from the LED's right.
+static func aisles_label_x() -> float:
+	return AISLES_LED.position.x + 7
+
+
+static func aisle_glyph_x(k: int) -> float:
+	return aisles_label_x() + ArtPen.pix_width(AISLES_LABEL) + 6 + k * AISLE_GLYPH_STEP
+
+
+static func aisles_count_right() -> float:
+	return AISLES_LED.end.x - 7
 
 
 ## The page's hit list this frame, bottom first: each {rect (art px), id, act, card?}.

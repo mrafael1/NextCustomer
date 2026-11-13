@@ -14,7 +14,7 @@ receipt_text = "Odd socks pair"
 [resource]
 script = ExtResource("3_card")
 id = &"odd_socks_golden"
-display_name = "Golden Odd socks"
+display_name = "Golden odd socks"
 kind = 1
 tags = PackedStringArray("Household")
 base = 4

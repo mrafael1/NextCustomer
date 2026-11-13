@@ -15,7 +15,7 @@ receipt_text = "Stale doughnut closes batch"
 [resource]
 script = ExtResource("3_card")
 id = &"stale_doughnut_big"
-display_name = "Big Stale doughnut"
+display_name = "Big stale doughnut"
 kind = 1
 tags = PackedStringArray("Food", "Bakery", "Clearance")
 base = 3

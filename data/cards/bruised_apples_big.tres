@@ -16,7 +16,7 @@ receipt_text = "Bruised apples beside Clearance"
 [resource]
 script = ExtResource("3_card")
 id = &"bruised_apples_big"
-display_name = "Big Bruised apples"
+display_name = "Big bruised apples"
 kind = 1
 tags = PackedStringArray("Food", "Produce", "Clearance")
 base = 4

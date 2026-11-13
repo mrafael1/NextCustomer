@@ -5,8 +5,9 @@ extends Control
 ## machine_relook_v2.html): an engraved brass plate over the cabinet,
 ## like the gauge's € plate (an ink outline, a mustard light top row, brass dark at its foot and
 ## right, a gold rivet in each corner), with "RECEIPT REWARDS" in hard pixel lettering at 4x,
-## engraved (brass darkest letters over a mustard light row one art px under them), over "ONE
-## PRIZE PER DRAW" at 2x (2026-11-06: "PER RECEIPT" until a medal's extra draw lit 2 lamps), and
+## engraved (brass darkest letters over a mustard light row one art px under them), over "KEEP 1
+## PRIZE PER DRAW" at 2x (2026-11-06: "PER RECEIPT" until a medal's extra draw lit 2 lamps; v1.36:
+## "ONE PRIZE" beside the bay's "3 sealed prizes drop here" read as a contradiction), and
 ## a row of BULBS_ALONG dark bulbs along its top and its foot. On a
 ## PREMIUM visit the same sign turns PREMIUM (MachineLook, dressing A): a white flash frame, then
 ## the night face (ink, a brass dark ring, charcoal) with gold "PREMIUM REWARDS" over "RARE OR
@@ -18,13 +19,15 @@ extends Control
 ## extra shift) under it, REVIEW PASSED on a payday, SILVER MEDAL! or GOLD MEDAL! for the week
 ## medals' draws (2026-11-06); paper with a tomato-dark double border, its words hard pixel
 ## lettering (4x, the line under at 2x), on the sign's right half (2026-11-06, so the receipt
-## feeding under it stays in view; it covers the title's right part). It blinks in and lands from
-## twice its size at the visit's start (reduced motion: at rest), and lifts once the visit's
-## landing is over (the punch's end + 0.6 s).
+## feeding under it stays in view). While it is set the title and the sub line stay engraved on
+## the sign's left part, centred in the room left of it (v1.36, polish audit: hidden, they left
+## two thirds of the sign blank on the most celebratory visits); a stamp too wide for that hides
+## them. It blinks in and lands from twice its size at the visit's start (reduced motion: at
+## rest), and lifts once the visit's landing is over (the punch's end + 0.6 s).
 
 const SIZE := Vector2(928, 74)
 const TITLE := "RECEIPT REWARDS"
-const SUB_LINE := "ONE PRIZE PER DRAW"
+const SUB_LINE := "KEEP 1 PRIZE PER DRAW"
 const PREMIUM_TITLE := "PREMIUM REWARDS"
 const PREMIUM_SUB := "RARE OR LEGENDARY"
 ## The title's and the sub line's boxes (their capitals centred in them): the title at 4x (word
@@ -52,6 +55,9 @@ const STAMP_TOP := 0.0
 ## the sign, STAMP_EDGE px clear of its right end at most.
 const STAMP_CENTRE := 0.75
 const STAMP_EDGE := 8.0
+## While a stamp is set, the title and the sub line keep STAMP_CLEAR px (its -4° tilt included)
+## left of its rest rect.
+const STAMP_CLEAR := 16.0
 const BONUS_TILT := -4.0
 const BONUS_TEXT := "EXTRA DRAW!"
 ## Look F's stamp motion: it lands from STAMP_FROM x its size in MachineTuning.head_stamp_land_ms,
@@ -74,6 +80,10 @@ var _stamp_line: MachineLine
 var _under: MachineLine
 var _stamp_text: String = ""
 var _under_text: String = ""
+## Whether the title and the sub line fit left of the set stamp (they show there; else hidden).
+var _title_beside: bool = false
+## Whether the stamp is up (landed or blinking): the title and sub line make room for it only then.
+var _stamped: bool = false
 var _look: MachineLook = MachineLook.new()
 var _chase: float = 0.0
 var _night: bool = true
@@ -119,6 +129,7 @@ func set_stamp(text: String, under: String) -> void:
 	var top: float = STAMP_RIM + STAMP_GAP
 	_stamp_line.centre_in(Rect2(0, top, stamp_size.x, _stamp_line.size.y))
 	_under.centre_in(Rect2(0, top + _stamp_line.size.y + STAMP_GAP, stamp_size.x, _under.size.y))
+	_place_lines()
 	_show_stamp(not text.is_empty(), 1.0)
 	_stamp.queue_redraw()
 
@@ -238,19 +249,38 @@ func _show_face(night: bool) -> void:
 	_title_under.show_text(title, under, MachineLine.clear(), TITLE_SCALE)
 	_title.show_text(title, ink, MachineLine.clear(), TITLE_SCALE)
 	_sub.show_text(PREMIUM_SUB if night else SUB_LINE, Palette.MUSTARD_LIGHT if night else ink)
-	_title.centre_in(TITLE_RECT)
+	_place_lines()
+
+
+## Centres the title (its engraving one art px under it) and the sub line in their rects, or,
+## while a stamp is up, in the room left of it (STAMP_CLEAR clear) when both fit there.
+func _place_lines() -> void:
+	var title_box: Rect2 = TITLE_RECT
+	var sub_box: Rect2 = SUB_RECT
+	_title_beside = false
+	if _stamped and not _stamp_text.is_empty():
+		var room: float = _stamp.position.x - STAMP_CLEAR - TITLE_RECT.position.x
+		_title_beside = maxf(_title.size.x, _sub.size.x) <= room
+		title_box.size.x = room
+		sub_box.size.x = room
+	_title.centre_in(title_box)
 	_title_under.position = _title.position + Vector2(0, MachineArt.PIXEL)
-	_sub.centre_in(SUB_RECT)
+	_sub.centre_in(sub_box)
 
 
 ## Sets the stamp (`stamped`) at `stamp_scale_now`, shown on the blink's on frames; while it is
-## set the title and sub line stay hidden, between the blinks too.
+## up the title and sub line stay left of it (_place_lines), between the blinks too, or hidden
+## when they don't fit there; once it lifts (or before a BONUS stamp lands) they centre again.
 func _show_stamp(stamped: bool, stamp_scale_now: float, blink_on: bool = true) -> void:
+	if stamped != _stamped:
+		_stamped = stamped
+		_place_lines()
 	_stamp.visible = stamped and blink_on
 	_stamp.scale = Vector2.ONE * stamp_scale_now
-	_title.visible = not stamped
-	_title_under.visible = not stamped
-	_sub.visible = not stamped
+	var lines: bool = not stamped or _title_beside
+	_title.visible = lines
+	_title_under.visible = lines
+	_sub.visible = lines
 
 
 static func _line(line_name: String, parent: Control) -> MachineLine:

@@ -139,6 +139,9 @@ func _open_slip(hover: bool) -> void:
 	var reduced: bool = _screen.profile.reduced_motion()
 	var bonus: String = bonus_line(_calendar.bonus_state(), run.inspections)
 	var options: Dictionary = {"above": true, "hover": hover, "bonus": bonus}
+	var target: ReceiptTarget = _screen._receipt.target
+	if target != null and target.is_visible_in_tree():
+		options["heading"] = target.beat.get_global_rect().merge(target.caption.get_global_rect())
 	slip.open(_calendar.day(), run.inspections, run.limits, _calendar, reduced, week, options)
 
 

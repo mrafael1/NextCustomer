@@ -14,7 +14,7 @@ receipt_text = "Wonky carrot after the chain"
 [resource]
 script = ExtResource("3_card")
 id = &"wonky_carrot_big"
-display_name = "Big Wonky carrot"
+display_name = "Big wonky carrot"
 kind = 1
 tags = PackedStringArray("Food", "Produce", "Clearance")
 base = 4

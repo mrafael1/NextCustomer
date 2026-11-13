@@ -207,9 +207,9 @@ func test_continue_keeps_the_save() -> void:
 	assert_array(sfx.call("sound_names")).is_equal(["ui_click", TitleScreen.START_SOUND])
 
 
-## NEW RUN asks first, in a popup inside the window, with ui_open. KEEP closes it with ui_close
-## (#62) and keeps the save; ABANDON deletes it, logs run_abandon under the saved run id and
-## starts a new run.
+## NEW RUN asks first, in a popup inside the window, with ui_open, on KEEP. KEEP (Enter) closes
+## it with ui_close (#62) and keeps the save; ABANDON deletes it, logs run_abandon under the
+## saved run id and starts a new run.
 func test_new_run_asks_before_abandoning_the_save() -> void:
 	_save_run_at_shift(2)
 	var title: TitleScreen = await _title()
@@ -225,12 +225,12 @@ func test_new_run_asks_before_abandoning_the_save() -> void:
 	assert_bool(screen.encloses(sheet)).is_true()
 	for plate: MenuPlate in [confirm.abandon_plate(), confirm.keep_plate()]:
 		assert_bool(sheet.encloses(plate.get_global_rect())).is_true()
-	# While it asks, Enter neither continues nor abandons, and the doors start nothing.
-	title._unhandled_key_input(_key(KEY_ENTER))
+	# While it asks, the doors start nothing; Enter presses KEEP, the plate it opens on (polish
+	# audit v1.36), so it neither continues nor abandons.
 	title._on_scene_input(_click_at(title, title.storefront().doors_rect().get_center()))
 	assert_bool(title._starting).is_false()
-
-	confirm.keep_plate().pressed.emit()
+	assert_bool(confirm.keep_plate().marked).is_true()
+	title._unhandled_key_input(_key(KEY_ENTER))
 	assert_array(sfx.call("sound_names")).is_equal(["ui_click", "ui_open", "ui_close"])
 	assert_bool(confirm.is_open()).is_false()
 	assert_bool(FileAccess.file_exists(_run_file())).is_true()

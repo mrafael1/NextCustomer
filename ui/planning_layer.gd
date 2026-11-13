@@ -149,8 +149,10 @@ func _init() -> void:
 	add_child(_chains)
 	_lane_boxes = [_box("Lane0"), _box("Lane1")]
 	_ring_box = _box("TicketRing")
-	_stack_box = _box("Stacks")
+	# A denied item's stamp under its stickers (v1.36, polish audit): a Spot check's 0€ card
+	# would bury the slot's dimmed chips, the projection's very point of an inspection.
 	_stamp_box = _box("Stamps")
+	_stack_box = _box("Stacks")
 	_sparkle_box = _box("Sparkles")
 	_hot_box = _box("HotStrips")
 	_fan = StackFan.new()

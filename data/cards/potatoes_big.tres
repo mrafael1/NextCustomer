@@ -7,11 +7,11 @@
 [resource]
 script = ExtResource("3_card")
 id = &"potatoes_big"
-display_name = "Big Potatoes"
+display_name = "Big potatoes"
 kind = 1
 tags = PackedStringArray("Food", "Produce")
 base = 5
-rule_text = "No rule"
+rule_text = "Plain item: pays its price"
 art_ref = "res://art/items_v2/potatoes_big.png"
 variant_of = ExtResource("9_plain")
 tier = 1

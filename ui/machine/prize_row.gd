@@ -16,7 +16,7 @@ const MIDDLE_X := 762.0
 ## A ticket's top-left (at 1x) as it leaves the tray's mouth (its foot's middle, the pivot, just
 ## inside the mouth).
 const LAUNCH := Vector2(182, 218)
-const KEEP_TEXT := "KEEP ONE"
+const KEEP_TEXT := "KEEP 1"  # KEEP 1 everywhere (v1.36, polish audit).
 const KEEP_AFTER := 0.6
 
 ## The machine this part belongs to (setup(), build spec 4.2).

@@ -184,7 +184,15 @@ func test_restock_returns_an_opened_booster_for_a_sealed_one() -> void:
 	var aisle: StringName = page.boosters[0].aisle
 	board._input(_key(KEY_R))
 	assert_bool(page.restock_armed).is_true()
-	assert_str(String(page.primary_label()[0])).is_equal("CANCEL")
+	# v1.36: CANCEL is RESTOCK's own key (and Esc); the primary key says what comes next, unlit,
+	# and refuses with the hint.
+	var label: Array = page.primary_label()
+	assert_str(String(label[0])).is_equal("PICK 1")
+	assert_str(String(label[1])).is_equal("TO RETURN")
+	assert_bool(label[2]).is_false()
+	assert_bool(page.primary("key")).is_false()
+	assert_bool(page.restock_armed).is_true()
+	assert_str(page.hint_line()).is_equal(BoosterPage.RESTOCK_NEXT_HINT)
 	var full: int = page.cart_target()
 	assert_int(page.clock_minutes).is_equal(60)
 	board._input(_key(KEY_1))
@@ -421,6 +429,59 @@ func test_the_restock_key_stands_left_of_the_primary_key() -> void:
 	_click_art(page, key.get_center())
 	assert_bool(page.restock_armed).is_false()
 	assert_str(page.hint_line()).is_equal("RESTOCK USED")
+
+
+## v1.36 (polish batch 1): the top bar's middle LED reads AISLES before its glyphs, its parts in
+## order inside it and clear of the tabs and the CART LED; the returns tote's plate fits its word
+## with 3 px a side; the respaced STOCKED! stamp stays on the stage. At 1280x720 and 1920x1080.
+func test_the_aisles_led_and_the_tote_plate_fit_their_words() -> void:
+	var page: BoosterPage = await _page(_restock_count())
+	_arrive(page)
+	var led: Rect2 = Rect2(BoosterChromeDraw.AISLES_LED)
+	var label: Rect2 = Rect2(
+		BoosterChromeDraw.aisles_label_x(),
+		led.position.y,
+		ArtPen.pix_width(BoosterChromeDraw.AISLES_LABEL),
+		led.size.y
+	)
+	var aisles: Array[AisleDefinition] = page.run.balance.aisles
+	var last: int = aisles.size() - 1
+	var glyph_end: float = (
+		BoosterChromeDraw.aisle_glyph_x(last) + BoosterArt.glyph(aisles[last].id).get_width()
+	)
+	var count: String = "%d/%d" % [aisles.size(), aisles.size()]
+	var count_w: float = ArtPen.word_texture(count, Palette.GOLD, true).get_width()
+	var count_left: float = BoosterChromeDraw.aisles_count_right() - count_w
+	assert_float(label.position.x).is_greater_equal(led.position.x + 4)
+	assert_float(BoosterChromeDraw.aisle_glyph_x(0)).is_greater_equal(label.end.x + 4)
+	assert_float(glyph_end).is_less_equal(count_left - 2)
+	assert_float(BoosterChromeDraw.aisles_count_right()).is_less_equal(led.end.x - 4)
+	var tabs_end: float = 156 + 84 + 82
+	assert_float(led.position.x).is_greater(tabs_end)
+	var cart: Rect2 = Rect2(BoosterChromeDraw.CART_LED)
+	assert_bool(led.intersects(cart)).is_false()
+	assert_bool(ART.encloses(led)).is_true()
+	var caps_w: float = (
+		ArtPen.word_texture(BoosterChromeDraw.RETURNS_LABEL, Palette.INK, false).get_width()
+	)
+	var plate_w: float = BoosterChromeDraw.returns_plate_width()
+	assert_float(plate_w).is_equal(caps_w + 2 * (BoosterChromeDraw.PLATE_PAD + 1))
+	# The tote's handles (8 px, 5 px in from each end of its body) stay clear of the plate.
+	var body_w: float = BoosterChromeDraw.bay_rect().size.x - 8
+	assert_float(plate_w).is_less_equal(body_w - 2 * 14)
+	# The caps' 5 rows sit inside the paper with a free row above and below.
+	assert_int(BoosterChromeDraw.PLATE_H).is_equal(2 + 2 + 5)
+	assert_vector(BoosterArt.STOCKED.get_size()).is_equal(Vector2(152, 28))
+	var board: StartBoard = _board(page)
+	board.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	for board_size: Vector2 in [Vector2(1280, 720), Vector2(1920, 1080)]:
+		board.size = board_size
+		board._resize()
+		var stage: Rect2 = board.get_global_rect().grow(0.5)
+		for rect: Rect2 in [led, cart, _stocked_rect(), BoosterChromeDraw.bay_rect()]:
+			assert_bool(stage.encloses(_on_screen(page, rect))).is_true()
+		var shown: Rect2 = _on_screen(page, led)
+		assert_float(shown.end.x).is_less(_on_screen(page, cart).position.x)
 
 
 ## v1.32 feedback: no RUN-ONLY sign: the run stocks only its two boosters' aisles, and drawing

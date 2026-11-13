@@ -137,7 +137,7 @@ func test_the_prize_row_sits_on_the_stage() -> void:
 		var prompt: String = RewardMachineView.pick_prompt(count, run)
 		assert_str(view.display.texts()[0]).is_equal(prompt)
 		if count < 3:
-			assert_str(prompt).is_equal("PICK 1 · ONLY %d IN STOCK" % count)
+			assert_str(prompt).is_equal("KEEP 1 · ONLY %d IN STOCK" % count)
 		for label: Label in view.display.labels():
 			_assert_fits(label)
 		await _close(view)

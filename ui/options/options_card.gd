@@ -9,6 +9,11 @@ extends TitlePopup
 ## marked row, Enter toggles or presses, Esc closes. Changes go to the profile and apply at once
 ## (GameSettings); the owner saves the profile once when the popup closes (`closed`), and
 ## changes() lists what changed since it opened (telemetry's settings_change).
+##
+## The polish audit (v1.36): the TEXT SIZE preview fits the rules' width, the hint line shows
+## DEFAULT_HINT until a row is marked (no blank band above DONE), REDUCED MOTION is a chip pair
+## (OFF / ON) like its neighbours, FAST's x1.5 is in hard pixel digits, ESC is centred on DONE's
+## face, and the rows start ROWS_TOP clear of the tagline.
 
 enum Row { DISPLAY, MUSIC, SOUND, TEXT, MOTION, SPEED, DONE }
 
@@ -18,7 +23,7 @@ const SHEET_WIDTH := 704.0
 const TICK_LEFT := 18.0
 const LABEL_LEFT := 36.0
 const WIDGET_LEFT := 232.0
-const ROWS_TOP := 92.0
+const ROWS_TOP := 100.0
 const ROW_GAP := 16.0
 const CHIP_GAP := 8.0
 const LABELS: Array[String] = [
@@ -33,13 +38,17 @@ const HINTS: Array[String] = [
 	"How fast the checkout counts: FAST is ×1.5. Hold Space during a count to fast-forward it.",
 ]
 const DONE_HINT := "Saves your settings and closes. Esc does the same."
+## The hint before any row is marked.
+const DEFAULT_HINT := "Up / Down pick a row, Left / Right change it. Changes apply at once."
 const PREVIEW := "Later items that share a family with the item right before it pay ×3."
-const PREVIEW_WIDTH := 456.0
+## The preview runs from the widgets' column to the dashed rules' right end.
+const PREVIEW_WIDTH := SHEET_WIDTH - 24.0 - WIDGET_LEFT
 const PREVIEW_FONT := 15
 const HINT_FONT := 13
 const HINT_LEFT := 40.0
 const DONE_SIZE := Vector2(128, 42)
-const MOTION_KEY_SIZE := Vector2(112, 40)
+## ESC's left edge beside DONE.
+const ESC_LEFT := 168.0
 const RECEIPT_FRAME := preload("res://art/frames/receipt_paper.png")
 
 ## The profile the rows show and change, and how the changes apply (set by open).
@@ -53,11 +62,9 @@ var _hint: Label
 var _ticks: Array[TextureRect] = []
 var _chips: Dictionary[int, Array] = {}
 var _volumes: Dictionary[int, VolumePips] = {}
-var _motion_key: RegisterKey
 var _motion_note: Label
-## The motion key's pixel caption (OptionChip.pixel_caption): OFF or ON.
-var _motion_words: Label
 var _done: MenuPlate
+var _esc: Label
 ## The dashed rules between the rows, by their top (canvas px on the sheet), and the hint's.
 var _rules: Array[float] = []
 var _hint_rule: float = 0.0
@@ -113,7 +120,7 @@ func row_entry(row: Row) -> Control:
 	return _entries[row] if row < _entries.size() else null
 
 
-## The row's chips (DISPLAY, TEXT SIZE, COUNT-UP SPEED), in order.
+## The row's chips (DISPLAY, TEXT SIZE, REDUCED MOTION, COUNT-UP SPEED), in order.
 func chips(row: Row) -> Array:
 	return _chips.get(row, [])
 
@@ -122,16 +129,16 @@ func volume(row: Row) -> VolumePips:
 	return _volumes.get(row)
 
 
-func motion_key() -> RegisterKey:
-	return _motion_key
-
-
 func done_plate() -> MenuPlate:
 	return _done
 
 
 func hint_label() -> Label:
 	return _hint
+
+
+func esc_label() -> Label:
+	return _esc
 
 
 ## The marked row (-1: none).
@@ -165,8 +172,8 @@ func handle_key(event: InputEvent) -> bool:
 	return true
 
 
-## Moves `row`'s value `by` steps (Left / Right): a chip row or a volume; REDUCED MOTION's key
-## turns on with Right and off with Left.
+## Moves `row`'s value `by` steps (Left / Right): a chip row or a volume; REDUCED MOTION turns on
+## with Right and off with Left.
 func step(row: Row, by: int) -> void:
 	match row:
 		Row.DISPLAY:
@@ -257,6 +264,7 @@ func _refresh() -> void:
 		Row.DISPLAY:
 		1 if ProfileSettings.display(profile) == ProfileState.DISPLAY_FULLSCREEN else 0,
 		Row.TEXT: ProfileSettings.text_size(profile),
+		Row.MOTION: 1 if profile.reduced_motion() else 0,
 		Row.SPEED: 1 if profile.count_up_speed() == ProfileState.COUNT_UP_FAST else 0,
 	}
 	for row: int in _chips:
@@ -265,11 +273,7 @@ func _refresh() -> void:
 			(row_chips[i] as OptionChip).chosen = i == values[row]
 	_volumes[Row.MUSIC].value = ProfileSettings.music_volume(profile)
 	_volumes[Row.SOUND].value = ProfileSettings.sound_volume(profile)
-	var on: bool = profile.reduced_motion()
-	_motion_key.set_kind(RegisterKey.Kind.PAYDAY if on else RegisterKey.Kind.CREAM)
-	_motion_key.held = on
-	OptionChip.set_key_caption(_motion_key, _motion_words, "ON" if on else "OFF")
-	_motion_note.visible = on
+	_motion_note.visible = profile.reduced_motion()
 
 
 ## Lays the rows out at the current TEXT SIZE and sizes the sheet to them.
@@ -308,6 +312,7 @@ func _build_content() -> void:
 	_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_hint.position = Vector2(HINT_LEFT, y)
 	_hint.size = Vector2(SHEET_WIDTH - 2.0 * HINT_LEFT, 0)
+	_hint.text = DEFAULT_HINT
 	_content.add_child(_hint)
 	y += _hint_height() + 14.0
 	_done = MenuPlate.new("DONE", MenuPlate.Kind.PLATE, DONE_SIZE)
@@ -316,9 +321,12 @@ func _build_content() -> void:
 	_done.pressed.connect(close)
 	_content.add_child(_done)
 	_add_entry(_done)
-	var esc: Label = UiKit.pixel_label("ESC", 2, Palette.GREY)
-	UiKit.place_pixel_label(esc, Rect2(168, y + 14, 0, 0))
-	_content.add_child(esc)
+	# Centred on DONE's face, between its top row and its shade row and ledge (as its caption).
+	_esc = UiKit.pixel_label("ESC", 2, Palette.GREY)
+	var face_top: float = y + MenuPlate.PLATE_FACE_TOP
+	var face_height: float = DONE_SIZE.y - MenuPlate.PLATE_FACE_TOP - MenuPlate.PLATE_FACE_BOTTOM
+	UiKit.place_pixel_label(_esc, Rect2(ESC_LEFT, face_top, 0, face_height), true)
+	_content.add_child(_esc)
 	y += DONE_SIZE.y + 18.0
 	_resize_sheet(Vector2i(WIDTH_ART, ceili(y / ArtStyle.ART_SCALE)))
 	_refresh()
@@ -326,7 +334,7 @@ func _build_content() -> void:
 
 ## Adds row `row` at `y`; returns its height with the gap under it.
 func _add_row(row: Row, y: float) -> float:
-	var chip_row: bool = row == Row.DISPLAY or row == Row.TEXT or row == Row.SPEED
+	var chip_row: bool = row != Row.MUSIC and row != Row.SOUND
 	var height: float = OptionChip.HEIGHT if chip_row else VolumePips.KEY_SIZE.y
 	var preview: Control = null
 	if row == Row.TEXT:
@@ -356,7 +364,7 @@ func _add_row(row: Row, y: float) -> float:
 			_add_chips(row, at, ["NORMAL", "LARGE", "LARGER"])
 			_content.add_child(preview)
 		Row.SPEED:
-			_add_chips(row, at, ["NORMAL", "FAST"], ["", "(×1.5)"])
+			_add_chips(row, at, ["NORMAL", "FAST"], ["", "×1.5"])
 		Row.MUSIC, Row.SOUND:
 			var pips: VolumePips = VolumePips.new()
 			pips.position = at
@@ -364,13 +372,14 @@ func _add_row(row: Row, y: float) -> float:
 			_content.add_child(pips)
 			_volumes[row] = pips
 		Row.MOTION:
-			_motion_key = RegisterKey.new(RegisterKey.Kind.CREAM, "OFF", 16, MOTION_KEY_SIZE)
-			_motion_key.position = at
-			_motion_key.pressed.connect(func() -> void: _set_motion(not profile.reduced_motion()))
-			_content.add_child(_motion_key)
-			_motion_words = OptionChip.pixel_caption(_motion_key, "OFF")
+			_add_chips(row, at, ["OFF", "ON"])
+			var last: OptionChip = _chips[row][-1]
 			_motion_note = UiKit.pixel_label("THE STORE STANDS STILL", 2, Palette.GREY)
-			UiKit.place_pixel_label(_motion_note, Rect2(at.x + 132, y + 14, 0, 0))
+			UiKit.place_pixel_label(
+				_motion_note,
+				Rect2(last.position.x + last.size.x + 2.0 * CHIP_GAP, y, 0, OptionChip.HEIGHT),
+				true
+			)
 			_content.add_child(_motion_note)
 	return height
 
@@ -398,6 +407,8 @@ func _pick_chip(row: Row, index: int) -> void:
 			_set_display(index == 1)
 		Row.TEXT:
 			_set_text_size(index)
+		Row.MOTION:
+			_set_motion(index == 1)
 		Row.SPEED:
 			_set_speed(index == 1)
 
