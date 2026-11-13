@@ -1,0 +1,2 @@
+; Banana GOLDEN V1 short thick stem: the necks meet in one stubby crown under a short, 4 px thick green stem with a dark cut tip. Derived from BIG like art/src/items_v2/banana_golden.txt.
+@derive banana_v1_big golden=yellow
