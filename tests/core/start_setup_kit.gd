@@ -1,7 +1,7 @@
 extends RefCounted
-## Shared helpers of the opening-time setup suites (start_setup_rules_test, start_setup_save_test):
-## live data, the named derived streams the game uses, and runs set up and locked in as
-## StartChoice does.
+## Shared helpers of the opening-time setup suites (start_setup_rules_test, start_setup_save_test,
+## start_setup_swap_test, start_store_test): live data, the named derived streams the game uses,
+## and runs set up and dealt as StartChoice does (v1.32: sealed aisle boosters).
 
 const RECIPE := "res://data/decks/pack_starter.tres"
 const BALANCE := "res://data/balance/balance.tres"
@@ -40,6 +40,7 @@ static func suggest(shown: ProfileState, seed_value: int) -> Array[StringName]:
 	)
 
 
+## A new run in SELECT (nothing dealt).
 static func run(shown: ProfileState, seed_value: int) -> RunState:
 	return StartSetupRules.setup_run(
 		seed_value,
@@ -50,22 +51,35 @@ static func run(shown: ProfileState, seed_value: int) -> RunState:
 	)
 
 
-## A new run with its suggestion locked in (null if LOCK IN was refused).
-static func locked(shown: ProfileState, seed_value: int) -> RunState:
+## A new run dealt as StartChoice deals it, its boosters sealed (null if the deal was refused).
+static func dealt(shown: ProfileState, seed_value: int) -> RunState:
 	var made: RunState = run(shown, seed_value)
-	return made if lock_suggestion(made, shown) == &"" else null
+	return made if deal(made, shown) == &"" else null
 
 
-## LOCK IN the run's suggestion; returns lock_in's reason.
-static func lock_suggestion(shown: RunState, owner: ProfileState) -> StringName:
-	var green: Array[StringName] = shown.start_setup.green_ids(shown.balance)
-	return StartSetupRules.lock_in(
-		shown,
-		owner,
-		green,
-		shown.start_setup.run_only_ids(shown.balance),
-		deck_rng(shown),
-		basket_streams(shown, green)
+## A new run dealt, PICK 2 OF 3 (if any) keeping the seeded pair, and every booster opened, so
+## swaps and RESTOCK are open (null if the deal was refused).
+static func locked(shown: ProfileState, seed_value: int) -> RunState:
+	var made: RunState = dealt(shown, seed_value)
+	if made == null:
+		return null
+	if made.start_setup.picking():
+		var pair: Array[int] = [0, 1]
+		StartSetupRules.pick_boosters(made, shown, pair, pick_rng(made))
+	open_all(made)
+	return made
+
+
+## Opens every booster that can be opened.
+static func open_all(shown: RunState) -> void:
+	for index: int in shown.start_setup.boosters.size():
+		StartSetupRules.open_booster(shown, index)
+
+
+## Deals the run's setup on the game's streams; returns deal's reason.
+static func deal(shown: RunState, owner: ProfileState) -> StringName:
+	return StartSetupRules.deal(
+		shown, owner, deck_rng(shown), booster_streams(shown), extra_rng(shown)
 	)
 
 
@@ -73,28 +87,43 @@ static func deck_rng(shown: RunState) -> RandomNumberGenerator:
 	return EventLogService.derived_stream(shown.run_seed, EventLogService.STARTING_DECK_STREAM)
 
 
-static func basket_streams(
-	shown: RunState, green: Array[StringName]
-) -> Dictionary[StringName, RandomNumberGenerator]:
+## One booster stream per aisle of the data, as StartChoice.deal passes them.
+static func booster_streams(shown: RunState) -> Dictionary[StringName, RandomNumberGenerator]:
 	var streams: Dictionary[StringName, RandomNumberGenerator] = {}
-	for source: StringName in StartSetupRules.basket_sources(shown.balance, green):
-		streams[source] = EventLogService.derived_stream(
-			shown.run_seed, EventLogService.START_BASKET_STREAM % source
+	for aisle: AisleDefinition in shown.balance.aisles:
+		streams[aisle.id] = EventLogService.derived_stream(
+			shown.run_seed, EventLogService.START_BOOSTER_STREAM % aisle.id
 		)
 	return streams
 
 
-static func restock_rng(shown: RunState, basket: int) -> RandomNumberGenerator:
-	var source: StringName = shown.start_setup.baskets[basket].source
+static func extra_rng(shown: RunState) -> RandomNumberGenerator:
 	return EventLogService.derived_stream(
-		shown.run_seed, EventLogService.START_RESTOCK_STREAM % source
+		shown.run_seed, EventLogService.START_BOOSTER_EXTRA_STREAM
 	)
 
 
-static func regulars_rng(shown: RunState, slot: int, aisle_id: StringName) -> RandomNumberGenerator:
+static func pick_rng(shown: RunState) -> RandomNumberGenerator:
+	return EventLogService.derived_stream(shown.run_seed, EventLogService.START_BOOSTER_PICK_STREAM)
+
+
+static func restock_rng(shown: RunState, index: int) -> RandomNumberGenerator:
+	var aisle: StringName = shown.start_setup.boosters[index].aisle
 	return EventLogService.derived_stream(
-		shown.run_seed, EventLogService.START_REGULARS_STREAM % [slot, aisle_id]
+		shown.run_seed, EventLogService.START_RESTOCK_STREAM % aisle
 	)
+
+
+static func regulars_rng(shown: RunState, aisle_id: StringName) -> RandomNumberGenerator:
+	return EventLogService.derived_stream(
+		shown.run_seed, EventLogService.START_REGULARS_STREAM % aisle_id
+	)
+
+
+## The swap window's boosters, one per stocked aisle, drawn (and kept) as StartChoice does.
+static func swap_offers(shown: RunState, owner: ProfileState) -> void:
+	for aisle_id: StringName in StartSwapBoosters.swap_aisles(shown):
+		StartSwapBoosters.swap_offer(shown, owner, aisle_id, regulars_rng(shown, aisle_id))
 
 
 static func new_packs_rng(shown: RunState) -> RandomNumberGenerator:
@@ -106,19 +135,19 @@ static func swap(shown: RunState, owner: ProfileState, slot: int) -> bool:
 	var card: CardDefinition = option(shown, owner, slot)
 	if card == null:
 		return false
-	shown.starter.core_cards[slot] = card
-	StartSetupRules.refresh_deck(shown)
-	return true
+	return StartSetupRules.swap(shown, owner, slot, card) == &""
 
 
-## The first card `slot` can be swapped to (from `aisle` only, when given), or null.
+## The first card `slot` can be swapped to (from the stocked aisle `aisle` only, when given), or
+## null: the swap pools of the run's aisles (before the swap window shows its boosters), else
+## their boosters.
 static func option(
 	shown: RunState, owner: ProfileState, slot: int, aisle: AisleDefinition = null
 ) -> CardDefinition:
-	for done: AisleDefinition in StartSetupRules.completed(shown.balance, owner):
-		if aisle != null and done != aisle:
+	for aisle_id: StringName in StartSwapBoosters.swap_aisles(shown):
+		if aisle != null and aisle.id != aisle_id:
 			continue
-		for card: CardDefinition in done.base_cards + done.capsule_cards:
+		for card: CardDefinition in StartSwapBoosters.swap_pool(shown, owner, aisle_id):
 			if StartSetupRules.can_swap(shown, owner, slot, card):
 				return card
 	return null
@@ -131,11 +160,10 @@ static func chain_of(aisle: AisleDefinition) -> ItemUpgradeDefinition:
 	return null
 
 
-static func of_source(card: CardDefinition, source: StringName) -> bool:
-	if source == StartSetup.STAPLES:
-		return balance().staples.has(card)
+## Whether `card` (any tier) is a product of aisle `aisle_id`.
+static func of_aisle(card: CardDefinition, aisle_id: StringName) -> bool:
 	var aisle: AisleDefinition = balance().aisle_of(card)
-	return aisle != null and aisle.id == source
+	return aisle != null and aisle.id == aisle_id
 
 
 ## Whether every item of `items` is in `others`.

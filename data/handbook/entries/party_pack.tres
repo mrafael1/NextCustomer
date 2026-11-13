@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="HandbookEntry" format=3]
+
+[ext_resource type="Script" path="res://presentation/handbook_entry.gd" id="1_entry"]
+
+[resource]
+script = ExtResource("1_entry")
+id = &"party_pack"
+group = &"coupons"
+title = "Party pack"
+mark = 4
+mark_value = "party_pack"
+rule = "The next 3 {fam:Snack} items after it pay ×2, even with other items between them, like {item:crisps} and {item:pick_n_mix}."
+example_row = PackedStringArray("party_pack", "crisps", "milk", "pick_n_mix")
+example_total = 28

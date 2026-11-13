@@ -36,6 +36,35 @@ static func take_off(profile: ProfileState, pin: PinDefinition) -> bool:
 	return true
 
 
+## The catalogue's pins the profile owns, in data order (the start board's BADGE PINS step
+## comes before the packs while there is one, v1.32).
+static func owned(profile: ProfileState, catalogue: CatalogueDefinition) -> Array[PinDefinition]:
+	var found: Array[PinDefinition] = []
+	for pin: PinDefinition in catalogue.pins:
+		if profile.has_pin(pin):
+			found.append(pin)
+	return found
+
+
+## The owned pins that hold the start board's packs for the BADGE PINS step (v1.32): the pins the
+## profile earned or bought (a pin with an unlock condition) and any pin it wears. The pins every
+## profile owns from the start (no unlock condition) don't hold them while none is worn, so a new
+## profile's packs deal at once (mock-up start_boosters_v3, NEW · 0).
+static func start_gate(
+	profile: ProfileState, catalogue: CatalogueDefinition
+) -> Array[PinDefinition]:
+	var found: Array[PinDefinition] = []
+	for pin: PinDefinition in owned(profile, catalogue):
+		if holds_start(profile, pin):
+			found.append(pin)
+	return found
+
+
+## Whether owned pin `pin` holds the start board's packs (start_gate): earned or bought, or worn.
+static func holds_start(profile: ProfileState, pin: PinDefinition) -> bool:
+	return profile.has_pin(pin) and (pin.unlock_condition != null or profile.worn_pins.has(pin.id))
+
+
 ## The catalogue's pins not owned yet, in data order.
 static func locked(profile: ProfileState, catalogue: CatalogueDefinition) -> Array[PinDefinition]:
 	var found: Array[PinDefinition] = []

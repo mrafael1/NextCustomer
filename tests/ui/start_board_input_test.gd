@@ -1,8 +1,9 @@
 extends GdUnitTestSuite
 ## The opening board's input and lifecycle on the real screen: the OPEN STORE shutter's click and
-## Enter skips (reduced motion off) and its release, Esc stepping back (the swap shelf, a RESTOCK
-## pick, page 1, the title), the board leaving F1 to the debug panel, and page 1's pop-ups
-## scaling with the board at 1080p.
+## Enter skips (reduced motion off) and its release, Esc stepping back (the swap window, a RESTOCK
+## pick, page 1, the title), the board leaving F1 to the debug panel, YOUR STORE scaling with the
+## board at 1080p (a mouse click on a booster lands where it is drawn), the page slide and the
+## page steps.
 
 const SCREEN := preload("res://ui/shift_screen.tscn")
 const SEED := 20261104
@@ -63,32 +64,39 @@ func test_a_new_run_frees_a_playing_shutter() -> void:
 	assert_int(screen.run.run_seed).is_equal(SEED + 1)
 
 
-## Esc closes the swap shelf, then stops a RESTOCK pick, then goes back from page 2 to page 1,
+## Esc closes the swap window, then stops a RESTOCK pick, then goes back from page 2 to page 1,
 ## then asks the screen for the title (the screen closes the board; the scene change is off in
 ## tests).
-func test_escape_steps_back_from_shelf_to_restock_to_store_to_title() -> void:
+func test_escape_steps_back_from_swaps_to_restock_to_store_to_title() -> void:
 	var screen: ShiftScreen = await _screen(3)
 	screen._start_choice.changes_scene = false
 	var board: StartBoard = screen._cart_reveal.board
+	var store: BoosterPage = board.store
+	store.frozen = true
 	var asked: Array[int] = [0]
 	board.back_to_title.connect(func() -> void: asked[0] += 1)
-	board.show_page(2)
-	board.show_page(1)
-	get_tree().root.push_input(_key(KEY_1), true)
-	assert_object(board.popover).is_not_null()
-	assert_int(board.store.open_slot).is_equal(0)
+	get_tree().root.push_input(_key(KEY_A), true)
+	_run(store, 8.0)
+	assert_bool(store.page_done()).is_true()
+	assert_bool(store.swap.open_window(false)).is_true()
+	assert_bool(store.swap.active).is_true()
 	get_tree().root.push_input(_key(KEY_ESCAPE), true)
-	assert_object(board.popover).is_null()
-	assert_object(board._modal).is_null()
-	assert_int(board.store.open_slot).is_equal(-1)
+	assert_bool(store.swap.active).is_false()
+	_run(store, 1.0)
 	assert_int(board.page).is_equal(1)
 	get_tree().root.push_input(_key(KEY_R), true)
-	assert_bool(board.store.restock_picking).is_true()
+	assert_bool(store.restock_armed).is_true()
 	get_tree().root.push_input(_key(KEY_ESCAPE), true)
-	assert_bool(board.store.restock_picking).is_false()
-	assert_int(screen.run.start_setup.restock_basket).is_equal(-1)
+	assert_bool(store.restock_armed).is_false()
+	assert_int(screen.run.start_setup.restock_booster()).is_equal(-1)
 	assert_int(board.page).is_equal(1)
+	_open_boosters(board)
 	board.show_page(2)
+	# Page 2 opens on the BADGE PINS step (v1.32): Esc closes it first.
+	assert_bool(board.staff.pins_open).is_true()
+	get_tree().root.push_input(_key(KEY_ESCAPE), true)
+	assert_bool(board.staff.pins_open).is_false()
+	assert_int(board.page).is_equal(2)
 	get_tree().root.push_input(_key(KEY_ESCAPE), true)
 	assert_int(board.page).is_equal(1)
 	assert_int(asked[0]).is_equal(0)
@@ -111,51 +119,68 @@ func test_f1_reaches_the_debug_panel_through_the_board() -> void:
 	assert_bool(panel.visible).is_equal(shown)
 
 
-## The pop-ups sit on the scaled stage: at 1920x1080 the swap shelf is 1.5x, inside the board,
-## above its regular and clear of it, its tabs and offers inside it; the aisle choice the same
-## under its sign.
-func test_the_pop_ups_scale_with_the_board() -> void:
-	var screen: ShiftScreen = await _screen(6)
+## YOUR STORE sits on the scaled stage: at 1920x1080 the page is drawn at 1.5x inside the board,
+## a real mouse click on a booster (through the viewport) opens that booster, a real click on the
+## regulars' basket opens the swap window, and the window's keys, boosters and cards are 1.5x,
+## inside the board and inside the window.
+func test_your_store_scales_with_the_board() -> void:
+	var screen: ShiftScreen = await _screen(3)
 	var board: StartBoard = screen._cart_reveal.board
+	var store: BoosterPage = board.store
+	store.frozen = true
 	board.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	board.size = Vector2(1920, 1080)
 	board._resize()
+	_run(store, 0.1)
 	var frame: Rect2 = board.get_global_rect()
-	assert_bool(board.open_swap(0)).is_true()
-	var shelf: Rect2 = board.popover.get_global_rect()
-	assert_vector(shelf.size).is_equal_approx(board.popover.size * 1.5, Vector2.ONE)
-	assert_bool(frame.encloses(shelf)).is_true()
-	var tile: Rect2 = board.store.regulars[0].get_global_rect()
-	assert_bool(shelf.intersects(tile)).is_false()
-	assert_float(shelf.end.y).is_less_equal(tile.position.y)
-	var keys: Array[Control] = []
-	for tab: Button in board.popover.tabs.values():
-		keys.append(tab)
-	for offer: Button in board.popover.offers:
-		keys.append(offer)
-	_assert_inside_apart(shelf, keys)
-	board.back()
-	assert_bool(board.open_aisles(1)).is_true()
-	var choice: Rect2 = board.popover.get_global_rect()
-	assert_bool(frame.encloses(choice)).is_true()
-	var sign_rect: Rect2 = board.store.signs[1].get_global_rect()
-	assert_bool(choice.intersects(sign_rect)).is_false()
-	assert_float(choice.position.y).is_greater_equal(sign_rect.end.y)
-	var options: Array[Control] = []
-	for option: Button in board.popover.options.values():
-		options.append(option)
-	assert_int(options.size()).is_greater(0)
-	_assert_inside_apart(choice, options)
+	var to_screen: Transform2D = store.get_global_transform()
+	assert_float(to_screen.get_scale().x).is_equal_approx(1.5, 0.001)
+	var pouch: Rect2 = BoosterArt.pouch_rect(store.boosters[1].cx)
+	get_tree().root.push_input(_click(to_screen * (pouch.get_center() * ArtPen.UNIT)), true)
+	assert_bool(screen.run.start_setup.boosters[1].opened).is_true()
+	assert_bool(screen.run.start_setup.boosters[0].opened).is_false()
+	store.openings.open_all("key")
+	_run(store, 8.0)
+	screen._week.skip()  # The helper's screen shows a time card from before the new run.
+	var crate: Vector2 = BoosterChromeDraw.CRATE_RECT.get_center()
+	var at: Vector2 = to_screen * (crate * ArtPen.UNIT)
+	assert_bool(frame.has_point(at)).is_true()
+	get_tree().root.push_input(_click(at), true)
+	assert_bool(store.swap.active).is_true()
+	_run(store, 1.0)
+	var window: Rect2 = _scaled(to_screen, SwapWindowDraw.RECT)
+	assert_bool(frame.encloses(window)).is_true()
+	var ids: Array[String] = []
+	for entry: Dictionary in store.hits:
+		var rect: Rect2 = _scaled(to_screen, entry.rect)
+		assert_float(rect.size.x).is_equal_approx((entry.rect as Rect2).size.x * 3.0, 0.01)
+		assert_bool(frame.encloses(rect)).is_true()
+		if entry.id != "swclose":
+			assert_bool(window.encloses(rect)).override_failure_message(entry.id).is_true()
+		ids.append(entry.id)
+	assert_array(ids).contains(["swb0", "swb1", "swreset", "swdone", "swclose", "piece6"])
 
 
-func _assert_inside_apart(outer: Rect2, controls: Array[Control]) -> void:
-	var seen: Array[Rect2] = []
-	for control: Control in controls:
-		var rect: Rect2 = control.get_global_rect()
-		assert_bool(outer.encloses(rect)).override_failure_message(control.name).is_true()
-		for other: Rect2 in seen:
-			assert_bool(rect.intersects(other)).override_failure_message(control.name).is_false()
-		seen.append(rect)
+## A left click (pressed) at screen point `at`.
+static func _click(at: Vector2) -> InputEventMouseButton:
+	var click: InputEventMouseButton = InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	click.position = at
+	click.global_position = at
+	return click
+
+
+## Art rect `rect` on the screen.
+static func _scaled(to_screen: Transform2D, rect: Rect2) -> Rect2:
+	return to_screen * Rect2(rect.position * ArtPen.UNIT, rect.size * ArtPen.UNIT)
+
+
+static func _run(store: BoosterPage, seconds: float) -> void:
+	var left: float = seconds
+	while left > 0.0001:
+		store.advance(minf(1.0 / 60.0, left))
+		left -= 1.0 / 60.0
 
 
 ## The page slide (reduced motion off), both ways: it starts the frame after the pages are built,
@@ -170,6 +195,7 @@ func test_the_page_slide_moves_smoothly_every_frame() -> void:
 	var added: Array[Node] = []
 	var count_added: Callable = func(node: Node) -> void: added.append(node)
 	for next_page: int in [2, 1]:
+		board.staff.pins.close()  # Page 2's BADGE PINS step holds the page while open.
 		board.show_page(next_page)
 		assert_bool(board.page_sliding()).is_true()
 		var fresh: Control = (
@@ -211,81 +237,64 @@ func test_the_page_slide_moves_smoothly_every_frame() -> void:
 			[0.0, ShiftStage.SIZE.x * sin(PI / 4.0), ShiftStage.SIZE.x][half], 1.0
 		)
 	screen.profile.set_reduced_motion(true)
+	_open_boosters(board)
 	board.show_page(2)
 	assert_bool(board.page_sliding()).is_false()
 	assert_bool(board.staff.visible and not board.store.visible).is_true()
 
 
-## The page tabs' step digits ("1", "2") sit exactly centred in their boxes, on whole screen
-## pixels, at 1280x720 and 1920x1080 (the user: "1 & 2 inside boxes ... aren't centered"): the
-## digit's ink (its 6x8 glyph fills its box) has the box's centre, both pages, both tab states.
-func test_the_page_steps_are_centred_at_both_sizes() -> void:
+## The page tabs (v1.32: drawn in the shared top bar on the art grid, so on whole pixels at any
+## scale): each page lights its own tab, the other tab's hit is the tab's drawn box (x 156 + 84 k,
+## y 7, 82 x 20 art px), and a click on it turns the page, both ways, at 1280x720 and 1920x1080.
+func test_the_page_tabs_turn_the_page_at_both_sizes() -> void:
 	var screen: ShiftScreen = await _screen(3)
 	var board: StartBoard = screen._cart_reveal.board
 	board.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	board.store.frozen = true
+	get_tree().root.push_input(_key(KEY_A), true)
+	_run(board.store, 8.0)
 	for board_size: Vector2 in [Vector2(1280, 720), Vector2(1920, 1080)]:
 		board.size = board_size
 		board._resize()
-		for page: int in [1, 2]:
-			board.show_page(page)
-			board.refresh()
-			for index: int in 2:
-				var box: Panel = board._rail.get_node("Tab%d/Step" % (index + 1))
-				var digit: PixelWords = box.get_node("Digit")
-				assert_str(digit.text).is_equal(str(index + 1))
-				var ink: Rect2 = digit.get_global_rect()
-				var frame: Rect2 = box.get_global_rect()
-				assert_vector(ink.size).is_equal(
-					(
-						PixelWords.text_size(digit.text, digit.sheet, digit.cell)
-						* board_size.x
-						/ 1280.0
-					)
-				)
-				assert_vector(ink.get_center()).is_equal(frame.get_center())
-				for corner: Vector2 in [ink.position, ink.end, frame.position, frame.end]:
-					assert_vector(corner).is_equal(corner.round())
+		board.show_page(1)
+		board.store.advance(0.0)
+		var tab2: Dictionary = _hit(board.store.hits, "tab2")
+		assert_object(tab2.get("rect")).is_equal(Rect2(240, 7, 82, 20))
+		(tab2.act as Callable).call()
+		assert_int(board.page).is_equal(2)
+		assert_int(BuildPageDraw.top_view(board.staff).tab).is_equal(2)
+		board.back()  # The BADGE PINS step closes first.
+		assert_int(board.page).is_equal(2)
+		board.staff.advance(0.0)
+		var tab1: Dictionary = _hit(board.staff.hits, "tab1")
+		assert_object(tab1.get("rect")).is_equal(Rect2(156, 7, 82, 20))
+		board.staff.click(Vector2(160, 12))
+		assert_int(board.page).is_equal(1)
+		var scale: float = board._stage.scale.x
+		assert_float(scale).is_equal_approx(board_size.x / 1280.0, 0.001)
 
 
-## The RESTOCK pick's hover with motion on (as the redraw's, RedrawTuning): the basket eases up
-## hover_lift px and wobbles about its centre-bottom, its tag hot; leaving puts it back at rest.
-func test_a_restock_pick_hover_lifts_and_wobbles_the_basket() -> void:
-	var screen: ShiftScreen = await _screen(3)
-	var board: StartBoard = screen._cart_reveal.board
-	screen.profile.set_reduced_motion(false)
-	board.refresh()
-	assert_bool(board.start_restock()).is_true()
-	var store: StorePage = board.store
-	var bob: Control = store.bays[1].get_node("Bob")
-	var tuning: RedrawTuning = load(BasketRedraw.TUNING_PATH)
-	store.hits[1].mouse_entered.emit()
-	assert_bool(store.restock_tag(1).is_hot()).is_true()
-	var tilted: bool = false
-	var ends: int = Time.get_ticks_msec() + 400
-	while Time.get_ticks_msec() < ends:
-		await get_tree().process_frame
-		tilted = tilted or absf(bob.rotation) > 0.001
-	assert_float(bob.position.y).is_equal_approx(-tuning.hover_lift, 0.01)
-	assert_bool(tilted).is_true()
-	assert_float(bob.rotation).is_less_equal(deg_to_rad(tuning.hover_wobble_deg) + 0.001)
-	store.hits[1].mouse_exited.emit()
-	ends = Time.get_ticks_msec() + 300
-	while Time.get_ticks_msec() < ends:
-		await get_tree().process_frame
-	assert_float(bob.position.y).is_equal(0.0)
-	assert_float(bob.rotation).is_equal(0.0)
-	assert_bool(store.restock_tag(1).is_hot()).is_false()
-	board.cancel_restock()
-	assert_object(store.restock_tag(1)).is_null()
+static func _hit(hits: Array[Dictionary], id: String) -> Dictionary:
+	for entry: Dictionary in hits:
+		if entry.id == id:
+			return entry
+	return {}
 
 
-## Page 2 with reduced motion, then clock-in with it off; returns the shutter once it plays.
+## Page 2 with reduced motion (the pins confirmed, pack 1 picked), then OPEN STORE with it off: the
+## flight to the cart plays, then the shutter; returns the shutter once it plays.
 func _clock_in_with_motion(screen: ShiftScreen) -> RollerShutter:
 	var board: StartBoard = screen._cart_reveal.board
+	_open_boosters(board)
 	board.show_page(2)
+	board.staff.advance(0.2)
+	assert_bool(board.staff.primary()).is_true()
+	board.pick(0)
 	screen.profile.set_reduced_motion(false)
+	board.refresh()
 	assert_bool(board.clock_in()).is_true()
-	var ends: int = Time.get_ticks_msec() + 3000
+	assert_object(board.staff.flight).is_not_null()
+	var ends: int = Time.get_ticks_msec() + 5000
 	while screen._cart_reveal._shutter == null and Time.get_ticks_msec() < ends:
 		await get_tree().process_frame
 	var shutter: RollerShutter = screen._cart_reveal._shutter
@@ -328,6 +337,12 @@ func _screen(completed: int = 0) -> ShiftScreen:
 		)
 		for card: CardDefinition in aisle.capsule_cards.slice(0, count):
 			screen.profile.unlocked_items[card.id] = 0
+	# One earned pin, so page 2 opens on the BADGE PINS step (the pins every profile starts with
+	# don't hold the packs).
+	for pin: PinDefinition in screen._catalogue.pins:
+		if pin.unlock_condition != null:
+			screen.profile.unlocked_pins.append(pin.id)
+			break
 	screen.save_profile()
 	screen.start_new_run(SEED, true, true)
 	return screen
@@ -335,3 +350,10 @@ func _screen(completed: int = 0) -> ShiftScreen:
 
 static func _event_log() -> EventLogService:
 	return (Engine.get_main_loop() as SceneTree).root.get_node("/root/EventLog")
+
+
+## Opens every dealt booster through the board's actions (page 1's job), so page 2's OPEN STORE
+## isn't held by a sealed booster.
+static func _open_boosters(board: StartBoard) -> void:
+	for index: int in board.run.start_setup.boosters.size():
+		board._choice.open_booster.call(index)

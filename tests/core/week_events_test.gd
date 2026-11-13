@@ -107,7 +107,7 @@ func test_the_week_quota_stacks_with_the_day_events() -> void:
 
 ## Bakery festival's +2€ on each Bakery item is an engine step of its own (source INSPECTION,
 ## indexed after the day's events: the count-up plays it from the week chip), on top of a day
-## event's own step (Fresh delivery's +1€ on a Fruit & veg item).
+## event's own step (Fresh delivery's +1€ on a Produce item).
 func test_the_bakery_festival_pays_an_engine_step() -> void:
 	var run: RunState = _new_run(5)
 	run.start_shift()

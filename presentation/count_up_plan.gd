@@ -303,7 +303,7 @@ static func _kind_of(step_type: ScoreStep.StepType) -> CountUpBeat.Kind:
 			return CountUpBeat.Kind.ARMED
 		ScoreStep.StepType.WASTED:
 			return CountUpBeat.Kind.FIZZLE
-		ScoreStep.StepType.TAG_ADDED:
+		ScoreStep.StepType.TAG_ADDED, ScoreStep.StepType.WRITTEN_OFF:
 			return CountUpBeat.Kind.TAG
 		ScoreStep.StepType.LINKED:
 			return CountUpBeat.Kind.LINK

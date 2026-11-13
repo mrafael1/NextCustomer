@@ -14,7 +14,8 @@ const NUMBER := "\\d+(?!st|nd|rd|th)"
 
 func test_live_cards_score_the_design_examples() -> void:
 	# The design doc's 31 / 18 (kept on the frozen fixture) with Eggs' 1 charge and Bread 5 (#42).
-	assert_int(Scoring.score(_row("eggs,bread,cheese,banana,banana,repeat")).total).is_equal(28)
+	# v1.29: Cheese +5 beside Bread.
+	assert_int(Scoring.score(_row("eggs,bread,cheese,banana,banana,repeat")).total).is_equal(29)
 	assert_int(Scoring.score(_row("banana,repeat,bread,eggs,banana,cheese")).total).is_equal(17)
 
 
@@ -48,63 +49,66 @@ func test_phase_2_cards_score_the_design_examples(
 		# Yogurt 2 x2 Eggs (its one charge); Multipack reads Yogurt's Dairy, never Food or
 		# Breakfast (#42); Milk (4 + 1 x 2 earlier Breakfast) x3 Multipack = 18; 1 + 4 + 18.
 		["eggs,yogurt,multipack,milk", 23],
-		# Bulb 1; buns 2 + 3 after Clearance + 3 from the bulb; can 2 + 2 x 2 earlier Clearance.
-		# #128 v3 (redraw tension, no redraw made or left here): was 15, 33, 33 and 22.
-		["flickering_bulb,day_old_buns,dented_can", 8],
-		# Repeat copies Bread's 5; Scissors 1 + 2 for Repeat; Batteries 1, its charge unused (no
+		# Bulb 2 (nothing WASTED before it); buns 2 + 4 after Clearance; can 2 (no redraw made).
+		# #128 v3 (redraw tension, no redraw made or left here): was 15, 33, 33 and 22; v1.29: 10.
+		["flickering_bulb,day_old_buns,dented_can", 10],
+		# Repeat copies Bread's 5; Scissors 2 + 3 for Repeat; Batteries 2, its charges unused (no
 		# Household product after it, #128).
-		["bread,repeat,scissors,batteries", 14],
-		# Butter 5, Bread 5, Crackers 5, Soup 5, Cereal 5, Milk 4 + 1 x 2 (Bread, Cereal) = 6.
-		["butter,bread,crackers,soup,cereal,milk", 31],
-		# Banana 2, Yogurt 5, Carrier bag 1 + 8 x 2 Food beside it (#128), Reduced yogurt 5,
-		# Dented can 4.
-		["banana,yogurt,carrier_bag,reduced_yogurt,dented_can", 31],
+		["bread,repeat,scissors,batteries", 17],
+		# Butter 2 + 4, Bread 5, Crackers 5, Soup 5, Cereal 2 + 4, Milk 4 + 1 x 2 (Bread, Cereal).
+		["butter,bread,crackers,soup,cereal,milk", 33],
+		# Banana 2, Yogurt 2 + 4, Carrier bag 1 + 8 x 2 Food beside it (#128), Reduced yogurt
+		# 2 + 4 (Dented can), Dented can 2.
+		["banana,yogurt,carrier_bag,reduced_yogurt,dented_can", 33],
 		# Tea bags isn't Food: Eggs skips it. Tea bags x4 on Bread: 1 + 20.
 		["tea_bags,bread", 21],
 		# 2 for 1 links the Bananas: the pair bonus applies, then ×2 (2 + 0 + 8).
 		["banana,two_for_one,banana", 10],
-		# Shelf swap: Cheese counts as just after Bread, the first product (5 + 2 + 0 + 7).
-		["bread,banana,shelf_swap,cheese", 14],
-		# Clearance tag makes Bread Clearance: Day-old buns 2 + 3 after it (0 + 5 + 5).
-		["clearance_tag,bread,day_old_buns", 10],
+		# Shelf swap (v1.29): Bread and Cheese differ, so they count as side by side and Cheese
+		# pays ×2: 5 + 0 + (3 + 5 beside Bread) x2.
+		["bread,shelf_swap,cheese", 21],
+		# Clearance tag makes Bread Clearance: Day-old buns 2 + 4 after it (0 + 5 + 6).
+		["clearance_tag,bread,day_old_buns", 11],
 		# Opening deal in the first slot: Soup pays 5 x5 (0 + 25 + 5).
 		["opening_deal,soup,bread", 30],
-		# Fruit & veg since the Produce links (#128): Grapefruit 2; a lone Banana 2 + 3; the
+		# Produce aisle since the Produce links (#128): Grapefruit 2; a lone Banana 2 + 3; the
 		# Lemon, Strawberries and Wonky carrot out of place (1, 2, 2); Fruit salad 2 + 3 x 5
 		# kinds. Then the helpers in place: Grapefruit 2; Strawberries 2 + 3 (Grapefruit); Banana
 		# 2 + 1; the Lemon knot 1; Banana 2 + 3 x 2 + 1; Wonky carrot 2 + 2 x 2; Fruit salad
 		# 2 + 3 x 5 kinds.
 		["grapefruit,banana,lemon,strawberries,wonky_carrot,fruit_salad", 29],
 		["grapefruit,strawberries,banana,lemon,banana,wonky_carrot,fruit_salad", 43],
-		# Bakery, a batch of 4 after Birthday candles (#128 v3): candles 1; Croissant 2 + 3;
+		# Bakery, a batch of 4 after Birthday candles (#128 v3): candles 2 (v1.29); Croissant 2 + 3;
 		# Baguette 2 + 4 + 2 + 3; Iced bun 1 + 2 + 3; Stale doughnut (1 + 3 x 4 + 2 + 3) x2.
-		["birthday_candles,croissant,baguette,iced_bun,stale_doughnut", 59],
-		# Snacks: Bread 5; Crisps 5; Stale popcorn 2; Cereal bar 2 + 2 + 3; Bent lolly 5; Pick 'n'
-		# mix 1 + 2 x 4 earlier Snack.
-		["bread,crisps,stale_popcorn,cereal_bar,bent_lolly,pick_n_mix", 16],
-		# Clearance: Ham ends 2; Squashed cake 2; Reduced yogurt (2 + 3) x2; Dented can 2 + 2 x 3.
-		["ham_ends,squashed_cake,reduced_yogurt,dented_can", 16],
-		# Key items: Egg timer 1 + 4 after Eggs; Bread 5 x2 takes Eggs' one charge; Milk 4 + 1 x 3
+		["birthday_candles,croissant,baguette,iced_bun,stale_doughnut", 60],
+		# Snacks (no redraw made or left): Bread 5; Crisps 2; Stale popcorn 2; Cereal bar 2 + 4
+		# beside a Snack; Bent lolly 2 (a Snack beside it); Pick 'n' mix 2 (no lone Snack).
+		["bread,crisps,stale_popcorn,cereal_bar,bent_lolly,pick_n_mix", 19],
+		# Clearance: Ham ends 2; Squashed cake 2; Reduced yogurt (2 + 4 x 2 Clearance beside it) x2
+		# (Squashed cake's charge); Dented can 2.
+		["ham_ends,squashed_cake,reduced_yogurt,dented_can", 26],
+		# Key items: Egg timer 2 + 5 after Eggs; Bread 5 x2 takes Eggs' one charge; Milk 4 + 1 x 3
 		# earlier Breakfast.
-		["eggs,egg_timer,bread,milk", 23],
-		# Cream (2 + 2 for the one PAIR: Reduced yogurt beside Ham ends) x2 = 8 (Eggs' one charge);
-		# Milk 3 + 2; Ham ends 2 + 3; Reduced yogurt 2 + 3 (#128 Dairy).
-		["eggs,cream,milk,ham_ends,reduced_yogurt", 24],
+		["eggs,egg_timer,bread,milk", 25],
+		# Cream (2 + 4 for the one PAIR: Reduced yogurt beside Ham ends) x2 = 12 (Eggs' one
+		# charge); Milk 3 + 2; Ham ends 2 + 3; Reduced yogurt 2 + 4 (#128 Dairy, v1.29).
+		["eggs,cream,milk,ham_ends,reduced_yogurt", 29],
 		# Sugar cubes 2 + 4 after Coffee, not Breakfast: it ends the MORNING (Coffee 2 + 1) and
 		# Milk's count passes over it. Milk 3 + 2 x 1 earlier Breakfast (#128 Breakfast).
 		["coffee,sugar_cubes,milk", 14],
-		# Coffee 2 + 1 (the MORNING is Coffee alone); Chipped mug 1 + 3 beside Coffee; Egg timer 1;
-		# Odd socks 1: Egg timer beside it has Chipped mug beside it too, 3 in a row, no pair (#128).
-		["coffee,chipped_mug,egg_timer,odd_socks", 9],
-		# Household (#128). Batteries 1; Odd socks (1 + 5 in an exact pair) x2, the next Household.
-		["batteries,odd_socks", 13],
-		# Golden Batteries 3 (x2 on the next 2 Household); Odd socks (1 + 5) x2.
-		["batteries_golden,odd_socks", 15],
+		# Coffee 2 + 1 (the MORNING is Coffee alone); Chipped mug 2 + 4 beside Coffee; Egg timer 2;
+		# Odd socks 2: Egg timer beside it has Chipped mug beside it too, 3 in a row, no pair (#128).
+		["coffee,chipped_mug,egg_timer,odd_socks", 13],
+		# Household (#128, v1.29 numbers). Batteries 2; Odd socks (2 + 8 in an exact pair) x2, the
+		# next Household.
+		["batteries,odd_socks", 22],
+		# Golden Batteries 4 (x2 on the next 3 Household); Odd socks (2 + 8) x2.
+		["batteries_golden,odd_socks", 24],
 		# Like Eggs, Batteries skip Bread (not Household) for the next Household: Odd socks has no
-		# Household beside it, 1 x2: 1 + 5 + 2.
-		["batteries,bread,odd_socks", 8],
+		# Household beside it, 2 x2: 2 + 5 + 4.
+		["batteries,bread,odd_socks", 11],
 		# A run of 3 is no pair: neither end nor the middle pays.
-		["odd_socks,odd_socks,odd_socks", 3],
+		["odd_socks,odd_socks,odd_socks", 6],
 		# Carrier bag 1 + 8 x 2 (Eggs and Bread beside it); Eggs' x2 skips it (not Food): Bread 10.
 		["eggs,carrier_bag,bread", 28],
 	]
@@ -127,15 +131,17 @@ func test_base_products_fizzle(
 			"flickering_bulb,bread",
 			[[0, "Flickering bulb after WASTED", "the item right before it was not WASTED"]],
 		],
-		["batteries,bread", [[0, "Batteries charge", "1 charge unused"]]],
-		["batteries", [[0, "Batteries charge", "1 charge unused"]]],
-		["batteries,odd_socks", []],
+		# Batteries hold 2 charges since v1.29: one Household after them leaves one unused.
+		["batteries,bread", [[0, "Batteries charge", "2 charges unused"]]],
+		["batteries", [[0, "Batteries charge", "2 charges unused"]]],
+		["batteries,odd_socks", [[0, "Batteries charge", "1 charge unused"]]],
+		["batteries,odd_socks,bread,carrier_bag", []],
 		[
 			"scissors,odd_socks,batteries",
 			[
 				[0, "Scissors: earlier coupons", "no coupon before it"],
 				[1, "Odd socks pair", "two Household items beside it"],
-				[2, "Batteries charge", "1 charge unused"]
+				[2, "Batteries charge", "2 charges unused"]
 			]
 		],
 		[
@@ -143,7 +149,7 @@ func test_base_products_fizzle(
 			[
 				[0, "Odd socks pair", "3 in a row is not a pair"],
 				[1, "Egg timer after Eggs", "no Eggs right before it"],
-				[2, "Batteries charge", "1 charge unused"]
+				[2, "Batteries charge", "2 charges unused"]
 			]
 		],
 		["bread,carrier_bag", []],
@@ -151,7 +157,7 @@ func test_base_products_fizzle(
 			"carrier_bag,batteries",
 			[
 				[0, "Carrier bag: Food beside", "no Food item beside it"],
-				[1, "Batteries charge", "1 charge unused"]
+				[1, "Batteries charge", "2 charges unused"]
 			]
 		],
 		# The capsule items reuse these rules' fizzles (#35).
@@ -339,9 +345,9 @@ func test_stickers_show_every_rule_value() -> void:
 
 
 ## A charged multiplier's sticker says "next": with one charge that is the next product, so the
-## sticker names no count; one with more charges (Golden Eggs, #77; Golden Tea bags, v0.48;
-## Golden Squashed cake, v0.52) names `{charges}`. Iced bun glazes since #128, and Lemon is a
-## CHAIN knot since #128's Produce links.
+## sticker names no count; one with more charges (Golden Eggs, #77; Golden Tea bags, v0.48; Golden
+## Squashed cake, v0.52; Party pack and the 2-charge Batteries, v1.29) names `{charges}`. Iced bun
+## glazes since #128, and Lemon is a CHAIN knot since #128's Produce links.
 func test_charged_multipliers_with_more_charges_name_them() -> void:
 	var several: int = 0
 	for card: CardDefinition in _all_cards():
@@ -355,7 +361,7 @@ func test_charged_multipliers_with_more_charges_name_them() -> void:
 			if charged.charges > 1:
 				assert_str(template).override_failure_message(message).contains("{charges}")
 				several += 1
-	assert_int(several).is_equal(4)
+	assert_int(several).is_equal(7)
 
 
 ## Every art_ref names art drawn for an item (#75, decision 3A: 48x48 at 2x everywhere): a
@@ -382,9 +388,9 @@ func test_every_art_ref_is_item_art() -> void:
 		drawn += 1
 	# The 10 products and 2 coupon icons drawn for style frame v2, the 8 item tiers (#77),
 	# #57's 13 products, the 32 tiers of Bread, Soup and the 14 base aisle items (#99, v0.48),
-	# and #58's 27 capsule products, their 30 products' 60 tiers (#89) and #59's 6 coupon icons
-	# (v0.52).
-	assert_int(drawn).is_equal(158)
+	# and #58's 27 capsule products, their 30 products' 60 tiers (#89), #59's 6 coupon icons
+	# (v0.52) and v1.29's Write-off, Party pack and Family sticker icons.
+	assert_int(drawn).is_equal(161)
 
 
 ## The 20 products a new profile stocks (#57), read from data/: the starter deck's products and
@@ -438,7 +444,8 @@ func test_every_capsule_product_has_its_sprite_and_tiers() -> void:
 
 
 ## Every coupon a run can be offered (balance.coupon_pool) has its own icon on the slip (#59
-## subset, v0.52: the 6 drawn after Multipack's and 2 for 1's).
+## subset, v0.52: the 6 drawn after Multipack's and 2 for 1's; Write-off, Party pack and the Family
+## sticker, v1.29, the sticker in place of the Breakfast sticker and the Clearance tag).
 func test_every_pool_coupon_has_its_icon() -> void:
 	var balance: BalanceDefinition = load(BALANCE)
 	var icon: Vector2 = ItemView.COUPON_ICON_RECT.size / float(ArtStyle.ART_SCALE)
@@ -455,7 +462,7 @@ func test_every_pool_coupon_has_its_icon() -> void:
 			assert_that(texture.get_size()).override_failure_message(message).is_equal(icon)
 		assert_bool(paths.has(card.art_ref)).override_failure_message(message).is_false()
 		paths[card.art_ref] = card.id
-	assert_int(paths.size()).is_equal(8)
+	assert_int(paths.size()).is_equal(9)
 
 
 ## Sticker minis: every plain product with its own sprite has a 7x7 giver-badge mini and its

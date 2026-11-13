@@ -6,8 +6,11 @@ extends GdUnitTestSuite
 const FIXTURE_DIR := "res://tests/fixtures/cards_v0_4"
 const FIXTURE_V0_5_DIR := "res://tests/fixtures/cards_v0_5"
 const FIXTURE_V0_6_DIR := "res://tests/fixtures/cards_v0_6"
-const FIXTURE_DIRS := [FIXTURE_DIR, FIXTURE_V0_5_DIR, FIXTURE_V0_6_DIR]
-const CARD_DIRS := ["res://data/cards", FIXTURE_DIR, FIXTURE_V0_5_DIR, FIXTURE_V0_6_DIR]
+const FIXTURE_V1_29_DIR := "res://tests/fixtures/cards_v1_29"
+const FIXTURE_DIRS := [FIXTURE_DIR, FIXTURE_V0_5_DIR, FIXTURE_V0_6_DIR, FIXTURE_V1_29_DIR]
+const CARD_DIRS := [
+	"res://data/cards", FIXTURE_DIR, FIXTURE_V0_5_DIR, FIXTURE_V0_6_DIR, FIXTURE_V1_29_DIR
+]
 const NEUTRAL_SCRIPTS := [
 	"res://core/card_definition.gd",
 	"res://core/deck_definition.gd",
@@ -148,8 +151,8 @@ func test_every_upgrade_states_its_type_and_id() -> void:
 		_assert_level_chain(upgrade, file)
 	# Extra coupon slot was removed in plan v0.46 (#106); #108 added LV 2 and LV 3 of four perks,
 	# then (piece 2) 7 Regulars and 7 Aisle runs, Mixed basket and Bulk deal at 3 levels each and
-	# the 3 jackpots.
-	assert_int(ids.size()).is_equal(65)
+	# the 3 jackpots; v1.29 added the four playstyle perks at 3 levels each.
+	assert_int(ids.size()).is_equal(77)
 
 
 ## A loyalty level (#108): LV 1 has no family id, a level file names its LV 1 file as family and
@@ -177,9 +180,11 @@ func _assert_level_chain(upgrade: UpgradeDefinition, file: String) -> void:
 
 ## Plan section 5.2: like an upgrade's type, a build's measure has an UNSET default that no
 ## build file may keep. Ids are present, unique and match the file name, and every build needs
-## at least one card to fit.
+## at least one card to fit. The 5 builds of the viability gate, plus the 4 measure-only ones the
+## simulator measures (v1.29: Pair up, Snack lover, Household goods, Salvage).
 func test_every_build_states_its_measure_and_id() -> void:
 	var ids: Dictionary = {}
+	var measure_only: Array[StringName] = []
 	for file: String in DirAccess.get_files_at("res://data/builds"):
 		if not file.ends_with(".tres"):
 			continue
@@ -192,7 +197,12 @@ func test_every_build_states_its_measure_and_id() -> void:
 		ids[build.id] = true
 		assert_str(build.display_name).override_failure_message(file).is_not_empty()
 		assert_int(build.min_count).override_failure_message(file).is_greater(0)
-	assert_int(ids.size()).is_equal(5)
+		if build.measure_only:
+			measure_only.append(build.id)
+	assert_int(ids.size()).is_equal(9)
+	assert_array(measure_only).contains_exactly_in_any_order(
+		[&"household_goods", &"pair_up", &"salvage", &"snack_lover"]
+	)
 
 
 ## Plan section 3.9: every inspection has an id matching its file name (unique), a name and a

@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="UpgradeDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/upgrades/upgrade_rule.gd" id="1_rule"]
+[ext_resource type="Script" path="res://core/upgrades/keyword_multiplier_rule.gd" id="2_rule_script"]
+[ext_resource type="Script" path="res://core/upgrade_definition.gd" id="3_upgrade"]
+[ext_resource type="Resource" path="res://data/upgrades/salvage_desk_lv3.tres" id="9_next_level"]
+
+[sub_resource type="Resource" id="Resource_rule"]
+script = ExtResource("2_rule_script")
+keyword = 2
+factor = 3
+receipt_text = "Salvage desk"
+
+[resource]
+script = ExtResource("3_upgrade")
+id = &"salvage_desk_lv2"
+icon_ref = "res://art/icons/perk_salvage_desk.png"
+display_name = "Salvage desk"
+type = 12
+effect_text = "WASTED items pay ×3"
+condition_text = "An item whose own rule fizzled, or one a Write-off wrote off"
+rules = Array[ExtResource("1_rule")]([SubResource("Resource_rule")])
+level = 2
+family_id = &"salvage_desk"
+next_level = ExtResource("9_next_level")
+boosts_tag = "Clearance"

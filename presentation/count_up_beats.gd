@@ -197,9 +197,13 @@ func _tag_added(beat: CountUpBeat, step: ScoreStep) -> void:
 		source = target
 	_fx.punch(source.body, 1.1)
 	var flight: float = minf(TAG_FLIGHT, _motion(beat) * 0.7)
-	await _fx.fly_text("+" + step.tag, from, _at(step.slot), Palette.LIGHT_TEXT, 24, flight)
+	# A write-off (v1.29) flies its label in and gives no tag: the item counts as WASTED.
+	var written_off: bool = step.step_type == ScoreStep.StepType.WRITTEN_OFF
+	var words: String = EffectLink.WRITTEN_OFF_WORD if written_off else "+" + step.tag
+	await _fx.fly_text(words, from, _at(step.slot), Palette.LIGHT_TEXT, 24, flight)
 	sfx.play("tag")
-	target.add_tag(step.tag)
+	if not written_off:
+		target.add_tag(step.tag)
 	_fx.punch(target.body, 1.15)
 
 

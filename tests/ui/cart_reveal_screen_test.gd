@@ -96,8 +96,12 @@ func test_the_opening_board_covers_the_stage_and_clocks_in() -> void:
 	assert_bool(board.get_global_rect().encloses(stage)).is_true()
 	screen.profile.set_reduced_motion(true)
 	# The baskets are dealt face up as the board opens (v1.07), so page 2 opens at once.
+	_open_boosters(board)
 	board.show_page(2, "enter")
 	assert_int(board.page).is_equal(2)
+	# The BADGE PINS step comes first (v1.32): confirm it with no pin, then pick.
+	board.staff.advance(0.2)
+	assert_bool(board.staff.primary()).is_true()
 	board.pick(0)
 	var pack: StarterPackDefinition = screen.run.start_offer.packs[0]
 	# Recorded after the screen's own handlers (connected first): shift 1 as the shutter covers
@@ -127,19 +131,25 @@ func test_the_opening_board_covers_the_stage_and_clocks_in() -> void:
 	assert_array(screen.run.row).is_empty()
 
 
-## The board's card tiles show the reveal's own scan popup after its hold (hover_hold_ms), over
-## the board and on the stage; leaving the tile hides it.
+## The board's cards show the reveal's own scan popup after its hold (hover_hold_ms), over the
+## board and on the stage; leaving the card hides it. On YOUR STORE (v1.32) the card is a landed
+## booster card under the pointer (the page's hover spot carries its "card" meta).
 func test_the_boards_cards_show_the_reveals_popup() -> void:
 	CartReveal.request()
 	var screen: ShiftScreen = await _screen()
 	var reveal: CartReveal = screen._cart_reveal
 	reveal.set_process(false)
-	var tile: Control = null
-	for node: Node in reveal.board.find_children("*", "Control", true, false):
-		var control: Control = node as Control
-		if tile == null and control.has_meta("card") and control.is_visible_in_tree():
-			tile = control
+	var store: BoosterPage = reveal.board.store
+	store.frozen = true
+	store.openings.roll_up()
+	store.openings.open_all("key")
+	for _step: int in 600:
+		store.advance(1.0 / 60.0)
+	store.mouse = BoosterArt.card_rect(store.boosters[0].cx, 0).get_center().floor()
+	store.advance(0.0)
+	var tile: Control = store.hovered_card()
 	assert_object(tile).is_not_null()
+	assert_bool(tile.has_meta("card")).is_true()
 	reveal.hover(tile)
 	reveal.hover_for(maxf(reveal.hover_hold_ms - 50, 0) / 1000.0)
 	assert_bool(reveal.popup().visible).is_equal(reveal.hover_hold_ms < 50)
@@ -161,3 +171,10 @@ func _screen() -> ShiftScreen:
 
 static func _event_log() -> EventLogService:
 	return Engine.get_main_loop().root.get_node("/root/EventLog")
+
+
+## Opens every dealt booster through the board's actions (page 1's job), so page 2's OPEN STORE
+## isn't held by a sealed booster.
+static func _open_boosters(board: StartBoard) -> void:
+	for index: int in board.run.start_setup.boosters.size():
+		board._choice.open_booster.call(index)

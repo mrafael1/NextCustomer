@@ -14,9 +14,14 @@ extends Control
 ## rows paper. PlanningLayer owns it: lay_out places it from the tickets' rects in the layer's
 ## coordinates. Decor only: it takes no clicks and never moves on its own.
 ##
+## Its bookends (BatchBookends, 2026-11-12, the approved batch_positions mock-up's A): a FIRST cap
+## on its left side when its first ticket is the batch's first, a LAST cap on its right side when
+## its last is the batch's last, lit by the job card hovered (focus) and played in the count
+## (fire), from the model's job cards (`readers`).
+##
 ## A Produce chain's frame (ChainFrame, #128 Produce links) is this frame in its own colours
 ## (paint_color) with its own parts in the gaps and round the frame (_place_parts, _add_under,
-## _add_parts) in place of the bars, drawn in draw order.
+## _add_parts) in place of the bars, drawn in draw order, and no bookends.
 
 ## What each drawn rect is painted (paint_color): the ink, the frame's face and light rows, and a
 ## chain's knot parts' face and light (ChainFrame).
@@ -49,14 +54,22 @@ const LIT_LIGHT := Palette.PAPER
 var slots: PackedInt32Array = PackedInt32Array()
 ## Its whole batch's slots, in slot order (the run's, or more when a link skips products).
 var batch: PackedInt32Array = PackedInt32Array()
+## Whether it wears the bookends (a chain's frame does not), the planning model whose job cards
+## they read and whether they move under reduced motion.
+var has_bookends: bool = true
+var readers: PlanningModel
+var reduced_motion: bool = false
 var _lit: bool = false
+var _bookends: BatchBookends
 ## The last layout, in the layer's coordinates: the frame and its bars; and the slot of each
 ## ticket it was laid out round, in order.
 var _frame_rect: Rect2 = Rect2()
 var _bar_rects: Array[Rect2] = []
 var _ticket_slots: PackedInt32Array = PackedInt32Array()
-## The slots the last layout skipped (a drag's ghost: no ticket on the belt).
+## The slots the last layout skipped (a drag's ghost: no ticket on the belt), and the slots with
+## a ticket on the belt in any frame (none given: this frame's).
 var _skipped: PackedInt32Array = PackedInt32Array()
+var _on_belt: PackedInt32Array = PackedInt32Array()
 ## The rects to draw (this control's coordinates) in draw order, each with its Paint: the
 ## frame's and its parts'.
 var _rects: Array[Rect2] = []
@@ -76,15 +89,17 @@ func _init(run_slots: PackedInt32Array, batch_slots: PackedInt32Array = PackedIn
 ## Places the frame round `tickets` (every ticket's rect from the batch's first to its last, in
 ## slot order, layer coordinates; `ticket_slots` their slots, none given: the run's slots), its
 ## foot at most at `foot_limit` (the counter edge); `skipped` the slots with no ticket on the
-## belt (a drag's ghost).
+## belt (a drag's ghost); `on_belt` the slots with a ticket on the belt in any frame.
 func lay_out(
 	tickets: Array[Rect2],
 	foot_limit: float,
 	ticket_slots: PackedInt32Array = PackedInt32Array(),
-	skipped: PackedInt32Array = PackedInt32Array()
+	skipped: PackedInt32Array = PackedInt32Array(),
+	on_belt: PackedInt32Array = PackedInt32Array()
 ) -> void:
 	_ticket_slots = ticket_slots if not ticket_slots.is_empty() else slots
 	_skipped = skipped
+	_on_belt = on_belt
 	_bar_rects.clear()
 	if tickets.is_empty():
 		_frame_rect = Rect2()
@@ -110,6 +125,7 @@ func lay_out(
 	size = _frame_rect.size
 	visible = true
 	_build()
+	_lay_out_bookends(tickets)
 
 
 ## Lights the frame and its parts (a BATCH chip of its batch hovered), or puts them back.
@@ -118,10 +134,29 @@ func set_lit(lit: bool) -> void:
 		return
 	_lit = lit
 	queue_redraw()
+	if _bookends != null:
+		_bookends.set_frame_lit(lit)
 
 
 func is_lit() -> bool:
 	return _lit
+
+
+## Its bookends (null before its first layout, or on a chain's frame).
+func bookends() -> BatchBookends:
+	return _bookends
+
+
+## Planning's hover: its bookends light what the job card at `slot` reads (-1: none).
+func focus(slot: int) -> void:
+	if _bookends != null:
+		_bookends.focus(slot)
+
+
+## The count: its bookends play `step`'s beat, on `make_tween`'s tweens (BatchBookends.fire).
+func fire(step: ScoreStep, make_tween: Callable = Callable()) -> void:
+	if _bookends != null and visible:
+		_bookends.fire(step, make_tween)
 
 
 ## The frame's outer rect at the last layout, in the layer's coordinates.
@@ -286,6 +321,28 @@ func _build() -> void:
 	_add_band_ring(outer, INK_WIDTH, MUSTARD_WIDTH)
 	_add_parts(origin)
 	queue_redraw()
+
+
+## Lays the bookends out round `tickets` (layer coordinates, the last layout's): the FIRST cap when
+## its first ticket is the batch's first, the LAST cap when its last is the batch's last. A drag's
+## ghost at the batch's end of this run keeps that end's cap (and drip) at the frame's end.
+func _lay_out_bookends(tickets: Array[Rect2]) -> void:
+	if not has_bookends:
+		return
+	if _bookends == null:
+		_bookends = BatchBookends.new(batch)
+		_bookends.set_frame_lit(_lit)
+		add_child(_bookends)
+	_bookends.model = readers
+	_bookends.reduced_motion = reduced_motion
+	var centers: Dictionary[int, float] = {}
+	for index: int in range(mini(tickets.size(), _ticket_slots.size())):
+		centers[_ticket_slots[index]] = tickets[index].get_center().x - _frame_rect.position.x
+	var first: bool = not _ticket_slots.is_empty() and _ticket_slots[0] == batch[0]
+	var last: bool = not _ticket_slots.is_empty() and _ticket_slots[-1] == batch[-1]
+	first = first or _skipped.has(batch[0]) and slots.has(batch[0])
+	last = last or _skipped.has(batch[-1]) and slots.has(batch[-1])
+	_bookends.lay_out(_frame_rect.size, _frame_rect.position, centers, first, last, _on_belt)
 
 
 ## Each of `rects` cut to `clip` (the empty ones dropped).

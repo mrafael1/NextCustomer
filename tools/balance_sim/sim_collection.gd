@@ -1,19 +1,16 @@
 class_name SimCollection
 extends RefCounted
 ## A collection state for the balance simulator (full build plan sections 7.2 and 8): the
-## unlocked capsule items, the run index and the shopping list a run's stock is built from
+## unlocked capsule items and the shopping list a run's stock is built from
 ## (RunStock.build). Decided with the user (#40): a profile save file (--profile), the full
 ## collection (--collection=full) and the list (--list) give one; the list gate (--list-gate)
 ## makes every state it checks.
-##
-## The full collection and the gate's states unlock items at run index 0 and build the run at
-## index end_cap_window_runs + 1, so their stocks have no new arrivals: the gate compares lists,
-## and arrivals would only add noise.
 
 ## What the report calls this state, e.g. "fresh profile" or "full: cold_cases+pantry".
 var label: String = ""
 ## Unlocked capsule item id -> the run index it came out at (RunStock's `unlocked`).
 var unlocked: Dictionary[StringName, int] = {}
+## The profile's run count (a profile state's label only; 0 otherwise).
 var run_index: int = 0
 ## The shopping list (aisle ids); used only when the stock needs one.
 var listed: Array[StringName] = []
@@ -22,7 +19,7 @@ var listed: Array[StringName] = []
 var group: String = ""
 
 
-## A new profile: nothing unlocked, run index 0.
+## A new profile: nothing unlocked.
 static func fresh() -> SimCollection:
 	var state: SimCollection = SimCollection.new()
 	state.label = "fresh profile"
@@ -35,7 +32,6 @@ static func full(balance: BalanceDefinition, list: Array[StringName]) -> SimColl
 	for aisle: AisleDefinition in balance.aisles:
 		for card: CardDefinition in aisle.capsule_cards:
 			state.unlocked[card.id] = 0
-	state.run_index = balance.end_cap_window_runs + 1
 	state.listed = list.duplicate()
 	state.label = "full collection" + _list_text(state, balance)
 	return state
@@ -87,7 +83,7 @@ func problem(balance: BalanceDefinition) -> String:
 
 
 func stock(balance: BalanceDefinition) -> RunStock:
-	return RunStock.build(balance, listed, unlocked, run_index)
+	return RunStock.build(balance, listed, unlocked)
 
 
 ## Every state the list gate checks (plan section 8), in this order: every legal list at full
@@ -146,7 +142,6 @@ static func _with_lists(
 			continue
 		var state: SimCollection = SimCollection.new()
 		state.unlocked = unlocked_items.duplicate()
-		state.run_index = balance.end_cap_window_runs + 1
 		state.listed.assign(list)
 		state.group = group_name
 		state.label = group_name + _list_text(state, balance)

@@ -1,6 +1,7 @@
 extends GdUnitTestSuite
-## The opening board draws three stocked aisles on its named stream and leaves last_list
-## untouched. Replaying the seed keeps the stock; a new profile stocks its three base aisles.
+## The opening board draws its two stocked aisles (its boosters'; v1.32 feedback) on its named
+## stream and leaves last_list untouched. Replaying the seed keeps the stock; a new profile stocks
+## two of its three base aisles, never a third.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 
@@ -21,7 +22,7 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-func test_the_opening_board_stocks_its_seeded_three_aisles() -> void:
+func test_the_opening_board_stocks_its_seeded_two_aisles() -> void:
 	var profile: ProfileState = ProfileState.new()
 	profile.run_count = 3
 	profile.unlocked_items = {&"cream": 0, &"sugar_cubes": 1, &"egg_timer": 2}
@@ -39,7 +40,7 @@ func test_the_opening_board_stocks_its_seeded_three_aisles() -> void:
 	for aisle: AisleDefinition in balance.aisles:
 		if drawn.has(aisle.id):
 			expected.append(aisle.id)
-	assert_int(expected.size()).is_equal(balance.stock_aisle_count)
+	assert_int(expected.size()).is_equal(balance.dealt_aisle_count)
 	assert_array(screen.run.start_setup.stock_aisles).is_equal(drawn)
 	assert_array(screen.run.stock.aisle_ids).is_equal(expected)
 	assert_bool(screen.run.stock.list_skipped).is_false()
@@ -53,11 +54,15 @@ func test_the_opening_board_stocks_its_seeded_three_aisles() -> void:
 	assert_array(SaveService.new(_folder).load_profile().last_list).is_empty()
 
 
-func test_a_fresh_profile_stocks_every_base_aisle() -> void:
+func test_a_fresh_profile_stocks_two_base_aisles() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
 	assert_bool(screen.run.stock.list_skipped).is_false()
-	assert_array(screen.run.stock.aisle_ids).is_equal([&"cold_cases", &"pantry", &"household"])
+	var aisles: Array[StringName] = screen.run.stock.aisle_ids
+	assert_int(aisles.size()).is_equal(2)
+	for id: StringName in aisles:
+		assert_bool([&"cold_cases", &"pantry", &"household"].has(id)).is_true()
+	assert_array(aisles).is_equal(screen.run.start_setup.stock_aisles)
 	assert_array(screen.profile.last_list).is_empty()
 
 

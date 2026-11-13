@@ -27,8 +27,11 @@ extends RefCounted
 ## Version 4 adds staple_swaps, stock_pair and the optional stock_run_only (the opening-time
 ## board's last choice); older profiles read with none set. Version 5 (v1.08) drops staple_swaps:
 ## regular swaps belong to their run only (the user: "swap should reset at each new run"), so a
-## version 4 profile's saved swaps are read past and never applied.
-const FORMAT_VERSION := 5
+## version 4 profile's saved swaps are read past and never applied. Version 6 (v1.30) adds
+## new_figurines (figurines drawn and not yet seen in the FIGURINE BOOK); older profiles read
+## with nothing new. Version 7 (v1.30 round 10) adds perk_levels (the loyalty perks picked in
+## ended runs, highest level each); older profiles read with no perk collected.
+const FORMAT_VERSION := 7
 ## The settings key of the count-up's speed (full build plan 6.2): COUNT_UP_NORMAL or
 ## COUNT_UP_FAST, read with count_up_speed().
 const COUNT_UP_SPEED_KEY := "count_up_speed"
@@ -65,11 +68,16 @@ var run_count: int = 0
 ## Unlocked capsule items: id -> the run index at whose exit it came out, in draw order
 ## (RunStock's `unlocked`).
 var unlocked_items: Dictionary[StringName, int] = {}
+## Capsule items drawn but not yet seen in the FIGURINE BOOK (v1.30: its button's NEW tag), in
+## draw order. draw_capsule adds the item; mark_figurines_seen takes items off.
+var new_figurines: Array[StringName] = []
 ## The last shopping list (aisle ids), the next list's default (full build plan 7.2).
 var last_list: Array[StringName] = []
-## The opening-time board's saved deal-source pair (its two STARTER CART aisles).
+## The opening-time board's saved deal-source pair (its two STARTER CART aisles). Unused since
+## v1.32 (PICK 2 OF 3 picks the pair each run); still read and saved so the format is unchanged.
 var stock_pair: Array[StringName] = []
-## The opening-time board's last RUN ONLY aisle ("" for none).
+## The opening-time board's last third aisle ("" for none). Unused since v1.32 (a run stocks only
+## its boosters' two aisles); still read and saved so the format is unchanged.
 var stock_run_only: StringName = &""
 ## Decks and card variants unlocked by their condition (plan 7.3). One without a condition is
 ## available from the start and never listed here.
@@ -85,6 +93,9 @@ var pins_bought: int = 0
 ## Coupon uses in ended runs, by card id (USE_COUPON_TIMES unlocks: UnlockCheck's
 ## earlier_uses).
 var coupon_uses: Dictionary[StringName, int] = {}
+## The highest loyalty level picked from the machine per perk (its LV 1 id) in runs that ended,
+## for the FIGURINE BOOK's PERKS (v1.30 round 10; PerkLevels.picked_levels).
+var perk_levels: Dictionary[StringName, int] = {}
 ## Long animations already seen once (first-seen flags), by id.
 var seen: Array[StringName] = []
 ## Unlocked achievements by id; their content comes later.
@@ -147,9 +158,9 @@ func set_reduced_motion(on: bool) -> void:
 
 ## Records a run that ended (won or lost; anything else is ignored and returns nothing):
 ## checks every locked deck's, variant's and badge pin's condition with the coupon uses and wins
-## from before this run, then adds the run's coins (CoinPayout) and coupon uses and counts the
-## run. Returns the ids unlocked now, decks first, then variants and pins, each in catalogue
-## order.
+## from before this run, then adds the run's coins (CoinPayout) and coupon uses, keeps the
+## highest level of each loyalty perk it picked (perk_levels; never lowered) and counts the run.
+## Returns the ids unlocked now, decks first, then variants and pins, each in catalogue order.
 func record_run(run: RunState, catalogue: CatalogueDefinition) -> Array[StringName]:
 	var unlocked_now: Array[StringName] = []
 	if run.phase != RunState.Phase.WON and run.phase != RunState.Phase.LOST:
@@ -175,6 +186,9 @@ func record_run(run: RunState, catalogue: CatalogueDefinition) -> Array[StringNa
 	var uses: Dictionary[StringName, int] = UnlockCheck.coupon_uses(run.history)
 	for id: StringName in uses:
 		coupon_uses[id] = coupon_uses.get(id, 0) + uses[id]
+	var picked: Dictionary[StringName, int] = PerkLevels.picked_levels(run.history)
+	for id: StringName in picked:
+		perk_levels[id] = maxi(perk_levels.get(id, 0), picked[id])
 	if run.phase == RunState.Phase.WON:
 		stats[RUNS_WON] = int(stats.get(RUNS_WON, 0)) + 1
 	run_count += 1
@@ -200,8 +214,9 @@ func set_capsule_seed(seed_value: int) -> bool:
 
 ## The run index a capsule drawn now comes out at (RunStock's `unlocked`, full build plan 7.1):
 ## the run that just ended (run_count - 1) on the results or on the title with no saved run, or
-## the saved run's own index (run_count) on the title while a run is saved (#63 default (a): the
-## item rides the runs after the saved one). -1 before any run has ended (debug coins only).
+## the saved run's own index (run_count) on the title while a run is saved (#63 default (a)).
+## -1 before any run has ended (debug coins only). Only recorded since v1.32: the item is in a
+## run's stock whenever the run stocks its aisle, whatever its index.
 func capsule_run_index(has_saved_run: bool) -> int:
 	return run_count if has_saved_run else run_count - 1
 
@@ -223,6 +238,8 @@ func draw_capsule(
 	var card: CardDefinition = CapsuleDraw.draw(aisle, unlocked_items, rng)
 	coins -= price
 	unlocked_items[card.id] = run_index
+	if not new_figurines.has(card.id):
+		new_figurines.append(card.id)
 	capsule_draws += 1
 	return card
 
@@ -232,7 +249,19 @@ func draw_capsule(
 func undo_capsule(card: CardDefinition, price: int, previous_draws: int) -> void:
 	if unlocked_items.erase(card.id):
 		coins += price
+	new_figurines.erase(card.id)
 	capsule_draws = previous_draws
+
+
+## Takes `ids` off the new figurines (seen in the book). Returns whether anything changed (the
+## caller saves then).
+func mark_figurines_seen(ids: Array[StringName]) -> bool:
+	var changed: bool = false
+	for id: StringName in ids:
+		while new_figurines.has(id):
+			new_figurines.erase(id)
+			changed = true
+	return changed
 
 
 ## The unlocked items that are capsule items of the balance's aisles (the FIGURINES count).
@@ -259,6 +288,7 @@ func unlock_all_capsules(balance: BalanceDefinition, run_index: int) -> void:
 ## restarts at 0, so the same draws come out again.
 func reset_collection() -> void:
 	unlocked_items.clear()
+	new_figurines.clear()
 	capsule_draws = 0
 	last_list.clear()
 	stock_pair.clear()
@@ -276,12 +306,14 @@ func to_dictionary() -> Dictionary:
 		"coins": coins,
 		"run_count": run_count,
 		"unlocked_items": items,
+		"new_figurines": _strings(new_figurines),
 		"last_list": _strings(last_list),
 		"stock_pair": _strings(stock_pair),
 		"stock_run_only": String(stock_run_only),
 		"unlocked_decks": _strings(unlocked_decks),
 		"unlocked_variants": _strings(unlocked_variants),
 		"coupon_uses": _string_keys(coupon_uses),
+		"perk_levels": _string_keys(perk_levels),
 		"seen": _strings(seen),
 		"achievements": _strings(achievements),
 		"stats": _string_keys(stats),
@@ -298,7 +330,9 @@ func to_dictionary() -> Dictionary:
 ## isn't a profile this version can read: a missing or newer format version, or a field of
 ## the wrong type (a capsule seed that isn't "" or a decimal of 0 or more). Version 1 reads
 ## with no capsule seed and 0 draws, version 2 with no pins, version 4's staple_swaps are
-## ignored. Unknown fields are ignored; missing fields keep their defaults.
+## ignored, version 5 and older with no new figurines, version 6 and older with no perks
+## collected. Unknown fields are ignored; missing
+## fields keep their defaults.
 static func from_dictionary(data: Dictionary) -> ProfileState:
 	var version: Variant = data.get("format_version")
 	if not _is_whole(version) or int(version) < 1 or int(version) > FORMAT_VERSION:
@@ -308,6 +342,7 @@ static func from_dictionary(data: Dictionary) -> ProfileState:
 	ok = ok and _read_int(data, "coins", profile, "coins")
 	ok = ok and _read_int(data, "run_count", profile, "run_count")
 	ok = ok and _read_items(data.get("unlocked_items", []), profile.unlocked_items)
+	ok = ok and _read_names(data.get("new_figurines", []), profile.new_figurines)
 	ok = ok and _read_names(data.get("last_list", []), profile.last_list)
 	ok = ok and _read_names(data.get("stock_pair", []), profile.stock_pair)
 	var run_only: Variant = data.get("stock_run_only", "")
@@ -317,6 +352,7 @@ static func from_dictionary(data: Dictionary) -> ProfileState:
 	ok = ok and _read_names(data.get("unlocked_decks", []), profile.unlocked_decks)
 	ok = ok and _read_names(data.get("unlocked_variants", []), profile.unlocked_variants)
 	ok = ok and _read_counts(data.get("coupon_uses", {}), profile.coupon_uses)
+	ok = ok and _read_counts(data.get("perk_levels", {}), profile.perk_levels)
 	ok = ok and _read_names(data.get("seen", []), profile.seen)
 	ok = ok and _read_names(data.get("achievements", []), profile.achievements)
 	ok = ok and _read_counts(data.get("stats", {}), profile.stats)

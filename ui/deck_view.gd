@@ -25,9 +25,9 @@ extends PanelContainer
 ##
 ## The Run info page shows the run at a glance (RunInfoHero: the run family's card, the aisles in
 ## stock, the cart's families as big tiles), then the run's stock: every item the RECEIPT REWARDS
-## machine can offer, products then coupons under their shelf labels, new arrivals with a NEW chip.
-## Its shelves scroll. The upgrades (the top bar's LOYALTY card) and the inspections (the day
-## calendar and slip) show elsewhere, so it repeats neither.
+## machine can offer, products then coupons under their shelf labels. Its shelves scroll. The
+## upgrades (the top bar's LOYALTY card) and the inspections (the day calendar and slip) show
+## elsewhere, so it repeats neither.
 ##
 ## Hovering an item opens the scan popup (ScanPopup, as on the machine's prizes) beside it with
 ## its rule text in full. The mix highlight (#105 piece 3, MixModel; mock-up readability v3's Cart)
@@ -132,7 +132,6 @@ var _deck_grid: VBoxContainer
 var _info_grid: VBoxContainer
 var _deck_groups: Array[DeckSummary.Group] = []
 var _stock_groups: Array[DeckSummary.Group] = []
-var _arrivals: Array[CardDefinition] = []
 var _deck_icons: Array[FamilyCount] = []
 var _info_icons: Array[FamilyCount] = []
 var _run: RunState
@@ -522,7 +521,7 @@ func _fill_deck_grid(family: String) -> void:
 	_deck_grid_family = family
 	var filtered: bool = not family.is_empty()
 	var groups: Array[DeckSummary.Group] = _of_family(_deck_groups, family)
-	_shelves = _shelve(_deck_grid, groups, 1 if filtered else MIN_SHELVES, true, [], filtered)
+	_shelves = _shelve(_deck_grid, groups, 1 if filtered else MIN_SHELVES, true, filtered)
 	_hold_height(_deck_grid, _shelves.size(), filtered)
 	if not _choosing and not filtered:
 		_note_room(_run)
@@ -534,7 +533,7 @@ func _fill_info_grid(family: String) -> void:
 	_info_grid_family = family
 	var groups: Array[DeckSummary.Group] = _of_family(_stock_groups, family)
 	var filtered: bool = not family.is_empty()
-	var shelves: int = _shelve(_info_grid, groups, 1, false, _arrivals, filtered).size()
+	var shelves: int = _shelve(_info_grid, groups, 1, false, filtered).size()
 	_hold_height(_info_grid, shelves, filtered)
 
 
@@ -596,14 +595,9 @@ func _tag_chips(cards: Array[CardInstance]) -> HBoxContainer:
 ## the first slot, the coupons at the end of the last shelf (shelf_slots; right after the products
 ## when `packed`, the family filter's), each section under its shelf label. `cart`: the Cart
 ## page's (its cells get their START chips and copies, and the slots they take are kept for
-## placing mode); else the stock's (the `arrivals` get their NEW chip).
+## placing mode); else the stock's.
 func _shelve(
-	page: Control,
-	groups: Array[DeckSummary.Group],
-	least: int,
-	cart: bool,
-	arrivals: Array[CardDefinition] = [],
-	packed: bool = false
+	page: Control, groups: Array[DeckSummary.Group], least: int, cart: bool, packed: bool = false
 ) -> Array[DeckShelf]:
 	var products: Array[DeckSummary.Group] = []
 	var coupons: Array[DeckSummary.Group] = []
@@ -633,8 +627,6 @@ func _shelve(
 		var product: StringName = group.card.product_card().id
 		if cart and _sources.has(product):
 			cell.add_start_mark(_sources[product])
-		if not cart and arrivals.has(group.card):
-			cell.add_new_mark()
 		shelf.put(cell, slot % COLUMNS)
 	return shelves
 
@@ -752,7 +744,6 @@ func _fill_info_page(run: RunState) -> void:
 	for card: CardDefinition in run.stock.cards:
 		stock.append(CardInstance.new(card, 0))
 	_stock_groups = DeckSummary.groups(stock)
-	_arrivals = run.stock.new_arrivals
 	_info_grid = _grid(_info_page)
 	_fill_info_grid("")
 	_info_page.add_child(_spacer_height(STOCK_GAP))

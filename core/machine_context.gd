@@ -1,8 +1,8 @@
 class_name MachineContext
 extends RefCounted
 ## A frozen snapshot of the run that one machine draw reads (#77, build spec 1.5): the stocked
-## products, the coupon pool, the owned upgrades, the deck, the first-draw flags, the newest new
-## arrival and whether the visit is PREMIUM (#108). RewardMachine builds one from the run
+## products, the coupon pool, the owned upgrades, the deck, the first coupon draw's flag and
+## whether the visit is PREMIUM (#108). RewardMachine builds one from the run
 ## (from_run); tests build their own. The pools and guarantees are computed once per context and
 ## kept on it (never in a static cache), so drawing many times from one state reads them once.
 
@@ -20,10 +20,6 @@ var owned: Array[UpgradeDefinition] = []
 var deck: Deck
 ## The run's first coupon draw (NEW ITEMS): its coupon drops draw from the first-offer pool only.
 var first_coupons: bool = false
-## The run's first NEW ITEMS draw: it holds `new_arrival` (when the machine says so).
-var first_new_items: bool = false
-## The stock's newest new arrival, or null.
-var new_arrival: CardDefinition
 ## The coupons the run's first coupon draw is restricted to (those also in `coupons`).
 var first_offer_pool: Array[CardDefinition] = []
 ## A PREMIUM visit (#108): MachineDefinition.premium_min_rarity applies.
@@ -34,13 +30,12 @@ var _pools: Dictionary = {}
 var _guarantees: Dictionary = {}
 
 
-## The snapshot of a run for its machine. `coupons_first_done` / `new_items_first_done` are the
-## machine's flags (a first draw is one whose flag isn't spent yet); `premium_visit`: the visit's.
+## The snapshot of a run for its machine. `coupons_first_done` is the machine's flag (the first
+## coupon draw is the one before it is spent); `premium_visit`: the visit's.
 static func from_run(
 	run: RunState,
 	machine_definition: MachineDefinition,
 	coupons_first_done: bool,
-	new_items_first_done: bool,
 	premium_visit: bool = false
 ) -> MachineContext:
 	var context: MachineContext = MachineContext.new()
@@ -56,17 +51,16 @@ static func from_run(
 	context.deck = Deck.new(null)
 	context.deck.cards = run.deck.cards.duplicate()
 	context.first_coupons = not coupons_first_done
-	context.first_new_items = not new_items_first_done
 	context.premium = premium_visit
 	context.card_full = RewardMachine.registers_picked(run) >= machine_definition.register_cap
-	if not run.stock.new_arrivals.is_empty():
-		context.new_arrival = run.stock.new_arrivals[0]
 	return context
 
 
-## The deck's cards as definitions (what a perk's "fits" reads).
+## The deck's cards as definitions (what a perk's "fits" reads); none without a deck.
 func deck_cards() -> Array[CardDefinition]:
 	var found: Array[CardDefinition] = []
+	if deck == null:
+		return found
 	for card: CardInstance in deck.cards:
 		found.append(card.definition)
 	return found
@@ -79,21 +73,22 @@ func stocks(upgrade: UpgradeDefinition) -> bool:
 	if upgrade.needs_card != null:
 		return cards.any(upgrade.needs_card.is_same_product)
 	if not upgrade.boosts_tag.is_empty():
-		return cards.any(
-			func(card: CardDefinition) -> bool:
-				return card.is_product() and card.tags.has(upgrade.boosts_tag)
-		)
+		return has_family(upgrade.boosts_tag, cards)
 	return true
 
 
-## Whether this context's NEW ITEMS draw holds the new arrival (build spec 1.5, Q4): one it can
-## draw (drawn_products).
-func holds_new_arrival() -> bool:
-	return (
-		machine.new_arrival_first_visit
-		and first_new_items
-		and new_arrival != null
-		and drawn_products().has(new_arrival)
+## Whether the machine can offer `coupon` (v1.29): one with a `needs_tag` (Party pack) needs a
+## stocked product or a deck card of that family, as a family perk does (stocks).
+func offers(coupon: CardDefinition) -> bool:
+	if coupon.needs_tag.is_empty():
+		return true
+	return has_family(coupon.needs_tag, products + deck_cards())
+
+
+## Whether one of `cards` is a product with `tag`.
+static func has_family(tag: String, cards: Array[CardDefinition]) -> bool:
+	return cards.any(
+		func(card: CardDefinition) -> bool: return card.is_product() and card.tags.has(tag)
 	)
 
 
@@ -108,13 +103,12 @@ func drawn_products() -> Array[CardDefinition]:
 
 
 ## The coupons NEW ITEMS' coupon drops draw from: on the run's first coupon draw only those in the
-## first-offer pool (#36's first offer), else the coupon pool.
+## first-offer pool (#36's first offer), else the coupon pool; either way only those the run can be
+## offered (offers, v1.29: Party pack needs a Snack).
 func coupon_candidates() -> Array[CardDefinition]:
-	if not first_coupons:
-		return coupons
 	var found: Array[CardDefinition] = []
-	for card: CardDefinition in first_offer_pool:
-		if coupons.has(card):
+	for card: CardDefinition in first_offer_pool if first_coupons else coupons:
+		if (not first_coupons or coupons.has(card)) and offers(card):
 			found.append(card)
 	return found
 

@@ -17,8 +17,8 @@ func test_lists_are_every_combination_in_aisle_order() -> void:
 	assert_array(SimCollection.lists(aisles, 4)).is_empty()
 
 
-## The full collection unlocks every capsule item and has no new arrivals.
-func test_full_collection_stocks_the_listed_aisles_without_arrivals() -> void:
+## The full collection unlocks every capsule item; only the listed aisles' are stocked.
+func test_full_collection_stocks_the_listed_aisles() -> void:
 	var balance: BalanceDefinition = _balance()
 	var state: SimCollection = SimCollection.full(balance, [&"dairy", &"deli"])
 	assert_str(state.label).is_equal("full collection: dairy+deli")
@@ -26,7 +26,6 @@ func test_full_collection_stocks_the_listed_aisles_without_arrivals() -> void:
 	assert_str(state.problem(balance)).is_empty()
 	var stock: RunStock = state.stock(balance)
 	assert_array(stock.aisle_ids).is_equal([&"dairy", &"deli"])
-	assert_array(stock.new_arrivals).is_empty()
 	assert_array(_ids(stock.cards)).is_equal(
 		[
 			"banana",
@@ -46,7 +45,8 @@ func test_full_collection_stocks_the_listed_aisles_without_arrivals() -> void:
 	)
 
 
-## A profile's unlocked items, run count and last list build the stock the game would build.
+## A profile's unlocked items and last list build the stock the game would build: an item of an
+## aisle that isn't stocked (deli, not listable yet) is left out however new it is (v1.32).
 func test_a_profile_builds_the_games_next_stock() -> void:
 	var balance: BalanceDefinition = _balance()
 	var profile: ProfileState = ProfileState.new()
@@ -56,9 +56,9 @@ func test_a_profile_builds_the_games_next_stock() -> void:
 	assert_str(state.label).is_equal("profile (run 2) (list skipped)")
 	var stock: RunStock = state.stock(balance)
 	assert_bool(stock.list_skipped).is_true()
-	assert_array(_ids(stock.new_arrivals)).is_equal(["d1"])
+	assert_bool(_ids(stock.cards).has("d1")).is_false()
 	assert_bool(_ids(stock.cards).has("milk")).is_true()
-	var expected: RunStock = RunStock.build(balance, [], profile.unlocked_items, 2)
+	var expected: RunStock = RunStock.build(balance, [], profile.unlocked_items)
 	assert_array(_ids(stock.cards)).is_equal(_ids(expected.cards))
 
 
@@ -123,7 +123,6 @@ func test_gate_states() -> void:
 	assert_array(states[4].unlocked.keys()).is_equal([&"d1", &"d2"])
 	for state: SimCollection in states:
 		assert_str(state.problem(balance)).override_failure_message(state.label).is_empty()
-		assert_array(state.stock(balance).new_arrivals).is_empty()
 
 
 ## Within the budget a gate state is one state, its list skipped.
@@ -435,8 +434,6 @@ static func _balance() -> BalanceDefinition:
 	for id: String in ["banana", "bread", "eggs"]:
 		balance.staples.append(_card(id))
 	balance.aisle_listable_min = 2
-	balance.end_cap_max = 3
-	balance.end_cap_window_runs = 3
 	balance.aisles.append(_aisle(&"dairy", ["cheese"], [_card("milk"), _card("coffee")]))
 	balance.aisles.append(_aisle(&"pantry", ["soup"], [_card("frozen_peas")]))
 	var deli: Array[CardDefinition] = []

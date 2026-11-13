@@ -61,10 +61,9 @@ func test_odds_equal_the_approved_draw() -> void:
 
 
 ## 60 seeded random small mixed pools with every extension on (perk fits, level-ups, a full card,
-## the new arrival held, the first coupon draw, chains with tiers, a PREMIUM floor, products with
-## draw weights 0 to 3), random weights, floors and drop kinds: the class enumeration equals a
-## prize-by-prize enumeration of MachineDraw's own steps (drop_kind, land, pick, swaps,
-## swap_weights, new_arrival_swap).
+## the first coupon draw, chains with tiers, a PREMIUM floor, products with draw weights 0 to 3),
+## random weights, floors and drop kinds: the class enumeration equals a prize-by-prize
+## enumeration of MachineDraw's own steps (drop_kind, land, pick, swaps, swap_weights).
 func test_classes_equal_a_prize_by_prize_enumeration() -> void:
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = 108
@@ -87,7 +86,7 @@ func test_odds_add_up_and_use_no_rng() -> void:
 	var machine: MachineDefinition = _balance.machine
 	var checked: int = 0
 	for premium: bool in [false, true]:
-		var context: MachineContext = MachineContext.from_run(run, machine, false, false, premium)
+		var context: MachineContext = MachineContext.from_run(run, machine, false, premium)
 		for chute: int in RewardMachine.CHUTES:
 			for level: int in range(machine.max_level() + 1):
 				var odds: MachineOddsCard = MachineOdds.card(chute, context, level)
@@ -145,7 +144,7 @@ func test_item_upgrades_without_plain_copies_note_the_floor_falling() -> void:
 	assert_float(printed[0] + printed[1] + printed[2]).is_equal_approx(1.0, EXACT)
 	assert_array(single_odds.notes).contains([MachineOddsCard.NOTE_FLOOR_FALLS])
 	# A fresh NEW ITEMS draw meets its floor: no note.
-	var fresh: MachineContext = MachineContext.from_run(_fresh_run(), machine, false, true)
+	var fresh: MachineContext = MachineContext.from_run(_fresh_run(), machine, false)
 	var met: MachineOddsCard = MachineOdds.card(RewardMachine.Chute.NEW_ITEMS, fresh, top)
 	assert_array(met.notes).not_contains([MachineOddsCard.NOTE_FLOOR_FALLS])
 
@@ -156,7 +155,7 @@ func test_item_upgrades_without_plain_copies_note_the_floor_falling() -> void:
 ## coupons, none LEGENDARY), and each product key's rarity is its card's tier.
 func test_fresh_new_items_frequencies_match_the_card() -> void:
 	var run: RunState = _fresh_run()
-	var context: MachineContext = MachineContext.from_run(run, _balance.machine, false, true)
+	var context: MachineContext = MachineContext.from_run(run, _balance.machine, false)
 	for level: int in range(4):
 		var odds: MachineOddsCard = _assert_frequencies(
 			RewardMachine.Chute.NEW_ITEMS, context, level, 20000, "fresh NEW ITEMS %d" % level
@@ -179,9 +178,8 @@ func test_fresh_new_items_frequencies_match_the_card() -> void:
 
 
 ## The other NEW ITEMS states (5,000 draws each): a two-aisle stock without upgrade chains (so no
-## LEGENDARY product), the first NEW ITEMS draw with a new arrival (held, at one of its tiers), the
-## first coupon draw and a later one (one coupon a draw), a PREMIUM draw (RARE or better, so every
-## product BIG or better) and a stock with draw weights 0, 1 and 3.
+## LEGENDARY product), the first coupon draw and a later one (one coupon a draw), a PREMIUM draw
+## (RARE or better, so every product BIG or better) and a stock with draw weights 0, 1 and 3.
 func test_other_new_items_frequencies_match_the_card() -> void:
 	var machine: MachineDefinition = _balance.machine
 	var run: RunState = _fresh_run()
@@ -191,7 +189,7 @@ func test_other_new_items_frequencies_match_the_card() -> void:
 	var no_chains: MachineDefinition = machine.duplicate()
 	var none: Array[ItemUpgradeDefinition] = []
 	no_chains.item_upgrades = none
-	var no_legendary: MachineContext = MachineContext.from_run(two_aisles, no_chains, false, true)
+	var no_legendary: MachineContext = MachineContext.from_run(two_aisles, no_chains, false)
 	var products: Array[MachinePrize] = no_legendary.pools(RewardMachine.Chute.NEW_ITEMS)[2]
 	assert_array(products).is_empty()
 	for level: int in [0, 3]:
@@ -200,28 +198,9 @@ func test_other_new_items_frequencies_match_the_card() -> void:
 		)
 		assert_array(plain_odds.notes).contains([MachineOddsCard.NOTE_LEGENDARY_NONE_IN_STOCK])
 		assert_float(plain_odds.p_legendary).is_equal(0.0)
-	# The first NEW ITEMS draw holds a new arrival (Lemon, at any of its tiers).
-	var arrival: RunState = _fresh_run()
-	var lemon: CardDefinition = load("%s/lemon.tres" % CARDS_DIR)
-	var cards: Array[CardDefinition] = arrival.stock.cards.duplicate()
-	cards.append(lemon)
-	var arrivals: Array[CardDefinition] = [lemon]
-	arrival.stock = RunStock.from_saved(cards, arrival.stock.aisle_ids, true, arrivals)
-	var held: MachineContext = MachineContext.from_run(arrival, machine, false, false)
-	for level: int in [0, 3]:
-		var odds: MachineOddsCard = _assert_frequencies(
-			RewardMachine.Chute.NEW_ITEMS, held, level, 5000, "new arrival"
-		)
-		var lemon_chance: float = 0.0
-		var lemon_ids: Array[String] = ["lemon", "lemon_big", "lemon_golden"]
-		for tier: int in lemon_ids.size():
-			lemon_chance += odds.in_draw.get("product:%s:%d" % [lemon_ids[tier], tier], 0.0)
-		assert_float(lemon_chance).is_equal_approx(1.0, EXACT)
-		assert_float(odds.in_draw.get("product:lemon_golden:2", 0.0)).is_greater(0.0)
-		assert_array(odds.notes).contains([MachineOddsCard.NOTE_NEW_ARRIVAL_HELD])
 	# The first coupon draw and a later one: one coupon a draw, first-offer ones first.
 	for first_done: bool in [false, true]:
-		var coupons: MachineContext = MachineContext.from_run(run, machine, first_done, true)
+		var coupons: MachineContext = MachineContext.from_run(run, machine, first_done)
 		for level: int in [0, 2]:
 			var odds: MachineOddsCard = _assert_frequencies(
 				RewardMachine.Chute.NEW_ITEMS, coupons, level, 5000, "coupons"
@@ -235,7 +214,7 @@ func test_other_new_items_frequencies_match_the_card() -> void:
 						assert_bool(_balance.first_offer_pool.has(card)).is_true()
 			assert_float(coupon_chance).is_equal_approx(1.0, EXACT)
 	# PREMIUM: every drop RARE or better, so every product BIG or better.
-	var premium: MachineContext = MachineContext.from_run(run, machine, true, true, true)
+	var premium: MachineContext = MachineContext.from_run(run, machine, true, true)
 	for level: int in [0, 3]:
 		var odds: MachineOddsCard = _assert_frequencies(
 			RewardMachine.Chute.NEW_ITEMS, premium, level, 5000, "premium"
@@ -258,7 +237,7 @@ func test_other_new_items_frequencies_match_the_card() -> void:
 ## at 3 shows more than twice the chance of the one at 1 on the odds card, the one at 0 never
 ## shows; the forward draws agree.
 func _assert_weighted_frequencies(run: RunState) -> void:
-	var context: MachineContext = MachineContext.from_run(run, _balance.machine, true, true)
+	var context: MachineContext = MachineContext.from_run(run, _balance.machine, true)
 	var stocked: Array[CardDefinition] = []
 	var plain_ids: Array[StringName] = []
 	for card: CardDefinition in context.products:
@@ -294,13 +273,13 @@ func test_upgrade_frequencies_match_the_card() -> void:
 	for index: int in 3:
 		var perks: RunState = _fresh_run()
 		perks.upgrades = owned.duplicate()
-		var context: MachineContext = MachineContext.from_run(perks, machine, false, false)
+		var context: MachineContext = MachineContext.from_run(perks, machine, false)
 		_assert_frequencies(RewardMachine.Chute.UPGRADE, context, 1, 5000, "perks %d" % index)
 		owned.append(_balance.upgrade_pool[index])
 	# A full card: no new perk, the owned perks' level-ups.
 	var full: RunState = _fresh_run()
 	full.upgrades = owned.duplicate()
-	var full_card: MachineContext = MachineContext.from_run(full, machine, false, false)
+	var full_card: MachineContext = MachineContext.from_run(full, machine, false)
 	full_card.card_full = true
 	var full_odds: MachineOddsCard = _assert_frequencies(
 		RewardMachine.Chute.UPGRADE, full_card, 2, 5000, "full card"
@@ -324,7 +303,7 @@ func test_upgrade_frequencies_match_the_card() -> void:
 			fitting.append(upgrade)
 	assert_array(fitting).is_not_empty()
 	fits_one.upgrades = fitting.slice(1)
-	var one_fits: MachineContext = MachineContext.from_run(fits_one, machine, false, false)
+	var one_fits: MachineContext = MachineContext.from_run(fits_one, machine, false)
 	one_fits.upgrade_pool = classic_pool
 	assert_int(one_fits.guarantee(RewardMachine.Chute.UPGRADE).size()).is_equal(1)
 	_assert_frequencies(RewardMachine.Chute.UPGRADE, one_fits, 0, 5000, "one fits")
@@ -334,7 +313,7 @@ func test_upgrade_frequencies_match_the_card() -> void:
 	one_left.upgrades = _upgrades(
 		["coupon_engine_lv3", "category_engine_lv3", "extra_redraw_lv3", "slot_engine_lv3"]
 	)
-	var short: MachineContext = MachineContext.from_run(one_left, machine, false, false)
+	var short: MachineContext = MachineContext.from_run(one_left, machine, false)
 	short.upgrade_pool = classic_pool
 	var short_odds: MachineOddsCard = _assert_frequencies(
 		RewardMachine.Chute.UPGRADE, short, 2, 5000, "one perk left"
@@ -353,7 +332,7 @@ func test_upgrade_frequencies_match_the_card() -> void:
 		)
 		assert_array(odds.notes).contains([MachineOddsCard.NOTE_LEGENDARY_EMPTY])
 	# PREMIUM.
-	var premium: MachineContext = MachineContext.from_run(_fresh_run(), machine, false, false, true)
+	var premium: MachineContext = MachineContext.from_run(_fresh_run(), machine, false, true)
 	var premium_odds: MachineOddsCard = _assert_frequencies(
 		RewardMachine.Chute.UPGRADE, premium, 1, 5000, "premium"
 	)
@@ -510,10 +489,7 @@ func _brute_finish(
 	for weight: int in weights:
 		weight_total += weight
 	for index: int in alternatives.size():
-		var alternative: Array[MachinePrize] = alternatives[index]
-		var final: Array[MachinePrize] = alternative
-		if chute == RewardMachine.Chute.NEW_ITEMS:
-			final = MachineDraw.new_arrival_swap(context, alternative)
+		var final: Array[MachinePrize] = alternatives[index]
 		var share: float = chance * weights[index] / weight_total
 		_add_draw(stats, final, share, MachineDraw.holds(final, held_ids), context)
 
@@ -632,7 +608,6 @@ func _odds_machine(odds: Array) -> MachineDefinition:
 	var machine: MachineDefinition = MachineDefinition.new()
 	machine.prizes_per_visit = 3
 	machine.shelf_min_copies = 2
-	machine.new_arrival_first_visit = true
 	machine.coupons_per_draw = 1
 	machine.loyalty_per_draw = 1
 	machine.item_upgrades_per_draw = 1
@@ -653,7 +628,6 @@ func _random_context(chute: int, rng: RandomNumberGenerator) -> MachineContext:
 	var machine: MachineDefinition = MachineDefinition.new()
 	machine.prizes_per_visit = rng.randi_range(2, 3)
 	machine.shelf_min_copies = 2
-	machine.new_arrival_first_visit = true
 	machine.coupons_per_draw = rng.randi_range(0, 2)
 	machine.loyalty_per_draw = rng.randi_range(0, 2)
 	machine.item_upgrades_per_draw = rng.randi_range(0, 1)
@@ -678,8 +652,7 @@ func _random_context(chute: int, rng: RandomNumberGenerator) -> MachineContext:
 
 
 ## Products (made-up ones at one random tier with no chain and a draw weight of 0 to 3, and live
-## ones with a chain, at each of its tiers) and coupons, the first coupon draw and the new arrival
-## held now and then.
+## ones with a chain, at each of its tiers) and coupons, the first coupon draw now and then.
 func _random_new_items(context: MachineContext, rng: RandomNumberGenerator) -> void:
 	var machine: MachineDefinition = context.machine
 	for index: int in rng.randi_range(0, 4):
@@ -700,8 +673,6 @@ func _random_new_items(context: MachineContext, rng: RandomNumberGenerator) -> v
 		_rank(machine.rare_coupons, machine.legendary_coupons, card, _rarity(rng))
 	if context.products.is_empty():
 		context.products.append(_card("p_only", CardDefinition.Kind.PRODUCT))
-	context.first_new_items = rng.randf() < 0.7
-	context.new_arrival = context.products[rng.randi_range(0, context.products.size() - 1)]
 
 
 ## New perks (some fitting, some owned, an owned one with a next level now and then), a full card
@@ -805,7 +776,7 @@ func _fresh_run() -> RunState:
 
 ## The run's machine context with no perk to draw (item upgrades only).
 func _without_perks(run: RunState) -> MachineContext:
-	var context: MachineContext = MachineContext.from_run(run, _balance.machine, false, false)
+	var context: MachineContext = MachineContext.from_run(run, _balance.machine, false)
 	var none: Array[UpgradeDefinition] = []
 	context.upgrade_pool = none
 	return context
@@ -820,8 +791,7 @@ func _stock_with_aisles(aisle_ids: Array[StringName]) -> RunStock:
 				if not cards.has(card):
 					cards.append(card)
 	cards.append_array(_balance.coupon_pool)
-	var arrivals: Array[CardDefinition] = []
-	return RunStock.from_saved(cards, aisle_ids, false, arrivals)
+	return RunStock.from_saved(cards, aisle_ids, false)
 
 
 ## An upgrade whose fit is set by the test.

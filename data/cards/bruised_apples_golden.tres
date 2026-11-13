@@ -10,7 +10,7 @@ script = ExtResource("2_bruised_apples")
 match_by = 3
 match_value = "Clearance"
 position = 2
-bonus = 6
+bonus = 8
 receipt_text = "Bruised apples beside Clearance"
 
 [resource]
@@ -21,7 +21,7 @@ kind = 1
 tags = PackedStringArray("Food", "Produce", "Clearance")
 base = 4
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_bruised_apples")])
-rule_text = "+6 if beside a Clearance item"
+rule_text = "+8 if beside a Clearance item"
 art_ref = "res://art/items_v2/bruised_apples_golden.png"
 variant_of = ExtResource("9_plain")
 tier = 2

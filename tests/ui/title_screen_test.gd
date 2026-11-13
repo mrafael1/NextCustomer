@@ -4,7 +4,8 @@ extends GdUnitTestSuite
 ## CONTINUE, NEW RUN and REWARDS (full build plan section 4), laid out on the brick, clear of the
 ## doors, the sign and the bay, inside the window; the doors start, the bay opens REWARDS; NEW
 ## RUN asks first, and only ABANDON gives the save up (logged as run_abandon under its run id);
-## REWARDS opens the toy machines (#63) only (badge pins: start screen); the keys walk the menu; the
+## REWARDS opens the toy machines (#63) straight away, with no menu between (2026-11-11; badge
+## pins: start screen); DONE and Esc come back to the title; the keys walk the menu; the
 ## profile's reduced motion holds every loop and slide. The title never changes the test
 ## runner's scene.
 
@@ -251,7 +252,7 @@ func _assert_laid_out(title: TitleScreen, case: String) -> void:
 
 
 ## Real mouse input: the doors under the mouse mark the primary entry (the doors stand ajar), the
-## bay REWARDS (it lights); a click on the bay opens REWARDS, on the doors starts.
+## bay REWARDS (it lights); a click on the bay opens the TOY MACHINES, on the doors starts.
 func test_the_mouse_on_the_doors_and_the_bay() -> void:
 	get_tree().root.size = Vector2i(1280, 720)
 	var runner: GdUnitSceneRunner = scene_runner(TITLE)
@@ -273,10 +274,11 @@ func test_the_mouse_on_the_doors_and_the_bay() -> void:
 	runner.simulate_mouse_button_press(MOUSE_BUTTON_LEFT)
 	runner.simulate_mouse_button_release(MOUSE_BUTTON_LEFT)
 	await get_tree().create_timer(Storefront.GLASS_TIME + 0.1).timeout
-	assert_bool(title.rewards().is_open()).is_true()
+	await _frames(2)
+	assert_bool(title.toy_machines_open()).is_true()
 	assert_bool(title._starting).is_false()
-	title.rewards().back_plate().pressed.emit()
-	assert_bool(title.rewards().is_open()).is_false()
+	title.toy_machines().done_button().pressed.emit()
+	assert_bool(title.toy_machines_open()).is_false()
 	runner.set_mouse_position(front.doors_rect().get_center())
 	await _frames(2)
 	runner.simulate_mouse_button_press(MOUSE_BUTTON_LEFT)
@@ -284,10 +286,9 @@ func test_the_mouse_on_the_doors_and_the_bay() -> void:
 	assert_bool(title._starting).is_true()
 
 
-## REWARDS: the bay's glass slides, then the menu opens with the profile's coins on its LED;
-## TOY MACHINES opens the machines over it, where nothing starts a run;
-## Done closes them and the coins follow the draw on the plate and the LED; BACK and Esc close
-## REWARDS.
+## REWARDS: the bay's glass slides, then the TOY MACHINES open straight over the title (no menu
+## between) with the profile's coins, where nothing starts a run; DONE closes them, back to the
+## title, and the coins follow the draw on the plate.
 func test_rewards_opens_the_toy_machines() -> void:
 	var profile: ProfileState = ProfileState.new()
 	profile.coins = 2
@@ -297,15 +298,9 @@ func test_rewards_opens_the_toy_machines() -> void:
 	var sfx: Sfx = _record(title)
 	var plate: MenuPlate = title.menu().plate(TitleMenu.Entry.REWARDS)
 	assert_str(plate.count_label().text).is_equal("2")
-	var rewards: RewardsMenu = await _open_rewards(title)
-	assert_str(rewards.coin_label().text).is_equal("2")
-	assert_bool(title.get_viewport_rect().encloses(rewards.sheet().get_global_rect())).is_true()
+	var toys: ToyMachinesScreen = await _open_rewards(title)
 	assert_array(sfx.call("sound_names")).is_equal(["ui_click", "ui_open"])
-	rewards.toy_machines_card().pressed.emit()
-	await _frames(2)
-	assert_bool(title.toy_machines_open()).is_true()
-	var toys: ToyMachinesScreen = title._toys
-	assert_int(toys.get_index()).is_greater(rewards.get_index())
+	assert_bool(title.get_viewport_rect().encloses(toys.stage().get_global_rect())).is_true()
 	assert_str(toys.coins_text()).is_equal("2")
 	title._on_scene_input(_click_at(title, title.storefront().doors_rect().get_center()))
 	title._unhandled_key_input(_key(KEY_ENTER))
@@ -313,26 +308,21 @@ func test_rewards_opens_the_toy_machines() -> void:
 	assert_bool(title._starting).is_false()
 	toys.machines()[0]._gui_input(_left_click())
 	assert_int(SaveService.new(_folder).load_profile().coins).is_equal(1)
-	# No run is saved: the item rides the next runs, from the ended runs' index.
+	# No run is saved: the item comes out at the ended run's index.
 	assert_int(SaveService.new(_folder).load_profile().unlocked_items[&"cream"]).is_equal(2)
-	assert_str(toys.reveal().stock_label().text).is_equal(CapsuleCounter.NEXT_RUN_LINE)
+	assert_int(toys.counter().run_index()).is_equal(2)
 	assert_str(_last_event("capsule")["run_id"]).is_empty()
-	await await_millis(ResultsPanel.ARM_MS + 100)
-	await _frames(2)
-	toys.reveal().dismiss()
+	toys.reveal().finish_hold()
+	toys.lineup_join().finish()
 	toys.done_button().pressed.emit()
 	assert_bool(title.toy_machines_open()).is_false()
-	assert_bool(rewards.is_open()).is_true()
-	assert_str(rewards.coin_label().text).is_equal("1")
 	assert_str(plate.count_label().text).is_equal("1")
-	title._unhandled_key_input(_key(KEY_ESCAPE))
-	assert_bool(rewards.is_open()).is_false()
 	# Closed: the doors start again.
 	title._on_scene_input(_click_at(title, title.storefront().doors_rect().get_center()))
 	assert_bool(title._starting).is_true()
 
 
-## With a run saved, a title draw gets that run's index and the saved-run stock line.
+## With a run saved, a title draw gets that run's index.
 func test_a_title_draw_with_a_saved_run_rides_after_it() -> void:
 	_save_run_at_shift(2)
 	var profile: ProfileState = ProfileState.new()
@@ -340,20 +330,16 @@ func test_a_title_draw_with_a_saved_run_rides_after_it() -> void:
 	profile.run_count = 4
 	assert_bool(SaveService.new(_folder).save_profile(profile)).is_true()
 	var title: TitleScreen = await _title()
-	var rewards: RewardsMenu = await _open_rewards(title)
-	rewards.toy_machines_card().pressed.emit()
-	await _frames(2)
-	title._toys.machines()[1]._gui_input(_left_click())
+	var toys: ToyMachinesScreen = await _open_rewards(title)
+	toys.machines()[1]._gui_input(_left_click())
 	assert_int(SaveService.new(_folder).load_profile().unlocked_items[&"sugar_cubes"]).is_equal(4)
-	assert_str(title._toys.reveal().stock_label().text).is_equal(
-		CapsuleCounter.AFTER_SAVED_RUN_LINE
-	)
+	assert_int(toys.counter().run_index()).is_equal(4)
 	title._unhandled_key_input(_key(KEY_ENTER))
 	assert_bool(title._starting).is_false()
 
 
-## An unreadable profile hides the coins on REWARDS ("?" on its LED), opens the machines switched
-## off and leaves the file as it is.
+## An unreadable profile hides the coins on REWARDS, opens the machines switched off ("?" on
+## their COINS LED) and leaves the file as it is.
 func test_an_unreadable_profile_opens_the_machines_switched_off() -> void:
 	DirAccess.make_dir_recursive_absolute(_folder)
 	var path: String = SaveService.new(_folder).profile_path()
@@ -362,10 +348,7 @@ func test_an_unreadable_profile_opens_the_machines_switched_off() -> void:
 	file.close()
 	var title: TitleScreen = await _title()
 	assert_bool(title.menu().plate(TitleMenu.Entry.REWARDS).count_label().visible).is_false()
-	var rewards: RewardsMenu = await _open_rewards(title)
-	assert_str(rewards.coin_label().text).is_equal("?")
-	rewards.toy_machines_card().pressed.emit()
-	await _frames(2)
+	await _open_rewards(title)
 	for machine: ToyMachineView in title._toys.machines():
 		assert_int(machine.state()).is_equal(CapsuleCounter.State.OFF)
 	assert_str(title._toys.coins_text()).is_equal("?")
@@ -373,7 +356,7 @@ func test_an_unreadable_profile_opens_the_machines_switched_off() -> void:
 
 
 ## The keys: Down and Up walk the plates (the storefront follows), Enter presses the marked one;
-## in REWARDS the arrows walk its cards and Esc closes it.
+## REWARDS opens the TOY MACHINES, and Esc there (no machine picked) comes back to the title.
 func test_the_keys_walk_the_menu() -> void:
 	_save_run_at_shift(2)
 	var title: TitleScreen = await _title()
@@ -405,15 +388,22 @@ func test_the_keys_walk_the_menu() -> void:
 	title._unhandled_key_input(_key(KEY_ENTER))
 	assert_bool(title._starting).is_false()
 	await get_tree().create_timer(Storefront.GLASS_TIME + 0.1).timeout
-	var rewards: RewardsMenu = title.rewards()
-	assert_bool(rewards.is_open()).is_true()
-	title._unhandled_key_input(_key(KEY_RIGHT))
-	assert_bool(rewards.toy_machines_card().marked).is_true()
-	title._unhandled_key_input(_key(KEY_RIGHT))
-	assert_bool(rewards.back_plate().marked).is_true()
-	title._unhandled_key_input(_key(KEY_ESCAPE))
-	assert_bool(rewards.is_open()).is_false()
+	await _frames(2)
+	assert_bool(title.toy_machines_open()).is_true()
+	var toys: ToyMachinesScreen = title.toy_machines()
+	# The title takes no keys under the machines: Enter starts nothing.
+	title._unhandled_key_input(_key(KEY_ENTER))
 	assert_bool(title._starting).is_false()
+	# Esc with a machine picked lets it go; a second Esc closes the machines.
+	toys._unhandled_key_input(_key(KEY_RIGHT))
+	toys._unhandled_key_input(_key(KEY_ESCAPE))
+	assert_bool(title.toy_machines_open()).is_true()
+	toys._unhandled_key_input(_key(KEY_ESCAPE))
+	assert_bool(title.toy_machines_open()).is_false()
+	assert_bool(title._starting).is_false()
+	# Back on the title, its keys work again.
+	title._unhandled_key_input(_key(KEY_DOWN))
+	assert_int(menu.marked_entry()).is_not_equal(TitleMenu.Entry.NONE)
 
 
 ## A start opens the doors in DOOR_STEP steps, then the light floods the window.
@@ -432,7 +422,8 @@ func test_a_start_opens_the_doors() -> void:
 	# Input after the start does nothing.
 	title._unhandled_key_input(_key(KEY_DOWN))
 	title.menu().plate(TitleMenu.Entry.REWARDS).pressed.emit()
-	assert_bool(title.rewards().is_open()).is_false()
+	assert_bool(title._rewards_pending).is_false()
+	assert_bool(title.toy_machines_open()).is_false()
 	# Nor does the mouse crossing the plates: the marker and the storefront stay as they are.
 	var marked: TitleMenu.Entry = title.menu().marked_entry()
 	title.menu().plate(TitleMenu.Entry.REWARDS).mouse_entered.emit()
@@ -468,10 +459,10 @@ func test_reduced_motion_holds_every_loop_and_slide() -> void:
 		assert_bool(front.layer("tube_on").visible).is_true()
 	title.menu().plate(TitleMenu.Entry.REWARDS).pressed.emit()
 	await _frames(2)
-	assert_bool(title.rewards().is_open()).is_true()
-	assert_float(title.rewards().sheet().modulate.a).is_equal(1.0)
+	assert_bool(title.toy_machines_open()).is_true()
 	assert_bool(front.layer("glass").visible).is_false()
-	title._unhandled_key_input(_key(KEY_ESCAPE))
+	title.toy_machines()._unhandled_key_input(_key(KEY_ESCAPE))
+	assert_bool(title.toy_machines_open()).is_false()
 	title._unhandled_key_input(_key(KEY_ENTER))
 	assert_bool(title._starting).is_true()
 	await get_tree().create_timer(Storefront.FLOOD_TIME + 0.1).timeout
@@ -499,13 +490,15 @@ func _title(skip: bool = true) -> TitleScreen:
 	return title
 
 
-## Presses REWARDS and waits for the bay's glass and the menu's step in.
-func _open_rewards(title: TitleScreen) -> RewardsMenu:
+## Presses REWARDS and waits for the bay's glass: the TOY MACHINES open with no menu between.
+func _open_rewards(title: TitleScreen) -> ToyMachinesScreen:
 	title.menu().plate(TitleMenu.Entry.REWARDS).pressed.emit()
 	assert_bool(title._rewards_pending).is_true()
-	await get_tree().create_timer(Storefront.GLASS_TIME + TitlePopup.OPEN_TIME + 0.15).timeout
-	assert_bool(title.rewards().is_open()).is_true()
-	return title.rewards()
+	assert_bool(title.toy_machines_open()).is_false()
+	await get_tree().create_timer(Storefront.GLASS_TIME + 0.15).timeout
+	await _frames(2)
+	assert_bool(title.toy_machines_open()).is_true()
+	return title.toy_machines()
 
 
 ## A recording Sfx in place of the title's (the popups find it too).

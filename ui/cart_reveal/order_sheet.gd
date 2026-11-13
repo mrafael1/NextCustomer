@@ -21,7 +21,7 @@ const COUNT_FONT := 38
 const COUNT_BASELINE := 46.0
 
 var shown_cards: Array[CardDefinition] = []
-## The cart equation under the title, and its red "+n when you pick a crate" tail (null once a
+## The cart equation under the title, and its red "+n when you pick a pack" tail (null once a
 ## pack is picked or previewed).
 var equation: Label
 var waiting_note: Label
@@ -29,7 +29,11 @@ var waiting_note: Label
 var pack_rows: PackFrame
 
 
-func show_cart(run: StartBuildView, pack: StarterPackDefinition, preview: bool) -> void:
+## Shows the cart of `run` with pack `pack` (null: none yet), only `preview`ed when so; while the
+## packs are `held` for the BADGE PINS step, the pack's lines wait as "? ? ?" (deal after pins).
+func show_cart(
+	run: StartBuildView, pack: StarterPackDefinition, preview: bool, held: bool = false
+) -> void:
 	StartBoardKit.clear(self)
 	size = SIZE
 	StartBoardKit.panel(self, Rect2(Vector2.ZERO, size), Palette.BROWN)
@@ -58,7 +62,9 @@ func show_cart(run: StartBuildView, pack: StarterPackDefinition, preview: bool) 
 			StartCartLine.Source.PACK:
 				if line.card == null:
 					from = (
-						"press 1, 2 or 3" if lines.size() == run.starter.core_cards.size() else ""
+						("deal after pins" if held else "press 1, 2 or 3")
+						if lines.size() == run.starter.core_cards.size()
+						else ""
 					)
 		(
 			lines
@@ -116,7 +122,7 @@ func show_cart(run: StartBuildView, pack: StarterPackDefinition, preview: bool) 
 		equation.size.x = used + 2
 		waiting_note = StartBoardKit.body(
 			paper,
-			"· +%d when you pick a crate" % packed,
+			("· +%d after your pins" if held else "· +%d when you pick a pack") % packed,
 			Rect2(14 + used, 62, 336 - used, 22),
 			Palette.TOMATO_DARK,
 			13
@@ -158,9 +164,11 @@ func show_cart(run: StartBuildView, pack: StarterPackDefinition, preview: bool) 
 		row_number.name = "RowNumber%d" % index
 		on_centre(row_number, y + ROW_CENTRE)
 		var card: CardDefinition = line.card
-		var name_text: String = (
-			card.display_name if card != null else "pick a crate" if waiting else "free line"
-		)
+		var name_text: String = "free line"
+		if card != null:
+			name_text = card.display_name
+		elif waiting:
+			name_text = "? ? ?" if held else "pick a pack"
 		if card != null:
 			StartBoardKit.item(paper, card, Vector2(40, y), 18)
 		elif waiting:
@@ -241,7 +249,7 @@ func show_cart(run: StartBuildView, pack: StarterPackDefinition, preview: bool) 
 		func(a: String, b: String) -> bool:
 			return counts[a] > counts[b] if counts[a] != counts[b] else a < b
 	)
-	# A local palette, not FamilyPalette.shared().style(...): see PackCrate._init.
+	# A local palette, not FamilyPalette.shared().style(...): a chained call has crashed Godot 4.7.
 	var palette: FamilyPalette = FamilyPalette.shared()
 	for index: int in mini(3, families.size()):
 		var family: String = families[index]

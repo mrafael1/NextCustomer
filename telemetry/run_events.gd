@@ -31,54 +31,61 @@ static func run_start(run: RunState) -> Dictionary:
 			. merge(
 				{
 					"stock_aisles": Array(run.start_setup.stock_aisles),
-					"dealt_aisles": Array(run.start_setup.green_ids(run.balance)),
+					"dealt_aisles": Array(run.start_setup.stock_aisles),
 					"regulars": definition_ids(run.starter.core_cards),
 					"completed_aisles": run.start_setup.completed_count,
-					"baskets": basket_ids(run.start_setup),
+					"boosters": booster_fields(run.start_setup),
 				}
 			)
 		)
 	return data.merged(run.stock.to_dictionary())
 
 
-## The opening-time board's fields of `start_choice` (docs/PROTOTYPE_PLAN.md section 8, v0.60),
-## for a run with a start setup: the regulars as taken, the RESTOCK used (0 or 1) and its basket
-## (-1 for none), the baskets' card ids and NEW PACKS used (0 or 1).
+## The opening-time board's fields of `start_choice` (docs/PROTOTYPE_PLAN.md section 8, v1.32),
+## for a run with a start setup: the regulars as taken, the RESTOCK used (0 or 1) and its booster
+## (-1 for none), the boosters (booster_fields), NEW PACKS used (0 or 1) and whether the BADGE
+## PINS step was confirmed.
 static func start_setup_fields(run: RunState) -> Dictionary:
 	var setup: StartSetup = run.start_setup
 	return {
 		"regulars": definition_ids(run.starter.core_cards),
-		"restock": 1 if setup.restock_basket >= 0 else 0,
-		"restock_basket": setup.restock_basket,
-		"baskets": basket_ids(setup),
+		"restock": 1 if setup.restock_booster() >= 0 else 0,
+		"restock_booster": setup.restock_booster(),
+		"boosters": booster_fields(setup),
 		"new_packs": 1 if setup.packs_redrawn else 0,
+		"pins_confirmed": setup.pins_confirmed,
 	}
 
 
-## The `start_aisle` event (v1.07): green basket `basket` changed its aisle from `before`'s source
-## to its current one; `kept`: the new aisle's pair was dealt earlier this run and came back.
-static func start_aisle(run: RunState, basket: int, before: StartBasket, kept: bool) -> Dictionary:
-	var changed: StartBasket = run.start_setup.baskets[basket]
+## The `start_booster_pick` event (v1.32, PICK 2 OF 3): the boosters kept (`picked`, indices)
+## and their aisles, the SOLD OUT one's aisle(s), and today's green aisles after the pick.
+static func start_booster_pick(run: RunState, picks: Array[int]) -> Dictionary:
+	var setup: StartSetup = run.start_setup
+	var kept: Array[String] = []
+	var sold: Array[String] = []
+	for index: int in setup.boosters.size():
+		if picks.has(index):
+			kept.append(String(setup.boosters[index].aisle))
+		else:
+			sold.append(String(setup.boosters[index].aisle))
 	return {
-		"basket": basket,
-		"from": String(before.source),
-		"to": String(changed.source),
-		"before": definition_ids(before.cards),
-		"after": definition_ids(changed.cards),
-		"kept": kept,
-		"green": Array(run.start_setup.green_ids(run.balance)),
+		"picked": Array(picks),
+		"aisles": kept,
+		"sold_out": sold,
+		"green": Array(setup.stock_aisles),
 	}
 
 
-## The `restock` event (reworked 2026-11-05): basket `basket` RESTOCKED, its card ids `before`
-## and after.
-static func start_restock(run: RunState, basket: int, before: Array[CardDefinition]) -> Dictionary:
-	var restocked: StartBasket = run.start_setup.baskets[basket]
+## The `restock` event (v1.32): booster `index` RESTOCKED, its aisle, its card ids `before` and
+## after, and its RARE cards after.
+static func start_restock(run: RunState, index: int, before: Array[CardDefinition]) -> Dictionary:
+	var restocked: StartBooster = run.start_setup.boosters[index]
 	return {
-		"basket": basket,
-		"source": String(restocked.source),
+		"booster": index,
+		"aisle": String(restocked.aisle),
 		"before": definition_ids(before),
 		"after": definition_ids(restocked.cards),
+		"rare": restocked.rare_count(),
 	}
 
 
@@ -94,12 +101,25 @@ static func new_packs(
 	}
 
 
-## The baskets' card id lists, in basket order.
-static func basket_ids(setup: StartSetup) -> Array[Array]:
-	var ids: Array[Array] = []
-	for basket: StartBasket in setup.baskets:
-		ids.append(definition_ids(basket.cards))
-	return ids
+## The boosters, in board order: each one's aisle, card ids, RARE count and whether it is SOLD
+## OUT, opened or RESTOCKED.
+static func booster_fields(setup: StartSetup) -> Array[Dictionary]:
+	var found: Array[Dictionary] = []
+	for booster: StartBooster in setup.boosters:
+		(
+			found
+			. append(
+				{
+					"aisle": String(booster.aisle),
+					"cards": definition_ids(booster.cards),
+					"rare": booster.rare_count(),
+					"sold_out": booster.sold_out,
+					"opened": booster.opened,
+					"restocked": booster.restocked,
+				}
+			)
+		)
+	return found
 
 
 static func pack_ids(packs: Array[StarterPackDefinition]) -> Array[String]:

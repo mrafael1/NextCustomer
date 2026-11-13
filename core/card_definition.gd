@@ -62,6 +62,10 @@ enum Tier { PLAIN, BIG, GOLDEN }
 ## family, or two for a split ticket. Empty (the default) derives them (CardFamilies).
 ## Presentation only: no rule reads it.
 @export var ticket_families: PackedStringArray = PackedStringArray()
+## A coupon the machine offers only to a run that has this family (v1.29, Party pack: Snack): a
+## stocked product or a deck card with the tag (MachineContext.offers), as family perks are
+## (UpgradeDefinition.boosts_tag). Empty (the default): always offered.
+@export var needs_tag: String = ""
 
 
 func is_product() -> bool:

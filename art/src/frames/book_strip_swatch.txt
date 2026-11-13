@@ -1,0 +1,17 @@
+; The picked FAMILY option on the ribbon's strip (v1.30 round 8): a swatch of ribbon cloth, a paper
+; light top row and left edge, a cream face, a cream shade right edge and foot, in an ink outline
+; with clipped corners. Drawn in the cream ramp (ALL's); FamilyRibbon recolours it to the
+; option's family as it does the ribbon. A 9-slice like book_strip_row.
+@size 10x10
+@kind frame
+@scale 2
+.########.
+#wwwwwwww#
+#wccccccb#
+#wccccccb#
+#wccccccb#
+#wccccccb#
+#wccccccb#
+#wccccccb#
+#bbbbbbbb#
+.########.

@@ -10,7 +10,7 @@ script = ExtResource("2_chipped_mug")
 match_by = 2
 match_value = "coffee"
 position = 2
-bonus = 6
+bonus = 8
 receipt_text = "Chipped mug beside Coffee"
 
 [resource]
@@ -19,9 +19,9 @@ id = &"chipped_mug_golden"
 display_name = "Golden Chipped mug"
 kind = 1
 tags = PackedStringArray("Household", "Clearance")
-base = 3
+base = 4
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_chipped_mug")])
-rule_text = "+6 if beside Coffee"
+rule_text = "+8 if beside Coffee"
 art_ref = "res://art/items_v2/chipped_mug_golden.png"
 variant_of = ExtResource("9_plain")
 tier = 2

@@ -6,9 +6,13 @@ extends RefCounted
 ## set aside for the rest of that shift, so the redraw can't bring them back. All randomness
 ## comes from the RandomNumberGenerator passed in, never from the global RNG.
 
+## The first copy's instance id: from_definition numbers a deck definition's cards from it, in
+## order (FamilySticker finds a starter pack's own copies by it).
+const FIRST_INSTANCE_ID := 1
+
 var cards: Array[CardInstance] = []
 var _rng: RandomNumberGenerator
-var _next_instance_id: int = 1
+var _next_instance_id: int = FIRST_INSTANCE_ID
 var _hand: Array[CardInstance] = []
 var _draw_pile: Array[CardInstance] = []
 

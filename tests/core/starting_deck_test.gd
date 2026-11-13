@@ -55,9 +55,14 @@ func test_a_deal_is_the_core_cards_then_a_coupon_then_eight_products() -> void:
 
 ## v0.51: the coupon is drawn from the whole coupon pool, equally likely, on the deal's stream
 ## before the products: over 200 seeds every pool coupon shows up, and the stream's first draw
-## picks it (in a deal the fair-deal check kept the first time, v0.54).
+## picks it (in a deal the fair-deal check kept the first time, v0.54). Since v1.29 a coupon with a
+## `needs_tag` (Party pack) is left out when no stocked product has its family (no Snack here).
 func test_the_coupon_is_random_from_the_coupon_pool() -> void:
-	assert_array(StartingDeck.drawable_coupons(_stock)).is_equal(_balance.coupon_pool)
+	var drawable: Array[CardDefinition] = StartingDeck.drawable_coupons(_stock)
+	var expected: Array[CardDefinition] = _balance.coupon_pool.filter(
+		func(card: CardDefinition) -> bool: return card.id != &"party_pack"
+	)
+	assert_array(drawable).is_equal(expected)
 	var seen: Dictionary[CardDefinition, int] = {}
 	for seed_value: int in FIT_SEEDS:
 		var dealt: StartingDeck.Dealt = StartingDeck.deal_counted(
@@ -66,10 +71,10 @@ func test_the_coupon_is_random_from_the_coupon_pool() -> void:
 		var coupon: CardDefinition = dealt.deck.cards[4]
 		seen[coupon] = int(seen.get(coupon, 0)) + 1
 		var stream: RandomNumberGenerator = _stream(seed_value)
-		var first: int = stream.randi_range(0, _balance.coupon_pool.size() - 1)
+		var first: int = stream.randi_range(0, drawable.size() - 1)
 		if dealt.deals == 1:
-			assert_object(coupon).is_same(_balance.coupon_pool[first])
-	assert_array(seen.keys()).contains_exactly_in_any_order(_balance.coupon_pool)
+			assert_object(coupon).is_same(drawable[first])
+	assert_array(seen.keys()).contains_exactly_in_any_order(drawable)
 
 
 func test_no_product_passes_two_copies() -> void:
@@ -114,8 +119,7 @@ func test_a_small_pool_ends_the_deal_short() -> void:
 	var cheese_capsule: CardDefinition = _balance.aisles[0].capsule_cards[0]
 	var markdown: CardDefinition = load("res://data/cards/final_markdown.tres")
 	var cards: Array[CardDefinition] = [milk, bread, cheese_capsule, markdown]
-	var none: Array[CardDefinition] = []
-	var small: RunStock = RunStock.from_saved(cards, [], true, none)
+	var small: RunStock = RunStock.from_saved(cards, [], true)
 	var dealt: DeckDefinition = StartingDeck.deal(_recipe, small, _balance, _stream(3))
 	# Milk has 1 core copy, so 1 more; Bread 2; the capsule product has no chain.
 	assert_array(_ids(dealt.cards)).is_equal(
@@ -123,7 +127,7 @@ func test_a_small_pool_ends_the_deal_short() -> void:
 	)
 	# A stock with no coupon deals none.
 	cards.erase(markdown)
-	small = RunStock.from_saved(cards, [], true, none)
+	small = RunStock.from_saved(cards, [], true)
 	dealt = StartingDeck.deal(_recipe, small, _balance, _stream(3))
 	assert_array(_ids(dealt.cards)).is_equal(
 		["banana", "banana", "milk", "eggs", "milk", "bread", "bread"]
@@ -271,7 +275,7 @@ func test_every_two_aisle_list_deals_thirteen_cards() -> void:
 	for first: int in aisles.size():
 		for second: int in range(first + 1, aisles.size()):
 			var listed: Array[StringName] = [aisles[first].id, aisles[second].id]
-			var stock: RunStock = RunStock.build(_balance, listed, unlocked, 1)
+			var stock: RunStock = RunStock.build(_balance, listed, unlocked)
 			assert_array(stock.aisle_ids).is_equal(listed)
 			var where: String = "%s+%s" % listed
 			var decks: Dictionary[String, bool] = {}
@@ -303,7 +307,7 @@ func test_capsule_products_join_the_draw_only_when_the_recipe_says_so() -> void:
 			unlocked[card.id] = 0
 			capsules.append(card)
 	var listed: Array[StringName] = [&"bakery", &"snacks"]
-	var stock: RunStock = RunStock.build(_balance, listed, unlocked, 1)
+	var stock: RunStock = RunStock.build(_balance, listed, unlocked)
 	var chains: Array[ItemUpgradeDefinition] = _balance.machine.item_upgrades
 	var kept: Array[ItemUpgradeDefinition] = StartingDeck.without_capsules(chains, _balance)
 	assert_int(kept.size()).is_equal(chains.size() - capsules.size())
@@ -344,7 +348,9 @@ func test_how_often_a_dealt_deck_fits_each_build_at_the_start() -> void:
 	for file: String in DirAccess.get_files_at("res://data/builds"):
 		if file.ends_with(".tres"):
 			var build: BuildDefinition = load("res://data/builds/" + file)
-			builds[build.id] = build
+			# The measure-only builds (v1.29) are the simulator's, not REGISTER's.
+			if not build.measure_only:
+				builds[build.id] = build
 	var starter: DeckDefinition = load(STARTER)
 	for build: BuildDefinition in builds.values():
 		assert_bool(build.fits(starter.cards)).override_failure_message(String(build.id)).is_false()

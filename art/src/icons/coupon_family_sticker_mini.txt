@@ -1,0 +1,13 @@
+; Coupon giver badge (v1.29): Family sticker. The teal sticker with its family stripe and an
+; empty slot, trimmed to the drawing so it centres inside the teal token.
+@size 9x9
+@kind icon
+.#######.
+#MMRRGGX#
+#5wwwww3#
+#5w:::w3#
+#5w:bbw3#
+#5wwww###
+#44444#c#
+#33333##.
+.#####...

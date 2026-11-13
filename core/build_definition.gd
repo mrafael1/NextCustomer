@@ -22,6 +22,22 @@ enum Measure { UNSET, TAG, COUPONS, COPIES, DISTINCT_TAGS, CARDS }
 @export var cards: Array[CardDefinition] = []
 ## The deck fits once its measure reaches this.
 @export var min_count: int = 0
+## A measure-only build (v1.29: Pair up, Snack lover, Household goods, Salvage) is measured by the
+## balance simulator only: no upgrade lists it, it is never a run's main build and it is not one
+## of the builds held to the viability gate (full build plan section 4).
+@export var measure_only: bool = false
+## The loyalty perks a measure-only build wants, by their LV 1 id (v1.29: Pair up's Perfect pair,
+## Salvage's Salvage desk, Snack lover's Grab bag, Household goods' Home goods): the balance
+## simulator's build player takes them as perks listing the build (its `build:<id>` strategy).
+## Their tickets keep their family's "decks" line: the build lists them, not they the build. Ids,
+## not files: an upgrade file already names its builds, and the two scripts must not name each
+## other (Godot keeps such a pair loaded at exit).
+@export var perk_ids: Array[StringName] = []
+
+
+## Whether a perk's family (its LV 1 id: UpgradeDefinition.family()) is one of `perk_ids`.
+func wants(perk_family: StringName) -> bool:
+	return perk_ids.has(perk_family)
 
 
 func fits(deck: Array[CardDefinition]) -> bool:

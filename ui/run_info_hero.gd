@@ -5,12 +5,12 @@ extends HBoxContainer
 ## starter pack's family as a big glyph (a FamilyGlyph at PACK_GLYPH_SCALE: its tooltip names it
 ## and lights its cells), its name, the pack's name and its hint (how the pack plays, its terms in
 ## the handbook's colours: PackHintMarkup, HandbookText), as tall as its words. Right, the
-## AISLES IN STOCK plates (each aisle's own sign, frames/aisle_sign_<id>, with its glyph and name,
-## and STARTER or RUN ONLY as the start screen's aisle board marks them), then IN YOUR CART: one
+## AISLES IN STOCK plates (each aisle's own sign, frames/aisle_sign_<id>, with its glyph and name:
+## the run's two aisles since v1.32, both its boosters' and its stock's), then IN YOUR CART: one
 ## FamilyCount tile per printed tag in the cart, most common first (DeckSummary.tag_counts), the
 ## run family's tile ringed in gold; the tiles filter the stock below (DeckView's family filter,
 ## family_tiles). A run with no starter pack (the fixed starter deck) has no
-## card; one with no start setup shows its stocked aisles unmarked. It only displays RunState.
+## card. It only displays RunState.
 
 const GAP := 10.0
 const PACK_WIDTH := 380.0
@@ -35,10 +35,6 @@ const PLATE_GLYPH_SCALE := 4
 const PLATE_NAME_SIZE := 20
 const SIGN_PATH := "res://art/frames/aisle_sign_%s.png"
 const BASE_SIGN := preload("res://art/frames/aisle_sign.png")
-const STARTER := "STARTER"
-const RUN_ONLY := "RUN ONLY"
-const STATUS_SIZE := Vector2(24, 20)
-const STATUS_FONT := 12
 const TILE_GAP := 6.0
 const TILE_MIN_WIDTH := 72.0
 ## Node names (for tests).
@@ -68,7 +64,7 @@ func _init(run: RunState, width: float) -> void:
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	right.add_theme_constant_override("separation", 8)
 	add_child(right)
-	var aisles: Array[Array] = aisle_rows(run)
+	var aisles: Array[AisleDefinition] = aisle_rows(run)
 	if not aisles.is_empty():
 		right.add_child(pixel_heading(AISLES, Palette.MUSTARD))
 		right.add_child(_plates(aisles, right_width))
@@ -82,22 +78,12 @@ func family_tiles() -> Array[FamilyCount]:
 	return _family_tiles
 
 
-## The stocked aisles to show, each [AisleDefinition, its status ("STARTER", "RUN ONLY" or "")]:
-## the start setup's STARTER CART aisles then its RUN ONLY one, else the stock's aisles in data
-## order, unmarked.
-static func aisle_rows(run: RunState) -> Array[Array]:
-	var rows: Array[Array] = []
-	var setup: StartSetup = run.start_setup
-	if setup != null and not setup.stock_aisles.is_empty():
-		var green: Array[StringName] = setup.green_ids(run.balance)
-		for id: StringName in setup.stock_aisles:
-			var aisle: AisleDefinition = _aisle(run.balance, id)
-			if aisle != null:
-				rows.append([aisle, STARTER if green.has(id) else RUN_ONLY])
-		return rows
+## The stocked aisles to show: the stock's aisles in data order.
+static func aisle_rows(run: RunState) -> Array[AisleDefinition]:
+	var rows: Array[AisleDefinition] = []
 	for aisle: AisleDefinition in run.balance.aisles:
 		if run.stock.aisle_ids.has(aisle.id):
-			rows.append([aisle, ""])
+			rows.append(aisle)
 	return rows
 
 
@@ -119,13 +105,6 @@ static func pixel_heading(text: String, color: Color) -> Control:
 	box.custom_minimum_size = Vector2(ceilf(width), (ArtStyle.PIXEL_CAP_HEIGHT + 1) * HEADING_SCALE)
 	UiKit.place_pixel_label(words, Rect2(Vector2.ZERO, box.custom_minimum_size), true)
 	return box
-
-
-static func _aisle(balance: BalanceDefinition, id: StringName) -> AisleDefinition:
-	for aisle: AisleDefinition in balance.aisles:
-		if aisle.id == id:
-			return aisle
-	return null
 
 
 func _pack_card(pack: StarterPackDefinition) -> PanelContainer:
@@ -189,19 +168,19 @@ static func hint_markup(pack: StarterPackDefinition) -> String:
 	return PackHintMarkup.of(pack.hint_text, pack.cards + pack.example_cards, palette.families)
 
 
-func _plates(rows: Array[Array], width: float) -> HBoxContainer:
+func _plates(rows: Array[AisleDefinition], width: float) -> HBoxContainer:
 	var plates: HBoxContainer = HBoxContainer.new()
 	plates.name = PLATES
 	plates.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	plates.add_theme_constant_override("separation", int(PLATE_GAP))
 	var plate_width: float = floorf((width - PLATE_GAP * (rows.size() - 1)) / maxf(1, rows.size()))
-	for row: Array in rows:
-		plates.add_child(_plate(row[0] as AisleDefinition, row[1] as String, plate_width))
+	for aisle: AisleDefinition in rows:
+		plates.add_child(_plate(aisle, plate_width))
 	return plates
 
 
-## An aisle's sign: its glyph and name, then its status chip at the right.
-func _plate(aisle: AisleDefinition, status: String, width: float) -> PanelContainer:
+## An aisle's sign: its glyph and name.
+func _plate(aisle: AisleDefinition, width: float) -> PanelContainer:
 	var path: String = SIGN_PATH % aisle.id
 	var frame: Texture2D = load(path) as Texture2D if ResourceLoader.exists(path) else BASE_SIGN
 	var plate: PanelContainer = UiKit.frame_panel(frame, 3, Vector4(10, 0, 10, 4))
@@ -225,19 +204,6 @@ func _plate(aisle: AisleDefinition, status: String, width: float) -> PanelContai
 	label.clip_text = true
 	label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	row.add_child(label)
-	if not status.is_empty():
-		var starter: bool = status == STARTER
-		var chip: RevealChip = RevealChip.new(
-			Palette.GREEN_DARK if starter else Palette.MUSTARD,
-			STATUS_SIZE,
-			null,
-			status,
-			STATUS_FONT,
-			Palette.PAPER if starter else Palette.INK
-		)
-		chip.name = "Status"
-		chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		row.add_child(chip)
 	return plate
 
 

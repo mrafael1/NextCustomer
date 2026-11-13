@@ -16,7 +16,7 @@ extends RefCounted
 ## the draw short. Then the guarantee swap: if no drop is in the chute's guarantee set, the last
 ## drop whose rarity pool holds a member of its own kind not drawn yet (for a loyalty perk, of a
 ## type the other drops don't have) is swapped for one, by their draw weights; if none, the
-## guarantee is skipped. NEW ITEMS then holds the run's newest new arrival on its first draw.
+## guarantee is skipped.
 ## A product's rarity is its tier (v1.25, decided with the user on 2026-11-08): NEW ITEMS' pools
 ## hold each stocked product at every tier it has (plain COMMON, BIG RARE, GOLDEN LEGENDARY), so
 ## the rarity a product drop rolls picks its tier, with no tier roll of its own.
@@ -207,37 +207,6 @@ static func holds(drawn: Array[MachinePrize], held_ids: Dictionary) -> bool:
 	return drawn.any(func(prize: MachinePrize) -> bool: return held_ids.has(prize.plain_id()))
 
 
-## The first NEW ITEMS draw's new-arrival hold (build spec 1.5, Q4): when the context holds a new
-## arrival not drawn yet (at any tier), it replaces the last product drop that isn't the draw's
-## only generally useful product, at its own rarity (plain: COMMON; a coupon drop is never
-## replaced). Any other draw is returned as it is.
-static func new_arrival_swap(
-	context: MachineContext, drawn: Array[MachinePrize]
-) -> Array[MachinePrize]:
-	if not context.holds_new_arrival():
-		return drawn
-	var arrival: CardDefinition = context.new_arrival
-	if drawn.any(
-		func(prize: MachinePrize) -> bool:
-			return prize.kind == MachinePrize.Kind.PRODUCT and prize.card.is_same_product(arrival)
-	):
-		return drawn
-	var useful: Dictionary = context.guarantee(RewardMachine.Chute.NEW_ITEMS)
-	var useful_count: int = (
-		drawn.filter(func(prize: MachinePrize) -> bool: return useful.has(prize.plain_id())).size()
-	)
-	for index: int in range(drawn.size() - 1, -1, -1):
-		if drawn[index].kind != MachinePrize.Kind.PRODUCT:
-			continue
-		if useful_count == 1 and useful.has(drawn[index].plain_id()):
-			continue
-		var swapped: Array[MachinePrize] = drawn.duplicate()
-		var rarity: int = MachineDefinition.product_rarity(arrival)
-		swapped[index] = MachinePrize.new(MachinePrize.Kind.PRODUCT, rarity, arrival)
-		return swapped
-	return drawn
-
-
 ## A stocked plain product's cards NEW ITEMS can draw, plain first: each tier of its upgrade
 ## chain (plain, BIG, GOLDEN), or the plain card alone when it has no chain (always COMMON).
 static func product_tiers(
@@ -293,12 +262,9 @@ static func draw(
 			break
 		drawn.append(picked)
 	var alternatives: Array = swaps(chute_pools, drawn, context.guarantee(chute))
-	var chosen: Array[MachinePrize] = alternatives[0]
 	if alternatives.size() > 1:
-		chosen = alternatives[maxi(roll(swap_weights(alternatives, drawn), rng), 0)]
-	if chute == RewardMachine.Chute.NEW_ITEMS:
-		chosen = new_arrival_swap(context, chosen)
-	return chosen
+		return alternatives[maxi(roll(swap_weights(alternatives, drawn), rng), 0)]
+	return alternatives[0]
 
 
 ## An index (a rarity, or a candidate) rolled against integer weights, or -1 when they sum to 0

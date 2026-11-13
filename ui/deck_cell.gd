@@ -7,8 +7,8 @@ extends Control
 ## item picked at the start (the pack's, a dealt one) carries the green START chip on the art's
 ## top-left corner (the cart and run info polish, 2026-11-12, after the teal "+" of v0.51 read as
 ## "add"): the start screen's STARTER CART green, its tooltip naming where it came from (StartTip).
-## In the stock a new arrival carries a mustard NEW chip there instead. The name is the plain
-## product's (the art and the tier tag show the tier), stepped down to fit.
+## The name is the plain product's (the art and the tier tag show the tier), stepped down to
+## fit.
 ##
 ## Hover (the pointer on its sprite or sticker) lifts the art; `ringed` draws the chooser's gold
 ## ring round it, and `out_marked` (a held prize over it, CartPlacing: dropping swaps it out)
@@ -41,7 +41,6 @@ const MARK_SIZE := Vector2(24, 24)
 const MARK_POSITION := Vector2(2, 6)
 const MARK_CLEAR := 4.0
 const MARK_GAP := 6.0
-const NEW_TEXT := "NEW"
 ## The START chip: its least size, text size and word (a pixel word: no digits).
 const START_SIZE := Vector2(24, 20)
 const START_FONT := 12
@@ -60,7 +59,6 @@ const OUT_WEIGHT := 800
 ## Node names (for tests).
 const OUT_TAG := "OutTag"
 const START_MARK := "StartMark"
-const NEW_MARK := "NewMark"
 const COUNT_LABEL := "CountLabel"
 const NAME_LABEL := "NameLabel"
 ## A faint match's dashed outline (mock-up readability v3: 112 wide from 2 px left of the cell).
@@ -147,12 +145,6 @@ static func make_start_chip() -> RevealChip:
 	)
 	chip.ledge = Palette.INK
 	return chip
-
-
-## Adds the stock's NEW chip (a new arrival).
-func add_new_mark() -> void:
-	var chip: RevealChip = RevealChip.new(Palette.MUSTARD, MARK_SIZE, null, NEW_TEXT, 12)
-	_add_mark(NEW_MARK, chip)
 
 
 func item() -> ItemView:

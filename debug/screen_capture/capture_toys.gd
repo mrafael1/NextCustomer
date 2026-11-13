@@ -8,7 +8,7 @@ extends RefCounted
 ## `off` (the profile can't be saved) or `complete` (every figurine, 5 coins); `hover=` hovers
 ## that aisle's machine; `car=<seconds>` (v0.79) catches a car that passed the doors that long
 ## ago, `lamp` the street lamp's flicker. `draw=<aisle id>` (v1.05) draws a capsule from that
-## machine (after any hover=) and presses the reveal's OK; `join=<seconds>` then holds the
+## machine (after any hover=) and ends the reveal's hold; `join=<seconds>` then holds the
 ## figurine's join to its lineup card (ToyLineupJoin) that far in (a capsule that completes its
 ## aisle, such as Cold cases' second, stops at the COMPLETED! card; `ok` presses its OK, and a
 ## later join= goes on past it; `reduced` plays it under reduced motion). The file is
@@ -81,7 +81,7 @@ static func open(
 	return part
 
 
-## Draws a capsule from `aisle_id`'s machine and presses the reveal's OK: the join starts.
+## Draws a capsule from `aisle_id`'s machine and ends the reveal's hold: the join starts.
 static func _draw(toys_screen: ToyMachinesScreen, aisle_id: String) -> String:
 	for view: ToyMachineView in toys_screen.machines():
 		if view.aisle().id == StringName(aisle_id):
@@ -89,6 +89,5 @@ static func _draw(toys_screen: ToyMachinesScreen, aisle_id: String) -> String:
 	if not toys_screen.reveal().visible:
 		push_warning("capture: draw=%s gave no capsule (sold out or no coins)" % aisle_id)
 		return ""
-	toys_screen.reveal().arm_now()
-	toys_screen.reveal().dismiss()
+	toys_screen.reveal().finish_hold()
 	return "draw_%s_" % aisle_id

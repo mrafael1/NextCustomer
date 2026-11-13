@@ -33,8 +33,9 @@ extends Control
 ##
 ## Batches and chains (#128): each batch and chain of the model (PlanningModel.batches, chains) is
 ## bound by a frame round its tickets (BatchFrames, ChainFrames), following the views; hovering a
-## BATCH or CHAIN chip lights its frame (light_frames). A wrong job (PlanningSlot.wrong_job) turns
-## its ticket's chip tomato with a cross (PriceSticker.set_wrong_job). The count shows neither.
+## BATCH or CHAIN chip lights its frame (light_frames), a hovered job card its batch's bookends.
+## A wrong job (PlanningSlot.wrong_job) turns its ticket's chip tomato with a cross
+## (PriceSticker.set_wrong_job). The count shows no wrong job, nor a chain; a batch's frame stays.
 ##
 ## Motion (none under `reduced_motion`, nothing loops): the stickers new since the last slap_new
 ## slap on, the fold chip pops in as a stack first folds and punches as more fold in (each newly
@@ -186,7 +187,9 @@ func show_model(shown: PlanningModel, items: Array[ItemView], ghost: ItemView = 
 			window.dimmed_alpha = tuning.dim_ticket_alpha if tuning != null else 1.0
 			_pays[slot] = window
 		if planning.has_stamp():
-			var stamped: DenyStamp = DenyStamp.new(planning.stamp_amount, planning.stamp_caption)
+			var stamped: DenyStamp = DenyStamp.new(
+				planning.stamp_amount, planning.stamp_caption, planning.written_off
+			)
 			(_ghost_box if on_ghost else _stamp_box).add_child(stamped)
 			_stamps[slot] = stamped
 		if planning.rings >= SPARKLE_RINGS and not on_ghost:
@@ -203,7 +206,8 @@ func show_model(shown: PlanningModel, items: Array[ItemView], ghost: ItemView = 
 	var run_batches: Array[PackedInt32Array] = []
 	for index: int in shown.run_batch:
 		run_batches.append(shown.batches[index])
-	_batches.show_batches(shown.runs, run_batches)
+	_batches.reduced_motion = reduced_motion
+	_batches.show_batches(shown.runs, run_batches, shown)
 	_chains.show_chains(shown)
 	_lay_out()
 	_paint_focus(0.0)
@@ -315,6 +319,7 @@ func apply_focus(
 	_build_hot()
 	if _model != null:
 		_lay_out()
+	_batches.focus(_focus_slot)
 	_paint_strips(fade_s)
 	for got: PriceSticker in _got:
 		if is_instance_valid(got):
@@ -331,8 +336,8 @@ func apply_focus(
 					_got.append(item.sticker())
 
 
-## The count's look (#86 v6): keeps the stickers and stamps of the model shown, takes the rail
-## strips, halos, sparkles, planned pays and the focus off, until the next show_model.
+## The count's look (#86 v6): keeps the stickers, stamps and batch frames of the model shown, takes
+## the rail strips, halos, sparkles, planned pays and the focus off, until the next show_model.
 func keep_stickers() -> void:
 	for item: ItemView in _painted:
 		if is_instance_valid(item):
@@ -344,7 +349,7 @@ func keep_stickers() -> void:
 			box.remove_child(child)
 			child.queue_free()
 	_clear_pays()
-	_batches.clear_frames()
+	_batches.count()
 	_chains.clear_frames()
 	_strips.clear()
 	_hot_strips.clear()
@@ -623,7 +628,8 @@ func _lay_out_belt(slot: int, planning: PlanningSlot, item: ItemView) -> void:
 	item.sticker().set_wrong_job("" if _counting else planning.wrong_job)
 	var stamped: DenyStamp = _stamps.get(slot, null)
 	if stamped != null:
-		stamped.position = (sprite.position + STAMP_OFFSET * scale_x).snappedf(ArtStyle.ART_SCALE)
+		var on_art: Vector2 = stamped.art_offset(STAMP_OFFSET) * scale_x
+		stamped.position = (sprite.position + on_art).snappedf(ArtStyle.ART_SCALE)
 	var raised: Vector2 = Vector2(0, -ItemView.BOOST_LIFT * scale_x)
 	var made: Array = _sparkles.get(slot, [])
 	for index: int in range(made.size()):
@@ -643,7 +649,7 @@ func _lay_out_ghost(slot: int, planning: PlanningSlot, ghost: ItemView) -> void:
 		window.position = GHOST_PAY_AT
 	var stamped: DenyStamp = _stamps.get(slot, null)
 	if stamped != null:
-		stamped.position = sprite.position + STAMP_OFFSET
+		stamped.position = sprite.position + stamped.art_offset(STAMP_OFFSET)
 
 
 ## A stack's left edge `left`, moved left in art pixels when the `shown` stack (at `stack_scale`)
@@ -962,9 +968,11 @@ static func _shift(spec: StickerSpec, from_bottom: int) -> float:
 	return shift
 
 
-## Whether a sticker of `spec` on `slot` is drained: on a denied item, or unlit by the focus.
+## Whether a sticker of `spec` on `slot` is drained: on a denied item (not a written-off one,
+## v1.29: it still pays), or unlit by the focus.
 func _drained_spec(spec: StickerSpec, slot: int) -> bool:
-	return _stamps.has(slot) or (_lit.is_valid() and not bool(_lit.call(slot, spec)))
+	var denied: bool = _stamps.has(slot) and not _stamps[slot].is_written_off()
+	return denied or (_lit.is_valid() and not bool(_lit.call(slot, spec)))
 
 
 static func _specs_of(stickers: Array[EffectSticker]) -> Array[StickerSpec]:

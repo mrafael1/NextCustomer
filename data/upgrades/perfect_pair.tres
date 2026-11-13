@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="UpgradeDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/upgrades/upgrade_rule.gd" id="1_rule"]
+[ext_resource type="Script" path="res://core/upgrades/keyword_multiplier_rule.gd" id="2_rule_script"]
+[ext_resource type="Script" path="res://core/upgrade_definition.gd" id="3_upgrade"]
+[ext_resource type="Resource" path="res://data/upgrades/perfect_pair_lv2.tres" id="9_next_level"]
+
+[sub_resource type="Resource" id="Resource_rule"]
+script = ExtResource("2_rule_script")
+keyword = 1
+factor = 2
+receipt_text = "Perfect pair"
+
+[resource]
+script = ExtResource("3_upgrade")
+id = &"perfect_pair"
+icon_ref = "res://art/icons/perk_perfect_pair.png"
+display_name = "Perfect pair"
+type = 12
+effect_text = "PAIRED items pay ×2"
+condition_text = "An item is PAIRED when its PAIR partner is beside it"
+rules = Array[ExtResource("1_rule")]([SubResource("Resource_rule")])
+next_level = ExtResource("9_next_level")
+boosts_tag = "Dairy"

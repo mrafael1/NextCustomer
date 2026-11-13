@@ -19,12 +19,17 @@ extends SceneTree
 ##                     from the coupon pool since v0.51)
 ##   --random-start    start each run from the game's recipe deck (RANDOM_START_DECK) instead
 ##                     of the fixed starter deck; not with --deck
+##   --pack=ID         with --random-start, every run takes this starter pack (v1.29, measuring
+##                     a pack): it replaces the offer's first pack when the offer lacks it, even
+##                     one the stock would not offer (StarterPackDefinition.needs_aisle)
 ##   --balance=PATH    balance data (default the live balance data)
-##   --builds=DIR      the build files (default res://data/builds); see SimBuilds
+##   --builds=DIR      the build files (default res://data/builds); see SimBuilds (a
+##                     measure-only build, v1.29, can be a build: strategy's target but is never
+##                     a main build nor in the list gate)
 ##   --profile=PATH    stock the runs from this profile save (its unlocked items, run count and
 ##                     last list), as the game would for its next run (default a new profile)
-##   --collection=full stock the runs from the full collection: every capsule item unlocked,
-##                     no new arrivals (SimCollection); not with --profile
+##   --collection=full stock the runs from the full collection: every capsule item unlocked
+##                     (SimCollection); not with --profile
 ##   --list=A+B        the shopping list (aisle ids) when the stock needs one; with --profile it
 ##                     replaces the profile's last list
 ##   --list-gate       the list gate (full build plan section 8): play the fresh profile and
@@ -94,6 +99,7 @@ const SIMULATION_DEFAULTS: Dictionary[String, String] = {
 	"list": "",
 	"list-gate": "false",
 	"random-start": "false",
+	"pack": "",
 	"offer-samples": "1000",
 	"orphan-samples": "30",
 	"duel-samples": "200",
@@ -187,7 +193,10 @@ func _reference_deck() -> DeckDefinition:
 	var offer: StartOffer = StartingDeck.deal_offer(
 		_starter, stock, _balance, stream, false, _deal_quota
 	)
-	return StartingDeck.with_pack(_starter, offer.default_pack(), offer.shared)
+	var pack: StarterPackDefinition = _forced_pack()
+	return StartingDeck.with_pack(
+		_starter, pack if pack != null else offer.default_pack(), offer.shared
+	)
 
 
 func _run() -> int:
@@ -340,6 +349,8 @@ func _load_data() -> bool:
 		_balance = load(_options["balance"]) as BalanceDefinition
 		if _starter == null or _balance == null:
 			problem = "couldn't load the deck or the balance data"
+		elif not _options["pack"].is_empty() and _forced_pack() == null:
+			problem = "--pack names no starter pack of the recipe: %s" % _options["pack"]
 	if not problem.is_empty():
 		push_error("balance_sim: " + problem)
 		return false
@@ -353,7 +364,17 @@ static func random_start_problem(options: Dictionary[String, String]) -> String:
 		return "--random-start takes no value"
 	if options["random-start"] == "true" and options["deck"] != SIMULATION_DEFAULTS["deck"]:
 		return "--random-start plays the game's recipe deck: no --deck"
+	if not options.get("pack", "").is_empty() and options["random-start"] != "true":
+		return "--pack takes a starter pack: it needs --random-start"
 	return ""
+
+
+## The starter pack --pack names (null without one).
+func _forced_pack() -> StarterPackDefinition:
+	for pack: StarterPackDefinition in _starter.starter_packs:
+		if String(pack.id) == _options["pack"]:
+			return pack
+	return null
 
 
 ## What is wrong with the collection options, or "".
@@ -434,6 +455,7 @@ func _simulate(shard: int, shards: int, search: SimRowSearch) -> void:
 			_builds
 		)
 		player.deal_quota = _deal_quota
+		player.forced_pack = _forced_pack()
 		var records: Array[SimRunRecord] = []
 		_begin_phase(limit, search)
 		for index: int in range(shard, runs, shards):
@@ -488,6 +510,7 @@ func _play_chains(
 			_starter, _balance, search, strategy, int(_options["samples"]), stock, _builds
 		)
 		player.deal_quota = _deal_quota
+		player.forced_pack = _forced_pack()
 		return player
 	for index: int in range(shard, int(_options["chains"]), shards):
 		if limit.is_phase_over(Time.get_ticks_msec()):
@@ -759,16 +782,12 @@ func _is_gate() -> bool:
 
 func _stock_text(state: SimCollection) -> String:
 	var stock: RunStock = state.stock(_balance)
-	var arrivals: Array = stock.new_arrivals.map(
-		func(card: CardDefinition) -> String: return String(card.id)
-	)
 	return (
-		"Stock: %s · %d cards · aisles %s · new arrivals %s"
+		"Stock: %s · %d cards · aisles %s"
 		% [
 			state.label,
 			stock.cards.size(),
 			", ".join(stock.aisle_ids.map(func(id: StringName) -> String: return String(id))),
-			", ".join(arrivals) if not arrivals.is_empty() else "none"
 		]
 	)
 
@@ -818,8 +837,10 @@ func _gate_verdicts(summaries: Array[SimSummary], chances: Array[Dictionary]) ->
 	var verdicts: Array[Dictionary] = []
 	for index: int in range(1, _states.size()):
 		var state_summaries: Array[SimSummary] = summaries.slice(index * count, (index + 1) * count)
-		var state_chances: Dictionary[String, float] = chances[index]["chances"]
-		var fresh_chances: Dictionary[String, float] = chances[0]["chances"]
+		var state_chances: Dictionary[String, float] = _builds.gate_chances(
+			chances[index]["chances"]
+		)
+		var fresh_chances: Dictionary[String, float] = _builds.gate_chances(chances[0]["chances"])
 		verdicts.append(
 			SimListGate.check(_states[index], state_summaries, fresh, state_chances, fresh_chances)
 		)

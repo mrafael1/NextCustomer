@@ -9,4 +9,4 @@ group = &"families"
 title = "Bakery"
 mark = 3
 mark_value = "Bakery"
-rule = "Fresh from the oven. Many {fam:Bakery} items team up in a {kw:BATCH}."
+rule = "Fresh from the oven. Many {fam:Bakery} items team up in a {kw:BATCH}: its frame wears a FIRST cap and a LAST cap, and the cards that read a spot light theirs."

@@ -97,7 +97,7 @@ const UPGRADE_IDS: Array[String] = ["coupon_engine", "slot_engine", "category_en
 const HAND_IDS: Array[String] = [
 	"eggs", "tea_bags", "banana", "batteries", "two_for_one", "crisps", "coffee", "milk"
 ]
-## The cards on the belt: a product from Cold cases, Fruit & veg and Bakery, and a coupon.
+## The cards on the belt: a product from Cold cases, Produce and Bakery, and a coupon.
 const ROW_IDS: Array[String] = ["cheese", "strawberries", "croissant", "multipack"]
 ## --effects' shift (#71): #60's reference row on the belt under the Spot check.
 const EFFECTS_INSPECTION := "spot_check"
@@ -674,13 +674,13 @@ func reveal(spec: String) -> void:
 
 ## Opens the deck view (#56) on a new run (SEED), as the top bar's Cart would; capture() then names
 ## its file shift_screen_deck_<page>[_<options>]_<w>x<h>.png. `spec` is "<page>[,<option>...]":
-## the page is cart, info (Run info: the capture's upgrades, a Short belt shift, a new arrival in
-## the stock) or chooser (the machine's deck-full chooser for a Breakfast sticker, on a full cart);
+## the page is cart, info (Run info: the capture's upgrades, a Short belt shift, the stock) or
+## chooser (the machine's deck-full chooser for a Breakfast sticker, on a full cart);
 ## the options:
 ## - seed=<n>: the run's seed;
 ## - full: the cart filled to the deck limit with distinct items (one copy of each dealt card but
 ##   its first repeated one, a GOLDEN Banana, a BIG Milk, a Multipack, then stocked products);
-## - hover=<i>: item i is hovered (its scan popup opens); filter=<n>, pin=<n>: CaptureDeckFilter.
+## - hover=<i>: item i is hovered; filter=<n>, pin=<n>, scroll, tip=<what>: CaptureDeckFilter.
 func deck(spec: String) -> void:
 	var options: PackedStringArray = spec.split(",", false)
 	var page: String = options[0] if not options.is_empty() else "cart"
@@ -696,7 +696,6 @@ func deck(spec: String) -> void:
 			upgrades.append(_upgrade(upgrade_id))
 		run.upgrades = upgrades
 		run.inspections = [load("res://data/inspections/%s.tres" % DECK_INSPECTION)]
-		run.stock.new_arrivals = [DeckSummary.in_view_order(run.stock.cards)[5]]
 		_screen._refresh_loyalty_card()
 	var view: DeckView = _screen._deck_view
 	if page == "chooser":

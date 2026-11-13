@@ -4,7 +4,8 @@ extends RefCounted
 ## seed; add a card to the hand; give an upgrade; set the shift's inspection; skip to a shift,
 ## dropping the machine's waiting visits; for now, the count-up settings; the Profile tools of
 ## #63: give coins, draw from a TOY MACHINE, unlock or reset the collection, each saved in the
-## profile at once and stocked from the next run) and the --demo-row command-line option.
+## profile at once; an unlocked item is stocked in a later run that stocks its aisle) and the
+## --demo-row command-line option.
 ## Split out of ShiftScreen to keep that file short; it is a part of the screen and works on its
 ## run and display through the screen's own methods.
 ##
@@ -120,10 +121,10 @@ func give_coins(amount: int) -> void:
 
 ## Profile tools (#63): a capsule from the aisle's TOY MACHINE, the real draw (CapsuleCounter)
 ## with no coin spent, at the index the game would use: while a run is in progress, its own
-## (run_count), so it rides the runs after it; once the run has ended (record_run has counted
-## it), the ended run's (run_count - 1), so it rides the next run, as on the results. The
-## counter logs the capsule and debug events and saves. Returns the item, or null (unknown
-## aisle, an empty machine, or a profile that can't be saved).
+## (run_count); once the run has ended (record_run has counted it), the ended run's
+## (run_count - 1), as on the results. Either way the item is stocked only in a later run that
+## stocks its aisle (v1.32). The counter logs the capsule and debug events and saves. Returns the
+## item, or null (unknown aisle, an empty machine, or a profile that can't be saved).
 func draw_capsule(aisle_id: String) -> CardDefinition:
 	var path: String = "%s/%s.tres" % [AISLES_FOLDER, aisle_id]
 	if not ResourceLoader.exists(path):

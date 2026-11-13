@@ -101,7 +101,7 @@ func test_a_failed_condition_shows_a_wasted_sticker_in_planning() -> void:
 	await _frames(2)
 	await _place(screen, ["bread", "cheese"])
 	assert_object(_sticker(screen, 1, "WASTED")).is_null()
-	assert_object(_sticker(screen, 1, "+4")).is_not_null()
+	assert_object(_sticker(screen, 1, "+5")).is_not_null()
 
 
 ## A conditional card that another card boosts while its own condition fails (Eggs, Cheese: the

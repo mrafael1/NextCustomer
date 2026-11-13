@@ -12,6 +12,9 @@
 [ext_resource type="Resource" path="res://data/starter_packs/coupon_clipper.tres" id="p_coupon_clipper"]
 [ext_resource type="Resource" path="res://data/starter_packs/deli_counter.tres" id="p_deli_counter"]
 [ext_resource type="Resource" path="res://data/starter_packs/big_shop.tres" id="p_big_shop"]
+[ext_resource type="Resource" path="res://data/starter_packs/milk_bar.tres" id="p_milk_bar"]
+[ext_resource type="Resource" path="res://data/starter_packs/snack_stand.tres" id="p_snack_stand"]
+[ext_resource type="Resource" path="res://data/starter_packs/home_basics.tres" id="p_home_basics"]
 
 [resource]
 script = ExtResource("6_deck")
@@ -26,6 +29,6 @@ fair_deal_hands = 8
 fair_deal_passes = 1
 fair_deal_changes = 3
 fair_deal_redeals = 4
-starter_packs = Array[ExtResource("7_pack")]([ExtResource("p_breakfast_run"), ExtResource("p_bargain_bin"), ExtResource("p_banana_bunch"), ExtResource("p_coupon_clipper"), ExtResource("p_deli_counter"), ExtResource("p_big_shop")])
+starter_packs = Array[ExtResource("7_pack")]([ExtResource("p_breakfast_run"), ExtResource("p_bargain_bin"), ExtResource("p_banana_bunch"), ExtResource("p_coupon_clipper"), ExtResource("p_deli_counter"), ExtResource("p_big_shop"), ExtResource("p_milk_bar"), ExtResource("p_snack_stand"), ExtResource("p_home_basics")])
 packs_offered = 3
 first_pick_pack = ExtResource("p_breakfast_run")

@@ -35,7 +35,7 @@ static func add(parent: Control, rect: Rect2, tint: Color, dashed_line: bool) ->
 
 ## The colour of `pack`: its family's face (data/families), else tomato.
 static func pack_colour(pack: StarterPackDefinition) -> Color:
-	# A local palette, not FamilyPalette.shared().style(...): see PackCrate._init.
+	# A local palette, not FamilyPalette.shared().style(...): a chained call has crashed Godot 4.7.
 	var palette: FamilyPalette = FamilyPalette.shared()
 	var family_style: FamilyStyle = palette.style(pack.family)
 	if family_style != null and family_style.has_ticket_colours():

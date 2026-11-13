@@ -122,6 +122,23 @@ func test_wearing_and_taking_off_pins() -> void:
 	assert_array(profile.worn_pins).is_empty()
 
 
+## The start board's BADGE PINS gate (ProfilePins.start_gate, v1.32): a pin owned from the start
+## (no milestone) holds no packs until it is worn; an earned pin always does; a locked one never.
+func test_only_earned_or_worn_pins_hold_the_start_packs() -> void:
+	var profile: ProfileState = ProfileState.new()
+	var catalogue: CatalogueDefinition = _catalogue()
+	var pair: PinDefinition = _pair()
+	var full: PinDefinition = load(REPACK)
+	assert_array(_ids(ProfilePins.owned(profile, catalogue))).is_equal([pair.id])
+	assert_array(ProfilePins.start_gate(profile, catalogue)).is_empty()
+	assert_bool(ProfilePins.holds_start(profile, full)).is_false()
+	profile.worn_pins.append(pair.id)
+	assert_array(_ids(ProfilePins.start_gate(profile, catalogue))).is_equal([pair.id])
+	profile.worn_pins.clear()
+	profile.unlocked_pins.append(full.id)
+	assert_array(_ids(ProfilePins.start_gate(profile, catalogue))).is_equal([full.id])
+
+
 ## The coin fallback: a locked pin bought at random spends the price and counts the purchase;
 ## too few coins, or no pin left locked, buys nothing and changes nothing.
 func test_buying_a_random_locked_pin() -> void:
@@ -252,6 +269,13 @@ static func _pair() -> PinDefinition:
 	pin.display_name = "Pair"
 	pin.starting_cards.assign([load(TWO_FOR_ONE), load(TWO_FOR_ONE)])
 	return pin
+
+
+static func _ids(pins: Array[PinDefinition]) -> Array[StringName]:
+	var ids: Array[StringName] = []
+	for pin: PinDefinition in pins:
+		ids.append(pin.id)
+	return ids
 
 
 static func _catalogue() -> CatalogueDefinition:

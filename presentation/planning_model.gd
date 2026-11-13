@@ -11,6 +11,8 @@ enum Glyph { NONE, FIZZLE, WARNING }
 
 ## The pay tag's text.
 const PAY_TEXT := MonitorText.EUROS
+## A written-off item's label caption (v1.29, Write-off): EffectLink.WRITTEN_OFF_WORD, one line.
+const WRITTEN_OFF_CAPTION := EffectLink.WRITTEN_OFF_WORD
 ## A wrong job's tooltip (#128): WASTED, then its step's reason, capitalised.
 const WRONG_JOB_TIP := "%s · %s"
 ## The links that make rail strips.
@@ -35,6 +37,14 @@ var batches: Array[PackedInt32Array] = []
 ## one frame round its tickets; run_batch holds each run's index in `batches`.
 var runs: Array[PackedInt32Array] = []
 var run_batch: PackedInt32Array = PackedInt32Array()
+## The framed batches' job cards and what the score says of them (the BATCH bookends, 2026-11-12,
+## the approved batch_positions mock-up's A): each job card's slot with its role
+## (BatchRoleRule.Role, its place in the batch: first, earlier items, last, or the last's glaze); a
+## working Baguette's earlier items counted (its own bonus step over its rule's bonus); and each
+## batch's last item a glaze multiplies, with the factor (its MULTIPLIER step's value).
+var batch_roles: Dictionary[int, int] = {}
+var batch_counts: Dictionary[int, int] = {}
+var glazes: Dictionary[int, int] = {}
 ## The chains the belt frames while planning (#128, Produce links): every chain of the score
 ## (ScoreResult.chains, each in slot order with any Lemon knot inside it), plain Banana pairs too.
 var chains: Array[PackedInt32Array] = []
@@ -81,6 +91,7 @@ static func build(
 		for run: PackedInt32Array in runs_of(model.batches[index], row):
 			model.runs.append(run)
 			model.run_batch.append(index)
+	_add_batch_readers(model, result, row)
 	model.chains = result.chains.duplicate()
 	for index: int in range(model.chains.size()):
 		for run: PackedInt32Array in runs_of(model.chains[index], row):
@@ -93,7 +104,28 @@ static func build(
 	model.pairs = result.pairs.duplicate()
 	for slot: int in range(model.slots.size()):
 		model.slots[slot].wrong_job = wrong_job(result, slot, row[slot])
+		_stamp_write_off(model.slots[slot], result, slot)
 	return model
+
+
+## A written-off item's label (v1.29, Write-off): WRITTEN OFF (its pay kept as the amount), not a
+## denial (the item still pays, its stickers stay lit: written_off). A denial's own stamp wins.
+static func _stamp_write_off(planning: PlanningSlot, result: ScoreResult, slot: int) -> void:
+	if planning.has_stamp() or not written_off(result, slot):
+		return
+	planning.stamp_amount = PAY_TEXT % (result.payouts[slot] if slot < result.payouts.size() else 0)
+	planning.stamp_caption = WRITTEN_OFF_CAPTION
+	planning.written_off = true
+
+
+## Whether a Write-off wrote off the item at `slot` in `result` (a WRITTEN_OFF step on it).
+static func written_off(result: ScoreResult, slot: int) -> bool:
+	if result == null:
+		return false
+	for step: ScoreStep in result.steps:
+		if step.slot == slot and step.step_type == ScoreStep.StepType.WRITTEN_OFF:
+			return true
+	return false
 
 
 ## The batches of `result` (for `row`, the cards in slot order) the belt frames (#128): each
@@ -110,6 +142,44 @@ static func framed_batches(
 				framed.append(batch)
 				break
 	return framed
+
+
+## The job card's batch rule of `card` (a BatchRoleRule with a role), or null.
+static func batch_role_rule(card: CardDefinition) -> BatchRoleRule:
+	if card == null:
+		return null
+	for rule: Rule in card.rules:
+		var role_rule: BatchRoleRule = rule as BatchRoleRule
+		if role_rule != null and role_rule.role != BatchRoleRule.Role.NONE:
+			return role_rule
+	return null
+
+
+## Records `model`'s framed batches' job cards (batch_roles), from `result`'s steps what a working
+## Baguette counted (batch_counts) and the glazed last items (glazes); `row` the cards in order.
+static func _add_batch_readers(
+	model: PlanningModel, result: ScoreResult, row: Array[CardDefinition]
+) -> void:
+	for batch: PackedInt32Array in model.batches:
+		for slot: int in batch:
+			var rule: BatchRoleRule = batch_role_rule(row[slot]) if slot < row.size() else null
+			if rule != null:
+				model.batch_roles[slot] = rule.role
+	for step: ScoreStep in result.steps:
+		var giver: int = step.source_slot
+		if step.source_kind != ScoreStep.SourceKind.CARD or not model.batch_roles.has(giver):
+			continue
+		var role: int = model.batch_roles[giver]
+		if (
+			step.step_type == ScoreStep.StepType.FLAT
+			and role == BatchRoleRule.Role.BODY
+			and step.slot == giver
+		):
+			var bonus: int = batch_role_rule(row[giver]).bonus
+			if bonus > 0:
+				model.batch_counts[giver] = floori(float(step.value) / bonus)
+		elif step.step_type == ScoreStep.StepType.MULTIPLIER and role == BatchRoleRule.Role.GLAZE:
+			model.glazes[step.slot] = step.value
 
 
 ## `batch` (slots in order) in runs a frame can bind: a new run starts where a product outside the

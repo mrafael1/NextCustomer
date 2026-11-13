@@ -37,8 +37,9 @@ var starter: DeckDefinition
 var start_offer: StartOffer
 ## Opening-time choices, retained across title/resume. Null on older runs.
 var start_setup: StartSetup
-## Not saved: a resumed run waiting for its pick whose setup was saved in the first build's form
-## (StartSetup.is_old_format); the opening time sets it up again from the run seed.
+## Not saved: a resumed run waiting for its pick whose setup was saved in an older form (the
+## first build's or the baskets', StartSetup.is_old_format); the opening time sets it up again
+## from the run seed.
 var restart_setup: bool = false
 ## The cards the machine's NEW ITEMS and COUPONS chutes draw from (full build plan 7.2).
 var stock: RunStock
@@ -72,6 +73,9 @@ var kept: PackedInt32Array = PackedInt32Array()
 ## A Price gun pin's relabels this shift (#132, PinPlay.relabel): instance id to the family the
 ## item gains; cleared when a shift starts.
 var relabels: Dictionary[int, String] = {}
+## The families picked for the run's Family stickers on the belt (v1.29, FamilySticker.pick):
+## instance id to family. Kept across shifts (and in the run save), never cleared.
+var sticker_families: Dictionary[int, String] = {}
 ## A Day off pin's pile waits on the belt (#132, PinPlay.set_day_off): the row is empty and takes
 ## no card, and the preview is the day off's (the quota). Not saved: a resumed shift has none.
 var day_off_pending: bool = false

@@ -167,8 +167,11 @@ func test_the_cart_page_marks_the_starting_cart() -> void:
 			column.position.x
 		)
 		assert_float(rect.end.x).override_failure_message(id).is_less_equal(column.end.x)
+		# Only a label over the chip (on its own shelf) matters, not one on the shelf below.
 		for plate: Node in plates:
 			var label: Rect2 = (plate as Control).get_global_rect()
+			if label.position.y > rect.position.y:
+				continue
 			if label.end.x > rect.position.x and label.position.x < rect.end.x:
 				var gap: float = rect.position.y - label.end.y
 				assert_float(gap).override_failure_message(id).is_greater_equal(
@@ -329,8 +332,8 @@ func test_the_starting_deck_fits_without_scrolling() -> void:
 
 
 ## The cart and run info polish (2026-11-12): Run info shows the run at a glance (the run family's
-## card: the starter pack's family glyph big, its name, the pack and its hint; the aisles in stock,
-## STARTER or RUN ONLY; the cart's families as tiles, each a big glyph and its count in the number
+## card: the starter pack's family glyph big, its name, the pack and its hint; the run's two
+## aisles in stock; the cart's families as tiles, each a big glyph and its count in the number
 ## font, the run family's ringed), then the stock, products then coupons under their shelf labels.
 ## It shows no upgrades and no inspections, even with one of each.
 func test_the_run_info_tab_shows_the_run_at_a_glance_and_the_stock() -> void:
@@ -380,15 +383,20 @@ func test_the_run_info_tab_shows_the_run_at_a_glance_and_the_stock() -> void:
 			]
 		)
 	)
-	# The aisles in stock.
-	var rows: Array[Array] = RunInfoHero.aisle_rows(run)
-	assert_int(rows.size()).is_greater(0)
+	# The aisles in stock: since v1.32 the run's two boosters' aisles, one plate each, by name.
+	var rows: Array[AisleDefinition] = RunInfoHero.aisle_rows(run)
+	assert_int(rows.size()).is_equal(2)
 	var plates: Node = view._info_page.find_child(RunInfoHero.PLATES, true, false)
 	assert_int(plates.get_child_count()).is_equal(rows.size())
-	for row: Array in rows:
-		assert_array(texts).contains([(row[0] as AisleDefinition).display_name])
-		if not (row[1] as String).is_empty():
-			assert_array(texts).contains([row[1]])
+	var plate_names: Array = []
+	for label: Node in plates.find_children("AisleName", "Label", true, false):
+		plate_names.append((label as Label).text)
+	for aisle: AisleDefinition in run.balance.aisles:
+		(
+			assert_bool(plate_names.has(aisle.display_name))
+			. override_failure_message(aisle.display_name)
+			. is_equal(run.stock.aisle_ids.has(aisle.id))
+		)
 	# The families: one tile per printed tag, most common first.
 	var counts: Dictionary[String, int] = DeckSummary.tag_counts(run.deck.cards)
 	var tiles: Array[FamilyCount] = []
@@ -411,7 +419,12 @@ func test_the_run_info_tab_shows_the_run_at_a_glance_and_the_stock() -> void:
 		)
 	# The stock, products then coupons.
 	assert_int(view.card_views().size()).is_equal(run.stock.cards.size())
-	assert_int(view.card_views().size()).is_equal(28)
+	# The starting stock (the staples and two aisles' base products since the v1.32 feedback) and
+	# the coupons of coupon_pool.
+	var expected: int = RunStock.staples(run.balance).size() + run.balance.coupon_pool.size()
+	for aisle: AisleDefinition in rows:
+		expected += aisle.base_cards.size()
+	assert_int(view.card_views().size()).is_equal(expected)
 	var products: int = (
 		run
 		. stock
@@ -485,20 +498,19 @@ func test_the_cart_and_run_info_fit_both_windows() -> void:
 			await get_tree().process_frame
 
 
-## New arrivals in the stock are marked NEW.
-func test_run_info_marks_new_arrivals() -> void:
+## The Run info stock shows every stocked card once, with no mark on any (v1.32: the NEW chip of
+## the end-cap's new arrivals is gone with them).
+func test_run_info_shows_the_stock_unmarked() -> void:
 	var screen: ShiftScreen = await _screen()
 	var run: RunState = screen.run
-	var arrival: CardDefinition = run.stock.cards[6]
-	run.stock.new_arrivals = [arrival]
 	screen._on_deck_button_pressed()
 	var view: DeckView = screen._deck_view
 	view.show_page(true)
+	var shown: Array[CardDefinition] = []
 	for cell: DeckCell in view.cells():
-		var mark: RevealChip = cell.get_node_or_null(DeckCell.NEW_MARK)
-		assert_bool(mark != null).is_equal(cell.card == arrival)
-		if mark != null:
-			assert_str(mark.text_label().text).is_equal(DeckCell.NEW_TEXT)
+		shown.append(cell.card)
+		assert_array(cell.marks()).override_failure_message(String(cell.card.id)).is_empty()
+	assert_array(shown).contains_exactly_in_any_order(run.stock.cards)
 
 
 ## At the deck limit only the deck shows, and a grouped card chooses one of its copies.

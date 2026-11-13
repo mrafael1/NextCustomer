@@ -1,0 +1,20 @@
+; The FIGURINE SHELF button's NEW tag (2026-11-11, the user: "when a new item is unlocked, show
+; a new tag on figurine shelf button"): a tomato price tag, pointed left with its string hole
+; (a tomato darkest ring round a see-through texel), tomato light lit along the top and left,
+; tomato dark shade on the bottom and right, ink outline. NEW is code-drawn on it in paper hard
+; pixel words (PixelLine). 30x13, shown at 2x.
+@size 30x13
+@kind icon
+......#######################.
+.....#ooooooooooooooooooooooR#
+....#oRRRRRRRRRRRRRRRRRRRRRRr#
+...#oRRRRRRRRRRRRRRRRRRRRRRRr#
+..#oRRRRRRRRRRRRRRRRRRRRRRRRr#
+.#oRqqqRRRRRRRRRRRRRRRRRRRRRr#
+#oRRq.qRRRRRRRRRRRRRRRRRRRRRr#
+.#oRqqqRRRRRRRRRRRRRRRRRRRRRr#
+..#oRRRRRRRRRRRRRRRRRRRRRRRRr#
+...#oRRRRRRRRRRRRRRRRRRRRRRRr#
+....#oRRRRRRRRRRRRRRRRRRRRRRr#
+.....#Rrrrrrrrrrrrrrrrrrrrrrr#
+......#######################.

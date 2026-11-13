@@ -4,7 +4,9 @@ extends RefCounted
 ## key's count and the monitor's notice sizes: `--redraws=<used>` spends that many of the shift's
 ## redraws (the key shows what is left), `--notice=<name>` shows one of NOTICES on the monitor.
 ## `--handbook=<entry id>` (v1.06) opens the staff handbook over the shift at that entry (its
-## example clip on its final state); `--handbook=<entry id>,tab=<group id>` then picks that tab.
+## example clip on its final state); `--handbook=<entry id>,tab=<group id>` then picks that tab,
+## and `,scroll=end` (2026-11-12) scrolls the entry to its end (BATCH's caps paragraphs under the
+## slip; the file gets scroll_).
 ## `--pending=<laps>` (2026-11-06, the week medals) makes planning's projection reach that many
 ## laps of the quota (CaptureOvertime.pending). `--roll=<fraction>[,fall]` (2026-11-08 feedback)
 ## freezes the receipt's PROJECTED roll (ReceiptRoll) that far through: the belt's last item that
@@ -29,6 +31,7 @@ extends RefCounted
 const REDRAWS_ARGUMENT := "--redraws="
 const NOTICE_ARGUMENT := "--notice="
 const HANDBOOK_ARGUMENT := "--handbook="
+const HANDBOOK_SCROLL_END := "scroll=end"
 const PENDING_ARGUMENT := "--pending="
 const ROLL_ARGUMENT := "--roll="
 const HISTORY_ARGUMENT := "--history"
@@ -68,9 +71,13 @@ static func apply(screen: ShiftScreen, arguments: PackedStringArray) -> String:
 			page.reduced_motion = Callable()
 			page.still = true
 			page.open_at(StringName(spec[0]))
-			if spec.size() > 1 and spec[1].begins_with("tab="):
-				page.show_group(StringName(spec[1].trim_prefix("tab=")))
 			part += "handbook_%s_" % spec[0]
+			for option: String in spec.slice(1):
+				if option.begins_with("tab="):
+					page.show_group(StringName(option.trim_prefix("tab=")))
+				elif option == HANDBOOK_SCROLL_END:
+					_scroll_to_end(page.entry_scroll())
+					part += "scroll_"
 		elif argument.begins_with(PENDING_ARGUMENT):
 			var laps: int = maxi(argument.trim_prefix(PENDING_ARGUMENT).to_int(), 1)
 			CaptureOvertime.pending(screen, laps)
@@ -133,6 +140,16 @@ static func _payday(screen: ShiftScreen, look: String) -> void:
 	run.machine.machine = machine
 	screen.debug_show_shift()
 	screen._week.skip()
+
+
+## Keeps `scroll` at its end each frame while it lives (the entry lays out over the next frames).
+static func _scroll_to_end(scroll: ScrollContainer) -> void:
+	var tree: SceneTree = scroll.get_tree()
+	var keep: Callable = func() -> void:
+		if is_instance_valid(scroll):
+			scroll.scroll_vertical = int(scroll.get_v_scroll_bar().max_value)
+	tree.process_frame.connect(keep)
+	scroll.tree_exiting.connect(func() -> void: tree.process_frame.disconnect(keep))
 
 
 ## --pop: the next day's arrival after a checkout, frozen `ms` in.
