@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Item art polish</title>
+<style>
+@font-face { font-family: Pixelify; font-weight: 400 700; src: url(src/PixelifySans-Variable.ttf); }
+@font-face { font-family: Atkinson; font-weight: 200 800; src: url(src/AtkinsonHyperlegibleNext-Variable.ttf); }
+:root { --wall:#1f3b3a; --bay:#172c2b; --panel:#2a4d4b; --paper:#fbf7ee; --cream:#f3e9d2; --teal-pale:#c3e0d4; --gold:#ffcf3f; --ink:#2b2420; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bay); color: var(--paper); font-family: Atkinson, sans-serif; font-size: 16px; line-height: 1.45; }
+main { max-width: 1240px; margin: 0 auto; padding: 24px 16px 64px; }
+h1, h2, h3 { font-family: Pixelify, sans-serif; margin: 0; }
+h1 { font-size: 32px; color: var(--gold); }
+h2 { font-size: 26px; color: var(--gold); margin-top: 8px; }
+h3 { font-size: 18px; color: var(--teal-pale); margin-bottom: 8px; }
+.intro { color: var(--teal-pale); max-width: 70ch; }
+section { background: var(--wall); border: 2px solid var(--ink); padding: 16px; margin-top: 24px; }
+.note { max-width: 75ch; }
+.tier { display: grid; grid-template-columns: 1fr; gap: 16px; align-items: start; border-top: 2px solid var(--panel); padding-top: 16px; margin-top: 16px; }
+.tier h3 { grid-column: 1 / -1; margin: 0; }
+.pair { display: flex; gap: 12px; }
+figure { margin: 0; }
+figcaption, .lab { font-family: Pixelify, sans-serif; font-size: 14px; color: var(--teal-pale); }
+img { image-rendering: pixelated; display: block; max-width: none; }
+.views { display: flex; flex-direction: column; gap: 10px; overflow-x: auto; }
+.vrow { display: flex; gap: 10px; align-items: center; }
+.vrow .lab { width: 52px; flex: none; }
+.legend { font-size: 14px; color: var(--teal-pale); }
+@media (max-width: 900px) { .tier { grid-template-columns: 1fr; } .z { width: 144px; height: 144px; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Item art polish</h1>
+  <p class="intro">Crisps, Lemon and Banana, before and after. Big pictures are 6x on cream. Each strip shows the real game sizes at 1:1 game pixels: 1x (the size flying into the paper bag), 2x on a REWARDS card, 2x on the belt, and 2x in the hand basket. BIG and GOLDEN follow the plain sprite (GOLDEN is built from BIG by its palette map).</p>
+  <p class="legend">Strips, left to right: flying (1x) · card (2x) · belt (2x) · basket (2x).</p>
+  
+    <section>
+      <h2>Crisps</h2>
+      <p class="note">The crimped top was 6 rows tall with a pinched neck under it, so the bag read as a jar with a lid. Now the seal is 3 rows, the bag is as wide as the seal and taller than wide, and a short crimp closes the bottom too. On BIG, the packet behind now has a thin shine line, so it reads as a packet and not a red box.</p>
+      <div class="tier">
+        <h3>Plain</h3>
+        <div class="pair">
+          <figure><figcaption>Before</figcaption><img class="z" src="src/crisps_before_x6.png" width="288" height="288" alt="Crisps Plain before, 6x"></figure>
+          <figure><figcaption>After</figcaption><img class="z" src="src/crisps_after_x6.png" width="288" height="288" alt="Crisps Plain after, 6x"></figure>
+        </div>
+        <div class="views">
+          <div class="vrow"><span class="lab">Before</span><img src="src/crisps_before_views.png" alt="Crisps Plain before in the game"></div>
+          <div class="vrow"><span class="lab">After</span><img src="src/crisps_after_views.png" alt="Crisps Plain after in the game"></div>
+        </div>
+      </div>
+      <div class="tier">
+        <h3>BIG</h3>
+        <div class="pair">
+          <figure><figcaption>Before</figcaption><img class="z" src="src/crisps_big_before_x6.png" width="288" height="288" alt="Crisps BIG before, 6x"></figure>
+          <figure><figcaption>After</figcaption><img class="z" src="src/crisps_big_after_x6.png" width="288" height="288" alt="Crisps BIG after, 6x"></figure>
+        </div>
+        <div class="views">
+          <div class="vrow"><span class="lab">Before</span><img src="src/crisps_big_before_views.png" alt="Crisps BIG before in the game"></div>
+          <div class="vrow"><span class="lab">After</span><img src="src/crisps_big_after_views.png" alt="Crisps BIG after in the game"></div>
+        </div>
+      </div>
+      <div class="tier">
+        <h3>GOLDEN</h3>
+        <div class="pair">
+          <figure><figcaption>Before</figcaption><img class="z" src="src/crisps_golden_before_x6.png" width="288" height="288" alt="Crisps GOLDEN before, 6x"></figure>
+          <figure><figcaption>After</figcaption><img class="z" src="src/crisps_golden_after_x6.png" width="288" height="288" alt="Crisps GOLDEN after, 6x"></figure>
+        </div>
+        <div class="views">
+          <div class="vrow"><span class="lab">Before</span><img src="src/crisps_golden_before_views.png" alt="Crisps GOLDEN before in the game"></div>
+          <div class="vrow"><span class="lab">After</span><img src="src/crisps_golden_after_views.png" alt="Crisps GOLDEN after in the game"></div>
+        </div>
+      </div>
+    </section>
+    <section>
+      <h2>Lemon</h2>
+      <p class="note">The leaf sat on the lemon's shoulder, away from the tip. Now a small brown stem (2 pixels, so you can see it) sits on the pointed tip and one small leaf grows from it. On BIG, the back lemon's leaf is as wide as the plain one.</p>
+      <div class="tier">
+        <h3>Plain</h3>
+        <div class="pair">
+          <figure><figcaption>Before</figcaption><img class="z" src="src/lemon_before_x6.png" width="288" height="288" alt="Lemon Plain before, 6x"></figure>
+          <figure><figcaption>After</figcaption><img class="z" src="src/lemon_after_x6.png" width="288" height="288" alt="Lemon Plain after, 6x"></figure>
+        </div>
+        <div class="views">
+          <div class="vrow"><span class="lab">Before</span><img src="src/lemon_before_views.png" alt="Lemon Plain before in the game"></div>
+          <div class="vrow"><span class="lab">After</span><img src="src/lemon_after_views.png" alt="Lemon Plain after in the game"></div>
+        </div>
+      </div>
+      <div class="tier">
+        <h3>BIG</h3>
+        <div class="pair">
+          <figure><figcaption>Before</figcaption><img class="z" src="src/lemon_big_before_x6.png" width="288" height="288" alt="Lemon BIG before, 6x"></figure>
+          <figure><figcaption>After</figcaption><img class="z" src="src/lemon_big_after_x6.png" width="288" height="288" alt="Lemon BIG after, 6x"></figure>
+        </div>
+        <div class="views">
+          <div class="vrow"><span class="lab">Before</span><img src="src/lemon_big_before_views.png" alt="Lemon BIG before in the game"></div>
+          <div class="vrow"><span class="lab">After</span><img src="src/lemon_big_after_views.png" alt="Lemon BIG after in the game"></div>
+        </div>
+      </div>
+      <div class="tier">
+        <h3>GOLDEN</h3>
+        <div class="pair">
+          <figure><figcaption>Before</figcaption><img class="z" src="src/lemon_golden_before_x6.png" width="288" height="288" alt="Lemon GOLDEN before, 6x"></figure>
+          <figure><figcaption>After</figcaption><img class="z" src="src/lemon_golden_after_x6.png" width="288" height="288" alt="Lemon GOLDEN after, 6x"></figure>
+        </div>
+        <div class="views">
+          <div class="vrow"><span class="lab">Before</span><img src="src/lemon_golden_before_views.png" alt="Lemon GOLDEN before in the game"></div>
+          <div class="vrow"><span class="lab">After</span><img src="src/lemon_golden_after_views.png" alt="Lemon GOLDEN after in the game"></div>
+        </div>
+      </div>
+    </section>
+    <section>
+      <h2>Banana</h2>
+      <p class="note">Where the fingers met the stalk was a tangle of green and mustard pixels. Now the stalk flows into one brown crown and the fingers' green necks flow out of it, with no dark line cutting them apart, so it reads as one bunch and not a nut stuck on top.</p>
+      <div class="tier">
+        <h3>Plain</h3>
+        <div class="pair">
+          <figure><figcaption>Before</figcaption><img class="z" src="src/banana_before_x6.png" width="288" height="288" alt="Banana Plain before, 6x"></figure>
+          <figure><figcaption>After</figcaption><img class="z" src="src/banana_after_x6.png" width="288" height="288" alt="Banana Plain after, 6x"></figure>
+        </div>
+        <div class="views">
+          <div class="vrow"><span class="lab">Before</span><img src="src/banana_before_views.png" alt="Banana Plain before in the game"></div>
+          <div class="vrow"><span class="lab">After</span><img src="src/banana_after_views.png" alt="Banana Plain after in the game"></div>
+        </div>
+      </div>
+      <div class="tier">
+        <h3>BIG</h3>
+        <div class="pair">
+          <figure><figcaption>Before</figcaption><img class="z" src="src/banana_big_before_x6.png" width="288" height="288" alt="Banana BIG before, 6x"></figure>
+          <figure><figcaption>After</figcaption><img class="z" src="src/banana_big_after_x6.png" width="288" height="288" alt="Banana BIG after, 6x"></figure>
+        </div>
+        <div class="views">
+          <div class="vrow"><span class="lab">Before</span><img src="src/banana_big_before_views.png" alt="Banana BIG before in the game"></div>
+          <div class="vrow"><span class="lab">After</span><img src="src/banana_big_after_views.png" alt="Banana BIG after in the game"></div>
+        </div>
+      </div>
+      <div class="tier">
+        <h3>GOLDEN</h3>
+        <div class="pair">
+          <figure><figcaption>Before</figcaption><img class="z" src="src/banana_golden_before_x6.png" width="288" height="288" alt="Banana GOLDEN before, 6x"></figure>
+          <figure><figcaption>After</figcaption><img class="z" src="src/banana_golden_after_x6.png" width="288" height="288" alt="Banana GOLDEN after, 6x"></figure>
+        </div>
+        <div class="views">
+          <div class="vrow"><span class="lab">Before</span><img src="src/banana_golden_before_views.png" alt="Banana GOLDEN before in the game"></div>
+          <div class="vrow"><span class="lab">After</span><img src="src/banana_golden_after_views.png" alt="Banana GOLDEN after in the game"></div>
+        </div>
+      </div>
+    </section>
+</main>
+</body>
+</html>
