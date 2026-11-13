@@ -2,76 +2,76 @@ class_name DeckView
 extends PanelContainer
 ## The deck view (plan section 2, extended in full build phase 1), in the look of #56's deck view B
 ## (mock-up screens_deck_b.html): a teal hand basket (frames/basket_panel, its slotted foot and
-## cart badge) holding shelves of tray items on steel price rails in its dark well. Its header
-## holds the shown page's title and the framed Cart, Run info and Close buttons (the shown page's
-## tab sunk on the paper face of a picked tab, FramedButton.selected).
+## cart badge) with the pages in its dark well. Its header holds the shown page's title and the
+## framed Cart, Run info and Close buttons (the shown page's tab sunk on the paper face of a
+## picked tab, FramedButton.selected).
 ##
-## The Cart page (the cart and run info polish, 2026-11-12) shows the deck as items, one cell
-## (DeckCell) per distinct card with its copies stacked behind it and counted on a cream label. Its
-## top line counts the copies carrying each printed tag as icons: one FamilyCount chip per family
-## (its glyph and the count in the number font; its tooltip names it and lights its cells), most
-## common first. Products fill the shelves from the top left; the coupons stand at the right end of
-## the last shelf, at least one empty column after the products, so a 15-card cart (up to 15
-## distinct cards) fits on two shelves unscrolled. Each section's heading is a shelf-edge label
-## (DeckShelf.heading: PRODUCTS 13). The empty rail between them says CART FULL, or how much room is
-## left (ROOM_NOTE) on a shelf label of its own, outside the chooser. A BIG or GOLDEN copy shows its
-## tier tag under its sticker (PriceSticker.tier_text), so a player never swaps one out unknowingly.
-## An item picked at the start (the starter pack's or a dealt one, the set the cart reveal's "+"
-## marked since v0.51: start_sources) carries the green START chip on its art for the whole run, its
-## tooltip saying where it came from; the regulars and the machine's items carry none. Marks go by
-## product (a later copy, even a BIG or GOLDEN one from the machine, shares its mark, since copies
-## carry no origin in the save). A legend at the line's right names the chip. The tickets' family
-## glyphs show their names below the ticket on hover (GlyphTips, mounted by the screen).
+## The Cart page shows the cart as cards (mock-up docs/art/mockups/cart_cards.html, view CARDS,
+## layout "2x8 cart face", approved by the user on 2026-11-13: "perfect with your recommended"):
+## one small card face (DeckCell) per distinct card with its copies stacked behind it and counted,
+## its FULL rule on it with its keywords and families as chips, its rarity on a tab (COMMON, RARE
+## for BIG and the rare coupons, LEGENDARY with a gold foil for GOLDEN and the legendary coupons,
+## machine.tres). The cards stand in CartLayout.ROWS rows of up to CartLayout.COLUMNS: the
+## products from the top left, the coupons in a group of their own after them, behind a dashed
+## separator, so a 15-card cart fits unscrolled at 1280x720 and 1920x1080 (a bigger one adds rows
+## and scrolls). The page's top line counts the copies carrying each printed tag as icons (one
+## FamilyCount chip per family, most common first), then the PRODUCTS shelf-edge label and the
+## room left (ROOM FOR 2 MORE, or CART FULL; outside the chooser); the COUPONS label stands over
+## the coupons' group and the START legend left of it. An item picked at the start (the starter
+## pack's or a counted booster's, start_sources) wears the green START chip over its barcode, its
+## tooltip saying where it came from; the regulars, swapped or not, and a pin's card carry none.
+## Marks go by product (a later copy, even a BIG or GOLDEN one from the machine, shares its mark).
 ##
-## The Run info page shows the run at a glance (RunInfoHero: the run family's card, the aisles in
-## stock, the cart's families as big tiles), then the run's stock: every item the RECEIPT REWARDS
-## machine can offer, products then coupons under their shelf labels. Its shelves scroll. The
-## upgrades (the top bar's LOYALTY card) and the inspections (the day calendar and slip) show
-## elsewhere, so it repeats neither.
+## The Run info page shows the run at a glance (RunInfoHero: the run family's card, the run's two
+## aisles in stock and the staples' line, the cart's families as big tiles), then MACHINE STOCK as
+## a compact icon grid (StockGrid: STAPLES, each aisle, COUPONS; an item's price or its coupon
+## rarity, an in-cart badge). It scrolls only when the stock is too big for it. The upgrades (the
+## top bar's LOYALTY card) and the inspections (the day calendar and slip) show elsewhere.
 ##
-## Hovering an item opens the scan popup (ScanPopup, as on the machine's prizes) beside it with
-## its rule text in full. The mix highlight (#105 piece 3, MixModel; mock-up readability v3's Cart)
-## paints every cell of both pages: the hovered item lights the cells it works with (a broad "next
-## Food" match faint) and greys the rest, and `mix_family` (a family glyph's tooltip in the view,
-## PlanningEffects.watch_glyphs) lights that family's cells instead. Off in choosing mode.
+## Hovering a card lifts it and opens its paper tip (CardTip, the mock-up's hover_tips B) beside
+## it: its rarity in the header's colour and tag, what its colour means ("Works with Breakfast"),
+## its full rule, its price and families, where a START item came from, and a KEYWORD box for each
+## keyword of its rule. Hovering a stock icon opens the tip with its card face and whether the cart
+## holds it. The mix highlight (#105 piece 3, MixModel) paints the Cart's cards: the hovered
+## card lights the cards it works with (a broad "next Food" match faint) and greys the rest, and
+## `mix_family` (a family glyph's tooltip in the view, PlanningEffects.watch_glyphs) lights that
+## family's cards instead. Off in choosing mode.
 ##
 ## The family filter (the cart and run info polish, play feedback 2026-11-12): the page's family
-## icons (the Cart's tag chips, the Run info's family tiles) switch its item grid. The pointer on
-## one shows only that family's items (preview_family), re-packed from the grid's top left with no
-## gap before the coupons (shelf_slots' `packed`); leaving it shows them all again. A click pins
-## the filter (toggle_pin; the icon stays lit and sunk, FamilyCount.pinned), so the pointer may go
-## read the items' popups; the pointer on another icon previews its family meanwhile, and leaving
-## it returns to the pinned one. Clicking the pinned icon again, another icon (it switches), Esc
-## (taken before the pause), switching tabs or closing the view clears it. An icon whose family
-## has no item on the page does nothing. The icons never move: they scroll with the page, so the
-## scroll stays put and a filtered grid keeps its unfiltered height (_hold_height), so the page
-## neither shrinks under the pointer nor clamps its scroll. Off in choosing and placing mode. In
-## choosing mode (#77) only the Cart page shows, a hovered item gets a gold ring, and clicking it
-## chooses one of its copies (to remove it from the deck); Close cancels the pick. The machine's
-## pick opens it in placing mode (2026-10-29, open_placing, CartPlacing): the prize's item rides on
-## the pointer, the cart's free places show as gold RoomSpots in empty shelf spots, and the drop
-## adds it (`added`), swaps an item's copy out (`card_chosen`) or goes back (`closed`). It only
-## displays RunState and DeckSummary.
+## icons (the Cart's tag chips, the Run info's family tiles) switch its items. On the Cart the
+## pointer on one shows only that family's products (the coupons hide), re-packed from the top
+## left (preview_family); on Run info the other families' icons dim where they stand. Leaving it
+## shows them all again. A click pins the filter (toggle_pin; the icon stays lit and sunk,
+## FamilyCount.pinned), so the pointer may go read the items' tips; the pointer on another icon
+## previews its family meanwhile, and leaving it returns to the pinned one. Clicking the pinned icon
+## again, another icon (it switches), Esc (taken before the pause), switching tabs or closing the
+## view clears it. An icon whose family has no item on the page does nothing. The icons never move
+## and a filtered grid keeps its unfiltered height, so the page neither shrinks under the pointer
+## nor clamps its scroll. Off in choosing and placing mode. In choosing mode (#77) only the Cart
+## page shows, a hovered card gets a gold ring, and clicking it chooses one of its copies (to remove
+## it from the deck); Close cancels the pick. The machine's pick opens it in placing mode
+## (2026-10-29, open_placing, CartPlacing): the prize's card rides on the pointer, the cart's free
+## places show as gold RoomSpots after the products, and the drop adds it (`added`), swaps a card's
+## copy out (`card_chosen`) or goes back (`closed`). It only displays RunState and DeckSummary.
 
 signal closed
 signal card_chosen(card: CardInstance)
 ## Placing mode: the prize was dropped on a free spot.
 signal added
 
-const COLUMNS := 10
-const GAP := 10.0
+## The Cart's cards' grid (CartLayout) and its sides' padding.
+const GRID_PAD := CartLayout.GRID_PAD
 ## Room on the right for the scroll bar.
 const SCROLL_ROOM := 14.0
-## The pages scroll inside this area, so the view fits the window at any deck or stock size. Two
-## shelves with their heading bands and the tag line fit it unscrolled: any cart up to the deck
-## limit (15 distinct cards at most).
-const PAGE_SIZE := Vector2(COLUMNS * DeckCell.SIZE.x + (COLUMNS - 1) * GAP + SCROLL_ROOM, 480)
+## The pages scroll inside this area, so the view fits the window at any cart or stock size. The
+## top line and two rows of cards fit it unscrolled: any cart up to the deck limit (15 distinct
+## cards at most).
+const PAGE_SIZE := Vector2(1184, 480)
 const PAGE_GAP := 4
-## The Cart page always shows this many shelves (an empty rail is room left in the cart).
-const MIN_SHELVES := 2
-## The tag line's height (its chips and legend), the gap between its chips.
-const TOP_LINE_HEIGHT := FamilyCount.CHIP_HEIGHT
+## The top line's height (its chips and labels), the gap between its chips and between its parts.
+const TOP_LINE_HEIGHT := 30.0
 const CHIP_GAP := 6
+const LINE_GAP := 14
 ## The basket's 9-slice margin (art pixels) and padding (left, top, right, bottom).
 const BASKET := preload("res://art/frames/basket_panel.png")
 const BASKET_MARGIN := 5
@@ -89,24 +89,32 @@ const BUTTON_SIZE := Vector2(112, 40)
 const BUTTON_FONT := 18
 const LEGEND_SIZE := 15
 const START_LEGEND := "picked at the start"
+## The START legend's gap before the COUPONS label.
+const LEGEND_GAP := 16.0
 const PRODUCTS := "PRODUCTS %d"
 const COUPONS := "COUPONS %d"
-## The rail's note across the empty columns of the Cart's last shelf (outside the chooser).
+## The shelf-edge labels: their size, padding and border.
+const HEADING_SIZE := 16
+const HEADING_PADDING := 8.0
+const HEADING_BORDER := 2
+## The room left on the top line (outside the chooser): CART FULL, or ROOM FOR n MORE.
 const FULL_NOTE := "CART FULL"
 const ROOM_NOTE := "ROOM FOR %d MORE"
+const NOTE_SIZE := 16
+const ROOM_NOTE_NAME := "RoomNote"
 ## The Run info page's title, and its stock's heading and caption.
 const INFO_TITLE := "Run info"
 const STOCK_HEADING := "MACHINE STOCK"
-const STOCK_CAPTION := "what the machine can offer this run"
+const STOCK_CAPTION := "what the machine can offer this run · hover an item for its card"
 const STOCK_CAPTION_SIZE := 16
 ## The gap above the stock's heading on the Run info page.
 const STOCK_GAP := 6.0
-## Each page's item grid's node name (for tests).
+## Each page's item grid's node name (for tests), the top line's and the separator's.
 const GRID := "Grid"
-## A grid's meta: its unfiltered shelf count (_hold_height).
-const FULL_SHELVES := &"full_shelves"
+const TOP_LINE := "TagLine"
+const SEPARATOR := "Separator"
 
-## The family whose glyph's tooltip shows in the view (#105 piece 3), or "": its cells light.
+## The family whose glyph's tooltip shows in the view (#105 piece 3), or "": its cards light.
 var mix_family: String = "":
 	set(value):
 		if mix_family != value:
@@ -115,7 +123,7 @@ var mix_family: String = "":
 ## The mix highlight's grey (PlanningTuning's).
 var tuning: PlanningTuning = load(PlanningEffects.TUNING_PATH) as PlanningTuning
 ## The family filter: the family the pointer previews, the pinned one ("" for none), and the
-## family each page's grid shows now.
+## family each page shows now.
 var _preview: String = ""
 var _pinned: String = ""
 var _deck_grid_family: String = ""
@@ -127,9 +135,12 @@ var _close_button: FramedButton
 var _scroll: ScrollContainer
 var _deck_page: VBoxContainer
 var _info_page: VBoxContainer
-## Each page's item grid (its shelves), its groups and its family icons (the filter's switches).
-var _deck_grid: VBoxContainer
-var _info_grid: VBoxContainer
+## The Cart's top line (its chips stay; its labels follow the grid), its labels' row after the
+## chips, and its grid; the Run info's stock grid.
+var _top_line: Control
+var _top_left: HBoxContainer
+var _deck_grid: Control
+var _info_grid: StockGrid
 var _deck_groups: Array[DeckSummary.Group] = []
 var _stock_groups: Array[DeckSummary.Group] = []
 var _deck_icons: Array[FamilyCount] = []
@@ -138,18 +149,18 @@ var _run: RunState
 ## The title the caller gave (the Cart page's; the Run info page shows INFO_TITLE).
 var _cart_title: String = ""
 var _choosing: bool = false
-## Placing mode's held prize, and the Cart page's shelves with the slots its cells take.
+## Placing mode's held prize, the free spots it shows and how many.
 var _placing: CartPlacing
-var _shelves: Array[DeckShelf] = []
-var _used_slots: Array[int] = []
+var _spots: Array[RoomSpot] = []
+var _spot_count: int = 0
 ## Where each product picked at the start came from (start_sources: product id → the START
 ## chip's tip), empty for a run with no dealt start (no marks).
 var _sources: Dictionary[StringName, String] = {}
 var _balance: BalanceDefinition
-## The scan popup's layer (top level, over the view), the popup, and the hovered cell.
+## The tip's layer (top level, over the view), the tip, and the hovered card or icon.
 var _popup_layer: Control
-var _popup: ScanPopup
-var _hovered: DeckCell
+var _tip: CardTip
+var _hovered: Control
 
 
 func _init() -> void:
@@ -183,10 +194,9 @@ func _init() -> void:
 	_popup_layer.top_level = true
 	_popup_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_popup_layer)
-	_popup = ScanPopup.new()
-	_popup.name = "ScanPopup"
-	_popup.visible = false
-	_popup_layer.add_child(_popup)
+	_tip = CardTip.new()
+	_tip.visible = false
+	_popup_layer.add_child(_tip)
 	_placing = CartPlacing.new()
 	add_child(_placing)
 	_placing.added.connect(_on_placed_added)
@@ -203,10 +213,12 @@ func _init() -> void:
 	visible = false
 
 
-## `choosing`: only the deck shows, and clicking an item chooses a copy of it (to remove it).
-func open(run: RunState, title: String, choosing: bool) -> void:
+## `choosing`: only the cart shows, and clicking a card chooses a copy of it (to remove it).
+## `spots`: the free places placing mode shows (open_placing).
+func open(run: RunState, title: String, choosing: bool, spots: int = 0) -> void:
 	_placing.end()
 	_choosing = choosing
+	_spot_count = spots
 	_cart_title = title
 	_sources.clear()
 	if run.starter != null and run.starter.is_recipe():
@@ -221,23 +233,22 @@ func open(run: RunState, title: String, choosing: bool) -> void:
 	_deck_tab.visible = not choosing
 	_info_tab.visible = not choosing
 	show_page(false)
-	# The items fan out as the panel pops in (#62).
+	# The cards fan out as the panel pops in (#62).
 	Sfx.play_at(self, "fan")
 	UiKit.pop_in(self)
 
 
-## Placing mode (the machine's pick): the cart with `room` free spots (at most the empty shelf
-## spots) and `prize`'s item on the pointer (CartPlacing).
+## Placing mode (the machine's pick): the cart with `room` free spots after its products and
+## `prize`'s card on the pointer (CartPlacing).
 func open_placing(run: RunState, title: String, prize: CardDefinition, room: int) -> void:
-	open(run, title, true)
-	var spots: Array[RoomSpot] = _add_room_spots(room)
+	open(run, title, true, room)
 	var held: CardInstance = CardInstance.new(prize, -1)
 	var shown: Callable = func(cell: DeckCell) -> void:
 		if cell != null:
 			hover(cell)
 		else:
 			_unhover()
-	_placing.begin(held, _balance.aisle_of(prize), cells(), spots, _close_button, shown)
+	_placing.begin(held, _balance.machine, cells(), _spots, _close_button, shown)
 
 
 ## The placing mode's held prize (for tests).
@@ -286,7 +297,7 @@ func clear_filter() -> void:
 	_refilter()
 
 
-## The family the shown page's grid shows ("" for all): the previewed one, else the pinned one.
+## The family the shown page shows ("" for all): the previewed one, else the pinned one.
 func filter_family() -> String:
 	return _preview if not _preview.is_empty() else _pinned
 
@@ -326,8 +337,8 @@ func click_at(at: Vector2) -> bool:
 	return true
 
 
-## The texts on the shown page, in order (a MixedLabel's as one line), but the items' own
-## (their stickers, names, counts and marks) (for tests).
+## The texts on the shown page, in order (a MixedLabel's as one line), but the cards' and the
+## stock icons' own (their rules, counts and marks) (for tests).
 func texts() -> PackedStringArray:
 	var found: PackedStringArray = PackedStringArray()
 	for node: Node in _shown_page().find_children("*", "", true, false):
@@ -346,46 +357,70 @@ func title_text() -> String:
 	return _title.text
 
 
-## The item views on the shown page, in order (for tests).
-func card_views() -> Array[CardView]:
-	var found: Array[CardView] = []
-	for cell: DeckCell in cells():
-		found.append(cell.item())
-	return found
-
-
-## The cells on the shown page, in order (for tests).
+## The cards on the shown page, in order (for tests; none on Run info).
 func cells() -> Array[DeckCell]:
+	return _cells_of(_shown_page())
+
+
+## The cards on `page`, in the Cart's order (the grid holds them last first, _fill_deck_grid).
+func _cells_of(page: Control) -> Array[DeckCell]:
 	var found: Array[DeckCell] = []
-	for cell: Node in _shown_page().find_children("*", "DeckCell", true, false):
+	for cell: Node in page.find_children("*", "DeckCell", true, false):
 		found.append(cell as DeckCell)
+	found.reverse()
 	return found
 
 
-## The scan popup (for tests and captures).
-func popup() -> ScanPopup:
-	return _popup
+## The Run info's stock grid (for tests).
+func stock_grid() -> StockGrid:
+	return _info_grid
 
 
-## The pointer rests on `cell`'s item: its art lifts and the scan popup opens beside it (and the
-## chooser rings it). The item's hover calls it; tests and captures call it directly.
+## The hover tip (for tests and captures).
+func tip() -> CardTip:
+	return _tip
+
+
+## The pointer rests on `cell`'s card: it lifts and its tip opens beside it (and the chooser rings
+## it). The card's hover calls it; tests and captures call it directly.
 func hover(cell: DeckCell) -> void:
 	if _hovered == cell:
 		return
 	_unhover()
 	_hovered = cell
-	var item: ItemView = cell.item()
-	item.lifted = true
+	cell.lifted = true
 	cell.ringed = _choosing and not _placing.is_holding()
-	_popup.visible = true
-	_popup.show_card(item.card.definition, item.tags())
-	_popup.place_at(
-		item.get_global_transform() * Rect2(ItemView.TRAY_SPRITE, ItemView.SPRITE_SIZE),
-		item.below_rect(),
-		get_viewport_rect(),
-		_scroll.get_global_rect()
-	)
+	_tip.visible = true
+	_tip.show_card(cell.card, _machine(), _note_source(cell.card), cell.rule_clipped())
+	_place_tip(cell.get_global_rect())
 	_paint_mix()
+
+
+## The pointer rests on a stock icon: it lights and its tip opens beside it with its card face
+## and whether the cart holds it.
+func hover_stock(icon: StockIcon) -> void:
+	if _hovered == icon:
+		return
+	_unhover()
+	_hovered = icon
+	icon.lit = true
+	_tip.visible = true
+	_tip.show_stock(icon.card, _machine(), icon.in_cart)
+	_place_tip(icon.get_global_rect())
+
+
+func _place_tip(item: Rect2) -> void:
+	var to_layer: Transform2D = _popup_layer.get_global_transform().affine_inverse()
+	_tip.place_beside(to_layer * item, to_layer * _stage())
+
+
+func _machine() -> MachineDefinition:
+	return _balance.machine if _balance != null else null
+
+
+## Where a START card came from, as its tip says it ("" for none).
+func _note_source(card: CardDefinition) -> String:
+	return _sources.get(card.product_card().id, "")
 
 
 func _header() -> HBoxContainer:
@@ -466,8 +501,8 @@ func _icon_at(at: Vector2) -> FamilyCount:
 	return null
 
 
-## Shows the filter's family on the shown page's grid (and every item on the hidden page's),
-## rebuilding a grid only when its family changed (the scroll left as it is); then the icons'
+## Shows the filter's family on the shown page (and every item on the hidden page), rebuilding
+## the Cart's cards only when its family changed (the scroll left as it is); then the icons'
 ## looks.
 func _refilter() -> void:
 	if _run == null:
@@ -475,17 +510,14 @@ func _refilter() -> void:
 	var family: String = filter_family()
 	var deck_family: String = "" if _info_page.visible else family
 	var info_family: String = family if _info_page.visible else ""
-	var changed: bool = false
 	if deck_family != _deck_grid_family:
 		_unhover()
 		_fill_deck_grid(deck_family)
-		changed = true
+		_paint_mix()
 	if info_family != _info_grid_family:
 		_unhover()
-		_fill_info_grid(info_family)
-		changed = true
-	if changed:
-		_paint_mix()
+		_info_grid_family = info_family
+		_info_grid.filter(info_family)
 	var shown: Array[FamilyCount] = family_icons()
 	for icon: FamilyCount in _deck_icons + _info_icons:
 		if is_instance_valid(icon):
@@ -495,80 +527,163 @@ func _refilter() -> void:
 
 func _fill_deck_page(run: RunState) -> void:
 	_clear(_deck_page)
-	var top: HBoxContainer = HBoxContainer.new()
-	top.name = "TagLine"
-	top.add_theme_constant_override("separation", CHIP_GAP)
-	top.custom_minimum_size = Vector2(0, TOP_LINE_HEIGHT)
-	_deck_page.add_child(top)
+	_top_line = Control.new()
+	_top_line.name = TOP_LINE
+	_top_line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_top_line.custom_minimum_size = Vector2(0, TOP_LINE_HEIGHT)
+	_deck_page.add_child(_top_line)
+	_top_left = HBoxContainer.new()
+	_top_left.name = "TopLeft"
+	_top_left.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_top_left.add_theme_constant_override("separation", LINE_GAP)
+	_top_left.position = Vector2(GRID_PAD, 0)
+	_top_left.size = Vector2(0, TOP_LINE_HEIGHT)
+	_top_line.add_child(_top_left)
 	var tags: HBoxContainer = _tag_chips(run.deck.cards)
-	tags.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	top.add_child(tags)
+	_top_left.add_child(tags)
 	_deck_icons.clear()
 	for chip: Node in tags.get_children():
 		if chip is FamilyCount:
 			_deck_icons.append(chip as FamilyCount)
-	if not _sources.is_empty():
-		top.add_child(_legend())
 	_deck_groups = DeckSummary.groups(run.deck.cards)
-	_deck_grid = _grid(_deck_page)
+	_deck_grid = Control.new()
+	_deck_grid.name = GRID
+	_deck_grid.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_deck_page.add_child(_deck_grid)
 	_fill_deck_grid("")
 
 
-## The Cart's shelves: every item (with the room left on the rail), or `family`'s items packed
-## from the top left on as few shelves as they take.
+## The Cart's cards (CartLayout): every card with the coupons after the products, or `family`'s
+## products packed from the top left (no coupons); the top line's labels over them. The grid
+## keeps the unfiltered height.
 func _fill_deck_grid(family: String) -> void:
 	_clear(_deck_grid)
+	_spots.clear()
+	for index: int in range(_top_left.get_child_count() - 1, 0, -1):
+		var part: Node = _top_left.get_child(index)
+		_top_left.remove_child(part)
+		part.queue_free()
+	for part: Node in _top_line.get_children():
+		if part != _top_left:
+			_top_line.remove_child(part)
+			part.queue_free()
 	_deck_grid_family = family
 	var filtered: bool = not family.is_empty()
-	var groups: Array[DeckSummary.Group] = _of_family(_deck_groups, family)
-	_shelves = _shelve(_deck_grid, groups, 1 if filtered else MIN_SHELVES, true, filtered)
-	_hold_height(_deck_grid, _shelves.size(), filtered)
-	if not _choosing and not filtered:
-		_note_room(_run)
+	var products: Array[DeckSummary.Group] = []
+	var coupons: Array[DeckSummary.Group] = []
+	for group: DeckSummary.Group in _deck_groups:
+		if group.card.is_product():
+			if not filtered or group.card.tags.has(family):
+				products.append(group)
+		elif not filtered:
+			coupons.append(group)
+	var width: float = _line_width()
+	var spots: int = 0 if filtered else _spot_count
+	var layout: CartLayout = CartLayout.of(products.size() + spots, coupons.size(), width)
+	var full: CartLayout = CartLayout.of(
+		_products_of(_deck_groups) + _spot_count,
+		_deck_groups.size() - _products_of(_deck_groups),
+		width
+	)
+	_deck_grid.custom_minimum_size = Vector2(0, full.height)
+	var ordered: Array[DeckSummary.Group] = products + coupons
+	# Last first: each card draws over the next column's, so its copies' count (which may reach
+	# over that card's corner beside a wide tab, DeckCell) stays whole.
+	for index: int in range(ordered.size() - 1, -1, -1):
+		var slot: int = index if index < products.size() else index + spots
+		var group: DeckSummary.Group = ordered[index]
+		var cell: DeckCell = _cell(group.copies[0], group.copies.size())
+		var product: StringName = group.card.product_card().id
+		if _sources.has(product):
+			cell.add_start_mark(_sources[product])
+		cell.position = layout.positions[slot]
+		cell.fit_stack(layout.gap)
+		_deck_grid.add_child(cell)
+	for index: int in spots:
+		var spot: RoomSpot = RoomSpot.new()
+		spot.position = layout.positions[products.size() + index]
+		_deck_grid.add_child(spot)
+		_spots.append(spot)
+	if not products.is_empty() and not coupons.is_empty():
+		var separator: CartLayout.DashLine = CartLayout.DashLine.new()
+		separator.name = SEPARATOR
+		separator.position = Vector2(
+			(
+				layout.coupon_x
+				- (CartLayout.GROUP_GAP + layout.gap) / 2.0
+				- CartLayout.DASH_LINE / 2.0
+			),
+			0
+		)
+		separator.size = Vector2(CartLayout.DASH_LINE, layout.height)
+		_deck_grid.add_child(separator)
+	_fill_top_line(products, coupons, layout, width)
 
 
-## The Run info's stock shelves: every item, or `family`'s packed.
-func _fill_info_grid(family: String) -> void:
-	_clear(_info_grid)
-	_info_grid_family = family
-	var groups: Array[DeckSummary.Group] = _of_family(_stock_groups, family)
-	var filtered: bool = not family.is_empty()
-	var shelves: int = _shelve(_info_grid, groups, 1, false, filtered).size()
-	_hold_height(_info_grid, shelves, filtered)
+## The top line's labels: PRODUCTS (and the room left) after the chips, COUPONS over the coupons'
+## group with the START legend left of it (at the line's right end without coupons).
+func _fill_top_line(
+	products: Array[DeckSummary.Group],
+	coupons: Array[DeckSummary.Group],
+	layout: CartLayout,
+	width: float
+) -> void:
+	if not products.is_empty():
+		_top_left.add_child(_plate("Heading", PRODUCTS % _copies(products), Palette.MUSTARD))
+	if not _choosing and _deck_grid_family.is_empty():
+		var full: bool = _run.deck_is_full()
+		var room: int = _run.balance.deck_limit - _run.deck.size()
+		var note: MixedLabel = MixedLabel.new(
+			FULL_NOTE if full else ROOM_NOTE % room,
+			NOTE_SIZE,
+			false,
+			Palette.TOMATO_LIGHT if full else Palette.MUSTARD_LIGHT
+		)
+		note.name = ROOM_NOTE_NAME
+		note.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		_top_left.add_child(note)
+	var legend_right: float = width - GRID_PAD
+	if not coupons.is_empty():
+		var plate: PanelContainer = _plate("Heading", COUPONS % _copies(coupons), Palette.MUSTARD)
+		_top_line.add_child(plate)
+		plate.position = Vector2(layout.coupon_x, 0)
+		legend_right = layout.coupon_x - LEGEND_GAP
+	if not _sources.is_empty():
+		var legend: HBoxContainer = _legend()
+		_top_line.add_child(legend)
+		legend.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		legend.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+		var wanted: Vector2 = legend.get_combined_minimum_size()
+		legend.position = Vector2(legend_right - wanted.x, 0)
+		legend.size = Vector2(wanted.x, TOP_LINE_HEIGHT)
 
 
-## Keeps `grid` (now `shelves` shelves) as tall as unfiltered while `filtered` (the unfiltered
-## shelf count is kept on it, FULL_SHELVES), so the page's height and its scroll never change and
-## the family icons above it stay under the pointer.
-static func _hold_height(grid: Control, shelves: int, filtered: bool) -> void:
-	if not filtered:
-		grid.set_meta(FULL_SHELVES, shelves)
-	var full: int = grid.get_meta(FULL_SHELVES, shelves)
-	var height: float = full * (DeckShelf.BAND_HEIGHT + DeckCell.SIZE.y) + (full - 1) * PAGE_GAP
-	grid.custom_minimum_size = Vector2(0, height if filtered else 0.0)
+## A shelf-edge label: `text` in ink on `fill` in an ink border, its count in the number font,
+## centred down the top line.
+func _plate(plate_name: String, text: String, fill: Color) -> PanelContainer:
+	var plate: PanelContainer = PanelContainer.new()
+	plate.name = plate_name
+	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var style: StyleBoxFlat = StyleBoxFlat.new()
+	style.bg_color = fill
+	style.border_color = Palette.INK
+	style.set_border_width_all(HEADING_BORDER)
+	style.content_margin_left = HEADING_PADDING
+	style.content_margin_right = HEADING_PADDING
+	style.content_margin_top = 0
+	style.content_margin_bottom = 0
+	plate.add_theme_stylebox_override("panel", style)
+	plate.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	plate.add_child(MixedLabel.new(text, HEADING_SIZE, false, Palette.INK))
+	plate.size = plate.get_combined_minimum_size()
+	plate.position.y = roundf((TOP_LINE_HEIGHT - plate.size.y) / 2.0)
+	return plate
 
 
-## `groups` whose card has `family`'s printed tag (all of them for "").
-static func _of_family(
-	groups: Array[DeckSummary.Group], family: String
-) -> Array[DeckSummary.Group]:
-	if family.is_empty():
-		return groups
-	var found: Array[DeckSummary.Group] = []
-	for group: DeckSummary.Group in groups:
-		if group.card.tags.has(family):
-			found.append(group)
-	return found
-
-
-## A page's item grid: a column for its shelves, the page's gap between them.
-func _grid(page: Control) -> VBoxContainer:
-	var grid: VBoxContainer = VBoxContainer.new()
-	grid.name = GRID
-	grid.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	grid.add_theme_constant_override("separation", PAGE_GAP)
-	page.add_child(grid)
-	return grid
+static func _products_of(groups: Array[DeckSummary.Group]) -> int:
+	return (
+		groups.filter(func(group: DeckSummary.Group) -> bool: return group.card.is_product()).size()
+	)
 
 
 ## One FamilyCount chip per printed tag of `cards` (most common first, DeckSummary.tag_counts);
@@ -578,6 +693,7 @@ func _tag_chips(cards: Array[CardInstance]) -> HBoxContainer:
 	line.name = "Tags"
 	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	line.add_theme_constant_override("separation", CHIP_GAP)
+	line.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	var counts: Dictionary[String, int] = DeckSummary.tag_counts(cards)
 	var palette: FamilyPalette = FamilyPalette.shared()
 	for tag: String in counts:
@@ -589,67 +705,6 @@ func _tag_chips(cards: Array[CardInstance]) -> HBoxContainer:
 		else:
 			line.add_child(MixedLabel.new("%s %d" % [tag, counts[tag]], 16, true))
 	return line
-
-
-## Puts `groups`' cells on shelves added to `page` (at least `least` shelves): the products from
-## the first slot, the coupons at the end of the last shelf (shelf_slots; right after the products
-## when `packed`, the family filter's), each section under its shelf label. `cart`: the Cart
-## page's (its cells get their START chips and copies, and the slots they take are kept for
-## placing mode); else the stock's.
-func _shelve(
-	page: Control, groups: Array[DeckSummary.Group], least: int, cart: bool, packed: bool = false
-) -> Array[DeckShelf]:
-	var products: Array[DeckSummary.Group] = []
-	var coupons: Array[DeckSummary.Group] = []
-	for group: DeckSummary.Group in groups:
-		if group.card.is_product():
-			products.append(group)
-		else:
-			coupons.append(group)
-	var slots: Array[int] = shelf_slots(products.size(), coupons.size(), COLUMNS, packed)
-	var shelves: Array[DeckShelf] = []
-	var last_slot: int = 0 if slots.is_empty() else slots[-1]
-	for _shelf: int in range(maxi(least, floori(last_slot / float(COLUMNS)) + 1)):
-		shelves.append(DeckShelf.new(COLUMNS, GAP, true))
-		page.add_child(shelves[-1])
-	if cart and not packed:
-		_used_slots = slots
-	var ordered: Array[DeckSummary.Group] = products + coupons
-	for index: int in ordered.size():
-		var slot: int = slots[index]
-		var shelf: DeckShelf = shelves[floori(slot / float(COLUMNS))]
-		if index == 0 and not products.is_empty():
-			shelf.heading(PRODUCTS % _copies(products), 0)
-		if index == products.size():
-			shelf.heading(COUPONS % _copies(coupons), slot % COLUMNS)
-		var group: DeckSummary.Group = ordered[index]
-		var cell: DeckCell = _cell(group.copies[0], group.copies.size())
-		var product: StringName = group.card.product_card().id
-		if cart and _sources.has(product):
-			cell.add_start_mark(_sources[product])
-		shelf.put(cell, slot % COLUMNS)
-	return shelves
-
-
-## The shelf slot (shelf * columns + column) of each of `products` products, then of `coupons`
-## coupons: the products from the first slot, the coupons at the end of the last shelf, with
-## at least one empty slot between the two when there are both; when `packed` (the family
-## filter's), every one in a row from the first slot.
-static func shelf_slots(
-	products: int, coupons: int, columns: int, packed: bool = false
-) -> Array[int]:
-	var slots: Array[int] = []
-	if packed:
-		for index: int in products + coupons:
-			slots.append(index)
-		return slots
-	var gap: int = 1 if products > 0 and coupons > 0 else 0
-	var shelves: int = maxi(1, ceili(float(products + gap + coupons) / columns))
-	for index: int in products:
-		slots.append(index)
-	for index: int in coupons:
-		slots.append(shelves * columns - coupons + index)
-	return slots
 
 
 ## Where each product picked at `run`'s start came from, by product id (a coupon by its own):
@@ -673,47 +728,11 @@ static func _copies(groups: Array[DeckSummary.Group]) -> int:
 	return copies
 
 
-## CART FULL, or the room left (ROOM_NOTE), on the rail across the widest run of empty columns on
-## the Cart's last shelf, when it is at least two columns wide.
-func _note_room(run: RunState) -> void:
-	var first: int = (_shelves.size() - 1) * COLUMNS
-	var best: Vector2i = Vector2i(-1, -2)
-	var start: int = -1
-	for column: int in range(COLUMNS + 1):
-		var free: bool = column < COLUMNS and not _used_slots.has(first + column)
-		if free and start < 0:
-			start = column
-		elif not free and start >= 0:
-			if column - 1 - start > best.y - best.x:
-				best = Vector2i(start, column - 1)
-			start = -1
-	if best.y - best.x < 1:
-		return
-	if run.deck_is_full():
-		_shelves[-1].note(FULL_NOTE, best.x, best.y, Palette.TOMATO, Palette.PAPER)
-	else:
-		var room: int = run.balance.deck_limit - run.deck.size()
-		_shelves[-1].note(ROOM_NOTE % room, best.x, best.y, Palette.PAPER, Palette.INK)
-
-
-## Up to `room` free spots in the Cart page's empty shelf spots, the first ones first.
-func _add_room_spots(room: int) -> Array[RoomSpot]:
-	var spots: Array[RoomSpot] = []
-	for slot: int in range(_shelves.size() * COLUMNS):
-		if spots.size() >= room:
-			break
-		if _used_slots.has(slot):
-			continue
-		var spot: RoomSpot = RoomSpot.new()
-		_shelves[floori(slot / float(COLUMNS))].put_spot(spot, slot % COLUMNS)
-		spots.append(spot)
-	return spots
-
-
 ## The START chip's legend: the chip and what it means.
 func _legend() -> HBoxContainer:
 	var legend: HBoxContainer = HBoxContainer.new()
 	legend.name = "Legend"
+	legend.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	legend.add_theme_constant_override("separation", 8)
 	var chip: RevealChip = DeckCell.make_start_chip()
 	chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -744,55 +763,67 @@ func _fill_info_page(run: RunState) -> void:
 	for card: CardDefinition in run.stock.cards:
 		stock.append(CardInstance.new(card, 0))
 	_stock_groups = DeckSummary.groups(stock)
-	_info_grid = _grid(_info_page)
-	_fill_info_grid("")
+	_info_grid = StockGrid.new(run, _line_width())
+	for icon: StockIcon in _info_grid.icons():
+		icon.hovered.connect(hover_stock)
+		icon.unhovered.connect(
+			func(left: StockIcon) -> void:
+				if _hovered == left:
+					_unhover()
+		)
+	_info_page.add_child(_info_grid)
+	_info_grid_family = ""
 	_info_page.add_child(_spacer_height(STOCK_GAP))
 
 
-## A cell for `card` with `copies` copies; its item's hover and clicks come to the view.
+## A card for `card` with `copies` copies; its hover and clicks come to the view.
 func _cell(card: CardInstance, copies: int) -> DeckCell:
-	var cell: DeckCell = DeckCell.new(card, _balance.aisle_of(card.definition), copies)
-	var item: ItemView = cell.item()
-	item.clicked.connect(_on_card_clicked)
-	item.hovered.connect(func(_view: ItemView) -> void: hover(cell))
-	item.unhovered.connect(
-		func(_view: ItemView) -> void:
-			if _hovered == cell:
+	var family: String = FamilySticker.chosen(_run, card) if _run != null else ""
+	var cell: DeckCell = DeckCell.new(card, _balance.machine, copies, family)
+	cell.clicked.connect(_on_card_clicked)
+	cell.hovered.connect(hover)
+	cell.unhovered.connect(
+		func(left: DeckCell) -> void:
+			if _hovered == left:
 				_unhover()
 	)
-	if not _choosing:
-		item.mouse_default_cursor_shape = Control.CURSOR_ARROW
+	cell.mouse_default_cursor_shape = (
+		Control.CURSOR_POINTING_HAND if _choosing else Control.CURSOR_ARROW
+	)
 	return cell
 
 
 func _unhover() -> void:
 	if _hovered != null and is_instance_valid(_hovered):
-		_hovered.item().lifted = false
-		_hovered.ringed = false
+		var cell: DeckCell = _hovered as DeckCell
+		if cell != null:
+			cell.lifted = false
+			cell.ringed = false
+		var icon: StockIcon = _hovered as StockIcon
+		if icon != null:
+			icon.lit = false
 	_hovered = null
-	if _popup != null:
-		_popup.visible = false
+	if _tip != null:
+		_tip.visible = false
 	_paint_mix()
 
 
-## The mix highlight on every cell of both pages: `mix_family`'s, else the hovered cell's
-## matches, else none (and none in choosing mode).
+## The mix highlight on every card of the Cart: `mix_family`'s, else the hovered card's matches,
+## else none (and none in choosing mode).
 func _paint_mix() -> void:
-	if _deck_page == null or _info_page == null:
+	if _deck_page == null:
 		return
 	var painted: Array[DeckCell] = []
 	var entries: Array[MixModel.Entry] = []
 	var focus: MixModel.Entry = null
-	for page: Control in [_deck_page, _info_page]:
-		for found: Node in page.find_children("*", "DeckCell", true, false):
-			var cell: DeckCell = found as DeckCell
-			if cell.is_queued_for_deletion():
-				continue
-			var entry: MixModel.Entry = MixModel.Entry.new(cell.item().card, cell.item().tags())
-			painted.append(cell)
-			entries.append(entry)
-			if cell == _hovered:
-				focus = entry
+	for cell: DeckCell in _cells_of(_deck_page):
+		if cell.is_queued_for_deletion():
+			continue
+		var entry: MixModel.Entry = MixModel.Entry.new(cell.instance, cell.tags())
+		painted.append(cell)
+		entries.append(entry)
+		if cell == _hovered:
+			focus = entry
 	var looks: Array[MixModel.Look] = []
 	if not _choosing and not mix_family.is_empty():
 		looks = MixModel.for_family(entries, mix_family)
@@ -801,6 +832,13 @@ func _paint_mix() -> void:
 	for index: int in range(painted.size()):
 		painted[index].mix_greyness = Vector2(tuning.mix_brightness, tuning.mix_saturation)
 		painted[index].mix_look = looks[index] if index < looks.size() else MixModel.Look.NONE
+
+
+## Where the tip may open: the window, inside the screen holding the view.
+func _stage() -> Rect2:
+	var stage: Rect2 = get_viewport_rect()
+	var holder: Control = get_parent() as Control
+	return stage.intersection(holder.get_global_rect()) if holder != null else stage
 
 
 static func _line_width() -> float:
@@ -828,7 +866,7 @@ func _shown_page() -> VBoxContainer:
 func _is_in_cell(child: Node) -> bool:
 	var node: Node = child.get_parent()
 	while node != null and node != self:
-		if node is DeckCell:
+		if node is DeckCell or node is StockIcon:
 			return true
 		node = node.get_parent()
 	return false
@@ -840,11 +878,11 @@ static func _clear(page: Control) -> void:
 		child.queue_free()
 
 
-func _on_card_clicked(view: CardView) -> void:
+func _on_card_clicked(cell: DeckCell) -> void:
 	if _choosing and not _placing.is_holding():
 		_unhover()
 		visible = false
-		card_chosen.emit(view.card)
+		card_chosen.emit(cell.instance)
 
 
 func _on_placed_added() -> void:

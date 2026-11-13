@@ -4,8 +4,9 @@ extends RefCounted
 ## 2026-11-12; ScreenCapture.deck): its options `pin=<n>` (the page's family icon n, from 0, is
 ## clicked: its filter pinned) and `filter=<n>` (the pointer rests on icon n: its family
 ## previewed, over a pin), applied in that order, then the rebuilt grid laid out; then `scroll`
-## (the page scrolled to its end) and `tip=start` or `tip=chip` (the tooltip of the first START
-## chip or of the first family icon shows). The run-start time card is dropped first, so it covers
+## (the page scrolled to its end), `tip=start` or `tip=chip` (the tooltip of the first START
+## chip or of the first family icon shows) and `hover=<i>` (the pointer rests on card i, on Run
+## info on stock icon i: its tip opens). The run-start time card is dropped first, so it covers
 ## none of the view.
 
 
@@ -27,6 +28,13 @@ static func apply(screen: ShiftScreen, view: DeckView, options: PackedStringArra
 	for option: String in options:
 		if option.begins_with("tip="):
 			_show_tip(screen, view, option.get_slice("=", 1))
+	for option: String in options:
+		if option.begins_with("hover="):
+			var index: int = option.get_slice("=", 1).to_int()
+			if view._info_page.visible:
+				view.hover_stock(view.stock_grid().icons()[index])
+			else:
+				view.hover(view.cells()[index])
 
 
 ## Shows the tooltip `what` names: `start`, the first START chip's; `chip`, the first family

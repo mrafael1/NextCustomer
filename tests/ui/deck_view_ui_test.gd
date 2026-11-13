@@ -1,9 +1,10 @@
 extends GdUnitTestSuite
 ## The extended deck view on the real shift screen (plan section 2, full build phase 1; the cart
-## and run info polish, 2026-11-12): the Cart tab (grouped copies, the tag chips, the START marks),
-## the Run info tab (the run at a glance and the stock, no upgrades or inspections), the choosing
-## mode, and that it fits the window at 1280x720 and 1920x1080. Clicks go to the handlers
-## (headless runs).
+## and run info polish, 2026-11-12; the cart as cards and the slim Run info, 2026-11-13): the Cart
+## tab (one card per distinct card with its copies, the tag chips, the START marks, the rarity
+## tabs, the full rules), the Run info tab (the run at a glance and the stock's icon grid, no
+## upgrades or inspections), the hover popups, the choosing mode, and that it fits the window at
+## 1280x720 and 1920x1080. Clicks go to the handlers (headless runs).
 
 const Rush := preload("res://tests/ui/count_up_rush.gd")
 const SCREEN := "res://ui/shift_screen.tscn"
@@ -13,7 +14,7 @@ const STARTER := "res://data/decks/starter.tres"
 const MAX_PANEL_HEIGHT := 592.0
 const WINDOWS: Array[Vector2] = [Vector2(1280, 720), Vector2(1920, 1080)]
 const PACKS := "res://data/starter_packs"
-
+const BALANCE := "res://data/balance/balance.tres"
 var _folder: String = ""
 
 
@@ -78,10 +79,22 @@ func test_the_deck_tab_groups_copies_and_counts_tags() -> void:
 		var id: String = String(cell.card.id)
 		ids.append(id)
 		assert_str(cell.count_text()).override_failure_message(id).is_equal(counts[id])
+		assert_int(cell.copies).is_equal(maxi(1, counts[id].trim_prefix("×").to_int()))
 		# The plain starter deck isn't dealt: no START marks, and no legend.
 		assert_array(cell.marks()).is_empty()
 	assert_array(ids).is_equal(counts.keys())
 	assert_object(view.find_child("Legend", true, false)).is_null()
+	# The coupon stands after the products, behind the dashed separator, under its own label.
+	var cells: Array[DeckCell] = view.cells()
+	var separator: Control = view._deck_page.find_child(DeckView.SEPARATOR, true, false)
+	assert_object(separator).is_not_null()
+	var line: float = separator.get_global_rect().get_center().x
+	for cell: DeckCell in cells:
+		var rect: Rect2 = cell.get_global_rect()
+		if cell.card.is_coupon():
+			assert_float(rect.position.x).is_greater(line)
+		else:
+			assert_float(rect.end.x).is_less(line)
 	# The shown tab is picked (sunk, the paper face, not dimmed), the other one plain.
 	assert_bool(view._deck_tab.disabled).is_true()
 	assert_bool(view._deck_tab.selected).is_true()
@@ -116,15 +129,15 @@ func test_the_game_deals_the_recipe_deck() -> void:
 		total += 1 if card.is_product() else 0
 	assert_array(Array(view.texts())).contains(["PRODUCTS %d" % total])
 	# One card per distinct card.
-	assert_int(view.card_views().size()).is_equal(_distinct(run.starter.cards))
+	assert_int(view.cells().size()).is_equal(_distinct(run.starter.cards))
 
 
-## The cart and run info polish (2026-11-12, after v0.51's teal "+" read as "add"): every product
-## picked at the start (the starter pack's cards and the dealt ones, the "+" set) carries the green
-## START chip for the run, its tooltip (opening below it) saying where it came from; a regular
-## and a product only the machine gave carry none. The chip sits on the art's top left inside the
-## cell, clear of the copies' count label and DeckCell.MARK_CLEAR px below any shelf label over
-## it; the legend names it.
+## The cart and run info polish (2026-11-12): every product picked at the start (the starter
+## pack's cards and the dealt ones) carries the green START chip for the run, over its card's
+## barcode (the art's bottom left), its tooltip (opening below it) saying where it came from ("from
+## the Bakery booster" since 2026-11-13); a regular and a product only the machine gave carry
+## none. The chip sits inside the card, clear of the copies' count, the rule text and the top
+## line's labels; the legend names it.
 func test_the_cart_page_marks_the_starting_cart() -> void:
 	var screen: ShiftScreen = await _screen()
 	screen.start_new_run(20261014, false)
@@ -146,10 +159,9 @@ func test_the_cart_page_marks_the_starting_cart() -> void:
 	var marked: int = 0
 	for cell: DeckCell in view.cells():
 		var id: String = String(cell.card.id)
-		var mark: RevealChip = cell.get_node_or_null(DeckCell.START_MARK) as RevealChip
+		var mark: RevealChip = cell.face().get_node_or_null(DeckCell.START_MARK) as RevealChip
 		var expected: bool = started.has(cell.card.product_card().id)
 		assert_bool(mark != null).override_failure_message(id).is_equal(expected)
-		assert_object(cell.get_node_or_null("PickMark")).override_failure_message(id).is_null()
 		if mark == null:
 			continue
 		marked += 1
@@ -158,34 +170,15 @@ func test_the_cart_page_marks_the_starting_cart() -> void:
 		# Its tooltip covers the chip and says where the item came from.
 		var tip: StartTip = mark.get_node("StartTip") as StartTip
 		assert_str(tip.tip_text).starts_with(StartTip.HEAD + " · ")
+		assert_str(tip.tip_text).not_contains(StartTip.HEAD + " · " + StartTip.HEAD)
 		assert_bool(tip.tip_below).is_true()
 		assert_bool(tip.get_global_rect().is_equal_approx(mark.get_global_rect())).is_true()
-		var column: Rect2 = cell.get_global_rect()
-		var rect: Rect2 = mark.outer_rect()
-		rect.position = mark.get_parent().get_global_transform() * rect.position
-		assert_float(rect.position.x).override_failure_message(id).is_greater_equal(
-			column.position.x
-		)
-		assert_float(rect.end.x).override_failure_message(id).is_less_equal(column.end.x)
-		# Only a label over the chip (on its own shelf) matters, not one on the shelf below.
+		_assert_start_and_count(cell)
 		for plate: Node in plates:
 			var label: Rect2 = (plate as Control).get_global_rect()
-			if label.position.y > rect.position.y:
-				continue
-			if label.end.x > rect.position.x and label.position.x < rect.end.x:
-				var gap: float = rect.position.y - label.end.y
-				assert_float(gap).override_failure_message(id).is_greater_equal(
-					DeckCell.MARK_CLEAR - 0.5
-				)
-		var count: Control = cell.get_node_or_null(DeckCell.COUNT_LABEL)
-		if count != null:
-			(
-				assert_bool(rect.intersects(count.get_global_rect()))
-				. override_failure_message(id)
-				. is_false()
-			)
+			assert_bool(label.intersects(mark.get_global_rect())).is_false()
 	assert_int(marked).is_greater(0)
-	# Where each came from: the pack, a dealt aisle; a regular and the prize carry none.
+	# Where each came from: the pack, a dealt aisle's booster; a regular and the prize carry none.
 	var sources: Dictionary[StringName, String] = DeckView.start_sources(run)
 	assert_array(sources.keys()).contains_exactly_in_any_order(started)
 	var regulars: int = 0
@@ -199,22 +192,32 @@ func test_the_cart_page_marks_the_starting_cart() -> void:
 		assert_str(sources[card.product_card().id]).is_equal(StartTip.PACK % pack.display_name)
 	var dealt: int = 0
 	for card: CardDefinition in StartingDeck.shared_of(run.starter):
-		if sources[card.product_card().id].begins_with("dealt from "):
+		var source: String = sources[card.product_card().id]
+		if source.begins_with("from the ") and source.ends_with(" booster"):
 			dealt += 1
+		assert_str(source).not_contains("dealt from")
 	assert_int(dealt).is_greater(0)
 	assert_bool(sources.has(&"lemon")).is_false()
 	var texts: Array = Array(view.texts())
 	assert_array(texts).contains([DeckView.START_LEGEND, DeckCell.START_TEXT])
-	assert_array(texts).not_contains(["start pick", "start coupon"])
+	# The START card's tip says where it came from.
+	for cell: DeckCell in view.cells():
+		if not cell.marks().is_empty():
+			view.hover(cell)
+			assert_array(view.tip().lines()).contains(
+				[CardTip.START_TEXT % sources[cell.card.product_card().id]]
+			)
+			break
 
 
 ## #56: any dealt cart, and a full cart of 15 distinct cards with BIG and GOLDEN copies, fits the
-## Cart page unscrolled: every cell sits inside the scroll area on the page's two shelves, no two
-## cells overlap, and the view sits inside the window below the top bar, at most
-## MAX_PANEL_HEIGHT tall (a centred pop-in that leaves the top bar clickable). The seed is the
-## first in 0 to 199 that deals the most distinct cards on a new profile's stock.
+## Cart page unscrolled: every card sits inside the scroll area in the page's two rows
+## (CartLayout), no two cards overlap, and the view sits inside the window below the top bar, at
+## most MAX_PANEL_HEIGHT tall (a centred pop-in that leaves the top bar clickable). The top line
+## says the room left (CART FULL on a full cart). The seed is the first in 0 to 199 that deals the
+## most distinct cards on a new profile's stock.
 func test_a_dealt_or_full_cart_fits_unscrolled() -> void:
-	var balance: BalanceDefinition = load("res://data/balance/balance.tres")
+	var balance: BalanceDefinition = load(BALANCE)
 	var recipe: DeckDefinition = load(ShiftScreen.STARTER_DECK)
 	var stock: RunStock = RunStock.starting(balance)
 	var widest: int = -1
@@ -231,8 +234,8 @@ func test_a_dealt_or_full_cart_fits_unscrolled() -> void:
 		if size > widest_size:
 			widest = seed_value
 			widest_size = size
-	# The most distinct: up to 12 (the 3 staples, the pack's 3, 6 products), more than one shelf.
-	assert_int(widest_size).is_greater(DeckView.COLUMNS)
+	# The most distinct: up to 12 (the 3 staples, the pack's 3, 6 products), more than one row.
+	assert_int(widest_size).is_greater(CartLayout.COLUMNS)
 	var screen: ShiftScreen = await _screen()
 	for full: bool in [false, true]:
 		screen.start_new_run(widest, false)
@@ -259,58 +262,22 @@ func test_a_dealt_or_full_cart_fits_unscrolled() -> void:
 			view._scroll.size.y
 		)
 		var area: Rect2 = view._scroll.get_global_rect()
-		assert_array(_cells_inside(view, area)).override_failure_message(where).not_contains(
-			[false]
-		)
-		var shelves: Array[Node] = view._deck_page.find_children("*", "DeckShelf", true, false)
-		assert_int(shelves.size()).is_equal(DeckView.MIN_SHELVES)
-		# The empty rail's note, on a label of its own on the last shelf's rail: CART FULL on
-		# tomato, else the room left on paper.
-		var note: MixedLabel = view._deck_page.find_child("RailNote", true, false) as MixedLabel
-		var plate: PanelContainer = note.get_parent() as PanelContainer
-		assert_object(plate.get_parent()).is_same(shelves[-1])
-		var room: int = run.balance.deck_limit - run.deck.size()
-		assert_str(note.text).is_equal(DeckView.FULL_NOTE if full else DeckView.ROOM_NOTE % room)
-		var fill: Color = (plate.get_theme_stylebox("panel") as StyleBoxFlat).bg_color
-		assert_object(fill).is_equal(Palette.TOMATO if full else Palette.PAPER)
-		var plate_rect: Rect2 = plate.get_global_rect()
-		assert_bool((shelves[-1] as Control).get_global_rect().encloses(plate_rect)).is_true()
-		for cell: DeckCell in view.cells():
-			assert_bool(cell.get_global_rect().intersects(plate_rect)).is_false()
 		var cells: Array[DeckCell] = view.cells()
 		assert_int(cells.size()).is_equal(_distinct_in_deck(run))
-		for index: int in cells.size():
-			for other: int in range(index + 1, cells.size()):
-				var overlap: bool = cells[index].get_global_rect().intersects(
-					cells[other].get_global_rect()
-				)
-				assert_bool(overlap).override_failure_message(where).is_false()
+		_assert_cards_laid_out(cells, area, where)
+		# The room left, on the top line: CART FULL in tomato, else ROOM FOR n MORE.
+		var note: MixedLabel = view._deck_page.find_child(DeckView.ROOM_NOTE_NAME, true, false)
+		var room: int = run.balance.deck_limit - run.deck.size()
+		assert_str(note.text).is_equal(DeckView.FULL_NOTE if full else DeckView.ROOM_NOTE % room)
+		assert_bool(area.encloses(note.get_global_rect())).is_true()
+		for cell: DeckCell in cells:
+			assert_bool(cell.get_global_rect().intersects(note.get_global_rect())).is_false()
 		view._close()
 		await get_tree().process_frame
 
 
-## The shelves' slots: products from the first slot, the coupons at the end of the last shelf
-## after at least one empty slot; a 15-distinct cart takes two shelves of 10.
-func test_shelf_slots_put_the_coupons_at_the_end() -> void:
-	assert_array(DeckView.shelf_slots(8, 1, 10)).is_equal([0, 1, 2, 3, 4, 5, 6, 7, 9])
-	assert_array(DeckView.shelf_slots(9, 1, 10)).is_equal([0, 1, 2, 3, 4, 5, 6, 7, 8, 19])
-	assert_array(DeckView.shelf_slots(12, 1, 10)).is_equal(
-		[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 19]
-	)
-	assert_array(DeckView.shelf_slots(13, 2, 10)).is_equal(
-		[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 18, 19]
-	)
-	assert_array(DeckView.shelf_slots(0, 2, 10)).is_equal([8, 9])
-	assert_array(DeckView.shelf_slots(3, 0, 10)).is_equal([0, 1, 2])
-	# The family filter's packing: every slot in a row from the first, no gap before the coupons.
-	assert_array(DeckView.shelf_slots(9, 2, 10, true)).is_equal([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
-	assert_array(DeckView.shelf_slots(0, 2, 10, true)).is_equal([0, 1])
-
-
-## The fixed starter deck's page shows whole, unscrolled: every card and its count line sit
-## inside the scroll area, and the view sits inside the window below the top bar. (A dealt deck,
-## v0.49, can hold more than one row of distinct products: its page scrolls, see
-## test_a_dealt_deck_with_two_product_rows_scrolls_inside_its_area.)
+## The fixed starter deck's page shows whole, unscrolled: every card sits inside the scroll area,
+## and the view sits inside the window below the top bar.
 func test_the_starting_deck_fits_without_scrolling() -> void:
 	var screen: ShiftScreen = await _screen()
 	var balance: BalanceDefinition = screen.run.balance
@@ -323,19 +290,18 @@ func test_the_starting_deck_fits_without_scrolling() -> void:
 	var content: Control = view._scroll.get_child(0)
 	assert_float(content.size.y).is_less_equal(view._scroll.size.y)
 	var area: Rect2 = view._scroll.get_global_rect()
-	for card_view: CardView in view.card_views():
-		var cell: Control = card_view.get_parent()
+	for cell: DeckCell in view.cells():
 		assert_bool(area.encloses(cell.get_global_rect())).is_true()
 	var rect: Rect2 = view.get_global_rect()
 	assert_bool(screen.get_global_rect().encloses(rect)).is_true()
 	assert_float(rect.position.y).is_greater_equal(screen._shade.offset_top)
 
 
-## The cart and run info polish (2026-11-12): Run info shows the run at a glance (the run family's
-## card: the starter pack's family glyph big, its name, the pack and its hint; the run's two
-## aisles in stock; the cart's families as tiles, each a big glyph and its count in the number
-## font, the run family's ringed), then the stock, products then coupons under their shelf labels.
-## It shows no upgrades and no inspections, even with one of each.
+## The slim Run info (2026-11-13): the run at a glance (the run family's card: the starter pack's
+## family glyph big, its name, the pack and its hint; the run's two aisles in stock and the
+## staples' line, its count from data; the cart's families as tiles, each a big glyph and its
+## count in the number font, the run family's ringed), then MACHINE STOCK as an icon grid grouped
+## STAPLES, each aisle, COUPONS. It shows no upgrades and no inspections, even with one of each.
 func test_the_run_info_tab_shows_the_run_at_a_glance_and_the_stock() -> void:
 	var screen: ShiftScreen = await _screen()
 	screen._debug.give_upgrade("category_engine")
@@ -371,6 +337,7 @@ func test_the_run_info_tab_shows_the_run_at_a_glance_and_the_stock() -> void:
 	var markup: String = RunInfoHero.hint_markup(pack)
 	assert_str(HandbookMarkup.plain(markup)).is_equal(pack.hint_text)
 	assert_str(markup).contains("{kw:MORNING}").contains("{item:coffee}")
+	var staples: int = RunStock.staples(run.balance).size()
 	(
 		assert_array(texts)
 		. contains(
@@ -380,14 +347,17 @@ func test_the_run_info_tab_shows_the_run_at_a_glance_and_the_stock() -> void:
 				RunInfoHero.RUN_FAMILY,
 				RunInfoHero.IN_CART,
 				DeckView.STOCK_HEADING,
+				RunInfoHero.STAPLES_NOTE % staples,
 			]
 		)
 	)
-	# The aisles in stock: since v1.32 the run's two boosters' aisles, one plate each, by name.
+	# The aisles in stock: since v1.32 the run's two boosters' aisles, one plate each, by name,
+	# then the staples' line.
 	var rows: Array[AisleDefinition] = RunInfoHero.aisle_rows(run)
 	assert_int(rows.size()).is_equal(2)
 	var plates: Node = view._info_page.find_child(RunInfoHero.PLATES, true, false)
-	assert_int(plates.get_child_count()).is_equal(rows.size())
+	assert_int(plates.get_child_count()).is_equal(rows.size() + 1)
+	assert_str(plates.get_child(-1).name).is_equal(RunInfoHero.STAPLES_NAME)
 	var plate_names: Array = []
 	for label: Node in plates.find_children("AisleName", "Label", true, false):
 		plate_names.append((label as Label).text)
@@ -417,32 +387,30 @@ func test_the_run_info_tab_shows_the_run_at_a_glance_and_the_stock() -> void:
 		assert_bool(tile.ringed).override_failure_message(tile.family).is_equal(
 			tile.family == pack.family
 		)
-	# The stock, products then coupons.
-	assert_int(view.card_views().size()).is_equal(run.stock.cards.size())
-	# The starting stock (the staples and two aisles' base products since the v1.32 feedback) and
-	# the coupons of coupon_pool.
-	var expected: int = RunStock.staples(run.balance).size() + run.balance.coupon_pool.size()
+	# The stock: the staples and two aisles' base products since the v1.32 feedback, and the
+	# coupons of coupon_pool, as icons, each once, grouped STAPLES, the aisles, COUPONS.
+	var grid: StockGrid = view.stock_grid()
+	var expected: int = staples + run.balance.coupon_pool.size()
 	for aisle: AisleDefinition in rows:
 		expected += aisle.base_cards.size()
-	assert_int(view.card_views().size()).is_equal(expected)
-	var products: int = (
-		run
-		. stock
-		. cards
-		. filter(func(stocked: CardDefinition) -> bool: return stocked.is_product())
-		. size()
-	)
-	assert_array(texts).contains(
-		[DeckView.PRODUCTS % products, DeckView.COUPONS % (run.stock.cards.size() - products)]
-	)
+	assert_int(grid.icons().size()).is_equal(expected)
+	var names: Array[String] = []
+	for header: Control in grid.headers():
+		names.append((header.find_child("GroupName", true, false) as Label).text)
+	var wanted: Array[String] = [StockGrid.STAPLES]
+	for aisle: AisleDefinition in run.balance.aisles:
+		if run.stock.aisle_ids.has(aisle.id):
+			wanted.append(aisle.display_name.to_upper())
+	wanted.append(StockGrid.COUPONS)
+	assert_array(names).is_equal(wanted)
+	assert_object(grid.find_child(StockGrid.LEGEND, true, false)).is_not_null()
 
 
 ## The cart and run info polish: at 1280x720 and 1920x1080 a full cart's page fits unscrolled, its
-## tag chips, START marks and names inside the scroll area, the chips clear of the legend; the Run
-## info's hero (the run family's card, the aisle plates, the family tiles) and the stock's first
-## shelf sit whole inside the scroll area unscrolled, the tiles side by side, for every starter
-## pack's card (as tall as its words); the empty rail's note is checked in
-## test_a_dealt_or_full_cart_fits_unscrolled.
+## tag chips, START marks and rules inside the scroll area, the chips clear of the legend and of
+## the cards; the Run info's hero (the run family's card, the aisle plates, the family tiles) sits
+## whole inside the scroll area unscrolled, the tiles side by side, for every starter pack's card
+## (as tall as its words).
 func test_the_cart_and_run_info_fit_both_windows() -> void:
 	for window: Vector2 in WINDOWS:
 		var screen: ShiftScreen = await _screen_at(window)
@@ -464,28 +432,33 @@ func test_the_cart_and_run_info_fit_both_windows() -> void:
 		var chips: Array[FamilyCount] = _tag_chips(view)
 		assert_int(chips.size()).is_greater(0)
 		var legend: Control = view._deck_page.find_child("Legend", true, false)
+		var cells: Array[DeckCell] = view.cells()
 		for chip: FamilyCount in chips:
 			var rect: Rect2 = chip.get_global_rect()
 			assert_bool(area.encloses(rect)).override_failure_message(where).is_true()
 			assert_float(rect.size.y).is_equal(FamilyCount.CHIP_HEIGHT)
 			assert_bool(rect.intersects(legend.get_global_rect())).is_false()
-		for cell: DeckCell in view.cells():
+			for cell: DeckCell in cells:
+				assert_bool(rect.intersects(cell.get_global_rect())).is_false()
+		for plate: Node in view._deck_page.find_children("Heading", "PanelContainer", true, false):
+			var label: Rect2 = (plate as Control).get_global_rect()
+			assert_bool(area.encloses(label)).override_failure_message(where).is_true()
+			assert_bool(label.intersects(legend.get_global_rect())).is_false()
+		for cell: DeckCell in cells:
 			var message: String = "%s %s" % [where, cell.card.id]
 			(
 				assert_bool(area.encloses(cell.get_global_rect()))
 				. override_failure_message(message)
 				. is_true()
 			)
-			var name_rect: Rect2 = cell.name_label().get_global_rect()
-			assert_float(name_rect.end.y).override_failure_message(message).is_less_equal(
-				area.end.y
-			)
+			_assert_rule_fits(cell, message)
 			for mark: RevealChip in cell.marks():
 				assert_bool(area.encloses(mark.get_global_rect())).is_true()
+			_assert_start_and_count(cell)
 		view._close()
 		await get_tree().process_frame
-		# Every starter pack's card (the hints run 3 to 4 lines) leaves the hero and the stock's
-		# first shelf whole, the card no taller than its words.
+		# Every starter pack's card (the hints run 3 to 4 lines) leaves the hero whole, the card
+		# no taller than its words.
 		for path: String in DirAccess.get_files_at(PACKS):
 			if not path.ends_with(".tres"):
 				continue
@@ -498,21 +471,6 @@ func test_the_cart_and_run_info_fit_both_windows() -> void:
 			await get_tree().process_frame
 
 
-## The Run info stock shows every stocked card once, with no mark on any (v1.32: the NEW chip of
-## the end-cap's new arrivals is gone with them).
-func test_run_info_shows_the_stock_unmarked() -> void:
-	var screen: ShiftScreen = await _screen()
-	var run: RunState = screen.run
-	screen._on_deck_button_pressed()
-	var view: DeckView = screen._deck_view
-	view.show_page(true)
-	var shown: Array[CardDefinition] = []
-	for cell: DeckCell in view.cells():
-		shown.append(cell.card)
-		assert_array(cell.marks()).override_failure_message(String(cell.card.id)).is_empty()
-	assert_array(shown).contains_exactly_in_any_order(run.stock.cards)
-
-
 ## At the deck limit only the deck shows, and a grouped card chooses one of its copies.
 func test_the_chooser_shows_only_the_deck_and_picks_a_copy() -> void:
 	var screen: ShiftScreen = await _screen()
@@ -522,9 +480,9 @@ func test_the_chooser_shows_only_the_deck_and_picks_a_copy() -> void:
 	var view: DeckView = screen._deck_view
 	assert_bool(view._deck_tab.visible).is_false()
 	assert_bool(view._info_tab.visible).is_false()
-	# No room note in the chooser: the empty rail is not the point there.
-	assert_object(view._deck_page.find_child("RailNote", true, false)).is_null()
-	var banana: CardView = view.card_views()[0]
+	# No room note in the chooser: the room left is not the point there.
+	assert_object(view._deck_page.find_child(DeckView.ROOM_NOTE_NAME, true, false)).is_null()
+	var banana: DeckCell = view.cells()[0]
 	view._on_card_clicked(banana)
 	assert_int(chosen.size()).is_equal(1)
 	assert_bool(screen.run.deck.cards.has(chosen[0])).is_true()
@@ -569,13 +527,13 @@ func test_browsing_clicks_choose_nothing() -> void:
 	var chosen: Array[CardInstance] = []
 	screen._deck_view.card_chosen.connect(func(card: CardInstance) -> void: chosen.append(card))
 	screen._on_deck_button_pressed()
-	screen._deck_view._on_card_clicked(screen._deck_view.card_views()[0])
+	screen._deck_view._on_card_clicked(screen._deck_view.cells()[0])
 	assert_array(chosen).is_empty()
 	assert_bool(screen._deck_view.visible).is_true()
 
 
 ## A full collection's stock (the base stock plus 15 more cards, about 40) and a deck past the limit
-## still fit the window: the pages scroll inside a fixed area (the stock's shelves scroll).
+## still fit the window: the pages scroll inside a fixed area.
 func test_a_big_stock_and_deck_fit_the_screen() -> void:
 	var screen: ShiftScreen = await _screen()
 	var run: RunState = screen.run
@@ -595,16 +553,18 @@ func test_a_big_stock_and_deck_fit_the_screen() -> void:
 		assert_float(rect.size.y).is_less_equal(view.get_combined_minimum_size().y + 1.0)
 		var width: int = ProjectSettings.get_setting("display/window/size/viewport_width")
 		assert_float(rect.size.x).is_less_equal(width)
-		var content: Control = view._scroll.get_child(0)
-		if page:
+		if not page:
+			var content: Control = view._scroll.get_child(0)
 			assert_float(content.size.y).is_greater(view._scroll.size.y)
-	assert_int(view.card_views().size()).is_equal(base_stock + 15)
+	assert_int(view.stock_grid().icons().size()).is_equal(base_stock + 15)
 
 
-## #56: resting the pointer on an item opens the scan popup beside it, inside the window, with the
-## card's rule text, and lifts the item; leaving it closes the popup. In the chooser the hovered
-## item also gets the gold ring; browsing never rings it.
-func test_hovering_an_item_shows_its_effect() -> void:
+## #56: resting the pointer on a card opens its paper tip beside it, inside the window: its name,
+## its rarity tag and colour, no price and its rule only when the face cut it short (2026-11-14),
+## and a KEYWORD box for each keyword; it lifts the
+## card; leaving it closes the tip. In the chooser the hovered card also gets the gold ring;
+## browsing never rings it.
+func test_hovering_a_card_shows_its_effect() -> void:
 	var screen: ShiftScreen = await _screen()
 	for choosing: bool in [false, true]:
 		var view: DeckView = screen._deck_view
@@ -612,28 +572,53 @@ func test_hovering_an_item_shows_its_effect() -> void:
 		await get_tree().create_timer(0.4).timeout
 		var cells: Array[DeckCell] = view.cells()
 		var cell: DeckCell = cells[floori(cells.size() / 2.0)]
-		cell.item().hovered.emit(cell.item())
-		var popup: ScanPopup = view.popup()
-		assert_bool(popup.visible).is_true()
-		assert_bool(cell.item().lifted).is_true()
+		cell.hovered.emit(cell)
+		var tip: CardTip = view.tip()
+		assert_bool(tip.visible).is_true()
+		assert_bool(cell.lifted).is_true()
 		assert_bool(cell.ringed).is_equal(choosing)
-		assert_str(popup.rule_label().text).is_equal(cell.card.rule_text)
-		var rect: Rect2 = popup.get_global_rect()
-		assert_bool(screen.get_global_rect().encloses(rect)).is_true()
-		# Beside the item's column, never over it.
-		var column: Rect2 = cell.get_global_transform() * cell.column_rect()
-		assert_bool(rect.intersects(column)).is_false()
-		cell.item().unhovered.emit(cell.item())
-		assert_bool(popup.visible).is_false()
-		assert_bool(cell.item().lifted).is_false()
+		var main: CardTip.TipCard = tip.main_card()
+		assert_str(main.title_text()).is_equal(cell.card.display_name)
+		assert_str(main.tag_text()).is_equal(CardTip.tag_of(cell.card, screen.run.balance.machine))
+		var rule: String = DeckCell.rule_line(cell.card)
+		var rule_shown: bool = not rule.is_empty() and tip.lines().has(rule)
+		assert_bool(rule_shown).is_equal(cell.rule_clipped() and not rule.is_empty())
+		for line: String in tip.lines():
+			assert_str(line).not_contains("Price ")
+		for rect: Rect2 in tip.card_rects():
+			assert_bool(screen.get_global_rect().encloses(rect)).is_true()
+			# Beside the card, never over it.
+			var column: Rect2 = cell.get_global_transform() * cell.column_rect()
+			assert_bool(rect.intersects(column)).is_false()
+		cell.unhovered.emit(cell)
+		assert_bool(tip.visible).is_false()
+		assert_bool(cell.lifted).is_false()
 		assert_bool(cell.ringed).is_false()
 		view._close()
+	# A keyword's card explains its keyword.
+	var run: RunState = screen.run
+	run.deck.add_card(load("res://data/cards/tea_bags_golden.tres"))
+	var shown: DeckView = screen._deck_view
+	shown.open(run, "Your cart", false)
+	var tea: DeckCell = _cell_of(shown, &"tea_bags_golden")
+	shown.hover(tea)
+	var tea_tip: CardTip = shown.tip()
+	assert_str(tea_tip.main_card().tag_text()).is_equal(
+		CardTip.PRODUCT_TAGS[BoosterArt.Look.LEGENDARY]
+	)
+	# The header takes the rarity's colour: LEGENDARY gold.
+	assert_that(tea_tip.main_card().band).is_equal(Palette.GOLD)
+	var keyword: CardTip.TipCard = tea_tip.keyword_cards()[0]
+	assert_str(keyword.title_text()).is_equal("MORNING")
+	assert_str(keyword.tag_text()).is_equal(CardTip.KEYWORD_TAG)
+	assert_array(keyword.texts()).is_equal([GlyphText.keyword_tip("MORNING")])
+	shown._close()
 
 
-## The mix highlight in the Cart (#105 piece 3, mock-up readability v3's Cart): hovering an item
-## lights the cells it works with and greys the whole of every other cell (a broad "next Food"
-## match greyed under a dashed outline round its cell, never a check); a family lights its cells;
-## leaving puts every cell back; in choosing mode nothing greys.
+## The mix highlight in the Cart (#105 piece 3, mock-up readability v3's Cart): hovering a card
+## lights the cards it works with and greys every other card's face (a broad "next Food" match
+## greyed under a dashed outline round its card, never a check); a family lights its cards;
+## leaving puts every card back; in choosing mode nothing greys.
 func test_the_cart_lights_what_an_item_works_with() -> void:
 	var screen: ShiftScreen = await _screen()
 	var view: DeckView = screen._deck_view
@@ -645,7 +630,7 @@ func test_the_cart_lights_what_an_item_works_with() -> void:
 		if cell.card.product_card().id == &"milk":
 			milk = cell
 	assert_object(milk).is_not_null()
-	milk.item().hovered.emit(milk.item())
+	milk.hovered.emit(milk)
 	var lit: int = 0
 	var greyed: int = 0
 	for cell: DeckCell in cells:
@@ -666,8 +651,7 @@ func test_the_cart_lights_what_an_item_works_with() -> void:
 		assert_int(cell.mix_look).override_failure_message(cell.card.id).is_equal(expected)
 		var grey: bool = MixModel.greys(expected)
 		var brightness: float = view.tuning.mix_brightness if grey else 1.0
-		assert_float(cell.item().modulate.r).is_equal_approx(brightness, 0.001)
-		assert_float(cell.name_label().modulate.r).is_equal_approx(brightness, 0.001)
+		assert_float(cell.face().modulate.r).is_equal_approx(brightness, 0.001)
 		lit += 1 if expected == MixModel.Look.LIT else 0
 		greyed += 1 if grey else 0
 		var outline: bool = cell.mix_mark() != null and cell.mix_mark().visible
@@ -677,21 +661,14 @@ func test_the_cart_lights_what_an_item_works_with() -> void:
 			assert_bool(screen.get_global_rect().encloses(drawn)).is_true()
 	assert_int(lit).is_greater(0)
 	assert_int(greyed).is_greater(0)
-	milk.item().unhovered.emit(milk.item())
-	var stacked: int = 0
+	milk.unhovered.emit(milk)
 	for cell: DeckCell in cells:
 		assert_int(cell.mix_look).is_equal(MixModel.Look.NONE)
-		assert_float(cell.item().modulate.r).is_equal(1.0)
-		# The copies stacked behind keep their dimmed tint through the hover and after it.
-		for copy: TextureRect in _stack_copies(cell):
-			assert_that(copy.self_modulate).is_equal(DeckCell.STACK_TINT)
-			assert_float(copy.modulate.r).is_equal(1.0)
-			stacked += 1
-	assert_int(stacked).is_greater(0)
-	# A family lights its cells.
+		assert_float(cell.face().modulate.r).is_equal(1.0)
+	# A family lights its cards.
 	view.mix_family = "Breakfast"
 	for cell: DeckCell in cells:
-		var in_family: bool = cell.item().tags().has("Breakfast")
+		var in_family: bool = cell.tags().has("Breakfast")
 		var expected: MixModel.Look = MixModel.Look.LIT if in_family else MixModel.Look.GREY
 		assert_int(cell.mix_look).override_failure_message(cell.card.id).is_equal(expected)
 	view.mix_family = ""
@@ -700,23 +677,12 @@ func test_the_cart_lights_what_an_item_works_with() -> void:
 	view.open(screen.run, "choose", true)
 	await get_tree().create_timer(0.4).timeout
 	var chooser: DeckCell = view.cells()[0]
-	chooser.item().hovered.emit(chooser.item())
+	chooser.hovered.emit(chooser)
 	view.mix_family = "Breakfast"
 	for cell: DeckCell in view.cells():
 		assert_int(cell.mix_look).is_equal(MixModel.Look.NONE)
 	view.mix_family = ""
 	view._close()
-
-
-## The copies stacked behind `cell`'s item (DeckCell._add_stack): its plain sprites tinted
-## STACK_TINT.
-func _stack_copies(cell: DeckCell) -> Array[TextureRect]:
-	var copies: Array[TextureRect] = []
-	for child: Node in cell.get_children():
-		var copy: TextureRect = child as TextureRect
-		if copy != null and copy.self_modulate == DeckCell.STACK_TINT:
-			copies.append(copy)
-	return copies
 
 
 ## #56: the title's and headings' numbers print in the number font (Pixelify's digits read poorly),
@@ -742,22 +708,6 @@ func test_numbers_print_in_the_number_font() -> void:
 	assert_str(view.title_text()).is_equal(DeckView.INFO_TITLE)
 	view.show_page(false)
 	assert_str(view.title_text()).starts_with("Your cart")
-
-
-## #56: every card's name fits its line under its item at one of the name's sizes (the plain
-## product's name for a BIG or GOLDEN card).
-func test_every_name_fits_under_its_item() -> void:
-	var font: Font = ArtStyle.bold_font(DeckCell.NAME_WEIGHT)
-	for file_name: String in DirAccess.get_files_at("res://data/cards"):
-		if not file_name.ends_with(".tres"):
-			continue
-		var card: CardDefinition = load("res://data/cards/" + file_name)
-		var shown: String = (card.product_card() if card.is_product() else card).display_name
-		var size: int = DeckCell.name_size(shown)
-		var width: float = font.get_string_size(shown, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
-		assert_float(width).override_failure_message(shown).is_less_equal(
-			DeckCell.SIZE.x + DeckCell.NAME_SPILL
-		)
 
 
 func _screen() -> ShiftScreen:
@@ -789,8 +739,74 @@ static func _tag_chips(view: DeckView) -> Array[FamilyCount]:
 	return chips
 
 
+## The Cart's card of `id`, or null.
+static func _cell_of(view: DeckView, id: StringName) -> DeckCell:
+	for cell: DeckCell in view.cells():
+		if cell.card.id == id:
+			return cell
+	return null
+
+
+## Every card of `cells` inside `area`, no two overlapping (their tabs included).
+func _assert_cards_laid_out(cells: Array[DeckCell], area: Rect2, where: String) -> void:
+	for index: int in cells.size():
+		var rect: Rect2 = cells[index].get_global_rect()
+		var tabbed: Rect2 = rect.grow_side(SIDE_TOP, DeckCell.TOP_ROOM)
+		(
+			assert_bool(area.encloses(tabbed))
+			. override_failure_message("%s %s" % [where, cells[index].card.id])
+			. is_true()
+		)
+		for other: int in range(index + 1, cells.size()):
+			var next: Rect2 = cells[other].get_global_rect().grow_side(SIDE_TOP, DeckCell.TOP_ROOM)
+			assert_bool(tabbed.intersects(next)).override_failure_message(where).is_false()
+
+
+## `cell`'s rule shows whole inside its rule box at one of RULE_SIZES (or cut short with "…" at the
+## smallest), its lines centred.
+func _assert_rule_fits(cell: DeckCell, message: String) -> void:
+	var label: GlyphLabel = cell.rule_label()
+	assert_bool(label.fits()).override_failure_message(message).is_true()
+	assert_int(cell.rule_size()).override_failure_message(message).is_greater_equal(
+		DeckCell.RULE_SIZES[-1]
+	)
+	var box: Rect2 = cell.rule_rect().grow(0.5)
+	var shown: Rect2 = Rect2(label.position, label.size)
+	assert_bool(box.encloses(shown)).override_failure_message(message).is_true()
+	if cell.rule_clipped():
+		assert_str(cell.shown_rule()).override_failure_message(message).ends_with(DeckCell.ELLIPSIS)
+		assert_int(cell.rule_size()).is_equal(DeckCell.RULE_SIZES[-1])
+
+
+## A START chip and a copies' count on `cell` sit apart: the chip inside the card clear of the
+## rule text, the count over the card's top right corner.
+func _assert_start_and_count(cell: DeckCell) -> void:
+	var card: Rect2 = cell.get_global_rect()
+	var id: String = String(cell.card.id)
+	var rule: Rect2 = cell.rule_label().get_global_rect()
+	for mark: RevealChip in cell.marks():
+		var chip: Rect2 = mark.get_global_rect()
+		assert_bool(card.encloses(chip)).override_failure_message(id).is_true()
+		assert_bool(chip.intersects(rule)).override_failure_message(id).is_false()
+		var count: Control = cell.count_label()
+		if count != null:
+			(
+				assert_bool(chip.intersects(count.get_global_rect()))
+				. override_failure_message(id)
+				. is_false()
+			)
+	var count_label: Control = cell.count_label()
+	if count_label != null:
+		var count_rect: Rect2 = count_label.get_global_rect()
+		assert_bool(count_rect.intersects(card)).override_failure_message(id).is_true()
+		assert_float(count_rect.get_center().x).override_failure_message(id).is_greater(
+			card.get_center().x
+		)
+		assert_bool(count_rect.intersects(rule)).override_failure_message(id).is_false()
+
+
 ## The Run info's hero (the run family's card, the aisle plates, the family tiles side by side)
-## and the stock's first shelf sit whole in `area` unscrolled; the card is as tall as its words.
+## sits whole in `area` unscrolled; the card is as tall as its words.
 func _assert_hero_fits(view: DeckView, area: Rect2, where: String) -> void:
 	var hero: Control = view._info_page.find_child("RunInfoHero", false, false)
 	assert_bool(area.encloses(hero.get_global_rect())).override_failure_message(where).is_true()
@@ -809,8 +825,6 @@ func _assert_hero_fits(view: DeckView, area: Rect2, where: String) -> void:
 	for index: int in range(1, tiles.size()):
 		var left: Rect2 = (tiles[index - 1] as Control).get_global_rect()
 		assert_bool(left.intersects((tiles[index] as Control).get_global_rect())).is_false()
-	var shelf: Control = view._info_page.find_children("*", "DeckShelf", true, false)[0]
-	assert_bool(area.encloses(shelf.get_global_rect())).override_failure_message(where).is_true()
 
 
 ## Fills `run`'s cart to the deck limit with distinct cards: one copy of each dealt card, the
@@ -841,15 +855,6 @@ static func _distinct_in_deck(run: RunState) -> int:
 	for card: CardInstance in run.deck.cards:
 		cards.append(card.definition)
 	return _distinct(cards)
-
-
-## Whether each card view's cell sits inside `area` (for each card, in order).
-static func _cells_inside(view: DeckView, area: Rect2) -> Array[bool]:
-	var inside: Array[bool] = []
-	for card_view: CardView in view.card_views():
-		var cell: Control = card_view.get_parent()
-		inside.append(area.encloses(cell.get_global_rect()))
-	return inside
 
 
 static func _distinct(cards: Array[CardDefinition]) -> int:

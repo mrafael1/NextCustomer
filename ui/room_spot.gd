@@ -1,10 +1,10 @@
 class_name RoomSpot
 extends Control
-## One free spot of the cart on the deck view's shelves while a machine prize is placed
-## (2026-10-29, CartPlacing; mock-up pick_skip_cart.html): a dashed gold outline round an item's
-## column that pulses while the prize is held. `hot` (the held prize over it) fills it and shows
-## "+1" at its top (clear of the held item, which shrinks over the pointer): dropping there adds
-## the prize to the cart.
+## One free spot of the cart among the deck view's cards while a machine prize is placed
+## (2026-10-29, CartPlacing; mock-up pick_skip_cart.html): a dashed gold outline round
+## a card's place that pulses while the prize is held. `hot` (the held prize over it) fills it
+## and shows "+1" at its top (clear of the held item, which shrinks over the pointer): dropping
+## there adds the prize to the cart.
 
 const PULSE_RATE := 4.0
 const DASH := 6.0
@@ -43,9 +43,9 @@ func _init() -> void:
 	add_child(_plus)
 
 
-## The spot's outline: an item's column (its sprite and sticker), in this spot's coordinates.
+## The spot's outline: a card's face, in this spot's coordinates.
 static func column_rect() -> Rect2:
-	return Rect2(Vector2.ZERO, ItemView.TRAY_SIZE)
+	return Rect2(Vector2.ZERO, DeckCell.SIZE)
 
 
 func _process(delta: float) -> void:

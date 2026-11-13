@@ -173,7 +173,8 @@ func _lay_out() -> void:
 		return
 	# The glyph and the count centred as one group under the band, the name under them.
 	var group: float = _icon.size.x + TILE_GAP + digits.x
-	var left: float = roundf((size.x - group) / 2.0)
+	# On an even px: a whole screen px at 1920x1080's 1.5 scale too (the glyph stays crisp).
+	var left: float = floorf((size.x - group) / 4.0) * 2.0
 	var top: float = BORDER + TILE_BAND + 6.0
 	_icon.position = Vector2(left, top)
 	_number.position = Vector2(left + _icon.size.x + TILE_GAP, top)

@@ -8,8 +8,8 @@ extends TipTarget
 const HEAD := "Starting cart"
 const REGULAR := "a regular"
 const PACK := "%s pack"
-const DEALT := "dealt from %s"
-const STAPLES := "dealt from the Staples shelf"
+const DEALT := "from the %s booster"
+const STAPLES := "from the staples shelf"
 const PIN := "%s pin"
 
 

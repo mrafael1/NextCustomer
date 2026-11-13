@@ -6,7 +6,9 @@ extends HBoxContainer
 ## and lights its cells), its name, the pack's name and its hint (how the pack plays, its terms in
 ## the handbook's colours: PackHintMarkup, HandbookText), as tall as its words. Right, the
 ## AISLES IN STOCK plates (each aisle's own sign, frames/aisle_sign_<id>, with its glyph and name:
-## the run's two aisles since v1.32, both its boosters' and its stock's), then IN YOUR CART: one
+## the run's two aisles since v1.32, both its boosters' and its stock's) and, beside them, the
+## staples' line ("+ the 6 staples, in every run", the count from data: the slim Run info of
+## mock-up cart_cards.html, 2026-11-13), then IN YOUR CART: one
 ## FamilyCount tile per printed tag in the cart, most common first (DeckSummary.tag_counts), the
 ## run family's tile ringed in gold; the tiles filter the stock below (DeckView's family filter,
 ## family_tiles). A run with no starter pack (the fixed starter deck) has no
@@ -33,6 +35,12 @@ const PLATE_HEIGHT := 48.0
 const PLATE_GAP := 8.0
 const PLATE_GLYPH_SCALE := 4
 const PLATE_NAME_SIZE := 20
+## The widest plate, and the staples' line beside the plates: its words, size and room.
+const PLATE_MAX_WIDTH := 258.0
+const STAPLES_NOTE := "+ the %d staples, in every run"
+const STAPLES_SIZE := 15
+const STAPLES_ROOM := 230.0
+const STAPLES_NAME := "StaplesNote"
 const SIGN_PATH := "res://art/frames/aisle_sign_%s.png"
 const BASE_SIGN := preload("res://art/frames/aisle_sign.png")
 const TILE_GAP := 6.0
@@ -67,7 +75,7 @@ func _init(run: RunState, width: float) -> void:
 	var aisles: Array[AisleDefinition] = aisle_rows(run)
 	if not aisles.is_empty():
 		right.add_child(pixel_heading(AISLES, Palette.MUSTARD))
-		right.add_child(_plates(aisles, right_width))
+		right.add_child(_plates(aisles, right_width, RunStock.staples(run.balance).size()))
 		right.add_child(_spacer(4))
 	right.add_child(pixel_heading(IN_CART, Palette.MUSTARD))
 	right.add_child(_tiles(run, right_width, pack.family if pack != null else ""))
@@ -168,14 +176,23 @@ static func hint_markup(pack: StarterPackDefinition) -> String:
 	return PackHintMarkup.of(pack.hint_text, pack.cards + pack.example_cards, palette.families)
 
 
-func _plates(rows: Array[AisleDefinition], width: float) -> HBoxContainer:
+## The aisles' plates side by side, then the staples' line (`staples` of them; none for 0).
+func _plates(rows: Array[AisleDefinition], width: float, staples: int) -> HBoxContainer:
 	var plates: HBoxContainer = HBoxContainer.new()
 	plates.name = PLATES
 	plates.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	plates.add_theme_constant_override("separation", int(PLATE_GAP))
-	var plate_width: float = floorf((width - PLATE_GAP * (rows.size() - 1)) / maxf(1, rows.size()))
+	var room: float = width - (STAPLES_ROOM + PLATE_GAP if staples > 0 else 0.0)
+	var plate_width: float = floorf((room - PLATE_GAP * (rows.size() - 1)) / maxf(1, rows.size()))
+	plate_width = minf(plate_width, PLATE_MAX_WIDTH)
 	for aisle: AisleDefinition in rows:
 		plates.add_child(_plate(aisle, plate_width))
+	if staples > 0:
+		var note: Label = UiKit.body_label(STAPLES_NOTE % staples, STAPLES_SIZE, Palette.TEAL_PALE)
+		note.name = STAPLES_NAME
+		note.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		note.size_flags_vertical = Control.SIZE_FILL
+		plates.add_child(note)
 	return plates
 
 

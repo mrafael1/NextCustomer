@@ -56,6 +56,8 @@ var _tip_anchor: Control
 ## A chip's (a keyword's, a written family's) margin each side and a keyword chip's padding.
 var _chip_margin: float = CHIP_MARGIN
 var _chip_padding: float = KeywordChip.PADDING_X
+## Each line centred in the width (set_centred: a cart card's rule), else from the left.
+var _centred: bool = false
 
 
 ## `line` in `font` at `text_size` and `text_color`, `line_pitch` px a line, wrapped at `width`.
@@ -102,6 +104,15 @@ func set_chip_room(margin: float, padding: float) -> void:
 		return
 	_chip_margin = margin
 	_chip_padding = padding
+	_lay_out()
+
+
+## Centres each line in the width (`centred`), or puts it back at the left, laying the text out
+## again.
+func set_centred(centred: bool) -> void:
+	if centred == _centred:
+		return
+	_centred = centred
 	_lay_out()
 
 
@@ -268,6 +279,11 @@ func _lay_out() -> void:
 	var shown: int = lines.size() if _max_lines <= 0 else mini(lines.size(), _max_lines)
 	for index: int in shown:
 		_lines.append(lines[index])
+	if _centred:
+		for placed: Array in _lines:
+			var shift: float = floorf((_width - _line_end(placed)) / 2.0)
+			for run: Dictionary in placed:
+				run["x"] = float(run["x"]) + maxf(0.0, shift)
 	size = Vector2(_width, _lines.size() * _pitch)
 	custom_minimum_size = size
 	_add_glyphs()

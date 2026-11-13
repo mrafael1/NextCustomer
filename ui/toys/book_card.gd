@@ -26,11 +26,12 @@ extends Control
 ##
 ## Round 7 (the user: "add second family icon under first family icon on items that posses have 2
 ## families"): under the main family's glyph stand the glyphs of the item's other printed
-## families (glyph_families: the ticket's label rule, so Food shows only on a card whose only
-## family it is, or as the main glyph of an OTHER FOOD card whose main family is Food), one under
-## the other GLYPH_PITCH apart, down the window's left edge clear of the figurine; each is a
-## FamilyGlyph, naming its family in the game's tip (the book's GlyphTips) when the pointer rests
-## on it; it takes no clicks, so the card under it still lifts.
+## families (FamilyPalette.glyph_families, shared with the Cart's cards: the ticket's label rule,
+## so Food shows only on a card whose only family it is, or as the main glyph of an OTHER FOOD
+## card whose main family is Food), one under the other GLYPH_PITCH apart, down the window's left
+## edge clear of the figurine; each is a FamilyGlyph, naming its family in the game's tip (the
+## book's GlyphTips) when the pointer rests on it; it takes no clicks, so the card under it still
+## lifts.
 ##
 ## Round 10 (v1.30, decided with the user 2026-11-12): a loyalty perk's card (BookEntry.for_perk)
 ## is in the LOYALTY teal (perks_family_style, the same on every perk), its name the perk's (LV 1),
@@ -144,7 +145,7 @@ func _init(
 	elif item.coupon and style != null:
 		glyphs.append(style)
 	elif not item.coupon:
-		glyphs = looks.styles(glyph_families(item, looks))
+		glyphs = looks.styles(looks.glyph_families(item.family, item.tags))
 	for look: FamilyStyle in glyphs:
 		if look.glyph == null:
 			continue
@@ -369,21 +370,6 @@ func _glyph_label(text: String, tier: Vector2i) -> GlyphLabel:
 	label.set_chip_room(CHIP_MARGIN, CHIP_PADDING)
 	label.set_tip(true, self)
 	return label
-
-
-## The families whose glyphs an item's card shows, top down (round 7): its main family, then
-## its other printed families by the ticket's label rule (FamilyPalette.shelf_families: Food
-## only when it is the card's only family); none for a coupon.
-static func glyph_families(item: BookEntry, palette: FamilyPalette) -> PackedStringArray:
-	var shown: PackedStringArray = PackedStringArray()
-	if item.coupon:
-		return shown
-	if not item.family.is_empty():
-		shown.append(item.family)
-	for family: String in palette.shelf_families(item.tags):
-		if not shown.has(family):
-			shown.append(family)
-	return shown
 
 
 ## The coupon slip's top left on a coupon's card: its drawn pixels centred in the window, on the

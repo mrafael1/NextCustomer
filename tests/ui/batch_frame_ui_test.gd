@@ -346,7 +346,7 @@ func test_the_monitor_and_the_deck_show_the_chip() -> void:
 		if cell.card.id != &"croissant":
 			continue
 		found = true
-		var deck_chips: Array[KeywordChip] = cell.item().sticker().summary().keywords()
+		var deck_chips: Array[KeywordChip] = cell.rule_label().keywords()
 		assert_int(deck_chips.size()).is_equal(1)
 		assert_str(deck_chips[0].tip_text).is_equal(GlyphText.keyword_tip(CardText.BATCH_WORD))
 		assert_bool(deck_chips[0].is_wasted()).is_false()

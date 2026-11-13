@@ -175,7 +175,7 @@ func test_a_card_pick_is_placed_in_the_cart() -> void:
 	view.pick(0)
 	await _frames(2)
 	target = deck_view.cells()[0]
-	var out: CardInstance = target.item().card
+	var out: CardInstance = target.instance
 	placing.drop_at(target.get_global_rect().get_center())
 	view.fast_forward()
 	assert_int(run.deck.size()).is_equal(size)

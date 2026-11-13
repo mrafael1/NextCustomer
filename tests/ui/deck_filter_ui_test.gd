@@ -1,8 +1,9 @@
 extends GdUnitTestSuite
 ## The deck view's family filter on the real shift screen (the cart and run info polish, play
-## feedback 2026-11-12): the Cart's tag chips and the Run info's family tiles filter the page's
-## item grid (hover previews, a click pins), the grid re-packed from its top left, the icons never
-## moving, at 1280x720 and 1920x1080.
+## feedback 2026-11-12; the cart as cards, 2026-11-13): the Cart's tag chips and the Run info's
+## family tiles filter the page's items (hover previews, a click pins): the Cart's cards re-packed
+## from its top left (the coupons hidden), the Run info's stock icons dimmed where they stand, the
+## icons never moving, at 1280x720 and 1920x1080.
 
 const Cart := preload("res://tests/ui/deck_view_ui_test.gd")
 const SCREEN := "res://ui/shift_screen.tscn"
@@ -31,9 +32,9 @@ func after_test() -> void:
 
 
 ## The family filter (play feedback 2026-11-12) on a full cart at 1280x720 and 1920x1080: the
-## pointer on a tag chip shows only its family's items, packed from the grid's top left on as few
-## shelves as they take; a click pins it; another chip previews over the pin; Esc and closing the
-## view clear it; the chips never move (_assert_family_filter).
+## pointer on a tag chip shows only its family's products (the coupons hide), packed from the
+## grid's top left (CartLayout); a click pins it; another chip previews over the pin; Esc and
+## closing the view clear it; the chips never move (_assert_family_filter).
 func test_a_family_chip_filters_the_cart() -> void:
 	for window: Vector2 in WINDOWS:
 		var screen: ShiftScreen = await _screen_at(window)
@@ -47,9 +48,9 @@ func test_a_family_chip_filters_the_cart() -> void:
 		await _assert_family_filter(view, "cart %s" % window)
 
 
-## The family filter on the Run info page at 1280x720 and 1920x1080, the page scrolled a little:
+## The family filter on the Run info page at 1280x720 and 1920x1080 (the slim page fits unscrolled):
 ## the cart's family tiles filter the machine's stock the same way, and neither the scroll nor the
-## hero's tiles move (the filtered grid keeps its height), so a still pointer keeps its preview.
+## hero's tiles move (the stock's other icons only dim), so a still pointer keeps its preview.
 func test_a_family_tile_filters_the_run_info_stock() -> void:
 	for window: Vector2 in WINDOWS:
 		var screen: ShiftScreen = await _screen_at(window)
@@ -64,9 +65,9 @@ func test_a_family_tile_filters_the_run_info_stock() -> void:
 		# A family with no item in the stock filters nothing.
 		view.preview_family("NoSuchFamily")
 		assert_str(view.filter_family()).is_empty()
-		view._scroll.scroll_vertical = 30
+		var content: Control = view._scroll.get_child(0)
+		assert_float(content.size.y).is_less_equal(view._scroll.size.y)
 		await _settle()
-		assert_int(view._scroll.scroll_vertical).is_equal(30)
 		await _assert_family_filter(view, "info %s" % window)
 
 
@@ -111,27 +112,30 @@ func test_choosing_and_placing_filter_nothing() -> void:
 
 ## Runs the family filter on `view`'s shown page (then closes it): two families on part of the
 ## page's items, previewed, pinned, previewed over the pin, switched, unpinned, cleared by Esc and
-## by closing the view. The filtered cells are exactly the family's, in the page's order, packed
-## from the first cell's place; the icons keep the rects they had before any filter, and the
-## page's scroll never changes.
+## by closing the view. The shown items are exactly the family's, in the page's order (the Cart's
+## packed from the first card's place, the Run info's where they stood); the icons keep the rects
+## they had before any filter, and the page's scroll never changes.
 func _assert_family_filter(view: DeckView, where: String) -> void:
 	_scroll_at = view._scroll.scroll_vertical
 	var icons: Array[FamilyCount] = view.family_icons()
-	var everything: Array[DeckCell] = view.cells()
-	var origin: Vector2 = everything[0].get_global_rect().position
+	var everything: Array[StringName] = _shown_ids(view)
+	var origin: Vector2 = _items(view)[0].get_global_rect().position
+	var items: Array[Rect2] = []
+	for item: Control in _items(view):
+		items.append(item.get_global_rect())
 	var rects: Array[Rect2] = []
 	for icon: FamilyCount in icons:
 		rects.append(icon.get_global_rect())
 	var picked: Array[FamilyCount] = []
 	for icon: FamilyCount in icons:
-		var ids: Array[StringName] = _family_ids(everything, icon.family)
+		var ids: Array[StringName] = _family_ids(view, icon.family)
 		if view.can_filter(icon.family) and ids.size() < everything.size():
 			picked.append(icon)
 	assert_int(picked.size()).override_failure_message(where).is_greater_equal(2)
 	var first: FamilyCount = picked[0]
 	var second: FamilyCount = picked[1]
-	var first_ids: Array[StringName] = _family_ids(everything, first.family)
-	var second_ids: Array[StringName] = _family_ids(everything, second.family)
+	var first_ids: Array[StringName] = _family_ids(view, first.family)
+	var second_ids: Array[StringName] = _family_ids(view, second.family)
 	# The pointer on an icon previews its family; off it, every item shows again.
 	view.point_at(first.get_global_rect().get_center())
 	await _settle()
@@ -139,13 +143,13 @@ func _assert_family_filter(view: DeckView, where: String) -> void:
 	assert_str(view.pinned_family()).is_empty()
 	assert_bool(first.lit and not first.pinned).override_failure_message(where).is_true()
 	assert_that(first.fill_color()).is_equal(FamilyCount.LIT_FILL)
-	_assert_packed(view, origin, first_ids, rects, where)
+	_assert_packed(view, origin, items, first_ids, rects, where)
 	view.point_at(OFF_VIEW)
 	await _settle()
 	assert_str(view.filter_family()).is_empty()
 	assert_bool(first.lit).is_false()
 	_assert_still(view, rects, where)
-	assert_int(view.cells().size()).is_equal(everything.size())
+	assert_array(_shown_ids(view)).is_equal(everything)
 	# A click pins it: the pointer may leave for the items.
 	assert_bool(view.click_at(first.get_global_rect().get_center())).is_true()
 	view.point_at(OFF_VIEW)
@@ -153,17 +157,17 @@ func _assert_family_filter(view: DeckView, where: String) -> void:
 	assert_str(view.pinned_family()).is_equal(first.family)
 	assert_bool(first.pinned and not first.lit).override_failure_message(where).is_true()
 	assert_that(first.fill_color()).is_equal(FamilyCount.PINNED_FILL)
-	_assert_packed(view, origin, first_ids, rects, where)
+	_assert_packed(view, origin, items, first_ids, rects, where)
 	# Another icon previews over the pin; leaving it returns to the pinned family.
 	view.point_at(second.get_global_rect().get_center())
 	await _settle()
 	assert_str(view.filter_family()).is_equal(second.family)
 	assert_bool(first.pinned and second.lit).is_true()
-	_assert_packed(view, origin, second_ids, rects, where)
+	_assert_packed(view, origin, items, second_ids, rects, where)
 	view.point_at(OFF_VIEW)
 	await _settle()
 	assert_str(view.filter_family()).is_equal(first.family)
-	_assert_packed(view, origin, first_ids, rects, where)
+	_assert_packed(view, origin, items, first_ids, rects, where)
 	# Clicking another icon switches the pin; clicking the pinned one unpins it.
 	assert_bool(view.click_at(second.get_global_rect().get_center())).is_true()
 	assert_str(view.pinned_family()).is_equal(second.family)
@@ -174,7 +178,7 @@ func _assert_family_filter(view: DeckView, where: String) -> void:
 	assert_str(view.filter_family()).is_empty()
 	assert_bool(second.pinned).is_false()
 	_assert_still(view, rects, where)
-	assert_int(view.cells().size()).is_equal(everything.size())
+	assert_array(_shown_ids(view)).is_equal(everything)
 	# Esc clears a pin (before the pause).
 	view.click_at(first.get_global_rect().get_center())
 	view.point_at(OFF_VIEW)
@@ -185,7 +189,7 @@ func _assert_family_filter(view: DeckView, where: String) -> void:
 	await _settle()
 	assert_str(view.pinned_family()).is_empty()
 	_assert_still(view, rects, where)
-	assert_int(view.cells().size()).is_equal(everything.size())
+	assert_array(_shown_ids(view)).is_equal(everything)
 	# Closing the view clears it too.
 	view.click_at(first.get_global_rect().get_center())
 	assert_str(view.pinned_family()).is_equal(first.family)
@@ -194,36 +198,35 @@ func _assert_family_filter(view: DeckView, where: String) -> void:
 	await get_tree().process_frame
 
 
-## The shown page shows exactly `ids`' cells in order, packed from `origin` (columns of
-## DeckCell.SIZE.x + GAP, shelves of the heading band, a cell and the page gap) on as few shelves as
-## they take, the scroll and the family icons where they were (_assert_still).
+## The shown page shows exactly `ids`' items in order: on the Cart its cards packed from `origin`
+## (CartLayout with no coupons), on Run info the stock's icons at their rects `items` with the
+## others dimmed; the scroll and the family icons where they were (_assert_still).
 func _assert_packed(
-	view: DeckView, origin: Vector2, ids: Array[StringName], rects: Array[Rect2], where: String
+	view: DeckView,
+	origin: Vector2,
+	items: Array[Rect2],
+	ids: Array[StringName],
+	rects: Array[Rect2],
+	where: String
 ) -> void:
-	var cells: Array[DeckCell] = view.cells()
-	var shown: Array[StringName] = []
-	for cell: DeckCell in cells:
-		shown.append(cell.card.id)
+	var shown: Array[StringName] = _shown_ids(view)
 	assert_array(shown).override_failure_message(where).is_equal(ids)
-	var step: Vector2 = Vector2(
-		DeckCell.SIZE.x + DeckView.GAP, DeckShelf.BAND_HEIGHT + DeckCell.SIZE.y + DeckView.PAGE_GAP
-	)
-	for index: int in cells.size():
-		var at: Vector2 = (
-			origin
-			+ Vector2(
-				index % DeckView.COLUMNS * step.x, floori(index / float(DeckView.COLUMNS)) * step.y
+	if view._info_page.visible:
+		var icons: Array[StockIcon] = view.stock_grid().icons()
+		for index: int in icons.size():
+			assert_that(icons[index].get_global_rect()).is_equal(items[index])
+			assert_bool(icons[index].dimmed).is_equal(not ids.has(icons[index].card.id))
+	else:
+		var cells: Array[DeckCell] = view.cells()
+		var layout: CartLayout = CartLayout.of(cells.size(), 0, DeckView._line_width())
+		var start: Vector2 = origin - layout.positions[0]
+		for index: int in cells.size():
+			(
+				assert_vector(cells[index].get_global_rect().position)
+				. override_failure_message("%s %s" % [where, shown[index]])
+				. is_equal_approx(start + layout.positions[index], Vector2.ONE * 0.5)
 			)
-		)
-		(
-			assert_vector(cells[index].get_global_rect().position)
-			. override_failure_message("%s %s" % [where, shown[index]])
-			. is_equal_approx(at, Vector2.ONE * 0.5)
-		)
-	var grid: Node = view._shown_page().find_child(DeckView.GRID, false, false)
-	assert_int(grid.get_child_count()).override_failure_message(where).is_equal(
-		maxi(1, ceili(cells.size() / float(DeckView.COLUMNS)))
-	)
+			assert_bool(cells[index].card.is_product()).is_true()
 	_assert_still(view, rects, where)
 
 
@@ -245,12 +248,38 @@ static func _ids(cells: Array[DeckCell]) -> Array[StringName]:
 	return ids
 
 
-## The card ids of `cells` whose card has `family`'s printed tag, in order.
-static func _family_ids(cells: Array[DeckCell], family: String) -> Array[StringName]:
+## The shown page's items: the Cart's cards, or the Run info's stock icons.
+static func _items(view: DeckView) -> Array[Control]:
+	var items: Array[Control] = []
+	if view._info_page.visible:
+		items.assign(view.stock_grid().icons())
+	else:
+		items.assign(view.cells())
+	return items
+
+
+## The card ids of the shown page's items the filter shows (on Run info: not dimmed), in order.
+static func _shown_ids(view: DeckView) -> Array[StringName]:
 	var ids: Array[StringName] = []
-	for cell: DeckCell in cells:
-		if cell.card.tags.has(family):
-			ids.append(cell.card.id)
+	for item: Control in _items(view):
+		var icon: StockIcon = item as StockIcon
+		if icon != null and not icon.dimmed:
+			ids.append(icon.card.id)
+		elif item is DeckCell:
+			ids.append((item as DeckCell).card.id)
+	return ids
+
+
+## The card ids of the shown page's items `family` shows, in order: the Cart's products with its
+## printed tag, the Run info's stocked cards with it.
+static func _family_ids(view: DeckView, family: String) -> Array[StringName]:
+	var ids: Array[StringName] = []
+	for item: Control in _items(view):
+		var card: CardDefinition = (
+			(item as StockIcon).card if item is StockIcon else (item as DeckCell).card
+		)
+		if card.is_product() and card.tags.has(family):
+			ids.append(card.id)
 	return ids
 
 

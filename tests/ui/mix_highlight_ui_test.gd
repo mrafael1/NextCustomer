@@ -133,7 +133,7 @@ func test_a_glyph_in_the_cart_lights_its_cells() -> void:
 	assert_str(screen._effects.lit_family()).is_empty()
 	var lit: int = 0
 	for cell: DeckCell in view.cells():
-		var in_family: bool = cell.item().tags().has(glyph.family)
+		var in_family: bool = cell.tags().has(glyph.family)
 		lit += 1 if in_family else 0
 		assert_int(cell.mix_look).override_failure_message(cell.card.id).is_equal(
 			L.LIT if in_family else L.GREY
