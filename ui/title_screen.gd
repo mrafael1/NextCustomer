@@ -339,6 +339,13 @@ func _add_corner(stage: Control) -> void:
 	stage.add_child(_build)
 
 
+## Shows or hides the bottom corners (the Export log icon and the build label): the loader hides
+## them while the title waits under its shutters, as the boot frame leaves them out.
+func set_corner_shown(shown: bool) -> void:
+	_export.visible = shown
+	_build.visible = shown
+
+
 ## The plates step in once the sign is lit, the tuning's plates_delay_s later (at once when
 ## still or skipped).
 func _on_sign_lit() -> void:

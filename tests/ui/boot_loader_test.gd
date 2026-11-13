@@ -91,6 +91,9 @@ func test_the_loader_prints_then_hands_over_to_the_title() -> void:
 			assert_int(made_title.process_mode).is_equal(Node.PROCESS_MODE_DISABLED)
 			assert_float(loader.call("shutter_closed", 1)).is_equal(1.0)
 			assert_float(loader.call("printed")).is_equal(1.0)
+			# The corners stay hidden under the shutters, as in the boot frame.
+			assert_bool((made_title as TitleScreen).export_button().visible).is_false()
+			assert_bool((made_title as TitleScreen).build_label().visible).is_false()
 	)
 	assert_bool(await _until(loader, "is_handed_off")).is_true()
 	assert_int(made.size()).is_equal(1)
@@ -99,6 +102,8 @@ func test_the_loader_prints_then_hands_over_to_the_title() -> void:
 	assert_object(title).is_same(made[0])
 	assert_object(title.get_parent()).is_same(loader)
 	assert_int(title.process_mode).is_equal(Node.PROCESS_MODE_INHERIT)
+	assert_bool(title.export_button().visible).is_true()
+	assert_bool(title.build_label().visible).is_true()
 	for i: int in 4:
 		assert_float(loader.call("shutter_closed", i)).is_equal(0.0)
 	# The title's own opening starts from its first frame: the sign still dark.
@@ -135,6 +140,15 @@ func test_the_shutters_roll_up_door_first() -> void:
 	loader.call("show_state", 1.0, roll)
 	for i: int in 4:
 		assert_float(loader.call("shutter_closed", i)).is_equal(0.0)
+
+
+## The slot's light holds steady on the finished receipt and goes dark while the shutters roll.
+func test_the_slot_light_is_off_while_the_shutters_roll() -> void:
+	var loader: Control = _loader(false)
+	loader.call("show_state", 1.0)
+	assert_bool(loader.call("_led_on")).is_true()
+	loader.call("show_state", 1.0, 0.3)
+	assert_bool(loader.call("_led_on")).is_false()
 
 
 ## Reduced motion: the title is handed over the moment it is made (no hold, no roll).

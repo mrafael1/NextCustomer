@@ -94,19 +94,20 @@ static func build(host: Control, loader: Control) -> void:
 ## The stamps: each receipt word as the loader prints it, the live percent's characters and the
 ## MB line's (number font, grey).
 static func _stamp_list(constants: Dictionary) -> Array[Dictionary]:
-	var words: Font = _font(constants["DISPLAY_FONT"], constants["WORD_WEIGHT"])
+	var words: Font = (load(LOADER_SCRIPT) as GDScript).call("words_font")
 	var numbers: Font = _font(constants["NUMBER_FONT"], constants["NUMBER_WEIGHT"])
 	var small: int = constants["TEXT_SIZE"]
 	var big: int = constants["BIG_TEXT_SIZE"]
+	var word_size: int = constants["WORD_SIZE"]
 	var ink: Color = constants["INK"]
 	var muted: Color = constants["MUTED"]
 	var list: Array[Dictionary] = []
-	list.append(_stamp("NEXT CUSTOMER", words, big, ink))
-	list.append(_stamp("STORE OPENING", words, small, muted))
+	list.append(_stamp("NEXT CUSTOMER", words, word_size, ink))
+	list.append(_stamp("STORE OPENING", words, word_size, muted))
 	for word: String in constants["LINES"]:
-		list.append(_stamp(word, words, small, ink))
-	list.append(_stamp("OK", words, small, constants["GREEN_DARK"]))
-	list.append(_stamp("STOCK", words, big, ink))
+		list.append(_stamp(word, words, word_size, ink))
+	list.append(_stamp("OK", words, word_size, constants["GREEN_DARK"]))
+	list.append(_stamp("STOCK", words, word_size, ink))
 	for character: String in "0123456789%":
 		list.append(_stamp(character, numbers, big, constants["TOMATO_DARK"], "live"))
 	for character: String in "0123456789./ MB":

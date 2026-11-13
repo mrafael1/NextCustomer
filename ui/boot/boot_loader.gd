@@ -87,6 +87,10 @@ const LINES: Array[String] = [
 ]
 const LINE_AT: Array[float] = [0.06, 0.18, 0.30, 0.42, 0.54, 0.66, 0.78, 0.90]
 const LINE_GROW := 0.04
+## The words' size: Pixelify's hard pixels are whole only at 11 px (one font pixel, one raster
+## pixel), where a C keeps its notch; the numbers (the number font) use TEXT_SIZE and
+## BIG_TEXT_SIZE.
+const WORD_SIZE := 11
 const TEXT_SIZE := 13
 const BIG_TEXT_SIZE := 15
 const WORD_WEIGHT := 700
@@ -131,7 +135,7 @@ func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_words = _font(DISPLAY_FONT, WORD_WEIGHT)
+	_words = words_font()
 	_numbers = _font(NUMBER_FONT, NUMBER_WEIGHT)
 	_spill = _layer(_draw_spill)
 	_dim = _layer(_draw_dim)
@@ -246,8 +250,10 @@ func _follow_load(delta: float) -> void:
 			status == ResourceLoader.THREAD_LOAD_FAILED
 			or status == ResourceLoader.THREAD_LOAD_INVALID_RESOURCE
 		):
-			# Nothing to hand over to: the plain change reports why.
+			# Nothing to hand over to: the plain change reports why (the shell's overlay goes).
 			set_process(false)
+			if on_web:
+				_boot_done()
 			get_tree().change_scene_to_file(TITLE)
 			return
 	var rate: float = PRINT_RATE_DONE if _loaded else PRINT_RATE
@@ -264,6 +270,8 @@ func _make_title() -> void:
 	_title = packed.instantiate()
 	_title.process_mode = Node.PROCESS_MODE_DISABLED
 	add_child(_title)
+	# The corners stay hidden under the shutters (the boot frame leaves them out).
+	_show_corner(false)
 	move_child(_title, 0)
 	title_made.emit(_title)
 	_stage = Stage.DONE
@@ -291,6 +299,7 @@ func _hand_off() -> void:
 		layer.hide()
 	if _title == null:
 		return
+	_show_corner(true)
 	if changes_scene:
 		var tree: SceneTree = get_tree()
 		remove_child(_title)
@@ -302,6 +311,12 @@ func _hand_off() -> void:
 		return
 	_title.process_mode = Node.PROCESS_MODE_INHERIT
 	handed_off.emit(_title)
+
+
+## The title's bottom corners shown or hidden (by method name: the loader names no class).
+func _show_corner(shown: bool) -> void:
+	if _title.has_method("set_corner_shown"):
+		_title.call("set_corner_shown", shown)
 
 
 func _grown(at: float) -> float:
@@ -316,6 +331,22 @@ static func _ease(share: float) -> float:
 
 static func _q2(value: float) -> float:
 	return roundf(value / 2.0) * 2.0
+
+
+## The receipt's words: Pixelify Sans as hard pixels (no anti-aliasing, hinting or subpixel
+## positioning) at WORD_WEIGHT, so a C keeps its notch and doesn't read as an O. The web shell's
+## stamps are drawn with it too.
+static func words_font() -> FontVariation:
+	var raster: FontFile = FontFile.new()
+	raster.data = DISPLAY_FONT.data
+	raster.antialiasing = TextServer.FONT_ANTIALIASING_NONE
+	raster.multichannel_signed_distance_field = false
+	raster.hinting = TextServer.HINTING_NONE
+	raster.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
+	raster.keep_rounding_remainders = false
+	raster.generate_mipmaps = false
+	raster.oversampling = 1.0
+	return _font(raster, WORD_WEIGHT)
 
 
 static func _font(base: Font, weight: int) -> FontVariation:
@@ -425,10 +456,11 @@ func _draw_shutter(opening: Rect2, closed: float, slot: bool) -> void:
 		_rect(clip, Rect2(700, slot_y + 2, 6, 4), GOOD if _led_on() else GREEN_DARK)
 
 
-## The slot's light: blinking while the receipt prints, steady once it is done.
+## The slot's light: blinking while the receipt prints, steady once it is done, off while the
+## shutters roll.
 func _led_on() -> bool:
 	if _stage != Stage.LOADING:
-		return true
+		return _stage == Stage.DONE
 	return posmod(floori(_clock * LED_HZ * 2.0), 2) == 0
 
 
@@ -477,7 +509,7 @@ func _draw_line(line: Array, baseline: float, clip: Rect2) -> void:
 			baseline,
 			RECEIPT_W,
 			HORIZONTAL_ALIGNMENT_CENTER,
-			text_size,
+			WORD_SIZE,
 			colour
 		)
 	else:
@@ -488,7 +520,7 @@ func _draw_line(line: Array, baseline: float, clip: Rect2) -> void:
 			baseline,
 			inner,
 			HORIZONTAL_ALIGNMENT_LEFT,
-			text_size,
+			WORD_SIZE,
 			colour
 		)
 	if kind == "ok":
@@ -499,7 +531,7 @@ func _draw_line(line: Array, baseline: float, clip: Rect2) -> void:
 			baseline,
 			inner,
 			HORIZONTAL_ALIGNMENT_RIGHT,
-			TEXT_SIZE,
+			WORD_SIZE,
 			GREEN_DARK
 		)
 	if line[1] != "":

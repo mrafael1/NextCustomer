@@ -157,6 +157,8 @@ func _loader(share: float, rolled: float) -> Control:
 		title.process_mode = Node.PROCESS_MODE_DISABLED
 		loader.add_child(title)
 		loader.move_child(title, 0)
+		# As the loader holds it: the corners hidden until the hand-off.
+		title.set_corner_shown(false)
 	loader.call("show_state", share, rolled)
 	return loader
 
