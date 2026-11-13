@@ -5,14 +5,14 @@ extends RefCounted
 ##
 ## A run is set up by StartSetupRules.setup_run whenever the balance stocks aisles
 ## (stock_aisle_count > 0) and the recipe has starter packs: today's suggested aisles on the run
-## seed's stock-aisles stream, then dealt at once (v1.07: no covered baskets, no LOCK IN): the
-## offer on its starting-deck stream and each basket on its own basket stream (a save from before
-## v1.07 still waiting in SELECT is dealt the same way when it opens). An aisle change (6
-## completed aisles) deals that basket on the new aisle's basket stream; RESTOCK, a regular
-## slot's offer and NEW PACKS have their own named streams (EventLogService). The run
-## waits for its pick (RunState.Phase.CHOOSE_START) and is saved after each commitment, so
-## quitting can't reroll anything; a resume opens the same board, and a run whose setup was saved
-## in the first build's form sets it up again (RunState.restart_setup). Without the reveal (tests,
+## seed's stock-aisles stream, then dealt at once (v1.32: sealed aisle boosters): the offer on
+## its starting-deck stream and each booster on its aisle's booster stream, PICK 2 OF 3's extra
+## aisle (6 completed aisles) on the booster-extra stream. The pick refits the unseen offer on the
+## booster-pick stream; RESTOCK, a regular slot's offer and NEW PACKS have their own named streams
+## (EventLogService). The run waits for its pick (RunState.Phase.CHOOSE_START) and is saved after
+## each commitment (opening a booster too), so quitting can't reroll anything; a resume opens the
+## same board, and a run whose setup was saved in an older form sets it up again
+## (RunState.restart_setup). Without the reveal (tests,
 ## captures, the demo row) the offer's default pack is taken for the player. Only a recipe
 ## without packs, or a balance with stock_aisle_count 0, takes the older path: a run that needs a
 ## list stocks a random one from the run seed's own stream (#63) and the deck is dealt on the
@@ -83,20 +83,20 @@ func _setup_run(seed_value: int, balance: BalanceDefinition, recipe: DeckDefinit
 	return run
 
 
-## Deals `run`'s setup (still in SELECT) with today's aisles on the run seed's streams.
+## Deals `run`'s setup (still in SELECT) on the run seed's streams: one booster stream per aisle
+## (StartSetupRules.deal draws only today's and PICK 2 OF 3's extra one).
 static func deal(run: RunState, profile: ProfileState) -> StringName:
-	var setup: StartSetup = run.start_setup
-	var green: Array[StringName] = setup.green_ids(run.balance)
 	var streams: Dictionary[StringName, RandomNumberGenerator] = {}
-	for source: StringName in StartSetupRules.basket_sources(run.balance, green):
-		streams[source] = EventLogService.derived_stream(
-			run.run_seed, EventLogService.START_BASKET_STREAM % source
+	for aisle: AisleDefinition in run.balance.aisles:
+		streams[aisle.id] = EventLogService.derived_stream(
+			run.run_seed, EventLogService.START_BOOSTER_STREAM % aisle.id
 		)
-	var pack_rng: RandomNumberGenerator = EventLogService.derived_stream(
-		run.run_seed, EventLogService.STARTING_DECK_STREAM
-	)
-	return StartSetupRules.lock_in(
-		run, profile, green, setup.run_only_ids(run.balance), pack_rng, streams
+	return StartSetupRules.deal(
+		run,
+		profile,
+		EventLogService.derived_stream(run.run_seed, EventLogService.STARTING_DECK_STREAM),
+		streams,
+		EventLogService.derived_stream(run.run_seed, EventLogService.START_BOOSTER_EXTRA_STREAM)
 	)
 
 
@@ -110,9 +110,13 @@ func board_actions() -> StartBoardActions:
 	actions.save_pick = save_pick
 	actions.swap_staple = swap_staple
 	actions.restore_regular = restore_regular
-	actions.change_aisle = change_aisle
+	actions.open_booster = open_booster
+	actions.pick_boosters = pick_boosters
+	actions.wear_pins = wear_pins
+	actions.pin_catalogue = func() -> Array[PinDefinition]: return _screen._catalogue.pins
+	actions.pins_gate = _pins_gate
 	actions.mark_seen = mark_seen
-	actions.restock_basket = restock_basket
+	actions.restock_booster = restock_booster
 	actions.new_packs = new_packs
 	actions.regular_offer = regular_offer
 	actions.mark_build = mark_build
@@ -210,6 +214,8 @@ func page_changed(page: int, from: int, key: String) -> void:
 
 
 func save_pick(pack: StarterPackDefinition) -> bool:
+	if StartSetupRules.pick_block(_screen.run, _screen.profile, pack, _pins_gate()) != &"":
+		return false
 	var before: Dictionary = _snapshot()
 	_screen.run.start_setup.picked = pack.id
 	return _commit(before)
@@ -269,24 +275,62 @@ func regular_offer(slot: int, aisle_id: StringName) -> Array[CardDefinition]:
 	return []
 
 
-## Changes green basket `basket`'s aisle to `aisle_id` (StartSetupRules.change_aisle), dealt on
-## that aisle's basket stream; saves the run and the profile's green pair, logs start_aisle.
-func change_aisle(basket: int, aisle_id: StringName) -> bool:
+## Opens booster `index` (StartSetupRules.open_booster), saved at once so a resume keeps it open.
+func open_booster(index: int) -> bool:
 	var run: RunState = _screen.run
-	var profile: ProfileState = _screen.profile
-	if StartSetupRules.aisle_block(run, profile, basket, aisle_id) != &"":
+	if StartSetupRules.open_block(run, index) != &"":
 		return false
 	var before: Dictionary = _snapshot()
-	var old: StartBasket = run.start_setup.baskets[basket].copy()
-	var kept: bool = not run.start_setup.dealt_set(aisle_id).is_empty()
+	StartSetupRules.open_booster(run, index)
+	return _commit(before)
+
+
+## PICK 2 OF 3 (StartSetupRules.pick_boosters): keeps boosters `picks`, the pack offer refitted on
+## the booster-pick stream; saves the run and logs start_booster_pick.
+func pick_boosters(picks: Array[int]) -> bool:
+	var run: RunState = _screen.run
+	if StartSetupRules.pick_boosters_block(run, picks) != &"":
+		return false
+	var before: Dictionary = _snapshot()
 	var stream: RandomNumberGenerator = _stream(
-		run.run_seed, EventLogService.START_BASKET_STREAM % aisle_id
+		run.run_seed, EventLogService.START_BOOSTER_PICK_STREAM
 	)
-	StartSetupRules.change_aisle(run, profile, basket, aisle_id, stream)
+	StartSetupRules.pick_boosters(run, _screen.profile, picks, stream)
 	if not _commit(before):
 		return false
-	_log.log_event("start_aisle", RunEvents.start_aisle(run, basket, old, kept))
+	_log.log_event("start_booster_pick", RunEvents.start_booster_pick(run, picks))
 	return true
+
+
+## The BADGE PINS step's choice (v1.32): the profile wears `ids` (owned pins, at most pin_slots,
+## in slot order; none is allowed), the run wears them too and the step is confirmed (the packs
+## deal on its first confirm). Saves the profile and the run; logs pin_change when they changed.
+func wear_pins(ids: Array[StringName]) -> bool:
+	var run: RunState = _screen.run
+	var profile: ProfileState = _screen.profile
+	var before: Dictionary = _snapshot()
+	var owned: Array[StringName] = []
+	for pin: PinDefinition in ProfilePins.owned(profile, _screen._catalogue):
+		owned.append(pin.id)
+	var worn: Array[StringName] = []
+	for id: StringName in ids:
+		if owned.has(id) and not worn.has(id) and worn.size() < run.balance.pin_slots:
+			worn.append(id)
+	var changed: bool = worn != profile.worn_pins
+	profile.worn_pins = worn
+	RunPins.wear(run, ProfilePins.worn(profile, _screen._catalogue))
+	StartSetupRules.confirm_pins(run)
+	if not _commit(before):
+		return false
+	if changed:
+		_log.log_event("pin_change", {"screen": "start", "pins": _pin_ids(run.pins)})
+	return true
+
+
+## How many of the profile's badge pins hold the packs for the BADGE PINS step
+## (ProfilePins.start_gate: the packs wait while any).
+func _pins_gate() -> int:
+	return ProfilePins.start_gate(_screen.profile, _screen._catalogue).size()
 
 
 ## Marks first-seen flag `id` (a NEW tag, shown until its control is first used) and saves the
@@ -300,28 +344,29 @@ func mark_seen(id: StringName) -> bool:
 	return true
 
 
-## RESTOCK basket `basket` (StartSetupRules.restock) on its source's restock stream.
-func restock_basket(basket: int) -> bool:
+## RESTOCK booster `index` (StartSetupRules.restock) on its aisle's restock stream.
+func restock_booster(index: int) -> bool:
 	var run: RunState = _screen.run
-	if StartSetupRules.restock_block(run, _screen.profile, basket) != &"":
+	if StartSetupRules.restock_block(run, _screen.profile, index) != &"":
 		return false
 	var before: Dictionary = _snapshot()
-	var old: Array[CardDefinition] = run.start_setup.baskets[basket].cards.duplicate()
-	var source: StringName = run.start_setup.baskets[basket].source
+	var old: Array[CardDefinition] = run.start_setup.boosters[index].cards.duplicate()
+	var aisle: StringName = run.start_setup.boosters[index].aisle
 	var stream: RandomNumberGenerator = _stream(
-		run.run_seed, EventLogService.START_RESTOCK_STREAM % source
+		run.run_seed, EventLogService.START_RESTOCK_STREAM % aisle
 	)
-	StartSetupRules.restock(run, _screen.profile, basket, stream)
+	if StartSetupRules.restock(run, _screen.profile, index, stream) != &"":
+		return false
 	if not _commit(before):
 		return false
-	_log.log_event("restock", RunEvents.start_restock(run, basket, old))
+	_log.log_event("restock", RunEvents.start_restock(run, index, old))
 	return true
 
 
 ## NEW PACKS (StartSetupRules.new_packs) on the run seed's new-packs stream.
 func new_packs() -> bool:
 	var run: RunState = _screen.run
-	if StartSetupRules.new_packs_block(run, _screen.profile) != &"":
+	if StartSetupRules.new_packs_block(run, _screen.profile, _pins_gate()) != &"":
 		return false
 	var before: Dictionary = _snapshot()
 	var old: Array[StarterPackDefinition] = run.start_offer.packs.duplicate()
@@ -329,7 +374,7 @@ func new_packs() -> bool:
 	var stream: RandomNumberGenerator = _stream(
 		run.run_seed, EventLogService.START_NEW_PACKS_STREAM
 	)
-	StartSetupRules.new_packs(run, _screen.profile, stream)
+	StartSetupRules.new_packs(run, _screen.profile, stream, _pins_gate())
 	if not _commit(before):
 		return false
 	_log.log_event("new_packs", RunEvents.new_packs(old, run.start_offer.packs, picked))
@@ -344,7 +389,7 @@ func mark_build() -> bool:
 	return _commit(before)
 
 
-## A resumed run whose setup was saved in the first build's form: set up again from its seed,
+## A resumed run whose setup was saved in an older form: set up again from its seed,
 ## wearing the profile's pins (saved by begin_if_choosing).
 func _restart_setup() -> void:
 	var old: RunState = _screen.run
@@ -387,21 +432,18 @@ func _snapshot() -> Dictionary:
 		"deals": offer.deals,
 		"shared": offer.shared.duplicate(),
 		"core": run.starter.core_cards.duplicate(),
-		"pair": _screen.profile.stock_pair.duplicate(),
 		"run_only": _screen.profile.stock_run_only,
 		"pins": run.pins.duplicate(),
 		"worn": _screen.profile.worn_pins.duplicate(),
 	}
 
 
-## Saves the run (and the profile when its aisle pair or worn pins changed since `before`). On a
-## failed save, everything in `before` is restored and the profile saved back; returns false.
+## Saves the run (and the profile when its run-only aisle or worn pins changed since `before`). On
+## a failed save, everything in `before` is restored and the profile saved back; returns false.
 func _commit(before: Dictionary) -> bool:
 	var profile: ProfileState = _screen.profile
 	var with_profile: bool = (
-		profile.stock_pair != before["pair"]
-		or profile.stock_run_only != before["run_only"]
-		or profile.worn_pins != before["worn"]
+		profile.stock_run_only != before["run_only"] or profile.worn_pins != before["worn"]
 	)
 	if _persist(with_profile):
 		return true
@@ -413,7 +455,6 @@ func _commit(before: Dictionary) -> bool:
 	run.start_offer.deals = before["deals"]
 	run.start_offer.shared = before["shared"]
 	run.starter.core_cards = before["core"]
-	profile.stock_pair = before["pair"]
 	profile.stock_run_only = before["run_only"]
 	run.pins = before["pins"]
 	profile.worn_pins = before["worn"]

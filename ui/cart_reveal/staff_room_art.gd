@@ -3,7 +3,7 @@ extends RefCounted
 ## The v4 B staff room, painted at 640x360 then nearest-scaled. Rectangles are art pixels.
 ## Cinder blocks, tube, open double locker, four teal lockers, wood bench and lino floor.
 
-## The badge pins corkboard's frame (art px; the stage is drawn 2x): a picked crate's halo stays
+## The badge pins corkboard's frame (art px; the stage is drawn 2x): a picked pack's halo stays
 ## under it.
 const PIN_BOARD := Rect2i(42, 72, 138, 89)
 

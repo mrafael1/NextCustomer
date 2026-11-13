@@ -7,12 +7,22 @@ var save_pick: Callable
 ## swap_staple(slot, card, via) and restore_regular(slot, via) -> bool.
 var swap_staple: Callable
 var restore_regular: Callable
-## change_aisle(basket, aisle_id) -> bool: a green basket dealt from another aisle.
-var change_aisle: Callable
+## open_booster(index) -> bool: a sealed booster opened (saved).
+var open_booster: Callable
+## pick_boosters(picks: Array[int]) -> bool: PICK 2 OF 3's pair kept, the other SOLD OUT.
+var pick_boosters: Callable
+## wear_pins(ids: Array[StringName]) -> bool: the BADGE PINS step's pins worn (none allowed), the
+## step confirmed; saves the profile and the run.
+var wear_pins: Callable
+## pin_catalogue() -> Array[PinDefinition]: every pin, in data order.
+var pin_catalogue: Callable
+## pins_gate() -> int: how many owned pins hold the packs for the BADGE PINS step
+## (ProfilePins.start_gate).
+var pins_gate: Callable
 ## mark_seen(id) -> bool: a NEW tag's first-seen flag.
 var mark_seen: Callable
-## restock_basket(basket) -> bool.
-var restock_basket: Callable
+## restock_booster(index) -> bool.
+var restock_booster: Callable
 ## new_packs() -> bool.
 var new_packs: Callable
 ## regular_offer(slot, aisle_id) -> Array[CardDefinition], saved once drawn.
