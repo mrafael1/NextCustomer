@@ -1,7 +1,9 @@
 extends GdUnitTestSuite
 ## The title's storefront (#56, direction C+, Storefront): the stage is centred and the backdrop
 ## fills any window round it; the hit rects are the art's on the stage at 2x; the sign lights
-## letter by letter (at once when still) and then shows the wedge and the reflections; the doors
+## letter by letter (at once when still) and then shows the wedge and the reflections, or with
+## the title's opening sweep (variant C: left to right under the scan line, swept, one blink, the
+## glow at half then full; light_now ends it at once); the doors
 ## crack on hover and open in DOOR_STEP steps before the light floods in FLOOD_STEPS; the bay
 ## lights and the machine jiggles once; `still` holds every loop and slide.
 
@@ -58,6 +60,91 @@ func test_the_sign_lights_letter_by_letter() -> void:
 	assert_bool(lit[0]).is_true()
 	assert_bool(front.layer("wedge").visible).is_true()
 	assert_bool(front.layer("reflections").visible).is_true()
+
+
+## The title's opening (variant C): the scan line lights the tubes left to right as it crosses
+## their centres (CUSTOMER's C before NEXT's N, though N comes first in LETTERS), says swept at
+## the far end, blinks every tube and the tag off, then lights the sign; the wedge and the
+## reflections show at half for glow_half_s, then full.
+func test_the_sweep_lights_the_sign_left_to_right() -> void:
+	var front: Storefront = _front()
+	var neon: NeonSign = front.neon_sign()
+	var tuning: TitleOpeningTuning = _tuning()
+	var events: Array[String] = []
+	front.sign_swept.connect(func() -> void: events.append("swept"))
+	front.sign_lit.connect(func() -> void: events.append("lit"))
+	front.sweep_on(tuning)
+	assert_bool(neon.is_sweeping()).is_true()
+	neon._process(0.0)
+	assert_int(neon.lit_letters()).is_equal(0)
+	# A third of the way: the line is past CUSTOMER's C (x 4..19) but not NEXT's N (x 55..65).
+	neon._process(tuning.sweep_s / 3.0)
+	assert_bool(neon.letter_lit(4)).is_true()
+	assert_bool(neon.letter_lit(0)).is_false()
+	assert_bool(neon.letter_lit(11)).is_false()
+	var lit_before: int = neon.lit_letters()
+	assert_int(lit_before).is_between(1, NeonSign.LETTERS.size() - 1)
+	neon._process(tuning.sweep_s / 3.0)
+	assert_int(neon.lit_letters()).is_greater(lit_before)
+	assert_array(events).is_empty()
+	neon._process(tuning.sweep_s / 3.0 + 0.001)
+	assert_array(events).is_equal(["swept"])
+	assert_bool(neon.is_blinking()).is_true()
+	assert_bool(front.is_lit()).is_false()
+	assert_bool(front.layer("wedge").visible).is_false()
+	neon._process(tuning.blink_s)
+	assert_array(events).is_equal(["swept", "lit"])
+	assert_bool(front.is_lit()).is_true()
+	assert_bool(neon.is_sweeping()).is_false()
+	assert_bool(neon.is_blinking()).is_false()
+	assert_float(front.layer("wedge").modulate.a).is_equal(0.5)
+	assert_float(front.layer("reflections").modulate.a).is_equal(0.5)
+	front._process(tuning.glow_half_s + 0.001)
+	assert_float(front.layer("wedge").modulate.a).is_equal(1.0)
+	assert_float(front.layer("reflections").modulate.a).is_equal(1.0)
+	# The hidden toy still works after the opening: its own sweep and blink.
+	neon.scan()
+	neon._process(NeonSign.SCAN_TIME + 0.01)
+	assert_bool(neon.is_blinking()).is_true()
+	neon._process(NeonSign.BLINK)
+	assert_bool(neon.is_blinking()).is_false()
+
+
+## light_now() mid-sweep (a skip) ends it on the final frame: every tube lit, no line or blink
+## left, the glow at full, and no swept.
+func test_light_now_ends_the_sweep_on_the_final_frame() -> void:
+	var front: Storefront = _front()
+	var neon: NeonSign = front.neon_sign()
+	var tuning: TitleOpeningTuning = _tuning()
+	var swept: Array[bool] = [false]
+	front.sign_swept.connect(func() -> void: swept[0] = true)
+	front.sweep_on(tuning)
+	neon._process(tuning.sweep_s / 2.0)
+	front.light_now()
+	assert_bool(front.is_lit()).is_true()
+	assert_int(neon.lit_letters()).is_equal(NeonSign.LETTERS.size())
+	assert_bool(neon.is_sweeping()).is_false()
+	neon._process(tuning.sweep_s)
+	assert_bool(neon.is_blinking()).is_false()
+	assert_bool(swept[0]).is_false()
+	assert_float(front.layer("wedge").modulate.a).is_equal(1.0)
+
+
+## `still`: sweep_on lights the sign at once, with no swept (the title plays its BEEP itself).
+func test_still_sweep_lights_at_once() -> void:
+	var front: Storefront = _front()
+	front.still = true
+	var swept: Array[bool] = [false]
+	front.sign_swept.connect(func() -> void: swept[0] = true)
+	front.sweep_on(_tuning())
+	assert_bool(front.is_lit()).is_true()
+	assert_bool(front.neon_sign().is_sweeping()).is_false()
+	assert_bool(swept[0]).is_false()
+	assert_float(front.layer("wedge").modulate.a).is_equal(1.0)
+
+
+func _tuning() -> TitleOpeningTuning:
+	return load("res://data/balance/title_opening.tres") as TitleOpeningTuning
 
 
 func test_doors_crack_then_open_in_steps_and_the_light_floods() -> void:

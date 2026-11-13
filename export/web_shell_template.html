@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<!--
+	Next Customer's web shell (2026-11-13, mock-up loading_screen.html, look A "shutters down,
+	receipt printing"). The template of export/web_shell.html: tools/boot_frame.sh fills in the
+	receipt's data (NC_RECEIPT_DATA) from the boot loader's own pixels and writes the shell; edit
+	this file, never the shell. It is Godot 4.7's default shell with every $GODOT_* placeholder
+	kept, and four changes:
+	- the page and the overlay are the title's sky (#172c2b), the boot frame (index.png, the boot
+	  splash) drawn crisp in a 16:9 box that lines up with the game's stage;
+	- the browser's progress bar is replaced by the receipt printing from the door shutter's
+	  night slot, a line per stage, STOCK in percent and the MB downloaded;
+	- the overlay stays up past startGame, holding the finished receipt (its slot light blinks in
+	  CSS) until the game's boot loader calls window.ncBootDone(), 20 s at most;
+	- the error notice prints as a receipt.
+-->
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0">
+		<title>$GODOT_PROJECT_NAME</title>
+		<style>
+html, body, #canvas {
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+
+body {
+	color: #fbf7ee;
+	background-color: #172c2b;
+	overflow: hidden;
+	touch-action: none;
+}
+
+#canvas {
+	display: block;
+}
+
+#canvas:focus {
+	outline: none;
+}
+
+#status, #status-splash {
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: 0;
+	bottom: 0;
+}
+
+#status {
+	background-color: #172c2b;
+	visibility: hidden;
+	overflow: hidden;
+}
+
+#status-splash {
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+	image-rendering: pixelated;
+}
+
+#status-splash.show-image--false {
+	display: none;
+}
+
+#nc-stage {
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 1280px;
+	height: 720px;
+	transform-origin: 0 0;
+	pointer-events: none;
+}
+
+#nc-receipt {
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 1280px;
+	height: 720px;
+	image-rendering: pixelated;
+}
+
+/* The night slot's light: dark green, its lit face blinking in opacity only, so the browser
+   keeps it moving while the engine starts and holds the page's main thread. */
+#nc-led {
+	position: absolute;
+	width: 6px;
+	height: 4px;
+	background-color: #3d7a45;
+	display: none;
+}
+
+#nc-led::after {
+	content: '';
+	position: absolute;
+	left: 0;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	background-color: #5fae5a;
+	animation: nc-blink 0.333s steps(1, end) infinite;
+	will-change: opacity;
+}
+
+@keyframes nc-blink {
+	0% { opacity: 1; }
+	50% { opacity: 0; }
+}
+
+#status-notice {
+	display: none;
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	transform: translate(-50%, -50%);
+	max-width: min(28rem, calc(100% - 2rem));
+	box-sizing: border-box;
+	background-color: #fbf7ee;
+	color: #2b2420;
+	box-shadow: 4px 4px 0 #2b2420;
+	border-top: 2px dashed #8a8172;
+	border-bottom: 2px dashed #8a8172;
+	font-family: 'Courier New', Courier, monospace;
+	font-size: 15px;
+	line-height: 1.4;
+	padding: 1rem 1.25rem;
+	text-align: left;
+	z-index: 1;
+}
+
+#status-notice::before {
+	content: 'NEXT CUSTOMER \A STORE CLOSED \A ------------------------ \A';
+	white-space: pre;
+	display: block;
+	text-align: center;
+	font-weight: bold;
+}
+		</style>
+		$GODOT_HEAD_INCLUDE
+	</head>
+	<body>
+		<canvas id="canvas">
+			Your browser does not support the canvas tag.
+		</canvas>
+
+		<noscript>
+			Your browser does not support JavaScript.
+		</noscript>
+
+		<div id="status">
+			<img id="status-splash" class="$GODOT_SPLASH_CLASSES" src="$GODOT_SPLASH" alt="">
+			<div id="nc-stage">
+				<canvas id="nc-receipt" width="1280" height="720"></canvas>
+				<div id="nc-led"></div>
+			</div>
+			<div id="status-notice"></div>
+		</div>
+
+		<script src="$GODOT_URL"></script>
+		<script>
+const GODOT_CONFIG = $GODOT_CONFIG;
+const GODOT_THREADS_ENABLED = $GODOT_THREADS_ENABLED;
+const engine = new Engine(GODOT_CONFIG);
+
+// The receipt's geometry, stamps and finished frame, from the boot loader (tools/boot_frame.sh).
+const NC = /*NC_RECEIPT_DATA*/null;
+
+(function () {
+	const statusOverlay = document.getElementById('status');
+	const statusNotice = document.getElementById('status-notice');
+	const stage = document.getElementById('nc-stage');
+	const receipt = document.getElementById('nc-receipt');
+	const led = document.getElementById('nc-led');
+	const BOOT_SAFETY_MS = 20000;
+
+	let initializing = true;
+	let statusMode = '';
+
+	// ---- The receipt (look A), drawn over the boot frame in the stage's canvas px ----
+	const images = {};
+	let printed = 0;
+	let mbLine = '';
+	let finished = false;
+
+	function loadImage(name, src) {
+		return new Promise((resolve) => {
+			const image = new Image();
+			image.onload = () => { images[name] = image; resolve(); };
+			image.onerror = () => resolve();
+			image.src = src;
+		});
+	}
+
+	function placeStage() {
+		const scale = Math.min(window.innerWidth / NC.stage[0], window.innerHeight / NC.stage[1]);
+		const x = (window.innerWidth - NC.stage[0] * scale) / 2;
+		const y = (window.innerHeight - NC.stage[1] * scale) / 2;
+		stage.style.transform = 'translate(' + x + 'px, ' + y + 'px) scale(' + scale + ')';
+	}
+
+	const clamp01 = (v) => Math.max(0, Math.min(1, v));
+	const q2 = (v) => Math.round(v / 2) * 2;
+
+	// Lines, top down: [kind, words, number, grown share], as the boot loader prints them.
+	function receiptLines() {
+		const lines = [['big_centre', 'NEXT CUSTOMER'], ['mute', 'STORE OPENING'], ['dash']];
+		NC.lines.forEach((word, i) => {
+			lines.push(['ok', word, '', clamp01((printed - NC.line_at[i]) / NC.line_grow)]);
+		});
+		lines.push(['dash', '', '', clamp01((printed - 0.95) / 0.03)]);
+		lines.push(['live', 'STOCK', Math.floor(printed * 100) + '%']);
+		if (mbLine !== '') {
+			lines.push(['mb', '', mbLine]);
+		}
+		return lines;
+	}
+
+	function stampWidth(key) {
+		const cell = NC.cells[key];
+		return cell ? cell[4] : 0;
+	}
+
+	// Blits a stamp (a word, or one character with its prefix) with its text's left at x.
+	function stamp(context, key, x, baseline) {
+		const cell = NC.cells[key];
+		if (!cell || !images.stamps) {
+			return;
+		}
+		context.drawImage(images.stamps, cell[0], cell[1], cell[2], cell[3],
+			Math.round(x) - NC.stamp_pad, Math.round(baseline) - NC.stamp_base, cell[2], cell[3]);
+	}
+
+	function characters(context, prefix, text, x, baseline) {
+		let at = x;
+		for (const character of text) {
+			stamp(context, prefix + ':' + character, at, baseline);
+			at += stampWidth(prefix + ':' + character);
+		}
+	}
+
+	function charactersWidth(prefix, text) {
+		let width = 0;
+		for (const character of text) {
+			width += stampWidth(prefix + ':' + character);
+		}
+		return width;
+	}
+
+	function drawReceipt() {
+		const context = receipt.getContext('2d');
+		context.imageSmoothingEnabled = false;
+		context.clearRect(0, 0, receipt.width, receipt.height);
+		const doors = NC.doors;
+		const slotY = doors[1] + doors[3] - NC.slot_up;
+		led.style.left = '700px';
+		led.style.top = (slotY + 2) + 'px';
+		led.style.display = 'block';
+		if (finished && images.done) {
+			context.drawImage(images.done, NC.done[0], NC.done[1]);
+			return;
+		}
+		const x = NC.receipt_x, w = NC.receipt_w, lineH = NC.line_h;
+		const lines = receiptLines();
+		let height = 10;
+		for (const line of lines) {
+			height += lineH * (line[3] === undefined ? 1 : line[3]);
+		}
+		height = q2(height);
+		const top = slotY - height;
+		context.save();
+		context.beginPath();
+		context.rect(x - 4, doors[1], w + 8, slotY - doors[1]);
+		context.clip();
+		context.fillStyle = NC.paper;
+		context.fillRect(x, top, w, height);
+		for (let tooth = 0; tooth < w; tooth += 8) {
+			context.fillRect(x + tooth + 2, top - 2, 4, 2);
+		}
+		context.fillStyle = NC.cream_shade;
+		context.fillRect(x + w, top + 2, 2, height - 2);
+		let y = top + 8;
+		for (const line of lines) {
+			const grown = line[3] === undefined ? 1 : line[3];
+			const baseline = y + lineH - 4;
+			if (grown >= 1 && y >= doors[1]) {
+				const kind = line[0];
+				if (kind === 'dash') {
+					context.fillStyle = NC.muted;
+					for (let dash = 6; dash < w - 6; dash += 8) {
+						context.fillRect(x + dash, baseline - 6, 4, 2);
+					}
+				} else if (kind === 'big_centre' || kind === 'mute') {
+					stamp(context, line[1], x + (w - stampWidth(line[1])) / 2, baseline);
+				} else if (kind === 'mb') {
+					characters(context, 'mb', line[2], x + (w - charactersWidth('mb', line[2])) / 2, baseline);
+				} else {
+					stamp(context, line[1], x + 8, baseline);
+					if (kind === 'ok') {
+						stamp(context, 'OK', x + w - 8 - stampWidth('OK'), baseline);
+					} else if (kind === 'live') {
+						characters(context, 'live', line[2], x + w - 8 - charactersWidth('live', line[2]), baseline);
+					}
+				}
+			}
+			y += lineH * grown;
+		}
+		context.restore();
+	}
+
+	function setReceipt(share, mb) {
+		printed = Math.max(printed, clamp01(share));
+		mbLine = mb;
+		if (NC) {
+			drawReceipt();
+		}
+	}
+
+	// The game's boot loader calls this once the title is ready: the overlay gives way.
+	window.ncBootDone = function () {
+		setStatusMode('hidden');
+	};
+
+	function holdFinishedReceipt() {
+		finished = true;
+		if (NC) {
+			drawReceipt();
+		}
+		setTimeout(() => setStatusMode('hidden'), BOOT_SAFETY_MS);
+	}
+
+	function setStatusMode(mode) {
+		if (statusMode === mode || !initializing) {
+			return;
+		}
+		if (mode === 'hidden') {
+			statusOverlay.remove();
+			initializing = false;
+			return;
+		}
+		statusOverlay.style.visibility = 'visible';
+		stage.style.display = mode === 'progress' ? 'block' : 'none';
+		statusNotice.style.display = mode === 'notice' ? 'block' : 'none';
+		statusMode = mode;
+	}
+
+	function setStatusNotice(text) {
+		while (statusNotice.lastChild) {
+			statusNotice.removeChild(statusNotice.lastChild);
+		}
+		const lines = text.split('\n');
+		lines.forEach((line) => {
+			statusNotice.appendChild(document.createTextNode(line));
+			statusNotice.appendChild(document.createElement('br'));
+		});
+	}
+
+	function displayFailureNotice(err) {
+		console.error(err);
+		if (err instanceof Error) {
+			setStatusNotice(err.message);
+		} else if (typeof err === 'string') {
+			setStatusNotice(err);
+		} else {
+			setStatusNotice('An unknown error occurred.');
+		}
+		setStatusMode('notice');
+		initializing = false;
+	}
+
+	if (NC) {
+		placeStage();
+		window.addEventListener('resize', placeStage);
+		Promise.all([loadImage('stamps', NC.stamps), loadImage('done', NC.done[2])]).then(() => drawReceipt());
+	}
+
+	const missing = Engine.getMissingFeatures({
+		threads: GODOT_THREADS_ENABLED,
+	});
+
+	if (missing.length !== 0) {
+		if (GODOT_CONFIG['serviceWorker'] && GODOT_CONFIG['ensureCrossOriginIsolationHeaders'] && 'serviceWorker' in navigator) {
+			let serviceWorkerRegistrationPromise;
+			try {
+				serviceWorkerRegistrationPromise = navigator.serviceWorker.getRegistration();
+			} catch (err) {
+				serviceWorkerRegistrationPromise = Promise.reject(new Error('Service worker registration failed.'));
+			}
+			// There's a chance that installing the service worker would fix the issue
+			Promise.race([
+				serviceWorkerRegistrationPromise.then((registration) => {
+					if (registration != null) {
+						return Promise.reject(new Error('Service worker already exists.'));
+					}
+					return registration;
+				}).then(() => engine.installServiceWorker()),
+				// For some reason, `getRegistration()` can stall
+				new Promise((resolve) => {
+					setTimeout(() => resolve(), 2000);
+				}),
+			]).then(() => {
+				// Reload if there was no error.
+				window.location.reload();
+			}).catch((err) => {
+				console.error('Error while registering service worker:', err);
+			});
+		} else {
+			// Display the message as usual
+			const missingMsg = 'Error\nThe following features required to run Godot projects on the Web are missing:\n';
+			displayFailureNotice(missingMsg + missing.join('\n'));
+		}
+	} else {
+		setStatusMode('progress');
+		engine.startGame({
+			'onProgress': function (current, total) {
+				if (current > 0 && total > 0) {
+					const mb = (current / 1e6).toFixed(1) + ' / ' + (total / 1e6).toFixed(1) + ' MB';
+					setReceipt(current / total, mb);
+				}
+			},
+		}).then(() => {
+			// The engine runs: the overlay holds the finished receipt until ncBootDone().
+			holdFinishedReceipt();
+		}, displayFailureNotice);
+	}
+}());
+		</script>
+	</body>
+</html>
