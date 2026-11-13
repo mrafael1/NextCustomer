@@ -24,15 +24,10 @@ const KIND_IDS: Array[String] = [
 ]
 ## Scores this close are equal.
 const EPSILON := 1e-9
-## A combo is at least this long (a lone batch item is no combo).
-const MIN_COMBO := 2
 ## The combos' keywords, as a record keeps them.
 const COMBO_WORDS: Array[String] = [CardText.CHAIN_WORD, CardText.BATCH_WORD, CardText.MORNING_WORD]
 ## The line's parts are joined with this.
 const JOIN := " · "
-## A Closest call that misses its bar scores this share of its bar over its margin, so it stays
-## under 1.
-const CLOSE_MISS_FACTOR := 0.5
 
 
 ## One kind's best case in the run.
@@ -61,11 +56,16 @@ class Moment:
 
 
 ## Fills `record`'s best_payout, best_card and best_combo from its checkout's `result` (a Double
-## checkout's joined result covers both rows; `record.played` is in the result's slot order).
-## The biggest single payout (the earlier slot on a tie; a SHELF's copies each pay on their own
-## slot) and the longest CHAIN, BATCH or MORNING (then the bigger pay, then CHAIN before BATCH
-## before MORNING, then the earlier start). Nothing for a payout of 0 or less, or no combo.
-static func record_best(record: ShiftRecord, result: ScoreResult) -> void:
+## checkout's joined result covers both rows, row 2's slots from `first_slots`, row 1's card
+## count; `record.played` is in the result's slot order). The biggest single payout (the earlier
+## slot on a tie; a SHELF's copies each pay on their own slot) and the longest CHAIN, BATCH or
+## MORNING of `definition`'s min_combo items or more (then the bigger pay, then CHAIN before BATCH
+## before MORNING, then the earlier start). Each row has its own MORNING (its opening run), so a
+## joined result's mornings are split at `first_slots`. Nothing for a payout of 0 or less, and no
+## combo without a definition.
+static func record_best(
+	record: ShiftRecord, result: ScoreResult, definition: HighlightDefinition, first_slots: int = 0
+) -> void:
 	record.best_payout = 0
 	record.best_card = null
 	record.best_combo_keyword = ""
@@ -78,16 +78,18 @@ static func record_best(record: ShiftRecord, result: ScoreResult) -> void:
 		if result.payouts[slot] > record.best_payout:
 			record.best_payout = result.payouts[slot]
 			record.best_card = record.played[slot]
+	if definition == null:
+		return
 	var combos: Array[Array] = []
 	for chain: PackedInt32Array in result.chains:
 		combos.append([CardText.CHAIN_WORD, chain])
 	for batch: PackedInt32Array in result.batches:
 		combos.append([CardText.BATCH_WORD, batch])
-	if not result.mornings.is_empty():
-		combos.append([CardText.MORNING_WORD, result.mornings])
+	for morning: PackedInt32Array in _row_mornings(result.mornings, first_slots):
+		combos.append([CardText.MORNING_WORD, morning])
 	for combo: Array in combos:
 		var members: PackedInt32Array = combo[1]
-		if members.size() < MIN_COMBO:
+		if members.size() < definition.min_combo:
 			continue
 		var pay: int = 0
 		for slot: int in members:
@@ -205,6 +207,15 @@ static func log_fields(moment: Moment) -> Dictionary:
 	return fields
 
 
+## `mornings` (a result's MORNING slots, in slot order) as one MORNING per row: a Double
+## checkout's joined result holds row 1's (slots under `first_slots`) then row 2's.
+static func _row_mornings(mornings: PackedInt32Array, first_slots: int) -> Array[PackedInt32Array]:
+	var rows: Array[PackedInt32Array] = [PackedInt32Array(), PackedInt32Array()]
+	for slot: int in mornings:
+		rows[1 if first_slots > 0 and slot >= first_slots else 0].append(slot)
+	return rows.filter(func(row: PackedInt32Array) -> bool: return not row.is_empty())
+
+
 ## The shifts every kind reads: played, not a Day off.
 static func _counted(history: Array[ShiftRecord]) -> Array[ShiftRecord]:
 	return history.filter(func(record: ShiftRecord) -> bool: return not record.day_off)
@@ -259,7 +270,7 @@ static func _over_quota(history: Array[ShiftRecord], definition: HighlightDefini
 static func _longest_combo(history: Array[ShiftRecord], definition: HighlightDefinition) -> Moment:
 	var best: ShiftRecord = null
 	for record: ShiftRecord in _counted(history):
-		if record.best_combo_length < MIN_COMBO:
+		if record.best_combo_length < definition.min_combo:
 			continue
 		if best == null or record.best_combo_length > best.best_combo_length:
 			best = record
@@ -290,7 +301,7 @@ static func _first_golden(history: Array[ShiftRecord]) -> Moment:
 
 
 ## The passed shift with the smallest margin (then the later shift): at its bar (score 1) when
-## it passed by close_margin or less, else CLOSE_MISS_FACTOR × close_margin / margin.
+## it passed by close_margin or less, else close_miss_factor × close_margin / margin.
 static func _closest_call(history: Array[ShiftRecord], definition: HighlightDefinition) -> Moment:
 	var best: ShiftRecord = null
 	for record: ShiftRecord in _counted(history):
@@ -305,5 +316,5 @@ static func _closest_call(history: Array[ShiftRecord], definition: HighlightDefi
 	if margin <= definition.close_margin:
 		moment.score = 1.0
 	else:
-		moment.score = CLOSE_MISS_FACTOR * definition.close_margin / margin
+		moment.score = definition.close_miss_factor * definition.close_margin / margin
 	return moment

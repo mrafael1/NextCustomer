@@ -102,8 +102,8 @@ func test_a_lost_run_lists_its_shifts_then_the_shortfall_and_the_coins() -> void
 				"  2  20€ / 35€      fail",
 				shortfall,
 				rule,
-				# The BEST line (v1.37): shift 1 made ×3.2 its quota; it may run past WIDTH.
-				"         Over quota · Shift 1 · ×3.2  shift 1",
+				# The BEST line (v1.37): shift 1 made ×3.2 its quota; the text names it, no shift on the right.
+				"         Over quota · Shift 1 · ×3.2",
 			]
 		)
 	)

@@ -2,7 +2,7 @@ class_name ReceiptHighlight
 extends Label
 ## The final receipt's BEST line (v1.37, the approved direction A of
 ## docs/art/mockups/receipt_highlight.html): FinalReceipt's HIGHLIGHT line on a gold band, the gold
-## BEST sticker and the moment's mini in its first FinalReceipt.HIGHLIGHT_INDENT characters (the
+## BEST sticker and the moment's mini in its leading spaces (FinalReceipt.HIGHLIGHT_INDENT; the
 ## item's 7x7 mini; the combo diamond for a combo; the quota target for Over quota and Closest
 ## call), its text and its shift on the right. ResultsPanel prints it in its turn (play): the band
 ## wipes in, the sticker slams down with the stamp sound and holds for the hit-stop, then a glint
@@ -19,14 +19,22 @@ const PAD_SHARE := 0.35
 const BLEED := 6.0
 ## The sticker, mini and gaps in the indent: the gap between them, in px.
 const GAP := 3.0
-## The sticker's size as a share of the line's height, and its art's aspect.
-const STICKER_ASPECT := 38.0 / 21.0
+## The sticker art's size in art pixels. It is drawn at the largest scale that fits the indent
+## beside the mini and overhangs the band by at most STICKER_OVERHANG of the band's height above
+## and below (the mock-up's burst overhangs its line), in steps of STICKER_SCALE_STEP (whole art
+## pixels from 2: even NEAREST pixels), never under 1.
+const STICKER_ART := Vector2i(38, 21)
+const STICKER_OVERHANG := 0.35
+const STICKER_SCALE_STEP := 0.5
 ## The mini's side as a share of the line's height, rounded to whole art pixels (7x7).
 const MINI_SHARE := 0.6
 ## The slam starts this many times larger.
 const SLAM_SCALE := 1.8
-## The word on the sticker, as a share of the sticker's height.
-const WORD_SHARE := 0.42
+## The word on the sticker (cream with an ink outline), as a share of the sticker's height, its
+## smallest size and its outline, in px.
+const WORD_SHARE := 0.5
+const WORD_MIN_SIZE := 9
+const WORD_OUTLINE := 3
 ## The glint's width as a share of the band's, and its look.
 const GLINT_SHARE := 0.08
 const GLINT := Color(Palette.PAPER, 0.7)
@@ -88,7 +96,8 @@ func _init(line: FinalReceipt.Line, font_size: int, font: Font) -> void:
 	_sticker_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_sticker_art.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_sticker.add_child(_sticker_art)
-	_word = UiKit.display_label(WORD, 8, false)
+	_word = UiKit.display_label(WORD, WORD_MIN_SIZE, true)
+	_word.add_theme_constant_override("outline_size", WORD_OUTLINE)
 	_word.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_word.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_word.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -161,6 +170,16 @@ func mini_rect() -> Rect2:
 	return _mini.get_global_rect()
 
 
+## How many characters its text starts in: the sticker's and the mini's room.
+func indent_chars() -> int:
+	return text.length() - text.lstrip(" ").length()
+
+
+## The sticker's scale over its art (for tests).
+func sticker_scale() -> float:
+	return _sticker.size.x / STICKER_ART.x
+
+
 ## The mini's texture (for tests).
 func mini_texture() -> Texture2D:
 	return _mini.texture
@@ -207,13 +226,20 @@ func _place() -> void:
 	_band.size = Vector2(band.size.x * _wipe, band.size.y)
 	var font: Font = get_theme_font("font")
 	var char_width: float = font.get_string_size(" ", HORIZONTAL_ALIGNMENT_LEFT, -1, _font_size).x
-	var indent: float = char_width * FinalReceipt.HIGHLIGHT_INDENT
+	var indent: float = char_width * indent_chars()
 	var mini_side: float = 7.0 * maxi(1, roundi(size.y * MINI_SHARE / 7.0))
-	var sticker_width: float = minf(size.y * STICKER_ASPECT, indent - mini_side - 3.0 * GAP)
-	var sticker_size: Vector2 = Vector2(sticker_width, sticker_width / STICKER_ASPECT)
+	var by_width: float = (indent - mini_side - 3.0 * GAP) / STICKER_ART.x
+	var by_height: float = size.y * (1.0 + 2.0 * STICKER_OVERHANG) / STICKER_ART.y
+	var scale_factor: float = minf(by_width, by_height)
+	var step: float = 1.0 if scale_factor >= 2.0 else STICKER_SCALE_STEP
+	scale_factor = maxf(1.0, floorf(scale_factor / step) * step)
+	var sticker_size: Vector2 = Vector2(STICKER_ART) * scale_factor
 	_sticker.size = sticker_size
-	_sticker.position = Vector2(0.0, (size.y - sticker_size.y) / 2.0)
+	_sticker.position = Vector2(0.0, (size.y - sticker_size.y) / 2.0).round()
 	_sticker.pivot_offset = sticker_size / 2.0
-	_word.add_theme_font_size_override("font_size", maxi(6, roundi(sticker_size.y * WORD_SHARE)))
+	var word_size: int = maxi(WORD_MIN_SIZE, roundi(sticker_size.y * WORD_SHARE))
+	_word.add_theme_font_size_override("font_size", word_size)
 	_mini.size = Vector2.ONE * mini_side
-	_mini.position = Vector2(sticker_width + GAP, (size.y - mini_side) / 2.0).round()
+	# Centred between the sticker and the text.
+	var mini_x: float = (sticker_size.x + indent - mini_side) / 2.0
+	_mini.position = Vector2(maxf(mini_x, sticker_size.x + GAP), (size.y - mini_side) / 2.0).round()

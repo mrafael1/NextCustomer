@@ -46,8 +46,11 @@ const MAX_COIN_SOUNDS := 15
 const CHUTE_WORDS: Array[String] = ChuteKey.NAMES
 ## A shift's dim lines start this far in.
 const DETAIL_INDENT := "     "
-## The BEST line's text starts this many characters in: the room for its sticker and mini.
+## The BEST line's text starts this many characters in: the room for its sticker and mini. In
+## week columns (a wider receipt in a smaller font) it starts HIGHLIGHT_INDENT_WIDE in, so the
+## sticker keeps its size.
 const HIGHLIGHT_INDENT := 9
+const HIGHLIGHT_INDENT_WIDE := 13
 ## The BEST line's shift, on its right ("shift 14").
 const HIGHLIGHT_SHIFT := "shift %d"
 
@@ -132,17 +135,24 @@ static func lines(
 	return printed
 
 
-## The run's BEST line (RunHighlight.pick), `width` characters or more for a long item name, or
-## null for a run without one: HIGHLIGHT_INDENT spaces, the moment's text, then its shift on the
-## right.
+## The run's BEST line (RunHighlight.pick), or null for a run without one: HIGHLIGHT_INDENT
+## spaces (HIGHLIGHT_INDENT_WIDE in a receipt wider than WIDTH), the moment's text, then its
+## shift on the right when the text doesn't name it already (Over quota, Closest call) and it
+## fits in `width` characters (a long line is the text alone, wider than `width` only for a
+## long item name).
 static func highlight_line(run: RunState, width: int = WIDTH) -> Line:
 	var definition: HighlightDefinition = run.balance.highlight if run.balance != null else null
 	var moment: RunHighlight.Moment = RunHighlight.pick(run.history, definition)
 	if moment == null:
 		return null
-	var left: String = " ".repeat(HIGHLIGHT_INDENT) + RunHighlight.text(moment, definition)
+	var indent: int = HIGHLIGHT_INDENT if width <= WIDTH else HIGHLIGHT_INDENT_WIDE
+	var left: String = " ".repeat(indent) + RunHighlight.text(moment, definition)
 	var right: String = HIGHLIGHT_SHIFT % moment.shift
-	var line: Line = Line.new(_line(left, right, width, 2), Tone.HIGHLIGHT)
+	var named: bool = moment.kind in [RunHighlight.Kind.OVER_QUOTA, RunHighlight.Kind.CLOSEST_CALL]
+	var text: String = _line(left, right, width, 2)
+	if named or text.length() > width:
+		text = left
+	var line: Line = Line.new(text, Tone.HIGHLIGHT)
 	line.moment = moment
 	return line
 

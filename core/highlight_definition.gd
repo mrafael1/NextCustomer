@@ -16,8 +16,13 @@ extends Resource
 @export var over_quota_ratio: float = 0.0
 ## Longest combo (a CHAIN, BATCH or MORNING) meets its bar at this many items.
 @export var combo_length: int = 0
+## A combo (a CHAIN, BATCH or MORNING) counts from this many items (2: a lone batch item is none).
+@export var min_combo: int = 0
 ## Closest call meets its bar when a shift passed by this many euros or fewer.
 @export var close_margin: int = 0
+## A Closest call that misses its bar scores this share of its bar over its margin
+## (close_miss_factor × close_margin / margin), so it stays under 1.
+@export var close_miss_factor: float = 0.0
 ## The kinds' words on the receipt (the line reads "<word> · <subject> · <value>").
 @export var payout_word: String = ""
 @export var over_quota_word: String = ""

@@ -85,6 +85,9 @@ func test_a_lost_receipt_in_one_column_prints_the_line_too() -> void:
 		assert_array(results.week_columns()).is_empty()
 		var at: int = results.coin_line_index() - 1
 		assert_str(results.texts()[at]).contains("Closest call · Shift 1 · 31€ / 30€")
+		# The text names its shift: no "shift 1" on the right, and the line fits the receipt.
+		assert_str(results.texts()[at]).not_contains(FinalReceipt.HIGHLIGHT_SHIFT % 1)
+		assert_int(results.texts()[at].length()).is_less_equal(FinalReceipt.WIDTH)
 		assert_object(results.highlight().mini_texture()).is_same(ReceiptHighlight.QUOTA_ICON)
 		_assert_inside_the_receipt(results, at, window)
 
@@ -173,12 +176,32 @@ func _assert_inside_the_receipt(results: ResultsPanel, at: int, window: Vector2i
 	var font_size: int = highlight.get_theme_font_size("font_size")
 	var indent: float = (
 		font.get_string_size(" ", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
-		* FinalReceipt.HIGHLIGHT_INDENT
+		* highlight.indent_chars()
 	)
-	for part: Rect2 in [highlight.sticker_rect(), highlight.mini_rect()]:
-		assert_bool(band.grow(0.5).encloses(part)).override_failure_message(str(part)).is_true()
+	# The sticker may overhang the band (STICKER_OVERHANG of its height), the mini may not; both
+	# stay in the paper and the indent. The sticker is its art at a whole-number scale.
+	var overhang: float = band.size.y * ReceiptHighlight.STICKER_OVERHANG + 1.0
+	var hangs: Array[float] = [overhang, 0.0]
+	var parts: Array[Rect2] = [highlight.sticker_rect(), highlight.mini_rect()]
+	for index: int in range(parts.size()):
+		var part: Rect2 = parts[index]
+		var room: Rect2 = band.grow_individual(0.5, hangs[index] + 0.5, 0.5, hangs[index] + 0.5)
+		assert_bool(room.encloses(part)).override_failure_message(str(part)).is_true()
+		assert_bool(paper.encloses(part)).override_failure_message(str(part)).is_true()
 		assert_float(part.end.x).is_less_equal(line.position.x + indent + 0.5)
 		assert_float(part.size.x).is_greater(0.0)
+	# Its scale (in the line's own coordinates; the receipt itself may be scaled to fit) is in
+	# half steps, whole from 2; week columns indent more, so the sticker is at least as big.
+	var scale: float = highlight.sticker_scale()
+	assert_float(scale).is_greater_equal(1.0)
+	assert_float(scale * 2.0).is_equal(roundf(scale * 2.0))
+	if scale > 2.0:
+		assert_float(scale).is_equal(roundf(scale))
+	var wide: bool = not results.week_columns().is_empty()
+	assert_int(highlight.indent_chars()).is_equal(
+		FinalReceipt.HIGHLIGHT_INDENT_WIDE if wide else FinalReceipt.HIGHLIGHT_INDENT
+	)
+	assert_float(scale).is_greater_equal(1.5)
 	assert_bool(highlight.sticker_rect().intersects(highlight.mini_rect())).is_false()
 
 

@@ -151,7 +151,7 @@ static func from_dictionary(data: Dictionary, lookup: ContentLookup) -> ShiftRec
 			return null
 		var combo: SaveReader = SaveReader.new(data["best_combo"], lookup)
 		record.best_combo_keyword = combo.text("keyword")
-		record.best_combo_length = combo.whole("length", RunHighlight.MIN_COMBO)
+		record.best_combo_length = combo.whole("length", 1)
 		record.best_combo_pay = combo.whole("pay", -SaveReader.MAX_EXACT)
 		if not combo.ok or not RunHighlight.COMBO_WORDS.has(record.best_combo_keyword):
 			return null

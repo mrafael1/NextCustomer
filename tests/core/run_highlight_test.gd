@@ -14,6 +14,8 @@ const MILK_GOLDEN := "res://data/cards/milk_golden.tres"
 const EGGS := "res://data/cards/eggs.tres"
 const BREAD := "res://data/cards/bread.tres"
 const BANANA := "res://data/cards/banana.tres"
+const TEA_BAGS := "res://data/cards/tea_bags.tres"
+const DOUBLE := "res://data/pins/double_checkout.tres"
 
 var _balance: BalanceDefinition
 var _definition: HighlightDefinition
@@ -34,6 +36,8 @@ func test_the_live_bars_and_kinds() -> void:
 	assert_float(_definition.over_quota_ratio).is_equal(2.0)
 	assert_int(_definition.combo_length).is_equal(5)
 	assert_int(_definition.close_margin).is_equal(1)
+	assert_int(_definition.min_combo).is_equal(2)
+	assert_float(_definition.close_miss_factor).is_equal(0.5)
 
 
 ## A checkout's record keeps the biggest single payout (the earlier slot on a tie) and the longest
@@ -46,7 +50,7 @@ func test_record_best_keeps_the_biggest_payout_and_the_longest_combo() -> void:
 	result.payouts = PackedInt32Array([5, 20, 20, 3, 12])
 	result.chains = [PackedInt32Array([0, 1, 2])]
 	result.batches = [PackedInt32Array([2, 3, 4])]
-	RunHighlight.record_best(record, result)
+	RunHighlight.record_best(record, result, _definition)
 	assert_int(record.best_payout).is_equal(20)
 	assert_object(record.best_card).is_same(load(MILK))
 	# Same length: the bigger pay (45 against 35).
@@ -55,7 +59,7 @@ func test_record_best_keeps_the_biggest_payout_and_the_longest_combo() -> void:
 	assert_int(record.best_combo_pay).is_equal(45)
 	result.batches = [PackedInt32Array([1, 2, 3, 4])]
 	result.mornings = PackedInt32Array([0, 1, 2, 3, 4])
-	RunHighlight.record_best(record, result)
+	RunHighlight.record_best(record, result, _definition)
 	assert_str(record.best_combo_keyword).is_equal(CardText.MORNING_WORD)
 	assert_int(record.best_combo_length).is_equal(5)
 	assert_int(record.best_combo_pay).is_equal(60)
@@ -68,7 +72,7 @@ func test_record_best_keeps_nothing_without_a_payout_or_a_combo() -> void:
 	var result: ScoreResult = ScoreResult.new()
 	result.payouts = PackedInt32Array([0])
 	result.batches = [PackedInt32Array([0])]
-	RunHighlight.record_best(record, result)
+	RunHighlight.record_best(record, result, _definition)
 	assert_object(record.best_card).is_null()
 	assert_int(record.best_payout).is_equal(0)
 	assert_str(record.best_combo_keyword).is_empty()
@@ -76,7 +80,7 @@ func test_record_best_keeps_nothing_without_a_payout_or_a_combo() -> void:
 	day_off.day_off = true
 	day_off.played.assign([load(MILK)])
 	result.payouts = PackedInt32Array([9])
-	RunHighlight.record_best(day_off, result)
+	RunHighlight.record_best(day_off, result, _definition)
 	assert_object(day_off.best_card).is_null()
 
 
@@ -98,6 +102,31 @@ func test_a_checkout_records_its_best() -> void:
 	# Three Bananas in a row: a CHAIN of 3.
 	assert_str(record.best_combo_keyword).is_equal(CardText.CHAIN_WORD)
 	assert_int(record.best_combo_length).is_equal(3)
+
+
+## A Double checkout shift (#122) records from both rows' joined result, but each row has its own
+## MORNING: two 4-item MORNINGs are two combos of 4, never one of 8.
+func test_a_double_checkout_keeps_each_rows_morning() -> void:
+	var run: RunState = RunState.new(7, load(STARTER), _balance, RunStock.starting(_balance))
+	RunPins.wear(run, [load(DOUBLE)])
+	run.start_shift()
+	var row_slots: int = RunPins.row_slots(run)
+	for _row: int in range(2):
+		for index: int in range(row_slots):
+			var path: String = TEA_BAGS if index == 0 else EGGS
+			run.place(run.debug_add_to_hand(load(path)), run.row.size())
+		run.checkout()
+	var whole: ScoreResult = run.last_result
+	assert_int(whole.mornings.size()).is_equal(2 * row_slots)
+	var record: ShiftRecord = run.history[-1]
+	assert_int(record.played.size()).is_equal(2 * row_slots)
+	assert_str(record.best_combo_keyword).is_equal(CardText.MORNING_WORD)
+	assert_int(record.best_combo_length).is_equal(row_slots)
+	# The payout is the biggest over both rows.
+	var best: int = 0
+	for payout: int in whole.payouts:
+		best = maxi(best, payout)
+	assert_int(record.best_payout).is_equal(best)
 
 
 ## A weak run reaches no bar: Biggest payout prints anyway, as the fallback.
