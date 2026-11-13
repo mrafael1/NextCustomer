@@ -11,12 +11,11 @@ extends RefCounted
 ##
 ## The stock holds, in this order and each in data order: the staples (the balance data's own
 ## list since v0.49, no longer the starting deck's products), the listed aisles' products (aisle
-## data order), the new arrivals, then all of coupon_pool. A card is stocked once.
+## data order), then all of coupon_pool. A card is stocked once. An unlocked capsule item is in
+## the stock only when its aisle is (v1.32: no end-cap new arrivals from other aisles).
 ##
-## `run_index` is the 0-based index of the run being built: the number of runs played before
-## it. `unlocked` maps each unlocked capsule item id to the run_index of the run whose exit it
-## came out at (not the run count after that run ended), in the order the capsules were drawn.
-## So an item from run K is a new arrival in runs K + 1 to K + end_cap_window_runs.
+## `unlocked` maps each unlocked capsule item id to the 0-based index of the run whose exit it
+## came out at, in the order the capsules were drawn (ProfileState.unlocked_items).
 
 ## Every stocked card once, in stock order.
 var cards: Array[CardDefinition] = []
@@ -25,9 +24,6 @@ var cards: Array[CardDefinition] = []
 var aisle_ids: Array[StringName] = []
 ## True when every listable aisle together fits aisle_stock_budget, so the list is skipped.
 var list_skipped: bool = false
-## The new arrivals in the stock, newest first (the run's first NEW ITEMS draw holds the newest,
-## MachineDraw).
-var new_arrivals: Array[CardDefinition] = []
 
 
 ## Builds the stock. `listed` (aisle ids) is used only when the list isn't skipped; ids of
@@ -36,48 +32,36 @@ static func build(
 	balance: BalanceDefinition,
 	listed: Array[StringName],
 	unlocked: Dictionary[StringName, int],
-	run_index: int,
 	force_list: bool = false
 ) -> RunStock:
 	var stock: RunStock = RunStock.new()
 	stock._add_all(staples(balance))
 	var listable: Array[AisleDefinition] = listable_aisles(balance, unlocked)
 	stock.list_skipped = not force_list and not needs_list(balance, unlocked)
-	var stocked_aisles: Array[AisleDefinition] = []
 	for aisle: AisleDefinition in listable:
 		if stock.list_skipped or listed.has(aisle.id):
-			stocked_aisles.append(aisle)
 			stock.aisle_ids.append(aisle.id)
 			stock._add_all(items(aisle, unlocked))
-	stock.new_arrivals = _new_arrivals(balance, stocked_aisles, unlocked, run_index)
-	for aisle: AisleDefinition in balance.aisles:
-		for card: CardDefinition in aisle.capsule_cards:
-			if stock.new_arrivals.has(card):
-				stock._add(card)
 	stock._add_all(balance.coupon_pool)
 	return stock
 
 
-## The stock of a new profile: no unlocks, no list, run index 0. The game builds each run's
+## The stock of a new profile: no unlocks, no list. The game builds each run's
 ## stock from its ProfileState; tests and the balance simulator use this one.
 static func starting(balance: BalanceDefinition) -> RunStock:
 	var unlocked: Dictionary[StringName, int] = {}
-	return build(balance, [], unlocked, 0)
+	return build(balance, [], unlocked)
 
 
 ## A stock restored from a run save (RunSave), so a resumed run never depends on a profile
 ## that changed after it started. The cards are kept in the order given.
 static func from_saved(
-	stock_cards: Array[CardDefinition],
-	stocked_aisle_ids: Array[StringName],
-	skipped: bool,
-	arrivals: Array[CardDefinition]
+	stock_cards: Array[CardDefinition], stocked_aisle_ids: Array[StringName], skipped: bool
 ) -> RunStock:
 	var stock: RunStock = RunStock.new()
 	stock.cards = stock_cards.duplicate()
 	stock.aisle_ids = stocked_aisle_ids.duplicate()
 	stock.list_skipped = skipped
-	stock.new_arrivals = arrivals.duplicate()
 	return stock
 
 
@@ -229,31 +213,6 @@ func to_dictionary() -> Dictionary:
 	for id: StringName in aisle_ids:
 		aisles.append(String(id))
 	return {"listed_aisles": aisles, "stock": card_ids()}
-
-
-## Up to end_cap_max capsule items from aisles that aren't stocked whole, that came out in the
-## last end_cap_window_runs runs, newest first: the later run first, then the later draw.
-static func _new_arrivals(
-	balance: BalanceDefinition,
-	stocked_aisles: Array[AisleDefinition],
-	unlocked: Dictionary[StringName, int],
-	run_index: int
-) -> Array[CardDefinition]:
-	var by_id: Dictionary[StringName, CardDefinition] = {}
-	for aisle: AisleDefinition in balance.aisles:
-		if stocked_aisles.has(aisle):
-			continue
-		for card: CardDefinition in aisle.capsule_cards:
-			by_id[card.id] = card
-	# Draw order reversed, then a stable pass by run index: the later draw wins a tie.
-	var recent: Array[CardDefinition] = []
-	var ids: Array = unlocked.keys()
-	ids.reverse()
-	for newest_run: int in range(run_index - 1, run_index - 1 - balance.end_cap_window_runs, -1):
-		for id: StringName in ids:
-			if unlocked[id] == newest_run and by_id.has(id) and not recent.has(by_id[id]):
-				recent.append(by_id[id])
-	return recent.slice(0, balance.end_cap_max)
 
 
 ## The listed aisle with the fewest items; ties go to the later one in data order.

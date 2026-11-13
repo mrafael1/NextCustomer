@@ -1,19 +1,20 @@
 class_name BoosterPage
 extends Control
 ## YOUR STORE, page 1 of the opening board (v1.32, full build plan 7.2; the user's pick of
-## 2026-11-13 on mock-up docs/art/mockups/start_boosters_v3.html: "I really like mockup"). The
-## store at dawn: its shutters roll up by themselves (after auto_roll_s; the web build waits for a
-## click, which also unlocks audio) and the view walks in through the door; the lamps come on and
-## today's aisle boosters drop under them. A booster opens on a click (or 1-2): grab, rattle,
-## tear, burst, its three cards rise and spread, the commons flip on a rising note ladder and the
-## brass-backed hit card waits for its click (TAP IT); a RARE hit freezes, flashes, pops over a
-## teal sunburst and wears its RARE! tab. OPEN ALL (the primary key, A, or Space held) opens every
-## booster fast with the hits flipped for you. When the last one is open the clock steps to 7:00,
-## every lamp goes full and STOCKED! hangs under the board. The four regulars stand face up in
-## their crate (STANDING ORDER): once every booster is open, a click opens the swap tray (3
-## products per completed aisle) and a click on a swapped regular puts it back. RESTOCK (3
-## completed aisles) returns one opened booster to the tote for a fresh sealed one. At 6 completed
-## aisles three boosters stand under three lamps: PICK 2 OF 3, the third is SOLD OUT.
+## 2026-11-13 on mock-up docs/art/mockups/start_boosters_v3.html: "I really like mockup"). The store
+## at dawn: its shutters roll up by themselves (after auto_roll_s; the web build waits for a click,
+## which also unlocks audio) and the view walks in through the door; the lamps come on and today's
+## aisle boosters drop under them. A booster opens on a click (or 1-2): grab, rattle, tear, burst,
+## its three cards rise and spread, the commons flip on a rising note ladder and the brass-backed
+## hit card waits for its click (TAP IT); a RARE hit freezes, flashes, pops over a teal sunburst and
+## wears its RARE! tab. OPEN ALL (the primary key, A, or Space held) opens every booster fast with
+## the hits flipped for you. When the last one is open the clock steps to 7:00, every lamp goes full
+## and STOCKED! hangs under the board. The four regulars stand face up in their crate (STANDING
+## ORDER), the swap window's button (SwapWindow, v1.32 swap window): once every booster is open a
+## click opens YOUR REGULARS, and while a swap is unused NEXT stops there once (its sub-label SWAP
+## REGULARS). RESTOCK (3 completed aisles) returns one opened booster to the tote for a fresh sealed
+## one. At 6 completed aisles three boosters stand under three lamps: PICK 2 OF 3, the third is SOLD
+## OUT.
 ##
 ## Every rule goes through StartBoardActions (saved at once); the motion is cosmetic, played on the
 ## page's own clock (`now`), which tests and captures step with advance(). Reduced motion shows
@@ -48,9 +49,6 @@ var tote_t: float = -INF
 var tote_booster: int = -1
 var tote_cards: Array[CardDefinition] = []
 var tote_puff: bool = false
-## The swap tray: the regular it swaps (-1: closed) and its aisle tab.
-var tray_slot: int = -1
-var tray_tab: int = 0
 ## STOCKED!: when the page completed (INF: not yet), when the stamp hung.
 var complete_t: float = INF
 var stocked_t: float = INF
@@ -82,20 +80,24 @@ var mouse: Vector2 = Vector2(-1, -1)
 var hover_id: String = ""
 var hover_t0: float = 0.0
 var hits: Array[Dictionary] = []
-## A swapped regular's swap time (slot -> stage clock), for its drop-in.
+## A changed regular's play-in after the swap window's DONE (slot -> stage clock) and the regular
+## it replaced (it drops away first).
 var swap_t: Dictionary[int, float] = {}
+var swap_from: Dictionary[int, CardDefinition] = {}
 ## Kept for the board: NEW tags are gone from this page (its controls explain themselves).
 var fresh: Array[StringName] = []
-## The page's three helpers: the openings (arrival, boosters, PICK 2 OF 3), the counter (RESTOCK,
-## the regulars' swaps) and the effects (sounds, cues, particles).
+## The page's helpers: the openings (arrival, boosters, PICK 2 OF 3), the counter (RESTOCK, the
+## swap count), the effects (sounds, cues, particles) and the swap window.
 var openings: BoosterOpenings
 var counter: BoosterCounter
 var fx: BoosterFx
+var swap: SwapWindow
 ## A RARE's hitstop: the page's clock holds until this wall-clock time (ms).
 var hitstop_until: int = 0
 var _scene: Control
 var _layers: Array[BoosterLayer] = []
 var _facade: Control
+var _swap_slide: Control
 var _hover_spot: Control
 var _shown_run: RunState
 
@@ -108,6 +110,7 @@ func _init() -> void:
 	openings = BoosterOpenings.new(self)
 	counter = BoosterCounter.new(self)
 	fx = BoosterFx.new(self)
+	swap = SwapWindow.new(self)
 	_scene = Control.new()
 	_scene.name = "Scene"
 	_scene.size = ShiftStage.SIZE
@@ -127,9 +130,20 @@ func _init() -> void:
 	_add_layer(bay, "Tote").position = -bay.position
 	_add_layer(_scene, "Front3")
 	_add_layer(_scene, "Glow", true)
-	_add_layer(_scene, "Pop")
 	_facade = _add_layer(self, "Facade")
 	_add_layer(self, "Top")
+	_add_layer(self, "SwapVeil")
+	_swap_slide = Control.new()
+	_swap_slide.name = "SwapSlide"
+	_swap_slide.size = ShiftStage.SIZE
+	_swap_slide.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_swap_slide)
+	_add_layer(_swap_slide, "SwapFrame")
+	var window: Control = _clip(
+		_swap_slide, "SwapClip", SwapWindowDraw.RECT.grow_individual(-1, -1, -1, -1)
+	)
+	_add_layer(window, "Swap").position = -window.position
+	_add_layer(_swap_slide, "SwapTop")
 	_hover_spot = Control.new()
 	_hover_spot.name = "HoverCard"
 	_hover_spot.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -184,7 +198,9 @@ func _setup() -> void:
 	boosters.clear()
 	fx.clear()
 	now = 0.0
-	tray_slot = -1
+	swap = SwapWindow.new(self)
+	swap_t.clear()
+	swap_from.clear()
 	restock_armed = false
 	tote_cards.clear()
 	complete_t = INF
@@ -258,6 +274,7 @@ func advance(dt: float) -> void:
 		openings.roll_up()
 	openings.step(dt)
 	fx.run_cues(now)
+	swap.step(dt)
 	var step_s: float = 0.03
 	if cart_shown != cart_n and now - cart_step_t >= step_s:
 		cart_shown += signi(cart_n - cart_shown)
@@ -285,9 +302,11 @@ func advance(dt: float) -> void:
 
 
 func _refresh_view() -> void:
-	hits = BoosterPageDraw.hits(self)
+	hits = SwapWindowDraw.hits(self) if swap.visible() else BoosterPageDraw.hits(self)
 	_update_hover()
 	_place_scene()
+	_swap_slide.visible = swap.visible()
+	_swap_slide.position.y = swap.slide() * ArtPen.UNIT
 	for layer: BoosterLayer in _layers:
 		layer.queue_redraw()
 
@@ -395,12 +414,15 @@ func page_done() -> bool:
 	return complete_t != INF and now >= complete_t
 
 
-## The primary key (Enter, a click on it): ROLL UP, skip the arrival, cancel RESTOCK, speed up an
-## opening, flip the waiting hit, OPEN ALL, or NEXT.
+## The primary key (Enter, a click on it): the swap window's DONE while it is open; else ROLL UP,
+## skip the arrival, cancel RESTOCK, speed up an opening, flip the waiting hit, OPEN ALL, NEXT's
+## one stop at the swap window (a swap unlocked and unused), or NEXT.
 func primary(via: String = "key") -> bool:
 	var used: bool = true
 	var waiting: BoosterOpening = openings.waiting_booster()
-	if shutter == Shutter.DOWN:
+	if swap.active:
+		used = swap.primary(via)
+	elif shutter == Shutter.DOWN:
 		used = openings.roll_up()
 	elif openings.arrival_busy():
 		openings.end_arrival()
@@ -417,7 +439,10 @@ func primary(via: String = "key") -> bool:
 		used = false
 	elif openings.any_sealed():
 		used = openings.open_all(via)
+	elif page_done() and swap.wants_stop():
+		used = swap.open_window(true)
 	elif page_done():
+		fx.drop_cues(SwapWindow.GO_ON_TAG)
 		next_pressed.emit()
 	else:
 		used = false
@@ -447,6 +472,8 @@ func primary_label() -> Array:
 		label = ["FLIP ?", "THE HIT CARD", true]
 	elif sealed > 0:
 		label = ["OPEN ALL", "%d BOOSTER%s" % [sealed, "" if sealed == 1 else "S"], true]
+	elif page_done() and swap.wants_stop():
+		label = ["NEXT ›", "SWAP REGULARS", true]
 	return label
 
 
@@ -467,7 +494,7 @@ func hint_line() -> String:
 		line = _pick_text() + " BOOSTERS"
 	elif page_done():
 		var can_swap: bool = counter.swaps_live() and counter.swaps_used() < counter.swap_limit()
-		line = "CLICK A REGULAR TO SWAP" if can_swap else "THE STORE IS STOCKED"
+		line = "CLICK YOUR REGULARS TO SWAP" if can_swap else "THE STORE IS STOCKED"
 	elif openings.any_sealed():
 		line = "CLICK A BOOSTER TO OPEN IT"
 	return line
@@ -520,26 +547,38 @@ func space(down: bool) -> void:
 		primary("space")
 
 
-## A page-1 key from the board (1-3, A, R, Esc); true when it was used.
+## A page-1 key from the board (1-3, A, R, Esc; the swap window's 1-2, R and Esc while it shows);
+## true when it was used.
 func handle_key(keycode: Key) -> bool:
 	var number: int = [KEY_1, KEY_2, KEY_3].find(keycode)
 	var used: bool = false
-	if keycode == KEY_ESCAPE:
-		if tray_slot >= 0:
-			tray_slot = -1
-			used = true
-		elif restock_armed:
+	if swap.visible():
+		used = _swap_key(keycode, number)
+	elif keycode == KEY_ESCAPE:
+		if restock_armed:
 			cancel_restock("ui_back")
 			used = true
-	elif tray_slot >= 0 and number >= 0:
-		used = counter.swap_to(number, "key")
 	elif keycode == KEY_A:
 		used = openings.open_all("key")
-	elif keycode == KEY_R:
+	elif keycode == KEY_R and BoosterChromeDraw.key_shown(self):
 		used = counter.arm_restock()
 	elif number >= 0:
 		used = _key_booster(number)
 	return used
+
+
+## A key while the swap window shows: Esc (a held card home, else the window shut), 1-2 (its
+## boosters), R (RESET); every other key is held back from the page under it.
+func _swap_key(keycode: Key, number: int) -> bool:
+	if not swap.active:
+		return true
+	if keycode == KEY_ESCAPE:
+		return swap.escape()
+	if number >= 0:
+		return swap.open_booster(number, "key")
+	if keycode == KEY_R:
+		return swap.reset()
+	return true
 
 
 ## Number key `number` on the boosters shown (left to right): ROLL UP first, then the booster's
@@ -580,15 +619,23 @@ func _gui_input(event: InputEvent) -> void:
 		mouse = (motion.position / ArtPen.UNIT).floor()
 		return
 	var button: InputEventMouseButton = event as InputEventMouseButton
-	if button == null or not button.pressed or button.button_index != MOUSE_BUTTON_LEFT:
+	if button == null or button.button_index != MOUSE_BUTTON_LEFT:
 		return
 	mouse = (button.position / ArtPen.UNIT).floor()
 	accept_event()
-	click(mouse)
+	if button.pressed:
+		click(mouse)
+	elif swap.active:
+		swap.release(mouse - Vector2(0, swap.slide()))
 
 
-## A click at art point `at`: the shutter, a skip, else the topmost hit under it.
+## A click at art point `at`: the swap window's while it shows; else the shutter, a skip, else the
+## topmost hit under it.
 func click(at: Vector2) -> void:
+	if swap.visible():
+		if swap.active:
+			swap.press(at - Vector2(0, swap.slide()))
+		return
 	if shutter == Shutter.DOWN:
 		openings.roll_up()
 		return
@@ -605,7 +652,6 @@ func click(at: Vector2) -> void:
 			if act.is_valid():
 				act.call()
 			return
-	tray_slot = -1
 	if restock_armed:
 		restock_armed = false
 		set_hint("")

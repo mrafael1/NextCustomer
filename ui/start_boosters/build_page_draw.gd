@@ -705,8 +705,10 @@ static func _primary(pen: ArtPen, page: BuildPage) -> void:
 	)
 
 
-## A key (the mock-up's drawPrimary) at art rect `rect`: lit or teal, `label` over `sub`, its
-## armed LED rim from `armed_t` (INF: none), lifted under the pointer (hit id `id`).
+## A key (the mock-up's drawPrimary) at art rect `rect`: lit or teal, `label` over `sub`, from
+## `armed_t` (INF: never) the arm hop then the idle press-bob, at rest while hovered
+## (BoosterPageDraw.key_lift; v1.32 feedback: no chase bulbs; the labels ride the lifted face),
+## pushed right under the pointer (hit id `id`, its hit rect `rect`, never resized).
 static func key_button(
 	pen: ArtPen,
 	page: BuildPage,
@@ -722,17 +724,16 @@ static func key_button(
 	var w: float = rect.size.x
 	var h: float = rect.size.y
 	var hv: bool = page.is_hovered(id) and lit
+	var lift: int = BoosterPageDraw.key_lift(page.now, armed_t, page.tuning, page.rm, hv)
 	var sh: float = 2.0 if hv and not page.rm else 0.0
-	if page.now >= armed_t:
-		_armed_rim(pen, page, x, y, w, h, armed_t)
-	pen.nine(
-		BoosterArt.BUTTON if lit else BoosterArt.BUTTON_TEAL, x + sh, y, w, h, Vector4i(3, 3, 3, 3)
+	BoosterPageDraw.lifted_key(
+		pen, BoosterArt.BUTTON if lit else BoosterArt.BUTTON_TEAL, x + sh, y, w, h, lift
 	)
 	var cx: float = x + sh + w / 2.0
 	pen.pix(
 		label,
 		cx,
-		y + 5,
+		y - lift + 5,
 		Palette.PAPER if lit else Palette.TEAL_PALE,
 		1.0,
 		HORIZONTAL_ALIGNMENT_CENTER
@@ -740,48 +741,13 @@ static func key_button(
 	pen.caps(
 		sub,
 		cx,
-		y + h - 9,
+		y - lift + h - 9,
 		Palette.MUSTARD_PALE if lit else Palette.TEAL_PALE,
 		1.0,
 		HORIZONTAL_ALIGNMENT_CENTER
 	)
 	if hv:
 		pen.tex(BoosterArt.TICK, x - 7, y + h / 2.0 - 3)
-
-
-## The armed rim: a dark LED frame with 2x2 bulbs chasing (12 Hz for 0.6 s, then a 3 Hz blink).
-static func _armed_rim(
-	pen: ArtPen, page: BuildPage, x: float, y: float, w: float, h: float, armed_t: float
-) -> void:
-	pen.r(x - 6, y - 6, w + 12, h + 12, Palette.INK)
-	pen.r(x - 5, y - 5, w + 10, h + 10, Palette.VELVET_DARKEST)
-	var u: float = page.now - armed_t
-	var spots: Array[Vector2] = []
-	var i: float = 0.0
-	while i < w + 6:
-		spots.append(Vector2(x - 3 + i, y - 4))
-		i += 5
-	i = 0.0
-	while i < h + 6:
-		spots.append(Vector2(x + w + 2, y - 3 + i))
-		i += 5
-	i = w + 3
-	while i > -3:
-		spots.append(Vector2(x + i, y + h + 2))
-		i -= 5
-	i = h + 3
-	while i > -3:
-		spots.append(Vector2(x - 4, y + i))
-		i -= 5
-	for k: int in spots.size():
-		var on: bool = true
-		if not page.rm:
-			on = (
-				(k + int(floorf(u * 12))) % 3 == 0 if u < 0.6 else (k + int(floorf(u * 3))) % 2 == 0
-			)
-		pen.r(spots[k].x, spots[k].y, 2, 2, Palette.GOLD if on else Palette.BRASS_DARK)
-		if on:
-			pen.r(spots[k].x, spots[k].y, 1, 1, Palette.MUSTARD_PALE)
 
 
 ## The page's hits this frame, bottom first: each {rect (art px), id, act}. The flight takes every

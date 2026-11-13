@@ -18,13 +18,13 @@ const STARTING_DECK_STREAM := "starting_deck"
 const STOCK_AISLES_STREAM := "stock_aisles"
 ## The derived streams of the run seed for the opening-time board (StartSetupRules, v1.32): one
 ## aisle booster's deal, by its aisle id; PICK 2 OF 3's extra aisle; the pack offer fitted to the
-## picked pair; one booster's RESTOCK, by its aisle id; a regular slot's offer from one aisle, by
-## slot and aisle id; NEW PACKS.
+## picked pair; one booster's RESTOCK, by its aisle id; the swap window's booster of one stocked
+## aisle, by its aisle id (2026-11-13: one per aisle, no longer one per slot and aisle); NEW PACKS.
 const START_BOOSTER_STREAM := "start_booster_%s"
 const START_BOOSTER_EXTRA_STREAM := "start_booster_extra"
 const START_BOOSTER_PICK_STREAM := "start_booster_pick"
 const START_RESTOCK_STREAM := "start_restock_%s"
-const START_REGULARS_STREAM := "start_regulars_%d_%s"
+const START_REGULARS_STREAM := "start_regulars_%s"
 const START_NEW_PACKS_STREAM := "start_new_packs"
 ## The derived stream of the profile's capsule seed for one TOY MACHINES draw, by the draw's
 ## index (ProfileState.capsule_draws, #63).

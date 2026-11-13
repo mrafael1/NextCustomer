@@ -1,14 +1,15 @@
 class_name BoosterChromeDraw
 extends RefCounted
-## YOUR STORE's furniture and keys (v1.32, the mock-up's drawCrate, drawTray, drawTote,
-## drawCounterPlates, drawHintLED, drawPrimary, drawShutterP1 and drawTopBar): the regulars'
-## crate and swap tray, RESTOCK's key and returns tote, the counter plates, the floor row (TITLE,
-## the hint LED, the primary key), the storefront at dawn and the top bar; and the page's hit list.
+## YOUR STORE's furniture and keys (v1.32, the mock-up's drawCrate, drawTote, drawCounterPlates,
+## drawHintLED, drawPrimary, drawShutterP1 and drawTopBar; the crate as the swap window's button
+## from docs/art/mockups/start_regulars_swap.html): the regulars' crate, the returns tote, the
+## counter plates, the floor row (TITLE, the hint LED, RESTOCK's key, the primary key), the
+## storefront at dawn and the top bar; and the page's hit list.
 
 const DY := BoosterArt.DY
-const MINI_W := 68
-const MINI_GAP := 4
-const TRAY_RECT := Rect2(6, 44, 0, 142)
+## The crate's button (it opens the swap window) and its gold dashed outline on hover.
+const CRATE_RECT := Rect2(4, 158 + DY, 156, 74)
+const CRATE_OUTLINE := Rect2(1, 155 + DY, 162, 80)
 const SPARKLE := BoosterArt.SPARKLE
 const STAMP_RING := preload("res://art/icons/stamp_ring.png")
 
@@ -17,8 +18,8 @@ const STAMP_RING := preload("res://art/icons/stamp_ring.png")
 static var _sprites: Dictionary[String, Texture2D] = {}
 
 
-## Card `card`'s item sprite (its coupon icon for a coupon), loaded once and kept; the swap tray
-## warms its tab's sprites through this before they are drawn.
+## Card `card`'s item sprite (its coupon icon for a coupon), loaded once and kept; the swap window
+## warms its cards' sprites through this before they are drawn.
 static func sprite(card: CardDefinition) -> Texture2D:
 	if not _sprites.has(String(card.id)):
 		var texture: Texture2D = ArtStyle.item_sprite(card)
@@ -34,83 +35,96 @@ static func _completed(page: BoosterPage) -> Array[AisleDefinition]:
 	return StartSetupRules.completed(page.run.balance, page.profile)
 
 
-## The RESTOCK key on the counter front (sized from its label) and the tote's bay right of it.
+## The RESTOCK key on the floor row, just left of the primary key and as tall (v1.32 feedback):
+## the refresh glyph, then its label.
 static func key_rect() -> Rect2:
-	return Rect2(
-		BoosterArt.RESTOCK_X,
-		BoosterArt.RESTOCK_Y,
-		5 + ArtPen.pix_width("RESTOCK") + 4 + 9 + 4,
-		BoosterArt.RESTOCK_H
-	)
+	var primary: Rect2i = BoosterArt.PRIMARY_RECT
+	var w: float = 6 + BoosterArt.REFRESH_GLYPH.size() + 5 + ArtPen.pix_width("RESTOCK") + 7
+	return Rect2(primary.position.x - BoosterArt.KEY_GAP - w, primary.position.y, w, primary.size.y)
 
 
+## Whether the RESTOCK key shows: RESTOCK unlocked, and the counter past PICK 2 OF 3's dress.
+static func key_shown(page: BoosterPage) -> bool:
+	return not page.openings.pick_layout() and page.counter.restock_unlocked()
+
+
+## The hint LED: its full width, its right end cut to HINT_MARGIN short of the RESTOCK key while
+## the key shows (the left end stays put, so only the right end moves when the key appears).
+static func hint_rect(page: BoosterPage) -> Rect2:
+	if not key_shown(page):
+		return Rect2(BoosterArt.HINT_RECT)
+	var hint: Rect2i = BoosterArt.HINT_RECT
+	var right: float = key_rect().position.x - BoosterArt.HINT_MARGIN
+	return Rect2(hint.position.x, hint.position.y, right - hint.position.x, hint.size.y)
+
+
+## The returns tote's bay in the counter front (the old cards fly into it).
 static func bay_rect() -> Rect2:
-	var key: Rect2 = key_rect()
-	return Rect2(key.end.x + 6, 239 + DY, 76, 24)
+	return Rect2(BoosterArt.BAY_RECT)
+
+
+## The primary key's face lift this frame (BoosterPageDraw.key_lift) once NEXT is armed: the arm
+## hop, then the idle press-bob, at rest while hovered or while Space is held (the hold ring
+## stays 1 px clear of the face); its rect stays PRIMARY_RECT.
+static func primary_lift(page: BoosterPage) -> int:
+	var armed_t: float = INF
+	if page.page_done() and not page.restock_armed:
+		armed_t = page.complete_t + 0.3
+	var enabled: bool = page.primary_label()[2]
+	var rest: bool = (enabled and page.is_hovered("primary")) or page.hold_t >= 0.0
+	return BoosterPageDraw.key_lift(page.now, armed_t, page.tuning, page.rm, rest)
 
 
 static func regular_x(slot: int) -> float:
 	return BoosterArt.REG_X + slot * BoosterArt.REG_STEP
 
 
-## The crate of regulars (STANDING ORDER) with its two slats; a swapped regular drops in.
+## Whether the crate is the swap window's button now (the store open, the window shut).
+static func crate_button(page: BoosterPage) -> bool:
+	return page.shutter == BoosterPage.Shutter.UP and not page.swap.active
+
+
+## The crate of regulars (STANDING ORDER) with its two slats, the swap window's button: it lifts
+## with a gold dashed outline on hover; a ⇄ tag bobs on its corner until the window has been
+## opened. After the window's DONE each changed regular plays in (the old one drops away, the new
+## one drops in with its aisle chip and its ⇄ chip).
 static func crate(pen: ArtPen, page: BoosterPage) -> void:
 	var now: float = page.now
+	var button: bool = crate_button(page)
+	var live: bool = page.swap.is_live()
+	var hv: bool = button and live and page.is_hovered("crate")
+	var lift: float = 3.0 if hv and not page.rm else 0.0
 	pen.r(4, 186 + DY, 156, 46, Palette.INK)
 	pen.r(5, 187 + DY, 154, 44, Palette.WOOD_DARKEST)
-	var live: bool = page.counter.swaps_live()
 	var cards: Array[CardDefinition] = page.run.starter.core_cards
+	var chips: Dictionary[int, float] = {}
 	for k: int in cards.size():
 		var x: float = regular_x(k)
-		var y: float = 168 + DY
-		var hovered: bool = page.is_hovered("reg%d" % k)
-		if hovered:
-			y -= 3
-		var swapped: bool = cards[k] != page.run.start_setup.originals[k]
+		var y: float = 168 + DY - lift
+		if hv and not page.rm:
+			var wave: float = now - page.hover_t0 - k * 0.04
+			if wave > 0 and wave < 0.12:
+				y -= 2
 		var dy: float = 0.0
 		var st: float = page.swap_t.get(k, -INF)
-		if not page.rm and now - st < 0.3:
-			var u: float = (now - st) / 0.3
-			dy = (
-				-6 + BoosterPageDraw.stepped(BoosterPageDraw.e_out((u - 0.5) * 2) * 6, 2)
-				if u >= 0.5
-				else 0.0
-			)
+		var play: float = maxf(page.tuning.swap_play_in_s, 0.001)
+		var u: float = (now - st) / play
+		if not page.rm and u < 1.0 and page.swap_from.has(k):
 			if u < 0.5:
-				dy = -6
+				var falls: float = BoosterPageDraw.stepped(
+					BoosterPageDraw.e_in(maxf(0.0, u) * 2) * 24, 2
+				)
+				pen.tex(_sprite(page.swap_from[k]), x, y + falls)
+				continue
+			dy = -6 + BoosterPageDraw.stepped(BoosterPageDraw.e_out((u - 0.5) * 2) * 6, 2)
 		if page.complete_t != INF and not page.rm:
 			var hu: float = now - page.complete_t - 0.05 * k
 			if hu > 0 and hu < 0.1:
 				dy -= 2
 		pen.tex(_sprite(cards[k]), x, y + dy)
 		pen.tex(BoosterArt.PRICE_TAG, x + 36, y + 6 + dy)
-		if swapped:
-			var aisle: AisleDefinition = page.run.balance.aisle_of(cards[k])
-			var tu: float = now - st - 0.22
-			if aisle != null and (tu >= 0 or page.rm):
-				var sc: float = 1.5 if not page.rm and tu < 0.12 else 1.0
-				var ramp: Array[Color] = BoosterArt.ramp(aisle.id)
-				pen.r(x + 2, y + 40 + dy - (2 if sc > 1 else 0), 14 * sc, 6 * sc, Palette.INK)
-				pen.r(x + 3, y + 41 + dy, 14 * sc - 2, 4 * sc, ramp[1])
-				pen.tex(BoosterArt.glyph(aisle.id), x + 4, y + 39 + dy)
-		# The swap tag shows on hover, and stays on the regular being swapped while its tray is
-		# open (so a keyboard player sees which item the tray swaps).
-		var swapping: bool = page.tray_slot == k
-		if (
-			swapping
-			or (
-				hovered
-				and live
-				and (swapped or page.counter.swaps_used() < page.counter.swap_limit())
-			)
-		):
-			var tu2: float = clampf((now - page.hover_t0) / 0.12, 0.0, 1.0)
-			if swapping and not hovered:
-				tu2 = 1.0
-			var tw: float = roundf(lerpf(4, 17, 1.0 if page.rm else tu2))
-			pen.rn(x + 30, y - 2, tw, 13, Palette.MUSTARD if swapped else Palette.TEAL)
-			if tw > 12:
-				pen.tex(BoosterArt.UNDO if swapped else BoosterArt.SWAP, x + 34, y + 1)
+		if cards[k] != page.run.start_setup.originals[k]:
+			chips[k] = now - st - play * 0.75
 	pen.r(4, 204 + DY, 156, 28, Palette.INK)
 	pen.r(5, 205 + DY, 154, 12, Palette.WOOD)
 	pen.r(5, 205 + DY, 154, 1, Palette.WOOD_LIGHT)
@@ -126,132 +140,46 @@ static func crate(pen: ArtPen, page: BoosterPage) -> void:
 		pen.r(sx, 210 + DY, 1, 1, Palette.STEEL_DARK)
 		pen.r(sx, 224 + DY, 1, 1, Palette.STEEL_DARK)
 		sx += 26
+	for k: int in chips:
+		_swapped_chips(pen, page, k, regular_x(k) + 8, 205 + DY, chips[k])
+	if not button:
+		return
+	if hv:
+		var phase: int = 0 if page.rm else int(floorf(now / 0.12)) % 2
+		SwapWindowDraw.dashes(pen, CRATE_OUTLINE, Palette.GOLD, phase)
+	if live and page.counter.swap_limit() > 0 and not page.swap.seen and page.page_done():
+		var bob: float = 0.0 if page.rm else float(int(floorf(now / 0.4)) % 2)
+		pen.rn(141, 158 + DY - bob, 17, 14, Palette.TEAL)
+		pen.r(142, 159 + DY - bob, 15, 1, Palette.TEAL_LIGHT)
+		pen.tex(BoosterArt.SWAP, 145, 160 + DY - bob)
+
+
+## A swapped regular's chips on the crate's front under it, at `x`, `y`: its ⇄ chip (a run-only
+## regular) and its aisle chip, popping up as it lands (`tu` s after).
+static func _swapped_chips(
+	pen: ArtPen, page: BoosterPage, k: int, x: float, y: float, tu: float
+) -> void:
+	if tu < 0 and not page.rm:
+		return
+	var pop: float = 2.0 if not page.rm and tu < 0.12 else 0.0
+	pen.rn(x, y - pop, 13, 12, Palette.TEAL)
+	pen.r(x + 1, y + 1 - pop, 11, 1, Palette.TEAL_LIGHT)
+	pen.tex(BoosterArt.SWAP, x + 2, y + 1 - pop)
+	var aisle: AisleDefinition = page.run.balance.aisle_of(page.run.starter.core_cards[k])
+	if aisle == null:
+		return
+	var ramp: Array[Color] = BoosterArt.ramp(aisle.id)
+	pen.rn(x + 14, y - pop, 13, 12, ramp[1])
+	pen.r(x + 15, y + 1 - pop, 11, 1, ramp[0])
+	var glyph: Texture2D = BoosterArt.glyph(aisle.id)
+	if glyph != null:
+		pen.tex(glyph, x + 16, y + 1 - pop)
 
 
 ## The window's dawn across the crate's front (additive layer).
 static func crate_glow(pen: ArtPen, _page: BoosterPage) -> void:
 	for y: int in range(205, 231):
 		pen.d(5 + roundf((y - 205) * 1.2), y + DY, 92, 1, Palette.MUSTARD_DARKEST, 4)
-
-
-## Over the scene: the swap tray, or the hovered regular's card in a pop-up.
-static func pop(pen: ArtPen, page: BoosterPage) -> void:
-	if page.tray_slot >= 0:
-		_tray(pen, page)
-		return
-	for k: int in page.run.starter.core_cards.size():
-		if page.is_hovered("reg%d" % k):
-			var x: float = 46
-			var y: float = 46
-			pen.nine(
-				BoosterArt.POPUP,
-				x - 4,
-				y - 4,
-				BoosterArt.CW + 8,
-				BoosterArt.CH + 8,
-				Vector4i(4, 4, 4, 4)
-			)
-			BoosterCardDraw.draw(pen, page.run.starter.core_cards[k], false, x, y, {"still": true})
-
-
-## The tray's width for `count` offers.
-static func tray_width(count: int) -> float:
-	return maxf(16 + 3 * MINI_W + 2 * MINI_GAP, 16 + count * MINI_W + (count - 1) * MINI_GAP)
-
-
-static func _tray(pen: ArtPen, page: BoosterPage) -> void:
-	var aisles: Array[AisleDefinition] = page.counter.tray_aisles()
-	if aisles.is_empty():
-		return
-	var tab: int = clampi(page.tray_tab, 0, aisles.size() - 1)
-	var aisle: AisleDefinition = aisles[tab]
-	var offer: Array[CardDefinition] = page.counter.tray_offer(tab)
-	var used: int = _swaps_from(page, aisle)
-	var n: int = offer.size()
-	var w: float = tray_width(n)
-	var x: float = TRAY_RECT.position.x
-	var y: float = TRAY_RECT.position.y
-	var h: float = TRAY_RECT.size.y
-	var mx0: float = x + roundf((w - (n * MINI_W + (n - 1) * MINI_GAP)) / 2.0)
-	pen.nine(BoosterArt.POPUP, x, y, w, h, Vector4i(4, 4, 4, 4))
-	var regular: CardDefinition = page.run.starter.core_cards[page.tray_slot]
-	pen.pix("SWAP %s FOR" % regular.display_name.to_upper(), x + 8, y + 7, Palette.INK)
-	var tx: float = x + 8
-	for k: int in aisles.size():
-		var on: bool = k == tab
-		pen.nine(
-			BoosterArt.sign_frame(aisles[k].id),
-			tx,
-			y + 18 - (2 if on else 0),
-			22,
-			14 + (2 if on else 0),
-			Vector4i(3, 3, 3, 3)
-		)
-		pen.tex(BoosterArt.glyph(aisles[k].id), tx + 6, y + 21 - (1 if on else 0))
-		tx += 24
-	pen.pix(BoosterArt.short_name(aisle), tx + 4, y + 22, Palette.TEAL_SHADE)
-	var limit: int = page.run.balance.staple_swap_aisle_max
-	for k: int in n:
-		var mx: float = mx0 + k * (MINI_W + MINI_GAP)
-		var my: float = y + 38
-		var mh: float = 90
-		var reason: StringName = StartSetupRules.swap_block(
-			page.run, page.profile, page.tray_slot, offer[k]
-		)
-		var blocked: bool = reason == &"copies"
-		var full: bool = reason != &"" and not blocked
-		var hv: float = 2.0 if page.is_hovered("mini%d" % k) and not (blocked or full) else 0.0
-		pen.nine(BoosterArt.RECEIPT, mx, my - hv, MINI_W, mh, Vector4i(2, 2, 2, 2))
-		pen.tex(_sprite(offer[k]), mx + 10, my + 2 - hv)
-		if blocked or full:
-			pen.d(mx + 1, my + 1, MINI_W - 2, 50, Palette.PAPER, 10)
-		var lines: PackedStringArray = ArtPen.pix_wrap(offer[k].display_name.to_upper(), MINI_W - 6)
-		for j: int in mini(2, lines.size()):
-			pen.pix(
-				lines[j],
-				mx + MINI_W / 2.0,
-				my + 54 + j * 9 - hv,
-				Palette.INK,
-				1.0,
-				HORIZONTAL_ALIGNMENT_CENTER
-			)
-		if blocked:
-			pen.caps(
-				"%d IN CART" % page.run.starter.copy_max,
-				mx + MINI_W / 2.0,
-				my + mh - 10,
-				Palette.TOMATO,
-				1.0,
-				HORIZONTAL_ALIGNMENT_CENTER
-			)
-		else:
-			pen.chunky(
-				"%d€" % offer[k].base,
-				mx + MINI_W / 2.0,
-				my + mh - 12 - hv,
-				Palette.INK,
-				1.0,
-				HORIZONTAL_ALIGNMENT_CENTER
-			)
-	if used >= limit:
-		pen.caps(
-			"%d SWAPS FROM %s: THE MOST FROM ONE AISLE" % [limit, BoosterArt.short_name(aisle)],
-			x + 8,
-			y + h - 11,
-			Palette.TOMATO_DARK
-		)
-
-
-static func _swaps_from(page: BoosterPage, aisle: AisleDefinition) -> int:
-	var count: int = 0
-	var cards: Array[CardDefinition] = page.run.starter.core_cards
-	for k: int in cards.size():
-		if (
-			cards[k] != page.run.start_setup.originals[k]
-			and page.run.balance.aisle_of(cards[k]) == aisle
-		):
-			count += 1
-	return count
 
 
 ## RETURN THIS ONE: a chase of brass dots round each returnable fan while RESTOCK is armed.
@@ -317,22 +245,41 @@ static func _plate(
 		pen.tex(BoosterArt.TICK, x - 7, y + 4)
 
 
+## The counter's plates: the regulars' (SWAP REGULARS with its ⇄ chip and the swaps left as
+## "⇄ N"; a padlock while none is unlocked) and each booster's.
 static func counter_plates(pen: ArtPen, page: BoosterPage) -> void:
-	var completed: int = _completed(page).size()
+	var button: bool = crate_button(page)
+	var live: bool = page.swap.is_live()
+	var limit: int = page.counter.swap_limit()
 	var label: String = "YOUR REGULARS"
-	if completed >= 1 and not page.counter.swaps_live():
-		label = "SWAP AFTER OPENING"
-	pen.nine(BoosterArt.PLATE, 6, 241 + DY, 152, 17, Vector4i(4, 4, 4, 4))
-	pen.pix(label, 10, 246 + DY, Palette.INK)
-	if completed >= 1:
-		var n: int = page.counter.swap_limit()
-		var lx: float = 156 - 6 - n * 7 - 4
-		pen.nine(BoosterArt.LED, lx, 243 + DY, n * 7 + 6, 12, Vector4i(4, 4, 4, 4))
-		for k: int in n:
-			pen.r(lx + 3 + k * 7, 246 + DY, 5, 6, Palette.INK_LIGHT)
-			if k < n - page.counter.swaps_used():
-				pen.r(lx + 3 + k * 7, 246 + DY, 5, 6, Palette.GOLD)
-				pen.r(lx + 3 + k * 7, 246 + DY, 5, 1, Palette.MUSTARD_PALE)
+	if button and limit > 0:
+		label = "SWAP REGULARS" if live else "SWAP AFTER OPENING"
+	var plate_lit: bool = button and live and page.is_hovered("crate")
+	pen.nine(
+		BoosterArt.PLATE_LIT if plate_lit else BoosterArt.PLATE,
+		6,
+		241 + DY,
+		152,
+		17,
+		Vector4i(4, 4, 4, 4)
+	)
+	if button and limit > 0 and live:
+		pen.rn(9, 243 + DY, 13, 13, Palette.TEAL_LIGHT if plate_lit else Palette.TEAL)
+		pen.r(10, 244 + DY, 11, 1, Palette.TEAL_PALE)
+		pen.tex(BoosterArt.SWAP, 11, 244 + DY)
+		pen.pix(label, 26, 246 + DY, Palette.INK)
+	else:
+		pen.pix(label, 10, 246 + DY, Palette.INK)
+	if limit < 1 and button:
+		pen.tex(BoosterArt.PADLOCK, 144, 244 + DY)
+	if limit >= 1:
+		var left: int = maxi(0, limit - page.counter.swaps_used())
+		var count: String = str(left)
+		var lw: float = 9 + 3 + ArtPen.word_texture(count, Palette.GOLD, true).get_width() + 8
+		var lx: float = 154 - lw
+		pen.nine(BoosterArt.LED, lx, 243 + DY, lw, 12, Vector4i(4, 4, 4, 4))
+		pen.tex(BoosterArt.SWAP, lx + 3, 244 + DY)
+		pen.chunky(count, lx + 15, 245 + DY, Palette.GOLD if left > 0 else Palette.TOMATO)
 	var picking: bool = page.openings.pick_layout()
 	for b: BoosterOpening in page.boosters:
 		if b.state == BoosterOpening.State.GONE or (b.sink_t != INF and page.now > b.sink_t + 0.3):
@@ -419,7 +366,7 @@ static func tote(pen: ArtPen, page: BoosterPage) -> void:
 		pen.r(tx + 1, ty + 1, tw - 2, 1, Palette.PAPER)
 
 
-## Over the bay: the old cards flying into the tote, RESTOCK's key, and the floor row.
+## Over the bay: the old cards flying into the tote, and the floor row with RESTOCK's key.
 static func front_top(pen: ArtPen, page: BoosterPage) -> void:
 	_tote_cards(pen, page)
 	_restock_key(pen, page)
@@ -471,43 +418,61 @@ static func _tote_cards(pen: ArtPen, page: BoosterPage) -> void:
 			)
 
 
+## RESTOCK's key on the floor row: teal with a brass refresh glyph when ready, lit under the
+## pointer, brass and pressed in while armed (its glyph turning; a second click cancels), grey
+## once used; hidden while locked or picking.
 static func _restock_key(pen: ArtPen, page: BoosterPage) -> void:
-	if page.openings.pick_layout():
+	if not key_shown(page):
 		return
 	var k: Rect2 = key_rect()
-	var unlocked: bool = page.counter.restock_unlocked()
 	var used: bool = page.counter.restock_block() == &"used"
 	var armed: bool = page.restock_armed
-	var hv: bool = page.is_hovered("restock") and unlocked and not used
+	var hv: bool = page.is_hovered("restock") and not used
 	var down: float = 2 if armed else 0
-	var frame: Texture2D = BoosterArt.KEY
-	if not unlocked or used:
-		frame = BoosterArt.KEY_OFF
-	elif hv or armed:
-		frame = BoosterArt.KEY_LIT
-	pen.nine(
-		frame, k.position.x, k.position.y + down, k.size.x, k.size.y - down, Vector4i(3, 7, 3, 4)
-	)
-	pen.pix(
-		"RESTOCK",
-		k.position.x + 5,
-		k.position.y + 5 + down,
-		Palette.STEEL_SHADE if not unlocked or used else Palette.INK
-	)
-	var slot: float = k.end.x - 13
-	if not unlocked:
-		pen.tex(BoosterArt.PADLOCK, slot, k.position.y + 4 + down)
+	var x: float = k.position.x
+	var y: float = k.position.y + down
+	var h: float = k.size.y - down
+	var ink: Color = Palette.PAPER
+	var glyph_ink: Color = Palette.MUSTARD_PALE if hv else Palette.GOLD
+	var sub_ink: Color = Palette.TEAL_PALE
+	var sub: String = "ONCE A RUN"
+	if used:
+		pen.nine(BoosterArt.KEY_OFF, x, y, k.size.x, h, Vector4i(3, 7, 3, 4))
+		ink = Palette.STEEL_DARK
+		glyph_ink = Palette.STEEL_DARK
+		sub_ink = Palette.STEEL_DARK
+		sub = "USED"
+	elif armed:
+		pen.nine(BoosterArt.KEY_BRASS, x, y, k.size.x, h, Vector4i(3, 8, 3, 4))
+		ink = Palette.INK
+		glyph_ink = Palette.VELVET_DARKEST
+		sub_ink = Palette.VELVET_DARKEST
+		sub = "CANCEL"
 	else:
-		pen.nine(BoosterArt.COIN_LED, slot + 1, k.position.y + 6 + down, 7, 7, Vector4i(1, 1, 1, 1))
-		if not used:
-			var blink: bool = armed and int(floorf(page.now / 0.15)) % 2 == 1
-			pen.r(
-				slot + 2,
-				k.position.y + 7 + down,
-				5,
-				5,
-				Palette.MUSTARD_PALE if blink else Palette.GOLD
-			)
+		var frame: Texture2D = BoosterArt.BUTTON_TEAL_LIT if hv else BoosterArt.BUTTON_TEAL
+		pen.nine(frame, x, y, k.size.x, h, Vector4i(3, 3, 3, 3))
+	var turn: bool = armed and not page.rm and int(floorf(page.now / 0.12)) % 2 == 1
+	refresh_glyph(pen, x + 6, y + roundf((h - 9) / 2.0), glyph_ink, turn)
+	var tx: float = x + 6 + BoosterArt.REFRESH_GLYPH.size() + 5
+	var tw: float = k.end.x - 7 - tx
+	pen.pix("RESTOCK", tx + tw / 2.0, y + 5, ink, 1.0, HORIZONTAL_ALIGNMENT_CENTER)
+	pen.caps(sub, tx + tw / 2.0, y + h - 9, sub_ink, 1.0, HORIZONTAL_ALIGNMENT_CENTER)
+	if hv and not armed:
+		pen.tex(BoosterArt.TICK, x - 7, k.position.y + k.size.y / 2.0 - 3)
+
+
+## The refresh glyph (BoosterArt.REFRESH_GLYPH) at art (`x`, `y`), one art px a dot; `turn`
+## draws it a quarter turn round (a turning glyph alternates the two).
+static func refresh_glyph(pen: ArtPen, x: float, y: float, colour: Color, turn: bool) -> void:
+	var rows: Array[String] = BoosterArt.REFRESH_GLYPH
+	var n: int = rows.size()
+	for row: int in n:
+		for column: int in n:
+			var dot: bool = rows[row][column] == "#"
+			if turn:
+				dot = rows[n - 1 - column][row] == "#"
+			if dot:
+				pen.r(x + column, y + row, 1, 1, colour)
 
 
 static func _title_plate(pen: ArtPen, page: BoosterPage) -> void:
@@ -528,7 +493,7 @@ static func _title_plate(pen: ArtPen, page: BoosterPage) -> void:
 
 
 static func _hint_led(pen: ArtPen, page: BoosterPage) -> void:
-	var r: Rect2i = BoosterArt.HINT_RECT
+	var r: Rect2 = hint_rect(page)
 	var cx: float = r.position.x + r.size.x / 2.0
 	pen.nine(BoosterArt.LED, r.position.x, r.position.y, r.size.x, r.size.y, Vector4i(4, 4, 4, 4))
 	var line: String = page.hint_line()
@@ -541,63 +506,27 @@ static func _hint_led(pen: ArtPen, page: BoosterPage) -> void:
 		pen.r(cx + ArtPen.pix_width(shown) / 2.0 + 2, r.position.y + 6, 3, 7, Palette.GOLD)
 
 
-## The primary key: its label, its sub-label, chase bulbs once NEXT is armed, the Space hold ring.
+## The primary key: its label, its sub-label, the press-bob once NEXT is armed (primary_lift;
+## v1.32 feedback: no chase bulbs; the label rides the lifted face), the Space hold ring.
 static func _primary(pen: ArtPen, page: BoosterPage) -> void:
-	var r: Rect2i = BoosterArt.PRIMARY_RECT
+	var r: Rect2 = Rect2(BoosterArt.PRIMARY_RECT)
 	var label: Array = page.primary_label()
 	var enabled: bool = label[2]
 	var x: float = r.position.x
 	var y: float = r.position.y
 	var w: float = r.size.x
 	var h: float = r.size.y
+	var lift: int = primary_lift(page)
 	var hv: bool = page.is_hovered("primary") and enabled
 	var sh: float = 2 if hv and not page.rm else 0
-	var armed_t: float = page.complete_t + 0.3
-	if page.page_done() and not page.restock_armed and page.now >= armed_t:
-		pen.r(x - 6, y - 6, w + 12, h + 12, Palette.INK)
-		pen.r(x - 5, y - 5, w + 10, h + 10, Palette.VELVET_DARKEST)
-		var u: float = page.now - armed_t
-		var bulbs: Array[Vector2] = []
-		var i: float = 0
-		while i < w + 6:
-			bulbs.append(Vector2(x - 3 + i, y - 4))
-			i += 5
-		i = 0
-		while i < h + 6:
-			bulbs.append(Vector2(x + w + 2, y - 3 + i))
-			i += 5
-		i = w + 3
-		while i > -3:
-			bulbs.append(Vector2(x + i, y + h + 2))
-			i -= 5
-		i = h + 3
-		while i > -3:
-			bulbs.append(Vector2(x - 4, y + i))
-			i -= 5
-		for k: int in bulbs.size():
-			var on: bool = true
-			if not page.rm:
-				on = (
-					(k + int(floorf(u * 12))) % 3 == 0
-					if u < 0.6
-					else (k + int(floorf(u * 3))) % 2 == 0
-				)
-			pen.r(bulbs[k].x, bulbs[k].y, 2, 2, Palette.GOLD if on else Palette.BRASS_DARK)
-			if on:
-				pen.r(bulbs[k].x, bulbs[k].y, 1, 1, Palette.MUSTARD_PALE)
-	pen.nine(
-		BoosterArt.BUTTON if enabled else BoosterArt.BUTTON_TEAL,
-		x + sh,
-		y,
-		w,
-		h,
-		Vector4i(3, 3, 3, 3)
+	BoosterPageDraw.lifted_key(
+		pen, BoosterArt.BUTTON if enabled else BoosterArt.BUTTON_TEAL, x + sh, y, w, h, lift
 	)
 	var sub: String = label[1]
 	pen.pix(
 		label[0],
 		x + sh + w / 2.0,
-		y + 5,
+		y - lift + 5,
 		Palette.PAPER if enabled else Palette.TEAL_PALE,
 		1.0,
 		HORIZONTAL_ALIGNMENT_CENTER
@@ -605,7 +534,7 @@ static func _primary(pen: ArtPen, page: BoosterPage) -> void:
 	pen.caps(
 		sub,
 		x + sh + w / 2.0,
-		y + h - 9,
+		y - lift + h - 9,
 		Palette.MUSTARD_PALE if enabled else Palette.TEAL_PALE,
 		1.0,
 		HORIZONTAL_ALIGNMENT_CENTER
@@ -831,22 +760,15 @@ static func hits(page: BoosterPage) -> Array[Dictionary]:
 		return list
 	if page.page_done():
 		list.append(_hit(Rect2(240, 7, 82, 20), "tab2", page.press_next))
-	for k: int in page.run.starter.core_cards.size():
-		list.append(
-			_hit(
-				Rect2(regular_x(k) + 4, 168 + DY, 30, 40),
-				"reg%d" % k,
-				page.counter.click_regular.bind(k)
-			)
-		)
+	if crate_button(page):
+		list.append(_hit(CRATE_RECT, "crate", page.swap.open_window.bind(false)))
+		list.append(_hit(Rect2(6, 241 + DY, 152, 17), "crate", page.swap.open_window.bind(false)))
 	for b: BoosterOpening in page.boosters:
 		_booster_hits(page, b, list)
-	if not page.openings.pick_layout():
+	if key_shown(page):
 		list.append(_hit(key_rect(), "restock", page.counter.arm_restock))
 	list.append(_hit(Rect2(BoosterArt.TITLE_RECT), "title", page.press_title))
 	list.append(_hit(Rect2(BoosterArt.PRIMARY_RECT), "primary", page.primary.bind("click")))
-	if page.tray_slot >= 0:
-		_tray_hits(page, list)
 	return list
 
 
@@ -892,35 +814,6 @@ static func _booster_hits(page: BoosterPage, b: BoosterOpening, list: Array[Dict
 				Rect2(p0.x, p0.y - 8, BoosterArt.FAN_STEP * 2 + BoosterArt.CW, BoosterArt.CH + 16),
 				"rcards%d" % b.index,
 				page.counter.restock.bind(b.index)
-			)
-		)
-
-
-static func _tray_hits(page: BoosterPage, list: Array[Dictionary]) -> void:
-	var aisles: Array[AisleDefinition] = page.counter.tray_aisles()
-	var offer: Array[CardDefinition] = page.counter.tray_offer(page.tray_tab)
-	var w: float = tray_width(offer.size())
-	var x: float = TRAY_RECT.position.x
-	var y: float = TRAY_RECT.position.y
-	list.append(_hit(Rect2(x, y, w, TRAY_RECT.size.y), "tray", Callable()))
-	for k: int in aisles.size():
-		list.append(
-			_hit(
-				Rect2(x + 8 + k * 24, y + 16, 22, 16),
-				"ttab%d" % k,
-				page.counter.set_tray_tab.bind(k)
-			)
-		)
-	var n: int = offer.size()
-	var mx0: float = x + roundf((w - (n * MINI_W + (n - 1) * MINI_GAP)) / 2.0)
-	for k: int in n:
-		if StartSetupRules.swap_block(page.run, page.profile, page.tray_slot, offer[k]) != &"":
-			continue
-		list.append(
-			_hit(
-				Rect2(mx0 + k * (MINI_W + MINI_GAP), y + 38, MINI_W, 90),
-				"mini%d" % k,
-				page.counter.swap_to.bind(k, "click")
 			)
 		)
 

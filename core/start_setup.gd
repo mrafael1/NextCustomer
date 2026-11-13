@@ -7,18 +7,20 @@ extends RefCounted
 ##
 ## `stage` only moves forward: SELECT (set up, nothing dealt yet: a new run is dealt at once, so
 ## no save waits here in practice), DEALT (the boosters and the pack offer are dealt, the boosters
-## sealed until opened), BUILD (page 2 was opened once). `stock_aisles` are today's aisles: the
-## STARTER CART (green) aisles first, in data order, then the RUN ONLY (orange) one. `boosters`
-## are the dealt boosters in board order: one per green aisle, plus, from
-## pair_choice_min_completed completed aisles, one more of an aisle not stocked today (PICK 2 OF
-## 3, start_booster_choice_count in all). A booster counts (active_boosters) while its aisle is
-## one of today's and it is not SOLD OUT: while the pick is pending (picking) the seeded pair
-## stands for today's stock; once picked, the other one is SOLD OUT and the picked pair is
-## today's green aisles. `regular_offers` holds each regular slot's offer from one aisle
-## ("<slot>:<aisle id>" → cards, data order), kept the first time it is shown so reopening never
-## rerolls it. `packs_redrawn`: NEW PACKS was used. `pins_confirmed`: the BADGE PINS step was
-## confirmed (the packs wait for it while the profile owns a pin). `originals` are the recipe's
-## own regulars, `completed_count` the completed aisles when the run started. A saved form without
+## sealed until opened), BUILD (page 2 was opened once). `stock_aisles` are the run's aisles, in
+## data order: the dealt_aisle_count aisles of its boosters, the only aisles the run stocks (v1.32
+## feedback, 2026-11-13). `boosters` are the dealt boosters in board order: one per stocked aisle,
+## plus, from pair_choice_min_completed completed aisles, one more of an aisle not stocked (PICK 2
+## OF 3, start_booster_choice_count in all). A booster counts (active_boosters) while its aisle is
+## stocked and it is not SOLD OUT: while the pick is pending (picking) the seeded pair stands for
+## the stock; once picked, the other one is SOLD OUT and the picked pair is the run's stock.
+## `swap_offers` holds the swap window's booster of each stocked aisle (aisle id → up to
+## regular_offer_max plain products of that aisle, those the copy limit lets in first; v1.32 swap
+## window, 2026-11-13), kept the first time the window shows them so reopening it (or a resume)
+## never rerolls them; `swap_opened` the aisles whose swap booster is open. `packs_redrawn`: NEW
+## PACKS was used. `pins_confirmed`: the BADGE PINS step was confirmed (the packs wait for it
+## while the profile owns a pin). `originals` are the recipe's own regulars, `completed_count` the
+## completed aisles when the run started. A saved form without
 ## `boosters` is an older one (the first build's, or v1.07's three baskets, is_old_format): a run
 ## waiting for its pick restarts its setup instead of converting it (RunSave).
 
@@ -31,20 +33,11 @@ var stock_aisles: Array[StringName] = []
 var completed_count: int = 0
 var originals: Array[CardDefinition] = []
 var boosters: Array[StartBooster] = []
-var regular_offers: Dictionary[String, Array] = {}
+var swap_offers: Dictionary[String, Array] = {}
+var swap_opened: Array[StringName] = []
 var packs_redrawn: bool = false
 var picked: StringName = &""
 var pins_confirmed: bool = false
-
-
-## The STARTER CART (green) aisles, data order.
-func green_ids(balance: BalanceDefinition) -> Array[StringName]:
-	return stock_aisles.slice(0, balance.dealt_aisle_count)
-
-
-## The RUN ONLY (orange) aisles.
-func run_only_ids(balance: BalanceDefinition) -> Array[StringName]:
-	return stock_aisles.slice(balance.dealt_aisle_count)
 
 
 ## Whether PICK 2 OF 3 is pending: a booster of an aisle not stocked today, none SOLD OUT yet.
@@ -97,14 +90,16 @@ func restock_booster() -> int:
 	return -1
 
 
-## The key of regular `slot`'s offer from aisle `aisle_id` in regular_offers.
-static func offer_key(slot: int, aisle_id: StringName) -> String:
-	return "%d:%s" % [slot, aisle_id]
+## The saved swap booster of aisle `aisle_id` (empty when not shown yet).
+func swap_offer(aisle_id: StringName) -> Array[CardDefinition]:
+	var offer: Array[CardDefinition] = []
+	offer.assign(swap_offers.get(String(aisle_id), []))
+	return offer
 
 
-## Slot `slot`'s saved offer from `aisle_id` (empty when not shown yet).
-func regular_offer(slot: int, aisle_id: StringName) -> Array[CardDefinition]:
-	return regular_offer_from(offer_key(slot, aisle_id))
+## Whether the swap window has shown aisle `aisle_id`'s booster (its offer is saved).
+func has_swap_offer(aisle_id: StringName) -> bool:
+	return swap_offers.has(String(aisle_id))
 
 
 func stage_name() -> String:
@@ -116,26 +111,23 @@ func to_dictionary() -> Dictionary:
 	for booster: StartBooster in boosters:
 		saved_boosters.append(booster.to_dictionary())
 	var offers: Dictionary = {}
-	for key: String in regular_offers:
-		offers[key] = _ids(regular_offer_from(key))
+	for key: String in swap_offers:
+		offers[key] = _ids(swap_offer(StringName(key)))
+	var opened: Array[String] = []
+	for id: StringName in swap_opened:
+		opened.append(String(id))
 	return {
 		"stage": stage_name(),
 		"stock_aisles": Array(stock_aisles),
 		"completed_count": completed_count,
 		"originals": _ids(originals),
 		"boosters": saved_boosters,
-		"regular_offers": offers,
+		"swap_offers": offers,
+		"swap_opened": opened,
 		"packs_redrawn": packs_redrawn,
 		"picked": String(picked),
 		"pins_confirmed": pins_confirmed,
 	}
-
-
-## The saved offer under regular_offers key `key` (empty when missing).
-func regular_offer_from(key: String) -> Array[CardDefinition]:
-	var offer: Array[CardDefinition] = []
-	offer.assign(regular_offers.get(key, []))
-	return offer
 
 
 ## A copy holding the same choices (a caller's snapshot for rolling a failed save back).
@@ -147,8 +139,9 @@ func copy() -> StartSetup:
 	other.originals = originals.duplicate()
 	for booster: StartBooster in boosters:
 		other.boosters.append(booster.copy())
-	for key: String in regular_offers:
-		other.regular_offers[key] = regular_offer_from(key)
+	for key: String in swap_offers:
+		other.swap_offers[key] = swap_offer(StringName(key))
+	other.swap_opened = swap_opened.duplicate()
 	other.packs_redrawn = packs_redrawn
 	other.picked = picked
 	other.pins_confirmed = pins_confirmed
@@ -187,21 +180,22 @@ static func from_dictionary(data: Dictionary, lookup: ContentLookup) -> StartSet
 		booster.restocked = booster_reader.flag("restocked")
 		reader.ok = reader.ok and booster_reader.ok
 		setup.boosters.append(booster)
-	var offers: Variant = data.get("regular_offers")
+	var offers: Variant = data.get("swap_offers")
 	if not offers is Dictionary:
 		return null
 	var offers_reader: SaveReader = SaveReader.new(offers as Dictionary, lookup)
 	for key: Variant in (offers as Dictionary).keys():
 		if not key is String:
 			return null
-		setup.regular_offers[key as String] = offers_reader.cards(key as String)
+		setup.swap_offers[key as String] = offers_reader.cards(key as String)
+	setup.swap_opened = reader.aisles("swap_opened")
 	if not reader.ok or not offers_reader.ok or stage_index == -1:
 		return null
 	return setup if setup._is_valid(lookup.balance) else null
 
 
 func _is_valid(balance: BalanceDefinition) -> bool:
-	var size: int = mini(balance.stock_aisle_count, balance.aisles.size())
+	var size: int = mini(balance.dealt_aisle_count, balance.aisles.size())
 	var valid: bool = stock_aisles.size() == size and _distinct(stock_aisles)
 	valid = valid and completed_count <= balance.aisles.size() and _offers_valid(balance)
 	if stage == Stage.SELECT:
@@ -211,15 +205,16 @@ func _is_valid(balance: BalanceDefinition) -> bool:
 			and not packs_redrawn
 			and picked == &""
 			and not pins_confirmed
+			and swap_offers.is_empty()
 		)
 	return valid and _boosters_valid(balance)
 
 
-## The boosters: one per green aisle, plus the PICK 2 OF 3 extras from pair_choice_min_completed
-## (aisles not stocked today); each booster valid (_booster_valid) and flagged consistently
-## (_flags_valid); the active ones today's green aisles.
+## The boosters: one per stocked aisle, plus the PICK 2 OF 3 extras from
+## pair_choice_min_completed (aisles not stocked today); each booster valid (_booster_valid) and
+## flagged consistently (_flags_valid); the active ones the stocked aisles.
 func _boosters_valid(balance: BalanceDefinition) -> bool:
-	var green: Array[StringName] = green_ids(balance)
+	var green: Array[StringName] = stock_aisles
 	var most: int = green.size()
 	var choice: bool = balance.pair_choice_min_completed > 0
 	if choice and completed_count >= balance.pair_choice_min_completed:
@@ -228,7 +223,7 @@ func _boosters_valid(balance: BalanceDefinition) -> bool:
 		return false
 	var aisles: Array[StringName] = []
 	for booster: StartBooster in boosters:
-		if aisles.has(booster.aisle) or run_only_ids(balance).has(booster.aisle):
+		if aisles.has(booster.aisle):
 			return false
 		aisles.append(booster.aisle)
 		if not _booster_valid(balance, booster):
@@ -285,26 +280,35 @@ static func _booster_valid(balance: BalanceDefinition, booster: StartBooster) ->
 	return true
 
 
+## The swap boosters: one per stocked aisle at most, each at most regular_offer_max distinct
+## plain-tier products of its aisle; only a shown booster (its offer saved) can be open.
 func _offers_valid(balance: BalanceDefinition) -> bool:
-	for key: String in regular_offers:
-		var parts: PackedStringArray = key.split(":")
-		if parts.size() != 2 or not parts[0].is_valid_int():
-			return false
-		var slot: int = parts[0].to_int()
-		if slot < 0 or slot >= originals.size():
-			return false
+	for key: String in swap_offers:
 		var aisle: AisleDefinition = null
 		for candidate: AisleDefinition in balance.aisles:
-			if String(candidate.id) == parts[1]:
+			if String(candidate.id) == key:
 				aisle = candidate
-		var offer: Array[CardDefinition] = regular_offer_from(key)
-		if aisle == null or offer.size() > balance.regular_offer_max:
+		if not stock_aisles.has(StringName(key)) or aisle == null:
 			return false
-		for card: CardDefinition in offer:
-			if offer.count(card) != 1:
-				return false
-			if not aisle.base_cards.has(card) and not aisle.capsule_cards.has(card):
-				return false
+		if not _offer_valid(swap_offer(StringName(key)), aisle, balance.regular_offer_max):
+			return false
+	for id: StringName in swap_opened:
+		if swap_opened.count(id) != 1 or not swap_offers.has(String(id)):
+			return false
+	return true
+
+
+## Whether `offer` holds at most `most` distinct plain-tier products of `aisle`.
+static func _offer_valid(offer: Array[CardDefinition], aisle: AisleDefinition, most: int) -> bool:
+	if offer.size() > most:
+		return false
+	for card: CardDefinition in offer:
+		var plain: bool = card.is_product() and card.variant_of == null
+		plain = plain and card.tier == CardDefinition.Tier.PLAIN
+		if offer.count(card) != 1 or not plain:
+			return false
+		if not aisle.base_cards.has(card) and not aisle.capsule_cards.has(card):
+			return false
 	return true
 
 

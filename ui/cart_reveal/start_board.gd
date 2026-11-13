@@ -128,7 +128,7 @@ func say(text: String) -> void:
 
 
 func _next_pressed() -> void:
-	if store.page_done():
+	if store.page_done() and not store.swap.active:
 		show_page(2, "click")
 
 
@@ -148,7 +148,6 @@ func show_page(next_page: int, key: String = "click") -> void:
 	if next_page == page or next_page not in [1, 2]:
 		return
 	store.restock_armed = false
-	store.tray_slot = -1
 	if next_page == 2 and run.start_setup.stage == StartSetup.Stage.DEALT:
 		_choice.mark_build.call()
 	var before: int = page

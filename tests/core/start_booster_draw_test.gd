@@ -21,7 +21,7 @@ func test_the_hit_card_is_rare_about_half_the_time_and_never_golden() -> void:
 	assert_int(_balance.start_booster_hit_rare_percent).is_equal(50)
 	assert_int(_balance.start_booster_hit_slots).is_equal(1)
 	var run: RunState = Kit.run(Kit.profile(3), SEED)
-	var aisle: StringName = run.start_setup.green_ids(_balance)[0]
+	var aisle: StringName = run.start_setup.stock_aisles[0]
 	var pool: Array[CardDefinition] = StartBoosterDraw.pool(run, Kit.profile(3), aisle)
 	assert_int(pool.size()).is_greater(_balance.start_booster_size)
 	var rng: RandomNumberGenerator = EventLogService.derived_stream(SEED, "test_hits")

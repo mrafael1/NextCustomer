@@ -32,9 +32,10 @@ var _has_saved_run: bool = false
 var _can_save: bool = true
 
 
-## `has_saved_run`: a run is saved (or in progress, for the debug tools), so a draw's item rides
-## the runs after it. `saves_allowed`: false when the profile can't be saved (unreadable and kept,
-## SaveService.can_save_profile; or the ended run's profile save failed): the machines start OFF.
+## `has_saved_run`: a run is saved (or in progress, for the debug tools), so a draw comes out at
+## its index (ProfileState.capsule_run_index). `saves_allowed`: false when the profile can't be
+## saved (unreadable and kept, SaveService.can_save_profile; or the ended run's profile save
+## failed): the machines start OFF.
 func _init(
 	profile_state: ProfileState,
 	saves: SaveService,

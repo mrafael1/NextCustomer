@@ -21,7 +21,7 @@ extends PanelContainer
 ##
 ## The Run info page shows the owned upgrades (each with its LOYALTY stamp ring), this shift's and
 ## the next shift's inspections (a warning sign on an inspected one), and the run's stock: every
-## item the RECEIPT REWARDS machine can offer, new arrivals with a NEW chip. Its shelves scroll.
+## item the RECEIPT REWARDS machine can offer. Its shelves scroll.
 ##
 ## Hovering an item opens the scan popup (ScanPopup, as on the machine's prizes) beside it with
 ## its rule text in full. The mix highlight (#105 piece 3, MixModel; mock-up readability v3's Cart)
@@ -452,10 +452,7 @@ func _fill_info_page(run: RunState) -> void:
 		if index % COLUMNS == 0:
 			shelf = DeckShelf.new(COLUMNS, GAP, false)
 			_info_page.add_child(shelf)
-		var cell: DeckCell = _cell(CardInstance.new(cards[index], 0), 1)
-		if run.stock.new_arrivals.has(cards[index]):
-			cell.add_new_mark()
-		shelf.put(cell, index % COLUMNS)
+		shelf.put(_cell(CardInstance.new(cards[index], 0), 1), index % COLUMNS)
 
 
 ## An owned upgrade: its LOYALTY stamp ring, its name and type, then its effect and condition.

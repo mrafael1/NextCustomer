@@ -1,7 +1,8 @@
 extends GdUnitTestSuite
 ## The run's stock (full build plan 7.2), on fixture aisles built here so tuning data/ never
 ## changes these tests: data order, the unlocked filter, the budget rule, the listable minimum,
-## new arrivals, and the same input giving the same stock.
+## no capsule item from an aisle the run doesn't stock (v1.32), and the same input giving the same
+## stock.
 ##
 ## Fixture: staples s1, s2, s3 (the balance's list also holds coupon c1 and repeats); coupon_pool
 ## c1, c2. Aisles in data order: dairy (base d1, d2, d3; capsules dk, d5, d6), bakery (base b1,
@@ -22,7 +23,6 @@ func test_a_new_profile_stocks_staples_base_aisles_then_coupons() -> void:
 	)
 	assert_array(stock.aisle_ids).is_equal([&"dairy", &"bakery"])
 	assert_bool(stock.list_skipped).is_true()
-	assert_array(stock.new_arrivals).is_empty()
 
 
 func test_stock_order_is_data_order_never_list_or_unlock_order() -> void:
@@ -31,7 +31,7 @@ func test_stock_order_is_data_order_never_list_or_unlock_order() -> void:
 	# Unlocked in reverse data order, listed in reverse data order.
 	var unlocked: Dictionary[StringName, int] = {&"b4": 0, &"bk": 0, &"d6": 0, &"dk": 0}
 	var listed: Array[StringName] = [&"bakery", &"dairy"]
-	var stock: RunStock = RunStock.build(balance, listed, unlocked, 1)
+	var stock: RunStock = RunStock.build(balance, listed, unlocked)
 	assert_bool(stock.list_skipped).is_false()
 	assert_array(stock.card_ids()).is_equal(
 		["s1", "s2", "s3", "d1", "d2", "d3", "dk", "d6", "b1", "b2", "bk", "b4", "c1", "c2"]
@@ -42,7 +42,7 @@ func test_stock_order_is_data_order_never_list_or_unlock_order() -> void:
 func test_only_unlocked_capsule_items_are_stocked() -> void:
 	# An id that names no capsule item (a base card, a staple, an unknown id) changes nothing.
 	var unlocked: Dictionary[StringName, int] = {&"d5": 0, &"d1": 0, &"s1": 0, &"nope": 0}
-	var stock: RunStock = RunStock.build(_balance(), [], unlocked, 9)
+	var stock: RunStock = RunStock.build(_balance(), [], unlocked)
 	assert_array(stock.card_ids()).is_equal(
 		["s1", "s2", "s3", "d1", "d2", "d3", "d5", "b1", "b2", "c1", "c2"]
 	)
@@ -58,7 +58,7 @@ func test_listable_aisles_within_the_budget_are_all_stocked_and_the_list_is_skip
 	var unlocked: Dictionary[StringName, int] = {&"fk": 0, &"f2": 0, &"f3": 0}
 	var listed: Array[StringName] = [&"bakery"]
 	assert_bool(RunStock.needs_list(balance, unlocked)).is_false()
-	var stock: RunStock = RunStock.build(balance, listed, unlocked, 10)
+	var stock: RunStock = RunStock.build(balance, listed, unlocked)
 	assert_bool(stock.list_skipped).is_true()
 	assert_array(stock.aisle_ids).is_equal([&"dairy", &"bakery"])
 
@@ -69,13 +69,13 @@ func test_over_the_budget_only_the_listed_aisles_are_stocked() -> void:
 	var unlocked: Dictionary[StringName, int] = {}
 	assert_bool(RunStock.needs_list(balance, unlocked)).is_true()
 	var listed: Array[StringName] = [&"bakery"]
-	var stock: RunStock = RunStock.build(balance, listed, unlocked, 0)
+	var stock: RunStock = RunStock.build(balance, listed, unlocked)
 	assert_bool(stock.list_skipped).is_false()
 	assert_array(stock.aisle_ids).is_equal([&"bakery"])
 	assert_array(stock.card_ids()).is_equal(["s1", "s2", "s3", "b1", "b2", "c1", "c2"])
 	# Unknown ids are ignored, and with no list only the staples and coupons are stocked.
 	var none: Array[StringName] = [&"nope"]
-	var bare: RunStock = RunStock.build(balance, none, unlocked, 0)
+	var bare: RunStock = RunStock.build(balance, none, unlocked)
 	assert_array(bare.card_ids()).is_equal(["s1", "s2", "s3", "c1", "c2"])
 	assert_array(bare.aisle_ids).is_empty()
 
@@ -90,15 +90,14 @@ func test_a_machine_opened_aisle_is_listable_once_it_holds_the_minimum() -> void
 	# Over the budget, a listed frozen aisle is stocked only once it is listable.
 	balance.aisle_stock_budget = 4
 	var listed: Array[StringName] = [&"frozen"]
-	# Listing it early stocks nothing of it: its recent items still come as new arrivals.
+	# Listing it early stocks nothing of it, not even items unlocked just before (v1.32).
 	var recent: Dictionary[StringName, int] = {&"fk": 47, &"f2": 48, &"f3": 49}
-	var early: RunStock = RunStock.build(balance, listed, recent, 50)
+	var early: RunStock = RunStock.build(balance, listed, recent)
 	assert_array(early.aisle_ids).is_empty()
-	assert_array(_ids(early.new_arrivals)).is_equal(["f3", "f2", "fk"])
-	assert_array(early.card_ids()).is_equal(["s1", "s2", "s3", "fk", "f2", "f3", "c1", "c2"])
-	var old: RunStock = RunStock.build(balance, listed, three, 50)
+	assert_array(early.card_ids()).is_equal(["s1", "s2", "s3", "c1", "c2"])
+	var old: RunStock = RunStock.build(balance, listed, three)
 	assert_array(old.card_ids()).is_equal(["s1", "s2", "s3", "c1", "c2"])
-	var listable: RunStock = RunStock.build(balance, listed, four, 50)
+	var listable: RunStock = RunStock.build(balance, listed, four)
 	assert_array(listable.aisle_ids).is_equal([&"frozen"])
 	assert_array(listable.card_ids()).is_equal(
 		["s1", "s2", "s3", "fk", "f2", "f3", "f4", "c1", "c2"]
@@ -115,14 +114,12 @@ func test_a_listable_machine_opened_aisle_counts_toward_the_budget() -> void:
 	assert_bool(RunStock.needs_list(balance, unlocked)).is_true()
 	balance.aisle_stock_budget = 9
 	assert_bool(RunStock.needs_list(balance, unlocked)).is_false()
-	var stock: RunStock = RunStock.build(balance, [], unlocked, 1)
+	var stock: RunStock = RunStock.build(balance, [], unlocked)
 	assert_bool(stock.list_skipped).is_true()
 	assert_array(stock.aisle_ids).is_equal([&"dairy", &"bakery", &"frozen"])
 	assert_array(stock.card_ids()).is_equal(
 		["s1", "s2", "s3", "d1", "d2", "d3", "b1", "b2", "fk", "f2", "f3", "f4", "c1", "c2"]
 	)
-	# Stocked whole, its items are never new arrivals.
-	assert_array(stock.new_arrivals).is_empty()
 
 
 func test_an_aisle_with_base_cards_is_always_listable() -> void:
@@ -136,68 +133,29 @@ func test_an_aisle_with_base_cards_is_always_listable() -> void:
 	)
 
 
-func test_new_arrivals_come_from_the_last_runs_of_unstocked_aisles() -> void:
+## v1.32 (the user, 2026-11-13): a capsule item is in a run only when the run stocks its aisle.
+## No item of an unstocked aisle is stocked, however recently it was unlocked (the end-cap's new
+## arrivals are gone), and every stocked aisle brings all its unlocked items, old or new.
+func test_capsule_items_of_unstocked_aisles_are_never_stocked() -> void:
 	var balance: BalanceDefinition = _balance()
 	balance.aisle_stock_budget = 4
-	# Run 10 is being built: runs 7, 8 and 9 are the window.
 	var unlocked: Dictionary[StringName, int] = {
-		&"dk": 6,  # too old
-		&"bk": 7,  # bakery is listed: never a new arrival
-		&"fk": 9,  # frozen isn't listable yet: rides the end-cap
-		&"d5": 7,
+		&"dk": 6,
+		&"bk": 7,
+		&"fk": 9,  # frozen isn't listable yet
+		&"d5": 9,  # unlocked after the run just before
 	}
 	var listed: Array[StringName] = [&"bakery"]
-	var stock: RunStock = RunStock.build(balance, listed, unlocked, 10)
-	assert_array(_ids(stock.new_arrivals)).is_equal(["fk", "d5"])
-	# Stocked after the listed aisles in data order (dairy before frozen), not newest first.
-	assert_array(stock.card_ids()).is_equal(
-		["s1", "s2", "s3", "b1", "b2", "bk", "d5", "fk", "c1", "c2"]
+	var stock: RunStock = RunStock.build(balance, listed, unlocked)
+	assert_array(stock.card_ids()).is_equal(["s1", "s2", "s3", "b1", "b2", "bk", "c1", "c2"])
+	for id: String in ["dk", "d5", "fk"]:
+		assert_bool(stock.cards.has(_fixture_card(id))).override_failure_message(id).is_false()
+	# Listed, dairy brings both its items, the old and the new.
+	var dairy: Array[StringName] = [&"dairy"]
+	var with_dairy: RunStock = RunStock.build(balance, dairy, unlocked)
+	assert_array(with_dairy.card_ids()).is_equal(
+		["s1", "s2", "s3", "d1", "d2", "d3", "dk", "d5", "c1", "c2"]
 	)
-
-
-func test_new_arrivals_are_capped_newest_first_and_later_draws_win_ties() -> void:
-	var balance: BalanceDefinition = _balance()
-	# Drawn in this order: fk and f2 after run 8, then d5, d6 and f3 after run 9.
-	var unlocked: Dictionary[StringName, int] = {&"fk": 8, &"f2": 8, &"d5": 9, &"d6": 9, &"f3": 9}
-	# Within the budget, dairy and bakery are stocked whole; frozen holds 3, not listable.
-	var stock: RunStock = RunStock.build(balance, [], unlocked, 10)
-	assert_array(_ids(stock.new_arrivals)).is_equal(["f3", "f2", "fk"])
-	balance.end_cap_max = 2
-	stock = RunStock.build(balance, [], unlocked, 10)
-	assert_array(_ids(stock.new_arrivals)).is_equal(["f3", "f2"])
-	assert_array(stock.card_ids().slice(-4)).is_equal(["f2", "f3", "c1", "c2"])
-
-
-## A known edge of the 7.2 rule (#63 review): coins are kept, so one visit can draw more
-## capsules from unlisted aisles than the end-cap holds. The earliest of them is then never
-## stocked, although the reveal said "In stock from your next run".
-func test_more_unlisted_draws_in_one_visit_than_the_end_cap_holds_drop_the_earliest() -> void:
-	var balance: BalanceDefinition = _balance()
-	balance.aisles.append(_new_aisle(&"deli", [], ["lk", "l2", "l3"]))
-	# One visit after run 9: frozen and deli each hold 2, so neither is listable.
-	var unlocked: Dictionary[StringName, int] = {&"fk": 9, &"f2": 9, &"lk": 9, &"l2": 9}
-	var first: RunStock = RunStock.build(balance, [], unlocked, 10)
-	assert_array(_ids(first.new_arrivals)).is_equal(["l2", "lk", "f2"])
-	for run_index: int in range(10, 14):
-		var stock: RunStock = RunStock.build(balance, [], unlocked, run_index)
-		(
-			assert_bool(stock.cards.has(_fixture_card("fk")))
-			. override_failure_message("run %d" % run_index)
-			. is_false()
-		)
-
-
-func test_a_capsule_is_playable_in_the_next_run_and_leaves_after_the_window() -> void:
-	var balance: BalanceDefinition = _balance()
-	var unlocked: Dictionary[StringName, int] = {&"fk": 4}
-	for run_index: int in range(0, 10):
-		var stock: RunStock = RunStock.build(balance, [], unlocked, run_index)
-		var expected: bool = run_index >= 5 and run_index <= 7
-		(
-			assert_bool(stock.cards.has(_fixture_card("fk")))
-			. override_failure_message("run %d" % run_index)
-			. is_equal(expected)
-		)
 
 
 func test_the_same_input_gives_the_same_stock() -> void:
@@ -205,11 +163,10 @@ func test_the_same_input_gives_the_same_stock() -> void:
 	balance.aisle_stock_budget = 4
 	var unlocked: Dictionary[StringName, int] = {&"fk": 8, &"dk": 9, &"bk": 9, &"f2": 9}
 	var listed: Array[StringName] = [&"dairy", &"bakery"]
-	var first: RunStock = RunStock.build(balance, listed, unlocked, 10)
-	var second: RunStock = RunStock.build(balance, listed, unlocked, 10)
+	var first: RunStock = RunStock.build(balance, listed, unlocked)
+	var second: RunStock = RunStock.build(balance, listed, unlocked)
 	assert_array(first.cards).is_equal(second.cards)
 	assert_array(first.aisle_ids).is_equal(second.aisle_ids)
-	assert_array(first.new_arrivals).is_equal(second.new_arrivals)
 	assert_bool(first.list_skipped).is_equal(second.list_skipped)
 	# Building reads its input and never changes it.
 	assert_array(listed).is_equal([&"dairy", &"bakery"])
@@ -292,10 +249,10 @@ func test_the_prefill_list() -> void:
 	assert_array(RunStock.machine_opened_listable(balance, base)).is_empty()
 
 
-## A capsule drawn on the results (the ended run's index) is a new arrival in the next 3 runs;
-## one drawn on the title while a run is saved (that run's index) in the 3 runs after it. A
-## base aisle's capsule is an aisle item from the next run on.
-func test_a_drawn_capsule_is_stocked_from_the_right_run() -> void:
+## A capsule drawn on the results or on the title (whatever its run index) is in every later
+## stock that holds its aisle and in none that doesn't: a frozen item (frozen not listable yet)
+## never, a dairy item only while dairy is stocked.
+func test_a_drawn_capsule_is_stocked_only_with_its_aisle() -> void:
 	var balance: BalanceDefinition = _balance()
 	var frozen: AisleDefinition = _aisle(balance, &"frozen")
 	var results: ProfileState = ProfileState.new()
@@ -308,17 +265,14 @@ func test_a_drawn_capsule_is_stocked_from_the_right_run() -> void:
 	title.run_count = 2
 	title.draw_capsule(frozen, 1, title.capsule_run_index(true), _rng(0))
 	var fk: CardDefinition = _fixture_card("fk")
-	for run_index: int in range(2, 8):
-		var stock: RunStock = RunStock.build(balance, [], results.unlocked_items, run_index)
-		var arrival: bool = run_index <= 4
-		assert_bool(stock.new_arrivals.has(fk)).override_failure_message(str(run_index)).is_equal(
-			arrival
-		)
-		assert_bool(stock.cards.has(_fixture_card("dk"))).is_true()
-		var later: RunStock = RunStock.build(balance, [], title.unlocked_items, run_index)
-		assert_bool(later.cards.has(fk)).override_failure_message(str(run_index)).is_equal(
-			run_index >= 3 and run_index <= 5
-		)
+	var dk: CardDefinition = _fixture_card("dk")
+	var stock: RunStock = RunStock.build(balance, [], results.unlocked_items)
+	assert_bool(stock.cards.has(fk)).is_false()
+	assert_bool(stock.cards.has(dk)).is_true()
+	assert_bool(RunStock.build(balance, [], title.unlocked_items).cards.has(fk)).is_false()
+	balance.aisle_stock_budget = 4
+	var bakery: Array[StringName] = [&"bakery"]
+	assert_bool(RunStock.build(balance, bakery, results.unlocked_items).cards.has(dk)).is_false()
 
 
 ## The live data: after the 3rd base-aisle capsule the stock needs a list, and the surprise list
@@ -331,7 +285,7 @@ func test_the_third_base_aisle_capsule_needs_a_list_of_two() -> void:
 	assert_bool(RunStock.needs_list(balance, unlocked)).is_true()
 	var listed: Array[StringName] = RunStock.surprise_list(balance, unlocked, _rng(3))
 	assert_int(listed.size()).is_equal(2)
-	var stock: RunStock = RunStock.build(balance, listed, unlocked, 3)
+	var stock: RunStock = RunStock.build(balance, listed, unlocked)
 	assert_bool(stock.list_skipped).is_false()
 	assert_array(stock.aisle_ids).is_equal(listed)
 
@@ -356,8 +310,6 @@ func _balance() -> BalanceDefinition:
 	balance.run_aisle_picks = 2
 	balance.aisle_stock_budget = 16
 	balance.aisle_listable_min = 4
-	balance.end_cap_max = 3
-	balance.end_cap_window_runs = 3
 	return balance
 
 

@@ -308,7 +308,7 @@ func test_rewards_opens_the_toy_machines() -> void:
 	assert_bool(title._starting).is_false()
 	toys.machines()[0]._gui_input(_left_click())
 	assert_int(SaveService.new(_folder).load_profile().coins).is_equal(1)
-	# No run is saved: the item rides the next runs, from the ended runs' index.
+	# No run is saved: the item comes out at the ended run's index.
 	assert_int(SaveService.new(_folder).load_profile().unlocked_items[&"cream"]).is_equal(2)
 	assert_int(toys.counter().run_index()).is_equal(2)
 	assert_str(_last_event("capsule")["run_id"]).is_empty()

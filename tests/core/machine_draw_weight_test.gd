@@ -68,7 +68,7 @@ func test_the_draw_weight_picks_among_one_rarity() -> void:
 	# Every weight 0: no pick, so the forward draw ends short as the exact odds do.
 	var zeros: Array[MachinePrize] = [_weighted("x", 0), _weighted("y", 0)]
 	assert_object(MachineDraw.pick(zeros, _rng(5))).is_null()
-	# Weight 0: never drawn, never guaranteed, never held as the new arrival.
+	# Weight 0: never drawn, never guaranteed.
 	var context: MachineContext = _context()
 	var stocked: Array[CardDefinition] = []
 	var off: CardDefinition = null
@@ -79,10 +79,7 @@ func test_the_draw_weight_picks_among_one_rarity() -> void:
 			off = copy
 		stocked.append(copy)
 	context.products = stocked
-	context.new_arrival = off
-	context.first_new_items = true
 	assert_bool(context.drawn_products().has(off)).is_false()
-	assert_bool(context.holds_new_arrival()).is_false()
 	assert_bool(context.guarantee(RewardMachine.Chute.NEW_ITEMS).has(off.id)).is_false()
 	var weight_rng: RandomNumberGenerator = _rng(13)
 	for draw: int in 300:
@@ -107,10 +104,10 @@ func test_the_guarantee_swap_follows_the_draw_weight() -> void:
 	assert_array(Array(MachineDraw.swap_weights([drawn], drawn))).is_equal([1])
 
 
-## The fresh run's snapshot with the live machine (both first draws done).
+## The fresh run's snapshot with the live machine (the first coupon draw done).
 func _context() -> MachineContext:
 	var run: RunState = RunState.new(1, _starter, _balance, RunStock.starting(_balance))
-	return MachineContext.from_run(run, _balance.machine, true, true)
+	return MachineContext.from_run(run, _balance.machine, true)
 
 
 func _rng(seed_value: int) -> RandomNumberGenerator:

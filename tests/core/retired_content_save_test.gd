@@ -4,10 +4,12 @@ extends GdUnitTestSuite
 ## (ContentLookup.RETIRED_UPGRADES and RETIRED_INSPECTIONS). A retired register is dropped from
 ## the run's registers (its pick no longer counts toward the cap, and a waiting pick no longer
 ## offers it); a retired inspection stays with no effect. Format 4 saves, scored before the Banana
-## chain, skip the checked-out row's total check. Nothing is printed.
+## chain, skip the checked-out row's total check. A save from before v1.32 keeps its stock's
+## new arrivals (the end-cap, gone): the list is ignored. Nothing is printed.
 
 const STARTER := "res://data/decks/starter.tres"
 const BALANCE := "res://data/balance/balance.tres"
+const UNSTOCKED := &"test_unstocked"
 
 var _balance: BalanceDefinition
 var _lookup: ContentLookup
@@ -62,6 +64,28 @@ func test_a_planning_save_with_a_retired_register_resumes_without_it() -> void:
 	# Without a retired register, a row over the limit is still refused.
 	data["upgrades"] = []
 	assert_object(RunSave.from_dictionary(data, _lookup)).is_null()
+
+
+## v1.32: a save no longer holds the stock's new arrivals (the end-cap is gone). A save from
+## before, with its `new_arrivals` list (a stocked card, one that isn't, an unknown id, or not a
+## list at all), still loads: the list is ignored, and the stock is the cards the save lists.
+func test_an_old_save_with_new_arrivals_still_loads() -> void:
+	var run: RunState = _planning_run(31)
+	var data: Dictionary = _json(_save(run))
+	assert_bool(data.has("new_arrivals")).is_false()
+	var unstocked: CardDefinition = CardDefinition.new()
+	unstocked.id = UNSTOCKED
+	unstocked.kind = CardDefinition.Kind.PRODUCT
+	_lookup.add(unstocked)
+	data["new_arrivals"] = [String(run.stock.cards[0].id), String(UNSTOCKED), "gone"]
+	var save: RunSave = RunSave.from_dictionary(data, _lookup)
+	assert_object(save).is_not_null()
+	assert_array(save.run.stock.card_ids()).is_equal(run.stock.card_ids())
+	assert_bool(save.run.stock.cards.has(unstocked)).is_false()
+	assert_int(save.run.phase).is_equal(RunState.Phase.PLANNING)
+	assert_array(_hand_ids(save.run)).is_equal(_hand_ids(run))
+	data["new_arrivals"] = "not a list"
+	assert_object(RunSave.from_dictionary(data, _lookup)).is_not_null()
 
 
 ## After the checkout, a retired register owned at the checkout is dropped from the registers and
@@ -235,3 +259,7 @@ static func _json(data: Dictionary) -> Dictionary:
 
 static func _first(pair: Array) -> Variant:
 	return pair[0]
+
+
+func _hand_ids(of_run: RunState) -> Array:
+	return of_run.hand().map(func(card: CardInstance) -> int: return card.instance_id)

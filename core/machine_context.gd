@@ -1,8 +1,8 @@
 class_name MachineContext
 extends RefCounted
 ## A frozen snapshot of the run that one machine draw reads (#77, build spec 1.5): the stocked
-## products, the coupon pool, the owned upgrades, the deck, the first-draw flags, the newest new
-## arrival and whether the visit is PREMIUM (#108). RewardMachine builds one from the run
+## products, the coupon pool, the owned upgrades, the deck, the first coupon draw's flag and
+## whether the visit is PREMIUM (#108). RewardMachine builds one from the run
 ## (from_run); tests build their own. The pools and guarantees are computed once per context and
 ## kept on it (never in a static cache), so drawing many times from one state reads them once.
 
@@ -20,10 +20,6 @@ var owned: Array[UpgradeDefinition] = []
 var deck: Deck
 ## The run's first coupon draw (NEW ITEMS): its coupon drops draw from the first-offer pool only.
 var first_coupons: bool = false
-## The run's first NEW ITEMS draw: it holds `new_arrival` (when the machine says so).
-var first_new_items: bool = false
-## The stock's newest new arrival, or null.
-var new_arrival: CardDefinition
 ## The coupons the run's first coupon draw is restricted to (those also in `coupons`).
 var first_offer_pool: Array[CardDefinition] = []
 ## A PREMIUM visit (#108): MachineDefinition.premium_min_rarity applies.
@@ -34,13 +30,12 @@ var _pools: Dictionary = {}
 var _guarantees: Dictionary = {}
 
 
-## The snapshot of a run for its machine. `coupons_first_done` / `new_items_first_done` are the
-## machine's flags (a first draw is one whose flag isn't spent yet); `premium_visit`: the visit's.
+## The snapshot of a run for its machine. `coupons_first_done` is the machine's flag (the first
+## coupon draw is the one before it is spent); `premium_visit`: the visit's.
 static func from_run(
 	run: RunState,
 	machine_definition: MachineDefinition,
 	coupons_first_done: bool,
-	new_items_first_done: bool,
 	premium_visit: bool = false
 ) -> MachineContext:
 	var context: MachineContext = MachineContext.new()
@@ -56,11 +51,8 @@ static func from_run(
 	context.deck = Deck.new(null)
 	context.deck.cards = run.deck.cards.duplicate()
 	context.first_coupons = not coupons_first_done
-	context.first_new_items = not new_items_first_done
 	context.premium = premium_visit
 	context.card_full = RewardMachine.registers_picked(run) >= machine_definition.register_cap
-	if not run.stock.new_arrivals.is_empty():
-		context.new_arrival = run.stock.new_arrivals[0]
 	return context
 
 
@@ -97,17 +89,6 @@ func offers(coupon: CardDefinition) -> bool:
 static func has_family(tag: String, cards: Array[CardDefinition]) -> bool:
 	return cards.any(
 		func(card: CardDefinition) -> bool: return card.is_product() and card.tags.has(tag)
-	)
-
-
-## Whether this context's NEW ITEMS draw holds the new arrival (build spec 1.5, Q4): one it can
-## draw (drawn_products).
-func holds_new_arrival() -> bool:
-	return (
-		machine.new_arrival_first_visit
-		and first_new_items
-		and new_arrival != null
-		and drawn_products().has(new_arrival)
 	)
 
 

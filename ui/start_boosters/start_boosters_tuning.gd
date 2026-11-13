@@ -81,9 +81,22 @@ extends Resource
 @export var restock_clear_s: float = 0.0
 @export var restock_drop_s: float = 0.0
 
+## The armed primary key's press-bob (NEXT on page 1, the pack key on page 2 and the pins step's
+## key; v1.32 feedback, the user's pick C on docs/art/mockups/next_key_idle.html;
+## BoosterPageDraw.key_lift): the arm hop lifts the face next_hop_lifts[k] art px until
+## next_hop_ends_s[k] after arming (1, 2, 1, 0 px by 0.08, 0.2, 0.28, 0.36 s); then, every
+## next_bob_s counted from next_bob_from_s, the face rises next_bob_px (the ledge doubling under
+## it) for next_bob_hold_s. Neutral empty / 0: no hop, no bob.
+@export var next_hop_ends_s: PackedFloat32Array = PackedFloat32Array()
+@export var next_hop_lifts: PackedInt32Array = PackedInt32Array()
+@export var next_bob_from_s: float = 0.0
+@export var next_bob_s: float = 0.0
+@export var next_bob_hold_s: float = 0.0
+@export var next_bob_px: int = 0
+
 ## PICK 2 OF 3: the booster not picked sinks over pick_sink_s; the kept pair slides to the two
 ## aisle places pick_move_at_s after the second pick (over pick_sink_s too), and the counter's
-## two-aisle dress (RESTOCK, the tote, the board, the RUN-ONLY sign) comes in with it.
+## two-aisle dress (RESTOCK, the tote, the board) comes in with it.
 @export var pick_sink_s: float = 0.0
 @export var pick_move_at_s: float = 0.0
 
@@ -119,3 +132,21 @@ extends Resource
 @export var store_roll_at_s: float = 0.0
 @export var store_roll_s: float = 0.0
 @export var store_end_s: float = 0.0
+
+## The swap window (YOUR REGULARS, v1.32 swap window): it slides in over swap_in_s and out over
+## swap_out_s; its boosters drop swap_drop_gap_s apart. A card flies between its fan and the
+## basket in swap_fly_min_s + its distance / swap_fly_px_s (at most swap_fly_max_s; a refused drop
+## bounces home swap_bounce_s longer). After DONE page 1's basket plays each changed regular in,
+## swap_play_in_at_s after the close and swap_play_in_step_s apart, over swap_play_in_s; a window
+## opened from NEXT goes on to YOUR BUILD swap_next_hold_s after DONE.
+@export var swap_in_s: float = 0.0
+@export var swap_out_s: float = 0.0
+@export var swap_drop_gap_s: float = 0.0
+@export var swap_fly_min_s: float = 0.0
+@export var swap_fly_max_s: float = 0.0
+@export var swap_fly_px_s: float = 0.0
+@export var swap_bounce_s: float = 0.0
+@export var swap_play_in_at_s: float = 0.0
+@export var swap_play_in_step_s: float = 0.0
+@export var swap_play_in_s: float = 0.0
+@export var swap_next_hold_s: float = 0.0

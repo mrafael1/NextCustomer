@@ -1,6 +1,6 @@
 extends GdUnitTestSuite
 ## The opening board's input and lifecycle on the real screen: the OPEN STORE shutter's click and
-## Enter skips (reduced motion off) and its release, Esc stepping back (the swap tray, a RESTOCK
+## Enter skips (reduced motion off) and its release, Esc stepping back (the swap window, a RESTOCK
 ## pick, page 1, the title), the board leaving F1 to the debug panel, YOUR STORE scaling with the
 ## board at 1080p (a mouse click on a booster lands where it is drawn), the page slide and the
 ## page steps.
@@ -64,10 +64,10 @@ func test_a_new_run_frees_a_playing_shutter() -> void:
 	assert_int(screen.run.run_seed).is_equal(SEED + 1)
 
 
-## Esc closes the swap tray, then stops a RESTOCK pick, then goes back from page 2 to page 1,
+## Esc closes the swap window, then stops a RESTOCK pick, then goes back from page 2 to page 1,
 ## then asks the screen for the title (the screen closes the board; the scene change is off in
 ## tests).
-func test_escape_steps_back_from_tray_to_restock_to_store_to_title() -> void:
+func test_escape_steps_back_from_swaps_to_restock_to_store_to_title() -> void:
 	var screen: ShiftScreen = await _screen(3)
 	screen._start_choice.changes_scene = false
 	var board: StartBoard = screen._cart_reveal.board
@@ -78,10 +78,11 @@ func test_escape_steps_back_from_tray_to_restock_to_store_to_title() -> void:
 	get_tree().root.push_input(_key(KEY_A), true)
 	_run(store, 8.0)
 	assert_bool(store.page_done()).is_true()
-	assert_bool(store.counter.click_regular(0)).is_true()
-	assert_int(store.tray_slot).is_equal(0)
+	assert_bool(store.swap.open_window(false)).is_true()
+	assert_bool(store.swap.active).is_true()
 	get_tree().root.push_input(_key(KEY_ESCAPE), true)
-	assert_int(store.tray_slot).is_equal(-1)
+	assert_bool(store.swap.active).is_false()
+	_run(store, 1.0)
 	assert_int(board.page).is_equal(1)
 	get_tree().root.push_input(_key(KEY_R), true)
 	assert_bool(store.restock_armed).is_true()
@@ -119,8 +120,9 @@ func test_f1_reaches_the_debug_panel_through_the_board() -> void:
 
 
 ## YOUR STORE sits on the scaled stage: at 1920x1080 the page is drawn at 1.5x inside the board,
-## a real mouse click on a booster (through the viewport) opens that booster, and the swap tray
-## is 1.5x, inside the board and clear of the regulars' crate, its offers inside it and apart.
+## a real mouse click on a booster (through the viewport) opens that booster, a real click on the
+## regulars' basket opens the swap window, and the window's keys, boosters and cards are 1.5x,
+## inside the board and inside the window.
 func test_your_store_scales_with_the_board() -> void:
 	var screen: ShiftScreen = await _screen(3)
 	var board: StartBoard = screen._cart_reveal.board
@@ -134,47 +136,44 @@ func test_your_store_scales_with_the_board() -> void:
 	var to_screen: Transform2D = store.get_global_transform()
 	assert_float(to_screen.get_scale().x).is_equal_approx(1.5, 0.001)
 	var pouch: Rect2 = BoosterArt.pouch_rect(store.boosters[1].cx)
-	var at: Vector2 = to_screen * (pouch.get_center() * ArtPen.UNIT)
+	get_tree().root.push_input(_click(to_screen * (pouch.get_center() * ArtPen.UNIT)), true)
+	assert_bool(screen.run.start_setup.boosters[1].opened).is_true()
+	assert_bool(screen.run.start_setup.boosters[0].opened).is_false()
+	store.openings.open_all("key")
+	_run(store, 8.0)
+	screen._week.skip()  # The helper's screen shows a time card from before the new run.
+	var crate: Vector2 = BoosterChromeDraw.CRATE_RECT.get_center()
+	var at: Vector2 = to_screen * (crate * ArtPen.UNIT)
 	assert_bool(frame.has_point(at)).is_true()
+	get_tree().root.push_input(_click(at), true)
+	assert_bool(store.swap.active).is_true()
+	_run(store, 1.0)
+	var window: Rect2 = _scaled(to_screen, SwapWindowDraw.RECT)
+	assert_bool(frame.encloses(window)).is_true()
+	var ids: Array[String] = []
+	for entry: Dictionary in store.hits:
+		var rect: Rect2 = _scaled(to_screen, entry.rect)
+		assert_float(rect.size.x).is_equal_approx((entry.rect as Rect2).size.x * 3.0, 0.01)
+		assert_bool(frame.encloses(rect)).is_true()
+		if entry.id != "swclose":
+			assert_bool(window.encloses(rect)).override_failure_message(entry.id).is_true()
+		ids.append(entry.id)
+	assert_array(ids).contains(["swb0", "swb1", "swreset", "swdone", "swclose", "piece6"])
+
+
+## A left click (pressed) at screen point `at`.
+static func _click(at: Vector2) -> InputEventMouseButton:
 	var click: InputEventMouseButton = InputEventMouseButton.new()
 	click.button_index = MOUSE_BUTTON_LEFT
 	click.pressed = true
 	click.position = at
 	click.global_position = at
-	get_tree().root.push_input(click, true)
-	assert_bool(screen.run.start_setup.boosters[1].opened).is_true()
-	assert_bool(screen.run.start_setup.boosters[0].opened).is_false()
-	store.openings.open_all("key")
-	_run(store, 8.0)
-	assert_bool(store.counter.click_regular(0)).is_true()
-	store.advance(0.0)
-	var tray: Rect2 = Rect2()
-	var minis: Array[Rect2] = []
-	var regulars: Array[Rect2] = []
-	for entry: Dictionary in store.hits:
-		var rect: Rect2 = (
-			to_screen
-			* Rect2(
-				(entry.rect as Rect2).position * ArtPen.UNIT,
-				(entry.rect as Rect2).size * ArtPen.UNIT
-			)
-		)
-		if entry.id == "tray":
-			tray = rect
-		elif String(entry.id).begins_with("mini"):
-			minis.append(rect)
-		elif String(entry.id).begins_with("reg"):
-			regulars.append(rect)
-	assert_bool(tray.has_area()).is_true()
-	assert_bool(frame.encloses(tray)).is_true()
-	assert_bool(minis.is_empty()).is_false()
-	assert_bool(regulars.is_empty()).is_false()
-	for k: int in minis.size():
-		assert_bool(tray.encloses(minis[k])).is_true()
-		for other: int in k:
-			assert_bool(minis[k].intersects(minis[other])).is_false()
-	for regular: Rect2 in regulars:
-		assert_bool(tray.intersects(regular)).is_false()
+	return click
+
+
+## Art rect `rect` on the screen.
+static func _scaled(to_screen: Transform2D, rect: Rect2) -> Rect2:
+	return to_screen * Rect2(rect.position * ArtPen.UNIT, rect.size * ArtPen.UNIT)
 
 
 static func _run(store: BoosterPage, seconds: float) -> void:
