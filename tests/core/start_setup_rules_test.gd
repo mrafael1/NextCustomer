@@ -14,6 +14,7 @@ const SEED := 20261104
 const MACHINE_AISLE := 3
 const CHEESE := preload("res://data/cards/cheese.tres")
 const DELI := preload("res://data/starter_packs/deli_counter.tres")
+const REPEAT := preload("res://data/cards/repeat.tres")
 
 var _balance: BalanceDefinition
 var _recipe: DeckDefinition
@@ -395,7 +396,7 @@ func test_the_cart_lines_name_each_cards_source() -> void:
 	var pin: PinDefinition = PinDefinition.new()
 	pin.id = &"test_pin"
 	pin.display_name = "Test pin"
-	pin.starting_cards = [load("res://data/cards/repeat.tres")]
+	pin.starting_cards = [REPEAT]
 	var pins: Array[PinDefinition] = [pin]
 	var waiting: Array[StartCartLine] = StartSetupRules.cart_lines(
 		run.starter, run.start_offer, _balance, pins, null
@@ -428,3 +429,26 @@ func test_the_cart_lines_name_each_cards_source() -> void:
 		)
 		. is_equal(core)
 	)
+
+
+## A run in play (its start offer gone) reads the same starting cart from its dealt deck: the
+## regulars, the picked pack's cards, the dealt ones by aisle and the pins', with their sources.
+func test_a_run_in_play_reads_its_starting_cart_from_its_deck() -> void:
+	var run: RunState = Kit.locked(Kit.profile(0), SEED)
+	var pin: PinDefinition = PinDefinition.new()
+	pin.id = &"test_pin"
+	pin.display_name = "Test pin"
+	pin.starting_cards = [REPEAT]
+	var pins: Array[PinDefinition] = [pin]
+	var pack: StarterPackDefinition = run.start_offer.packs[0]
+	var expected: Array[StartCartLine] = StartSetupRules.cart_lines(
+		run.starter, run.start_offer, _balance, pins, pack
+	)
+	var dealt: DeckDefinition = StartingDeck.with_pack(_recipe, pack, run.start_offer.shared)
+	var lines: Array[StartCartLine] = StartSetupRules.run_cart_lines(dealt, _balance, pins)
+	assert_int(lines.size()).is_equal(expected.size())
+	for index: int in lines.size():
+		assert_object(lines[index].card).is_same(expected[index].card)
+		assert_int(lines[index].source).is_equal(expected[index].source)
+		assert_str(String(lines[index].origin)).is_equal(String(expected[index].origin))
+		assert_str(lines[index].origin_name).is_equal(expected[index].origin_name)

@@ -385,8 +385,7 @@ func _make_box(upgrade: UpgradeDefinition) -> PanelContainer:
 
 ## The chip face's box: B2's ring (dashed when empty) at 2x, or a family perk's ring in its
 ## family's colour, holding the perk's icon, else its initials in mustard pale at the largest
-## CHIP_INITIALS_SIZES size that fits inside the rings. The deck view's Run info shows it beside
-## each upgrade (#56).
+## CHIP_INITIALS_SIZES size that fits inside the rings.
 static func make_ring(upgrade: UpgradeDefinition) -> PanelContainer:
 	var panel: PanelContainer = PanelContainer.new()
 	panel.custom_minimum_size = CHIP_BOX_SIZE

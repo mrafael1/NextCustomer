@@ -678,10 +678,9 @@ func reveal(spec: String) -> void:
 ## the stock) or chooser (the machine's deck-full chooser for a Breakfast sticker, on a full cart);
 ## the options:
 ## - seed=<n>: the run's seed;
-## - full: the cart filled to the deck limit with distinct items (the dealt deck with one copy of
-##   each card but its first repeated one, the first Banana GOLDEN and the first Milk BIG, a
-##   Multipack, then stocked products it lacks);
-## - hover=<i>: the page's item i is hovered (its scan popup opens beside it).
+## - full: the cart filled to the deck limit with distinct items (one copy of each dealt card but
+##   its first repeated one, a GOLDEN Banana, a BIG Milk, a Multipack, then stocked products);
+## - hover=<i>: item i is hovered (its scan popup opens); filter=<n>, pin=<n>: CaptureDeckFilter.
 func deck(spec: String) -> void:
 	var options: PackedStringArray = spec.split(",", false)
 	var page: String = options[0] if not options.is_empty() else "cart"
@@ -715,6 +714,7 @@ func deck(spec: String) -> void:
 	view.show_page(page == "info")
 	# Past the pop-in (and its overshoot), laid out.
 	await get_tree().create_timer(UiKit.POP_IN_SECONDS + 0.2).timeout
+	await CaptureDeckFilter.apply(_screen, view, options)
 	var hovered: String = _option_value(options, "hover=")
 	if hovered != "":
 		view.hover(view.cells()[hovered.to_int()])

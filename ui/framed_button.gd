@@ -9,6 +9,10 @@ extends Button
 ## stands on its ledge), dims the whole button and drops the pointing-hand cursor. It never takes
 ## keyboard focus, so Space (the count-up's fast-forward key) can't press it. Build one with
 ## UiKit.framed_button, which also wires the click sound and the action.
+##
+## A disabled button that is `selected` marks the choice shown (the deck view's tab of the page
+## shown, 2026-11-12): sunk and unclickable as any disabled one, but not dimmed, its face the
+## paper SELECTED_FRAME and its caption ink, so it reads as picked, not unavailable.
 
 ## The frame's 9-slice margin, in art pixels.
 const FRAME_MARGIN := 3
@@ -23,7 +27,13 @@ const PRESSED_FACE := Color(0.85, 0.85, 0.85)
 const DISABLED_MODULATE := Color(0.6, 0.6, 0.6, 0.85)
 ## The space between an icon (set_icon) and the caption.
 const ICON_GAP := 6.0
+const SELECTED_FRAME := preload("res://art/frames/tab_shown.png")
 
+## A disabled button that marks the choice shown (see the class comment).
+var selected: bool = false:
+	set(value):
+		selected = value
+		queue_redraw()
 ## The caption's text. Use this, not Button.text (which stays empty: the button draws no text of
 ## its own). It is also the button's accessible name, so screen readers announce the caption.
 var caption: String:
@@ -41,6 +51,12 @@ var _label: Label
 var _requested_size: Vector2
 ## An icon left of the caption (set_icon), or null.
 var _icon: TextureRect
+var _frame: Texture2D
+## The face's frame shown now (its own, or SELECTED_FRAME).
+var _shown_frame: Texture2D
+## The caption's colour and outline before it was picked (restored when it is no longer).
+var _caption_color: Color = Palette.PAPER
+var _caption_outline: int = 0
 
 
 func _init(
@@ -53,6 +69,8 @@ func _init(
 	focus_mode = Control.FOCUS_NONE
 	mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	_requested_size = button_size
+	_frame = frame
+	_shown_frame = frame
 	_face = UiKit.frame_panel(frame, FRAME_MARGIN)
 	_face.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(_face, false, Node.INTERNAL_MODE_FRONT)
@@ -126,8 +144,22 @@ func _show_state(mode: DrawMode) -> void:
 		_:
 			_face.modulate = Color.WHITE
 	var off: bool = mode == DRAW_DISABLED
-	modulate = DISABLED_MODULATE if off else Color.WHITE
+	var picked: bool = off and selected
+	modulate = DISABLED_MODULATE if off and not picked else Color.WHITE
 	mouse_default_cursor_shape = CURSOR_ARROW if off else CURSOR_POINTING_HAND
+	var frame: Texture2D = SELECTED_FRAME if picked else _frame
+	if frame != _shown_frame:
+		_shown_frame = frame
+		_face.add_theme_stylebox_override("panel", ArtStyle.frame_style(frame, FRAME_MARGIN))
+		if picked:
+			# The caption's own look is kept, to come back when the button is no longer picked.
+			_caption_color = _label.get_theme_color("font_color")
+			_caption_outline = _label.get_theme_constant("outline_size")
+			_label.add_theme_color_override("font_color", Palette.INK)
+			_label.add_theme_constant_override("outline_size", 0)
+		else:
+			_label.add_theme_color_override("font_color", _caption_color)
+			_label.add_theme_constant_override("outline_size", _caption_outline)
 
 
 ## The button is at least its requested size and big enough for its caption.

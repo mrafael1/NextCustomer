@@ -763,35 +763,21 @@ static func cart_lines(
 	pack: StarterPackDefinition,
 	preview: bool = false
 ) -> Array[StartCartLine]:
-	var lines: Array[StartCartLine] = []
-	for card: CardDefinition in starter.core_cards:
-		lines.append(StartCartLine.new(card, StartCartLine.Source.REGULAR))
-	if pack != null:
-		for card: CardDefinition in pack.cards:
-			lines.append(
-				StartCartLine.new(
-					card, StartCartLine.Source.PACK, pack.id, pack.display_name, preview
-				)
-			)
-	elif not offer.packs.is_empty():
-		for _card: CardDefinition in offer.packs[0].cards:
-			lines.append(StartCartLine.new(null, StartCartLine.Source.PACK))
-	for card: CardDefinition in offer.shared:
-		var aisle: AisleDefinition = balance.aisle_of(card)
-		lines.append(
-			StartCartLine.new(
-				card,
-				StartCartLine.Source.DEALT,
-				aisle.id if aisle != null else &"",
-				aisle.display_name if aisle != null else ""
-			)
-		)
-	for pin: PinDefinition in pins:
-		for card: CardDefinition in pin.starting_cards:
-			lines.append(
-				StartCartLine.new(card, StartCartLine.Source.PIN, pin.id, pin.display_name)
-			)
-	return lines
+	var waiting: int = 0
+	if pack == null and not offer.packs.is_empty():
+		waiting = offer.packs[0].cards.size()
+	return _lines(starter, pack, waiting, offer.shared, balance, pins, preview)
+
+
+## The starting cart of a run in play, its start offer gone (the deck view's START marks, the
+## cart and run info polish, 2026-11-12): the same lines as cart_lines gave once the pack was
+## picked, read from `starter` (StartingDeck.with_pack: its pack and its dealt cards,
+## StartingDeck.shared_of).
+static func run_cart_lines(
+	starter: DeckDefinition, balance: BalanceDefinition, pins: Array[PinDefinition]
+) -> Array[StartCartLine]:
+	var shared: Array[CardDefinition] = StartingDeck.shared_of(starter)
+	return _lines(starter, starter.starter_pack, 0, shared, balance, pins, false)
 
 
 ## The cards of `lines` (the waiting pack lines left out).
@@ -864,3 +850,44 @@ static func _fits_all(
 		if not StartingDeck.fits_copies(recipe, pack.cards, shared):
 			return false
 	return true
+
+
+## The cart's lines: `starter`'s regulars, `pack`'s cards (or `waiting` waiting lines), the
+## `shared` dealt cards by aisle, then `pins`' cards.
+static func _lines(
+	starter: DeckDefinition,
+	pack: StarterPackDefinition,
+	waiting: int,
+	shared: Array[CardDefinition],
+	balance: BalanceDefinition,
+	pins: Array[PinDefinition],
+	preview: bool
+) -> Array[StartCartLine]:
+	var lines: Array[StartCartLine] = []
+	for card: CardDefinition in starter.core_cards:
+		lines.append(StartCartLine.new(card, StartCartLine.Source.REGULAR))
+	if pack != null:
+		for card: CardDefinition in pack.cards:
+			lines.append(
+				StartCartLine.new(
+					card, StartCartLine.Source.PACK, pack.id, pack.display_name, preview
+				)
+			)
+	for _waiting: int in waiting:
+		lines.append(StartCartLine.new(null, StartCartLine.Source.PACK))
+	for card: CardDefinition in shared:
+		var aisle: AisleDefinition = balance.aisle_of(card)
+		lines.append(
+			StartCartLine.new(
+				card,
+				StartCartLine.Source.DEALT,
+				aisle.id if aisle != null else &"",
+				aisle.display_name if aisle != null else ""
+			)
+		)
+	for pin: PinDefinition in pins:
+		for card: CardDefinition in pin.starting_cards:
+			lines.append(
+				StartCartLine.new(card, StartCartLine.Source.PIN, pin.id, pin.display_name)
+			)
+	return lines

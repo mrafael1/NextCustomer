@@ -1,0 +1,17 @@
+; The deck view's shown tab (2026-11-12, the cart and run info polish): the store sign's shape
+; (sign) in paper, lit from the top left, its right column and bottom row cream shade, so the
+; page shown reads as picked, not as a dimmed button (FramedButton.selected). 9-slice, 3 art px
+; margins.
+@size 10x10
+@kind frame
+@scale 2
+##########
+#wwwwwwww#
+#wwwwwwwb#
+#wwwwwwwb#
+#wwwwwwwb#
+#wwwwwwwb#
+#wwwwwwwb#
+#wwwwwwwb#
+#bbbbbbbb#
+##########

@@ -1,13 +1,14 @@
 class_name DeckCell
 extends Control
-## One distinct card on the deck view's shelves (#56, deck view B, mock-up screens_deck_b.html):
-## its tray item (ItemView, TRAY: the sprite over its price sticker, a BIG or GOLDEN copy's tier
-## tag under the sticker) and its name under it. Its other copies stand stacked behind the first,
-## dimmed, and a cream price-gun label slapped on the art counts them ("×3"). On the Cart page the
-## cart reveal's pick marks (v0.51) sit on the art's top-left corner: the teal "+" of a starting
-## pick's product (the tomato token for the coupon); the staple padlock shows only on the cart
-## reveal (#105). In the stock a new arrival carries a mustard NEW chip there instead. The name is
-## the plain product's (the art and the tier tag show the tier), stepped down to fit.
+## One distinct card on the deck view's shelves (#56, deck view B, mock-up screens_deck_b.html): its
+## tray item (ItemView, TRAY: the sprite over its price sticker, a BIG or GOLDEN copy's tier tag
+## under the sticker) and its name under it. Its other copies stand stacked behind the first,
+## dimmed, and a cream price-gun label slapped on the art counts them ("×3"). On the Cart page an
+## item picked at the start (the pack's, a dealt one) carries the green START chip on the art's
+## top-left corner (the cart and run info polish, 2026-11-12, after the teal "+" of v0.51 read as
+## "add"): the start screen's STARTER CART green, its tooltip naming where it came from (StartTip).
+## In the stock a new arrival carries a mustard NEW chip there instead. The name is the plain
+## product's (the art and the tier tag show the tier), stepped down to fit.
 ##
 ## Hover (the pointer on its sprite or sticker) lifts the art; `ringed` draws the chooser's gold
 ## ring round it, and `out_marked` (a held prize over it, CartPlacing: dropping swaps it out)
@@ -18,10 +19,11 @@ extends Control
 ## the popup.
 
 const SIZE := Vector2(108, 200)
-## The name's line under the sticker.
-const NAME_TOP := 184.0
-const NAME_HEIGHT := 16.0
-const NAME_SIZES: Array[int] = [14, 13, 12, 11]
+## The name's line under the sticker: a body label's whole height (its text centred on it), so
+## it ends at the cell's foot.
+const NAME_TOP := 177.0
+const NAME_HEIGHT := 23.0
+const NAME_SIZES: Array[int] = [15, 14, 13, 12, 11]
 const NAME_WEIGHT := 700
 ## The name may use this much of the gap beside the cell.
 const NAME_SPILL := 8.0
@@ -33,11 +35,17 @@ const STACK_TINT := Color(0.55, 0.62, 0.62)
 ## The count label: a cream price-gun label (EffectSticker's ADD) on the art's top right.
 const COUNT_POSITION := Vector2(64, 0)
 const COUNT_TILT := 6.0
-## The marks on the art's top left (RevealChip, the cart reveal's look).
+## The marks on the art's top left (RevealChip, the cart reveal's look), low enough that a chip's
+## outline stays MARK_CLEAR px below a shelf label over the cell (DeckShelf.heading).
 const MARK_SIZE := Vector2(24, 24)
-const MARK_POSITION := Vector2(2, 2)
+const MARK_POSITION := Vector2(2, 6)
+const MARK_CLEAR := 4.0
 const MARK_GAP := 6.0
 const NEW_TEXT := "NEW"
+## The START chip: its least size, text size and word (a pixel word: no digits).
+const START_SIZE := Vector2(24, 20)
+const START_FONT := 12
+const START_TEXT := "START"
 ## The chooser's ring round the item's column (sprite and sticker), outside it by RING_OUTSET.
 const RING_WIDTH := 4.0
 const RING_OUTSET := 4.0
@@ -51,7 +59,7 @@ const OUT_SIZE := 16
 const OUT_WEIGHT := 800
 ## Node names (for tests).
 const OUT_TAG := "OutTag"
-const PICK_MARK := "PickMark"
+const START_MARK := "StartMark"
 const NEW_MARK := "NewMark"
 const COUNT_LABEL := "CountLabel"
 const NAME_LABEL := "NameLabel"
@@ -124,17 +132,21 @@ static func name_size(text: String) -> int:
 	return NAME_SIZES[-1]
 
 
-## Adds the cart reveal's pick mark (v0.51): the "+" of a starting pick (the token of the
-## starting coupon). A staple carries no mark here: its padlock is the cart reveal's (#105).
-func add_origin_marks(picked: bool) -> void:
-	if picked:
-		var coupon: bool = card.is_coupon()
-		var chip: RevealChip = RevealChip.new(
-			Palette.TOMATO if coupon else Palette.TEAL_BRIGHT,
-			MARK_SIZE,
-			RevealTile.COUPON_ICON if coupon else RevealTile.PICK_ICON
-		)
-		_add_mark(PICK_MARK, chip)
+## Adds the START chip (the item came in the starting cart), its tooltip `tip` (StartTip: where
+## it came from).
+func add_start_mark(tip: String) -> void:
+	var chip: RevealChip = make_start_chip()
+	chip.add_child(StartTip.new(tip))
+	_add_mark(START_MARK, chip)
+
+
+## A START chip (the cell's mark and the Cart's legend share it).
+static func make_start_chip() -> RevealChip:
+	var chip: RevealChip = RevealChip.new(
+		Palette.GREEN_DARK, START_SIZE, null, START_TEXT, START_FONT, Palette.PAPER
+	)
+	chip.ledge = Palette.INK
+	return chip
 
 
 ## Adds the stock's NEW chip (a new arrival).
