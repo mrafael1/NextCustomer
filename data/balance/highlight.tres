@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="HighlightDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/highlight_definition.gd" id="1_highlight"]
+
+[resource]
+script = ExtResource("1_highlight")
+kind_order = PackedStringArray("biggest_payout", "over_quota", "longest_combo", "first_golden", "closest_call")
+payout_quota_share = 0.5
+over_quota_ratio = 2.0
+combo_length = 5
+close_margin = 1
+payout_word = "Biggest payout"
+over_quota_word = "Over quota"
+combo_word = "Longest"
+golden_word = "First GOLDEN"
+close_word = "Closest call"

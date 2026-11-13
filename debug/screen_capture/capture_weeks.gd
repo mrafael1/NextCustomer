@@ -10,7 +10,10 @@ extends RefCounted
 ## `--results=<won|lost>`: a scripted run's final receipt over the shift screen, printed in full:
 ## `won` a won run of every shift (each passed with some overtime, every ticket and payday visit
 ## taken, each day's events by the live schedule), `lost` one that slipped on shift 2 and was lost
-## on LOST_SHIFT. The file gets results_<won|lost>_.
+## on LOST_SHIFT. The file gets results_<won|lost>_. Each checkout keeps a best item and, from
+## shift 5, a combo (v1.37, the BEST line, _add_bests): `won` plays Golden Milk from shift 9 and
+## its biggest payout on GOLDEN_SHIFT (Biggest payout · Golden Milk), `lost` plays no GOLDEN
+## item and passes CLOSE_SHIFT by 1€ (Closest call).
 ## `--unlock=<pin id>[+<pin id>...]` with --results (v1.04): the run unlocked those badge pins
 ## (on a fresh profile), so their unlock cards come after the receipt (PinReveal);
 ## `--unlock-at=<ms>` freezes the reveal that many ms after its first card starts (default
@@ -24,6 +27,11 @@ const UNLOCK_SETTLED_MS := 60000
 ## The shift the `lost` run is lost on, and the one it slipped on.
 const LOST_SHIFT := 11
 const SLIP_SHIFT := 2
+## The won run's big Golden Milk payout (its shift, and its share of the quota), and the shift the
+## lost run passes by 1€ (v1.37, the BEST line).
+const GOLDEN_SHIFT := 14
+const GOLDEN_SHARE := 1.8
+const CLOSE_SHIFT := 9
 ## The scripted run's own RNG seed (its events, margins and prizes).
 const SCRIPT_SEED := 7
 ## The loyalty perks the scripted run starts with.
@@ -112,6 +120,7 @@ static func script_run(run: RunState, lost: bool) -> void:
 			total = quota - rng.randi_range(3, 12)
 		var record: ShiftRecord = ShiftRecord.new(shift_number, quota, total)
 		record.inspections = events
+		_add_bests(record, lost)
 		if record.passed and shift_number < run.shift_count():
 			record.visits.append(_ticket(machine, rng, shift_number))
 			if machine.is_payday_shift(shift_number):
@@ -124,6 +133,32 @@ static func script_run(run: RunState, lost: bool) -> void:
 	run.shift_index = last - 1
 	run.limits.quota = history[-1].quota
 	run.phase = RunState.Phase.LOST if lost else RunState.Phase.WON
+
+
+## The checkout's bests (v1.37): Milk, Big Milk from shift 5, Golden Milk from shift 9 (`won`
+## only), paying a fifth to a third of the quota, Golden Milk GOLDEN_SHARE of it on GOLDEN_SHIFT;
+## a CHAIN of Bananas from shift 5. The lost run passes CLOSE_SHIFT by 1€.
+static func _add_bests(record: ShiftRecord, lost: bool) -> void:
+	var shift_number: int = record.shift
+	if lost and shift_number == CLOSE_SHIFT:
+		record.total = record.quota + 1
+		record.passed = true
+	var milk: String = "milk"
+	if shift_number >= 9 and not lost:
+		milk = "milk_golden"
+	elif shift_number >= 5:
+		milk = "milk_big"
+	record.best_card = load("res://data/cards/%s.tres" % milk) as CardDefinition
+	var share: float = 0.2 + 0.01 * (shift_number % 7) * 2.0
+	if shift_number == GOLDEN_SHIFT and not lost:
+		share = GOLDEN_SHARE
+	record.best_payout = maxi(roundi(record.quota * share), 1)
+	var banana: CardDefinition = load("res://data/cards/banana.tres")
+	record.played.assign([record.best_card, banana, banana, banana])
+	if shift_number >= 5:
+		record.best_combo_keyword = CardText.CHAIN_WORD
+		record.best_combo_length = 3 + shift_number % 2
+		record.best_combo_pay = roundi(record.quota * 0.3)
 
 
 ## A shift's day events by the live schedule: its inspections, then its boon.

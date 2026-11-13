@@ -217,7 +217,7 @@ func test_the_run_save_keeps_the_picks() -> void:
 	var sticker: CardInstance = run.deck.add_card(load(STICKER))
 	run.sticker_families[sticker.instance_id] = "Clearance"
 	var saved: Dictionary = _saved(run)
-	assert_int(int(saved["format_version"])).is_equal(12)
+	assert_int(int(saved["format_version"])).is_equal(RunSave.FORMAT_VERSION)
 	assert_dict(saved["sticker_families"]).is_equal({str(sticker.instance_id): "Clearance"})
 	var restored: RunSave = RunSave.from_dictionary(saved, lookup)
 	assert_object(restored).is_not_null()

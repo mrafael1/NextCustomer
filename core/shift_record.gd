@@ -34,6 +34,15 @@ var day_off: bool = false
 ## OVERTIME visit after it, and its ticket's visit turned PREMIUM. Each uses its week's.
 var overtime_ticket: bool = false
 var overtime_premium: bool = false
+## The checkout's best item and longest combo (v1.37, the final receipt's BEST line:
+## RunHighlight.record_best): the biggest single payout and its card (0 and null: none), and the
+## longest CHAIN, BATCH or MORNING, its keyword, length and pay ("" and 0: none). A record saved
+## before v1.37 has none of them.
+var best_payout: int = 0
+var best_card: CardDefinition
+var best_combo_keyword: String = ""
+var best_combo_length: int = 0
+var best_combo_pay: int = 0
 
 
 func _init(shift_number: int, shift_quota: int, shift_total: int) -> void:
@@ -101,6 +110,16 @@ func to_dictionary() -> Dictionary:
 		data["overtime_ticket"] = true
 	if overtime_premium:
 		data["overtime_premium"] = true
+	# Written only when set (v1.37; a save or log from before has neither: RunHighlight skips it).
+	if best_card != null:
+		data["best_payout"] = best_payout
+		data["best_card"] = String(best_card.id)
+	if not best_combo_keyword.is_empty():
+		data["best_combo"] = {
+			"keyword": best_combo_keyword,
+			"length": best_combo_length,
+			"pay": best_combo_pay,
+		}
 	return data
 
 
@@ -124,6 +143,18 @@ static func from_dictionary(data: Dictionary, lookup: ContentLookup) -> ShiftRec
 	record.day_off = data.has("day_off") and reader.flag("day_off")
 	record.overtime_ticket = data.has("overtime_ticket") and reader.flag("overtime_ticket")
 	record.overtime_premium = data.has("overtime_premium") and reader.flag("overtime_premium")
+	if data.has("best_card"):
+		record.best_card = reader.card("best_card")
+		record.best_payout = reader.whole("best_payout", 1)
+	if data.has("best_combo"):
+		if not data["best_combo"] is Dictionary:
+			return null
+		var combo: SaveReader = SaveReader.new(data["best_combo"], lookup)
+		record.best_combo_keyword = combo.text("keyword")
+		record.best_combo_length = combo.whole("length", RunHighlight.MIN_COMBO)
+		record.best_combo_pay = combo.whole("pay", -SaveReader.MAX_EXACT)
+		if not combo.ok or not RunHighlight.COMBO_WORDS.has(record.best_combo_keyword):
+			return null
 	for visit_data: Dictionary in reader.dictionaries("visits"):
 		var visit: MachineVisit = MachineVisit.from_dictionary(visit_data, lookup)
 		if visit == null:

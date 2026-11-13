@@ -362,6 +362,7 @@ func checkout(day_off: bool = false) -> ScoreResult:
 	for card: CardInstance in first_row + row:
 		record.played.append(card.definition)
 	record.inspections = inspections.duplicate()
+	RunHighlight.record_best(record, last_result)  # v1.37: the final receipt's BEST line.
 	history.append(record)
 	if not record.passed and not TrainingWeek.forgives_miss(self):
 		phase = Phase.LOST
