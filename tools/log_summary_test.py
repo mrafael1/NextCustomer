@@ -1357,7 +1357,34 @@ class StartSetupTest(LogTestCase):
         self.assertEqual(setup["aisle_change_rate"]["n"], 2)
         self.assertEqual(setup["aisle_change_rate"]["rate"], 0.5)
         self.assertEqual(setup["lock_ins"], 0)
-        self.assertIn("Aisle changes: 1", ls.render(summary))
+        self.assertIn("Aisle changes (logs before v1.32): 1", ls.render(summary))
+
+    def test_booster_picks_restocks_and_rare_hits(self) -> None:
+        session = Session("boosters")
+        start = session.run_start("a", rack=())
+        start.update(stock_aisles=["dairy", "bakery", "pantry"], completed_aisles=6,
+                     boosters=[{"aisle": "dairy", "cards": ["milk"], "rare": 1,
+                                "sold_out": False},
+                               {"aisle": "bakery", "cards": ["bread"], "rare": 0,
+                                "sold_out": False},
+                               {"aisle": "snacks", "cards": ["chips"], "rare": 1,
+                                "sold_out": True}])
+        session.log("start_booster_pick", "a", picked=[0, 1], aisles=["dairy", "bakery"],
+                    sold_out=["snacks"], green=["bakery", "dairy"])
+        session.log("restock", "a", booster=1, aisle="bakery", before=["bread"],
+                    after=["bagel"], rare=0)
+        session.run_end("a", False, 2)
+        summary = self.summary(self.write("boosters.jsonl", session))
+        setup = summary["start_setup"]
+        self.assertEqual(setup["booster_picks"], 1)
+        self.assertEqual(setup["restock_by_kind"]["booster"]["count"], 1)
+        self.assertEqual(setup["restock_by_kind"]["aisle"]["count"], 0)
+        self.assertEqual(setup["rare_rate"]["n"], 2)
+        self.assertEqual(setup["rare_rate"]["rate"], 0.5)
+        self.assertIn("Booster picks (PICK 2 OF 3): 1", ls.render(summary))
+        # A v1.32 run (boosters in run_start) never enters the old aisle-change rate.
+        self.assertEqual(setup["aisle_change_rate"]["n"], 0)
+        self.assertIn("runs changing an aisle when choosable: - (0/0)", ls.render(summary))
 
     def test_final_deck_uses_the_confirmed_cart_including_pin_cards(self) -> None:
         session = Session("cart")

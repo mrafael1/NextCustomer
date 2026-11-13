@@ -16,10 +16,13 @@ const STARTING_DECK_STREAM := "starting_deck"
 ## The derived stream of the run seed that suggests the opening-time stock's aisles
 ## (StartSetupRules.suggest_aisles).
 const STOCK_AISLES_STREAM := "stock_aisles"
-## The derived streams of the run seed for the opening-time board (StartSetupRules): one basket's
-## deal at LOCK IN, by its source (StartSetup.STAPLES or the aisle id); one basket's RESTOCK, by
-## its source; a regular slot's offer from one aisle, by slot and aisle id; NEW PACKS.
-const START_BASKET_STREAM := "start_basket_%s"
+## The derived streams of the run seed for the opening-time board (StartSetupRules, v1.32): one
+## aisle booster's deal, by its aisle id; PICK 2 OF 3's extra aisle; the pack offer fitted to the
+## picked pair; one booster's RESTOCK, by its aisle id; a regular slot's offer from one aisle, by
+## slot and aisle id; NEW PACKS.
+const START_BOOSTER_STREAM := "start_booster_%s"
+const START_BOOSTER_EXTRA_STREAM := "start_booster_extra"
+const START_BOOSTER_PICK_STREAM := "start_booster_pick"
 const START_RESTOCK_STREAM := "start_restock_%s"
 const START_REGULARS_STREAM := "start_regulars_%d_%s"
 const START_NEW_PACKS_STREAM := "start_new_packs"

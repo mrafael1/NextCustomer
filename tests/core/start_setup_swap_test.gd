@@ -1,7 +1,7 @@
 extends GdUnitTestSuite
 ## The opening-time regulars (StartSetupRules, full build plan 7.2, reworked 2026-11-05): the swap
 ## pool, a slot's stable offer from one aisle, the drag targets' reasons, the swap limits and the
-## copy rule with the packs and the baskets, and the profile's saved swaps. On the live data.
+## copy rule with the packs and the boosters, and the profile's saved swaps. On the live data.
 
 const Kit := preload("res://tests/core/start_setup_kit.gd")
 const SEED := 20261104
@@ -136,14 +136,14 @@ func test_target_block_reasons() -> void:
 	run.starter.core_cards[2] = Kit.option(run, profile, 2, _balance.aisles[1])
 	StartSetupRules.refresh_deck(run)
 	assert_str(String(StartSetupRules.target_block(run, profile, 3, &"pantry"))).is_equal("swaps")
-	# Slot 0's offer is Cheese only, and a regular and a basket already hold Cheese: a third
+	# Slot 0's offer is Cheese only, and a regular and a booster already hold Cheese: a third
 	# copy, so nothing there fits.
 	var three: ProfileState = Kit.profile(3)
 	var full: RunState = Kit.locked(three, SEED)
 	var only_cheese: Array[CardDefinition] = [CHEESE]
 	full.start_setup.regular_offers[StartSetup.offer_key(0, cold.id)] = only_cheese
 	full.starter.core_cards[1] = CHEESE
-	full.start_setup.baskets[1].cards = only_cheese.duplicate()
+	full.start_setup.boosters[0].cards = only_cheese.duplicate()
 	assert_str(String(StartSetupRules.target_block(full, three, 0, cold.id))).is_equal("copies")
 	# Slot 0 already holds Cheese, its offer's only card: "current", not "copies".
 	var held: RunState = Kit.locked(three, SEED)
@@ -168,9 +168,9 @@ func test_at_most_two_swapped_regulars_come_from_one_aisle() -> void:
 	assert_object(Kit.option(run, profile, 2, _balance.aisles[1])).is_not_null()
 
 
-## After LOCK IN a swap never makes a third copy of a card in the cart, whichever pack is taken,
-## with the baskets; it never re-deals. Before it, a swap only changes what LOCK IN deals, and the
-## deal still keeps the copy rule.
+## After the deal a swap never makes a third copy of a card in the cart, whichever pack is taken,
+## with the boosters; it never re-deals. Before it, a swap only changes what the deal deals, and
+## the deal still keeps the copy rule.
 func test_swaps_keep_the_copy_rule_and_never_redeal() -> void:
 	var profile: ProfileState = Kit.profile(3)
 	var run: RunState = Kit.locked(profile, SEED)
@@ -190,14 +190,15 @@ func test_swaps_keep_the_copy_rule_and_never_redeal() -> void:
 	run.starter.core_cards[1] = CHEESE
 	run.starter.core_cards[2] = CHEESE
 	assert_bool(StartSetupRules.can_swap(run, profile, 3, CHEESE)).is_false()
-	# Before LOCK IN: two Cheese regulars, so no basket deals Cheese and Deli counter is not offered.
+	# Before the deal: two Cheese regulars, so no booster deals Cheese and Deli counter is not
+	# offered.
 	var deli: StarterPackDefinition = DELI
 	for seed_value: int in range(SEED, SEED + 4):
 		var waiting: RunState = Kit.run(profile, seed_value)
 		waiting.starter.core_cards[0] = CHEESE
 		waiting.starter.core_cards[1] = CHEESE
 		StartSetupRules.refresh_deck(waiting)
-		assert_str(String(Kit.lock_suggestion(waiting, profile))).is_empty()
+		assert_str(String(Kit.deal(waiting, profile))).is_empty()
 		assert_bool(waiting.start_setup.shared().has(CHEESE)).is_false()
 		assert_bool(waiting.start_offer.packs.has(deli)).is_false()
 

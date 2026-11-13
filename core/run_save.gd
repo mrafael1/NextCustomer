@@ -61,10 +61,11 @@ extends RefCounted
 ## (the run's own regulars, a recipe's core cards with the profile's swaps; missing: the recipe's)
 ## and `start_setup` (StartSetup.to_dictionary, null or missing for a run without it). A saved
 ## setup must match the run: its originals are the recipe's regulars; in SELECT the run waits for
-## its pick and its offer holds no packs and no shared products; from REVEALED the offer's shared
-## products are the baskets' cards and its picked pack is offered. A setup in the first build's
-## form (no `stage`) is not converted: a run waiting for its pick reads with no setup and
-## RunState.restart_setup set (the opening time sets it up again); a later run drops it.
+## its pick and its offer holds no packs and no shared products; from REVEALED (DEALT since
+## version 13) the offer's shared products are the counted boosters' cards and its picked pack is
+## offered. A setup in an older form (the first build's, or version 12's baskets) is not
+## converted: a run waiting for its pick reads with no setup and RunState.restart_setup set (the
+## opening time sets it up again); a later run drops it.
 ## v0.96 (four weeks: 16 shifts) keeps version 10: the save holds no run length (the balance's
 ## quotas give it), so a save from the 12-shift run resumes as a 16-shift run. Its played shifts
 ## keep their saved quotas, the current one is rebuilt from today's curve (saved after its
@@ -78,7 +79,15 @@ extends RefCounted
 ## Version 12 (v1.29, the Family sticker): `sticker_families`, the families picked for the run's
 ## Family stickers (instance id as text to family; RunState.sticker_families). A version 11 save
 ## reads as it is: no family picked, so its stickers are preset or pre-filled.
-const FORMAT_VERSION := 12
+## Version 13 (v1.32, the start boosters): the opening-time setup's new form (StartSetup: aisle
+## boosters in place of the three baskets, `boosters`, `pins_confirmed`). A version 12 save reads
+## as it is; its setup, in the older form (no `boosters`, StartSetup.is_old_format), restarts if
+## the run still waits for its pick (dealt again from the seed: new boosters) and is dropped after
+## clock-in.
+const FORMAT_VERSION := 13
+## Version 12: version 13's form with the opening-time setup's baskets, read as it is (an older
+## setup restarts or is dropped).
+const BEFORE_BOOSTERS_VERSION := 12
 ## Version 11: version 12's form before the Family sticker, read as it is (no family picked).
 const BEFORE_STICKERS_VERSION := 11
 ## Version 10: version 11's form before the over-quota rewards, read as it is (none earned).
@@ -94,6 +103,7 @@ const BEFORE_STARTER_PACKS_VERSION := 6
 ## The versions read as they are (older ones through RunSaveMigration).
 const READ_VERSIONS: Array[int] = [
 	FORMAT_VERSION,
+	BEFORE_BOOSTERS_VERSION,
 	BEFORE_STICKERS_VERSION,
 	BEFORE_OVERTIME_VERSION,
 	BEFORE_WEEKS_VERSION,

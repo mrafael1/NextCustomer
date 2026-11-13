@@ -14,9 +14,9 @@ extends Resource
 @export var family: String = ""
 ## The pack's cards, in the order they land in the cart.
 @export var cards: Array[CardDefinition] = []
-## The crate's strategy sentence: how the cards work together.
+## The pack's strategy sentence: how the cards work together.
 @export_multiline var hint_text: String = ""
-## A concrete row and its payoff for the crate (start screen YOUR BUILD): `example_text` names the
+## A concrete row and its payoff for the pack (start screen YOUR BUILD): `example_text` names the
 ## row and ends on its total, `example_cards` is the row and `example_total` its total at shift 1
 ## with no upgrades or day events (a data test scores it with the live card rules).
 @export_multiline var example_text: String = ""

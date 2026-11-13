@@ -86,13 +86,20 @@ extends Resource
 ## first dealt_aisle_count are STARTER CART (dealt) and the rest RUN ONLY.
 @export var stock_aisle_count: int = 0
 @export var dealt_aisle_count: int = 0
-## Cards in each opening-time basket (the Staples basket and one per STARTER CART aisle); not the
-## hand's basket_size. start_basket_size × (1 + dealt_aisle_count) is the recipe's random_count.
-@export var start_basket_size: int = 0
-## Completed aisles that unlock the basket RESTOCK, and RESTOCKs a run allows.
+## The opening-time aisle boosters (v1.32, start screen YOUR STORE): cards in each booster (one
+## per STARTER CART aisle; start_booster_size × dealt_aisle_count is the recipe's random_count),
+## its last start_booster_hit_slots places are hit cards, a hit card is RARE (its chain's BIG tier,
+## never GOLDEN) on randi_range(1, 100) <= start_booster_hit_rare_percent, and from
+## pair_choice_min_completed completed aisles start_booster_choice_count boosters are dealt and the
+## player picks dealt_aisle_count of them (PICK 2 OF 3).
+@export var start_booster_size: int = 0
+@export var start_booster_hit_slots: int = 0
+@export var start_booster_hit_rare_percent: int = 0
+@export var start_booster_choice_count: int = 0
+## Completed aisles that unlock the booster RESTOCK, and RESTOCKs a run allows.
 @export var restock_min_completed: int = 0
 @export var restocks_per_run: int = 0
-## Completed aisles from which the player chooses today's aisles.
+## Completed aisles from which the player picks today's aisles (PICK 2 OF 3).
 @export var pair_choice_min_completed: int = 0
 ## The most swapped regulars from one aisle, and the most cards a slot's offer from one aisle shows.
 @export var staple_swap_aisle_max: int = 0

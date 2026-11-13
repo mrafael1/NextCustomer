@@ -73,7 +73,8 @@ var unlocked_items: Dictionary[StringName, int] = {}
 var new_figurines: Array[StringName] = []
 ## The last shopping list (aisle ids), the next list's default (full build plan 7.2).
 var last_list: Array[StringName] = []
-## The opening-time board's saved deal-source pair (its two STARTER CART aisles).
+## The opening-time board's saved deal-source pair (its two STARTER CART aisles). Unused since
+## v1.32 (PICK 2 OF 3 picks the pair each run); still read and saved so the format is unchanged.
 var stock_pair: Array[StringName] = []
 ## The opening-time board's last RUN ONLY aisle ("" for none).
 var stock_run_only: StringName = &""
