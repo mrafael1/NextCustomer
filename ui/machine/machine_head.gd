@@ -82,6 +82,8 @@ var _stamp_text: String = ""
 var _under_text: String = ""
 ## Whether the title and the sub line fit left of the set stamp (they show there; else hidden).
 var _title_beside: bool = false
+## Whether the stamp is up (landed or blinking): the title and sub line make room for it only then.
+var _stamped: bool = false
 var _look: MachineLook = MachineLook.new()
 var _chase: float = 0.0
 var _night: bool = true
@@ -251,12 +253,12 @@ func _show_face(night: bool) -> void:
 
 
 ## Centres the title (its engraving one art px under it) and the sub line in their rects, or,
-## while a stamp is set, in the room left of it (STAMP_CLEAR clear) when both fit there.
+## while a stamp is up, in the room left of it (STAMP_CLEAR clear) when both fit there.
 func _place_lines() -> void:
 	var title_box: Rect2 = TITLE_RECT
 	var sub_box: Rect2 = SUB_RECT
 	_title_beside = false
-	if not _stamp_text.is_empty():
+	if _stamped and not _stamp_text.is_empty():
 		var room: float = _stamp.position.x - STAMP_CLEAR - TITLE_RECT.position.x
 		_title_beside = maxf(_title.size.x, _sub.size.x) <= room
 		title_box.size.x = room
@@ -267,9 +269,12 @@ func _place_lines() -> void:
 
 
 ## Sets the stamp (`stamped`) at `stamp_scale_now`, shown on the blink's on frames; while it is
-## set the title and sub line stay left of it (_place_lines), between the blinks too, or hidden
-## when they don't fit there.
+## up the title and sub line stay left of it (_place_lines), between the blinks too, or hidden
+## when they don't fit there; once it lifts (or before a BONUS stamp lands) they centre again.
 func _show_stamp(stamped: bool, stamp_scale_now: float, blink_on: bool = true) -> void:
+	if stamped != _stamped:
+		_stamped = stamped
+		_place_lines()
 	_stamp.visible = stamped and blink_on
 	_stamp.scale = Vector2.ONE * stamp_scale_now
 	var lines: bool = not stamped or _title_beside

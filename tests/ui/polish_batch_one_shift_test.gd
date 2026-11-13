@@ -166,6 +166,42 @@ func test_the_marquee_keeps_its_title_beside_every_stamp() -> void:
 		)
 
 
+## Once the stamp lifts (and on a BONUS visit before it lands) the title and sub line centre on
+## the whole sign again, not in the room left of where the stamp was.
+func test_the_marquee_recentres_once_the_stamp_lifts() -> void:
+	var view: RewardMachineView = auto_free(RewardMachineView.new())
+	var head: MachineHead = view.head
+	head.set_stamp(MachineHead.BONUS_TEXT, "Spot check passed")
+	view.plan = MachinePlan.new(view.tuning, MachineVisit.Kind.BONUS, false)
+	view.plan.set_draw([0, 0, 1] as Array[int])
+	view.plan.set_landing(MachinePlan.Landing.NEW_CARD, 1, MachinePlan.NO_VISIT)
+	head.frame(view.plan.fly_end + MachineTuning.sec(view.tuning.bonus_stamp_land_ms) + 0.01)
+	assert_bool(head.stamp_shown()).is_true()
+	var room_end: float = head.stamp_rect().position.x - MachineHead.STAMP_CLEAR
+	for line: MachineLine in head.title_lines():
+		assert_float(line.position.x + line.size.x).is_less_equal(room_end)
+	head.frame(MachineHead.lift_time(view.plan) + 0.1)
+	assert_bool(head.stamp_shown()).is_false()
+	_assert_lines_centred(head)
+	# A BONUS visit whose ticket is still flying: no stamp yet, so a centred sign.
+	view.plan = MachinePlan.new(view.tuning, MachineVisit.Kind.BONUS, false)
+	view.plan.fly_end = 1.0
+	head.set_stamp(MachineHead.BONUS_TEXT, "")
+	head.frame(0.5)
+	assert_bool(head.stamp_shown()).is_false()
+	_assert_lines_centred(head)
+
+
+func _assert_lines_centred(head: MachineHead) -> void:
+	var boxes: Array[Rect2] = [MachineHead.TITLE_RECT, MachineHead.SUB_RECT]
+	var lines: Array[MachineLine] = head.title_lines()
+	for k: int in lines.size():
+		assert_bool(lines[k].visible).is_true()
+		assert_float(lines[k].position.x + lines[k].size.x / 2.0).is_equal_approx(
+			boxes[k].get_center().x, MachineArt.PIXEL
+		)
+
+
 ## An upgrade ticket's name is the item (the tier it reaches is the art's chip) in the hard pixel
 ## rows, for every item with tiers; its rule says what it does without repeating the name.
 func test_upgrade_tickets_name_the_item_in_the_pixel_rows() -> void:

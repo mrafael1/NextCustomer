@@ -122,7 +122,8 @@ static func confirm_rect(top: float) -> Rect2:
 	return Rect2(box.position.x + box.size.x - 134, top + box.size.y - 42, 120, 28)
 
 
-## Row `k` of `count` owned pins under the step's top `top` (compact rows past FULL_ROWS).
+## Row `k` of `count` rows (owned, then locked) under the step's top `top` (compact rows past
+## FULL_ROWS).
 static func row_rect(k: int, count: int, top: float) -> Rect2:
 	var box: Rect2i = BuildPage.PIN_BOX
 	var h: int = row_height(count)
@@ -471,10 +472,11 @@ static func hits(page: BuildPage, list: Array[Dictionary]) -> void:
 	)
 	var top: float = BuildPage.PIN_BOX.position.y
 	var owned: Array[PinDefinition] = page.pins.owned()
+	var count: int = owned.size() + locked_pins(page).size()
 	for k: int in owned.size():
 		list.append(
 			{
-				"rect": row_rect(k, owned.size(), top),
+				"rect": row_rect(k, count, top),
 				"id": "pin_%s" % owned[k].id,
 				"act": page.pins.toggle.bind(owned[k])
 			}

@@ -187,8 +187,19 @@ func test_locked_pins_fill_the_step_as_grey_rows() -> void:
 		for other: Rect2 in rows:
 			assert_bool(rect.intersects(other)).is_false()
 		rows.append(rect)
-	for pin: PinDefinition in owned:
-		assert_bool(_hit(staff, "pin_%s" % pin.id).is_empty()).is_false()
+	# Each click rect is the row drawn for it (rows counted over the whole catalogue), also for a
+	# new profile's few pins (only the pins every profile starts with).
+	var rest: float = BuildPage.PIN_BOX.position.y
+	var unlocked: Array[StringName] = staff.profile.unlocked_pins.duplicate()
+	for earned: Array[StringName] in [unlocked, [] as Array[StringName]]:
+		staff.profile.unlocked_pins = earned
+		var mine: Array[PinDefinition] = staff.pins.owned()
+		for k: int in mine.size():
+			var hit: Dictionary = _hit(staff, "pin_%s" % mine[k].id)
+			assert_bool(hit.is_empty()).is_false()
+			assert_that(hit.rect).is_equal(PinStepDraw.row_rect(k, count, rest))
+	assert_int(staff.pins.owned().size()).is_less_equal(PinStepDraw.FULL_ROWS)
+	staff.profile.unlocked_pins = unlocked
 	for pin: PinDefinition in locked:
 		assert_bool(_hit(staff, "pin_%s" % pin.id).is_empty()).is_true()
 		assert_str(PinStepDraw.unlock_text(pin)).starts_with("Unlock: ")

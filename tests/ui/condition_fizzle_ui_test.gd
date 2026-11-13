@@ -174,15 +174,16 @@ func test_an_upgrade_condition_fizzles_in_planning_the_count_up_and_the_receipt(
 	assert_bool(SCREEN_RECT.encloses(sticker.get_global_rect())).is_true()
 	assert_int(sticker._spec.badge).is_equal(GiverBadge.Kind.LOYALTY)
 	assert_object(_sticker(screen, 0, EffectLink.WASTED_WORD)).is_null()
-	# The count-up: one FIZZLE beat on the last item, its puff (the WASTED label, v1.36) out of
-	# the upgrade's box.
+	# The count-up: one FIZZLE beat on the last item, its puff (the WASTED label, v1.36) rising
+	# over the item, not out of the upgrade's box over the shelves (polish audit, v1.36).
 	var count_up: CountUp = screen._count_up
 	var box: Control = screen._loyalty_card.stamped_boxes()[0]
-	var puff_from: Vector2 = box.get_global_rect().get_center() + Vector2(0, 26)
 	var puffs: Array[Vector2] = []
+	var items: Array[Vector2] = []
 	var record: Callable = func(node: Control) -> void:
 		if node is EffectSticker and (node as EffectSticker).text() == EffectLink.WASTED_WORD:
 			puffs.append(node.get_global_rect().get_center())
+			items.append(count_up._beats._at(1))
 	var on_added: Callable = func(node: Node) -> void:
 		if node is Control:
 			record.call_deferred(node)
@@ -197,7 +198,9 @@ func test_an_upgrade_condition_fizzles_in_planning_the_count_up_and_the_receipt(
 	assert_array(fizzle_beats).is_equal([1])
 	assert_int(puffs.size()).is_equal(1)
 	if puffs.size() == 1:
-		assert_float(puffs[0].distance_to(puff_from)).is_less(1.5)
+		assert_float(puffs[0].x).is_equal_approx(items[0].x, 1.5)
+		assert_float(puffs[0].y).is_less(items[0].y)
+		assert_float(puffs[0].y).is_greater(box.get_global_rect().end.y + 26)
 		assert_bool(SCREEN_RECT.has_point(puffs[0])).is_true()
 	await _assert_receipt_of(screen, result, 500)
 	# The anchored receipt (2026-11-05) prints no fizzle line (the monitor told it): its rows are

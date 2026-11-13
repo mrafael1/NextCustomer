@@ -257,9 +257,10 @@ func _credit(beat: CountUpBeat, step: ScoreStep) -> void:
 
 ## A fizzle: the card shudders, greys out for a moment, and lets out a little WASTED puff where
 ## it is now (the bag's mouth for a bagged item), above its sticker stack (v1.36). An upgrade's
-## fizzle comes out of its loyalty-card box instead, a day event's from its chip (v0.69; the card
-## it had nothing to work on gives a small nudge). The puff is the stack's WASTED label (v1.36:
-## a bare word read as one with the pile's labels, "WASTEDSTED", or as a ghost over the shelves).
+## fizzle shudders its loyalty-card box, a day event's its chip (v0.69; the card it had nothing
+## to work on gives a small nudge), and the puff still rises over the item (v1.36). The puff is
+## the stack's WASTED label (v1.36: a bare word read as one with the pile's labels, "WASTEDSTED",
+## or as a ghost over the shelves).
 func _fizzle(beat: CountUpBeat, step: ScoreStep) -> void:
 	_print_step(step)
 	var view: CardView = _views[step.slot]
@@ -273,10 +274,9 @@ func _fizzle(beat: CountUpBeat, step: ScoreStep) -> void:
 	var resetter: CardView = _source_view(step)
 	var motion: float = _motion(beat)
 	if upgrade_box != null:
+		# The box (in the top bar) shudders; the puff rises over the item like any fizzle's, so
+		# no WASTED drifts over the shelves (polish audit, v1.36).
 		shaken = upgrade_box
-		# The box sits in the top bar: the puff drifts down from it, onto the screen.
-		puff_at = _center(upgrade_box) + Vector2(0, 26)
-		puff_to = puff_at + Vector2(0, PUFF_RISE)
 		_fx.punch(view.body, 1.06)
 	elif resetter != null and step.source_slot != step.slot:
 		# A reset: show the card that wiped this one's effect.
