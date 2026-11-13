@@ -474,3 +474,22 @@ static func _key(keycode: Key) -> InputEventKey:
 
 static func _event_log() -> EventLogService:
 	return (Engine.get_main_loop() as SceneTree).root.get_node("/root/EventLog")
+
+
+## A copy-limited card's rule ends above its MAX 2 IN CART tag (Bent lolly's fifth line hid under
+## it): every card's rule, fitted to the room the swap window leaves it, fits that room.
+func test_rules_fit_above_the_copy_limit_tag() -> void:
+	var floor_y: float = BoosterArt.CH - SwapWindowDraw.TAG_RISE - 1
+	for file: String in DirAccess.get_files_at("res://data/cards"):
+		if not file.ends_with(".tres"):
+			continue
+		var card: CardDefinition = load("res://data/cards".path_join(file)) as CardDefinition
+		if card == null or card.rule_text.strip_edges() == "":
+			continue
+		var text: Dictionary = BoosterArt.face_text(card, false)
+		var win: Rect2i = text.window
+		var room: float = minf(text.rule_bottom as float, floor_y) - (text.rule_top as int)
+		var fit: Array = BoosterCardDraw.rule_fit(card, win.size.x - 4, room)
+		var lines: PackedStringArray = fit[1]
+		var block: float = lines.size() * ((fit[0] as float) + 0.9)
+		assert_float(block).override_failure_message("%s: %s" % [file, lines]).is_less_equal(room)

@@ -73,9 +73,11 @@ func test_swap_window_tips_open_inside_the_viewport() -> void:
 		_run(page, 1.0)
 		for bi: int in page.swap.boosters.size():
 			page.swap.open_booster(bi, "key")
+		_copy_limit_one(page)
 		_run(page, 3.0)
 		var tips: GlyphTips = _board(page).tips
 		var shown: int = 0
+		var blocked: int = 0
 		for n: int in page.swap.pieces.size():
 			var piece: SwapPiece = page.swap.pieces[n]
 			if piece.regular:
@@ -86,11 +88,13 @@ func test_swap_window_tips_open_inside_the_viewport() -> void:
 			shown += 1
 			var spec: TipSpec = tips.tip().spec
 			if page.swap.blocked(piece):
+				blocked += 1
 				assert_str(spec.live).is_equal(
 					StartTips.COPY_LIMIT_LIVE % page.run.starter.copy_max
 				)
 				assert_int(spec.live_kind).is_equal(TipSpec.Live.BAD)
 		assert_int(shown).is_greater(0)
+		assert_int(blocked).override_failure_message("no copy-limited card seen").is_greater(0)
 		for slot: int in page.run.starter.core_cards.size():
 			var basket: TipTarget = page.tips.target_for("slot%d|" % slot)
 			assert_object(basket).override_failure_message("slot%d" % slot).is_not_null()
@@ -262,6 +266,18 @@ static func _board(page: BoosterPage) -> StartBoard:
 
 
 ## Rolls up, opens every booster and lets STOCKED! come.
+## Makes the copy limit keep one fan card out: its card fills the first copy_max regular slots
+## (as their originals too, so they read as regulars, not swaps).
+static func _copy_limit_one(page: BoosterPage) -> void:
+	for piece: SwapPiece in page.swap.pieces:
+		if piece.regular:
+			continue
+		for slot: int in page.run.starter.copy_max:
+			page.run.starter.core_cards[slot] = piece.card
+			page.run.start_setup.originals[slot] = piece.card
+		return
+
+
 static func _stocked(page: BoosterPage) -> void:
 	page.openings.roll_up()
 	page.openings.end_arrival()
