@@ -96,7 +96,13 @@ extends RefCounted
 ## for its pick, dropped after clock-in). It also no longer writes the stock's `new_arrivals`
 ## (v1.32: the end-cap is gone); an older save's list is read past and ignored, so no version of
 ## its own.
-const FORMAT_VERSION := 15
+## Version 16 (v1.37, the final receipt's BEST line): each record's checkout bests, written only
+## when set (ShiftRecord: `best_payout` with `best_card`, `best_combo` with its keyword, length and
+## pay). A version 15 save reads as it is: its records have none, so RunHighlight leaves out its
+## played shifts' payouts and combos (the other kinds still read them).
+const FORMAT_VERSION := 16
+## Version 15: version 16's form before the checkout bests, read as it is (none recorded).
+const BEFORE_HIGHLIGHT_VERSION := 15
 ## Version 14: version 15's form with one regulars offer per slot and aisle in the setup, read as
 ## it is (its setup restarts or is dropped).
 const BEFORE_SWAP_WINDOW_VERSION := 14
@@ -121,6 +127,7 @@ const BEFORE_STARTER_PACKS_VERSION := 6
 ## The versions read as they are (older ones through RunSaveMigration).
 const READ_VERSIONS: Array[int] = [
 	FORMAT_VERSION,
+	BEFORE_HIGHLIGHT_VERSION,
 	BEFORE_SWAP_WINDOW_VERSION,
 	BEFORE_TWO_AISLES_VERSION,
 	BEFORE_BOOSTERS_VERSION,
@@ -309,7 +316,7 @@ static func from_dictionary(saved: Dictionary, lookup: ContentLookup) -> RunSave
 		var choosing: bool = SAVE_POINTS[phase_index] == RunState.Phase.CHOOSE_START
 		# A setup saved before version 15 (baskets, three stocked aisles, or one regulars offer per
 		# slot and aisle) is an older form.
-		var older: bool = int(version) < FORMAT_VERSION
+		var older: bool = int(version) < BEFORE_HIGHLIGHT_VERSION
 		if older or StartSetup.is_old_format(setup_data as Dictionary):
 			restored.restart_setup = choosing
 		else:
