@@ -272,7 +272,7 @@ func test_hover_spreads_one_pack_and_sinks_the_others() -> void:
 
 
 ## OPEN STORE waits for a pick: with no pick (and no good first pick) the key is PICK A PACK,
-## unlit, and OPEN STORE is refused; the sheet's waiting note says "pick a pack". A pick (key 2)
+## unlit, and OPEN STORE is refused; the sheet's waiting note says "from a pack". A pick (key 2)
 ## lights OPEN STORE and tints the pack's lines solid on the sheet, inside its paper.
 func test_open_store_waits_for_a_pick() -> void:
 	var screen: ShiftScreen = await _screen()
@@ -287,7 +287,7 @@ func test_open_store_waits_for_a_pick() -> void:
 	assert_bool(board.clock_in()).is_false()
 	assert_bool(staff.primary()).is_false()
 	assert_str(staff.message).is_equal("PICK A PACK FIRST")
-	assert_str(staff.order.waiting_note.text).contains("when you pick a pack")
+	assert_str(staff.order.waiting_note.text).contains("from a pack")
 	assert_bool(staff.handle_key(KEY_2)).is_true()
 	assert_int(staff.picked()).is_equal(1)
 	label = BuildPageDraw.primary_label(staff)
@@ -360,6 +360,81 @@ func test_open_store_flies_the_cards_to_the_cart() -> void:
 	assert_object(staff.flight).is_null()
 	assert_int(flight.landed).is_equal(flight.items.size())
 	assert_array(clocked).is_equal([screen.run.start_offer.packs[0]])
+
+
+## v1.36 (polish batch 1): the order sheet's red tail ("+n from a pack", "+n after your pins")
+## ends inside the paper, after the equation, at 1280x720 and 1920x1080 (it ran off mid-word).
+func test_the_waiting_note_fits_the_paper() -> void:
+	var screen: ShiftScreen = await _screen()
+	var board: StartBoard = screen._cart_reveal.board
+	var staff: BuildPage = await _dealt(board)
+	_clear_pick(board)
+	var packed: int = screen.run.start_offer.packs[0].cards.size()
+	for extent: Vector2 in [Vector2(1280, 720), Vector2(1920, 1080)]:
+		await _resize(board, extent)
+		var k: float = board._stage.scale.x
+		for held: bool in [false, true]:
+			staff.order.show_cart(_view(screen.run), null, false, held)
+			await get_tree().process_frame
+			var note: Label = staff.order.waiting_note
+			assert_object(note).is_not_null()
+			var wanted: String = OrderSheet.WAITING_PINS if held else OrderSheet.WAITING_PACK
+			assert_str(note.text).is_equal(wanted % packed)
+			var paper: Rect2 = (staff.order.get_node("Paper") as Control).get_global_rect()
+			var right: float = paper.end.x - OrderSheet.PAD * k
+			var rect: Rect2 = note.get_global_rect()
+			assert_float(rect.end.x).override_failure_message(str(rect)).is_less_equal(right + 0.5)
+			var ink: float = note.get_minimum_size().x * note.get_global_transform().get_scale().x
+			assert_float(ink).is_less_equal(rect.size.x + 0.5)
+			var equation: Rect2 = staff.order.equation.get_global_rect()
+			assert_float(rect.position.x).is_greater_equal(equation.end.x)
+
+
+## v1.36: a spread pack's cards and their RARE tabs clear every strip's plate above them (the
+## left card's tab hid under the next pack's plate), and the spread stays above the bench, on the
+## stage at 1280x720 and 1920x1080.
+func test_the_spread_clears_the_strips() -> void:
+	var screen: ShiftScreen = await _screen()
+	var board: StartBoard = screen._cart_reveal.board
+	var staff: BuildPage = await _dealt(board)
+	for extent: Vector2 in [Vector2(1280, 720), Vector2(1920, 1080)]:
+		await _resize(board, extent)
+		var stage: Rect2 = _stage_rect(board).grow(0.5)
+		var unit: Transform2D = staff.get_global_transform()
+		for j: int in 3:
+			var tab: Rect2 = BuildPageDraw.spread_tab_rect(j)
+			var spread: Rect2 = Rect2(
+				BuildPage.SPX[j], BuildPage.SPY - 4, BoosterArt.CW, BoosterArt.CH
+			)
+			assert_float(spread.end.y).is_less_equal(BuildPage.BENCH_Y)
+			for k: int in 3:
+				for hovered: bool in [false, true]:
+					var strip: Rect2 = BuildPageDraw.strip_rect(k, hovered)
+					var apart: bool = not tab.intersects(strip) and not spread.intersects(strip)
+					assert_bool(apart).override_failure_message(str([j, k, hovered])).is_true()
+			var shown: Rect2 = unit * Rect2(tab.position * ArtPen.UNIT, tab.size * ArtPen.UNIT)
+			assert_bool(stage.encloses(shown)).is_true()
+
+
+## v1.36: during OPEN STORE's flight the floor's ticker says CLICK OR ENTER TO SKIP (no stale
+## "OPEN STORE, THEN START SHIFT 1", no loose body-text hint), and the cart's wheels clear it.
+func test_the_store_flight_ticker_says_skip() -> void:
+	var screen: ShiftScreen = await _screen()
+	var board: StartBoard = screen._cart_reveal.board
+	var staff: BuildPage = await _dealt(board)
+	board.pick(0)
+	screen.profile.set_reduced_motion(false)
+	board.refresh()
+	staff.advance(2.5)
+	assert_str(BuildPageDraw.hint_line(staff)).is_equal("OPEN STORE, THEN START SHIFT 1")
+	assert_bool(board.clock_in()).is_true()
+	staff.advance(0.05)
+	assert_object(staff.flight).is_not_null()
+	assert_str(BuildPageDraw.hint_line(staff)).is_equal(StoreFlight.SKIP_HINT)
+	assert_float(BuildPageDraw.hint_start(staff)).is_equal(staff.flight.t0)
+	var wheels: float = StoreFlight.CART_Y + StoreFlight.WHEELS_BOTTOM + 1.0
+	assert_float(wheels).is_less_equal(float(BuildPage.LED_RECT.position.y))
+	assert_float(ArtPen.pix_width(StoreFlight.SKIP_HINT)).is_less(BuildPage.LED_RECT.size.x - 8.0)
 
 
 ## The page fills the stage at both sizes; its keys (‹ STORE, the LED, the primary key) and the
@@ -463,6 +538,16 @@ static func _clear_pick(board: StartBoard) -> void:
 	board.run.start_setup.picked = &""
 	board.run.start_offer.first_pick = null
 	board.refresh()
+
+
+## The staff room's read-only view of `run` (as BuildPage._sync_order builds it).
+static func _view(run: RunState) -> StartBuildView:
+	var view: StartBuildView = StartBuildView.new()
+	view.starter = run.starter
+	view.start_offer = run.start_offer
+	view.balance = run.balance
+	view.pins = run.pins
+	return view
 
 
 static func _hit(staff: BuildPage, id: String) -> Dictionary:

@@ -298,6 +298,36 @@ func test_a_fresh_profile_has_no_coins_yet() -> void:
 	)
 
 
+## Pass 2: the time card's foot says how it closes (CLICK TO CLOSE · ESC), under the day table
+## and inside the card, and the whole card fits the screen at 1280x720 and 1920x1080.
+func test_the_time_card_foot_says_how_it_closes() -> void:
+	var balance: BalanceDefinition = load("res://data/balance/balance.tres")
+	var run: RunState = RunState.new(
+		43, load("res://data/decks/starter.tres"), balance, RunStock.starting(balance)
+	)
+	run.start_shift()
+	for extent: Vector2i in SIZES:
+		var host: Control = auto_free(Control.new())
+		add_child(host)
+		host.size = Vector2(extent)
+		var card: WeekCard = WeekCard.new()
+		host.add_child(card)
+		card.size = host.size
+		card.reopen(WeekCardModel.of(run), host, true)
+		await _frames(2)
+		var body: Rect2 = card.card().get_global_rect()
+		var inside: bool = host.get_global_rect().encloses(body)
+		assert_bool(inside).override_failure_message(str(body)).is_true()
+		var hint: Label = card.card().find_child("CloseHint", true, false)
+		assert_str(hint.text).is_equal(WeekCard.CLOSE_HINT)
+		var table: Control = card.card().find_child("Table", true, false)
+		var rect: Rect2 = hint.get_global_rect()
+		assert_bool(body.encloses(rect)).override_failure_message(str(rect)).is_true()
+		assert_float(rect.position.y).is_greater_equal(table.get_global_rect().end.y)
+		assert_float(hint.get_minimum_size().x).is_less_equal(rect.size.x)
+		card.clear()
+
+
 func _title() -> TitleScreen:
 	var runner: GdUnitSceneRunner = scene_runner(TITLE)
 	var title: TitleScreen = runner.scene()

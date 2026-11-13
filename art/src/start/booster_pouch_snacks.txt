@@ -1,4 +1,4 @@
-; Generated from docs/art/mockups/start_boosters_v3.html (approved 2026-11-13) by a scratch export of its paintPouch: the Snacks booster pouch at lamp level 1. 84x112. Unlit is a modulate and a hot lamp adds a paper row, both in code.
+; Generated from docs/art/mockups/start_boosters_v3.html (approved 2026-11-13) by a scratch export of its paintPouch: the Snacks booster pouch at lamp level 1. 84x112. Unlit is a modulate and a hot lamp adds a paper row, both in code. v1.36: the 3 CARDS starburst widened 6 px (tools burst stretch).
 @size 84x112
 @kind scenery
 ##..##..##..##..##..##..##..##..##..##..##..##..##..##..##..##..##..##..##..##..##..
@@ -78,27 +78,27 @@
 ####################################################################################
 #eeeeefeffffffFwwFfffffffffffffffffffffffffffffffffffffffffffffffffffefeeeeeeUeUUUU#
 #eeeeeefefffffFwwFffffffffffffffffffffffffffffffffffffffffffffffffffffefeeeeeeUUUUU#
-#eeeeefeffffffFwwFfffffffffffffffffffffffffffffffffffffffff##ffff##ffefeeeeeeUeUUUU#
-#eeeeeefefffffFwwFfffffffffffffffffffffffffffffffffff#ffff#YY####YY#ffef#eeeeeUUUUU#
-#eeeeefeffffffFwwFfffffffffffffffffffffffffffffffffff#####YMMYYYYMMY#####eeeeUeUUUU#
-#eeeeeefefffffFwwFfffffffffffffffffffffffffffffffffff#YYYYMMMMMMMMMMYYYY#eeeeeUUUUU#
-#eeeeefeffffffFwwFfffffffffffffffffffffffffffffff####YwMwMMMMMMMMMMMMMMMY####UeUUUU#
-#eeeeeefefffffFwwFfffffffffffffffffffffffffffffff#YYYwYYYYYYYYYYMMMMMMMMMYYY#eUUUUU#
-#eeeeefeffffffFwwFfffffffffffffffffffffffffffff##YY#####YYYYYYYYYYMMMMMMMMMMM##UUUU#
-#eeeeeefefffffFwwFffffffffffffffffffffffffffff#YYMYYYYY##YYYYYYYYMMMMMMMMMMMMMM#UUU#
-#eeeeefeffffffFwwFfffffffffffffffffffffffffffff#YMMMMYY##YYY##MM#MM##MM##MMM###UUUU#
-#eeeeeefefffffFwwFffffffffffffffffffffffffffff#YMMMM####MMM#MMM#M#M#M#M#M#M#MMm#UUU#
-#eeeeefeffffffFwwFffffffffffffffffffffffffff##YMMMMMMMM##MM#MMM###M##MM#M#MM#MMm##U#
-#eeeeeefefffffFwwFffffffffffffffffffffffffffff#YMMMMMMM##MM#MMM#M#M#M#M#M#MMM#m#UUU#
-#eeeeefeffffffFwwFfffffffffffffffffffffffffffff#YMM##MM##MMM##M#M#M#M#M##MM##m#UUUU#
-#eeeeeefefffffFwwFffffffffffffffffffffffffffff#YYMMM####MMMMMMMMMMMMMMMMMMMMMmm#UUU#
-#eeeeefeffffffFwwFfffffffffffffffffffffffffffff##MMMMMMMMMMMMMMMMMMMMMMMMMMMm##UUUU#
-#eeeeeefefffffFwwFfffffffffffffffffffffffffffffff#MMMmmmmmmmmmmmmmmmmmmmmmmm#eUUUUU#
-#eeeeefeffffffFwwFfffffffffffffffffffffffffffffff####Mmmmmmmmmmmmmmmmmmmm####UeUUUU#
-#eeeeeefefffffFwwFfffffffffffffffffffffffffffffffffff#mmmmmmmmmmmmmmmmmm#eeeeeUUUUU#
-#eeeeefeffffffFwwFfffffffffffffffffffffffffffffffffff#####mmmmmmmmmm#####eeeeUeUUUU#
-#eeeeeefefffffFwwFfffffffffffffffffffffffffffffffffff#ffff#mm####mm#ffef#eeeeeUUUUU#
-#eeeeefeffffffFwwFfffffffffffffffffffffffffffffffffffffffff##ffff##ffefeeeeeeUeUUUU#
+#eeeeefeffffffFwwFffffffffffffffffffffffffffffffffffffff##ffff##ffeffffeeeeeeUeUUUU#
+#eeeeeefefffffFwwFffffffffffffffffffffffffffffffff#ffff#YY####YY#ffeeeef#eeeeeUUUUU#
+#eeeeefeffffffFwwFffffffffffffffffffffffffffffffff#####YMMYYYYMMY########eeeeUeUUUU#
+#eeeeeefefffffFwwFffffffffffffffffffffffffffffffff#YYYYMMMMMMMMMMYYYYYYY#eeeeeUUUUU#
+#eeeeefeffffffFwwFfffffffffffffffffffffffff#######YwMwMMMMMMMMMMMMMMMYYYY####UeUUUU#
+#eeeeeefefffffFwwFfffffffffffffffffffffffff#YYYYYYwYYYYYYYYYYMMMMMMMMMYYYYYY#eUUUUU#
+#eeeeefeffffffFwwFfffffffffffffffffffffff##YYYYY#####YYYYYYYYYYMMMMMMMMMMMMMM##UUUU#
+#eeeeeefefffffFwwFffffffffffffffffffffff#YYMYYYYYYYY##YYYYYYYYMMMMMMMMMMMMMMMMM#UUU#
+#eeeeefeffffffFwwFfffffffffffffffffffffff#YMMMMMMMYY##YYY##MM#MM##MM##MMMMMM###UUUU#
+#eeeeeefefffffFwwFffffffffffffffffffffff#YMMMMMMM####MMM#MMM#M#M#M#M#M#M#MMmmmm#UUU#
+#eeeeefeffffffFwwFffffffffffffffffffff##YMMMMMMMMMMM##MM#MMM###M##MM#M#MM#MMmmmm##U#
+#eeeeeefefffffFwwFffffffffffffffffffffff#YMMMMMMMMMM##MM#MMM#M#M#M#M#M#MMM#mmmm#UUU#
+#eeeeefeffffffFwwFfffffffffffffffffffffff#YMMMMM##MM##MMM##M#M#M#M#M##MM##mmmm#UUUU#
+#eeeeeefefffffFwwFffffffffffffffffffffff#YYMMMMMM####MMMMMMMMMMMMMMMMMMMMMmmmmm#UUU#
+#eeeeefeffffffFwwFfffffffffffffffffffffff##MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMmmmm##UUUU#
+#eeeeeefefffffFwwFfffffffffffffffffffffffff#MMMMMMmmmmmmmmmmmmmmmmmmmmmmmmmm#eUUUUU#
+#eeeeefeffffffFwwFfffffffffffffffffffffffff#######Mmmmmmmmmmmmmmmmmmmmmmm####UeUUUU#
+#eeeeeefefffffFwwFffffffffffffffffffffffffffffffff#mmmmmmmmmmmmmmmmmmmmm#eeeeeUUUUU#
+#eeeeefeffffffFwwFffffffffffffffffffffffffffffffff#####mmmmmmmmmm########eeeeUeUUUU#
+#eeeeeefefffffFwwFffffffffffffffffffffffffffffffff#ffff#mm####mm#ffeeeef#eeeeeUUUUU#
+#eeeeefeffffffFwwFffffffffffffffffffffffffffffffffffffff##ffff##ffeffffeeeeeeUeUUUU#
 #eeeeeefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefeeeeeeeUeUe#
 #eeeeefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefeeeeeeeeeUeU#
 #eeeeeefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefeeeeeeeUeUe#
