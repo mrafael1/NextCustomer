@@ -36,8 +36,8 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-## The sign stays dark and the plates hidden until INTRO_DARK; a first click (anywhere, even on
-## the doors) then only lights the sign and shows the plates at once.
+## The sign stays dark and the plates hidden during the opening; a first click (anywhere, even
+## on the doors) then only lights the sign and shows the plates at once.
 func test_a_first_click_during_the_intro_only_ends_it() -> void:
 	var title: TitleScreen = await _title(false)
 	assert_bool(title.is_intro_playing()).is_true()
@@ -55,17 +55,78 @@ func test_a_first_click_during_the_intro_only_ends_it() -> void:
 	assert_bool(title.skip_intro()).is_false()
 
 
-## Left alone, the sign lights by itself after INTRO_DARK, then the plates step in.
+## Left alone (variant C, data/balance/title_opening.tres): dark for dark_s, then the scan beam
+## sweeps the sign, the BEEP (the register's scan beep) as it blinks, the sign lit, and the plates
+## step in plates_delay_s later. The whole opening is about 1.7 s, down from about 3.5 s.
 func test_the_sign_lights_by_itself() -> void:
-	var title: TitleScreen = await _title(false)
-	title._process(TitleScreen.INTRO_DARK - 0.5)
-	assert_int(title.storefront().neon_sign().lit_letters()).is_equal(0)
-	title._process(0.6)
-	await get_tree().create_timer(NeonSign.LETTER_STEP * 13 + TitleMenu.SLIDE_TIME * 2).timeout
+	# No frame passes before the steps below: the opening is driven by hand.
+	var title: TitleScreen = _fresh_title()
+	var sfx: Sfx = _record(title)
+	var tuning: TitleOpeningTuning = load(TitleScreen.OPENING)
+	assert_float(tuning.dark_s).is_equal_approx(0.35, 0.001)
+	assert_float(tuning.sweep_s).is_equal_approx(NeonSign.SCAN_TIME, 0.001)
+	assert_float(tuning.blink_s).is_equal_approx(NeonSign.BLINK, 0.001)
+	assert_str(tuning.beep_sound).is_equal("scan")
+	var neon: NeonSign = title.storefront().neon_sign()
+	title._process(tuning.dark_s - 0.05)
+	assert_bool(neon.is_sweeping()).is_false()
+	assert_int(neon.lit_letters()).is_equal(0)
+	title._process(0.05)
+	assert_bool(neon.is_sweeping()).is_true()
+	neon._process(tuning.sweep_s + 0.001)
+	assert_array(sfx.call("sound_names")).is_equal([tuning.beep_sound])
+	assert_bool(title.storefront().is_lit()).is_false()
+	neon._process(tuning.blink_s)
 	assert_bool(title.storefront().is_lit()).is_true()
 	assert_bool(title.menu().is_shown()).is_true()
-	await get_tree().create_timer(TitleMenu.STEP_DELAY * 3 + TitleMenu.SLIDE_TIME).timeout
+	assert_bool(title.is_intro_playing()).is_true()
+	assert_bool(title.menu().plate(TitleMenu.Entry.PRIMARY).visible).is_false()
+	var plates: int = title.menu().entries().size()
+	var total: float = (
+		tuning.plates_delay_s + TitleMenu.STEP_DELAY * (plates - 1) + TitleMenu.SLIDE_TIME
+	)
+	var opening: float = tuning.dark_s + tuning.sweep_s + tuning.blink_s + total
+	assert_float(opening).is_between(1.5, 1.9)
+	await get_tree().create_timer(total + 0.1).timeout
 	assert_bool(title.is_intro_playing()).is_false()
+	assert_array(sfx.call("sound_names")).is_equal([tuning.beep_sound])
+
+
+## A key mid-sweep ends the opening on its final frame: the sign lit, the plates in place, no
+## BEEP; a later click on the sign still scans it (the hidden toy).
+func test_a_key_mid_sweep_ends_the_opening() -> void:
+	# No frame passes before the steps below: the opening is driven by hand.
+	var title: TitleScreen = _fresh_title()
+	var sfx: Sfx = _record(title)
+	var tuning: TitleOpeningTuning = load(TitleScreen.OPENING)
+	var neon: NeonSign = title.storefront().neon_sign()
+	title._process(tuning.dark_s)
+	neon._process(tuning.sweep_s / 2.0)
+	assert_bool(neon.is_sweeping()).is_true()
+	title._unhandled_key_input(_key(KEY_SPACE))
+	assert_bool(title._starting).is_false()
+	assert_bool(title.is_intro_playing()).is_false()
+	assert_int(neon.lit_letters()).is_equal(NeonSign.LETTERS.size())
+	assert_float(title.storefront().layer("wedge").modulate.a).is_equal(1.0)
+	neon._process(tuning.sweep_s)
+	assert_array(sfx.call("sound_names")).is_empty()
+	title._on_scene_input(_click_at(title, title.storefront().sign_rect().get_center()))
+	assert_array(sfx.call("sound_names")).is_equal(["scan"])
+	neon._process(NeonSign.SCAN_TIME + 0.01)
+	assert_bool(neon.is_blinking()).is_true()
+
+
+## A return to the title (request_lit) opens lit, the plates in place, with no BEEP.
+func test_a_return_to_the_title_opens_lit_and_silent() -> void:
+	TitleScreen.request_lit()
+	var runner: GdUnitSceneRunner = scene_runner(TITLE)
+	var title: TitleScreen = runner.scene()
+	title.changes_scene = false
+	var sfx: Sfx = _record(title)
+	await _frames(2)
+	assert_bool(title.is_intro_playing()).is_false()
+	assert_bool(title.storefront().neon_sign().is_sweeping()).is_false()
+	assert_array(sfx.call("sound_names")).is_empty()
 
 
 func test_without_a_run_save_the_doors_start() -> void:
@@ -442,11 +503,16 @@ func test_reduced_motion_holds_every_loop_and_slide() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(TITLE)
 	var title: TitleScreen = runner.scene()
 	title.changes_scene = false
+	# Reduced motion: lit from the first frame, with only the opening's last sound (the BEEP).
+	var sfx: Sfx = _record(title)
+	assert_bool(title.reduced_motion()).is_true()
 	await _frames(2)
+	assert_array(sfx.call("sound_names")).is_equal(["scan"])
 	var front: Storefront = title.storefront()
 	assert_bool(front.still).is_true()
 	assert_bool(front.is_lit()).is_true()
 	assert_bool(title.is_intro_playing()).is_false()
+	assert_float(front.layer("wedge").modulate.a).is_equal(1.0)
 	for entry: TitleMenu.Entry in title.menu().entries():
 		assert_bool(title.menu().plate(entry).visible).is_true()
 	var neon: NeonSign = front.neon_sign()
@@ -487,6 +553,14 @@ func _title(skip: bool = true) -> TitleScreen:
 	if skip:
 		title.skip_intro()
 	await _frames(4)
+	return title
+
+
+## The title just made, before its first frame (its opening not started).
+func _fresh_title() -> TitleScreen:
+	var runner: GdUnitSceneRunner = scene_runner(TITLE)
+	var title: TitleScreen = runner.scene()
+	title.changes_scene = false
 	return title
 
 
