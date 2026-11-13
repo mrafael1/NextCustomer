@@ -1,0 +1,2 @@
+; Banana GOLDEN V3 tips only: no stalk; each finger's neck ends in its own dark brown tip where they meet at a small crown. Derived from BIG like art/src/items_v2/banana_golden.txt.
+@derive banana_v3_big golden=yellow
