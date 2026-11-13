@@ -20,8 +20,8 @@ const TEXTURE := preload("res://art/scenery/price_gun.png")
 ## Where it lies, in stage coordinates: right of the receipt's foot, left of the belt, over the
 ## printer's right end and the bagging shelf's side, above the register column.
 const RECT := Rect2(262, 348, 80, 44)
-const TIP := "Price gun: click, then click an item to give it a family"
-const TIP_SPENT := "Price gun: none left (click, then click the tagged item to move its tag)"
+const TIP := "PRICE GUN · Click the gun, then an item, to label it with a family."
+const TIP_SPENT := "PRICE GUN · Used: click the labelled item to move this shift's label."
 const LEFT_TEXT := "%d left"
 ## The tag on its string: its top left from the gun's, its font size; the string runs from the
 ## tag's top right to the gun's trigger (STRING_END, gun coordinates).
@@ -68,7 +68,7 @@ func _init() -> void:
 	size = RECT.size
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	tooltip_text = TIP
+	TipTarget.cover_text(self, TIP, TipSpec.Kind.PIN)
 	_build_tag()
 	_shadow = ContactShadow.new(SHADOW_ALPHA)
 	_shadow.name = "Shadow"
@@ -108,7 +108,7 @@ func show_gun(left: int, armed: bool) -> void:
 		var dim: float = SPENT_DIM if spent else 1.0
 		_sprite.self_modulate = Color(dim, dim, dim)
 		_tag_label.add_theme_color_override("font_color", SPENT_TEXT if spent else Palette.INK)
-		tooltip_text = TIP_SPENT if spent else TIP
+		TipTarget.cover_text(self, TIP_SPENT if spent else TIP, TipSpec.Kind.PIN)
 	if armed != _armed:
 		_armed = armed
 		_halo.visible = armed

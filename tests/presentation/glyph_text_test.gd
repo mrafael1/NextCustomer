@@ -102,7 +102,7 @@ func test_the_chain_keyword_is_a_chip() -> void:
 	assert_array(Array(GlyphText.keywords("+1 each, next CHAIN", _palette()))).is_equal(["CHAIN"])
 	assert_str(GlyphText.keyword_tip("CHAIN")).is_equal(
 		(
-			"Put Bananas next to each other to make a CHAIN. Each Banana adds the price of "
+			"Put Bananas side by side to make a CHAIN. Each Banana adds the price of "
 			+ "the one before it, so longer chains pay more."
 		)
 	)

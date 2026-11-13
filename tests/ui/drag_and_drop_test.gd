@@ -130,7 +130,7 @@ func test_a_refused_drop_explains_and_lets_go() -> void:
 	_release(screen, _slot_center(screen, 6))
 	assert_int(screen.run.row.size()).is_equal(7)
 	assert_bool(screen.run.row.has(eighth)).is_false()
-	assert_str(screen._notice_label.text).contains("Row full (7/7 items)")
+	assert_str(screen._notice_label.text).contains("Row full (7/7)")
 	assert_object(screen._picked).is_null()
 
 

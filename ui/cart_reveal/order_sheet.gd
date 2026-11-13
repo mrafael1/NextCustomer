@@ -58,7 +58,7 @@ func show_cart(
 			StartCartLine.Source.REGULAR:
 				from = "regular"
 			StartCartLine.Source.DEALT:
-				from = line.origin_name if line.origin != &"" else "Staples shelf"
+				from = line.origin_name if line.origin != &"" else "Regulars shelf"
 			StartCartLine.Source.PACK:
 				if line.card == null:
 					from = (
@@ -103,10 +103,10 @@ func show_cart(
 	var regulars: int = int(sources.get(StartCartLine.Source.REGULAR, 0))
 	var dealt: int = int(sources.get(StartCartLine.Source.DEALT, 0))
 	var packed: int = int(sources.get(StartCartLine.Source.PACK, 0))
-	var equation_text: String = "%d regulars + %d dealt" % [regulars, dealt]
+	var equation_text: String = "%d regulars + %d from today's stock" % [regulars, dealt]
 	if pack != null:
 		equation_text = (
-			"%d regulars + %d %s + %d dealt" % [regulars, packed, pack.display_name, dealt]
+			"%d regulars + %d %s + %d from stock" % [regulars, packed, pack.display_name, dealt]
 		)
 		if preview:
 			equation_text += " · preview"
@@ -237,7 +237,7 @@ func show_cart(
 			StartBoardKit.icon(paper, StartBoardKit.CHECK, Vector2(right - TICK, y + 1), 1)
 	StartBoardKit.words(paper, "BY FAMILY", Rect2(10, 386, 124, 20), Palette.INK_LIGHT)
 	StartBoardKit.body(
-		paper, "top 3 · a card can be in 2", Rect2(124, 386, 220, 20), Palette.GREY_DARK, 11
+		paper, "top 3 (one card can count twice)", Rect2(124, 386, 220, 20), Palette.GREY_DARK, 11
 	)
 	var counts: Dictionary[String, int] = {}
 	for card: CardDefinition in shown_cards:

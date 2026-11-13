@@ -64,13 +64,13 @@ const HINT_SIZE := 15
 ## A landing's sparkles.
 const BURST_COUNT := 5
 const SPARKLE := preload("res://art/effects/sparkle.png")
-const STAPLES_TEXT := "YOUR STAPLES"
-const STAPLES_SUB_TEXT := "In every run’s cart. Never a surprise."
+const STAPLES_TEXT := "YOUR REGULARS"
+const STAPLES_SUB_TEXT := "They start in your cart. You can swap some."
 const PICKS_TEXT := "TODAY’S PICKS"
-const SKIP_HINT := "TAP TO SKIP ››"
-const START_HINT := "TAP TO START SHIFT %d ›"
+const SKIP_HINT := "CLICK TO SKIP ››"
+const START_HINT := "CLICK TO START SHIFT %d ›"
 ## The choice's hint, and the dispenser's LED while it waits for the pick (#107).
-const CHOOSE_HINT := "1 · 2 · 3 RAISE  ·  ENTER TAKES IT"
+const CHOOSE_HINT := "KEYS 1 2 3 CHOOSE  ·  ENTER TAKES IT"
 const CHOOSE_LED := "PICK A PACK ↓"
 ## The bracket under the pack's cards (#107): its bar, under the tiles, and its name.
 const BRACKET_TOP := 590.0
@@ -374,12 +374,12 @@ func _build_picks() -> void:
 	picks_count = picks_heading.get_parent().get_child(1) as Label
 	var products: int = picks.size() - _coupons
 	var sub_text: String = (
-		"%d %s + %d %s, random from today’s stock. A pick can repeat a staple (×2), never a %s copy."
+		"%d %s + %d %s, dealt from today’s stock. A regular can come twice, never a %s time."
 		% [
 			_coupons,
 			_plural("coupon", _coupons),
 			products,
-			_plural("product", products),
+			_plural("item", products),
 			CartReveal.ordinal(_copy_max + 1),
 		]
 	)
@@ -451,7 +451,7 @@ func _build_summary() -> void:
 		_summary_part(
 			Palette.MUSTARD,
 			RevealTile.LOCK_ICON,
-			"%d %s" % [staples.size(), _plural("staple", staples.size())]
+			"%d %s" % [staples.size(), _plural("regular", staples.size())]
 		)
 	)
 	if _coupons > 0:

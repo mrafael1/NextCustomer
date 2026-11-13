@@ -406,7 +406,7 @@ func test_a_closed_slot_shows_the_rope_and_the_sign() -> void:
 	assert_that(RowStrip.drop_rect(panel)).is_equal(Rect2())
 	assert_bool(RowStrip.shows_empty_mat(panel)).is_false()
 	assert_bool(panel.get_theme_stylebox("panel") is StyleBoxEmpty).is_true()
-	assert_str(panel.tooltip_text).contains("Short belt")
+	assert_str(TipTarget.tip_of(panel)).contains("Short belt")
 	assert_int(panel.mouse_filter).is_equal(Control.MOUSE_FILTER_STOP)
 	var cell: Rect2 = panel.get_global_rect()
 	assert_vector(cell.size).is_equal(ItemView.BELT_SIZE)

@@ -767,7 +767,7 @@ func _tell_members(target: TipTarget, family: String, slot: int) -> void:
 	var style: FamilyStyle = FamilyPalette.shared().style(family)
 	var shown: String = style.display_name if style != null else family
 	if members.is_empty():
-		target.tip_more = "No other %s item on the belt" % shown
+		target.tip_more = "No other %s item in the row" % shown
 	else:
 		target.tip_more = "on the belt: %s" % _names(members)
 

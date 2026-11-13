@@ -19,6 +19,7 @@ func _init(style: FamilyStyle, rimmed: bool = false) -> void:
 	super()
 	family = style.id
 	tip_text = style.display_name
+	dress_family(style)
 	name = "Glyph%s" % style.id
 	texture = style.glyph
 	expand_mode = TextureRect.EXPAND_IGNORE_SIZE

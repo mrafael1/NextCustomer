@@ -227,7 +227,7 @@ func test_a_held_scan_fills_the_monitor_then_it_goes_back() -> void:
 	assert_int(column.payout_view().pay_amount()).is_equal(result.payouts[2])
 	# A notice shows on its strip while it lasts, in ink (tomato is for fizzles, CHECKOUT and
 	# CLOSED), over the item column's steps; the scan stays.
-	screen._notice_label.show_notice("Row full (9/9 items): take an item out first")
+	screen._notice_label.show_notice("Row full (9/9): take a card out first")
 	assert_int(monitor.mode()).is_equal(MonitorView.Mode.SCAN)
 	assert_bool(screen._notice_label.is_visible_in_tree()).is_true()
 	var strip: Rect2 = _on_stage(screen, MonitorView.NOTICE_RECT)
@@ -283,7 +283,7 @@ func test_every_notice_fits_its_strip_even_when_it_replaces_another() -> void:
 		WriteUp.OVER_NOTICE,
 		InspectionTag.NEXT_NOTICE % "COUPON SLOT CLOSED",
 		InspectionTag.NEXT_REVIEW_NOTICE % "COUPON SLOT CLOSED",
-		"Row full (9/9 items): take an item out first",
+		"Row full (9/9): take a card out first",
 	]
 	for notice: String in notices:
 		var font_size: int = MonitorView.notice_size(notice, room)
@@ -514,7 +514,7 @@ func test_the_status_text_follows_the_margin() -> void:
 	assert_str(MonitorText.planned(85, 73)).is_equal("+12€ planned")
 	assert_str(MonitorText.planned(60, 73)).is_equal("13€ to go")
 	assert_str(MonitorText.over_tab(85, 73)).is_equal("+12€")
-	assert_str(MonitorText.spend(73)).is_equal("73€+")
+	assert_str(MonitorText.spend(73)).is_equal("73€")
 	assert_str(MonitorText.gain(-4)).is_equal("−4€")
 
 

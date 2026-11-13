@@ -28,7 +28,7 @@ const HINTS: Array[String] = [
 	"Alt+Enter switches it anywhere. In the web build this is the browser's own full screen.",
 	"The shift music, 0 to 10.",
 	"The sound effects, 0 to 10. Each step plays the scanner's beep.",
-	"Reading text only: rules, tips and receipt lines. The art and the pixel words stay.",
+	"Makes rules, tips and receipt lines bigger. Pixel-art titles keep their size.",
 	"No shakes, no flying chips, no rolling numbers. Every result stays.",
 	"How fast the checkout counts: FAST is ×1.5. Hold Space during a count to fast-forward it.",
 ]

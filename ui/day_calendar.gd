@@ -39,11 +39,11 @@ signal long_hovered
 signal skip_pressed
 
 ## The kinds' words (DayCalendarArt prints them in capitals).
-const NORMAL_WORD := "Normal day"
+const NORMAL_WORD := "Normal shift"
 const EARNED_WORD := "Passed"
 ## The bonus ticket's line on today's slip (WeekFlow.bonus_line): the pill's whole words, or a
 ## passed inspection's.
-const PILL_TIP := "PASS › +1 BONUS TICKET"
+const PILL_TIP := "QUOTA MET › +1 EXTRA DRAW"
 const EARNED_TIP := "%s passed"
 ## The long hover that opens today's slip (s).
 const HOVER_OPEN_S := 0.45

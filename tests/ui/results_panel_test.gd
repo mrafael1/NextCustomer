@@ -86,7 +86,9 @@ func test_a_lost_run_lists_its_shifts_then_the_shortfall_and_the_coins() -> void
 	screen._results.skip_printing()
 	var texts: PackedStringArray = screen._results.texts()
 	var rule: String = FinalReceipt.rule()
-	var shortfall: String = "Shift 2 / %d: short by %d€" % [run.shift_count(), run.quota() - 20]
+	var shortfall: String = (
+		"Shift 2 / %d missed the quota by %d€" % [run.shift_count(), run.quota() - 20]
+	)
 	var payout: CoinPayout = CoinPayout.for_run(run)
 	var expected: Array = ["RUN OVER", rule]
 	(
@@ -94,7 +96,7 @@ func test_a_lost_run_lists_its_shifts_then_the_shortfall_and_the_coins() -> void
 		. append_array(
 			[
 				"  1  109€ / 34€     pass",
-				"     binned NEW ITEMS",
+				"     thrown away NEW ITEMS",
 				"     inspection Spot check",
 				"  2  20€ / 35€      fail",
 				shortfall,
@@ -104,7 +106,7 @@ func test_a_lost_run_lists_its_shifts_then_the_shortfall_and_the_coins() -> void
 	)
 	expected.append_array(Array(FinalReceipt.coin_lines(payout, -1)))
 	assert_array(Array(texts)).is_equal(expected)
-	assert_str(texts[-1]).ends_with("you have ?")
+	assert_str(texts[-1]).ends_with("(you have ?)")
 	assert_int(screen._results.coin_line_index()).is_equal(8)
 	for index: int in [2, 3, 5, 8, 9]:
 		assert_int(texts[index].length()).is_less_equal(FinalReceipt.WIDTH)
@@ -356,7 +358,7 @@ func test_a_run_lost_in_week_three_prints_in_columns() -> void:
 		results.skip_printing()
 		await _frames(4)
 		var texts: PackedStringArray = results.texts()
-		var shortfall: int = Array(texts).find("Shift %d / 16: short by 5€" % last)
+		var shortfall: int = Array(texts).find("Shift %d / 16 missed the quota by 5€" % last)
 		assert_int(shortfall).is_greater(0)
 		assert_bool(results.is_compact()).is_false()
 		if last == 4:
@@ -443,7 +445,7 @@ func test_return_to_menu_is_the_one_primary_action_and_arms() -> void:
 	var captions: Array[String] = []
 	for child: Node in row.get_children():
 		captions.append((child as FramedButton).caption)
-	assert_array(captions).is_equal(["Return to menu", "Export log"])
+	assert_array(captions).is_equal(["Return to menu", TopBar.EXPORT_TEXT])
 	var export: FramedButton = row.get_child(1) as FramedButton
 	assert_object(_frame_of(menu)).is_same(UiKit.BUTTON_FRAME)
 	assert_object(_frame_of(export)).is_same(TopBar.BUTTON_FRAME)

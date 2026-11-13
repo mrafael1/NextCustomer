@@ -92,9 +92,9 @@ func test_the_picks_drop_out_one_by_one_and_end_sold_out() -> void:
 	assert_str(panel.dispenser.led_text()).is_equal("CART READY ✓")
 	assert_float(panel.summary.modulate.a).is_equal_approx(1.0, 0.001)
 	assert_float(panel.chip.modulate.a).is_equal_approx(0.0, 0.001)
-	assert_str(panel.hint.text).is_equal("TAP TO START SHIFT 1 ›")
+	assert_str(panel.hint.text).is_equal("CLICK TO START SHIFT 1 ›")
 	assert_array(_summary_texts(panel)).is_equal(
-		["CART 13/15", "=", "4 staples", "+", "1 coupon", "+", "8 from today’s stock"]
+		["CART 13/15", "=", "4 regulars", "+", "1 coupon", "+", "8 from today’s stock"]
 	)
 	# About 3 s from the panel to the summary.
 	assert_float(reveal.end_time()).is_between(2.6, 3.4)

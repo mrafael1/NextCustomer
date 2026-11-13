@@ -86,4 +86,4 @@ static func tip_of(run: RunState, gold: bool, state: int) -> String:
 		words = OvertimeWords.STATE_USED
 	elif run.is_last_shift():
 		words = OvertimeWords.STATE_LAST
-	return OvertimeWords.medal_tip(machine_data(run), gold, words)
+	return OvertimeWords.medal_tip(machine_data(run), gold, words, threshold_of(run, gold))

@@ -9,6 +9,6 @@ group = &"keywords"
 title = "CHAIN"
 mark = 1
 mark_value = "CHAIN"
-rule = "Put {items:banana} next to each other to make a {kw:CHAIN}. Each {item:banana} adds the price of the one before it, so longer chains pay more."
+rule = "Put {items:banana} side by side to make a {kw:CHAIN}. Each {item:banana} adds the price of the one before it, so longer chains pay more."
 example_row = PackedStringArray("banana", "banana", "banana", "banana")
 example_total = 20

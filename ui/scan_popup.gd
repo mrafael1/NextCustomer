@@ -74,8 +74,9 @@ const RULE_SIZE := 15
 const RULE_LINE_SPACING := 2
 const COUPON_TITLE_WIDTH := 76.0
 const COUPON_TITLE := "COUPON"
-## A LOYALTY perk's title (show_upgrade), its name's size, its tag line and when it applies.
-const LOYALTY_TITLE := "LOYALTY"
+## A LOYALTY perk's title (show_upgrade; PERK, as its hover tip's tag: LOYALTY PERK overran the
+## COUPON_TITLE_WIDTH box), its name's size, its tag line and when it applies.
+const LOYALTY_TITLE := "PERK"
 const LOYALTY_WHEN := "from the next shift"
 ## A level-up's line about the level it replaces (#108, show_upgrade's `now_text`).
 const LOYALTY_NOW := "Now: %s"

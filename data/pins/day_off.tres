@@ -5,8 +5,8 @@
 [resource]
 script = ExtResource("1_pin")
 id = &"day_off"
-display_name = "Day off"
-rule_text = "Once a week, skip any day but a review: it passes on quota"
+display_name = "Shift off"
+rule_text = "Once a week, skip a shift (not payday). It counts as quota met."
 face_text = "OFF"
 face_colour = 1
 days_off_per_week = 1

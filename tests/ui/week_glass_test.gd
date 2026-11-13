@@ -58,7 +58,7 @@ func test_the_glass_sits_on_the_deck_and_centres_its_words() -> void:
 			assert_float(glass.week_label.position.y + glass.week_label.size.y).is_less(
 				glass.number_label.position.y
 			)
-			assert_str(glass.tooltip_text).contains("Tap to open the time card")
+			assert_str(TipTarget.tip_of(glass)).contains("Click to open the time card")
 
 
 ## Redraw mode: Cancel stands in the glass's place, the glass and the keypad hide; leaving it
@@ -93,6 +93,40 @@ func test_a_run_without_weeks_shows_the_keypad() -> void:
 	assert_bool(glass.visible).is_true()
 	assert_str(glass.count_label.text).is_equal("/4")
 	assert_str(glass.number_label.text).is_equal("2")
+
+
+## The training week's tip counts the misses down: what the week still forgives (the balance's
+## limit less the run's misses so far), not the limit (review of 2026-11-13).
+func test_the_training_week_tip_counts_the_misses_left() -> void:
+	var glass: WeekGlass = auto_free(WeekGlass.new())
+	add_child(glass)
+	var model: WeekCardModel = WeekCardModel.new()
+	model.week_count = 4
+	model.week_number = 2
+	model.event = load("res://data/weeks/training_week.tres")
+	model.allowed_misses = 2
+	for left: int in [2, 1, 0]:
+		model.misses_left = left
+		glass.show_week(model, true)
+		var live: String = TipTarget.spec_of(glass).live
+		var words: String = "1 miss left." if left == 1 else "%d misses left." % left
+		assert_str(live).is_equal(words)
+	# On the real run: a miss in the training week leaves one fewer.
+	var screen: ShiftScreen = await _screen(Vector2(1280, 720))
+	var run: RunState = screen.run
+	for shift_index: int in range(run.shift_count()):
+		run.debug_skip_to_shift(shift_index)
+		var week: WeekCardModel = WeekCardModel.of(run)
+		if week.event == null or not week.event.forgives_slips:
+			continue
+		var had: int = week.misses_left
+		assert_int(had).is_equal(maxi(run.balance.write_up_limit - run.write_ups, 0))
+		var record: ShiftRecord = ShiftRecord.new(shift_index + 1, 50, 0)
+		record.passed = false
+		run.history.append(record)
+		assert_int(WeekCardModel.of(run).misses_left).is_equal(maxi(had - 1, 0))
+		return
+	fail("no training week in the run")
 
 
 func _assert_on_deck(screen: ShiftScreen, message: String) -> void:

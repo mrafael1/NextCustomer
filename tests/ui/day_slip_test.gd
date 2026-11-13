@@ -475,7 +475,7 @@ func test_the_week_effect_colours_gains_green_and_the_quota_red() -> void:
 		"[color=#%s]+15%%[/color]" % Palette.TOMATO_DARK.to_html(false)
 	)
 	assert_str(effect.text).contains(
-		"[color=#%s]+1 level[/color]" % Palette.GREEN_DARK.to_html(false)
+		"[color=#%s]Rarer prizes[/color]" % Palette.GREEN_DARK.to_html(false)
 	)
 	slip.clear()
 

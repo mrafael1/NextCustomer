@@ -42,6 +42,9 @@ const CHIP_SEPARATION := 8
 const KEY_FONT_SIZE := 15
 const VALUE_FONT_SIZE := 20
 const BUTTON_FONT_SIZE := 16
+## The playtest log export's caption (words pass v1.33, audit row 85: "Export log" read as a
+## developer tool; the playtest builds are release exports, so the button stays).
+const EXPORT_TEXT := "Save playtest file"
 ## The key captions' letter spacing (B2's letter-spacing: 1px).
 const KEY_SPACING := 1
 ## The trolley (12x9 art) and the menu's bars (9x7 art), shown at 2x.
@@ -119,7 +122,7 @@ func _init() -> void:
 	)
 	menu_button.set_icon(MENU_ICON, MENU_ICON_SIZE)
 	menu_button.accessibility_name = "Menu"
-	menu_button.tooltip_text = "Menu"
+	TipTarget.cover_text(menu_button, "", TipSpec.Kind.WORD, "", "", "Menu")
 	_build_menu()
 	# B2's button captions are plain paper on the teal, without the sign's ink outline.
 	for button: FramedButton in [deck_button, export_button]:
@@ -216,10 +219,10 @@ func _build_menu() -> void:
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	frame.add_child(column)
 	guide_button = UiKit.framed_button(
-		column, "Guide", _on_guide, BUTTON_FONT_SIZE, BUTTON_FRAME, Vector2(0, ROW_SIZE.y)
+		column, "Handbook", _on_guide, BUTTON_FONT_SIZE, BUTTON_FRAME, Vector2(0, ROW_SIZE.y)
 	)
 	export_button = UiKit.framed_button(
-		column, "Export log", _on_export, BUTTON_FONT_SIZE, BUTTON_FRAME, Vector2(0, ROW_SIZE.y), ""
+		column, EXPORT_TEXT, _on_export, BUTTON_FONT_SIZE, BUTTON_FRAME, Vector2(0, ROW_SIZE.y), ""
 	)
 	# Internal, so the bar's children are its chips and buttons alone.
 	add_child(menu, false, Node.INTERNAL_MODE_BACK)

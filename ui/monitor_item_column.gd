@@ -611,6 +611,8 @@ func _build_header(definition: CardDefinition, palette: FamilyPalette) -> void:
 		var glyph: FamilyGlyph = FamilyGlyph.new(style, true)
 		var family_name: String = style.display_name
 		glyph.tip_text = MEMBER_TIP % [family_name, definition.display_name, family_name]
+		if definition.is_coupon():
+			glyph.dress_colour(definition)  # The coupon mark: what this coupon does.
 		glyph.tip_below = true
 		var top: float = HEADER_RECT.position.y + floorf((HEADER_RECT.size.y - glyph.size.y) / 2.0)
 		glyph.position = Vector2(x, top)

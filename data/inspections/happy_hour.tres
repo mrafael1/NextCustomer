@@ -7,14 +7,14 @@
 [sub_resource type="Resource" id="Resource_last_card"]
 script = ExtResource("2_last_card")
 bonus = 3
-receipt_text = "last slot"
+receipt_text = "Happy hour: last card"
 
 [resource]
 script = ExtResource("3_inspection")
 id = &"happy_hour"
 display_name = "Happy hour"
 tone = 1
-notice_text = "The last filled slot pays +3€"
-chip_text = "last slot +3€"
+notice_text = "The last card in the row pays +3€"
+chip_text = "Last card +3€"
 icon_ref = "res://art/icons/coin.png"
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_last_card")])

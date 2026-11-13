@@ -250,7 +250,7 @@ func test_the_shift_opens_it_from_the_menu_and_a_tooltip() -> void:
 	var page: HandbookPage = screen.find_child("HandbookPage", false, false) as HandbookPage
 	assert_object(page).is_not_null()
 	var top_bar: TopBar = screen._top_bar as TopBar
-	assert_str(top_bar.guide_button.caption).is_equal("Guide")
+	assert_str(top_bar.guide_button.caption).is_equal("Handbook")
 	top_bar.guide_button.pressed.emit()
 	assert_bool(page.is_open()).is_true()
 	page.close()
@@ -300,7 +300,7 @@ func test_a_coupon_ticket_and_a_titled_line_open_their_entries() -> void:
 	for glyph: FamilyGlyph in sticker.glyphs():
 		assert_str(page.entry_for_target(glyph).id).is_equal("two_for_one")
 	tips.show_tip(spot)
-	assert_bool(tips.tip().hint().visible).is_true()
+	assert_bool(tips.tip().keys().has(TipCard.KEY_RIGHT_CLICK)).is_true()
 	tips._input(_right_click(spot.get_global_rect().get_center()))
 	assert_bool(page.is_open()).is_true()
 	assert_str(page.shown_entry().id).is_equal("two_for_one")
@@ -331,7 +331,7 @@ func test_a_coupon_ticket_and_a_titled_line_open_their_entries() -> void:
 	var window: PriceWindow = plain.get_node(PriceSticker.WINDOW_NAME) as PriceWindow
 	assert_object(page.entry_for_target(window)).is_null()
 	tips.show_tip(window)
-	assert_bool(tips.tip().hint().visible).is_false()
+	assert_bool(tips.tip().keys().has(TipCard.KEY_RIGHT_CLICK)).is_false()
 
 
 ## Every entry's rule fits its rect: inside the entry column, as wide as it and tall enough for all
@@ -479,9 +479,9 @@ func test_the_pin_card_icon_shows_its_tip() -> void:
 	await get_tree().create_timer(GlyphTips.SHOW_DELAY_S + 0.1).timeout
 	await _frames(2)
 	assert_object(tips.shown_glyph()).is_same(hint)
-	var tip: GlyphTip = tips.tip()
+	var tip: TipCard = tips.tip()
 	assert_str(tip.tip_text()).is_equal(HandbookPage.HINT_TIP)
-	assert_bool(tip.hint().visible).is_false()
+	assert_bool(tip.keys().has(TipCard.KEY_RIGHT_CLICK)).is_false()
 	var box: Rect2 = tip.get_global_rect()
 	assert_bool(SCREEN_RECT.encloses(box)).override_failure_message(str(box)).is_true()
 	assert_bool(box.intersects(icon)).override_failure_message("%s %s" % [box, icon]).is_false()
@@ -548,29 +548,31 @@ func test_the_slip_paints_names_and_stays_one_line() -> void:
 		assert_that(HandbookEntryView.equation_ink(paints[index])).is_equal(inks[index])
 
 
-## Every keyword's tooltip (its handbook rule's words) fits its tip: no wider than MAX_WIDTH, a
-## few lines tall, its wrapped words inside its box, and above a chip at the screen's edges it
-## stays inside the screen.
+## Every keyword's tip (its handbook rule's words, TipWords.box, on the shared TipCard) fits: the
+## card's width, a few lines tall, its words inside the card, and above a chip at the screen's
+## edges it stays inside the screen.
 func test_every_keyword_tooltip_fits_its_tip() -> void:
 	for word: String in GlyphText.KEYWORD_TIPS:
-		var text: String = GlyphText.keyword_tip(word)
-		var tip_size: Vector2 = GlyphTip.size_with(text, true)
-		assert_float(tip_size.x).override_failure_message(word).is_less_equal(GlyphTip.MAX_WIDTH)
-		assert_float(tip_size.y).override_failure_message(word).is_less_equal(120.0)
+		var tip: TipCard = auto_free(TipCard.new())
+		add_child(tip)
+		tip.show_spec(TipWords.box(word))
+		assert_float(tip.size.x).override_failure_message(word).is_equal(TipCard.WIDTH)
+		assert_float(tip.size.y).override_failure_message(word).is_less_equal(200.0)
+		var body: Rect2 = Rect2(tip.body().position, tip.body().size)
+		(
+			assert_bool(Rect2(Vector2.ZERO, tip.size).encloses(body))
+			. override_failure_message(word)
+			. is_true()
+		)
+		assert_float(tip.body().used_width()).is_less_equal(tip.body().size.x)
 		for x: float in [20.0, 640.0, 1260.0]:
 			var chip: Rect2 = Rect2(x - 20.0, 300.0, 40.0, 16.0)
-			var box: Rect2 = GlyphTip.place(chip, chip, false, tip_size, SCREEN_RECT)
+			var placed: Array = TipCard.place(
+				chip, chip, TipCard.Opens.ABOVE, tip.size, SCREEN_RECT
+			)
+			var box: Rect2 = placed[0]
 			assert_bool(SCREEN_RECT.encloses(box)).override_failure_message(word).is_true()
-		var tip: GlyphTip = auto_free(GlyphTip.new())
-		add_child(tip)
-		# One placing must give the label its wrapped height at the tip's width (a fresh tip).
-		tip.show_for(text, Rect2(600, 300, 40, 16), Rect2(600, 300, 40, 16), false, SCREEN_RECT)
-		assert_bool(Rect2(Vector2.ZERO, tip.size).encloses(tip.label().get_rect())).is_true()
-		await _frames(1)
-		var shown: Label = tip.label()
-		var room: float = float(shown.get_line_count()) * shown.get_line_height()
-		assert_float(room).override_failure_message(word).is_less_equal(shown.size.y + 1.0)
-		assert_bool(Rect2(Vector2.ZERO, tip.size).encloses(shown.get_rect())).is_true()
+			assert_bool(box.intersects(chip)).override_failure_message(word).is_false()
 
 
 func _page() -> HandbookPage:

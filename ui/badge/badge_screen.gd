@@ -24,7 +24,7 @@ const COIN := preload("res://art/icons/coin.png")
 const HEADING_AT := Vector2(24, 6)
 const COINS_RECT := Rect2(456, 16, 200, 36)
 const TAGLINE_AT := Vector2(26, 64)
-const TAGLINE := "WORN PINS SHAPE YOUR NEXT RUN"
+const TAGLINE := "WORN PINS: ACTIVE NEXT RUN"
 const BADGE_AT := Vector2(24, 96)
 const WORN_RECT := Rect2(24, 260, 248, 80)
 const WORN_SIZE := 14
@@ -226,7 +226,7 @@ func toggle(pin: PinDefinition) -> bool:
 		_refresh()
 		return false
 	Sfx.play_at(self, OFF_SOUND if worn else WEAR_SOUND)
-	_note.text = "" if worn else "Worn from your next run."
+	_note.text = "" if worn else "Active from your next run."
 	_refresh()
 	profile_changed.emit()
 	return true

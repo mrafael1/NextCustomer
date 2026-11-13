@@ -59,7 +59,7 @@ func test_the_case_takes_the_mouse_on_its_medals_only() -> void:
 		for key: String in ["medal", "name", "line"]:
 			var point: Vector2 = (parts[key] as Rect2).get_center()
 			assert_bool(medals._has_point(point)).override_failure_message(key).is_true()
-			assert_str(medals._get_tooltip(point)).is_not_empty()
+			assert_str(medals.tip_at(point)).is_not_empty()
 	assert_bool(medals._has_point(Vector2(2, 2))).is_false()
 	assert_bool(medals._has_point(Vector2(medals.size.x - 4, medals.size.y / 2.0))).is_false()
 

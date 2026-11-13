@@ -88,7 +88,7 @@ func test_the_picker_opens_over_the_sticker_and_picks(
 	for chip: Button in picker.chips():
 		var held: bool = chip.name == "ChipProduce"
 		assert_bool(is_equal_approx(chip.modulate.a, PriceGunPicker.HELD_ALPHA)).is_equal(held)
-	assert_str(_chip(picker, "Produce").tooltip_text).contains("Potatoes is Produce already")
+	assert_str(TipTarget.tip_of(_chip(picker, "Produce"))).contains("Potatoes is Produce already")
 	_chip(picker, "Snack").pressed.emit()
 	await _frames(3)
 	assert_object(screen._pins.stickers.picker()).is_null()

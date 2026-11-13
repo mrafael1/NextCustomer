@@ -9,6 +9,6 @@ group = &"coupons"
 title = "Repeat"
 mark = 4
 mark_value = "repeat"
-rule = "Put it after a big earner: it pays what the item right before it pays, like {item:bread} doubled by {item:eggs}."
+rule = "Put it right after an item that pays a lot: it pays the same again. {item:eggs}, {item:bread}, Repeat: Repeat pays {item:bread}'s 10€."
 example_row = PackedStringArray("eggs", "bread", "repeat")
 example_total = 21

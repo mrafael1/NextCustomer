@@ -11,8 +11,8 @@ extends RefCounted
 const TOTAL_CAPTION := "TOTAL"
 const PLAN_CAPTION := "PLAN"
 ## The SPEND line: the quota's word and its amount.
-const SPEND_WORD := "SPEND"
-const SPEND_AMOUNT := "%d€+"
+const SPEND_WORD := "QUOTA"
+const SPEND_AMOUNT := "%d€"
 ## The status line.
 const TO_GO := "%d€ to go"
 const OVER := "+%d€ over"
@@ -21,9 +21,9 @@ const PLANNED_OVER := "+%d€ planned"
 ## Under the quota planning reads the count's words (the top bar's "to go" too).
 const PLANNED_SHORT := TO_GO
 ## The item column on an empty belt (nothing in slot 1, nothing held).
-const EMPTY_BELT := "Drag items onto the belt"
+const EMPTY_BELT := "Drag cards into the row"
 ## A hand item's note in the item column's effect rows (PR #138 monitor): it has no effects yet.
-const HAND_NOTE := "Place it on the belt to see its effects"
+const HAND_NOTE := "Put it in the row to see what it does"
 ## The scanner bay's status plate in planning (PR #138 monitor): a pinned scan, else the last item
 ## placed on the belt.
 const SCAN_COMPLETE := "SCAN COMPLETE"

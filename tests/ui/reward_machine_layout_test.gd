@@ -336,7 +336,11 @@ func test_a_revealed_prize_shows_its_effect_beside_it() -> void:
 			assert_bool(shown.intersects(card)).override_failure_message(where).is_false()
 			assert_bool(screen.encloses(shown)).override_failure_message(where).is_true()
 			for label: Label in popup.text_labels():
-				assert_bool(shown.grow(SLACK).encloses(label.get_global_rect())).is_true()
+				var inside: bool = shown.grow(SLACK).encloses(label.get_global_rect())
+				var said: String = (
+					"%s: '%s' %s in %s" % [where, label.text, label.get_global_rect(), shown]
+				)
+				assert_bool(inside).override_failure_message(said).is_true()
 			var rule: String = popup.rule_label().text
 			match prizes[index].kind:
 				MachinePrize.Kind.REGISTER:

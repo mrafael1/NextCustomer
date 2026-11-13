@@ -180,32 +180,26 @@ func _check_hover(window: Vector2i) -> void:
 		var lifted: Rect2 = lanyard.faces()[index].get_global_rect()
 		assert_float(lifted.position.y).is_equal(hit.position.y - PinLanyard.LIFT)
 		assert_float(box.position.y).is_greater(hit.end.y)
-		# The paper card's look (the mock-up's drawPinTip): its 9-slice, ink words on paper.
-		var paper: Panel = card.get_node("Card") as Panel
+		# The game's one tip (TipCard, the hover tips revamp): its 9-slice, the brass PIN band,
+		# the pin's face in its icon box, its title, rule and charges inside the card.
+		var paper: Panel = card.get_node("Frame") as Panel
 		var frame: StyleBoxTexture = paper.get_theme_stylebox("panel") as StyleBoxTexture
-		assert_object(frame.texture).is_same(PinTip.FRAME)
+		assert_object(frame.texture).is_same(TipCard.FRAME)
 		assert_bool(paper.get_global_rect() == box).is_true()
-		var name_label: Label = card.get_node("PinName") as Label
-		assert_object(name_label.get_theme_color("font_color")).is_equal(Palette.INK)
-		var rule: Label = card.get_node("Rule") as Label
-		assert_object(rule.get_theme_color("font_color")).is_equal(Palette.INK)
-		var name_box: Rect2 = Rect2(
-			name_label.get_global_rect().position, UiKit.pixel_text_size(name_label)
-		)
-		assert_bool(box.encloses(name_box)).override_failure_message(where).is_true()
+		assert_object(card.band_colour()).is_equal(Palette.BRASS)
+		assert_str(card.title_text()).is_equal(pin.display_name.to_upper())
 		assert_bool(box.encloses(card.face().get_global_rect())).is_true()
 		var tail: Rect2 = card.get_node("Tail").get_global_rect()
 		assert_float(tail.get_center().x).is_equal_approx(hit.get_center().x, 2.0)
 		assert_float(tail.end.y).is_equal(box.position.y + 2.0)
-		for label: String in ["Rule", "Charges", "Foot"]:
-			var text: Label = card.get_node(label) as Label
-			if text.visible:
+		for text: TipText in [card.body(), card.live()]:
+			if text != null:
 				(
 					assert_bool(box.encloses(text.get_global_rect()))
-					. override_failure_message("%s %s" % [where, label])
+					. override_failure_message("%s %s" % [where, text.name])
 					. is_true()
 				)
-	assert_str(lanyard.card().charges_text()).is_equal("1 day off left this week")
+	assert_str(lanyard.card().charges_text()).is_equal("1 shift off left this week")
 	var gun: PinDefinition = screen.run.pins[0]
 	assert_str(PinLanyard.charges_for(gun, screen.run)).is_equal("1 relabel left this shift")
 	screen.run.relabels[screen.run.hand()[0].instance_id] = "Snack"

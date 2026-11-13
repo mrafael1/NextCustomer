@@ -58,7 +58,9 @@ const TEXT_COLOR := Palette.MUSTARD_PALE
 const INSPECTION_TEXT := "0€"
 const INSPECTION_TEXT_COLOR := Palette.PAPER
 ## A zero slot's hover tip: the inspection's name and INSPECTION_TEXT.
-const ZERO_TIP := "%s: this slot pays %s"
+const ZERO_TIP := "%s · Anything in this slot pays %s this shift."
+## The zero slot tip's tag.
+const ZERO_TAG := "THIS SHIFT"
 ## A day event's flat bonus on its slot (Happy hour: LastCardBonusRule), with its sign; and the
 ## mark of an event's extra slot (Extra till).
 const BONUS_FORMAT := "+%d€"
@@ -261,7 +263,9 @@ func is_inspection() -> bool:
 ## names the cause (ZERO_TIP), so it takes the mouse (it still takes no clicks: PASS).
 func set_zero_tip(inspection_name: String) -> void:
 	zero_slot = true
-	tooltip_text = ZERO_TIP % [inspection_name, INSPECTION_TEXT]
+	TipTarget.cover_text(
+		self, ZERO_TIP % [inspection_name, INSPECTION_TEXT], TipSpec.Kind.STATUS, ZERO_TAG
+	)
 	mouse_filter = Control.MOUSE_FILTER_PASS
 
 

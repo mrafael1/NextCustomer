@@ -463,7 +463,7 @@ func _bay(lit: bool) -> void:
 	rect(BAY_RECT, Palette.STEEL_DARKEST)
 	rect(BAY_RECT.grow(-2), Palette.TEAL_DARK if lit else Palette.TEAL_BLACK)
 	dither(BAY_RECT.grow(-2), Palette.TEAL_SHADE if lit else Palette.BACKGROUND, 2)
-	till("REWARDS", x + 64, y + 10, Palette.PAPER if lit else Palette.CREAM_SHADE, "c")
+	till("TOYS", x + 64, y + 10, Palette.PAPER if lit else Palette.CREAM_SHADE, "c")
 	rect(Rect2i(x + 34, y + 17, 60, 1), Palette.GOLD if lit else Palette.BRASS)
 	var poster := Vector2i(x + 6, y + 32)
 	rect(Rect2i(poster, Vector2i(24, 32)), Palette.INK)

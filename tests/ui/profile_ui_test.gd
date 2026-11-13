@@ -83,9 +83,9 @@ func test_the_results_print_the_coins_and_fit_the_screen() -> void:
 	var won: int = balance.coins_by_shifts_passed[-1]
 	screen._results.skip_printing()
 	var texts: PackedStringArray = screen._results.texts().slice(-2)
-	assert_str(texts[0]).starts_with("Shifts passed %d" % count).ends_with("+%d" % won)
+	assert_str(texts[0]).starts_with("Shifts met %d" % count).ends_with("+%d" % won)
 	assert_str(texts[1]).starts_with("COINS +%d" % won)
-	assert_str(texts[1]).ends_with("you have %d" % (6 + won))
+	assert_str(texts[1]).ends_with("(you have %d)" % (6 + won))
 	assert_int(saves.load_profile().coins).is_equal(6 + won)
 	for frame: int in range(4):
 		await get_tree().process_frame
@@ -108,14 +108,14 @@ func test_coin_receipt_lines_align_and_show_an_unknown_total() -> void:
 		assert_array(Array(lines))
 		. is_equal(
 			[
-				"Shifts passed 5                           +1",
-				"COINS +1                       you have 1234",
+				"Shifts met 5                              +1",
+				"COINS +1                     (you have 1234)",
 			]
 		)
 	)
 	for line: String in lines:
 		assert_int(line.length()).is_equal(FinalReceipt.WIDTH)
-	assert_str(FinalReceipt.coin_lines(payout, -1)[1]).ends_with("you have ?")
+	assert_str(FinalReceipt.coin_lines(payout, -1)[1]).ends_with("(you have ?)")
 
 
 ## The title screen shows the run's length from balance data (under START RUN) and the

@@ -11,7 +11,7 @@ const PAID_TEXT := "PAID"
 const PAID_TILT_DEG := -8.0
 ## INSPECTION PASSED: its title (Pixelify 12) over the inspection's name (bold Atkinson 11), in a
 ## dark tomato border on paper, tilted INSPECTION_TILT_DEG around its left end.
-const INSPECTION_TEXT := "INSPECTION PASSED"
+const INSPECTION_TEXT := "QUOTA MET"
 const INSPECTION_TILT_DEG := -3.0
 const INSPECTION_NAME := "InspectionStamp"
 const TITLE_SIZE := 12

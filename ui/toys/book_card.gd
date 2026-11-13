@@ -298,7 +298,7 @@ func _add_perk_window(item: BookEntry, grey: bool) -> void:
 		return
 	var ring: PanelContainer = LoyaltyCard.make_ring(item.perk)
 	ring.name = "PerkRing"
-	ring.tooltip_text = ""
+	TipTarget.cover_text(ring, "")  # No PERK tip: the card under it lifts.
 	_ignore_pointer(ring)
 	ring.size = LoyaltyCard.CHIP_BOX_SIZE
 	ring.scale = Vector2.ONE * PERK_RING_SCALE
