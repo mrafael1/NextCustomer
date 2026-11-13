@@ -9,8 +9,8 @@ extends RefCounted
 ## chute: saved at the checkout click and between visits), MACHINE_PICK (the prizes are drawn and
 ## wait for a pick or a bin) and SCORED (after the shift's last visit, so quitting during the last
 ## landing resumes into the next shift). WON / LOST end the run, so they are never saved. The
-## saved form holds what rebuilds the run (the seed, the stock's listed aisles, card ids,
-## list_skipped and new arrivals) and the whole state: the deck's cards with their instance ids,
+## saved form holds what rebuilds the run (the seed, the stock's listed aisles, card ids and
+## list_skipped) and the whole state: the deck's cards with their instance ids,
 ## the hand, the draw pile, the row, the redraws, the upgrades, the inspections, the history, the
 ## machine (RewardMachine.to_dictionary) and the RNG's state, plus the telemetry's run id and
 ## played time. Ids resolve through a ContentLookup, and the stock is restored from its ids, so a
@@ -84,7 +84,25 @@ extends RefCounted
 ## as it is; its setup, in the older form (no `boosters`, StartSetup.is_old_format), restarts if
 ## the run still waits for its pick (dealt again from the seed: new boosters) and is dropped after
 ## clock-in.
-const FORMAT_VERSION := 13
+## Version 14 (v1.32 feedback, 2026-11-13): a run stocks only its boosters' two aisles, so the
+## setup's `stock_aisles` holds dealt_aisle_count aisles (version 13's held a third one whose
+## items came only from the machine). A version 13 save reads as it is, its stock as saved; its
+## setup is treated as an older form (restarts if the run still waits for its pick, dropped after
+## clock-in).
+## Version 15 (v1.32 swap window, 2026-11-13): the setup's regulars offers are the swap window's
+## boosters, one per stocked aisle (`swap_offers`, aisle id -> cards) with the aisles whose booster
+## is open (`swap_opened`), in place of version 14's per slot and aisle `regular_offers`. A version
+## 14 save reads as it is; its setup is treated as an older form (restarts if the run still waits
+## for its pick, dropped after clock-in). It also no longer writes the stock's `new_arrivals`
+## (v1.32: the end-cap is gone); an older save's list is read past and ignored, so no version of
+## its own.
+const FORMAT_VERSION := 15
+## Version 14: version 15's form with one regulars offer per slot and aisle in the setup, read as
+## it is (its setup restarts or is dropped).
+const BEFORE_SWAP_WINDOW_VERSION := 14
+## Version 13: version 14's form with a third stocked aisle in the setup, read as it is (its setup
+## restarts or is dropped).
+const BEFORE_TWO_AISLES_VERSION := 13
 ## Version 12: version 13's form with the opening-time setup's baskets, read as it is (an older
 ## setup restarts or is dropped).
 const BEFORE_BOOSTERS_VERSION := 12
@@ -103,6 +121,8 @@ const BEFORE_STARTER_PACKS_VERSION := 6
 ## The versions read as they are (older ones through RunSaveMigration).
 const READ_VERSIONS: Array[int] = [
 	FORMAT_VERSION,
+	BEFORE_SWAP_WINDOW_VERSION,
+	BEFORE_TWO_AISLES_VERSION,
 	BEFORE_BOOSTERS_VERSION,
 	BEFORE_STICKERS_VERSION,
 	BEFORE_OVERTIME_VERSION,
@@ -168,7 +188,6 @@ static func to_dictionary(saved_run: RunState, saved_run_id: String, played_ms: 
 		"shift_index": saved_run.shift_index,
 		"debug_jumped": saved_run.debug_jumped,
 		"list_skipped": saved_run.stock.list_skipped,
-		"new_arrivals": _ids(saved_run.stock.new_arrivals),
 		"deck": _pairs(saved_run.deck.cards),
 		"next_instance_id": saved_run.deck.next_instance_id(),
 		"hand": _pairs(saved_run.deck.hand()),
@@ -274,11 +293,10 @@ static func from_dictionary(saved: Dictionary, lookup: ContentLookup) -> RunSave
 		starter.starter_pack = pack
 		if offer != null:
 			offer.shared = StartingDeck.shared_of(starter)
+	# A save from before v1.32 also holds "new_arrivals" (the end-cap's items, gone with it): it
+	# is ignored, and the stock keeps every card it saved.
 	var stock: RunStock = RunStock.from_saved(
-		reader.cards("stock"),
-		reader.aisles("listed_aisles"),
-		reader.flag("list_skipped"),
-		reader.cards("new_arrivals")
+		reader.cards("stock"), reader.aisles("listed_aisles"), reader.flag("list_skipped")
 	)
 	var phase_index: int = PHASE_NAMES.find(reader.text("phase"))
 	if not reader.ok or phase_index == -1:
@@ -289,7 +307,10 @@ static func from_dictionary(saved: Dictionary, lookup: ContentLookup) -> RunSave
 		if not setup_data is Dictionary:
 			return null
 		var choosing: bool = SAVE_POINTS[phase_index] == RunState.Phase.CHOOSE_START
-		if StartSetup.is_old_format(setup_data as Dictionary):
+		# A setup saved before version 15 (baskets, three stocked aisles, or one regulars offer per
+		# slot and aisle) is an older form.
+		var older: bool = int(version) < FORMAT_VERSION
+		if older or StartSetup.is_old_format(setup_data as Dictionary):
 			restored.restart_setup = choosing
 		else:
 			restored.start_setup = _read_setup(
@@ -792,8 +813,6 @@ static func _is_consistent(
 	if not retired or restored.phase == RunState.Phase.PLANNING:
 		ok = ok and RowCapacity.row_fits(restored.limits, restored.row)
 	ok = ok and restored.redraws_used <= restored.redraws_allowed
-	for card: CardDefinition in restored.stock.new_arrivals:
-		ok = ok and restored.stock.cards.has(card)
 	# One box per perk: never a perk twice, nor two levels of one perk.
 	for upgrade: UpgradeDefinition in restored.upgrades:
 		ok = ok and restored.upgrades.count(upgrade) == 1

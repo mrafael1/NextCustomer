@@ -9,9 +9,9 @@ extends RefCounted
 ## a reason id (&"" when allowed) the UI shows.
 ##
 ## - An aisle is completed when all its items are collected (completed).
-## - Today's stock is stock_aisle_count listable aisles: dealt_aisle_count STARTER CART (green)
-##   aisles and the RUN ONLY (orange) rest, the seeded suggestion (suggest_aisles).
-## - The deal (deal, at once for a new run) draws the pack offer and one sealed booster per green
+## - A run stocks only its boosters' aisles: dealt_aisle_count listable aisles (v1.32 feedback,
+##   2026-11-13), the seeded suggestion (suggest_aisles) or the PICK 2 OF 3 pair.
+## - The deal (deal, at once for a new run) draws the pack offer and one sealed booster per stocked
 ##   aisle (StartBoosterDraw.draw): start_booster_size distinct products of the aisle, the last
 ##   start_booster_hit_slots places hit cards, each RARE (its chain's BIG tier, never GOLDEN) on
 ##   start_booster_hit_rare_percent; the fair-deal check is met by swapping unseen packs or drawing
@@ -25,11 +25,16 @@ extends RefCounted
 ##   opened booster again from its aisle (a new hit too), differing by at least one card; it is
 ##   sealed again; the other boosters and the packs stay.
 ## - Each completed aisle unlocks one regular swap, at most one per regular slot: a 5th
-##   completed aisle gives nothing (swaps_left). A slot's offer from an aisle (regular_offer) is
-##   up to regular_offer_max plain-tier products of a completed aisle (is_swap_option), saved the
-##   first time it is shown; at most staple_swap_aisle_max swapped regulars come from one aisle,
-##   and no card goes past the recipe's copy_max in the cart with every offered pack and the
-##   boosters (swap_block). Swaps never re-deal. They belong to the run only (v1.08, the user:
+##   completed aisle gives nothing (swaps_left). The swap window (v1.32, 2026-11-13) deals one
+##   swap booster per stocked aisle, even an aisle not completed: up to
+##   regular_offer_max plain-tier products of that aisle the profile owns (is_swap_option), those
+##   the copy limit lets into some regular slot first, saved the first time the window
+##   shows them (StartSwapBoosters); opening one is saved too and uses no swap. Any number of
+##   the swaps may come from one aisle (v1.32: no per-aisle swap limit), and no card goes past the
+##   recipe's copy_max in the cart with every offered pack and the boosters (swap_block). A card on
+##   a swapped slot trades places with the one there (no extra swap); a swapped card moves to
+##   another slot (`from`) the same way; restore and reset_swaps put originals back. Swaps never
+##   re-deal. They belong to the run only (v1.08, the user:
 ##   "swap should reset at each new run"): the run save keeps its own regulars, so a resume keeps
 ##   them, and every new run starts with the recipe's regulars and its full swap allowance.
 ## - NEW PACKS (new_packs, packs_redraws_per_run a run) redraws the offered packs, keeping the
@@ -65,29 +70,23 @@ static func pick_mode(balance: BalanceDefinition, profile: ProfileState) -> bool
 	)
 
 
-## Today's suggested aisles: the green ones in data order, then the orange ones, each place drawn
-## on `rng` (one randi_range each over the listable aisles not yet taken; the first drawn fill the
-## green places). The pair is always seeded: from pair_choice_min_completed the choice happens at
-## PICK 2 OF 3 (v1.32), so the profile's saved pair (ProfileState.stock_pair) is no longer read.
+## Today's suggested aisles, in data order: dealt_aisle_count listable aisles, each drawn on `rng`
+## (one randi_range each over the listable aisles not yet taken). The pair is always seeded: from
+## pair_choice_min_completed the choice happens at PICK 2 OF 3 (v1.32), so the profile's saved
+## pair (ProfileState.stock_pair) is no longer read.
 static func suggest_aisles(
 	balance: BalanceDefinition, profile: ProfileState, rng: RandomNumberGenerator
 ) -> Array[StringName]:
 	var listable: Array[StringName] = listable_ids(balance, profile)
-	var size: int = mini(balance.stock_aisle_count, listable.size())
-	var green_count: int = mini(balance.dealt_aisle_count, size)
-	var green: Array[StringName] = []
-	var orange: Array[StringName] = []
-	while green.size() + orange.size() < size:
+	var size: int = mini(balance.dealt_aisle_count, listable.size())
+	var drawn: Array[StringName] = []
+	while drawn.size() < size:
 		var remaining: Array[StringName] = []
 		for id: StringName in listable:
-			if not green.has(id) and not orange.has(id):
+			if not drawn.has(id):
 				remaining.append(id)
-		var pick: StringName = remaining[rng.randi_range(0, remaining.size() - 1)]
-		if green.size() < green_count:
-			green.append(pick)
-		else:
-			orange.append(pick)
-	return ordered_pair(balance, green) + ordered_pair(balance, orange)
+		drawn.append(remaining[rng.randi_range(0, remaining.size() - 1)])
+	return ordered_pair(balance, drawn)
 
 
 ## The listable aisles' ids, in data order.
@@ -113,18 +112,17 @@ static func extra_aisles(
 	return found
 
 
-## Whether `card` is in the swap pool: a plain-tier product of a completed aisle.
-static func is_swap_option(
-	balance: BalanceDefinition, profile: ProfileState, card: CardDefinition
-) -> bool:
+## Whether `card` is in the run's swap pool: a plain-tier product of one of its stocked aisles
+## that the profile owns (RunStock.items: the aisle's base cards and its unlocked capsules).
+static func is_swap_option(run: RunState, profile: ProfileState, card: CardDefinition) -> bool:
 	if card == null or not card.is_product() or card.variant_of != null:
 		return false
 	if card.tier != CardDefinition.Tier.PLAIN:
 		return false
-	for aisle: AisleDefinition in completed(balance, profile):
-		if aisle.base_cards.has(card) or aisle.capsule_cards.has(card):
-			return true
-	return false
+	var aisle: AisleDefinition = run.balance.aisle_of(card)
+	if aisle == null or not run.start_setup.stock_aisles.has(aisle.id):
+		return false
+	return RunStock.items(aisle, profile.unlocked_items).has(card)
 
 
 ## A new run with the opening-time setup in SELECT: today's suggested aisles drawn on
@@ -142,9 +140,7 @@ static func setup_run(
 	setup.originals = recipe.core_cards.duplicate()
 	setup.completed_count = completed(balance, profile).size()
 	setup.stock_aisles = suggest_aisles(balance, profile, aisle_rng)
-	var stock: RunStock = RunStock.build(
-		balance, setup.stock_aisles, profile.unlocked_items, profile.run_count, true
-	)
+	var stock: RunStock = RunStock.build(balance, setup.stock_aisles, profile.unlocked_items, true)
 	var own: DeckDefinition = StartingDeck.with_cards(recipe, recipe.cards)
 	own.starter_packs = StartingDeck.open_packs(
 		recipe.starter_packs, balance, profile.unlocked_items
@@ -168,7 +164,7 @@ static func deal_block(
 	var setup: StartSetup = run.start_setup
 	if setup == null or setup.stage != StartSetup.Stage.SELECT:
 		return &"stage"
-	var aisles: Array[StringName] = setup.green_ids(run.balance)
+	var aisles: Array[StringName] = setup.stock_aisles.duplicate()
 	aisles.append_array(extra_aisles(run.balance, profile, setup.stock_aisles))
 	for aisle_id: StringName in aisles:
 		if not booster_rngs.has(aisle_id):
@@ -214,7 +210,7 @@ static func deal(
 		recipe, pool, pack_rng, not profile.has_won()
 	)
 	var check: StartingDeck.FairCheck = StartingDeck.fair_check(recipe, balance)
-	var aisles: Array[StringName] = setup.green_ids(balance)
+	var aisles: Array[StringName] = setup.stock_aisles.duplicate()
 	var green_count: int = aisles.size()
 	var extras: Array[StringName] = extra_aisles(balance, profile, setup.stock_aisles)
 	var extra_count: int = maxi(balance.start_booster_choice_count - balance.dealt_aisle_count, 0)
@@ -316,7 +312,7 @@ static func pick_boosters_block(run: RunState, picks: Array[int]) -> StringName:
 		return &"stage"
 	if not setup.picking():
 		return &"none"
-	if picks.size() != setup.green_ids(run.balance).size():
+	if picks.size() != setup.stock_aisles.size():
 		return &"count"
 	for index: int in picks:
 		if index < 0 or index >= setup.boosters.size() or picks.count(index) != 1:
@@ -325,8 +321,8 @@ static func pick_boosters_block(run: RunState, picks: Array[int]) -> StringName:
 
 
 ## PICK 2 OF 3 (pick_boosters_block first; returns its reason, changing nothing, when refused):
-## the boosters not in `picks` are SOLD OUT (their cards never count), today's green aisles become
-## the picked boosters' (data order, the RUN ONLY one kept), the stock is rebuilt, and the unseen
+## the boosters not in `picks` are SOLD OUT (their cards never count), the stocked aisles become
+## the picked boosters' (data order: the run stocks only them), the stock is rebuilt, and the unseen
 ## pack offer is fitted to the picked pair on `rng`: a pack past the copy rule with the pair is
 ## replaced first (_refit_copies), then StartingDeck.fit_packs swaps a failing pack other than the
 ## good first pick for a passing fitting one. A picked pack no longer offered is
@@ -344,7 +340,7 @@ static func pick_boosters(
 			green.append(setup.boosters[index].aisle)
 		else:
 			setup.boosters[index].sold_out = true
-	setup.stock_aisles = ordered_pair(run.balance, green) + setup.run_only_ids(run.balance)
+	setup.stock_aisles = ordered_pair(run.balance, green)
 	rebuild_stock(run, profile)
 	var offer: StartOffer = run.start_offer
 	var pool: Array[StarterPackDefinition] = _packs_fitting(
@@ -533,92 +529,10 @@ static func _differs(cards: Array[CardDefinition], others: Array[CardDefinition]
 	return false
 
 
-## Regular `slot`'s offer from aisle `aisle_id`: the saved one when shown before; else up to
-## regular_offer_max of the aisle's plain-tier products other than the slot's current card
-## (is_swap_option, data order; with more, that many drawn on `rng`, one randi_range each), saved
-## in the setup (the caller saves the run). Empty for an aisle not completed, a slot out of range
-## or an aisle whose only product is the slot's current card.
-static func regular_offer(
-	run: RunState,
-	profile: ProfileState,
-	slot: int,
-	aisle_id: StringName,
-	rng: RandomNumberGenerator
-) -> Array[CardDefinition]:
-	var setup: StartSetup = run.start_setup
-	var saved: Array[CardDefinition] = setup.regular_offer(slot, aisle_id)
-	if not saved.is_empty() or slot < 0 or slot >= run.starter.core_cards.size():
-		return saved
-	var eligible: Array[CardDefinition] = _eligible(run, profile, aisle_id)
-	eligible.erase(run.starter.core_cards[slot])
-	var offer: Array[CardDefinition] = eligible
-	var most: int = run.balance.regular_offer_max
-	if eligible.size() > most:
-		var drawn: Array[CardDefinition] = []
-		var left: Array[CardDefinition] = eligible.duplicate()
-		while drawn.size() < most:
-			var pick: CardDefinition = left[rng.randi_range(0, left.size() - 1)]
-			drawn.append(pick)
-			left.erase(pick)
-		offer = []
-		for card: CardDefinition in eligible:
-			if drawn.has(card):
-				offer.append(card)
-	if not offer.is_empty():
-		setup.regular_offers[StartSetup.offer_key(slot, aisle_id)] = offer
-	return offer
-
-
-## Why aisle `aisle_id` can't take a card for regular `slot` (a drag target), or &"" when it can:
-## &"slot" (no such slot), &"sealed" (a counted booster is still sealed), &"incomplete" (the
-## aisle isn't completed), &"swaps" (no replacement left), &"aisle" (staple_swap_aisle_max other
-## regulars already come from it), &"current" (the slot's current card is the only one it offers)
-## or &"copies" (no card of its offer, or of its products before the offer is shown, can be
-## swapped in).
-static func target_block(
-	run: RunState, profile: ProfileState, slot: int, aisle_id: StringName
-) -> StringName:
-	if slot < 0 or slot >= run.starter.core_cards.size():
-		return &"slot"
-	if not run.start_setup.all_open():
-		return &"sealed"
-	var cards: Array[CardDefinition] = _eligible(run, profile, aisle_id)
-	if cards.is_empty():
-		return &"incomplete"
-	var saved: Array[CardDefinition] = run.start_setup.regular_offer(slot, aisle_id)
-	if not saved.is_empty():
-		cards = saved.duplicate()
-	cards.erase(run.starter.core_cards[slot])
-	if cards.is_empty():
-		return &"current"
-	var reason: StringName = &"copies"
-	for card: CardDefinition in cards:
-		var block: StringName = swap_block(run, profile, slot, card)
-		if block == &"":
-			return &""
-		if block in [&"swaps", &"aisle"]:
-			reason = block
-	return reason
-
-
-## A completed aisle's plain-tier products (is_swap_option), in data order; empty otherwise.
-static func _eligible(
-	run: RunState, profile: ProfileState, aisle_id: StringName
-) -> Array[CardDefinition]:
-	var found: Array[CardDefinition] = []
-	for aisle: AisleDefinition in completed(run.balance, profile):
-		if aisle.id != aisle_id:
-			continue
-		for card: CardDefinition in aisle.base_cards + aisle.capsule_cards:
-			if is_swap_option(run.balance, profile, card):
-				found.append(card)
-	return found
-
-
 ## Rebuilds the run's stock from its setup's stocked aisles, and its deck (refresh_deck).
 static func rebuild_stock(run: RunState, profile: ProfileState) -> void:
 	run.stock = RunStock.build(
-		run.balance, run.start_setup.stock_aisles, profile.unlocked_items, profile.run_count, true
+		run.balance, run.start_setup.stock_aisles, profile.unlocked_items, true
 	)
 	refresh_deck(run)
 
@@ -656,48 +570,79 @@ static func swaps_left(run: RunState, profile: ProfileState) -> int:
 
 
 ## Whether regular `slot` can become `card` (swap_block).
-static func can_swap(run: RunState, profile: ProfileState, slot: int, card: CardDefinition) -> bool:
-	return swap_block(run, profile, slot, card) == &""
+static func can_swap(
+	run: RunState, profile: ProfileState, slot: int, card: CardDefinition, from: int = -1
+) -> bool:
+	return swap_block(run, profile, slot, card, from) == &""
 
 
-## Why regular `slot` can't become `card`, or &"" when it can: &"option" (not in the swap pool,
-## no such slot, or not in the slot's saved offer from its aisle), &"sealed" (a counted booster is
-## still sealed: its cards must never count before they are shown), &"slot" (the slot's current
-## or original card), &"swaps" (no swap left once the slot's own is set aside), &"aisle"
-## (staple_swap_aisle_max other regulars already come from its aisle) or &"copies" (the copy rule:
-## in SELECT the regulars alone, keeping enough packs to offer; from DEALT with every offered pack
-## and the counted boosters).
+## Why regular `slot` can't become `card`, or &"" when it can. `from` (>= 0) is another slot that
+## holds `card` as a swap: the card moves from there and that slot gets its original back. The
+## reasons: &"option" (not in the swap pool, no such slot, not in its aisle's saved swap booster,
+## or `from` doesn't hold it as a swap), &"sealed" (a counted booster is still sealed: its cards
+## must never count before they are shown), &"slot" (the slot's current or original card),
+## &"locked" (no swap unlocked: no completed aisle), &"swaps" (no swap left once the slot's own,
+## and `from`'s, is set aside: a card on a swapped slot trades places and uses none) or
+## &"copies" (the copy rule: in SELECT the regulars alone, keeping enough packs to offer; from
+## DEALT with every offered pack and the counted boosters). Any number of the swaps may come from
+## one aisle.
 static func swap_block(
-	run: RunState, profile: ProfileState, slot: int, card: CardDefinition
+	run: RunState, profile: ProfileState, slot: int, card: CardDefinition, from: int = -1
 ) -> StringName:
-	if slot < 0 or slot >= run.starter.core_cards.size():
+	var core: Array[CardDefinition] = run.starter.core_cards
+	var originals: Array[CardDefinition] = run.start_setup.originals
+	if slot < 0 or slot >= core.size():
 		return &"option"
 	if not run.start_setup.all_open():
 		return &"sealed"
-	if not is_swap_option(run.balance, profile, card):
+	if not is_swap_option(run, profile, card):
 		return &"option"
 	var source: AisleDefinition = run.balance.aisle_of(card)
-	var saved: Array[CardDefinition] = run.start_setup.regular_offer(slot, source.id)
-	if not saved.is_empty() and not saved.has(card):
+	if (
+		run.start_setup.has_swap_offer(source.id)
+		and not run.start_setup.swap_offer(source.id).has(card)
+	):
 		return &"option"
-	var core: Array[CardDefinition] = run.starter.core_cards
-	if card == core[slot] or card == run.start_setup.originals[slot]:
+	if from >= 0 and (from >= core.size() or core[from] != card or card == originals[from]):
+		return &"option"
+	if from == slot or card == core[slot] or card == originals[slot]:
 		return &"slot"
+	if swap_limit(run, profile) <= 0:
+		return &"locked"
 	var changed: int = 0
-	var in_aisle: int = 0
 	for index: int in core.size():
-		if index == slot or core[index] == run.start_setup.originals[index]:
+		if index == slot or index == from or core[index] == originals[index]:
 			continue
 		changed += 1
-		if run.balance.aisle_of(core[index]) == source:
-			in_aisle += 1
 	if changed >= swap_limit(run, profile):
 		return &"swaps"
-	if in_aisle >= run.balance.staple_swap_aisle_max:
-		return &"aisle"
+	return &"" if copies_fit(run, slot, card, from) else &"copies"
+
+
+## Whether the regulars with `card` in `slot` (and `from`, when >= 0, back to its original) keep
+## the copy rule (_fits_all).
+static func copies_fit(run: RunState, slot: int, card: CardDefinition, from: int) -> bool:
 	var recipe: DeckDefinition = StartingDeck.with_cards(run.starter, [])
+	if from >= 0:
+		recipe.core_cards[from] = run.start_setup.originals[from]
 	recipe.core_cards[slot] = card
-	return &"" if _fits_all(run, recipe, card, true) else &"copies"
+	return _fits_all(run, recipe, card, true)
+
+
+## Swaps regular `slot` to `card` (swap_block; `from`: the slot it moves from, which gets its
+## original back) and rebuilds the deck. Returns the reason it was refused, &"" when done (the
+## caller saves the run).
+static func swap(
+	run: RunState, profile: ProfileState, slot: int, card: CardDefinition, from: int = -1
+) -> StringName:
+	var block: StringName = swap_block(run, profile, slot, card, from)
+	if block != &"":
+		return block
+	if from >= 0:
+		run.starter.core_cards[from] = run.start_setup.originals[from]
+	run.starter.core_cards[slot] = card
+	refresh_deck(run)
+	return &""
 
 
 ## Whether regular `slot` (swapped) can go back to its original under the copy rule (never
@@ -719,6 +664,26 @@ static func restore(run: RunState, slot: int) -> bool:
 	if not can_restore(run, slot):
 		return false
 	run.starter.core_cards[slot] = run.start_setup.originals[slot]
+	refresh_deck(run)
+	return true
+
+
+## Whether every swapped regular can go back to its original at once (the swap window's RESET):
+## some regular is swapped, no counted booster is sealed, and the originals keep the copy rule.
+static func can_reset(run: RunState) -> bool:
+	if applied_swaps(run) == 0 or not run.start_setup.all_open():
+		return false
+	var recipe: DeckDefinition = StartingDeck.with_cards(run.starter, [])
+	recipe.core_cards = run.start_setup.originals.duplicate()
+	return _fits_all(run, recipe, recipe.core_cards[0], false)
+
+
+## RESET: every regular back to its original (can_reset), every swap free again. False (nothing
+## changed) when refused.
+static func reset_swaps(run: RunState) -> bool:
+	if not can_reset(run):
+		return false
+	run.starter.core_cards = run.start_setup.originals.duplicate()
 	refresh_deck(run)
 	return true
 

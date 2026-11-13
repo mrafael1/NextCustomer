@@ -100,8 +100,9 @@ func test_stock_numbers_match_the_plan() -> void:
 	assert_int(balance.run_aisle_picks).is_equal(2)
 	assert_int(balance.aisle_stock_budget).is_equal(16)
 	assert_int(balance.aisle_listable_min).is_equal(4)
-	assert_int(balance.end_cap_max).is_equal(3)
-	assert_int(balance.end_cap_window_runs).is_equal(3)
+	# v1.32: no end-cap (new arrivals from other aisles); its numbers are gone from the data.
+	assert_bool("end_cap_max" in balance).is_false()
+	assert_bool("end_cap_window_runs" in balance).is_false()
 
 
 ## The 6 aisles (issues #34 and #35, decided with the user): the 3 base aisles hold 5/5/4

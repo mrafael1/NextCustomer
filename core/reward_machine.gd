@@ -559,18 +559,16 @@ func _new_card(run: RunState, chute: int) -> MachineOddsCard:
 	var chosen: bool = _visit != null and _visit.chute == chute
 	var context: MachineContext = _snapshot(run)
 	if chosen and _first_draw:
-		# The first draw's card, as shown before it (its first-offer coupon, its new arrival; a
-		# save from before v0.61 whose coupon draw was spent shows the first-offer coupon too).
-		context = MachineContext.from_run(run, machine, false, false, is_premium())
+		# The first draw's card, as shown before it (its first-offer coupon; a save from before
+		# v0.61 whose coupon draw was spent shows the first-offer coupon too).
+		context = MachineContext.from_run(run, machine, false, is_premium())
 	return MachineOdds.card(chute, context, odds_level(run))
 
 
 ## The run's snapshot for this state, built once.
 func _snapshot(run: RunState) -> MachineContext:
 	if _context == null:
-		_context = MachineContext.from_run(
-			run, machine, coupons_first_done, new_items_first_done, is_premium()
-		)
+		_context = MachineContext.from_run(run, machine, coupons_first_done, is_premium())
 	return _context
 
 

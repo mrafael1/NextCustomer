@@ -466,7 +466,7 @@ func test_the_stock_window_shows_sealed_odds_above_its_key() -> void:
 func test_the_stock_window_odds_rise_with_the_odds_level() -> void:
 	var run: RunState = _passed_run(31)
 	var machine: MachineDefinition = run.machine.machine
-	var context: MachineContext = MachineContext.from_run(run, machine, true, true)
+	var context: MachineContext = MachineContext.from_run(run, machine, true)
 	var top: int = machine.max_level()
 	assert_int(top).is_greater(0)
 	for chute: int in RewardMachine.CHUTES:

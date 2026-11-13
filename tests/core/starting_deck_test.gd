@@ -119,8 +119,7 @@ func test_a_small_pool_ends_the_deal_short() -> void:
 	var cheese_capsule: CardDefinition = _balance.aisles[0].capsule_cards[0]
 	var markdown: CardDefinition = load("res://data/cards/final_markdown.tres")
 	var cards: Array[CardDefinition] = [milk, bread, cheese_capsule, markdown]
-	var none: Array[CardDefinition] = []
-	var small: RunStock = RunStock.from_saved(cards, [], true, none)
+	var small: RunStock = RunStock.from_saved(cards, [], true)
 	var dealt: DeckDefinition = StartingDeck.deal(_recipe, small, _balance, _stream(3))
 	# Milk has 1 core copy, so 1 more; Bread 2; the capsule product has no chain.
 	assert_array(_ids(dealt.cards)).is_equal(
@@ -128,7 +127,7 @@ func test_a_small_pool_ends_the_deal_short() -> void:
 	)
 	# A stock with no coupon deals none.
 	cards.erase(markdown)
-	small = RunStock.from_saved(cards, [], true, none)
+	small = RunStock.from_saved(cards, [], true)
 	dealt = StartingDeck.deal(_recipe, small, _balance, _stream(3))
 	assert_array(_ids(dealt.cards)).is_equal(
 		["banana", "banana", "milk", "eggs", "milk", "bread", "bread"]
@@ -276,7 +275,7 @@ func test_every_two_aisle_list_deals_thirteen_cards() -> void:
 	for first: int in aisles.size():
 		for second: int in range(first + 1, aisles.size()):
 			var listed: Array[StringName] = [aisles[first].id, aisles[second].id]
-			var stock: RunStock = RunStock.build(_balance, listed, unlocked, 1)
+			var stock: RunStock = RunStock.build(_balance, listed, unlocked)
 			assert_array(stock.aisle_ids).is_equal(listed)
 			var where: String = "%s+%s" % listed
 			var decks: Dictionary[String, bool] = {}
@@ -308,7 +307,7 @@ func test_capsule_products_join_the_draw_only_when_the_recipe_says_so() -> void:
 			unlocked[card.id] = 0
 			capsules.append(card)
 	var listed: Array[StringName] = [&"bakery", &"snacks"]
-	var stock: RunStock = RunStock.build(_balance, listed, unlocked, 1)
+	var stock: RunStock = RunStock.build(_balance, listed, unlocked)
 	var chains: Array[ItemUpgradeDefinition] = _balance.machine.item_upgrades
 	var kept: Array[ItemUpgradeDefinition] = StartingDeck.without_capsules(chains, _balance)
 	assert_int(kept.size()).is_equal(chains.size() - capsules.size())

@@ -1,8 +1,8 @@
 // #77: writes the exact-odds reference tables for tests/core/machine_odds_test.gd from the approved
 // draw process, docs/art/mockups/machine_77_src/flow/draw77.js (DRAW77.stats: every possible draw
-// enumerated with its probability). The GDScript MachineOdds must match them to 1e-9, with the two
-// build extensions off (REGISTER's "one fits your cart" and the first NEW ITEMS draw's new arrival:
-// draw77 has neither). Run from the repo root: node tests/fixtures/machine_odds/make_fixtures.js
+// enumerated with its probability). The GDScript MachineOdds must match them to 1e-9, with the build
+// extension off (REGISTER's "one fits your cart": draw77 lacks it; the first NEW ITEMS draw's new
+// arrival, a second extension, went in v1.32). Run from the repo root: node tests/fixtures/machine_odds/make_fixtures.js
 'use strict';
 const fs = require('fs');
 const path = require('path');

@@ -1,23 +1,15 @@
 class_name BoosterCounter
 extends RefCounted
 ## YOUR STORE's counter (BoosterPage, v1.32): RESTOCK (its key arms the pick of an opened booster,
-## whose cards fly into the returns tote as a fresh sealed one drops in) and the regulars' swaps
-## (the swap tray: 3 products per completed aisle, a swapped regular put back on a click). Every
-## rule goes through the page's StartBoardActions; the state lives on the page.
+## whose cards fly into the returns tote as a fresh sealed one drops in) and the regulars' swap
+## count (the swaps themselves are the swap window's, SwapWindow). Every rule goes through the
+## page's StartBoardActions; the state lives on the page.
 
 var page: BoosterPage
 
 
 func _init(owner_page: BoosterPage) -> void:
 	page = owner_page
-
-
-## The swap tray's aisle tab `tab`.
-func set_tray_tab(tab: int) -> void:
-	if page.tray_slot >= 0 and tab != page.tray_tab:
-		page.tray_tab = tab
-		_warm_tab()
-		page.fx.sfx("ui_click", -10.0)
 
 
 ## RESTOCK's key: arms (or disarms) the pick of an opened booster to return.
@@ -33,7 +25,6 @@ func arm_restock() -> bool:
 		page.flash("OPEN A BOOSTER FIRST")
 		return false
 	page.restock_armed = not page.restock_armed
-	page.tray_slot = -1
 	page.fx.sfx("ui_open" if page.restock_armed else "ui_close", -6.0)
 	page.set_hint("PICK A BOOSTER TO RETURN" if page.restock_armed else "")
 	return true
@@ -118,9 +109,10 @@ func restock(index: int) -> bool:
 	return true
 
 
-## Whether a regular can open its swap tray now (every booster open, a swap left or it swapped).
+## Whether the regulars can be swapped now: every booster open and STOCKED! come (the swap
+## window opens even with no swap unlocked, its boosters locked).
 func swaps_live() -> bool:
-	if StartSetupRules.completed(page.run.balance, page.profile).is_empty() or page.picking():
+	if page.picking():
 		return false
 	return page.openings.all_open() and page.complete_t != INF
 
@@ -131,81 +123,3 @@ func swap_limit() -> int:
 
 func swaps_used() -> int:
 	return StartSetupRules.applied_swaps(page.run)
-
-
-## A click on regular `slot`: puts a swapped one back, else opens (or closes) its swap tray.
-func click_regular(slot: int) -> bool:
-	if not swaps_live():
-		page.flash(
-			(
-				"SWAPS AT 1 AISLE"
-				if StartSetupRules.completed(page.run.balance, page.profile).is_empty()
-				else "SWAP AFTER OPENING"
-			)
-		)
-		return false
-	if page.run.starter.core_cards[slot] != page.run.start_setup.originals[slot]:
-		return undo_swap(slot)
-	if swaps_used() >= swap_limit():
-		page.flash("NO SWAPS LEFT")
-		return false
-	page.tray_slot = -1 if page.tray_slot == slot else slot
-	page.tray_tab = 0
-	_warm_tab()
-	page.fx.sfx("ui_open", -8.0)
-	return true
-
-
-## Loads the open tab's item sprites now, so the tray's first frame never draws them blank.
-func _warm_tab() -> void:
-	for card: CardDefinition in tray_offer(page.tray_tab):
-		BoosterChromeDraw.sprite(card)
-
-
-## The swap tray's aisles (completed), and the offer on tab `tab` (saved once drawn).
-func tray_aisles() -> Array[AisleDefinition]:
-	return StartSetupRules.completed(page.run.balance, page.profile)
-
-
-func tray_offer(tab: int) -> Array[CardDefinition]:
-	var aisles: Array[AisleDefinition] = tray_aisles()
-	if page.tray_slot < 0 or tab < 0 or tab >= aisles.size() or page.actions == null:
-		return []
-	var offer: Array = page.actions.regular_offer.call(page.tray_slot, aisles[tab].id)
-	var cards: Array[CardDefinition] = []
-	for card: Variant in offer:
-		cards.append(card as CardDefinition)
-	return cards
-
-
-## Swaps the tray's regular for offer `k` of the open tab (saved).
-func swap_to(k: int, via: String = "click") -> bool:
-	var offer: Array[CardDefinition] = tray_offer(page.tray_tab)
-	if page.tray_slot < 0 or k < 0 or k >= offer.size():
-		return false
-	var slot: int = page.tray_slot
-	if StartSetupRules.swap_block(page.run, page.profile, slot, offer[k]) != &"":
-		return false
-	if page.actions == null or not page.actions.swap_staple.call(slot, offer[k], via):
-		page.flash("COULD NOT SAVE. TRY AGAIN")
-		return false
-	page.tray_slot = -1
-	page.swap_t[slot] = page.now
-	page.cart_punch_t = page.now
-	page.cart_punch_s = 1.12
-	page.fx.sfx("card_return_1", -6.0)
-	page.fx.cue(page.now + 0.18, page.fx.sfx.bind("card_place_2", -4.0))
-	page.fx.cue(page.now + 0.22, page.fx.sfx.bind("tag", -4.0))
-	return true
-
-
-func undo_swap(slot: int) -> bool:
-	if not StartSetupRules.can_restore(page.run, slot):
-		page.flash("PUTTING IT BACK BREAKS THE COPY LIMIT")
-		return false
-	if page.actions == null or not page.actions.restore_regular.call(slot, "click"):
-		page.flash("COULD NOT SAVE. TRY AGAIN")
-		return false
-	page.swap_t[slot] = page.now
-	page.fx.sfx("card_return_2", -6.0)
-	return true

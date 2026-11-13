@@ -31,7 +31,7 @@ static func run_start(run: RunState) -> Dictionary:
 			. merge(
 				{
 					"stock_aisles": Array(run.start_setup.stock_aisles),
-					"dealt_aisles": Array(run.start_setup.green_ids(run.balance)),
+					"dealt_aisles": Array(run.start_setup.stock_aisles),
 					"regulars": definition_ids(run.starter.core_cards),
 					"completed_aisles": run.start_setup.completed_count,
 					"boosters": booster_fields(run.start_setup),
@@ -72,7 +72,7 @@ static func start_booster_pick(run: RunState, picks: Array[int]) -> Dictionary:
 		"picked": Array(picks),
 		"aisles": kept,
 		"sold_out": sold,
-		"green": Array(setup.green_ids(run.balance)),
+		"green": Array(setup.stock_aisles),
 	}
 
 

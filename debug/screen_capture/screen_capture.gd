@@ -674,8 +674,8 @@ func reveal(spec: String) -> void:
 
 ## Opens the deck view (#56) on a new run (SEED), as the top bar's Cart would; capture() then names
 ## its file shift_screen_deck_<page>[_<options>]_<w>x<h>.png. `spec` is "<page>[,<option>...]":
-## the page is cart, info (Run info: the capture's upgrades, a Short belt shift, a new arrival in
-## the stock) or chooser (the machine's deck-full chooser for a Breakfast sticker, on a full cart);
+## the page is cart, info (Run info: the capture's upgrades, a Short belt shift, the stock) or
+## chooser (the machine's deck-full chooser for a Breakfast sticker, on a full cart);
 ## the options:
 ## - seed=<n>: the run's seed;
 ## - full: the cart filled to the deck limit with distinct items (the dealt deck with one copy of
@@ -697,7 +697,6 @@ func deck(spec: String) -> void:
 			upgrades.append(_upgrade(upgrade_id))
 		run.upgrades = upgrades
 		run.inspections = [load("res://data/inspections/%s.tres" % DECK_INSPECTION)]
-		run.stock.new_arrivals = [DeckSummary.in_view_order(run.stock.cards)[5]]
 		_screen._refresh_loyalty_card()
 	var view: DeckView = _screen._deck_view
 	if page == "chooser":

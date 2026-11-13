@@ -4,9 +4,12 @@ extends RefCounted
 
 var page_changed: Callable
 var save_pick: Callable
-## swap_staple(slot, card, via) and restore_regular(slot, via) -> bool.
+## swap_staple(slot, card, via, from = -1), restore_regular(slot, via) and reset_regulars() ->
+## bool: the swap window's swaps (a card on a swapped slot trades; `from` moves a swapped card),
+## their undo and RESET.
 var swap_staple: Callable
 var restore_regular: Callable
+var reset_regulars: Callable
 ## open_booster(index) -> bool: a sealed booster opened (saved).
 var open_booster: Callable
 ## pick_boosters(picks: Array[int]) -> bool: PICK 2 OF 3's pair kept, the other SOLD OUT.
@@ -25,8 +28,10 @@ var mark_seen: Callable
 var restock_booster: Callable
 ## new_packs() -> bool.
 var new_packs: Callable
-## regular_offer(slot, aisle_id) -> Array[CardDefinition], saved once drawn.
-var regular_offer: Callable
+## swap_offers() -> Dictionary[StringName, Array]: the swap window's boosters (aisle id -> cards),
+## one per stocked aisle, saved once drawn; open_swap_booster(aisle_id) -> bool (saved).
+var swap_offers: Callable
+var open_swap_booster: Callable
 ## mark_build() -> bool: page 2 opened.
 var mark_build: Callable
 var open_pins: Callable

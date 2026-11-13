@@ -497,7 +497,7 @@ func test_reveal_order_and_drop_order() -> void:
 		_pass(run, machine, shift_number)
 		var copy: RandomNumberGenerator = RandomNumberGenerator.new()
 		copy.state = (_rngs[seed_value] as RandomNumberGenerator).state
-		var context: MachineContext = MachineContext.from_run(run, classic_only, false, false)
+		var context: MachineContext = MachineContext.from_run(run, classic_only, false)
 		var level: int = LEVEL_AFTER[shift_number - 1]
 		var expected: Array[MachinePrize] = MachineDraw.draw(chute, context, level, copy)
 		assert_bool(machine.choose(run, chute)).is_true()

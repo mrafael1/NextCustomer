@@ -6,8 +6,8 @@ extends GdUnitTestSuite
 ## name, aisle, stock line or OK) inside the window. Nothing closes it: no click or key, and the
 ## machines and DONE take no clicks while it is up; after ToyReveal.HOLD_S the icon flies into
 ## the lineup card by itself, on the 2 px grid every frame, and the screen is playable again once
-## it lands. The stock line stays the counter's (the results' and the title's without a saved
-## run: "In stock from your next run"; with one: "In stock after your saved run"). A failed save
+## it lands. The draw comes out at the counter's run index (the ended run's on the results and
+## on the title without a saved run, the saved run's with one). A failed save
 ## switches every machine OFF with the notice and shows no reveal. Saves and logs go to a
 ## temporary folder.
 

@@ -6,8 +6,8 @@ extends Control
 ## dimmed, and a cream price-gun label slapped on the art counts them ("×3"). On the Cart page the
 ## cart reveal's pick marks (v0.51) sit on the art's top-left corner: the teal "+" of a starting
 ## pick's product (the tomato token for the coupon); the staple padlock shows only on the cart
-## reveal (#105). In the stock a new arrival carries a mustard NEW chip there instead. The name is
-## the plain product's (the art and the tier tag show the tier), stepped down to fit.
+## reveal (#105). The name is the plain product's (the art and the tier tag show the tier),
+## stepped down to fit.
 ##
 ## Hover (the pointer on its sprite or sticker) lifts the art; `ringed` draws the chooser's gold
 ## ring round it, and `out_marked` (a held prize over it, CartPlacing: dropping swaps it out)
@@ -37,7 +37,6 @@ const COUNT_TILT := 6.0
 const MARK_SIZE := Vector2(24, 24)
 const MARK_POSITION := Vector2(2, 2)
 const MARK_GAP := 6.0
-const NEW_TEXT := "NEW"
 ## The chooser's ring round the item's column (sprite and sticker), outside it by RING_OUTSET.
 const RING_WIDTH := 4.0
 const RING_OUTSET := 4.0
@@ -52,7 +51,6 @@ const OUT_WEIGHT := 800
 ## Node names (for tests).
 const OUT_TAG := "OutTag"
 const PICK_MARK := "PickMark"
-const NEW_MARK := "NewMark"
 const COUNT_LABEL := "CountLabel"
 const NAME_LABEL := "NameLabel"
 ## A faint match's dashed outline (mock-up readability v3: 112 wide from 2 px left of the cell).
@@ -135,12 +133,6 @@ func add_origin_marks(picked: bool) -> void:
 			RevealTile.COUPON_ICON if coupon else RevealTile.PICK_ICON
 		)
 		_add_mark(PICK_MARK, chip)
-
-
-## Adds the stock's NEW chip (a new arrival).
-func add_new_mark() -> void:
-	var chip: RevealChip = RevealChip.new(Palette.MUSTARD, MARK_SIZE, null, NEW_TEXT, 12)
-	_add_mark(NEW_MARK, chip)
 
 
 func item() -> ItemView:

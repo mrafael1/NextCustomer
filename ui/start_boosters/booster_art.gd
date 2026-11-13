@@ -34,10 +34,26 @@ const REG_Y := 168 + DY
 const TITLE_RECT := Rect2i(8, 323, 72, 26)
 const HINT_RECT := Rect2i(120, 326, 360, 18)
 const PRIMARY_RECT := Rect2i(528, 322, 104, 28)
-## The RESTOCK key on the counter's front (its width from its label) and its tote bay after it.
-const RESTOCK_X := 324
-const RESTOCK_Y := 241 + DY
-const RESTOCK_H := 20
+## The RESTOCK key on the floor row (v1.32 feedback): KEY_GAP art px left of the primary key, as
+## tall as it, its width from its refresh glyph and label; the hint LED shrinks to HINT_MARGIN
+## art px either side between TITLE and the key while the key shows.
+const KEY_GAP := 8
+const HINT_MARGIN := 16
+## The returns tote's bay in the counter front, centred between the two aisle places.
+const BAY_RECT := Rect2i(358, 239 + DY, 76, 24)
+## The refresh glyph (two arrows in a loop, 9x9 art px, one px each) the RESTOCK key wears; its
+## quarter turn (refresh_glyph(true)) alternates with it while RESTOCK is armed.
+const REFRESH_GLYPH: Array[String] = [
+	"..####.#.",
+	".#....##.",
+	"#....###.",
+	"#........",
+	"#.......#",
+	"........#",
+	".###....#",
+	".##....#.",
+	".#.####..",
+]
 ## The STOCKED! stamp's centre, hung under the YOUR STORE board.
 const STOCKED_CENTRE := Vector2i(396, 77)
 ## The unlit pouch's flat modulate (the mock-up's #7e8e8c multiply).
@@ -68,6 +84,8 @@ const COIN_LED := preload("res://art/frames/coin_led.png")
 const KEY := preload("res://art/frames/key_cream.png")
 const KEY_LIT := preload("res://art/frames/key_cream_lit.png")
 const KEY_OFF := preload("res://art/frames/key_cream_off.png")
+const KEY_BRASS := preload("res://art/frames/key_payday_lit.png")
+const BUTTON_TEAL_LIT := preload("res://art/frames/button_teal_lit.png")
 const PLATE := preload("res://art/frames/toy_plate.png")
 const PLATE_LIT := preload("res://art/frames/toy_plate_lit.png")
 const PLATE_OFF := preload("res://art/frames/toy_plate_off.png")

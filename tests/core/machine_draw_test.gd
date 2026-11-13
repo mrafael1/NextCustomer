@@ -3,7 +3,7 @@ extends GdUnitTestSuite
 ## drop's kind (NEW ITEMS: products then a coupon; UPGRADE: a loyalty perk, an item upgrade, then
 ## either), the empty-tier fallback (with a PREMIUM floor) and the any-kind fallback, short draws,
 ## the loyalty perks' owned, level and type rules, the guarantee swap inside the drop's tier and
-## kind, the first NEW ITEMS draw's coupon and new arrival, a product's rarity as its tier (v1.25;
+## kind, the first NEW ITEMS draw's coupon, a product's rarity as its tier (v1.25;
 ## its hidden draw weight: machine_draw_weight_test.gd), SHELF UPGRADE's two copies, and seeded
 ## determinism.
 
@@ -378,55 +378,19 @@ func test_the_perk_swap_keeps_different_types() -> void:
 	assert_array(_keys(alternatives)).is_equal([economy.key(), risky.key(), fitting_slot.key()])
 
 
-## The run's first NEW ITEMS draw holds the newest new arrival at its own rarity (plain: COMMON,
-## v1.25): it replaces the last product drop that isn't the draw's only generally useful product
-## (never the coupon); a draw holding it at any tier is left alone; later draws don't.
-func test_the_first_new_items_draw_holds_the_new_arrival() -> void:
-	var context: MachineContext = _context()
-	var lemon: CardDefinition = load("%s/lemon.tres" % CARDS_DIR)
-	context.products.append(lemon)
-	context.new_arrival = lemon
-	context.first_new_items = true
-	# Butter is in the guarantee set (not in the starter), Soup and Coffee aren't.
-	var held: Dictionary = context.guarantee(RewardMachine.Chute.NEW_ITEMS)
-	assert_bool(held.has(&"butter")).is_true()
-	assert_bool(held.has(&"soup") or held.has(&"coffee")).is_false()
-	var butter: MachinePrize = _live_product("butter")
-	var soup: MachinePrize = _live_product("soup")
-	var coffee: MachinePrize = _live_product("coffee")
-	var one_useful: Array[MachinePrize] = [soup, coffee, butter]
-	var swapped: Array[MachinePrize] = MachineDraw.new_arrival_swap(context, one_useful)
-	assert_array(swapped.map(_id)).is_equal([&"soup", &"lemon", &"butter"])
-	assert_int(swapped[1].rarity).is_equal(MachinePrize.Rarity.COMMON)
-	# A BIG Lemon already drawn holds it: nothing is replaced.
-	var big_lemon: MachinePrize = MachinePrize.new(
-		MachinePrize.Kind.PRODUCT, 1, load("%s/lemon_big.tres" % CARDS_DIR)
-	)
-	var lemon_held: Array[MachinePrize] = [soup, big_lemon, butter]
-	assert_array(MachineDraw.new_arrival_swap(context, lemon_held)).is_equal(lemon_held)
-	var others: Array = held.keys()
-	others.erase(&"butter")
-	var other: MachinePrize = _live_product(String(others[0]))
-	var two_useful: Array[MachinePrize] = [soup, butter, other]
-	swapped = MachineDraw.new_arrival_swap(context, two_useful)
-	assert_array(swapped.map(_id)).is_equal([&"soup", &"butter", &"lemon"])
-	var coupon: MachinePrize = MachinePrize.new(
-		MachinePrize.Kind.COUPON, 1, load("%s/repeat.tres" % CARDS_DIR)
-	)
-	var coupon_last: Array[MachinePrize] = [soup, butter, coupon]
-	swapped = MachineDraw.new_arrival_swap(context, coupon_last)
-	assert_array(swapped.map(_id)).is_equal([&"lemon", &"butter", &"repeat"])
-	var rng: RandomNumberGenerator = _rng(5)
-	for draw: int in 50:
-		var drawn: Array[MachinePrize] = MachineDraw.draw(
-			RewardMachine.Chute.NEW_ITEMS, context, draw % 4, rng
-		)
-		assert_array(drawn.map(_plain_id)).contains([&"lemon"])
-		var useful: Array = drawn.filter(_is_useful)
-		assert_array(useful).is_not_empty()
-	context.first_new_items = false
-	var later: Array[MachinePrize] = [soup, coffee, butter]
-	assert_array(MachineDraw.new_arrival_swap(context, later)).is_equal(later)
+## v1.32: the run's first NEW ITEMS draw no longer holds a "new arrival" from another aisle:
+## the first draw and later ones hold only stocked products.
+func test_the_first_new_items_draw_holds_only_stocked_products() -> void:
+	var run: RunState = RunState.new(1, _starter, _balance, RunStock.starting(_balance))
+	var stocked: Array[String] = run.stock.card_ids()
+	for first_done: bool in [false, true]:
+		var context: MachineContext = MachineContext.from_run(run, _balance.machine, first_done)
+		for draw: int in 50:
+			var drawn: Array[MachinePrize] = MachineDraw.draw(
+				RewardMachine.Chute.NEW_ITEMS, context, draw % 4, _rng(draw)
+			)
+			for id: StringName in drawn.filter(_is_product).map(_plain_id):
+				assert_bool(stocked.has(String(id))).override_failure_message(id).is_true()
 
 
 ## UPGRADE offers an item upgrade only for a product with a copy in the cart, per rarity it can
@@ -544,9 +508,13 @@ func _plain_id(prize: MachinePrize) -> StringName:
 	return prize.plain_id()
 
 
+func _is_product(prize: MachinePrize) -> bool:
+	return prize.kind == MachinePrize.Kind.PRODUCT
+
+
 ## The NEW ITEMS guarantee set of a run's machine context, as ids.
 func _held(run: RunState) -> Array:
-	var context: MachineContext = MachineContext.from_run(run, _balance.machine, true, true)
+	var context: MachineContext = MachineContext.from_run(run, _balance.machine, true)
 	return context.guarantee(RewardMachine.Chute.NEW_ITEMS).keys()
 
 
@@ -565,10 +533,10 @@ func _expected_held(run: RunState) -> Array:
 	return fresh if not fresh.is_empty() else useful
 
 
-## The fresh run's snapshot with the live machine (both first draws done).
+## The fresh run's snapshot with the live machine (the first coupon draw done).
 func _context() -> MachineContext:
 	var run: RunState = RunState.new(1, _starter, _balance, RunStock.starting(_balance))
-	return MachineContext.from_run(run, _balance.machine, true, true)
+	return MachineContext.from_run(run, _balance.machine, true)
 
 
 func _rng(seed_value: int) -> RandomNumberGenerator:

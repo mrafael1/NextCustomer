@@ -49,16 +49,17 @@ func test_a_machine_aisle_is_stocked_only_from_four_items() -> void:
 	assert_bool(seen).is_true()
 
 
-## Run 1: the three base aisles; which two are green is seeded by the run seed (same seed, same
-## suggestion), the green ones in data order.
+## Run 1: two of the three base aisles (dealt_aisle_count, no third), seeded by the run seed
+## (same seed, same suggestion), in data order.
 func test_the_suggested_aisles_are_seeded() -> void:
 	var profile: ProfileState = ProfileState.new()
 	var drawn: Array[StringName] = Kit.suggest(profile, SEED)
-	assert_array(drawn).contains_exactly_in_any_order([&"cold_cases", &"pantry", &"household"])
+	assert_int(drawn.size()).is_equal(_balance.dealt_aisle_count)
+	assert_int(drawn.size()).is_equal(2)
+	for id: StringName in drawn:
+		assert_bool([&"cold_cases", &"pantry", &"household"].has(id)).is_true()
 	assert_array(Kit.suggest(profile, SEED)).is_equal(drawn)
-	assert_array(drawn.slice(0, 2)).is_equal(
-		StartSetupRules.ordered_pair(_balance, drawn.slice(0, 2))
-	)
+	assert_array(drawn).is_equal(StartSetupRules.ordered_pair(_balance, drawn))
 	var orders: Dictionary = {}
 	for seed_value: int in range(SEED, SEED + 30):
 		orders[str(Kit.suggest(profile, seed_value))] = true
@@ -85,8 +86,8 @@ func test_a_new_run_waits_in_select_with_nothing_dealt() -> void:
 	assert_bool(run.take_pack(_recipe.first_pick_pack)).is_false()
 
 
-## The deal: one sealed booster per green aisle, each start_booster_size distinct products of its
-## own aisle only (none of the RUN ONLY aisle, no staples draw), its last place the hit card
+## The deal: one sealed booster per stocked aisle, each start_booster_size distinct products of its
+## own aisle only (no staples draw), its last place the hit card
 ## (BIG at most there, never GOLDEN); the offer of 3 packs with the good first pick suggested and
 ## nothing picked; the cart keeps the recipe's random_count dealt cards; the same seed deals the
 ## same; the run's own RNG is never used.
@@ -104,13 +105,11 @@ func test_the_deal_gives_two_sealed_boosters_of_three_from_their_aisles() -> voi
 			assert_int(setup.boosters.size()).is_equal(_balance.dealt_aisle_count)
 			for index: int in setup.boosters.size():
 				var booster: StartBooster = setup.boosters[index]
-				assert_str(String(booster.aisle)).is_equal(String(setup.green_ids(_balance)[index]))
+				assert_str(String(booster.aisle)).is_equal(String(setup.stock_aisles[index]))
 				_assert_booster(booster)
 				assert_int(booster.cards.size()).is_equal(_balance.start_booster_size)
 				assert_int(booster.hits).is_equal(_balance.start_booster_hit_slots)
 				assert_bool(booster.opened).is_false()
-			for card: CardDefinition in setup.shared():
-				assert_bool(Kit.of_aisle(card, setup.run_only_ids(_balance)[0])).is_false()
 			assert_array(run.start_offer.shared).is_equal(setup.shared())
 			assert_int(run.start_offer.packs.size()).is_equal(_recipe.packs_offered)
 			assert_str(String(setup.picked)).is_empty()
@@ -166,10 +165,10 @@ func test_opening_reveals_and_swaps_wait_for_every_booster() -> void:
 	assert_str(String(StartSetupRules.open_block(waiting, 0))).is_equal("stage")
 	var run: RunState = Kit.dealt(profile, SEED)
 	var cards: Array[CardDefinition] = run.start_setup.shared()
-	var cold: AisleDefinition = _balance.aisles[0]
-	var card: CardDefinition = cold.base_cards[0]
+	var stocked: StringName = StartSwapBoosters.swap_aisles(run)[0]
+	var card: CardDefinition = StartSwapBoosters.swap_pool(run, profile, stocked)[0]
 	assert_str(String(StartSetupRules.swap_block(run, profile, 3, card))).is_equal("sealed")
-	assert_str(String(StartSetupRules.target_block(run, profile, 3, cold.id))).is_equal("sealed")
+	assert_str(String(StartSwapBoosters.open_swap_block(run, profile, stocked))).is_equal("none")
 	assert_str(String(StartSetupRules.open_block(run, 5))).is_equal("none")
 	assert_str(String(StartSetupRules.open_booster(run, 0))).is_empty()
 	assert_bool(run.start_setup.boosters[0].opened).is_true()
@@ -178,14 +177,19 @@ func test_opening_reveals_and_swaps_wait_for_every_booster() -> void:
 	assert_str(String(StartSetupRules.open_booster(run, 1))).is_empty()
 	assert_bool(run.start_setup.all_open()).is_true()
 	assert_array(run.start_setup.shared()).is_equal(cards)
-	assert_str(String(StartSetupRules.target_block(run, profile, 3, cold.id))).is_empty()
+	(
+		assert_array(
+			StartSwapBoosters.swap_offer(run, profile, stocked, Kit.regulars_rng(run, stocked))
+		)
+		. is_not_empty()
+	)
 	assert_object(Kit.option(run, profile, 3)).is_not_null()
 
 
 ## PICK 2 OF 3 (6 completed aisles): a third sealed booster of a completed aisle not stocked
 ## today; while picking, the seeded pair stands for today's stock and nothing opens, restocks,
 ## moves to page 2 or redraws packs. Any pair keeps the copy rule with every pack. Picking makes
-## the other SOLD OUT, today's green aisles the picked pair's, rebuilds the stock and fits the
+## the other SOLD OUT, the stocked aisles the picked pair's, rebuilds the stock and fits the
 ## packs to it. The same seed picks the same.
 func test_pick_two_of_three_keeps_a_pair_and_sells_out_the_other() -> void:
 	var profile: ProfileState = Kit.profile(6)
@@ -221,13 +225,11 @@ func test_pick_two_of_three_keeps_a_pair_and_sells_out_the_other() -> void:
 		assert_str(String(StartSetupRules.pick_boosters_block(run, bad))).is_equal("count")
 	var picks: Array[int] = [0, 2]
 	var kept: Array[StringName] = [setup.boosters[0].aisle, extra.aisle]
-	var run_only: Array[StringName] = setup.run_only_ids(_balance)
 	var picked: StringName = StartSetupRules.pick_boosters(run, profile, picks, Kit.pick_rng(run))
 	assert_str(String(picked)).is_empty()
 	assert_bool(setup.picking()).is_false()
 	assert_bool(setup.boosters[1].sold_out).is_true()
-	assert_array(setup.green_ids(_balance)).is_equal(StartSetupRules.ordered_pair(_balance, kept))
-	assert_array(setup.run_only_ids(_balance)).is_equal(run_only)
+	assert_array(setup.stock_aisles).is_equal(StartSetupRules.ordered_pair(_balance, kept))
 	assert_array(run.stock.aisle_ids).contains_exactly_in_any_order(setup.stock_aisles)
 	assert_array(setup.shared()).is_equal(setup.boosters[0].cards + extra.cards)
 	assert_array(run.start_offer.shared).is_equal(setup.shared())
@@ -277,9 +279,10 @@ func test_restock_deals_one_opened_booster_again_once() -> void:
 		assert_array(run.starter.cards.slice(_recipe.core_cards.size())).is_equal(setup.shared())
 		for each: int in 2:
 			assert_str(String(StartSetupRules.restock_block(run, profile, each))).is_equal("used")
-		assert_str(String(StartSetupRules.target_block(run, profile, 0, &"cold_cases"))).is_equal(
-			"sealed"
+		var pool: Array[CardDefinition] = StartSwapBoosters.swap_pool(
+			run, profile, setup.boosters[0].aisle
 		)
+		assert_str(String(StartSetupRules.swap_block(run, profile, 0, pool[0]))).is_equal("sealed")
 		var again: RunState = Kit.locked(Kit.profile(3), SEED)
 		StartSetupRules.restock(again, Kit.profile(3), index, Kit.restock_rng(again, index))
 		assert_array(again.start_setup.boosters[index].cards).is_equal(booster.cards)

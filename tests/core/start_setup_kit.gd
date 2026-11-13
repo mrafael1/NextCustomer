@@ -114,10 +114,16 @@ static func restock_rng(shown: RunState, index: int) -> RandomNumberGenerator:
 	)
 
 
-static func regulars_rng(shown: RunState, slot: int, aisle_id: StringName) -> RandomNumberGenerator:
+static func regulars_rng(shown: RunState, aisle_id: StringName) -> RandomNumberGenerator:
 	return EventLogService.derived_stream(
-		shown.run_seed, EventLogService.START_REGULARS_STREAM % [slot, aisle_id]
+		shown.run_seed, EventLogService.START_REGULARS_STREAM % aisle_id
 	)
+
+
+## The swap window's boosters, one per stocked aisle, drawn (and kept) as StartChoice does.
+static func swap_offers(shown: RunState, owner: ProfileState) -> void:
+	for aisle_id: StringName in StartSwapBoosters.swap_aisles(shown):
+		StartSwapBoosters.swap_offer(shown, owner, aisle_id, regulars_rng(shown, aisle_id))
 
 
 static func new_packs_rng(shown: RunState) -> RandomNumberGenerator:
@@ -129,19 +135,19 @@ static func swap(shown: RunState, owner: ProfileState, slot: int) -> bool:
 	var card: CardDefinition = option(shown, owner, slot)
 	if card == null:
 		return false
-	shown.starter.core_cards[slot] = card
-	StartSetupRules.refresh_deck(shown)
-	return true
+	return StartSetupRules.swap(shown, owner, slot, card) == &""
 
 
-## The first card `slot` can be swapped to (from `aisle` only, when given), or null.
+## The first card `slot` can be swapped to (from the stocked aisle `aisle` only, when given), or
+## null: the swap pools of the run's aisles (before the swap window shows its boosters), else
+## their boosters.
 static func option(
 	shown: RunState, owner: ProfileState, slot: int, aisle: AisleDefinition = null
 ) -> CardDefinition:
-	for done: AisleDefinition in StartSetupRules.completed(shown.balance, owner):
-		if aisle != null and done != aisle:
+	for aisle_id: StringName in StartSwapBoosters.swap_aisles(shown):
+		if aisle != null and aisle.id != aisle_id:
 			continue
-		for card: CardDefinition in done.base_cards + done.capsule_cards:
+		for card: CardDefinition in StartSwapBoosters.swap_pool(shown, owner, aisle_id):
 			if StartSetupRules.can_swap(shown, owner, slot, card):
 				return card
 	return null

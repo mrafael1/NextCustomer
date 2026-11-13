@@ -2,9 +2,10 @@ class_name BoosterPageDraw
 extends RefCounted
 ## Draws YOUR STORE (BoosterPage) layer by layer in art px, a port of the mock-up's drawPage1
 ## (docs/art/mockups/start_boosters_v3.html): the room and its shelf runs, the lamps with their
-## cones and pools, the hung signs and the board, STOCKED!, the boosters (sealed, opening, open)
-## and their fans, the RARE suns. The crate, the tray, the counter's keys, the floor row, the
-## storefront and the top bar are BoosterChromeDraw's. Motion reads the page's clock only.
+## cones and pools, the hung signs and the board, STOCKED!, the boosters (sealed, opening, open) and
+## their fans, the RARE suns. The crate, the counter's keys, the floor row, the storefront and the
+## top bar are BoosterChromeDraw's; the swap window is SwapWindowDraw's. Motion reads the page's
+## clock only.
 
 ## The counter top: what stands on it is clipped here (a pouch drops behind the counter).
 const COUNTER_CLIP := 233 + BoosterArt.DY
@@ -34,15 +35,15 @@ static func draw(layer: BoosterLayer) -> void:
 			BoosterChromeDraw.tote(pen, page)
 		"Front3":
 			BoosterChromeDraw.front_top(pen, page)
-			_parts(pen, page)
+			parts(pen, page, page.fx.parts)
 		"Glow":
 			BoosterChromeDraw.crate_glow(pen, page)
-		"Pop":
-			BoosterChromeDraw.pop(pen, page)
 		"Facade":
 			BoosterChromeDraw.storefront(pen, page)
 		"Top":
 			BoosterChromeDraw.top_bar(pen, page)
+		_:
+			SwapWindowDraw.draw(pen, page, layer.layer)
 
 
 ## The hit list of the page this frame, bottom first (BoosterChromeDraw's).
@@ -66,6 +67,50 @@ static func e_back(t: float, c: float = 1.7) -> float:
 ## `v` in whole steps of `s`.
 static func stepped(v: float, s: float) -> float:
 	return roundf(v / s) * s
+
+
+## An armed primary key's press-bob lift in art px (v1.32 feedback: the user's pick C "press-bob"
+## on docs/art/mockups/next_key_idle.html, in place of chase bulbs): 0 before `armed_t`; from it the
+## arm hop holds next_hop_lifts[k] until next_hop_ends_s[k] (1, 2, 1, 0 art px); after it, every
+## next_bob_s counted from next_bob_from_s, the face rises next_bob_px for next_bob_hold_s. `rest`
+## (the key hovered: the player found it) keeps the idle bob down, not the hop; reduced motion
+## (`still`) keeps it at 0. The key never changes size (lifted_key).
+static func key_lift(
+	now: float, armed_t: float, tuning: StartBoostersTuning, still: bool, rest: bool
+) -> int:
+	if still or now < armed_t:
+		return 0
+	var u: float = now - armed_t
+	var ends: PackedFloat32Array = tuning.next_hop_ends_s
+	for k: int in ends.size():
+		if u < ends[k]:
+			return tuning.next_hop_lifts[k] if k < tuning.next_hop_lifts.size() else 0
+	if rest or tuning.next_bob_s <= 0.0 or u < tuning.next_bob_from_s:
+		return 0
+	var phase: float = fmod(u - tuning.next_bob_from_s, tuning.next_bob_s)
+	return tuning.next_bob_px if phase < tuning.next_bob_hold_s else 0
+
+
+## A key's 10x10 `frame` (margins 3) over art rect (`x`, `y`, `w`, `h`) with its face lifted `lift`
+## art px (the mock-up's nine(..., ledge)): the 9-slice drawn `lift` px higher, then its dark ledge
+## row (row 8) repeated under it down to the bottom outline (row 9), which stays on the rect's
+## bottom, so the key keeps its rect and its feet.
+static func lifted_key(
+	pen: ArtPen, frame: Texture2D, x: float, y: float, w: float, h: float, lift: int
+) -> void:
+	pen.nine(frame, x, y - lift, w, h, Vector4i(3, 3, 3, 3))
+	if lift <= 0:
+		return
+	var t: float = frame.get_width() / 10.0
+	# Each column: texel x, texel width, art x, art width (left corner, stretched middle, right).
+	var cols: Array[Vector4] = [
+		Vector4(0, 3 * t, x, 3),
+		Vector4(3 * t, 4 * t, x + 3, w - 6),
+		Vector4(7 * t, 3 * t, x + w - 3, 3)
+	]
+	for c: Vector4 in cols:
+		pen.tex_part(frame, Rect2(c.x, 8 * t, c.y, t), c.z, y + h - 2 - lift, c.w, 1 + lift)
+		pen.tex_part(frame, Rect2(c.x, 9 * t, c.y, t), c.z, y + h - 1, c.w, 1)
 
 
 static func aisle_def(page: BoosterPage, id: StringName) -> AisleDefinition:
@@ -178,7 +223,6 @@ static func _back(pen: ArtPen, page: BoosterPage) -> void:
 		pen.d(0, 44, 112, 8, Palette.TEAL_DARK, level)
 		pen.d(112, 44, 44, 186 + BoosterArt.DY, Palette.TEAL_DARK, level)
 	_board(pen, page)
-	_run_only(pen, page)
 	_clock(pen, page)
 
 
@@ -360,29 +404,6 @@ static func _hand(
 		pen.r(cx + roundf(sin(angle) * i), cy - roundf(cos(angle) * i), 1, 1, colour)
 
 
-## The RUN-ONLY aisle's small unlit sign far back at the top right.
-static func _run_only(pen: ArtPen, page: BoosterPage) -> void:
-	if page.openings.pick_layout():
-		return
-	var ids: Array[StringName] = page.run.start_setup.run_only_ids(page.run.balance)
-	if ids.is_empty():
-		return
-	var label: String = BoosterArt.short_name(aisle_def(page, ids[0]))
-	var w: float = ArtPen.word_texture(label, Palette.INK, false).get_width() + 10
-	var cx: float = 600
-	var x: float = roundf(cx - w / 2.0)
-	var y: float = 50
-	pen.r(x + 4, 41, 1, 9, Palette.STEEL_DARKEST)
-	pen.r(x + w - 5, 41, 1, 9, Palette.STEEL_DARKEST)
-	pen.nine(BoosterArt.sign_frame(ids[0]), x, y, w, 9, Vector4i(3, 3, 3, 3))
-	pen.r(x, y, w, 9, Color(Palette.TEAL_BLACK, 0.62))
-	pen.caps(label, cx, y + 2, Palette.CREAM_DARKEST, 1.0, HORIZONTAL_ALIGNMENT_CENTER)
-	var tw: float = ArtPen.word_texture("RUN-ONLY", Palette.INK, false).get_width() + 8
-	pen.r(cx, y + 9, 1, 2, Palette.STEEL_DARKEST)
-	pen.rn(roundf(cx - tw / 2.0), y + 11, tw, 9, Palette.SLATE_DARK, Palette.INK)
-	pen.caps("RUN-ONLY", cx, y + 13, Palette.STEEL_SHADE, 1.0, HORIZONTAL_ALIGNMENT_CENTER)
-
-
 ## A sealed pouch's landing y and drop progress (the mock-up's drawSealed motion).
 static func _drop(page: BoosterPage, b: BoosterOpening) -> float:
 	if b.drop_t == INF:
@@ -412,11 +433,12 @@ static func _boosters(pen: ArtPen, page: BoosterPage) -> void:
 		if b.state == BoosterOpening.State.SEALED:
 			_sealed(pen, page, b)
 		elif b.state != BoosterOpening.State.GONE:
-			_open_booster(pen, page, b)
+			open_booster(pen, page, b)
 
 
 ## A pouch at art (`x`, `y`), `w` x `h` (a squash), from row `top` (a torn top), sheared in four
-## bands, lit `lit` (0: modulated down), with its sheen glint (`sheen` 0..1) and hover sweep.
+## bands, lit `lit` (0: modulated down), with its sheen glint (`sheen` 0..1) and hover sweep;
+## nothing below `clip` (art px; the counter top by default) is drawn.
 static func pouch(
 	pen: ArtPen, aisle_id: StringName, lit: int, x: float, y: float, o: Dictionary = {}
 ) -> void:
@@ -439,7 +461,7 @@ static func pouch(
 		var off: float = roundf(shear * (bands - 1 - i) / maxf(1, bands - 1)) if bands > 1 else 0.0
 		var dest_y: float = dy + roundf(from * h / BoosterArt.BH)
 		var dest_h: float = roundf(rows * h / BoosterArt.BH)
-		var visible: float = minf(dest_h, COUNTER_CLIP - dest_y)
+		var visible: float = minf(dest_h, (o.get("clip", float(COUNTER_CLIP)) as float) - dest_y)
 		if visible <= 0:
 			continue
 		var src_rows: float = rows * visible / dest_h
@@ -585,16 +607,20 @@ static func _sold_out(
 	pen.origin = saved
 
 
-## The opening and open booster: its fan cards (behind the pouch while they rise), the pouch's
-## grab, rattle, tear and drop away.
-static func _open_booster(pen: ArtPen, page: BoosterPage, b: BoosterOpening) -> void:
+## The opening and open booster on its own clock: its fan cards (behind the pouch while they
+## rise, spread and flip), the pouch's grab, rattle, tear and drop away (nothing of it below
+## `clip`). The swap
+## window draws its boosters with it too, its pen moved up.
+static func open_booster(
+	pen: ArtPen, page: BoosterPage, b: BoosterOpening, clip: float = COUNTER_CLIP
+) -> void:
 	var tuning: StartBoostersTuning = page.tuning
 	var t: float = b.lt
 	var at: Vector2 = BoosterArt.pouch_pos(b.cx)
 	if b.rm:
 		var u: float = clampf(t / maxf(tuning.rm_fade_s, 0.001), 0.0, 1.0)
 		if u < 1.0 and b.state == BoosterOpening.State.OPENING:
-			pouch(pen, b.aisle, lamp_state(page, b), at.x, at.y)
+			pouch(pen, b.aisle, lamp_state(page, b), at.x, at.y, {"clip": clip})
 		for k: int in b.cards.size():
 			var p: Vector2 = BoosterArt.fan_pos(b.cx, k)
 			if u >= 1.0 or b.state == BoosterOpening.State.OPEN:
@@ -649,10 +675,10 @@ static func _open_booster(pen: ArtPen, page: BoosterPage, b: BoosterOpening) -> 
 			maxi(1, lamp_state(page, b)),
 			x,
 			y,
-			{"w": w, "h": h, "top": top, "shear": shear}
+			{"w": w, "h": h, "top": top, "shear": shear, "clip": clip}
 		)
 		if t >= tuning.rattle_end_s and t < tuning.burst_s:
-			var tear: float = roundf(
+			var torn: float = roundf(
 				(
 					clampf(
 						(t - tuning.rattle_end_s) / (tuning.burst_s - tuning.rattle_end_s), 0.0, 1.0
@@ -660,8 +686,8 @@ static func _open_booster(pen: ArtPen, page: BoosterPage, b: BoosterOpening) -> 
 					* (BoosterArt.BW - 4)
 				)
 			)
-			pen.r(x + 1, y + 11, tear, 2, Palette.INK)
-			pen.r(x + tear - 1, y + 10, 3, 4, Color.WHITE)
+			pen.r(x + 1, y + 11, torn, 2, Palette.INK)
+			pen.r(x + torn - 1, y + 10, 3, 4, Color.WHITE)
 		if t >= tuning.grab_s and t < tuning.rattle_end_s:
 			pen.r(x + 1, y, BoosterArt.BW - 2, 1, Palette.INK)
 
@@ -873,41 +899,46 @@ static func _sun_glows(pen: ArtPen, page: BoosterPage, b: BoosterOpening) -> voi
 ## Over the counter clip: the tear flash and the flying foil strip, the live RARE suns (the RARE
 ## redrawn over them), the RESTOCK call round each returnable fan, the counter plates.
 static func _front_over(pen: ArtPen, page: BoosterPage) -> void:
-	var tuning: StartBoostersTuning = page.tuning
 	for b: BoosterOpening in page.boosters:
-		if b.state != BoosterOpening.State.OPENING or b.rm:
-			continue
-		var at: Vector2 = BoosterArt.pouch_pos(b.cx)
-		var fu: float = page.now - b.flash_t
-		if not page.rm and fu >= 0.0 and fu < 0.04:
-			var second: bool = fu >= 0.02
-			var y0: float = at.y + (8 if second else 2)
-			var hh: float = 6 if second else 16
-			pen.r(at.x - 10, y0, BoosterArt.BW + 20, hh, Color.WHITE)
-			pen.r(at.x - 4, y0 - 3, BoosterArt.BW + 8, 2, Palette.MUSTARD_PALE)
-			pen.r(at.x - 4, y0 + hh + 1, BoosterArt.BW + 8, 2, Palette.MUSTARD_PALE)
-		if b.lt >= tuning.burst_s and b.lt < tuning.burst_s + 0.36:
-			# The torn strip arcs up and away to the right and rips off at an angle (mock-up v3's
-			# tear step): it tilts, rising to the left, in 15 degree steps up to 30 (capped, so a
-			# still frame never shows it standing upright on the divider), turned about its centre.
-			var u: float = (b.lt - tuning.burst_s) / 0.36
-			var texture: Texture2D = BoosterArt.strip(b.aisle)
-			var half: Vector2 = texture.get_size() / 2.0
-			var cx: float = roundf(at.x + u * 120 + half.x)
-			var cy: float = roundf(at.y - sin(u * PI) * 60 - u * 20 + half.y)
-			var angle: float = deg_to_rad(minf(30.0, 15.0 + floorf(u * 3.0) * 15.0))
-			var saved: Vector2 = pen.origin
-			pen.canvas.draw_set_transform(pen.at(cx, cy), angle, Vector2.ONE)
-			pen.origin = Vector2.ZERO
-			pen.tex(texture, -half.x, -half.y)
-			pen.canvas.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-			pen.origin = saved
+		tear(pen, page, b)
 	for b: BoosterOpening in page.boosters:
 		if b.state == BoosterOpening.State.OPENING or b.state == BoosterOpening.State.OPEN:
 			_suns_top(pen, page, b)
 	BoosterChromeDraw.restock_call(pen, page)
 	BoosterChromeDraw.counter_plates(pen, page)
 	BoosterChromeDraw.bay(pen, page)
+
+
+## Booster `b`'s tear flash and the foil strip flying off as it bursts open.
+static func tear(pen: ArtPen, page: BoosterPage, b: BoosterOpening) -> void:
+	var tuning: StartBoostersTuning = page.tuning
+	if b.state != BoosterOpening.State.OPENING or b.rm:
+		return
+	var at: Vector2 = BoosterArt.pouch_pos(b.cx)
+	var fu: float = page.now - b.flash_t
+	if not page.rm and fu >= 0.0 and fu < 0.04:
+		var second: bool = fu >= 0.02
+		var y0: float = at.y + (8 if second else 2)
+		var hh: float = 6 if second else 16
+		pen.r(at.x - 10, y0, BoosterArt.BW + 20, hh, Color.WHITE)
+		pen.r(at.x - 4, y0 - 3, BoosterArt.BW + 8, 2, Palette.MUSTARD_PALE)
+		pen.r(at.x - 4, y0 + hh + 1, BoosterArt.BW + 8, 2, Palette.MUSTARD_PALE)
+	if b.lt >= tuning.burst_s and b.lt < tuning.burst_s + 0.36:
+		# The torn strip arcs up and away to the right and rips off at an angle (mock-up v3's
+		# tear step): it tilts, rising to the left, in 15 degree steps up to 30 (capped, so a
+		# still frame never shows it standing upright on the divider), turned about its centre.
+		var u: float = (b.lt - tuning.burst_s) / 0.36
+		var texture: Texture2D = BoosterArt.strip(b.aisle)
+		var half: Vector2 = texture.get_size() / 2.0
+		var cx: float = roundf(at.x + u * 120 + half.x)
+		var cy: float = roundf(at.y - sin(u * PI) * 60 - u * 20 + half.y)
+		var angle: float = deg_to_rad(minf(30.0, 15.0 + floorf(u * 3.0) * 15.0))
+		var saved: Vector2 = pen.origin
+		pen.canvas.draw_set_transform(pen.at(cx, cy), angle, Vector2.ONE)
+		pen.origin = Vector2.ZERO
+		pen.tex(texture, -half.x, -half.y)
+		pen.canvas.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		pen.origin = saved
 
 
 static func _suns_top(pen: ArtPen, page: BoosterPage, b: BoosterOpening) -> void:
@@ -935,8 +966,9 @@ static func _suns_top(pen: ArtPen, page: BoosterPage, b: BoosterOpening) -> void
 		fan_card(pen, page, b, k, null)
 
 
-static func _parts(pen: ArtPen, page: BoosterPage) -> void:
-	for p: Dictionary in page.fx.parts:
+## The particles `list` (dust, foil scraps, sparkles) on the page's clock.
+static func parts(pen: ArtPen, page: BoosterPage, list: Array[Dictionary]) -> void:
+	for p: Dictionary in list:
 		var dt: float = page.now - (p.t as float)
 		if dt < 0.0:
 			continue

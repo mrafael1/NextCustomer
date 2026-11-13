@@ -3,18 +3,18 @@ extends RefCounted
 ## Opening time: the v3 YOUR STORE page and v4 B staff room. Owns application actions and saves;
 ## StartSetupRules handles pure setup operations and StartBoard displays the choices.
 ##
-## A run is set up by StartSetupRules.setup_run whenever the balance stocks aisles
-## (stock_aisle_count > 0) and the recipe has starter packs: today's suggested aisles on the run
+## A run is set up by StartSetupRules.setup_run whenever the balance deals aisles
+## (dealt_aisle_count > 0) and the recipe has starter packs: today's suggested aisles on the run
 ## seed's stock-aisles stream, then dealt at once (v1.32: sealed aisle boosters): the offer on
 ## its starting-deck stream and each booster on its aisle's booster stream, PICK 2 OF 3's extra
 ## aisle (6 completed aisles) on the booster-extra stream. The pick refits the unseen offer on the
-## booster-pick stream; RESTOCK, a regular slot's offer and NEW PACKS have their own named streams
+## booster-pick stream; RESTOCK, the swap window's boosters and NEW PACKS have their own streams
 ## (EventLogService). The run waits for its pick (RunState.Phase.CHOOSE_START) and is saved after
 ## each commitment (opening a booster too), so quitting can't reroll anything; a resume opens the
 ## same board, and a run whose setup was saved in an older form sets it up again
 ## (RunState.restart_setup). Without the reveal (tests,
 ## captures, the demo row) the offer's default pack is taken for the player. Only a recipe
-## without packs, or a balance with stock_aisle_count 0, takes the older path: a run that needs a
+## without packs, or a balance with dealt_aisle_count 0, takes the older path: a run that needs a
 ## list stocks a random one from the run seed's own stream (#63) and the deck is dealt on the
 ## starting-deck stream.
 
@@ -49,7 +49,7 @@ func new_run(seed_value: int, balance: BalanceDefinition, recipe: DeckDefinition
 
 func _dealt_run(seed_value: int, balance: BalanceDefinition, recipe: DeckDefinition) -> RunState:
 	var profile: ProfileState = _screen.profile
-	if balance.stock_aisle_count > 0 and not recipe.starter_packs.is_empty():
+	if balance.dealt_aisle_count > 0 and not recipe.starter_packs.is_empty():
 		return _setup_run(seed_value, balance, recipe)
 	var listed: Array[StringName] = []
 	if RunStock.needs_list(balance, profile.unlocked_items):
@@ -57,7 +57,7 @@ func _dealt_run(seed_value: int, balance: BalanceDefinition, recipe: DeckDefinit
 			seed_value, EventLogService.SURPRISE_LIST_STREAM
 		)
 		listed = RunStock.surprise_list(balance, profile.unlocked_items, stream)
-	var stock: RunStock = RunStock.build(balance, listed, profile.unlocked_items, profile.run_count)
+	var stock: RunStock = RunStock.build(balance, listed, profile.unlocked_items)
 	var deal_rng: RandomNumberGenerator = EventLogService.derived_stream(
 		seed_value, EventLogService.STARTING_DECK_STREAM
 	)
@@ -118,7 +118,9 @@ func board_actions() -> StartBoardActions:
 	actions.mark_seen = mark_seen
 	actions.restock_booster = restock_booster
 	actions.new_packs = new_packs
-	actions.regular_offer = regular_offer
+	actions.reset_regulars = reset_regulars
+	actions.swap_offers = swap_offers
+	actions.open_swap_booster = open_swap_booster
 	actions.mark_build = mark_build
 	actions.open_pins = open_pins
 	return actions
@@ -221,26 +223,27 @@ func save_pick(pack: StarterPackDefinition) -> bool:
 	return _commit(before)
 
 
-## Replaces regular `slot` with `card` (StartSetupRules.swap_block), `via` drag, click or key.
-func swap_staple(slot: int, card: CardDefinition, via: String = "click") -> bool:
+## Replaces regular `slot` with `card` (StartSetupRules.swap: a card on a swapped slot trades
+## places; `from` >= 0 moves a swapped card from that slot, which gets its original back), `via`
+## drag, click or key. Saved, and logged as staple_swap.
+func swap_staple(slot: int, card: CardDefinition, via: String = "click", from: int = -1) -> bool:
 	var run: RunState = _screen.run
-	if not StartSetupRules.can_swap(run, _screen.profile, slot, card):
+	if not StartSetupRules.can_swap(run, _screen.profile, slot, card, from):
 		return false
 	var before: Dictionary = _snapshot()
-	run.starter.core_cards[slot] = card
-	StartSetupRules.refresh_deck(run)
+	StartSetupRules.swap(run, _screen.profile, slot, card, from)
 	if not _commit(before):
 		return false
 	var aisle: AisleDefinition = run.balance.aisle_of(card)
-	_log.log_event(
-		"staple_swap",
-		{
-			"slot": slot,
-			"card": String(card.id),
-			"aisle": String(aisle.id) if aisle != null else "",
-			"via": via
-		}
-	)
+	var event: Dictionary = {
+		"slot": slot,
+		"card": String(card.id),
+		"aisle": String(aisle.id) if aisle != null else "",
+		"via": via
+	}
+	if from >= 0:
+		event["from"] = from
+	_log.log_event("staple_swap", event)
 	return true
 
 
@@ -260,19 +263,62 @@ func restore_regular(slot: int, via: String = "click") -> bool:
 	return true
 
 
-## Regular `slot`'s offer from aisle `aisle_id` (StartSetupRules.regular_offer), saved the first
-## time it is drawn so reopening never rerolls it. Empty on a failed save.
-func regular_offer(slot: int, aisle_id: StringName) -> Array[CardDefinition]:
+## RESET in the swap window (StartSetupRules.reset_swaps): every regular back to its original,
+## saved; each slot put back is logged as a restored staple_swap (`via` "reset").
+func reset_regulars() -> bool:
 	var run: RunState = _screen.run
-	var shown: bool = not run.start_setup.regular_offer(slot, aisle_id).is_empty()
+	if not StartSetupRules.can_reset(run):
+		return false
 	var before: Dictionary = _snapshot()
-	var stream_name: String = EventLogService.START_REGULARS_STREAM % [slot, aisle_id]
-	var offer: Array[CardDefinition] = StartSetupRules.regular_offer(
-		run, _screen.profile, slot, aisle_id, _stream(run.run_seed, stream_name)
-	)
-	if shown or offer.is_empty() or _commit(before):
-		return offer
-	return []
+	var swapped: Array[int] = []
+	for slot: int in run.starter.core_cards.size():
+		if run.starter.core_cards[slot] != run.start_setup.originals[slot]:
+			swapped.append(slot)
+	StartSetupRules.reset_swaps(run)
+	if not _commit(before):
+		return false
+	for slot: int in swapped:
+		_log.log_event(
+			"staple_swap",
+			{
+				"slot": slot,
+				"card": String(run.start_setup.originals[slot].id),
+				"restored": true,
+				"aisle": "",
+				"via": "reset"
+			}
+		)
+	return true
+
+
+## The swap window's boosters (StartSwapBoosters.swap_offer), one per stocked aisle in board order
+## (aisle id -> cards), each drawn on its aisle's regulars stream and saved the first time they
+## are shown, so reopening or a resume never rerolls them. Empty on a failed save.
+func swap_offers() -> Dictionary[StringName, Array]:
+	var run: RunState = _screen.run
+	var offers: Dictionary[StringName, Array] = {}
+	var fresh: bool = false
+	var before: Dictionary = _snapshot()
+	for aisle_id: StringName in StartSwapBoosters.swap_aisles(run):
+		fresh = fresh or not run.start_setup.has_swap_offer(aisle_id)
+		var stream: RandomNumberGenerator = _stream(
+			run.run_seed, EventLogService.START_REGULARS_STREAM % aisle_id
+		)
+		offers[aisle_id] = StartSwapBoosters.swap_offer(run, _screen.profile, aisle_id, stream)
+	if fresh and not _commit(before):
+		return {}
+	return offers
+
+
+## Opens the swap window's booster of aisle `aisle_id` (StartSwapBoosters.open_swap_booster), saved
+## at once so a resume shows it open.
+func open_swap_booster(aisle_id: StringName) -> bool:
+	var run: RunState = _screen.run
+	if StartSwapBoosters.open_swap_block(run, _screen.profile, aisle_id) != &"":
+		return false
+	var before: Dictionary = _snapshot()
+	StartSwapBoosters.open_swap_booster(run, _screen.profile, aisle_id)
+	return _commit(before)
 
 
 ## Opens booster `index` (StartSetupRules.open_booster), saved at once so a resume keeps it open.
@@ -432,19 +478,16 @@ func _snapshot() -> Dictionary:
 		"deals": offer.deals,
 		"shared": offer.shared.duplicate(),
 		"core": run.starter.core_cards.duplicate(),
-		"run_only": _screen.profile.stock_run_only,
 		"pins": run.pins.duplicate(),
 		"worn": _screen.profile.worn_pins.duplicate(),
 	}
 
 
-## Saves the run (and the profile when its run-only aisle or worn pins changed since `before`). On
+## Saves the run (and the profile when its worn pins changed since `before`). On
 ## a failed save, everything in `before` is restored and the profile saved back; returns false.
 func _commit(before: Dictionary) -> bool:
 	var profile: ProfileState = _screen.profile
-	var with_profile: bool = (
-		profile.stock_run_only != before["run_only"] or profile.worn_pins != before["worn"]
-	)
+	var with_profile: bool = profile.worn_pins != before["worn"]
 	if _persist(with_profile):
 		return true
 	var run: RunState = _screen.run
@@ -455,7 +498,6 @@ func _commit(before: Dictionary) -> bool:
 	run.start_offer.deals = before["deals"]
 	run.start_offer.shared = before["shared"]
 	run.starter.core_cards = before["core"]
-	profile.stock_run_only = before["run_only"]
 	run.pins = before["pins"]
 	profile.worn_pins = before["worn"]
 	StartSetupRules.rebuild_stock(run, profile)

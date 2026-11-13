@@ -277,19 +277,30 @@ func test_the_run_info_tab_shows_upgrades_inspections_and_stock() -> void:
 				# Shift 2 is a boon day (v0.69).
 				"Next shift: a good day (announced at checkout).",
 				"Aisles:",
-				"Cold cases,",
-				"Pantry,",
-				"Household",
 			]
 		)
 	)
+	# v1.32 feedback: the run stocks only its two boosters' aisles, each listed by name.
+	var stocked: Array[StringName] = screen.run.stock.aisle_ids
+	assert_int(stocked.size()).is_equal(2)
+	for aisle: AisleDefinition in screen.run.balance.aisles:
+		var listed: bool = texts.has(aisle.display_name) or texts.has(aisle.display_name + ",")
+		assert_bool(listed).override_failure_message(aisle.display_name).is_equal(
+			stocked.has(aisle.id)
+		)
 	# No inspection: no warning sign shows.
 	for warning: Node in view.find_children("Warning", "TextureRect", true, false):
 		assert_float((warning as TextureRect).self_modulate.a).is_equal(0.0)
 	assert_int(view.card_views().size()).is_equal(screen.run.stock.cards.size())
-	# The starting stock and the 9 coupons of coupon_pool (v1.29: + Write-off, Party pack and the
-	# Family sticker, - the Breakfast sticker and the Clearance tag).
-	assert_int(view.card_views().size()).is_equal(29)
+	# The starting stock (the staples and two aisles' base products since the v1.32 feedback) and the 9
+	# coupons of coupon_pool (v1.29: + Write-off, Party pack and the Family sticker, - the
+	# Breakfast sticker and the Clearance tag).
+	var expected: int = RunStock.staples(screen.run.balance).size()
+	expected += screen.run.balance.coupon_pool.size()
+	for aisle: AisleDefinition in screen.run.balance.aisles:
+		if stocked.has(aisle.id):
+			expected += aisle.base_cards.size()
+	assert_int(view.card_views().size()).is_equal(expected)
 	view._close()
 	screen._debug.give_upgrade("category_engine")
 	screen._debug.set_inspection("spot_check")
@@ -398,20 +409,19 @@ func test_run_info_during_the_machine_shows_the_drawn_inspection() -> void:
 	)
 
 
-## New arrivals in the stock are marked NEW.
-func test_run_info_marks_new_arrivals() -> void:
+## The Run info stock shows every stocked card once, with no mark on any (v1.32: the NEW chip of
+## the end-cap's new arrivals is gone with them).
+func test_run_info_shows_the_stock_unmarked() -> void:
 	var screen: ShiftScreen = await _screen()
 	var run: RunState = screen.run
-	var arrival: CardDefinition = run.stock.cards[6]
-	run.stock.new_arrivals = [arrival]
 	screen._on_deck_button_pressed()
 	var view: DeckView = screen._deck_view
 	view.show_page(true)
+	var shown: Array[CardDefinition] = []
 	for cell: DeckCell in view.cells():
-		var mark: RevealChip = cell.get_node_or_null(DeckCell.NEW_MARK)
-		assert_bool(mark != null).is_equal(cell.card == arrival)
-		if mark != null:
-			assert_str(mark.text_label().text).is_equal(DeckCell.NEW_TEXT)
+		shown.append(cell.card)
+		assert_array(cell.marks()).override_failure_message(String(cell.card.id)).is_empty()
+	assert_array(shown).contains_exactly_in_any_order(run.stock.cards)
 
 
 ## At the deck limit only the deck shows, and a grouped card chooses one of its copies.

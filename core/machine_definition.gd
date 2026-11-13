@@ -70,8 +70,6 @@ extends Resource
 ## (0 laps: off).
 @export var overtime_premium_laps: int = 0
 @export var overtime_premium_per_week: int = 0
-## The run's first NEW ITEMS draw holds the stock's newest new arrival, at its own rarity.
-@export var new_arrival_first_visit: bool = false
 ## SHELF UPGRADE (a LEGENDARY item upgrade) needs this many copies that can step.
 @export var shelf_min_copies: int = 0
 ## The aisle families a family perk can name and the draw counts (#108: Food is left out, so it

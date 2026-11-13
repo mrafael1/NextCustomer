@@ -346,6 +346,59 @@ func test_page_parts_fit_the_stage_at_both_sizes() -> void:
 			_assert_sheet_aligned(staff.order, k)
 
 
+## v1.32 press-bob on page 2: OPEN STORE (armed 0.3 s after the pick) and the pins step's OK
+## key (armed 0.3 s after the step opens) hop to 2 art px, then bob 1 px; each rests while hovered
+## and under reduced motion; the 9-slice and its labels ride the lift and the hit rects never move.
+func test_page_two_keys_press_bob_on_fixed_rects() -> void:
+	var screen: ShiftScreen = await _screen()
+	var board: StartBoard = screen._cart_reveal.board
+	var staff: BuildPage = await _dealt(board)
+	_clear_pick(board)
+	assert_bool(staff.handle_key(KEY_2)).is_true()
+	staff.rm = false
+	var rect: Rect2 = Rect2(BuildPage.PRIMARY_RECT)
+	assert_that(_hit(staff, "primary").rect).is_equal(rect)
+	var armed: float = staff.pick_t + 0.3
+	_assert_key_lift(staff, rect, "primary", armed - 0.1, armed, 0)
+	_assert_key_lift(staff, rect, "primary", armed + 0.1, armed, 2)
+	_assert_key_lift(staff, rect, "primary", armed + 0.55, armed, 1)
+	staff.hover_id = "primary"
+	_assert_key_lift(staff, rect, "primary", armed + 0.55, armed, 0)
+	staff.hover_id = ""
+	staff.rm = true
+	_assert_key_lift(staff, rect, "primary", armed + 0.1, armed, 0)
+	staff.rm = false
+	assert_bool(staff.pins.open(staff.now)).is_true()
+	staff.now = staff.pins_t + staff.tuning.pins_pop_s + 0.1
+	var ok: Rect2 = PinStepDraw.confirm_rect(PinStepDraw.box_y(staff))
+	assert_that(_hit(staff, "pinsok").rect).is_equal(ok)
+	armed = staff.pins_t + 0.3
+	_assert_key_lift(staff, ok, "pinsok", armed + 0.1, armed, 2)
+	_assert_key_lift(staff, ok, "pinsok", armed + 0.55, armed, 1)
+	staff.hover_id = "pinsok"
+	_assert_key_lift(staff, ok, "pinsok", armed + 0.55, armed, 0)
+	staff.hover_id = ""
+	staff.rm = true
+	_assert_key_lift(staff, ok, "pinsok", armed + 0.55, armed, 0)
+	staff.rm = false
+
+
+## At `now`, the lift of key `id` armed at `armed_t` is `lift`, and key_button draws its 9-slice
+## (same size) and its labels that many art px up (pushed 2 px right while hovered).
+func _assert_key_lift(
+	staff: BuildPage, rect: Rect2, id: String, now: float, armed_t: float, lift: int
+) -> void:
+	staff.now = now
+	var hv: bool = staff.is_hovered(id)
+	assert_int(BoosterPageDraw.key_lift(now, armed_t, staff.tuning, staff.rm, hv)).is_equal(lift)
+	var pen: _PenRecorder = _PenRecorder.new()
+	BuildPageDraw.key_button(pen, staff, rect, "KEY", "SUB", true, id, armed_t)
+	var sh: float = 2.0 if hv and not staff.rm else 0.0
+	var face: Rect2 = Rect2(rect.position + Vector2(sh, -lift), rect.size)
+	assert_that(pen.nines).is_equal([face])
+	assert_that(pen.text_y).is_equal([face.position.y + 5, face.position.y + rect.size.y - 9])
+
+
 ## Page 2 with the BADGE PINS step confirmed (no pin) and the deal landed.
 func _dealt(board: StartBoard) -> BuildPage:
 	board.show_page(2)
@@ -469,3 +522,66 @@ func _save() -> Dictionary:
 
 static func _event_log() -> EventLogService:
 	return (Engine.get_main_loop() as SceneTree).root.get_node("/root/EventLog")
+
+
+## An ArtPen that records its nine-slices and its words' tops instead of drawing.
+class _PenRecorder:
+	extends ArtPen
+	var nines: Array[Rect2] = []
+	var text_y: Array[float] = []
+
+	func _init() -> void:
+		super(null)
+
+	func nine(
+		_frame: Texture2D,
+		x: float,
+		y: float,
+		w: float,
+		h: float,
+		_margins: Vector4i,
+		_modulate: Color = Color.WHITE
+	) -> void:
+		nines.append(Rect2(x, y, w, h))
+
+	func tex_part(
+		_texture: Texture2D,
+		_region: Rect2,
+		_x: float,
+		_y: float,
+		_w: float,
+		_h: float,
+		_modulate: Color = Color.WHITE
+	) -> void:
+		pass
+
+	func tex(
+		_texture: Texture2D,
+		_x: float,
+		_y: float,
+		_modulate: Color = Color.WHITE,
+		_scale: float = 1.0
+	) -> void:
+		pass
+
+	func pix(
+		_text: String,
+		_x: float,
+		y: float,
+		_colour: Color,
+		_scale: float = 1.0,
+		_align: int = HORIZONTAL_ALIGNMENT_LEFT
+	) -> float:
+		text_y.append(y)
+		return 0.0
+
+	func caps(
+		_text: String,
+		_x: float,
+		y: float,
+		_colour: Color,
+		_scale: float = 1.0,
+		_align: int = HORIZONTAL_ALIGNMENT_LEFT
+	) -> float:
+		text_y.append(y)
+		return 0.0

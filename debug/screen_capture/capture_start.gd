@@ -5,9 +5,11 @@ extends RefCounted
 ## - do=<step>+<step>+...: page 1 played step by step on its own clock (frozen between steps, so
 ##   the capture shows that exact frame): roll (ROLL UP), t<seconds> (the clock moves on, in 1/60 s
 ##   steps), open<i>, flip<i> (the waiting hit card), all (OPEN ALL), arm (RESTOCK armed),
-##   restock<i>, reg<k> (a click on regular k: its swap tray), tab<k>, swap<k>, pick<i>
-##   (PICK 2 OF 3), hold (Space held), at<x>:<y> (the pointer at art px x, y), primary;
-##   the file name gets the steps (do_<steps>_);
+##   restock<i>, pick<i> (PICK 2 OF 3), hold (Space held), at<x>:<y> (the pointer at art px x,
+##   y), primary; the swap window (v1.32): win (opened from the crate), sb<i> (its booster i
+##   opened), grab<n> (piece n pressed where it rests: booster 0's cards, booster 1's, then the
+##   regulars), over<k> (the pointer over basket slot k), drop (the button let go there), done
+##   (DONE), esc; the file name gets the steps (do_<steps>_);
 ## - page 2 (YOUR BUILD, v1.32): pins=<n> leaves the catalogue's first n earned pins (those with an
 ##   unlock condition; the pins every profile starts with stay owned) unlocked and none worn on the
 ##   capture's temporary profile: n > 0 holds the packs for the BADGE PINS step, pins=0 deals them
@@ -131,8 +133,12 @@ static func play(store: BoosterPage, step: String) -> void:
 		store.counter.arm_restock()
 	elif step == "hold":
 		store.space(true)
-	elif step == "primary":
+	elif step == "primary" or step == "done":
 		store.primary("key")
+	elif step in ["win", "drop", "esc"] or step.begins_with("sb"):
+		_play_swap(store, step, number)
+	elif step.begins_with("grab") or step.begins_with("over"):
+		_play_swap(store, step, number)
 	elif step.begins_with("t"):
 		var left: float = step.trim_prefix("t").to_float()
 		while left > 0.0001:
@@ -144,18 +150,33 @@ static func play(store: BoosterPage, step: String) -> void:
 		store.openings.flip_hit(number)
 	elif step.begins_with("restock"):
 		store.counter.restock(number)
-	elif step.begins_with("reg"):
-		store.counter.click_regular(number)
-	elif step.begins_with("tab"):
-		store.counter.set_tray_tab(number)
-	elif step.begins_with("swap"):
-		store.counter.swap_to(number, "key")
 	elif step.begins_with("pick"):
 		store.openings.pick_booster(number)
 	elif step.begins_with("at"):
 		var xy: PackedStringArray = step.trim_prefix("at").split(":")
 		store.mouse = Vector2(xy[0].to_float(), xy[1].to_float())
 		store.advance(0.0)
+
+
+## One swap window step (see the class doc).
+static func _play_swap(store: BoosterPage, step: String, number: int) -> void:
+	var window: SwapWindow = store.swap
+	if step == "win":
+		window.open_window(false)
+	elif step.begins_with("sb"):
+		window.open_booster(number, "key")
+	elif step.begins_with("grab") and number < window.pieces.size():
+		var at: Vector2 = window.pieces[number].pos
+		store.mouse = at
+		window.press(at)
+		store.mouse = at + Vector2(6, -4)
+	elif step.begins_with("over"):
+		store.mouse = SwapWindowDraw.item_centre(number) + Vector2(4, -6)
+	elif step == "drop":
+		window.release(store.mouse)
+	elif step == "esc":
+		window.escape()
+	store.advance(0.0)
 
 
 ## Page 2 needs every booster open (and the pair picked): as the page itself, at once.

@@ -20,7 +20,7 @@ extends Resource
 ## aisle. Since v0.49 they are a list of their own, no longer the starting deck's products.
 @export var staples: Array[CardDefinition] = []
 ## The store's aisles in data order (full build plan 7.2). The run's stock (RunStock) holds
-## the staples, the listed aisles, the new arrivals and coupon_pool.
+## the staples, the listed aisles and coupon_pool.
 @export var aisles: Array[AisleDefinition] = []
 ## Coupons every run stocks. Coupons are never in aisles or capsules.
 @export var coupon_pool: Array[CardDefinition] = []
@@ -31,10 +31,6 @@ extends Resource
 @export var aisle_stock_budget: int = 0
 ## Items a machine-opened aisle (no base cards) must hold to be listable.
 @export var aisle_listable_min: int = 0
-## The most new arrivals (end-cap items) a run stocks.
-@export var end_cap_max: int = 0
-## New arrivals are capsule items that came out in this many previous runs.
-@export var end_cap_window_runs: int = 0
 ## The run's first COUPONS draw from the RECEIPT REWARDS machine holds one of these (the
 ## combination coupons), when stocked.
 @export var first_offer_pool: Array[CardDefinition] = []
@@ -82,9 +78,8 @@ extends Resource
 @export var pin_slots: int = 0
 ## Coins for one random locked badge pin, the way past a milestone out of reach (#122).
 @export var pin_coin_price: int = 0
-## Opening-time setup (start screen, full build plan 7.2): today's stocked aisles, of which the
-## first dealt_aisle_count are STARTER CART (dealt) and the rest RUN ONLY.
-@export var stock_aisle_count: int = 0
+## Opening-time setup (start screen, full build plan 7.2): the aisles a run stocks, one booster
+## each (v1.32 feedback: the run stocks only its boosters' aisles); 0 turns the setup off.
 @export var dealt_aisle_count: int = 0
 ## The opening-time aisle boosters (v1.32, start screen YOUR STORE): cards in each booster (one
 ## per STARTER CART aisle; start_booster_size × dealt_aisle_count is the recipe's random_count),
@@ -101,8 +96,7 @@ extends Resource
 @export var restocks_per_run: int = 0
 ## Completed aisles from which the player picks today's aisles (PICK 2 OF 3).
 @export var pair_choice_min_completed: int = 0
-## The most swapped regulars from one aisle, and the most cards a slot's offer from one aisle shows.
-@export var staple_swap_aisle_max: int = 0
+## The most cards a swap booster (one per stocked aisle in the swap window, v1.32) holds.
 @export var regular_offer_max: int = 0
 ## NEW PACKS a run allows (the starter pack offer redrawn once).
 @export var packs_redraws_per_run: int = 0

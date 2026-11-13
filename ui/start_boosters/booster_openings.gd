@@ -131,7 +131,6 @@ func _start_open(opening: BoosterOpening, fast: bool, auto_hit: bool, offset: fl
 	page.opened_n += 1
 	opening.build_plan(page.tuning, fast, auto_hit, page.rm)
 	page.restock_armed = false
-	page.tray_slot = -1
 
 
 ## OPEN ALL: every sealed booster (saved), tears tuning.open_all_tear_s apart, the hits queued last
@@ -402,8 +401,8 @@ func _resolve_pick() -> void:
 	page.set_hint("")
 
 
-## Whether the counter still wears PICK 2 OF 3's dress (three plates; no RESTOCK, tote, board or
-## RUN-ONLY sign): while picking, and after the second pick until the kept pair starts its slide
+## Whether the counter still wears PICK 2 OF 3's dress (three plates; no RESTOCK, tote or board):
+## while picking, and after the second pick until the kept pair starts its slide
 ## to the two aisle places (BoosterPage.pick_settle_t), so the dress changes with the boosters.
 func pick_layout() -> bool:
 	return page.picking() or page.now < page.pick_settle_t
