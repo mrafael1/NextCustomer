@@ -5,7 +5,8 @@ extends RefCounted
 ## (its face, name, rule and a WEAR / WORN key; compact rows past FULL_ROWS pins), "+N MORE PINS
 ## TO EARN", the packs' gate note and
 ## the confirm key (WEAR 1 PIN / NO PINS). On confirm the worn pin flies to the corkboard badge.
-## Pin faces copy PinFace's look on the art grid: an ink rim, a dark band, a glint, the letters.
+## Pin faces copy PinFace's look on the art grid: an ink rim, a dark band, a glint, the pin's icon
+## (its letters when it has none).
 
 const ROW_X := 102
 const ROW_TOP := 30
@@ -16,6 +17,9 @@ const FULL_ROWS := 5
 const COMPACT_ROW_H := 18
 ## The rows' bottom limit under the step's top: the gate note's divider (the box height - 66).
 const ROWS_BOTTOM := 186
+## The smallest face (art px) that shows a pin's large icon (PinDefinition.icon_big): the big
+## rows' 20; the compact rows' 14 and the corkboard badge's 16 show the small one.
+const BIG_FACE := 20
 
 static var _faces: Dictionary[String, ImageTexture] = {}
 
@@ -314,7 +318,7 @@ static func badge(
 			var pop: int = 0
 			if not page.rm and u >= 0.0 and u < 0.14:
 				pop = 2 if u < 0.07 else 1
-			face(pen, pins[k], page.pins.index_of(pins[k]), px - pop, py - pop, d + pop * 2)
+			face(pen, pins[k], page.pins.index_of(pins[k]), px - pop, py - pop, d + pop * 2, d)
 		else:
 			empty(pen, px, py, d)
 
@@ -340,13 +344,28 @@ static func _fly(pen: ArtPen, page: BuildPage) -> void:
 	)
 
 
-## Pin `pin` (catalogue place `index`) as a `d` art px face at (`x`, `y`).
-static func face(pen: ArtPen, pin: PinDefinition, index: int, x: float, y: float, d: int) -> void:
+## The icon a `d` art px face of `pin` shows, as its texture (one art px a texel): the large one
+## (PinDefinition.icon_big) from BIG_FACE up, else the small one (PinFace.icon_for).
+static func icon_for(pin: PinDefinition, d: int) -> Texture2D:
+	return PinFace.icon_for(pin, d, BIG_FACE)
+
+
+## Pin `pin` (catalogue place `index`) as a `d` art px face at (`x`, `y`): its icon centred
+## (icon_for), else its letters. A popping face passes its resting size as `rest_d`, so it keeps
+## the resting face's icon through the pop.
+static func face(
+	pen: ArtPen, pin: PinDefinition, index: int, x: float, y: float, d: int, rest_d: int = 0
+) -> void:
 	var key: String = "%s|%d|%d" % [pin.id, index, d]
 	if not _faces.has(key):
 		var colours: Array = PinFace.COLOURS[PinFace.colour_index(pin, index)]
 		_faces[key] = _disc(d, colours[0], colours[1], colours[2])
 	pen.tex(_faces[key], x, y)
+	var icon: Texture2D = icon_for(pin, rest_d if rest_d > 0 else d)
+	if icon != null:
+		var art: Vector2 = icon.get_size()
+		pen.tex(icon, x + floorf((d - art.x) / 2.0), y + floorf((d - art.y) / 2.0))
+		return
 	var colours2: Array = PinFace.COLOURS[PinFace.colour_index(pin, index)]
 	var dark: Color = colours2[1]
 	var letters: String = pin.face_text

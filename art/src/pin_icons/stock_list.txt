@@ -1,0 +1,13 @@
+; Stock list's pin icon (small): a clipboard list, an arrow at the next line.
+; Drawn for the pin's own face colour (PinFace.COLOURS stock_list: face s, band 8); 7x8 art px, for the
+; PinFace 16-cell faces (lanyard and pin tip 32 px) and the start screen's 14-16 art px faces. Pin icons review (docs/art/mockups/pin_icons.html), 2026-11-13; picked by the user on 2026-11-14 (the recommended candidate), worn as PinDefinition.icon (small) or icon_big (large).
+@size 7x8
+@kind icon
+..#BB#.
+.#FBBF#
+.#FwwF#
+w#FR-F#
+ww#4-F#
+w#FM-F#
+.#FwwF#
+..####.

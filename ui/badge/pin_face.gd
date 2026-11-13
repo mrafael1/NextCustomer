@@ -2,7 +2,8 @@ class_name PinFace
 extends Control
 ## A badge pin's round face (#122, full build plan 7.4), drawn on the 2 px art grid: an ink rim, a
 ## RIM px band in the pin's dark colour, the face in its colour with a light glint top left, and
-## the pin's icon (PinDefinition.icon, centred) or, until it has one, its few letters
+## the pin's icon centred at the art's scale (PinDefinition.icon, or icon_big from BIG_FACE up;
+## sharp-pixel material, on the 2 px grid) or, without one, its few letters
 ## (PinDefinition.face_text) in the number font, centred (a face under 48 px a smaller size). A
 ## locked pin is
 ## grey with "?"; an empty slot is a dashed ring (show_empty). Its own UI object: the badge, the
@@ -28,6 +29,9 @@ const FONT_SIZE := 16
 ## The face FONT_SIZE is for: a smaller face gets letters in proportion.
 const FONT_FACE := 48.0
 const LOCKED_TEXT := "?"
+## The smallest face (canvas px) that shows the large icon (PinDefinition.icon_big): the name
+## badge's 44 px; the lanyard's and the tip's 32 px faces show the small one.
+const BIG_FACE := 44.0
 ## The empty slot's ring: a dash every DASH art px.
 const DASH := 3
 
@@ -54,10 +58,8 @@ func _init(diameter: float = 48.0) -> void:
 	_label.position = Vector2.ZERO
 	_label.size = size
 	add_child(_label)
-	_icon = TextureRect.new()
+	_icon = UiKit.sprite(null)
 	_icon.name = "Icon"
-	_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_icon.visible = false
 	add_child(_icon)
 	show_empty()
@@ -71,13 +73,27 @@ func show_pin(pin: PinDefinition, index: int, locked: bool = false) -> void:
 	_label.text = LOCKED_TEXT if locked else pin.face_text
 	_label.add_theme_color_override("font_color", Palette.INK if locked else Palette.PAPER)
 	_label.add_theme_color_override("font_outline_color", _colours[1])
-	_icon.texture = null if locked else pin.icon
+	_icon.texture = null if locked else icon_for(pin, size.x)
 	_icon.visible = _icon.texture != null
 	_label.visible = not _icon.visible
-	if _icon.visible:
-		_icon.size = _icon.texture.get_size()
-		_icon.position = ((size - _icon.size) / 2.0 / PX).floor() * PX
+	_place_icon()
 	queue_redraw()
+
+
+## Scales the face `factor` about its pivot (a pop) while its icon keeps the art's whole scale
+## and its resting place on the 2 px grid, so the icon stays crisp through the pop.
+func set_pop_scale(factor: float) -> void:
+	scale = Vector2.ONE * factor
+	_place_icon()
+
+
+## The icon a `diameter` face of `pin` shows: the large one (PinDefinition.icon_big) from
+## `big_from` (BIG_FACE, canvas px) up, else the small one (either falls back to the other); null
+## when it has none.
+static func icon_for(pin: PinDefinition, diameter: float, big_from: float = BIG_FACE) -> Texture2D:
+	if diameter >= big_from and pin.icon_big != null:
+		return pin.icon_big
+	return pin.icon if pin.icon != null else pin.icon_big
 
 
 ## The COLOURS entry of `pin`, the `index`-th pin of the catalogue: its face_colour, else its
@@ -98,6 +114,21 @@ func show_empty() -> void:
 
 func is_empty() -> bool:
 	return _empty
+
+
+## The icon at the art's whole scale, centred on the 2 px grid; under a pop (set_pop_scale) it
+## undoes the face's scale and stays where it rests: pivot + (p - pivot) * s = rest.
+func _place_icon() -> void:
+	if not _icon.visible:
+		return
+	_icon.size = _icon.texture.get_size() * ArtStyle.ART_SCALE
+	var rest: Vector2 = ((size - _icon.size) / 2.0 / PX).floor() * PX
+	if scale.x <= 0.0 or is_equal_approx(scale.x, 1.0):
+		_icon.scale = Vector2.ONE
+		_icon.position = rest
+		return
+	_icon.scale = Vector2.ONE / scale.x
+	_icon.position = pivot_offset + (rest - pivot_offset) / scale.x
 
 
 ## The letters shown ("" for an empty slot or a face showing its icon).

@@ -75,7 +75,7 @@ func test_the_card_shows_its_pin() -> void:
 	assert_array(Array(card.texts())).is_equal(
 		["NEW BADGE PIN", "RECYCLE", pin.rule_text, "Finish a run", "6/8"]
 	)
-	assert_str(card.face().letters()).is_equal(pin.face_text)
+	assert_object(card.face().icon()).is_same(pin.icon_big)
 	assert_vector(card.size).is_equal(PinUnlockCard.CARD_SIZE)
 
 

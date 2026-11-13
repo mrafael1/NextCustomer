@@ -155,7 +155,8 @@ func glint_progress() -> float:
 
 
 ## The pin's pop at `progress` (0: not in the blister yet, 1: landed): it grows to POP_PEAK of
-## its size and back, its diameter in whole art px (4 canvas px steps).
+## its size and back, its diameter in whole art px (4 canvas px steps); its icon keeps the art's
+## whole scale (PinFace.set_pop_scale).
 func set_pop(progress: float) -> void:
 	var factor: float = 1.0
 	if progress <= 0.0:
@@ -166,7 +167,7 @@ func set_pop(progress: float) -> void:
 		factor = POP_PEAK - (progress - POP_RISE) / (1.0 - POP_RISE) * (POP_PEAK - 1.0)
 	var diameter: float = maxf(roundf(FACE_SIZE * factor / 4.0) * 4.0, 4.0)
 	_face.visible = factor > 0.0
-	_face.scale = Vector2.ONE * diameter / FACE_SIZE
+	_face.set_pop_scale(diameter / FACE_SIZE)
 
 
 ## The stamp's landing at `progress` (0: not yet, 1: landed), from STAMP_FROM of its size in

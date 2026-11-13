@@ -10,7 +10,9 @@ extends TipCard
 ## closes it).
 
 const PIN_WIDTH := 200.0
-const FACE_SIZE := 22.0
+## The lanyard's face size, big enough for the pin's icon (pin icons review, 2026-11-14: at 22 px
+## no icon fit inside the band); the icon box grows around it (TipCard.icon_node).
+const FACE_SIZE := 32.0
 const TAG := "BADGE PIN"
 ## The footer's click actions: open, then kept.
 const FOOT_HINT := "KEEP OPEN"
@@ -53,7 +55,11 @@ func show_for(
 	var middle: float = pin_rect.get_center().x
 	var left: float = roundf((middle - PIN_WIDTH / 2.0) / PX) * PX
 	var right_most: float = area.end.x - SHADOW.x - PIN_WIDTH
-	position = Vector2(clampf(left, area.position.x, right_most), pin_rect.end.y + PIN_GAP)
+	# On the 2 px grid inside `area` (its edge may be odd), so the face's icon stays crisp.
+	var x: float = ceilf(clampf(left, area.position.x, right_most) / PX) * PX
+	if x > right_most:
+		x = floorf(right_most / PX) * PX
+	position = Vector2(x, pin_rect.end.y + PIN_GAP)
 	point_tail(Opens.BELOW, Rect2(pin_rect.position, pin_rect.size))
 
 
