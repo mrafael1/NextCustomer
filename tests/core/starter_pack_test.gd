@@ -324,7 +324,7 @@ func test_packs_hold_a_big_item_and_old_carts_still_deal() -> void:
 			. override_failure_message(id)
 			. is_false()
 		)
-		# The copy rule counts the BIG card as its product: the baskets add at most
+		# The copy rule counts the BIG card as its product: the boosters add at most
 		# copy_max - 1 plain copies beside it.
 		var one: Array[CardDefinition] = [plain]
 		var two: Array[CardDefinition] = [plain, plain]
@@ -345,11 +345,11 @@ func test_packs_hold_a_big_item_and_old_carts_still_deal() -> void:
 			assert_int(card.tier).override_failure_message(id).is_equal(CardDefinition.Tier.PLAIN)
 
 
-## The opening-time board deals start_basket_size cards into each of its baskets (the Staples
-## basket and one per STARTER CART aisle), so the cart keeps the recipe's random_count dealt cards.
-func test_the_baskets_hold_the_recipes_dealt_cards() -> void:
-	assert_int(_balance.start_basket_size).is_equal(2)
-	assert_int(_balance.start_basket_size * (1 + _balance.dealt_aisle_count)).is_equal(
+## The opening-time board deals start_booster_size cards into each of its aisle boosters (one per
+## STARTER CART aisle, v1.32), so the cart keeps the recipe's random_count dealt cards.
+func test_the_boosters_hold_the_recipes_dealt_cards() -> void:
+	assert_int(_balance.start_booster_size).is_equal(3)
+	assert_int(_balance.start_booster_size * _balance.dealt_aisle_count).is_equal(
 		_recipe.random_count
 	)
 

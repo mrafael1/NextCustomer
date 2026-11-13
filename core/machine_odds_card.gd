@@ -8,7 +8,6 @@ extends RefCounted
 const NOTE_LEGENDARY_EMPTY := &"legendary_empty_falls"
 const NOTE_LEGENDARY_NONE_IN_STOCK := &"legendary_none_in_stock"
 const NOTE_SHORT_DRAW := &"short_draw"
-const NOTE_NEW_ARRIVAL_HELD := &"new_arrival_held"
 const NOTE_CART_FULL := &"cart_full"
 ## A drop can land below its floor (the level's first-drop floor, or a PREMIUM visit's floor on
 ## every drop: its rarity and those above are empty).

@@ -898,7 +898,7 @@ static func _passed_run(
 			listed.append(aisle.id)
 			for card: CardDefinition in aisle.capsule_cards:
 				unlocked[card.id] = 0
-		stock = RunStock.build(balance, listed, unlocked, balance.end_cap_window_runs + 1)
+		stock = RunStock.build(balance, listed, unlocked)
 	var run: RunState = RunState.new(seed_value, deck, balance, stock)
 	if prepare.is_valid():
 		prepare.call(run)

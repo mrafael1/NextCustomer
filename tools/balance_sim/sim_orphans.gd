@@ -1,7 +1,7 @@
 class_name SimOrphans
 extends RefCounted
 ## The orphan check (full build plan section 7.2): every key item and capsule item reaches the
-## best row with a staple or its own aisle, so nothing is an orphan while it rides the end-cap.
+## best row with a staple or its own aisle, the only cards a run that stocks it can deal beside it.
 ##
 ## For each capsule item (aisle data order, key item first), each sample draws hand_size - 1
 ## cards from the staples and the rest of its own aisle at full collection, one copy of each,

@@ -419,9 +419,19 @@ func test_run_start_logs_the_stock() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
 	var start: Dictionary = _last_event("run_start")
-	assert_array(start["listed_aisles"]).is_equal(["cold_cases", "pantry", "household"])
+	# v1.32 feedback: the run stocks only its two boosters' aisles (two of the three base aisles).
+	var listed: Array = Array(screen.run.start_setup.stock_aisles).map(
+		func(id: StringName) -> String: return String(id)
+	)
+	assert_int(listed.size()).is_equal(2)
+	assert_array(start["listed_aisles"]).is_equal(listed)
 	assert_array(start["stock"]).is_equal(screen.run.stock.card_ids())
-	assert_int((start["stock"] as Array).size()).is_equal(28)
+	var expected: int = RunStock.staples(screen.run.balance).size()
+	expected += screen.run.balance.coupon_pool.size()
+	for aisle: AisleDefinition in screen.run.balance.aisles:
+		if screen.run.start_setup.stock_aisles.has(aisle.id):
+			expected += aisle.base_cards.size()
+	assert_int((start["stock"] as Array).size()).is_equal(expected)
 
 
 ## The run length comes from balance data: the header, the debug shift jump, the win screen and

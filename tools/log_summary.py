@@ -52,7 +52,7 @@ KNOWN_TYPES = frozenset({
     "machine_visit", "machine_landing_skipped", "run_end", "run_resume", "run_abandon", "restart",
     "results_exit", "log_export", "debug", "capsule", "start_choice", "start_page",
     "staple_swap", "restock", "restock_view", "pin_change", "start_lock_in", "new_packs",
-    "start_aisle", "settings_change", "pause_open", "pause_close", "run_quit",
+    "start_aisle", "start_booster_pick", "settings_change", "pause_open", "pause_close", "run_quit",
 })
 # The options and the pause (settings_change on the title or in a run, pause_open / pause_close
 # and run_quit in a run): they attach to a run but never make one.
@@ -1004,15 +1004,26 @@ def start_setup_summary(runs: list[Run]) -> dict:
     lock_ins = [event for run in shown for event in run.of_type("start_lock_in")]
     chosen = [event for event in lock_ins if event.get("chosen") is True]
     aisle_changes = [event for run in shown for event in run.of_type("start_aisle")]
+    # Only pre-v1.32 logs (no boosters in run_start) could change an aisle: since v1.32 PICK 2 OF 3
+    # is mandatory and logged as start_booster_pick, so newer runs stay out of this rate.
     choosable = [run for run in shown if not run.of_type("start_lock_in")
+                 and "boosters" not in run.start
                  and (num(run.start, "completed_aisles") or 0) >= 6]
-    # A basket restock (since the 2026-11-05 rework) names its source; the first build's restocks
-    # (aisle lists) count toward the rate only.
+    # A basket restock (2026-11-05 to v1.31) names its source, a booster restock (v1.32) its aisle;
+    # the first build's restocks (aisle lists) count toward the rate only.
     by_kind: Counter = Counter()
     for run in shown:
         for event in run.of_type("restock"):
-            if isinstance(source := event.get("source"), str):
+            if isinstance(event.get("aisle"), str):
+                by_kind["booster"] += 1
+            elif isinstance(source := event.get("source"), str):
                 by_kind["staples" if source == "staples" else "aisle"] += 1
+    # Since v1.32 the aisle change is PICK 2 OF 3 (start_booster_pick), and run_start lists the
+    # boosters with their RARE count.
+    booster_picks = [event for run in shown for event in run.of_type("start_booster_pick")]
+    boosters = [booster for run in shown
+                for booster in (run.start.get("boosters") or []) if isinstance(booster, dict)
+                and not booster.get("sold_out")]
     by_completed: dict[int, list[Run]] = defaultdict(list)
     for run in shown:
         if (count := num(run.start, "completed_aisles")) is not None:
@@ -1032,7 +1043,11 @@ def start_setup_summary(runs: list[Run]) -> dict:
         "aisle_changes": len(aisle_changes),
         "aisle_change_rate": rate(sum(bool(run.of_type("start_aisle")) for run in choosable),
                                   len(choosable)),
-        "restock_by_kind": {kind: rate(by_kind[kind], len(shown)) for kind in ("staples", "aisle")},
+        "restock_by_kind": {kind: rate(by_kind[kind], len(shown))
+                            for kind in ("staples", "aisle", "booster")},
+        "booster_picks": len(booster_picks),
+        "rare_rate": rate(sum((num(booster, "rare") or 0) > 0 for booster in boosters),
+                          len(boosters)),
         "new_packs_rate": rate(sum(bool(run.of_type("new_packs")) for run in shown), len(shown)),
         "by_completed": [
             {"completed": count,
@@ -1817,10 +1832,12 @@ def render_start_setup(summary: dict) -> list[str]:
     kinds = setup["restock_by_kind"]
     lines += [f"  Lock-ins: {setup['lock_ins']}; changed when choosable: "
               f"{fmt_rate(setup['changed_rate'])}; new packs: {fmt_rate(setup['new_packs_rate'])}",
-              f"  Aisle changes: {setup['aisle_changes']}; runs changing an aisle when "
-              f"choosable: {fmt_rate(setup['aisle_change_rate'])}",
+              f"  Aisle changes (logs before v1.32): {setup['aisle_changes']}; runs changing "
+              f"an aisle when choosable: {fmt_rate(setup['aisle_change_rate'])}",
               f"  Restock by source: staples {fmt_rate(kinds['staples'])}; "
-              f"aisle {fmt_rate(kinds['aisle'])}"]
+              f"aisle {fmt_rate(kinds['aisle'])}; booster {fmt_rate(kinds['booster'])}",
+              f"  Booster picks (PICK 2 OF 3): {setup['booster_picks']}; boosters with a RARE "
+              f"hit: {fmt_rate(setup['rare_rate'])}"]
     lines += table(["Completed aisles", "Win rate"],
                    [[str(row["completed"]), fmt_rate(row["win_rate"])]
                     for row in setup["by_completed"]])

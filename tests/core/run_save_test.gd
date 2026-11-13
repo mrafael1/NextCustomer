@@ -9,7 +9,6 @@ extends GdUnitTestSuite
 const STARTER := "res://data/decks/starter.tres"
 const BALANCE := "res://data/balance/balance.tres"
 const BREAD := "res://data/cards/bread.tres"
-const UNSTOCKED := &"test_unstocked"
 
 var _balance: BalanceDefinition
 var _lookup: ContentLookup
@@ -94,7 +93,7 @@ func test_a_visit_waiting_for_its_chute_round_trips() -> void:
 
 
 ## The draw saves at MACHINE_PICK: the prizes come back as drawn, the first NEW ITEMS draw's
-## flags (its coupon and its new arrival) stay spent, and the pick does the same.
+## flags stay spent, and the pick does the same.
 func test_drawn_prizes_round_trip() -> void:
 	var run: RunState = _planning_run(15)
 	_fill(run)
@@ -254,7 +253,7 @@ func test_the_run_id_and_played_time_are_kept() -> void:
 	assert_str(save.run_id).is_equal("abc123")
 	assert_int(save.run_ms).is_equal(98765)
 	assert_int(int(data["format_version"])).is_equal(RunSave.FORMAT_VERSION)
-	assert_int(RunSave.FORMAT_VERSION).is_equal(12)
+	assert_int(RunSave.FORMAT_VERSION).is_equal(15)
 	# v0.47: the machine saves no Regular levels.
 	assert_bool((data["machine"] as Dictionary).has("levels")).is_false()
 
@@ -293,11 +292,6 @@ func test_a_save_that_cant_be_resumed_reads_as_null() -> void:
 	var pick: Dictionary = _json(_save(choose_run))
 	choose_run.machine.bin(choose_run)
 	var scored: Dictionary = _json(_save(choose_run))
-	# A card that resolves but isn't in the stock.
-	var unstocked: CardDefinition = CardDefinition.new()
-	unstocked.id = UNSTOCKED
-	unstocked.kind = CardDefinition.Kind.PRODUCT
-	_lookup.add(unstocked)
 	var cases: Dictionary[String, Array] = {
 		"no format version": [planning, func(d: Dictionary) -> void: d.erase("format_version")],
 		"version 1": [planning, func(d: Dictionary) -> void: d["format_version"] = 1],
@@ -305,7 +299,7 @@ func test_a_save_that_cant_be_resumed_reads_as_null() -> void:
 		[planning, func(d: Dictionary) -> void: d["format_version"] = 2],
 		"version 3, before the dealt starting deck":
 		[planning, func(d: Dictionary) -> void: d["format_version"] = 3],
-		"newer format": [planning, func(d: Dictionary) -> void: d["format_version"] = 13],
+		"newer format": [planning, func(d: Dictionary) -> void: d["format_version"] = 16],
 		"format as text": [planning, func(d: Dictionary) -> void: d["format_version"] = "7"],
 		"version 5 without its upgrade count":
 		[planning, func(d: Dictionary) -> void: d["format_version"] = 5],
@@ -329,8 +323,6 @@ func test_a_save_that_cant_be_resumed_reads_as_null() -> void:
 		"id as path": [planning, func(d: Dictionary) -> void: d["starter"] = "../decks/starter"],
 		"unknown aisle": [planning, func(d: Dictionary) -> void: d["listed_aisles"] = ["gone"]],
 		"unknown stock card": [planning, func(d: Dictionary) -> void: d["stock"].append("gone")],
-		"arrival not stocked":
-		[planning, func(d: Dictionary) -> void: d["new_arrivals"] = [String(UNSTOCKED)]],
 		"stock not a list": [planning, func(d: Dictionary) -> void: d["stock"] = "banana"],
 		"run id a number": [planning, func(d: Dictionary) -> void: d["run_id"] = 7],
 		"negative run time": [planning, func(d: Dictionary) -> void: d["run_ms"] = -1],

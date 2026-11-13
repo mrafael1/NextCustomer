@@ -29,7 +29,8 @@ func test_the_balance_uses_the_machine_file() -> void:
 	# v0.68, Payday: an inspection is only a hurdle; a passed review (shifts 4, 8 and 12 since
 	# v0.96's four weeks; the final review ends the run) pays two PREMIUM tickets.
 	assert_bool(_machine.bonus_after_inspection).is_false()
-	assert_bool(_machine.new_arrival_first_visit).is_true()
+	# v1.32: the first NEW ITEMS draw no longer holds a new arrival (the end-cap is gone).
+	assert_bool("new_arrival_first_visit" in _machine).is_false()
 	assert_array(Array(_machine.bonus_extra_shifts)).is_equal([4, 8, 12])
 	for shift_number: int in range(1, 17):
 		var payday: bool = [4, 8, 12].has(shift_number)

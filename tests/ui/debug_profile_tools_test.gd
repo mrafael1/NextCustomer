@@ -59,7 +59,8 @@ func test_each_profile_tool_changes_the_profile_and_its_file() -> void:
 
 
 ## During a run a debug draw comes out at the run's own index; once it has ended (record_run has
-## counted it) at the ended run's, as a results draw, so the item rides the next run.
+## counted it) at the ended run's, as a results draw (the item is stocked in a later run that
+## stocks its aisle).
 func test_a_debug_draw_uses_the_ended_runs_index_once_the_run_is_over() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()

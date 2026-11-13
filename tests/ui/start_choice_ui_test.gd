@@ -199,7 +199,11 @@ func test_the_screen_saves_the_offer_and_starts_shift_one_on_the_pick() -> void:
 	)
 	screen._cart_reveal.freeze_at(screen._cart_reveal.end_time())
 	screen.profile.set_reduced_motion(true)
+	_open_boosters(screen._cart_reveal.board)
 	screen._cart_reveal.board.show_page(2, "enter")
+	# The BADGE PINS step comes first (v1.32): confirm it with no pin, then pick.
+	screen._cart_reveal.board.staff.advance(0.2)
+	assert_bool(screen._cart_reveal.board.staff.primary()).is_true()
 	screen._cart_reveal.raise_pack(0)
 	var pack: StarterPackDefinition = run.start_offer.packs[0]
 	assert_bool(screen._cart_reveal.take_pack()).is_true()
@@ -280,3 +284,10 @@ func _last_event(type: String) -> Dictionary:
 
 static func _event_log() -> EventLogService:
 	return (Engine.get_main_loop() as SceneTree).root.get_node("/root/EventLog")
+
+
+## Opens every dealt booster through the board's actions (page 1's job), so page 2's OPEN STORE
+## isn't held by a sealed booster.
+static func _open_boosters(board: StartBoard) -> void:
+	for index: int in board.run.start_setup.boosters.size():
+		board._choice.open_booster.call(index)

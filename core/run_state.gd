@@ -37,8 +37,9 @@ var starter: DeckDefinition
 var start_offer: StartOffer
 ## Opening-time choices, retained across title/resume. Null on older runs.
 var start_setup: StartSetup
-## Not saved: a resumed run waiting for its pick whose setup was saved in the first build's form
-## (StartSetup.is_old_format); the opening time sets it up again from the run seed.
+## Not saved: a resumed run waiting for its pick whose setup was saved in an older form (the
+## first build's or the baskets', StartSetup.is_old_format); the opening time sets it up again
+## from the run seed.
 var restart_setup: bool = false
 ## The cards the machine's NEW ITEMS and COUPONS chutes draw from (full build plan 7.2).
 var stock: RunStock

@@ -6,8 +6,7 @@ extends RefCounted
 ## the pacing target is about: about 30 unlocks in 25-40 runs.
 ##
 ## The profile is kept as the game keeps it: the unlocked items with the run index each came out
-## at (so the end-cap's new arrivals ride the next runs, RunStock), the run count and the last
-## list. The simulated player:
+## at, the run count and the last list. The simulated player:
 ## - spends every coin at the end of each run, one capsule per capsule_price coins. It picks a
 ##   machine with items left at random (players choose; a random pick stands for a mix of
 ##   them), and the draw inside is the game's (CapsuleDraw: random without duplicates, the
@@ -48,7 +47,7 @@ func _init(balance: BalanceDefinition, make_player: Callable, chain_seed: int) -
 func play(first_seed: int, max_runs: int) -> void:
 	var capsules: int = capsule_count(_balance)
 	for run_index: int in range(max_runs):
-		var stock: RunStock = RunStock.build(_balance, _list(), _unlocked, run_index)
+		var stock: RunStock = RunStock.build(_balance, _list(), _unlocked)
 		var player: SimPlayer = _make_player.call(stock)
 		var record: SimRunRecord = player.play(first_seed + run_index)
 		if record == null:

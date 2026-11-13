@@ -6,9 +6,9 @@ They come from the approved draw process, `docs/art/mockups/machine_77_src/flow/
 with the guarantee swap, COUPONS on the first and a later draw, REGISTER with owned upgrades and
 the "3 different types" rule (incl. short draws), and UPGRADES on carts of the live chains.
 
-The two build extensions that draw77 doesn't have are off in these states: REGISTER's "one fits
-your cart" (the in-memory upgrades fit nothing) and the first NEW ITEMS draw's new arrival (no new
-arrival). The brute-force enumerator in the same test covers them.
+The build extension that draw77 doesn't have is off in these states: REGISTER's "one fits your
+cart" (the in-memory upgrades fit nothing). The brute-force enumerator in the same test covers it.
+(The first NEW ITEMS draw's new arrival, another one, went with the end-cap in v1.32.)
 
 Regenerate (from the repo root, Node 18 or later):
 

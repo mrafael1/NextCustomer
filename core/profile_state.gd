@@ -73,9 +73,11 @@ var unlocked_items: Dictionary[StringName, int] = {}
 var new_figurines: Array[StringName] = []
 ## The last shopping list (aisle ids), the next list's default (full build plan 7.2).
 var last_list: Array[StringName] = []
-## The opening-time board's saved deal-source pair (its two STARTER CART aisles).
+## The opening-time board's saved deal-source pair (its two STARTER CART aisles). Unused since
+## v1.32 (PICK 2 OF 3 picks the pair each run); still read and saved so the format is unchanged.
 var stock_pair: Array[StringName] = []
-## The opening-time board's last RUN ONLY aisle ("" for none).
+## The opening-time board's last third aisle ("" for none). Unused since v1.32 (a run stocks only
+## its boosters' two aisles); still read and saved so the format is unchanged.
 var stock_run_only: StringName = &""
 ## Decks and card variants unlocked by their condition (plan 7.3). One without a condition is
 ## available from the start and never listed here.
@@ -212,8 +214,9 @@ func set_capsule_seed(seed_value: int) -> bool:
 
 ## The run index a capsule drawn now comes out at (RunStock's `unlocked`, full build plan 7.1):
 ## the run that just ended (run_count - 1) on the results or on the title with no saved run, or
-## the saved run's own index (run_count) on the title while a run is saved (#63 default (a): the
-## item rides the runs after the saved one). -1 before any run has ended (debug coins only).
+## the saved run's own index (run_count) on the title while a run is saved (#63 default (a)).
+## -1 before any run has ended (debug coins only). Only recorded since v1.32: the item is in a
+## run's stock whenever the run stocks its aisle, whatever its index.
 func capsule_run_index(has_saved_run: bool) -> int:
 	return run_count if has_saved_run else run_count - 1
 

@@ -95,9 +95,10 @@ func _ready() -> void:
 	_fast_count_up = _check(column, "Count-up speed: Fast", count_up_speed_requested.emit)
 	_reduced_motion = _check(column, "Reduced motion", reduced_motion_requested.emit)
 
-	# Profile tools (#63): they change the saved profile, so the stock changes from the next run.
+	# Profile tools (#63): they change the saved profile; an unlocked item is stocked in a later
+	# run that stocks its aisle (v1.32).
 	var profile_title: Label = Label.new()
-	profile_title.text = "Profile (stock changes next run)"
+	profile_title.text = "Profile (items stocked with their aisle)"
 	column.add_child(profile_title)
 	_button(column, "Give 1 coin", coins_requested.emit.bind(1))
 	_button(column, "Give 5 coins", coins_requested.emit.bind(5))

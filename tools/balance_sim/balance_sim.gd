@@ -28,8 +28,8 @@ extends SceneTree
 ##                     a main build nor in the list gate)
 ##   --profile=PATH    stock the runs from this profile save (its unlocked items, run count and
 ##                     last list), as the game would for its next run (default a new profile)
-##   --collection=full stock the runs from the full collection: every capsule item unlocked,
-##                     no new arrivals (SimCollection); not with --profile
+##   --collection=full stock the runs from the full collection: every capsule item unlocked
+##                     (SimCollection); not with --profile
 ##   --list=A+B        the shopping list (aisle ids) when the stock needs one; with --profile it
 ##                     replaces the profile's last list
 ##   --list-gate       the list gate (full build plan section 8): play the fresh profile and
@@ -782,16 +782,12 @@ func _is_gate() -> bool:
 
 func _stock_text(state: SimCollection) -> String:
 	var stock: RunStock = state.stock(_balance)
-	var arrivals: Array = stock.new_arrivals.map(
-		func(card: CardDefinition) -> String: return String(card.id)
-	)
 	return (
-		"Stock: %s · %d cards · aisles %s · new arrivals %s"
+		"Stock: %s · %d cards · aisles %s"
 		% [
 			state.label,
 			stock.cards.size(),
 			", ".join(stock.aisle_ids.map(func(id: StringName) -> String: return String(id))),
-			", ".join(arrivals) if not arrivals.is_empty() else "none"
 		]
 	)
 
