@@ -1,16 +1,18 @@
 class_name OptionChip
 extends BaseButton
 ## A selector chip of the OPTIONS popup (mock-up options_pause.html, KeywordChip's language at
-## 2x): a paper chip with a ledge, mustard and sat down with the lamp's check when chosen, pale
-## mustard under the mouse. Drawn in code on the 2 px grid.
+## 2x): a paper chip with a ledge, mustard with a thin ledge and the lamp's check when chosen, pale
+## mustard under the mouse. Drawn in code on the 2 px grid. A chosen chip keeps its top level
+## with its neighbours' (polish audit v1.36): only its ledge thins; a pressed one sinks.
+## A number after the words (FAST's x1.5) is in hard pixel digits (ArtStyle.pixel_number_font
+## at 2x) on the words' baseline.
 
 const HEIGHT := 30.0
 const PAD := 12.0
 const CHECK_GAP := 8.0
 const CHECK_WIDTH := 14.0
-## A chip's number (FAST's ×1.5): the number font (Pixelify never prints numbers), NUMBER_GAP px
-## right of the words.
-const NUMBER_SIZE := 18
+## A chip's number (FAST's ×1.5): hard pixel digits (Pixelify never prints numbers), NUMBER_GAP
+## px right of the words.
 const NUMBER_GAP := 6.0
 ## The check (7x5 cells of 2 px).
 const CHECK: Array[String] = ["......#", ".....#.", "#...#..", ".#.#...", "..#...."]
@@ -30,8 +32,12 @@ func _init(text: String, number_text: String = "") -> void:
 	focus_mode = Control.FOCUS_NONE
 	_caption = UiKit.pixel_label(text, 2, Palette.INK)
 	add_child(_caption)
-	_number = UiKit.number_label(number_text, NUMBER_SIZE, false)
-	_number.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_number = UiKit.number_label(number_text, ArtStyle.PIXEL_NUMBER_SIZE, false)
+	_number.add_theme_font_override("font", ArtStyle.pixel_number_font())
+	_number.add_theme_constant_override("outline_size", 0)
+	_number.add_theme_color_override("font_color", Palette.INK)
+	ArtStyle.use_pixel_text_material(_number)
+	_number.scale = Vector2.ONE * 2.0
 	_number.visible = not number_text.is_empty()
 	add_child(_number)
 	var text_width: float = _content_text_width()
@@ -44,7 +50,7 @@ func _init(text: String, number_text: String = "") -> void:
 func _draw() -> void:
 	var hot: bool = is_hovered()
 	var down: bool = chosen or button_pressed
-	var dy: float = 2.0 if down else 0.0
+	var dy: float = face_top()
 	var h: float = 28.0 if down else 30.0
 	var face: Color = (
 		Palette.MUSTARD if chosen else (Palette.MUSTARD_PALE if hot else Palette.PAPER)
@@ -63,26 +69,51 @@ func _draw() -> void:
 	var text_width: float = _content_text_width()
 	var content_width: float = text_width + (CHECK_GAP + CHECK_WIDTH if chosen else 0.0)
 	var left: float = 2.0 * floorf((w - content_width) / 4.0)
-	var face_top: float = dy + 2.0
+	var words_top: float = dy + 2.0
 	var face_height: float = h - 4.0 - ledge_h
-	UiKit.place_pixel_label(_caption, Rect2(left, face_top, words_width, face_height), true)
+	UiKit.place_pixel_label(_caption, Rect2(left, words_top, words_width, face_height), true)
 	if _number.visible:
-		_number.position = Vector2(left + words_width + NUMBER_GAP, face_top)
-		_number.size = Vector2(_number.get_minimum_size().x, face_height)
+		# The digits' baseline on the words' (their capitals' bottom row).
+		var font: Font = ArtStyle.pixel_number_font()
+		var cap_bottom: float = (
+			_caption.position.y
+			+ (ArtStyle.pixel_display_font().get_ascent(ArtStyle.PIXEL_TEXT_SIZE) * 2.0)
+		)
+		var ascent: float = font.get_ascent(ArtStyle.PIXEL_NUMBER_SIZE) * 2.0
+		_number.position = Vector2(left + words_width + NUMBER_GAP, cap_bottom - ascent)
+		_number.size = Vector2.ZERO
 	if chosen:
 		var check_x: float = left + text_width + CHECK_GAP
-		var check_top: float = face_top + 2.0 * floorf((face_height - CHECK.size() * 2.0) / 4.0)
+		var check_top: float = words_top + 2.0 * floorf((face_height - CHECK.size() * 2.0) / 4.0)
 		for row: int in CHECK.size():
 			for column: int in CHECK[row].length():
 				if CHECK[row][column] == "#":
 					draw_rect(Rect2(check_x + column * 2, check_top + row * 2, 2, 2), Palette.INK)
 
 
+## The face's top in the chip, in canvas px: a pressed chip sinks, a chosen one stays level.
+func face_top() -> float:
+	return 2.0 if button_pressed and not chosen else 0.0
+
+
+## The number's label (FAST's x1.5), for tests.
+func number_label() -> Label:
+	return _number
+
+
 ## The words' width, with the number and its gap when there is one, in canvas px.
 func _content_text_width() -> float:
 	var width: float = OptionChip.pixel_width(_caption.text, 2)
 	if not _number.text.is_empty():
-		width += NUMBER_GAP + ceilf(_number.get_minimum_size().x)
+		var font: Font = ArtStyle.pixel_number_font()
+		var digits: float = (
+			font
+			. get_string_size(
+				_number.text, HORIZONTAL_ALIGNMENT_LEFT, -1, ArtStyle.PIXEL_NUMBER_SIZE
+			)
+			. x
+		)
+		width += NUMBER_GAP + 2.0 * ceilf(digits)
 	return width
 
 

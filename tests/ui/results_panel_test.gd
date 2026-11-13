@@ -54,6 +54,7 @@ func before_test() -> void:
 
 
 func after_test() -> void:
+	PlaytestUi.forced = -1
 	AudioServer.set_bus_volume_db(_music_bus(), _bus_db)
 	get_tree().root.size = _window_size
 	ProjectSettings.set_setting(SaveService.FOLDER_SETTING, null)
@@ -439,13 +440,13 @@ func test_return_to_menu_is_the_one_primary_action_and_arms() -> void:
 	results.skip_printing()
 	await _frames(3)
 	var menu: FramedButton = results.menu_button()
-	assert_str(menu.caption).is_equal("Return to menu")
+	assert_str(menu.caption).is_equal(ResultsPanel.MENU_TEXT)
 	assert_bool(menu.disabled).is_true()
 	var row: HBoxContainer = menu.get_parent() as HBoxContainer
 	var captions: Array[String] = []
 	for child: Node in row.get_children():
 		captions.append((child as FramedButton).caption)
-	assert_array(captions).is_equal(["Return to menu", TopBar.EXPORT_TEXT])
+	assert_array(captions).is_equal([ResultsPanel.MENU_TEXT, TopBar.EXPORT_TEXT])
 	var export: FramedButton = row.get_child(1) as FramedButton
 	assert_object(_frame_of(menu)).is_same(UiKit.BUTTON_FRAME)
 	assert_object(_frame_of(export)).is_same(TopBar.BUTTON_FRAME)
@@ -460,6 +461,45 @@ func test_return_to_menu_is_the_one_primary_action_and_arms() -> void:
 		(menu.get_global_rect().position.x + export.get_global_rect().end.x) / 2.0
 	)
 	assert_float(absf(row_center - paper.get_center().x)).is_less(1.0)
+
+
+## Polish audit v1.36: at 1280x720 and 1920x1080 each key's words fit inside its face (the
+## caption fitted once the button was in the tree), the keys stand apart in the receipt, and in a
+## release build (PlaytestUi) the export key is gone and RETURN TO MENU stands alone, centred.
+func test_the_keys_fit_their_words_at_both_sizes_and_release_hides_export() -> void:
+	for window: Vector2i in [Vector2i(1280, 720), Vector2i(1920, 1080)]:
+		for playtest: int in [1, 0]:
+			PlaytestUi.forced = playtest
+			get_tree().root.size = window
+			var screen: ShiftScreen = await _screen()
+			_full_run(screen)
+			var results: ResultsPanel = screen._results
+			screen._show_results(_last_result(screen))
+			results.skip_printing()
+			await _frames(3)
+			var menu: FramedButton = results.menu_button()
+			var export: FramedButton = results.export_button()
+			assert_bool(export.visible).is_equal(playtest == 1)
+			var shown: Array[FramedButton] = [menu]
+			if export.visible:
+				shown.append(export)
+			for button: FramedButton in shown:
+				# Local sizes: the receipt may still be popping in (scaled).
+				var face: Rect2 = Rect2(Vector2.ZERO, button.face().size)
+				var words: float = button.caption_label().get_minimum_size().x
+				(
+					assert_float(words + 2.0 * FramedButton.CAPTION_PADDING.x)
+					. override_failure_message("%s at %s" % [button.caption, window])
+					. is_less_equal(face.size.x + 0.5)
+				)
+				assert_bool(results.get_global_rect().encloses(button.get_global_rect())).is_true()
+			if export.visible:
+				var gap: float = export.get_global_rect().position.x - menu.get_global_rect().end.x
+				assert_float(gap).is_greater_equal(8.0)
+			else:
+				var centre: float = menu.get_global_rect().get_center().x
+				assert_float(absf(centre - results.get_global_rect().get_center().x)).is_less(1.0)
+	PlaytestUi.forced = -1
 
 
 ## Return to menu clicked mid-print prints the rest first (a skip), so the receipt stops printing

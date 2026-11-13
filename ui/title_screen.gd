@@ -35,7 +35,8 @@ extends Control
 ## starts its music, the front loop (#62, Q2), unless that press starts the run. The title has its
 ## own Sfx (#62), warmed up when it opens; it outlives the title for a moment, so the start is
 ## heard in full. The Export log icon (bottom left) works here too, so testers can send their
-## log at any time; the build label stands in the bottom right corner.
+## log at any time; the build label stands in the bottom right corner. A release build shows
+## neither (PlaytestUi).
 
 ## What a click on the storefront lands on: nothing, the doors, the REWARDS bay or the sign.
 enum Target { NONE, DOORS, BAY, SIGN }
@@ -285,8 +286,10 @@ func _process(delta: float) -> void:
 		_storefront.light_up()
 
 
-## The Export log icon and the build label, discreet in the stage's bottom corners.
+## The Export log icon and the build label, discreet in the stage's bottom corners; playtest
+## builds only (PlaytestUi: a release build hides both).
 func _add_corner(stage: Control) -> void:
+	var playtest: bool = PlaytestUi.shown()
 	_export = TextureButton.new()
 	_export.texture_normal = EXPORT_ICON
 	_export.texture_hover = EXPORT_ICON_HOT
@@ -301,6 +304,7 @@ func _add_corner(stage: Control) -> void:
 	_export.position = EXPORT_RECT.position
 	_export.size = EXPORT_RECT.size
 	_export.pressed.connect(_on_export_pressed)
+	_export.visible = playtest
 	stage.add_child(_export)
 	_build = UiKit.number_label(
 		str(ProjectSettings.get_setting("next_customer/build_label", "")), BUILD_FONT_SIZE, false
@@ -310,6 +314,7 @@ func _add_corner(stage: Control) -> void:
 	_build.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_build.position = Vector2(BUILD_RIGHT - BUILD_WIDTH, EXPORT_RECT.position.y)
 	_build.size = Vector2(BUILD_WIDTH, EXPORT_RECT.size.y)
+	_build.visible = playtest
 	stage.add_child(_build)
 
 

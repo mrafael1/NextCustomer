@@ -1,0 +1,120 @@
+title|intro_dark_t0.5|au|--audit=title,t=0.5
+title|intro_lighting_t2.9|au|--audit=title,t=2.9
+title|intro_lighting_t3.4|au|--audit=title,t=3.4
+title|intro_plates_t3.7|au|--audit=title,t=3.7
+title|intro_settled_t6.0|au|--audit=title,t=6.0
+title|lit_fresh|au|--audit=title
+title|lit_continue|au|--audit=title,saved
+title|newrun_confirm|au|--audit=title,saved,open=newrun
+title|quit_confirm|au|--audit=title,open=quit
+title|options|au|--audit=title,open=options
+title|handbook|au|--audit=title,open=guide
+title|toys|au|--audit=title,open=toys
+figurine_book|page1|au|--audit=title,open=book
+figurine_book|page3|au|--audit=title,open=book,turn=2
+pause|menu|au|--audit=pause
+pause|options|au|--audit=pause,open=options
+pause|handbook|au|--audit=pause,open=guide
+handbook|pair|sc|--handbook=pair
+handbook|batch_scroll_end|sc|--handbook=batch,scroll=end
+handbook|coupon|sc|--handbook=coupon
+handbook|family_dairy|sc|--handbook=fam_dairy
+handbook|wasted|sc|--handbook=wasted
+start|page1_closed|sc|--reveal=0,page=1,completed=0
+start|page1_rollup|sc|--reveal=0,page=1,completed=2,do=roll+t0.5
+start|page1_open_booster|sc|--reveal=0,page=1,completed=2,do=roll+t2+open0+t1.5
+start|page1_all_open|sc|--reveal=0,page=1,completed=2,do=roll+t2+all+t5
+start|page1_restock_armed|sc|--reveal=0,page=1,completed=3,do=roll+t2+all+t5+arm
+start|page1_pick|sc|--reveal=0,page=1,completed=6,do=roll+t2+pick0+pick2+t0.9
+start|swap_window|sc|--reveal=0,page=1,completed=2,do=roll+t2+all+t8+win+t1+sb0+sb1+t3
+start|swap_drag|sc|--reveal=0,page=1,completed=2,do=roll+t2+all+t8+win+t1+sb0+sb1+t3+grab0+over1+t0.3
+start|tip_regular|sc|--reveal=0,page=1,completed=1,do=roll+t4+all+t8+tipreg0
+start|page2|sc|--reveal=0,page=2,completed=2,p2=t1
+start|page2_hover_pack|sc|--reveal=0,page=2,completed=2,won,p2=t1+hover1+t0.5
+start|page2_pins_step|sc|--reveal=0,page=2,completed=2,pins=1,p2=t1
+start|page2_badge_pins_open|sc|--reveal=0,page=2,completed=2,pins=3,p2=t1+wear7+t0.3
+start|page2_open_store|sc|--reveal=0,page=2,completed=2,p2=t1+pick0+t1+open+t0.8
+shift|planning_normal|sc|
+shift|planning_effects|sc|--effects
+shift|planning_effects_focus|sc|--effects=multipack
+shift|planning_stack_fan|sc|--stack=fan
+shift|planning_inspection_spot_check|sc|--day=spot_check
+shift|planning_day_happy_hour|sc|--day=happy_hour
+shift|planning_day_extra_till|sc|--day=extra_till
+shift|planning_day_slip|sc|--slip
+shift|planning_payday|sc|--at-shift=4 --payday=on
+shift|planning_premium_announce|sc|--announce=1.6
+shift|planning_pending_medals|sc|--pending=2
+shift|planning_no_redraws|sc|--redraws=2
+shift|planning_final_review|sc|--at-shift=16
+shift|scan_monitor|sc|--scan=cheese
+shift|monitor_coupon|sc|--monitor=coupon
+shift|pin_price_gun_picker|sc|--pin=price_gun --gun=picker
+shift|pin_double_checkout|sc|--double
+shift|pin_card_lanyard|sc|--pin=price_gun --pin-card=0
+calendar|history_paid|sc|--history
+calendar|next_day_pop|sc|--history --pop=600
+week_card|open|sc|--week
+week_card|paid|sc|--week=paid
+week_card|slip|sc|--week=slip
+week_card|week4|sc|--at-shift=13 --week
+checkout|count_t1.5|sc|--laps=1 --checkout=1.5
+checkout|count_t3|sc|--laps=1 --checkout=3
+checkout|count_t4.5|sc|--laps=1 --checkout=4.5
+checkout|count_t6|sc|--laps=1 --checkout=6
+checkout|count_t8|sc|--laps=1 --checkout=8
+checkout|receipt_t11|sc|--laps=1 --checkout=11
+checkout|receipt_t14|sc|--laps=1 --checkout=14
+checkout|fail_t9|sc|--checkout=9
+checkout|cheer_crowd|sc|--cheer
+quota_crossing|laps2_silver_t5|sc|--laps=2 --checkout=5
+quota_crossing|laps3_gold_t7|sc|--laps=3 --checkout=7
+quota_crossing|laps3_gold_t12|sc|--laps=3 --checkout=12
+quota_crossing|laps5_t9|sc|--laps=5 --checkout=9
+keep|golden_basket|sc|--pin=golden_basket --laps=1 --checkout=14
+results|won|sc|--results=won
+results|lost|sc|--results=lost
+results|won_pin_unlock|sc|--results=won --unlock=recycle
+machine|classic_intake_t1|sc|--machine=1
+machine|classic_choose|sc|--machine=3
+machine|classic_odds|sc|--machine=3,odds,new_items
+machine|chute_hover0|sc|--machine=3 --hover=chute0
+machine|chute_hover1|sc|--machine=3 --hover=chute1
+machine|chute_pressed|sc|--machine=1,press,new_items
+machine|draw_new_items|sc|--machine=1.5,new_items
+machine|draw_armed_crl|sc|--machine=3,new_items,draw=crl
+machine|draw_legendary|sc|--machine=3,new_items,draw=lll
+machine|skip_bin|sc|--machine=3,new_items,skip
+machine|prize_hover|sc|--machine=3,new_items,hover=0
+machine|pick_into_cart|sc|--machine=1,new_items,pick=0,over=spot
+machine|cartfull_pick|sc|--machine=1,new_items,cartfull,pick=0
+machine|premium_choose|sc|--machine=3,premium
+machine|premium_upgrade_draw|sc|--machine=3,premium,upgrade
+machine|premium_upgrade_landing|sc|--machine=2,premium,upgrade,pick=0
+machine|levelup|sc|--machine=3,premium,upgrade,levelup
+machine|bonus_ticket|sc|--machine=3,bonus
+machine|overtime_again|sc|--machine=3,overtime
+machine|payday_lamps|sc|--machine=3,lamps,payday
+machine|reduced_motion|sc|--machine=3,new_items,rm
+loyalty|hover_perk0|sc|--hover=perk0
+loyalty|hover_word|sc|--hover=loyalty
+loyalty|hover_perk1_shift|sc|--hover=perk1,shift
+medals|hover_silver|sc|--hover=silver
+medals|hover_gold|sc|--hover=gold
+hover|week_glass|sc|--hover=week
+hover|price_window0|sc|--hover=window0
+hover|menu_key|sc|--hover=menu
+hover|glyph_cheese|sc|--tip=cheese,0
+hover|batch_chip|sc|--tip=croissant,batch
+hover|colour_multipack|sc|--tip=multipack,colour
+cart|view|sc|--deck=cart
+cart|view_full|sc|--deck=cart,full
+cart|view_hover|sc|--deck=cart,hover=2
+run_info|page|sc|--deck=info
+cart|chooser_full|sc|--deck=chooser
+toys|shift_normal|sc|--toys=normal
+toys|shift_broke|sc|--toys=broke
+toys|shift_hover|sc|--toys=normal,hover=fruit_and_veg
+toys|draw_reveal|sc|--toys=normal,draw=bakery
+toys|complete|sc|--toys=complete
+toys|draw_join|sc|--toys=normal,draw=bakery,join=0.6

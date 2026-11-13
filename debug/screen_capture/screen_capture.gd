@@ -235,6 +235,9 @@ var _holding_pointer: bool = false
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
+	# --release-ui: as a release build shows it, without the playtest UI (PlaytestUi).
+	if OS.get_cmdline_user_args().has("--release-ui"):
+		PlaytestUi.forced = 0
 	# Saves and logs go to a temporary folder before the screen loads anything.
 	_folder = OS.get_temp_dir().path_join("next_customer_capture_%d" % Time.get_ticks_usec())
 	DirAccess.make_dir_recursive_absolute(_folder)
@@ -688,6 +691,7 @@ func deck(spec: String) -> void:
 	options = options.slice(1)
 	var seed_value: String = _option_value(options, "seed=")
 	_screen.start_new_run(seed_value.to_int() if seed_value != "" else SEED, false)
+	_screen._week.skip()  # Polish audit (2026-11-13): no time card over the deck view.
 	var run: RunState = _screen.run
 	if options.has("full") or page == "chooser":
 		_fill_cart(run)

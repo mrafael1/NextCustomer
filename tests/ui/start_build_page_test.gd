@@ -120,7 +120,7 @@ func test_a_new_profile_deals_the_packs_at_once() -> void:
 
 ## With every pin owned (8), the step's rows turn compact and all fit inside the box, above the
 ## packs' gate note and the confirm key, apart from each other; each rule fits its one line; keys
-## 6-8 reach the last rows. "+N MORE PIN(S) TO EARN" says PIN for one.
+## 6-8 reach the last rows. No pin is left locked.
 func test_every_pin_owned_fits_the_step() -> void:
 	var screen: ShiftScreen = await _screen(99)
 	var board: StartBoard = screen._cart_reveal.board
@@ -155,11 +155,55 @@ func test_every_pin_owned_fits_the_step() -> void:
 		)
 	assert_bool(staff.handle_key(KEY_8)).is_true()
 	assert_bool(staff.pins_sel.has(owned[7])).is_true()
-	assert_str(PinStepDraw.more_text(1)).is_equal("+1 MORE PIN TO EARN")
-	assert_str(PinStepDraw.more_text(3)).is_equal("+3 MORE PINS TO EARN")
-	# Five pins keep full rows, and the "+3 MORE" line still sits above the gate note.
-	var more: Vector2 = PinStepDraw.more_position(PinStepDraw.FULL_ROWS, top)
-	assert_float(more.y + 5).is_less_equal(bottom)
+	assert_array(PinStepDraw.locked_pins(staff)).is_empty()
+
+
+## Polish audit v1.36: a profile with pins still to earn shows them as grey LOCKED rows with their
+## milestone under the owned ones (no empty band), every row inside the box above the gate note
+## and the confirm key; only the owned rows take clicks and no row shows a number. NO PIN IS FINE
+## TOO stands under the badge's NO PIN, ESC · BACK in the packs' note; the ticker is clear while
+## the step is open and says BADGE PINS FIRST · PRESS P once it closes with the packs held.
+func test_locked_pins_fill_the_step_as_grey_rows() -> void:
+	var screen: ShiftScreen = await _screen(1)
+	var board: StartBoard = screen._cart_reveal.board
+	var staff: BuildPage = board.staff
+	board.show_page(2)
+	staff.advance(0.5)
+	assert_bool(staff.pins_open).is_true()
+	var owned: Array[PinDefinition] = staff.pins.owned()
+	var locked: Array[PinDefinition] = PinStepDraw.locked_pins(staff)
+	assert_int(locked.size()).is_greater(0)
+	assert_int(owned.size() + locked.size()).is_equal(screen._catalogue.pins.size())
+	var count: int = owned.size() + locked.size()
+	var top: float = PinStepDraw.box_y(staff)
+	var box: Rect2 = Rect2(BuildPage.PIN_BOX)
+	var confirm: Rect2 = PinStepDraw.confirm_rect(top)
+	var rows: Array[Rect2] = []
+	for k: int in count:
+		var rect: Rect2 = PinStepDraw.row_rect(k, count, top)
+		assert_bool(box.encloses(rect)).override_failure_message(str(rect)).is_true()
+		assert_float(rect.end.y).is_less_equal(top + PinStepDraw.ROWS_BOTTOM)
+		assert_bool(rect.intersects(confirm)).is_false()
+		for other: Rect2 in rows:
+			assert_bool(rect.intersects(other)).is_false()
+		rows.append(rect)
+	for pin: PinDefinition in owned:
+		assert_bool(_hit(staff, "pin_%s" % pin.id).is_empty()).is_false()
+	for pin: PinDefinition in locked:
+		assert_bool(_hit(staff, "pin_%s" % pin.id).is_empty()).is_true()
+		assert_str(PinStepDraw.unlock_text(pin)).starts_with("Unlock: ")
+	var pen: _PenRecorder = _PenRecorder.new()
+	PinStepDraw.draw(pen, staff)
+	assert_int(pen.texts.count(PinStepDraw.LOCKED_TEXT)).is_equal(locked.size())
+	assert_bool(pen.texts.has(PinStepDraw.NO_PIN_NOTE)).is_true()
+	assert_bool(pen.texts.has(PinStepDraw.BACK_NOTE)).is_true()
+	assert_bool(pen.texts.has("NONE IS FINE TOO")).is_false()
+	for text: String in pen.texts:
+		assert_bool(text.is_valid_int()).override_failure_message(text).is_false()
+	assert_str(BuildPageDraw.hint_line(staff)).is_empty()
+	assert_bool(staff.pins.close()).is_true()
+	assert_bool(staff.packs_held()).is_true()
+	assert_str(BuildPageDraw.hint_line(staff)).is_equal(BuildPageDraw.PINS_FIRST_HINT)
 
 
 ## A pin worn in the step is saved on the run and the profile; the step opens again later (the
@@ -528,14 +572,40 @@ static func _event_log() -> EventLogService:
 	return (Engine.get_main_loop() as SceneTree).root.get_node("/root/EventLog")
 
 
-## An ArtPen that records its nine-slices and its words' tops instead of drawing.
+## An ArtPen that records its nine-slices, its words and their tops instead of drawing.
 class _PenRecorder:
 	extends ArtPen
 	var nines: Array[Rect2] = []
 	var text_y: Array[float] = []
+	var texts: Array[String] = []
 
 	func _init() -> void:
 		super(null)
+
+	func r(_x: float, _y: float, _w: float, _h: float, _colour: Color) -> void:
+		pass
+
+	func chunky(
+		text: String,
+		_x: float,
+		_y: float,
+		_colour: Color,
+		_scale: float = 1.0,
+		_align: int = HORIZONTAL_ALIGNMENT_LEFT
+	) -> float:
+		texts.append(text)
+		return 0.0
+
+	func atk(
+		text: String,
+		_cx: float,
+		_baseline: float,
+		_art_size: float,
+		_colour: Color,
+		_weight: int = 650,
+		_align: int = HORIZONTAL_ALIGNMENT_CENTER
+	) -> void:
+		texts.append(text)
 
 	func nine(
 		_frame: Texture2D,
@@ -569,23 +639,25 @@ class _PenRecorder:
 		pass
 
 	func pix(
-		_text: String,
+		text: String,
 		_x: float,
 		y: float,
 		_colour: Color,
 		_scale: float = 1.0,
 		_align: int = HORIZONTAL_ALIGNMENT_LEFT
 	) -> float:
+		texts.append(text)
 		text_y.append(y)
 		return 0.0
 
 	func caps(
-		_text: String,
+		text: String,
 		_x: float,
 		y: float,
 		_colour: Color,
 		_scale: float = 1.0,
 		_align: int = HORIZONTAL_ALIGNMENT_LEFT
 	) -> float:
+		texts.append(text)
 		text_y.append(y)
 		return 0.0

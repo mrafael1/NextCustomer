@@ -84,12 +84,10 @@ const SPARKLE_SIZE := Vector2(10, 10)
 const RING := 6
 const RING_S := 0.5
 const RING_RADIUS := 26.0
-## NEW! under the landed mini (the reveal's burst, smaller).
-const BURST := preload("res://art/effects/sticker_burst.png")
-const BURST_SIZE := Vector2(62, 34)
+## NEW under the landed mini: the FIGURINE BOOK's tomato NEW tag (ToyNewTag: an ink-outlined
+## price tag with paper pixel words; polish audit v1.36, in place of the olive burst that read
+## poorly on the dark teal), its middle BURST_DROP px under the mini's.
 const BURST_DROP := 36.0
-const BURST_ROTATION := -8.0
-const NEW_TEXT := "NEW!"
 ## The tick: the LED and the plate hop TICK_RISE art px.
 const TICK_RISE := 2
 ## The slap: the band turns gold SLAP_GOLD_S in; the minis hop HOP_RISE art px for HOP_S each,
@@ -140,7 +138,7 @@ var _card: ToyCompletedCard
 var _shade: ColorRect
 var _flyer: TextureRect
 var _sparkles: Array[TextureRect] = []
-var _burst: TextureRect
+var _burst: ToyNewTag
 ## This join's pieces and state.
 var _machine: ToyMachineView
 var _lamp: TextureRect
@@ -181,17 +179,8 @@ func _init() -> void:
 		sparkle.z_index = 3
 		add_child(sparkle)
 		_sparkles.append(sparkle)
-	_burst = UiKit.sprite(BURST)
-	_burst.size = BURST_SIZE
-	_burst.pivot_offset = BURST_SIZE / 2.0
-	_burst.rotation_degrees = BURST_ROTATION
+	_burst = ToyNewTag.new()
 	_burst.z_index = 3
-	var new_text: Label = UiKit.body_label(NEW_TEXT, 12, Palette.INK)
-	new_text.add_theme_font_override("font", ArtStyle.bold_font(800))
-	new_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	new_text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	new_text.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_burst.add_child(new_text)
 	add_child(_burst)
 	_card = ToyCompletedCard.new()
 	_card.z_index = 4
@@ -304,7 +293,7 @@ func flyer() -> TextureRect:
 	return _flyer
 
 
-func new_burst() -> TextureRect:
+func new_burst() -> ToyNewTag:
 	return _burst
 
 
@@ -627,10 +616,10 @@ func _apply_tick() -> void:
 		_chip.position = _chip_rest - Vector2(0, rise * ArtStyle.ART_SCALE)
 	_machine.nudge_floor(rise)
 	var shown: bool = not _complete and _started(&"tick") and not _started(&"away")
-	_burst.visible = shown
+	_burst.set_shown(shown, true)
 	if shown:
 		var target: Vector2 = _lineup.mini_centre(maxi(_index, 0))
-		_burst.position = _grid_v(target + Vector2(0, BURST_DROP) - BURST_SIZE / 2.0)
+		_burst.position = _grid_v(target + Vector2(0, BURST_DROP) - _burst.size / 2.0)
 		_burst.modulate.a = 1.0 if _reduced else clampf(_since(&"tick") * 5.0, 0.0, 1.0)
 
 

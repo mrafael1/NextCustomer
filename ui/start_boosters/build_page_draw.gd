@@ -14,6 +14,8 @@ const SIGN := preload("res://art/frames/sign.png")
 const STAMP_RING := preload("res://art/icons/stamp_ring.png")
 ## The x of the lockers' handles painted in the room (y 140, 5 x 26): the held slots' dashes
 ## break round them.
+## The ticker while the packs wait for the BADGE PINS step (cleared while the step is open).
+const PINS_FIRST_HINT := "BADGE PINS FIRST · PRESS P"
 const LOCKER_HANDLES: Array[int] = [238, 298, 358, 418]
 ## A card behind a pack's front card shows its frame top and its name band (rows 53 on).
 const BAND_ROW := 53
@@ -828,8 +830,10 @@ static func hint_line(page: BuildPage) -> String:
 	var line: String = "HOVER A PACK, CLICK TO PICK"
 	if page.message != "" and page.now - page.message_t < 2.0:
 		line = page.message
+	elif page.pins_open:
+		line = ""
 	elif page.packs_held():
-		line = "BADGE PINS FIRST · P"
+		line = PINS_FIRST_HINT
 	elif page.hint != "":
 		line = page.hint
 	elif page.picked() >= 0:
