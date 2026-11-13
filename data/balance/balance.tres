@@ -72,6 +72,7 @@
 [ext_resource type="Resource" path="res://data/weeks/holiday_rush.tres" id="w4_holiday_rush"]
 [ext_resource type="Resource" path="res://data/weeks/clearance_week.tres" id="w5_clearance_week"]
 [ext_resource type="Resource" path="res://data/balance/machine.tres" id="m1_machine"]
+[ext_resource type="Resource" path="res://data/balance/highlight.tres" id="h1_highlight"]
 
 [resource]
 script = ExtResource("1_balance")
@@ -114,3 +115,4 @@ pair_choice_min_completed = 6
 regular_offer_max = 3
 packs_redraws_per_run = 1
 machine = ExtResource("m1_machine")
+highlight = ExtResource("h1_highlight")

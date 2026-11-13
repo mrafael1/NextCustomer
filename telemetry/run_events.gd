@@ -152,8 +152,9 @@ static func start_choice(run: RunState, decide_ms: int) -> Dictionary:
 
 
 ## The `run_end` event of a won or lost run: the result, the shift reached, the last checkout's
-## total, the run's length, the upgrades owned and the write-ups (v0.65; a lost run's last one
-## got the cashier fired).
+## total, the run's length, the upgrades owned, the write-ups (v0.65; a lost run's last one
+## got the cashier fired) and the final receipt's BEST line (`highlight`, v1.37:
+## RunHighlight.log_fields, {} for none).
 static func run_end(run: RunState, run_ms: int) -> Dictionary:
 	return {
 		"result": "win" if run.phase == RunState.Phase.WON else "loss",
@@ -162,6 +163,19 @@ static func run_end(run: RunState, run_ms: int) -> Dictionary:
 		"run_ms": run_ms,
 		"upgrades": upgrade_ids(run.upgrades),
 		"write_ups": run.write_ups,
+		"highlight": RunHighlight.log_fields(RunHighlight.pick(run.history, run.balance.highlight)),
+	}
+
+
+## The checkout's best item (v1.37, the final receipt's BEST line), for the `checkout` event: its
+## biggest single payout (`best_payout`, 0: none) and that item's id (`best_card`, "": none),
+## from the shift's record (RunHighlight.record_best).
+static func best_fields(run: RunState) -> Dictionary:
+	var record: ShiftRecord = run.history[-1] if not run.history.is_empty() else null
+	var card: CardDefinition = record.best_card if record != null else null
+	return {
+		"best_payout": record.best_payout if card != null else 0,
+		"best_card": String(card.id) if card != null else "",
 	}
 
 

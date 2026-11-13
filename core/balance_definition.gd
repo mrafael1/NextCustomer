@@ -103,6 +103,9 @@ extends Resource
 ## The RECEIPT REWARDS machine's rules (#77, data/balance/machine.tres), so a balance copy can
 ## point at a different machine file.
 @export var machine: MachineDefinition
+## The final receipt's BEST line (v1.37, data/balance/highlight.tres): its bars, kinds and words
+## (RunHighlight). None: no line.
+@export var highlight: HighlightDefinition
 
 
 ## The aisle a card is stocked from (full build plan 7.2), or null for a staple or a coupon. A

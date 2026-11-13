@@ -65,7 +65,8 @@ func after_test() -> void:
 
 
 ## A run lost on shift 2: the headline, a rule, shift 1 (passed, its visit binned and its
-## inspection on dim lines), shift 2 (failed), the shortfall, a rule and the coins, "you have ?"
+## inspection on dim lines), shift 2 (failed), the shortfall, a rule, the BEST line (v1.37) and the
+## coins, "you have ?"
 ## when the profile wasn't saved. Shift and coin lines are FinalReceipt.WIDTH wide or less.
 func test_a_lost_run_lists_its_shifts_then_the_shortfall_and_the_coins() -> void:
 	var screen: ShiftScreen = await _screen()
@@ -102,14 +103,16 @@ func test_a_lost_run_lists_its_shifts_then_the_shortfall_and_the_coins() -> void
 				"  2  20€ / 35€      fail",
 				shortfall,
 				rule,
+				# The BEST line (v1.37): shift 1 made ×3.2 its quota; the text names it, no shift on the right.
+				"         Over quota · Shift 1 · ×3.2",
 			]
 		)
 	)
 	expected.append_array(Array(FinalReceipt.coin_lines(payout, -1)))
 	assert_array(Array(texts)).is_equal(expected)
 	assert_str(texts[-1]).ends_with("(you have ?)")
-	assert_int(screen._results.coin_line_index()).is_equal(8)
-	for index: int in [2, 3, 5, 8, 9]:
+	assert_int(screen._results.coin_line_index()).is_equal(9)
+	for index: int in [2, 3, 5, 9, 10]:
 		assert_int(texts[index].length()).is_less_equal(FinalReceipt.WIDTH)
 
 
