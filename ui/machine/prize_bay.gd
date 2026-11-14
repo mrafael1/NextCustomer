@@ -46,9 +46,10 @@ const STRIP_INSET := 8.0
 const STRIP_LIGHTS: Array[Color] = [Palette.CREAM_SHADE, Palette.TEAL_PALE, Palette.GOLD]
 ## The placeholder's dashes and "?" before the draw, and the line under the slots.
 const DASH := 4.0
-const HINT := "%d sealed prizes drop here"
-const HINT_SIZE := 12
-const HINT_WEIGHT := 700
+## The empty bay's hint, in hard pixel capitals since polish batch 2 (MachineLine, 2x words; the
+## numbers in the chunky digits), centred HINT_DROP under the floor line.
+const HINT := "%d SEALED PRIZES DROP HERE"
+const HINT_DROP := 28.0
 ## The floor: its line (bay y), its ticks every TICK_STEP, and the SKIP bin's hatch.
 const FLOOR_Y := 428.0
 const TICK_STEP := 32.0
@@ -69,6 +70,8 @@ var _gold: bool = false
 var _night: bool = false
 var _chase: float = 0.0
 var _look: MachineLook = MachineLook.new()
+## The empty bay's hint line.
+var _hint: MachineLine
 
 
 func _init() -> void:
@@ -86,6 +89,9 @@ func _init() -> void:
 		mark.visible = false
 		add_child(mark)
 		_marks.append(mark)
+	_hint = MachineLine.make("Hint", "", Palette.TEAL_LIGHT)
+	_hint.visible = false
+	add_child(_hint)
 
 
 ## Hooks this part to the machine: RewardMachineView calls it once, when it builds the part
@@ -197,6 +203,10 @@ func frame(t: float) -> void:
 			var card: Rect2 = PrizeRow.card_rect(index, count)
 			card.position -= RewardMachineView.BAY_POSITION
 			mark.centre_in(card)
+	_hint.visible = not drawn and not _idle
+	if _hint.visible and _hint.text() != HINT % count:
+		_hint.show_text(HINT % count, Palette.TEAL_LIGHT)
+		_hint.centre_in(Rect2(0.0, FLOOR_Y + HINT_DROP - _hint.size.y / 2.0, SIZE.x, _hint.size.y))
 	queue_redraw()
 
 
@@ -230,15 +240,6 @@ func _draw() -> void:
 		_draw_pedestal(index)
 		if not _drawn:
 			_dashed(card, Palette.RUBBER if _idle else Palette.STEEL_DARK)
-	if not _drawn and not _idle:
-		MachineArt.centred_text(
-			self,
-			HINT % _n,
-			Vector2(SIZE.x / 2.0, FLOOR_Y + 28.0),
-			ArtStyle.bold_font(HINT_WEIGHT),
-			HINT_SIZE,
-			Palette.TEAL_LIGHT
-		)
 
 
 ## The night face's bulbs along the frame's top, chasing with the marquee's.

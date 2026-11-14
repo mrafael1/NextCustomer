@@ -156,11 +156,17 @@ func save_and_quit() -> void:
 	_screen.get_tree().change_scene_to_file(ShiftScreen.TITLE_SCREEN)
 
 
-## A saved run resumed: the WELCOME BACK slip under the top bar (not on a run's first start).
+## A saved run resumed: the WELCOME BACK slip under the top bar (not on a run's first start); at
+## the machine low over its cabinet, centred on the screen, clear of the marquee (polish batch 2).
 func welcome_back() -> void:
 	var run: RunState = _screen.run
 	var centre: float = (pause.size.x + PauseMenu.REGISTER_COLUMN) / 2.0
-	welcome.show_for("Shift %d/%d" % [run.shift_index + 1, run.shift_count()], centre)
+	var top: float = WelcomeSlip.TOP
+	if RunState.MACHINE_PHASES.has(run.phase):
+		var stage: Rect2 = _screen._stage.get_global_rect()
+		centre = stage.get_center().x
+		top = stage.position.y + WelcomeSlip.MACHINE_TOP * stage.size.y / ShiftStage.SIZE.y
+	welcome.show_for("Shift %d/%d" % [run.shift_index + 1, run.shift_count()], centre, top)
 
 
 ## Keys while the screen runs (opening) and while paused (the pause's, the options').

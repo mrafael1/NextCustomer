@@ -362,7 +362,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		KEY_TAB:
 			var step: int = -1 if key.shift_pressed else 1
 			_on_sort_picked(posmod(_sort + step, BookOrder.Sort.size()))
-		KEY_ESCAPE, KEY_BACKSPACE:
+		KEY_ESCAPE, KEY_BACKSPACE, KEY_B:
 			if not key.echo:
 				_go_back()
 
