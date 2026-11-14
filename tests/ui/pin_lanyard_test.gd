@@ -121,8 +121,8 @@ func test_one_and_two_pins_are_laid_out_clear() -> void:
 				assert_bool(badge.encloses(face)).override_failure_message(where).is_true()
 				assert_bool(view.encloses(face)).is_true()
 				assert_bool(lanyard.hits()[index].get_global_rect() == face).is_true()
-				assert_str(faces[index].letters()).is_equal(
-					(load(pins[index]) as PinDefinition).face_text
+				assert_object(faces[index].icon()).is_same(
+					(load(pins[index]) as PinDefinition).icon
 				)
 			if faces.size() == 1:
 				var middle: float = faces[0].get_global_rect().get_center().x
@@ -259,20 +259,24 @@ func test_the_card_respects_reduced_motion() -> void:
 	assert_vector(lanyard.position).is_equal(PinLanyard.RECT.position)
 
 
-## A pin's icon (PinDefinition.icon) takes the letters' place on its face.
+## A pin's icon (PinDefinition.icon) takes the letters' place on its face; a pin without one
+## shows its letters, and a locked one "?".
 func test_an_icon_replaces_the_letters() -> void:
 	var pin: PinDefinition = (load(PRICE_GUN) as PinDefinition).duplicate()
 	var face: PinFace = auto_free(PinFace.new(PinLanyard.PIN_SIZE))
-	face.show_pin(pin, 0)
-	assert_str(face.letters()).is_equal(pin.face_text)
-	assert_object(face.icon()).is_null()
-	pin.icon = PlaceholderTexture2D.new()
-	(pin.icon as PlaceholderTexture2D).size = Vector2(14, 14)
 	face.show_pin(pin, 0)
 	assert_str(face.letters()).is_empty()
 	assert_object(face.icon()).is_same(pin.icon)
 	var icon: Control = face.get_node("Icon") as Control
 	assert_bool(Rect2(Vector2.ZERO, face.size).encloses(Rect2(icon.position, icon.size))).is_true()
+	face.show_pin(pin, 0, true)
+	assert_str(face.letters()).is_equal(PinFace.LOCKED_TEXT)
+	assert_object(face.icon()).is_null()
+	pin.icon = null
+	pin.icon_big = null
+	face.show_pin(pin, 0)
+	assert_str(face.letters()).is_equal(pin.face_text)
+	assert_object(face.icon()).is_null()
 
 
 ## The pins worn on a new shift show again after the run's shift starts (the screen's refresh).

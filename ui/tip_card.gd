@@ -463,6 +463,8 @@ func _build_head(tip: TipSpec, width: float) -> float:
 		icon = keyword_icon(tip.title)
 	var has_icon: bool = icon != null or icon_node != null
 	if icon_node != null:
+		# A node larger than the box (a pin tip's 32 px face) gets a box around it.
+		box_size = maxf(box_size, icon_node.size.x + ICON_BORDER * 2.0)
 		_rect("IconBox", Rect2(x, y, box_size, box_size), Palette.INK)
 		_rect("IconFace", Rect2(x, y, box_size, box_size).grow(-ICON_BORDER), Palette.PAPER)
 		if icon_node.get_parent() != self:

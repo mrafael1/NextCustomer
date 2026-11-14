@@ -1,6 +1,8 @@
 [gd_resource type="Resource" script_class="PinDefinition" format=3]
 
 [ext_resource type="Script" path="res://core/pin_definition.gd" id="1_pin"]
+[ext_resource type="Texture2D" uid="uid://4vo7xysqgnhv" path="res://art/pin_icons/day_off.png" id="9_icon"]
+[ext_resource type="Texture2D" uid="uid://cfjq44dw4s118" path="res://art/pin_icons/day_off_big.png" id="10_icon_big"]
 
 [resource]
 script = ExtResource("1_pin")
@@ -9,4 +11,6 @@ display_name = "Shift off"
 rule_text = "Once a week, skip a shift (not payday). It counts as quota met"
 face_text = "OFF"
 face_colour = 1
+icon = ExtResource("9_icon")
+icon_big = ExtResource("10_icon_big")
 days_off_per_week = 1

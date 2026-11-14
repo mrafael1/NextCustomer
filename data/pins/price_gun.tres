@@ -1,6 +1,8 @@
 [gd_resource type="Resource" script_class="PinDefinition" format=3]
 
 [ext_resource type="Script" path="res://core/pin_definition.gd" id="1_pin"]
+[ext_resource type="Texture2D" uid="uid://dowah2x176xai" path="res://art/pin_icons/price_gun.png" id="9_icon"]
+[ext_resource type="Texture2D" uid="uid://dad6wnedrm1qq" path="res://art/pin_icons/price_gun_big.png" id="10_icon_big"]
 
 [resource]
 script = ExtResource("1_pin")
@@ -9,5 +11,7 @@ display_name = "Price gun"
 rule_text = "Once a shift, add a family to one item"
 face_text = "TAG"
 face_colour = 3
+icon = ExtResource("9_icon")
+icon_big = ExtResource("10_icon_big")
 relabels_per_shift = 1
 relabel_tags = PackedStringArray("Breakfast", "Bakery", "Produce", "Dairy", "Frozen", "Snack", "Household", "Clearance")

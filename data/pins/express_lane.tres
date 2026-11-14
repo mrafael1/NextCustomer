@@ -4,6 +4,8 @@
 [ext_resource type="Script" path="res://core/inspection_definition.gd" id="2_event"]
 [ext_resource type="Script" path="res://core/inspections/inspection_rule.gd" id="3_rule"]
 [ext_resource type="Script" path="res://core/inspections/end_slots_multiplier_rule.gd" id="4_ends"]
+[ext_resource type="Texture2D" uid="uid://bc3mqpk5lw5hv" path="res://art/pin_icons/express_lane.png" id="9_icon"]
+[ext_resource type="Texture2D" uid="uid://w5riuiq40fm7" path="res://art/pin_icons/express_lane_big.png" id="10_icon_big"]
 
 [sub_resource type="Resource" id="Resource_ends"]
 script = ExtResource("4_ends")
@@ -27,5 +29,7 @@ display_name = "Express lane"
 rule_text = "2 fewer slots; the first and last items pay ×2"
 face_text = "EXP"
 face_colour = 7
+icon = ExtResource("9_icon")
+icon_big = ExtResource("10_icon_big")
 slot_delta = -2
 events = Array[ExtResource("2_event")]([SubResource("Resource_event")])

@@ -1,0 +1,19 @@
+; Double checkout's pin icon (large): a receipt printed x2.
+; Drawn for the pin's own face colour (PinFace.COLOURS double_checkout: face x, band V); 12x14 art px, for the
+; PinFace 22-30 cell faces (badge 44, pin row 48, unlock card 60 px) and the start screen's 20-28 art px faces. Pin icons review (docs/art/mockups/pin_icons.html), 2026-11-13; picked by the user on 2026-11-14 (the recommended candidate), worn as PinDefinition.icon (small) or icon_big (large).
+@size 12x14
+@kind icon
+.##########.
+#wwwwwwwwwb#
+#wwwwwwwwwb#
+#wwwwwwxxwb#
+#wwwwwxwwxb#
+#wxwxwwwwxb#
+#wwxwwwwxwb#
+#wxwxwwxwwb#
+#wwwwwxwwwb#
+#wwwwwxxxxb#
+#wwwwwwwwwb#
+#w::::::::b#
+#w#w#w#w#w#.
+.#.#.#.#.#..

@@ -15,14 +15,20 @@ extends Resource
 @export var display_name: String = ""
 ## The pin's rule in one line, as the badge screen and the cart reveal show it.
 @export var rule_text: String = ""
-## The few letters on the pin's face (e.g. "2×1").
+## The few letters on the pin's face when it has no icon (e.g. "2×1"); only a fallback now that
+## every pin has its icons (icon, icon_big).
 @export var face_text: String = ""
 ## The face's colour, counted from 1 in the badge screen's pin colours (PinFace.COLOURS: 1 tomato,
 ## 2 teal, 3 mustard, 4 velvet, 5 green, 6 gold, 7 brown, 8 slate); 0 goes by catalogue place.
 @export var face_colour: int = 0
-## The icon on the pin's face (PinFace), on the art's 2 px grid; none yet: the face shows
-## face_text. Display only.
+## The icon on the pin's small faces (art/pin_icons/<id>.png, up to 8x8 art px): the lanyard, the
+## pin tip and the start screen's compact rows and corkboard badge (PinFace, PinStepDraw). None:
+## the face shows face_text. Display only.
 @export var icon: Texture2D
+## The icon on the pin's large faces (art/pin_icons/<id>_big.png, up to 14x14 art px): the badge
+## screen, the new-pin card and the start screen's big rows and badge card. None: the small icon.
+## Display only.
+@export var icon_big: Texture2D
 ## The milestone that unlocks it (UnlockCheck); none: owned from the start.
 @export var unlock_condition: UnlockCondition
 ## Cards added to the run's starting deck (after the starter pack is taken).

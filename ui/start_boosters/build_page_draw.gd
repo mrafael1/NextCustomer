@@ -563,7 +563,7 @@ static func _pins_board(pen: ArtPen, page: BuildPage) -> void:
 			pop = 2 if pu < 0.07 else 1
 		var pin: PinDefinition = page.run.pins[0]
 		PinStepDraw.face(
-			pen, pin, page.pins.index_of(pin), cork.x - pop, cork.y - pop, 16 + pop * 2
+			pen, pin, page.pins.index_of(pin), cork.x - pop, cork.y - pop, 16 + pop * 2, 16
 		)
 	else:
 		PinStepDraw.empty(pen, cork.x, cork.y, 16)
