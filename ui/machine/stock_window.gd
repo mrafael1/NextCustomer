@@ -8,10 +8,12 @@ extends Control
 ## art/machine/sealed_ticket_*.png, their pips on them) on steel pedestals, each over its chute's
 ## current odds (MachineChuteInfo.odds.rarity_share: MachineOdds at the shift's odds level) on an
 ## LED odds plate (charcoal, scanlines, a backlight in its rarity's colour) with the share in hard
-## pixel digits in that colour (a 0% share grey, its sealed ticket faded). One legend along the
-## sill names the rarities by their pips ("● COMMON ◆◆ RARE ★★★ LEGENDARY"), so the plates carry
-## only their shares. The tickets are drawn on the pixel grid through the sharp-pixel material (a
-## layer of their own, integer 2x, snapped), never filtered soft (v0.53). A column whose chute
+## pixel digits in that colour (a 0% share grey, its stand shuttered: polish batch 2, the PREMIUM
+## visit's COMMON stand no longer shows an empty ticket). One legend along the sill names the
+## rarities by the tickets' own pips (PrizeTicket.PIP_GRIDS: "● COMMON ◆◆ RARE ★★★ LEGENDARY",
+## drawn as the tickets draw them since polish batch 2), so the plates carry only their shares.
+## The tickets are drawn on the pixel grid through the sharp-pixel material (a layer of their own,
+## integer 2x, snapped), never filtered soft (v0.53). A column whose chute
 ## isn't lit is shut (dark, its shutter down); the idle machine's are both shut. Each column has a
 ## spot lamp; a hovered key's column glows brighter. Once a chute is chosen only its column stays
 ## lit, through the draw.
@@ -50,11 +52,14 @@ const RIM_HOVER_INK: Array[Color] = [Palette.GREY_LIGHT, Palette.TEAL_LIGHT, Pal
 ## The sill legend's pips and words, per rarity.
 const LEGEND_PIP_INK: Array[Color] = [Palette.STEEL_HIGHLIGHT, Palette.TEAL_LIGHT, Palette.GOLD]
 const LEGEND_INK: Array[Color] = [Palette.STEEL_HIGHLIGHT, Palette.TEAL_PALE, Palette.GOLD]
-const LEGEND_PIPS: Array[Array] = [
-	[".#.", "###", ".#."],
-	[".#...#.", "###.###", ".#...#."],
-	["..#.....#.....#..", "#####.#####.#####", ".###...###...###.", ".#.#...#.#...#.#."],
-]
+## The legend's pips: the tickets' (PrizeTicket.PIP_GRIDS, 5x5 art px each, PIP_STEP apart).
+const LEGEND_PIP_SIZE := 5
+const LEGEND_PIP_STEP := 6
+## A 0% stand's shutter (polish batch 2): its slats' pitch and the ink of its frame and slats.
+const STAND_SLAT := 6.0
+const STAND_FACE := Palette.CHARCOAL
+const STAND_SLAT_INK := Palette.STEEL_DARKEST
+const STAND_FRAME_INK := Palette.STEEL_DARK
 ## Art px between a pip and its word, and between one rarity's word and the next pip.
 const LEGEND_PIP_GAP := 2
 const LEGEND_GAP := 8
@@ -98,6 +103,8 @@ var _legend: Array[MachineLine] = []
 var _tickets: Control
 ## The 0% shares' sealed tickets, drawn on a layer of their own faded to ZERO_ALPHA.
 var _faded: Control
+## The 0% stands' shutters, over the tickets (polish batch 2).
+var _shut: Control
 ## The week event's odds tag's line per column (v0.70), and the raise each column shows (0: none).
 var _week_odds: Array[MachineLine] = []
 var _week_shown: Array[int] = [0, 0]
@@ -123,6 +130,12 @@ func _init() -> void:
 	ArtStyle.use_pixel_material(_faded)
 	_faded.draw.connect(_draw_tickets.bind(true))
 	_tickets.add_child(_faded)
+	_shut = Control.new()
+	_shut.name = "ShutStands"
+	_shut.size = SIZE
+	_shut.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_shut.draw.connect(_draw_shut_stands)
+	add_child(_shut)
 	for column: int in range(COLUMNS):
 		for rarity: int in range(3):
 			var odds: MachineLine = MachineLine.new()
@@ -310,6 +323,7 @@ func frame(t: float) -> void:
 	queue_redraw()
 	_tickets.queue_redraw()
 	_faded.queue_redraw()
+	_shut.queue_redraw()
 
 
 ## `column`'s week odds tag line, `dy` px down (a restock's offset): shown while it has a raise.
@@ -354,14 +368,14 @@ func _add_legend() -> void:
 		)
 		_legend.append(line)
 		add_child(line)
-		var pip: float = (LEGEND_PIPS[rarity][0] as String).length() * art
+		var pip: float = legend_pip_width(rarity) * art
 		widths.append(pip + LEGEND_PIP_GAP * art + line.width())
 		total += widths[-1] + (LEGEND_GAP * art if rarity > 0 else 0.0)
 	var sill: Rect2 = sill_rect()
 	var x: float = MachineArt.snap((SIZE.x - total) / 2.0)
 	var top: float = MachineArt.snap(sill.get_center().y - _legend[0].size.y / 2.0)
 	for rarity: int in range(3):
-		var pip: float = (LEGEND_PIPS[rarity][0] as String).length() * art
+		var pip: float = legend_pip_width(rarity) * art
 		_legend[rarity].position = Vector2(x + pip + LEGEND_PIP_GAP * art, top)
 		x += widths[rarity] + LEGEND_GAP * art
 
@@ -390,23 +404,28 @@ func _draw_sill() -> void:
 	draw_rect(sill, Palette.STEEL_DARK)
 	draw_rect(Rect2(sill.position, Vector2(sill.size.x, p)), Palette.STEEL_SHADE)
 	for rarity: int in range(3):
-		var rows: Array = LEGEND_PIPS[rarity]
 		var line: MachineLine = _legend[rarity]
-		var pip_width: float = (rows[0] as String).length() * p
-		var left: float = line.position.x - LEGEND_PIP_GAP * p - pip_width
+		var left: float = line.position.x - (LEGEND_PIP_GAP + legend_pip_width(rarity)) * p
 		var top: float = (
-			line.position.y + floorf((ArtStyle.PIXEL_CAP_HEIGHT - rows.size()) / 2.0) * p
+			line.position.y + floorf((ArtStyle.PIXEL_CAP_HEIGHT - LEGEND_PIP_SIZE) / 2.0) * p
 		)
-		_pattern(rows, Vector2(left, top), LEGEND_PIP_INK[rarity])
+		for pip: int in range(rarity + 1):
+			var at: Vector2 = Vector2(left + pip * LEGEND_PIP_STEP * p, top)
+			_pip(PrizeTicket.PIP_GRIDS[rarity], at, LEGEND_PIP_INK[rarity])
 
 
-func _pattern(rows: Array, at: Vector2, colour: Color) -> void:
+## The legend's pips for `rarity` (one dot, two diamonds, three stars): their width in art px.
+static func legend_pip_width(rarity: int) -> int:
+	return (rarity + 1) * LEGEND_PIP_STEP - (LEGEND_PIP_STEP - LEGEND_PIP_SIZE)
+
+
+## One ticket pip (`grid`: 5x5 cells, 'x' ink) at `at`, in `ink`.
+func _pip(grid: String, at: Vector2, ink: Color) -> void:
 	var p: float = MachineArt.PIXEL
-	for y: int in rows.size():
-		var row: String = rows[y]
-		for x: int in row.length():
-			if row[x] == "#":
-				draw_rect(Rect2(at + Vector2(x, y) * p, Vector2(p, p)), colour)
+	for cell: int in range(grid.length()):
+		if grid[cell] == "x":
+			var offset: Vector2 = Vector2(cell % LEGEND_PIP_SIZE, floori(cell / 5.0)) * p
+			draw_rect(Rect2(at + offset, Vector2(p, p)), ink)
 
 
 ## A lit column: its spot lamp and light cone, its three sealed tickets on pedestals over their
@@ -461,7 +480,8 @@ func _draw_plate(column: int, rarity: int, dy: float, hover: bool) -> void:
 		draw_rect(Rect2(led.position.x, y, led.size.x, p / 2.0), Color(Palette.INK, SCANLINE_ALPHA))
 		y += p * 2.0
 	var rim: Rect2 = Rect2(led.position, Vector2(led.size.x, RIM_HEIGHT))
-	draw_rect(rim, RIM_HOVER_INK[rarity] if hover else RIM_INK[rarity])
+	var ink: Color = RIM_HOVER_INK[rarity] if hover else RIM_INK[rarity]
+	draw_rect(rim, STAND_SLAT_INK if stand_shut(column, rarity) else ink)
 
 
 ## `column`'s week odds tag, `dy` px down: an LED strip like the plates', its rim gold.
@@ -492,6 +512,41 @@ func _draw_tickets(faded: bool = false) -> void:
 			)
 			var ticket: Rect2 = Rect2(MachineArt.snap_point(at), TICKET_SIZE)
 			layer.draw_texture_rect(TICKETS[rarity], ticket, false)
+
+
+## The lit columns' 0% stands, shuttered: a charcoal shutter in a steel frame over the ticket and
+## its pedestal, its slats down (the shut column's look, in small).
+func _draw_shut_stands() -> void:
+	var p: float = MachineArt.PIXEL
+	for column: int in range(COLUMNS):
+		if not _column_lit[column]:
+			continue
+		for rarity: int in range(3):
+			if not stand_shut(column, rarity):
+				continue
+			var stand: Rect2 = stand_rect(column, rarity)
+			_shut.draw_rect(stand, Palette.INK)
+			_shut.draw_rect(stand.grow(-p), STAND_FRAME_INK)
+			var face: Rect2 = stand.grow(-2.0 * p)
+			_shut.draw_rect(face, STAND_FACE)
+			var y: float = face.position.y + STAND_SLAT
+			while y < face.end.y:
+				_shut.draw_rect(Rect2(face.position.x, y, face.size.x, p), STAND_SLAT_INK)
+				y += STAND_SLAT
+
+
+## Whether `column`'s `rarity` stand is shuttered now (lit, its share 0%).
+func stand_shut(column: int, rarity: int) -> bool:
+	var texts: PackedStringArray = _texts[column]
+	return _column_lit[column] and texts.size() == 3 and texts[rarity] == "0%"
+
+
+## `column`'s `rarity` stand (its ticket and pedestal) at its offset now, window coordinates.
+func stand_rect(column: int, rarity: int) -> Rect2:
+	var x: float = _ticket_x(column, rarity) - (PEDESTAL_SIZE.x - TICKET_SIZE.x) / 2.0
+	var top: float = TICKET_TOP - 2.0 * MachineArt.PIXEL + _column_offset[column]
+	var bottom: float = TICKET_TOP + TICKET_SIZE.y + PEDESTAL_SIZE.y + _column_offset[column]
+	return Rect2(x, top, PEDESTAL_SIZE.x, bottom - top)
 
 
 ## A shut column: dark, its shutter's slats down.

@@ -5,9 +5,13 @@ extends Control
 ## left of the receipt slot, 340 px wide. Its message is hard pixel lettering at 2x in gold
 ## (MachineLine, chunky since v0.99: its words in the chunky capitals, PixelWords.Sheet.
 ## CHUNKY_CAPS, its amounts in the chunky price-gun digits, PixelWords.Sheet.CHUNKY, its marks
-## ✓ ✕ drawn as pixels), with its sub line in bold Atkinson 12 (teal pale) under it; a message
-## too wide for the glass wraps onto a second line instead of shrinking (the sub line then gives
-## way). The SKIP bin bins a draw (2026-10-29, SkipBin).
+## ✓ ✕ drawn as pixels), with its sub line under it in teal pale: hard pixel capitals since polish
+## batch 2 (MachineLine, 2x words: the audit's body-font, "or skip the draw" was anti-aliased body
+## text on all-pixel art), keeping the last " · " parts that fit the glass (pixel_sub: "premium ·
+## rare or legendary · pick a chute" shows PICK A CHUTE, the marquee already saying RARE OR
+## LEGENDARY), else in bold Atkinson 12 as before; a message too wide for the glass wraps onto a
+## second line instead of shrinking (the sub line then gives way). The SKIP bin bins a draw
+## (2026-10-29, SkipBin).
 ## Atkinson has no ✓ or ✕: the sub line's font falls back to JetBrains Mono (ArtStyle.MONO_FONT)
 ## for them, the same on desktop and on the web build (marked_font).
 ##
@@ -67,6 +71,8 @@ var view: RewardMachineView
 var _lines: Array[MachineLine] = []
 var _message: String = ""
 var _sub: Label
+## The sub line in pixel capitals (pixel_sub); hidden when none of it fits: _sub shows instead.
+var _sub_line: MachineLine
 var _icon: TextureRect
 ## The wait point's message and sub line (show_message), shown when the plan has no line of its
 ## own at the time.
@@ -93,6 +99,10 @@ func _init() -> void:
 	_sub.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_sub.clip_text = true
 	add_child(_sub)
+	_sub_line = MachineLine.new()
+	_sub_line.name = "SubLine"
+	_sub_line.visible = false
+	add_child(_sub_line)
 	_icon = UiKit.sprite(TICKET_ICON)
 	_icon.name = "TicketIcon"
 	_icon.size = TICKET_ICON.get_size() * ICON_SCALE
@@ -155,9 +165,25 @@ func ticket_icon() -> TextureRect:
 	return _icon
 
 
-## The display's body text (its sub line), for layout tests.
+## The display's body text (its sub line, when it shows in Atkinson), for layout tests.
 func labels() -> Array[Label]:
 	return [_sub]
+
+
+## The sub line's pixel capitals (null while it shows in Atkinson or not at all), for tests.
+func sub_line() -> MachineLine:
+	return _sub_line if _sub_line.visible else null
+
+
+## `sub` as the pixel capitals show it in `room` px: in capitals, its last " · " parts that fit
+## (the whole line when it fits); "" when not even its last part does.
+static func pixel_sub(sub: String, room: float) -> String:
+	var parts: PackedStringArray = sub.to_upper().split(" · ", false)
+	for first: int in range(parts.size()):
+		var line: String = " · ".join(parts.slice(first))
+		if MachineLine.width_of(line) <= room:
+			return line
+	return ""
 
 
 ## Hooks this part to the machine: RewardMachineView calls it once, when it builds the part
@@ -401,6 +427,13 @@ func _show(message: String, sub: String) -> void:
 	_sub.add_theme_font_size_override("font_size", _step(sub, BOLD_WEIGHT, SUB_STEPS, room))
 	_sub.position = Vector2(GLASS_RECT.position.x + PAD, SUB_TOP)
 	_sub.size = Vector2(room, SUB_HEIGHT)
+	var pixel: String = pixel_sub(sub, room) if _sub.visible else ""
+	_sub_line.visible = not pixel.is_empty()
+	if _sub_line.visible:
+		_sub.visible = false
+		if _sub_line.text() != pixel:
+			_sub_line.show_text(pixel, Palette.TEAL_PALE)
+		_sub_line.centre_in(Rect2(0.0, SUB_TOP, SIZE.x, SUB_HEIGHT))
 
 
 ## `message` as it fits `room` px of glass: one line, or split at the space nearest its middle

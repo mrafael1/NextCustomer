@@ -70,6 +70,9 @@ const OFF_NOTICE := (
 const SHELF_TEXT := "FIGURINE BOOK"
 const DONE_TEXT := "DONE"
 const DONE_SOUND := "ui_back"
+## The keys that draw from the picked machine, and the FIGURINE BOOK's (polish batch 2).
+const DRAW_KEYS: Array[Key] = [KEY_ENTER, KEY_KP_ENTER, KEY_SPACE]
+const BOOK_KEY := KEY_B
 ## The machines' row, in canvas px (twice the art px): six from MACHINE_X0, fewer centred in
 ## 0..ROW_WIDTH; MACHINE_PITCH apart. The row holds FULL_ROW machines at most: a seventh would
 ## stand on the doors (a layout test keeps the balance's aisles within it).
@@ -380,13 +383,24 @@ static func row_x0(count: int) -> float:
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	# The screen's own keys: nothing starts behind it (the title's Enter and Space). Left and
-	# Right pick a machine as the pointer would (its look and lineup), Escape lets it go, or
-	# closes the screen as DONE does when none is picked.
+	# Right pick a machine as the pointer would (its look and lineup), Enter or Space draws from
+	# the picked one as its click does (polish batch 2; none picked: nothing), B opens the
+	# FIGURINE BOOK, Escape lets the machine go, or closes the screen as DONE does when none is
+	# picked. No echo draws or opens: one press, one capsule.
 	var key: InputEventKey = event as InputEventKey
 	if not visible or key == null or not key.pressed:
 		return
 	get_viewport().set_input_as_handled()
 	if _reveal.visible or _book.visible or _join.is_active() or _machines.is_empty():
+		return
+	if key.keycode in DRAW_KEYS:
+		if not key.echo and _hovered != null and _hovered.state() == CapsuleCounter.State.OK:
+			_on_machine_picked(_hovered.aisle())
+		return
+	if key.keycode == BOOK_KEY:
+		if not key.echo:
+			Sfx.play_at(self, UiKit.CLICK_SOUND)
+			_open_shelf()
 		return
 	match key.keycode:
 		KEY_RIGHT, KEY_LEFT:

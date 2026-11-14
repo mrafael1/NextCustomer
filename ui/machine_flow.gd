@@ -100,6 +100,7 @@ func setup(screen: ShiftScreen, event_log: EventLogService) -> RewardMachineView
 	view.sfx = screen._sfx
 	view.music = screen._music
 	view.reduced_motion = func() -> bool: return screen.profile.reduced_motion()
+	view.keys_blocked = func() -> bool: return covered(screen)
 	view.chute_confirmed.connect(_on_chute_confirmed)
 	view.prize_picked.connect(_on_prize_picked)
 	view.binned.connect(_on_binned)
@@ -199,6 +200,18 @@ func open(resumed: bool) -> void:
 	if run.phase == RunState.Phase.MACHINE_PICK:
 		_odds = _shown_odds(run)
 		_timeline.mark_presented(Time.get_ticks_msec())
+
+
+## Whether something covers the machine on `screen` (the handbook, the time card): its keys then
+## wait (polish batch 2).
+static func covered(screen: ShiftScreen) -> bool:
+	if screen._week != null and screen._week.is_open():
+		return true
+	for child: Node in screen.get_children():
+		var page: HandbookPage = child as HandbookPage
+		if page != null and page.is_open():
+			return true
+	return false
 
 
 ## Ends any visit (a new run, a resume, a shift's start): the machine is idle on the wall, the
