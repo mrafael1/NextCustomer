@@ -24,6 +24,11 @@ const GUIDED_START := "res://data/tutorial/guided_start.tres"
 
 ## Whether back_to_title changes the scene (tests turn it off and watch the screen's overlays).
 var changes_scene: bool = true
+## The tutorial's gate and locks for every opening board (StartBoardActions.guide_allows and
+## guide_locks; the tutorial director sets them): null outside a guided run or a quick tutorial.
+## Each board asks them live, so setting them after the board opened still gates it.
+var guide_gate: Callable
+var guide_locks: Callable
 var _screen: ShiftScreen
 var _log: EventLogService
 ## When the choice opened, for start_choice's decide_ms.
@@ -139,6 +144,10 @@ func board_actions() -> StartBoardActions:
 	actions.open_swap_booster = open_swap_booster
 	actions.mark_build = mark_build
 	actions.open_pins = open_pins
+	actions.guide_allows = func(action: StringName, args: Dictionary) -> bool:
+		return TutorialActions.allows(guide_gate, action, args)
+	actions.guide_locks = func(id: StringName) -> bool:
+		return guide_locks.is_valid() and bool(guide_locks.call(id))
 	return actions
 
 

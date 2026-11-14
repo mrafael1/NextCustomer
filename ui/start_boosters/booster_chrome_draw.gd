@@ -24,6 +24,10 @@ const PLATE_PAD := 3
 const PLATE_H := 9
 ## The top bar's CART LED (art px).
 const CART_LED := Rect2i(520, 4, 116, 20)
+## The swap plate under the crate (art px; its words, the swaps left, LOCKED).
+const SWAP_PLATE_RECT := Rect2(6, 241 + DY, 152, 17)
+## The tutorial's lock word (the swap plate, RESTOCK's key, NEW PACKS).
+const LOCKED_TEXT := "LOCKED"
 
 ## The item sprites drawn so far, held so they stay loaded: a texture loaded for the first time
 ## inside a draw call (or freed and loaded again there) is drawn blank white on that frame.
@@ -55,9 +59,22 @@ static func key_rect() -> Rect2:
 	return Rect2(primary.position.x - BoosterArt.KEY_GAP - w, primary.position.y, w, primary.size.y)
 
 
-## Whether the RESTOCK key shows: RESTOCK unlocked, and the counter past PICK 2 OF 3's dress.
+## Whether the RESTOCK key shows: RESTOCK unlocked (or locked by the tutorial: drawn LOCKED), and
+## the counter past PICK 2 OF 3's dress.
 static func key_shown(page: BoosterPage) -> bool:
-	return not page.openings.pick_layout() and page.counter.restock_unlocked()
+	if page.openings.pick_layout():
+		return false
+	return page.counter.restock_unlocked() or key_locked(page)
+
+
+## Whether the tutorial locks RESTOCK's key (drawn grey with a padlock, LOCKED; refused).
+static func key_locked(page: BoosterPage) -> bool:
+	return StartBoardActions.is_locked(page.actions, TutorialAnchors.RESTOCK)
+
+
+## Whether the tutorial locks the swap plate (the crate is no button: drawn LOCKED; refused).
+static func swap_locked(page: BoosterPage) -> bool:
+	return StartBoardActions.is_locked(page.actions, TutorialAnchors.SWAP_PLATE)
 
 
 ## The hint LED: its full width, its right end cut to HINT_MARGIN short of the RESTOCK key while
@@ -87,8 +104,8 @@ static func primary_lift(page: BoosterPage) -> int:
 	return BoosterPageDraw.key_lift(page.now, armed_t, page.tuning, page.rm, rest)
 
 
-static func regular_x(slot: int) -> float:
-	return BoosterArt.REG_X + slot * BoosterArt.REG_STEP
+static func regular_x(slot: int, count: int = BoosterArt.CRATE_SLOTS) -> float:
+	return BoosterArt.regular_at(slot, count).x
 
 
 ## Whether the crate is the swap window's button now (the store open, the window shut).
@@ -104,15 +121,17 @@ static func crate(pen: ArtPen, page: BoosterPage) -> void:
 	var now: float = page.now
 	var button: bool = crate_button(page)
 	var live: bool = page.swap.is_live()
-	var hv: bool = button and live and page.is_hovered("crate")
+	var locked: bool = swap_locked(page)
+	var hv: bool = button and live and not locked and page.is_hovered("crate")
 	var lift: float = 3.0 if hv and not page.rm else 0.0
 	pen.r(4, 186 + DY, 156, 46, Palette.INK)
 	pen.r(5, 187 + DY, 154, 44, Palette.WOOD_DARKEST)
 	var cards: Array[CardDefinition] = page.run.starter.core_cards
 	var chips: Dictionary[int, float] = {}
-	for k: int in cards.size():
-		var x: float = regular_x(k)
-		var y: float = 168 + DY - lift
+	for k: int in BoosterArt.crate_order(cards.size()):
+		var at: Vector2 = BoosterArt.regular_at(k, cards.size())
+		var x: float = at.x
+		var y: float = at.y - lift
 		if hv and not page.rm:
 			var wave: float = now - page.hover_t0 - k * 0.04
 			if wave > 0 and wave < 0.12:
@@ -153,8 +172,12 @@ static func crate(pen: ArtPen, page: BoosterPage) -> void:
 		pen.r(sx, 224 + DY, 1, 1, Palette.STEEL_DARK)
 		sx += 26
 	for k: int in chips:
-		_swapped_chips(pen, page, k, regular_x(k) + 8, 205 + DY, chips[k])
-	if not button:
+		# A crowded crate's back row wears its chips on the lower slat.
+		var chip_y: float = (
+			219 + DY if cards.size() > BoosterArt.CRATE_SLOTS and k % 2 == 1 else 205 + DY
+		)
+		_swapped_chips(pen, page, k, regular_x(k, cards.size()) + 8, chip_y, chips[k])
+	if not button or locked:
 		return
 	if hv:
 		var phase: int = 0 if page.rm else int(floorf(now / 0.12)) % 2
@@ -267,6 +290,10 @@ static func counter_plates(pen: ArtPen, page: BoosterPage) -> void:
 	var limit: int = page.counter.swap_limit()
 	var label: String = "SWAP REGULARS" if button and limit > 0 else "YOUR REGULARS"
 	var plate_lit: bool = button and live and page.is_hovered("crate")
+	if swap_locked(page):
+		_locked_swap_plate(pen)
+		_booster_plates(pen, page)
+		return
 	pen.nine(
 		BoosterArt.PLATE_LIT if plate_lit else BoosterArt.PLATE,
 		6,
@@ -295,6 +322,25 @@ static func counter_plates(pen: ArtPen, page: BoosterPage) -> void:
 		pen.nine(BoosterArt.LED, lx, 243 + DY, lw, 12, Vector4i(4, 4, 4, 4))
 		pen.tex(BoosterArt.SWAP, lx + 3, 244 + DY)
 		pen.chunky(count, lx + 15, 245 + DY, Palette.GOLD if left > 0 else Palette.TOMATO)
+	_booster_plates(pen, page)
+
+
+## The swap plate while the tutorial locks it: the off plate, a padlock, YOUR REGULARS dimmed and
+## LOCKED at its end.
+static func _locked_swap_plate(pen: ArtPen) -> void:
+	var r: Rect2 = SWAP_PLATE_RECT
+	pen.nine(
+		BoosterArt.PLATE_OFF, r.position.x, r.position.y, r.size.x, r.size.y, Vector4i(4, 4, 4, 4)
+	)
+	pen.tex(BoosterArt.PADLOCK, 11, 244 + DY)
+	pen.pix("YOUR REGULARS", 26, 246 + DY, Palette.BROWN_DARK)
+	pen.caps(
+		LOCKED_TEXT, r.end.x - 6, 247 + DY, Palette.BROWN_DARK, 1.0, HORIZONTAL_ALIGNMENT_RIGHT
+	)
+
+
+## Each booster's counter plate.
+static func _booster_plates(pen: ArtPen, page: BoosterPage) -> void:
 	var picking: bool = page.openings.pick_layout()
 	for b: BoosterOpening in page.boosters:
 		if b.state == BoosterOpening.State.GONE or (b.sink_t != INF and page.now > b.sink_t + 0.3):
@@ -446,6 +492,9 @@ static func _tote_cards(pen: ArtPen, page: BoosterPage) -> void:
 static func _restock_key(pen: ArtPen, page: BoosterPage) -> void:
 	if not key_shown(page):
 		return
+	if key_locked(page):
+		_locked_key(pen)
+		return
 	var k: Rect2 = key_rect()
 	var used: bool = page.counter.restock_block() == &"used"
 	var armed: bool = page.restock_armed
@@ -481,6 +530,23 @@ static func _restock_key(pen: ArtPen, page: BoosterPage) -> void:
 	pen.caps(sub, tx + tw / 2.0, y + h - 9, sub_ink, 1.0, HORIZONTAL_ALIGNMENT_CENTER)
 	if hv and not armed:
 		pen.tex(BoosterArt.TICK, x - 7, k.position.y + k.size.y / 2.0 - 3)
+
+
+## RESTOCK's key while the tutorial locks it (the mock-up's locked state): grey as when used, a
+## padlock for its refresh glyph, LOCKED under its word.
+static func _locked_key(pen: ArtPen) -> void:
+	var k: Rect2 = key_rect()
+	var x: float = k.position.x
+	var y: float = k.position.y
+	var h: float = k.size.y
+	pen.nine(BoosterArt.KEY_OFF, x, y, k.size.x, h, Vector4i(3, 7, 3, 4))
+	pen.tex(BoosterArt.PADLOCK, x + 6, y + roundf((h - 10) / 2.0))
+	var tx: float = x + 6 + BoosterArt.REFRESH_GLYPH.size() + 5
+	var tw: float = k.end.x - 7 - tx
+	pen.pix("RESTOCK", tx + tw / 2.0, y + 5, Palette.STEEL_DARK, 1.0, HORIZONTAL_ALIGNMENT_CENTER)
+	pen.caps(
+		LOCKED_TEXT, tx + tw / 2.0, y + h - 9, Palette.STEEL_DARK, 1.0, HORIZONTAL_ALIGNMENT_CENTER
+	)
 
 
 ## The refresh glyph (BoosterArt.REFRESH_GLYPH) at art (`x`, `y`), one art px a dot; `turn`
@@ -817,7 +883,7 @@ static func hits(page: BoosterPage) -> Array[Dictionary]:
 		list.append(_hit(Rect2(240, 7, 82, 20), "tab2", page.press_next))
 	if crate_button(page):
 		list.append(_hit(CRATE_RECT, "crate", page.swap.open_window.bind(false)))
-		list.append(_hit(Rect2(6, 241 + DY, 152, 17), "crate", page.swap.open_window.bind(false)))
+		list.append(_hit(SWAP_PLATE_RECT, "crate", page.swap.open_window.bind(false)))
 	for b: BoosterOpening in page.boosters:
 		_booster_hits(page, b, list)
 	if key_shown(page):
@@ -886,7 +952,8 @@ static func tip_entries(page: BoosterPage) -> Array[Dictionary]:
 		return list
 	if crate_button(page):
 		var cards: Array[CardDefinition] = page.run.starter.core_cards
-		var limit: int = page.counter.swap_limit()
+		# The tutorial's lock reads as no swap unlocked.
+		var limit: int = 0 if swap_locked(page) else page.counter.swap_limit()
 		var live: bool = page.swap.is_live()
 		var click: String = StartTips.SWAP_CLICK if live and limit > 0 else ""
 		var line: String = ""
@@ -897,10 +964,7 @@ static func tip_entries(page: BoosterPage) -> Array[Dictionary]:
 		elif not live:
 			line = StartTips.SWAPS_WAIT_LIVE
 		for k: int in cards.size():
-			# The sprites overlap (48 art px on a 34 px step): each takes its step, the last its
-			# whole width, above the crate's front.
-			var w: float = float(BoosterArt.REG_STEP) if k < cards.size() - 1 else 40.0
-			var rect: Rect2 = Rect2(regular_x(k) + 7, 172 + DY, w, 32)
+			var rect: Rect2 = BoosterArt.regular_rect(k, cards.size())
 			var key: String = "reg%d|%s|%s|%s" % [k, cards[k].id, click, line]
 			var make: Callable = StartTips.card_spec.bind(
 				cards[k], StartTips.REGULAR_TAG, click, line, kind

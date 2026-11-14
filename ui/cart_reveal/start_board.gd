@@ -14,6 +14,9 @@ signal back_to_title
 ## Esc on the store page with nothing of its own to close (polish batch 2): the screen opens the
 ## options with BACK TO TITLE (PauseFlow.open_start_options).
 signal options_requested
+## The tutorial's hooks (TutorialEvents' start-screen events, with their args), sent always,
+## guided or not: listening changes nothing. The pages send theirs through StartBoardActions.
+signal guide_event(event: StringName, args: Dictionary)
 
 ## The keys the board answers; any other key goes on (F1's debug panel, global shortcuts).
 const KEYS: Array[Key] = [
@@ -69,6 +72,8 @@ func _init(shown_run: RunState, shown_profile: ProfileState, choice: StartBoardA
 	run = shown_run
 	profile = shown_profile
 	_choice = choice
+	if _choice != null:
+		_choice.guide_event = _send_guide
 	name = "StartBoard"
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
@@ -110,6 +115,12 @@ func _init(shown_run: RunState, shown_profile: ProfileState, choice: StartBoardA
 
 func _ready() -> void:
 	_resize()
+	# The page it opens on (deferred: whoever opened the board connects first).
+	_send_guide.call_deferred(TutorialEvents.PAGE_SHOWN, {TutorialEvents.ARG_PAGE: page - 1})
+
+
+func _send_guide(event: StringName, args: Dictionary) -> void:
+	guide_event.emit(event, args)
 
 
 ## The picked pack's place in the offer (-1: none picked).
@@ -170,6 +181,7 @@ func show_page(next_page: int, key: String = "click") -> void:
 	if profile.reduced_motion():
 		store.visible = page == 1
 		staff.visible = page == 2
+		_send_guide(TutorialEvents.PAGE_SHOWN, {TutorialEvents.ARG_PAGE: page - 1})
 		return
 	busy = true
 	store.visible = true
@@ -225,6 +237,7 @@ func _end_slide() -> void:
 	store.visible = page == 1
 	staff.visible = page == 2
 	busy = false
+	_send_guide(TutorialEvents.PAGE_SHOWN, {TutorialEvents.ARG_PAGE: page - 1})
 	if _queued_key != KEY_NONE:
 		var queued: Key = _queued_key
 		_queued_key = KEY_NONE
@@ -235,6 +248,8 @@ func _end_slide() -> void:
 func pick(index: int) -> void:
 	if busy or page != 2:
 		return
+	if not StartBoardActions.hit_allowed(_choice, TutorialAnchors.pack(index)):
+		return
 	if staff.pick_pack(index, "key"):
 		refresh()
 
@@ -243,6 +258,8 @@ func pick(index: int) -> void:
 ## while the packs wait for the BADGE PINS step, or while a booster is sealed (a RESTOCK).
 func clock_in() -> bool:
 	if page != 2 or busy or staff.picked() < 0 or staff.pins_open or staff.packs_held():
+		return false
+	if not StartBoardActions.hit_allowed(_choice, TutorialAnchors.PRIMARY):
 		return false
 	if not run.start_setup.all_open():
 		say("OPEN THE BOOSTER FIRST")
@@ -352,3 +369,18 @@ func tips_blocked() -> bool:
 ## The scaled stage's global rect (the popup stays on it).
 func stage_rect() -> Rect2:
 	return _stage.get_global_rect()
+
+
+## The tutorial anchor `id`'s rect (TutorialAnchors' start ids) in global coordinates, Rect2()
+## when the shown page doesn't show it (StartGuide.anchor_of).
+func anchor_rect(id: StringName) -> Rect2:
+	return StartGuide.anchor_of(self, id)
+
+
+## The tutorial overlay's mount point: over the whole board, above both pages and their hover
+## tips (unscaled: the overlay places itself from anchor_rect's global rects).
+func mount_overlay(overlay: Control) -> void:
+	if overlay.get_parent() != null:
+		overlay.get_parent().remove_child(overlay)
+	add_child(overlay)
+	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)

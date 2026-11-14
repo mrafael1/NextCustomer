@@ -114,6 +114,7 @@ func open_window(next: bool = false) -> bool:
 	page.set_hint("")
 	page.fx.sfx("ui_open", -6.0)
 	page.fx.sfx("card_pickup_1", -10.0)
+	StartBoardActions.emit(page.actions, TutorialEvents.SWAP_OPENED)
 	return true
 
 
@@ -342,12 +343,14 @@ func pose(piece: SwapPiece) -> Dictionary:
 ## grabs a piece, or acts on the key under it.
 func press(at: Vector2) -> void:
 	if held != null and sticky:
-		_drop(at, false)
+		_drop(at, not _drop_allowed(at))
 		return
 	for k: int in range(page.hits.size() - 1, -1, -1):
 		var entry: Dictionary = page.hits[k]
 		if not (entry.rect as Rect2).has_point(at + Vector2(0, slide())):
 			continue
+		if not StartBoardActions.swap_allowed(page.actions, _part_id(entry)):
+			return
 		var piece: SwapPiece = entry.get("piece") as SwapPiece
 		if piece != null:
 			_grab(piece, at)
@@ -365,7 +368,39 @@ func release(at: Vector2) -> void:
 		sticky = true
 		page.set_hint("")
 		return
-	_drop(at, false)
+	_drop(at, not _drop_allowed(at))
+
+
+## The tutorial's id for the window's hit `entry` (&"": never asked, as the close key): a
+## booster, a regular (on its slot, or OUT in a fan), a booster card, RESET or DONE.
+func _part_id(entry: Dictionary) -> StringName:
+	var id: String = entry.id
+	var piece: SwapPiece = entry.get("piece") as SwapPiece
+	if piece == null and id.begins_with("piece"):
+		piece = pieces[id.substr(5).to_int()]
+	var part: StringName = &""
+	if piece != null and piece.regular:
+		part = TutorialAnchors.indexed(TutorialAnchors.SWAP_REGULAR, piece.slot)
+	elif piece != null:
+		part = TutorialAnchors.swap_card(piece.booster, piece.k)
+	elif id.begins_with("swb") or id.begins_with("swo"):
+		part = TutorialAnchors.indexed(TutorialAnchors.SWAP_BOOSTER, id.substr(3).to_int())
+	elif id == "swreset":
+		part = TutorialAnchors.SWAP_RESET
+	elif id == "swdone":
+		part = TutorialAnchors.SWAP_DONE
+	return part
+
+
+## Whether the tutorial lets the held piece drop at `at` (on a basket slot: that slot's regular;
+## off the basket, an undo, is never asked). A refused drop sends the piece home.
+func _drop_allowed(at: Vector2) -> bool:
+	var slot: int = SwapWindowDraw.slot_at(at, page.run.starter.core_cards.size())
+	if slot < 0:
+		return true
+	return StartBoardActions.swap_allowed(
+		page.actions, TutorialAnchors.indexed(TutorialAnchors.SWAP_REGULAR, slot)
+	)
 
 
 ## Esc: a held piece goes home (a swapped item back to its slot, still swapped), else the window
@@ -497,6 +532,11 @@ func _apply(piece: SwapPiece, slot: int, via: String) -> void:
 		piece.bounce = true
 		return
 	pop_t[slot] = page.now + 0.22
+	StartBoardActions.emit(
+		page.actions,
+		TutorialEvents.SWAP_APPLIED,
+		{TutorialEvents.ARG_SLOT: slot, TutorialEvents.ARG_CARD: piece.card.id}
+	)
 	page.fx.sfx("card_pickup_2", -8.0)
 	page.fx.sfx("card_return_2" if traded else "card_return_1", -6.0, 1.05)
 	page.fx.cue(page.now + 0.22, _landed.bind(slot))
@@ -528,6 +568,9 @@ func _undo(slot: int, via: String) -> void:
 		page.flash("COULD NOT SAVE. TRY AGAIN")
 		return
 	pop_t[slot] = page.now + 0.2
+	StartBoardActions.emit(
+		page.actions, TutorialEvents.SWAP_UNDONE, {TutorialEvents.ARG_SLOT: slot}
+	)
 	page.fx.sfx("card_return_2", -6.0)
 	page.fx.cue(page.now + 0.2, _put_back.bind(slot))
 
@@ -561,9 +604,15 @@ func reset() -> bool:
 	if StartSetupRules.applied_swaps(page.run) == 0:
 		page.flash("NOTHING TO RESET")
 		return false
+	var swapped: Array[int] = []
+	for slot: int in page.run.starter.core_cards.size():
+		if page.run.starter.core_cards[slot] != page.run.start_setup.originals[slot]:
+			swapped.append(slot)
 	if page.actions == null or not page.actions.reset_regulars.call():
 		page.flash("COULD NOT SAVE. TRY AGAIN")
 		return false
+	for slot: int in swapped:
+		page.actions.send(TutorialEvents.SWAP_UNDONE, {TutorialEvents.ARG_SLOT: slot})
 	page.fx.sfx("shuffle", -6.0)
 	page.fx.cue(page.now + 0.24, page.fx.sfx.bind("card_place_3", -6.0))
 	return true
@@ -590,6 +639,9 @@ func open_booster(bi: int, via: String = "click") -> bool:
 	opening.lt = -0.0001
 	opening.boost = 1.0
 	opening.build_plan(page.tuning, false, true, page.rm)
+	StartBoardActions.emit(
+		page.actions, TutorialEvents.SWAP_BOOSTER_OPENED, {TutorialEvents.ARG_INDEX: bi}
+	)
 	return via != ""
 
 
@@ -670,6 +722,7 @@ func close(go_on: bool) -> void:
 		page.fx.cue(t0 + tuning.swap_play_in_s * 0.75, page.fx.sfx.bind("tag", -6.0))
 		n += 1
 	page.set_hint("")
+	StartBoardActions.emit(page.actions, TutorialEvents.SWAP_DONE)
 	if go_on and from_next:
 		page.fx.cue(page.now + (0.0 if page.rm else tuning.swap_next_hold_s), _go_on, GO_ON_TAG)
 
@@ -687,4 +740,5 @@ func _go_on() -> void:
 ## Page 1's basket as a changed regular lands in it: its thud and dust.
 func _thud(slot: int) -> void:
 	page.fx.sfx("card_place_%d" % (1 + slot % 3), -4.0)
-	page.fx.dust(BoosterChromeDraw.regular_x(slot) + 24, 222 + BoosterArt.DY, 3)
+	var count: int = page.run.starter.core_cards.size()
+	page.fx.dust(BoosterChromeDraw.regular_x(slot, count) + 24, 222 + BoosterArt.DY, 3)
