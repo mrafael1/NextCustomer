@@ -267,6 +267,34 @@ static func deal(
 	return &""
 
 
+## The guided first run's deal (the tutorial), in place of deal and with no stream: `guide`'s
+## boosters, sealed with no hit, on its aisles (stocked in data order), the run recipe's packs in
+## their order with its first_pick_pack raised. Refused (&"stage", or `guide`'s block reason)
+## with nothing changed.
+static func deal_fixed(
+	run: RunState, profile: ProfileState, guide: GuidedStartDefinition
+) -> StringName:
+	var setup: StartSetup = run.start_setup
+	if setup == null or setup.stage != StartSetup.Stage.SELECT:
+		return &"stage"
+	var block: StringName = guide.block(run.balance)
+	if block != &"":
+		return block
+	setup.stock_aisles = ordered_pair(run.balance, guide.aisle_ids())
+	setup.boosters.clear()
+	for aisle_id: StringName in setup.stock_aisles:
+		setup.boosters.append(StartBooster.new(aisle_id, guide.booster_cards(aisle_id)))
+	var offer: StartOffer = run.start_offer
+	offer.packs = run.starter.starter_packs.slice(0, maxi(run.starter.packs_offered, 0))
+	offer.first_pick = run.starter.first_pick_pack
+	offer.first_pick = offer.first_pick if offer.packs.has(offer.first_pick) else null
+	offer.shared = setup.shared()
+	setup.picked = &""
+	setup.stage = StartSetup.Stage.DEALT
+	rebuild_stock(run, profile)
+	return &""
+
+
 ## Moves the setup from DEALT to BUILD (page 2 opened). False when nothing changes, or while
 ## PICK 2 OF 3 is pending.
 static func mark_build(run: RunState) -> bool:

@@ -326,13 +326,14 @@ func test_the_layout_fits_the_panel_with_no_overlaps() -> void:
 
 
 ## Every recipe deck in data/decks fits the panel's layout (its tray and its slot row): a recipe
-## with more core cards or dealt cards needs the layout reworked, not tiles past the panel.
+## with more core cards or dealt cards needs the layout reworked, not tiles past the panel. The
+## guided first run's recipe (6 regulars) is only ever dealt on the start board, never here.
 func test_every_recipe_fits_the_layout() -> void:
 	for file_name: String in DirAccess.get_files_at(DECKS):
 		if not file_name.ends_with(".tres"):
 			continue
 		var deck: DeckDefinition = load(DECKS.path_join(file_name))
-		if not deck.is_recipe():
+		if not deck.is_recipe() or deck == StartChoice.guided_start().recipe:
 			continue
 		var message: String = (
 			"%s needs %d staple tiles and %d pick slots; the cart reveal holds %d and %d"
