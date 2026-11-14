@@ -1,0 +1,20 @@
+; The Golden basket keep screen's LAST CHECKOUT tray (polish batch 2, the polish audit's "keep"):
+; a stainless steel tray, a 9-slice (4 art px margins) the tray's mini cards lie in. Its rim is lit
+; from the top left (steel highlight, then steel light) and falls into steel shade on the bottom
+; and right; inside the lip the floor is steel, in steel darkest shadow under the top and left
+; edges and catching steel pale light along the bottom and right ones.
+@size 12x12
+@kind frame
+@scale 2
+############
+#AAAAAAAAAB#
+#ABBBBBBBBD#
+#ABIIIIIIDE#
+#ABIDDDDCDE#
+#ABIDDDDCDE#
+#ABIDDDDCDE#
+#ABIDDDDCDE#
+#ABICCCCCDE#
+#ABDDDDDDDE#
+#BEEEEEEEEE#
+############

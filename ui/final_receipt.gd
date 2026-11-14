@@ -21,6 +21,11 @@ extends RefCounted
 ## 4, week 1 of 2) and the rest in a right one; the shortfall
 ## closes the last week's column, and the rules and the coin lines span both (WIDE_WIDTH).
 ##
+## With `chips` (polish batch 2, the results screen's: the polish audit's "results-small") a shift's
+## day events print no dim lines: its shift line carries them (Line.events, its inspections then its
+## boons) and the results screen shows each as a small icon chip after the line's text, so the
+## receipt is shorter and its dim lines keep a readable size at 1280 x 720.
+##
 ## The run's best moment (v1.37, the approved direction A of
 ## docs/art/mockups/receipt_highlight.html: RunHighlight.pick) prints as one BEST line after the
 ## second rule, before the coins, across the receipt: HIGHLIGHT_INDENT's room for the BEST sticker
@@ -65,6 +70,8 @@ class Line:
 	var week: int
 	## The BEST line's moment (Tone.HIGHLIGHT), else null.
 	var moment: RunHighlight.Moment
+	## A shift line's day events shown as chips (lines' `chips`): its inspections, then its boons.
+	var events: Array[InspectionDefinition] = []
 
 	func _init(
 		line_text: String,
@@ -93,13 +100,15 @@ static func left_weeks(run: RunState) -> int:
 
 
 ## The receipt of an ended run: `result` is its last checkout, `coins_owned` the profile's coins
-## after the run (< 0 when unknown). `columns`: in week columns (uses_columns).
+## after the run (< 0 when unknown). `columns`: in week columns (uses_columns). `chips`: the day
+## events go on their shift lines (Line.events), not on dim lines.
 static func lines(
 	run: RunState,
 	result: ScoreResult,
 	coins_owned: int,
 	compact: bool = false,
-	columns: bool = false
+	columns: bool = false,
+	chips: bool = false
 ) -> Array[Line]:
 	var won: bool = run.phase == RunState.Phase.WON
 	var width: int = WIDE_WIDTH if columns else WIDTH
@@ -108,12 +117,16 @@ static func lines(
 	var week: int = 0
 	for record: ShiftRecord in run.history:
 		var fatal: bool = not won and record == run.history[-1]
-		var texts: PackedStringArray = shift_texts(record, compact, not fatal)
+		var texts: PackedStringArray = shift_texts(record, compact, not fatal, chips)
 		if columns and WeekSchedule.week_of(run.balance, record.shift) + 1 != week:
 			week = WeekSchedule.week_of(run.balance, record.shift) + 1
 			printed.append(Line.new(week_header(run.balance, record.shift), Tone.WEEK, false, week))
 		var in_week: int = week if columns else 0
-		printed.append(Line.new(texts[0], Tone.SHIFT, not record.passed, in_week))
+		var shift_line: Line = Line.new(texts[0], Tone.SHIFT, not record.passed, in_week)
+		if chips:
+			shift_line.events = InspectionDefinition.maluses(record.inspections)
+			shift_line.events.append_array(InspectionDefinition.boons(record.inspections))
+		printed.append(shift_line)
 		for detail: String in texts.slice(1):
 			printed.append(Line.new(detail, Tone.DETAIL, not record.passed, in_week))
 	if not won:
@@ -160,15 +173,18 @@ static func highlight_line(run: RunState, width: int = WIDTH) -> Line:
 ## A shift's line ("  4  30€ / 22€        pass") and its dim lines: one per machine visit
 ## after it (visit_text), then the inspections it was played under. A miss reads "slip" when the
 ## run went on after it (`went_on`; v0.65's "write-up"). `compact` folds the inspections into the
-## shift line ("  4  30€ / 22€        pass  review").
+## shift line ("  4  30€ / 22€        pass  review"). `chips` leaves the day events out (the results
+## screen shows them as chips on the shift line: lines' `chips`).
 static func shift_texts(
-	record: ShiftRecord, compact: bool = false, went_on: bool = false
+	record: ShiftRecord, compact: bool = false, went_on: bool = false, chips: bool = false
 ) -> PackedStringArray:
 	var main: String = (
 		"%3d  %-13s  %s"
 		% [record.shift, "%d€ / %d€" % [record.total, record.quota], _result(record, went_on)]
 	)
 	var maluses: Array[InspectionDefinition] = InspectionDefinition.maluses(record.inspections)
+	if chips:
+		maluses = []
 	if compact and not maluses.is_empty():
 		main = "%-28s  %s" % [main, "payday" if maluses.size() > 1 else "inspected"]
 	var texts: PackedStringArray = PackedStringArray([main])
@@ -178,7 +194,7 @@ static func shift_texts(
 		texts.append(DETAIL_INDENT + "inspection " + ", ".join(InspectionTag.names(maluses)))
 	# A boon day's event (v0.69), as its chip named it.
 	var boons: Array[InspectionDefinition] = InspectionDefinition.boons(record.inspections)
-	if not compact and not boons.is_empty():
+	if not compact and not chips and not boons.is_empty():
 		texts.append(DETAIL_INDENT + "today " + ", ".join(InspectionTag.names(boons)))
 	return texts
 
