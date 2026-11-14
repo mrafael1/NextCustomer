@@ -6,7 +6,7 @@ extends RefCounted
 
 const BOX_BORDER := 2
 const STAMP_BORDER := 2
-const STAMP_TEXT := "SPEND MET"
+const STAMP_TEXT := "MET!"
 const STAMP_INK := Palette.GREEN_DARK
 
 

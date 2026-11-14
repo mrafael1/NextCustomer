@@ -186,7 +186,7 @@ func test_the_ticket_reads_the_family() -> void:
 	assert_str(CardText.sticker_summary(sticker)).is_equal("Next joins your pick")
 	assert_str(CardText.sticker_summary(sticker, -1, "Dairy")).is_equal("Next joins Dairy")
 	var old: CardDefinition = load(OLD_STICKER)
-	assert_str(CardText.sticker_summary(old, -1, "Dairy")).is_equal("Next gains Breakfast")
+	assert_str(CardText.sticker_summary(old, -1, "Dairy")).is_equal("Next joins Breakfast")
 
 
 ## What the picker learns: the item the sticker gives to, and the families it has already (a pick
@@ -210,14 +210,14 @@ func test_the_next_item_and_its_held_families() -> void:
 	assert_array(Array(FamilySticker.held(run, sticker))).is_equal(["Produce"])
 
 
-## The run save (format 12) keeps the picks; a version 11 save reads with none.
+## The run save (format 12 on) keeps the picks; a version 11 save reads with none.
 func test_the_run_save_keeps_the_picks() -> void:
 	var lookup: ContentLookup = ContentLookup.new(_balance)
 	var run: RunState = _run(5)
 	var sticker: CardInstance = run.deck.add_card(load(STICKER))
 	run.sticker_families[sticker.instance_id] = "Clearance"
 	var saved: Dictionary = _saved(run)
-	assert_int(int(saved["format_version"])).is_equal(12)
+	assert_int(int(saved["format_version"])).is_equal(RunSave.FORMAT_VERSION)
 	assert_dict(saved["sticker_families"]).is_equal({str(sticker.instance_id): "Clearance"})
 	var restored: RunSave = RunSave.from_dictionary(saved, lookup)
 	assert_object(restored).is_not_null()

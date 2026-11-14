@@ -30,7 +30,7 @@ func test_loyalty_boxes_report_hovers_and_take_rings() -> void:
 	var bar_rect: Rect2 = bar.get_global_rect()
 	for index: int in range(upgrades.size()):
 		var box: Control = card.box(index)
-		assert_str(box.tooltip_text).is_equal(LoyaltyCard.tooltip_for(upgrades[index]))
+		assert_str(TipTarget.tip_of(box)).is_equal(LoyaltyCard.tooltip_for(upgrades[index]))
 		assert_bool(card.has_relation(index)).is_false()
 		card.set_relation(index, true)
 		await _frames(1)
@@ -45,6 +45,8 @@ func test_loyalty_boxes_report_hovers_and_take_rings() -> void:
 		assert_int(ring.mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
 		# h1: no fizzle corner on the box: its only art is its perk icon (#108 follow-up).
 		for art: Node in box.find_children("*", "TextureRect", true, false):
+			if art is TipTarget:
+				continue  # Its hover tip's cover, not art.
 			assert_str(art.get_parent().name).is_equal(LoyaltyCard.ICON_NAME)
 		assert_str((box.get_child(0) as Label).text).is_equal(
 			LoyaltyCard.stamp_text(upgrades[index], true)

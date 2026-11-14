@@ -178,8 +178,8 @@ func _assert_zero_once(window: Vector2i) -> void:
 	assert_bool(dead.shows_text()).override_failure_message(case).is_true()
 	assert_bool(dead.icon().is_visible_in_tree()).override_failure_message(case).is_true()
 	assert_str(dead.text()).is_equal(SlotMark.INSPECTION_TEXT)
-	var tip: String = "Spot check: this slot pays %s" % SlotMark.INSPECTION_TEXT
-	assert_str(dead.tooltip_text).is_equal(tip)
+	var tip: String = SlotMark.ZERO_TIP % ["Spot check", SlotMark.INSPECTION_TEXT]
+	assert_str(TipTarget.tip_of(dead)).is_equal(tip)
 	assert_int(dead.mouse_filter).is_equal(Control.MOUSE_FILTER_PASS)
 	_assert_on_slot(screen, dead, 2)
 	_place_ids(screen, ["bread", "bread", "bread", "bread"])
@@ -193,7 +193,7 @@ func _assert_zero_once(window: Vector2i) -> void:
 	assert_bool(chip.is_visible_in_tree()).override_failure_message(case).is_true()
 	assert_str(chip.texture.resource_path).is_equal(SlotMark.CHIP.resource_path)
 	assert_vector(dead.size).is_equal(SlotMark.CHIP.get_size() * ArtStyle.ART_SCALE)
-	assert_str(dead.tooltip_text).is_equal(tip)
+	assert_str(TipTarget.tip_of(dead)).is_equal(tip)
 	_assert_on_slot(screen, dead, 2)
 	# Under its ticket, centred on it (within an art pixel), its top tucked behind the foot.
 	var ticket: Rect2 = (screen._row_views[2] as ItemView).sticker().get_global_rect()
@@ -246,7 +246,7 @@ func test_the_debug_panel_clears_the_inspection() -> void:
 
 
 ## The planning notice (#77 machine v2's B1): an inspected shift whose pass earns the bonus ticket
-## (RewardMachine.bonus_if_passed) shows the mustard "PASS › +1 BONUS TICKET" pill in the chip,
+## (RewardMachine.bonus_if_passed) shows the mustard "QUOTA MET › +1 EXTRA DRAW" pill in the chip,
 ## inside the chip and the top bar, right of the text; the chip pulses (PlanningTuning's Bonus
 ## notice times; the monitor's plate went with the store channel, #105 piece 2), back at 1 after,
 ## none under reduced motion. After the pass the monitor's count shows
@@ -264,7 +264,7 @@ func test_the_planning_notice_promises_and_earns_the_bonus_ticket() -> void:
 	var tag: DayCalendar = screen._calendar
 	assert_int(tag.bonus_state()).is_equal(InspectionTag.Bonus.PROMISED)
 	# The whole promise is on today's slip; a tight top bar shortens the pill to its ticket and "+1".
-	assert_str(_slip_text(screen)).contains("PASS › +1 BONUS TICKET")
+	assert_str(_slip_text(screen)).contains("QUOTA MET › +1 EXTRA DRAW")
 	assert_str(tag.full_text()).contains("+1")
 	await _frames(3)
 	# The calendar keeps the day's kind (its width holds every page, v1.17); today's slip keeps the
@@ -311,7 +311,7 @@ func test_the_planning_notice_promises_and_earns_the_bonus_ticket() -> void:
 	await _pass_shift(screen)
 	var passed: Label = screen._monitor.inspection_passed_label
 	assert_bool(passed.is_visible_in_tree()).is_true()
-	assert_str(passed.text).is_equal("INSPECTION PASSED ✓")
+	assert_str(passed.text).is_equal("QUOTA MET ✓")
 	await _frames(2)
 	assert_bool(screen._monitor.get_global_rect().encloses(passed.get_global_rect())).is_true()
 	assert_bool(run.machine.bonus_earned(run)).is_true()
@@ -447,7 +447,7 @@ func test_a_closed_slot_shows_on_the_row() -> void:
 	assert_int(screen._row_strip.box.get_child_count()).is_equal(7)
 	assert_vector(screen._row_strip.box.scale).is_equal(Vector2.ONE)
 	var panel: PanelContainer = screen._row_strip.closed[0]
-	assert_str(panel.tooltip_text).contains("Short belt")
+	assert_str(TipTarget.tip_of(panel)).contains("Short belt")
 	assert_str((panel.get_child(0) as Label).text).is_equal("CLOSED")
 	# Bare rubber: no mat, the open slots' cells all have one.
 	assert_object(RowStrip.mat(panel)).is_null()
@@ -498,12 +498,12 @@ func test_a_full_row_explains_why_a_card_does_not_fit() -> void:
 	var extra: CardInstance = run.debug_add_to_hand(bread)
 	assert_bool(run.can_place(extra)).is_false()
 	screen._explain_if_refused()
-	assert_str(screen._notice_label.text).contains("Row full (6/6 items)")
+	assert_str(screen._notice_label.text).contains("Row full (6/6)")
 	# The closed slot's panel says an inspection closed it, and its hover text which one.
 	assert_int(screen._row_strip.closed.size()).is_equal(1)
 	var caption: Label = RowStrip.closed_caption_label(screen._row_strip.closed[0])
 	assert_str(caption.text).is_equal("inspection")
-	assert_str(screen._row_strip.closed[0].tooltip_text).contains("Short belt")
+	assert_str(TipTarget.tip_of(screen._row_strip.closed[0])).contains("Short belt")
 	assert_str(screen._calendar.text()).is_equal(InspectionTag.CAPTION)
 
 

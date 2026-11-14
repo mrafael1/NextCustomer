@@ -41,7 +41,7 @@ func test_the_monitor_keeps_bonus_lines_and_folds_only_the_earliest_overflow() -
 	var bag: TipTarget = newest.get_node("FromBag") as TipTarget
 	assert_object(bag.texture).is_equal(MonitorStepRow.BAG_ICON)
 	assert_str(bag.tip_text).is_equal(MonitorStepRow.bag_tip_of("Banana"))
-	assert_str(bag.tip_text).contains("From the bag").contains("Banana")
+	assert_str(bag.tip_text).contains("already scanned").contains("Banana")
 	assert_that(text.get_theme_color("font_color")).is_equal(MonitorStepRow.BONUS_COLOR)
 	var bag_rect: Rect2 = bag.get_global_rect()
 	var mark_rect: Rect2 = mark.get_global_rect()

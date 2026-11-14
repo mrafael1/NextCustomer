@@ -70,6 +70,10 @@ signal closed_clicked
 ## The row's cells (open and closed) changed: set_slot_count rebuilt it (#122: the belt fits).
 signal cells_changed(cells: int)
 
+## A closed cell's tip tag (_cover_closed).
+const CLOSED_TAG := "THIS SHIFT"
+## A closed slot's tip (ShiftScreen): the day events that closed it, and why.
+const CLOSED_TIP := "%s · This slot is closed this shift."
 ## The width of the 7 slots the screen was laid out for: wider rows are scaled to it.
 const LAID_OUT_SLOTS := 7
 ## The gap between cells (mock-up B2's pitch, 128); a row of WIDE_SLOTS cells' (one art px, in
@@ -178,7 +182,7 @@ func set_slot_count(
 ) -> void:
 	if count == slots.size() and closed_count == closed.size():
 		for panel: PanelContainer in closed:
-			panel.tooltip_text = closed_reason
+			_cover_closed(panel, closed_reason)
 			closed_caption_label(panel).text = caption
 		return
 	for panel: PanelContainer in slots + closed:
@@ -609,6 +613,11 @@ func _slot_panel(slot: int, separation: int) -> PanelContainer:
 	return panel
 
 
+## A closed cell's tip: the day event's name, THIS SHIFT, and why (`reason`, "<name> · <why>").
+static func _cover_closed(panel: Control, reason: String) -> void:
+	TipTarget.cover_text(panel, reason, TipSpec.Kind.STATUS, CLOSED_TAG)
+
+
 ## A slot the inspection closed: a velvet rope between two stanchions on the belt, and on the
 ## rail the ink plate with "CLOSED" over `caption`. The CLOSED label is the cell's first child and
 ## spans the cell, its text centred on the sign under the plate's band; the plate and its shadow are
@@ -617,7 +626,6 @@ func _slot_panel(slot: int, separation: int) -> PanelContainer:
 func _closed_panel(reason: String, caption: String) -> PanelContainer:
 	var panel: PanelContainer = PanelContainer.new()
 	panel.custom_minimum_size = CELL_SIZE
-	panel.tooltip_text = reason
 	panel.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
 	var label: Label = UiKit.display_label(CLOSED_TEXT, CLOSED_SIZE, true)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -672,6 +680,8 @@ func _closed_panel(reason: String, caption: String) -> PanelContainer:
 	caption_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_child_at(label, caption_label, CLOSED_CAPTION_RECT)
 	panel.add_child(label)
+	# After the label: the CLOSED label stays the cell's first child.
+	_cover_closed(panel, reason)
 	panel.gui_input.connect(
 		func(event: InputEvent) -> void:
 			var press: InputEventMouseButton = event as InputEventMouseButton

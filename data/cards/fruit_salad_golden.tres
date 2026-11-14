@@ -15,12 +15,12 @@ receipt_text = "Fruit salad: Produce kinds"
 [resource]
 script = ExtResource("3_card")
 id = &"fruit_salad_golden"
-display_name = "Golden Fruit salad"
+display_name = "Golden fruit salad"
 kind = 1
 tags = PackedStringArray("Food", "Produce")
 base = 4
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_fruit_salad")])
-rule_text = "+6 for each different Produce item before it"
+rule_text = "+6€ for each different earlier Produce item"
 art_ref = "res://art/items_v2/fruit_salad_golden.png"
 variant_of = ExtResource("9_plain")
 tier = 2

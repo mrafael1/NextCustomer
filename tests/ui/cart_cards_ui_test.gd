@@ -498,14 +498,14 @@ func test_every_tip_title_fits() -> void:
 				tip.show_stock(card, balance.machine, 0)
 			else:
 				tip.show_card(card, balance.machine, "")
-			var main: CardTip.TipCard = tip.main_card()
+			var main: CardTip.CardTipBox = tip.main_card()
 			assert_bool(main.title_fits()).override_failure_message(file_name).is_true()
 			assert_str(main.tag_text()).is_equal(CardTip.tag_of(card, balance.machine))
 			var keywords: PackedStringArray = GlyphText.keywords(
 				DeckCell.rule_line(card), FamilyPalette.shared()
 			)
 			var titles: Array[String] = []
-			for box: CardTip.TipCard in tip.keyword_cards():
+			for box: CardTip.CardTipBox in tip.keyword_cards():
 				assert_bool(box.title_fits()).override_failure_message(file_name).is_true()
 				titles.append(box.title_text())
 			for keyword: String in keywords:
@@ -614,9 +614,9 @@ func _assert_tip_beside(view: DeckView, item: Rect2, message: String) -> void:
 	var tail: Vector2 = tip.main_card().get_global_transform() * tip.main_card().tail_tip()
 	assert_float(tail.x).override_failure_message(message).is_equal_approx(
 		(
-			main.position.x - CardTip.TipCard.TAIL_SIZE.y + CardTip.TipCard.TAIL_OVERLAP
+			main.position.x - CardTip.CardTipBox.TAIL_SIZE.y + CardTip.CardTipBox.TAIL_OVERLAP
 			if right
-			else main.end.x + CardTip.TipCard.TAIL_SIZE.y - CardTip.TipCard.TAIL_OVERLAP
+			else main.end.x + CardTip.CardTipBox.TAIL_SIZE.y - CardTip.CardTipBox.TAIL_OVERLAP
 		),
 		0.5
 	)

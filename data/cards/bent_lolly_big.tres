@@ -16,12 +16,12 @@ receipt_text = "Bent lolly: gap to Snack"
 [resource]
 script = ExtResource("3_card")
 id = &"bent_lolly_big"
-display_name = "Big Bent lolly"
+display_name = "Big bent lolly"
 kind = 1
 tags = PackedStringArray("Food", "Snack", "Clearance")
 base = 4
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_bent_lolly")])
-rule_text = "+3 for each item between it and the nearest other Snack, up to 3"
+rule_text = "+3€ for each item between it and the nearest other Snack (max 3 items)"
 art_ref = "res://art/items_v2/bent_lolly_big.png"
 variant_of = ExtResource("9_plain")
 tier = 1

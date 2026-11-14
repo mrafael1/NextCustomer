@@ -66,7 +66,7 @@ const NOTICE_COLOR := Palette.INK
 ## The DONE state's "INSPECTION PASSED ✓" at the item column's foot (#77 machine v2), as the
 ## dessert stamps it on the receipt (CountUp.inspection_passed).
 const INSPECTION_RECT := Rect2(499, 209, 112, 18)
-const INSPECTION_TEXT := "INSPECTION PASSED ✓"
+const INSPECTION_TEXT := "QUOTA MET ✓"
 const INSPECTION_SIZE := 9
 const INSPECTION_WEIGHT := 800
 ## Every part the monitor draws, rods and shade included (stage coordinates).

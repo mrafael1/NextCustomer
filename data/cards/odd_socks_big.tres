@@ -14,12 +14,12 @@ receipt_text = "Odd socks pair"
 [resource]
 script = ExtResource("3_card")
 id = &"odd_socks_big"
-display_name = "Big Odd socks"
+display_name = "Big odd socks"
 kind = 1
 tags = PackedStringArray("Household")
 base = 4
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_odd_socks")])
-rule_text = "+8 if it and one Household item sit side by side, with no other Household item touching either"
+rule_text = "+8€ beside exactly one Household item (and no other Household item beside either)"
 art_ref = "res://art/items_v2/odd_socks_big.png"
 variant_of = ExtResource("9_plain")
 tier = 1

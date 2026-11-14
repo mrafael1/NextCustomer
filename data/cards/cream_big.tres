@@ -13,12 +13,12 @@ receipt_text = "Cream: PAIRs"
 [resource]
 script = ExtResource("3_card")
 id = &"cream_big"
-display_name = "Big Cream"
+display_name = "Big cream"
 kind = 1
 tags = PackedStringArray("Food", "Dairy")
 base = 4
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_cream")])
-rule_text = "+4 for each PAIR in the row"
+rule_text = "+4€ for each PAIRED item in the row"
 art_ref = "res://art/items_v2/cream_big.png"
 variant_of = ExtResource("9_plain")
 tier = 1

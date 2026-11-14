@@ -251,7 +251,8 @@ func test_a_coupon_shows_its_scissors() -> void:
 	for coupon: PriceSticker in [plain, family]:
 		assert_int(coupon.window().pay_state()).is_equal(PriceWindow.State.COUPON)
 		assert_bool(coupon.window().digits().visible).is_false()
-		assert_str(coupon.window().tip_text).contains("a coupon pays nothing itself")
+		assert_str(coupon.window().tip_text).contains("A coupon pays nothing itself")
+		assert_str(coupon.window().tip_title).is_equal(TipTarget.COUPON_TITLE)
 		coupon.set_pay(PlanningModel.Pay.DENIED, 0, "nothing beside it")
 		assert_int(coupon.window().pay_state()).is_equal(PriceWindow.State.WASTED)
 		assert_str(coupon.window().tip_text).contains("nothing beside it")
@@ -380,7 +381,7 @@ func test_the_window_holds_every_price() -> void:
 		var on_plate: bool = shown.intersects(milk.plate_rect())
 		assert_bool(on_plate).override_failure_message(message).is_false()
 		assert_that(Rect2(window.position, window.size)).is_equal(box)
-		assert_str(window.tip_text).contains("%d€" % amount)
+		assert_str(window.tip_title).is_equal(PriceSticker.PAYS_TITLE % ("%d€" % amount))
 
 
 ## The monitor's payout prints a lowered or 0€ pay in the ticket's grey too (the PR #138 round 2),
@@ -426,13 +427,18 @@ func test_the_window_says_the_pay() -> void:
 	milk.set_pay(PlanningModel.Pay.DENIED, 0, "SPOT CHECK")
 	assert_that(window.digits().color).is_equal(Palette.MUTED_INK)
 	assert_str(window.digits().text).is_equal("0€")
-	assert_str(window.tip_text).contains("SPOT CHECK")
+	assert_str(window.tip_text).contains("Spot check.")
+	assert_str(window.tip_text).not_contains("Spot Check")
+	assert_str(window.tip_title).is_equal(PriceSticker.PAYS_TITLE % "0€")
 	milk.set_pay(PlanningModel.Pay.ZERO, 0)
 	assert_str(window.tip_text).contains(PriceSticker.ZERO_REASON)
 	milk.set_pay(PlanningModel.Pay.BOOSTED, 18)
 	assert_str(window.digits().text).is_equal("18€")
 	var printed: String = "%d€" % _card("milk").base
-	assert_str(window.tip_text).is_equal(PriceSticker.PAY_TIP % ["Milk", "18€", printed, "boosted"])
+	var bonus: String = "%d€" % (18 - _card("milk").base)
+	assert_str(window.tip_text).is_equal(PriceSticker.PAY_TIP % [printed, bonus])
+	assert_str(window.tip_title).is_equal(PriceSticker.PAYS_TITLE % "18€")
+	assert_str(window.tip_tag).is_equal("Milk")
 	milk.clear_pay()
 	assert_int(window.pay_state()).is_equal(PriceWindow.State.PRINTED)
 	assert_str(window.digits().text).is_equal(printed)
@@ -625,24 +631,32 @@ func test_got_rings_a_products_ticket() -> void:
 	assert_bool(milk.got_ring().visible).is_false()
 
 
-## The ticket's colour has a tooltip below the ticket (ColourSpot over the whole face, under its
-## glyphs): what the colour means (FamilyPalette.colour_tip).
+## The ticket's colour has a tip below the ticket (ColourSpot over the whole face, under its
+## glyphs; the hover tips revamp): titled with the colour's family (COUPON for a plain coupon),
+## tagged with the item, its words the card's (CardText.monitor_text), or for a plain item what
+## the colour means (FamilyPalette.colour_tip).
 func test_the_colour_says_what_it_means() -> void:
-	var expected: Dictionary[String, String] = {
-		"milk": "Breakfast colour · works with Breakfast",
-		"cereal": "Dairy colour · works with Milk",
-		"banana": "Produce colour · works with another Banana",
-		"breakfast_sticker": "Breakfast colour · gives Breakfast",
-		"batteries": "Household colour · works with Household",
-		"scissors": "Household colour · its own family",
-		"multipack": "Plain coupon: works with whatever is beside it",
+	var titles: Dictionary[String, String] = {
+		"milk": "Breakfast",
+		"cereal": "Dairy",
+		"banana": "Produce",
+		"breakfast_sticker": "Breakfast",
+		"batteries": "Household",
+		"scissors": "Household",
+		"multipack": TipTarget.COUPON_TITLE,
+		"bread": "Bakery",
 	}
-	for id: String in expected:
+	for id: String in titles:
 		var sticker: PriceSticker = auto_free(PriceSticker.new(_card(id)))
 		add_child(sticker)
 		var spot: PriceSticker.ColourSpot = _spot(sticker)
 		assert_object(spot).override_failure_message(id).is_not_null()
-		assert_str(spot.tip_text).override_failure_message(id).is_equal(expected[id])
+		var words: String = CardText.monitor_text(_card(id))
+		if words.is_empty():
+			words = FamilyPalette.shared().colour_tip(_card(id))
+		assert_str(spot.tip_text).override_failure_message(id).is_equal(words)
+		assert_str(spot.tip_title).override_failure_message(id).is_equal(titles[id])
+		assert_str(spot.tip_tag).override_failure_message(id).is_equal(_card(id).display_name)
 		assert_bool(spot.tip_below).is_true()
 		assert_object(spot.tip_anchor).is_same(sticker)
 		assert_that(Rect2(spot.position, spot.size)).is_equal(
@@ -667,9 +681,9 @@ func test_every_tip_opens_below_its_ticket() -> void:
 	var words: Array[FamilyWord] = milk.summary().words()
 	assert_int(words.size()).is_equal(1)
 	assert_str(words[0].family).is_equal("Breakfast")
-	assert_str(words[0].tip_text).is_equal(FamilyWord.WORKS_WITH % "Breakfast")
+	assert_str(words[0].tip_text).starts_with("Breakfast · ")
 	assert_str(milk.window().tip_text).is_equal(
-		PriceSticker.PRINTED_TIP % ["Milk", "%d€" % _card("milk").base]
+		PriceSticker.PRINTED_TIP % ("%d€" % _card("milk").base)
 	)
 	var scissors: PriceSticker = auto_free(PriceSticker.new(_card("scissors")))
 	for sticker: PriceSticker in [milk, scissors]:

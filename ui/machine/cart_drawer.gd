@@ -345,7 +345,7 @@ func _frame_new(t: float, plan: MachinePlan) -> void:
 		note_label.text = "+1 card"
 		if landing.replaced != null:
 			var full: bool = landing.cart_before >= view.run.balance.deck_limit
-			note_label.text = "full: swap 1 out" if full else "swap 1 out"
+			note_label.text = "full: replace 1" if full else "replace 1"
 	var glow: bool = landed and t < plan.land + CHIP_GLOW
 	_chip.add_theme_stylebox_override("panel", _chip_styles[1 if glow else 0])
 

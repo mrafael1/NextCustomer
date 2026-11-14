@@ -137,7 +137,7 @@ func test_the_sockets_show_the_states() -> void:
 	assert_float(silver.position.x).is_less(gold.position.x)
 	var bounds: Rect2 = Rect2(Vector2.ZERO, sockets.size)
 	assert_bool(bounds.encloses(silver) and bounds.encloses(gold)).is_true()
-	assert_str(sockets._get_tooltip(gold.get_center())).is_equal("gold")
+	assert_str(sockets.tip_at(gold.get_center())).is_equal("gold")
 	assert_str(sockets.line_text(false)).is_equal("at 20€")
 	assert_str(sockets.line_text(true)).is_equal("at 30€")
 	sockets.launch(true)
@@ -159,7 +159,7 @@ func test_the_sockets_show_the_states() -> void:
 		assert_bool(sockets.medal_rect(false).has_area() or sockets.medal_rect(true).has_area())
 		. is_false()
 	)
-	assert_str(sockets._get_tooltip(gold.get_center())).is_empty()
+	assert_str(sockets.tip_at(gold.get_center())).is_empty()
 
 
 ## The chain on the real screen (the user's play test of 2026-11-10: the gauge activates the

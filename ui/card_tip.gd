@@ -36,8 +36,8 @@ const NOT_IN_CART := "Not in your cart"
 const PLAIN_COUPON := "Plain coupon: works with whatever is beside it"
 
 var side: Placement = Placement.RIGHT
-var _main: TipCard
-var _keywords: Array[TipCard] = []
+var _main: CardTipBox
+var _keywords: Array[CardTipBox] = []
 var _face: DeckCell
 
 
@@ -57,15 +57,15 @@ func show_card(
 	_main = _card_box(card, machine, WIDTH)
 	var meaning: String = works_with(card)
 	if not meaning.is_empty():
-		_main.add_text(meaning, TipCard.Style.WHY)
+		_main.add_text(meaning, CardTipBox.Style.WHY)
 	var rule: String = DeckCell.rule_line(card)
 	if rule_cut and not rule.is_empty():
-		_main.add_text(rule, TipCard.Style.BODY)
+		_main.add_text(rule, CardTipBox.Style.BODY)
 	var families: String = counts_as(card)
 	if not families.is_empty():
-		_main.add_text(families, TipCard.Style.COND)
+		_main.add_text(families, CardTipBox.Style.COND)
 	if not start_source.is_empty():
-		_main.add_text(START_TEXT % start_source, TipCard.Style.COND)
+		_main.add_text(START_TEXT % start_source, CardTipBox.Style.COND)
 	_add_keywords(card)
 
 
@@ -78,11 +78,11 @@ func show_stock(card: CardDefinition, machine: MachineDefinition, in_cart: int) 
 	_main.add_face(_face)
 	var meaning: String = works_with(card)
 	if not meaning.is_empty():
-		_main.add_text(meaning, TipCard.Style.WHY)
+		_main.add_text(meaning, CardTipBox.Style.WHY)
 	var families: String = counts_as(card)
 	if not families.is_empty():
-		_main.add_text(families, TipCard.Style.BODY)
-	_main.add_text(IN_CART % in_cart if in_cart > 0 else NOT_IN_CART, TipCard.Style.COND)
+		_main.add_text(families, CardTipBox.Style.BODY)
+	_main.add_text(IN_CART % in_cart if in_cart > 0 else NOT_IN_CART, CardTipBox.Style.COND)
 	_add_keywords(card)
 
 
@@ -142,24 +142,24 @@ func place_beside(item: Rect2, stage: Rect2) -> void:
 	y = floorf(y / 2.0) * 2.0
 	_main.position = Vector2(x, y)
 	_main.point_tail(
-		TipCard.TAIL_LEFT if side == Placement.RIGHT else TipCard.TAIL_RIGHT,
+		CardTipBox.TAIL_LEFT if side == Placement.RIGHT else CardTipBox.TAIL_RIGHT,
 		item.get_center().y - _main.position.y
 	)
 	var column_x: float = x + main_size.x + KEYWORD_GAP if side == Placement.RIGHT else x - beside
 	var column_y: float = clampf(
 		y, stage.position.y + MARGIN, maxf(stage.position.y, stage.end.y - MARGIN - column.y)
 	)
-	for box: TipCard in _keywords:
+	for box: CardTipBox in _keywords:
 		box.position = StockIcon.even_floor(Vector2(column_x, column_y))
 		column_y += box.size.y + KEYWORD_GAP
 
 
 ## The main card and the keyword boxes (for tests).
-func main_card() -> TipCard:
+func main_card() -> CardTipBox:
 	return _main
 
 
-func keyword_cards() -> Array[TipCard]:
+func keyword_cards() -> Array[CardTipBox]:
 	return _keywords
 
 
@@ -173,7 +173,7 @@ func card_rects() -> Array[Rect2]:
 	var rects: Array[Rect2] = []
 	if _main != null:
 		rects.append(_main.get_global_rect())
-	for box: TipCard in _keywords:
+	for box: CardTipBox in _keywords:
 		rects.append(box.get_global_rect())
 	return rects
 
@@ -186,7 +186,7 @@ func lines() -> Array[String]:
 	return found
 
 
-func _card_box(card: CardDefinition, machine: MachineDefinition, width: float) -> TipCard:
+func _card_box(card: CardDefinition, machine: MachineDefinition, width: float) -> CardTipBox:
 	var look: BoosterArt.Look = CartCardDraw.look_of(card, machine)
 	var band: Color = Palette.CREAM_SHADE if card.is_coupon() else Palette.CREAM
 	var ink: Color = Palette.INK
@@ -198,7 +198,9 @@ func _card_box(card: CardDefinition, machine: MachineDefinition, width: float) -
 	var icon: Texture2D = (
 		ArtStyle.coupon_icon(card) if card.is_coupon() else ArtStyle.item_sprite(card)
 	)
-	var box: TipCard = TipCard.new(width, band, ink, icon, card.display_name, tag_of(card, machine))
+	var box: CardTipBox = CardTipBox.new(
+		width, band, ink, icon, card.display_name, tag_of(card, machine)
+	)
 	box.name = "Main"
 	add_child(box)
 	return box
@@ -213,7 +215,7 @@ func _add_keywords(card: CardDefinition) -> void:
 			continue
 		seen.append(keyword)
 		var family: FamilyStyle = palette.style(str(KeywordChip.KEYWORD_FAMILIES.get(keyword, "")))
-		var box: TipCard = TipCard.new(
+		var box: CardTipBox = CardTipBox.new(
 			KEYWORD_WIDTH,
 			Palette.MUSTARD,
 			Palette.INK,
@@ -223,7 +225,7 @@ func _add_keywords(card: CardDefinition) -> void:
 		)
 		box.name = "Keyword%s" % keyword.capitalize()
 		add_child(box)
-		box.add_text(GlyphText.keyword_tip(keyword), TipCard.Style.SUB)
+		box.add_text(GlyphText.keyword_tip(keyword), CardTipBox.Style.SUB)
 		_keywords.append(box)
 	propagate_call(&"set_mouse_filter", [Control.MOUSE_FILTER_IGNORE])
 
@@ -232,7 +234,7 @@ func _add_keywords(card: CardDefinition) -> void:
 func _column_size() -> Vector2:
 	var height: float = 0.0
 	var width: float = 0.0
-	for box: TipCard in _keywords:
+	for box: CardTipBox in _keywords:
 		height += box.size.y + (KEYWORD_GAP if height > 0.0 else 0.0)
 		width = maxf(width, box.size.x)
 	return Vector2(width, height)
@@ -250,7 +252,7 @@ func _clear() -> void:
 ## One paper card of the tip: the header band (its colour, the icon in a paper box, the title and
 ## the tag), then lines of text (GlyphLabels: keywords and families as chips) and an optional card
 ## face; a dotted line under the colour's meaning; the tail on a side edge (point_tail).
-class TipCard:
+class CardTipBox:
 	extends Control
 
 	enum Style { BODY, WHY, COND, SUB }

@@ -18,12 +18,12 @@ receipt_text = "Reduced yogurt beside Clearance"
 [resource]
 script = ExtResource("3_card")
 id = &"reduced_yogurt_big"
-display_name = "Big Reduced yogurt"
+display_name = "Big reduced yogurt"
 kind = 1
 tags = PackedStringArray("Food", "Dairy", "Clearance")
 base = 4
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_reduced_yogurt")])
-rule_text = "PAIR: +4 for each Clearance item beside it"
+rule_text = "PAIR: +4€ per Clearance item beside it"
 generally_useful = true
 art_ref = "res://art/items_v2/reduced_yogurt_big.png"
 variant_of = ExtResource("9_plain")

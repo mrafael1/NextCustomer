@@ -14,12 +14,12 @@ receipt_text = "Wonky carrot after the chain"
 [resource]
 script = ExtResource("3_card")
 id = &"wonky_carrot_big"
-display_name = "Big Wonky carrot"
+display_name = "Big wonky carrot"
 kind = 1
 tags = PackedStringArray("Food", "Produce", "Clearance")
 base = 4
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_wonky_carrot")])
-rule_text = "Right after a Banana chain: +2 for each Banana in it"
+rule_text = "Right after a CHAIN: +2€ for each Banana in it"
 art_ref = "res://art/items_v2/wonky_carrot_big.png"
 variant_of = ExtResource("9_plain")
 tier = 1

@@ -16,12 +16,12 @@ receipt_text = "Soft tomatoes beside Soup"
 [resource]
 script = ExtResource("3_card")
 id = &"soft_tomatoes_big"
-display_name = "Big Soft tomatoes"
+display_name = "Big soft tomatoes"
 kind = 1
 tags = PackedStringArray("Food", "Produce", "Clearance")
 base = 4
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_soft_tomatoes")])
-rule_text = "+2 if beside Soup"
+rule_text = "+2€ if beside Soup"
 art_ref = "res://art/items_v2/soft_tomatoes_big.png"
 variant_of = ExtResource("9_plain")
 tier = 1

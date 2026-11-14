@@ -14,12 +14,12 @@ receipt_text = "Strawberries feed the chain"
 [resource]
 script = ExtResource("3_card")
 id = &"strawberries_big"
-display_name = "Big Strawberries"
+display_name = "Big strawberries"
 kind = 1
 tags = PackedStringArray("Food", "Produce")
 base = 4
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_strawberries")])
-rule_text = "Right before a Banana chain: +1 to every Banana in it"
+rule_text = "Right before a CHAIN: +1€ to every Banana in it"
 generally_useful = true
 art_ref = "res://art/items_v2/strawberries_big.png"
 variant_of = ExtResource("9_plain")

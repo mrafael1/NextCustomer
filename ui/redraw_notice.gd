@@ -59,10 +59,9 @@ static func armed(redraws_left: int, recycle: bool = false) -> RedrawNotice:
 	notice.title = "REDRAW"
 	notice.left = redraws_left
 	notice.key = "PICK A BASKET"
-	var fate: String = "go back in the pile" if recycle else "are set aside"
+	var fate: String = "go back in the pile" if recycle else "come back next shift"
 	notice.line = (
-		"Its items %s and new ones are drawn into it." % fate
-		+ " Each basket costs [b]1 redraw[/b]."
+		"Swap a whole basket for new items ([b]1 redraw[/b])." + " The old items %s." % fate
 	)
 	notice.foot = "Empty baskets can't be redrawn · Cancel to back out"
 	return notice
@@ -89,7 +88,7 @@ static func hovered(
 		notice.foot = "Only %d %s left to draw: %s stays." % [pile, word, stays.display_name]
 		notice.foot_warning = true
 	elif not recycle:
-		notice.foot = "They go back in the Cart next shift."
+		notice.foot = "They come back next shift."
 	else:
 		notice.foot = RECYCLE_FOOT
 	return notice

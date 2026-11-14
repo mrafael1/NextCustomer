@@ -60,7 +60,7 @@ func after_test() -> void:
 
 ## A pass with no notice, untouched after the verdict: total and the slam at 300 ms, pass at
 ## 450, PAID at 520, the tear's rip at 560 and the printer feed at 700 (each within _assert_ms's
-## bounds); the header's TOTAL over the hero with "+75€ OVER TARGET" in green dark and PAID after
+## bounds); the header's TOTAL over the hero with "+75€ OVER QUOTA" in green dark and PAID after
 ## it, nothing printed under the rows (2026-11-09); one printer_feed.
 func test_a_pass_slams_counts_stamps_tears_and_feeds() -> void:
 	var screen: ShiftScreen = await _screen()
@@ -90,7 +90,7 @@ func test_a_pass_slams_counts_stamps_tears_and_feeds() -> void:
 	assert_int(feeds.size()).is_equal(1)
 	assert_int(feeds[0] - count_up.printer_feed_ms).is_between(0, 20)
 	assert_int(count_up.margin.kind()).is_equal(ShiftMargin.Kind.OVER)
-	_assert_header(screen, 109, "+75€ OVER TARGET", ReceiptTarget.MET_COLOR)
+	_assert_header(screen, 109, "+75€ OVER QUOTA", ReceiptTarget.MET_COLOR)
 	await _assert_stamp(screen, ReceiptView.PAID_TEXT)
 	await _assert_lines_on_screen(screen, 2)
 	# A full belt: nothing prints under its last row, the header kept on the screen, and nothing
@@ -123,7 +123,7 @@ func test_a_miss_counts_short_and_tears_after_the_fail() -> void:
 	assert_array(feeds).is_empty()
 	assert_int(count_up.margin.kind()).is_equal(ShiftMargin.Kind.SHORT)
 	assert_array(ReceiptFed.lines(screen._receipt)).is_empty()
-	_assert_header(screen, 109, "SHORT 91€", ReceiptTarget.COLOR)
+	_assert_header(screen, 109, "MISSED BY 91€", ReceiptTarget.COLOR)
 	await _assert_stamp(screen, "")
 	await _assert_lines_on_screen(screen, 2)
 
@@ -206,14 +206,14 @@ func test_a_full_belt_ends_its_paper_at_its_rows() -> void:
 		assert_float(offsets[index].y).is_greater(offsets[index - 1].y)
 
 
-## Exactly on the quota: a pass of 0€, "ON TARGET" in green dark on the header, PAID after it.
+## Exactly on the quota: a pass of 0€, "ON QUOTA" in green dark on the header, PAID after it.
 func test_exactly_on_the_quota_is_a_green_on_quota() -> void:
 	var screen: ShiftScreen = await _screen()
 	var sfx: Sfx = _recording_sfx(screen)
 	await _place(screen, PASSING_ROW)
 	_play_skipped(screen, ROW_TOTAL)
 	await _played(screen)
-	_assert_header(screen, 109, "ON TARGET", ReceiptTarget.MET_COLOR)
+	_assert_header(screen, 109, "ON QUOTA", ReceiptTarget.MET_COLOR)
 	await _assert_stamp(screen, ReceiptView.PAID_TEXT)
 	assert_int(screen._count_up.margin.kind()).is_equal(ShiftMargin.Kind.ON)
 	assert_array(_names_of(_dessert_sounds(sfx, screen._count_up))).is_equal(
@@ -246,7 +246,7 @@ func test_the_last_shift_is_stamped_and_torn_then_shows_the_results() -> void:
 		["total", "pass", "stamp_paid", "rip"]
 	)
 	assert_str(screen._receipt.target.stamp.text).is_equal(ReceiptView.PAID_TEXT)
-	assert_str(screen._receipt.target.over.text).is_equal("+79€ OVER TARGET")
+	assert_str(screen._receipt.target.over.text).is_equal("+79€ OVER QUOTA")
 	assert_bool(_last_event("count_up").is_empty()).is_false()
 
 
@@ -276,7 +276,7 @@ func test_a_passed_shift_plays_the_dessert_then_opens_the_machine() -> void:
 		paid += int(line.ends_with("| " + ReceiptView.PAID_TEXT))
 	assert_int(paid).is_equal(0)  # PAID stamps the header, not a paper line (2026-11-09).
 	assert_str(screen._receipt.target.stamp.text).is_equal(ReceiptView.PAID_TEXT)
-	assert_str(screen._receipt.target.over.text).ends_with("OVER TARGET")
+	assert_str(screen._receipt.target.over.text).ends_with("OVER QUOTA")
 	assert_bool(screen._machine.is_open()).is_true()
 	assert_int(screen._machine._timeline._shown_at).is_equal(count_up.printer_feed_ms)
 	var start: int = Time.get_ticks_msec()

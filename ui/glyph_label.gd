@@ -29,6 +29,8 @@ const CHIP_MARGIN := 1.0
 const OVERFLOW_SLACK := 0.5
 
 var text: String = ""
+## The item the text is on (a ticket's), named by a not-working chip's tip; "" for none.
+var item_name: String = ""
 var _font: Font
 var _font_size: int
 var _color: Color
@@ -385,6 +387,8 @@ func _add_chip(run: Dictionary, line: int) -> void:
 	chip.position = Vector2(float(run["x"]) + _chip_margin, top)
 	chip.tip_below = _tip_below
 	chip.tip_anchor = _tip_anchor
+	if chip.is_wasted() and not item_name.is_empty():
+		chip.tip_tag = item_name  # Not working: its tip names the item it is on.
 	add_child(chip)
 	_chips.append(chip)
 
@@ -398,6 +402,7 @@ func _add_word(style: FamilyStyle, x: float, line: int) -> void:
 	word.position = Vector2(x + _chip_margin, top)
 	word.tip_below = _tip_below
 	word.tip_anchor = _tip_anchor
+	word.set_rule_line(text)
 	add_child(word)
 	_words.append(word)
 

@@ -12,6 +12,9 @@ extends Control
 ## The pile was clicked (to take the day off back).
 signal pressed
 
+## Its tip (the hover tips revamp): what CHECKOUT does with it, and the click that cancels it.
+const TIP := "SHIFT OFF · Ready: CHECKOUT skips this shift."
+const TIP_CLICK := "CANCEL"
 const PILE := preload("res://art/scenery/gold_pile.png")
 ## The pile's texel size on screen (a belt item's: ArtStyle.ART_SCALE) and the burst's scale.
 const PILE_SCALE := 2
@@ -43,7 +46,7 @@ func _init(quota: int) -> void:
 	name = "DayOffPile"
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	tooltip_text = "Day off: CHECKOUT takes it, a click takes it back"
+	TipTarget.cover_text(self, TIP, TipSpec.Kind.PIN, "", TIP_CLICK)
 	var pile_size: Vector2 = Vector2(PILE.get_size()) * PILE_SCALE
 	_tag = PayTag.new(PlanningModel.Pay.BOOSTED, MonitorText.euros(quota))
 	var tag_size: Vector2 = _tag.size * TAG_SCALE

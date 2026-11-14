@@ -139,6 +139,9 @@ func _open_slip(hover: bool) -> void:
 	var reduced: bool = _screen.profile.reduced_motion()
 	var bonus: String = bonus_line(_calendar.bonus_state(), run.inspections)
 	var options: Dictionary = {"above": true, "hover": hover, "bonus": bonus}
+	var target: ReceiptTarget = _screen._receipt.target
+	if target != null and target.is_visible_in_tree():
+		options["heading"] = target.beat.get_global_rect().merge(target.caption.get_global_rect())
 	slip.open(_calendar.day(), run.inspections, run.limits, _calendar, reduced, week, options)
 
 
@@ -193,6 +196,8 @@ func show_medals(projected: int) -> void:
 	var medals: MedalCase = _screen._stage.medal_case
 	medals.reduced_motion = _screen.profile.reduced_motion()
 	medals.show_states(states, tips)
+	var machine: MachineDefinition = WeekMedals.machine_data(run)
+	medals.show_tags(OvertimeWords.cap_tag(machine, false), OvertimeWords.cap_tag(machine, true))
 	medals.show_thresholds(WeekMedals.threshold_of(run, false), WeekMedals.threshold_of(run, true))
 
 

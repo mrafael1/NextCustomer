@@ -54,8 +54,8 @@ const SLIDE_TIME := 0.16
 const CONTINUE_TEXT := "CONTINUE"
 const START_TEXT := "START RUN"
 const NEW_RUN_TEXT := "NEW RUN"
-const REWARDS_TEXT := "REWARDS"
-const GUIDE_TEXT := "GUIDE"
+const REWARDS_TEXT := "TOYS"
+const GUIDE_TEXT := "HANDBOOK"
 const OPTIONS_TEXT := "OPTIONS"
 const QUIT_TEXT := "QUIT"
 ## GUIDE and OPTIONS share the last shelf as two half plates, HALF_GAP apart, so the column keeps
@@ -168,8 +168,9 @@ func is_shown() -> bool:
 	return _shown
 
 
-## Steps the plates in (at once when `still`). Returns the step in (null when still or shown).
-func step_in() -> Tween:
+## Steps the plates in, the first after `delay` seconds (at once when `still`). Returns the step
+## in (null when still or shown).
+func step_in(delay: float = 0.0) -> Tween:
 	if _shown:
 		return null
 	_shown = true
@@ -182,7 +183,7 @@ func step_in() -> Tween:
 		var shown_plate: MenuPlate = _plates[_entries[i]]
 		_slide(0.0, shown_plate)
 		_stepping.tween_method(_slide.bind(shown_plate), 0.0, 1.0, SLIDE_TIME).set_delay(
-			i * STEP_DELAY
+			delay + i * STEP_DELAY
 		)
 	return _stepping
 

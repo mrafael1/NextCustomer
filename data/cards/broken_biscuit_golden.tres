@@ -16,12 +16,12 @@ receipt_text = "Broken biscuit after Bakery"
 [resource]
 script = ExtResource("3_card")
 id = &"broken_biscuit_golden"
-display_name = "Golden Broken biscuit"
+display_name = "Golden broken biscuit"
 kind = 1
 tags = PackedStringArray("Food", "Bakery", "Clearance")
 base = 4
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_broken_biscuit")])
-rule_text = "+6 if right after a Bakery item"
+rule_text = "+6€ if right after a Bakery item"
 art_ref = "res://art/items_v2/broken_biscuit_golden.png"
 variant_of = ExtResource("9_plain")
 tier = 2

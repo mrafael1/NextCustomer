@@ -14,12 +14,12 @@ receipt_text = "Milk: earlier Breakfast"
 [resource]
 script = ExtResource("3_8cl8l")
 id = &"milk_golden"
-display_name = "Golden Milk"
+display_name = "Golden milk"
 kind = 1
 tags = PackedStringArray("Food", "Breakfast", "Dairy")
 base = 6
 rules = Array[ExtResource("1_ivcki")]([SubResource("Resource_8j62u")])
-rule_text = "+2 for each earlier Breakfast item"
+rule_text = "+2€ for each earlier Breakfast item"
 generally_useful = true
 art_ref = "res://art/items_v2/milk_golden.png"
 variant_of = ExtResource("4_milk")

@@ -16,12 +16,12 @@ receipt_text = "Cereal bar beside Snack"
 [resource]
 script = ExtResource("3_card")
 id = &"cereal_bar_big"
-display_name = "Big Cereal bar"
+display_name = "Big cereal bar"
 kind = 1
 tags = PackedStringArray("Food", "Snack", "Breakfast")
 base = 4
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_cereal_bar")])
-rule_text = "+4 if beside a Snack item"
+rule_text = "+4€ if beside a Snack item"
 art_ref = "res://art/items_v2/cereal_bar_big.png"
 variant_of = ExtResource("9_plain")
 tier = 1

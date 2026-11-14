@@ -14,11 +14,20 @@ const SIGN := preload("res://art/frames/sign.png")
 const STAMP_RING := preload("res://art/icons/stamp_ring.png")
 ## The x of the lockers' handles painted in the room (y 140, 5 x 26): the held slots' dashes
 ## break round them.
+## The ticker while the packs wait for the BADGE PINS step (cleared while the step is open).
+const PINS_FIRST_HINT := "BADGE PINS FIRST · PRESS P"
 const LOCKER_HANDLES: Array[int] = [238, 298, 358, 418]
 ## A card behind a pack's front card shows its frame top and its name band (rows 53 on).
 const BAND_ROW := 53
 ## The plan note on the corkboard (art px).
 const NOTE := Rect2i(100, 80, 76, 76)
+## A pack's strip on the bench (its family band and name plate) at rest: x from the pack's place
+## minus 4, its top and size (art px).
+const STRIP_Y := 89
+const STRIP_W := 80.0
+const STRIP_H := 23.0
+## The RARE tab's height over a card's top edge (BoosterCardDraw.tab, centred 1 px above it).
+const TAB_H := 11.0
 ## The tape over the held slots.
 const TAPE_W := 236
 const TAPE_Y := 104
@@ -38,10 +47,16 @@ static func draw(layer: BuildLayer) -> void:
 			for k: int in _stack_order(page):
 				_stack(pen, page, k)
 		"Over":
-			if page.spread >= 0:
-				_spread(pen, page, page.spread)
+			# The strips first, then the spread over them (its RARE tabs read in front of a
+			# neighbour's plate), then the pick's family stamp over both.
 			for k: int in page.stacks.size():
 				_strip(pen, page, k)
+			if page.spread >= 0:
+				_spread(pen, page, page.spread)
+			var picked: int = page.picked()
+			if picked >= 0 and picked < page.stacks.size() and _strip_landed(page, picked):
+				var mid: float = BuildPage.STX[picked] - 4 + STRIP_W / 2.0
+				_family_stamp(pen, page, page.stacks[picked].pack, mid)
 			_note(pen, page)
 		"Flights":
 			_flights(pen, page)
@@ -243,6 +258,24 @@ static func _spread(pen: ArtPen, page: BuildPage, k: int) -> void:
 		pen.r(x + 2, y + CH + pop, CW - 4, 1, Palette.INK)
 
 
+## Whether pack `k`'s strip has landed (its last card's flight is over).
+static func _strip_landed(page: BuildPage, k: int) -> bool:
+	if not page.dealt:
+		return false
+	return page.rm or _deal_age(page, k, 2) >= page.tuning.p2_fly_s
+
+
+## Pack `k`'s strip at rest, `hovered` (lifted 1 px) or not (art px).
+static func strip_rect(k: int, hovered: bool = false) -> Rect2:
+	return Rect2(BuildPage.STX[k] - 4, STRIP_Y - (1 if hovered else 0), STRIP_W, STRIP_H)
+
+
+## Spread card `j`'s RARE tab at full lift (art px): the box BoosterCardDraw.tab fills.
+static func spread_tab_rect(j: int) -> Rect2:
+	var top: float = roundf(BuildPage.SPY - 4 - 1 - TAB_H / 2.0)
+	return Rect2(BuildPage.SPX[j], top, BoosterArt.CW, TAB_H)
+
+
 ## A pack's family's colours (the coupon family in tomato with paper words, as the mock-up's).
 static func family(pack: StarterPackDefinition) -> Dictionary:
 	var palette: FamilyPalette = FamilyPalette.shared()
@@ -267,15 +300,13 @@ static func family(pack: StarterPackDefinition) -> Dictionary:
 ## The strip over pack `k`: its family band and its name, scaled in as it lands; the family stamp
 ## slams onto the picked one.
 static func _strip(pen: ArtPen, page: BuildPage, k: int) -> void:
-	if not page.dealt:
+	if not _strip_landed(page, k):
 		return
 	var t: float = _deal_age(page, k, 2) - page.tuning.p2_fly_s
-	if t < 0.0 and not page.rm:
-		return
 	var pack: StarterPackDefinition = page.stacks[k].pack
 	var f: Dictionary = family(pack)
 	var x: float = BuildPage.STX[k] - 4
-	var w: float = 80.0
+	var w: float = STRIP_W
 	var sc: float = 1.0
 	if not page.rm and t < 0.2:
 		sc = lerpf(1.5, 1.0, BoosterPageDraw.e_back(t / 0.2))
@@ -283,7 +314,10 @@ static func _strip(pen: ArtPen, page: BuildPage, k: int) -> void:
 	var hv: float = 1.0 if page.is_hovered("pack%d" % k) else 0.0
 	var saved_origin: Vector2 = pen.origin
 	var saved_unit: Vector2 = pen.unit
-	pen.origin = pen.at(roundf(x + w / 2.0 - w * sc / 2.0), roundf(89 + 11 - 23 * sc / 2.0 - hv))
+	pen.origin = pen.at(
+		roundf(x + w / 2.0 - w * sc / 2.0),
+		roundf(STRIP_Y + STRIP_H / 2.0 - STRIP_H * sc / 2.0 - hv)
+	)
 	pen.unit = saved_unit * sc
 	pen.rn(0, 0, w, 11, f.face as Color)
 	pen.r(1, 1, w - 2, 1, f.light as Color)
@@ -299,8 +333,6 @@ static func _strip(pen: ArtPen, page: BuildPage, k: int) -> void:
 		pen.caps(name_text, w / 2.0, 14, Palette.INK, 1.0, HORIZONTAL_ALIGNMENT_CENTER)
 	pen.origin = saved_origin
 	pen.unit = saved_unit
-	if page.picked() == k:
-		_family_stamp(pen, page, pack, x + w / 2.0)
 
 
 static func family_stamp_size(pack: StarterPackDefinition) -> Vector2:
@@ -658,6 +690,13 @@ static func _floor(pen: ArtPen, page: BuildPage) -> void:
 	)
 	if hv:
 		pen.tex(BoosterArt.TICK, 1, back.position.y + 10)
+	hint_led(pen, page)
+	_primary(pen, page)
+
+
+## The floor's hint LED (the ticker) and its line typing out; the OPEN STORE flight draws it again
+## over its dim, so its skip line reads lit.
+static func hint_led(pen: ArtPen, page: BuildPage) -> void:
 	var led: Rect2i = BuildPage.LED_RECT
 	pen.nine(
 		BoosterArt.LED, led.position.x, led.position.y, led.size.x, led.size.y, Vector4i(4, 4, 4, 4)
@@ -674,7 +713,6 @@ static func _floor(pen: ArtPen, page: BuildPage) -> void:
 		1.0,
 		HORIZONTAL_ALIGNMENT_CENTER
 	)
-	_primary(pen, page)
 
 
 ## The primary key: lit or teal, its label and sub-label, the armed LED rim once a pack is
@@ -816,7 +854,7 @@ static func primary_label(page: BuildPage) -> Array:
 	elif page.now < page.busy_until:
 		label = ["SKIP ›", "DEAL EVERY CARD", true]
 	elif page.picked() >= 0:
-		label = ["OPEN STORE", "CLOCK IN · %d CARDS" % page.cart_target(), true]
+		label = ["OPEN STORE ›", "%d CARDS" % page.cart_target(), true]
 	elif first != null:
 		var at: int = page.run.start_offer.packs.find(first) + 1
 		label = ["TAKE PACK %d" % at, first.display_name.to_upper(), true]
@@ -826,18 +864,24 @@ static func primary_label(page: BuildPage) -> Array:
 ## The hint LED's line: a flashed message for 2 s, else the state's hint.
 static func hint_line(page: BuildPage) -> String:
 	var line: String = "HOVER A PACK, CLICK TO PICK"
-	if page.message != "" and page.now - page.message_t < 2.0:
+	if page.flight != null:
+		line = StoreFlight.SKIP_HINT
+	elif page.message != "" and page.now - page.message_t < 2.0:
 		line = page.message
+	elif page.pins_open:
+		line = ""
 	elif page.packs_held():
-		line = "BADGE PINS FIRST · P"
+		line = PINS_FIRST_HINT
 	elif page.hint != "":
 		line = page.hint
 	elif page.picked() >= 0:
-		line = "OPEN STORE TO CLOCK IN"
+		line = "OPEN STORE, THEN START SHIFT 1"
 	return line
 
 
 static func hint_start(page: BuildPage) -> float:
+	if page.flight != null:
+		return page.flight.t0
 	return page.message_t if page.message != "" and page.now - page.message_t < 2.0 else page.hint_t
 
 
@@ -856,3 +900,44 @@ static func top_view(page: BuildPage) -> Dictionary:
 		"punch_t": page.cart_punch_t,
 		"punch_s": page.cart_punch_s,
 	}
+
+
+## The page's hover tips this frame (StartTips entries): each landed strip's family band, then the
+## spread pack's cards, once spread and dealt, with their family chips, tagged with the pack's name.
+static func tip_entries(page: BuildPage) -> Array[Dictionary]:
+	var list: Array[Dictionary] = []
+	var palette: FamilyPalette = FamilyPalette.shared()
+	for n: int in page.stacks.size():
+		var held: StarterPackDefinition = page.stacks[n].pack
+		var style: FamilyStyle = palette.style(held.family)
+		if style == null or (not page.rm and _deal_age(page, n, 2) < page.tuning.p2_fly_s):
+			continue
+		var band: Rect2 = Rect2(BuildPage.STX[n] - 4, 88, 80, 11)
+		var key: String = "strip%d|%s|%s" % [n, held.id, style.id]
+		list.append(StartTips.entry_of(band, key, StartTips.pack_family_spec.bind(style, held)))
+	var k: int = page.spread
+	if k < 0 or k >= page.stacks.size() or page.now - page.spread_t <= page.tuning.p2_spread_s:
+		return list
+	var pack: StarterPackDefinition = page.stacks[k].pack
+	var tag: String = pack.display_name.to_upper()
+	for j: int in pack.cards.size():
+		if not page.rm and _deal_age(page, k, j) < page.tuning.p2_fly_s + page.tuning.p2_flip_s:
+			continue
+		var card: CardDefinition = pack.cards[j]
+		var at: Vector2 = Vector2(BuildPage.SPX[j], BuildPage.SPY - 4)
+		StartTips.card_entries(
+			list, card, rare(card, page.run.balance), at, "spread%d_%d" % [k, j], tag
+		)
+	return list
+
+
+## Whether no hover tip may show on `page` now: before the deal, during it, the BADGE PINS step or
+## the OPEN STORE flight.
+static func tips_blocked(page: BuildPage) -> bool:
+	return (
+		page.run == null
+		or not page.dealt
+		or page.flight != null
+		or page.pins_open
+		or page.now < page.busy_until
+	)

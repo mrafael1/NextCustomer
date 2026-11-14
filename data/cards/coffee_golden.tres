@@ -14,12 +14,12 @@ receipt_text = "Coffee: MORNING"
 [resource]
 script = ExtResource("3_4oddt")
 id = &"coffee_golden"
-display_name = "Golden Coffee"
+display_name = "Golden coffee"
 kind = 1
 tags = PackedStringArray("Breakfast")
 base = 4
 rules = Array[ExtResource("1_6wkug")]([SubResource("Resource_vnpwy")])
-rule_text = "+2 for each MORNING item in the row"
+rule_text = "+2€ for each MORNING item in the row"
 art_ref = "res://art/items_v2/coffee_golden.png"
 variant_of = ExtResource("4_coffee")
 tier = 2

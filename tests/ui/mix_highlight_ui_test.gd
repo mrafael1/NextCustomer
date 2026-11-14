@@ -97,9 +97,7 @@ func test_a_written_family_lights_what_its_rule_counts() -> void:
 	var word: FamilyWord = milk.sticker().summary().words()[0]
 	assert_str(word.family).is_equal("Breakfast")
 	tips.show_tip(word)
-	assert_str(tips.tip().tip_text()).is_equal(
-		FamilyWord.WORKS_WITH % "Breakfast" + " · counts Eggs (1), Bread (2)"
-	)
+	assert_str(tips.tip().tip_text()).is_equal(word.tip_text + " · counts Eggs (1), Bread (2)")
 	var looks: Dictionary = {"eggs": L.LIT, "bread": L.LIT, "milk": L.SELF, "frozen_peas": L.GREY}
 	for id: String in HAND_IDS:
 		looks[id] = L.GREY

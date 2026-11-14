@@ -55,6 +55,7 @@ static func apply(screen: ShiftScreen, arguments: PackedStringArray) -> String:
 	var roll: ReceiptRoll = screen._receipt.target.roll
 	if roll.rolling():
 		roll.snap(roll.goal)  # The capture's own setup rolled the projection: it lands.
+	part += CaptureHovers.apply(screen, arguments)
 	for argument: String in arguments:
 		if argument.begins_with(REDRAWS_ARGUMENT):
 			var used: int = argument.trim_prefix(REDRAWS_ARGUMENT).to_int()

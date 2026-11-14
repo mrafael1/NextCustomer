@@ -99,8 +99,8 @@ func test_only_a_zero_slot_mark_shrinks_to_its_chip() -> void:
 		auto_free(mark)
 	var zero: SlotMark = marks[0]
 	assert_bool(zero.zero_slot).is_true()
-	assert_str(zero.tooltip_text).is_equal(
-		"%s: this slot pays %s" % [spot_check.display_name, SlotMark.INSPECTION_TEXT]
+	assert_str(TipTarget.tip_of(zero)).is_equal(
+		SlotMark.ZERO_TIP % [spot_check.display_name, SlotMark.INSPECTION_TEXT]
 	)
 	var full: Vector2 = zero.size
 	zero.set_compact(true)
@@ -126,7 +126,7 @@ func test_only_a_zero_slot_mark_shrinks_to_its_chip() -> void:
 		assert_bool(other.is_compact()).is_false()
 		assert_bool(other.shows_text()).is_true()
 		assert_vector(other.size).is_equal(other_size)
-		assert_str(other.tooltip_text).is_empty()
+		assert_str(TipTarget.tip_of(other)).is_empty()
 
 
 ## A fire punches the talker and swings it about its hook (its top's middle), then it settles

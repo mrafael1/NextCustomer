@@ -13,12 +13,12 @@ receipt_text = "Crisps: redraws left"
 [resource]
 script = ExtResource("3_card")
 id = &"crisps_big"
-display_name = "Big Crisps"
+display_name = "Big crisps"
 kind = 1
 tags = PackedStringArray("Food", "Snack")
 base = 4
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_crisps")])
-rule_text = "+4 for each redraw left this shift"
+rule_text = "+4€ for each redraw left this shift"
 generally_useful = true
 art_ref = "res://art/items_v2/crisps_big.png"
 variant_of = ExtResource("9_plain")

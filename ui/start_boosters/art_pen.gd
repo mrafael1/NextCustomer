@@ -263,7 +263,8 @@ static func dither_tile(colour: Color, level: int) -> ImageTexture:
 
 
 ## `text` in the chunky sheets (`chunky`) or the 3x5 capitals, `colour` on clear (cached): one
-## texel an art px, glyphs one px apart, a ':' as two 2x2 dots (the mock-up's).
+## texel an art px, glyphs one px apart, a ':' as two 2x2 dots (the mock-up's; one px dots in the
+## capitals).
 static func word_texture(text: String, colour: Color, chunky_sheet: bool) -> ImageTexture:
 	var key: String = "%s|%s|%s" % [text, colour.to_html(), chunky_sheet]
 	if _words.has(key):
@@ -296,6 +297,8 @@ static func _glyph(character: String, chunky_sheet: bool) -> Array:
 			return ["...", ".#.", "###", ".#.", "..."]
 		if character == "·":
 			return ["...", "...", ".#.", "...", "..."]
+		if character == ":":
+			return [".", "#", ".", "#", "."]
 		return PixelWords.glyph_of(character, PixelWords.Sheet.CAPS)
 	if character == ":":
 		return ["..", "##", "##", "..", "..", "##", "##", ".."]

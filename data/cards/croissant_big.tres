@@ -15,12 +15,12 @@ receipt_text = "Croissant opens batch"
 [resource]
 script = ExtResource("3_card")
 id = &"croissant_big"
-display_name = "Big Croissant"
+display_name = "Big croissant"
 kind = 1
 tags = PackedStringArray("Food", "Bakery", "Breakfast")
 base = 4
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_croissant")])
-rule_text = "First of a Bakery batch: +2 to every later Bakery item in it"
+rule_text = "First of a BATCH: +2€ to every later item in it"
 art_ref = "res://art/items_v2/croissant_big.png"
 variant_of = ExtResource("9_plain")
 tier = 1

@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="TitleOpeningTuning" format=3]
+
+[ext_resource type="Script" path="res://ui/title/title_opening_tuning.gd" id="1_tuning"]
+
+[resource]
+script = ExtResource("1_tuning")
+dark_s = 0.35
+sweep_s = 0.6
+letter_flash_s = 0.05
+blink_s = 0.16
+glow_half_s = 0.05
+plates_delay_s = 0.06
+beep_sound = "scan"

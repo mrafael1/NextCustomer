@@ -167,10 +167,14 @@ func test_the_new_run_question_never_abandons_on_a_bare_enter() -> void:
 	var sheet: Rect2 = confirm.sheet().get_global_rect()
 	for plate: MenuPlate in [confirm.abandon_plate(), confirm.keep_plate()]:
 		assert_bool(sheet.encloses(plate.get_global_rect())).is_true()
+	# It opens on KEEP (polish audit v1.36): a bare Enter keeps the run.
+	assert_bool(confirm.keep_plate().is_lit()).is_true()
 	confirm.handle_key(_key(KEY_ENTER))
-	assert_array(heard).is_empty()
-	confirm.handle_key(_key(KEY_ESCAPE))
 	assert_array(heard).is_equal(["kept"])
+	assert_bool(confirm.is_open()).is_false()
+	confirm.open("SHIFT 3/16 WILL BE LOST")
+	confirm.handle_key(_key(KEY_ESCAPE))
+	assert_array(heard).is_equal(["kept", "kept"])
 	assert_bool(confirm.is_open()).is_false()
 	confirm.open("SHIFT 3/16 WILL BE LOST")
 	confirm.handle_key(_key(KEY_RIGHT))
@@ -179,7 +183,7 @@ func test_the_new_run_question_never_abandons_on_a_bare_enter() -> void:
 	assert_bool(confirm.keep_plate().is_lit()).is_true()
 	confirm.handle_key(_key(KEY_LEFT))
 	confirm.handle_key(_key(KEY_ENTER))
-	assert_array(heard).is_equal(["kept", "abandon"])
+	assert_array(heard).is_equal(["kept", "kept", "abandon"])
 	assert_bool(confirm.is_open()).is_false()
 
 
@@ -257,7 +261,7 @@ func test_the_words_are_hard_pixel_text() -> void:
 			. override_failure_message("%s at %s" % [label.text, at])
 			. is_equal(Vector2.ZERO)
 		)
-	for caption: String in ["CONTINUE", "NEW RUN", "REWARDS"]:
+	for caption: String in ["CONTINUE", "NEW RUN", "TOYS"]:
 		assert_array(texts).contains([caption])
 	assert_array(texts).not_contains(["BADGE PINS"])
 	for caption: String in ["ABANDON THIS RUN?", "ABANDON", "KEEP"]:

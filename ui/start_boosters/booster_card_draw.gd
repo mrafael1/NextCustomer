@@ -21,7 +21,8 @@ static var _rules: Dictionary[String, Array] = {}
 
 ## Draws `card` at art (`x`, `y`) with options `o`: back (Back), sx (flip, 0..1), scale, pop (px
 ## per side), sweep (0..1, <0: none), flash (1: white), hot (fast foil), still (no motion), now
-## (the page clock, s).
+## (the page clock, s), rule_bottom (art y the rule must end above, e.g. over a tag; default the
+## face's own).
 static func draw(
 	pen: ArtPen, card: CardDefinition, rare: bool, x: float, y: float, o: Dictionary = {}
 ) -> void:
@@ -73,7 +74,7 @@ static func _draw_local(pen: ArtPen, card: CardDefinition, rare: bool, o: Dictio
 			Rect2(pen.at(win.position.x, win.position.y), pen.size_of(win.size.x, win.size.y)),
 			lam
 		)
-	_words(pen, card, rare)
+	_words(pen, card, rare, o.get("rule_bottom", BoosterArt.CH) as float)
 	var sweep: float = o.get("sweep", -1.0)
 	if sweep >= 0.0 and sweep <= 1.0:
 		var band_x: float = roundf(lerpf(-30, BoosterArt.CW + 10, sweep))
@@ -85,8 +86,9 @@ static func _draw_local(pen: ArtPen, card: CardDefinition, rare: bool, o: Dictio
 
 
 ## The face's words: the name band's hard pixel lines and the rule in Atkinson, fitted to its room.
-static func _words(pen: ArtPen, card: CardDefinition, rare: bool) -> void:
+static func _words(pen: ArtPen, card: CardDefinition, rare: bool, floor_y: float) -> void:
 	var text: Dictionary = BoosterArt.face_text(card, rare)
+	var bottom: float = minf(text.rule_bottom as float, floor_y)
 	var win: Rect2i = text.window
 	var coupon: bool = card.kind == CardDefinition.Kind.COUPON
 	var lines: PackedStringArray = text.lines
@@ -100,15 +102,13 @@ static func _words(pen: ArtPen, card: CardDefinition, rare: bool) -> void:
 			1.0,
 			HORIZONTAL_ALIGNMENT_CENTER
 		)
-	var fit: Array = rule_fit(
-		card, win.size.x - 4, (text.rule_bottom as int) - (text.rule_top as int)
-	)
+	var room: float = bottom - (text.rule_top as int)
+	var fit: Array = rule_fit(card, win.size.x - 4, room)
 	if fit.is_empty():
 		return
 	var size: float = fit[0]
 	var rule_lines: PackedStringArray = fit[1]
 	var block: float = rule_lines.size() * (size + 0.9)
-	var room: float = (text.rule_bottom as int) - (text.rule_top as int)
 	var ry: float = (text.rule_top as int) + maxf(0.0, (room - block) / 2.6)
 	for k: int in rule_lines.size():
 		pen.atk(
@@ -140,7 +140,9 @@ static func rule_fit(card: CardDefinition, max_w: float, room: float) -> Array:
 	return _rules[key]
 
 
-## Atkinson words of `size` art px wrapped to `max_w` art px (measured at the stage's 2 px).
+## Atkinson words of `size` art px wrapped to `max_w` art px (measured at the stage's 2 px), with
+## no lone last word (v1.36, polish audit: "beside / it"): the line before gives it its last word
+## when it keeps two and the pair fits.
 static func wrap_words(text: String, size: float, max_w: float) -> PackedStringArray:
 	var font: Font = ArtStyle.bold_font(RULE_WEIGHT)
 	var font_size: int = maxi(1, roundi(size * ArtPen.UNIT))
@@ -158,6 +160,17 @@ static func wrap_words(text: String, size: float, max_w: float) -> PackedStringA
 			line = trial
 	if line != "":
 		lines.append(line)
+	if lines.size() < 2 or lines[-1].contains(" "):
+		return lines
+	var before: PackedStringArray = lines[-2].split(" ", false)
+	if before.size() < 3:
+		return lines
+	var moved: String = before[-1] + " " + lines[-1]
+	var moved_w: float = font.get_string_size(moved, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+	if moved_w / ArtPen.UNIT > max_w:
+		return lines
+	lines[-2] = " ".join(before.slice(0, before.size() - 1))
+	lines[-1] = moved
 	return lines
 
 

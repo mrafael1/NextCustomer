@@ -12,7 +12,7 @@ func test_an_earlier_rule_reaches_the_earlier_items() -> void:
 	assert_array(Array(reach.slots)).is_equal([0])
 	reach = _reach(["milk", "cereal", "coffee"], 0, "Breakfast")
 	assert_array(Array(reach.slots)).is_empty()
-	assert_str(reach.none_text("Breakfast")).is_equal("No Breakfast item before it on the belt")
+	assert_str(reach.none_text("Breakfast")).is_equal("No earlier Breakfast item in the row")
 
 
 ## Eggs' "×2 next Food" reaches the first later Food product, past a coupon.
@@ -20,7 +20,7 @@ func test_a_next_rule_reaches_the_next_matching_product() -> void:
 	var reach: RuleReach = _reach(["bread", "eggs", "multipack", "bread", "milk"], 1, "Food")
 	assert_array(Array(reach.slots)).is_equal([3])
 	reach = _reach(["bread", "eggs"], 1, "Food")
-	assert_str(reach.none_text("Food")).is_equal("No Food item after it on the belt")
+	assert_str(reach.none_text("Food")).is_equal("No later Food item in the row")
 
 
 ## Frozen peas reach the Frozen products beside them, Soup the Frozen beside it (its penalty), and

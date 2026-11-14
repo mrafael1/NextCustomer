@@ -123,12 +123,17 @@ const GAINED_TIP := "%s · gained from %s"
 ## Where a gained family came from (show_gained): the Price gun, or a Family sticker (v1.29).
 const GUN_SOURCE := "the Price gun this shift"
 const STICKER_SOURCE := "the Family sticker before it"
-const PRINTED_TIP := "%s · %s, its printed price"
-const PAY_TIP := "%s pays %s (printed %s) · %s"
-const ZERO_TIP := "%s pays 0€ (printed %s) · %s"
-const ZERO_REASON := "nothing pays it this checkout"
-const COUPON_TIP := "%s · a coupon pays nothing itself"
-const WASTED_TIP := "%s · WASTED: it gave nothing this checkout"
+## The price window's tip (the hover tips revamp): PAYS N€, tagged with the item, its rule saying
+## where the money comes from, and the fine print WINDOW_COND.
+const PAYS_TITLE := "PAYS %s"
+const PRINTED_TIP := "%s on its label, nothing added yet."
+const PAY_TIP := "%s on its label, %s from bonuses."
+const LOWERED_TIP := "%s on its label, %s taken off."
+const ZERO_TIP := "%s on its label, but it pays 0€: %s."
+const ZERO_REASON := "nothing pays it this shift"
+const COUPON_TIP := "A coupon pays nothing itself. %s"
+const WASTED_TIP := "%s does nothing where it sits."
+const WINDOW_COND := "Hover the item to see each bonus on the monitor."
 ## Node names (for tests).
 const FACE_NAME := "Face"
 const WINDOW_NAME := "PriceWindow"
@@ -215,6 +220,7 @@ func _init(definition: CardDefinition, palette: FamilyPalette = null) -> void:
 	if definition.tier == CardDefinition.Tier.GOLDEN:
 		_add_gold()
 	_colour_spot = ColourSpot.new(families.colour_tip(definition), self)
+	_colour_spot.dress_colour(definition)
 	add_child(_colour_spot)
 	_add_glyphs(definition, families)
 	_window = PriceWindow.new()
@@ -251,18 +257,32 @@ func set_pay(pay: PlanningModel.Pay, amount: int, reason: String = "") -> void:
 	var state: PriceWindow.State = PriceWindow.state_for(pay, _definition.is_coupon())
 	var shown: int = _definition.base if state == PriceWindow.State.PRINTED else amount
 	_window.show_pay(state, 0 if state == PriceWindow.State.ZERO else shown, _definition.base)
+	_window.tip_tag = item
+	_window.tip_kind = TipSpec.Kind.PRICE
+	_window.tip_cond = WINDOW_COND
+	_window.tip_title = PAYS_TITLE % price_text(0 if state == PriceWindow.State.ZERO else shown)
 	match state:
 		PriceWindow.State.COUPON:
-			_window.tip_text = COUPON_TIP % item
+			_window.tip_kind = TipSpec.Kind.COUPON
+			_window.tip_title = TipTarget.COUPON_TITLE
+			_window.tip_cond = ""
+			_window.tip_text = COUPON_TIP % CardText.monitor_text(_definition)
 		PriceWindow.State.WASTED:
-			_window.tip_text = WASTED_TIP % item + (" · " + reason if not reason.is_empty() else "")
+			_window.tip_kind = TipSpec.Kind.BROKEN
+			_window.tip_title = CardText.WASTED_WORD
+			_window.tip_cond = ""
+			_window.tip_text = reason if not reason.is_empty() else WASTED_TIP % item
 		PriceWindow.State.ZERO:
-			var why: String = reason if not reason.is_empty() else ZERO_REASON
-			_window.tip_text = ZERO_TIP % [item, printed, why]
+			var why: String = (
+				TipMarkup.sentence_case(reason) if not reason.is_empty() else ZERO_REASON
+			)
+			_window.tip_text = ZERO_TIP % [printed, why]
+		PriceWindow.State.BOOSTED when amount >= _definition.base:
+			_window.tip_text = PAY_TIP % [printed, price_text(amount - _definition.base)]
 		PriceWindow.State.BOOSTED, PriceWindow.State.LOWERED:
-			_window.tip_text = PAY_TIP % [item, price_text(amount), printed, _window.state_name()]
+			_window.tip_text = LOWERED_TIP % [printed, price_text(_definition.base - amount)]
 		_:
-			_window.tip_text = PRINTED_TIP % [item, printed]
+			_window.tip_text = PRINTED_TIP % printed
 
 
 ## Puts the printed price back in the window, undimmed.
@@ -467,6 +487,8 @@ func _add_glyphs(definition: CardDefinition, families: FamilyPalette) -> void:
 		var glyph: FamilyGlyph = _new_glyph(
 			style, MEMBER_TIP % [name_shown, definition.display_name, name_shown]
 		)
+		if definition.is_coupon():
+			glyph.dress_colour(definition)  # The coupon mark: what this coupon does.
 		add_child(glyph)
 		_glyphs.append(glyph)
 	_lay_out_glyphs()
@@ -563,6 +585,7 @@ func _build_summary(line: String, fit: int) -> void:
 	_fit = fit
 	_summary = _label_at(line, fit, _palette)
 	_summary.name = SUMMARY_NAME
+	_summary.item_name = _definition.display_name
 	_summary.set_tip(true, self)
 	_summary.set_live(_summary.text, _live_tips())
 	if not wasted.is_empty():

@@ -112,30 +112,30 @@ const TRAY_POSITION := Vector2(24, 412)
 const BAY_POSITION := Vector2(512, 16)
 ## A beat planned at the clock's time when its segment starts (the pick press) still fires.
 const SAME_TIME := 0.000001
-const SPEND_LINE := "SPEND %d€ ✓ THANK YOU!"
+const TOTAL_LINE := "TOTAL %d€ ✓ THANK YOU!"
 ## The chute wait's sub line (build spec 4.3's resume table) and a BONUS visit's lines there
 ## (#77 machine v2: "BONUS TICKET" / "inspection passed · 1 more prize · pick a chute").
 const CHOOSE_SUB := "pick a chute"
 ## A PREMIUM visit (v0.50: the PREMIUM machine; v0.61 a rarity boost): the chute wait's sub line.
-const PREMIUM_SUB := "premium · rare or better · pick a chute"
+const PREMIUM_SUB := "premium · rare or legendary · pick a chute"
 ## A later draw's chute wait (2026-11-06): AGAIN!, its reason, pick a chute.
 const BONUS_TITLE := OvertimeWords.AGAIN
-const BONUS_SUB := "%s · 1 more prize · pick a chute"
+const BONUS_SUB := "%s · 1 extra draw · pick a chute"
 ## A pressed key's title sub line: what the chute does (on a BONUS or PREMIUM visit the visit's
 ## word in its place, v0.50: the strip beside CONFIRM is 160 px and the key already says it), the
 ## prizes.
 const TITLE_SUB := "%s · %d prizes, keep 1"
-const TITLE_BONUS := "bonus draw"
+const TITLE_BONUS := "extra draw"
 const TITLE_PREMIUM := "premium"
 ## A pressed key's click.
 const PRESS_SOUND := "ui_click"
 ## A BONUS visit's head stamp under-line (an extra shift's: "shift n").
-const BONUS_UNDER := "INSPECTION PASSED"
+const BONUS_UNDER := "QUOTA MET · INSPECTION"
 ## The pick wait's sub line when the cart is full (a pick swaps a card out).
-const CART_FULL_TEXT := "CART FULL: SWAP 1 OUT"
+const CART_FULL_TEXT := "CART FULL: REPLACE A CARD"
 ## The display while the SKIP bin is hovered, and the pick wait's sub line when it can be binned.
-const BIN_ALL := "BIN ALL %d?"
-const BIN_ALL_SUB := "the whole draw goes"
+const BIN_ALL := "THROW AWAY ALL %d?"
+const BIN_ALL_SUB := "you get no prize this time"
 const SKIP_SUB := "or skip the draw"
 
 var cabinet: MachineCabinet
@@ -340,9 +340,9 @@ func open_visit(
 	elif kind == MachineVisit.Kind.BONUS:
 		display.show_message(BONUS_TITLE, BONUS_SUB % display.why_words())
 	elif premium:
-		display.show_message(SPEND_LINE % run.history[-1].total, PREMIUM_SUB)
+		display.show_message(TOTAL_LINE % run.history[-1].total, PREMIUM_SUB)
 	else:
-		display.show_message(SPEND_LINE % run.history[-1].total, CHOOSE_SUB)
+		display.show_message(TOTAL_LINE % run.history[-1].total, CHOOSE_SUB)
 	_place()
 	_frame()
 
@@ -596,11 +596,12 @@ func can_scan() -> bool:
 	return false
 
 
-## The pick prompt: "PICK 1", or "PICK 1 · ONLY n IN STOCK" for a short draw.
+## The pick prompt: "KEEP 1", or "KEEP 1 · ONLY n IN STOCK" for a short draw (v1.36, polish
+## audit: KEEP 1 everywhere, as the bay's header and the tray's word).
 static func pick_prompt(count: int, run_state: RunState) -> String:
 	if count < run_state.machine.machine.prizes_per_visit:
-		return "PICK 1 · ONLY %d IN STOCK" % count
-	return "PICK 1"
+		return "KEEP 1 · ONLY %d IN STOCK" % count
+	return "KEEP 1"
 
 
 ## Places `control` (a part's Label or Button, often built before the machine is in the tree)

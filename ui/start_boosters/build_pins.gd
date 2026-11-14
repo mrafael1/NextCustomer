@@ -68,7 +68,7 @@ func close() -> bool:
 	page.pins_open = false
 	page.pins_sel = page.run.pins.duplicate()
 	page.sfx("ui_close", -8.0)
-	page.set_hint("BADGE PINS FIRST · P" if page.packs_held() else "")
+	page.set_hint(BuildPageDraw.PINS_FIRST_HINT if page.packs_held() else "")
 	return true
 
 

@@ -65,7 +65,7 @@ func test_the_card_plays_at_the_week_start_and_flies_into_the_glass() -> void:
 		punched.append(punch.modulate.a > 0.5)
 	assert_array(punched).is_equal([true, false, false, false])
 	var review: String = _texts(rows[3])
-	assert_str(review).contains("MANAGER'S REVIEW · 2 MALUSES")
+	assert_str(review).contains("PAYDAY · 2 INSPECTIONS")
 	# The reward reads on two lines (v0.72): "REVIEW PASSED", "2 PREMIUM DRAWS" (2026-11-06).
 	for part: String in Payday.BANNER_LINE.split(" · "):
 		assert_str(review).contains(part)
@@ -209,7 +209,7 @@ func test_the_final_review_reads_pass_to_win() -> void:
 	var card: WeekCard = screen._week.card
 	assert_bool(card.is_open()).is_true()
 	var last: String = _texts(card.rows()[3])
-	assert_str(last).contains("FINAL REVIEW · 2 MALUSES")
+	assert_str(last).contains("FINAL PAYDAY · 2 INSPECTIONS")
 	assert_str(last).contains(WeekCardModel.FINAL_REWARD)
 	# Week 4 (v0.96): Clearance week, its banner in its own colour (orange dark).
 	assert_str(_texts(card.banner())).contains("CLEARANCE WEEK")
@@ -425,7 +425,7 @@ func test_played_days_carry_their_stamps() -> void:
 	assert_int(days[0].result).is_equal(WeekCardModel.Result.PAID)
 	assert_str(days[0].stamp()).is_equal("PAID")
 	assert_int(days[1].result).is_equal(WeekCardModel.Result.SLIP)
-	assert_str(days[1].stamp()).is_equal("SLIP 1/%d" % run.balance.write_up_limit)
+	assert_str(days[1].stamp()).is_equal("MISS 1/%d" % run.balance.write_up_limit)
 	assert_int(days[2].result).is_equal(WeekCardModel.Result.NONE)
 	assert_str(days[2].stamp()).is_empty()
 

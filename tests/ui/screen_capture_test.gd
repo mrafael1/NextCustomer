@@ -203,7 +203,7 @@ func test_the_machine_shows_its_visits() -> void:
 	assert_int(run.phase).is_equal(RunState.Phase.MACHINE_CHOOSE)
 	assert_int(run.machine.current_visit().kind).is_equal(MachineVisit.Kind.BONUS)
 	assert_bool(view.plan.resumed).is_true()
-	assert_str(view.head.stamp_texts()[0]).is_equal("BONUS TICKET!")
+	assert_str(view.head.stamp_texts()[0]).is_equal("EXTRA DRAW!")
 	await capture.call("machine", "0,levelup,upgrade")
 	run = screen.run
 	assert_int(run.phase).is_equal(RunState.Phase.MACHINE_PICK)

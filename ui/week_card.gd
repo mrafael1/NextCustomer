@@ -58,6 +58,8 @@ const CARD_BORDER := 3
 const CARD_PADDING := 10
 const PUNCH_WIDTH := 52.0
 const TITLE_SIZE := 22
+## The card's foot (v1.36): how it closes.
+const CLOSE_HINT := "CLICK TO CLOSE · ESC"
 const SUB_SIZE := 11
 const BANNER_KEY_SIZE := 11
 const BANNER_TITLE_SIZE := 22
@@ -284,6 +286,17 @@ func _gui_input(event: InputEvent) -> void:
 		close()
 
 
+## Esc closes the card as a click does (v1.36): the card takes it before the pause's layer (the
+## screen's first child) sees it, so the pause no longer opens over the card.
+func _unhandled_key_input(event: InputEvent) -> void:
+	var key: InputEventKey = event as InputEventKey
+	if not is_open() or key == null or not key.pressed or key.echo:
+		return
+	if key.keycode == KEY_ESCAPE:
+		get_viewport().set_input_as_handled()
+		close()
+
+
 func _open(model: WeekCardModel, target: Control, reduced: bool) -> void:
 	clear()
 	_model = model
@@ -422,6 +435,10 @@ func _build(model: WeekCardModel) -> void:
 		_rows.append(row)
 		_row_at.append(at)
 		at += REVIEW_STEP if day.review else DAY_STEP
+	var hint: Label = _bold(CLOSE_HINT, SUB_SIZE, Palette.MUSTARD_DARKEST)
+	hint.name = "CloseHint"
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	column.add_child(hint)
 
 
 ## "TIME CARD" and, right-aligned, "CASHIER · TILL 4" over "WEEK 2 OF 3", over an ink rule.

@@ -429,7 +429,7 @@ func test_the_status_line_and_the_register_stay_clear() -> void:
 		run.inspections = [load("res://data/inspections/%s.tres" % inspection_id)]
 		run.debug_skip_to_shift(run.shift_index)
 		screen._on_shift_started()
-		screen._notice_label.show_notice("Row full (8/8 items): take an item out first")
+		screen._notice_label.show_notice("Row full (8/8): take a card out first")
 		screen._quota_meter.show_projected(999, run.quota())
 		await _frames(2)
 		assert_int(screen._row_strip.closed.size()).is_equal(1)
@@ -770,7 +770,7 @@ func _rich_screen() -> ShiftScreen:
 	run.debug_skip_to_shift(run.shift_index)
 	screen._on_shift_started()
 	_place(screen, ["bread", "milk", "eggs", "repeat"])
-	screen._notice_label.show_notice("Row full (9/9 items): take an item out first")
+	screen._notice_label.show_notice("Row full (9/9): take a card out first")
 	var result: ScoreResult = run.preview()
 	screen._receipt.show_shift_end(result.total, run.quota())
 	await _frames(2)

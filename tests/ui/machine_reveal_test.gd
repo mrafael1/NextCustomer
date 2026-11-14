@@ -238,7 +238,7 @@ func test_every_ticket_shows_its_prize_in_full() -> void:
 	var upgrade: PrizeTicket = _ticket(
 		view, 0, MachinePrize.new(MachinePrize.Kind.UPGRADE, 0, milk), preview, 1
 	)
-	assert_array(Array(upgrade.face_texts())).is_equal(["Milk +1 step", "1 copy: BIG › GOLDEN"])
+	assert_array(Array(upgrade.face_texts())).is_equal(["Milk", "Turns 1 BIG copy GOLDEN"])
 	assert_str(upgrade.art.chip_text()).is_equal("GOLDEN")
 	assert_object(upgrade.art.upgraded_card()).is_same(load(MILK_GOLDEN))
 	assert_bool(upgrade.art.has_shelf()).is_false()
@@ -250,7 +250,7 @@ func test_every_ticket_shows_its_prize_in_full() -> void:
 		view, 0, MachinePrize.new(MachinePrize.Kind.UPGRADE, 2, milk), shelf_preview, 1
 	)
 	assert_array(Array(shelf.face_texts())).is_equal(
-		["Shelf upgrade", "SHELF ×2 · every Milk +1 step"]
+		["Shelf upgrade", "All your Milk (×2): +1 level"]
 	)
 	assert_bool(shelf.art.has_shelf()).is_true()
 	assert_str(shelf.art.chip_text()).is_equal("SHELF +1")

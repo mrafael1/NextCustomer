@@ -20,8 +20,14 @@ extends RefCounted
 ## sets the first half of the weeks it reached in a left column (left_weeks: weeks 1-2 of 3 or
 ## 4, week 1 of 2) and the rest in a right one; the shortfall
 ## closes the last week's column, and the rules and the coin lines span both (WIDE_WIDTH).
+##
+## The run's best moment (v1.37, the approved direction A of
+## docs/art/mockups/receipt_highlight.html: RunHighlight.pick) prints as one BEST line after the
+## second rule, before the coins, across the receipt: HIGHLIGHT_INDENT's room for the BEST sticker
+## and the item's mini (the results screen draws them), "Biggest payout · Golden Milk · 264€" and
+## the shift on the right. A run with no highlight prints none.
 
-enum Tone { HEADLINE, RULE, SHIFT, DETAIL, SHORTFALL, COINS, COINS_TOTAL, WEEK }
+enum Tone { HEADLINE, RULE, SHIFT, DETAIL, SHORTFALL, COINS, COINS_TOTAL, WEEK, HIGHLIGHT }
 
 ## Characters per shift and coin line, so the columns line up in the monospace receipt font.
 const WIDTH := 44
@@ -40,6 +46,13 @@ const MAX_COIN_SOUNDS := 15
 const CHUTE_WORDS: Array[String] = ChuteKey.NAMES
 ## A shift's dim lines start this far in.
 const DETAIL_INDENT := "     "
+## The BEST line's text starts this many characters in: the room for its sticker and mini. In
+## week columns (a wider receipt in a smaller font) it starts HIGHLIGHT_INDENT_WIDE in, so the
+## sticker keeps its size.
+const HIGHLIGHT_INDENT := 9
+const HIGHLIGHT_INDENT_WIDE := 13
+## The BEST line's shift, on its right ("shift 14").
+const HIGHLIGHT_SHIFT := "shift %d"
 
 
 ## One printed line: its text, how it is shown, whether its shift failed (red), and its 1-based
@@ -50,6 +63,8 @@ class Line:
 	var tone: FinalReceipt.Tone
 	var failed: bool
 	var week: int
+	## The BEST line's moment (Tone.HIGHLIGHT), else null.
+	var moment: RunHighlight.Moment
 
 	func _init(
 		line_text: String,
@@ -104,17 +119,42 @@ static func lines(
 	if not won:
 		var margin: ShiftMargin = ShiftMargin.of(result.total, run.quota())
 		var shortfall: String = (
-			"Shift %d / %d: short by %d€"
+			"Shift %d / %d missed the quota by %d€"
 			% [run.shift_index + 1, run.shift_count(), margin.amount()]
 		)
 		# In week columns it closes its week's column, under the shift that ended the run.
 		printed.append(Line.new(shortfall, Tone.SHORTFALL, true, week if columns else 0))
 	printed.append(Line.new(rule(width), Tone.RULE))
+	var best: Line = highlight_line(run, width)
+	if best != null:
+		printed.append(best)
 	var coins: PackedStringArray = coin_lines(CoinPayout.for_run(run), coins_owned, width)
 	for index: int in range(coins.size()):
 		var last: bool = index == coins.size() - 1
 		printed.append(Line.new(coins[index], Tone.COINS_TOTAL if last else Tone.COINS))
 	return printed
+
+
+## The run's BEST line (RunHighlight.pick), or null for a run without one: HIGHLIGHT_INDENT
+## spaces (HIGHLIGHT_INDENT_WIDE in a receipt wider than WIDTH), the moment's text, then its
+## shift on the right when the text doesn't name it already (Over quota, Closest call) and it
+## fits in `width` characters (a long line is the text alone, wider than `width` only for a
+## long item name).
+static func highlight_line(run: RunState, width: int = WIDTH) -> Line:
+	var definition: HighlightDefinition = run.balance.highlight if run.balance != null else null
+	var moment: RunHighlight.Moment = RunHighlight.pick(run.history, definition)
+	if moment == null:
+		return null
+	var indent: int = HIGHLIGHT_INDENT if width <= WIDTH else HIGHLIGHT_INDENT_WIDE
+	var left: String = " ".repeat(indent) + RunHighlight.text(moment, definition)
+	var right: String = HIGHLIGHT_SHIFT % moment.shift
+	var named: bool = moment.kind in [RunHighlight.Kind.OVER_QUOTA, RunHighlight.Kind.CLOSEST_CALL]
+	var text: String = _line(left, right, width, 2)
+	if named or text.length() > width:
+		text = left
+	var line: Line = Line.new(text, Tone.HIGHLIGHT)
+	line.moment = moment
+	return line
 
 
 ## A shift's line ("  4  30€ / 22€        pass") and its dim lines: one per machine visit
@@ -130,7 +170,7 @@ static func shift_texts(
 	)
 	var maluses: Array[InspectionDefinition] = InspectionDefinition.maluses(record.inspections)
 	if compact and not maluses.is_empty():
-		main = "%-28s  %s" % [main, "review" if maluses.size() > 1 else "inspected"]
+		main = "%-28s  %s" % [main, "payday" if maluses.size() > 1 else "inspected"]
 	var texts: PackedStringArray = PackedStringArray([main])
 	for visit: MachineVisit in record.visits:
 		texts.append(DETAIL_INDENT + visit_text(visit))
@@ -150,11 +190,11 @@ static func visit_text(visit: MachineVisit) -> String:
 	var chute: String = CHUTE_WORDS[visit.chute] if visit.chute >= 0 else "?"
 	var prefix: String = ""
 	if visit.kind == MachineVisit.Kind.BONUS:
-		prefix = "PREMIUM · " if visit.premium else "BONUS · "
+		prefix = "PREMIUM · " if visit.premium else "EXTRA DRAW · "
 	elif visit.kind == MachineVisit.Kind.OVERTIME:
-		prefix = "OVERTIME · "
+		prefix = "MEDAL · "
 	if visit.binned:
-		return prefix + "binned " + chute
+		return prefix + "thrown away " + chute
 	var prize: MachinePrize = visit.picked_prize()
 	var given: String = "—"
 	if prize != null and prize.kind == MachinePrize.Kind.REGISTER:
@@ -172,8 +212,8 @@ static func coin_lines(
 ) -> PackedStringArray:
 	return PackedStringArray(
 		[
-			_line("Shifts passed %d" % payout.shifts_passed, "+%d" % payout.shift_coins, width),
-			_line("COINS +%d" % payout.total(), "you have " + _owned_text(coins_owned), width),
+			_line("Shifts met %d" % payout.shifts_passed, "+%d" % payout.shift_coins, width),
+			_line("COINS +%d" % payout.total(), "(you have %s)" % _owned_text(coins_owned), width),
 		]
 	)
 
@@ -199,7 +239,7 @@ static func _upgrade_text(prize: MachinePrize, copies: int) -> String:
 			return "%s › GOLDEN" % prize.card.display_name
 		MachinePrize.Rarity.LEGENDARY:
 			return "SHELF %s ×%d" % [prize.card.display_name, copies]
-	return "%s +1 step" % prize.card.display_name
+	return "%s +1 level" % prize.card.display_name
 
 
 ## A dashed rule across the receipt, `width` characters.
@@ -210,12 +250,12 @@ static func rule(width: int = WIDTH) -> String:
 static func _result(record: ShiftRecord, went_on: bool) -> String:
 	if record.passed:
 		return "pass"
-	return "slip" if went_on else "fail"
+	return "miss" if went_on else "fail"
 
 
 static func _owned_text(coins_owned: int) -> String:
 	return str(coins_owned) if coins_owned >= 0 else "?"
 
 
-static func _line(left: String, right: String, width: int = WIDTH) -> String:
-	return left + " ".repeat(maxi(width - left.length() - right.length(), 1)) + right
+static func _line(left: String, right: String, width: int = WIDTH, gap: int = 1) -> String:
+	return left + " ".repeat(maxi(width - left.length() - right.length(), gap)) + right

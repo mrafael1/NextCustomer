@@ -3,7 +3,7 @@ extends GdUnitTestSuite
 ## run of the screen it opens, start_new_run with `reveal`, the debug panel's new run with a
 ## seed; never a resumed run, nor a screen opened another way), that it shows the run as dealt
 ## and saved on the two-page start board over the stage, that clock-in hands shift 1 over as
-## dealt, that the board's cards use the reveal's scan popup, and that a run started without it
+## dealt, that the board's cards show the game's hover tips, and that a run started without it
 ## closes it.
 
 const SCREEN := "res://ui/shift_screen.tscn"
@@ -131,34 +131,27 @@ func test_the_opening_board_covers_the_stage_and_clocks_in() -> void:
 	assert_array(screen.run.row).is_empty()
 
 
-## The board's cards show the reveal's own scan popup after its hold (hover_hold_ms), over the
-## board and on the stage; leaving the card hides it. On YOUR STORE (v1.32) the card is a landed
-## booster card under the pointer (the page's hover spot carries its "card" meta).
-func test_the_boards_cards_show_the_reveals_popup() -> void:
+## The board's cards show the game's hover tip (v1.33 hover tips B: the board's GlyphTips over a
+## landed booster card's StartTips target), not the reveal's scan popup.
+func test_the_boards_cards_show_the_games_tip() -> void:
 	CartReveal.request()
 	var screen: ShiftScreen = await _screen()
 	var reveal: CartReveal = screen._cart_reveal
-	reveal.set_process(false)
 	var store: BoosterPage = reveal.board.store
 	store.frozen = true
 	store.openings.roll_up()
 	store.openings.open_all("key")
 	for _step: int in 600:
 		store.advance(1.0 / 60.0)
-	store.mouse = BoosterArt.card_rect(store.boosters[0].cx, 0).get_center().floor()
-	store.advance(0.0)
-	var tile: Control = store.hovered_card()
-	assert_object(tile).is_not_null()
-	assert_bool(tile.has_meta("card")).is_true()
-	reveal.hover(tile)
-	reveal.hover_for(maxf(reveal.hover_hold_ms - 50, 0) / 1000.0)
-	assert_bool(reveal.popup().visible).is_equal(reveal.hover_hold_ms < 50)
-	reveal.hover_for(0.1)
-	assert_bool(reveal.popup().visible).is_true()
-	assert_int(reveal.popup().get_index()).is_greater(reveal.board.get_index())
-	assert_bool(reveal.board.stage_rect().encloses(reveal.popup().get_global_rect())).is_true()
-	reveal.hover(null)
-	assert_bool(reveal.popup().visible).is_false()
+	var target: TipTarget = store.tips.target_for("card0_0")
+	assert_object(target).is_not_null()
+	var tips: GlyphTips = reveal.board.tips
+	tips.point_at(target.get_global_rect().get_center())
+	tips._process(GlyphTips.SHOW_DELAY_S + 0.05)
+	assert_object(tips.shown_glyph()).is_same(target)
+	assert_str(tips.tip().spec.title).is_equal(store.boosters[0].cards[0].display_name.to_upper())
+	await get_tree().process_frame
+	assert_bool(reveal.popup() != null and reveal.popup().visible).is_false()
 
 
 func _screen() -> ShiftScreen:

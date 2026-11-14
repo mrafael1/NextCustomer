@@ -25,7 +25,7 @@ const REMOVED: Array[StringName] = [
 ]
 ## PLACES' pages, in order.
 const PLACES: Array[StringName] = [
-	&"pl_right_after", &"pl_next", &"pl_earlier", &"pl_lone", &"pl_slots"
+	&"pl_right_after", &"pl_next", &"pl_earlier", &"pl_later", &"pl_lone", &"pl_slots"
 ]
 
 

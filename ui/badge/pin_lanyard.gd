@@ -61,7 +61,7 @@ const POP_S := 0.08
 const POP_FROM := 0.6
 const CARD_Z := 100
 const RELABELS_LEFT := "%d relabel%s left this shift"
-const DAYS_OFF_LEFT := "%d day%s off left this week"
+const DAYS_OFF_LEFT := "%d shift%s off left this week"
 
 ## Returns true when the player asked for reduced motion. None means false.
 var reduced_motion: Callable = Callable()

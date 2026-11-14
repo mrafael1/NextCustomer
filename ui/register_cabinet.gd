@@ -157,6 +157,7 @@ func _build_keys() -> void:
 	checkout_key.accessibility_name = CHECKOUT_NAME
 	_set_checkout_caption(checkout_key.caption_label())
 	seed_label = UiKit.body_label("", SEED_FONT_SIZE, Color(Palette.CREAM_SHADE, 0.85))
+	seed_label.visible = OS.is_debug_build()  # Bug-report info: debug builds only (audit #75).
 	seed_label.add_theme_font_override("font", ArtStyle.bold_font(SEED_FONT_WEIGHT))
 	seed_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	seed_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER

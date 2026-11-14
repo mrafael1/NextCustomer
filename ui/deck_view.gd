@@ -473,7 +473,7 @@ func _input(event: InputEvent) -> void:
 	var key: InputEventKey = event as InputEventKey
 	if key != null and key.pressed and not key.echo and key.keycode == KEY_ESCAPE:
 		if not _pinned.is_empty():
-			# Esc clears the pinned filter first; the next one opens the pause.
+			# Esc clears the pinned filter first; the next one closes the cart (v1.36).
 			get_viewport().set_input_as_handled()
 			clear_filter()
 		return
@@ -895,6 +895,18 @@ func _on_placed_swapped(card: CardInstance) -> void:
 	_unhover()
 	visible = false
 	card_chosen.emit(card)
+
+
+## Esc closes the cart as its Close key does (v1.36), before the pause's layer (the screen's first
+## child) sees it; a held prize takes its own Esc first (CartPlacing, back to the machine).
+func _unhandled_key_input(event: InputEvent) -> void:
+	var key: InputEventKey = event as InputEventKey
+	if not visible or key == null or not key.pressed or key.echo:
+		return
+	if key.keycode == KEY_ESCAPE:
+		get_viewport().set_input_as_handled()
+		Sfx.play_at(self, "ui_close")
+		_close()
 
 
 func _close() -> void:

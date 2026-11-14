@@ -577,7 +577,7 @@ func test_hovering_a_card_shows_its_effect() -> void:
 		assert_bool(tip.visible).is_true()
 		assert_bool(cell.lifted).is_true()
 		assert_bool(cell.ringed).is_equal(choosing)
-		var main: CardTip.TipCard = tip.main_card()
+		var main: CardTip.CardTipBox = tip.main_card()
 		assert_str(main.title_text()).is_equal(cell.card.display_name)
 		assert_str(main.tag_text()).is_equal(CardTip.tag_of(cell.card, screen.run.balance.machine))
 		var rule: String = DeckCell.rule_line(cell.card)
@@ -608,7 +608,7 @@ func test_hovering_a_card_shows_its_effect() -> void:
 	)
 	# The header takes the rarity's colour: LEGENDARY gold.
 	assert_that(tea_tip.main_card().band).is_equal(Palette.GOLD)
-	var keyword: CardTip.TipCard = tea_tip.keyword_cards()[0]
+	var keyword: CardTip.CardTipBox = tea_tip.keyword_cards()[0]
 	assert_str(keyword.title_text()).is_equal("MORNING")
 	assert_str(keyword.tag_text()).is_equal(CardTip.KEYWORD_TAG)
 	assert_array(keyword.texts()).is_equal([GlyphText.keyword_tip("MORNING")])

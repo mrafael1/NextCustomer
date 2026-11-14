@@ -61,7 +61,9 @@ const FULL_BANNER := "COLLECTION COMPLETE"
 const FULL_HINT := (
 	"EVERY FIGURINE IS IN YOUR BOOK. " + "YOUR COINS KEEP ADDING UP ON THE FINAL RECEIPT."
 )
-const BROKE_NOTICE := "NO COINS LEFT. RUNS THAT PASS SHIFT 4 PAY COINS ON THE FINAL RECEIPT."
+const BROKE_NOTICE := "NO COINS LEFT. GET PAST SHIFT 4 IN A RUN TO EARN COINS."
+## A profile that never had a coin (no capsule drawn, no pin bought; polish audit v1.36).
+const BROKE_FRESH_NOTICE := "NO COINS YET. GET PAST SHIFT 4 IN A RUN TO EARN COINS."
 const OFF_NOTICE := (
 	"YOUR COLLECTION CAN'T BE SAVED RIGHT NOW, " + "SO THE TOY MACHINES ARE SWITCHED OFF."
 )
@@ -329,6 +331,7 @@ static func copy() -> PackedStringArray:
 			FULL_BANNER,
 			FULL_HINT,
 			BROKE_NOTICE,
+			BROKE_FRESH_NOTICE,
 			OFF_NOTICE,
 			SHELF_TEXT,
 			DONE_TEXT,
@@ -340,7 +343,6 @@ static func copy() -> PackedStringArray:
 			ToyLineup.TITLE_TEXT,
 			ToyExitArt.TAPE_WORDS[0],
 			ToyExitArt.TAPE_WORDS[1],
-			ToyLineupJoin.NEW_TEXT,
 			ToyNewTag.TEXT,
 			ToyLineup.COLLECTED_TEXT,
 			FigurineBook.TITLE_TEXT,
@@ -416,7 +418,8 @@ func _build_header() -> void:
 	)
 	_board.add_child(_board_title)
 	var exit_word: PixelLine = PixelLine.new()
-	exit_word.show_tokens([EXIT_TEXT], Palette.GOOD, Palette.GOOD)
+	# Unlit scenery (DONE is the way out): a dim green, so it doesn't compete with DONE (v1.36).
+	exit_word.show_tokens([EXIT_TEXT], Palette.GREEN_DARK, Palette.GREEN_DARK)
 	exit_word.position = Vector2(
 		EXIT_TEXT_X * art - floorf(exit_word.width() / 2.0 / art) * art, EXIT_TEXT_TOP * art
 	)
@@ -585,6 +588,18 @@ func _show_chips(can_save: bool, coins: int, owned: int) -> void:
 	_figurines_chip.position = Vector2(CHIP_AT) * art + Vector2(coins_width + CHIP_GAP * art, 0)
 
 
+## The out-of-coins notice: NO COINS YET for a profile that never had any (it drew no capsule,
+## owns no capsule item and bought no pin), else NO COINS LEFT.
+func _broke_notice() -> String:
+	var profile: ProfileState = _counter.profile
+	var spent: bool = (
+		profile.capsule_draws > 0
+		or profile.pins_bought > 0
+		or not profile.unlocked_items.is_empty()
+	)
+	return BROKE_NOTICE if spent else BROKE_FRESH_NOTICE
+
+
 ## The LED strip's line: the hint (the coin before the price), a notice (the warning first) or
 ## COLLECTION COMPLETE at 2x over its line.
 func _show_strip(kind: Strip) -> void:
@@ -607,7 +622,7 @@ func _show_strip(kind: Strip) -> void:
 		Strip.BROKE, Strip.OFF:
 			var tokens: Array = [WARNING]
 			tokens.append_array(
-				PixelLine.split(BROKE_NOTICE if kind == Strip.BROKE else OFF_NOTICE)
+				PixelLine.split(_broke_notice() if kind == Strip.BROKE else OFF_NOTICE)
 			)
 			rows = [_strip_line(tokens)]
 		_:

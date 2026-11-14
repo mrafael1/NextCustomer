@@ -9,4 +9,4 @@ group = &"coupons"
 title = "Coupon"
 mark = 3
 mark_value = "Coupon"
-rule = "A {fam:Coupon} isn't a product: it creates new combinations or changes how you play."
+rule = "A {fam:Coupon} has no price of its own. It changes the items around it. A coupon between two items stops them being beside each other (except connectors like 2 for 1)."

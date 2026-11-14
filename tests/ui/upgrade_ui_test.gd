@@ -96,7 +96,7 @@ func test_a_register_from_the_machine_stamps_the_loyalty_card() -> void:
 	assert_object(screen._loyalty_card.box_icon(0)).is_same(LoyaltyCard.face_icon(picked, true))
 	assert_str(texts[1]).is_empty()
 	assert_object(screen._loyalty_card.level_mark(0)).is_null()
-	var tooltip: String = screen._loyalty_card.box(0).tooltip_text
+	var tooltip: String = TipTarget.tip_of(screen._loyalty_card.box(0))
 	assert_str(tooltip).contains(picked.display_name).contains(picked.effect_text)
 	if not picked.condition_text.is_empty():
 		assert_str(tooltip).contains(picked.condition_text)
@@ -146,7 +146,7 @@ func test_a_ticket_shows_its_fields_in_order() -> void:
 				coupon_engine.type_label().to_upper(),
 				coupon_engine.effect_text,
 				coupon_engine.condition_text,
-				"Supports: %s" % coupon_engine.build_names(),
+				"Works well with: %s" % coupon_engine.build_names(),
 			]
 		)
 	)
@@ -345,7 +345,7 @@ func test_every_chip_stamp_fits_inside_its_ring() -> void:
 		var label: Label = box.get_child(0) as Label
 		assert_str(label.text).is_equal(LoyaltyCard.stamp_text(upgrades[index], true))
 		assert_object(chip.box_icon(index)).is_same(LoyaltyCard.face_icon(upgrades[index], true))
-		assert_str(box.tooltip_text).contains(upgrades[index].display_name)
+		assert_str(TipTarget.tip_of(box)).contains(upgrades[index].display_name)
 		assert_int(box.mouse_filter).is_equal(Control.MOUSE_FILTER_PASS)
 		if label.text.is_empty():
 			assert_object(chip.box_icon(index)).is_not_null()
@@ -497,7 +497,7 @@ func test_the_results_screen_lists_the_run_history() -> void:
 	assert_bool(screen._results.visible).is_true()
 	var texts: PackedStringArray = screen._results.texts()
 	assert_str(texts[2]).is_equal("  1  109€ / 30€     pass")
-	assert_str(texts[3]).is_equal("     binned NEW ITEMS")
+	assert_str(texts[3]).is_equal("     thrown away NEW ITEMS")
 	# Shift 2's quota is its record's: a boon day can change it (v0.69).
 	var quota: String = "0€ / %d€" % screen.run.history[1].quota
 	assert_str(texts[4]).is_equal("  2  %-13s  fail" % quota)
@@ -532,7 +532,7 @@ func test_history_rows_name_the_visits_and_the_inspection() -> void:
 			[
 				"  4  30€ / 22€      pass",
 				"     NEW ITEMS: Bread",
-				"     BONUS · UPGRADE: Category engine",
+				"     EXTRA DRAW · IMPROVE: Category engine",
 				"     inspection Spot check",
 			]
 		)

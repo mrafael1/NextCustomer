@@ -120,7 +120,7 @@ func test_a_new_profile_deals_the_packs_at_once() -> void:
 
 ## With every pin owned (8), the step's rows turn compact and all fit inside the box, above the
 ## packs' gate note and the confirm key, apart from each other; each rule fits its one line; keys
-## 6-8 reach the last rows. "+N MORE PIN(S) TO EARN" says PIN for one.
+## 6-8 reach the last rows. No pin is left locked.
 func test_every_pin_owned_fits_the_step() -> void:
 	var screen: ShiftScreen = await _screen(99)
 	var board: StartBoard = screen._cart_reveal.board
@@ -155,11 +155,66 @@ func test_every_pin_owned_fits_the_step() -> void:
 		)
 	assert_bool(staff.handle_key(KEY_8)).is_true()
 	assert_bool(staff.pins_sel.has(owned[7])).is_true()
-	assert_str(PinStepDraw.more_text(1)).is_equal("+1 MORE PIN TO EARN")
-	assert_str(PinStepDraw.more_text(3)).is_equal("+3 MORE PINS TO EARN")
-	# Five pins keep full rows, and the "+3 MORE" line still sits above the gate note.
-	var more: Vector2 = PinStepDraw.more_position(PinStepDraw.FULL_ROWS, top)
-	assert_float(more.y + 5).is_less_equal(bottom)
+	assert_array(PinStepDraw.locked_pins(staff)).is_empty()
+
+
+## Polish audit v1.36: a profile with pins still to earn shows them as grey LOCKED rows with their
+## milestone under the owned ones (no empty band), every row inside the box above the gate note
+## and the confirm key; only the owned rows take clicks and no row shows a number. NO PIN IS FINE
+## TOO stands under the badge's NO PIN, ESC · BACK in the packs' note; the ticker is clear while
+## the step is open and says BADGE PINS FIRST · PRESS P once it closes with the packs held.
+func test_locked_pins_fill_the_step_as_grey_rows() -> void:
+	var screen: ShiftScreen = await _screen(1)
+	var board: StartBoard = screen._cart_reveal.board
+	var staff: BuildPage = board.staff
+	board.show_page(2)
+	staff.advance(0.5)
+	assert_bool(staff.pins_open).is_true()
+	var owned: Array[PinDefinition] = staff.pins.owned()
+	var locked: Array[PinDefinition] = PinStepDraw.locked_pins(staff)
+	assert_int(locked.size()).is_greater(0)
+	assert_int(owned.size() + locked.size()).is_equal(screen._catalogue.pins.size())
+	var count: int = owned.size() + locked.size()
+	var top: float = PinStepDraw.box_y(staff)
+	var box: Rect2 = Rect2(BuildPage.PIN_BOX)
+	var confirm: Rect2 = PinStepDraw.confirm_rect(top)
+	var rows: Array[Rect2] = []
+	for k: int in count:
+		var rect: Rect2 = PinStepDraw.row_rect(k, count, top)
+		assert_bool(box.encloses(rect)).override_failure_message(str(rect)).is_true()
+		assert_float(rect.end.y).is_less_equal(top + PinStepDraw.ROWS_BOTTOM)
+		assert_bool(rect.intersects(confirm)).is_false()
+		for other: Rect2 in rows:
+			assert_bool(rect.intersects(other)).is_false()
+		rows.append(rect)
+	# Each click rect is the row drawn for it (rows counted over the whole catalogue), also for a
+	# new profile's few pins (only the pins every profile starts with).
+	var rest: float = BuildPage.PIN_BOX.position.y
+	var unlocked: Array[StringName] = staff.profile.unlocked_pins.duplicate()
+	for earned: Array[StringName] in [unlocked, [] as Array[StringName]]:
+		staff.profile.unlocked_pins = earned
+		var mine: Array[PinDefinition] = staff.pins.owned()
+		for k: int in mine.size():
+			var hit: Dictionary = _hit(staff, "pin_%s" % mine[k].id)
+			assert_bool(hit.is_empty()).is_false()
+			assert_that(hit.rect).is_equal(PinStepDraw.row_rect(k, count, rest))
+	assert_int(staff.pins.owned().size()).is_less_equal(PinStepDraw.FULL_ROWS)
+	staff.profile.unlocked_pins = unlocked
+	for pin: PinDefinition in locked:
+		assert_bool(_hit(staff, "pin_%s" % pin.id).is_empty()).is_true()
+		assert_str(PinStepDraw.unlock_text(pin)).starts_with("Unlock: ")
+	var pen: _PenRecorder = _PenRecorder.new()
+	PinStepDraw.draw(pen, staff)
+	assert_int(pen.texts.count(PinStepDraw.LOCKED_TEXT)).is_equal(locked.size())
+	assert_bool(pen.texts.has(PinStepDraw.NO_PIN_NOTE)).is_true()
+	assert_bool(pen.texts.has(PinStepDraw.BACK_NOTE)).is_true()
+	assert_bool(pen.texts.has("NONE IS FINE TOO")).is_false()
+	for text: String in pen.texts:
+		assert_bool(text.is_valid_int()).override_failure_message(text).is_false()
+	assert_str(BuildPageDraw.hint_line(staff)).is_empty()
+	assert_bool(staff.pins.close()).is_true()
+	assert_bool(staff.packs_held()).is_true()
+	assert_str(BuildPageDraw.hint_line(staff)).is_equal(BuildPageDraw.PINS_FIRST_HINT)
 
 
 ## A pin worn in the step is saved on the run and the profile; the step opens again later (the
@@ -228,7 +283,7 @@ func test_hover_spreads_one_pack_and_sinks_the_others() -> void:
 
 
 ## OPEN STORE waits for a pick: with no pick (and no good first pick) the key is PICK A PACK,
-## unlit, and OPEN STORE is refused; the sheet's waiting note says "pick a pack". A pick (key 2)
+## unlit, and OPEN STORE is refused; the sheet's waiting note says "from a pack". A pick (key 2)
 ## lights OPEN STORE and tints the pack's lines solid on the sheet, inside its paper.
 func test_open_store_waits_for_a_pick() -> void:
 	var screen: ShiftScreen = await _screen()
@@ -243,11 +298,12 @@ func test_open_store_waits_for_a_pick() -> void:
 	assert_bool(board.clock_in()).is_false()
 	assert_bool(staff.primary()).is_false()
 	assert_str(staff.message).is_equal("PICK A PACK FIRST")
-	assert_str(staff.order.waiting_note.text).contains("when you pick a pack")
+	assert_str(staff.order.waiting_note.text).contains("from a pack")
 	assert_bool(staff.handle_key(KEY_2)).is_true()
 	assert_int(staff.picked()).is_equal(1)
 	label = BuildPageDraw.primary_label(staff)
-	assert_str(label[0]).is_equal("OPEN STORE")
+	assert_str(label[0]).is_equal("OPEN STORE ›")
+	assert_str(label[1]).is_equal("%d CARDS" % staff.cart_target())
 	assert_bool(label[2]).is_true()
 	assert_object(staff.order.waiting_note).is_null()
 	assert_bool(staff.order.pack_rows.dashed).is_false()
@@ -255,6 +311,9 @@ func test_open_store_waits_for_a_pick() -> void:
 	assert_bool(paper.encloses(staff.order.pack_rows.get_global_rect())).is_true()
 	var row: float = OrderSheet.ROW * staff.order.get_global_transform().get_scale().y
 	assert_float(staff.order.pack_rows.get_global_rect().size.y).is_equal_approx(packed * row, 0.5)
+	# Once the refusal's flash is over, the hint LED says what comes next.
+	staff.advance(2.5)
+	assert_str(BuildPageDraw.hint_line(staff)).is_equal("OPEN STORE, THEN START SHIFT 1")
 
 
 ## NEW PACKS (the deck, N) once a run: the packs not picked re-deal, the pick keeps its place,
@@ -312,6 +371,81 @@ func test_open_store_flies_the_cards_to_the_cart() -> void:
 	assert_object(staff.flight).is_null()
 	assert_int(flight.landed).is_equal(flight.items.size())
 	assert_array(clocked).is_equal([screen.run.start_offer.packs[0]])
+
+
+## v1.36 (polish batch 1): the order sheet's red tail ("+n from a pack", "+n after your pins")
+## ends inside the paper, after the equation, at 1280x720 and 1920x1080 (it ran off mid-word).
+func test_the_waiting_note_fits_the_paper() -> void:
+	var screen: ShiftScreen = await _screen()
+	var board: StartBoard = screen._cart_reveal.board
+	var staff: BuildPage = await _dealt(board)
+	_clear_pick(board)
+	var packed: int = screen.run.start_offer.packs[0].cards.size()
+	for extent: Vector2 in [Vector2(1280, 720), Vector2(1920, 1080)]:
+		await _resize(board, extent)
+		var k: float = board._stage.scale.x
+		for held: bool in [false, true]:
+			staff.order.show_cart(_view(screen.run), null, false, held)
+			await get_tree().process_frame
+			var note: Label = staff.order.waiting_note
+			assert_object(note).is_not_null()
+			var wanted: String = OrderSheet.WAITING_PINS if held else OrderSheet.WAITING_PACK
+			assert_str(note.text).is_equal(wanted % packed)
+			var paper: Rect2 = (staff.order.get_node("Paper") as Control).get_global_rect()
+			var right: float = paper.end.x - OrderSheet.PAD * k
+			var rect: Rect2 = note.get_global_rect()
+			assert_float(rect.end.x).override_failure_message(str(rect)).is_less_equal(right + 0.5)
+			var ink: float = note.get_minimum_size().x * note.get_global_transform().get_scale().x
+			assert_float(ink).is_less_equal(rect.size.x + 0.5)
+			var equation: Rect2 = staff.order.equation.get_global_rect()
+			assert_float(rect.position.x).is_greater_equal(equation.end.x)
+
+
+## v1.36: a spread pack's cards and their RARE tabs clear every strip's plate above them (the
+## left card's tab hid under the next pack's plate), and the spread stays above the bench, on the
+## stage at 1280x720 and 1920x1080.
+func test_the_spread_clears_the_strips() -> void:
+	var screen: ShiftScreen = await _screen()
+	var board: StartBoard = screen._cart_reveal.board
+	var staff: BuildPage = await _dealt(board)
+	for extent: Vector2 in [Vector2(1280, 720), Vector2(1920, 1080)]:
+		await _resize(board, extent)
+		var stage: Rect2 = _stage_rect(board).grow(0.5)
+		var unit: Transform2D = staff.get_global_transform()
+		for j: int in 3:
+			var tab: Rect2 = BuildPageDraw.spread_tab_rect(j)
+			var spread: Rect2 = Rect2(
+				BuildPage.SPX[j], BuildPage.SPY - 4, BoosterArt.CW, BoosterArt.CH
+			)
+			assert_float(spread.end.y).is_less_equal(BuildPage.BENCH_Y)
+			for k: int in 3:
+				for hovered: bool in [false, true]:
+					var strip: Rect2 = BuildPageDraw.strip_rect(k, hovered)
+					var apart: bool = not tab.intersects(strip) and not spread.intersects(strip)
+					assert_bool(apart).override_failure_message(str([j, k, hovered])).is_true()
+			var shown: Rect2 = unit * Rect2(tab.position * ArtPen.UNIT, tab.size * ArtPen.UNIT)
+			assert_bool(stage.encloses(shown)).is_true()
+
+
+## v1.36: during OPEN STORE's flight the floor's ticker says CLICK OR ENTER TO SKIP (no stale
+## "OPEN STORE, THEN START SHIFT 1", no loose body-text hint), and the cart's wheels clear it.
+func test_the_store_flight_ticker_says_skip() -> void:
+	var screen: ShiftScreen = await _screen()
+	var board: StartBoard = screen._cart_reveal.board
+	var staff: BuildPage = await _dealt(board)
+	board.pick(0)
+	screen.profile.set_reduced_motion(false)
+	board.refresh()
+	staff.advance(2.5)
+	assert_str(BuildPageDraw.hint_line(staff)).is_equal("OPEN STORE, THEN START SHIFT 1")
+	assert_bool(board.clock_in()).is_true()
+	staff.advance(0.05)
+	assert_object(staff.flight).is_not_null()
+	assert_str(BuildPageDraw.hint_line(staff)).is_equal(StoreFlight.SKIP_HINT)
+	assert_float(BuildPageDraw.hint_start(staff)).is_equal(staff.flight.t0)
+	var wheels: float = StoreFlight.CART_Y + StoreFlight.WHEELS_BOTTOM + 1.0
+	assert_float(wheels).is_less_equal(float(BuildPage.LED_RECT.position.y))
+	assert_float(ArtPen.pix_width(StoreFlight.SKIP_HINT)).is_less(BuildPage.LED_RECT.size.x - 8.0)
 
 
 ## The page fills the stage at both sizes; its keys (‹ STORE, the LED, the primary key) and the
@@ -415,6 +549,16 @@ static func _clear_pick(board: StartBoard) -> void:
 	board.run.start_setup.picked = &""
 	board.run.start_offer.first_pick = null
 	board.refresh()
+
+
+## The staff room's read-only view of `run` (as BuildPage._sync_order builds it).
+static func _view(run: RunState) -> StartBuildView:
+	var view: StartBuildView = StartBuildView.new()
+	view.starter = run.starter
+	view.start_offer = run.start_offer
+	view.balance = run.balance
+	view.pins = run.pins
+	return view
 
 
 static func _hit(staff: BuildPage, id: String) -> Dictionary:
@@ -524,14 +668,40 @@ static func _event_log() -> EventLogService:
 	return (Engine.get_main_loop() as SceneTree).root.get_node("/root/EventLog")
 
 
-## An ArtPen that records its nine-slices and its words' tops instead of drawing.
+## An ArtPen that records its nine-slices, its words and their tops instead of drawing.
 class _PenRecorder:
 	extends ArtPen
 	var nines: Array[Rect2] = []
 	var text_y: Array[float] = []
+	var texts: Array[String] = []
 
 	func _init() -> void:
 		super(null)
+
+	func r(_x: float, _y: float, _w: float, _h: float, _colour: Color) -> void:
+		pass
+
+	func chunky(
+		text: String,
+		_x: float,
+		_y: float,
+		_colour: Color,
+		_scale: float = 1.0,
+		_align: int = HORIZONTAL_ALIGNMENT_LEFT
+	) -> float:
+		texts.append(text)
+		return 0.0
+
+	func atk(
+		text: String,
+		_cx: float,
+		_baseline: float,
+		_art_size: float,
+		_colour: Color,
+		_weight: int = 650,
+		_align: int = HORIZONTAL_ALIGNMENT_CENTER
+	) -> void:
+		texts.append(text)
 
 	func nine(
 		_frame: Texture2D,
@@ -565,23 +735,25 @@ class _PenRecorder:
 		pass
 
 	func pix(
-		_text: String,
+		text: String,
 		_x: float,
 		y: float,
 		_colour: Color,
 		_scale: float = 1.0,
 		_align: int = HORIZONTAL_ALIGNMENT_LEFT
 	) -> float:
+		texts.append(text)
 		text_y.append(y)
 		return 0.0
 
 	func caps(
-		_text: String,
+		text: String,
 		_x: float,
 		y: float,
 		_colour: Color,
 		_scale: float = 1.0,
 		_align: int = HORIZONTAL_ALIGNMENT_LEFT
 	) -> float:
+		texts.append(text)
 		text_y.append(y)
 		return 0.0

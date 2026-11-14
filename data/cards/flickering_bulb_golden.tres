@@ -13,7 +13,7 @@ receipt_text = "Flickering bulb after WASTED"
 [resource]
 script = ExtResource("3_card")
 id = &"flickering_bulb_golden"
-display_name = "Golden Flickering bulb"
+display_name = "Golden flickering bulb"
 kind = 1
 tags = PackedStringArray("Household", "Clearance")
 base = 4

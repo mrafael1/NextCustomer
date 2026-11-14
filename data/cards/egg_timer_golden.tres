@@ -16,12 +16,12 @@ receipt_text = "Egg timer after Eggs"
 [resource]
 script = ExtResource("3_card")
 id = &"egg_timer_golden"
-display_name = "Golden Egg timer"
+display_name = "Golden egg timer"
 kind = 1
 tags = PackedStringArray("Household", "Breakfast")
 base = 4
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_egg_timer")])
-rule_text = "+10 if right after Eggs"
+rule_text = "+10€ if right after Eggs"
 art_ref = "res://art/items_v2/egg_timer_golden.png"
 variant_of = ExtResource("9_plain")
 tier = 2

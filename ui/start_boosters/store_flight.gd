@@ -5,12 +5,17 @@ extends RefCounted
 ## spread, the others from the order sheet), a dither wipe turns each into its item, the items
 ## drop into the cart (its count punching per landing), the last landing rings the kaching with a
 ## white ring of rays and one confetti burst, and the cart rolls out. A click or Enter skips to
-## the end; then the board clocks in (the roller shutter plays). In art px (the mock-up's screen
-## units / 3).
+## the end (the floor's ticker says so, lit over the dim: SKIP_HINT); then the board clocks in
+## (the roller shutter plays). In art px (the mock-up's screen units / 3).
 
 const DIM := Color("0d1716")
+## The ticker's line during the flight.
+const SKIP_HINT := "CLICK OR ENTER TO SKIP"
 const CART_X := 320.0
-const CART_Y := 263.0
+## v1.36: 9 px higher, so the wheels (their lowest row ends WHEELS_BOTTOM below CART_Y, a landing's
+## dip 1 px more) clear the floor's ticker.
+const CART_Y := 254.0
+const WHEELS_BOTTOM := 71.0
 ## Landed items per layer of the cart's pile (pile_slot).
 const PILE_ROW := 5
 const CARD_SCALE := 0.55
@@ -163,7 +168,7 @@ func draw(pen: ArtPen) -> void:
 		var flip: bool = int(floorf(dt * 12 + (p.ph as float))) % 2 == 1
 		pen.r(roundf(x), roundf(y), s, s if flip else 1.0, Palette.INK)
 		pen.r(roundf(x), roundf(y) - 1, s, s if flip else 1.0, p.c as Color)
-	pen.atk("click or Enter to skip", 320, 354, 6, Palette.TEAL_PALE, 700)
+	BuildPageDraw.hint_led(pen, page)
 
 
 ## Card `i` of `n`: gathering into the arc, wiped into its item, dropping into the cart, landed.
@@ -239,6 +244,8 @@ func _card(
 			{"scale": sc, "still": true}
 		)
 		return
+	# The face's paper fades out with the wipe (v1.36: its blank lower half used to linger as a
+	# white rectangle under the flying item), the dither band thinning with it.
 	var cut: float = roundf(BoosterArt.CH * uw)
 	var face: ImageTexture = BoosterArt.face(card, is_rare)
 	var shown: float = BoosterArt.CH - cut
@@ -246,9 +253,10 @@ func _card(
 		pen.canvas.draw_texture_rect_region(
 			face,
 			Rect2(pen.at(left, top + cut * sc), Vector2(w, shown * sc) * pen.unit),
-			Rect2(0, cut, BoosterArt.CW, shown)
+			Rect2(0, cut, BoosterArt.CW, shown),
+			Color(1, 1, 1, 1.0 - uw)
 		)
-	pen.d(left - 1, top + cut * sc - 6, w + 2, 6, Palette.PAPER, 8)
+	pen.d(left - 1, top + cut * sc - 6, w + 2, 6, Palette.PAPER, roundi(8 * (1.0 - uw)))
 
 
 func _sprite(

@@ -10,8 +10,9 @@ extends Control
 ## "WON ✓" for the rest of the week (launch: the count's flight takes it onto the receipt's target,
 ## MedalFlight). A medal back from USED (a new week) pops back in. An OFF medal is not shown.
 ## Reduced motion: no sweep motion (a still one), no twinkle, no pop. It rides the drawer's front
-## (its kick), drawn at 2 stage px per art px. Hovering a medal or its words shows its tooltip; it
-## takes no clicks anywhere else.
+## (its kick), drawn at 2 stage px per art px. Hovering a medal or its words shows its tip (a
+## TipTarget over each, tip_target(): the STATUS card with its rule and its state as the live
+## line); it takes no clicks anywhere else.
 
 ## Stage px per art px.
 const CELL := 2.0
@@ -32,12 +33,15 @@ const LINE_WEIGHT := 800
 ## The check after WON (the mock-up's 7x5 lamp check) and its gap.
 const CHECK_PIXELS: Array[String] = ["......#", ".....#.", "#...#..", ".#.#...", "..#...."]
 const CHECK_GAP := 6.0
-## The twinkle: its four spots round the medal (shares of TWINKLE_REACH art px from the centre),
-## its hop every TWINKLE_STEP s (shown TWINKLE_SHOWN of it), every PENDING_STEP s while PENDING.
+## The twinkle: its four spots on the medal (shares of TWINKLE_REACH art px from the centre; v1.36,
+## polish audit: from 10.5, so its arms stay inside the medal's sprite and never land on the
+## words: the "+" read "+GOLD"), its hop every TWINKLE_STEP s (shown TWINKLE_SHOWN of it), every
+## PENDING_STEP s while PENDING; TWINKLE_ARM art px its longest arm.
 const TWINKLE_SPOTS: Array[Vector2] = [
 	Vector2(-1, -1), Vector2(1, -0.6), Vector2(0.8, 1), Vector2(-1, 0.7)
 ]
-const TWINKLE_REACH := 10.5
+const TWINKLE_REACH := 5.5
+const TWINKLE_ARM := 2
 const TWINKLE_STEP := 0.7
 const PENDING_STEP := 0.26
 const TWINKLE_SHOWN := 0.8
@@ -55,6 +59,8 @@ var _pops: Array[float] = [-1.0, -1.0]
 var _names: Array[PixelWords] = []
 var _lines: Array[Label] = []
 var _won: Array[PixelWords] = []
+var _targets: Array[TipTarget] = []
+var _tags: PackedStringArray = PackedStringArray([OvertimeWords.ONCE_TAG, OvertimeWords.ONCE_TAG])
 
 
 func _init() -> void:
@@ -78,6 +84,10 @@ func _init() -> void:
 		won.position = Vector2(WORDS_X[index], LINE_TOP)
 		add_child(won)
 		_won.append(won)
+		var target: TipTarget = TipTarget.new()
+		target.name = "%sTip" % NAMES[index].capitalize()
+		add_child(target)
+		_targets.append(target)
 	set_process(false)
 	_refresh_parts()
 
@@ -91,7 +101,19 @@ func show_states(shown: Array[int], tips: PackedStringArray) -> void:
 			_pops[index] = 0.0
 	_states = shown.duplicate()
 	_tips = tips
+	_refresh_tips()
 	_refresh_parts()
+
+
+## The medals' tip tags ([SILVER, GOLD]: OvertimeWords.cap_tag).
+func show_tags(silver: String, gold: String) -> void:
+	_tags = PackedStringArray([silver, gold])
+	_refresh_tips()
+
+
+## Medal `gold`'s tip target (over its medal and its words).
+func tip_target(gold: bool) -> TipTarget:
+	return _targets[1 if gold else 0]
 
 
 ## The totals that win the medals ("at 258€"; WeekMedals.threshold_of), [SILVER, GOLD].
@@ -100,6 +122,7 @@ func show_thresholds(silver: int, gold: int) -> void:
 	_lines[1].text = THRESHOLD_TEXT % gold
 	for line: Label in _lines:
 		line.reset_size()
+	_refresh_parts()
 
 
 ## The states shown, [SILVER, GOLD].
@@ -188,9 +211,28 @@ func _has_point(point: Vector2) -> bool:
 	return _medal_at(point) >= 0
 
 
-func _get_tooltip(at_position: Vector2) -> String:
+## The tip of the medal at `at_position` ("" for none): its name, rule and state on 3 lines.
+func tip_at(at_position: Vector2) -> String:
 	var index: int = _medal_at(at_position)
 	return _tips[index] if index >= 0 else ""
+
+
+func _refresh_tips() -> void:
+	for index: int in range(2):
+		var lines: PackedStringArray = _tips[index].split("\n")
+		if lines.size() < 2:
+			_targets[index].spec = null
+			_targets[index].tip_text = ""
+			continue
+		var made: TipSpec = TipSpec.make(TipSpec.Kind.STATUS, lines[0], TipMarkup.auto(lines[1]))
+		made.tag = _tags[index]
+		made.source = _tips[index]
+		if lines.size() > 2:
+			made.live = lines[2]
+			var used: bool = _states[index] == WeekMedals.State.USED
+			made.live_kind = TipSpec.Live.OFF if used else TipSpec.Live.OK
+		_targets[index].spec = made
+		_targets[index].tip_text = _tips[index]
 
 
 ## The medal (0 SILVER, 1 GOLD) whose medal or words are at `point`, -1 for none.
@@ -237,11 +279,15 @@ func _draw_twinkle(index: int, pending: bool) -> void:
 	var phase: float = fposmod(_time, step) / step
 	if not pending and phase >= TWINKLE_SHOWN:
 		return
-	var arm: int = 2 if phase >= 0.33 and phase < 0.66 else 1
+	var arm: int = TWINKLE_ARM if phase >= 0.33 and phase < 0.66 else 1
+	MedalArt.draw_twinkle(self, twinkle_at(index, hop), arm, CELL)
+
+
+## Where medal `index`'s twinkle centre cell sits at hop `hop` (its top left, on the art grid).
+static func twinkle_at(index: int, hop: int) -> Vector2:
 	var centre: Vector2 = MEDAL_AT[index] + Vector2.ONE * (MedalArt.SIZE * CELL / 2.0)
 	var spot: Vector2 = TWINKLE_SPOTS[hop % TWINKLE_SPOTS.size()] * TWINKLE_REACH * CELL
-	var at: Vector2 = ((centre + spot) / CELL).floor() * CELL
-	MedalArt.draw_twinkle(self, at, arm, CELL)
+	return ((centre + spot) / CELL).floor() * CELL
 
 
 ## A medal popping back in: drawn from POP_FROM of its size past POP_OVER and back, centred.
@@ -286,6 +332,11 @@ func _refresh_parts() -> void:
 		_lines[index].visible = shown and not won
 		_won[index].visible = won
 		_won[index].size = _won[index].get_combined_minimum_size()
+		var area: Dictionary = parts(index == 1)
+		var over: Rect2 = (area["medal"] as Rect2).merge(area["name"]).merge(area["line"])
+		_targets[index].visible = shown
+		_targets[index].position = over.position
+		_targets[index].size = over.size
 	var live: bool = _states.any(_is_medal) and not reduced_motion
 	set_process(live or _pops[0] >= 0.0 or _pops[1] >= 0.0)
 	queue_redraw()

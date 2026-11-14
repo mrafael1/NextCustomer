@@ -14,12 +14,12 @@ receipt_text = "Grapefruit bonus"
 [resource]
 script = ExtResource("3_card")
 id = &"grapefruit_big"
-display_name = "Big Grapefruit"
+display_name = "Big grapefruit"
 kind = 1
 tags = PackedStringArray("Food", "Produce", "Breakfast")
 base = 4
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_grapefruit")])
-rule_text = "+3 to the next Produce item"
+rule_text = "+3€ to the next Produce item"
 art_ref = "res://art/items_v2/grapefruit_big.png"
 variant_of = ExtResource("9_plain")
 tier = 1

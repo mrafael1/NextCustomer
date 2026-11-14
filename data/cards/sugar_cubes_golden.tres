@@ -16,12 +16,12 @@ receipt_text = "Sugar cubes after Coffee"
 [resource]
 script = ExtResource("3_card")
 id = &"sugar_cubes_golden"
-display_name = "Golden Sugar cubes"
+display_name = "Golden sugar cubes"
 kind = 1
 tags = PackedStringArray("Food")
 base = 4
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_sugar_cubes")])
-rule_text = "+8 if right after Coffee"
+rule_text = "+8€ if right after Coffee"
 art_ref = "res://art/items_v2/sugar_cubes_golden.png"
 variant_of = ExtResource("9_plain")
 tier = 2

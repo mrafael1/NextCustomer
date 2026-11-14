@@ -171,6 +171,15 @@ extends Resource
 ## The run's final receipt (#61, ResultsPanel) prints a line this often, from the headline down;
 ## a tap prints the rest at once.
 @export var final_line_ms: int = 0
+## The receipt's BEST line (v1.37, receipt highlight A) when it prints: its gold band wipes in
+## left to right, then the BEST sticker slams down (the stamp sound at its landing) and holds
+## still for the hit-stop, then a glint crosses the band once. The coins print after the wipe,
+## the slam and the hold. Reduced motion: no wipe, slam or glint, the hold stays.
+@export var final_highlight_wipe_ms: int = 0
+@export var final_highlight_slam_ms: int = 0
+@export var final_highlight_stop_ms: int = 0
+@export var final_highlight_glint_ms: int = 0
+@export var final_highlight_hold_ms: int = 0
 
 @export_group("Scan")
 ## The ride before each item's first beat (#86 v6): the item slides into the scanner (the row's

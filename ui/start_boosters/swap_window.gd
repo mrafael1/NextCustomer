@@ -438,7 +438,7 @@ func drop_reason(piece: SwapPiece, slot: int) -> String:
 			page.run.starter.core_cards[slot] != page.run.start_setup.originals[slot]
 			and not StartSetupRules.can_restore(page.run, slot)
 		):
-			why = "%d IN THE CART" % page.run.starter.copy_max
+			why = StartTips.COPY_LIMIT_TAG % page.run.starter.copy_max
 	else:
 		var from: int = slot_of(piece)
 		if from != slot:
@@ -453,13 +453,13 @@ func _words(block: StringName) -> String:
 	var words: Dictionary[StringName, String] = {
 		&"locked": "SWAPS LOCKED",
 		&"swaps": "NO SWAPS LEFT",
-		&"copies": "%d IN THE CART" % page.run.starter.copy_max,
+		&"copies": StartTips.COPY_LIMIT_TAG % page.run.starter.copy_max,
 		&"slot": "SAME ITEM",
 	}
 	return words.get(block, "OPEN THE BOOSTERS FIRST")
 
 
-## Whether a fan card fits no basket slot under the copy limit (dimmed, "2 IN THE CART").
+## Whether a fan card fits no basket slot under the copy limit (dimmed, "MAX 2 IN CART").
 func blocked(piece: SwapPiece) -> bool:
 	if piece.regular or slot_of(piece) >= 0 or locked:
 		return false
@@ -517,7 +517,7 @@ func _dust(x: float, y: float, count: int) -> void:
 ## Puts swapped regular `slot` back (its OUT regular dragged home, or its item dragged out).
 func _undo(slot: int, via: String) -> void:
 	if not StartSetupRules.can_restore(page.run, slot):
-		_refuse(slot, "%d IN THE CART" % page.run.starter.copy_max)
+		_refuse(slot, StartTips.COPY_LIMIT_TAG % page.run.starter.copy_max)
 		return
 	if page.actions == null or not page.actions.restore_regular.call(slot, via):
 		page.flash("COULD NOT SAVE. TRY AGAIN")
@@ -539,7 +539,9 @@ func _refuse(slot: int, why: String) -> void:
 	if why == "NO SWAPS LEFT":
 		page.flash("NO SWAPS LEFT · DRAG ONE BACK TO UNDO")
 	elif why == "SWAPS LOCKED":
-		page.flash("SWAPS LOCKED · COMPLETE AN AISLE")
+		page.flash(StartTips.SWAPS_LOCKED_LINE)
+	elif why == StartTips.COPY_LIMIT_TAG % page.run.starter.copy_max:
+		page.flash(StartTips.COPY_LIMIT_LINE % page.run.starter.copy_max)
 	else:
 		page.flash(why)
 	if why == "NO SWAPS LEFT" or why == "SWAPS LOCKED":

@@ -1,16 +1,16 @@
 class_name BeatenStamp
 extends Control
-## The receipt's BEATEN! stamp (main scene v2, the user's pick H2 of 2026-11-08: mock-up
-## docs/art/mockups/main_scene_v2.html, its stamp()): at the quota crossing it slams onto the
-## header's BEAT / TODAY'S TARGET words, unrotated and on the art's grid. A green-dark frame one
-## font cell thick, paper inside, "BEATEN!" in the chunky capitals two cells from its top; at least
+## The receipt's QUOTA MET stamp (was BEATEN! until v1.33; main scene v2, the user's pick H2 of
+## 2026-11-08: mock-up docs/art/mockups/main_scene_v2.html, its stamp()): at the quota crossing it
+## slams onto the header's MEET THE QUOTA words, unrotated and on the art's grid. A green-dark frame
+## one font cell thick, paper inside, WORD in the chunky capitals two cells from its top; at least
 ## MIN_WIDTH wide (the header's words), 8 cells wider than its word. It slams in at SLAM_CELL (twice
 ## its size) for SLAM_MS, settles DROP px lower until DROP_MS, then rests at CELL; four paper
 ## sparkles step out from its corners every SPARKLE_STEP_MS until SPARKLE_END_MS. Under reduced
 ## motion it shows settled at once. Placed by ReceiptTarget (`centre`, head coordinates). Display
 ## only.
 
-const WORD := "BEATEN!"
+const WORD := "QUOTA MET"
 const CELL := 2.0
 const SLAM_CELL := 4.0
 ## The frame is this many cells wider than the word, and this many cells taller than a glyph.

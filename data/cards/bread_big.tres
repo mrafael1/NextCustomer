@@ -7,11 +7,11 @@
 [resource]
 script = ExtResource("2_ex8hi")
 id = &"bread_big"
-display_name = "Big Bread"
+display_name = "Big bread"
 kind = 1
 tags = PackedStringArray("Food", "Breakfast", "Bakery")
 base = 7
-rule_text = "No rule"
+rule_text = "Plain item: pays its price"
 generally_useful = true
 art_ref = "res://art/items_v2/bread_big.png"
 variant_of = ExtResource("9_plain")

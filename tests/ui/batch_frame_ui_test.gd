@@ -164,7 +164,7 @@ func test_a_batch_cards_ticket_prints_the_batch_chip() -> void:
 		var chain_chips: Array[KeywordChip] = chain.summary().keywords()
 		assert_int(chain_chips.size()).override_failure_message(id).is_equal(1)
 		assert_str(chain_chips[0].keyword).is_equal(CardText.CHAIN_WORD)
-		assert_str(chain_chips[0].tip_text).starts_with("Put Bananas next to each other")
+		assert_str(chain_chips[0].tip_text).starts_with("Put Bananas side by side")
 		assert_that(chain_chips[0].face_color()).is_equal(Palette.PAPER)
 		var produce: FamilyStyle = FamilyPalette.shared().style("Produce")
 		assert_that(KeywordChip.dot_family(CardText.CHAIN_WORD).face).is_equal(produce.face)
@@ -226,16 +226,14 @@ func _assert_unframed(sticker: PriceSticker) -> void:
 		assert_bool(ring).override_failure_message(str(child.name)).is_false()
 
 
-## The keyword's tooltip wraps: no wider than MAX_WIDTH, taller than one line, its tail on the chip.
+## The keyword's tip wraps on the card (the shared TipCard): the card's width, more than one line.
 func test_the_keywords_tooltip_wraps() -> void:
-	var text: String = GlyphText.keyword_tip(CardText.BATCH_WORD)
-	assert_bool(GlyphTip.wraps(text)).is_true()
-	var tip_size: Vector2 = GlyphTip.size_for(text)
-	assert_float(tip_size.x).is_equal(GlyphTip.MAX_WIDTH)
-	assert_float(tip_size.y).is_greater(GlyphTip.HEIGHT)
-	assert_that(GlyphTip.size_for("Bakery")).is_equal(
-		Vector2(GlyphTip.width_for("Bakery"), GlyphTip.HEIGHT)
-	)
+	var tip: TipCard = auto_free(TipCard.new())
+	add_child(tip)
+	tip.show_spec(TipWords.box(CardText.BATCH_WORD))
+	assert_float(tip.size.x).is_equal(TipCard.WIDTH)
+	assert_int(tip.body().line_count()).is_greater(1)
+	assert_str(tip.title_text()).is_equal(CardText.BATCH_WORD)
 
 
 ## On the shift screen the wrong row (Bread first) frames one batch, Bread to Stale doughnut,

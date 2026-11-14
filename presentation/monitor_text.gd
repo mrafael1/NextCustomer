@@ -11,8 +11,8 @@ extends RefCounted
 const TOTAL_CAPTION := "TOTAL"
 const PLAN_CAPTION := "PLAN"
 ## The SPEND line: the quota's word and its amount.
-const SPEND_WORD := "SPEND"
-const SPEND_AMOUNT := "%d€+"
+const SPEND_WORD := "QUOTA"
+const SPEND_AMOUNT := "%d€"
 ## The status line.
 const TO_GO := "%d€ to go"
 const OVER := "+%d€ over"
@@ -21,9 +21,9 @@ const PLANNED_OVER := "+%d€ planned"
 ## Under the quota planning reads the count's words (the top bar's "to go" too).
 const PLANNED_SHORT := TO_GO
 ## The item column on an empty belt (nothing in slot 1, nothing held).
-const EMPTY_BELT := "Drag items onto the belt"
+const EMPTY_BELT := "Drag cards into the row"
 ## A hand item's note in the item column's effect rows (PR #138 monitor): it has no effects yet.
-const HAND_NOTE := "Place it on the belt to see its effects"
+const HAND_NOTE := "Put it in the row to see what it does"
 ## The scanner bay's status plate in planning (PR #138 monitor): a pinned scan, else the last item
 ## placed on the belt.
 const SCAN_COMPLETE := "SCAN COMPLETE"
@@ -48,6 +48,8 @@ const OVERRIDE_PREFIX := "="
 ## between them), the source's scan a quiet note under its total instead of a "gives" row.
 const COPIED_FROM := "Copied from %s"
 const COPIED_BY := "Copied by %s"
+## A tag's row (tag_line, v1.36): the item, then the family it gains as a chip word.
+const TAG_LINE := "%s +%s"
 ## A "gives" row's equation (equation): the operators it spells out, its "=", and the change alone
 ## for an effect that is no arithmetic.
 const EQUATION_SIGNS: Array[String] = ["×", "+", "−", "-"]
@@ -122,6 +124,13 @@ static func waste_line(step: ScoreStep) -> String:
 ## then the copied amount).
 static func copied_from(source: String, amount: int) -> String:
 	return ReceiptView.joined_line(COPIED_FROM % source, euros(amount))
+
+
+## A TAG_ADDED step's row (v1.36, polish audit): the item `item` and the family `tag` it gains as
+## a chip word, "Squashed cake +BREAKFAST"; the row's giver glyph names the sticker. (The
+## receipt's "Breakfast sticker: Squashed cake gains Breakfast" wrapped on the monitor.)
+static func tag_line(item: String, tag: String) -> String:
+	return TAG_LINE % [item, tag.to_upper()]
 
 
 ## The quiet note beside a copied item's total: "Copied by Repeat", "" when nothing copied it.

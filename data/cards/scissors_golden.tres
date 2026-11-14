@@ -13,12 +13,12 @@ receipt_text = "Scissors: earlier coupons"
 [resource]
 script = ExtResource("3_card")
 id = &"scissors_golden"
-display_name = "Golden Scissors"
+display_name = "Golden scissors"
 kind = 1
 tags = PackedStringArray("Household")
 base = 4
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_scissors")])
-rule_text = "+6 for each earlier coupon"
+rule_text = "+6€ for each earlier coupon"
 art_ref = "res://art/items_v2/scissors_golden.png"
 variant_of = ExtResource("9_plain")
 tier = 2

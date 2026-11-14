@@ -27,11 +27,11 @@ const WEEK_TITLE := "WEEK %d"
 const WEEK_COUNT := "/%d"
 const CARD_TITLE := "TIME CARD"
 const CARD_SUB := "CASHIER · TILL 4"
-const REVIEW_HEAD := "MANAGER'S REVIEW · %d MALUSES"
-const FINAL_HEAD := "FINAL REVIEW · %d MALUSES"
-const FINAL_REWARD := "PASS = RUN WON"
+const REVIEW_HEAD := "PAYDAY · %d INSPECTIONS"
+const FINAL_HEAD := "FINAL PAYDAY · %d INSPECTIONS"
+const FINAL_REWARD := "QUOTA MET = RUN WON"
 const PUNCH := "IN"
-const NO_EVENT := "Normal day"
+const NO_EVENT := "Normal shift"
 const NO_EVENT_EFFECT := "No event"
 ## The training week's banner line (v0.84, in place of v0.68's notice and slips left): the misses
 ## it forgives.
@@ -41,14 +41,16 @@ const MISSES := "%d MISSES"
 const MISSES_ONE := "1 MISS"
 ## A played day's stamp (v0.72): a pass, and a training week's forgiven miss with its count.
 const PAID_STAMP := "PAID"
-const SLIP_STAMP := "SLIP %d/%d"
+const SLIP_STAMP := "MISS %d/%d"
 ## Today's tab on the card (#119).
 const TODAY_TAB := "TODAY"
 ## How the week event's values read in its notice (v1.02): an item bonus "+2€", the quota's
 ## "+10%", the machine odds' "+1 level".
 const BONUS_VALUE := "%+d€"
 const QUOTA_VALUE := "%+d%%"
-const ODDS_VALUE := "%+d level"
+## Better or worse machine odds in words (the text audit: no "+1 level" on a week notice).
+const ODDS_GAIN := "Rarer prizes"
+const ODDS_HARM := "Plainer prizes"
 
 ## The 1-based week, and how many the run has.
 var week_number: int = 1
@@ -60,6 +62,8 @@ var event: WeekEventDefinition
 var chip_names: PackedStringArray = PackedStringArray()
 ## The misses the training week forgives in all (0 outside it, or with a balance without slips).
 var allowed_misses: int = 0
+## The misses the training week still forgives (allowed_misses less the run's misses so far).
+var misses_left: int = 0
 ## The week's days, in order.
 var days: Array[WeekDay] = []
 
@@ -136,6 +140,7 @@ static func of(run: RunState) -> WeekCardModel:
 		model.event = null
 	if model.event != null and model.event.forgives_slips:
 		model.allowed_misses = run.balance.write_up_limit
+		model.misses_left = maxi(model.allowed_misses - run.write_ups, 0)
 	var plan: WeekPlan = run.week
 	var first: int = WeekSchedule.first_shift(balance, shift)
 	for day_shift: int in range(first, first + WeekSchedule.days_in(balance, shift)):
@@ -244,6 +249,14 @@ func misses_text() -> String:
 	return MISSES_ONE if allowed_misses == 1 else MISSES % allowed_misses
 
 
+## The training week's misses still forgiven ("1 miss left", the week glass's tip line), or ""
+## outside it.
+func misses_left_text() -> String:
+	if event == null or not event.forgives_slips:
+		return ""
+	return (MISSES_ONE if misses_left == 1 else MISSES % misses_left).to_lower() + " left."
+
+
 ## The week event's short name (its chip_text, "BAKERY"), or "".
 func chip_name() -> String:
 	return event.chip_text if event != null else ""
@@ -293,7 +306,7 @@ func _values() -> Array[EffectRun]:
 	if event.odds_level_delta != 0:
 		values.append(
 			EffectRun.new(
-				ODDS_VALUE % event.odds_level_delta,
+				ODDS_GAIN if event.odds_level_delta > 0 else ODDS_HARM,
 				Tone.GAIN if event.odds_level_delta > 0 else Tone.HARM
 			)
 		)

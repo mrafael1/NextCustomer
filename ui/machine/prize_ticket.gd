@@ -45,6 +45,10 @@ const SIZE := Vector2(144, 244)
 const RARITY_TEXTS: Array[String] = RarityTab.TEXTS
 const PIP_INKS: Array[Color] = [Palette.GREY, Palette.TEAL, Palette.BRASS_DARKEST]
 const TIER_WORDS: Array[String] = ["PLAIN", "BIG", "GOLDEN"]
+## An UPGRADES ticket's rule (upgrade_text) and a SHELF one's name (upgrade_name).
+const UPGRADE_ONE := "Turns 1 %s copy %s"
+const UPGRADE_SHELF := "All your %s (×%d): +1 level"
+const SHELF_NAME := "Shelf upgrade"
 ## The face: the art window, the band (the name in hard pixel rows, BAND_PITCH apart from
 ## BAND_PAD down; a name too long for NAME_LINES of them in bold Atkinson NAME_SIZE) and the rule
 ## (Atkinson 600, the first RULE_SIZES size that shows it in the room left over the foot, else
@@ -380,8 +384,9 @@ static func name_rows(text: String) -> PackedStringArray:
 	return best
 
 
-## What an UPGRADES pick does, from the machine's preview: one copy one step ("1 copy: BIG ›
-## GOLDEN"), a plain copy straight to GOLDEN, or every copy (SHELF).
+## What an UPGRADES pick does, from the machine's preview (v1.36, polish audit: it no longer
+## repeats the name line): one copy one step ("Turns 1 BIG copy GOLDEN"), a plain copy straight to
+## GOLDEN ("Turns 1 PLAIN copy GOLDEN"), or every copy ("All your Milk (×2): +1 level").
 static func upgrade_text(upgrade_prize: MachinePrize, preview: MachinePreview) -> String:
 	if preview == null or preview.targets.is_empty():
 		return ""
@@ -389,24 +394,18 @@ static func upgrade_text(upgrade_prize: MachinePrize, preview: MachinePreview) -
 	var to_tier: int = preview.to_cards[0].tier
 	match upgrade_prize.rarity:
 		MachinePrize.Rarity.RARE:
-			return "1 plain copy, 2 steps"
+			return UPGRADE_ONE % [TIER_WORDS[0], TIER_WORDS[2]]
 		MachinePrize.Rarity.LEGENDARY:
-			return (
-				"SHELF ×%d · every %s +1 step" % [preview.copies, upgrade_prize.card.display_name]
-			)
-	return "1 copy: %s › %s" % [TIER_WORDS[from_tier], TIER_WORDS[to_tier]]
+			return UPGRADE_SHELF % [upgrade_prize.card.display_name, preview.copies]
+	return UPGRADE_ONE % [TIER_WORDS[from_tier], TIER_WORDS[to_tier]]
 
 
-## The name line of an UPGRADES ticket: which item it improves and how ("Milk +1 step", "Milk ›
-## GOLDEN", "Shelf upgrade").
+## The name line of an UPGRADES ticket: the item it improves ("Milk"; v1.36, polish audit: the
+## tier it reaches is the art's chip, so the name fits the hard pixel rows), or "Shelf upgrade".
 static func upgrade_name(upgrade_prize: MachinePrize) -> String:
-	var item_name: String = upgrade_prize.card.display_name
-	match upgrade_prize.rarity:
-		MachinePrize.Rarity.RARE:
-			return "%s › GOLDEN" % item_name
-		MachinePrize.Rarity.LEGENDARY:
-			return "Shelf upgrade"
-	return "%s +1 step" % item_name
+	if upgrade_prize.rarity == MachinePrize.Rarity.LEGENDARY:
+		return SHELF_NAME
+	return upgrade_prize.card.display_name
 
 
 ## How many lines `text` takes in `font` at `font_size`, wrapped at `width`. Pure.

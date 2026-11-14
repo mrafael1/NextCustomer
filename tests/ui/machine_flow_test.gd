@@ -416,7 +416,7 @@ func _assert_resume_frame(run: RunState, kind: int, picking: bool) -> void:
 	# At the machine at once: no glide on a resume.
 	assert_float(screen._camera.progress()).override_failure_message(where).is_equal(1.0)
 	# The head stamp, at rest.
-	var stamps: Array[String] = ["", "BONUS TICKET!"]
+	var stamps: Array[String] = ["", "EXTRA DRAW!"]
 	assert_str(view.head.stamp_texts()[0]).override_failure_message(where).is_equal(stamps[kind])
 	assert_bool(view.head.stamp_shown()).is_equal(kind != MachineVisit.Kind.TICKET)
 	if view.head.stamp_shown():
@@ -430,7 +430,7 @@ func _assert_resume_frame(run: RunState, kind: int, picking: bool) -> void:
 		var bonus_sub: String = RewardMachineView.BONUS_SUB % view.display.why_words()
 		assert_array(Array(lines)).is_equal([RewardMachineView.BONUS_TITLE, bonus_sub])
 	else:
-		var spend: String = RewardMachineView.SPEND_LINE % resumed.history[-1].total
+		var spend: String = RewardMachineView.TOTAL_LINE % resumed.history[-1].total
 		assert_array(Array(lines)).is_equal([spend, RewardMachineView.CHOOSE_SUB])
 	# The keys from chute_info; the stock window's columns (v0.50): only the chosen chute's once
 	# picking, else every open chute's, with its three odds; gold on a PREMIUM visit.

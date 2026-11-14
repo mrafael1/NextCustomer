@@ -81,6 +81,10 @@ func _init(
 	add_child(_label, false, Node.INTERNAL_MODE_FRONT)
 	accessibility_name = caption_text
 	_fit_minimum_size()
+	# The caption's size settles when it enters the tree (its theme, font and outline resolve
+	# there): a button built before that fitted a smaller caption, and the words ran past the
+	# frame (polish audit v1.36, the results' Return to menu). Fit again whenever it changes.
+	_label.minimum_size_changed.connect(_fit_minimum_size)
 	_show_state(DRAW_NORMAL)
 
 

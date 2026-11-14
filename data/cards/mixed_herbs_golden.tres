@@ -14,12 +14,12 @@ receipt_text = "Mixed herbs bonus"
 [resource]
 script = ExtResource("3_card")
 id = &"mixed_herbs_golden"
-display_name = "Golden Mixed herbs"
+display_name = "Golden mixed herbs"
 kind = 1
 tags = PackedStringArray("Food")
 base = 3
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_mixed_herbs")])
-rule_text = "+6 to the next Food item"
+rule_text = "+6€ to the next Food item"
 generally_useful = true
 art_ref = "res://art/items_v2/mixed_herbs_golden.png"
 variant_of = ExtResource("9_plain")

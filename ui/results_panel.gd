@@ -23,6 +23,12 @@ extends PanelContainer
 ## shortfall and the coins span both columns, and the lines print down the left column, then the
 ## right one, then the coins.
 ##
+## The run's BEST line (v1.37, ReceiptHighlight: FinalReceipt's HIGHLIGHT line) prints in its
+## turn, between the second rule and the coins, across the receipt: the band wipes in, the sticker
+## slams down, and the coins wait for its wipe, slam and hold (CountUpTuning's final_highlight_*,
+## about 0.65 s); with reduced motion it shows at once and only the hold stays. A tap prints it in
+## its final state with the rest.
+##
 ## Once the receipt has printed, the badge pins the run unlocked (pin_news, set by the shift screen
 ## at the run's end) come one by one under a spotlight and stack right of the receipt (PinReveal,
 ## over the whole window like the closed store, just in front of the panel). Return to menu, while
@@ -34,7 +40,8 @@ signal export_requested
 ## Return to menu arms this long after the panel appears, once the mouse is up, like the
 ## machine's picks: the click that ended the run never leaves the results.
 const ARM_MS := 350
-const MENU_TEXT := "Return to menu"
+## In caps like every pixel key (polish audit v1.36: the only lowercase pixel button).
+const MENU_TEXT := "RETURN TO MENU"
 const HEADLINE_SIZE := 44
 const LINE_SIZE := 16
 ## The machine visits and the inspection under a shift's line are smaller and dim.
@@ -81,6 +88,11 @@ var _lines_box: VBoxContainer
 var _lines: Array[Label] = []
 ## The index in _lines of the first coin line.
 var _coin_from: int = 0
+## Each line's print time, in ms from the show (index × final_line_ms, the lines after the BEST
+## line later by its wipe, slam and hold).
+var _print_at: PackedInt32Array = PackedInt32Array()
+## The BEST line, or null.
+var _highlight: ReceiptHighlight
 ## How many lines have printed.
 var _printed: int = 0
 var _print_started_ms: int = 0
@@ -88,6 +100,8 @@ var _coin_sounds: int = 0
 var _coins_s: float = 0.0
 var _reader: PressReader
 var _menu_button: FramedButton
+## EXPORT LOG, right of Return to menu (hidden in a release build).
+var _export_button: FramedButton
 var _column: VBoxContainer
 ## The FITS entry the receipt is laid out with.
 var _fit: Vector3i = FITS[0]
@@ -143,18 +157,19 @@ func _init(tuning: CountUpTuning = null, reduced_motion: Callable = Callable()) 
 	buttons.add_theme_constant_override("separation", 16)
 	column.add_child(buttons)
 	# The game's pixel buttons (#56): Return to menu in the red frame, Export log in the top bar's
-	# teal.
+	# teal (playtest builds only, PlaytestUi).
 	_menu_button = UiKit.framed_button(buttons, MENU_TEXT, _on_menu_pressed, 22)
 	# The export confirms itself once done (ShiftScreen).
-	UiKit.framed_button(
+	_export_button = UiKit.framed_button(
 		buttons,
-		"Export log",
+		TopBar.EXPORT_TEXT,
 		func() -> void: export_requested.emit(),
 		18,
 		TopBar.BUTTON_FRAME,
 		Vector2.ZERO,
 		""
 	)
+	_export_button.visible = PlaytestUi.shown()
 	_reader = PressReader.new()
 	add_child(_reader)
 	_reader.tapped.connect(func(_now_ms: int) -> void: skip_printing())
@@ -269,6 +284,10 @@ func menu_button() -> FramedButton:
 	return _menu_button
 
 
+func export_button() -> FramedButton:
+	return _export_button
+
+
 ## Every line's text in print order, the headline first (for tests).
 func texts() -> PackedStringArray:
 	var found: PackedStringArray = PackedStringArray()
@@ -280,6 +299,16 @@ func texts() -> PackedStringArray:
 ## How many lines have printed (for tests).
 func printed_count() -> int:
 	return _printed
+
+
+## The BEST line (ReceiptHighlight), or null for a receipt without one (for tests).
+func highlight() -> ReceiptHighlight:
+	return _highlight
+
+
+## Each line's print time, in ms from the show (for tests).
+func print_times() -> PackedInt32Array:
+	return _print_at
 
 
 ## The index of the first coin line among texts() (for tests).
@@ -346,6 +375,7 @@ func _build_lines(lines: Array[FinalReceipt.Line]) -> void:
 		child.queue_free()
 	_lines = []
 	_week_columns = []
+	_highlight = null
 	_printed = 0
 	_coin_from = lines.size()
 	for index: int in range(lines.size()):
@@ -356,11 +386,16 @@ func _build_lines(lines: Array[FinalReceipt.Line]) -> void:
 			continue
 		if line.tone == FinalReceipt.Tone.COINS and _coin_from == lines.size():
 			_coin_from = index
-		var label: Label = UiKit.label(line.text, _size(line), _color(line))
 		var font: Font = ReceiptView.MONO_FONT
 		if _left_weeks > 0:
 			font = _week_detail_font if line.tone == FinalReceipt.Tone.DETAIL else _week_font
-		label.add_theme_font_override("font", font)
+		var label: Label
+		if line.tone == FinalReceipt.Tone.HIGHLIGHT:
+			_highlight = ReceiptHighlight.new(line, _size(line), font)
+			label = _highlight
+		else:
+			label = UiKit.label(line.text, _size(line), _color(line))
+			label.add_theme_font_override("font", font)
 		if line.tone == FinalReceipt.Tone.WEEK:
 			_make_week_tab(label, line.week)
 		_line_parent(line).add_child(label)
@@ -368,6 +403,26 @@ func _build_lines(lines: Array[FinalReceipt.Line]) -> void:
 	# Not printed yet: hidden by alpha, so the receipt keeps its size while it prints.
 	for label: Label in _lines:
 		label.modulate.a = 0.0
+	_print_at = _print_times()
+
+
+## Each line's print time from the show: one every final_line_ms, the lines after the BEST line
+## later by its wipe, slam and hold (the hold alone with reduced motion).
+func _print_times() -> PackedInt32Array:
+	var line_ms: int = maxi(_tuning.final_line_ms, 1)
+	var extra: int = _tuning.final_highlight_hold_ms
+	if not _is_reduced():
+		extra += _tuning.final_highlight_wipe_ms + _tuning.final_highlight_slam_ms
+	var times: PackedInt32Array = PackedInt32Array()
+	var after: bool = false
+	for index: int in range(_lines.size()):
+		times.append(index * line_ms + (extra if after else 0))
+		after = after or _lines[index] == _highlight
+	return times
+
+
+func _is_reduced() -> bool:
+	return _reduced_motion.is_valid() and bool(_reduced_motion.call())
 
 
 ## Prints every line due by now: one every final_line_ms from the show, all of them once
@@ -375,10 +430,16 @@ func _build_lines(lines: Array[FinalReceipt.Line]) -> void:
 func _print_due() -> void:
 	var due: int = _lines.size()
 	if not print_skipped:
-		var line_ms: int = maxi(_tuning.final_line_ms, 1)
-		due = mini(due, floori(float(Time.get_ticks_msec() - _print_started_ms) / line_ms) + 1)
+		var elapsed: int = Time.get_ticks_msec() - _print_started_ms
+		due = 0
+		while due < _lines.size() and _print_at[due] <= elapsed:
+			due += 1
+	if print_skipped and _highlight != null:
+		_highlight.finish()
 	while _printed < due:
 		_lines[_printed].modulate.a = 1.0
+		if _lines[_printed] == _highlight and not print_skipped:
+			_highlight.play(_tuning, _is_reduced())
 		if _printed == _coin_from:
 			_start_coins()
 		_printed += 1
@@ -392,7 +453,7 @@ func _start_coins() -> void:
 	coins_started_ms = Time.get_ticks_msec()
 	var delay_s: float = 0.0
 	if not print_skipped:
-		delay_s = (_lines.size() - 1 - _coin_from) * _tuning.final_line_ms / 1000.0
+		delay_s = (_print_at[_lines.size() - 1] - _print_at[_coin_from]) / 1000.0
 	_coins_s = delay_s + _coin_sounds * FinalReceipt.COIN_GAP
 	var sfx: Sfx = Sfx.find(self)
 	if sfx != null:

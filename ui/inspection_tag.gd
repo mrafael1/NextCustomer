@@ -14,14 +14,14 @@ enum Bonus { NONE, PROMISED, EARNED }
 ## The red notice printed under a passed shift's total when the next shift is inspected.
 const NEXT_NOTICE := "INSPECTION NEXT SHIFT: %s"
 ## A Manager's review's notice (v0.65): its several inspections at once, their notices joined.
-const NEXT_REVIEW_NOTICE := "MANAGER'S REVIEW NEXT SHIFT: %s"
+const NEXT_REVIEW_NOTICE := "PAYDAY NEXT SHIFT: %s"
 ## A boon day's notice (v0.69), in green (ReceiptView.BOON_NOTICE_PREFIX): "TOMORROW: Quiet
 ## morning (quota −10%)".
 const NEXT_BOON_NOTICE := ReceiptView.BOON_NOTICE_PREFIX + "%s"
 ## The day's kind (v1.16): an inspected shift's, and a Manager's review's (several at once,
 ## v0.65); a boon day's is the boon's name, a day without an event NO_EVENT.
 const CAPTION := "Inspection"
-const REVIEW_CAPTION := "Review"
+const REVIEW_CAPTION := "Payday"
 const NO_EVENT := WeekCardModel.NO_EVENT
 ## A boon's words in its notice (v0.69): "TOMORROW: Quiet morning (quota −10%)".
 const BOON_TEXT := "%s (%s)"

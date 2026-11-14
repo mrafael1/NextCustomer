@@ -16,12 +16,12 @@ receipt_text = "Chipped mug beside Coffee"
 [resource]
 script = ExtResource("3_card")
 id = &"chipped_mug_big"
-display_name = "Big Chipped mug"
+display_name = "Big chipped mug"
 kind = 1
 tags = PackedStringArray("Household", "Clearance")
 base = 4
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_chipped_mug")])
-rule_text = "+4 if beside Coffee"
+rule_text = "+4€ if beside Coffee"
 art_ref = "res://art/items_v2/chipped_mug_big.png"
 variant_of = ExtResource("9_plain")
 tier = 1

@@ -6,15 +6,21 @@ extends Control
 ## baked dither halo neon_sign_halo, _halo_soft), and a small € tag hanging right of it.
 ##
 ## It is dark until light_up(), then lights letter by letter (LETTER_STEP apart; `still` lights
-## it at once) and says lit_up. Lit, it lives: the halo breathes (the full halo, then the soft
-## one, for SOFT_SHARE of each BREATH), the X stutters (off, on, off) every STUTTER_GAP seconds
+## it at once) and says lit_up. The title's opening lights it with sweep_on() instead (2026-11-13,
+## mock-up title_opening.html, variant C): the scan beam crosses the dark sign and each tube lights
+## as the line passes its centre, flashing its full halo once; at the far end it says swept (the
+## title's BEEP), blinks once like an accepted scan, then the € tag lights and lit_up follows.
+## Lit, it lives: the halo breathes (the full halo, then the soft one, for SOFT_SHARE of each
+## BREATH), the X stutters (off, on, off) every STUTTER_GAP seconds
 ## and the € tag swings one px either way, a step every SWING_STEP seconds. scan() is the
 ## hidden toy (a click on the sign): a scan line sweeps across it, then it blinks once. `still`
 ## (the profile's reduced motion) holds every loop: no breath, stutter, swing or sweep, but the
 ## blink. Drawn on the 2 px grid (ArtStyle.ART_SCALE), it takes no clicks.
 
-## Every letter is lit (light_up() is done).
+## Every letter is lit (light_up() or sweep_on() is done).
 signal lit_up
+## sweep_on()'s line has crossed the sign: the accepted scan's blink starts.
+signal swept
 
 const ON := preload("res://art/scenery/neon_sign_on.png")
 const OFF := preload("res://art/scenery/neon_sign_off.png")
@@ -77,6 +83,14 @@ var _light_clock: float = 0.0
 var _clock: float = 0.0
 var _stutter_at: float = 0.0
 var _scan_at: float = -1.0
+## The scan running: its line's time across and its blink's (the toy's SCAN_TIME and BLINK, or
+## sweep_on()'s).
+var _scan_time: float = SCAN_TIME
+var _blink_time: float = BLINK
+## sweep_on() is lighting the sign, each tube flashing its full halo this long; it said swept.
+var _sweeping: bool = false
+var _flash_time: float = 0.0
+var _swept: bool = false
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 
 
@@ -107,9 +121,36 @@ func light_now() -> void:
 	if is_lit():
 		return
 	_lighting = false
+	if _sweeping:
+		_sweeping = false
+		_scan_at = -1.0
 	_lit = LETTERS.size()
 	queue_redraw()
 	lit_up.emit()
+
+
+## The title's opening: the scan line crosses the dark sign in `sweep` seconds, each tube
+## lighting as the line passes its centre (its full halo flashing for `flash` seconds), then
+## swept, a blink of `blink` seconds, and lit_up with the € tag lit. At once when `still`, like
+## light_now(); nothing once the sign is lit or lighting.
+func sweep_on(sweep: float, blink: float, flash: float) -> void:
+	if is_lit() or _lighting or _sweeping:
+		return
+	if still:
+		light_now()
+		return
+	_sweeping = true
+	_swept = false
+	_flash_time = flash
+	_scan_at = _clock
+	_scan_time = sweep
+	_blink_time = blink
+	queue_redraw()
+
+
+## sweep_on() is lighting the sign (its line or its blink).
+func is_sweeping() -> bool:
+	return _sweeping
 
 
 ## Every letter is lit.
@@ -117,14 +158,28 @@ func is_lit() -> bool:
 	return _lit >= LETTERS.size()
 
 
-## How many letters are lit.
+## How many letters are lit (sweep_on()'s line lights them out of order, left to right).
 func lit_letters() -> int:
-	return _lit
+	var count: int = 0
+	for i: int in LETTERS.size():
+		if _letter_lit(i):
+			count += 1
+	return count
+
+
+## Whether letter `index` (in LETTERS) is lit: one of the first lit by light_up(), or passed by
+## sweep_on()'s line.
+func letter_lit(index: int) -> bool:
+	return _letter_lit(index)
 
 
 ## The hidden toy: a scan line sweeps across the sign, then it blinks once (only the blink when
 ## `still`).
 func scan() -> void:
+	if _sweeping:
+		return
+	_scan_time = SCAN_TIME
+	_blink_time = BLINK
 	_scan_at = _clock - (SCAN_TIME if still else 0.0)
 	queue_redraw()
 
@@ -152,7 +207,17 @@ func halo_is_soft() -> bool:
 ## The sign is blinked off after a scan.
 func is_blinking() -> bool:
 	var since: float = _clock - _scan_at
-	return _scan_at >= 0.0 and since >= SCAN_TIME and since < SCAN_TIME + BLINK
+	return _scan_at >= 0.0 and since >= _scan_time and since < _scan_time + _blink_time
+
+
+## The scan line's x now, in art px from the sign's left: 2 px steps from SCAN_PAD left of the
+## sign to SCAN_PAD past its right end.
+func scan_line_x() -> int:
+	var travel: float = SIZE_ART.x + SCAN_PAD * 2
+	var share: float = 1.0
+	if _scan_time > 0.0:
+		share = clampf((_clock - _scan_at) / _scan_time, 0.0, 1.0)
+	return -SCAN_PAD + int(share * travel / 2.0) * 2
 
 
 func _process(delta: float) -> void:
@@ -165,11 +230,45 @@ func _process(delta: float) -> void:
 		if _lit >= LETTERS.size():
 			_lighting = false
 			lit_up.emit()
+	if _sweeping:
+		_advance_sweep()
 	if _clock >= _stutter_at + 3.0 * STUTTER_FLASH:
 		_stutter_at = _clock + _rng.randf_range(STUTTER_GAP.x, STUTTER_GAP.y)
-	if _scan_at >= 0.0 and _clock - _scan_at > SCAN_TIME + BLINK:
+	if not _sweeping and _scan_at >= 0.0 and _clock - _scan_at > _scan_time + _blink_time:
 		_scan_at = -1.0
 	queue_redraw()
+
+
+## sweep_on()'s ends: swept once the line has crossed, lit_up once the blink is over.
+func _advance_sweep() -> void:
+	var since: float = _clock - _scan_at
+	if not _swept and since >= _scan_time:
+		_swept = true
+		swept.emit()
+	if since >= _scan_time + _blink_time:
+		_sweeping = false
+		_scan_at = -1.0
+		_lit = LETTERS.size()
+		lit_up.emit()
+
+
+func _letter_lit(index: int) -> bool:
+	if index < _lit:
+		return true
+	return _sweeping and scan_line_x() >= _centre_x(index)
+
+
+## sweep_on()'s line has just lit letter `index` (its full halo flashes).
+func _letter_flashing(index: int) -> bool:
+	if not _sweeping or _scan_time <= 0.0:
+		return false
+	var travel: float = SIZE_ART.x + SCAN_PAD * 2
+	var lit_at: float = _scan_at + _scan_time * (_centre_x(index) + SCAN_PAD) / travel
+	return _clock >= lit_at and _clock < lit_at + _flash_time
+
+
+func _centre_x(index: int) -> float:
+	return LETTERS[index].position.x + LETTERS[index].size.x / 2.0
 
 
 func _draw() -> void:
@@ -178,17 +277,18 @@ func _draw() -> void:
 	var halo: Texture2D = HALO_SOFT if halo_is_soft() else HALO
 	for i: int in LETTERS.size():
 		var region: Rect2 = Rect2(_region(i))
-		var lit: bool = i < _lit and not blinking
+		var lit: bool = _letter_lit(i) and not blinking
 		if i == STUTTER_LETTER and is_stuttering():
 			lit = false
 		if lit:
 			draw_texture_rect_region(halo, region, region)
+			if _letter_flashing(i):
+				draw_texture_rect_region(HALO, region, region)
 		draw_texture_rect_region(ON if lit else OFF, region, region)
 	_draw_tag(is_lit() and not blinking)
 	var since: float = _clock - _scan_at
-	if _scan_at >= 0.0 and since < SCAN_TIME and not still:
-		var travel: float = SIZE_ART.x + SCAN_PAD * 2
-		var line_x: int = -SCAN_PAD + int(since / SCAN_TIME * travel / 2.0) * 2
+	if _scan_at >= 0.0 and since < _scan_time and not still:
+		var line_x: int = scan_line_x()
 		for y: int in range(-2, SIZE_ART.y + 2):
 			for x: int in range(line_x - SCAN_HALF, line_x + SCAN_HALF + 1):
 				if posmod(x + y, 2) == 0:

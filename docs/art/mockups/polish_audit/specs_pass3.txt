@@ -1,0 +1,20 @@
+start|page1_closed|sc|--reveal=0,page=1,completed=0
+start|page2_hover_pack|sc|--reveal=0,page=2,completed=2,won,p2=t1+hover1+t0.5
+shift|planning_stack_fan|sc|--stack=fan
+shift|planning_inspection_spot_check|sc|--day=spot_check
+shift|planning_day_slip|sc|--slip
+shift|monitor_coupon|sc|--monitor=coupon
+shift|pin_price_gun_picker|sc|--pin=price_gun --gun=picker
+week_card|open|sc|--week
+checkout|count_t6|sc|--laps=1 --checkout=6
+quota_crossing|laps5_t9|sc|--laps=5 --checkout=9
+machine|classic_choose|sc|--machine=3
+machine|prize_hover|sc|--machine=3,new_items,hover=0
+machine|cartfull_pick|sc|--machine=1,new_items,cartfull,pick=0
+machine|premium_choose|sc|--machine=3,premium
+machine|premium_upgrade_draw|sc|--machine=3,premium,upgrade
+machine|bonus_ticket|sc|--machine=3,bonus
+machine|payday_lamps|sc|--machine=3,lamps,payday
+medals|hover_gold|sc|--hover=gold
+hover|week_glass|sc|--hover=week
+hover|menu_key|sc|--hover=menu

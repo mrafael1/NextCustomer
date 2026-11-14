@@ -17,12 +17,12 @@ receipt_text = "Carrier bag: Food beside"
 [resource]
 script = ExtResource("3_card")
 id = &"carrier_bag_golden"
-display_name = "Golden Carrier bag"
+display_name = "Golden carrier bag"
 kind = 1
 tags = PackedStringArray("Household")
 base = 3
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_carrier_bag")])
-rule_text = "+16 for each Food item beside it"
+rule_text = "+16€ per Food item beside it"
 generally_useful = true
 art_ref = "res://art/items_v2/carrier_bag_golden.png"
 variant_of = ExtResource("9_plain")

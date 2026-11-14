@@ -9,4 +9,4 @@ group = &"families"
 title = "Food"
 mark = 3
 mark_value = "Food"
-rule = "Everything you can eat is {fam:Food}, even if its label only shows another family."
+rule = "{fam:Food} is on almost every item, even when its ticket shows only another family. {fam:Household} goods, {item:coffee} and {item:tea_bags} are not {fam:Food}. Some cards ignore it."

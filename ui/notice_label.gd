@@ -75,10 +75,7 @@ func explain_refusal(limits: ShiftLimits, row: Array[CardInstance]) -> bool:
 	if RowCapacity.fits(limits, row):
 		return false
 	show_notice(
-		(
-			"Row full (%d/%d items): take an item out first"
-			% [row.size(), RowCapacity.card_limit(limits)]
-		)
+		"Row full (%d/%d): take a card out first" % [row.size(), RowCapacity.card_limit(limits)]
 	)
 	return true
 

@@ -98,6 +98,17 @@ func _init(
 		tip_text = wasted_tip
 	else:
 		tip_text = live_tip if _live else GlyphText.keyword_tip(word)
+	tip_title = word
+	tip_tag = TipSpec.KEYWORD_TAG
+	tip_kind = TipSpec.Kind.KEYWORD
+	if _wasted:
+		# Not working: the red band, the reason, and the keyword's box beside it.
+		tip_kind = TipSpec.Kind.BROKEN
+		tip_title = TipSpec.NOT_WORKING % word
+		tip_subs = PackedStringArray([word])
+	elif _live:
+		tip_kind = TipSpec.Kind.ITEM
+		tip_tag = ""
 	size = Vector2(width_for(word, _wasted, _live, padding), HEIGHT)
 	custom_minimum_size = size
 

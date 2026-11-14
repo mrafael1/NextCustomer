@@ -5,7 +5,7 @@ extends RefCounted
 ## standing on the register's top, painted in art pixels into an Image (one image pixel per art
 ## pixel; DayCalendar draws it at DayCalendarArt.CELL stage px each). Two steel rings on top, a
 ## band in the day's kind's colour (DayCalendarArt.band: grey normal, tomato inspection, mustard
-## review, green boon, teal for a passed inspection's EARNED), then the page: DAY at its top
+## review, green boon, teal for a passed inspection's EARNED), then the page: SHIFT at its top
 ## left, the kind's sign at its top right (warning, boon coin, check; none on a normal day) and
 ## the day's number big and centred in the bold digits (DIGITS at NUMBER_CELL font px per art
 ## px). No kind word: the band, the sign and the tooltip say it. Under the number the week's day
@@ -18,7 +18,7 @@ extends RefCounted
 ## new page under it. On a payday (Page.payday; the user's pick of 2026-11-10, mock-up
 ## payday_day.html round 2, "Calendar, in the review band") the band grows down over the page's
 ## head (PAYDAY_ROWS rows, the review's mustard with a dark foot row) and carries PAYDAY in the
-## chunky capitals in ink, in place of DAY and the sign; the number and the pips stay where they
+## chunky capitals in ink, in place of SHIFT and the sign; the number and the pips stay where they
 ## are. Palette colours only, no alpha. Display only.
 
 ## The calendar in art px, and the image's room above it for the flipping page's back.
@@ -34,9 +34,13 @@ const EDGES_MAX := 1
 const STAND_Y := 44
 ## The rings' left columns.
 const RINGS: Array[int] = [8, 35]
-## DAY's top left on the page (from PAGE_Y), the sign's top (from PAGE_Y) and right margin, the
-## number's top (from PAGE_Y) and its font px per art px.
-const DAY_AT := Vector2i(3, 2)
+## The page's word (SHIFT since the words pass v1.33: the turn is a shift, never a day; in the 3x5
+## capitals so it clears the sign), its sheet and its top left on the page (from PAGE_Y), the
+## sign's top (from PAGE_Y) and right margin, the number's top (from PAGE_Y) and its font px per
+## art px.
+const PAGE_WORD := "SHIFT"
+const PAGE_WORD_SHEET := PixelWords.Sheet.CAPS
+const DAY_AT := Vector2i(3, 3)
 const SIGN_TOP := 1
 const SIGN_MARGIN := 2
 const NUMBER_TOP := 13
@@ -87,7 +91,7 @@ static func paint_flip(
 	_paint_band(image, page.look)
 
 
-## One page at row `top` of `image`: ink sides and foot, paper with a cream top row, DAY, the
+## One page at row `top` of `image`: ink sides and foot, paper with a cream top row, SHIFT, the
 ## sign and the number.
 static func paint_page(image: Image, page: DayCalendarArt.Page, top: int) -> void:
 	var rows: int = PAGE_FOOT - PAGE_Y + 1
@@ -100,12 +104,7 @@ static func paint_page(image: Image, page: DayCalendarArt.Page, top: int) -> voi
 		_paint_payday(image, top)
 	else:
 		DayCalendarArt.paint_words(
-			image,
-			"DAY",
-			PixelWords.Sheet.CHUNKY_CAPS,
-			1,
-			DAY_AT + Vector2i(0, top),
-			Palette.INK_LIGHT
+			image, PAGE_WORD, PAGE_WORD_SHEET, 1, DAY_AT + Vector2i(0, top), Palette.INK_LIGHT
 		)
 		var icon: Image = DayCalendarArt.icon(page.mark)
 		if icon != null:
@@ -201,9 +200,9 @@ static func number_rect(page: DayCalendarArt.Page) -> Rect2i:
 	return Rect2i(Vector2i(floori((SIZE - size.x) / 2.0), NUMBER_TOP), size)
 
 
-## DAY's rect on the page (art px from the page's top left).
+## The page word's (SHIFT's) rect on the page (art px from the page's top left).
 static func day_rect() -> Rect2i:
-	return Rect2i(DAY_AT, PixelWords.font_size_of("DAY", PixelWords.Sheet.CHUNKY_CAPS))
+	return Rect2i(DAY_AT, PixelWords.font_size_of(PAGE_WORD, PAGE_WORD_SHEET))
 
 
 ## The edges shown for `days_left` days left in the week.

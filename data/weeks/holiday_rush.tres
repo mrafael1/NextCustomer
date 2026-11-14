@@ -8,6 +8,6 @@ odds_level_delta = 1
 id = &"holiday_rush"
 display_name = "Holiday rush"
 tone = 2
-notice_text = "Quota +15%, machine odds +1 level"
+notice_text = "Quota +15%. Rarer prizes at the machine."
 chip_text = "HOLIDAY"
 quota_percent = 15

@@ -1,0 +1,16 @@
+results|won|sc|--results=won
+results|lost|sc|--results=lost
+results|won_release|sc|--results=won --release-ui
+pause|menu|au|--audit=pause
+pause|menu_release|au|--audit=pause --release-ui
+pause|options|au|--audit=pause,open=options
+title|options|au|--audit=title,open=options
+title|quit_confirm|au|--audit=title,open=quit
+title|quit_confirm_saved|au|--audit=title,saved,open=quit
+title|newrun_confirm|au|--audit=title,saved,open=newrun
+title|lit_fresh|au|--audit=title
+title|lit_release|au|--audit=title --release-ui
+toys|shift_broke|sc|--toys=broke
+toys|draw_join|sc|--toys=normal,draw=bakery,join=0.6
+start|page2_pins_step|sc|--reveal=0,page=2,completed=2,pins=1,p2=t1
+start|page2_badge_pins_open|sc|--reveal=0,page=2,completed=2,pins=3,p2=t1+wear7+t0.3

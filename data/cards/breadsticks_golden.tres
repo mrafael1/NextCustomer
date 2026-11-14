@@ -16,12 +16,12 @@ receipt_text = "Breadsticks after Soup"
 [resource]
 script = ExtResource("3_card")
 id = &"breadsticks_golden"
-display_name = "Golden Breadsticks"
+display_name = "Golden breadsticks"
 kind = 1
 tags = PackedStringArray("Food", "Snack")
 base = 4
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_breadsticks")])
-rule_text = "+8 if right after Soup"
+rule_text = "+8€ if right after Soup"
 art_ref = "res://art/items_v2/breadsticks_golden.png"
 variant_of = ExtResource("9_plain")
 tier = 2

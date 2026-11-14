@@ -27,8 +27,15 @@ signal unhovered(chute: int)
 signal pressed(chute: int)
 
 const SIZE := Vector2(220, 88)
-const NAMES: Array[String] = ["NEW ITEMS", "UPGRADE"]
-const SUBS: Array[String] = ["ADD TO CART", "IMPROVE WHAT YOU OWN"]
+const NAMES: Array[String] = ["NEW ITEMS", "IMPROVE"]
+const SUBS: Array[String] = ["ADD TO CART", "BETTER CARDS, PERKS"]
+## Each chute's hover tip (the hover tips revamp): what comes out of it.
+const TIPS: Array[String] = [
+	"New items and coupons, one of them for your cart.",
+	"Better cards (BIG or GOLDEN), new loyalty perks or a perk's next level.",
+]
+const TIP_TAG := "CHUTE"
+const TIP_CLICK := "PICK"
 const SUB_SIZE := 12
 const REASON_SIZE := 12
 const NAME_WEIGHT := 800
@@ -95,6 +102,11 @@ func _init(key_chute: int) -> void:
 	_face.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_face.draw.connect(_draw_face)
 	add_child(_face)
+	var tip: TipSpec = TipSpec.make(TipSpec.Kind.STATUS, NAMES[chute], TipMarkup.auto(TIPS[chute]))
+	tip.tag = TIP_TAG
+	tip.click = TIP_CLICK
+	tip.icon = CART if chute == 0 else UP_ARROW
+	TipTarget.cover_control(self, tip)
 	_icon = _make_icon()
 	_face.add_child(_icon)
 	_padlock = _sprite(PADLOCK, PADLOCK_RECT, _face)

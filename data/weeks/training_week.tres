@@ -8,5 +8,5 @@ forgives_slips = true
 id = &"training_week"
 display_name = "Training week"
 tone = 2
-notice_text = "Miss a quota? It is a slip: the run goes on."
+notice_text = "Training week: you can miss the quota 2 times (a miss gets no prizes). Next week, a miss ends the run."
 chip_text = "TRAINING"

@@ -18,12 +18,12 @@ receipt_text = "Scone beside Dairy"
 [resource]
 script = ExtResource("3_card")
 id = &"scone_golden"
-display_name = "Golden Scone"
+display_name = "Golden scone"
 kind = 1
 tags = PackedStringArray("Food", "Bakery")
 base = 4
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_scone")])
-rule_text = "PAIR: +8 for each Dairy item beside it"
+rule_text = "PAIR: +8€ per Dairy item beside it"
 generally_useful = true
 art_ref = "res://art/items_v2/scone_golden.png"
 variant_of = ExtResource("9_plain")
