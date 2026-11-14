@@ -1,0 +1,59 @@
+[gd_resource type="Resource" script_class="QuickTutorial" load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://presentation/tutorial/quick_tutorial.gd" id="1_main"]
+[ext_resource type="Script" path="res://presentation/tutorial/tutorial_step.gd" id="2_sub"]
+
+[sub_resource type="Resource" id="Resource_sa1"]
+script = ExtResource("2_sub")
+id = &"SA1"
+screen = 1
+text = "NEW: each completed aisle lets you swap 1 of **YOUR REGULARS**. Click the basket to swap."
+teaches = PackedStringArray("SWAP")
+rings = Array[StringName]([&"crate"])
+act = 0
+side = 2
+footer = 2
+advance_on = &"swap_opened"
+
+[sub_resource type="Resource" id="Resource_sa2"]
+script = ExtResource("2_sub")
+id = &"SA2"
+screen = 3
+text = "Each aisle gives a **BOOSTER** of plain **CARDS**. Open both."
+rings = Array[StringName]([&"swap_boosters"])
+act = 0
+side = 4
+footer = 2
+advance_on = &"swap_booster_opened"
+advance_count = 2
+
+[sub_resource type="Resource" id="Resource_sa3"]
+script = ExtResource("2_sub")
+id = &"SA3"
+screen = 3
+text = "Drag a **CARD** onto a regular to swap them. Drag it back to undo."
+rings = Array[StringName]([&"swap_regular0", &"swap_card0_0"])
+act = 0
+side = 4
+footer = 2
+advance_on = &"swap_applied"
+
+[sub_resource type="Resource" id="Resource_sa4"]
+script = ExtResource("2_sub")
+id = &"SA4"
+screen = 3
+text = "Swaps last this run only. Next run, **YOUR REGULARS** are back. Click DONE."
+rings = Array[StringName]([&"swap_regular0", &"swap_done"])
+act = -1
+side = 1
+footer = 1
+follow_index = true
+
+[resource]
+script = ExtResource("1_main")
+id = &"swap"
+title = "SWAP"
+order = 1
+trigger = &"swap_unlocked"
+more_page = &"swap"
+steps = Array[ExtResource("2_sub")]([SubResource("Resource_sa1"), SubResource("Resource_sa2"), SubResource("Resource_sa3"), SubResource("Resource_sa4")])
