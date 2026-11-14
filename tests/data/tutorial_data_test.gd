@@ -231,18 +231,6 @@ const EXEMPT: Array[String] = [
 ]
 const MAX_WORDS := 30
 const MAX_SENTENCE := 16
-## The handbook pages WP-7 adds (tutorial plan section 2): a more_page may name one before it
-## lands.
-const PENDING_PAGES: Array[StringName] = [
-	&"redraw",
-	&"day_events",
-	&"payday",
-	&"medals",
-	&"loyalty_perks",
-	&"restock",
-	&"swap",
-	&"receipt_rewards",
-]
 ## The boxes that were there before the tutorial (they keep their own words).
 const OLD_BOXES: Array[String] = ["FAMILY", "ROW", "SLOT", "QUOTA", "PREMIUM", "COUPON"]
 const BALANCE := "res://data/balance/balance.tres"
@@ -390,8 +378,7 @@ func test_every_more_page_resolves() -> void:
 	for page: StringName in pages:
 		if page.is_empty() or String(page).begins_with(TipDefinition.TOYS_PREFIX):
 			continue
-		var found: bool = book.entry(page) != null or PENDING_PAGES.has(page)
-		assert_bool(found).override_failure_message(page).is_true()
+		assert_bool(book.entry(page) != null).override_failure_message(page).is_true()
 	assert_bool(TipList.shared().tip(&"T15").more_in_toys()).is_true()
 	assert_bool(TipList.shared().tip(&"T1").more_in_toys()).is_false()
 	assert_str(String(TipList.shared().tip(&"T16").more_page)).is_empty()
