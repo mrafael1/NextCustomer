@@ -1,0 +1,60 @@
+[gd_resource type="Resource" script_class="QuickTutorial" load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://presentation/tutorial/quick_tutorial.gd" id="1_main"]
+[ext_resource type="Script" path="res://presentation/tutorial/tutorial_step.gd" id="2_sub"]
+
+[sub_resource type="Resource" id="Resource_r1"]
+script = ExtResource("2_sub")
+id = &"R1"
+screen = 1
+text = "NEW: **RESTOCK**. Not happy with a **BOOSTER** you opened? Send it back for a new one, once per run start."
+teaches = PackedStringArray("RESTOCK")
+rings = Array[StringName]([&"restock"])
+act = 0
+side = 3
+footer = 2
+advance_on = &"restock_armed"
+
+[sub_resource type="Resource" id="Resource_r2"]
+script = ExtResource("2_sub")
+id = &"R2"
+screen = 1
+text = "Click RETURN THIS ONE on the **BOOSTER** to send back. CANCEL keeps all your **CARDS**."
+rings = Array[StringName]([&"return0", &"return1", &"primary"])
+act = 0
+side = 3
+footer = 2
+advance_on = &"restock_done"
+back_out_on = &"restock_cancelled"
+refuse_ids = Array[StringName]([&"tab2"])
+
+[sub_resource type="Resource" id="Resource_r3"]
+script = ExtResource("2_sub")
+id = &"R3"
+screen = 1
+text = "Its {booster_size} **CARDS** go in the RETURNS tote and leave your **CART**. A new sealed **BOOSTER** takes its place."
+rings = Array[StringName]([&"tote", &"booster0"])
+act = -1
+side = 1
+delay_s = 1.0
+follow_index = true
+
+[sub_resource type="Resource" id="Resource_r4"]
+script = ExtResource("2_sub")
+id = &"R4"
+screen = 1
+text = "Open it: {booster_size} new **CARDS**, with a new chance at a **RARE** one. **RESTOCK** is used up until your next run."
+rings = Array[StringName]([&"booster0", &"restock"])
+act = -1
+side = 1
+footer = 1
+follow_index = true
+
+[resource]
+script = ExtResource("1_main")
+id = &"restock"
+title = "RESTOCK"
+order = 2
+trigger = &"restock_unlocked"
+more_page = &"restock"
+steps = Array[ExtResource("2_sub")]([SubResource("Resource_r1"), SubResource("Resource_r2"), SubResource("Resource_r3"), SubResource("Resource_r4")])
