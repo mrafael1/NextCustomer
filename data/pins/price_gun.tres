@@ -8,7 +8,7 @@
 script = ExtResource("1_pin")
 id = &"price_gun"
 display_name = "Price gun"
-rule_text = "Once a shift, add a family to one item."
+rule_text = "Once a shift, add a family to one item"
 face_text = "TAG"
 face_colour = 3
 icon = ExtResource("9_icon")

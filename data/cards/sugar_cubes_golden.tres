@@ -16,7 +16,7 @@ receipt_text = "Sugar cubes after Coffee"
 [resource]
 script = ExtResource("3_card")
 id = &"sugar_cubes_golden"
-display_name = "Golden Sugar cubes"
+display_name = "Golden sugar cubes"
 kind = 1
 tags = PackedStringArray("Food")
 base = 4

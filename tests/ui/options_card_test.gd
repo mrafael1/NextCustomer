@@ -127,7 +127,7 @@ func test_keys_walk_the_rows_and_change_the_marked_one() -> void:
 	card.handle_key(_key(KEY_DOWN))
 	card.handle_key(_key(KEY_ENTER))
 	assert_bool(profile.reduced_motion()).is_true()
-	assert_bool(card.motion_key().held).is_true()
+	assert_bool((card.chips(OptionsCard.Row.MOTION)[1] as OptionChip).chosen).is_true()
 	card.handle_key(_key(KEY_DOWN))
 	card.handle_key(_key(KEY_RIGHT))
 	assert_float(profile.count_up_speed()).is_equal(ProfileState.COUNT_UP_FAST)

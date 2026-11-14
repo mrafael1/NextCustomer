@@ -140,7 +140,9 @@ static func rule_fit(card: CardDefinition, max_w: float, room: float) -> Array:
 	return _rules[key]
 
 
-## Atkinson words of `size` art px wrapped to `max_w` art px (measured at the stage's 2 px).
+## Atkinson words of `size` art px wrapped to `max_w` art px (measured at the stage's 2 px), with
+## no lone last word (v1.36, polish audit: "beside / it"): the line before gives it its last word
+## when it keeps two and the pair fits.
 static func wrap_words(text: String, size: float, max_w: float) -> PackedStringArray:
 	var font: Font = ArtStyle.bold_font(RULE_WEIGHT)
 	var font_size: int = maxi(1, roundi(size * ArtPen.UNIT))
@@ -158,6 +160,17 @@ static func wrap_words(text: String, size: float, max_w: float) -> PackedStringA
 			line = trial
 	if line != "":
 		lines.append(line)
+	if lines.size() < 2 or lines[-1].contains(" "):
+		return lines
+	var before: PackedStringArray = lines[-2].split(" ", false)
+	if before.size() < 3:
+		return lines
+	var moved: String = before[-1] + " " + lines[-1]
+	var moved_w: float = font.get_string_size(moved, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+	if moved_w / ArtPen.UNIT > max_w:
+		return lines
+	lines[-2] = " ".join(before.slice(0, before.size() - 1))
+	lines[-1] = moved
 	return lines
 
 

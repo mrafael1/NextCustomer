@@ -18,12 +18,12 @@ receipt_text = "Yogurt PAIR with Banana"
 [resource]
 script = ExtResource("3_card")
 id = &"yogurt_big"
-display_name = "Big Yogurt"
+display_name = "Big yogurt"
 kind = 1
 tags = PackedStringArray("Food", "Dairy", "Breakfast")
 base = 4
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_yogurt")])
-rule_text = "PAIR: +4€ for each Banana beside it"
+rule_text = "PAIR: +4€ per Banana beside it"
 art_ref = "res://art/items_v2/yogurt_big.png"
 variant_of = ExtResource("9_plain")
 tier = 1

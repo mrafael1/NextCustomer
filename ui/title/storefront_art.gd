@@ -142,11 +142,16 @@ static func backdrop(extend: Vector4i) -> ImageTexture:
 
 ## A live layer's texture, painted once: "wedge", "tube_on", "reflections", "spill", "spill_hot",
 ## "leaf", "glass", "bay_night" or "bay_lit".
+## The bays carry the locked Loyalty poster in playtest builds only (PlaytestUi), so a release
+## build paints them without it, cached apart.
 static func layer(id: String) -> ImageTexture:
-	if not _layers.has(id):
+	var key: String = id
+	if id.begins_with("bay") and not PlaytestUi.shown():
+		key += ":release"
+	if not _layers.has(key):
 		var art: StorefrontArt = _paint_layer(id)
-		_layers[id] = ImageTexture.create_from_image(art.image)
-	return _layers[id]
+		_layers[key] = ImageTexture.create_from_image(art.image)
+	return _layers[key]
 
 
 ## The rect a layer is shown at, in stage art px.
@@ -453,8 +458,9 @@ func _leaf(at: Vector2i) -> void:
 
 
 ## The REWARDS bay, a glass annex: its frame, the glass (dark, or lit when the REWARDS entry is
-## hot), the REWARDS vinyl and its rule, the locked Loyalty poster (SOON), the glints and the
-## frame's bars. The toy machine stands in it as its own node.
+## hot), the REWARDS vinyl and its rule, the locked Loyalty poster (SOON; playtest builds only,
+## PlaytestUi: a release build promises no parked feature, polish audit v1.36), the glints and
+## the frame's bars. The toy machine stands in it as its own node.
 func _bay(lit: bool) -> void:
 	var x: int = BAY_RECT.position.x
 	var y: int = BAY_RECT.position.y
@@ -465,7 +471,16 @@ func _bay(lit: bool) -> void:
 	dither(BAY_RECT.grow(-2), Palette.TEAL_SHADE if lit else Palette.BACKGROUND, 2)
 	till("TOYS", x + 64, y + 10, Palette.PAPER if lit else Palette.CREAM_SHADE, "c")
 	rect(Rect2i(x + 34, y + 17, 60, 1), Palette.GOLD if lit else Palette.BRASS)
-	var poster := Vector2i(x + 6, y + 32)
+	if PlaytestUi.shown():
+		_poster(Vector2i(x + 6, y + 32), lit)
+	for i: int in 16:
+		px(x + 90 + i, y + 60 - i, Palette.GLASS_GLOW if lit else Palette.TEAL_SHADE)
+	rect(Rect2i(x + 2, y + 24, w - 4, 2), Palette.STEEL_DARKEST)
+	rect(Rect2i(x, y + h - 4, w, 4), Palette.STEEL_DARK)
+
+
+## The locked Loyalty poster at `poster` (its top left): LOYAL, six grey stamp places, SOON.
+func _poster(poster: Vector2i, lit: bool) -> void:
 	rect(Rect2i(poster, Vector2i(24, 32)), Palette.INK)
 	var card: Color = Palette.CREAM if lit else Palette.CREAM_DARKEST
 	rect(Rect2i(poster + Vector2i.ONE, Vector2i(22, 30)), card)
@@ -475,10 +490,6 @@ func _bay(lit: bool) -> void:
 	for i: int in 6:
 		disc(poster.x + 3 + (i % 3) * 6, poster.y + 11 + floori(i / 3.0) * 7, 5, Palette.GREY)
 	till("SOON", poster.x + 12, poster.y + 25, Palette.TOMATO, "c")
-	for i: int in 16:
-		px(x + 90 + i, y + 60 - i, Palette.GLASS_GLOW if lit else Palette.TEAL_SHADE)
-	rect(Rect2i(x + 2, y + 24, w - 4, 2), Palette.STEEL_DARKEST)
-	rect(Rect2i(x, y + h - 4, w, 4), Palette.STEEL_DARK)
 
 
 ## The sidewalk (slabs with joints), the curb and the street with its dashes, across `span`, and

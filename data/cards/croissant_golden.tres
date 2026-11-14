@@ -15,7 +15,7 @@ receipt_text = "Croissant opens batch"
 [resource]
 script = ExtResource("3_card")
 id = &"croissant_golden"
-display_name = "Golden Croissant"
+display_name = "Golden croissant"
 kind = 1
 tags = PackedStringArray("Food", "Bakery", "Breakfast")
 base = 4

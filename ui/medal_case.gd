@@ -33,12 +33,15 @@ const LINE_WEIGHT := 800
 ## The check after WON (the mock-up's 7x5 lamp check) and its gap.
 const CHECK_PIXELS: Array[String] = ["......#", ".....#.", "#...#..", ".#.#...", "..#...."]
 const CHECK_GAP := 6.0
-## The twinkle: its four spots round the medal (shares of TWINKLE_REACH art px from the centre),
-## its hop every TWINKLE_STEP s (shown TWINKLE_SHOWN of it), every PENDING_STEP s while PENDING.
+## The twinkle: its four spots on the medal (shares of TWINKLE_REACH art px from the centre; v1.36,
+## polish audit: from 10.5, so its arms stay inside the medal's sprite and never land on the
+## words: the "+" read "+GOLD"), its hop every TWINKLE_STEP s (shown TWINKLE_SHOWN of it), every
+## PENDING_STEP s while PENDING; TWINKLE_ARM art px its longest arm.
 const TWINKLE_SPOTS: Array[Vector2] = [
 	Vector2(-1, -1), Vector2(1, -0.6), Vector2(0.8, 1), Vector2(-1, 0.7)
 ]
-const TWINKLE_REACH := 10.5
+const TWINKLE_REACH := 5.5
+const TWINKLE_ARM := 2
 const TWINKLE_STEP := 0.7
 const PENDING_STEP := 0.26
 const TWINKLE_SHOWN := 0.8
@@ -276,11 +279,15 @@ func _draw_twinkle(index: int, pending: bool) -> void:
 	var phase: float = fposmod(_time, step) / step
 	if not pending and phase >= TWINKLE_SHOWN:
 		return
-	var arm: int = 2 if phase >= 0.33 and phase < 0.66 else 1
+	var arm: int = TWINKLE_ARM if phase >= 0.33 and phase < 0.66 else 1
+	MedalArt.draw_twinkle(self, twinkle_at(index, hop), arm, CELL)
+
+
+## Where medal `index`'s twinkle centre cell sits at hop `hop` (its top left, on the art grid).
+static func twinkle_at(index: int, hop: int) -> Vector2:
 	var centre: Vector2 = MEDAL_AT[index] + Vector2.ONE * (MedalArt.SIZE * CELL / 2.0)
 	var spot: Vector2 = TWINKLE_SPOTS[hop % TWINKLE_SPOTS.size()] * TWINKLE_REACH * CELL
-	var at: Vector2 = ((centre + spot) / CELL).floor() * CELL
-	MedalArt.draw_twinkle(self, at, arm, CELL)
+	return ((centre + spot) / CELL).floor() * CELL
 
 
 ## A medal popping back in: drawn from POP_FROM of its size past POP_OVER and back, centred.

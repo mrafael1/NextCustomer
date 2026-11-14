@@ -30,6 +30,8 @@ const OPENING_MINUTES := 58
 const TUNING_PATH := "res://data/balance/start_boosters.tres"
 ## The most one frame advances the page's clock (s).
 const MAX_STEP := 0.1
+## The hint while RESTOCK is armed; the primary key flashes it too (it no longer cancels: v1.36).
+const RESTOCK_NEXT_HINT := "PICK A BOOSTER TO RETURN"
 
 var tuning: StartBoostersTuning
 var run: RunState
@@ -414,8 +416,9 @@ func page_done() -> bool:
 
 
 ## The primary key (Enter, a click on it): the swap window's DONE while it is open; else ROLL UP,
-## skip the arrival, cancel RESTOCK, speed up an opening, flip the waiting hit, OPEN ALL, NEXT's
-## one stop at the swap window (a swap unlocked and unused), or NEXT.
+## skip the arrival, say what an armed RESTOCK waits for (its own key and Esc cancel it), speed up
+## an opening, flip the waiting hit, OPEN ALL, NEXT's one stop at the swap window (a swap unlocked
+## and unused), or NEXT.
 func primary(via: String = "key") -> bool:
 	var used: bool = true
 	var waiting: BoosterOpening = openings.waiting_booster()
@@ -426,7 +429,9 @@ func primary(via: String = "key") -> bool:
 	elif openings.arrival_busy():
 		openings.end_arrival()
 	elif restock_armed:
-		cancel_restock("ui_close")
+		# v1.36: CANCEL is RESTOCK's own key (and Esc); the primary key says what comes next.
+		flash(RESTOCK_NEXT_HINT)
+		used = false
 	elif tote_cards.size() > 0:
 		used = false
 	elif openings.boost_all():
@@ -458,7 +463,7 @@ func primary_label() -> Array:
 	if shutter == Shutter.DOWN:
 		label = ["ROLL UP", "OPEN THE STORE", true]
 	elif restock_armed:
-		label = ["CANCEL", "RESTOCK", false]
+		label = ["PICK 1", "TO RETURN", false]
 	elif openings.opening_now() or openings.arrival_busy():
 		label = ["SKIP ›", "SPEED IT UP", true]
 	elif picking():
@@ -488,7 +493,7 @@ func hint_line() -> String:
 	elif openings.waiting_booster() != null:
 		line = "CLICK THE ? CARD"
 	elif restock_armed:
-		line = "PICK A BOOSTER TO RETURN"
+		line = RESTOCK_NEXT_HINT
 	elif picking():
 		line = _pick_text() + " BOOSTERS"
 	elif page_done():

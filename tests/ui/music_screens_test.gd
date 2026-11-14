@@ -249,8 +249,9 @@ func test_a_fail_stays_ducked_then_the_results_duck_for_the_coins() -> void:
 	var fail_end: int = fail_ms + roundi(sfx.sound_length("fail") * 1000.0) - FRAME_MS
 	assert_int(results_ms).is_greater_equal(fail_end)
 	assert_int(front_ms).is_greater_equal(results_ms)
-	# The coin lines print after the headline, the shift and the shortfall (one line apart).
-	var print_ms: int = results.coin_line_index() * tuning.final_line_ms
+	# The coin lines print after the headline, the shift, the shortfall (one line apart) and the
+	# BEST line's wipe, slam and hold (v1.37).
+	var print_ms: int = results.print_times()[results.coin_line_index()]
 	assert_int(coins_ms - results_ms).is_between(print_ms - FRAME_MS, print_ms + 150)
 	for frame: Dictionary in frames:
 		if int(frame["ms"]) >= deep_ms and int(frame["ms"]) < coins_ms:

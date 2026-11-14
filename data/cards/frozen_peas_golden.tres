@@ -17,7 +17,7 @@ receipt_text = "Frozen peas beside Frozen"
 [resource]
 script = ExtResource("3_v6jfv")
 id = &"frozen_peas_golden"
-display_name = "Golden Frozen peas"
+display_name = "Golden frozen peas"
 kind = 1
 tags = PackedStringArray("Food", "Frozen", "Produce")
 base = 5

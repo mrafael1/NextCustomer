@@ -16,7 +16,7 @@ receipt_text = "Baguette fills batch"
 [resource]
 script = ExtResource("3_card")
 id = &"baguette_golden"
-display_name = "Golden Baguette"
+display_name = "Golden baguette"
 kind = 1
 tags = PackedStringArray("Food", "Bakery")
 base = 4

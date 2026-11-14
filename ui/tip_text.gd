@@ -7,7 +7,9 @@ extends Control
 ## checkout's × burst); a keyword is its ticket chip (KeywordChip, tomato with a cross when it is
 ## not working) and a family its chip with its dot (FamilyWord), so a tip shows them exactly as the
 ## tickets do; a boxed word is underlined in mustard. A pill or chip is glued to what touches it
-## (punctuation, no space between), so a comma never starts a line. Its chips are out of
+## (punctuation, no space between), so a comma never starts a line, and an amount that ends the
+## text keeps to the word before it, as over a no-break space (v1.36, polish audit: "quota" then
+## "+10%" alone on the last line). Its chips are out of
 ## the tip targets' group: hovering them inside a tip shows nothing more. Display only.
 
 ## A pill's ink border and its room each side of its text.
@@ -19,6 +21,10 @@ const UNDERLINE_GAP := 2.0
 ## A chip's room each side on its line.
 const CHIP_MARGIN := 1.0
 const LINE_FACTOR := 1.3
+## The amounts that never end the text alone on a line (see the class comment).
+const AMOUNTS: Array[TipMarkup.Run] = [
+	TipMarkup.Run.MONEY, TipMarkup.Run.ZERO, TipMarkup.Run.COUNT, TipMarkup.Run.PILL
+]
 
 ## The markup shown.
 var text: String = ""
@@ -133,6 +139,13 @@ func _pieces() -> Array[Array]:
 			# Glued to the word it touches (no space between them).
 			pieces[pieces.size() - 1].append(marked)
 		spaced = false
+	if pieces.size() < 2 or pieces[-1].size() != 1:
+		return pieces
+	var amount: Dictionary = pieces[-1][0]
+	if AMOUNTS.has(amount["run"]):
+		pieces.pop_back()
+		pieces[-1].append(_item(TipMarkup.Run.TEXT, " ", ""))
+		pieces[-1].append(amount)
 	return pieces
 
 

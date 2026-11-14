@@ -596,11 +596,12 @@ func can_scan() -> bool:
 	return false
 
 
-## The pick prompt: "PICK 1", or "PICK 1 · ONLY n IN STOCK" for a short draw.
+## The pick prompt: "KEEP 1", or "KEEP 1 · ONLY n IN STOCK" for a short draw (v1.36, polish
+## audit: KEEP 1 everywhere, as the bay's header and the tray's word).
 static func pick_prompt(count: int, run_state: RunState) -> String:
 	if count < run_state.machine.machine.prizes_per_visit:
-		return "PICK 1 · ONLY %d IN STOCK" % count
-	return "PICK 1"
+		return "KEEP 1 · ONLY %d IN STOCK" % count
+	return "KEEP 1"
 
 
 ## Places `control` (a part's Label or Button, often built before the machine is in the tree)

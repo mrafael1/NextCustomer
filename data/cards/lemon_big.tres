@@ -14,7 +14,7 @@ receipt_text = "Lemon knot"
 [resource]
 script = ExtResource("3_card")
 id = &"lemon_big"
-display_name = "Big Lemon"
+display_name = "Big lemon"
 kind = 1
 tags = PackedStringArray("Food", "Produce")
 base = 3

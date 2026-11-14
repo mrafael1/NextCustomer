@@ -251,9 +251,8 @@ func _resume_run(saved: RunSave) -> void:
 	if run.phase == RunState.Phase.PLANNING:
 		_machine.shift_started(false)
 		return
-	# After the checkout: the row, its receipt (ended as the dessert left it, with the next
-	# shift's inspection notice) and the LED's TOTAL, met or not, as the count-up left them
-	# (CHECKOUT up: nothing is being counted).
+	# After the checkout: the row, its receipt (ended as the dessert left it, with the next shift's
+	# inspection notice) and the LED's TOTAL as the count-up left them (CHECKOUT up: none counted).
 	var shown: ScoreResult = DoubleCheckoutFlow.counted(run)
 	_show_checked_out(shown)
 	_ride.show_end_state(_row_views)
@@ -549,6 +548,7 @@ func _on_checkout_pressed() -> void:
 	}
 	checkout_data.merge(tracker.measures(committed.size()))
 	checkout_data.merge(OvertimeCue.checkout_fields(run))  # v1.03: the over-quota rewards.
+	checkout_data.merge(RunEvents.best_fields(run))  # v1.37: the BEST line's item.
 	_log.log_event("checkout", checkout_data)
 	if run.phase == RunState.Phase.WON or run.phase == RunState.Phase.LOST:
 		_run_ended_ms = Time.get_ticks_msec()
@@ -690,10 +690,7 @@ func _on_focus_entered() -> void:
 
 func _refresh() -> void:
 	_refresh_bar()
-	_seed_label.text = (
-		"Seed %d  ·  %s"
-		% [run.run_seed, str(ProjectSettings.get_setting("next_customer/build_label", ""))]
-	)
+	_seed_label.text = PlaytestUi.seed_line(run.run_seed)
 	_refresh_row()
 	_refresh_hand()
 	_refresh_buttons()

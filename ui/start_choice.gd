@@ -127,10 +127,12 @@ func board_actions() -> StartBoardActions:
 
 
 ## Esc on the opening board's store page: the screen closes its overlays (the board among them)
-## and leaves for the title. The waiting run is already saved, so Continue reopens it on page 1.
+## and leaves for the title, lit and silent (request_lit). The waiting run is already saved, so
+## Continue reopens it on page 1.
 func back_to_title() -> void:
 	_screen._close_overlays()
 	if changes_scene:
+		TitleScreen.request_lit()
 		_screen.get_tree().change_scene_to_file(TITLE_SCREEN)
 
 

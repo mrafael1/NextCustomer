@@ -1,0 +1,8 @@
+start|page1_closed|sc|--reveal=0,page=1,completed=0
+start|page1_all_open|sc|--reveal=0,page=1,completed=2,do=roll+t2+all+t5
+start|page1_restock_armed|sc|--reveal=0,page=1,completed=3,do=roll+t2+all+t5+arm
+start|page1_pick|sc|--reveal=0,page=1,completed=6,do=roll+t2+pick0+pick2+t0.9
+start|page2|sc|--reveal=0,page=2,completed=2,p2=t1
+start|page2_hover_pack|sc|--reveal=0,page=2,completed=2,won,p2=t1+hover1+t0.5
+start|page2_open_store|sc|--reveal=0,page=2,completed=2,p2=t1+pick0+t1+open+t0.8
+week_card|open|sc|--week

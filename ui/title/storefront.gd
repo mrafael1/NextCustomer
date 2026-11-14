@@ -16,7 +16,10 @@ extends Control
 ## the sidewalk now and then (every SCRAP_GAP seconds, once the sign is lit). The menu's plates
 ## go on stage() (the title places them); the brick left of the doors is theirs.
 ##
-## The title drives it: light_up() lights the sign (sign_lit follows), doors_hot (the primary
+## The title drives it: light_up() lights the sign (sign_lit follows), sweep_on() lights it with
+## the title's opening (2026-11-13, variant C: the scan beam, sign_swept for the BEEP, then
+## sign_lit; the sconce wedge and the reflections come on at half for the tuning's glow_half_s,
+## then full; light_now() puts them at full at once), doors_hot (the primary
 ## entry under the mouse or the marker) cracks the doors DOORS_AJAR art px and brightens the
 ## spill, bay_hot (REWARDS) lights the bay and jiggles the machine once, scan_sign() is the sign's
 ## hidden toy (a scan line, the scanner's beep and one blink), open_doors() starts a run (the
@@ -31,6 +34,8 @@ extends Control
 
 ## The sign is fully lit (after light_up()).
 signal sign_lit
+## sweep_on()'s scan line has crossed the sign: the accepted scan's blink (the title's BEEP).
+signal sign_swept
 
 const STAGE_SIZE := Vector2(1280, 720)
 ## The sign's top left on the stage, in art px (centred over the doors, in the fascia).
@@ -138,6 +143,10 @@ var _glass_at: float = -1.0
 var _scrap_at: float = 0.0
 ## The shooting star's start on the clock and its first column.
 var _shooting_at: float = SHOOTING_FIRST
+## sweep_on()'s half step: the wedge and the reflections show at half until this time on the
+## clock (negative: none).
+var _glow_half_s: float = 0.0
+var _glow_full_at: float = -1.0
 var _shooting_x: int = 0
 
 
@@ -172,6 +181,7 @@ func _init() -> void:
 	_sign = NeonSign.new()
 	_sign.position = _canvas(SIGN_AT)
 	_sign.lit_up.connect(_on_sign_lit)
+	_sign.swept.connect(sign_swept.emit)
 	_stage.add_child(_sign)
 	_scrap = Control.new()
 	_scrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -195,10 +205,19 @@ func light_up() -> void:
 	_sign.light_up()
 
 
-## Lights the sign at once (a click or key during the title's intro); sign_lit follows unless it
-## was already lit.
+## The title's opening (`tuning`: the sweep, the blink, the tubes' flash and the glow's half
+## step): the sign's scan beam lights it (at once when `still`); sign_swept, then sign_lit.
+func sweep_on(tuning: TitleOpeningTuning) -> void:
+	_glow_half_s = 0.0 if still else tuning.glow_half_s
+	_sign.sweep_on(tuning.sweep_s, tuning.blink_s, tuning.letter_flash_s)
+
+
+## Lights the sign at once (a click or key during the title's intro), the wedge and the
+## reflections at full; sign_lit follows unless it was already lit.
 func light_now() -> void:
+	_glow_half_s = 0.0
 	_sign.light_now()
+	_set_glow_full()
 
 
 ## The sign is fully lit.
@@ -299,7 +318,16 @@ func layer(id: String) -> CanvasItem:
 
 func _process(delta: float) -> void:
 	_clock += delta
+	if _glow_full_at >= 0.0 and _clock >= _glow_full_at:
+		_set_glow_full()
 	_update_live()
+
+
+## The wedge and the reflections at full (sweep_on()'s half step is over).
+func _set_glow_full() -> void:
+	_glow_full_at = -1.0
+	_wedge.modulate.a = 1.0
+	_reflections.modulate.a = 1.0
 
 
 ## Steps the live layers to the clock: the tube's flicker, the machine's jiggle, the glass's
@@ -410,6 +438,11 @@ func _add_layer(id: String) -> TextureRect:
 func _on_sign_lit() -> void:
 	_wedge.show()
 	_reflections.show()
+	if _glow_half_s > 0.0:
+		_wedge.modulate.a = 0.5
+		_reflections.modulate.a = 0.5
+		_glow_full_at = _clock + _glow_half_s
+		_glow_half_s = 0.0
 	sign_lit.emit()
 
 

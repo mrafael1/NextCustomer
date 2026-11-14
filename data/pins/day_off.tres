@@ -8,7 +8,7 @@
 script = ExtResource("1_pin")
 id = &"day_off"
 display_name = "Shift off"
-rule_text = "Once a week, skip a shift (not payday). It counts as quota met."
+rule_text = "Once a week, skip a shift (not payday). It counts as quota met"
 face_text = "OFF"
 face_colour = 1
 icon = ExtResource("9_icon")

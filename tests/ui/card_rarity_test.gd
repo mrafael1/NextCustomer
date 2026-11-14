@@ -335,7 +335,7 @@ func test_pick_1_and_your_prizes_print_in_chunky_capitals() -> void:
 	var view: RewardMachineView = _view()
 	var glyphs: Dictionary[String, Array] = PixelWords.chunky_caps_glyphs()
 	for line_text: String in [
-		PrizeBay.HEADER_DRAWN, PrizeBay.HEADER_WAIT, "PICK 1 · ONLY 2 IN STOCK"
+		PrizeBay.HEADER_DRAWN, PrizeBay.HEADER_WAIT, "KEEP 1 · ONLY 2 IN STOCK"
 	]:
 		for character: String in line_text:
 			if character != " " and not character.is_valid_int():
@@ -351,7 +351,7 @@ func test_pick_1_and_your_prizes_print_in_chunky_capitals() -> void:
 	assert_int(line.number_words().size()).is_equal(1)
 	assert_bool(MachineDisplay.GLASS_RECT.encloses(line.get_rect())).is_true()
 	var room: float = MachineDisplay.GLASS_RECT.size.x - 2.0 * MachineDisplay.PAD
-	for part: String in MachineDisplay.wrap_message("PICK 1 · ONLY 2 IN STOCK", room):
+	for part: String in MachineDisplay.wrap_message("KEEP 1 · ONLY 2 IN STOCK", room):
 		assert_float(MachineLine.width_of(part, 1, true)).is_less_equal(room)
 	var header: MachineLine = view.bay.header()
 	assert_bool(header.chunky).is_true()

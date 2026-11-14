@@ -251,7 +251,8 @@ func test_price_gun_picker_over_a_hand_item() -> void:
 
 
 ## The picker on a relabelled item offers Remove tag (it takes the tag back); a click outside the
-## card or Escape closes it with nothing changed; in redraw mode the gun is put away.
+## card, Escape or its ESC key closes it with nothing changed; in redraw mode the gun is
+## put away.
 func test_price_gun_picker_removes_and_closes() -> void:
 	var screen: ShiftScreen = await _screen([PRICE_GUN])
 	var run: RunState = screen.run
@@ -297,6 +298,13 @@ func test_price_gun_picker_removes_and_closes() -> void:
 	picker._unhandled_key_input(escape)
 	await _frames(2)
 	assert_object(screen._pins.picker()).is_null()
+	# So does its ESC key (v1.36).
+	screen._on_row_card_clicked(screen._row_views[0])
+	await _frames(2)
+	screen._pins.picker().close_button().pressed.emit()
+	await _frames(2)
+	assert_object(screen._pins.picker()).is_null()
+	assert_str(PinPlay.relabel_of(run, product)).is_equal(tag)
 	# Remove tag takes it back: one left again, the gun no longer dimmed.
 	screen._on_row_card_clicked(screen._row_views[0])
 	await _frames(2)
@@ -355,6 +363,20 @@ func _assert_picker_layout(screen: ShiftScreen, picker: PriceGunPicker, view: It
 	for count: int in rows.values():
 		assert_int(count).is_less_equal(PriceGunPicker.CHIP_COLUMNS)
 	assert_int(rows.size()).is_equal(ceili(chips.size() / float(PriceGunPicker.CHIP_COLUMNS)))
+	# Its way out (v1.36, polish audit): ESC at the header's right end, inside the card, over the
+	# chips, its word whole, right of the title and of Remove tag.
+	var close: Button = picker.close_button()
+	assert_str(close.text).is_equal(PriceGunPicker.CLOSE_TEXT)
+	var close_rect: Rect2 = close.get_global_rect()
+	assert_bool(card.encloses(close_rect)).override_failure_message(str(close_rect)).is_true()
+	assert_float(close_rect.end.y).is_less_equal(chips[0].get_global_rect().position.y)
+	assert_float(close.get_minimum_size().x).is_less_equal(close.size.x)
+	var title: Control = picker.card().find_child("Title", true, false) as Control
+	assert_float(close_rect.position.x).is_greater_equal(title.get_global_rect().end.x)
+	if picker.remove_button() != null:
+		assert_float(close_rect.position.x).is_greater_equal(
+			picker.remove_button().get_global_rect().end.x
+		)
 
 
 ## Express lane is a run-wide pin, not a daily event: a normal day with it worn reads "Normal
@@ -728,7 +750,7 @@ func _screen(pins: Array, normal: bool = false) -> ShiftScreen:
 
 
 ## The labeller and its tag inside the window, clear of the receipt, CHECKOUT, Redraw, the
-## keypad and the belt.
+## keypad, the belt and (v1.36, polish audit: it hid the shift number) the desk calendar.
 func _assert_gun_place(screen: ShiftScreen, gun: PriceGunItem) -> void:
 	var window: Rect2 = screen.get_viewport_rect()
 	var keep_clear: Dictionary[String, Rect2] = {
@@ -738,6 +760,7 @@ func _assert_gun_place(screen: ShiftScreen, gun: PriceGunItem) -> void:
 		"keypad": screen._cabinet.keypad.get_global_rect(),
 		"glass": screen._stage.week_glass.get_global_rect(),
 		"belt": _on_stage(screen, ShiftStage.BELT_RECT),
+		"calendar": screen._calendar.get_global_rect(),
 	}
 	for part: Control in [gun, gun.tag()]:
 		var rect: Rect2 = part.get_global_rect()

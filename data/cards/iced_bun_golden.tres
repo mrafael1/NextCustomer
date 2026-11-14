@@ -15,7 +15,7 @@ receipt_text = "Iced bun glaze"
 [resource]
 script = ExtResource("3_card")
 id = &"iced_bun_golden"
-display_name = "Golden Iced bun"
+display_name = "Golden iced bun"
 kind = 1
 tags = PackedStringArray("Food", "Bakery")
 base = 3

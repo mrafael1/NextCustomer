@@ -15,7 +15,7 @@ receipt_text = "Fruit salad: Produce kinds"
 [resource]
 script = ExtResource("3_card")
 id = &"fruit_salad_golden"
-display_name = "Golden Fruit salad"
+display_name = "Golden fruit salad"
 kind = 1
 tags = PackedStringArray("Food", "Produce")
 base = 4

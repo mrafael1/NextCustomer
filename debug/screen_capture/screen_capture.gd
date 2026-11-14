@@ -1,8 +1,7 @@
 extends Control
 ## The screen capture (#55, #75; full build plan section 6.1): the real shift screen on fixed
-## data, to review the look and to record it in docs/art/. It replaces the style frames, whose
-## captures (docs/art/style_frame_*.png and style_frame_v2_*.png) stay as the record of the
-## approved frames. #56 adds the other screens.
+## data, to review the look and to record it in docs/art/ (it replaces the style frames, whose
+## captures docs/art/style_frame_*.png and style_frame_v2_*.png stay). #56 adds other screens.
 ##
 ## The shift: shift 5 of 8 on a fixed seed, under Short belt (6 slots and a CLOSED one),
 ## with a fixed full hand of 8 items in its baskets, four items on the belt with their tickets
@@ -16,10 +15,9 @@ extends Control
 ## on exit. Keys: S switches between the sharp-pixel shader and plain nearest filtering (A/B).
 ## `godot --path . [--resolution 1920x1080] res://debug/screen_capture/screen_capture.tscn --
 ## --capture=docs/art` saves shift_screen_<width>x<height>.png at the window's size, then quits;
-## the real pointer drives nothing meanwhile (hold_pointer).
-## With `--scan=<card id>` the scanner first fully scans that card's item (the belt's first,
-## else the hand's), waits for it to land in the monitor's scanner bay, and the file is
-## shift_screen_scan_<width>x<height>.png.
+## the real pointer drives nothing meanwhile (hold_pointer). With `--scan=<card id>` the scanner
+## first fully scans that card's item (the belt's first, else the hand's), waits for it to land
+## in the monitor's scanner bay, and the file is shift_screen_scan_<width>x<height>.png.
 ## With `--effects` the shift shows the planning effects (#71) on a richer belt: #60's reference
 ## row under the Spot check (Eggs lands ×2 on Bread, the 3rd product is denied, Multipack arms ×3
 ## and Coupon engine fizzles on it, Slot engine stamps slot 6 under its talker), and the file is
@@ -235,6 +233,8 @@ var _holding_pointer: bool = false
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
+	if OS.get_cmdline_user_args().has("--release-ui"):  # As a release build: no PlaytestUi.
+		PlaytestUi.forced = 0
 	# Saves and logs go to a temporary folder before the screen loads anything.
 	_folder = OS.get_temp_dir().path_join("next_customer_capture_%d" % Time.get_ticks_usec())
 	DirAccess.make_dir_recursive_absolute(_folder)
@@ -688,6 +688,7 @@ func deck(spec: String) -> void:
 	options = options.slice(1)
 	var seed_value: String = _option_value(options, "seed=")
 	_screen.start_new_run(seed_value.to_int() if seed_value != "" else SEED, false)
+	_screen._week.skip()  # Polish audit (2026-11-13): no time card over the deck view.
 	var run: RunState = _screen.run
 	if options.has("full") or page == "chooser":
 		_fill_cart(run)

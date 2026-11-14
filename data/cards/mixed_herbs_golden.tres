@@ -14,7 +14,7 @@ receipt_text = "Mixed herbs bonus"
 [resource]
 script = ExtResource("3_card")
 id = &"mixed_herbs_golden"
-display_name = "Golden Mixed herbs"
+display_name = "Golden mixed herbs"
 kind = 1
 tags = PackedStringArray("Food")
 base = 3

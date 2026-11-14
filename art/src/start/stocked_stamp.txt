@@ -1,31 +1,31 @@
-; Generated from docs/art/mockups/start_boosters_v3.html (approved 2026-11-13) by a scratch export of its stockedCanvas: the STOCKED! stamp hung under the YOUR STORE board.
-@size 144x28
+; Generated from docs/art/mockups/start_boosters_v3.html (approved 2026-11-13) by a scratch export of its stockedCanvas: the STOCKED! stamp hung under the YOUR STORE board. v1.36: letters respaced to 4 px gaps, 152 wide.
+@size 152x28
 @kind scenery
-.##############################################################################################################################################.
-#wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww#
-#wRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRw#
-#wRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRw#
-#wRRwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwRRw#
-#wRRwRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRwRRw#
-#wRRwRwwwwwwwwwwwwwwwwwwwwRRRRRRRRwwwwwRRRRRRRRRRRRwwwwwRRRRRRRRwwwwwwwRRRRRRRRwwwwwRRRRwwwwRRRRwwwRRRRRRRRRRRRwwwRRRRRRRRRRwwwwwRRRRwwwwwRwRRw#
-#wRRwRwwwwwwwwwwwwwwwwwwwwRRRRRRRRwwwwwRRRRRRRRRRRRwwwwwRRRRRRRRwwwwwwwRRRRwwRRwwwwwRRRRwwwwRRRRwwwRRRRRRRRRRRRwwwRRRRRRRRRRwwwwwRRRRwwwwwRwRRw#
-#wRRwRwwwwwwyyyyywwwwwwwRRRRwwwwRRRRwwwwwwwRRRRwwwwwwwRRRRwwwwRRRRwwwRRRRwwwwRRRRwwwRRRRwwwwRRRRwwwRRRRwwwwwwwwwwwRRRRwwwwRRRRwwwRRRRwwwwwRwRRw#
-#wRRwRwwwwwyMMMMMywwwwwwRRRRwwwwRRRRwwwwwwwRRRRwwwwwwwRRRRwwwwRRRRwwwRRRRwwwwRRRRwwwRRRRwwwwRRRRwwwRRRRwwwwwwwwwwwRRRRwwwwRRRRwwwRRRRwwwwwRwRRw#
-#wRRwRwwwwyM22222MywwwwwRRRRwwwwwwwwwwwwwwwRRRRwwwwwwwRRRRwwwwRRRRwwwRRRRwwwwwwwwwwwRRRRwwRRRRwwwwwRRRRwwwwwwwwwwwRRRRwwwwRRRRwwwRRRRwwwwwRwRRw#
-#wRRwRwwwyM2222222MywwwwRRRRwwwwwwwwwwwwwwwRRRRwwwwwwwRRRRwwwwRRRRwwwRRRRwwwwwwwwwwwRRRRwwRRRRwwwwwRRRRwwwwwwwwwwwRRRRwwwwRRRRwwwRRRRwwwwwRwRRw#
-#wRRwRwwyM222222222MywwwwwRRRRRRRRwwwwwwwwwRRRRwwwwwwwRRRRwwwwRRRRwwwRRRRwwwwwwwwwwwRRRRRRRRwwwwwwwRRRRRRRRRRwwwwwRRRRwwwwRRRRwwwRRRRwwwwwRwRRw#
-#wRRwRwwyM222RRR222MywwwwwRRRRRRRRwwwwwwwwwRRRRwwwwwwwRRRRwwwwRRRRwwwRRRRwwwwwwwwwwwRRRRRRRRwwwwwwwRRRRRRRRRRwwwwwRRRRwwwwRRRRwwwRRRRwwwwwRwRRw#
-#wRRwRwwyM222RRR222MywwwwwwwwwwwRRRRwwwwwwwRRRRwwwwwwwRRRRwwwwRRRRwwwRRRRwwwwwwwwwwwRRRRRRRRwwwwwwwRRRRwwwwwwwwwwwRRRRwwwwRRRRwwwRRRRwwwwwRwRRw#
-#wRRwRwwyM222RRR222MywwwwwwwwwwwRRRRwwwwwwwRRRRwwwwwwwRRRRwwwwRRRRwwwRRRRwwwwwwwwwwwRRRRRRRRwwwwwwwRRRRwwwwwwwwwwwRRRRwwwwRRRRwwwRRRRwwwwwRwRRw#
-#wRRwRwwyM222222222MywwwwwwwwwwwRRRRwwwwwwwRRRRwwwwwwwRRRRwwwwRRRRwwwRRRRwwwwwwwwwwwRRRRwwRRRRwwwwwRRRRwwwwwwwwwwwRRRRwwwwRRRRwwwwwwwwwwwwRwRRw#
-#wRRwRwwwyM2222222MywwwwwwwwwwwwRRRRwwwwwwwRRRRwwwwwwwRRRRwwwwRRRRwwwRRRRwwwwwwwwwwwRRRRwwRRRRwwwwwRRRRwwwwwwwwwwwRRRRwwwwRRRRwwwwwwwwwwwwRwRRw#
-#wRRwRwwwwyM22222MywwwwwRRRRwwwwRRRRwwwwwwwRRRRwwwwwwwRRRRwwwwRRRRwwwRRRRwwwwRRRRwwwRRRRwwwwRRRRwwwRRRRwwwwwwwwwwwRRRRwwwwRRRRwwwRRRRwwwwwRwRRw#
-#wRRwRwwwwwyMMMMMywwwwwwRRRRwwwwRRRRwwwwwwwRRRRwwwwwwwRRRRwwwwRRRRwwwRRRRwwwwRRRRwwwRRRRwwwwRRRRwwwRRRRwwwwwwwwwwwRRRRwwwwRRRRwwwRRRRwwwwwRwRRw#
-#wRRwRwwwwwwyyyyywwwwwwwwwRRRRRRRRwwwwwwwwwRRRRwwwwwwwwwRRRRRRRRwwwwwwwRRRRRRRRwwwwwRRRRwwwwRRRRwwwRRwwRRRRRRRRwwwRRRRRRRRRRwwwwwRRRRwwwwwRwRRw#
-#wRRwRwwwwwwwwwwwwwwwwwwwwRRRRRRRRwwwwwwwwwRRRRwwwwwwwwwRRRRRRRRwwwwwwwRRRRRRRRwwwwwRRRRwwwwRRRRwwwRRRRRRRRRRRRwwwRRRRRRRRRRwwwwwRRRRwwwwwRwRRw#
-#wRRwRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRwRRw#
-#wRRwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwRRw#
-#wRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRw#
-#wRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRw#
-#wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww#
-.##############################################################################################################################################.
+.######################################################################################################################################################.
+#wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww#
+#wRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRw#
+#wRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRw#
+#wRRwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwRRw#
+#wRRwRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRwRRw#
+#wRRwRwwwwwwwwwwwwwwwwwwwwwRRRRRRRRwwwwwwRRRRRRRRRRRRwwwwwwRRRRRRRRwwwwwwwwRRRRRRRRwwwwwwRRRRwwwwRRRRwwwwRRRRRRRRRRRRwwwwRRRRRRRRRRwwwwwwRRRRwwwwwRwRRw#
+#wRRwRwwwwwwwwwwwwwwwwwwwwwRRRRRRRRwwwwwwRRRRRRRRRRRRwwwwwwRRRRRRRRwwwwwwwwRRRRwwRRwwwwwwRRRRwwwwRRRRwwwwRRRRRRRRRRRRwwwwRRRRRRRRRRwwwwwwRRRRwwwwwRwRRw#
+#wRRwRwwwwwwyyyyywwwwwwwwRRRRwwwwRRRRwwwwwwwwRRRRwwwwwwwwRRRRwwwwRRRRwwwwRRRRwwwwRRRRwwwwRRRRwwwwRRRRwwwwRRRRwwwwwwwwwwwwRRRRwwwwRRRRwwwwRRRRwwwwwRwRRw#
+#wRRwRwwwwwyMMMMMywwwwwwwRRRRwwwwRRRRwwwwwwwwRRRRwwwwwwwwRRRRwwwwRRRRwwwwRRRRwwwwRRRRwwwwRRRRwwwwRRRRwwwwRRRRwwwwwwwwwwwwRRRRwwwwRRRRwwwwRRRRwwwwwRwRRw#
+#wRRwRwwwwyM22222MywwwwwwRRRRwwwwwwwwwwwwwwwwRRRRwwwwwwwwRRRRwwwwRRRRwwwwRRRRwwwwwwwwwwwwRRRRwwRRRRwwwwwwRRRRwwwwwwwwwwwwRRRRwwwwRRRRwwwwRRRRwwwwwRwRRw#
+#wRRwRwwwyM2222222MywwwwwRRRRwwwwwwwwwwwwwwwwRRRRwwwwwwwwRRRRwwwwRRRRwwwwRRRRwwwwwwwwwwwwRRRRwwRRRRwwwwwwRRRRwwwwwwwwwwwwRRRRwwwwRRRRwwwwRRRRwwwwwRwRRw#
+#wRRwRwwyM222222222MywwwwwwRRRRRRRRwwwwwwwwwwRRRRwwwwwwwwRRRRwwwwRRRRwwwwRRRRwwwwwwwwwwwwRRRRRRRRwwwwwwwwRRRRRRRRRRwwwwwwRRRRwwwwRRRRwwwwRRRRwwwwwRwRRw#
+#wRRwRwwyM222RRR222MywwwwwwRRRRRRRRwwwwwwwwwwRRRRwwwwwwwwRRRRwwwwRRRRwwwwRRRRwwwwwwwwwwwwRRRRRRRRwwwwwwwwRRRRRRRRRRwwwwwwRRRRwwwwRRRRwwwwRRRRwwwwwRwRRw#
+#wRRwRwwyM222RRR222MywwwwwwwwwwwwRRRRwwwwwwwwRRRRwwwwwwwwRRRRwwwwRRRRwwwwRRRRwwwwwwwwwwwwRRRRRRRRwwwwwwwwRRRRwwwwwwwwwwwwRRRRwwwwRRRRwwwwRRRRwwwwwRwRRw#
+#wRRwRwwyM222RRR222MywwwwwwwwwwwwRRRRwwwwwwwwRRRRwwwwwwwwRRRRwwwwRRRRwwwwRRRRwwwwwwwwwwwwRRRRRRRRwwwwwwwwRRRRwwwwwwwwwwwwRRRRwwwwRRRRwwwwRRRRwwwwwRwRRw#
+#wRRwRwwyM222222222MywwwwwwwwwwwwRRRRwwwwwwwwRRRRwwwwwwwwRRRRwwwwRRRRwwwwRRRRwwwwwwwwwwwwRRRRwwRRRRwwwwwwRRRRwwwwwwwwwwwwRRRRwwwwRRRRwwwwwwwwwwwwwRwRRw#
+#wRRwRwwwyM2222222MywwwwwwwwwwwwwRRRRwwwwwwwwRRRRwwwwwwwwRRRRwwwwRRRRwwwwRRRRwwwwwwwwwwwwRRRRwwRRRRwwwwwwRRRRwwwwwwwwwwwwRRRRwwwwRRRRwwwwwwwwwwwwwRwRRw#
+#wRRwRwwwwyM22222MywwwwwwRRRRwwwwRRRRwwwwwwwwRRRRwwwwwwwwRRRRwwwwRRRRwwwwRRRRwwwwRRRRwwwwRRRRwwwwRRRRwwwwRRRRwwwwwwwwwwwwRRRRwwwwRRRRwwwwRRRRwwwwwRwRRw#
+#wRRwRwwwwwyMMMMMywwwwwwwRRRRwwwwRRRRwwwwwwwwRRRRwwwwwwwwRRRRwwwwRRRRwwwwRRRRwwwwRRRRwwwwRRRRwwwwRRRRwwwwRRRRwwwwwwwwwwwwRRRRwwwwRRRRwwwwRRRRwwwwwRwRRw#
+#wRRwRwwwwwwyyyyywwwwwwwwwwRRRRRRRRwwwwwwwwwwRRRRwwwwwwwwwwRRRRRRRRwwwwwwwwRRRRRRRRwwwwwwRRRRwwwwRRRRwwwwRRwwRRRRRRRRwwwwRRRRRRRRRRwwwwwwRRRRwwwwwRwRRw#
+#wRRwRwwwwwwwwwwwwwwwwwwwwwRRRRRRRRwwwwwwwwwwRRRRwwwwwwwwwwRRRRRRRRwwwwwwwwRRRRRRRRwwwwwwRRRRwwwwRRRRwwwwRRRRRRRRRRRRwwwwRRRRRRRRRRwwwwwwRRRRwwwwwRwRRw#
+#wRRwRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRwRRw#
+#wRRwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwRRw#
+#wRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRw#
+#wRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRw#
+#wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww#
+.######################################################################################################################################################.

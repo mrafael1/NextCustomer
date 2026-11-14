@@ -234,7 +234,7 @@ func test_the_run_save_cross_checks_the_setup() -> void:
 	assert_bool(Kit.swap(run, profile, 0)).is_true()
 	var lookup: ContentLookup = ContentLookup.new(_balance)
 	var good: Dictionary = Kit.json(RunSave.to_dictionary(run, "run", 0))
-	assert_int(int(good["format_version"])).is_equal(15)
+	assert_int(int(good["format_version"])).is_equal(16)
 	var saved: RunSave = RunSave.from_dictionary(good, lookup)
 	assert_object(saved).is_not_null()
 	assert_array(saved.run.starter.core_cards).is_equal(run.starter.core_cards)
@@ -331,7 +331,7 @@ func test_a_version_14_setup_restarts_or_is_dropped() -> void:
 	assert_object(read).is_not_null()
 	assert_object(read.run.start_setup).is_null()
 	assert_bool(read.run.restart_setup).is_true()
-	# The same setup saved as version 15 is refused: it has no swap boosters.
+	# The same setup saved as version 15 or later is refused: it has no swap boosters.
 	waiting["format_version"] = RunSave.FORMAT_VERSION
 	assert_object(RunSave.from_dictionary(waiting, lookup)).is_null()
 	assert_bool(run.take_pack(run.start_offer.default_pack())).is_true()
@@ -363,7 +363,7 @@ func test_a_version_13_setup_restarts_or_is_dropped() -> void:
 	assert_object(read).is_not_null()
 	assert_object(read.run.start_setup).is_null()
 	assert_bool(read.run.restart_setup).is_true()
-	# The same setup saved as version 15 is refused: three stocked aisles never validate now.
+	# The same setup saved as version 15 or later is refused: three stocked aisles never validate now.
 	waiting["format_version"] = RunSave.FORMAT_VERSION
 	assert_object(RunSave.from_dictionary(waiting, lookup)).is_null()
 	assert_bool(run.take_pack(run.start_offer.default_pack())).is_true()

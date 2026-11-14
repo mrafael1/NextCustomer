@@ -17,7 +17,7 @@ receipt_text = "Tea bags ×4"
 [resource]
 script = ExtResource("3_card")
 id = &"tea_bags_golden"
-display_name = "Golden Tea bags"
+display_name = "Golden tea bags"
 kind = 1
 tags = PackedStringArray("Breakfast")
 base = 3

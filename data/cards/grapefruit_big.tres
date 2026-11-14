@@ -14,7 +14,7 @@ receipt_text = "Grapefruit bonus"
 [resource]
 script = ExtResource("3_card")
 id = &"grapefruit_big"
-display_name = "Big Grapefruit"
+display_name = "Big grapefruit"
 kind = 1
 tags = PackedStringArray("Food", "Produce", "Breakfast")
 base = 4

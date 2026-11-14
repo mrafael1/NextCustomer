@@ -11,8 +11,13 @@ const DROP_DX: Array[float] = [0, 0, 0, 0, 0, 4, 4, -2, -4, -2, 2, 0]
 const FRAME_TIME := 0.046
 const PADLOCK := preload("res://art/icons/padlock.png")
 const HEIGHT := 106.0
+## Where the rods hang from by default (the ceiling's rail), in the parent's px; the pause sets
+## rail_y to its board's rail.
 const ROD_TOP := 64.0
 const SUB_CLOSED := "BACK IN A MOMENT"
+
+## The rail the rods hang from, in the parent's px.
+var rail_y: float = ROD_TOP
 
 var _title: Label
 var _sub: Label
@@ -93,7 +98,7 @@ func _layout() -> void:
 func _draw() -> void:
 	var w: float = size.x
 	# The rods, from the ceiling's rail down to the board's top corners.
-	var rod_top: float = ROD_TOP - position.y
+	var rod_top: float = rail_y - position.y
 	for x: float in [48.0, w - 50.0]:
 		draw_rect(Rect2(x, rod_top, 2, -rod_top), Palette.STEEL_DARK)
 		draw_rect(Rect2(x + 2, rod_top, 2, -rod_top), Palette.STEEL_LIGHT)

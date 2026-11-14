@@ -21,10 +21,11 @@ signal store_opened(pack: StarterPackDefinition)
 
 const TUNING_PATH := "res://data/balance/start_boosters.tres"
 const MAX_STEP := 0.1
-## The packs' places on the bench: each stack's x, a spread card's x, the spread's top (art px).
+## The packs' places on the bench: each stack's x, a spread card's x, the spread's top (art px;
+## v1.36: 4 px lower, so a RARE tab clears the strips' plates above it).
 const STX: Array[int] = [186, 270, 354]
 const SPX: Array[int] = [182, 264, 346]
-const SPY := 118
+const SPY := 122
 ## The deck pile's top left and the bench's top (art px).
 const DECK := Vector2i(92, 170)
 const BENCH_Y := 298

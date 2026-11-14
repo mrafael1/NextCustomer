@@ -18,12 +18,12 @@ receipt_text = "Cheese PAIR with Bread"
 [resource]
 script = ExtResource("3_im5n1")
 id = &"cheese_big"
-display_name = "Big Cheese"
+display_name = "Big cheese"
 kind = 1
 tags = PackedStringArray("Food", "Dairy")
 base = 5
 rules = Array[ExtResource("1_jvkti")]([SubResource("Resource_2sfbs")])
-rule_text = "PAIR: +5€ for each Bread beside it"
+rule_text = "PAIR: +5€ per Bread beside it"
 art_ref = "res://art/items_v2/cheese_big.png"
 variant_of = ExtResource("9_plain")
 tier = 1

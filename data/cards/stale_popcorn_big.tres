@@ -15,7 +15,7 @@ receipt_text = "Stale popcorn: redraws left"
 [resource]
 script = ExtResource("3_card")
 id = &"stale_popcorn_big"
-display_name = "Big Stale popcorn"
+display_name = "Big stale popcorn"
 kind = 1
 tags = PackedStringArray("Food", "Snack", "Clearance")
 base = 4
