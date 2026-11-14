@@ -55,11 +55,8 @@ const LEGEND_INK: Array[Color] = [Palette.STEEL_HIGHLIGHT, Palette.TEAL_PALE, Pa
 ## The legend's pips: the tickets' (PrizeTicket.PIP_GRIDS, 5x5 art px each, PIP_STEP apart).
 const LEGEND_PIP_SIZE := 5
 const LEGEND_PIP_STEP := 6
-## A 0% stand's shutter (polish batch 2): its slats' pitch and the ink of its frame and slats.
+## A 0% stand's shutter (polish batch 2): its slats' pitch (frame STEEL_DARK, slats STEEL_DARKEST).
 const STAND_SLAT := 6.0
-const STAND_FACE := Palette.CHARCOAL
-const STAND_SLAT_INK := Palette.STEEL_DARKEST
-const STAND_FRAME_INK := Palette.STEEL_DARK
 ## Art px between a pip and its word, and between one rarity's word and the next pip.
 const LEGEND_PIP_GAP := 2
 const LEGEND_GAP := 8
@@ -481,7 +478,7 @@ func _draw_plate(column: int, rarity: int, dy: float, hover: bool) -> void:
 		y += p * 2.0
 	var rim: Rect2 = Rect2(led.position, Vector2(led.size.x, RIM_HEIGHT))
 	var ink: Color = RIM_HOVER_INK[rarity] if hover else RIM_INK[rarity]
-	draw_rect(rim, STAND_SLAT_INK if stand_shut(column, rarity) else ink)
+	draw_rect(rim, Palette.STEEL_DARKEST if stand_shut(column, rarity) else ink)
 
 
 ## `column`'s week odds tag, `dy` px down: an LED strip like the plates', its rim gold.
@@ -526,12 +523,12 @@ func _draw_shut_stands() -> void:
 				continue
 			var stand: Rect2 = stand_rect(column, rarity)
 			_shut.draw_rect(stand, Palette.INK)
-			_shut.draw_rect(stand.grow(-p), STAND_FRAME_INK)
+			_shut.draw_rect(stand.grow(-p), Palette.STEEL_DARK)
 			var face: Rect2 = stand.grow(-2.0 * p)
-			_shut.draw_rect(face, STAND_FACE)
+			_shut.draw_rect(face, Palette.CHARCOAL)
 			var y: float = face.position.y + STAND_SLAT
 			while y < face.end.y:
-				_shut.draw_rect(Rect2(face.position.x, y, face.size.x, p), STAND_SLAT_INK)
+				_shut.draw_rect(Rect2(face.position.x, y, face.size.x, p), Palette.STEEL_DARKEST)
 				y += STAND_SLAT
 
 
