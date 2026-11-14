@@ -1,6 +1,6 @@
 extends GdUnitTestSuite
 ## The staff handbook (v1.06, mock-up keywords_guide.html, variant A). The binder fits the
-## 1280x720 screen with its four tabs side by side, CLOSE, index and entry column apart and inside
+## 1280x720 screen with its five tabs side by side, CLOSE, index and entry column apart and inside
 ## it; every entry opens (its example clip on the real score; a family's page and the coupon intro
 ## end at their rule, which fits its rect, its terms in their colours); the tabs and index rows
 ## pick entries; Esc and a right-click outside close it. On the shift screen the menu's Guide
@@ -52,7 +52,7 @@ func test_the_binder_fits_the_screen() -> void:
 			rect.size.x
 		)
 		tops.append(rect)
-	assert_int(tops.size()).is_equal(4)
+	assert_int(tops.size()).is_equal(5)
 	# The tabs stand side by side, TAB_GAP apart, with no hole where a removed tab was.
 	for index: int in range(1, tops.size()):
 		assert_float(tops[index].position.x - tops[index - 1].end.x).is_equal_approx(
@@ -147,6 +147,12 @@ func _assert_index_fits(page: HandbookPage, entry: HandbookEntry) -> void:
 					. override_failure_message(String(entry.id))
 					. is_greater_equal(mark_end)
 				)
+		# The title ends inside its row (THE RUN's long titles, 2026-11-14).
+		(
+			assert_float(text.get_global_rect().end.x)
+			. override_failure_message(String(row.name))
+			. is_less_equal(row.get_global_rect().end.x)
+		)
 		parts.append(row.get_global_rect())
 	for part: Rect2 in parts:
 		assert_bool(paper.encloses(part)).override_failure_message(str(part)).is_true()
@@ -315,14 +321,18 @@ func test_a_coupon_ticket_and_a_titled_line_open_their_entries() -> void:
 		assert_object(found).override_failure_message(case[0]).is_not_null()
 		if found != null:
 			assert_str(String(found.id)).is_equal(case[1])
-	# The removed SHIFT tab's pages and PLACES' BESIDE no longer open from a line, so its tip has
-	# no footer.
-	for removed: String in [
-		"Spot check · slot 3 pays 0€", "Today's target is 65€", "Beside Milk: +3", "BESIDE"
-	]:
+	# The removed SHIFT tab's other pages no longer open from a line, so its tip has no footer;
+	# BESIDE is back (the tutorial, 2026-11-14) and opens its page.
+	for removed: String in ["Spot check · slot 3 pays 0€", "Today's target is 65€"]:
 		line.tip_text = removed
 		assert_object(page.entry_for_target(line)).override_failure_message(removed).is_null()
 		assert_bool(page.has_entry_for(line)).is_false()
+	for beside: String in ["Beside Milk: +3", "BESIDE"]:
+		line.tip_text = beside
+		var found_beside: HandbookEntry = page.entry_for_target(line)
+		assert_object(found_beside).override_failure_message(beside).is_not_null()
+		if found_beside != null:
+			assert_str(String(found_beside.id)).is_equal("pl_beside")
 	line.tip_text = "Printed price 5€"
 	assert_object(page.entry_for_target(line)).is_null()
 	assert_bool(page.has_entry_for(line)).is_false()

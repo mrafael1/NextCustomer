@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="HandbookEntry" format=3]
+
+[ext_resource type="Script" path="res://presentation/handbook_entry.gd" id="1_entry"]
+
+[resource]
+script = ExtResource("1_entry")
+id = &"redraw"
+group = &"run"
+title = "REDRAW"
+mark = 2
+mark_value = "REDRAW"
+rule = "REDRAW swaps a whole basket for new cards from your PILE. Press REDRAW, then click a basket: each basket costs 1 REDRAW. You get a few each shift, and the old cards come back next shift."

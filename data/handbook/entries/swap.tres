@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="HandbookEntry" format=3]
+
+[ext_resource type="Script" path="res://presentation/handbook_entry.gd" id="1_entry"]
+
+[resource]
+script = ExtResource("1_entry")
+id = &"swap"
+group = &"run"
+title = "SWAP"
+mark = 2
+mark_value = "SWAP"
+rule = "SWAP trades one of YOUR REGULARS for a card from a finished aisle's BOOSTER, for this run only. You get 1 swap for each finished aisle collection."

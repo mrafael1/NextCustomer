@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="HandbookEntry" format=3]
+
+[ext_resource type="Script" path="res://presentation/handbook_entry.gd" id="1_entry"]
+
+[resource]
+script = ExtResource("1_entry")
+id = &"restock"
+group = &"run"
+title = "RESTOCK"
+mark = 2
+mark_value = "RESTOCK"
+rule = "Once per run start, send one opened BOOSTER back and get a new one. Its cards go to the RETURNS tote. RESTOCK unlocks when you finish 3 aisle collections."
