@@ -7,11 +7,13 @@ extends Control
 ## row on the index's receipt (ROW: the entry's mark and title over a dashed receipt rule; the
 ## picked one on a mustard pale band with the tomato price-gun tick at its left, as the title's
 ## menu marks its plate; the hovered one cream) or the CLOSE key (the primary tomato button,
-## frames/button, lit under the pointer). pressed on a left click.
+## frames/button, lit under the pointer) or a teal PLATE on the index (the first tab's PLAY THE
+## GUIDED SHIFT, the tutorial: frames/button_teal, lit under the pointer, as the title's plates).
+## pressed on a left click.
 
 signal pressed
 
-enum Kind { TAB, ROW, CLOSE }
+enum Kind { TAB, ROW, CLOSE, PLATE }
 
 const BORDER := 2.0
 const TEXT_SCALE := 2
@@ -33,6 +35,8 @@ const TAB_PICKED_FRAME := preload("res://art/frames/handbook_tab_picked.png")
 const TAB_MARGIN := 3
 const CLOSE_FRAME := preload("res://art/frames/button.png")
 const CLOSE_LIT_FRAME := preload("res://art/frames/button_lit.png")
+const PLATE_FRAME := preload("res://art/frames/button_teal.png")
+const PLATE_LIT_FRAME := preload("res://art/frames/button_teal_lit.png")
 const NEWLINE := "\n"
 
 var kind: Kind = Kind.ROW
@@ -146,7 +150,8 @@ func _show_state() -> void:
 	queue_redraw()
 
 
-## A tab's or CLOSE's text box: the face above its ledge (a tab has none: its foot is tucked).
+## A tab's, CLOSE's or a PLATE's text box: the face above its ledge (a tab has none: its foot
+## is tucked).
 func _text_rect() -> Rect2:
 	var ledge: float = 0.0 if kind == Kind.TAB else FramedButton.PRESS_DEPTH
 	var top: float = BORDER * 2.0 if kind == Kind.TAB else 0.0
@@ -164,6 +169,9 @@ func _draw() -> void:
 		Kind.CLOSE:
 			var lit: Texture2D = CLOSE_LIT_FRAME if _hovered else CLOSE_FRAME
 			draw_style_box(ArtStyle.frame_style(lit, FramedButton.FRAME_MARGIN), rect)
+		Kind.PLATE:
+			var plate: Texture2D = PLATE_LIT_FRAME if _hovered else PLATE_FRAME
+			draw_style_box(ArtStyle.frame_style(plate, FramedButton.FRAME_MARGIN), rect)
 		Kind.ROW:
 			if picked:
 				draw_rect(rect, Palette.MUSTARD_PALE)

@@ -2,8 +2,8 @@ class_name OptionsCard
 extends TitlePopup
 ## The OPTIONS popup (mock-up options_pause.html, direction A), used by the title and the pause:
 ## a TitlePopup 352 art px wide whose height grows with TEXT SIZE, heading OPTIONS, a tagline,
-## six rows (DISPLAY, MUSIC, SOUND, TEXT SIZE, REDUCED MOTION, COUNT-UP SPEED), a hint line with
-## the marked row's description, and DONE.
+## seven rows (DISPLAY, MUSIC, SOUND, TEXT SIZE, REDUCED MOTION, COUNT-UP SPEED, RESET TIPS), a
+## hint line with the marked row's description, and DONE.
 ##
 ## One marker for the mouse and the keys: Up / Down walk the rows and DONE, Left / Right change the
 ## marked row, Enter toggles or presses, Esc closes. Changes go to the profile and apply at once
@@ -18,11 +18,20 @@ extends TitlePopup
 ## Polish batch 2: opening time's Esc opens it over the start board with a BACK TO TITLE plate
 ## right of DONE (`leave_caption` set before open; the keys reach it after DONE), which emits
 ## leave_pressed; the owner closes the popup and leaves.
+##
+## The tutorial (2026-11-14): a RESET TIPS row between COUNT-UP SPEED and DONE, an action, not a
+## setting. Its RESET chip (or Enter on the row) first asks (RESET_ASK beside it); a second press
+## clears every one-time tip's and quick tutorial's flag on the profile (TutorialFlags.reset_tips,
+## never the guided run's) and says so (RESET_DONE), and emits tips_reset with how many it cleared
+## (the owner logs it and saves the profile). Marking another row, closing or opening again
+## takes the question back.
 
 ## BACK TO TITLE was pressed (only when `leave_caption` is set).
 signal leave_pressed
+## RESET TIPS cleared the tips' flags on the profile (`cleared` of them; 0: none were set).
+signal tips_reset(cleared: int)
 
-enum Row { DISPLAY, MUSIC, SOUND, TEXT, MOTION, SPEED, DONE, LEAVE }
+enum Row { DISPLAY, MUSIC, SOUND, TEXT, MOTION, SPEED, RESET, DONE, LEAVE }
 
 const WIDTH_ART := 352
 const SHEET_WIDTH := 704.0
@@ -34,7 +43,7 @@ const ROWS_TOP := 100.0
 const ROW_GAP := 16.0
 const CHIP_GAP := 8.0
 const LABELS: Array[String] = [
-	"DISPLAY", "MUSIC", "SOUND", "TEXT SIZE", "REDUCED MOTION", "COUNT-UP SPEED"
+	"DISPLAY", "MUSIC", "SOUND", "TEXT SIZE", "REDUCED MOTION", "COUNT-UP SPEED", "RESET TIPS"
 ]
 const HINTS: Array[String] = [
 	"Alt+Enter switches it anywhere. In the web build this is the browser's own full screen.",
@@ -43,8 +52,13 @@ const HINTS: Array[String] = [
 	"Makes rules, tips and receipt lines bigger. Pixel-art titles keep their size.",
 	"No shakes, no flying chips, no rolling numbers. Every result stays.",
 	"How fast the checkout counts: FAST is ×1.5. Hold Space during a count to fast-forward it.",
+	"Shows every one-time tip and quick tutorial again.",
 ]
 const DONE_HINT := "Saves your settings and closes. Esc does the same."
+## RESET TIPS: its chip, the question after a first press and the answer after the second.
+const RESET_CHIP := "RESET"
+const RESET_ASK := "SURE? PRESS AGAIN"
+const RESET_DONE := "TIPS RESET"
 ## The start board's leave plate: its caption, hint and size.
 const LEAVE_CAPTION := "BACK TO TITLE"
 const LEAVE_HINT := "Back to the title. This run is saved: CONTINUE opens the store again."
@@ -76,6 +90,11 @@ var _ticks: Array[TextureRect] = []
 var _chips: Dictionary[int, Array] = {}
 var _volumes: Dictionary[int, VolumePips] = {}
 var _motion_note: Label
+## RESET TIPS' question or answer beside its chip, and whether its first press asked.
+var _reset_note: Label
+var _reset_armed: bool = false
+var _reset_left: float = 0.0
+var _reset_top: float = 0.0
 var _done: MenuPlate
 var _leave: MenuPlate
 var _esc: Label
@@ -94,6 +113,7 @@ func open(shown_profile: ProfileState, applier: GameSettings, music_service: Mus
 	settings = applier
 	music = music_service
 	_before = profile.settings.duplicate(true)
+	_reset_armed = false
 	_build_content()
 	return _show_popup()
 
@@ -145,6 +165,29 @@ func volume(row: Row) -> VolumePips:
 
 func done_plate() -> MenuPlate:
 	return _done
+
+
+## RESET TIPS' question or answer beside its chip (hidden until its first press).
+func reset_note() -> Label:
+	return _reset_note
+
+
+## Whether RESET TIPS asked and waits for its second press.
+func reset_armed() -> bool:
+	return _reset_armed
+
+
+## RESET TIPS pressed (its chip, or Enter on its row): the first press asks, the second clears the
+## tips' flags (tips_reset).
+func press_reset() -> void:
+	if not _reset_armed:
+		_reset_armed = true
+		_show_reset_note(RESET_ASK)
+		return
+	_reset_armed = false
+	var cleared: int = TutorialFlags.reset_tips(profile)
+	_show_reset_note(RESET_DONE)
+	tips_reset.emit(cleared)
 
 
 ## The BACK TO TITLE plate (null without `leave_caption`).
@@ -221,6 +264,8 @@ func _press(entry: Control) -> void:
 			_set_motion(not profile.reduced_motion())
 		Row.SPEED:
 			_set_speed(profile.count_up_speed() != ProfileState.COUNT_UP_FAST)
+		Row.RESET:
+			press_reset()
 		Row.DONE:
 			close()
 		Row.LEAVE:
@@ -229,6 +274,10 @@ func _press(entry: Control) -> void:
 
 func _show_marked(entry: Control, on: bool) -> void:
 	var index: int = _entries.find(entry)
+	if on and index != Row.RESET and _reset_armed:
+		# Another row marked: the question is taken back.
+		_reset_armed = false
+		_show_reset_note("")
 	if index < _ticks.size():
 		_ticks[index].visible = on
 	if entry == _done:
@@ -293,6 +342,8 @@ func _refresh() -> void:
 		Row.SPEED: 1 if profile.count_up_speed() == ProfileState.COUNT_UP_FAST else 0,
 	}
 	for row: int in _chips:
+		if not values.has(row):
+			continue  # RESET TIPS' chip is an action, never chosen.
 		var row_chips: Array = _chips[row]
 		for i: int in row_chips.size():
 			(row_chips[i] as OptionChip).chosen = i == values[row]
@@ -312,6 +363,7 @@ func _build_content() -> void:
 	_volumes.clear()
 	_rules.clear()
 	_marked = -1
+	_reset_armed = false
 	_content = Control.new()
 	_content.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_content.draw.connect(_draw_rules)
@@ -404,6 +456,14 @@ func _add_row(row: Row, y: float) -> float:
 			pips.value_picked.connect(func(picked: int) -> void: _set_volume(row, picked))
 			_content.add_child(pips)
 			_volumes[row] = pips
+		Row.RESET:
+			_add_chips(row, at, [RESET_CHIP])
+			var chip: OptionChip = _chips[row][0]
+			_reset_left = chip.position.x + chip.size.x + 2.0 * CHIP_GAP
+			_reset_top = y
+			_reset_note = UiKit.pixel_label("", 2, Palette.GREY)
+			_reset_note.visible = false
+			_content.add_child(_reset_note)
 		Row.MOTION:
 			_add_chips(row, at, ["OFF", "ON"])
 			var last: OptionChip = _chips[row][-1]
@@ -436,6 +496,8 @@ func _add_chips(
 
 func _pick_chip(row: Row, index: int) -> void:
 	match row:
+		Row.RESET:
+			press_reset()
 		Row.DISPLAY:
 			_set_display(index == 1)
 		Row.TEXT:
@@ -444,6 +506,16 @@ func _pick_chip(row: Row, index: int) -> void:
 			_set_motion(index == 1)
 		Row.SPEED:
 			_set_speed(index == 1)
+
+
+## Shows `text` beside RESET TIPS' chip ("": hidden), centred on the chip's height.
+func _show_reset_note(text: String) -> void:
+	if _reset_note == null:
+		return
+	_reset_note.text = text
+	_reset_note.visible = not text.is_empty()
+	var at: Vector2 = Vector2(_reset_left, _reset_top)
+	UiKit.place_pixel_label(_reset_note, Rect2(at, Vector2(0, OptionChip.HEIGHT)), true)
 
 
 ## TEXT SIZE's preview: a rule's line on receipt paper at the chosen size.
