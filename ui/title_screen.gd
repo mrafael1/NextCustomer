@@ -41,6 +41,14 @@ extends Control
 ## heard in full. The Export log icon (bottom left) works here too, so testers can send their
 ## log at any time; the build label stands in the bottom right corner. A release build shows
 ## neither (PlaytestUi).
+##
+## The tutorial (2026-11-14): while the next new run is guided (TitleGuide.due on the peeked
+## profile), G1 rings the plate that starts it and says to click it (TitleGuide; display only, it
+## shows once the intro is over and nothing is open). The handbook's PLAY THE GUIDED SHIFT asks for
+## the next new run to be guided (TutorialFlags.GUIDE_REPLAY: peek, change, save, logged as
+## tutorial_replay from "title"), which brings G1 up; it never touches a saved run, so NEW RUN
+## still asks first. The options' RESET TIPS clears the tips' flags in the saved profile the same
+## way (logged as tips_reset).
 
 ## What a click on the storefront lands on: nothing, the doors, the REWARDS bay or the sign.
 enum Target { NONE, DOORS, BAY, SIGN }
@@ -116,6 +124,8 @@ var _options: OptionsCard
 var _profile: ProfileState
 var _profile_readable: bool = true
 var _settings: GameSettings = GameSettings.new()
+## G1 (the tutorial) on the start plate.
+var _title_guide: TitleGuide
 @onready var _log: EventLogService = get_node("/root/EventLog")
 @onready var _music: MusicService = get_node("/root/Music")
 
@@ -166,6 +176,12 @@ func _ready() -> void:
 	var tips: GlyphTips = GlyphTips.new()
 	tips.reduced_motion = func() -> bool: return _still
 	stage.add_child(tips)
+	# Over the storefront and the menu, under every popup and the handbook.
+	_title_guide = TitleGuide.new(_menu)
+	_title_guide.still = _still
+	_title_guide.blocked = func() -> bool: return _busy() or is_intro_playing()
+	add_child(_title_guide)
+	_title_guide.set_active(TitleGuide.due(profile, _saved_run))
 	_storefront.sign_lit.connect(_on_sign_lit)
 	_storefront.sign_swept.connect(_play_beep)
 
@@ -181,9 +197,12 @@ func _ready() -> void:
 		add_child(_quit)
 	_guide = HandbookPage.mount(self, null)
 	_guide.still = _still
+	_guide.replay_offer = _replay_offer
+	_guide.replay_requested.connect(_on_replay_requested)
 	_options = OptionsCard.new()
 	_options.still = _still
 	_options.closed.connect(_on_options_closed)
+	_options.tips_reset.connect(_on_tips_reset)
 	add_child(_options)
 	# A return to the title opens lit and silent; reduced motion lit, with only the BEEP.
 	var lit_request: bool = take_lit_request()
@@ -544,6 +563,62 @@ func options() -> OptionsCard:
 ## The staff handbook (null before the title is ready).
 func guide() -> HandbookPage:
 	return _guide
+
+
+## G1 on the start plate (the tutorial).
+func title_guide() -> TitleGuide:
+	return _title_guide
+
+
+## The tutorial's anchors on the title (TutorialAnchors, global canvas px): TITLE_PRIMARY (the
+## start plate) and HANDBOOK_TABS (while the handbook is open); Rect2() for any other.
+func anchor_rect(id: StringName) -> Rect2:
+	if id == TutorialAnchors.TITLE_PRIMARY:
+		return _menu.anchor_rect(id)
+	return _guide.anchor_rect(id) if _guide != null else Rect2()
+
+
+## What the handbook's first tab offers: nothing on an unreadable profile, the line once the
+## next new run is guided, else PLAY THE GUIDED SHIFT.
+func _replay_offer() -> HandbookPage.ReplayOffer:
+	if not _profile_readable:
+		return HandbookPage.ReplayOffer.HIDDEN
+	if TutorialFlags.guided_due(_profile):
+		return HandbookPage.ReplayOffer.SET
+	return HandbookPage.ReplayOffer.OFFERED
+
+
+## PLAY THE GUIDED SHIFT: the saved profile (as it is now) asks for the next new run to be
+## guided, logged with no run id; the saved run is never touched. G1 comes up on the title.
+func _on_replay_requested() -> void:
+	if not _profile_readable:
+		return
+	var saves: SaveService = SaveService.new(SaveService.default_folder())
+	var saved: ProfileState = saves.peek_profile()
+	if saved == null:
+		return
+	if TutorialFlags.request_replay(saved) and not saves.save_profile(saved):
+		return
+	TutorialFlags.request_replay(_profile)
+	_log.run_id = ""
+	_log.log_event("tutorial_replay", RunEvents.tutorial_replay("title"))
+	_title_guide.set_active(TitleGuide.due(_profile, _saved_run))
+
+
+## RESET TIPS: the tips' and quick tutorials' flags leave the saved profile (as it is now), logged
+## with no run id with how many it cleared.
+func _on_tips_reset(_cleared: int) -> void:
+	if not _profile_readable:
+		return
+	var saves: SaveService = SaveService.new(SaveService.default_folder())
+	var saved: ProfileState = saves.peek_profile()
+	if saved == null:
+		return
+	var cleared: int = TutorialFlags.reset_tips(saved)
+	if cleared > 0 and not saves.save_profile(saved):
+		return
+	_log.run_id = ""
+	_log.log_event("tips_reset", RunEvents.tips_reset(cleared))
 
 
 ## QUIT or Esc: QUIT GAME? opens over the dimmed storefront.

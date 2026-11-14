@@ -16,6 +16,12 @@ extends RefCounted
 ## Polish batch 2: opening time's Esc (the start board's page 1, nothing else open there) opens the
 ## options alone over the paused board, with BACK TO TITLE (open_start_options); Esc or DONE
 ## closes them and the board runs on.
+##
+## The tutorial (2026-11-14): the run's handbook (the top bar's or the pause's) offers PLAY THE
+## GUIDED SHIFT on its first tab, except in a guided run; a click asks for the next new run to be
+## guided (TutorialFlags.GUIDE_REPLAY on the screen's profile, saved at once, logged as
+## tutorial_replay from "run"). The saved run is never touched. The options' RESET TIPS is logged
+## as tips_reset under the run (the profile is saved when the options close).
 
 ## The cart reveal's first moments, when the pause can't open.
 const REVEAL_GUARD_MS := 300
@@ -69,11 +75,14 @@ func _init(screen: ShiftScreen, log_service: EventLogService) -> void:
 	pause.export_pressed.connect(func() -> void: screen._on_export_pressed())
 	options.closed.connect(_on_options_closed)
 	options.leave_pressed.connect(_on_leave_pressed)
+	options.tips_reset.connect(_on_tips_reset)
 	(screen._top_bar as TopBar).menu_pressed.connect(toggle)
 	for child: Node in screen.get_children():
 		if child is HandbookPage:
 			_guide = child
 			_guide.closed.connect(_on_guide_closed)
+			_guide.replay_offer = _replay_offer
+			_guide.replay_requested.connect(_on_replay_requested)
 	settings.apply(screen.profile, screen._music, true)
 
 
@@ -266,6 +275,32 @@ func _on_guide_closed() -> void:
 	_guide.process_mode = Node.PROCESS_MODE_INHERIT
 	if _screen.get_tree().paused:
 		pause.visible = true
+
+
+## What the run's handbook offers on its first tab: nothing in a guided run (or before a run),
+## the line once the next new run is guided, else PLAY THE GUIDED SHIFT.
+func _replay_offer() -> HandbookPage.ReplayOffer:
+	var run: RunState = _screen.run
+	if run == null or run.guided:
+		return HandbookPage.ReplayOffer.HIDDEN
+	if TutorialFlags.has_seen(_screen.profile, TutorialFlags.GUIDE_REPLAY):
+		return HandbookPage.ReplayOffer.SET
+	return HandbookPage.ReplayOffer.OFFERED
+
+
+## PLAY THE GUIDED SHIFT in a run: the profile asks for the next new run to be guided and is
+## saved at once (the run's save is never touched); logged under the run.
+func _on_replay_requested() -> void:
+	if _replay_offer() != HandbookPage.ReplayOffer.OFFERED:
+		return
+	if TutorialFlags.request_replay(_screen.profile):
+		_screen.save_profile()
+	_log.log_event("tutorial_replay", RunEvents.tutorial_replay("run"))
+
+
+## RESET TIPS in a run: logged under the run (the options' close saves the profile).
+func _on_tips_reset(cleared: int) -> void:
+	_log.log_event("tips_reset", RunEvents.tips_reset(cleared))
 
 
 ## The phase the pause opened in, for RESUME's sub-line and the telemetry.

@@ -27,9 +27,24 @@ extends Control
 ## footer (GlyphTips.guide_for). A screen with no GlyphTips (the title) gets the handbook's own,
 ## so the clips' chips and glyphs show their tips there too. Nothing in a run is timed, so the
 ## shift just waits behind it.
+##
+## The tutorial's replay (2026-11-14): on the book's first tab, a teal PLAY THE GUIDED SHIFT plate
+## stands at the foot of the index column (REPLAY_RECT, just over the hint card). The page has no
+## profile: a click emits replay_requested, and the owner sets TutorialFlags.GUIDE_REPLAY and saves
+## the profile (the title: peek, change, save; a run: its profile, never the saved run). What the
+## foot shows comes from `replay_offer` (read on every opening and after each click): the plate
+## (OFFERED), the line REPLAY_SET_TEXT once the next new run is guided (SET), or nothing
+## (HIDDEN: no owner, an unreadable profile, a guided run under way).
 
 signal opened(entry_id: StringName)
 signal closed
+## PLAY THE GUIDED SHIFT was clicked (the owner asks for the guided run; replay_offer is read
+## again right after).
+signal replay_requested
+
+## What the first tab's foot shows (replay_offer): nothing, the replay plate, or the line saying
+## the next new run is guided.
+enum ReplayOffer { HIDDEN, OFFERED, SET }
 
 const BINDER := Rect2(64, 48, 1152, 640)
 const TAB_HEIGHT := 40.0
@@ -80,6 +95,12 @@ const HINT_FOOT := 4.0
 const HINT_TIP := "Right-click a tooltip to open its page."
 ## The entry's scrolling column on the sheet, inside its gold trim.
 const DETAIL_RECT := Rect2(336, 32, 788, 584)
+## The replay plate (or its line) at the index column's foot, just over the hint card (binder
+## coordinates); the first tab's rows must end above it.
+const REPLAY_RECT := Rect2(28, 484, 240, 44)
+const REPLAY_TEXT := "PLAY THE GUIDED SHIFT"
+const REPLAY_SET_TEXT := "Your next NEW RUN is the guided shift."
+const REPLAY_SET_FONT := 13
 const TITLE := "STAFF HANDBOOK"
 const CLOSE_TEXT := "CLOSE"
 const RISE := 24.0
@@ -94,11 +115,18 @@ var reduced_motion: Callable = Callable()
 ## Returns true while a right-click belongs to something else (a cart placement cancels, a day slip
 ## or a pin card closes): the deep link then does nothing. None: never.
 var deep_link_blocked: Callable = Callable()
+## Returns the ReplayOffer to show at the first tab's foot, read on every opening and
+## click on the plate. None: HIDDEN.
+var replay_offer: Callable = Callable()
 ## The bar whose row is shaded deeper (the shift's top bar: mount), or null.
 var shade_bar: Control = null:
 	set(value):
 		shade_bar = value
 		queue_redraw()
+## The PLAY THE GUIDED SHIFT plate (shown on the first tab when OFFERED) and its line (SET);
+## read only.
+var replay_plate: HandbookButton
+var replay_note: Label
 var _book: HandbookBook
 var _binder: Control
 var _tabs: Dictionary[StringName, HandbookButton] = {}
@@ -111,6 +139,7 @@ var _close: HandbookButton
 var _group: StringName = &""
 var _shown_id: StringName = &""
 var _rise: Tween
+var _offer: ReplayOffer = ReplayOffer.HIDDEN
 
 
 func _init(book: HandbookBook = null) -> void:
@@ -181,6 +210,7 @@ func _init(book: HandbookBook = null) -> void:
 	_scroll.size = DETAIL_RECT.size
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_binder.add_child(_scroll)
+	_add_replay()
 	_shown_id = _book.first_entry
 
 
@@ -229,6 +259,7 @@ func open_at(entry_id: StringName = &"") -> void:
 	if reduced_motion.is_valid():
 		still = bool(reduced_motion.call())
 	visible = true
+	_offer = _read_offer()
 	show_entry(target)
 	if not was_open:
 		_rise_in()
@@ -285,6 +316,7 @@ func show_entry(entry_id: StringName) -> void:
 		_show_tab(_tabs[group_id], group_id == _group)
 	for index: int in range(_rows.size()):
 		_rows[index].picked = _row_entries[index] == entry_id
+	_show_replay()
 	if _view != null:
 		_scroll.remove_child(_view)
 		_view.free()
@@ -379,6 +411,18 @@ func close_button() -> HandbookButton:
 	return _close
 
 
+## The tutorial's anchors on the handbook (TutorialAnchors, global canvas px): HANDBOOK_TABS, the
+## index tabs together. Rect2() when the handbook is closed or the id isn't the handbook's.
+func anchor_rect(id: StringName) -> Rect2:
+	if not is_visible_in_tree() or id != TutorialAnchors.HANDBOOK_TABS or _tabs.is_empty():
+		return Rect2()
+	var whole: Rect2 = Rect2()
+	for group_id: StringName in _tabs:
+		var rect: Rect2 = _tabs[group_id].get_global_rect()
+		whole = rect if not whole.has_area() else whole.merge(rect)
+	return whole
+
+
 func entry_scroll() -> ScrollContainer:
 	return _scroll
 
@@ -400,6 +444,47 @@ func _input(event: InputEvent) -> void:
 		if not whole.has_point(press.position):
 			get_viewport().set_input_as_handled()
 			close()
+
+
+## The replay plate and its line at the index column's foot (both hidden until shown).
+func _add_replay() -> void:
+	replay_plate = HandbookButton.new(HandbookButton.Kind.PLATE, REPLAY_TEXT, REPLAY_RECT.size)
+	replay_plate.name = "Replay"
+	replay_plate.position = REPLAY_RECT.position
+	replay_plate.visible = false
+	replay_plate.pressed.connect(_on_replay_pressed)
+	_binder.add_child(replay_plate)
+	replay_note = UiKit.body_label(REPLAY_SET_TEXT, REPLAY_SET_FONT, Palette.INK)
+	replay_note.name = "ReplayNote"
+	replay_note.add_theme_font_override("font", ArtStyle.bold_font(700))
+	replay_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	replay_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	replay_note.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	replay_note.position = REPLAY_RECT.position
+	replay_note.size = REPLAY_RECT.size
+	replay_note.visible = false
+	_binder.add_child(replay_note)
+
+
+## PLAY THE GUIDED SHIFT: the owner asks for the guided run (replay_requested), then the foot
+## shows what replay_offer says now.
+func _on_replay_pressed() -> void:
+	replay_requested.emit()
+	_offer = _read_offer()
+	_show_replay()
+
+
+func _read_offer() -> ReplayOffer:
+	if not replay_offer.is_valid():
+		return ReplayOffer.HIDDEN
+	return replay_offer.call() as ReplayOffer
+
+
+## The plate (OFFERED) or its line (SET) on the book's first tab only.
+func _show_replay() -> void:
+	var first: bool = not _book.group_ids.is_empty() and _group == _book.group_ids[0]
+	replay_plate.visible = first and _offer == ReplayOffer.OFFERED
+	replay_note.visible = first and _offer == ReplayOffer.SET
 
 
 ## A picked tab stands in front of the board, TAB_RISE taller; the others tuck behind it.
