@@ -9,10 +9,11 @@ extends RefCounted
 ##   y), primary; the swap window (v1.32): win (opened from the crate), sb<i> (its booster i
 ##   opened), grab<n> (piece n pressed where it rests: booster 0's cards, booster 1's, then the
 ##   regulars), over<k> (the pointer over basket slot k), drop (the button let go there), done
-##   (DONE), esc; tip<what> (v1.33 hover tips: the board's tip of the StartTips target <what> at
-##   full size: reg<k> a regular, card<b>_<k> an opened booster card, card<b>_<k>fam its first
-##   family chip, piece<n> a swap window card, slot<k> its basket's item; play it last); the file
-##   name gets the steps (do_<steps>_);
+##   (DONE), esc; options (polish batch 2: the board's Esc, the options with BACK TO TITLE),
+##   optup (Up in them: BACK TO TITLE marked); tip<what> (v1.33 hover tips: the board's tip of
+##   the StartTips target <what> at full size: reg<k> a regular, card<b>_<k> an opened booster
+##   card, card<b>_<k>fam its first family chip, piece<n> a swap window card, slot<k> its
+##   basket's item; play it last); the file name gets the steps (do_<steps>_);
 ## - page 2 (YOUR BUILD, v1.32): pins=<n> leaves the catalogue's first n earned pins (those with an
 ##   unlock condition; the pins every profile starts with stay owned) unlocked and none worn on the
 ##   capture's temporary profile: n > 0 holds the packs for the BADGE PINS step, pins=0 deals them
@@ -79,7 +80,12 @@ static func show_board(screen: ShiftScreen, options: PackedStringArray, raised: 
 	var steps: String = _value(options, "do=")
 	if steps != "":
 		for step: String in steps.split("+", false):
-			play(store, step)
+			if step == "options":
+				board.back("esc")
+			elif step == "optup":
+				screen._pause.options.move_marker(-1)
+			else:
+				play(store, step)
 	if _value(options, "page=") == "2":
 		_open_all(board)
 		board.show_page(2, "tab")

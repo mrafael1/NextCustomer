@@ -36,6 +36,7 @@ func _init(screen: ShiftScreen, event_log: EventLogService) -> void:
 	_log = event_log
 	_screen._cart_reveal.pack_taken.connect(take_chosen)
 	_screen._cart_reveal.title_requested.connect(back_to_title)
+	_screen._cart_reveal.options_requested.connect(_open_options)
 
 
 ## A new run for `seed_value` with `recipe` as its starting deck: its stock from the profile, its
@@ -126,9 +127,17 @@ func board_actions() -> StartBoardActions:
 	return actions
 
 
-## Esc on the opening board's store page: the screen closes its overlays (the board among them)
-## and leaves for the title, lit and silent (request_lit). The waiting run is already saved, so
-## Continue reopens it on page 1.
+## Esc on the opening board's store page (polish batch 2): the options over the board, with BACK
+## TO TITLE leaving through the board (StartBoard.leave, then back_to_title).
+func _open_options() -> void:
+	var board: StartBoard = _screen._cart_reveal.board
+	if board != null:
+		_screen._pause.open_start_options(board.leave.bind("esc"))
+
+
+## ‹ TITLE, or the options' BACK TO TITLE, on the opening board: the screen closes its overlays
+## (the board among them) and leaves for the title, lit and silent (request_lit). The waiting run
+## is already saved, so Continue reopens it on page 1.
 func back_to_title() -> void:
 	_screen._close_overlays()
 	if changes_scene:

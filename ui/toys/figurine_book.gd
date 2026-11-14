@@ -14,10 +14,11 @@ extends Control
 ## the COUPONS, a card per coupon of the live pools (BookOrder), owned once played in an ended
 ## run; a coupon never wears NEW (nothing draws it at the machines).
 ##
-## The LED at the top left counts every card owned, coupons included ("31/58 CARDS"), the one at
-## the right the new figurines; each page's header names what it shows with its count. The
-## arrows, the keys and the wheel turn the pages with a pixel page turn (BookPageTurn; at once
-## under reduced motion); BACK (or Escape) returns where the book was opened from (back_pressed).
+## The LED at the top left counts every card owned, coupons included ("31/58 FIGURINES"; polish
+## batch 2: the toy screen's noun), the one at the right the new figurines; each page's header
+## names what it shows with its count. The arrows, the keys and the wheel turn the pages with a
+## pixel page turn (BookPageTurn; at once under reduced motion); BACK (or Escape) returns where
+## the book was opened from (back_pressed).
 ## Every word is hard pixel lettering, its numbers in the number font. Rounds 4 to 6 (divider
 ## tabs per family, a SORT dropdown of FAMILY, NEWEST, FOOD and NON-FOOD, OTHER FOOD for a family
 ## too small for a tab of its own, BookOrder.MIN_GROUP) led to round 7:
@@ -55,7 +56,7 @@ extends Control
 ## owned once picked in an ended run (the profile's perk_levels; its pips show the highest level
 ## reached). ALL gives them their own pages after the coupons ("PERKS 3/28"), the FAMILY ribbon a
 ## PERKS option after COUPONS (the PERKS mark, the LOYALTY teal), and a family perk also shows
-## under its family's option, after its items. The CARDS LED counts them; a perk never wears NEW
+## under its family's option, after its items. The count LED counts them; a perk never wears NEW
 ## (nothing draws it at the machines).
 
 signal back_pressed
@@ -64,7 +65,8 @@ const STAGE := Vector2(1280, 720)
 const PER_PAGE := BookArt.COLUMNS * BookArt.ROWS
 const PER_SPREAD := PER_PAGE * 2
 const TITLE_TEXT := "FIGURINE BOOK"
-const CARDS_TEXT := "CARDS"
+## The count LED's noun (polish batch 2: the toy screen's word, one noun for the collection).
+const FIGURINES_TEXT := "FIGURINES"
 const NEW_TEXT := "NEW"
 const COUNT_TEXT := "%d/%d"
 const NEWEST_HEADER := "NEWEST FIRST"
@@ -84,6 +86,9 @@ const EMPTY_TOP := 120
 ## The FAMILY sort's header under ALL for the unfamilied last pages (round 6: a small family's
 ## items not printed Food land there).
 const OTHER_ITEMS_TEXT := "OTHER ITEMS"
+## A BOOK ORDER group's later pages (polish batch 2: the group's header once, its count on its
+## first page): the group's glyph and name, then CONT_TEXT.
+const CONT_TEXT := "CONT."
 const PAGE_TEXT := "PAGE"
 const BACK_TEXT := "BACK"
 const TURN_SOUND := "card_pickup"
@@ -428,7 +433,7 @@ func _make_page(index: int, side: int) -> Control:
 	var art: float = ArtStyle.ART_SCALE
 	var line: PixelLine = PixelLine.new()
 	line.name = "Header"
-	line.show_tokens(_header_tokens(page), Palette.CREAM_SHADE, Palette.GOLD, 1, LED_GAP)
+	line.show_tokens(_header_tokens(index), Palette.CREAM_SHADE, Palette.GOLD, 1, LED_GAP)
 	line.position = Vector2(BookArt.PAGE_RECTS[side].position + HEADER_AT) * art
 	layer.add_child(line)
 	if page.is_empty():
@@ -458,19 +463,23 @@ func _make_page(index: int, side: int) -> Control:
 	return layer
 
 
-## A page's header. ALL in BOOK ORDER: the page's group's glyph, name and count (its group's
-## cards; round 6: OTHER FOOD, the unfamilied last pages "OTHER ITEMS"). Round 7, every other
+## Page `index`'s header. ALL in BOOK ORDER: the page's group's glyph, name and count (its group's
+## cards; round 6: OTHER FOOD, the unfamilied last pages "OTHER ITEMS"), the count on the group's
+## first page only, "CONT." on the next ones (polish batch 2). Round 7, every other
 ## pick: the family picked (its glyph and name; none for ALL), the sort's word after a separator
 ## (none for BOOK ORDER), and the count of the cards the pick shows ("BREAKFAST · NON-FOOD 2/2");
 ## ALL alone reads "NEWEST FIRST 31/58", "FOOD 22/40" (with Food's glyph) or "NON-FOOD 7/18".
-func _header_tokens(page: Array) -> Array:
+func _header_tokens(index: int) -> Array:
+	var page: Array = _pages[index]
 	if _filter.is_empty() and _sort == BookOrder.Sort.BOOK:
 		var group: String = BookOrder.page_family(page)
 		var counted: Vector2i = BookOrder.count(_book, group, true)
+		var count: String = COUNT_TEXT % [counted.x, counted.y]
+		var cont: bool = index > 0 and BookOrder.page_family(_pages[index - 1]) == group
 		if group.is_empty():
-			return [OTHER_ITEMS_TEXT, COUNT_TEXT % [counted.x, counted.y]]
+			return [OTHER_ITEMS_TEXT, CONT_TEXT if cont else count]
 		var tokens: Array = _family_tokens(group)
-		tokens.append(COUNT_TEXT % [counted.x, counted.y])
+		tokens.append(CONT_TEXT if cont else count)
 		return tokens
 	var shown: Vector2i = BookOrder.count_shown(_book, _sort, _filter)
 	var words: Array = []
@@ -655,7 +664,7 @@ func _show_leds() -> void:
 	var counted: Vector2i = BookOrder.count(_book)
 	var line: PixelLine = PixelLine.new()
 	line.show_tokens(
-		[COUNT_TEXT % [counted.x, counted.y], CARDS_TEXT], Palette.MUSTARD_DARK, Palette.GOLD
+		[COUNT_TEXT % [counted.x, counted.y], FIGURINES_TEXT], Palette.MUSTARD_DARK, Palette.GOLD
 	)
 	_count_led.show_rows([line], [LED_CAP_TOP], LED_HEIGHT, LED_PADDING)
 	var fresh: int = 0

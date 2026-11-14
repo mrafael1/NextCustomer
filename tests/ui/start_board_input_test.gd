@@ -65,8 +65,8 @@ func test_a_new_run_frees_a_playing_shutter() -> void:
 
 
 ## Esc closes the swap window, then stops a RESTOCK pick, then goes back from page 2 to page 1,
-## then asks the screen for the title (the screen closes the board; the scene change is off in
-## tests).
+## then opens the options, whose BACK TO TITLE asks the screen for the title (the screen closes
+## the board; the scene change is off in tests).
 func test_escape_steps_back_from_swaps_to_restock_to_store_to_title() -> void:
 	var screen: ShiftScreen = await _screen(3)
 	screen._start_choice.changes_scene = false
@@ -100,7 +100,23 @@ func test_escape_steps_back_from_swaps_to_restock_to_store_to_title() -> void:
 	get_tree().root.push_input(_key(KEY_ESCAPE), true)
 	assert_int(board.page).is_equal(1)
 	assert_int(asked[0]).is_equal(0)
+	# Polish batch 2: Esc on page 1 opens the options (the board paused under them) with BACK TO
+	# TITLE; Esc closes them again, and their BACK TO TITLE leaves.
+	var options: OptionsCard = screen._pause.options
 	get_tree().root.push_input(_key(KEY_ESCAPE), true)
+	assert_int(asked[0]).is_equal(0)
+	assert_bool(options.is_open()).is_true()
+	assert_object(options.leave_plate()).is_not_null()
+	assert_bool(get_tree().paused).is_true()
+	get_tree().root.push_input(_key(KEY_ESCAPE), true)
+	assert_bool(options.is_open()).is_false()
+	assert_bool(get_tree().paused).is_false()
+	assert_int(board.page).is_equal(1)
+	get_tree().root.push_input(_key(KEY_ESCAPE), true)
+	assert_bool(options.is_open()).is_true()
+	options.leave_plate().pressed.emit()
+	assert_bool(options.is_open()).is_false()
+	assert_bool(get_tree().paused).is_false()
 	assert_int(asked[0]).is_equal(1)
 	assert_bool(screen._cart_reveal.is_open()).is_false()
 	assert_object(screen._cart_reveal.board).is_null()

@@ -17,6 +17,8 @@ const INDEX0 := 100
 const CLICK_SLOP := 3.0
 ## The tag of DONE's delayed go-on cue (dropped when the window opens again or NEXT goes on).
 const GO_ON_TAG := "swap_go_on"
+## A held card over the basket stands this far (art px) above the pointer.
+const GHOST_GAP := 6.0
 
 var page: BoosterPage
 var active: bool = false
@@ -295,17 +297,20 @@ func _fly(piece: SwapPiece) -> void:
 		piece.fly = {}
 
 
-## The pose of `piece` this frame: {pos, item, sc, held}.
+## The pose of `piece` this frame: {pos, item, sc, held}. A held card over the basket (polish
+## batch 2) stays full size (an integer scale) and stands GHOST_GAP art px above the pointer, its
+## foot never lower than the items' top, so the regular it would replace stays in view.
 func pose(piece: SwapPiece) -> Dictionary:
 	if piece == held:
 		var over: bool = page.mouse.y - slide() > SwapWindowDraw.ITEM_TOP - 10
 		var m: Vector2 = page.mouse - Vector2(0, slide())
-		return {
-			"pos": (m - held_off * (0.6 if over else 1.0)).round(),
-			"item": false,
-			"sc": 0.6 if over else 1.05,
-			"held": true
-		}
+		if over:
+			var half: float = BoosterArt.CH / 2.0
+			var foot: float = minf(m.y - GHOST_GAP, SwapWindowDraw.ITEM_TOP - 2.0)
+			return {
+				"pos": Vector2(m.x, foot - half).round(), "item": false, "sc": 1.0, "held": true
+			}
+		return {"pos": (m - held_off).round(), "item": false, "sc": 1.05, "held": true}
 	if piece.fly.is_empty():
 		return {"pos": piece.pos, "item": piece.item, "sc": 1.0, "held": false}
 	var f: Dictionary = piece.fly

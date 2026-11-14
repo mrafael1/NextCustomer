@@ -1,0 +1,7 @@
+PixelifySans-Variable.ttf is a Modified Version of Pixelify Sans (SIL Open Font License 1.1, see
+PixelifySans-OFL.txt; the font declares no Reserved Font Name).
+
+Change (Next Customer polish batch 2, 2026-11-14): the capital B is closed. Its left corners are
+square and its middle bar joins the stem, so it no longer reads as a G at the game's pixel sizes.
+Both wght masters (400 and 700) were redrawn on the same pixel grid; every other glyph, the
+metrics and the name table (except the version string) are unchanged.

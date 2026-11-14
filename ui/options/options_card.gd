@@ -14,8 +14,15 @@ extends TitlePopup
 ## DEFAULT_HINT until a row is marked (no blank band above DONE), REDUCED MOTION is a chip pair
 ## (OFF / ON) like its neighbours, FAST's x1.5 is in hard pixel digits, ESC is centred on DONE's
 ## face, and the rows start ROWS_TOP clear of the tagline.
+##
+## Polish batch 2: opening time's Esc opens it over the start board with a BACK TO TITLE plate
+## right of DONE (`leave_caption` set before open; the keys reach it after DONE), which emits
+## leave_pressed; the owner closes the popup and leaves.
 
-enum Row { DISPLAY, MUSIC, SOUND, TEXT, MOTION, SPEED, DONE }
+## BACK TO TITLE was pressed (only when `leave_caption` is set).
+signal leave_pressed
+
+enum Row { DISPLAY, MUSIC, SOUND, TEXT, MOTION, SPEED, DONE, LEAVE }
 
 const WIDTH_ART := 352
 const SHEET_WIDTH := 704.0
@@ -38,6 +45,10 @@ const HINTS: Array[String] = [
 	"How fast the checkout counts: FAST is ×1.5. Hold Space during a count to fast-forward it.",
 ]
 const DONE_HINT := "Saves your settings and closes. Esc does the same."
+## The start board's leave plate: its caption, hint and size.
+const LEAVE_CAPTION := "BACK TO TITLE"
+const LEAVE_HINT := "Back to the title. This run is saved: CONTINUE opens the store again."
+const LEAVE_SIZE := Vector2(208, 42)
 ## The hint before any row is marked.
 const DEFAULT_HINT := "Up / Down pick a row, Left / Right change it. Changes apply at once."
 const PREVIEW := "Later items that share a family with the item right before it pay ×3."
@@ -55,6 +66,8 @@ const RECEIPT_FRAME := preload("res://art/frames/receipt_paper.png")
 var profile: ProfileState
 var settings: GameSettings
 var music: MusicService
+## The leave plate's caption ("": none). Set before open.
+var leave_caption: String = ""
 
 var _before: Dictionary = {}
 var _content: Control
@@ -64,6 +77,7 @@ var _chips: Dictionary[int, Array] = {}
 var _volumes: Dictionary[int, VolumePips] = {}
 var _motion_note: Label
 var _done: MenuPlate
+var _leave: MenuPlate
 var _esc: Label
 ## The dashed rules between the rows, by their top (canvas px on the sheet), and the hint's.
 var _rules: Array[float] = []
@@ -131,6 +145,11 @@ func volume(row: Row) -> VolumePips:
 
 func done_plate() -> MenuPlate:
 	return _done
+
+
+## The BACK TO TITLE plate (null without `leave_caption`).
+func leave_plate() -> MenuPlate:
+	return _leave
 
 
 func hint_label() -> Label:
@@ -204,6 +223,8 @@ func _press(entry: Control) -> void:
 			_set_speed(profile.count_up_speed() != ProfileState.COUNT_UP_FAST)
 		Row.DONE:
 			close()
+		Row.LEAVE:
+			leave_pressed.emit()
 
 
 func _show_marked(entry: Control, on: bool) -> void:
@@ -212,8 +233,12 @@ func _show_marked(entry: Control, on: bool) -> void:
 		_ticks[index].visible = on
 	if entry == _done:
 		_done.marked = on
+	if entry != null and entry == _leave:
+		_leave.marked = on
 	if on and _hint != null:
 		_hint.text = HINTS[index] if index < HINTS.size() else DONE_HINT
+		if index == Row.LEAVE:
+			_hint.text = LEAVE_HINT
 
 
 func _set_display(full: bool) -> void:
@@ -327,6 +352,14 @@ func _build_content() -> void:
 	var face_height: float = DONE_SIZE.y - MenuPlate.PLATE_FACE_TOP - MenuPlate.PLATE_FACE_BOTTOM
 	UiKit.place_pixel_label(_esc, Rect2(ESC_LEFT, face_top, 0, face_height), true)
 	_content.add_child(_esc)
+	_leave = null
+	if not leave_caption.is_empty():
+		_leave = MenuPlate.new(leave_caption, MenuPlate.Kind.PLATE, LEAVE_SIZE)
+		_leave.centre_caption()
+		_leave.position = Vector2(SHEET_WIDTH - 24.0 - LEAVE_SIZE.x, y)
+		_leave.pressed.connect(func() -> void: leave_pressed.emit())
+		_content.add_child(_leave)
+		_add_entry(_leave)
 	y += DONE_SIZE.y + 18.0
 	_resize_sheet(Vector2i(WIDTH_ART, ceili(y / ArtStyle.ART_SCALE)))
 	_refresh()
@@ -443,6 +476,8 @@ func _hint_height() -> float:
 	var tallest: float = 0.0
 	var all_hints: Array[String] = HINTS.duplicate()
 	all_hints.append(DONE_HINT)
+	if not leave_caption.is_empty():
+		all_hints.append(LEAVE_HINT)
 	for hint: String in all_hints:
 		var measured: Vector2 = ArtStyle.BODY_FONT.get_multiline_string_size(
 			hint,

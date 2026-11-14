@@ -12,6 +12,10 @@ extends RefCounted
 ## no save point: the run was saved at its last wait (the CHECKOUT click saves MACHINE_CHOOSE,
 ## so a quit during the count-up resumes at the machine with the checkout's end state); a drag
 ## snaps back, then the title opens and CONTINUE resumes. Alt+Enter flips DISPLAY anywhere.
+##
+## Polish batch 2: opening time's Esc (the start board's page 1, nothing else open there) opens the
+## options alone over the paused board, with BACK TO TITLE (open_start_options); Esc or DONE
+## closes them and the board runs on.
 
 ## The cart reveal's first moments, when the pause can't open.
 const REVEAL_GUARD_MS := 300
@@ -36,6 +40,8 @@ var _log: EventLogService
 var _paused_at: int = 0
 var _ducked: bool = false
 var _guide: HandbookPage
+## The start board's leave while open_start_options shows the options (else not valid).
+var _leave: Callable = Callable()
 
 
 func _init(screen: ShiftScreen, log_service: EventLogService) -> void:
@@ -62,6 +68,7 @@ func _init(screen: ShiftScreen, log_service: EventLogService) -> void:
 	pause.quit_pressed.connect(save_and_quit)
 	pause.export_pressed.connect(func() -> void: screen._on_export_pressed())
 	options.closed.connect(_on_options_closed)
+	options.leave_pressed.connect(_on_leave_pressed)
 	(screen._top_bar as TopBar).menu_pressed.connect(toggle)
 	for child: Node in screen.get_children():
 		if child is HandbookPage:
@@ -200,7 +207,32 @@ func _opening_key(key: InputEventKey) -> bool:
 
 
 func _open_options() -> void:
+	options.leave_caption = ""
 	options.open(_screen.profile, settings, _screen._music)
+
+
+## Opening time's Esc: the options over the start board with BACK TO TITLE (`leave` goes to the
+## title); the tree pauses while they show, so the board takes no key. False when something
+## else is open.
+func open_start_options(leave: Callable) -> bool:
+	if options.is_open() or pause.is_open():
+		return false
+	_leave = leave
+	options.leave_caption = OptionsCard.LEAVE_CAPTION
+	options.open(_screen.profile, settings, _screen._music)
+	_screen.get_tree().paused = true
+	var sounds: Sfx = Sfx.find(_screen)
+	if sounds != null:
+		sounds.play(UiKit.OPEN_SOUND)
+	return true
+
+
+## BACK TO TITLE: the options close (the board's tree runs again), then the board leaves.
+func _on_leave_pressed() -> void:
+	var leave: Callable = _leave
+	options.close()
+	if leave.is_valid():
+		leave.call()
 
 
 func _on_options_closed() -> void:
@@ -208,6 +240,11 @@ func _on_options_closed() -> void:
 		_log.log_event("settings_change", change)
 	_screen._saves.save_profile(_screen.profile)
 	pause.still = _screen.profile.reduced_motion()
+	if _leave.is_valid():
+		_leave = Callable()
+		options.leave_caption = ""
+		if not pause.is_open():
+			_screen.get_tree().paused = false
 
 
 ## HOW TO PLAY: the staff handbook over the paused shift (the pause hides under it).

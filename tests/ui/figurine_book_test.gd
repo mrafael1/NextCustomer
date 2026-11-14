@@ -22,7 +22,7 @@ extends GdUnitTestSuite
 ## headers, book_dropdowns_test) and SORT's plate stands in the top bar, where FAMILY's stood.
 ## Round 10: the LOYALTY perks close the book after the coupons, in the LOYALTY teal with the
 ## perk's stamp at 3x and its level pips, grey until picked in an ended run; never NEW, no price;
-## the CARDS LED and the PERKS header count them; a family perk shows under its family too
+## the count LED and the PERKS header count them; a family perk shows under its family too
 ## (book_perks_test).
 
 const Kit := preload("res://tests/ui/toy_test_kit.gd")
@@ -236,7 +236,7 @@ func test_the_coupons_close_the_book() -> void:
 	assert_bool(_near(party.get_pixel(10, band_y), snack.face)).is_true()
 	# The cards' LED counts the played coupons with the items.
 	var items: Vector2i = BookOrder.count(_entries(Kit.profile(0, 0)))
-	assert_str(book.leds()[0].text()).is_equal("%d/%d CARDS" % [items.x + 3, items.y])
+	assert_str(book.leds()[0].text()).is_equal("%d/%d FIGURINES" % [items.x + 3, items.y])
 	await _frames(2)
 
 
@@ -249,7 +249,7 @@ func test_new_cards_wear_the_tag_and_their_options_a_dot() -> void:
 	assert_bool(book.leds()[1].visible).is_true()
 	assert_str(book.leds()[1].text()).is_equal("2 NEW")
 	var collection: Vector2i = BookOrder.count(_entries(profile))
-	assert_str(book.leds()[0].text()).is_equal("%d/%d CARDS" % [collection.x, collection.y])
+	assert_str(book.leds()[0].text()).is_equal("%d/%d FIGURINES" % [collection.x, collection.y])
 	assert_int(collection.x).is_equal(23)
 	var entries: Array[BookEntry] = _entries(profile)
 	var menu: PixelDropdown = book.family_menu()
@@ -578,10 +578,12 @@ func test_the_food_sort_shows_every_food_card() -> void:
 		for side: int in 2:
 			var line: PixelLine = book.header(side)
 			if line != null and line.text().begins_with("OTHER FOOD"):
+				# Polish batch 2: the count on the group's first page, CONT. on the next ones.
+				var shown: String = FigurineBook.COUNT_TEXT % [group.x, group.y]
+				if headed:
+					shown = FigurineBook.CONT_TEXT
 				headed = true
-				assert_str(line.text()).is_equal(
-					"OTHER FOOD " + FigurineBook.COUNT_TEXT % [group.x, group.y]
-				)
+				assert_str(line.text()).is_equal("OTHER FOOD " + shown)
 			assert_bool(line == null or not line.text().begins_with("FOOD")).is_true()
 		book.turn(1)
 		book.page_turn().finish()
