@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="HandbookEntry" format=3]
+
+[ext_resource type="Script" path="res://presentation/handbook_entry.gd" id="1_entry"]
+
+[resource]
+script = ExtResource("1_entry")
+id = &"pl_beside"
+group = &"place"
+title = "BESIDE"
+mark = 2
+mark_value = "BESIDE"
+rule = "Directly left or right, like the first two {items:frozen_peas}. A coupon between two items stops them being beside each other (except connectors like {coupon:two_for_one}), so the last {item:frozen_peas} gets no bonus."
+example_row = PackedStringArray("frozen_peas", "frozen_peas", "opening_deal", "frozen_peas")
+example_total = 15

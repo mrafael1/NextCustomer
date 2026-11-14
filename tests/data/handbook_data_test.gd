@@ -5,27 +5,31 @@ extends GdUnitTestSuite
 ## token naming something real), a keyword's rule names its keyword, and every example
 ## row's total is the real Scoring's (pinned in example_total, so a rule change shows up here).
 ## The guide feedback of 2026-11-11: the TIERS and SHIFT tabs are gone and nothing links to their
-## pages; the families and the coupon intro have no example.
+## pages; the families and the coupon intro have no example. The tutorial (2026-11-14, text audit of
+## 2026-11-13) brings back REDRAW and DAY EVENTS in a THE RUN tab, beside the pages its tips need,
+## and BESIDE in PLACES.
 
 const CARDS_FOLDER := "res://data/cards"
 ## The tabs, in order.
-const TABS: Array[StringName] = [&"keywords", &"families", &"coupons", &"place"]
-## The pages the TIERS and SHIFT tabs held, and PLACES' BESIDE (round 4: "it is just pair re
-## explained").
+const TABS: Array[StringName] = [&"keywords", &"families", &"coupons", &"place", &"run"]
+## The pages the TIERS and SHIFT tabs held that stay gone.
 const REMOVED: Array[StringName] = [
-	&"golden",
-	&"big",
-	&"spot_check",
-	&"redraw",
-	&"target",
-	&"charge",
-	&"gained",
-	&"day_events",
-	&"pl_beside",
+	&"golden", &"big", &"spot_check", &"target", &"charge", &"gained"
 ]
 ## PLACES' pages, in order.
 const PLACES: Array[StringName] = [
-	&"pl_right_after", &"pl_next", &"pl_earlier", &"pl_later", &"pl_lone", &"pl_slots"
+	&"pl_beside", &"pl_right_after", &"pl_next", &"pl_earlier", &"pl_later", &"pl_lone", &"pl_slots"
+]
+## THE RUN's pages (the tutorial's tips open them), in order.
+const RUN: Array[StringName] = [
+	&"redraw",
+	&"day_events",
+	&"payday",
+	&"medals",
+	&"receipt_rewards",
+	&"loyalty_perks",
+	&"restock",
+	&"swap",
 ]
 
 
@@ -87,13 +91,15 @@ func test_retired_stickers_link_to_the_family_sticker() -> void:
 		assert_object(book.entry(StringName(retired))).override_failure_message(retired).is_null()
 
 
-## The TIERS and SHIFT tabs and their pages are gone, and PLACES' BESIDE, and no tooltip leads
-## there: a tier's chip, the GAINED or BESIDE word or a line that opens with an old page's title
-## finds no entry.
+## The TIERS and SHIFT tabs and their other pages are gone, and no tooltip leads there: a tier's
+## chip, the GAINED word or a line that opens with an old page's title finds no entry. BESIDE,
+## REDRAW and DAY EVENTS are back (the tutorial): their words and lines find their pages.
 func test_the_removed_pages_are_unreachable() -> void:
 	var book: HandbookBook = _book()
 	assert_array(book.group_ids).is_equal(TABS)
-	assert_array(Array(book.group_titles)).is_equal(["KEYWORDS", "FAMILIES", "COUPONS", "PLACES"])
+	assert_array(Array(book.group_titles)).is_equal(
+		["KEYWORDS", "FAMILIES", "COUPONS", "PLACES", "THE RUN"]
+	)
 	for removed: StringName in REMOVED:
 		assert_object(book.entry(removed)).override_failure_message(removed).is_null()
 	for card: CardDefinition in _cards():
@@ -101,20 +107,26 @@ func test_the_removed_pages_are_unreachable() -> void:
 			var tier: String = PriceSticker.tier_text(card)
 			assert_object(book.entry_for_keyword(tier)).override_failure_message(tier).is_null()
 	assert_object(book.entry_for_keyword("GAINED")).is_null()
-	assert_object(book.entry_for_keyword("BESIDE")).is_null()
+	assert_str(String(book.entry_for_keyword("BESIDE").id)).is_equal("pl_beside")
 	var places: Array[StringName] = []
 	for entry: HandbookEntry in book.entries_in(&"place"):
 		places.append(entry.id)
 	assert_array(places).is_equal(PLACES)
-	for line: String in [
-		"Beside Milk: +3",
-		"Spot check · slot 3 pays 0€",
-		"Today's target is 65€",
-		"Redraw · 2 left",
-		"Charge unused",
-		"Day events",
-	]:
+	var run: Array[StringName] = []
+	for entry: HandbookEntry in book.entries_in(&"run"):
+		run.append(entry.id)
+	assert_array(run).is_equal(RUN)
+	for line: String in ["Spot check · slot 3 pays 0€", "Today's target is 65€", "Charge unused"]:
 		assert_object(book.entry_titled(line)).override_failure_message(line).is_null()
+	for case: Array in [
+		["Beside Milk: +3", "pl_beside"],
+		["Redraw · 2 left", "redraw"],
+		["Day events", "day_events"],
+	]:
+		var found: HandbookEntry = book.entry_titled(case[0])
+		assert_object(found).override_failure_message(case[0]).is_not_null()
+		if found != null:
+			assert_str(String(found.id)).is_equal(case[1])
 
 
 ## Every markup token in every entry names something real (HandbookMarkup), no brace is left
@@ -328,3 +340,31 @@ func test_the_batch_page_teaches_the_bookends() -> void:
 	var tip: String = GlyphText.keyword_tip(CardText.BATCH_WORD)
 	assert_bool(tip.contains("cap")).is_false()
 	assert_str(book.entry_for_family("Bakery").rule).contains("a FIRST cap and a LAST cap")
+
+
+## THE RUN's pages (the tutorial, 2026-11-14) only describe, and the numbers they print are the
+## game's own (data/balance): a balance change that breaks one fails here.
+func test_the_run_pages_print_the_balance_numbers() -> void:
+	var book: HandbookBook = _book()
+	var balance: BalanceDefinition = load("res://data/balance/balance.tres") as BalanceDefinition
+	var machine: MachineDefinition = balance.machine
+	for entry_id: StringName in RUN:
+		var entry: HandbookEntry = book.entry(entry_id)
+		assert_object(entry).override_failure_message(entry_id).is_not_null()
+		if entry != null:
+			assert_bool(entry.has_example()).override_failure_message(entry_id).is_false()
+			assert_str(entry.page_notes()).override_failure_message(entry_id).is_empty()
+	var payday: String = book.entry(&"payday").rule
+	assert_str(payday).contains("with %d INSPECTIONS" % balance.review_inspection_count)
+	assert_int(machine.premium_shifts.size()).is_greater(0)
+	assert_bool(machine.bonus_extra_shifts.has(machine.premium_shifts[0])).is_true()
+	assert_str(payday).contains("for 2 PREMIUM draws")
+	var medals: String = book.entry(&"medals").rule
+	assert_str(medals).contains("Pay %d× the QUOTA" % machine.overtime_ticket_laps)
+	assert_str(medals).contains("Pay %d× for GOLD" % machine.overtime_premium_laps)
+	assert_int(machine.overtime_ticket_per_week).is_equal(1)
+	assert_int(machine.overtime_premium_per_week).is_equal(1)
+	assert_str(book.entry(&"restock").rule).contains(
+		"finish %d aisle collections" % balance.restock_min_completed
+	)
+	assert_int(balance.restocks_per_run).is_equal(1)
