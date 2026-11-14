@@ -99,7 +99,6 @@ func test_a_lost_run_lists_its_shifts_then_the_shortfall_and_the_coins() -> void
 			[
 				"  1  109€ / 34€     pass",
 				"     thrown away NEW ITEMS",
-				"     inspection Spot check",
 				"  2  20€ / 35€      fail",
 				shortfall,
 				rule,
@@ -111,8 +110,12 @@ func test_a_lost_run_lists_its_shifts_then_the_shortfall_and_the_coins() -> void
 	expected.append_array(Array(FinalReceipt.coin_lines(payout, -1)))
 	assert_array(Array(texts)).is_equal(expected)
 	assert_str(texts[-1]).ends_with("(you have ?)")
-	assert_int(screen._results.coin_line_index()).is_equal(9)
-	for index: int in [2, 3, 5, 9, 10]:
+	assert_int(screen._results.coin_line_index()).is_equal(8)
+	# The inspection is a chip on shift 1's line (polish batch 2), not a dim line.
+	var chips: Node = screen._results._lines[2].get_node_or_null("DayChips")
+	assert_object(chips).is_not_null()
+	assert_int(chips.get_child_count()).is_equal(1)
+	for index: int in [2, 3, 4, 8, 9]:
 		assert_int(texts[index].length()).is_less_equal(FinalReceipt.WIDTH)
 
 
@@ -254,11 +257,9 @@ func test_a_full_receipt_fits_the_screen_with_the_card_and_the_coins() -> void:
 	assert_int(count).is_equal(16)
 	assert_bool(results.is_compact()).is_false()
 	var paydays: int = balance.machine.bonus_extra_shifts.size()
-	var days: int = balance.inspection_shifts.size() + balance.review_shifts.size()
-	days += balance.boon_shifts.size()
-	# The headline, a rule, 4 week headers, the shifts, their visits and day events, a rule and
-	# 2 coin lines (no overtime coin since v1.03).
-	var expected: int = 2 + 4 + count + (count - 1) + paydays + days + 1 + 2
+	# The headline, a rule, 4 week headers, the shifts, their visits, a rule and 2 coin lines (no
+	# overtime coin since v1.03); the day events are chips on their shift lines (polish batch 2).
+	var expected: int = 2 + 4 + count + (count - 1) + paydays + 1 + 2
 	assert_int(results.texts().size()).is_equal(expected)
 	var headers: Array = Array(results.texts()).filter(
 		func(text: String) -> bool: return text.begins_with("WEEK ")

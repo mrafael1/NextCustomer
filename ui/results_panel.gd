@@ -29,6 +29,13 @@ extends PanelContainer
 ## about 0.65 s); with reduced motion it shows at once and only the hold stays. A tap prints it in
 ## its final state with the rest.
 ##
+## Polish batch 2 (the polish audit's "results-small"): a shift's day events (its inspections and
+## boons) are small icon chips after its line's text (FinalReceipt.lines' `chips`; the event's icon
+## on its chip's red or green, the name and effect in its tip), not dim lines, and the dim lines'
+## ink is DETAIL_ALPHA, so the receipt fits 1280 x 720 with its dim lines at DETAIL_MIN_SIZE or
+## more. Enter or Space presses Return to menu once the receipt has printed and the key is armed
+## (Enter while printing prints the rest, as a tap).
+##
 ## Once the receipt has printed, the badge pins the run unlocked (pin_news, set by the shift screen
 ## at the run's end) come one by one under a spotlight and stack right of the receipt (PinReveal,
 ## over the whole window like the closed store, just in front of the panel). Return to menu, while
@@ -44,18 +51,30 @@ const ARM_MS := 350
 const MENU_TEXT := "RETURN TO MENU"
 const HEADLINE_SIZE := 44
 const LINE_SIZE := 16
-## The machine visits and the inspection under a shift's line are smaller and dim.
+## The machine visits under a shift's line are smaller and dim (DETAIL_ALPHA of the ink); a full
+## won or lost run's receipt keeps them DETAIL_MIN_SIZE or more at 1280 x 720.
 const DETAIL_SIZE := 13
+const DETAIL_ALPHA := 0.75
+const DETAIL_MIN_SIZE := 11
+## A day event's chip after its shift line: the icon at 1x on the event's tint (red inspection,
+## green boon) with a darker edge, CHIP_PAD px round it, CHIP_GAP px after the text and apart.
+const CHIP_PAD := 2
+const CHIP_GAP := 4
+const CHIP_TAGS: Array[String] = ["INSPECTION", "TODAY"]
+## The keys that press Return to menu once printed (Enter also prints the rest while printing).
+const MENU_KEYS: Array[Key] = [KEY_ENTER, KEY_KP_ENTER, KEY_SPACE]
 ## The column's spacing between the headline, the lines and the buttons.
 const COLUMN_SEPARATION := 10
 ## A long run's receipt (#77: a dim line per machine visit) steps down through these until it
 ## fits the screen with the top bar's height free above and below it: the shift and coin lines'
 ## font size, the dim lines' and the column's spacing, roomiest first.
+## Polish batch 2: the dim lines stay DETAIL_MIN_SIZE in the last step (13 px shift lines, the
+## size a won 16-shift run's week columns take beside the CLOSED sign at 1280 x 720).
 const FITS: Array[Vector3i] = [
 	Vector3i(LINE_SIZE, DETAIL_SIZE, COLUMN_SEPARATION),
 	Vector3i(15, 12, 6),
-	Vector3i(14, 11, 4),
-	Vector3i(13, 10, 2),
+	Vector3i(14, DETAIL_MIN_SIZE, 4),
+	Vector3i(13, DETAIL_MIN_SIZE, 2),
 ]
 ## A receipt that doesn't fit even then is built again compact (FinalReceipt.lines' `compact`, its
 ## inspection lines folded into the shift lines) through FITS, then COMPACT_FITS, smaller still.
@@ -189,6 +208,8 @@ func _ready() -> void:
 
 
 func _place_closed() -> void:
+	if _closed.is_inside_tree() or not is_inside_tree():
+		return
 	get_parent().add_child(_closed)
 	get_parent().move_child(_closed, get_index())
 	_closed.visible = visible
@@ -229,11 +250,14 @@ func show_results(
 	var won: bool = run.phase == RunState.Phase.WON
 	_headline.add_theme_color_override("font_color", Palette.GOOD if won else Palette.TOMATO)
 	_loyalty_card.show_upgrades(LoyaltyCard.box_count(run), run.upgrades)
+	# Shown in the frame the screen was set up (a debug capture): the CLOSED sign the receipt's width
+	# keeps clear of (_room_width) goes in first.
+	_place_closed()
 	_left_weeks = FinalReceipt.left_weeks(run)
 	var columns: bool = _left_weeks > 0
 	_lay_out(
-		FinalReceipt.lines(run, result, coins_total, false, columns),
-		FinalReceipt.lines(run, result, coins_total, true, columns)
+		FinalReceipt.lines(run, result, coins_total, false, columns, true),
+		FinalReceipt.lines(run, result, coins_total, true, columns, true)
 	)
 	_coin_sounds = FinalReceipt.coin_sounds(CoinPayout.for_run(run).total())
 	_coins_s = 0.0
@@ -326,6 +350,75 @@ func is_compact() -> bool:
 	return COMPACT_FITS.has(_fit) or texts().size() < _full_count
 
 
+## Enter or Space: Return to menu once the receipt has printed and the key is armed; Enter while
+## it prints prints the rest (Space is the press reader's tap then). Esc does nothing here (the
+## pause doesn't open over the results).
+func _unhandled_key_input(event: InputEvent) -> void:
+	var key: InputEventKey = event as InputEventKey
+	if not visible or key == null or not key.pressed or key.echo:
+		return
+	if not MENU_KEYS.has(key.keycode):
+		return
+	if is_printing():
+		if key.keycode != KEY_SPACE:
+			get_viewport().set_input_as_handled()
+			skip_printing()
+		return
+	if _menu_button.disabled:
+		return
+	get_viewport().set_input_as_handled()
+	_menu_button.pressed.emit()
+
+
+## The day event chips of shift line `label` (FinalReceipt.Line.events), in a row after its text
+## (set in `font` at the line's size), each centred on the line's height.
+func _add_chips(label: Label, line: FinalReceipt.Line, font: Font) -> void:
+	var row: HBoxContainer = HBoxContainer.new()
+	row.name = "DayChips"
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_theme_constant_override("separation", CHIP_GAP)
+	row.set_anchors_preset(Control.PRESET_LEFT_WIDE)
+	var text_width: float = (
+		font.get_string_size(line.text, HORIZONTAL_ALIGNMENT_LEFT, -1, _size(line)).x
+	)
+	row.offset_left = ceilf(text_width) + CHIP_GAP * 2
+	label.add_child(row)
+	for event: InspectionDefinition in line.events:
+		row.add_child(_day_chip(event))
+
+
+## One day event's chip: its icon (the boon or warning icon without one) on its tint.
+static func _day_chip(event: InspectionDefinition) -> PanelContainer:
+	var boon: bool = event.is_boon()
+	var chip: PanelContainer = PanelContainer.new()
+	chip.name = "DayChip"
+	chip.mouse_filter = Control.MOUSE_FILTER_PASS
+	chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var box: StyleBoxFlat = StyleBoxFlat.new()
+	box.bg_color = Palette.GREEN_LIGHT if boon else Palette.TOMATO_PALE
+	box.border_color = Palette.GREEN_DARK if boon else Palette.TOMATO_DARK
+	box.set_border_width_all(1)
+	box.set_corner_radius_all(2)
+	box.set_content_margin_all(CHIP_PAD)
+	chip.add_theme_stylebox_override("panel", box)
+	var texture: Texture2D = WeekCard.BOON if boon else WeekCard.WARNING
+	if not event.icon_ref.is_empty() and ResourceLoader.exists(event.icon_ref):
+		texture = load(event.icon_ref) as Texture2D
+	var icon: TextureRect = UiKit.sprite(texture)
+	icon.custom_minimum_size = texture.get_size()
+	icon.flip_v = event.icon_flipped
+	chip.add_child(icon)
+	TipTarget.cover_text(
+		chip,
+		event.notice_text,
+		TipSpec.Kind.STATUS,
+		CHIP_TAGS[1 if boon else 0],
+		"",
+		event.display_name
+	)
+	return chip
+
+
 ## While a pin's card is still to come, the press shows them all in place and stays: a player
 ## clicking through still sees the unlocks, and the next press leaves.
 func _on_menu_pressed() -> void:
@@ -360,13 +453,17 @@ func _room() -> float:
 
 ## The width the centred receipt may take: its parent's, less the closed store's CLOSED sign (by
 ## the window's left edge) and as much again on the right, so the sign stays in view (v0.96: a
-## receipt in week columns is wide).
+## receipt in week columns is wide). With badge pins to unlock (pin_news), it also leaves their
+## stack's room on the right (polish batch 2: a roomier receipt would reach under the cards).
 func _room_width() -> float:
 	var width: float = get_parent_area_size().x
+	var room: float = width
+	if pin_news != null and not pin_news.is_empty():
+		room = width - 2.0 * (PinUnlockCard.CARD_SIZE.x + PinReveal.EDGE + SIGN_GAP)
 	if _closed == null or not _closed.is_inside_tree():
-		return width
+		return room
 	var sign_end: float = _closed.sign_rect().end.x - _closed.get_global_rect().position.x
-	return width - 2.0 * (sign_end + SIGN_GAP)
+	return minf(room, width - 2.0 * (sign_end + SIGN_GAP))
 
 
 func _build_lines(lines: Array[FinalReceipt.Line]) -> void:
@@ -398,6 +495,8 @@ func _build_lines(lines: Array[FinalReceipt.Line]) -> void:
 			label.add_theme_font_override("font", font)
 		if line.tone == FinalReceipt.Tone.WEEK:
 			_make_week_tab(label, line.week)
+		if not line.events.is_empty():
+			_add_chips(label, line, font)
 		_line_parent(line).add_child(label)
 		_lines.append(label)
 	# Not printed yet: hidden by alpha, so the receipt keeps its size while it prints.
@@ -530,5 +629,5 @@ static func _color(line: FinalReceipt.Line) -> Color:
 		FinalReceipt.Tone.WEEK:
 			return Palette.PAPER
 		FinalReceipt.Tone.DETAIL:
-			return Color(Palette.TOMATO if line.failed else Palette.INK, 0.55)
+			return Color(Palette.TOMATO if line.failed else Palette.INK, DETAIL_ALPHA)
 	return Palette.TOMATO if line.failed else Palette.INK

@@ -5,16 +5,16 @@ extends Control
 ## hook by the till, drawn on the 2 px art grid. A cream top with a hang slot, a header band in the
 ## pin's dark colour (NEW BADGE PIN), the pin's face (PinFace, 1.25 times the badge screen's) in a
 ## clear blister, its name, its rule (at most 3 lines), a green strip with the milestone met and
-## the check mark, and a foot line with the profile's pin count. An UNLOCKED stamp sits in the
-## empty top-right corner beside the hang slot, clear of the pin. Its back (show_back) is the
-## face-down card the spotlight reveal flips over (PinReveal). PinReveal drives the pop of the pin
-## and the stamp's landing (set_pop, set_stamp); a card left alone shows both landed. Display only:
-## the reveal takes the clicks.
+## the check mark, and a foot line with the profile's pin count (polish batch 2: its 7 px WEAR IT ON
+## YOUR BUILD dropped, the count centred). An UNLOCKED stamp sits in the empty top-right corner
+## beside the hang slot (a euro hook slot punched through the card), clear of the pin. Its back
+## (show_back) is the face-down card the spotlight reveal flips over (PinReveal). PinReveal drives
+## the pop of the pin and the stamp's landing (set_pop, set_stamp); a card left alone shows both
+## landed. Display only: the reveal takes the clicks.
 
 const CARD_SIZE := Vector2(200, 288)
 const PX := 2.0
 const HEADER_TEXT := "NEW BADGE PIN"
-const FOOT_TEXT := "WEAR IT ON YOUR BUILD"
 const UNIT_TEXT := "PINS"
 const STAMP_TEXT := "UNLOCKED"
 const BACK_TITLE := "NEXT CUSTOMER"
@@ -47,9 +47,13 @@ const RULE_SIZE := 12
 const RULE_LINES := 3
 const STRIP := Rect2(12, 228, 176, 30)
 const STRIP_SIZE := 13
-## The foot line: its words left of the count, shrunk to fit.
-const FOOT_RECT := Rect2(14, 266, 104, 20)
-const FOOT_SIZE := 11
+## The foot line: the pin count and its unit, centred on the card.
+const COUNT_RECT := Rect2(40, 265, 70, 20)
+const UNIT_RECT := Rect2(114, 267, 40, 20)
+## The hang slot: a euro hook slot punched through the cream top (its wings and its round middle,
+## in art px rows: half widths from the middle), showing the dark behind.
+const SLOT_CENTRE := Vector2(100, 14)
+const SLOT_ROWS: Array[int] = [3, 4, 10, 10, 4, 3]
 const CHECK := preload("res://art/icons/mark_check.png")
 ## A darkened card's overlay a step (set_depth: older cards peeking above the top one).
 const DEPTH_ALPHA := 0.25
@@ -106,15 +110,11 @@ func _init() -> void:
 		STRIP.position.x + 36, STRIP.position.y + 4, STRIP.size.x - 40, STRIP.size.y - 4
 	)
 	_place(_milestone, strip_text, HORIZONTAL_ALIGNMENT_LEFT)
-	var foot: Label = UiKit.display_label(FOOT_TEXT, FOOT_SIZE, false)
-	foot.add_theme_color_override("font_color", Palette.MUTED_INK)
-	_place(foot, FOOT_RECT, HORIZONTAL_ALIGNMENT_LEFT)
-	_fit(foot, FOOT_SIZE, FOOT_RECT.size.x)
 	_count = UiKit.number_label("", 15, false)
-	_place(_count, Rect2(122, 265, 34, 20), HORIZONTAL_ALIGNMENT_RIGHT)
-	var unit: Label = UiKit.display_label(UNIT_TEXT, 10, false)
+	_place(_count, COUNT_RECT, HORIZONTAL_ALIGNMENT_RIGHT)
+	var unit: Label = UiKit.display_label(UNIT_TEXT, 12, false)
 	unit.add_theme_color_override("font_color", Palette.MUTED_INK)
-	_place(unit, Rect2(158, 267, 30, 20), HORIZONTAL_ALIGNMENT_RIGHT)
+	_place(unit, UNIT_RECT, HORIZONTAL_ALIGNMENT_LEFT)
 	_stamp = _make_stamp()
 	add_child(_stamp)
 	_depth = ColorRect.new()
@@ -221,8 +221,7 @@ func _draw() -> void:
 	draw_rect(card.grow(-PX), Palette.PAPER)
 	draw_rect(Rect2(2, 2, 196, 26), Palette.CREAM)
 	draw_rect(Rect2(2, 26, 196, 2), Palette.CREAM_SHADE)
-	draw_rect(Rect2(82, 10, 36, 8), Palette.INK)  # The hang slot.
-	draw_rect(Rect2(84, 12, 32, 4), Palette.TEAL_BLACK)
+	_draw_slot()
 	draw_rect(Rect2(2, 28, 196, 24), _band)
 	draw_rect(Rect2(2, 50, 196, 2), Palette.INK)
 	_draw_blister()
@@ -230,6 +229,26 @@ func _draw() -> void:
 	draw_rect(STRIP.grow(-PX), Palette.PAPER)
 	draw_texture_rect(CHECK, Rect2(STRIP.position + Vector2(6, 2), CHECK.get_size() * PX), false)
 	draw_rect(Rect2(12, 264, 176, 2), Palette.CREAM_SHADE)
+
+
+## The hang slot (SLOT_ROWS round SLOT_CENTRE): an ink edge round the dark seen through it, its
+## lower lip catching the light in cream shade.
+func _draw_slot() -> void:
+	var top: float = SLOT_CENTRE.y - SLOT_ROWS.size() * PX / 2.0
+	for row: int in SLOT_ROWS.size():
+		var half: float = SLOT_ROWS[row] * PX
+		var y: float = top + row * PX
+		draw_rect(
+			Rect2(SLOT_CENTRE.x - half - PX, y - PX, 2.0 * half + 2.0 * PX, 3.0 * PX), Palette.INK
+		)
+	for row: int in SLOT_ROWS.size():
+		var half: float = SLOT_ROWS[row] * PX
+		draw_rect(Rect2(SLOT_CENTRE.x - half, top + row * PX, 2.0 * half, PX), Palette.TEAL_BLACK)
+	var foot: float = top + SLOT_ROWS.size() * PX + PX
+	draw_rect(
+		Rect2(SLOT_CENTRE.x - SLOT_ROWS[-1] * PX, foot, 2.0 * SLOT_ROWS[-1] * PX, PX),
+		Palette.CREAM_SHADE
+	)
 
 
 ## The clear blister the pin sits in: its back drop shadow, its pale fill and glass rim with
