@@ -391,7 +391,7 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		close()
 		return
-	if key != null and key.keycode in CONFIRM_KEYS:
+	if key != null and key.keycode in CONFIRM_KEYS and not key.alt_pressed:
 		get_viewport().set_input_as_handled()
 		return
 	var press: InputEventMouseButton = event as InputEventMouseButton

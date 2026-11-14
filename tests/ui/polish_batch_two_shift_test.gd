@@ -1,6 +1,5 @@
 extends GdUnitTestSuite
-## Polish audit batch 2 (2026-11-14), the shift group: a Double checkout's six baskets keep their
-## items apart (smaller, centred in their basket); the pending medal's PROJECTED digits over a
+## Polish audit batch 2 (2026-11-14), the shift group: the pending medal's PROJECTED digits over a
 ## light shadow and the over line off the paper's edge; the PREMIUM announce shades the monitor's
 ## planning content; the time card's event names and banner values a step darker; the gauge's
 ## empty socket on the band while the count runs and PAID clear of the margin words; the cart's
@@ -10,7 +9,6 @@ extends GdUnitTestSuite
 const SCREEN := "res://ui/shift_screen.tscn"
 const BULK_DEAL := "res://data/upgrades/bulk_deal.tres"
 const DAIRY_REGULARS := "res://data/upgrades/dairy_regulars.tres"
-const SIZES: Array[Vector2] = [Vector2(1280, 720), Vector2(1920, 1080)]
 
 var _folder: String = ""
 var _runner: GdUnitSceneRunner
@@ -29,70 +27,6 @@ func after_test() -> void:
 		for file_name: String in DirAccess.get_files_at(_folder):
 			DirAccess.remove_absolute(_folder.path_join(file_name))
 		DirAccess.remove_absolute(_folder)
-
-
-## Six baskets (a Double checkout's crowded hand, #122; here 12 items). Its items stand smaller
-## (HandRow's crowded scale), each one's cell apart from every other's and its art inside its own
-## basket's visible step; inside the screen at both sizes.
-func test_six_baskets_keep_their_items_apart() -> void:
-	var screen: ShiftScreen = await _screen()
-	screen.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
-	# Four more items (debug) fill places 8 to 11: six baskets, as a Double checkout's hand shows.
-	for card_id: String in ["bread", "banana", "milk", "cheese"]:
-		screen._debug.add_card(card_id)
-	await _frames(3)
-	var hand: HandRow = screen._hand_box
-	assert_int(hand.basket_count()).is_equal(6)
-	assert_bool(hand.overlaps()).is_true()
-	assert_float(hand.item_scale()).is_less(1.0)
-	for window: Vector2 in SIZES:
-		screen.size = window
-		await _frames(3)
-		var views: Array[Control] = hand.cards()
-		assert_int(views.size()).is_equal(12)
-		var lefts: Array[float] = hand.basket_lefts()
-		var step: float = HandRow.step_for(hand.basket_count(), hand.size.x)
-		var to_screen: Transform2D = hand.get_global_transform()
-		var cells: Array[Rect2] = []
-		var places: Array[int] = hand.places()
-		for index: int in range(views.size()):
-			var view: ItemView = views[index] as ItemView
-			var info: String = (
-				"%s place %d at %s" % [view.card.definition.id, places[index], window]
-			)
-			var cell: Rect2 = view.get_global_transform() * Rect2(Vector2.ZERO, view.size)
-			cells.append(cell)
-			(
-				assert_bool(screen.get_global_rect().encloses(cell))
-				. override_failure_message(info)
-				. is_true()
-			)
-			var basket: int = HandRow.basket_of(places[index])
-			var span: Rect2 = to_screen * Rect2(lefts[basket], 0.0, step, hand.size.y)
-			var art: Rect2 = _art(view)
-			(
-				assert_bool(
-					art.position.x >= span.position.x - 1.0 and art.end.x <= span.end.x + 1.0
-				)
-				. override_failure_message("%s: art %s outside its basket %s" % [info, art, span])
-				. is_true()
-			)
-		for first: int in range(cells.size()):
-			for second: int in range(first + 1, cells.size()):
-				(
-					assert_bool(cells[first].grow(-0.5).intersects(cells[second].grow(-0.5)))
-					. override_failure_message(
-						"cells %d and %d overlap at %s" % [first, second, window]
-					)
-					. is_false()
-				)
-	# A hand of 8 keeps its full size and natural places.
-	var plain: HandRow = auto_free(HandRow.new())
-	plain.size = ShiftStage.HAND_RECT.size
-	plain.reset(8)
-	assert_bool(plain.overlaps()).is_false()
-	assert_float(plain.item_scale()).is_equal(1.0)
-	assert_vector(plain.place_position(1)).is_equal(Vector2(HandRow.ITEM_OFFSETS[1], 0.0))
 
 
 ## The pending medal's PROJECTED digits stand over a shadow lighter than their body (no stripes at
@@ -313,15 +247,6 @@ func _screen() -> ShiftScreen:
 func _press(keycode: Key) -> void:
 	_runner.simulate_key_pressed(keycode)
 	await _frames(3)
-
-
-## `view`'s visible art (its sprite's opaque box), global.
-static func _art(view: ItemView) -> Rect2:
-	var texture: Texture2D = view.sprite().texture
-	var box: Rect2i = ContactShadow.opaque_rect(texture)
-	var sprite: Rect2 = view.sprite().get_global_rect()
-	var scale: Vector2 = sprite.size / Vector2(texture.get_size())
-	return Rect2(sprite.position + Vector2(box.position) * scale, Vector2(box.size) * scale)
 
 
 ## The WCAG contrast ratio of two colours.

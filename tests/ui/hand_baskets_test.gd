@@ -198,8 +198,9 @@ func test_hover_brings_an_item_to_the_front() -> void:
 		assert_int(views[index].get_index()).is_equal(index)
 
 
-## In a hand of more than 8 (debug), the smaller items stand apart (polish batch 2) and hovering
-## one still brings it to the front, so a click on it goes to it. Headless runs deliver no mouse input, so this follows Godot's own rule: a click goes to the
+## In a hand of more than 8 (debug), hovering an item brings it to the front, so a click where its
+## sprite overlaps the next basket's first item goes to the hovered item, the one drawn on top.
+## Headless runs deliver no mouse input, so this follows Godot's own rule: a click goes to the
 ## last child (drawn on top) whose hit area (ItemView.hit_rect) is under the mouse and stops it.
 func test_the_hovered_item_takes_the_click() -> void:
 	var screen: ShiftScreen = await _screen()
@@ -210,13 +211,12 @@ func test_the_hovered_item_takes_the_click() -> void:
 	var under: ItemView = views[4] as ItemView
 	var hovered_hit: Rect2 = hovered.get_global_transform() * hovered.hit_rect()
 	var under_hit: Rect2 = under.get_global_transform() * under.hit_rect()
-	# Polish batch 2: a crowded hand's smaller items no longer overlap (HandRow.item_scale).
-	assert_float(screen._hand_box.item_scale()).is_less(1.0)
-	assert_bool(hovered_hit.intersects(under_hit)).is_false()
-	var point: Vector2 = hovered_hit.get_center()
-	assert_object(_card_at(screen._hand_box, point)).is_same(hovered)
+	var overlap: Rect2 = hovered_hit.intersection(under_hit)
+	assert_float(overlap.size.x).is_greater(0.0)
+	var point: Vector2 = overlap.get_center()
+	# Before the hover, the next item is on top where they overlap.
+	assert_object(_card_at(screen._hand_box, point)).is_same(under)
 	hovered.mouse_entered.emit()
-	assert_int(hovered.get_index()).is_equal(screen._hand_box.get_child_count() - 1)
 	var top: CardView = _card_at(screen._hand_box, point) as CardView
 	assert_object(top).is_same(hovered)
 	top._gui_input(_button(point, true))

@@ -6,11 +6,9 @@ extends Control
 ## place empty (the items beside it never pack left) and one taken back returns to its own place. A
 ## hand of `hand_size` items fills ceil(hand_size / 2) baskets (reset()), BASKET_PITCH apart; the
 ## baskets emptied by the items placed on the belt stay, empty. Places past that (debug) add
-## baskets and narrow the basket step so they all still fit the row (a Double checkout's 12, #122).
-## Then the hand is crowded (overlaps()): its items stand smaller (item_scale(), CROWDED_SCALES),
-## each centred in its half of the basket's visible step, so they stay apart (polish batch 2); a
-## hovered one still comes to the front by child order, not only z_index, so clicks go to the item
-## that is drawn on top; leaving it puts the order back.
+## baskets and narrow the basket step so they all still fit the row, and then items overlap: only
+## while they do, hovering one brings it to the front by child order, not only z_index, so clicks
+## go to the item that is drawn on top; leaving it puts the order back.
 ##
 ## The baskets themselves are decor (HandBaskets, behind and in front of the items), drawn where
 ## basket_lefts() puts them; `laid_out` says when that changed. Add items with add_card() and
@@ -27,9 +25,6 @@ const BASKET_WIDTH := 208.0
 const BASKET_PITCH := 228.0
 const ITEM_OFFSETS: Array[float] = [8.0, 104.0]
 const ITEMS_PER_BASKET := 2
-## A crowded hand's item scales, largest first: the first whose cell fits half the basket step.
-## 2/3 draws each art pixel 2 screen px wide at 1080p.
-const CROWDED_SCALES: Array[float] = [5.0 / 6.0, 2.0 / 3.0, 0.5]
 ## The hand size before reset() names one (the balance's 8).
 const DEFAULT_HAND_SIZE := 8
 
@@ -101,31 +96,11 @@ static func basket_of(place: int) -> int:
 	return floori(float(place) / ITEMS_PER_BASKET)
 
 
-## Where hand place `place`'s item stands (its cell's top left corner), in this row's
-## coordinates. A crowded hand's smaller item is centred in its half of the basket step, its
-## cell's rim line (ItemView.BASKET_RIM_Y) kept on the basket's rim.
+## Where hand place `place`'s item stands, in this row's coordinates.
 func place_position(place: int) -> Vector2:
 	var lefts: Array[float] = basket_lefts()
 	var basket: int = mini(basket_of(place), lefts.size() - 1)
-	var half: int = place % ITEMS_PER_BASKET
-	if not overlaps():
-		return Vector2(lefts[basket] + ITEM_OFFSETS[half], 0.0)
-	var item: float = item_scale()
-	var slot: float = step_for(basket_count(), size.x) / ITEMS_PER_BASKET
-	var centre: float = lefts[basket] + slot * (half + 0.5)
-	var left: float = snappedf(centre - ItemView.BASKET_SIZE.x * item / 2.0, ArtStyle.ART_SCALE)
-	return Vector2(left, snappedf(ItemView.BASKET_RIM_Y * (1.0 - item), ArtStyle.ART_SCALE))
-
-
-## The items' scale: 1, or a crowded hand's first CROWDED_SCALES whose cell fits half the step.
-func item_scale() -> float:
-	if not overlaps():
-		return 1.0
-	var slot: float = step_for(basket_count(), size.x) / ITEMS_PER_BASKET
-	for item: float in CROWDED_SCALES:
-		if ItemView.BASKET_SIZE.x * item <= slot:
-			return item
-	return CROWDED_SCALES[-1]
+	return Vector2(lefts[basket] + ITEM_OFFSETS[place % ITEMS_PER_BASKET], 0.0)
 
 
 ## The baskets shown: enough for the hand size, or for the places past it (debug).
@@ -151,8 +126,7 @@ static func step_for(count: int, width: float) -> float:
 	return minf(BASKET_PITCH, (width - BASKET_WIDTH) / (count - 1))
 
 
-## Whether the hand is crowded (the basket step is too narrow for the items at their natural
-## size and places): its items then stand smaller (item_scale).
+## Whether the items overlap (the basket step is too narrow for the items at its natural pitch).
 func overlaps() -> bool:
 	var reach: float = ITEM_OFFSETS[-1] + ItemView.BASKET_SIZE.x - ITEM_OFFSETS[0]
 	return step_for(basket_count(), size.x) < reach
@@ -163,7 +137,6 @@ func _lay_out() -> void:
 		var view: Control = _order[index]
 		view.position = place_position(_places[index])
 		view.size = ItemView.BASKET_SIZE
-		view.scale = Vector2.ONE * item_scale()
 	laid_out.emit()
 
 

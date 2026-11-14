@@ -83,6 +83,9 @@ const PRICE_SIZE := 16
 const COUPON_TEXT := "COUPON"
 const COUPON_SIZE := 11
 const DRAG_KIND := "keep_item"
+## The keys wait this long after the screen opens (like ResultsPanel.ARM_MS), so a Space tap left
+## over from skipping the count-up never presses DONE before the choice is seen.
+const ARM_MS := 600
 ## The drag (as CardDrag's): the ghost's alpha, the source's fade, the target's light, the
 ## ghost's grow time, the way back, and a landing's pop.
 const GHOST_ALPHA := 0.92
@@ -96,6 +99,7 @@ const POP_TIME := 0.22
 const DONE_KEYS: Array[Key] = [KEY_ENTER, KEY_KP_ENTER, KEY_SPACE]
 
 var _run: RunState
+var _armed_ms: int = 0
 ## Everything but the shade, at the window's size: it pops in (UiKit.pop_in).
 var _content: Control
 var _shade: ColorRect
@@ -155,6 +159,7 @@ func _init(run: RunState) -> void:
 ## Lays the parts out for the window and pops them in (UiKit.pop_in, with the open sound) as the
 ## shade fades in.
 func _ready() -> void:
+	_armed_ms = Time.get_ticks_msec() + ARM_MS
 	_place_parts()
 	resized.connect(_place_parts)
 	UiKit.pop_in(_content)
@@ -169,6 +174,8 @@ func _ready() -> void:
 func _unhandled_key_input(event: InputEvent) -> void:
 	var key: InputEventKey = event as InputEventKey
 	if key == null or not key.pressed or key.echo or _done_button.disabled:
+		return
+	if Time.get_ticks_msec() < _armed_ms:
 		return
 	var escape: bool = key.keycode == KEY_ESCAPE
 	if not DONE_KEYS.has(key.keycode) and not (escape and not choice_left()):

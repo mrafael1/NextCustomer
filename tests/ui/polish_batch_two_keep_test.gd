@@ -132,6 +132,7 @@ func test_esc_on_the_keep_screen_never_loses_a_choice() -> void:
 	var placed: Array[CardInstance] = _place(screen, 3)
 	var keep: KeepScreen = await _open_keep(screen)
 	await _frames(2)
+	keep._armed_ms = 0
 	assert_bool(keep.choice_left()).is_true()
 	get_tree().root.push_input(_key(KEY_ESCAPE))
 	await _frames(2)
@@ -151,13 +152,19 @@ func test_esc_on_the_keep_screen_never_loses_a_choice() -> void:
 	assert_int(kept.size()).is_equal(PinPlay.keep_count(screen.run))
 
 
-## Enter presses DONE at once, even with the basket empty, before the pause sees it.
+## Enter presses DONE, even with the basket empty, before the pause sees it; but not in the screen's
+## first ARM_MS (a Space or Enter tap left over from skipping the count-up never skips the choice).
 func test_enter_on_the_keep_screen_presses_done() -> void:
 	var next: ShiftScreen = await _screen()
 	_place(next, 3)
 	var again: KeepScreen = await _open_keep(next)
 	await _frames(2)
 	assert_bool(again.choice_left()).is_true()
+	for early: Key in [KEY_SPACE, KEY_ENTER]:
+		get_tree().root.push_input(_key(early))
+		await _frames(2)
+	assert_object(next._pins.keep_panel()).is_same(again)
+	again._armed_ms = 0
 	get_tree().root.push_input(_key(KEY_ENTER))
 	await _frames(2)
 	assert_object(next._pins.keep_panel()).is_null()

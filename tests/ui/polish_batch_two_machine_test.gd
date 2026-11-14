@@ -66,7 +66,12 @@ func test_the_number_keys_and_enter_choose_a_chute() -> void:
 	view.keys_blocked = func() -> bool: return false
 	assert_bool(view._take_key(_key(KEY_ENTER))).is_true()
 	assert_bool(view.tray.confirm_down()).is_true()
-	assert_bool(view._take_key(_key(KEY_ENTER))).is_false()  # Already down: no second push.
+	# While the push goes through, keys are taken but change nothing: no second push, no chute
+	# swap, no release (the confirm sound already played).
+	for late: Key in [KEY_ENTER, KEY_2, KEY_1, KEY_ESCAPE]:
+		assert_bool(view._take_key(_key(late))).is_true()
+		assert_int(view.pressed_chute()).is_equal(RewardMachine.Chute.NEW_ITEMS)
+		assert_bool(view.tray.confirm_down()).is_true()
 	await get_tree().create_timer(view.tuning.confirm_down_ms / 1000.0 + 0.05).timeout
 	await _frames(2)
 	assert_array(confirmed).is_equal([RewardMachine.Chute.NEW_ITEMS])

@@ -289,20 +289,20 @@ func _take_key(key: InputEventKey) -> bool:
 		return false
 	if run == null or not is_visible_in_tree() or bool(keys_blocked.call()):
 		return false
-	var number: int = KEY_NUMBERS.find(key.keycode)
-	if number < 0:
-		number = KEYPAD_NUMBERS.find(key.keycode)
+	var number: int = maxi(KEY_NUMBERS.find(key.keycode), KEYPAD_NUMBERS.find(key.keycode))
 	var enter: bool = key.keycode == KEY_ENTER or key.keycode == KEY_KP_ENTER
 	var taken: bool = false
 	if run.phase == RunState.Phase.MACHINE_CHOOSE and _armed:
-		if key.keycode == KEY_ESCAPE and _pressed >= 0:
+		if tray.confirm_down():  # The push is going through: no key undoes or swaps it.
+			taken = key.keycode == KEY_ESCAPE or number >= 0 or enter
+		elif key.keycode == KEY_ESCAPE and _pressed >= 0:
 			_release()  # The topmost thing: the pressed key lets up, the push bar goes dark.
 			_frame()
 			taken = true
 		elif number >= 0 and number < keys.size():
 			press_key(number)
 			taken = true
-		elif enter and tray.confirm_offered() and not tray.confirm_down():
+		elif enter and tray.confirm_offered():
 			tray.press_confirm()  # CONFIRM on PUSH: only a pressed key's chute is pushed.
 			taken = true
 	elif run.phase == RunState.Phase.MACHINE_PICK and _armed:

@@ -266,24 +266,17 @@ func _apply_pose(basket: int, xform: Transform2D, tip: float) -> void:
 	for place: int in range(basket * per, (basket + 1) * per):
 		var view: Control = _stage.hand.view_at(place)
 		if view != null:
-			_pose_view(
-				view,
-				_stage.hand.position,
-				_stage.hand.place_position(place),
-				xform,
-				_stage.hand.item_scale()
-			)
+			_pose_view(view, _stage.hand.position, _stage.hand.place_position(place), xform)
 
 
-## Places `view` (a child of a layer at `layer_origin`, its rest at `rest` in that layer, at
-## `item` scale: a crowded hand's smaller items, HandRow.item_scale) as its basket's `xform` moves
-## it.
+## Places `view` (a child of a layer at `layer_origin`, its rest at `rest` in that layer) as its
+## basket's `xform` moves it.
 static func _pose_view(
-	view: Control, layer_origin: Vector2, rest: Vector2, xform: Transform2D, item: float = 1.0
+	view: Control, layer_origin: Vector2, rest: Vector2, xform: Transform2D
 ) -> void:
 	view.position = xform * (layer_origin + rest) - layer_origin
 	view.rotation = xform.get_rotation()
-	view.scale = xform.get_scale() * item
+	view.scale = xform.get_scale()
 
 
 ## The old items (in the basket, then flying) and the new ones (popping, then landing).
@@ -302,9 +295,7 @@ func _step_items() -> void:
 			continue
 		var leaves: float = tuning.out_start_s + tuning.out_gap_s * k
 		if u < leaves:
-			_pose_view(
-				_old[k], Vector2.ZERO, rest, _pose_of(_basket, left, u), _stage.hand.item_scale()
-			)
+			_pose_view(_old[k], Vector2.ZERO, rest, _pose_of(_basket, left, u))
 			continue
 		_fly(k, rest, (u - leaves) / tuning.out_s, _pose_of(_basket, left, leaves))
 	for k: int in range(_new.size()):
@@ -320,9 +311,8 @@ func _fly(k: int, rest: Vector2, progress: float, from: Transform2D) -> void:
 		view.reparent(_stage.redraw_layer, false)
 	var t: float = clampf(progress, 0.0, 1.0)
 	var centre: Vector2 = _centre_of(view)
-	var item: float = _stage.hand.item_scale()
 	var start: Vector2 = from * rest
-	var end: Vector2 = _cart - centre * item
+	var end: Vector2 = _cart - centre
 	var control: Vector2 = Vector2(
 		(start.x + end.x) / 2.0, minf(start.y, end.y) - tuning.arc_height
 	)
@@ -332,10 +322,10 @@ func _fly(k: int, rest: Vector2, progress: float, from: Transform2D) -> void:
 	var size_now: float = 1.0 - (1.0 - tuning.out_scale) * t
 	var turn: float = from.get_rotation() + deg_to_rad(spin)
 	# About its centre: the turned, shrunk centre stays where the unturned one would be.
-	var turned: Transform2D = Transform2D(turn, Vector2.ONE * size_now * item, 0.0, Vector2.ZERO)
-	view.position = at + centre * item - turned * centre
+	var turned: Transform2D = Transform2D(turn, Vector2.ONE * size_now, 0.0, Vector2.ZERO)
+	view.position = at + centre - turned * centre
 	view.rotation = turn
-	view.scale = Vector2.ONE * size_now * item
+	view.scale = Vector2.ONE * size_now
 	var fade_from: float = 1.0 - tuning.out_fade
 	view.modulate.a = 1.0 if t <= fade_from else 1.0 - (t - fade_from) / tuning.out_fade
 	view.visible = progress < 1.0
@@ -379,13 +369,12 @@ func _pop(k: int, u: float, rest: Vector2, left: float) -> void:
 		stretch = Vector2(1.0 + tuning.land_squash_x * back, 1.0 - tuning.land_squash_y * back)
 	var basket_pose: Transform2D = _pose_of(_basket, left, u)
 	var foot: Vector2 = _foot_of(view)
-	var item: float = _stage.hand.item_scale()
-	var local: Vector2 = rest + Vector2(0.0, rise) + (foot - foot * stretch) * item
+	var local: Vector2 = rest + Vector2(0.0, rise) + foot - foot * stretch
 	view.position = basket_pose * local
 	view.rotation = basket_pose.get_rotation()
-	view.scale = basket_pose.get_scale() * stretch * item
+	view.scale = basket_pose.get_scale() * stretch
 	if u - starts < tuning.spark_s:
-		_add_sparks(k, u - starts, Vector2(rest.x + ItemView.SPRITE_SIZE.x * item / 2.0, SPARK_Y))
+		_add_sparks(k, u - starts, Vector2(rest.x + ItemView.SPRITE_SIZE.x / 2.0, SPARK_Y))
 
 
 ## The hand's current view at the k-th swapped place (null: none, or no stage).
