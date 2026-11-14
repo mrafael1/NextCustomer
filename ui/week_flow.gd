@@ -15,10 +15,17 @@ extends Node
 ## machine or the next shift; the card keeps the day's PAID or SLIP stamp. A new day's page tears
 ## off the calendar once planning can show it and the time card has gone (DayCalendar.play_change;
 ## on a week's first day the card plays first), never on a resume.
+## The tutorial (WP-5, ShiftGuide): its gate is asked before the glass reopens the card
+## (OPEN_WEEK) and before the calendar opens today's slip (OPEN_CALENDAR); `hold` keeps a due card
+## and the page change waiting (the guided run's card waits for shift 2, after the machine:
+## queue_card), and planning's notices also wait while a guided step shows. The card's opening and
+## closing go out as WEEK_CARD_OPENED and WEEK_CARD_CLOSED.
 
 var card: WeekCard
 ## Today's slip under the day calendar.
 var slip: DaySlip
+## The tutorial holds a due card and the page change: Callable() -> bool (null: never).
+var hold: Callable = Callable()
 var _screen: ShiftScreen
 var _calendar: DayCalendar
 var _glass: WeekGlass
@@ -42,6 +49,7 @@ func _init(screen: ShiftScreen) -> void:
 	screen.add_child(slip)
 	card = WeekCard.new()
 	screen.add_child(card)
+	card.closed.connect(func() -> void: screen.guide.emit(TutorialEvents.WEEK_CARD_CLOSED))
 	_glass.pressed.connect(reopen)
 	_calendar.pressed.connect(toggle_slip)
 	_calendar.long_hovered.connect(hover_slip)
@@ -90,9 +98,16 @@ func light_day() -> void:
 		await get_tree().process_frame
 
 
-## Whether planning's notices wait for the card: due, or open.
+## Whether planning's notices wait: for the card (due, or open), or for a guided step showing.
 func holds_planning() -> bool:
-	return _due or card.is_open()
+	return _due or card.is_open() or _screen.guide.shows()
+
+
+## The card plays as soon as planning can show it and nothing holds it (the tutorial's time card
+## after the first machine visit; a week's first shift makes it due by itself).
+func queue_card() -> void:
+	var run: RunState = _screen.run
+	_due = run != null and has_weeks(run)
 
 
 func is_open() -> bool:
@@ -104,8 +119,11 @@ func reopen() -> void:
 	var run: RunState = _screen.run
 	if run == null or not has_weeks(run) or card.is_open() or not _can_show():
 		return
+	if not _screen.guide.allows(TutorialActions.OPEN_WEEK):
+		return
 	slip.clear()
 	card.reopen(WeekCardModel.of(run), _glass, _screen.profile.reduced_motion())
+	_screen.guide.emit(TutorialEvents.WEEK_CARD_OPENED)
 
 
 ## Pops today's slip up over the day calendar (the pad tapped), pins it when a long hover opened
@@ -118,7 +136,8 @@ func toggle_slip() -> void:
 	if slip.is_open():
 		slip.close()
 		return
-	_open_slip(false)
+	if _slip_may_open() and _screen.guide.allows(TutorialActions.OPEN_CALENDAR):
+		_open_slip(false)
 
 
 ## The pointer rested on the day calendar: today's slip opens, quietly, until the pointer leaves
@@ -126,15 +145,22 @@ func toggle_slip() -> void:
 func hover_slip() -> void:
 	if slip.is_open() or _screen._drag.is_dragging():
 		return
-	_open_slip(true)
+	if _screen.guide.asks(TutorialActions.OPEN_CALENDAR):  # Quietly: a hover is no press.
+		_open_slip(true)
+
+
+## Whether today's slip could open now (planning shows, no card over it, a day on the calendar).
+func _slip_may_open() -> bool:
+	var run: RunState = _screen.run
+	if run == null or not has_weeks(run) or card.is_open() or not _can_show():
+		return false
+	return _calendar.day() > 0
 
 
 func _open_slip(hover: bool) -> void:
+	if not _slip_may_open():
+		return
 	var run: RunState = _screen.run
-	if run == null or not has_weeks(run) or card.is_open() or not _can_show():
-		return
-	if _calendar.day() <= 0:
-		return
 	var week: WeekCardModel = WeekCardModel.of(run)
 	var reduced: bool = _screen.profile.reduced_motion()
 	var bonus: String = bonus_line(_calendar.bonus_state(), run.inspections)
@@ -268,12 +294,15 @@ static func helper_names(run: RunState) -> PackedStringArray:
 func _process(_delta: float) -> void:
 	if slip.visible and not _can_show():
 		slip.clear()  # The count, the machine or the cart reveal took over.
-	if _due and _can_show():
+	var held: bool = hold.is_valid() and bool(hold.call())
+	if _due and _can_show() and not held:
 		_due = false
 		slip.clear()
 		var run: RunState = _screen.run
 		card.play(WeekCardModel.of(run), _glass, _screen.profile.reduced_motion())
-	if _calendar.is_changing() and _can_show() and not card.is_open():
+		_screen.guide.emit(TutorialEvents.WEEK_CARD_OPENED)
+	held = held or _screen.guide.shows()
+	if _calendar.is_changing() and _can_show() and not card.is_open() and not held:
 		_calendar.play_change(not _quiet)  # The new day's page, once planning shows, after the card.
 
 
