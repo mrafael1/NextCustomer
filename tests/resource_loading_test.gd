@@ -6,7 +6,7 @@ extends GdUnitTestSuite
 
 ## Subfolders are loaded too, so "res://data" covers data/cards, data/decks, data/balance,
 ## data/upgrades, data/inspections, data/aisles, data/catalogue, data/families (#105),
-## data/weeks (v0.70) and data/toy_cabinets (#121, v0.77);
+## data/weeks (v0.70), data/toy_cabinets (#121, v0.77) and data/tutorial (the tutorial);
 ## test_every_data_folder_is_loaded checks that.
 const FOLDERS := [
 	"res://data",
@@ -60,6 +60,10 @@ func test_every_scene_and_resource_loads() -> void:
 			assert_object(resource).override_failure_message(path).is_instanceof(FamilyPalette)
 		elif path.contains("/families/"):
 			assert_object(resource).override_failure_message(path).is_instanceof(FamilyStyle)
+		elif path.ends_with("/tutorial/guided_start.tres"):
+			assert_object(resource).override_failure_message(path).is_instanceof(
+				GuidedStartDefinition
+			)
 		elif path.contains("/aisles/"):
 			assert_object(resource).override_failure_message(path).is_instanceof(AisleDefinition)
 		elif path.ends_with("/balance/count_up.tres"):
@@ -122,6 +126,7 @@ func test_every_data_folder_is_loaded() -> void:
 		"toy_cabinets",
 		"pins",
 		"handbook",
+		"tutorial",
 	]:
 		var prefix: String = "res://data/%s/" % folder
 		var found: bool = files.any(func(path: String) -> bool: return path.begins_with(prefix))

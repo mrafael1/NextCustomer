@@ -19,6 +19,8 @@ extends RefCounted
 ## starting-deck stream.
 
 const TITLE_SCREEN := "res://ui/title_screen.tscn"
+## The guided first run's scripted deal (the tutorial): new_run with its recipe deals it.
+const GUIDED_START := "res://data/tutorial/guided_start.tres"
 
 ## Whether back_to_title changes the scene (tests turn it off and watch the screen's overlays).
 var changes_scene: bool = true
@@ -41,11 +43,18 @@ func _init(screen: ShiftScreen, event_log: EventLogService) -> void:
 
 ## A new run for `seed_value` with `recipe` as its starting deck: its stock from the profile, its
 ## deck dealt (a recipe with packs: its offer, the run waiting for its pick), wearing the
-## profile's badge pins (#122).
+## profile's badge pins (#122). With the guided recipe (guided_start), the guided run: its
+## scripted deal (_setup_run) and no pin.
 func new_run(seed_value: int, balance: BalanceDefinition, recipe: DeckDefinition) -> RunState:
 	var run: RunState = _dealt_run(seed_value, balance, recipe)
-	RunPins.wear(run, ProfilePins.worn(_screen.profile, _screen._catalogue))
+	if not run.guided:
+		RunPins.wear(run, ProfilePins.worn(_screen.profile, _screen._catalogue))
 	return run
+
+
+## The guided first run's definition (the tutorial): new_run with its recipe starts that run.
+static func guided_start() -> GuidedStartDefinition:
+	return load(GUIDED_START) as GuidedStartDefinition
 
 
 func _dealt_run(seed_value: int, balance: BalanceDefinition, recipe: DeckDefinition) -> RunState:
@@ -80,7 +89,13 @@ func _setup_run(seed_value: int, balance: BalanceDefinition, recipe: DeckDefinit
 		profile,
 		_stream(seed_value, EventLogService.STOCK_AISLES_STREAM)
 	)
-	deal(run, profile)
+	# The guided first run (the tutorial): its fixed boosters and packs, no stream drawn. A
+	# definition the balance refuses deals as usual, and the run isn't guided.
+	var guide: GuidedStartDefinition = guided_start()
+	if guide.recipe != null and guide.recipe.id == recipe.id:
+		run.guided = StartSetupRules.deal_fixed(run, profile, guide) == &""
+	if not run.guided:
+		deal(run, profile)
 	return run
 
 
@@ -215,6 +230,9 @@ func _take(pack: StarterPackDefinition, chosen: bool) -> void:
 			}
 		)
 	_log.log_event("start_choice", event)
+	# The guided first run's shift 1 hand: its fixed cards in place order (RunPins.deal).
+	if run.guided:
+		run.kept = guided_start().hand_ids(run.deck.cards)
 	run.start_shift()
 	_screen._on_shift_started()
 
@@ -387,6 +405,9 @@ func wear_pins(ids: Array[StringName]) -> bool:
 ## How many of the profile's badge pins hold the packs for the BADGE PINS step
 ## (ProfilePins.start_gate: the packs wait while any).
 func _pins_gate() -> int:
+	# A guided run wears no pin and has no BADGE PINS step (a veteran's replay too).
+	if _screen.run != null and _screen.run.guided:
+		return 0
 	return ProfilePins.start_gate(_screen.profile, _screen._catalogue).size()
 
 
@@ -447,10 +468,13 @@ func mark_build() -> bool:
 
 
 ## A resumed run whose setup was saved in an older form: set up again from its seed,
-## wearing the profile's pins (saved by begin_if_choosing).
+## wearing the profile's pins (saved by begin_if_choosing); a guided run stays guided (its
+## scripted deal again, from its first step).
 func _restart_setup() -> void:
 	var old: RunState = _screen.run
-	var recipe: DeckDefinition = load(ShiftScreen.STARTER_DECK)
+	var recipe: DeckDefinition = (
+		guided_start().recipe if old.guided else load(ShiftScreen.STARTER_DECK) as DeckDefinition
+	)
 	_screen.run = new_run(old.run_seed, old.balance, recipe)
 
 

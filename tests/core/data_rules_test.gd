@@ -22,6 +22,8 @@ const NEUTRAL_SCRIPTS := [
 	"res://core/aisle_definition.gd",
 	"res://core/catalogue_definition.gd",
 	"res://core/pin_definition.gd",
+	"res://core/guided_start_definition.gd",
+	"res://core/guided_booster_spec.gd",
 ]
 const RULE_DIRS := ["res://core/rules", "res://core/upgrades", "res://core/inspections"]
 const UPGRADE_DIR := "res://data/upgrades"
