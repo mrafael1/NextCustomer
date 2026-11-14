@@ -36,6 +36,12 @@ extends Node
 ##
 ## A part of the shift screen, split out to keep that file short (like ShiftDebug): it works on
 ## the screen's run and display through the screen's own members.
+##
+## The tutorial (WP-5, the screen's ShiftGuide): its gate is asked before a chute's key is pressed
+## (CHUTE, by click or number key), before PUSH (by click or Enter), before a prize is kept (KEEP)
+## and before the SKIP bin bins the draw (SKIP); a refused one does nothing. The visit's moments go
+## out as MACHINE_ARMED, CHUTE_CHOSEN, PRIZE_KEPT (with PERK_TAKEN or IMPROVE_TAKEN), PRIZE_BINNED
+## and MACHINE_RETURNED.
 
 ## The glide back to the store is over (planning takes input again).
 signal returned
@@ -45,6 +51,15 @@ const DEBUG_SKIP_STEPS := 16
 ## A debug export (never the editor, the tests or a release) prints how long a visit's four odds
 ## cards took to compute when it opens (build spec 9's web check: under 150 ms on the web).
 const ODDS_TIMING_FEATURE := "template_debug"
+## The tutorial's names of the chutes (RewardMachine.Chute order) and of the prize kinds
+## (MachinePrize.Kind order).
+const CHUTE_IDS: Array[StringName] = [TutorialEvents.CHUTE_NEW_ITEMS, TutorialEvents.CHUTE_UPGRADE]
+const PRIZE_KINDS: Array[StringName] = [
+	TutorialEvents.PRIZE_ITEM,
+	TutorialEvents.PRIZE_COUPON,
+	TutorialEvents.PRIZE_PERK,
+	TutorialEvents.PRIZE_IMPROVE,
+]
 
 var view: RewardMachineView
 ## The upgraded copies: picked this shift (pending), shown the next one (see the class comment).
@@ -84,7 +99,7 @@ var _announce_prints: bool = true
 ## goes first, so the PASS IT plate never pulses hidden under its receipt (shifts 3, 5 and 7 are
 ## both inspected and premium).
 var _notice_wait: float = -1.0
-## The shift's opening notice (v0.68's training week, ShiftScreen.show_shift_notice) waits with
+## The shift's opening notice (v0.68's training week, show_shift_notice) waits with
 ## the bonus notice: for the glide back to end and the announce to print, so it never shows on
 ## the monitor behind the machine or under the PAYDAY receipt.
 var _shift_notice_due: bool = false
@@ -103,7 +118,12 @@ func setup(screen: ShiftScreen, event_log: EventLogService) -> RewardMachineView
 	view.keys_blocked = func() -> bool: return covered(screen)
 	view.chute_confirmed.connect(_on_chute_confirmed)
 	view.prize_picked.connect(_on_prize_picked)
-	view.binned.connect(_on_binned)
+	view.binned.connect(_on_bin_chosen)
+	for key: ChuteKey in view.keys:  # The tutorial's gate first (CHUTE): see the class comment.
+		if key.pressed.is_connected(view.press_key):
+			key.pressed.disconnect(view.press_key)
+		key.pressed.connect(_on_key_pressed)
+	view.tray.gui_input.connect(_on_tray_input)
 	view.odds_opened.connect(func(chute: int) -> void: _viewed.append(chute))
 	view.beat.connect(_on_beat)
 	view.finished.connect(_on_finished)
@@ -200,6 +220,29 @@ func open(resumed: bool) -> void:
 	if run.phase == RunState.Phase.MACHINE_PICK:
 		_odds = _shown_odds(run)
 		_timeline.mark_presented(Time.get_ticks_msec())
+
+
+## A run resumed after its checkout (MACHINE_CHOOSE or MACHINE_PICK): the row, its receipt (ended
+## as the dessert left it, with the next shift's inspection notice) and the LED's TOTAL as the
+## count-up left them (CHECKOUT up: none counted), then the visit as it waits (open(true)).
+func resume() -> void:
+	var screen: ShiftScreen = _screen
+	var run: RunState = screen.run
+	var shown: ScoreResult = DoubleCheckoutFlow.counted(run)
+	screen._show_checked_out(shown)
+	screen._ride.show_end_state(screen._row_views)
+	screen._receipt.show_shift_end(
+		shown.total,
+		run.quota(),
+		InspectionTag.next_notice(run.next_inspections),
+		", ".join(InspectionTag.names(InspectionDefinition.maluses(run.inspections)))
+	)
+	screen._count_up.show_end_state(shown, run.quota(), screen.count_up_context())
+	var record: ShiftRecord = run.history[-1]
+	var passed: bool = record.passed and record.inspection != null
+	var plan: CountUpPlan = screen._count_up.plan
+	screen._monitor.show_end_state(plan, screen._row_views, passed, shown, screen._scan.line_of)
+	open(true)  # No dessert: the visit shows as it waits, on a new timeline.
 
 
 ## Whether something covers the machine on `screen` (the handbook, the time card): its keys then
@@ -349,6 +392,7 @@ func _on_beat(beat_name: StringName, _t0: float) -> void:
 	var now: int = Time.get_ticks_msec()
 	if _screen.run.phase == RunState.Phase.MACHINE_CHOOSE:
 		_timeline.start_wait(now)
+		_screen.guide.emit(TutorialEvents.MACHINE_ARMED)
 	elif _screen.run.phase == RunState.Phase.MACHINE_PICK:
 		_timeline.mark_armed(now)
 
@@ -365,6 +409,7 @@ func _choose(chute: int) -> bool:
 		return false
 	_timeline.end_wait(Time.get_ticks_msec())
 	_odds = odds
+	_screen.guide.emit(TutorialEvents.CHUTE_CHOSEN, _chute_args(chute))
 	_screen._save_run()
 	Sfx.play_at(view, "print")
 	view.show_draw(run)
@@ -376,6 +421,8 @@ func _choose(chute: int) -> bool:
 ## item it swaps that out (plan section 2: at the deck limit there is no free spot, so taking a
 ## card means choosing one to remove); a perk or an upgrade is taken at once.
 func _on_prize_picked(index: int) -> void:
+	if not _screen.guide.allows(TutorialActions.KEEP, {TutorialEvents.ARG_INDEX: index}):
+		return
 	var run: RunState = _screen.run
 	var prize: MachinePrize = run.machine.prizes()[index]
 	if not prize.adds_card():
@@ -412,8 +459,26 @@ func _take(index: int, replaced: CardInstance) -> void:
 	view.visible = true
 	_landing = landing
 	pending_swaps.append_array(landing.upgraded)
+	_kept(landing.prize)
 	_screen._save_run()
 	view.land(landing)
+
+
+## The tutorial hears a prize kept: PRIZE_KEPT, and PERK_TAKEN for a loyalty perk or IMPROVE_TAKEN
+## for an IMPROVE.
+func _kept(prize: MachinePrize) -> void:
+	var guide: ShiftGuide = _screen.guide
+	guide.emit(TutorialEvents.PRIZE_KEPT, {TutorialEvents.ARG_KIND: PRIZE_KINDS[prize.kind]})
+	if prize.kind == MachinePrize.Kind.REGISTER:
+		guide.emit(TutorialEvents.PERK_TAKEN)
+	elif prize.kind == MachinePrize.Kind.UPGRADE:
+		guide.emit(TutorialEvents.IMPROVE_TAKEN)
+
+
+## The SKIP bin was pressed: the draw is binned, unless the tutorial's gate refuses (SKIP).
+func _on_bin_chosen() -> void:
+	if _screen.guide.allows(TutorialActions.SKIP):
+		_on_binned()
 
 
 func _on_binned() -> void:
@@ -424,6 +489,7 @@ func _on_binned() -> void:
 		return
 	_log_visit(cart_full, timing)
 	_landing = null
+	_screen.guide.emit(TutorialEvents.PRIZE_BINNED)
 	_screen._save_run()
 	view.land(null)
 
@@ -523,6 +589,7 @@ func _end_return() -> void:
 	if not shown_swaps.is_empty():
 		_swap_wait = 0.0
 	returned.emit()
+	_screen.guide.emit(TutorialEvents.MACHINE_RETURNED)
 
 
 ## The shift's opening notice, if it has one, once planning takes input.
@@ -532,7 +599,15 @@ func _play_shift_notice() -> void:
 	_shift_notice_due = false
 	var run: RunState = _screen.run
 	if run != null and run.phase == RunState.Phase.PLANNING:
-		_screen.show_shift_notice()
+		show_shift_notice(_screen)
+
+
+## The notice a shift opens with (v0.68, WriteUp.shift_notice): after a slip, or on the first
+## shift after the training week (a resume shows it again), once planning takes input.
+static func show_shift_notice(screen: ShiftScreen) -> void:
+	var line: String = WriteUp.shift_notice(screen.run)
+	if not line.is_empty():
+		screen._notice_label.show_next(line)  # After a notice the player raised (#132's gun).
 
 
 ## The planning notice's pulse, when passing the shift earns the bonus ticket.
@@ -555,6 +630,72 @@ func _play_announce() -> void:
 
 func _reduced() -> bool:
 	return _screen.profile.reduced_motion()
+
+
+## The tutorial's name of `chute` (CHUTE's and CHUTE_CHOSEN's arg).
+static func chute_id(chute: int) -> StringName:
+	return CHUTE_IDS[chute] if chute >= 0 and chute < CHUTE_IDS.size() else &""
+
+
+## A chute's key clicked: pressed (the view's press_key) unless the tutorial's gate refuses it
+## while the visit waits for its chute.
+func _on_key_pressed(chute: int) -> void:
+	if _choosing() and not _screen.guide.allows(TutorialActions.CHUTE, _chute_args(chute)):
+		return
+	view.press_key(chute)
+
+
+## A click on the tray's push bar while it offers PUSH: the tutorial's gate first (PUSH); a
+## refused one is taken here, so the bar never goes down.
+func _on_tray_input(event: InputEvent) -> void:
+	var press: InputEventMouseButton = event as InputEventMouseButton
+	if not (press and press.pressed and press.button_index == MOUSE_BUTTON_LEFT):
+		return
+	if _pushable() and not _screen.guide.allows(TutorialActions.PUSH):
+		view.tray.accept_event()
+
+
+## The machine's number keys and Enter at the chute wait (RewardMachineView's KEYS) ask the
+## tutorial's gate first (CHUTE, PUSH): a refused key is taken here, before the view reads it. A
+## prize's number key is gated where the pick arrives (_on_prize_picked).
+func _unhandled_key_input(event: InputEvent) -> void:
+	if not _screen.guide.gate.is_valid() or not _choosing():
+		return
+	var key: InputEventKey = event as InputEventKey
+	if key == null or not key.pressed or key.echo or key.alt_pressed:
+		return
+	var number: int = maxi(
+		RewardMachineView.KEY_NUMBERS.find(key.keycode),
+		RewardMachineView.KEYPAD_NUMBERS.find(key.keycode)
+	)
+	var enter: bool = key.keycode == KEY_ENTER or key.keycode == KEY_KP_ENTER
+	var allowed: bool = true
+	if number >= 0 and number < view.keys.size():
+		allowed = _screen.guide.allows(TutorialActions.CHUTE, _chute_args(number))
+	elif enter and _pushable():
+		allowed = _screen.guide.allows(TutorialActions.PUSH)
+	if not allowed:
+		get_viewport().set_input_as_handled()
+
+
+## Whether the visit waits for its chute and takes the keys now: armed and shown, nothing covering
+## it, the push not yet going through.
+func _choosing() -> bool:
+	var run: RunState = _screen.run
+	if run == null or run.phase != RunState.Phase.MACHINE_CHOOSE or not view.is_armed():
+		return false
+	if not view.is_visible_in_tree() or bool(view.keys_blocked.call()):
+		return false
+	return not view.tray.confirm_down()
+
+
+## Whether a click or Enter would push the bar now.
+func _pushable() -> bool:
+	return _choosing() and view.tray.confirm_offered()
+
+
+func _chute_args(chute: int) -> Dictionary:
+	return {TutorialEvents.ARG_CHUTE: chute_id(chute)}
 
 
 ## The store `t` seconds into the glide back: the camera, the cut's fade, the fore, the machine's

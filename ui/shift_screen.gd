@@ -8,32 +8,24 @@ extends Control
 ## at every stable point and resumed when the screen opens (full build plan section 4); the debug
 ## tools live in ShiftDebug.
 ##
-## Click-to-place: click a hand card to pick it up, then click a slot to put it there (a filled slot
-## pushes the cards from there to the right). Click a row card to pick it back up. Drag-and-drop
-## does the same (CardDrag): drop on a slot to place, anywhere else to let go. Hand items keep their
-## places (plan section 3.8): one placed on the belt leaves its place empty and one taken back
-## returns to it.
+## Click-to-place: click a hand card, then a slot (a filled slot pushes the cards right); click a
+## row card to pick it back up; drag-and-drop does the same (CardDrag). Hand items keep their
+## places (plan section 3.8). The row's slot_count general slots are compacted (v0.46, RowCapacity).
 ##
-## The basket redraw (plan section 3.8; mock-up redraw_basket_v1.html): the Redraw key arms redraw
-## mode ("Pick a basket", with Cancel), each basket that can be redrawn shows a REDRAW tag
-## (BasketTags) and the monitor explains (RedrawPanel); clicking one redraws it at once (logged and
-## saved) and BasketRedraw plays the motion, every click blocked until it ends. Redraw mode ends
-## with the click.
+## The basket redraw (plan section 3.8): the Redraw key arms redraw mode (BasketTags' REDRAW tags,
+## the monitor's RedrawPanel); a basket click redraws it at once (logged and saved) and
+## BasketRedraw plays the motion, every click blocked until it ends.
 ##
-## The row has slot_count general slots (plan section 3.1, v0.46): any card fits any free slot. The
-## row is compacted, so its slots alone show the capacity, and RowCapacity enforces it.
+## The layout (#55) is ShiftStage's 1280x720 stage, centred over a wall and a counter. The store
+## is in the StoreCamera (#77 machine v2), which glides to the machine at 2x for its visits and
+## back (MachineFlow); the top band and the hud never zoom. Planning input waits for the glide.
 ##
-## The layout (#55; full build plan section 6.1) is ShiftStage's: a 1280x720 stage centred in the
-## window over a wall and a counter that fill it. The screen keeps its own names for the stage's
-## controls and fills them. Machine v2 (#77, Q1 = A): the store (the backdrop and the stage's world,
-## with the machine on the back wall) is in the StoreCamera, which glides to the machine at 2x for
-## its visits and back after the last one (MachineFlow); the top band and the stage's hud (the top
-## bar, the scan and popup layers) never zoom. Planning input waits for the glide back.
-##
-## Sounds (#62) play on the screen's own Sfx, warmed up when it opens: cards picked up, placed and
-## let go, refusals, the redraw, CHECKOUT and the log export here, a prize in MachineFlow; buttons
-## and panels in UiKit, drag slot ticks in CardDrag, music in ShiftMusic. The only hover sound is
-## the scanner's beep (#75, ScanController), played once a hover on an item is held.
+## Sounds (#62) play on the screen's Sfx: cards picked up, placed and let go, refusals, the redraw,
+## CHECKOUT and the log export here; the rest in MachineFlow, UiKit, CardDrag and ShiftMusic.
+## The tutorial (WP-5) asks ShiftGuide's gate before a move and hears its hooks (guide_event).
+
+## The tutorial's hooks (TutorialEvents): sent at all times, guided or not (ShiftGuide).
+signal guide_event(event: StringName, args: Dictionary)
 
 ## The game's starting deck: a recipe (v0.49) dealt from each run's stock (StartingDeck).
 const STARTER_DECK := "res://data/decks/pack_starter.tres"
@@ -52,6 +44,8 @@ var changes_scene: bool = true
 ## run ends. A run restarted before its end records nothing.
 var profile: ProfileState
 var tracker: CheckoutTracker = CheckoutTracker.new()
+## The tutorial's gate, hooks and anchors (WP-5): its gate is null outside a tutorial.
+var guide: ShiftGuide
 var _picked: CardInstance
 ## True when the picked card was taken from the row: placing it again is a move (plan 8:
 ## 1 placement, 0 removals); only leaving it in the hand counts as a removal.
@@ -192,8 +186,7 @@ func _on_cart_reveal_finished() -> void:
 
 
 ## Development tools only (the screen capture in debug/): shows the run's current shift as the
-## caller set it up on `run` (its upgrades, inspections, hand and row), like a shift that just
-## started: logs shift_start, redraws and saves.
+## caller set it up on `run`, like a shift that just started: logs shift_start, redraws and saves.
 func debug_show_shift() -> void:
 	_on_shift_started()
 
@@ -217,14 +210,6 @@ func _on_shift_started() -> void:
 	_refresh()
 	_save_run()
 	_machine.shift_started()  # Shows the shift's notice once planning takes input.
-
-
-## The notice a shift opens with (v0.68, WriteUp.shift_notice): after a slip, or on the first
-## shift after the training week (a resume shows it again), once planning takes input.
-func show_shift_notice() -> void:
-	var notice: String = WriteUp.shift_notice(run)
-	if not notice.is_empty():
-		_notice_label.show_next(notice)  # After a notice the player raised (#132's gun).
 
 
 ## Continues a saved run where it stopped (full build plan section 4), under its run id and with
@@ -253,22 +238,7 @@ func _resume_run(saved: RunSave) -> void:
 	if run.phase == RunState.Phase.PLANNING:
 		_machine.shift_started(false)
 		return
-	# After the checkout: the row, its receipt (ended as the dessert left it, with the next shift's
-	# inspection notice) and the LED's TOTAL as the count-up left them (CHECKOUT up: none counted).
-	var shown: ScoreResult = DoubleCheckoutFlow.counted(run)
-	_show_checked_out(shown)
-	_ride.show_end_state(_row_views)
-	_receipt.show_shift_end(
-		shown.total,
-		run.quota(),
-		InspectionTag.next_notice(run.next_inspections),
-		", ".join(InspectionTag.names(InspectionDefinition.maluses(run.inspections)))
-	)
-	_count_up.show_end_state(shown, run.quota(), count_up_context())
-	var record: ShiftRecord = run.history[-1]
-	var passed: bool = record.passed and record.inspection != null
-	_monitor.show_end_state(_count_up.plan, _row_views, passed, shown, _scan.line_of)
-	_machine.open(true)  # No dessert: the visit shows as it waits, on a new timeline.
+	_machine.resume()  # After the checkout: the shift as the count-up left it, then the visit.
 
 
 ## Saves the profile now (the debug panel's Profile tools); false (reported) when it can't be.
@@ -316,7 +286,7 @@ func _on_hand_card_clicked(view: CardView) -> void:
 	if _picked == view.card:
 		# Let go on the release, unless the press becomes a drag of the picked card.
 		_drag.arm(view.card, get_viewport().get_mouse_position(), true)
-	else:
+	elif guide.may_pick(view.card):  # The tutorial's gate: only from a basket.
 		_pick(view.card, false)
 		_sfx.play("card_pickup")
 		_explain_if_refused()
@@ -372,10 +342,13 @@ func _let_go(dragged: bool = false) -> void:
 
 ## Where a dropped card would land: the row is compacted, so a slot past the end is the end.
 func _landing_slot(card: CardInstance, slot: int) -> int:
-	return mini(slot, run.row.size()) if run.can_place(card) else -1
+	var at: int = mini(slot, run.row.size())
+	return at if run.can_place(card) and guide.may_place(card, at, true) else -1
 
 
 func _place_picked(slot: int, dragged: bool = false) -> void:
+	if not guide.may_place(_picked, mini(slot, run.row.size())):
+		return  # The tutorial's gate (a refused drop goes back to the hand).
 	if run.place(_picked, slot):
 		tracker.on_place(dragged)
 		_sfx.play("card_place")
@@ -384,6 +357,7 @@ func _place_picked(slot: int, dragged: bool = false) -> void:
 		_picked = null
 		_picked_from_row = false
 		_refresh()
+		guide.moved(_last_placed)
 		_save_run()
 	else:
 		_explain_if_refused()
@@ -399,12 +373,14 @@ func _pick(card: CardInstance, from_row: bool) -> void:
 	_drop_pick()
 	_picked = card
 	_picked_from_row = from_row
+	guide.picked(card, from_row)
 
 
 ## Lets go of the picked card. A card taken from the row stays in the hand: a removal.
 func _drop_pick(dragged: bool = false) -> void:
 	if _picked != null and _picked_from_row:
 		tracker.on_remove(dragged)
+		guide.moved(_picked, true)
 	_picked = null
 	_picked_from_row = false
 
@@ -421,6 +397,8 @@ func _on_background_input(event: InputEvent) -> void:
 ## out as Cancel does.
 func _on_redraw_pressed() -> void:
 	if _busy() or _redraw_busy or run.phase != RunState.Phase.PLANNING:
+		return
+	if not guide.allows(TutorialActions.REDRAW):
 		return
 	if _redraw_mode:
 		_redraw_mode = false
@@ -447,6 +425,8 @@ func _on_cancel_pressed() -> void:
 func _on_basket_clicked(basket: int) -> void:
 	if not _redraw_mode or _redraw_busy or _busy() or not run.can_redraw_basket(basket):
 		return
+	if not guide.allows(TutorialActions.BASKET, {TutorialEvents.ARG_BASKET: basket}):
+		return
 	var before: Array[CardInstance] = run.hand_places()
 	var places: Array[int] = run.redraw_basket(basket)
 	if places.is_empty():
@@ -464,6 +444,7 @@ func _on_basket_clicked(basket: int) -> void:
 	_log.log_event("redraw", RunEvents.redraw(basket, places, replaced, received))
 	_redraw_mode = false
 	_redraw_busy = true
+	guide.emit(TutorialEvents.REDRAW_DONE, {TutorialEvents.ARG_BASKET: basket})
 	_save_run()
 	var tuning: RedrawTuning = _basket_redraw.tuning
 	var reduced: bool = profile.reduced_motion()
@@ -516,8 +497,11 @@ func _refresh_redraw() -> void:
 func _on_checkout_pressed() -> void:
 	if _busy() or _redraw_busy or run.phase != RunState.Phase.PLANNING:
 		return
+	if not guide.allows(TutorialActions.CHECKOUT):
+		return
 	if await _pins.take_day_off():  # #132: a Day off's pile on the belt: CHECKOUT takes it.
 		return
+	guide.emit(TutorialEvents.CHECKOUT_STARTED)
 	# No key sound: the count's start dings the service bell (ShiftStage, play test 2026-11-09).
 	_counting = true
 	_stage.gold_flow.begin_award()  # No medal flown yet: the case reads this checkout's alone.
@@ -587,6 +571,7 @@ func _on_checkout_pressed() -> void:
 	var count_ms: int = _click_ms + _stage.medal_prelude.played_ms  # The count's own length.
 	_log.log_event("count_up", RunEvents.count_up_of(_count_up, shift, count_ms, context))
 	_counting = false
+	guide.counted(run)  # COUNT_FINISHED, and MISS.
 	_refresh_bar()  # The day calendar's EARNED (#77 machine v2).
 	_cabinet.set_total_down(false)
 	_stage.dim_hand(false)
@@ -603,10 +588,8 @@ func _on_checkout_pressed() -> void:
 		_show_results(result)
 
 
-## What the count-up knows about the run (#60, D3): the shift, the best checkout of the run's
-## earlier shifts, the player's speed and reduced motion settings, and the receipt's header.
-## Called after RunState.checkout(), which has already added the shift being counted to the
-## history: its record (the last) is left out.
+## What the count-up knows about the run (#60, D3): the shift, the best earlier checkout (called
+## after RunState.checkout(): the last record is left out), the speed, reduced motion, the header.
 func count_up_context() -> CountUpContext:
 	var context: CountUpContext = CountUpContext.new(
 		run.shift_index + 1,
@@ -651,7 +634,7 @@ func _on_deck_closed() -> void:
 
 
 func _on_deck_button_pressed() -> void:
-	if _busy() or _redraw_busy:
+	if _busy() or _redraw_busy or not guide.allows(TutorialActions.OPEN_DECK):
 		return
 	# During a visit, once the machine has armed (plan 8's armed_ms); it comes back on close.
 	if _machine.is_open():
@@ -763,7 +746,7 @@ func _refresh_hand() -> void:
 
 func _refresh_buttons() -> void:
 	var planning: bool = run.phase == RunState.Phase.PLANNING and not _counting and not _redraw_busy
-	_checkout_button.disabled = not planning
+	_checkout_button.disabled = not planning or not guide.asks(TutorialActions.CHECKOUT)
 	var left: int = run.redraws_allowed - run.redraws_used
 	for view: ItemView in item_views():  # Live factors (#128 v3: Stale popcorn's ×N).
 		view.sticker().redraws_left = left
@@ -778,6 +761,7 @@ func _refresh_buttons() -> void:
 func _refresh_preview() -> void:
 	var result: ScoreResult = DoubleCheckoutFlow.on_from_row_one(run, run.preview())
 	tracker.on_preview(run.row.size(), result.total)
+	guide.projected(result.total, run.quota())
 	_show_planning(result)
 	_show_projected(result)
 
@@ -844,6 +828,7 @@ func _show_belt(result: ScoreResult, paid: bool = false) -> void:
 ## loop now, the coins' duck when they print).
 func _show_results(result: ScoreResult) -> void:
 	ShiftMusic.results_shown(_music)
+	guide.results(run)
 	_results.show_results(run, result, profile.coins if _profile_saved else -1, _music)
 
 
@@ -862,6 +847,7 @@ func _process(_delta: float) -> void:
 
 func _build() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
+	guide = ShiftGuide.new(self, guide_event)
 	_camera = StoreCamera.new()
 	add_child(_camera)
 	_wall = StoreBackdrop.screen_parts(_camera.content, _balance.aisles)
@@ -980,14 +966,17 @@ func _build() -> void:
 	_glyph_tips.reduced_motion = _monitor.reduced_motion
 	add_child(_glyph_tips)
 	_effects.watch_glyphs(_glyph_tips, _deck_view)  # A glyph's family lights (#105 piece 3).
-	HandbookPage.mount(self, _glyph_tips, _top_bar as TopBar)  # The staff handbook (v1.06).
+	guide.watch(HandbookPage.mount(self, _glyph_tips, _top_bar as TopBar))  # The handbook (v1.06).
 	_pause = PauseFlow.new(self, _log)
 
 
-## Scanning the counter's items is off while the shift is counted, an item is dragged, outside
-## planning (the machine or the results are up), while the deck view or the time card is open and
-## in redraw mode (armed, or its motion playing). The machine's prize items are scanned while it
-## accepts clicks (RewardMachineView.can_scan).
+## The tutorial anchor `id`'s rect (TutorialAnchors), global; Rect2() when it isn't shown.
+func anchor_rect(id: StringName) -> Rect2:
+	return guide.anchor_rect(id)
+
+
+## Scanning the counter's items is off while counting or dragging, outside planning, under the
+## deck view or the time card and in redraw mode (the machine's: RewardMachineView.can_scan).
 func _scan_blocked() -> bool:
 	var planning: bool = run != null and run.phase == RunState.Phase.PLANNING
 	var redrawing: bool = _redraw_mode or _redraw_busy or _week.is_open()
