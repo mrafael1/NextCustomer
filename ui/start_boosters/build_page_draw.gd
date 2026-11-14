@@ -589,6 +589,7 @@ static func _pins_board(pen: ArtPen, page: BuildPage) -> void:
 static func _deck(pen: ArtPen, page: BuildPage) -> void:
 	var used: bool = page.run.start_setup.packs_redrawn
 	var held: bool = page.packs_held()
+	var locked: bool = StartBoardActions.is_locked(page.actions, TutorialAnchors.NEWPACKS)
 	var live: bool = deck_live(page)
 	var hv: bool = live and page.is_hovered("newpacks")
 	var hu: float = page.now - page.deck_hop
@@ -620,11 +621,16 @@ static func _deck(pen: ArtPen, page: BuildPage) -> void:
 		1.0,
 		HORIZONTAL_ALIGNMENT_CENTER
 	)
-	pen.nine(BoosterArt.COIN_LED, kx + kw - 12, ky + 5, 6, 6, Vector4i(1, 1, 1, 1))
+	if locked:
+		pen.tex(BoosterArt.PADLOCK, kx + kw - 13, ky + 3)
+	else:
+		pen.nine(BoosterArt.COIN_LED, kx + kw - 12, ky + 5, 6, 6, Vector4i(1, 1, 1, 1))
 	if live:
 		var on: bool = page.rm or int(floorf(page.now * 2)) % 2 == 1
 		pen.r(kx + kw - 11, ky + 6, 4, 4, Palette.GOLD if on else Palette.MUSTARD)
 	var sub: String = "ONCE A RUN" if used else ("AFTER PINS" if held else "KEEPS YOUR PICK")
+	if locked:
+		sub = BoosterChromeDraw.LOCKED_TEXT
 	pen.caps(
 		sub,
 		kx + kw / 2.0,
@@ -639,10 +645,12 @@ static func _deck(pen: ArtPen, page: BuildPage) -> void:
 		pen.tex(BoosterArt.TICK, deck.x - 12, deck.y + CH / 2.0)
 
 
-## Whether the deck pile takes a click (NEW PACKS still to use, the packs dealt, the step shut).
+## Whether the deck pile takes a click (NEW PACKS still to use and not locked by the tutorial,
+## the packs dealt, the step shut).
 static func deck_live(page: BuildPage) -> bool:
 	return (
 		not page.run.start_setup.packs_redrawn
+		and not StartBoardActions.is_locked(page.actions, TutorialAnchors.NEWPACKS)
 		and not page.packs_held()
 		and page.dealt
 		and not page.pins_open

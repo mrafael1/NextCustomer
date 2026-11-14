@@ -120,6 +120,9 @@ func open_booster(index: int, via: String = "click") -> bool:
 		return false
 	_start_open(opening, false, false, 0.0)
 	page.set_hint("WAIT FOR THE ? CARD" if opening.hits.has(true) else "")
+	StartBoardActions.emit(
+		page.actions, TutorialEvents.BOOSTER_OPENED, {TutorialEvents.ARG_INDEX: index}
+	)
 	return via != ""
 
 
@@ -181,6 +184,10 @@ func open_all(via: String = "key") -> bool:
 			target.flip_at[entry[1] as int] = g - (entry[2] as float)
 			target.antic[entry[1] as int] = g - (entry[2] as float) - 0.05
 	page.set_hint("")
+	for opening: BoosterOpening in sealed:
+		StartBoardActions.emit(
+			page.actions, TutorialEvents.BOOSTER_OPENED, {TutorialEvents.ARG_INDEX: opening.index}
+		)
 	return via != ""
 
 

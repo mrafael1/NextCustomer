@@ -27,6 +27,10 @@ func arm_restock() -> bool:
 	page.restock_armed = not page.restock_armed
 	page.fx.sfx("ui_open" if page.restock_armed else "ui_close", -6.0)
 	page.set_hint("PICK A BOOSTER TO RETURN" if page.restock_armed else "")
+	StartBoardActions.emit(
+		page.actions,
+		TutorialEvents.RESTOCK_ARMED if page.restock_armed else TutorialEvents.RESTOCK_CANCELLED
+	)
 	return true
 
 
@@ -106,6 +110,9 @@ func restock(index: int) -> bool:
 	page.complete_t = INF
 	page.stocked_t = INF
 	page.set_hint("OPEN IT AGAIN")
+	StartBoardActions.emit(
+		page.actions, TutorialEvents.RESTOCK_DONE, {TutorialEvents.ARG_INDEX: index}
+	)
 	return true
 
 

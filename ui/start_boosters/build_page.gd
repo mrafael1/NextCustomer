@@ -350,6 +350,7 @@ func pick_pack(index: int, _via: String = "click") -> bool:
 	cue(now + 0.3, sfx.bind("armed", -6.0))
 	set_hint("")
 	_sync_order()
+	StartBoardActions.emit(actions, TutorialEvents.PACK_PICKED, {TutorialEvents.ARG_INDEX: index})
 	return true
 
 
@@ -410,6 +411,10 @@ func _skip_deal() -> void:
 ## The primary key (Enter, a click): the pins' confirm, the pins step, a skip, TAKE PACK, or OPEN
 ## STORE.
 func primary(via: String = "key") -> bool:
+	# A click on the key asked its hit already (click); the pins step's key is its confirm.
+	var id: StringName = TutorialAnchors.PINS_CONFIRM if pins_open else TutorialAnchors.PRIMARY
+	if via != "click" and flight == null and not StartBoardActions.hit_allowed(actions, id):
+		return false
 	var used: bool = true
 	if flight != null:
 		flight.skip(now)
@@ -437,6 +442,7 @@ func open_store() -> bool:
 		return false
 	var pack: StarterPackDefinition = run.start_offer.packs[picked()]
 	flight = StoreFlight.new(self, pack)
+	StartBoardActions.emit(actions, TutorialEvents.STORE_OPENED)
 	if rm:
 		flight = null
 		store_opened.emit(pack)
@@ -469,7 +475,9 @@ func sfx(sound: String, volume_db: float = 0.0, pitch: float = 1.0) -> void:
 func handle_key(keycode: Key) -> bool:
 	var number: int = [KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8, KEY_9].find(keycode)
 	var used: bool = false
-	if keycode == KEY_ESCAPE:
+	if not StartBoardActions.hit_allowed(actions, _key_hit(keycode, number)):
+		used = false
+	elif keycode == KEY_ESCAPE:
 		used = pins.close()
 	elif keycode in [KEY_ENTER, KEY_KP_ENTER, KEY_SPACE]:
 		used = primary("key")
@@ -484,6 +492,40 @@ func handle_key(keycode: Key) -> bool:
 	elif keycode == KEY_P:
 		used = pins.open(now)
 	return used
+
+
+## The hit a page-2 key acts as, for the tutorial's gate (&"": never asked: Esc, Enter and Space,
+## which primary asks, unused keys): 1-9 a pin row in the pins step, else 1-3 a pack, N NEW PACKS,
+## P the corkboard.
+func _key_hit(keycode: Key, number: int) -> StringName:
+	var id: StringName = &""
+	if keycode in [KEY_ESCAPE, KEY_ENTER, KEY_KP_ENTER, KEY_SPACE] or flight != null:
+		id = &""
+	elif pins_open:
+		id = TutorialAnchors.indexed(TutorialAnchors.PIN_ROW, number) if number >= 0 else &""
+	elif number >= 0 and number < 3:
+		id = TutorialAnchors.pack(number)
+	elif keycode == KEY_N:
+		id = TutorialAnchors.NEWPACKS
+	elif keycode == KEY_P:
+		id = TutorialAnchors.PINS
+	return id
+
+
+## The tutorial's id for this frame's hit `entry` (&"": never asked: a modal's background, which
+## only says what to do): a pin row, the pins step's confirm, else the hit's own id.
+func _hit_id(entry: Dictionary) -> StringName:
+	var id: String = entry.id
+	if id.begins_with("modal"):
+		return &""
+	if id == "pinsok":
+		return TutorialAnchors.PINS_CONFIRM
+	if id.begins_with("pin_"):
+		var owned: Array[PinDefinition] = pins.owned()
+		for k: int in owned.size():
+			if "pin_%s" % owned[k].id == id:
+				return TutorialAnchors.indexed(TutorialAnchors.PIN_ROW, k)
+	return StringName(id)
 
 
 ## Why pack `index` can't be picked now ("-": silently), or "" when it can. A running deal lands.
@@ -513,6 +555,8 @@ func _pick_refusal(index: int) -> String:
 func _new_packs_refusal() -> String:
 	var why: String = ""
 	if flight != null or pins_open or run == null:
+		why = "-"
+	elif StartBoardActions.is_locked(actions, TutorialAnchors.NEWPACKS):
 		why = "-"
 	elif packs_held():
 		why = "PACKS DEAL AFTER PINS"
@@ -552,7 +596,7 @@ func click(at: Vector2) -> void:
 		var entry: Dictionary = hits[k]
 		if (entry.rect as Rect2).has_point(at):
 			var act: Callable = entry.act
-			if act.is_valid():
+			if act.is_valid() and StartBoardActions.hit_allowed(actions, _hit_id(entry)):
 				act.call()
 			return
 
@@ -568,6 +612,10 @@ func _update_hover() -> void:
 		hover_id = found
 		if hovered_pack() != was and run != null:
 			_sync_order()
+			if hovered_pack() >= 0:
+				StartBoardActions.emit(
+					actions, TutorialEvents.PACK_HOVERED, {TutorialEvents.ARG_INDEX: hovered_pack()}
+				)
 	var live: bool = found != "" and not found.begins_with("modal")
 	mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if live else Control.CURSOR_ARROW
 
