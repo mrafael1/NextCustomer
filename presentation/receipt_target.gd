@@ -18,9 +18,10 @@ extends Control
 ## planning a new projection rolls the hero to it (`roll`, ReceiptRoll); the count stops the roll.
 ## While planning's projection would spend a week medal still free this week (ReceiptGold's
 ## pending metal, WeekMedals.pending_of; gold over silver) the PROJECTED digits take that metal in
-## its darker shades with a darker shadow, so they read on the cream paper (the user's play test
-## of 2026-11-09); plain ink otherwise, and the count's TOTAL always ink (the paper's metal says
-## it).
+## its darker shades over a light shadow, so they read on the cream paper (the user's play test
+## of 2026-11-09; the shadow lightened in polish batch 2, a dark one striped the digits at 720p);
+## plain ink otherwise, and the count's TOTAL always ink (the paper's metal says it). The line
+## against the target keeps OVER_INSET_RIGHT off the paper's edge.
 
 ## BEAT, then the caption after it: the receipt's mono font at CAPTION_SIZE, letter-spaced, in ink.
 const BEAT_TEXT := "MEET"
@@ -36,10 +37,10 @@ const COLOR := Palette.TOMATO_DARK
 const MET_COLOR := Palette.GREEN_DARK
 const HERO_COLOR := Palette.INK
 ## The PROJECTED hero's body and shadow while a medal is pending (show_pending_metal).
-const SILVER_HERO_COLOR := Palette.STEEL_SHADE
-const SILVER_HERO_SHADOW := Palette.STEEL_DARKEST
+const SILVER_HERO_COLOR := Palette.STEEL_DARK
+const SILVER_HERO_SHADOW := Palette.STEEL_LIGHT
 const GOLD_HERO_COLOR := Palette.MUSTARD_DARK
-const GOLD_HERO_SHADOW := Palette.BRASS_DARKEST
+const GOLD_HERO_SHADOW := Palette.MUSTARD_LIGHT
 const NO_SHADOW := Color(0, 0, 0, 0)
 ## The hero's and the target's font cells, the first whose hero fits the head's width (less its
 ## insets): the hero always 1.5x the target or more.
@@ -51,6 +52,7 @@ const CHECK_GAP := 8.0
 ## little in from the rows' minis, the hero and the line against the target near the paper's edge).
 const INSET := 10.0
 const INSET_RIGHT := 2.0
+const OVER_INSET_RIGHT := 8.0
 const BEAT_TOP := 4.0
 const TARGET_TOP := 26.0
 const TARGET_BOX := 32.0
@@ -88,6 +90,8 @@ const TOTAL_TEXT := "TOTAL"
 ## rows), at STAMP_SIZE; the words are sized to leave it the room of its text (a pass's PAID, a
 ## miss's longest slip STAMP_ROOM_TEXT), down to WORDS_MIN_SIZE, and again as it lands.
 const STAMP_SIZE := 14
+## The gap between the margin words and the stamp (polish batch 2: PAID butted against ON QUOTA).
+const STAMP_GAP := 10
 const STAMP_ROOM_TEXT := "MISS 0/0"
 const WORDS_MIN_SIZE := ReceiptView.VERDICT_MIN_FONT_SIZE
 
@@ -155,6 +159,7 @@ func _init() -> void:
 	over_row = HBoxContainer.new()
 	over_row.name = "OverRow"
 	over_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	over_row.add_theme_constant_override("separation", STAMP_GAP)
 	add_child(over_row)
 	over = _label("", ROW_SIZE, Palette.GREEN_DARK)
 	over.name = "Over"
@@ -485,7 +490,7 @@ func _layout() -> void:
 	total_caption.position = Vector2(INSET, ROW_TOP)
 	var over_left: float = INSET + total_caption.size.x + BEAT_GAP
 	over_row.position = Vector2(over_left, ROW_TOP)
-	over_row.size = Vector2(width - INSET_RIGHT - over_left, total_caption.size.y)
+	over_row.size = Vector2(width - OVER_INSET_RIGHT - over_left, total_caption.size.y)
 	hero.size = hero.get_combined_minimum_size()
 	hero.position = Vector2(
 		_even(width - INSET_RIGHT - _shadow_reach() - hero.size.x),

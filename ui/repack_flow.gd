@@ -123,7 +123,8 @@ func _place_at(card: CardInstance, screen_position: Vector2) -> int:
 		if not RunPins.can_repack(_screen.run, from, place):
 			continue
 		var corner: Vector2 = to_screen * hand.place_position(place)
-		var rect: Rect2 = Rect2(corner, to_screen.basis_xform(ItemView.BASKET_SIZE))
+		var cell: Vector2 = ItemView.BASKET_SIZE * hand.item_scale()
+		var rect: Rect2 = Rect2(corner, to_screen.basis_xform(cell))
 		if rect.abs().has_point(screen_position):
 			return place
 	return -1
@@ -147,6 +148,7 @@ func _add_mark(place: int) -> RepackMark:
 	var mark: RepackMark = RepackMark.new(place)
 	hand.get_parent().add_child(mark)
 	mark.position = hand.position + hand.place_position(place)
+	mark.scale = Vector2.ONE * hand.item_scale()
 	return mark
 
 

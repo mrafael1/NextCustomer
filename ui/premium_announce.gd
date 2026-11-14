@@ -23,6 +23,9 @@ extends Control
 ## fading out on the way, and the announce is then over (is_shown() false). Reduced motion shows
 ## a payday's receipt still, with no print, sunburst or sparkles, then takes it away at once
 ## (FLY_FROM); a resumed payday shows nothing.
+## While the receipt is on the monitor a shade dims the monitor's planning content under it and
+## the sunburst (SHADE_COLOR, fading in before the print and out with the flight; polish batch 2:
+## the brief's header and panel edge showed round the slip), so the slip never looks pasted on.
 ## Drawn in code on the screen's own coordinates, at the art's 2 px grid.
 
 ## The mock-up's times (s): the print, the flight to the tag.
@@ -47,6 +50,8 @@ const FLOWN_SCALE := 0.5
 const BURST_RADIUS := 200.0
 const BURST_SPIN := 0.5
 const BURST_SHADER := preload("res://presentation/dither_burst.gdshader")
+## The shade over the monitor's content while the receipt is on it (ink, nearly opaque).
+const SHADE_COLOR := Color(Palette.INK, 0.86)
 ## The tag: its height and its shortest width (it is as wide as its text: tag_width()), how far it
 ## reaches into the monitor's screen under the top bezel (the brief's text starts lower), and its
 ## gap from the screen's left edge. Its text starts TAG_TEXT_X px in (the eyelet and the star
@@ -96,6 +101,8 @@ var _time: float = 0.0
 ## The sunburst, in a clip over the monitor's screen, drawn behind the receipt.
 var _burst_clip: Control
 var _burst: ColorRect
+## The shade over the monitor's content, in the same clip, behind the sunburst.
+var _shade: ColorRect
 
 
 func _init() -> void:
@@ -109,6 +116,11 @@ func _init() -> void:
 	_burst_clip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_burst_clip.visible = false
 	add_child(_burst_clip)
+	_shade = ColorRect.new()
+	_shade.name = "Shade"
+	_shade.color = SHADE_COLOR
+	_shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_burst_clip.add_child(_shade)
 	_burst = ColorRect.new()
 	_burst.name = "Burst"
 	_burst.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -296,23 +308,40 @@ func receipt_alpha() -> float:
 
 ## Whether the sunburst shows now (for tests).
 func burst_shown() -> bool:
-	return _burst_clip.visible
+	return _burst_clip.visible and _burst.visible
 
 
-## The sunburst behind the printing receipt: it grows with the print, turns, and fades as the
-## receipt flies off; none under reduced motion or once the tag hangs.
+## How much the shade over the monitor's content shows now (0 to 1; for tests): in over the
+## time before the print, out with the flight; at once under reduced motion.
+func shade_alpha() -> float:
+	if not _burst_clip.visible or not _shade.visible:
+		return 0.0
+	return _shade.modulate.a
+
+
+## The shade over the monitor's content while the receipt is on it, and the sunburst behind the
+## printing receipt: it grows with the print, turns, and fades as the receipt flies off; none
+## under reduced motion or once the tag hangs.
 func _frame_burst() -> void:
-	var on: bool = is_shown() and _monitor != null and _time >= PRINT_FROM and _time < FLY_TO
-	_burst_clip.visible = on and not reduced_motion.call()
+	var shaded: bool = is_shown() and _monitor != null and _time < receipt_end()
+	var on: bool = shaded and _time >= PRINT_FROM and _time < FLY_TO
+	_burst.visible = on and not reduced_motion.call()
+	_shade.visible = shaded
+	_burst_clip.visible = _burst.visible or _shade.visible
 	if not _burst_clip.visible:
 		return
 	var screen: Rect2 = monitor_screen()
 	_burst_clip.position = screen.position
 	_burst_clip.size = screen.size
+	_shade.size = screen.size
+	var fade: float = 1.0 - MachineArt.seg(_time, FLY_FROM, FLY_TO)
+	var fade_in: float = 1.0 if reduced_motion.call() else MachineArt.seg(_time, 0.0, PRINT_FROM)
+	_shade.modulate.a = fade_in * fade
+	if not _burst.visible:
+		return
 	var centre: Vector2 = receipt_rect().get_center() - screen.position
 	_burst.position = MachineArt.snap_point(centre - _burst.size / 2.0)
 	var grow: float = MachineArt.ease_back(MachineArt.seg(_time, PRINT_FROM, PRINT_TO))
-	var fade: float = 1.0 - MachineArt.seg(_time, FLY_FROM, FLY_TO)
 	var look: ShaderMaterial = _burst.material as ShaderMaterial
 	look.set_shader_parameter("radius", MachineArt.snap(BURST_RADIUS * grow))
 	look.set_shader_parameter("alpha", fade)

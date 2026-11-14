@@ -68,7 +68,8 @@ func test_the_quota_prints_in_whole_euros_with_the_euro_after() -> void:
 ## While planning's projection would spend a medal still free this week (ReceiptGold's pending
 ## metal, the 2026-11-09 play test) the PROJECTED digits take its metal, gold over silver, in shades
 ## that read on the cream paper (3:1 or more, the hero's large digits) apart from the over line's
-## green and tomato; plain ink with no medal pending, and the count's TOTAL always ink.
+## green and tomato, over a lighter shadow; plain ink with no medal pending, and the count's TOTAL
+## always ink.
 func test_a_pending_medal_tints_the_projected_number() -> void:
 	var receipt: ReceiptView = auto_free(ReceiptView.new())
 	receipt.size = Vector2(ShiftStage.RECEIPT_WIDTH, 300)
@@ -104,10 +105,12 @@ func test_a_pending_medal_tints_the_projected_number() -> void:
 		assert_float(_contrast(body, Palette.PAPER)).is_greater_equal(3.0)
 		for line: Color in [Palette.GREEN_DARK, Palette.TOMATO_DARK, ReceiptTarget.HERO_COLOR]:
 			assert_bool(body.is_equal_approx(line)).is_false()
-	# The shadow a step darker than its body.
+	# The shadow lighter than its body (polish batch 2: a dark one striped the digits at 720p).
 	var pairs: Array[Array] = [silver, gold]
 	for pair: Array in pairs:
-		assert_float((pair[1] as Color).get_luminance()).is_less((pair[0] as Color).get_luminance())
+		assert_float((pair[1] as Color).get_luminance()).is_greater(
+			(pair[0] as Color).get_luminance()
+		)
 
 
 ## An anchored count's PAID (or SLIP) stamps the header's over row right after the margin's words

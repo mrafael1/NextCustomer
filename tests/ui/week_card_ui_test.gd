@@ -223,10 +223,10 @@ func test_the_final_review_reads_pass_to_win() -> void:
 		% [WeekCard.PAPER_OUTLINE, Palette.PAPER.to_html(false)]
 	)
 	assert_str(effect.text).contains(
-		outline + "[color=#%s]+2€[/color]" % Palette.GREEN_DARK.to_html(false)
+		outline + "[color=#%s]+2€[/color]" % WeekCard.BANNER_GAIN_INK.to_html(false)
 	)
 	assert_str(effect.text).contains(
-		outline + "[color=#%s]+15%%[/color]" % Palette.TOMATO_DARK.to_html(false)
+		outline + "[color=#%s]+15%%[/color]" % WeekCard.BANNER_HARM_INK.to_html(false)
 	)
 	assert_bool(WeekCard.colour_of(4) == Palette.ORANGE_DARK).is_true()
 	var colours: Array[Color] = []
