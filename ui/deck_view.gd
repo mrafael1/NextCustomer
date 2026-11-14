@@ -3,8 +3,8 @@ extends PanelContainer
 ## The deck view (plan section 2, extended in full build phase 1), in the look of #56's deck view B
 ## (mock-up screens_deck_b.html): a teal hand basket (frames/basket_panel, its slotted foot and
 ## cart badge) with the pages in its dark well. Its header holds the shown page's title and the
-## framed Cart, Run info and Close buttons (the shown page's tab sunk on the paper face of a
-## picked tab, FramedButton.selected).
+## framed CART, RUN INFO and CLOSE keys (caps since polish batch 2; the shown page's tab sunk on
+## the paper face of a picked tab, FramedButton.selected).
 ##
 ## The Cart page shows the cart as cards (mock-up docs/art/mockups/cart_cards.html, view CARDS,
 ## layout "2x8 cart face", approved by the user on 2026-11-13: "perfect with your recommended"):
@@ -102,6 +102,10 @@ const FULL_NOTE := "CART FULL"
 const ROOM_NOTE := "ROOM FOR %d MORE"
 const NOTE_SIZE := 16
 const ROOM_NOTE_NAME := "RoomNote"
+## The header's keys in caps, as the game's other keys (polish batch 2).
+const CART_TAB := "CART"
+const INFO_TAB := "RUN INFO"
+const CLOSE_TAB := "CLOSE"
 ## The Run info page's title, and its stock's heading and caption.
 const INFO_TITLE := "Run info"
 const STOCK_HEADING := "MACHINE STOCK"
@@ -434,9 +438,9 @@ func _header() -> HBoxContainer:
 	_title = MixedLabel.new("", TITLE_SIZE, true)
 	_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(_title)
-	_deck_tab = _framed(header, "Cart", func() -> void: show_page(false), "ui_switch")
-	_info_tab = _framed(header, "Run info", func() -> void: show_page(true), "ui_switch")
-	_close_button = _framed(header, "Close", func() -> void: _close(), "ui_close")
+	_deck_tab = _framed(header, CART_TAB, func() -> void: show_page(false), "ui_switch")
+	_info_tab = _framed(header, INFO_TAB, func() -> void: show_page(true), "ui_switch")
+	_close_button = _framed(header, CLOSE_TAB, func() -> void: _close(), "ui_close")
 	return header
 
 

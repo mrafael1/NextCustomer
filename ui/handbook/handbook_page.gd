@@ -16,7 +16,10 @@ extends Control
 ## sheet (frames/popup, the title's popups' paper with its gold trim) in a scrolling column.
 ## Opening shades the screen and raises the binder RISE px in RISE_STEPS (at once under `still`).
 ## It takes every click over the screen while open; Esc, CLOSE or a right-click outside the binder
-## closes it. It opens at the last entry viewed (the book's first at first).
+## closes it, and it swallows Enter and Space (CONFIRM_KEYS) so nothing behind it acts on them. It
+## opens at the last entry viewed (the book's first at first). Over the shift (mount with a top
+## bar) the band from the screen's top down to the bar's foot is shaded deeper (TOP_SHADE_ALPHA,
+## polish batch 2), so the shift's LOYALTY strip and ☰ button no longer stand beside CLOSE.
 ##
 ## Opened from the title's GUIDE plate, the shift's menu (TopBar's Guide), or a tooltip: a
 ## right-click while a tooltip shows opens that keyword's, family's or coupon's entry (mount wires
@@ -39,6 +42,10 @@ const CLOSE_SIZE := Vector2(112, 40)
 const BORDER := 2.0
 const SHADOW := 6.0
 const SHADE_ALPHA := 0.72
+## Over the shift, the band down to the top bar's foot takes this much more ink.
+const TOP_SHADE_ALPHA := 0.7
+## The keys it swallows while open (nothing behind it acts on them).
+const CONFIRM_KEYS: Array[Key] = [KEY_ENTER, KEY_KP_ENTER, KEY_SPACE]
 ## The board's art and its 9-slice margin (art px), the pages', the hint card's and the rings'.
 const COVER := preload("res://art/frames/handbook_cover.png")
 const COVER_MARGIN := 5
@@ -87,6 +94,11 @@ var reduced_motion: Callable = Callable()
 ## Returns true while a right-click belongs to something else (a cart placement cancels, a day slip
 ## or a pin card closes): the deep link then does nothing. None: never.
 var deep_link_blocked: Callable = Callable()
+## The bar whose row is shaded deeper (the shift's top bar: mount), or null.
+var shade_bar: Control = null:
+	set(value):
+		shade_bar = value
+		queue_redraw()
 var _book: HandbookBook
 var _binder: Control
 var _tabs: Dictionary[StringName, HandbookButton] = {}
@@ -106,6 +118,7 @@ func _init(book: HandbookBook = null) -> void:
 	_book = book if book != null else HandbookBook.shared()
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	set_anchors_preset(Control.PRESET_FULL_RECT)
+	resized.connect(queue_redraw)
 	visible = false
 	z_index = 50
 	_binder = _Binder.new()
@@ -187,6 +200,7 @@ static func mount(screen: Control, tips: GlyphTips, top_bar: TopBar = null) -> H
 	tips.guide_for = page.has_entry_for
 	if top_bar != null:
 		top_bar.guide_pressed.connect(page.open_at)
+		page.shade_bar = top_bar
 	return page
 
 
@@ -377,6 +391,9 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		close()
 		return
+	if key != null and key.keycode in CONFIRM_KEYS:
+		get_viewport().set_input_as_handled()
+		return
 	var press: InputEventMouseButton = event as InputEventMouseButton
 	if press != null and press.pressed and press.button_index == MOUSE_BUTTON_RIGHT:
 		var whole: Rect2 = binder_rect().grow_side(SIDE_TOP, TAB_HEIGHT)
@@ -439,6 +456,18 @@ func _step_rise(share: float) -> void:
 
 func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), Color(Palette.INK, SHADE_ALPHA))
+	var band: Rect2 = top_shade_rect()
+	if band.has_area():
+		draw_rect(band, Color(Palette.INK, TOP_SHADE_ALPHA))
+
+
+## The band shaded deeper over the shift (shade_bar), in its own coordinates: its width, from its
+## top down to the bar's foot; none without a bar.
+func top_shade_rect() -> Rect2:
+	if shade_bar == null or not is_instance_valid(shade_bar):
+		return Rect2()
+	var bar: Rect2 = get_global_transform().affine_inverse() * shade_bar.get_global_rect()
+	return Rect2(0.0, 0.0, size.x, maxf(bar.end.y, 0.0))
 
 
 ## The binder's body: a hard ink shadow, the teal board, the contents receipt and the entry's sheet

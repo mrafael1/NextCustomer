@@ -69,6 +69,8 @@ var shift_label: Label
 var shift_chip: PanelContainer
 ## The quota gauge's chip (left column v2), in the gauge's room before LOYALTY.
 var gauge_panel: GaugePanel
+## The gauge's empty socket on the band, behind it (shows while the gauge is up for the count).
+var gauge_socket: GaugeSocket
 var loyalty_card: LoyaltyCard
 ## The Cart button (the deck: "Cart" in player strings only, default 1).
 var deck_button: FramedButton
@@ -106,6 +108,9 @@ func _init() -> void:
 	_day_room.custom_minimum_size = Vector2(LOYALTY_X - POSITION.x - GAP, ROW_HEIGHT)
 	add_child(_day_room)
 	gauge_panel = GaugePanel.new()
+	# Its empty socket behind it shows while it is up out of the bar (the count; polish batch 2).
+	gauge_socket = GaugeSocket.new(gauge_panel)
+	_day_room.add_child(gauge_socket)
 	_day_room.add_child(gauge_panel)
 	_place_gauge(_day_room.custom_minimum_size.x)
 	loyalty_card = LoyaltyCard.new(true)
@@ -156,6 +161,7 @@ func _place_gauge(room: float) -> void:
 	var inset: Vector2 = ShiftStage.GAUGE_PANEL_RECT.position - POSITION
 	var height: float = ShiftStage.GAUGE_PANEL_RECT.size.y
 	gauge_panel.place(inset, Vector2(maxf(room - inset.x, 0.0), height))
+	gauge_socket.fit()
 
 
 ## The minimum width `control` needs now: a container learns of a child's new text or visibility

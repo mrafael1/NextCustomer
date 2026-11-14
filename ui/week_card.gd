@@ -40,9 +40,10 @@ const SHRINK := 0.6
 const DAY_STAMP_SIZE := 16
 const DAY_STAMP_DEGREES := -10.0
 const DAY_STAMP_INSET := 20.0
-## The rows by time (#119): a played day's and a day to come's opacity (its stamp stays whole).
+## The rows by time (#119): a played day's and a day to come's opacity (its stamp stays whole;
+## a day to come 0.85 since polish batch 2, so its event names read at 720p).
 const PAST_ALPHA := 0.55
-const UPCOMING_ALPHA := 0.7
+const UPCOMING_ALPHA := 0.85
 ## The banner's stamp: from 2.3x turned -9 degrees to 1x turned -2.
 const STAMP_SCALE := 2.3
 const STAMP_FROM_DEGREES := -9.0
@@ -96,8 +97,14 @@ const BANNER_TEXT_WIDTH := (
 ## harm red, as the monitor's bonus and harmful names (MonitorStepRow).
 const GAIN_INK := Palette.GREEN_DARK
 const HARM_INK := Palette.TOMATO_DARK
-## On the banner's colour they stand outlined in paper, this wide (px).
+## On the banner's colour they stand outlined in paper, this wide (px), a step darker (polish
+## batch 2: the plain inks read faint at 720p).
 const PAPER_OUTLINE := 6
+const BANNER_GAIN_INK := Color("2b5a33")
+const BANNER_HARM_INK := Palette.TOMATO_DARKEST
+## A day event's name a step darker than its rim (polish batch 2: pale on pastel at 720p).
+const BOON_NAME_INK := Color("2b5a33")
+const HARM_NAME_INK := Color("862e33")
 ## The weeks' banner colours (the mock-up's teal shade, mustard dark, ink light, then orange dark
 ## for the fourth week, v0.96), by week; later weeks reuse the last.
 const WEEK_COLOURS: Array[Color] = [
@@ -544,6 +551,8 @@ static func effect_bbcode(model: WeekCardModel, on_paper: bool = false) -> Strin
 			text += words
 			continue
 		var ink: Color = GAIN_INK if run.tone == WeekCardModel.Tone.GAIN else HARM_INK
+		if on_paper:
+			ink = BANNER_GAIN_INK if run.tone == WeekCardModel.Tone.GAIN else BANNER_HARM_INK
 		words = "[color=#%s]%s[/color]" % [ink.to_html(false), words]
 		if on_paper:
 			words = (
@@ -683,7 +692,7 @@ func _event_row(event: InspectionDefinition) -> Control:
 			else Palette.TOMATO_PALE.lerp(Palette.PAPER, BLUSH_MIX)
 		)
 		border = Palette.GREEN_DARK if boon else Palette.TOMATO_DARK
-		ink = Palette.GREEN_DARK if boon else Palette.TOMATO_DARK
+		ink = BOON_NAME_INK if boon else HARM_NAME_INK
 		effect_ink = Palette.GREEN_DARK.darkened(0.45) if boon else Palette.TOMATO_DARKEST
 	var panel: PanelContainer = PanelContainer.new()
 	panel.name = "Event"
