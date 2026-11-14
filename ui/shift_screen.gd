@@ -140,6 +140,8 @@ func _ready() -> void:
 	_catalogue = load(CATALOGUE)
 	_saves = SaveService.new(SaveService.default_folder(), report_error)
 	profile = _saves.load_profile()
+	# A profile that already played skips the guided run (saved with the profile's next save).
+	TutorialFlags.migrate(profile)
 	_build()
 	_sfx.warm_up()
 	ShiftMusic.screen_opened(_music)

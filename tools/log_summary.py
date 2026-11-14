@@ -53,6 +53,7 @@ KNOWN_TYPES = frozenset({
     "results_exit", "log_export", "debug", "capsule", "start_choice", "start_page",
     "staple_swap", "restock", "restock_view", "pin_change", "start_lock_in", "new_packs",
     "start_aisle", "start_booster_pick", "settings_change", "pause_open", "pause_close", "run_quit",
+    "tutorial_step", "tutorial_done", "tutorial_replay", "tip_shown", "quick_step", "tips_reset",
 })
 # The options and the pause (settings_change on the title or in a run, pause_open / pause_close
 # and run_quit in a run): they attach to a run but never make one.
@@ -62,6 +63,15 @@ SETTINGS_TYPES = frozenset({"settings_change", "pause_open", "pause_close", "run
 # capsule drawn on the title has no run_id.
 RUN_TYPES = KNOWN_TYPES - {"restart", "results_exit", "log_export", "debug", "capsule"}
 RUN_TYPES -= SETTINGS_TYPES
+# The tutorial's events (the guided first run's steps and end, its replay requests, the one-time
+# tips, the quick tutorials' steps and RESET TIPS): they attach to a run (or, on the title, to
+# none) but never make one. A guided run is the run whose run_start has guided true.
+TUTORIAL_TYPES = frozenset({
+    "tutorial_step", "tutorial_done", "tutorial_replay", "tip_shown", "quick_step", "tips_reset",
+})
+RUN_TYPES -= TUTORIAL_TYPES
+# A step id's letters and number (G12, SA3), for sorting steps in their order.
+STEP_ID = re.compile(r"^(?P<prefix>[A-Za-z_]*)(?P<number>\d+)$")
 
 # Section 8, "How to read the numbers": checkouts of 3+ cards are High when their
 # rearrangements are at least twice the cards committed.
@@ -400,6 +410,9 @@ class Player:
     kept_loose: int = 0
     # The options' and the pause's events (SETTINGS_TYPES), in log order.
     settings_events: list[dict] = field(default_factory=list)
+    # The tutorial's events (TUTORIAL_TYPES) of the kept runs and the kept loose ones, in log
+    # order.
+    tutorial_events: list[dict] = field(default_factory=list)
 
     def run_number(self, number: int) -> Run | None:
         """The player's run `number` (1 = their first run), when it is kept."""
@@ -539,6 +552,7 @@ def build_player(
         player.restarts.extend(run.of_type("restart"))
         player.capsules.extend(run.of_type("capsule"))
         player.settings_events.extend(e for e in run.events if e["type"] in SETTINGS_TYPES)
+        player.tutorial_events.extend(e for e in run.events if e["type"] in TUTORIAL_TYPES)
     for event in loose:
         if builds and build_label(event) not in builds:
             player.other_build_events += 1
@@ -550,7 +564,10 @@ def build_player(
             player.capsules.append(event)
         elif event["type"] in SETTINGS_TYPES:
             player.settings_events.append(event)
+        elif event["type"] in TUTORIAL_TYPES:
+            player.tutorial_events.append(event)
     player.settings_events.sort(key=lambda e: e["_order"])
+    player.tutorial_events.sort(key=lambda e: e["_order"])
     return player
 
 
@@ -1373,6 +1390,69 @@ def settings_summary(players: list[Player]) -> list[dict]:
     return rows
 
 
+def _step_key(step_id: str) -> tuple:
+    match = STEP_ID.match(step_id)
+    if not match:
+        return (step_id, -1)
+    return (match["prefix"], int(match["number"]))
+
+
+def tutorial_summary(players: list[Player]) -> dict:
+    """The tutorial: the guided runs (run_start's guided) and how many finished it
+    (tutorial_done), each guided step's runs reached and seconds shown (tutorial_step), the
+    one-time tips shown (tip_shown, by id), the quick tutorials' steps (quick_step: shown,
+    backed out, seconds), the replay requests (tutorial_replay, by where) and RESET TIPS
+    (tips_reset). Empty counts for logs from before the tutorial."""
+    guided = [run for p in players for run in p.runs if flag(run.start, "guided") is True]
+    finished = [run for run in guided if run.of_type("tutorial_done")]
+    step_seconds: dict[str, list[float]] = defaultdict(list)
+    step_runs: dict[str, set[str]] = defaultdict(set)
+    for run in guided:
+        for event in run.of_type("tutorial_step"):
+            step = text(event, "id")
+            if not step:
+                continue
+            step_runs[step].add(run.run_id)
+            seconds = num(event, "seconds")
+            if seconds is not None:
+                step_seconds[step].append(seconds)
+    events = [event for p in players for event in p.tutorial_events]
+    tips = Counter(text(e, "id") or "?" for e in events if e["type"] == "tip_shown")
+    quick: dict[tuple[str, str], dict] = {}
+    for event in events:
+        if event["type"] != "quick_step":
+            continue
+        key = (text(event, "tutorial") or "?", text(event, "id") or "?")
+        row = quick.setdefault(key, {"shown": 0, "backed_out": 0, "seconds": []})
+        row["shown"] += 1
+        row["backed_out"] += 1 if flag(event, "backed_out") is True else 0
+        seconds = num(event, "seconds")
+        if seconds is not None:
+            row["seconds"].append(seconds)
+    replays = Counter(text(e, "from") or "?" for e in events if e["type"] == "tutorial_replay")
+    done_events = [run.of_type("tutorial_done")[0] for run in finished]
+    done_seconds = [v for e in done_events if (v := num(e, "seconds")) is not None]
+    return {
+        "guided_runs": len(guided),
+        "finished": rate(len(finished), len(guided)),
+        "replayed_runs": sum(1 for e in done_events if flag(e, "replay") is True),
+        "done_seconds": dist(done_seconds),
+        "steps": [
+            {"id": step, "runs": len(step_runs[step]), "seconds": dist(step_seconds[step])}
+            for step in sorted(step_runs, key=_step_key)
+        ],
+        "tips": dict(sorted(tips.items())),
+        "quick": [
+            {"tutorial": key[0], "id": key[1], "shown": row["shown"],
+             "backed_out": row["backed_out"], "seconds": dist(row["seconds"])}
+            for key, row in sorted(quick.items(),
+                                   key=lambda item: (item[0][0], _step_key(item[0][1])))
+        ],
+        "replays": dict(sorted(replays.items())),
+        "tips_resets": sum(1 for e in events if e["type"] == "tips_reset"),
+    }
+
+
 def second_run_summary(players: list[Player]) -> dict:
     """Each player's second run (their runs in order of first event)."""
     return {
@@ -1430,6 +1510,7 @@ def summarise(players: list[Player], inputs: Inputs, catalogue: Catalogue,
         "second_run": second_run_summary(players),
         "settings": settings_summary(players),
         "start_setup": start_setup_summary(runs),
+        "tutorial": tutorial_summary(players),
     }
 
 
@@ -1727,6 +1808,44 @@ def render_settings(s: dict) -> list[str]:
     return lines
 
 
+def render_tutorial(s: dict) -> list[str]:
+    """Only when the logs hold a guided run or a tutorial event, so older logs report as
+    before."""
+    t = s.get("tutorial")
+    if not t or not (t["guided_runs"] or t["tips"] or t["quick"] or t["replays"]
+                     or t["tips_resets"]):
+        return []
+    lines = heading(
+        "Tutorial",
+        "Guided runs are runs whose run_start has guided true; finished = a tutorial_done in "
+        "the run (replays: PLAY THE GUIDED SHIFT). Each step: the guided runs that logged it "
+        "(tutorial_step) and the seconds it was shown. Tips from tip_shown, quick tutorial "
+        "steps from quick_step (backed out: the player didn't make the move), replay requests "
+        "from tutorial_replay, RESET TIPS from tips_reset.",
+    ) + [
+        f"  guided runs: {t['guided_runs']} · finished: {fmt_rate(t['finished'])} "
+        f"({t['replayed_runs']} replays) · guided part: "
+        f"median {fmt_num(t['done_seconds']['median'], 1)} s",
+    ]
+    if t["steps"]:
+        lines += table(["step", "runs", "median s", "p90 s"], [
+            [row["id"], str(row["runs"]), fmt_num(row["seconds"]["median"], 1),
+             fmt_num(row["seconds"]["p90"], 1)]
+            for row in t["steps"]
+        ])
+    if t["tips"]:
+        lines.append("  tips shown: " + ", ".join(f"{k} {v}" for k, v in t["tips"].items()))
+    if t["quick"]:
+        lines += table(["quick", "step", "shown", "backed out", "median s"], [
+            [row["tutorial"], row["id"], str(row["shown"]), str(row["backed_out"]),
+             fmt_num(row["seconds"]["median"], 1)]
+            for row in t["quick"]
+        ])
+    replays = ", ".join(f"{k} {v}" for k, v in t["replays"].items()) or "none"
+    lines.append(f"  replay requests: {replays} · RESET TIPS: {t['tips_resets']}")
+    return lines
+
+
 def render_offer_times(s: dict) -> list[str]:
     lines = heading(
         "Offer presentation times (ms)",
@@ -1848,7 +1967,7 @@ def render(summary: dict) -> str:
     sections = [render_inputs, render_players, render_runs, render_checkouts, render_rewards,
                 render_builds, render_machine, render_toy_machines, render_shifts, render_lists,
                 render_offer_times, render_count_up, render_second_run, render_start_setup,
-                render_settings, render_files]
+                render_settings, render_tutorial, render_files]
     lines: list[str] = []
     for section in sections:
         lines += section(summary)

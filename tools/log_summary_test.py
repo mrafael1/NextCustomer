@@ -1395,5 +1395,61 @@ class StartSetupTest(LogTestCase):
         self.assertEqual(ls.final_deck(player.runs[0]), {"milk": 1, "bread": 1, "repeat": 2})
 
 
+
+class TutorialTest(LogTestCase):
+    """The tutorial's events: known, never a run of their own; the guided runs, their steps,
+    the tips, the quick tutorials, the replays and RESET TIPS, in one Tutorial block."""
+
+    def test_guided_runs_steps_tips_quick_steps_and_replays(self) -> None:
+        s = Session("tut", build="fb-p3")
+        s.log("tutorial_replay", "", **{"from": "title"})
+        s.log("tips_reset", "", cleared=3)
+        s.machine_start("g1")["guided"] = True
+        s.log("tutorial_step", "g1", id="G2", seconds=4.5)
+        s.log("tutorial_step", "g1", id="G10", seconds=8.0)
+        s.log("tutorial_step", "g1", id="G3", seconds=2.0)
+        s.shift("g1", 1)
+        s.log("tutorial_done", "g1", seconds=300.0, replay=False)
+        s.log("tip_shown", "g1", id="day_event")
+        s.run_end("g1", False, 6)
+        s.machine_start("g2")["guided"] = True
+        s.log("tutorial_step", "g2", id="G2", seconds=6.5)
+        s.log("run_abandon", "g2", shift=1, phase="planning", run_ms=1000)
+        s.machine_start("r3")["guided"] = False
+        s.log("quick_step", "r3", tutorial="restock", id="R1", seconds=3.0, backed_out=False)
+        s.log("quick_step", "r3", tutorial="restock", id="R2", seconds=1.0, backed_out=True)
+        s.log("tip_shown", "r3", id="day_event")
+        s.log("tip_shown", "r3", id="redraw")
+        s.run_end("r3", True, 8)
+        summary = self.summary(self.write("p.jsonl", s))
+        self.assertEqual(summary["inputs"]["unknown_event_types"], {})
+        self.assertEqual(summary["players"][0]["runs"], 3)
+        t = summary["tutorial"]
+        self.assertEqual(t["guided_runs"], 2)
+        self.assertEqual(t["finished"]["count"], 1)
+        self.assertEqual(t["finished"]["n"], 2)
+        self.assertEqual([row["id"] for row in t["steps"]], ["G2", "G3", "G10"])
+        self.assertEqual(t["steps"][0]["runs"], 2)
+        self.assertEqual(t["steps"][0]["seconds"]["median"], 5.5)
+        self.assertEqual(t["tips"], {"day_event": 2, "redraw": 1})
+        self.assertEqual([(q["id"], q["shown"], q["backed_out"]) for q in t["quick"]],
+                         [("R1", 1, 0), ("R2", 1, 1)])
+        self.assertEqual(t["replays"], {"title": 1})
+        self.assertEqual(t["tips_resets"], 1)
+        report = ls.render(summary)
+        self.assertIn("Tutorial", report)
+        self.assertIn("guided runs: 2", report)
+        self.assertIn("replay requests: title 1 · RESET TIPS: 1", report)
+        json.dumps(summary)
+
+    def test_logs_without_tutorial_events_leave_the_block_out(self) -> None:
+        s = Session("plain", build="fb-p3")
+        s.machine_start("r1")
+        s.run_end("r1", True, 8)
+        summary = self.summary(self.write("p.jsonl", s))
+        self.assertEqual(summary["tutorial"]["guided_runs"], 0)
+        self.assertNotIn("guided runs:", ls.render(summary))
+
+
 if __name__ == "__main__":
     unittest.main()

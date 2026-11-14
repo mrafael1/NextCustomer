@@ -134,6 +134,13 @@ var write_ups: int:
 ## checkout: the history then no longer holds one entry per shift before the current one
 ## (RunSave skips that check for such a run).
 var debug_jumped: bool = false
+## Whether this run is the guided first run (the tutorial; TutorialFlags.guided_due when it
+## started). Neutral by default: a normal run is never guided, and nothing in core/ reads it.
+var guided: bool = false
+## The guided run's current step id (the tutorial script's, e.g. &"G12"), written by the UI's
+## tutorial director as the steps advance; &"" for none. Saved with the run (RunSave v17), so
+## CONTINUE resumes the step.
+var guide_step: StringName = &""
 ## The run RNG's state, for the run save (RunSave): setting it continues the RNG's sequence from
 ## that point, so a restored run draws exactly what the saved one would have.
 var rng_state: int:

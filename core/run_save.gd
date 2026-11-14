@@ -100,7 +100,13 @@ extends RefCounted
 ## when set (ShiftRecord: `best_payout` with `best_card`, `best_combo` with its keyword, length and
 ## pay). A version 15 save reads as it is: its records have none, so RunHighlight leaves out its
 ## played shifts' payouts and combos (the other kinds still read them).
-const FORMAT_VERSION := 16
+## Version 17 (the tutorial, 2026-11-14): the guided first run's two optional fields, written only
+## for a guided run: `guided` (true) and `guide_step` (the tutorial step id, "" for none;
+## RunState.guided and guide_step). A save without them (every normal run's, and version 16's)
+## reads as a run that isn't guided.
+const FORMAT_VERSION := 17
+## Version 16: version 17's form before the guided run's fields, read as it is (not guided).
+const BEFORE_GUIDED_VERSION := 16
 ## Version 15: version 16's form before the checkout bests, read as it is (none recorded).
 const BEFORE_HIGHLIGHT_VERSION := 15
 ## Version 14: version 15's form with one regulars offer per slot and aisle in the setup, read as
@@ -127,6 +133,7 @@ const BEFORE_STARTER_PACKS_VERSION := 6
 ## The versions read as they are (older ones through RunSaveMigration).
 const READ_VERSIONS: Array[int] = [
 	FORMAT_VERSION,
+	BEFORE_GUIDED_VERSION,
 	BEFORE_HIGHLIGHT_VERSION,
 	BEFORE_SWAP_WINDOW_VERSION,
 	BEFORE_TWO_AISLES_VERSION,
@@ -225,6 +232,10 @@ static func to_dictionary(saved_run: RunState, saved_run_id: String, played_ms: 
 		"regulars": _ids(saved_run.starter.core_cards),
 		"start_setup": _start_setup_data(saved_run),
 	}
+	# The guided first run's fields (v17), only for a guided run: a normal run's save is unchanged.
+	if saved_run.guided:
+		data["guided"] = true
+		data["guide_step"] = String(saved_run.guide_step)
 	# "listed_aisles" and "stock", the same as run_start logs.
 	data.merge(saved_run.stock.to_dictionary())
 	return data
@@ -329,6 +340,11 @@ static func from_dictionary(saved: Dictionary, lookup: ContentLookup) -> RunSave
 	restored.phase = SAVE_POINTS[phase_index]
 	restored.shift_index = reader.whole("shift_index")
 	restored.debug_jumped = reader.flag("debug_jumped")
+	# Left out by a run that isn't guided, and by saves before version 17.
+	if data.has("guided"):
+		restored.guided = reader.flag("guided")
+	if data.has("guide_step"):
+		restored.guide_step = StringName(reader.text("guide_step"))
 	restored.redraws_used = reader.whole("redraws_used")
 	restored.redraws_allowed = reader.whole("redraws_allowed")
 	# Left out by format 6 saves made before #108 piece 2: no card came from an extra redraw.

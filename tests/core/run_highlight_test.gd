@@ -300,7 +300,7 @@ func test_a_run_save_keeps_the_bests_and_a_version_15_save_reads() -> void:
 	run.checkout()
 	assert_bool(RunSave.is_save_point(run.phase)).is_true()
 	var data: Dictionary = _json(RunSave.to_dictionary(run, "id", 0))
-	assert_int(int(data["format_version"])).is_equal(16)
+	assert_int(int(data["format_version"])).is_equal(17)
 	var save: RunSave = RunSave.from_dictionary(data, _lookup)
 	assert_object(save).is_not_null()
 	var record: ShiftRecord = save.run.history[-1]

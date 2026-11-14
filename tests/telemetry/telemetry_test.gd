@@ -184,12 +184,14 @@ func test_run_start_and_run_end_fields() -> void:
 				"seed",
 				"starting_deck",
 				"shift_count",
+				"guided",
 				"listed_aisles",
 				"stock",
 			]
 		)
 	)
 	assert_int(start["seed"]).is_equal(77)
+	assert_bool(start["guided"]).is_false()
 	assert_int((start["starting_deck"] as Array).size()).is_equal(13)
 	# The impulse rack's fields are gone with the rack (#77).
 	assert_bool(start.has("impulse_offer")).is_false()

@@ -234,7 +234,7 @@ func test_the_run_save_cross_checks_the_setup() -> void:
 	assert_bool(Kit.swap(run, profile, 0)).is_true()
 	var lookup: ContentLookup = ContentLookup.new(_balance)
 	var good: Dictionary = Kit.json(RunSave.to_dictionary(run, "run", 0))
-	assert_int(int(good["format_version"])).is_equal(16)
+	assert_int(int(good["format_version"])).is_equal(17)
 	var saved: RunSave = RunSave.from_dictionary(good, lookup)
 	assert_object(saved).is_not_null()
 	assert_array(saved.run.starter.core_cards).is_equal(run.starter.core_cards)
