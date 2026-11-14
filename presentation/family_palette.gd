@@ -122,6 +122,29 @@ func shelf_families(tags: PackedStringArray) -> PackedStringArray:
 	return CardFamilies.shelf_families(tags, quiet_families)
 
 
+## The families whose glyphs an item's card shows, top down (the FIGURINE BOOK's cards, round 7,
+## and the Cart's): its main family `main_family` first, then the other families of its printed
+## `tags` by the ticket's label rule (shelf_families: Food only when it is the card's only
+## family, so Food shows only on a Food-only card or as a Food-main card's first glyph).
+func glyph_families(main_family: String, tags: PackedStringArray) -> PackedStringArray:
+	var shown: PackedStringArray = PackedStringArray()
+	if not main_family.is_empty():
+		shown.append(main_family)
+	for family: String in shelf_families(tags):
+		if not shown.has(family):
+			shown.append(family)
+	return shown
+
+
+## glyph_families for a card: a product's main family (by main_family_order) and its plain card's
+## printed tags; none for a coupon.
+func card_glyph_families(definition: CardDefinition) -> PackedStringArray:
+	if not definition.is_product():
+		return PackedStringArray()
+	var tags: PackedStringArray = definition.product_card().tags
+	return glyph_families(CardFamilies.main_family(definition, main_family_order), tags)
+
+
 ## The looks of `ids`, skipping any the palette lacks.
 func styles(ids: PackedStringArray) -> Array[FamilyStyle]:
 	var found: Array[FamilyStyle] = []

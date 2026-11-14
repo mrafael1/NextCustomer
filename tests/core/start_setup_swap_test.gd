@@ -3,12 +3,14 @@ extends GdUnitTestSuite
 ## swap window, 2026-11-13): the swap pool of the stocked aisles, one swap booster per stocked
 ## aisle (saved, the copy limit's fitting cards first), opening one, the swaps' reasons, a trade,
 ## a move, the undo and RESET, the swap limits and the copy rule with the packs and the boosters,
-## and swaps that reset each run. On the live data.
+## swaps that reset each run, and a run in play reading its starting cart, a swapped regular
+## included. On the live data.
 
 const Kit := preload("res://tests/core/start_setup_kit.gd")
 const SEED := 20261104
 const CHEESE := preload("res://data/cards/cheese.tres")
 const DELI := preload("res://data/starter_packs/deli_counter.tres")
+const REPEAT := preload("res://data/cards/repeat.tres")
 
 var _balance: BalanceDefinition
 var _recipe: DeckDefinition
@@ -345,3 +347,39 @@ func test_a_new_run_starts_with_the_recipes_regulars_and_every_swap() -> void:
 		)
 		assert_int(StartSetupRules.applied_swaps(next)).is_equal(0)
 		assert_int(StartSetupRules.swaps_left(next, shown)).is_equal(allowance)
+
+
+## A run in play (its start offer gone) reads the same starting cart from its dealt deck: the
+## regulars (a swapped one in its slot), the picked pack's cards, the booster cards by aisle and
+## the pins', with their sources.
+func test_a_run_in_play_reads_its_starting_cart_from_its_deck() -> void:
+	var profile: ProfileState = Kit.profile(3)
+	var run: RunState = Kit.locked(profile, SEED)
+	Kit.swap_offers(run, profile)
+	assert_bool(Kit.swap(run, profile, 0)).is_true()
+	var swapped: CardDefinition = run.starter.core_cards[0]
+	assert_object(swapped).is_not_same(run.start_setup.originals[0])
+	var pin: PinDefinition = PinDefinition.new()
+	pin.id = &"test_pin"
+	pin.display_name = "Test pin"
+	pin.starting_cards = [REPEAT]
+	var pins: Array[PinDefinition] = [pin]
+	var pack: StarterPackDefinition = null
+	for offered: StarterPackDefinition in run.start_offer.packs:
+		if pack == null and StartSetupRules.pick_block(run, profile, offered) == &"":
+			pack = offered
+	assert_object(pack).is_not_null()
+	var expected: Array[StartCartLine] = StartSetupRules.cart_lines(
+		run.starter, run.start_offer, _balance, pins, pack
+	)
+	assert_bool(run.take_pack(pack)).is_true()
+	var lines: Array[StartCartLine] = StartSetupRules.run_cart_lines(run.starter, _balance, pins)
+	assert_int(lines.size()).is_equal(expected.size())
+	for index: int in lines.size():
+		assert_object(lines[index].card).is_same(expected[index].card)
+		assert_int(lines[index].source).is_equal(expected[index].source)
+		assert_str(String(lines[index].origin)).is_equal(String(expected[index].origin))
+		assert_str(lines[index].origin_name).is_equal(expected[index].origin_name)
+	assert_object(lines[0].card).is_same(swapped)
+	assert_int(lines[0].source).is_equal(StartCartLine.Source.REGULAR)
+	assert_int(lines[run.starter.core_cards.size()].source).is_equal(StartCartLine.Source.PACK)

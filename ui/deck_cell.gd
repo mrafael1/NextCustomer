@@ -1,146 +1,311 @@
 class_name DeckCell
 extends Control
-## One distinct card on the deck view's shelves (#56, deck view B, mock-up screens_deck_b.html):
-## its tray item (ItemView, TRAY: the sprite over its price sticker, a BIG or GOLDEN copy's tier
-## tag under the sticker) and its name under it. Its other copies stand stacked behind the first,
-## dimmed, and a cream price-gun label slapped on the art counts them ("×3"). On the Cart page the
-## cart reveal's pick marks (v0.51) sit on the art's top-left corner: the teal "+" of a starting
-## pick's product (the tomato token for the coupon); the staple padlock shows only on the cart
-## reveal (#105). The name is the plain product's (the art and the tier tag show the tier),
-## stepped down to fit.
+## One distinct card on the deck view's Cart page as a card (the cart as cards, mock-up
+## docs/art/mockups/cart_cards.html, its "2x8 cart face", approved by the user on 2026-11-13:
+## "perfect with your recommended"): the booster's card face at the cart face's width
+## (CartCardDraw: the art, the price, the family chips, the name band, the rarity tab COMMON, RARE
+## or LEGENDARY with the RARE's teal and the LEGENDARY's gold foil, a BIG or GOLDEN copy's tier
+## sticker on the art), drawn UNIT px an art px, and the card's FULL rule under the name band
+## (a GlyphLabel: its keywords and families as chips, each with its tooltip), at the largest of
+## RULE_SIZES that fits its box; a rule that fits none stops at the smallest with "…" (the full
+## text is in the hover's tip). Its other copies stand stacked behind it (narrowed to the column
+## gap, fit_stack) and a cream price-gun label counts them ("×3"), clear of the rarity tab. An
+## item picked at the start (the pack's, a counted booster's) wears the green START chip over its
+## barcode, its tooltip naming where it came from (StartTip). A
+## Family sticker shows the family it is set to after its rule ("(set: Breakfast)"). The family
+## chips down the art window's left edge (CartCardDraw.chip_families: a product's main family,
+## then its other printed families, as the FIGURINE BOOK's cards show them) carry their glyphs as
+## FamilyGlyphs (family_glyphs), each naming its family in the game's tip (GlyphTips) when the
+## pointer rests on it; they take no clicks, so the card keeps its hover and its clicks.
 ##
-## Hover (the pointer on its sprite or sticker) lifts the art; `ringed` draws the chooser's gold
-## ring round it, and `out_marked` (a held prize over it, CartPlacing: dropping swaps it out)
-## a tomato ring, a tomato tint and a tilted OUT ✕ tag over the art. The mix highlight (#105
-## piece 3, mock-up readability v3's Cart) greys the whole cell for GREY and FAINT (`mix_look`;
-## FAINT also draws a faint dashed outline round it, FAINT_RECT, and never a check: the Cart has
-## no order). It only displays its card: DeckView owns the clicks, the hover, the highlight and
-## the popup.
+## Hover (the pointer on the card) lifts the face LIFT px; `ringed` draws the chooser's gold ring
+## round it, and `out_marked` (a held prize over it, CartPlacing: dropping swaps it out) a tomato
+## ring, a tomato tint and a tilted OUT ✕ tag over it. The mix highlight (#105 piece 3) greys the
+## whole card for GREY and FAINT (`mix_look`; FAINT also draws a faint dashed outline round it).
+## It only displays its card: DeckView owns the clicks, the hover, the highlight and the popup.
 
-const SIZE := Vector2(108, 200)
-## The name's line under the sticker.
-const NAME_TOP := 184.0
-const NAME_HEIGHT := 16.0
-const NAME_SIZES: Array[int] = [14, 13, 12, 11]
-const NAME_WEIGHT := 700
-## The name may use this much of the gap beside the cell.
-const NAME_SPILL := 8.0
-## Stacked copies behind the first: at most STACK_MAX, each STACK_STEP up and right of the one in
-## front, dimmed to STACK_TINT.
-const STACK_MAX := 2
-const STACK_STEP := Vector2(8, -6)
-const STACK_TINT := Color(0.55, 0.62, 0.62)
-## The count label: a cream price-gun label (EffectSticker's ADD) on the art's top right.
-const COUNT_POSITION := Vector2(64, 0)
-const COUNT_TILT := 6.0
-## The marks on the art's top left (RevealChip, the cart reveal's look).
-const MARK_SIZE := Vector2(24, 24)
-const MARK_POSITION := Vector2(2, 2)
-const MARK_GAP := 6.0
-## The chooser's ring round the item's column (sprite and sticker), outside it by RING_OUTSET.
+signal hovered(cell: DeckCell)
+signal unhovered(cell: DeckCell)
+signal clicked(cell: DeckCell)
+
+## Screen px per art px: two rows of 8 cards fit the 1184x480 page (the mock-up's 1.56).
+const UNIT := 1.55
+const SIZE := Vector2(CartCardDraw.CW * UNIT, CartCardDraw.CH * UNIT)
+## The room the tab takes above the card (px).
+const TOP_ROOM := CartCardDraw.TAB_RISE * UNIT
+## How far a hovered card lifts.
+const LIFT := 8.0
+## The rule's text sizes, largest first: the smallest is about 7 art px (the mock-up's least).
+const RULE_SIZES: Array[int] = [13, 12, 11]
+const RULE_WEIGHT := 650
+## The rule's line pitch over its text size (a keyword chip is 15 px tall).
+const RULE_LEADING := 2
+## Data's text of a card without a rule, and what the card says instead (greyed).
+const NO_RULE := "No rule"
+const NO_RULE_TEXT := "No rule: pays its price"
+const NO_RULE_COLOR := Palette.GREY
+## What ends a rule cut short.
+const ELLIPSIS := "…"
+## A Family sticker's set family, after its rule.
+const STICKER_SET := "(set: %s)"
+## Lower-case keywords a rule writes ("its Bakery batch") drawn as their chips.
+const LOWER_KEYWORDS := "\\b(batch|chain)\\b"
+## The copies' count label (a cream price-gun label, at COUNT_SCALE: the mock-up's 8 art px text)
+## over the top right corner, tilted, overhanging it COUNT_OVERHANG art px (the mock-up's 5 out, 9
+## up) and always COUNT_TAB_GAP px right of the rarity tab's end (a wide LEGENDARY tab). DeckView
+## draws each card over the next column's, so beside a LEGENDARY tab in the narrowest gap the
+## label shows whole over that card's top left corner, which holds no tab.
+const COUNT_TILT := 7.0
+const COUNT_SCALE := 0.5
+const COUNT_OVERHANG := Vector2(5, -9)
+const COUNT_TAB_GAP := 2.0
+## The START chip over the barcode: its least size, text size, word and tilt; its top left in
+## art px from the art window's bottom left.
+const START_SIZE := Vector2(24, 20)
+const START_FONT := 12
+const START_TEXT := "START"
+const START_TILT := -5.0
+const START_AT := Vector2(-2, -13)
+## The chooser's ring round the card, outside it by RING_OUTSET.
 const RING_WIDTH := 4.0
 const RING_OUTSET := 4.0
-## The OUT ✕ tag over the art's top (clear of the held item, which shrinks over the pointer):
-## its rect, tilt and text; the art's tint while marked.
-const OUT_RECT := Rect2(-6, -6, 120, 26)
+## The OUT ✕ tag over the card's top: its rect, tilt and text; the face's tint while marked.
+const OUT_RECT := Rect2(-6, 16, SIZE.x + 12, 26)
 const OUT_TINT := Palette.TOMATO_PALE
 const OUT_TILT := -8.0
 const OUT_TEXT := "OUT ✕"
 const OUT_SIZE := 16
 const OUT_WEIGHT := 800
 ## Node names (for tests).
+const FACE := "Face"
+const RULE_LABEL := "Rule"
 const OUT_TAG := "OutTag"
-const PICK_MARK := "PickMark"
+const START_MARK := "StartMark"
 const COUNT_LABEL := "CountLabel"
-const NAME_LABEL := "NameLabel"
-## A faint match's dashed outline (mock-up readability v3: 112 wide from 2 px left of the cell).
-const FAINT_RECT := Rect2(-2, 2, 112, 196)
+
+static var _fits: Dictionary[String, Array] = {}
 
 var card: CardDefinition
-## The chooser's gold ring round the item.
+var instance: CardInstance
+var look: BoosterArt.Look = BoosterArt.Look.COMMON
+var copies: int = 1
+## The pointer rests on it: the face lifts.
+var lifted: bool = false:
+	set(value):
+		lifted = value
+		if _face != null:
+			_face.position.y = -LIFT if value else 0.0
+## The chooser's gold ring round the card.
 var ringed: bool = false:
 	set(value):
 		ringed = value
 		queue_redraw()
-## A held prize is over it (CartPlacing): the tomato ring and the OUT ✕ tag; the art lifts.
+## A held prize is over it (CartPlacing): the tomato ring and the OUT ✕ tag; the face lifts.
 var out_marked: bool = false:
 	set(value):
 		out_marked = value
 		_show_out()
-## The mix highlight's look (#105 piece 3): GREY and FAINT grey every part (ArtStyle.set_mix_grey
-## to `mix_greyness`), FAINT adds its dashed outline. Set the greyness first.
+## The mix highlight's look (#105 piece 3): GREY and FAINT grey the card (ArtStyle.set_mix_grey to
+## `mix_greyness`), FAINT adds its dashed outline. Set the greyness first.
 var mix_look: MixModel.Look = MixModel.Look.NONE:
 	set(value):
 		mix_look = value
 		_show_mix()
 ## The calm grey's brightness (x) and saturation (y), PlanningTuning's.
 var mix_greyness: Vector2 = Vector2.ONE
-var _item: ItemView
-var _name: Label
+## How far right each copy behind it stands (art px; fit_stack keeps the stack in the column gap).
+var stack_step: int = CartCardDraw.STACK_STEP_X
+var _face: Face
+var _rule: GlyphLabel
+var _rule_size: int = 0
+var _clipped: bool = false
+var _shown_rule: String = ""
 var _count: EffectSticker
 var _marks: Array[RevealChip] = []
+var _glyphs: Array[FamilyGlyph] = []
 var _mix_mark: MixMark
 var _out: Label
 
 
-## The cell of `instance` (its group's first copy) in `aisle`, with `copies` copies of it.
-func _init(instance: CardInstance, aisle: AisleDefinition, copies: int) -> void:
-	card = instance.definition
-	mouse_filter = Control.MOUSE_FILTER_IGNORE
+## The card face of `card_instance` (its group's first copy) with `copy_count` copies, its look
+## from `machine` (a coupon's rarity; null: COMMON), and the family a Family sticker is set to
+## (`sticker_family`, "" for none).
+func _init(
+	card_instance: CardInstance,
+	machine: MachineDefinition,
+	copy_count: int,
+	sticker_family: String = ""
+) -> void:
+	instance = card_instance
+	card = card_instance.definition
+	copies = copy_count
+	look = CartCardDraw.look_of(card, machine)
+	mouse_filter = Control.MOUSE_FILTER_STOP
 	custom_minimum_size = SIZE
 	size = SIZE
-	_item = ItemView.new(instance, aisle, ItemView.Form.TRAY)
-	_add_stack(copies)
-	add_child(_item)
-	var shown: CardDefinition = card.product_card() if card.is_product() else card
-	_name = UiKit.body_label(shown.display_name, NAME_SIZES[0], Palette.PAPER)
-	_name.name = NAME_LABEL
-	_name.add_theme_font_override("font", ArtStyle.bold_font(NAME_WEIGHT))
-	_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_name.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_name.clip_text = true
-	_name.position = Vector2(-NAME_SPILL / 2.0, NAME_TOP)
-	_name.size = Vector2(SIZE.x + NAME_SPILL, NAME_HEIGHT)
-	_name.add_theme_font_size_override("font_size", name_size(_name.text))
-	add_child(_name)
+	_face = Face.new(self)
+	add_child(_face)
+	_add_glyphs()
+	_add_rule(sticker_family)
 	if copies > 1:
 		var spec: StickerSpec = StickerSpec.new()
 		spec.text = "×%d" % copies
 		_count = EffectSticker.new(spec, COUNT_TILT)
 		_count.name = COUNT_LABEL
-		_count.position = COUNT_POSITION
-		add_child(_count)
-
-
-## The largest NAME_SIZES size at which `text` fits the name's line (else the smallest), measured
-## with the bold body font itself (a new cell's label is not in the tree yet).
-static func name_size(text: String) -> int:
-	var font: Font = ArtStyle.bold_font(NAME_WEIGHT)
-	for font_size: int in NAME_SIZES:
-		if font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x <= SIZE.x:
-			return font_size
-	return NAME_SIZES[-1]
-
-
-## Adds the cart reveal's pick mark (v0.51): the "+" of a starting pick (the token of the
-## starting coupon). A staple carries no mark here: its padlock is the cart reveal's (#105).
-func add_origin_marks(picked: bool) -> void:
-	if picked:
-		var coupon: bool = card.is_coupon()
-		var chip: RevealChip = RevealChip.new(
-			Palette.TOMATO if coupon else Palette.TEAL_BRIGHT,
-			MARK_SIZE,
-			RevealTile.COUPON_ICON if coupon else RevealTile.PICK_ICON
+		_count.scale = Vector2.ONE * COUNT_SCALE
+		var tab_end: float = CartCardDraw.tab_rect(look).end.x * UNIT
+		_count.position = Vector2(
+			maxf(
+				tab_end + COUNT_TAB_GAP,
+				SIZE.x + COUNT_OVERHANG.x * UNIT - _count.size.x * COUNT_SCALE
+			),
+			COUNT_OVERHANG.y * UNIT
 		)
-		_add_mark(PICK_MARK, chip)
+		_face.add_child(_count)
 
 
-func item() -> ItemView:
-	return _item
+## Narrows the copies' stack (stack_step, down to CartCardDraw.STACK_STEP_MIN) so it stays in
+## `gap` px, the gap to the next column (CartLayout.gap): the next card never covers it.
+func fit_stack(gap: float) -> void:
+	var room: int = floori((gap - 1.0) / (UNIT * CartCardDraw.STACK_MAX))
+	stack_step = clampi(room, CartCardDraw.STACK_STEP_MIN, CartCardDraw.STACK_STEP_X)
+	_face.queue_redraw()
 
 
-func name_label() -> Label:
-	return _name
+## How far right of the card its stack reaches (px).
+func stack_reach() -> float:
+	return mini(copies - 1, CartCardDraw.STACK_MAX) * stack_step * UNIT
+
+
+## The rule `card` shows: its rule text on one line, its lower-case keywords in capitals (so they
+## draw as chips), a Family sticker's set family after it; "" for a card without a rule.
+static func rule_line(definition: CardDefinition, sticker_family: String = "") -> String:
+	var text: String = definition.rule_text.strip_edges().replace("\n", " ")
+	if text == NO_RULE:
+		text = ""
+	if not text.is_empty():
+		var lower: RegEx = RegEx.create_from_string(LOWER_KEYWORDS)
+		for found: RegExMatch in lower.search_all(text):
+			text = (
+				text.substr(0, found.get_start())
+				+ found.get_string().to_upper()
+				+ text.substr(found.get_end())
+			)
+	if not sticker_family.is_empty() and FamilySticker.is_family_sticker(definition):
+		var named: String = FamilyPalette.shared().display_name(sticker_family)
+		text = (text + " " + STICKER_SET % named).strip_edges()
+	return text
+
+
+## The rule's fit in a box `width` x `height` px: [text size, the text shown, cut short]: the
+## largest RULE_SIZES size whose lines fit; else the smallest, the text cut at a word with "…".
+static func fit_rule(text: String, width: float, height: float) -> Array:
+	var key: String = "%s|%d|%d" % [text, roundi(width), roundi(height)]
+	if _fits.has(key):
+		return _fits[key]
+	var found: Array = []
+	for text_size: int in RULE_SIZES:
+		if _fits_box(text, text_size, width, height):
+			found = [text_size, text, false]
+			break
+	if found.is_empty():
+		found = [RULE_SIZES[-1], _cut_to_fit(text, RULE_SIZES[-1], width, height), true]
+	_fits[key] = found
+	return found
+
+
+## `text` cut short to fit the box at `text_size`, ending with "…": at a word, else (one word too
+## wide) at a character; "…" alone at worst.
+static func _cut_to_fit(text: String, text_size: int, width: float, height: float) -> String:
+	var words: PackedStringArray = text.split(" ", false)
+	while words.size() > 1:
+		words.remove_at(words.size() - 1)
+		var cut: String = " ".join(words).rstrip(",.:;(") + ELLIPSIS
+		if _fits_box(cut, text_size, width, height):
+			return cut
+	var word: String = words[0] if not words.is_empty() else ""
+	while word.length() > 1:
+		word = word.left(word.length() - 1)
+		if _fits_box(word + ELLIPSIS, text_size, width, height):
+			return word + ELLIPSIS
+	return ELLIPSIS
+
+
+static func rule_font() -> Font:
+	return ArtStyle.bold_font(RULE_WEIGHT)
+
+
+static func _fits_box(text: String, text_size: int, width: float, height: float) -> bool:
+	var label: GlyphLabel = _rule_label(text, text_size, width)
+	var fits: bool = label.fits() and label.size.y <= height + 0.5
+	label.free()
+	return fits
+
+
+static func _rule_label(text: String, text_size: int, width: float) -> GlyphLabel:
+	return GlyphLabel.new(
+		text,
+		rule_font(),
+		text_size,
+		Palette.INK,
+		text_size + RULE_LEADING,
+		width,
+		0,
+		false,
+		null,
+		true
+	)
+
+
+## Adds the START chip (the item came in the starting cart), its tooltip `tip` (StartTip: where
+## it came from), over the barcode.
+func add_start_mark(tip: String) -> void:
+	var chip: RevealChip = make_start_chip()
+	chip.name = START_MARK
+	chip.add_child(StartTip.new(tip))
+	var win: Rect2i = CartCardDraw.window(look)
+	chip.position = (Vector2(win.position.x, win.end.y) + START_AT) * UNIT
+	chip.pivot_offset = chip.size / 2.0
+	chip.rotation_degrees = START_TILT
+	chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_marks.append(chip)
+	_face.add_child(chip)
+
+
+## A START chip (the card's mark and the Cart's legend share it).
+static func make_start_chip() -> RevealChip:
+	var chip: RevealChip = RevealChip.new(
+		Palette.GREEN_DARK, START_SIZE, null, START_TEXT, START_FONT, Palette.PAPER
+	)
+	chip.ledge = Palette.INK
+	return chip
+
+
+## The item's tags: the card's own; none for a coupon.
+func tags() -> PackedStringArray:
+	return card.tags.duplicate() if card.is_product() else PackedStringArray()
+
+
+## The drawn face (it lifts on hover; its children are the rule, the marks and the count).
+func face() -> Control:
+	return _face
+
+
+## The rule's label, its text size, the text it shows and whether it was cut short.
+func rule_label() -> GlyphLabel:
+	return _rule
+
+
+func rule_size() -> int:
+	return _rule_size
+
+
+func shown_rule() -> String:
+	return _shown_rule
+
+
+func rule_clipped() -> bool:
+	return _clipped
 
 
 ## The copies' count ("×3"), or "" for one copy.
@@ -148,33 +313,73 @@ func count_text() -> String:
 	return _count.text() if _count != null else ""
 
 
-## The marks on the art's corner, left to right.
+func count_label() -> EffectSticker:
+	return _count
+
+
+## The family chips' glyphs, top down (the main family's first).
+func family_glyphs() -> Array[FamilyGlyph]:
+	return _glyphs
+
+
+## The marks on the card, left to right.
 func marks() -> Array[RevealChip]:
 	return _marks
 
 
-## The item's column (its sprite and sticker), in this cell's coordinates.
+## The card's rect, in this cell's coordinates.
 func column_rect() -> Rect2:
-	return Rect2(Vector2.ZERO, ItemView.TRAY_SIZE)
+	return Rect2(Vector2.ZERO, SIZE)
 
 
-func _add_mark(mark_name: String, chip: RevealChip) -> void:
-	chip.name = mark_name
-	var x: float = MARK_POSITION.x
-	if not _marks.is_empty():
-		var last: RevealChip = _marks[-1]
-		x = last.position.x + last.size.x + MARK_GAP
-	chip.position = Vector2(x, MARK_POSITION.y)
-	_marks.append(chip)
-	add_child(chip)
+## The rule's box on the face, in this cell's coordinates.
+func rule_rect() -> Rect2:
+	var box: Rect2 = CartCardDraw.rule_box(card, look)
+	return Rect2(box.position * UNIT, box.size * UNIT)
 
 
-## The mix look on every part but the outline, and the outline (made at the first FAINT).
+## A FamilyGlyph over each family chip's tile (CartCardDraw draws the tiles), at the face's UNIT.
+func _add_glyphs() -> void:
+	var chips: Array[FamilyStyle] = CartCardDraw.chip_families(card)
+	for index: int in chips.size():
+		if chips[index].glyph == null:
+			continue
+		var glyph: FamilyGlyph = FamilyGlyph.new(chips[index])
+		var tile: Rect2i = CartCardDraw.chip_rect(look, index)
+		glyph.position = (
+			Vector2(tile.position + Vector2i.ONE * CartCardDraw.CHIP_GLYPH_INSET) * UNIT
+		)
+		glyph.custom_minimum_size = Vector2.ZERO
+		glyph.size = chips[index].glyph.get_size() * UNIT
+		_glyphs.append(glyph)
+		_face.add_child(glyph)
+
+
+func _add_rule(sticker_family: String) -> void:
+	var text: String = rule_line(card, sticker_family)
+	var box: Rect2 = rule_rect()
+	if text.is_empty():
+		_rule_size = RULE_SIZES[0]
+		_shown_rule = NO_RULE_TEXT
+		_rule = _rule_label(NO_RULE_TEXT, _rule_size, box.size.x)
+		_rule.set_color(NO_RULE_COLOR)
+	else:
+		var fit: Array = fit_rule(text, box.size.x, box.size.y)
+		_rule_size = fit[0]
+		_shown_rule = fit[1]
+		_clipped = fit[2]
+		_rule = _rule_label(_shown_rule, _rule_size, box.size.x)
+	_rule.name = RULE_LABEL
+	_rule.set_centred(true)
+	_rule.position = Vector2(
+		box.position.x, box.position.y + maxf(0.0, floorf((box.size.y - _rule.size.y) / 2.0))
+	)
+	_face.add_child(_rule)
+
+
+## The mix look on the face, and the outline (made at the first FAINT).
 func _show_mix() -> void:
-	var grey: float = 1.0 if MixModel.greys(mix_look) else 0.0
-	for child: Node in get_children():
-		if child != _mix_mark and child is CanvasItem:
-			ArtStyle.set_mix_grey(child as CanvasItem, grey, mix_greyness)
+	ArtStyle.set_mix_grey(_face, 1.0 if MixModel.greys(mix_look) else 0.0, mix_greyness)
 	if _mix_mark == null and mix_look != MixModel.Look.FAINT:
 		return
 	if _mix_mark == null:
@@ -182,25 +387,13 @@ func _show_mix() -> void:
 		add_child(_mix_mark)
 	var faint: bool = mix_look == MixModel.Look.FAINT
 	_mix_mark.show_look(
-		MixModel.Look.FAINT if faint else MixModel.Look.NONE, FAINT_RECT.grow(MixMark.INSET)
+		MixModel.Look.FAINT if faint else MixModel.Look.NONE, column_rect().grow(MixMark.INSET)
 	)
 
 
 ## The faint outline (this cell's coordinates), or null before the first one.
 func mix_mark() -> MixMark:
 	return _mix_mark
-
-
-## Up to STACK_MAX dimmed copies of the item's art behind it, farthest first.
-func _add_stack(copies: int) -> void:
-	var behind: int = mini(copies - 1, STACK_MAX)
-	for index: int in range(behind, 0, -1):
-		var copy: TextureRect = UiKit.sprite(_item.sprite().texture)
-		copy.size = ItemView.SPRITE_SIZE
-		copy.position = ItemView.TRAY_SPRITE + STACK_STEP * index
-		# Its own tint (self_modulate), so the mix highlight's grey (the modulate) adds to it.
-		copy.self_modulate = STACK_TINT
-		add_child(copy)
 
 
 func _show_out() -> void:
@@ -220,11 +413,12 @@ func _show_out() -> void:
 		_out.size = OUT_RECT.size
 		_out.pivot_offset = OUT_RECT.size / 2.0
 		_out.rotation_degrees = OUT_TILT
+		_out.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(_out)
 	if _out != null:
 		_out.visible = out_marked
-	_item.lifted = out_marked
-	_item.set_push_tint(OUT_TINT if out_marked else Color.WHITE)
+	lifted = out_marked
+	_face.self_modulate = OUT_TINT if out_marked else Color.WHITE
 	queue_redraw()
 
 
@@ -233,12 +427,51 @@ func out_tag() -> Label:
 	return _out
 
 
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_MOUSE_ENTER:
+		hovered.emit(self)
+	elif what == NOTIFICATION_MOUSE_EXIT:
+		unhovered.emit(self)
+
+
+func _gui_input(event: InputEvent) -> void:
+	var button: InputEventMouseButton = event as InputEventMouseButton
+	if button != null and button.pressed and button.button_index == MOUSE_BUTTON_LEFT:
+		clicked.emit(self)
+
+
 func _draw() -> void:
+	var ring: Rect2 = column_rect().grow(RING_OUTSET)
 	if out_marked:
-		var out: Rect2 = column_rect().grow(RING_OUTSET)
-		draw_rect(out.grow(RING_WIDTH / 2.0 + 1.0), Palette.INK, false, 2.0)
-		draw_rect(out, Palette.TOMATO, false, RING_WIDTH)
+		draw_rect(ring.grow(RING_WIDTH / 2.0 + 1.0), Palette.INK, false, 2.0)
+		draw_rect(ring, Palette.TOMATO, false, RING_WIDTH)
 	elif ringed:
-		var ring: Rect2 = column_rect().grow(RING_OUTSET)
 		draw_rect(ring.grow(RING_WIDTH / 2.0 + 1.0), Palette.INK, false, 2.0)
 		draw_rect(ring, Palette.GOLD, false, RING_WIDTH)
+
+
+## The drawn card (CartCardDraw at UNIT): the copies behind it, the foil, the face, its words, the
+## tab and the tier sticker; a RARE's and a LEGENDARY's foil moves.
+class Face:
+	extends Control
+
+	var _cell: DeckCell
+	var _pen: ArtPen
+	var _now: float = 0.0
+
+	func _init(cell: DeckCell) -> void:
+		_cell = cell
+		name = FACE
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		size = SIZE
+		ArtStyle.use_pixel_material(self)
+		_pen = ArtPen.new(self)
+		_pen.unit = Vector2.ONE * UNIT
+		set_process(cell.look != BoosterArt.Look.COMMON)
+
+	func _process(delta: float) -> void:
+		_now += delta
+		queue_redraw()
+
+	func _draw() -> void:
+		CartCardDraw.draw(_pen, _cell.card, _cell.look, _cell.copies, _now, false, _cell.stack_step)

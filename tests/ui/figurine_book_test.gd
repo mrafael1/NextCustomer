@@ -377,7 +377,7 @@ func test_a_card_stacks_its_families_glyphs() -> void:
 		for card: BookCard in book.cards():
 			var entry: BookEntry = card.entry()
 			var glyphs: Array[TextureRect] = card.family_glyphs()
-			var families: PackedStringArray = BookCard.glyph_families(entry, palette)
+			var families: PackedStringArray = palette.glyph_families(entry.family, entry.tags)
 			if entry.coupon:
 				assert_int(glyphs.size()).is_equal(1)
 				continue

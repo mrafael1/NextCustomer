@@ -13,6 +13,7 @@ const SEED := 20261104
 ## Data order: cold_cases, pantry, household (base aisles), fruit_and_veg, bakery, snacks
 ## (machine aisles, listable at aisle_listable_min items).
 const MACHINE_AISLE := 3
+const REPEAT := preload("res://data/cards/repeat.tres")
 
 var _balance: BalanceDefinition
 var _recipe: DeckDefinition
@@ -471,7 +472,7 @@ func test_the_cart_lines_name_each_cards_source() -> void:
 	var pin: PinDefinition = PinDefinition.new()
 	pin.id = &"test_pin"
 	pin.display_name = "Test pin"
-	pin.starting_cards = [load("res://data/cards/repeat.tres")]
+	pin.starting_cards = [REPEAT]
 	var pins: Array[PinDefinition] = [pin]
 	var waiting: Array[StartCartLine] = StartSetupRules.cart_lines(
 		run.starter, run.start_offer, _balance, pins, null

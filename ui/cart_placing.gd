@@ -2,7 +2,7 @@ class_name CartPlacing
 extends Control
 ## Placing a machine prize in the cart (2026-10-29, mock-up pick_skip_cart.html): while the deck
 ## view shows the cart in placing mode, the picked prize's item rides on the pointer (a DeckCell
-## of it, tilted, gold-ringed) and goes where it is dropped:
+## of it, its card, tilted, gold-ringed) and goes where it is dropped:
 ## - on a free spot (RoomSpot, one per place left in the cart; gold "+1" under the pointer): added;
 ## - on an item of the cart (its cell turns OUT ✕): it swaps one copy of that item out;
 ## - anywhere else, on Close, or with a right click or Escape: back to the machine, nothing picked.
@@ -23,7 +23,7 @@ const DRAG_DISTANCE := 6.0
 ## coordinates); over a target it shrinks and thins so the target's OUT ✕ or +1 shows.
 const HELD_SCALE := 0.9
 const HELD_TILT := -4.0
-const HELD_GRIP := Vector2(54, 100)
+const HELD_GRIP := DeckCell.SIZE / 2.0
 const HOT_SCALE := 0.55
 const HOT_ALPHA := 0.8
 
@@ -45,13 +45,13 @@ func _init() -> void:
 	z_index = 10
 
 
-## Holds `card` (a CardInstance of the prize, in `aisle`) over `cells` and `free_spots`; `back`
-## is the Close button (a drop there goes back). `hover` (a DeckCell, or null) shows the item
-## under it.
+## Holds `card` (a CardInstance of the prize, its look from `machine`) over `cells` and
+## `free_spots`; `back` is the Close button (a drop there goes back). `hover` (a DeckCell, or
+## null) shows the item under it.
 ## A press still down (the pick's) makes it a drag, else it waits for a click.
 func begin(
 	card: CardInstance,
-	aisle: AisleDefinition,
+	machine: MachineDefinition,
 	cells: Array[DeckCell],
 	free_spots: Array[RoomSpot],
 	back: Control,
@@ -62,7 +62,7 @@ func begin(
 	_spots = free_spots
 	_back = back
 	_hover = hover
-	_held = DeckCell.new(card, aisle, 1)
+	_held = DeckCell.new(card, machine, 1)
 	_held.name = "HeldItem"
 	_held.ringed = true
 	_held.scale = Vector2.ONE * HELD_SCALE
@@ -132,7 +132,7 @@ func drop_at(at: Vector2) -> void:
 	if target is RoomSpot:
 		added.emit()
 	elif target is DeckCell:
-		swapped.emit((target as DeckCell).item().card)
+		swapped.emit((target as DeckCell).instance)
 	else:
 		cancelled.emit()
 

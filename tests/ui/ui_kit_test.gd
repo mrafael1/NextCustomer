@@ -89,6 +89,34 @@ func test_disabled_toggling() -> void:
 	assert_int(button.mouse_default_cursor_shape).is_equal(Control.CURSOR_POINTING_HAND)
 
 
+## A disabled button that is `selected` (the deck view's tab of the page shown) reads as picked,
+## not unavailable: sunk and undimmed on the paper SELECTED_FRAME with an ink caption; once it is
+## no longer picked, its own frame and its caption's own look (here ink without an outline, as
+## the top bar sets it) come back.
+func test_a_selected_button_reads_as_picked() -> void:
+	var button: FramedButton = _button()
+	var label: Label = button.caption_label()
+	label.add_theme_color_override("font_color", Palette.TOMATO)
+	label.add_theme_constant_override("outline_size", 3)
+	var own: Texture2D = (button.face().get_theme_stylebox("panel") as StyleBoxTexture).texture
+	button.selected = true
+	button.disabled = true
+	button._show_state(BaseButton.DRAW_DISABLED)
+	assert_float(button.face().offset_top).is_equal(FramedButton.PRESS_DEPTH)
+	assert_object(button.modulate).is_equal(Color.WHITE)
+	var face: StyleBoxTexture = button.face().get_theme_stylebox("panel") as StyleBoxTexture
+	assert_object(face.texture).is_same(FramedButton.SELECTED_FRAME)
+	assert_object(label.get_theme_color("font_color")).is_equal(Palette.INK)
+	assert_int(label.get_theme_constant("outline_size")).is_equal(0)
+	button.selected = false
+	button.disabled = false
+	button._show_state(BaseButton.DRAW_NORMAL)
+	face = button.face().get_theme_stylebox("panel") as StyleBoxTexture
+	assert_object(face.texture).is_same(own)
+	assert_object(label.get_theme_color("font_color")).is_equal(Palette.TOMATO)
+	assert_int(label.get_theme_constant("outline_size")).is_equal(3)
+
+
 ## Mouse-only: no focus, so Space (the fast-forward key) never presses it; the button draws no
 ## text or stylebox of its own.
 func test_framed_button_takes_no_focus() -> void:

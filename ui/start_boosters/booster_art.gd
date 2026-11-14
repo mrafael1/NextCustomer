@@ -6,6 +6,9 @@ extends RefCounted
 ## per card in code from the mock-up's paintFace (the CardFoil looks: COMMON a store promo on
 ## receipt paper, RARE a teal holo laminate), their words drawn live (BoosterCardDraw).
 
+## A face's rarity look (face_sized): the booster's COMMON and RARE, and the cart's LEGENDARY.
+enum Look { COMMON, RARE, LEGENDARY }
+
 ## The counter sits DY art px lower than v2's (the mock-up's F7), so the cards are 76x128.
 const DY := 40
 const AW := 640
@@ -187,9 +190,9 @@ static func families(card: CardDefinition) -> Array[FamilyStyle]:
 	return found
 
 
-## The art window of a face: (x, y, w, h) in card art px.
-static func window_of(rare: bool) -> Rect2i:
-	return Rect2i(5, 5, CW - 10, 48) if rare else Rect2i(3, 3, CW - 6, 50)
+## The art window of a face `cw` art px wide: (x, y, w, h) in card art px.
+static func window_of(rare: bool, cw: int = CW) -> Rect2i:
+	return Rect2i(5, 5, cw - 10, 48) if rare else Rect2i(3, 3, cw - 6, 50)
 
 
 ## A card face's static layer (the mock-up's paintFace without its words), painted once per card
@@ -197,24 +200,55 @@ static func window_of(rare: bool) -> Rect2i:
 ## window, the BIG chip, the name band (its height from the name's lines), the perforation and
 ## the torn foot (COMMON). A RARE leaves its 3 px frame clear for the foil (BoosterCardDraw).
 static func face(card: CardDefinition, rare: bool) -> ImageTexture:
-	var key: String = "%s|%s" % [card.id, rare]
+	return face_sized(card, Look.RARE if rare else Look.COMMON, CW, rare)
+
+
+## The face of `card` in `look`, `cw` art px wide (the cart's cards are wider: mock-up
+## cart_cards.html's cart face), its BIG chip baked in when `big_chip` (the booster's RARE
+## product; the cart draws its own tier sticker, CartCardDraw), its family chips baked in when
+## `chips` (the cart draws its own, with their glyphs as tip targets: CartCardDraw.chip_families).
+## A LEGENDARY face is a RARE's on gold-flecked paper with a mustard art window, a mustard name
+## band and three brass pips; its frame is left clear for the gold foil. Cached per card, look,
+## width, chip and chips.
+static func face_sized(
+	card: CardDefinition, look: Look, cw: int, big_chip: bool, chips: bool = true
+) -> ImageTexture:
+	var key: String = "%s|%d|%d|%s|%s" % [card.id, look, cw, big_chip, chips]
 	if _faces.has(key):
 		return _faces[key]
-	var image: Image = Image.create(CW, CH, false, Image.FORMAT_RGBA8)
+	var rare: bool = look != Look.COMMON
+	var gold: bool = look == Look.LEGENDARY
+	var image: Image = Image.create(cw, CH, false, Image.FORMAT_RGBA8)
 	var coupon: bool = card.kind == CardDefinition.Kind.COUPON
 	image.fill(Palette.INK)
-	var win: Rect2i = window_of(rare)
+	var win: Rect2i = window_of(rare, cw)
 	if rare:
-		image.fill_rect(Rect2i(1, 1, CW - 2, CH - 2), Color(0, 0, 0, 0))
-		image.fill_rect(Rect2i(4, 4, CW - 8, CH - 8), Palette.INK)
-		image.fill_rect(Rect2i(5, 5, CW - 10, CH - 10), Palette.PAPER)
+		image.fill_rect(Rect2i(1, 1, cw - 2, CH - 2), Color(0, 0, 0, 0))
+		image.fill_rect(Rect2i(4, 4, cw - 8, CH - 8), Palette.INK)
+		image.fill_rect(Rect2i(5, 5, cw - 10, CH - 10), Palette.PAPER)
+		if gold:
+			_dither(image, Rect2i(5, 5, cw - 10, CH - 10), Palette.MUSTARD_PALE, 8)
+			_dither(
+				image,
+				Rect2i(5, win.end.y + 1, cw - 10, CH - win.end.y - 7),
+				Palette.MUSTARD_LIGHT,
+				2
+			)
 	else:
-		image.fill_rect(Rect2i(1, 1, CW - 2, CH - 2), TAN_DARK)
-		image.fill_rect(Rect2i(2, 2, CW - 4, CH - 4), Palette.PAPER)
-	image.fill_rect(win, Palette.TEAL_PALE if coupon else Palette.CREAM)
+		image.fill_rect(Rect2i(1, 1, cw - 2, CH - 2), TAN_DARK)
+		image.fill_rect(Rect2i(2, 2, cw - 4, CH - 4), Palette.PAPER)
+	var window_fill: Color = Palette.CREAM
+	if coupon:
+		window_fill = Palette.TEAL_PALE
+	elif gold:
+		window_fill = Palette.MUSTARD_PALE
+	image.fill_rect(win, window_fill)
 	if not coupon:
 		_dither(
-			image, Rect2i(win.position.x, win.end.y - 10, win.size.x, 10), Palette.CREAM_SHADE, 4
+			image,
+			Rect2i(win.position.x, win.end.y - 10, win.size.x, 10),
+			Palette.MUSTARD_LIGHT if gold else Palette.CREAM_SHADE,
+			4
 		)
 	_paint_art(image, card, win, coupon)
 	if not rare and not coupon:
@@ -226,15 +260,18 @@ static func face(card: CardDefinition, rare: bool) -> ImageTexture:
 			bx += widths[k] + 1
 	image.fill_rect(Rect2i(win.position.x, win.end.y, win.size.x, 1), Palette.INK)
 	if rare:
-		for k: int in 2:
+		var pip: Color = Palette.BRASS_DARK if gold else Palette.TEAL
+		for k: int in 3 if gold else 2:
 			var px: int = win.position.x + 3 + k * 5
 			var py: int = win.position.y + 3
-			image.fill_rect(Rect2i(px + 1, py, 1, 1), Palette.TEAL)
-			image.fill_rect(Rect2i(px, py + 1, 3, 1), Palette.TEAL)
-			image.fill_rect(Rect2i(px + 1, py + 2, 1, 1), Palette.TEAL)
+			image.fill_rect(Rect2i(px + 1, py, 1, 1), pip)
+			image.fill_rect(Rect2i(px, py + 1, 3, 1), pip)
+			image.fill_rect(Rect2i(px + 1, py + 2, 1, 1), pip)
 	else:
 		image.fill_rect(Rect2i(win.position.x + 3, win.position.y + 3, 2, 2), Palette.GREY)
-	var styles: Array[FamilyStyle] = families(card)
+	var styles: Array[FamilyStyle] = []
+	if chips:
+		styles = families(card)
 	for k: int in styles.size():
 		var cx: int = win.position.x + 1
 		var cy: int = win.position.y + 8 + k * 14
@@ -249,7 +286,7 @@ static func face(card: CardDefinition, rare: bool) -> ImageTexture:
 		var px0: int = win.end.x - w - 1
 		_notched(image, Rect2i(px0, win.position.y + 2, w, 12), Palette.PAPER)
 		_blit(image, price, Vector2i(win.end.x - w + 2, win.position.y + 4))
-	if rare and not coupon:
+	if big_chip and rare and not coupon:
 		_notched(image, Rect2i(win.end.x - 18, win.end.y - 11, 17, 9), Palette.MUSTARD)
 		_blit(
 			image,
@@ -259,18 +296,23 @@ static func face(card: CardDefinition, rare: bool) -> ImageTexture:
 	var lines: PackedStringArray = ArtPen.pix_wrap(card.display_name.to_upper(), win.size.x - 6)
 	var band_h: int = 4 + lines.size() * 9
 	var by: int = win.end.y + 1
-	image.fill_rect(Rect2i(win.position.x, by, win.size.x, band_h), Palette.TEAL if coupon else TAN)
+	var band: Color = TAN
+	if coupon:
+		band = Palette.TEAL
+	elif gold:
+		band = Palette.MUSTARD_LIGHT
+	image.fill_rect(Rect2i(win.position.x, by, win.size.x, band_h), band)
 	image.fill_rect(
 		Rect2i(win.position.x, by + band_h, win.size.x, 1),
 		Palette.TEAL_SHADE if coupon else TAN_DARK
 	)
 	if not rare:
 		var x: int = 4
-		while x < CW - 4:
+		while x < cw - 4:
 			image.set_pixel(x, CH - 7, Palette.CREAM_DARKEST)
 			x += 2
 		var foot: Array[int] = [0, 1, 2, 1]
-		for fx: int in CW:
+		for fx: int in cw:
 			var depth: int = foot[fx % 4]
 			for dy: int in depth:
 				image.set_pixel(fx, CH - 1 - dy, Color(0, 0, 0, 0))
@@ -279,9 +321,10 @@ static func face(card: CardDefinition, rare: bool) -> ImageTexture:
 	return _faces[key]
 
 
-## The name band's lines and the rule box (top, bottom) of a face, in card art px.
-static func face_text(card: CardDefinition, rare: bool) -> Dictionary:
-	var win: Rect2i = window_of(rare)
+## The name band's lines and the rule box (top, bottom) of a face `cw` art px wide, in card art
+## px.
+static func face_text(card: CardDefinition, rare: bool, cw: int = CW) -> Dictionary:
+	var win: Rect2i = window_of(rare, cw)
 	var lines: PackedStringArray = ArtPen.pix_wrap(card.display_name.to_upper(), win.size.x - 6)
 	var band_h: int = 4 + lines.size() * 9
 	var by: int = win.end.y + 1
