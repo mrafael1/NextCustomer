@@ -1,11 +1,11 @@
 class_name QuickTutorial
 extends Resource
-## One quick tutorial (data/tutorial/quick_*.tres; the mock-up docs/art/mockups/tutorial.html,
-## its QUICK steps): 2 to 4 steps, once per profile (TutorialFlags.quick(id)), the first time a
-## start screen mechanic unlocks. It waits until every page 1 booster is open (BADGE PINS: until
-## page 2 opens). Its callouts read "NEW · <title>" and "n/total". A step whose ring asks for a
-## free move waits for it; when the player backs out (the step's back_out_on), the rest waits for
-## the first time they make the move.
+## One quick tutorial (data/tutorial/quick_*.tres), once per profile (TutorialFlags.quick(id)),
+## the first time a start screen mechanic unlocks (QuickTutorials plays it). It waits until every
+## page 1 booster is open (BADGE PINS: until page 2 opens). Reworked after play test 1
+## (2026-11-15): one callout, "NEW · <title>" (its one step: a ring on what unlocked, GOT IT, gone
+## too when the player makes the ringed move), then nothing is gated: its `hints` pop as tip
+## bubbles the first time each moment comes on that board.
 
 ## What makes it due.
 ## A run start after the first completed aisle, every page 1 booster open (swap UI A).
@@ -31,6 +31,8 @@ const PATHS: Array[String] = [
 ## The page MORE › opens (TipDefinition.TOYS_PREFIX: the toys book's), or empty.
 @export var more_page: StringName = &""
 @export var steps: Array[TutorialStep] = []
+## The tip bubbles that follow the callout, each once.
+@export var hints: Array[QuickHint] = []
 
 
 ## Every quick tutorial, in play order (`order`).

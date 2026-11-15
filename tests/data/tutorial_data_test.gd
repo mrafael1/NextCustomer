@@ -134,30 +134,34 @@ const APPROVED: Dictionary[String, String] = {
 		"NEW: **RESTOCK**. Not happy with a **BOOSTER** you opened? Send it back for a new one, "
 		+ "once per run start."
 	),
-	"R2": "Click RETURN THIS ONE on the **BOOSTER** to send back. CANCEL keeps all your **CARDS**.",
-	"R3":
+	"restock_pick":
+	"Click RETURN THIS ONE on a **BOOSTER** to send it back. CANCEL keeps all your " + "**CARDS**.",
+	"restock_new":
 	(
-		"Its 3 **CARDS** go in the RETURNS tote and leave your **CART**. A new sealed "
-		+ "**BOOSTER** takes its place."
+		"Its 3 **CARDS** left your **CART**. Open the new **BOOSTER**: a new chance at a "
+		+ "**RARE** one. **RESTOCK** is used up until your next run."
 	),
-	"R4":
+	"P1":
+	"NEW: **BADGE PINS**. You earned one! Click WEAR: a pin changes a rule for this whole run.",
+	"pins_worn":
 	(
-		"Open it: 3 new **CARDS**, with a new chance at a **RARE** one. **RESTOCK** is used up "
-		+ "until your next run."
+		"Confirm with the red key, and your **STARTER PACKS** deal. You have 1 slot: wearing "
+		+ "another pin swaps it."
 	),
-	"P1": "NEW: **BADGE PINS**. You earned one! A pin you wear changes a rule for this whole run.",
-	"P2": "Read a pin's rule, then click WEAR. You have 1 slot: wearing another pin swaps it.",
-	"P3": "Confirm with the red key, and your **STARTER PACKS** deal. Wearing no pin is fine too.",
-	"P4":
-	"Your pin is on the board for this run. Click the board or press P to change it before you pick.",
+	"pins_set":
+	"Your pin is on the board for this run. Click it or press P to change it before you pick.",
 	"SA1":
 	(
 		"NEW: each completed aisle lets you swap 1 of **YOUR REGULARS**. Click the basket to "
 		+ "swap."
 	),
-	"SA2": "Each aisle gives a **BOOSTER** of plain **CARDS**. Open both.",
-	"SA3": "Drag a **CARD** onto a regular to swap them. Drag it back to undo.",
-	"SA4": "Swaps last this run only. Next run, **YOUR REGULARS** are back. Click DONE.",
+	"swap_open": "Each completed aisle gives a **BOOSTER** of plain **CARDS**. Open them.",
+	"swap_drag": "Drag a **CARD** onto a regular to swap them. Drag it back to undo.",
+	"swap_kept":
+	(
+		"Swaps last this run only. Next run, **YOUR REGULARS** are back. Click DONE when you are "
+		+ "set."
+	),
 }
 ## G1 follows the title's plate (the user's decision): START RUN on a fresh profile, NEW RUN with
 ## a saved run.
@@ -300,9 +304,22 @@ func test_tips_and_quick_tutorials_have_their_ids() -> void:
 	for each: QuickTutorial in quick:
 		for step: TutorialStep in each.steps:
 			steps.append(String(step.id))
-	assert_array(steps).is_equal(
-		["SA1", "SA2", "SA3", "SA4", "R1", "R2", "R3", "R4", "P1", "P2", "P3", "P4"]
-	)
+	# One callout each, then its hints (play test 1, 2026-11-15).
+	assert_array(steps).is_equal(["SA1", "R1", "P1"])
+	for each: QuickTutorial in quick:
+		assert_int(each.hints.size()).is_greater(0)
+		for hint: QuickHint in each.hints:
+			(
+				assert_bool(TutorialEvents.ARGS.has(hint.event))
+				. override_failure_message(hint.id)
+				. is_true()
+			)
+			var anchor: StringName = hint.anchor_for({})
+			(
+				assert_bool(TutorialAnchors.is_known(anchor))
+				. override_failure_message(hint.id)
+				. is_true()
+			)
 	var every: Array[String] = []
 	for line: Array in _lines():
 		assert_bool(every.has(str(line[0]))).override_failure_message(str(line[0])).is_false()
@@ -541,18 +558,22 @@ func test_the_gate_allows_only_the_steps_move() -> void:
 	assert_bool(g11.allows(TutorialActions.CHUTE, {TutorialEvents.ARG_CHUTE: &"upgrade"})).is_true()
 
 
-func test_a_quick_step_refuses_only_its_refused_ids() -> void:
+## A quick hint fires on its event only (BADGE PINS' worn hint: a pin worn, not taken off), and
+## its anchor takes the event's index or slot.
+func test_a_quick_hint_fires_on_its_event() -> void:
+	var pins: QuickTutorial = load(QuickTutorial.PATHS[2])
+	var worn: QuickHint = pins.hints[0]
+	var on: Dictionary = {TutorialEvents.ARG_INDEX: 0, TutorialEvents.ARG_ON: true}
+	assert_bool(worn.fires_on(TutorialEvents.PIN_TOGGLED, on)).is_true()
+	on[TutorialEvents.ARG_ON] = false
+	assert_bool(worn.fires_on(TutorialEvents.PIN_TOGGLED, on)).is_false()
+	assert_bool(worn.fires_on(TutorialEvents.PINS_CONFIRMED, {})).is_false()
 	var restock: QuickTutorial = load(QuickTutorial.PATHS[1])
-	var armed: TutorialStep = restock.step(&"R2")
-	assert_bool(armed.allows(TutorialActions.HIT, {TutorialActions.ARG_ID: &"tab2"})).is_false()
-	assert_bool(armed.allows(TutorialActions.HIT, {TutorialActions.ARG_ID: &"primary"})).is_true()
-	assert_bool(armed.allows(TutorialActions.HIT, {TutorialActions.ARG_ID: &"rcards0"})).is_true()
-	assert_str(String(armed.back_out_on)).is_equal(String(TutorialEvents.RESTOCK_CANCELLED))
-	(
-		assert_bool(
-			restock.step(&"R1").allows(TutorialActions.HIT, {TutorialActions.ARG_ID: &"tab2"})
-		)
-		. is_true()
+	var fresh: QuickHint = restock.hints[1]
+	assert_str(String(fresh.anchor_for({TutorialEvents.ARG_INDEX: 1}))).is_equal("booster1")
+	var swap: QuickTutorial = load(QuickTutorial.PATHS[0])
+	assert_str(String(swap.hints[2].anchor_for({TutorialEvents.ARG_SLOT: 2}))).is_equal(
+		"swap_regular2"
 	)
 
 
@@ -666,6 +687,9 @@ func _lines() -> Array[Array]:
 		for step: TutorialStep in each.steps:
 			found.append([String(step.id), step.text, at])
 			at += 1
+		for hint: QuickHint in each.hints:
+			found.append([String(hint.id), hint.text, at])
+			at += 1
 	return found
 
 
@@ -685,6 +709,8 @@ func _taught_lists() -> Array[Array]:
 	for each: QuickTutorial in QuickTutorial.all():
 		for step: TutorialStep in each.steps:
 			found.append([step.id, step.teaches])
+		for hint: QuickHint in each.hints:
+			found.append([hint.id, hint.teaches])
 	return found
 
 

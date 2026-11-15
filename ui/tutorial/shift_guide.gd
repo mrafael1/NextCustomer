@@ -190,6 +190,11 @@ func overlay_covered() -> bool:
 	return paused or deck or _screen._counting or handbook
 
 
+## The HANDBOOK watched (null before watch).
+func watched_handbook() -> HandbookPage:
+	return _handbook if is_instance_valid(_handbook) else null
+
+
 ## The overlay's layer (null before mount_overlay).
 func layer() -> Control:
 	return _layer

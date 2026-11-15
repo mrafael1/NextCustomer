@@ -1,7 +1,8 @@
-[gd_resource type="Resource" script_class="QuickTutorial" load_steps=7 format=3]
+[gd_resource type="Resource" script_class="QuickTutorial" load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://presentation/tutorial/quick_tutorial.gd" id="1_main"]
 [ext_resource type="Script" path="res://presentation/tutorial/tutorial_step.gd" id="2_sub"]
+[ext_resource type="Script" path="res://presentation/tutorial/quick_hint.gd" id="3_hint"]
 
 [sub_resource type="Resource" id="Resource_sa1"]
 script = ExtResource("2_sub")
@@ -12,42 +13,35 @@ teaches = PackedStringArray("SWAP")
 rings = Array[StringName]([&"crate"])
 act = 0
 side = 2
-footer = 2
+footer = 1
 advance_on = &"swap_opened"
 
-[sub_resource type="Resource" id="Resource_sa2"]
-script = ExtResource("2_sub")
-id = &"SA2"
-screen = 3
-text = "Each aisle gives a **BOOSTER** of plain **CARDS**. Open both."
-rings = Array[StringName]([&"swap_boosters"])
-act = 0
-side = 4
-footer = 2
-advance_on = &"swap_booster_opened"
-advance_count = 2
+[sub_resource type="Resource" id="Hint_sa2"]
+script = ExtResource("3_hint")
+id = &"swap_open"
+event = &"swap_opened"
+title = "SWAP"
+text = "Each completed aisle gives a **BOOSTER** of plain **CARDS**. Open them."
+teaches = PackedStringArray()
+anchor = "swap_boosters"
 
-[sub_resource type="Resource" id="Resource_sa3"]
-script = ExtResource("2_sub")
-id = &"SA3"
-screen = 3
+[sub_resource type="Resource" id="Hint_sa3"]
+script = ExtResource("3_hint")
+id = &"swap_drag"
+event = &"swap_booster_opened"
+title = "SWAP"
 text = "Drag a **CARD** onto a regular to swap them. Drag it back to undo."
-rings = Array[StringName]([&"swap_regular0", &"swap_card0_0"])
-act = 0
-side = 4
-footer = 2
-advance_on = &"swap_applied"
+teaches = PackedStringArray()
+anchor = "swap_regular0"
 
-[sub_resource type="Resource" id="Resource_sa4"]
-script = ExtResource("2_sub")
-id = &"SA4"
-screen = 3
-text = "Swaps last this run only. Next run, **YOUR REGULARS** are back. Click DONE."
-rings = Array[StringName]([&"swap_regular0", &"swap_done"])
-act = -1
-side = 1
-footer = 1
-follow_index = true
+[sub_resource type="Resource" id="Hint_sa4"]
+script = ExtResource("3_hint")
+id = &"swap_kept"
+event = &"swap_applied"
+title = "SWAP"
+text = "Swaps last this run only. Next run, **YOUR REGULARS** are back. Click DONE when you are set."
+teaches = PackedStringArray()
+anchor = "swap_regular{slot}"
 
 [resource]
 script = ExtResource("1_main")
@@ -55,4 +49,5 @@ id = &"swap"
 title = "SWAP"
 order = 1
 trigger = &"swap_unlocked"
-steps = Array[ExtResource("2_sub")]([SubResource("Resource_sa1"), SubResource("Resource_sa2"), SubResource("Resource_sa3"), SubResource("Resource_sa4")])
+steps = Array[ExtResource("2_sub")]([SubResource("Resource_sa1")])
+hints = Array[ExtResource("3_hint")]([SubResource("Hint_sa2"), SubResource("Hint_sa3"), SubResource("Hint_sa4")])

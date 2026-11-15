@@ -63,6 +63,11 @@ const BASE_WIDTH := 230.0
 const WORD_WIDTH := 5.0
 const MAX_WIDTH := 380.0
 
+## The quick tutorials (SWAP, RESTOCK, BADGE PINS), off while the guided part holds the board.
+var quick: QuickTutorials
+## The one-time tips (T1-T16), from the guided part's end on.
+var tips: TipScheduler
+
 var _screen: ShiftScreen
 var _guided: TutorialScript
 ## The figures the lines name (TutorialText.values), filled once.
@@ -109,6 +114,8 @@ func _init(screen: ShiftScreen) -> void:
 	_screen = screen
 	_guided = TutorialScript.guided()
 	screen.add_child(self)
+	quick = QuickTutorials.new(screen, is_active)
+	tips = TipScheduler.new(screen, self)
 	screen.guide_event.connect(_on_event)
 	screen.guide.refused.connect(func(_action: StringName, _args: Dictionary) -> void: _refuse())
 
@@ -501,6 +508,9 @@ func _pop(found: PlanHint.Pick) -> void:
 	var body: String = TutorialText.markup(TutorialText.fill(found.hint.text, _values))
 	_bubble_now().pop(found.hint.title, body, target, _screen.profile.reduced_motion())
 	_screen._log.log_event("tutorial_hint", RunEvents.tutorial_hint(found.hint.id))
+	var covers: StringName = found.hint.covers_tip
+	if not covers.is_empty() and TutorialFlags.mark_tip(_screen.profile, covers):
+		_screen.save_profile()  # Its one-time tip was told here (T1 REDRAW, T10 MEDALS).
 	if not _screen._busy():
 		_screen._save_run()  # A resume never shows it twice.
 

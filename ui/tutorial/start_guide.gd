@@ -26,6 +26,20 @@ func blocked() -> bool:
 	return not is_instance_valid(board) or board.tips_blocked()
 
 
+## Whether the BADGE PINS callout must wait: the slide, a flight, a pop. Its packs wait undealt
+## and its step may be open (blocked's page 2 rule), and neither holds it.
+func pins_blocked() -> bool:
+	if not is_instance_valid(board) or board.busy or board.page != 2:
+		return true
+	var staff: BuildPage = board.staff
+	return (
+		not board.is_visible_in_tree()
+		or staff.run == null
+		or staff.flight != null
+		or staff.now < staff.busy_until
+	)
+
+
 ## Puts `overlay` over the board (StartBoard.mount_overlay).
 func mount(overlay: Control) -> void:
 	board.mount_overlay(overlay)
