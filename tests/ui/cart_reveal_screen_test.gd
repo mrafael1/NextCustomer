@@ -16,6 +16,11 @@ func before_test() -> void:
 	_event_log().use_folder(_folder)
 	# The run and profile saves go there too, never to the real user:// saves.
 	ProjectSettings.set_setting(SaveService.FOLDER_SETTING, _folder)
+	# A profile done with the guided first run: the title's request opens a normal run here (the
+	# guided run's board is tutorial_first_run_test's).
+	var profile: ProfileState = ProfileState.new()
+	TutorialFlags.finish_guide(profile)
+	SaveService.new(_folder).save_profile(profile)
 
 
 func after_test() -> void:

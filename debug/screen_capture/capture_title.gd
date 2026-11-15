@@ -94,6 +94,10 @@ func _title(spec: String) -> String:
 	var title: TitleScreen = _held_title()
 	if spec == "lit":
 		title.skip_intro()
+		# The title is held (no _process): G1's ring and callout (a fresh profile's guided run
+		# due) are laid out once here.
+		var guide: TitleGuide = title.title_guide()
+		guide.set_active(guide.is_active())
 		return "title_lit"
 	var seconds: float = spec.to_float()
 	var front: Storefront = title.storefront()

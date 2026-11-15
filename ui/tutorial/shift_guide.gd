@@ -71,10 +71,12 @@ func asks(action: StringName, args: Dictionary = {}) -> bool:
 	return TutorialActions.allows(gate, action, args)
 
 
-## Whether `card` may be picked up from its basket (PICK_CARD); a refusal sends `refused`.
-func may_pick(card: CardInstance) -> bool:
+## Whether `card` may be picked up from its basket, or from the row (`from_row`: the guided run
+## lets a placed card back only when the row left fits a step) (PICK_CARD); a refusal sends
+## `refused`.
+func may_pick(card: CardInstance, from_row: bool = false) -> bool:
 	var args: Dictionary = card_args(card)
-	args[TutorialEvents.ARG_FROM_ROW] = false
+	args[TutorialEvents.ARG_FROM_ROW] = from_row
 	return allows(TutorialActions.PICK_CARD, args)
 
 

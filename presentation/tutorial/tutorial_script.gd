@@ -23,6 +23,12 @@ func step(step_id: StringName) -> TutorialStep:
 	return steps[at] if at >= 0 else null
 
 
+## Step `step_id`'s line as written (its {placeholders} unfilled), or "" when there is no such step.
+func line(step_id: StringName) -> String:
+	var found: TutorialStep = step(step_id)
+	return found.text if found != null else ""
+
+
 ## The index of step `step_id` in play order, or -1.
 func index_of(step_id: StringName) -> int:
 	for k: int in steps.size():

@@ -13,9 +13,9 @@ extends Control
 ## no (the title's intro, a popup, the handbook, the toy machines or a start) and the plate is
 ## on screen; it follows the plate as it slides in. Reduced motion (`still`) holds the pulse.
 ##
-## Its text is the approved G1 line with {label} for the plate's label (text_template, so the
-## guided script's own line can replace it when the tutorial's data is wired); plain words, no
-## chips yet (the glossary's chips come with the tutorial's text data).
+## Its text is the guided script's G1 line (data/tutorial/guided.tres, its chips marked:
+## script_line) with {label} for the plate's label (text_template); TEXT, the approved line in
+## plain words, stands in when the script has no G1.
 
 const STEP_ID := &"G1"
 const HEADER := "YOUR MOVE"
@@ -74,6 +74,7 @@ func _init(menu: TitleMenu) -> void:
 	_tab.name = "ClickTab"
 	_tab.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_ring.add_child(_tab)
+	text_template = script_line()
 	_card = TipCard.new()
 	_card.name = "Callout"
 	_card.width_override = CARD_WIDTH
@@ -88,6 +89,18 @@ static func due(profile: ProfileState, saved: RunSave) -> bool:
 	if saved != null and saved.run != null and saved.run.guided:
 		return false
 	return TutorialFlags.guided_due(profile)
+
+
+## The guided script's G1 line as TipMarkup (its chips marked), {label} for the plate's label;
+## TEXT when the script has no G1.
+static func script_line() -> String:
+	# Through TutorialScript.line: a TutorialStep typed here makes the script's own check leak at
+	# exit (Godot 4.7, --check-only).
+	var text: String = TutorialScript.guided().line(STEP_ID)
+	if text == "":
+		return TEXT
+	var placeholder: String = "{%s}" % TutorialText.PRIMARY
+	return TutorialText.markup(text.replace(placeholder, LABEL_KEY))
 
 
 ## Turns G1 on or off (the title, from due).

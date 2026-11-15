@@ -46,6 +46,8 @@ var profile: ProfileState
 var tracker: CheckoutTracker = CheckoutTracker.new()
 ## The tutorial's gate, hooks and anchors (WP-5): its gate is null outside a tutorial.
 var guide: ShiftGuide
+## The guided first run's director (WP-8): plays a guided run's steps.
+var tutorial: TutorialDirector
 var _picked: CardInstance
 ## True when the picked card was taken from the row: placing it again is a move (plan 8:
 ## 1 placement, 0 removals); only leaving it in the hand counts as a removal.
@@ -152,16 +154,21 @@ func _ready() -> void:
 	if saved != null:
 		_resume_run(saved)
 	else:
-		start_new_run(_log.new_run_seed(), true, _cart_reveal.requested)
+		var guided: bool = _cart_reveal.requested and TutorialFlags.guided_due(profile)
+		start_new_run(_log.new_run_seed(), true, _cart_reveal.requested, guided)
 
 
 ## Starts a run with a seed (a new random one, or one set from the debug panel) and its first
 ## shift. Without `saves_run` (the --demo-row run) the run never writes or deletes the run save.
-## With `reveal` the cart reveal (v0.51) opens over shift 1 once it is dealt and saved.
-func start_new_run(seed_value: int, saves_run: bool = true, reveal: bool = false) -> void:
+## With `reveal` the cart reveal (v0.51) opens over shift 1 once it is dealt and saved; `guided`
+## deals the tutorial's guided first run (its director plays it).
+func start_new_run(
+	seed_value: int, saves_run: bool = true, reveal: bool = false, guided: bool = false
+) -> void:
 	_saves_run = saves_run
 	ShiftMusic.new_run(_music)
-	run = _start_choice.new_run(seed_value, _balance, load(STARTER_DECK))
+	var deck: DeckDefinition = StartChoice.guided_start().recipe if guided else load(STARTER_DECK)
+	run = _start_choice.new_run(seed_value, _balance, deck)
 	_run_started_ms = Time.get_ticks_msec()
 	_run_ended_ms = -1
 	_log.begin_run()
@@ -169,6 +176,7 @@ func start_new_run(seed_value: int, saves_run: bool = true, reveal: bool = false
 	_close_overlays()
 	_cabinet.set_total_down(false)
 	_log.log_event("run_start", RunEvents.run_start(run))
+	tutorial.attach()
 	if _start_choice.begin_if_choosing(reveal):  # #107: the starter pack choice, then shift 1.
 		return
 	run.start_shift()
@@ -224,6 +232,7 @@ func _resume_run(saved: RunSave) -> void:
 	_pause.welcome_back()
 	_machine.reset_swaps()
 	_close_overlays()
+	tutorial.attach()
 	# A resume never plays a count-up (saves are taken at the click and the machine's visits).
 	_cabinet.set_total_down(false)
 	if run.phase == RunState.Phase.SCORED:
@@ -305,7 +314,7 @@ func _on_row_card_clicked(view: CardView) -> void:
 		_drop_pick()
 	if _picked != null:
 		_place_picked(slot)
-	elif run.remove(view.card):
+	elif guide.may_pick(view.card, true) and run.remove(view.card):
 		_pick(view.card, true)
 		_sfx.play("card_pickup")
 		_drag.arm(view.card, get_viewport().get_mouse_position())
@@ -968,6 +977,7 @@ func _build() -> void:
 	_effects.watch_glyphs(_glyph_tips, _deck_view)  # A glyph's family lights (#105 piece 3).
 	guide.watch(HandbookPage.mount(self, _glyph_tips, _top_bar as TopBar))  # The handbook (v1.06).
 	_pause = PauseFlow.new(self, _log)
+	tutorial = TutorialDirector.new(self)
 
 
 ## The tutorial anchor `id`'s rect (TutorialAnchors), global; Rect2() when it isn't shown.

@@ -64,6 +64,24 @@ func surround(target: Rect2) -> void:
 	queue_redraw()
 
 
+## Moves the CLICK tab off `others` (rings in its parent's coordinates): its top-right corner,
+## else top-left, bottom-right or bottom-left, the first that clears them all (else top-right).
+func clear_tab(others: Array[Rect2]) -> void:
+	var tab_size: Vector2 = _tab.size
+	var top: float = -tab_size.y + INK_LINE
+	var bottom: float = size.y - INK_LINE
+	var right: float = size.x - tab_size.x
+	var spots: Array[Vector2] = [
+		Vector2(right, top), Vector2(0, top), Vector2(right, bottom), Vector2(0, bottom)
+	]
+	_tab.position = spots[0]
+	for spot: Vector2 in spots:
+		var rect: Rect2 = Rect2(position + spot, tab_size)
+		if others.all(func(other: Rect2) -> bool: return not other.intersects(rect)):
+			_tab.position = spot
+			return
+
+
 ## The ring's rect and its tab's (when shown), in its parent's coordinates.
 func outer_rect() -> Rect2:
 	var rect: Rect2 = Rect2(position, size)

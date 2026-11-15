@@ -218,6 +218,7 @@ func _lay_out() -> void:
 		ring.surround(to_local * rect)
 		holes.append(to_global * Rect2(ring.position, ring.size))
 		targets.append(ring.outer_rect())
+	_clear_tabs(ring_nodes, targets)
 	_shade.set_holes(holes)
 	var plates: Array[LockPlate] = locks()
 	for index: int in range(plates.size()):
@@ -226,6 +227,24 @@ func _lay_out() -> void:
 		if rect.has_area():
 			plates[index].cover(to_local * rect)
 	_place_callout(ring_nodes, targets)
+
+
+## Moves the move ring's CLICK tab off the other rings (G20: Milk's tab under slot 6's ring);
+## `targets` (the shown rings' outer rects, in order) is updated.
+func _clear_tabs(ring_nodes: Array[TutorialRing], targets: Array[Rect2]) -> void:
+	var shown: Array[TutorialRing] = []
+	for ring: TutorialRing in ring_nodes:
+		if ring.visible:
+			shown.append(ring)
+	for index: int in range(shown.size()):
+		if not shown[index].act:
+			continue
+		var others: Array[Rect2] = []
+		for other: TutorialRing in shown:
+			if other != shown[index]:
+				others.append(Rect2(other.position, other.size))
+		shown[index].clear_tab(others)
+		targets[index] = shown[index].outer_rect()
 
 
 ## Opens the callout on the view's side of its target ring, inside the overlay's rect: the first
@@ -246,16 +265,63 @@ func _place_callout(ring_nodes: Array[TutorialRing], targets: Array[Rect2]) -> v
 	for plate: LockPlate in locks():
 		if plate.visible:
 			plates.append(Rect2(plate.position, plate.size))
+	# The card opens off the ring's CLICK tab too (a card above a tabbed ring clears the tab).
+	var anchor: Rect2 = ring_nodes[index].outer_rect()
 	var tries: Array[Array] = []
 	for want: TipCard.Opens in _sides(_view.side):
-		tries.append(TipCard.place(target, target, want, card, screen))
-	var chosen: Array = tries[0]
+		tries.append(TipCard.place(anchor, anchor, want, card, screen))
+	# Then each side slid along its edge, lined up with the target's ends (a ring beside the
+	# target can block the centred card but not a slid one).
+	for centred: Array in tries.duplicate():
+		tries.append_array(_slid(centred, target, screen))
+	var chosen: Array = []
 	for avoid: Array[Rect2] in [plates, targets]:
-		var found: Array = _first_clear(tries, avoid)
-		if not found.is_empty():
-			chosen = found
+		chosen = _first_clear(tries, avoid)
+		if not chosen.is_empty():
 			break
+	if chosen.is_empty():
+		chosen = _least_covering(tries, targets)
 	_callout.put((chosen[0] as Rect2).position, chosen[1], target)
+
+
+## `placed` ([Rect2, Opens]) slid along its side to line up with `target`'s two ends, kept inside
+## `screen`'s margins.
+static func _slid(placed: Array, target: Rect2, screen: Rect2) -> Array[Array]:
+	var box: Rect2 = placed[0]
+	var on: TipCard.Opens = placed[1]
+	var low: Vector2 = screen.position + Vector2.ONE * TipCard.MARGIN
+	var high: Vector2 = screen.end - Vector2.ONE * TipCard.MARGIN - TipCard.SHADOW - box.size
+	var spots: Array[Vector2] = []
+	if on in [TipCard.Opens.ABOVE, TipCard.Opens.BELOW]:
+		spots = [
+			Vector2(target.position.x, box.position.y),
+			Vector2(target.end.x - box.size.x, box.position.y)
+		]
+	else:
+		spots = [
+			Vector2(box.position.x, target.position.y),
+			Vector2(box.position.x, target.end.y - box.size.y)
+		]
+	var slid: Array[Array] = []
+	for spot: Vector2 in spots:
+		var at: Vector2 = spot.clamp(low, high.max(low))
+		slid.append([Rect2((at / TipCard.PX).floor() * TipCard.PX, box.size), on])
+	return slid
+
+
+## The placement of `tries` whose card covers the least of `avoid` (the first among equals).
+static func _least_covering(tries: Array[Array], avoid: Array[Rect2]) -> Array:
+	var best: Array = tries[0]
+	var least: float = INF
+	for placed: Array in tries:
+		var box: Rect2 = placed[0]
+		var covered: float = 0.0
+		for rect: Rect2 in avoid:
+			covered += box.intersection(rect).get_area()
+		if covered < least:
+			least = covered
+			best = placed
+	return best
 
 
 ## The first placement of `tries` ([Rect2, Opens]) whose card, shadow included, meets none of
