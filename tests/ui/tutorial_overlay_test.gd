@@ -264,6 +264,60 @@ func test_the_callout_keeps_off_the_locks() -> void:
 	assert_bool(card.intersects(overlay.rings()[0].get_global_rect())).is_false()
 
 
+## A pass lets a click through to its control with no ring and no hole (the dim stays on it): the
+## menu on a guided step; the rest of the screen is still the shade's.
+func test_a_pass_lets_a_click_through_and_stays_dimmed() -> void:
+	_host.size = WINDOWS[0]
+	var target: Button = _button(Rect2(500, 400, 120, 60))
+	var menu: Button = _button(Rect2(1220, 9, 44, 42))
+	var other: Button = _button(Rect2(100, 100, 120, 60))
+	var overlay: TutorialOverlay = _overlay()
+	var view: StepView = StepView.guided(10, 26, "Drag Bread to slot 1.", true)
+	view.ring(&"", target.get_global_rect(), true).pass_through(&"", menu.get_global_rect())
+	overlay.show_view(view)
+	await _frames(2)
+	assert_array(_blockers(menu)).is_empty()
+	assert_array(_blockers(other)).contains([str(overlay.shade().get_path())])
+	assert_int(overlay.rings().size()).is_equal(1)
+	assert_int(overlay.shade().holes().size()).is_equal(1)
+	var dimmed: bool = false
+	for rect: Rect2 in overlay.shade().shaded_rects():
+		dimmed = dimmed or rect.encloses(menu.get_global_rect())
+	assert_bool(dimmed).is_true()
+	assert_array(overlay.pass_rects()).is_equal([menu.get_global_rect()] as Array[Rect2])
+	# A view with no pass takes the click again.
+	overlay.show_view(StepView.guided(10, 26, "Drag Bread.", true).ring(&"", Rect2(500, 400, 9, 9)))
+	await _frames(1)
+	assert_array(_blockers(menu)).contains([str(overlay.shade().get_path())])
+
+
+## The callout keeps off what the view keeps clear when a side has room (G19's Bananas on the
+## belt above its rings), even against the side asked; with no room it falls back to the rings
+## alone.
+func test_the_callout_keeps_off_what_is_kept_clear() -> void:
+	_host.size = WINDOWS[0]
+	var overlay: TutorialOverlay = _overlay()
+	var target: Rect2 = Rect2(880, 458, 108, 76)
+	var item: Rect2 = Rect2(876, 292, 116, 160)
+	var view: StepView = StepView.guided(19, 26, LONG_TEXT, false)
+	view.ring(&"", target).keep_clear(&"", item)
+	view.side = StepView.Opening.ABOVE
+	overlay.show_view(view)
+	await _frames(1)
+	var card: Rect2 = overlay.callout().get_global_rect()
+	assert_bool(card.intersects(item)).is_false()
+	assert_bool(card.intersects(overlay.rings()[0].get_global_rect())).is_false()
+	assert_array(overlay.clear_rects()).is_equal([item] as Array[Rect2])
+	# Kept clear over the whole screen: no side has room, the callout still clears its ring.
+	var everything: StepView = StepView.guided(19, 26, LONG_TEXT, false)
+	everything.ring(&"", target).keep_clear(&"", Rect2(Vector2.ZERO, WINDOWS[0]))
+	overlay.show_view(everything)
+	await _frames(1)
+	card = overlay.callout().get_global_rect()
+	assert_bool(card.intersects(overlay.rings()[0].get_global_rect())).is_false()
+	assert_bool(Rect2(Vector2.ZERO, WINDOWS[0]).encloses(card)).is_true()
+
+
 ## A LOCKED plate's pill (padlock and words) lies in its middle, inside it: the big pill on a
 ## plate that holds it (the swap plate, REDRAW), the small one on a narrow plate.
 func test_lock_plates_fit_their_pill() -> void:

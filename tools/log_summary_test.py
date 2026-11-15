@@ -203,11 +203,11 @@ class LogTestCase(unittest.TestCase):
         return path
 
     def summary(self, *paths: Path, one_player: bool = False, include_debug: bool = False,
-                builds: list[str] | None = None) -> dict:
+                builds: list[str] | None = None, include_guided: bool = False) -> dict:
         players, inputs = ls.load_players(
             ls.resolve_players([str(p) for p in paths], one_player), one_player,
-            include_debug, builds)
-        return ls.summarise(players, inputs, self.catalogue, include_debug)
+            include_debug, builds, include_guided)
+        return ls.summarise(players, inputs, self.catalogue, include_debug, include_guided)
 
     def run_script(self, *args: str) -> subprocess.CompletedProcess:
         """Runs the script with the fixture data, its report in the temp folder."""
@@ -1423,7 +1423,9 @@ class TutorialTest(LogTestCase):
         s.run_end("r3", True, 8)
         summary = self.summary(self.write("p.jsonl", s))
         self.assertEqual(summary["inputs"]["unknown_event_types"], {})
-        self.assertEqual(summary["players"][0]["runs"], 3)
+        # The two guided runs are kept out of the play stats; the Tutorial block reads them.
+        self.assertEqual(summary["players"][0]["runs"], 1)
+        self.assertEqual(summary["players"][0]["guided_runs_excluded"], 2)
         t = summary["tutorial"]
         self.assertEqual(t["guided_runs"], 2)
         self.assertEqual(t["finished"]["count"], 1)
@@ -1441,6 +1443,42 @@ class TutorialTest(LogTestCase):
         self.assertIn("guided runs: 2", report)
         self.assertIn("replay requests: title 1 · RESET TIPS: 1", report)
         json.dumps(summary)
+
+    def test_guided_runs_stay_out_of_the_play_stats(self) -> None:
+        # A tester's first run is the guided one (its scripted shift 1): its outcome, its
+        # checkouts and its start choice must not count as normal play unless asked.
+        s = Session("first", build="fb-p3")
+        s.machine_start("g1")["guided"] = True
+        s.log("start_choice", "g1", cart=["milk", "coffee"])
+        s.shift("g1", 1, order=("eggs", "bread", "cheese"))
+        s.log("tutorial_done", "g1", seconds=200.0, replay=False)
+        s.run_end("g1", True, 8)
+        s.machine_start("r2")
+        s.run_end("r2", False, 3)
+        path = self.write("p.jsonl", s)
+        summary = self.summary(path)
+        runs = summary["runs"]
+        self.assertEqual(runs["runs"], 1)
+        self.assertEqual(runs["guided_runs_excluded"], 1)
+        self.assertEqual((runs["won"], runs["lost"]), (0, 1))
+        self.assertEqual(summary["checkouts"]["checkouts"], 0)
+        self.assertEqual(summary["tutorial"]["guided_runs"], 1)
+        self.assertEqual(summary["tutorial"]["finished"]["count"], 1)
+        report = ls.render(summary)
+        self.assertIn("Guided runs: 1 excluded from the play stats", report)
+        # Run numbers still count the guided run: the normal run is the player's second.
+        player = self.players(path)[0]
+        self.assertEqual([run.index for run in player.runs], [2])
+        self.assertEqual([run.index for run in player.guided_runs], [1])
+        kept = self.summary(path, include_guided=True)
+        self.assertEqual(kept["runs"]["runs"], 2)
+        self.assertEqual(kept["runs"]["guided_runs_excluded"], 0)
+        self.assertEqual(kept["runs"]["won"], 1)
+        self.assertEqual(kept["tutorial"]["guided_runs"], 1)
+        self.assertIn("Guided runs: included (--include-guided)", ls.render(kept))
+        result = self.run_script("--include-guided", str(path))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Guided runs: included", result.stdout)
 
     def test_logs_without_tutorial_events_leave_the_block_out(self) -> None:
         s = Session("plain", build="fb-p3")

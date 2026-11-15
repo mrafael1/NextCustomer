@@ -116,14 +116,17 @@ const FIXED: Array[StringName] = [
 ]
 
 ## Indexed ids' prefixes (one index). Shift: a slot's ticket, a hand place's card, a basket, a
-## slot ticket's family icons and its rule chip (T3); machine: a chute key, a prize. Start page 1:
-## a booster, its hit place, its RETURN THIS ONE plate, a restocked booster's cards. Page 2: a
-## starter pack, a pin row and its WEAR button. Swap window: a regular, a booster.
+## slot ticket's family icons and its rule chip (T3), a slot's whole spot (its belt place, the
+## item on it and its ticket: what a callout keeps clear, TutorialStep.keep_clear); machine: a
+## chute key, a prize. Start page 1: a booster, its hit place, its RETURN THIS ONE plate, a
+## restocked booster's cards. Page 2: a starter pack, a pin row and its WEAR button. Swap window:
+## a regular, a booster.
 const SLOT := "slot"
 const HAND := "hand"
 const BASKET := "basket"
 const FAMILIES := "families"
 const RULE := "rule"
+const SPOT := "spot"
 const MACHINE_KEY := "machine_key"
 const PRIZE := "prize"
 const BOOSTER := "booster"
@@ -141,6 +144,7 @@ const PREFIXES: Array[String] = [
 	BASKET,
 	FAMILIES,
 	RULE,
+	SPOT,
 	MACHINE_KEY,
 	PRIZE,
 	BOOSTER,

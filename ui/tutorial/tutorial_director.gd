@@ -45,6 +45,11 @@ const SKIP_AHEAD: Array[StringName] = [
 	TutorialEvents.CHUTE_CHOSEN,
 	TutorialEvents.MACHINE_RETURNED,
 ]
+## What a click always reaches through the dim, on every guided step (no ring, still dimmed): the
+## shift screen's menu (the pause, the options, QUIT TO TITLE) and the opening board's ‹ TITLE,
+## so a mouse can pause or leave as Esc can.
+const PASSES: Array[StringName] = [TutorialAnchors.MENU]
+const BOARD_PASSES: Array[StringName] = [TutorialAnchors.TITLE]
 ## A callout's width in canvas px: BASE_WIDTH plus WORD_WIDTH per word of its line, at most
 ## MAX_WIDTH (the mock-up's 400-560 px boxes at 1920, x1.25).
 const BASE_WIDTH := 230.0
@@ -578,6 +583,10 @@ func _view(step: TutorialStep) -> StepView:
 	if not _on_board(step):
 		for id: StringName in step.locks:
 			view.lock(id)
+	for id: StringName in step.keep_clear:
+		view.keep_clear(id)
+	for id: StringName in BOARD_PASSES if _on_board(step) else PASSES:
+		view.pass_through(id)
 	return view
 
 

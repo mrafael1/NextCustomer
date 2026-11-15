@@ -8,8 +8,10 @@ extends Control
 ## - the LOCKED plates (LockPlate) over what the step blocks;
 ## - the rings (TutorialRing), the move's one with its CLICK tab;
 ## - the callout (TutorialCallout), opening on the step's side of its target ring (TipCard.place,
-##   flipped or turned to another side when it would cover a ring), MARGIN inside the overlay's
-##   rect, its tail pointing at the ring.
+##   flipped or turned to another side when it would cover a ring, or what the view keeps clear),
+##   MARGIN inside the overlay's rect, its tail pointing at the ring.
+##
+## The view's passes let clicks through the dim with no ring (SpotlightShade.set_passes).
 ##
 ## It knows nothing of the game. A ring or lock that names an anchor id is resolved through
 ## `anchors` (a screen's `anchor_rect`: Callable(StringName) -> Rect2, global) every frame, and the
@@ -38,6 +40,8 @@ var _fade: Tween
 ## The resolved global rects of the shown view's rings and locks (to see them move).
 var _ring_rects: Array[Rect2] = []
 var _lock_rects: Array[Rect2] = []
+var _clear_rects: Array[Rect2] = []
+var _pass_rects: Array[Rect2] = []
 
 
 func _init() -> void:
@@ -158,6 +162,15 @@ func lock_rects() -> Array[Rect2]:
 	return _lock_rects.duplicate()
 
 
+## The rects the callout keeps clear and the passes, as resolved now (for checks).
+func clear_rects() -> Array[Rect2]:
+	return _clear_rects.duplicate()
+
+
+func pass_rects() -> Array[Rect2]:
+	return _pass_rects.duplicate()
+
+
 ## The callout's side, for checks.
 func callout_side() -> TipCard.Opens:
 	return _callout.side
@@ -173,10 +186,9 @@ func _on_resized() -> void:
 func _process(_delta: float) -> void:
 	if not is_showing() or not anchors.is_valid():
 		return
-	var rings_before: Array[Rect2] = _ring_rects
-	var locks_before: Array[Rect2] = _lock_rects
+	var before: Array[Array] = [_ring_rects, _lock_rects, _clear_rects, _pass_rects]
 	_resolve()
-	if rings_before != _ring_rects or locks_before != _lock_rects:
+	if before != [_ring_rects, _lock_rects, _clear_rects, _pass_rects]:
 		_lay_out()
 
 
@@ -193,12 +205,18 @@ func _input(event: InputEvent) -> void:
 func _resolve() -> void:
 	_ring_rects = []
 	_lock_rects = []
+	_clear_rects = []
+	_pass_rects = []
 	if _view == null:
 		return
 	for mark: StepView.Mark in _view.rings:
 		_ring_rects.append(StepView.resolve(mark, anchors))
 	for mark: StepView.Mark in _view.locks:
 		_lock_rects.append(StepView.resolve(mark, anchors))
+	for mark: StepView.Mark in _view.clear:
+		_clear_rects.append(StepView.resolve(mark, anchors))
+	for mark: StepView.Mark in _view.passes:
+		_pass_rects.append(StepView.resolve(mark, anchors))
 
 
 func _lay_out() -> void:
@@ -220,6 +238,7 @@ func _lay_out() -> void:
 		targets.append(ring.outer_rect())
 	_clear_tabs(ring_nodes, targets)
 	_shade.set_holes(holes)
+	_shade.set_passes(_pass_rects)
 	var plates: Array[LockPlate] = locks()
 	for index: int in range(plates.size()):
 		var rect: Rect2 = _lock_rects[index] if index < _lock_rects.size() else Rect2()
@@ -248,8 +267,9 @@ func _clear_tabs(ring_nodes: Array[TutorialRing], targets: Array[Rect2]) -> void
 
 
 ## Opens the callout on the view's side of its target ring, inside the overlay's rect: the first
-## side (in the view's order) that covers no ring and no LOCKED plate, else the first that covers
-## no ring, else the side asked; centred with no tail when nothing is ringed.
+## side (in the view's order) that covers no ring, no LOCKED plate and nothing kept clear, else
+## the first that covers no ring and nothing kept clear, then the same without what is kept clear,
+## else the one that covers the least of the rings; centred with no tail when nothing is ringed.
 func _place_callout(ring_nodes: Array[TutorialRing], targets: Array[Rect2]) -> void:
 	var screen: Rect2 = Rect2(Vector2.ZERO, size)
 	var card: Vector2 = _callout.size
@@ -274,14 +294,29 @@ func _place_callout(ring_nodes: Array[TutorialRing], targets: Array[Rect2]) -> v
 	# target can block the centred card but not a slid one).
 	for centred: Array in tries.duplicate():
 		tries.append_array(_slid(centred, target, screen))
+	var kept: Array[Rect2] = []
+	for rect: Rect2 in _clear_rects:
+		if rect.has_area():
+			kept.append(_local_rect(rect))
 	var chosen: Array = []
-	for avoid: Array[Rect2] in [plates, targets]:
+	for avoid: Array[Rect2] in [_joined(plates, kept), _joined(targets, kept), plates, targets]:
 		chosen = _first_clear(tries, avoid)
 		if not chosen.is_empty():
 			break
 	if chosen.is_empty():
 		chosen = _least_covering(tries, targets)
 	_callout.put((chosen[0] as Rect2).position, chosen[1], target)
+
+
+static func _joined(first: Array[Rect2], second: Array[Rect2]) -> Array[Rect2]:
+	var both: Array[Rect2] = first.duplicate()
+	both.append_array(second)
+	return both
+
+
+## The global `rect` in the overlay's own coordinates.
+func _local_rect(rect: Rect2) -> Rect2:
+	return get_global_transform().affine_inverse() * rect
 
 
 ## `placed` ([Rect2, Opens]) slid along its side to line up with `target`'s two ends, kept inside

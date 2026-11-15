@@ -72,10 +72,12 @@ func is_live() -> bool:
 
 
 ## Whether NEXT stops on page 1 to open the window: a swap unlocked and unused, every booster
-## open, and the window not shown yet on this page.
+## open, the window not shown yet on this page, and the swap not locked by the guided run (its
+## SWAP plate LOCKED: NEXT goes on to YOUR BUILD, as the step says).
 func wants_stop() -> bool:
 	return (
 		not seen
+		and not StartBoardActions.is_locked(page.actions, TutorialAnchors.SWAP_PLATE)
 		and is_live()
 		and StartSetupRules.swaps_left(page.run, page.profile) > 0
 		and not page.picking()

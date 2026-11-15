@@ -133,7 +133,7 @@ static func until_armed(shift: ShiftScreen) -> bool:
 
 
 ## Whether the shown callout lies inside the screen (its overlay's rect) and covers none of its
-## rings; "" when it does, else what is wrong.
+## rings or what its step keeps clear; "" when it does, else what is wrong.
 static func callout_fault(overlay: TutorialOverlay) -> String:
 	var card: TutorialCallout = overlay.callout()
 	var box: Rect2 = card.get_global_rect()
@@ -151,6 +151,9 @@ static func callout_fault(overlay: TutorialOverlay) -> String:
 				"callout %s (%s) covers ring %s; rings %s view side %s"
 				% [box, overlay.callout_side(), ring, nodes, overlay.view().side]
 			)
+	for kept: Rect2 in overlay.clear_rects():
+		if kept.has_area() and box.grow(-2.0).intersects(kept):
+			return "callout %s (%s) covers %s, kept clear" % [box, overlay.callout_side(), kept]
 	return ""
 
 

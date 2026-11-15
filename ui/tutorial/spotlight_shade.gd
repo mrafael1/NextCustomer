@@ -5,6 +5,7 @@ extends Control
 ## click inside a hole through to what lies under it, while it takes the clicks everywhere else
 ## (outside_clicked, so the callout can shake). Gating stays logical in the screens' handlers: the
 ## shade only keeps a stray click from landing. `dimmed` off keeps the clicks but draws nothing.
+## Its passes let clicks through too but stay dimmed (the menu: a mouse can always pause).
 
 signal outside_clicked
 
@@ -19,6 +20,8 @@ var dimmed: bool = true:
 		queue_redraw()
 ## The holes, in global coordinates.
 var _holes: Array[Rect2] = []
+## The passes (dimmed, but clicks go through), in global coordinates.
+var _passes: Array[Rect2] = []
 
 
 func _init() -> void:
@@ -38,6 +41,29 @@ func set_holes(rects: Array[Rect2]) -> void:
 ## The holes (global).
 func holes() -> Array[Rect2]:
 	return _holes.duplicate()
+
+
+## Sets the passes (global rects): clicks go through them, the dim stays.
+func set_passes(rects: Array[Rect2]) -> void:
+	_passes = []
+	for rect: Rect2 in rects:
+		if rect.has_area():
+			_passes.append(rect)
+
+
+## The passes (global).
+func passes() -> Array[Rect2]:
+	return _passes.duplicate()
+
+
+## Whether a click at the global `point` goes through: a hole or a pass.
+func lets_through(point: Vector2) -> bool:
+	if in_hole(point):
+		return true
+	for rect: Rect2 in _passes:
+		if rect.has_point(point):
+			return true
+	return false
 
 
 ## Whether the global `point` lies in a hole (a click there goes through).
@@ -60,11 +86,11 @@ func shaded_rects() -> Array[Rect2]:
 	return rects
 
 
-## A hole lets the click through: the point is not this control's (`point` is local).
+## A hole or a pass lets the click through: the point is not this control's (`point` is local).
 func _has_point(point: Vector2) -> bool:
 	if not Rect2(Vector2.ZERO, size).has_point(point):
 		return false
-	return not in_hole(get_global_transform() * point)
+	return not lets_through(get_global_transform() * point)
 
 
 func _gui_input(event: InputEvent) -> void:

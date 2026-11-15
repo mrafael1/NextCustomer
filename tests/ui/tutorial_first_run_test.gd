@@ -174,6 +174,69 @@ func test_a_finished_profile_starts_normal_runs() -> void:
 	second._cart_reveal.close()
 
 
+## A veteran's replay (PLAY THE GUIDED SHIFT with an aisle completed, so a swap is open): G5's
+## NEXT goes on to YOUR BUILD, with no stop at the swap window the guided run keeps LOCKED (it
+## would open with G5's ring gone and DONE refused without a word).
+func test_a_replay_with_a_swap_open_skips_the_swap_stop() -> void:
+	get_tree().root.size = Kit.SIZES[0]
+	var shift: ShiftScreen = await _screen()
+	for aisle: AisleDefinition in shift._balance.aisles:
+		if not aisle.base_cards.is_empty() and not aisle.capsule_cards.is_empty():
+			for card: CardDefinition in aisle.capsule_cards:
+				shift.profile.unlocked_items[card.id] = 0
+			break
+	TutorialFlags.finish_guide(shift.profile)
+	TutorialFlags.request_replay(shift.profile)
+	shift.save_profile()
+	var board: StartBoard = Kit.start_guided(shift, SEED)
+	assert_bool(shift.tutorial.is_active()).is_true()
+	assert_int(StartSetupRules.swap_limit(shift.run, shift.profile)).is_greater(0)
+	assert_bool(await Kit.until_step(shift, &"G2")).is_true()
+	Kit.press(shift)
+	assert_bool(await Kit.until_step(shift, &"G3")).is_true()
+	board.store.primary()  # OPEN ALL.
+	assert_bool(await Kit.until_step(shift, &"G5")).is_true()
+	assert_bool(board.store.swap.is_live()).is_true()
+	assert_bool(board.store.swap.wants_stop()).is_false()
+	assert_bool(board.store.primary("click")).is_true()
+	assert_bool(board.store.swap.active).is_false()
+	assert_bool(await Kit.until_step(shift, &"G6")).is_true()
+	_assert_callout(shift)
+	# The same board with no tutorial still stops at the window.
+	shift.tutorial._set_active(false)
+	assert_bool(board.store.actions.locked(TutorialAnchors.SWAP_PLATE)).is_false()
+
+
+## The menu (and the board's ‹ TITLE) take a mouse click through the dim on every guided step,
+## still dimmed and with no ring: a mouse player can pause or leave as Esc does.
+func test_the_menu_and_title_take_a_click_through_the_dim() -> void:
+	get_tree().root.size = Kit.SIZES[0]
+	var shift: ShiftScreen = await _screen()
+	var board: StartBoard = Kit.start_guided(shift, SEED)
+	assert_bool(await Kit.until_step(shift, &"G2")).is_true()
+	var title: Rect2 = board.anchor_rect(TutorialAnchors.TITLE)
+	assert_bool(title.has_area()).is_true()
+	_assert_passes(shift.tutorial.overlay(), title)
+	Kit.press(shift)
+	assert_bool(await Kit.until_step(shift, &"G3")).is_true()
+	board.store.primary()
+	assert_bool(await Kit.until_step(shift, &"G5")).is_true()
+	board.store.primary()
+	assert_bool(await Kit.until_step(shift, &"G6")).is_true()
+	board.pick(0)
+	assert_bool(await Kit.until_step(shift, &"G7")).is_true()
+	board.staff.primary()
+	assert_bool(await Kit.until_step(shift, &"G8")).is_true()
+	var menu: Rect2 = shift.anchor_rect(TutorialAnchors.MENU)
+	assert_bool(menu.has_area()).is_true()
+	_assert_passes(shift.tutorial.overlay(), menu)
+	Kit.press(shift)
+	assert_bool(await Kit.until_step(shift, &"G9")).is_true()
+	Kit.press(shift)
+	assert_bool(await Kit.until_step(shift, &"G10")).is_true()
+	_assert_passes(shift.tutorial.overlay(), menu)
+
+
 # --- Driving ------------------------------------------------------------------------------
 
 
@@ -332,6 +395,20 @@ func _assert_callout(shift: ShiftScreen) -> void:
 	var fault: String = Kit.callout_fault(overlay)
 	var where: String = "%s at %s: %s" % [shift.tutorial.step_id(), get_tree().root.size, fault]
 	assert_str(fault).override_failure_message(where).is_empty()
+
+
+## `overlay`'s shade lets a click at `rect`'s centre through (its passes), with no ring hole on
+## it (the dim stays).
+func _assert_passes(overlay: TutorialOverlay, rect: Rect2) -> void:
+	assert_object(overlay).is_not_null()
+	if overlay == null:
+		return
+	var shade: SpotlightShade = overlay.shade()
+	var centre: Vector2 = rect.get_center()
+	assert_bool(shade.lets_through(centre)).is_true()
+	assert_bool(shade.in_hole(centre)).is_false()
+	var local: Vector2 = shade.get_global_transform().affine_inverse() * centre
+	assert_bool(shade._has_point(local)).is_false()
 
 
 static func _hand_ids(shift: ShiftScreen) -> Array[StringName]:

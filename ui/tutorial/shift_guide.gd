@@ -334,8 +334,12 @@ func _machine_rect(id: StringName) -> Rect2:
 	return rect
 
 
-## A slot's ticket, a hand place's item, a basket, or a belt item's family icons or rule chip.
+## A slot's ticket, a hand place's item, a basket, a slot's whole spot, or a belt item's family
+## icons or rule chip.
 func _indexed_rect(id: StringName) -> Rect2:
+	var spot: int = TutorialAnchors.index_of(id, TutorialAnchors.SPOT)
+	if spot >= 0:
+		return _spot_rect(spot)
 	var slot: int = TutorialAnchors.index_of(id, TutorialAnchors.SLOT)
 	var place: int = TutorialAnchors.index_of(id, TutorialAnchors.HAND)
 	var basket: int = TutorialAnchors.index_of(id, TutorialAnchors.BASKET)
@@ -351,6 +355,17 @@ func _indexed_rect(id: StringName) -> Rect2:
 		rect = baskets.get_global_transform() * baskets.basket_rect(basket)
 	else:
 		rect = _sticker_rect(id)
+	return rect
+
+
+## Slot `slot`'s whole spot: its cell (the belt place and the ticket) and the item on it, lifted
+## or not (SPOT: what a callout keeps clear).
+func _spot_rect(slot: int) -> Rect2:
+	if slot >= _screen._slots.size():
+		return Rect2()
+	var rect: Rect2 = rect_of(_screen._slots[slot])
+	if slot < _screen._row_views.size():
+		rect = _merge(rect, rect_of(_screen._row_views[slot] as Control))
 	return rect
 
 

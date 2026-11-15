@@ -18,6 +18,10 @@ extends RefCounted
 ##   the move (its "CLICK" tab), -1 for none; `target` is the ring the callout's tail points at
 ##   (-1: the act ring, else the first).
 ## - locks: LOCKED plates (a grey veil, a padlock and its label) over what the step blocks.
+## - clear: what the callout keeps clear besides the rings (the belt items a line is about); the
+##   callout covers it only when no side clears it.
+## - passes: what a click reaches through the dim with no ring (still dimmed): the shift screen's
+##   menu, the opening board's ‹ TITLE, so a mouse can always pause or leave.
 ## - side: where the callout opens from its target (AUTO: below, else above, else beside).
 ## - width: the callout's width in canvas px before the text size (0: DEFAULT_WIDTH).
 ## - dim: whether the screen is dimmed around the rings (the shade takes the clicks either way).
@@ -51,6 +55,8 @@ var rings: Array[Mark] = []
 var act: int = -1
 var target: int = -1
 var locks: Array[Mark] = []
+var clear: Array[Mark] = []
+var passes: Array[Mark] = []
 var side: Opening = Opening.AUTO
 var width: float = 0.0
 var dim: bool = true
@@ -131,6 +137,19 @@ func ring(id: StringName, rect: Rect2 = Rect2(), is_act: bool = false) -> StepVi
 ## Adds a LOCKED plate (`label`) on anchor `id` (or at the global `rect`). Returns the view.
 func lock(id: StringName, rect: Rect2 = Rect2(), label: String = LOCKED) -> StepView:
 	locks.append(Mark.new(id, rect, label))
+	return self
+
+
+## Keeps the callout off anchor `id` (or the global `rect`). Returns the view.
+func keep_clear(id: StringName, rect: Rect2 = Rect2()) -> StepView:
+	clear.append(Mark.new(id, rect, ""))
+	return self
+
+
+## Lets clicks through the dim to anchor `id` (or the global `rect`), with no ring. Returns the
+## view.
+func pass_through(id: StringName, rect: Rect2 = Rect2()) -> StepView:
+	passes.append(Mark.new(id, rect, ""))
 	return self
 
 

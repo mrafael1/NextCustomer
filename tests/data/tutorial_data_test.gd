@@ -43,8 +43,8 @@ const APPROVED: Dictionary[String, String] = {
 	),
 	"G20":
 	(
-		"Add Milk and Coffee to fill the **ROW**. Each gets +2€ from Eggs and Bread. Hold the "
-		+ "pointer on one to see why."
+		"Add Milk, then Coffee, to fill the **ROW**. Each gets +2€ from Eggs and Bread. Hold "
+		+ "the pointer on one to see why."
 	),
 	"G21": "35€: over the **QUOTA**. 7 slots, 8 **CARDS**: one stays in its **BASKET**.",
 	"G22":
@@ -294,7 +294,7 @@ func test_tips_and_quick_tutorials_have_their_ids() -> void:
 
 func test_every_ring_and_lock_is_an_anchor() -> void:
 	for step: TutorialStep in _steps():
-		for anchor: StringName in step.rings + step.locks:
+		for anchor: StringName in step.rings + step.locks + step.keep_clear:
 			(
 				assert_bool(TutorialAnchors.is_known(anchor))
 				. override_failure_message("%s: %s" % [step.id, anchor])
@@ -521,6 +521,37 @@ func test_the_hand_and_rows_fit_the_guided_shift() -> void:
 	assert_bool(full.has(script.hand[7])).is_false()
 	assert_int(script.place_of(&"banana", 1)).is_equal(1)
 	assert_int(script.place_of(&"potatoes")).is_equal(-1)
+	_assert_two_card_moves_name_their_order()
+
+
+## A step that places two different cards takes them only in its row's order (the director's
+## gate: Milk then Coffee, since Coffee is Breakfast and would raise Milk): its line names that
+## order ("Milk, then Coffee"), so no drop is refused without a word.
+func _assert_two_card_moves_name_their_order() -> void:
+	var script: TutorialScript = TutorialScript.guided()
+	var checked: int = 0
+	for k: int in script.steps.size():
+		var step: TutorialStep = script.steps[k]
+		if not step.checks_row or not step.allow.has(TutorialActions.PLACE_CARD):
+			continue
+		var target: Array[StringName] = step.row_before
+		for later: int in range(k + 1, script.steps.size()):
+			if script.steps[later].row_before != step.row_before:
+				target = script.steps[later].row_before
+				break
+		var added: Array[StringName] = target.slice(step.row_before.size())
+		if added.size() < 2 or added.count(added[0]) == added.size():
+			continue  # One card, or the same card twice (G18's Bananas): no order to name.
+		var names: PackedStringArray = PackedStringArray()
+		for card_id: StringName in added:
+			var card: CardDefinition = load("res://data/cards/%s.tres" % card_id)
+			names.append(card.display_name)
+		var plain: String = TutorialText.plain(TutorialText.fill(step.text, _values()))
+		assert_str(plain).override_failure_message("%s: %s" % [step.id, plain]).contains(
+			", then ".join(names)
+		)
+		checked += 1
+	assert_int(checked).is_equal(1)  # G20.
 
 
 func test_the_gate_allows_only_the_steps_move() -> void:

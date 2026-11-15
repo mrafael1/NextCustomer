@@ -13,6 +13,8 @@ every file given as the same player. With no path, the desktop game's log folder
 Options:
     --one-player      every input file belongs to the same player
     --include-debug   keep runs that used the debug panel (excluded by default)
+    --include-guided  keep the guided first runs in the play stats (excluded by default: their
+                      first shift is scripted; the Tutorial block reads them either way)
     --build=LABEL     only runs that started on this build label (repeat for several)
     --json=PATH       also write the numbers as JSON
     --report=PATH     the text report's file (default reports/log_summary/report.txt)
@@ -401,6 +403,10 @@ class Player:
     sessions: int = 0
     runs: list[Run] = field(default_factory=list)
     debug_runs: int = 0
+    # The guided runs (run_start's guided) kept out of `runs`: their first shift is the
+    # tutorial's script (its boosters, hand and row), so they would skew the play stats. The
+    # Tutorial block reads them (Player.all_guided).
+    guided_runs: list[Run] = field(default_factory=list)
     restarts: list[dict] = field(default_factory=list)
     # The TOY MACHINES' capsule events (#63) of the kept runs (drawn on the results) and the
     # kept loose ones (drawn on the title, no run_id).
@@ -421,7 +427,17 @@ class Player:
     @property
     def has_data(self) -> bool:
         """Anything left after the build filter (a debug run counts: it is reported)."""
-        return bool(self.runs or self.debug_runs or self.kept_loose)
+        return bool(self.runs or self.debug_runs or self.guided_runs or self.kept_loose)
+
+    def all_guided(self) -> list[Run]:
+        """Every guided run of the player: kept out of the stats or (--include-guided) in them."""
+        kept = [run for run in self.runs if is_guided(run)]
+        return sorted(self.guided_runs + kept, key=lambda run: run.index)
+
+
+def is_guided(run: Run) -> bool:
+    """Whether `run` is a guided run (its run_start has guided true)."""
+    return flag(run.start, "guided") is True
 
 
 def build_label(event: dict) -> str:
@@ -495,12 +511,13 @@ def debug_run_ids(sessions: list[list[dict]]) -> set[str]:
 
 def build_player(
     name: str, files: list[LogFile], events: list[dict], include_debug: bool,
-    builds: list[str] | None = None,
+    builds: list[str] | None = None, include_guided: bool = False,
 ) -> Player:
     """Joins a player's runs across sessions by run_id, in order of their first event (time,
     then session order), and numbers them (run 2 is the player's second run). Runs that used
     the debug panel are dropped unless include_debug. With `builds`, whole runs are kept by
-    the build they started on (Run.build), after numbering, so the numbers count every run."""
+    the build they started on (Run.build), after numbering, so the numbers count every run.
+    Guided runs go to guided_runs, not runs, unless include_guided (numbered all the same)."""
     player = Player(name, files)
     sessions: dict[str, list[dict]] = defaultdict(list)
     for event in events:
@@ -548,7 +565,7 @@ def build_player(
             player.other_build_runs += 1
             player.other_build_events += len(run.events)
             continue
-        player.runs.append(run)
+        (player.runs if include_guided or not is_guided(run) else player.guided_runs).append(run)
         player.restarts.extend(run.of_type("restart"))
         player.capsules.extend(run.of_type("capsule"))
         player.settings_events.extend(e for e in run.events if e["type"] in SETTINGS_TYPES)
@@ -636,7 +653,7 @@ def merge_shared_sessions(groups: list[PlayerInput]) -> list[PlayerInput]:
 
 def load_players(
     player_files: list[tuple[str, list[Path]]], one_player: bool, include_debug: bool,
-    builds: list[str] | None,
+    builds: list[str] | None, include_guided: bool = False,
 ) -> tuple[list[Player], Inputs]:
     """Reads every file, joins players whose files share a session (merge_shared_sessions),
     drops duplicate events (same session_id and seq, first one kept) and unknown event types,
@@ -672,7 +689,8 @@ def load_players(
             inputs.merged_players.append(group.names)
         inputs.file_list += [(group.name, log_file) for log_file in group.files]
         kept = [event for event in group.events if _keep(event, inputs, seen)]
-        player = build_player(group.name, group.files, kept, include_debug, builds)
+        player = build_player(
+            group.name, group.files, kept, include_debug, builds, include_guided)
         inputs.dropped_by_build += player.other_build_events
         inputs.runs_of_other_builds += player.other_build_runs
         players.append(player)
@@ -748,6 +766,7 @@ def runs_summary(players: list[Player]) -> dict:
         "unfinished": outcomes["unfinished"],
         "win_rate": rate(outcomes["won"], outcomes["won"] + outcomes["lost"]),
         "debug_runs_excluded": sum(player.debug_runs for player in players),
+        "guided_runs_excluded": sum(len(player.guided_runs) for player in players),
         "resumed_runs": sum(1 for run in runs if run.of_type("run_resume")),
         "resumes": sum(len(run.of_type("run_resume")) for run in runs),
         "restarts": len(restarts),
@@ -1403,7 +1422,7 @@ def tutorial_summary(players: list[Player]) -> dict:
     one-time tips shown (tip_shown, by id), the quick tutorials' steps (quick_step: shown,
     backed out, seconds), the replay requests (tutorial_replay, by where) and RESET TIPS
     (tips_reset). Empty counts for logs from before the tutorial."""
-    guided = [run for p in players for run in p.runs if flag(run.start, "guided") is True]
+    guided = [run for p in players for run in p.all_guided()]
     finished = [run for run in guided if run.of_type("tutorial_done")]
     step_seconds: dict[str, list[float]] = defaultdict(list)
     step_runs: dict[str, set[str]] = defaultdict(set)
@@ -1463,7 +1482,7 @@ def second_run_summary(players: list[Player]) -> dict:
 
 
 def summarise(players: list[Player], inputs: Inputs, catalogue: Catalogue,
-              include_debug: bool) -> dict:
+              include_debug: bool, include_guided: bool = False) -> dict:
     runs = [run for player in players for run in player.runs]
     return {
         "inputs": {
@@ -1480,6 +1499,7 @@ def summarise(players: list[Player], inputs: Inputs, catalogue: Catalogue,
             "events_of_other_builds": inputs.dropped_by_build,
             "merged_players": inputs.merged_players,
             "include_debug": include_debug,
+            "include_guided": include_guided,
             "session_files_as_players": inputs.session_files_as_players,
             "file_list": [
                 {"player": name, "path": f.path, "readable": f.readable, "events": f.events,
@@ -1490,6 +1510,7 @@ def summarise(players: list[Player], inputs: Inputs, catalogue: Catalogue,
         "players": [
             {"player": p.name, "files": len(p.files), "sessions": p.sessions,
              "runs": len(p.runs), "debug_runs_excluded": p.debug_runs,
+             "guided_runs_excluded": len(p.guided_runs),
              "outcomes": dict(Counter(run.outcome for run in p.runs)),
              "restarts": len(p.restarts)}
             for p in players
@@ -1576,6 +1597,10 @@ def render_inputs(s: dict) -> list[str]:
         "Debug runs: " + ("included (--include-debug)" if i["include_debug"] else
                           f"{s['runs']['debug_runs_excluded']} excluded (development play; "
                           "--include-debug keeps them)"),
+        "Guided runs: " + ("included (--include-guided)" if i["include_guided"] else
+                           f"{s['runs']['guided_runs_excluded']} excluded from the play stats "
+                           "(the tutorial's scripted first run; the Tutorial block reads them; "
+                           "--include-guided keeps them)"),
     ]
     for names in i["merged_players"]:
         lines.append(
@@ -1990,6 +2015,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                         help="every input file belongs to the same player")
     parser.add_argument("--include-debug", action="store_true",
                         help="keep runs that used the debug panel")
+    parser.add_argument("--include-guided", action="store_true",
+                        help="keep the guided first runs in the play stats")
     parser.add_argument("--build", action="append", metavar="LABEL",
                         help="only runs that started on this build label (whole runs, by "
                         "their run_start's label; run numbers still count every run; "
@@ -2056,11 +2083,12 @@ def main(argv: list[str] | None = None) -> int:
     except InputError as error:
         print(f"error: {error}", file=sys.stderr)
         return 2
-    players, inputs = load_players(player_files, one_player, args.include_debug, args.build)
+    players, inputs = load_players(
+        player_files, one_player, args.include_debug, args.build, args.include_guided)
     if inputs.events == 0:
         print("error: no readable events in the input.", file=sys.stderr)
         return 2
-    summary = summarise(players, inputs, catalogue, args.include_debug)
+    summary = summarise(players, inputs, catalogue, args.include_debug, args.include_guided)
     report = render(summary)
     sys.stdout.write(report)
     contents = [report] + ([json.dumps(summary, indent=2) + "\n"] if args.json else [])

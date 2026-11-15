@@ -46,6 +46,9 @@ enum Gate { OPEN, ONLY }
 @export var side: CalloutSide = CalloutSide.AUTO
 ## What is locked (TutorialAnchors ids), each drawn with the LOCKED plate.
 @export var locks: Array[StringName] = []
+## What the callout keeps clear besides the rings (TutorialAnchors ids): what the line talks
+## about that isn't ringed (G19: the Bananas on the belt, the spots over its rings).
+@export var keep_clear: Array[StringName] = []
 @export var footer: Footer = Footer.NEXT
 ## The event that moves the step on (TutorialEvents id); empty: its button does.
 @export var advance_on: StringName = &""
