@@ -51,6 +51,8 @@ const TAG_INSET := Vector2(18, 4)
 ## The words under the art, in px.
 const KIND_SIZE := 14
 const NAME_SIZE := 16
+## A long name wraps at word breaks onto at most NAME_LINES lines (as the mock-up's block does).
+const NAME_LINES := 2
 const WHEN_SIZE := 13
 const WHEN_TEXT := "shift %d · week %d"
 ## The value's chunky digits: the biggest cell that fits the stub's inner width, its € a size
@@ -169,6 +171,12 @@ func _init() -> void:
 	_kind = _words("", KIND_SIZE, Palette.TEAL_SHADE, ArtStyle.DISPLAY_FONT)
 	column.add_child(_kind)
 	_name = _words("", NAME_SIZE, Palette.INK, ReceiptView.MONO_FONT)
+	# No trimming: a trimmed autowrap label asks for a single pixel's height.
+	_name.clip_text = false
+	_name.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
+	_name.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_name.max_lines_visible = NAME_LINES
+	_name.custom_minimum_size.x = _inner_width()
 	column.add_child(_name)
 	_value = HBoxContainer.new()
 	_value.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -216,6 +224,8 @@ func set_moment(moment: RunHighlight.Moment, definition: HighlightDefinition, we
 			_name.text = parts[2]
 			value = "+%d€" % RunHighlight.margin_of(moment)
 	_when.text = WHEN_TEXT % [moment.shift, week]
+	# Its wrap (and so the card's height) is measured at the column's width.
+	_name.size = Vector2(_inner_width(), 0.0)
 	_set_value(value)
 	_set_art(moment)
 	_size_card()
@@ -334,6 +344,20 @@ func texts() -> PackedStringArray:
 	for words: Node in _value.get_children():
 		value += (words as PixelWords).text
 	return PackedStringArray([_header.text, _kind.text, _name.text, value, _when.text])
+
+
+## The name's shown lines (for tests).
+func name_lines() -> int:
+	return _name.get_visible_line_count()
+
+
+## The name's and the value's rects in the card's column, untilted and unscaled (for tests).
+func name_box() -> Rect2:
+	return Rect2(_name.position, _name.size)
+
+
+func value_box() -> Rect2:
+	return Rect2(_value.position, _value.size)
 
 
 ## The art's texture, the value's cell and the fit scale (for tests).

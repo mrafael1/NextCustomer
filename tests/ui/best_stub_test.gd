@@ -136,6 +136,61 @@ func test_every_kind_has_its_words() -> void:
 	assert_bool(stub.has_tag()).is_false()
 
 
+## The longest product name in data/cards wraps onto two lines in full (no ellipsis), every line
+## inside the stub's column, above the value's digits; a short name keeps one line. In a won run
+## whose Biggest payout is that product, the taller stub still sits in place at both sizes.
+func test_a_long_name_wraps_in_full() -> void:
+	var longest: CardDefinition = _longest_card()
+	assert_int(longest.display_name.length()).is_greater(18)
+	var definition: HighlightDefinition = load(HIGHLIGHT)
+	var stub: BestStub = BestStub.new()
+	add_child(stub)
+	auto_free(stub)
+	var golden: RunHighlight.Moment = _moment(RunHighlight.Kind.FIRST_GOLDEN, 9, 120, 100)
+	golden.card = longest
+	stub.set_moment(golden, definition, 3)
+	stub.finish()
+	await _frames(2)
+	assert_str(stub.texts()[2]).is_equal(longest.display_name)
+	assert_int(stub.name_lines()).is_equal(BestStub.NAME_LINES)
+	_assert_name_fits(stub, longest.display_name)
+	golden.card = load(MILK_GOLDEN)
+	stub.set_moment(golden, definition, 3)
+	stub.finish()
+	await _frames(2)
+	assert_int(stub.name_lines()).is_equal(1)
+	for window: Vector2i in SIZES:
+		get_tree().root.size = window
+		var screen: ShiftScreen = await _screen()
+		_won_run(screen)
+		screen.run.history[13].best_card = longest
+		var results: ResultsPanel = await _settled(screen)
+		var placed: BestStub = results.best_stub()
+		assert_bool(placed.is_showing()).override_failure_message(str(window)).is_true()
+		assert_str(placed.texts()[2]).is_equal(longest.display_name)
+		assert_int(placed.name_lines()).is_equal(BestStub.NAME_LINES)
+		_assert_name_fits(placed, longest.display_name)
+		_assert_placed(results, window)
+
+
+## The name's lines (wrapped at spaces) each fit the column; its rect holds them all, above the
+## value's digits.
+func _assert_name_fits(stub: BestStub, name_text: String) -> void:
+	var font: Font = ReceiptView.MONO_FONT
+	var column: float = BestStub.WIDTH - 2.0 * (BestStub.BORDER + BestStub.PADDING.x)
+	for word: String in name_text.split(" "):
+		(
+			assert_float(
+				font.get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, BestStub.NAME_SIZE).x
+			)
+			. is_less_equal(column)
+		)
+	var box: Rect2 = stub.name_box()
+	var line_height: float = font.get_height(BestStub.NAME_SIZE)
+	assert_float(box.size.y).is_greater_equal(BestStub.NAME_LINES * line_height - 1.0)
+	assert_float(box.end.y).is_less_equal(stub.value_box().position.y)
+
+
 ## The natural print: the stub waits for the coins, then slides in from under the receipt while
 ## the pins' first card waits; once landed, the cards come.
 func test_it_slides_in_after_the_coins_and_the_cards_wait() -> void:
@@ -316,6 +371,20 @@ static func _moment(
 	moment.total = total
 	moment.quota = quota
 	return moment
+
+
+## The card in data/cards with the longest display name.
+static func _longest_card() -> CardDefinition:
+	var longest: CardDefinition = null
+	for file_name: String in DirAccess.get_files_at("res://data/cards"):
+		if not file_name.ends_with(".tres"):
+			continue
+		var card: CardDefinition = load("res://data/cards".path_join(file_name)) as CardDefinition
+		if card == null:
+			continue
+		if longest == null or card.display_name.length() > longest.display_name.length():
+			longest = card
+	return longest
 
 
 func _news(ids: Array[StringName]) -> PinUnlockNews:
