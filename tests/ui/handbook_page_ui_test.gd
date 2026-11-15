@@ -52,7 +52,7 @@ func test_the_binder_fits_the_screen() -> void:
 			rect.size.x
 		)
 		tops.append(rect)
-	assert_int(tops.size()).is_equal(5)
+	assert_int(tops.size()).is_equal(4)
 	# The tabs stand side by side, TAB_GAP apart, with no hole where a removed tab was.
 	for index: int in range(1, tops.size()):
 		assert_float(tops[index].position.x - tops[index - 1].end.x).is_equal_approx(
@@ -213,6 +213,51 @@ func test_tabs_and_rows_pick_entries() -> void:
 	page.open_at()
 	assert_str(page.shown_entry().id).is_equal("coupon")
 	await _frames(1)  # The rebuilt marks' old parts are freed.
+
+
+## Coupons not found yet (2026-11-15): their COUPONS rows read ??? with a dark mark and take no
+## click; a coupon found shows (a retired card its page explains counts, Family sticker's); the
+## intro always shows; each opening reads what was found again; a deep link still opens a page.
+func test_coupons_not_found_are_locked_rows() -> void:
+	var page: HandbookPage = await _page()
+	var found: Array[StringName] = [&"two_for_one", &"breakfast_sticker"]
+	page.discovered = func(card_id: StringName) -> bool: return found.has(card_id)
+	page.open_at(&"coupon")
+	var locked: Array[StringName] = []
+	for row: HandbookButton in page.index_rows():
+		var id: StringName = StringName(String(row.name).trim_prefix("Row_"))
+		if row.locked:
+			locked.append(id)
+			assert_str(row.caption()).is_equal(HandbookPage.LOCKED_TITLE)
+		else:
+			assert_str(row.caption()).is_not_equal(HandbookPage.LOCKED_TITLE)
+	assert_bool(locked.has(&"coupon")).is_false()
+	assert_bool(locked.has(&"two_for_one")).is_false()
+	assert_bool(locked.has(&"family_sticker")).is_false()
+	assert_bool(locked.has(&"multipack")).is_true()
+	var multipack: HandbookButton = page.index_rows()[_row_of(page, &"multipack")]
+	var click: InputEventMouseButton = InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	multipack._gui_input(click)
+	assert_str(page.shown_entry().id).is_equal("coupon")
+	page.close()
+	found.append(&"multipack")
+	page.open_at()
+	assert_bool(page.index_rows()[_row_of(page, &"multipack")].locked).is_false()
+	page.close()
+	page.open_at(&"opening_deal")  # A deep link (a tooltip) opens a page not found yet.
+	assert_str(page.shown_entry().id).is_equal("opening_deal")
+	assert_bool(page.index_rows()[_row_of(page, &"opening_deal")].locked).is_false()
+	await _frames(1)
+
+
+static func _row_of(page: HandbookPage, entry_id: StringName) -> int:
+	var rows: Array[HandbookButton] = page.index_rows()
+	for index: int in rows.size():
+		if rows[index].name == "Row_%s" % entry_id:
+			return index
+	return -1
 
 
 ## The player's reduced motion is read on every opening (a mid-run toggle holds the clips still).

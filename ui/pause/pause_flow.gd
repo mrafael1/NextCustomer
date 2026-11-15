@@ -82,12 +82,22 @@ func _init(screen: ShiftScreen, log_service: EventLogService) -> void:
 			_guide = child
 			_guide.closed.connect(_on_guide_closed)
 			_guide.replay_offer = _replay_offer
+			_guide.discovered = _found_coupon
 			_guide.replay_requested.connect(_on_replay_requested)
 	settings.apply(screen.profile, screen._music, true)
 
 
 func is_open() -> bool:
 	return pause.is_open()
+
+
+## Whether the handbook shows coupon `card_id` (CouponFinds): found on the profile, or in the run's
+## cart under way.
+func _found_coupon(card_id: StringName) -> bool:
+	if CouponFinds.found(_screen.profile, card_id):
+		return true
+	var run: RunState = _screen.run
+	return run != null and run.deck != null and CouponFinds.owns(run.deck.cards, card_id)
 
 
 ## Whether the pause may open now.

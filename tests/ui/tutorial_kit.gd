@@ -29,17 +29,43 @@ static func start_guided(shift: ShiftScreen, seed_value: int) -> StartBoard:
 	return board
 
 
-## Waits until the director shows step `id` (at most `ms` of real time); whether it did.
+## Waits until the director shows step `id` (or the free planning's RETRY or ANSWER line), at
+## most `ms` of real time; whether it did.
 static func until_step(shift: ShiftScreen, id: StringName, ms: int = 4000) -> bool:
 	var start: int = Time.get_ticks_msec()
 	while Time.get_ticks_msec() - start < ms:
 		var director: TutorialDirector = shift.tutorial
-		if director.step_id() == id and director.overlay() != null:
+		if director.line_id() == id and director.overlay() != null:
 			await frames(2)
 			return true
 		_pump(shift)
 		await frames(1)
 	return false
+
+
+## Waits until shift 1's free planning takes input with no line showing (at most `ms`).
+static func until_free(shift: ShiftScreen, ms: int = 4000) -> bool:
+	var start: int = Time.get_ticks_msec()
+	var free: int = TutorialScript.guided().free_index()
+	while Time.get_ticks_msec() - start < ms:
+		var director: TutorialDirector = shift.tutorial
+		var at_free: bool = director.step_id() == TutorialScript.guided().steps[free].id
+		if at_free and director.line_id() == director.step_id() and director.overlay() == null:
+			var input: bool = not shift._busy() and not shift._redraw_busy
+			if shift.run.phase == RunState.Phase.PLANNING and input:
+				await frames(2)
+				return true
+		await frames(1)
+	return false
+
+
+## Lays hand places `places` on the row, left to right (the row emptied first).
+static func lay(shift: ShiftScreen, places: Array[int]) -> void:
+	while not shift.run.row.is_empty():
+		shift._on_row_card_clicked(shift._row_views[0])
+		shift._on_background_input(left_click())
+	for slot: int in places.size():
+		place(shift, places[slot], slot)
 
 
 ## Moves the opening board's frozen clocks on a little (the pages run on their own).

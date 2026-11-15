@@ -55,5 +55,4 @@ id = &"swap"
 title = "SWAP"
 order = 1
 trigger = &"swap_unlocked"
-more_page = &"swap"
 steps = Array[ExtResource("2_sub")]([SubResource("Resource_sa1"), SubResource("Resource_sa2"), SubResource("Resource_sa3"), SubResource("Resource_sa4")])

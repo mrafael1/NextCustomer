@@ -4,8 +4,6 @@
 [ext_resource type="Resource" path="res://data/cards/banana.tres" id="2_banana"]
 [ext_resource type="Resource" path="res://data/cards/milk.tres" id="3_milk"]
 [ext_resource type="Resource" path="res://data/cards/eggs.tres" id="4_eggs"]
-[ext_resource type="Resource" path="res://data/cards/bread.tres" id="5_bread"]
-[ext_resource type="Resource" path="res://data/cards/coffee.tres" id="6_coffee"]
 [ext_resource type="Script" path="res://core/deck_definition.gd" id="7_deck"]
 [ext_resource type="Script" path="res://core/starter_pack_definition.gd" id="8_pack"]
 [ext_resource type="Resource" path="res://data/starter_packs/breakfast_run.tres" id="p_breakfast_run"]
@@ -16,8 +14,8 @@
 script = ExtResource("7_deck")
 id = &"guided_starter"
 display_name = "Guided starter"
-description = "The guided first run's cart: 2 Bananas, Milk, Eggs, Bread and Coffee, the starter pack you pick, and 2 fixed boosters (data/tutorial/guided_start.tres)."
-core_cards = Array[ExtResource("1_card")]([ExtResource("2_banana"), ExtResource("2_banana"), ExtResource("3_milk"), ExtResource("4_eggs"), ExtResource("5_bread"), ExtResource("6_coffee")])
+description = "The guided first run's cart: the regulars (2 Bananas, Milk, Eggs), the starter pack you pick, and 2 fixed boosters (data/tutorial/guided_start.tres)."
+core_cards = Array[ExtResource("1_card")]([ExtResource("2_banana"), ExtResource("2_banana"), ExtResource("3_milk"), ExtResource("4_eggs")])
 random_count = 6
 copy_max = 2
 starter_packs = Array[ExtResource("8_pack")]([ExtResource("p_breakfast_run"), ExtResource("p_deli_counter"), ExtResource("p_banana_bunch")])

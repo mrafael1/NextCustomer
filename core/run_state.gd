@@ -141,6 +141,10 @@ var guided: bool = false
 ## tutorial director as the steps advance; &"" for none. Saved with the run (RunSave v17), so
 ## CONTINUE resumes the step.
 var guide_step: StringName = &""
+## The guided run's reactive planning hints already shown (PlanHint ids, each once per run; live
+## through the run's first week, 2026-11-15), written by the UI's tutorial director and saved
+## with the run, so CONTINUE never shows one twice.
+var guide_hints: Array[StringName] = []
 ## The run RNG's state, for the run save (RunSave): setting it continues the RNG's sequence from
 ## that point, so a restored run draws exactly what the saved one would have.
 var rng_state: int:

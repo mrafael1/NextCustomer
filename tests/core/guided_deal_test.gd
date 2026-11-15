@@ -1,7 +1,7 @@
 extends GdUnitTestSuite
 ## The guided first run's scripted deal (the tutorial, WP-1: GuidedStartDefinition,
 ## StartSetupRules.deal_fixed, StartChoice's guided branch): the fixed boosters (Cold cases and
-## Pantry, no hit), the 6 regulars and the 3 fixed packs; a deal StartSetup's load check keeps, so
+## Pantry, no hit), the 4 regulars and the 3 fixed packs; a deal StartSetup's load check keeps, so
 ## a resume keeps it; shift 1's hand is the definition's 8 in place order whichever pack is taken;
 ## a guided run wears no pin and a restart keeps it guided; a normal run is dealt exactly as
 ## before. The live data; the screen suites save into a temp folder.
@@ -9,13 +9,13 @@ extends GdUnitTestSuite
 const Kit := preload("res://tests/core/start_setup_kit.gd")
 const SCREEN := preload("res://ui/shift_screen.tscn")
 const SEED := 20261114
-const REGULARS: Array[StringName] = [&"banana", &"banana", &"milk", &"eggs", &"bread", &"coffee"]
+const REGULARS: Array[StringName] = [&"banana", &"banana", &"milk", &"eggs"]
 const PACKS: Array[StringName] = [&"breakfast_run", &"deli_counter", &"banana_bunch"]
 const AISLES: Array[StringName] = [&"cold_cases", &"pantry"]
-## Shift 1's hand by place: basket 1 Bananas, basket 2 Bread and Cheese, basket 3 Eggs and
-## Milk, basket 4 Coffee and Frozen peas (the guided row leaves Frozen peas in its basket).
+## Shift 1's hand by place: basket 1 Bananas, basket 2 Milk and Eggs, basket 3 Yogurt and
+## Cereal, basket 4 Tea bags and Frozen peas (the regulars, then 4 booster cards).
 const HAND: Array[StringName] = [
-	&"banana", &"banana", &"bread", &"cheese", &"eggs", &"milk", &"coffee", &"frozen_peas"
+	&"banana", &"banana", &"milk", &"eggs", &"yogurt", &"cereal", &"tea_bags", &"frozen_peas"
 ]
 
 var _balance: BalanceDefinition
@@ -40,7 +40,7 @@ func after_test() -> void:
 	_folder = ""
 
 
-## The shipped definition deals on the live balance: its recipe (a recipe, 6 regulars, the 3
+## The shipped definition deals on the live balance: its recipe (a recipe, 4 regulars, the 3
 ## packs), its boosters, and a hand of hand_size cards all in the cart.
 func test_the_definition_deals_on_the_live_balance() -> void:
 	assert_str(String(_guide.block(_balance))).is_empty()
@@ -59,10 +59,10 @@ func test_the_definition_deals_on_the_live_balance() -> void:
 	assert_int(_guide.booster_cards(&"pantry").size()).is_equal(_balance.start_booster_size)
 	assert_array(_guide.booster_cards(&"fruit_and_veg")).is_empty()
 	assert_array(_ids(_guide.hand)).is_equal(HAND)
-	# 6 regulars, 2 boosters and a pack fill the cart to its limit exactly.
+	# 4 regulars, 2 boosters and a pack stay within the cart's limit.
 	var cart: int = recipe.core_cards.size() + 2 * _balance.start_booster_size
 	for pack: StarterPackDefinition in recipe.starter_packs:
-		assert_int(cart + pack.cards.size()).is_equal(_balance.deck_limit)
+		assert_int(cart + pack.cards.size()).is_less_equal(_balance.deck_limit)
 
 
 ## Each broken definition is refused with its reason, and deal_fixed then changes nothing.
@@ -91,7 +91,7 @@ func test_a_broken_definition_is_refused() -> void:
 	broken.hand = broken.hand.slice(0, 7)
 	assert_str(String(broken.block(_balance))).is_equal("hand")
 	broken = _copy()
-	broken.hand[7] = _card(&"cheese")
+	broken.hand[7] = _card(&"bread")
 	assert_str(String(broken.block(_balance))).is_equal("hand")
 	var run: RunState = _setup(ProfileState.new())
 	var untouched: Dictionary = run.start_setup.to_dictionary()
@@ -123,7 +123,7 @@ func test_deal_fixed_deals_the_boosters_and_the_packs() -> void:
 		assert_str(String(run.start_offer.first_pick.id)).is_equal("breakfast_run")
 		assert_array(run.start_offer.shared).is_equal(setup.shared())
 		assert_str(String(setup.picked)).is_empty()
-		assert_int(run.deck.cards.size()).is_equal(12)
+		assert_int(run.deck.cards.size()).is_equal(10)
 		assert_str(String(StartSetupRules.deal_fixed(run, profile, _guide))).is_equal("stage")
 		for pack: StarterPackDefinition in run.start_offer.packs:
 			assert_str(String(StartSetupRules.pick_block(run, profile, pack))).is_empty()
@@ -155,7 +155,8 @@ func test_a_resume_keeps_the_guided_deal() -> void:
 	assert_array(picked.run.start_offer.shared).is_equal(run.start_offer.shared)
 
 
-## Whichever pack is taken, the cart holds 15 (the deck limit) and shift 1's hand is the
+## Whichever pack is taken, the cart holds the regulars, both boosters and the pack (13, under the
+## deck limit) and shift 1's hand is the
 ## definition's 8 in place order, the two Bananas distinct copies; the run saves and resumes it.
 func test_the_hand_is_the_eight_in_place_order_for_every_pack() -> void:
 	var lookup: ContentLookup = ContentLookup.new(_balance)
@@ -163,8 +164,10 @@ func test_the_hand_is_the_eight_in_place_order_for_every_pack() -> void:
 		var run: RunState = _dealt(ProfileState.new())
 		run.guided = true
 		Kit.open_all(run)
-		assert_bool(run.take_pack(run.start_offer.packs[index])).is_true()
-		assert_int(run.deck.cards.size()).is_equal(_balance.deck_limit)
+		var pack: StarterPackDefinition = run.start_offer.packs[index]
+		assert_bool(run.take_pack(pack)).is_true()
+		var cart: int = _guide.recipe.core_cards.size() + 2 * _balance.start_booster_size
+		assert_int(run.deck.cards.size()).is_equal(cart + pack.cards.size())
 		run.kept = _guide.hand_ids(run.deck.cards)
 		assert_int(run.kept.size()).is_equal(HAND.size())
 		run.start_shift()

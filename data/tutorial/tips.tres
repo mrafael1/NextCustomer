@@ -14,7 +14,6 @@ text = "Bad **CARDS**? Press **REDRAW**, then click a **BASKET**. Its **CARDS** 
 teaches = PackedStringArray("REDRAW", "PILE")
 rings = Array[StringName]([&"redraw", &"baskets"])
 side = 2
-more_page = &"redraw"
 
 [sub_resource type="Resource" id="Resource_t2"]
 script = ExtResource("2_sub")
@@ -79,7 +78,6 @@ text = "Each **SHIFT** may have a **DAY EVENT**. Green is a **GOOD DAY**. Red is
 teaches = PackedStringArray("DAY EVENT", "GOOD DAY", "INSPECTION")
 rings = Array[StringName]([&"day_slip"])
 side = 2
-more_page = &"day_events"
 
 [sub_resource type="Resource" id="Resource_t7"]
 script = ExtResource("2_sub")
@@ -91,7 +89,6 @@ text = "**PAYDAY**: the last **SHIFT** of the **WEEK**, with {payday_inspections
 teaches = PackedStringArray("PAYDAY", "PREMIUM")
 rings = Array[StringName]([&"day_slip", &"cal"])
 side = 2
-more_page = &"payday"
 
 [sub_resource type="Resource" id="Resource_t8"]
 script = ExtResource("2_sub")
@@ -102,7 +99,6 @@ trigger = &"premium_visit"
 text = "**PREMIUM**: every prize here is **RARE** or better."
 rings = Array[StringName]([&"machine_sign"])
 side = 2
-more_page = &"payday"
 
 [sub_resource type="Resource" id="Resource_t9"]
 script = ExtResource("2_sub")
@@ -113,7 +109,6 @@ trigger = &"first_miss"
 text = "**MISS** 1 of {misses}: no prizes this time. Training **WEEK** lets it go. From **WEEK** 2, one **MISS** ends the run."
 rings = Array[StringName]([&"miss_stamp"])
 side = 4
-more_page = &"payday"
 
 [sub_resource type="Resource" id="Resource_t10"]
 script = ExtResource("2_sub")
@@ -125,7 +120,6 @@ text = "Pay {silver_laps}× the **QUOTA** in one **SHIFT** for **SILVER**: an **
 teaches = PackedStringArray("MEDALS", "EXTRA DRAW")
 rings = Array[StringName]([&"medals"])
 side = 2
-more_page = &"medals"
 
 [sub_resource type="Resource" id="Resource_t11"]
 script = ExtResource("2_sub")
@@ -136,7 +130,6 @@ trigger = &"perk_taken"
 text = "Your **LOYALTY** card. Each **LOYALTY PERK** stays for the whole run, and some level up."
 rings = Array[StringName]([&"loyalty"])
 side = 1
-more_page = &"loyalty_perks"
 
 [sub_resource type="Resource" id="Resource_t12"]
 script = ExtResource("2_sub")
@@ -146,7 +139,6 @@ priority = 6
 trigger = &"improve_taken"
 text = "**IMPROVE** made it **BIG**: it pays more. A later **IMPROVE** can make it **GOLDEN**."
 teaches = PackedStringArray("BIG", "GOLDEN")
-more_page = &"receipt_rewards"
 
 [sub_resource type="Resource" id="Resource_t13"]
 script = ExtResource("2_sub")
@@ -155,7 +147,6 @@ title = "Week 2"
 priority = 2
 trigger = &"week_two"
 text = "Training **WEEK** is over. From now on, one **MISS** ends the run."
-more_page = &"payday"
 
 [sub_resource type="Resource" id="Resource_t14"]
 script = ExtResource("2_sub")

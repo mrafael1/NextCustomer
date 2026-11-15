@@ -2,7 +2,7 @@ class_name TutorialText
 extends RefCounted
 ## The tutorial's lines (TutorialStep, TipDefinition): `**WORD**` marks a glossary chip and
 ## `{name}` a number or name filled in. Numbers come from data, never from the line: the guided
-## shift's rows are scored by the game's own Scoring (so "19€, not 14€" is the rules'), the rest
+## shift's answer row is scored by the game's own Scoring (so its total is the rules'), the rest
 ## read from the balance. Live names (the title's plate, T4's MORNING, T14's card) are passed in
 ## by the caller. markup() turns a filled line into TipMarkup for TipText: a keyword's chip
 ## ("[PAIR]") or a word's box ("~CARDS|CARD~", TipWords).
@@ -85,25 +85,15 @@ const CHIP_KEYS: Dictionary[String, String] = {
 ## is the machine's own key label, beside the tip).
 const UNCHECKED: Array[String] = ["SKIP"]
 
-## The guided shift's figures: placeholder, the step whose row_before is scored, what is read,
-## and the slot it is read at (TOTAL: unused).
+## The guided shift's figures, read off its answer row (TutorialScript.answer): placeholder, what
+## is read and the slot it is read at (TOTAL: unused).
 const FIGURES: Array[Array] = [
-	["bread_price", &"G11", Measure.PAYOUT, 0],
-	["cheese_price", &"G13", Measure.PRICE, 1],
-	["cheese_bonus", &"G13", Measure.BONUS, 1],
-	["pair_pays", &"G13", Measure.PAYOUT, 1],
-	["row_pair", &"G13", Measure.TOTAL, 0],
-	["row_wrong", &"G15", Measure.TOTAL, 0],
-	["eggs_times", &"G16", Measure.TIMES, 1],
-	["bread_doubled", &"G16", Measure.PAYOUT, 1],
-	["row_right", &"G16", Measure.TOTAL, 0],
-	["banana_price", &"G19", Measure.PAYOUT, 3],
-	["banana_chain", &"G19", Measure.PAYOUT, 4],
-	["morning_bonus", &"G21", Measure.BONUS, 5],
-	["row_full", &"G21", Measure.TOTAL, 0],
+	["answer_total", Measure.TOTAL, 0],
 ]
-## The full row's MORNING reader (Coffee), whose per-item bonus T4 names (coffee_per).
-const MORNING_READER := [&"G21", 6]
+## The MORNING reader whose per-item bonus T4 names (coffee_per): a card definition id.
+const MORNING_READER := "coffee"
+## The retry line's live figure: the missed rehearsal's total.
+const MISSED := "missed"
 ## The live placeholders the caller fills: the title's primary plate (G1), T4's MORNING and T14's
 ## card and family.
 const PRIMARY := "primary"
@@ -183,18 +173,13 @@ static func values(
 ) -> Dictionary[String, String]:
 	var found: Dictionary[String, String] = {}
 	var content: ContentLookup = lookup if lookup != null else ContentLookup.new(balance)
-	var scored: Dictionary[StringName, Array] = {}
+	var answer: Array = _scored(script, content)
 	for figure: Array in FIGURES:
-		var step_id: StringName = figure[1]
-		if not scored.has(step_id):
-			scored[step_id] = _scored(script, step_id, content)
-		var row_and_result: Array = scored[step_id]
-		if row_and_result.is_empty():
-			continue
-		found[str(figure[0])] = str(_measure(row_and_result, figure[2], figure[3]))
-	var reader: Array = scored.get(MORNING_READER[0], [])
-	if not reader.is_empty():
-		found["coffee_per"] = str(_morning_bonus_each(reader[0], MORNING_READER[1]))
+		if not answer.is_empty():
+			found[str(figure[0])] = str(_measure(answer, figure[1], figure[2]))
+	var reader: CardDefinition = content.card(MORNING_READER)
+	if reader != null:
+		found["coffee_per"] = str(_morning_bonus_each(reader))
 	if balance == null:
 		return found
 	found["quota"] = str(balance.quotas[0]) if not balance.quotas.is_empty() else "0"
@@ -230,13 +215,12 @@ static func listed(names: PackedStringArray) -> String:
 	return "%s and %s" % [", ".join(names.slice(0, names.size() - 1)), names[names.size() - 1]]
 
 
-## The row of step `step_id` as instances and its ScoreResult, or [] when a card is missing.
-static func _scored(script: TutorialScript, step_id: StringName, content: ContentLookup) -> Array:
-	var step: TutorialStep = script.step(step_id) if script != null else null
-	if step == null:
+## The script's answer row as instances and its ScoreResult, or [] when a card is missing.
+static func _scored(script: TutorialScript, content: ContentLookup) -> Array:
+	if script == null or script.answer.is_empty():
 		return []
 	var row: Array[CardInstance] = []
-	for card_id: StringName in step.row_before:
+	for card_id: StringName in script.answer:
 		var card: CardDefinition = content.card(String(card_id))
 		if card == null:
 			return []
@@ -265,10 +249,8 @@ static func _measure(row_and_result: Array, measure: Measure, slot: int) -> int:
 	return 0
 
 
-static func _morning_bonus_each(row: Array[CardInstance], slot: int) -> int:
-	if slot < 0 or slot >= row.size():
-		return 0
-	for rule: Rule in row[slot].definition.rules:
+static func _morning_bonus_each(card: CardDefinition) -> int:
+	for rule: Rule in card.rules:
 		var count_rule: MorningCountRule = rule as MorningCountRule
 		if count_rule != null:
 			return count_rule.bonus_each

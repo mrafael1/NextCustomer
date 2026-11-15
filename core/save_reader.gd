@@ -172,6 +172,14 @@ func aisles(key: String) -> Array[StringName]:
 	return found
 
 
+## A list of ids, as names (e.g. the guided run's hints shown).
+func names(key: String) -> Array[StringName]:
+	var found: Array[StringName] = []
+	for id: String in _strings(key):
+		found.append(StringName(id))
+	return found
+
+
 ## A list of JSON objects (e.g. the history's records).
 func dictionaries(key: String) -> Array[Dictionary]:
 	var found: Array[Dictionary] = []

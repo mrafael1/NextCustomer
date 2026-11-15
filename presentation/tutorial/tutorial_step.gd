@@ -72,11 +72,6 @@ enum Gate { OPEN, ONLY }
 @export var allow_cards: Array[StringName] = []
 ## The slots (0-based, compacted) a card may be placed at (empty: any).
 @export var allow_slots: PackedInt32Array = PackedInt32Array()
-## Whether `row_before` applies: a planning step of the guided shift plays only on that row.
-@export var checks_row: bool = false
-## The row (card definition ids, slot order) the step expects before its move: after any move,
-## and on a resume, the director plays the first step whose row matches.
-@export var row_before: Array[StringName] = []
 ## Indexed rings and locks are templates, their index taken from the event that opened the step
 ## (its ARG_INDEX, else ARG_SLOT, else ARG_BASKET): R3's restocked booster, SA4's swapped regular.
 @export var follow_index: bool = false
@@ -111,6 +106,7 @@ func button_advances() -> bool:
 	return advance_on.is_empty() or or_button
 
 
-## Whether `row` (card definition ids, slot order) is the row this step expects.
-func row_matches(row: Array[StringName]) -> bool:
-	return checks_row and row == row_before
+## Whether it is the guided shift's free planning: a PLANNING step with no line (nothing shows;
+## the reactive hints and the retry lines speak instead).
+func is_free() -> bool:
+	return screen == Screen.PLANNING and text.is_empty()

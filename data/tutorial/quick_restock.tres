@@ -56,5 +56,4 @@ id = &"restock"
 title = "RESTOCK"
 order = 2
 trigger = &"restock_unlocked"
-more_page = &"restock"
 steps = Array[ExtResource("2_sub")]([SubResource("Resource_r1"), SubResource("Resource_r2"), SubResource("Resource_r3"), SubResource("Resource_r4")])

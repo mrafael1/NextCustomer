@@ -24,15 +24,18 @@ func test_a_guided_run_keeps_its_step_and_a_normal_run_saves_no_guided_fields() 
 	var normal: Dictionary = _json(_saved(_planning_run(41)))
 	assert_bool(normal.has("guided")).is_false()
 	assert_bool(normal.has("guide_step")).is_false()
+	assert_bool(normal.has("guide_hints")).is_false()
 	var read: RunSave = RunSave.from_dictionary(normal, _lookup)
 	assert_bool(read.run.guided).is_false()
 	assert_str(String(read.run.guide_step)).is_empty()
 	var run: RunState = _planning_run(42)
 	run.guided = true
 	run.guide_step = &"G12"
+	run.guide_hints = [&"eggs_placed", &"silver"]
 	var planning: RunState = _round_trip(run)
 	assert_bool(planning.guided).is_true()
 	assert_str(String(planning.guide_step)).is_equal("G12")
+	assert_array(planning.guide_hints).is_equal([&"eggs_placed", &"silver"])
 	_fill(run)
 	run.checkout()
 	run.guide_step = &"G23"
@@ -47,6 +50,9 @@ func test_a_guided_run_keeps_its_step_and_a_normal_run_saves_no_guided_fields() 
 	assert_bool(data["guided"]).is_true()
 	assert_str(data["guide_step"]).is_equal("")
 	assert_bool(RunSave.from_dictionary(data, _lookup).run.guided).is_true()
+	# A guided save from before the hints (2026-11-15) reads with none shown.
+	data.erase("guide_hints")
+	assert_array(RunSave.from_dictionary(data, _lookup).run.guide_hints).is_empty()
 
 
 ## A version 16 save (before the guided fields) still reads, as a run that isn't guided.

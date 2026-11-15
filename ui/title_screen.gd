@@ -198,6 +198,8 @@ func _ready() -> void:
 	_guide = HandbookPage.mount(self, null)
 	_guide.still = _still
 	_guide.replay_offer = _replay_offer
+	_guide.discovered = func(card_id: StringName) -> bool:
+		return _profile == null or CouponFinds.found(_profile, card_id)
 	_guide.replay_requested.connect(_on_replay_requested)
 	_options = OptionsCard.new()
 	_options.still = _still

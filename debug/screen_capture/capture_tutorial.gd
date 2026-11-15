@@ -3,8 +3,11 @@ extends RefCounted
 ## The screen capture's guided first run (the tutorial, WP-8): `--tutorial=<step id>[,<option>]`
 ## starts the guided run on a fresh profile (the title's START RUN), plays it through the real
 ## calls (the boards' own clocks stepped, shift 1's moves through the screen's handlers, the
-## machine's chute and SKIP) up to that step (G2..G26), and captures it once its callout has
-## settled. Options: rm (reduced motion: no pulse, no fade), t=<seconds> (wait that long once the
+## machine's chute and SKIP) up to that step (G2..G14, or a free planning moment: HINT, the first
+## hint's bubble; SILVER, the medal hint over the best row; RETRY and ANSWER, the lines after one
+## and two missed rehearsals; GHOSTS, the answer's ghosts with two items laid), and captures it
+## once it has settled.
+## Options: rm (reduced motion: no pulse, no fade), t=<seconds> (wait that long once the
 ## step shows; default SETTLE_S). The file name gets tutorial_<id>_[rm_]. Kept out of
 ## ScreenCapture so it stays under gdlint's file length; it drives game-side public parts and
 ## debug hooks only.
@@ -17,6 +20,14 @@ const PUMP_S := 0.1
 ## How long a step may take to show (real time), and how long the capture waits once it shows.
 const STEP_LIMIT_MS := 20000
 const SETTLE_S := 0.6
+## The free planning's moments reached in one move, and what _until_shown returns when the
+## free planning takes input.
+const FREE_TARGETS: Array[StringName] = [&"HINT", &"SILVER"]
+const FREE := &"FREE"
+## Hand places (TutorialScript.hand): a missing row (Eggs last, 29€), the answer, the best row.
+const WRONG: Array[int] = [0, 4, 1, 2, 5, 7, 3]
+const ANSWER: Array[int] = [0, 4, 1, 3, 2, 5, 7]
+const BEST: Array[int] = [4, 5, 3, 6, 2, 0, 1]
 
 
 ## Plays the guided run up to the step `spec` names; returns the file name part ("" when the step
@@ -44,6 +55,11 @@ static func play(screen: ShiftScreen, spec: String) -> String:
 		if shown == target:
 			reached = true
 			break
+		if shown == FREE:
+			reached = await _free(screen, target)
+			if reached or FREE_TARGETS.has(target):
+				break
+			continue
 		await _act(screen, shown)
 	var start: int = Time.get_ticks_msec()
 	while Time.get_ticks_msec() - start < settle * 1000.0:
@@ -64,7 +80,15 @@ static func _until_shown(screen: ShiftScreen) -> StringName:
 		if director.overlay() != null:
 			for _frame: int in 3:
 				await screen.get_tree().process_frame
-			return director.step_id()
+			return director.line_id()
+		var input: bool = not screen._busy() and not screen._redraw_busy
+		var planning: bool = screen.run.phase == RunState.Phase.PLANNING and input
+		var step: TutorialStep = TutorialScript.guided().step(director.step_id())
+		var lined: bool = director.line_id() != director.step_id()  # A retry line is due.
+		if planning and step != null and step.is_free() and not lined:
+			for _frame: int in 3:
+				await screen.get_tree().process_frame
+			return FREE
 		_pump(screen)
 		await screen.get_tree().process_frame
 	return &""
@@ -75,40 +99,56 @@ static func _act(screen: ShiftScreen, id: StringName) -> void:
 	var board: StartBoard = screen._cart_reveal.board if screen._cart_reveal.is_open() else null
 	match id:
 		&"G3":
-			_click_booster(board.store, 0)
+			var sealed: bool = board.store.boosters[0].state == BoosterOpening.State.SEALED
+			_click_booster(board.store, 0 if sealed else 1)
 		&"G4":
-			_click_booster(board.store, 1)
-		&"G5":
 			board.store.primary()
-		&"G6":
+		&"G5":
 			board.pick(0)
-		&"G7":
+		&"G6":
 			board.staff.primary()
-		&"G10":
-			_place(screen, 2, 0)
-		&"G12":
-			_place(screen, 3, 1)
-		&"G14":
-			_place(screen, 4, 2)
-		&"G15":
-			screen._on_row_card_clicked(screen._row_views[2])
-			screen._on_slot_input(_left_click(), 0)
-		&"G18":
-			_place(screen, 0, 3)
-			_place(screen, 1, 4)
-		&"G20":
-			_place(screen, 5, 5)
-			_place(screen, 6, 6)
-		&"G22":
-			await _checkout(screen)
-		&"G23":
+		&"G11":
 			screen._machine._choose(RewardMachine.Chute.NEW_ITEMS)
 			screen._machine.view.fast_forward()
-		&"G24":
+		&"G12":
 			await _skip_prizes(screen)
 		_:
 			_press(screen)
 	await screen.get_tree().process_frame
+
+
+## The free planning's move toward `target`: whether the target now shows. HINT: Eggs laid;
+## SILVER: the best row's first five; GHOSTS: two answer items laid (the ANSWER line read);
+## before RETRY, ANSWER or GHOSTS a missing row checked out; after them, the answer checked out
+## (the run goes on).
+static func _free(screen: ShiftScreen, target: StringName) -> bool:
+	match target:
+		&"HINT":
+			_place(screen, 3, 0)
+			return true
+		&"SILVER":
+			_lay(screen, BEST.slice(0, 5))  # Milk ×4 reaches SILVER: its hint the last one.
+			return true
+	var misses: int = screen.tutorial.misses()
+	if target == &"GHOSTS" and misses >= TutorialScript.ANSWER_AFTER:
+		_lay(screen, ANSWER.slice(0, 2))
+		return true
+	var wants_miss: bool = (
+		(target == &"RETRY" and misses < 1)
+		or (target in [&"ANSWER", &"GHOSTS"] and misses < TutorialScript.ANSWER_AFTER)
+	)
+	_lay(screen, WRONG if wants_miss else ANSWER)
+	await _checkout(screen)
+	return false
+
+
+## Empties the row, then lays hand places `places` left to right.
+static func _lay(screen: ShiftScreen, places: Array) -> void:
+	while not screen.run.row.is_empty():
+		screen._on_row_card_clicked(screen._row_views[0])
+		screen._on_background_input(_left_click())
+	for slot: int in places.size():
+		_place(screen, int(places[slot]), slot)
 
 
 static func _press(screen: ShiftScreen) -> void:

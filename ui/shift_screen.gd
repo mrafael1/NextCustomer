@@ -260,6 +260,8 @@ func save_profile() -> bool:
 func _save_run() -> void:
 	if _saves_run:
 		_saves.save_run(run, _log.run_id, Time.get_ticks_msec() - _run_started_ms)
+		if run.phase != RunState.Phase.PLANNING and CouponFinds.note(profile, run.deck.cards):
+			save_profile()  # The handbook's found coupons, from the first checkout on.
 
 
 ## Hides every panel and lets go of any picked or dragged card.
@@ -510,6 +512,8 @@ func _on_checkout_pressed() -> void:
 		return
 	if await _pins.take_day_off():  # #132: a Day off's pile on the belt: CHECKOUT takes it.
 		return
+	# The guided shift's free planning: a miss there is a rehearsal, planning comes back after it.
+	var rehearsal: Dictionary = tutorial.snapshot() if tutorial.rehearses() else {}
 	guide.emit(TutorialEvents.CHECKOUT_STARTED)
 	# No key sound: the count's start dings the service bell (ShiftStage, play test 2026-11-09).
 	_counting = true
@@ -528,34 +532,12 @@ func _on_checkout_pressed() -> void:
 	tracker.on_checkout(_click_ms)
 	var committed: Array[CardInstance] = run.row.duplicate()
 	var result: ScoreResult = run.checkout()
+	var retry: bool = not rehearsal.is_empty() and not run.passed()
 	if await _pins.count_row_one(committed):  # #122: a Double checkout's row 1 counts alone.
 		return
-	# Logged at the click, so closing the game during the count-up loses nothing.
-	var checkout_data: Dictionary = {
-		"shift": run.shift_index + 1,
-		"final_order": RunEvents.card_ids(run.first_row + committed),
-		"score": result.total,
-		"quota": run.quota(),
-		"passed": run.passed(),
-		"next_inspection": RunEvents.first_inspection_id(run.next_inspections),
-		"next_inspections": RunEvents.inspection_ids(run.next_inspections),
-		"write_ups": run.write_ups,
-	}
-	checkout_data.merge(tracker.measures(committed.size()))
-	checkout_data.merge(OvertimeCue.checkout_fields(run))  # v1.03: the over-quota rewards.
-	checkout_data.merge(RunEvents.best_fields(run))  # v1.37: the BEST line's item.
-	_log.log_event("checkout", checkout_data)
-	if run.phase == RunState.Phase.WON or run.phase == RunState.Phase.LOST:
-		_run_ended_ms = Time.get_ticks_msec()
-		_log.log_event("run_end", RunEvents.run_end(run, _run_ended_ms - _run_started_ms))
-		# Saved at the click too, so closing the game during the count-up loses nothing.
-		_results.pin_news = PinUnlockNews.record(run, profile, _catalogue)  # Its unlock cards.
-		_profile_saved = _saves.save_profile(profile)
-		if _saves_run:
-			_saves.delete_run()
-	else:
-		# The machine waits: quitting during the count-up resumes on it.
-		_save_run()
+	var checkout_data: Dictionary = CheckoutLog.event(run, committed, result, tracker)
+	if not retry:  # A rehearsal isn't a checkout (tutorial_retry logs it); its save stays.
+		_log_checkout(checkout_data)
 	_refresh()
 	var counted: ScoreResult = DoubleCheckoutFlow.counted(run)  # #122: row 2 counts on.
 	_effects.show_count(counted, _row_views, run)  # Only the stickers stay, to fire.
@@ -581,6 +563,10 @@ func _on_checkout_pressed() -> void:
 	_log.log_event("count_up", RunEvents.count_up_of(_count_up, shift, count_ms, context))
 	_counting = false
 	guide.counted(run)  # COUNT_FINISHED, and MISS.
+	if retry:
+		if tutorial.put_back(rehearsal, result.total):
+			return
+		_log_checkout(checkout_data)  # Not read back: the miss stands, as any other.
 	_refresh_bar()  # The day calendar's EARNED (#77 machine v2).
 	_cabinet.set_total_down(false)
 	_stage.dim_hand(false)
@@ -595,6 +581,21 @@ func _on_checkout_pressed() -> void:
 		_on_shift_started()
 	else:
 		_show_results(result)
+
+
+## Logs the checkout at the click, and saves (the run's end, or the machine's wait), so closing
+## the game during the count-up loses nothing.
+func _log_checkout(checkout_data: Dictionary) -> void:
+	_log.log_event("checkout", checkout_data)
+	if run.phase == RunState.Phase.WON or run.phase == RunState.Phase.LOST:
+		_run_ended_ms = Time.get_ticks_msec()
+		_log.log_event("run_end", RunEvents.run_end(run, _run_ended_ms - _run_started_ms))
+		_results.pin_news = PinUnlockNews.record(run, profile, _catalogue)  # Its unlock cards.
+		_profile_saved = _saves.save_profile(profile)
+		if _saves_run:
+			_saves.delete_run()
+	else:
+		_save_run()  # The machine waits: quitting during the count-up resumes on it.
 
 
 ## What the count-up knows about the run (#60, D3): the shift, the best earlier checkout (called

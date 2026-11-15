@@ -56,6 +56,7 @@ KNOWN_TYPES = frozenset({
     "staple_swap", "restock", "restock_view", "pin_change", "start_lock_in", "new_packs",
     "start_aisle", "start_booster_pick", "settings_change", "pause_open", "pause_close", "run_quit",
     "tutorial_step", "tutorial_done", "tutorial_replay", "tip_shown", "quick_step", "tips_reset",
+    "tutorial_retry", "tutorial_hint",
 })
 # The options and the pause (settings_change on the title or in a run, pause_open / pause_close
 # and run_quit in a run): they attach to a run but never make one.
@@ -65,11 +66,12 @@ SETTINGS_TYPES = frozenset({"settings_change", "pause_open", "pause_close", "run
 # capsule drawn on the title has no run_id.
 RUN_TYPES = KNOWN_TYPES - {"restart", "results_exit", "log_export", "debug", "capsule"}
 RUN_TYPES -= SETTINGS_TYPES
-# The tutorial's events (the guided first run's steps and end, its replay requests, the one-time
-# tips, the quick tutorials' steps and RESET TIPS): they attach to a run (or, on the title, to
+# The tutorial's events (the guided first run's steps, retries, hints and end, its replay
+# requests, the one-time tips, the quick tutorials' steps and RESET TIPS): they attach to a run (or, on the title, to
 # none) but never make one. A guided run is the run whose run_start has guided true.
 TUTORIAL_TYPES = frozenset({
     "tutorial_step", "tutorial_done", "tutorial_replay", "tip_shown", "quick_step", "tips_reset",
+    "tutorial_retry", "tutorial_hint",
 })
 RUN_TYPES -= TUTORIAL_TYPES
 # A step id's letters and number (G12, SA3), for sorting steps in their order.

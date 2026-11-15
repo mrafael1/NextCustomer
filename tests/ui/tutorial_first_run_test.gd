@@ -1,13 +1,26 @@
 extends GdUnitTestSuite
-## The guided first run end to end (tutorial plan WP-8, TutorialDirector): a fresh profile's
-## guided run driven headless through the real calls, from the opening board (G2-G7) through
-## shift 1's gated moves (G8-G22, Eggs WASTED on purpose), the machine (G23-G24) and shift 2's
-## time card (G25-G26), with each step's callout inside the screen and off its rings at 1280x720
-## and 1920x1080; the done flag saved and the next run not guided; a resume mid-shift and at the
-## machine landing on the right step; the steps logged.
+## The guided first run end to end (tutorial plan WP-8, TutorialDirector, reworked after play
+## test 1, 2026-11-15): a fresh profile's guided run driven headless through the real calls, from
+## the opening board (G2-G6) through shift 1's intro (G7-G9) and free planning (G10: any move,
+## reactive hints in a bubble, a missed CHECKOUT is a rehearsal that puts planning back, the
+## answer's ghosts after 2 misses), the machine (G11-G12) and shift 2's time card (G13-G14), with
+## each step's callout inside the screen and off its rings at 1280x720 and 1920x1080; the done
+## flag saved and the next run not guided; a resume in the free planning and at the machine
+## landing on the right step; the steps, retries and hints logged.
 
 const Kit := preload("res://tests/ui/tutorial_kit.gd")
 const SEED := 20261115
+## Shift 1's hand places (TutorialScript.hand) and the rows laid from them.
+const BANANA_1 := 0
+const BANANA_2 := 1
+const MILK := 2
+const EGGS := 3
+const YOGURT := 4
+const CEREAL := 5
+const FROZEN_PEAS := 7
+## The answer (36€), and the same seven with Eggs last (29€, under the 30€ quota).
+const ANSWER: Array[int] = [BANANA_1, YOGURT, BANANA_2, EGGS, MILK, CEREAL, FROZEN_PEAS]
+const WRONG: Array[int] = [BANANA_1, YOGURT, BANANA_2, MILK, CEREAL, FROZEN_PEAS, EGGS]
 
 var _folder: String = ""
 var _window_size: Vector2i
@@ -40,8 +53,8 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-## G2 to G26 on a fresh profile: each step shows where it should, the gates hold, the row pays
-## as the lines say, and G26 saves the done flag; the next run is not guided.
+## G2 to G14 on a fresh profile: each step shows where it should, the gates hold, two missed
+## rehearsals bring the answer, and G14 saves the done flag; the next run is not guided.
 func test_a_fresh_profile_plays_the_whole_guided_run() -> void:
 	get_tree().root.size = Kit.SIZES[0]
 	var shift: ShiftScreen = await _screen()
@@ -49,41 +62,49 @@ func test_a_fresh_profile_plays_the_whole_guided_run() -> void:
 	var board: StartBoard = Kit.start_guided(shift, SEED)
 	assert_bool(shift.run.guided).is_true()
 	assert_bool(shift.tutorial.is_active()).is_true()
-	# G2: the regulars' crate, NEXT; the swap plate and RESTOCK locked.
+	# G2: the regulars' crate (the 4 regulars), NEXT; the swap plate and RESTOCK locked.
 	assert_bool(await Kit.until_step(shift, &"G2")).is_true()
 	_assert_callout(shift)
+	assert_int(shift.run.starter.core_cards.size()).is_equal(4)
 	assert_bool(board.store.actions.locked(TutorialAnchors.SWAP_PLATE)).is_true()
 	assert_bool(Kit.press(shift)).is_true()
-	# G3: a booster's click opens it; NEXT can't skip it.
+	# G3: both boosters' clicks open them; NEXT can't skip it.
 	assert_bool(await Kit.until_step(shift, &"G3")).is_true()
 	_assert_callout(shift)
 	assert_bool(Kit.press(shift)).is_false()
 	Kit.click_page(board.store, Kit.pouch(board.store, 0))
 	assert_int(board.store.boosters[0].state).is_not_equal(BoosterOpening.State.SEALED)
-	# G4: the other one; then G5 once stocked.
+	assert_str(String(shift.tutorial.step_id())).is_equal("G3")
+	# Shown again once the first has opened, ringing the sealed one only.
+	assert_bool(await _until_rings(shift, 1)).is_true()
+	Kit.click_page(board.store, Kit.pouch(board.store, 1))
+	# G4 once stocked.
 	assert_bool(await Kit.until_step(shift, &"G4")).is_true()
 	_assert_callout(shift)
-	assert_int(shift.tutorial.overlay().ring_rects().size()).is_equal(1)
-	Kit.click_page(board.store, Kit.pouch(board.store, 1))
+	assert_bool(board.store.primary()).is_true()
+	# G5: page 2, NEW PACKS locked; a pack picked.
 	assert_bool(await Kit.until_step(shift, &"G5")).is_true()
 	_assert_callout(shift)
-	assert_bool(board.store.primary()).is_true()
-	# G6: page 2, NEW PACKS locked; a pack picked.
+	assert_bool(board.store.actions.locked(TutorialAnchors.NEWPACKS)).is_true()
+	assert_bool(board.staff.primary()).is_false()  # OPEN STORE waits for G6.
+	board.pick(1)
 	assert_bool(await Kit.until_step(shift, &"G6")).is_true()
 	_assert_callout(shift)
-	assert_bool(board.store.actions.locked(TutorialAnchors.NEWPACKS)).is_true()
-	assert_bool(board.staff.primary()).is_false()  # OPEN STORE waits for G7.
-	board.pick(1)
-	assert_bool(await Kit.until_step(shift, &"G7")).is_true()
-	_assert_callout(shift)
 	assert_bool(board.staff.primary()).is_true()
-	# G8..G9: the till, the quota.
-	assert_bool(await Kit.until_step(shift, &"G8")).is_true()
+	# G7..G9: the till and the quota, the card read, your turn; no move meanwhile.
+	assert_bool(await Kit.until_step(shift, &"G7")).is_true()
 	_assert_callout(shift)
 	assert_array(_hand_ids(shift)).is_equal(TutorialScript.guided().hand)
 	assert_bool(shift._checkout_button.disabled).is_true()
+	Kit.place(shift, EGGS, 0)
+	assert_bool(shift.run.row.is_empty()).is_true()
+	shift._on_background_input(Kit.left_click())
 	assert_bool(Kit.press(shift)).is_true()
+	assert_bool(await Kit.until_step(shift, &"G8")).is_true()
+	_assert_callout(shift)
+	assert_bool(shift.debug_scan(shift.run.hand_places()[EGGS])).is_true()
 	assert_bool(await Kit.until_step(shift, &"G9")).is_true()
+	shift._scan.clear()
 	_assert_callout(shift)
 	assert_bool(Kit.press(shift)).is_true()
 	await _play_shift_one(shift)
@@ -91,15 +112,20 @@ func test_a_fresh_profile_plays_the_whole_guided_run() -> void:
 	assert_bool(shift.tutorial.is_active()).is_false()
 	assert_str(String(shift.run.guide_step)).is_equal(String(TutorialDirector.DONE))
 	assert_bool(shift.guide.gate.is_valid()).is_false()
+	await _assert_week_hints(shift)
 	var saved: ProfileState = SaveService.new(_folder).load_profile()
 	assert_bool(TutorialFlags.has_seen(saved, TutorialFlags.GUIDE_DONE)).is_true()
 	assert_bool(TutorialFlags.guided_due(saved)).is_false()
 	var logged: Array[String] = _logged_types()
-	assert_array(logged).contains(["tutorial_step", "tutorial_done"])
-	assert_int(logged.count("tutorial_step")).is_greater_equal(24)
+	assert_array(logged).contains(["tutorial_step", "tutorial_done", "tutorial_hint"])
+	assert_int(logged.count("tutorial_retry")).is_equal(2)
+	assert_int(logged.count("tutorial_step")).is_greater_equal(12)
+	# The rehearsals were not checkouts: only the passed one is logged.
+	assert_int(logged.count("checkout")).is_equal(1)
 
 
-## The same run at 1920x1080: the key steps' callouts lie on screen, off their rings.
+## The same run at 1920x1080: the key steps' callouts lie on screen, off their rings, and a
+## hint's bubble lies on screen.
 func test_the_callouts_fit_at_1080p() -> void:
 	get_tree().root.size = Kit.SIZES[1]
 	var shift: ShiftScreen = await _screen()
@@ -109,56 +135,53 @@ func test_the_callouts_fit_at_1080p() -> void:
 	Kit.press(shift)
 	assert_bool(await Kit.until_step(shift, &"G3")).is_true()
 	_assert_callout(shift)
-	board.store.primary()  # OPEN ALL: G4 is skipped, G5 shows once stocked.
-	assert_bool(await Kit.until_step(shift, &"G5")).is_true()
+	board.store.primary()  # OPEN ALL: G4 shows once stocked.
+	assert_bool(await Kit.until_step(shift, &"G4")).is_true()
 	_assert_callout(shift)
 	board.store.primary()
-	assert_bool(await Kit.until_step(shift, &"G6")).is_true()
+	assert_bool(await Kit.until_step(shift, &"G5")).is_true()
 	_assert_callout(shift)
 	board.pick(0)
-	assert_bool(await Kit.until_step(shift, &"G7")).is_true()
+	assert_bool(await Kit.until_step(shift, &"G6")).is_true()
 	board.staff.primary()
-	assert_bool(await Kit.until_step(shift, &"G8")).is_true()
-	_assert_callout(shift)
-	Kit.press(shift)
-	assert_bool(await Kit.until_step(shift, &"G9")).is_true()
-	Kit.press(shift)
-	await _play_shift_one(shift)
+	for id: StringName in [&"G7", &"G8", &"G9"]:
+		assert_bool(await Kit.until_step(shift, id)).is_true()
+		_assert_callout(shift)
+		Kit.press(shift)
+	assert_bool(await Kit.until_free(shift)).is_true()
+	Kit.place(shift, EGGS, 0)
+	await _assert_bubble(shift, &"eggs_placed", 0)
+	Kit.lay(shift, ANSWER)
+	await Kit.Rush.checkout(shift)
+	assert_int(shift.run.phase).is_equal(RunState.Phase.MACHINE_CHOOSE)
 
 
-## A quit after G12's step and a quit at the machine both resume on the right step.
+## A quit in the free planning resumes on it with the row as placed; a missed rehearsal is not
+## saved (a quit after it resumes on planning); a quit at the machine resumes on G11.
 func test_a_resume_lands_on_the_step() -> void:
 	get_tree().root.size = Kit.SIZES[0]
-	var shift: ShiftScreen = await _to_planning()
-	Kit.press(shift)
-	assert_bool(await Kit.until_step(shift, &"G9")).is_true()
-	Kit.press(shift)
-	assert_bool(await Kit.until_step(shift, &"G10")).is_true()
-	Kit.place(shift, 2, 0)
-	assert_bool(await Kit.until_step(shift, &"G11")).is_true()
-	Kit.press(shift)
-	assert_bool(await Kit.until_step(shift, &"G12")).is_true()
+	var shift: ShiftScreen = await _to_free()
+	Kit.place(shift, BANANA_1, 0)
+	Kit.place(shift, YOGURT, 1)
 	shift = await _reopen(shift)
 	assert_bool(shift.run.guided).is_true()
-	assert_bool(await Kit.until_step(shift, &"G12")).is_true()
-	assert_array(Kit.row_ids(shift)).is_equal([&"bread"] as Array[StringName])
-	Kit.place(shift, 3, 1)
-	assert_bool(await Kit.until_step(shift, &"G13")).is_true()
-	# A placed card back to its basket re-shows the step that placed it.
-	shift._on_row_card_clicked(shift._row_views[1])
-	shift._on_background_input(Kit.left_click())
-	assert_bool(await Kit.until_step(shift, &"G12")).is_true()
-	Kit.place(shift, 3, 1)
-	assert_bool(await Kit.until_step(shift, &"G13")).is_true()
-	Kit.press(shift)
-	assert_bool(await Kit.until_step(shift, &"G14")).is_true()
-	await _fill_row(shift)
-	assert_bool(await Kit.until_step(shift, &"G22")).is_true()
+	assert_bool(await Kit.until_free(shift)).is_true()
+	assert_array(Kit.row_ids(shift)).is_equal([&"banana", &"yogurt"] as Array[StringName])
+	await Kit.Rush.checkout(shift)  # 12€: a rehearsal.
+	assert_bool(await Kit.until_step(shift, &"RETRY")).is_true()
+	assert_int(shift.run.phase).is_equal(RunState.Phase.PLANNING)
+	assert_int(shift.run.write_ups).is_equal(0)
+	assert_array(Kit.row_ids(shift)).is_equal([&"banana", &"yogurt"] as Array[StringName])
+	shift = await _reopen(shift)
+	assert_bool(await Kit.until_free(shift)).is_true()
+	assert_int(shift.run.shift_index).is_equal(0)
+	assert_array(Kit.row_ids(shift)).is_equal([&"banana", &"yogurt"] as Array[StringName])
+	Kit.lay(shift, ANSWER)
 	await Kit.Rush.checkout(shift)
 	assert_int(shift.run.phase).is_equal(RunState.Phase.MACHINE_CHOOSE)
 	shift = await _reopen(shift)
 	assert_bool(await Kit.until_armed(shift)).is_true()
-	assert_bool(await Kit.until_step(shift, &"G23")).is_true()
+	assert_bool(await Kit.until_step(shift, &"G11")).is_true()
 
 
 ## The second run of a profile that finished the guided run is a normal one.
@@ -174,9 +197,9 @@ func test_a_finished_profile_starts_normal_runs() -> void:
 	second._cart_reveal.close()
 
 
-## A veteran's replay (PLAY THE GUIDED SHIFT with an aisle completed, so a swap is open): G5's
+## A veteran's replay (PLAY THE GUIDED SHIFT with an aisle completed, so a swap is open): G4's
 ## NEXT goes on to YOUR BUILD, with no stop at the swap window the guided run keeps LOCKED (it
-## would open with G5's ring gone and DONE refused without a word).
+## would open with G4's ring gone and DONE refused without a word).
 func test_a_replay_with_a_swap_open_skips_the_swap_stop() -> void:
 	get_tree().root.size = Kit.SIZES[0]
 	var shift: ShiftScreen = await _screen()
@@ -195,12 +218,12 @@ func test_a_replay_with_a_swap_open_skips_the_swap_stop() -> void:
 	Kit.press(shift)
 	assert_bool(await Kit.until_step(shift, &"G3")).is_true()
 	board.store.primary()  # OPEN ALL.
-	assert_bool(await Kit.until_step(shift, &"G5")).is_true()
+	assert_bool(await Kit.until_step(shift, &"G4")).is_true()
 	assert_bool(board.store.swap.is_live()).is_true()
 	assert_bool(board.store.swap.wants_stop()).is_false()
 	assert_bool(board.store.primary("click")).is_true()
 	assert_bool(board.store.swap.active).is_false()
-	assert_bool(await Kit.until_step(shift, &"G6")).is_true()
+	assert_bool(await Kit.until_step(shift, &"G5")).is_true()
 	_assert_callout(shift)
 	# The same board with no tutorial still stops at the window.
 	shift.tutorial._set_active(false)
@@ -220,137 +243,167 @@ func test_the_menu_and_title_take_a_click_through_the_dim() -> void:
 	Kit.press(shift)
 	assert_bool(await Kit.until_step(shift, &"G3")).is_true()
 	board.store.primary()
-	assert_bool(await Kit.until_step(shift, &"G5")).is_true()
+	assert_bool(await Kit.until_step(shift, &"G4")).is_true()
 	board.store.primary()
-	assert_bool(await Kit.until_step(shift, &"G6")).is_true()
+	assert_bool(await Kit.until_step(shift, &"G5")).is_true()
 	board.pick(0)
-	assert_bool(await Kit.until_step(shift, &"G7")).is_true()
+	assert_bool(await Kit.until_step(shift, &"G6")).is_true()
 	board.staff.primary()
-	assert_bool(await Kit.until_step(shift, &"G8")).is_true()
+	assert_bool(await Kit.until_step(shift, &"G7")).is_true()
 	var menu: Rect2 = shift.anchor_rect(TutorialAnchors.MENU)
 	assert_bool(menu.has_area()).is_true()
 	_assert_passes(shift.tutorial.overlay(), menu)
 	Kit.press(shift)
-	assert_bool(await Kit.until_step(shift, &"G9")).is_true()
+	assert_bool(await Kit.until_step(shift, &"G8")).is_true()
 	Kit.press(shift)
-	assert_bool(await Kit.until_step(shift, &"G10")).is_true()
+	assert_bool(await Kit.until_step(shift, &"G9")).is_true()
 	_assert_passes(shift.tutorial.overlay(), menu)
 
 
 # --- Driving ------------------------------------------------------------------------------
 
 
-## G10..G22: Bread, Cheese (a PAIR), Eggs WASTED in slot 3 then moved to slot 1, the scan, both
-## Bananas, Milk and Coffee; refused moves do nothing; CHECKOUT unlocks at the quota.
+## G10, the free planning: a hint pops on each first move; Eggs last is a rehearsal that misses
+## (planning back, the row kept, no MISS, RETRY); a redraw pops its hint; a second miss brings
+## the ANSWER (the hand back as dealt, the redraw undone, the ghosts on the belt); the answer laid
+## over its ghosts passes on to the machine.
 func _play_shift_one(shift: ShiftScreen) -> void:
-	assert_bool(await Kit.until_step(shift, &"G10")).is_true()
-	_assert_callout(shift)
-	# Only Bread, only to slot 1.
-	shift._on_hand_card_clicked(Kit.hand_view(shift, 3))
-	assert_object(shift._picked).is_null()
-	Kit.place(shift, 2, 0)
-	assert_array(Kit.row_ids(shift)).is_equal([&"bread"] as Array[StringName])
-	assert_bool(await Kit.until_step(shift, &"G11")).is_true()
-	_assert_callout(shift)
-	assert_int(shift.run.preview().total).is_equal(5)
-	Kit.press(shift)
-	assert_bool(await Kit.until_step(shift, &"G12")).is_true()
-	_assert_callout(shift)
-	Kit.place(shift, 3, 0)  # Slot 1: refused (the Cheese stays picked).
-	assert_int(shift.run.row.size()).is_equal(1)
-	shift._on_slot_input(Kit.left_click(), 1)
-	assert_bool(await Kit.until_step(shift, &"G13")).is_true()
-	_assert_callout(shift)
-	assert_int(shift.run.preview().total).is_equal(13)
-	Kit.press(shift)
-	assert_bool(await Kit.until_step(shift, &"G14")).is_true()
-	_assert_callout(shift)
-	Kit.place(shift, 4, 2)
-	assert_bool(await Kit.until_step(shift, &"G15")).is_true()
-	_assert_callout(shift)
-	var preview: ScoreResult = shift.run.preview()
-	assert_int(preview.total).is_equal(14)
-	assert_bool(_wasted(preview, 2)).is_true()
-	Kit.move(shift, 2, 0)
-	assert_array(Kit.row_ids(shift)).is_equal([&"eggs", &"bread", &"cheese"] as Array[StringName])
-	assert_bool(await Kit.until_step(shift, &"G16")).is_true()
-	_assert_callout(shift)
-	assert_int(shift.run.preview().total).is_equal(19)
-	# A placed card whose leaving strands the row stays put.
-	shift._on_row_card_clicked(shift._row_views[2])
-	assert_int(shift.run.row.size()).is_equal(3)
-	Kit.press(shift)
-	assert_bool(await Kit.until_step(shift, &"G17")).is_true()
-	_assert_callout(shift)
-	assert_bool(shift.debug_scan(shift.run.row[0])).is_true()
-	assert_bool(await Kit.until_step(shift, &"G18")).is_true()
-	shift._scan.clear()
-	await _fill_bananas_and_breakfast(shift)
-	assert_bool(await Kit.until_step(shift, &"G22")).is_true()
-	_assert_callout(shift)
-	await Kit.Rush.checkout(shift)
-	assert_str(String(shift.run.guide_step)).is_equal("G23")
-
-
-## G14 to G21 from a row of Bread and Cheese.
-func _fill_row(shift: ShiftScreen) -> void:
-	Kit.place(shift, 4, 2)
-	assert_bool(await Kit.until_step(shift, &"G15")).is_true()
-	Kit.move(shift, 2, 0)
-	assert_bool(await Kit.until_step(shift, &"G16")).is_true()
-	Kit.press(shift)
-	assert_bool(await Kit.until_step(shift, &"G17")).is_true()
-	Kit.press(shift)
-	await _fill_bananas_and_breakfast(shift)
-
-
-func _fill_bananas_and_breakfast(shift: ShiftScreen) -> void:
-	assert_bool(await Kit.until_step(shift, &"G18")).is_true()
-	_assert_callout(shift)
-	Kit.place(shift, 0, 3)
-	assert_str(String(shift.tutorial.step_id())).is_equal("G18")
-	Kit.place(shift, 1, 6)  # Past the end: the compacted slot 5.
-	assert_bool(await Kit.until_step(shift, &"G19")).is_true()
-	_assert_callout(shift)
-	Kit.press(shift)
-	assert_bool(await Kit.until_step(shift, &"G20")).is_true()
-	_assert_callout(shift)
-	assert_bool(shift._checkout_button.disabled).is_true()
-	Kit.place(shift, 6, 5)  # Coffee before Milk: refused, the row keeps its order.
-	assert_int(shift.run.row.size()).is_equal(5)
-	shift._on_background_input(Kit.left_click())
-	Kit.place(shift, 5, 5)
-	Kit.place(shift, 6, 6)
-	assert_bool(await Kit.until_step(shift, &"G21")).is_true()
-	_assert_callout(shift)
-	assert_int(shift.run.preview().total).is_equal(35)
+	assert_bool(await Kit.until_free(shift)).is_true()
+	assert_object(shift.tutorial.overlay()).is_null()
 	assert_bool(shift._checkout_button.disabled).is_false()
-	Kit.press(shift)
+	assert_bool(shift.guide.allows(TutorialActions.REDRAW)).is_true()
+	var dealt: Array[StringName] = _hand_ids(shift)
+	Kit.place(shift, EGGS, 0)
+	await _assert_bubble(shift, &"eggs_placed", 0)
+	# The same seven as the answer with Eggs last: WASTED, 29€.
+	Kit.lay(shift, WRONG)
+	assert_int(shift.run.preview().total).is_less(shift.run.quota())
+	await Kit.Rush.checkout(shift)
+	assert_bool(await Kit.until_step(shift, &"RETRY")).is_true()
+	_assert_callout(shift)
+	assert_int(shift.run.phase).is_equal(RunState.Phase.PLANNING)
+	assert_int(shift.run.shift_index).is_equal(0)
+	assert_int(shift.run.write_ups).is_equal(0)
+	assert_bool(shift.run.history.is_empty()).is_true()
+	assert_array(Kit.row_ids(shift)).is_equal(_ids(WRONG))
+	assert_int(shift.tutorial.misses()).is_equal(1)
+	assert_bool(Kit.press(shift)).is_true()
+	assert_bool(await Kit.until_free(shift)).is_true()
+	# A redraw of basket 4 (Tea bags, left in it): its hint over REDRAW.
+	shift._on_redraw_pressed()
+	shift._on_basket_clicked(3)
+	assert_bool(await Kit.until_free(shift)).is_true()
+	await Kit.frames(3)
+	assert_int(shift.run.redraws_used).is_equal(1)
+	assert_bool(shift.tutorial.bubble().is_showing()).is_true()
+	assert_str(shift.tutorial.bubble().title_text()).is_equal("REDRAW")
+	await Kit.Rush.checkout(shift)
+	assert_bool(await Kit.until_step(shift, &"ANSWER")).is_true()
+	_assert_callout(shift)
+	assert_bool(shift.run.row.is_empty()).is_true()
+	assert_int(shift.run.redraws_used).is_equal(0)
+	assert_array(_hand_ids(shift)).is_equal(dealt)
+	assert_bool(Kit.press(shift)).is_true()
+	assert_bool(await Kit.until_free(shift)).is_true()
+	var ghosts: AnswerGhosts = shift.tutorial.ghosts()
+	assert_object(ghosts).is_not_null()
+	assert_bool(ghosts.visible).is_true()
+	assert_bool(ghosts.all_placed()).is_false()
+	Kit.lay(shift, ANSWER)
+	await Kit.frames(2)
+	assert_bool(ghosts.all_placed()).is_true()
+	assert_int(shift.run.preview().total).is_greater_equal(shift.run.quota())
+	await Kit.Rush.checkout(shift)
+	assert_str(String(shift.run.guide_step)).is_equal("G11")
 
 
-## G23 (keys), G24 (prizes, SKIP), then shift 2's time card (G25) and the menu (G26).
+## G11 (keys), G12 (prizes, SKIP), then shift 2's time card (G13) and the menu (G14).
 func _play_machine_and_week(shift: ShiftScreen) -> void:
 	assert_int(shift.run.phase).is_equal(RunState.Phase.MACHINE_CHOOSE)
 	assert_bool(await Kit.until_armed(shift)).is_true()
-	assert_bool(await Kit.until_step(shift, &"G23")).is_true()
+	assert_bool(await Kit.until_step(shift, &"G11")).is_true()
 	_assert_callout(shift)
 	assert_bool(shift._machine._choose(RewardMachine.Chute.NEW_ITEMS)).is_true()
 	assert_bool(await Kit.until_armed(shift)).is_true()
-	assert_bool(await Kit.until_step(shift, &"G24")).is_true()
+	assert_bool(await Kit.until_step(shift, &"G12")).is_true()
 	_assert_callout(shift)
 	shift._machine.view.skip_bin.pressed.emit()
 	shift._machine.view.fast_forward()
 	await Kit.frames(2)
 	shift._machine._end_return()
 	assert_int(shift.run.shift_index).is_equal(1)
-	assert_bool(await Kit.until_step(shift, &"G25")).is_true()
+	assert_bool(await Kit.until_step(shift, &"G13")).is_true()
 	_assert_callout(shift)
 	assert_bool(shift._week.is_open()).is_true()
 	Kit.press(shift)
-	assert_bool(await Kit.until_step(shift, &"G26")).is_true()
+	assert_bool(await Kit.until_step(shift, &"G14")).is_true()
 	_assert_callout(shift)
 	assert_bool(Kit.press(shift)).is_true()
 	await Kit.frames(2)
+
+
+## The first week's hints after the guided part (2026-11-15): live on shift 2's planning, the
+## ones shown on shift 1 kept with the run (saved), SILVER not reached yet still waiting; one
+## popped now shows in the bubble and is saved; none from week 2 on.
+func _assert_week_hints(shift: ShiftScreen) -> void:
+	assert_bool(shift.tutorial._hinting()).is_true()
+	assert_array(shift.run.guide_hints).contains([&"redrawn"])
+	assert_array(shift.run.guide_hints).not_contains([&"silver"])
+	var silver: PlanHint = null
+	for hint: PlanHint in TutorialScript.guided().hints:
+		if hint.id == &"silver":
+			silver = hint
+	shift.tutorial._pop(PlanHint.Pick.new(silver, PlanHint.NO_SLOT, TutorialAnchors.MEDALS))
+	await Kit.frames(2)
+	assert_bool(shift.tutorial.bubble().is_showing()).is_true()
+	var saved: RunSave = SaveService.new(_folder).load_run(ContentLookup.new(shift._balance))
+	assert_array(saved.run.guide_hints).contains([&"redrawn", &"silver"])
+	var week: int = WeekSchedule.length(shift._balance)
+	shift.run.shift_index = week
+	assert_bool(shift.tutorial._hinting()).is_false()
+	shift.run.shift_index = 1
+	await Kit.frames(2)
+
+
+## Waits until the step's callout shows with `count` rings (at most 4 s of real time).
+func _until_rings(shift: ShiftScreen, count: int) -> bool:
+	var start: int = Time.get_ticks_msec()
+	while Time.get_ticks_msec() - start < 4000:
+		var overlay: TutorialOverlay = shift.tutorial.overlay()
+		if overlay != null and overlay.ring_rects().size() == count:
+			return true
+		Kit._pump(shift)
+		await Kit.frames(1)
+	return false
+
+
+## The hint bubble shows `hint_id`'s title over row slot `slot`, inside the screen.
+func _assert_bubble(shift: ShiftScreen, hint_id: StringName, slot: int) -> void:
+	await Kit.frames(3)
+	var bubble: HintBubble = shift.tutorial.bubble()
+	assert_object(bubble).is_not_null()
+	if bubble == null:
+		return
+	var hint: PlanHint = null
+	for each: PlanHint in TutorialScript.guided().hints:
+		if each.id == hint_id:
+			hint = each
+	assert_bool(bubble.is_showing()).is_true()
+	assert_str(bubble.title_text()).is_equal(hint.title)
+	var rect: Rect2 = bubble.get_global_rect()
+	var screen: Rect2 = Rect2(Vector2.ZERO, Vector2(get_tree().root.size))
+	assert_bool(screen.encloses(rect)).override_failure_message(str(rect)).is_true()
+	var spot: Rect2 = shift.anchor_rect(StringName(TutorialAnchors.SPOT + str(slot)))
+	assert_float(rect.end.y).is_less_equal(spot.position.y + 1.0)
+	assert_bool(rect.intersects(spot)).is_false()
+
+
+static func _ids(places: Array[int]) -> Array[StringName]:
+	var hand: Array[StringName] = TutorialScript.guided().hand
+	var ids: Array[StringName] = []
+	for place: int in places:
+		ids.append(hand[place])
+	return ids
 
 
 # --- Helpers ------------------------------------------------------------------------------
@@ -362,21 +415,24 @@ func _screen() -> ShiftScreen:
 	return made
 
 
-## A guided run on shift 1's planning (G8 shown).
-func _to_planning() -> ShiftScreen:
+## A guided run on shift 1's free planning (G10, after G7-G9).
+func _to_free() -> ShiftScreen:
 	var shift: ShiftScreen = await _screen()
 	var board: StartBoard = Kit.start_guided(shift, SEED)
 	assert_bool(await Kit.until_step(shift, &"G2")).is_true()
 	Kit.press(shift)
 	assert_bool(await Kit.until_step(shift, &"G3")).is_true()
 	board.store.primary()
-	assert_bool(await Kit.until_step(shift, &"G5")).is_true()
+	assert_bool(await Kit.until_step(shift, &"G4")).is_true()
 	board.store.primary()
-	assert_bool(await Kit.until_step(shift, &"G6")).is_true()
+	assert_bool(await Kit.until_step(shift, &"G5")).is_true()
 	board.pick(0)
-	assert_bool(await Kit.until_step(shift, &"G7")).is_true()
+	assert_bool(await Kit.until_step(shift, &"G6")).is_true()
 	board.staff.primary()
-	assert_bool(await Kit.until_step(shift, &"G8")).is_true()
+	for id: StringName in [&"G7", &"G8", &"G9"]:
+		assert_bool(await Kit.until_step(shift, id)).is_true()
+		Kit.press(shift)
+	assert_bool(await Kit.until_free(shift)).is_true()
 	return shift
 
 
@@ -416,13 +472,6 @@ static func _hand_ids(shift: ShiftScreen) -> Array[StringName]:
 	for card: CardInstance in shift.run.hand_places():
 		ids.append(card.definition.id if card != null else &"")
 	return ids
-
-
-static func _wasted(result: ScoreResult, slot: int) -> bool:
-	for step: ScoreStep in result.steps:
-		if step.step_type == ScoreStep.StepType.WASTED and step.slot == slot:
-			return true
-	return false
 
 
 func _logged_types() -> Array[String]:

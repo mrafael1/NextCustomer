@@ -9,7 +9,8 @@ extends Control
 ## menu marks its plate; the hovered one cream) or the CLOSE key (the primary tomato button,
 ## frames/button, lit under the pointer) or a teal PLATE on the index (the first tab's PLAY THE
 ## GUIDED SHIFT, the tutorial: frames/button_teal, lit under the pointer, as the title's plates).
-## pressed on a left click.
+## pressed on a left click. A `locked` ROW (a coupon not found yet) takes no click and no hover,
+## its words grey.
 
 signal pressed
 
@@ -43,6 +44,14 @@ var kind: Kind = Kind.ROW
 var picked: bool = false:
 	set(value):
 		picked = value
+		_show_state()
+## A ROW that can't be opened: no click, no hover, grey words.
+var locked: bool = false:
+	set(value):
+		locked = value
+		mouse_default_cursor_shape = (
+			Control.CURSOR_ARROW if locked else Control.CURSOR_POINTING_HAND
+		)
 		_show_state()
 var _hovered: bool = false
 var _label: Label
@@ -129,12 +138,14 @@ func _gui_input(event: InputEvent) -> void:
 	var press: InputEventMouseButton = event as InputEventMouseButton
 	if press != null and press.pressed and press.button_index == MOUSE_BUTTON_LEFT:
 		accept_event()
+		if locked:
+			return
 		Sfx.play_at(self, UiKit.CLICK_SOUND)
 		pressed.emit()
 
 
 func _set_hovered(hovered: bool) -> void:
-	_hovered = hovered
+	_hovered = hovered and not locked
 	_show_state()
 
 
@@ -147,6 +158,7 @@ func _show_state() -> void:
 			_label.add_theme_color_override("font_color", Palette.INK if picked else Palette.PAPER)
 		Kind.ROW:
 			_tick.visible = picked
+			_label.add_theme_color_override("font_color", Palette.GREY if locked else Palette.INK)
 	queue_redraw()
 
 

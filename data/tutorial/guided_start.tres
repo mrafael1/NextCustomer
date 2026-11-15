@@ -13,10 +13,8 @@
 [ext_resource type="Resource" path="res://data/cards/tea_bags.tres" id="c_tea_bags"]
 [ext_resource type="Resource" path="res://data/cards/dented_can.tres" id="c_dented_can"]
 [ext_resource type="Resource" path="res://data/cards/banana.tres" id="h_banana"]
-[ext_resource type="Resource" path="res://data/cards/bread.tres" id="h_bread"]
 [ext_resource type="Resource" path="res://data/cards/eggs.tres" id="h_eggs"]
 [ext_resource type="Resource" path="res://data/cards/milk.tres" id="h_milk"]
-[ext_resource type="Resource" path="res://data/cards/coffee.tres" id="h_coffee"]
 
 [sub_resource type="Resource" id="Resource_cold_cases"]
 script = ExtResource("2_spec")
@@ -32,4 +30,4 @@ cards = Array[ExtResource("3_card")]([ExtResource("c_cereal"), ExtResource("c_te
 script = ExtResource("1_guide")
 recipe = ExtResource("4_recipe")
 boosters = Array[ExtResource("2_spec")]([SubResource("Resource_cold_cases"), SubResource("Resource_pantry")])
-hand = Array[ExtResource("3_card")]([ExtResource("h_banana"), ExtResource("h_banana"), ExtResource("h_bread"), ExtResource("c_cheese"), ExtResource("h_eggs"), ExtResource("h_milk"), ExtResource("h_coffee"), ExtResource("c_frozen_peas")])
+hand = Array[ExtResource("3_card")]([ExtResource("h_banana"), ExtResource("h_banana"), ExtResource("h_milk"), ExtResource("h_eggs"), ExtResource("c_yogurt"), ExtResource("c_cereal"), ExtResource("c_tea_bags"), ExtResource("c_frozen_peas")])

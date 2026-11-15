@@ -35,6 +35,11 @@ extends Control
 ## foot shows comes from `replay_offer` (read on every opening and after each click): the plate
 ## (OFFERED), the line REPLAY_SET_TEXT once the next new run is guided (SET), or nothing
 ## (HIDDEN: no owner, an unreadable profile, a guided run under way).
+##
+## Coupons not found yet (play test feedback, 2026-11-15): `discovered` (the owner's, read on
+## every opening) says which coupons the profile has owned (CouponFinds); any other coupon's row
+## in the COUPONS tab is locked: "???" beside its mark's dark silhouette, and no click opens it.
+## A deep link (a coupon's tooltip) still opens its page.
 
 signal opened(entry_id: StringName)
 signal closed
@@ -83,6 +88,9 @@ const TITLE_RECT := Rect2(28, 28, 240, 40)
 const INDEX_RECT := Rect2(28, 84, 240, 456)
 const ROW_SIZE := Vector2(240, 40)
 const ROW_GAP := 4.0
+## A locked coupon row's title, and the tint that darkens its mark to a silhouette.
+const LOCKED_TITLE := "???"
+const LOCKED_TINT := Color(0.12, 0.12, 0.16)
 const HINT_RECT := Rect2(28, 536, 240, 76)
 ## The hint on the pin card (the guide feedback of 2026-11-11, round 3: "a mouse right clic icon"):
 ## a tooltip beside a mouse with its right button lit, HINT_SCALE times its art, centred on the
@@ -118,6 +126,9 @@ var deep_link_blocked: Callable = Callable()
 ## Returns the ReplayOffer to show at the first tab's foot, read on every opening and
 ## click on the plate. None: HIDDEN.
 var replay_offer: Callable = Callable()
+## Returns whether the coupon of card id (StringName) was found (CouponFinds.found on the owner's
+## profile); read as the index builds. None: every coupon shows.
+var discovered: Callable = Callable()
 ## The bar whose row is shaded deeper (the shift's top bar: mount), or null.
 var shade_bar: Control = null:
 	set(value):
@@ -260,6 +271,8 @@ func open_at(entry_id: StringName = &"") -> void:
 		still = bool(reduced_motion.call())
 	visible = true
 	_offer = _read_offer()
+	_shown_id = target
+	_build_index()  # What was found may have changed since the last opening.
 	show_entry(target)
 	if not was_open:
 		_rise_in()
@@ -511,15 +524,33 @@ func _build_index() -> void:
 		room = maxf(room, mark.custom_minimum_size.x)
 	for index: int in range(listed.size()):
 		var listed_entry: HandbookEntry = listed[index]
+		var locked: bool = is_locked(listed_entry) and listed_entry.id != _shown_id
+		var title: String = LOCKED_TITLE if locked else listed_entry.title
+		if locked:
+			marks[index].modulate = LOCKED_TINT
 		var row: HandbookButton = HandbookButton.new(
-			HandbookButton.Kind.ROW, listed_entry.title, ROW_SIZE, marks[index], room
+			HandbookButton.Kind.ROW, title, ROW_SIZE, marks[index], room
 		)
 		row.name = "Row_%s" % listed_entry.id
 		row.position = Vector2(0, (ROW_SIZE.y + ROW_GAP) * index)
+		row.locked = locked
 		row.pressed.connect(show_entry.bind(listed_entry.id))
 		_index.add_child(row)
 		_rows.append(row)
 		_row_entries.append(listed_entry.id)
+
+
+## Whether `entry` is a coupon's page the profile hasn't found yet (`discovered`): its card, or
+## none of the retired cards it also explains.
+func is_locked(entry: HandbookEntry) -> bool:
+	if not discovered.is_valid() or entry.mark != HandbookEntry.Mark.CARD:
+		return false
+	if bool(discovered.call(StringName(entry.mark_value))):
+		return false
+	for card_id: String in entry.also_cards:
+		if bool(discovered.call(StringName(card_id))):
+			return false
+	return true
 
 
 func _rise_in() -> void:

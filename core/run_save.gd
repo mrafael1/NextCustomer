@@ -102,8 +102,9 @@ extends RefCounted
 ## played shifts' payouts and combos (the other kinds still read them).
 ## Version 17 (the tutorial, 2026-11-14): the guided first run's two optional fields, written only
 ## for a guided run: `guided` (true) and `guide_step` (the tutorial step id, "" for none;
-## RunState.guided and guide_step). A save without them (every normal run's, and version 16's)
-## reads as a run that isn't guided.
+## RunState.guided and guide_step), and since 2026-11-15 `guide_hints` (RunState.guide_hints;
+## a guided save without it reads with none shown). A save without them (every normal run's, and
+## version 16's) reads as a run that isn't guided.
 const FORMAT_VERSION := 17
 ## Version 16: version 17's form before the guided run's fields, read as it is (not guided).
 const BEFORE_GUIDED_VERSION := 16
@@ -236,6 +237,7 @@ static func to_dictionary(saved_run: RunState, saved_run_id: String, played_ms: 
 	if saved_run.guided:
 		data["guided"] = true
 		data["guide_step"] = String(saved_run.guide_step)
+		data["guide_hints"] = saved_run.guide_hints.map(func(id: StringName) -> String: return id)
 	# "listed_aisles" and "stock", the same as run_start logs.
 	data.merge(saved_run.stock.to_dictionary())
 	return data
@@ -345,6 +347,8 @@ static func from_dictionary(saved: Dictionary, lookup: ContentLookup) -> RunSave
 		restored.guided = reader.flag("guided")
 	if data.has("guide_step"):
 		restored.guide_step = StringName(reader.text("guide_step"))
+	if data.has("guide_hints"):
+		restored.guide_hints = reader.names("guide_hints")
 	restored.redraws_used = reader.whole("redraws_used")
 	restored.redraws_allowed = reader.whole("redraws_allowed")
 	# Left out by format 6 saves made before #108 piece 2: no card came from an extra redraw.

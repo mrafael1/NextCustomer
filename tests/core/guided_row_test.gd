@@ -1,73 +1,146 @@
 extends GdUnitTestSuite
-## The guided shift 1's rows (the tutorial's G10-G21 lines, mock-up tutorial.html) scored through
-## RunState.preview on the live card data, with the guided deal (Cold cases + Pantry boosters,
-## Frozen peas the 8th card): Bread 5 → Cheese PAIR 13 → Eggs at the end WASTED 14 → Eggs first
-## 19 (Bread ×2 pays 10) → the Banana CHAIN 25 (the second pays 4) → Milk 31 → Coffee 35 (each
-## +2 from Eggs and Bread), over shift 1's 30€ quota with Frozen peas left in its basket. Every
-## pack gives the same rows. A card or balance change that breaks a line's numbers fails here.
+## The guided shift 1's free planning (play test 1, 2026-11-15) on the live card data, with the
+## guided deal (the 4 regulars, Yogurt, Cereal, Tea bags and Frozen peas from the Cold cases and
+## Pantry boosters), whichever pack is taken: shift 1's quota is 30€; the script's answer row
+## (TutorialScript.answer: Banana, Yogurt, Banana, Eggs, Milk, Cereal, Frozen peas) pays 36€, over
+## it; the same cards with Eggs last waste the Eggs and miss it, so the order is the lesson; and
+## the reactive hints fire on what the rules did (PlanHint.pick). A card or balance change that
+## breaks the lesson fails here.
 
 const Kit := preload("res://tests/core/start_setup_kit.gd")
 const SEED := 20261114
 ## Shift 1's hand places (GuidedStartDefinition.hand).
 const BANANA_1 := 0
 const BANANA_2 := 1
-const BREAD := 2
-const CHEESE := 3
-const EGGS := 4
-const MILK := 5
-const COFFEE := 6
+const MILK := 2
+const EGGS := 3
+const YOGURT := 4
+const CEREAL := 5
+const TEA_BAGS := 6
 const FROZEN_PEAS := 7
 
 
-func test_the_guided_rows_pay_the_approved_totals() -> void:
+func test_the_answer_reaches_the_quota_and_order_matters() -> void:
 	var guide: GuidedStartDefinition = StartChoice.guided_start()
+	var script: TutorialScript = TutorialScript.guided()
 	for pack_index: int in guide.recipe.starter_packs.size():
 		var run: RunState = _shift_one(guide, pack_index)
-		var places: Array[CardInstance] = run.hand_places()
 		var why: String = "pack %d" % pack_index
 		assert_int(run.quota()).override_failure_message(why).is_equal(run.balance.quotas[0])
 		assert_int(run.quota()).override_failure_message(why).is_equal(30)
-		# G10/G11: Bread has no rule, it pays its price.
-		_place(run, places[BREAD], 0)
-		assert_int(run.preview().total).override_failure_message(why).is_equal(5)
-		# G12/G13: Cheese beside Bread is a PAIR: 3 + 5 = 8, the row 13.
-		_place(run, places[CHEESE], 1)
-		var pair: ScoreResult = run.preview()
-		assert_int(pair.total).override_failure_message(why).is_equal(13)
-		assert_int(pair.payouts[1]).override_failure_message(why).is_equal(8)
-		# G14/G15: Eggs last: no Food item later, its rule is WASTED; the row 14.
-		_place(run, places[EGGS], 2)
+		var places: Array[CardInstance] = run.hand_places()
+		var ids: Array[StringName] = []
+		for card: CardInstance in places:
+			ids.append(card.definition.id)
+		assert_array(ids).override_failure_message(why).is_equal(script.hand)
+		# The answer: 36, over the quota, its Eggs not WASTED; Tea bags stay in their basket.
+		_lay(run, places, [BANANA_1, YOGURT, BANANA_2, EGGS, MILK, CEREAL, FROZEN_PEAS])
+		assert_array(_row_ids(run)).override_failure_message(why).is_equal(script.answer)
+		var answer: ScoreResult = run.preview()
+		assert_int(answer.total).override_failure_message(why).is_equal(36)
+		assert_bool(PlanHint.wasted_at(answer, 3)).override_failure_message(why).is_false()
+		assert_bool(run.can_place(places[TEA_BAGS])).override_failure_message(why).is_false()
+		# The same seven with Eggs last: WASTED, under the quota.
+		_lay(run, places, [BANANA_1, YOGURT, BANANA_2, MILK, CEREAL, FROZEN_PEAS, EGGS])
 		var wrong: ScoreResult = run.preview()
-		assert_int(wrong.total).override_failure_message(why).is_equal(14)
-		assert_bool(_wasted(wrong, 2)).override_failure_message(why).is_true()
-		# G16: Eggs first: Bread pays ×2 (10), the row 19, not 14.
-		assert_bool(run.remove(places[EGGS])).is_true()
-		_place(run, places[EGGS], 0)
-		var right: ScoreResult = run.preview()
-		assert_int(right.total).override_failure_message(why).is_equal(19)
-		assert_int(right.payouts[1]).override_failure_message(why).is_equal(10)
-		assert_bool(_wasted(right, 0)).override_failure_message(why).is_false()
-		# G18/G19: the Bananas in slots 4 and 5 CHAIN: 2, then 2 + 2 = 4; the row 25.
-		_place(run, places[BANANA_1], 3)
-		_place(run, places[BANANA_2], 4)
-		var chain: ScoreResult = run.preview()
-		assert_int(chain.total).override_failure_message(why).is_equal(25)
-		assert_int(chain.payouts[3]).override_failure_message(why).is_equal(2)
-		assert_int(chain.payouts[4]).override_failure_message(why).is_equal(4)
-		# G20/G21: Milk and Coffee each +2 from Eggs and Bread; 31, then 35 over the quota.
-		var milk_price: int = places[MILK].definition.base
-		var coffee_price: int = places[COFFEE].definition.base
-		_place(run, places[MILK], 5)
-		assert_int(run.preview().total).override_failure_message(why).is_equal(31)
-		_place(run, places[COFFEE], 6)
-		var full: ScoreResult = run.preview()
-		assert_int(full.total).override_failure_message(why).is_equal(35)
-		assert_int(full.total).override_failure_message(why).is_greater_equal(run.quota())
-		assert_int(full.payouts[5]).override_failure_message(why).is_equal(milk_price + 2)
-		assert_int(full.payouts[6]).override_failure_message(why).is_equal(coffee_price + 2)
-		# 7 slots, 8 cards: Frozen peas stays in its basket.
-		assert_bool(run.can_place(places[FROZEN_PEAS])).override_failure_message(why).is_false()
-		assert_array(run.hand()).contains_exactly([places[FROZEN_PEAS]])
+		assert_int(wrong.total).override_failure_message(why).is_less(run.quota())
+		assert_bool(PlanHint.wasted_at(wrong, 6)).override_failure_message(why).is_true()
+
+
+## The hints: Eggs placed first introduce themselves; alone at the end they are WASTED (once
+## introduced); a Banana beside Yogurt fires Yogurt's PAIR; the CHAIN fires on the second Banana;
+## the quota hint waits for the row to reach it, then comes first, and the hint left behind it
+## shows next with no move; a hint shown is never picked again.
+func test_the_hints_fire_on_what_the_rules_did() -> void:
+	var guide: GuidedStartDefinition = StartChoice.guided_start()
+	var hints: Array[PlanHint] = TutorialScript.guided().hints
+	var run: RunState = _shift_one(guide, 0)
+	var places: Array[CardInstance] = run.hand_places()
+	var shown: Array[StringName] = []
+	_place(run, places[EGGS], 0)
+	assert_str(String(_pick(run, hints, places[EGGS], shown))).is_equal("eggs_placed")
+	assert_str(String(_pick(run, hints, places[EGGS], shown))).is_equal("eggs_wasted")
+	_place(run, places[YOGURT], 1)
+	assert_str(String(_pick(run, hints, places[YOGURT], shown))).is_equal("eggs_fired")
+	assert_str(String(_pick(run, hints, places[YOGURT], shown))).is_equal("yogurt_placed")
+	_place(run, places[BANANA_1], 2)
+	assert_str(String(_pick(run, hints, places[BANANA_1], shown))).is_equal("yogurt_fired")
+	_place(run, places[BANANA_2], 3)
+	assert_str(String(_pick(run, hints, places[BANANA_2], shown))).is_equal("banana_fired")
+	assert_bool(shown.has(&"quota")).is_false()
+	_place(run, places[MILK], 4)
+	_place(run, places[CEREAL], 5)
+	# The row reaches the quota: its hint first, Cereal's PAIR waits behind it (placed: none).
+	assert_int(run.preview().total).is_greater_equal(run.quota())
+	assert_str(String(_pick(run, hints, places[CEREAL], shown))).is_equal("quota")
+	assert_str(String(_pick(run, hints, null, shown))).is_equal("cereal_fired")
+	assert_array(shown).contains_same([&"eggs_placed", &"eggs_wasted", &"eggs_fired"])
+	var counts: Dictionary = {}
+	for hint_id: StringName in shown:
+		counts[hint_id] = int(counts.get(hint_id, 0)) + 1
+	for hint_id: StringName in counts:
+		assert_int(int(counts[hint_id])).override_failure_message(String(hint_id)).is_equal(1)
+
+
+## The medals: the best row (Tea bags ×4 on Milk) reaches SILVER, whose hint pops over the
+## medal case in place of QUOTA's (the highest level reached is told, never a lower one after:
+## the full row's hint comes next);
+## a redraw's hint points at REDRAW, once.
+func test_the_medal_and_redraw_hints() -> void:
+	var guide: GuidedStartDefinition = StartChoice.guided_start()
+	var hints: Array[PlanHint] = TutorialScript.guided().hints
+	var run: RunState = _shift_one(guide, 0)
+	var places: Array[CardInstance] = run.hand_places()
+	var shown: Array[StringName] = []
+	for hint: PlanHint in hints:
+		if not hint.card.is_empty():
+			shown.append(hint.id)
+	_lay(run, places, [YOGURT, CEREAL, EGGS, TEA_BAGS, MILK, BANANA_1, BANANA_2])
+	var machine: MachineDefinition = run.balance.machine
+	assert_int(run.preview().total).is_greater_equal(run.quota() * machine.overtime_ticket_laps)
+	assert_int(run.preview().total).is_less(run.quota() * machine.overtime_premium_laps)
+	assert_str(String(_pick(run, hints, places[BANANA_2], shown))).is_equal("silver")
+	assert_str(String(_pick(run, hints, places[BANANA_2], shown))).is_equal("row_full")
+	assert_bool(shown.has(&"quota")).is_false()
+	var redrawn: PlanHint.Pick = PlanHint.pick_redrawn(hints, shown)
+	assert_str(String(redrawn.hint.id)).is_equal("redrawn")
+	assert_str(String(redrawn.anchor)).is_equal(String(TutorialAnchors.REDRAW))
+	shown.append(redrawn.hint.id)
+	assert_object(PlanHint.pick_redrawn(hints, shown)).is_null()
+
+
+## The hint PlanHint.pick finds after `placed` (its id, added to `shown`; &"" for none).
+static func _pick(
+	run: RunState, hints: Array[PlanHint], placed: CardInstance, shown: Array[StringName]
+) -> StringName:
+	var full: bool = run.row.size() >= RowCapacity.card_limit(run.limits)
+	var machine: MachineDefinition = run.balance.machine
+	var quota: int = run.quota()
+	var totals: Array[int] = [
+		quota, quota * machine.overtime_ticket_laps, quota * machine.overtime_premium_laps
+	]
+	var found: PlanHint.Pick = PlanHint.pick(
+		hints, run.row, run.preview(), placed, totals, full, shown
+	)
+	if found == null:
+		return &""
+	shown.append(found.hint.id)
+	return found.hint.id
+
+
+## Empties the row, then lays `order` (hand places) left to right.
+func _lay(run: RunState, places: Array[CardInstance], order: Array[int]) -> void:
+	for card: CardInstance in run.row.duplicate():
+		run.remove(card)
+	for slot: int in order.size():
+		_place(run, places[order[slot]], slot)
+
+
+static func _row_ids(run: RunState) -> Array[StringName]:
+	var ids: Array[StringName] = []
+	for card: CardInstance in run.row:
+		ids.append(card.definition.id)
+	return ids
 
 
 ## Shift 1 of a guided-deal run with pack `pack_index` taken and the fixed hand dealt.
@@ -95,11 +168,3 @@ func _place(run: RunState, card: CardInstance, slot: int) -> void:
 		. override_failure_message(String(card.definition.id))
 		. is_true()
 	)
-
-
-## Whether `result` holds a WASTED step for the card's own rule at `slot`.
-static func _wasted(result: ScoreResult, slot: int) -> bool:
-	for step: ScoreStep in result.steps:
-		if step.step_type == ScoreStep.StepType.WASTED and step.slot == slot and not step.row_wide:
-			return true
-	return false

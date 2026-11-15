@@ -1,74 +1,69 @@
 extends GdUnitTestSuite
-## The tutorial's script and text data (data/tutorial: the guided run G1-G26, the one-time tips
-## T1-T16 and the quick tutorials R, P and SA; tutorial plan WP-3). Every id, anchor, event,
-## action and chip resolves; the filled lines equal the approved ones (the mock-up
+## The tutorial's script and text data (data/tutorial: the guided run G1-G14 with its free
+## planning's retry and answer lines and reactive hints, the one-time tips T1-T16 and the quick
+## tutorials R, P and SA; tutorial plan WP-3, reworked after play test 1, 2026-11-15). Every id,
+## anchor, event, action and chip resolves; the filled lines equal the approved ones (the mock-up
 ## docs/art/mockups/tutorial.html, with the user's decisions: Pantry, not Produce; G1 follows the
-## title's plate), so a card or balance change that breaks "19€, not 14€" fails here; and every
-## line passes the mock-up's line checker, ported below.
+## title's plate), so a card or balance change that breaks the answer's total fails here; and
+## every line passes the mock-up's line checker, ported below.
 
 ## The approved lines, filled (the mock-up's GUIDED, TIPS and QUICK texts, chips marked **).
 const APPROVED: Dictionary[String, String] = {
 	"G2": "These are **YOUR REGULARS**. They start in your **CART** on every run.",
-	"G3": "Click a **BOOSTER**. Its 3 **CARDS** go in your **CART**.",
-	"G4": "Your first **CARDS**! Open the other **BOOSTER** too.",
-	"G5": "Your store is stocked. Click NEXT.",
-	"G6":
+	"G3": "Open both **BOOSTERS**. Their 3 **CARDS** each go in your **CART**.",
+	"G4": "Your store is stocked. Click NEXT.",
+	"G5":
 	"Pick one **STARTER PACK**. Its **CARDS** join your **CART**. Point at a pack to read it.",
-	"G7": "Your **CART** is ready. Click OPEN STORE to start your first **SHIFT**.",
+	"G6": "Your **CART** is ready. Click OPEN STORE to start your first **SHIFT**.",
+	"G7":
+	(
+		"Put **ITEMS** from your **BASKETS** in the **ROW**. Reach the **QUOTA**, 30€, to pass "
+		+ "the **SHIFT**."
+	),
 	"G8":
-	"This is your till. Each **SHIFT**, you put **ITEMS** from your **BASKETS** in the **ROW**.",
-	"G9": "Reach the **QUOTA** to pass the **SHIFT**. This **SHIFT**, it is 30€.",
-	"G10": "Drag Bread to slot 1.",
+	(
+		"Each **CARD** has a **PRICE** and a **RULE**, and the order matters. Hold the pointer "
+		+ "still on one to read it on the monitor."
+	),
+	"G9": "Your turn! Build your **ROW**, then press **CHECKOUT**. Tips pop up as you go.",
+	"G10": "",
+	"RETRY":
+	(
+		"24€ of 30€: not quite! Move some **ITEMS**, or **REDRAW** a **BASKET**, then press "
+		+ "**CHECKOUT** once more."
+	),
+	"ANSWER":
+	(
+		"Here is a **ROW** that pays 36€. Drag each **ITEM** onto its ghost, then press "
+		+ "**CHECKOUT**."
+	),
+	"eggs_placed":
+	"Eggs can boost other items! The **NEXT** Food **ITEM**, anywhere **LATER**, pays ×2.",
+	"quota":
+	(
+		"Your **ROW** reaches the **QUOTA**! Press **CHECKOUT**, or push on: 2× the **QUOTA** "
+		+ "earns a **SILVER** medal."
+	),
+	"silver":
+	(
+		"2× the **QUOTA**: **SILVER** brings an **EXTRA DRAW** at the machine. 3× makes it "
+		+ "**GOLD**: **PREMIUM** prizes."
+	),
+	"redrawn": "New **CARDS** from your **PILE**! Each **BASKET** you swap costs 1 **REDRAW**.",
+	"row_full": "7 slots, 8 **CARDS**: one always stays in its **BASKET**.",
 	"G11":
 	(
-		"Bread has no **RULE**, so it pays its **PRICE**: 5€. PROJECTED shows what your **ROW** "
-		+ "pays now."
+		"**QUOTA** met! Pick a key, then PUSH. **NEW ITEMS** brings new **CARDS**. **IMPROVE** "
+		+ "makes one better, or gives a **LOYALTY PERK**."
 	),
-	"G12": "Cheese's **RULE**: +5€ for each Bread **BESIDE** it. Drag Cheese to slot 2.",
-	"G13": "+5€! Cheese (3€) **BESIDE** Bread is a **PAIR**: 8€. Your **ROW** pays 13€.",
-	"G14": "Eggs: the **NEXT** Food **ITEM**, anywhere **LATER**, pays ×2. Try Eggs in slot 3.",
-	"G15":
-	(
-		"**WASTED**: no Food **ITEM** comes **LATER**, so the **RULE** did nothing. Drag Eggs to "
-		+ "slot 1. Bread and Cheese slide right."
-	),
-	"G16":
-	"Bread now pays ×2: 10€. Same **CARDS**, new order: 19€, not 14€. Order is the whole game.",
-	"G17": "Hold the pointer still on a **CARD** to read it here, on the monitor.",
-	"G18": "Put both Bananas in slots 4 and 5.",
-	"G19":
-	(
-		"Bananas **BESIDE** each other make a **CHAIN**: each one adds what the Banana **RIGHT "
-		+ "BEFORE** it paid. The second pays 2€ + 2€ = 4€."
-	),
-	"G20":
-	(
-		"Add Milk, then Coffee, to fill the **ROW**. Each gets +2€ from Eggs and Bread. Hold "
-		+ "the pointer on one to see why."
-	),
-	"G21": "35€: over the **QUOTA**. 7 slots, 8 **CARDS**: one stays in its **BASKET**.",
-	"G22":
-	(
-		"Press **CHECKOUT**. Your **ROW** pays from left to right, and the bar fills up to the "
-		+ "**QUOTA**."
-	),
-	"G23":
-	(
-		"**QUOTA** met! Pick a key, then PUSH. **NEW ITEMS**: new **CARDS** for your **CART**. "
-		+ "**IMPROVE**: make a **CARD** better, or get a **LOYALTY PERK**."
-	),
-	"G24":
+	"G12":
 	"Keep 1 prize, or **SKIP** them all. **RARE** and **LEGENDARY** prizes are harder to find.",
-	"G25":
+	"G13":
 	(
-		"A **WEEK** is 4 **SHIFTS**. **PAYDAY** is the last. In training **WEEK** you can "
-		+ "**MISS** the **QUOTA** 2 times. After that, one **MISS** ends the run."
+		"A **WEEK** is 4 **SHIFTS**, and **PAYDAY** is the last. In training **WEEK** you may "
+		+ "**MISS** the **QUOTA** 2 times."
 	),
-	"G26":
-	(
-		"That's the basics! New things get a quick tip the first time. Look up any word in the "
-		+ "**HANDBOOK**, in the menu."
-	),
+	"G14": "That's the basics! Look up any word in the **HANDBOOK**, in the menu.",
 	"T1":
 	(
 		"Bad **CARDS**? Press **REDRAW**, then click a **BASKET**. Its **CARDS** swap for new "
@@ -253,14 +248,36 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-func test_the_guided_run_is_g1_to_g26_in_order() -> void:
+func test_the_guided_run_is_g1_to_g14_in_order() -> void:
 	var script: TutorialScript = TutorialScript.guided()
-	assert_int(script.steps.size()).is_equal(26)
+	assert_int(script.steps.size()).is_equal(14)
 	for k: int in script.steps.size():
 		assert_str(String(script.steps[k].id)).is_equal("G%d" % (k + 1))
 		assert_int(script.index_of(script.steps[k].id)).is_equal(k)
-	assert_object(script.step(&"G15")).is_same(script.steps[14])
+	assert_object(script.step(&"G10")).is_same(script.steps[9])
 	assert_object(script.step(&"G99")).is_null()
+	# G10 is shift 1's free planning: no line, every planning move but REDRAW and its baskets.
+	assert_int(script.free_index()).is_equal(9)
+	for k: int in script.steps.size():
+		assert_bool(script.steps[k].is_free()).override_failure_message(str(k)).is_equal(k == 9)
+	assert_str(String(script.retry.id)).is_equal("RETRY")
+	assert_str(String(script.answer_step.id)).is_equal("ANSWER")
+	var ids: Array[StringName] = []
+	for hint: PlanHint in script.hints:
+		assert_bool(ids.has(hint.id)).override_failure_message(String(hint.id)).is_false()
+		ids.append(hint.id)
+		assert_str(hint.title).override_failure_message(String(hint.id)).is_not_empty()
+		var about_card: bool = hint.when in [PlanHint.When.PLACED, PlanHint.When.FIRED]
+		about_card = about_card or hint.when == PlanHint.When.WASTED
+		assert_bool(hint.card.is_empty()).override_failure_message(String(hint.id)).is_equal(
+			not about_card
+		)
+		if about_card:
+			(
+				assert_bool(script.hand.has(hint.card))
+				. override_failure_message(String(hint.id))
+				. is_true()
+			)
 
 
 func test_tips_and_quick_tutorials_have_their_ids() -> void:
@@ -417,6 +434,7 @@ func test_every_placeholder_is_filled_from_data_or_live() -> void:
 		TutorialText.MORNING_COUNT,
 		TutorialText.WASTED_CARD,
 		TutorialText.WASTED_FAMILY,
+		TutorialText.MISSED,
 	]:
 		assert_bool(from_data.has(live)).override_failure_message(live).is_false()
 	assert_array(TutorialText.placeholders("a {x} b {y} {x}")).is_equal(
@@ -431,32 +449,11 @@ func test_the_figures_are_the_rules_and_the_balance() -> void:
 	assert_str(values["quota"]).is_equal(str(balance.quotas[0]))
 	assert_str(values["hand"]).is_equal(str(balance.hand_size))
 	assert_str(values["slots"]).is_equal(str(balance.slot_count))
-	# The guided row meets the shift 1 quota; the right order pays more than the wrong one.
-	assert_int(int(values["row_full"])).is_greater_equal(balance.quotas[0])
-	assert_int(int(values["row_right"])).is_greater(int(values["row_wrong"]))
-	assert_int(int(values["bread_price"]) * int(values["eggs_times"])).is_equal(
-		int(values["bread_doubled"])
-	)
-	assert_int(int(values["cheese_price"]) + int(values["cheese_bonus"])).is_equal(
-		int(values["pair_pays"])
-	)
-	# G20's "Each gets +2€": Milk's and Coffee's bonuses are the same.
-	var script: TutorialScript = TutorialScript.guided()
-	var row: Array[CardInstance] = []
-	for card_id: StringName in script.step(&"G21").row_before:
-		row.append(CardInstance.new(load("res://data/cards/%s.tres" % card_id), row.size() + 1))
-	var result: ScoreResult = Scoring.score(row)
-	assert_int(result.payouts[5] - row[5].definition.base).is_equal(int(values["morning_bonus"]))
-	assert_int(result.payouts[6] - row[6].definition.base).is_equal(int(values["morning_bonus"]))
-	# G15's Eggs at the end of the row is WASTED: no Food item comes later.
-	var wrong: Array[CardInstance] = []
-	for card_id: StringName in script.step(&"G15").row_before:
-		wrong.append(CardInstance.new(load("res://data/cards/%s.tres" % card_id), wrong.size() + 1))
-	var kinds: Array[int] = []
-	for step: ScoreStep in Scoring.score(wrong).steps:
-		if step.slot == 2:
-			kinds.append(step.step_type)
-	assert_array(kinds).contains([ScoreStep.StepType.WASTED])
+	# The answer row meets the shift 1 quota.
+	assert_int(int(values["answer_total"])).is_greater_equal(balance.quotas[0])
+	# T4's "Coffee pays +1€ for each one" is Coffee's own rule.
+	var coffee: CardDefinition = load("res://data/cards/coffee.tres")
+	assert_str(values["coffee_per"]).is_equal(str((coffee.rules[0] as MorningCountRule).bonus_each))
 
 
 func test_every_line_passes_the_line_checker() -> void:
@@ -502,10 +499,6 @@ func test_the_hand_and_rows_fit_the_guided_shift() -> void:
 	for step: TutorialStep in script.steps:
 		for card_id: StringName in step.allow_cards:
 			assert_bool(script.hand.has(card_id)).override_failure_message(step.id).is_true()
-		if step.checks_row:
-			assert_int(step.row_before.size()).is_less_equal(balance.slot_count)
-			for card_id: StringName in step.row_before:
-				assert_int(step.row_before.count(card_id)).is_less_equal(script.hand.count(card_id))
 		# A hand place it rings holds a card it lets the player move.
 		for anchor: StringName in step.rings:
 			var place: int = TutorialAnchors.index_of(anchor, TutorialAnchors.HAND)
@@ -515,66 +508,37 @@ func test_the_hand_and_rows_fit_the_guided_shift() -> void:
 					. override_failure_message("%s: %s" % [step.id, anchor])
 					. is_true()
 				)
-	# The full row leaves one card in its basket, the one G21 rings.
-	var full: Array[StringName] = script.step(&"G21").row_before
-	assert_int(full.size()).is_equal(balance.slot_count)
-	assert_bool(full.has(script.hand[7])).is_false()
+	# The answer fills the row from the hand and leaves one card in its basket.
+	assert_int(script.answer.size()).is_equal(balance.slot_count)
+	for card_id: StringName in script.answer:
+		assert_int(script.answer.count(card_id)).is_less_equal(script.hand.count(card_id))
+	assert_bool(script.answer.has(script.hand[6])).is_false()
 	assert_int(script.place_of(&"banana", 1)).is_equal(1)
 	assert_int(script.place_of(&"potatoes")).is_equal(-1)
-	_assert_two_card_moves_name_their_order()
-
-
-## A step that places two different cards takes them only in its row's order (the director's
-## gate: Milk then Coffee, since Coffee is Breakfast and would raise Milk): its line names that
-## order ("Milk, then Coffee"), so no drop is refused without a word.
-func _assert_two_card_moves_name_their_order() -> void:
-	var script: TutorialScript = TutorialScript.guided()
-	var checked: int = 0
-	for k: int in script.steps.size():
-		var step: TutorialStep = script.steps[k]
-		if not step.checks_row or not step.allow.has(TutorialActions.PLACE_CARD):
-			continue
-		var target: Array[StringName] = step.row_before
-		for later: int in range(k + 1, script.steps.size()):
-			if script.steps[later].row_before != step.row_before:
-				target = script.steps[later].row_before
-				break
-		var added: Array[StringName] = target.slice(step.row_before.size())
-		if added.size() < 2 or added.count(added[0]) == added.size():
-			continue  # One card, or the same card twice (G18's Bananas): no order to name.
-		var names: PackedStringArray = PackedStringArray()
-		for card_id: StringName in added:
-			var card: CardDefinition = load("res://data/cards/%s.tres" % card_id)
-			names.append(card.display_name)
-		var plain: String = TutorialText.plain(TutorialText.fill(step.text, _values()))
-		assert_str(plain).override_failure_message("%s: %s" % [step.id, plain]).contains(
-			", then ".join(names)
-		)
-		checked += 1
-	assert_int(checked).is_equal(1)  # G20.
 
 
 func test_the_gate_allows_only_the_steps_move() -> void:
-	var g10: TutorialStep = TutorialScript.guided().step(&"G10")
-	assert_bool(g10.allows(TutorialActions.PICK_CARD, _card(&"bread", false))).is_true()
-	assert_bool(g10.allows(TutorialActions.PICK_CARD, _card(&"cheese", false))).is_false()
-	assert_bool(g10.allows(TutorialActions.PLACE_CARD, _placed(&"bread", 0))).is_true()
-	assert_bool(g10.allows(TutorialActions.PLACE_CARD, _placed(&"bread", 1))).is_false()
-	assert_bool(g10.allows(TutorialActions.CHECKOUT)).is_false()
-	assert_bool(g10.allows(TutorialActions.REDRAW)).is_false()
-	# A placed card can always be picked back up (to move it back to its basket).
-	assert_bool(g10.allows(TutorialActions.PICK_CARD, _card(&"cheese", true))).is_true()
-	var g11: TutorialStep = TutorialScript.guided().step(&"G11")
-	assert_bool(g11.allows(TutorialActions.PICK_CARD, _card(&"cheese", false))).is_false()
-	var g22: TutorialStep = TutorialScript.guided().step(&"G22")
-	assert_bool(g22.allows(TutorialActions.CHECKOUT)).is_true()
-	assert_bool(g22.allows(TutorialActions.OPEN_DECK)).is_false()
-	var g3: TutorialStep = TutorialScript.guided().step(&"G3")
+	var script: TutorialScript = TutorialScript.guided()
+	# G10, the free planning (and its retry and answer lines): any card anywhere, REDRAW and its
+	# baskets, CHECKOUT, the cart and the calendar.
+	for step: TutorialStep in [script.step(&"G10"), script.retry, script.answer_step]:
+		assert_bool(step.allows(TutorialActions.PICK_CARD, _card(&"tea_bags", false))).is_true()
+		assert_bool(step.allows(TutorialActions.PLACE_CARD, _placed(&"eggs", 5))).is_true()
+		assert_bool(step.allows(TutorialActions.CHECKOUT)).is_true()
+		assert_bool(step.allows(TutorialActions.OPEN_DECK)).is_true()
+		assert_bool(step.allows(TutorialActions.REDRAW)).is_true()
+		assert_bool(step.allows(TutorialActions.BASKET, {TutorialEvents.ARG_BASKET: 1})).is_true()
+	# G7-G9 read first: no move but picking a placed card back up.
+	var g9: TutorialStep = script.step(&"G9")
+	assert_bool(g9.allows(TutorialActions.PICK_CARD, _card(&"eggs", false))).is_false()
+	assert_bool(g9.allows(TutorialActions.CHECKOUT)).is_false()
+	assert_bool(g9.allows(TutorialActions.PICK_CARD, _card(&"eggs", true))).is_true()
+	var g3: TutorialStep = script.step(&"G3")
 	assert_bool(g3.allows(TutorialActions.HIT, {TutorialActions.ARG_ID: &"booster1"})).is_true()
 	assert_bool(g3.allows(TutorialActions.HIT, {TutorialActions.ARG_ID: &"crate"})).is_false()
 	assert_bool(g3.allows(TutorialActions.HIT, {TutorialActions.ARG_ID: &"restock"})).is_false()
-	var g23: TutorialStep = TutorialScript.guided().step(&"G23")
-	assert_bool(g23.allows(TutorialActions.CHUTE, {TutorialEvents.ARG_CHUTE: &"upgrade"})).is_true()
+	var g11: TutorialStep = script.step(&"G11")
+	assert_bool(g11.allows(TutorialActions.CHUTE, {TutorialEvents.ARG_CHUTE: &"upgrade"})).is_true()
 
 
 func test_a_quick_step_refuses_only_its_refused_ids() -> void:
@@ -590,23 +554,6 @@ func test_a_quick_step_refuses_only_its_refused_ids() -> void:
 		)
 		. is_true()
 	)
-
-
-func test_a_row_finds_the_step_to_play() -> void:
-	var script: TutorialScript = TutorialScript.guided()
-	var empty: Array[StringName] = []
-	assert_str(String(script.for_row(empty).id)).is_equal("G8")
-	var bread: Array[StringName] = [&"bread"]
-	assert_str(String(script.for_row(bread).id)).is_equal("G11")
-	var wrong: Array[StringName] = [&"bread", &"cheese", &"eggs"]
-	assert_str(String(script.for_row(wrong).id)).is_equal("G15")
-	var right: Array[StringName] = [&"eggs", &"bread", &"cheese"]
-	assert_str(String(script.for_row(right).id)).is_equal("G16")
-	var full: Array[StringName] = script.step(&"G21").row_before
-	assert_str(String(script.for_row(full).id)).is_equal("G21")
-	var odd: Array[StringName] = [&"cheese"]
-	assert_object(script.for_row(odd)).is_null()
-	assert_bool(script.step(&"G23").row_matches(empty)).is_false()
 
 
 func test_markup_marks_keywords_and_words() -> void:
@@ -699,9 +646,17 @@ static func _escaped(words: String) -> String:
 func _lines() -> Array[Array]:
 	var found: Array[Array] = []
 	var at: int = 0
-	for step: TutorialStep in TutorialScript.guided().steps:
+	var script: TutorialScript = TutorialScript.guided()
+	for step: TutorialStep in script.steps:
 		found.append([String(step.id), step.text, at])
 		at += 1
+		if step.is_free():
+			for extra: TutorialStep in [script.retry, script.answer_step]:
+				found.append([String(extra.id), extra.text, at])
+				at += 1
+			for hint: PlanHint in script.hints:
+				found.append([String(hint.id), hint.text, at])
+				at += 1
 	for tip: TipDefinition in TipList.shared().tips:
 		found.append([String(tip.id), tip.text, at])
 		if not tip.fallback_text.is_empty():
@@ -717,8 +672,14 @@ func _lines() -> Array[Array]:
 ## Each line's taught words, in the same order: [id, teaches].
 func _taught_lists() -> Array[Array]:
 	var found: Array[Array] = []
-	for step: TutorialStep in TutorialScript.guided().steps:
+	var script: TutorialScript = TutorialScript.guided()
+	for step: TutorialStep in script.steps:
 		found.append([step.id, step.teaches])
+		if step.is_free():
+			for extra: TutorialStep in [script.retry, script.answer_step]:
+				found.append([extra.id, extra.teaches])
+			for hint: PlanHint in script.hints:
+				found.append([hint.id, hint.teaches])
 	for tip: TipDefinition in TipList.shared().tips:
 		found.append([tip.id, tip.teaches])
 	for each: QuickTutorial in QuickTutorial.all():
@@ -744,6 +705,7 @@ func _values() -> Dictionary:
 	values[TutorialText.PRIMARY] = PLATES[0]
 	values[TutorialText.WASTED_CARD] = "Eggs"
 	values[TutorialText.WASTED_FAMILY] = "Food"
+	values[TutorialText.MISSED] = "24"
 	return values
 
 

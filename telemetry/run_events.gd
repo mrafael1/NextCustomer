@@ -391,12 +391,24 @@ static func repack(
 
 
 ## The `tutorial_step` event (the tutorial), logged in a guided run when one of its steps is done
-## (it advances): the step id (G2..G26) and the seconds it was shown, to a tenth.
+## (it advances): the step id (G2..G14) and the seconds it was shown, to a tenth.
 static func tutorial_step(step_id: StringName, seconds: float) -> Dictionary:
 	return {"id": String(step_id), "seconds": _seconds(seconds)}
 
 
-## The `tutorial_done` event, logged once when the guided run's last step closes (G26 sets
+## The `tutorial_retry` event, logged when the guided shift's rehearsal misses its quota and
+## planning comes back: the row's total, the misses so far and whether the answer now shows.
+static func tutorial_retry(total: int, misses: int, answer: bool) -> Dictionary:
+	return {"score": total, "misses": misses, "answer": answer}
+
+
+## The `tutorial_hint` event, logged when one of the guided shift's reactive hints pops: its id
+## (PlanHint.id).
+static func tutorial_hint(hint_id: StringName) -> Dictionary:
+	return {"id": String(hint_id)}
+
+
+## The `tutorial_done` event, logged once when the guided run's last step closes (G14 sets
 ## TutorialFlags.GUIDE_DONE): the seconds from its first step, to a tenth, and whether it was a
 ## replay (PLAY THE GUIDED SHIFT).
 static func tutorial_done(seconds: float, replay: bool) -> Dictionary:
