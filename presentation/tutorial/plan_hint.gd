@@ -33,6 +33,9 @@ const NO_SLOT := -1
 ## The glossary words (TipWords keys) it teaches (the line checker's order: a hint can pop in any
 ## order, so it teaches every word it uses that the guided steps before it don't).
 @export var teaches: PackedStringArray = PackedStringArray()
+## The one-time tip it stands for (TipDefinition id, e.g. T1 REDRAW): its pop marks that tip
+## shown, and the tip waits out the guided run's first week (TipScheduler).
+@export var covers_tip: StringName = &""
 
 
 ## A picked hint and the row slot its bubble points at (NO_SLOT: the checkout key).

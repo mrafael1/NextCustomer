@@ -1,49 +1,39 @@
-[gd_resource type="Resource" script_class="QuickTutorial" load_steps=7 format=3]
+[gd_resource type="Resource" script_class="QuickTutorial" load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://presentation/tutorial/quick_tutorial.gd" id="1_main"]
 [ext_resource type="Script" path="res://presentation/tutorial/tutorial_step.gd" id="2_sub"]
+[ext_resource type="Script" path="res://presentation/tutorial/quick_hint.gd" id="3_hint"]
 
 [sub_resource type="Resource" id="Resource_p1"]
 script = ExtResource("2_sub")
 id = &"P1"
 screen = 2
-text = "NEW: **BADGE PINS**. You earned one! A pin you wear changes a rule for this whole run."
+text = "NEW: **BADGE PINS**. You earned one! Click WEAR: a pin changes a rule for this whole run."
 teaches = PackedStringArray("BADGE PINS")
-rings = Array[StringName]([&"pin_board", &"pin_row0"])
-act = -1
-side = 2
-
-[sub_resource type="Resource" id="Resource_p2"]
-script = ExtResource("2_sub")
-id = &"P2"
-screen = 2
-text = "Read a pin's rule, then click WEAR. You have {pin_slots} slot: wearing another pin swaps it."
 rings = Array[StringName]([&"pin_row0", &"wear0"])
 act = 1
 side = 2
-footer = 2
+footer = 1
 advance_on = &"pin_toggled"
 
-[sub_resource type="Resource" id="Resource_p3"]
-script = ExtResource("2_sub")
-id = &"P3"
-screen = 2
-text = "Confirm with the red key, and your **STARTER PACKS** deal. Wearing no pin is fine too."
-rings = Array[StringName]([&"pins_confirm"])
-act = 0
-side = 3
-footer = 2
-advance_on = &"pins_confirmed"
+[sub_resource type="Resource" id="Hint_p3"]
+script = ExtResource("3_hint")
+id = &"pins_worn"
+event = &"pin_toggled"
+needs_on = true
+title = "BADGE PINS"
+text = "Confirm with the red key, and your **STARTER PACKS** deal. You have {pin_slots} slot: wearing another pin swaps it."
+teaches = PackedStringArray()
+anchor = "pins_confirm"
 
-[sub_resource type="Resource" id="Resource_p4"]
-script = ExtResource("2_sub")
-id = &"P4"
-screen = 2
-text = "Your pin is on the board for this run. Click the board or press P to change it before you pick."
-rings = Array[StringName]([&"pins"])
-act = -1
-side = 2
-footer = 1
+[sub_resource type="Resource" id="Hint_p4"]
+script = ExtResource("3_hint")
+id = &"pins_set"
+event = &"pins_confirmed"
+title = "BADGE PINS"
+text = "Your pin is on the board for this run. Click it or press P to change it before you pick."
+teaches = PackedStringArray()
+anchor = "pins"
 
 [resource]
 script = ExtResource("1_main")
@@ -51,5 +41,5 @@ id = &"pins"
 title = "BADGE PINS"
 order = 3
 trigger = &"pins_earned"
-more_page = &"toys:badge_pins"
-steps = Array[ExtResource("2_sub")]([SubResource("Resource_p1"), SubResource("Resource_p2"), SubResource("Resource_p3"), SubResource("Resource_p4")])
+steps = Array[ExtResource("2_sub")]([SubResource("Resource_p1")])
+hints = Array[ExtResource("3_hint")]([SubResource("Hint_p3"), SubResource("Hint_p4")])

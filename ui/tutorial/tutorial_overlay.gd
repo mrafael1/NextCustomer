@@ -74,6 +74,7 @@ func show_view(step: StepView) -> void:
 	_view = step
 	visible = true
 	_shade.dimmed = step.dim
+	_shade.mouse_filter = Control.MOUSE_FILTER_STOP if step.blocks else Control.MOUSE_FILTER_IGNORE
 	for child: Node in _locks.get_children():
 		_locks.remove_child(child)
 		child.queue_free()
@@ -193,8 +194,8 @@ func _process(_delta: float) -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if not is_showing() or not is_visible_in_tree():
-		return
+	if not is_showing() or not is_visible_in_tree() or not _view.blocks:
+		return  # A card that blocks nothing leaves the keys to the screen too.
 	var key: InputEventKey = event as InputEventKey
 	if key == null or not key.pressed or key.echo:
 		return

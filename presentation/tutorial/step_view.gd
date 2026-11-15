@@ -60,6 +60,9 @@ var passes: Array[Mark] = []
 var side: Opening = Opening.AUTO
 var width: float = 0.0
 var dim: bool = true
+## Whether the shade takes the clicks outside the rings (false: a one-time tip's card, play test
+## 1 of 2026-11-15: nothing dimmed, every click reaches the screen, GOT IT closes it).
+var blocks: bool = true
 
 
 ## A ring or a lock: a TutorialAnchors id (resolved live) or a fixed global rect, and a lock's
