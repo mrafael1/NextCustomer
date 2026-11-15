@@ -85,6 +85,8 @@ static func show_results(screen: ShiftScreen, seed_value: int) -> bool:
 		screen._results.pin_news = PinUnlockNews.of(ids, profile, catalogue)
 	screen._show_results(result)
 	screen._results.skip_printing()
+	# The shutter down at once, as a settled results screen (the BEST stub is taped to it).
+	screen._results.store_closed().close_store(true)
 	if not unlocked.is_empty():
 		var reveal: PinReveal = screen._results.pin_reveal()
 		reveal.refresh()  # The receipt has printed: the first card starts a gap from now.

@@ -36,6 +36,13 @@ extends PanelContainer
 ## more. Enter or Space presses Return to menu once the receipt has printed and the key is armed
 ## (Enter while printing prints the rest, as a tap).
 ##
+## The BEST stub (BestStub, direction B of the same mock-up, 2026-11-15): once the coins have
+## printed, the BEST line's moment also slides out from under the receipt's left edge on a gold stub
+## taped to the shutter (below the CLOSED sign, left of the receipt), with the item at full size and
+## the value in big gold digits; it shows once the shutter is down. A tap while it slides, Return to
+## menu or reduced motion shows it in place at once; a tap while printing prints it in place with
+## the rest. The pins' cards wait for it.
+##
 ## Once the receipt has printed, the badge pins the run unlocked (pin_news, set by the shift screen
 ## at the run's end) come one by one under a spotlight and stack right of the receipt (PinReveal,
 ## over the whole window like the closed store, just in front of the panel). Return to menu, while
@@ -110,8 +117,11 @@ var _coin_from: int = 0
 ## Each line's print time, in ms from the show (index × final_line_ms, the lines after the BEST
 ## line later by its wipe, slam and hold).
 var _print_at: PackedInt32Array = PackedInt32Array()
-## The BEST line, or null.
+## The BEST line, or null, and its moment.
 var _highlight: ReceiptHighlight
+var _moment: RunHighlight.Moment
+## The BEST stub, in the parent between the closed store and the receipt.
+var _stub: BestStub
 ## How many lines have printed.
 var _printed: int = 0
 var _print_started_ms: int = 0
@@ -194,15 +204,17 @@ func _init(tuning: CountUpTuning = null, reduced_motion: Callable = Callable()) 
 	_reader.tapped.connect(func(_now_ms: int) -> void: skip_printing())
 	_closed = StoreClosed.new()
 	_closed.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_stub = BestStub.new()
+	_stub.reduced_motion = _is_reduced
 	_reveal = PinReveal.new()
 	_reveal.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_reveal.setup(self, is_printing)
+	_reveal.setup(self, _is_busy)
 	visible = false
 
 
 ## The closed store goes in the panel's parent (the shift screen, over the whole window), just
-## behind the panel, and the pin cards just in front of it, once the parent has finished setting
-## up its children.
+## behind the panel, the BEST stub between them, and the pin cards just in front of the panel, once
+## the parent has finished setting up its children.
 func _ready() -> void:
 	_place_closed.call_deferred()
 
@@ -213,6 +225,9 @@ func _place_closed() -> void:
 	get_parent().add_child(_closed)
 	get_parent().move_child(_closed, get_index())
 	_closed.visible = visible
+	get_parent().add_child(_stub)
+	get_parent().move_child(_stub, get_index())
+	_stub.visible = visible
 	get_parent().add_child(_reveal)
 	get_parent().move_child(_reveal, get_index() + 1)
 	_reveal.visible = visible
@@ -222,9 +237,11 @@ func _notification(what: int) -> void:
 	# Freed before the closed store was placed: it would be left orphaned.
 	if what == NOTIFICATION_PREDELETE and _closed != null and not _closed.is_inside_tree():
 		_closed.free()
+		_stub.free()
 		_reveal.free()
 	if what == NOTIFICATION_VISIBILITY_CHANGED and _closed != null:
 		_closed.visible = visible
+		_stub.visible = visible
 		_reveal.visible = visible
 	if what == NOTIFICATION_VISIBILITY_CHANGED and not visible and _reader != null:
 		_reader.end()
@@ -235,6 +252,9 @@ func _process(_delta: float) -> void:
 		return
 	_closed.focus = get_global_rect()
 	_print_due()
+	_place_stub()
+	if not is_printing() and not _stub.is_playing():
+		_reader.end()
 	if not _menu_button.disabled or Time.get_ticks_msec() < _armed_ms:
 		return
 	if not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
@@ -259,6 +279,11 @@ func show_results(
 		FinalReceipt.lines(run, result, coins_total, false, columns, true),
 		FinalReceipt.lines(run, result, coins_total, true, columns, true)
 	)
+	var definition: HighlightDefinition = run.balance.highlight if run.balance != null else null
+	var week: int = 0
+	if _moment != null and run.balance != null:
+		week = WeekSchedule.week_of(run.balance, _moment.shift) + 1
+	_stub.set_moment(_moment, definition, week)
 	_coin_sounds = FinalReceipt.coin_sounds(CoinPayout.for_run(run).total())
 	_coins_s = 0.0
 	coins_started_ms = -1
@@ -270,14 +295,16 @@ func show_results(
 	_print_started_ms = Time.get_ticks_msec()
 	_reader.begin()
 	_print_due()
+	_place_stub()
 	_reveal.show_news(pin_news, _reduced_motion.is_valid() and bool(_reduced_motion.call()))
 	pin_news = null
 
 
 ## Prints the rest of the receipt at once (a tap). The coins still clink and the music still
-## ducks for them, from now.
+## ducks for them, from now. Once printed, a tap shows the BEST stub in place.
 func skip_printing() -> void:
 	if not is_printing():
+		_stub.finish_playing()
 		return
 	print_skipped = true
 	_print_due()
@@ -296,6 +323,11 @@ func coins_seconds() -> float:
 ## The closed store behind the receipt (for tests).
 func store_closed() -> StoreClosed:
 	return _closed
+
+
+## The BEST stub (for tests and layout checks).
+func best_stub() -> BestStub:
+	return _stub
 
 
 ## The badge pins' unlock cards (for tests and layout checks).
@@ -423,6 +455,7 @@ static func _day_chip(event: InspectionDefinition) -> PanelContainer:
 ## clicking through still sees the unlocks, and the next press leaves.
 func _on_menu_pressed() -> void:
 	skip_printing()
+	_stub.finish_playing()
 	if _reveal.is_revealing():
 		_reveal.finish()
 		return
@@ -473,6 +506,7 @@ func _build_lines(lines: Array[FinalReceipt.Line]) -> void:
 	_lines = []
 	_week_columns = []
 	_highlight = null
+	_moment = null
 	_printed = 0
 	_coin_from = lines.size()
 	for index: int in range(lines.size()):
@@ -489,6 +523,7 @@ func _build_lines(lines: Array[FinalReceipt.Line]) -> void:
 		var label: Label
 		if line.tone == FinalReceipt.Tone.HIGHLIGHT:
 			_highlight = ReceiptHighlight.new(line, _size(line), font)
+			_moment = line.moment
 			label = _highlight
 		else:
 			label = UiKit.label(line.text, _size(line), _color(line))
@@ -524,6 +559,20 @@ func _is_reduced() -> bool:
 	return _reduced_motion.is_valid() and bool(_reduced_motion.call())
 
 
+## Printing, or the BEST stub still sliding in: the pins' cards wait.
+func _is_busy() -> bool:
+	return is_printing() or (visible and _stub.is_playing())
+
+
+## Places the BEST stub left of the receipt, below the CLOSED sign once settled, and holds it
+## while the shutter rolls down.
+func _place_stub() -> void:
+	if not _closed.is_inside_tree():
+		return
+	_stub.hold(_closed.shutter() < 1.0)
+	_stub.place(get_global_rect(), _closed.settled_sign_rect(), _closed.get_global_rect())
+
+
 ## Prints every line due by now: one every final_line_ms from the show, all of them once
 ## skipped.
 func _print_due() -> void:
@@ -535,6 +584,7 @@ func _print_due() -> void:
 			due += 1
 	if print_skipped and _highlight != null:
 		_highlight.finish()
+	var was_printing: bool = _printed < _lines.size()
 	while _printed < due:
 		_lines[_printed].modulate.a = 1.0
 		if _lines[_printed] == _highlight and not print_skipped:
@@ -542,7 +592,12 @@ func _print_due() -> void:
 		if _printed == _coin_from:
 			_start_coins()
 		_printed += 1
-	if _printed >= _lines.size():
+	if was_printing and _printed >= _lines.size():
+		if print_skipped:
+			_stub.finish()
+		else:
+			_stub.play(_is_reduced())
+	if _printed >= _lines.size() and not _stub.is_playing():
 		_reader.end()
 
 
