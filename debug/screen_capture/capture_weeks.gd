@@ -18,11 +18,15 @@ extends RefCounted
 ## (on a fresh profile), so their unlock cards come after the receipt (PinReveal);
 ## `--unlock-at=<ms>` freezes the reveal that many ms after its first card starts (default
 ## UNLOCK_SETTLED_MS: every card landed). The file gets unlock_<ids>_<ms>_.
+## `--best=<card id>` with `--results=won` (2026-11-15): GOLDEN_SHIFT's big payout is that card's
+## in place of Golden Milk (e.g. birthday_candles_golden, the longest name, for the BEST stub's
+## wrapped name). The file gets best_<card id>_.
 
 const SHIFT_ARGUMENT := "--at-shift="
 const RESULTS_ARGUMENT := "--results="
 const UNLOCK_ARGUMENT := "--unlock="
 const UNLOCK_AT_ARGUMENT := "--unlock-at="
+const BEST_ARGUMENT := "--best="
 const UNLOCK_SETTLED_MS := 60000
 ## The shift the `lost` run is lost on, and the one it slipped on.
 const LOST_SHIFT := 11
@@ -58,6 +62,8 @@ static func file_part() -> String:
 		part += "results_%s_" % _argument(RESULTS_ARGUMENT)
 	if not _argument(UNLOCK_ARGUMENT).is_empty():
 		part += "unlock_%s_%d_" % [_argument(UNLOCK_ARGUMENT).replace("+", "_"), _unlock_at()]
+	if not _argument(BEST_ARGUMENT).is_empty():
+		part += "best_%s_" % _argument(BEST_ARGUMENT)
 	return part
 
 
@@ -85,6 +91,8 @@ static func show_results(screen: ShiftScreen, seed_value: int) -> bool:
 		screen._results.pin_news = PinUnlockNews.of(ids, profile, catalogue)
 	screen._show_results(result)
 	screen._results.skip_printing()
+	# The shutter down at once, as a settled results screen (the BEST stub is taped to it).
+	screen._results.store_closed().close_store(true)
 	if not unlocked.is_empty():
 		var reveal: PinReveal = screen._results.pin_reveal()
 		reveal.refresh()  # The receipt has printed: the first card starts a gap from now.
@@ -148,6 +156,8 @@ static func _add_bests(record: ShiftRecord, lost: bool) -> void:
 		milk = "milk_golden"
 	elif shift_number >= 5:
 		milk = "milk_big"
+	if shift_number == GOLDEN_SHIFT and not lost and not _argument(BEST_ARGUMENT).is_empty():
+		milk = _argument(BEST_ARGUMENT)
 	record.best_card = load("res://data/cards/%s.tres" % milk) as CardDefinition
 	var share: float = 0.2 + 0.01 * (shift_number % 7) * 2.0
 	if shift_number == GOLDEN_SHIFT and not lost:

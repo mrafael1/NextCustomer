@@ -2,18 +2,23 @@ class_name KeepScreen
 extends Control
 ## The Golden basket's keep screen (#132; the user's call of 2026-11-02: "golden basket in the
 ## center, the previous conveyor items listed, drag and drop inside it"). Over the shift screen
-## after the count-up, before the machine: the shade, GOLDEN BASKET and its hint, the golden
-## basket drawn as the hand's (its back, its places, the inside's darkening, its front) at
-## BASKET_SCALE in the middle, and under it LAST CHECKOUT, the items the checkout put on the belt.
-## An item dragged from the list into the basket is kept for the next shift's first basket
-## (PinPlay.keep, up to keep_count); one dragged out of the basket back to the list lets it go. A
-## click does the same (into the first free place, or back out). DONE closes it (`done`).
+## after the count-up, before the machine: the shade, GOLDEN BASKET and its hint on the store's
+## teal sign plate, the golden basket drawn as the hand's (its back, its places, the inside's
+## darkening, its front) at BASKET_SCALE in the middle, and under it LAST CHECKOUT with the KEPT
+## counter ("0/2 KEPT": kept of PinPlay.keep_count) and the steel tray of the items the checkout
+## put on the belt, each a mini card with its name and price. An item dragged from the tray into
+## the basket is kept for the next shift's first basket (PinPlay.keep, up to keep_count); one
+## dragged out of the basket back to the tray lets it go. A click does the same (into the first
+## free place, or back out). DONE closes it (`done`).
+##
+## Polish batch 2 (the polish audit's "keep"): the parts pop in (UiKit.pop_in, its ui_open sound)
+## as the shade fades in; Enter or Space presses DONE, and so does Esc when that loses no choice.
 ##
 ## The drag feels like the shift screen's (CardDrag; the user's 2026-11-02 review: "not as smooth
 ## as in the shift scene"): past DRAG_THRESHOLD a ghost of the item (ItemView.Form.GHOST, lifted
 ## and tilted) follows the mouse centred on it, its source fades, the target it would land on
 ## lights up with a slot tick (the basket brightens, and over it the ghost grows to the
-## basket's size; the belt brightens), and a drop pops the item into its new place. A drop
+## basket's size; the tray brightens), and a drop pops the item into its new place. A drop
 ## elsewhere flies the ghost back to where it came from.
 
 ## DONE was pressed.
@@ -22,14 +27,19 @@ signal done
 enum Target { NONE, BASKET, LIST }
 
 const TITLE := "GOLDEN BASKET"
-const HINT := "Drag up to %d items into the basket: they start the next shift"
+## The hint in hard pixel caps (no number: pixel words print none; the counter says how many).
+const HINT := "Drag cards into the basket. They start the next shift."
 const LIST_TITLE := "LAST CHECKOUT"
+const COUNTER_TEXT := "%d/%d"
+const COUNTER_WORD := "KEPT"
 const DONE_TEXT := "DONE"
 const SHADE_ALPHA := 0.84
-const TITLE_SIZE := 36
-const HINT_SIZE := 16
+const TITLE_SIZE := 30
+const HINT_SCALE := 2
 const LIST_TITLE_SIZE := 14
-const BUTTON_SIZE := 18
+const COUNTER_SIZE := 16
+const BUTTON_SIZE := 22
+const DONE_WIDTH := 200.0
 const BASKET_SCALE := 2.0
 ## The basket unit as the hand draws one (in its own coordinates, its rim's left at 0): the back,
 ## the item places, the inside's darkening and the front (HandBaskets, HandRow).
@@ -40,22 +50,42 @@ const PLACE_AT: Array[Vector2] = [Vector2(12, 0), Vector2(108, 0)]
 const PLACE_SIZE := Vector2(96, 96)
 const INSIDE_STEPS: Array[Rect2] = [Rect2(8, 70, 200, 4), Rect2(8, 74, 200, 4)]
 const INSIDE_ALPHAS: Array[float] = [0.14, 0.28]
-## Where things sit on the 1280 x 720 screen: the title's and hint's tops, the basket's top, the
-## list's top, and DONE's top.
-const TITLE_Y := 48.0
-const HINT_Y := 96.0
-const BASKET_Y := 132.0
-const LIST_Y := 488.0
-const DONE_Y := 640.0
-## The belt under the list: its padding, its steel edges, its width when it holds few items, and
-## the widest it gets (cells shrink past BELT_MAX_WIDTH's ten items: a Double checkout's 14).
+## Where things sit on the 1280 x 720 screen (polish batch 2): the sign's top and padding (left,
+## top, right, bottom), the basket's top, the gap from the basket's foot to the tray's header row
+## (LAST CHECKOUT and the counter), that row's height, the gap from it to the tray and the gap
+## from the tray to DONE.
+const SIGN_Y := 8.0
+const SIGN_PADDING := Vector4(22, 6, 22, 10)
+const BASKET_Y := 84.0
+const ROW_GAP := 2.0
+const ROW_HEIGHT := 28.0
+const TRAY_GAP := 4.0
+const DONE_GAP := 10.0
+## The steel tray under the basket (a 9-slice of TRAY_MARGIN art px): its padding, its width when
+## it holds few cards, and the widest it gets (cards shrink past TRAY_MAX_WIDTH's nine: a Double
+## checkout's 14).
+const TRAY_FRAME := preload("res://art/frames/steel_tray.png")
+const TRAY_MARGIN := 4
+const TRAY_PADDING := Vector2(16, 12)
+const TRAY_MIN_WIDTH := 560.0
+const TRAY_MAX_WIDTH := 1180.0
+## A tray card: the item's art (CELL_SIZE at full size) on paper with an ink edge, its name and its
+## price (a coupon: COUPON) under it.
 const CELL_SIZE := 96.0
 const CELL_GAP := 10
-const BELT_PADDING := Vector2(14, 10)
-const BELT_EDGE := 6
-const BELT_MIN_WIDTH := 560.0
-const BELT_MAX_WIDTH := 1180.0
+const CARD_PAD := 4.0
+const CARD_EDGE := 2
+const NAME_HEIGHT := 18.0
+const NAME_SIZE := 12
+const NAME_MIN_SIZE := 9
+const PRICE_HEIGHT := 24.0
+const PRICE_SIZE := 16
+const COUPON_TEXT := "COUPON"
+const COUPON_SIZE := 11
 const DRAG_KIND := "keep_item"
+## The keys wait this long after the screen opens (like ResultsPanel.ARM_MS), so a Space tap left
+## over from skipping the count-up never presses DONE before the choice is seen.
+const ARM_MS := 600
 ## The drag (as CardDrag's): the ghost's alpha, the source's fade, the target's light, the
 ## ghost's grow time, the way back, and a landing's pop.
 const GHOST_ALPHA := 0.92
@@ -65,10 +95,21 @@ const GROW_TIME := 0.12
 const BACK_TIME := 0.14
 const POP_SCALE := 1.25
 const POP_TIME := 0.22
+## The keys that press DONE (Esc too, when it loses no choice: choice_left).
+const DONE_KEYS: Array[Key] = [KEY_ENTER, KEY_KP_ENTER, KEY_SPACE]
 
 var _run: RunState
+var _armed_ms: int = 0
+## Everything but the shade, at the window's size: it pops in (UiKit.pop_in).
+var _content: Control
+var _shade: ColorRect
+var _sign: PanelContainer
 var _basket: Control
 var _places: Array[Control] = []
+var _row: Control
+var _list_title: Label
+var _counter: PanelContainer
+var _counter_number: Label
 var _belt: PanelContainer
 var _list: HBoxContainer
 var _cards: Array[CardInstance] = []
@@ -93,29 +134,61 @@ func _init(run: RunState) -> void:
 	name = "KeepScreen"
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	_cards = PinPlay.keepable(run)
-	var shade: ColorRect = ColorRect.new()
-	shade.color = Color(Palette.INK, SHADE_ALPHA)
-	shade.set_anchors_preset(Control.PRESET_FULL_RECT)
-	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(shade)
-	var title: Label = UiKit.display_label(TITLE, TITLE_SIZE, true)
-	title.add_theme_color_override("font_color", Palette.GOLD)
-	_centre_label(title, TITLE_Y)
-	var hint: Label = UiKit.body_label(HINT % PinPlay.keep_count(run), HINT_SIZE, Palette.PAPER)
-	_centre_label(hint, HINT_Y)
+	_shade = ColorRect.new()
+	_shade.name = "Shade"
+	_shade.color = Color(Palette.INK, SHADE_ALPHA)
+	_shade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_shade)
+	_content = Control.new()
+	_content.name = "Content"
+	_content.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_content)
+	_build_sign()
 	_build_basket()
-	var list_title: Label = UiKit.display_label(LIST_TITLE, LIST_TITLE_SIZE, true)
-	_centre_label(list_title, LIST_Y - 26.0)
+	_build_row()
 	_build_belt()
-	_done_button = UiKit.framed_button(null, DONE_TEXT, done.emit, BUTTON_SIZE)
+	_done_button = UiKit.framed_button(
+		null, DONE_TEXT, done.emit, BUTTON_SIZE, UiKit.BUTTON_FRAME, Vector2(DONE_WIDTH, 0)
+	)
 	_done_button.name = "KeepDone"
-	add_child(_done_button)
+	_content.add_child(_done_button)
 	_show()
 
 
+## Lays the parts out for the window and pops them in (UiKit.pop_in, with the open sound) as the
+## shade fades in.
 func _ready() -> void:
+	_armed_ms = Time.get_ticks_msec() + ARM_MS
 	_place_parts()
 	resized.connect(_place_parts)
+	UiKit.pop_in(_content)
+	_shade.color.a = 0.0
+	create_tween().tween_property(_shade, "color:a", SHADE_ALPHA, UiKit.POP_IN_SECONDS)
+
+
+## Enter or Space presses DONE. Esc presses it too when that loses no choice (choice_left: the
+## basket is full, or the tray is empty); else it passes on to the pause, as before, so a stray
+## Esc never closes the screen with a keep still to choose. Taken before the pause's layer (the
+## shift screen's first child) sees it.
+func _unhandled_key_input(event: InputEvent) -> void:
+	var key: InputEventKey = event as InputEventKey
+	if key == null or not key.pressed or key.echo or _done_button.disabled:
+		return
+	if Time.get_ticks_msec() < _armed_ms:
+		return
+	var escape: bool = key.keycode == KEY_ESCAPE
+	if not DONE_KEYS.has(key.keycode) and not (escape and not choice_left()):
+		return
+	get_viewport().set_input_as_handled()
+	_cancel_drag()
+	_done_button.pressed.emit()
+
+
+## Whether a card could still go into the basket: it has room and the tray holds a card.
+func choice_left() -> bool:
+	var kept: int = _run.kept.size()
+	return kept < PinPlay.keep_count(_run) and kept < _cards.size()
 
 
 ## The basket's two places, left first (for tests: their global rects are the drop targets).
@@ -126,6 +199,31 @@ func places() -> Array[Control]:
 ## The golden basket (for layout tests).
 func basket() -> Control:
 	return _basket
+
+
+## The sign plate holding the title and the hint (for layout tests).
+func sign_plate() -> Control:
+	return _sign
+
+
+## The KEPT counter's plate (for layout tests).
+func counter() -> Control:
+	return _counter
+
+
+## The KEPT counter's number ("1/2").
+func counter_text() -> String:
+	return _counter_number.text
+
+
+## The steel tray (for layout tests).
+func tray() -> Control:
+	return _belt
+
+
+## The parts that pop in (for tests).
+func content() -> Control:
+	return _content
 
 
 ## The list's cells, one per item not kept (for tests).
@@ -161,13 +259,46 @@ func release(card: CardInstance) -> bool:
 	return true
 
 
+## The title and the hint on the store's teal sign plate (UiKit.SIGN_FRAME), so neither reads over
+## the dimmed monitor behind; the hint in hard pixel caps.
+func _build_sign() -> void:
+	_sign = UiKit.frame_panel(UiKit.SIGN_FRAME, FramedButton.FRAME_MARGIN, SIGN_PADDING)
+	_sign.name = "KeepSign"
+	_content.add_child(_sign)
+	var column: VBoxContainer = VBoxContainer.new()
+	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.add_theme_constant_override("separation", 2)
+	_sign.add_child(column)
+	var title: Label = UiKit.display_label(TITLE, TITLE_SIZE, true)
+	title.name = "Title"
+	title.add_theme_color_override("font_color", Palette.GOLD)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	column.add_child(title)
+	# The pixel words are drawn scaled: a holder of their size on screen (measured on the font: the
+	# label's own minimum size isn't up to date before it is in the tree) keeps the plate round them.
+	var hint: Label = UiKit.pixel_label(HINT.to_upper(), HINT_SCALE, Palette.PAPER)
+	hint.name = "Hint"
+	var font: Font = ArtStyle.pixel_display_font()
+	var words: Vector2 = font.get_string_size(
+		hint.text, HORIZONTAL_ALIGNMENT_LEFT, -1, ArtStyle.PIXEL_TEXT_SIZE
+	)
+	var holder: Control = Control.new()
+	holder.name = "HintHolder"
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var high: float = ArtStyle.PIXEL_CAP_HEIGHT + 2.0
+	holder.custom_minimum_size = Vector2(ceilf(words.x), high) * HINT_SCALE
+	holder.add_child(hint)
+	UiKit.place_pixel_label(hint, Rect2(Vector2.ZERO, holder.custom_minimum_size), true)
+	column.add_child(holder)
+
+
 func _build_basket() -> void:
 	_basket = Control.new()
 	_basket.name = "GoldenBasket"
 	_basket.size = UNIT_SIZE
 	_basket.scale = Vector2(BASKET_SCALE, BASKET_SCALE)
 	_basket.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_basket)
+	_content.add_child(_basket)
 	_add_art(HandBaskets.BACK_LEFT_GOLDEN, BACK_AT)
 	for index: int in PLACE_AT.size():
 		var place: Control = Control.new()
@@ -188,24 +319,41 @@ func _build_basket() -> void:
 	_add_art(HandBaskets.FRONT_GOLDEN, FRONT_AT)
 
 
-## The belt the list's items lie on (a drop anywhere on it lets a kept item go).
+## The tray's header row: LAST CHECKOUT on its left, the KEPT counter (kept of keep_count in the
+## number font, on a paper tag that turns green once the basket is full) on its right.
+func _build_row() -> void:
+	_row = Control.new()
+	_row.name = "TrayRow"
+	_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_content.add_child(_row)
+	_list_title = UiKit.display_label(LIST_TITLE, LIST_TITLE_SIZE, true)
+	_list_title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_row.add_child(_list_title)
+	_counter = PanelContainer.new()
+	_counter.name = "KeptCounter"
+	_counter.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_row.add_child(_counter)
+	var line: HBoxContainer = HBoxContainer.new()
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	line.add_theme_constant_override("separation", 6)
+	_counter.add_child(line)
+	_counter_number = UiKit.number_label("", COUNTER_SIZE, false)
+	_counter_number.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	line.add_child(_counter_number)
+	var word: Label = UiKit.display_label(COUNTER_WORD, LIST_TITLE_SIZE, false)
+	word.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	line.add_child(word)
+
+
+## The steel tray the list's cards lie in (a drop anywhere on it lets a kept item go).
 func _build_belt() -> void:
-	_belt = PanelContainer.new()
+	var padding: Vector4 = Vector4(TRAY_PADDING.x, TRAY_PADDING.y, TRAY_PADDING.x, TRAY_PADDING.y)
+	_belt = UiKit.frame_panel(TRAY_FRAME, TRAY_MARGIN, padding)
 	_belt.name = "LastCheckout"
 	_belt.mouse_filter = Control.MOUSE_FILTER_STOP
-	_belt.custom_minimum_size = Vector2(BELT_MIN_WIDTH, CELL_SIZE + 2.0 * BELT_PADDING.y)
-	var box: StyleBoxFlat = StyleBoxFlat.new()
-	box.bg_color = Palette.RUBBER
-	box.border_color = Palette.STEEL_PALE
-	box.border_width_top = BELT_EDGE
-	box.border_width_bottom = BELT_EDGE
-	box.set_corner_radius_all(6)
-	box.content_margin_left = BELT_PADDING.x
-	box.content_margin_right = BELT_PADDING.x
-	box.content_margin_top = BELT_PADDING.y
-	box.content_margin_bottom = BELT_PADDING.y
-	_belt.add_theme_stylebox_override("panel", box)
-	add_child(_belt)
+	var height: float = _card_size(CELL_SIZE).y + 2.0 * TRAY_PADDING.y
+	_belt.custom_minimum_size = Vector2(TRAY_MIN_WIDTH, height)
+	_content.add_child(_belt)
 	_list = HBoxContainer.new()
 	_list.alignment = BoxContainer.ALIGNMENT_CENTER
 	_list.add_theme_constant_override("separation", CELL_GAP)
@@ -221,23 +369,34 @@ func _add_art(texture: Texture2D, at: Vector2) -> void:
 	_basket.add_child(art)
 
 
-func _centre_label(label: Label, y: float) -> void:
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	label.position.y = y
-	add_child(label)
-
-
+## Top to bottom, centred: the sign, the basket, the tray's header row, the tray and DONE. The
+## content keeps the window's size, so the pop-in scales it round the window's centre.
 func _place_parts() -> void:
-	var width: float = size.x if size.x > 0.0 else get_viewport_rect().size.x
+	var window: Vector2 = size if size.x > 0.0 else get_viewport_rect().size
+	_content.custom_minimum_size = window
+	_content.size = window
+	_content.pivot_offset = window / 2.0
+	var width: float = window.x
+	_sign.reset_size()
+	_sign.position = Vector2(roundf((width - _sign.size.x) / 2.0), SIGN_Y)
 	_basket.position = Vector2((width - UNIT_SIZE.x * BASKET_SCALE) / 2.0, BASKET_Y)
 	_belt.reset_size()
-	_belt.position = Vector2((width - _belt.size.x) / 2.0, LIST_Y)
+	var row_y: float = BASKET_Y + UNIT_SIZE.y * BASKET_SCALE + ROW_GAP
+	var tray_left: float = roundf((width - _belt.size.x) / 2.0)
+	_row.position = Vector2(tray_left, row_y)
+	_row.size = Vector2(_belt.size.x, ROW_HEIGHT)
+	_list_title.position = Vector2(4, 0)
+	_list_title.size = Vector2(_belt.size.x / 2.0, ROW_HEIGHT)
+	_counter.reset_size()
+	var counter_y: float = roundf((ROW_HEIGHT - _counter.size.y) / 2.0)
+	_counter.position = Vector2(_belt.size.x - _counter.size.x, counter_y)
+	_belt.position = Vector2(tray_left, row_y + ROW_HEIGHT + TRAY_GAP)
 	_done_button.reset_size()
-	_done_button.position = Vector2((width - _done_button.size.x) / 2.0, DONE_Y)
+	var done_y: float = _belt.position.y + _belt.size.y + DONE_GAP
+	_done_button.position = Vector2(roundf((width - _done_button.size.x) / 2.0), done_y)
 
 
-## Shows the kept items in the basket's places (kept order) and the others in the list.
+## Shows the kept items in the basket's places (kept order) and the others in the tray.
 func _show() -> void:
 	var kept: Array[CardInstance] = _kept_cards()
 	for index: int in _places.size():
@@ -264,19 +423,41 @@ func _show() -> void:
 			var cell: Control = _list_cell(card, side)
 			_list.add_child(cell)
 			if card == _popped:
-				_pop(cell.get_child(0) as Control)
+				_pop(cell.get_node("Card") as Control)
 	_popped = null
+	_show_counter(kept.size())
 	if is_inside_tree():
 		_place_parts()
 
 
-## A list cell's side: CELL_SIZE, or less when `count` cells would make the belt wider than
-## BELT_MAX_WIDTH.
+## The KEPT counter: kept of keep_count, on paper, green once the basket is full.
+func _show_counter(kept: int) -> void:
+	var room: int = PinPlay.keep_count(_run)
+	_counter_number.text = COUNTER_TEXT % [kept, room]
+	var box: StyleBoxFlat = StyleBoxFlat.new()
+	box.bg_color = Palette.GREEN_LIGHT if kept >= room else Palette.PAPER
+	box.border_color = Palette.INK
+	box.set_border_width_all(CARD_EDGE)
+	box.set_corner_radius_all(2)
+	box.content_margin_left = 8
+	box.content_margin_right = 8
+	box.content_margin_top = 1
+	box.content_margin_bottom = 1
+	_counter.add_theme_stylebox_override("panel", box)
+
+
+## A tray card's art side: CELL_SIZE, or less when `count` cards would make the tray wider than
+## TRAY_MAX_WIDTH.
 static func _cell_side(count: int) -> float:
 	if count <= 0:
 		return CELL_SIZE
-	var room: float = BELT_MAX_WIDTH - 2.0 * BELT_PADDING.x - CELL_GAP * (count - 1)
-	return minf(CELL_SIZE, floorf(room / count))
+	var room: float = TRAY_MAX_WIDTH - 2.0 * TRAY_PADDING.x - CELL_GAP * (count - 1)
+	return minf(CELL_SIZE, floorf(room / count - 2.0 * CARD_PAD))
+
+
+## A tray card's size for art `side` px wide: the art with its name and price under it, on paper.
+static func _card_size(side: float) -> Vector2:
+	return Vector2(side + 2.0 * CARD_PAD, side + 2.0 * CARD_PAD + NAME_HEIGHT + PRICE_HEIGHT)
 
 
 func _kept_cards() -> Array[CardInstance]:
@@ -288,21 +469,72 @@ func _kept_cards() -> Array[CardInstance]:
 	return kept
 
 
-## A list cell: the item's art lying on the belt (scaled down to `side` when the belt is full);
-## dragged into the basket (or clicked) it's kept.
+## A tray cell: the item as a mini card, its art (scaled down to `side` in a full tray) on paper
+## with its name and price (a coupon: COUPON) under it; dragged into the basket (or clicked) it's
+## kept.
 func _list_cell(card: CardInstance, side: float) -> Control:
 	var cell: Control = Control.new()
 	cell.name = "Keep%d" % card.instance_id
 	TipTarget.cover_text(cell, "", TipSpec.Kind.ITEM, "", "", card.definition.display_name)
-	cell.custom_minimum_size = Vector2(side, side)
+	var card_size: Vector2 = _card_size(side)
+	cell.custom_minimum_size = card_size
 	cell.mouse_filter = Control.MOUSE_FILTER_STOP
 	cell.mouse_default_cursor_shape = Control.CURSOR_DRAG
+	var face: Panel = Panel.new()
+	face.name = "Card"
+	face.size = card_size
+	face.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var box: StyleBoxFlat = StyleBoxFlat.new()
+	box.bg_color = Palette.PAPER
+	box.border_color = Palette.INK
+	box.set_border_width_all(CARD_EDGE)
+	box.set_corner_radius_all(4)
+	face.add_theme_stylebox_override("panel", box)
+	cell.add_child(face)
 	var art: TextureRect = ItemView.item_art(card.definition)
 	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	art.position = Vector2(CARD_PAD, CARD_PAD)
 	art.scale = Vector2.ONE * (side / CELL_SIZE)
-	cell.add_child(art)
+	face.add_child(art)
+	var text_width: float = card_size.x - 2.0 * CARD_PAD
+	var title: Label = UiKit.body_label(card.definition.display_name, NAME_SIZE, Palette.INK)
+	title.name = "Name"
+	title.add_theme_font_override("font", ArtStyle.bold_font(700))
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	title.clip_text = true
+	title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	title.position = Vector2(CARD_PAD, CARD_PAD + side + 2.0)
+	title.size = Vector2(text_width, NAME_HEIGHT)
+	_fit_name(title, text_width)
+	face.add_child(title)
+	var price: Label
+	if card.definition.is_coupon():
+		price = UiKit.display_label(COUPON_TEXT, COUPON_SIZE, false)
+		price.add_theme_color_override("font_color", Palette.TEAL_DARK)
+	else:
+		price = UiKit.number_label(PriceSticker.price_text(card.definition.base), PRICE_SIZE, false)
+	price.name = "Price"
+	price.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	price.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	price.position = Vector2(CARD_PAD, title.position.y + NAME_HEIGHT)
+	price.size = Vector2(text_width, PRICE_HEIGHT)
+	face.add_child(price)
 	cell.gui_input.connect(_on_cell_input.bind(card))
 	return cell
+
+
+## Steps the name's font down from NAME_SIZE to NAME_MIN_SIZE until it fits `width` (past that it
+## ends in an ellipsis; the hover tip names it in full).
+static func _fit_name(label: Label, width: float) -> void:
+	var font: Font = label.get_theme_font("font")
+	var fitted: int = NAME_SIZE
+	while (
+		fitted > NAME_MIN_SIZE
+		and font.get_string_size(label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fitted).x > width
+	):
+		fitted -= 1
+	label.add_theme_font_size_override("font_size", fitted)
 
 
 ## Keeps the card a test drag `data` carries ({kind, card}; for tests, as a drop on the basket):

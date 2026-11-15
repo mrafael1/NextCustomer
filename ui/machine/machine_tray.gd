@@ -35,8 +35,10 @@ const PUSH_TEXT := "PUSH"
 const TAKE_TEXT := "TAKE YOUR PRIZE"
 ## The offered push bar's word on the flap, with the chute's name.
 const CONFIRM_TEXT := "PUSH TO CONFIRM · %s"
-## The line in the mouth (bold Atkinson; down to 9 px for a long one).
+## The line in the mouth: hard pixel capitals (MachineLine, 2x words) since polish batch 2; one too
+## wide for the mouth (TAKE_ROOM) in bold Atkinson, down to 9 px.
 const TAKE_SIZE := 12
+const TAKE_ROOM := 416.0
 ## The housing's corner rivets, in from its corners.
 const RIVET_INSET := 6.0
 ## The offered bar: how far the flap goes in when pushed, its chevrons (CHEVRON_STEP px apart,
@@ -78,6 +80,9 @@ var _chase: int = 0
 var _bar_line: MachineLine
 var _bar_shown: String = ""
 var _keep: bool = false
+## The mouth's line in pixel capitals (hidden when its words are too wide: the Atkinson fallback).
+var _take_line: MachineLine
+var _take_shown: String = ""
 
 
 func _init() -> void:
@@ -90,6 +95,9 @@ func _init() -> void:
 	_bar_line = MachineLine.new()
 	_bar_line.name = "BarWord"
 	add_child(_bar_line)
+	_take_line = MachineLine.new()
+	_take_line.name = "TakeWord"
+	add_child(_take_line)
 	_show_bar_word()
 
 
@@ -235,9 +243,27 @@ func frame(t: float) -> void:
 	queue_redraw()
 
 
+## The mouth's line now (null when it is drawn in Atkinson, too wide for the capitals), for tests.
+func take_line() -> MachineLine:
+	return _take_line if _take_line.visible else null
+
+
+## The mouth's line in pixel capitals, centred on TAKE_MIDDLE, when it fits TAKE_ROOM.
+func _show_take_line() -> void:
+	var words: String = texts()[1]
+	_take_line.visible = MachineLine.width_of(words) <= TAKE_ROOM
+	var ink: Color = Palette.MUSTARD_PALE if _gold else Palette.TEAL_PALE
+	var key: String = "%s:%s" % [words, ink.to_html()]
+	if _take_line.visible and key != _take_shown:
+		_take_shown = key
+		_take_line.show_text(words, ink)
+		_take_line.centre_in(Rect2(TAKE_MIDDLE - _take_line.size / 2.0, _take_line.size))
+
+
 ## The bar's word in hard pixel capitals: PUSH (rattling with the flap), PUSH TO CONFIRM · X, none
 ## while KEEP ONE lights the bar; centred on the flap (pushed in while down).
 func _show_bar_word() -> void:
+	_show_take_line()
 	var word: String = texts()[0]
 	_bar_line.visible = not _keep
 	var ink: Color = (
@@ -268,14 +294,15 @@ func _draw() -> void:
 	var font: Font = ArtStyle.bold_font(BOLD_WEIGHT)
 	var lines: PackedStringArray = texts()
 	var take_ink: Color = Palette.MUSTARD_PALE if _gold else Palette.TEAL_PALE
-	MachineArt.centred_text(
-		self,
-		lines[1],
-		TAKE_MIDDLE,
-		font,
-		_fit_size(lines[1], font, MOUTH_RECT.size.x - 16.0),
-		take_ink
-	)
+	if not _take_line.visible:
+		MachineArt.centred_text(
+			self,
+			lines[1],
+			TAKE_MIDDLE,
+			font,
+			_fit_size(lines[1], font, MOUTH_RECT.size.x - 16.0),
+			take_ink
+		)
 	if not _offer.is_empty():
 		_draw_offer()
 		return

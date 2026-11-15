@@ -47,8 +47,10 @@ extends Control
 signal finished
 ## The player took `pack` from the starter pack choice (#107).
 signal pack_taken(pack: StarterPackDefinition)
-## Esc on the opening board's store page: the screen leaves for the title.
+## ‹ TITLE or the options' BACK TO TITLE on the opening board: the screen leaves for the title.
 signal title_requested
+## The board's Esc asks for the options (StartBoard.options_requested).
+signal options_requested
 
 const TUNING_PATH := "res://data/balance/cart_reveal.tres"
 ## The dim under the top bar, over the store.
@@ -548,6 +550,7 @@ func _show_setup(run: RunState, profile: ProfileState, actions: StartBoardAction
 	# The popup draws over the board (the shutter, added at clock-in, covers both).
 	move_child(_popup, -1)
 	board.back_to_title.connect(func() -> void: title_requested.emit())
+	board.options_requested.connect(func() -> void: options_requested.emit())
 	board.clocked_in.connect(
 		func(pack: StarterPackDefinition) -> void:
 			_open_shutter(pack, profile.reduced_motion(), run.shift_count())

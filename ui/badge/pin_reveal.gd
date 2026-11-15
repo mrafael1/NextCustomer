@@ -12,9 +12,9 @@ extends Control
 ##
 ## The landed cards stack in their place, the newest on top, at most PEEKS older ones peeking
 ## PEEK_PX each above it, darkened. Once every card has landed, a pager ("‹ 1 / 3 ›") and the next
-## milestone still locked ("Next: Repack · Win a run") show under the stack; a click on the stack
-## or on ‹ › brings the next or the last card to the top. Settled, a glint crosses the top card's
-## pin every GLINT_EVERY_MS (off under reduced motion).
+## milestone still locked ("Next: Repack · Win a run", on a paper strip) show under the stack; a
+## click on the stack or on ‹ › brings the next or the last card to the top. Settled, a glint
+## crosses the top card's pin every GLINT_EVERY_MS (off under reduced motion).
 ##
 ## While a card is coming the shade takes every click: a click, or Space, Enter or Escape, shows
 ## every remaining card at once in its final place (finish). Return to menu, while a card is still
@@ -115,10 +115,12 @@ func _init() -> void:
 	add_child(_pager)
 	_back_arrow = _arrow("‹", -1)
 	_on_arrow = _arrow("›", 1)
-	_next = UiKit.body_label("", 12, Palette.TEAL_PALE)
+	_next = UiKit.body_label("", 12, Palette.INK)
 	_next.name = "NextMilestone"
-	_next.add_theme_font_override("font", ArtStyle.bold_font(600))
+	_next.add_theme_font_override("font", ArtStyle.bold_font(700))
+	_next.add_theme_stylebox_override("normal", _paper_strip())
 	_next.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_next.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_next.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_next.custom_minimum_size = Vector2(NEXT_WIDTH, 0)
 	add_child(_next)
@@ -450,6 +452,20 @@ func _show_pager(on: bool) -> void:
 	)
 	_next.position = Vector2(left, y)
 	_next.size = Vector2(NEXT_WIDTH, NEXT_HEIGHT)
+
+
+## The next milestone's paper strip (polish batch 2): paper with an ink edge, as the receipt's.
+static func _paper_strip() -> StyleBoxFlat:
+	var strip: StyleBoxFlat = StyleBoxFlat.new()
+	strip.bg_color = Palette.PAPER
+	strip.border_color = Palette.INK
+	strip.set_border_width_all(int(PX))
+	strip.set_corner_radius_all(2)
+	strip.content_margin_left = 6
+	strip.content_margin_right = 6
+	strip.content_margin_top = 2
+	strip.content_margin_bottom = 2
+	return strip
 
 
 func _arrow(text: String, step: int) -> Label:

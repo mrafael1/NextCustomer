@@ -245,6 +245,9 @@ func test_the_words_are_hard_pixel_text() -> void:
 			var label: Label = node as Label
 			if label.get_theme_font("font") == ArtStyle.pixel_display_font():
 				words.append(label)
+			elif label.get_theme_font("font") == ArtStyle.pixel_number_font():
+				# The primary's sub-line digits (polish batch 2): hard pixel numbers.
+				assert_bool(PixelLine.is_number(label.text)).is_true()
 			else:
 				# Anything else is in the number font, and only where a number is.
 				assert_object(label.get_theme_font("font")).is_same(ArtStyle.number_font())
@@ -261,7 +264,7 @@ func test_the_words_are_hard_pixel_text() -> void:
 			. override_failure_message("%s at %s" % [label.text, at])
 			. is_equal(Vector2.ZERO)
 		)
-	for caption: String in ["CONTINUE", "NEW RUN", "TOYS"]:
+	for caption: String in ["CONTINUE", "NEW RUN", "TOYS", "SHIFT"]:
 		assert_array(texts).contains([caption])
 	assert_array(texts).not_contains(["BADGE PINS"])
 	for caption: String in ["ABANDON THIS RUN?", "ABANDON", "KEEP"]:

@@ -29,6 +29,20 @@ extends PanelContainer
 ## about 0.65 s); with reduced motion it shows at once and only the hold stays. A tap prints it in
 ## its final state with the rest.
 ##
+## Polish batch 2 (the polish audit's "results-small"): a shift's day events (its inspections and
+## boons) are small icon chips after its line's text (FinalReceipt.lines' `chips`; the event's icon
+## on its chip's red or green, the name and effect in its tip), not dim lines, and the dim lines'
+## ink is DETAIL_ALPHA, so the receipt fits 1280 x 720 with its dim lines at DETAIL_MIN_SIZE or
+## more. Enter or Space presses Return to menu once the receipt has printed and the key is armed
+## (Enter while printing prints the rest, as a tap).
+##
+## The BEST stub (BestStub, direction B of the same mock-up, 2026-11-15): once the coins have
+## printed, the BEST line's moment also slides out from under the receipt's left edge on a gold stub
+## taped to the shutter (below the CLOSED sign, left of the receipt), with the item at full size and
+## the value in big gold digits; it shows once the shutter is down. A tap while it slides, Return to
+## menu or reduced motion shows it in place at once; a tap while printing prints it in place with
+## the rest. The pins' cards wait for it.
+##
 ## Once the receipt has printed, the badge pins the run unlocked (pin_news, set by the shift screen
 ## at the run's end) come one by one under a spotlight and stack right of the receipt (PinReveal,
 ## over the whole window like the closed store, just in front of the panel). Return to menu, while
@@ -44,18 +58,30 @@ const ARM_MS := 350
 const MENU_TEXT := "RETURN TO MENU"
 const HEADLINE_SIZE := 44
 const LINE_SIZE := 16
-## The machine visits and the inspection under a shift's line are smaller and dim.
+## The machine visits under a shift's line are smaller and dim (DETAIL_ALPHA of the ink); a full
+## won or lost run's receipt keeps them DETAIL_MIN_SIZE or more at 1280 x 720.
 const DETAIL_SIZE := 13
+const DETAIL_ALPHA := 0.75
+const DETAIL_MIN_SIZE := 11
+## A day event's chip after its shift line: the icon at 1x on the event's tint (red inspection,
+## green boon) with a darker edge, CHIP_PAD px round it, CHIP_GAP px after the text and apart.
+const CHIP_PAD := 2
+const CHIP_GAP := 4
+const CHIP_TAGS: Array[String] = ["INSPECTION", "TODAY"]
+## The keys that press Return to menu once printed (Enter also prints the rest while printing).
+const MENU_KEYS: Array[Key] = [KEY_ENTER, KEY_KP_ENTER, KEY_SPACE]
 ## The column's spacing between the headline, the lines and the buttons.
 const COLUMN_SEPARATION := 10
 ## A long run's receipt (#77: a dim line per machine visit) steps down through these until it
 ## fits the screen with the top bar's height free above and below it: the shift and coin lines'
 ## font size, the dim lines' and the column's spacing, roomiest first.
+## Polish batch 2: the dim lines stay DETAIL_MIN_SIZE in the last step (13 px shift lines, the
+## size a won 16-shift run's week columns take beside the CLOSED sign at 1280 x 720).
 const FITS: Array[Vector3i] = [
 	Vector3i(LINE_SIZE, DETAIL_SIZE, COLUMN_SEPARATION),
 	Vector3i(15, 12, 6),
-	Vector3i(14, 11, 4),
-	Vector3i(13, 10, 2),
+	Vector3i(14, DETAIL_MIN_SIZE, 4),
+	Vector3i(13, DETAIL_MIN_SIZE, 2),
 ]
 ## A receipt that doesn't fit even then is built again compact (FinalReceipt.lines' `compact`, its
 ## inspection lines folded into the shift lines) through FITS, then COMPACT_FITS, smaller still.
@@ -91,8 +117,11 @@ var _coin_from: int = 0
 ## Each line's print time, in ms from the show (index × final_line_ms, the lines after the BEST
 ## line later by its wipe, slam and hold).
 var _print_at: PackedInt32Array = PackedInt32Array()
-## The BEST line, or null.
+## The BEST line, or null, and its moment.
 var _highlight: ReceiptHighlight
+var _moment: RunHighlight.Moment
+## The BEST stub, in the parent between the closed store and the receipt.
+var _stub: BestStub
 ## How many lines have printed.
 var _printed: int = 0
 var _print_started_ms: int = 0
@@ -175,23 +204,30 @@ func _init(tuning: CountUpTuning = null, reduced_motion: Callable = Callable()) 
 	_reader.tapped.connect(func(_now_ms: int) -> void: skip_printing())
 	_closed = StoreClosed.new()
 	_closed.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_stub = BestStub.new()
+	_stub.reduced_motion = _is_reduced
 	_reveal = PinReveal.new()
 	_reveal.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_reveal.setup(self, is_printing)
+	_reveal.setup(self, _is_busy)
 	visible = false
 
 
 ## The closed store goes in the panel's parent (the shift screen, over the whole window), just
-## behind the panel, and the pin cards just in front of it, once the parent has finished setting
-## up its children.
+## behind the panel, the BEST stub between them, and the pin cards just in front of the panel, once
+## the parent has finished setting up its children.
 func _ready() -> void:
 	_place_closed.call_deferred()
 
 
 func _place_closed() -> void:
+	if _closed.is_inside_tree() or not is_inside_tree():
+		return
 	get_parent().add_child(_closed)
 	get_parent().move_child(_closed, get_index())
 	_closed.visible = visible
+	get_parent().add_child(_stub)
+	get_parent().move_child(_stub, get_index())
+	_stub.visible = visible
 	get_parent().add_child(_reveal)
 	get_parent().move_child(_reveal, get_index() + 1)
 	_reveal.visible = visible
@@ -201,9 +237,11 @@ func _notification(what: int) -> void:
 	# Freed before the closed store was placed: it would be left orphaned.
 	if what == NOTIFICATION_PREDELETE and _closed != null and not _closed.is_inside_tree():
 		_closed.free()
+		_stub.free()
 		_reveal.free()
 	if what == NOTIFICATION_VISIBILITY_CHANGED and _closed != null:
 		_closed.visible = visible
+		_stub.visible = visible
 		_reveal.visible = visible
 	if what == NOTIFICATION_VISIBILITY_CHANGED and not visible and _reader != null:
 		_reader.end()
@@ -214,6 +252,9 @@ func _process(_delta: float) -> void:
 		return
 	_closed.focus = get_global_rect()
 	_print_due()
+	_place_stub()
+	if not is_printing() and not _stub.is_playing():
+		_reader.end()
 	if not _menu_button.disabled or Time.get_ticks_msec() < _armed_ms:
 		return
 	if not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
@@ -229,12 +270,20 @@ func show_results(
 	var won: bool = run.phase == RunState.Phase.WON
 	_headline.add_theme_color_override("font_color", Palette.GOOD if won else Palette.TOMATO)
 	_loyalty_card.show_upgrades(LoyaltyCard.box_count(run), run.upgrades)
+	# Shown in the frame the screen was set up (a debug capture): the CLOSED sign the receipt's width
+	# keeps clear of (_room_width) goes in first.
+	_place_closed()
 	_left_weeks = FinalReceipt.left_weeks(run)
 	var columns: bool = _left_weeks > 0
 	_lay_out(
-		FinalReceipt.lines(run, result, coins_total, false, columns),
-		FinalReceipt.lines(run, result, coins_total, true, columns)
+		FinalReceipt.lines(run, result, coins_total, false, columns, true),
+		FinalReceipt.lines(run, result, coins_total, true, columns, true)
 	)
+	var definition: HighlightDefinition = run.balance.highlight if run.balance != null else null
+	var week: int = 0
+	if _moment != null and run.balance != null:
+		week = WeekSchedule.week_of(run.balance, _moment.shift) + 1
+	_stub.set_moment(_moment, definition, week)
 	_coin_sounds = FinalReceipt.coin_sounds(CoinPayout.for_run(run).total())
 	_coins_s = 0.0
 	coins_started_ms = -1
@@ -246,14 +295,16 @@ func show_results(
 	_print_started_ms = Time.get_ticks_msec()
 	_reader.begin()
 	_print_due()
+	_place_stub()
 	_reveal.show_news(pin_news, _reduced_motion.is_valid() and bool(_reduced_motion.call()))
 	pin_news = null
 
 
 ## Prints the rest of the receipt at once (a tap). The coins still clink and the music still
-## ducks for them, from now.
+## ducks for them, from now. Once printed, a tap shows the BEST stub in place.
 func skip_printing() -> void:
 	if not is_printing():
+		_stub.finish_playing()
 		return
 	print_skipped = true
 	_print_due()
@@ -272,6 +323,11 @@ func coins_seconds() -> float:
 ## The closed store behind the receipt (for tests).
 func store_closed() -> StoreClosed:
 	return _closed
+
+
+## The BEST stub (for tests and layout checks).
+func best_stub() -> BestStub:
+	return _stub
 
 
 ## The badge pins' unlock cards (for tests and layout checks).
@@ -326,10 +382,80 @@ func is_compact() -> bool:
 	return COMPACT_FITS.has(_fit) or texts().size() < _full_count
 
 
+## Enter or Space: Return to menu once the receipt has printed and the key is armed; Enter while
+## it prints prints the rest (Space is the press reader's tap then). Esc does nothing here (the
+## pause doesn't open over the results).
+func _unhandled_key_input(event: InputEvent) -> void:
+	var key: InputEventKey = event as InputEventKey
+	if not visible or key == null or not key.pressed or key.echo:
+		return
+	if not MENU_KEYS.has(key.keycode):
+		return
+	if is_printing():
+		if key.keycode != KEY_SPACE:
+			get_viewport().set_input_as_handled()
+			skip_printing()
+		return
+	if _menu_button.disabled:
+		return
+	get_viewport().set_input_as_handled()
+	_menu_button.pressed.emit()
+
+
+## The day event chips of shift line `label` (FinalReceipt.Line.events), in a row after its text
+## (set in `font` at the line's size), each centred on the line's height.
+func _add_chips(label: Label, line: FinalReceipt.Line, font: Font) -> void:
+	var row: HBoxContainer = HBoxContainer.new()
+	row.name = "DayChips"
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_theme_constant_override("separation", CHIP_GAP)
+	row.set_anchors_preset(Control.PRESET_LEFT_WIDE)
+	var text_width: float = (
+		font.get_string_size(line.text, HORIZONTAL_ALIGNMENT_LEFT, -1, _size(line)).x
+	)
+	row.offset_left = ceilf(text_width) + CHIP_GAP * 2
+	label.add_child(row)
+	for event: InspectionDefinition in line.events:
+		row.add_child(_day_chip(event))
+
+
+## One day event's chip: its icon (the boon or warning icon without one) on its tint.
+static func _day_chip(event: InspectionDefinition) -> PanelContainer:
+	var boon: bool = event.is_boon()
+	var chip: PanelContainer = PanelContainer.new()
+	chip.name = "DayChip"
+	chip.mouse_filter = Control.MOUSE_FILTER_PASS
+	chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var box: StyleBoxFlat = StyleBoxFlat.new()
+	box.bg_color = Palette.GREEN_LIGHT if boon else Palette.TOMATO_PALE
+	box.border_color = Palette.GREEN_DARK if boon else Palette.TOMATO_DARK
+	box.set_border_width_all(1)
+	box.set_corner_radius_all(2)
+	box.set_content_margin_all(CHIP_PAD)
+	chip.add_theme_stylebox_override("panel", box)
+	var texture: Texture2D = WeekCard.BOON if boon else WeekCard.WARNING
+	if not event.icon_ref.is_empty() and ResourceLoader.exists(event.icon_ref):
+		texture = load(event.icon_ref) as Texture2D
+	var icon: TextureRect = UiKit.sprite(texture)
+	icon.custom_minimum_size = texture.get_size()
+	icon.flip_v = event.icon_flipped
+	chip.add_child(icon)
+	TipTarget.cover_text(
+		chip,
+		event.notice_text,
+		TipSpec.Kind.STATUS,
+		CHIP_TAGS[1 if boon else 0],
+		"",
+		event.display_name
+	)
+	return chip
+
+
 ## While a pin's card is still to come, the press shows them all in place and stays: a player
 ## clicking through still sees the unlocks, and the next press leaves.
 func _on_menu_pressed() -> void:
 	skip_printing()
+	_stub.finish_playing()
 	if _reveal.is_revealing():
 		_reveal.finish()
 		return
@@ -360,13 +486,17 @@ func _room() -> float:
 
 ## The width the centred receipt may take: its parent's, less the closed store's CLOSED sign (by
 ## the window's left edge) and as much again on the right, so the sign stays in view (v0.96: a
-## receipt in week columns is wide).
+## receipt in week columns is wide). With badge pins to unlock (pin_news), it also leaves their
+## stack's room on the right (polish batch 2: a roomier receipt would reach under the cards).
 func _room_width() -> float:
 	var width: float = get_parent_area_size().x
+	var room: float = width
+	if pin_news != null and not pin_news.is_empty():
+		room = width - 2.0 * (PinUnlockCard.CARD_SIZE.x + PinReveal.EDGE + SIGN_GAP)
 	if _closed == null or not _closed.is_inside_tree():
-		return width
+		return room
 	var sign_end: float = _closed.sign_rect().end.x - _closed.get_global_rect().position.x
-	return width - 2.0 * (sign_end + SIGN_GAP)
+	return minf(room, width - 2.0 * (sign_end + SIGN_GAP))
 
 
 func _build_lines(lines: Array[FinalReceipt.Line]) -> void:
@@ -376,6 +506,7 @@ func _build_lines(lines: Array[FinalReceipt.Line]) -> void:
 	_lines = []
 	_week_columns = []
 	_highlight = null
+	_moment = null
 	_printed = 0
 	_coin_from = lines.size()
 	for index: int in range(lines.size()):
@@ -392,12 +523,15 @@ func _build_lines(lines: Array[FinalReceipt.Line]) -> void:
 		var label: Label
 		if line.tone == FinalReceipt.Tone.HIGHLIGHT:
 			_highlight = ReceiptHighlight.new(line, _size(line), font)
+			_moment = line.moment
 			label = _highlight
 		else:
 			label = UiKit.label(line.text, _size(line), _color(line))
 			label.add_theme_font_override("font", font)
 		if line.tone == FinalReceipt.Tone.WEEK:
 			_make_week_tab(label, line.week)
+		if not line.events.is_empty():
+			_add_chips(label, line, font)
 		_line_parent(line).add_child(label)
 		_lines.append(label)
 	# Not printed yet: hidden by alpha, so the receipt keeps its size while it prints.
@@ -425,6 +559,20 @@ func _is_reduced() -> bool:
 	return _reduced_motion.is_valid() and bool(_reduced_motion.call())
 
 
+## Printing, or the BEST stub still sliding in: the pins' cards wait.
+func _is_busy() -> bool:
+	return is_printing() or (visible and _stub.is_playing())
+
+
+## Places the BEST stub left of the receipt, below the CLOSED sign once settled, and holds it
+## while the shutter rolls down.
+func _place_stub() -> void:
+	if not _closed.is_inside_tree():
+		return
+	_stub.hold(_closed.shutter() < 1.0)
+	_stub.place(get_global_rect(), _closed.settled_sign_rect(), _closed.get_global_rect())
+
+
 ## Prints every line due by now: one every final_line_ms from the show, all of them once
 ## skipped.
 func _print_due() -> void:
@@ -436,6 +584,7 @@ func _print_due() -> void:
 			due += 1
 	if print_skipped and _highlight != null:
 		_highlight.finish()
+	var was_printing: bool = _printed < _lines.size()
 	while _printed < due:
 		_lines[_printed].modulate.a = 1.0
 		if _lines[_printed] == _highlight and not print_skipped:
@@ -443,7 +592,12 @@ func _print_due() -> void:
 		if _printed == _coin_from:
 			_start_coins()
 		_printed += 1
-	if _printed >= _lines.size():
+	if was_printing and _printed >= _lines.size():
+		if print_skipped:
+			_stub.finish()
+		else:
+			_stub.play(_is_reduced())
+	if _printed >= _lines.size() and not _stub.is_playing():
 		_reader.end()
 
 
@@ -530,5 +684,5 @@ static func _color(line: FinalReceipt.Line) -> Color:
 		FinalReceipt.Tone.WEEK:
 			return Palette.PAPER
 		FinalReceipt.Tone.DETAIL:
-			return Color(Palette.TOMATO if line.failed else Palette.INK, 0.55)
+			return Color(Palette.TOMATO if line.failed else Palette.INK, DETAIL_ALPHA)
 	return Palette.TOMATO if line.failed else Palette.INK

@@ -259,6 +259,23 @@ func test_log_fields() -> void:
 	assert_dict(RunHighlight.log_fields(null)).is_empty()
 
 
+## The line's parts (the BEST stub prints them apart) join into its text; First GOLDEN has no
+## value; Closest call's margin is its total less its quota.
+func test_the_parts_and_the_margin() -> void:
+	var history: Array[ShiftRecord] = [_record(4, 100, 110, MILK_GOLDEN, 64)]
+	var moment: RunHighlight.Moment = RunHighlight.pick(history, _definition)
+	var parts: PackedStringArray = RunHighlight.parts(moment, _definition)
+	assert_array(Array(parts)).is_equal(["Biggest payout", "Golden milk", "64€"])
+	assert_str(RunHighlight.text(moment, _definition)).is_equal(RunHighlight.JOIN.join(parts))
+	var golden: RunHighlight.Moment = _kind(history, RunHighlight.Kind.FIRST_GOLDEN)
+	assert_array(Array(RunHighlight.parts(golden, _definition))).is_equal(
+		["First GOLDEN", "Golden milk"]
+	)
+	var close: RunHighlight.Moment = _kind(history, RunHighlight.Kind.CLOSEST_CALL)
+	assert_int(RunHighlight.margin_of(close)).is_equal(10)
+	assert_int(RunHighlight.log_fields(close)["value"]).is_equal(10)
+
+
 ## The bests go through the record's saved form (as JSON text reads it back); a record without
 ## them (a save or log from before v1.37) reads as none; a combo with an unknown keyword or a
 ## card that doesn't resolve is refused.

@@ -343,11 +343,14 @@ static func tip_for(upgrade: UpgradeDefinition) -> TipSpec:
 	return made
 
 
-## A stamped box's hover text: the ticket's fields, so nothing is only in the animation.
+## A stamped box's hover text: the ticket's fields, so nothing is only in the animation. The
+## perk's type follows its name in brackets unless it is the name (polish batch 2: "Bulk deal
+## (Bulk deal)" read as a data bug).
 static func tooltip_for(upgrade: UpgradeDefinition) -> String:
-	var lines: PackedStringArray = PackedStringArray(
-		["%s (%s)" % [perk_name(upgrade), upgrade.type_label()], upgrade.effect_text]
-	)
+	var head: String = perk_name(upgrade)
+	if upgrade.type_label().to_lower() != upgrade.display_name.to_lower():
+		head = "%s (%s)" % [head, upgrade.type_label()]
+	var lines: PackedStringArray = PackedStringArray([head, upgrade.effect_text])
 	if not upgrade.condition_text.is_empty():
 		lines.append(upgrade.condition_text)
 	return "\n".join(lines)

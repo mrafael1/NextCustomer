@@ -328,11 +328,21 @@ static func _ignore_pointer(node: Node) -> void:
 ## later pages lay the rule out once.
 func _make_description(text: String, key: StringName) -> Control:
 	if text.is_empty():
-		var plain: Label = UiKit.body_label(PLAIN_TEXT, TEXT_TIERS[0].x, Palette.MUTED_INK)
-		plain.add_theme_font_override("font", ArtStyle.bold_font(TEXT_WEIGHT))
-		plain.autowrap_mode = TextServer.AUTOWRAP_WORD
+		# Polish batch 2: laid out as the rules are (a GlyphLabel at the first tier's line pitch),
+		# so its leading matches theirs; in muted ink.
+		var tier: Vector2i = TEXT_TIERS[0]
+		var plain: GlyphLabel = GlyphLabel.new(
+			PLAIN_TEXT,
+			ArtStyle.bold_font(TEXT_WEIGHT),
+			tier.x,
+			Palette.MUTED_INK,
+			tier.y,
+			TEXT_AREA.size.x,
+			floori(TEXT_AREA.size.y / tier.y)
+		)
+		plain.name = "Plain"
 		plain.position = TEXT_AREA.position
-		plain.size = Vector2(TEXT_AREA.size.x, 0)
+		plain.size = TEXT_AREA.size
 		return plain
 	var label: GlyphLabel = null
 	if _tiers.has(key):

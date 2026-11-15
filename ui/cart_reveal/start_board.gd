@@ -8,8 +8,12 @@ extends Control
 ## (StartBoardActions), so this class only displays them and routes input.
 
 signal clocked_in(pack: StarterPackDefinition)
-## Esc (or ‹ TITLE) on the store page: the screen owns the scene change and its teardown.
+## ‹ TITLE (or Esc with nothing listening to options_requested), and the options' BACK TO TITLE
+## (leave): the screen owns the scene change and its teardown.
 signal back_to_title
+## Esc on the store page with nothing of its own to close (polish batch 2): the screen opens the
+## options with BACK TO TITLE (PauseFlow.open_start_options).
+signal options_requested
 
 ## The keys the board answers; any other key goes on (F1's debug panel, global shortcuts).
 const KEYS: Array[Key] = [
@@ -270,9 +274,18 @@ func back(key: String = "esc") -> void:
 		return
 	if page == 2:
 		show_page(1, key)
+	elif key == "esc" and options_requested.has_connections():
+		options_requested.emit()
 	else:
-		_choice.page_changed.call(0, 1, key)
-		back_to_title.emit()
+		leave(key)
+
+
+## Leaves the board for the title (`key` as start_page logs it).
+func leave(key: String = "esc") -> void:
+	if busy:
+		return
+	_choice.page_changed.call(0, 1, key)
+	back_to_title.emit()
 
 
 ## Opens the BADGE PINS step on page 2 (the corkboard, P).

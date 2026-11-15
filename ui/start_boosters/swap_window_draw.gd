@@ -29,6 +29,11 @@ const BASKET_W := 432
 const SLOT_STEP := 106
 const SLOT_X0 := 161
 const PADLOCK := preload("res://art/icons/padlock.png")
+## The gold drop box's foot band with the replaced card's name and price (polish batch 2).
+const TARGET_BAND := 13
+## The aisle plates over the swap boosters' fans: their top (on the back wall's rail) and height.
+const AISLE_PLATE_TOP := 40
+const AISLE_PLATE_HEIGHT := 12
 
 static var _room: ImageTexture
 
@@ -141,6 +146,9 @@ static func _scene(pen: ArtPen, page: BoosterPage, w: SwapWindow) -> void:
 			BoosterPageDraw.open_booster(pen, page, b, BACK_Y - SHIFT)
 			BoosterPageDraw.tear(pen, page, b)
 			pen.origin = saved
+	for bi: int in w.boosters.size():
+		if w.boosters[bi].state == BoosterOpening.State.OPEN:
+			_aisle_plate(pen, page, w.boosters[bi])
 	var held: SwapPiece = w.held
 	if held != null:
 		var home: Dictionary = w.target(held)
@@ -397,8 +405,70 @@ static func _targets(pen: ArtPen, page: BoosterPage, w: SwapWindow, held: SwapPi
 				pen.r(r.position.x, r.end.y - 2, r.size.x, 2, Palette.GOLD)
 				pen.r(r.position.x, r.position.y, 2, r.size.y, Palette.GOLD)
 				pen.r(r.end.x - 2, r.position.y, 2, r.size.y, Palette.GOLD)
+				_target_band(pen, r, page.run.starter.core_cards[slot])
 		elif why == "":
 			dashes(pen, r, Palette.BRASS, phase)
+
+
+## The gold drop box's foot (polish batch 2): the name and price of the card it would replace,
+## in ink on a gold band TARGET_BAND art px tall (the price left out when both don't fit).
+static func _target_band(pen: ArtPen, r: Rect2, card: CardDefinition) -> void:
+	var y: float = r.end.y - TARGET_BAND
+	pen.r(r.position.x, y, r.size.x, TARGET_BAND, Palette.GOLD)
+	pen.r(r.position.x + 2, y, r.size.x - 4, 1, Palette.MUSTARD_PALE)
+	var name: String = card.display_name.to_upper()
+	var price: String = "%d€" % card.base
+	var name_w: float = ArtPen.pix_width(name)
+	var price_w: float = ArtPen.word_texture(price, Palette.INK, true).get_width()
+	var fit_w: float = r.size.x - 8
+	var cx: float = r.position.x + r.size.x / 2.0
+	if name_w + 4 + price_w <= fit_w:
+		var left: float = roundf(cx - (name_w + 4 + price_w) / 2.0)
+		pen.pix(name, left, y + 4, Palette.INK)
+		pen.chunky(price, left + name_w + 4, y + 3, Palette.INK)
+	elif name_w <= fit_w:
+		pen.pix(name, cx, y + 4, Palette.INK, 1.0, HORIZONTAL_ALIGNMENT_CENTER)
+	else:
+		pen.caps(name, cx, y + 5, Palette.INK, 1.0, HORIZONTAL_ALIGNMENT_CENTER)
+
+
+## The text box of the drop box's foot band (art px, for tests): where the name and price print.
+static func target_band_rect(slot: int) -> Rect2:
+	var r: Rect2 = slot_rect(slot)
+	return Rect2(r.position.x, r.end.y - TARGET_BAND, r.size.x, TARGET_BAND)
+
+
+## A small aisle plate over an open swap booster's fan (polish batch 2): the aisle's name in the
+## chunky capitals on its sign colour, hanging from the back wall's rail over the middle card.
+static func _aisle_plate(pen: ArtPen, page: BoosterPage, b: BoosterOpening) -> void:
+	var plate: Rect2 = aisle_plate_rect(page, b)
+	if plate.size.x <= 0:
+		return
+	var ramp: Array[Color] = BoosterArt.ramp(b.aisle)
+	var x: float = plate.position.x
+	var y: float = plate.position.y
+	pen.rn(x, y, plate.size.x, plate.size.y, ramp[1])
+	pen.r(x + 1, y + 1, plate.size.x - 2, 1, ramp[0])
+	pen.r(x + 1, y + plate.size.y - 2, plate.size.x - 2, 1, ramp[2])
+	var light: bool = BoosterArt.LIGHT_SIGNS.has(b.aisle)
+	var label: String = BoosterArt.short_name(BoosterPageDraw.aisle_def(page, b.aisle))
+	pen.chunky(
+		label,
+		plate.get_center().x,
+		y + 2,
+		Palette.INK if light else Palette.CREAM,
+		1.0,
+		HORIZONTAL_ALIGNMENT_CENTER
+	)
+
+
+## Swap booster `b`'s aisle plate (art px; empty without an aisle name).
+static func aisle_plate_rect(page: BoosterPage, b: BoosterOpening) -> Rect2:
+	var label: String = BoosterArt.short_name(BoosterPageDraw.aisle_def(page, b.aisle))
+	if label.is_empty():
+		return Rect2()
+	var w: float = ArtPen.word_texture(label, Palette.INK, true).get_width() + 10
+	return Rect2(roundf(b.cx - w / 2.0), AISLE_PLATE_TOP, w, AISLE_PLATE_HEIGHT)
 
 
 ## Whether `held` is a swapped-in item over its own slot (no target there: it just goes home).

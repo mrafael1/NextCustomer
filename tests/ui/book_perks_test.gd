@@ -2,7 +2,7 @@ extends GdUnitTestSuite
 ## The FIGURINE BOOK's PERKS (v1.30 round 10, decided with the user 2026-11-12; memory: UI tests
 ## check on-screen geometry): a card per loyalty perk of the live pool, in the LOYALTY teal with
 ## the perk's stamp at 3x and its level pips, grey until picked in an ended run; never NEW, no
-## price; the PERKS header and the CARDS LED count them; a family perk shows under its family
+## price; the PERKS header and the count LED count them; a family perk shows under its family
 ## too. Every perk card fits its pocket at 1280x720 and in a 1920x1080 window.
 
 const Kit := preload("res://tests/ui/toy_test_kit.gd")
@@ -118,7 +118,7 @@ func test_every_perk_card_fits_its_pocket(
 ## mark and its family's glyph, its pips lit to its level, no price, no NEW even when listed
 ## fresh; a perk that never levels up (Banana stand) has a stamp and no pips; one not picked yet
 ## is the shared grey face with no stamp and no pips, its name and rule readable. The PERKS
-## option is last with no dot, the PERKS header and the CARDS LED count the picked perks, and
+## option is last with no dot, the PERKS header and the count LED count the picked perks, and
 ## Dairy's filter shows its perks after its items.
 func test_perk_cards_show_their_ring_pips_and_grey_state() -> void:
 	var profile: ProfileState = Kit.profile(0, 0)
@@ -185,11 +185,11 @@ func test_perk_cards_show_their_ring_pips_and_grey_state() -> void:
 	var lemon: BookCard = _card(profile, &"lemon_squeezer")
 	assert_bool(lemon.entry().owned).is_false()
 	assert_int(lemon.family_glyphs().size()).is_equal(1)
-	# The CARDS LED counts the picked perks with the items.
+	# The count LED counts the picked perks with the items.
 	var counted: Vector2i = BookOrder.count(_entries(profile))
 	var items: Vector2i = BookOrder.count(_entries(Kit.profile(0, 0)))
 	assert_int(counted.x).is_equal(items.x + 3)
-	assert_str(book.leds()[0].text()).is_equal("%d/%d CARDS" % [counted.x, counted.y])
+	assert_str(book.leds()[0].text()).is_equal("%d/%d FIGURINES" % [counted.x, counted.y])
 	# Dairy's filter: its perks after its items, headed with them counted.
 	book.set_filter("Dairy")
 	var kinds: Array[bool] = []

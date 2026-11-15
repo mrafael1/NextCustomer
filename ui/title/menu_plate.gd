@@ -3,8 +3,9 @@ extends FramedButton
 ## One entry of the title's menu (#56, mock-up title_premium_directions.html, direction C+): the
 ## teal plate (frames/button_teal, the primary's family in teal; since v0.80, instead of a cream
 ## shelf label with an aisle stripe) with its caption in paper, or the primary plate (the tomato
-## button.png) with a large paper caption and a sub-line under it in the number font (the run's
-## shift, SHIFT 5/16).
+## button.png) with a large paper caption and a sub-line under it (the run's shift, SHIFT 5/16)
+## in hard pixel capitals and digits (PixelLine; polish batch 2: the smooth number font read as
+## UI laid over the art).
 ##
 ## The marker on it lights it: the plate moves HOT_SHIFT px right onto its lit frame
 ## (button_teal_lit, button_lit) and a tomato price-gun tick (icons/tick_marker) shows left of it
@@ -38,19 +39,19 @@ const HOT_SHIFT := 4.0
 const PLATE_SINK := 2.0
 const PRIMARY_SINK := FramedButton.PRESS_DEPTH
 ## The captions: hard pixel words (UiKit.pixel_label), one font pixel 2 canvas px on a teal
-## plate and 4 on the primary plate; the sub-line and the coin count in the number font.
+## plate and 4 on the primary plate; the sub-line a PixelLine at one art px per font px, the coin
+## count in the number font.
 const PLATE_TEXT_SCALE := 2
 const PRIMARY_TEXT_SCALE := 4
-const SUB_FONT_SIZE := 14
 const COUNT_FONT_SIZE := 16
 ## Where the captions sit on the face, in canvas px from its top left: a teal plate's caption
 ## centred on the face between its pale top row and its shade row and ledge; the primary's
-## caption in its top band, the sub-line under it.
+## caption in its top band, the sub-line's cap top at SUB_AT (its capitals 14 px tall).
 const PLATE_CAPTION_LEFT := 16.0
 const PLATE_FACE_TOP := 4.0
 const PLATE_FACE_BOTTOM := 6.0
 const PRIMARY_CAPTION_RECT := Rect2(24, 6, 0, 40)
-const SUB_RECT := Rect2(26, 50, 0, 14)
+const SUB_AT := Vector2(26, 50)
 ## The coin count: the coin (12x12 art at 2x), COUNT_GAP px before the number, the pair
 ## COUNT_RIGHT px inside the face's right edge.
 const COIN_SIZE := Vector2(24, 24)
@@ -72,11 +73,12 @@ var marked: bool = false:
 ## The primary plate's sub-line (empty: none). A shelf label has none.
 var sub_line: String:
 	get:
-		return _sub_label.text
+		return _sub_text
 	set(value):
-		_sub_label.text = value
-		_sub_label.visible = not value.is_empty()
+		_sub_text = value
+		_sub_line.visible = not value.is_empty()
 		accessibility_description = value
+		_paint_sub_line()
 
 var _kind: Kind
 var _face_size: Vector2
@@ -84,7 +86,8 @@ var _face_size: Vector2
 var _styles: Array[StyleBoxTexture] = []
 ## The face's content (captions and coin count): it moves with the face.
 var _content: Control
-var _sub_label: Label
+var _sub_line: PixelLine
+var _sub_text: String = ""
 var _coin: TextureRect
 var _count_label: Label
 var _tick: TextureRect
@@ -184,8 +187,8 @@ func centre_caption(text_scale: int = 0) -> void:
 	)
 
 
-func sub_label() -> Label:
-	return _sub_label
+func sub_line_node() -> PixelLine:
+	return _sub_line
 
 
 func count_label() -> Label:
@@ -229,12 +232,11 @@ func _build_content(primary: bool) -> void:
 			PLATE_CAPTION_LEFT, PLATE_FACE_TOP, 0, _face_size.y - PLATE_FACE_TOP - PLATE_FACE_BOTTOM
 		)
 	_put(caption_node, caption_rect)
-	_sub_label = UiKit.number_label("", SUB_FONT_SIZE, false)
-	_sub_label.add_theme_constant_override("outline_size", 0)
-	_sub_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_sub_label.visible = false
-	_content.add_child(_sub_label)
-	_put(_sub_label, SUB_RECT)
+	_sub_line = PixelLine.new()
+	_sub_line.name = "SubLine"
+	_sub_line.position = SUB_AT
+	_sub_line.visible = false
+	_content.add_child(_sub_line)
 	_coin = UiKit.sprite(COIN)
 	_coin.size = COIN_SIZE
 	_coin.visible = false
@@ -264,9 +266,18 @@ func _show_plate(mode: DrawMode) -> void:
 	face_panel.add_theme_stylebox_override("panel", _styles[1 if lit else 0])
 	face_panel.modulate = Color.WHITE
 	modulate = Color.WHITE
-	_sub_label.add_theme_color_override("font_color", Palette.PAPER if lit else Palette.TOMATO_PALE)
+	_paint_sub_line()
 	_tick.visible = lit
 	mouse_default_cursor_shape = CURSOR_ARROW if off else CURSOR_POINTING_HAND
+
+
+## The sub-line's words and numbers (split at its spaces; a lone · is the drawn separator), paper
+## on a lit plate, else pale tomato.
+func _paint_sub_line() -> void:
+	if _sub_line == null:
+		return
+	var ink: Color = Palette.PAPER if _lit(get_draw_mode()) else Palette.TOMATO_PALE
+	_sub_line.show_tokens(Array(_sub_text.split(" ", false)), ink, ink)
 
 
 func _lit(mode: DrawMode) -> bool:

@@ -100,8 +100,9 @@ const SCRIPTS: Array[String] = [
 ]
 ## The scan pieces, the items and the planning effects' pieces (#71), the giver sparks (#86 v6)
 ## and the bay's family chip (#105 piece 2), the gauge's lap lamp (v4's A1), and left column v2's
-## overhead printer, service bell, desk calendar art and hanging receipt's tail name
-## no colour of their own: every colour they draw is a Palette constant.
+## overhead printer, service bell, desk calendar art and hanging receipt's tail, and the results'
+## BEST stub (receipt_highlight direction B) name no colour of their own: every colour they draw
+## is a Palette constant.
 const PALETTE_ONLY: Array[String] = [
 	"res://ui/price_sticker.gd",
 	"res://ui/scan_popup.gd",
@@ -122,6 +123,7 @@ const PALETTE_ONLY: Array[String] = [
 	"res://ui/service_bell.gd",
 	"res://ui/desk_calendar_art.gd",
 	"res://presentation/receipt_hang.gd",
+	"res://ui/best_stub.gd",
 ]
 ## The machine's parts (test_the_machine_parts_use_the_palette) and the colour literals they may
 ## not write.

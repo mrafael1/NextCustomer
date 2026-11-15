@@ -128,6 +128,11 @@ func show_gauge(animate: bool = true) -> void:
 	_slide(false, animate)
 
 
+## Its rest top (the parent's px), where it stands when shown (GaugeSocket stands there too).
+func rest_y() -> float:
+	return _rest_y
+
+
 ## Whether the gauge is (going) up out of the bar.
 func is_hidden() -> bool:
 	return _hidden

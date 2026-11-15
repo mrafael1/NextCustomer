@@ -41,7 +41,8 @@ extends Control
 ## chute_confirmed; the chosen key stays down through the draw.
 ##
 ## THE PRIZES' EFFECTS (v0.53): resting the pointer on a revealed prize ticket opens `popup`
-## (PrizePopup, the scan popup the offers used) with what it does in full, beside the ticket.
+## (PrizePopup: the game's hover tip, TipCard, since polish batch 2) with what it does in full,
+## under the ticket.
 ##
 ## THE CLOCK AND THE HOOKS:
 ## - `plan` is the visit's MachinePlan (presentation/machine_plan.gd: every beat's time, from
@@ -137,6 +138,9 @@ const CART_FULL_TEXT := "CART FULL: REPLACE A CARD"
 const BIN_ALL := "THROW AWAY ALL %d?"
 const BIN_ALL_SUB := "you get no prize this time"
 const SKIP_SUB := "or skip the draw"
+## The number keys that press a chute's key (1, 2) or pick a ticket (1, 2, 3), top row and keypad.
+const KEY_NUMBERS: Array[Key] = [KEY_1, KEY_2, KEY_3]
+const KEYPAD_NUMBERS: Array[Key] = [KEY_KP_1, KEY_KP_2, KEY_KP_3]
 
 var cabinet: MachineCabinet
 var head: MachineHead
@@ -185,6 +189,8 @@ var loyalty_card: LoyaltyCard
 var sfx: Sfx
 var music: MusicService
 var reduced_motion: Callable = func() -> bool: return false
+## Whether something covers the machine (the handbook, the time card): its keys then do nothing.
+var keys_blocked: Callable = func() -> bool: return false
 ## The receipt's lines as the count-up printed them, for a copy of it (MachineFlow sets them).
 var receipt_header: PackedStringArray = PackedStringArray()
 var receipt_names: PackedStringArray = PackedStringArray()
@@ -270,6 +276,40 @@ func _init() -> void:
 	MachineDim.idle_mouse(self, true)
 	set_lit(0.0)
 	_place_keys(MachineLook.new())
+
+
+func _unhandled_key_input(event: InputEvent) -> void:
+	if _take_key(event as InputEventKey):
+		get_viewport().set_input_as_handled()
+
+
+## The machine's keys (see the header's KEYS): true when `key` was taken.
+func _take_key(key: InputEventKey) -> bool:
+	if key == null or not key.pressed or key.echo or key.alt_pressed:
+		return false
+	if run == null or not is_visible_in_tree() or bool(keys_blocked.call()):
+		return false
+	var number: int = maxi(KEY_NUMBERS.find(key.keycode), KEYPAD_NUMBERS.find(key.keycode))
+	var enter: bool = key.keycode == KEY_ENTER or key.keycode == KEY_KP_ENTER
+	var taken: bool = false
+	if run.phase == RunState.Phase.MACHINE_CHOOSE and _armed:
+		if tray.confirm_down():  # The push is going through: no key undoes or swaps it.
+			taken = key.keycode == KEY_ESCAPE or number >= 0 or enter
+		elif key.keycode == KEY_ESCAPE and _pressed >= 0:
+			_release()  # The topmost thing: the pressed key lets up, the push bar goes dark.
+			_frame()
+			taken = true
+		elif number >= 0 and number < keys.size():
+			press_key(number)
+			taken = true
+		elif enter and tray.confirm_offered():
+			tray.press_confirm()  # CONFIRM on PUSH: only a pressed key's chute is pushed.
+			taken = true
+	elif run.phase == RunState.Phase.MACHINE_PICK and _armed:
+		taken = number >= 0 and number < tickets.size()
+		if taken:
+			pick(number)
+	return taken
 
 
 func _process(delta: float) -> void:

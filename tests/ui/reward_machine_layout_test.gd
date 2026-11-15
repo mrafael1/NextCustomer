@@ -302,10 +302,10 @@ func test_a_bonus_visit_after_a_premium_one_stays_premium() -> void:
 
 
 ## Resting the pointer on a revealed prize (v0.53, the user's "user can't see effect of them")
-## opens the scan popup with its whole effect, beside its ticket and never over it, on the view,
-## its lines inside it: NEW ITEMS (the product's or the coupon's rule), and UPGRADE, classic and
-## PREMIUM (a loyalty perk's effect, an item upgrade's card at its new tier). Not before the ticket
-## lands face up; gone after the pick.
+## opens its tip with its whole effect, under its ticket and never over it, on the view: NEW
+## ITEMS (the product's or the coupon's rule), and UPGRADE, classic and PREMIUM (a loyalty perk's
+## effect, an item upgrade's card at its new tier). Not before the ticket lands face up; gone after
+## the pick.
 func test_a_revealed_prize_shows_its_effect_beside_it() -> void:
 	var cases: Array[Array] = [
 		[_passed_run(37), RewardMachine.Chute.NEW_ITEMS],
@@ -331,20 +331,16 @@ func test_a_revealed_prize_shows_its_effect_beside_it() -> void:
 			view._on_ticket_hovered(index)
 			assert_bool(popup.visible).override_failure_message(where).is_true()
 			assert_int(popup.ticket_index).is_equal(index)
-			var shown: Rect2 = popup.get_global_rect()
+			# Polish batch 2: the game's one tip (TipCard) under the ticket, its boxes beside it.
 			var card: Rect2 = ticket.get_global_rect()
-			assert_bool(shown.intersects(card)).override_failure_message(where).is_false()
-			assert_bool(screen.encloses(shown)).override_failure_message(where).is_true()
-			for label: Label in popup.text_labels():
-				var inside: bool = shown.grow(SLACK).encloses(label.get_global_rect())
-				var said: String = (
-					"%s: '%s' %s in %s" % [where, label.text, label.get_global_rect(), shown]
-				)
-				assert_bool(inside).override_failure_message(said).is_true()
-			var rule: String = popup.rule_label().text
+			for shown: Rect2 in popup.shown_rects():
+				assert_bool(shown.intersects(card)).override_failure_message(where).is_false()
+				assert_bool(screen.encloses(shown)).override_failure_message(where).is_true()
+			var rule: String = popup.rule_text()
 			match prizes[index].kind:
 				MachinePrize.Kind.REGISTER:
-					assert_str(rule).contains(prizes[index].upgrade.effect_text)
+					var effect: String = prizes[index].upgrade.effect_text
+					assert_str(rule).contains(TipMarkup.plain(TipMarkup.auto(effect)))
 				MachinePrize.Kind.UPGRADE:
 					var preview: MachinePreview = run.machine.preview(run, index)
 					assert_str(popup.name_text()).is_equal(preview.to_cards[0].display_name)
