@@ -97,6 +97,14 @@ func sign_rect() -> Rect2:
 	return get_global_transform() * bounds
 
 
+## The CLOSED sign's bounds once the shutter is down (sign_rect, as far down as the shutter still
+## has to roll; global): what the results' BEST stub keeps clear of.
+func settled_sign_rect() -> Rect2:
+	var rect: Rect2 = sign_rect()
+	rect.position.y += (size.y - shutter_foot()) * get_global_transform().get_scale().y
+	return rect
+
+
 func _set_dark(value: float) -> void:
 	_dark = value
 	queue_redraw()

@@ -150,27 +150,37 @@ static func moments(history: Array[ShiftRecord], definition: HighlightDefinition
 ## "Longest CHAIN · 5 items · 118€", "First GOLDEN · Golden Milk", "Closest call · Shift 9 ·
 ## 102€ / 101€".
 static func text(moment: Moment, definition: HighlightDefinition) -> String:
-	var parts: PackedStringArray = PackedStringArray()
+	return JOIN.join(parts(moment, definition))
+
+
+## The line's parts (text() joins them): the kind's word, the subject and the value (First GOLDEN
+## has no value). The results' BEST stub prints them apart.
+static func parts(moment: Moment, definition: HighlightDefinition) -> PackedStringArray:
 	match moment.kind:
 		Kind.BIGGEST_PAYOUT:
-			parts = [definition.payout_word, moment.card.display_name, "%d€" % moment.amount]
+			return [definition.payout_word, moment.card.display_name, "%d€" % moment.amount]
 		Kind.OVER_QUOTA:
-			parts = [definition.over_quota_word, "Shift %d" % moment.shift, ratio_text(moment)]
+			return [definition.over_quota_word, "Shift %d" % moment.shift, ratio_text(moment)]
 		Kind.LONGEST_COMBO:
-			parts = [
+			return [
 				"%s %s" % [definition.combo_word, moment.keyword],
 				"%d items" % moment.length,
 				"%d€" % moment.amount,
 			]
 		Kind.FIRST_GOLDEN:
-			parts = [definition.golden_word, moment.card.display_name]
+			return [definition.golden_word, moment.card.display_name]
 		Kind.CLOSEST_CALL:
-			parts = [
+			return [
 				definition.close_word,
 				"Shift %d" % moment.shift,
 				"%d€ / %d€" % [moment.total, moment.quota],
 			]
-	return JOIN.join(parts)
+	return PackedStringArray()
+
+
+## How much the moment's shift beat its quota by, in euros (Closest call's value).
+static func margin_of(moment: Moment) -> int:
+	return moment.total - moment.quota
 
 
 ## Over quota's value: the total against the quota, to one decimal ("×2.3").
@@ -190,7 +200,7 @@ static func log_fields(moment: Moment) -> Dictionary:
 		Kind.OVER_QUOTA:
 			value = snappedf(float(moment.total) / maxi(moment.quota, 1), 0.01)
 		Kind.CLOSEST_CALL:
-			value = moment.total - moment.quota
+			value = margin_of(moment)
 		Kind.FIRST_GOLDEN:
 			value = 0
 	var fields: Dictionary = {

@@ -380,8 +380,9 @@ func test_a_run_lost_in_week_three_prints_in_columns() -> void:
 
 
 ## #56: the store closes behind the receipt: the closed store covers the whole window, the top
-## bar too, and sits just behind the receipt; it takes no clicks (the shade under it takes them
-## below the top bar, so Cart and ☰ stay clickable); the shutter rolls down in SHUTTER_S.
+## bar too, and sits behind the receipt (only the BEST stub between them, 2026-11-15); it takes no
+## clicks (the shade under it takes them below the top bar, so Cart and ☰ stay clickable); the
+## shutter rolls down in SHUTTER_S.
 func test_the_store_closes_behind_the_receipt() -> void:
 	var screen: ShiftScreen = await _screen()
 	_full_run(screen)
@@ -396,7 +397,8 @@ func test_the_store_closes_behind_the_receipt() -> void:
 	assert_int(screen._shade.mouse_filter).is_equal(Control.MOUSE_FILTER_STOP)
 	assert_float(screen._shade.get_global_rect().position.y).is_equal(ShiftStage.PANEL_TOP)
 	assert_object(closed.get_parent()).is_same(results.get_parent())
-	assert_int(closed.get_index()).is_equal(results.get_index() - 1)
+	assert_int(closed.get_index()).is_equal(results.get_index() - 2)
+	assert_int(results.best_stub().get_index()).is_equal(results.get_index() - 1)
 	assert_float(closed.shutter()).is_less(1.0)
 	await get_tree().create_timer(StoreClosed.SHUTTER_S + SLACK_S).timeout
 	assert_float(closed.shutter()).is_equal(1.0)
