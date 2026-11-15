@@ -252,6 +252,8 @@ func _ready() -> void:
 	var stack_spec: String = _argument(STACK_ARGUMENT + "=")
 	if CaptureWeeks.show_results(_screen, SEED):
 		pass  # --results= (CaptureWeeks).
+	elif _argument(CaptureTutorial.ARGUMENT) != "":  # The guided run (CaptureTutorial).
+		_stack_part = await CaptureTutorial.play(_screen, _argument(CaptureTutorial.ARGUMENT))
 	elif reveal_spec != "":
 		reveal(reveal_spec)
 	elif deck_spec != "":

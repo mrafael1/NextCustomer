@@ -33,6 +33,13 @@ const CONE_TOP := 68
 const REG_X := 8
 const REG_STEP := 34
 const REG_Y := 168 + DY
+## A crowded crate (more regulars than CRATE_SLOTS, the guided run's 6): the first sprite's x,
+## the span to the last one's x, and the back row's rise (art px). They zigzag front, back, front
+## in reading order, so each one shows.
+const CRATE_SLOTS := 4
+const CROWD_X := 6.0
+const CROWD_SPAN := 110.0
+const CROWD_BACK_RISE := 10.0
 ## The floor row: the TITLE plate, the hint LED, the primary plate (art px).
 const TITLE_RECT := Rect2i(8, 323, 72, 26)
 const HINT_RECT := Rect2i(120, 326, 360, 18)
@@ -468,3 +475,39 @@ static func fan_rect(cx: float, count: int) -> Rect2:
 ## The lamp's shade over centre `cx` (art px).
 static func lamp_rect(cx: float) -> Rect2:
 	return Rect2(roundf(cx) - 37, LAMP_TOP - 2, 74, 20)
+
+
+## Where regular `slot` of `count` stands in the crate (its sprite's top left, art px): up to
+## CRATE_SLOTS in one row; more zigzag between a front row (even slots) and a back row (odd slots,
+## CROWD_BACK_RISE higher), CROWD_SPAN wide.
+static func regular_at(slot: int, count: int) -> Vector2:
+	if count <= CRATE_SLOTS:
+		return Vector2(BoosterArt.REG_X + slot * BoosterArt.REG_STEP, BoosterArt.REG_Y)
+	var x: float = CROWD_X + floorf(slot * CROWD_SPAN / (count - 1))
+	return Vector2(x, BoosterArt.REG_Y - (CROWD_BACK_RISE if slot % 2 == 1 else 0.0))
+
+
+## The crate's regulars in drawing order: a crowded crate's back row first.
+static func crate_order(count: int) -> Array[int]:
+	var order: Array[int] = []
+	for k: int in count:
+		if count <= CRATE_SLOTS or k % 2 == 1:
+			order.append(k)
+	if count > CRATE_SLOTS:
+		for k: int in range(0, count, 2):
+			order.append(k)
+	return order
+
+
+## Regular `slot`'s rect (art px) for its hover tip and the tutorial: the part of it that shows
+## (a back-row regular's top, above the front row).
+static func regular_rect(slot: int, count: int) -> Rect2:
+	var at: Vector2 = regular_at(slot, count)
+	if count <= CRATE_SLOTS:
+		# The sprites overlap (48 art px on a 34 px step): each takes its step, the last its whole
+		# width, above the crate's front.
+		var w: float = float(BoosterArt.REG_STEP) if slot < count - 1 else 40.0
+		return Rect2(at.x + 7, 172 + DY, w, 32)
+	if slot % 2 == 1:
+		return Rect2(at.x + 7, at.y + 6, 34, CROWD_BACK_RISE)
+	return Rect2(at.x + 7, at.y + 6, 34, 204 + DY - (at.y + 6))

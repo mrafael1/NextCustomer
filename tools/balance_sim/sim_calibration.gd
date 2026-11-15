@@ -7,10 +7,12 @@ extends RefCounted
 ## a row logged under older rules is judged as if played now; the logged score is kept to show
 ## how many changed.
 ##
-## A checkout counts when a player placed its cards (`placements` > 0; debug rows place none)
-## and its hand can be rebuilt: the shift's `shift_start` cards, then each `redraw`, must hold
-## every card of `final_order`. The upgrades are the run's register picks before the shift (the
-## `upgrade` events of older logs, the loyalty picks of `machine_visit` events, #77: before v0.61
+## A checkout counts when a player placed its cards (`placements` > 0; debug rows place none),
+## its run is not a guided run (run_start's `guided`: the tutorial scripts its first shift's hand
+## and row, so its checkouts are left out as "guided run") and its hand can be rebuilt: the
+## shift's `shift_start` cards, then each `redraw`, must hold every card of `final_order`. The
+## upgrades are the run's register picks before the shift (the `upgrade` events of older logs,
+## the loyalty picks of `machine_visit` events, #77: before v0.61
 ## REGISTER and STAMP DAY picks, since then UPGRADE's, a level-up replacing its perk, #108), the
 ## inspections the shift's `inspections`. Events are grouped by run and read in time
 ## order, so a run resumed in a later session still counts.
@@ -170,6 +172,11 @@ func _by_build(results: Array[PackedInt32Array]) -> String:
 
 
 func _read_run(events: Array, lookup: ContentLookup) -> void:
+	if _guided(events):
+		for event: Dictionary in events:
+			if String(event.get("type", "")) == "checkout":
+				_skip("guided run")
+		return
 	var upgrades: Array[UpgradeDefinition] = []
 	var hand: Array[CardDefinition] = []
 	var inspections: Array[InspectionDefinition] = []
@@ -197,6 +204,15 @@ func _read_run(events: Array, lookup: ContentLookup) -> void:
 					upgrades.assign(PerkLevels.with_pick(upgrades, register))
 			"checkout":
 				_read_checkout(event, hand, upgrades, inspections, shift, lookup)
+
+
+## Whether the run is a guided run: its run_start logs `guided` true (the tutorial's first run).
+static func _guided(events: Array) -> bool:
+	for event: Dictionary in events:
+		var guided: Variant = event.get("guided", false)
+		if String(event.get("type", "")) == "run_start" and guided is bool and guided:
+			return true
+	return false
 
 
 ## The loyalty perk a machine_visit event took (a new perk or a level-up), or null.

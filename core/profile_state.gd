@@ -96,7 +96,9 @@ var coupon_uses: Dictionary[StringName, int] = {}
 ## The highest loyalty level picked from the machine per perk (its LV 1 id) in runs that ended,
 ## for the FIGURINE BOOK's PERKS (v1.30 round 10; PerkLevels.picked_levels).
 var perk_levels: Dictionary[StringName, int] = {}
-## Long animations already seen once (first-seen flags), by id.
+## Long animations already seen once (first-seen flags), by id. Also the tutorial's flags, read
+## and changed through TutorialFlags (the guided run's, and "tip:" and "quick:" ids), so they
+## need no format bump.
 var seen: Array[StringName] = []
 ## Unlocked achievements by id; their content comes later.
 var achievements: Array[StringName] = []

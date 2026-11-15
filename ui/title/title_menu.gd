@@ -17,6 +17,9 @@ extends Control
 ## Hidden at first, the plates step in once the sign is lit (step_in): each STEP_DELAY after the
 ## one above, sliding in SLIDE art px from the left in SLIDE_STEP px steps over SLIDE_TIME. `still`
 ## (reduced motion) shows them at once.
+##
+## The tutorial's anchor (TutorialAnchors.TITLE_PRIMARY, G1): the plate that starts a new run,
+## START RUN without a run save and NEW RUN with one (start_entry), once it is shown.
 
 ## The primary entry was pressed (CONTINUE resumes the save, START RUN starts a run).
 signal start_pressed
@@ -147,6 +150,22 @@ static func length_line(balance: BalanceDefinition) -> String:
 ## Shows `count` coins on REWARDS.
 func set_coins(count: int) -> void:
 	_plates[Entry.REWARDS].show_coins(count)
+
+
+## The entry that starts a new run: NEW RUN with a run saved, else the primary START RUN.
+func start_entry() -> Entry:
+	return Entry.NEW_RUN if _plates.has(Entry.NEW_RUN) else Entry.PRIMARY
+
+
+## The tutorial's anchors on the menu (global canvas px): TITLE_PRIMARY, start_entry's plate.
+## Rect2() while it is hidden (before the step in) or for an id that isn't the menu's.
+func anchor_rect(id: StringName) -> Rect2:
+	if id != TutorialAnchors.TITLE_PRIMARY:
+		return Rect2()
+	var start: MenuPlate = _plates[start_entry()]
+	if not start.is_visible_in_tree():
+		return Rect2()
+	return start.get_global_rect()
 
 
 ## The entries, top to bottom.

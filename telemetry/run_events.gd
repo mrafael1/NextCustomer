@@ -1,10 +1,11 @@
 class_name RunEvents
 extends RefCounted
 ## Builds the data of the run_start, start_choice (#107), run_end, run_resume, run_abandon,
-## machine_visit, count_up, redraw and capsule events, the card id lists (starting_deck,
-## cards_drawn, final_order) and the upgrade- and inspection-related log fields (plan section
-## 8), so they are defined and tested in one place. The shift screen logs them (the title screen
-## logs run_abandon).
+## machine_visit, count_up, redraw and capsule events, the tutorial's events (tutorial_step,
+## tutorial_done, tutorial_replay, tip_shown, quick_step, tips_reset), the card id lists
+## (starting_deck, cards_drawn, final_order) and the upgrade- and inspection-related log fields
+## (plan section 8), so they are defined and tested in one place. The shift screen logs them (the
+## title screen logs run_abandon).
 ##
 ## A machine visit's times (`timing`) are OfferTimeline.fields(): decide_ms, presented_ms,
 ## armed_ms, presentation_skipped and chute_wait_ms, each in ms from the visit starting to
@@ -18,12 +19,14 @@ extends RefCounted
 
 
 ## The `run_start` event, logged when shift 1 starts: the seed, the starting deck (card ids),
-## the number of shifts and the run's stock (listed_aisles, stock).
+## the number of shifts, whether the run is the guided first run (`guided`, the tutorial; older
+## logs have none) and the run's stock (listed_aisles, stock).
 static func run_start(run: RunState) -> Dictionary:
 	var data: Dictionary = {
 		"seed": run.run_seed,
 		"starting_deck": definition_ids(run.starter.cards),
 		"shift_count": run.shift_count(),
+		"guided": run.guided,
 	}
 	if run.start_setup != null:
 		(
@@ -385,6 +388,68 @@ static func repack(
 		"swapped": String(other.definition.id),
 		"from_belt": on_belt,
 	}
+
+
+## The `tutorial_step` event (the tutorial), logged in a guided run when one of its steps is done
+## (it advances): the step id (G2..G14) and the seconds it was shown, to a tenth.
+static func tutorial_step(step_id: StringName, seconds: float) -> Dictionary:
+	return {"id": String(step_id), "seconds": _seconds(seconds)}
+
+
+## The `tutorial_retry` event, logged when the guided shift's rehearsal misses its quota and
+## planning comes back: the row's total, the misses so far and whether the answer now shows.
+static func tutorial_retry(total: int, misses: int, answer: bool) -> Dictionary:
+	return {"score": total, "misses": misses, "answer": answer}
+
+
+## The `tutorial_hint` event, logged when one of the guided shift's reactive hints pops: its id
+## (PlanHint.id).
+static func tutorial_hint(hint_id: StringName) -> Dictionary:
+	return {"id": String(hint_id)}
+
+
+## The `tutorial_done` event, logged once when the guided run's last step closes (G14 sets
+## TutorialFlags.GUIDE_DONE): the seconds from its first step, to a tenth, and whether it was a
+## replay (PLAY THE GUIDED SHIFT).
+static func tutorial_done(seconds: float, replay: bool) -> Dictionary:
+	return {"seconds": _seconds(seconds), "replay": replay}
+
+
+## The `tutorial_replay` event, logged when the HANDBOOK's PLAY THE GUIDED SHIFT asks for the
+## next new run to be guided: where (`from`: "title", with no run_id, or "run", under the run's
+## id).
+static func tutorial_replay(from: String) -> Dictionary:
+	return {"from": from}
+
+
+## The `tip_shown` event, logged when a one-time tip opens: its id (the tip data's).
+static func tip_shown(tip_id: StringName) -> Dictionary:
+	return {"id": String(tip_id)}
+
+
+## The `quick_step` event, logged when a quick tutorial's step closes: the tutorial
+## (TutorialFlags.QUICK_*), the step id (R1..R4, P1..P4, SA1..SA4), the seconds it was shown, to
+## a tenth, and whether the player backed out of the move it asked for (CANCEL RESTOCK, no pin,
+## NEXT before the swap: the later steps wait for the real move).
+static func quick_step(
+	tutorial: StringName, step_id: StringName, seconds: float, backed_out: bool = false
+) -> Dictionary:
+	return {
+		"tutorial": String(tutorial),
+		"id": String(step_id),
+		"seconds": _seconds(seconds),
+		"backed_out": backed_out,
+	}
+
+
+## The `tips_reset` event, logged when the options' RESET TIPS clears the tips' and quick
+## tutorials' flags: how many were cleared (on the title with no run_id, in a run under its id).
+static func tips_reset(cleared: int) -> Dictionary:
+	return {"cleared": cleared}
+
+
+static func _seconds(seconds: float) -> float:
+	return snappedf(maxf(seconds, 0.0), 0.1)
 
 
 ## Card ids in order, as logged (`cards_drawn`, `final_order`, redraws).

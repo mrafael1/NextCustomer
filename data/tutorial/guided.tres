@@ -1,0 +1,366 @@
+[gd_resource type="Resource" script_class="TutorialScript" format=3]
+
+[ext_resource type="Script" path="res://presentation/tutorial/tutorial_script.gd" id="1_main"]
+[ext_resource type="Script" path="res://presentation/tutorial/tutorial_step.gd" id="2_sub"]
+[ext_resource type="Script" path="res://presentation/tutorial/plan_hint.gd" id="3_hint"]
+
+[sub_resource type="Resource" id="Resource_g1"]
+script = ExtResource("2_sub")
+id = &"G1"
+text = "Welcome to the till! Click {primary}. Your first **SHIFT** shows you how to play, one move at a time."
+teaches = PackedStringArray("SHIFT")
+rings = Array[StringName]([&"title_primary"])
+act = 0
+side = 2
+footer = 2
+
+[sub_resource type="Resource" id="Resource_g2"]
+script = ExtResource("2_sub")
+id = &"G2"
+screen = 1
+text = "These are **YOUR REGULARS**. They start in your **CART** on every run."
+teaches = PackedStringArray("YOUR REGULARS", "CART")
+rings = Array[StringName]([&"crate"])
+act = -1
+side = 2
+locks = Array[StringName]([&"swap_plate", &"restock"])
+gate = 1
+
+[sub_resource type="Resource" id="Resource_g3"]
+script = ExtResource("2_sub")
+id = &"G3"
+screen = 1
+text = "Open both **BOOSTERS**. Their {booster_size} **CARDS** each go in your **CART**."
+teaches = PackedStringArray("BOOSTER", "CARD")
+rings = Array[StringName]([&"booster0", &"booster1"])
+act = 0
+side = 4
+locks = Array[StringName]([&"swap_plate", &"restock"])
+footer = 2
+advance_on = &"boosters_all_open"
+gate = 1
+allow = Array[StringName]([&"hit"])
+allow_ids = Array[StringName]([&"booster0", &"booster1", &"hit0", &"hit1", &"primary", &"rollup"])
+sealed_only = true
+
+[sub_resource type="Resource" id="Resource_g4"]
+script = ExtResource("2_sub")
+id = &"G4"
+screen = 1
+text = "Your store is stocked. Click NEXT."
+rings = Array[StringName]([&"primary"])
+act = 0
+side = 1
+locks = Array[StringName]([&"swap_plate", &"restock"])
+footer = 2
+advance_on = &"page_shown"
+gate = 1
+allow = Array[StringName]([&"hit"])
+allow_ids = Array[StringName]([&"primary", &"tab2"])
+
+[sub_resource type="Resource" id="Resource_g5"]
+script = ExtResource("2_sub")
+id = &"G5"
+screen = 2
+text = "Pick one **STARTER PACK**. Its **CARDS** join your **CART**. Point at a pack to read it."
+teaches = PackedStringArray("STARTER PACK")
+rings = Array[StringName]([&"pack0", &"pack1", &"pack2"])
+act = 0
+side = 1
+locks = Array[StringName]([&"newpacks"])
+footer = 2
+advance_on = &"pack_picked"
+gate = 1
+allow = Array[StringName]([&"hit"])
+allow_ids = Array[StringName]([&"pack0", &"pack1", &"pack2"])
+
+[sub_resource type="Resource" id="Resource_g6"]
+script = ExtResource("2_sub")
+id = &"G6"
+screen = 2
+text = "Your **CART** is ready. Click OPEN STORE to start your first **SHIFT**."
+rings = Array[StringName]([&"primary"])
+act = 0
+side = 3
+locks = Array[StringName]([&"newpacks"])
+footer = 2
+advance_on = &"store_opened"
+gate = 1
+allow = Array[StringName]([&"hit"])
+allow_ids = Array[StringName]([&"primary", &"pack0", &"pack1", &"pack2"])
+
+[sub_resource type="Resource" id="Resource_g7"]
+script = ExtResource("2_sub")
+id = &"G7"
+screen = 4
+text = "Put **ITEMS** from your **BASKETS** in the **ROW**. Reach the **QUOTA**, {quota}€, to pass the **SHIFT**."
+teaches = PackedStringArray("ITEM", "BASKETS", "ROW", "QUOTA")
+rings = Array[StringName]([&"tickets", &"baskets", &"quota"])
+act = -1
+side = 3
+locks = Array[StringName]([&"checkout", &"redraw", &"medals"])
+gate = 1
+
+[sub_resource type="Resource" id="Resource_g8"]
+script = ExtResource("2_sub")
+id = &"G8"
+screen = 4
+text = "Each **CARD** has a **PRICE** and a **RULE**, and the order matters. Hold the pointer still on one to read it on the monitor."
+teaches = PackedStringArray("PRICE", "RULE")
+rings = Array[StringName]([&"monitor", &"hand3"])
+act = -1
+side = 2
+locks = Array[StringName]([&"checkout", &"redraw", &"medals"])
+advance_on = &"scan_held"
+or_button = true
+gate = 1
+
+[sub_resource type="Resource" id="Resource_g9"]
+script = ExtResource("2_sub")
+id = &"G9"
+screen = 4
+text = "Your turn! Build your **ROW**, then press **CHECKOUT**. Tips pop up as you go."
+teaches = PackedStringArray("CHECKOUT")
+rings = Array[StringName]([&"tickets", &"checkout"])
+act = -1
+side = 3
+locks = Array[StringName]([&"redraw", &"medals"])
+footer = 1
+gate = 1
+
+[sub_resource type="Resource" id="Resource_g10"]
+script = ExtResource("2_sub")
+id = &"G10"
+screen = 4
+act = -1
+advance_on = &"checkout_started"
+gate = 1
+allow = Array[StringName]([&"pick_card", &"place_card", &"redraw", &"basket", &"checkout", &"open_deck", &"open_week", &"open_calendar"])
+
+[sub_resource type="Resource" id="Resource_g11"]
+script = ExtResource("2_sub")
+id = &"G11"
+screen = 5
+text = "**QUOTA** met! Pick a key, then PUSH. **NEW ITEMS** brings new **CARDS**. **IMPROVE** makes one better, or gives a **LOYALTY PERK**."
+teaches = PackedStringArray("RECEIPT REWARDS", "NEW ITEMS", "IMPROVE", "LOYALTY PERKS")
+rings = Array[StringName]([&"machine_keys", &"machine_push"])
+act = 0
+side = 2
+footer = 2
+advance_on = &"chute_chosen"
+
+[sub_resource type="Resource" id="Resource_g12"]
+script = ExtResource("2_sub")
+id = &"G12"
+screen = 6
+text = "Keep 1 prize, or **SKIP** them all. **RARE** and **LEGENDARY** prizes are harder to find."
+teaches = PackedStringArray("RARITY")
+rings = Array[StringName]([&"machine_prizes", &"machine_skip"])
+act = 0
+side = 1
+footer = 2
+advance_on = &"machine_returned"
+
+[sub_resource type="Resource" id="Resource_g13"]
+script = ExtResource("2_sub")
+id = &"G13"
+screen = 7
+text = "A **WEEK** is {week_shifts} **SHIFTS**, and **PAYDAY** is the last. In training **WEEK** you may **MISS** the **QUOTA** {misses} times."
+teaches = PackedStringArray("WEEK", "PAYDAY", "MISS")
+rings = Array[StringName]([&"week_card"])
+act = -1
+side = 2
+
+[sub_resource type="Resource" id="Resource_g14"]
+script = ExtResource("2_sub")
+id = &"G14"
+screen = 7
+text = "That's the basics! Look up any word in the **HANDBOOK**, in the menu."
+teaches = PackedStringArray("HANDBOOK")
+rings = Array[StringName]([&"menu"])
+act = -1
+side = 1
+footer = 1
+
+[sub_resource type="Resource" id="Resource_retry"]
+script = ExtResource("2_sub")
+id = &"RETRY"
+screen = 4
+text = "{missed}€ of {quota}€: not quite! Move some **ITEMS**, or **REDRAW** a **BASKET**, then press **CHECKOUT** once more."
+teaches = PackedStringArray("REDRAW")
+rings = Array[StringName]([&"tickets", &"redraw", &"checkout"])
+act = -1
+side = 3
+footer = 1
+gate = 1
+allow = Array[StringName]([&"pick_card", &"place_card", &"redraw", &"basket", &"checkout", &"open_deck", &"open_week", &"open_calendar"])
+
+[sub_resource type="Resource" id="Resource_answer"]
+script = ExtResource("2_sub")
+id = &"ANSWER"
+screen = 4
+text = "Here is a **ROW** that pays {answer_total}€. Drag each **ITEM** onto its ghost, then press **CHECKOUT**."
+rings = Array[StringName]([&"tickets"])
+act = -1
+side = 3
+footer = 1
+gate = 1
+allow = Array[StringName]([&"pick_card", &"place_card", &"redraw", &"basket", &"checkout", &"open_deck", &"open_week", &"open_calendar"])
+
+[sub_resource type="Resource" id="Hint_eggs_placed"]
+script = ExtResource("3_hint")
+id = &"eggs_placed"
+card = &"eggs"
+title = "EGGS"
+text = "Eggs can boost other items! The **NEXT** Food **ITEM**, anywhere **LATER**, pays ×2."
+teaches = PackedStringArray("NEXT", "LATER")
+
+[sub_resource type="Resource" id="Hint_eggs_fired"]
+script = ExtResource("3_hint")
+id = &"eggs_fired"
+card = &"eggs"
+when = 1
+title = "×2!"
+text = "Eggs doubled the **NEXT** Food **ITEM**."
+teaches = PackedStringArray("NEXT")
+
+[sub_resource type="Resource" id="Hint_eggs_wasted"]
+script = ExtResource("3_hint")
+id = &"eggs_wasted"
+card = &"eggs"
+when = 2
+title = "WASTED"
+text = "**WASTED**: no Food **ITEM** comes **LATER**, so Eggs did nothing. Try them earlier."
+teaches = PackedStringArray("WASTED", "LATER")
+
+[sub_resource type="Resource" id="Hint_yogurt_placed"]
+script = ExtResource("3_hint")
+id = &"yogurt_placed"
+card = &"yogurt"
+title = "YOGURT"
+text = "Yogurt pays +4€ for each Banana **BESIDE** it."
+teaches = PackedStringArray("BESIDE")
+
+[sub_resource type="Resource" id="Hint_yogurt_fired"]
+script = ExtResource("3_hint")
+id = &"yogurt_fired"
+card = &"yogurt"
+when = 1
+title = "PAIR!"
+text = "Yogurt **BESIDE** a Banana: +4€."
+teaches = PackedStringArray("BESIDE")
+
+[sub_resource type="Resource" id="Hint_cereal_placed"]
+script = ExtResource("3_hint")
+id = &"cereal_placed"
+card = &"cereal"
+title = "CEREAL"
+text = "Cereal pays +4€ with Milk **BESIDE** it."
+teaches = PackedStringArray("BESIDE")
+
+[sub_resource type="Resource" id="Hint_cereal_fired"]
+script = ExtResource("3_hint")
+id = &"cereal_fired"
+card = &"cereal"
+when = 1
+title = "PAIR!"
+text = "Cereal **BESIDE** Milk: +4€."
+teaches = PackedStringArray("BESIDE")
+
+[sub_resource type="Resource" id="Hint_banana_placed"]
+script = ExtResource("3_hint")
+id = &"banana_placed"
+card = &"banana"
+title = "BANANA"
+text = "Put Bananas **BESIDE** each other to make a **CHAIN**."
+teaches = PackedStringArray("BESIDE", "CHAIN")
+
+[sub_resource type="Resource" id="Hint_banana_fired"]
+script = ExtResource("3_hint")
+id = &"banana_fired"
+card = &"banana"
+when = 1
+title = "CHAIN!"
+text = "This Banana adds what the Banana **RIGHT BEFORE** it paid."
+teaches = PackedStringArray("CHAIN", "RIGHT BEFORE")
+
+[sub_resource type="Resource" id="Hint_milk_placed"]
+script = ExtResource("3_hint")
+id = &"milk_placed"
+card = &"milk"
+title = "MILK"
+text = "Milk pays +1€ for each Breakfast **ITEM** **EARLIER** in the **ROW**."
+teaches = PackedStringArray("LATER")
+
+[sub_resource type="Resource" id="Hint_tea_placed"]
+script = ExtResource("3_hint")
+id = &"tea_placed"
+card = &"tea_bags"
+title = "TEA BAGS"
+text = "Tea bags pay ×4 to the last **MORNING** **ITEM** after them."
+teaches = PackedStringArray("MORNING")
+
+[sub_resource type="Resource" id="Hint_tea_fired"]
+script = ExtResource("3_hint")
+id = &"tea_fired"
+card = &"tea_bags"
+when = 1
+title = "×4!"
+text = "Tea bags boosted a **MORNING** **ITEM** after them."
+teaches = PackedStringArray("MORNING")
+
+[sub_resource type="Resource" id="Hint_peas_placed"]
+script = ExtResource("3_hint")
+id = &"peas_placed"
+card = &"frozen_peas"
+title = "FROZEN PEAS"
+text = "Frozen peas only pay extra **BESIDE** another Frozen **ITEM**."
+teaches = PackedStringArray("BESIDE")
+
+[sub_resource type="Resource" id="Hint_quota"]
+script = ExtResource("3_hint")
+id = &"quota"
+when = 3
+title = "QUOTA"
+text = "Your **ROW** reaches the **QUOTA**! Press **CHECKOUT**, or push on: {silver_laps}× the **QUOTA** earns a **SILVER** medal."
+teaches = PackedStringArray("MEDALS")
+
+[sub_resource type="Resource" id="Hint_silver"]
+script = ExtResource("3_hint")
+id = &"silver"
+when = 5
+title = "SILVER!"
+text = "{silver_laps}× the **QUOTA**: **SILVER** brings an **EXTRA DRAW** at the machine. {gold_laps}× makes it **GOLD**: **PREMIUM** prizes."
+teaches = PackedStringArray("MEDALS", "EXTRA DRAW", "PREMIUM")
+
+[sub_resource type="Resource" id="Hint_gold"]
+script = ExtResource("3_hint")
+id = &"gold"
+when = 6
+title = "GOLD!"
+text = "{gold_laps}× the **QUOTA**: **GOLD** turns your draw **PREMIUM**."
+teaches = PackedStringArray("MEDALS", "PREMIUM")
+
+[sub_resource type="Resource" id="Hint_redrawn"]
+script = ExtResource("3_hint")
+id = &"redrawn"
+when = 7
+title = "REDRAW"
+text = "New **CARDS** from your **PILE**! Each **BASKET** you swap costs 1 **REDRAW**."
+teaches = PackedStringArray("REDRAW", "PILE")
+
+[sub_resource type="Resource" id="Hint_row_full"]
+script = ExtResource("3_hint")
+id = &"row_full"
+when = 4
+title = "ROW FULL"
+text = "{slots} slots, {hand} **CARDS**: one always stays in its **BASKET**."
+
+[resource]
+script = ExtResource("1_main")
+hand = Array[StringName]([&"banana", &"banana", &"milk", &"eggs", &"yogurt", &"cereal", &"tea_bags", &"frozen_peas"])
+answer = Array[StringName]([&"banana", &"yogurt", &"banana", &"eggs", &"milk", &"cereal", &"frozen_peas"])
+retry = SubResource("Resource_retry")
+answer_step = SubResource("Resource_answer")
+hints = Array[ExtResource("3_hint")]([SubResource("Hint_eggs_placed"), SubResource("Hint_eggs_fired"), SubResource("Hint_eggs_wasted"), SubResource("Hint_yogurt_placed"), SubResource("Hint_yogurt_fired"), SubResource("Hint_cereal_placed"), SubResource("Hint_cereal_fired"), SubResource("Hint_banana_placed"), SubResource("Hint_banana_fired"), SubResource("Hint_milk_placed"), SubResource("Hint_tea_placed"), SubResource("Hint_tea_fired"), SubResource("Hint_peas_placed"), SubResource("Hint_quota"), SubResource("Hint_silver"), SubResource("Hint_gold"), SubResource("Hint_redrawn"), SubResource("Hint_row_full")])
+steps = Array[ExtResource("2_sub")]([SubResource("Resource_g1"), SubResource("Resource_g2"), SubResource("Resource_g3"), SubResource("Resource_g4"), SubResource("Resource_g5"), SubResource("Resource_g6"), SubResource("Resource_g7"), SubResource("Resource_g8"), SubResource("Resource_g9"), SubResource("Resource_g10"), SubResource("Resource_g11"), SubResource("Resource_g12"), SubResource("Resource_g13"), SubResource("Resource_g14")])

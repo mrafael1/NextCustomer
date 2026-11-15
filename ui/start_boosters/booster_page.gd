@@ -103,6 +103,8 @@ var _layers: Array[BoosterLayer] = []
 var _facade: Control
 var _swap_slide: Control
 var _shown_run: RunState
+## Whether BOOSTERS_ALL_OPEN went out for the page's current STOCKED! (a RESTOCK sends it again).
+var _done_sent: bool = false
 
 
 func _init() -> void:
@@ -205,6 +207,7 @@ func _setup() -> void:
 	tote_cards.clear()
 	complete_t = INF
 	stocked_t = INF
+	_done_sent = false
 	clock_minutes = OPENING_MINUTES
 	pick_settle_t = -INF
 	var setup: StartSetup = run.start_setup
@@ -297,6 +300,10 @@ func advance(dt: float) -> void:
 		tote_cards.clear()
 		tote_booster = -1
 	_check_complete()
+	if page_done() != _done_sent:
+		_done_sent = page_done()
+		if _done_sent:
+			StartBoardActions.emit(actions, TutorialEvents.BOOSTERS_ALL_OPEN)
 	fx.prune(now)
 	_refresh_view()
 
@@ -420,6 +427,12 @@ func page_done() -> bool:
 ## an opening, flip the waiting hit, OPEN ALL, NEXT's one stop at the swap window (a swap unlocked
 ## and unused), or NEXT.
 func primary(via: String = "key") -> bool:
+	# A click on the key asked its hit already (click); the swap window's DONE is its part.
+	if via != "click":
+		if swap.active and not StartBoardActions.swap_allowed(actions, TutorialAnchors.SWAP_DONE):
+			return false
+		if not swap.active and not StartBoardActions.hit_allowed(actions, TutorialAnchors.PRIMARY):
+			return false
 	var used: bool = true
 	var waiting: BoosterOpening = openings.waiting_booster()
 	if swap.active:
@@ -545,6 +558,8 @@ func space(down: bool) -> void:
 		and not picking()
 		and not openings.opening_now()
 	):
+		if not StartBoardActions.hit_allowed(actions, TutorialAnchors.PRIMARY):
+			return
 		hold_t = now
 		fx.sfx("pour", -8.0)
 	else:
@@ -558,6 +573,8 @@ func handle_key(keycode: Key) -> bool:
 	var used: bool = false
 	if swap.visible():
 		used = _swap_key(keycode, number)
+	elif not StartBoardActions.hit_allowed(actions, _key_hit(keycode, number)):
+		used = false
 	elif keycode == KEY_ESCAPE:
 		if restock_armed:
 			cancel_restock("ui_back")
@@ -574,15 +591,47 @@ func handle_key(keycode: Key) -> bool:
 ## A key while the swap window shows: Esc (a held card home, else the window shut), 1-2 (its
 ## boosters), R (RESET); every other key is held back from the page under it.
 func _swap_key(keycode: Key, number: int) -> bool:
-	if not swap.active:
-		return true
-	if keycode == KEY_ESCAPE:
-		return swap.escape()
+	var part: StringName = &""
 	if number >= 0:
-		return swap.open_booster(number, "key")
-	if keycode == KEY_R:
-		return swap.reset()
-	return true
+		part = TutorialAnchors.indexed(TutorialAnchors.SWAP_BOOSTER, number)
+	elif keycode == KEY_R:
+		part = TutorialAnchors.SWAP_RESET
+	var used: bool = true
+	if not swap.active or not StartBoardActions.swap_allowed(actions, part):
+		used = true
+	elif keycode == KEY_ESCAPE:
+		used = swap.escape()
+	elif number >= 0:
+		used = swap.open_booster(number, "key")
+	elif keycode == KEY_R:
+		used = swap.reset()
+	return used
+
+
+## The hit a page-1 key acts as, for the tutorial's gate (&"": never asked: Esc, unused keys): A
+## the primary key's OPEN ALL, R the RESTOCK key, 1-3 the booster shown at that place (its
+## return, its hit card, or the booster itself).
+func _key_hit(keycode: Key, number: int) -> StringName:
+	var id: StringName = &""
+	if keycode == KEY_A:
+		id = TutorialAnchors.PRIMARY
+	elif keycode == KEY_R:
+		id = TutorialAnchors.RESTOCK
+	elif number >= 0 and shutter == Shutter.DOWN:
+		id = TutorialAnchors.ROLLUP
+	elif number >= 0:
+		var shown: Array[BoosterOpening] = []
+		for opening: BoosterOpening in boosters:
+			if opening.state != BoosterOpening.State.GONE:
+				shown.append(opening)
+		if number < shown.size():
+			var target: BoosterOpening = shown[number]
+			id = TutorialAnchors.booster(target.index)
+			if restock_armed:
+				id = TutorialAnchors.indexed(TutorialAnchors.RCARDS, target.index)
+			elif target.state == BoosterOpening.State.OPENING and target.at_rest(tuning):
+				id = TutorialAnchors.indexed(TutorialAnchors.HIT, target.index)
+	return id
 
 
 ## Number key `number` on the boosters shown (left to right): ROLL UP first, then the booster's
@@ -615,6 +664,7 @@ func cancel_restock(sound: String) -> void:
 	restock_armed = false
 	set_hint("")
 	fx.sfx(sound, -6.0)
+	StartBoardActions.emit(actions, TutorialEvents.RESTOCK_CANCELLED)
 
 
 func _gui_input(event: InputEvent) -> void:
@@ -641,7 +691,8 @@ func click(at: Vector2) -> void:
 			swap.press(at - Vector2(0, swap.slide()))
 		return
 	if shutter == Shutter.DOWN:
-		openings.roll_up()
+		if StartBoardActions.hit_allowed(actions, TutorialAnchors.ROLLUP):
+			openings.roll_up()
 		return
 	if openings.arrival_busy():
 		openings.end_arrival()
@@ -653,12 +704,16 @@ func click(at: Vector2) -> void:
 		var entry: Dictionary = hits[k]
 		if (entry.rect as Rect2).has_point(at):
 			var act: Callable = entry.act
-			if act.is_valid():
-				act.call()
+			# ‹ TITLE is never asked; a hit with nothing to do asks nothing either.
+			var id: StringName = StringName(entry.id) if act.is_valid() else &""
+			if id == TutorialAnchors.TITLE or StartBoardActions.hit_allowed(actions, id):
+				if act.is_valid():
+					act.call()
 			return
 	if restock_armed:
 		restock_armed = false
 		set_hint("")
+		StartBoardActions.emit(actions, TutorialEvents.RESTOCK_CANCELLED)
 
 
 func _update_hover() -> void:

@@ -260,6 +260,34 @@ func test_calibration_puts_a_basket_redraw_at_its_places() -> void:
 	)
 
 
+## A guided run's checkouts are left out: the tutorial scripts its first shift's hand and row,
+## so they say nothing about how players arrange a row (its run_start logs guided true).
+func test_calibration_leaves_out_guided_runs() -> void:
+	var lines: PackedStringArray = PackedStringArray()
+	for event: Dictionary in [
+		_event(1, "run_start", {"guided": true}),
+		_event(2, "shift_start", {"shift": 1, "cards_drawn": ["bread", "milk"]}),
+		_event(3, "checkout", {"shift": 1, "placements": 2, "final_order": ["milk", "bread"]}),
+	]:
+		lines.append(JSON.stringify(event))
+	var normal: Dictionary = _event(1, "run_start", {"guided": false})
+	normal["run_id"] = "normal"
+	lines.append(JSON.stringify(normal))
+	var drawn: Dictionary = _event(2, "shift_start", {"shift": 1, "cards_drawn": ["bread"]})
+	drawn["run_id"] = "normal"
+	lines.append(JSON.stringify(drawn))
+	var paid: Dictionary = _event(
+		3, "checkout", {"shift": 1, "placements": 1, "final_order": ["bread"]}
+	)
+	paid["run_id"] = "normal"
+	lines.append(JSON.stringify(paid))
+	var calibration: SimCalibration = SimCalibration.new()
+	calibration.read(lines, ContentLookup.new(load(BALANCE)))
+	assert_int(calibration.checkouts.size()).is_equal(1)
+	assert_str(calibration.checkouts[0].run_id).is_equal("normal")
+	assert_dict(calibration.skipped).is_equal({"guided run": 1})
+
+
 ## A chained profile spends each run's coins on capsules (key item first, never twice), lists
 ## an aisle once it is listable, and its summary counts unfinished profiles past the limit.
 func test_chained_profiles_buy_capsules_and_list_new_aisles() -> void:

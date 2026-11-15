@@ -1,6 +1,6 @@
 extends GdUnitTestSuite
 ## The staff handbook (v1.06, mock-up keywords_guide.html, variant A). The binder fits the
-## 1280x720 screen with its four tabs side by side, CLOSE, index and entry column apart and inside
+## 1280x720 screen with its five tabs side by side, CLOSE, index and entry column apart and inside
 ## it; every entry opens (its example clip on the real score; a family's page and the coupon intro
 ## end at their rule, which fits its rect, its terms in their colours); the tabs and index rows
 ## pick entries; Esc and a right-click outside close it. On the shift screen the menu's Guide
@@ -147,6 +147,12 @@ func _assert_index_fits(page: HandbookPage, entry: HandbookEntry) -> void:
 					. override_failure_message(String(entry.id))
 					. is_greater_equal(mark_end)
 				)
+		# The title ends inside its row (THE RUN's long titles, 2026-11-14).
+		(
+			assert_float(text.get_global_rect().end.x)
+			. override_failure_message(String(row.name))
+			. is_less_equal(row.get_global_rect().end.x)
+		)
 		parts.append(row.get_global_rect())
 	for part: Rect2 in parts:
 		assert_bool(paper.encloses(part)).override_failure_message(str(part)).is_true()
@@ -207,6 +213,51 @@ func test_tabs_and_rows_pick_entries() -> void:
 	page.open_at()
 	assert_str(page.shown_entry().id).is_equal("coupon")
 	await _frames(1)  # The rebuilt marks' old parts are freed.
+
+
+## Coupons not found yet (2026-11-15): their COUPONS rows read ??? with a dark mark and take no
+## click; a coupon found shows (a retired card its page explains counts, Family sticker's); the
+## intro always shows; each opening reads what was found again; a deep link still opens a page.
+func test_coupons_not_found_are_locked_rows() -> void:
+	var page: HandbookPage = await _page()
+	var found: Array[StringName] = [&"two_for_one", &"breakfast_sticker"]
+	page.discovered = func(card_id: StringName) -> bool: return found.has(card_id)
+	page.open_at(&"coupon")
+	var locked: Array[StringName] = []
+	for row: HandbookButton in page.index_rows():
+		var id: StringName = StringName(String(row.name).trim_prefix("Row_"))
+		if row.locked:
+			locked.append(id)
+			assert_str(row.caption()).is_equal(HandbookPage.LOCKED_TITLE)
+		else:
+			assert_str(row.caption()).is_not_equal(HandbookPage.LOCKED_TITLE)
+	assert_bool(locked.has(&"coupon")).is_false()
+	assert_bool(locked.has(&"two_for_one")).is_false()
+	assert_bool(locked.has(&"family_sticker")).is_false()
+	assert_bool(locked.has(&"multipack")).is_true()
+	var multipack: HandbookButton = page.index_rows()[_row_of(page, &"multipack")]
+	var click: InputEventMouseButton = InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	multipack._gui_input(click)
+	assert_str(page.shown_entry().id).is_equal("coupon")
+	page.close()
+	found.append(&"multipack")
+	page.open_at()
+	assert_bool(page.index_rows()[_row_of(page, &"multipack")].locked).is_false()
+	page.close()
+	page.open_at(&"opening_deal")  # A deep link (a tooltip) opens a page not found yet.
+	assert_str(page.shown_entry().id).is_equal("opening_deal")
+	assert_bool(page.index_rows()[_row_of(page, &"opening_deal")].locked).is_false()
+	await _frames(1)
+
+
+static func _row_of(page: HandbookPage, entry_id: StringName) -> int:
+	var rows: Array[HandbookButton] = page.index_rows()
+	for index: int in rows.size():
+		if rows[index].name == "Row_%s" % entry_id:
+			return index
+	return -1
 
 
 ## The player's reduced motion is read on every opening (a mid-run toggle holds the clips still).
@@ -315,14 +366,18 @@ func test_a_coupon_ticket_and_a_titled_line_open_their_entries() -> void:
 		assert_object(found).override_failure_message(case[0]).is_not_null()
 		if found != null:
 			assert_str(String(found.id)).is_equal(case[1])
-	# The removed SHIFT tab's pages and PLACES' BESIDE no longer open from a line, so its tip has
-	# no footer.
-	for removed: String in [
-		"Spot check · slot 3 pays 0€", "Today's target is 65€", "Beside Milk: +3", "BESIDE"
-	]:
+	# The removed SHIFT tab's other pages no longer open from a line, so its tip has no footer;
+	# BESIDE is back (the tutorial, 2026-11-14) and opens its page.
+	for removed: String in ["Spot check · slot 3 pays 0€", "Today's target is 65€"]:
 		line.tip_text = removed
 		assert_object(page.entry_for_target(line)).override_failure_message(removed).is_null()
 		assert_bool(page.has_entry_for(line)).is_false()
+	for beside: String in ["Beside Milk: +3", "BESIDE"]:
+		line.tip_text = beside
+		var found_beside: HandbookEntry = page.entry_for_target(line)
+		assert_object(found_beside).override_failure_message(beside).is_not_null()
+		if found_beside != null:
+			assert_str(String(found_beside.id)).is_equal("pl_beside")
 	line.tip_text = "Printed price 5€"
 	assert_object(page.entry_for_target(line)).is_null()
 	assert_bool(page.has_entry_for(line)).is_false()

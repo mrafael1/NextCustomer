@@ -58,6 +58,7 @@ func open(at: float) -> bool:
 	page.pins_t = at
 	page.pins_sel = page.run.pins.duplicate()
 	page.cue(at, page.sfx.bind("ui_open", -6.0))
+	StartBoardActions.emit(page.actions, TutorialEvents.PINS_OPENED)
 	return true
 
 
@@ -86,6 +87,17 @@ func toggle(pin: PinDefinition) -> void:
 		page.sfx("stamp_1", -6.0)
 		page.sfx("tag", -8.0)
 	page.pins_tick = {"pin": pin, "t": page.now}
+	(
+		StartBoardActions
+		. emit(
+			page.actions,
+			TutorialEvents.PIN_TOGGLED,
+			{
+				TutorialEvents.ARG_INDEX: maxi(0, owned().find(pin)),
+				TutorialEvents.ARG_ON: page.pins_sel.has(pin),
+			}
+		)
+	)
 
 
 ## Number key `number` in the step: the owned pin in that row.
@@ -110,6 +122,9 @@ func confirm(_via: String = "click") -> bool:
 		return false
 	var run: RunState = page.run
 	page.pins_open = false
+	StartBoardActions.emit(
+		page.actions, TutorialEvents.PINS_CONFIRMED, {TutorialEvents.ARG_COUNT: ids.size()}
+	)
 	page.fly_pin = run.pins[0] if not run.pins.is_empty() else null
 	page.fly_t = page.now if page.fly_pin != null else -INF
 	page.sfx("stamp_loyalty" if page.fly_pin != null else "ui_click_1", -4.0)

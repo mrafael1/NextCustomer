@@ -5,27 +5,33 @@ extends GdUnitTestSuite
 ## token naming something real), a keyword's rule names its keyword, and every example
 ## row's total is the real Scoring's (pinned in example_total, so a rule change shows up here).
 ## The guide feedback of 2026-11-11: the TIERS and SHIFT tabs are gone and nothing links to their
-## pages; the families and the coupon intro have no example.
+## pages; the families and the coupon intro have no example. The tutorial (2026-11-14, text audit of
+## 2026-11-13) brings back BESIDE in PLACES; its THE RUN tab went after the play test of 2026-11-15
+## (its pages with it, and the tips' MORE links to them).
 
 const CARDS_FOLDER := "res://data/cards"
 ## The tabs, in order.
 const TABS: Array[StringName] = [&"keywords", &"families", &"coupons", &"place"]
-## The pages the TIERS and SHIFT tabs held, and PLACES' BESIDE (round 4: "it is just pair re
-## explained").
+## The pages the TIERS, SHIFT and THE RUN tabs held that stay gone.
 const REMOVED: Array[StringName] = [
 	&"golden",
 	&"big",
 	&"spot_check",
-	&"redraw",
 	&"target",
 	&"charge",
 	&"gained",
+	&"redraw",
 	&"day_events",
-	&"pl_beside",
+	&"payday",
+	&"medals",
+	&"receipt_rewards",
+	&"loyalty_perks",
+	&"restock",
+	&"swap",
 ]
 ## PLACES' pages, in order.
 const PLACES: Array[StringName] = [
-	&"pl_right_after", &"pl_next", &"pl_earlier", &"pl_later", &"pl_lone", &"pl_slots"
+	&"pl_beside", &"pl_right_after", &"pl_next", &"pl_earlier", &"pl_later", &"pl_lone", &"pl_slots"
 ]
 
 
@@ -87,9 +93,9 @@ func test_retired_stickers_link_to_the_family_sticker() -> void:
 		assert_object(book.entry(StringName(retired))).override_failure_message(retired).is_null()
 
 
-## The TIERS and SHIFT tabs and their pages are gone, and PLACES' BESIDE, and no tooltip leads
-## there: a tier's chip, the GAINED or BESIDE word or a line that opens with an old page's title
-## finds no entry.
+## The TIERS and SHIFT tabs and their other pages are gone, and no tooltip leads there: a tier's
+## chip, the GAINED word or a line that opens with an old page's title finds no entry. BESIDE,
+## REDRAW and DAY EVENTS are back (the tutorial): their words and lines find their pages.
 func test_the_removed_pages_are_unreachable() -> void:
 	var book: HandbookBook = _book()
 	assert_array(book.group_ids).is_equal(TABS)
@@ -101,20 +107,22 @@ func test_the_removed_pages_are_unreachable() -> void:
 			var tier: String = PriceSticker.tier_text(card)
 			assert_object(book.entry_for_keyword(tier)).override_failure_message(tier).is_null()
 	assert_object(book.entry_for_keyword("GAINED")).is_null()
-	assert_object(book.entry_for_keyword("BESIDE")).is_null()
+	assert_str(String(book.entry_for_keyword("BESIDE").id)).is_equal("pl_beside")
 	var places: Array[StringName] = []
 	for entry: HandbookEntry in book.entries_in(&"place"):
 		places.append(entry.id)
 	assert_array(places).is_equal(PLACES)
 	for line: String in [
-		"Beside Milk: +3",
-		"Spot check · slot 3 pays 0€",
-		"Today's target is 65€",
-		"Redraw · 2 left",
-		"Charge unused",
-		"Day events",
+		"Spot check · slot 3 pays 0€", "Today's target is 65€", "Charge unused", "Redraw · 2 left"
 	]:
 		assert_object(book.entry_titled(line)).override_failure_message(line).is_null()
+	for case: Array in [
+		["Beside Milk: +3", "pl_beside"],
+	]:
+		var found: HandbookEntry = book.entry_titled(case[0])
+		assert_object(found).override_failure_message(case[0]).is_not_null()
+		if found != null:
+			assert_str(String(found.id)).is_equal(case[1])
 
 
 ## Every markup token in every entry names something real (HandbookMarkup), no brace is left
