@@ -1,82 +1,32 @@
-[gd_resource type="Resource" script_class="TipList" load_steps=19 format=3]
+[gd_resource type="Resource" script_class="TipList" load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://presentation/tutorial/tip_list.gd" id="1_main"]
 [ext_resource type="Script" path="res://presentation/tutorial/tip_definition.gd" id="2_sub"]
-
-[sub_resource type="Resource" id="Resource_t1"]
-script = ExtResource("2_sub")
-id = &"T1"
-title = "REDRAW"
-priority = 3
-trigger = &"planning"
-min_shift = 2
-text = "Bad **CARDS**? Press **REDRAW**, then click a **BASKET**. Its **CARDS** swap for new ones from your **PILE**. Each **BASKET** costs 1 **REDRAW**."
-teaches = PackedStringArray("REDRAW", "PILE")
-rings = Array[StringName]([&"redraw", &"baskets"])
-side = 2
 
 [sub_resource type="Resource" id="Resource_t2"]
 script = ExtResource("2_sub")
 id = &"T2"
 title = "COUPON"
-priority = 4
+priority = 5
 trigger = &"coupon_in_hand"
 min_shift = 2
-text = "A **COUPON** has no **PRICE**. It changes the **ITEMS** around it. Two **ITEMS** with a **COUPON** between them are not **BESIDE** each other."
+text = "A **COUPON** has no price: it changes the items around it."
 teaches = PackedStringArray("COUPON")
-rings = Array[StringName]([&"hand0", &"slot0"])
+rings = Array[StringName]([&"hand0"])
 side = 3
 follow_index = true
 more_page = &"coupon"
-
-[sub_resource type="Resource" id="Resource_t3"]
-script = ExtResource("2_sub")
-id = &"T3"
-title = "FAMILY"
-priority = 5
-trigger = &"family_rule"
-min_shift = 2
-text = "The small icons in a ticket's corner are its **FAMILIES**, like Breakfast or Dairy. A chip in a **RULE** names a **FAMILY** or a keyword."
-teaches = PackedStringArray("FAMILY")
-rings = Array[StringName]([&"families0", &"rule0"])
-side = 3
-follow_index = true
-more_page = &"fam_food"
-
-[sub_resource type="Resource" id="Resource_t4"]
-script = ExtResource("2_sub")
-id = &"T4"
-title = "MORNING"
-priority = 5
-trigger = &"morning_in_row"
-min_shift = 2
-text = "**MORNING**: start your **ROW** with Breakfast **ITEMS**. Coffee pays +{coffee_per}€ for each one. Here, {morning_names} {morning_make} {morning_count}."
-teaches = PackedStringArray("MORNING")
-rings = Array[StringName]([&"slot6", &"slot0", &"slot1"])
-side = 3
-follow_index = true
-more_page = &"morning"
-
-[sub_resource type="Resource" id="Resource_t5"]
-script = ExtResource("2_sub")
-id = &"T5"
-title = "BATCH"
-priority = 5
-trigger = &"batch_in_hand"
-text = "**BATCH**: Bakery **ITEMS** **BESIDE** each other. Some care where they sit in it: Croissant first."
-teaches = PackedStringArray("BATCH")
-more_page = &"batch"
 
 [sub_resource type="Resource" id="Resource_t6"]
 script = ExtResource("2_sub")
 id = &"T6"
 title = "DAY EVENT"
-priority = 1
+priority = 3
 trigger = &"day_event"
 min_shift = 2
-text = "Each **SHIFT** may have a **DAY EVENT**. Green is a **GOOD DAY**. Red is an **INSPECTION**: a harder **RULE** for this **SHIFT**."
-teaches = PackedStringArray("DAY EVENT", "GOOD DAY", "INSPECTION")
-rings = Array[StringName]([&"day_slip"])
+text = "Today has a **DAY EVENT**: green helps, red makes the shift harder."
+teaches = PackedStringArray("DAY EVENT")
+rings = Array[StringName]([&"cal"])
 side = 2
 
 [sub_resource type="Resource" id="Resource_t7"]
@@ -85,68 +35,31 @@ id = &"T7"
 title = "PAYDAY"
 priority = 2
 trigger = &"payday"
-text = "**PAYDAY**: the last **SHIFT** of the **WEEK**, with {payday_inspections} **INSPECTIONS**. Meet the **QUOTA** for {payday_draws} **PREMIUM** draws: every prize **RARE** or better."
-teaches = PackedStringArray("PAYDAY", "PREMIUM")
-rings = Array[StringName]([&"day_slip", &"cal"])
-side = 2
-
-[sub_resource type="Resource" id="Resource_t8"]
-script = ExtResource("2_sub")
-id = &"T8"
-title = "PREMIUM visit"
-priority = 6
-trigger = &"premium_visit"
-text = "**PREMIUM**: every prize here is **RARE** or better."
-rings = Array[StringName]([&"machine_sign"])
+text = "**PAYDAY**: reach the quota today for better prizes."
+teaches = PackedStringArray("PAYDAY")
+rings = Array[StringName]([&"cal"])
 side = 2
 
 [sub_resource type="Resource" id="Resource_t9"]
 script = ExtResource("2_sub")
 id = &"T9"
 title = "First MISS"
-priority = 6
+priority = 1
 trigger = &"first_miss"
-text = "**MISS** 1 of {misses}: no prizes this time. Training **WEEK** lets it go. From **WEEK** 2, one **MISS** ends the run."
+text = "A **MISS**: no prize this time, and this week forgives only {misses}."
+teaches = PackedStringArray("MISS")
 rings = Array[StringName]([&"miss_stamp"])
 side = 4
-
-[sub_resource type="Resource" id="Resource_t10"]
-script = ExtResource("2_sub")
-id = &"T10"
-title = "MEDALS"
-priority = 6
-trigger = &"medal_reach"
-text = "Pay {silver_laps}× the **QUOTA** in one **SHIFT** for **SILVER**: an **EXTRA DRAW**. {gold_laps}× for **GOLD**: your draw turns **PREMIUM**. One of each per **WEEK**."
-teaches = PackedStringArray("MEDALS", "EXTRA DRAW")
-rings = Array[StringName]([&"medals"])
-side = 2
 
 [sub_resource type="Resource" id="Resource_t11"]
 script = ExtResource("2_sub")
 id = &"T11"
-title = "LOYALTY PERKS"
-priority = 6
+title = "LOYALTY"
+priority = 4
 trigger = &"perk_taken"
-text = "Your **LOYALTY** card. Each **LOYALTY PERK** stays for the whole run, and some level up."
+text = "Your perk sits here and lasts the whole run."
 rings = Array[StringName]([&"loyalty"])
 side = 1
-
-[sub_resource type="Resource" id="Resource_t12"]
-script = ExtResource("2_sub")
-id = &"T12"
-title = "BIG / GOLDEN"
-priority = 6
-trigger = &"improve_taken"
-text = "**IMPROVE** made it **BIG**: it pays more. A later **IMPROVE** can make it **GOLDEN**."
-teaches = PackedStringArray("BIG", "GOLDEN")
-
-[sub_resource type="Resource" id="Resource_t13"]
-script = ExtResource("2_sub")
-id = &"T13"
-title = "Week 2"
-priority = 2
-trigger = &"week_two"
-text = "Training **WEEK** is over. From now on, one **MISS** ends the run."
 
 [sub_resource type="Resource" id="Resource_t14"]
 script = ExtResource("2_sub")
@@ -154,8 +67,8 @@ id = &"T14"
 title = "First lost run"
 priority = 6
 trigger = &"run_lost"
-text = "Next time: put {card} **EARLIER** than your best {family} **ITEM**, with no other {family} **ITEM** between them."
-fallback_text = "Next time: read each card's **RULE**, then try a new order before you press **CHECKOUT**."
+text = "Next time, put {card} somewhere before your best {family} item."
+fallback_text = "Next time, try a new order before you press checkout."
 rings = Array[StringName]([&"results"])
 side = 2
 more_page = &"pl_next"
@@ -163,23 +76,13 @@ more_page = &"pl_next"
 [sub_resource type="Resource" id="Resource_t15"]
 script = ExtResource("2_sub")
 id = &"T15"
-title = "Run end: COINS"
+title = "COINS"
 priority = 6
 trigger = &"coins_paid"
-text = "Pass {coin_shifts} **SHIFTS** or more to earn **COINS**. Use them to buy toy capsules at the exit. **BADGE PINS** change your next run."
-teaches = PackedStringArray("BADGE PINS", "COINS")
+text = "**COINS** buy toy capsules, from the title screen."
+teaches = PackedStringArray("COINS")
 more_page = &"toys:coins"
-
-[sub_resource type="Resource" id="Resource_t16"]
-script = ExtResource("2_sub")
-id = &"T16"
-title = "HANDBOOK"
-priority = 6
-trigger = &"handbook_opened"
-text = "Look up rules and words here. On a tip, point at a chip word to see what it means. MORE › opens its page here."
-rings = Array[StringName]([&"handbook_tabs"])
-side = 2
 
 [resource]
 script = ExtResource("1_main")
-tips = Array[ExtResource("2_sub")]([SubResource("Resource_t1"), SubResource("Resource_t2"), SubResource("Resource_t3"), SubResource("Resource_t4"), SubResource("Resource_t5"), SubResource("Resource_t6"), SubResource("Resource_t7"), SubResource("Resource_t8"), SubResource("Resource_t9"), SubResource("Resource_t10"), SubResource("Resource_t11"), SubResource("Resource_t12"), SubResource("Resource_t13"), SubResource("Resource_t14"), SubResource("Resource_t15"), SubResource("Resource_t16")])
+tips = Array[ExtResource("2_sub")]([SubResource("Resource_t2"), SubResource("Resource_t6"), SubResource("Resource_t7"), SubResource("Resource_t9"), SubResource("Resource_t11"), SubResource("Resource_t14"), SubResource("Resource_t15")])

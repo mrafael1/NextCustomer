@@ -1,0 +1,46 @@
+[gd_resource type="Resource" script_class="RevealList" load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://presentation/tutorial/reveal_list.gd" id="1_main"]
+[ext_resource type="Script" path="res://presentation/tutorial/reveal_rule.gd" id="2_sub"]
+
+[sub_resource type="Resource" id="Rule_cal"]
+script = ExtResource("2_sub")
+element = &"cal"
+events = Array[StringName]([&"shift_passed", &"day_event"])
+at_shift = 2
+
+[sub_resource type="Resource" id="Rule_cart"]
+script = ExtResource("2_sub")
+element = &"cart"
+events = Array[StringName]([&"machine_armed"])
+at_shift = 2
+
+[sub_resource type="Resource" id="Rule_redraw"]
+script = ExtResource("2_sub")
+element = &"redraw"
+at_shift = 2
+
+[sub_resource type="Resource" id="Rule_week"]
+script = ExtResource("2_sub")
+element = &"week"
+at_shift = 2
+
+[sub_resource type="Resource" id="Rule_medals_reached"]
+script = ExtResource("2_sub")
+element = &"medals"
+events = Array[StringName]([&"medal_reached"])
+
+[sub_resource type="Resource" id="Rule_medals_quota"]
+script = ExtResource("2_sub")
+element = &"medals"
+events = Array[StringName]([&"quota_reached"])
+events_from_shift = 2
+
+[sub_resource type="Resource" id="Rule_loyalty"]
+script = ExtResource("2_sub")
+element = &"loyalty"
+events = Array[StringName]([&"perk_taken", &"perk_owned"])
+
+[resource]
+script = ExtResource("1_main")
+rules = Array[ExtResource("2_sub")]([SubResource("Rule_cal"), SubResource("Rule_cart"), SubResource("Rule_redraw"), SubResource("Rule_week"), SubResource("Rule_medals_reached"), SubResource("Rule_medals_quota"), SubResource("Rule_loyalty")])

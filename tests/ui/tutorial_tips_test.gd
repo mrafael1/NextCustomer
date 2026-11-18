@@ -1,9 +1,9 @@
 extends GdUnitTestSuite
-## The one-time tips (TipScheduler, WP-10): a planning shows at most TipScheduler.PER_PLANNING,
-## each once per profile (its flag saved, tip_shown logged), on a card that dims and blocks
-## nothing; a guided run's first week holds the tips its planning hints stand for (T1 REDRAW); the
-## results show T14 (the most WASTED giver named) then T15; the HANDBOOK shows T16 over the book;
-## the guided part shows none.
+## The one-time tips (TipScheduler, WP-10; 7 tips and one per planning since v1.40): a planning
+## shows at most TipScheduler.PER_PLANNING, each once per profile (its flag saved, tip_shown
+## logged), on a card that dims and blocks nothing; a tip reveals what it rings on a stripped
+## first week; the results show T14 (the most WASTED giver named) then T15; the guided part shows
+## none.
 
 const SCREEN := preload("res://ui/shift_screen.tscn")
 const SEED := 20261115
@@ -26,44 +26,58 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-## Shift 2's planning: a first tip shows on a card with no dim that takes no click, its flag set
-## and saved; GOT IT closes it; no more than PER_PLANNING show on the planning.
-func test_a_planning_shows_at_most_two_tips() -> void:
+## A planning with two tips due (a forgiven miss, T9, and a perk taken, T11): the first shows on
+## a card with no dim that takes no click, its flag set and saved; GOT IT closes it and no other
+## shows on that planning (PER_PLANNING is 1 since v1.40); the next planning shows the second.
+func test_a_planning_shows_one_tip() -> void:
 	var screen: ShiftScreen = await _screen()
 	screen.run.shift_index = 1
 	var tips: TipScheduler = screen.tutorial.tips
+	assert_int(TipScheduler.PER_PLANNING).is_equal(1)
+	assert_bool(await _until_tip(tips, 600)).is_false()  # Nothing to say: no tip.
+	tips._add(TipDefinition.PERK_TAKEN)
+	tips._add(TipDefinition.FIRST_MISS)
 	assert_bool(await _until_tip(tips)).is_true()
 	var first: TipDefinition = tips.showing()
+	assert_str(String(first.id)).is_equal("T9")  # The lower priority number first.
 	var overlay: TutorialOverlay = tips.overlay()
 	assert_bool(overlay.view().blocks).is_false()
 	assert_bool(overlay.view().dim).is_false()
 	assert_int(overlay.shade().mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
-	assert_bool(overlay.callout().get_global_rect().intersects(screen.get_global_rect())).is_true()
+	var card: Rect2 = overlay.callout().get_global_rect()
+	assert_bool(screen.get_global_rect().grow(1.0).encloses(card)).is_true()
 	assert_bool(TutorialFlags.tip_seen(screen.profile, first.id)).is_true()
 	var saved: ProfileState = SaveService.new(_folder).load_profile()
 	assert_bool(TutorialFlags.tip_seen(saved, first.id)).is_true()
-	var shown: int = 0
-	for _round: int in 4:
-		if tips.showing() == null and not await _until_tip(tips, 600):
-			break
-		shown += 1
-		tips.overlay().button_pressed.emit()
-		await _frames(2)
-	assert_int(shown).is_between(1, TipScheduler.PER_PLANNING)
-	assert_int(_logged("tip_shown").size()).is_equal(shown)
+	tips.overlay().button_pressed.emit()
+	await _frames(2)
+	assert_bool(await _until_tip(tips, 600)).is_false()
+	assert_array(_logged("tip_shown")).is_equal(["T9"])
+	screen.run.shift_index = 2
+	assert_bool(await _until_tip(tips)).is_true()
+	assert_str(String(tips.showing().id)).is_equal("T11")
+	assert_array(_logged("tip_shown")).is_equal(["T9", "T11"])
 
 
-## A guided run's first week holds T1 REDRAW (its planning hint tells it); week 2 shows it.
-func test_the_first_week_holds_the_hinted_tips() -> void:
-	var screen: ShiftScreen = await _screen([&"T1"])
+## A tip shows what it points at (the week 1 strip, v1.40): on a guided run's first week the
+## LOYALTY chip is hidden until T11 rings it, then stays.
+func test_a_tip_reveals_what_it_rings() -> void:
+	var screen: ShiftScreen = await _screen([&"T11"])
 	screen.run.guided = true
 	screen.run.guide_step = TutorialDirector.DONE
 	screen.run.shift_index = 1
+	await _frames(3)
+	var strip: Week1Strip = screen.tutorial.strip
 	var tips: TipScheduler = screen.tutorial.tips
+	assert_bool(strip.shows(RevealList.LOYALTY)).is_false()
+	assert_bool(screen._stage.loyalty_card.visible).is_false()
 	assert_bool(await _until_tip(tips, 600)).is_false()
-	screen.run.shift_index = WeekSchedule.length(screen._balance)
+	tips._add(TipDefinition.PERK_TAKEN)
 	assert_bool(await _until_tip(tips)).is_true()
-	assert_str(String(tips.showing().id)).is_equal("T1")
+	assert_str(String(tips.showing().id)).is_equal("T11")
+	assert_bool(strip.shows(RevealList.LOYALTY)).is_true()
+	assert_bool(screen._stage.loyalty_card.visible).is_true()
+	assert_array(tips.overlay().ring_rects()).is_not_empty()
 
 
 ## The results of a lost run that paid coins: T14 names the most WASTED giver, then T15.
@@ -83,20 +97,6 @@ func test_the_results_show_the_lost_run_tips() -> void:
 	assert_bool(await _until_tip(tips)).is_true()
 	assert_str(String(tips.showing().id)).is_equal("T15")
 	screen._results.visible = false
-	await _frames(2)
-	assert_object(tips.showing()).is_null()
-
-
-## The HANDBOOK opened: T16 shows on the book's own overlay, and closes with the book.
-func test_the_handbook_shows_its_tip_over_the_book() -> void:
-	var screen: ShiftScreen = await _screen([&"T16"])
-	var tips: TipScheduler = screen.tutorial.tips
-	var book: HandbookPage = screen.guide.watched_handbook()
-	book.open_at(&"chain")
-	assert_bool(await _until_tip(tips)).is_true()
-	assert_str(String(tips.showing().id)).is_equal("T16")
-	assert_object(tips.overlay().get_parent()).is_same(book)
-	book.close()
 	await _frames(2)
 	assert_object(tips.showing()).is_null()
 

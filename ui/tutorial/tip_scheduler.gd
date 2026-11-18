@@ -1,34 +1,27 @@
 class_name TipScheduler
 extends Node
-## The one-time tips (T1-T16, data/tutorial/tips.tres; tutorial plan WP-10, decided with the user
-## after play test 1 of 2026-11-15): each shows once per profile (TutorialFlags.tip(id), set and
+## The one-time tips (data/tutorial/tips.tres; tutorial plan WP-10, decided with the user after
+## play test 1 of 2026-11-15; cut from 16 to 7 and to one per planning after the play tests of
+## 2026-11-16 and 2026-11-18, v1.40): each shows once per profile (TutorialFlags.tip(id), set and
 ## saved as it shows), the first time its trigger happens (TipTriggers), as a card that dims
 ## nothing and blocks nothing: "NEW · <title>", ONCE, its line, a ring on what it is about, MORE ›
-## its HANDBOOK page when it has one, GOT IT. Play goes on around it.
+## its HANDBOOK page when it has one, GOT IT. Play goes on around it. What a tip rings shows from
+## then on (the week 1 strip, Week1Strip).
 ##
 ## Where and when:
 ## - planning (min_shift and later): at most PER_PLANNING per planning, lower priority first,
 ##   while planning takes input; a planning tip closes when the planning ends. A miss forgiven by
-##   the training week (T9), a perk (T11) or an IMPROVE (T12) taken at the machine wait for the
-##   next planning;
-## - the machine: a PREMIUM visit's (T8), once its keys are armed, before the draw;
+##   the training week (T9) or a perk taken at the machine (T11) wait for the next planning;
 ## - the results: a lost run's (T14: the run's most WASTED giver card and the family it gives to,
-##   else its fallback line) and a run end that pays coins (T15), one after the other;
-## - the HANDBOOK (T16), on its own overlay over the book.
+##   else its fallback line) and a run end that pays coins (T15), one after the other.
 ## Never during the guided part (the director holds the screen), and on the planning its last step
-## closed only the tips whose trigger is in TutorialDirector.TIPS_AFTER_FINISH. A tip a guided
-## run's planning hint stands for (PlanHint.covers_tip: T1 REDRAW, T10 MEDALS) waits out that
-## run's first week, where the hint tells it when it happens (and marks it shown).
+## closed only the tips whose trigger is in TutorialDirector.TIPS_AFTER_FINISH.
 
-const PER_PLANNING := 2
-## Tips by where they show.
-const AT_MACHINE: Array[StringName] = [TipDefinition.PREMIUM_VISIT]
+const PER_PLANNING := 1
+## Tips that show on the results.
 const AT_RESULTS: Array[StringName] = [TipDefinition.RUN_LOST, TipDefinition.COINS_PAID]
-const AT_HANDBOOK: Array[StringName] = [TipDefinition.HANDBOOK_OPENED]
 ## Tips an event makes due for the next planning.
-const LATER: Array[StringName] = [
-	TipDefinition.FIRST_MISS, TipDefinition.PERK_TAKEN, TipDefinition.IMPROVE_TAKEN
-]
+const LATER: Array[StringName] = [TipDefinition.FIRST_MISS, TipDefinition.PERK_TAKEN]
 ## A card's width: as the director's (BASE_WIDTH + WORD_WIDTH per word, at most MAX_WIDTH).
 const BASE_WIDTH := 230.0
 const WORD_WIDTH := 5.0
@@ -38,9 +31,8 @@ var _screen: ShiftScreen
 var _director: TutorialDirector
 var _list: TipList
 var _values: Dictionary = {}
-## The overlays: the shift's (on the tutorial layer) and the HANDBOOK's (on the book).
+## The overlay (on the shift screen's tutorial layer).
 var _overlay: TutorialOverlay
-var _book_overlay: TutorialOverlay
 ## The tip showing (null: none), on which overlay, since when.
 var _showing: TipDefinition
 var _on: TutorialOverlay
@@ -99,13 +91,8 @@ func _process(_delta: float) -> void:
 
 ## The next tip due where the screen is now, or null.
 func _next(run: RunState) -> TipDefinition:
-	if _handbook_open():
-		return _first_due(AT_HANDBOOK, run)
 	if _screen._results.visible:
 		return _first_due(AT_RESULTS, run)
-	if _screen._machine.is_open():
-		var armed: bool = _screen._machine.view.is_armed()
-		return _first_due(AT_MACHINE, run) if armed else null
 	if not _planning_free(run):
 		return null
 	var key: Array[int] = [run.run_seed, run.shift_index]
@@ -145,20 +132,12 @@ func _planning_due(tip: TipDefinition, run: RunState) -> bool:
 	return TipTriggers.planning_due(tip.trigger, run)
 
 
-## Whether `tip` waits: on the planning the guided part closed on (all but TIPS_AFTER_FINISH), or
-## in a guided run's first week while a planning hint stands for it.
+## Whether `tip` waits: on the planning the guided part closed on (all but TIPS_AFTER_FINISH).
 func _held(tip: TipDefinition, run: RunState) -> bool:
 	if not run.guided:
 		return false
 	var after: Array[StringName] = TutorialDirector.TIPS_AFTER_FINISH
-	if run.shift_index == _finished_shift and not after.has(tip.trigger):
-		return true
-	if WeekSchedule.week_of(run.balance, run.shift_index + 1) > 0:
-		return false
-	for hint: PlanHint in TutorialScript.guided().hints:
-		if hint.covers_tip == tip.id:
-			return true
-	return false
+	return run.shift_index == _finished_shift and not after.has(tip.trigger)
 
 
 func _seen(tip: TipDefinition) -> bool:
@@ -179,15 +158,10 @@ func _planning_free(run: RunState) -> bool:
 	)
 
 
-## Whether the screen `tip` shows on is still up (its planning, the machine, the results, the
-## book).
+## Whether the screen `tip` shows on is still up (its planning, the results).
 func _still_fits(tip: TipDefinition) -> bool:
-	if AT_HANDBOOK.has(tip.trigger):
-		return _handbook_open()
 	if AT_RESULTS.has(tip.trigger):
 		return _screen._results.visible
-	if AT_MACHINE.has(tip.trigger):
-		return _screen._machine.is_open()
 	var run: RunState = _screen.run
 	return run.phase == RunState.Phase.PLANNING and [run.run_seed, run.shift_index] == _planning
 
@@ -196,13 +170,13 @@ func _show(tip: TipDefinition, run: RunState) -> void:
 	if TutorialFlags.mark_tip(_screen.profile, tip.id):
 		_screen.save_profile()
 	_due.erase(tip.trigger)
-	if not AT_HANDBOOK.has(tip.trigger) and not AT_RESULTS.has(tip.trigger):
-		if not AT_MACHINE.has(tip.trigger):
-			_count += 1
+	if not AT_RESULTS.has(tip.trigger):
+		_count += 1
 	if _values.is_empty():
 		_values = TutorialText.values(TutorialScript.guided(), _screen._balance)
 	_showing = tip
-	_on = _book_overlay_now() if AT_HANDBOOK.has(tip.trigger) else _overlay_now()
+	_director.strip.reveal_rings(tip.rings)  # What a tip points at shows from then on.
+	_on = _overlay_now()
 	_on.show_view(_view(tip, run))
 	_screen._log.log_event("tip_shown", RunEvents.tip_shown(tip.id))
 
@@ -214,20 +188,6 @@ func _view(tip: TipDefinition, run: RunState) -> StepView:
 	match tip.trigger:
 		TipDefinition.COUPON_IN_HAND:
 			rings = [TutorialAnchors.indexed(TutorialAnchors.HAND, TipTriggers.coupon_place(run))]
-		TipDefinition.FAMILY_RULE:
-			var slot: int = TipTriggers.family_rule_slot(run)
-			rings = [
-				TutorialAnchors.indexed(TutorialAnchors.FAMILIES, slot),
-				TutorialAnchors.indexed(TutorialAnchors.RULE, slot),
-			]
-		TipDefinition.MORNING_IN_ROW:
-			var slots: PackedInt32Array = TipTriggers.morning_slots(run)
-			fills.merge(
-				TutorialText.morning_values(TipTriggers.names_at(run, slots.slice(1))), true
-			)
-			rings = []
-			for slot: int in slots.slice(0, 3):
-				rings.append(TutorialAnchors.indexed(TutorialAnchors.SLOT, slot))
 		TipDefinition.RUN_LOST:
 			var fix: PackedStringArray = TipTriggers.lost_fix(
 				_tally, ContentLookup.new(run.balance)
@@ -269,24 +229,14 @@ func _close() -> void:
 
 func _overlay_now() -> TutorialOverlay:
 	if not is_instance_valid(_overlay):
-		_overlay = _new_overlay(_screen.anchor_rect)
+		_overlay = _new_overlay()
 		_screen.guide.mount_overlay(_overlay)
 	return _overlay
 
 
-## The HANDBOOK's own overlay (the shift's layer hides under the book).
-func _book_overlay_now() -> TutorialOverlay:
-	var book: HandbookPage = _screen.guide.watched_handbook()
-	if not is_instance_valid(_book_overlay):
-		_book_overlay = _new_overlay(book.anchor_rect)
-		book.add_child(_book_overlay)
-		_book_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	return _book_overlay
-
-
-func _new_overlay(anchors: Callable) -> TutorialOverlay:
+func _new_overlay() -> TutorialOverlay:
 	var made: TutorialOverlay = TutorialOverlay.new()
-	made.anchors = anchors
+	made.anchors = _screen.anchor_rect
 	made.reduced_motion = func() -> bool: return _screen.profile.reduced_motion()
 	made.button_pressed.connect(_close)
 	made.more_pressed.connect(_open_page)
@@ -299,11 +249,6 @@ func _open_page(page: StringName) -> void:
 	var book: HandbookPage = _screen.guide.watched_handbook()
 	if book != null:
 		book.open_at(page)
-
-
-func _handbook_open() -> bool:
-	var book: HandbookPage = _screen.guide.watched_handbook()
-	return book != null and book.is_open()
 
 
 ## The screen's hooks: a checkout's WASTED cards tallied; the events that make a tip due.
@@ -322,18 +267,11 @@ func _on_event(event: StringName, args: Dictionary) -> void:
 				_add(TipDefinition.FIRST_MISS)
 		TutorialEvents.PERK_TAKEN:
 			_add(TipDefinition.PERK_TAKEN)
-		TutorialEvents.IMPROVE_TAKEN:
-			_add(TipDefinition.IMPROVE_TAKEN)
-		TutorialEvents.MACHINE_ARMED:
-			if run.machine != null and run.machine.is_premium():
-				_add(TipDefinition.PREMIUM_VISIT)
 		TutorialEvents.RESULTS:
 			if not bool(args.get(TutorialEvents.ARG_WON, false)):
 				_add(TipDefinition.RUN_LOST)
 			if int(args.get(TutorialEvents.ARG_COINS, 0)) > 0:
 				_add(TipDefinition.COINS_PAID)
-		TutorialEvents.HANDBOOK_OPENED:
-			_add(TipDefinition.HANDBOOK_OPENED)
 
 
 func _add(trigger: StringName) -> void:

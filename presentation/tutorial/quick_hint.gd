@@ -9,8 +9,6 @@ extends Resource
 @export var id: StringName = &""
 ## The TutorialEvents start screen event that pops it.
 @export var event: StringName = &""
-## Only when the event's ARG_ON is true (a pin worn, not taken off).
-@export var needs_on: bool = false
 @export var title: String = ""
 ## Its line (TutorialText: **WORD** chips, {placeholders}).
 @export_multiline var text: String = ""
@@ -19,10 +17,8 @@ extends Resource
 
 
 ## Whether `event` with `args` pops it.
-func fires_on(sent: StringName, args: Dictionary) -> bool:
-	if sent != event:
-		return false
-	return not needs_on or bool(args.get(TutorialEvents.ARG_ON, false))
+func fires_on(sent: StringName, _args: Dictionary) -> bool:
+	return sent == event
 
 
 ## Its anchor id for `args` (the event's index or slot filled in).
