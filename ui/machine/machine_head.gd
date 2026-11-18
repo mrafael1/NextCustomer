@@ -16,8 +16,10 @@ extends Control
 ## The chase and the shine run on view.idle_time (still under reduced motion).
 ##
 ## The visit's head stamp (-4°): BONUS TICKET! with the inspection passed (or "shift n" for a bonus
-## extra shift) under it, REVIEW PASSED on a payday, SILVER MEDAL! or GOLD MEDAL! for the week
-## medals' draws (2026-11-06); paper with a tomato-dark double border, its words hard pixel
+## extra shift) under it, REVIEW PASSED on a payday, +1 DRAW! or PREMIUM! for the week medals'
+## draws (2026-11-06; v1.40: the prizes' names, OvertimeWords; the PREMIUM! stamp lands when the
+## receipt's PREMIUM tag slams into the sign, MachinePlan.tag_premium_end, the tag turning into
+## it); paper with a tomato-dark double border, its words hard pixel
 ## lettering (4x, the line under at 2x), on the sign's right half (2026-11-06, so the receipt
 ## feeding under it stays in view). While it is set the title and the sub line stay engraved on
 ## the sign's left part, centred in the room left of it (v1.36, polish audit: hidden, they left
@@ -105,6 +107,30 @@ func _init() -> void:
 	_under = _line("StampUnder", _stamp)
 	_show_face(false)
 	set_stamp("", "")
+
+
+## The stamp of `run`'s visit `visit` shown as `kind` (MachineVisit.Kind): a payday's review, a
+## week medal's prize (+1 DRAW! on the SILVER's draw, PREMIUM! on the visit the GOLD turned), a
+## bonus draw's EXTRA DRAW!, or none.
+func show_visit(run: RunState, kind: int, visit: MachineVisit) -> void:
+	if run.machine.is_payday(run):
+		# Payday (v0.68): one banner over both of the review's PREMIUM visits.
+		set_stamp(Payday.STAMP, Payday.STAMP_UNDER)
+		return
+	var machine_data: MachineDefinition = run.machine.machine
+	if visit != null and visit.kind == MachineVisit.Kind.OVERTIME:
+		set_stamp(OvertimeWords.SILVER_STAMP, OvertimeWords.stamp_under(machine_data, false))
+		return
+	if OvertimeTickets.is_premium_visit(run):
+		set_stamp(OvertimeWords.GOLD_STAMP, OvertimeWords.stamp_under(machine_data, true))
+		return
+	if kind != MachineVisit.Kind.BONUS:
+		set_stamp("", "")
+		return
+	var under: String = RewardMachineView.BONUS_UNDER
+	if visit.why.is_empty():
+		under = "shift %d" % run.history[-1].shift
+	set_stamp(BONUS_TEXT, under)
 
 
 ## The head stamp ("BONUS TICKET!", or "" for none) and the line under it.
@@ -207,9 +233,11 @@ func _frame_stamp(plan: MachinePlan, t: float) -> void:
 	var landing: float = 1.0
 	var land_time: float = MachineTuning.sec(plan.tuning.head_stamp_land_ms)
 	var since: float = t
-	if plan.kind == MachineVisit.Kind.BONUS:
+	# v1.40: the PREMIUM tag's slam into the sign lands its stamp, as a BONUS stamp lands.
+	var slammed: bool = plan.tag_premium_end >= 0.0
+	if plan.kind == MachineVisit.Kind.BONUS or slammed:
 		# Machine v2: the BONUS stamp lands once the ticket is over the slot, from 2.2x, backed.
-		since = t - plan.fly_end
+		since = t - (plan.tag_premium_end if slammed else plan.fly_end)
 		if since < 0.0:
 			_show_stamp(false, 1.0)
 			return
@@ -218,7 +246,7 @@ func _frame_stamp(plan: MachinePlan, t: float) -> void:
 		blink_on = int(floorf(since * BLINK_RATE)) % 2 == 0
 	if not plan.reduced_motion and since < land_time and land_time > 0.0:
 		var p: float = clampf(since / land_time, 0.0, 1.0)
-		if plan.kind == MachineVisit.Kind.BONUS:
+		if plan.kind == MachineVisit.Kind.BONUS or slammed:
 			landing = lerpf(BONUS_STAMP_FROM, 1.0, back_ease(p))
 		else:
 			landing = lerpf(STAMP_FROM, 1.0, 1.0 - (1.0 - p) * (1.0 - p))

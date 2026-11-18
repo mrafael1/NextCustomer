@@ -15,7 +15,9 @@ extends Node
 ## inks step darker (INKS: a short margin's tomato, a waiting amount's grey, a pass's green, a
 ## link's teal), so the warnings keep reading; the dashed rules turn amber (steel on silver). Under
 ## reduced motion (`instant`) it switches at once, with no shine and no sparkles. No stamp: the
-## medal is the paper's metal alone. A payday is the paycheck design (ReceiptPayday), not a metal.
+## medal is the paper's metal alone, and since v1.40 a small tag stapled on the paper's foot names
+## its prize (`tags`, ReceiptPrizeTags: "+1 DRAW", "PREMIUM"). A payday is the paycheck design
+## (ReceiptPayday), not a metal.
 ##
 ## While planning's projection would spend a week medal (2026-11-06) only the paper's edges glow
 ## faintly in that metal, a glint running round them (show_pending, GoldPaperArt.draw_glow),
@@ -44,6 +46,8 @@ const PENDING_SILVER := 1
 const PENDING_GOLD := 2
 ## A retinted label keeps its cream ink here.
 const CREAM_META := &"cream_ink"
+## The prize tags stapled on the paper's foot (v1.40; none on a paper that is no PanelContainer).
+var tags: ReceiptPrizeTags
 var _paper: Control
 var _target: ReceiptTarget
 var _gold: bool = false
@@ -75,6 +79,9 @@ func _init(paper: Control, target: ReceiptTarget = null) -> void:
 	_paper = paper
 	_target = target
 	_paper.draw.connect(_draw_gold)
+	if paper is PanelContainer:
+		tags = ReceiptPrizeTags.new(paper as PanelContainer)
+		paper.add_child(tags)
 	set_process(false)
 
 
@@ -202,6 +209,8 @@ func copy_from(other: ReceiptGold) -> void:
 	show_gold(other.is_gold(), true)
 	show_silver(other.is_silver(), true)
 	_still = other._still
+	if tags != null and other.tags != null:
+		tags.copy_from(other.tags)
 
 
 ## `color` as a label on the gold paper shows it (itself unless INKS steps it darker).

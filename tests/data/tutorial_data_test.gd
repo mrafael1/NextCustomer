@@ -42,13 +42,9 @@ const APPROVED: Dictionary[String, String] = {
 	"quota":
 	(
 		"Your **ROW** reaches the **QUOTA**! Press **CHECKOUT**, or push on: 2× the **QUOTA** "
-		+ "earns a **SILVER** medal."
+		+ "earns **+1 DRAW**."
 	),
-	"silver":
-	(
-		"2× the **QUOTA**: **SILVER** brings an **EXTRA DRAW** at the machine. 3× makes it "
-		+ "**GOLD**: **PREMIUM** prizes."
-	),
+	"silver": "2× the **QUOTA**: **+1 DRAW** at the machine. 3× makes it **PREMIUM**.",
 	"redrawn": "New **CARDS** from your **PILE**! Each **BASKET** you swap costs 1 **REDRAW**.",
 	"row_full": "7 slots, 8 **CARDS**: one always stays in its **BASKET**.",
 	"G11":
@@ -107,8 +103,8 @@ const APPROVED: Dictionary[String, String] = {
 	),
 	"T10":
 	(
-		"Pay 2× the **QUOTA** in one **SHIFT** for **SILVER**: an **EXTRA DRAW**. 3× for "
-		+ "**GOLD**: your draw turns **PREMIUM**. One of each per **WEEK**."
+		"Pay 2× the **QUOTA** in one **SHIFT** for **+1 DRAW**. 3×: your draw turns **PREMIUM**. "
+		+ "One of each per **WEEK**."
 	),
 	"T11":
 	"Your **LOYALTY** card. Each **LOYALTY PERK** stays for the whole run, and some level up.",

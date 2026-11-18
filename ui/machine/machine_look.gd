@@ -13,6 +13,11 @@ extends RefCounted
 ## at() reads only the plan and `t`, so every part shows the same transform; the times are the
 ## mock-up's (seconds into the transform), scaled to MachineTuning.premium_ms; under reduced
 ## motion the transform is a cut at its end.
+##
+## v1.40 (the receipt's prize tags): a visit the PREMIUM tag turns (MachinePlan.tag_premium_end)
+## starts its transform at the tag's slam into the sign, so the sign flips at once (the look
+## starts at FACE_AT: `from`) and no gold receipt pops up in the slot (the real one is about to
+## be fed there).
 
 ## The mock-up's transform length (its times below are in its seconds) and when it is done.
 const MOCK_LENGTH := 1.8
@@ -48,6 +53,8 @@ const SHINE_LENGTH := 0.6
 var d: float = CLASSIC
 ## A PREMIUM visit (it turns PREMIUM).
 var premium_visit: bool = false
+## The PREMIUM tag's slam turned it (v1.40): no gold receipt in the slot.
+var tagged: bool = false
 
 
 ## The look of `plan` at `t` (null: the idle machine, classic).
@@ -56,6 +63,7 @@ static func at(plan: MachinePlan, t: float) -> MachineLook:
 	if plan == null:
 		return look
 	look.premium_visit = plan.premium
+	look.tagged = plan.tag_premium_end >= 0.0
 	var since: float = plan.premium_progress(t)
 	if since < 0.0:
 		return look
@@ -63,8 +71,22 @@ static func at(plan: MachinePlan, t: float) -> MachineLook:
 	if plan.reduced_motion or length <= 0.0 or since >= length:
 		look.d = DONE if since >= length or not plan.reduced_motion else CLASSIC
 		return look
-	look.d = since / length * MOCK_LENGTH
+	var from: float = start_of(plan)
+	look.d = from + since / length * (MOCK_LENGTH - from)
 	return look
+
+
+## Where `plan`'s transform starts on the mock-up's clock: 0, or the sign's flip (FACE_AT) when
+## the PREMIUM tag's slam starts it.
+static func start_of(plan: MachinePlan) -> float:
+	return FACE_AT if plan.tag_premium_end >= 0.0 else 0.0
+
+
+## When `plan`'s transform reaches the mock-up's time `mock` (seconds on the plan's clock).
+static func time_of(plan: MachinePlan, mock: float) -> float:
+	var from: float = start_of(plan)
+	var share: float = clampf((mock - from) / (MOCK_LENGTH - from), 0.0, 1.0)
+	return plan.premium_at + plan.premium_length() * share
 
 
 ## Whether any of the premium dressing shows (the transform has started).
@@ -100,7 +122,7 @@ func trim() -> float:
 ## How much of the gold receipt sticks out of the slot (1 whole .. 0 swallowed; 0 outside the
 ## transform, so a resumed, reduced-motion or held PREMIUM visit never shows it).
 func stub_left() -> float:
-	if d < 0.0 or d >= STUB_IN_TO:
+	if d < 0.0 or d >= STUB_IN_TO or tagged:
 		return 0.0
 	return 1.0 - clampf((d - STUB_IN_FROM) / (STUB_IN_TO - STUB_IN_FROM), 0.0, 1.0)
 

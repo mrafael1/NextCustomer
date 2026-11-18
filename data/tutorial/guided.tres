@@ -322,7 +322,7 @@ script = ExtResource("3_hint")
 id = &"quota"
 when = 3
 title = "QUOTA"
-text = "Your **ROW** reaches the **QUOTA**! Press **CHECKOUT**, or push on: {silver_laps}× the **QUOTA** earns a **SILVER** medal."
+text = "Your **ROW** reaches the **QUOTA**! Press **CHECKOUT**, or push on: {silver_laps}× the **QUOTA** earns **+1 DRAW**."
 teaches = PackedStringArray("MEDALS")
 
 [sub_resource type="Resource" id="Hint_silver"]
@@ -330,16 +330,16 @@ script = ExtResource("3_hint")
 id = &"silver"
 when = 5
 covers_tip = &"T10"
-title = "SILVER!"
-text = "{silver_laps}× the **QUOTA**: **SILVER** brings an **EXTRA DRAW** at the machine. {gold_laps}× makes it **GOLD**: **PREMIUM** prizes."
+title = "+1 DRAW!"
+text = "{silver_laps}× the **QUOTA**: **+1 DRAW** at the machine. {gold_laps}× makes it **PREMIUM**."
 teaches = PackedStringArray("MEDALS", "EXTRA DRAW", "PREMIUM")
 
 [sub_resource type="Resource" id="Hint_gold"]
 script = ExtResource("3_hint")
 id = &"gold"
 when = 6
-title = "GOLD!"
-text = "{gold_laps}× the **QUOTA**: **GOLD** turns your draw **PREMIUM**."
+title = "PREMIUM!"
+text = "{gold_laps}× the **QUOTA**: your draw turns **PREMIUM**."
 teaches = PackedStringArray("MEDALS", "PREMIUM")
 
 [sub_resource type="Resource" id="Hint_redrawn"]

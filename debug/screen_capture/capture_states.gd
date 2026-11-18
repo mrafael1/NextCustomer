@@ -80,9 +80,13 @@ static func apply(screen: ShiftScreen, arguments: PackedStringArray) -> String:
 					_scroll_to_end(page.entry_scroll())
 					part += "scroll_"
 		elif argument.begins_with(PENDING_ARGUMENT):
-			var laps: int = maxi(argument.trim_prefix(PENDING_ARGUMENT).to_int(), 1)
+			var pending: PackedStringArray = argument.trim_prefix(PENDING_ARGUMENT).split(",")
+			var laps: int = maxi(pending[0].to_int(), 1)
+			var silver: bool = pending.has(CaptureOvertime.SILVER_OPTION)
+			if silver:
+				CaptureOvertime.spend_silver(screen.run)
 			CaptureOvertime.pending(screen, laps)
-			part += "pending%d_" % laps
+			part += "pending%d_%s" % [laps, "silver_" if silver else ""]
 		elif argument.begins_with(ROLL_ARGUMENT):
 			part += _roll(screen, argument.trim_prefix(ROLL_ARGUMENT).split(","))
 		elif argument.begins_with(HISTORY_ARGUMENT):

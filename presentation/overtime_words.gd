@@ -2,15 +2,19 @@ class_name OvertimeWords
 extends RefCounted
 ## The over-quota rewards' words (v1.03, OvertimeTickets; the week's medals since 2026-11-06,
 ## WeekMedals): the week badge's SILVER and GOLD medals' tooltips, and the machine's words for the
-## draws they pay (the SILVER's extra draw, the GOLD's PREMIUM visit). The laps in them ("2×",
+## draws they pay (the SILVER's extra draw, the GOLD's PREMIUM visit). Since v1.40 (the user's
+## verdict of 2026-11-18 on mock-up docs/art/mockups/medal_prizes.html) the player never reads
+## "SILVER" or "GOLD": every text names the medal's prize, "+1 DRAW" and "PREMIUM" (the constants
+## keep their metal names: the code's, the art's and the colours'). The laps in them ("2×",
 ## "3×") are the machine data's (MachineDefinition.overtime_*_laps). No ticket wording: the receipt
 ## feeds once and the draw lamps count its draws.
 
 ## The laps' sign, as the gauge's lap lamp shows it (LapLamp.TIMES_TEXT).
 const TIMES := "×"
-## The medals' names, their rules (the laps from the data), the weekly cap, their states.
-const SILVER_NAME := "SILVER MEDAL"
-const GOLD_NAME := "GOLD MEDAL"
+## The medals' prizes (their names on screen), their rules (the laps from the data), the weekly
+## cap, their states.
+const SILVER_NAME := "+1 DRAW"
+const GOLD_NAME := "PREMIUM"
 ## The rules: the € that wins it (WeekMedals.threshold_of) and its laps (hover tips revamp,
 ## approved 2026-11-13); without the € (no run), the laps alone.
 const SILVER_RULE := "Score %s in one shift (%s the quota) to get one extra prize draw."
@@ -29,21 +33,21 @@ const STATE_USED := "Used this week. Back next week."
 ## The run's last shift has no machine visit after it, so nothing can spend a medal.
 const STATE_LAST := "Last shift: no prize machine after it."
 ## The machine's head stamp on a draw a medal paid, and the line under it ("2× quota · extra
-## draw").
-const SILVER_STAMP := "SILVER MEDAL!"
-const GOLD_STAMP := "GOLD MEDAL!"
-const SILVER_UNDER := "%s quota · extra draw"
-const GOLD_UNDER := "%s quota · premium"
+## draw": the stamp names the prize now, so the line is the laps alone, "2× quota").
+const SILVER_STAMP := SILVER_NAME + "!"
+const GOLD_STAMP := GOLD_NAME + "!"
+const SILVER_UNDER := "%s quota"
+const GOLD_UNDER := "%s quota"
 ## The receipt read's ending on the GOLD's PREMIUM visit.
-const GOLD_READ := " · GOLD MEDAL"
+const GOLD_READ := " · PREMIUM"
 ## AGAIN! (the next draw of the same receipt) and its sub line's reason: the SILVER's extra draw, a
 ## payday's second PREMIUM draw, a bonus draw.
 const AGAIN := "EXTRA DRAW!"
 const AGAIN_SUB := "%s · draw %d of %d"
-const SILVER_REASON := "silver medal"
+const SILVER_REASON := "+1 draw"
 const BONUS_REASON := "extra draw"
 ## The key lead on the SILVER's draw.
-const SILVER_KEY_LEAD := "silver medal draw"
+const SILVER_KEY_LEAD := "+1 draw"
 
 
 ## "2×", the laps a medal needs (`gold`: the GOLD's, else the SILVER's).
@@ -54,7 +58,7 @@ static func laps_text(machine: MachineDefinition, gold: bool) -> String:
 	return str(laps) + TIMES
 
 
-## The head stamp's line under it on a draw medal `gold` paid ("2× quota · extra draw").
+## The head stamp's line under it on a draw medal `gold` paid ("2× quota").
 static func stamp_under(machine: MachineDefinition, gold: bool) -> String:
 	return (GOLD_UNDER if gold else SILVER_UNDER) % laps_text(machine, gold)
 
