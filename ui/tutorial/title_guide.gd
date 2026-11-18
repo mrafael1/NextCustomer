@@ -19,12 +19,9 @@ extends Control
 
 const STEP_ID := &"G1"
 const HEADER := "YOUR MOVE"
-## The guided run's steps (G1..G26), for the header's count.
-const STEP_COUNT := 26
-const TEXT := (
-	"Welcome to the till! Click {label}. Your first SHIFT shows you how to play, one move at a"
-	+ " time."
-)
+## The guided run's steps (the free planning's too), for the header's count.
+const STEP_COUNT := 7
+const TEXT := "Click {label}."
 const LABEL_KEY := "{label}"
 ## The callout's footer on a step whose move is a click on its ring.
 const CLICK_TARGET := "THE RING"
@@ -126,7 +123,7 @@ func line() -> String:
 	return text_template.replace(LABEL_KEY, start.caption)
 
 
-## The callout's card: the line, YOUR MOVE 1/26 on the mustard band, CLICK THE RING.
+## The callout's card: the line, YOUR MOVE 1/7 on the mustard band, CLICK THE RING.
 func spec() -> TipSpec:
 	var made: TipSpec = TipSpec.make(TipSpec.Kind.WORD, HEADER, line())
 	made.tag = "1/%d" % STEP_COUNT

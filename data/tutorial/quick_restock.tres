@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="QuickTutorial" load_steps=5 format=3]
+[gd_resource type="Resource" script_class="QuickTutorial" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://presentation/tutorial/quick_tutorial.gd" id="1_main"]
 [ext_resource type="Script" path="res://presentation/tutorial/tutorial_step.gd" id="2_sub"]
@@ -8,31 +8,13 @@
 script = ExtResource("2_sub")
 id = &"R1"
 screen = 1
-text = "NEW: **RESTOCK**. Not happy with a **BOOSTER** you opened? Send it back for a new one, once per run start."
+text = "**RESTOCK**: send back a booster you opened for a new one."
 teaches = PackedStringArray("RESTOCK")
 rings = Array[StringName]([&"restock"])
 act = 0
 side = 3
 footer = 1
 advance_on = &"restock_armed"
-
-[sub_resource type="Resource" id="Hint_r2"]
-script = ExtResource("3_hint")
-id = &"restock_pick"
-event = &"restock_armed"
-title = "RESTOCK"
-text = "Click RETURN THIS ONE on a **BOOSTER** to send it back. CANCEL keeps all your **CARDS**."
-teaches = PackedStringArray()
-anchor = "return0"
-
-[sub_resource type="Resource" id="Hint_r3"]
-script = ExtResource("3_hint")
-id = &"restock_new"
-event = &"restock_done"
-title = "RESTOCK"
-text = "Its {booster_size} **CARDS** left your **CART**. Open the new **BOOSTER**: a new chance at a **RARE** one. **RESTOCK** is used up until your next run."
-teaches = PackedStringArray()
-anchor = "booster{index}"
 
 [resource]
 script = ExtResource("1_main")
@@ -41,4 +23,4 @@ title = "RESTOCK"
 order = 2
 trigger = &"restock_unlocked"
 steps = Array[ExtResource("2_sub")]([SubResource("Resource_r1")])
-hints = Array[ExtResource("3_hint")]([SubResource("Hint_r2"), SubResource("Hint_r3")])
+hints = Array[ExtResource("3_hint")]([])

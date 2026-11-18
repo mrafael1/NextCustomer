@@ -59,6 +59,54 @@ static func until_free(shift: ShiftScreen, ms: int = 4000) -> bool:
 	return false
 
 
+## Waits until the opening board's page 1 is done (its boosters open, nothing playing), at most
+## `ms`; whether it is.
+static func until_stocked(shift: ShiftScreen, board: StartBoard, ms: int = 4000) -> bool:
+	var start: int = Time.get_ticks_msec()
+	while Time.get_ticks_msec() - start < ms:
+		if board.page == 1 and board.store.page_done() and not board.tips_blocked():
+			return true
+		_pump(shift)
+		await frames(1)
+	return false
+
+
+## Presses OPEN STORE (a pack is picked) until shift 1's planning is the run's phase: the deal
+## and the cart's flight skipped as a player's taps would. Whether it got there (at most `ms`).
+static func open_store(shift: ShiftScreen, board: StartBoard, ms: int = 4000) -> bool:
+	var start: int = Time.get_ticks_msec()
+	while Time.get_ticks_msec() - start < ms:
+		if shift.run.phase == RunState.Phase.PLANNING:
+			return true
+		if is_instance_valid(board) and shift._cart_reveal.is_open():
+			board.staff.primary()
+		_pump(shift)
+		await frames(1)
+	return false
+
+
+## Plays the guided run from its start to shift 1's free planning (G3 with OPEN ALL, NEXT, G5
+## with pack `pack`, OPEN STORE, G7 and G8 read); whether it got there.
+static func to_free(shift: ShiftScreen, seed_value: int, pack: int = 0) -> bool:
+	var board: StartBoard = start_guided(shift, seed_value)
+	if not await until_step(shift, &"G3"):
+		return false
+	board.store.primary()  # OPEN ALL.
+	if not await until_stocked(shift, board):
+		return false
+	board.store.primary()  # NEXT.
+	if not await until_step(shift, &"G5"):
+		return false
+	board.pick(pack)
+	if not await open_store(shift, board):
+		return false
+	for id: StringName in [&"G7", &"G8"]:
+		if not await until_step(shift, id):
+			return false
+		press(shift)
+	return await until_free(shift)
+
+
 ## Lays hand places `places` on the row, left to right (the row emptied first).
 static func lay(shift: ShiftScreen, places: Array[int]) -> void:
 	while not shift.run.row.is_empty():

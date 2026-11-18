@@ -1,6 +1,6 @@
 class_name TutorialStep
 extends Resource
-## One step of the guided first run (G1-G26) or of a quick tutorial (R, P, SA): its line, what it
+## One step of the guided first run (G1, G3...) or of a quick tutorial (R, P, SA): its line, what it
 ## rings and locks, how it moves on and what the player may do meanwhile (the mock-up
 ## docs/art/mockups/tutorial.html, its GUIDED and QUICK steps). Pure data: the director
 ## (TutorialDirector) reads it, the overlay draws it. Rings and locks name TutorialAnchors ids,
@@ -30,7 +30,7 @@ enum Footer { NEXT, GOT_IT, RING }
 ## ONLY: only the actions in `allow`, filtered by the allow_* lists (the guided run).
 enum Gate { OPEN, ONLY }
 
-## The step's id: G1-G26, R1-R4, P1-P4, SA1-SA4 (also its `tutorial_step` / `quick_step` log id).
+## The step's id: G<n>, R1, P1, SA1 (also its `tutorial_step` / `quick_step` log id).
 @export var id: StringName = &""
 @export var screen: Screen = Screen.TITLE
 ## The line, with `**WORD**` chips and `{name}` placeholders (TutorialText).
