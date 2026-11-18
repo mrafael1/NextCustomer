@@ -81,7 +81,7 @@ const APPROVED: Dictionary[String, String] = {
 	),
 	"T4":
 	(
-		"**MORNING**: start your **ROW** with Breakfast **ITEMS**. Coffee pays +1€ for each one. "
+		"**MORNING**: a Breakfast **ITEM** in the first 3 slots. Coffee pays +1€ for each one. "
 		+ "Here, Eggs and Bread make 2."
 	),
 	"T5":
@@ -471,6 +471,9 @@ func test_the_figures_are_the_rules_and_the_balance() -> void:
 	# T4's "Coffee pays +1€ for each one" is Coffee's own rule.
 	var coffee: CardDefinition = load("res://data/cards/coffee.tres")
 	assert_str(values["coffee_per"]).is_equal(str((coffee.rules[0] as MorningCountRule).bonus_each))
+	# T4's "in the first 3 slots" is the MORNING ZONE's balance value.
+	var zone: MorningZone = load("res://data/balance/morning_zone.tres")
+	assert_str(values["morning_slots"]).is_equal(str(zone.slots))
 
 
 func test_every_line_passes_the_line_checker() -> void:

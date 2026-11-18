@@ -1,0 +1,7 @@
+[gd_resource type="Resource" script_class="MorningZone" format=3]
+
+[ext_resource type="Script" path="res://core/morning_zone.gd" id="1_zone"]
+
+[resource]
+script = ExtResource("1_zone")
+slots = 3

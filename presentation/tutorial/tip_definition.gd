@@ -18,7 +18,8 @@ const WEEK_TWO := &"week_two"
 const COUPON_IN_HAND := &"coupon_in_hand"
 ## A card in the baskets whose rule names a family other than Food.
 const FAMILY_RULE := &"family_rule"
-## A MORNING reader (Coffee) in the row with at least one Breakfast item opening it.
+## A MORNING reader (Coffee) in the row with at least one MORNING item (a Breakfast item in the
+## zone).
 const MORNING_IN_ROW := &"morning_in_row"
 ## A Bakery card with BATCH in the baskets.
 const BATCH_IN_HAND := &"batch_in_hand"

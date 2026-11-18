@@ -23,8 +23,8 @@ extends RefCounted
 ##   WASTED products a Clearance card profits from (ScoreState.wasted);
 ## - `pair`: the PAIR keyword (PAIR_WORD, #128 Dairy), a chip likewise: a product beside its
 ##   partner (CardPairs), which Cream counts;
-## - `morning`: the MORNING keyword (MORNING_WORD, #128 Breakfast), a chip likewise: the row's
-##   opening run of Breakfast products (CardMorning), which Coffee and Tea bags work by;
+## - `morning`: the MORNING keyword (MORNING_WORD, #128 Breakfast), a chip likewise: a Breakfast
+##   product in the row's first slots (CardMorning's zone), which Coffee and Tea bags work by;
 ## - `percent`: a fractional multiplier's percent per redraw left (Stale popcorn, #128 v3). Such a
 ##   card's `factor` is live (the user's call of 2026-11-02): ×1 plus `percent`% for each of the
 ##   shift's redraws left (`redraws_left`, ScoreState.redraws_left), "1.5" with 1 at 50%, so its

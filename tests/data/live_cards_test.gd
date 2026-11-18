@@ -93,12 +93,13 @@ func test_phase_2_cards_score_the_design_examples(
 		# Cream (2 + 4 for the one PAIR: Reduced yogurt beside Ham ends) x2 = 12 (Eggs' one
 		# charge); Milk 3 + 2; Ham ends 2 + 3; Reduced yogurt 2 + 4 (#128 Dairy, v1.29).
 		["eggs,cream,milk,ham_ends,reduced_yogurt", 29],
-		# Sugar cubes 2 + 4 after Coffee, not Breakfast: it ends the MORNING (Coffee 2 + 1) and
-		# Milk's count passes over it. Milk 3 + 2 x 1 earlier Breakfast (#128 Breakfast).
-		["coffee,sugar_cubes,milk", 14],
-		# Coffee 2 + 1 (the MORNING is Coffee alone); Chipped mug 2 + 4 beside Coffee; Egg timer 2;
-		# Odd socks 2: Egg timer beside it has Chipped mug beside it too, 3 in a row, no pair (#128).
-		["coffee,chipped_mug,egg_timer,odd_socks", 13],
+		# Sugar cubes 2 + 4 after Coffee, not Breakfast: no MORNING item, but Milk in slot 3 is
+		# (Coffee 2 + 2). Milk 4 + 1 x 1 earlier Breakfast (#128 Breakfast).
+		["coffee,sugar_cubes,milk", 15],
+		# Coffee 2 + 2 (Coffee and Egg timer in the zone); Chipped mug 2 + 4 beside Coffee; Egg
+		# timer 2; Odd socks 2: Egg timer beside it has Chipped mug beside it too, 3 in a row, no
+		# pair (#128).
+		["coffee,chipped_mug,egg_timer,odd_socks", 14],
 		# Household (#128, v1.29 numbers). Batteries 2; Odd socks (2 + 8 in an exact pair) x2, the
 		# next Household.
 		["batteries,odd_socks", 22],
@@ -560,7 +561,7 @@ static func _data_value(card: CardDefinition, key: String) -> Variant:
 ## Whether `rule` reads Bakery batches (#128), whose tickets name them with the BATCH keyword.
 static func _reads_morning(rule: Rule) -> bool:
 	var charged: GrantChargedMultiplierRule = rule as GrantChargedMultiplierRule
-	return rule is MorningCountRule or (charged != null and charged.morning_end)
+	return rule is MorningCountRule or (charged != null and charged.morning_zone != null)
 
 
 static func _reads_batches(rule: Rule) -> bool:

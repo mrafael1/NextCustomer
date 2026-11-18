@@ -4,6 +4,7 @@
 [ext_resource type="Script" path="res://core/rules/grant_charged_multiplier_rule.gd" id="2_tea_bags"]
 [ext_resource type="Script" path="res://core/card_definition.gd" id="3_card"]
 [ext_resource type="Resource" path="res://data/cards/tea_bags.tres" id="9_plain"]
+[ext_resource type="Resource" path="res://data/balance/morning_zone.tres" id="9_zone"]
 
 [sub_resource type="Resource" id="Resource_tea_bags"]
 script = ExtResource("2_tea_bags")
@@ -11,7 +12,7 @@ tag = "Breakfast"
 factor = 4
 charges = 2
 group = &"tea_charges"
-morning_end = true
+morning_zone = ExtResource("9_zone")
 receipt_text = "Tea bags ×4"
 
 [resource]

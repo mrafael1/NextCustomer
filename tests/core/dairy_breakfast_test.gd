@@ -3,9 +3,9 @@ extends GdUnitTestSuite
 ## its partner: Butter and Bakery, Cheese and Bread, Yogurt and Banana, Reduced yogurt and
 ## Clearance, Scone and Dairy, Cereal and Milk, +4 (Cheese +5) for each partner beside it since
 ## v1.29; Cream +4 for each PAIR in the row) and
-## Breakfast's MORNING (the row's opening run of Breakfast products, coupons skipped; Coffee +1
-## for each MORNING product, Tea bags ×4 the last MORNING product after it). Live data: the
-## numbers are placeholders for the end balance pass.
+## Breakfast's MORNING (the MORNING ZONE since 2026-11-18: a Breakfast product in the row's first
+## 3 slots, data/balance/morning_zone.tres; Coffee +1 for each MORNING item, Tea bags ×4 the last
+## MORNING item after it). Live data: the numbers are placeholders for the end balance pass.
 
 const CARDS := "res://data/cards/%s.tres"
 
@@ -23,13 +23,23 @@ func test_rows(
 		# each PAIR (Butter, Scone).
 		["bread,butter,scone,cream", [5, 10, 10, 10]],
 		["bread,cheese,cream", [5, 8, 6]],
-		# MORNING Coffee, Milk, Eggs (Crisps ends it): Coffee 2 + 3; Milk 4 + 1 earlier Breakfast;
-		# Crisps 2 x2 (Eggs).
+		# MORNING Coffee, Milk, Eggs (the zone's 3 slots; Bread in slot 5 is outside): Coffee
+		# 2 + 3; Milk 4 + 1 earlier Breakfast; Crisps 2 x2 (Eggs).
 		["coffee,milk,eggs,crisps,bread", [5, 5, 1, 4, 5]],
-		# Tea bags ×4 the last MORNING product after it: Eggs (1 x 4), not Bread; Eggs x2 Crisps.
+		# A Breakfast item past slot 3 is no MORNING item: Coffee 2 + 3, not + 4.
+		["coffee,milk,bread,eggs", [5, 5, 5, 1]],
+		# No first-slot condition and no run: Coffee and Bread behind Potatoes, Coffee 2 + 2;
+		# Milk and Coffee round Potatoes, Coffee 2 + 2.
+		["potatoes,coffee,bread", [3, 4, 5]],
+		["milk,potatoes,coffee", [4, 3, 4]],
+		# The zone is the row's first 3 slots wherever the Coffee stands: Coffee in slot 5, 2 + 2.
+		["bread,potatoes,milk,crisps,coffee", [5, 3, 5, 2, 4]],
+		# Tea bags ×4 the last MORNING item after it: Eggs (1 x 4), not Bread; Eggs x2 Crisps.
 		["tea_bags,bread,eggs,crisps", [1, 5, 4, 4]],
-		# Milk 4 + 2 earlier Breakfast, x4: Tea bags need not open the MORNING.
+		# Milk 4 + 2 earlier Breakfast, x4: Tea bags need not stand in slot 1.
 		["bread,tea_bags,milk", [5, 1, 24]],
+		# Tea bags' item must be in the zone: Bread (slot 2) takes the ×4, not Milk in slot 4.
+		["tea_bags,bread,potatoes,milk", [1, 20, 3, 6]],
 	]
 ) -> void:
 	var result: ScoreResult = Scoring.score(_row(row))
@@ -37,21 +47,53 @@ func test_rows(
 	assert_int(Scoring.total(_row(row))).is_equal(result.total)
 
 
-## Coupons neither join nor end the MORNING, and the Breakfast sticker's tag joins it: Coffee
-## 2 + 3 (Coffee, Crisps given Breakfast, Bread).
-func test_the_breakfast_sticker_extends_the_morning() -> void:
+## A coupon in the zone takes its slot (it is no MORNING item), and the Breakfast sticker's tag
+## counts: Coffee 2 + 2 (Coffee, Crisps given Breakfast in slot 3; Bread in slot 4 is outside).
+## Without the sticker Bread stands in slot 3: Coffee 2 + 2 too (Coffee, Bread).
+func test_a_coupon_takes_a_zone_slot_and_the_sticker_tag_counts() -> void:
 	var result: ScoreResult = Scoring.score(_row("coffee,breakfast_sticker,crisps,bread"))
-	assert_int(result.payouts[0]).is_equal(5)
+	assert_int(result.payouts[0]).is_equal(4)
+	assert_array(Array(result.mornings)).is_equal([0, 2])
 	var plain: ScoreResult = Scoring.score(_row("coffee,crisps,bread"))
-	assert_int(plain.payouts[0]).is_equal(3)
+	assert_int(plain.payouts[0]).is_equal(4)
+	assert_array(Array(plain.mornings)).is_equal([0, 2])
+
+
+## The zone is the row's own first slots under any day event: Spot check's slot 3 pays 0€ but
+## its Breakfast item is still a MORNING item (Coffee 2 + 3), and Short belt only shortens the
+## row's end.
+func test_the_zone_under_inspections() -> void:
+	var spot: InspectionDefinition = load("res://data/inspections/spot_check.tres")
+	var short: InspectionDefinition = load("res://data/inspections/short_belt.tres")
+	var checked: ScoreResult = Scoring.score(_row("coffee,milk,bread"), [], [spot, short])
+	assert_array(Array(checked.payouts)).is_equal([5, 5, 0])
+	assert_array(Array(checked.mornings)).is_equal([0, 1, 2])
+
+
+## The zone's size is the balance value every MORNING card points at, and the result lists the
+## MORNING items only when a card in the row reads MORNING.
+func test_the_zone_is_balance_data() -> void:
+	var zone: MorningZone = load("res://data/balance/morning_zone.tres")
+	assert_int(zone.slots).is_equal(3)
+	for id: String in ["coffee", "coffee_big", "coffee_golden"]:
+		var card: CardDefinition = load(CARDS % id)
+		assert_object(CardMorning.zone_of([card])).is_same(zone)
+	for id: String in ["tea_bags", "tea_bags_big", "tea_bags_golden"]:
+		var card: CardDefinition = load(CARDS % id)
+		assert_object(CardMorning.zone_of([card])).is_same(zone)
+	assert_object(CardMorning.zone_of([load(CARDS % "milk") as CardDefinition])).is_null()
+	assert_array(Array(Scoring.score(_row("milk,bread")).mornings)).is_empty()
 
 
 func test_fizzles(
 	row: String,
 	wasted: Array,
 	_test_parameters := [
-		["potatoes,coffee", [[1, "no MORNING item in the row"]]],
+		# Coffee past the zone with no Breakfast item in it.
+		["potatoes,potatoes,potatoes,coffee", [[3, "no MORNING item in the row"]]],
 		["bread,potatoes,tea_bags", [[2, "no MORNING item after it"]]],
+		# The Breakfast item after the Tea bags stands past the zone.
+		["potatoes,potatoes,tea_bags,bread", [[2, "no MORNING item after it"]]],
 		["cream,bread", [[0, "no PAIR in the row"]]],
 		["cheese,potatoes", [[0, "no Bread beside it"]]],
 	]

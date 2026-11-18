@@ -9,4 +9,4 @@ group = &"families"
 title = "Breakfast"
 mark = 3
 mark_value = "Breakfast"
-rule = "Morning goods. Line up {fam:Breakfast} items at the start of the row to make a {kw:MORNING}."
+rule = "Morning goods. A {fam:Breakfast} item in the first 3 slots is {kw:MORNING}."

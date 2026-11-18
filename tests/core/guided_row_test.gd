@@ -82,10 +82,10 @@ func test_the_hints_fire_on_what_the_rules_did() -> void:
 		assert_int(int(counts[hint_id])).override_failure_message(String(hint_id)).is_equal(1)
 
 
-## The medals: the best row (Tea bags ×4 on Milk) reaches SILVER, whose hint pops over the
-## medal case in place of QUOTA's (the highest level reached is told, never a lower one after:
-## the full row's hint comes next);
-## a redraw's hint points at REDRAW, once.
+## The medals: the best row (Tea bags ×4 on Cereal, the MORNING ZONE's last item) reaches SILVER,
+## whose hint pops over the medal case in place of QUOTA's (the highest level reached is told,
+## never a lower one after: the full row's hint comes next); a redraw's hint points at REDRAW,
+## once.
 func test_the_medal_and_redraw_hints() -> void:
 	var guide: GuidedStartDefinition = StartChoice.guided_start()
 	var hints: Array[PlanHint] = TutorialScript.guided().hints
@@ -95,7 +95,7 @@ func test_the_medal_and_redraw_hints() -> void:
 	for hint: PlanHint in hints:
 		if not hint.card.is_empty():
 			shown.append(hint.id)
-	_lay(run, places, [YOGURT, CEREAL, EGGS, TEA_BAGS, MILK, BANANA_1, BANANA_2])
+	_lay(run, places, [TEA_BAGS, EGGS, CEREAL, MILK, BANANA_1, YOGURT, BANANA_2])
 	var machine: MachineDefinition = run.balance.machine
 	assert_int(run.preview().total).is_greater_equal(run.quota() * machine.overtime_ticket_laps)
 	assert_int(run.preview().total).is_less(run.quota() * machine.overtime_premium_laps)

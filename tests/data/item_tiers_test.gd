@@ -373,8 +373,9 @@ func test_tiers_score_as_their_product(
 		["bread_big,cheese", [7, 8]],
 		# A Frozen pair across tiers: plain 3 + 3, Golden 5 + twice its base.
 		["frozen_peas,frozen_peas_golden", [6, 15]],
-		# Golden Tea bags: ×4 on the next 2 Breakfast payouts (Bread 5).
-		["tea_bags_golden,bread,bread,bread", [3, 5, 20, 20]],
+		# Golden Tea bags: ×4 the last 2 MORNING items after it (Bread 5 in slots 2 and 3; the
+		# Bread in slot 4 is past the zone).
+		["tea_bags_golden,bread,bread,bread", [3, 20, 20, 5]],
 		# Golden Carrier bag 3 + 16 for Soup beside it (Bread is not beside it).
 		["bread,soup,carrier_bag_golden", [5, 5, 19]],
 		# Golden Soup still pays 0 beside a Frozen product.

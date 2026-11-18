@@ -48,8 +48,8 @@ const KEYWORD_TIPS: Dictionary[String, String] = {
 	),
 	CardText.MORNING_WORD:
 	(
-		"Start the row with Breakfast items to make a MORNING; a Coupon doesn't break it. Cards "
-		+ "like Coffee and Tea bags pay for it."
+		"A Breakfast item in the first 3 slots is MORNING. Cards like Coffee and Tea bags pay "
+		+ "for it."
 	),
 }
 

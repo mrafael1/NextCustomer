@@ -336,3 +336,17 @@ func test_the_batch_page_teaches_the_bookends() -> void:
 	var tip: String = GlyphText.keyword_tip(CardText.BATCH_WORD)
 	assert_bool(tip.contains("cap")).is_false()
 	assert_str(book.entry_for_family("Bakery").rule).contains("a FIRST cap and a LAST cap")
+
+
+## The texts that explain MORNING name the MORNING ZONE's size, the balance value
+## (data/balance/morning_zone.tres): the keyword's page and tooltip, Breakfast's page and the
+## Breakfast run pack's hint.
+func test_the_morning_texts_name_the_zones_slots() -> void:
+	var zone: MorningZone = load("res://data/balance/morning_zone.tres")
+	var words: String = "first %d slots" % zone.slots
+	var book: HandbookBook = _book()
+	assert_str(book.entry(&"morning").rule).contains(words)
+	assert_str(book.entry(&"fam_breakfast").rule).contains(words)
+	assert_str(GlyphText.keyword_tip(CardText.MORNING_WORD)).contains(words)
+	var pack: StarterPackDefinition = load("res://data/starter_packs/breakfast_run.tres")
+	assert_str(pack.hint_text).contains(words)

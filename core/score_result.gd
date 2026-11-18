@@ -20,9 +20,9 @@ var chains: Array[PackedInt32Array] = []
 var knot_factors: Dictionary[int, int] = {}
 var chain_feeds: PackedInt32Array = PackedInt32Array()
 var chain_tallies: PackedInt32Array = PackedInt32Array()
-## The MORNING's slots when a card in the row reads it (CardMorning.read), and every PAIR as
-## (left slot, right slot) (CardPairs.links): what the planning belt's suns and clasps mark (#128,
-## v1.06). Empty for a total-only score.
+## The MORNING items' slots when a card in the row reads MORNING (CardMorning.read: the Breakfast
+## products in the MORNING ZONE), and every PAIR as (left slot, right slot) (CardPairs.links): what
+## the planning belt's zone lights and its clasps mark (#128, v1.06). Empty for a total-only score.
 var mornings: PackedInt32Array = PackedInt32Array()
 var pairs: Array[Vector2i] = []
 

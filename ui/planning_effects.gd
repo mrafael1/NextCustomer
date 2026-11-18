@@ -113,6 +113,8 @@ var _tag: DayCalendar
 var _quota_meter: QuotaMeter
 var _drag: CardDrag
 var _layer: PlanningLayer
+## The belt's cells, for the MORNING ZONE's print (MorningBand).
+var _row: RowStrip
 var _monitor: MonitorView
 var _unfocus_timer: Timer
 var _focus: Focus = Focus.NONE
@@ -136,6 +138,7 @@ func setup(stage: ShiftStage, drag: CardDrag) -> void:
 	_quota_meter = stage.quota_meter
 	_drag = drag
 	_layer = stage.planning_layer
+	_row = stage.row_strip
 	_layer.tuning = tuning
 	_layer.fan().blocked = _blocked
 	_layer.fan().fanned_changed.connect(_on_fanned)
@@ -178,6 +181,8 @@ func show_all(
 	_layer.reduced_motion = _reduced()
 	_layer.show_model(_model, _items_in(views, -1, null))
 	_layer.show_strips(true)
+	# The MORNING ZONE's print, for a cart that reads MORNING; its MORNING items' slots lit.
+	MorningBand.refresh(_row, run, _model.mornings)
 	_slapped = _layer.slap_new(_slapped)
 	_apply_focus(false)
 
@@ -274,6 +279,7 @@ func clear() -> void:
 		_grey_tween = null
 	_sticker_grey.clear()
 	_layer.clear()
+	MorningBand.show(_row, 0, PackedInt32Array())
 	_paint_items({}, Callable(), PackedInt32Array(), -1, 0.0)
 	_loyalty.clear_relations()
 	_tag.set_relation(false)
@@ -702,11 +708,11 @@ func _fade(seconds: float) -> float:
 ## those light.
 func _on_tip_shown(target: TipTarget) -> void:
 	# A BATCH chip on a belt ticket lights its batch's frame, a CHAIN chip its chain's (#128), a
-	# MORNING chip the MORNING's line (v1.24); any other tip, none.
+	# MORNING chip the MORNING ZONE's print on the belt; any other tip, none.
 	var chip: KeywordChip = target as KeywordChip
 	var word: String = chip.keyword if chip != null and _shown else ""
-	# A part of the belt's MORNING line (v1.24) is the MORNING keyword's own.
-	if target is MorningMark and _shown:
+	# The zone's own label on the belt is the MORNING keyword's.
+	if target is MorningZoneLabel and _shown:
 		word = CardText.MORNING_WORD
 	_layer.light_frames(_belt_slot_of(chip) if chip != null and not word.is_empty() else -1, word)
 	# A family glyph (what an item is) and a ticket's written family (what it works with) both

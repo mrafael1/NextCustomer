@@ -225,9 +225,10 @@ func _view(tip: TipDefinition, run: RunState) -> StepView:
 			fills.merge(
 				TutorialText.morning_values(TipTriggers.names_at(run, slots.slice(1))), true
 			)
+			# The MORNING ZONE's spots on the belt (MorningBand's print).
 			rings = []
-			for slot: int in slots.slice(0, 3):
-				rings.append(TutorialAnchors.indexed(TutorialAnchors.SLOT, slot))
+			for slot: int in range(MorningBand.tiles(_screen._row_strip).size()):
+				rings.append(TutorialAnchors.indexed(TutorialAnchors.SPOT, slot))
 		TipDefinition.RUN_LOST:
 			var fix: PackedStringArray = TipTriggers.lost_fix(
 				_tally, ContentLookup.new(run.balance)

@@ -57,9 +57,9 @@ var run_chain: PackedInt32Array = PackedInt32Array()
 var chain_feeds: PackedInt32Array = PackedInt32Array()
 var chain_tallies: PackedInt32Array = PackedInt32Array()
 var knot_factors: Dictionary[int, int] = {}
-## The MORNING's slots when a card in the row reads it, and every PAIR as (left slot, right
-## slot), from the score (ScoreResult.mornings, pairs): the belt's rising suns and PAIR clasps
-## (KeywordMarks, v1.06).
+## The MORNING items' slots when a card in the row reads MORNING, and every PAIR as (left slot,
+## right slot), from the score (ScoreResult.mornings, pairs): the MORNING ZONE's lit patches
+## (MorningBand) and the PAIR clasps (KeywordMarks, v1.06).
 var mornings: PackedInt32Array = PackedInt32Array()
 var pairs: Array[Vector2i] = []
 

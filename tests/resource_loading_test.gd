@@ -92,6 +92,8 @@ func test_every_scene_and_resource_loads() -> void:
 			assert_object(resource).override_failure_message(path).is_instanceof(
 				StartBoostersTuning
 			)
+		elif path.ends_with("/balance/morning_zone.tres"):
+			assert_object(resource).override_failure_message(path).is_instanceof(MorningZone)
 		elif path.contains("/balance/"):
 			assert_object(resource).override_failure_message(path).is_instanceof(BalanceDefinition)
 		elif path.ends_with("_bus_layout.tres"):

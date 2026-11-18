@@ -96,8 +96,8 @@ static func rule_family(definition: CardDefinition) -> String:
 	return ""
 
 
-## A MORNING reader in the row with Breakfast items opening it: its slot, then theirs (empty for
-## none).
+## A MORNING reader in the row with MORNING items (Breakfast items in the zone): its slot, then
+## theirs (empty for none).
 static func morning_slots(run: RunState) -> PackedInt32Array:
 	var mornings: PackedInt32Array = run.preview().mornings
 	if mornings.is_empty():

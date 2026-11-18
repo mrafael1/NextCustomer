@@ -261,7 +261,7 @@ func frames(chains: bool = false) -> Array[BatchFrame]:
 
 
 ## Lights the frames `slot`'s `word` chip (BATCH or CHAIN) names; -1 lights none. A MORNING chip
-## on a ticket, or a part of the belt's MORNING line, lights that line (v1.24).
+## on a ticket, or the zone's own label, lights the MORNING ZONE's print on the belt.
 func light_frames(slot: int, word: String) -> void:
 	_chains.marks().light_morning(word == CardText.MORNING_WORD)
 	_batches.light(slot if word == CardText.BATCH_WORD else -1)

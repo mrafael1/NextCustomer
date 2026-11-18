@@ -180,6 +180,8 @@ static func values(
 	var reader: CardDefinition = content.card(MORNING_READER)
 	if reader != null:
 		found["coffee_per"] = str(_morning_bonus_each(reader))
+		var zone: MorningZone = CardMorning.zone_of([reader])
+		found["morning_slots"] = str(zone.slots if zone != null else 0)
 	if balance == null:
 		return found
 	found["quota"] = str(balance.quotas[0]) if not balance.quotas.is_empty() else "0"

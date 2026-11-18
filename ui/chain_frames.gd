@@ -9,9 +9,8 @@ extends BatchFrames
 ## names: the chain holding its slot, or the chain its FEED or TALLY helper at its place serves.
 ## Decor only.
 ##
-## It also carries the MORNING's line and the PAIRs' clasps (KeywordMarks, v1.06, v1.24): the
-## other family keywords' marks, shown, laid out and cleared with the chains (marks()), drawn over
-## the chains' frames (kept the last child).
+## It also carries the PAIRs' clasps (KeywordMarks, v1.06): shown, laid out and cleared with the
+## chains (marks()), drawn over the chains' frames (kept the last child).
 ##
 ## follow_binding hides the GOLDEN ring on every ticket a shown frame binds, the chains' or the
 ## batches' (PriceSticker.set_framed: the frame is its outline then), until it unbinds.
@@ -60,15 +59,10 @@ func clear_frames() -> void:
 	_framed.clear()
 
 
-func follow(layer: Control, items: Array[ItemView], ghost: ItemView) -> void:
-	_marks.note_rings(layer, items)
-	super(layer, items, ghost)
-
-
 ## follow, then the GOLDEN ring hidden on every ticket of `items` a shown frame binds, these
-## chains' or `batches`' (laid out first), and shown on every other, `ghost`'s too; the MORNING
-## line, whose pins sit on a shown ring's foot, laid out again when a ring changed, and the ticket's
-## slot marks hung again (RowStrip.gold_drop: no ring, no drop).
+## chains' or `batches`' (laid out first), and shown on every other, `ghost`'s too; the frames
+## laid out again when a ring changed, and the ticket's slot marks hung again (RowStrip.gold_drop:
+## no ring, no drop).
 func follow_binding(
 	batches: BatchFrames, layer: Control, items: Array[ItemView], ghost: ItemView
 ) -> void:
@@ -105,7 +99,7 @@ func lay_out(
 	_marks.lay_out(tickets, skipped)
 
 
-## The MORNING's line and the PAIRs' clasps (KeywordMarks), laid out with the chains.
+## The PAIRs' clasps (KeywordMarks), laid out with the chains.
 func marks() -> KeywordMarks:
 	return _marks
 

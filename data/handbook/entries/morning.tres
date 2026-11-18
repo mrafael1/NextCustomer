@@ -9,6 +9,6 @@ group = &"keywords"
 title = "MORNING"
 mark = 1
 mark_value = "MORNING"
-rule = "Start the row with {fam:Breakfast} items to make a {kw:MORNING}; a {fam:Coupon} doesn't break it. Cards like {item:coffee} and {item:tea_bags} pay for it."
+rule = "A {fam:Breakfast} item in the first 3 slots is {kw:MORNING}. Cards like {item:coffee} and {item:tea_bags} pay for it."
 example_row = PackedStringArray("tea_bags", "bread", "milk", "potatoes", "coffee")
 example_total = 38

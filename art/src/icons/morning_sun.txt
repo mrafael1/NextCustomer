@@ -1,0 +1,12 @@
+; The MORNING ZONE's sun (2026-11-18, MorningZoneLabel): a half sun rising over the horizon with
+; five rays, ink on the zone's painted strip, its disc mustard pale. 11x7, shown at 2x beside
+; the zone's MORNING label on the belt.
+@size 11x7
+@kind icon
+.....#.....
+.#...#...#.
+..#.....#..
+....###....
+#..#YYY#..#
+..#YYYYY#..
+###########

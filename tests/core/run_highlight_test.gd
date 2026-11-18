@@ -58,11 +58,15 @@ func test_record_best_keeps_the_biggest_payout_and_the_longest_combo() -> void:
 	assert_int(record.best_combo_length).is_equal(3)
 	assert_int(record.best_combo_pay).is_equal(45)
 	result.batches = [PackedInt32Array([1, 2, 3, 4])]
-	result.mornings = PackedInt32Array([0, 1, 2, 3, 4])
+	# A row's MORNING items (the zone's, at most its 3 slots) are a combo too: against a BATCH
+	# of 3 the bigger pay wins (45 against 35).
+	result.chains = []
+	result.batches = [PackedInt32Array([2, 3, 4])]
+	result.mornings = PackedInt32Array([0, 1, 2])
 	RunHighlight.record_best(record, result, _definition)
 	assert_str(record.best_combo_keyword).is_equal(CardText.MORNING_WORD)
-	assert_int(record.best_combo_length).is_equal(5)
-	assert_int(record.best_combo_pay).is_equal(60)
+	assert_int(record.best_combo_length).is_equal(3)
+	assert_int(record.best_combo_pay).is_equal(45)
 
 
 ## Nothing for a Day off, a row that paid nothing, or a lone batch item.
@@ -105,7 +109,7 @@ func test_a_checkout_records_its_best() -> void:
 
 
 ## A Double checkout shift (#122) records from both rows' joined result, but each row has its own
-## MORNING: two 4-item MORNINGs are two combos of 4, never one of 8.
+## MORNING ZONE: two rows of 3 MORNING items are two combos of 3, never one of 6.
 func test_a_double_checkout_keeps_each_rows_morning() -> void:
 	var run: RunState = RunState.new(7, load(STARTER), _balance, RunStock.starting(_balance))
 	RunPins.wear(run, [load(DOUBLE)])
@@ -117,11 +121,13 @@ func test_a_double_checkout_keeps_each_rows_morning() -> void:
 			run.place(run.debug_add_to_hand(load(path)), run.row.size())
 		run.checkout()
 	var whole: ScoreResult = run.last_result
-	assert_int(whole.mornings.size()).is_equal(2 * row_slots)
+	var zone: int = (load("res://data/balance/morning_zone.tres") as MorningZone).slots
+	assert_int(row_slots).is_greater_equal(zone)
+	assert_array(Array(whole.mornings)).is_equal([0, 1, 2, row_slots, row_slots + 1, row_slots + 2])
 	var record: ShiftRecord = run.history[-1]
 	assert_int(record.played.size()).is_equal(2 * row_slots)
 	assert_str(record.best_combo_keyword).is_equal(CardText.MORNING_WORD)
-	assert_int(record.best_combo_length).is_equal(row_slots)
+	assert_int(record.best_combo_length).is_equal(zone)
 	# The payout is the biggest over both rows.
 	var best: int = 0
 	for payout: int in whole.payouts:

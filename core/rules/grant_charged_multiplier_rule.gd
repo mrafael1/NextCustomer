@@ -17,10 +17,10 @@ extends Rule
 @export var charges: int = 0
 @export var group: StringName = &""
 @export var percent: int = 0
-## If true (Tea bags, #128 Breakfast's MORNING), only the last `charges` MORNING products after
-## this card (CardMorning, the opening run of products with `tag`) can take a charge; with none
-## after it, it is WASTED.
-@export var morning_end: bool = false
+## If set (Tea bags, #128 Breakfast's MORNING: data/balance/morning_zone.tres), only the last
+## `charges` MORNING items after this card (CardMorning: the products with `tag` in the row's
+## first `morning_zone.slots` slots) can take a charge; with none after it, it is WASTED.
+@export var morning_zone: MorningZone
 
 
 func on_scanned(state: ScoreState, slot: int) -> void:
@@ -38,7 +38,7 @@ func on_scanned(state: ScoreState, slot: int) -> void:
 		slot, text_for(card), group, tag, armed_factor, charges
 	)
 	effect.factor_percent = factor_percent
-	if morning_end:
+	if morning_zone != null:
 		var ends: PackedInt32Array = morning_ends(state, slot)
 		if ends.is_empty():
 			return
@@ -47,7 +47,7 @@ func on_scanned(state: ScoreState, slot: int) -> void:
 
 
 func wasted_reason(state: ScoreState, slot: int) -> String:
-	if morning_end and charges > 0 and morning_ends(state, slot).is_empty():
+	if morning_zone != null and charges > 0 and morning_ends(state, slot).is_empty():
 		return "no MORNING item after it"
 	if percent > 0 and live_percent(state.redraws_left) <= 100:
 		return "no redraw left this shift"
@@ -59,10 +59,10 @@ func live_percent(redraws_left: int) -> int:
 	return factor * (100 + percent * maxi(redraws_left, 0))
 
 
-## The last `charges` MORNING products after `slot` (#128 Tea bags), in row order.
+## The last `charges` MORNING items after `slot` (#128 Tea bags), in row order.
 func morning_ends(state: ScoreState, slot: int) -> PackedInt32Array:
 	var after: PackedInt32Array = PackedInt32Array()
-	for other: int in CardMorning.slots(state, tag):
+	for other: int in CardMorning.slots(state, tag, morning_zone):
 		if other > slot:
 			after.append(other)
 	if after.size() > charges:

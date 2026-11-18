@@ -60,7 +60,7 @@ class Moment:
 ## count; `record.played` is in the result's slot order). The biggest single payout (the earlier
 ## slot on a tie; a SHELF's copies each pay on their own slot) and the longest CHAIN, BATCH or
 ## MORNING of `definition`'s min_combo items or more (then the bigger pay, then CHAIN before BATCH
-## before MORNING, then the earlier start). Each row has its own MORNING (its opening run), so a
+## before MORNING, then the earlier start). Each row has its own MORNING (its zone's items), so a
 ## joined result's mornings are split at `first_slots`. Nothing for a payout of 0 or less, and no
 ## combo without a definition.
 static func record_best(
