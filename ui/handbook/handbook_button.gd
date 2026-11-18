@@ -20,7 +20,7 @@ const BORDER := 2.0
 const TEXT_SCALE := 2
 const ROW_TITLE_SIZE := 16
 const ROW_PADDING := 8.0
-## The room before a row's title for its mark (a wider mark, the MORNING chip, widens it: the
+## The room before a row's title for its mark (a wider mark widens it: the
 ## page passes the widest mark of the tab).
 const MARK_ROOM := 44.0
 ## The picked row's price-gun tick (5x7 art at 2x), TICK_LEFT in from the row's left edge.

@@ -18,9 +18,6 @@ const WEEK_TWO := &"week_two"
 const COUPON_IN_HAND := &"coupon_in_hand"
 ## A card in the baskets whose rule names a family other than Food.
 const FAMILY_RULE := &"family_rule"
-## A MORNING reader (Coffee) in the row with at least one MORNING item (a Breakfast item in the
-## zone).
-const MORNING_IN_ROW := &"morning_in_row"
 ## A Bakery card with BATCH in the baskets.
 const BATCH_IN_HAND := &"batch_in_hand"
 ## PROJECTED reaches the SILVER medal's laps of the quota.
@@ -46,7 +43,6 @@ const TRIGGERS: Array[StringName] = [
 	WEEK_TWO,
 	COUPON_IN_HAND,
 	FAMILY_RULE,
-	MORNING_IN_ROW,
 	BATCH_IN_HAND,
 	MEDAL_REACH,
 	PREMIUM_VISIT,
@@ -79,7 +75,7 @@ const TOYS_PREFIX := "toys:"
 @export var point: int = 0
 @export var side: TutorialStep.CalloutSide = TutorialStep.CalloutSide.AUTO
 ## Indexed rings are templates: the scheduler puts in the slot, hand place or basket of the card
-## that made the tip due (T2's coupon, T3's card, T4's Coffee first, then the MORNING's first).
+## that made the tip due (T2's coupon, T3's card, T4's removed).
 @export var follow_index: bool = false
 ## The HANDBOOK entry MORE › opens (a TOYS_PREFIX id: the toys book's page), or empty for none.
 @export var more_page: StringName = &""

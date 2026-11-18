@@ -325,7 +325,6 @@ func to_result() -> ScoreResult:
 	result.chain_feeds = chain_feeds
 	result.chain_tallies = chain_tallies
 	if explain:
-		result.mornings = CardMorning.read(self)
 		result.pairs = CardPairs.links(self)
 	return result
 

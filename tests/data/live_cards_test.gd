@@ -93,7 +93,7 @@ func test_phase_2_cards_score_the_design_examples(
 		# Cream (2 + 4 for the one PAIR: Reduced yogurt beside Ham ends) x2 = 12 (Eggs' one
 		# charge); Milk 3 + 2; Ham ends 2 + 3; Reduced yogurt 2 + 4 (#128 Dairy, v1.29).
 		["eggs,cream,milk,ham_ends,reduced_yogurt", 29],
-		# Sugar cubes 2 + 4 after Coffee, not Breakfast: no MORNING item, but Milk in slot 3 is
+		# Sugar cubes 2 + 4 after Coffee, not Breakfast: no Breakfast beyond Coffee and Milk
 		# (Coffee 2 + 2). Milk 4 + 1 x 1 earlier Breakfast (#128 Breakfast).
 		["coffee,sugar_cubes,milk", 15],
 		# Coffee 2 + 2 (Coffee and Egg timer in the zone); Chipped mug 2 + 4 beside Coffee; Egg
@@ -127,7 +127,7 @@ func test_base_products_fizzle(
 		["scissors", [[0, "Scissors: earlier coupons", "no coupon before it"]]],
 		["bread,scissors", [[1, "Scissors: earlier coupons", "no coupon before it"]]],
 		["repeat,scissors", [[0, "Repeat", "no item right before it to copy"]]],
-		["tea_bags,soup", [[0, "Tea bags ×4", "no MORNING item after it"]]],
+		["tea_bags,soup", [[0, "Tea bags ×4", "no Breakfast item after it"]]],
 		[
 			"flickering_bulb,bread",
 			[[0, "Flickering bulb after WASTED", "the item right before it was not WASTED"]],
@@ -324,11 +324,6 @@ func test_stickers_show_every_rule_value() -> void:
 							assert_str(card.sticker_summary()).contains(named.display_name)
 							assert_bool(shows).override_failure_message(message).is_false()
 							named_products += 1
-				elif key == "tag" and _reads_morning(rule):
-					# A MORNING rule's tag is the morning's: the MORNING keyword names it (#128).
-					assert_str(template).override_failure_message(message).contains(
-						"{%s}" % CardText.MORNING_KEY
-					)
 				elif key == "tag" and _reads_batches(rule):
 					# A batch rule's tag is its batch's: the BATCH keyword names it (#128).
 					assert_str(template).override_failure_message(message).contains(
@@ -556,18 +551,13 @@ static func _data_value(card: CardDefinition, key: String) -> Variant:
 	return null
 
 
-## Whether a rule field holds a value that changes what the rule does (not its neutral default).
-## One charge is the plain "next" the sticker already says, like a factor of 1.
 ## Whether `rule` reads Bakery batches (#128), whose tickets name them with the BATCH keyword.
-static func _reads_morning(rule: Rule) -> bool:
-	var charged: GrantChargedMultiplierRule = rule as GrantChargedMultiplierRule
-	return rule is MorningCountRule or (charged != null and charged.morning_zone != null)
-
-
 static func _reads_batches(rule: Rule) -> bool:
 	return rule is BatchRoleRule or rule is BakedBatchBonusRule
 
 
+## Whether a rule field holds a value that changes what the rule does (not its neutral default).
+## One charge is the plain "next" the sticker already says, like a factor of 1.
 static func _is_set(key: String, value: Variant) -> bool:
 	if value is int:
 		return value != (1 if key.ends_with("factor") or key == "charges" else 0)

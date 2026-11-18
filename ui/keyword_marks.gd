@@ -1,6 +1,6 @@
 class_name KeywordMarks
 extends BatchFrames
-## The planning layer's PAIR marks (v1.06, the keywords handbook: "MORNING and PAIR miss a visual
+## The planning layer's PAIR marks (v1.06, the keywords handbook: "PAIR misses a visual
 ## on the ticket", where a BATCH has its mustard frame and a CHAIN its green one).
 ##
 ## PAIR (PlanningModel.pairs): a Dairy teal clasp (art/icons/pair_clasp.png, CLASP_SIZE at 2x)
@@ -10,11 +10,6 @@ extends BatchFrames
 ## would meet it there (a batch's binding bar, a chain's link, clasp or knot plate); it draws over
 ## the frames (ChainFrames keeps this layer last), so a batch or chain frame's side in its gap
 ## runs under it.
-##
-## MORNING has no mark here since the MORNING ZONE (2026-11-18, in place of v1.24's pins, chain
-## and post): the zone is printed on the belt's first slots (MorningBand, on the RowStrip's
-## cells). light_morning (a MORNING chip's tooltip shows on a ticket) passes on to
-## `morning_light`, which the stage points at that print.
 ##
 ## The layout is BatchFrames': follow reads the belt's ticket rects (a drag's ghost skipped) and
 ## calls lay_out; a mark missing a ticket hides. Decor only: it takes no clicks.
@@ -28,9 +23,6 @@ const TICKET_HEIGHT := PriceSticker.SIZE.y
 ## Its path under a planning layer (or a handbook clip).
 const PATH := ^"ChainFrames/KeywordMarks"
 
-## Called with whether the MORNING ZONE's print lights (light_morning): the stage's, or a
-## handbook clip's (MorningBand.light on their row). None: nothing.
-var morning_light: Callable = Callable()
 ## Each clasp's gap (the slots on its left and right), as shown.
 var _clasp_gaps: Array[Vector2i] = []
 var _clasps: Array[TextureRect] = []
@@ -95,12 +87,6 @@ func lay_out(
 				clasp.position = at.round()
 				if not _meets(Rect2(clasp.position, clasp.size), parts):
 					break
-
-
-## A MORNING chip's tooltip shows on a ticket (or went): the zone's print on the belt lights.
-func light_morning(lit: bool) -> void:
-	if morning_light.is_valid():
-		morning_light.call(lit)
 
 
 ## The clasps shown (hidden ones included), in the gaps' order.

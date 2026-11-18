@@ -366,7 +366,7 @@ func entry_for_target(target: TipTarget) -> HandbookEntry:
 ## else as entry_for_target says; or null.
 func _entry_for_tip(target: TipTarget) -> HandbookEntry:
 	var found: HandbookEntry = null
-	# A keyword's own tooltip (a MORNING mark's on the belt): its keyword's entry.
+	# A keyword's own tooltip: its keyword's entry.
 	for keyword: String in GlyphText.KEYWORD_TIPS:
 		if target.tip_text == GlyphText.keyword_tip(keyword):
 			return _book.entry_for_keyword(keyword)

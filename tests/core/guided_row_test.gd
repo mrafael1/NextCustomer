@@ -82,7 +82,7 @@ func test_the_hints_fire_on_what_the_rules_did() -> void:
 		assert_int(int(counts[hint_id])).override_failure_message(String(hint_id)).is_equal(1)
 
 
-## The medals: the best row (Tea bags ×4 on Cereal, the MORNING ZONE's last item) reaches SILVER,
+## The medals: the best row (Tea bags ×4 on Cereal, the last Breakfast item) reaches SILVER,
 ## whose hint pops over the medal case in place of QUOTA's (the highest level reached is told,
 ## never a lower one after: the full row's hint comes next); a redraw's hint points at REDRAW,
 ## once.

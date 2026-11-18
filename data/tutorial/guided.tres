@@ -297,8 +297,8 @@ script = ExtResource("3_hint")
 id = &"tea_placed"
 card = &"tea_bags"
 title = "TEA BAGS"
-text = "Tea bags pay ×4 to the last **MORNING** **ITEM** after them."
-teaches = PackedStringArray("MORNING")
+text = "Tea bags pay ×4 to the last Breakfast **ITEM** after them."
+teaches = PackedStringArray()
 
 [sub_resource type="Resource" id="Hint_tea_fired"]
 script = ExtResource("3_hint")
@@ -306,8 +306,8 @@ id = &"tea_fired"
 card = &"tea_bags"
 when = 1
 title = "×4!"
-text = "Tea bags boosted a **MORNING** **ITEM** after them."
-teaches = PackedStringArray("MORNING")
+text = "Tea bags boosted a Breakfast **ITEM** after them."
+teaches = PackedStringArray()
 
 [sub_resource type="Resource" id="Hint_peas_placed"]
 script = ExtResource("3_hint")

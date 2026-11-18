@@ -1,15 +1,15 @@
 extends GdUnitTestSuite
-## The belt's PAIR marks (v1.06, the keywords handbook: "MORNING and PAIR miss a visual on the
-## ticket"). The score records the MORNING items (when a card in the row reads MORNING) and every
-## PAIR (ScoreResult.mornings, pairs), the planning model passes them on, and on the real shift
+## The belt's PAIR marks (v1.06, the keywords handbook: "PAIR misses a visual on the
+## ticket"). The score records every PAIR (ScoreResult.pairs), the planning model passes them
+## on, and on the real shift
 ## screen KeywordMarks puts a teal clasp across each PAIR's gap, inside the screen, clear of the
-## tickets' text. The MORNING ZONE's print on the belt has its own suite (morning_zone_ui_test).
+## tickets' text.
 ## The real saves and logs are never touched.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 const CARDS := "res://data/cards/%s.tres"
 const SCREEN_RECT := Rect2(0, 0, 1280, 720)
-## Three MORNING items read by Tea bags and Coffee, then Butter beside Bread.
+## Tea bags and Coffee, then Butter beside Bread.
 const ROW: Array[String] = ["tea_bags", "bread", "milk", "potatoes", "coffee", "butter", "bread"]
 
 var _folder: String = ""
@@ -35,25 +35,18 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-## The score's MORNING items (only when a card reads MORNING: the Breakfast products in the row's
-## first 3 slots, a coupon there taking its slot) and PAIRs (each paired product with its partner,
-## once), passed on by the model.
-func test_the_score_records_the_morning_and_the_pairs(
+## The score's PAIRs (each paired product with its partner, once), passed on by the model.
+func test_the_score_records_the_pairs(
 	row: String,
-	morning: Array,
 	pairs: Array,
 	_test_parameters := [
-		["tea_bags,bread,milk,potatoes,coffee", [0, 1, 2], []],
-		["bread,milk,eggs", [], []],
-		["coffee,two_for_one,milk,potatoes", [0, 2], []],
-		["butter,bread,cheese", [], [Vector2i(0, 1), Vector2i(1, 2)]],
-		["cheese,potatoes,bread", [], []],
-		["cereal,milk,coffee", [0, 1, 2], [Vector2i(0, 1)]],
-		["potatoes,coffee,bread,milk", [1, 2], []],
+		["bread,milk,eggs", []],
+		["butter,bread,cheese", [Vector2i(0, 1), Vector2i(1, 2)]],
+		["cheese,potatoes,bread", []],
+		["cereal,milk,coffee", [Vector2i(0, 1)]],
 	]
 ) -> void:
 	var model: PlanningModel = _model(row)
-	assert_array(Array(model.mornings)).is_equal(morning)
 	assert_array(model.pairs).is_equal(pairs)
 
 
@@ -62,7 +55,6 @@ func test_a_joined_result_moves_the_second_rows_marks() -> void:
 	var first: ScoreResult = Scoring.score(_row("coffee,milk"))
 	var second: ScoreResult = Scoring.score(_row("butter,bread"))
 	var joined: ScoreResult = ScoreResult.joined(first, second, 2)
-	assert_array(Array(joined.mornings)).is_equal([0, 1])
 	assert_array(joined.pairs).is_equal([Vector2i(2, 3)])
 	assert_array(ScoreResult.continued(second, 10).pairs).is_equal([Vector2i(0, 1)])
 

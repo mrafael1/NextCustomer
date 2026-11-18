@@ -542,8 +542,6 @@ func _build_belt(slot_count: int) -> void:
 	fore.add_child(planning_layer)
 	# A stuck price label lies over its ticket's batch or chain frame, which this layer draws.
 	row_strip.labels.mount_after(planning_layer.get_node(^"ChainFrames"))
-	# A MORNING chip's tooltip on a ticket lights the zone's print on the belt (MorningBand).
-	KeywordMarks.of(planning_layer).morning_light = MorningBand.light.bind(row_strip)
 
 
 ## Fits the belt to the row's `cells` (#122: a Double checkout's short rows get a short belt).

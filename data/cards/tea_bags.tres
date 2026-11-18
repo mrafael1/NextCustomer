@@ -3,7 +3,6 @@
 [ext_resource type="Script" path="res://core/rule.gd" id="1_rule"]
 [ext_resource type="Script" path="res://core/rules/grant_charged_multiplier_rule.gd" id="2_tea_bags"]
 [ext_resource type="Script" path="res://core/card_definition.gd" id="3_card"]
-[ext_resource type="Resource" path="res://data/balance/morning_zone.tres" id="9_zone"]
 
 [sub_resource type="Resource" id="Resource_tea_bags"]
 script = ExtResource("2_tea_bags")
@@ -11,7 +10,7 @@ tag = "Breakfast"
 factor = 4
 charges = 1
 group = &"tea_charges"
-morning_zone = ExtResource("9_zone")
+last_only = true
 receipt_text = "Tea bags ×4"
 
 [resource]
@@ -22,9 +21,9 @@ kind = 1
 tags = PackedStringArray("Breakfast")
 base = 1
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_tea_bags")])
-rule_text = "×4 to the last MORNING item after it"
-sticker_text = "×{factor} last {morning}"
-monitor_text = "The last {morning} item after it pays ×{factor}."
+rule_text = "×4 to the last Breakfast item after it"
+sticker_text = "×{factor} last {tag}"
+monitor_text = "The last {tag} item after it pays ×{factor}."
 art_ref = "res://art/items_v2/tea_bags.png"
 mini_art_ref = "res://art/minis/tea_bags.png"
 mini_golden_art_ref = "res://art/minis/tea_bags_golden.png"

@@ -87,9 +87,9 @@ const FAMILY_RULES := [
 	"grant_charged_multiplier_rule.gd",
 	"grant_next_tag_bonus_rule.gd",
 	"grant_tag_to_next_slot_rule.gd",
-	"morning_count_rule.gd",
 	"pair_bonus_rule.gd",
 	"snack_spread_rule.gd",
+	"tag_count_rule.gd",
 ]
 const NO_FAMILY_RULES := [
 	"connector_bridge_rule.gd",

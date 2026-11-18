@@ -2,9 +2,8 @@ class_name TipTriggers
 extends RefCounted
 ## What makes the one-time tips due (TipDefinition's triggers; TipScheduler asks), read from the
 ## run alone: the planning's day event, PAYDAY, week 2, a coupon or a BATCH card in the baskets, a
-## belt card whose rule names a family other than Food, a MORNING reader opening the row with
-## Breakfast items, the projected total reaching SILVER; and T14's fix after a lost run, from the
-## run's WASTED tally (wasted). Static and pure.
+## belt card whose rule names a family other than Food, the projected total reaching SILVER; and
+## T14's fix after a lost run, from the run's WASTED tally (wasted). Static and pure.
 
 ## The rules whose card should sit right before (or early against) the family it names: T14's
 ## "put {card} EARLIER than your best {family} ITEM" fits only these.
@@ -30,8 +29,6 @@ static func planning_due(trigger: StringName, run: RunState) -> bool:
 			due = coupon_place(run) >= 0
 		TipDefinition.FAMILY_RULE:
 			due = family_rule_slot(run) >= 0
-		TipDefinition.MORNING_IN_ROW:
-			due = not morning_slots(run).is_empty()
 		TipDefinition.BATCH_IN_HAND:
 			due = batch_in_hand(run)
 		TipDefinition.MEDAL_REACH:
@@ -94,24 +91,6 @@ static func rule_family(definition: CardDefinition) -> String:
 		if not family.is_empty() and not palette.quiet_families.has(family):
 			return family
 	return ""
-
-
-## A MORNING reader in the row with MORNING items (Breakfast items in the zone): its slot, then
-## theirs (empty for none).
-static func morning_slots(run: RunState) -> PackedInt32Array:
-	var mornings: PackedInt32Array = run.preview().mornings
-	if mornings.is_empty():
-		return PackedInt32Array()
-	for slot: int in run.row.size():
-		var product: CardDefinition = run.row[slot].definition.product_card()
-		if (
-			product != null
-			and product.rules.any(func(r: Rule) -> bool: return r is MorningCountRule)
-		):
-			var slots: PackedInt32Array = PackedInt32Array([slot])
-			slots.append_array(mornings)
-			return slots
-	return PackedInt32Array()
 
 
 ## The names of the row's items in `slots`.

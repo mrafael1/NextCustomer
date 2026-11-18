@@ -38,7 +38,7 @@ func after_test() -> void:
 ## each tab's name inside its tab; the example clip inside the entry column.
 func test_the_binder_fits_the_screen() -> void:
 	var page: HandbookPage = await _page()
-	page.open_at(&"morning")
+	page.open_at(&"chain")
 	await _frames(3)
 	var binder: Rect2 = page.binder_rect()
 	assert_bool(SCREEN_RECT.encloses(binder.grow(HandbookPage.SHADOW))).is_true()
@@ -65,7 +65,7 @@ func test_the_binder_fits_the_screen() -> void:
 	for row: HandbookButton in page.index_rows():
 		assert_bool(binder.encloses(row.get_global_rect())).is_true()
 		rows.append(row.get_global_rect())
-	assert_int(rows.size()).is_equal(5)
+	assert_int(rows.size()).is_equal(4)
 	_assert_apart(rows)
 	var column: Rect2 = page.entry_scroll().get_global_rect()
 	assert_bool(binder.encloses(column)).is_true()
@@ -83,7 +83,7 @@ func test_the_binder_fits_the_screen() -> void:
 ## Every example's window onto the counter (the guide polish, 2026-11-11) sits inside its clip,
 ## which sits inside the entry column, and shows the whole planning state: every ticket, sticker,
 ## stamp and hung slot mark inside the window, the LED (and a quota's receipt) inside the clip
-## under it. Each index row's title starts after its mark (MORNING's wide chip included), and the
+## under it. Each index row's title starts after its mark (a wide chip included), and the
 ## sign, the rows and the hint card keep inside the contents page, apart.
 func test_every_clip_and_index_row_fits() -> void:
 	var page: HandbookPage = await _page()
@@ -292,12 +292,12 @@ func test_esc_and_a_right_click_outside_close_it() -> void:
 	await _frames(1)  # The rebuilt marks' old parts are freed.
 
 
-## The shift's menu has Guide, which opens the handbook; a right-click while a ticket's MORNING
-## chip shows its tooltip opens MORNING, and on a family glyph that family; a ticket colour's tip
+## The shift's menu has Guide, which opens the handbook; a right-click while a ticket's CHAIN
+## chip shows its tooltip opens CHAIN, and on a family glyph that family; a ticket colour's tip
 ## opens its family. A right-click a day slip would take does nothing new.
 func test_the_shift_opens_it_from_the_menu_and_a_tooltip() -> void:
 	var screen: ShiftScreen = await _screen()
-	await _place(screen, ["coffee", "milk"])
+	await _place(screen, ["banana", "banana"])
 	var page: HandbookPage = screen.find_child("HandbookPage", false, false) as HandbookPage
 	assert_object(page).is_not_null()
 	var top_bar: TopBar = screen._top_bar as TopBar
@@ -308,20 +308,20 @@ func test_the_shift_opens_it_from_the_menu_and_a_tooltip() -> void:
 	var tips: GlyphTips = screen._glyph_tips
 	var sticker: PriceSticker = (screen._row_views[0] as ItemView).sticker()
 	var chip: KeywordChip = sticker.summary().keywords()[0]
-	assert_str(chip.keyword).is_equal(CardText.MORNING_WORD)
+	assert_str(chip.keyword).is_equal(CardText.CHAIN_WORD)
 	tips.show_tip(chip)
 	tips._input(_right_click(chip.get_global_rect().get_center()))
 	assert_bool(page.is_open()).is_true()
-	assert_str(page.shown_entry().id).is_equal("morning")
+	assert_str(page.shown_entry().id).is_equal("chain")
 	assert_object(tips.shown_glyph()).is_null()
 	page.close()
 	var glyph: FamilyGlyph = sticker.glyphs()[0]
 	tips.show_tip(glyph)
 	tips._input(_right_click(glyph.get_global_rect().get_center()))
-	assert_str(page.shown_entry().id).is_equal("fam_breakfast")
+	assert_str(page.shown_entry().id).is_equal("fam_produce")
 	page.close()
 	var spot: TipTarget = sticker.get_node(PriceSticker.COLOUR_SPOT_NAME) as TipTarget
-	assert_str(page.entry_for_target(spot).id).is_equal("fam_breakfast")
+	assert_str(page.entry_for_target(spot).id).is_equal("fam_produce")
 	# A left click hides the tip and opens nothing.
 	tips.show_tip(chip)
 	var left: InputEventMouseButton = _right_click(Vector2.ZERO)
@@ -430,13 +430,10 @@ func test_every_rule_fits_and_plain_pages_end_at_it() -> void:
 ## plainly. An item's mini stands about as tall as a family's glyph.
 func test_terms_show_in_their_colours() -> void:
 	var palette: FamilyPalette = FamilyPalette.shared()
-	var runs: Array[HandbookMarkup.Run] = (
-		HandbookMarkup
-		. runs(
-			(
-				"{kw:CHAIN} {kw:MORNING} {kw:WASTED} {item:banana} {coupon:repeat} {fam:Dairy} {kw:NOPE}"
-				+ " {fam:Coupon} {kw:BATCH}"
-			)
+	var runs: Array[HandbookMarkup.Run] = HandbookMarkup.runs(
+		(
+			"{kw:CHAIN} {kw:PAIR} {kw:WASTED} {item:banana} {coupon:repeat} {fam:Dairy} {kw:NOPE}"
+			+ " {fam:Coupon} {kw:BATCH}"
 		)
 	)
 	var terms: Array[HandbookMarkup.Run] = []
@@ -445,7 +442,8 @@ func test_terms_show_in_their_colours() -> void:
 			terms.append(run)
 	assert_int(terms.size()).is_equal(9)
 	assert_that(HandbookText.ink_for(terms[0])).is_equal(palette.style("Produce").shade)
-	assert_that(HandbookText.ink_for(terms[1])).is_equal(Palette.MUSTARD_DARKEST)
+	# PAIR in the Dairy teal (a shade too light for the paper is taken one step darker).
+	assert_that(HandbookText.ink_for(terms[1])).is_not_equal(Palette.INK)
 	assert_that(HandbookText.ink_for(terms[2])).is_equal(KeywordChip.WASTED_FACE)
 	assert_that(HandbookText.ink_for(terms[3])).is_equal(HandbookText.ITEM_INK)
 	assert_object(HandbookText.icon_for(terms[3])).is_not_null()
@@ -551,7 +549,7 @@ func test_the_pin_card_icon_shows_its_tip() -> void:
 
 ## The slip paints each card's name (an item in the rule's item violet, a coupon in the coupon
 ## teal), each changed payout and the total in orange, and keeps every equation that fits one line
-## on one line (the longest, MORNING's, among them).
+## on one line (the longest, CHAIN's, among them).
 func test_the_slip_paints_names_and_stays_one_line() -> void:
 	var page: HandbookPage = await _page()
 	page.open_at()
@@ -587,7 +585,7 @@ func test_the_slip_paints_names_and_stays_one_line() -> void:
 		)
 		if wide <= label.size.x:
 			assert_int(label.get_line_count()).override_failure_message(what).is_equal(1)
-		if entry.id == &"morning":
+		if entry.id == &"chain":
 			assert_int(label.get_line_count()).is_equal(1)
 	assert_int(coupons).is_greater(0)
 	var paints: Array[HandbookExample.Paint] = [

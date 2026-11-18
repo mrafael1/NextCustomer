@@ -8,7 +8,7 @@ extends Control
 ## planning layer (PlanningLayer) on a PlanningModel of the example's real score
 ## (HandbookExample): the stickers ("+3", "×2", "=6€", the grey WASTED), the rail strips, the pay
 ## windows, the halos and sparkles, the deny stamps, and the batch and chain frames with the
-## PAIR clasps, on the MORNING ZONE's print (MorningBand) when a card reads MORNING; a Price gun
+## PAIR clasps; a Price gun
 ## relabel wears the gun's tag and the gained glyph
 ## (PinFlow.show_relabel). Under the window, the register strip's LED reads the total, and an
 ## example with a quota prints the receipt's header beside it (ReceiptTarget on the receipt paper:
@@ -290,12 +290,8 @@ func _build_stage(tuning: PlanningTuning) -> void:
 	_layer.tuning = tuning
 	_layer.reduced_motion = still
 	_stage.add_child(_layer)
-	# As on the stage: a stuck price label lies over its ticket's frame, and an example whose
-	# cards read MORNING has the MORNING ZONE printed on its belt, its MORNING items' slots lit.
+	# As on the stage: a stuck price label lies over its ticket's frame.
 	_row.labels.mount_after(_layer.get_node(^"ChainFrames"))
-	var zone: MorningZone = CardMorning.zone_of(_example.cards)
-	MorningBand.show(_row, zone.slots if zone != null else 0, _example.result.mornings)
-	KeywordMarks.of(_layer).morning_light = MorningBand.light.bind(_row)
 	_pass_mouse(_stage)
 
 

@@ -9,4 +9,4 @@ group = &"families"
 title = "Breakfast"
 mark = 3
 mark_value = "Breakfast"
-rule = "Morning goods. A {fam:Breakfast} item in the first 3 slots is {kw:MORNING}."
+rule = "{item:coffee} pays for each {fam:Breakfast} item in the row; {item:tea_bags} boosts the last one after it."

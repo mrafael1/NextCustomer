@@ -248,10 +248,10 @@ func test_every_example_scores_its_pinned_total() -> void:
 
 
 ## The slip's paints (guide round 3): each card's name ITEM or COUPON, a payout MARKED only when it
-## differs from its card's printed price, the total MARKED. MORNING: Milk's 24 and Coffee's 5 are
-## changed (printed 4 and 2); Tea bags' 1, Bread's 5 and Potatoes' 3 are not.
+## differs from its card's printed price, the total MARKED. CHAIN: the Bananas' 4, 6 and 8 are
+## changed (printed 2); the first Banana's 2 is not.
 func test_the_equation_parts_paint_names_and_changed_payouts() -> void:
-	var example: HandbookExample = HandbookExample.of(_book().entry(&"morning"))
+	var example: HandbookExample = HandbookExample.of(_book().entry(&"chain"))
 	var parts: Array[Array] = example.equation_parts()
 	var shown: Array = []
 	for part: Array in parts:
@@ -264,17 +264,15 @@ func test_the_equation_parts_paint_names_and_changed_payouts() -> void:
 		assert_array(shown)
 		. is_equal(
 			[
-				["Tea bags", item],
-				["Bread", item],
-				["Milk", item],
-				["Potatoes", item],
-				["Coffee", item],
-				["1", plain],
-				["5", plain],
-				["24", marked],
-				["3", plain],
-				["5", marked],
-				["38€", marked],
+				["Banana", item],
+				["Banana", item],
+				["Banana", item],
+				["Banana", item],
+				["2", plain],
+				["4", marked],
+				["6", marked],
+				["8", marked],
+				["20€", marked],
 			]
 		)
 	)
@@ -299,9 +297,6 @@ func test_the_mock_ups_worked_examples() -> void:
 	var book: HandbookBook = _book()
 	assert_str(HandbookExample.of(book.entry(&"chain")).equation()).is_equal(
 		"Banana, Banana, Banana, Banana = 2 + 4 + 6 + 8 = 20€"
-	)
-	assert_str(HandbookExample.of(book.entry(&"morning")).equation()).is_equal(
-		"Tea bags, Bread, Milk, Potatoes, Coffee = 1 + 5 + 24 + 3 + 5 = 38€"
 	)
 
 
@@ -336,17 +331,3 @@ func test_the_batch_page_teaches_the_bookends() -> void:
 	var tip: String = GlyphText.keyword_tip(CardText.BATCH_WORD)
 	assert_bool(tip.contains("cap")).is_false()
 	assert_str(book.entry_for_family("Bakery").rule).contains("a FIRST cap and a LAST cap")
-
-
-## The texts that explain MORNING name the MORNING ZONE's size, the balance value
-## (data/balance/morning_zone.tres): the keyword's page and tooltip, Breakfast's page and the
-## Breakfast run pack's hint.
-func test_the_morning_texts_name_the_zones_slots() -> void:
-	var zone: MorningZone = load("res://data/balance/morning_zone.tres")
-	var words: String = "first %d slots" % zone.slots
-	var book: HandbookBook = _book()
-	assert_str(book.entry(&"morning").rule).contains(words)
-	assert_str(book.entry(&"fam_breakfast").rule).contains(words)
-	assert_str(GlyphText.keyword_tip(CardText.MORNING_WORD)).contains(words)
-	var pack: StarterPackDefinition = load("res://data/starter_packs/breakfast_run.tres")
-	assert_str(pack.hint_text).contains(words)

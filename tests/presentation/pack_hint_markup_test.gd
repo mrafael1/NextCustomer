@@ -37,7 +37,7 @@ func test_terms_are_marked_whole_and_longest_first() -> void:
 	(
 		assert_str(
 			PackHintMarkup.of(
-				"4 Bananas in a row: 2 for 1 before Tea bags, MORNING Food. Bananarama.",
+				"4 Bananas in a row: 2 for 1 before Tea bags, CHAIN Food. Bananarama.",
 				cards,
 				families
 			)
@@ -45,7 +45,7 @@ func test_terms_are_marked_whole_and_longest_first() -> void:
 		. is_equal(
 			(
 				"4 {items:banana} in a row: {coupon:two_for_one} before {item:tea_bags},"
-				+ " {kw:MORNING} {fam:Food}. Bananarama."
+				+ " {kw:CHAIN} {fam:Food}. Bananarama."
 			)
 		)
 	)

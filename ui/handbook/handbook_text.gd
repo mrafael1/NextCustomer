@@ -4,7 +4,7 @@ extends RefCounted
 ## a quicker and easier identification"), its HandbookMarkup terms drawn in their own colours, all
 ## the game's own:
 ## - a keyword in its chip's colour: its family's shade (KeywordChip.KEYWORD_FAMILIES: CHAIN the
-##   Produce green, MORNING the Breakfast mustard, BATCH the Bakery brown, PAIR the Dairy teal),
+##   Produce green, BATCH the Bakery brown, PAIR the Dairy teal),
 ##   a shade too light to read on the paper taken one palette step darker (DARKER_INK), WASTED
 ##   in its wasted chip's tomato (KeywordChip.WASTED_FACE);
 ## - an item after its mini (its giver badge's) in ITEM_INK;

@@ -14,9 +14,9 @@ extends Resource
 @export var payout_quota_share: float = 0.0
 ## Over quota meets its bar at this many times the quota (2.0: twice the quota).
 @export var over_quota_ratio: float = 0.0
-## Longest combo (a CHAIN, BATCH or MORNING) meets its bar at this many items.
+## Longest combo (a CHAIN or BATCH) meets its bar at this many items.
 @export var combo_length: int = 0
-## A combo (a CHAIN, BATCH or MORNING) counts from this many items (2: a lone batch item is none).
+## A combo (a CHAIN or BATCH) counts from this many items (2: a lone batch item is none).
 @export var min_combo: int = 0
 ## Closest call meets its bar when a shift passed by this many euros or fewer.
 @export var close_margin: int = 0

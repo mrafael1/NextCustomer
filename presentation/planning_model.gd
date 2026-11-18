@@ -57,10 +57,8 @@ var run_chain: PackedInt32Array = PackedInt32Array()
 var chain_feeds: PackedInt32Array = PackedInt32Array()
 var chain_tallies: PackedInt32Array = PackedInt32Array()
 var knot_factors: Dictionary[int, int] = {}
-## The MORNING items' slots when a card in the row reads MORNING, and every PAIR as (left slot,
-## right slot), from the score (ScoreResult.mornings, pairs): the MORNING ZONE's lit patches
-## (MorningBand) and the PAIR clasps (KeywordMarks, v1.06).
-var mornings: PackedInt32Array = PackedInt32Array()
+## Every PAIR as (left slot, right slot), from the score (ScoreResult.pairs): the PAIR clasps
+## (KeywordMarks, v1.06).
 var pairs: Array[Vector2i] = []
 
 
@@ -100,7 +98,6 @@ static func build(
 	model.chain_feeds = result.chain_feeds.duplicate()
 	model.chain_tallies = result.chain_tallies.duplicate()
 	model.knot_factors = result.knot_factors.duplicate()
-	model.mornings = result.mornings.duplicate()
 	model.pairs = result.pairs.duplicate()
 	for slot: int in range(model.slots.size()):
 		model.slots[slot].wrong_job = wrong_job(result, slot, row[slot])

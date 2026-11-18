@@ -48,19 +48,19 @@ const TOTALS: Dictionary[String, Dictionary] = {
 		"produce_aisle_run_lv3": 74,  # was 88
 	},
 	"R2":
-	# #128 Dairy + Breakfast (Coffee +1 per MORNING product, Tea bags ×4 the last MORNING
+	# #128 Dairy + Breakfast (Coffee +1 per Breakfast product, Tea bags ×4 the last Breakfast
 	# product, Cheese PAIR with Bread): was 57, 57, 86, 77, 69, 69, 57; then 69, 69, 119, 149,
-	# 99, 72, 69 until v1.29's Cheese +5; then 70, 70, 120, 150, 100, 73, 70 until the MORNING
-	# ZONE (2026-11-18, the first 3 slots): Coffee counts 3 MORNING items (was 6) and Tea bags in
-	# slot 3 has no MORNING item after it, WASTED (it gave Bread ×4).
+	# 99, 72, 69 until v1.29's Cheese +5; then 70, 70, 120, 150, 100, 73, 70 (the MORNING
+	# ZONE of 2026-11-18 lowered them to 37, 37, 57, 57, 49, 40, 37; its removal the same day
+	# brought them back).
 	{
-		"": 37,
-		"produce_regulars": 37,
-		"breakfast_regulars": 57,
-		"breakfast_aisle_run": 57,
-		"mixed_basket": 49,
-		"bulk_deal": 40,
-		"banana_stand": 37,
+		"": 70,
+		"produce_regulars": 70,
+		"breakfast_regulars": 120,
+		"breakfast_aisle_run": 150,
+		"mixed_basket": 100,
+		"bulk_deal": 73,
+		"banana_stand": 70,
 	},
 	"R3":
 	# v1.29: Final markdown last pays no +4 any more (was 55, 56, 94, 58, 58), and Scissors pays

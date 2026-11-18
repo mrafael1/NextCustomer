@@ -79,11 +79,6 @@ const APPROVED: Dictionary[String, String] = {
 		"The small icons in a ticket's corner are its **FAMILIES**, like Breakfast or Dairy. A "
 		+ "chip in a **RULE** names a **FAMILY** or a keyword."
 	),
-	"T4":
-	(
-		"**MORNING**: a Breakfast **ITEM** in the first 3 slots. Coffee pays +1€ for each one. "
-		+ "Here, Eggs and Bread make 2."
-	),
 	"T5":
 	(
 		"**BATCH**: Bakery **ITEMS** **BESIDE** each other. Some care where they sit in it: "
@@ -286,12 +281,13 @@ func test_the_guided_run_is_g1_to_g14_in_order() -> void:
 
 func test_tips_and_quick_tutorials_have_their_ids() -> void:
 	var tips: TipList = TipList.shared()
-	assert_int(tips.tips.size()).is_equal(16)
+	# T4 (MORNING) was removed on 2026-11-18: the ids keep their numbers, T4 left out.
+	assert_int(tips.tips.size()).is_equal(15)
 	for k: int in tips.tips.size():
-		assert_str(String(tips.tips[k].id)).is_equal("T%d" % (k + 1))
+		assert_str(String(tips.tips[k].id)).is_equal("T%d" % (k + 1 if k < 3 else k + 2))
 		assert_bool(TipDefinition.TRIGGERS.has(tips.tips[k].trigger)).is_true()
 		assert_int(tips.tips[k].priority).is_between(1, 6)
-	assert_object(tips.tip(&"T6")).is_same(tips.tips[5])
+	assert_object(tips.tip(&"T6")).is_same(tips.tips[4])
 	assert_str(String(tips.for_trigger(TipDefinition.DAY_EVENT)[0].id)).is_equal("T6")
 	var quick: Array[QuickTutorial] = QuickTutorial.all()
 	var ids: Array[StringName] = []
@@ -446,9 +442,6 @@ func test_every_placeholder_is_filled_from_data_or_live() -> void:
 	)
 	for live: String in [
 		TutorialText.PRIMARY,
-		TutorialText.MORNING_NAMES,
-		TutorialText.MORNING_MAKE,
-		TutorialText.MORNING_COUNT,
 		TutorialText.WASTED_CARD,
 		TutorialText.WASTED_FAMILY,
 		TutorialText.MISSED,
@@ -468,12 +461,6 @@ func test_the_figures_are_the_rules_and_the_balance() -> void:
 	assert_str(values["slots"]).is_equal(str(balance.slot_count))
 	# The answer row meets the shift 1 quota.
 	assert_int(int(values["answer_total"])).is_greater_equal(balance.quotas[0])
-	# T4's "Coffee pays +1€ for each one" is Coffee's own rule.
-	var coffee: CardDefinition = load("res://data/cards/coffee.tres")
-	assert_str(values["coffee_per"]).is_equal(str((coffee.rules[0] as MorningCountRule).bonus_each))
-	# T4's "in the first 3 slots" is the MORNING ZONE's balance value.
-	var zone: MorningZone = load("res://data/balance/morning_zone.tres")
-	assert_str(values["morning_slots"]).is_equal(str(zone.slots))
 
 
 func test_every_line_passes_the_line_checker() -> void:
@@ -595,13 +582,6 @@ func test_live_fills_read_aloud() -> void:
 	assert_str(TutorialText.listed(PackedStringArray(["Eggs", "Bread", "Milk"]))).is_equal(
 		"Eggs, Bread and Milk"
 	)
-	var one: Dictionary[String, String] = TutorialText.morning_values(PackedStringArray(["Eggs"]))
-	assert_str(one[TutorialText.MORNING_MAKE]).is_equal("makes")
-	assert_str(one[TutorialText.MORNING_COUNT]).is_equal("1")
-	var t4: String = TipList.shared().tip(&"T4").text
-	var values: Dictionary = _values()
-	values.merge(one, true)
-	assert_str(TutorialText.fill(t4, values)).ends_with("Here, Eggs makes 1.")
 
 
 func test_the_new_boxes_avoid_the_retired_words() -> void:
@@ -725,12 +705,10 @@ func _steps() -> Array[TutorialStep]:
 	return found
 
 
-## The data's values plus the approved lines' live ones (START RUN, T4's Eggs and Bread, T14's
-## Eggs and Food).
+## The data's values plus the approved lines' live ones (START RUN, T14's Eggs and Food).
 func _values() -> Dictionary:
 	var values: Dictionary = {}
 	values.merge(TutorialText.values(TutorialScript.guided(), _balance()))
-	values.merge(TutorialText.morning_values(PackedStringArray(["Eggs", "Bread"])))
 	values[TutorialText.PRIMARY] = PLATES[0]
 	values[TutorialText.WASTED_CARD] = "Eggs"
 	values[TutorialText.WASTED_FAMILY] = "Food"
