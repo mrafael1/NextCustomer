@@ -63,6 +63,11 @@ const CHANGE_END := FLIP_SECONDS
 var hold_result: bool = false
 ## No day change animation, no flash motion.
 var reduced_motion: bool = false
+## The week 1 strip hides it (Week1Strip: a guided run's first shift), whatever the day shows.
+var stripped: bool = false:
+	set(value):
+		stripped = value
+		visible = _has_day and not stripped
 ## The bonus pill and the SKIP tag, right of the pad.
 var tags: DayTags
 
@@ -73,6 +78,8 @@ var _pending: bool = false
 var _change_t: float = -1.0
 var _inspections: Array[InspectionDefinition] = []
 var _day: int = 0
+## Whether there is a day to show (show_inspections): the calendar shows unless stripped.
+var _has_day: bool = false
 var _max_day: int = 1
 ## The day is a payday: its page reads PAYDAY.
 var _payday: bool = false
@@ -143,7 +150,8 @@ func show_inspections(
 	_cause = -1
 	mouse_default_cursor_shape = CURSOR_POINTING_HAND if day_number > 0 else CURSOR_ARROW
 	tags.pill().mouse_default_cursor_shape = mouse_default_cursor_shape
-	visible = not inspections.is_empty() or day_number > 0
+	_has_day = not inspections.is_empty() or day_number > 0
+	visible = _has_day and not stripped
 	_width = DeskCalendarArt.SIZE
 	_refresh_page()
 	if next_day and not _pending and _change_t < 0.0:

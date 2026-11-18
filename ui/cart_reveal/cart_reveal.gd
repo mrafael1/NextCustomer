@@ -634,7 +634,7 @@ func _draw() -> void:
 		return
 	var top: float = _stage.position.y + ShiftStage.TOP_BAR_BOTTOM
 	draw_rect(Rect2(0, top, size.x, size.y - top), Color(DIM, DIM.a * _dim_alpha))
-	if _ring_alpha > 0.0 and _cart != null and is_instance_valid(_cart):
+	if _ring_alpha > 0.0 and is_instance_valid(_cart) and _cart.is_visible_in_tree():
 		var ring: Rect2 = get_global_transform().affine_inverse() * _cart.get_global_rect()
 		ring = ring.grow(RING_GAP + RING_WIDTH / 2.0)
 		draw_rect(ring.grow(RING_WIDTH / 2.0 + 1.0), Color(Palette.INK, _ring_alpha), false, 2.0)

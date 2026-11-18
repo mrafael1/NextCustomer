@@ -145,6 +145,10 @@ var guide_step: StringName = &""
 ## through the run's first week, 2026-11-15), written by the UI's tutorial director and saved
 ## with the run, so CONTINUE never shows one twice.
 var guide_hints: Array[StringName] = []
+## The guided run's HUD elements revealed so far (the week 1 strip, v1.40: RevealRule element
+## ids, each revealed once per run), written by the UI's Week1Strip and saved with the run, so
+## CONTINUE shows the screen as it was. Nothing in core/ reads it: it gates no rule.
+var guide_reveals: Array[StringName] = []
 ## The run RNG's state, for the run save (RunSave): setting it continues the RNG's sequence from
 ## that point, so a restored run draws exactly what the saved one would have.
 var rng_state: int:
