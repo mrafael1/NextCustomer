@@ -166,6 +166,7 @@ var receipt_feed: ReceiptFeed
 var cart_drawer: CartDrawer
 var prize_row: PrizeRow
 var flyer: MachineFlyer
+var tags: MachineTags
 ## Dims the machine between visits (set_lit).
 var veil: MachineDim
 var tuning: MachineTuning
@@ -259,6 +260,7 @@ func _init() -> void:
 	cart_drawer = _add(CartDrawer.new(), Vector2.ZERO, feed_layer) as CartDrawer
 	prize_row = _add(PrizeRow.new(), Vector2.ZERO, stage_layer) as PrizeRow
 	flyer = _add(MachineFlyer.new(), Vector2.ZERO, stage_layer) as MachineFlyer
+	tags = _add(MachineTags.new(), Vector2.ZERO, stage_layer) as MachineTags
 	veil = MachineDim.new()
 	add_child(veil)
 	card_layer = MachineLayers.make("MachineCardLayer", true)
@@ -367,7 +369,7 @@ func open_visit(
 	visit_plan.overtime = overtime
 	_count_draws(visit_plan)
 	_start(visit_plan)
-	_show_head(kind, visit)
+	head.show_visit(run, kind, visit)
 	_show_keys(run.phase == RunState.Phase.MACHINE_PICK)
 	if run.phase == RunState.Phase.MACHINE_PICK:
 		show_draw(run, resumed)
@@ -422,7 +424,7 @@ func show_draw(run_state: RunState, resumed: bool = false) -> void:
 	_fired = minf(_fired, clock - SAME_TIME)
 	if resumed:
 		_resume(MachinePlan.WaitPoint.PICK)
-	_show_head(visit.kind, visit)
+	head.show_visit(run, visit.kind, visit)
 	_show_keys(true)
 	# The chosen key stays down through the draw.
 	_press_only(visit.chute)
@@ -694,6 +696,7 @@ func _frame() -> void:
 	prize_row.frame(t)
 	skip_bin.frame(t)
 	flyer.frame(t)
+	tags.frame(t)
 	_set_shake(MachineLayers.legendary_shake(plan, t))
 	_place()
 
@@ -872,6 +875,7 @@ func _count_draws(visit_plan: MachinePlan) -> void:
 		done = run.history[-1].visits.size()
 	visit_plan.draw_index = done
 	visit_plan.draws = done + 1 + run.machine.pending_kinds().size()
+	MachineTags.plan_tags(visit_plan, run)
 
 
 ## Whether the shift's visit before this one (a BONUS visit's ticket) was PREMIUM: the machine is
@@ -880,30 +884,6 @@ func _ticket_was_premium() -> bool:
 	if run == null or run.history.is_empty() or run.history[-1].visits.is_empty():
 		return false
 	return run.history[-1].visits[-1].premium
-
-
-func _show_head(kind: int, visit: MachineVisit) -> void:
-	if run.machine.is_payday(run):
-		# Payday (v0.68): one banner over both of the review's PREMIUM visits.
-		head.set_stamp(Payday.STAMP, Payday.STAMP_UNDER)
-		return
-	var machine_data: MachineDefinition = run.machine.machine
-	if visit != null and visit.kind == MachineVisit.Kind.OVERTIME:
-		# The SILVER medal's extra draw (2026-11-06).
-		head.set_stamp(OvertimeWords.SILVER_STAMP, OvertimeWords.stamp_under(machine_data, false))
-		return
-	if OvertimeTickets.is_premium_visit(run):
-		# The GOLD medal made the shift's ticket PREMIUM.
-		head.set_stamp(OvertimeWords.GOLD_STAMP, OvertimeWords.stamp_under(machine_data, true))
-		return
-	match kind:
-		MachineVisit.Kind.BONUS:
-			var under: String = BONUS_UNDER
-			if visit.why.is_empty():
-				under = "shift %d" % run.history[-1].shift
-			head.set_stamp(MachineHead.BONUS_TEXT, under)
-		_:
-			head.set_stamp("", "")
 
 
 ## The keys and the stock window from chute_info: once a chute is chosen (`picking`), only it is

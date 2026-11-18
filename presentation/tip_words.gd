@@ -77,7 +77,8 @@ const WORDS: Dictionary[String, Array] = {
 		"A shift that didn't meet its quota: no prizes. After training week, one miss ends the run."
 	],
 	"EXTRA DRAW": ["EXTRA DRAW", "One more prize draw at the machine."],
-	"MEDALS": ["MEDALS", "SILVER and GOLD, for paying the quota a few times over in one shift."],
+	"MEDALS":
+	["MEDALS", "+1 DRAW and PREMIUM, for paying the quota a few times over in one shift."],
 	"LOYALTY PERKS":
 	[
 		"LOYALTY PERKS",

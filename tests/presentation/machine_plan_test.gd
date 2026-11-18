@@ -28,6 +28,9 @@ func test_the_tempo_loads_with_every_time_set() -> void:
 		tuning.again_ms,
 		tuning.lamp_out_ms,
 		tuning.lamp_out_rm_ms,
+		tuning.tag_lead_ms,
+		tuning.tag_draw_ms,
+		tuning.tag_premium_ms,
 		tuning.relight_stagger_ms,
 		tuning.rm_cut_ms,
 		tuning.rm_fade_ms,
@@ -132,6 +135,96 @@ func test_the_draw_lamps_light_and_go_out() -> void:
 	var to_next: MachinePlan = _full(TICKET, false, [COMMON], MachinePlan.Landing.NEW_CARD, BONUS)
 	to_next.draws = 2
 	assert_float(to_next.end_at).is_greater_equal(to_next.lamp_out_end)
+
+
+## The receipt's prize tags (v1.40): with none the feed starts at the receipt's arrival and no tag
+## time is set. The +1 DRAW tag (its draw among `draws`) comes off tag_lead_ms after the arrival
+## and lands tag_draw_ms later: the plate shows one lamp fewer until then, and its lamp is lit
+## from its landing, the others from the read. The PREMIUM tag follows tag_lead_ms later and its
+## slam (tag_premium_ms later) starts the premium transform, while the receipt is fed (tag_lead_ms
+## after the slam) and read; the keys light after both. Reduced motion: no flight, everything at
+## the arrival. A later draw (BONUS) has no tag.
+func test_the_prize_tags_come_off_before_the_feed() -> void:
+	var tuning: MachineTuning = _tuning()
+	var lead: float = MachineTuning.sec(tuning.tag_lead_ms)
+	var plain: MachinePlan = MachinePlan.new(tuning, TICKET, false)
+	_near(plain.feed_at, plain.fly_end, "plain feed")
+	for time: float in [plain.tag_draw_at, plain.tag_draw_end, plain.tag_premium_at]:
+		assert_float(time).is_equal(MachinePlan.NOT_SET)
+	assert_float(plain.tag_flight(false, 3.0)).is_equal(MachinePlan.NOT_SET)
+	assert_int(plain.lamps_shown(0.0)).is_equal(1)
+	# The +1 DRAW tag alone (a x2 shift).
+	var extra: MachinePlan = MachinePlan.new(tuning, TICKET, false)
+	extra.draws = 2
+	extra.tag_draw = true
+	_near(extra.tag_draw_at, extra.fly_end + lead, "draw tag at")
+	_near(extra.tag_draw_end, extra.tag_draw_at + MachineTuning.sec(tuning.tag_draw_ms), "landed")
+	_near(extra.feed_at, extra.tag_draw_end + lead, "feed after the tag")
+	_near(extra.feed_end, extra.feed_at + MachineTuning.sec(tuning.feed_ms), "feed end")
+	assert_float(extra.tag_premium_at).is_equal(MachinePlan.NOT_SET)
+	assert_float(extra.premium_at).is_equal(MachinePlan.NOT_SET)
+	assert_int(extra.lamps_shown(extra.tag_draw_end - 0.01)).is_equal(1)
+	assert_int(extra.lamps_shown(extra.tag_draw_end)).is_equal(2)
+	assert_int(extra.lamps_on(extra.tag_draw_end - 0.01)).is_equal(0)
+	assert_int(extra.lamps_on(extra.tag_draw_end)).is_equal(1)
+	assert_int(extra.lamps_on(extra.feed_end - 0.01)).is_equal(1)
+	assert_int(extra.lamps_on(extra.choose_at)).is_equal(2)
+	assert_float(extra.tag_flight(false, extra.tag_draw_at - 0.1)).is_less(0.0)
+	_near(extra.tag_flight(false, extra.tag_draw_at), 0.0, "flight start")
+	_near(extra.tag_flight(false, extra.tag_draw_end), 1.0, "flight end")
+	# A tag whose draw isn't there (one draw) never comes off.
+	var lone: MachinePlan = MachinePlan.new(tuning, TICKET, false)
+	lone.tag_draw = true
+	assert_float(lone.tag_draw_at).is_equal(MachinePlan.NOT_SET)
+	_near(lone.feed_at, lone.fly_end, "lone feed")
+	# Both tags (a x3 shift): the slam starts the transform, the feed and the read run under it.
+	var both: MachinePlan = MachinePlan.new(tuning, TICKET, false, true, true)
+	both.draws = 2
+	both.tag_draw = true
+	both.tag_premium = true
+	_near(both.tag_premium_at, both.tag_draw_end + lead, "premium tag at")
+	var slam: float = both.tag_premium_at + MachineTuning.sec(tuning.tag_premium_ms)
+	_near(both.tag_premium_end, slam, "slam")
+	_near(both.premium_at, slam, "premium from the slam")
+	_near(both.premium_end, slam + MachineTuning.sec(tuning.premium_ms), "premium end")
+	_near(both.feed_at, slam + lead, "feed after the slam")
+	_near(both.lights, maxf(both.read_end, both.premium_end), "lights")
+	assert_float(both.beat_time(&"premium")).is_equal(both.premium_at)
+	assert_bool(MachineLook.at(both, slam - 0.01).premium()).is_false()
+	assert_bool(MachineLook.at(both, slam).night_face()).is_true()
+	assert_float(MachineLook.at(both, slam + 0.2).stub_left()).is_equal(0.0)
+	_near(MachineLook.time_of(both, MachineLook.FACE_AT), slam, "the sign flips at the slam")
+	# The PREMIUM tag needs a PREMIUM visit; a payday's visit (no tag) turns after its read.
+	var payday: MachinePlan = MachinePlan.new(tuning, TICKET, false, true, true)
+	_near(payday.premium_at, payday.read_end, "payday premium")
+	_near(payday.feed_at, payday.fly_end, "payday feed")
+	assert_float(MachineLook.at(payday, payday.premium_at + 0.1).stub_left()).is_greater(0.0)
+	var classic: MachinePlan = MachinePlan.new(tuning, TICKET, false)
+	classic.tag_premium = true
+	assert_float(classic.tag_premium_at).is_equal(MachinePlan.NOT_SET)
+	# Reduced motion: no flight, the tags are off and the machine turns at the arrival.
+	var still: MachinePlan = MachinePlan.new(tuning, TICKET, true, true, true)
+	still.draws = 2
+	still.tag_draw = true
+	still.tag_premium = true
+	for time: float in [
+		still.tag_draw_at, still.tag_draw_end, still.tag_premium_end, still.feed_at
+	]:
+		_near(time, still.fly_end, "rm tags")
+	assert_float(still.tag_flight(false, still.fly_end)).is_greater(1.0)
+	assert_int(still.lamps_shown(still.fly_end)).is_equal(2)
+	# A resumed plan keeps its tags' times; a later draw has none.
+	var resumed: MachinePlan = both.resume_at(MachinePlan.WaitPoint.CHOOSE)
+	_near(resumed.tag_premium_end, both.tag_premium_end, "resumed slam")
+	_near(resumed.choose_at, both.choose_at, "resumed choose")
+	var again: MachinePlan = MachinePlan.new(tuning, BONUS, false, true, true, true)
+	again.draws = 2
+	again.draw_index = 1
+	again.tag_draw = true
+	again.tag_premium = true
+	assert_float(again.tag_draw_at).is_equal(MachinePlan.NOT_SET)
+	assert_float(again.tag_premium_at).is_equal(MachinePlan.NOT_SET)
+	assert_int(again.lamps_shown(0.0)).is_equal(2)
 
 
 ## A PREMIUM visit (v0.50) turns the machine PREMIUM right after its receipt is read, over

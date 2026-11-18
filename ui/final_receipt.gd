@@ -208,7 +208,7 @@ static func visit_text(visit: MachineVisit) -> String:
 	if visit.kind == MachineVisit.Kind.BONUS:
 		prefix = "PREMIUM · " if visit.premium else "EXTRA DRAW · "
 	elif visit.kind == MachineVisit.Kind.OVERTIME:
-		prefix = "MEDAL · "
+		prefix = OvertimeWords.SILVER_NAME + " · "
 	if visit.binned:
 		return prefix + "thrown away " + chute
 	var prize: MachinePrize = visit.picked_prize()

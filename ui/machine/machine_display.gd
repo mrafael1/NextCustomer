@@ -228,14 +228,30 @@ func _intro_text(plan: MachinePlan, t: float) -> PackedStringArray:
 		if plan.premium and t >= plan.premium_at and t < plan.premium_end:
 			return PackedStringArray(PREMIUM_LINES)
 		return PackedStringArray()
-	if t < plan.feed_end:
-		return PackedStringArray([READING, ""])
+	# v1.40: the +1 DRAW tag's lamp is named from its landing to the feed (or the PREMIUM tag).
+	var tag_until: float = plan.tag_premium_end if plan.tag_premium_end >= 0.0 else plan.feed_at
+	if plan.tag_draw_end >= 0.0 and t >= plan.tag_draw_end and t < tag_until:
+		return PackedStringArray([OvertimeWords.SILVER_NAME, tag_sub(false)])
+	var plain: PackedStringArray = PackedStringArray([READING, ""])
+	if t >= plan.feed_end:
+		plain = _read_text() if t < plan.read_end else PackedStringArray()
 	if plan.premium and t >= plan.premium_at and t < plan.premium_end:
 		var on: bool = int(floorf((t - plan.premium_at) * PREMIUM_BLINK)) % 2 == 1
 		if plan.reduced_motion:
 			on = true
-		return PackedStringArray(PREMIUM_LINES if on else ["", ""])
-	return _read_text() if t < plan.read_end else PackedStringArray()
+		# A PREMIUM tag's transform runs over the feed and the read: its blink's off beats show
+		# them (after a read, as before: blank).
+		var off: PackedStringArray = PackedStringArray(["", ""])
+		if plan.tag_premium_end >= 0.0 and not plain.is_empty():
+			off = plain
+		return PackedStringArray(PREMIUM_LINES) if on else off
+	return plain
+
+
+## The line under a prize tag's name as it lands: the laps that won it ("2× quota").
+func tag_sub(gold: bool) -> String:
+	var machine: MachineDefinition = view.run.machine.machine if view.run != null else null
+	return OvertimeWords.stamp_under(machine, gold)
 
 
 ## The receipt read: the spend thanked, the quota met and the inspections passed; a PREMIUM visit
@@ -317,7 +333,7 @@ func _end_sub(plan: MachinePlan) -> String:
 	return "%d prizes this shift · %s" % [plan.draws, _why()]
 
 
-## A later draw's sub line: its reason and its number ("silver medal · draw 2 of 2").
+## A later draw's sub line: its reason and its number ("+1 draw · draw 2 of 2").
 func again_sub(plan: MachinePlan) -> String:
 	return OvertimeWords.AGAIN_SUB % [why_words(), plan.draw_index + 1, plan.draws]
 
