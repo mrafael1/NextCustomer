@@ -46,6 +46,11 @@ var covered: bool = false:
 	set(value):
 		covered = value
 		_refresh_visible()
+## The week 1 strip hides it (Week1Strip: a guided run's first shift).
+var stripped: bool = false:
+	set(value):
+		stripped = value
+		_refresh_visible()
 var week_label: PixelWords
 var number_label: PixelWords
 var count_label: PixelWords
@@ -149,7 +154,7 @@ func _layout() -> void:
 
 
 func _refresh_visible() -> void:
-	visible = has_week and not covered
+	visible = has_week and not covered and not stripped
 
 
 func _words(words: String, sheet: PixelWords.Sheet, cell: float, ink: Color) -> PixelWords:

@@ -4,7 +4,7 @@ extends RefCounted
 ## tutorials), kept as ids in ProfileState.seen, so the profile's format is unchanged: an older
 ## profile reads with none set. Pure and static: the caller saves the profile after a change.
 ##
-## - GUIDE_DONE: the guided first run was finished (its last step, G26). Never removed by
+## - GUIDE_DONE: the guided first run was finished (its last step). Never removed by
 ##   reset_tips.
 ## - GUIDE_REPLAY: the HANDBOOK's PLAY THE GUIDED SHIFT asked for the next new run to be guided.
 ##   finish_guide clears it.
@@ -96,7 +96,7 @@ static func request_replay(profile: ProfileState) -> bool:
 	return mark_seen(profile, GUIDE_REPLAY)
 
 
-## The guided run's end (G26): marks GUIDE_DONE and clears GUIDE_REPLAY. Returns whether the
+## The guided run's end: marks GUIDE_DONE and clears GUIDE_REPLAY. Returns whether the
 ## profile changed.
 static func finish_guide(profile: ProfileState) -> bool:
 	var changed: bool = mark_seen(profile, GUIDE_DONE)

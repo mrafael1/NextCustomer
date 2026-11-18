@@ -1,9 +1,10 @@
 extends GdUnitTestSuite
 ## The quick tutorials (QuickTutorials; reworked after play test 1, 2026-11-15): on a run's opening
 ## board, the first time SWAP, RESTOCK or BADGE PINS is due, one NEW callout shows (its flag set
-## and saved as it shows), closes on GOT IT or the ringed move, and the tutorial's hints pop in a
-## bubble the first time each moment comes. Once per profile; one at a time, SWAP first; never on
-## the guided run's board. The pages run frozen on their own clock: the tests step them.
+## and saved as it shows), closes on GOT IT or the ringed move, and the tutorial's hint (SWAP's
+## one, since v1.40) pops in a bubble the first time its moment comes. Once per profile; one at
+## a time, SWAP first; never on the guided run's board. The pages run frozen on their own
+## clock: the tests step them.
 
 const SCREEN := preload("res://ui/shift_screen.tscn")
 const SEED := 20261103
@@ -46,16 +47,15 @@ func test_swap_shows_once_then_its_hints() -> void:
 	assert_bool(page.swap.open_window(false)).is_true()
 	await _frames(2)
 	assert_object(quick.showing()).is_null()
-	assert_bool(quick.bubble().is_showing()).is_true()
+	assert_array(_logged("tutorial_hint")).is_empty()  # The window says nothing by itself.
 	_run(page, 2.0)
 	page.swap.open_booster(0, "key")
 	await _frames(2)
+	assert_bool(quick.bubble().is_showing()).is_true()  # Its one hint: drag a card on a regular.
 	_run(page, 3.0)
 	page.swap._apply(_card_piece(page), 1, "drag")
 	await _frames(2)
-	assert_bool(quick.bubble().is_showing()).is_true()
-	var hints: Array[String] = _logged("tutorial_hint")
-	assert_array(hints).is_equal(["swap_open", "swap_drag", "swap_kept"])
+	assert_array(_logged("tutorial_hint")).is_equal(["swap_drag"])
 	assert_array(_logged("quick_step")).is_equal(["SA1"])
 	page.swap.close(true)
 	_run(page, 2.0)
@@ -69,8 +69,8 @@ func test_swap_shows_once_then_its_hints() -> void:
 
 
 ## RESTOCK (3 aisles complete): it waits behind SWAP, shows once SWAP's GOT IT closes it, rings
-## the key; arming closes it and pops its hint; the restock pops the next over the new booster.
-func test_restock_follows_swap_and_pops_its_hints() -> void:
+## the key; arming closes it, and nothing more is said (its hints went in v1.40).
+func test_restock_follows_swap() -> void:
 	var screen: ShiftScreen = await _screen(3)
 	var page: BoosterPage = screen._cart_reveal.board.store
 	var quick: QuickTutorials = screen.tutorial.quick
@@ -86,13 +86,12 @@ func test_restock_follows_swap_and_pops_its_hints() -> void:
 	assert_object(quick.showing()).is_null()
 	assert_bool(page.counter.restock(0)).is_true()
 	await _frames(2)
-	assert_bool(quick.bubble().is_showing()).is_true()
-	assert_array(_logged("tutorial_hint")).is_equal(["restock_pick", "restock_new"])
+	assert_array(_logged("tutorial_hint")).is_empty()
 	assert_array(_logged("quick_step")).is_equal(["SA1", "R1"])
 
 
-## BADGE PINS (a pin earned): page 2's held packs bring its callout; wearing a pin closes it and
-## pops its hint; taking one off pops nothing; the confirm pops the last.
+## BADGE PINS (a pin earned): page 2's held packs bring its callout; wearing a pin closes it,
+## and nothing more is said (its hints went in v1.40).
 func test_pins_show_on_page_two() -> void:
 	var screen: ShiftScreen = await _screen(0, true)
 	var board: StartBoard = screen._cart_reveal.board
@@ -118,7 +117,8 @@ func test_pins_show_on_page_two() -> void:
 	staff.pins.toggle(pin)
 	assert_bool(staff.pins.confirm()).is_true()
 	await _frames(2)
-	assert_array(_logged("tutorial_hint")).is_equal(["pins_worn", "pins_set"])
+	assert_array(_logged("tutorial_hint")).is_empty()
+	assert_array(_logged("quick_step")).is_equal(["P1"])
 
 
 ## The guided run's board (its director holds it) never shows a quick tutorial.

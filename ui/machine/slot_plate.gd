@@ -16,6 +16,10 @@ extends Control
 ## goes dark. As a visit turns PREMIUM (MachineLook) the gold receipt pops up in the slot with a
 ## shine and is fed in (MachineLook.stub_left), gone once swallowed as a classic receipt is (v0.99:
 ## it used to stay half inserted for the whole visit).
+##
+## The +1 DRAW tag's lamp (v1.40): the SILVER medal's draw has no lamp until the receipt's tag
+## lands on the plate (MachinePlan.lamps_shown); it then joins on the left, lit, flashing paper
+## bright for TAG_POP_SECONDS (not under reduced motion).
 
 const SIZE := Vector2(112, 60)
 const MOUTH_RECT := Rect2(12, 18, 88, 8)
@@ -27,6 +31,8 @@ const LAMP_SIZE := 16.0
 const LAMP_CELLS := 8
 const LAMP_STEP := 18.0
 const LAMP_BLINK := 12.0
+## The +1 DRAW tag's lamp flashes paper bright this long as it lands.
+const TAG_POP_SECONDS := 0.3
 ## The discs' rows (art px), the bezel's inset in them.
 const LAMP_ROWS: Array[Vector2i] = [
 	Vector2i(2, 4),
@@ -62,6 +68,8 @@ var _lamps: int = 0
 var _lit: int = 0
 ## The flashing lamp's blink: lit (1), dark (0), or none (-1).
 var _flash: int = -1
+## The +1 DRAW tag's lamp (the leftmost) is landing.
+var _tag_pop: bool = false
 var _scan_on: bool = false
 var _gold: bool = false
 var _stub: bool = false
@@ -94,9 +102,9 @@ func lamp_flashing() -> bool:
 	return _flash >= 0
 
 
-## Draw lamp `index`'s rect (local px; 0 the leftmost of lamp_count()).
-func lamp_rect(index: int) -> Rect2:
-	var from_right: int = _lamps - 1 - index
+## Draw lamp `index`'s rect (local px; 0 the leftmost of lamp_count(), or of `count` lamps).
+func lamp_rect(index: int, count: int = -1) -> Rect2:
+	var from_right: int = (_lamps if count < 0 else mini(count, MAX_LAMPS)) - 1 - index
 	return Rect2(LAMP_AT - Vector2(LAMP_STEP * from_right, 0.0), Vector2.ONE * LAMP_SIZE)
 
 
@@ -131,14 +139,16 @@ func setup(machine: RewardMachineView) -> void:
 ## reduced motion), the lamps light from the feed's end and go out one by one after each prize.
 func frame(t: float) -> void:
 	var plan: MachinePlan = view.plan if view != null else null
-	var lamps: int = mini(plan.draws, MAX_LAMPS) if plan != null else 0
+	var lamps: int = mini(plan.lamps_shown(t), MAX_LAMPS) if plan != null else 0
 	var lit: int = mini(plan.lamps_on(t), lamps) if plan != null else 0
 	var flash: int = -1
 	if plan != null and plan.lamp_flash(t) >= 0.0:
 		flash = 1
 		if not plan.reduced_motion:
 			flash = int(floorf((t - plan.lamp_out) * LAMP_BLINK)) % 2
-	var reading: bool = plan != null and t >= plan.fly_end and t < plan.read_end
+	var reading: bool = plan != null and t >= plan.feed_at and t < plan.read_end
+	var pop: bool = plan != null and not plan.reduced_motion and plan.tag_draw_end >= 0.0
+	pop = pop and t >= plan.tag_draw_end and t < plan.tag_draw_end + TAG_POP_SECONDS
 	reading = reading and plan.kind == MachineVisit.Kind.TICKET
 	if reading and not plan.reduced_motion:
 		reading = int(floorf(t * BLINK_RATE)) % 2 == 0
@@ -148,12 +158,13 @@ func frame(t: float) -> void:
 	if left > 0.0 and view != null:
 		shine = fposmod(view.idle_time, STUB_SHINE_PERIOD) / STUB_SHINE_LENGTH
 	var changed: bool = lamps != _lamps or lit != _lit or flash != _flash or reading != _scan_on
-	changed = changed or look.tray_gold() != _gold or left != _stub_left
+	changed = changed or look.tray_gold() != _gold or left != _stub_left or pop != _tag_pop
 	if changed or shine != _shine:
 		_lamps = lamps
 		_lit = lit
 		_flash = flash
 		_scan_on = reading
+		_tag_pop = pop
 		_gold = look.tray_gold()
 		_stub = left > 0.0
 		_stub_left = left
@@ -177,7 +188,8 @@ func _draw() -> void:
 		var on: bool = index < _lit
 		if index == _lit - 1 and _flash >= 0:
 			on = _flash == 1
-		_draw_lamp(lamp_rect(index).position, on, _flash >= 0 and index == _lit - 1)
+		var bright: bool = (_flash >= 0 and index == _lit - 1) or (_tag_pop and index == 0)
+		_draw_lamp(lamp_rect(index).position, on, bright)
 	if _stub:
 		_draw_stub()
 

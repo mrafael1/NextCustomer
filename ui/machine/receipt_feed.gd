@@ -116,8 +116,10 @@ func paper_anchor(t: float) -> Dictionary:
 			anchor.scale = lerpf(_rest_scale, sc, e)
 			anchor.tilt = -view.tuning.tear_tilt_deg * bump
 	else:
-		var p: float = _seg(t, plan.fly_end, plan.feed_end)
-		var jitter: float = 0.0 if plan.reduced_motion else float(int(t * JITTER_HZ) % 2)
+		# Over the slot it waits for its prize tags to come off (v1.40), then it is fed.
+		var p: float = _seg(t, plan.feed_at, plan.feed_end)
+		var still: bool = plan.reduced_motion or t < plan.feed_at
+		var jitter: float = 0.0 if still else float(int(t * JITTER_HZ) % 2)
 		anchor.at = target + Vector2(0.0, full * sc * p + jitter)
 		anchor.scale = sc
 		anchor.line = line

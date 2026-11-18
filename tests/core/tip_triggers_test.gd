@@ -1,16 +1,10 @@
 extends GdUnitTestSuite
-## TipTriggers (the one-time tips' triggers, WP-10): a rule naming a family other than Food, the
-## WASTED cards of a checkout, T14's fix (the most wasted giver card and the family it gives to,
-## none for a card that gives to nobody), and the planning triggers on a real run.
+## TipTriggers (the one-time tips' triggers, WP-10): the WASTED cards of a checkout, T14's fix
+## (the most wasted giver card and the family it gives to, none for a card that gives to nobody),
+## and the planning triggers on a real run.
 
 const BALANCE := "res://data/balance/balance.tres"
 const STARTER := "res://data/decks/starter.tres"
-
-
-func test_a_rule_names_a_family_other_than_food() -> void:
-	var lookup: ContentLookup = ContentLookup.new(_balance())
-	assert_str(TipTriggers.rule_family(lookup.card("milk"))).is_equal("Breakfast")
-	assert_str(TipTriggers.rule_family(lookup.card("bread"))).is_empty()
 
 
 func test_the_lost_fix_names_the_most_wasted_giver() -> void:
@@ -45,18 +39,21 @@ func test_wasted_finds_the_wasted_cards() -> void:
 	assert_array(TipTriggers.wasted(null, played)).is_empty()
 
 
-## The planning triggers on a fresh run: PLANNING always; week 2 from its first shift; the
-## silver medal only at its laps of the quota.
+## The planning triggers on a fresh run: no day event, no PAYDAY and no coupon on shift 1; a
+## trigger that isn't a planning one never holds.
 func test_the_planning_triggers() -> void:
 	var balance: BalanceDefinition = _balance()
 	var run: RunState = RunState.new(11, load(STARTER), balance, RunStock.starting(balance))
 	run.start_shift()
-	assert_bool(TipTriggers.planning_due(TipDefinition.PLANNING, run)).is_true()
-	assert_bool(TipTriggers.week_two(run)).is_false()
-	assert_bool(TipTriggers.medal_reached(run)).is_false()
+	assert_bool(TipTriggers.planning_due(TipDefinition.DAY_EVENT, run)).is_false()
+	assert_bool(TipTriggers.planning_due(TipDefinition.PAYDAY, run)).is_false()
+	assert_bool(TipTriggers.planning_due(TipDefinition.COUPON_IN_HAND, run)).is_equal(
+		TipTriggers.coupon_place(run) >= 0
+	)
 	assert_bool(TipTriggers.planning_due(TipDefinition.RUN_LOST, run)).is_false()
-	run.shift_index = WeekSchedule.length(balance)
-	assert_bool(TipTriggers.week_two(run)).is_true()
+	assert_bool(TipTriggers.planning_due(TipDefinition.PERK_TAKEN, run)).is_false()
+	run.shift_index = WeekSchedule.length(balance) - 1
+	assert_bool(TipTriggers.planning_due(TipDefinition.PAYDAY, run)).is_equal(Payday.if_passed(run))
 
 
 static func _balance() -> BalanceDefinition:

@@ -64,6 +64,13 @@ extends Resource
 ## shorter one, steady).
 @export var lamp_out_ms: int = 0
 @export var lamp_out_rm_ms: int = 0
+## The receipt's prize tags (v1.40): each comes off the receipt tag_lead_ms after what came
+## before it (the receipt's arrival, the other tag), the +1 DRAW tag's pop and flight to its
+## lamp lasts tag_draw_ms, the PREMIUM tag's to the sign tag_premium_ms, and the feed starts
+## tag_lead_ms after the last (none of it under reduced motion).
+@export var tag_lead_ms: int = 0
+@export var tag_draw_ms: int = 0
+@export var tag_premium_ms: int = 0
 
 @export_group("Chute press")
 ## The pressed chute settles this long after CONFIRM before the draw starts, per kind.

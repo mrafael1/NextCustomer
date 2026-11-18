@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="QuickTutorial" load_steps=6 format=3]
+[gd_resource type="Resource" script_class="QuickTutorial" load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://presentation/tutorial/quick_tutorial.gd" id="1_main"]
 [ext_resource type="Script" path="res://presentation/tutorial/tutorial_step.gd" id="2_sub"]
@@ -8,7 +8,7 @@
 script = ExtResource("2_sub")
 id = &"SA1"
 screen = 1
-text = "NEW: each completed aisle lets you swap 1 of **YOUR REGULARS**. Click the basket to swap."
+text = "You can now swap one of your regulars: click the basket."
 teaches = PackedStringArray("SWAP")
 rings = Array[StringName]([&"crate"])
 act = 0
@@ -16,32 +16,14 @@ side = 2
 footer = 1
 advance_on = &"swap_opened"
 
-[sub_resource type="Resource" id="Hint_sa2"]
-script = ExtResource("3_hint")
-id = &"swap_open"
-event = &"swap_opened"
-title = "SWAP"
-text = "Each completed aisle gives a **BOOSTER** of plain **CARDS**. Open them."
-teaches = PackedStringArray()
-anchor = "swap_boosters"
-
 [sub_resource type="Resource" id="Hint_sa3"]
 script = ExtResource("3_hint")
 id = &"swap_drag"
 event = &"swap_booster_opened"
 title = "SWAP"
-text = "Drag a **CARD** onto a regular to swap them. Drag it back to undo."
+text = "Drag a card onto a regular to swap them."
 teaches = PackedStringArray()
 anchor = "swap_regular0"
-
-[sub_resource type="Resource" id="Hint_sa4"]
-script = ExtResource("3_hint")
-id = &"swap_kept"
-event = &"swap_applied"
-title = "SWAP"
-text = "Swaps last this run only. Next run, **YOUR REGULARS** are back. Click DONE when you are set."
-teaches = PackedStringArray()
-anchor = "swap_regular{slot}"
 
 [resource]
 script = ExtResource("1_main")
@@ -50,4 +32,4 @@ title = "SWAP"
 order = 1
 trigger = &"swap_unlocked"
 steps = Array[ExtResource("2_sub")]([SubResource("Resource_sa1")])
-hints = Array[ExtResource("3_hint")]([SubResource("Hint_sa2"), SubResource("Hint_sa3"), SubResource("Hint_sa4")])
+hints = Array[ExtResource("3_hint")]([SubResource("Hint_sa3")])

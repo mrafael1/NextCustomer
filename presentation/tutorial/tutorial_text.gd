@@ -3,8 +3,8 @@ extends RefCounted
 ## The tutorial's lines (TutorialStep, TipDefinition): `**WORD**` marks a glossary chip and
 ## `{name}` a number or name filled in. Numbers come from data, never from the line: the guided
 ## shift's answer row is scored by the game's own Scoring (so its total is the rules'), the rest
-## read from the balance. Live names (the title's plate, T14's card) are passed in
-## by the caller. markup() turns a filled line into TipMarkup for TipText: a keyword's chip
+## read from the balance. Live names (the title's plate, T14's card) are passed in by the
+## caller. markup() turns a filled line into TipMarkup for TipText: a keyword's chip
 ## ("[PAIR]") or a word's box ("~CARDS|CARD~", TipWords).
 
 ## How a figure is read off a scored row.
@@ -60,8 +60,7 @@ const CHIP_KEYS: Dictionary[String, String] = {
 	"MISS": "MISS",
 	"EXTRA DRAW": "EXTRA DRAW",
 	"PREMIUM": "PREMIUM",
-	"SILVER": "MEDALS",
-	"GOLD": "MEDALS",
+	"+1 DRAW": "MEDALS",
 	"MEDALS": "MEDALS",
 	"LOYALTY PERKS": "LOYALTY PERKS",
 	"LOYALTY PERK": "LOYALTY PERKS",
@@ -91,8 +90,8 @@ const FIGURES: Array[Array] = [
 ]
 ## The retry line's live figure: the missed rehearsal's total.
 const MISSED := "missed"
-## The live placeholders the caller fills: the title's primary plate (G1) and T14's
-## card and family.
+## The live placeholders the caller fills: the title's primary plate (G1) and T14's card and
+## family.
 const PRIMARY := "primary"
 const WASTED_CARD := "card"
 const WASTED_FAMILY := "family"
@@ -174,27 +173,8 @@ static func values(
 	if balance == null:
 		return found
 	found["quota"] = str(balance.quotas[0]) if not balance.quotas.is_empty() else "0"
-	found["slots"] = str(balance.slot_count)
-	found["hand"] = str(balance.hand_size)
-	found["booster_size"] = str(balance.start_booster_size)
-	found["week_shifts"] = str(balance.week_length)
 	found["misses"] = str(balance.write_up_limit)
-	found["payday_inspections"] = str(balance.review_inspection_count)
-	found["pin_slots"] = str(balance.pin_slots)
-	found["coin_shifts"] = str(_first_paying(balance.coins_by_shifts_passed))
-	var machine: MachineDefinition = balance.machine
-	if machine != null:
-		found["silver_laps"] = str(machine.overtime_ticket_laps)
-		found["gold_laps"] = str(machine.overtime_premium_laps)
-		found["payday_draws"] = str(_payday_draws(machine))
 	return found
-
-
-## `names` as a list read aloud: "Eggs", "Eggs and Bread", "Eggs, Bread and Milk".
-static func listed(names: PackedStringArray) -> String:
-	if names.size() <= 1:
-		return "".join(names)
-	return "%s and %s" % [", ".join(names.slice(0, names.size() - 1)), names[names.size() - 1]]
 
 
 ## The script's answer row as instances and its ScoreResult, or [] when a card is missing.
@@ -229,22 +209,6 @@ static func _measure(row_and_result: Array, measure: Measure, slot: int) -> int:
 		Measure.TIMES:
 			return floori(float(payout) / float(price)) if price != 0 else 0
 	return 0
-
-
-## The fewest shifts passed that pay coins.
-static func _first_paying(coins: PackedInt32Array) -> int:
-	for passed: int in coins.size():
-		if coins[passed] > 0:
-			return passed
-	return 0
-
-
-## A payday's PREMIUM draws: its ticket's, and its BONUS visit's when it has one.
-static func _payday_draws(machine: MachineDefinition) -> int:
-	if machine.premium_shifts.is_empty():
-		return 0
-	var payday: int = machine.premium_shifts[0]
-	return 1 + (1 if machine.bonus_extra_shifts.has(payday) else 0)
 
 
 static func _placeholder_pattern() -> RegEx:
