@@ -112,7 +112,7 @@ func test_a_held_belt_item_lists_its_fizzles_on_the_monitor() -> void:
 		else:
 			expected.append(ReceiptView.step_line(step, CardInstance.names(screen.run.row)))
 	assert_int(fizzles).is_equal(1)
-	assert_str(expected[expected.size() - 1]).is_equal("No MORNING item after it  WASTED")
+	assert_str(expected[expected.size() - 1]).is_equal("No Breakfast item after it  WASTED")
 	var texts: PackedStringArray = monitor.item_column().step_texts()
 	(
 		assert_bool(texts == expected)

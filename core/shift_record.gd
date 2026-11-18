@@ -36,7 +36,7 @@ var overtime_ticket: bool = false
 var overtime_premium: bool = false
 ## The checkout's best item and longest combo (v1.37, the final receipt's BEST line:
 ## RunHighlight.record_best): the biggest single payout and its card (0 and null: none), and the
-## longest CHAIN, BATCH or MORNING, its keyword, length and pay ("" and 0: none). A record saved
+## longest CHAIN or BATCH, its keyword, length and pay ("" and 0: none). A record saved
 ## before v1.37 has none of them.
 var best_payout: int = 0
 var best_card: CardDefinition

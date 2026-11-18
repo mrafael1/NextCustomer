@@ -56,7 +56,7 @@ func entry_marked(kind: HandbookEntry.Mark, value: String) -> HandbookEntry:
 	return null
 
 
-## The entry of a keyword chip's word (CHAIN, MORNING, PAIR...), or null.
+## The entry of a keyword chip's word (CHAIN, PAIR...), or null.
 func entry_for_keyword(word: String) -> HandbookEntry:
 	var found: HandbookEntry = entry_marked(HandbookEntry.Mark.KEYWORD, word)
 	return found if found != null else entry_marked(HandbookEntry.Mark.WORD, word)

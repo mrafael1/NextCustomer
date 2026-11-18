@@ -40,7 +40,6 @@ const CHIP_KEYS: Dictionary[String, String] = {
 	"CHAIN": "CHAIN",
 	"BATCH": "BATCH",
 	"PAIR": "PAIR",
-	"MORNING": "MORNING",
 	"WASTED": "WASTED",
 	"RECEIPT REWARDS": "RECEIPT REWARDS",
 	"NEW ITEMS": "NEW ITEMS",

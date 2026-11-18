@@ -22,14 +22,14 @@ const NUMBER := "\\d+(?!st|nd|rd|th)"
 ## as N.
 const READINGS: Dictionary[String, String] = {
 	"eggs": "×N next Food",
-	"tea_bags": "×N last MORNING",
+	"tea_bags": "×N last Breakfast",
 	# The Banana chain (#106) replaced v2's "+N after Banana"; its CHAIN keyword (#128 Produce
 	# links) is a chip.
 	"banana": "CHAIN +prev",
 	"batteries": "×N next N Household",
 	"two_for_one": "Same both sides: 2nd ×N",
 	"crisps": "+N per redraw left",
-	"coffee": "+N per MORNING",
+	"coffee": "+N per Breakfast",
 	"milk": "+N per earlier Breakfast",
 	"cheese": "+N PAIR per Bread beside",
 	# Produce links (#128): Strawberries feed the chain just after them.

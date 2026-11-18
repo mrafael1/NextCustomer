@@ -70,7 +70,7 @@ func test_each_picked_family_reaches_the_next_item() -> void:
 
 
 ## A picked family pays like the old fixed sticker: Breakfast on Banana before Coffee feeds its
-## MORNING (Family sticker picked Breakfast scores what the Breakfast sticker scored), and a pick
+## Coffee (Family sticker picked Breakfast scores what the Breakfast sticker scored), and a pick
 ## that a reader doesn't want pays less.
 func test_a_picked_family_scores_like_the_fixed_sticker() -> void:
 	var old_row: Array[CardInstance] = _row([OLD_STICKER, BANANA, COFFEE, MILK])

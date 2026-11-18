@@ -48,9 +48,11 @@ const TOTALS: Dictionary[String, Dictionary] = {
 		"produce_aisle_run_lv3": 74,  # was 88
 	},
 	"R2":
-	# #128 Dairy + Breakfast (Coffee +1 per MORNING product, Tea bags ×4 the last MORNING
+	# #128 Dairy + Breakfast (Coffee +1 per Breakfast product, Tea bags ×4 the last Breakfast
 	# product, Cheese PAIR with Bread): was 57, 57, 86, 77, 69, 69, 57; then 69, 69, 119, 149,
-	# 99, 72, 69 until v1.29's Cheese +5.
+	# 99, 72, 69 until v1.29's Cheese +5; then 70, 70, 120, 150, 100, 73, 70 (the MORNING
+	# ZONE of 2026-11-18 lowered them to 37, 37, 57, 57, 49, 40, 37; its removal the same day
+	# brought them back).
 	{
 		"": 70,
 		"produce_regulars": 70,

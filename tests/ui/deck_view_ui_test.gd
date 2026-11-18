@@ -330,13 +330,13 @@ func test_the_run_info_tab_shows_the_run_at_a_glance_and_the_stock() -> void:
 	var glyph: FamilyGlyph = card.find_child(RunInfoHero.FAMILY_GLYPH, true, false) as FamilyGlyph
 	assert_str(glyph.family).is_equal(pack.family)
 	assert_float(glyph.size.x).is_greater_equal(54.0)
-	# The hint in the handbook's colours: its words unchanged, its terms marked (MORNING, Coffee).
+	# The hint in the handbook's colours: its words unchanged, its terms marked (Coffee).
 	var hint: RichTextLabel = card.find_child(RunInfoHero.HINT, true, false) as RichTextLabel
 	assert_object(hint).is_not_null()
 	assert_str(hint.get_parsed_text()).is_not_empty()
 	var markup: String = RunInfoHero.hint_markup(pack)
 	assert_str(HandbookMarkup.plain(markup)).is_equal(pack.hint_text)
-	assert_str(markup).contains("{kw:MORNING}").contains("{item:coffee}")
+	assert_str(markup).contains("{item:coffee}")
 	var staples: int = RunStock.staples(run.balance).size()
 	(
 		assert_array(texts)
@@ -597,10 +597,10 @@ func test_hovering_a_card_shows_its_effect() -> void:
 		view._close()
 	# A keyword's card explains its keyword.
 	var run: RunState = screen.run
-	run.deck.add_card(load("res://data/cards/tea_bags_golden.tres"))
+	run.deck.add_card(load("res://data/cards/banana_golden.tres"))
 	var shown: DeckView = screen._deck_view
 	shown.open(run, "Your cart", false)
-	var tea: DeckCell = _cell_of(shown, &"tea_bags_golden")
+	var tea: DeckCell = _cell_of(shown, &"banana_golden")
 	shown.hover(tea)
 	var tea_tip: CardTip = shown.tip()
 	assert_str(tea_tip.main_card().tag_text()).is_equal(
@@ -609,9 +609,9 @@ func test_hovering_a_card_shows_its_effect() -> void:
 	# The header takes the rarity's colour: LEGENDARY gold.
 	assert_that(tea_tip.main_card().band).is_equal(Palette.GOLD)
 	var keyword: CardTip.CardTipBox = tea_tip.keyword_cards()[0]
-	assert_str(keyword.title_text()).is_equal("MORNING")
+	assert_str(keyword.title_text()).is_equal("CHAIN")
 	assert_str(keyword.tag_text()).is_equal(CardTip.KEYWORD_TAG)
-	assert_array(keyword.texts()).is_equal([GlyphText.keyword_tip("MORNING")])
+	assert_array(keyword.texts()).is_equal([GlyphText.keyword_tip("CHAIN")])
 	shown._close()
 
 

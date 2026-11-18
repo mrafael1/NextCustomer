@@ -250,8 +250,8 @@ func test_tier_values_and_stickers(
 		["milk_golden", 6, "+2 per earlier Breakfast"],
 		["eggs_big", 3, "×2 next Food"],
 		["eggs_golden", 3, "×2 next 2 Food"],
-		["coffee_big", 4, "+1 per MORNING"],
-		["coffee_golden", 4, "+2 per MORNING"],
+		["coffee_big", 4, "+1 per Breakfast"],
+		["coffee_golden", 4, "+2 per Breakfast"],
 		["bread_big", 7, ""],
 		["bread_golden", 9, ""],
 		["soup_big", 7, "Pays nothing beside Frozen"],
@@ -268,8 +268,8 @@ func test_tier_values_and_stickers(
 		["reduced_yogurt_golden", 4, "+8 PAIR per Clearance"],
 		["cereal_big", 4, "+4 PAIR per Milk beside"],
 		["cereal_golden", 4, "+8 PAIR per Milk beside"],
-		["tea_bags_big", 3, "×4 last MORNING"],
-		["tea_bags_golden", 3, "×4 last 2 MORNING"],
+		["tea_bags_big", 3, "×4 last Breakfast"],
+		["tea_bags_golden", 3, "×4 last 2 Breakfast"],
 		["crackers_big", 4, "+3 beside Soup"],
 		["crackers_golden", 4, "+6 beside Soup"],
 		["dented_can_big", 4, "+3 per card redrawn"],
@@ -373,7 +373,8 @@ func test_tiers_score_as_their_product(
 		["bread_big,cheese", [7, 8]],
 		# A Frozen pair across tiers: plain 3 + 3, Golden 5 + twice its base.
 		["frozen_peas,frozen_peas_golden", [6, 15]],
-		# Golden Tea bags: ×4 on the next 2 Breakfast payouts (Bread 5).
+		# Golden Tea bags: ×4 the last 2 Breakfast items after it (Bread 5 in slots 3 and 4;
+		# the Bread in slot 2 is not among the last 2).
 		["tea_bags_golden,bread,bread,bread", [3, 5, 20, 20]],
 		# Golden Carrier bag 3 + 16 for Soup beside it (Bread is not beside it).
 		["bread,soup,carrier_bag_golden", [5, 5, 19]],

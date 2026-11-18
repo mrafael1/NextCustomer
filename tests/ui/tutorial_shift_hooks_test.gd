@@ -456,7 +456,7 @@ func test_the_overlay_layer_sits_under_the_tips_and_the_handbook() -> void:
 	screen._deck_view.visible = false
 	await _frames(1)
 	assert_bool(layer.visible).is_true()
-	handbook.open_at(&"morning")
+	handbook.open_at(&"chain")
 	assert_array(_names()).contains([TutorialEvents.HANDBOOK_OPENED])
 	await _frames(1)
 	assert_bool(layer.visible).is_false()

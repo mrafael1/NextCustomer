@@ -20,10 +20,8 @@ var chains: Array[PackedInt32Array] = []
 var knot_factors: Dictionary[int, int] = {}
 var chain_feeds: PackedInt32Array = PackedInt32Array()
 var chain_tallies: PackedInt32Array = PackedInt32Array()
-## The MORNING's slots when a card in the row reads it (CardMorning.read), and every PAIR as
-## (left slot, right slot) (CardPairs.links): what the planning belt's suns and clasps mark (#128,
-## v1.06). Empty for a total-only score.
-var mornings: PackedInt32Array = PackedInt32Array()
+## Every PAIR as (left slot, right slot) (CardPairs.links): what the planning belt's clasps mark
+## (#128, v1.06). Empty for a total-only score.
 var pairs: Array[Vector2i] = []
 
 
@@ -45,7 +43,6 @@ static func joined(first: ScoreResult, second: ScoreResult, first_slots: int) ->
 		result.knot_factors[slot + first_slots] = second.knot_factors[slot]
 	result.chain_feeds = first.chain_feeds + _moved_slots(second.chain_feeds, first_slots)
 	result.chain_tallies = first.chain_tallies + _moved_slots(second.chain_tallies, first_slots)
-	result.mornings = first.mornings + _moved_slots(second.mornings, first_slots)
 	result.pairs = first.pairs.duplicate()
 	for pair: Vector2i in second.pairs:
 		result.pairs.append(pair + Vector2i(first_slots, first_slots))
@@ -66,7 +63,6 @@ static func continued(result: ScoreResult, start: int) -> ScoreResult:
 	moved.knot_factors = result.knot_factors
 	moved.chain_feeds = result.chain_feeds
 	moved.chain_tallies = result.chain_tallies
-	moved.mornings = result.mornings
 	moved.pairs = result.pairs
 	return moved
 

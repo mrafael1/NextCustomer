@@ -84,7 +84,6 @@ func test_other_keys_are_left_unformatted() -> void:
 				CardText.CHAIN_KEY,
 				CardText.WASTED_KEY,
 				CardText.PAIR_KEY,
-				CardText.MORNING_KEY,
 			]
 		)
 	)

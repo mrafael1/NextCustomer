@@ -6,7 +6,7 @@ extends RefCounted
 ## item, Coffee's "+3 to the next Breakfast" the first later one, Eggs' "×2 next Food" the next
 ## `charges` Food items, a "beside" rule its neighbours, a "right after" rule the item before it,
 ## Birthday candles the batch just after them and a batch role its own batch. A rule whose reach
-## is the whole row (a spread, MORNING) reaches every item of the family, as does a card with
+## is the whole row (a spread, Coffee's count) reaches every item of the family, as does a card with
 ## no rule naming the family; a tag grant (Breakfast sticker) reaches the product in the next
 ## slot.
 ##
