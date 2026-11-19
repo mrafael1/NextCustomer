@@ -5,9 +5,10 @@ extends RefCounted
 ## clicked: its filter pinned) and `filter=<n>` (the pointer rests on icon n: its family
 ## previewed, over a pin), applied in that order, then the rebuilt grid laid out; then `scroll`
 ## (the page scrolled to its end), `tip=start` or `tip=chip` (the tooltip of the first START
-## chip or of the first family icon shows) and `hover=<i>` (the pointer rests on card i, on Run
-## info on stock icon i: its tip opens). The run-start time card is dropped first, so it covers
-## none of the view.
+## chip or of the first family icon shows) and `hover=<i>` (the pointer rests on card i, on the
+## STOCK BOOK on slot i of the shown tab: its tip opens). On the STOCK BOOK, first `section=<n>`
+## turns to tab n, `book=<n>` picks the FAMILY ribbon's option n (0 is ALL) and `ribbon` opens
+## its list. The run-start time card is dropped first, so it covers none of the view.
 
 
 ## Drops `screen`'s time card, applies `options`' pin= and filter= to `view`'s shown page and
@@ -20,6 +21,17 @@ static func apply(screen: ShiftScreen, view: DeckView, options: PackedStringArra
 	for option: String in options:
 		if option.begins_with("filter=") and not _family(view, option).is_empty():
 			view.preview_family(_family(view, option))
+	var book: StockBook = view.stock_book() if view._info_page.visible else null
+	for option: String in options:
+		if book != null and option.begins_with("section="):
+			book.show_section(option.get_slice("=", 1).to_int())
+		elif book != null and option.begins_with("book="):
+			var pick: int = option.get_slice("=", 1).to_int()
+			if pick >= 0 and pick < book.families().size():
+				view._on_book_family(book.families()[pick])
+	if book != null and options.has("ribbon"):
+		book.ribbon().still = true
+		book.ribbon().open_list()
 	for frame: int in range(2):
 		await view.get_tree().process_frame
 	if options.has("scroll"):
@@ -32,7 +44,7 @@ static func apply(screen: ShiftScreen, view: DeckView, options: PackedStringArra
 		if option.begins_with("hover="):
 			var index: int = option.get_slice("=", 1).to_int()
 			if view._info_page.visible:
-				view.hover_stock(view.stock_grid().icons()[index])
+				view.hover_stock(view.stock_book().shown_icons()[index])
 			else:
 				view.hover(view.cells()[index])
 

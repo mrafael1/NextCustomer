@@ -5,10 +5,11 @@ extends Control
 ## Modes:
 ## - title: the title screen; `t=<seconds>` waits that long into its intro (real time), else the
 ##   intro is skipped (the sign lit, the plates in); `saved` writes a run save first (CONTINUE);
-##   `open=<options|quit|guide|newrun|toys|book>` opens that over the lit title (`entry=<id>`
-##   picks the guide's entry, `turn=<n>` turns the figurine book's pages n times);
-## - pause: the fixed shift (ScreenCapture's) with the pause open; `open=<options|guide>` opens
-##   that from the pause.
+##   `open=<options|quit|guide|collection|newrun|toys|book>` opens that over the lit title
+##   (`entry=<id>` picks the guide's entry, `turn=<n>` turns the COLLECTION book's pages n times;
+##   `collection`: the guide's COLLECTION tab);
+## - pause: the fixed shift (ScreenCapture's) with the pause open; `open=<options|guide|collection>`
+##   opens that from the pause.
 ## `wait=<seconds>` waits that much more before the capture; `--release-ui` (its own argument)
 ## shows the screens as a release build does, without the playtest UI (PlaytestUi).
 
@@ -83,11 +84,14 @@ func _title(options: PackedStringArray) -> void:
 		title._on_quit_pressed()
 	elif opened == "newrun":
 		title._on_new_run_pressed()
-	elif opened == "guide":
+	elif opened == "guide" or opened == "collection":
 		title._on_guide_pressed()
 		var entry: String = _option(options, "entry=")
 		if entry != "":
 			title.guide().show_entry(StringName(entry))
+		if opened == "collection":
+			await get_tree().create_timer(0.6).timeout
+			title.guide().collection_tab.pressed.emit()
 	elif opened == "toys" or opened == "book":
 		title._on_rewards_pressed()
 		await get_tree().create_timer(2.0).timeout
@@ -112,8 +116,11 @@ func _pause(options: PackedStringArray) -> void:
 	var opened: String = _option(options, "open=")
 	if opened == "options":
 		screen._pause._open_options()
-	elif opened == "guide":
+	elif opened == "guide" or opened == "collection":
 		screen._pause._open_guide()
+		if opened == "collection":
+			await get_tree().create_timer(0.6).timeout
+			screen._pause._guide.collection_tab.pressed.emit()
 	await get_tree().create_timer(1.0).timeout
 
 
