@@ -28,40 +28,6 @@ func test_a_recipe_deck_is_dealt_for_each_run() -> void:
 	assert_int(deals.size()).is_greater(1)
 
 
-## The game's recipe since v0.63 (#107) has starter packs: each run deals its offer (no first
-## pick) and the strategy takes a pack, kept in the run's record. "skip" takes the first offered,
-## greedy the best one for shift 1 (one of the three). A quota no row reaches ends each run at
-## shift 1, so its final deck is the staples, the pack and the shared products.
-func test_a_pack_recipe_deals_an_offer_and_picks_a_pack() -> void:
-	var balance: BalanceDefinition = (load(BALANCE) as BalanceDefinition).duplicate()
-	balance.quotas = PackedInt32Array([100000])
-	var recipe: DeckDefinition = load(BalanceSim.RANDOM_START_DECK)
-	assert_bool(recipe.starter_packs.is_empty()).is_false()
-	var stock: RunStock = RunStock.starting(balance)
-	for strategy: String in ["skip", "greedy"]:
-		var search: SimRowSearch = SimRowSearch.new(balance)
-		var player: SimPlayer = SimPlayer.new(recipe, balance, search, strategy, 1)
-		for seed_value: int in [4, 8]:
-			var stream: RandomNumberGenerator = EventLogService.derived_stream(
-				seed_value, EventLogService.STARTING_DECK_STREAM
-			)
-			var offer: StartOffer = StartingDeck.deal_offer(recipe, stock, balance, stream, false)
-			var record: SimRunRecord = player.play(seed_value)
-			var pack: StarterPackDefinition = offer.pack(StringName(record.start_pack))
-			assert_object(pack).override_failure_message(strategy).is_not_null()
-			if strategy == "skip":
-				assert_object(pack).is_same(offer.packs[0])
-			var expected: Array = _ids(StartingDeck.with_pack(recipe, pack, offer.shared).cards)
-			var final_deck: Array = Array(record.final_deck)
-			final_deck.sort()
-			expected.sort()
-			assert_array(final_deck).override_failure_message(strategy).is_equal(expected)
-			var restored: SimRunRecord = SimRunRecord.from_dictionary(
-				JSON.parse_string(JSON.stringify(record.to_dictionary()))
-			)
-			assert_str(restored.start_pack).is_equal(record.start_pack)
-
-
 ## The option names a deck and a flag the simulator knows.
 func test_the_random_start_option_is_known() -> void:
 	assert_bool(BalanceSim.SIMULATION_DEFAULTS.has("random-start")).is_true()
@@ -86,30 +52,6 @@ func test_the_random_start_option_refuses_a_value_and_a_deck() -> void:
 	options = BalanceSim.SIMULATION_DEFAULTS.duplicate()
 	options["random-start"] = "x"
 	assert_str(BalanceSim.random_start_problem(options)).is_equal("--random-start takes no value")
-
-
-## --pack=<id> (v1.29) needs --random-start, and a player given that pack (forced_pack) takes it
-## every run, even one the fresh stock's offer never holds (the Snack stand needs the Snacks
-## aisle).
-func test_the_pack_option_gives_every_run_that_pack() -> void:
-	var options: Dictionary[String, String] = BalanceSim.SIMULATION_DEFAULTS.duplicate()
-	options["pack"] = "snack_stand"
-	assert_str(BalanceSim.random_start_problem(options)).is_equal(
-		"--pack takes a starter pack: it needs --random-start"
-	)
-	options["random-start"] = "true"
-	assert_str(BalanceSim.random_start_problem(options)).is_empty()
-	var balance: BalanceDefinition = (load(BALANCE) as BalanceDefinition).duplicate()
-	balance.quotas = PackedInt32Array([100000])
-	var recipe: DeckDefinition = load(BalanceSim.RANDOM_START_DECK)
-	var stand: StarterPackDefinition = load("res://data/starter_packs/snack_stand.tres")
-	var player: SimPlayer = SimPlayer.new(recipe, balance, SimRowSearch.new(balance), "greedy", 1)
-	player.forced_pack = stand
-	for seed_value: int in [4, 8]:
-		var record: SimRunRecord = player.play(seed_value)
-		assert_str(record.start_pack).is_equal("snack_stand")
-		for card: CardDefinition in stand.cards:
-			assert_bool(Array(record.final_deck).has(String(card.id))).is_true()
 
 
 ## The measure-only builds (v1.29: Pair up, Snack lover, Household goods, Salvage) are measured

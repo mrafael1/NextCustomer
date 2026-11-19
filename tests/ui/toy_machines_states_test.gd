@@ -31,7 +31,7 @@ func after_test() -> void:
 
 func test_ok_and_empty_machines() -> void:
 	var screen: ToyMachinesScreen = await _open(Kit.profile(3, 2, {&"pantry": 2}))
-	var ok: ToyMachineView = _machine(screen, &"cold_cases")
+	var ok: ToyMachineView = _machine(screen, &"dairy")
 	assert_int(ok.state()).is_equal(CapsuleCounter.State.OK)
 	assert_int(ok.tone()).is_equal(ToyCabinet.Tone.LIT)
 	assert_bool(ok.part("coin").visible).is_true()
@@ -92,7 +92,7 @@ func test_the_window_shows_the_capsules_left() -> void:
 		for index: int in capsules.size():
 			var at: Vector2 = capsules[index].position / ArtStyle.ART_SCALE
 			assert_bool(Vector2i(at) == slots[index]).is_true()
-	assert_int(by_id[&"cold_cases"]).is_equal(2)
+	assert_int(by_id[&"dairy"]).is_equal(2)
 	assert_int(by_id[&"household"]).is_equal(3)
 	assert_int(by_id[&"bakery"]).is_equal(7)
 	assert_int(by_id[&"fruit_and_veg"]).is_equal(8)
@@ -120,7 +120,7 @@ func test_zero_coins_shuts_the_slots_and_shows_the_notice() -> void:
 
 
 func test_cant_save_switches_every_machine_off() -> void:
-	var profile: ProfileState = Kit.profile(4, 3, {&"cold_cases": 2})
+	var profile: ProfileState = Kit.profile(4, 3, {&"dairy": 2})
 	var counter: CapsuleCounter = CapsuleCounter.new(
 		profile, SaveService.new(_folder), Kit.balance(), Kit.event_log(), false, false
 	)
@@ -144,7 +144,7 @@ func test_cant_save_switches_every_machine_off() -> void:
 		machine._on_hover(false)
 	assert_str(screen.coins_text()).is_equal(ToyMachinesScreen.UNKNOWN_COINS)
 	assert_int(screen.strip_kind()).is_equal(ToyMachinesScreen.Strip.OFF)
-	assert_str(screen.figurines_text()).is_equal("2/30")
+	assert_str(screen.figurines_text()).is_equal("2/31")
 
 
 func test_the_full_collection() -> void:
@@ -157,7 +157,7 @@ func test_the_full_collection() -> void:
 	var rows: Array[PixelLine] = screen.strip().rows()
 	assert_str(rows[0].text()).is_equal(ToyMachinesScreen.FULL_BANNER)
 	assert_str(rows[1].text()).is_equal(ToyMachinesScreen.FULL_HINT)
-	assert_str(screen.figurines_text()).is_equal("30/30")
+	assert_str(screen.figurines_text()).is_equal("31/31")
 	assert_bool(screen.shelf_button().visible).is_true()
 	assert_bool(screen.done_button().visible).is_true()
 
@@ -167,7 +167,7 @@ func test_a_fresh_profile() -> void:
 	for machine: ToyMachineView in screen.machines():
 		assert_int(machine.state()).is_equal(CapsuleCounter.State.OK)
 		assert_object(_lamp(screen, machine).texture).is_same(ToyExitArt.lamp("on"))
-	assert_str(screen.figurines_text()).is_equal("0/30")
+	assert_str(screen.figurines_text()).is_equal("0/31")
 	assert_int(screen.strip_kind()).is_equal(ToyMachinesScreen.Strip.HINT)
 	assert_str(screen.strip().text()).is_equal("PICK A MACHINE: 1 COIN A CAPSULE.")
 
@@ -234,7 +234,7 @@ func test_an_aisle_without_a_cabinet_falls_back() -> void:
 ## nor heats its lamp.
 func test_hovering_an_unplayable_machine_shows_only_its_lineup() -> void:
 	var screen: ToyMachinesScreen = await _open(Kit.profile(0, 3, {&"pantry": 2}))
-	for id: StringName in [&"cold_cases", &"pantry"]:
+	for id: StringName in [&"dairy", &"pantry"]:
 		var machine: ToyMachineView = _machine(screen, id)
 		assert_int(machine.state()).is_not_equal(CapsuleCounter.State.OK)
 		machine._on_hover(true)

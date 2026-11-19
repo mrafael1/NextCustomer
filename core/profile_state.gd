@@ -30,8 +30,13 @@ extends RefCounted
 ## version 4 profile's saved swaps are read past and never applied. Version 6 (v1.30) adds
 ## new_figurines (figurines drawn and not yet seen in the FIGURINE BOOK); older profiles read
 ## with nothing new. Version 7 (v1.30 round 10) adds perk_levels (the loyalty perks picked in
-## ended runs, highest level each); older profiles read with no perk collected.
-const FORMAT_VERSION := 7
+## ended runs, highest level each); older profiles read with no perk collected. Version 8 (v1.44,
+## the Dairy aisle): the Cold cases aisle's id is `dairy` and Frozen peas is a Fruit & veg capsule
+## item; an older profile reads with its aisle ids renamed and Frozen peas unlocked (it owned
+## the card from the start; AisleRename), at run index -1 and without counting a draw.
+const FORMAT_VERSION := 8
+## The last version saved with the Cold cases aisle's old id.
+const BEFORE_DAIRY_VERSION := 7
 ## The settings key of the count-up's speed (full build plan 6.2): COUNT_UP_NORMAL or
 ## COUNT_UP_FAST, read with count_up_speed().
 const COUNT_UP_SPEED_KEY := "count_up_speed"
@@ -74,7 +79,7 @@ var new_figurines: Array[StringName] = []
 ## The last shopping list (aisle ids), the next list's default (full build plan 7.2).
 var last_list: Array[StringName] = []
 ## The opening-time board's saved deal-source pair (its two STARTER CART aisles). Unused since
-## v1.32 (PICK 2 OF 3 picks the pair each run); still read and saved so the format is unchanged.
+## v1.32 (the pair is drawn each run); still read and saved so the format is unchanged.
 var stock_pair: Array[StringName] = []
 ## The opening-time board's last third aisle ("" for none). Unused since v1.32 (a run stocks only
 ## its boosters' two aisles); still read and saved so the format is unchanged.
@@ -197,8 +202,7 @@ func record_run(run: RunState, catalogue: CatalogueDefinition) -> Array[StringNa
 	return unlocked_now
 
 
-## Whether a run of this profile was ever won (#107: until then, the starter pack offer raises its
-## good first pick).
+## Whether a run of this profile was ever won.
 func has_won() -> bool:
 	return int(stats.get(RUNS_WON, 0)) > 0
 
@@ -341,9 +345,19 @@ static func from_dictionary(data: Dictionary) -> ProfileState:
 		return null
 	var profile: ProfileState = ProfileState.new()
 	var ok: bool = true
+	var older: bool = int(version) <= BEFORE_DAIRY_VERSION
+	if older:
+		data = data.duplicate()
+		for key: String in ["last_list", "stock_pair", "stock_run_only"]:
+			if data.has(key):
+				data[key] = AisleRename.renamed(data[key])
 	ok = ok and _read_int(data, "coins", profile, "coins")
 	ok = ok and _read_int(data, "run_count", profile, "run_count")
 	ok = ok and _read_items(data.get("unlocked_items", []), profile.unlocked_items)
+	if older:
+		for id: StringName in AisleRename.MOVED_TO_CAPSULES:
+			if not profile.unlocked_items.has(id):
+				profile.unlocked_items[id] = -1
 	ok = ok and _read_names(data.get("new_figurines", []), profile.new_figurines)
 	ok = ok and _read_names(data.get("last_list", []), profile.last_list)
 	ok = ok and _read_names(data.get("stock_pair", []), profile.stock_pair)

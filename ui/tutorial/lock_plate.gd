@@ -1,7 +1,7 @@
 class_name LockPlate
 extends Control
 ## A LOCKED plate (mock-up docs/art/mockups/tutorial.html, .lock): over what a tutorial step blocks
-## (REDRAW, the medals, CHECKOUT, the swap plate, NEW PACKS), a grey veil (what lies under it
+## (REDRAW, the medals, CHECKOUT, the swap plate), a grey veil (what lies under it
 ## drawn without its colour, presentation/machine_dim.gdshader, then the slate tint) and a centred
 ## dark pill holding the padlock and its label ("LOCKED") in steel pale. A plate too small for the
 ## big pill (padlock at 2x, words at 2x) takes the small one (1x). It takes the clicks on it and

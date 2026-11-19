@@ -744,11 +744,11 @@ func _tag_chips(cards: Array[CardInstance]) -> HBoxContainer:
 
 
 ## Where each product picked at `run`'s start came from, by product id (a coupon by its own):
-## its starter pack's cards and the dealt ones (by aisle), read from core
+## the dealt ones (by aisle), read from core
 ## (StartSetupRules.run_cart_lines), the first source of a product kept (StartTip.source_of says
 ## it). The regulars and the pins' cards are not picks: they carry no START chip.
 static func start_sources(run: RunState) -> Dictionary[StringName, String]:
-	var picks: Array[StartCartLine.Source] = [StartCartLine.Source.PACK, StartCartLine.Source.DEALT]
+	var picks: Array[StartCartLine.Source] = [StartCartLine.Source.DEALT]
 	var sources: Dictionary[StringName, String] = {}
 	for line: StartCartLine in StartSetupRules.run_cart_lines(run.starter, run.balance, run.pins):
 		var id: StringName = line.card.product_card().id

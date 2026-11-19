@@ -103,23 +103,19 @@ func test_the_deck_tab_groups_copies_and_counts_tags() -> void:
 
 
 ## v0.49: a new run starts from the recipe deck, dealt from its stock on the run seed's own
-## stream; since v0.63 (#107) the recipe with starter packs: the 4 core cards, the pack taken (a
-## run started without the reveal takes the offer's default, a new profile's good first pick),
-## then 6 stocked products with a tier chain, and the Deck tab shows it.
+## stream; since v1.45 the opening-time recipe without starter packs: the 4 core cards, then
+## today's two aisle boosters' 8 products, and the Deck tab shows it.
 func test_the_game_deals_the_recipe_deck() -> void:
 	var screen: ShiftScreen = await _screen()
 	var run: RunState = screen.run
 	assert_str(String(run.starter.id)).is_equal("pack_starter")
-	assert_int(run.starter.cards.size()).is_equal(13)
-	assert_int(run.deck.size()).is_equal(13)
 	var recipe: DeckDefinition = load(ShiftScreen.STARTER_DECK)
+	var size: int = recipe.core_cards.size() + run.start_offer.shared.size()
+	assert_int(run.start_offer.shared.size()).is_between(4, recipe.random_count)
+	assert_int(run.starter.cards.size()).is_equal(size)
+	assert_int(run.deck.size()).is_equal(size)
 	assert_array(run.starter.cards.slice(0, 4)).is_equal(recipe.core_cards)
-	var offer: StartOffer = run.start_offer
-	var expected: DeckDefinition = StartingDeck.with_pack(
-		recipe, offer.default_pack(), offer.shared
-	)
-	assert_array(run.starter.cards).is_equal(expected.cards)
-	assert_object(run.starter.starter_pack).is_same(offer.default_pack())
+	assert_array(run.starter.cards).is_equal(recipe.core_cards + run.start_offer.shared)
 	screen._on_deck_button_pressed()
 	var view: DeckView = screen._deck_view
 	var total: int = 0
@@ -130,8 +126,8 @@ func test_the_game_deals_the_recipe_deck() -> void:
 	assert_int(view.cells().size()).is_equal(_distinct(run.starter.cards))
 
 
-## The cart and run info polish (2026-11-12): every product picked at the start (the starter
-## pack's cards and the dealt ones) carries the green START chip for the run, over its card's
+## The cart and run info polish (2026-11-12): every product picked at the start (the dealt ones)
+## carries the green START chip for the run, over its card's
 ## barcode (the art's bottom left), its tooltip (opening below it) saying where it came from ("from
 ## the Bakery booster" since 2026-11-13); a regular and a product only the machine gave carry
 ## none. The chip sits inside the card, clear of the copies' count, the rule text and the top
@@ -153,7 +149,8 @@ func test_the_cart_page_marks_the_starting_cart() -> void:
 	var plates: Array[Node] = view._deck_page.find_children(
 		"Heading", "PanelContainer", true, false
 	)
-	assert_int(plates.size()).is_equal(2)
+	# PRODUCTS, and COUPONS only once a coupon is in the cart (no starter pack since v1.45).
+	assert_int(plates.size()).is_between(1, 2)
 	var marked: int = 0
 	for cell: DeckCell in view.cells():
 		var id: String = String(cell.card.id)
@@ -176,7 +173,7 @@ func test_the_cart_page_marks_the_starting_cart() -> void:
 			var label: Rect2 = (plate as Control).get_global_rect()
 			assert_bool(label.intersects(mark.get_global_rect())).is_false()
 	assert_int(marked).is_greater(0)
-	# Where each came from: the pack, a dealt aisle's booster; a regular and the prize carry none.
+	# Where each came from: a dealt aisle's booster; a regular and the prize carry none.
 	var sources: Dictionary[StringName, String] = DeckView.start_sources(run)
 	assert_array(sources.keys()).contains_exactly_in_any_order(started)
 	var regulars: int = 0
@@ -185,9 +182,6 @@ func test_the_cart_page_marks_the_starting_cart() -> void:
 			regulars += 1
 			assert_bool(sources.has(card.product_card().id)).is_false()
 	assert_int(regulars).is_greater(0)
-	var pack: StarterPackDefinition = run.starter.starter_pack
-	for card: CardDefinition in pack.cards:
-		assert_str(sources[card.product_card().id]).is_equal(StartTip.PACK % pack.display_name)
 	var dealt: int = 0
 	for card: CardDefinition in StartingDeck.shared_of(run.starter):
 		var source: String = sources[card.product_card().id]
@@ -224,15 +218,12 @@ func test_a_dealt_or_full_cart_fits_unscrolled() -> void:
 		var stream: RandomNumberGenerator = EventLogService.derived_stream(
 			seed_value, EventLogService.STARTING_DECK_STREAM
 		)
-		var offer: StartOffer = StartingDeck.deal_offer(recipe, stock, balance, stream, true)
-		var cart: DeckDefinition = StartingDeck.with_pack(
-			recipe, offer.default_pack(), offer.shared
-		)
+		var cart: DeckDefinition = StartingDeck.deal(recipe, stock, balance, stream)
 		var size: int = _distinct(cart.cards)
 		if size > widest_size:
 			widest = seed_value
 			widest_size = size
-	# The most distinct: up to 12 (the 3 staples, the pack's 3, 6 products), more than one row.
+	# The most distinct: up to 11 (the 3 staples, 8 products), more than one row.
 	assert_int(widest_size).is_greater(CartLayout.COLUMNS)
 	var screen: ShiftScreen = await _screen()
 	for full: bool in [false, true]:

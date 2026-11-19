@@ -185,7 +185,7 @@ func test_other_new_items_frequencies_match_the_card() -> void:
 	var run: RunState = _fresh_run()
 	# Two aisles without upgrade chains: plain products only, so no LEGENDARY one.
 	var two_aisles: RunState = _fresh_run()
-	two_aisles.stock = _stock_with_aisles([&"cold_cases", &"snacks"])
+	two_aisles.stock = _stock_with_aisles([&"dairy", &"snacks"])
 	var no_chains: MachineDefinition = machine.duplicate()
 	var none: Array[ItemUpgradeDefinition] = []
 	no_chains.item_upgrades = none

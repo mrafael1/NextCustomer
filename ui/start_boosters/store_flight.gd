@@ -1,8 +1,8 @@
 class_name StoreFlight
 extends RefCounted
 ## OPEN STORE's flight (BuildPage, v1.32; the mock-up start_boosters_v3's startStore and
-## drawStore): over the dimmed board, every cart card gathers into an arc (the pack's from its
-## spread, the others from the order sheet), a dither wipe turns each into its item, the items
+## drawStore): over the dimmed board, every cart card gathers into an arc from the order sheet, a
+## dither wipe turns each into its item, the items
 ## drop into the cart (its count punching per landing), the last landing rings the kaching with a
 ## white ring of rays and one confetti burst, and the cart rolls out. A click or Enter skips to
 ## the end (the floor's ticker says so, lit over the dim: SKIP_HINT); then the board clocks in
@@ -24,7 +24,6 @@ const CONFETTI: Array[Color] = [
 ]
 
 var page: BuildPage
-var pack: StarterPackDefinition
 var t0: float = 0.0
 ## The cards flying, each {card, rare, from (art px, centre), scale}.
 var items: Array[Dictionary] = []
@@ -36,29 +35,20 @@ var confetti: Array[Dictionary] = []
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 
 
-func _init(owner_page: BuildPage, picked_pack: StarterPackDefinition) -> void:
+func _init(owner_page: BuildPage) -> void:
 	page = owner_page
-	pack = picked_pack
 	t0 = page.now
 	_rng.seed = 20261113
 	var run: RunState = page.run
 	var lines: Array[StartCartLine] = StartSetupRules.cart_lines(
-		run.starter, run.start_offer, run.balance, run.pins, pack
+		run.starter, run.start_offer, run.balance, run.pins
 	)
-	var slot: int = 0
 	for k: int in lines.size():
 		var line: StartCartLine = lines[k]
 		if line.card == null:
 			continue
 		var from: Vector2 = Vector2(480, 60 + k * 9.7)
 		var scale: float = 0.12
-		if line.source == StartCartLine.Source.PACK:
-			from = Vector2(
-				BuildPage.SPX[mini(slot, 2)] + BoosterArt.CW / 2.0,
-				BuildPage.SPY + BoosterArt.CH / 2.0
-			)
-			scale = 1.0
-			slot += 1
 		(
 			items
 			. append(

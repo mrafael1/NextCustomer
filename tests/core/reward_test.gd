@@ -21,7 +21,6 @@ const STARTING_STOCK := [
 	"coffee",
 	"soup",
 	"cheese",
-	"frozen_peas",
 	"butter",
 	"yogurt",
 	"reduced_yogurt",

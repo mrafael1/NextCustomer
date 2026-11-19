@@ -16,8 +16,6 @@ extends RefCounted
 ## - BOOSTERS_ALL_OPEN {}: every counted booster on page 1 is open (STOCKED!, page_done).
 ## - PAGE_SHOWN {page}: the board's page `page` (0: page 1 STOCK, 1: page 2 YOUR BUILD) finished
 ##   sliding in (also sent once when the board opens, on its first page).
-## - PACK_HOVERED {index}: the pointer rests on starter pack `index` (its tip opened).
-## - PACK_PICKED {index}: starter pack `index` was picked.
 ## - STORE_OPENED {}: OPEN STORE was pressed (the cart is final; clock-in follows).
 ## - RESTOCK_ARMED {}: the RESTOCK key was armed.
 ## - RESTOCK_CANCELLED {}: an armed RESTOCK was cancelled (CANCEL RESTOCK).
@@ -64,8 +62,6 @@ extends RefCounted
 const BOOSTER_OPENED := &"booster_opened"
 const BOOSTERS_ALL_OPEN := &"boosters_all_open"
 const PAGE_SHOWN := &"page_shown"
-const PACK_HOVERED := &"pack_hovered"
-const PACK_PICKED := &"pack_picked"
 const STORE_OPENED := &"store_opened"
 const RESTOCK_ARMED := &"restock_armed"
 const RESTOCK_CANCELLED := &"restock_cancelled"
@@ -135,8 +131,6 @@ const ARGS: Dictionary[StringName, Array] = {
 	BOOSTER_OPENED: [ARG_INDEX],
 	BOOSTERS_ALL_OPEN: [],
 	PAGE_SHOWN: [ARG_PAGE],
-	PACK_HOVERED: [ARG_INDEX],
-	PACK_PICKED: [ARG_INDEX],
 	STORE_OPENED: [],
 	RESTOCK_ARMED: [],
 	RESTOCK_CANCELLED: [],

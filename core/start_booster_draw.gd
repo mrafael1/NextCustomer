@@ -8,7 +8,7 @@ extends RefCounted
 ## The products aisle `aisle_id`'s booster deals from: its items for the profile (RunStock.items:
 ## base cards and unlocked capsules) that have an item-tier chain in the run recipe's chains
 ## (StartingDeck.chains_for: capsules only with random_capsules), data order. Built from the aisle
-## itself, not the run's stock, so PICK 2 OF 3's extra aisle (not stocked yet) deals the same way.
+## itself, not the run's stock.
 static func pool(
 	run: RunState, profile: ProfileState, aisle_id: StringName
 ) -> Array[CardDefinition]:

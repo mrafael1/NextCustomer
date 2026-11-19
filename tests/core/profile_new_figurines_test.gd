@@ -2,7 +2,8 @@ extends GdUnitTestSuite
 ## The profile's new figurines (v1.30, the FIGURINE BOOK button's NEW tag): a draw adds its item,
 ## the rollback of a failed save takes it off again, the book marks items seen, the debug reset
 ## clears them, the saved form keeps them in draw order, and a profile saved before format 6
-## (with no such field) reads unchanged with nothing new.
+## (with no such field) reads unchanged with nothing new (Frozen peas, which a profile from before
+## the Dairy aisle owned as a base product, is unlocked for it without being new or a draw).
 
 const BALANCE := "res://data/balance/balance.tres"
 
@@ -56,7 +57,9 @@ func test_the_saved_form_keeps_them_in_draw_order() -> void:
 
 
 ## A format 5 profile (before v1.30) reads with every field as it was and nothing new; saved
-## again, it writes format 6 with an empty list.
+## again, it writes today's format with an empty list. Since v1.44 (the Dairy aisle) it also reads
+## with Frozen peas unlocked at run index -1 (a base product it owned, now a capsule item): not a
+## new figurine and not a draw.
 func test_an_older_profile_reads_unchanged_with_nothing_new() -> void:
 	var old: Dictionary = {
 		"format_version": 5.0,
@@ -77,7 +80,11 @@ func test_an_older_profile_reads_unchanged_with_nothing_new() -> void:
 	assert_array(read.new_figurines).is_empty()
 	assert_int(read.coins).is_equal(4)
 	assert_int(read.run_count).is_equal(7)
-	assert_array(read.unlocked_items.keys()).is_equal([&"baguette", &"crisps"])
+	assert_array(read.unlocked_items.keys()).is_equal([&"baguette", &"crisps", &"frozen_peas"])
+	assert_int(read.unlocked_items[&"baguette"]).is_equal(2)
+	assert_int(read.unlocked_items[&"crisps"]).is_equal(3)
+	assert_int(read.unlocked_items[&"frozen_peas"]).is_equal(-1)
+	assert_bool(read.new_figurines.has(&"frozen_peas")).is_false()
 	assert_int(read.capsule_seed).is_equal(99)
 	assert_int(read.capsule_draws).is_equal(2)
 	assert_array(read.worn_pins).is_equal([&"repack"])

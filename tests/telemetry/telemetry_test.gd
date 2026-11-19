@@ -195,9 +195,7 @@ func test_run_start_and_run_end_fields() -> void:
 	assert_int((start["starting_deck"] as Array).size()).is_equal(13)
 	# The impulse rack's fields are gone with the rack (#77).
 	assert_bool(start.has("impulse_offer")).is_false()
-	assert_str(JSON.stringify(start)).contains(
-		'"listed_aisles":["cold_cases","pantry","household"]'
-	)
+	assert_str(JSON.stringify(start)).contains('"listed_aisles":["dairy","pantry","household"]')
 	# Three misses: two slips of the training week (v0.68), the third gets the cashier fired.
 	for _slip: int in range(2):
 		run.checkout()

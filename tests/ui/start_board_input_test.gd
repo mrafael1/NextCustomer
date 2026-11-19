@@ -64,8 +64,9 @@ func test_a_new_run_frees_a_playing_shutter() -> void:
 	assert_int(screen.run.run_seed).is_equal(SEED + 1)
 
 
-## Esc closes the swap window, then stops a RESTOCK pick, then goes back from page 2 to page 1,
-## then opens the options, whose BACK TO TITLE asks the screen for the title (the screen closes
+## Esc stops a RESTOCK pick; on page 2 it closes the BADGE PINS step, then the swap window (opened
+## by the SWAP key's S, over page 2), then goes back to page 1, then opens the options, whose
+## BACK TO TITLE asks the screen for the title (the screen closes
 ## the board; the scene change is off in tests).
 func test_escape_steps_back_from_swaps_to_restock_to_store_to_title() -> void:
 	var screen: ShiftScreen = await _screen(3)
@@ -75,15 +76,12 @@ func test_escape_steps_back_from_swaps_to_restock_to_store_to_title() -> void:
 	store.frozen = true
 	var asked: Array[int] = [0]
 	board.back_to_title.connect(func() -> void: asked[0] += 1)
-	get_tree().root.push_input(_key(KEY_A), true)
+	# Enter skips the light, then opens each sealed booster in turn (round 2 of the 2026-11-19
+	# play test: no booster opens by itself).
+	for press: int in 3:
+		get_tree().root.push_input(_key(KEY_ENTER), true)
 	_run(store, 8.0)
 	assert_bool(store.page_done()).is_true()
-	assert_bool(store.swap.open_window(false)).is_true()
-	assert_bool(store.swap.active).is_true()
-	get_tree().root.push_input(_key(KEY_ESCAPE), true)
-	assert_bool(store.swap.active).is_false()
-	_run(store, 1.0)
-	assert_int(board.page).is_equal(1)
 	get_tree().root.push_input(_key(KEY_R), true)
 	assert_bool(store.restock_armed).is_true()
 	get_tree().root.push_input(_key(KEY_ESCAPE), true)
@@ -96,6 +94,22 @@ func test_escape_steps_back_from_swaps_to_restock_to_store_to_title() -> void:
 	assert_bool(board.staff.pins_open).is_true()
 	get_tree().root.push_input(_key(KEY_ESCAPE), true)
 	assert_bool(board.staff.pins_open).is_false()
+	assert_int(board.page).is_equal(2)
+	# The SWAP key's S opens the swap window over page 2; Esc shuts it, page 2 stays.
+	board.staff.frozen = true
+	board.staff.advance(0.0)
+	get_tree().root.push_input(_key(KEY_S), true)
+	assert_bool(store.swap.active).is_true()
+	assert_bool(board.swap_showing()).is_true()
+	assert_bool(store.visible and store.overlay).is_true()
+	assert_int(store.get_index()).is_greater(board.staff.get_index())
+	_run(store, 1.0)
+	get_tree().root.push_input(_key(KEY_ESCAPE), true)
+	assert_bool(store.swap.active).is_false()
+	_run(store, 1.0)
+	assert_bool(board.swap_showing()).is_false()
+	assert_bool(store.visible).is_false()
+	assert_int(store.get_index()).is_less(board.staff.get_index())
 	assert_int(board.page).is_equal(2)
 	get_tree().root.push_input(_key(KEY_ESCAPE), true)
 	assert_int(board.page).is_equal(1)
@@ -136,9 +150,9 @@ func test_f1_reaches_the_debug_panel_through_the_board() -> void:
 
 
 ## YOUR STORE sits on the scaled stage: at 1920x1080 the page is drawn at 1.5x inside the board,
-## a real mouse click on a booster (through the viewport) opens that booster, a real click on the
-## regulars' basket opens the swap window, and the window's keys, boosters and cards are 1.5x,
-## inside the board and inside the window.
+## a real mouse click (through the viewport) skips the light and the boosters open, a real click
+## on page 2's SWAP key opens the swap window over it, and the window's keys, boosters and cards
+## are 1.5x, inside the board and inside the window.
 func test_your_store_scales_with_the_board() -> void:
 	var screen: ShiftScreen = await _screen(3)
 	var board: StartBoard = screen._cart_reveal.board
@@ -151,19 +165,30 @@ func test_your_store_scales_with_the_board() -> void:
 	var frame: Rect2 = board.get_global_rect()
 	var to_screen: Transform2D = store.get_global_transform()
 	assert_float(to_screen.get_scale().x).is_equal_approx(1.5, 0.001)
-	var pouch: Rect2 = BoosterArt.pouch_rect(store.boosters[1].cx)
-	get_tree().root.push_input(_click(to_screen * (pouch.get_center() * ArtPen.UNIT)), true)
-	assert_bool(screen.run.start_setup.boosters[1].opened).is_true()
-	assert_bool(screen.run.start_setup.boosters[0].opened).is_false()
-	store.openings.open_all("key")
-	_run(store, 8.0)
 	screen._week.skip()  # The helper's screen shows a time card from before the new run.
-	var crate: Vector2 = BoosterChromeDraw.CRATE_RECT.get_center()
-	var at: Vector2 = to_screen * (crate * ArtPen.UNIT)
+	get_tree().root.push_input(_click(to_screen * (Vector2(320, 150) * ArtPen.UNIT)), true)
+	# The click skipped the light; the boosters wait sealed, and a click on each pouch opens it.
+	assert_bool(screen.run.start_setup.boosters[0].opened).is_false()
+	for b: BoosterOpening in store.shown_boosters():
+		var pouch: Vector2 = b.pouch_pos() + Vector2(BoosterArt.BW, BoosterArt.BH) / 2
+		get_tree().root.push_input(_click(to_screen * (pouch * ArtPen.UNIT)), true)
+	assert_bool(screen.run.start_setup.boosters[0].opened).is_true()
+	assert_bool(screen.run.start_setup.boosters[1].opened).is_true()
+	_run(store, 8.0)
+	assert_bool(store.page_done()).is_true()
+	board.show_page(2)
+	board._end_slide()
+	board.staff.frozen = true
+	board.staff.pins.close()
+	board.staff.advance(0.0)
+	var key: Vector2 = Rect2(BuildRegulars.SWAP_RECT).get_center()
+	var at: Vector2 = board.staff.get_global_transform() * (key * ArtPen.UNIT)
 	assert_bool(frame.has_point(at)).is_true()
 	get_tree().root.push_input(_click(at), true)
 	assert_bool(store.swap.active).is_true()
 	_run(store, 1.0)
+	to_screen = store.get_global_transform()
+	assert_float(to_screen.get_scale().x).is_equal_approx(1.5, 0.001)
 	var window: Rect2 = _scaled(to_screen, SwapWindowDraw.RECT)
 	assert_bool(frame.encloses(window)).is_true()
 	var ids: Array[String] = []
@@ -209,7 +234,10 @@ func test_the_page_slide_moves_smoothly_every_frame() -> void:
 	var board: StartBoard = screen._cart_reveal.board
 	screen.profile.set_reduced_motion(false)
 	var added: Array[Node] = []
-	var count_added: Callable = func(node: Node) -> void: added.append(node)
+	# Only what is built while the slide runs counts (a callout may come the frame it ends).
+	var count_added: Callable = func(node: Node) -> void:
+		if board.page_sliding():
+			added.append(node)
 	for next_page: int in [2, 1]:
 		board.staff.pins.close()  # Page 2's BADGE PINS step holds the page while open.
 		board.show_page(next_page)
@@ -260,14 +288,16 @@ func test_the_page_slide_moves_smoothly_every_frame() -> void:
 
 
 ## The page tabs (v1.32: drawn in the shared top bar on the art grid, so on whole pixels at any
-## scale): each page lights its own tab, the other tab's hit is the tab's drawn box (x 156 + 84 k,
-## y 7, 82 x 20 art px), and a click on it turns the page, both ways, at 1280x720 and 1920x1080.
+## scale): each page lights its own tab, the other tab's hit is the tab's drawn box (x 8 + 84 k,
+## y 7, 82 x 20 art px; v1.44: the bar holds nothing else on its left), and a click on it turns
+## the page, both ways, at 1280x720 and 1920x1080.
 func test_the_page_tabs_turn_the_page_at_both_sizes() -> void:
 	var screen: ShiftScreen = await _screen(3)
 	var board: StartBoard = screen._cart_reveal.board
 	board.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	board.store.frozen = true
-	get_tree().root.push_input(_key(KEY_A), true)
+	for press: int in 3:
+		get_tree().root.push_input(_key(KEY_ENTER), true)
 	_run(board.store, 8.0)
 	for board_size: Vector2 in [Vector2(1280, 720), Vector2(1920, 1080)]:
 		board.size = board_size
@@ -275,7 +305,7 @@ func test_the_page_tabs_turn_the_page_at_both_sizes() -> void:
 		board.show_page(1)
 		board.store.advance(0.0)
 		var tab2: Dictionary = _hit(board.store.hits, "tab2")
-		assert_object(tab2.get("rect")).is_equal(Rect2(240, 7, 82, 20))
+		assert_object(tab2.get("rect")).is_equal(Rect2(92, 7, 82, 20))
 		(tab2.act as Callable).call()
 		assert_int(board.page).is_equal(2)
 		assert_int(BuildPageDraw.top_view(board.staff).tab).is_equal(2)
@@ -283,8 +313,8 @@ func test_the_page_tabs_turn_the_page_at_both_sizes() -> void:
 		assert_int(board.page).is_equal(2)
 		board.staff.advance(0.0)
 		var tab1: Dictionary = _hit(board.staff.hits, "tab1")
-		assert_object(tab1.get("rect")).is_equal(Rect2(156, 7, 82, 20))
-		board.staff.click(Vector2(160, 12))
+		assert_object(tab1.get("rect")).is_equal(Rect2(8, 7, 82, 20))
+		board.staff.click(Vector2(12, 12))
 		assert_int(board.page).is_equal(1)
 		var scale: float = board._stage.scale.x
 		assert_float(scale).is_equal_approx(board_size.x / 1280.0, 0.001)
@@ -297,15 +327,16 @@ static func _hit(hits: Array[Dictionary], id: String) -> Dictionary:
 	return {}
 
 
-## Page 2 with reduced motion (the pins confirmed, pack 1 picked), then OPEN STORE with it off: the
+## Page 2 with reduced motion (the pins step passed), then OPEN STORE with it off: the
 ## flight to the cart plays, then the shutter; returns the shutter once it plays.
 func _clock_in_with_motion(screen: ShiftScreen) -> RollerShutter:
 	var board: StartBoard = screen._cart_reveal.board
 	_open_boosters(board)
 	board.show_page(2)
 	board.staff.advance(0.2)
-	assert_bool(board.staff.primary()).is_true()
-	board.pick(0)
+	assert_bool(board.staff.pins.confirm()).is_true()
+	assert_bool(board.staff.pins_pending()).is_false()
+	assert_bool(board.staff.keep_regulars()).is_true()
 	screen.profile.set_reduced_motion(false)
 	board.refresh()
 	assert_bool(board.clock_in()).is_true()

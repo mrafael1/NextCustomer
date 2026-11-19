@@ -3,8 +3,9 @@ extends GdUnitTestSuite
 ## full build plan 7.2, v1.32 "boosters", run save format 15): a resume restores every booster,
 ## choice, swap booster (offered and opened) and spent action; damaged setups are refused; the run
 ## save cross-checks the setup; a setup in an older form (the first build's, v1.07's baskets,
-## version 12, 13 and 14 saves) restarts (or is dropped past clock-in); the profile's saved pair;
-## the setup events. On the live data; nothing here touches a save file.
+## version 12, 13 and 14 saves) restarts (or is dropped past clock-in); a version 17 save (before
+## the Dairy aisle, v1.44) reads with its aisle ids renamed; the profile's saved pair; the setup
+## events. On the live data; nothing here touches a save file.
 
 const Kit := preload("res://tests/core/start_setup_kit.gd")
 const SEED := 20261104
@@ -19,8 +20,8 @@ func before_test() -> void:
 
 
 ## A resume restores every choice exactly: the stage, the boosters (sealed or opened, RESTOCKED),
-## the spent NEW PACKS, the pins step, the regular offers, the pick and the swapped regulars, in
-## SELECT, DEALT and BUILD; PICK 2 OF 3 resumes still picking, or with its SOLD OUT booster.
+## the pins step, the regular offers and the swapped regulars, in
+## SELECT, DEALT and BUILD.
 func test_a_resume_restores_the_boosters_choices_and_spent_actions() -> void:
 	var lookup: ContentLookup = ContentLookup.new(_balance)
 	var profile: ProfileState = Kit.profile(3)
@@ -28,7 +29,7 @@ func test_a_resume_restores_the_boosters_choices_and_spent_actions() -> void:
 	var read: RunSave = _round_trip(waiting, lookup)
 	assert_object(read).is_not_null()
 	assert_dict(read.run.start_setup.to_dictionary()).is_equal(waiting.start_setup.to_dictionary())
-	assert_array(read.run.start_offer.packs).is_empty()
+	assert_array(read.run.start_offer.shared).is_empty()
 	var sealed: RunState = Kit.dealt(profile, SEED)
 	var resumed: RunSave = _round_trip(sealed, lookup)
 	assert_object(resumed).is_not_null()
@@ -41,9 +42,7 @@ func test_a_resume_restores_the_boosters_choices_and_spent_actions() -> void:
 	assert_bool(Kit.swap(run, profile, 1)).is_true()
 	StartSetupRules.restock(run, profile, 1, Kit.restock_rng(run, 1))
 	StartSetupRules.open_booster(run, 1)
-	StartSetupRules.new_packs(run, profile, Kit.new_packs_rng(run))
 	StartSetupRules.confirm_pins(run)
-	run.start_setup.picked = run.start_offer.packs[2].id
 	StartSetupRules.mark_build(run)
 	var saved: RunSave = _round_trip(run, lookup)
 	assert_object(saved).is_not_null()
@@ -52,29 +51,13 @@ func test_a_resume_restores_the_boosters_choices_and_spent_actions() -> void:
 	assert_int(setup.stage).is_equal(StartSetup.Stage.BUILD)
 	assert_int(setup.restock_booster()).is_equal(1)
 	assert_bool(setup.boosters[1].opened).is_true()
-	assert_bool(setup.packs_redrawn).is_true()
 	assert_bool(setup.pins_confirmed).is_true()
 	for aisle_id: StringName in StartSwapBoosters.swap_aisles(run):
 		assert_array(setup.swap_offer(aisle_id)).is_equal(run.start_setup.swap_offer(aisle_id))
 	assert_array(setup.swap_opened).contains_exactly([opened])
-	assert_array(saved.run.start_offer.packs).is_equal(run.start_offer.packs)
 	assert_array(saved.run.start_offer.shared).is_equal(run.start_offer.shared)
 	assert_array(saved.run.starter.core_cards).is_equal(run.starter.core_cards)
 	assert_str(String(StartSetupRules.restock_block(saved.run, profile, 0))).is_equal("used")
-	assert_str(String(StartSetupRules.new_packs_block(saved.run, profile))).is_equal("used")
-	var all: ProfileState = Kit.profile(6)
-	var picking: RunState = Kit.dealt(all, SEED)
-	var still: RunSave = _round_trip(picking, lookup)
-	assert_object(still).is_not_null()
-	assert_bool(still.run.start_setup.picking()).is_true()
-	assert_array(still.run.start_offer.shared).is_equal(picking.start_setup.shared())
-	var picks: Array[int] = [1, 2]
-	StartSetupRules.pick_boosters(picking, all, picks, Kit.pick_rng(picking))
-	var picked: RunSave = _round_trip(picking, lookup)
-	assert_object(picked).is_not_null()
-	assert_bool(picked.run.start_setup.boosters[0].sold_out).is_true()
-	assert_array(picked.run.start_setup.stock_aisles).is_equal(picking.start_setup.stock_aisles)
-	assert_array(picked.run.stock.aisle_ids).is_equal(picking.stock.aisle_ids)
 
 
 ## A RARE hit card (a BIG tier at the hit place, RARE odds forced to 100%) survives a round trip,
@@ -130,8 +113,6 @@ func test_a_damaged_setup_is_refused() -> void:
 		{"stock_aisles": ["pantry", "unknown"]},
 		{"stock_aisles": (good["stock_aisles"] as Array) + [third]},
 		{"completed_count": 99},
-		{"picked": 3},
-		{"packs_redrawn": "yes"},
 		{"pins_confirmed": "yes"},
 		{"boosters": []},
 		{"boosters": "x"},
@@ -166,58 +147,57 @@ func test_a_damaged_setup_is_refused() -> void:
 			. override_failure_message(str(change))
 			. is_null()
 		)
-	# SELECT holds nothing dealt, spent or picked.
+	# SELECT holds nothing dealt or spent.
 	var select: Dictionary = Kit.json(Kit.run(Kit.profile(3), SEED).start_setup.to_dictionary())
 	assert_object(StartSetup.from_dictionary(select, lookup)).is_not_null()
-	for change: Dictionary in [
-		{"packs_redrawn": true},
-		{"picked": "x"},
-		{"pins_confirmed": true},
-		{"boosters": good["boosters"]}
-	]:
+	for change: Dictionary in [{"pins_confirmed": true}, {"boosters": good["boosters"]}]:
 		var bad: Dictionary = select.duplicate(true)
 		bad.merge(change, true)
 		assert_object(StartSetup.from_dictionary(bad, lookup)).is_null()
 
 
-## PICK 2 OF 3's saved states: while picking nothing is opened, restocked or redrawn and the
-## seeded pair stays today's; after it exactly the others are SOLD OUT, never opened.
-func test_a_damaged_pick_is_refused() -> void:
+## A setup saved before v1.46 with PICK 2 OF 3's third booster loads without it: still picking,
+## the seeded pair stays today's; once picked, the SOLD OUT booster is dropped and the picked pair
+## kept. A SOLD OUT booster opened or restocked is still refused.
+func test_an_old_pick_loads_without_its_third_booster() -> void:
 	var lookup: ContentLookup = ContentLookup.new(_balance)
-	var all: ProfileState = Kit.profile(6)
-	var picking: Dictionary = Kit.json(Kit.dealt(all, SEED).start_setup.to_dictionary())
-	assert_object(StartSetup.from_dictionary(picking, lookup)).is_not_null()
-	for change: Dictionary in [
-		_booster(picking, 0, {"opened": true}),
-		_booster(picking, 2, {"opened": true}),
-		{"packs_redrawn": true},
-		{"stage": "build"},
-		{"completed_count": 5},
-		_booster(picking, 2, {"aisle": picking["boosters"][0]["aisle"]}),
-	]:
-		var bad: Dictionary = picking.duplicate(true)
-		bad.merge(change, true)
-		(
-			assert_object(StartSetup.from_dictionary(bad, lookup))
-			. override_failure_message(str(change))
-			. is_null()
-		)
-	var run: RunState = Kit.dealt(all, SEED)
-	var picks: Array[int] = [0, 2]
-	StartSetupRules.pick_boosters(run, all, picks, Kit.pick_rng(run))
-	var picked: Dictionary = Kit.json(run.start_setup.to_dictionary())
-	assert_object(StartSetup.from_dictionary(picked, lookup)).is_not_null()
-	for change: Dictionary in [
-		_booster(picked, 1, {"opened": true}),
-		_booster(picked, 1, {"restocked": true}),
-		_booster(picked, 0, {"sold_out": true}),
-		{
-			"stock_aisles":
-			Kit.json(Kit.dealt(all, SEED).start_setup.to_dictionary())["stock_aisles"]
-		},
-	]:
+	var dealt: Dictionary = Kit.json(Kit.dealt(Kit.profile(6), SEED).start_setup.to_dictionary())
+	var green: Array = dealt["stock_aisles"]
+	var third: AisleDefinition = null
+	for aisle: AisleDefinition in _balance.aisles:
+		if third == null and not green.has(String(aisle.id)):
+			third = aisle
+	var extra: Dictionary = {
+		"aisle": String(third.id),
+		"cards": _plain_ids(third, _balance.start_booster_size),
+		"hits": 0,
+		"opened": false,
+		"sold_out": false,
+		"restocked": false,
+	}
+	var picking: Dictionary = dealt.duplicate(true)
+	(picking["boosters"] as Array).append(extra.duplicate())
+	var still: StartSetup = StartSetup.from_dictionary(picking, lookup)
+	assert_object(still).is_not_null()
+	assert_dict(Kit.json(still.to_dictionary())).is_equal(dealt)
+	# Picked: the first seeded aisle and the third one kept, the second SOLD OUT.
+	var picked: Dictionary = dealt.duplicate(true)
+	var kept: Array[StringName] = [StringName(green[0]), third.id]
+	var kept_ids: Array[String] = []
+	for id: StringName in StartSetupRules.ordered_pair(_balance, kept):
+		kept_ids.append(String(id))
+	picked["stock_aisles"] = kept_ids
+	(picked["boosters"][1] as Dictionary)["sold_out"] = true
+	(picked["boosters"] as Array).append(extra.duplicate())
+	var resolved: StartSetup = StartSetup.from_dictionary(picked, lookup)
+	assert_object(resolved).is_not_null()
+	assert_int(resolved.boosters.size()).is_equal(2)
+	assert_str(String(resolved.boosters[0].aisle)).is_equal(String(green[0]))
+	assert_str(String(resolved.boosters[1].aisle)).is_equal(String(third.id))
+	assert_array(resolved.stock_aisles).is_equal(StartSetupRules.ordered_pair(_balance, kept))
+	for change: Dictionary in [{"opened": true}, {"restocked": true}]:
 		var bad: Dictionary = picked.duplicate(true)
-		bad.merge(change, true)
+		(bad["boosters"][1] as Dictionary).merge(change, true)
 		(
 			assert_object(StartSetup.from_dictionary(bad, lookup))
 			. override_failure_message(str(change))
@@ -226,15 +206,15 @@ func test_a_damaged_pick_is_refused() -> void:
 
 
 ## The run save keeps the setup: its originals are the recipe's regulars, a swapped regular is a
-## plain product, the offer's shared products are the counted boosters' cards in order, the
-## picked pack is offered, and a SELECT setup has an empty offer and waits for its pick.
+## plain product, the offer's shared products are the counted boosters' cards in order, and a
+## SELECT setup has an empty offer.
 func test_the_run_save_cross_checks_the_setup() -> void:
 	var profile: ProfileState = Kit.profile(1)
 	var run: RunState = Kit.locked(profile, SEED)
 	assert_bool(Kit.swap(run, profile, 0)).is_true()
 	var lookup: ContentLookup = ContentLookup.new(_balance)
 	var good: Dictionary = Kit.json(RunSave.to_dictionary(run, "run", 0))
-	assert_int(int(good["format_version"])).is_equal(17)
+	assert_int(int(good["format_version"])).is_equal(19)
 	var saved: RunSave = RunSave.from_dictionary(good, lookup)
 	assert_object(saved).is_not_null()
 	assert_array(saved.run.starter.core_cards).is_equal(run.starter.core_cards)
@@ -249,14 +229,50 @@ func test_the_run_save_cross_checks_the_setup() -> void:
 	var swapped: Array = other_order["start_setup"]["boosters"][1]["cards"]
 	other_order["start_setup"]["boosters"][1]["cards"] = [swapped[1], swapped[0], swapped[2]]
 	assert_object(RunSave.from_dictionary(other_order, lookup)).is_null()
-	var picked: Dictionary = good.duplicate(true)
-	picked["start_setup"]["picked"] = "not_offered"
-	assert_object(RunSave.from_dictionary(picked, lookup)).is_null()
 	var select: Dictionary = Kit.json(RunSave.to_dictionary(Kit.run(profile, SEED), "run", 0))
 	assert_object(RunSave.from_dictionary(select, lookup)).is_not_null()
-	var with_packs: Dictionary = select.duplicate(true)
-	with_packs["start_offer"] = good["start_offer"]
-	assert_object(RunSave.from_dictionary(with_packs, lookup)).is_null()
+	var dealt_offer: Dictionary = select.duplicate(true)
+	dealt_offer["start_setup"] = good["start_setup"]
+	dealt_offer["start_setup"]["stage"] = "select"
+	assert_object(RunSave.from_dictionary(dealt_offer, lookup)).is_null()
+
+
+## A version 18 save (v1.44, before v1.45 removed the starter pack choice) still reads: a run
+## waiting on the board with a pick and NEW PACKS saved reads with both ignored, its offer's packs
+## dropped; a run past clock-in that took a pack (`start_pack`, its cards in the saved deck) reads
+## with its deck as saved. Saved again, neither field is written.
+func test_a_version_18_save_with_a_starter_pack_reads() -> void:
+	assert_int(RunSave.BEFORE_NO_PACKS_VERSION).is_equal(18)
+	assert_bool(RunSave.READ_VERSIONS.has(RunSave.BEFORE_NO_PACKS_VERSION)).is_true()
+	var lookup: ContentLookup = ContentLookup.new(_balance)
+	var profile: ProfileState = Kit.profile(1)
+	var run: RunState = Kit.locked(profile, SEED)
+	var good: Dictionary = Kit.json(RunSave.to_dictionary(run, "run", 0))
+	var waiting: Dictionary = good.duplicate(true)
+	waiting["format_version"] = RunSave.BEFORE_NO_PACKS_VERSION
+	waiting["start_setup"]["picked"] = "breakfast_run"
+	waiting["start_setup"]["packs_redrawn"] = true
+	waiting["start_offer"]["packs"] = ["breakfast_run", "deli_counter", "banana_bunch"]
+	waiting["start_offer"]["first_pick"] = "breakfast_run"
+	waiting["start_pack"] = ""
+	var read: RunSave = RunSave.from_dictionary(waiting, lookup)
+	assert_object(read).is_not_null()
+	assert_int(read.run.phase).is_equal(RunState.Phase.CHOOSE_START)
+	assert_dict(read.run.start_setup.to_dictionary()).is_equal(run.start_setup.to_dictionary())
+	assert_dict(Kit.json(RunSave.to_dictionary(read.run, "run", 0))).is_equal(good)
+	assert_bool(run.open_store()).is_true()
+	run.start_shift()
+	var playing: Dictionary = Kit.json(RunSave.to_dictionary(run, "run", 0))
+	assert_bool(playing.has("start_pack")).is_false()
+	var old: Dictionary = playing.duplicate(true)
+	old["format_version"] = RunSave.BEFORE_NO_PACKS_VERSION
+	old["start_pack"] = "breakfast_run"
+	var milk: String = String(_recipe.core_cards[2].id)
+	old["starting_deck"].insert(_recipe.core_cards.size(), milk)
+	var later: RunSave = RunSave.from_dictionary(old, lookup)
+	assert_object(later).is_not_null()
+	assert_int(later.run.phase).is_equal(RunState.Phase.PLANNING)
+	assert_int(later.run.starter.cards.size()).is_equal(run.starter.cards.size() + 1)
 
 
 ## A run waiting for its pick with a setup in an older form (the first build's with no stage,
@@ -265,8 +281,8 @@ func test_the_run_save_cross_checks_the_setup() -> void:
 func test_an_older_setup_restarts_or_is_dropped() -> void:
 	var lookup: ContentLookup = ContentLookup.new(_balance)
 	var first_build: Dictionary = {
-		"stock_aisles": ["pantry", "household", "cold_cases"],
-		"first_aisles": ["pantry", "household", "cold_cases"],
+		"stock_aisles": ["pantry", "household", "dairy"],
+		"first_aisles": ["pantry", "household", "dairy"],
 		"first_deal": [],
 		"restocks": 0,
 		"use_second": false,
@@ -274,7 +290,7 @@ func test_an_older_setup_restarts_or_is_dropped() -> void:
 	}
 	var baskets: Dictionary = {
 		"stage": "revealed",
-		"stock_aisles": ["pantry", "household", "cold_cases"],
+		"stock_aisles": ["pantry", "household", "dairy"],
 		"completed_count": 0,
 		"originals": ["banana", "banana", "milk", "eggs"],
 		"baskets":
@@ -303,7 +319,7 @@ func test_an_older_setup_restarts_or_is_dropped() -> void:
 			assert_object(read.run.start_setup).is_null()
 			assert_bool(read.run.restart_setup).is_true()
 			assert_int(read.run.phase).is_equal(RunState.Phase.CHOOSE_START)
-			assert_bool(run.take_pack(run.start_offer.default_pack())).is_true()
+			assert_bool(run.open_store()).is_true()
 			run.start_shift()
 			var playing: Dictionary = Kit.json(RunSave.to_dictionary(run, "run", 0))
 			playing["start_setup"] = old_setup
@@ -334,7 +350,7 @@ func test_a_version_14_setup_restarts_or_is_dropped() -> void:
 	# The same setup saved as version 15 or later is refused: it has no swap boosters.
 	waiting["format_version"] = RunSave.FORMAT_VERSION
 	assert_object(RunSave.from_dictionary(waiting, lookup)).is_null()
-	assert_bool(run.take_pack(run.start_offer.default_pack())).is_true()
+	assert_bool(run.open_store()).is_true()
 	run.start_shift()
 	var playing: Dictionary = Kit.json(RunSave.to_dictionary(run, "run", 0))
 	playing["start_setup"] = setup
@@ -363,10 +379,11 @@ func test_a_version_13_setup_restarts_or_is_dropped() -> void:
 	assert_object(read).is_not_null()
 	assert_object(read.run.start_setup).is_null()
 	assert_bool(read.run.restart_setup).is_true()
-	# The same setup saved as version 15 or later is refused: three stocked aisles never validate now.
+	# The same setup saved as version 15 or later is refused: three stocked aisles never validate
+	# now.
 	waiting["format_version"] = RunSave.FORMAT_VERSION
 	assert_object(RunSave.from_dictionary(waiting, lookup)).is_null()
-	assert_bool(run.take_pack(run.start_offer.default_pack())).is_true()
+	assert_bool(run.open_store()).is_true()
 	run.start_shift()
 	var playing: Dictionary = Kit.json(RunSave.to_dictionary(run, "run", 0))
 	playing["start_setup"] = setup
@@ -376,6 +393,80 @@ func test_a_version_13_setup_restarts_or_is_dropped() -> void:
 	assert_object(later.run.start_setup).is_null()
 	assert_bool(later.run.restart_setup).is_false()
 	assert_array(later.run.stock.cards).is_equal(run.stock.cards)
+
+
+## A version 17 save (before the Dairy aisle, v1.44: the aisle's id was `cold_cases`) reads with
+## the id renamed everywhere: the listed aisles, the setup's stocked aisles, boosters and swap
+## offers. It restores the same run as today's save, at the pick and past clock-in; the old id
+## in a version 18 save names no aisle and is refused.
+func test_a_version_17_save_reads_with_the_dairy_aisle() -> void:
+	assert_int(RunSave.BEFORE_DAIRY_VERSION).is_equal(17)
+	assert_bool(RunSave.READ_VERSIONS.has(RunSave.BEFORE_DAIRY_VERSION)).is_true()
+	var lookup: ContentLookup = ContentLookup.new(_balance)
+	var profile: ProfileState = Kit.profile(1)
+	var run: RunState = _dairy_run(profile)
+	Kit.swap_offers(run, profile)
+	var good: Dictionary = Kit.json(RunSave.to_dictionary(run, "run", 0))
+	var old: Dictionary = _before_dairy(good, false)
+	assert_bool((old["listed_aisles"] as Array).has("cold_cases")).is_true()
+	assert_bool((old["start_setup"]["stock_aisles"] as Array).has("cold_cases")).is_true()
+	assert_bool((old["start_setup"]["swap_offers"] as Dictionary).has("cold_cases")).is_true()
+	assert_bool(JSON.stringify(old).contains('"dairy"')).is_false()
+	var read: RunSave = RunSave.from_dictionary(old, lookup)
+	assert_object(read).is_not_null()
+	assert_bool(read.run.restart_setup).is_false()
+	assert_array(read.run.stock.aisle_ids).is_equal(run.stock.aisle_ids)
+	assert_bool(read.run.stock.aisle_ids.has(&"dairy")).is_true()
+	assert_array(read.run.start_setup.stock_aisles).is_equal(run.start_setup.stock_aisles)
+	assert_dict(read.run.start_setup.to_dictionary()).is_equal(run.start_setup.to_dictionary())
+	# Saved again, it is today's save.
+	assert_dict(Kit.json(RunSave.to_dictionary(read.run, "run", 0))).is_equal(good)
+	var unrenamed: Dictionary = old.duplicate(true)
+	unrenamed["format_version"] = RunSave.FORMAT_VERSION
+	assert_object(RunSave.from_dictionary(unrenamed, lookup)).is_null()
+	assert_bool(run.open_store()).is_true()
+	run.start_shift()
+	var playing: Dictionary = Kit.json(RunSave.to_dictionary(run, "run", 0))
+	var later: RunSave = RunSave.from_dictionary(_before_dairy(playing, false), lookup)
+	assert_object(later).is_not_null()
+	assert_dict(later.run.start_setup.to_dictionary()).is_equal(run.start_setup.to_dictionary())
+	assert_dict(Kit.json(RunSave.to_dictionary(later.run, "run", 0))).is_equal(playing)
+
+
+## A version 17 save whose Cold cases booster holds Frozen peas (a base product of the aisle
+## then, a Fruit & veg capsule item now) no longer reads as a setup: a run still waiting for its
+## pick restarts its setup instead of being refused, and a run past clock-in drops the setup and
+## keeps its cards (Frozen peas with them). The same save as version 18 is refused.
+func test_a_version_17_setup_with_frozen_peas_restarts_or_is_dropped() -> void:
+	var lookup: ContentLookup = ContentLookup.new(_balance)
+	var profile: ProfileState = Kit.profile(1)
+	var run: RunState = _dairy_run(profile)
+	var waiting: Dictionary = _before_dairy(Kit.json(RunSave.to_dictionary(run, "run", 0)), true)
+	assert_bool((waiting["starting_deck"] as Array).has("frozen_peas")).is_true()
+	# The setup itself no longer reads: Frozen peas is no product of the Dairy aisle.
+	var setup: Dictionary = AisleRename.renamed(waiting["start_setup"])
+	assert_object(StartSetup.from_dictionary(setup, lookup)).is_null()
+	var read: RunSave = RunSave.from_dictionary(waiting, lookup)
+	assert_object(read).is_not_null()
+	assert_int(read.run.phase).is_equal(RunState.Phase.CHOOSE_START)
+	assert_object(read.run.start_setup).is_null()
+	assert_bool(read.run.restart_setup).is_true()
+	var newer: Dictionary = AisleRename.renamed(waiting)
+	newer["format_version"] = RunSave.FORMAT_VERSION
+	assert_object(RunSave.from_dictionary(newer, lookup)).is_null()
+	assert_bool(run.open_store()).is_true()
+	run.start_shift()
+	var playing: Dictionary = _before_dairy(Kit.json(RunSave.to_dictionary(run, "run", 0)), true)
+	var later: RunSave = RunSave.from_dictionary(playing, lookup)
+	assert_object(later).is_not_null()
+	assert_int(later.run.phase).is_equal(RunState.Phase.PLANNING)
+	assert_object(later.run.start_setup).is_null()
+	assert_bool(later.run.restart_setup).is_false()
+	var peas: Array = later.run.deck.cards.filter(
+		func(card: CardInstance) -> bool: return card.definition.id == &"frozen_peas"
+	)
+	assert_int(peas.size()).is_equal(1)
+	assert_int(later.run.deck.cards.size()).is_equal(run.deck.cards.size())
 
 
 ## The profile still reads and writes its saved pair (format unchanged), but no regular swap
@@ -413,7 +504,7 @@ func test_the_profile_keeps_its_saved_pair_but_no_swaps() -> void:
 
 
 ## v1.32: the pair is always seeded; the profile's saved pair (stock_pair) is no longer read,
-## even with every aisle complete (the choice is PICK 2 OF 3 now).
+## even with every aisle complete.
 func test_the_profiles_saved_pair_is_no_longer_read() -> void:
 	for seed_value: int in range(SEED, SEED + 10):
 		var plain: ProfileState = Kit.profile(6)
@@ -422,19 +513,9 @@ func test_the_profiles_saved_pair_is_no_longer_read() -> void:
 		assert_array(Kit.suggest(saved, seed_value)).is_equal(Kit.suggest(plain, seed_value))
 
 
-## The setup's telemetry: start_booster_pick (PICK 2 OF 3), restock (one booster), new_packs,
-## start_choice's setup fields and run_start's boosters.
+## The setup's telemetry: restock (one booster), start_choice's setup fields and run_start's
+## boosters.
 func test_the_setup_events() -> void:
-	var all: ProfileState = Kit.profile(6)
-	var chosen: RunState = Kit.dealt(all, SEED)
-	var sold: StringName = chosen.start_setup.boosters[1].aisle
-	var picks: Array[int] = [0, 2]
-	StartSetupRules.pick_boosters(chosen, all, picks, Kit.pick_rng(chosen))
-	var pick: Dictionary = RunEvents.start_booster_pick(chosen, picks)
-	assert_array(pick["picked"]).is_equal([0, 2])
-	assert_array(pick["sold_out"]).is_equal([String(sold)])
-	assert_int(pick["aisles"].size()).is_equal(2)
-	assert_array(pick["green"]).is_equal(Array(chosen.start_setup.stock_aisles))
 	var profile: ProfileState = Kit.profile(3)
 	var run: RunState = Kit.locked(profile, SEED)
 	var kept: Array[CardDefinition] = run.start_setup.boosters[1].cards.duplicate()
@@ -450,18 +531,51 @@ func test_the_setup_events() -> void:
 	var fields: Dictionary = RunEvents.start_setup_fields(run)
 	assert_int(fields["restock"]).is_equal(1)
 	assert_int(fields["restock_booster"]).is_equal(1)
-	assert_int(fields["new_packs"]).is_equal(0)
+	assert_bool(fields.has("new_packs")).is_false()
 	assert_bool(fields["pins_confirmed"]).is_false()
 	assert_int(fields["boosters"].size()).is_equal(2)
 	assert_bool(fields["boosters"][1]["restocked"]).is_true()
-	assert_dict(RunEvents.new_packs([], [], &"x")).is_equal(
-		{"before": [], "after": [], "picked_before": "x"}
-	)
 	assert_array(RunEvents.run_start(run)["boosters"]).is_equal(fields["boosters"])
 
 
 func _round_trip(run: RunState, lookup: ContentLookup) -> RunSave:
 	return RunSave.from_dictionary(Kit.json(RunSave.to_dictionary(run, "run", 0)), lookup)
+
+
+## A run dealt with every booster opened whose stocked aisles hold the
+## Dairy aisle: the first seed from SEED that stocks it.
+func _dairy_run(profile: ProfileState) -> RunState:
+	for seed_value: int in range(SEED, SEED + 50):
+		var run: RunState = Kit.locked(profile, seed_value)
+		if run != null and run.start_setup.stock_aisles.has(&"dairy"):
+			return run
+	return null
+
+
+## `save` (today's save, as parsed from JSON) as version 17 wrote it: the Dairy aisle under its
+## old id and, with `peas`, Frozen peas in place of the first card of the aisle's booster (in the
+## booster and in the run's cards: its starting deck, deck and hand).
+static func _before_dairy(save: Dictionary, peas: bool) -> Dictionary:
+	var text: String = JSON.stringify(save).replace('"dairy"', '"cold_cases"')
+	var old: Dictionary = JSON.parse_string(text)
+	old["format_version"] = RunSave.BEFORE_DAIRY_VERSION
+	if not peas:
+		return old
+	for booster: Dictionary in old["start_setup"]["boosters"]:
+		if booster["aisle"] != "cold_cases":
+			continue
+		var was: String = booster["cards"][0]
+		booster["cards"][0] = "frozen_peas"
+		# The boosters' cards are the starting deck's last ones, in the deck in the same order.
+		var starting: Array = old["starting_deck"]
+		var at: int = starting.rfind(was)
+		starting[at] = "frozen_peas"
+		var instance: Array = old["deck"][at]
+		instance[1] = "frozen_peas"
+		for held: Array in old["hand"]:
+			if held[0] == instance[0]:
+				held[1] = "frozen_peas"
+	return old
 
 
 ## `data`'s boosters with booster `index`'s fields changed by `change`, as a merge into the setup.
@@ -481,6 +595,16 @@ func _other_aisle_card(aisle_id: String) -> String:
 		if String(aisle.id) != aisle_id and not aisle.base_cards.is_empty():
 			return String(aisle.base_cards[0].id)
 	return ""
+
+
+## Up to `count` distinct plain-tier products of `aisle`, as ids.
+static func _plain_ids(aisle: AisleDefinition, count: int) -> Array[String]:
+	var ids: Array[String] = []
+	for card: CardDefinition in aisle.base_cards + aisle.capsule_cards:
+		var plain: bool = card.is_product() and card.tier == CardDefinition.Tier.PLAIN
+		if plain and card.variant_of == null and ids.size() < count:
+			ids.append(String(card.id))
+	return ids
 
 
 ## Four distinct plain products of aisle `aisle_id` (one more than regular_offer_max), as ids.

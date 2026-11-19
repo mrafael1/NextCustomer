@@ -21,30 +21,28 @@ text = "Open both **BOOSTERS**."
 teaches = PackedStringArray("BOOSTER")
 rings = Array[StringName]([&"booster0", &"booster1"])
 act = 0
-side = 4
-locks = Array[StringName]([&"swap_plate", &"restock"])
+side = 0
+locks = Array[StringName]([&"swap_key", &"restock"])
 footer = 2
 advance_on = &"boosters_all_open"
 gate = 1
 allow = Array[StringName]([&"hit"])
-allow_ids = Array[StringName]([&"booster0", &"booster1", &"hit0", &"hit1", &"primary", &"rollup"])
+allow_ids = Array[StringName]([&"booster0", &"booster1", &"primary"])
 sealed_only = true
 
-[sub_resource type="Resource" id="Resource_g5"]
+[sub_resource type="Resource" id="Resource_g6"]
 script = ExtResource("2_sub")
-id = &"G5"
+id = &"G6"
 screen = 2
-text = "Pick one **STARTER PACK**."
-teaches = PackedStringArray("STARTER PACK")
-rings = Array[StringName]([&"pack0", &"pack1", &"pack2"])
+text = "Click KEEP, then OPEN STORE."
+rings = Array[StringName]([&"regulars_ok", &"primary"])
 act = 0
-side = 1
-locks = Array[StringName]([&"newpacks"])
+side = 4
 footer = 2
-advance_on = &"pack_picked"
+advance_on = &"store_opened"
 gate = 1
 allow = Array[StringName]([&"hit"])
-allow_ids = Array[StringName]([&"primary", &"tab2", &"hit0", &"hit1", &"pack0", &"pack1", &"pack2"])
+allow_ids = Array[StringName]([&"primary", &"tab2", &"regulars_ok"])
 
 [sub_resource type="Resource" id="Resource_g7"]
 script = ExtResource("2_sub")
@@ -57,7 +55,7 @@ act = -1
 side = 3
 gate = 1
 allow = Array[StringName]([&"hit"])
-allow_ids = Array[StringName]([&"primary", &"pack0", &"pack1", &"pack2"])
+allow_ids = Array[StringName]([&"primary"])
 
 [sub_resource type="Resource" id="Resource_g8"]
 script = ExtResource("2_sub")
@@ -131,9 +129,9 @@ text = "This item's rule does nothing here: try another spot."
 
 [resource]
 script = ExtResource("1_main")
-hand = Array[StringName]([&"banana", &"banana", &"milk", &"eggs", &"yogurt", &"cereal", &"tea_bags", &"frozen_peas"])
-answer = Array[StringName]([&"banana", &"yogurt", &"banana", &"eggs", &"milk", &"cereal", &"frozen_peas"])
+hand = Array[StringName]([&"banana", &"banana", &"milk", &"eggs", &"yogurt", &"cereal", &"tea_bags", &"cheese"])
+answer = Array[StringName]([&"banana", &"yogurt", &"banana", &"eggs", &"milk", &"cereal", &"cheese"])
 retry = SubResource("Resource_retry")
 answer_step = SubResource("Resource_answer")
 hints = Array[ExtResource("3_hint")]([SubResource("Hint_combo"), SubResource("Hint_wasted")])
-steps = Array[ExtResource("2_sub")]([SubResource("Resource_g1"), SubResource("Resource_g3"), SubResource("Resource_g5"), SubResource("Resource_g7"), SubResource("Resource_g8"), SubResource("Resource_g10"), SubResource("Resource_g15")])
+steps = Array[ExtResource("2_sub")]([SubResource("Resource_g1"), SubResource("Resource_g3"), SubResource("Resource_g6"), SubResource("Resource_g7"), SubResource("Resource_g8"), SubResource("Resource_g10"), SubResource("Resource_g15")])

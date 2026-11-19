@@ -29,23 +29,19 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-## Page 1 at both sizes: each regular, each opened booster card and a family chip open their tip
-## over them, inside the viewport (with its boxes); the regular's tip says YOUR REGULAR with the
-## CLICK SWAP key, a family chip's is that family's.
+## Page 1 at both sizes. Compact fan cards (the default) have no hover tip: the full card pops up
+## instead. With compact_fan_cards off, each opened booster card and a family chip open their tip
+## over them, inside the viewport (with its boxes); a family chip's is that family's.
 func test_page_one_tips_open_inside_the_viewport() -> void:
 	for size: Vector2i in SIZES:
 		var page: BoosterPage = await _page(size, 1)
 		_stocked(page)
 		var tips: GlyphTips = _board(page).tips
-		var regulars: int = page.run.starter.core_cards.size()
-		for k: int in regulars:
-			var target: TipTarget = page.tips.target_for("reg%d|" % k)
-			assert_object(target).override_failure_message("reg%d" % k).is_not_null()
-			_assert_opens(tips, target, size)
-			var spec: TipSpec = tips.tip().spec
-			assert_str(spec.tag).is_equal(StartTips.REGULAR_TAG)
-			assert_str(spec.click).is_equal(StartTips.SWAP_CLICK)
-			assert_str(spec.title).is_equal(page.run.starter.core_cards[k].display_name.to_upper())
+		page.advance(0.0)
+		assert_array(page.tips.shown_targets()).is_empty()
+		for b: BoosterOpening in page.boosters:
+			b.compact = false
+		page.advance(0.0)
 		var chips: int = 0
 		for b: BoosterOpening in page.boosters:
 			for k: int in b.cards.size():
@@ -102,62 +98,25 @@ func test_swap_window_tips_open_inside_the_viewport() -> void:
 			assert_str(tips.tip().spec.tag).is_equal(StartTips.REGULAR_TAG)
 
 
-## Page 2 at both sizes: a spread pack's card opens its tip inside the viewport, tagged with the
-## pack's name; a pack's family band opens its family's tip.
-func test_page_two_spread_card_tips_open_inside_the_viewport() -> void:
-	for size: Vector2i in SIZES:
-		var page: BoosterPage = await _page(size, 1)
-		var board: StartBoard = _board(page)
-		for index: int in board.run.start_setup.boosters.size():
-			board._choice.open_booster.call(index)
-		board.refresh()
-		board.show_page(2, "tab")
-		board._end_slide()
-		var staff: BuildPage = board.staff
-		staff.frozen = true
-		staff.advance(0.2)
-		if staff.pins_open:
-			staff.pins.confirm("key")
-		for _step: int in 240:
-			staff.advance(STEP)
-		staff.mouse = Vector2(BuildPage.STX[0] + 30, 200)
-		for _step: int in 60:
-			staff.advance(STEP)
-		var target: TipTarget = staff.tips.target_for("spread0_0|")
-		assert_object(target).is_not_null()
-		_assert_opens(board.tips, target, size)
-		var pack: StarterPackDefinition = staff.stacks[0].pack
-		assert_str(board.tips.tip().spec.tag).is_equal(pack.display_name.to_upper())
-		var strip: TipTarget = staff.tips.target_for("strip0|")
-		assert_object(strip).is_not_null()
-		_assert_opens(board.tips, strip, size)
-		assert_int(board.tips.tip().spec.kind).is_equal(TipSpec.Kind.FAMILY)
-
-
-## Locked (no finished aisle): the regulars' tips have no click and say why in their live line.
-func test_locked_regulars_say_why() -> void:
-	var page: BoosterPage = await _page(SIZES[0], 0)
-	_stocked(page)
-	var tips: GlyphTips = _board(page).tips
-	var target: TipTarget = page.tips.target_for("reg0|")
-	_assert_opens(tips, target, SIZES[0])
-	assert_str(tips.tip().spec.click).is_empty()
-	assert_str(tips.tip().spec.live).is_equal(StartTips.SWAPS_LOCKED_LIVE)
-
-
 ## No tip while a card is held in the swap window (a shown tip closes), nor while a booster opens.
 func test_no_tip_while_dragging_or_opening() -> void:
 	var page: BoosterPage = await _page(SIZES[0], 1)
 	var tips: GlyphTips = _board(page).tips
-	page.openings.roll_up()
-	page.openings.end_arrival()
+	for b: BoosterOpening in page.boosters:
+		b.compact = false
 	_run(page, 0.5)
-	assert_bool(page.openings.open_booster(0, "click")).is_true()
-	_run(page, 0.3)
-	assert_bool(page.openings.opening_now() or page.openings.waiting_booster() != null).is_true()
+	assert_bool(page.roulette.busy()).is_true()
 	assert_bool(_board(page).tips_blocked()).is_true()
 	assert_array(page.tips.shown_targets()).is_empty()
-	var fan: Rect2 = BoosterArt.card_rect(page.boosters[0].cx, 0)
+	page.roulette.skip()
+	# The boosters wait sealed for their clicks (round 2 of the 2026-11-19 play test).
+	for sealed: BoosterOpening in page.shown_boosters():
+		page.openings.open_booster(sealed.index, "click")
+	_run(page, 0.3)
+	assert_bool(page.openings.opening_now()).is_true()
+	assert_bool(_board(page).tips_blocked()).is_true()
+	assert_array(page.tips.shown_targets()).is_empty()
+	var fan: Rect2 = page.boosters[0].card_rect(0)
 	tips.point_at(_global(page, fan.get_center()))
 	tips._process(GlyphTips.SHOW_DELAY_S + 0.05)
 	assert_object(tips.shown_glyph()).is_null()
@@ -279,9 +238,10 @@ static func _copy_limit_one(page: BoosterPage) -> void:
 
 
 static func _stocked(page: BoosterPage) -> void:
-	page.openings.roll_up()
-	page.openings.end_arrival()
-	page.openings.open_all("key")
+	page.roulette.skip()
+	# The boosters wait sealed for their clicks (round 2 of the 2026-11-19 play test).
+	for sealed: BoosterOpening in page.shown_boosters():
+		page.openings.open_booster(sealed.index, "click")
 	_run(page, 8.0)
 
 

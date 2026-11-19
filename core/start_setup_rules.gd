@@ -2,28 +2,27 @@ class_name StartSetupRules
 extends RefCounted
 ## The opening-time rules (start screen, full build plan section 7.2; v1.32 "boosters"), as pure
 ## static functions. The caller owns the named derived streams (EventLogService:
-## STOCK_AISLES_STREAM, STARTING_DECK_STREAM, START_BOOSTER_STREAM, START_BOOSTER_EXTRA_STREAM,
-## START_BOOSTER_PICK_STREAM, START_RESTOCK_STREAM, START_REGULARS_STREAM, START_NEW_PACKS_STREAM),
+## STOCK_AISLES_STREAM, STARTING_DECK_STREAM, START_BOOSTER_STREAM, START_RESTOCK_STREAM,
+## START_REGULARS_STREAM),
 ## passes them in and saves what changed; nothing here touches the run's own RNG. Saved setup data
 ## (StartSetup) never depends back on the run or the profile. Every query that can refuse returns
 ## a reason id (&"" when allowed) the UI shows.
 ##
 ## - An aisle is completed when all its items are collected (completed).
 ## - A run stocks only its boosters' aisles: dealt_aisle_count listable aisles (v1.32 feedback,
-##   2026-11-13), the seeded suggestion (suggest_aisles) or the PICK 2 OF 3 pair.
-## - The deal (deal, at once for a new run) draws the pack offer and one sealed booster per stocked
-##   aisle (StartBoosterDraw.draw): start_booster_size distinct products of the aisle, the last
+##   2026-11-13), the seeded suggestion (suggest_aisles). There is no aisle choice: PICK 2 OF 3
+##   (a third booster from 6 completed aisles, keep two) was removed in v1.46 (2026-11-19, the
+##   user: "2 aisles picked randomly create more adaptation").
+## - The deal (deal, at once for a new run) draws one sealed booster per stocked aisle
+##   (StartBoosterDraw.draw): start_booster_size distinct products of the aisle, the last
 ##   start_booster_hit_slots places hit cards, each RARE (its chain's BIG tier, never GOLDEN) on
-##   start_booster_hit_rare_percent; the fair-deal check is met by swapping unseen packs or drawing
-##   every booster again on its own stream. From pair_choice_min_completed completed aisles
-##   (pick_mode) one more booster of a completed aisle not stocked today is dealt (PICK 2 OF 3):
-##   the player picks dealt_aisle_count of them (pick_boosters), the other is SOLD OUT and the
-##   unseen pack offer is fitted to the picked pair.
+##   start_booster_hit_rare_percent; the fair-deal check on the cart (the regulars and the
+##   boosters) is met by drawing every booster again on its own stream.
 ## - Opening (open_booster) only reveals: the contents are fixed at the deal. Swaps wait until
 ##   every counted booster is open (&"sealed"), so a swap's copy rule never counts a sealed card.
 ## - RESTOCK (restock, from restock_min_completed completed, restocks_per_run a run) deals one
 ##   opened booster again from its aisle (a new hit too), differing by at least one card; it is
-##   sealed again; the other boosters and the packs stay.
+##   sealed again; the other boosters stay.
 ## - Each completed aisle unlocks one regular swap, at most one per regular slot: a 5th
 ##   completed aisle gives nothing (swaps_left). The swap window (v1.32, 2026-11-13) deals one
 ##   swap booster per stocked aisle, even an aisle not completed: up to
@@ -31,19 +30,15 @@ extends RefCounted
 ##   the copy limit lets into some regular slot first, saved the first time the window
 ##   shows them (StartSwapBoosters); opening one is saved too and uses no swap. Any number of
 ##   the swaps may come from one aisle (v1.32: no per-aisle swap limit), and no card goes past the
-##   recipe's copy_max in the cart with every offered pack and the boosters (swap_block). A card on
+##   recipe's copy_max in the cart with the boosters (swap_block). A card on
 ##   a swapped slot trades places with the one there (no extra swap); a swapped card moves to
 ##   another slot (`from`) the same way; restore and reset_swaps put originals back. Swaps never
 ##   re-deal. They belong to the run only (v1.08, the user:
 ##   "swap should reset at each new run"): the run save keeps its own regulars, so a resume keeps
 ##   them, and every new run starts with the recipe's regulars and its full swap allowance.
-## - NEW PACKS (new_packs, packs_redraws_per_run a run) redraws the offered packs, keeping the
-##   boosters, the regulars and the good first pick; the pick is cleared.
-## - While the profile owns an earned (or worn) badge pin, the packs wait for the BADGE PINS step
-##   (pins_pending: pick_block and new_packs_block give &"pins" until confirm_pins).
-## - A pack that needs an aisle (StarterPackDefinition.needs_aisle, v1.29: the Snack stand) is
-##   offered, dealt or redrawn only once that aisle is unlocked for the profile
-##   (StartingDeck.open_packs).
+## - The starter packs (#107: the pack offer, its pick and NEW PACKS) were removed in v1.45
+##   (2026-11-18): the cart is the regulars, the counted boosters and the worn pins' cards; OPEN
+##   STORE (RunState.open_store) waits only for the BADGE PINS step (pins_pending).
 
 ## Draws made at most for one RESTOCK while looking for a booster that differs from the old one.
 const RESTOCK_DRAWS_MAX := 64
@@ -62,18 +57,9 @@ static func total_items(aisle: AisleDefinition) -> int:
 	return aisle.base_cards.size() + aisle.capsule_cards.size()
 
 
-## Whether the deal adds PICK 2 OF 3's extra booster (pair_choice_min_completed completed aisles).
-static func pick_mode(balance: BalanceDefinition, profile: ProfileState) -> bool:
-	return (
-		balance.pair_choice_min_completed > 0
-		and completed(balance, profile).size() >= balance.pair_choice_min_completed
-	)
-
-
 ## Today's suggested aisles, in data order: dealt_aisle_count listable aisles, each drawn on `rng`
-## (one randi_range each over the listable aisles not yet taken). The pair is always seeded: from
-## pair_choice_min_completed the choice happens at PICK 2 OF 3 (v1.32), so the profile's saved
-## pair (ProfileState.stock_pair) is no longer read.
+## (one randi_range each over the listable aisles not yet taken). The pair is always seeded: the
+## profile's saved pair (ProfileState.stock_pair) is no longer read.
 static func suggest_aisles(
 	balance: BalanceDefinition, profile: ProfileState, rng: RandomNumberGenerator
 ) -> Array[StringName]:
@@ -97,21 +83,6 @@ static func listable_ids(balance: BalanceDefinition, profile: ProfileState) -> A
 	return ids
 
 
-## The aisles PICK 2 OF 3's extra booster can come from (pick_mode only): the completed listable
-## aisles not in `stock_aisles`, data order. Empty below pair_choice_min_completed.
-static func extra_aisles(
-	balance: BalanceDefinition, profile: ProfileState, stock_aisles: Array[StringName]
-) -> Array[StringName]:
-	var found: Array[StringName] = []
-	if not pick_mode(balance, profile):
-		return found
-	var listable: Array[StringName] = listable_ids(balance, profile)
-	for aisle: AisleDefinition in completed(balance, profile):
-		if listable.has(aisle.id) and not stock_aisles.has(aisle.id):
-			found.append(aisle.id)
-	return found
-
-
 ## Whether `card` is in the run's swap pool: a plain-tier product of one of its stocked aisles
 ## that the profile owns (RunStock.items: the aisle's base cards and its unlocked capsules).
 static func is_swap_option(run: RunState, profile: ProfileState, card: CardDefinition) -> bool:
@@ -127,8 +98,8 @@ static func is_swap_option(run: RunState, profile: ProfileState, card: CardDefin
 
 ## A new run with the opening-time setup in SELECT: today's suggested aisles drawn on
 ## `aisle_rng` (suggest_aisles), a run copy of the recipe with its own regulars (no swap: swaps
-## never carry over to a new run), an empty offer (no packs, no boosters dealt) and the stock of
-## the suggestion. The caller deals it at once (deal), then the run waits for its pick.
+## never carry over to a new run), an empty offer (no boosters dealt) and the stock of the
+## suggestion. The caller deals it at once (deal), then the run waits for OPEN STORE.
 static func setup_run(
 	seed_value: int,
 	balance: BalanceDefinition,
@@ -142,9 +113,6 @@ static func setup_run(
 	setup.stock_aisles = suggest_aisles(balance, profile, aisle_rng)
 	var stock: RunStock = RunStock.build(balance, setup.stock_aisles, profile.unlocked_items, true)
 	var own: DeckDefinition = StartingDeck.with_cards(recipe, recipe.cards)
-	own.starter_packs = StartingDeck.open_packs(
-		recipe.starter_packs, balance, profile.unlocked_items
-	)
 	var offer: StartOffer = StartOffer.new()
 	var run: RunState = RunState.new(
 		seed_value, StartingDeck.before_pick(own, offer), balance, stock, offer
@@ -155,122 +123,73 @@ static func setup_run(
 
 
 ## Why the setup can't be dealt, or &"" when it can: &"stage" (not in SELECT) or &"streams" (a
-## dealt aisle, green or a possible PICK 2 OF 3 extra, without its stream in `booster_rngs`).
+## stocked aisle without its stream in `booster_rngs`).
 static func deal_block(
-	run: RunState,
-	profile: ProfileState,
-	booster_rngs: Dictionary[StringName, RandomNumberGenerator]
+	run: RunState, booster_rngs: Dictionary[StringName, RandomNumberGenerator]
 ) -> StringName:
 	var setup: StartSetup = run.start_setup
 	if setup == null or setup.stage != StartSetup.Stage.SELECT:
 		return &"stage"
-	var aisles: Array[StringName] = setup.stock_aisles.duplicate()
-	aisles.append_array(extra_aisles(run.balance, profile, setup.stock_aisles))
-	for aisle_id: StringName in aisles:
+	for aisle_id: StringName in setup.stock_aisles:
 		if not booster_rngs.has(aisle_id):
 			return &"streams"
 	return &""
 
 
-## The deal (deal_block first; returns its reason, changing nothing, when refused): the pack offer
-## is drawn on `pack_rng` (the run seed's starting-deck stream: the good first pick in its middle
-## place while the profile has never won, the others from the run recipe's packs that fit the
-## current regulars); in pick_mode PICK 2 OF 3's extra aisle is drawn on `extra_rng` (one
-## randi_range over extra_aisles with a product to draw, start_booster_choice_count -
-## dealt_aisle_count of them; an extra booster that comes up empty is left out); then each
-## booster is drawn on its aisle's own stream, `booster_rngs[aisle]` (StartBoosterDraw), the green
-## ones first, every booster after the first counting the ones before under the copy rule (so any
-## pair of PICK 2 OF 3 keeps it). The fair-deal check runs on each pack's cart with the counted
-## boosters (the green ones; hands sampled on `pack_rng`): a failing pack is swapped for an
-## unoffered passing one; if a cart still fails, every booster is drawn again on its stream, up to
-## fair_deal_redeals more times, and the deal with the most passing carts is kept. The boosters are
-## sealed; the setup moves to DEALT with nothing picked (the good first pick is only suggested:
-## the player takes it on page 2).
+## The deal (deal_block first; returns its reason, changing nothing, when refused): each
+## stocked aisle's booster is drawn on its own stream, `booster_rngs[aisle]` (StartBoosterDraw),
+## every booster after the first counting the ones before under the copy rule. The fair-deal
+## check runs on the cart with the boosters (hands sampled on `deal_rng`, the run seed's
+## starting-deck stream): if it fails, every booster is drawn again on its stream, up to
+## fair_deal_redeals more times, and the first passing deal is kept (else the first). The
+## boosters are sealed; the setup moves to DEALT.
 static func deal(
 	run: RunState,
 	profile: ProfileState,
-	pack_rng: RandomNumberGenerator,
-	booster_rngs: Dictionary[StringName, RandomNumberGenerator],
-	extra_rng: RandomNumberGenerator
+	deal_rng: RandomNumberGenerator,
+	booster_rngs: Dictionary[StringName, RandomNumberGenerator]
 ) -> StringName:
-	var block: StringName = deal_block(run, profile, booster_rngs)
+	var block: StringName = deal_block(run, booster_rngs)
 	if block != &"":
 		return block
 	var setup: StartSetup = run.start_setup
 	var balance: BalanceDefinition = run.balance
 	rebuild_stock(run, profile)
 	var recipe: DeckDefinition = run.starter
-	var pool: Array[StarterPackDefinition] = _packs_fitting(
-		StartingDeck.open_packs(recipe.starter_packs, balance, profile.unlocked_items),
-		recipe.core_cards,
-		setup.originals,
-		recipe.copy_max
-	)
-	var draw: StartingDeck.PackDraw = StartingDeck.draw_packs(
-		recipe, pool, pack_rng, not profile.has_won()
-	)
 	var check: StartingDeck.FairCheck = StartingDeck.fair_check(recipe, balance)
 	var aisles: Array[StringName] = setup.stock_aisles.duplicate()
-	var green_count: int = aisles.size()
-	var extras: Array[StringName] = extra_aisles(balance, profile, setup.stock_aisles)
-	var extra_count: int = maxi(balance.start_booster_choice_count - balance.dealt_aisle_count, 0)
 	var options: Array[Array] = []
 	for aisle_id: StringName in aisles:
 		options.append(StartBoosterDraw.pool(run, profile, aisle_id))
-	# An extra aisle with no product to draw is never offered for PICK 2 OF 3.
-	for aisle_id: StringName in extras.duplicate():
-		if StartBoosterDraw.pool(run, profile, aisle_id).is_empty():
-			extras.erase(aisle_id)
-	while extras.size() > 0 and aisles.size() < green_count + extra_count:
-		var pick: StringName = extras[extra_rng.randi_range(0, extras.size() - 1)]
-		aisles.append(pick)
-		options.append(StartBoosterDraw.pool(run, profile, pick))
-		extras.erase(pick)
 	var offer: StartOffer = run.start_offer
 	var best: Array[StartBooster] = []
-	var best_passing: int = -1
 	for deal_index: int in range(maxi(recipe.fair_deal_redeals, 0) + 1):
-		var copies: Dictionary[CardDefinition, int] = StartingDeck.copies_for_offer(
-			recipe, draw.packs
-		)
+		var copies: Dictionary[CardDefinition, int] = StartingDeck.core_copies(recipe)
 		var dealt: Array[StartBooster] = []
 		var shared: Array[CardDefinition] = []
 		for index: int in aisles.size():
 			var booster: StartBooster = StartBoosterDraw.draw(
 				balance, recipe, aisles[index], options[index], copies, booster_rngs[aisles[index]]
 			)
-			# An extra booster that comes up empty (every product at copy_max) is left out: no
-			# empty booster is offered for PICK 2 OF 3 (with none left, there is no pick).
-			if index >= green_count and booster.cards.is_empty():
-				continue
 			StartBoosterDraw.count(copies, booster.cards)
 			dealt.append(booster)
-			if index < green_count:
-				shared.append_array(booster.cards)
-		var fit: StartingDeck.PackFit = StartingDeck.fit_packs(
-			recipe, draw.packs, draw.forced, shared, pool, check, pack_rng
-		)
-		if fit.passing > best_passing:
-			best_passing = fit.passing
+			shared.append_array(booster.cards)
+		if deal_index == 0:
 			best = dealt
-			offer.packs = fit.packs
-			offer.swaps = fit.swaps
 		offer.deals = deal_index + 1
-		if fit.passing >= fit.packs.size():
+		if recipe.fair_deal_hands <= 0 or StartingDeck.cart_passes(recipe, shared, check, deal_rng):
+			best = dealt
 			break
 	setup.boosters = best
 	offer.shared = setup.shared()
-	offer.first_pick = draw.forced
-	setup.picked = &""
 	setup.stage = StartSetup.Stage.DEALT
 	refresh_deck(run)
 	return &""
 
 
 ## The guided first run's deal (the tutorial), in place of deal and with no stream: `guide`'s
-## boosters, sealed with no hit, on its aisles (stocked in data order), the run recipe's packs in
-## their order with its first_pick_pack raised. Refused (&"stage", or `guide`'s block reason)
-## with nothing changed.
+## boosters, sealed with no hit, on its aisles (stocked in data order). Refused (&"stage", or
+## `guide`'s block reason) with nothing changed.
 static func deal_fixed(
 	run: RunState, profile: ProfileState, guide: GuidedStartDefinition
 ) -> StringName:
@@ -284,39 +203,29 @@ static func deal_fixed(
 	setup.boosters.clear()
 	for aisle_id: StringName in setup.stock_aisles:
 		setup.boosters.append(StartBooster.new(aisle_id, guide.booster_cards(aisle_id)))
-	var offer: StartOffer = run.start_offer
-	offer.packs = run.starter.starter_packs.slice(0, maxi(run.starter.packs_offered, 0))
-	offer.first_pick = run.starter.first_pick_pack
-	offer.first_pick = offer.first_pick if offer.packs.has(offer.first_pick) else null
-	offer.shared = setup.shared()
-	setup.picked = &""
+	run.start_offer.shared = setup.shared()
 	setup.stage = StartSetup.Stage.DEALT
 	rebuild_stock(run, profile)
 	return &""
 
 
-## Moves the setup from DEALT to BUILD (page 2 opened). False when nothing changes, or while
-## PICK 2 OF 3 is pending.
+## Moves the setup from DEALT to BUILD (page 2 opened). False when nothing changes.
 static func mark_build(run: RunState) -> bool:
 	var setup: StartSetup = run.start_setup
-	if setup == null or setup.stage != StartSetup.Stage.DEALT or setup.picking():
+	if setup == null or setup.stage != StartSetup.Stage.DEALT:
 		return false
 	setup.stage = StartSetup.Stage.BUILD
 	return true
 
 
 ## Why booster `index` can't be opened, or &"" when it can: &"stage" (nothing dealt), &"none" (no
-## such booster), &"picking" (PICK 2 OF 3 pending), &"sold_out" or &"opened" (already open).
+## such booster) or &"opened" (already open).
 static func open_block(run: RunState, index: int) -> StringName:
 	var setup: StartSetup = run.start_setup
 	if setup == null or setup.stage == StartSetup.Stage.SELECT:
 		return &"stage"
 	if index < 0 or index >= setup.boosters.size():
 		return &"none"
-	if setup.picking():
-		return &"picking"
-	if setup.boosters[index].sold_out:
-		return &"sold_out"
 	if setup.boosters[index].opened:
 		return &"opened"
 	return &""
@@ -332,111 +241,10 @@ static func open_booster(run: RunState, index: int) -> StringName:
 	return &""
 
 
-## Why PICK 2 OF 3 can't keep boosters `picks` (indices), or &"" when it can: &"stage" (nothing
-## dealt), &"none" (no pick pending) or &"count" (not dealt_aisle_count distinct boosters).
-static func pick_boosters_block(run: RunState, picks: Array[int]) -> StringName:
-	var setup: StartSetup = run.start_setup
-	if setup == null or setup.stage == StartSetup.Stage.SELECT:
-		return &"stage"
-	if not setup.picking():
-		return &"none"
-	if picks.size() != setup.stock_aisles.size():
-		return &"count"
-	for index: int in picks:
-		if index < 0 or index >= setup.boosters.size() or picks.count(index) != 1:
-			return &"count"
-	return &""
-
-
-## PICK 2 OF 3 (pick_boosters_block first; returns its reason, changing nothing, when refused):
-## the boosters not in `picks` are SOLD OUT (their cards never count), the stocked aisles become
-## the picked boosters' (data order: the run stocks only them), the stock is rebuilt, and the unseen
-## pack offer is fitted to the picked pair on `rng`: a pack past the copy rule with the pair is
-## replaced first (_refit_copies), then StartingDeck.fit_packs swaps a failing pack other than the
-## good first pick for a passing fitting one. A picked pack no longer offered is
-## cleared (nothing picked).
-static func pick_boosters(
-	run: RunState, profile: ProfileState, picks: Array[int], rng: RandomNumberGenerator
-) -> StringName:
-	var block: StringName = pick_boosters_block(run, picks)
-	if block != &"":
-		return block
-	var setup: StartSetup = run.start_setup
-	var green: Array[StringName] = []
-	for index: int in setup.boosters.size():
-		if picks.has(index):
-			green.append(setup.boosters[index].aisle)
-		else:
-			setup.boosters[index].sold_out = true
-	setup.stock_aisles = ordered_pair(run.balance, green)
-	rebuild_stock(run, profile)
-	var offer: StartOffer = run.start_offer
-	var pool: Array[StarterPackDefinition] = _packs_fitting(
-		StartingDeck.open_packs(run.starter.starter_packs, run.balance, profile.unlocked_items),
-		run.starter.core_cards,
-		setup.originals,
-		run.starter.copy_max
-	)
-	var check: StartingDeck.FairCheck = StartingDeck.fair_check(run.starter, run.balance)
-	var shared: Array[CardDefinition] = setup.shared()
-	offer.swaps += _refit_copies(run, offer, shared, pool, check, rng)
-	var fit: StartingDeck.PackFit = StartingDeck.fit_packs(
-		run.starter, offer.packs, offer.first_pick, shared, pool, check, rng
-	)
-	offer.packs = fit.packs
-	offer.swaps += fit.swaps
-	offer.shared = setup.shared()
-	if setup.picked != &"" and offer.pack(setup.picked) == null:
-		setup.picked = &""
-	refresh_deck(run)
-	return &""
-
-
-## PICK 2 OF 3's copy rule on the offer: a pack the deal swapped in for the fair-deal check was
-## only checked against the seeded pair, so with the extra booster kept it may go past copy_max.
-## Each offered pack (the good first pick aside: the boosters were drawn against it) that no
-## longer fits the copy rule with `shared` is replaced by a pack of `pool` not offered that fits,
-## drawn on `rng` among those whose cart passes the fair-deal check (else among every fitting
-## one). Returns how many packs were replaced.
-static func _refit_copies(
-	run: RunState,
-	offer: StartOffer,
-	shared: Array[CardDefinition],
-	pool: Array[StarterPackDefinition],
-	check: StartingDeck.FairCheck,
-	rng: RandomNumberGenerator
-) -> int:
-	var recipe: DeckDefinition = run.starter
-	var replaced: int = 0
-	for index: int in offer.packs.size():
-		var pack: StarterPackDefinition = offer.packs[index]
-		if pack == offer.first_pick or StartingDeck.fits_copies(recipe, pack.cards, shared):
-			continue
-		var fitting: Array[StarterPackDefinition] = []
-		var passing: Array[StarterPackDefinition] = []
-		for candidate: StarterPackDefinition in pool:
-			if offer.packs.has(candidate):
-				continue
-			if not StartingDeck.fits_copies(recipe, candidate.cards, shared):
-				continue
-			fitting.append(candidate)
-			if (
-				recipe.fair_deal_hands <= 0
-				or StartingDeck.cart_passes(recipe, candidate, shared, check, rng)
-			):
-				passing.append(candidate)
-		var choices: Array[StarterPackDefinition] = passing if not passing.is_empty() else fitting
-		if choices.is_empty():
-			continue
-		offer.packs[index] = choices[rng.randi_range(0, choices.size() - 1)]
-		replaced += 1
-	return replaced
-
-
 ## Why booster `index` can't be restocked, or &"" when it can: &"stage" (nothing dealt yet),
 ## &"locked" (fewer than restock_min_completed completed aisles), &"used" (the run's RESTOCK is
 ## spent, or none allowed), &"none" (no such counted booster, or no other booster of its aisle
-## keeps the copy rule) or &"sealed" (not opened yet; PICK 2 OF 3 pending too).
+## keeps the copy rule) or &"sealed" (not opened yet).
 static func restock_block(run: RunState, profile: ProfileState, index: int) -> StringName:
 	var setup: StartSetup = run.start_setup
 	if setup == null or setup.stage == StartSetup.Stage.SELECT:
@@ -445,8 +253,6 @@ static func restock_block(run: RunState, profile: ProfileState, index: int) -> S
 		return &"locked"
 	if setup.restock_booster() >= 0 or run.balance.restocks_per_run <= 0:
 		return &"used"
-	if setup.picking() and index >= 0 and index < setup.boosters.size():
-		return &"sealed"
 	if not setup.is_active(index):
 		return &"none"
 	if not setup.boosters[index].opened:
@@ -485,13 +291,10 @@ static func _can_differ(run: RunState, profile: ProfileState, index: int) -> boo
 	return (percent > 0 and percent < 100 and bigs > 0) or (percent >= 100 and bigs > 1)
 
 
-## The copies a fresh booster `index` starts from: the regulars, the most copies any offered pack
-## holds and the other counted boosters.
+## The copies a fresh booster `index` starts from: the regulars and the other counted boosters.
 static func _copies_without(run: RunState, index: int) -> Dictionary[CardDefinition, int]:
 	var setup: StartSetup = run.start_setup
-	var copies: Dictionary[CardDefinition, int] = StartingDeck.copies_for_offer(
-		run.starter, run.start_offer.packs
-	)
+	var copies: Dictionary[CardDefinition, int] = StartingDeck.core_copies(run.starter)
 	for other: int in setup.boosters.size():
 		if other != index and setup.is_active(other):
 			StartBoosterDraw.count(copies, setup.boosters[other].cards)
@@ -501,10 +304,10 @@ static func _copies_without(run: RunState, index: int) -> Dictionary[CardDefinit
 ## RESTOCK booster `index` (restock_block first; returns its reason, changing nothing, when
 ## refused): a fresh booster of its aisle drawn on `rng` (StartBoosterDraw.draw, its hit rolled
 ## again), keeping only draws that differ from the old one by at least one card (at most
-## RESTOCK_DRAWS_MAX draws in all); the fair-deal check runs on every offered pack's cart with it
-## (hands sampled on `rng`), up to fair_deal_redeals more differing draws, keeping the first whose
-## carts all pass, else the one with the most passing carts. The booster is sealed again and
-## stamped RESTOCKED; the other boosters and the packs stay; the RESTOCK is spent.
+## RESTOCK_DRAWS_MAX draws in all); the fair-deal check runs on the cart with it (hands sampled
+## on `rng`), up to fair_deal_redeals more differing draws, keeping the first whose cart passes,
+## else the first. The booster is sealed again and stamped RESTOCKED; the other boosters stay;
+## the RESTOCK is spent.
 static func restock(
 	run: RunState, profile: ProfileState, index: int, rng: RandomNumberGenerator
 ) -> StringName:
@@ -515,9 +318,7 @@ static func restock(
 	var old: StartBooster = setup.boosters[index]
 	var options: Array[CardDefinition] = StartBoosterDraw.pool(run, profile, old.aisle)
 	var check: StartingDeck.FairCheck = StartingDeck.fair_check(run.starter, run.balance)
-	var packs: Array[StarterPackDefinition] = run.start_offer.packs
 	var best: StartBooster = null
-	var best_passing: int = -1
 	var differing: int = 0
 	for _draw: int in RESTOCK_DRAWS_MAX:
 		var fresh: StartBooster = StartBoosterDraw.draw(
@@ -532,11 +333,15 @@ static func restock(
 				shared.append_array(fresh.cards)
 			elif setup.is_active(other):
 				shared.append_array(setup.boosters[other].cards)
-		var passing: int = StartingDeck.passing_carts(run.starter, packs, shared, check, rng)
-		if passing > best_passing:
-			best_passing = passing
+		if best == null:
 			best = fresh
-		if passing >= packs.size() or differing > maxi(run.starter.fair_deal_redeals, 0):
+		if (
+			run.starter.fair_deal_hands <= 0
+			or StartingDeck.cart_passes(run.starter, shared, check, rng)
+		):
+			best = fresh
+			break
+		if differing > maxi(run.starter.fair_deal_redeals, 0):
 			break
 	if best == null:
 		return &"none"
@@ -611,8 +416,8 @@ static func can_swap(
 ## must never count before they are shown), &"slot" (the slot's current or original card),
 ## &"locked" (no swap unlocked: no completed aisle), &"swaps" (no swap left once the slot's own,
 ## and `from`'s, is set aside: a card on a swapped slot trades places and uses none) or
-## &"copies" (the copy rule: in SELECT the regulars alone, keeping enough packs to offer; from
-## DEALT with every offered pack and the counted boosters). Any number of the swaps may come from
+## &"copies" (the copy rule: in SELECT the regulars alone; from DEALT with the counted
+## boosters). Any number of the swaps may come from
 ## one aisle.
 static func swap_block(
 	run: RunState, profile: ProfileState, slot: int, card: CardDefinition, from: int = -1
@@ -716,14 +521,14 @@ static func reset_swaps(run: RunState) -> bool:
 	return true
 
 
-## Whether the packs wait for the BADGE PINS step: `pins_owned` > 0 of the profile's pins hold
-## the packs (ProfilePins.start_gate: earned, bought or worn) and the step isn't confirmed yet
+## Whether OPEN STORE waits for the BADGE PINS step: `pins_owned` > 0 of the profile's pins
+## hold it (ProfilePins.start_gate: earned, bought or worn) and the step isn't confirmed yet
 ## (confirm_pins).
 static func pins_pending(run: RunState, pins_owned: int) -> bool:
 	return run.start_setup != null and pins_owned > 0 and not run.start_setup.pins_confirmed
 
 
-## Confirms the BADGE PINS step (with or without a pin worn), so the packs deal. False when
+## Confirms the BADGE PINS step (with or without a pin worn). False when
 ## nothing is dealt yet or it was confirmed before.
 static func confirm_pins(run: RunState) -> bool:
 	var setup: StartSetup = run.start_setup
@@ -731,125 +536,6 @@ static func confirm_pins(run: RunState) -> bool:
 		return false
 	setup.pins_confirmed = true
 	return true
-
-
-## Why pack `pack` can't be picked, or &"" when it can: &"stage" (nothing dealt yet), &"picking"
-## (PICK 2 OF 3 pending), &"pins" (the BADGE PINS step first, pins_pending with `pins_owned`),
-## &"offer" (not offered) or &"copies" (it no longer fits the cart: a swapped regular or a
-## booster card past copy_max with it, as NEW PACKS' fitting packs).
-static func pick_block(
-	run: RunState, profile: ProfileState, pack: StarterPackDefinition, pins_owned: int = 0
-) -> StringName:
-	var setup: StartSetup = run.start_setup
-	if setup == null or setup.stage == StartSetup.Stage.SELECT:
-		return &"stage"
-	if setup.picking():
-		return &"picking"
-	if pins_pending(run, pins_owned):
-		return &"pins"
-	if pack == null or not run.start_offer.packs.has(pack):
-		return &"offer"
-	return &"" if _packs_for_cart(run, profile).has(pack) else &"copies"
-
-
-## Why NEW PACKS can't be used, or &"" when it can: &"stage" (nothing dealt yet), &"picking"
-## (PICK 2 OF 3 pending), &"pins" (the BADGE PINS step first, pins_pending with `pins_owned`),
-## &"used" (the run's NEW PACKS is spent, or none allowed) or &"none" (no pack outside the offer
-## fits the cart).
-static func new_packs_block(
-	run: RunState, profile: ProfileState, pins_owned: int = 0
-) -> StringName:
-	var setup: StartSetup = run.start_setup
-	if setup == null or setup.stage == StartSetup.Stage.SELECT:
-		return &"stage"
-	if setup.picking():
-		return &"picking"
-	if pins_pending(run, pins_owned):
-		return &"pins"
-	if setup.packs_redrawn or run.balance.packs_redraws_per_run <= 0:
-		return &"used"
-	var fresh: Array[StarterPackDefinition] = []
-	for pack: StarterPackDefinition in _packs_for_cart(run, profile):
-		if not run.start_offer.packs.has(pack):
-			fresh.append(pack)
-	return &"none" if fresh.is_empty() else &""
-
-
-## NEW PACKS (new_packs_block first; returns its reason, changing nothing, when refused): the
-## picked pack stays in its place and stays picked (v1.32, mock-up start_boosters_v3 N5: after a
-## pick it re-deals the other two); with nothing picked the good first pick (the offer's
-## first_pick) stays in its place. The other places are drawn on `rng` (one randi_range each) from
-## the run recipe's packs outside the offer that fit the cart, topped up from the offer's other
-## packs when too few; each new cart takes the fair-deal check (hands on `rng`), a failing pack
-## swapped for the first passing fitting pack outside the new offer. The boosters and the regulars
-## stay. A first pick that leaves the offer is no longer the offer's first_pick.
-static func new_packs(
-	run: RunState, profile: ProfileState, rng: RandomNumberGenerator, pins_owned: int = 0
-) -> StringName:
-	var block: StringName = new_packs_block(run, profile, pins_owned)
-	if block != &"":
-		return block
-	var setup: StartSetup = run.start_setup
-	var offer: StartOffer = run.start_offer
-	var kept: StarterPackDefinition = offer.pack(setup.picked) if setup.picked != &"" else null
-	var forced: StarterPackDefinition = kept if kept != null else offer.first_pick
-	var fitting: Array[StarterPackDefinition] = _packs_for_cart(run, profile)
-	var fresh: Array[StarterPackDefinition] = []
-	var others: Array[StarterPackDefinition] = []
-	for pack: StarterPackDefinition in fitting:
-		if not offer.packs.has(pack):
-			fresh.append(pack)
-	for pack: StarterPackDefinition in offer.packs:
-		if pack != forced:
-			others.append(pack)
-	var wanted: int = offer.packs.size() - (1 if forced != null else 0)
-	var drawn: Array[StarterPackDefinition] = []
-	_draw_packs_into(drawn, fresh, wanted, rng)
-	_draw_packs_into(drawn, others, wanted, rng)
-	if forced != null:
-		drawn.insert(mini(offer.packs.find(forced), drawn.size()), forced)
-	var check: StartingDeck.FairCheck = StartingDeck.fair_check(run.starter, run.balance)
-	var fit: StartingDeck.PackFit = StartingDeck.fit_packs(
-		run.starter, drawn, forced, setup.shared(), fitting, check, rng
-	)
-	offer.packs = fit.packs
-	if not offer.packs.has(offer.first_pick):
-		offer.first_pick = null
-	setup.packs_redrawn = true
-	setup.picked = kept.id if kept != null and offer.packs.has(kept) else &""
-	refresh_deck(run)
-	return &""
-
-
-## Draws packs of `pool` (in order, one randi_range each, each taken out) into `drawn` until it
-## holds `wanted` or `pool` is empty.
-static func _draw_packs_into(
-	drawn: Array[StarterPackDefinition],
-	pool: Array[StarterPackDefinition],
-	wanted: int,
-	rng: RandomNumberGenerator
-) -> void:
-	while drawn.size() < wanted and not pool.is_empty():
-		var pick: StarterPackDefinition = pool[rng.randi_range(0, pool.size() - 1)]
-		drawn.append(pick)
-		pool.erase(pick)
-
-
-## The run recipe's packs that fit the cart: open to `profile` (StartingDeck.open_packs, v1.29),
-## no swapped regular past copy_max with the pack (_packs_fitting) and the copy rule kept with the
-## counted boosters (StartingDeck.fits_copies).
-static func _packs_for_cart(run: RunState, profile: ProfileState) -> Array[StarterPackDefinition]:
-	var shared: Array[CardDefinition] = run.start_setup.shared()
-	var found: Array[StarterPackDefinition] = []
-	for pack: StarterPackDefinition in _packs_fitting(
-		StartingDeck.open_packs(run.starter.starter_packs, run.balance, profile.unlocked_items),
-		run.starter.core_cards,
-		run.start_setup.originals,
-		run.starter.copy_max
-	):
-		if StartingDeck.fits_copies(run.starter, pack.cards, shared):
-			found.append(pack)
-	return found
 
 
 ## `pair` in data order (balance.aisles), so a choice is a set: the same aisles picked in any
@@ -865,36 +551,27 @@ static func ordered_pair(balance: BalanceDefinition, pair: Array[StringName]) ->
 	return ordered
 
 
-## The opening-time cart, in deck order: the regulars, the pack's cards (`pack`; null: one
-## waiting line per card of the offer's first pack), today's counted boosters (the offer's
+## The opening-time cart, in deck order: the regulars, today's counted boosters (the offer's
 ## shared products, each line naming its aisle), then the pins' cards.
-## `preview`: the pack is only hovered.
 static func cart_lines(
 	starter: DeckDefinition,
 	offer: StartOffer,
 	balance: BalanceDefinition,
-	pins: Array[PinDefinition],
-	pack: StarterPackDefinition,
-	preview: bool = false
+	pins: Array[PinDefinition]
 ) -> Array[StartCartLine]:
-	var waiting: int = 0
-	if pack == null and not offer.packs.is_empty():
-		waiting = offer.packs[0].cards.size()
-	return _lines(starter, pack, waiting, offer.shared, balance, pins, preview)
+	return _lines(starter, offer.shared, balance, pins)
 
 
 ## The starting cart of a run in play, its start offer gone (the deck view's START marks, the
-## cart and run info polish, 2026-11-12): the same lines as cart_lines gave once the pack was
-## picked, read from `starter` (StartingDeck.with_pack: its pack and its dealt cards,
-## StartingDeck.shared_of).
+## cart and run info polish, 2026-11-12): the same lines as cart_lines gave at OPEN STORE, read
+## from `starter` (StartingDeck.shared_of).
 static func run_cart_lines(
 	starter: DeckDefinition, balance: BalanceDefinition, pins: Array[PinDefinition]
 ) -> Array[StartCartLine]:
-	var shared: Array[CardDefinition] = StartingDeck.shared_of(starter)
-	return _lines(starter, starter.starter_pack, 0, shared, balance, pins, false)
+	return _lines(starter, StartingDeck.shared_of(starter), balance, pins)
 
 
-## The cards of `lines` (the waiting pack lines left out).
+## The cards of `lines`.
 static func cart_cards(lines: Array[StartCartLine]) -> Array[CardDefinition]:
 	var cards: Array[CardDefinition] = []
 	for line: StartCartLine in lines:
@@ -903,79 +580,31 @@ static func cart_cards(lines: Array[StartCartLine]) -> Array[CardDefinition]:
 	return cards
 
 
-## `packs` without those holding a swapped card (a regular other than its original) past
-## copy_max together with the regulars `core`.
-static func _packs_fitting(
-	packs: Array[StarterPackDefinition],
-	core: Array[CardDefinition],
-	originals: Array[CardDefinition],
-	copy_max: int
-) -> Array[StarterPackDefinition]:
-	var kept: Array[StarterPackDefinition] = []
-	for pack: StarterPackDefinition in packs:
-		var fits: bool = true
-		for index: int in core.size():
-			var card: CardDefinition = core[index]
-			if (
-				card != originals[index]
-				and StartingDeck.product_count(core + pack.cards, card) > copy_max
-			):
-				fits = false
-		if fits:
-			kept.append(pack)
-	return kept
-
-
 ## Whether the regulars of `recipe` (one changed to `card`) keep the copy rule. In SELECT (nothing
-## dealt): the regulars alone, and enough of the run recipe's packs still fit to fill the offer.
-## From DEALT: with every offered pack and the counted boosters (StartingDeck.fits_copies) and,
-## for a swap (`swapped`), `card` never past copy_max, even where the packs' own copies may go past
-## it.
+## dealt): the regulars alone; from DEALT with the counted boosters (StartingDeck.fits_copies).
+## For a swap (`swapped`), `card` never goes past copy_max.
 static func _fits_all(
 	run: RunState, recipe: DeckDefinition, card: CardDefinition, swapped: bool
 ) -> bool:
-	var setup: StartSetup = run.start_setup
-	if setup.stage == StartSetup.Stage.SELECT:
-		if swapped and StartingDeck.product_count(recipe.core_cards, card) > recipe.copy_max:
-			return false
-		var needed: int = mini(recipe.packs_offered, run.starter.starter_packs.size())
-		var packs: Array[StarterPackDefinition] = _packs_fitting(
-			recipe.starter_packs, recipe.core_cards, setup.originals, recipe.copy_max
-		)
-		return packs.size() >= needed
-	var shared: Array[CardDefinition] = setup.shared()
-	for pack: StarterPackDefinition in run.start_offer.packs:
-		var count: int = StartingDeck.product_count(recipe.core_cards + pack.cards + shared, card)
-		if swapped and count > recipe.copy_max:
-			return false
-		if not StartingDeck.fits_copies(recipe, pack.cards, shared):
-			return false
-	return true
+	var shared: Array[CardDefinition] = []
+	if run.start_setup.stage != StartSetup.Stage.SELECT:
+		shared = run.start_setup.shared()
+	var count: int = StartingDeck.product_count(recipe.core_cards + shared, card)
+	if swapped and count > recipe.copy_max:
+		return false
+	return StartingDeck.fits_copies(recipe, shared)
 
 
-## The cart's lines: `starter`'s regulars, `pack`'s cards (or `waiting` waiting lines), the
-## `shared` dealt cards by aisle, then `pins`' cards.
+## The cart's lines: `starter`'s regulars, the `shared` dealt cards by aisle, then `pins`' cards.
 static func _lines(
 	starter: DeckDefinition,
-	pack: StarterPackDefinition,
-	waiting: int,
 	shared: Array[CardDefinition],
 	balance: BalanceDefinition,
-	pins: Array[PinDefinition],
-	preview: bool
+	pins: Array[PinDefinition]
 ) -> Array[StartCartLine]:
 	var lines: Array[StartCartLine] = []
 	for card: CardDefinition in starter.core_cards:
 		lines.append(StartCartLine.new(card, StartCartLine.Source.REGULAR))
-	if pack != null:
-		for card: CardDefinition in pack.cards:
-			lines.append(
-				StartCartLine.new(
-					card, StartCartLine.Source.PACK, pack.id, pack.display_name, preview
-				)
-			)
-	for _waiting: int in waiting:
-		lines.append(StartCartLine.new(null, StartCartLine.Source.PACK))
 	for card: CardDefinition in shared:
 		var aisle: AisleDefinition = balance.aisle_of(card)
 		lines.append(

@@ -1,36 +1,35 @@
 class_name BoosterPage
 extends Control
-## YOUR STORE, page 1 of the opening board (v1.32, full build plan 7.2; the user's pick of
-## 2026-11-13 on mock-up docs/art/mockups/start_boosters_v3.html: "I really like mockup"). The store
-## at dawn: its shutters roll up by themselves (after auto_roll_s; the web build waits for a click,
-## which also unlocks audio) and the view walks in through the door; the lamps come on and today's
-## aisle boosters drop under them. A booster opens on a click (or 1-2): grab, rattle, tear, burst,
-## its three cards rise and spread, the commons flip on a rising note ladder and the brass-backed
-## hit card waits for its click (TAP IT); a RARE hit freezes, flashes, pops over a teal sunburst and
-## wears its RARE! tab. OPEN ALL (the primary key, A, or Space held) opens every booster fast with
-## the hits flipped for you. When the last one is open the clock steps to 7:00, every lamp goes full
-## and STOCKED! hangs under the board. The four regulars stand face up in their crate (STANDING
-## ORDER), the swap window's button (SwapWindow, v1.32 swap window): once every booster is open a
-## click opens YOUR REGULARS, and while a swap is unused NEXT stops there once (its sub-label SWAP
-## REGULARS). RESTOCK (3 completed aisles) returns one opened booster to the tote for a fresh sealed
-## one. At 6 completed aisles three boosters stand under three lamps: PICK 2 OF 3, the third is SOLD
-## OUT.
+## YOUR STORE, page 1 of the opening board (full build plan 7.2; the aisle board, v1.44, the
+## user's decisions of 2026-11-18 on mock-up docs/art/mockups/start_roulette.html, variant A; it
+## replaces v1.32's store at dawn). The six aisles are bays on the back wall, each under its hung
+## sign and stocked with its own products. A light runs along the bays, slows and lands on
+## today's first aisle, then on the second; the other bays roll their shutters down; each open
+## bay throws its booster to its card row's start (round 3), where it waits sealed until the
+## player opens it (a click on it, 1-2, or Enter for the next one; round 2 of the 2026-11-19
+## play test) into its compact cards (picture, price, name: the full card with its rule pops on
+## hover). The light
+## only plays the result: the aisles and the boosters were dealt and saved before the page shows
+## (AisleRoulette). A click skips. The guided first run, a resumed page and reduced motion show
+## the two open bays at once (a booster opened before stands open, the others sealed). A locked
+## aisle's bay is shut behind a padlock from the start. RESTOCK (3 finished aisles) sends one
+## opened booster's cards back into their bay for a fresh booster of the same aisle. The
+## regulars are in the cart from the start (the CART count); their swap window (SwapWindow) opens
+## from page 2's SWAP key, drawn by this page over page 2 (`overlay`).
 ##
 ## Every rule goes through StartBoardActions (saved at once); the motion is cosmetic, played on the
 ## page's own clock (`now`), which tests and captures step with advance(). Reduced motion shows
-## each end state. Drawing is BoosterPageDraw's, in art px (ArtPen).
+## each end state. Drawing is AisleBoardDraw's, in art px (ArtPen).
 
 signal title_pressed
 signal next_pressed
+## The swap window shown over page 2 has shut (StartBoard puts page 2 back in front).
+signal swap_closed
 
-enum Shutter { DOWN, ROLLING, UP }
-
-## The clock's minutes past 6 on the top bar and the wall clock: 6:58 until STOCKED!.
-const OPENING_MINUTES := 58
 const TUNING_PATH := "res://data/balance/start_boosters.tres"
 ## The most one frame advances the page's clock (s).
 const MAX_STEP := 0.1
-## The hint while RESTOCK is armed; the primary key flashes it too (it no longer cancels: v1.36).
+## What the primary key flashes while RESTOCK is armed (it no longer cancels: v1.36).
 const RESTOCK_NEXT_HINT := "PICK A BOOSTER TO RETURN"
 
 var tuning: StartBoostersTuning
@@ -42,21 +41,9 @@ var boosters: Array[BoosterOpening] = []
 var now: float = 0.0
 var frozen: bool = false
 var rm: bool = false
-var shutter: Shutter = Shutter.DOWN
-var shutter_t: float = -INF
-var auto_roll_at: float = INF
 var restock_armed: bool = false
-## The returns tote's flight: when, which booster, its old cards (empty: none).
-var tote_t: float = -INF
-var tote_booster: int = -1
-var tote_cards: Array[CardDefinition] = []
-var tote_puff: bool = false
-## STOCKED!: when the page completed (INF: not yet), when the stamp hung.
+## When the page completed: every booster open (INF: not yet). NEXT is armed from it.
 var complete_t: float = INF
-var stocked_t: float = INF
-var clock_minutes: int = OPENING_MINUTES
-## PICK 2 OF 3 resolved: when the kept pair starts its slide (-INF: no pick on show).
-var pick_settle_t: float = -INF
 ## The top bar's CART count: the target, the number shown (it rolls one a step), its punch.
 var cart_n: int = 0
 var cart_shown: int = 0
@@ -68,42 +55,39 @@ var flip_n: int = 0
 var opened_n: int = 0
 var rare_n: int = 0
 var shake_t: float = -INF
-## Space held since (-1: not held); the hint LED's line and its start, a flashed message.
-var hold_t: float = -1.0
+## A flashed message (a refused or unsaved action) and its start; `hint` is kept for the swap
+## window, which sets it (the page has no hint line since v1.44).
 var hint: String = ""
 var hint_t: float = 0.0
 var message: String = ""
 var message_t: float = -INF
-## The shelves' light per zone (0: A, 1: B): when on, when off.
-var shelf_on: Array[float] = [INF, INF]
-var shelf_off: Array[float] = [-INF, -INF]
 ## The pointer in art px, the hovered hit's id and since when; hits rebuilt every frame.
 var mouse: Vector2 = Vector2(-1, -1)
 var hover_id: String = ""
 var hover_t0: float = 0.0
 var hits: Array[Dictionary] = []
-## A changed regular's play-in after the swap window's DONE (slot -> stage clock) and the regular
-## it replaced (it drops away first).
-var swap_t: Dictionary[int, float] = {}
-var swap_from: Dictionary[int, CardDefinition] = {}
 ## Kept for the board: NEW tags are gone from this page (its controls explain themselves).
 var fresh: Array[StringName] = []
-## The page's helpers: the openings (arrival, boosters, PICK 2 OF 3), the counter (RESTOCK, the
-## swap count), the effects (sounds, cues, particles) and the swap window.
+## The page's helpers: the roulette (the light, the shutters, the throws), the
+## openings (each booster's beats), the counter (RESTOCK, the swap count), the effects (sounds,
+## cues, particles) and the swap window.
+var roulette: AisleRoulette
 var openings: BoosterOpenings
 var counter: BoosterCounter
 var fx: BoosterFx
 var swap: SwapWindow
-## The page's hover tips (the regulars, the opened booster cards, the swap window's cards).
+## The page's hover tips (the swap window's cards; the full cards' family chips).
 var tips: StartTips
 ## A RARE's hitstop: the page's clock holds until this wall-clock time (ms).
 var hitstop_until: int = 0
+## Whether the page only shows its swap window, over page 2 (its own scene hidden).
+var overlay: bool = false
 var _scene: Control
 var _layers: Array[BoosterLayer] = []
-var _facade: Control
+var _top: Control
 var _swap_slide: Control
 var _shown_run: RunState
-## Whether BOOSTERS_ALL_OPEN went out for the page's current STOCKED! (a RESTOCK sends it again).
+## Whether BOOSTERS_ALL_OPEN went out for the page's current completion (a RESTOCK sends it again).
 var _done_sent: bool = false
 
 
@@ -112,6 +96,7 @@ func _init() -> void:
 	size = ShiftStage.SIZE
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	tuning = load(TUNING_PATH) as StartBoostersTuning
+	roulette = AisleRoulette.new(self)
 	openings = BoosterOpenings.new(self)
 	counter = BoosterCounter.new(self)
 	fx = BoosterFx.new(self)
@@ -123,20 +108,12 @@ func _init() -> void:
 	add_child(_scene)
 	_add_layer(_scene, "Back")
 	_add_layer(_scene, "Light", true)
-	_add_layer(_scene, "Front")
 	var counter_clip: Control = _clip(
 		_scene, "CounterClip", Rect2(0, 0, BoosterArt.AW, BoosterPageDraw.COUNTER_CLIP)
 	)
 	_add_layer(counter_clip, "Boosters")
-	_add_layer(_scene, "Front2")
-	var bay: Control = _clip(
-		_scene, "BayClip", BoosterChromeDraw.bay_rect().grow_individual(-1, -1, -1, 0)
-	)
-	_add_layer(bay, "Tote").position = -bay.position
-	_add_layer(_scene, "Front3")
-	_add_layer(_scene, "Glow", true)
-	_facade = _add_layer(self, "Facade")
-	_add_layer(self, "Top")
+	_add_layer(_scene, "Front")
+	_top = _add_layer(self, "Top")
 	_add_layer(self, "SwapVeil")
 	_swap_slide = Control.new()
 	_swap_slide.name = "SwapSlide"
@@ -177,7 +154,8 @@ func _clip(parent: Control, clip_name: String, rect: Rect2) -> Control:
 
 
 func _draw() -> void:
-	draw_rect(Rect2(Vector2.ZERO, size), Palette.TEAL_BLACK)
+	if not overlay:
+		draw_rect(Rect2(Vector2.ZERO, size), Palette.TEAL_BLACK)
 
 
 ## Shows the page for `shown_run` (a new run sets it up; the same run syncs with its setup).
@@ -201,51 +179,28 @@ func _setup() -> void:
 	fx.clear()
 	now = 0.0
 	swap = SwapWindow.new(self)
-	swap_t.clear()
-	swap_from.clear()
 	restock_armed = false
-	tote_cards.clear()
 	complete_t = INF
-	stocked_t = INF
 	_done_sent = false
-	clock_minutes = OPENING_MINUTES
-	pick_settle_t = -INF
+	message = ""
 	var setup: StartSetup = run.start_setup
-	var any_open: bool = false
-	var choosing: bool = setup.picking()
-	var zone: int = 0
 	for index: int in setup.boosters.size():
 		var booster: StartBooster = setup.boosters[index]
-		var centre: float = float(BoosterArt.ZONE_A if zone == 0 else BoosterArt.ZONE_B)
-		if choosing:
-			centre = float(BoosterArt.PICK_X[mini(index, 2)])
-		var opening: BoosterOpening = BoosterOpening.new(booster, index, centre)
-		if booster.sold_out:
-			opening.state = BoosterOpening.State.GONE
-		else:
-			zone += 1
-			if booster.opened:
-				opening.show_open()
-				any_open = true
-				shelf_on[BoosterArt.zone_of(opening.cx)] = -10.0
+		var opening: BoosterOpening = BoosterOpening.new(booster, index, 0.0)
+		opening.board = true
+		opening.compact = tuning.compact_fan_cards
+		opening.tabs = false
+		if booster.opened:
+			opening.show_open()
+			opening.fly_t = -10.0
 		boosters.append(opening)
 		for k: int in opening.cards.size():
 			BoosterArt.face(opening.cards[k], opening.rares[k])
+	roulette.setup()
 	cart_n = cart_target()
 	cart_shown = cart_n
-	if any_open or rm:
-		shutter = Shutter.UP
-		shutter_t = -INF
-		for opening: BoosterOpening in boosters:
-			opening.drop_t = -10.0
-			opening.lamp_on = -10.0
-		if any_open and openings.all_open():
-			complete_t = -10.0
-			stocked_t = -10.0
-			clock_minutes = 60
-	else:
-		shutter = Shutter.DOWN
-		auto_roll_at = INF if OS.has_feature("web") else tuning.auto_roll_s
+	if openings.all_open():
+		complete_t = -10.0
 	set_hint("")
 
 
@@ -270,35 +225,18 @@ func _process(delta: float) -> void:
 		_refresh_view()
 
 
-## Moves the page's clock on `dt` seconds: the openings, the cues, the cart count, STOCKED!.
+## Moves the page's clock on `dt` seconds: the roulette's cues, the openings, the cart count, the
+## completion.
 func advance(dt: float) -> void:
 	now += dt
-	if shutter == Shutter.DOWN and now >= auto_roll_at:
-		openings.roll_up()
-	openings.step(dt)
 	fx.run_cues(now)
+	openings.step(dt)
 	swap.step(dt)
 	var step_s: float = 0.03
 	if cart_shown != cart_n and now - cart_step_t >= step_s:
 		cart_shown += signi(cart_n - cart_shown)
 		cart_step_t = now
 		cart_punch_t = now
-	if hold_t >= 0.0 and now - hold_t >= tuning.hold_space_s:
-		hold_t = -1.0
-		openings.open_all("hold space")
-	var dropped: float = tuning.restock_tote_at_s + tuning.restock_tote_s
-	if (
-		tote_cards.size() > 0
-		and not tote_puff
-		and now - tote_t >= dropped + tuning.restock_tote_back_s
-	):
-		tote_puff = true
-		var bay: Rect2 = BoosterChromeDraw.bay_rect()
-		fx.dust(bay.get_center().x, bay.position.y + 2, 4)
-		fx.sfx("card_place_1", -10.0)
-	if tote_cards.size() > 0 and (rm or now - tote_t > dropped + tuning.restock_clear_s):
-		tote_cards.clear()
-		tote_booster = -1
 	_check_complete()
 	if page_done() != _done_sent:
 		_done_sent = page_done()
@@ -309,7 +247,14 @@ func advance(dt: float) -> void:
 
 
 func _refresh_view() -> void:
-	hits = SwapWindowDraw.hits(self) if swap.visible() else BoosterPageDraw.hits(self)
+	if overlay and not swap.visible():
+		_end_overlay()
+	if swap.visible():
+		hits = SwapWindowDraw.hits(self)
+	elif overlay:
+		hits = []
+	else:
+		hits = BoosterPageDraw.hits(self)
 	_update_hover()
 	_update_tips()
 	_place_scene()
@@ -317,31 +262,39 @@ func _refresh_view() -> void:
 	_swap_slide.position.y = swap.slide() * ArtPen.UNIT
 	for layer: BoosterLayer in _layers:
 		layer.queue_redraw()
+	queue_redraw()
 
 
-## The walk-in: the store grows about the doorway from 0.5x, and a shake on a RARE or STOCKED!.
+## A short shake of the scene on a RARE.
 func _place_scene() -> void:
-	var scale_in: float = 1.0
-	if shutter == Shutter.ROLLING and not rm:
-		var z: float = clampf(
-			(now - shutter_t - tuning.shutter_up_s) / maxf(tuning.walk_in_s, 0.001), 0.0, 1.0
-		)
-		scale_in = minf(1.0, 0.5 + roundf(z * z * 0.5 * 8.0) / 8.0)
-	var door: Vector2 = (
-		Vector2(
-			StoreDawnArt.DOOR.get_center().x,
-			StoreDawnArt.DOOR.position.y + StoreDawnArt.DOOR.size.y * 0.55
-		)
-		* ArtPen.UNIT
-	)
-	_scene.scale = Vector2.ONE * scale_in
-	_scene.position = (door - door * scale_in).round()
+	_scene.position = Vector2.ZERO
 	var u: float = now - shake_t
 	if not rm and u >= 0.0 and u < 0.14:
-		_scene.position += Vector2(0, 8) if u < 0.07 else Vector2(-4, 4)
+		_scene.position = Vector2(0, 8) if u < 0.07 else Vector2(-4, 4)
 
 
-## TITLE (its plate, the top bar's own) and NEXT (the YOUR BUILD tab once the store is stocked).
+## Page 2's SWAP key: the swap window opens over page 2, this page showing nothing else
+## (StartBoard brings it to the front). False when the window can't open.
+func open_swap_over() -> bool:
+	if swap.visible() or overlay or run == null:
+		return false
+	if not swap.open_window(false):
+		return false
+	overlay = true
+	_scene.visible = false
+	_top.visible = false
+	_refresh_view()
+	return true
+
+
+func _end_overlay() -> void:
+	overlay = false
+	_scene.visible = true
+	_top.visible = true
+	swap_closed.emit()
+
+
+## TITLE (its plate) and NEXT (the YOUR BUILD tab once every booster is open).
 func press_title() -> void:
 	title_pressed.emit()
 
@@ -350,83 +303,28 @@ func press_next() -> void:
 	next_pressed.emit()
 
 
-## Whether PICK 2 OF 3 is pending (the setup's own state).
-func picking() -> bool:
-	return run != null and run.start_setup.picking()
-
-
-## "PICK 2 OF 3" from the data: dealt_aisle_count of start_booster_choice_count boosters.
-func _pick_text() -> String:
-	return "PICK %d OF %d" % [run.balance.dealt_aisle_count, run.balance.start_booster_choice_count]
-
-
 func _check_complete() -> void:
-	if (
-		complete_t != INF
-		or shutter != Shutter.UP
-		or tote_cards.size() > 0
-		or not openings.all_open()
-	):
+	if complete_t != INF or roulette.busy() or not openings.all_open():
 		return
-	var t0: float = now + tuning.complete_delay_s
-	complete_t = t0
-	fx.cue(
-		t0,
-		func() -> void:
-			fx.note(10, -4.0, true)
-			# After a RESTOCK the clock already reads 7:00: it never steps back.
-			clock_minutes = maxi(clock_minutes, 59)
-			fx.sfx("tick", -8.0)
-	)
-	fx.cue(
-		t0 + 0.12,
-		func() -> void:
-			clock_minutes = 60
-			fx.sfx("tick", -8.0)
-	)
-	fx.cue(t0 + 0.2, fx.sfx.bind("register_bell", -4.0))
-	var k: int = 0
-	for opening: BoosterOpening in boosters:
-		if opening.is_counted():
-			fx.cue(full_at(k), fx.sfx.bind("tick", -6.0, 1.3))
-			k += 1
-	fx.cue(t0 + 0.24, _stamp_stocked)
-	fx.cue(t0 + 0.3, fx.sfx.bind("armed", -6.0))
-	set_hint("")
+	complete_t = now + tuning.complete_delay_s
+	fx.cue(complete_t, fx.sfx.bind("armed", -6.0))
 
 
-## When a counted booster's lamp steps to full (its place k among them).
-func full_at(k: int) -> float:
-	return complete_t + 0.04 + k * 0.08
-
-
-func _stamp_stocked() -> void:
-	stocked_t = now
-	fx.sfx("stamp_1", -2.0)
-	fx.sfx("stamp_paid", -6.0)
-	shake_t = now
-	var size_px: Vector2 = BoosterArt.STOCKED.get_size()
-	var centre: Vector2 = Vector2(BoosterArt.STOCKED_CENTRE)
-	fx.sparkles(
-		centre.x - size_px.x / 2.0,
-		centre.y - size_px.y / 2.0 + 1,
-		size_px.x,
-		size_px.y,
-		now + 0.1,
-		0.06
-	)
-
-
-## Whether the page is done: STOCKED! has come (NEXT is armed).
+## Whether the page is done: every booster is open (NEXT is armed).
 func page_done() -> bool:
 	return complete_t != INF and now >= complete_t
 
 
-## The primary key (Enter, a click on it): the swap window's DONE while it is open; else ROLL UP,
-## skip the arrival, say what an armed RESTOCK waits for (its own key and Esc cancel it), speed up
-## an opening, flip the waiting hit, OPEN ALL, NEXT's one stop at the swap window (a swap unlocked
-## and unused), or NEXT.
+## The primary key (Enter, Space, a click on it): the swap window's DONE while it is open; else a
+## skip (the light, the throws), the next sealed booster's opening, a skip of an opening, what an
+## armed RESTOCK waits for, or NEXT.
 func primary(via: String = "key") -> bool:
+	# A skip is never asked of the tutorial's gate: it changes nothing but the pace.
+	if not swap.visible() and not overlay:
+		if roulette.skip():
+			return true
+		if openings.next_sealed() == null and openings.boost_all():
+			return true
 	# A click on the key asked its hit already (click); the swap window's DONE is its part.
 	if via != "click":
 		if swap.active and not StartBoardActions.swap_allowed(actions, TutorialAnchors.SWAP_DONE):
@@ -434,94 +332,43 @@ func primary(via: String = "key") -> bool:
 		if not swap.active and not StartBoardActions.hit_allowed(actions, TutorialAnchors.PRIMARY):
 			return false
 	var used: bool = true
-	var waiting: BoosterOpening = openings.waiting_booster()
 	if swap.active:
 		used = swap.primary(via)
-	elif shutter == Shutter.DOWN:
-		used = openings.roll_up()
-	elif openings.arrival_busy():
-		openings.end_arrival()
+	elif overlay:
+		used = false
 	elif restock_armed:
 		# v1.36: CANCEL is RESTOCK's own key (and Esc); the primary key says what comes next.
 		flash(RESTOCK_NEXT_HINT)
 		used = false
-	elif tote_cards.size() > 0:
-		used = false
-	elif openings.boost_all():
-		used = true
-	elif waiting != null and waiting.at_rest(tuning):
-		used = openings.flip_hit(waiting.index)
-	elif picking():
-		flash(_pick_text() + " BOOSTERS")
-		used = false
-	elif openings.any_sealed():
-		used = openings.open_all(via)
-	elif page_done() and swap.wants_stop():
-		used = swap.open_window(true)
+	elif openings.next_sealed() != null:
+		used = openings.open_booster(openings.next_sealed().index, "key")
 	elif page_done():
-		fx.drop_cues(SwapWindow.GO_ON_TAG)
 		next_pressed.emit()
 	else:
 		used = false
 	return used
 
 
-## The label and sub-label of the primary key, and whether it is lit (BoosterPageDraw).
+## The label and sub-label of the primary key, and whether it is lit (BoosterChromeDraw).
 func primary_label() -> Array:
-	var label: Array = ["NEXT ›", "YOUR BUILD", true]
-	var sealed: int = 0
-	for opening: BoosterOpening in boosters:
-		if opening.state == BoosterOpening.State.SEALED and opening.is_counted():
-			sealed += 1
-	if shutter == Shutter.DOWN:
-		label = ["ROLL UP", "OPEN THE STORE", true]
-	elif restock_armed:
+	var label: Array = ["NEXT ›", "YOUR BUILD", page_done()]
+	if restock_armed:
 		label = ["PICK 1", "TO RETURN", false]
-	elif openings.opening_now() or openings.arrival_busy():
+	elif roulette.busy():
 		label = ["SKIP ›", "SPEED IT UP", true]
-	elif picking():
-		label = [
-			"PICK %d" % run.balance.dealt_aisle_count,
-			"OF %d BOOSTERS" % run.balance.start_booster_choice_count,
-			false
-		]
-	elif openings.waiting_booster() != null:
-		label = ["FLIP ?", "THE HIT CARD", true]
-	elif sealed > 0:
-		label = ["OPEN ALL", "%d BOOSTER%s" % [sealed, "" if sealed == 1 else "S"], true]
-	elif page_done() and swap.wants_stop():
-		label = ["NEXT ›", "SWAP REGULARS", true]
+	elif openings.next_sealed() != null:
+		label = ["OPEN ›", "BOOSTER", true]
+	elif openings.opening_now():
+		label = ["SKIP ›", "SPEED IT UP", true]
 	return label
 
 
-## The hint LED's line: a flashed message for 2 s, else the state's hint.
+## The flashed message while it shows (2 s), else "".
 func hint_line() -> String:
-	var line: String = ""
-	if message != "" and now - message_t < 2.0:
-		line = message
-	elif hint != "":
-		line = hint
-	elif shutter == Shutter.DOWN:
-		line = "ROLL UP THE SHUTTER"
-	elif openings.waiting_booster() != null:
-		line = "CLICK THE ? CARD"
-	elif restock_armed:
-		line = RESTOCK_NEXT_HINT
-	elif picking():
-		line = _pick_text() + " BOOSTERS"
-	elif page_done():
-		var can_swap: bool = counter.swaps_live() and counter.swaps_used() < counter.swap_limit()
-		line = "CLICK YOUR REGULARS TO SWAP" if can_swap else "THE STORE IS STOCKED"
-	elif openings.any_sealed():
-		line = "CLICK A BOOSTER TO OPEN IT"
-	return line
+	return message if message != "" and now - message_t < 2.0 else ""
 
 
-func hint_start() -> float:
-	return message_t if message != "" and now - message_t < 2.0 else hint_t
-
-
-## A short message on the hint LED (a refused or unsaved action), with the close click.
+## A short message over the floor row (a refused or unsaved action), with the close click.
 func flash(text: String) -> void:
 	message = text
 	message_t = now
@@ -538,49 +385,32 @@ func set_hint(text: String) -> void:
 func cart_target() -> int:
 	var count: int = run.starter.core_cards.size()
 	for opening: BoosterOpening in boosters:
-		if not opening.is_counted():
-			continue
 		for k: int in opening.cards.size():
 			if opening.landed(k, tuning):
 				count += 1
 	return count
 
 
-## Space pressed (`down`) or released: a hold of hold_space_s opens everything; a tap is the
-## primary key.
-func space(down: bool) -> void:
-	if not down:
-		hold_t = -1.0
-		return
-	if (
-		shutter == Shutter.UP
-		and openings.any_sealed()
-		and not picking()
-		and not openings.opening_now()
-	):
-		if not StartBoardActions.hit_allowed(actions, TutorialAnchors.PRIMARY):
-			return
-		hold_t = now
-		fx.sfx("pour", -8.0)
-	else:
-		primary("space")
+## The boosters on show, left to right (by bay).
+func shown_boosters() -> Array[BoosterOpening]:
+	var shown: Array[BoosterOpening] = boosters.duplicate()
+	shown.sort_custom(func(a: BoosterOpening, z: BoosterOpening) -> bool: return a.bay < z.bay)
+	return shown
 
 
-## A page-1 key from the board (1-3, A, R, Esc; the swap window's 1-2, R and Esc while it shows);
+## A page-1 key from the board (1-3, R, Esc; the swap window's 1-2, R and Esc while it shows);
 ## true when it was used.
 func handle_key(keycode: Key) -> bool:
 	var number: int = [KEY_1, KEY_2, KEY_3].find(keycode)
 	var used: bool = false
 	if swap.visible():
 		used = _swap_key(keycode, number)
-	elif not StartBoardActions.hit_allowed(actions, _key_hit(keycode, number)):
+	elif overlay or not StartBoardActions.hit_allowed(actions, _key_hit(keycode, number)):
 		used = false
 	elif keycode == KEY_ESCAPE:
 		if restock_armed:
 			cancel_restock("ui_back")
 			used = true
-	elif keycode == KEY_A:
-		used = openings.open_all("key")
 	elif keycode == KEY_R and BoosterChromeDraw.key_shown(self):
 		used = counter.arm_restock()
 	elif number >= 0:
@@ -608,61 +438,38 @@ func _swap_key(keycode: Key, number: int) -> bool:
 	return used
 
 
-## The hit a page-1 key acts as, for the tutorial's gate (&"": never asked: Esc, unused keys): A
-## the primary key's OPEN ALL, R the RESTOCK key, 1-3 the booster shown at that place (its
-## return, its hit card, or the booster itself).
+## The hit a page-1 key acts as, for the tutorial's gate (&"": never asked: Esc, unused keys): R
+## the RESTOCK key, 1-3 the booster shown at that place (its return, or its bay's pick).
 func _key_hit(keycode: Key, number: int) -> StringName:
 	var id: StringName = &""
-	if keycode == KEY_A:
-		id = TutorialAnchors.PRIMARY
-	elif keycode == KEY_R:
+	if keycode == KEY_R:
 		id = TutorialAnchors.RESTOCK
-	elif number >= 0 and shutter == Shutter.DOWN:
-		id = TutorialAnchors.ROLLUP
 	elif number >= 0:
-		var shown: Array[BoosterOpening] = []
-		for opening: BoosterOpening in boosters:
-			if opening.state != BoosterOpening.State.GONE:
-				shown.append(opening)
+		var shown: Array[BoosterOpening] = shown_boosters()
 		if number < shown.size():
-			var target: BoosterOpening = shown[number]
-			id = TutorialAnchors.booster(target.index)
+			id = TutorialAnchors.booster(shown[number].index)
 			if restock_armed:
-				id = TutorialAnchors.indexed(TutorialAnchors.RCARDS, target.index)
-			elif target.state == BoosterOpening.State.OPENING and target.at_rest(tuning):
-				id = TutorialAnchors.indexed(TutorialAnchors.HIT, target.index)
+				id = TutorialAnchors.indexed(TutorialAnchors.RCARDS, shown[number].index)
 	return id
 
 
-## Number key `number` on the boosters shown (left to right): ROLL UP first, then the booster's
-## RESTOCK, its pick, its hit card's flip or its opening.
+## Number key `number` on the boosters shown (left to right): the booster's RESTOCK while armed,
+## else its opening while it waits sealed on the counter.
 func _key_booster(number: int) -> bool:
-	var shown: Array[BoosterOpening] = []
-	for opening: BoosterOpening in boosters:
-		if opening.state != BoosterOpening.State.GONE:
-			shown.append(opening)
-	var used: bool = false
-	if shutter == Shutter.DOWN:
-		used = openings.roll_up()
-	elif number < shown.size():
-		var target: BoosterOpening = shown[number]
-		if openings.arrival_busy():
-			openings.end_arrival()
-		if restock_armed:
-			used = counter.restock(target.index)
-		elif picking():
-			used = openings.pick_booster(target.index)
-		elif target.state == BoosterOpening.State.OPENING and target.at_rest(tuning):
-			used = openings.flip_hit(target.index)
-		else:
-			used = openings.open_booster(target.index, "key")
-	return used
+	var shown: Array[BoosterOpening] = shown_boosters()
+	if number >= shown.size():
+		return false
+	var target: BoosterOpening = shown[number]
+	if restock_armed:
+		return counter.restock(target.index)
+	if roulette.busy() or not roulette.landed(target):
+		return false
+	return openings.open_booster(target.index, "key")
 
 
 ## RESTOCK disarmed (Esc, CANCEL), with `sound`.
 func cancel_restock(sound: String) -> void:
 	restock_armed = false
-	set_hint("")
 	fx.sfx(sound, -6.0)
 	StartBoardActions.emit(actions, TutorialEvents.RESTOCK_CANCELLED)
 
@@ -683,28 +490,31 @@ func _gui_input(event: InputEvent) -> void:
 		swap.release(mouse - Vector2(0, swap.slide()))
 
 
-## A click at art point `at`: the swap window's while it shows; else the shutter, a skip, else the
-## topmost hit under it.
+## A click at art point `at`: the swap window's while it shows; else a skip (the light, the
+## throws), a sealed booster's opening (its pouch), a skip of an opening, else the topmost hit
+## under it.
 func click(at: Vector2) -> void:
 	if swap.visible():
 		if swap.active:
 			swap.press(at - Vector2(0, swap.slide()))
 		return
-	if shutter == Shutter.DOWN:
-		if StartBoardActions.hit_allowed(actions, TutorialAnchors.ROLLUP):
-			openings.roll_up()
+	if overlay:
 		return
-	if openings.arrival_busy():
-		openings.end_arrival()
-		return
-	if openings.boost_all():
+	if roulette.skip():
 		return
 	hits = BoosterPageDraw.hits(self)
+	var on_pouch: bool = false
+	for entry: Dictionary in hits:
+		var id: String = entry.id
+		if id.begins_with(TutorialAnchors.BOOSTER) and (entry.rect as Rect2).has_point(at):
+			on_pouch = true
+	if not on_pouch and openings.boost_all():
+		return
 	for k: int in range(hits.size() - 1, -1, -1):
 		var entry: Dictionary = hits[k]
 		if (entry.rect as Rect2).has_point(at):
 			var act: Callable = entry.act
-			# ‹ TITLE is never asked; a hit with nothing to do asks nothing either.
+			# TITLE is never asked; a hit with nothing to do asks nothing either.
 			var id: StringName = StringName(entry.id) if act.is_valid() else &""
 			if id == TutorialAnchors.TITLE or StartBoardActions.hit_allowed(actions, id):
 				if act.is_valid():
@@ -712,7 +522,6 @@ func click(at: Vector2) -> void:
 			return
 	if restock_armed:
 		restock_armed = false
-		set_hint("")
 		StartBoardActions.emit(actions, TutorialEvents.RESTOCK_CANCELLED)
 
 
@@ -740,16 +549,14 @@ func _update_tips() -> void:
 		tips.show_entries(BoosterChromeDraw.tip_entries(self))
 
 
-## Whether no hover tip may show now: the shutter, the arrival, a booster opening (page 1's or the
-## swap window's), Space held, or in the swap window a held card or its slide.
+## Whether no hover tip may show now: the light, a throw, a booster opening (page 1's or the swap
+## window's), or in the swap window a held card or its slide.
 func tips_blocked() -> bool:
-	if run == null or shutter != Shutter.UP or hold_t >= 0.0:
-		return true
-	if openings.arrival_busy() or openings.opening_now() or openings.waiting_booster() != null:
+	if run == null:
 		return true
 	if swap.visible():
 		return not swap.active or swap.held != null or swap.slide() != 0.0 or _swap_opening()
-	return false
+	return overlay or roulette.busy() or openings.opening_now()
 
 
 ## Whether one of the swap window's boosters is still opening.

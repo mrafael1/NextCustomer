@@ -61,7 +61,7 @@ func test_six_machines_fit_the_screen_without_overlaps() -> void:
 			assert_bool(sign_rect.intersects(part)).override_failure_message(str(part)).is_false()
 	assert_str(machines[0].floor_text()).is_equal("1 OF 2 LEFT")
 	assert_str(machines[1].floor_text()).is_equal(ToyMachineView.SOLD_OUT_TEXT)
-	assert_str(machines[3].floor_text()).is_equal("5 OF 8 LEFT")
+	assert_str(machines[3].floor_text()).is_equal("6 OF 9 LEFT")
 	assert_str((machines[3].part("sign_text") as PixelLine).text()).is_equal("PRODUCE")
 	# LEDs, board, strip and buttons: inside, clear of the machines' click areas.
 	var parts: Array[Rect2] = _chip_rects(screen)
@@ -83,7 +83,7 @@ func test_six_machines_fit_the_screen_without_overlaps() -> void:
 	assert_bool(parts[0].intersects(parts[1])).is_false()
 	assert_bool(parts[4].intersects(parts[5])).is_false()
 	assert_str(screen.coins_text()).is_equal("2")
-	assert_str(screen.figurines_text()).is_equal("9/30")
+	assert_str(screen.figurines_text()).is_equal("9/31")
 	# The machines stand left of the doors.
 	assert_float(hits[-1].end.x).is_less_equal(DOORS_LEFT)
 
@@ -248,7 +248,7 @@ func test_no_gacha_anywhere() -> void:
 
 ## The mock-up's partial collection: 9 of the 30 figurines.
 static func _partial() -> Dictionary:
-	return {&"cold_cases": 1, &"pantry": 2, &"household": 1, &"fruit_and_veg": 3, &"bakery": 2}
+	return {&"dairy": 1, &"pantry": 2, &"household": 1, &"fruit_and_veg": 3, &"bakery": 2}
 
 
 func _assert_inside(rect: Rect2, what: String) -> void:

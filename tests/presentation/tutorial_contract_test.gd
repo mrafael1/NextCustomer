@@ -5,7 +5,7 @@ extends GdUnitTestSuite
 
 
 func test_every_event_has_its_args_and_each_arg_a_type() -> void:
-	assert_int(TutorialEvents.ARGS.size()).is_equal(38)
+	assert_int(TutorialEvents.ARGS.size()).is_equal(36)
 	for event: StringName in TutorialEvents.ARGS:
 		assert_bool(TutorialEvents.is_event(event)).is_true()
 		for key: StringName in TutorialEvents.ARGS[event]:
@@ -56,8 +56,7 @@ func test_anchor_ids_fixed_and_indexed() -> void:
 	assert_str(String(TutorialAnchors.basket(3))).is_equal("basket3")
 	assert_str(String(TutorialAnchors.card(1, 2))).is_equal("card1_2")
 	assert_str(String(TutorialAnchors.swap_card(0, 1))).is_equal("swap_card0_1")
-	assert_str(String(TutorialAnchors.pack(2))).is_equal("pack2")
-	for id: StringName in [&"slot6", &"hand0", &"booster1", &"hit0", &"pack2", &"card0_2"]:
+	for id: StringName in [&"slot6", &"hand0", &"booster1", &"hit0", &"card0_2"]:
 		assert_bool(TutorialAnchors.is_known(id)).override_failure_message(id).is_true()
 	for id: StringName in [&"slot", &"slot-1", &"slot01", &"slotx", &"card1", &"nowhere", &"G12"]:
 		assert_bool(TutorialAnchors.is_known(id)).override_failure_message(id).is_false()

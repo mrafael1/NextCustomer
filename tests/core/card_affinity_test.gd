@@ -62,7 +62,7 @@ func test_a_tag_grant_names_the_cards_its_tag_feeds() -> void:
 	assert_int(CardAffinity.uses_tag(_live("milk"), "Breakfast", _broad())).is_equal(
 		CardAffinity.Match.YES
 	)
-	assert_int(CardAffinity.uses_tag(_live("soup"), "Frozen", _broad())).is_equal(
+	assert_int(CardAffinity.uses_tag(_live("soup"), "Dairy", _broad())).is_equal(
 		CardAffinity.Match.PENALTY
 	)
 	assert_int(CardAffinity.uses_tag(_live("eggs"), "Food", _broad())).is_equal(
@@ -72,9 +72,9 @@ func test_a_tag_grant_names_the_cards_its_tag_feeds() -> void:
 
 func test_a_penalty_beats_a_match() -> void:
 	var soup: CardDefinition = _live("soup")
-	var peas: CardDefinition = _live("frozen_peas")
-	assert_int(_between(soup, peas)).is_equal(CardAffinity.Match.PENALTY)
-	assert_int(_between(peas, soup)).is_equal(CardAffinity.Match.PENALTY)
+	var cheese: CardDefinition = _live("cheese")
+	assert_int(_between(soup, cheese)).is_equal(CardAffinity.Match.PENALTY)
+	assert_int(_between(cheese, soup)).is_equal(CardAffinity.Match.PENALTY)
 	assert_int(_between(soup, _live("bread"))).is_equal(CardAffinity.Match.NONE)
 
 

@@ -18,10 +18,9 @@ const CW := 76
 const CH := 128
 const BW := 84
 const BH := 112
-## The booster zones on the counter: two aisle boosters (A, B), three while picking 2 of 3.
+## The booster zones on the counter: two aisle boosters (A, B).
 const ZONE_A := 277
 const ZONE_B := 514
-const PICK_X: Array[int] = [222, 396, 570]
 ## Three art px between two cards of a fan.
 const FAN_STEP := CW + 3
 ## The pouch's top on the counter, the counter's top row, the lamp's top and its cone's top.
@@ -105,7 +104,7 @@ const TAB := preload("res://art/frames/handbook_tab.png")
 const TAB_PICKED := preload("res://art/frames/handbook_tab_picked.png")
 const POUCHES: Dictionary[StringName, Texture2D] = {
 	&"bakery": preload("res://art/start/booster_pouch_bakery.png"),
-	&"cold_cases": preload("res://art/start/booster_pouch_cold_cases.png"),
+	&"dairy": preload("res://art/start/booster_pouch_dairy.png"),
 	&"fruit_and_veg": preload("res://art/start/booster_pouch_fruit_and_veg.png"),
 	&"household": preload("res://art/start/booster_pouch_household.png"),
 	&"pantry": preload("res://art/start/booster_pouch_pantry.png"),
@@ -113,7 +112,7 @@ const POUCHES: Dictionary[StringName, Texture2D] = {
 }
 const STRIPS: Dictionary[StringName, Texture2D] = {
 	&"bakery": preload("res://art/start/booster_strip_bakery.png"),
-	&"cold_cases": preload("res://art/start/booster_strip_cold_cases.png"),
+	&"dairy": preload("res://art/start/booster_strip_dairy.png"),
 	&"fruit_and_veg": preload("res://art/start/booster_strip_fruit_and_veg.png"),
 	&"household": preload("res://art/start/booster_strip_household.png"),
 	&"pantry": preload("res://art/start/booster_strip_pantry.png"),
@@ -122,6 +121,19 @@ const STRIPS: Dictionary[StringName, Texture2D] = {
 const SIGN_PATH := "res://art/frames/aisle_sign_%s.png"
 ## The aisles whose sign is light, so its words are ink (the rest cream).
 const LIGHT_SIGNS: Array[StringName] = [&"pantry", &"bakery", &"household"]
+
+## The aisles' glyphs, preloaded: a glyph first loaded inside a draw call drew as a blank white
+## tile in the game (play test 2026-11-19), so the board never loads one there.
+const GLYPHS: Dictionary[StringName, Texture2D] = {
+	&"dairy": preload("res://art/icons/aisle_dairy.png"),
+	&"pantry": preload("res://art/icons/aisle_pantry.png"),
+	&"household": preload("res://art/icons/aisle_household.png"),
+	&"fruit_and_veg": preload("res://art/icons/aisle_fruit_and_veg.png"),
+	&"bakery": preload("res://art/icons/aisle_bakery.png"),
+	&"snacks": preload("res://art/icons/aisle_snacks.png"),
+}
+## The most family chips a regular wears on page 2's crate (BuildRegulars).
+const MAX_CHIPS := 3
 
 static var _faces: Dictionary[String, ImageTexture] = {}
 static var _suns: Dictionary[Vector2i, ImageTexture] = {}
@@ -155,11 +167,11 @@ static func short_name(aisle: AisleDefinition) -> String:
 
 
 static func pouch(aisle_id: StringName) -> Texture2D:
-	return POUCHES.get(aisle_id, POUCHES[&"cold_cases"])
+	return POUCHES.get(aisle_id, POUCHES[&"dairy"])
 
 
 static func strip(aisle_id: StringName) -> Texture2D:
-	return STRIPS.get(aisle_id, STRIPS[&"cold_cases"])
+	return STRIPS.get(aisle_id, STRIPS[&"dairy"])
 
 
 static func sign_frame(aisle_id: StringName) -> Texture2D:
@@ -172,6 +184,8 @@ static func sign_frame(aisle_id: StringName) -> Texture2D:
 
 
 static func glyph(aisle_id: StringName) -> Texture2D:
+	if GLYPHS.has(aisle_id):
+		return GLYPHS[aisle_id]
 	var path: String = "res://art/icons/aisle_%s.png" % aisle_id
 	return load(path) as Texture2D if ResourceLoader.exists(path) else null
 
@@ -278,6 +292,8 @@ static func face_sized(
 		image.fill_rect(Rect2i(win.position.x + 3, win.position.y + 3, 2, 2), Palette.GREY)
 	var styles: Array[FamilyStyle] = []
 	if chips:
+		# The ticket's families only (the v1.45 family chips of a product's own tags are gone: the
+		# user's play test of 2026-11-19, round 2).
 		styles = families(card)
 	for k: int in styles.size():
 		var cx: int = win.position.x + 1

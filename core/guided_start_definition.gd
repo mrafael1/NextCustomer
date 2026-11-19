@@ -1,10 +1,10 @@
 class_name GuidedStartDefinition
 extends Resource
 ## The guided first run's scripted deal (the tutorial, data/tutorial/guided_start.tres): the
-## recipe (its regulars and its fixed starter packs, a DeckDefinition in data/decks so a resume
+## recipe (its regulars, an opening-time DeckDefinition in data/decks so a resume
 ## finds it by id), the fixed aisle boosters (StartSetupRules.deal_fixed deals them in place of
 ## the seeded ones) and shift 1's hand of hand_size cards in place order (place 0 first: basket 1's
-## left card), whichever pack the player takes. Every hand card is in the cart: a regular or a
+## left card). Every hand card is in the cart: a regular or a
 ## booster card. Definitions are shared by reference and never changed at runtime.
 
 @export var recipe: DeckDefinition
@@ -31,13 +31,13 @@ func booster_cards(aisle_id: StringName) -> Array[CardDefinition]:
 
 
 ## Why `balance` can't deal this definition, or &"" when it can (StartSetupRules.deal_fixed):
-## &"recipe" (no recipe with core cards and starter packs), &"boosters" (not dealt_aisle_count
+## &"recipe" (no opening-time recipe with core cards), &"boosters" (not dealt_aisle_count
 ## boosters, each on its own aisle of the balance), &"cards" (a booster past start_booster_size,
 ## or a card that isn't a plain product of its booster's aisle, or a product twice in one
 ## booster) or &"hand" (not hand_size cards, or a hand card with fewer copies in the regulars and
 ## the boosters than the hand holds). A deal it allows passes StartSetup's load check.
 func block(balance: BalanceDefinition) -> StringName:
-	if recipe == null or recipe.core_cards.is_empty() or recipe.starter_packs.is_empty():
+	if recipe == null or recipe.core_cards.is_empty() or not recipe.opening_time:
 		return &"recipe"
 	var aisles: Array[StringName] = aisle_ids()
 	if aisles.size() != boosters.size() or aisles.size() != balance.dealt_aisle_count:

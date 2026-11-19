@@ -71,8 +71,9 @@ static func until_stocked(shift: ShiftScreen, board: StartBoard, ms: int = 4000)
 	return false
 
 
-## Presses OPEN STORE (a pack is picked) until shift 1's planning is the run's phase: the deal
-## and the cart's flight skipped as a player's taps would. Whether it got there (at most `ms`).
+## Presses KEEP on the regulars, then OPEN STORE, until shift 1's planning is the run's phase:
+## the deal and the cart's flight skipped as a player's taps would. Whether it got there (at most
+## `ms`).
 static func open_store(shift: ShiftScreen, board: StartBoard, ms: int = 4000) -> bool:
 	var start: int = Time.get_ticks_msec()
 	while Time.get_ticks_msec() - start < ms:
@@ -85,19 +86,18 @@ static func open_store(shift: ShiftScreen, board: StartBoard, ms: int = 4000) ->
 	return false
 
 
-## Plays the guided run from its start to shift 1's free planning (G3 with OPEN ALL, NEXT, G5
-## with pack `pack`, OPEN STORE, G7 and G8 read); whether it got there.
-static func to_free(shift: ShiftScreen, seed_value: int, pack: int = 0) -> bool:
+## Plays the guided run from its start to shift 1's free planning (G3 with both boosters opened
+## by Enter, NEXT, G6 with KEEP and OPEN STORE, G7 and G8 read); whether it got there.
+static func to_free(shift: ShiftScreen, seed_value: int) -> bool:
 	var board: StartBoard = start_guided(shift, seed_value)
 	if not await until_step(shift, &"G3"):
 		return false
-	board.store.primary()  # OPEN ALL.
+	open_boosters(board)
 	if not await until_stocked(shift, board):
 		return false
 	board.store.primary()  # NEXT.
-	if not await until_step(shift, &"G5"):
+	if not await until_step(shift, &"G6"):
 		return false
-	board.pick(pack)
 	if not await open_store(shift, board):
 		return false
 	for id: StringName in [&"G7", &"G8"]:
@@ -105,6 +105,14 @@ static func to_free(shift: ShiftScreen, seed_value: int, pack: int = 0) -> bool:
 			return false
 		press(shift)
 	return await until_free(shift)
+
+
+## Opens the page's sealed boosters with Enter, one by one (the player opens them, v1.46).
+static func open_boosters(board: StartBoard) -> void:
+	for _press: int in 4:
+		if board.store.openings.next_sealed() == null and not board.store.roulette.busy():
+			return
+		board.store.primary()
 
 
 ## Lays hand places `places` on the row, left to right (the row emptied first).
@@ -161,7 +169,7 @@ static func _button(at: Vector2, pressed: bool) -> InputEventMouseButton:
 
 ## Booster `index`'s pouch centre (art px).
 static func pouch(page: BoosterPage, index: int) -> Vector2:
-	return BoosterArt.pouch_pos(page.boosters[index].cx) + Vector2(40, 40)
+	return page.boosters[index].pouch_pos() + Vector2(40, 40)
 
 
 ## The hand's item at place `at`.

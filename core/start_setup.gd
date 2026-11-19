@@ -6,23 +6,22 @@ extends RefCounted
 ## independent of the live run.
 ##
 ## `stage` only moves forward: SELECT (set up, nothing dealt yet: a new run is dealt at once, so
-## no save waits here in practice), DEALT (the boosters and the pack offer are dealt, the boosters
-## sealed until opened), BUILD (page 2 was opened once). `stock_aisles` are the run's aisles, in
-## data order: the dealt_aisle_count aisles of its boosters, the only aisles the run stocks (v1.32
-## feedback, 2026-11-13). `boosters` are the dealt boosters in board order: one per stocked aisle,
-## plus, from pair_choice_min_completed completed aisles, one more of an aisle not stocked (PICK 2
-## OF 3, start_booster_choice_count in all). A booster counts (active_boosters) while its aisle is
-## stocked and it is not SOLD OUT: while the pick is pending (picking) the seeded pair stands for
-## the stock; once picked, the other one is SOLD OUT and the picked pair is the run's stock.
+## no save waits here in practice), DEALT (the boosters are dealt, sealed until opened), BUILD (page
+## 2 was opened once). `stock_aisles` are the run's aisles, in data order: the dealt_aisle_count
+## aisles of its boosters, the only aisles the run stocks (v1.32 feedback, 2026-11-13). `boosters`
+## are the dealt boosters in board order: one per stocked aisle. A setup saved before v1.46 may
+## hold PICK 2 OF 3's third booster (an aisle not stocked, or one flagged `sold_out`): loading
+## drops it, so a pick still pending resolves to the seeded pair and a pick made keeps its pair.
 ## `swap_offers` holds the swap window's booster of each stocked aisle (aisle id → up to
 ## regular_offer_max plain products of that aisle, those the copy limit lets in first; v1.32 swap
 ## window, 2026-11-13), kept the first time the window shows them so reopening it (or a resume)
-## never rerolls them; `swap_opened` the aisles whose swap booster is open. `packs_redrawn`: NEW
-## PACKS was used. `pins_confirmed`: the BADGE PINS step was confirmed (the packs wait for it
-## while the profile owns a pin). `originals` are the recipe's own regulars, `completed_count` the
-## completed aisles when the run started. A saved form without
-## `boosters` is an older one (the first build's, or v1.07's three baskets, is_old_format): a run
-## waiting for its pick restarts its setup instead of converting it (RunSave).
+## never rerolls them; `swap_opened` the aisles whose swap booster is open. `pins_confirmed`: the
+## BADGE PINS step was confirmed (OPEN STORE waits for it while the profile owns a pin). A setup
+## saved before v1.45 also holds the starter pack fields (`picked`, `packs_redrawn`): they are
+## ignored. `originals` are the recipe's own regulars, `completed_count` the completed aisles when
+## the run started. A saved form without `boosters` is an older one (the first build's, or v1.07's
+## three baskets, is_old_format): a run waiting for OPEN STORE restarts its setup instead of
+## converting it (RunSave).
 
 enum Stage { SELECT, DEALT, BUILD }
 
@@ -35,26 +34,14 @@ var originals: Array[CardDefinition] = []
 var boosters: Array[StartBooster] = []
 var swap_offers: Dictionary[String, Array] = {}
 var swap_opened: Array[StringName] = []
-var packs_redrawn: bool = false
-var picked: StringName = &""
 var pins_confirmed: bool = false
 
 
-## Whether PICK 2 OF 3 is pending: a booster of an aisle not stocked today, none SOLD OUT yet.
-func picking() -> bool:
-	var extra: bool = false
-	for booster: StartBooster in boosters:
-		if booster.sold_out:
-			return false
-		extra = extra or not stock_aisles.has(booster.aisle)
-	return extra
-
-
-## Whether booster `index` counts: its aisle is one of today's and it is not SOLD OUT.
+## Whether booster `index` counts: its aisle is one of today's.
 func is_active(index: int) -> bool:
 	if index < 0 or index >= boosters.size():
 		return false
-	return not boosters[index].sold_out and stock_aisles.has(boosters[index].aisle)
+	return stock_aisles.has(boosters[index].aisle)
 
 
 ## The boosters whose cards count (is_active), in board order.
@@ -124,8 +111,6 @@ func to_dictionary() -> Dictionary:
 		"boosters": saved_boosters,
 		"swap_offers": offers,
 		"swap_opened": opened,
-		"packs_redrawn": packs_redrawn,
-		"picked": String(picked),
 		"pins_confirmed": pins_confirmed,
 	}
 
@@ -142,8 +127,6 @@ func copy() -> StartSetup:
 	for key: String in swap_offers:
 		other.swap_offers[key] = swap_offer(StringName(key))
 	other.swap_opened = swap_opened.duplicate()
-	other.packs_redrawn = packs_redrawn
-	other.picked = picked
 	other.pins_confirmed = pins_confirmed
 	return other
 
@@ -165,8 +148,6 @@ static func from_dictionary(data: Dictionary, lookup: ContentLookup) -> StartSet
 	setup.stock_aisles = reader.aisles("stock_aisles")
 	setup.completed_count = reader.whole("completed_count")
 	setup.originals = reader.cards("originals")
-	setup.packs_redrawn = reader.flag("packs_redrawn")
-	setup.picked = StringName(reader.text("picked"))
 	setup.pins_confirmed = reader.flag("pins_confirmed")
 	for saved: Dictionary in reader.dictionaries("boosters"):
 		var booster_reader: SaveReader = SaveReader.new(saved, lookup)
@@ -176,10 +157,15 @@ static func from_dictionary(data: Dictionary, lookup: ContentLookup) -> StartSet
 			booster_reader.whole("hits")
 		)
 		booster.opened = booster_reader.flag("opened")
-		booster.sold_out = booster_reader.flag("sold_out")
 		booster.restocked = booster_reader.flag("restocked")
 		reader.ok = reader.ok and booster_reader.ok
-		setup.boosters.append(booster)
+		# Before v1.46: PICK 2 OF 3's booster left out (SOLD OUT, or not stocked while the pick
+		# was pending) never counted, so it is dropped (a pending pick keeps the seeded pair).
+		var sold_out: bool = booster_reader.flag("sold_out")
+		if sold_out and (booster.opened or booster.restocked):
+			return null
+		if not sold_out and setup.stock_aisles.has(booster.aisle):
+			setup.boosters.append(booster)
 	var offers: Variant = data.get("swap_offers")
 	if not offers is Dictionary:
 		return null
@@ -199,27 +185,14 @@ func _is_valid(balance: BalanceDefinition) -> bool:
 	var valid: bool = stock_aisles.size() == size and _distinct(stock_aisles)
 	valid = valid and completed_count <= balance.aisles.size() and _offers_valid(balance)
 	if stage == Stage.SELECT:
-		return (
-			valid
-			and boosters.is_empty()
-			and not packs_redrawn
-			and picked == &""
-			and not pins_confirmed
-			and swap_offers.is_empty()
-		)
+		return valid and boosters.is_empty() and not pins_confirmed and swap_offers.is_empty()
 	return valid and _boosters_valid(balance)
 
 
-## The boosters: one per stocked aisle, plus the PICK 2 OF 3 extras from
-## pair_choice_min_completed (aisles not stocked today); each booster valid (_booster_valid) and
-## flagged consistently (_flags_valid); the active ones the stocked aisles.
+## The boosters: one per stocked aisle, each valid (_booster_valid), at most restocks_per_run
+## restocked (_restocks_valid).
 func _boosters_valid(balance: BalanceDefinition) -> bool:
-	var green: Array[StringName] = stock_aisles
-	var most: int = green.size()
-	var choice: bool = balance.pair_choice_min_completed > 0
-	if choice and completed_count >= balance.pair_choice_min_completed:
-		most = maxi(most, balance.start_booster_choice_count)
-	if boosters.size() < green.size() or boosters.size() > most:
+	if boosters.size() != stock_aisles.size():
 		return false
 	var aisles: Array[StringName] = []
 	for booster: StartBooster in boosters:
@@ -228,33 +201,16 @@ func _boosters_valid(balance: BalanceDefinition) -> bool:
 		aisles.append(booster.aisle)
 		if not _booster_valid(balance, booster):
 			return false
-	if not _flags_valid(balance, green.size()):
-		return false
-	var active: Array[StringName] = []
-	for booster: StartBooster in active_boosters():
-		active.append(booster.aisle)
-	return StartSetupRules.ordered_pair(balance, active) == green
+	return _restocks_valid(balance)
 
 
-## The boosters' flags: after the pick every extra SOLD OUT (never opened or restocked), while
-## picking none opened or restocked, NEW PACKS unused and page 2 not opened; at most
-## restocks_per_run restocked, and only from restock_min_completed.
-func _flags_valid(balance: BalanceDefinition, green_count: int) -> bool:
-	var sold: int = 0
+## At most restocks_per_run boosters restocked, and only from restock_min_completed.
+func _restocks_valid(balance: BalanceDefinition) -> bool:
 	var restocks: int = 0
-	var touched: bool = false
 	for booster: StartBooster in boosters:
-		if booster.sold_out and (booster.opened or booster.restocked):
-			return false
-		sold += 1 if booster.sold_out else 0
 		restocks += 1 if booster.restocked else 0
-		touched = touched or booster.opened or booster.restocked
-	var valid: bool = sold == 0 or sold == boosters.size() - green_count
-	valid = valid and restocks <= maxi(balance.restocks_per_run, 0)
-	valid = valid and (restocks == 0 or completed_count >= balance.restock_min_completed)
-	if picking():
-		valid = valid and not touched and not packs_redrawn and stage != Stage.BUILD
-	return valid
+	var valid: bool = restocks <= maxi(balance.restocks_per_run, 0)
+	return valid and (restocks == 0 or completed_count >= balance.restock_min_completed)
 
 
 ## A booster: at most start_booster_size cards of its aisle, distinct products, at most

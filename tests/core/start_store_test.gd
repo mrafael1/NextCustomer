@@ -1,7 +1,7 @@
 extends GdUnitTestSuite
 ## The opening board's page 1 YOUR STORE rules (full build plan 7.2, v1.32 "boosters"): what
-## unlocks with completed aisles (RESTOCK at 3, PICK 2 OF 3 at 6, one swap per aisle), the deal at
-## once (two sealed boosters of three, four regulars), RESTOCK once a run, and a regular swap and
+## unlocks with completed aisles (RESTOCK at 3, one swap per aisle), the deal at once (two sealed
+## boosters at any completed count, four regulars), RESTOCK once a run, and a regular swap and
 ## its undo. On the live data.
 
 const Kit := preload("res://tests/core/start_setup_kit.gd")
@@ -14,21 +14,16 @@ func before_test() -> void:
 	_balance = Kit.balance()
 
 
-## Below restock_min_completed completed aisles there's no RESTOCK; below
-## pair_choice_min_completed no third booster; a new player has no swap. Each opens at its count.
+## Below restock_min_completed completed aisles there's no RESTOCK; a new player has no swap.
+## Each opens at its count. Every count deals two boosters (no third since v1.46).
 func test_the_controls_unlock_with_completed_aisles() -> void:
 	var restock_min: int = _balance.restock_min_completed
-	var choice_min: int = _balance.pair_choice_min_completed
 	assert_int(restock_min).is_equal(3)
-	assert_int(choice_min).is_equal(6)
-	assert_int(_balance.start_booster_choice_count).is_equal(3)
 	for count: int in range(0, 7):
 		var profile: ProfileState = Kit.profile(count)
 		var dealt: RunState = Kit.dealt(profile, SEED)
 		assert_object(dealt).override_failure_message("completed %d" % count).is_not_null()
-		var boosters: int = 3 if count >= choice_min else 2
-		assert_int(dealt.start_setup.boosters.size()).is_equal(boosters)
-		assert_bool(dealt.start_setup.picking()).is_equal(count >= choice_min)
+		assert_int(dealt.start_setup.boosters.size()).is_equal(_balance.dealt_aisle_count)
 		var run: RunState = Kit.locked(profile, SEED)
 		assert_int(run.start_setup.stage).is_equal(StartSetup.Stage.DEALT)
 		var restock: StringName = StartSetupRules.restock_block(run, profile, 1)
@@ -36,25 +31,23 @@ func test_the_controls_unlock_with_completed_aisles() -> void:
 			assert_str(String(restock)).override_failure_message(str(count)).is_equal("locked")
 		else:
 			assert_str(String(restock)).override_failure_message(str(count)).is_empty()
-		assert_bool(StartSetupRules.pick_mode(_balance, profile)).is_equal(count >= choice_min)
 		assert_int(StartSetupRules.swaps_left(run, profile)).is_equal(
 			mini(count, run.starter.core_cards.size())
 		)
 
 
-## A new player's board is dealt at once: two sealed boosters of three, four regulars, nothing
-## spent.
+## A new player's board is dealt at once: two sealed boosters of up to start_booster_size cards
+## (an aisle with fewer products gives what it has), four regulars, nothing spent.
 func test_a_new_player_is_dealt_two_boosters_of_three_and_four_regulars() -> void:
 	var profile: ProfileState = Kit.profile(0)
 	var run: RunState = Kit.dealt(profile, SEED)
 	assert_int(run.start_setup.boosters.size()).is_equal(2)
 	for booster: StartBooster in run.start_setup.boosters:
-		assert_int(booster.cards.size()).is_equal(_balance.start_booster_size)
+		assert_int(booster.cards.size()).is_between(2, _balance.start_booster_size)
 		assert_bool(booster.opened).is_false()
 		assert_bool(booster.restocked).is_false()
 	assert_int(run.starter.core_cards.size()).is_equal(4)
 	assert_int(run.start_setup.restock_booster()).is_equal(-1)
-	assert_bool(run.start_setup.packs_redrawn).is_false()
 	assert_bool(run.start_setup.pins_confirmed).is_false()
 
 

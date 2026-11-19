@@ -780,11 +780,11 @@ class AisleDeriveTest(TempTestCase):
         self.assertIn(self.ws.out / "scenery" / "machine_pantry.png", written)
         self.assertEqual(pa.check(self.ws.load()), [])
 
-    def test_cold_cases_keeps_the_teal_ramp(self) -> None:
+    def test_dairy_keeps_the_teal_ramp(self) -> None:
         self.ws.add("scenery/machine", TEAL_SCENERY)
-        self.ws.add("scenery/machine_cold_cases", aisle_source("machine", "cold_cases"))
+        self.ws.add("scenery/machine_dairy", aisle_source("machine", "dairy"))
         project = self.ws.load()
-        derived = next(s for s in project.sprites if s.name == "scenery/machine_cold_cases")
+        derived = next(s for s in project.sprites if s.name == "scenery/machine_dairy")
         base = next(s for s in project.sprites if s.name == "scenery/machine")
         self.assertEqual(derived.rows, base.rows)
 

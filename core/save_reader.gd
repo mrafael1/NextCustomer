@@ -34,6 +34,19 @@ static func is_whole(value: Variant) -> bool:
 	)
 
 
+## Reads a run save's relabels form (RunSave: instance id as text -> family, a Price gun's
+## relabels or the Family stickers' families) into `into`; false for a malformed one.
+static func read_relabels(into: Dictionary[int, String], data: Variant) -> bool:
+	if not data is Dictionary:
+		return false
+	for key: Variant in data as Dictionary:
+		var tag: Variant = (data as Dictionary)[key]
+		if not key is String or not (key as String).is_valid_int() or not tag is String:
+			return false
+		into[(key as String).to_int()] = tag as String
+	return true
+
+
 ## A decimal 64-bit int: an optional minus sign and up to 19 digits, within the int range.
 static func is_int64_text(number: String) -> bool:
 	var digits: String = number.trim_prefix("-")

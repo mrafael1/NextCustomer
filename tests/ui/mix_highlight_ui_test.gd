@@ -183,9 +183,9 @@ func test_hovering_a_belt_item_lights_what_it_works_with() -> void:
 	_assert_all_plain(screen)
 
 
-## Hovering the Soup in its basket: its brackets round its art down to the rim, the belt's Frozen
-## peas marked with the penalty "!" (Soup pays nothing beside Frozen), Eggs faint (its next Food),
-## the rest grey; leaving puts it all back.
+## Hovering the Soup in its basket: its brackets round its art down to the rim, the belt's Milk
+## marked with the penalty "!" (Soup pays nothing beside Dairy since v1.45), Eggs faint (its next
+## Food), the rest grey; leaving puts it all back.
 func test_hovering_a_basket_item_lights_the_belt_and_the_hand() -> void:
 	var screen: ShiftScreen = await _screen()
 	var soup: ItemView = _hand(screen, "soup")
@@ -195,8 +195,8 @@ func test_hovering_a_basket_item_lights_the_belt_and_the_hand() -> void:
 		{
 			"eggs": L.FAINT,
 			"bread": L.GREY,
-			"milk": L.GREY,
-			"frozen_peas": L.PENALTY,
+			"milk": L.PENALTY,
+			"frozen_peas": L.GREY,
 			"soup": L.SELF,
 			"cereal": L.GREY,
 			"batteries": L.GREY,
@@ -209,7 +209,7 @@ func test_hovering_a_basket_item_lights_the_belt_and_the_hand() -> void:
 	assert_bool(frame.has_area()).is_true()
 	assert_float(frame.end.y).is_equal(ItemView.BASKET_RIM_Y)
 	assert_bool(SCREEN_RECT.encloses(soup.get_global_transform() * frame)).is_true()
-	_assert_mark(_belt(screen, "frozen_peas"), L.PENALTY)
+	_assert_mark(_belt(screen, "milk"), L.PENALTY)
 	_assert_mark(_belt(screen, "eggs"), L.FAINT)
 	# A hand hover is the mix only: no ticket ring, no receipt explanation.
 	assert_object(screen._effects.focused_card()).is_same(soup.card)

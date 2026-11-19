@@ -19,24 +19,13 @@ const COUNT_TOP := 14.0
 const COUNT_HEIGHT := 40.0
 const COUNT_FONT := 38
 const COUNT_BASELINE := 46.0
-## The equation's red tail while the pack's lines wait: after the BADGE PINS step, or for a pick.
-const WAITING_PINS := "· +%d after your pins"
-const WAITING_PACK := "· +%d from a pack"
-
 var shown_cards: Array[CardDefinition] = []
-## The cart equation under the title, and its red "+n from a pack" tail (null once a pack is
-## picked or previewed; v1.36: "when you pick a pack" ran off the paper).
+## The cart equation under the title.
 var equation: Label
-var waiting_note: Label
-## The highlight behind the pack's lines (null while no pack is picked or previewed).
-var pack_rows: PackFrame
 
 
-## Shows the cart of `run` with pack `pack` (null: none yet), only `preview`ed when so; while the
-## packs are `held` for the BADGE PINS step, the pack's lines wait as "? ? ?" (deal after pins).
-func show_cart(
-	run: StartBuildView, pack: StarterPackDefinition, preview: bool, held: bool = false
-) -> void:
+## Shows the cart of `run`: its regulars, today's boosters and the worn pins' cards.
+func show_cart(run: StartBuildView) -> void:
 	StartBoardKit.clear(self)
 	size = SIZE
 	StartBoardKit.panel(self, Rect2(Vector2.ZERO, size), Palette.BROWN)
@@ -50,7 +39,7 @@ func show_cart(
 	# The cart's lines come from core (StartSetupRules.cart_lines), so the sheet, the trolley and
 	# the board's count never disagree.
 	var cart: Array[StartCartLine] = StartSetupRules.cart_lines(
-		run.starter, run.start_offer, run.balance, run.pins, pack, preview
+		run.starter, run.start_offer, run.balance, run.pins
 	)
 	var lines: Array[Dictionary] = []
 	var sources: Dictionary[StartCartLine.Source, int] = {}
@@ -62,25 +51,7 @@ func show_cart(
 				from = "regular"
 			StartCartLine.Source.DEALT:
 				from = line.origin_name if line.origin != &"" else "Regulars shelf"
-			StartCartLine.Source.PACK:
-				if line.card == null:
-					from = (
-						("deal after pins" if held else "press 1, 2 or 3")
-						if lines.size() == run.starter.core_cards.size()
-						else ""
-					)
-		(
-			lines
-			. append(
-				{
-					"card": line.card,
-					"from": from,
-					"source": line.source,
-					"preview": line.preview,
-					"want": line.card == null,
-				}
-			)
-		)
+		lines.append({"card": line.card, "from": from, "source": line.source})
 	shown_cards = StartSetupRules.cart_cards(cart)
 	var count_box: Panel = StartBoardKit.panel(
 		paper, Rect2(190, COUNT_TOP, right - 190, COUNT_HEIGHT), Palette.CHARCOAL
@@ -105,59 +76,16 @@ func show_cart(
 	on_baseline(count, COUNT_BASELINE)
 	var regulars: int = int(sources.get(StartCartLine.Source.REGULAR, 0))
 	var dealt: int = int(sources.get(StartCartLine.Source.DEALT, 0))
-	var packed: int = int(sources.get(StartCartLine.Source.PACK, 0))
 	var equation_text: String = "%d regulars + %d from today's stock" % [regulars, dealt]
-	if pack != null:
-		equation_text = (
-			"%d regulars + %d %s + %d from stock" % [regulars, packed, pack.display_name, dealt]
-		)
-		if preview:
-			equation_text += " · preview"
 	equation = StartBoardKit.body(
 		paper, equation_text, Rect2(10, 62, 340, 22), Palette.INK_LIGHT, 13
 	)
 	equation.name = "Equation"
-	waiting_note = null
-	if pack == null and packed > 0:
-		var used: float = ceilf(
-			ArtStyle.BODY_FONT.get_string_size(equation_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x
-		)
-		equation.size.x = used + 2
-		waiting_note = StartBoardKit.body(
-			paper,
-			(WAITING_PINS if held else WAITING_PACK) % packed,
-			Rect2(14 + used, 62, 336 - used, 22),
-			Palette.TOMATO_DARK,
-			13
-		)
-		waiting_note.name = "WaitingNote"
-		waiting_note.add_theme_font_override("font", ArtStyle.bold_font(700))
 	while lines.size() < run.balance.deck_limit:
 		lines.append({"card": null, "from": "for pin cards"})
-	pack_rows = null
-	var tint: Color = PackFrame.pack_colour(pack) if pack != null else Palette.TOMATO
-	var first_pack: int = -1
-	var pack_count: int = 0
-	for index: int in lines.size():
-		if lines[index].get("source", -1) == StartCartLine.Source.PACK:
-			first_pack = index if first_pack < 0 else first_pack
-			pack_count += 1
-	if first_pack >= 0 and pack != null:
-		# The pack's lines (agreed rule): a pale tint of its family colour with a BAR px left bar,
-		# both dashed while the pack is only previewed.
-		pack_rows = PackFrame.add(
-			paper,
-			Rect2(4, 90 + first_pack * ROW - 1, PAPER_RECT.size.x - 8, pack_count * ROW),
-			tint,
-			preview
-		)
-		pack_rows.name = "PackRows"
-		pack_rows.fill = PackFrame.pale(tint)
-		pack_rows.bar = true
 	for index: int in lines.size():
 		var line: Dictionary = lines[index]
 		var y: float = 90 + index * ROW
-		var waiting: bool = line.get("want", false)
 		StartBoardKit.panel(
 			paper, Rect2(10, y + 18, 340, 1), Palette.CREAM_SHADE, Palette.CREAM_SHADE
 		)
@@ -170,51 +98,20 @@ func show_cart(
 		var name_text: String = "free line"
 		if card != null:
 			name_text = card.display_name
-		elif waiting:
-			name_text = "? ? ?" if held else "pick a pack"
-		if card != null:
 			StartBoardKit.item(paper, card, Vector2(40, y), 18)
-		elif waiting:
-			var box: PackFrame = PackFrame.add(
-				paper, Rect2(40, y + 1, 18, 16), Palette.TOMATO, true
-			)
-			box.outline = true
-			var mark: Label = StartBoardKit.body(
-				box, "?", Rect2(0, 0, 18, 16), Palette.TOMATO_DARK, 12
-			)
-			mark.clip_text = false
-			mark.add_theme_font_override("font", ArtStyle.bold_font(800))
-			mark.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			mark.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		else:
 			StartBoardKit.panel(paper, Rect2(40, y + 2, 18, 14), Palette.CREAM, Palette.GREY_LIGHT)
-		var name_color: Color = Palette.INK
-		if waiting:
-			name_color = Palette.TOMATO_DARK
-		elif card == null or line.get("preview", false):
-			name_color = Palette.GREY
+		var name_color: Color = Palette.INK if card != null else Palette.GREY
 		var name_label: Label = StartBoardKit.body(
 			paper, name_text, Rect2(64, y, 138, 0), name_color, 12
 		)
 		name_label.name = "RowName%d" % index
 		on_centre(name_label, y + ROW_CENTRE)
-		if waiting:
-			name_label.add_theme_font_override("font", ArtStyle.bold_font(700))
-		if waiting and line.from != "":
-			var press: Panel = StartBoardKit.panel(
-				paper, Rect2(202, y + 1, 96, 17), Palette.MUSTARD_PALE, Palette.MUSTARD
-			)
-			press.name = "PressTag"
-			var press_text: Label = StartBoardKit.body(
-				press, line.from, Rect2(4, 0, 90, 0), Palette.INK, 11
-			)
-			on_centre(press_text, press.size.y / 2.0)
-		elif not waiting:
-			var source: Label = StartBoardKit.body(
-				paper, line.from, Rect2(204, y, 94, 0), Palette.INK_LIGHT, 11
-			)
-			source.name = "RowSource%d" % index
-			on_centre(source, y + ROW_CENTRE)
+		var source: Label = StartBoardKit.body(
+			paper, line.from, Rect2(204, y, 94, 0), Palette.INK_LIGHT, 11
+		)
+		source.name = "RowSource%d" % index
+		on_centre(source, y + ROW_CENTRE)
 		if card != null:
 			var price: Label = StartBoardKit.number(
 				paper,
@@ -225,18 +122,10 @@ func show_cart(
 			)
 			price.name = "RowPrice%d" % index
 			on_centre(price, y + ROW_CENTRE)
-		if waiting:
-			var tick: PackFrame = PackFrame.add(
-				paper, Rect2(right - TICK, y + 3, TICK, TICK), Palette.TOMATO, true
-			)
-			tick.outline = true
-		else:
-			var tick_rect: Rect2 = Rect2(right - TICK, y + 3, TICK, TICK)
-			var empty: Panel = StartBoardKit.panel(
-				paper, tick_rect, Palette.PAPER, Palette.GREY_LIGHT
-			)
-			empty.name = "Tick%d" % index
-		if card != null and not line.get("preview", false):
+		var tick_rect: Rect2 = Rect2(right - TICK, y + 3, TICK, TICK)
+		var empty: Panel = StartBoardKit.panel(paper, tick_rect, Palette.PAPER, Palette.GREY_LIGHT)
+		empty.name = "Tick%d" % index
+		if card != null:
 			StartBoardKit.icon(paper, StartBoardKit.CHECK, Vector2(right - TICK, y + 1), 1)
 	StartBoardKit.words(paper, "BY FAMILY", Rect2(10, 386, 124, 20), Palette.INK_LIGHT)
 	StartBoardKit.body(

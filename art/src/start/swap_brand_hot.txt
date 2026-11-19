@@ -1,0 +1,17 @@
+; swap_brand hovered: the burned arrows glow gold (SWAP key hover, BuildRegulars).
+@size 26x14
+@kind icon
+.TTTTTTTTTTTTTTTTTTTTTTTT.
+T.QQQQQQQQQQQQQQQQQQQQQQ.T
+T..............n.........T
+T..............nn........T
+T...nnnnnnnnnnnnnn.......T
+T...QQQQQQQQQQQnnQ.......T
+T..............nQ........T
+T.........n....Q.........T
+T........nn..............T
+T.......nnnnnnnnnnnnnn...T
+T.......QnnQQQQQQQQQQQ...T
+T........Qn..............T
+T.........Q..............T
+.TTTTTTTTTTTTTTTTTTTTTTTT.

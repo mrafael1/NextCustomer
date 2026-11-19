@@ -2,14 +2,13 @@ extends GdUnitTestSuite
 ## The opening-time regulars (StartSetupRules and StartSwapBoosters, full build plan 7.2; v1.32
 ## swap window, 2026-11-13): the swap pool of the stocked aisles, one swap booster per stocked
 ## aisle (saved, the copy limit's fitting cards first), opening one, the swaps' reasons, a trade,
-## a move, the undo and RESET, the swap limits and the copy rule with the packs and the boosters,
+## a move, the undo and RESET, the swap limits and the copy rule with the boosters,
 ## swaps that reset each run, and a run in play reading its starting cart, a swapped regular
 ## included. On the live data.
 
 const Kit := preload("res://tests/core/start_setup_kit.gd")
 const SEED := 20261104
 const CHEESE := preload("res://data/cards/cheese.tres")
-const DELI := preload("res://data/starter_packs/deli_counter.tres")
 const REPEAT := preload("res://data/cards/repeat.tres")
 
 var _balance: BalanceDefinition
@@ -288,9 +287,9 @@ func _aisle(aisle_id: StringName) -> AisleDefinition:
 	return null
 
 
-## After the deal a swap never makes a third copy of a card in the cart, whichever pack is taken,
-## with the boosters; it never re-deals. Before it, a swap only changes what the deal deals, and
-## the deal still keeps the copy rule.
+## After the deal a swap never makes a third copy of a card in the cart with the boosters; it never
+## re-deals. Before it, a swap only changes what the deal deals, and the deal still keeps the copy
+## rule.
 func test_swaps_keep_the_copy_rule_and_never_redeal() -> void:
 	var profile: ProfileState = Kit.profile(3)
 	var run: RunState = Kit.locked(profile, SEED)
@@ -302,17 +301,14 @@ func test_swaps_keep_the_copy_rule_and_never_redeal() -> void:
 					continue
 				var core: Array[CardDefinition] = run.starter.core_cards.duplicate()
 				core[slot] = card
-				for pack: StarterPackDefinition in run.start_offer.packs:
-					var count: int = core.count(card) + pack.cards.count(card) + dealt.count(card)
-					assert_int(count).is_less_equal(_recipe.copy_max)
+				var count: int = core.count(card) + dealt.count(card)
+				assert_int(count).is_less_equal(_recipe.copy_max)
 	assert_bool(Kit.swap(run, profile, 0)).is_true()
 	assert_array(run.start_setup.shared()).is_equal(dealt)
 	run.starter.core_cards[1] = CHEESE
 	run.starter.core_cards[2] = CHEESE
 	assert_bool(StartSetupRules.can_swap(run, profile, 3, CHEESE)).is_false()
-	# Before the deal: two Cheese regulars, so no booster deals Cheese and Deli counter is not
-	# offered.
-	var deli: StarterPackDefinition = DELI
+	# Before the deal: two Cheese regulars, so no booster deals Cheese.
 	for seed_value: int in range(SEED, SEED + 4):
 		var waiting: RunState = Kit.run(profile, seed_value)
 		waiting.starter.core_cards[0] = CHEESE
@@ -320,12 +316,11 @@ func test_swaps_keep_the_copy_rule_and_never_redeal() -> void:
 		StartSetupRules.refresh_deck(waiting)
 		assert_str(String(Kit.deal(waiting, profile))).is_empty()
 		assert_bool(waiting.start_setup.shared().has(CHEESE)).is_false()
-		assert_bool(waiting.start_offer.packs.has(deli)).is_false()
 
 
 ## Swaps reset each run (v1.08, the user: "swap should reset at each new run"): after a run spent
 ## every swap, the next run (from the same profile, or from a version 4 profile that saved swaps)
-## starts with the recipe's own regulars, every pack and the full swap allowance.
+## starts with the recipe's own regulars and the full swap allowance.
 func test_a_new_run_starts_with_the_recipes_regulars_and_every_swap() -> void:
 	var profile: ProfileState = Kit.profile(3)
 	var first: RunState = Kit.locked(profile, SEED)
@@ -341,16 +336,12 @@ func test_a_new_run_starts_with_the_recipes_regulars_and_every_swap() -> void:
 		var next: RunState = Kit.locked(shown, SEED + 1)
 		assert_array(next.starter.core_cards).is_equal(_recipe.core_cards)
 		assert_array(next.start_setup.originals).is_equal(_recipe.core_cards)
-		# Every pack open to the profile (a pack needing a locked aisle, v1.29, is left out).
-		assert_array(next.starter.starter_packs).is_equal(
-			StartingDeck.open_packs(_recipe.starter_packs, next.balance, shown.unlocked_items)
-		)
 		assert_int(StartSetupRules.applied_swaps(next)).is_equal(0)
 		assert_int(StartSetupRules.swaps_left(next, shown)).is_equal(allowance)
 
 
 ## A run in play (its start offer gone) reads the same starting cart from its dealt deck: the
-## regulars (a swapped one in its slot), the picked pack's cards, the booster cards by aisle and
+## regulars (a swapped one in its slot), the booster cards by aisle and
 ## the pins', with their sources.
 func test_a_run_in_play_reads_its_starting_cart_from_its_deck() -> void:
 	var profile: ProfileState = Kit.profile(3)
@@ -364,15 +355,10 @@ func test_a_run_in_play_reads_its_starting_cart_from_its_deck() -> void:
 	pin.display_name = "Test pin"
 	pin.starting_cards = [REPEAT]
 	var pins: Array[PinDefinition] = [pin]
-	var pack: StarterPackDefinition = null
-	for offered: StarterPackDefinition in run.start_offer.packs:
-		if pack == null and StartSetupRules.pick_block(run, profile, offered) == &"":
-			pack = offered
-	assert_object(pack).is_not_null()
 	var expected: Array[StartCartLine] = StartSetupRules.cart_lines(
-		run.starter, run.start_offer, _balance, pins, pack
+		run.starter, run.start_offer, _balance, pins
 	)
-	assert_bool(run.take_pack(pack)).is_true()
+	assert_bool(run.open_store()).is_true()
 	var lines: Array[StartCartLine] = StartSetupRules.run_cart_lines(run.starter, _balance, pins)
 	assert_int(lines.size()).is_equal(expected.size())
 	for index: int in lines.size():
@@ -382,4 +368,4 @@ func test_a_run_in_play_reads_its_starting_cart_from_its_deck() -> void:
 		assert_str(lines[index].origin_name).is_equal(expected[index].origin_name)
 	assert_object(lines[0].card).is_same(swapped)
 	assert_int(lines[0].source).is_equal(StartCartLine.Source.REGULAR)
-	assert_int(lines[run.starter.core_cards.size()].source).is_equal(StartCartLine.Source.PACK)
+	assert_int(lines[run.starter.core_cards.size()].source).is_equal(StartCartLine.Source.DEALT)

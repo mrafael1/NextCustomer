@@ -110,7 +110,7 @@ func test_the_saved_form_round_trips_through_json() -> void:
 func test_the_saved_form_states_its_format_version() -> void:
 	var data: Dictionary = ProfileState.new().to_dictionary()
 	assert_int(data["format_version"]).is_equal(ProfileState.FORMAT_VERSION)
-	assert_int(ProfileState.FORMAT_VERSION).is_equal(7)
+	assert_int(ProfileState.FORMAT_VERSION).is_equal(8)
 
 
 func test_missing_fields_keep_defaults_and_unknown_ones_are_ignored() -> void:
@@ -319,7 +319,7 @@ func test_the_run_index_rule_and_a_draw_before_any_run() -> void:
 func test_no_coins_or_an_empty_machine_draws_nothing_and_changes_nothing() -> void:
 	var balance: BalanceDefinition = load(BALANCE)
 	var profile: ProfileState = ProfileState.new()
-	var cold: AisleDefinition = _aisle(balance, &"cold_cases")
+	var cold: AisleDefinition = _aisle(balance, &"dairy")
 	var saved_form: Dictionary = profile.to_dictionary()
 	assert_bool(profile.can_draw(cold, 1)).is_false()
 	assert_object(profile.draw_capsule(cold, 1, 0, _stream(3, 0))).is_null()
@@ -355,8 +355,8 @@ func test_unlock_all_and_reset_the_collection() -> void:
 	profile.unlocked_items[&"cream"] = 0
 	profile.capsule_draws = 1
 	profile.unlock_all_capsules(balance, 2)
-	assert_int(profile.owned_capsules(balance)).is_equal(30)
-	assert_int(profile.capsule_draws).is_equal(30)
+	assert_int(profile.owned_capsules(balance)).is_equal(31)
+	assert_int(profile.capsule_draws).is_equal(31)
 	assert_int(profile.unlocked_items[&"cream"]).is_equal(0)
 	assert_int(profile.unlocked_items[&"crisps"]).is_equal(2)
 	profile.last_list.assign([&"bakery", &"snacks"])

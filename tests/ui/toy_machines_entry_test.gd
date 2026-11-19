@@ -49,7 +49,7 @@ func test_return_to_menu_logs_results_exit_and_requests_the_title_lit() -> void:
 
 ## The title made after Return to menu opens lit; its TOY MACHINES draw at the ended run's index
 ## (no run saved: a run's end deletes its save) and the next run's shift screen stocks the item
-## if, and only if, it stocks the item's aisle (Cold cases; v1.32: no end-cap from other aisles).
+## if, and only if, it stocks the item's aisle (Dairy; v1.32: no end-cap from other aisles).
 func test_the_title_after_the_results_draws_and_the_next_run_stocks_it() -> void:
 	var screen: ShiftScreen = await _ended_run()
 	screen._results.menu_requested.emit()
@@ -69,15 +69,15 @@ func test_the_title_after_the_results_draws_and_the_next_run_stocks_it() -> void
 	assert_int(saved.unlocked_items[&"cream"]).is_equal(0)
 	var next: ShiftScreen = scene_runner(SCREEN).scene() as ShiftScreen
 	await _frames(2)
-	var with_aisle: bool = next.run.stock.aisle_ids.has(&"cold_cases")
+	var with_aisle: bool = next.run.stock.aisle_ids.has(&"dairy")
 	assert_bool(next.run.stock.card_ids().has("cream")).is_equal(with_aisle)
 	# The screen's seed is random, so deal more runs on the same profile until both sides of the
-	# rule (a run with Cold cases and one without) have been checked.
+	# rule (a run with Dairy and one without) have been checked.
 	var seen: Dictionary[bool, bool] = {}
 	var recipe: DeckDefinition = load(ShiftScreen.STARTER_DECK)
 	for seed_value: int in range(1, 41):
 		var dealt: RunState = next._start_choice.new_run(seed_value, next._balance, recipe)
-		var stocked: bool = dealt.stock.aisle_ids.has(&"cold_cases")
+		var stocked: bool = dealt.stock.aisle_ids.has(&"dairy")
 		seen[stocked] = true
 		(
 			assert_bool(dealt.stock.card_ids().has("cream"))

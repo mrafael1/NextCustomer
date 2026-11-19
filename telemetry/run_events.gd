@@ -46,8 +46,7 @@ static func run_start(run: RunState) -> Dictionary:
 
 ## The opening-time board's fields of `start_choice` (docs/PROTOTYPE_PLAN.md section 8, v1.32),
 ## for a run with a start setup: the regulars as taken, the RESTOCK used (0 or 1) and its booster
-## (-1 for none), the boosters (booster_fields), NEW PACKS used (0 or 1) and whether the BADGE
-## PINS step was confirmed.
+## (-1 for none), the boosters (booster_fields) and whether the BADGE PINS step was confirmed.
 static func start_setup_fields(run: RunState) -> Dictionary:
 	var setup: StartSetup = run.start_setup
 	return {
@@ -55,27 +54,7 @@ static func start_setup_fields(run: RunState) -> Dictionary:
 		"restock": 1 if setup.restock_booster() >= 0 else 0,
 		"restock_booster": setup.restock_booster(),
 		"boosters": booster_fields(setup),
-		"new_packs": 1 if setup.packs_redrawn else 0,
 		"pins_confirmed": setup.pins_confirmed,
-	}
-
-
-## The `start_booster_pick` event (v1.32, PICK 2 OF 3): the boosters kept (`picked`, indices)
-## and their aisles, the SOLD OUT one's aisle(s), and today's green aisles after the pick.
-static func start_booster_pick(run: RunState, picks: Array[int]) -> Dictionary:
-	var setup: StartSetup = run.start_setup
-	var kept: Array[String] = []
-	var sold: Array[String] = []
-	for index: int in setup.boosters.size():
-		if picks.has(index):
-			kept.append(String(setup.boosters[index].aisle))
-		else:
-			sold.append(String(setup.boosters[index].aisle))
-	return {
-		"picked": Array(picks),
-		"aisles": kept,
-		"sold_out": sold,
-		"green": Array(setup.stock_aisles),
 	}
 
 
@@ -92,20 +71,8 @@ static func start_restock(run: RunState, index: int, before: Array[CardDefinitio
 	}
 
 
-## The `new_packs` event: the offered pack ids before and after NEW PACKS, and the pack picked
-## before ("" for none).
-static func new_packs(
-	before: Array[StarterPackDefinition],
-	after: Array[StarterPackDefinition],
-	picked_before: StringName
-) -> Dictionary:
-	return {
-		"before": pack_ids(before), "after": pack_ids(after), "picked_before": String(picked_before)
-	}
-
-
-## The boosters, in board order: each one's aisle, card ids, RARE count and whether it is SOLD
-## OUT, opened or RESTOCKED.
+## The boosters, in board order: each one's aisle, card ids, RARE count and whether it is
+## opened or RESTOCKED.
 static func booster_fields(setup: StartSetup) -> Array[Dictionary]:
 	var found: Array[Dictionary] = []
 	for booster: StartBooster in setup.boosters:
@@ -116,7 +83,6 @@ static func booster_fields(setup: StartSetup) -> Array[Dictionary]:
 					"aisle": String(booster.aisle),
 					"cards": definition_ids(booster.cards),
 					"rare": booster.rare_count(),
-					"sold_out": booster.sold_out,
 					"opened": booster.opened,
 					"restocked": booster.restocked,
 				}
@@ -125,31 +91,16 @@ static func booster_fields(setup: StartSetup) -> Array[Dictionary]:
 	return found
 
 
-static func pack_ids(packs: Array[StarterPackDefinition]) -> Array[String]:
-	var ids: Array[String] = []
-	for pack: StarterPackDefinition in packs:
-		ids.append(String(pack.id))
-	return ids
-
-
-## The `start_choice` event (#107, v0.63), logged when the run takes its starter pack, after
-## run_start: the packs offered (ids, in order), today's shared products, the good first pick
-## raised for the player ("" for none), the pack taken, whether the player chose it in the reveal
-## (false: taken for them, a run started without the reveal), the ms from the choice opening to
-## the pick (-1 when not chosen), and the fair-deal check's pack swaps and shared deals. The
-## run_start before it logs the deck before the pick (the staples and the shared products).
+## The `start_choice` event (#107, v0.63; v1.45 without packs), logged at OPEN STORE, after
+## run_start: today's dealt products, whether the player opened the store in the board (false:
+## opened for them, a run started without the board), the ms from the board opening to OPEN STORE
+## (-1 when not chosen) and the fair-deal check's deals of the boosters.
 static func start_choice(run: RunState, decide_ms: int) -> Dictionary:
 	var offer: StartOffer = run.start_offer
-	var pack: StarterPackDefinition = run.starter.starter_pack
 	return {
-		"offered":
-		offer.packs.map(func(offered: StarterPackDefinition) -> String: return String(offered.id)),
 		"shared": definition_ids(offer.shared),
-		"first_pick": String(offer.first_pick.id) if offer.first_pick != null else "",
-		"pick": String(pack.id) if pack != null else "",
 		"chosen": decide_ms >= 0,
 		"decide_ms": decide_ms,
-		"swaps": offer.swaps,
 		"deals": offer.deals,
 	}
 

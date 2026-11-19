@@ -19,10 +19,10 @@ const MILK := 2
 const EGGS := 3
 const YOGURT := 4
 const CEREAL := 5
-const FROZEN_PEAS := 7
+const CHEESE := 7
 ## The answer (36€), and the same seven with Eggs last (29€, under the 30€ quota).
-const ANSWER: Array[int] = [BANANA_1, YOGURT, BANANA_2, EGGS, MILK, CEREAL, FROZEN_PEAS]
-const WRONG: Array[int] = [BANANA_1, YOGURT, BANANA_2, MILK, CEREAL, FROZEN_PEAS, EGGS]
+const ANSWER: Array[int] = [BANANA_1, YOGURT, BANANA_2, EGGS, MILK, CEREAL, CHEESE]
+const WRONG: Array[int] = [BANANA_1, YOGURT, BANANA_2, MILK, CEREAL, CHEESE, EGGS]
 
 var _folder: String = ""
 var _window_size: Vector2i
@@ -65,31 +65,30 @@ func test_a_fresh_profile_plays_the_whole_guided_run() -> void:
 	var board: StartBoard = Kit.start_guided(shift, SEED)
 	assert_bool(shift.run.guided).is_true()
 	assert_bool(shift.tutorial.is_active()).is_true()
-	# G3: both boosters' clicks open them; no key skips it; the swap plate and RESTOCK locked.
+	# G3: both boosters ringed, waiting sealed on the counter (round 2 of the 2026-11-19 play
+	# test); the swap key and RESTOCK locked. The player opens them; the first opened one's ring
+	# drops.
 	assert_bool(await Kit.until_step(shift, &"G3")).is_true()
 	_assert_callout(shift)
 	assert_int(shift.run.starter.core_cards.size()).is_equal(4)
-	assert_bool(board.store.actions.locked(TutorialAnchors.SWAP_PLATE)).is_true()
-	assert_bool(Kit.press(shift)).is_false()
-	Kit.click_page(board.store, Kit.pouch(board.store, 0))
-	assert_int(board.store.boosters[0].state).is_not_equal(BoosterOpening.State.SEALED)
-	assert_str(String(shift.tutorial.step_id())).is_equal("G3")
-	# Shown again once the first has opened, ringing the sealed one only.
-	assert_bool(await _until_rings(shift, 1)).is_true()
-	Kit.click_page(board.store, Kit.pouch(board.store, 1))
+	assert_bool(board.store.actions.locked(TutorialAnchors.SWAP_KEY)).is_true()
+	for opening: BoosterOpening in board.store.boosters:
+		assert_int(opening.state).is_equal(BoosterOpening.State.SEALED)
+	assert_int(shift.tutorial.overlay().ring_rects().size()).is_equal(2)
+	_open_boosters(board)
+	for opening: BoosterOpening in board.store.boosters:
+		assert_int(opening.state).is_not_equal(BoosterOpening.State.SEALED)
 	# Stocked: no line (the lit NEXT key says it); NEXT goes on.
 	assert_bool(await Kit.until_stocked(shift, board)).is_true()
 	await Kit.frames(3)
 	assert_object(shift.tutorial.overlay()).is_null()
-	assert_str(String(shift.tutorial.step_id())).is_equal("G5")
+	assert_str(String(shift.tutorial.step_id())).is_equal("G6")
 	assert_bool(board.store.primary()).is_true()
-	# G5: page 2, NEW PACKS locked; a pack picked, then OPEN STORE with no line.
-	assert_bool(await Kit.until_step(shift, &"G5")).is_true()
+	# G6: page 2, KEEP on the regulars' crate (Enter), then OPEN STORE (no starter pack, v1.45).
+	assert_bool(await Kit.until_step(shift, &"G6")).is_true()
 	_assert_callout(shift)
-	assert_bool(board.store.actions.locked(TutorialAnchors.NEWPACKS)).is_true()
-	board.pick(1)
-	await Kit.frames(3)
-	assert_object(shift.tutorial.overlay()).is_null()
+	assert_bool(board.staff.primary()).is_true()
+	assert_bool(board.staff.regulars_pending()).is_false()
 	assert_bool(await Kit.open_store(shift, board)).is_true()
 	# G7 and G8: the row and the quota, the item read; no move meanwhile.
 	assert_bool(await Kit.until_step(shift, &"G7")).is_true()
@@ -129,12 +128,11 @@ func test_the_callouts_fit_at_1080p() -> void:
 	var board: StartBoard = Kit.start_guided(shift, SEED)
 	assert_bool(await Kit.until_step(shift, &"G3")).is_true()
 	_assert_callout(shift)
-	board.store.primary()  # OPEN ALL.
+	_open_boosters(board)
 	assert_bool(await Kit.until_stocked(shift, board)).is_true()
 	board.store.primary()
-	assert_bool(await Kit.until_step(shift, &"G5")).is_true()
+	assert_bool(await Kit.until_step(shift, &"G6")).is_true()
 	_assert_callout(shift)
-	board.pick(0)
 	assert_bool(await Kit.open_store(shift, board)).is_true()
 	for id: StringName in [&"G7", &"G8"]:
 		assert_bool(await Kit.until_step(shift, id)).is_true()
@@ -219,17 +217,16 @@ func test_a_replay_with_a_swap_open_skips_the_swap_stop() -> void:
 	assert_bool(shift.tutorial.is_active()).is_true()
 	assert_int(StartSetupRules.swap_limit(shift.run, shift.profile)).is_greater(0)
 	assert_bool(await Kit.until_step(shift, &"G3")).is_true()
-	board.store.primary()  # OPEN ALL.
+	_open_boosters(board)
 	assert_bool(await Kit.until_stocked(shift, board)).is_true()
 	assert_bool(board.store.swap.is_live()).is_true()
-	assert_bool(board.store.swap.wants_stop()).is_false()
 	assert_bool(board.store.primary("click")).is_true()
 	assert_bool(board.store.swap.active).is_false()
-	assert_bool(await Kit.until_step(shift, &"G5")).is_true()
+	assert_bool(await Kit.until_step(shift, &"G6")).is_true()
 	_assert_callout(shift)
-	# The same board with no tutorial still stops at the window.
+	# The same board with no tutorial has no lock.
 	shift.tutorial._set_active(false)
-	assert_bool(board.store.actions.locked(TutorialAnchors.SWAP_PLATE)).is_false()
+	assert_bool(board.store.actions.locked(TutorialAnchors.SWAP_KEY)).is_false()
 
 
 ## The menu (and the board's ‹ TITLE) take a mouse click through the dim on every guided step,
@@ -242,11 +239,10 @@ func test_the_menu_and_title_take_a_click_through_the_dim() -> void:
 	var title: Rect2 = board.anchor_rect(TutorialAnchors.TITLE)
 	assert_bool(title.has_area()).is_true()
 	_assert_passes(shift.tutorial.overlay(), title)
-	board.store.primary()
+	_open_boosters(board)
 	assert_bool(await Kit.until_stocked(shift, board)).is_true()
 	board.store.primary()
-	assert_bool(await Kit.until_step(shift, &"G5")).is_true()
-	board.pick(0)
+	assert_bool(await Kit.until_step(shift, &"G6")).is_true()
 	assert_bool(await Kit.open_store(shift, board)).is_true()
 	assert_bool(await Kit.until_step(shift, &"G7")).is_true()
 	var menu: Rect2 = shift.anchor_rect(TutorialAnchors.MENU)
@@ -482,3 +478,9 @@ func _logged_types() -> Array[String]:
 			if parsed is Dictionary:
 				types.append(str((parsed as Dictionary).get("type", "")))
 	return types
+
+
+## G3's move: Enter opens each booster waiting sealed on the counter, left to right (a first press
+## while the boosters still fly skips their throws).
+static func _open_boosters(board: StartBoard) -> void:
+	Kit.open_boosters(board)

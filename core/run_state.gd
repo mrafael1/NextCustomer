@@ -13,27 +13,27 @@ extends RefCounted
 ## follows the machine's stage (MACHINE_CHOOSE, MACHINE_PICK, then SCORED when no visit is left).
 
 ## The badge pins worn when the run started (#122, `pins`, RunPins.wear) are the run's own:
-## their starting cards join the deck once it is final (at once, or after the starter pack), and
+## their starting cards join the deck once it is final (at once, or at OPEN STORE), and
 ## a repack pin lets planning move hand items between baskets (RunPins.repack).
 
-## A run whose recipe has starter packs (#107, v0.63) starts in CHOOSE_START: its offer
-## (`start_offer`) waits for the player's pick (take_pack), which makes the deck; the first shift
-## starts after it.
+## A run of an opening-time recipe (DeckDefinition.opening_time) starts in CHOOSE_START: its
+## offer (`start_offer`, the dealt boosters' products) waits for OPEN STORE (open_store); the
+## first shift starts after it. (Until v1.45 the player picked a starter pack there, #107.)
 
 ## PLANNING: placing cards. MACHINE_CHOOSE: a machine visit waits for its chute.
 ## MACHINE_PICK: its prizes wait for a pick or a bin. SCORED: ready for the next shift. WON /
-## LOST: the run is over. CHOOSE_START (#107): the starter pack offer waits for the pick, before
-## the first shift (added last: the phases' numbers are kept).
+## LOST: the run is over. CHOOSE_START (#107): the opening time waits for OPEN STORE, before the
+## first shift (added last: the phases' numbers are kept).
 enum Phase { PLANNING, MACHINE_CHOOSE, MACHINE_PICK, SCORED, WON, LOST, CHOOSE_START }
 
 const MACHINE_PHASES: Array[Phase] = [Phase.MACHINE_CHOOSE, Phase.MACHINE_PICK]
 
 var run_seed: int = 0
 var balance: BalanceDefinition
-## The starting deck the run began with (before the pick, #107: the core cards and the offer's
-## shared products, no pack).
+## The starting deck the run began with (an opening-time run's: the core cards and the offer's
+## shared products).
 var starter: DeckDefinition
-## The starter pack offer (#107), or null for a recipe without packs; kept after the pick.
+## The opening-time offer, or null for a recipe without the opening time; kept after OPEN STORE.
 var start_offer: StartOffer
 ## Opening-time choices, retained across title/resume. Null on older runs.
 var start_setup: StartSetup
@@ -163,8 +163,8 @@ var _rng: RandomNumberGenerator
 var _phase: Phase = Phase.PLANNING
 
 
-## With `offer` (#107) the run waits for its pick (CHOOSE_START): `deck_definition` is then the
-## deck before the pick (StartingDeck.before_pick).
+## With `offer` the run waits for OPEN STORE (CHOOSE_START): `deck_definition` is then the
+## opening-time deck (StartingDeck.before_pick).
 func _init(
 	seed_value: int,
 	deck_definition: DeckDefinition,
@@ -290,13 +290,13 @@ func redraw_basket(basket: int) -> Array[int]:
 	return swapped
 
 
-## Takes an offered starter pack (#107; CHOOSE_START only): the deck becomes the core cards, the
-## pack's cards and the shared products (StartingDeck.with_pack), and the run waits in PLANNING
-## for start_shift. False, changing nothing, for a pack not offered or outside CHOOSE_START.
-func take_pack(pack: StarterPackDefinition) -> bool:
-	if phase != Phase.CHOOSE_START or start_offer == null or not start_offer.packs.has(pack):
+## OPEN STORE (CHOOSE_START only): the deck becomes the core cards and the offer's products
+## (StartingDeck.before_pick), the worn pins' cards join it, and the run waits in PLANNING for
+## start_shift. False, changing nothing, outside CHOOSE_START.
+func open_store() -> bool:
+	if phase != Phase.CHOOSE_START or start_offer == null:
 		return false
-	starter = StartingDeck.with_pack(starter, pack, start_offer.shared)
+	starter = StartingDeck.before_pick(starter, start_offer)
 	deck = Deck.from_definition(starter, _rng)
 	RunPins.add_cards(self)
 	phase = Phase.PLANNING

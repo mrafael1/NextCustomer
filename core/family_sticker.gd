@@ -6,12 +6,10 @@ extends RefCounted
 ## give); the family is per card instance:
 ## - picked on the belt while planning, any time before CHECKOUT, kept across shifts and in the
 ##   run save (RunState.sticker_families, pick);
-## - else a starter pack's preset (StarterPackDefinition.sticker_family: the Breakfast run's
-##   sticker is Breakfast) for the pack's own stickers (chosen);
 ## - else pre-filled from the row (prefill): the family most cards in the row read, else the
 ##   family of the item after the sticker's next item, else the first of `choices`, each one a
 ##   family the next item hasn't got yet (one it has would fizzle as "already").
-## The run's picks and presets reach scoring as ScoreCredits.sticker_families, like a Price gun's
+## The run's picks reach scoring as ScoreCredits.sticker_families, like a Price gun's
 ## relabels; a bare score (the simulator's totals) has none, so every sticker there is pre-filled.
 ## The UI asks here and displays; it never resolves a family itself.
 
@@ -32,7 +30,7 @@ static func is_family_sticker(definition: CardDefinition) -> bool:
 	return rule_of(definition) != null
 
 
-## The family the sticker in `slot` gives while `state` is scored: the run's pick or preset
+## The family the sticker in `slot` gives while `state` is scored: the run's pick
 ## (ScoreCredits.sticker_families) when it is one of `choices`, else prefill.
 static func family_for(state: ScoreState, slot: int, choices: PackedStringArray) -> String:
 	if state.credits != null:
@@ -92,46 +90,19 @@ static func reads(definition: CardDefinition, tag: String) -> bool:
 	return false
 
 
-## The family `card` (a Family sticker of the run) was given: the player's pick, else its starter
-## pack's preset, else "" (pre-filled from the row when scored).
+## The family `card` (a Family sticker of the run) was given: the player's pick, else "" (pre-filled
+## from the row when scored).
 static func chosen(run: RunState, card: CardInstance) -> String:
-	var picked: String = run.sticker_families.get(card.instance_id, "")
-	if not picked.is_empty():
-		return picked
-	return _preset(run).get(card.instance_id, "")
+	return run.sticker_families.get(card.instance_id, "")
 
 
-## Every chosen family of the run's Family stickers (picks and presets), by instance id: what
+## Every chosen family of the run's Family stickers (the picks), by instance id: what
 ## ScoreCredits.for_run hands scoring.
 static func chosen_all(run: RunState) -> Dictionary[int, String]:
-	var families: Dictionary[int, String] = _preset(run)
+	var families: Dictionary[int, String] = {}
 	for id: int in run.sticker_families:
 		families[id] = run.sticker_families[id]
 	return families
-
-
-## A starter pack's preset (StarterPackDefinition.sticker_family), for the pack's own dealt
-## Family stickers only: the deck's copies made from the starting deck's pack cards (the cards
-## after its core cards, Deck.from_definition giving them the instance ids from
-## Deck.FIRST_INSTANCE_ID in order). A copy drafted later, or a save whose pack slice holds the
-## pack's former cards (the old Breakfast sticker), gets none.
-static func _preset(run: RunState) -> Dictionary[int, String]:
-	var preset: Dictionary[int, String] = {}
-	var pack: StarterPackDefinition = null
-	if run.starter != null:
-		pack = run.starter.starter_pack
-	if pack == null or pack.sticker_family.is_empty() or run.deck == null:
-		return preset
-	var first: int = run.starter.core_cards.size()
-	var last: int = mini(first + pack.cards.size(), run.starter.cards.size())
-	var dealt: Dictionary[int, bool] = {}
-	for index: int in range(first, last):
-		if is_family_sticker(run.starter.cards[index]):
-			dealt[index + Deck.FIRST_INSTANCE_ID] = true
-	for card: CardInstance in run.deck.cards:
-		if dealt.has(card.instance_id) and is_family_sticker(card.definition):
-			preset[card.instance_id] = pack.sticker_family
-	return preset
 
 
 ## The families `card` may be given now: its rule's choices while the run plans and the card is

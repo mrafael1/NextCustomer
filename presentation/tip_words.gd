@@ -84,7 +84,6 @@ const WORDS: Dictionary[String, Array] = {
 		"LOYALTY PERKS",
 		"Machine prizes that last the whole run, on your LOYALTY card. Some level up."
 	],
-	"STARTER PACK": ["STARTER PACK", "The themed set of cards you pick before the run."],
 	"YOUR REGULARS": ["YOUR REGULARS", "The cards that start in your cart on every run."],
 	"BOOSTER":
 	["BOOSTER", "An aisle's sealed cards on the start screen. Open it: they join your cart."],

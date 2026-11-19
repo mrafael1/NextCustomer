@@ -4,7 +4,7 @@ extends RefCounted
 ## dimmed room, a popup with the CASHIER badge wearing the pins being chosen, a row per owned pin
 ## (its face, name, rule and a WEAR / WORN key), then a grey row per pin still locked (its
 ## milestone in place of the rule; polish audit v1.36, in place of "+N MORE PINS TO EARN" over an
-## empty band), compact rows past FULL_ROWS rows, the packs' gate note with ESC · BACK and the
+## empty band), compact rows past FULL_ROWS rows, the gate note with ESC · BACK and the
 ## confirm key (WEAR 1 PIN / NO PINS). NO PIN IS FINE TOO stands under the badge's NO PIN. The
 ## number keys still wear the owned rows in order; the rows show no numbers.
 ## On confirm the worn pin flies to the corkboard badge.
@@ -15,8 +15,8 @@ const ROW_X := 102
 const ROW_TOP := 30
 const KEY_MARGINS := Vector4i(3, 7, 3, 4)
 ## Up to this many rows (owned and locked pins), a row each at full height (face, name, two rule
-## lines, WEAR key); more (the catalogue's 8) use compact rows, so all of them fit above the packs'
-## gate note.
+## lines, WEAR key); more (the catalogue's 8) use compact rows, so all of them fit above the gate
+## note.
 const FULL_ROWS := 5
 const COMPACT_ROW_H := 18
 ## The rows' bottom limit under the step's top: the gate note's divider (the box height - 66).
@@ -24,7 +24,7 @@ const ROWS_BOTTOM := 186
 ## The smallest face (art px) that shows a pin's large icon (PinDefinition.icon_big): the big
 ## rows' 20; the compact rows' 14 and the corkboard badge's 16 show the small one.
 const BIG_FACE := 20
-## Under the badge's NO PIN (the choice the packs' note used to carry); the step's way back;
+## Under the badge's NO PIN (the choice the gate note used to carry); the step's way back;
 ## a locked row's key.
 const NO_PIN_NOTE := "NO PIN IS FINE TOO"
 const BACK_NOTE := "ESC · BACK"
@@ -116,7 +116,7 @@ static func _step(pen: ArtPen, page: BuildPage) -> void:
 	var label: String = "NO PINS"
 	if worn > 0:
 		label = "WEAR 1 PIN" if worn == 1 else "WEAR %d PINS" % worn
-	var sub: String = "ENTER · DEAL PACKS" if page.packs_held() else "ENTER · KEEP PACKS"
+	var sub: String = "ENTER · THEN OPEN STORE" if page.pins_pending() else "ENTER · KEEP CART"
 	var armed: float = page.pins_t + 0.3 if page.now - page.pins_t > 0.3 else INF
 	BuildPageDraw.key_button(pen, page, rect, label, sub, true, "pinsok", armed)
 
@@ -322,7 +322,7 @@ static func _gate_note(
 	pen: ArtPen, page: BuildPage, x: float, y: float, w: float, h: float
 ) -> void:
 	pen.r(x + 8, y + h - 66, w - 16, 1, Palette.CREAM_SHADE)
-	if page.packs_held():
+	if page.pins_pending():
 		for k: int in 3:
 			var bx: float = x + 12 + k * 6
 			var by: float = y + h - 46 + k
@@ -331,12 +331,12 @@ static func _gate_note(
 			pen.r(bx + 2, by + 2, 10, 16, Palette.TEAL)
 			pen.r(bx + 5, by + 8, 4, 4, Palette.CREAM)
 		pen.tex(BoosterArt.PADLOCK, x + 22, y + h - 30)
-		pen.pix("3 STARTER PACKS", x + 44, y + h - 45, Palette.INK)
-		pen.caps("DEAL WHEN YOU CONFIRM", x + 44, y + h - 33, Palette.TOMATO_DARK)
+		pen.pix("OPEN STORE", x + 44, y + h - 45, Palette.INK)
+		pen.caps("WAITS FOR YOUR CONFIRM", x + 44, y + h - 33, Palette.TOMATO_DARK)
 		pen.caps(BACK_NOTE, x + 44, y + h - 24, Palette.STEEL_SHADE)
 	else:
-		pen.pix("PACKS ALREADY DEALT", x + 12, y + h - 45, Palette.INK)
-		pen.caps("CHANGING PINS KEEPS YOUR PACKS", x + 12, y + h - 33, Palette.TEAL_SHADE)
+		pen.pix("PINS ALREADY CHOSEN", x + 12, y + h - 45, Palette.INK)
+		pen.caps("CHANGING PINS KEEPS YOUR CART", x + 12, y + h - 33, Palette.TEAL_SHADE)
 		pen.caps("ESC KEEPS THE WORN PIN", x + 12, y + h - 24, Palette.STEEL_SHADE)
 
 
@@ -481,7 +481,7 @@ static func _disc(d: int, face_colour: Color, dark: Color, light: Color) -> Imag
 ## The step's hits (modal: the background swallows every other click).
 static func hits(page: BuildPage, list: Array[Dictionary]) -> void:
 	var full: Rect2 = Rect2(0, 28, BoosterArt.AW, BoosterArt.AH - 28)
-	var held: bool = page.packs_held()
+	var held: bool = page.pins_pending()
 	list.append(
 		{
 			"rect": full,

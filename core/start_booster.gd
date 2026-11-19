@@ -3,15 +3,13 @@ extends RefCounted
 ## One of the opening-time board's aisle boosters (start screen YOUR STORE, full build plan 7.2,
 ## v1.32): its aisle and the cards dealt into it, the commons first, then its `hits` hit cards
 ## (the last places; a hit card may be RARE, its chain's BIG tier). `opened`: the player opened it
-## (opening only reveals; the contents are fixed at the deal). `sold_out`: PICK 2 OF 3 left it out,
-## so its cards never count. `restocked`: the run's RESTOCK dealt it again (it is sealed again
-## until opened).
+## (opening only reveals; the contents are fixed at the deal). `restocked`: the run's RESTOCK
+## dealt it again (it is sealed again until opened).
 
 var aisle: StringName = &""
 var cards: Array[CardDefinition] = []
 var hits: int = 0
 var opened: bool = false
-var sold_out: bool = false
 var restocked: bool = false
 
 
@@ -45,7 +43,6 @@ func rare_count() -> int:
 func copy() -> StartBooster:
 	var other: StartBooster = StartBooster.new(aisle, cards, hits)
 	other.opened = opened
-	other.sold_out = sold_out
 	other.restocked = restocked
 	return other
 
@@ -59,6 +56,5 @@ func to_dictionary() -> Dictionary:
 		"cards": ids,
 		"hits": hits,
 		"opened": opened,
-		"sold_out": sold_out,
 		"restocked": restocked,
 	}

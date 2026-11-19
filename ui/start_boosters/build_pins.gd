@@ -3,7 +3,7 @@ extends RefCounted
 ## YOUR BUILD's BADGE PINS step (BuildPage, v1.32; mock-up start_boosters_v3 F5): the owned pins,
 ## the step's open and close, the choice (one slot: another pin swaps the worn one, as
 ## ProfilePins.wear) and its confirm, saved through StartBoardActions.wear_pins; the first confirm
-## deals the packs, a later one keeps them. The step's state lives on the page (pins_open,
+## lets OPEN STORE go. The step's state lives on the page (pins_open,
 ## pins_t, pins_sel, pins_tick, fly_t, fly_pin), which PinStepDraw draws.
 
 var page: BuildPage
@@ -32,7 +32,7 @@ func owned() -> Array[PinDefinition]:
 	return found
 
 
-## How many owned pins hold the packs for the step, asked through the board actions (StartChoice:
+## How many owned pins hold OPEN STORE for the step, asked through the board actions (StartChoice:
 ## ProfilePins.start_gate, the one copy of the rule: earned, bought or worn; the pins every
 ## profile starts with don't). 0 without the actions.
 func gate_count() -> int:
@@ -46,8 +46,8 @@ func index_of(pin: PinDefinition) -> int:
 	return maxi(0, catalogue().find(pin))
 
 
-## Opens the step at `at` (the corkboard, P, the held packs); with no pin owned, says how to earn
-## one.
+## Opens the step at `at` (the corkboard, P, OPEN STORE while it waits); with no pin owned, says how
+## to earn one.
 func open(at: float) -> bool:
 	if page.flight != null or page.run == null or page.pins_open:
 		return false
@@ -62,14 +62,19 @@ func open(at: float) -> bool:
 	return true
 
 
-## Esc on the step: it closes without changes (the packs stay held while not confirmed).
+## Esc on the step: it closes without changes (OPEN STORE still waits while not confirmed).
 func close() -> bool:
 	if not page.pins_open:
 		return false
 	page.pins_open = false
 	page.pins_sel = page.run.pins.duplicate()
 	page.sfx("ui_close", -8.0)
-	page.set_hint(BuildPageDraw.PINS_FIRST_HINT if page.packs_held() else "")
+	var next: String = BuildPage.READY_HINT
+	if page.pins_pending():
+		next = BuildPageDraw.PINS_FIRST_HINT
+	elif page.regulars_pending():
+		next = BuildRegulars.HINT
+	page.set_hint(next)
 	return true
 
 
@@ -109,11 +114,10 @@ func toggle_at(number: int) -> bool:
 	return true
 
 
-## WEAR n PINS / NO PINS: saves the choice; the first confirm deals the packs.
+## WEAR n PINS / NO PINS: saves the choice; the first confirm lets OPEN STORE go.
 func confirm(_via: String = "click") -> bool:
 	if not page.pins_open or page.now - page.pins_t < 0.15:
 		return false
-	var first: bool = page.packs_held()
 	var ids: Array[StringName] = []
 	for pin: PinDefinition in page.pins_sel:
 		ids.append(pin.id)
@@ -130,13 +134,8 @@ func confirm(_via: String = "click") -> bool:
 	page.sfx("stamp_loyalty" if page.fly_pin != null else "ui_click_1", -4.0)
 	if page.fly_pin != null and not page.rm:
 		page.cue(page.now + page.tuning.pin_fly_s, _landed)
-	if first:
-		var t0: float = page.now + (0.0 if page.rm else page.tuning.pins_deal_s)
-		page.deal_packs(t0)
-		if not page.rm:
-			page.cue(t0, page.sfx.bind("shuffle", -6.0))
-	else:
-		page.set_hint("" if page.picked() >= 0 else "HOVER A PACK, CLICK TO PICK")
+	page.set_hint(BuildRegulars.HINT if page.regulars_pending() else BuildPage.READY_HINT)
+	page.page_t = page.now
 	page.show_build(run, page.profile, page.actions)
 	return true
 
