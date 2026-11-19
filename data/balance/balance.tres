@@ -18,7 +18,7 @@
 [ext_resource type="Resource" path="res://data/cards/coffee.tres" id="s5_coffee"]
 [ext_resource type="Resource" path="res://data/cards/soup.tres" id="s6_soup"]
 [ext_resource type="Script" path="res://core/aisle_definition.gd" id="a1_aisle"]
-[ext_resource type="Resource" path="res://data/aisles/cold_cases.tres" id="a2_cold_cases"]
+[ext_resource type="Resource" path="res://data/aisles/dairy.tres" id="a2_dairy"]
 [ext_resource type="Resource" path="res://data/aisles/pantry.tres" id="a3_pantry"]
 [ext_resource type="Resource" path="res://data/aisles/household.tres" id="a4_household"]
 [ext_resource type="Resource" path="res://data/aisles/fruit_and_veg.tres" id="a5_fruit_and_veg"]
@@ -83,7 +83,7 @@ basket_size = 2
 slot_count = 7
 deck_limit = 15
 staples = Array[ExtResource("2_card")]([ExtResource("s1_banana"), ExtResource("s2_bread"), ExtResource("s3_milk"), ExtResource("s4_eggs"), ExtResource("s5_coffee"), ExtResource("s6_soup")])
-aisles = Array[ExtResource("a1_aisle")]([ExtResource("a2_cold_cases"), ExtResource("a3_pantry"), ExtResource("a4_household"), ExtResource("a5_fruit_and_veg"), ExtResource("a6_bakery"), ExtResource("a7_snacks")])
+aisles = Array[ExtResource("a1_aisle")]([ExtResource("a2_dairy"), ExtResource("a3_pantry"), ExtResource("a4_household"), ExtResource("a5_fruit_and_veg"), ExtResource("a6_bakery"), ExtResource("a7_snacks")])
 coupon_pool = Array[ExtResource("2_card")]([ExtResource("c11_repeat"), ExtResource("c12_final_markdown"), ExtResource("c14_family_sticker"), ExtResource("c15_multipack"), ExtResource("c16_two_for_one"), ExtResource("c17_shelf_swap"), ExtResource("c19_opening_deal"), ExtResource("c20_write_off"), ExtResource("c21_party_pack")])
 run_aisle_picks = 2
 aisle_stock_budget = 16
@@ -105,14 +105,11 @@ capsule_price = 1
 pin_slots = 1
 pin_coin_price = 12
 dealt_aisle_count = 2
-start_booster_size = 3
+start_booster_size = 4
 start_booster_hit_slots = 1
 start_booster_hit_rare_percent = 50
-start_booster_choice_count = 3
 restock_min_completed = 3
 restocks_per_run = 1
-pair_choice_min_completed = 6
 regular_offer_max = 3
-packs_redraws_per_run = 1
 machine = ExtResource("m1_machine")
 highlight = ExtResource("h1_highlight")

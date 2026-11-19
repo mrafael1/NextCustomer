@@ -22,27 +22,31 @@ static var _rules: Dictionary[String, Array] = {}
 ## Draws `card` at art (`x`, `y`) with options `o`: back (Back), sx (flip, 0..1), scale, pop (px
 ## per side), sweep (0..1, <0: none), flash (1: white), hot (fast foil), still (no motion), now
 ## (the page clock, s), rule_bottom (art y the rule must end above, e.g. over a tag; default the
-## face's own).
+## face's own), compact (the aisle board's short face, AisleBoardArt.MH tall: no rule).
 static func draw(
 	pen: ArtPen, card: CardDefinition, rare: bool, x: float, y: float, o: Dictionary = {}
 ) -> void:
 	var sx: float = o.get("sx", 1.0)
 	var sc: float = o.get("scale", 1.0)
 	var pop: int = o.get("pop", 0)
+	var ch: float = AisleBoardArt.MH if o.get("compact", false) else BoosterArt.CH
 	var w: float = maxf(1.0, roundf(BoosterArt.CW * sx * sc))
-	var h: float = roundf(BoosterArt.CH * sc)
+	var h: float = roundf(ch * sc)
 	var left: float = roundf(x) + floorf((BoosterArt.CW - w) / 2.0) - pop
-	var top: float = roundf(y) + floorf((BoosterArt.CH - h) / 2.0) - pop
+	var top: float = roundf(y) + floorf((ch - h) / 2.0) - pop
 	var saved_origin: Vector2 = pen.origin
 	var saved_unit: Vector2 = pen.unit
 	pen.origin = pen.at(left, top)
-	pen.unit = saved_unit * Vector2((w + pop * 2) / BoosterArt.CW, (h + pop * 2) / BoosterArt.CH)
-	_draw_local(pen, card, rare, o)
+	pen.unit = saved_unit * Vector2((w + pop * 2) / BoosterArt.CW, (h + pop * 2) / ch)
+	_draw_local(pen, card, rare, o, ch)
 	pen.origin = saved_origin
 	pen.unit = saved_unit
 
 
-static func _draw_local(pen: ArtPen, card: CardDefinition, rare: bool, o: Dictionary) -> void:
+static func _draw_local(
+	pen: ArtPen, card: CardDefinition, rare: bool, o: Dictionary, ch: float
+) -> void:
+	var compact: bool = ch < BoosterArt.CH
 	var back: Back = o.get("back", Back.NONE)
 	if back != Back.NONE:
 		var texture: Texture2D = BoosterArt.CARD_BACK
@@ -50,7 +54,14 @@ static func _draw_local(pen: ArtPen, card: CardDefinition, rare: bool, o: Dictio
 			texture = BoosterArt.CARD_BACK_HIT
 		elif back == Back.USED:
 			texture = BoosterArt.CARD_BACK_USED
-		pen.tex(texture, 0, 0)
+		if compact:
+			# The back cut to the compact height: its top rows, then its 8-row foot.
+			pen.tex_part(texture, Rect2(0, 0, BoosterArt.CW, ch - 8), 0, 0, BoosterArt.CW, ch - 8)
+			pen.tex_part(
+				texture, Rect2(0, BoosterArt.CH - 8, BoosterArt.CW, 8), 0, ch - 8, BoosterArt.CW, 8
+			)
+		else:
+			pen.tex(texture, 0, 0)
 		return
 	var now: float = o.get("now", 0.0)
 	var still: bool = o.get("still", false)
@@ -59,11 +70,13 @@ static func _draw_local(pen: ArtPen, card: CardDefinition, rare: bool, o: Dictio
 	if rare:
 		var phase: int = 2 if still else int(floorf(now / 0.35)) % 3
 		var foil: ImageTexture = BoosterArt.foil_tile(phase)
-		var region: Rect2 = Rect2(posmod(-off, 16), 0, BoosterArt.CW, BoosterArt.CH)
+		var region: Rect2 = Rect2(posmod(-off, 16), 0, BoosterArt.CW, ch)
 		pen.canvas.draw_texture_rect_region(
-			foil, Rect2(pen.at(0, 0), pen.size_of(BoosterArt.CW, BoosterArt.CH)), region
+			foil, Rect2(pen.at(0, 0), pen.size_of(BoosterArt.CW, ch)), region
 		)
-	pen.tex(BoosterArt.face(card, rare), 0, 0)
+	pen.tex(
+		AisleBoardArt.compact_face(card, rare) if compact else BoosterArt.face(card, rare), 0, 0
+	)
 	if rare:
 		var win: Rect2i = BoosterArt.window_of(true)
 		var lam: Rect2 = Rect2(
@@ -74,15 +87,38 @@ static func _draw_local(pen: ArtPen, card: CardDefinition, rare: bool, o: Dictio
 			Rect2(pen.at(win.position.x, win.position.y), pen.size_of(win.size.x, win.size.y)),
 			lam
 		)
-	_words(pen, card, rare, o.get("rule_bottom", BoosterArt.CH) as float)
+	if compact:
+		_name(pen, card, rare, ch)
+	else:
+		_words(pen, card, rare, o.get("rule_bottom", BoosterArt.CH) as float)
 	var sweep: float = o.get("sweep", -1.0)
 	if sweep >= 0.0 and sweep <= 1.0:
 		var band_x: float = roundf(lerpf(-30, BoosterArt.CW + 10, sweep))
-		for row: int in BoosterArt.CH:
-			var bx: float = band_x + floorf((BoosterArt.CH - row) / 3.0)
+		for row: int in int(ch):
+			var bx: float = band_x + floorf((ch - row) / 3.0)
 			pen.d(maxf(1, bx), row, maxf(0, minf(6, BoosterArt.CW - 1 - bx)), 1, SHEEN, 8)
 	if o.get("flash", 0.0) > 0.5:
-		pen.r(0, 0, BoosterArt.CW, BoosterArt.CH, Color.WHITE)
+		pen.r(0, 0, BoosterArt.CW, ch, Color.WHITE)
+
+
+## A compact face's name, centred in its band (the band fills the face under the art window).
+static func _name(pen: ArtPen, card: CardDefinition, rare: bool, ch: float) -> void:
+	var text: Dictionary = BoosterArt.face_text(card, rare)
+	var win: Rect2i = text.window
+	var lines: PackedStringArray = text.lines
+	var band_y: int = text.band_y
+	var band_h: float = ch - band_y - (5 if rare else 3)
+	var top: float = band_y + roundf((band_h - lines.size() * 9) / 2.0) + 1
+	var coupon: bool = card.kind == CardDefinition.Kind.COUPON
+	for k: int in lines.size():
+		pen.pix(
+			lines[k],
+			win.position.x + win.size.x / 2.0,
+			top + k * 9,
+			Palette.PAPER if coupon else Palette.INK,
+			1.0,
+			HORIZONTAL_ALIGNMENT_CENTER
+		)
 
 
 ## The face's words: the name band's hard pixel lines and the rule in Atkinson, fitted to its room.

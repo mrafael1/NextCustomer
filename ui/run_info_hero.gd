@@ -1,35 +1,19 @@
 class_name RunInfoHero
 extends HBoxContainer
 ## The top of the deck view's Run info page (the cart and run info polish, 2026-11-12): the run's
-## identity, readable at a glance. Left, the RUN FAMILY card (the popup's gold-trimmed paper): the
-## starter pack's family as a big glyph (a FamilyGlyph at PACK_GLYPH_SCALE: its tooltip names it
-## and lights its cells), its name, the pack's name and its hint (how the pack plays, its terms in
-## the handbook's colours: PackHintMarkup, HandbookText), as tall as its words. Right, the
-## AISLES IN STOCK plates (each aisle's own sign, frames/aisle_sign_<id>, with its glyph and name:
-## the run's two aisles since v1.32, both its boosters' and its stock's) and, beside them, the
-## staples' line ("+ the 6 staples, in every run", the count from data: the slim Run info of
-## mock-up cart_cards.html, 2026-11-13), then IN YOUR CART: one
-## FamilyCount tile per printed tag in the cart, most common first (DeckSummary.tag_counts), the
-## run family's tile ringed in gold; the tiles filter the stock below (DeckView's family filter,
-## family_tiles). A run with no starter pack (the fixed starter deck) has no
-## card. It only displays RunState.
+## identity, readable at a glance: the AISLES IN STOCK plates (each aisle's own sign,
+## frames/aisle_sign_<id>, with its glyph and name: the run's two aisles since v1.32, both its
+## boosters' and its stock's) and, beside them, the staples' line ("+ the 6 staples, in every run",
+## the count from data: the slim Run info of mock-up cart_cards.html, 2026-11-13), then IN YOUR
+## CART: one FamilyCount tile per printed tag in the cart, most common first
+## (DeckSummary.tag_counts), the run family's tile ringed in gold; the tiles filter the stock below
+## (DeckView's family filter, family_tiles). (The RUN FAMILY card of the starter pack went with the
+## packs in v1.41.) It only displays RunState.
 
 const GAP := 10.0
-const PACK_WIDTH := 380.0
-const PACK_FRAME := preload("res://art/frames/popup.png")
-const PACK_FRAME_MARGIN := 4
-const PACK_PADDING := Vector4(16, 12, 16, 12)
-const PACK_GLYPH_SCALE := 6
-const FAMILY_SIZE := 30
-const PACK_NAME_SIZE := 16
-const PACK_NAME_WEIGHT := 800
-const HINT_SIZE := 16
-const HINT_WEIGHT := 600
 const HEADING_SCALE := 2
-const RUN_FAMILY := "RUN FAMILY"
 const AISLES := "AISLES IN STOCK"
 const IN_CART := "IN YOUR CART"
-const PACK_SUFFIX := "%s pack"
 ## An aisle's plate: its height, the glyph's scale, the name's size, the status chips.
 const PLATE_HEIGHT := 48.0
 const PLATE_GAP := 8.0
@@ -46,9 +30,6 @@ const BASE_SIGN := preload("res://art/frames/aisle_sign.png")
 const TILE_GAP := 6.0
 const TILE_MIN_WIDTH := 72.0
 ## Node names (for tests).
-const PACK_CARD := "RunFamily"
-const FAMILY_GLYPH := "RunFamilyGlyph"
-const HINT := "Hint"
 const PLATES := "Aisles"
 const TILES := "Families"
 
@@ -62,11 +43,7 @@ func _init(run: RunState, width: float) -> void:
 	_width = width
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_theme_constant_override("separation", int(GAP))
-	var pack: StarterPackDefinition = run.starter.starter_pack if run.starter != null else null
 	var right_width: float = width
-	if pack != null:
-		add_child(_pack_card(pack))
-		right_width -= PACK_WIDTH + GAP
 	var right: VBoxContainer = VBoxContainer.new()
 	right.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -78,7 +55,7 @@ func _init(run: RunState, width: float) -> void:
 		right.add_child(_plates(aisles, right_width, RunStock.staples(run.balance).size()))
 		right.add_child(_spacer(4))
 	right.add_child(pixel_heading(IN_CART, Palette.MUSTARD))
-	right.add_child(_tiles(run, right_width, pack.family if pack != null else ""))
+	right.add_child(_tiles(run, right_width, ""))
 
 
 ## The cart's family tiles, in order (the deck view's family filter switches, DeckView).
@@ -113,67 +90,6 @@ static func pixel_heading(text: String, color: Color) -> Control:
 	box.custom_minimum_size = Vector2(ceilf(width), (ArtStyle.PIXEL_CAP_HEIGHT + 1) * HEADING_SCALE)
 	UiKit.place_pixel_label(words, Rect2(Vector2.ZERO, box.custom_minimum_size), true)
 	return box
-
-
-func _pack_card(pack: StarterPackDefinition) -> PanelContainer:
-	var card: PanelContainer = UiKit.frame_panel(PACK_FRAME, PACK_FRAME_MARGIN, PACK_PADDING)
-	card.name = PACK_CARD
-	card.custom_minimum_size = Vector2(PACK_WIDTH, 0)
-	# As tall as its words, not the aisles and tiles beside it: no slab of empty paper.
-	card.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	var column: VBoxContainer = VBoxContainer.new()
-	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	column.add_theme_constant_override("separation", 6)
-	card.add_child(column)
-	column.add_child(pixel_heading(RUN_FAMILY, Palette.MUSTARD_DARK))
-	var top: HBoxContainer = HBoxContainer.new()
-	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	top.add_theme_constant_override("separation", 14)
-	column.add_child(top)
-	# A local palette, not FamilyPalette.shared().style(...) (see PackCrate._init).
-	var palette: FamilyPalette = FamilyPalette.shared()
-	var style: FamilyStyle = palette.style(pack.family)
-	if style != null and style.glyph != null:
-		var glyph: FamilyGlyph = FamilyGlyph.new(style)
-		glyph.name = FAMILY_GLYPH
-		var side: float = ArtStyle.FAMILY_GLYPH_SIZE * PACK_GLYPH_SCALE / float(ArtStyle.ART_SCALE)
-		glyph.custom_minimum_size = Vector2.ONE * side
-		glyph.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		top.add_child(glyph)
-	var names: VBoxContainer = VBoxContainer.new()
-	names.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	names.add_theme_constant_override("separation", 0)
-	names.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	top.add_child(names)
-	var family_name: String = style.display_name if style != null else pack.family
-	var family: Label = UiKit.display_label(family_name, FAMILY_SIZE, false)
-	family.name = "FamilyName"
-	names.add_child(family)
-	var pack_name: Label = UiKit.body_label(
-		PACK_SUFFIX % pack.display_name, PACK_NAME_SIZE, Palette.INK_LIGHT
-	)
-	pack_name.name = "PackName"
-	pack_name.add_theme_font_override("font", ArtStyle.bold_font(PACK_NAME_WEIGHT))
-	names.add_child(pack_name)
-	if not pack.hint_text.is_empty():
-		var hint: RichTextLabel = HandbookText.label(
-			hint_markup(pack),
-			HINT_SIZE,
-			Palette.INK,
-			PACK_WIDTH - PACK_PADDING.x - PACK_PADDING.z,
-			HINT_WEIGHT
-		)
-		hint.name = HINT
-		column.add_child(hint)
-	return card
-
-
-## `pack`'s hint as HandbookMarkup (PackHintMarkup): its keywords, its cards' names and the
-## families' names marked, so the card draws them in the handbook's colours.
-static func hint_markup(pack: StarterPackDefinition) -> String:
-	# A local palette, not FamilyPalette.shared().families (see PackCrate._init).
-	var palette: FamilyPalette = FamilyPalette.shared()
-	return PackHintMarkup.of(pack.hint_text, pack.cards + pack.example_cards, palette.families)
 
 
 ## The aisles' plates side by side, then the staples' line (`staples` of them; none for 0).

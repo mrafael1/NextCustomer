@@ -170,15 +170,19 @@ func test_a_pin_adds_its_starting_cards() -> void:
 	assert_int(_copies(run, TWO_FOR_ONE)).is_equal(2)
 	var recipe: DeckDefinition = load(RECIPE)
 	var stock: RunStock = RunStock.starting(_balance)
-	var offer: StartOffer = StartingDeck.deal_offer(
-		recipe, stock, _balance, EventLogService.derived_stream(7, "deck"), true
+	var offer: StartOffer = StartOffer.new()
+	offer.shared = (
+		StartingDeck
+		. deal(recipe, stock, _balance, EventLogService.derived_stream(7, "deck"))
+		. cards
+		. slice(recipe.core_cards.size())
 	)
 	var choosing: RunState = RunState.new(
 		7, StartingDeck.before_pick(recipe, offer), _balance, stock, offer
 	)
 	RunPins.wear(choosing, [pair])
 	var added_from: int = _copies(choosing, TWO_FOR_ONE)
-	assert_bool(choosing.take_pack(offer.packs[0])).is_true()
+	assert_bool(choosing.open_store()).is_true()
 	assert_int(_copies(choosing, TWO_FOR_ONE) - added_from).is_greater_equal(2)
 	assert_int(choosing.deck.size()).is_equal(choosing.starter.cards.size() + 2)
 

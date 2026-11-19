@@ -79,11 +79,11 @@ func test_shelf_swap_links_and_doubles_the_second() -> void:
 
 
 ## The glue is adjacency: Cheese's "+5 beside Bread" reads Bread across the Shelf swap, and the
-## cost too: Soup now sits beside Frozen peas.
+## cost too: Soup now sits beside Cheese (Dairy, v1.41).
 func test_shelf_swap_glue_is_adjacency() -> void:
-	var glued: ScoreResult = Scoring.score(_row("soup,shelf_swap,frozen_peas"))
+	var glued: ScoreResult = Scoring.score(_row("soup,shelf_swap,cheese"))
 	assert_int(glued.payouts[0]).is_equal(0)
-	var apart: ScoreResult = Scoring.score(_row("soup,repeat,frozen_peas"))
+	var apart: ScoreResult = Scoring.score(_row("soup,repeat,cheese"))
 	assert_int(apart.payouts[0]).is_greater(0)
 
 

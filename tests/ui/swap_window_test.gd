@@ -101,65 +101,125 @@ func test_the_window_fits_the_stage_at_both_sizes() -> void:
 				assert_bool(cards[k].intersects(cards[other])).is_false()
 
 
-## While a swap is unused, NEXT reads SWAP REGULARS and its first press opens the window (the page
-## stays); Esc closes it without going on, and the next NEXT goes to YOUR BUILD. Opened from
-## NEXT, DONE goes on to YOUR BUILD after the play-in.
-func test_next_stops_once_at_the_swap_window() -> void:
+## The swap lives on page 2 (v1.40): NEXT never stops at it; once the profile has a swap, YOUR
+## BUILD shows a SWAP key on its REGULARS crate (v1.41), apart from the other keys, and a
+## click on it (or S) opens the window over page 2. DONE and Esc shut it and page 2 shows again,
+## with the swaps left on the key.
+func test_the_swap_key_on_page_two_opens_the_window() -> void:
 	var page: BoosterPage = await _page(2)
 	var board: StartBoard = _board(page)
 	_stocked(page)
-	assert_array(page.primary_label()).is_equal(["NEXT ›", "SWAP REGULARS", true])
-	assert_str(page.hint_line()).is_equal("CLICK YOUR REGULARS TO SWAP")
+	assert_array(page.primary_label()).is_equal(["NEXT ›", "YOUR BUILD", true])
+	assert_str(page.hint_line()).is_equal("")
 	board._input(_key(KEY_ENTER))
+	assert_bool(page.swap.active).is_false()
+	assert_int(board.page).is_equal(2)
+	board._end_slide()
+	var staff: BuildPage = board.staff
+	staff.frozen = true
+	staff.pins.close()
+	staff.advance(0.0)
+	assert_bool(BuildRegulars.swap_shown(staff)).is_true()
+	var key: Rect2 = Rect2(BuildRegulars.SWAP_RECT)
+	var led: Rect2 = Rect2(BuildPage.LED_RECT)
+	var keys: Array[Rect2] = [
+		Rect2(BuildPage.BACK_RECT),
+		led,
+		Rect2(BuildPage.PRIMARY_RECT),
+		Rect2(BuildRegulars.keep_rect(staff))
+	]
+	for other: Rect2 in keys:
+		assert_bool(key.intersects(other)).override_failure_message(str(other)).is_false()
+	# Round 3 of the 2026-11-19 play test: the SWAP plate is screwed on the crate's front, on its
+	# bottom plank under the glyphs' plank (the seam), centred, its brand dead centre.
+	var front: Rect2 = Rect2(
+		BuildRegulars.BOX.position.x,
+		BuildRegulars.FRONT_TOP,
+		BuildRegulars.BOX.size.x,
+		BuildRegulars.FRONT_BOTTOM - BuildRegulars.FRONT_TOP
+	)
+	assert_bool(front.grow(-1).encloses(key)).override_failure_message(str(key)).is_true()
+	assert_float(key.position.y).is_greater(float(BuildRegulars.SEAM_Y))
+	assert_float(key.get_center().x).is_equal(front.get_center().x)
+	var brand: Vector2 = Vector2(BuildRegulars.BRAND.get_size())
+	assert_that((key.size - brand) / 2.0).is_equal(((key.size - brand) / 2.0).floor())
+	assert_bool(Rect2(BuildRegulars.BOX).encloses(Rect2(BuildRegulars.keep_rect(staff)))).is_true()
+	assert_float(ArtPen.pix_width(BuildPageDraw.hint_line(staff))).is_less(led.size.x - 8)
+	var hit: Rect2 = Rect2()
+	for entry: Dictionary in staff.hits:
+		if entry.id == BuildRegulars.ID:
+			hit = entry.rect
+	assert_that(hit).is_equal(key)
+	board.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	for board_size: Vector2 in [Vector2(1280, 720), Vector2(1920, 1080)]:
+		board.size = board_size
+		board._resize()
+		var shown: Rect2 = (
+			staff.get_global_transform() * Rect2(key.position * ArtPen.UNIT, key.size * ArtPen.UNIT)
+		)
+		assert_bool(Rect2(Vector2.ZERO, board_size).encloses(shown)).is_true()
+	staff.click(key.get_center())
 	assert_bool(page.swap.active).is_true()
-	assert_bool(page.swap.from_next).is_true()
-	assert_int(board.page).is_equal(1)
+	assert_bool(page.overlay).is_true()
+	assert_bool(board.swap_showing()).is_true()
+	assert_int(board.page).is_equal(2)
+	assert_int(page.get_index()).is_greater(staff.get_index())
+	assert_array(SwapWindowDraw.done_label(page)).is_equal(["DONE", "BACK TO YOUR BUILD"])
+	# While it shows the page does not turn and page 2's keys are held back (N: NEW PACKS).
+	board._input(_key(KEY_N))
+	board.show_page(1)
+	assert_int(board.page).is_equal(2)
+	_run(page, 1.0)
+	board._input(_key(KEY_ENTER))
+	assert_bool(page.swap.active).is_false()
+	_run(page, 1.0)
+	assert_bool(board.swap_showing()).is_false()
+	assert_bool(page.overlay).is_false()
+	assert_bool(page.visible).is_false()
+	assert_int(board.page).is_equal(2)
+	board._input(_key(KEY_S))
+	assert_bool(page.swap.active).is_true()
 	board._input(_key(KEY_ESCAPE))
 	assert_bool(page.swap.active).is_false()
-	assert_int(board.page).is_equal(1)
-	_run(page, 0.5)
-	assert_array(page.primary_label()).is_equal(["NEXT ›", "YOUR BUILD", true])
-	board._input(_key(KEY_ENTER))
+	_run(page, 1.0)
 	assert_int(board.page).is_equal(2)
-	var again: BoosterPage = await _page(2)
-	var other: StartBoard = _board(again)
-	_stocked(again)
-	other._input(_key(KEY_ENTER))
-	assert_bool(again.swap.active).is_true()
-	assert_array(SwapWindowDraw.done_label(again)).is_equal(["DONE", "TO YOUR BUILD"])
-	other._input(_key(KEY_ENTER))
-	assert_bool(again.swap.active).is_false()
-	assert_int(other.page).is_equal(1)
-	_run(again, again.tuning.swap_next_hold_s + 0.1)
-	assert_int(other.page).is_equal(2)
+	assert_bool(board.swap_showing()).is_false()
 
 
-## With no swap unlocked (no completed aisle), NEXT never stops: it goes to YOUR BUILD.
-func test_no_stop_without_a_swap() -> void:
+## With no swap unlocked (no completed aisle) page 2 never shows the SWAP key: no hit, S does
+## nothing, and the hint LED keeps its whole width.
+func test_no_swap_key_without_a_swap() -> void:
 	var page: BoosterPage = await _page(0)
 	var board: StartBoard = _board(page)
 	_stocked(page)
-	assert_array(page.primary_label()).is_equal(["NEXT ›", "YOUR BUILD", true])
-	assert_str(page.hint_line()).is_equal("THE STORE IS STOCKED")
 	board._input(_key(KEY_ENTER))
-	assert_bool(page.swap.active).is_false()
 	assert_int(board.page).is_equal(2)
+	board._end_slide()
+	var staff: BuildPage = board.staff
+	staff.frozen = true
+	staff.pins.close()
+	staff.advance(0.0)
+	assert_bool(BuildRegulars.swap_shown(staff)).is_false()
+	for entry: Dictionary in staff.hits:
+		assert_str(String(entry.id)).is_not_equal(BuildRegulars.ID)
+	board._input(_key(KEY_S))
+	assert_bool(board.open_swap()).is_false()
+	assert_bool(page.swap.active).is_false()
+	assert_bool(board.swap_showing()).is_false()
 
 
 ## A click on a card, then a click on a slot, swaps it (saved, logged); a card dropped on the
 ## swapped slot trades with it (no extra swap); a third card on another slot is refused (NO SWAPS
 ## LEFT) and bounces home; the swapped item dragged out of the basket is undone; the OUT regular
-## dragged home puts it back; RESET puts every regular back. DONE plays the swapped regulars into
-## page 1's basket.
+## dragged home puts it back; RESET puts every regular back. DONE shuts the window.
 func test_click_then_click_drag_trade_refuse_undo_and_reset() -> void:
 	var page: BoosterPage = await _page(1)
 	var board: StartBoard = _board(page)
 	_stocked(page)
 	var run: RunState = page.run
-	_click(page, BoosterChromeDraw.CRATE_RECT.get_center())
 	var window: SwapWindow = page.swap
+	assert_bool(window.open_window()).is_true()
 	assert_bool(window.active).is_true()
-	assert_bool(window.from_next).is_false()
 	_run(page, 1.0)
 	board._input(_key(KEY_1))
 	board._input(_key(KEY_2))
@@ -226,14 +286,11 @@ func test_click_then_click_drag_trade_refuse_undo_and_reset() -> void:
 	for event: Dictionary in events:
 		vias.append(String(event.get("via", "")))
 	assert_array(vias).contains(["click", "drag", "reset"])
-	# DONE: back to page 1, the swapped regular plays in (the old one drops away first).
+	# DONE: the window shuts and the page it was opened over stays.
 	page.primary("click")
 	assert_bool(window.active).is_false()
-	assert_int(board.page).is_equal(1)
-	assert_bool(page.swap_from.has(0)).is_true()
-	assert_object(page.swap_from[0]).is_same(original)
-	assert_float(page.swap_t[0]).is_greater(page.now)
 	_run(page, 1.0)
+	assert_bool(window.visible()).is_false()
 	assert_int(board.page).is_equal(1)
 
 
@@ -291,26 +348,8 @@ func test_own_slot_drop_and_cancel_keep_the_swap() -> void:
 	assert_dict(window._reasons).is_empty()
 
 
-## DONE (opened from NEXT) goes on after the hold, unless the window was opened again in the gap:
-## then the go-on is dropped and the board stays on page 1 with the window open.
-func test_reopened_in_the_gap_does_not_go_on() -> void:
-	var page: BoosterPage = await _page(2)
-	var board: StartBoard = _board(page)
-	_stocked(page)
-	board._input(_key(KEY_ENTER))
-	assert_bool(page.swap.from_next).is_true()
-	board._input(_key(KEY_ENTER))
-	assert_bool(page.swap.active).is_false()
-	_run(page, page.tuning.swap_out_s + 0.05)
-	assert_bool(page.swap.visible()).is_false()
-	_click(page, BoosterChromeDraw.CRATE_RECT.get_center())
-	assert_bool(page.swap.active).is_true()
-	_run(page, page.tuning.swap_next_hold_s + 0.2)
-	assert_int(board.page).is_equal(1)
-	assert_bool(page.swap.active).is_true()
-
-
-## With no swap unlocked the window still opens from the basket: its boosters stay sealed under a
+## With no swap unlocked the window, were it opened (page 2 shows no SWAP key then), is locked:
+## its boosters stay sealed under a
 ## padlock, no offer is drawn, opening one is refused (SWAPS LOCKED), the LED shows the padlock.
 func test_the_locked_window() -> void:
 	var page: BoosterPage = await _page(0)
@@ -411,11 +450,12 @@ static func _board(page: BoosterPage) -> StartBoard:
 	return node as StartBoard
 
 
-## Rolls up, opens every booster and lets STOCKED! come.
+## Skips the light, opens every booster (their clicks) and lets them play out.
 static func _stocked(page: BoosterPage) -> void:
-	page.openings.roll_up()
-	page.openings.end_arrival()
-	page.openings.open_all("key")
+	page.roulette.skip()
+	var next: BoosterOpening = page.openings.next_sealed()
+	while next != null and page.openings.open_booster(next.index, "click"):
+		next = page.openings.next_sealed()
 	_run(page, 8.0)
 
 

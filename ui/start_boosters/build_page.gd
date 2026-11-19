@@ -1,33 +1,28 @@
 class_name BuildPage
 extends Control
 ## YOUR BUILD, page 2 of the opening board (v1.32, the user's pick of 2026-11-13 on mock-up
-## docs/art/mockups/start_boosters_v3.html: "I really like mockup"). The staff room: the three
-## starter packs lie face up on the bench as real cards (each card behind the front one shows its
-## name band); a hovered pack spreads its cards while the others sink behind the bench, and a click
-## (or 1-3) picks it with its family stamp. NEW PACKS lives on the deck pile on the left: a click
-## (or N) re-deals the packs once a run (keeping a pick), then the pile wears USED. While the
-## profile owns a badge pin, the BADGE PINS step comes first and the packs wait under a tape; the
-## step wears one pin per slot (or none) and its confirm deals the packs from the deck. The
-## corkboard (or P) reopens it later without changing the packs. OPEN STORE (Enter) is lit once a
-## pack is picked: the cards gather, turn into items, drop into the cart and the cart rolls out,
-## then the board clocks in.
+## docs/art/mockups/start_boosters_v3.html: "I really like mockup"). The staff room: the corkboard
+## with the BADGE PINS step, the order sheet (the cart: the regulars, today's boosters and the worn
+## pins' cards), the REGULARS crate (BuildRegulars: the regulars, SWAP and KEEP) and OPEN STORE.
+## While the profile owns a badge pin, the BADGE PINS step opens first and OPEN STORE waits for its
+## confirm; the step wears one pin per slot (or none). The corkboard (or P) reopens it later. Then
+## OPEN STORE waits for the crate's KEEP (v1.41: every run, swapping or not; Enter presses it).
+## Once both are done OPEN STORE (Enter) lights: the cart's cards gather, turn into items, drop into
+## the cart and the cart rolls out, then the board clocks in. (The three starter packs on the bench,
+## NEW PACKS and the pick went in v1.41, 2026-11-18.)
 ##
 ## Every rule goes through StartBoardActions (saved at once); the motion is cosmetic, on the
 ## page's own clock (`now`), which tests and captures step with advance(). Reduced motion shows
 ## each end state. Drawing is BuildPageDraw's (and PinStepDraw's, StoreFlight's), in art px.
 
 signal store_pressed
-signal store_opened(pack: StarterPackDefinition)
+## The crate's SWAP key (S): the board opens the regulars' swap window over this page.
+signal swap_pressed
+signal store_opened
 
 const TUNING_PATH := "res://data/balance/start_boosters.tres"
 const MAX_STEP := 0.1
-## The packs' places on the bench: each stack's x, a spread card's x, the spread's top (art px;
-## v1.36: 4 px lower, so a RARE tab clears the strips' plates above it).
-const STX: Array[int] = [186, 270, 354]
-const SPX: Array[int] = [182, 264, 346]
-const SPY := 122
-## The deck pile's top left and the bench's top (art px).
-const DECK := Vector2i(92, 170)
+## The bench's top (art px).
 const BENCH_Y := 298
 ## The corkboard's badge pin (art px) and the BADGE PINS step's box.
 const CORK_PIN := Vector2i(64, 125)
@@ -39,6 +34,8 @@ const LED_RECT := Rect2i(88, 326, 412, 18)
 const PRIMARY_RECT := Rect2i(512, 322, 120, 28)
 ## The order sheet's place on the stage (px): the right column, as the staff room's.
 const ORDER_POSITION := Vector2(892, 68)
+## The floor ticker's line once the cart is ready.
+const READY_HINT := "CHECK YOUR CART, THEN OPEN STORE"
 
 var tuning: StartBoostersTuning
 var run: RunState
@@ -49,18 +46,6 @@ var frozen: bool = false
 var rm: bool = false
 ## The page opened at (page clock).
 var page_t: float = -INF
-## The packs on the bench: each {pack, deal_at, leave ({} or {t, pack, pos}), sv (sink 0..1)}.
-var stacks: Array[Dictionary] = []
-var dealt: bool = false
-## Until when the deal (or a re-deal) is busy (a click or Enter skips it).
-var busy_until: float = -INF
-## The spread pack (-1: none) and since when; the pick's slam, NEW PACKS, USED, the deck's hop.
-var spread: int = -1
-var spread_t: float = -INF
-var pick_t: float = -INF
-var new_t: float = -INF
-var used_t: float = -INF
-var deck_hop: float = -INF
 ## The BADGE PINS step: open, since when, the pins being chosen, the last toggled {pin, t}, the
 ## worn pin's flight to the corkboard.
 var pins_open: bool = false
@@ -89,8 +74,12 @@ var sparks: Array[Dictionary] = []
 ## OPEN STORE's flight (null: not flying).
 var flight: StoreFlight
 var pins: BuildPins
+## The regulars in the cart (the order sheet's REGULAR lines) and whether KEEP was pressed on this
+## run (the page's own state: a resumed run asks again).
+var regulars: Array[CardDefinition] = []
+var regulars_ok: bool = false
 var order: OrderSheet
-## The page's hover tips (the spread pack's cards and their family chips).
+## The page's hover tips (the SWAP key's: it shows no word).
 var tips: StartTips
 var _layers: Array[BuildLayer] = []
 
@@ -102,9 +91,6 @@ func _init() -> void:
 	tuning = load(TUNING_PATH) as StartBoostersTuning
 	pins = BuildPins.new(self)
 	_add_layer("Room")
-	_add_layer("Stacks", _clip("BenchClip"))
-	_add_layer("Over")
-	_add_layer("Flights", _clip("FlightClip"))
 	_add_layer("Over2")
 	order = OrderSheet.new()
 	order.name = "OrderSheet"
@@ -119,21 +105,10 @@ func _init() -> void:
 	add_child(tips)
 
 
-func _add_layer(layer_name: String, parent: Control = null) -> void:
+func _add_layer(layer_name: String) -> void:
 	var layer: BuildLayer = BuildLayer.new(self, layer_name)
-	(parent if parent != null else self as Control).add_child(layer)
+	add_child(layer)
 	_layers.append(layer)
-
-
-## A control clipping its layer to the room above the bench's top (the packs sink behind it).
-func _clip(clip_name: String) -> Control:
-	var clip: Control = Control.new()
-	clip.name = clip_name
-	clip.size = Vector2(ShiftStage.SIZE.x, BENCH_Y * ArtPen.UNIT)
-	clip.clip_contents = true
-	clip.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(clip)
-	return clip
 
 
 func _draw() -> void:
@@ -149,72 +124,52 @@ func show_build(
 	profile = shown_profile
 	actions = board_actions
 	rm = profile.reduced_motion()
-	if fresh:
-		stacks.clear()
-		dealt = false
 	_sync_order()
 	cart_n = cart_target()
 	if fresh:
 		cart_shown = cart_n
+		regulars_ok = false
 
 
-## The page opens (from page 1, or on a resumed run): the BADGE PINS step first while the packs
-## wait for it, else the packs deal from the deck.
+## The page opens (from page 1, or on a resumed run): the BADGE PINS step first while OPEN STORE
+## waits for it.
 func enter() -> void:
 	page_t = now
 	pins_open = false
-	spread = -1
 	flight = null
 	message = ""
-	if packs_held():
-		_hold_stacks()
-		cart_n = cart_target()
+	cart_n = cart_target()
+	if pins_pending():
 		pins.open(now + (0.0 if rm else tuning.pins_delay_s))
 		set_hint("WEAR YOUR BADGE PINS")
 		return
-	deal_packs(now + (0.0 if rm else tuning.p2_deal_delay_s))
+	set_hint(BuildRegulars.HINT if regulars_pending() else READY_HINT)
 
 
-func _hold_stacks() -> void:
-	stacks.clear()
-	for pack: StarterPackDefinition in run.start_offer.packs:
-		stacks.append({"pack": pack, "deal_at": INF, "leave": {}, "sv": 0.0})
-	dealt = false
-
-
-## The packs fly from the deck from `t0`, a pack every p2_pack_gap_s.
-func deal_packs(t0: float) -> void:
-	stacks.clear()
-	for k: int in run.start_offer.packs.size():
-		var at: float = t0 + k * tuning.p2_pack_gap_s
-		stacks.append({"pack": run.start_offer.packs[k], "deal_at": at, "leave": {}, "sv": 0.0})
-	dealt = true
-	busy_until = t0 + 0.75
-	pick_t = now - 1.0 if picked() >= 0 else -INF
-	used_t = now - 1.0 if run.start_setup.packs_redrawn else -INF
-	deck_hop = t0
-	cart_n = cart_target()
-	if not rm:
-		for n: int in 9:
-			cue(t0 + n * 0.05, sfx.bind("card_place_%d" % (1 + n % 3) if n % 3 else "fan", -10.0))
-		cue(t0 + 0.6, sfx.bind("stamp_1", -10.0))
-	set_hint("" if picked() >= 0 else "HOVER A PACK, CLICK TO PICK")
-
-
-## The picked pack's place in the offer (-1: none, also while the packs wait for the BADGE PINS
-## step: a good first pick made at the deal stays hidden until the packs deal).
-func picked() -> int:
-	if run == null or packs_held():
-		return -1
-	for k: int in run.start_offer.packs.size():
-		if run.start_offer.packs[k].id == run.start_setup.picked:
-			return k
-	return -1
-
-
-## Whether the packs wait for the BADGE PINS step (the setup's own state).
-func packs_held() -> bool:
+## Whether OPEN STORE waits for the BADGE PINS step (the setup's own state).
+func pins_pending() -> bool:
 	return StartSetupRules.pins_pending(run, pins.gate_count())
+
+
+## Whether OPEN STORE waits for the REGULARS crate's KEEP.
+func regulars_pending() -> bool:
+	return run != null and not regulars_ok
+
+
+## KEEP on the REGULARS crate (a click, or Enter): OPEN STORE lights. Refused while the BADGE PINS
+## step waits or is open.
+func keep_regulars(_via: String = "click") -> bool:
+	if not regulars_pending() or pins_open or pins_pending() or flight != null:
+		return false
+	regulars_ok = true
+	sfx("stamp_1", -6.0)
+	var keep: Rect2i = BuildRegulars.keep_rect(self)
+	BuildPageDraw.add_sparkles(
+		self, keep.position.x, keep.position.y, keep.size.x, keep.size.y, now, 0.05
+	)
+	set_hint(READY_HINT)
+	page_t = now
+	return true
 
 
 func _ready() -> void:
@@ -245,63 +200,28 @@ func advance(dt: float) -> void:
 	if flight != null:
 		flight.step(now)
 		if flight.done(now):
-			var pack: StarterPackDefinition = flight.pack
 			flight = null
-			store_opened.emit(pack)
+			store_opened.emit()
 	_refresh_view()
 
 
 func _refresh_view() -> void:
 	hits = BuildPageDraw.hits(self)
 	_update_hover()
-	_update_spread()
-	# No tip (and no node built) while the page slides in or out.
+	# No tip while blocked or while the page slides (no node is built during the board's slide).
 	if BuildPageDraw.tips_blocked(self) or position.x != 0.0:
 		tips.clear()
 	else:
-		tips.show_entries(BuildPageDraw.tip_entries(self))
+		tips.show_entries(BuildRegulars.tip_entries(self))
 	for layer: BuildLayer in _layers:
 		layer.queue_redraw()
 
 
-## The spread follows the pointer; with a pick and no pointer on a pack, the picked pack spreads.
-func _update_spread() -> void:
-	if run == null:
-		return
-	var hv: int = hovered_pack() if dealt and not pins_open and flight == null else -1
-	var pick: int = picked()
-	var target: int = spread
-	if pick < 0:
-		target = hv
-	elif hv >= 0:
-		target = hv
-	elif now >= busy_until:
-		target = pick
-	if pick >= 0 and now < busy_until and new_t > -INF and now - new_t < 1.0:
-		target = -1
-	if target != spread:
-		spread = target
-		spread_t = now
-	var step: float = 1.0 if rm else 1.0 / maxf(tuning.p2_sink_s * 60.0, 1.0)
-	for k: int in stacks.size():
-		var want: float = 1.0 if spread >= 0 and spread != k else 0.0
-		var sv: float = stacks[k].sv
-		stacks[k].sv = want if rm else move_toward(sv, want, step)
-
-
-func hovered_pack() -> int:
-	if hover_id.begins_with("pack"):
-		return int(hover_id.substr(4))
-	return -1
-
-
-## The top bar's CART target: the regulars, the counted boosters' cards and a picked pack's.
+## The top bar's CART target: the regulars and the counted boosters' cards.
 func cart_target() -> int:
 	var count: int = run.starter.core_cards.size()
 	for booster: StartBooster in run.start_setup.active_boosters():
 		count += booster.cards.size()
-	if picked() >= 0:
-		count += run.start_offer.packs[picked()].cards.size()
 	return count
 
 
@@ -311,108 +231,25 @@ func _sync_order() -> void:
 	view.start_offer = run.start_offer
 	view.balance = run.balance
 	view.pins = run.pins
-	var shown: int = picked()
-	var hv: int = hovered_pack() if dealt and not packs_held() else -1
-	var at: int = hv if hv >= 0 else shown
-	var pack: StarterPackDefinition = run.start_offer.packs[at] if at >= 0 else null
-	order.show_cart(view, pack, at >= 0 and at != shown, packs_held())
+	order.show_cart(view)
+	regulars.clear()
+	for line: StartCartLine in StartSetupRules.cart_lines(
+		run.starter, run.start_offer, run.balance, run.pins
+	):
+		if line.source == StartCartLine.Source.REGULAR:
+			regulars.append(line.card)
 
 
-## Picks pack `index` (a click, 1-3, or TAKE PACK); false (with its reason on the LED) when it is
-## held for the pins, no longer fits, or the save failed.
-func pick_pack(index: int, _via: String = "click") -> bool:
-	var why: String = _pick_refusal(index)
-	if why != "":
-		if why != "-":
-			flash(why)
-		return false
-	var pack: StarterPackDefinition = run.start_offer.packs[index]
-	var had: bool = picked() >= 0
-	if not actions.save_pick.call(pack):
-		flash("COULD NOT SAVE YOUR PICK")
-		return false
-	pick_t = now
-	spread = index
-	spread_t = now if had else minf(spread_t, now)
-	sfx("stamp_loyalty", -4.0)
-	sfx("card_pickup_1", -8.0)
-	if not rm:
-		var stamp: Vector2 = BuildPageDraw.family_stamp_size(pack)
-		var cx: float = STX[index] + BoosterArt.CW / 2.0
-		BuildPageDraw.add_sparkles(
-			self, cx - stamp.x / 2.0, 92 - stamp.y / 2.0, stamp.x, stamp.y, now + 0.08, 0.05
-		)
-	if not had:
-		cart_punch_s = 1.22
-		for i: int in 3:
-			cue(now + i * 0.06, sfx.bind("slot_tick", -8.0))
-	cart_n = cart_target()
-	cue(now + 0.3, sfx.bind("armed", -6.0))
-	set_hint("")
-	_sync_order()
-	StartBoardActions.emit(actions, TutorialEvents.PACK_PICKED, {TutorialEvents.ARG_INDEX: index})
-	return true
-
-
-## NEW PACKS (the deck pile, N): the packs not picked re-deal once a run.
-func new_packs() -> bool:
-	var why: String = _new_packs_refusal()
-	if why == "skip":
-		_skip_deal()
-		return true
-	if why != "":
-		if why != "-":
-			flash(why)
-		return false
-	var before: Array[StarterPackDefinition] = run.start_offer.packs.duplicate()
-	if not actions.new_packs.call():
-		flash("COULD NOT SAVE NEW PACKS")
-		return false
-	var keep: int = picked()
-	new_t = now
-	used_t = now + 0.2
-	deck_hop = now + 0.45
-	for k: int in run.start_offer.packs.size():
-		var pack: StarterPackDefinition = run.start_offer.packs[k]
-		if k == keep or (k < before.size() and before[k] == pack):
-			continue
-		var old: StarterPackDefinition = before[k] if k < before.size() else null
-		var leave: Dictionary = {}
-		if not rm and old != null:
-			leave = {
-				"t": now, "pack": old, "pos": BuildPageDraw.rest_positions_in(k, old, run.balance)
-			}
-		var at: float = now + (0.0 if rm else tuning.new_packs_deal_s + k * tuning.p2_pack_gap_s)
-		stacks[k] = {"pack": pack, "deal_at": at, "leave": leave, "sv": 0.0}
-		if not rm:
-			for j: int in 3:
-				var n: int = k * 3 + j
-				cue(
-					at + j * 0.05,
-					sfx.bind("card_place_%d" % (1 + n % 3) if n % 3 else "fan", -10.0)
-				)
-	busy_until = now + (0.0 if rm else 1.0)
-	sfx("shuffle", -6.0)
-	cue(now + 0.2, sfx.bind("stamp_notice", -4.0))
-	cart_n = cart_target()
-	_sync_order()
-	return true
-
-
-## The deal (or a re-deal) lands at once.
-func _skip_deal() -> void:
-	for stack: Dictionary in stacks:
-		stack.deal_at = minf(stack.deal_at as float, now - 2.0)
-		stack.leave = {}
-	busy_until = now
-	cues.clear()
-
-
-## The primary key (Enter, a click): the pins' confirm, the pins step, a skip, TAKE PACK, or OPEN
-## STORE.
+## The primary key (Enter, a click): the pins' confirm, the pins step, a skip, the crate's KEEP
+## (Enter; a click on the dim key says so), or OPEN STORE.
 func primary(via: String = "key") -> bool:
-	# A click on the key asked its hit already (click); the pins step's key is its confirm.
-	var id: StringName = TutorialAnchors.PINS_CONFIRM if pins_open else TutorialAnchors.PRIMARY
+	# A click on the key asked its hit already (click); the pins step's key is its confirm, Enter
+	# while KEEP waits is KEEP.
+	var id: StringName = TutorialAnchors.PRIMARY
+	if pins_open:
+		id = TutorialAnchors.PINS_CONFIRM
+	elif flight == null and not pins_pending() and regulars_pending() and via != "click":
+		id = TutorialAnchors.REGULARS_OK
 	if via != "click" and flight == null and not StartBoardActions.hit_allowed(actions, id):
 		return false
 	var used: bool = true
@@ -420,32 +257,30 @@ func primary(via: String = "key") -> bool:
 		flight.skip(now)
 	elif pins_open:
 		used = pins.confirm(via)
-	elif packs_held():
+	elif pins_pending():
 		used = pins.open(now)
-	elif now < busy_until:
-		_skip_deal()
-	elif picked() < 0:
-		var first: StarterPackDefinition = run.start_offer.first_pick
-		if first != null:
-			used = pick_pack(run.start_offer.packs.find(first), "open_store")
-		else:
-			flash("PICK A PACK FIRST")
-			used = false
+	elif regulars_pending():
+		used = via != "click" and keep_regulars(via)
+		if via == "click":
+			flash("KEEP YOUR REGULARS FIRST")
 	else:
 		used = open_store()
 	return used
 
 
-## OPEN STORE: the flight to the cart (reduced motion: straight to the clock-in).
+## OPEN STORE: the flight to the cart (reduced motion: straight to the clock-in). Refused while a
+## counted booster is sealed (a RESTOCK on page 1) or the BADGE PINS step waits.
 func open_store() -> bool:
-	if flight != null or picked() < 0 or packs_held() or not run.start_setup.all_open():
+	if flight != null or pins_pending() or regulars_pending():
 		return false
-	var pack: StarterPackDefinition = run.start_offer.packs[picked()]
-	flight = StoreFlight.new(self, pack)
+	if not run.start_setup.all_open():
+		flash("OPEN YOUR BOOSTERS FIRST")
+		return false
+	flight = StoreFlight.new(self)
 	StartBoardActions.emit(actions, TutorialEvents.STORE_OPENED)
 	if rm:
 		flight = null
-		store_opened.emit(pack)
+		store_opened.emit()
 	return true
 
 
@@ -471,7 +306,7 @@ func sfx(sound: String, volume_db: float = 0.0, pitch: float = 1.0) -> void:
 		player.play(sound, pitch, volume_db)
 
 
-## A page-2 key from the board (1-9, N, P, Esc, Enter, Space); true when used.
+## A page-2 key from the board (1-9, P, S, Esc, Enter, Space); true when used.
 func handle_key(keycode: Key) -> bool:
 	var number: int = [KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8, KEY_9].find(keycode)
 	var used: bool = false
@@ -485,30 +320,27 @@ func handle_key(keycode: Key) -> bool:
 		used = number >= 0 and pins.toggle_at(number)
 	elif flight != null:
 		used = false
-	elif number >= 0 and number < 3:
-		used = pick_pack(number, "key")
-	elif keycode == KEY_N:
-		used = new_packs()
 	elif keycode == KEY_P:
 		used = pins.open(now)
+	elif keycode == KEY_S and BuildRegulars.swap_shown(self):
+		swap_pressed.emit()
+		used = true
 	return used
 
 
 ## The hit a page-2 key acts as, for the tutorial's gate (&"": never asked: Esc, Enter and Space,
-## which primary asks, unused keys): 1-9 a pin row in the pins step, else 1-3 a pack, N NEW PACKS,
-## P the corkboard.
+## which primary asks, unused keys): 1-9 a pin row in the pins step, P the corkboard, S the
+## crate's SWAP key.
 func _key_hit(keycode: Key, number: int) -> StringName:
 	var id: StringName = &""
 	if keycode in [KEY_ESCAPE, KEY_ENTER, KEY_KP_ENTER, KEY_SPACE] or flight != null:
 		id = &""
 	elif pins_open:
 		id = TutorialAnchors.indexed(TutorialAnchors.PIN_ROW, number) if number >= 0 else &""
-	elif number >= 0 and number < 3:
-		id = TutorialAnchors.pack(number)
-	elif keycode == KEY_N:
-		id = TutorialAnchors.NEWPACKS
 	elif keycode == KEY_P:
 		id = TutorialAnchors.PINS
+	elif keycode == KEY_S and BuildRegulars.swap_shown(self):
+		id = TutorialAnchors.SWAP_KEY
 	return id
 
 
@@ -526,51 +358,6 @@ func _hit_id(entry: Dictionary) -> StringName:
 			if "pin_%s" % owned[k].id == id:
 				return TutorialAnchors.indexed(TutorialAnchors.PIN_ROW, k)
 	return StringName(id)
-
-
-## Why pack `index` can't be picked now ("-": silently), or "" when it can. A running deal lands.
-func _pick_refusal(index: int) -> String:
-	var why: String = ""
-	if flight != null or run == null or pins_open:
-		why = "-"
-	elif index < 0 or index >= run.start_offer.packs.size():
-		why = "-"
-	elif packs_held():
-		why = "PACKS DEAL AFTER PINS"
-	else:
-		if now < busy_until:
-			_skip_deal()
-		var pack: StarterPackDefinition = run.start_offer.packs[index]
-		var block: StringName = StartSetupRules.pick_block(run, profile, pack, pins.gate_count())
-		if picked() == index:
-			why = "-"
-		elif block == &"copies":
-			why = StartTips.COPY_LIMIT_LINE % run.starter.copy_max
-		elif block != &"":
-			why = "PICK A PACK FIRST"
-	return why
-
-
-## Why NEW PACKS can't be used now ("-": silently; "skip": a running deal lands instead), or "".
-func _new_packs_refusal() -> String:
-	var why: String = ""
-	if flight != null or pins_open or run == null:
-		why = "-"
-	elif StartBoardActions.is_locked(actions, TutorialAnchors.NEWPACKS):
-		why = "-"
-	elif packs_held():
-		why = "PACKS DEAL AFTER PINS"
-	elif run.start_setup.packs_redrawn:
-		why = "NEW PACKS USED"
-	elif now < busy_until:
-		why = "skip"
-	else:
-		var block: StringName = StartSetupRules.new_packs_block(run, profile, pins.gate_count())
-		if block == &"none":
-			why = "NO OTHER PACKS FIT"
-		elif block != &"":
-			why = "NEW PACKS USED"
-	return why
 
 
 func _gui_input(event: InputEvent) -> void:
@@ -607,15 +394,7 @@ func _update_hover() -> void:
 		if (hits[k].rect as Rect2).has_point(mouse):
 			found = hits[k].id
 			break
-	if found != hover_id:
-		var was: int = hovered_pack()
-		hover_id = found
-		if hovered_pack() != was and run != null:
-			_sync_order()
-			if hovered_pack() >= 0:
-				StartBoardActions.emit(
-					actions, TutorialEvents.PACK_HOVERED, {TutorialEvents.ARG_INDEX: hovered_pack()}
-				)
+	hover_id = found
 	var live: bool = found != "" and not found.begins_with("modal")
 	mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if live else Control.CURSOR_ARROW
 

@@ -118,7 +118,7 @@ var _ride: BeltRide  # The belt in the count (#86 v6): items ride to the scanner
 var _effects: PlanningEffects  # The planning effects (#71, mock-up h1).
 var _cart_reveal: CartReveal
 var _week: WeekFlow  # The time card, the day calendar and the week glass (v1.17).
-var _start_choice: StartChoice  # The starter pack choice's part of a run's start (#107).
+var _start_choice: StartChoice  # The opening-time board's part of a run's start.
 var _glyph_tips: GlyphTips  # Family glyphs' tooltips (#105): none in a drag or the count.
 ## The basket redraw's targets and tags, and its motion.
 var _basket_tags: BasketTags
@@ -177,7 +177,7 @@ func start_new_run(
 	_cabinet.set_total_down(false)
 	_log.log_event("run_start", RunEvents.run_start(run))
 	tutorial.attach()
-	if _start_choice.begin_if_choosing(reveal):  # #107: the starter pack choice, then shift 1.
+	if _start_choice.begin_if_choosing(reveal):  # The opening-time board, then shift 1.
 		return
 	run.start_shift()
 	_on_shift_started()

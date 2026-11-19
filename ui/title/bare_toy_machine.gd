@@ -19,7 +19,7 @@ const CAPSULE_SPOTS: Dictionary[String, Vector2i] = {
 	"snacks": Vector2i(17, 38),
 	"bakery": Vector2i(29, 40),
 	"fruit_and_veg": Vector2i(41, 38),
-	"cold_cases": Vector2i(23, 28),
+	"dairy": Vector2i(23, 28),
 	"pantry": Vector2i(36, 29),
 	"household": Vector2i(30, 18),
 }

@@ -10,14 +10,14 @@ extends RefCounted
 ## ago, `lamp` the street lamp's flicker. `draw=<aisle id>` (v1.05) draws a capsule from that
 ## machine (after any hover=) and ends the reveal's hold; `join=<seconds>` then holds the
 ## figurine's join to its lineup card (ToyLineupJoin) that far in (a capsule that completes its
-## aisle, such as Cold cases' second, stops at the COMPLETED! card; `ok` presses its OK, and a
+## aisle, such as Dairy' second, stops at the COMPLETED! card; `ok` presses its OK, and a
 ## later join= goes on past it; `reduced` plays it under reduced motion). The file is
 ## shift_screen_toys_<state>_[<aisle>_][car<tenths>_][lamp_][draw_<aisle>_][join<hundredths>_]
 ## [ok_][reduced_]<width>x<height>.png (each option's part in the order given).
 
 ## The partial collection: the first items of each aisle owned (the mock-up's).
 const OWNED: Dictionary[StringName, int] = {
-	&"cold_cases": 1, &"pantry": 2, &"household": 1, &"fruit_and_veg": 3, &"bakery": 2
+	&"dairy": 1, &"pantry": 2, &"household": 1, &"fruit_and_veg": 3, &"bakery": 2
 }
 
 

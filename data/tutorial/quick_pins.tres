@@ -22,7 +22,7 @@ id = &"pins_worn"
 event = &"pin_toggled"
 needs_on = true
 title = "BADGE PINS"
-text = "Confirm with the red key, and your **STARTER PACKS** deal. You have {pin_slots} slot: wearing another pin swaps it."
+text = "Confirm with the red key, then OPEN STORE. You have {pin_slots} slot: wearing another pin swaps it."
 teaches = PackedStringArray()
 anchor = "pins_confirm"
 
@@ -31,7 +31,7 @@ script = ExtResource("3_hint")
 id = &"pins_set"
 event = &"pins_confirmed"
 title = "BADGE PINS"
-text = "Your pin is on the board for this run. Click it or press P to change it before you pick."
+text = "Your pin is on the board for this run. Click it or press P to change it before you open the store."
 teaches = PackedStringArray()
 anchor = "pins"
 

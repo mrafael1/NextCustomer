@@ -13,7 +13,6 @@ const STARTER := "res://data/decks/starter.tres"
 ## clear (#56's derived limit).
 const MAX_PANEL_HEIGHT := 592.0
 const WINDOWS: Array[Vector2] = [Vector2(1280, 720), Vector2(1920, 1080)]
-const PACKS := "res://data/starter_packs"
 const BALANCE := "res://data/balance/balance.tres"
 var _folder: String = ""
 
@@ -105,23 +104,19 @@ func test_the_deck_tab_groups_copies_and_counts_tags() -> void:
 
 
 ## v0.49: a new run starts from the recipe deck, dealt from its stock on the run seed's own
-## stream; since v0.63 (#107) the recipe with starter packs: the 4 core cards, the pack taken (a
-## run started without the reveal takes the offer's default, a new profile's good first pick),
-## then 6 stocked products with a tier chain, and the Deck tab shows it.
+## stream; since v1.41 the opening-time recipe without starter packs: the 4 core cards, then
+## today's two aisle boosters' 8 products, and the Deck tab shows it.
 func test_the_game_deals_the_recipe_deck() -> void:
 	var screen: ShiftScreen = await _screen()
 	var run: RunState = screen.run
 	assert_str(String(run.starter.id)).is_equal("pack_starter")
-	assert_int(run.starter.cards.size()).is_equal(13)
-	assert_int(run.deck.size()).is_equal(13)
 	var recipe: DeckDefinition = load(ShiftScreen.STARTER_DECK)
+	var size: int = recipe.core_cards.size() + run.start_offer.shared.size()
+	assert_int(run.start_offer.shared.size()).is_between(4, recipe.random_count)
+	assert_int(run.starter.cards.size()).is_equal(size)
+	assert_int(run.deck.size()).is_equal(size)
 	assert_array(run.starter.cards.slice(0, 4)).is_equal(recipe.core_cards)
-	var offer: StartOffer = run.start_offer
-	var expected: DeckDefinition = StartingDeck.with_pack(
-		recipe, offer.default_pack(), offer.shared
-	)
-	assert_array(run.starter.cards).is_equal(expected.cards)
-	assert_object(run.starter.starter_pack).is_same(offer.default_pack())
+	assert_array(run.starter.cards).is_equal(recipe.core_cards + run.start_offer.shared)
 	screen._on_deck_button_pressed()
 	var view: DeckView = screen._deck_view
 	var total: int = 0
@@ -132,8 +127,8 @@ func test_the_game_deals_the_recipe_deck() -> void:
 	assert_int(view.cells().size()).is_equal(_distinct(run.starter.cards))
 
 
-## The cart and run info polish (2026-11-12): every product picked at the start (the starter
-## pack's cards and the dealt ones) carries the green START chip for the run, over its card's
+## The cart and run info polish (2026-11-12): every product picked at the start (the dealt ones)
+## carries the green START chip for the run, over its card's
 ## barcode (the art's bottom left), its tooltip (opening below it) saying where it came from ("from
 ## the Bakery booster" since 2026-11-13); a regular and a product only the machine gave carry
 ## none. The chip sits inside the card, clear of the copies' count, the rule text and the top
@@ -155,7 +150,8 @@ func test_the_cart_page_marks_the_starting_cart() -> void:
 	var plates: Array[Node] = view._deck_page.find_children(
 		"Heading", "PanelContainer", true, false
 	)
-	assert_int(plates.size()).is_equal(2)
+	# PRODUCTS, and COUPONS only once a coupon is in the cart (no starter pack since v1.41).
+	assert_int(plates.size()).is_between(1, 2)
 	var marked: int = 0
 	for cell: DeckCell in view.cells():
 		var id: String = String(cell.card.id)
@@ -178,7 +174,7 @@ func test_the_cart_page_marks_the_starting_cart() -> void:
 			var label: Rect2 = (plate as Control).get_global_rect()
 			assert_bool(label.intersects(mark.get_global_rect())).is_false()
 	assert_int(marked).is_greater(0)
-	# Where each came from: the pack, a dealt aisle's booster; a regular and the prize carry none.
+	# Where each came from: a dealt aisle's booster; a regular and the prize carry none.
 	var sources: Dictionary[StringName, String] = DeckView.start_sources(run)
 	assert_array(sources.keys()).contains_exactly_in_any_order(started)
 	var regulars: int = 0
@@ -187,9 +183,6 @@ func test_the_cart_page_marks_the_starting_cart() -> void:
 			regulars += 1
 			assert_bool(sources.has(card.product_card().id)).is_false()
 	assert_int(regulars).is_greater(0)
-	var pack: StarterPackDefinition = run.starter.starter_pack
-	for card: CardDefinition in pack.cards:
-		assert_str(sources[card.product_card().id]).is_equal(StartTip.PACK % pack.display_name)
 	var dealt: int = 0
 	for card: CardDefinition in StartingDeck.shared_of(run.starter):
 		var source: String = sources[card.product_card().id]
@@ -226,15 +219,12 @@ func test_a_dealt_or_full_cart_fits_unscrolled() -> void:
 		var stream: RandomNumberGenerator = EventLogService.derived_stream(
 			seed_value, EventLogService.STARTING_DECK_STREAM
 		)
-		var offer: StartOffer = StartingDeck.deal_offer(recipe, stock, balance, stream, true)
-		var cart: DeckDefinition = StartingDeck.with_pack(
-			recipe, offer.default_pack(), offer.shared
-		)
+		var cart: DeckDefinition = StartingDeck.deal(recipe, stock, balance, stream)
 		var size: int = _distinct(cart.cards)
 		if size > widest_size:
 			widest = seed_value
 			widest_size = size
-	# The most distinct: up to 12 (the 3 staples, the pack's 3, 6 products), more than one row.
+	# The most distinct: up to 11 (the 3 staples, 8 products), more than one row.
 	assert_int(widest_size).is_greater(CartLayout.COLUMNS)
 	var screen: ShiftScreen = await _screen()
 	for full: bool in [false, true]:
@@ -297,11 +287,11 @@ func test_the_starting_deck_fits_without_scrolling() -> void:
 	assert_float(rect.position.y).is_greater_equal(screen._shade.offset_top)
 
 
-## The slim Run info (2026-11-13): the run at a glance (the run family's card: the starter pack's
-## family glyph big, its name, the pack and its hint; the run's two aisles in stock and the
+## The slim Run info (2026-11-13): the run at a glance (the run's two aisles in stock and the
 ## staples' line, its count from data; the cart's families as tiles, each a big glyph and its
-## count in the number font, the run family's ringed), then MACHINE STOCK as an icon grid grouped
-## STAPLES, each aisle, COUPONS. It shows no upgrades and no inspections, even with one of each.
+## count in the number font, none ringed since v1.41's packs went), then MACHINE STOCK as an icon
+## grid grouped STAPLES, each aisle, COUPONS. It shows no upgrades and no inspections, even with one
+## of each.
 func test_the_run_info_tab_shows_the_run_at_a_glance_and_the_stock() -> void:
 	var screen: ShiftScreen = await _screen()
 	screen._debug.give_upgrade("category_engine")
@@ -322,29 +312,12 @@ func test_the_run_info_tab_shows_the_run_at_a_glance_and_the_stock() -> void:
 		assert_bool(text.begins_with("This shift") or text.begins_with("Next shift")).is_false()
 	assert_array(view.find_children("Warning", "", true, false)).is_empty()
 	assert_array(view._info_page.find_children(LoyaltyCard.ICON_NAME, "", true, false)).is_empty()
-	# The run family's card.
-	var pack: StarterPackDefinition = run.starter.starter_pack
-	var palette: FamilyPalette = FamilyPalette.shared()
-	var card: Control = view._info_page.find_child(RunInfoHero.PACK_CARD, true, false)
-	assert_object(card).is_not_null()
-	var glyph: FamilyGlyph = card.find_child(RunInfoHero.FAMILY_GLYPH, true, false) as FamilyGlyph
-	assert_str(glyph.family).is_equal(pack.family)
-	assert_float(glyph.size.x).is_greater_equal(54.0)
-	# The hint in the handbook's colours: its words unchanged, its terms marked (MORNING, Coffee).
-	var hint: RichTextLabel = card.find_child(RunInfoHero.HINT, true, false) as RichTextLabel
-	assert_object(hint).is_not_null()
-	assert_str(hint.get_parsed_text()).is_not_empty()
-	var markup: String = RunInfoHero.hint_markup(pack)
-	assert_str(HandbookMarkup.plain(markup)).is_equal(pack.hint_text)
-	assert_str(markup).contains("{kw:MORNING}").contains("{item:coffee}")
+	assert_object(view._info_page.find_child("PackCard", true, false)).is_null()
 	var staples: int = RunStock.staples(run.balance).size()
 	(
 		assert_array(texts)
 		. contains(
 			[
-				palette.style(pack.family).display_name,
-				RunInfoHero.PACK_SUFFIX % pack.display_name,
-				RunInfoHero.RUN_FAMILY,
 				RunInfoHero.IN_CART,
 				DeckView.STOCK_HEADING,
 				RunInfoHero.STAPLES_NOTE % staples,
@@ -384,9 +357,7 @@ func test_the_run_info_tab_shows_the_run_at_a_glance_and_the_stock() -> void:
 		assert_int(number.get_theme_font_size("font_size")).is_equal(FamilyCount.TILE_NUMBER_SIZE)
 		assert_float(tile.icon().size.x).is_equal(36.0)
 		assert_float(tile.size.y).is_equal(FamilyCount.TILE_SIZE.y)
-		assert_bool(tile.ringed).override_failure_message(tile.family).is_equal(
-			tile.family == pack.family
-		)
+		assert_bool(tile.ringed).override_failure_message(tile.family).is_false()
 	# The stock: the staples and two aisles' base products since the v1.32 feedback, and the
 	# coupons of coupon_pool, as icons, each once, grouped STAPLES, the aisles, COUPONS.
 	var grid: StockGrid = view.stock_grid()
@@ -408,9 +379,8 @@ func test_the_run_info_tab_shows_the_run_at_a_glance_and_the_stock() -> void:
 
 ## The cart and run info polish: at 1280x720 and 1920x1080 a full cart's page fits unscrolled, its
 ## tag chips, START marks and rules inside the scroll area, the chips clear of the legend and of
-## the cards; the Run info's hero (the run family's card, the aisle plates, the family tiles) sits
-## whole inside the scroll area unscrolled, the tiles side by side, for every starter pack's card
-## (as tall as its words).
+## the cards; the Run info's hero (the aisle plates, the family tiles) sits whole inside the scroll
+## area unscrolled, the tiles side by side.
 func test_the_cart_and_run_info_fit_both_windows() -> void:
 	for window: Vector2 in WINDOWS:
 		var screen: ShiftScreen = await _screen_at(window)
@@ -457,18 +427,12 @@ func test_the_cart_and_run_info_fit_both_windows() -> void:
 			_assert_start_and_count(cell)
 		view._close()
 		await get_tree().process_frame
-		# Every starter pack's card (the hints run 3 to 4 lines) leaves the hero whole, the card
-		# no taller than its words.
-		for path: String in DirAccess.get_files_at(PACKS):
-			if not path.ends_with(".tres"):
-				continue
-			screen.run.starter.starter_pack = load(PACKS.path_join(path))
-			screen._on_deck_button_pressed()
-			view.show_page(true)
-			await get_tree().create_timer(0.4).timeout
-			_assert_hero_fits(view, area, "%s %s" % [where, path])
-			view._close()
-			await get_tree().process_frame
+		screen._on_deck_button_pressed()
+		view.show_page(true)
+		await get_tree().create_timer(0.4).timeout
+		_assert_hero_fits(view, area, where)
+		view._close()
+		await get_tree().process_frame
 
 
 ## At the deck limit only the deck shows, and a grouped card chooses one of its copies.
@@ -805,22 +769,18 @@ func _assert_start_and_count(cell: DeckCell) -> void:
 		assert_bool(count_rect.intersects(rule)).override_failure_message(id).is_false()
 
 
-## The Run info's hero (the run family's card, the aisle plates, the family tiles side by side)
-## sits whole in `area` unscrolled; the card is as tall as its words.
+## The Run info's hero (the aisle plates, the family tiles side by side) sits whole in `area`
+## unscrolled.
 func _assert_hero_fits(view: DeckView, area: Rect2, where: String) -> void:
 	var hero: Control = view._info_page.find_child("RunInfoHero", false, false)
 	assert_bool(area.encloses(hero.get_global_rect())).override_failure_message(where).is_true()
-	for part: String in [RunInfoHero.PACK_CARD, RunInfoHero.PLATES, RunInfoHero.TILES]:
+	for part: String in [RunInfoHero.PLATES, RunInfoHero.TILES]:
 		var node: Control = hero.find_child(part, true, false)
 		(
 			assert_bool(area.encloses(node.get_global_rect()))
 			. override_failure_message("%s %s" % [where, part])
 			. is_true()
 		)
-	var card: Control = hero.find_child(RunInfoHero.PACK_CARD, true, false)
-	assert_float(card.size.y).override_failure_message(where).is_equal(
-		card.get_combined_minimum_size().y
-	)
 	var tiles: Array[Node] = hero.find_child(RunInfoHero.TILES, true, false).get_children()
 	for index: int in range(1, tiles.size()):
 		var left: Rect2 = (tiles[index - 1] as Control).get_global_rect()

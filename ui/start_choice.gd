@@ -4,19 +4,18 @@ extends RefCounted
 ## StartSetupRules handles pure setup operations and StartBoard displays the choices.
 ##
 ## A run is set up by StartSetupRules.setup_run whenever the balance deals aisles
-## (dealt_aisle_count > 0) and the recipe has starter packs: today's suggested aisles on the run
-## seed's stock-aisles stream, then dealt at once (v1.32: sealed aisle boosters): the offer on
-## its starting-deck stream and each booster on its aisle's booster stream, PICK 2 OF 3's extra
-## aisle (6 completed aisles) on the booster-extra stream. The pick refits the unseen offer on the
-## booster-pick stream; RESTOCK, the swap window's boosters and NEW PACKS have their own streams
-## (EventLogService). The run waits for its pick (RunState.Phase.CHOOSE_START) and is saved after
-## each commitment (opening a booster too), so quitting can't reroll anything; a resume opens the
-## same board, and a run whose setup was saved in an older form sets it up again
-## (RunState.restart_setup). Without the reveal (tests,
-## captures, the demo row) the offer's default pack is taken for the player. Only a recipe
-## without packs, or a balance with dealt_aisle_count 0, takes the older path: a run that needs a
+## (dealt_aisle_count > 0) and the recipe is an opening-time one (DeckDefinition.opening_time):
+## today's suggested aisles on the run seed's stock-aisles stream, then dealt at once (v1.32:
+## sealed aisle boosters, the fair-deal hands on its starting-deck stream): each booster on its
+## aisle's booster stream. RESTOCK and the swap window's boosters have their own streams
+## (EventLogService). The run waits for OPEN STORE (RunState.Phase.CHOOSE_START) and is saved
+## after each commitment (opening a booster too), so quitting can't reroll anything; a resume
+## opens the same board, and a run whose setup was saved in an older form sets it up again
+## (RunState.restart_setup). Without the reveal (tests, captures, the demo row) the store is
+## opened for the player. Any
+## other recipe, or a balance with dealt_aisle_count 0, takes the older path: a run that needs a
 ## list stocks a random one from the run seed's own stream (#63) and the deck is dealt on the
-## starting-deck stream.
+## starting-deck stream. (The starter pack choice was removed in v1.41.)
 
 const TITLE_SCREEN := "res://ui/title_screen.tscn"
 ## The guided first run's scripted deal (the tutorial): new_run with its recipe deals it.
@@ -41,13 +40,13 @@ var _page_changes: int = 0
 func _init(screen: ShiftScreen, event_log: EventLogService) -> void:
 	_screen = screen
 	_log = event_log
-	_screen._cart_reveal.pack_taken.connect(take_chosen)
+	_screen._cart_reveal.store_opened.connect(open_chosen)
 	_screen._cart_reveal.title_requested.connect(back_to_title)
 	_screen._cart_reveal.options_requested.connect(_open_options)
 
 
 ## A new run for `seed_value` with `recipe` as its starting deck: its stock from the profile, its
-## deck dealt (a recipe with packs: its offer, the run waiting for its pick), wearing the
+## deck dealt (an opening-time recipe: its boosters, the run waiting for OPEN STORE), wearing the
 ## profile's badge pins (#122). With the guided recipe (guided_start), the guided run: its
 ## scripted deal (_setup_run) and no pin.
 func new_run(seed_value: int, balance: BalanceDefinition, recipe: DeckDefinition) -> RunState:
@@ -64,7 +63,7 @@ static func guided_start() -> GuidedStartDefinition:
 
 func _dealt_run(seed_value: int, balance: BalanceDefinition, recipe: DeckDefinition) -> RunState:
 	var profile: ProfileState = _screen.profile
-	if balance.dealt_aisle_count > 0 and not recipe.starter_packs.is_empty():
+	if balance.dealt_aisle_count > 0 and recipe.opening_time:
 		return _setup_run(seed_value, balance, recipe)
 	var listed: Array[StringName] = []
 	if RunStock.needs_list(balance, profile.unlocked_items):
@@ -76,13 +75,8 @@ func _dealt_run(seed_value: int, balance: BalanceDefinition, recipe: DeckDefinit
 	var deal_rng: RandomNumberGenerator = EventLogService.derived_stream(
 		seed_value, EventLogService.STARTING_DECK_STREAM
 	)
-	if recipe.starter_packs.is_empty():
-		var deck: DeckDefinition = StartingDeck.deal(recipe, stock, balance, deal_rng)
-		return RunState.new(seed_value, deck, balance, stock)
-	var offer: StartOffer = StartingDeck.deal_offer(
-		recipe, stock, balance, deal_rng, not profile.has_won()
-	)
-	return RunState.new(seed_value, StartingDeck.before_pick(recipe, offer), balance, stock, offer)
+	var deck: DeckDefinition = StartingDeck.deal(recipe, stock, balance, deal_rng)
+	return RunState.new(seed_value, deck, balance, stock)
 
 
 func _setup_run(seed_value: int, balance: BalanceDefinition, recipe: DeckDefinition) -> RunState:
@@ -94,7 +88,7 @@ func _setup_run(seed_value: int, balance: BalanceDefinition, recipe: DeckDefinit
 		profile,
 		_stream(seed_value, EventLogService.STOCK_AISLES_STREAM)
 	)
-	# The guided first run (the tutorial): its fixed boosters and packs, no stream drawn. A
+	# The guided first run (the tutorial): its fixed boosters, no stream drawn. A
 	# definition the balance refuses deals as usual, and the run isn't guided.
 	var guide: GuidedStartDefinition = guided_start()
 	if guide.recipe != null and guide.recipe.id == recipe.id:
@@ -105,7 +99,7 @@ func _setup_run(seed_value: int, balance: BalanceDefinition, recipe: DeckDefinit
 
 
 ## Deals `run`'s setup (still in SELECT) on the run seed's streams: one booster stream per aisle
-## (StartSetupRules.deal draws only today's and PICK 2 OF 3's extra one).
+## (StartSetupRules.deal draws only today's).
 static func deal(run: RunState, profile: ProfileState) -> StringName:
 	var streams: Dictionary[StringName, RandomNumberGenerator] = {}
 	for aisle: AisleDefinition in run.balance.aisles:
@@ -116,8 +110,7 @@ static func deal(run: RunState, profile: ProfileState) -> StringName:
 		run,
 		profile,
 		EventLogService.derived_stream(run.run_seed, EventLogService.STARTING_DECK_STREAM),
-		streams,
-		EventLogService.derived_stream(run.run_seed, EventLogService.START_BOOSTER_EXTRA_STREAM)
+		streams
 	)
 
 
@@ -128,17 +121,14 @@ func _stream(seed_value: int, stream_name: String) -> RandomNumberGenerator:
 func board_actions() -> StartBoardActions:
 	var actions: StartBoardActions = StartBoardActions.new()
 	actions.page_changed = page_changed
-	actions.save_pick = save_pick
 	actions.swap_staple = swap_staple
 	actions.restore_regular = restore_regular
 	actions.open_booster = open_booster
-	actions.pick_boosters = pick_boosters
 	actions.wear_pins = wear_pins
 	actions.pin_catalogue = func() -> Array[PinDefinition]: return _screen._catalogue.pins
 	actions.pins_gate = _pins_gate
 	actions.mark_seen = mark_seen
 	actions.restock_booster = restock_booster
-	actions.new_packs = new_packs
 	actions.reset_regulars = reset_regulars
 	actions.swap_offers = swap_offers
 	actions.open_swap_booster = open_swap_booster
@@ -169,8 +159,8 @@ func back_to_title() -> void:
 		_screen.get_tree().change_scene_to_file(TITLE_SCREEN)
 
 
-## When the screen's run waits for its pick: saves it and opens the choice (`reveal`), or takes
-## the default pack for the player. Returns whether the run was waiting (the caller's shift start
+## When the screen's run waits in the opening time: saves it and opens the board (`reveal`), or
+## opens the store for the player. Returns whether the run was waiting (the caller's shift start
 ## is then done here).
 func begin_if_choosing(reveal: bool) -> bool:
 	var run: RunState = _screen.run
@@ -203,22 +193,22 @@ func begin_if_choosing(reveal: bool) -> bool:
 		_page_changes = 0
 		_screen._machine.hold_notice()
 		return true
-	_take(run.start_offer.default_pack(), false)
+	_open(false)
 	return true
 
 
-## The player took `pack` in the reveal: shift 1 starts behind it, whose input waits for the
-## reveal's end.
-func take_chosen(pack: StarterPackDefinition) -> void:
-	_take(pack, true)
+## The player pressed OPEN STORE in the board: shift 1 starts behind it, whose input waits for
+## the board's end.
+func open_chosen() -> void:
+	_open(true)
 	_screen._machine.hold_notice()
 
 
-## Takes `pack` from the run's offer and starts shift 1: logs start_choice (`chosen`: the player
-## picked it in the reveal) and saves at the shift's start.
-func _take(pack: StarterPackDefinition, chosen: bool) -> void:
+## OPEN STORE (RunState.open_store) and shift 1 starts: logs start_choice (`chosen`: the player
+## opened it in the board) and saves at the shift's start.
+func _open(chosen: bool) -> void:
 	var run: RunState = _screen.run
-	if not run.take_pack(pack):
+	if not run.open_store():
 		return
 	var decide_ms: int = Time.get_ticks_msec() - _opened_ms if chosen else -1
 	var event: Dictionary = RunEvents.start_choice(run, decide_ms)
@@ -251,14 +241,6 @@ func page_changed(page: int, from: int, key: String) -> void:
 	_page_since = Time.get_ticks_msec()
 	_page_changes += 1
 	_log.log_event("start_page", {"page": page, "from": from, "key": key})
-
-
-func save_pick(pack: StarterPackDefinition) -> bool:
-	if StartSetupRules.pick_block(_screen.run, _screen.profile, pack, _pins_gate()) != &"":
-		return false
-	var before: Dictionary = _snapshot()
-	_screen.run.start_setup.picked = pack.id
-	return _commit(before)
 
 
 ## Replaces regular `slot` with `card` (StartSetupRules.swap: a card on a swapped slot trades
@@ -369,26 +351,9 @@ func open_booster(index: int) -> bool:
 	return _commit(before)
 
 
-## PICK 2 OF 3 (StartSetupRules.pick_boosters): keeps boosters `picks`, the pack offer refitted on
-## the booster-pick stream; saves the run and logs start_booster_pick.
-func pick_boosters(picks: Array[int]) -> bool:
-	var run: RunState = _screen.run
-	if StartSetupRules.pick_boosters_block(run, picks) != &"":
-		return false
-	var before: Dictionary = _snapshot()
-	var stream: RandomNumberGenerator = _stream(
-		run.run_seed, EventLogService.START_BOOSTER_PICK_STREAM
-	)
-	StartSetupRules.pick_boosters(run, _screen.profile, picks, stream)
-	if not _commit(before):
-		return false
-	_log.log_event("start_booster_pick", RunEvents.start_booster_pick(run, picks))
-	return true
-
-
 ## The BADGE PINS step's choice (v1.32): the profile wears `ids` (owned pins, at most pin_slots,
-## in slot order; none is allowed), the run wears them too and the step is confirmed (the packs
-## deal on its first confirm). Saves the profile and the run; logs pin_change when they changed.
+## in slot order; none is allowed), the run wears them too and the step is confirmed (OPEN STORE
+## waits for its first confirm). Saves the profile and the run; logs pin_change when they changed.
 func wear_pins(ids: Array[StringName]) -> bool:
 	var run: RunState = _screen.run
 	var profile: ProfileState = _screen.profile
@@ -411,8 +376,8 @@ func wear_pins(ids: Array[StringName]) -> bool:
 	return true
 
 
-## How many of the profile's badge pins hold the packs for the BADGE PINS step
-## (ProfilePins.start_gate: the packs wait while any).
+## How many of the profile's badge pins hold OPEN STORE for the BADGE PINS step
+## (ProfilePins.start_gate: it waits while any).
 func _pins_gate() -> int:
 	# A guided run wears no pin and has no BADGE PINS step (a veteran's replay too).
 	if _screen.run != null and _screen.run.guided:
@@ -447,24 +412,6 @@ func restock_booster(index: int) -> bool:
 	if not _commit(before):
 		return false
 	_log.log_event("restock", RunEvents.start_restock(run, index, old))
-	return true
-
-
-## NEW PACKS (StartSetupRules.new_packs) on the run seed's new-packs stream.
-func new_packs() -> bool:
-	var run: RunState = _screen.run
-	if StartSetupRules.new_packs_block(run, _screen.profile, _pins_gate()) != &"":
-		return false
-	var before: Dictionary = _snapshot()
-	var old: Array[StarterPackDefinition] = run.start_offer.packs.duplicate()
-	var picked: StringName = run.start_setup.picked
-	var stream: RandomNumberGenerator = _stream(
-		run.run_seed, EventLogService.START_NEW_PACKS_STREAM
-	)
-	StartSetupRules.new_packs(run, _screen.profile, stream, _pins_gate())
-	if not _commit(before):
-		return false
-	_log.log_event("new_packs", RunEvents.new_packs(old, run.start_offer.packs, picked))
 	return true
 
 
@@ -516,9 +463,6 @@ func _snapshot() -> Dictionary:
 	var offer: StartOffer = run.start_offer
 	return {
 		"setup": run.start_setup.copy(),
-		"packs": offer.packs.duplicate(),
-		"first_pick": offer.first_pick,
-		"offer_swaps": offer.swaps,
 		"deals": offer.deals,
 		"shared": offer.shared.duplicate(),
 		"core": run.starter.core_cards.duplicate(),
@@ -536,9 +480,6 @@ func _commit(before: Dictionary) -> bool:
 		return true
 	var run: RunState = _screen.run
 	run.start_setup = before["setup"]
-	run.start_offer.packs = before["packs"]
-	run.start_offer.first_pick = before["first_pick"]
-	run.start_offer.swaps = before["offer_swaps"]
 	run.start_offer.deals = before["deals"]
 	run.start_offer.shared = before["shared"]
 	run.starter.core_cards = before["core"]

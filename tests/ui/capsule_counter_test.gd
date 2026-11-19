@@ -124,7 +124,7 @@ func test_a_failed_save_rolls_back_and_switches_the_machines_off() -> void:
 func test_the_machine_states() -> void:
 	var balance: BalanceDefinition = load(BALANCE)
 	var profile: ProfileState = ProfileState.new()
-	var cold: AisleDefinition = _aisle(balance, &"cold_cases")
+	var cold: AisleDefinition = _aisle(balance, &"dairy")
 	var counter: CapsuleCounter = _counter(profile, _saves(_folder), false)
 	assert_int(counter.machine_state(cold)).is_equal(CapsuleCounter.State.BROKE)
 	assert_object(counter.draw(cold)).is_null()

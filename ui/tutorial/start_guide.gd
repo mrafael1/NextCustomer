@@ -26,18 +26,13 @@ func blocked() -> bool:
 	return not is_instance_valid(board) or board.tips_blocked()
 
 
-## Whether the BADGE PINS callout must wait: the slide, a flight, a pop. Its packs wait undealt
+## Whether the BADGE PINS callout must wait: the slide, a flight, a pop. OPEN STORE waits
 ## and its step may be open (blocked's page 2 rule), and neither holds it.
 func pins_blocked() -> bool:
 	if not is_instance_valid(board) or board.busy or board.page != 2:
 		return true
 	var staff: BuildPage = board.staff
-	return (
-		not board.is_visible_in_tree()
-		or staff.run == null
-		or staff.flight != null
-		or staff.now < staff.busy_until
-	)
+	return not board.is_visible_in_tree() or staff.run == null or staff.flight != null
 
 
 ## Puts `overlay` over the board (StartBoard.mount_overlay).
@@ -50,14 +45,22 @@ func shown_page() -> int:
 	return board.page - 1
 
 
-## Whether page 1 is stocked: every booster open and STOCKED! come (NEXT armed).
+## Whether page 1 is stocked: every booster open (NEXT armed).
 func stocked() -> bool:
 	return board.store.page_done()
 
 
-## The SWAP quick tutorial's trigger on page 1: stocked, and NEXT would stop at the swap window.
+## The SWAP quick tutorial's trigger on page 2: its SWAP key shows, a swap is left and the window
+## was not opened on this board yet.
 func swap_due() -> bool:
-	return board.page == 1 and stocked() and board.store.swap.wants_stop()
+	if board.page != 2 or board.swap_showing() or board.store.swap.seen:
+		return false
+	var staff: BuildPage = board.staff
+	return (
+		BuildRegulars.swap_shown(staff)
+		and not staff.pins_open
+		and StartSetupRules.swaps_left(staff.run, staff.profile) > 0
+	)
 
 
 ## The RESTOCK quick tutorial's trigger on page 1: stocked, the key shown and a booster to return.
@@ -72,14 +75,9 @@ func restock_due() -> bool:
 	)
 
 
-## The BADGE PINS quick tutorial's trigger on page 2: the packs wait for the pins step.
+## The BADGE PINS quick tutorial's trigger on page 2: OPEN STORE waits for the pins step.
 func pins_due() -> bool:
-	return board.page == 2 and board.staff.packs_held()
-
-
-## Holds page 1's shutter down until a click or a key rolls it up (no auto roll; G2's freeze).
-func hold_shutter() -> void:
-	board.store.auto_roll_at = INF
+	return board.page == 2 and board.staff.pins_pending()
 
 
 ## Anchor `id`'s global rect on `shown` (StartBoard.anchor_rect): the swap window's parts while it
@@ -89,11 +87,11 @@ static func anchor_of(shown: StartBoard, id: StringName) -> Rect2:
 		return Rect2()
 	var art: Rect2 = Rect2()
 	var on: Control = shown.store
-	if shown.page == 2:
+	if shown.store.swap.visible():
+		art = swap_rect(shown.store, id)
+	elif shown.page == 2:
 		on = shown.staff
 		art = build_rect(shown.staff, id)
-	elif shown.store.swap.visible():
-		art = swap_rect(shown.store, id)
 	else:
 		art = store_rect(shown.store, id)
 	if art.size == Vector2.ZERO:
@@ -106,41 +104,38 @@ static func store_rect(page: BoosterPage, id: StringName) -> Rect2:
 	if page.run == null:
 		return Rect2()
 	var fixed: Dictionary[StringName, Rect2] = {
-		TutorialAnchors.CRATE: BoosterChromeDraw.CRATE_RECT,
-		TutorialAnchors.SWAP_PLATE: BoosterChromeDraw.SWAP_PLATE_RECT,
 		TutorialAnchors.PRIMARY: Rect2(BoosterArt.PRIMARY_RECT),
 		TutorialAnchors.TITLE: Rect2(BoosterArt.TITLE_RECT),
-		TutorialAnchors.TAB1: Rect2(156, 7, 82, 20),
-		TutorialAnchors.TAB2: Rect2(240, 7, 82, 20),
+		TutorialAnchors.TAB1: BoosterChromeDraw.tab_rect(0),
+		TutorialAnchors.TAB2: BoosterChromeDraw.tab_rect(1),
+		TutorialAnchors.CART: Rect2(BoosterChromeDraw.CART_LED),
 	}
 	if fixed.has(id):
 		return fixed[id]
 	if id == TutorialAnchors.RESTOCK:
 		return BoosterChromeDraw.key_rect() if BoosterChromeDraw.key_shown(page) else Rect2()
-	if id == TutorialAnchors.TOTE:
-		var tote: bool = page.counter.restock_unlocked() and not page.openings.pick_layout()
-		return BoosterChromeDraw.bay_rect() if tote else Rect2()
 	var booster: int = TutorialAnchors.index_of(id, TutorialAnchors.BOOSTER)
 	if booster >= 0:
 		return _booster_rect(page, booster)
 	var back: int = TutorialAnchors.index_of(id, TutorialAnchors.RETURN)
 	if back >= 0:
 		return _return_rect(page, back)
-	# The rest is the frame's own hits: ROLL UP, a hit card, a returnable fan, a booster's card.
+	# The rest is the frame's own hits: a returnable fan, a booster's card.
 	return _union_of(BoosterPageDraw.hits(page), id)
 
 
-## Booster `index`'s rect: its pouch while sealed, its fan once opening or open.
+## Booster `index`'s rect: its bay before it is thrown, its pouch
+## while sealed on the counter, its fan once opening or open.
 static func _booster_rect(page: BoosterPage, index: int) -> Rect2:
 	if index >= page.boosters.size():
 		return Rect2()
 	var b: BoosterOpening = page.boosters[index]
-	if b.state == BoosterOpening.State.GONE:
-		return Rect2()
+	if not page.roulette.landed(b):
+		return AisleBoardArt.bay_rect(b.bay, page.roulette.count)
 	if b.state == BoosterOpening.State.SEALED:
-		var at: Vector2 = BoosterArt.pouch_pos(b.cx)
+		var at: Vector2 = b.pouch_pos()
 		return Rect2(at.x, at.y - 6, BoosterArt.BW, BoosterArt.BH + 6)
-	return BoosterArt.fan_rect(b.cx, maxi(1, b.cards.size()))
+	return b.fan_rect()
 
 
 ## Booster `index`'s RETURN THIS ONE plate while RESTOCK is armed (BoosterChromeDraw.restock_call).
@@ -149,10 +144,7 @@ static func _return_rect(page: BoosterPage, index: int) -> Rect2:
 		return Rect2()
 	if not page.counter.restockable(index):
 		return Rect2()
-	var p0: Vector2 = BoosterArt.fan_pos(page.boosters[index].cx, 0)
-	var w: float = BoosterArt.FAN_STEP * 2 + BoosterArt.CW + 8
-	var tw: float = ArtPen.word_texture("RETURN THIS ONE", Palette.INK, false).get_width() + 8
-	return Rect2(roundf(p0.x - 4 + w / 2.0 - tw / 2.0), p0.y - 20, tw, 9)
+	return BoosterChromeDraw.return_plate(page.boosters[index])
 
 
 ## Page 2's anchor `id` in art px (Rect2(): not shown).

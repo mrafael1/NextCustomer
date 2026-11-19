@@ -15,7 +15,7 @@ extends RefCounted
 ## Start screen:
 ## - HIT {id}: a click (or its key: Space and Enter press "primary") on the start board's hit
 ##   `id`, the frame's hit id as drawn (TutorialAnchors' start ids: &"booster0", &"primary",
-##   &"crate", &"restock", &"pack1", &"newpacks", &"tab2"...). Asked in BoosterPage.click / primary
+##   &"crate", &"restock", &"tab2"...). Asked in BoosterPage.click / primary
 ##   / handle_key / space, BuildPage.click / primary / handle_key and StartBoard._act.
 ## - SWAP {id}: a press or release in the swap window on its part `id` (TutorialAnchors'
 ##   swap_* ids).

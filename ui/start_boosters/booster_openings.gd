@@ -1,9 +1,12 @@
 class_name BoosterOpenings
 extends RefCounted
-## YOUR STORE's boosters (BoosterPage, v1.32): the arrival (ROLL UP, the lamps, the drops), each
-## booster's opening beats on its own clock (BoosterOpening's plan: the tear, the rise, the note
-## ladder, the hit card's wait, a RARE's freeze and pop), OPEN ALL and the skip, and PICK 2 OF 3.
-## Every rule goes through the page's StartBoardActions; the state lives on the page.
+## YOUR STORE's boosters (BoosterPage, v1.32; since v1.40 the aisle board throws them,
+## AisleRoulette, and they wait sealed on the counter until the player opens each one: a click on
+## its pouch, its number key or Enter for the next one; the user's play test of 2026-11-19, round
+## 2): each booster's opening beats on its own clock
+## (BoosterOpening's plan: the tear, the rise, the note ladder, the hit card's tremble, a RARE's
+## freeze and pop) and the skip. Every rule goes through the page's StartBoardActions; the state
+## lives on the page.
 
 var page: BoosterPage
 
@@ -15,7 +18,6 @@ func _init(owner_page: BoosterPage) -> void:
 ## Plays the running openings on `dt` (each at its boost) and fires their beats; slides picked
 ## boosters to their zones.
 func step(dt: float) -> void:
-	update_moves()
 	for opening: BoosterOpening in page.boosters:
 		if opening.state != BoosterOpening.State.OPENING:
 			continue
@@ -30,100 +32,44 @@ func step(dt: float) -> void:
 			_reveal(opening, opening.waiting_k())
 
 
-## Whether the store is still arriving (the shutter, the walk-in, the boosters' first drops).
-func arrival_busy() -> bool:
-	if page.shutter == BoosterPage.Shutter.DOWN:
-		return false
-	for opening: BoosterOpening in page.boosters:
-		if (
-			opening.state == BoosterOpening.State.SEALED
-			and not opening.restocked
-			and page.now < opening.drop_t + page.tuning.drop_s
-		):
-			return true
-	return page.shutter == BoosterPage.Shutter.ROLLING
+## The next booster to open (Enter): the leftmost one sealed on the counter, or null.
+func next_sealed() -> BoosterOpening:
+	if page.roulette.busy():
+		return null
+	for opening: BoosterOpening in page.shown_boosters():
+		if opening.state == BoosterOpening.State.SEALED and page.roulette.landed(opening):
+			return opening
+	return null
 
 
-## ROLL UP: the shutters roll up, the view walks in, the lamps come on one after another and each
-## booster drops under its lamp.
-func roll_up() -> bool:
-	if page.shutter != BoosterPage.Shutter.DOWN:
-		return false
-	page.shutter = BoosterPage.Shutter.ROLLING
-	page.shutter_t = page.now
-	page.fx.sfx("rattle_m", -6.0)
-	page.fx.sfx("ui_click", -10.0)
-	var t0: float = (
-		page.now + (0.0 if page.rm else page.tuning.shutter_up_s + page.tuning.walk_in_s)
-	)
-	if not page.rm:
-		page.fx.cue(
-			page.now + page.tuning.shutter_up_s, page.fx.sfx.bind("ui_open", -10.0), "arrival"
-		)
-	var k: int = 0
-	for opening: BoosterOpening in page.boosters:
-		if opening.state == BoosterOpening.State.GONE:
-			continue
-		opening.lamp_on = t0 + (0.0 if page.rm else k * page.tuning.lamp_gap_s)
-		opening.drop_t = opening.lamp_on + (-1.0 if page.rm else 0.05)
-		if not page.rm:
-			page.fx.cue(opening.lamp_on, page.fx.sfx.bind("tick", -10.0), "arrival")
-			page.fx.cue(opening.drop_t + page.tuning.drop_s, _landed_drop.bind(opening), "arrival")
-		k += 1
-	page.fx.cue(
-		t0 + page.tuning.shutter_up_s + page.tuning.walk_in_s,
-		func() -> void: page.shutter = BoosterPage.Shutter.UP,
-		"arrival_end"
-	)
-	if page.rm:
-		page.shutter = BoosterPage.Shutter.UP
-	return true
-
-
-func _landed_drop(opening: BoosterOpening) -> void:
-	page.fx.sfx("card_place", -6.0)
-	page.fx.dust(opening.cx, BoosterArt.COUNTER_Y + 3, 2)
-
-
-## Skips the arrival to its end (a click, Enter): every lamp on, every booster down, no late cues.
-func end_arrival() -> void:
-	if page.shutter == BoosterPage.Shutter.DOWN:
-		roll_up()
-	page.shutter = BoosterPage.Shutter.UP
-	page.shutter_t = -INF
-	for opening: BoosterOpening in page.boosters:
-		opening.lamp_on = minf(opening.lamp_on, page.now - 1.0)
-		if opening.state == BoosterOpening.State.SEALED and not opening.restocked:
-			opening.drop_t = minf(opening.drop_t, page.now - 1.0)
-	page.fx.drop_cues("arrival")
-
-
-## Whether a counted booster is still sealed.
-func any_sealed() -> bool:
-	for opening: BoosterOpening in page.boosters:
-		if opening.state == BoosterOpening.State.SEALED and opening.is_counted():
-			return true
-	return false
-
-
-## Opens booster `index` (a click or 1-2): saved at once, then its opening plays.
+## Opens booster `index` (a click on its pouch sealed on the counter, its number key, Enter).
 func open_booster(index: int, via: String = "click") -> bool:
-	if index < 0 or index >= page.boosters.size() or page.picking():
+	if index < 0 or index >= page.boosters.size():
 		return false
 	var opening: BoosterOpening = page.boosters[index]
-	if opening.state != BoosterOpening.State.SEALED or not opening.is_counted():
+	if opening.state != BoosterOpening.State.SEALED:
 		return false
-	if page.now < opening.drop_t + page.tuning.drop_s and not page.rm:
-		end_arrival()
-	if page.actions == null or not page.actions.open_booster.call(index):
+	if not page.roulette.landed(opening):
+		return false
+	return open_now(opening, false) and via != ""
+
+
+## Booster `opening` opens (`fast`: at the skip's pace): saved at once, then its opening plays
+## with the hit card flipped for the player. A failed save leaves it sealed on the counter, where a
+## click tries again.
+func open_now(opening: BoosterOpening, fast: bool) -> bool:
+	if opening.state != BoosterOpening.State.SEALED:
+		return false
+	if page.actions == null or not page.actions.open_booster.call(opening.index):
 		page.flash("COULD NOT SAVE. TRY AGAIN")
 		return false
-	_start_open(opening, false, false, 0.0)
-	page.set_hint("WAIT FOR THE ? CARD" if opening.hits.has(true) else "")
+	_start_open(opening, fast, true, 0.0)
+	if fast:
+		opening.boost = page.tuning.boost
 	StartBoardActions.emit(
-		page.actions, TutorialEvents.BOOSTER_OPENED, {TutorialEvents.ARG_INDEX: index}
+		page.actions, TutorialEvents.BOOSTER_OPENED, {TutorialEvents.ARG_INDEX: opening.index}
 	)
-	return via != ""
+	return true
 
 
 func _start_open(opening: BoosterOpening, fast: bool, auto_hit: bool, offset: float) -> void:
@@ -134,61 +80,6 @@ func _start_open(opening: BoosterOpening, fast: bool, auto_hit: bool, offset: fl
 	page.opened_n += 1
 	opening.build_plan(page.tuning, fast, auto_hit, page.rm)
 	page.restock_armed = false
-
-
-## OPEN ALL: every sealed booster (saved), tears tuning.open_all_tear_s apart, the hits queued last
-## within open_all_cap_s and flipped for you.
-func open_all(via: String = "key") -> bool:
-	if page.shutter == BoosterPage.Shutter.DOWN:
-		roll_up()
-	if page.shutter != BoosterPage.Shutter.UP:
-		end_arrival()
-	if page.picking():
-		page.flash("PICK %d BOOSTERS FIRST" % page.run.balance.dealt_aisle_count)
-		return false
-	for opening: BoosterOpening in page.boosters:
-		if opening.state == BoosterOpening.State.OPENING:
-			for k: int in opening.waits.size():
-				if opening.waits[k]:
-					_reveal(opening, k)
-	var sealed: Array[BoosterOpening] = []
-	for opening: BoosterOpening in page.boosters:
-		if opening.state == BoosterOpening.State.SEALED and opening.is_counted():
-			if page.actions != null and page.actions.open_booster.call(opening.index):
-				sealed.append(opening)
-	if sealed.is_empty():
-		return false
-	var specials: Array[Array] = []
-	var queue_start: float = 0.0
-	for i: int in sealed.size():
-		var offset: float = 0.0 if page.rm else i * page.tuning.open_all_tear_s
-		_start_open(sealed[i], true, true, offset)
-		queue_start = maxf(queue_start, offset + sealed[i].plain_end + page.tuning.flip_s)
-		for k: int in sealed[i].specials:
-			specials.append([sealed[i], k, offset])
-	if not page.rm and not specials.is_empty():
-		var cap: float = page.tuning.open_all_cap_s - page.tuning.flip_s - page.tuning.rare_rest_s
-		var gap: float = 0.0
-		if specials.size() > 1:
-			gap = minf(
-				page.tuning.open_all_gap_s, maxf(0.0, (cap - queue_start) / (specials.size() - 1))
-			)
-		var g: float = queue_start + 0.05
-		for j: int in specials.size():
-			if j > 0:
-				var previous: Array = specials[j - 1]
-				var was_rare: bool = (previous[0] as BoosterOpening).rares[previous[1] as int]
-				g = g + page.tuning.flip_s + 0.4 if was_rare else minf(g + gap, maxf(g, cap))
-			var entry: Array = specials[j]
-			var target: BoosterOpening = entry[0]
-			target.flip_at[entry[1] as int] = g - (entry[2] as float)
-			target.antic[entry[1] as int] = g - (entry[2] as float) - 0.05
-	page.set_hint("")
-	for opening: BoosterOpening in sealed:
-		StartBoardActions.emit(
-			page.actions, TutorialEvents.BOOSTER_OPENED, {TutorialEvents.ARG_INDEX: opening.index}
-		)
-	return via != ""
 
 
 ## Plays every running opening `boost` times as fast (a skip); false when none runs.
@@ -206,7 +97,7 @@ func opening_now() -> bool:
 	for opening: BoosterOpening in page.boosters:
 		if opening.state == BoosterOpening.State.OPENING and not opening.at_rest(page.tuning):
 			return true
-	return page.tote_cards.size() > 0
+	return page.roulette.busy()
 
 
 ## The opening whose hit card waits for its click at rest, or null.
@@ -236,11 +127,10 @@ func _reveal(opening: BoosterOpening, k: int) -> bool:
 
 
 func _fire_events(opening: BoosterOpening, a: float, z: float) -> void:
-	var pouch: Vector2 = BoosterArt.pouch_pos(opening.cx)
+	var pouch: Vector2 = opening.pouch_pos()
 	if opening.rm:
 		if _crossed(a, z, 0.0):
 			page.fx.sfx("rip", -4.0, 1.0 + 0.05 * opening.open_order)
-			_light_shelf(opening)
 	else:
 		if _crossed(a, z, 0.0):
 			page.fx.sfx("card_pickup", -4.0)
@@ -253,8 +143,6 @@ func _fire_events(opening: BoosterOpening, a: float, z: float) -> void:
 				pouch.x + BoosterArt.BW / 2.0, pouch.y + 8, BoosterArt.ramp(opening.aisle)
 			)
 			opening.flash_t = page.now
-			opening.lamp_hot_t = page.now
-			_light_shelf(opening)
 		if _crossed(a, z, page.tuning.rise_start_s):
 			page.fx.sfx("fan", -6.0)
 	for k: int in opening.cards.size():
@@ -296,22 +184,25 @@ func _anticipate(opening: BoosterOpening, k: int) -> void:
 
 func _land(opening: BoosterOpening, k: int) -> void:
 	var beat: BoosterOpening.Beat = opening.beats[k]
-	var at: Vector2 = BoosterArt.fan_pos(opening.cx, k)
+	var at: Vector2 = opening.fan_pos(k)
 	opening.land_t[k] = page.now
 	if opening.notes[k] < 0:
 		opening.notes[k] = page.flip_n
 		page.flip_n += 1
 	var note: int = opening.notes[k]
+	var foot: float = (
+		at.y + opening.card_h() if opening.in_row() else float(BoosterArt.COUNTER_Y + 3)
+	)
 	page.cart_n = page.cart_target()
 	page.cart_punch_s = 1.22 if beat == BoosterOpening.Beat.RARE else 1.06
 	if beat == BoosterOpening.Beat.COMMON:
 		page.fx.sfx("tick", -10.0)
 		page.fx.note(note, -6.0)
-		page.fx.dust(at.x + BoosterArt.CW / 2.0, BoosterArt.COUNTER_Y + 3, 2)
+		page.fx.dust(at.x + BoosterArt.CW / 2.0, foot, 2)
 	elif beat == BoosterOpening.Beat.HEAVY:
 		page.fx.sfx("card_place_4", -4.0)
 		page.fx.note(note, -6.0)
-		page.fx.dust(at.x + BoosterArt.CW / 2.0, BoosterArt.COUNTER_Y + 3, 4)
+		page.fx.dust(at.x + BoosterArt.CW / 2.0, foot, 4)
 	else:
 		page.rare_n += 1
 		page.fx.note(note, -4.0, true)
@@ -321,104 +212,15 @@ func _land(opening: BoosterOpening, k: int) -> void:
 		page.fx.sfx("stamp_notice", -4.0)
 		if not opening.rm:
 			page.shake_t = page.now
-			page.fx.sparkles(at.x, at.y, BoosterArt.CW, BoosterArt.CH, page.now + 0.05, 0.15)
+			page.fx.sparkles(at.x, at.y, BoosterArt.CW, opening.card_h(), page.now + 0.05, 0.15)
 	if waiting_booster() == null:
 		page.set_hint("")
 
 
-func _light_shelf(opening: BoosterOpening) -> void:
-	var zone: int = BoosterArt.zone_of(opening.cx)
-	page.shelf_on[zone] = page.now
-	page.shelf_off[zone] = -INF
-
-
-func update_moves() -> void:
-	for opening: BoosterOpening in page.boosters:
-		if opening.move_t0 == INF:
-			continue
-		var u: float = 1.0
-		if opening.move_s > 0.0:
-			u = clampf((page.now - opening.move_t0) / opening.move_s, 0.0, 1.0)
-		elif page.now < opening.move_t0:
-			u = 0.0
-		var e: float = 1.0 - pow(1.0 - u, 3.0)
-		opening.cx = (
-			opening.move_to
-			if u >= 1.0
-			else opening.move_from + roundf((opening.move_to - opening.move_from) * e / 4.0) * 4.0
-		)
-		if u >= 1.0:
-			opening.move_t0 = INF
-
-
-## PICK 2 OF 3: picks booster `index`; the second pick keeps the pair (saved), the third booster
-## gets SOLD OUT, its lamp goes dark and pulls up, and the pair slides to the two zones.
-func pick_booster(index: int) -> bool:
-	if not page.picking() or index < 0 or index >= page.boosters.size():
-		return false
-	var opening: BoosterOpening = page.boosters[index]
-	if opening.picked or opening.state == BoosterOpening.State.GONE:
-		return false
-	var picked: Array[int] = []
-	for other: BoosterOpening in page.boosters:
-		if other.picked:
-			picked.append(other.index)
-	if picked.size() + 1 >= page.run.balance.dealt_aisle_count:
-		var pair: Array[int] = picked.duplicate()
-		pair.append(index)
-		if page.actions == null or not page.actions.pick_boosters.call(pair):
-			page.flash("COULD NOT SAVE. TRY AGAIN")
-			return false
-	opening.picked = true
-	opening.pick_t = page.now
-	opening.lamp_hot_t = page.now
-	page.fx.sfx("card_pickup_1", -4.0)
-	page.fx.sfx("stamp_1", -10.0)
-	if picked.size() + 1 < page.run.balance.dealt_aisle_count:
-		page.set_hint("PICK %d MORE" % (page.run.balance.dealt_aisle_count - picked.size() - 1))
-		return true
-	_resolve_pick()
-	return true
-
-
-func _resolve_pick() -> void:
-	var r: float = 0.0 if page.rm else 1.0
-	var kept: Array[BoosterOpening] = []
-	for opening: BoosterOpening in page.boosters:
-		if page.run.start_setup.boosters[opening.index].sold_out:
-			opening.sold_t = page.now + 0.25 * r
-			opening.lamp_off = page.now + 0.35 * r
-			opening.sink_t = page.now + 0.9 * r
-			page.fx.cue(page.now + 0.25 * r, page.fx.sfx.bind("stamp_notice", -4.0))
-			page.fx.cue(
-				page.now + 1.35 * r, func() -> void: opening.state = BoosterOpening.State.GONE
-			)
-		elif opening.state != BoosterOpening.State.GONE:
-			kept.append(opening)
-	kept.sort_custom(func(a: BoosterOpening, b: BoosterOpening) -> bool: return a.cx < b.cx)
-	var move_at: float = page.now + page.tuning.pick_move_at_s * r
-	page.pick_settle_t = move_at
-	for k: int in kept.size():
-		kept[k].move_from = kept[k].cx
-		kept[k].move_to = [BoosterArt.ZONE_A, BoosterArt.ZONE_B][mini(k, 1)]
-		kept[k].move_t0 = move_at
-		kept[k].move_s = page.tuning.pick_sink_s * r
-		kept[k].picked = false
-	page.fx.cue(move_at, page.fx.sfx.bind("card_place_2", -8.0))
-	page.set_hint("")
-
-
-## Whether the counter still wears PICK 2 OF 3's dress (three plates; no RESTOCK, tote or board):
-## while picking, and after the second pick until the kept pair starts its slide
-## to the two aisle places (BoosterPage.pick_settle_t), so the dress changes with the boosters.
-func pick_layout() -> bool:
-	return page.picking() or page.now < page.pick_settle_t
-
-
 func all_open() -> bool:
-	if page.picking() or not page.run.start_setup.all_open():
+	if not page.run.start_setup.all_open():
 		return false
 	for opening: BoosterOpening in page.boosters:
-		if opening.is_counted() and opening.state != BoosterOpening.State.OPEN:
+		if opening.state != BoosterOpening.State.OPEN:
 			return false
 	return true

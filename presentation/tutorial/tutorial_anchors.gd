@@ -42,23 +42,20 @@ const MACHINE_SIGN := &"machine_sign"
 const TITLE_PRIMARY := &"title_primary"
 ## The HANDBOOK's tabs (T16).
 const HANDBOOK_TABS := &"handbook_tabs"
-## Start board, page 1 (BoosterChromeDraw's hit ids): the regulars crate (YOUR REGULARS), the
-## swap plate under it, the RESTOCK key, the main key (NEXT / OPEN STORE) and its tab and title.
-const CRATE := &"crate"
-const SWAP_PLATE := &"swap_plate"
+## Start board, page 1 (BoosterChromeDraw's hit ids): the RESTOCK key, the main key (NEXT / OPEN
+## STORE), the page tabs and the title key; the top bar's CART count is CART.
 const RESTOCK := &"restock"
 const PRIMARY := &"primary"
-const ROLLUP := &"rollup"
 const TAB1 := &"tab1"
 const TAB2 := &"tab2"
 const TITLE := &"title"
-## The RETURNS tote (RESTOCK).
-const TOTE := &"tote"
-## Start board, page 2 (BuildPageDraw's hit ids): the pins board, NEW PACKS, the held packs, the
-## back key, and the pins step's confirm key and its board.
+## Page 2's REGULARS crate: its SWAP key (v1.40: the regulars' swap window opens from it; also
+## the id a guided step locks the swap with) and KEEP (v1.41: OPEN STORE waits for it).
+const SWAP_KEY := &"swap_key"
+const REGULARS_OK := &"regulars_ok"
+## Start board, page 2 (BuildPageDraw's hit ids): the pins board, the back key, and the pins step's
+## confirm key and its board.
 const PINS := &"pins"
-const NEWPACKS := &"newpacks"
-const HELDPACKS := &"heldpacks"
 const BACK := &"back"
 const PINS_CONFIRM := &"pins_confirm"
 const PIN_BOARD := &"pin_board"
@@ -95,18 +92,14 @@ const FIXED: Array[StringName] = [
 	MACHINE_SIGN,
 	TITLE_PRIMARY,
 	HANDBOOK_TABS,
-	CRATE,
-	SWAP_PLATE,
 	RESTOCK,
 	PRIMARY,
-	ROLLUP,
 	TAB1,
 	TAB2,
 	TITLE,
-	TOTE,
+	SWAP_KEY,
+	REGULARS_OK,
 	PINS,
-	NEWPACKS,
-	HELDPACKS,
 	BACK,
 	PINS_CONFIRM,
 	PIN_BOARD,
@@ -119,7 +112,7 @@ const FIXED: Array[StringName] = [
 ## slot ticket's family icons and its rule chip (T3), a slot's whole spot (its belt place, the
 ## item on it and its ticket: what a callout keeps clear, TutorialStep.keep_clear); machine: a
 ## chute key, a prize. Start page 1: a booster, its hit place, its RETURN THIS ONE plate, a
-## restocked booster's cards. Page 2: a starter pack, a pin row and its WEAR button. Swap window:
+## restocked booster's cards. Page 2: a pin row and its WEAR button. Swap window:
 ## a regular, a booster.
 const SLOT := "slot"
 const HAND := "hand"
@@ -133,7 +126,6 @@ const BOOSTER := "booster"
 const HIT := "hit"
 const RETURN := "return"
 const RCARDS := "rcards"
-const PACK := "pack"
 const PIN_ROW := "pin_row"
 const WEAR := "wear"
 const SWAP_REGULAR := "swap_regular"
@@ -151,7 +143,6 @@ const PREFIXES: Array[String] = [
 	HIT,
 	RETURN,
 	RCARDS,
-	PACK,
 	PIN_ROW,
 	WEAR,
 	SWAP_REGULAR,
@@ -178,10 +169,6 @@ static func basket(index: int) -> StringName:
 
 static func booster(index: int) -> StringName:
 	return indexed(BOOSTER, index)
-
-
-static func pack(index: int) -> StringName:
-	return indexed(PACK, index)
 
 
 static func card(booster_index: int, place: int) -> StringName:

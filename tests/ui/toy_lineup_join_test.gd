@@ -95,12 +95,12 @@ func test_the_lineup_card_drops_in_when_not_hovered() -> void:
 	assert_str(lineup.title_line().text()).is_equal("PANTRY LINEUP")
 
 
-## The capsule that completes Cold cases: the gold band, the COMPLETED! card waiting for OK (not
+## The capsule that completes Dairy: the gold band, the COMPLETED! card waiting for OK (not
 ## before it arms), the plate held at 0 OF 2 LEFT until SOLD OUT.
 func test_a_completing_capsule_shows_the_completed_card() -> void:
-	var profile: ProfileState = Kit.profile(2, 2, {&"cold_cases": 1})
+	var profile: ProfileState = Kit.profile(2, 2, {&"dairy": 1})
 	var screen: ToyMachinesScreen = await _open(profile)
-	var machine: ToyMachineView = _machine(screen, &"cold_cases")
+	var machine: ToyMachineView = _machine(screen, &"dairy")
 	machine._gui_input(Kit.left_click())
 	await _frames(2)
 	await _dismiss(screen)
@@ -196,9 +196,9 @@ func test_reduced_motion_fades_in_place() -> void:
 ## at the impact, the card jolted JOLT art px down for JOLT_S, then back at rest. Only the stamp,
 ## the aisle's name and OK are on the card (no rules, pips or stock footer).
 func test_the_completed_stamp_slams_onto_the_band() -> void:
-	var profile: ProfileState = Kit.profile(2, 2, {&"cold_cases": 1})
+	var profile: ProfileState = Kit.profile(2, 2, {&"dairy": 1})
 	var screen: ToyMachinesScreen = await _open(profile)
-	_machine(screen, &"cold_cases")._gui_input(Kit.left_click())
+	_machine(screen, &"dairy")._gui_input(Kit.left_click())
 	await _frames(2)
 	await _dismiss(screen)
 	var join: ToyLineupJoin = screen.lineup_join()
@@ -238,7 +238,7 @@ func test_the_completed_stamp_slams_onto_the_band() -> void:
 	for line: Node in card.find_children("*", "PixelLine", true, false):
 		words.append((line as PixelLine).text())
 	words.sort()
-	var expected: Array[String] = ["COLD CASES", ToyCompletedCard.STAMP_TEXT]
+	var expected: Array[String] = ["DAIRY", ToyCompletedCard.STAMP_TEXT]
 	expected.sort()
 	assert_array(words).is_equal(expected)
 	var labels: Array[String] = []

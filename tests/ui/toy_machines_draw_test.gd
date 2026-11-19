@@ -92,7 +92,7 @@ func test_a_later_draw_shows_the_drawn_items_art() -> void:
 func test_the_reveal_holds_then_the_icon_flies_by_itself() -> void:
 	var profile: ProfileState = Kit.profile(3, 2)
 	var screen: ToyMachinesScreen = await _open(profile, false)
-	_machine(screen, &"cold_cases")._gui_input(Kit.left_click())
+	_machine(screen, &"dairy")._gui_input(Kit.left_click())
 	var reveal: ToyReveal = screen.reveal()
 	assert_bool(reveal.is_holding()).is_true()
 	assert_int(reveal.mouse_filter).is_equal(Control.MOUSE_FILTER_STOP)
@@ -115,7 +115,7 @@ func test_the_reveal_holds_then_the_icon_flies_by_itself() -> void:
 	assert_bool(screen.lineup_join().is_active()).is_false()
 	# The machines take no clicks while it is up (no double pull).
 	_machine(screen, &"pantry")._gui_input(Kit.left_click())
-	_machine(screen, &"cold_cases")._gui_input(Kit.left_click())
+	_machine(screen, &"dairy")._gui_input(Kit.left_click())
 	assert_int(profile.coins).is_equal(2)
 	assert_bool(profile.unlocked_items.has(&"sugar_cubes")).is_false()
 	# DONE sits under the reveal's shade: the shade is what the pointer hits there.
@@ -211,7 +211,7 @@ func test_a_title_draw_with_a_saved_run() -> void:
 	assert_int(profile.unlocked_items[&"crisps"]).is_equal(4)
 	assert_int(screen.counter().run_index()).is_equal(4)
 	# The last coin spent: the machines go dim with the notice under them.
-	assert_int(_machine(screen, &"cold_cases").state()).is_equal(CapsuleCounter.State.BROKE)
+	assert_int(_machine(screen, &"dairy").state()).is_equal(CapsuleCounter.State.BROKE)
 	assert_int(screen.strip_kind()).is_equal(ToyMachinesScreen.Strip.BROKE)
 
 
@@ -244,7 +244,7 @@ func test_a_failed_save_switches_every_machine_off() -> void:
 func test_the_shelf_opens_and_comes_back() -> void:
 	var profile: ProfileState = Kit.profile(2, 2)
 	var screen: ToyMachinesScreen = await _open(profile, false)
-	_machine(screen, &"cold_cases")._gui_input(Kit.left_click())
+	_machine(screen, &"dairy")._gui_input(Kit.left_click())
 	screen.reveal().finish_hold()
 	screen.lineup_join().finish()
 	screen.shelf_button().pressed.emit()
@@ -309,7 +309,7 @@ func test_the_reveal_stays_alive_through_the_hold() -> void:
 	screen.lineup_join().finish()
 	# Reduced motion: still.
 	profile.set_reduced_motion(true)
-	_machine(screen, &"cold_cases")._gui_input(Kit.left_click())
+	_machine(screen, &"dairy")._gui_input(Kit.left_click())
 	var at: Vector2 = reveal.figurine().position
 	await _frames(20)
 	assert_vector(reveal.figurine().position).is_equal(at)

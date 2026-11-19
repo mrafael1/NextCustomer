@@ -98,13 +98,8 @@ static func _until_shown(screen: ShiftScreen) -> StringName:
 static func _act(screen: ShiftScreen, id: StringName) -> void:
 	var board: StartBoard = screen._cart_reveal.board if screen._cart_reveal.is_open() else null
 	match id:
-		&"G3":
-			var sealed: bool = board.store.boosters[0].state == BoosterOpening.State.SEALED
-			_click_booster(board.store, 0 if sealed else 1)
 		&"G4":
 			board.store.primary()
-		&"G5":
-			board.pick(0)
 		&"G6":
 			board.staff.primary()
 		&"G11":
@@ -155,11 +150,6 @@ static func _press(screen: ShiftScreen) -> void:
 	var overlay: TutorialOverlay = screen.tutorial.overlay()
 	if overlay != null:
 		overlay.callout().press_button()
-
-
-static func _click_booster(page: BoosterPage, index: int) -> void:
-	var at: Vector2 = BoosterArt.pouch_pos(page.boosters[index].cx) + Vector2(40, 40)
-	page.click(at)
 
 
 static func _place(screen: ShiftScreen, place: int, slot: int) -> void:

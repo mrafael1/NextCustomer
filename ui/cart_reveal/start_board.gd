@@ -1,13 +1,13 @@
 class_name StartBoard
 extends Control
 ## Opening-time board (full build plan 7.2): page 1 YOUR STORE, the store at dawn with its aisle
-## boosters (BoosterPage), and page 2 YOUR BUILD, the staff room with the starter packs as cards,
-## the deck pile's NEW PACKS and the BADGE PINS step (BuildPage), both v1.32 (mock-up
+## boosters (BoosterPage), and page 2 YOUR BUILD, the staff room with the order sheet, the BADGE
+## PINS step and OPEN STORE (BuildPage), both v1.32 (mock-up
 ## start_boosters_v3.html). Root owns navigation and routes keys; each page draws its own top bar
 ## and floor row and plays its own motion. Game choices go through StartChoice
 ## (StartBoardActions), so this class only displays them and routes input.
 
-signal clocked_in(pack: StarterPackDefinition)
+signal clocked_in
 ## ‹ TITLE (or Esc with nothing listening to options_requested), and the options' BACK TO TITLE
 ## (leave): the screen owns the scene change and its teardown.
 signal back_to_title
@@ -36,7 +36,7 @@ const KEYS: Array[Key] = [
 	KEY_A,
 	KEY_P,
 	KEY_R,
-	KEY_N,
+	KEY_S,
 ]
 ## The most one frame advances the page slide (s), so a slow frame never jumps it.
 const SLIDE_MAX_STEP := 1.0 / 30.0
@@ -91,10 +91,12 @@ func _init(shown_run: RunState, shown_profile: ProfileState, choice: StartBoardA
 	_pages.add_child(store)
 	store.title_pressed.connect(_back_pressed)
 	store.next_pressed.connect(_next_pressed)
+	store.swap_closed.connect(_swap_closed)
 	staff = BuildPage.new()
 	_pages.add_child(staff)
 	staff.store_pressed.connect(func() -> void: show_page(1, "click"))
 	staff.store_opened.connect(_store_opened)
+	staff.swap_pressed.connect(open_swap)
 	staff.visible = false
 	# A run saved at BUILD with a sealed booster (RESTOCK after page 2) opens on page 1: the
 	# fresh booster must be opened before the clock-in.
@@ -123,11 +125,6 @@ func _send_guide(event: StringName, args: Dictionary) -> void:
 	guide_event.emit(event, args)
 
 
-## The picked pack's place in the offer (-1: none picked).
-func selected() -> int:
-	return staff.picked()
-
-
 func _resize() -> void:
 	var factor: float = minf(size.x / ShiftStage.SIZE.x, size.y / ShiftStage.SIZE.y)
 	_stage.scale = Vector2.ONE * factor
@@ -154,18 +151,35 @@ func _next_pressed() -> void:
 		show_page(2, "click")
 
 
-## NEW PACKS (saved at once; the deck pile on page 2).
-func new_packs() -> bool:
-	if busy or page != 2:
+## Whether the regulars' swap window shows (over page 2: BoosterPage.overlay).
+func swap_showing() -> bool:
+	return store.overlay or store.swap.visible()
+
+
+## Page 2's SWAP key (S): the swap window opens over the page. It is page 1's (BoosterPage draws
+## and plays it), shown in front of page 2 with nothing else of page 1. False when it can't open.
+func open_swap() -> bool:
+	if busy or page != 2 or staff.pins_open or staff.flight != null or swap_showing():
 		return false
-	var used: bool = staff.new_packs()
-	if used:
-		refresh()
-	return used
+	if not BuildRegulars.swap_shown(staff):
+		return false
+	if not store.open_swap_over():
+		say("COULD NOT OPEN THE SWAP")
+		return false
+	_pages.move_child(store, -1)
+	store.visible = true
+	return true
+
+
+## The swap window shut: page 2 shows the regulars' changes (its CART count, its order sheet).
+func _swap_closed() -> void:
+	_pages.move_child(store, staff.get_index())
+	store.visible = page == 1
+	refresh()
 
 
 func show_page(next_page: int, key: String = "click") -> void:
-	if busy or staff.pins_open or staff.flight != null:
+	if busy or staff.pins_open or staff.flight != null or swap_showing():
 		return
 	if next_page == page or next_page not in [1, 2]:
 		return
@@ -244,20 +258,10 @@ func _end_slide() -> void:
 		_act(queued)
 
 
-## Picks pack `index` on page 2 (saved at once; a click, 1-3, or the reveal's raise_pack).
-func pick(index: int) -> void:
-	if busy or page != 2:
-		return
-	if not StartBoardActions.hit_allowed(_choice, TutorialAnchors.pack(index)):
-		return
-	if staff.pick_pack(index, "key"):
-		refresh()
-
-
-## OPEN STORE with the picked pack: the flight to the cart, then the clock-in. False with no pick,
-## while the packs wait for the BADGE PINS step, or while a booster is sealed (a RESTOCK).
+## OPEN STORE: the flight to the cart, then the clock-in. False while the BADGE PINS step waits,
+## or while a booster is sealed (a RESTOCK).
 func clock_in() -> bool:
-	if page != 2 or busy or staff.picked() < 0 or staff.pins_open or staff.packs_held():
+	if page != 2 or busy or staff.pins_open or staff.pins_pending():
 		return false
 	if not StartBoardActions.hit_allowed(_choice, TutorialAnchors.PRIMARY):
 		return false
@@ -271,11 +275,11 @@ func clock_in() -> bool:
 
 
 ## The flight landed: the NEW tags shown this run are marked seen, and the board clocks in.
-func _store_opened(pack: StarterPackDefinition) -> void:
+func _store_opened() -> void:
 	busy = true
 	for id: StringName in store.fresh:
 		_choice.mark_seen.call(id)
-	clocked_in.emit(pack)
+	clocked_in.emit()
 
 
 func _back_pressed() -> void:
@@ -284,6 +288,9 @@ func _back_pressed() -> void:
 
 func back(key: String = "esc") -> void:
 	if busy:
+		return
+	if swap_showing():
+		store.handle_key(KEY_ESCAPE)
 		return
 	if page == 2 and staff.pins.close():
 		return
@@ -317,8 +324,6 @@ func _input(event: InputEvent) -> void:
 	if not is_visible_in_tree() or key == null or key.echo:
 		return
 	if not key.pressed:
-		if key.keycode == KEY_SPACE and page == 1:
-			store.space(false)
 		return
 	if not KEYS.has(key.keycode):
 		return
@@ -342,6 +347,8 @@ func _act(keycode: Key) -> void:
 		back()
 	elif busy:
 		return
+	elif swap_showing():
+		_act_store(keycode, enter)
 	elif page == 2:
 		if staff.handle_key(keycode):
 			refresh()
@@ -350,10 +357,8 @@ func _act(keycode: Key) -> void:
 
 
 func _act_store(keycode: Key, enter: bool) -> void:
-	if enter:
+	if enter or keycode == KEY_SPACE:
 		store.primary("key")
-	elif keycode == KEY_SPACE:
-		store.space(true)
 	else:
 		store.handle_key(keycode)
 
@@ -363,6 +368,8 @@ func _act_store(keycode: Key, enter: bool) -> void:
 func tips_blocked() -> bool:
 	if busy or _slide_old != null or not is_visible_in_tree():
 		return true
+	if swap_showing():
+		return store.tips_blocked()
 	return store.tips_blocked() if page == 1 else BuildPageDraw.tips_blocked(staff)
 
 

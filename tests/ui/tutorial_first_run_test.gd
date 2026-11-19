@@ -17,10 +17,10 @@ const MILK := 2
 const EGGS := 3
 const YOGURT := 4
 const CEREAL := 5
-const FROZEN_PEAS := 7
+const CHEESE := 7
 ## The answer (36€), and the same seven with Eggs last (29€, under the 30€ quota).
-const ANSWER: Array[int] = [BANANA_1, YOGURT, BANANA_2, EGGS, MILK, CEREAL, FROZEN_PEAS]
-const WRONG: Array[int] = [BANANA_1, YOGURT, BANANA_2, MILK, CEREAL, FROZEN_PEAS, EGGS]
+const ANSWER: Array[int] = [BANANA_1, YOGURT, BANANA_2, EGGS, MILK, CEREAL, CHEESE]
+const WRONG: Array[int] = [BANANA_1, YOGURT, BANANA_2, MILK, CEREAL, CHEESE, EGGS]
 
 var _folder: String = ""
 var _window_size: Vector2i
@@ -62,34 +62,34 @@ func test_a_fresh_profile_plays_the_whole_guided_run() -> void:
 	var board: StartBoard = Kit.start_guided(shift, SEED)
 	assert_bool(shift.run.guided).is_true()
 	assert_bool(shift.tutorial.is_active()).is_true()
-	# G2: the regulars' crate (the 4 regulars), NEXT; the swap plate and RESTOCK locked.
+	# G2: the regulars in the cart (the CART count), NEXT; the swap key and RESTOCK locked. The
+	# fixed pair's boosters came out and wait sealed on the counter for G3.
 	assert_bool(await Kit.until_step(shift, &"G2")).is_true()
 	_assert_callout(shift)
 	assert_int(shift.run.starter.core_cards.size()).is_equal(4)
-	assert_bool(board.store.actions.locked(TutorialAnchors.SWAP_PLATE)).is_true()
+	assert_bool(board.store.actions.locked(TutorialAnchors.SWAP_KEY)).is_true()
+	assert_bool(board.store.roulette.hops.is_empty()).is_true()
+	for opening: BoosterOpening in board.store.boosters:
+		assert_int(opening.state).is_equal(BoosterOpening.State.SEALED)
 	assert_bool(Kit.press(shift)).is_true()
-	# G3: both boosters' clicks open them; NEXT can't skip it.
+	# G3: both boosters ringed; the player opens them (round 2 of the 2026-11-19 play test), the
+	# first opened one's ring drops.
 	assert_bool(await Kit.until_step(shift, &"G3")).is_true()
 	_assert_callout(shift)
-	assert_bool(Kit.press(shift)).is_false()
-	Kit.click_page(board.store, Kit.pouch(board.store, 0))
-	assert_int(board.store.boosters[0].state).is_not_equal(BoosterOpening.State.SEALED)
-	assert_str(String(shift.tutorial.step_id())).is_equal("G3")
-	# Shown again once the first has opened, ringing the sealed one only.
-	assert_bool(await _until_rings(shift, 1)).is_true()
-	Kit.click_page(board.store, Kit.pouch(board.store, 1))
+	assert_int(shift.tutorial.overlay().ring_rects().size()).is_equal(2)
+	_open_boosters(board)
+	for opening: BoosterOpening in board.store.boosters:
+		assert_int(opening.state).is_not_equal(BoosterOpening.State.SEALED)
 	# G4 once stocked.
 	assert_bool(await Kit.until_step(shift, &"G4")).is_true()
 	_assert_callout(shift)
 	assert_bool(board.store.primary()).is_true()
-	# G5: page 2, NEW PACKS locked; a pack picked.
-	assert_bool(await Kit.until_step(shift, &"G5")).is_true()
-	_assert_callout(shift)
-	assert_bool(board.store.actions.locked(TutorialAnchors.NEWPACKS)).is_true()
-	assert_bool(board.staff.primary()).is_false()  # OPEN STORE waits for G6.
-	board.pick(1)
+	# G6: page 2, OPEN STORE (the starter pack step G5 went in v1.41).
 	assert_bool(await Kit.until_step(shift, &"G6")).is_true()
 	_assert_callout(shift)
+	# KEEP on the regulars' crate (Enter), then OPEN STORE (v1.41).
+	assert_bool(board.staff.primary()).is_true()
+	assert_bool(board.staff.regulars_pending()).is_false()
 	assert_bool(board.staff.primary()).is_true()
 	# G7..G9: the till and the quota, the card read, your turn; no move meanwhile.
 	assert_bool(await Kit.until_step(shift, &"G7")).is_true()
@@ -135,14 +135,12 @@ func test_the_callouts_fit_at_1080p() -> void:
 	Kit.press(shift)
 	assert_bool(await Kit.until_step(shift, &"G3")).is_true()
 	_assert_callout(shift)
-	board.store.primary()  # OPEN ALL: G4 shows once stocked.
+	_open_boosters(board)
 	assert_bool(await Kit.until_step(shift, &"G4")).is_true()
 	_assert_callout(shift)
 	board.store.primary()
-	assert_bool(await Kit.until_step(shift, &"G5")).is_true()
-	_assert_callout(shift)
-	board.pick(0)
 	assert_bool(await Kit.until_step(shift, &"G6")).is_true()
+	board.staff.primary()
 	board.staff.primary()
 	for id: StringName in [&"G7", &"G8", &"G9"]:
 		assert_bool(await Kit.until_step(shift, id)).is_true()
@@ -217,17 +215,16 @@ func test_a_replay_with_a_swap_open_skips_the_swap_stop() -> void:
 	assert_bool(await Kit.until_step(shift, &"G2")).is_true()
 	Kit.press(shift)
 	assert_bool(await Kit.until_step(shift, &"G3")).is_true()
-	board.store.primary()  # OPEN ALL.
+	_open_boosters(board)
 	assert_bool(await Kit.until_step(shift, &"G4")).is_true()
 	assert_bool(board.store.swap.is_live()).is_true()
-	assert_bool(board.store.swap.wants_stop()).is_false()
 	assert_bool(board.store.primary("click")).is_true()
 	assert_bool(board.store.swap.active).is_false()
-	assert_bool(await Kit.until_step(shift, &"G5")).is_true()
+	assert_bool(await Kit.until_step(shift, &"G6")).is_true()
 	_assert_callout(shift)
-	# The same board with no tutorial still stops at the window.
+	# The same board with no tutorial has no lock.
 	shift.tutorial._set_active(false)
-	assert_bool(board.store.actions.locked(TutorialAnchors.SWAP_PLATE)).is_false()
+	assert_bool(board.store.actions.locked(TutorialAnchors.SWAP_KEY)).is_false()
 
 
 ## The menu (and the board's ‹ TITLE) take a mouse click through the dim on every guided step,
@@ -242,12 +239,11 @@ func test_the_menu_and_title_take_a_click_through_the_dim() -> void:
 	_assert_passes(shift.tutorial.overlay(), title)
 	Kit.press(shift)
 	assert_bool(await Kit.until_step(shift, &"G3")).is_true()
-	board.store.primary()
+	_open_boosters(board)
 	assert_bool(await Kit.until_step(shift, &"G4")).is_true()
 	board.store.primary()
-	assert_bool(await Kit.until_step(shift, &"G5")).is_true()
-	board.pick(0)
 	assert_bool(await Kit.until_step(shift, &"G6")).is_true()
+	board.staff.primary()
 	board.staff.primary()
 	assert_bool(await Kit.until_step(shift, &"G7")).is_true()
 	var menu: Rect2 = shift.anchor_rect(TutorialAnchors.MENU)
@@ -422,12 +418,11 @@ func _to_free() -> ShiftScreen:
 	assert_bool(await Kit.until_step(shift, &"G2")).is_true()
 	Kit.press(shift)
 	assert_bool(await Kit.until_step(shift, &"G3")).is_true()
-	board.store.primary()
+	_open_boosters(board)
 	assert_bool(await Kit.until_step(shift, &"G4")).is_true()
 	board.store.primary()
-	assert_bool(await Kit.until_step(shift, &"G5")).is_true()
-	board.pick(0)
 	assert_bool(await Kit.until_step(shift, &"G6")).is_true()
+	board.staff.primary()
 	board.staff.primary()
 	for id: StringName in [&"G7", &"G8", &"G9"]:
 		assert_bool(await Kit.until_step(shift, id)).is_true()
@@ -485,3 +480,12 @@ func _logged_types() -> Array[String]:
 			if parsed is Dictionary:
 				types.append(str((parsed as Dictionary).get("type", "")))
 	return types
+
+
+## G3's move: Enter opens each booster waiting sealed on the counter, left to right (a first press
+## while the boosters still fly skips their throws).
+static func _open_boosters(board: StartBoard) -> void:
+	for press: int in 4:
+		if board.store.openings.next_sealed() == null and not board.store.roulette.busy():
+			return
+		board.store.primary()

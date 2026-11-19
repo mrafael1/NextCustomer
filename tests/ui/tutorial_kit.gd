@@ -113,7 +113,7 @@ static func _button(at: Vector2, pressed: bool) -> InputEventMouseButton:
 
 ## Booster `index`'s pouch centre (art px).
 static func pouch(page: BoosterPage, index: int) -> Vector2:
-	return BoosterArt.pouch_pos(page.boosters[index].cx) + Vector2(40, 40)
+	return page.boosters[index].pouch_pos() + Vector2(40, 40)
 
 
 ## The hand's item at place `at`.

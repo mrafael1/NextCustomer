@@ -23,12 +23,12 @@ const WALL_RECT := Rect2(
 	ShiftStage.COUNTER_TOP - ShiftStage.TOP_BAR_BOTTOM
 )
 ## The aisles whose signs hang over the store, by AisleDefinition.id.
-const COLD_CASES := &"cold_cases"
+const DAIRY := &"dairy"
 const FRUIT_AND_VEG := &"fruit_and_veg"
 ## The signs' boards (stage coordinates), hung on two cords from the ceiling.
 const SIGN_RECTS: Dictionary[StringName, Rect2] = {
 	FRUIT_AND_VEG: Rect2(1064, 84, 60, 24),
-	COLD_CASES: Rect2(1224, 84, 60, 24),
+	DAIRY: Rect2(1224, 84, 60, 24),
 }
 ## A board's cords: from the top bar's foot down to its top, this far in from each end.
 const CORD_INSET := 12.0
@@ -41,7 +41,7 @@ const TILE_SIZE := 20.0
 const ICON_SCALE := 2.0
 const ICON_INSET := 1.0
 const ICONS: Dictionary[StringName, Texture2D] = {
-	COLD_CASES: preload("res://art/icons/aisle_cold_cases.png"),
+	DAIRY: preload("res://art/icons/aisle_dairy.png"),
 	FRUIT_AND_VEG: preload("res://art/icons/aisle_fruit_and_veg.png"),
 }
 ## A sign's colour when the run's balance has no such aisle.

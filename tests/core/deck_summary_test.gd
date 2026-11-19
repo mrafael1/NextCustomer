@@ -58,7 +58,6 @@ func test_view_order_puts_products_first_then_names() -> void:
 				"dented_can",
 				"eggs",
 				"flickering_bulb",
-				"frozen_peas",
 				"milk",
 				"reduced_yogurt",
 				"scissors",

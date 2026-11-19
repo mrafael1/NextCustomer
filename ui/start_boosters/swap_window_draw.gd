@@ -666,9 +666,7 @@ static func done_label(page: BoosterPage) -> Array[String]:
 		return ["SKIP ›", "SPEED IT UP"]
 	var done: int = StartSetupRules.applied_swaps(page.run)
 	var swaps: String = "%d SWAP%s" % [done, "" if done == 1 else "S"]
-	if w.from_next:
-		return ["DONE", swaps + " · YOUR BUILD" if done > 0 else "TO YOUR BUILD"]
-	return ["DONE", swaps + " · TO STORE" if done > 0 else "BACK TO STORE"]
+	return ["DONE", swaps + " · YOUR BUILD" if done > 0 else "BACK TO YOUR BUILD"]
 
 
 ## A tag over a slot or a card (`look` "bad": tomato, "good": gold) with its pointer.

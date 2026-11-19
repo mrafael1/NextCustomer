@@ -40,8 +40,7 @@ func test_a_screen_opened_without_a_request_starts_without_it() -> void:
 
 
 ## The title's New run: the new run opens on the reveal, already dealt and saved, showing its
-## staples and (since #107) the starter pack choice, today's products in the dispenser; the
-## request is used up.
+## board; the request is used up.
 func test_the_titles_request_opens_it_on_the_new_run() -> void:
 	CartReveal.request()
 	var screen: ShiftScreen = await _screen()
@@ -53,7 +52,6 @@ func test_the_titles_request_opens_it_on_the_new_run() -> void:
 	# A run with a start setup opens the two-page board, never the older panel (or its sounds).
 	assert_object(reveal.panel()).is_null()
 	assert_object(reveal.board).is_not_null()
-	assert_bool(reveal.is_choosing()).is_true()
 	assert_object(reveal.board.run).is_same(screen.run)
 	assert_int(screen.run.phase).is_equal(RunState.Phase.CHOOSE_START)
 	assert_bool(FileAccess.file_exists(_folder.path_join(SaveService.RUN_FILE))).is_true()
@@ -104,21 +102,17 @@ func test_the_opening_board_covers_the_stage_and_clocks_in() -> void:
 	_open_boosters(board)
 	board.show_page(2, "enter")
 	assert_int(board.page).is_equal(2)
-	# The BADGE PINS step comes first (v1.32): confirm it with no pin, then pick.
+	# The BADGE PINS step comes first (v1.32) when a pin is owned: a new profile owns none.
 	board.staff.advance(0.2)
-	assert_bool(board.staff.primary()).is_true()
-	board.pick(0)
-	var pack: StarterPackDefinition = screen.run.start_offer.packs[0]
+	assert_bool(board.staff.keep_regulars()).is_true()
 	# Recorded after the screen's own handlers (connected first): shift 1 as the shutter covers
 	# the board, and the machine as the shutter opens.
 	var dealt: Array[CardInstance] = []
 	var notice_due: Array[bool] = []
-	reveal.pack_taken.connect(
-		func(_taken: StarterPackDefinition) -> void: dealt.assign(screen.run.hand())
-	)
+	reveal.store_opened.connect(func() -> void: dealt.assign(screen.run.hand()))
 	reveal.finished.connect(func() -> void: notice_due.append(screen._machine._notice_due))
 	var clocked_ms: int = Time.get_ticks_msec()
-	assert_bool(reveal.take_pack()).is_true()
+	assert_bool(reveal.open_store()).is_true()
 	for frame: int in 3:
 		await get_tree().process_frame
 	assert_bool(reveal.is_open()).is_false()
@@ -127,9 +121,8 @@ func test_the_opening_board_covers_the_stage_and_clocks_in() -> void:
 	assert_array(notice_due).is_equal([true])
 	assert_int(dealt.size()).is_equal(screen.run.balance.hand_size)
 	assert_array(screen.run.hand()).is_equal(dealt)
-	# The hand comes from the cart the board showed: regulars, today's stock and the pack.
+	# The hand comes from the cart the board showed: regulars and today's stock.
 	var cart: Array[CardDefinition] = screen.run.starter.core_cards + screen.run.start_offer.shared
-	cart.append_array(pack.cards)
 	for card: CardInstance in dealt:
 		assert_array(cart).contains([card.definition])
 	assert_int(screen.run.phase).is_equal(RunState.Phase.PLANNING)
@@ -144,8 +137,12 @@ func test_the_boards_cards_show_the_games_tip() -> void:
 	var reveal: CartReveal = screen._cart_reveal
 	var store: BoosterPage = reveal.board.store
 	store.frozen = true
-	store.openings.roll_up()
-	store.openings.open_all("key")
+	store.roulette.skip()
+	# The boosters wait sealed for their clicks (round 2 of the 2026-11-19 play test).
+	for sealed: BoosterOpening in store.shown_boosters():
+		store.openings.open_booster(sealed.index, "click")
+	for b: BoosterOpening in store.boosters:
+		b.compact = false  # The fan's full cards (compact_fan_cards off) carry the tips.
 	for _step: int in 600:
 		store.advance(1.0 / 60.0)
 	var target: TipTarget = store.tips.target_for("card0_0")

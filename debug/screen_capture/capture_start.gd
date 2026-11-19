@@ -1,37 +1,39 @@
 class_name CaptureStart
 extends RefCounted
 ## The opening board's review states for the screen capture (full build plan 7.2; page 1 YOUR
-## STORE, v1.32 boosters): --reveal=0,page=1|2,completed=0..6[,<option>...], the options:
+## STORE, the aisle board of v1.40): --reveal=0,page=1|2,completed=0..6[,<option>...] (completed=0
+## leaves the aisles a new profile has not unlocked behind their padlocks), the options:
+## - guided: the guided first run (the fixed pair, no light);
 ## - do=<step>+<step>+...: page 1 played step by step on its own clock (frozen between steps, so
-##   the capture shows that exact frame): roll (ROLL UP), t<seconds> (the clock moves on, in 1/60 s
-##   steps), open<i>, flip<i> (the waiting hit card), all (OPEN ALL), arm (RESTOCK armed),
-##   restock<i>, pick<i> (PICK 2 OF 3), hold (Space held), at<x>:<y> (the pointer at art px x,
-##   y), primary; the swap window (v1.32): win (opened from the crate), sb<i> (its booster i
-##   opened), grab<n> (piece n pressed where it rests: booster 0's cards, booster 1's, then the
-##   regulars), over<k> (the pointer over basket slot k), drop (the button let go there), done
-##   (DONE), esc; options (polish batch 2: the board's Esc, the options with BACK TO TITLE),
-##   optup (Up in them: BACK TO TITLE marked); tip<what> (v1.33 hover tips: the board's tip of
-##   the StartTips target <what> at full size: reg<k> a regular, card<b>_<k> an opened booster
-##   card, card<b>_<k>fam its first family chip, piece<n> a swap window card, slot<k> its
-##   basket's item; play it last); the file name gets the steps (do_<steps>_);
+##   the capture shows that exact frame): t<seconds> (the clock moves on, in 1/60 s steps), skip
+##   (a click: the light, the throws or an opening skipped), all (everything played to its end,
+##   each sealed booster opened in turn), open<i> (booster i opened, as its click; round 2 of the
+##   2026-11-19 play test: the boosters wait sealed for it), pouch<i> (the pointer on booster i's
+##   sealed pouch), arm (RESTOCK armed), restock<i>, card<b>_<k> (the
+##   pointer on booster b's card k: its full card pops), at<x>:<y> (the pointer at art px x, y),
+##   primary; the swap window, on page 2 since v1.40 (play these in p2=): win (the SWAP key),
+##   sb<i> (its booster i opened), grab<n> (piece n pressed where it rests: booster 0's cards,
+##   booster 1's, then the regulars), over<k> (the pointer over basket slot k), drop (the button
+##   let go there), done (DONE), esc; options (polish batch 2: the board's Esc, the options with
+##   BACK TO TITLE), optup (Up in them: BACK TO TITLE marked); tip<what> (v1.33 hover tips: the
+##   board's tip of the StartTips target <what> at full size: card<b>_<k> an opened booster card
+##   shown in full (compact_fan_cards off), card<b>_<k>fam its first family chip, piece<n> a swap
+##   window card, slot<k> its basket's item; play it last); the file name gets the steps
+##   (do_<steps>_);
 ## - page 2 (YOUR BUILD, v1.32): pins=<n> leaves the catalogue's first n earned pins (those with an
 ##   unlock condition; the pins every profile starts with stay owned) unlocked and none worn on the
-##   capture's temporary profile: n > 0 holds the packs for the BADGE PINS step, pins=0 deals them
-##   at once (every pin owned: pins=3). While the step holds the packs, pick<i>, newpacks and open
-##   do nothing but open the step: play confirm first. won marks a won run (no good first
-##   pick), p2=<step>+<step>+... plays page 2 on its own clock: t<seconds>, hover<i> (the pointer
-##   on pack i), deck (the pointer on the deck pile), corkboard (the pointer on it), pick<i>,
-##   newpacks, pins (the step opens), wear<i> (owned pin i toggled), confirm, esc, open (OPEN
-##   STORE: the flight), tip<what> (as page 1's: spread<k>_<j> card j of the spread pack k, with
-##   fam for its first family chip); the file name gets the steps (p2_<steps>_).
+##   capture's temporary profile: n > 0 holds OPEN STORE for the BADGE PINS step, pins=0 lets it
+##   go at once (every pin owned: pins=3). While the step waits, open does nothing but open the
+##   step: play confirm first. won marks a won run, p2=<step>+<step>+... plays page 2 on its own
+##   clock: t<seconds>, corkboard (the pointer on it), pins (the step opens), wear<i> (owned pin i
+##   toggled), confirm, esc, open (OPEN STORE: the flight), swapkey (the pointer on the SWAP key),
+##   the swap window's steps; the file name gets the steps (p2_<steps>_).
 
 ## The capture's step on the page clock (s).
 const STEP_S := 1.0 / 60.0
 
 
-static func open(
-	screen: ShiftScreen, options: PackedStringArray, raised: int, seed_value: int
-) -> String:
+static func open(screen: ShiftScreen, options: PackedStringArray, seed_value: int) -> String:
 	var page: String = _value(options, "page=")
 	if page == "":
 		return ""
@@ -58,8 +60,8 @@ static func open(
 			screen.profile.unlocked_pins.append(pin.id)
 	if options.has("won"):
 		screen.profile.stats[ProfileState.RUNS_WON] = 1
-	screen.start_new_run(seed_value, true, true)
-	show_board(screen, options, raised)
+	screen.start_new_run(seed_value, true, true, options.has("guided"))
+	show_board(screen, options)
 	var steps: String = _value(options, "do=")
 	var part: String = ("do_%s_" % steps.replace("+", "-").replace(":", "x")) if steps != "" else ""
 	var p2: String = _value(options, "p2=")
@@ -69,10 +71,12 @@ static func open(
 		part += "pins%d_" % pins
 	if options.has("won"):
 		part += "won_"
+	if options.has("guided"):
+		part += "guided_"
 	return "start_page%s_completed%d_%s" % [page, count, part]
 
 
-static func show_board(screen: ShiftScreen, options: PackedStringArray, raised: int) -> void:
+static func show_board(screen: ShiftScreen, options: PackedStringArray) -> void:
 	var board: StartBoard = screen._cart_reveal.board
 	board.refresh()
 	var store: BoosterPage = board.store
@@ -92,37 +96,30 @@ static func show_board(screen: ShiftScreen, options: PackedStringArray, raised: 
 		board._end_slide()
 		var build: BuildPage = board.staff
 		build.frozen = true
-		if raised >= 0:
-			board.pick(raised)
 		var p2: String = _value(options, "p2=")
 		for step: String in p2.split("+", false):
-			play_build(build, step)
+			if _is_swap_step(step):
+				_play_swap(board, step)
+			elif board.swap_showing() and step.begins_with("t") and not step.begins_with("tip"):
+				play(board.store, step)  # The window runs on page 1's clock.
+			else:
+				play_build(build, step)
 
 
 ## Plays one page-2 capture step (see the class doc).
 static func play_build(build: BuildPage, step: String) -> void:
 	var number: int = step.lstrip("abcdefghijklmnopqrstuvwxyz").to_int()
-	if step.begins_with("tip"):
-		build.advance(0.0)
-		show_tip(build.tips, step.trim_prefix("tip"))
-	elif step.begins_with("t"):
+	if step.begins_with("t"):
 		var left: float = step.trim_prefix("t").to_float()
 		while left > 0.0001:
 			build.advance(minf(STEP_S, left))
 			left -= STEP_S
-	elif step.begins_with("hover"):
-		build.mouse = Vector2(BuildPage.STX[number] + 30, 200)
-		build.advance(0.0)
-	elif step == "deck":
-		build.mouse = Vector2(BuildPage.DECK) + Vector2(30, 40)
-		build.advance(0.0)
 	elif step == "corkboard":
 		build.mouse = Vector2(60, 100)
 		build.advance(0.0)
-	elif step.begins_with("pick"):
-		build.pick_pack(number, "key")
-	elif step == "newpacks":
-		build.new_packs()
+	elif step == "swapkey":
+		build.mouse = Rect2(BuildRegulars.SWAP_RECT).get_center()
+		build.advance(0.0)
 	elif step == "pins":
 		build.pins.open(build.now)
 	elif step.begins_with("wear"):
@@ -138,20 +135,27 @@ static func play_build(build: BuildPage, step: String) -> void:
 ## Plays one capture step on the page (see the class doc).
 static func play(store: BoosterPage, step: String) -> void:
 	var number: int = step.lstrip("abcdefghijklmnopqrstuvwxyz").to_int()
-	if step == "roll":
-		store.openings.roll_up()
+	if step == "skip":
+		store.click(Vector2(320, 200))
 	elif step == "all":
-		store.openings.open_all("key")
+		_play_out(store)
 	elif step == "arm":
 		store.counter.arm_restock()
-	elif step == "hold":
-		store.space(true)
-	elif step == "primary" or step == "done":
+	elif step.begins_with("open"):
+		store.openings.open_booster(number, "click")
+	elif step.begins_with("pouch"):
+		var pouch: Vector2 = store.boosters[number].pouch_pos()
+		store.mouse = pouch + Vector2(BoosterArt.BW / 2.0, BoosterArt.BH / 2.0)
+		store.advance(0.0)
+		store.advance(0.0)
+	elif step == "primary":
 		store.primary("key")
-	elif step in ["win", "drop", "esc"] or step.begins_with("sb"):
-		_play_swap(store, step, number)
-	elif step.begins_with("grab") or step.begins_with("over"):
-		_play_swap(store, step, number)
+	elif step.begins_with("card"):
+		var place: PackedStringArray = step.trim_prefix("card").split("_")
+		var opening: BoosterOpening = store.boosters[place[0].to_int()]
+		store.mouse = opening.card_rect(place[1].to_int()).get_center()
+		store.advance(0.0)
+		store.advance(0.0)
 	elif step.begins_with("tip"):
 		store.advance(0.0)
 		show_tip(store.tips, step.trim_prefix("tip"))
@@ -160,14 +164,8 @@ static func play(store: BoosterPage, step: String) -> void:
 		while left > 0.0001:
 			store.advance(minf(STEP_S, left))
 			left -= STEP_S
-	elif step.begins_with("open"):
-		store.openings.open_booster(number)
-	elif step.begins_with("flip"):
-		store.openings.flip_hit(number)
 	elif step.begins_with("restock"):
 		store.counter.restock(number)
-	elif step.begins_with("pick"):
-		store.openings.pick_booster(number)
 	elif step.begins_with("at"):
 		var xy: PackedStringArray = step.trim_prefix("at").split(":")
 		store.mouse = Vector2(xy[0].to_float(), xy[1].to_float())
@@ -202,11 +200,22 @@ static func show_tip(tips: StartTips, what: String) -> void:
 		box.scale = Vector2.ONE
 
 
-## One swap window step (see the class doc).
-static func _play_swap(store: BoosterPage, step: String, number: int) -> void:
+static func _is_swap_step(step: String) -> bool:
+	if step in ["win", "drop", "esc", "done"]:
+		return true
+	return step.begins_with("sb") or step.begins_with("grab") or step.begins_with("over")
+
+
+## One swap window step on page 2 (see the class doc).
+static func _play_swap(board: StartBoard, step: String) -> void:
+	var store: BoosterPage = board.store
+	var number: int = step.lstrip("abcdefghijklmnopqrstuvwxyz").to_int()
 	var window: SwapWindow = store.swap
+	store.frozen = true
 	if step == "win":
-		window.open_window(false)
+		board.open_swap()
+	elif step == "done":
+		store.primary("key")
 	elif step.begins_with("sb"):
 		window.open_booster(number, "key")
 	elif step.begins_with("grab") and number < window.pieces.size():
@@ -223,17 +232,20 @@ static func _play_swap(store: BoosterPage, step: String, number: int) -> void:
 	store.advance(0.0)
 
 
-## Page 2 needs every booster open (and the pair picked): as the page itself, at once.
+## Page 2 needs every booster open: as the page itself, at once.
 static func _open_all(board: StartBoard) -> void:
-	var store: BoosterPage = board.store
-	if store.shutter == BoosterPage.Shutter.DOWN:
-		store.openings.roll_up()
-	store.openings.end_arrival()
-	if store.picking():
-		store.openings.pick_booster(0)
-		store.openings.pick_booster(1)
-	store.openings.open_all("key")
-	for k: int in 600:
+	_play_out(board.store)
+
+
+## Plays page 1 to its end: the light skipped, every booster opened in turn.
+static func _play_out(store: BoosterPage) -> void:
+	store.roulette.skip()
+	for k: int in 900:
+		if store.page_done():
+			break
+		var next: BoosterOpening = store.openings.next_sealed()
+		if next != null:
+			store.openings.open_booster(next.index, "click")
 		store.advance(STEP_S)
 
 

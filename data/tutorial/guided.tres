@@ -18,29 +18,29 @@ footer = 2
 script = ExtResource("2_sub")
 id = &"G2"
 screen = 1
-text = "These are **YOUR REGULARS**. They start in your **CART** on every run."
+text = "**YOUR REGULARS** are already in your **CART**. They start there on every run."
 teaches = PackedStringArray("YOUR REGULARS", "CART")
-rings = Array[StringName]([&"crate"])
+rings = Array[StringName]([&"cart"])
 act = -1
-side = 2
-locks = Array[StringName]([&"swap_plate", &"restock"])
+side = 4
+locks = Array[StringName]([&"swap_key", &"restock"])
 gate = 1
 
 [sub_resource type="Resource" id="Resource_g3"]
 script = ExtResource("2_sub")
 id = &"G3"
 screen = 1
-text = "Open both **BOOSTERS**. Their {booster_size} **CARDS** each go in your **CART**."
+text = "Today's 2 aisles each gave a **BOOSTER**. Click both to open them: their {booster_size} **CARDS** each go in your **CART**."
 teaches = PackedStringArray("BOOSTER", "CARD")
 rings = Array[StringName]([&"booster0", &"booster1"])
 act = 0
-side = 4
-locks = Array[StringName]([&"swap_plate", &"restock"])
+side = 0
+locks = Array[StringName]([&"swap_key", &"restock"])
 footer = 2
 advance_on = &"boosters_all_open"
 gate = 1
 allow = Array[StringName]([&"hit"])
-allow_ids = Array[StringName]([&"booster0", &"booster1", &"hit0", &"hit1", &"primary", &"rollup"])
+allow_ids = Array[StringName]([&"booster0", &"booster1", &"primary"])
 sealed_only = true
 
 [sub_resource type="Resource" id="Resource_g4"]
@@ -51,43 +51,26 @@ text = "Your store is stocked. Click NEXT."
 rings = Array[StringName]([&"primary"])
 act = 0
 side = 1
-locks = Array[StringName]([&"swap_plate", &"restock"])
+locks = Array[StringName]([&"swap_key", &"restock"])
 footer = 2
 advance_on = &"page_shown"
 gate = 1
 allow = Array[StringName]([&"hit"])
 allow_ids = Array[StringName]([&"primary", &"tab2"])
 
-[sub_resource type="Resource" id="Resource_g5"]
-script = ExtResource("2_sub")
-id = &"G5"
-screen = 2
-text = "Pick one **STARTER PACK**. Its **CARDS** join your **CART**. Point at a pack to read it."
-teaches = PackedStringArray("STARTER PACK")
-rings = Array[StringName]([&"pack0", &"pack1", &"pack2"])
-act = 0
-side = 1
-locks = Array[StringName]([&"newpacks"])
-footer = 2
-advance_on = &"pack_picked"
-gate = 1
-allow = Array[StringName]([&"hit"])
-allow_ids = Array[StringName]([&"pack0", &"pack1", &"pack2"])
-
 [sub_resource type="Resource" id="Resource_g6"]
 script = ExtResource("2_sub")
 id = &"G6"
 screen = 2
-text = "Your **CART** is ready. Click OPEN STORE to start your first **SHIFT**."
-rings = Array[StringName]([&"primary"])
+text = "Your **CART** is ready. Click KEEP on your regulars, then OPEN STORE to start your first **SHIFT**."
+rings = Array[StringName]([&"regulars_ok", &"primary"])
 act = 0
-side = 3
-locks = Array[StringName]([&"newpacks"])
+side = 4
 footer = 2
 advance_on = &"store_opened"
 gate = 1
 allow = Array[StringName]([&"hit"])
-allow_ids = Array[StringName]([&"primary", &"pack0", &"pack1", &"pack2"])
+allow_ids = Array[StringName]([&"primary", &"regulars_ok"])
 
 [sub_resource type="Resource" id="Resource_g7"]
 script = ExtResource("2_sub")
@@ -309,12 +292,12 @@ title = "×4!"
 text = "Tea bags boosted a **MORNING** **ITEM** after them."
 teaches = PackedStringArray("MORNING")
 
-[sub_resource type="Resource" id="Hint_peas_placed"]
+[sub_resource type="Resource" id="Hint_cheese_placed"]
 script = ExtResource("3_hint")
-id = &"peas_placed"
-card = &"frozen_peas"
-title = "FROZEN PEAS"
-text = "Frozen peas only pay extra **BESIDE** another Frozen **ITEM**."
+id = &"cheese_placed"
+card = &"cheese"
+title = "CHEESE"
+text = "Cheese only pays extra **BESIDE** a Bread."
 teaches = PackedStringArray("BESIDE")
 
 [sub_resource type="Resource" id="Hint_quota"]
@@ -360,9 +343,9 @@ text = "{slots} slots, {hand} **CARDS**: one always stays in its **BASKET**."
 
 [resource]
 script = ExtResource("1_main")
-hand = Array[StringName]([&"banana", &"banana", &"milk", &"eggs", &"yogurt", &"cereal", &"tea_bags", &"frozen_peas"])
-answer = Array[StringName]([&"banana", &"yogurt", &"banana", &"eggs", &"milk", &"cereal", &"frozen_peas"])
+hand = Array[StringName]([&"banana", &"banana", &"milk", &"eggs", &"yogurt", &"cereal", &"tea_bags", &"cheese"])
+answer = Array[StringName]([&"banana", &"yogurt", &"banana", &"eggs", &"milk", &"cereal", &"cheese"])
 retry = SubResource("Resource_retry")
 answer_step = SubResource("Resource_answer")
-hints = Array[ExtResource("3_hint")]([SubResource("Hint_eggs_placed"), SubResource("Hint_eggs_fired"), SubResource("Hint_eggs_wasted"), SubResource("Hint_yogurt_placed"), SubResource("Hint_yogurt_fired"), SubResource("Hint_cereal_placed"), SubResource("Hint_cereal_fired"), SubResource("Hint_banana_placed"), SubResource("Hint_banana_fired"), SubResource("Hint_milk_placed"), SubResource("Hint_tea_placed"), SubResource("Hint_tea_fired"), SubResource("Hint_peas_placed"), SubResource("Hint_quota"), SubResource("Hint_silver"), SubResource("Hint_gold"), SubResource("Hint_redrawn"), SubResource("Hint_row_full")])
-steps = Array[ExtResource("2_sub")]([SubResource("Resource_g1"), SubResource("Resource_g2"), SubResource("Resource_g3"), SubResource("Resource_g4"), SubResource("Resource_g5"), SubResource("Resource_g6"), SubResource("Resource_g7"), SubResource("Resource_g8"), SubResource("Resource_g9"), SubResource("Resource_g10"), SubResource("Resource_g11"), SubResource("Resource_g12"), SubResource("Resource_g13"), SubResource("Resource_g14")])
+hints = Array[ExtResource("3_hint")]([SubResource("Hint_eggs_placed"), SubResource("Hint_eggs_fired"), SubResource("Hint_eggs_wasted"), SubResource("Hint_yogurt_placed"), SubResource("Hint_yogurt_fired"), SubResource("Hint_cereal_placed"), SubResource("Hint_cereal_fired"), SubResource("Hint_banana_placed"), SubResource("Hint_banana_fired"), SubResource("Hint_milk_placed"), SubResource("Hint_tea_placed"), SubResource("Hint_tea_fired"), SubResource("Hint_cheese_placed"), SubResource("Hint_quota"), SubResource("Hint_silver"), SubResource("Hint_gold"), SubResource("Hint_redrawn"), SubResource("Hint_row_full")])
+steps = Array[ExtResource("2_sub")]([SubResource("Resource_g1"), SubResource("Resource_g2"), SubResource("Resource_g3"), SubResource("Resource_g4"), SubResource("Resource_g6"), SubResource("Resource_g7"), SubResource("Resource_g8"), SubResource("Resource_g9"), SubResource("Resource_g10"), SubResource("Resource_g11"), SubResource("Resource_g12"), SubResource("Resource_g13"), SubResource("Resource_g14")])

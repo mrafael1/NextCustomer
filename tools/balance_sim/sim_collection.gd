@@ -6,7 +6,7 @@ extends RefCounted
 ## collection (--collection=full) and the list (--list) give one; the list gate (--list-gate)
 ## makes every state it checks.
 
-## What the report calls this state, e.g. "fresh profile" or "full: cold_cases+pantry".
+## What the report calls this state, e.g. "fresh profile" or "full: dairy+pantry".
 var label: String = ""
 ## Unlocked capsule item id -> the run index it came out at (RunStock's `unlocked`).
 var unlocked: Dictionary[StringName, int] = {}

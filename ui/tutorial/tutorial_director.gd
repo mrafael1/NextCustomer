@@ -46,7 +46,6 @@ const TIPS_AFTER_FINISH: Array[StringName] = [&"day_event"]
 ## Events that move a later step on when they come early (its step skipped).
 const SKIP_AHEAD: Array[StringName] = [
 	TutorialEvents.BOOSTERS_ALL_OPEN,
-	TutorialEvents.PACK_PICKED,
 	TutorialEvents.STORE_OPENED,
 	TutorialEvents.CHECKOUT_STARTED,
 	TutorialEvents.CHUTE_CHOSEN,
@@ -249,8 +248,6 @@ func allows(action: StringName, args: Dictionary) -> bool:
 	var step: TutorialStep = _step()
 	if not _active or step == null:
 		return true
-	if action == TutorialActions.HIT and args.get(TutorialActions.ARG_ID) == TutorialAnchors.ROLLUP:
-		return true  # The shutter rolls up on a click as ever (on the web it waits for one).
 	var allowed: bool = step.allows(action, args)
 	if step.gate == TutorialStep.Gate.OPEN:
 		return allowed
@@ -417,13 +414,8 @@ func _least_on_board() -> int:
 	if board == null:
 		return stock
 	if board.page == 2:
-		var picked: bool = board.selected() >= 0
-		return _waiting_for(TutorialEvents.STORE_OPENED) if picked else _first_build()
-	if board.store.page_done():
-		return _waiting_for(TutorialEvents.PAGE_SHOWN)
-	for opening: BoosterOpening in board.store.boosters:
-		if opening.state != BoosterOpening.State.SEALED:
-			return _waiting_for(TutorialEvents.BOOSTERS_ALL_OPEN)
+		return _first_build()
+	# Page 1 plays by itself (the aisle board, v1.40): its steps all show once it is stocked.
 	return stock
 
 
@@ -444,14 +436,6 @@ func _first(screen: TutorialStep.Screen) -> int:
 		if _guided.steps[k].screen == screen:
 			return k
 	return _guided.steps.size() - 1
-
-
-## The step that waits for `event` (-1: none).
-func _waiting_for(event: StringName) -> int:
-	for k: int in _guided.steps.size():
-		if _guided.steps[k].advance_on == event:
-			return k
-	return -1
 
 
 # --- The free planning (shift 1) and the first week's hints --------------------------------

@@ -61,7 +61,7 @@ func test_a_fresh_profile_stocks_two_base_aisles() -> void:
 	var aisles: Array[StringName] = screen.run.stock.aisle_ids
 	assert_int(aisles.size()).is_equal(2)
 	for id: StringName in aisles:
-		assert_bool([&"cold_cases", &"pantry", &"household"].has(id)).is_true()
+		assert_bool([&"dairy", &"pantry", &"household"].has(id)).is_true()
 	assert_array(aisles).is_equal(screen.run.start_setup.stock_aisles)
 	assert_array(screen.profile.last_list).is_empty()
 

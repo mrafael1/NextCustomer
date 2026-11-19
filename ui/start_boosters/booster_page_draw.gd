@@ -1,54 +1,34 @@
 class_name BoosterPageDraw
 extends RefCounted
-## Draws YOUR STORE (BoosterPage) layer by layer in art px, a port of the mock-up's drawPage1
-## (docs/art/mockups/start_boosters_v3.html): the room and its shelf runs, the lamps with their
-## cones and pools, the hung signs and the board, STOCKED!, the boosters (sealed, opening, open) and
-## their fans, the RARE suns. The crate, the counter's keys, the floor row, the storefront and the
-## top bar are BoosterChromeDraw's; the swap window is SwapWindowDraw's. Motion reads the page's
-## clock only.
+## The shared drawing of YOUR STORE's boosters (BoosterPage, v1.32; the page itself is the aisle
+## board since v1.40, AisleBoardDraw): the pouch, a booster opening on its own clock (the tear,
+## the rise, the fan, the flips, a RARE's pop and sun), the particles, the keys' press-bob, the
+## easings. The floor row and the top bar are BoosterChromeDraw's; the swap window is
+## SwapWindowDraw's and draws its boosters with these. Motion reads the page's clock only.
 
 ## The counter top: what stands on it is clipped here (a pouch drops behind the counter).
 const COUNTER_CLIP := 233 + BoosterArt.DY
-const CONE_BOTTOM := 229 + BoosterArt.DY
 const POUCH_BT := 12
 const POUCH_BB := BoosterArt.BH - 8
 
 
-## Draws `layer` of its page.
+## Draws `layer` of its page: the aisle board's layers (AisleBoardDraw), else the swap window's.
 static func draw(layer: BoosterLayer) -> void:
 	var page: BoosterPage = layer.page
 	if page.run == null:
 		return
-	var pen: ArtPen = layer.pen
-	match layer.layer:
-		"Back":
-			_back(pen, page)
-		"Light":
-			_light(pen, page)
-		"Front":
-			_front(pen, page)
-		"Boosters":
-			_boosters(pen, page)
-		"Front2":
-			_front_over(pen, page)
-		"Tote":
-			BoosterChromeDraw.tote(pen, page)
-		"Front3":
-			BoosterChromeDraw.front_top(pen, page)
-			parts(pen, page, page.fx.parts)
-		"Glow":
-			BoosterChromeDraw.crate_glow(pen, page)
-		"Facade":
-			BoosterChromeDraw.storefront(pen, page)
-		"Top":
-			BoosterChromeDraw.top_bar(pen, page)
-		_:
-			SwapWindowDraw.draw(pen, page, layer.layer)
+	if not AisleBoardDraw.draw(layer.pen, page, layer.layer):
+		SwapWindowDraw.draw(layer.pen, page, layer.layer)
 
 
 ## The hit list of the page this frame, bottom first (BoosterChromeDraw's).
 static func hits(page: BoosterPage) -> Array[Dictionary]:
 	return BoosterChromeDraw.hits(page)
+
+
+## How lit a booster's pouch is drawn: the aisle board's are fully lit, the swap window's plain.
+static func pouch_lit(b: BoosterOpening) -> int:
+	return 2 if b.board else 1
 
 
 static func e_out(t: float) -> float:
@@ -120,322 +100,6 @@ static func aisle_def(page: BoosterPage, id: StringName) -> AisleDefinition:
 	return null
 
 
-## The lamp of `opening`: 0 off, 1 on, 2 hot, 3 full (the mock-up's lampState).
-static func lamp_state(page: BoosterPage, b: BoosterOpening) -> int:
-	var now: float = page.now
-	if b.lamp_on == INF or now < b.lamp_on:
-		return 0
-	if b.lamp_off != INF and now >= b.lamp_off:
-		var off_u: float = now - b.lamp_off
-		# A SOLD OUT lamp stays dark (its sign dimmed) once it starts to pull up into the ceiling.
-		if off_u > 0.6 or page.rm or (b.sink_t != INF and now >= b.sink_t):
-			return 0
-		return 0 if int(floorf(off_u / 0.03)) % 3 else 1
-	var u: float = now - b.lamp_on
-	var flicker: float = page.tuning.lamp_flicker_s
-	if not page.rm and u < flicker * 3:
-		return 0 if int(floorf(u / flicker)) == 1 else 1
-	if not page.rm and now >= b.lamp_flick and now < b.lamp_flick + 0.25:
-		return 0 if int(floorf((now - b.lamp_flick) / 0.05)) % 2 else 1
-	if page.complete_t != INF and now >= page.full_at(maxi(0, counted_index(page, b))):
-		return 3
-	var hot: bool = page.is_hovered("booster%d" % b.index)
-	hot = hot or (b.state == BoosterOpening.State.OPENING and b.waiting_k() >= 0)
-	hot = hot or now - b.lamp_hot_t < 0.4 or next_booster(page) == b
-	hot = hot or (page.complete_t != INF and now >= page.complete_t)
-	return 2 if hot else 1
-
-
-static func counted_index(page: BoosterPage, b: BoosterOpening) -> int:
-	var k: int = 0
-	for other: BoosterOpening in page.boosters:
-		if other == b:
-			return k
-		if other.is_counted():
-			k += 1
-	return -1
-
-
-## The next sealed booster to open (its lamp runs hot), or null: none while picking, nor while
-## PICK 2 OF 3's SOLD OUT booster is still on its way out (the mock-up's p2State 'resolve').
-static func next_booster(page: BoosterPage) -> BoosterOpening:
-	if page.shutter != BoosterPage.Shutter.UP or page.picking():
-		return null
-	for b: BoosterOpening in page.boosters:
-		if b.sold_t != INF and b.state != BoosterOpening.State.GONE:
-			return null
-	for b: BoosterOpening in page.boosters:
-		if b.state == BoosterOpening.State.SEALED and b.is_counted():
-			return b
-	return null
-
-
-## How far a SOLD OUT booster's lamp has pulled up (art px; 99: gone).
-static func lamp_up(page: BoosterPage, b: BoosterOpening) -> float:
-	if b.state == BoosterOpening.State.GONE:
-		return 99.0
-	if b.sink_t != INF and page.now >= b.sink_t:
-		return 99.0 if page.rm else roundf(e_in((page.now - b.sink_t) / 0.3) * 60.0)
-	return 0.0
-
-
-## A shelf zone's light: 8 dark, 0 lit, 5 / 2 the steps of a flicker.
-static func shelf_dim(page: BoosterPage, zone: int) -> int:
-	var now: float = page.now
-	if page.complete_t != INF and now >= page.complete_t:
-		return 0
-	var off: float = page.shelf_off[zone]
-	if off != -INF and now >= off:
-		var off_u: float = now - off
-		return 2 if off_u < 0.07 else (5 if off_u < 0.14 else 8)
-	var on: float = page.shelf_on[zone]
-	if on == INF or now < on:
-		return 8
-	if page.rm:
-		return 0
-	var u: float = now - on
-	return 0 if u < 0.05 else (8 if u < 0.1 else 0)
-
-
-static func _shelf_aisle(page: BoosterPage, zone: int) -> AisleDefinition:
-	var shown: Array[BoosterOpening] = []
-	for b: BoosterOpening in page.boosters:
-		if b.sold_t == INF and b.state != BoosterOpening.State.GONE:
-			shown.append(b)
-	for b: BoosterOpening in shown:
-		if BoosterArt.zone_of(b.cx) == zone:
-			return aisle_def(page, b.aisle)
-	if shown.size() > zone:
-		return aisle_def(page, shown[zone].aisle)
-	if not shown.is_empty():
-		return aisle_def(page, shown[0].aisle)
-	return aisle_def(page, &"pantry")
-
-
-static func _back(pen: ArtPen, page: BoosterPage) -> void:
-	pen.tex(StoreDawnArt.room(), 0, 0)
-	for zone: int in 2:
-		var aisle: AisleDefinition = _shelf_aisle(page, zone)
-		if aisle != null:
-			pen.tex(StoreDawnArt.shelf(aisle, shelf_dim(page, zone) < 5), 156 + zone * 240, 70)
-	if page.complete_t != INF and page.now >= page.complete_t:
-		var level: int = 4 if page.rm or page.now - page.complete_t >= 0.07 else 2
-		pen.d(0, 44, 112, 8, Palette.TEAL_DARK, level)
-		pen.d(112, 44, 44, 186 + BoosterArt.DY, Palette.TEAL_DARK, level)
-	_board(pen, page)
-	_clock(pen, page)
-
-
-static func _light(pen: ArtPen, page: BoosterPage) -> void:
-	for b: BoosterOpening in page.boosters:
-		if lamp_up(page, b) != 0.0:
-			continue
-		var level: int = lamp_state(page, b)
-		_cone(pen, roundf(b.cx), level)
-		_pool(pen, roundf(b.cx), level)
-
-
-static func _lamp_colour(level: int) -> Color:
-	if level >= 3:
-		return Palette.MUSTARD
-	return Palette.MUSTARD_DARK if level >= 2 else Palette.MUSTARD_DARKEST
-
-
-static func _cone(pen: ArtPen, cx: float, level: int) -> void:
-	if level <= 0:
-		return
-	var colour: Color = _lamp_colour(level)
-	var checker: float = 0.7 if level >= 3 else (0.55 if level >= 2 else 0.3)
-	var y: int = BoosterArt.CONE_TOP
-	while y < CONE_BOTTOM:
-		var share: float = float(y - BoosterArt.CONE_TOP) / (CONE_BOTTOM - BoosterArt.CONE_TOP)
-		var w: float = floorf(lerpf(24, 104, share) / 2.0 + 0.5) * 2.0
-		pen.d(cx - w / 2.0, y, w, 2, colour, 8 if share < checker else 4)
-		y += 2
-
-
-static func _pool(pen: ArtPen, cx: float, level: int) -> void:
-	if level <= 0:
-		return
-	var colour: Color = _lamp_colour(level)
-	var y: float = 230 + BoosterArt.DY
-	pen.d(cx - 54, y, 108, 6, colour, 8)
-	pen.d(cx - 66, y, 12, 6, colour, 4)
-	pen.d(cx + 54, y, 12, 6, colour, 4)
-	pen.d(cx - 44, y + 7, 88, 6, colour, 8 if level >= 2 else 4)
-	pen.d(cx - 34, y + 13, 68, 4, colour, 4)
-
-
-static func _front(pen: ArtPen, page: BoosterPage) -> void:
-	for b: BoosterOpening in page.boosters:
-		var up: float = lamp_up(page, b)
-		if up >= 60.0:
-			continue
-		var level: int = lamp_state(page, b)
-		var saved: Vector2 = pen.origin
-		pen.origin = saved - Vector2(0, up * pen.unit.y)
-		_lamp(pen, page, b, level)
-		_sign(pen, page, roundf(b.cx), b.aisle, level == 0)
-		pen.origin = saved
-	_stocked(pen, page)
-	BoosterChromeDraw.crate(pen, page)
-	for b: BoosterOpening in page.boosters:
-		if b.state == BoosterOpening.State.SEALED:
-			_shadow(pen, page, b)
-
-
-static func _lamp(pen: ArtPen, page: BoosterPage, b: BoosterOpening, level: int) -> void:
-	var cx: float = roundf(b.cx)
-	var top: int = BoosterArt.LAMP_TOP
-	pen.r(cx - 1, 40, 2, top - 39, Palette.STEEL_DARK)
-	pen.r(cx - 3, 43, 6, 2, Palette.STEEL_DARKEST)
-	pen.tex(BoosterArt.LAMP, cx - 37, top - 2)
-	if level <= 0:
-		pen.r(cx - 34, top + 15, 68, 3, Palette.STEEL_DARKEST)
-	elif level >= 3:
-		pen.r(cx - 32, top + 15, 64, 3, Color.WHITE)
-		pen.d(cx - 40, top + 18, 80, 3, Palette.MUSTARD_PALE, 8)
-		pen.d(cx - 46, top + 21, 92, 2, Palette.MUSTARD_PALE, 4)
-		var fu: float = page.now - page.full_at(maxi(0, counted_index(page, b)))
-		if not page.rm and fu < 0.06:
-			pen.tex(ArtPen.silhouette(BoosterArt.LAMP, Color.WHITE), cx - 37, top - 2)
-			pen.r(cx - 44, top + 15, 88, 4, Color.WHITE)
-	elif level >= 2:
-		pen.r(cx - 30, top + 16, 60, 2, Palette.PAPER)
-
-
-static func _sign(
-	pen: ArtPen, page: BoosterPage, cx: float, aisle_id: StringName, dim: bool
-) -> void:
-	var label: String = BoosterArt.short_name(aisle_def(page, aisle_id))
-	var w: float = maxf(56, ArtPen.word_texture(label, Palette.INK, true).get_width() + 14)
-	var x: float = roundf(cx - w / 2.0)
-	var y: float = 71
-	pen.nine(BoosterArt.sign_frame(aisle_id), x, y, w, 14, Vector4i(3, 3, 3, 3))
-	var light: bool = BoosterArt.LIGHT_SIGNS.has(aisle_id)
-	pen.chunky(
-		label, cx, y + 3, Palette.INK if light else Palette.CREAM, 1.0, HORIZONTAL_ALIGNMENT_CENTER
-	)
-	if dim:
-		pen.r(x, y, w, 14, Color(Palette.TEAL_BLACK, 0.55))
-
-
-static func _board(pen: ArtPen, page: BoosterPage) -> void:
-	if page.openings.pick_layout():
-		return
-	var label: String = "YOUR STORE"
-	var w: float = ArtPen.word_texture(label, Palette.INK, true).get_width() + 18
-	var x: float = roundf(396 - w / 2.0)
-	var y: float = 50
-	var h: float = 17
-	for cx: float in [x + 8, x + w - 9]:
-		var yy: float = 41
-		while yy < y:
-			pen.r(cx, yy, 1, 1, Palette.STEEL_SHADE)
-			yy += 2
-	pen.rn(x, y, w, h, Palette.TEAL_BLACK)
-	pen.r(x + 1, y + 1, w - 2, 1, Palette.TEAL_DARK)
-	pen.r(x + 2, y + h - 3, w - 4, 1, Palette.TOMATO_DARK)
-	var done: bool = page.page_done()
-	pen.chunky(
-		label,
-		396,
-		y + 4,
-		Palette.PAPER if done else Palette.CREAM_SHADE,
-		1.0,
-		HORIZONTAL_ALIGNMENT_CENTER
-	)
-
-
-## STOCKED! under the board: slams at 2.5x, 1.4x, then hangs 1 px low on two strings.
-static func _stocked(pen: ArtPen, page: BoosterPage) -> void:
-	if page.stocked_t == INF or page.now < page.stocked_t:
-		return
-	var u: float = page.now - page.stocked_t
-	var size: Vector2 = BoosterArt.STOCKED.get_size()
-	var sc: float = 1.0 if page.rm else (2.5 if u < 0.05 else (1.4 if u < 0.1 else 1.0))
-	var dy: float = 1.0 if page.rm else (0.0 if u < 0.1 else (3.0 if u < 0.16 else 1.0))
-	var centre: Vector2 = Vector2(BoosterArt.STOCKED_CENTRE)
-	if not page.rm and u >= 0.05 and u < 0.09:
-		pen.r(
-			centre.x - size.x / 2.0 - 4,
-			centre.y - size.y / 2.0 - 4 + dy,
-			size.x + 8,
-			size.y + 8,
-			Color.WHITE
-		)
-	for x: float in [centre.x - size.x / 2.0 + 10, centre.x + size.x / 2.0 - 11]:
-		pen.r(roundf(x), 67, 1, roundf(centre.y - size.y / 2.0 + dy - 67), Palette.STEEL_SHADE)
-	var w: float = roundf(size.x * sc)
-	var h: float = roundf(size.y * sc)
-	pen.canvas.draw_texture_rect(
-		BoosterArt.STOCKED,
-		Rect2(
-			pen.at(roundf(centre.x - w / 2.0), roundf(centre.y - h / 2.0 + dy)), pen.size_of(w, h)
-		),
-		false
-	)
-
-
-static func _clock(pen: ArtPen, page: BoosterPage) -> void:
-	var x: float = 112
-	var y: float = 88
-	pen.tex(BoosterArt.WALL_CLOCK, x, y)
-	var cx: float = x + 22
-	var cy: float = y + 22
-	for row: int in range(-12, 13):
-		var hw: float = floorf(sqrt(156.0 - row * row))
-		pen.r(cx - hw, cy + row, hw * 2 + 1, 1, Palette.PAPER)
-	for mark: Vector2 in [Vector2(0, -12), Vector2(12, 0), Vector2(0, 12), Vector2(-12, 0)]:
-		pen.r(cx + mark.x - signf(mark.x), cy + mark.y - signf(mark.y), 1, 1, Palette.INK)
-	var minutes: int = page.clock_minutes % 60
-	var hour: int = 7 if page.clock_minutes >= 60 else 6
-	_hand(pen, cx, cy, (hour % 12 + minutes / 60.0) / 12.0 * TAU, 6, Palette.INK)
-	_hand(pen, cx, cy, minutes / 60.0 * TAU, 10, Palette.INK)
-	var seconds: int = 0 if page.rm else int(floorf(page.now)) % 60
-	_hand(pen, cx, cy, seconds / 60.0 * TAU, 10, Palette.TOMATO)
-	pen.r(cx - 1, cy - 1, 2, 2, Palette.INK)
-
-
-static func _hand(
-	pen: ArtPen, cx: float, cy: float, angle: float, length: int, colour: Color
-) -> void:
-	for i: int in length + 1:
-		pen.r(cx + roundf(sin(angle) * i), cy - roundf(cos(angle) * i), 1, 1, colour)
-
-
-## A sealed pouch's landing y and drop progress (the mock-up's drawSealed motion).
-static func _drop(page: BoosterPage, b: BoosterOpening) -> float:
-	if b.drop_t == INF:
-		return -1.0
-	return (page.now - b.drop_t) / maxf(page.tuning.drop_s, 0.001)
-
-
-static func _shadow(pen: ArtPen, page: BoosterPage, b: BoosterOpening) -> void:
-	var du: float = _drop(page, b)
-	if du < 0.0 or (b.sink_t != INF and page.now >= b.sink_t):
-		return
-	var x: float = BoosterArt.pouch_pos(b.cx).x
-	var w: float = (
-		float(BoosterArt.BW) if page.rm or du >= 1.0 else roundf(lerpf(24, BoosterArt.BW, e_in(du)))
-	)
-	var left: float = roundf(x + BoosterArt.BW / 2.0 - w / 2.0)
-	pen.r(left + 5, 230 + BoosterArt.DY, w, 4, Palette.WOOD_DARKEST)
-	pen.r(left + 7, 234 + BoosterArt.DY, w - 4, 2, Palette.WOOD_DARKEST)
-
-
-## Inside the counter clip: the settled RARE glows, the boosters and their fans.
-static func _boosters(pen: ArtPen, page: BoosterPage) -> void:
-	for b: BoosterOpening in page.boosters:
-		if b.state == BoosterOpening.State.OPENING or b.state == BoosterOpening.State.OPEN:
-			_sun_glows(pen, page, b)
-	for b: BoosterOpening in page.boosters:
-		if b.state == BoosterOpening.State.SEALED:
-			_sealed(pen, page, b)
-		elif b.state != BoosterOpening.State.GONE:
-			open_booster(pen, page, b)
-
-
 ## A pouch at art (`x`, `y`), `w` x `h` (a squash), from row `top` (a torn top), sheared in four
 ## bands, lit `lit` (0: modulated down), with its sheen glint (`sheen` 0..1) and hover sweep;
 ## nothing below `clip` (art px; the counter top by default) is drawn.
@@ -490,123 +154,6 @@ static func pouch(
 	pen.r(gx - 1, dy + gy + 3, 6, 2, Color.WHITE)
 
 
-static func _sheen_phase(page: BoosterPage, b: BoosterOpening, hovered: bool) -> float:
-	if page.rm:
-		return -1.0
-	if hovered:
-		return fmod(page.now - page.hover_t0, 1.2) / 0.45
-	return fmod(page.now + b.index * 0.6, 3.2) / 0.45
-
-
-static func _sealed(pen: ArtPen, page: BoosterPage, b: BoosterOpening) -> void:
-	var du: float = _drop(page, b)
-	if du < 0.0:
-		return
-	var tuning: StartBoostersTuning = page.tuning
-	var at: Vector2 = BoosterArt.pouch_pos(b.cx)
-	var x: float = at.x
-	var y: float = at.y
-	var w: float = BoosterArt.BW
-	var h: float = BoosterArt.BH
-	var squash_end: float = (
-		1.0 + (tuning.squash_in_s + tuning.squash_out_s) / maxf(tuning.drop_s, 0.001)
-	)
-	if not page.rm and du < 1.0:
-		y = lerpf(-140 - BoosterArt.BH, at.y, e_back(du, tuning.drop_overshoot))
-	elif not page.rm and du < squash_end:
-		var lu: float = page.now - b.drop_t - tuning.drop_s
-		var s: float = (
-			lu / tuning.squash_in_s
-			if lu < tuning.squash_in_s
-			else 1.0 - (lu - tuning.squash_in_s) / tuning.squash_out_s
-		)
-		w = BoosterArt.BW + roundf(4 * s)
-		h = BoosterArt.BH - roundf(9 * s)
-	y = roundf(y)
-	var hovered: bool = (
-		page.is_hovered("booster%d" % b.index) and page.shutter == BoosterPage.Shutter.UP
-	)
-	var lift: float = 0.0
-	var shear: float = 0.0
-	if not page.rm and du >= 1.7:
-		if hovered:
-			var hu: float = page.now - page.hover_t0
-			lift = minf(4, floorf(hu / 0.02))
-			shear = roundf(2.7 * sin(11 * hu) * maxf(0.0, 1.0 - hu / 1.15))
-		else:
-			y += int(floorf((page.now + b.index * 0.17) / 0.5)) % 2
-	if b.picked and not page.rm:
-		lift += 6 if page.now - b.pick_t < 0.12 else 3
-	if b.sink_t != INF and page.now >= b.sink_t:
-		y += 200.0 if page.rm else roundf(e_in((page.now - b.sink_t) / tuning.pick_sink_s) * 140)
-	var lit: int = lamp_state(page, b)
-	pouch(
-		pen,
-		b.aisle,
-		lit,
-		x,
-		y - lift,
-		{"w": w, "h": h, "shear": shear, "sheen": _sheen_phase(page, b, hovered), "sweep": hovered}
-	)
-	if b.restocked:
-		_stamp(
-			pen, page, "RESTOCKED", x + BoosterArt.BW / 2.0, y - lift + 40, b.drop_t + tuning.drop_s
-		)
-	if b.sold_t != INF and page.now >= b.sold_t:
-		_sold_out(pen, page, b, x + BoosterArt.BW / 2.0, y - lift)
-
-
-## A teal stamp slammed on a pouch: 2x for 70 ms, settles 2 px by 140 ms.
-static func _stamp(
-	pen: ArtPen, page: BoosterPage, word: String, cx: float, cy: float, t0: float
-) -> void:
-	var u: float = page.now - t0
-	if u < 0.0:
-		return
-	var sc: float = 1.0 if page.rm or u >= 0.07 else 2.0
-	var settle: float = 0.0 if page.rm or u < 0.07 or u >= 0.14 else -2.0
-	var tw: float = ArtPen.word_texture(word, Palette.INK, true).get_width() + 10
-	var th: float = 14
-	var saved_origin: Vector2 = pen.origin
-	var saved_unit: Vector2 = pen.unit
-	pen.origin = pen.at(roundf(cx - tw * sc / 2.0), roundf(cy - th * sc / 2.0 + settle))
-	pen.unit = saved_unit * sc
-	pen.rn(0, 0, tw, th, Palette.PAPER, Palette.TEAL)
-	pen.r(2, 2, tw - 4, th - 4, Palette.PAPER)
-	pen.r(1, 1, tw - 2, 1, Palette.TEAL)
-	pen.r(1, th - 2, tw - 2, 1, Palette.TEAL)
-	pen.chunky(word, tw / 2.0, 3, Palette.TEAL, 1.0, HORIZONTAL_ALIGNMENT_CENTER)
-	pen.origin = saved_origin
-	pen.unit = saved_unit
-
-
-## SOLD OUT drops on its string and swings to rest (the rotation is drawn with a transform).
-static func _sold_out(
-	pen: ArtPen, page: BoosterPage, b: BoosterOpening, cx: float, top: float
-) -> void:
-	var u: float = page.now - b.sold_t
-	var dy: float = 0.0 if page.rm else roundf(-46 * (1.0 - clampf(u / 0.15, 0.0, 1.0)))
-	var angle: float = 0.0
-	if not page.rm and u >= 0.15:
-		angle = deg_to_rad(22 * exp(-(u - 0.15) * 5) * cos((u - 0.15) * 14))
-	var label: String = "SOLD OUT"
-	var w: float = ArtPen.word_texture(label, Palette.INK, true).get_width() + 10
-	var h: float = 14
-	var pivot: Vector2 = pen.at(roundf(cx), roundf(top + 30 + dy))
-	var saved: Vector2 = pen.origin
-	pen.canvas.draw_set_transform(pivot, angle, Vector2.ONE)
-	pen.origin = Vector2.ZERO
-	pen.r(-1, -30, 1, 20, Palette.STEEL_DARK)
-	pen.r(-w / 2.0, -10, w, h, Palette.INK)
-	pen.r(-w / 2.0 + 1, -9, w - 2, h - 2, Palette.PAPER)
-	pen.r(-w / 2.0 + 2, -8, w - 4, h - 4, Palette.TOMATO)
-	pen.r(-w / 2.0 + 3, -7, w - 6, h - 6, Palette.PAPER)
-	var words: ImageTexture = ArtPen.word_texture(label, Palette.TOMATO, true)
-	pen.tex(words, -roundf(words.get_width() / 2.0), -7)
-	pen.canvas.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-	pen.origin = saved
-
-
 ## The opening and open booster on its own clock: its fan cards (behind the pouch while they
 ## rise, spread and flip), the pouch's grab, rattle, tear and drop away (nothing of it below
 ## `clip`). The swap
@@ -616,13 +163,13 @@ static func open_booster(
 ) -> void:
 	var tuning: StartBoostersTuning = page.tuning
 	var t: float = b.lt
-	var at: Vector2 = BoosterArt.pouch_pos(b.cx)
+	var at: Vector2 = b.pouch_pos()
 	if b.rm:
 		var u: float = clampf(t / maxf(tuning.rm_fade_s, 0.001), 0.0, 1.0)
 		if u < 1.0 and b.state == BoosterOpening.State.OPENING:
-			pouch(pen, b.aisle, lamp_state(page, b), at.x, at.y, {"clip": clip})
+			pouch(pen, b.aisle, pouch_lit(b), at.x, at.y, {"clip": clip})
 		for k: int in b.cards.size():
-			var p: Vector2 = BoosterArt.fan_pos(b.cx, k)
+			var p: Vector2 = b.fan_pos(k)
 			if u >= 1.0 or b.state == BoosterOpening.State.OPEN:
 				card(
 					pen,
@@ -633,7 +180,8 @@ static func open_booster(
 					p.y - (3 if _rest_hovered(page, b, k) else 0),
 					{"still": true}
 				)
-				BoosterCardDraw.tab(pen, b.rares[k], p.x + BoosterArt.CW / 2.0, p.y - 1)
+				if b.tabs:
+					BoosterCardDraw.tab(pen, b.rares[k], p.x + BoosterArt.CW / 2.0, p.y - 1)
 		return
 	var veil: BoosterOpening = _anticipation(page)
 	var order: Array[int] = []
@@ -672,7 +220,7 @@ static func open_booster(
 		pouch(
 			pen,
 			b.aisle,
-			maxi(1, lamp_state(page, b)),
+			pouch_lit(b),
 			x,
 			y,
 			{"w": w, "h": h, "top": top, "shear": shear, "clip": clip}
@@ -726,6 +274,8 @@ static func card(
 	o: Dictionary = {}
 ) -> void:
 	o["now"] = page.now
+	if b.compact:
+		o["compact"] = true
 	if page.rm:
 		o["still"] = true
 	BoosterCardDraw.draw(pen, b.cards[k], b.rares[k], x, y, o)
@@ -743,8 +293,8 @@ static func fan_card(
 	var tuning: StartBoostersTuning = page.tuning
 	var t: float = b.lt
 	var now: float = page.now
-	var p: Vector2 = BoosterArt.fan_pos(b.cx, k)
-	var at: Vector2 = BoosterArt.pouch_pos(b.cx)
+	var p: Vector2 = b.fan_pos(k)
+	var at: Vector2 = b.pouch_pos()
 	var x: float = p.x
 	var y: float = p.y
 	var sx0: float = at.x + 4 + (k - 1)
@@ -789,7 +339,7 @@ static func fan_card(
 			oy = -roundf(6 * (t - start) / tuning.hit_hang_s)
 		card(pen, page, b, k, x + ox, y + oy, {"back": _back_of(b, k)})
 		if t >= start:
-			pen.r(x + ox + 2, y + oy + BoosterArt.CH, BoosterArt.CW - 4, 1, Palette.INK)
+			pen.r(x + ox + 2, y + oy + b.card_h(), BoosterArt.CW - 4, 1, Palette.INK)
 	elif t < f + tuning.flip_s:
 		var q: float = (t - f) / tuning.flip_s
 		var squeeze: float = absf(cos(PI * q))
@@ -804,7 +354,7 @@ static func fan_card(
 	var own: bool = veil == b and not b.specials.has(k)
 	if veil != null and (veil != b or own) and t >= tuning.spread_end_s and t >= f + tuning.flip_s:
 		pen.r(x + 2, y + 2, BoosterArt.CW - 4, 51, Color(Palette.TEAL_BLACK, 0.5))
-	pen.r(x + 2, y + BoosterArt.CH, BoosterArt.CW - 4, 1, Palette.INK)
+	pen.r(x + 2, y + b.card_h(), BoosterArt.CW - 4, 1, Palette.INK)
 
 
 static func _landed(
@@ -838,7 +388,9 @@ static func _landed(
 	card(pen, page, b, k, x, y, o)
 	if rare and not page.rm and int(floorf(page.now / 0.4)) % 2:
 		pen.tex_c(BoosterArt.SPARKLE, x + 3, y + 3)
-		pen.tex_c(BoosterArt.SPARKLE, x + BoosterArt.CW - 3, y + BoosterArt.CH - 12)
+		pen.tex_c(BoosterArt.SPARKLE, x + BoosterArt.CW - 3, y + b.card_h() - 12)
+	if not b.tabs:
+		return
 	var pop_px: float = roundf((scale - 1.0) * BoosterArt.CH / 2.0)
 	var tab_scale: float = 1.0
 	if rare and lu < 0.2:
@@ -857,19 +409,18 @@ static func _hit_wait(
 	var rise: float = 0.0 if page.rm else roundf((1.0 - cos(phase * TAU)) / 2.0 * 3.0)
 	var yy: float = y - rise
 	var hot: bool = not page.rm and int(floorf(now / 0.18)) % 2 == 0
-	pen.d(x - 5, yy - 5, BoosterArt.CW + 10, BoosterArt.CH + 10, Palette.GOLD, 6 if hot else 3)
-	pen.r(
-		x - 2, yy - 2, BoosterArt.CW + 4, BoosterArt.CH + 4, Palette.GOLD if hot else Palette.BRASS
-	)
+	var ch: float = b.card_h()
+	pen.d(x - 5, yy - 5, BoosterArt.CW + 10, ch + 10, Palette.GOLD, 6 if hot else 3)
+	pen.r(x - 2, yy - 2, BoosterArt.CW + 4, ch + 4, Palette.GOLD if hot else Palette.BRASS)
 	card(pen, page, b, k, x, yy, {"back": BoosterCardDraw.Back.HIT})
-	pen.r(x + 2, y + BoosterArt.CH + 1, BoosterArt.CW - 4, 1, Palette.INK)
+	pen.r(x + 2, y + ch + 1, BoosterArt.CW - 4, 1, Palette.INK)
 	if not page.rm:
 		var g: int = int(floorf(now / 0.15)) % 4
 		var corners: Array[Vector2] = [
 			Vector2(x + 4, yy + 4),
 			Vector2(x + BoosterArt.CW - 5, yy + 4),
-			Vector2(x + BoosterArt.CW - 5, yy + BoosterArt.CH - 5),
-			Vector2(x + 4, yy + BoosterArt.CH - 5),
+			Vector2(x + BoosterArt.CW - 5, yy + ch - 5),
+			Vector2(x + 4, yy + ch - 5),
 		]
 		pen.tex_c(BoosterArt.SPARKLE, corners[g].x, corners[g].y)
 
@@ -885,28 +436,15 @@ static func _sun_done(tuning: StartBoostersTuning) -> float:
 	return tuning.sun_grow_s + tuning.sun_hold_s + tuning.sun_shrink_s
 
 
-static func _sun_glows(pen: ArtPen, page: BoosterPage, b: BoosterOpening) -> void:
+static func sun_glows(pen: ArtPen, page: BoosterPage, b: BoosterOpening) -> void:
 	if b.rm:
 		return
 	for k: int in b.cards.size():
 		if not b.rares[k] or not b.landed(k, page.tuning):
 			continue
 		if _sun_age(page, b, k) >= _sun_done(page.tuning):
-			var p: Vector2 = BoosterArt.fan_pos(b.cx, k)
-			pen.d(p.x - 3, p.y - 3, BoosterArt.CW + 6, BoosterArt.CH + 6, Palette.TEAL_LIGHT, 3)
-
-
-## Over the counter clip: the tear flash and the flying foil strip, the live RARE suns (the RARE
-## redrawn over them), the RESTOCK call round each returnable fan, the counter plates.
-static func _front_over(pen: ArtPen, page: BoosterPage) -> void:
-	for b: BoosterOpening in page.boosters:
-		tear(pen, page, b)
-	for b: BoosterOpening in page.boosters:
-		if b.state == BoosterOpening.State.OPENING or b.state == BoosterOpening.State.OPEN:
-			_suns_top(pen, page, b)
-	BoosterChromeDraw.restock_call(pen, page)
-	BoosterChromeDraw.counter_plates(pen, page)
-	BoosterChromeDraw.bay(pen, page)
+			var p: Vector2 = b.fan_pos(k)
+			pen.d(p.x - 3, p.y - 3, BoosterArt.CW + 6, b.card_h() + 6, Palette.TEAL_LIGHT, 3)
 
 
 ## Booster `b`'s tear flash and the foil strip flying off as it bursts open.
@@ -914,7 +452,7 @@ static func tear(pen: ArtPen, page: BoosterPage, b: BoosterOpening) -> void:
 	var tuning: StartBoostersTuning = page.tuning
 	if b.state != BoosterOpening.State.OPENING or b.rm:
 		return
-	var at: Vector2 = BoosterArt.pouch_pos(b.cx)
+	var at: Vector2 = b.pouch_pos()
 	var fu: float = page.now - b.flash_t
 	if not page.rm and fu >= 0.0 and fu < 0.04:
 		var second: bool = fu >= 0.02
@@ -941,7 +479,7 @@ static func tear(pen: ArtPen, page: BoosterPage, b: BoosterOpening) -> void:
 		pen.origin = saved
 
 
-static func _suns_top(pen: ArtPen, page: BoosterPage, b: BoosterOpening) -> void:
+static func suns_top(pen: ArtPen, page: BoosterPage, b: BoosterOpening) -> void:
 	if b.rm:
 		return
 	var tuning: StartBoostersTuning = page.tuning
@@ -961,8 +499,8 @@ static func _suns_top(pen: ArtPen, page: BoosterPage, b: BoosterOpening) -> void
 			s = maxf(0.28, 1.0 - q * 0.72)
 		else:
 			continue
-		var p: Vector2 = BoosterArt.fan_pos(b.cx, k)
-		BoosterCardDraw.sun(pen, p.x + BoosterArt.CW / 2.0, p.y + BoosterArt.CH / 2.0, s * 1.4)
+		var p: Vector2 = b.fan_pos(k)
+		BoosterCardDraw.sun(pen, p.x + BoosterArt.CW / 2.0, p.y + b.card_h() / 2.0, s * 1.4)
 		fan_card(pen, page, b, k, null)
 
 

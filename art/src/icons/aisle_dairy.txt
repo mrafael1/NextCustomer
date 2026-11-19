@@ -1,0 +1,15 @@
+; The Dairy aisle's glyph (the Cold cases aisle became the Dairy aisle, v1.40): the Dairy
+; family's own glyph (family_dairy), a white milk bottle with a teal dark cap and a teal label.
+; 9x9 with its ink outline; shown at 2x in the card's sprite box, reused on capsule machines
+; and list stickers. The snowflake it replaced is the Frozen family's glyph (family_frozen).
+@size 9x9
+@kind icon
+...###...
+..#222#..
+..#wwb#..
+.#wwwwb#.
+#wwwwwwb#
+#4444444#
+#wwwwwwb#
+#wwwwwwb#
+.#######.

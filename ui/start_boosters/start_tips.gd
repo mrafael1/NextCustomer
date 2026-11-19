@@ -2,10 +2,10 @@ class_name StartTips
 extends Control
 ## The start screen's hover tips (v1.33, the words pass and hover tips B: the approved start rows of
 ## docs/art/mockups/hover_tips.html): a pool of TipTargets laid over a canvas page's hit areas
-## (BoosterPage's regulars and opened booster cards, the swap window's cards, BuildPage's spread
-## pack), each with its TipSpec, placed every frame from the page's tip list. The board's
-## GlyphTips (StartBoard) shows them as the game's other tips; the targets take no clicks, so the
-## page under them keeps its hover, its drag and its clicks.
+## (BoosterPage's regulars and opened booster cards, the swap window's cards), each with its
+## TipSpec, placed every frame from the page's tip list. The board's GlyphTips (StartBoard) shows
+## them as the game's other tips; the targets take no clicks, so the page under them keeps its
+## hover, its drag and its clicks.
 ##
 ## A tip-list entry is {rect (art px), key (what it shows: a changed key builds its spec again),
 ## make (a Callable returning its TipSpec)}, bottom first: a later entry (a family chip on its
@@ -31,9 +31,8 @@ const SWAPS_WAIT_LIVE := "Open every booster to swap it."
 ## A plain item's body (no rule of its own) and an item with a rule's fine print.
 const PLAIN_BODY := "Pays its price: %d€."
 const PRICE_COND := "Price: %d€."
-## A family chip's body, and a starter pack's family band's.
+## A family chip's body.
 const FAMILY_BODY := "%s is a %s item."
-const PACK_FAMILY_BODY := "This starter pack is built around %s items."
 ## The meta naming a target's entry key (for captures and tests).
 const KEY_META := &"tip_key"
 ## The targets built at once (a page's most: the swap window's ten cards with their family chips
@@ -185,14 +184,5 @@ static func family_spec(style: FamilyStyle, card: CardDefinition) -> TipSpec:
 	spec.band = style.face if style.has_ticket_colours() else Palette.CREAM_SHADE
 	spec.band_ink = Palette.PAPER if style.paper_text else Palette.INK
 	spec.subs = PackedStringArray(["FAMILY"])
-	spec.source = spec.plain()
-	return spec
-
-
-## A starter pack's family band's tip: the family's (family_spec), tagged with the pack's name.
-static func pack_family_spec(style: FamilyStyle, pack: StarterPackDefinition) -> TipSpec:
-	var spec: TipSpec = family_spec(style, null)
-	spec.body = PACK_FAMILY_BODY % style.display_name
-	spec.tag = pack.display_name.to_upper()
 	spec.source = spec.plain()
 	return spec

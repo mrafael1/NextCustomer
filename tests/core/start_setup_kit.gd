@@ -57,15 +57,12 @@ static func dealt(shown: ProfileState, seed_value: int) -> RunState:
 	return made if deal(made, shown) == &"" else null
 
 
-## A new run dealt, PICK 2 OF 3 (if any) keeping the seeded pair, and every booster opened, so
-## swaps and RESTOCK are open (null if the deal was refused).
+## A new run dealt and every booster opened, so swaps and RESTOCK are open (null if the deal
+## was refused).
 static func locked(shown: ProfileState, seed_value: int) -> RunState:
 	var made: RunState = dealt(shown, seed_value)
 	if made == null:
 		return null
-	if made.start_setup.picking():
-		var pair: Array[int] = [0, 1]
-		StartSetupRules.pick_boosters(made, shown, pair, pick_rng(made))
 	open_all(made)
 	return made
 
@@ -78,9 +75,7 @@ static func open_all(shown: RunState) -> void:
 
 ## Deals the run's setup on the game's streams; returns deal's reason.
 static func deal(shown: RunState, owner: ProfileState) -> StringName:
-	return StartSetupRules.deal(
-		shown, owner, deck_rng(shown), booster_streams(shown), extra_rng(shown)
-	)
+	return StartSetupRules.deal(shown, owner, deck_rng(shown), booster_streams(shown))
 
 
 static func deck_rng(shown: RunState) -> RandomNumberGenerator:
@@ -95,16 +90,6 @@ static func booster_streams(shown: RunState) -> Dictionary[StringName, RandomNum
 			shown.run_seed, EventLogService.START_BOOSTER_STREAM % aisle.id
 		)
 	return streams
-
-
-static func extra_rng(shown: RunState) -> RandomNumberGenerator:
-	return EventLogService.derived_stream(
-		shown.run_seed, EventLogService.START_BOOSTER_EXTRA_STREAM
-	)
-
-
-static func pick_rng(shown: RunState) -> RandomNumberGenerator:
-	return EventLogService.derived_stream(shown.run_seed, EventLogService.START_BOOSTER_PICK_STREAM)
 
 
 static func restock_rng(shown: RunState, index: int) -> RandomNumberGenerator:
@@ -124,10 +109,6 @@ static func regulars_rng(shown: RunState, aisle_id: StringName) -> RandomNumberG
 static func swap_offers(shown: RunState, owner: ProfileState) -> void:
 	for aisle_id: StringName in StartSwapBoosters.swap_aisles(shown):
 		StartSwapBoosters.swap_offer(shown, owner, aisle_id, regulars_rng(shown, aisle_id))
-
-
-static func new_packs_rng(shown: RunState) -> RandomNumberGenerator:
-	return EventLogService.derived_stream(shown.run_seed, EventLogService.START_NEW_PACKS_STREAM)
 
 
 ## Swaps regular `slot` to its first allowed option, as StartChoice does; false when none.

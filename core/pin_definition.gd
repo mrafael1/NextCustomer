@@ -31,7 +31,7 @@ extends Resource
 @export var icon_big: Texture2D
 ## The milestone that unlocks it (UnlockCheck); none: owned from the start.
 @export var unlock_condition: UnlockCondition
-## Cards added to the run's starting deck (after the starter pack is taken).
+## Cards added to the run's starting deck (when the store opens).
 @export var starting_cards: Array[CardDefinition] = []
 ## While planning, the player may move hand items between baskets (RunPins.repack), so lone
 ## items can share one basket and go in one redraw.

@@ -7,7 +7,7 @@ extends RefCounted
 
 
 ## Wears the badge pins for a new run: kept in `run.pins`, their starting cards added to the deck
-## now, or after the starter pack (RunState.take_pack) when the run waits for its pick. Call it
+## now, or at OPEN STORE (RunState.open_store) when the run waits in the opening time. Call it
 ## once, right after the run is made.
 static func wear(run: RunState, worn: Array[PinDefinition]) -> void:
 	run.pins = worn.duplicate()

@@ -274,8 +274,8 @@ func test_escape_on_the_start_screen_opens_the_options_with_back_to_title() -> v
 		assert_bool(get_tree().paused).is_false()
 		assert_int(left[0]).is_equal(0)
 		assert_object(screen._cart_reveal.board).is_same(board)
-		get_tree().root.push_input(_key(KEY_1), true)
-		assert_int(board.store.shutter).is_not_equal(BoosterPage.Shutter.DOWN)
+		get_tree().root.push_input(_key(KEY_ENTER), true)
+		assert_int(board.store.roulette.phase).is_equal(AisleRoulette.Phase.DEAL)
 		get_tree().root.push_input(_key(KEY_ESCAPE), true)
 		assert_bool(options.is_open()).is_true()
 		get_tree().root.push_input(_key(KEY_UP), true)
@@ -386,9 +386,10 @@ static func _board(page: BoosterPage) -> StartBoard:
 
 
 static func _stocked(page: BoosterPage) -> void:
-	page.openings.roll_up()
-	page.openings.end_arrival()
-	page.openings.open_all("key")
+	page.roulette.skip()
+	# The boosters wait sealed for their clicks (round 2 of the 2026-11-19 play test).
+	for sealed: BoosterOpening in page.shown_boosters():
+		page.openings.open_booster(sealed.index, "click")
 	_run(page, 8.0)
 
 

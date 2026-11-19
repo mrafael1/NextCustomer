@@ -9,12 +9,18 @@ extends GdUnitTestSuite
 
 ## The approved lines, filled (the mock-up's GUIDED, TIPS and QUICK texts, chips marked **).
 const APPROVED: Dictionary[String, String] = {
-	"G2": "These are **YOUR REGULARS**. They start in your **CART** on every run.",
-	"G3": "Open both **BOOSTERS**. Their 3 **CARDS** each go in your **CART**.",
+	"G2": "**YOUR REGULARS** are already in your **CART**. They start there on every run.",
+	"G3":
+	(
+		"Today's 2 aisles each gave a **BOOSTER**. Click both to open them: their 4 **CARDS** "
+		+ "each go in your **CART**."
+	),
 	"G4": "Your store is stocked. Click NEXT.",
-	"G5":
-	"Pick one **STARTER PACK**. Its **CARDS** join your **CART**. Point at a pack to read it.",
-	"G6": "Your **CART** is ready. Click OPEN STORE to start your first **SHIFT**.",
+	"G6":
+	(
+		"Your **CART** is ready. Click KEEP on your regulars, then OPEN STORE to start your"
+		+ " first **SHIFT**."
+	),
 	"G7":
 	(
 		"Put **ITEMS** from your **BASKETS** in the **ROW**. Reach the **QUOTA**, 30€, to pass "
@@ -138,23 +144,22 @@ const APPROVED: Dictionary[String, String] = {
 	"Click RETURN THIS ONE on a **BOOSTER** to send it back. CANCEL keeps all your " + "**CARDS**.",
 	"restock_new":
 	(
-		"Its 3 **CARDS** left your **CART**. Open the new **BOOSTER**: a new chance at a "
+		"Its 4 **CARDS** left your **CART**. Open the new **BOOSTER**: a new chance at a "
 		+ "**RARE** one. **RESTOCK** is used up until your next run."
 	),
 	"P1":
 	"NEW: **BADGE PINS**. You earned one! Click WEAR: a pin changes a rule for this whole run.",
 	"pins_worn":
 	(
-		"Confirm with the red key, and your **STARTER PACKS** deal. You have 1 slot: wearing "
-		+ "another pin swaps it."
+		"Confirm with the red key, then OPEN STORE. You have 1 slot: wearing another pin "
+		+ "swaps it."
 	),
 	"pins_set":
-	"Your pin is on the board for this run. Click it or press P to change it before you pick.",
-	"SA1":
 	(
-		"NEW: each completed aisle lets you swap 1 of **YOUR REGULARS**. Click the basket to "
-		+ "swap."
+		"Your pin is on the board for this run. Click it or press P to change it before you "
+		+ "open the store."
 	),
+	"SA1": "NEW: each completed aisle lets you swap 1 of **YOUR REGULARS**. Click SWAP.",
 	"swap_open": "Each completed aisle gives a **BOOSTER** of plain **CARDS**. Open them.",
 	"swap_drag": "Drag a **CARD** onto a regular to swap them. Drag it back to undo.",
 	"swap_kept":
@@ -252,18 +257,23 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
+## v1.41: G5 (the starter pack pick) is gone; the ids keep their numbers.
 func test_the_guided_run_is_g1_to_g14_in_order() -> void:
 	var script: TutorialScript = TutorialScript.guided()
-	assert_int(script.steps.size()).is_equal(14)
+	assert_int(script.steps.size()).is_equal(13)
+	var want_ids: Array[String] = []
+	for n: int in range(1, 15):
+		if n != 5:
+			want_ids.append("G%d" % n)
 	for k: int in script.steps.size():
-		assert_str(String(script.steps[k].id)).is_equal("G%d" % (k + 1))
+		assert_str(String(script.steps[k].id)).is_equal(want_ids[k])
 		assert_int(script.index_of(script.steps[k].id)).is_equal(k)
-	assert_object(script.step(&"G10")).is_same(script.steps[9])
+	assert_object(script.step(&"G10")).is_same(script.steps[8])
 	assert_object(script.step(&"G99")).is_null()
 	# G10 is shift 1's free planning: no line, every planning move but REDRAW and its baskets.
-	assert_int(script.free_index()).is_equal(9)
+	assert_int(script.free_index()).is_equal(8)
 	for k: int in script.steps.size():
-		assert_bool(script.steps[k].is_free()).override_failure_message(str(k)).is_equal(k == 9)
+		assert_bool(script.steps[k].is_free()).override_failure_message(str(k)).is_equal(k == 8)
 	assert_str(String(script.retry.id)).is_equal("RETRY")
 	assert_str(String(script.answer_step.id)).is_equal("ANSWER")
 	var ids: Array[StringName] = []
@@ -551,8 +561,12 @@ func test_the_gate_allows_only_the_steps_move() -> void:
 	assert_bool(g9.allows(TutorialActions.CHECKOUT)).is_false()
 	assert_bool(g9.allows(TutorialActions.PICK_CARD, _card(&"eggs", true))).is_true()
 	var g3: TutorialStep = script.step(&"G3")
+	# G3: the player opens both boosters (round 2 of the 2026-11-19 play test: they wait sealed),
+	# by their clicks or Enter; nothing else.
+	assert_bool(g3.allows(TutorialActions.HIT, {TutorialActions.ARG_ID: &"booster0"})).is_true()
 	assert_bool(g3.allows(TutorialActions.HIT, {TutorialActions.ARG_ID: &"booster1"})).is_true()
-	assert_bool(g3.allows(TutorialActions.HIT, {TutorialActions.ARG_ID: &"crate"})).is_false()
+	assert_bool(g3.allows(TutorialActions.HIT, {TutorialActions.ARG_ID: &"primary"})).is_true()
+	assert_bool(g3.allows(TutorialActions.HIT, {TutorialActions.ARG_ID: &"swap_key"})).is_false()
 	assert_bool(g3.allows(TutorialActions.HIT, {TutorialActions.ARG_ID: &"restock"})).is_false()
 	var g11: TutorialStep = script.step(&"G11")
 	assert_bool(g11.allows(TutorialActions.CHUTE, {TutorialEvents.ARG_CHUTE: &"upgrade"})).is_true()

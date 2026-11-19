@@ -27,8 +27,8 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-## SWAP (2 aisles complete): its callout once the page is stocked, ringing the crate; opening the
-## swap window closes it and pops its first hint; a booster and a swap pop the next two; the
+## SWAP (2 aisles complete): nothing on page 1; its callout on page 2, ringing the SWAP key; opening
+## the swap window closes it and pops its first hint; a booster and a swap pop the next two; the
 ## flag is saved; the next run's board shows no callout.
 func test_swap_shows_once_then_its_hints() -> void:
 	var screen: ShiftScreen = await _screen(2)
@@ -36,14 +36,18 @@ func test_swap_shows_once_then_its_hints() -> void:
 	var quick: QuickTutorials = screen.tutorial.quick
 	assert_object(quick.showing()).is_null()
 	_stocked(page)
+	await _frames(4)
+	assert_object(quick.showing()).is_null()
+	assert_bool(TutorialFlags.quick_seen(screen.profile, TutorialFlags.QUICK_SWAP)).is_false()
+	_to_build(screen)
 	assert_bool(await _until_shown(quick, &"swap")).is_true()
 	assert_bool(TutorialFlags.quick_seen(screen.profile, TutorialFlags.QUICK_SWAP)).is_true()
 	var saved: ProfileState = SaveService.new(_folder).load_profile()
 	assert_bool(TutorialFlags.quick_seen(saved, TutorialFlags.QUICK_SWAP)).is_true()
-	assert_array(quick.overlay().view().rings.map(_mark_id)).contains([TutorialAnchors.CRATE])
+	assert_array(quick.overlay().view().rings.map(_mark_id)).contains([TutorialAnchors.SWAP_KEY])
 	assert_int(quick.overlay().ring_rects().size()).is_equal(1)
 	assert_bool(quick.overlay().ring_rects()[0].has_area()).is_true()
-	assert_bool(page.swap.open_window(false)).is_true()
+	assert_bool(screen._cart_reveal.board.open_swap()).is_true()
 	await _frames(2)
 	assert_object(quick.showing()).is_null()
 	assert_bool(quick.bubble().is_showing()).is_true()
@@ -64,21 +68,21 @@ func test_swap_shows_once_then_its_hints() -> void:
 	var next: BoosterPage = screen._cart_reveal.board.store
 	next.frozen = true
 	_stocked(next)
+	_to_build(screen)
 	await _frames(4)
 	assert_object(quick.showing()).is_null()
 
 
-## RESTOCK (3 aisles complete): it waits behind SWAP, shows once SWAP's GOT IT closes it, rings
+## RESTOCK (3 aisles complete): it shows on the stocked page 1 (SWAP waits for page 2) and rings
 ## the key; arming closes it and pops its hint; the restock pops the next over the new booster.
+## SWAP then shows on page 2.
 func test_restock_follows_swap_and_pops_its_hints() -> void:
 	var screen: ShiftScreen = await _screen(3)
 	var page: BoosterPage = screen._cart_reveal.board.store
 	var quick: QuickTutorials = screen.tutorial.quick
 	_stocked(page)
-	assert_bool(await _until_shown(quick, &"swap")).is_true()
-	assert_bool(TutorialFlags.quick_seen(screen.profile, TutorialFlags.QUICK_RESTOCK)).is_false()
-	quick.overlay().button_pressed.emit()  # GOT IT.
 	assert_bool(await _until_shown(quick, &"restock")).is_true()
+	assert_bool(TutorialFlags.quick_seen(screen.profile, TutorialFlags.QUICK_SWAP)).is_false()
 	assert_array(quick.overlay().view().rings.map(_mark_id)).contains([TutorialAnchors.RESTOCK])
 	assert_bool(quick.overlay().ring_rects()[0].has_area()).is_true()
 	assert_bool(page.counter.arm_restock()).is_true()
@@ -88,7 +92,10 @@ func test_restock_follows_swap_and_pops_its_hints() -> void:
 	await _frames(2)
 	assert_bool(quick.bubble().is_showing()).is_true()
 	assert_array(_logged("tutorial_hint")).is_equal(["restock_pick", "restock_new"])
-	assert_array(_logged("quick_step")).is_equal(["SA1", "R1"])
+	assert_array(_logged("quick_step")).is_equal(["R1"])
+	_run(page, 8.0)
+	_to_build(screen)
+	assert_bool(await _until_shown(quick, &"swap")).is_true()
 
 
 ## BADGE PINS (a pin earned): page 2's held packs bring its callout; wearing a pin closes it and
@@ -107,7 +114,7 @@ func test_pins_show_on_page_two() -> void:
 	staff.frozen = true
 	for _step: int in 240:
 		staff.advance(STEP)
-	assert_bool(staff.packs_held()).is_true()
+	assert_bool(staff.pins_pending()).is_true()
 	assert_bool(await _until_shown(quick, &"pins")).is_true()
 	var pin: PinDefinition = staff.pins.owned()[0]
 	staff.pins.open(0.0)
@@ -185,12 +192,22 @@ static func _card_piece(page: BoosterPage) -> SwapPiece:
 	return null
 
 
-## Rolls up, opens every booster and lets STOCKED! come.
+## Skips the light and lets every booster open.
 static func _stocked(page: BoosterPage) -> void:
-	page.openings.roll_up()
-	page.openings.end_arrival()
-	page.openings.open_all("key")
+	page.roulette.skip()
+	# The boosters wait sealed for their clicks (round 2 of the 2026-11-19 play test).
+	for sealed: BoosterOpening in page.shown_boosters():
+		page.openings.open_booster(sealed.index, "click")
 	_run(page, 8.0)
+
+
+## Turns the stocked board to page 2 (its slide ended, its BADGE PINS step shut).
+static func _to_build(screen: ShiftScreen) -> void:
+	var board: StartBoard = screen._cart_reveal.board
+	board.show_page(2, "tab")
+	if board.page_sliding():
+		board._end_slide()
+	board.staff.pins.close()
 
 
 static func _run(page: BoosterPage, seconds: float) -> void:

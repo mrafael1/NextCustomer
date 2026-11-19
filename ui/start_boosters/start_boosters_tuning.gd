@@ -3,35 +3,21 @@ extends Resource
 ## YOUR STORE's booster opening beats (v1.32, the user's pick of 2026-11-13 on mock-up
 ## docs/art/mockups/start_boosters_v3.html, its TEMPO table). It lives in
 ## data/balance/start_boosters.tres so it can be tuned by feel without code changes. Only the main
-## beats (the mock-up's TEMPO table) are here; small secondary beats (STOCKED!'s lamp steps, the
-## hint flash, RESTOCK's lamp flicker, page 2's deal staggers, the store flight's phases, the pin
-## confirm) are still code literals next to their drawing. The defaults are neutral (0), like
+## beats (the mock-up's TEMPO table) are here; small secondary beats (the message flash, page 2's
+## deal staggers, the store flight's phases, the pin confirm) are still code literals next to
+## their drawing. The defaults are neutral (0), like
 ## CartRevealTuning's, so
 ## a script edit can never silently change the tuned values in the file. Geometry stays in code
 ## constants (BoosterArt). Every time is in seconds.
 
-## The storefront: the shutters wait auto_roll_s (desktop game; the web build waits for a click),
-## roll up over shutter_up_s, then the view walks in through the door over walk_in_s.
-@export var auto_roll_s: float = 0.0
-@export var shutter_up_s: float = 0.0
-@export var walk_in_s: float = 0.0
-
-## The lamps come on lamp_gap_s apart, flickering lamp_flicker_s a step; each booster drops from
-## the ceiling over drop_s (a back ease of drop_overshoot), then squashes in over squash_in_s and
-## back out over squash_out_s.
-@export var lamp_gap_s: float = 0.0
-@export var lamp_flicker_s: float = 0.0
+## A swap window booster drops onto its shelf over drop_s.
 @export var drop_s: float = 0.0
-@export var drop_overshoot: float = 0.0
-@export var squash_in_s: float = 0.0
-@export var squash_out_s: float = 0.0
 
-## Opening, on the booster's own clock: the grab ends at grab_s, the rattle at rattle_end_s, the
-## tear at tear_end_s; the foil bursts at burst_s; the cards rise from rise_start_s to rise_end_s
+## Opening, on the booster's own clock: the grab ends at grab_s, the rattle at rattle_end_s; the
+## foil bursts at burst_s; the cards rise from rise_start_s to rise_end_s
 ## and spread until spread_end_s; the empty pouch drops away over pouch_drop_s.
 @export var grab_s: float = 0.0
 @export var rattle_end_s: float = 0.0
-@export var tear_end_s: float = 0.0
 @export var burst_s: float = 0.0
 @export var rise_start_s: float = 0.0
 @export var rise_end_s: float = 0.0
@@ -54,32 +40,18 @@ extends Resource
 @export var sun_hold_s: float = 0.0
 @export var sun_shrink_s: float = 0.0
 
-## OPEN ALL (the primary key, A, or Space held hold_space_s): tears open_all_tear_s apart, commons
-## open_all_flip_s apart, the hits and RAREs queued last open_all_gap_s apart, the whole
-## sequence within open_all_cap_s. A skip plays a booster `boost` times as fast.
-@export var open_all_tear_s: float = 0.0
+## A skipped booster flips its commons open_all_flip_s apart and plays `boost` times as fast.
 @export var open_all_flip_s: float = 0.0
-@export var open_all_gap_s: float = 0.0
-@export var open_all_cap_s: float = 0.0
-@export var hold_space_s: float = 0.0
 @export var boost: float = 0.0
 
-## STOCKED!: it starts complete_delay_s after the last card lands. Under reduced motion a booster
+## NEXT is armed complete_delay_s after the last card lands. Under reduced motion a booster
 ## fades open over rm_fade_s.
 @export var complete_delay_s: float = 0.0
 @export var rm_fade_s: float = 0.0
 
-## RESTOCK: the old cards flip to their backs restock_flip_s apart, fly into the returns tote over
-## restock_fly_s, the tote drops away restock_tote_at_s after the RESTOCK over restock_tote_s and
-## comes back over restock_tote_back_s, and its dust puffs as it lands; the old cards are gone
-## restock_clear_s after the drop. The fresh booster drops restock_drop_s after the RESTOCK.
+## RESTOCK: the old cards turn to their backs restock_flip_s apart (their flight back to the bay
+## is the aisle board's, below).
 @export var restock_flip_s: float = 0.0
-@export var restock_fly_s: float = 0.0
-@export var restock_tote_at_s: float = 0.0
-@export var restock_tote_s: float = 0.0
-@export var restock_tote_back_s: float = 0.0
-@export var restock_clear_s: float = 0.0
-@export var restock_drop_s: float = 0.0
 
 ## The armed primary key's press-bob (NEXT on page 1, the pack key on page 2 and the pins step's
 ## key; v1.32 feedback, the user's pick C on docs/art/mockups/next_key_idle.html;
@@ -94,30 +66,11 @@ extends Resource
 @export var next_bob_hold_s: float = 0.0
 @export var next_bob_px: int = 0
 
-## PICK 2 OF 3: the booster not picked sinks over pick_sink_s; the kept pair slides to the two
-## aisle places pick_move_at_s after the second pick (over pick_sink_s too), and the counter's
-## two-aisle dress (RESTOCK, the tote, the board) comes in with it.
-@export var pick_sink_s: float = 0.0
-@export var pick_move_at_s: float = 0.0
-
-## YOUR BUILD (page 2): the packs deal p2_deal_delay_s after the page opens, a pack every
-## p2_pack_gap_s and a card every p2_card_gap_s, each flying p2_fly_s from the deck and flipping
-## over p2_flip_s; a hovered pack spreads over p2_spread_s while the others sink over p2_sink_s.
-@export var p2_deal_delay_s: float = 0.0
-@export var p2_pack_gap_s: float = 0.0
-@export var p2_card_gap_s: float = 0.0
-@export var p2_fly_s: float = 0.0
-@export var p2_flip_s: float = 0.0
-@export var p2_spread_s: float = 0.0
-@export var p2_sink_s: float = 0.0
-## NEW PACKS: the new packs deal new_packs_deal_s after the press (a pack every p2_pack_gap_s).
-@export var new_packs_deal_s: float = 0.0
 ## The BADGE PINS step: it pops in over pins_pop_s (pins_delay_s after the page opens); the worn
-## pin flies to the corkboard over pin_fly_s and the packs deal pins_deal_s after the confirm.
+## pin flies to the corkboard over pin_fly_s.
 @export var pins_delay_s: float = 0.0
 @export var pins_pop_s: float = 0.0
 @export var pin_fly_s: float = 0.0
-@export var pins_deal_s: float = 0.0
 
 ## OPEN STORE: the cards gather over store_gather_s, turn into items over store_wipe_s (each
 ## store_item_gap_s after the last), drop into the cart over store_drop_s from store_drop_at_s,
@@ -136,9 +89,7 @@ extends Resource
 ## The swap window (YOUR REGULARS, v1.32 swap window): it slides in over swap_in_s and out over
 ## swap_out_s; its boosters drop swap_drop_gap_s apart. A card flies between its fan and the
 ## basket in swap_fly_min_s + its distance / swap_fly_px_s (at most swap_fly_max_s; a refused drop
-## bounces home swap_bounce_s longer). After DONE page 1's basket plays each changed regular in,
-## swap_play_in_at_s after the close and swap_play_in_step_s apart, over swap_play_in_s; a window
-## opened from NEXT goes on to YOUR BUILD swap_next_hold_s after DONE.
+## bounces home swap_bounce_s longer).
 @export var swap_in_s: float = 0.0
 @export var swap_out_s: float = 0.0
 @export var swap_drop_gap_s: float = 0.0
@@ -146,7 +97,41 @@ extends Resource
 @export var swap_fly_max_s: float = 0.0
 @export var swap_fly_px_s: float = 0.0
 @export var swap_bounce_s: float = 0.0
-@export var swap_play_in_at_s: float = 0.0
-@export var swap_play_in_step_s: float = 0.0
-@export var swap_play_in_s: float = 0.0
-@export var swap_next_hold_s: float = 0.0
+
+## The aisle board (v1.40, mock-up start_roulette.html, variant A). The fan cards are compact
+## (picture, price, family glyph, name; the full card with its rule pops on hover) while
+## compact_fan_cards; false stands the full cards with their rules on the counter.
+@export var compact_fan_cards: bool = false
+## The light starts spin_delay_s after the page shows. Its first run makes at least
+## spin_first_hops hops in spin_first_s, the first gap spin_first_gap_s; each next run starts
+## spin_pause_s after the landing and makes at least spin_next_hops hops in spin_next_s from
+## a gap of spin_next_gap_s; a run's last gap is stretched spin_last_stretch times. The other
+## bays close spin_close_at_s after the last landing, their shutters shutter_gap_s apart, each
+## rolling down over shutter_down_s and bouncing shutter_bounce_s.
+@export var spin_delay_s: float = 0.0
+@export var spin_first_hops: int = 0
+@export var spin_first_s: float = 0.0
+@export var spin_first_gap_s: float = 0.0
+@export var spin_pause_s: float = 0.0
+@export var spin_next_hops: int = 0
+@export var spin_next_s: float = 0.0
+@export var spin_next_gap_s: float = 0.0
+@export var spin_last_stretch: float = 0.0
+@export var spin_close_at_s: float = 0.0
+@export var shutter_gap_s: float = 0.0
+@export var shutter_down_s: float = 0.0
+@export var shutter_bounce_s: float = 0.0
+## The first open bay throws its booster throw_at_s after the bays close (fixed_throw_at_s after
+## the page shows when no light runs: the guided first run, a resume), the next throw_gap_s later;
+## a throw flies throw_s. A thrown booster waits sealed on the counter until the player opens it
+## (a click, 1-2, Enter: the user's play test of 2026-11-19, round 2).
+@export var throw_at_s: float = 0.0
+@export var fixed_throw_at_s: float = 0.0
+@export var throw_gap_s: float = 0.0
+@export var throw_s: float = 0.0
+## RESTOCK: the old cards fly back to their bay over restock_return_s each (restock_flip_s apart),
+## the bay's sign punches restock_land_at_s after the key, it throws the fresh booster
+## restock_throw_at_s later, and that one waits sealed on the counter.
+@export var restock_return_s: float = 0.0
+@export var restock_land_at_s: float = 0.0
+@export var restock_throw_at_s: float = 0.0

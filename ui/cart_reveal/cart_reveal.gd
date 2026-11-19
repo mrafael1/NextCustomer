@@ -32,21 +32,14 @@ extends Control
 ## at the fold and when the reveal closes. Hovering never changes the tap: a click anywhere, on
 ## a tile or the popup too, still skips to the summary or folds the panel.
 ##
-## The starter pack choice (#107, mock-up starter_choice_107.html layout A, decided with the user
-## on 2026-10-26: Q1 C, Q2 A, Q3 B, Q4 A). A run waiting for its pick (RunState.CHOOSE_START)
-## opens on the choice: the staples lock on, the offer's three packs drop in under them
-## (PackChoice), today's shared products sit in the dispenser's window as pictures (each opens its
-## popup on hover, as a pack's cards do), and the reveal waits. A click raises a pack (another
-## changes it), 1 to 3 raise, and the push bar or Enter takes the raised one: pack_taken is
-## emitted (the screen makes the deck and starts shift 1), then the pack's cards fly into the
-## first picks from their places on its face and the shared products drop out of the dispenser
-## as before. The good first pick (until the profile's first win) is raised from the start.
-## During the packs' drop a tap jumps to the choice, never past it; during the choice a click off
-## the packs and the bar, Space and Esc do nothing; after the pick a tap skips as before.
+## A run waiting in the opening time (RunState.CHOOSE_START, with a start setup) opens the
+## two-page opening board (StartBoard) instead; its OPEN STORE closes the roller shutter and
+## emits store_opened (the screen starts shift 1). (The starter pack choice of #107 was removed
+## in v1.41.)
 
 signal finished
-## The player took `pack` from the starter pack choice (#107).
-signal pack_taken(pack: StarterPackDefinition)
+## OPEN STORE on the opening board: the screen opens the store and starts shift 1.
+signal store_opened
 ## ‹ TITLE or the options' BACK TO TITLE on the opening board: the screen leaves for the title.
 signal title_requested
 ## The board's Esc asks for the options (StartBoard.options_requested).
@@ -66,9 +59,6 @@ const LOCK_DB := -12.0
 const TICK_DB := -8.0
 const LAND_DB := -4.0
 const TAP_KEYS: Array[Key] = [KEY_SPACE, KEY_ENTER, KEY_KP_ENTER, KEY_ESCAPE]
-## The choice's keys (#107): 1 to 3 raise a pack, Enter takes it.
-const RAISE_KEYS: Array[Key] = [KEY_1, KEY_2, KEY_3]
-const TAKE_KEYS: Array[Key] = [KEY_ENTER, KEY_KP_ENTER]
 ## The planning scanner's hold (ms), unless `hover_hold_ms` is set.
 const SCAN_TUNING_PATH := "res://data/balance/scan.tres"
 
@@ -107,9 +97,6 @@ var _outro: float = -1.0
 var _frozen: bool = false
 var _dim_alpha: float = 1.0
 var _ring_alpha: float = 0.0
-## The starter pack offer being chosen from (#107), or null; whether the choice waits.
-var _offer: StartOffer
-var _choosing: bool = false
 var _core: Array[CardDefinition] = []
 var _copy_max: int = 0
 var _deck_limit: int = 0
@@ -148,9 +135,9 @@ static func request() -> void:
 
 ## Opens the reveal for `run`'s dealt starting deck (a recipe's: a fixed deck has no picks and
 ## shows nothing; returns whether it opened), folding into `cart` at the end.
-## A run waiting for its starter pack (#107) opens on the choice instead: with `profile` and
-## `actions`, a run with a start setup opens the two-page opening board (StartBoard) and never
-## builds the older panel.
+## A run waiting in the opening time opens the two-page opening board (StartBoard) instead, with
+## `profile` and `actions` (true); without them it opens nothing (false: the caller opens the
+## store for the player).
 func play(
 	run: RunState,
 	cart: Control,
@@ -169,20 +156,10 @@ func play(
 	_copy_max = run.starter.copy_max
 	_deck_limit = run.balance.deck_limit
 	_shift = run.shift_index + 1
-	_choosing = run.phase == RunState.Phase.CHOOSE_START and run.start_offer != null
-	_offer = run.start_offer if _choosing else null
 	var picks: Array[CardDefinition] = StartingDeck.picks(run.starter)
-	if _choosing:
-		var none: Array[CardDefinition] = []
-		var from: Array[Vector2] = []
-		_panel = RevealPanel.new(_core, none, _copy_max, _deck_limit, _shift, null, from, _offer)
-	elif picks.is_empty():
+	if choosing or picks.is_empty():
 		return false
-	else:
-		var from: Array[Vector2] = []
-		_panel = RevealPanel.new(
-			_core, picks, _copy_max, _deck_limit, _shift, run.starter.starter_pack, from
-		)
+	_panel = RevealPanel.new(_core, picks, _copy_max, _deck_limit, _shift)
 	_stage.add_child(_panel)
 	_t = end_time() if reduced_motion else 0.0
 	_outro = -1.0
@@ -209,7 +186,6 @@ func close() -> void:
 	set_process(false)
 	_outro = -1.0
 	_hover_tile = null
-	_choosing = false
 	_hide_popup()
 	if _panel != null:
 		_panel.queue_free()
@@ -230,73 +206,15 @@ func time() -> float:
 	return _t
 
 
-## During the choice (#107): when the packs have dropped in and the choice waits.
 func end_time() -> float:
 	if _panel == null:
 		return 0.0
-	if _choosing:
-		return PackChoice.ready_time(tuning, _offer.packs.size())
 	return tuning.end_time(_panel.picks.size())
 
 
-## Whether the starter pack choice waits for the pick (#107).
-func is_choosing() -> bool:
-	return visible and _choosing
-
-
-## Raises pack `index` of the choice (#107; a click on its face, or its 1 to 3 key).
-func raise_pack(index: int) -> void:
-	if board != null:
-		board.pick(index)
-		return
-	if not is_choosing() or index < 0 or index >= _panel.choice.faces.size():
-		return
-	_skip_to_choice()
-	if _panel.choice.raised_index != index:
-		_panel.choice.raise(index)
-		Sfx.play_at(self, "ui_click")
-	_render()
-
-
-## Takes the raised pack (#107; the push bar or Enter): emits pack_taken, then the pack's cards
-## and today's products fly into the cart. False when no pack is raised.
-func take_pack() -> bool:
-	if board != null:
-		return board.clock_in()
-	if not is_choosing():
-		return false
-	var pack: StarterPackDefinition = _panel.choice.raised_pack()
-	if pack == null:
-		return false
-	var face: PackFace = _panel.choice.faces[_panel.choice.raised_index]
-	var from: Array[Vector2] = []
-	for tile: RevealTile in face.tiles:
-		from.append(face.position + tile.position + RevealTile.SPRITE_POSITION * tile.scale)
-	var shared: Array[CardDefinition] = _offer.shared.duplicate()
-	_choosing = false
-	_hover_tile = null
-	_hide_popup()
-	Sfx.play_at(self, "ui_confirm")
-	# The screen starts shift 1, which closes its overlays (this reveal among them): the picks'
-	# panel is built after it.
-	pack_taken.emit(pack)
-	if _panel != null:
-		_panel.queue_free()
-	_panel = RevealPanel.new(_core, pack.cards + shared, _copy_max, _deck_limit, _shift, pack, from)
-	_stage.add_child(_panel)
-	_t = end_time() if reduced_motion else tuning.pick_start_s
-	_outro = -1.0
-	visible = true
-	set_process(not _frozen)
-	_render()
-	return true
-
-
-## During the packs' drop: jumps to the waiting choice.
-func _skip_to_choice() -> void:
-	if _choosing and _t < end_time() - 0.001:
-		_t = end_time()
-		_render()
+## OPEN STORE on the opening board (StartBoard.clock_in). False without a board, or when refused.
+func open_store() -> bool:
+	return board != null and board.clock_in()
 
 
 ## Whether the panel is folding into the Cart button (after the tap at the end).
@@ -308,10 +226,6 @@ func is_folding() -> bool:
 ## button (at once with reduced motion), then the reveal closes.
 func tap() -> void:
 	if not visible or _outro >= 0.0:
-		return
-	if _choosing:
-		# The choice never ends on a tap (#107): it only jumps to the waiting packs.
-		_skip_to_choice()
 		return
 	if _t < end_time() - 0.001:
 		_t = end_time()
@@ -346,8 +260,6 @@ func advance(seconds: float) -> void:
 		if _outro >= tuning.outro_s:
 			_finish()
 			return
-	elif _choosing:
-		_t = minf(_t + seconds, end_time())
 	else:
 		var before: float = _t
 		_t = minf(_t + seconds, end_time() + 3.0)
@@ -383,22 +295,15 @@ func tile_at(point: Vector2) -> RevealTile:
 	if _panel == null or _outro >= 0.0:
 		return null
 	var tiles: Array[RevealTile] = _panel.staple_tiles + _panel.pick_tiles
-	if _panel.choice != null:
-		tiles.append_array(_panel.choice.tiles())
 	for tile: RevealTile in tiles:
 		if tile.is_visible_in_tree() and tile.get_global_rect().has_point(point):
 			return tile
 	return null
 
 
-## What under `point` (global) can show its popup: a tile (tile_at), or during the choice (#107,
-## Q2 A) one of today's products in the dispenser's window; null over anything else.
+## What under `point` (global) can show its popup: a tile (tile_at); null over anything else.
 func target_at(point: Vector2) -> Control:
-	var tile: RevealTile = tile_at(point)
-	if tile != null or not _choosing or _panel == null:
-		return tile
-	var card: CardDefinition = _panel.dispenser.card_at(point)
-	return _panel.dispenser.art_of(card) if card != null else null
+	return tile_at(point)
 
 
 ## The pointer is over `tile` (a target_at target; null: none): another one starts its hold
@@ -484,29 +389,11 @@ func _gui_input(event: InputEvent) -> void:
 	if motion != null:
 		var point: Vector2 = get_global_transform() * motion.position
 		hover(target_at(point))
-		if is_choosing():
-			_panel.choice.set_pointer(_panel.choice.face_at(point), _panel.choice.bar_has(point))
 		return
 	var click: InputEventMouseButton = event as InputEventMouseButton
 	if click != null and click.pressed and click.button_index == MOUSE_BUTTON_LEFT:
 		accept_event()
-		if is_choosing():
-			_click_choice(get_global_transform() * click.position)
-			return
 		tap()
-
-
-## A click during the choice (#107): during the packs' drop it jumps to the choice; then a click on
-## a pack raises it and one on the bar takes the raised pack; anywhere else does nothing.
-func _click_choice(point: Vector2) -> void:
-	if _t < end_time() - 0.001:
-		_skip_to_choice()
-		return
-	var index: int = _panel.choice.face_at(point)
-	if index >= 0:
-		raise_pack(index)
-	elif _panel.choice.bar_has(point):
-		take_pack()
 
 
 func _input(event: InputEvent) -> void:
@@ -514,21 +401,6 @@ func _input(event: InputEvent) -> void:
 		return
 	var key: InputEventKey = event as InputEventKey
 	if key == null or not key.pressed or key.echo:
-		return
-	if is_choosing():
-		if RAISE_KEYS.has(key.keycode):
-			get_viewport().set_input_as_handled()
-			raise_pack(RAISE_KEYS.find(key.keycode))
-		elif TAKE_KEYS.has(key.keycode):
-			get_viewport().set_input_as_handled()
-			if _t < end_time() - 0.001:
-				_skip_to_choice()
-			else:
-				take_pack()
-		elif TAP_KEYS.has(key.keycode):
-			# Space and Esc only jump to the choice.
-			get_viewport().set_input_as_handled()
-			_skip_to_choice()
 		return
 	if TAP_KEYS.has(key.keycode):
 		get_viewport().set_input_as_handled()
@@ -540,8 +412,6 @@ func _input(event: InputEvent) -> void:
 ## stock and regulars are never rerolled.
 func _show_setup(run: RunState, profile: ProfileState, actions: StartBoardActions) -> void:
 	reduced_motion = profile.reduced_motion()
-	_choosing = true
-	_offer = run.start_offer
 	_t = 0.0
 	_outro = -1.0
 	board = StartBoard.new(run, profile, actions)
@@ -552,8 +422,7 @@ func _show_setup(run: RunState, profile: ProfileState, actions: StartBoardAction
 	board.back_to_title.connect(func() -> void: title_requested.emit())
 	board.options_requested.connect(func() -> void: options_requested.emit())
 	board.clocked_in.connect(
-		func(pack: StarterPackDefinition) -> void:
-			_open_shutter(pack, profile.reduced_motion(), run.shift_count())
+		func() -> void: _open_shutter(profile.reduced_motion(), run.shift_count())
 	)
 	visible = true
 	set_process(true)
@@ -561,7 +430,7 @@ func _show_setup(run: RunState, profile: ProfileState, actions: StartBoardAction
 	queue_redraw()
 
 
-func _open_shutter(pack: StarterPackDefinition, reduced: bool, shift_count: int) -> void:
+func _open_shutter(reduced: bool, shift_count: int) -> void:
 	if _shutter != null:
 		return
 	_shutter = RollerShutter.new()
@@ -572,7 +441,7 @@ func _open_shutter(pack: StarterPackDefinition, reduced: bool, shift_count: int)
 			# The screen starts shift 1 behind the shutter, closing its overlays: this close keeps
 			# the shutter.
 			_handing_over = true
-			pack_taken.emit(pack)
+			store_opened.emit()
 			_handing_over = false
 	)
 	_shutter.opened.connect(
