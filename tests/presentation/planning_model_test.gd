@@ -521,6 +521,36 @@ func test_the_halo_and_grey_materials() -> void:
 	assert_object(sprite.material).is_null()
 
 
+## Plain batches (2026-11-19): the model frames every Bakery batch the scoring reads, a plain one
+## (no job card) too, with the scoring's own membership (CardBatch.members, a coupon's link
+## included); the plain ones wear no bookends (plain_batches) and have no job cards.
+func test_plain_batches_follow_the_scoring(
+	ids: String,
+	framed: Array,
+	_test_parameters := [
+		["bread,bread,bread", [[0, 1, 2]]],
+		["bread,bread,banana,croissant,bread", [[0, 1], [3, 4]]],
+		["bread,two_for_one,bread,banana", [[0, 2]]],
+	]
+) -> void:
+	var model: PlanningModel = _live_model(ids)
+	var shown: Array = []
+	for batch: PackedInt32Array in model.batches:
+		shown.append(Array(batch))
+	assert_array(shown).is_equal(framed)
+	var instances: Array[CardInstance] = []
+	for id: String in ids.split(","):
+		instances.append(
+			CardInstance.new(load("res://data/cards/%s.tres" % id), instances.size() + 1)
+		)
+	var result: ScoreResult = Scoring.score(instances)
+	assert_array(result.batches).is_equal(model.batches)
+	# The first batch of each row is plain: no job card reads it.
+	assert_bool(model.plain_batches.has(model.batches[0])).is_true()
+	for slot: int in model.batches[0]:
+		assert_bool(model.batch_roles.has(slot)).is_false()
+
+
 ## Produce links (#128): the model holds every chain of the score (plain pairs too, a knot inside
 ## its chain); a chain card out of place (a helper, or a lone Banana) has its WASTED reason as
 ## its wrong job; hovering a chain's slot brings the rest of the chain into focus.
@@ -550,6 +580,38 @@ func test_chains_wrong_jobs_and_focus() -> void:
 			]
 		)
 	)
+
+
+## Every framed batch names itself on the rail (the play test of 2026-11-19): a batch whose first
+## item gives nothing (a misplaced opener) still gets its first item's name plate, a label strip
+## with no targets; one whose first item gives keeps that item's own strip, with no second label.
+func test_every_batch_keeps_its_name_label(
+	row: String,
+	first_name: String,
+	label: bool,
+	_test_parameters := [
+		["stale_doughnut,croissant,bread,baguette,iced_bun", "STALE DOUGHNUT", true],
+		["stale_doughnut,bread,baguette,iced_bun,croissant", "STALE DOUGHNUT", true],
+		["bread,bread", "BREAD", true],
+		["croissant,bread,baguette,iced_bun,stale_doughnut", "CROISSANT", false],
+	]
+) -> void:
+	var model: PlanningModel = _live_model(row)
+	assert_int(model.batches.size()).is_equal(1)
+	var at_first: Array[RailStripSpec] = []
+	for spec: RailStripSpec in model.strips:
+		if spec.giver_slot == model.batches[0][0]:
+			at_first.append(spec)
+	assert_int(at_first.size()).is_equal(1)
+	assert_str(at_first[0].name).is_equal(first_name)
+	assert_bool(at_first[0].targets.is_empty()).is_equal(label)
+	assert_int(at_first[0].lane).is_equal(0)
+	var givers: Array[int] = []
+	for spec: RailStripSpec in model.strips:
+		givers.append(spec.giver_slot)
+	var sorted: Array[int] = givers.duplicate()
+	sorted.sort()
+	assert_array(givers).is_equal(sorted)
 
 
 static func _live_model(ids: String) -> PlanningModel:

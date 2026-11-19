@@ -446,10 +446,14 @@ func _assert_plate_cells(frame: ChainFrame, index: int) -> void:
 	var rects: Array[Rect2] = frame.drawn_rects()
 	var paints: PackedInt32Array = frame.drawn_paints()
 	for at: int in range(rects.size()):
-		if paints[at] == BatchFrame.Paint.INK and face.encloses(rects[at]):
+		if paints[at] == BatchFrame.Paint.KNOT_INK and face.encloses(rects[at]):
 			assert_that(rects[at].size).is_equal(Vector2.ONE * ChainFrame.PLATE_CELL)
 			cells += 1
 	assert_int(cells).is_equal(expected)
+	# The plate's ×N in the monitor's ink for that factor (v1.43).
+	var factor: String = frame.plate_texts()[index]
+	var monitor: Color = MonitorStepRow.factor_ink(MonitorStepRow.factor_step(factor))
+	assert_that(frame.paint_color(BatchFrame.Paint.KNOT_INK)).is_equal(monitor)
 
 
 ## Whether `slot`'s GOLDEN ticket shows its gold ring and both sparkles (`shown`), or hides them.

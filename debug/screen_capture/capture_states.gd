@@ -26,10 +26,12 @@ extends RefCounted
 ## under payday's design, to review it (the game keeps a payday's GOLD medal in its socket, so its
 ## paper never turns gold); `--payday=quiet` ends the PAYDAY announce at once (before --checkout's
 ## press too), so its gold receipt is not on the monitor: it leaves no tag (2026-11-10). The file
-## gets payday_<look>_.
+## gets payday_<look>_. `--no-tips` (2026-11-19) hides every one-time tip (TutorialOverlay) each
+## frame, so a capture shows what a tip would cover; the file name is unchanged.
 
 const REDRAWS_ARGUMENT := "--redraws="
 const NOTICE_ARGUMENT := "--notice="
+const NO_TIPS_ARGUMENT := "--no-tips"
 const HANDBOOK_ARGUMENT := "--handbook="
 const HANDBOOK_SCROLL_END := "scroll=end"
 const PENDING_ARGUMENT := "--pending="
@@ -56,6 +58,8 @@ static func apply(screen: ShiftScreen, arguments: PackedStringArray) -> String:
 	if roll.rolling():
 		roll.snap(roll.goal)  # The capture's own setup rolled the projection: it lands.
 	part += CaptureHovers.apply(screen, arguments)
+	if arguments.has(NO_TIPS_ARGUMENT):
+		screen.get_tree().process_frame.connect(_hide_tips.bind(screen))
 	for argument: String in arguments:
 		if argument.begins_with(REDRAWS_ARGUMENT):
 			var used: int = argument.trim_prefix(REDRAWS_ARGUMENT).to_int()
@@ -220,3 +224,12 @@ static func _roll(screen: ShiftScreen, spec: PackedStringArray) -> String:
 		tween.pause()
 		tween.custom_step(fraction * ReceiptRoll.seconds_for(roll.goal - roll.shown))
 	return "roll%d_%s" % [roundi(fraction * 100.0), "fall_" if fall else ""]
+
+
+## Hides every tutorial overlay under `screen` (--no-tips).
+static func _hide_tips(screen: ShiftScreen) -> void:
+	if not is_instance_valid(screen):
+		return
+	for node: Node in screen.find_children("*", "Control", true, false):
+		if node is TutorialOverlay:
+			(node as Control).visible = false

@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" path="res://core/rule.gd" id="1_oitjh"]
 [ext_resource type="Script" path="res://core/card_definition.gd" id="2_ex8hi"]
+[ext_resource type="Resource" path="res://data/rules/bakery_batch_size.tres" id="99_batch_size"]
 
 [resource]
 script = ExtResource("2_ex8hi")
@@ -10,8 +11,10 @@ display_name = "Bread"
 kind = 1
 tags = PackedStringArray("Food", "Breakfast", "Bakery")
 base = 5
+batch_bonus = ExtResource("99_batch_size")
 rule_text = "Plain item: pays its price"
 generally_useful = true
+monitor_text = "Pays its price. In a {batch}: size bonus."
 art_ref = "res://art/items_v2/bread.png"
 mini_art_ref = "res://art/minis/bread.png"
 mini_golden_art_ref = "res://art/minis/bread_golden.png"

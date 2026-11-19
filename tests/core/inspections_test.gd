@@ -40,15 +40,17 @@ func test_short_belt_and_slot_engine() -> void:
 		run.place(run.debug_add_to_hand(load(BREAD)), index)
 	assert_bool(run.can_place(run.debug_add_to_hand(load(BREAD)))).is_false()
 	assert_int(_upgrade_multipliers(run.preview())).is_equal(1)
-	assert_int(run.preview().payouts[4]).is_equal(5)
-	assert_int(run.preview().payouts[5]).is_equal(10)
+	# Six Breads: a BATCH of 6, 5 + 3 each (#128 batch polish); slot 6 doubled.
+	assert_int(run.preview().payouts[4]).is_equal(8)
+	assert_int(run.preview().payouts[5]).is_equal(16)
 	run.upgrades.append(_upgrade("big_basket"))
 	run.debug_skip_to_shift(run.shift_index)
 	for index: int in range(7):
 		assert_bool(run.place(run.debug_add_to_hand(load(BREAD)), index)).is_true()
 	assert_int(_upgrade_multipliers(run.preview())).is_equal(1)
-	assert_int(run.preview().payouts[5]).is_equal(10)
-	assert_int(run.preview().payouts[6]).is_equal(5)
+	# Seven Breads: a BATCH of 7, 5 + 3 each; slot 6 doubled.
+	assert_int(run.preview().payouts[5]).is_equal(16)
+	assert_int(run.preview().payouts[6]).is_equal(8)
 
 
 ## Slot engine keeps to slot 6 whatever the shift's slots (2026-10-24): with none of them, with

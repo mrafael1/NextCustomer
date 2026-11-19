@@ -28,7 +28,10 @@ extends Control
 ## else 3 at 13, else 3 at 12), the same for every tier of a card (the widest tier's), and is
 ## never cut: a text that still doesn't fit gets the MORE chip (MORE_NAME) at the end of its last
 ## line with the whole rule in its tip (a safety net: the tests hold every card in data/ to fit).
-## A card with no text shows its name. Every number comes from the card's data.
+## A card with no text shows its name. Every number comes from the card's data. A card whose
+## text starts with its batch role (CardText.sticker_tab: Croissant's FIRST, Stale doughnut's LAST)
+## wears that word as its role tab (RoleTab in TAB_ROOM: a Bakery flag on the ticket's top edge;
+## the child RoleTab.NAME), its text lines the rest (CardText.sticker_body).
 ##
 ## A GOLDEN tier (#77) wears the gold ring outside its outline (GOLD_RING_NAME: two gold art px,
 ## brass on its lower right, then a dark rim) and two sparkles on its corners; no gold inside the
@@ -36,10 +39,11 @@ extends Control
 ##
 ## Resting the pointer on the ticket (off its glyphs, window and chips) says what its colour
 ## means, below it (ColourSpot; FamilyPalette.colour_tip). Planning (#71): set_got rings a hovered
-## giver's target in gold inside its outline; a batch card's wrong job (#128, set_wrong_job) turns
-## its keyword chip tomato with a cross, the ticket itself unframed (the user's play test of
-## 2026-11-03: the tomato ring round a lone Banana "does not feel clean"). Neither changes a
-## number.
+## giver's target in gold inside its outline; a card whose effect does nothing in the planned row
+## (its WASTED step, set_wrong_job; the play test of 2026-11-19) greys its rule text (its chips stay
+## calm), breaks its role tab (RoleTab.set_broken) and its ticket's tip says why; the ticket itself
+## stays unframed (the user's play test of 2026-11-03: the tomato ring round a lone Banana "does not
+## feel clean"). Neither changes a number.
 
 
 ## The ticket's colour as a tooltip target (#105): the whole ticket, under its glyphs (a glyph on
@@ -117,6 +121,11 @@ const SPARKLE_SIZE := Vector2(10, 10)
 const SPARKLE_FOOT_AT := Vector2i(50, -4)
 const SPARKLE_TOP_AT := Vector2i(-3, -3)
 const GOT_RING_WIDTH := 2.0
+## The role tab's room on the ticket's top edge (x from its left): clear of the rail strips' plug
+## and stem (RailStrip.PLUG_OFFSET), lane 0's notch (TARGET_OFFSETS[0] and NOTCH_LEFT) and lane
+## 1's drop (TARGET_OFFSETS[1]); the tab is centred in it on the art grid, its bottom border on
+## the ticket's top outline.
+const TAB_ROOM := Vector2(38.0, 80.0)
 ## Tips (FamilyGlyph's, PriceWindow's).
 const MEMBER_TIP := "%s · %s is a %s item"
 const GAINED_TIP := "%s · gained from %s"
@@ -167,7 +176,7 @@ var redraws_left: int = -1:
 			return
 		redraws_left = value
 		if _summary != null:
-			_summary.set_live(CardText.sticker_summary(_definition, value), _live_tips())
+			_summary.set_live(CardText.sticker_body(_definition, value), _live_tips())
 			_place_summary()
 
 ## The family a Family sticker's copy gives (v1.29): its ticket reads "Next joins Breakfast"; ""
@@ -178,7 +187,7 @@ var sticker_family: String = "":
 			return
 		sticker_family = value
 		if _summary != null:
-			_summary.set_live(CardText.sticker_summary(_definition, redraws_left, value), {})
+			_summary.set_live(CardText.sticker_body(_definition, redraws_left, value), {})
 			_place_summary()
 
 var _families: PackedStringArray = PackedStringArray()
@@ -194,8 +203,8 @@ var _colour_spot: ColourSpot
 var _gained: FamilyGlyph
 var _definition: CardDefinition
 var _palette: FamilyPalette
-## The TEXT_FITS index the card's tiers share, and the one the text shows at now (a wrong job's
-## wider chip may step it down while it lasts).
+## The TEXT_FITS index the card's tiers share, and the one the text shows at now (a smaller one
+## only while a live chip's wider text needs it).
 var _base_fit: int = 0
 var _fit: int = 0
 
@@ -232,12 +241,13 @@ func _init(definition: CardDefinition, palette: FamilyPalette = null) -> void:
 	clear_pay()
 	if CardText.live_rule(definition) != null:
 		redraws_left = _base_redraws(definition)
-	var line: String = CardText.sticker_summary(definition, redraws_left)
+	var line: String = CardText.sticker_body(definition, redraws_left)
 	# A card with no rule shows its name, centred, at the first fit's size.
 	_palette = families
 	_base_fit = _fit_start(definition, families) if not line.is_empty() else 0
 	_build_summary(line if not line.is_empty() else definition.display_name, _base_fit)
 	_place_summary()
+	_add_role_tab(definition, families)
 	_got_ring = GotRing.new(SIZE)
 	add_child(_got_ring)
 	# Under the window: a stuck price label lies over the ticket's top rows, where the ring runs.
@@ -296,13 +306,27 @@ func window() -> PriceWindow:
 	return _window
 
 
-## The ticket's wrong job (#128): `reason` (the WASTED step's tooltip text) turns its keyword
-## chips tomato with a cross; "" puts them back. No ring: the chip and the item's WASTED sticker
-## say it. The chips are summary().keywords(), the reason summary().keyword_wasted().
+## The ticket's effect doing nothing (#128, the play test of 2026-11-19): `reason` (the WASTED
+## step's tooltip text, PlanningModel.wrong_job) greys its rule text (summary().wasted()), breaks
+## its role tab and puts the reason in the ticket's tip; "" puts them back. No ring: the grey text,
+## the tab and the item's WASTED sticker say it.
 func set_wrong_job(reason: String) -> void:
-	if reason != _summary.keyword_wasted():
-		_summary.set_keyword_wasted(reason)
-		_place_summary()
+	if reason == _summary.wasted():
+		return
+	_summary.set_wasted(reason)
+	var tab: RoleTab = get_node_or_null(RoleTab.NAME) as RoleTab
+	if tab != null:
+		tab.set_broken(not reason.is_empty())
+		_place_role_tab(tab)
+	if reason.is_empty():
+		_colour_spot.dress_colour(_definition)
+	else:
+		_colour_spot.tip_kind = TipSpec.Kind.BROKEN
+		_colour_spot.tip_title = TipSpec.NOT_WORKING % _definition.display_name.to_upper()
+		_colour_spot.tip_tag = _definition.display_name
+		_colour_spot.tip_icon = null
+		_colour_spot.tip_subs = PackedStringArray()
+		_colour_spot.tip_text = reason
 
 
 ## The ring's sides (`width` wide) just inside `rect`, in its coordinates: top, bottom, left, right.
@@ -534,7 +558,7 @@ static func _fit_start(definition: CardDefinition, palette: FamilyPalette) -> in
 	var start: int = 0
 	for tier: CardDefinition in tiers:
 		var redraws: int = _base_redraws(tier)
-		var line: String = CardText.sticker_summary(tier, redraws)
+		var line: String = CardText.sticker_body(tier, redraws)
 		if line.is_empty():
 			continue
 		var fit: int = fit_for(line, 0, palette, CardText.live_tips(tier, redraws))
@@ -565,6 +589,21 @@ static func _label_at(line: String, index: int, palette: FamilyPalette) -> Glyph
 	)
 
 
+func _add_role_tab(definition: CardDefinition, families: FamilyPalette) -> void:
+	var word: String = CardText.sticker_tab(definition)
+	if word.is_empty():
+		return
+	var tab: RoleTab = RoleTab.new(word, families)
+	_place_role_tab(tab)
+	add_child(tab)
+
+
+## Centres `tab` in TAB_ROOM on the art grid, its bottom border on the ticket's top outline.
+static func _place_role_tab(tab: RoleTab) -> void:
+	var left: float = (TAB_ROOM.x + TAB_ROOM.y - tab.size.x) / 2.0
+	tab.position = Vector2(snappedf(left, ArtStyle.ART_SCALE), RoleTab.OVERLAP - RoleTab.HEIGHT)
+
+
 func _new_glyph(style: FamilyStyle, tip: String) -> FamilyGlyph:
 	var glyph: FamilyGlyph = FamilyGlyph.new(style, true)
 	glyph.tip_text = tip
@@ -573,30 +612,29 @@ func _new_glyph(style: FamilyStyle, tip: String) -> FamilyGlyph:
 	return glyph
 
 
-## The short text `line` at TEXT_FITS[`fit`], in place of the one shown (its wrong job kept).
+## The short text `line` at TEXT_FITS[`fit`], in place of the one shown (its grey kept).
 func _build_summary(line: String, fit: int) -> void:
 	var wasted: String = ""
 	var at: int = -1
 	if _summary != null:
-		wasted = _summary.keyword_wasted()
+		wasted = _summary.wasted()
 		at = _summary.get_index()
 		remove_child(_summary)
 		_summary.free()
 	_fit = fit
 	_summary = _label_at(line, fit, _palette)
 	_summary.name = SUMMARY_NAME
-	_summary.item_name = _definition.display_name
 	_summary.set_tip(true, self)
 	_summary.set_live(_summary.text, _live_tips())
 	if not wasted.is_empty():
-		_summary.set_keyword_wasted(wasted)
+		_summary.set_wasted(wasted)
 	add_child(_summary)
 	if at >= 0:
 		move_child(_summary, at)
 
 
-## Fits the text to its plate: at the tiers' shared fit, a smaller one only while a wrong job's
-## wider chip needs it, the MORE chip when it still doesn't fit; then centred down the plate on
+## Fits the text to its plate: at the tiers' shared fit, a smaller one only while a live chip's
+## wider text needs it, the MORE chip when it still doesn't fit; then centred down the plate on
 ## the art grid (a card's name centred across it too).
 func _place_summary() -> void:
 	if _more != null:
@@ -623,7 +661,7 @@ func _place_summary() -> void:
 		plate.position.y + floorf(room / (2.0 * ArtStyle.ART_SCALE)) * ArtStyle.ART_SCALE
 	)
 	var left: float = TEXT_LEFT
-	if CardText.sticker_summary(_definition, redraws_left).is_empty():
+	if CardText.sticker_body(_definition, redraws_left).is_empty():
 		left = roundf(plate.get_center().x - _summary.text_rect().size.x / 2.0)
 	_summary.position = Vector2(left, top)
 	if _more != null:

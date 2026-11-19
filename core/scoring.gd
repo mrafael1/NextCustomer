@@ -168,6 +168,9 @@ static func _scan(state: ScoreState, slot: int, registers: Array, checks: Array)
 						value,
 						effect.text
 					)
+	# Then the BATCH size bonus (#128 batch polish), before every multiplier.
+	if not state.size_rules.is_empty():
+		value = _size_bonuses(state, slot, value)
 	if has_upgrades:
 		value = _upgrade_flat_bonuses(state, slot, value, registers)
 	# Then the shift's day events' (v0.69: Late delivery's -2€, Happy hour's +3€).
@@ -285,6 +288,27 @@ static func _scan(state: ScoreState, slot: int, registers: Array, checks: Array)
 				state.wasted[slot] = 1
 	if not state.effects.is_empty():
 		state.drop_spent_effects()
+
+
+## The BATCH size bonus (BatchSizeBonusRule, #128 batch polish) of the product in `slot`, added
+## to `value`: for each of the row's size rules whose batch holds it, a FLAT step of its own
+## ("Batch of 3"), its batch neighbour as support, and the batch recorded for the belt.
+static func _size_bonuses(state: ScoreState, slot: int, value: int) -> int:
+	for rule: BatchSizeBonusRule in state.size_rules:
+		var batch: PackedInt32Array = rule.earning_batch(state, slot)
+		var bonus: int = rule.bonus_for(batch.size())
+		if bonus == 0:
+			continue
+		value += bonus
+		if state.explain:
+			CardBatch.record(state, batch)
+			var step: ScoreStep = state.add_step(
+				ScoreStep.StepType.FLAT, slot, slot, bonus, value, rule.text_for_size(batch.size())
+			)
+			step.batch_size = batch.size()
+			var at: int = batch.find(slot)
+			step.support_slot = batch[at - 1] if at > 0 else batch[1]
+	return value
 
 
 ## Marks the product in `slot` WASTED (ScoreState.wasted) when one of its card's own rules fizzles

@@ -58,11 +58,11 @@ func test_score_in_one_checkout_looks_at_every_shift() -> void:
 	MachineSteps.next_shift(run)
 	run.checkout()
 	assert_int(run.phase).is_equal(RunState.Phase.LOST)
-	# Three Breads (5 each) made the best checkout: 15.
-	var fifteen: UnlockCondition = _condition(UnlockCondition.Kind.SCORE_IN_ONE_CHECKOUT, "", 15)
-	var sixteen: UnlockCondition = _condition(UnlockCondition.Kind.SCORE_IN_ONE_CHECKOUT, "", 16)
-	assert_bool(UnlockCheck.is_met(fifteen, run)).is_true()
-	assert_bool(UnlockCheck.is_met(sixteen, run)).is_false()
+	# Three Breads (5 each, + 2 each for their BATCH of 3) made the best checkout: 21.
+	var best: UnlockCondition = _condition(UnlockCondition.Kind.SCORE_IN_ONE_CHECKOUT, "", 21)
+	var above: UnlockCondition = _condition(UnlockCondition.Kind.SCORE_IN_ONE_CHECKOUT, "", 22)
+	assert_bool(UnlockCheck.is_met(best, run)).is_true()
+	assert_bool(UnlockCheck.is_met(above, run)).is_false()
 
 
 func test_use_coupon_counts_every_checked_out_copy_across_runs() -> void:

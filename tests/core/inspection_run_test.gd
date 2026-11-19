@@ -79,10 +79,11 @@ func test_the_inspected_shift_scores_and_records_it() -> void:
 	assert_array(run.inspections).is_equal([load(SPOT_CHECK)])
 	for _index: int in range(3):
 		run.place(run.debug_add_to_hand(load(BREAD)), run.row.size())
-	# Three Breads: the 3rd pays 0, in the preview and at checkout.
-	assert_array(Array(run.preview().payouts)).is_equal([5, 5, 0])
+	# Three Breads (a BATCH of 3: 5 + 2 each, #128 batch polish): the 3rd pays 0, in the
+	# preview and at checkout.
+	assert_array(Array(run.preview().payouts)).is_equal([7, 7, 0])
 	var result: ScoreResult = run.checkout()
-	assert_int(result.total).is_equal(10)
+	assert_int(result.total).is_equal(14)
 	var inspection_steps: Array = result.steps.filter(
 		func(step: ScoreStep) -> bool: return step.source_kind == ScoreStep.SourceKind.INSPECTION
 	)

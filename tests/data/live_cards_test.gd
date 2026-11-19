@@ -55,8 +55,9 @@ func test_phase_2_cards_score_the_design_examples(
 		# Repeat copies Bread's 5; Scissors 2 + 3 for Repeat; Batteries 2, its charges unused (no
 		# Household product after it, #128).
 		["bread,repeat,scissors,batteries", 17],
-		# Butter 2 + 4, Bread 5, Crackers 5, Soup 5, Cereal 2 + 4, Milk 4 + 1 x 2 (Bread, Cereal).
-		["butter,bread,crackers,soup,cereal,milk", 33],
+		# Butter 2 + 4, Bread 5 + 1, Crackers 5 + 1 (a BATCH of 2), Soup 5, Cereal 2 + 4, Milk
+		# 4 + 1 x 2 (Bread, Cereal).
+		["butter,bread,crackers,soup,cereal,milk", 35],
 		# Banana 2, Yogurt 2 + 4, Carrier bag 1 + 8 x 2 Food beside it (#128), Reduced yogurt
 		# 2 + 4 (Dented can), Dented can 2.
 		["banana,yogurt,carrier_bag,reduced_yogurt,dented_can", 33],
@@ -67,8 +68,9 @@ func test_phase_2_cards_score_the_design_examples(
 		# Shelf swap (v1.29): Bread and Cheese differ, so they count as side by side and Cheese
 		# pays ×2: 5 + 0 + (3 + 5 beside Bread) x2.
 		["bread,shelf_swap,cheese", 21],
-		# Clearance tag makes Bread Clearance: Day-old buns 2 + 4 after it (0 + 5 + 6).
-		["clearance_tag,bread,day_old_buns", 11],
+		# Clearance tag makes Bread Clearance: Day-old buns 2 + 4 after it, both + 1 for their
+		# BATCH of 2 (0 + 6 + 7).
+		["clearance_tag,bread,day_old_buns", 13],
 		# Opening deal in the first slot: Soup pays 5 x5 (0 + 25 + 5).
 		["opening_deal,soup,bread", 30],
 		# Produce aisle since the Produce links (#128): Grapefruit 2; a lone Banana 2 + 3; the
@@ -78,9 +80,11 @@ func test_phase_2_cards_score_the_design_examples(
 		# 2 + 3 x 5 kinds.
 		["grapefruit,banana,lemon,strawberries,wonky_carrot,fruit_salad", 29],
 		["grapefruit,strawberries,banana,lemon,banana,wonky_carrot,fruit_salad", 43],
-		# Bakery, a batch of 4 after Birthday candles (#128 v3): candles 2 (v1.29); Croissant 2 + 3;
-		# Baguette 2 + 4 + 2 + 3; Iced bun 1 + 2 + 3; Stale doughnut (1 + 3 x 4 + 2 + 3) x2.
-		["birthday_candles,croissant,baguette,iced_bun,stale_doughnut", 60],
+		# Bakery, a batch of 4 after Birthday candles (#128 v3, round 2 of 2026-11-19): candles 2;
+		# each batch item + 3 from the candles, + 2 from the Croissant (itself included) and + 3 for
+		# the BATCH of 4; Croissant 2 + 8 = 10; Baguette 2 + 4 x 4 + 8 = 26; Iced bun 1 + 8 = 9;
+		# Stale doughnut (1 + 3 x 4 + 8) x2 = 42: 89.
+		["birthday_candles,croissant,baguette,iced_bun,stale_doughnut", 89],
 		# Snacks (no redraw made or left): Bread 5; Crisps 2; Stale popcorn 2; Cereal bar 2 + 4
 		# beside a Snack; Bent lolly 2 (a Snack beside it); Pick 'n' mix 2 (no lone Snack).
 		["bread,crisps,stale_popcorn,cereal_bar,bent_lolly,pick_n_mix", 19],
@@ -218,7 +222,8 @@ func test_every_card_has_a_digit_free_sticker_template() -> void:
 
 ## Every card with a rule has a monitor description (PR #138 monitor): a digit-free template
 ## (ordinals aside) naming only CardText.MONITOR_KEYS, its keyword (if the sticker names one) first,
-## formatted with nothing left in braces; a card with no rule has none.
+## formatted with nothing left in braces; a card with no rule has none, but a plain Bakery item
+## (round 2 of 2026-11-19: Bread) says it earns the BATCH size bonus.
 func test_every_card_has_a_digit_free_monitor_text() -> void:
 	var ordinal: RegEx = RegEx.create_from_string(ORDINAL)
 	var digit: RegEx = RegEx.create_from_string("\\d")
@@ -227,7 +232,7 @@ func test_every_card_has_a_digit_free_monitor_text() -> void:
 		var template: String = CardText.monitor_template(card)
 		var message: String = '%s: "%s"' % [card.id, template]
 		assert_bool(template.is_empty()).override_failure_message(message).is_equal(
-			card.rules.is_empty()
+			card.rules.is_empty() and card.batch_bonus == null
 		)
 		(
 			assert_object(digit.search(ordinal.sub(template, "", true)))

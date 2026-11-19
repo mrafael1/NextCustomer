@@ -198,9 +198,15 @@ func _assert_laid_out(screen: ShiftScreen, case: String) -> void:
 		var rect: Rect2 = part.get_global_rect()
 		var message: String = "%s: %s %s" % [case, part.name, rect]
 		assert_bool(SCREEN_RECT.encloses(rect)).override_failure_message(message).is_true()
+		# A batch frame encloses its tickets: only its drawn parts must keep off their text.
+		var inked: Array[Rect2] = [rect]
+		if part is BatchFrame:
+			inked.clear()
+			for drawn: Rect2 in (part as BatchFrame).drawn_rects():
+				inked.append(layer.get_global_transform() * drawn)
 		for text: Rect2 in texts:
 			(
-				assert_bool(rect.intersects(text))
+				assert_bool(inked.any(func(ink: Rect2) -> bool: return ink.intersects(text)))
 				. override_failure_message("%s over text %s" % [message, text])
 				. is_false()
 			)

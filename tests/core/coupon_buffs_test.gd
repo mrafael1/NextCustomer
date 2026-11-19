@@ -90,8 +90,9 @@ func test_shelf_swap_glue_is_adjacency() -> void:
 ## 2 for 1 glues the same item, Shelf swap different ones: both in one row, each pays its own ×2.
 func test_shelf_swap_beside_two_for_one() -> void:
 	var result: ScoreResult = Scoring.score(_row("bread,two_for_one,bread,shelf_swap,milk"))
-	# Bread 5, the 2nd Bread ×2, Milk (4 + 2 earlier Breakfast) ×2.
-	assert_array(Array(result.payouts)).is_equal([5, 0, 10, 0, 12])
+	# Bread 5 + 1 (2 for 1 links the Breads into a BATCH of 2, #128 batch polish), the 2nd Bread
+	# (5 + 1) ×2, Milk (4 + 2 earlier Breakfast) ×2.
+	assert_array(Array(result.payouts)).is_equal([6, 0, 12, 0, 12])
 	assert_int(_of_type(result, ScoreStep.StepType.LINKED).size()).is_equal(2)
 
 
@@ -184,7 +185,8 @@ func test_write_off_marks_waste_on_the_total_only_path() -> void:
 ## With 2 for 1: a written-off item can be 2 for 1's first item, and each ×2 lands on its own item.
 func test_write_off_beside_two_for_one() -> void:
 	var result: ScoreResult = Scoring.score(_row("write_off,bread,two_for_one,bread"))
-	assert_array(Array(result.payouts)).is_equal([0, 10, 0, 10])
+	# Each Bread (5 + 1 for the BATCH of 2 that 2 for 1 links, #128 batch polish) ×2.
+	assert_array(Array(result.payouts)).is_equal([0, 12, 0, 12])
 
 
 ## Party pack's ×2 reaches the next 3 Snacks wherever they sit (lone Snacks too), coupons and other

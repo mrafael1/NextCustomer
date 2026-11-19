@@ -4,7 +4,7 @@ extends RefCounted
 ## pass. Beside is ScoreState.products_beside (a neighbour, or a product a coupon links to it), so
 ## a batch is every tagged product reached through tagged products beside each other, in slot
 ## order. Where a product sits in its batch is its job: the first opens it, the last closes it.
-## A big enough batch bakes (Birthday candles' party: its rule's `min_size`).
+## Birthday candles party with any batch just after them (BakedBatchBonusRule).
 ##
 ## Static helpers only (no state): the rules that read batches call them on each score's state.
 
@@ -30,10 +30,21 @@ static func members(state: ScoreState, slot: int, tag: String) -> PackedInt32Arr
 	return found
 
 
-## Records `batch` on the score (ScoreState.batches) for the belt, once, when it explains.
+## Records `batch` on the score (ScoreState.batches) for the belt, once, when it explains, with
+## the size bonus it earns each of its products (ScoreState.batch_bonuses).
 static func record(state: ScoreState, batch: PackedInt32Array) -> void:
 	if state.explain and batch.size() >= MIN_SIZE and not state.batches.has(batch):
 		state.batches.append(batch)
+		state.batch_bonuses.append(size_bonus(state, batch))
+
+
+## The size bonus each product of `batch` earns (BatchSizeBonusRule: a row's size rule whose
+## batch it is), or 0.
+static func size_bonus(state: ScoreState, batch: PackedInt32Array) -> int:
+	for rule: BatchSizeBonusRule in state.size_rules:
+		if rule.earning_batch(state, batch[0]) == batch:
+			return rule.bonus_for(batch.size())
+	return 0
 
 
 ## The products counted as just after `slot` (its real neighbour and any linked to it).

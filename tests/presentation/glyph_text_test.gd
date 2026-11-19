@@ -86,8 +86,9 @@ func test_the_batch_keyword_is_a_chip_glued_to_the_next_word() -> void:
 	assert_array(Array(GlyphText.keywords("2 per batch", _palette()))).is_empty()
 	assert_str(GlyphText.keyword_tip("BATCH")).is_equal(
 		(
-			"Put Bakery items side by side to make a BATCH. Some cards care about their spot "
-			+ "in it: Croissant first, Stale doughnut last."
+			"Put Bakery items side by side to make a BATCH: the bigger it is, the more each "
+			+ "item earns. Some cards care about their spot in it: Croissant first, Stale "
+			+ "doughnut last."
 		)
 	)
 
@@ -144,6 +145,88 @@ func test_live_summaries_draw_the_expected_glyphs() -> void:
 	var golden_eggs: String = FamilyPalette.data_card("eggs_golden").sticker_summary()
 	var last: Array = GlyphText.pieces(golden_eggs, _palette()).back()
 	assert_str(str((last[0] as Dictionary)["text"])).is_equal("next 2 ")
+
+
+## A batch role's word (#128 batch polish: FIRST, LAST) is a role run in the Bakery colour, glued
+## to the plain word after it; GlyphLabel draws it in the family's darkened shade on light paper.
+func test_a_role_word_is_a_bakery_run_drawn_in_its_colour() -> void:
+	var line: String = "FIRST in BATCH: +2 to the rest"
+	var pieces: Array[Array] = GlyphText.pieces(line, _palette())
+	assert_array(pieces[0]).is_equal(
+		[GlyphText.role_run(CardText.FIRST_WORD), GlyphText.text_run(" in")]
+	)
+	assert_str(GlyphText.role_family(pieces[0][0] as Dictionary)).is_equal("Bakery")
+	assert_array(Array(GlyphText.roles("×2 the LAST in BATCH", _palette()))).is_equal(["LAST"])
+	# Only the capital words: "the last" stays text.
+	assert_array(Array(GlyphText.roles("×2 the last", _palette()))).is_empty()
+	var label: GlyphLabel = auto_free(
+		GlyphLabel.new(line, ThemeDB.fallback_font, 14, Palette.INK, 16.0, 200.0)
+	)
+	var drawn: Array[Dictionary] = label.role_runs()
+	assert_int(drawn.size()).is_equal(1)
+	assert_str(str(drawn[0]["text"])).is_equal("FIRST")
+	var bakery: FamilyStyle = _palette().style("Bakery")
+	assert_that(drawn[0]["color"]).is_equal(bakery.shade.darkened(GlyphLabel.ROLE_DARKEN))
+	assert_that(drawn[0]["color"]).is_not_equal(label.color())
+
+
+## A bonus amount ("+4€", "+2" after a keyword) is drawn in the monitor's bonus green (v1.43); a
+## lone "+" and a count stay the text's ink.
+func test_a_bonus_amount_is_drawn_in_the_monitors_green() -> void:
+	var label: GlyphLabel = auto_free(
+		GlyphLabel.new(
+			"+4€ if beside Soup, BATCH +2 to + 3 more",
+			ThemeDB.fallback_font,
+			14,
+			Palette.INK,
+			16.0,
+			400.0
+		)
+	)
+	var drawn: Array[Dictionary] = label.role_runs(true)
+	(
+		assert_array(drawn.map(func(run: Dictionary) -> String: return str(run["text"])))
+		. is_equal(["+4€", "+2"])
+	)
+	for run: Dictionary in drawn:
+		assert_that(run["color"]).is_equal(MonitorStepRow.BONUS_COLOR)
+
+
+## A factor ("×2", "×5") is drawn in the monitor's ink for its strength step (v1.43).
+func test_a_factor_is_drawn_in_the_monitors_ink_for_its_step() -> void:
+	var label: GlyphLabel = auto_free(
+		GlyphLabel.new(
+			"×1.5 next Snack, ×2 the LAST, ×3 more, ×5 all.",
+			ThemeDB.fallback_font,
+			14,
+			Palette.INK,
+			16.0,
+			400.0
+		)
+	)
+	var drawn: Array[Dictionary] = label.role_runs(true)
+	assert_int(drawn.size()).is_equal(4)
+	var steps: Array[int] = []
+	for run: Dictionary in drawn:
+		var step: int = MonitorStepRow.factor_step(str(run["text"]))
+		steps.append(step)
+		assert_that(run["color"]).is_equal(MonitorStepRow.factor_ink(step))
+	assert_array(steps).is_equal([0, 1, 2, 3])
+	assert_str(str(drawn[3]["text"])).is_equal("×5")
+
+
+## Wasted text stays fully grey, its amounts too (v1.43).
+func test_a_wasted_texts_amounts_stay_grey() -> void:
+	var label: GlyphLabel = auto_free(
+		GlyphLabel.new("+3€ and ×2 the LAST", ThemeDB.fallback_font, 14, Palette.INK, 16.0, 400.0)
+	)
+	label.set_wasted("NO BATCH")
+	var drawn: Array[Dictionary] = label.role_runs(true)
+	assert_int(drawn.size()).is_equal(2)
+	for run: Dictionary in drawn:
+		assert_that(run["color"]).is_equal(GlyphLabel.WASTED_INK)
+	label.set_wasted("")
+	assert_that(label.role_runs(true)[0]["color"]).is_equal(MonitorStepRow.BONUS_COLOR)
 
 
 func _palette() -> FamilyPalette:

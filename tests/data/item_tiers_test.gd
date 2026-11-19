@@ -291,12 +291,12 @@ func test_tier_values_and_stickers(
 		["strawberries_golden", 4, "+2 each, next CHAIN"],
 		["wonky_carrot_golden", 4, "+4 each, after CHAIN"],
 		["fruit_salad_golden", 4, "+6 per Produce kind before"],
-		["iced_bun_big", 3, "BATCH ×2 the last"],
-		["iced_bun_golden", 3, "BATCH ×3 the last"],
-		["croissant_golden", 4, "BATCH 1st: +4 to the rest"],
-		["baguette_golden", 4, "BATCH +8 per earlier"],
-		["stale_doughnut_golden", 3, "BATCH last: +6 each"],
-		["birthday_candles_golden", 4, "+6 each, next BATCH of 3+"],
+		["iced_bun_big", 3, "×2 the LAST in BATCH"],
+		["iced_bun_golden", 3, "×3 the LAST in BATCH"],
+		["croissant_golden", 4, "FIRST BATCH: +4 to each item"],
+		["baguette_golden", 4, "+8 per item in BATCH"],
+		["stale_doughnut_golden", 3, "LAST BATCH: +6 per item"],
+		["birthday_candles_golden", 4, "+6 to each item in next BATCH"],
 		["squashed_cake_golden", 4, "×2 next 2 Clearance"],
 		["potatoes_big", 5, ""],
 		["potatoes_golden", 7, ""],
@@ -360,10 +360,10 @@ func test_tiers_score_as_their_product(
 		["banana_golden,banana", [4, 6]],
 		# 2 for 1 links a plain and a Big Banana: (4 + 2) × 2.
 		["banana,two_for_one,banana_big", [2, 0, 12]],
-		# Golden Eggs doubles the next 2 Food: Bread 5 × 2 twice.
-		["eggs_golden,bread,bread,bread", [3, 10, 10, 5]],
-		# Big Eggs keeps one charge.
-		["eggs_big,bread,bread", [3, 10, 5]],
+		# Golden Eggs doubles the next 2 Food: Bread (5 + 2 for its BATCH of 3) × 2 twice.
+		["eggs_golden,bread,bread,bread", [3, 14, 14, 7]],
+		# Big Eggs keeps one charge (Bread 5 + 1 for its BATCH of 2).
+		["eggs_big,bread,bread", [3, 12, 6]],
 		# Golden Coffee 4, +6 to Milk (4 + 1 earlier Breakfast + 6).
 		["coffee_golden,milk", [8, 5]],
 		# Coffee's +3 goes to Eggs; Golden Milk (6 + 2 x 2 earlier Breakfast) x2 from Eggs.
@@ -373,9 +373,9 @@ func test_tiers_score_as_their_product(
 		["bread_big,cheese", [7, 8]],
 		# A Frozen pair across tiers: plain 3 + 3, Golden 5 + twice its base.
 		["frozen_peas,frozen_peas_golden", [6, 15]],
-		# Golden Tea bags: ×4 the last 2 Breakfast items after it (Bread 5 in slots 3 and 4;
-		# the Bread in slot 2 is not among the last 2).
-		["tea_bags_golden,bread,bread,bread", [3, 5, 20, 20]],
+		# Golden Tea bags: ×4 the last 2 Breakfast items after it (Bread 5 + 2 for its BATCH of 3
+		# in slots 3 and 4; the Bread in slot 2 is not among the last 2).
+		["tea_bags_golden,bread,bread,bread", [3, 7, 28, 28]],
 		# Golden Carrier bag 3 + 16 for Soup beside it (Bread is not beside it).
 		["bread,soup,carrier_bag_golden", [5, 5, 19]],
 		# Golden Soup still pays 0 beside a Dairy product (Frozen until v1.45).

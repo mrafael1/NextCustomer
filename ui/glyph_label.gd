@@ -16,8 +16,14 @@ extends Control
 ##
 ## A keyword run (#128, GlyphText: BATCH) is a KeywordChip, CHIP_MARGIN clear of its neighbours
 ## (set_chip_room: the monitor's roomier chips, PR #138 round 2), centred on its line;
-## set_keyword_wasted turns the chips tomato with the WASTED reason as their tooltip (the ticket's
-## wrong job), laying the text out again (a wasted chip is wider).
+## set_wasted greys the text (WASTED_INK, role runs too) while the ticket's effect does nothing
+## (its card's WASTED step, the play test of 2026-11-19); its chips, glyphs and written families
+## stay as they are, and the ticket's tip says why.
+##
+## A role run (#128 batch polish, GlyphText: FIRST, LAST) is text drawn in its family's colour
+## (_role_color): the family's shade, darkened, on light text's paper, its light on a dark plate's.
+## An effect amount ("+4€", "×2"; v1.43, the user's "+x in green, ×Y the monitor's colour") is
+## drawn in the monitor's ink for it (_amount_color), on light paper only (_segments).
 
 ## A glyph's room on its line: its margin each side.
 const GLYPH_MARGIN := 1.0
@@ -25,12 +31,15 @@ const GLYPH_MARGIN := 1.0
 const GLYPH_DROP := 4.0
 ## A keyword chip's room on its line: its margin each side.
 const CHIP_MARGIN := 1.0
+## How much darker than its family's shade a role run is drawn on light paper (#128 batch polish:
+## the Bakery shade alone read faint on the tickets).
+const ROLE_DARKEN := 0.3
 ## How far a piece may pass its line's room (rounding) before the text no longer fits.
 const OVERFLOW_SLACK := 0.5
+## The text's ink while wasted (set_wasted).
+const WASTED_INK := Palette.GREY
 
 var text: String = ""
-## The item the text is on (a ticket's), named by a not-working chip's tip; "" for none.
-var item_name: String = ""
 var _font: Font
 var _font_size: int
 var _color: Color
@@ -49,8 +58,8 @@ var _overflow: bool = false
 var _glyphs: Array[FamilyGlyph] = []
 var _words: Array[FamilyWord] = []
 var _chips: Array[KeywordChip] = []
-## The keyword chips' wasted tooltip (set_keyword_wasted), or "" for calm chips.
-var _keyword_wasted: String = ""
+## The WASTED reason greying the text (set_wasted), or "" for live text.
+var _wasted: String = ""
 ## Live words and their tooltips (set_live, #128 v3: Stale popcorn's ×N), drawn as value chips.
 var _live: Dictionary = {}
 var _tip_below: bool = false
@@ -133,17 +142,17 @@ func set_tip(below: bool, anchor: Control) -> void:
 		word.tip_anchor = anchor
 
 
-## Turns the keyword chips wasted, `reason` their tooltip (the WASTED step's), or calm again ("").
-## The text is laid out again when this changes.
-func set_keyword_wasted(reason: String) -> void:
-	if reason == _keyword_wasted:
+## Greys the text while `reason` (the WASTED step's) is not empty, or inks it again (""). The
+## layout never changes.
+func set_wasted(reason: String) -> void:
+	if reason == _wasted:
 		return
-	_keyword_wasted = reason
-	_lay_out()
+	_wasted = reason
+	queue_redraw()
 
 
-func keyword_wasted() -> String:
-	return _keyword_wasted
+func wasted() -> String:
+	return _wasted
 
 
 ## Shows `line` with its `live` words (word: tooltip, GlyphText.pieces) as value chips, laying
@@ -228,16 +237,125 @@ func _draw() -> void:
 	for index: int in _lines.size():
 		var baseline: float = roundf(index * _pitch + (_pitch - height) / 2.0 + ascent)
 		for run: Dictionary in _lines[index]:
-			if GlyphText.is_text(run):
+			if not GlyphText.is_text(run):
+				continue
+			var at: float = float(run["x"])
+			var base: Color = _role_color(GlyphText.role_family(run))
+			var parts: Array[Array] = [[str(run["text"]), base]]
+			if not GlyphText.is_role(run):
+				parts = _segments(str(run["text"]))
+			for part: Array in parts:
+				var piece: String = part[0]
+				var ink: Color = part[1] if (part[1] as Color).a > 0.0 else base
+				var step: int = MonitorStepRow.factor_step(piece) if ink != base else -1
+				var shadow: Color = (
+					MonitorStepRow.factor_shadow(step) if step >= 0 else Color.TRANSPARENT
+				)
+				if shadow.a > 0.0:
+					draw_string(
+						_font,
+						Vector2(at, baseline) + Vector2(MonitorStepRow.FACTOR_SHADOW),
+						piece,
+						HORIZONTAL_ALIGNMENT_LEFT,
+						-1,
+						_font_size,
+						shadow
+					)
 				draw_string(
 					_font,
-					Vector2(float(run["x"]), baseline),
-					str(run["text"]),
+					Vector2(at, baseline),
+					piece,
 					HORIZONTAL_ALIGNMENT_LEFT,
 					-1,
 					_font_size,
-					_color
+					ink
 				)
+				at += _text_width(piece)
+
+
+## `line` cut into its pieces, each [text, ink]: an effect amount ("+4€", "+3", "×2"; its trailing
+## punctuation apart) in the monitor's ink for it (MonitorStepRow.amount_colour_of: a bonus green,
+## a factor its strength's ink), the rest transparent (the text's own colour). Live text on light
+## paper only: wasted text stays WASTED_INK and a dark plate's light text keeps its colour (the
+## monitor's inks are dark), so neither is cut.
+func _segments(line: String) -> Array[Array]:
+	if not _wasted.is_empty() or _color.get_luminance() >= 0.5:
+		var whole: Array[Array] = [[line, Color.TRANSPARENT]]
+		return whole
+	var found: Array[Array] = []
+	var plain: String = ""
+	var parts: PackedStringArray = line.split(" ")
+	for index: int in parts.size():
+		var word: String = parts[index]
+		var stem: String = word.rstrip(GlyphText.TRAILING)
+		var ink: Color = _amount_color(stem)
+		if ink.a > 0.0:
+			if not plain.is_empty():
+				found.append([plain, Color.TRANSPARENT])
+			found.append([stem, ink])
+			plain = word.substr(stem.length())
+		else:
+			plain += word
+		if index < parts.size() - 1:
+			plain += " "
+	if not plain.is_empty():
+		found.append([plain, Color.TRANSPARENT])
+	return found
+
+
+## The monitor's ink for an effect amount `word` ("+4€", "+3", "×2": MonitorStepRow's
+## amount_colour_of), or transparent for any other word (a price, a count, "+" alone).
+static func _amount_color(word: String) -> Color:
+	var sign_at: int = 1 if word.begins_with("+") else 0
+	if sign_at == 0 and word.begins_with(MonitorStepRow.FACTOR_SIGN):
+		sign_at = MonitorStepRow.FACTOR_SIGN.length()
+	if sign_at == 0 or word.length() <= sign_at or not word[sign_at].is_valid_int():
+		return Color.TRANSPARENT
+	return MonitorStepRow.amount_colour_of(word, MonitorStepRow.Tone.PLAIN)
+
+
+## The effect amounts drawn in the text (role_runs(true)), in order: each {"text", "color"}
+## (WASTED_INK while wasted, the text's colour on a dark plate).
+func _amount_runs() -> Array[Dictionary]:
+	var found: Array[Dictionary] = []
+	for line: Array in _lines:
+		for run: Dictionary in line:
+			if not GlyphText.is_text(run) or GlyphText.is_role(run):
+				continue
+			for word: String in str(run["text"]).split(" ", false):
+				var stem: String = word.rstrip(GlyphText.TRAILING)
+				if _amount_color(stem).a <= 0.0:
+					continue
+				var ink: Color = _amount_color(stem) if _color.get_luminance() < 0.5 else _color
+				found.append({"text": stem, "color": WASTED_INK if not _wasted.is_empty() else ink})
+	return found
+
+
+## The colour a role run of `family` is drawn in: its shade (ROLE_DARKEN darker) under dark ink
+## (light paper), its light under light ink (a dark plate); the text's own colour for "" or an
+## unknown family.
+func _role_color(family: String) -> Color:
+	if not _wasted.is_empty():
+		return WASTED_INK
+	var style: FamilyStyle = _palette.style(family) if not family.is_empty() else null
+	if style == null or not style.has_ticket_colours():
+		return _color
+	return style.shade.darkened(ROLE_DARKEN) if _color.get_luminance() < 0.5 else style.light
+
+
+## The role runs drawn in the text, in order: copies, each with its "x" and the "color" it is
+## drawn in; with `amounts`, its effect amounts instead (_amount_runs).
+func role_runs(amounts: bool = false) -> Array[Dictionary]:
+	if amounts:
+		return _amount_runs()
+	var found: Array[Dictionary] = []
+	for line: Array in _lines:
+		for run: Dictionary in line:
+			if GlyphText.is_role(run):
+				var drawn: Dictionary = run.duplicate()
+				drawn["color"] = _role_color(GlyphText.role_family(run))
+				found.append(drawn)
+	return found
 
 
 func _lay_out() -> void:
@@ -315,7 +433,7 @@ func _pieces() -> Array[Array]:
 				rest = [run]
 			else:
 				rest.append(run)
-		if not rest.all(GlyphText.is_text):
+		if not rest.all(GlyphText.is_text) or rest.any(GlyphText.is_role):
 			split.append(rest)
 			continue
 		for word: String in _joined(rest).split(" ", false):
@@ -380,15 +498,11 @@ func _add_glyphs() -> void:
 
 func _add_chip(run: Dictionary, line: int) -> void:
 	var live_tip: String = GlyphText.run_tip(run) if GlyphText.is_live(run) else ""
-	var chip: KeywordChip = KeywordChip.new(
-		str(run["keyword"]), _keyword_wasted, live_tip, _chip_padding
-	)
+	var chip: KeywordChip = KeywordChip.new(str(run["keyword"]), "", live_tip, _chip_padding)
 	var top: float = line * _pitch + floorf((_pitch - KeywordChip.HEIGHT) / 2.0)
 	chip.position = Vector2(float(run["x"]) + _chip_margin, top)
 	chip.tip_below = _tip_below
 	chip.tip_anchor = _tip_anchor
-	if chip.is_wasted() and not item_name.is_empty():
-		chip.tip_tag = item_name  # Not working: its tip names the item it is on.
 	add_child(chip)
 	_chips.append(chip)
 
@@ -424,8 +538,7 @@ func _piece_width(piece: Array) -> float:
 func _run_width(run: Dictionary) -> float:
 	if GlyphText.is_keyword(run):
 		var live: bool = GlyphText.is_live(run)
-		var wasted: bool = not _keyword_wasted.is_empty() and not live
-		var chip: float = KeywordChip.width_for(str(run["keyword"]), wasted, live, _chip_padding)
+		var chip: float = KeywordChip.width_for(str(run["keyword"]), false, live, _chip_padding)
 		return chip + 2.0 * _chip_margin
 	if str(run["family"]).is_empty():
 		return _text_width(str(run["text"]))

@@ -183,10 +183,13 @@ func test_express_lane_shortens_the_row_and_doubles_its_ends() -> void:
 	for index: int in range(run.limits.slot_count):
 		breads.append(run.debug_add_to_hand(bread))
 		assert_bool(run.place(breads[index], index)).is_true()
-		var bare: int = Scoring.score(breads, [], events).total
-		var ends: int = 2 if index == run.limits.slot_count - 1 else 1
+		# The doubled ends add their payouts again (a Bread's with its BATCH size bonus).
+		var bare_result: ScoreResult = Scoring.score(breads, [], events)
+		var ends: int = bare_result.payouts[0]
+		if index == run.limits.slot_count - 1:
+			ends += bare_result.payouts[index]
 		assert_int(run.preview().total).override_failure_message("%d items" % (index + 1)).is_equal(
-			bare + ends * bread.base
+			bare_result.total + ends
 		)
 	var double: RunState = _run(9, [DOUBLE, EXPRESS])
 	assert_int(double.limits.slot_count).is_equal(2)

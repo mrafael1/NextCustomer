@@ -29,6 +29,12 @@ var steps: Array[ScoreStep] = []
 ## The batches (CardBatch, #128) the rules read, each in slot order, once each; kept only when
 ## `explain` (the planning belt shows them; no rule reads them back).
 var batches: Array[PackedInt32Array] = []
+## Each recorded batch's size bonus for each of its products (BatchSizeBonusRule, #128 batch
+## polish; 0: none), in `batches`' order, for the belt's frames. Kept only when `explain`.
+var batch_bonuses: PackedInt32Array = PackedInt32Array()
+## The row's BATCH size bonuses (CardDefinition.batch_bonus), one per tag, the first carrier's,
+## read-only once the state is made: Scoring gives them to every batch holding a carrier.
+var size_rules: Array[BatchSizeBonusRule] = []
 ## The chains (CardChain, #128 Produce links), each in slot order with its knots, once each; kept
 ## only when `explain` (the planning belt frames them; no rule reads them back).
 var chains: Array[PackedInt32Array] = []
@@ -123,6 +129,8 @@ func _init(row_cards: Array[CardInstance], explained: bool = true) -> void:
 			if products > 1 and _products[slot - 1] == 1:
 				_after[slot - 1] = PackedInt32Array([slot])
 				_before[slot] = PackedInt32Array([slot - 1])
+			if card.batch_bonus != null:
+				_add_size_rule(card.batch_bonus)
 		elif card.kind == CardDefinition.Kind.COUPON:
 			_coupons[slot] = 1
 			if first_coupon < 0:
@@ -132,6 +140,14 @@ func _init(row_cards: Array[CardInstance], explained: bool = true) -> void:
 			for rule: Rule in card.rules:
 				if rule.reads_waste():
 					tracks_waste = true
+
+
+## Keeps `rule` as the row's size bonus for its tag unless one is kept already.
+func _add_size_rule(rule: BatchSizeBonusRule) -> void:
+	for kept: BatchSizeBonusRule in size_rules:
+		if kept.tag == rule.tag:
+			return
+	size_rules.append(rule)
 
 
 func size() -> int:
@@ -320,6 +336,7 @@ func to_result() -> ScoreResult:
 	result.tags = tags
 	result.steps = steps
 	result.batches = batches
+	result.batch_bonuses = batch_bonuses
 	result.chains = chains
 	result.knot_factors = knot_factors
 	result.chain_feeds = chain_feeds

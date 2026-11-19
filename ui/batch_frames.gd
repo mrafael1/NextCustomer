@@ -1,8 +1,9 @@
 class_name BatchFrames
 extends Control
 ## The planning layer's batch frames (#128, the approved Bound strip): one BatchFrame for each run
-## of a batch PlanningModel.batches frames (one holding a Bakery job card; PlanningModel.runs: a
-## link that skips products splits it), laid out round its tickets from the belt's ticket rects, its
+## of a batch PlanningModel.batches frames (one holding a Bakery job card, or a plain batch that
+## earns its size bonus, which gets no bookends; PlanningModel.runs: a link that skips products
+## splits it), laid out round its tickets from the belt's ticket rects, its
 ## foot at most on the counter edge (FOOT_Y). A drag's ghost has no ticket on the belt: a frame
 ## binds its other tickets, the ghost landing among or beside them, and follows every move of the
 ## drag. A frame with a slot that has no ticket otherwise (none, or hidden) hides. light() lights
@@ -50,6 +51,8 @@ func show_batches(
 		var batch: PackedInt32Array = batches[index] if index < batches.size() else runs[index]
 		var frame: BatchFrame = BatchFrame.new(runs[index], batch)
 		frame.readers = readers
+		# A plain batch (no job card: Bread, Bread) wears just the frame.
+		frame.has_bookends = readers == null or not readers.plain_batches.has(batch)
 		frame.reduced_motion = reduced_motion
 		_adopt(frame)
 	_paint()

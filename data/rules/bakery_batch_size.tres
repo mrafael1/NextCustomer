@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="BatchSizeBonusRule" format=3]
+
+[ext_resource type="Script" path="res://core/rules/batch_size_bonus_rule.gd" id="1_size"]
+
+[resource]
+script = ExtResource("1_size")
+tag = "Bakery"
+bonuses = PackedInt32Array(1, 2, 3)
+receipt_text = "Batch of {size}"

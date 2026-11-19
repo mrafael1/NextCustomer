@@ -9,10 +9,12 @@ group = &"keywords"
 title = "BATCH"
 mark = 1
 mark_value = "BATCH"
-rule = "Put {fam:Bakery} items side by side to make a {kw:BATCH}. Some cards care about their spot in it: {item:croissant} first, {item:stale_doughnut} last.
+rule = "Put {fam:Bakery} items side by side to make a {kw:BATCH}: the bigger it is, the more each item earns. Some cards care about their spot in it: {item:croissant} first, {item:stale_doughnut} last.
 
-On the belt, the frame wears caps: FIRST on its left end, LAST on its right end. Hover a card to light the cap it needs: {item:croissant} lights FIRST; {item:stale_doughnut} and {item:iced_bun} light LAST, and the {item:iced_bun}'s icing drips over the LAST cap; {item:baguette} fills the frame's foot in gold up to itself, counting the items before it.
+Every item in a {kw:BATCH} gets a size bonus: +1€ in a batch of 2, +2€ in a batch of 3, +3€ in a batch of 4 or more. Plain {item:bread} counts too. On the receipt it is its own line, Batch of 3.
+
+On the belt, the frame wears caps: FIRST on its left end, LAST on its right end. Hover a card to light the cap it needs: {item:croissant} lights FIRST; {item:stale_doughnut} and {item:iced_bun} light LAST, and the {item:iced_bun}'s icing drips over the LAST cap; {item:baguette} fills the frame's foot in gold, counting every item of the batch, itself included.
 
 A lit {kw:BATCH} chip turns both caps gold. A {kw:WASTED} card turns its cap red when you hover it and when the batch is counted."
 example_row = PackedStringArray("croissant", "baguette", "stale_doughnut")
-example_total = 22
+example_total = 38

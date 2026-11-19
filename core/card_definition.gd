@@ -66,6 +66,10 @@ enum Tier { PLAIN, BIG, GOLDEN }
 ## stocked product or a deck card with the tag (MachineContext.offers), as family perks are
 ## (UpgradeDefinition.boosts_tag). Empty (the default): always offered.
 @export var needs_tag: String = ""
+## The BATCH size bonus (#128 batch polish) a batch holding this product earns for each of its
+## products (BatchSizeBonusRule; every Bakery product carries the shared one), or none. Kept out
+## of `rules`: it is the batch's bonus, not the card's own rule.
+@export var batch_bonus: BatchSizeBonusRule
 
 
 func is_product() -> bool:

@@ -4,26 +4,28 @@ extends Control
 ## docs/art/mockups/batch_positions.html, with option D's icing drip): the two places a job card
 ## reads exactly get an end cap on the frame (BatchFrame), a FIRST cap on its left side when the
 ## frame's first ticket is the batch's first, a LAST cap on its right side when its last ticket is
-## the batch's last, each with its word on a plate (a tab) across the frame's foot (the mock-up
-## had them on its top band, where the planning rail strips run, so they moved down). A cap is
+## the batch's last (their words are on the tickets' role tabs, ui/role_tab.gd, so the frame's
+## foot carries no FIRST or LAST plate since 2026-11-19). A cap is
 ## INK round a mustard face shaded dark at its sides, a light row near its top and a dark row near
 ## its foot; it reaches CAP_OUT outside the frame's side and CAP_RISE over its top, down to its
 ## foot. A glaze on the batch's last item (the Iced bun's ×2, from the score: PlanningModel.glazes)
 ## pours the icing drip (art/effects/icing_drip.png) over the LAST cap.
 ##
-## Planning (focus: a job card's item hovered): the cap its role reads lights gold with its tab
-## (a role WASTED at its place: tomato), a small note beside the tabs under its ticket says why
-## ("NOT FIRST", "2 EARLIER", "×2 LAST"); a Baguette's earlier items fill the frame's foot band in
-## gold up to its ticket; an Iced bun draws a gold dashed line under the frame's foot from its
+## Planning (focus: a job card's item hovered): the cap its role reads lights gold
+## (a role WASTED at its place: tomato), a small note under its ticket says why
+## ("NOT FIRST", "3 ITEMS", "×2 LAST"); a Baguette, which counts every item of its batch
+## (itself included, round 2 of 2026-11-19), fills the frame's foot band in gold to the frame's
+## last ticket; an Iced bun draws a gold dashed line under the frame's foot from its
 ## ticket to the LAST cap, and its drip runs
 ## down again. The frame lit by a BATCH chip turns the caps' faces gold too.
 ##
 ## The count (fire, a job card's step landing; BeltRide and the handbook clip call it): an opener
 ## armed slams the FIRST cap and sends a gold spark (art/effects/batch_spark.png) along the frame to
-## the LAST cap, which slams as it lands; a Baguette's bonus fills the foot band to its ticket and
-## counts its earlier items in numbered pops; a closer's bonus sends the spark along, counts the
-## batch's items and slams the LAST cap; an Iced bun armed draws its dashed line to the LAST cap,
-## and its ×2 landing on the last item slams the LAST cap, pops "×2" and runs the drip down again;
+## the LAST cap, which slams as it lands; a Baguette's bonus fills the foot band to the frame's
+## last ticket and counts the batch's items in numbered pops; a closer's bonus sends the spark
+## along, counts the batch's items and slams the LAST cap; an Iced bun armed draws its dashed line
+## to the LAST cap, and its ×2 landing on the last item slams the LAST cap, pops "×2" and runs the
+## drip down again;
 ## a job card WASTED slams its cap in tomato. A batch split over several frames (a link that skips
 ## products) plays each beat once: the spark and a cap's slam on the frame showing that cap, the
 ## dashed line only on the frame showing LAST, the fill and the bagged items' counter on the frame
@@ -50,20 +52,15 @@ const CAP_ROW_INSET := 4.0
 const CELL := 2.0
 ## A lit or WASTED cap's glow: rings CELL wide round it, these alphas outwards.
 const GLOW_ALPHAS: Array[float] = [0.55, 0.3, 0.12]
-## The tabs: plates (ChainFrame.plate_size: PLATE_GLYPH cells, CELL each) from TAB_SINK over the
-## frame's foot, TAB_OVERLAP onto their cap; TAB_LIT_SCALE bigger when their cap lights.
-const TAB_SINK := 4.0
-const TAB_OVERLAP := 4.0
-const TAB_LIT_SCALE := 1.2
-const FIRST_WORD := "FIRST"
-const LAST_WORD := "LAST"
-## The plates' letters (PLATE_GLYPH cells, '#' ink); digits and "×" are ChainFrame.PLATE_GLYPHS'.
+## The notes' and pops' plates' letters (PLATE_GLYPH cells, '#' ink); digits and "×" are
+## ChainFrame.PLATE_GLYPHS'.
 const LETTERS: Dictionary[String, Array] = {
 	"A": [".#.", "#.#", "###", "#.#", "#.#"],
 	"E": ["###", "#..", "##.", "#..", "###"],
 	"F": ["###", "#..", "##.", "#..", "#.."],
 	"I": ["###", ".#.", ".#.", ".#.", "###"],
 	"L": ["#..", "#..", "#..", "#..", "###"],
+	"M": ["#.#", "###", "#.#", "#.#", "#.#"],
 	"N": ["#.#", "###", "###", "#.#", "#.#"],
 	"O": ["###", "#.#", "#.#", "#.#", "###"],
 	"R": ["##.", "#.#", "##.", "#.#", "#.#"],
@@ -71,14 +68,15 @@ const LETTERS: Dictionary[String, Array] = {
 	"T": ["###", ".#.", ".#.", ".#.", ".#."],
 	" ": ["...", "...", "...", "...", "..."],
 }
-## The planning notes under a job card's ticket, beside the tabs, NOTE_GAP clear of them;
-## the count's pops NOTE_GAP over the frame's top (the rail strips are gone in the count).
+## The count's pops NOTE_GAP over the frame's top (the rail strips are gone in the count).
 const NOTE_GAP := 2.0
 ## A note's top under the frame's foot: clear of the hovered ticket's ring (3 bands of 2 px).
 const NOTE_DROP := 6.0
 const NOT_FIRST := "NOT FIRST"
 const NOT_LAST := "NOT LAST"
-const EARLIER := "%d EARLIER"
+const ITEMS := "%d ITEMS"
+## A ticket pop whose ticket left the frame (_pop_slots): it ends.
+const POP_GONE := -2
 const GLAZE_LAST := "×%d LAST"
 const GLAZE_SELF := "IS LAST"
 ## The Baguette's fill: on the frame's mustard band, its glow GLOW_ALPHAS[0] a CELL round it.
@@ -133,7 +131,6 @@ var _shows: Array[bool] = [false, false]
 var _looks: Array[Look] = [Look.CALM, Look.CALM]
 var _glows: Array[float] = [0.0, 0.0]
 var _slams: Array[float] = [1.0, 1.0]
-var _tab_scales: Array[float] = [1.0, 1.0]
 ## The frame's lit look (a BATCH chip hovered).
 var _frame_lit: bool = false
 ## The frame's size and its place in the layer, each laid out ticket's centre x (slot: local x).
@@ -155,6 +152,10 @@ var _note_xs: PackedFloat32Array = PackedFloat32Array()
 var _note_bad: Array[bool] = []
 var _pop_texts: PackedStringArray = PackedStringArray()
 var _pop_xs: PackedFloat32Array = PackedFloat32Array()
+## The slot whose ticket each pop stands over (-1: none, the counter or a cap's), so a pop follows
+## its ticket when the frame lays out again (a bagged ticket dropping off its left end); a pop
+## whose ticket left the frame ends there (POP_GONE).
+var _pop_slots: PackedInt32Array = PackedInt32Array()
 var _pop_lives: PackedFloat32Array = PackedFloat32Array()
 var _pop_factors: Array[bool] = []
 var _pop_punches: PackedFloat32Array = PackedFloat32Array()
@@ -168,6 +169,9 @@ func _init(batch_slots: PackedInt32Array) -> void:
 	name = "Bookends"
 	batch = batch_slots
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# The icing drip and the spark are pixel art drawn CELL a texel: the project's linear default
+	# smeared the drip's edges (2026-11-19, "a bit blurry"); nearest keeps every texel whole.
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 
 
 ## Places the bookends on a frame of `frame_size` at `origin` (layer coordinates) round the tickets
@@ -185,6 +189,13 @@ func lay_out(
 	_size = frame_size
 	_origin = origin
 	_centers = centers
+	for index: int in _pop_slots.size():
+		var slot: int = _pop_slots[index]
+		if centers.has(slot):
+			_pop_xs[index] = centers[slot]
+		elif slot >= 0:
+			_pop_slots[index] = POP_GONE
+			_pop_lives[index] = 1.0
 	_on_belt = on_belt if not on_belt.is_empty() else PackedInt32Array(centers.keys())
 	_shows = [first, last]
 	size = frame_size
@@ -206,14 +217,6 @@ func cap_rect(cap: Cap) -> Rect2:
 	if not _shows[cap]:
 		return Rect2()
 	return Rect2(_cap_local(cap).position + _origin, _cap_local(cap).size)
-
-
-## The `cap`'s tab rect (layer coordinates, unscaled), empty when its cap does not show.
-func tab_rect(cap: Cap) -> Rect2:
-	if not _shows[cap]:
-		return Rect2()
-	var local: Rect2 = _tab_local(cap)
-	return Rect2(local.position + _origin, local.size)
 
 
 ## The icing drip's whole rect (layer coordinates), empty without a glaze on the LAST cap.
@@ -289,10 +292,10 @@ func focus(slot: int) -> void:
 		BatchRoleRule.Role.BODY:
 			if wasted:
 				lights[Cap.FIRST] = Look.BAD
-				_note(EARLIER % 0, slot, true)
+				_note(ITEMS % 0, slot, true)
 			elif _centers.has(slot):
-				fill_to = _centers[slot]
-				_note(EARLIER % model.batch_counts.get(slot, 0), slot, false)
+				fill_to = _fill_end()
+				_note(ITEMS % model.batch_counts.get(slot, 0), slot, false)
 		BatchRoleRule.Role.GLAZE:
 			lights[Cap.LAST] = Look.BAD if wasted else Look.LIT
 			if wasted:
@@ -311,7 +314,6 @@ func focus(slot: int) -> void:
 		for cap: int in [Cap.FIRST, Cap.LAST]:
 			var lit_now: bool = _looks[cap] != Look.CALM
 			_glows[cap] = 1.0 if lit_now else 0.0
-			_tab_scales[cap] = TAB_LIT_SCALE if lit_now else 1.0
 		_fill = fill_to
 		queue_redraw()
 		return
@@ -319,8 +321,6 @@ func focus(slot: int) -> void:
 	for cap: int in [Cap.FIRST, Cap.LAST]:
 		var lit: bool = _looks[cap] != Look.CALM
 		_focus_tween.tween_method(_set_glow.bind(cap), _glows[cap], 1.0 if lit else 0.0, LOOK_S)
-		var scale_to: float = TAB_LIT_SCALE if lit else 1.0
-		_focus_tween.tween_method(_set_tab_scale.bind(cap), _tab_scales[cap], scale_to, LOOK_S)
 	if fill_to > 0.0:
 		(
 			_focus_tween
@@ -361,7 +361,8 @@ func fire(step: ScoreStep, make_tween: Callable = Callable()) -> void:
 			elif role == BatchRoleRule.Role.GLAZE and _shows[Cap.LAST]:
 				_show_dash(_centers.get(giver, 0.0), make_tween)
 		ScoreStep.StepType.FLAT:
-			if step.slot != giver:
+			# The batch's size bonus (#128 batch polish) is no job card's beat.
+			if step.slot != giver or step.batch_size > 0:
 				return
 			if role == BatchRoleRule.Role.BODY:
 				if home:
@@ -433,9 +434,6 @@ func _draw() -> void:
 		var shown: float = snappedf(drip.size.y * _drip_share, CELL)
 		var region: Rect2 = Rect2(Vector2.ZERO, Vector2(DRIP.get_width(), shown / CELL))
 		draw_texture_rect_region(DRIP, Rect2(drip.position, Vector2(drip.size.x, shown)), region)
-	for cap: int in [Cap.FIRST, Cap.LAST]:
-		if _shows[cap]:
-			_draw_tab(cap)
 	if not is_nan(_spark):
 		var spark_size: Vector2 = Vector2(SPARK.get_width(), SPARK.get_height()) * CELL
 		var at: Vector2 = (Vector2(_spark, SPARK_Y) - spark_size / 2.0).snappedf(CELL)
@@ -479,30 +477,9 @@ func _draw_cap(cap: int) -> void:
 	draw_set_transform_matrix(Transform2D.IDENTITY)
 
 
-func _draw_tab(cap: int) -> void:
-	var rect: Rect2 = _tab_local(cap)
-	var look_now: Look = _looks[cap]
-	var face: Color = Palette.GOLD if look_now == Look.LIT or _frame_lit else Palette.MUSTARD
-	var ink: Color = Palette.INK
-	if look_now == Look.BAD:
-		face = Palette.TOMATO
-		ink = Palette.PAPER
-	_scaled(rect.get_center(), Vector2.ONE * _tab_scales[cap])
-	if _glows[cap] > 0.0 and look_now == Look.LIT:
-		_draw_rings(rect, Palette.GOLD, 2, _glows[cap])
-	_draw_plate(rect, Palette.INK, face, ink, FIRST_WORD if cap == Cap.FIRST else LAST_WORD)
-	draw_set_transform_matrix(Transform2D.IDENTITY)
-
-
 func _draw_note(text: String, x: float, bad: bool) -> void:
 	var plate: Vector2 = ChainFrame.plate_size(text)
-	var at: Vector2 = Vector2(x - plate.x / 2.0, _size.y + NOTE_DROP)
-	# Along the tabs' row, clear of the tabs.
-	for cap: int in [Cap.FIRST, Cap.LAST]:
-		var tab: Rect2 = _tab_local(cap)
-		if _shows[cap] and Rect2(at, plate).intersects(tab):
-			at.x = tab.end.x + NOTE_GAP if cap == Cap.FIRST else tab.position.x - NOTE_GAP - plate.x
-	at = at.snappedf(CELL)
+	var at: Vector2 = Vector2(x - plate.x / 2.0, _size.y + NOTE_DROP).snappedf(CELL)
 	var border: Color = Palette.TOMATO if bad else Palette.GOLD
 	var ink: Color = Palette.PAPER if bad else Palette.GOLD
 	_draw_plate(Rect2(at, plate), border, Palette.INK, ink, text)
@@ -594,13 +571,12 @@ func _cap_local(cap: int) -> Rect2:
 	return Rect2(_size.x + CAP_OUT - CAP_WIDTH, -CAP_RISE, CAP_WIDTH, height)
 
 
-func _tab_local(cap: int) -> Rect2:
-	var plate: Vector2 = ChainFrame.plate_size(FIRST_WORD if cap == Cap.FIRST else LAST_WORD)
-	var beside: Rect2 = _cap_local(cap)
-	var x: float = beside.end.x - TAB_OVERLAP
-	if cap == Cap.LAST:
-		x = beside.position.x + TAB_OVERLAP - plate.x
-	return Rect2(Vector2(x, _size.y - TAB_SINK), plate)
+## Where a Baguette's fill ends (local x): the centre of the frame's last ticket.
+func _fill_end() -> float:
+	var end: float = 0.0
+	for x: float in _centers.values():
+		end = maxf(end, x)
+	return end
 
 
 ## The Baguette's fill (local): along the frame's foot band from its left side to `_fill`.
@@ -644,11 +620,6 @@ func _set_glow(share: float, cap: int) -> void:
 	queue_redraw()
 
 
-func _set_tab_scale(amount: float, cap: int) -> void:
-	_tab_scales[cap] = amount
-	queue_redraw()
-
-
 func _set_slam(amount: float, cap: int) -> void:
 	_slams[cap] = amount
 	queue_redraw()
@@ -670,7 +641,7 @@ func _set_spark(x: float) -> void:
 
 
 func _set_pop(life: float, index: int) -> void:
-	if index < _pop_lives.size():
+	if index < _pop_lives.size() and _pop_slots[index] != POP_GONE:
 		_pop_lives[index] = life
 	queue_redraw()
 
@@ -737,17 +708,17 @@ func _run_spark(make_tween: Callable) -> void:
 	tween.tween_callback(_set_spark.bind(NAN))
 
 
-## The Baguette at `slot`: the fill runs to its ticket, holds and goes.
+## The Baguette at `slot`: the fill runs to the frame's last ticket, holds and goes.
 func _run_fill(slot: int, make_tween: Callable) -> void:
 	if not _centers.has(slot) or not is_inside_tree():
 		return
 	var tween: Tween = _tween(make_tween)
 	if reduced_motion:
-		tween.tween_callback(_set_fill.bind(_centers[slot]))
+		tween.tween_callback(_set_fill.bind(_fill_end()))
 	else:
 		(
 			tween
-			. tween_method(_set_fill, 0.0, _centers[slot], COUNT_FILL_S)
+			. tween_method(_set_fill, 0.0, _fill_end(), COUNT_FILL_S)
 			. set_trans(Tween.TRANS_QUAD)
 			. set_ease(Tween.EASE_OUT)
 		)
@@ -787,7 +758,7 @@ func _count_pops(count: int, gap: float, home: bool, make_tween: Callable) -> vo
 	for number: int in range(1, mini(count, batch.size()) + 1):
 		var slot: int = batch[number - 1]
 		if _centers.has(slot):
-			_pop(str(number), _centers[slot], false, gap * (number - 1), make_tween)
+			_pop(str(number), _centers[slot], false, gap * (number - 1), make_tween, POP_S, slot)
 		elif home and not _on_belt.has(slot):
 			ticks.append(str(number))
 			tick_delays.append(gap * (number - 1))
@@ -804,9 +775,15 @@ func _count_pops(count: int, gap: float, home: bool, make_tween: Callable) -> vo
 
 
 ## A pop of `text` over local x `x` (a factor's in orange) after `delay`, living `life` (none under
-## reduced motion); returns its index (-1: none).
+## reduced motion), over the ticket of `slot` (-1: none); returns its index (-1: none).
 func _pop(
-	text: String, x: float, factor: bool, delay: float, make_tween: Callable, life: float = POP_S
+	text: String,
+	x: float,
+	factor: bool,
+	delay: float,
+	make_tween: Callable,
+	life: float = POP_S,
+	slot: int = -1
 ) -> int:
 	if reduced_motion or not is_inside_tree():
 		return -1
@@ -818,11 +795,13 @@ func _pop(
 	if all_done:
 		_pop_texts.clear()
 		_pop_xs.clear()
+		_pop_slots.clear()
 		_pop_lives.clear()
 		_pop_factors.clear()
 		_pop_punches.clear()
 	_pop_texts.append(text)
 	_pop_xs.append(x)
+	_pop_slots.append(slot)
 	_pop_lives.append(-1.0)
 	_pop_factors.append(factor)
 	_pop_punches.append(0.0)

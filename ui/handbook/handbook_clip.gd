@@ -26,9 +26,8 @@ extends Control
 ## belt), and every number in it is the score's.
 
 ## The stage band the window shows (ShiftStage coordinates): from over the stickers on the items'
-## shoulders down to the price rail's shadow; a taller stack raises its top and a slot mark,
-## or batch frame's FIRST or LAST tab hung under the tickets lowers its foot
-## (_fit_view).
+## shoulders down to the price rail's shadow; a taller stack raises its top and a slot mark hung
+## under the tickets lowers its foot (_fit_view).
 const VIEW_TOP := 272.0
 const VIEW_BOTTOM := ShiftStage.BELT_RECT.position.y + 194.0
 ## The room kept over the highest sticker or stamp and under the lowest hung mark.
@@ -365,9 +364,7 @@ func _fit_view() -> void:
 		for part: Control in parts:
 			top = minf(top, (to_stage * part.get_global_rect()).position.y - VIEW_HEADROOM)
 	var bottom: float = VIEW_BOTTOM
-	var hung: Array[Rect2] = _row.mark_rects()
-	hung.append_array(_cap_tabs())
-	for rect: Rect2 in hung:
+	for rect: Rect2 in _row.mark_rects():
 		bottom = maxf(bottom, (to_stage * rect).end.y + VIEW_HEADROOM)
 	top = floorf(top / ArtStyle.ART_SCALE) * ArtStyle.ART_SCALE
 	bottom = ceilf(bottom / ArtStyle.ART_SCALE) * ArtStyle.ART_SCALE
@@ -375,26 +372,6 @@ func _fit_view() -> void:
 		_view_top = top
 		_view_bottom = bottom
 		_size_to(size.x)
-
-
-## The FIRST and LAST tabs the batch frames' bookends hang across their foot (global rects, each
-## at its lit size, TAB_LIT_SCALE about its centre), so the window's foot never cuts their words.
-func _cap_tabs() -> Array[Rect2]:
-	var tabs: Array[Rect2] = []
-	for frame: BatchFrame in _layer.frames():
-		var ends: BatchBookends = frame.bookends()
-		if ends == null or not frame.visible:
-			continue
-		for cap: BatchBookends.Cap in [BatchBookends.Cap.FIRST, BatchBookends.Cap.LAST]:
-			var tab: Rect2 = ends.tab_rect(cap)
-			if not tab.has_area():
-				continue
-			tab.position -= frame.frame_rect().position
-			tab = tab.grow_individual(
-				0, 0, 0, tab.size.y * (BatchBookends.TAB_LIT_SCALE - 1.0) * 0.5
-			)
-			tabs.append(ends.get_global_transform() * tab)
-	return tabs
 
 
 static func _snap(value: float) -> float:

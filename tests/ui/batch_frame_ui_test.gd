@@ -2,9 +2,10 @@ extends GdUnitTestSuite
 ## Bakery batches on the belt (#128, the approved Bound strip mock-up,
 ## docs/art/mockups/bakery_batch_128.html's 'stripb'). The model frames each batch of the
 ## preview that holds a Bakery job card (a batch card, its sticker naming the BATCH keyword) and
-## none of plain Bakery only; a job card WASTED at its place has a wrong job. Its ticket prints
-## BATCH as a chip whose tooltip says what a batch is; a wrong job turns the chip tomato with a
-## cross, its tooltip the WASTED reason, and rings the ticket in tomato. On the real shift screen
+## none of plain Bakery only; any card WASTED at its place has a wrong job (the play test of
+## 2026-11-19). Its ticket prints BATCH as a chip whose tooltip says what a batch is; a wrong job
+## greys the ticket's text, breaks its FIRST or LAST role tab (grey, a small tomato cross), keeps
+## the chip calm and puts the WASTED reason in the ticket's tip. On the real shift screen
 ## each framed batch gets one frame round exactly its tickets, inside the screen and over the
 ## counter edge, its binding bars in the gaps clear of every ticket's text, chips and price tags;
 ## hovering a BATCH chip lights its frame; a drag lays the frames out for its landing, binding
@@ -49,18 +50,22 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-## The frames: a batch with a job card is framed, a batch of plain Bakery only (Birthday candles'
-## Breads) is not, and two batches get two frames.
-func test_the_model_frames_the_batches_with_a_job_card(
+## The frames: every batch the scoring reads is framed, with a job card or plain (Bread, Bread:
+## it earns the size bonus since 2026-11-19, `plain` lists those), and two batches get two frames.
+func test_the_model_frames_every_batch(
 	row: String,
 	framed: Array,
+	plain: Array,
 	_test_parameters := [
-		["croissant,bread,baguette", [[0, 1, 2]]],
-		["bread,croissant", [[0, 1]]],
-		["birthday_candles,bread,bread,bread", []],
-		["bread,bread,banana", []],
-		["croissant,bread,banana,baguette,stale_doughnut", [[0, 1], [3, 4]]],
-		["croissant,banana", []],
+		["croissant,bread,baguette", [[0, 1, 2]], []],
+		["bread,croissant", [[0, 1]], []],
+		["birthday_candles,bread,bread,bread", [[1, 2, 3]], [[1, 2, 3]]],
+		["bread,bread,banana", [[0, 1]], [[0, 1]]],
+		["bread,bread,bread", [[0, 1, 2]], [[0, 1, 2]]],
+		["bread,bread,banana,croissant,bread", [[0, 1], [3, 4]], [[0, 1]]],
+		["croissant,bread,banana,baguette,stale_doughnut", [[0, 1], [3, 4]], []],
+		["croissant,banana", [], []],
+		["bread,banana,bread", [], []],
 	]
 ) -> void:
 	var model: PlanningModel = _model(row)
@@ -68,6 +73,10 @@ func test_the_model_frames_the_batches_with_a_job_card(
 	for batch: PackedInt32Array in model.batches:
 		shown.append(Array(batch))
 	assert_array(shown).is_equal(framed)
+	var shown_plain: Array = []
+	for batch: PackedInt32Array in model.plain_batches:
+		shown_plain.append(Array(batch))
+	assert_array(shown_plain).is_equal(plain)
 
 
 ## A batch a link joins across other products (the old Shelf swap of the frozen cards_v0_6 fixture,
@@ -113,6 +122,20 @@ func test_a_job_card_out_of_place_has_a_wrong_job(
 		# A lone Banana is a CHAIN card out of place (#128 Produce links): its wrong job too.
 		["croissant,banana", ["WASTED · No Bakery item beside it", "WASTED · No Banana beside it"]],
 		["bread,iced_bun", ["", "WASTED · It closes its batch: nothing to glaze"]],
+		# Only the score decides (2026-11-19): the Iced bun's ×2 lands on a Croissant closing
+		# the batch, so the bun's job works while the misplaced Croissant's and doughnut's don't.
+		[
+			"stale_doughnut,bread,baguette,iced_bun,croissant",
+			[
+				"WASTED · Not last in its Bakery batch",
+				"",
+				"",
+				"",
+				"WASTED · Not first in its Bakery batch",
+			]
+		],
+		# Every card, not only a batch or chain card: a coupon with nothing to stick on.
+		["bread,breakfast_sticker", ["", "WASTED · No item in the next slot"]],
 	]
 ) -> void:
 	var model: PlanningModel = _model(row)
@@ -177,41 +200,80 @@ func test_the_chip_keeps_its_words_apart() -> void:
 	add_child(sticker)
 	var label: GlyphLabel = sticker.summary()
 	var chip: KeywordChip = label.keywords()[0]
-	assert_float(chip.position.x).is_equal(GlyphLabel.CHIP_MARGIN)
-	var first: Rect2 = label.first_line_rect()
-	assert_float(first.size.x).is_greater(chip.position.x + chip.size.x)
-	# Every run after the chip on its line starts at or past its right edge.
-	for run: Dictionary in label._lines[0]:
+	var line: int = floori((chip.position.y + chip.size.y / 2.0) / label.pitch())
+	assert_float(label._line_end(label._lines[line])).is_greater(chip.position.x + chip.size.x)
+	# Every text run on its line ends before the chip's left edge or starts past its right edge
+	# ("FIRST in" before it, ": +2" after it, #128 batch polish).
+	for run: Dictionary in label._lines[line]:
 		if GlyphText.is_text(run):
-			assert_float(float(run["x"])).is_greater_equal(chip.position.x + chip.size.x)
+			var left: float = float(run["x"])
+			var clear: bool = (
+				left + label._run_width(run) <= chip.position.x
+				or left >= chip.position.x + chip.size.x
+			)
+			assert_bool(clear).override_failure_message(str(run)).is_true()
 
 
-## A wrong job turns the chip tomato with a pixel cross, its tooltip the reason; the ticket gets
-## no frame of its own (no ring, the same face: the user's play test of 2026-11-03); clearing it
-## puts the calm chip back.
-func test_a_wrong_job_turns_the_chip_tomato() -> void:
+## A wrong job (the play test of 2026-11-19) greys the ticket's text, keeps its BATCH chip calm
+## (paper, no cross, the same size and place), breaks its role tab (grey, a tomato cross after the
+## word inside its border, still centred in its room on the ticket's top edge) and puts the reason
+## in the ticket's tip; the ticket gets no frame of its own (no ring, the same face: the user's play
+## test of 2026-11-03); clearing it puts everything back.
+func test_a_wrong_job_greys_the_text_and_breaks_the_tab() -> void:
 	var sticker: PriceSticker = auto_free(PriceSticker.new(_card("croissant")))
 	add_child(sticker)
-	var calm_width: float = sticker.summary().keywords()[0].size.x
+	var calm_chip: Rect2 = _chip_rect(sticker)
+	var tab: RoleTab = sticker.get_node(RoleTab.NAME) as RoleTab
+	var calm_tab: Rect2 = Rect2(tab.position, tab.size)
 	var calm_face: Texture2D = sticker.face().texture
 	var children: int = sticker.get_child_count()
+	var spot: TipTarget = sticker.get_node(PriceSticker.COLOUR_SPOT_NAME) as TipTarget
+	var calm_tip: String = spot.tip_text
 	var reason: String = "WASTED · Not first in its Bakery batch"
 	sticker.set_wrong_job(reason)
+	assert_str(sticker.summary().wasted()).is_equal(reason)
 	var chip: KeywordChip = sticker.summary().keywords()[0]
-	assert_bool(chip.is_wasted()).is_true()
-	assert_that(chip.face_color()).is_equal(Palette.TOMATO)
-	assert_that(chip.ink_color()).is_equal(Palette.PAPER)
-	assert_str(chip.tip_text).is_equal(reason)
-	var cross: Rect2 = chip.cross_rect()
-	assert_that(cross.size).is_equal(Vector2.ONE * KeywordChip.CROSS_CELLS)
-	assert_bool(Rect2(Vector2.ZERO, chip.size).grow(-KeywordChip.BORDER).encloses(cross)).is_true()
-	assert_float(chip.size.x).is_greater(calm_width)
+	assert_bool(chip.is_wasted()).is_false()
+	assert_that(chip.face_color()).is_equal(Palette.PAPER)
+	assert_that(_chip_rect(sticker)).is_equal(calm_chip)
+	assert_bool(tab.is_broken()).is_true()
+	assert_that(tab.face_color()).is_equal(RoleTab.BROKEN_FACE)
+	assert_that(tab.ink_color()).is_equal(RoleTab.BROKEN_INK)
+	assert_float(tab.size.x).is_greater(calm_tab.size.x)
+	assert_float(tab.position.y).is_equal(calm_tab.position.y)
+	var room: float = PriceSticker.TAB_ROOM.x + PriceSticker.TAB_ROOM.y
+	assert_float(absf(tab.position.x * 2.0 + tab.size.x - room)).is_less_equal(ArtStyle.ART_SCALE)
+	var cells: Array[Rect2] = tab.cross_rects()
+	assert_int(cells.size()).is_equal(KeywordChip.CROSS_RUNS.size())
+	var inside: Rect2 = Rect2(Vector2.ZERO, tab.size).grow(-RoleTab.BORDER)
+	for cell: Rect2 in cells:
+		assert_bool(inside.encloses(cell)).override_failure_message(str(cell)).is_true()
+	assert_int(spot.tip_kind).is_equal(TipSpec.Kind.BROKEN)
+	assert_str(spot.tip_text).is_equal(reason)
 	_assert_unframed(sticker)
 	assert_object(sticker.face().texture).is_same(calm_face)
 	assert_int(sticker.get_child_count()).is_equal(children)
 	assert_bool(sticker.summary().fits()).is_true()
 	sticker.set_wrong_job("")
-	assert_bool(sticker.summary().keywords()[0].is_wasted()).is_false()
+	assert_str(sticker.summary().wasted()).is_empty()
+	assert_bool(tab.is_broken()).is_false()
+	assert_that(Rect2(tab.position, tab.size)).is_equal(calm_tab)
+	assert_array(tab.cross_rects()).is_empty()
+	assert_str(spot.tip_text).is_equal(calm_tip)
+	# A wasted card's role words in its text grey with it (the Iced bun's LAST), its chip calm.
+	var bun: PriceSticker = auto_free(PriceSticker.new(_card("iced_bun")))
+	add_child(bun)
+	var roles: Array[Dictionary] = bun.summary().role_runs()
+	assert_int(roles.size()).is_equal(1)
+	assert_that(roles[0]["color"]).is_not_equal(GlyphLabel.WASTED_INK)
+	bun.set_wrong_job("WASTED · It closes its batch: nothing to glaze")
+	assert_that(bun.summary().role_runs()[0]["color"]).is_equal(GlyphLabel.WASTED_INK)
+	assert_bool(bun.summary().keywords()[0].is_wasted()).is_false()
+
+
+static func _chip_rect(sticker: PriceSticker) -> Rect2:
+	var chip: KeywordChip = sticker.summary().keywords()[0]
+	return Rect2(sticker.summary().position + chip.position, chip.size)
 
 
 ## No red frame on a wrong job's ticket (the user's play test of 2026-11-03): no child of the
@@ -239,7 +301,8 @@ func test_the_keywords_tooltip_wraps() -> void:
 ## On the shift screen the wrong row (Bread first) frames one batch, Bread to Stale doughnut,
 ## round exactly their tickets, over the counter edge and inside the screen; its bars sit in the
 ## gaps clear of every ticket's text and chips, and nothing of it covers a price tag. Croissant's
-## chip is tomato, its ticket unframed; Bread's chips (none) stay calm.
+## text is grey and its FIRST tab broken (its twin on the belt too), its chip calm, its ticket
+## unframed; the others are live. Bread's name plate labels the batch though it gives nothing.
 func test_the_frame_binds_exactly_the_batch() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _place(screen, WRONG_ROW)
@@ -251,20 +314,53 @@ func test_the_frame_binds_exactly_the_batch() -> void:
 	assert_bool(frame.visible).is_true()
 	_assert_frame_geometry(screen, frame)
 	var croissant: PriceSticker = _item(screen, 1).sticker()
-	assert_bool(croissant.summary().keywords()[0].is_wasted()).is_true()
+	assert_bool(croissant.summary().keywords()[0].is_wasted()).is_false()
 	_assert_unframed(croissant)
-	assert_str(croissant.summary().keywords()[0].tip_text).is_equal(
-		"WASTED · Not first in its Bakery batch"
-	)
-	var bread: PriceSticker = _item(screen, 0).sticker()
-	for chip: KeywordChip in bread.summary().keywords():
-		assert_bool(chip.is_wasted()).is_false()
+	assert_str(croissant.summary().wasted()).is_equal("WASTED · Not first in its Bakery batch")
+	var croissant_tab: RoleTab = croissant.get_node(RoleTab.NAME) as RoleTab
+	assert_bool(croissant_tab.is_broken()).is_true()
+	await _frames(1)
+	var twins: Dictionary[RoleTab, RoleTab] = screen._stage.row_strip.labels.tab_twins()
+	assert_bool(twins.has(croissant_tab)).is_true()
+	assert_bool(twins[croissant_tab].is_broken()).is_true()
+	assert_float(twins[croissant_tab].size.x).is_equal(croissant_tab.size.x)
+	assert_str(_item(screen, 0).sticker().summary().wasted()).is_empty()
 	for slot: int in [2, 3, 4]:
 		var sticker: PriceSticker = _item(screen, slot).sticker()
 		assert_bool(sticker.summary().keywords()[0].is_wasted()).is_false()
+		assert_str(sticker.summary().wasted()).override_failure_message(str(slot)).is_empty()
+	var doughnut: RoleTab = _item(screen, 4).sticker().get_node(RoleTab.NAME) as RoleTab
+	assert_bool(doughnut.is_broken()).is_false()
+	# Bread opens the batch and gives nothing: its name plate still labels the batch.
+	_assert_name_label(screen, 0, "BREAD")
 	# The frame draws no tomato over a wrong job's ticket.
 	for paint: int in frame.drawn_paints():
 		assert_that(frame.paint_color(paint as BatchFrame.Paint)).is_not_equal(Palette.TOMATO)
+
+
+## The label strip of the batch starting at `slot` (the play test of 2026-11-19): the item's name
+## plate (`prefix` first) on lane 0, over its ticket and inside its width, a cap after it and no
+## notch.
+func _assert_name_label(screen: ShiftScreen, slot: int, prefix: String) -> void:
+	var layer: PlanningLayer = _layer(screen)
+	var found: RailStrip = null
+	for strip: RailStrip in layer.strips():
+		if strip.spec().giver_slot == slot:
+			found = strip
+	assert_object(found).is_not_null()
+	assert_bool(found.is_visible_in_tree()).is_true()
+	assert_bool(found.spec().targets.is_empty()).is_true()
+	assert_str((found.get_node("Name") as Label).text).starts_with(prefix)
+	var to_global: Transform2D = layer.get_global_transform()
+	var plate: Rect2 = to_global * found.lip_rects()[1]
+	var giver: Rect2 = _ticket(screen, slot)
+	assert_float(plate.position.x).is_greater_equal(giver.position.x)
+	assert_float(plate.end.x).is_less_equal(giver.end.x)
+	assert_float(plate.end.y).is_less_equal(giver.position.y)
+	assert_int(found.lip_rects().size()).is_equal(3)
+	var body: Rect2 = to_global * found.body_rect()
+	assert_bool(body.encloses(plate)).is_true()
+	assert_bool(SCREEN_RECT.encloses(body)).is_true()
 
 
 ## A framed ticket's stuck price label (price leak, 2026-11-10) lies over its frame: the row's
@@ -302,8 +398,8 @@ func test_a_stuck_price_label_lies_over_the_frame() -> void:
 
 
 ## In their places (Croissant first) no job is wrong, and the frame binds the same tickets. The
-## lone Banana closing the row is a CHAIN card out of place (#128's Produce links): its CHAIN chip
-## is wasted, its ticket unframed (the user's play test of 2026-11-03).
+## lone Banana closing the row is a CHAIN card out of place (#128's Produce links): its text is
+## grey, its CHAIN chip calm, its ticket unframed (the user's play test of 2026-11-03).
 func test_the_good_row_has_no_wrong_job() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _place(screen, GOOD_ROW)
@@ -314,8 +410,10 @@ func test_the_good_row_has_no_wrong_job() -> void:
 		var sticker: PriceSticker = _item(screen, slot).sticker()
 		for chip: KeywordChip in sticker.summary().keywords():
 			assert_bool(chip.is_wasted()).is_false()
+		assert_str(sticker.summary().wasted()).override_failure_message(str(slot)).is_empty()
 	var banana: PriceSticker = _item(screen, GOOD_ROW.size() - 1).sticker()
-	assert_bool(banana.summary().keywords()[0].is_wasted()).is_true()
+	assert_bool(banana.summary().keywords()[0].is_wasted()).is_false()
+	assert_str(banana.summary().wasted()).is_equal("WASTED · No Banana beside it")
 	_assert_unframed(banana)
 
 
@@ -403,6 +501,22 @@ func test_two_batches_get_two_frames() -> void:
 	assert_bool(frames[0].frame_rect().intersects(frames[1].frame_rect())).is_false()
 
 
+## A plain batch (Bread, Bread: no job card) gets just the frame, no bookends; the Croissant's
+## batch beside it keeps its caps.
+func test_a_plain_batch_gets_just_the_frame() -> void:
+	var screen: ShiftScreen = await _screen()
+	await _place(screen, ["bread", "bread", "banana", "croissant", "bread"])
+	var frames: Array[BatchFrame] = _layer(screen).frames()
+	assert_int(frames.size()).is_equal(2)
+	assert_array(Array(frames[0].slots)).is_equal([0, 1])
+	assert_array(Array(frames[1].slots)).is_equal([3, 4])
+	for frame: BatchFrame in frames:
+		assert_bool(frame.visible).is_true()
+		_assert_frame_geometry(screen, frame)
+	assert_object(frames[0].bookends()).is_null()
+	assert_object(frames[1].bookends()).is_not_null()
+
+
 ## A batch a link joins across the Banana (Bread, Banana, the old Shelf swap, Croissant: see
 ## test_a_link_that_skips_products_splits_the_frame) gets a frame round each of its own tickets,
 ## none round the Banana or the coupon; hovering the Croissant's chip lights both.
@@ -448,13 +562,23 @@ func test_hovering_a_batch_chip_lights_its_frame() -> void:
 	await _frames(1)
 	assert_bool(chip.is_lit()).is_false()
 	assert_bool(frame.is_lit()).is_false()
-	var wrong: KeywordChip = _item(screen, 1).sticker().summary().keywords()[0]
+	# A wrong job's chip stays the keyword's (2026-11-19); its ticket's tip gives the reason.
+	var croissant: PriceSticker = _item(screen, 1).sticker()
+	var wrong: KeywordChip = croissant.summary().keywords()[0]
 	tips.point_at(wrong.get_global_rect().get_center())
 	tips.show_tip(wrong)
 	await _frames(1)
-	assert_str(tips.tip().tip_text()).is_equal("WASTED · Not first in its Bakery batch")
+	assert_str(tips.tip().tip_text()).is_equal(GlyphText.keyword_tip(CardText.BATCH_WORD))
 	assert_bool(frame.is_lit()).is_true()
-	assert_that(wrong.face_color()).is_equal(Palette.TOMATO)
+	assert_that(wrong.face_color()).is_equal(Palette.MUSTARD)
+	tips.hide_tip()
+	await _frames(1)
+	var spot: TipTarget = croissant.get_node(PriceSticker.COLOUR_SPOT_NAME) as TipTarget
+	tips.point_at(spot.get_global_rect().get_center())
+	tips.show_tip(spot)
+	await _frames(1)
+	assert_str(tips.tip().tip_text()).contains("Not first in its Bakery batch")
+	assert_bool(SCREEN_RECT.encloses(tips.tip().get_global_rect())).is_true()
 	tips.hide_tip()
 
 
@@ -513,8 +637,9 @@ func test_the_count_keeps_the_frame_and_no_wrong_job() -> void:
 	assert_bool(frames[0].visible).is_true()
 	for view: CardView in screen._row_views:
 		var sticker: PriceSticker = (view as ItemView).sticker()
-		for chip: KeywordChip in sticker.summary().keywords():
-			assert_bool(chip.is_wasted()).is_false()
+		assert_str(sticker.summary().wasted()).is_empty()
+		var tab: RoleTab = sticker.get_node_or_null(RoleTab.NAME) as RoleTab
+		assert_bool(tab != null and tab.is_broken()).is_false()
 	# As the first items go into the bag, the frame binds the batch's tickets left on the belt.
 	var layer: PlanningLayer = _layer(screen)
 	while screen._counting and not screen._ride.is_bagged(1):

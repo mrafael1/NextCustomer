@@ -4,13 +4,13 @@
 [ext_resource type="Script" path="res://core/rules/batch_role_rule.gd" id="2_baguette"]
 [ext_resource type="Script" path="res://core/card_definition.gd" id="3_card"]
 [ext_resource type="Resource" path="res://data/cards/baguette.tres" id="9_plain"]
+[ext_resource type="Resource" path="res://data/rules/bakery_batch_size.tres" id="99_batch_size"]
 
 [sub_resource type="Resource" id="Resource_baguette"]
 script = ExtResource("2_baguette")
 tag = "Bakery"
 role = 2
 bonus = 8
-max_count = 2
 receipt_text = "Baguette fills batch"
 
 [resource]
@@ -20,8 +20,9 @@ display_name = "Golden baguette"
 kind = 1
 tags = PackedStringArray("Food", "Bakery")
 base = 4
+batch_bonus = ExtResource("99_batch_size")
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_baguette")])
-rule_text = "+8€ for each earlier item in its BATCH (max 2)"
+rule_text = "+8€ for each item in its BATCH, itself included"
 art_ref = "res://art/items_v2/baguette_golden.png"
 variant_of = ExtResource("9_plain")
 tier = 2

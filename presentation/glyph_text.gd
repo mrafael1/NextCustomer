@@ -15,7 +15,12 @@ extends RefCounted
 ## A keyword (#128: CardText.BATCH_WORD, CHAIN_WORD and WASTED_WORD, from a template's `{batch}`,
 ## `{chain}` or `{wasted}`) is a keyword run, {"text": word, "family": "", "keyword": word}, that
 ## a label draws as a boxed chip with its tooltip (KEYWORD_TIPS). It is glued to the plain word
-## after it ("BATCH 1st:" wraps as one piece), so a chip never ends a line alone.
+## after it ("BATCH of" wraps as one piece), so a chip never ends a line alone.
+##
+## A batch role's word (#128 batch polish: CardText.FIRST_WORD and LAST_WORD, from a template's
+## `{first}` or `{last}`) is a role run, {"text": word, "family": "", "role": family}: text a label
+## draws in its family's colour (ROLE_WORDS), glued to the plain word after it like a keyword
+## ("FIRST in" wraps as one piece).
 
 ## Punctuation that may follow a family's name (or a keyword) and stays text after its glyph (or
 ## chip); the ellipsis of a line the monitor cuts short (MonitorItemColumn) too.
@@ -28,8 +33,8 @@ const TRAILING := ",.:;!?)…"
 const KEYWORD_TIPS: Dictionary[String, String] = {
 	CardText.BATCH_WORD:
 	(
-		"Put Bakery items side by side to make a BATCH. Some cards care about their spot in it: "
-		+ "Croissant first, Stale doughnut last."
+		"Put Bakery items side by side to make a BATCH: the bigger it is, the more each item "
+		+ "earns. Some cards care about their spot in it: Croissant first, Stale doughnut last."
 	),
 	CardText.CHAIN_WORD:
 	(
@@ -48,6 +53,12 @@ const KEYWORD_TIPS: Dictionary[String, String] = {
 	),
 }
 
+## Each batch role's word and the family whose colour it is drawn in.
+const ROLE_WORDS: Dictionary[String, String] = {
+	CardText.FIRST_WORD: "Bakery",
+	CardText.LAST_WORD: "Bakery",
+}
+
 
 ## The text's unbreakable pieces, in order, each an Array of runs; a line may break between
 ## two pieces (where the text had a space). A glued piece's text run ends with its space ("next
@@ -64,6 +75,13 @@ static func pieces(text: String, palette: FamilyPalette, live: Dictionary = {}) 
 			if stem.length() < word.length():
 				keyword.append(text_run(word.substr(stem.length())))
 			found.append(keyword)
+			after_keyword = stem.length() == word.length()
+			continue
+		if ROLE_WORDS.has(stem):
+			var role: Array = [role_run(stem)]
+			if stem.length() < word.length():
+				role.append(text_run(word.substr(stem.length())))
+			found.append(role)
 			after_keyword = stem.length() == word.length()
 			continue
 		var family: String = palette.family_for_word(stem) if not stem.is_empty() else ""
@@ -142,6 +160,29 @@ static func keyword_run(word: String, tip: String = "") -> Dictionary:
 	return {"text": word, "family": "", "keyword": word}
 
 
+## A role run for `word` (a ROLE_WORDS key), text drawn in its family's colour.
+static func role_run(word: String) -> Dictionary:
+	return {"text": word, "family": "", "role": str(ROLE_WORDS.get(word, ""))}
+
+
+## The family whose colour a role run is drawn in, or "" for any other run.
+static func role_family(run: Dictionary) -> String:
+	return str(run.get("role", ""))
+
+
+static func is_role(run: Dictionary) -> bool:
+	return run.has("role")
+
+
+## The role words the text colours, in order (repeats kept).
+static func roles(text: String, palette: FamilyPalette) -> PackedStringArray:
+	var found: PackedStringArray = PackedStringArray()
+	for run: Dictionary in runs(text, palette):
+		if is_role(run):
+			found.append(str(run["text"]))
+	return found
+
+
 ## A keyword run's tooltip: a live word's own (keyword_run's `tip`), else keyword_tip's.
 static func run_tip(run: Dictionary) -> String:
 	if run.has("tip"):
@@ -177,7 +218,8 @@ static func _is_plain(found: Array[Array]) -> bool:
 	if found.is_empty():
 		return false
 	var last: Array = found[found.size() - 1]
-	return last.size() == 1 and is_text(last[0] as Dictionary)
+	var run: Dictionary = last[0] if last.size() == 1 else {}
+	return last.size() == 1 and is_text(run) and not is_role(run)
 
 
 static func _pop_text(found: Array[Array]) -> String:
@@ -186,7 +228,13 @@ static func _pop_text(found: Array[Array]) -> String:
 
 
 static func _append(found: Array[Dictionary], run: Dictionary) -> void:
-	if not found.is_empty() and is_text(run) and is_text(found[found.size() - 1]):
+	var last: Dictionary = found[found.size() - 1] if not found.is_empty() else {}
+	if not found.is_empty() and _merges(run) and _merges(last):
 		found[found.size() - 1] = text_run(str(found[found.size() - 1]["text"]) + str(run["text"]))
 	else:
 		found.append(run)
+
+
+## Whether a run is plain text that merges with its plain neighbours (a role run keeps apart).
+static func _merges(run: Dictionary) -> bool:
+	return is_text(run) and not is_role(run)

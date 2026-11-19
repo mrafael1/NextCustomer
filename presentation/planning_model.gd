@@ -26,12 +26,16 @@ const STRIP_KINDS: Array[EffectLink.Kind] = [
 var graph: EffectGraph
 ## One per slot of the row, in slot order.
 var slots: Array[PlanningSlot] = []
-## One per giver slot with cross-item links, in giver order, with lanes assigned.
+## One per giver slot with cross-item links, plus a label strip (no targets) at each framed batch's
+## first item that gives nothing (_add_batch_labels), in giver order, with lanes assigned.
 var strips: Array[RailStripSpec] = []
 ## The batches the belt frames while planning (#128, the Bound strip): the score's batches
-## (ScoreResult.batches, each in slot order) that hold a batch card (CardText.names_batch: a
-## Bakery job card); a batch of plain Bakery only (Bread, Bread) is not framed.
+## (ScoreResult.batches, each in slot order, the scoring's own membership) that hold a batch card
+## (CardText.names_batch: a Bakery job card) or earn a size bonus (ScoreResult.batch_bonuses: a
+## plain batch, Bread, Bread, since the size bonus of 2026-11-19).
 var batches: Array[PackedInt32Array] = []
+## The framed batches that hold no batch card (a plain batch): framed with no bookends.
+var plain_batches: Array[PackedInt32Array] = []
 ## The belt's batch frames (#128): each framed batch split into runs (runs_of) where a product
 ## outside it sits between two of its products (a coupon's link that skips products), each run
 ## one frame round its tickets; run_batch holds each run's index in `batches`.
@@ -39,8 +43,8 @@ var runs: Array[PackedInt32Array] = []
 var run_batch: PackedInt32Array = PackedInt32Array()
 ## The framed batches' job cards and what the score says of them (the BATCH bookends, 2026-11-12,
 ## the approved batch_positions mock-up's A): each job card's slot with its role
-## (BatchRoleRule.Role, its place in the batch: first, earlier items, last, or the last's glaze); a
-## working Baguette's earlier items counted (its own bonus step over its rule's bonus); and each
+## (BatchRoleRule.Role, its place in the batch: first, any place, last, or the last's glaze); a
+## working Baguette's batch items counted (its own bonus step over its rule's bonus); and each
 ## batch's last item a glaze multiplies, with the factor (its MULTIPLIER step's value).
 var batch_roles: Dictionary[int, int] = {}
 var batch_counts: Dictionary[int, int] = {}
@@ -83,8 +87,12 @@ static func build(
 	for card: CardDefinition in row:
 		names.append(card.display_name)
 	model.strips = _strips(model.graph, names)
-	assign_lanes(model.strips)
 	model.batches = framed_batches(result, row)
+	for batch: PackedInt32Array in model.batches:
+		if not holds_batch_card(batch, row):
+			model.plain_batches.append(batch)
+	_add_batch_labels(model, names)
+	assign_lanes(model.strips)
 	for index: int in range(model.batches.size()):
 		for run: PackedInt32Array in runs_of(model.batches[index], row):
 			model.runs.append(run)
@@ -126,19 +134,27 @@ static func written_off(result: ScoreResult, slot: int) -> bool:
 
 
 ## The batches of `result` (for `row`, the cards in slot order) the belt frames (#128): each
-## that holds a batch card (CardText.names_batch).
+## that holds a batch card (CardText.names_batch) or earns a size bonus (a plain batch).
 static func framed_batches(
 	result: ScoreResult, row: Array[CardDefinition]
 ) -> Array[PackedInt32Array]:
 	var framed: Array[PackedInt32Array] = []
 	if result == null:
 		return framed
-	for batch: PackedInt32Array in result.batches:
-		for slot: int in batch:
-			if slot < row.size() and CardText.names_batch(row[slot]):
-				framed.append(batch)
-				break
+	for index: int in range(result.batches.size()):
+		var batch: PackedInt32Array = result.batches[index]
+		var bonus: int = result.batch_bonuses[index] if index < result.batch_bonuses.size() else 0
+		if bonus > 0 or holds_batch_card(batch, row):
+			framed.append(batch)
 	return framed
+
+
+## Whether `batch` holds a batch card (CardText.names_batch; `row` the cards in slot order).
+static func holds_batch_card(batch: PackedInt32Array, row: Array[CardDefinition]) -> bool:
+	for slot: int in batch:
+		if slot < row.size() and CardText.names_batch(row[slot]):
+			return true
+	return false
 
 
 ## The job card's batch rule of `card` (a BatchRoleRule with a role), or null.
@@ -171,7 +187,9 @@ static func _add_batch_readers(
 			step.step_type == ScoreStep.StepType.FLAT
 			and role == BatchRoleRule.Role.BODY
 			and step.slot == giver
+			and step.batch_size == 0
 		):
+			# Its own count's step, not the batch's size bonus (#128 batch polish).
 			var bonus: int = batch_role_rule(row[giver]).bonus
 			if bonus > 0:
 				model.batch_counts[giver] = floori(float(step.value) / bonus)
@@ -198,12 +216,13 @@ static func runs_of(batch: PackedInt32Array, row: Array[CardDefinition]) -> Arra
 	return found
 
 
-## The wrong job's tooltip of `card` at `slot` in `result` (#128): a batch or chain card (its
-## template names BATCH or CHAIN) whose own rule has a WASTED step there (its line did nothing at
-## its place: "WASTED · Not first in its Bakery batch", "WASTED · No CHAIN right after it"), else
-## "". A row-wide upgrade's or an event's waste is not the card's.
-static func wrong_job(result: ScoreResult, slot: int, card: CardDefinition) -> String:
-	if result == null or not (CardText.names_batch(card) or CardText.names_chain(card)):
+## The wrong job's tooltip of `card` at `slot` in `result` (#128; every card since the play test
+## of 2026-11-19): its own rule has a WASTED step there (its effect did nothing at its place:
+## "WASTED · Not first in its Bakery batch", "WASTED · No CHAIN right after it"), else "". A
+## row-wide upgrade's or an event's waste is not the card's. Only the score's steps decide it: an
+## effect that landed (an Iced bun's ×2 on a Croissant closing its batch) is no wrong job.
+static func wrong_job(result: ScoreResult, slot: int, _card: CardDefinition) -> String:
+	if result == null:
 		return ""
 	for step: ScoreStep in result.steps:
 		if (
@@ -474,6 +493,27 @@ static func _strips(effects: EffectGraph, names: PackedStringArray) -> Array[Rai
 	for giver: int in givers:
 		found.append(_strip(giver, names[giver], by_giver[giver]))
 	return found
+
+
+## Gives every framed batch its name plate on the rail (the play test of 2026-11-19: it went with
+## a misplaced opener): a batch whose first item gives nothing gets a label strip (a RailStripSpec
+## with no targets) at that item, named after it, in giver order with the others.
+static func _add_batch_labels(model: PlanningModel, names: PackedStringArray) -> void:
+	var givers: PackedInt32Array = PackedInt32Array()
+	for spec: RailStripSpec in model.strips:
+		givers.append(spec.giver_slot)
+	for batch: PackedInt32Array in model.batches:
+		var first: int = batch[0] if not batch.is_empty() else -1
+		if first < 0 or first >= names.size() or givers.has(first):
+			continue
+		var label: RailStripSpec = RailStripSpec.new()
+		label.giver_slot = first
+		label.name = names[first].to_upper()
+		model.strips.append(label)
+		givers.append(first)
+	model.strips.sort_custom(
+		func(a: RailStripSpec, b: RailStripSpec) -> bool: return a.giver_slot < b.giver_slot
+	)
 
 
 static func _strip(giver: int, display_name: String, links: Array) -> RailStripSpec:

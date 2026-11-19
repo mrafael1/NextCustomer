@@ -304,14 +304,21 @@ func test_the_mock_ups_worked_examples() -> void:
 ## the cap each job card lights (Croissant FIRST; Stale doughnut and Iced bun LAST, the icing
 ## drip; Baguette the foot band), the gold caps under a lit BATCH chip, a WASTED cap and a
 ## Shelf swap's split frame capping only the batch's real ends; its tooltip stays the first
-## paragraph. The Bakery page names the caps too.
+## paragraph. The Bakery page names the caps too. Its second paragraph gives the size bonus
+## (#128 batch polish): the data's numbers, plain Bread counting, its receipt line.
 func test_the_batch_page_teaches_the_bookends() -> void:
 	var book: HandbookBook = _book()
 	var batch: HandbookEntry = book.entry_for_keyword(CardText.BATCH_WORD)
 	var paragraphs: PackedStringArray = batch.rule.split(HandbookEntry.PARAGRAPH)
-	assert_int(paragraphs.size()).is_equal(3)
+	assert_int(paragraphs.size()).is_equal(4)
 	assert_str(batch.tip_rule()).is_equal(paragraphs[0])
-	var caps: String = paragraphs[1]
+	var size_rule: BatchSizeBonusRule = load("res://data/rules/bakery_batch_size.tres")
+	for size: int in [2, 3, 4]:
+		var words: String = "+%d€ in a batch of %d" % [size_rule.bonus_for(size), size]
+		assert_str(paragraphs[1]).override_failure_message(words).contains(words)
+	assert_str(paragraphs[1]).contains("{item:bread} counts too")
+	assert_str(paragraphs[1]).contains(size_rule.text_for_size(3))
+	var caps: String = paragraphs[2]
 	for words: String in [
 		"FIRST on its left end",
 		"LAST on its right end",
@@ -322,7 +329,7 @@ func test_the_batch_page_teaches_the_bookends() -> void:
 		"{item:baguette} fills the frame's foot",
 	]:
 		assert_str(caps).override_failure_message(words).contains(words)
-	var looks: String = paragraphs[2]
+	var looks: String = paragraphs[3]
 	for words: String in [
 		"{kw:BATCH} chip turns both caps gold",
 		"{kw:WASTED} card turns its cap red when you hover it",
