@@ -3,7 +3,7 @@ extends TipTarget
 ## A keyword on a sticker line (#128, the approved Bound strip mock-up): the word ("BATCH") boxed
 ## in the display font as hard pixels (ArtStyle.pixel_display_font at its native PIXEL_TEXT_SIZE),
 ## ink on paper in a BORDER px ink box with its corner pixels cut. One chip style everywhere (main
-## scene v2, 2026-11-08): a keyword of a family (KEYWORD_FAMILIES: MORNING the Breakfast's, BATCH
+## scene v2, 2026-11-08): a keyword of a family (KEYWORD_FAMILIES: BATCH
 ## the Bakery's, CHAIN the Produce's, PAIR the Dairy's, WASTED the Clearance's) carries a round dot
 ## in that family's colour (its FamilyStyle face, data/families) after the left border, the word
 ## after it (FamilyWord's chips are drawn the same way).
@@ -52,7 +52,6 @@ const KEYWORD_FAMILIES: Dictionary[String, String] = {
 	CardText.CHAIN_WORD: "Produce",
 	CardText.WASTED_WORD: "Clearance",
 	CardText.PAIR_WORD: "Dairy",
-	CardText.MORNING_WORD: "Breakfast",
 }
 ## Where the families' colours live (FamilyPalette.PATH, data/families).
 const PALETTE_PATH := "res://data/families/family_palette.tres"

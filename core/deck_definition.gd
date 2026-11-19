@@ -44,7 +44,7 @@ extends Resource
 ## Whether a run of this recipe opens with the opening-time setup (full build plan 7.2, v1.32's
 ## aisle boosters): the run waits in CHOOSE_START for OPEN STORE, its products (up to
 ## `random_count`) dealt by its aisle boosters (StartSetupRules). The starter packs (#107) were
-## removed in v1.41 (2026-11-18): the cart is the regulars and the boosters.
+## removed in v1.45 (2026-11-18): the cart is the regulars and the boosters.
 @export var opening_time: bool = false
 ## An upgrade the run owns from the start (optional): offers skip it, and it takes a box of its
 ## own on the loyalty card before the upgrade-shift boxes.

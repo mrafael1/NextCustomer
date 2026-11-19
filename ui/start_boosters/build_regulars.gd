@@ -1,6 +1,6 @@
 class_name BuildRegulars
 extends RefCounted
-## YOUR BUILD's REGULARS crate (v1.41, the user's decision of 2026-11-19): the regulars in their
+## YOUR BUILD's REGULARS crate (v1.45, the user's decision of 2026-11-19): the regulars in their
 ## crate in front of the staff room's lockers, each item with its families' glyphs, the SWAP key
 ## (once the profile has unlocked the swap: StartSetupRules.swap_limit; it opens the swap window
 ## over the page, StartBoard.open_swap; since round 2 of the 2026-11-19 play test branded with two
@@ -120,7 +120,7 @@ static func draw(pen: ArtPen, page: BuildPage) -> void:
 			pen.r(gx + gw - 1, gy, 1, gh, Palette.GOLD)
 
 
-## The wall shelf the crate stands on (v1.41 polish, the 2026-11-19 play test: the crate floated):
+## The wall shelf the crate stands on (v1.45 polish, the 2026-11-19 play test: the crate floated):
 ## a plank on two steel brackets bolted to the lockers, the crate's cast shadow on the lockers
 ## (light from the upper left) and its contact shadow on the plank's top.
 static func _shelf(pen: ArtPen, x: float, w: float) -> void:

@@ -1,6 +1,6 @@
 class_name AisleRename
 extends RefCounted
-## The aisle ids that changed (v1.40: the Cold cases aisle became the Dairy aisle, and Frozen
+## The aisle ids that changed (v1.44: the Cold cases aisle became the Dairy aisle, and Frozen
 ## peas moved to Fruit & veg as a capsule item): a save from before reads with its old ids
 ## renamed (RunSave before version 18, ProfileState before version 8). Pure: plain data only.
 

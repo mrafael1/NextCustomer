@@ -108,7 +108,7 @@ func test_stock_numbers_match_the_plan() -> void:
 ## The 6 aisles (issues #34 and #35, decided with the user): the 3 base aisles hold 4/5/4
 ## products open from the start, 13 in all, within the stock budget, so a new profile stocks every
 ## one and skips the list; their machines add 2/2/3 capsules. The 3 machine-opened aisles hold
-## 9/8/7 capsules and no base products (v1.40, the Dairy aisle: Frozen peas left the base
+## 9/8/7 capsules and no base products (v1.44, the Dairy aisle: Frozen peas left the base
 ## products of the former Cold cases aisle for Fruit & veg's capsules). Each capsule list starts
 ## with its key item: Cream, Sugar cubes, Egg timer, Fruit salad, Baguette, Crisps.
 func test_the_aisles_hold_the_agreed_products() -> void:

@@ -15,7 +15,7 @@ func before_test() -> void:
 
 
 ## Below restock_min_completed completed aisles there's no RESTOCK; a new player has no swap.
-## Each opens at its count. Every count deals two boosters (no third since v1.42).
+## Each opens at its count. Every count deals two boosters (no third since v1.46).
 func test_the_controls_unlock_with_completed_aisles() -> void:
 	var restock_min: int = _balance.restock_min_completed
 	assert_int(restock_min).is_equal(3)

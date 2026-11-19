@@ -3,10 +3,12 @@ extends RefCounted
 ## The screen capture's guided first run (the tutorial, WP-8): `--tutorial=<step id>[,<option>]`
 ## starts the guided run on a fresh profile (the title's START RUN), plays it through the real
 ## calls (the boards' own clocks stepped, shift 1's moves through the screen's handlers, the
-## machine's chute and SKIP) up to that step (G2..G14, or a free planning moment: HINT, the first
-## hint's bubble; SILVER, the medal hint over the best row; RETRY and ANSWER, the lines after one
-## and two missed rehearsals; GHOSTS, the answer's ghosts with two items laid), and captures it
-## once it has settled.
+## machine's chute and SKIP) up to that step (a guided step's id, or a free planning moment: HINT,
+## the first hint's bubble; RETRY and ANSWER, the lines after one and two missed rehearsals;
+## GHOSTS, the answer's ghosts with two items laid), and captures it once it has settled. The
+## week 1 strip's moments (v1.40): PLAN1 (shift 1's free planning, three items laid), COUNT1
+## (shift 1's count as its TOTAL lands), MACHINE1 (the first visit, its keys armed) and WEEK2
+## (the guided part played through, then shift 5's planning).
 ## Options: rm (reduced motion: no pulse, no fade), t=<seconds> (wait that long once the
 ## step shows; default SETTLE_S). The file name gets tutorial_<id>_[rm_]. Kept out of
 ## ScreenCapture so it stays under gdlint's file length; it drives game-side public parts and
@@ -22,12 +24,18 @@ const STEP_LIMIT_MS := 20000
 const SETTLE_S := 0.6
 ## The free planning's moments reached in one move, and what _until_shown returns when the
 ## free planning takes input.
-const FREE_TARGETS: Array[StringName] = [&"HINT", &"SILVER"]
+const FREE_TARGETS: Array[StringName] = [&"HINT", &"PLAN1", &"COUNT1"]
 const FREE := &"FREE"
-## Hand places (TutorialScript.hand): a missing row (Eggs last, 29€), the answer, the best row.
+## The week 1 strip's moments past the free planning, and WEEK2's shift (its index).
+const MACHINE1 := &"MACHINE1"
+const WEEK2 := &"WEEK2"
+const WEEK2_SHIFT := 4
+## Frames the armed machine (or the opening board, its page done) waits with no line before its
+## own move is made.
+const QUIET_FRAMES := 30
+## Hand places (TutorialScript.hand): a missing row (Eggs last, 29€) and the answer.
 const WRONG: Array[int] = [0, 4, 1, 2, 5, 7, 3]
 const ANSWER: Array[int] = [0, 4, 1, 3, 2, 5, 7]
-const BEST: Array[int] = [4, 5, 3, 6, 2, 0, 1]
 
 
 ## Plays the guided run up to the step `spec` names; returns the file name part ("" when the step
@@ -51,8 +59,10 @@ static func play(screen: ShiftScreen, spec: String) -> String:
 	for _guard: int in 40:
 		var shown: StringName = await _until_shown(screen)
 		if shown == &"":
+			reached = target == WEEK2 and _week_two(screen)
 			break
-		if shown == target:
+		var choosing: bool = screen.run.phase == RunState.Phase.MACHINE_CHOOSE
+		if shown == target or (target == MACHINE1 and choosing and screen._machine.is_open()):
 			reached = true
 			break
 		if shown == FREE:
@@ -73,6 +83,7 @@ static func play(screen: ShiftScreen, spec: String) -> String:
 ## Waits until the director shows a step; its id (&"": none showed in time).
 static func _until_shown(screen: ShiftScreen) -> StringName:
 	var start: int = Time.get_ticks_msec()
+	var quiet: int = 0
 	while Time.get_ticks_msec() - start < STEP_LIMIT_MS:
 		var director: TutorialDirector = screen.tutorial
 		if not director.is_active():
@@ -81,6 +92,10 @@ static func _until_shown(screen: ShiftScreen) -> StringName:
 			for _frame: int in 3:
 				await screen.get_tree().process_frame
 			return director.line_id()
+		var waits: StringName = _own_move(screen)
+		quiet = quiet + 1 if not waits.is_empty() else 0
+		if quiet > QUIET_FRAMES:  # No line here (the machine, a board page done): its own move.
+			return waits
 		var input: bool = not screen._busy() and not screen._redraw_busy
 		var planning: bool = screen.run.phase == RunState.Phase.PLANNING and input
 		var step: TutorialStep = TutorialScript.guided().step(director.step_id())
@@ -94,35 +109,59 @@ static func _until_shown(screen: ShiftScreen) -> StringName:
 	return &""
 
 
-## The player's move on step `id` (the one the step asks for).
+## The move a screen with no line waits for (&"": none): the armed machine's phase's, the opening
+## board's NEXT once its boosters are open and OPEN STORE on the build page (no pack, v1.45).
+static func _own_move(screen: ShiftScreen) -> StringName:
+	var machine: MachineFlow = screen._machine
+	if machine.is_open() and machine.view.is_armed():
+		var choosing: bool = screen.run.phase == RunState.Phase.MACHINE_CHOOSE
+		return TutorialEvents.CHUTE_CHOSEN if choosing else TutorialEvents.MACHINE_RETURNED
+	var board: StartBoard = screen._cart_reveal.board if screen._cart_reveal.is_open() else null
+	if board == null or board.tips_blocked():
+		return &""
+	if board.page == 1 and board.store.page_done():
+		return TutorialEvents.PAGE_SHOWN
+	if board.page == 2:
+		return TutorialEvents.STORE_OPENED
+	return &""
+
+
+## The player's move on step `id`: the one its `advance_on` waits for (a machine phase's own when
+## no line shows there), else its key.
 static func _act(screen: ShiftScreen, id: StringName) -> void:
 	var board: StartBoard = screen._cart_reveal.board if screen._cart_reveal.is_open() else null
-	match id:
-		&"G4":
+	var step: TutorialStep = TutorialScript.guided().step(id)
+	var waits: StringName = step.advance_on if step != null else id
+	match waits:
+		TutorialEvents.PAGE_SHOWN:
 			board.store.primary()
-		&"G6":
+		TutorialEvents.STORE_OPENED:
 			board.staff.primary()
-		&"G11":
+		TutorialEvents.CHUTE_CHOSEN:
 			screen._machine._choose(RewardMachine.Chute.NEW_ITEMS)
 			screen._machine.view.fast_forward()
-		&"G12":
+		TutorialEvents.MACHINE_RETURNED:
 			await _skip_prizes(screen)
 		_:
 			_press(screen)
 	await screen.get_tree().process_frame
 
 
-## The free planning's move toward `target`: whether the target now shows. HINT: Eggs laid;
-## SILVER: the best row's first five; GHOSTS: two answer items laid (the ANSWER line read);
+## The free planning's move toward `target`: whether the target now shows. HINT: the answer's
+## first five laid (a rule works); GHOSTS: two answer items laid (the ANSWER line read);
 ## before RETRY, ANSWER or GHOSTS a missing row checked out; after them, the answer checked out
 ## (the run goes on).
 static func _free(screen: ShiftScreen, target: StringName) -> bool:
 	match target:
 		&"HINT":
-			_place(screen, 3, 0)
+			_lay(screen, ANSWER.slice(0, 5))
 			return true
-		&"SILVER":
-			_lay(screen, BEST.slice(0, 5))  # Milk ×4 reaches SILVER: its hint the last one.
+		&"PLAN1":
+			_lay(screen, ANSWER.slice(0, 3))
+			return true
+		&"COUNT1":
+			_lay(screen, ANSWER)
+			await _count_to_total(screen)
 			return true
 	var misses: int = screen.tutorial.misses()
 	if target == &"GHOSTS" and misses >= TutorialScript.ANSWER_AFTER:
@@ -135,6 +174,26 @@ static func _free(screen: ShiftScreen, target: StringName) -> bool:
 	_lay(screen, WRONG if wants_miss else ANSWER)
 	await _checkout(screen)
 	return false
+
+
+## CHECKOUT, the count played at its own pace until its TOTAL line lands.
+static func _count_to_total(screen: ShiftScreen) -> void:
+	var landed: Array[bool] = [false]
+	screen._count_up.total_landed.connect(func() -> void: landed[0] = true, CONNECT_ONE_SHOT)
+	screen._on_checkout_pressed()
+	var start: int = Time.get_ticks_msec()
+	while not landed[0] and Time.get_ticks_msec() - start < 3 * STEP_LIMIT_MS:
+		await screen.get_tree().process_frame
+
+
+## WEEK2: the guided part is over; the run jumps to week 2's first planning (no time card).
+static func _week_two(screen: ShiftScreen) -> bool:
+	if screen.run.phase != RunState.Phase.PLANNING:
+		return false
+	screen.run.debug_skip_to_shift(WEEK2_SHIFT)
+	screen.debug_show_shift()
+	screen._week.skip()
+	return true
 
 
 ## Empties the row, then lays hand places `places` left to right.

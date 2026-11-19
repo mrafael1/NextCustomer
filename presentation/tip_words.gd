@@ -2,7 +2,7 @@ class_name TipWords
 extends RefCounted
 ## The boxes a hover tip shows beside it (the hover tips revamp, mock-up
 ## docs/art/mockups/hover_tips.html, its SUB boxes; approved 2026-11-13): a keyword's (a mechanic:
-## PAIR, CHAIN, BATCH, MORNING, WASTED; its rule is the handbook's, GlyphText.keyword_tip, so the
+## PAIR, CHAIN, BATCH, WASTED; its rule is the handbook's, GlyphText.keyword_tip, so the
 ## box, the chip and the handbook say the same thing) or a plain word's (WORDS: THE ROW, SLOT,
 ## QUOTA, COUPON, FAMILY, PREMIUM), each a TipSpec (KEYWORD or WORD kind, no footer). The dominant
 ## terms (2026-11-13): QUOTA for the € a shift needs, SHIFT for the turn.
@@ -77,7 +77,8 @@ const WORDS: Dictionary[String, Array] = {
 		"A shift that didn't meet its quota: no prizes. After training week, one miss ends the run."
 	],
 	"EXTRA DRAW": ["EXTRA DRAW", "One more prize draw at the machine."],
-	"MEDALS": ["MEDALS", "SILVER and GOLD, for paying the quota a few times over in one shift."],
+	"MEDALS":
+	["MEDALS", "+1 DRAW and PREMIUM, for paying the quota a few times over in one shift."],
 	"LOYALTY PERKS":
 	[
 		"LOYALTY PERKS",

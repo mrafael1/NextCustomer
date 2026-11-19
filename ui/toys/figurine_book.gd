@@ -64,7 +64,7 @@ signal back_pressed
 const STAGE := Vector2(1280, 720)
 const PER_PAGE := BookArt.COLUMNS * BookArt.ROWS
 const PER_SPREAD := PER_PAGE * 2
-const TITLE_TEXT := "FIGURINE BOOK"
+const TITLE_TEXT := "COLLECTION"
 ## The count LED's noun (polish batch 2: the toy screen's word, one noun for the collection).
 const FIGURINES_TEXT := "FIGURINES"
 const NEW_TEXT := "NEW"
@@ -347,7 +347,12 @@ func leds() -> Array[ToyLed]:
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
-	var key: InputEventKey = event as InputEventKey
+	handle_key(event as InputEventKey)
+
+
+## Acts on `key` as the book's keys say (the handbook's COLLECTION passes it every key first);
+## takes every pressed key while the book shows.
+func handle_key(key: InputEventKey) -> void:
 	if not is_visible_in_tree() or key == null or not key.pressed:
 		return
 	get_viewport().set_input_as_handled()

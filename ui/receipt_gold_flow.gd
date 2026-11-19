@@ -24,6 +24,10 @@ extends Node
 ## planning, a medal the projection would spend makes the paper's edges glow in its metal and the
 ## PROJECTED number take it (show_pending; gold over silver), quiet again when the projection
 ## drops back (at CHECKOUT). Reduced motion switches at once, with no flight.
+##
+## Prize tags (v1.40, the user's verdict of 2026-11-18 on mock-up medal_prizes.html): as the paper
+## turns for a medal, its wipe reaching the foot staples that medal's prize tag there
+## (ReceiptGold.tags: "+1 DRAW", "PREMIUM"); outside a count the tags are the shift's record's.
 
 var flight: MedalFlight
 var _count_up: CountUp
@@ -92,6 +96,7 @@ func refresh(run: RunState, counting: bool, reduced_motion: bool) -> void:
 	var reached: Array[bool] = spent(run)
 	_receipt.gold.show_gold(reached[1], true)
 	_receipt.gold.show_silver(reached[0] and not reached[1], true)
+	_receipt.gold.tags.show_tags(reached[0], reached[1])
 
 
 ## Planning's projection would spend the SILVER (`silver`) and the GOLD (`gold`): the paper's edges
@@ -140,12 +145,13 @@ func settle(silver: bool, gold: bool) -> void:
 	flight.finish()
 	_receipt.gold.show_silver(silver, true)
 	_receipt.gold.show_gold(gold, true)
+	_receipt.gold.tags.show_tags(silver, gold)
 
 
 ## Whether a spent medal is still flying or its metal still wiping on.
 func is_turning() -> bool:
 	var metal: ReceiptGold = _receipt.gold
-	if _turning > 0 or flight.is_flying():
+	if _turning > 0 or flight.is_flying() or metal.tags.is_popping():
 		return true
 	return (
 		(metal.is_silver() and metal.silver_amount() < 1.0)
@@ -165,9 +171,11 @@ func _turn(gold: bool, instant: bool) -> void:
 	var metal: ReceiptGold = _receipt.gold
 	if not gold:
 		metal.show_silver(true, instant)
+		metal.tags.staple(false, instant, ReceiptGold.WIPE_SECONDS)
 		_turning -= 1
 		return
 	if not instant and metal.is_silver() and metal.silver_amount() < 1.0 and is_inside_tree():
 		await get_tree().create_timer(ReceiptGold.WIPE_SECONDS, false).timeout
 	metal.show_gold(true, instant)
+	metal.tags.staple(true, instant, ReceiptGold.WIPE_SECONDS)
 	_turning -= 1

@@ -40,6 +40,19 @@ extends RefCounted
 ## flashes and goes dark (lamp_out .. lamp_out_end), and a later draw (`draw_index` 1 on; a BONUS
 ## plan, the OVERTIME draw shown as one) opens on AGAIN! (0 .. read_end) while the bay refills: no
 ## ticket ever goes into the machine.
+##
+## Prize tags (v1.40, the user's verdict of 2026-11-18 on mock-up
+## docs/art/mockups/medal_prizes.html): the receipt arrives over the slot with the tags its
+## checkout won stapled to its foot (ReceiptPrizeTags), and they come off before it is fed (the
+## TICKET visit only). The +1 DRAW tag (`tag_draw`: the SILVER medal's draw is among `draws`) pops
+## off and flies onto the reader plate (tag_draw_at .. tag_draw_end), where it becomes the extra
+## draw lamp: the plate shows one lamp fewer until then (lamps_shown), and that lamp is lit from
+## its landing. The PREMIUM tag (`tag_premium`: the GOLD medal made the visit PREMIUM) then slams
+## into the sign (tag_premium_at .. tag_premium_end) and the machine turns PREMIUM from the slam
+## (premium_at), while the receipt is fed and read (feed_at .. read_end); a visit PREMIUM by its
+## shift (a payday) has no tag and turns after its read, as before. Each tag waits tag_lead_ms
+## after what came before it, and the feed as long after the last. Reduced motion: no flight, the
+## tags are off at fly_end.
 
 enum WaitPoint { CHOOSE, PICK, END }
 ## What the pick did: a card added (NEW ITEMS, COUPONS), copies upgraded, a register stamped, or
@@ -78,6 +91,17 @@ var draw_index: int = 0:
 	set(value):
 		draw_index = maxi(0, value)
 		_build()
+## The receipt's prize tags (v1.40; the TICKET visit of a shift whose checkout won the medal):
+## the +1 DRAW tag becomes the extra draw lamp, the PREMIUM tag turns the machine PREMIUM. Setting
+## either replans.
+var tag_draw: bool = false:
+	set(value):
+		tag_draw = value
+		_build()
+var tag_premium: bool = false:
+	set(value):
+		tag_premium = value
+		_build()
 ## Positioned at a wait point by resume_at(): the clock starts at `start` and nothing before it
 ## replays (every node shows the resume frame of build spec 4.3).
 var resumed: bool = false
@@ -90,6 +114,13 @@ var glide: float = 0.0
 var glide_end: float = 0.0
 var fly: float = 0.0
 var fly_end: float = 0.0
+## The prize tags' flights off the receipt (NOT_SET without the tag), then the feed's start
+## (fly_end with no tag).
+var tag_draw_at: float = NOT_SET
+var tag_draw_end: float = NOT_SET
+var tag_premium_at: float = NOT_SET
+var tag_premium_end: float = NOT_SET
+var feed_at: float = 0.0
 var feed_end: float = 0.0
 var read_end: float = 0.0
 ## The premium transform (NOT_SET without one): from the read's end over premium_ms.
@@ -191,6 +222,8 @@ func resume_at(point: int) -> MachinePlan:
 	)
 	copy.draws = draws
 	copy.draw_index = draw_index
+	copy.tag_draw = tag_draw
+	copy.tag_premium = tag_premium
 	if has_draw:
 		copy.set_draw(rarities)
 	if has_landing:
@@ -285,12 +318,35 @@ func lamps_on(t: float) -> int:
 		return maxi(left - 1, 0)
 	if draw_index > 0 or kind != MachineVisit.Kind.TICKET:
 		return left
+	# The +1 DRAW tag's lamp (the leftmost) is lit from its landing, before the read.
+	var tagged: int = 1 if tag_draw_end >= 0.0 and t >= tag_draw_end else 0
 	if t < feed_end:
-		return 0
+		return tagged
 	var stagger: float = MachineTuning.sec(tuning.relight_stagger_ms)
 	if stagger <= 0.0:
 		return left
-	return mini(left, floori((t - feed_end) / stagger) + 1)
+	return mini(left, tagged + floori((t - feed_end) / stagger) + 1)
+
+
+## The draw lamps the reader plate shows at `t`: `draws`, one fewer until the +1 DRAW tag lands
+## on the plate as its lamp (tag_draw_end).
+func lamps_shown(t: float) -> int:
+	if tag_draw_end >= 0.0 and t < tag_draw_end:
+		return maxi(draws - 1, 0)
+	return draws
+
+
+## Medal `gold`'s prize tag's flight off the receipt at `t` (0 popping off .. 1 landed: the +1
+## DRAW's on the reader plate, the PREMIUM's on the sign), below 0 before it, above 1 after;
+## NOT_SET without that tag.
+func tag_flight(gold: bool, t: float) -> float:
+	var from: float = tag_premium_at if gold else tag_draw_at
+	var to: float = tag_premium_end if gold else tag_draw_end
+	if from < 0.0:
+		return NOT_SET
+	if to <= from:
+		return 2.0 if t >= from else -1.0
+	return (t - from) / (to - from)
 
 
 ## The lamp of this visit (the last lit one) flashing at `t`: below 0 outside its flash, else its
@@ -372,6 +428,11 @@ func _build_intro() -> void:
 	var rm: bool = reduced_motion
 	premium_at = NOT_SET
 	premium_end = NOT_SET
+	tag_draw_at = NOT_SET
+	tag_draw_end = NOT_SET
+	tag_premium_at = NOT_SET
+	tag_premium_end = NOT_SET
+	feed_at = 0.0
 	glide = 0.0
 	glide_end = 0.0
 	match kind:
@@ -393,10 +454,14 @@ func _build_intro() -> void:
 		_:
 			fly = 0.0
 			fly_end = fly + MachineTuning.sec(tuning.travel_ms)
-			feed_end = fly_end + MachineTuning.sec(tuning.feed_rm_ms if rm else tuning.feed_ms)
+			feed_at = _plan_tags(fly_end)
+			feed_end = feed_at + MachineTuning.sec(tuning.feed_rm_ms if rm else tuning.feed_ms)
 			read_end = feed_end + MachineTuning.sec(tuning.read_ms)
 			lights = read_end
-			if premium:
+			if tag_premium_end >= 0.0:
+				# The PREMIUM tag's slam turns the machine while the receipt is fed and read.
+				lights = maxf(read_end, _plan_premium(tag_premium_end))
+			elif premium:
 				lights = _plan_premium(read_end)
 			lights_end = lights + MachineTuning.sec(tuning.lights_ms)
 			choose_at = lights_end
@@ -406,6 +471,29 @@ func _build_intro() -> void:
 	_beat(&"feed", fly)
 	_beat(&"read", feed_end)
 	_beat(&"lights", lights)
+
+
+## The prize tags' flights off the receipt from `at` (its arrival over the slot): the +1 DRAW
+## tag's when its draw is among `draws`, then the PREMIUM tag's on a PREMIUM visit, each
+## tag_lead_ms after what came before (reduced motion: no flight, no lead). Returns the feed's
+## start: tag_lead_ms after the last flight, `at` with no tag.
+func _plan_tags(at: float) -> float:
+	var rm: bool = reduced_motion
+	var lead: float = 0.0 if rm else MachineTuning.sec(tuning.tag_lead_ms)
+	var end: float = at
+	if tag_draw and draws > 1 and draw_index == 0:
+		tag_draw_at = end + lead
+		tag_draw_end = tag_draw_at + (0.0 if rm else MachineTuning.sec(tuning.tag_draw_ms))
+		end = tag_draw_end
+	if tag_premium and premium:
+		tag_premium_at = end + lead
+		tag_premium_end = tag_premium_at
+		if not rm:
+			tag_premium_end += MachineTuning.sec(tuning.tag_premium_ms)
+		end = tag_premium_end
+	if tag_draw_at < 0.0 and tag_premium_at < 0.0:
+		return at
+	return end + lead
 
 
 ## The premium transform from `at` (premium_ms, reduced motion premium_rm_ms) and its beat;

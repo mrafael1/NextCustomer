@@ -9,7 +9,7 @@ extends RefCounted
 ## no save waits here in practice), DEALT (the boosters are dealt, sealed until opened), BUILD (page
 ## 2 was opened once). `stock_aisles` are the run's aisles, in data order: the dealt_aisle_count
 ## aisles of its boosters, the only aisles the run stocks (v1.32 feedback, 2026-11-13). `boosters`
-## are the dealt boosters in board order: one per stocked aisle. A setup saved before v1.42 may
+## are the dealt boosters in board order: one per stocked aisle. A setup saved before v1.46 may
 ## hold PICK 2 OF 3's third booster (an aisle not stocked, or one flagged `sold_out`): loading
 ## drops it, so a pick still pending resolves to the seeded pair and a pick made keeps its pair.
 ## `swap_offers` holds the swap window's booster of each stocked aisle (aisle id → up to
@@ -17,7 +17,7 @@ extends RefCounted
 ## window, 2026-11-13), kept the first time the window shows them so reopening it (or a resume)
 ## never rerolls them; `swap_opened` the aisles whose swap booster is open. `pins_confirmed`: the
 ## BADGE PINS step was confirmed (OPEN STORE waits for it while the profile owns a pin). A setup
-## saved before v1.41 also holds the starter pack fields (`picked`, `packs_redrawn`): they are
+## saved before v1.45 also holds the starter pack fields (`picked`, `packs_redrawn`): they are
 ## ignored. `originals` are the recipe's own regulars, `completed_count` the completed aisles when
 ## the run started. A saved form without `boosters` is an older one (the first build's, or v1.07's
 ## three baskets, is_old_format): a run waiting for OPEN STORE restarts its setup instead of
@@ -159,7 +159,7 @@ static func from_dictionary(data: Dictionary, lookup: ContentLookup) -> StartSet
 		booster.opened = booster_reader.flag("opened")
 		booster.restocked = booster_reader.flag("restocked")
 		reader.ok = reader.ok and booster_reader.ok
-		# Before v1.42: PICK 2 OF 3's booster left out (SOLD OUT, or not stocked while the pick
+		# Before v1.46: PICK 2 OF 3's booster left out (SOLD OUT, or not stocked while the pick
 		# was pending) never counted, so it is dropped (a pending pick keeps the seeded pair).
 		var sold_out: bool = booster_reader.flag("sold_out")
 		if sold_out and (booster.opened or booster.restocked):

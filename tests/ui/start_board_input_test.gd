@@ -289,7 +289,7 @@ func test_the_page_slide_moves_smoothly_every_frame() -> void:
 
 ## The page tabs (v1.32: drawn in the shared top bar on the art grid, so on whole pixels at any
 ## scale): each page lights its own tab, the other tab's hit is the tab's drawn box (x 8 + 84 k,
-## y 7, 82 x 20 art px; v1.40: the bar holds nothing else on its left), and a click on it turns
+## y 7, 82 x 20 art px; v1.44: the bar holds nothing else on its left), and a click on it turns
 ## the page, both ways, at 1280x720 and 1920x1080.
 func test_the_page_tabs_turn_the_page_at_both_sizes() -> void:
 	var screen: ShiftScreen = await _screen(3)

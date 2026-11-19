@@ -8,7 +8,8 @@ extends RefCounted
 ## PREMIUM visit too; 4 and more: the gauge's brighter gold laps), so the count flies the week
 ## badge's medals into the gauge's lap lamp and turns the receipt (the week medals, 2026-11-06);
 ## `used` first spends the week's medals (a machine copy with no medal a week), so nothing flies
-## and the receipt stays plain. The file gets laps<n>_[used_].
+## and the receipt stays plain. The file gets laps<n>_[used_]. `silver` (v1.40, also after
+## `--pending=<n>,`) spends the SILVER medal alone (its +1 DRAW), the GOLD staying.
 ## `--pending=<n>` (CaptureStates, on planning): the fixed shift's quota is lowered so planning's
 ## projection makes n laps, so the medals it would spend shimmer and the receipt's edges glow in
 ## their metal. The file gets pending<n>_.
@@ -25,6 +26,8 @@ extends RefCounted
 ## off the stage's hover spots. The file gets receipt_<options>_.
 
 const LAPS_ARGUMENT := "--laps="
+## --laps' and --pending's option: the week's SILVER medal is already spent.
+const SILVER_OPTION := "silver"
 const RECEIPT_ARGUMENT := "--receipt="
 const OVERTIME_OPTION := "overtime"
 const X3_OPTION := "x3"
@@ -49,7 +52,10 @@ static func before_checkout(run: RunState) -> void:
 		machine.overtime_ticket_per_week = 0
 		machine.overtime_premium_per_week = 0
 		run.machine.machine = machine
-	_part = "laps%d_%s" % [laps, "used_" if spec.has("used") else ""]
+	if spec.has(SILVER_OPTION):
+		spend_silver(run)
+	var used: String = "used_" if spec.has("used") else ""
+	_part = "laps%d_%s%s" % [laps, used, "silver_" if spec.has(SILVER_OPTION) else ""]
 
 
 ## --receipt's options before CHECKOUT is pressed: reduced motion, the pointer parked.
@@ -113,6 +119,13 @@ static func pending(screen: ShiftScreen, laps: int) -> void:
 	var metal: int = gold.pending()
 	gold.show_pending(ReceiptGold.PENDING_NONE, true)
 	gold.show_pending(metal, true)
+
+
+## The week's SILVER medal is spent (its +1 DRAW; a machine copy with no SILVER a week).
+static func spend_silver(run: RunState) -> void:
+	var machine: MachineDefinition = run.machine.machine.duplicate() as MachineDefinition
+	machine.overtime_ticket_per_week = 0
+	run.machine.machine = machine
 
 
 static func file_part() -> String:

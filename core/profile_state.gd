@@ -30,7 +30,7 @@ extends RefCounted
 ## version 4 profile's saved swaps are read past and never applied. Version 6 (v1.30) adds
 ## new_figurines (figurines drawn and not yet seen in the FIGURINE BOOK); older profiles read
 ## with nothing new. Version 7 (v1.30 round 10) adds perk_levels (the loyalty perks picked in
-## ended runs, highest level each); older profiles read with no perk collected. Version 8 (v1.40,
+## ended runs, highest level each); older profiles read with no perk collected. Version 8 (v1.44,
 ## the Dairy aisle): the Cold cases aisle's id is `dairy` and Frozen peas is a Fruit & veg capsule
 ## item; an older profile reads with its aisle ids renamed and Frozen peas unlocked (it owned
 ## the card from the start; AisleRename), at run index -1 and without counting a draw.

@@ -250,7 +250,7 @@ func test_new_cards_wear_the_tag_and_their_options_a_dot() -> void:
 	assert_str(book.leds()[1].text()).is_equal("2 NEW")
 	var collection: Vector2i = BookOrder.count(_entries(profile))
 	assert_str(book.leds()[0].text()).is_equal("%d/%d FIGURINES" % [collection.x, collection.y])
-	# 19 starters (v1.40: Frozen peas left them) and the 3 capsules collected.
+	# 19 starters (v1.44: Frozen peas left them) and the 3 capsules collected.
 	assert_int(collection.x).is_equal(22)
 	var entries: Array[BookEntry] = _entries(profile)
 	var menu: PixelDropdown = book.family_menu()

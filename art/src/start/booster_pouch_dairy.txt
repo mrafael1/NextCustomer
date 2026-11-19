@@ -1,4 +1,4 @@
-; Generated from docs/art/mockups/start_boosters_v3.html (approved 2026-11-13) by a scratch export of its paintPouch: the Dairy booster pouch (the Cold cases pouch until v1.40: its snowflake became the milk bottle and its label DAIRY, patched by script) at lamp level 1. 84x112. Unlit is a modulate and a hot lamp adds a paper row, both in code. v1.36: the 3 CARDS starburst widened 6 px (tools burst stretch).
+; Generated from docs/art/mockups/start_boosters_v3.html (approved 2026-11-13) by a scratch export of its paintPouch: the Dairy booster pouch (the Cold cases pouch until v1.44: its snowflake became the milk bottle and its label DAIRY, patched by script) at lamp level 1. 84x112. Unlit is a modulate and a hot lamp adds a paper row, both in code. v1.36: the 3 CARDS starburst widened 6 px (tools burst stretch).
 @size 84x112
 @kind scenery
 ##..##..##..##..##..##..##..##..##..##..##..##..##..##..##..##..##..##..##..##..##..

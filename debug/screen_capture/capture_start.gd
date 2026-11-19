@@ -1,7 +1,7 @@
 class_name CaptureStart
 extends RefCounted
 ## The opening board's review states for the screen capture (full build plan 7.2; page 1 YOUR
-## STORE, the aisle board of v1.40): --reveal=0,page=1|2,completed=0..6[,<option>...] (completed=0
+## STORE, the aisle board of v1.44): --reveal=0,page=1|2,completed=0..6[,<option>...] (completed=0
 ## leaves the aisles a new profile has not unlocked behind their padlocks), the options:
 ## - guided: the guided first run (the fixed pair, no light);
 ## - do=<step>+<step>+...: page 1 played step by step on its own clock (frozen between steps, so
@@ -11,7 +11,7 @@ extends RefCounted
 ##   2026-11-19 play test: the boosters wait sealed for it), pouch<i> (the pointer on booster i's
 ##   sealed pouch), arm (RESTOCK armed), restock<i>, card<b>_<k> (the
 ##   pointer on booster b's card k: its full card pops), at<x>:<y> (the pointer at art px x, y),
-##   primary; the swap window, on page 2 since v1.40 (play these in p2=): win (the SWAP key),
+##   primary; the swap window, on page 2 since v1.44 (play these in p2=): win (the SWAP key),
 ##   sb<i> (its booster i opened), grab<n> (piece n pressed where it rests: booster 0's cards,
 ##   booster 1's, then the regulars), over<k> (the pointer over basket slot k), drop (the button
 ##   let go there), done (DONE), esc; options (polish batch 2: the board's Esc, the options with

@@ -6,7 +6,7 @@ extends Control
 ## STOCK dispenser (StockDispenser) and arcs into its slot, the CART chip counting them, then the
 ## summary line "CART 13/15 = 4 staples + 1 coupon + 8 from today's stock" and the tap hint.
 ##
-## (The starter pack choice mode of #107 was removed with the packs in v1.41.)
+## (The starter pack choice mode of #107 was removed with the packs in v1.45.)
 ##
 ## Its layout is the mock-up's, in stage coordinates (the game's 640x360 at 2x): the panel sits at
 ## RECT on the 1280x720 stage and its content is placed in stage coordinates. show_at(t) poses

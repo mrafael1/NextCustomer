@@ -103,7 +103,7 @@ func test_the_flags_round_trip_with_no_format_bump() -> void:
 	TutorialFlags.mark_quick(profile, TutorialFlags.QUICK_SWAP)
 	var text: String = JSON.stringify(profile.to_dictionary())
 	var read: ProfileState = ProfileState.from_dictionary(JSON.parse_string(text))
-	# 8 since the Dairy aisle (v1.40); the flags themselves bumped nothing.
+	# 8 since the Dairy aisle (v1.44); the flags themselves bumped nothing.
 	assert_int(ProfileState.FORMAT_VERSION).is_equal(8)
 	assert_array(read.seen).is_equal(profile.seen)
 	assert_bool(TutorialFlags.guided_due(read)).is_false()

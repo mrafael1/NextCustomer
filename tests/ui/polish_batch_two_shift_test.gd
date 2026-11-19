@@ -164,7 +164,7 @@ func test_the_count_keeps_a_socket_and_paid_clear() -> void:
 	)
 
 
-## The cart's keys in caps (CART, RUN INFO, CLOSE), the shown page's tab picked, not dimmed, all
+## The cart's keys in caps (CART, STOCK BOOK, CLOSE), the shown page's tab picked, not dimmed, all
 ## inside the screen; a perk whose type is its name says it once in its LOYALTY tip.
 func test_the_cart_keys_and_perk_tips() -> void:
 	var screen: ShiftScreen = await _screen()
@@ -175,7 +175,7 @@ func test_the_cart_keys_and_perk_tips() -> void:
 	for tab: FramedButton in [cart._deck_tab, cart._info_tab, cart._close_button]:
 		captions.append(tab.caption)
 		assert_bool(screen.get_global_rect().encloses(tab.get_global_rect())).is_true()
-	assert_array(captions).is_equal(["CART", "RUN INFO", "CLOSE"])
+	assert_array(captions).is_equal(["CART", "STOCK BOOK", "CLOSE"])
 	for info: bool in [false, true]:
 		cart.show_page(info)
 		await _frames(2)

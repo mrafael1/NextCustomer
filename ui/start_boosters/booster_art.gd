@@ -292,7 +292,7 @@ static func face_sized(
 		image.fill_rect(Rect2i(win.position.x + 3, win.position.y + 3, 2, 2), Palette.GREY)
 	var styles: Array[FamilyStyle] = []
 	if chips:
-		# The ticket's families only (the v1.41 family chips of a product's own tags are gone: the
+		# The ticket's families only (the v1.45 family chips of a product's own tags are gone: the
 		# user's play test of 2026-11-19, round 2).
 		styles = families(card)
 	for k: int in styles.size():

@@ -101,8 +101,8 @@ func test_the_window_fits_the_stage_at_both_sizes() -> void:
 				assert_bool(cards[k].intersects(cards[other])).is_false()
 
 
-## The swap lives on page 2 (v1.40): NEXT never stops at it; once the profile has a swap, YOUR
-## BUILD shows a SWAP key on its REGULARS crate (v1.41), apart from the other keys, and a
+## The swap lives on page 2 (v1.44): NEXT never stops at it; once the profile has a swap, YOUR
+## BUILD shows a SWAP key on its REGULARS crate (v1.45), apart from the other keys, and a
 ## click on it (or S) opens the window over page 2. DONE and Esc shut it and page 2 shows again,
 ## with the swaps left on the key.
 func test_the_swap_key_on_page_two_opens_the_window() -> void:

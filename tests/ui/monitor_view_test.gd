@@ -221,7 +221,7 @@ func test_a_held_scan_fills_the_monitor_then_it_goes_back() -> void:
 			expected.append(MonitorText.waste_line(step))
 		else:
 			expected.append(ReceiptView.step_line(step, CardInstance.names(screen.run.row)))
-	assert_bool(expected.has("No MORNING item after it  WASTED")).is_true()
+	assert_bool(expected.has("No Breakfast item after it  WASTED")).is_true()
 	var texts: PackedStringArray = column.step_texts()
 	assert_bool(texts == expected).override_failure_message(str(texts)).is_true()
 	assert_int(column.payout_view().pay_amount()).is_equal(result.payouts[2])

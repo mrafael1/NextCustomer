@@ -1,6 +1,6 @@
 class_name BoosterPage
 extends Control
-## YOUR STORE, page 1 of the opening board (full build plan 7.2; the aisle board, v1.40, the
+## YOUR STORE, page 1 of the opening board (full build plan 7.2; the aisle board, v1.44, the
 ## user's decisions of 2026-11-18 on mock-up docs/art/mockups/start_roulette.html, variant A; it
 ## replaces v1.32's store at dawn). The six aisles are bays on the back wall, each under its hung
 ## sign and stocked with its own products. A light runs along the bays, slows and lands on
@@ -56,7 +56,7 @@ var opened_n: int = 0
 var rare_n: int = 0
 var shake_t: float = -INF
 ## A flashed message (a refused or unsaved action) and its start; `hint` is kept for the swap
-## window, which sets it (the page has no hint line since v1.40).
+## window, which sets it (the page has no hint line since v1.44).
 var hint: String = ""
 var hint_t: float = 0.0
 var message: String = ""

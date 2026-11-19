@@ -542,8 +542,6 @@ func _build_belt(slot_count: int) -> void:
 	fore.add_child(planning_layer)
 	# A stuck price label lies over its ticket's batch or chain frame, which this layer draws.
 	row_strip.labels.mount_after(planning_layer.get_node(^"ChainFrames"))
-	# The MORNING's pins and chain keep clear of the slot marks under the tickets (v1.06, v1.24).
-	KeywordMarks.of(planning_layer).obstacles = row_strip.mark_rects
 
 
 ## Fits the belt to the row's `cells` (#122: a Double checkout's short rows get a short belt).

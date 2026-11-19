@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## The Dairy aisle's renames (v1.40: the Cold cases aisle's id is `dairy`, and Frozen peas is a
+## The Dairy aisle's renames (v1.44: the Cold cases aisle's id is `dairy`, and Frozen peas is a
 ## Fruit & veg capsule item): AisleRename's deep rename, and the profile's saved form (format 8),
 ## whose older versions read with their aisle ids renamed and Frozen peas unlocked. The run
 ## save's side is start_setup_save_test's. (Here and not in profile_state_test, which is at the

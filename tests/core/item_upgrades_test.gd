@@ -23,7 +23,7 @@ func test_an_upgraded_copy_scores_its_upgraded_value() -> void:
 	assert_array(deck.cards).is_equal([coffee, upgraded, second])
 	assert_object(first.definition).is_same(chain.product)
 	assert_object(second.definition).is_same(chain.product)
-	# Coffee 2 + 1 per MORNING product (Coffee and Milk); Milk base + 1 per earlier Breakfast.
+	# Coffee 2 + 1 per Breakfast product (Coffee and Milk); Milk base + 1 per earlier Breakfast.
 	var plain_total: int = 2 + 2 + chain.product.base + 1
 	var big_total: int = 2 + 2 + chain.big.base + 1
 	assert_int(chain.big.base).is_greater(chain.product.base)

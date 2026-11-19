@@ -275,7 +275,7 @@ func test_a_drawn_capsule_is_stocked_only_with_its_aisle() -> void:
 	assert_bool(RunStock.build(balance, bakery, results.unlocked_items).cards.has(dk)).is_false()
 
 
-## The live data: after the 4th base-aisle capsule the stock needs a list (the 3rd until v1.40:
+## The live data: after the 4th base-aisle capsule the stock needs a list (the 3rd until v1.44:
 ## the base aisles hold 13 products since Frozen peas left for Fruit & veg's capsules, and the
 ## budget is 16), and the surprise list stocks 2 aisles.
 func test_the_fourth_base_aisle_capsule_needs_a_list_of_two() -> void:

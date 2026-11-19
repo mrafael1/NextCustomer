@@ -1,7 +1,7 @@
 class_name BoosterPageDraw
 extends RefCounted
 ## The shared drawing of YOUR STORE's boosters (BoosterPage, v1.32; the page itself is the aisle
-## board since v1.40, AisleBoardDraw): the pouch, a booster opening on its own clock (the tear,
+## board since v1.44, AisleBoardDraw): the pouch, a booster opening on its own clock (the tear,
 ## the rise, the fan, the flips, a RARE's pop and sun), the particles, the keys' press-bob, the
 ## easings. The floor row and the top bar are BoosterChromeDraw's; the swap window is
 ## SwapWindowDraw's and draws its boosters with these. Motion reads the page's clock only.

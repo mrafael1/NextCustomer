@@ -1,7 +1,7 @@
 class_name BoosterCounter
 extends RefCounted
 ## YOUR STORE's counter (BoosterPage, v1.32): RESTOCK (its key arms the pick of an opened booster,
-## whose cards fly back into their bay, which throws a fresh booster of the same aisle; v1.40,
+## whose cards fly back into their bay, which throws a fresh booster of the same aisle; v1.44,
 ## AisleRoulette.restock) and the regulars' swap count (the swaps themselves are the swap
 ## window's, SwapWindow). Every rule goes through the page's StartBoardActions; the state lives on
 ## the page.

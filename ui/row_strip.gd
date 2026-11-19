@@ -375,7 +375,7 @@ func _same_marks(shown: Array[SlotMark], marks: Array[SlotMark]) -> bool:
 
 
 ## The parts of the shown slot marks that hang under the tickets (SlotMark.visible_rect), global
-## rects: the MORNING's pins and chain keep clear of them (KeywordMarks.obstacles).
+## rects (a handbook clip's window fits them).
 func mark_rects() -> Array[Rect2]:
 	var rects: Array[Rect2] = []
 	for slot: int in range(slots.size()):

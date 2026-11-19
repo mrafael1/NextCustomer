@@ -184,7 +184,7 @@ func test_hovering_a_belt_item_lights_what_it_works_with() -> void:
 
 
 ## Hovering the Soup in its basket: its brackets round its art down to the rim, the belt's Milk
-## marked with the penalty "!" (Soup pays nothing beside Dairy since v1.41), Eggs faint (its next
+## marked with the penalty "!" (Soup pays nothing beside Dairy since v1.45), Eggs faint (its next
 ## Food), the rest grey; leaving puts it all back.
 func test_hovering_a_basket_item_lights_the_belt_and_the_hand() -> void:
 	var screen: ShiftScreen = await _screen()

@@ -6,7 +6,7 @@ extends Control
 ## the shared coin base) stands under its own recessed lamp by the glass doors. Pick a machine
 ## to spend a capsule's price on a capsule: CapsuleCounter draws, saves and logs it, the coin
 ## clinks, the counts drop and the reveal (ToyReveal) shows the item's icon alone for
-## ToyReveal.HOLD_S. FIGURINE BOOK opens the FIGURINE BOOK (FigurineBook, v1.30 round 2: the
+## ToyReveal.HOLD_S. COLLECTION opens the COLLECTION (FigurineBook, v1.30 round 2: the
 ## card book that replaced the shelf; its BACK returns here); DONE (or
 ## Escape with no machine picked) closes the screen. Coins can be kept: nothing asks to spend
 ## them.
@@ -27,7 +27,7 @@ extends Control
 ## every machine OUT OF ORDER with a notice when the profile can't be saved; every machine
 ## SOLD OUT and COLLECTION COMPLETE on the strip once the collection is complete; the lids
 ## shut, padlocks on the price LEDs, a tomato 0 and a notice with 0 coins; otherwise the hint.
-## FIGURINE BOOK is DONE's button in teal (v0.78: store fixtures, no plain boxes); a NEW tag
+## COLLECTION is DONE's button in teal (v0.78: store fixtures, no plain boxes); a NEW tag
 ## (ToyNewTag, v1.30) hangs on it while a drawn figurine hasn't been seen in the book yet.
 ## Through the doors the street idles (ToyStreet, v0.79): a car's headlights now and then, the
 ## lamp's flicker.
@@ -67,10 +67,10 @@ const BROKE_FRESH_NOTICE := "NO COINS YET. GET PAST SHIFT 4 IN A RUN TO EARN COI
 const OFF_NOTICE := (
 	"YOUR COLLECTION CAN'T BE SAVED RIGHT NOW, " + "SO THE TOY MACHINES ARE SWITCHED OFF."
 )
-const SHELF_TEXT := "FIGURINE BOOK"
+const SHELF_TEXT := "COLLECTION"
 const DONE_TEXT := "DONE"
 const DONE_SOUND := "ui_back"
-## The keys that draw from the picked machine, and the FIGURINE BOOK's (polish batch 2).
+## The keys that draw from the picked machine, and the COLLECTION's (polish batch 2).
 const DRAW_KEYS: Array[Key] = [KEY_ENTER, KEY_KP_ENTER, KEY_SPACE]
 const BOOK_KEY := KEY_B
 ## The machines' row, in canvas px (twice the art px): six from MACHINE_X0, fewer centred in

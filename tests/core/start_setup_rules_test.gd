@@ -269,7 +269,7 @@ func test_open_store_waits_for_the_badge_pins_step() -> void:
 	assert_bool(StartSetupRules.pins_pending(run, 3)).is_false()
 
 
-## OPEN STORE (v1.41, no starter pack): the cart becomes the regulars and the boosters' cards,
+## OPEN STORE (v1.45, no starter pack): the cart becomes the regulars and the boosters' cards,
 ## in that order, and the run moves to planning.
 func test_open_store_takes_the_cart_as_it_stands() -> void:
 	var run: RunState = Kit.locked(Kit.profile(0), SEED)

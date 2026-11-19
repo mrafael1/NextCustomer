@@ -1,4 +1,4 @@
-; The Frozen family's glyph (the Cold cases aisle's until v1.40): a snowflake on a teal ice tile.
+; The Frozen family's glyph (the Cold cases aisle's until v1.44): a snowflake on a teal ice tile.
 ; 9x9 with its ink outline; shown at 2x in the card's sprite box, reused on capsule
 ; machines and list stickers.
 @size 9x9

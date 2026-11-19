@@ -113,8 +113,8 @@ static func family_of(rule: Rule) -> String:
 		return (rule as BakedBatchBonusRule).tag
 	if rule is SnackSpreadRule:
 		return (rule as SnackSpreadRule).tag
-	if rule is MorningCountRule:
-		return (rule as MorningCountRule).tag
+	if rule is TagCountRule:
+		return (rule as TagCountRule).tag
 	return ""
 
 

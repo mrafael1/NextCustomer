@@ -20,8 +20,8 @@ const STOCK_AISLES_STREAM := "stock_aisles"
 ## The derived streams of the run seed for the opening-time board (StartSetupRules, v1.32): one
 ## aisle booster's deal, by its aisle id; one booster's RESTOCK, by its aisle id; the swap
 ## window's booster of one stocked aisle, by its aisle id (2026-11-13: one per aisle, no longer
-## one per slot and aisle). (The pack streams went with the packs in v1.41, PICK 2 OF 3's
-## extra-aisle stream with it in v1.42.)
+## one per slot and aisle). (The pack streams went with the packs in v1.45, PICK 2 OF 3's
+## extra-aisle stream with it in v1.46.)
 const START_BOOSTER_STREAM := "start_booster_%s"
 const START_RESTOCK_STREAM := "start_restock_%s"
 const START_REGULARS_STREAM := "start_regulars_%s"

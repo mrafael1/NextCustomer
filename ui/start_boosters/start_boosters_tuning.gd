@@ -98,7 +98,7 @@ extends Resource
 @export var swap_fly_px_s: float = 0.0
 @export var swap_bounce_s: float = 0.0
 
-## The aisle board (v1.40, mock-up start_roulette.html, variant A). The fan cards are compact
+## The aisle board (v1.44, mock-up start_roulette.html, variant A). The fan cards are compact
 ## (picture, price, family glyph, name; the full card with its rule pops on hover) while
 ## compact_fan_cards; false stands the full cards with their rules on the counter.
 @export var compact_fan_cards: bool = false

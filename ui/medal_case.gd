@@ -3,8 +3,10 @@ extends Control
 ## The register's medal case (v1.17, the user's pick of 2026-11-08: mock-up
 ## docs/art/mockups/main_scene_v2.html, drawRegA's MED 'case'), on the cash drawer's front in
 ## place of the top bar's medal sockets: this week's two medals (WeekMedals) hang from the coin
-## rail on striped ribbons, SILVER then GOLD (MedalArt), each named with the total that wins it
-## ("at 258€": WeekMedals.threshold_of, show_thresholds). A medal still to win is plain, a
+## rail on striped ribbons, SILVER then GOLD (MedalArt), each named by its prize (v1.40, the
+## user's verdict of 2026-11-18: "+1 DRAW" and "PREMIUM", OvertimeWords, never the metal's name)
+## over the total that wins it ("at 258€": WeekMedals.threshold_of, show_thresholds). A medal
+## still to win is plain, a
 ## twinkle hopping round it; while the plan would win it (PENDING) a paper sweep crosses its face
 ## and its twinkle hops faster; won (USED) it leaves its engraved socket under the ribbon and
 ## "WON ✓" for the rest of the week (launch: the count's flight takes it onto the receipt's target,
@@ -25,7 +27,9 @@ const WORDS_X: Array[float] = [78.0, 206.0]
 const NAME_TOP := 32.0
 const LINE_TOP := 48.0
 const WORD_CELL := 2.0
-const NAMES: Array[String] = ["SILVER", "GOLD"]
+const NAMES: Array[String] = [OvertimeWords.SILVER_NAME, OvertimeWords.GOLD_NAME]
+## The tip targets' node names.
+const TIP_NAMES: Array[String] = ["SilverTip", "GoldTip"]
 const THRESHOLD_TEXT := "at %d€"
 const WON_TEXT := "WON"
 const LINE_SIZE := 11
@@ -35,7 +39,8 @@ const CHECK_PIXELS: Array[String] = ["......#", ".....#.", "#...#..", ".#.#...",
 const CHECK_GAP := 6.0
 ## The twinkle: its four spots on the medal (shares of TWINKLE_REACH art px from the centre; v1.36,
 ## polish audit: from 10.5, so its arms stay inside the medal's sprite and never land on the
-## words: the "+" read "+GOLD"), its hop every TWINKLE_STEP s (shown TWINKLE_SHOWN of it), every
+## words: the "+" read "+GOLD", the name then), its hop every TWINKLE_STEP s (shown
+## TWINKLE_SHOWN of it), every
 ## PENDING_STEP s while PENDING; TWINKLE_ARM art px its longest arm.
 const TWINKLE_SPOTS: Array[Vector2] = [
 	Vector2(-1, -1), Vector2(1, -0.6), Vector2(0.8, 1), Vector2(-1, 0.7)
@@ -85,7 +90,7 @@ func _init() -> void:
 		add_child(won)
 		_won.append(won)
 		var target: TipTarget = TipTarget.new()
-		target.name = "%sTip" % NAMES[index].capitalize()
+		target.name = TIP_NAMES[index]
 		add_child(target)
 		_targets.append(target)
 	set_process(false)

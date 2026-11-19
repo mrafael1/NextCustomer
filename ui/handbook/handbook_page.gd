@@ -40,6 +40,13 @@ extends Control
 ## every opening) says which coupons the profile has owned (CouponFinds); any other coupon's row
 ## in the COUPONS tab is locked: "???" beside its mark's dark silhouette, and no click opens it.
 ## A deep link (a coupon's tooltip) still opens its page.
+##
+## The COLLECTION (2026-11-19, the user: "adding figurine book link (rename to collection) in
+## handbook"): where the owner offers it (offer_collection: the title and the run), a COLLECTION
+## tab stands on the board's top edge at the right, COLLECTION_GAP px left of CLOSE, apart from
+## the group tabs; a click opens the TOY MACHINES' card book (HandbookCollection) over the binder
+## on the profile the owner gives, and its BACK (or Esc) shows the binder again. While it is open
+## the binder leaves every key and click to it.
 
 signal opened(entry_id: StringName)
 signal closed
@@ -111,6 +118,9 @@ const REPLAY_SET_TEXT := "Your next NEW RUN is the guided shift."
 const REPLAY_SET_FONT := 13
 const TITLE := "STAFF HANDBOOK"
 const CLOSE_TEXT := "CLOSE"
+const COLLECTION_TEXT := "COLLECTION"
+## The COLLECTION tab's room left of CLOSE (binder px).
+const COLLECTION_GAP := 16.0
 const RISE := 24.0
 const RISE_STEPS := 4.0
 const RISE_S := 0.16
@@ -138,6 +148,10 @@ var shade_bar: Control = null:
 ## read only.
 var replay_plate: HandbookButton
 var replay_note: Label
+## The COLLECTION tab (hidden unless offered) and the book it opens (null before its first
+## opening); read only.
+var collection_tab: HandbookButton
+var collection: HandbookCollection
 var _book: HandbookBook
 var _binder: Control
 var _tabs: Dictionary[StringName, HandbookButton] = {}
@@ -151,6 +165,9 @@ var _group: StringName = &""
 var _shown_id: StringName = &""
 var _rise: Tween
 var _offer: ReplayOffer = ReplayOffer.HIDDEN
+## Returns the ProfileState the COLLECTION shows (offer_collection); none: no COLLECTION tab.
+var _collection_profile: Callable = Callable()
+var _collection_balance: BalanceDefinition
 
 
 func _init(book: HandbookBook = null) -> void:
@@ -183,6 +200,17 @@ func _init(book: HandbookBook = null) -> void:
 	_close.position = Vector2(BINDER.size.x - CLOSE_SIZE.x - 16, -CLOSE_SIZE.y - 2)
 	_close.pressed.connect(close)
 	_binder.add_child(_close)
+	collection_tab = HandbookButton.new(
+		HandbookButton.Kind.TAB, COLLECTION_TEXT, Vector2(TAB_WIDTH, TAB_HEIGHT)
+	)
+	collection_tab.name = "CollectionTab"
+	collection_tab.position = Vector2(
+		_close.position.x - COLLECTION_GAP - TAB_WIDTH, -TAB_HEIGHT + TAB_TUCK
+	)
+	collection_tab.show_behind_parent = true
+	collection_tab.visible = false
+	collection_tab.pressed.connect(_open_collection)
+	_binder.add_child(collection_tab)
 	_index = Control.new()
 	_index.name = "Index"
 	_index.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -292,6 +320,8 @@ func open_for_target(target: TipTarget) -> void:
 func close() -> void:
 	if not visible:
 		return
+	if collection != null:
+		collection.close()
 	visible = false
 	if _rise != null:
 		_rise.kill()
@@ -302,6 +332,14 @@ func close() -> void:
 
 func is_open() -> bool:
 	return visible
+
+
+## Shows the COLLECTION tab: a click opens the card book on the ProfileState `profile_source`
+## returns (read on every opening; null: an empty profile) for `balance`.
+func offer_collection(profile_source: Callable, balance: BalanceDefinition) -> void:
+	_collection_profile = profile_source
+	_collection_balance = balance
+	collection_tab.visible = profile_source.is_valid() and balance != null
 
 
 ## Shows tab `group_id`'s index and its first entry (the shown entry when it is in that tab).
@@ -366,7 +404,7 @@ func entry_for_target(target: TipTarget) -> HandbookEntry:
 ## else as entry_for_target says; or null.
 func _entry_for_tip(target: TipTarget) -> HandbookEntry:
 	var found: HandbookEntry = null
-	# A keyword's own tooltip (a MORNING mark's on the belt): its keyword's entry.
+	# A keyword's own tooltip: its keyword's entry.
 	for keyword: String in GlyphText.KEYWORD_TIPS:
 		if target.tip_text == GlyphText.keyword_tip(keyword):
 			return _book.entry_for_keyword(keyword)
@@ -441,7 +479,7 @@ func entry_scroll() -> ScrollContainer:
 
 
 func _input(event: InputEvent) -> void:
-	if not visible:
+	if not visible or (collection != null and collection.is_open()):
 		return
 	var key: InputEventKey = event as InputEventKey
 	if key != null and key.pressed and key.keycode == KEY_ESCAPE:
@@ -457,6 +495,19 @@ func _input(event: InputEvent) -> void:
 		if not whole.has_point(press.position):
 			get_viewport().set_input_as_handled()
 			close()
+
+
+## Opens the COLLECTION over the binder (when offered).
+func _open_collection() -> void:
+	if not visible or not collection_tab.visible:
+		return
+	if collection == null:
+		collection = HandbookCollection.new()
+		add_child(collection)
+	var profile: ProfileState = _collection_profile.call() as ProfileState
+	if profile == null:
+		profile = ProfileState.new()
+	collection.open(profile, _collection_balance, still)
 
 
 ## The replay plate and its line at the index column's foot (both hidden until shown).

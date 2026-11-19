@@ -18,7 +18,7 @@ extends RefCounted
 
 ## A run of an opening-time recipe (DeckDefinition.opening_time) starts in CHOOSE_START: its
 ## offer (`start_offer`, the dealt boosters' products) waits for OPEN STORE (open_store); the
-## first shift starts after it. (Until v1.41 the player picked a starter pack there, #107.)
+## first shift starts after it. (Until v1.45 the player picked a starter pack there, #107.)
 
 ## PLANNING: placing cards. MACHINE_CHOOSE: a machine visit waits for its chute.
 ## MACHINE_PICK: its prizes wait for a pick or a bin. SCORED: ready for the next shift. WON /
@@ -145,6 +145,10 @@ var guide_step: StringName = &""
 ## through the run's first week, 2026-11-15), written by the UI's tutorial director and saved
 ## with the run, so CONTINUE never shows one twice.
 var guide_hints: Array[StringName] = []
+## The guided run's HUD elements revealed so far (the week 1 strip, v1.40: RevealRule element
+## ids, each revealed once per run), written by the UI's Week1Strip and saved with the run, so
+## CONTINUE shows the screen as it was. Nothing in core/ reads it: it gates no rule.
+var guide_reveals: Array[StringName] = []
 ## The run RNG's state, for the run save (RunSave): setting it continues the RNG's sequence from
 ## that point, so a restored run draws exactly what the saved one would have.
 var rng_state: int:

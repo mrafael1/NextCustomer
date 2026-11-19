@@ -1,6 +1,6 @@
 class_name AisleRoulette
 extends RefCounted
-## The aisle board's roulette (YOUR STORE, v1.40; mock-up docs/art/mockups/start_roulette.html,
+## The aisle board's roulette (YOUR STORE, v1.44; mock-up docs/art/mockups/start_roulette.html,
 ## variant A): a light runs along the open bays, slows and lands on today's first aisle, then on
 ## the second; the other bays roll their shutters down, and each open bay
 ## throws its booster to its card row's start, beside the row's aisle tab, where it waits sealed

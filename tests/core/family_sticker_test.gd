@@ -3,7 +3,7 @@ extends GdUnitTestSuite
 ## joins the family picked for that copy (ScoreCredits.sticker_families, like a Price gun's
 ## relabels), else the row's pre-fill. Picked on the belt while planning, kept across shifts and
 ## in the run save (format 12); a version 11 save reads with no family picked. (The starter packs'
-## presets went with the packs in v1.41.) Its ticket reads the copy's family; the picker learns the
+## presets went with the packs in v1.45.) Its ticket reads the copy's family; the picker learns the
 ## next item and the families it already has.
 
 const BALANCE := "res://data/balance/balance.tres"
@@ -63,7 +63,7 @@ func test_each_picked_family_reaches_the_next_item() -> void:
 
 
 ## A picked family pays like the old fixed sticker: Breakfast on Banana before Coffee feeds its
-## MORNING (Family sticker picked Breakfast scores what the Breakfast sticker scored), and a pick
+## Coffee (Family sticker picked Breakfast scores what the Breakfast sticker scored), and a pick
 ## that a reader doesn't want pays less.
 func test_a_picked_family_scores_like_the_fixed_sticker() -> void:
 	var old_row: Array[CardInstance] = _row([OLD_STICKER, BANANA, COFFEE, MILK])

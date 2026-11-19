@@ -46,7 +46,7 @@ var lamp_on: float = INF
 var lamp_off: float = INF
 var lamp_hot_t: float = -INF
 var lamp_flick: float = -INF
-## The aisle board (page 1, v1.40): it stands in front of bay `bay`, thrown from `fly_from` at
+## The aisle board (page 1, v1.44): it stands in front of bay `bay`, thrown from `fly_from` at
 ## `fly_t` (stage clock; INF: not thrown yet); its cards are `compact` (the rule only on hover) and
 ## wear no COMMON / RARE tab (`tabs`). A RESTOCK sends `old_cards` back to the bay from `return_t`.
 var board: bool = false

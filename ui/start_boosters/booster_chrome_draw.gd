@@ -1,6 +1,6 @@
 class_name BoosterChromeDraw
 extends RefCounted
-## YOUR STORE's keys and bars (v1.32; trimmed for the aisle board, v1.40): the floor row (TITLE,
+## YOUR STORE's keys and bars (v1.32; trimmed for the aisle board, v1.44): the floor row (TITLE,
 ## RESTOCK's key, the primary key, a flashed message), the top bar both pages share (the page
 ## tabs and the CART count), RESTOCK's call round a returnable fan, the page's hit list and its
 ## hover tips.
@@ -42,7 +42,7 @@ static func key_rect() -> Rect2:
 
 
 ## Whether the RESTOCK key shows: RESTOCK unlocked for the profile (a tutorial lock then draws it
-## LOCKED; v1.40: a profile without RESTOCK never sees the key, locked or not).
+## LOCKED; v1.44: a profile without RESTOCK never sees the key, locked or not).
 static func key_shown(page: BoosterPage) -> bool:
 	return page.counter.restock_unlocked()
 
@@ -159,7 +159,7 @@ static func floor_row(pen: ArtPen, page: BoosterPage) -> void:
 
 
 ## A flashed message (a refused or unsaved action) on an LED plate, only while it shows: the page
-## has no standing hint line (v1.40).
+## has no standing hint line (v1.44).
 static func _message(pen: ArtPen, page: BoosterPage) -> void:
 	var line: String = page.hint_line()
 	if line == "":
@@ -260,7 +260,7 @@ static func top_bar(pen: ArtPen, page: BoosterPage) -> void:
 
 
 ## The top bar from `v` (both pages draw it): now, rm, tab (the page shown), blink (the other
-## tab's gold dot), cart, limit, punch_t and punch_s (the CART count's punch). Since v1.40 it
+## tab's gold dot), cart, limit, punch_t and punch_s (the CART count's punch). Since v1.44 it
 ## holds only the page tabs and the CART count (no clock, no aisle counter).
 static func top_bar_view(pen: ArtPen, v: Dictionary) -> void:
 	var now: float = v.now

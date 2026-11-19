@@ -4,7 +4,7 @@ extends GdUnitTestSuite
 ## Breakfast boosters): shift 1's quota is 30€; the script's answer row
 ## (TutorialScript.answer: Banana, Yogurt, Banana, Eggs, Milk, Cereal, Cheese) pays 36€, over
 ## it; the same cards with Eggs last waste the Eggs and miss it, so the order is the lesson; and
-## the reactive hints fire on what the rules did (PlanHint.pick). A card or balance change that
+## the two reactive hints fire on what the rules did (PlanHint.pick). A card or balance change that
 ## breaks the lesson fails here.
 
 const Kit := preload("res://tests/core/start_setup_kit.gd")
@@ -46,10 +46,10 @@ func test_the_answer_reaches_the_quota_and_order_matters() -> void:
 	assert_bool(PlanHint.wasted_at(wrong, 6)).override_failure_message(why).is_true()
 
 
-## The hints: Eggs placed first introduce themselves; alone at the end they are WASTED (once
-## introduced); a Banana beside Yogurt fires Yogurt's PAIR; the CHAIN fires on the second Banana;
-## the quota hint waits for the row to reach it, then comes first, and the hint left behind it
-## shows next with no move; a hint shown is never picked again.
+## The two hints (v1.40): the first rule that works pops COMBO over its item (Eggs' ×2 once a
+## Food item follows it; Eggs alone waits, which is no mistake yet); a rule WASTED in a complete
+## row pops WASTED over its item (Eggs last), never in a row still being built; a hint shown is
+## never picked again.
 func test_the_hints_fire_on_what_the_rules_did() -> void:
 	var guide: GuidedStartDefinition = StartChoice.guided_start()
 	var hints: Array[PlanHint] = TutorialScript.guided().hints
@@ -57,70 +57,36 @@ func test_the_hints_fire_on_what_the_rules_did() -> void:
 	var places: Array[CardInstance] = run.hand_places()
 	var shown: Array[StringName] = []
 	_place(run, places[EGGS], 0)
-	assert_str(String(_pick(run, hints, places[EGGS], shown))).is_equal("eggs_placed")
-	assert_str(String(_pick(run, hints, places[EGGS], shown))).is_equal("eggs_wasted")
+	assert_bool(PlanHint.wasted_at(run.preview(), 0)).is_true()
+	assert_str(String(_pick(run, hints, places[EGGS], shown))).is_empty()
 	_place(run, places[YOGURT], 1)
-	assert_str(String(_pick(run, hints, places[YOGURT], shown))).is_equal("eggs_fired")
-	assert_str(String(_pick(run, hints, places[YOGURT], shown))).is_equal("yogurt_placed")
+	var fired: PlanHint.Pick = PlanHint.pick(
+		hints, run.row, run.preview(), places[YOGURT], false, shown
+	)
+	assert_str(String(fired.hint.id)).is_equal("combo")
+	assert_int(fired.slot).is_equal(0)  # Over Eggs: the rule that works is theirs.
+	shown.append(fired.hint.id)
 	_place(run, places[BANANA_1], 2)
-	assert_str(String(_pick(run, hints, places[BANANA_1], shown))).is_equal("yogurt_fired")
-	_place(run, places[BANANA_2], 3)
-	assert_str(String(_pick(run, hints, places[BANANA_2], shown))).is_equal("banana_fired")
-	assert_bool(shown.has(&"quota")).is_false()
-	_place(run, places[MILK], 4)
-	_place(run, places[CEREAL], 5)
-	# The row reaches the quota: its hint first, Cereal's PAIR waits behind it (placed: none).
-	assert_int(run.preview().total).is_greater_equal(run.quota())
-	assert_str(String(_pick(run, hints, places[CEREAL], shown))).is_equal("quota")
-	assert_str(String(_pick(run, hints, null, shown))).is_equal("cereal_fired")
-	assert_array(shown).contains_same([&"eggs_placed", &"eggs_wasted", &"eggs_fired"])
-	var counts: Dictionary = {}
-	for hint_id: StringName in shown:
-		counts[hint_id] = int(counts.get(hint_id, 0)) + 1
-	for hint_id: StringName in counts:
-		assert_int(int(counts[hint_id])).override_failure_message(String(hint_id)).is_equal(1)
+	assert_str(String(_pick(run, hints, places[BANANA_1], shown))).is_empty()
+	# The same seven as the answer with Eggs last: the row is complete, the Eggs WASTED.
+	_lay(run, places, [BANANA_1, YOGURT, BANANA_2, MILK, CEREAL, CHEESE, EGGS])
+	var wasted: PlanHint.Pick = PlanHint.pick(
+		hints, run.row, run.preview(), places[EGGS], true, shown
+	)
+	assert_str(String(wasted.hint.id)).is_equal("wasted")
+	assert_int(wasted.slot).is_equal(6)
+	shown.append(wasted.hint.id)
+	assert_str(String(_pick(run, hints, places[EGGS], shown))).is_empty()
+	assert_array(shown).is_equal([&"combo", &"wasted"])
 
 
-## The medals: the best row (Tea bags ×4 on Milk) reaches SILVER, whose hint pops over the
-## medal case in place of QUOTA's (the highest level reached is told, never a lower one after:
-## the full row's hint comes next);
-## a redraw's hint points at REDRAW, once.
-func test_the_medal_and_redraw_hints() -> void:
-	var guide: GuidedStartDefinition = StartChoice.guided_start()
-	var hints: Array[PlanHint] = TutorialScript.guided().hints
-	var run: RunState = _shift_one(guide)
-	var places: Array[CardInstance] = run.hand_places()
-	var shown: Array[StringName] = []
-	for hint: PlanHint in hints:
-		if not hint.card.is_empty():
-			shown.append(hint.id)
-	_lay(run, places, [YOGURT, CEREAL, EGGS, TEA_BAGS, MILK, BANANA_1, BANANA_2])
-	var machine: MachineDefinition = run.balance.machine
-	assert_int(run.preview().total).is_greater_equal(run.quota() * machine.overtime_ticket_laps)
-	assert_int(run.preview().total).is_less(run.quota() * machine.overtime_premium_laps)
-	assert_str(String(_pick(run, hints, places[BANANA_2], shown))).is_equal("silver")
-	assert_str(String(_pick(run, hints, places[BANANA_2], shown))).is_equal("row_full")
-	assert_bool(shown.has(&"quota")).is_false()
-	var redrawn: PlanHint.Pick = PlanHint.pick_redrawn(hints, shown)
-	assert_str(String(redrawn.hint.id)).is_equal("redrawn")
-	assert_str(String(redrawn.anchor)).is_equal(String(TutorialAnchors.REDRAW))
-	shown.append(redrawn.hint.id)
-	assert_object(PlanHint.pick_redrawn(hints, shown)).is_null()
-
-
-## The hint PlanHint.pick finds after `placed` (its id, added to `shown`; &"" for none).
+## The hint PlanHint.pick finds after `placed` (its id, added to `shown`; &"" for none); the row
+## is complete when it is full.
 static func _pick(
 	run: RunState, hints: Array[PlanHint], placed: CardInstance, shown: Array[StringName]
 ) -> StringName:
-	var full: bool = run.row.size() >= RowCapacity.card_limit(run.limits)
-	var machine: MachineDefinition = run.balance.machine
-	var quota: int = run.quota()
-	var totals: Array[int] = [
-		quota, quota * machine.overtime_ticket_laps, quota * machine.overtime_premium_laps
-	]
-	var found: PlanHint.Pick = PlanHint.pick(
-		hints, run.row, run.preview(), placed, totals, full, shown
-	)
+	var complete: bool = run.row.size() >= RowCapacity.card_limit(run.limits)
+	var found: PlanHint.Pick = PlanHint.pick(hints, run.row, run.preview(), placed, complete, shown)
 	if found == null:
 		return &""
 	shown.append(found.hint.id)

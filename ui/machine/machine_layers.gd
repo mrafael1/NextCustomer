@@ -63,15 +63,21 @@ static func release(feed: Control, owner_item: Node) -> void:
 		feed.free()
 
 
-## The stage's shake at `t` on `shown` (zero but just after a LEGENDARY ticket lands; never under
-## reduced motion), on the 2 px grid.
+## The stage's shake at `t` on `shown` (zero but just after a LEGENDARY ticket lands, or after
+## the receipt's PREMIUM tag slams into the sign, v1.40; never under reduced motion), on the
+## 2 px grid.
 static func legendary_shake(shown: MachinePlan, t: float) -> Vector2:
-	if shown == null or shown.reduced_motion or not shown.has_draw:
+	if shown == null or shown.reduced_motion:
 		return Vector2.ZERO
-	for index: int in range(shown.reveal_at.size()):
-		if shown.rarities[index] != MachinePrize.Rarity.LEGENDARY:
-			continue
-		var since: float = t - shown.reveal_at[index]
+	var jolts: Array[float] = []
+	if shown.tag_premium_end >= 0.0:
+		jolts.append(shown.tag_premium_end)
+	if shown.has_draw:
+		for index: int in range(shown.reveal_at.size()):
+			if shown.rarities[index] == MachinePrize.Rarity.LEGENDARY:
+				jolts.append(shown.reveal_at[index])
+	for at: float in jolts:
+		var since: float = t - at
 		if since < 0.0 or since >= SHAKE_S:
 			continue
 		var left: float = 1.0 - since / SHAKE_S

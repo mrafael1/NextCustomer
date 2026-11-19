@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## The opening board's page 1 YOUR STORE (full build plan 7.2; the aisle board of v1.40, mock-up
+## The opening board's page 1 YOUR STORE (full build plan 7.2; the aisle board of v1.44, mock-up
 ## start_roulette.html variant A) on the real screen: the light running along the bays and landing
 ## on today's aisles, the shutters, the boosters thrown and opening by themselves (saved at once),
 ## the skip, the guided first run's fixed pair, locked aisles, RESTOCK, a veteran's two bays,
@@ -503,7 +503,7 @@ func test_restock_sends_the_cards_back_to_their_bay_for_a_new_booster() -> void:
 
 
 ## At 6 completed aisles the light still lands on today's two bays only (PICK 2 OF 3 was
-## removed in v1.42): the other bays shut, and the two boosters are thrown and wait for clicks.
+## removed in v1.46): the other bays shut, and the two boosters are thrown and wait for clicks.
 func test_a_veteran_gets_two_bays_and_no_pick() -> void:
 	var page: BoosterPage = await _page(6)
 	var roulette: AisleRoulette = page.roulette

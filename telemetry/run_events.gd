@@ -91,7 +91,7 @@ static func booster_fields(setup: StartSetup) -> Array[Dictionary]:
 	return found
 
 
-## The `start_choice` event (#107, v0.63; v1.41 without packs), logged at OPEN STORE, after
+## The `start_choice` event (#107, v0.63; v1.45 without packs), logged at OPEN STORE, after
 ## run_start: today's dealt products, whether the player opened the store in the board (false:
 ## opened for them, a run started without the board), the ms from the board opening to OPEN STORE
 ## (-1 when not chosen) and the fair-deal check's deals of the boosters.
@@ -342,7 +342,7 @@ static func repack(
 
 
 ## The `tutorial_step` event (the tutorial), logged in a guided run when one of its steps is done
-## (it advances): the step id (G2..G14) and the seconds it was shown, to a tenth.
+## (it advances): the step id (G3, G5...) and the seconds it was shown, to a tenth.
 static func tutorial_step(step_id: StringName, seconds: float) -> Dictionary:
 	return {"id": String(step_id), "seconds": _seconds(seconds)}
 
@@ -359,7 +359,7 @@ static func tutorial_hint(hint_id: StringName) -> Dictionary:
 	return {"id": String(hint_id)}
 
 
-## The `tutorial_done` event, logged once when the guided run's last step closes (G14 sets
+## The `tutorial_done` event, logged once when the guided run's last step closes (it sets
 ## TutorialFlags.GUIDE_DONE): the seconds from its first step, to a tenth, and whether it was a
 ## replay (PLAY THE GUIDED SHIFT).
 static func tutorial_done(seconds: float, replay: bool) -> Dictionary:

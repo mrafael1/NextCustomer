@@ -6,10 +6,10 @@ extends Control
 ## pins' cards), the REGULARS crate (BuildRegulars: the regulars, SWAP and KEEP) and OPEN STORE.
 ## While the profile owns a badge pin, the BADGE PINS step opens first and OPEN STORE waits for its
 ## confirm; the step wears one pin per slot (or none). The corkboard (or P) reopens it later. Then
-## OPEN STORE waits for the crate's KEEP (v1.41: every run, swapping or not; Enter presses it).
+## OPEN STORE waits for the crate's KEEP (v1.45: every run, swapping or not; Enter presses it).
 ## Once both are done OPEN STORE (Enter) lights: the cart's cards gather, turn into items, drop into
 ## the cart and the cart rolls out, then the board clocks in. (The three starter packs on the bench,
-## NEW PACKS and the pick went in v1.41, 2026-11-18.)
+## NEW PACKS and the pick went in v1.45, 2026-11-18.)
 ##
 ## Every rule goes through StartBoardActions (saved at once); the motion is cosmetic, on the
 ## page's own clock (`now`), which tests and captures step with advance(). Reduced motion shows

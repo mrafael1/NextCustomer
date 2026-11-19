@@ -1,6 +1,6 @@
 extends GdUnitTestSuite
 ## Start screen page 2, YOUR BUILD (v1.32, mock-up start_boosters_v3; no starter packs since
-## v1.41): the BADGE PINS step that holds OPEN STORE (confirming with no pin allowed, pins changed
+## v1.45): the BADGE PINS step that holds OPEN STORE (confirming with no pin allowed, pins changed
 ## later with no re-deal), OPEN STORE always lit otherwise, and the card -> item -> cart flight.
 ## Geometry on the stage at 1280x720 and 1920x1080.
 
@@ -79,7 +79,7 @@ func test_a_new_profile_opens_the_store_at_once() -> void:
 	staff.advance(0.2)
 	assert_bool(staff.pins_pending()).is_false()
 	assert_bool(staff.pins_open).is_false()
-	# The REGULARS crate's KEEP comes first, every run (v1.41): OPEN STORE stays dim until then.
+	# The REGULARS crate's KEEP comes first, every run (v1.45): OPEN STORE stays dim until then.
 	assert_bool(staff.regulars_pending()).is_true()
 	assert_array(BuildPageDraw.primary_label(staff)).is_equal(
 		["OPEN STORE ›", "KEEP REGULARS FIRST", false]
@@ -95,7 +95,7 @@ func test_a_new_profile_opens_the_store_at_once() -> void:
 	assert_str(label[1]).is_equal("%d CARDS" % staff.cart_target())
 	assert_bool(label[2]).is_true()
 	assert_str(BuildPageDraw.hint_line(staff)).is_equal(BuildPage.READY_HINT)
-	# No starter pack is drawn or hit any more (v1.41).
+	# No starter pack is drawn or hit any more (v1.45).
 	for id: String in ["pack0", "newpacks", "heldpacks"]:
 		assert_bool(_hit(staff, id).is_empty()).is_true()
 	# Wearing one of those pins holds the next run's OPEN STORE for the step.

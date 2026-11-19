@@ -4,7 +4,7 @@ extends RefCounted
 ## parts), in art px through each layer's ArtPen: the staff room with the corkboard's badge, the
 ## floor row and the top bar; the REGULARS crate is BuildRegulars'. The BADGE PINS step is
 ## PinStepDraw's, the OPEN STORE flight StoreFlight's. (The starter packs' bench, deck pile, strips,
-## stamps and plan note went with the packs in v1.41.)
+## stamps and plan note went with the packs in v1.45.)
 
 const PIN_BADGE := preload("res://art/scenery/pin_badge.png")
 const SIGN := preload("res://art/frames/sign.png")

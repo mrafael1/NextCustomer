@@ -23,8 +23,6 @@ extends RefCounted
 ##   WASTED products a Clearance card profits from (ScoreState.wasted);
 ## - `pair`: the PAIR keyword (PAIR_WORD, #128 Dairy), a chip likewise: a product beside its
 ##   partner (CardPairs), which Cream counts;
-## - `morning`: the MORNING keyword (MORNING_WORD, #128 Breakfast), a chip likewise: the row's
-##   opening run of Breakfast products (CardMorning), which Coffee and Tea bags work by;
 ## - `percent`: a fractional multiplier's percent per redraw left (Stale popcorn, #128 v3). Such a
 ##   card's `factor` is live (the user's call of 2026-11-02): ×1 plus `percent`% for each of the
 ##   shift's redraws left (`redraws_left`, ScoreState.redraws_left), "1.5" with 1 at 50%, so its
@@ -47,7 +45,6 @@ const STICKER_KEYS: Array[String] = [
 	"chain",
 	"wasted",
 	"pair",
-	"morning",
 	"percent",
 ]
 const RULE_KEYS: Array[String] = [
@@ -65,9 +62,6 @@ const WASTED_WORD := "WASTED"
 ## The PAIR keyword's word (#128, Dairy): `{pair}` in a template.
 const PAIR_KEY := "pair"
 const PAIR_WORD := "PAIR"
-## The MORNING keyword's word (#128, Breakfast): `{morning}` in a template.
-const MORNING_KEY := "morning"
-const MORNING_WORD := "MORNING"
 ## A live factor's tooltip (live_tip): the factor now, its percent per redraw left, the redraws
 ## left.
 const LIVE_TIP := "%s now · ×%s, plus %s for each redraw left this shift (%d left)"
@@ -102,7 +96,6 @@ const MONITOR_KEYS: Array[String] = [
 	"chain",
 	"wasted",
 	"pair",
-	"morning",
 	"percent",
 	"max_count",
 	PREVIOUS_KEY,
@@ -190,7 +183,6 @@ static func sticker_values(definition: CardDefinition, redraws_left: int = -1) -
 		CHAIN_KEY: CHAIN_WORD,
 		WASTED_KEY: WASTED_WORD,
 		PAIR_KEY: PAIR_WORD,
-		MORNING_KEY: MORNING_WORD,
 	}
 	for rule: Rule in definition.rules:
 		for property: Dictionary in rule.get_property_list():

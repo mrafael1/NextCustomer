@@ -9,8 +9,8 @@ extends Control
 ## ("Works with Breakfast", the family as its chip) over a dotted line, then only what the face
 ## does not show (the user, 2026-11-14: no price or rule repeated): the full rule when the face cut
 ## it short, "Counts as" its families and, for a START item, where it came from. A stock icon's tip
-## (show_stock) is narrower and shows the card face, the colour's meaning and the families, then
-## "In your cart: N" or "Not in your cart". Each keyword of the rule
+## (show_stock) is only the item's card face, as the Cart page shows it (the user, 2026-11-19: "no
+## need for extra overlays infos"). Each keyword of a Cart card's rule
 ## gets its own KEYWORD box (mustard band, the keyword family's glyph, GlyphText.keyword_tip),
 ## stacked on the main card's far side. place_beside opens it beside the item (right, else left),
 ## inside the stage, the tail at the item's middle. Display only: it takes no clicks.
@@ -18,7 +18,6 @@ extends Control
 enum Placement { RIGHT, LEFT }
 
 const WIDTH := 262.0
-const FACE_WIDTH := 196.0
 ## A keyword box is wider than the mock-up's 200 px: its title prints at the item name's size.
 const KEYWORD_WIDTH := 224.0
 ## The gap between the item and the tip, between the tip and its keyword boxes (and between
@@ -31,8 +30,6 @@ const COUPON_TAGS: Array[String] = ["COUPON", "RARE COUPON", "LEGENDARY COUPON"]
 const KEYWORD_TAG := "KEYWORD"
 const COUNTS_AS := "Counts as %s"
 const START_TEXT := "START: %s"
-const IN_CART := "In your cart: %d"
-const NOT_IN_CART := "Not in your cart"
 const PLAIN_COUPON := "Plain coupon: works with whatever is beside it"
 
 var side: Placement = Placement.RIGHT
@@ -69,21 +66,13 @@ func show_card(
 	_add_keywords(card)
 
 
-## The tip of a stock icon: the card face, its colour's meaning, its families, then
-## whether the cart holds it (`in_cart` copies), and its keywords' boxes.
-func show_stock(card: CardDefinition, machine: MachineDefinition, in_cart: int) -> void:
+## The tip of a stock icon: only `card`'s face, as the Cart page shows it (no paper card, lines or
+## keyword boxes). `machine` gives a coupon's rarity.
+func show_stock(card: CardDefinition, machine: MachineDefinition) -> void:
 	_clear()
-	_main = _card_box(card, machine, FACE_WIDTH)
 	_face = DeckCell.new(CardInstance.new(card, 0), machine, 1)
-	_main.add_face(_face)
-	var meaning: String = works_with(card)
-	if not meaning.is_empty():
-		_main.add_text(meaning, CardTipBox.Style.WHY)
-	var families: String = counts_as(card)
-	if not families.is_empty():
-		_main.add_text(families, CardTipBox.Style.BODY)
-	_main.add_text(IN_CART % in_cart if in_cart > 0 else NOT_IN_CART, CardTipBox.Style.COND)
-	_add_keywords(card)
+	add_child(_face)
+	_face.propagate_call(&"set_mouse_filter", [Control.MOUSE_FILTER_IGNORE])
 
 
 ## What `card`'s colour means, capitalised ("Works with Breakfast"); a plain coupon's line; "" for
@@ -113,10 +102,13 @@ static func tag_of(card: CardDefinition, machine: MachineDefinition) -> String:
 ## when the tip and its keyword boxes fit there, else left, else right clamped to the stage; its
 ## middle level with the item's, the keyword boxes on the far side, the tail at the item.
 func place_beside(item: Rect2, stage: Rect2) -> void:
-	if _main == null:
+	if _main == null and _face == null:
 		return
 	position = Vector2.ZERO
-	var main_size: Vector2 = _main.size
+	# A face alone keeps room above it for its rarity tab.
+	var main_size: Vector2 = (
+		_main.size if _main != null else _face.size + Vector2(0.0, DeckCell.TOP_ROOM)
+	)
 	var column: Vector2 = _column_size()
 	var beside: float = column.x + KEYWORD_GAP if column.x > 0.0 else 0.0
 	var x: float = item.end.x + GAP
@@ -140,6 +132,9 @@ func place_beside(item: Rect2, stage: Rect2) -> void:
 	# rounded away from the item.
 	x = ceilf(x / 2.0) * 2.0 if side == Placement.RIGHT else floorf(x / 2.0) * 2.0
 	y = floorf(y / 2.0) * 2.0
+	if _main == null:
+		_face.position = Vector2(x, y + DeckCell.TOP_ROOM)
+		return
 	_main.position = Vector2(x, y)
 	_main.point_tail(
 		CardTipBox.TAIL_LEFT if side == Placement.RIGHT else CardTipBox.TAIL_RIGHT,
@@ -173,6 +168,8 @@ func card_rects() -> Array[Rect2]:
 	var rects: Array[Rect2] = []
 	if _main != null:
 		rects.append(_main.get_global_rect())
+	if _face != null:
+		rects.append(_face.get_global_rect())
 	for box: CardTipBox in _keywords:
 		rects.append(box.get_global_rect())
 	return rects
@@ -250,8 +247,8 @@ func _clear() -> void:
 
 
 ## One paper card of the tip: the header band (its colour, the icon in a paper box, the title and
-## the tag), then lines of text (GlyphLabels: keywords and families as chips) and an optional card
-## face; a dotted line under the colour's meaning; the tail on a side edge (point_tail).
+## the tag), then lines of text (GlyphLabels: keywords and families as chips); a dotted line under
+## the colour's meaning; the tail on a side edge (point_tail).
 class CardTipBox:
 	extends Control
 
@@ -285,8 +282,6 @@ class CardTipBox:
 	const PAD := Vector2(9, 6)
 	const LINE_GAP := 4.0
 	const DOT_GAP := 4.0
-	const FACE_TOP := 8.0
-	const FACE_FOOT := 6.0
 	const SHADOW_OFFSET := Vector2(0, 6)
 	const SHADOW_ALPHA := 0.5
 	## Each style's text size, weight, colour and leading (line pitch over size).
@@ -356,8 +351,8 @@ class CardTipBox:
 				Vector2(right - tag_box.x, head_top + roundf((ICON - tag_box.y) / 2.0)), tag_box
 			)
 		else:
-			# A long tag in a narrow tip (a stock tip's "LEGENDARY · GOLDEN") takes a row of its
-			# own under the title, so the title keeps the header's width.
+			# A long tag in a narrow card takes a row of its own under the title, so the title
+			# keeps the header's width.
 			room = right - x
 			_tag_rect = Rect2(Vector2(x, head_top + ICON), tag_box)
 			_head_height += tag_box.y
@@ -397,16 +392,6 @@ class CardTipBox:
 			_y += DOT_GAP * 2.0 + 2.0
 		else:
 			_y += LINE_GAP
-		_fit()
-
-	## Adds `face` (a card face) centred under the content so far.
-	func add_face(face: DeckCell) -> void:
-		face.propagate_call(&"set_mouse_filter", [Control.MOUSE_FILTER_IGNORE])
-		add_child(face)
-		face.position = Vector2(
-			roundf((size.x - face.size.x) / 2.0), _y + FACE_TOP + DeckCell.TOP_ROOM
-		)
-		_y = face.position.y + face.size.y + FACE_FOOT + LINE_GAP
 		_fit()
 
 	## Points the tail out of `edge` (TAIL_LEFT, TAIL_RIGHT) at `y` (this card's coordinates),

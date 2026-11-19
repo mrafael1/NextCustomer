@@ -1,6 +1,6 @@
 extends GdUnitTestSuite
 ## The opening-time rules across profiles and stages (StartSetupRules, v1.32 "boosters"): no
-## third booster for a veteran (PICK 2 OF 3 was removed in v1.42) and RESTOCK after page 2. On the
+## third booster for a veteran (PICK 2 OF 3 was removed in v1.46) and RESTOCK after page 2. On the
 ## live data, with the named derived streams the game uses; nothing here touches a save file.
 
 const Kit := preload("res://tests/core/start_setup_kit.gd")
@@ -30,7 +30,7 @@ func test_restock_after_page_two_stays_in_build() -> void:
 	assert_array(run.start_offer.shared).is_equal(setup.shared())
 
 
-## Every aisle completed (PICK 2 OF 3 once opened at 6, removed in v1.42): over many seeds the
+## Every aisle completed (PICK 2 OF 3 once opened at 6, removed in v1.46): over many seeds the
 ## deal holds exactly dealt_aisle_count boosters, one per stocked aisle, in the stocked order.
 func test_a_veteran_gets_only_the_stocked_aisles() -> void:
 	var profile: ProfileState = Kit.profile(_balance.aisles.size())

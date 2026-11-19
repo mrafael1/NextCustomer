@@ -1,179 +1,48 @@
 extends GdUnitTestSuite
-## The tutorial's script and text data (data/tutorial: the guided run G1-G14 with its free
-## planning's retry and answer lines and reactive hints, the one-time tips T1-T16 and the quick
-## tutorials R, P and SA; tutorial plan WP-3, reworked after play test 1, 2026-11-15). Every id,
-## anchor, event, action and chip resolves; the filled lines equal the approved ones (the mock-up
-## docs/art/mockups/tutorial.html, with the user's decisions: Pantry, not Produce; G1 follows the
-## title's plate), so a card or balance change that breaks the answer's total fails here; and
-## every line passes the mock-up's line checker, ported below.
+## The tutorial's script and text data (data/tutorial: the guided run with its free planning's
+## retry and answer lines and reactive hints, the one-time tips and the quick tutorials R, P and
+## SA; tutorial plan WP-3, reworked after play test 1, 2026-11-15, and cut by more than half
+## after the play tests of 2026-11-16 and 2026-11-18, v1.40: "a lot of information, maybe even too
+## much"). Every id, anchor, event, action and chip resolves; the filled lines equal the approved
+## ones, so a card or balance change that breaks the answer's total fails here; every line passes
+## the line checker (one short sentence, no word before it is taught, no avoided word); and the
+## count of lines stays within the cut's budget.
 
-## The approved lines, filled (the mock-up's GUIDED, TIPS and QUICK texts, chips marked **).
+## The approved lines, filled (chips marked **).
 const APPROVED: Dictionary[String, String] = {
-	"G2": "**YOUR REGULARS** are already in your **CART**. They start there on every run.",
-	"G3":
-	(
-		"Today's 2 aisles each gave a **BOOSTER**. Click both to open them: their 4 **CARDS** "
-		+ "each go in your **CART**."
-	),
-	"G4": "Your store is stocked. Click NEXT.",
-	"G6":
-	(
-		"Your **CART** is ready. Click KEEP on your regulars, then OPEN STORE to start your"
-		+ " first **SHIFT**."
-	),
-	"G7":
-	(
-		"Put **ITEMS** from your **BASKETS** in the **ROW**. Reach the **QUOTA**, 30€, to pass "
-		+ "the **SHIFT**."
-	),
-	"G8":
-	(
-		"Each **CARD** has a **PRICE** and a **RULE**, and the order matters. Hold the pointer "
-		+ "still on one to read it on the monitor."
-	),
-	"G9": "Your turn! Build your **ROW**, then press **CHECKOUT**. Tips pop up as you go.",
+	"G3": "Open both **BOOSTERS**.",
+	"G6": "Click KEEP, then OPEN STORE.",
+	"G7": "Drag items into the row to reach the **QUOTA**: 30€.",
+	"G8": "The order matters: hold the pointer on an item to read its rule.",
 	"G10": "",
-	"RETRY":
-	(
-		"24€ of 30€: not quite! Move some **ITEMS**, or **REDRAW** a **BASKET**, then press "
-		+ "**CHECKOUT** once more."
-	),
-	"ANSWER":
-	(
-		"Here is a **ROW** that pays 36€. Drag each **ITEM** onto its ghost, then press "
-		+ "**CHECKOUT**."
-	),
-	"eggs_placed":
-	"Eggs can boost other items! The **NEXT** Food **ITEM**, anywhere **LATER**, pays ×2.",
-	"quota":
-	(
-		"Your **ROW** reaches the **QUOTA**! Press **CHECKOUT**, or push on: 2× the **QUOTA** "
-		+ "earns a **SILVER** medal."
-	),
-	"silver":
-	(
-		"2× the **QUOTA**: **SILVER** brings an **EXTRA DRAW** at the machine. 3× makes it "
-		+ "**GOLD**: **PREMIUM** prizes."
-	),
-	"redrawn": "New **CARDS** from your **PILE**! Each **BASKET** you swap costs 1 **REDRAW**.",
-	"row_full": "7 slots, 8 **CARDS**: one always stays in its **BASKET**.",
-	"G11":
-	(
-		"**QUOTA** met! Pick a key, then PUSH. **NEW ITEMS** brings new **CARDS**. **IMPROVE** "
-		+ "makes one better, or gives a **LOYALTY PERK**."
-	),
-	"G12":
-	"Keep 1 prize, or **SKIP** them all. **RARE** and **LEGENDARY** prizes are harder to find.",
-	"G13":
-	(
-		"A **WEEK** is 4 **SHIFTS**, and **PAYDAY** is the last. In training **WEEK** you may "
-		+ "**MISS** the **QUOTA** 2 times."
-	),
-	"G14": "That's the basics! Look up any word in the **HANDBOOK**, in the menu.",
-	"T1":
-	(
-		"Bad **CARDS**? Press **REDRAW**, then click a **BASKET**. Its **CARDS** swap for new "
-		+ "ones from your **PILE**. Each **BASKET** costs 1 **REDRAW**."
-	),
-	"T2":
-	(
-		"A **COUPON** has no **PRICE**. It changes the **ITEMS** around it. Two **ITEMS** with a "
-		+ "**COUPON** between them are not **BESIDE** each other."
-	),
-	"T3":
-	(
-		"The small icons in a ticket's corner are its **FAMILIES**, like Breakfast or Dairy. A "
-		+ "chip in a **RULE** names a **FAMILY** or a keyword."
-	),
-	"T4":
-	(
-		"**MORNING**: start your **ROW** with Breakfast **ITEMS**. Coffee pays +1€ for each one. "
-		+ "Here, Eggs and Bread make 2."
-	),
-	"T5":
-	(
-		"**BATCH**: Bakery **ITEMS** **BESIDE** each other. Some care where they sit in it: "
-		+ "Croissant first."
-	),
-	"T6":
-	(
-		"Each **SHIFT** may have a **DAY EVENT**. Green is a **GOOD DAY**. Red is an "
-		+ "**INSPECTION**: a harder **RULE** for this **SHIFT**."
-	),
-	"T7":
-	(
-		"**PAYDAY**: the last **SHIFT** of the **WEEK**, with 2 **INSPECTIONS**. Meet the "
-		+ "**QUOTA** for 2 **PREMIUM** draws: every prize **RARE** or better."
-	),
-	"T8": "**PREMIUM**: every prize here is **RARE** or better.",
-	"T9":
-	(
-		"**MISS** 1 of 2: no prizes this time. Training **WEEK** lets it go. From **WEEK** 2, one "
-		+ "**MISS** ends the run."
-	),
-	"T10":
-	(
-		"Pay 2× the **QUOTA** in one **SHIFT** for **SILVER**: an **EXTRA DRAW**. 3× for "
-		+ "**GOLD**: your draw turns **PREMIUM**. One of each per **WEEK**."
-	),
-	"T11":
-	"Your **LOYALTY** card. Each **LOYALTY PERK** stays for the whole run, and some level up.",
-	"T12": "**IMPROVE** made it **BIG**: it pays more. A later **IMPROVE** can make it **GOLDEN**.",
-	"T13": "Training **WEEK** is over. From now on, one **MISS** ends the run.",
-	"T14":
-	(
-		"Next time: put Eggs **EARLIER** than your best Food **ITEM**, with no other Food "
-		+ "**ITEM** between them."
-	),
-	"T15":
-	(
-		"Pass 8 **SHIFTS** or more to earn **COINS**. Use them to buy toy capsules at the exit. "
-		+ "**BADGE PINS** change your next run."
-	),
-	"T16":
-	(
-		"Look up rules and words here. On a tip, point at a chip word to see what it means. "
-		+ "MORE › opens its page here."
-	),
-	"R1":
-	(
-		"NEW: **RESTOCK**. Not happy with a **BOOSTER** you opened? Send it back for a new one, "
-		+ "once per run start."
-	),
-	"restock_pick":
-	"Click RETURN THIS ONE on a **BOOSTER** to send it back. CANCEL keeps all your " + "**CARDS**.",
-	"restock_new":
-	(
-		"Its 4 **CARDS** left your **CART**. Open the new **BOOSTER**: a new chance at a "
-		+ "**RARE** one. **RESTOCK** is used up until your next run."
-	),
-	"P1":
-	"NEW: **BADGE PINS**. You earned one! Click WEAR: a pin changes a rule for this whole run.",
-	"pins_worn":
-	(
-		"Confirm with the red key, then OPEN STORE. You have 1 slot: wearing another pin "
-		+ "swaps it."
-	),
-	"pins_set":
-	(
-		"Your pin is on the board for this run. Click it or press P to change it before you "
-		+ "open the store."
-	),
-	"SA1": "NEW: each completed aisle lets you swap 1 of **YOUR REGULARS**. Click SWAP.",
-	"swap_open": "Each completed aisle gives a **BOOSTER** of plain **CARDS**. Open them.",
-	"swap_drag": "Drag a **CARD** onto a regular to swap them. Drag it back to undo.",
-	"swap_kept":
-	(
-		"Swaps last this run only. Next run, **YOUR REGULARS** are back. Click DONE when you are "
-		+ "set."
-	),
+	"RETRY": "24€ is under the quota: try another order.",
+	"ANSWER": "This order pays 36€: drag each item onto its ghost.",
+	"combo": "This item's rule is working.",
+	"wasted": "This item's rule does nothing here: try another spot.",
+	"G15": "Bad items? Press **REDRAW**, then click a basket.",
+	"T2": "A **COUPON** has no price: it changes the items around it.",
+	"T6": "Today has a **DAY EVENT**: green helps, red makes the shift harder.",
+	"T7": "**PAYDAY**: reach the quota today for better prizes.",
+	"T9": "A **MISS**: no prize this time, and this week forgives only 2.",
+	"T11": "Your perk sits here and lasts the whole run.",
+	"T14": "Next time, put Eggs somewhere before your best Food item.",
+	"T14 fallback": "Next time, try a new order before you press checkout.",
+	"T15": "**COINS** buy toy capsules, from the title screen.",
+	"R1": "**RESTOCK**: send back a booster you opened for a new one.",
+	"P1": "You earned a **BADGE PIN**: wear it to change a rule for this run.",
+	"SA1": "You can now swap one of your regulars: click SWAP.",
+	"swap_drag": "Drag a card onto a regular to swap them.",
 }
+## The guided run's steps, in order (they keep the ids of the 14-step script they were cut from;
+## G15, the closing step, took the REDRAW tip's place), and the one-time tips'.
+const GUIDED: Array[String] = ["G1", "G3", "G6", "G7", "G8", "G10", "G15"]
+const TIPS: Array[String] = ["T2", "T6", "T7", "T9", "T11", "T14", "T15"]
+## The cut's budget (v1.40; before it: 14 guided lines with the retry and answer lines, 18 hints,
+## 16 tips, 3 callouts and 7 quick hints, 60 lines): the lines a new player can meet, at most.
+const MAX_LINES := 24
 ## G1 follows the title's plate (the user's decision): START RUN on a fresh profile, NEW RUN with
 ## a saved run.
-const G1_LINE := (
-	"Welcome to the till! Click %s. Your first **SHIFT** shows you how to play, one move at "
-	+ "a time."
-)
+const G1_LINE := "Click %s."
 const PLATES: Array[String] = ["START RUN", "NEW RUN"]
 ## The words tutorial_glossary.json says to avoid (its avoid_synonyms; BOOSTER is a word of its
 ## own on page 1, so "booster" is not avoided), and the phrases that hold an avoided word but are
@@ -233,7 +102,7 @@ const AVOID: Array[String] = [
 const EXEMPT: Array[String] = [
 	"DAY EVENT", "GOOD DAY", "RIGHT BEFORE", "RIGHT AFTER", "NEW ITEMS", "training WEEK"
 ]
-const MAX_WORDS := 30
+const MAX_WORDS := 16
 const MAX_SENTENCE := 16
 ## The boxes that were there before the tutorial (they keep their own words).
 const OLD_BOXES: Array[String] = ["FAMILY", "ROW", "SLOT", "QUOTA", "PREMIUM", "COUPON"]
@@ -257,51 +126,68 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-## v1.41: G5 (the starter pack pick) is gone; the ids keep their numbers.
-func test_the_guided_run_is_g1_to_g14_in_order() -> void:
+func test_the_guided_run_is_its_seven_steps_in_order() -> void:
 	var script: TutorialScript = TutorialScript.guided()
-	assert_int(script.steps.size()).is_equal(13)
-	var want_ids: Array[String] = []
-	for n: int in range(1, 15):
-		if n != 5:
-			want_ids.append("G%d" % n)
+	var ids: Array[String] = []
 	for k: int in script.steps.size():
-		assert_str(String(script.steps[k].id)).is_equal(want_ids[k])
+		ids.append(String(script.steps[k].id))
 		assert_int(script.index_of(script.steps[k].id)).is_equal(k)
-	assert_object(script.step(&"G10")).is_same(script.steps[8])
+	assert_array(ids).is_equal(GUIDED)
+	assert_object(script.step(&"G10")).is_same(script.steps[5])
 	assert_object(script.step(&"G99")).is_null()
-	# G10 is shift 1's free planning: no line, every planning move but REDRAW and its baskets.
-	assert_int(script.free_index()).is_equal(8)
+	# G10 is shift 1's free planning: no line, every planning move.
+	assert_int(script.free_index()).is_equal(5)
 	for k: int in script.steps.size():
-		assert_bool(script.steps[k].is_free()).override_failure_message(str(k)).is_equal(k == 8)
+		assert_bool(script.steps[k].is_free()).override_failure_message(str(k)).is_equal(k == 5)
 	assert_str(String(script.retry.id)).is_equal("RETRY")
 	assert_str(String(script.answer_step.id)).is_equal("ANSWER")
-	var ids: Array[StringName] = []
+	# The closing step shows on shift 2's planning and never forces a move.
+	var closing: TutorialStep = script.steps[-1]
+	assert_int(closing.screen).is_equal(TutorialStep.Screen.WEEK_CARD)
+	assert_int(closing.gate).is_equal(TutorialStep.Gate.OPEN)
+	assert_bool(closing.button_advances()).is_true()
+	# Two reactive hints, about any card: the first rule that works, and a WASTED one.
+	var whens: Array[int] = []
 	for hint: PlanHint in script.hints:
-		assert_bool(ids.has(hint.id)).override_failure_message(String(hint.id)).is_false()
-		ids.append(hint.id)
+		whens.append(hint.when)
 		assert_str(hint.title).override_failure_message(String(hint.id)).is_not_empty()
-		var about_card: bool = hint.when in [PlanHint.When.PLACED, PlanHint.When.FIRED]
-		about_card = about_card or hint.when == PlanHint.When.WASTED
-		assert_bool(hint.card.is_empty()).override_failure_message(String(hint.id)).is_equal(
-			not about_card
-		)
-		if about_card:
+		assert_bool(hint.card.is_empty()).override_failure_message(String(hint.id)).is_true()
+	assert_array(whens).is_equal([PlanHint.When.FIRED, PlanHint.When.WASTED])
+
+
+## The cut holds: every line a new player can meet, counted (a line added later has to make its
+## case here), and none of them a rule's explanation of MORNING or the medals.
+func test_the_lines_stay_within_the_cut() -> void:
+	var count: int = 0
+	for line: Array in _lines():
+		var text: String = str(line[1])
+		if text.is_empty():
+			continue
+		count += 1
+		for word: String in ["MORNING", "SILVER", "GOLD", "medal"]:
 			(
-				assert_bool(script.hand.has(hint.card))
-				. override_failure_message(String(hint.id))
-				. is_true()
+				assert_bool(text.contains(word))
+				. override_failure_message("%s: %s" % [line[0], word])
+				. is_false()
 			)
+	assert_int(count).is_less_equal(MAX_LINES)
+	assert_int(count).is_equal(APPROVED.size())  # G1, the title line, for G10, which has none.
+	assert_int(TipScheduler.PER_PLANNING).is_equal(1)
 
 
 func test_tips_and_quick_tutorials_have_their_ids() -> void:
 	var tips: TipList = TipList.shared()
-	assert_int(tips.tips.size()).is_equal(16)
+	var tip_ids: Array[String] = []
+	var triggers: Array[StringName] = []
 	for k: int in tips.tips.size():
-		assert_str(String(tips.tips[k].id)).is_equal("T%d" % (k + 1))
+		tip_ids.append(String(tips.tips[k].id))
 		assert_bool(TipDefinition.TRIGGERS.has(tips.tips[k].trigger)).is_true()
+		assert_bool(triggers.has(tips.tips[k].trigger)).is_false()  # One tip per trigger.
+		triggers.append(tips.tips[k].trigger)
 		assert_int(tips.tips[k].priority).is_between(1, 6)
-	assert_object(tips.tip(&"T6")).is_same(tips.tips[5])
+	assert_array(tip_ids).is_equal(TIPS)
+	assert_array(triggers).contains_exactly_in_any_order(TipDefinition.TRIGGERS)
+	assert_object(tips.tip(&"T6")).is_same(tips.tips[1])
 	assert_str(String(tips.for_trigger(TipDefinition.DAY_EVENT)[0].id)).is_equal("T6")
 	var quick: Array[QuickTutorial] = QuickTutorial.all()
 	var ids: Array[StringName] = []
@@ -314,10 +200,13 @@ func test_tips_and_quick_tutorials_have_their_ids() -> void:
 	for each: QuickTutorial in quick:
 		for step: TutorialStep in each.steps:
 			steps.append(String(step.id))
-	# One callout each, then its hints (play test 1, 2026-11-15).
+	# One callout each (play test 1, 2026-11-15), and one hint in all: SWAP's drag (v1.40).
 	assert_array(steps).is_equal(["SA1", "R1", "P1"])
+	(
+		assert_array(quick.map(func(each: QuickTutorial) -> int: return each.hints.size()))
+		. is_equal([1, 0, 0])
+	)
 	for each: QuickTutorial in quick:
-		assert_int(each.hints.size()).is_greater(0)
 		for hint: QuickHint in each.hints:
 			(
 				assert_bool(TutorialEvents.ARGS.has(hint.event))
@@ -424,8 +313,8 @@ func test_every_more_page_resolves() -> void:
 			continue
 		assert_bool(book.entry(page) != null).override_failure_message(page).is_true()
 	assert_bool(TipList.shared().tip(&"T15").more_in_toys()).is_true()
-	assert_bool(TipList.shared().tip(&"T1").more_in_toys()).is_false()
-	assert_str(String(TipList.shared().tip(&"T16").more_page)).is_empty()
+	assert_bool(TipList.shared().tip(&"T2").more_in_toys()).is_false()
+	assert_str(String(TipList.shared().tip(&"T11").more_page)).is_empty()
 
 
 func test_the_filled_lines_are_the_approved_lines() -> void:
@@ -456,9 +345,6 @@ func test_every_placeholder_is_filled_from_data_or_live() -> void:
 	)
 	for live: String in [
 		TutorialText.PRIMARY,
-		TutorialText.MORNING_NAMES,
-		TutorialText.MORNING_MAKE,
-		TutorialText.MORNING_COUNT,
 		TutorialText.WASTED_CARD,
 		TutorialText.WASTED_FAMILY,
 		TutorialText.MISSED,
@@ -474,13 +360,9 @@ func test_the_figures_are_the_rules_and_the_balance() -> void:
 	var balance: BalanceDefinition = _balance()
 	var values: Dictionary[String, String] = TutorialText.values(TutorialScript.guided(), balance)
 	assert_str(values["quota"]).is_equal(str(balance.quotas[0]))
-	assert_str(values["hand"]).is_equal(str(balance.hand_size))
-	assert_str(values["slots"]).is_equal(str(balance.slot_count))
+	assert_str(values["misses"]).is_equal(str(balance.write_up_limit))
 	# The answer row meets the shift 1 quota.
 	assert_int(int(values["answer_total"])).is_greater_equal(balance.quotas[0])
-	# T4's "Coffee pays +1€ for each one" is Coffee's own rule.
-	var coffee: CardDefinition = load("res://data/cards/coffee.tres")
-	assert_str(values["coffee_per"]).is_equal(str((coffee.rules[0] as MorningCountRule).bonus_each))
 
 
 func test_every_line_passes_the_line_checker() -> void:
@@ -514,7 +396,8 @@ func test_the_line_checker_flags_what_the_page_flags() -> void:
 	var long: String = " ".join(
 		PackedStringArray(range(17).map(func(_n: int) -> String: return "go"))
 	)
-	assert_array(Array(_check(long + ".", 9, taught))).has_size(1)
+	# Over the line's words and over a sentence's (the same limit since v1.40: one sentence).
+	assert_array(Array(_check(long + ".", 9, taught))).has_size(2)
 
 
 func test_the_hand_and_rows_fit_the_guided_shift() -> void:
@@ -555,11 +438,11 @@ func test_the_gate_allows_only_the_steps_move() -> void:
 		assert_bool(step.allows(TutorialActions.OPEN_DECK)).is_true()
 		assert_bool(step.allows(TutorialActions.REDRAW)).is_true()
 		assert_bool(step.allows(TutorialActions.BASKET, {TutorialEvents.ARG_BASKET: 1})).is_true()
-	# G7-G9 read first: no move but picking a placed card back up.
-	var g9: TutorialStep = script.step(&"G9")
-	assert_bool(g9.allows(TutorialActions.PICK_CARD, _card(&"eggs", false))).is_false()
-	assert_bool(g9.allows(TutorialActions.CHECKOUT)).is_false()
-	assert_bool(g9.allows(TutorialActions.PICK_CARD, _card(&"eggs", true))).is_true()
+	# G7 and G8 read first: no move but picking a placed card back up.
+	var g8: TutorialStep = script.step(&"G8")
+	assert_bool(g8.allows(TutorialActions.PICK_CARD, _card(&"eggs", false))).is_false()
+	assert_bool(g8.allows(TutorialActions.CHECKOUT)).is_false()
+	assert_bool(g8.allows(TutorialActions.PICK_CARD, _card(&"eggs", true))).is_true()
 	var g3: TutorialStep = script.step(&"G3")
 	# G3: the player opens both boosters (round 2 of the 2026-11-19 play test: they wait sealed),
 	# by their clicks or Enter; nothing else.
@@ -568,27 +451,33 @@ func test_the_gate_allows_only_the_steps_move() -> void:
 	assert_bool(g3.allows(TutorialActions.HIT, {TutorialActions.ARG_ID: &"primary"})).is_true()
 	assert_bool(g3.allows(TutorialActions.HIT, {TutorialActions.ARG_ID: &"swap_key"})).is_false()
 	assert_bool(g3.allows(TutorialActions.HIT, {TutorialActions.ARG_ID: &"restock"})).is_false()
-	var g11: TutorialStep = script.step(&"G11")
-	assert_bool(g11.allows(TutorialActions.CHUTE, {TutorialEvents.ARG_CHUTE: &"upgrade"})).is_true()
+	# G6 waits on page 2 (v1.46: no pack to pick), so it lets NEXT and tab 2 through once the
+	# boosters are open, then rings KEEP and OPEN STORE; nothing else on the board.
+	var g6: TutorialStep = script.step(&"G6")
+	assert_bool(g6.allows(TutorialActions.HIT, {TutorialActions.ARG_ID: &"primary"})).is_true()
+	assert_bool(g6.allows(TutorialActions.HIT, {TutorialActions.ARG_ID: &"tab2"})).is_true()
+	assert_bool(g6.allows(TutorialActions.HIT, {TutorialActions.ARG_ID: &"regulars_ok"})).is_true()
+	assert_bool(g6.allows(TutorialActions.HIT, {TutorialActions.ARG_ID: &"restock"})).is_false()
+	var g7: TutorialStep = script.step(&"G7")
+	assert_bool(g7.allows(TutorialActions.HIT, {TutorialActions.ARG_ID: &"primary"})).is_true()
+	assert_bool(g7.allows(TutorialActions.CHECKOUT)).is_false()
+	# The closing step (shift 2) and the machine before it: nothing is refused.
+	var g15: TutorialStep = script.step(&"G15")
+	assert_bool(g15.allows(TutorialActions.CHUTE, {TutorialEvents.ARG_CHUTE: &"upgrade"})).is_true()
+	assert_bool(g15.allows(TutorialActions.REDRAW)).is_true()
 
 
-## A quick hint fires on its event only (BADGE PINS' worn hint: a pin worn, not taken off), and
-## its anchor takes the event's index or slot.
 func test_a_quick_hint_fires_on_its_event() -> void:
-	var pins: QuickTutorial = load(QuickTutorial.PATHS[2])
-	var worn: QuickHint = pins.hints[0]
-	var on: Dictionary = {TutorialEvents.ARG_INDEX: 0, TutorialEvents.ARG_ON: true}
-	assert_bool(worn.fires_on(TutorialEvents.PIN_TOGGLED, on)).is_true()
-	on[TutorialEvents.ARG_ON] = false
-	assert_bool(worn.fires_on(TutorialEvents.PIN_TOGGLED, on)).is_false()
-	assert_bool(worn.fires_on(TutorialEvents.PINS_CONFIRMED, {})).is_false()
-	var restock: QuickTutorial = load(QuickTutorial.PATHS[1])
-	var fresh: QuickHint = restock.hints[1]
-	assert_str(String(fresh.anchor_for({TutorialEvents.ARG_INDEX: 1}))).is_equal("booster1")
 	var swap: QuickTutorial = load(QuickTutorial.PATHS[0])
-	assert_str(String(swap.hints[2].anchor_for({TutorialEvents.ARG_SLOT: 2}))).is_equal(
-		"swap_regular2"
-	)
+	var drag: QuickHint = swap.hints[0]
+	assert_bool(drag.fires_on(TutorialEvents.SWAP_BOOSTER_OPENED, {})).is_true()
+	assert_bool(drag.fires_on(TutorialEvents.SWAP_OPENED, {})).is_false()
+	assert_str(String(drag.anchor_for({}))).is_equal("swap_regular0")
+	var made: QuickHint = QuickHint.new()
+	made.anchor = "booster{index}"
+	assert_str(String(made.anchor_for({TutorialEvents.ARG_INDEX: 1}))).is_equal("booster1")
+	made.anchor = "swap_regular{slot}"
+	assert_str(String(made.anchor_for({TutorialEvents.ARG_SLOT: 2}))).is_equal("swap_regular2")
 
 
 func test_markup_marks_keywords_and_words() -> void:
@@ -598,21 +487,6 @@ func test_markup_marks_keywords_and_words() -> void:
 	assert_array(Array(TipMarkup.subs_of(marked))).is_equal(["PAIR", "CARD", "RIGHT BEFORE"])
 	assert_str(TutorialText.plain("**ROW** pays")).is_equal("ROW pays")
 	assert_array(Array(TutorialText.chips("**A** b **C D**"))).is_equal(["A", "C D"])
-
-
-func test_live_fills_read_aloud() -> void:
-	assert_str(TutorialText.listed(PackedStringArray(["Eggs"]))).is_equal("Eggs")
-	assert_str(TutorialText.listed(PackedStringArray(["Eggs", "Bread"]))).is_equal("Eggs and Bread")
-	assert_str(TutorialText.listed(PackedStringArray(["Eggs", "Bread", "Milk"]))).is_equal(
-		"Eggs, Bread and Milk"
-	)
-	var one: Dictionary[String, String] = TutorialText.morning_values(PackedStringArray(["Eggs"]))
-	assert_str(one[TutorialText.MORNING_MAKE]).is_equal("makes")
-	assert_str(one[TutorialText.MORNING_COUNT]).is_equal("1")
-	var t4: String = TipList.shared().tip(&"T4").text
-	var values: Dictionary = _values()
-	values.merge(one, true)
-	assert_str(TutorialText.fill(t4, values)).ends_with("Here, Eggs makes 1.")
 
 
 func test_the_new_boxes_avoid_the_retired_words() -> void:
@@ -736,12 +610,10 @@ func _steps() -> Array[TutorialStep]:
 	return found
 
 
-## The data's values plus the approved lines' live ones (START RUN, T4's Eggs and Bread, T14's
-## Eggs and Food).
+## The data's values plus the approved lines' live ones (START RUN, T14's Eggs and Food).
 func _values() -> Dictionary:
 	var values: Dictionary = {}
 	values.merge(TutorialText.values(TutorialScript.guided(), _balance()))
-	values.merge(TutorialText.morning_values(PackedStringArray(["Eggs", "Bread"])))
 	values[TutorialText.PRIMARY] = PLATES[0]
 	values[TutorialText.WASTED_CARD] = "Eggs"
 	values[TutorialText.WASTED_FAMILY] = "Food"

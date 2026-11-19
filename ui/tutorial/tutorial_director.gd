@@ -1,10 +1,10 @@
 class_name TutorialDirector
 extends Node
-## The guided first run's director (tutorial plan sections 1.5 and 1.6, WP-8; mock-up
-## docs/art/mockups/tutorial.html, its GUIDED steps; reworked after play test 1, 2026-11-15): a
-## part of the shift screen that plays the guided script (data/tutorial/guided.tres, G2..G14; G1
-## is the title's, TitleGuide) on a run
-## started guided (RunState.guided). It owns the current step, hears the screens' hooks
+## The guided first run's director (tutorial plan sections 1.5 and 1.6, WP-8; reworked after play
+## test 1, 2026-11-15; its text cut by more than half after the play tests of 2026-11-16 and
+## 2026-11-18, v1.40): a part of the shift screen that plays the guided script
+## (data/tutorial/guided.tres; G1 is the title's, TitleGuide) on a run started guided
+## (RunState.guided). It owns the current step, hears the screens' hooks
 ## (ShiftScreen.guide_event, StartBoard.guide_event), answers their gate (allows: the shift
 ## screen's ShiftGuide.gate, the opening board's StartChoice.guide_gate and guide_locks), shows
 ## each step on a TutorialOverlay (over the opening board while it shows, else on the shift
@@ -13,35 +13,34 @@ extends Node
 ##
 ## How a step moves on:
 ## - its footer key (NEXT ›, GOT IT) or its `advance_on` event (`advance_count` times); an event a
-##   later step waits for skips ahead to it (CHECKOUT pressed on G21 goes on to the machine);
+##   later step waits for skips ahead to it;
 ## - shift 1's free step (TutorialStep.is_free) shows no line: the player builds the row as they
-##   like. After each placement a reactive hint may pop over an item (PlanHint.pick, a
-##   HintBubble, each once per run: RunState.guide_hints). A CHECKOUT under the quota there is a
-##   rehearsal (rehearses): the count plays, then the shift screen puts planning back as it was
-##   and calls retry, which shows the script's retry line, or from the ANSWER_AFTER-th miss on
-##   its answer line, the row back in the baskets as dealt (any redraw undone) and the answer's
-##   ghosts on the belt (AnswerGhosts). REDRAW is allowed, its first use pops a hint too; the
-##   row's total reaching the quota, then the SILVER and GOLD medals' totals, pops theirs. The
-##   hints stay live on every planning of the run's first week once the guided part is over
-##   (play test feedback, 2026-11-15): one not reached yet (a redraw, SILVER, GOLD) pops the
-##   first time it is;
+##   like. After a placement a reactive hint may pop over an item (PlanHint.pick, a HintBubble,
+##   each once per run: RunState.guide_hints): the first rule that works, and a rule WASTED in a
+##   complete row. A CHECKOUT under the quota there is a rehearsal (rehearses): the count plays,
+##   then the shift screen puts planning back as it was and calls retry, which shows the script's
+##   retry line, or from the ANSWER_AFTER-th miss on its answer line, the row back in the baskets
+##   as dealt (any redraw undone) and the answer's ghosts on the belt (AnswerGhosts). The hints
+##   stay live on every planning of the run's first week once the guided part is over;
 ## - the game's state moves it on too (a resume, a booster opened with OPEN ALL): page 2 shown, a
-##   pack picked, the machine's phases, the next shift.
+##   pack picked, the next shift.
 ##
 ## A step shows once its screen does (the board's page with nothing playing on it, planning
-## taking input, the machine's keys or prizes armed, shift 2's planning) and one of its rings is
-## on screen; it hides while it can't (a booster opening, the count-up, the machine's glide). The
-## time card waits through shift 1 (WeekFlow.hold) and opens for G13 on shift 2; planning's
-## notices and the calendar's page change wait until G14 closes. After G14 the run plays on as
-## any other, `finished` goes out, and the one-time tips (WP-10) may follow: only
-## TIPS_AFTER_FINISH on that planning (decided with the user, 2026-11-14).
+## taking input, shift 2's planning) and one of its rings is on screen; it hides while it can't (a
+## booster opening, the count-up, the machine's visit, which has no line). What a step rings
+## shows from then on (the week 1 strip, Week1Strip). The time card waits through the guided part
+## (WeekFlow.hold) and is dropped at its end: the first week no longer opens it by itself (the
+## week glass does, tapped). Planning's notices and the calendar's page change wait until the
+## last step closes (shift 2's planning). Then the run plays on as any other, `finished` goes
+## out, and the one-time tips (WP-10) may follow: only TIPS_AFTER_FINISH on that planning
+## (decided with the user, 2026-11-14).
 
-## The guided run's last step closed (G14): the done flag is set, the run plays on.
+## The guided run's last step closed: the done flag is set, the run plays on.
 signal finished
 
-## The guide_step of a guided run whose guided part is over (G14 closed).
+## The guide_step of a guided run whose guided part is over (its last step closed).
 const DONE := &"done"
-## The one-time tips that may follow G14 on the same planning (WP-10's scheduler reads it).
+## The one-time tips that may follow the last step on the same planning (the scheduler reads it).
 const TIPS_AFTER_FINISH: Array[StringName] = [&"day_event"]
 ## Events that move a later step on when they come early (its step skipped).
 const SKIP_AHEAD: Array[StringName] = [
@@ -64,8 +63,10 @@ const MAX_WIDTH := 380.0
 
 ## The quick tutorials (SWAP, RESTOCK, BADGE PINS), off while the guided part holds the board.
 var quick: QuickTutorials
-## The one-time tips (T1-T16), from the guided part's end on.
+## The one-time tips, from the guided part's end on.
 var tips: TipScheduler
+## The week 1 strip (v1.40): what a guided run's first week hides, and when it shows.
+var strip: Week1Strip
 
 var _screen: ShiftScreen
 var _guided: TutorialScript
@@ -82,8 +83,6 @@ var _heard: int = 0
 ## When the step first showed (Time.get_ticks_msec), -1 before; when the guided part began.
 var _shown_ms: int = -1
 var _began_ms: int = 0
-## The time card was opened for the step that shows on it.
-var _card_opened: bool = false
 ## The overlay on the shift screen, and the one on the opening board (rebuilt with each board).
 var _overlay: TutorialOverlay
 var _board: StartBoard
@@ -113,6 +112,7 @@ func _init(screen: ShiftScreen) -> void:
 	_screen = screen
 	_guided = TutorialScript.guided()
 	screen.add_child(self)
+	strip = Week1Strip.new(screen)
 	quick = QuickTutorials.new(screen, is_active)
 	tips = TipScheduler.new(screen, self)
 	screen.guide_event.connect(_on_event)
@@ -222,6 +222,7 @@ func _restore(saved: Dictionary) -> bool:
 	if restored == null or restored.run.phase != RunState.Phase.PLANNING:
 		return false
 	restored.run.guide_hints = _run.guide_hints.duplicate()  # A hint shown stays shown.
+	restored.run.guide_reveals = _run.guide_reveals.duplicate()
 	_screen._close_overlays()
 	_screen.run = restored.run
 	attach()
@@ -278,7 +279,6 @@ func _process(_delta: float) -> void:
 	if not _active:
 		return
 	var step: TutorialStep = _step()
-	_open_card(step)
 	_follow_free(step)
 	var shown: TutorialStep = _extra if _extra != null else step
 	if _ready_for(shown):
@@ -307,7 +307,6 @@ func _go(index: int, done: bool) -> void:
 	_extra = null
 	_heard = 0
 	_shown_ms = -1
-	_card_opened = false
 	_run.guide_step = _step().id
 	_hide()
 	if _run.phase == RunState.Phase.PLANNING:
@@ -324,17 +323,17 @@ func _on_button() -> void:
 	if not _active or step == null or not step.button_advances():
 		return
 	_go(_index + 1, true)
-	if step.rings.has(TutorialAnchors.WEEK_CARD) and _screen._week.is_open():
-		_screen._week.card.close()  # G25 read through NEXT: the card flies home before G26.
 	if _active and _run.phase == RunState.Phase.PLANNING and not _screen._busy():
 		_screen._save_run()
 
 
-## G26 closed: the done flag (and no replay asked any more), the profile saved, the log; the
-## gates and holds let go.
+## The last step closed: the done flag (and no replay asked any more), the profile saved, the
+## log; the gates and holds let go. The first week's held time card is dropped (v1.40).
 func _finish() -> void:
 	var seconds: float = (Time.get_ticks_msec() - _began_ms) / 1000.0
 	_run.guide_step = DONE
+	if RevealList.stripped(_run):
+		_screen._week.drop()
 	_clear_free()
 	_set_active(false)
 	if TutorialFlags.finish_guide(_screen.profile):
@@ -353,13 +352,8 @@ func _seconds_shown() -> float:
 func _on_event(event: StringName, args: Dictionary) -> void:
 	if _hinting() and event == TutorialEvents.CARD_PLACED:
 		_hint_after(int(args.get(TutorialEvents.ARG_INSTANCE, 0)))
-	if _hinting() and event == TutorialEvents.REDRAW_DONE:
-		_pop(PlanHint.pick_redrawn(_guided.hints, _run.guide_hints))
 	var step: TutorialStep = _step()
 	if not _active or step == null:
-		return
-	if event == TutorialEvents.WEEK_CARD_CLOSED and step.rings.has(TutorialAnchors.WEEK_CARD):
-		_go(_index + 1, true)  # The card was tapped shut: the step it showed is read.
 		return
 	if step.advance_on == event and _fits_page(step, event, args):
 		_heard += 1
@@ -399,13 +393,9 @@ func _least_index() -> int:
 	var phase: RunState.Phase = _run.phase
 	if phase == RunState.Phase.CHOOSE_START:
 		return _least_on_board()
-	if phase == RunState.Phase.MACHINE_CHOOSE:
-		return _first(TutorialStep.Screen.MACHINE_CHOOSE)
-	if phase == RunState.Phase.MACHINE_PICK:
-		return _first(TutorialStep.Screen.MACHINE_PICK)
 	if phase == RunState.Phase.PLANNING and _run.shift_index == 0:
 		return _first(TutorialStep.Screen.PLANNING)
-	return _first(TutorialStep.Screen.WEEK_CARD)
+	return _first(TutorialStep.Screen.WEEK_CARD)  # Shift 1 checked out: the closing step waits.
 
 
 func _least_on_board() -> int:
@@ -415,7 +405,10 @@ func _least_on_board() -> int:
 		return stock
 	if board.page == 2:
 		return _first_build()
-	# Page 1 plays by itself (the aisle board, v1.40): its steps all show once it is stocked.
+	# Page 1's boosters are opened by the player (v1.46); once NEXT is armed, the build page's
+	# step waits (v1.40: no step of its own for NEXT).
+	if board.store.page_done():
+		return _first_build()
 	return stock
 
 
@@ -455,30 +448,22 @@ func _hinting() -> bool:
 
 
 ## After `instance` was placed on the free step (0: none, a waiting hint's check): the hint
-## PlanHint.pick finds, in the bubble; another may wait behind it (_waiting).
+## PlanHint.pick finds, in the bubble; another may wait behind it (_waiting). A WASTED rule
+## counts once the row is complete (no slot or no card left).
 func _hint_after(instance: int) -> void:
 	var placed: CardInstance = null
 	for card: CardInstance in _run.row:
 		if card.instance_id == instance:
 			placed = card
 	_waiting = false
-	var full: bool = (
-		_run.row.size() >= RowCapacity.card_limit(_run.limits) and not _run.hand().is_empty()
+	var complete: bool = (
+		_run.row.size() >= RowCapacity.card_limit(_run.limits) or _run.hand().is_empty()
 	)
 	var found: PlanHint.Pick = PlanHint.pick(
-		_guided.hints, _run.row, _run.preview(), placed, _totals(), full, _run.guide_hints
+		_guided.hints, _run.row, _run.preview(), placed, complete, _run.guide_hints
 	)
 	_pop(found)
 	_waiting = found != null
-
-
-## The quota, then the SILVER and GOLD medals' totals (the machine's laps times the quota).
-func _totals() -> Array[int]:
-	var quota: int = _run.quota()
-	var machine: MachineDefinition = _run.balance.machine
-	if machine == null:
-		return [quota]
-	return [quota, quota * machine.overtime_ticket_laps, quota * machine.overtime_premium_laps]
 
 
 ## Shows `found` (null: nothing) in the bubble, once, and logs it.
@@ -486,24 +471,13 @@ func _pop(found: PlanHint.Pick) -> void:
 	if found == null:
 		return
 	_run.guide_hints.append(found.hint.id)
-	var slot: int = found.slot
-	var anchor: StringName = found.anchor
-	var target: Callable = func() -> Rect2: return _hint_target(slot, anchor)
+	var spot: StringName = StringName(TutorialAnchors.SPOT + str(found.slot))
+	var target: Callable = func() -> Rect2: return _screen.anchor_rect(spot)
 	var body: String = TutorialText.markup(TutorialText.fill(found.hint.text, _values))
 	_bubble_now().pop(found.hint.title, body, target, _screen.profile.reduced_motion())
 	_screen._log.log_event("tutorial_hint", RunEvents.tutorial_hint(found.hint.id))
-	var covers: StringName = found.hint.covers_tip
-	if not covers.is_empty() and TutorialFlags.mark_tip(_screen.profile, covers):
-		_screen.save_profile()  # Its one-time tip was told here (T1 REDRAW, T10 MEDALS).
 	if not _screen._busy():
 		_screen._save_run()  # A resume never shows it twice.
-
-
-## A hint's target: the row slot's whole spot, or its anchor (PlanHint.NO_SLOT).
-func _hint_target(slot: int, anchor: StringName) -> Rect2:
-	if slot == PlanHint.NO_SLOT:
-		return _screen.anchor_rect(anchor)
-	return _screen.anchor_rect(StringName(TutorialAnchors.SPOT + str(slot)))
 
 
 ## Slot `slot`'s belt cell, for its answer ghost (null when the row has no such slot).
@@ -516,7 +490,6 @@ func _slot_cell(slot: int) -> Control:
 func _follow_free(step: TutorialStep) -> void:
 	var hinting: bool = _hinting()
 	var free: bool = hinting and _planning_free() and not _screen.guide.overlay_covered()
-	# The bubble stays through a redraw's motion (its hint is about it), not through the count.
 	if is_instance_valid(_bubble) and not (hinting and not _screen._busy()):
 		_bubble.clear()
 	var on_free: bool = free and step != null and step.is_free()
@@ -616,19 +589,6 @@ func _ring_on_screen(step: TutorialStep) -> bool:
 	return false
 
 
-## G25's time card: opened once its step's planning shows (it waits through shift 1).
-func _open_card(step: TutorialStep) -> void:
-	if _card_opened or not step.rings.has(TutorialAnchors.WEEK_CARD):
-		return
-	var week: WeekFlow = _screen._week
-	if week.is_open():
-		_card_opened = true
-		return
-	if _run.phase == RunState.Phase.PLANNING and _run.shift_index >= 1 and _planning_free():
-		week.reopen()
-		_card_opened = week.is_open()
-
-
 ## The step's rings now (a booster already opened drops out of a sealed_only step's).
 func _rings_of(step: TutorialStep) -> Array[StringName]:
 	var kept: Array[StringName] = []
@@ -652,6 +612,7 @@ func _show(step: TutorialStep) -> void:
 	_shown_index = _index
 	if _shown_ms < 0:
 		_shown_ms = Time.get_ticks_msec()
+	strip.reveal_rings(step.rings)  # What a line points at shows from then on.
 	on.anchors = _anchors(step)
 	on.show_view(_view(step))
 
@@ -684,7 +645,7 @@ func _view(step: TutorialStep) -> StepView:
 	var point: StringName = step.rings[step.point] if step.point < step.rings.size() else &""
 	var rings: Array[StringName] = _rings_of(step)
 	if not act.is_empty() and not rings.has(act) and not rings.is_empty():
-		act = rings[0]  # The move's ring dropped out (G4's opened booster): the next one is it.
+		act = rings[0]  # The move's ring dropped out (an opened booster): the next one is it.
 	for id: StringName in rings:
 		view.ring(id, Rect2(), id == act)
 	view.target = rings.find(point)

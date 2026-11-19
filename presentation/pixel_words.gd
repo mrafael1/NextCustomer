@@ -101,6 +101,8 @@ const CAPS_GLYPHS: Dictionary[String, Array] = {
 	"7": ["###", "..#", "..#", ".#.", ".#."],
 	"8": ["###", "#.#", "###", "#.#", "###"],
 	"9": ["###", "#.#", "###", "..#", "###"],
+	# The prize names' plus (v1.40: "+1 DRAW" on the medal case and the receipt's prize tag).
+	"+": ["...", ".#.", "###", ".#.", "..."],
 }
 
 static var _chunky: Dictionary[String, Array] = {}

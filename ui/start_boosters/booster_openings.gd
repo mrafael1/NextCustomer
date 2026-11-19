@@ -1,6 +1,6 @@
 class_name BoosterOpenings
 extends RefCounted
-## YOUR STORE's boosters (BoosterPage, v1.32; since v1.40 the aisle board throws them,
+## YOUR STORE's boosters (BoosterPage, v1.32; since v1.44 the aisle board throws them,
 ## AisleRoulette, and they wait sealed on the counter until the player opens each one: a click on
 ## its pouch, its number key or Enter for the next one; the user's play test of 2026-11-19, round
 ## 2): each booster's opening beats on its own clock

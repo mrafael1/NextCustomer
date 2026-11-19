@@ -15,7 +15,7 @@ extends RefCounted
 ## opened for the player. Any
 ## other recipe, or a balance with dealt_aisle_count 0, takes the older path: a run that needs a
 ## list stocks a random one from the run seed's own stream (#63) and the deck is dealt on the
-## starting-deck stream. (The starter pack choice was removed in v1.41.)
+## starting-deck stream. (The starter pack choice was removed in v1.45.)
 
 const TITLE_SCREEN := "res://ui/title_screen.tscn"
 ## The guided first run's scripted deal (the tutorial): new_run with its recipe deals it.

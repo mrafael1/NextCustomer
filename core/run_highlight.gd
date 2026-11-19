@@ -6,7 +6,7 @@ extends RefCounted
 ## HighlightDefinition, and never uses randomness, so the same run always prints the same line.
 ##
 ## Each kind finds its best case in the run (moments): Biggest payout (one item's payout), Over
-## quota (a passed shift's total against its quota), Longest combo (a CHAIN, BATCH or MORNING),
+## quota (a passed shift's total against its quota), Longest combo (a CHAIN or BATCH),
 ## First GOLDEN (the first GOLDEN card checked out) and Closest call (the smallest margin a shift
 ## passed by). A moment's score is its value against its kind's bar; the highest score in the
 ## definition's kind_order wins, the kind listed first on equal scores. When no kind reaches its
@@ -25,7 +25,7 @@ const KIND_IDS: Array[String] = [
 ## Scores this close are equal.
 const EPSILON := 1e-9
 ## The combos' keywords, as a record keeps them.
-const COMBO_WORDS: Array[String] = [CardText.CHAIN_WORD, CardText.BATCH_WORD, CardText.MORNING_WORD]
+const COMBO_WORDS: Array[String] = [CardText.CHAIN_WORD, CardText.BATCH_WORD]
 ## The line's parts are joined with this.
 const JOIN := " · "
 
@@ -43,7 +43,7 @@ class Moment:
 	## The shift's total and quota.
 	var total: int = 0
 	var quota: int = 0
-	## Longest combo: its keyword (CardText.CHAIN_WORD, BATCH_WORD, MORNING_WORD) and length.
+	## Longest combo: its keyword (CardText.CHAIN_WORD, BATCH_WORD) and length.
 	var keyword: String = ""
 	var length: int = 0
 	## Its value against its kind's bar (1: at the bar).
@@ -56,15 +56,14 @@ class Moment:
 
 
 ## Fills `record`'s best_payout, best_card and best_combo from its checkout's `result` (a Double
-## checkout's joined result covers both rows, row 2's slots from `first_slots`, row 1's card
+## checkout's joined result covers both rows, row 2's slots from `_first_slots`, row 1's card
 ## count; `record.played` is in the result's slot order). The biggest single payout (the earlier
-## slot on a tie; a SHELF's copies each pay on their own slot) and the longest CHAIN, BATCH or
-## MORNING of `definition`'s min_combo items or more (then the bigger pay, then CHAIN before BATCH
-## before MORNING, then the earlier start). Each row has its own MORNING (its opening run), so a
-## joined result's mornings are split at `first_slots`. Nothing for a payout of 0 or less, and no
+## slot on a tie; a SHELF's copies each pay on their own slot) and the longest CHAIN or
+## BATCH of `definition`'s min_combo items or more (then the bigger pay, then CHAIN before BATCH,
+## then the earlier start). Nothing for a payout of 0 or less, and no
 ## combo without a definition.
 static func record_best(
-	record: ShiftRecord, result: ScoreResult, definition: HighlightDefinition, first_slots: int = 0
+	record: ShiftRecord, result: ScoreResult, definition: HighlightDefinition, _first_slots: int = 0
 ) -> void:
 	record.best_payout = 0
 	record.best_card = null
@@ -85,8 +84,6 @@ static func record_best(
 		combos.append([CardText.CHAIN_WORD, chain])
 	for batch: PackedInt32Array in result.batches:
 		combos.append([CardText.BATCH_WORD, batch])
-	for morning: PackedInt32Array in _row_mornings(result.mornings, first_slots):
-		combos.append([CardText.MORNING_WORD, morning])
 	for combo: Array in combos:
 		var members: PackedInt32Array = combo[1]
 		if members.size() < definition.min_combo:
@@ -215,15 +212,6 @@ static func log_fields(moment: Moment) -> Dictionary:
 		fields["keyword"] = moment.keyword
 		fields["length"] = moment.length
 	return fields
-
-
-## `mornings` (a result's MORNING slots, in slot order) as one MORNING per row: a Double
-## checkout's joined result holds row 1's (slots under `first_slots`) then row 2's.
-static func _row_mornings(mornings: PackedInt32Array, first_slots: int) -> Array[PackedInt32Array]:
-	var rows: Array[PackedInt32Array] = [PackedInt32Array(), PackedInt32Array()]
-	for slot: int in mornings:
-		rows[1 if first_slots > 0 and slot >= first_slots else 0].append(slot)
-	return rows.filter(func(row: PackedInt32Array) -> bool: return not row.is_empty())
 
 
 ## The shifts every kind reads: played, not a Day off.

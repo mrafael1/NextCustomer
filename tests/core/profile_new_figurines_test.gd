@@ -57,7 +57,7 @@ func test_the_saved_form_keeps_them_in_draw_order() -> void:
 
 
 ## A format 5 profile (before v1.30) reads with every field as it was and nothing new; saved
-## again, it writes today's format with an empty list. Since v1.40 (the Dairy aisle) it also reads
+## again, it writes today's format with an empty list. Since v1.44 (the Dairy aisle) it also reads
 ## with Frozen peas unlocked at run index -1 (a base product it owned, now a capsule item): not a
 ## new figurine and not a draw.
 func test_an_older_profile_reads_unchanged_with_nothing_new() -> void:

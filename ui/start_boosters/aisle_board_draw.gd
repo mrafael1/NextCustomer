@@ -1,7 +1,7 @@
 class_name AisleBoardDraw
 extends RefCounted
-## Draws the aisle board (BoosterPage, v1.40) layer by layer in art px, a port of variant A of
-## mock-up docs/art/mockups/start_roulette.html: the room, the bays (seven, v1.41) with their
+## Draws the aisle board (BoosterPage, v1.44) layer by layer in art px, a port of variant A of
+## mock-up docs/art/mockups/start_roulette.html: the room, the bays (seven, v1.45) with their
 ## shutters, padlocks and hung signs (no bulb rims since round 3 of the 2026-11-19 play test: a
 ## landed bay just stays lit), the running light, the pouches thrown to their rows, the fans, a
 ## RESTOCK's cards flying back, the full card a hovered compact card pops up, and the keys and

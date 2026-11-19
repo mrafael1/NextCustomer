@@ -49,8 +49,8 @@ const PRIMARY := &"primary"
 const TAB1 := &"tab1"
 const TAB2 := &"tab2"
 const TITLE := &"title"
-## Page 2's REGULARS crate: its SWAP key (v1.40: the regulars' swap window opens from it; also
-## the id a guided step locks the swap with) and KEEP (v1.41: OPEN STORE waits for it).
+## Page 2's REGULARS crate: its SWAP key (v1.44: the regulars' swap window opens from it; also
+## the id a guided step locks the swap with) and KEEP (v1.45: OPEN STORE waits for it).
 const SWAP_KEY := &"swap_key"
 const REGULARS_OK := &"regulars_ok"
 ## Start board, page 2 (BuildPageDraw's hit ids): the pins board, the back key, and the pins step's

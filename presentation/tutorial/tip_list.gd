@@ -1,6 +1,6 @@
 class_name TipList
 extends Resource
-## The one-time tips (data/tutorial/tips.tres): T1-T16, each a TipDefinition.
+## The one-time tips (data/tutorial/tips.tres): each a TipDefinition.
 
 const PATH := "res://data/tutorial/tips.tres"
 

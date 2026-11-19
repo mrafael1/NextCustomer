@@ -4,7 +4,7 @@ extends GdUnitTestSuite
 ## choice, swap booster (offered and opened) and spent action; damaged setups are refused; the run
 ## save cross-checks the setup; a setup in an older form (the first build's, v1.07's baskets,
 ## version 12, 13 and 14 saves) restarts (or is dropped past clock-in); a version 17 save (before
-## the Dairy aisle, v1.40) reads with its aisle ids renamed; the profile's saved pair; the setup
+## the Dairy aisle, v1.44) reads with its aisle ids renamed; the profile's saved pair; the setup
 ## events. On the live data; nothing here touches a save file.
 
 const Kit := preload("res://tests/core/start_setup_kit.gd")
@@ -156,7 +156,7 @@ func test_a_damaged_setup_is_refused() -> void:
 		assert_object(StartSetup.from_dictionary(bad, lookup)).is_null()
 
 
-## A setup saved before v1.42 with PICK 2 OF 3's third booster loads without it: still picking,
+## A setup saved before v1.46 with PICK 2 OF 3's third booster loads without it: still picking,
 ## the seeded pair stays today's; once picked, the SOLD OUT booster is dropped and the picked pair
 ## kept. A SOLD OUT booster opened or restocked is still refused.
 func test_an_old_pick_loads_without_its_third_booster() -> void:
@@ -237,7 +237,7 @@ func test_the_run_save_cross_checks_the_setup() -> void:
 	assert_object(RunSave.from_dictionary(dealt_offer, lookup)).is_null()
 
 
-## A version 18 save (v1.40, before v1.41 removed the starter pack choice) still reads: a run
+## A version 18 save (v1.44, before v1.45 removed the starter pack choice) still reads: a run
 ## waiting on the board with a pick and NEW PACKS saved reads with both ignored, its offer's packs
 ## dropped; a run past clock-in that took a pack (`start_pack`, its cards in the saved deck) reads
 ## with its deck as saved. Saved again, neither field is written.
@@ -395,7 +395,7 @@ func test_a_version_13_setup_restarts_or_is_dropped() -> void:
 	assert_array(later.run.stock.cards).is_equal(run.stock.cards)
 
 
-## A version 17 save (before the Dairy aisle, v1.40: the aisle's id was `cold_cases`) reads with
+## A version 17 save (before the Dairy aisle, v1.44: the aisle's id was `cold_cases`) reads with
 ## the id renamed everywhere: the listed aisles, the setup's stocked aisles, boosters and swap
 ## offers. It restores the same run as today's save, at the pick and past clock-in; the old id
 ## in a version 18 save names no aisle and is refused.

@@ -100,15 +100,14 @@ extends RefCounted
 ## when set (ShiftRecord: `best_payout` with `best_card`, `best_combo` with its keyword, length and
 ## pay). A version 15 save reads as it is: its records have none, so RunHighlight leaves out its
 ## played shifts' payouts and combos (the other kinds still read them).
-## Version 17 (the tutorial, 2026-11-14): the guided first run's two optional fields, written only
-## for a guided run: `guided` (true) and `guide_step` (the tutorial step id, "" for none;
-## RunState.guided and guide_step), and since 2026-11-15 `guide_hints` (RunState.guide_hints;
-## a guided save without it reads with none shown). A save without them (every normal run's, and
-## version 16's) reads as a run that isn't guided.
-## Version 18 (v1.40, the Dairy aisle; AisleRename): a version 17 or older save reads with its
+## Version 17 (the tutorial, 2026-11-14): the guided first run's optional fields, written only for
+## a guided run: `guided`, `guide_step` (the tutorial step id), since 2026-11-15 `guide_hints` and
+## since v1.40 `guide_reveals` (RunState's; a guided save without one reads with none). A save
+## without them (every normal run's, and version 16's) reads as a run that isn't guided.
+## Version 18 (v1.44, the Dairy aisle; AisleRename): a version 17 or older save reads with its
 ## aisle ids renamed; a setup that no longer reads then (Frozen peas in a Dairy booster or swap
 ## offer) is an older form: it restarts if the run waits for its pick, dropped after clock-in.
-## Version 19 (v1.41, 2026-11-18: no starter packs): the offer (`start_offer`) holds only its
+## Version 19 (v1.45, 2026-11-18: no starter packs): the offer (`start_offer`) holds only its
 ## `deals`, and neither the run (`start_pack`) nor its setup (`picked`, `packs_redrawn`) names a
 ## pack. A version 18 (or older) save reads with its pack fields ignored: a run waiting for OPEN
 ## STORE keeps its boosters (the pick it made is dropped), and a run in play that took a pack keeps
@@ -251,7 +250,9 @@ static func to_dictionary(saved_run: RunState, saved_run_id: String, played_ms: 
 	if saved_run.guided:
 		data["guided"] = true
 		data["guide_step"] = String(saved_run.guide_step)
-		data["guide_hints"] = saved_run.guide_hints.map(func(id: StringName) -> String: return id)
+		var plain: Callable = func(id: StringName) -> String: return id
+		data["guide_hints"] = saved_run.guide_hints.map(plain)
+		data["guide_reveals"] = saved_run.guide_reveals.map(plain)
 	# "listed_aisles" and "stock", the same as run_start logs.
 	data.merge(saved_run.stock.to_dictionary())
 	return data
@@ -306,7 +307,7 @@ static func from_dictionary(saved: Dictionary, lookup: ContentLookup) -> RunSave
 				return null
 		starter = StartingDeck.with_cards(starter, starter.cards)
 		starter.core_cards = regulars
-	# An opening-time recipe: its offer. A save from before v1.41 also names the starter pack its
+	# An opening-time recipe: its offer. A save from before v1.45 also names the starter pack its
 	# run took ("start_pack", "" before the pick): ignored, but a run that took one keeps its
 	# starting deck as dealt (the pack's cards are no longer known).
 	var offer: StartOffer = null
@@ -356,13 +357,13 @@ static func from_dictionary(saved: Dictionary, lookup: ContentLookup) -> RunSave
 	restored.phase = SAVE_POINTS[phase_index]
 	restored.shift_index = reader.whole("shift_index")
 	restored.debug_jumped = reader.flag("debug_jumped")
-	# Left out by a run that isn't guided, and by saves before version 17.
-	if data.has("guided"):
-		restored.guided = reader.flag("guided")
+	restored.guided = data.has("guided") and reader.flag("guided")  # Left out when not guided.
 	if data.has("guide_step"):
 		restored.guide_step = StringName(reader.text("guide_step"))
 	if data.has("guide_hints"):
 		restored.guide_hints = reader.names("guide_hints")
+	if data.has("guide_reveals"):
+		restored.guide_reveals = reader.names("guide_reveals")
 	restored.redraws_used = reader.whole("redraws_used")
 	restored.redraws_allowed = reader.whole("redraws_allowed")
 	# Left out by format 6 saves made before #108 piece 2: no card came from an extra redraw.
@@ -769,7 +770,7 @@ static func _offer_data(offer: StartOffer) -> Dictionary:
 
 
 ## The offer `data` holds (as parsed from JSON), or null when it is missing. A save from before
-## v1.41 also holds its packs, first pick and swaps: ignored. Its shared products are set from the
+## v1.45 also holds its packs, first pick and swaps: ignored. Its shared products are set from the
 ## starting deck.
 static func _read_offer(data: Variant) -> StartOffer:
 	if not data is Dictionary:

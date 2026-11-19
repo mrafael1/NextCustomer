@@ -2,7 +2,7 @@ extends GdUnitTestSuite
 ## The profile's loyalty perks (v1.30 round 10, the FIGURINE BOOK's PERKS): the highest level
 ## picked from the machine per perk in runs that ended (ProfileState.perk_levels,
 ## PerkLevels.picked_levels), the chain lengths, and the saved form (format 7; 8 since the Dairy
-## aisle, v1.40).
+## aisle, v1.44).
 
 const STARTER := "res://data/decks/starter.tres"
 const BALANCE := "res://data/balance/balance.tres"

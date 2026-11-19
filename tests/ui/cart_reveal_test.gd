@@ -11,7 +11,7 @@ const STARTER := "res://data/decks/starter.tres"
 const BALANCE := "res://data/balance/balance.tres"
 const DECKS := "res://data/decks"
 ## A seed whose deal holds a 2nd Milk and a 2nd Eggs (staples' 2nd copies) after its coupon (the
-## screen capture's 20261014 deals only a 2nd Milk since the 4-card boosters of v1.41).
+## screen capture's 20261014 deals only a 2nd Milk since the 4-card boosters of v1.45).
 const SEED := 20261000
 
 var _host: Control

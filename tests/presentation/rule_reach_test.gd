@@ -23,7 +23,7 @@ func test_a_next_rule_reaches_the_next_matching_product() -> void:
 	assert_str(reach.none_text("Food")).is_equal("No later Food item in the row")
 
 
-## Frozen peas reach the Frozen products beside them, Soup the Dairy beside it (its penalty, v1.41),
+## Frozen peas reach the Frozen products beside them, Soup the Dairy beside it (its penalty, v1.45),
 ## and the Breakfast sticker the product in the next slot.
 func test_beside_and_next_slot_rules() -> void:
 	var belt: Array[String] = ["frozen_peas", "frozen_peas", "soup", "cheese", "milk"]

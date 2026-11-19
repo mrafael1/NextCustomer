@@ -3,7 +3,7 @@ extends PanelContainer
 ## The deck view (plan section 2, extended in full build phase 1), in the look of #56's deck view B
 ## (mock-up screens_deck_b.html): a teal hand basket (frames/basket_panel, its slotted foot and
 ## cart badge) with the pages in its dark well. Its header holds the shown page's title and the
-## framed CART, RUN INFO and CLOSE keys (caps since polish batch 2; the shown page's tab sunk on
+## framed CART, STOCK BOOK and CLOSE keys (caps since polish batch 2; the shown page's tab sunk on
 ## the paper face of a picked tab, FramedButton.selected).
 ##
 ## The Cart page shows the cart as cards (mock-up docs/art/mockups/cart_cards.html, view CARDS,
@@ -22,25 +22,27 @@ extends PanelContainer
 ## tooltip saying where it came from; the regulars, swapped or not, and a pin's card carry none.
 ## Marks go by product (a later copy, even a BIG or GOLDEN one from the machine, shares its mark).
 ##
-## The Run info page shows the run at a glance (RunInfoHero: the run family's card, the run's two
-## aisles in stock and the staples' line, the cart's families as big tiles), then MACHINE STOCK as
-## a compact icon grid (StockGrid: STAPLES, each aisle, COUPONS; an item's price or its coupon
-## rarity, an in-cart badge). It scrolls only when the stock is too big for it. The upgrades (the
-## top bar's LOYALTY card) and the inspections (the day calendar and slip) show elsewhere.
+## The STOCK BOOK page (2026-11-19; it replaced the Run info page) shows what the machine can offer
+## this run as a binder in the FIGURINE BOOK's look (StockBook: a tab per section, STAPLES, each
+## aisle, COUPONS; a sleeve per item, filled with its ×N badge when the cart holds it, else a
+## silhouette with its price or coupon rarity; the IN CART tally on its cover). It never scrolls:
+## Left and Right (or a click on a tab) turn to another section. The upgrades (the top bar's
+## LOYALTY card) and the inspections (the day calendar and slip) show elsewhere.
 ##
 ## Hovering a card lifts it and opens its paper tip (CardTip, the mock-up's hover_tips B) beside
 ## it: its rarity in the header's colour and tag, what its colour means ("Works with Breakfast"),
 ## its full rule, its price and families, where a START item came from, and a KEYWORD box for each
-## keyword of its rule. Hovering a stock icon opens the tip with its card face and whether the cart
-## holds it. The mix highlight (#105 piece 3, MixModel) paints the Cart's cards: the hovered
-## card lights the cards it works with (a broad "next Food" match faint) and greys the rest, and
-## `mix_family` (a family glyph's tooltip in the view, PlanningEffects.watch_glyphs) lights that
-## family's cards instead. Off in choosing mode.
+## keyword of its rule. Hovering a stock book slot shows only its card face beside it (no lines).
+## The mix highlight (#105 piece 3, MixModel) paints the Cart's cards: the
+## hovered card lights the cards it works with (a broad "next Food" match faint) and greys the
+## rest, and `mix_family` (a family glyph's tooltip in the view, PlanningEffects.watch_glyphs)
+## lights that family's cards instead. Off in choosing mode.
 ##
-## The family filter (the cart and run info polish, play feedback 2026-11-12): the page's family
-## icons (the Cart's tag chips, the Run info's family tiles) switch its items. On the Cart the
-## pointer on one shows only that family's products (the coupons hide), re-packed from the top
-## left (preview_family); on Run info the other families' icons dim where they stand. Leaving it
+## The family filter (the cart and run info polish, play feedback 2026-11-12): the Cart's family
+## icons (its tag chips) switch its items: the pointer on one shows only that family's products
+## (the coupons hide), re-packed from the top left (preview_family). On the STOCK BOOK the FAMILY
+## FAMILY ribbon picks the family (pinned) and the other families' slots dim where they stand.
+## Leaving it
 ## shows them all again. A click pins the filter (toggle_pin; the icon stays lit and sunk,
 ## FamilyCount.pinned), so the pointer may go read the items' tips; the pointer on another icon
 ## previews its family meanwhile, and leaving it returns to the pinned one. Clicking the pinned icon
@@ -104,15 +106,12 @@ const NOTE_SIZE := 16
 const ROOM_NOTE_NAME := "RoomNote"
 ## The header's keys in caps, as the game's other keys (polish batch 2).
 const CART_TAB := "CART"
-const INFO_TAB := "RUN INFO"
+const INFO_TAB := "STOCK BOOK"
 const CLOSE_TAB := "CLOSE"
-## The Run info page's title, and its stock's heading and caption.
-const INFO_TITLE := "Run info"
-const STOCK_HEADING := "MACHINE STOCK"
-const STOCK_CAPTION := "what the machine can offer this run · hover an item for its card"
-const STOCK_CAPTION_SIZE := 16
-## The gap above the stock's heading on the Run info page.
-const STOCK_GAP := 6.0
+## The STOCK BOOK key is wider than the others (its two words).
+const INFO_BUTTON_SIZE := Vector2(160, 40)
+## The STOCK BOOK page's title.
+const INFO_TITLE := "Stock book"
 ## Each page's item grid's node name (for tests), the top line's and the separator's.
 const GRID := "Grid"
 const TOP_LINE := "TagLine"
@@ -131,26 +130,26 @@ var tuning: PlanningTuning = load(PlanningEffects.TUNING_PATH) as PlanningTuning
 var _preview: String = ""
 var _pinned: String = ""
 var _deck_grid_family: String = ""
-var _info_grid_family: String = ""
+var _book_family: String = ""
 var _title: MixedLabel
 var _deck_tab: FramedButton
 var _info_tab: FramedButton
 var _close_button: FramedButton
 var _scroll: ScrollContainer
 var _deck_page: VBoxContainer
-var _info_page: VBoxContainer
+## The STOCK BOOK page (beside the Cart's scroll, never scrolled) and its book.
+var _info_page: Control
 ## The Cart's top line (its chips stay; its labels follow the grid), its labels' row after the
-## chips, and its grid; the Run info's stock grid.
+## chips, and its grid.
 var _top_line: Control
 var _top_left: HBoxContainer
 var _deck_grid: Control
-var _info_grid: StockGrid
+var _book: StockBook
 var _deck_groups: Array[DeckSummary.Group] = []
 var _stock_groups: Array[DeckSummary.Group] = []
 var _deck_icons: Array[FamilyCount] = []
-var _info_icons: Array[FamilyCount] = []
 var _run: RunState
-## The title the caller gave (the Cart page's; the Run info page shows INFO_TITLE).
+## The title the caller gave (the Cart page's; the STOCK BOOK page shows INFO_TITLE).
 var _cart_title: String = ""
 var _choosing: bool = false
 ## Placing mode's held prize, the free spots it shows and how many.
@@ -191,7 +190,11 @@ func _init() -> void:
 	pages.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_scroll.add_child(pages)
 	_deck_page = _page(pages)
-	_info_page = _page(pages)
+	_info_page = Control.new()
+	_info_page.name = "InfoPage"
+	_info_page.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_info_page.custom_minimum_size = PAGE_SIZE
+	well.add_child(_info_page)
 	column.add_child(_foot())
 	_popup_layer = Control.new()
 	_popup_layer.name = "PopupLayer"
@@ -260,12 +263,15 @@ func placing() -> CartPlacing:
 	return _placing
 
 
-## Shows the Run info tab, or the Cart tab.
+## Shows the STOCK BOOK tab, or the Cart tab.
 func show_page(info: bool) -> void:
 	_unhover()
 	_preview = ""
 	_pinned = ""
+	if _book != null:
+		_book.ribbon().close_list()
 	_deck_page.visible = not info
+	_scroll.visible = not info
 	_info_page.visible = info
 	_deck_tab.disabled = not info
 	_info_tab.disabled = info
@@ -320,9 +326,10 @@ func can_filter(family: String) -> bool:
 	return groups.any(func(group: DeckSummary.Group) -> bool: return group.card.tags.has(family))
 
 
-## The shown page's family icons (the Cart's tag chips, the Run info's tiles), in order.
+## The shown page's family icons (the Cart's tag chips; none on the STOCK BOOK, whose ribbon
+## picks), in order.
 func family_icons() -> Array[FamilyCount]:
-	return _info_icons if _info_page.visible else _deck_icons
+	return [] as Array[FamilyCount] if _info_page.visible else _deck_icons
 
 
 ## The pointer is at `at` (the viewport's coordinates): the family icon under it previews its
@@ -361,7 +368,7 @@ func title_text() -> String:
 	return _title.text
 
 
-## The cards on the shown page, in order (for tests; none on Run info).
+## The cards on the shown page, in order (for tests; none on the STOCK BOOK).
 func cells() -> Array[DeckCell]:
 	return _cells_of(_shown_page())
 
@@ -375,9 +382,9 @@ func _cells_of(page: Control) -> Array[DeckCell]:
 	return found
 
 
-## The Run info's stock grid (for tests).
-func stock_grid() -> StockGrid:
-	return _info_grid
+## The STOCK BOOK (for tests).
+func stock_book() -> StockBook:
+	return _book
 
 
 ## The hover tip (for tests and captures).
@@ -400,8 +407,7 @@ func hover(cell: DeckCell) -> void:
 	_paint_mix()
 
 
-## The pointer rests on a stock icon: it lights and its tip opens beside it with its card face
-## and whether the cart holds it.
+## The pointer rests on a stock book slot: it lights and its card face (only) opens beside it.
 func hover_stock(icon: StockIcon) -> void:
 	if _hovered == icon:
 		return
@@ -409,7 +415,7 @@ func hover_stock(icon: StockIcon) -> void:
 	_hovered = icon
 	icon.lit = true
 	_tip.visible = true
-	_tip.show_stock(icon.card, _machine(), icon.in_cart)
+	_tip.show_stock(icon.card, _machine())
 	_place_tip(icon.get_global_rect())
 
 
@@ -440,13 +446,23 @@ func _header() -> HBoxContainer:
 	header.add_child(_title)
 	_deck_tab = _framed(header, CART_TAB, func() -> void: show_page(false), "ui_switch")
 	_info_tab = _framed(header, INFO_TAB, func() -> void: show_page(true), "ui_switch")
-	_close_button = _framed(header, CLOSE_TAB, func() -> void: _close(), "ui_close")
+	_info_tab.custom_minimum_size = INFO_BUTTON_SIZE
+	# CLOSE is the primary tomato key, as on the handbook (the user, 2026-11-19).
+	_close_button = _framed(
+		header, CLOSE_TAB, func() -> void: _close(), "ui_close", UiKit.BUTTON_FRAME
+	)
 	return header
 
 
-func _framed(parent: Control, text: String, action: Callable, sound: String) -> FramedButton:
+func _framed(
+	parent: Control,
+	text: String,
+	action: Callable,
+	sound: String,
+	frame: Texture2D = UiKit.SIGN_FRAME
+) -> FramedButton:
 	var button: FramedButton = UiKit.framed_button(
-		parent, text, action, BUTTON_FONT, UiKit.SIGN_FRAME, BUTTON_SIZE, sound
+		parent, text, action, BUTTON_FONT, frame, BUTTON_SIZE, sound
 	)
 	button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	return button
@@ -475,6 +491,9 @@ func _input(event: InputEvent) -> void:
 	if not visible or _choosing:
 		return
 	var key: InputEventKey = event as InputEventKey
+	if key != null and key.pressed and _info_page.visible and _book_key(key):
+		get_viewport().set_input_as_handled()
+		return
 	if key != null and key.pressed and not key.echo and key.keycode == KEY_ESCAPE:
 		if not _pinned.is_empty():
 			# Esc clears the pinned filter first; the next one closes the cart (v1.36).
@@ -488,6 +507,20 @@ func _input(event: InputEvent) -> void:
 	var button: InputEventMouseButton = event as InputEventMouseButton
 	if button != null and button.pressed and button.button_index == MOUSE_BUTTON_LEFT:
 		click_at(button.position)
+
+
+## The STOCK BOOK's keys: while the FAMILY list is open it takes them all (Up, Down, Enter,
+## Space, Esc); else Left and Right turn to the previous or next section. Whether it took `key`.
+func _book_key(key: InputEventKey) -> bool:
+	if _book == null:
+		return false
+	if _book.ribbon().is_open():
+		_book.ribbon().handle_key(key.keycode)
+		return true
+	if key.echo or not key.keycode in [KEY_LEFT, KEY_RIGHT]:
+		return false
+	_book.step_section(1 if key.keycode == KEY_RIGHT else -1)
+	return true
 
 
 ## The shown page's family icon under `at` (viewport coordinates), inside the scroll area and not
@@ -518,12 +551,11 @@ func _refilter() -> void:
 		_unhover()
 		_fill_deck_grid(deck_family)
 		_paint_mix()
-	if info_family != _info_grid_family:
-		_unhover()
-		_info_grid_family = info_family
-		_info_grid.filter(info_family)
+	if info_family != _book_family:
+		_book_family = info_family
+		_book.filter(info_family)
 	var shown: Array[FamilyCount] = family_icons()
-	for icon: FamilyCount in _deck_icons + _info_icons:
+	for icon: FamilyCount in _deck_icons:
 		if is_instance_valid(icon):
 			icon.pinned = shown.has(icon) and icon.family == _pinned
 			icon.lit = shown.has(icon) and icon.family == _preview and not icon.pinned
@@ -703,7 +735,7 @@ func _tag_chips(cards: Array[CardInstance]) -> HBoxContainer:
 	for tag: String in counts:
 		var style: FamilyStyle = palette.style(tag)
 		if style != null and style.glyph != null:
-			var chip: FamilyCount = FamilyCount.new(style, counts[tag], FamilyCount.Look.CHIP)
+			var chip: FamilyCount = FamilyCount.new(style, counts[tag])
 			chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 			line.add_child(chip)
 		else:
@@ -749,35 +781,30 @@ func _legend() -> HBoxContainer:
 
 func _fill_info_page(run: RunState) -> void:
 	_clear(_info_page)
-	var hero: RunInfoHero = RunInfoHero.new(run, _line_width())
-	_info_page.add_child(hero)
-	_info_icons = hero.family_tiles()
-	_info_page.add_child(_spacer_height(STOCK_GAP))
-	var heading: HBoxContainer = HBoxContainer.new()
-	heading.name = "StockHeading"
-	heading.add_theme_constant_override("separation", 12)
-	_info_page.add_child(heading)
-	var words: Control = RunInfoHero.pixel_heading(STOCK_HEADING, Palette.MUSTARD)
-	words.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	heading.add_child(words)
-	var caption: Label = UiKit.body_label(STOCK_CAPTION, STOCK_CAPTION_SIZE, Palette.TEAL_PALE)
-	caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	heading.add_child(caption)
 	var stock: Array[CardInstance] = []
 	for card: CardDefinition in run.stock.cards:
 		stock.append(CardInstance.new(card, 0))
 	_stock_groups = DeckSummary.groups(stock)
-	_info_grid = StockGrid.new(run, _line_width())
-	for icon: StockIcon in _info_grid.icons():
+	_book = StockBook.new(run)
+	_info_page.add_child(_book)
+	for icon: StockIcon in _book.all_icons():
 		icon.hovered.connect(hover_stock)
 		icon.unhovered.connect(
 			func(left: StockIcon) -> void:
 				if _hovered == left:
 					_unhover()
 		)
-	_info_page.add_child(_info_grid)
-	_info_grid_family = ""
-	_info_page.add_child(_spacer_height(STOCK_GAP))
+	_book.section_picked.connect(func(_index: int) -> void: _unhover())
+	_book.family_picked.connect(_on_book_family)
+	_book_family = ""
+
+
+## The FAMILY ribbon's pick: pins that family's filter (ALL: none).
+func _on_book_family(family: String) -> void:
+	_unhover()
+	_preview = ""
+	_pinned = family if can_filter(family) else ""
+	_refilter()
 
 
 ## A card for `card` with `copies` copies; its hover and clicks come to the view.
@@ -849,13 +876,6 @@ static func _line_width() -> float:
 	return PAGE_SIZE.x - SCROLL_ROOM
 
 
-static func _spacer_height(height: float) -> Control:
-	var spacer: Control = Control.new()
-	spacer.custom_minimum_size = Vector2(0, height)
-	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	return spacer
-
-
 func _page(parent: Control) -> VBoxContainer:
 	var page: VBoxContainer = VBoxContainer.new()
 	page.add_theme_constant_override("separation", PAGE_GAP)
@@ -863,7 +883,7 @@ func _page(parent: Control) -> VBoxContainer:
 	return page
 
 
-func _shown_page() -> VBoxContainer:
+func _shown_page() -> Control:
 	return _info_page if _info_page.visible else _deck_page
 
 

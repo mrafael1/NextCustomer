@@ -1,6 +1,6 @@
 class_name AisleBoardArt
 extends RefCounted
-## The aisle board's geometry and painted art (YOUR STORE, v1.40; mock-up
+## The aisle board's geometry and painted art (YOUR STORE, v1.44; mock-up
 ## docs/art/mockups/start_roulette.html, variant A): the seven aisles as bays on the back wall, each
 ## under its hung sign and stocked with its own products, the room behind them, and the compact
 ## card face (picture, price, family glyph, name; the rule shows on hover). Everything is in art
@@ -10,7 +10,7 @@ extends RefCounted
 const STAND := 272
 ## A compact fan card's height; a fan's step (its cards 1 art px apart, so one booster's cards
 ## read as one group: play test 2026-11-19) and half a four-card fan's width (start_booster_size
-## 4, v1.41: FAN_STEP * 3 + BoosterArt.CW is 307 art px; two fans and their gap fill the 640).
+## 4, v1.45: FAN_STEP * 3 + BoosterArt.CW is 307 art px; two fans and their gap fill the 640).
 const MH := 88
 const FAN_STEP := BoosterArt.CW + 1
 const FAN_HALF := 154

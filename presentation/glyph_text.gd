@@ -46,11 +46,6 @@ const KEYWORD_TIPS: Dictionary[String, String] = {
 		"Put a PAIR item beside the partner its card names, like Cheese by Bread, for a bonus. "
 		+ "Cream pays for each PAIRED item in the row."
 	),
-	CardText.MORNING_WORD:
-	(
-		"Start the row with Breakfast items to make a MORNING; a Coupon doesn't break it. Cards "
-		+ "like Coffee and Tea bags pay for it."
-	),
 }
 
 

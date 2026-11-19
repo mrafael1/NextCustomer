@@ -11,7 +11,7 @@ extends RefCounted
 ## - An aisle is completed when all its items are collected (completed).
 ## - A run stocks only its boosters' aisles: dealt_aisle_count listable aisles (v1.32 feedback,
 ##   2026-11-13), the seeded suggestion (suggest_aisles). There is no aisle choice: PICK 2 OF 3
-##   (a third booster from 6 completed aisles, keep two) was removed in v1.42 (2026-11-19, the
+##   (a third booster from 6 completed aisles, keep two) was removed in v1.46 (2026-11-19, the
 ##   user: "2 aisles picked randomly create more adaptation").
 ## - The deal (deal, at once for a new run) draws one sealed booster per stocked aisle
 ##   (StartBoosterDraw.draw): start_booster_size distinct products of the aisle, the last
@@ -36,7 +36,7 @@ extends RefCounted
 ##   re-deal. They belong to the run only (v1.08, the user:
 ##   "swap should reset at each new run"): the run save keeps its own regulars, so a resume keeps
 ##   them, and every new run starts with the recipe's regulars and its full swap allowance.
-## - The starter packs (#107: the pack offer, its pick and NEW PACKS) were removed in v1.41
+## - The starter packs (#107: the pack offer, its pick and NEW PACKS) were removed in v1.45
 ##   (2026-11-18): the cart is the regulars, the counted boosters and the worn pins' cards; OPEN
 ##   STORE (RunState.open_store) waits only for the BADGE PINS step (pins_pending).
 

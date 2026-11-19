@@ -281,7 +281,7 @@ static func before_pick(recipe: DeckDefinition, offer: StartOffer) -> DeckDefini
 
 
 ## The dealt products of an opening-time deck: its cards after the core cards. A run saved before
-## v1.41 that took a starter pack reads its pack's cards among them.
+## v1.45 that took a starter pack reads its pack's cards among them.
 static func shared_of(deck: DeckDefinition) -> Array[CardDefinition]:
 	return deck.cards.slice(deck.core_cards.size())
 

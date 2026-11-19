@@ -49,7 +49,7 @@ func test_the_definition_deals_on_the_live_balance() -> void:
 	assert_array(_ids(recipe.core_cards)).is_equal(REGULARS)
 	assert_bool(recipe.opening_time).is_true()
 	assert_array(_guide.aisle_ids()).is_equal(AISLES)
-	# Owned cards only, start_booster_size each (v1.41).
+	# Owned cards only, start_booster_size each (v1.45).
 	assert_array(_ids(_guide.booster_cards(&"dairy"))).is_equal(
 		[&"cheese", &"butter", &"yogurt", &"reduced_yogurt"]
 	)

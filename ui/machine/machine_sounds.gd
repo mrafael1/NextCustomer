@@ -19,6 +19,9 @@ extends RefCounted
 ## - the pick: `ui_click` (a bin: `ui_back`); the landing: a new card `card_place`, a LOYALTY stamp
 ##   (a new perk or a level-up) `stamp_loyalty`, an upgrade's glint `ding` and G5 C6 E6;
 ## - after each prize the draw lamp going out: `tick`.
+## - the receipt's prize tags (v1.40): each pops off on a quiet `ui_switch`; the +1 DRAW tag
+##   lands on the reader plate as a lamp: `coin` (the medal's own landing sound); the PREMIUM
+##   tag's slam is the transform's sign flip.
 ## The padlocked key's `denied` is the machine's own (RewardMachineView.press_key).
 ##
 ## Built by MachineFlyer (the landing's part), framed with it.
@@ -149,7 +152,8 @@ func _add_intro(plan: MachinePlan) -> void:
 	else:
 		var ticks: int = FEED_TICKS[plan.kind]
 		if not plan.reduced_motion:
-			cues.append([plan.fly_end, SERIES, "tick", ticks])
+			cues.append([plan.feed_at, SERIES, "tick", ticks])
+			_add_tags(plan)
 		_cue(plan.feed_end, SOUND, "slot_tick")
 	var stagger: int = view.tuning.key_stagger_ms
 	if plan.kind == MachineVisit.Kind.BONUS:
@@ -162,17 +166,25 @@ func _add_intro(plan: MachinePlan) -> void:
 			_cue(at, NOTE, KEY_NOTES[chute])
 
 
+## The prize tags coming off the receipt (never under reduced motion: they don't fly).
+func _add_tags(plan: MachinePlan) -> void:
+	if plan.tag_draw_at >= 0.0:
+		_cue(plan.tag_draw_at, SOUND, "ui_switch", SOFT_DB)
+		_cue(plan.tag_draw_end, SOUND, "coin")
+	if plan.tag_premium_at >= 0.0:
+		_cue(plan.tag_premium_at, SOUND, "ui_switch", SOFT_DB)
+
+
 ## The premium transform's sounds (MachineLook's times, scaled to the plan's transform).
 func _add_premium(plan: MachinePlan) -> void:
-	var length: float = plan.premium_length()
-	var flip: float = plan.premium_at + length * MachineLook.FACE_AT / MachineLook.MOCK_LENGTH
+	var flip: float = MachineLook.time_of(plan, MachineLook.FACE_AT)
 	if plan.reduced_motion:
 		flip = plan.premium_end
 	_cue(flip, SOUND, "stamp_notice")
 	for index: int in range(PREMIUM_NOTES.size()):
 		_cue(flip + PREMIUM_GAP * index, NOTE, PREMIUM_NOTES[index])
 	if not plan.reduced_motion:
-		var rise: float = plan.premium_at + length * MachineLook.RISE_FROM / MachineLook.MOCK_LENGTH
+		var rise: float = MachineLook.time_of(plan, MachineLook.RISE_FROM)
 		_cue(rise, SOUND, "ui_switch", SOFT_DB)
 
 

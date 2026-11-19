@@ -701,13 +701,10 @@ func _fade(seconds: float) -> float:
 ## family's other items there, a written family's what its rule counts (RuleReach), and only
 ## those light.
 func _on_tip_shown(target: TipTarget) -> void:
-	# A BATCH chip on a belt ticket lights its batch's frame, a CHAIN chip its chain's (#128), a
-	# MORNING chip the MORNING's line (v1.24); any other tip, none.
+	# A BATCH chip on a belt ticket lights its batch's frame, a CHAIN chip its chain's (#128); any
+	# other tip, none.
 	var chip: KeywordChip = target as KeywordChip
 	var word: String = chip.keyword if chip != null and _shown else ""
-	# A part of the belt's MORNING line (v1.24) is the MORNING keyword's own.
-	if target is MorningMark and _shown:
-		word = CardText.MORNING_WORD
 	_layer.light_frames(_belt_slot_of(chip) if chip != null and not word.is_empty() else -1, word)
 	# A family glyph (what an item is) and a ticket's written family (what it works with) both
 	# light their family.

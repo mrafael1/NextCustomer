@@ -3,8 +3,8 @@ extends RefCounted
 ## The tutorial's lines (TutorialStep, TipDefinition): `**WORD**` marks a glossary chip and
 ## `{name}` a number or name filled in. Numbers come from data, never from the line: the guided
 ## shift's answer row is scored by the game's own Scoring (so its total is the rules'), the rest
-## read from the balance. Live names (the title's plate, T4's MORNING, T14's card) are passed in
-## by the caller. markup() turns a filled line into TipMarkup for TipText: a keyword's chip
+## read from the balance. Live names (the title's plate, T14's card) are passed in by the
+## caller. markup() turns a filled line into TipMarkup for TipText: a keyword's chip
 ## ("[PAIR]") or a word's box ("~CARDS|CARD~", TipWords).
 
 ## How a figure is read off a scored row.
@@ -40,7 +40,6 @@ const CHIP_KEYS: Dictionary[String, String] = {
 	"CHAIN": "CHAIN",
 	"BATCH": "BATCH",
 	"PAIR": "PAIR",
-	"MORNING": "MORNING",
 	"WASTED": "WASTED",
 	"RECEIPT REWARDS": "RECEIPT REWARDS",
 	"NEW ITEMS": "NEW ITEMS",
@@ -61,8 +60,7 @@ const CHIP_KEYS: Dictionary[String, String] = {
 	"MISS": "MISS",
 	"EXTRA DRAW": "EXTRA DRAW",
 	"PREMIUM": "PREMIUM",
-	"SILVER": "MEDALS",
-	"GOLD": "MEDALS",
+	"+1 DRAW": "MEDALS",
 	"MEDALS": "MEDALS",
 	"LOYALTY PERKS": "LOYALTY PERKS",
 	"LOYALTY PERK": "LOYALTY PERKS",
@@ -88,16 +86,11 @@ const UNCHECKED: Array[String] = ["SKIP"]
 const FIGURES: Array[Array] = [
 	["answer_total", Measure.TOTAL, 0],
 ]
-## The MORNING reader whose per-item bonus T4 names (coffee_per): a card definition id.
-const MORNING_READER := "coffee"
 ## The retry line's live figure: the missed rehearsal's total.
 const MISSED := "missed"
-## The live placeholders the caller fills: the title's primary plate (G1), T4's MORNING and T14's
-## card and family.
+## The live placeholders the caller fills: the title's primary plate (G1) and T14's card and
+## family.
 const PRIMARY := "primary"
-const MORNING_NAMES := "morning_names"
-const MORNING_MAKE := "morning_make"
-const MORNING_COUNT := "morning_count"
 const WASTED_CARD := "card"
 const WASTED_FAMILY := "family"
 
@@ -175,42 +168,11 @@ static func values(
 	for figure: Array in FIGURES:
 		if not answer.is_empty():
 			found[str(figure[0])] = str(_measure(answer, figure[1], figure[2]))
-	var reader: CardDefinition = content.card(MORNING_READER)
-	if reader != null:
-		found["coffee_per"] = str(_morning_bonus_each(reader))
 	if balance == null:
 		return found
 	found["quota"] = str(balance.quotas[0]) if not balance.quotas.is_empty() else "0"
-	found["slots"] = str(balance.slot_count)
-	found["hand"] = str(balance.hand_size)
-	found["booster_size"] = str(balance.start_booster_size)
-	found["week_shifts"] = str(balance.week_length)
 	found["misses"] = str(balance.write_up_limit)
-	found["payday_inspections"] = str(balance.review_inspection_count)
-	found["pin_slots"] = str(balance.pin_slots)
-	found["coin_shifts"] = str(_first_paying(balance.coins_by_shifts_passed))
-	var machine: MachineDefinition = balance.machine
-	if machine != null:
-		found["silver_laps"] = str(machine.overtime_ticket_laps)
-		found["gold_laps"] = str(machine.overtime_premium_laps)
-		found["payday_draws"] = str(_payday_draws(machine))
 	return found
-
-
-## T4's live names: the MORNING's items ("Eggs and Bread"), its verb and its count.
-static func morning_values(names: PackedStringArray) -> Dictionary[String, String]:
-	return {
-		MORNING_NAMES: listed(names),
-		MORNING_MAKE: "makes" if names.size() == 1 else "make",
-		MORNING_COUNT: str(names.size()),
-	}
-
-
-## `names` as a list read aloud: "Eggs", "Eggs and Bread", "Eggs, Bread and Milk".
-static func listed(names: PackedStringArray) -> String:
-	if names.size() <= 1:
-		return "".join(names)
-	return "%s and %s" % [", ".join(names.slice(0, names.size() - 1)), names[names.size() - 1]]
 
 
 ## The script's answer row as instances and its ScoreResult, or [] when a card is missing.
@@ -245,30 +207,6 @@ static func _measure(row_and_result: Array, measure: Measure, slot: int) -> int:
 		Measure.TIMES:
 			return floori(float(payout) / float(price)) if price != 0 else 0
 	return 0
-
-
-static func _morning_bonus_each(card: CardDefinition) -> int:
-	for rule: Rule in card.rules:
-		var count_rule: MorningCountRule = rule as MorningCountRule
-		if count_rule != null:
-			return count_rule.bonus_each
-	return 0
-
-
-## The fewest shifts passed that pay coins.
-static func _first_paying(coins: PackedInt32Array) -> int:
-	for passed: int in coins.size():
-		if coins[passed] > 0:
-			return passed
-	return 0
-
-
-## A payday's PREMIUM draws: its ticket's, and its BONUS visit's when it has one.
-static func _payday_draws(machine: MachineDefinition) -> int:
-	if machine.premium_shifts.is_empty():
-		return 0
-	var payday: int = machine.premium_shifts[0]
-	return 1 + (1 if machine.bonus_extra_shifts.has(payday) else 0)
 
 
 static func _placeholder_pattern() -> RegEx:
