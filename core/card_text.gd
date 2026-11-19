@@ -13,7 +13,7 @@ extends RefCounted
 ##   card's base when that rule's bonus is its base (Banana), counted `bonus_factor` times
 ##   (Golden Banana, #77). A chain bonus (the Banana, #106) reads PREVIOUS_PRICE, after its
 ##   factor when that is not 1 ("prev", "2× prev"). `charges` names a charged multiplier's
-##   charges (Golden Eggs, #77). `min_size` is a baked batch's least size (Birthday candles, #128);
+##   charges (Golden Eggs, #77);
 ## - `batch`: the BATCH keyword (BATCH_WORD, #128), which the ticket draws as a chip with its
 ##   tooltip (GlyphText's keyword runs): it names the Bakery batch the card works in, so a batch
 ##   card's template names it instead of "{tag} batch";
@@ -23,6 +23,11 @@ extends RefCounted
 ##   WASTED products a Clearance card profits from (ScoreState.wasted);
 ## - `pair`: the PAIR keyword (PAIR_WORD, #128 Dairy), a chip likewise: a product beside its
 ##   partner (CardPairs), which Cream counts;
+## - `first` and `last`: a batch role's word (FIRST_WORD, LAST_WORD, #128 batch polish), which the
+##   ticket draws in the Bakery colour (GlyphText's role runs): the spot in its batch the card
+##   reads. A template that starts with one ("{first} {batch}: +{bonus} to each item") puts it on
+##   the ticket's role tab (sticker_tab, round 2 of 2026-11-19): the price sticker draws the word
+##   as a Bakery flag on its top edge and its text lines show the rest (sticker_body);
 ## - `percent`: a fractional multiplier's percent per redraw left (Stale popcorn, #128 v3). Such a
 ##   card's `factor` is live (the user's call of 2026-11-02): ×1 plus `percent`% for each of the
 ##   shift's redraws left (`redraws_left`, ScoreState.redraws_left), "1.5" with 1 at 50%, so its
@@ -40,15 +45,16 @@ const STICKER_KEYS: Array[String] = [
 	"charges",
 	"tag",
 	"match_value",
-	"min_size",
 	"batch",
 	"chain",
 	"wasted",
 	"pair",
 	"percent",
+	"first",
+	"last",
 ]
 const RULE_KEYS: Array[String] = [
-	"bonus", "bonus_each", "factor", "charges", "tag", "match_value", "min_size", "percent"
+	"bonus", "bonus_each", "factor", "charges", "tag", "match_value", "percent"
 ]
 ## The BATCH keyword's word (#128): `{batch}` in a template.
 const BATCH_KEY := "batch"
@@ -62,6 +68,13 @@ const WASTED_WORD := "WASTED"
 ## The PAIR keyword's word (#128, Dairy): `{pair}` in a template.
 const PAIR_KEY := "pair"
 const PAIR_WORD := "PAIR"
+## A batch role's words (#128 batch polish): `{first}` and `{last}` in a template.
+const FIRST_KEY := "first"
+const FIRST_WORD := "FIRST"
+const LAST_KEY := "last"
+const LAST_WORD := "LAST"
+## The role keys a template may start with to give its ticket a role tab (sticker_tab), by word.
+const TAB_KEYS: Dictionary[String, String] = {FIRST_KEY: FIRST_WORD, LAST_KEY: LAST_WORD}
 ## A live factor's tooltip (live_tip): the factor now, its percent per redraw left, the redraws
 ## left.
 const LIVE_TIP := "%s now · ×%s, plus %s for each redraw left this shift (%d left)"
@@ -91,12 +104,13 @@ const MONITOR_KEYS: Array[String] = [
 	"charges",
 	"tag",
 	"match_value",
-	"min_size",
 	"batch",
 	"chain",
 	"wasted",
 	"pair",
 	"percent",
+	"first",
+	"last",
 	"max_count",
 	PREVIOUS_KEY,
 	TIMES_KEY,
@@ -161,6 +175,29 @@ static func live_rule(definition: CardDefinition) -> GrantChargedMultiplierRule:
 	return null
 
 
+## The role word a card's sticker wears as its tab (FIRST_WORD or LAST_WORD), or "": a template
+## that starts with `{first}` or `{last}` (Croissant, Stale doughnut). A role named later in the
+## template (Iced bun's "×2 the {last} in {batch}": its target) stays in the text.
+static func sticker_tab(definition: CardDefinition) -> String:
+	if definition == null:
+		return ""
+	var template: String = sticker_template(definition)
+	for key: String in TAB_KEYS:
+		if template.begins_with("{%s}" % key):
+			return TAB_KEYS[key]
+	return ""
+
+
+## The sticker's text lines: sticker_summary without its role tab's word (sticker_tab), so a
+## tabbed card's ticket reads "BATCH: +2 to each item" under its FIRST tab.
+static func sticker_body(
+	definition: CardDefinition, redraws_left: int = -1, family: String = ""
+) -> String:
+	var summary: String = sticker_summary(definition, redraws_left, family)
+	var tab: String = sticker_tab(definition)
+	return summary if tab.is_empty() else summary.trim_prefix(tab).strip_edges(true, false)
+
+
 ## A live factor in percent with `redraws_left` (scoring's: 100 plus `percent` for each).
 static func live_percent(rule: GrantChargedMultiplierRule, redraws_left: int) -> int:
 	return rule.live_percent(redraws_left)
@@ -183,6 +220,8 @@ static func sticker_values(definition: CardDefinition, redraws_left: int = -1) -
 		CHAIN_KEY: CHAIN_WORD,
 		WASTED_KEY: WASTED_WORD,
 		PAIR_KEY: PAIR_WORD,
+		FIRST_KEY: FIRST_WORD,
+		LAST_KEY: LAST_WORD,
 	}
 	for rule: Rule in definition.rules:
 		for property: Dictionary in rule.get_property_list():

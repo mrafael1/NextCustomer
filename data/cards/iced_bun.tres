@@ -3,6 +3,7 @@
 [ext_resource type="Script" path="res://core/rule.gd" id="1_rule"]
 [ext_resource type="Script" path="res://core/rules/batch_role_rule.gd" id="2_iced_bun"]
 [ext_resource type="Script" path="res://core/card_definition.gd" id="3_card"]
+[ext_resource type="Resource" path="res://data/rules/bakery_batch_size.tres" id="99_batch_size"]
 
 [sub_resource type="Resource" id="Resource_iced_bun"]
 script = ExtResource("2_iced_bun")
@@ -18,10 +19,11 @@ display_name = "Iced bun"
 kind = 1
 tags = PackedStringArray("Food", "Bakery")
 base = 1
+batch_bonus = ExtResource("99_batch_size")
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_iced_bun")])
-rule_text = "The last item of its BATCH pays ×2"
-sticker_text = "{batch} ×{factor} the last"
-monitor_text = "{batch} The last item of its batch pays ×{factor}."
+rule_text = "The LAST item of its BATCH pays ×2"
+sticker_text = "×{factor} the {last} in {batch}"
+monitor_text = "{batch} The {last} item of its batch pays ×{factor}, wherever the bun sits."
 art_ref = "res://art/items_v2/iced_bun.png"
 mini_art_ref = "res://art/minis/iced_bun.png"
 mini_golden_art_ref = "res://art/minis/iced_bun_golden.png"

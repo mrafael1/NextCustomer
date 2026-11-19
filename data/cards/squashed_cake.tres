@@ -3,6 +3,7 @@
 [ext_resource type="Script" path="res://core/rule.gd" id="1_rule"]
 [ext_resource type="Script" path="res://core/rules/grant_charged_multiplier_rule.gd" id="2_squashed_cake"]
 [ext_resource type="Script" path="res://core/card_definition.gd" id="3_card"]
+[ext_resource type="Resource" path="res://data/rules/bakery_batch_size.tres" id="99_batch_size"]
 
 [sub_resource type="Resource" id="Resource_squashed_cake"]
 script = ExtResource("2_squashed_cake")
@@ -19,6 +20,7 @@ display_name = "Squashed cake"
 kind = 1
 tags = PackedStringArray("Food", "Bakery", "Clearance")
 base = 2
+batch_bonus = ExtResource("99_batch_size")
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_squashed_cake")])
 rule_text = "The next Clearance item pays ×2"
 sticker_text = "×{factor} next {tag}"

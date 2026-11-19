@@ -89,12 +89,14 @@ func test_remove_frees_capacity_again() -> void:
 ## Scoring has no row limit of its own: a 7-card row scores like any other (plan section 3.1).
 func test_a_seven_card_row_scores_as_usual() -> void:
 	var bread_six: Array = ["bread", "bread", "bread", "bread", "bread", "bread"]
-	# Six Breads, then Final markdown in the last slot: no item after it (v1.29), 6 * 5 + 0 = 30.
-	assert_int(_checkout_ids(19, bread_six + ["final_markdown"])).is_equal(30)
-	# Final markdown in slot 6 of 7 doubles the 7th, the last item: 5 * 5 + 0 + 10 = 35.
-	assert_int(_checkout_ids(20, bread_six.slice(1) + ["final_markdown", "bread"])).is_equal(35)
-	# Repeat as the 7th card copies the Bread before it: 6 * 5 + 5 = 35.
-	assert_int(_checkout_ids(21, bread_six + ["repeat"])).is_equal(35)
+	# Six Breads (a BATCH of 6: +3 each, #128 batch polish), then Final markdown in the last
+	# slot: no item after it (v1.29), 6 * 8 + 0 = 48.
+	assert_int(_checkout_ids(19, bread_six + ["final_markdown"])).is_equal(48)
+	# Final markdown in slot 6 of 7 doubles the 7th, the last item, a lone Bread (the coupon
+	# splits the batch): 5 * 8 + 0 + 10 = 50.
+	assert_int(_checkout_ids(20, bread_six.slice(1) + ["final_markdown", "bread"])).is_equal(50)
+	# Repeat as the 7th card copies the Bread before it: 6 * 8 + 8 = 56.
+	assert_int(_checkout_ids(21, bread_six + ["repeat"])).is_equal(56)
 
 
 func test_cannot_place_a_card_twice_or_from_outside_the_hand() -> void:

@@ -34,7 +34,7 @@ extends Control
 ## Batches and chains (#128): each batch and chain of the model (PlanningModel.batches, chains) is
 ## bound by a frame round its tickets (BatchFrames, ChainFrames), following the views; hovering a
 ## BATCH or CHAIN chip lights its frame (light_frames), a hovered job card its batch's bookends.
-## A wrong job (PlanningSlot.wrong_job) turns its ticket's chip tomato with a cross
+## A wrong job (PlanningSlot.wrong_job) greys its ticket's rule text and breaks its role tab
 ## (PriceSticker.set_wrong_job). The count shows no wrong job, nor a chain; a batch's frame stays.
 ##
 ## Motion (none under `reduced_motion`, nothing loops): the stickers new since the last slap_new

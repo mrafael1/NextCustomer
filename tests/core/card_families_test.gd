@@ -92,6 +92,7 @@ const FAMILY_RULES := [
 	"tag_count_rule.gd",
 ]
 const NO_FAMILY_RULES := [
+	"batch_size_bonus_rule.gd",
 	"connector_bridge_rule.gd",
 	"chain_role_rule.gd",
 	"copy_previous_payout_rule.gd",

@@ -29,7 +29,8 @@ func test_a_last_payment_reaching_the_quota_celebrates_at_that_payment() -> void
 
 
 func test_a_plain_item_scans_and_pays_in_less_than_a_second() -> void:
-	var result: ScoreResult = Scoring.score(_row("bread,bread"))
+	# Potatoes: plain items outside every BATCH (two Breads would earn its size bonus).
+	var result: ScoreResult = Scoring.score(_row("potatoes,potatoes"))
 	var plan: CountUpPlan = _plan(result)
 	var tuning: CountUpTuning = load(CountUp.TUNING_PATH)
 	assert_int(plan.beats[0].duration_ms).is_equal(tuning.base_ms + tuning.payout_small_ms)

@@ -426,6 +426,66 @@ func test_the_row_draws_its_labels_over_the_next_cell() -> void:
 
 ## A drag's ghost carries its pay in a framed window off a ticket: its label's outline runs down
 ## the left too (no divider covers that side); a ticket's label has none there.
+## A role tab (round 2 of 2026-11-19) sits on its ticket's top edge, where the batch frames'
+## band runs over the tickets: the row's label layer, drawn after the frames, shows a twin of it
+## at its place and scale, and the tab itself draws nothing; a tab that goes is given back.
+func test_the_row_draws_role_tabs_over_the_frames() -> void:
+	var strip: RowStrip = auto_free(RowStrip.new())
+	add_child(strip)
+	strip.set_slot_count(8)
+	var row: Array[CardInstance] = []
+	for card_id: String in ["croissant", "bread", "stale_doughnut"]:
+		row.append(CardInstance.new(_card(card_id), row.size() + 1))
+	var views: Array[CardView] = strip.show_cards(row, -1, func(_view: CardView) -> void: pass)
+	await get_tree().process_frame
+	var layer: PriceLabelLayer = strip.labels
+	layer.refresh()
+	var twins: Dictionary[RoleTab, RoleTab] = layer.tab_twins()
+	assert_int(twins.size()).is_equal(2)
+	for index: int in [0, 2]:
+		var sticker: PriceSticker = (views[index] as ItemView).sticker()
+		var tab: RoleTab = sticker.get_node(RoleTab.NAME) as RoleTab
+		assert_bool(twins.has(tab)).is_true()
+		var twin: RoleTab = twins[tab]
+		assert_bool(tab.is_covered()).is_true()
+		assert_str(twin.word).is_equal(tab.word)
+		assert_object(twin.get_parent()).is_same(layer)
+		var drawn: Rect2 = twin.get_global_rect()
+		var at: Rect2 = tab.get_global_rect()
+		assert_vector(drawn.position).is_equal_approx(at.position, Vector2.ONE * 0.01)
+		assert_vector(drawn.size).is_equal_approx(at.size, Vector2.ONE * 0.01)
+		# On the ticket's top edge, inside its column.
+		var ticket: Rect2 = sticker.get_global_rect()
+		assert_float(drawn.position.x).is_greater_equal(ticket.position.x)
+		assert_float(drawn.end.x).is_less_equal(ticket.end.x)
+		assert_float(drawn.position.y).is_less(ticket.position.y)
+	var first: RoleTab = (views[0] as ItemView).sticker().get_node(RoleTab.NAME) as RoleTab
+	layer.visible = false
+	layer.refresh()
+	assert_bool(first.is_covered()).is_false()
+	assert_int(layer.tab_twins().size()).is_equal(0)
+
+
+## A ticket freed while its tab has a twin (a bagged or cleared item): the next refresh drops the
+## dead tab's twin instead of failing on the freed key (the user's 2026-11-19 SCRIPT ERROR).
+func test_a_freed_ticket_drops_its_tab_twin() -> void:
+	var strip: RowStrip = auto_free(RowStrip.new())
+	add_child(strip)
+	strip.set_slot_count(8)
+	var row: Array[CardInstance] = []
+	for card_id: String in ["croissant", "bread", "stale_doughnut"]:
+		row.append(CardInstance.new(_card(card_id), row.size() + 1))
+	var views: Array[CardView] = strip.show_cards(row, -1, func(_view: CardView) -> void: pass)
+	await get_tree().process_frame
+	var layer: PriceLabelLayer = strip.labels
+	layer.refresh()
+	assert_int(layer.tab_twins().size()).is_equal(2)
+	var tab: RoleTab = (views[0] as ItemView).sticker().get_node(RoleTab.NAME) as RoleTab
+	tab.free()
+	layer.refresh()
+	assert_int(layer.tab_twins().size()).is_equal(1)
+
+
 func test_a_framed_window_closes_its_label_on_the_left() -> void:
 	var framed: PriceWindow = auto_free(PriceWindow.new(PriceWindow.State.BOOSTED, 1250, true, 3))
 	add_child(framed)

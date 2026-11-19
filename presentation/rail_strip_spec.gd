@@ -8,7 +8,8 @@ extends RefCounted
 var giver_slot: int = -1
 ## The giver's display name in uppercase, for the name plate.
 var name: String = ""
-## The target slots, ascending; descending for a backward strip (nearest the giver first).
+## The target slots, ascending; descending for a backward strip (nearest the giver first). None
+## for a batch's label strip (PlanningModel._add_batch_labels): its name plate only.
 var targets: PackedInt32Array = PackedInt32Array()
 ## One per target: the link tokens to that target joined by a space ("+2 ×2").
 var tokens: PackedStringArray = PackedStringArray()

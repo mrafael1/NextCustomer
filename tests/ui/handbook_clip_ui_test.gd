@@ -133,11 +133,11 @@ func _step_until(clip: HandbookClip, done: Callable) -> void:
 	fail("the clip never got there")
 
 
-## The tickets whose keyword chips show a wrong job.
+## The tickets whose text shows a wrong job (greyed: GlyphLabel.wasted).
 static func _wrong_jobs(clip: HandbookClip) -> int:
 	var count: int = 0
 	for ticket: PriceSticker in clip.tickets():
-		if not ticket.summary().keyword_wasted().is_empty():
+		if not ticket.summary().wasted().is_empty():
 			count += 1
 	return count
 
@@ -164,7 +164,7 @@ static func _state(clip: HandbookClip) -> String:
 						item.boost_rings,
 						item.denied,
 						item.position.x,
-						item.sticker().summary().keyword_wasted(),
+						item.sticker().summary().wasted(),
 						layer.stamp(slot) != null,
 						",".join(stickers),
 					]

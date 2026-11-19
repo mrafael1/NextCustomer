@@ -22,6 +22,10 @@ extends Control
 ## A GOLDEN neighbour's corner sparkle is raised over its row (z_index), so over a label lying on
 ## it: the layer hides a sparkle that a label of another ticket covers, and shows it again when
 ## the label goes. Decor only: it takes no clicks.
+##
+## A ticket's role tab (RoleTab, #128 batch polish round 2) sits on its top edge, where the batch
+## frames' band runs: the layer shows a twin of each shown tab (a child, at the tab's place, scale
+## and tint) and covers the tab itself, so the tab is over the frames like a label.
 
 ## Every layer is in this group: a window whose price changes calls their refresh().
 const GROUP := &"price_label_layer"
@@ -35,6 +39,9 @@ var _covered: Array[PriceWindow] = []
 var _hidden: Array[CanvasItem] = []
 ## What the last _draw drew (drawn_rects).
 var _rects: Array[Rect2] = []
+## Each role tab it covers and the twin it shows in its place. Untyped on purpose: a ticket freed
+## since the last frame leaves a freed key, which a typed dictionary refuses even to look up.
+var _twins: Dictionary = {}
 
 
 func _init() -> void:
@@ -83,6 +90,7 @@ func refresh() -> void:
 		state.append(_state_of(window))
 	_covered = shown
 	_cover_sparkles(shown)
+	_sync_tabs()
 	if state != _drawn:
 		_drawn = state
 		queue_redraw()
@@ -106,14 +114,7 @@ func drawn_rects() -> Array[Rect2]:
 ## The tint `window`'s label is drawn in: the modulates from the label up to the ancestor it
 ## shares with this layer (an item's mix grey, a faded ticket).
 func tint_of(window: PriceWindow) -> Color:
-	var tint: Color = Color.WHITE
-	var node: Node = window.label()
-	while node != null and not node.is_ancestor_of(self):
-		var item: CanvasItem = node as CanvasItem
-		if item != null:
-			tint *= item.modulate
-		node = node.get_parent()
-	return tint
+	return _tint_from(window.label())
 
 
 func _draw() -> void:
@@ -175,8 +176,71 @@ func _cover_sparkles(shown: Array[PriceWindow]) -> void:
 	_hidden = under
 
 
+## The twins of the role tabs it shows now, by tab (for tests).
+func tab_twins() -> Dictionary[RoleTab, RoleTab]:
+	var live: Dictionary[RoleTab, RoleTab] = {}
+	for key: Variant in _twins.keys():
+		if is_instance_valid(key):
+			live[key as RoleTab] = _twins[key] as RoleTab
+	return live
+
+
+## Shows a twin of each shown role tab of the row's tickets at the tab's place, scale, tint and
+## broken look (RoleTab.set_broken), covering the tab; gives back the tabs no longer shown.
+func _sync_tabs() -> void:
+	var shown: Array[RoleTab] = []
+	if is_visible_in_tree():
+		for window: PriceWindow in _all():
+			var sticker: PriceSticker = window.get_parent() as PriceSticker
+			var tab: RoleTab = null
+			if sticker != null and window.is_inside_tree():
+				tab = sticker.get_node_or_null(RoleTab.NAME) as RoleTab
+			if tab != null and tab.is_visible_in_tree():
+				shown.append(tab)
+	for key: Variant in _twins.keys():
+		if not is_instance_valid(key) or not shown.has(key):
+			_drop_twin(key)
+	var to_local: Transform2D = get_global_transform().affine_inverse()
+	for tab: RoleTab in shown:
+		if not _twins.has(tab):
+			var made: RoleTab = tab.twin()
+			_twins[tab] = made
+			add_child(made)
+			tab.set_covered(true)
+		var twin: RoleTab = _twins[tab] as RoleTab
+		twin.set_broken(tab.is_broken())
+		var at: Transform2D = to_local * tab.get_global_transform()
+		twin.position = at.origin
+		twin.scale = at.get_scale()
+		twin.modulate = _tint_from(tab)
+
+
+## Gives `key` (its RoleTab, or a freed one) its own drawing back and frees its twin.
+func _drop_twin(key: Variant) -> void:
+	var twin: Variant = _twins[key]
+	_twins.erase(key)
+	if is_instance_valid(key):
+		(key as RoleTab).set_covered(false)
+	if is_instance_valid(twin):
+		(twin as Node).queue_free()
+
+
+## The modulates from `item` up to the ancestor it shares with this layer.
+func _tint_from(item: Node) -> Color:
+	var tint: Color = Color.WHITE
+	var node: Node = item
+	while node != null and not node.is_ancestor_of(self):
+		var shown: CanvasItem = node as CanvasItem
+		if shown != null:
+			tint *= shown.modulate
+		node = node.get_parent()
+	return tint
+
+
 ## Gives every label and sparkle back to its ticket (the layer leaves the tree).
 func _release() -> void:
+	for key: Variant in _twins.keys():
+		_drop_twin(key)
 	for window: PriceWindow in _covered:
 		if is_instance_valid(window):
 			window.set_label_cover(null)

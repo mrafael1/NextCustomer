@@ -722,8 +722,8 @@ static func _event_log() -> EventLogService:
 
 ## BATCH's page (2026-11-12, "guide need update"): its rule's first paragraph over the clip (the
 ## chip's tooltip), the paragraphs on the frame's caps after the slip, under a dashed rule, inside
-## the entry column and tall enough for all their lines; the clip's frame wears both caps, their
-## FIRST and LAST tabs inside the clip's window (its foot lowered under them).
+## the entry column and tall enough for all their lines; the clip's frame wears both caps inside
+## the clip's window (no FIRST or LAST plate hangs under them since 2026-11-19).
 func test_the_batch_page_shows_the_caps_after_its_example() -> void:
 	var page: HandbookPage = await _page()
 	page.open_at(&"batch")
@@ -753,6 +753,6 @@ func test_the_batch_page_shows_the_caps_after_its_example() -> void:
 	var window: Rect2 = clip._window.get_global_rect()
 	for cap: BatchBookends.Cap in [BatchBookends.Cap.FIRST, BatchBookends.Cap.LAST]:
 		assert_bool(ends.shows(cap)).is_true()
-		var tab: Rect2 = ends.tab_rect(cap)
-		tab.position -= frames[0].frame_rect().position
-		assert_bool(window.encloses(ends.get_global_transform() * tab)).is_true()
+		var cap_box: Rect2 = ends.cap_rect(cap)
+		cap_box.position -= frames[0].frame_rect().position
+		assert_bool(window.encloses(ends.get_global_transform() * cap_box)).is_true()

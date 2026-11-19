@@ -11,7 +11,8 @@ extends Control
 ## one) its targets are the tickets' right halves, each with a plain ink drop instead of a notch,
 ## so they never meet lane 0's, and its stems and drops cross lane 0 on top. A backward strip
 ## (every target before the giver) keeps its plug at the giver and points left, its cap at the
-## leftmost target.
+## leftmost target. A batch's label strip (no targets, PlanningModel._add_batch_labels) is its plug,
+## stem, name plate (inside the giver's ticket) and cap only.
 ##
 ## PlanningLayer owns it: the strip's body parts are its own children, while its gain badges
 ## (gains()) go in the layer's own z-ordered boxes (section 6), all in layer coordinates. lay_out
@@ -211,7 +212,7 @@ func lay_out(anchors: Dictionary[int, Rect2], lane_rect: Rect2) -> void:
 	# The name, shortened to end before the first target's room on its side (or the giver's
 	# ticket).
 	var limit: float = giver.end.x - NAME_CLEARANCE
-	if not _spec.backward:
+	if not _spec.backward and not _spec.targets.is_empty():
 		limit = INF
 		for index: int in range(centres.size()):
 			if _spec.targets[index] > _spec.giver_slot:

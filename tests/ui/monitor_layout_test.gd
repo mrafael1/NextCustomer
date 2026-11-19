@@ -88,7 +88,8 @@ const PAYOUT_ROWS_GAP := 2.0
 ## Each case's description as round 4 showed it: (pitch, lines) of its tier (MonitorItemColumn's
 ## EFFECT_TIERS; (-1, -1): no description).
 const ROUND_4_BANDS: Dictionary[String, Vector2i] = {
-	"plain": Vector2i(-1, -1),
+	# Bread says it joins a BATCH for its size bonus since the batch polish's round 2 (2026-11-19).
+	"plain": Vector2i(17, 2),
 	"families": Vector2i(17, 2),
 	"split": Vector2i(17, 2),
 	"long": Vector2i(15, 3),

@@ -11,6 +11,9 @@ var steps: Array[ScoreStep] = []
 ## The batches the rules read (CardBatch, #128 Bakery batches), each in slot order: what the
 ## planning belt's batch brackets show. Empty for a total-only score.
 var batches: Array[PackedInt32Array] = []
+## Each batch's size bonus for each of its products (BatchSizeBonusRule, #128 batch polish; 0:
+## none), in `batches`' order: what the belt's batch frame shows. Empty for a total-only score.
+var batch_bonuses: PackedInt32Array = PackedInt32Array()
 ## The chains (CardChain, #128 Produce links), each in slot order with any Lemon knot inside it:
 ## what the planning belt's chain frames show. Empty for a total-only score.
 var chains: Array[PackedInt32Array] = []
@@ -37,6 +40,7 @@ static func joined(first: ScoreResult, second: ScoreResult, first_slots: int) ->
 	for step: ScoreStep in second.steps:
 		result.steps.append(step.moved(first_slots, first.total))
 	result.batches = first.batches + _moved_runs(second.batches, first_slots)
+	result.batch_bonuses = first.batch_bonuses + second.batch_bonuses
 	result.chains = first.chains + _moved_runs(second.chains, first_slots)
 	result.knot_factors = first.knot_factors.duplicate()
 	for slot: int in second.knot_factors:
@@ -59,6 +63,7 @@ static func continued(result: ScoreResult, start: int) -> ScoreResult:
 	for step: ScoreStep in result.steps:
 		moved.steps.append(step.moved(0, start))
 	moved.batches = result.batches
+	moved.batch_bonuses = result.batch_bonuses
 	moved.chains = result.chains
 	moved.knot_factors = result.knot_factors
 	moved.chain_feeds = result.chain_feeds

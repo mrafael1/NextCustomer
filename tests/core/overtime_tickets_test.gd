@@ -3,13 +3,14 @@ extends GdUnitTestSuite
 ## shift making ×2 its quota gives an extra CLASSIC machine ticket (an OVERTIME visit), one making
 ## ×3 turns its ticket's visit PREMIUM; each at most once a week, with caps of their own. A ×3
 ## shift also takes the week's ×2 ticket when it is unused; a ticket already PREMIUM uses no
-## transform; the last shift has no visit and uses nothing. Runs play Breads (5€ each) against
-## quotas of 10 (2 Breads ×1, 4 ×2, 6 ×3) in weeks of 4 shifts, with no day or week events and no
+## transform; the last shift has no visit and uses nothing. Runs play Potatoes (3€ each, a plain
+## item outside every BATCH, #128 batch polish) against quotas of 6 (2 Potatoes ×1, 4 ×2, 6 ×3) in
+## weeks of 4 shifts, with no day or week events and no
 ## premium or bonus shifts unless a test sets them.
 
 const STARTER := "res://data/decks/starter.tres"
 const BALANCE := "res://data/balance/balance.tres"
-const BREAD := "res://data/cards/bread.tres"
+const POTATOES := "res://data/cards/potatoes.tres"
 const X1 := 2
 const X2 := 4
 const X3 := 6
@@ -20,7 +21,7 @@ var _lookup: ContentLookup
 
 func before_test() -> void:
 	_balance = (load(BALANCE) as BalanceDefinition).duplicate()
-	_balance.quotas = PackedInt32Array([10, 10, 10, 10, 10, 10, 10, 10])
+	_balance.quotas = PackedInt32Array([6, 6, 6, 6, 6, 6, 6, 6])
 	_balance.week_length = 4
 	_balance.weeks = []
 	_balance.inspection_shifts = PackedInt32Array()
@@ -70,7 +71,7 @@ func test_the_total_for_a_number_of_laps() -> void:
 
 func test_a_shift_under_x2_earns_nothing() -> void:
 	var run: RunState = _run()
-	_check_out(run, X1 + 1)  # 15€: ×1.
+	_check_out(run, X1 + 1)  # 9€: ×1.
 	assert_bool(run.history[-1].overtime_ticket).is_false()
 	assert_bool(run.history[-1].overtime_premium).is_false()
 	assert_array(run.machine.pending_kinds()).is_empty()
@@ -85,7 +86,7 @@ func test_x2_gives_one_extra_classic_ticket() -> void:
 	var run: RunState = _run()
 	_check_out(run, X2)
 	var record: ShiftRecord = run.history[-1]
-	assert_int(record.total).is_equal(20)
+	assert_int(record.total).is_equal(12)
 	assert_bool(record.overtime_ticket).is_true()
 	assert_bool(record.overtime_premium).is_false()
 	assert_int(run.machine.current_visit().kind).is_equal(MachineVisit.Kind.TICKET)
@@ -136,7 +137,7 @@ func test_x3_makes_the_ticket_premium_and_takes_the_extra_ticket() -> void:
 	var run: RunState = _run()
 	_check_out(run, X3)
 	var record: ShiftRecord = run.history[-1]
-	assert_int(record.total).is_equal(30)
+	assert_int(record.total).is_equal(18)
 	assert_bool(record.overtime_premium).is_true()
 	assert_bool(record.overtime_ticket).is_true()
 	assert_int(run.machine.current_visit().kind).is_equal(MachineVisit.Kind.TICKET)
@@ -207,7 +208,7 @@ func test_an_already_premium_ticket_keeps_the_transform() -> void:
 
 ## The last shift has no machine visit: a ×3 win uses nothing.
 func test_the_last_shift_uses_nothing() -> void:
-	_balance.quotas = PackedInt32Array([10, 10])
+	_balance.quotas = PackedInt32Array([6, 6])
 	var run: RunState = _run()
 	_check_out(run, X1)
 	_next(run)
@@ -357,10 +358,10 @@ func _run() -> RunState:
 	return run
 
 
-## Checks out `breads` Breads (5€ each).
-func _check_out(run: RunState, breads: int) -> void:
-	for _index: int in range(breads):
-		run.place(run.debug_add_to_hand(load(BREAD)), run.row.size())
+## Checks out `items` Potatoes (3€ each).
+func _check_out(run: RunState, items: int) -> void:
+	for _index: int in range(items):
+		run.place(run.debug_add_to_hand(load(POTATOES)), run.row.size())
 	run.checkout()
 
 

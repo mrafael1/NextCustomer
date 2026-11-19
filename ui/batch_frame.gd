@@ -25,7 +25,7 @@ extends Control
 
 ## What each drawn rect is painted (paint_color): the ink, the frame's face and light rows, and a
 ## chain's knot parts' face and light (ChainFrame).
-enum Paint { INK, FACE, LIGHT, KNOT_FACE, KNOT_LIGHT }
+enum Paint { INK, FACE, LIGHT, KNOT_FACE, KNOT_LIGHT, KNOT_INK }
 
 ## The frame's bands: INK_WIDTH ink, MUSTARD_WIDTH mustard (its top band's first HIGHLIGHT rows
 ## light), INK_WIDTH ink; RING in all.

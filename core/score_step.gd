@@ -92,6 +92,10 @@ var reason: String = ""
 ## belt's corner disc) skip it. False for every other step.
 var row_wide: bool = false
 
+## FLAT: the size of the batch whose BATCH size bonus this is (#128 batch polish,
+## BatchSizeBonusRule), so the receipt, count-up and belt can tell it from the card's own bonus;
+## 0 for every other step.
+var batch_size: int = 0
 ## A neighbouring card enabling an own flat bonus. Explain-only visual provenance: the rule's
 ## source_kind/source_slot attribution and every scoring value stay unchanged.
 var support_slot: int = -1
@@ -168,4 +172,6 @@ func to_dictionary() -> Dictionary:
 	}
 	if percent > 0:
 		found["percent"] = percent
+	if batch_size > 0:
+		found["batch_size"] = batch_size
 	return found

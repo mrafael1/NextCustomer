@@ -84,25 +84,52 @@ func test_other_keys_are_left_unformatted() -> void:
 				CardText.CHAIN_KEY,
 				CardText.WASTED_KEY,
 				CardText.PAIR_KEY,
+				CardText.FIRST_KEY,
+				CardText.LAST_KEY,
 			]
 		)
 	)
 
 
 ## The BATCH keyword (#128) is a sticker key: `{batch}` reads BATCH_WORD, which a ticket draws as a
-## chip, and names_batch says a card's template names it; a baked batch's least size is a key too.
-func test_fills_the_batch_keyword_and_min_size() -> void:
+## chip, and names_batch says a card's template names it.
+func test_fills_the_batch_keyword() -> void:
 	var candles: BakedBatchBonusRule = BakedBatchBonusRule.new()
 	candles.tag = "Bakery"
 	candles.bonus = 3
-	candles.min_size = 3
 	var card: CardDefinition = _card("Birthday candles", 1, candles)
-	card.sticker_text = "+{bonus} each, next {batch} of {min_size}+"
-	assert_str(card.sticker_summary()).is_equal("+3 each, next BATCH of 3+")
+	card.sticker_text = "+{bonus} to each item in next {batch}"
+	assert_str(card.sticker_summary()).is_equal("+3 to each item in next BATCH")
 	assert_bool(CardText.names_batch(card)).is_true()
 	card.sticker_text = "+{bonus} next {tag}"
 	assert_bool(CardText.names_batch(card)).is_false()
 	assert_bool(CardText.names_batch(null)).is_false()
+
+
+## A role tab (round 2 of 2026-11-19): a template that starts with `{first}` or `{last}` gives the
+## ticket that word as its tab (sticker_tab), and its text lines show the rest (sticker_body); the
+## full summary keeps the word. A role named later (Iced bun's target) stays in the text.
+func test_a_leading_role_is_the_sticker_tab(
+	template: String,
+	tab: String,
+	body: String,
+	_test_parameters := [
+		["{first} {batch}: +{bonus} to each item", "FIRST", "BATCH: +2 to each item"],
+		["{last} {batch}: +{bonus} per item", "LAST", "BATCH: +2 per item"],
+		["×{factor} the {last} in {batch}", "", "×1 the LAST in BATCH"],
+		["+{bonus} per item in {batch}", "", "+2 per item in BATCH"],
+	]
+) -> void:
+	var role: BatchRoleRule = BatchRoleRule.new()
+	role.tag = "Bakery"
+	role.bonus = 2
+	var card: CardDefinition = _card("Croissant", 2, role)
+	card.sticker_text = template
+	assert_str(CardText.sticker_tab(card)).is_equal(tab)
+	assert_str(CardText.sticker_body(card)).is_equal(body)
+	var full: String = body if tab.is_empty() else "%s %s" % [tab, body]
+	assert_str(card.sticker_summary()).is_equal(full)
+	assert_str(CardText.sticker_tab(null)).is_empty()
 
 
 ## The CHAIN keyword (#128, Produce links) is a sticker key like BATCH: `{chain}` reads CHAIN_WORD,

@@ -4,6 +4,7 @@
 [ext_resource type="Script" path="res://core/rules/adjacent_match_bonus_rule.gd" id="2_day_old_buns"]
 [ext_resource type="Script" path="res://core/card_definition.gd" id="3_card"]
 [ext_resource type="Resource" path="res://data/cards/day_old_buns.tres" id="9_plain"]
+[ext_resource type="Resource" path="res://data/rules/bakery_batch_size.tres" id="99_batch_size"]
 
 [sub_resource type="Resource" id="Resource_day_old_buns"]
 script = ExtResource("2_day_old_buns")
@@ -20,6 +21,7 @@ display_name = "Golden day-old buns"
 kind = 1
 tags = PackedStringArray("Food", "Bakery", "Clearance")
 base = 4
+batch_bonus = ExtResource("99_batch_size")
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_day_old_buns")])
 rule_text = "+8€ if right after a Clearance item"
 art_ref = "res://art/items_v2/day_old_buns_golden.png"

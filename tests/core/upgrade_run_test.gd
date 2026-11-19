@@ -113,11 +113,16 @@ func test_history_has_one_entry_per_played_shift() -> void:
 			{
 				"shift": 1,
 				"quota": 5,
-				"total": 10,
+				"total": 12,
 				"passed": true,
 				"inspection": "",
 				"inspections": [],
 				"played": ["bread", "bread"],
+				# The two Breads are a BATCH of 2 (+1 each, #128 batch polish): the shift's best
+				# payout and its best combo.
+				"best_payout": 6,
+				"best_card": "bread",
+				"best_combo": {"keyword": "BATCH", "length": 2, "pay": 12},
 			}
 		)
 	)
@@ -265,7 +270,7 @@ static func _low_quotas() -> BalanceDefinition:
 	return balance
 
 
-## A run whose quotas are all 5, so two Breads (6) pass any shift.
+## A run whose quotas are all 5, so two Breads (12: a BATCH of 2) pass any shift.
 static func _run(seed_value: int) -> RunState:
 	var balance: BalanceDefinition = _low_quotas()
 	var deck: DeckDefinition = load(STARTER)

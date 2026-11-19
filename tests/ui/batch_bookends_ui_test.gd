@@ -1,18 +1,19 @@
 extends GdUnitTestSuite
 ## A Bakery batch's bookends (2026-11-12, the approved batch_positions mock-up's A with D's icing
 ## drip): the model records each framed batch's job cards, what a Baguette counted and the glazed
-## last item, from the score. On the real shift screen the FIRST cap stands on the frame's left
-## side at the batch's first ticket and the LAST cap on its right side at its last, each reaching
-## onto its ticket's outline only, their tabs across the frame's foot under the end tickets, clear
-## of every ticket's text, chips, glyphs and price window; the icing drip pours over the LAST cap
-## only when an Iced bun glazes the batch's last item. Hovering a job card lights the cap it reads
-## (tomato when it is WASTED there, with its note), a Baguette's fill runs to its ticket and an
-## Iced bun's dashed line to the LAST cap; any other item lights nothing. In the count a frame
-## binds the batch's tickets still on the belt (no FIRST cap once the first is bagged), and a job
-## card's step plays on the caps: the real count's steps reach them through BeltRide, the bagged
-## items' pops tick in one counter at the frame's left end. A batch split over two frames plays
-## each beat once; a drag's ghost at a batch end keeps that end's cap. Reduced motion lights and
-## puts back at once. A chain's frame wears none. The real saves and logs are never touched.
+## last item, from the score. On the real shift screen the FIRST cap stands on the frame's left side
+## at the batch's first ticket and the LAST cap on its right side at its last, each reaching onto
+## its ticket's outline only, with no FIRST or LAST plate at the frame's foot (the tickets' role
+## tabs say it, 2026-11-19), clear of every ticket's text, chips, glyphs and price window; the icing
+## drip pours over the LAST cap only when an Iced bun glazes the batch's last item. Hovering a job
+## card lights the cap it reads (tomato when it is WASTED there, with its note), a Baguette's fill
+## runs to its ticket and an Iced bun's dashed line to the LAST cap; any other item lights nothing.
+## In the count a frame binds the batch's tickets still on the belt (no FIRST cap once the first is
+## bagged), and a job card's step plays on the caps: the real count's steps reach them through
+## BeltRide, the bagged items' pops tick in one counter at the frame's left end. A batch split over
+## two frames plays each beat once; a drag's ghost at a batch end keeps that end's cap. Reduced
+## motion lights and puts back at once. A chain's frame wears none. The real saves and logs are
+## never touched.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 const CARDS := "res://data/cards/%s.tres"
@@ -64,7 +65,8 @@ func test_the_model_records_the_job_cards() -> void:
 			}
 		)
 	)
-	assert_dict(model.batch_counts).is_equal({2: 2})
+	# The Baguette counts every item of its batch of 5, itself included (round 2 of 2026-11-19).
+	assert_dict(model.batch_counts).is_equal({2: 5})
 	assert_dict(model.glazes).is_equal({4: 2})
 	# An Iced bun that closes its batch glazes nothing.
 	assert_dict(_model(["croissant", "bread", "iced_bun"]).glazes).is_empty()
@@ -72,8 +74,9 @@ func test_the_model_records_the_job_cards() -> void:
 
 ## The caps stand at the batch's ends: the FIRST cap round the frame's left side at the first
 ## ticket, the LAST cap round its right side at the last, CAP_OUT outside the frame and onto the
-## end ticket's outline only, CAP_RISE over the frame's top down to its foot; the tabs sit across
-## the frame's foot under the end tickets, against their caps. Nothing of them covers another
+## end ticket's outline only, CAP_RISE over the frame's top down to its foot; no FIRST or LAST
+## plate hangs at the frame's foot (2026-11-19: the tickets' role tabs say it). Nothing of them
+## covers another
 ## ticket, a ticket's text, chips, glyphs or price window, or leaves the screen.
 func test_the_caps_stand_at_the_batch_ends() -> void:
 	var screen: ShiftScreen = await _screen()
@@ -101,15 +104,9 @@ func test_the_caps_stand_at_the_batch_ends() -> void:
 	assert_float(first_cap.end.x - first.position.x).is_less_equal(PriceSticker.OUTLINE)
 	assert_bool(last_cap.intersects(last)).is_true()
 	assert_float(last.end.x - last_cap.position.x).is_less_equal(PriceSticker.OUTLINE)
-	var first_tab: Rect2 = to_global * ends.tab_rect(BatchBookends.Cap.FIRST)
-	var last_tab: Rect2 = to_global * ends.tab_rect(BatchBookends.Cap.LAST)
-	assert_bool(first_tab.intersects(first_cap)).is_true()
-	assert_bool(last_tab.intersects(last_cap)).is_true()
-	assert_float(first_tab.position.y).is_greater_equal(first.end.y - PriceSticker.OUTLINE)
-	assert_float(last_tab.position.y).is_greater_equal(last.end.y - PriceSticker.OUTLINE)
-	assert_float(first_tab.position.x).is_greater_equal(first_cap.position.x)
-	assert_float(last_tab.end.x).is_less_equal(last_cap.end.x)
-	var parts: Array[Rect2] = [first_cap, last_cap, first_tab, last_tab]
+	assert_bool(ends.has_method("tab_rect")).is_false()
+	assert_array(ends.note_texts()).is_empty()
+	var parts: Array[Rect2] = [first_cap, last_cap]
 	for part: Rect2 in parts:
 		assert_bool(SCREEN_RECT.encloses(part)).override_failure_message(str(part)).is_true()
 		for slot: int in range(1, 4):
@@ -163,7 +160,8 @@ func test_the_drip_shows_only_with_an_iced_bun_on_the_last() -> void:
 
 
 ## Hovering a job card lights the cap it reads: the Croissant the FIRST cap, the Stale doughnut the
-## LAST; a Baguette's fill runs along the frame's foot band to its ticket with its count's note; an
+## LAST; a Baguette's fill runs along the frame's foot band to the frame's last ticket (it counts
+## every item of its batch, itself included: round 2 of 2026-11-19) with its count's note; an
 ## Iced bun lights the LAST cap and draws its dashed line from its ticket to it. A Croissant out of
 ## place turns the FIRST cap tomato with its note. Leaving puts them back; an item with no job (the
 ## Bread in the batch, the Banana outside it) lights nothing and shows no note.
@@ -184,9 +182,9 @@ func test_hovering_a_job_card_lights_its_cap() -> void:
 	var fill: Rect2 = to_global * ends.fill_rect()
 	var outer: Rect2 = to_global * layer.frames()[0].frame_rect()
 	assert_float(fill.position.x).is_equal(outer.position.x + BatchBookends.FILL_LEFT)
-	assert_float(fill.end.x).is_equal(_ticket(screen, 2).get_center().x)
+	assert_float(fill.end.x).is_equal(_ticket(screen, 4).get_center().x)
 	assert_float(fill.position.y).is_equal(outer.end.y - BatchBookends.FILL_UP)
-	assert_array(Array(ends.note_texts())).is_equal(["2 EARLIER"])
+	assert_array(Array(ends.note_texts())).is_equal(["5 ITEMS"])
 	_hover(layer, 3)
 	assert_int(ends.look(BatchBookends.Cap.LAST)).is_equal(BatchBookends.Look.LIT)
 	assert_bool(ends.fill_rect().has_area()).is_false()
@@ -255,8 +253,8 @@ func test_the_count_plays_on_the_caps() -> void:
 
 
 ## A job card WASTED at its place turns its cap tomato with its note: a Stale doughnut that is not
-## the batch's last ("NOT LAST" on the LAST cap), an Iced bun that is ("IS LAST"), a Baguette with
-## no earlier item ("0 EARLIER" on the FIRST cap).
+## the batch's last ("NOT LAST" on the LAST cap), an Iced bun that is ("IS LAST"). A Baguette works
+## anywhere in its batch (round 2 of 2026-11-19), so it has no wrong place.
 func test_a_wasted_job_card_turns_its_cap_tomato(
 	row: Array,
 	slot: int,
@@ -265,7 +263,6 @@ func test_a_wasted_job_card_turns_its_cap_tomato(
 	_test_parameters := [
 		[["croissant", "stale_doughnut", "bread"], 1, BatchBookends.Cap.LAST, "NOT LAST"],
 		[["croissant", "bread", "iced_bun"], 2, BatchBookends.Cap.LAST, "IS LAST"],
-		[["baguette", "bread", "bread"], 0, BatchBookends.Cap.FIRST, "0 EARLIER"],
 	]
 ) -> void:
 	var ids: Array[String] = []
@@ -350,7 +347,7 @@ func test_the_real_count_plays_on_the_caps() -> void:
 
 ## The bagged items' pops tick in one counter at the frame's left end (each number replacing the
 ## last), the item still on the belt pops over its ticket; every pop waits its turn (none dropped
-## before it starts). The Baguette's fill runs over what's left of the frame, to its ticket.
+## before it starts). The Baguette's fill runs over what's left of the frame, to its last ticket.
 func test_the_bagged_items_tick_in_one_counter() -> void:
 	var frames: BatchFrames = _standalone(["croissant", "bread", "baguette", "stale_doughnut"])
 	frames.count()
@@ -361,7 +358,7 @@ func test_the_bagged_items_tick_in_one_counter() -> void:
 	await _seconds(BatchBookends.COUNT_FILL_S)
 	var fill: Rect2 = ends.fill_rect()
 	assert_float(fill.position.x).is_equal(frame.frame_rect().position.x + BatchBookends.FILL_LEFT)
-	assert_float(fill.end.x).is_less_equal(_rects([2])[2].get_center().x)
+	assert_float(fill.end.x).is_less_equal(_rects([3])[3].get_center().x)
 	await _seconds(BatchBookends.POP_S + 0.2)
 	frames.lay_out(_rects([3]))
 	frame.fire(_step(ScoreStep.StepType.FLAT, 3))
@@ -457,7 +454,7 @@ func test_a_ghost_at_a_batch_end_keeps_its_cap() -> void:
 	assert_bool(ends.drip_rect().intersects(last_cap)).is_true()
 
 
-## Reduced motion: a hover lights the cap at once, its glow and enlarged tab included, and leaving
+## Reduced motion: a hover lights the cap at once, its glow included, and leaving
 ## puts them back at once. A hover leaving mid drip re-run leaves the drip whole.
 func test_a_hover_ends_cleanly() -> void:
 	var still: BatchFrames = _standalone(["croissant", "bread", "stale_doughnut"], true)
@@ -466,11 +463,8 @@ func test_a_hover_ends_cleanly() -> void:
 	still.focus(0)
 	assert_int(still_ends.look(BatchBookends.Cap.FIRST)).is_equal(BatchBookends.Look.LIT)
 	assert_float(still_ends._glows[BatchBookends.Cap.FIRST]).is_equal(1.0)
-	var lit_scale: float = still_ends._tab_scales[BatchBookends.Cap.FIRST]
-	assert_float(lit_scale).is_equal(BatchBookends.TAB_LIT_SCALE)
 	still.focus(-1)
 	assert_float(still_ends._glows[BatchBookends.Cap.FIRST]).is_equal(0.0)
-	assert_float(still_ends._tab_scales[BatchBookends.Cap.FIRST]).is_equal(1.0)
 	var glazed: BatchFrames = _standalone(["croissant", "iced_bun", "bread"])
 	glazed.lay_out(_rects([0, 1, 2]))
 	var ends: BatchBookends = glazed.frames()[0].bookends()
@@ -634,3 +628,19 @@ static func _left_click() -> InputEventMouseButton:
 
 static func _event_log() -> EventLogService:
 	return (Engine.get_main_loop() as SceneTree).root.get_node("/root/EventLog")
+
+
+func test_every_plate_word_has_its_letters() -> void:
+	var words: Array[String] = [
+		BatchBookends.NOT_FIRST,
+		BatchBookends.NOT_LAST,
+		BatchBookends.ITEMS % 4,
+		BatchBookends.GLAZE_LAST % 2,
+		BatchBookends.GLAZE_SELF,
+	]
+	for word: String in words:
+		for letter: String in word:
+			var known: bool = (
+				BatchBookends.LETTERS.has(letter) or ChainFrame.PLATE_GLYPHS.has(letter)
+			)
+			assert_bool(known).override_failure_message("%s: no '%s'" % [word, letter]).is_true()

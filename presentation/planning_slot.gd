@@ -27,8 +27,8 @@ var stamp_caption: String = ""
 ## Written off by a Write-off (v1.29): its stamp is the written-off label (DenyStamp), not a
 ## denial, so its stickers stay lit.
 var written_off: bool = false
-## A batch or chain card's wrong job (#128): its BATCH or CHAIN line's WASTED tooltip ("WASTED ·
-## Not first in its Bakery batch"), or "" when it works (or is neither).
+## The card's wrong job (#128, every card since 2026-11-19): its own WASTED step's tooltip
+## ("WASTED · Not first in its Bakery batch"), or "" when its effect works (or it has none).
 var wrong_job: String = ""
 
 

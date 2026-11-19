@@ -36,7 +36,8 @@ const READINGS: Dictionary[String, String] = {
 	"strawberries": "+N each, next CHAIN",
 	# The Bakery batch roles (#128 v3) replaced Croissant's "+N beside Bakery"; its BATCH keyword
 	# is a chip since the Bound strip.
-	"croissant": "BATCH 1st: +N to the rest",
+	# Round 2 (2026-11-19): its FIRST is the ticket's role tab, so the plate reads the rest.
+	"croissant": "BATCH: +N to each item",
 	"multipack": "×N later of the family before",
 }
 ## The prices the window must hold: every whole euro to 9999€, and a 12k€ total.
@@ -74,7 +75,7 @@ func test_every_rule_fits_its_plate() -> void:
 		var redraws: int = -1
 		if CardText.live_rule(definition) != null:
 			redraws = (load(PriceSticker.BALANCE) as BalanceDefinition).base_redraws
-		var line: String = CardText.sticker_summary(definition, redraws)
+		var line: String = CardText.sticker_body(definition, redraws)
 		if line.is_empty():
 			continue
 		var id: String = String(definition.id)
@@ -121,6 +122,48 @@ func test_a_wrong_job_still_fits() -> void:
 			problems.append(
 				"%s: %d px after, %d before" % [id, sticker.summary().font_size(), calm]
 			)
+	assert_array(problems).override_failure_message("\n".join(problems)).is_empty()
+
+
+## The role tab (round 2 of 2026-11-19): Croissant wears FIRST and Stale doughnut LAST (every
+## tier) on a Bakery flag sitting on the ticket's top edge, its text lines without the word; Iced
+## bun's LAST is its target, in its text, and it has no tab. The tab's room is clear of the rail
+## strips' plug and stem, lane 0's notch and lane 1's drop, which drop onto a ticket's top edge.
+func test_a_leading_role_sits_on_a_tab() -> void:
+	for card_id: String in ["croissant", "croissant_big", "croissant_golden"]:
+		_assert_tab(card_id, CardText.FIRST_WORD)
+	for card_id: String in ["stale_doughnut", "stale_doughnut_big", "stale_doughnut_golden"]:
+		_assert_tab(card_id, CardText.LAST_WORD)
+	for card_id: String in ["iced_bun", "baguette", "birthday_candles", "bread", "milk"]:
+		var sticker: PriceSticker = auto_free(PriceSticker.new(_card(card_id)))
+		var none: Node = sticker.get_node_or_null(RoleTab.NAME)
+		assert_object(none).override_failure_message(card_id).is_null()
+	var iced: PriceSticker = auto_free(PriceSticker.new(_card("iced_bun")))
+	assert_str(iced.summary().text).contains(CardText.LAST_WORD)
+	var plug_end: float = RailStrip.PLUG_OFFSET + RailStrip.PLUG.end.x
+	var notch_end: float = (
+		RailStrip.TARGET_OFFSETS[0] - RailStrip.NOTCH_LEFT + RailStrip.NOTCH_SIZE.x
+	)
+	assert_float(PriceSticker.TAB_ROOM.x).is_greater_equal(maxf(plug_end, notch_end))
+	assert_float(PriceSticker.TAB_ROOM.y).is_less_equal(
+		RailStrip.TARGET_OFFSETS[1] - RailStrip.DROP_WIDTH / 2.0
+	)
+
+
+func _assert_tab(card_id: String, word: String) -> void:
+	var definition: CardDefinition = _card(card_id)
+	var sticker: PriceSticker = auto_free(PriceSticker.new(definition))
+	add_child(sticker)
+	var tab: RoleTab = sticker.get_node_or_null(RoleTab.NAME) as RoleTab
+	assert_object(tab).override_failure_message(card_id).is_not_null()
+	assert_str(tab.word).is_equal(word)
+	assert_str(sticker.summary().text).is_equal(CardText.sticker_body(definition))
+	assert_bool(sticker.summary().text.contains(word)).override_failure_message(card_id).is_false()
+	assert_int(tab.mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
+	# Cream on the Bakery's colour, darkened as the role words are in the tips.
+	var bakery: FamilyStyle = FamilyPalette.shared().style("Bakery")
+	assert_that(tab.face_color()).is_equal(bakery.shade.darkened(RoleTab.ROLE_DARKEN))
+	var problems: PackedStringArray = _tab_problems(sticker, definition)
 	assert_array(problems).override_failure_message("\n".join(problems)).is_empty()
 
 
@@ -717,7 +760,7 @@ static func _layout_problems(
 	var id: String = String(definition.id)
 	var face: Rect2 = Rect2(Vector2.ZERO, sticker.size)
 	var summary: GlyphLabel = sticker.summary()
-	var line: String = CardText.sticker_summary(definition, sticker.redraws_left)
+	var line: String = CardText.sticker_body(definition, sticker.redraws_left)
 	if summary.text != (line if not line.is_empty() else definition.display_name):
 		problems.append("%s: summary '%s'" % [id, summary.text])
 	if not summary.fits() or sticker.get_node_or_null(PriceSticker.MORE_NAME) != null:
@@ -746,6 +789,42 @@ static func _layout_problems(
 	if window.intersects(text) or window.intersects(plate):
 		problems.append("%s: window over the plate" % id)
 	problems.append_array(_glyph_problems(sticker, definition, palette, window, text))
+	problems.append_array(_tab_problems(sticker, definition))
+	return problems
+
+
+## A role tab (CardText.sticker_tab) only on a card whose sticker starts with its role: above the
+## ticket, its bottom border on the top outline; inside the ticket's column (never over a
+## neighbour) and its TAB_ROOM, on whole art pixels; over none of the ticket's parts (the text and
+## its MORE chip, the glyphs, the window).
+static func _tab_problems(sticker: PriceSticker, definition: CardDefinition) -> PackedStringArray:
+	var problems: PackedStringArray = PackedStringArray()
+	var id: String = String(definition.id)
+	var word: String = CardText.sticker_tab(definition)
+	var tab: RoleTab = sticker.get_node_or_null(RoleTab.NAME) as RoleTab
+	if word.is_empty():
+		if tab != null:
+			problems.append("%s: a role tab" % id)
+		return problems
+	if tab == null or tab.word != word:
+		problems.append("%s: no %s tab" % [id, word])
+		return problems
+	var rect: Rect2 = Rect2(tab.position, tab.size)
+	if rect.position.y >= 0.0 or rect.end.y != PriceSticker.OUTLINE:
+		problems.append("%s: tab %s not on the top edge" % [id, rect])
+	var room: Vector2 = PriceSticker.TAB_ROOM
+	if rect.position.x < maxf(room.x, 0.0) or rect.end.x > minf(room.y, sticker.size.x):
+		problems.append("%s: tab %s outside its room" % [id, rect])
+	if fmod(rect.position.x, ArtStyle.ART_SCALE) != 0.0 or fmod(rect.size.x, 2.0) != 0.0:
+		problems.append("%s: tab %s off the art grid" % [id, rect])
+	var parts: Array[Rect2] = [
+		sticker.summary_text_rect(), Rect2(sticker.window().position, sticker.window().size)
+	]
+	for glyph: FamilyGlyph in sticker.glyphs():
+		parts.append(glyph.rim_rect())
+	for part: Rect2 in parts:
+		if rect.intersects(part):
+			problems.append("%s: tab %s over %s" % [id, rect, part])
 	return problems
 
 

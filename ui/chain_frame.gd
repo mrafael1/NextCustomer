@@ -170,7 +170,21 @@ func paint_color(paint: Paint) -> Color:
 			return LIT_MUSTARD if is_lit() else CALM_LEMON
 		Paint.KNOT_LIGHT:
 			return LIT_LIGHT if is_lit() else CALM_LEMON_LIGHT
+		Paint.KNOT_INK:
+			return plate_ink()
 	return super(paint)
+
+
+## The knots' plates' text ink (v1.43, the user's "×Y the monitor's colour"): the monitor's ink
+## for the strongest knot's factor (MonitorStepRow.amount_colour_of; ×2 and ×3 share orange dark,
+## 3.7:1 on the plate's gold), ink with no knot.
+func plate_ink() -> Color:
+	var strongest: int = 0
+	for factor: int in knots.values():
+		strongest = maxi(strongest, factor)
+	if strongest <= 0:
+		return Palette.INK
+	return MonitorStepRow.amount_colour_of(PLATE_TEXT % strongest, MonitorStepRow.Tone.PLAIN)
 
 
 ## The pairs in the gaps between the tickets, the clasps by the frame's sides and the knots'
@@ -270,7 +284,7 @@ func _add_parts(origin: Vector2) -> void:
 		_add(box, Paint.INK)
 		_add([local.grow(-PLATE_BORDER)], Paint.KNOT_FACE)
 		var text_at: Vector2 = local.position + Vector2.ONE * (PLATE_BORDER + PLATE_PAD)
-		_add(_glyph_cells(_plate_texts[index], text_at), Paint.INK)
+		_add(_glyph_cells(_plate_texts[index], text_at), Paint.KNOT_INK)
 
 
 ## Adds a ring at `rect` (a knot's when `knot`), only its part inside `clip` when given.
