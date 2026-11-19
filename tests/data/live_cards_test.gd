@@ -394,12 +394,12 @@ func test_every_art_ref_is_item_art() -> void:
 	assert_int(drawn).is_equal(161)
 
 
-## The 20 products a new profile stocks (#57), read from data/: the starter deck's products and
-## every base aisle's base_cards. Each has its own 48x48 sprite (art_ref), never the art-pending
-## box, and no two share one.
+## The 19 products a new profile stocks (#57; 20 until Frozen peas became a capsule item, v1.44),
+## read from data/: the starter deck's products and every base aisle's base_cards. Each has its
+## own 48x48 sprite (art_ref), never the art-pending box, and no two share one.
 func test_every_stocked_product_has_its_sprite() -> void:
 	var products: Array[CardDefinition] = stocked_products()
-	assert_int(products.size()).is_equal(20)
+	assert_int(products.size()).is_equal(19)
 	var paths: Dictionary[String, StringName] = {}
 	for card: CardDefinition in products:
 		var message: String = "%s: %s" % [card.id, card.art_ref]
@@ -411,9 +411,10 @@ func test_every_stocked_product_has_its_sprite() -> void:
 		paths[card.art_ref] = card.id
 
 
-## The 30 capsule products (#58, v0.52), read from every aisle's capsule_cards: each has its own
-## 48x48 sprite and a complete chain in the machine's UPGRADES table (#89) whose BIG and GOLDEN
-## tiers have their own 48x48 sprites too; no two of the 90 share one. Whether the chain follows
+## The 31 capsule products (#58, v0.52; Frozen peas since v1.44), read from every aisle's
+## capsule_cards: each has its own 48x48 sprite and a complete chain in the machine's UPGRADES
+## table (#89) whose BIG and GOLDEN tiers have their own 48x48 sprites too; no two of the 93 share
+## one. Whether the chain follows
 ## the tier rule is item_tiers_test's.
 func test_every_capsule_product_has_its_sprite_and_tiers() -> void:
 	var balance: BalanceDefinition = load(BALANCE)
@@ -441,7 +442,7 @@ func test_every_capsule_product_has_its_sprite_and_tiers() -> void:
 				)
 				assert_bool(paths.has(tier.art_ref)).override_failure_message(message).is_false()
 				paths[tier.art_ref] = tier.id
-	assert_int(products).is_equal(30)
+	assert_int(products).is_equal(31)
 
 
 ## Every coupon a run can be offered (balance.coupon_pool) has its own icon on the slip (#59

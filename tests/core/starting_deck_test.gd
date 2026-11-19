@@ -99,7 +99,7 @@ func test_only_stocked_products_with_a_chain_are_drawn() -> void:
 	var drawable: Array[CardDefinition] = StartingDeck.drawable(
 		_stock, _balance.machine.item_upgrades
 	)
-	assert_int(drawable.size()).is_equal(20)
+	assert_int(drawable.size()).is_equal(19)
 	var seen: Dictionary[CardDefinition, bool] = {}
 	for seed_value: int in SEEDS:
 		for card: CardDefinition in _deal(seed_value).cards.slice(5):

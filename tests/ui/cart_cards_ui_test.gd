@@ -1,9 +1,9 @@
 extends GdUnitTestSuite
-## The deck view's cart as cards and slim Run info on the real shift screen (mock-up
+## The deck view's cart as cards and its STOCK BOOK's slots on the real shift screen (mock-up
 ## docs/art/mockups/cart_cards.html, "2x8 cart face", approved by the user on 2026-11-13): the
 ## cards' layout (CartLayout), a 15-card cart of the longest rules in two rows at 1280x720 and
-## 1920x1080, every card's rarity and rule fit, and the Run info's stock icon grid (its in-cart
-## badges, its fit and its hover tips with the card face), the copies' stack and count clear of
+## 1920x1080, every card's rarity and rule fit, and the STOCK BOOK's slots (their in-cart
+## badges, their fit and their hover tips with the card face), the copies' stack and count clear of
 ## the tab and of the next column, and the rule's "…" cut. The rest of the view is
 ## deck_view_ui_test's.
 
@@ -274,10 +274,10 @@ func test_a_card_stacks_its_family_glyphs() -> void:
 	assert_int(stacked).is_greater(0)
 
 
-## The Run info stock shows every stocked card once, with its price (a coupon: its rarity) and an
+## The STOCK BOOK shows every stocked card once, with its price (a coupon: its rarity) and an
 ## in-cart badge only when the cart holds copies of it (their count; teal for a BIG copy, gold for
 ## a GOLDEN one).
-func test_run_info_stock_counts_the_cart() -> void:
+func test_the_stock_book_counts_the_cart() -> void:
 	var screen: ShiftScreen = await _screen()
 	var run: RunState = screen.run
 	for card: CardInstance in run.deck.cards:
@@ -287,10 +287,10 @@ func test_run_info_stock_counts_the_cart() -> void:
 	screen._on_deck_button_pressed()
 	var view: DeckView = screen._deck_view
 	view.show_page(true)
-	var counts: Dictionary[StringName, Vector2i] = StockGrid.cart_counts(run)
+	var counts: Dictionary[StringName, Vector2i] = StockBook.cart_counts(run)
 	var shown: Array[CardDefinition] = []
 	var badges: int = 0
-	for icon: StockIcon in view.stock_grid().icons():
+	for icon: StockIcon in view.stock_book().all_icons():
 		shown.append(icon.card)
 		var held: Vector2i = counts.get(icon.card.id, Vector2i.ZERO)
 		var badge: StockIcon.Badge = icon.badge()
@@ -304,12 +304,11 @@ func test_run_info_stock_counts_the_cart() -> void:
 		badges += 1
 		assert_str(badge.text()).is_equal("×%d" % held.x)
 		assert_int(badge.tier).is_equal(held.y)
-		var box: Rect2 = icon.get_global_rect().grow(8.0)
-		assert_bool(box.encloses(badge.get_global_rect())).is_true()
+		assert_bool(icon.get_global_rect().encloses(badge.get_global_rect())).is_true()
 	assert_int(badges).is_greater(0)
 	assert_array(shown).contains_exactly_in_any_order(run.stock.cards)
 	var banana: StockIcon = null
-	for icon: StockIcon in view.stock_grid().icons():
+	for icon: StockIcon in view.stock_book().all_icons():
 		if icon.card.id == &"banana":
 			banana = icon
 	assert_object(banana).is_not_null()
@@ -317,10 +316,9 @@ func test_run_info_stock_counts_the_cart() -> void:
 	assert_that(banana.badge().fill()).is_equal(Palette.GOLD)
 
 
-## The slim Run info fits each window unscrolled when it can (the hero and the stock's grid with
-## its legend inside the scroll area), its stock grid inside the page's width; hovering a stock
-## icon opens the tip with the card's face inside the window, beside the icon.
-func test_the_run_info_fits_and_its_stock_shows_cards() -> void:
+## The STOCK BOOK's slots stand inside the book on each window, every tab's; hovering a slot opens
+## only the card's face (no paper card, lines or keyword boxes) inside the window, beside the slot.
+func test_the_stock_book_slots_show_cards() -> void:
 	for window: Vector2 in WINDOWS:
 		var screen: ShiftScreen = await _screen_at(window)
 		screen.start_new_run(20261014, false)
@@ -330,39 +328,44 @@ func test_the_run_info_fits_and_its_stock_shows_cards() -> void:
 		view.show_page(true)
 		await get_tree().create_timer(0.4).timeout
 		var where: String = str(window)
-		var area: Rect2 = view._scroll.get_global_rect().grow(0.5)
-		var content: Control = view._scroll.get_child(0)
-		assert_float(content.size.y).override_failure_message(where).is_less_equal(
-			view._scroll.size.y
-		)
-		var grid: StockGrid = view.stock_grid()
-		assert_bool(area.encloses(grid.get_global_rect())).override_failure_message(where).is_true()
-		for icon: StockIcon in grid.icons():
-			(
-				assert_bool(area.encloses(icon.get_global_rect()))
-				. override_failure_message("%s %s" % [where, icon.name])
-				. is_true()
-			)
-		for icon: StockIcon in grid.icons():
-			view.hover_stock(icon)
-			var tip: CardTip = view.tip()
-			assert_bool(tip.visible).is_true()
-			assert_bool(icon.lit).is_true()
-			var face: DeckCell = tip.face()
-			assert_object(face).is_not_null()
-			assert_object(face.card).is_same(icon.card)
-			assert_float(tip.main_card().size.x).is_equal(CardTip.FACE_WIDTH)
-			var in_cart: String = (
-				CardTip.IN_CART % icon.in_cart if icon.in_cart > 0 else CardTip.NOT_IN_CART
-			)
-			assert_str(tip.lines()[-1]).is_equal(in_cart)
-			if not _has_room(view, icon.get_global_rect()):
-				continue
-			_assert_tip_beside(view, icon.get_global_rect(), "%s %s" % [where, icon.name])
-		view.hover_stock(grid.icons()[0])
-		grid.icons()[0].unhovered.emit(grid.icons()[0])
+		var book: StockBook = view.stock_book()
+		var area: Rect2 = book.get_global_rect().grow(0.5)
+		for index: int in book.sections().size():
+			book.show_section(index)
+			for icon: StockIcon in book.shown_icons():
+				(
+					assert_bool(area.encloses(icon.get_global_rect()))
+					. override_failure_message("%s %s" % [where, icon.name])
+					. is_true()
+				)
+				view.hover_stock(icon)
+				var tip: CardTip = view.tip()
+				assert_bool(tip.visible).is_true()
+				assert_bool(icon.lit).is_true()
+				var face: DeckCell = tip.face()
+				assert_object(face).is_not_null()
+				assert_object(face.card).is_same(icon.card)
+				assert_object(tip.main_card()).is_null()
+				assert_array(tip.keyword_cards()).is_empty()
+				if not _stage(view).encloses(icon.get_global_rect()):
+					continue
+				var shown: Rect2 = face.get_global_rect()
+				var message: String = "%s %s" % [where, icon.name]
+				(
+					assert_bool(_stage(view).grow(0.5).encloses(shown))
+					. override_failure_message(message)
+					. is_true()
+				)
+				(
+					assert_bool(shown.intersects(icon.get_global_rect()))
+					. override_failure_message(message)
+					. is_false()
+				)
+		var first: StockIcon = book.shown_icons()[0]
+		view.hover_stock(first)
+		first.unhovered.emit(first)
 		assert_bool(view.tip().visible).is_false()
-		assert_bool(grid.icons()[0].lit).is_false()
+		assert_bool(first.lit).is_false()
 		view._close()
 		await get_tree().process_frame
 
@@ -493,23 +496,19 @@ func test_every_tip_title_fits() -> void:
 		if not file_name.ends_with(".tres"):
 			continue
 		var card: CardDefinition = load("res://data/cards/" + file_name)
-		for stock: bool in [false, true]:
-			if stock:
-				tip.show_stock(card, balance.machine, 0)
-			else:
-				tip.show_card(card, balance.machine, "")
-			var main: CardTip.CardTipBox = tip.main_card()
-			assert_bool(main.title_fits()).override_failure_message(file_name).is_true()
-			assert_str(main.tag_text()).is_equal(CardTip.tag_of(card, balance.machine))
-			var keywords: PackedStringArray = GlyphText.keywords(
-				DeckCell.rule_line(card), FamilyPalette.shared()
-			)
-			var titles: Array[String] = []
-			for box: CardTip.CardTipBox in tip.keyword_cards():
-				assert_bool(box.title_fits()).override_failure_message(file_name).is_true()
-				titles.append(box.title_text())
-			for keyword: String in keywords:
-				assert_array(titles).override_failure_message(file_name).contains([keyword])
+		tip.show_card(card, balance.machine, "")
+		var main: CardTip.CardTipBox = tip.main_card()
+		assert_bool(main.title_fits()).override_failure_message(file_name).is_true()
+		assert_str(main.tag_text()).is_equal(CardTip.tag_of(card, balance.machine))
+		var keywords: PackedStringArray = GlyphText.keywords(
+			DeckCell.rule_line(card), FamilyPalette.shared()
+		)
+		var titles: Array[String] = []
+		for box: CardTip.CardTipBox in tip.keyword_cards():
+			assert_bool(box.title_fits()).override_failure_message(file_name).is_true()
+			titles.append(box.title_text())
+		for keyword: String in keywords:
+			assert_array(titles).override_failure_message(file_name).contains([keyword])
 	tip.free()
 
 

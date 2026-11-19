@@ -105,15 +105,16 @@ func test_stock_numbers_match_the_plan() -> void:
 	assert_bool("end_cap_window_runs" in balance).is_false()
 
 
-## The 6 aisles (issues #34 and #35, decided with the user): the 3 base aisles hold 5/5/4
-## products open from the start, 14 in all, within the stock budget, so a new profile stocks every
+## The 6 aisles (issues #34 and #35, decided with the user): the 3 base aisles hold 4/5/4
+## products open from the start, 13 in all, within the stock budget, so a new profile stocks every
 ## one and skips the list; their machines add 2/2/3 capsules. The 3 machine-opened aisles hold
-## 8/8/7 capsules and no base products. Each capsule list starts with its key item: Cream, Sugar
-## cubes, Egg timer, Fruit salad, Baguette, Crisps.
+## 9/8/7 capsules and no base products (v1.44, the Dairy aisle: Frozen peas left the base
+## products of the former Cold cases aisle for Fruit & veg's capsules). Each capsule list starts
+## with its key item: Cream, Sugar cubes, Egg timer, Fruit salad, Baguette, Crisps.
 func test_the_aisles_hold_the_agreed_products() -> void:
 	var balance: BalanceDefinition = load(BALANCE)
 	var base: Dictionary[StringName, Array] = {
-		&"cold_cases": [&"cheese", &"frozen_peas", &"butter", &"yogurt", &"reduced_yogurt"],
+		&"dairy": [&"cheese", &"butter", &"yogurt", &"reduced_yogurt"],
 		&"pantry": [&"cereal", &"tea_bags", &"crackers", &"dented_can", &"day_old_buns"],
 		&"household": [&"carrier_bag", &"scissors", &"batteries", &"flickering_bulb"],
 		&"fruit_and_veg": [],
@@ -121,7 +122,7 @@ func test_the_aisles_hold_the_agreed_products() -> void:
 		&"snacks": [],
 	}
 	var capsules: Dictionary[StringName, Array] = {
-		&"cold_cases": [&"cream", &"ham_ends"],
+		&"dairy": [&"cream", &"ham_ends"],
 		&"pantry": [&"sugar_cubes", &"mixed_herbs"],
 		&"household": [&"egg_timer", &"chipped_mug", &"odd_socks"],
 		&"fruit_and_veg":
@@ -134,6 +135,7 @@ func test_the_aisles_hold_the_agreed_products() -> void:
 			&"bruised_apples",
 			&"soft_tomatoes",
 			&"potatoes",
+			&"frozen_peas",
 		],
 		&"bakery":
 		[
@@ -170,8 +172,8 @@ func test_the_aisles_hold_the_agreed_products() -> void:
 		assert_array(_ids(aisle.capsule_cards)).is_equal(capsules[aisle.id])
 		products += aisle.base_cards.size()
 		capsule_count += aisle.capsule_cards.size()
-	assert_int(products).is_equal(14)
-	assert_int(capsule_count).is_equal(30)
+	assert_int(products).is_equal(13)
+	assert_int(capsule_count).is_equal(31)
 	assert_int(products).is_less_equal(balance.aisle_stock_budget)
 	var unlocked: Dictionary[StringName, int] = {}
 	assert_bool(RunStock.needs_list(balance, unlocked)).is_false()

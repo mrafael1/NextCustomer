@@ -7,10 +7,10 @@
 [sub_resource type="Resource" id="Resource_sa1"]
 script = ExtResource("2_sub")
 id = &"SA1"
-screen = 1
-text = "You can now swap one of your regulars: click the basket."
+screen = 2
+text = "You can now swap one of your regulars: click SWAP."
 teaches = PackedStringArray("SWAP")
-rings = Array[StringName]([&"crate"])
+rings = Array[StringName]([&"swap_key"])
 act = 0
 side = 2
 footer = 1

@@ -1,8 +1,7 @@
 extends GdUnitTestSuite
-## Start screen page 2, YOUR BUILD (v1.32, mock-up start_boosters_v3): the BADGE PINS step that
-## gates the packs (confirming with no pin allowed, pins changed later with no re-deal), the packs
-## face up with a hover spread (the others sink behind the bench) and a pick, NEW PACKS once a run
-## (keeps the pick, then USED), OPEN STORE held until a pick, and the card -> item -> cart flight.
+## Start screen page 2, YOUR BUILD (v1.32, mock-up start_boosters_v3; no starter packs since
+## v1.45): the BADGE PINS step that holds OPEN STORE (confirming with no pin allowed, pins changed
+## later with no re-deal), OPEN STORE always lit otherwise, and the card -> item -> cart flight.
 ## Geometry on the stage at 1280x720 and 1920x1080.
 
 const SCREEN := preload("res://ui/shift_screen.tscn")
@@ -27,46 +26,31 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-## The page opens on the BADGE PINS step while the packs wait: no pick, no NEW PACKS, one hit over
-## the held packs (it opens the step), the primary key says BADGE PINS. The step's box and its
-## confirm key sit on the stage. Confirming with no pin is allowed: the packs deal, the confirm is
-## saved and nothing is worn.
-func test_badge_pins_step_gates_the_packs() -> void:
+## The page opens on the BADGE PINS step while OPEN STORE waits: the primary key says BADGE PINS.
+## The step's box and its confirm key sit on the stage. Confirming with no pin is allowed: OPEN
+## STORE is lit, the confirm is saved and nothing is worn.
+func test_badge_pins_step_holds_open_store() -> void:
 	var screen: ShiftScreen = await _screen()
 	var board: StartBoard = screen._cart_reveal.board
 	var staff: BuildPage = board.staff
 	board.show_page(2)
 	staff.advance(0.2)
 	assert_bool(staff.pins.owned().is_empty()).is_false()
-	assert_bool(staff.packs_held()).is_true()
+	assert_bool(staff.pins_pending()).is_true()
 	assert_bool(staff.pins_open).is_true()
-	assert_bool(staff.dealt).is_false()
 	assert_str(BuildPageDraw.primary_label(staff)[0]).is_equal("BADGE PINS")
-	assert_bool(_hit(staff, "heldpacks").is_empty()).is_false()
-	assert_bool(_hit(staff, "pack0").is_empty()).is_true()
 	var box: Rect2 = Rect2(BuildPage.PIN_BOX)
 	assert_bool(ART.encloses(box)).is_true()
 	var confirm: Dictionary = _hit(staff, "pinsok")
 	assert_bool(confirm.is_empty()).is_false()
 	assert_bool(box.encloses(confirm.rect)).is_true()
-	# While held, the order sheet keeps the pack's lines pending ("? ? ?") and out of the count.
-	var regulars: int = screen.run.starter.core_cards.size()
-	var row: Label = staff.order.find_child("RowName%d" % regulars, true, false)
-	assert_str(row.text).is_equal("? ? ?")
-	assert_int(staff.order.shown_cards.size()).is_equal(
-		regulars + screen.run.start_setup.shared().size()
-	)
-	assert_int(staff.cart_target()).is_equal(staff.order.shown_cards.size())
-	assert_str(staff.order.waiting_note.text).contains("after your pins")
-	# Esc closes the step: the packs stay held; a pick, NEW PACKS and OPEN STORE (also straight
-	# through the board's clock-in) are refused.
+	# The order sheet lists the whole cart already: the regulars and the boosters' cards.
+	var cart: int = screen.run.starter.core_cards.size() + screen.run.start_setup.shared().size()
+	assert_int(staff.order.shown_cards.size()).is_equal(cart)
+	assert_int(staff.cart_target()).is_equal(cart)
+	# Esc closes the step: OPEN STORE (also straight through the board's clock-in) is refused.
 	assert_bool(staff.handle_key(KEY_ESCAPE)).is_true()
 	assert_bool(staff.pins_open).is_false()
-	assert_int(staff.picked()).is_equal(-1)
-	board.pick(0)
-	assert_int(staff.picked()).is_equal(-1)
-	assert_bool(staff.new_packs()).is_false()
-	assert_str(staff.message).is_equal("PACKS DEAL AFTER PINS")
 	assert_bool(board.clock_in()).is_false()
 	assert_bool(staff.open_store()).is_false()
 	assert_object(staff.flight).is_null()
@@ -75,18 +59,17 @@ func test_badge_pins_step_gates_the_packs() -> void:
 	staff.advance(0.2)
 	assert_bool(staff.primary()).is_true()
 	assert_bool(staff.pins_open).is_false()
-	assert_bool(staff.packs_held()).is_false()
-	assert_bool(staff.dealt).is_true()
-	assert_int(staff.stacks.size()).is_equal(3)
+	assert_bool(staff.pins_pending()).is_false()
+	assert_str(BuildPageDraw.primary_label(staff)[0]).is_equal("OPEN STORE ›")
 	assert_array(screen.run.pins).is_empty()
 	var saved: RunSave = RunSave.from_dictionary(_save(), ContentLookup.new(screen.run.balance))
 	assert_bool(saved.run.start_setup.pins_confirmed).is_true()
 
 
-## A profile owning only the pins every profile starts with (none earned, none worn) gets its
-## packs at once (mock-up NEW · 0): no step, no hold, the order sheet lists the regulars and
-## booster lines; the good first pick is suggested (TAKE PACK) and the primary key takes it.
-func test_a_new_profile_deals_the_packs_at_once() -> void:
+## A profile owning only the pins every profile starts with (none earned, none worn) gets OPEN
+## STORE at once (mock-up NEW · 0): no step, the key lit with the cart's count, and the primary key
+## opens the store.
+func test_a_new_profile_opens_the_store_at_once() -> void:
 	var screen: ShiftScreen = await _screen(0)
 	var board: StartBoard = screen._cart_reveal.board
 	var staff: BuildPage = board.staff
@@ -94,32 +77,35 @@ func test_a_new_profile_deals_the_packs_at_once() -> void:
 	assert_int(staff.pins.gate_count()).is_equal(0)
 	board.show_page(2)
 	staff.advance(0.2)
-	assert_bool(staff.packs_held()).is_false()
+	assert_bool(staff.pins_pending()).is_false()
 	assert_bool(staff.pins_open).is_false()
-	assert_bool(staff.dealt).is_true()
-	assert_bool(_hit(staff, "pack0").is_empty()).is_false()
-	var regulars: int = screen.run.starter.core_cards.size()
-	var row: Label = staff.order.find_child("RowName%d" % regulars, true, false)
-	assert_str(row.text).is_not_equal("? ? ?")
-	# A player who has never won gets the good first pick suggested, not made (mock-up v3): nothing
-	# picked, the cart without a pack, the primary key TAKE PACK 2, which takes it.
-	staff.advance(1.0)
-	var first: StarterPackDefinition = screen.run.start_offer.first_pick
-	assert_object(first).is_not_null()
-	assert_int(staff.picked()).is_equal(-1)
-	assert_str(String(screen.run.start_setup.picked)).is_empty()
-	var at: int = screen.run.start_offer.packs.find(first)
-	assert_str(BuildPageDraw.primary_label(staff)[0]).is_equal("TAKE PACK %d" % (at + 1))
-	assert_bool(staff.primary()).is_true()
-	assert_int(staff.picked()).is_equal(at)
-	assert_str(String(screen.run.start_setup.picked)).is_equal(String(first.id))
-	# Wearing one of those pins holds the next run's packs for the step.
+	# The REGULARS crate's KEEP comes first, every run (v1.45): OPEN STORE stays dim until then.
+	assert_bool(staff.regulars_pending()).is_true()
+	assert_array(BuildPageDraw.primary_label(staff)).is_equal(
+		["OPEN STORE ›", "KEEP REGULARS FIRST", false]
+	)
+	assert_str(BuildPageDraw.hint_line(staff)).is_equal(BuildRegulars.HINT)
+	assert_bool(staff.open_store()).is_false()
+	assert_bool(_hit(staff, BuildRegulars.KEEP_ID).is_empty()).is_false()
+	assert_bool(staff.primary("key")).is_true()
+	assert_bool(staff.regulars_pending()).is_false()
+	assert_bool(_hit(staff, BuildRegulars.KEEP_ID).is_empty()).is_true()
+	var label: Array = BuildPageDraw.primary_label(staff)
+	assert_str(label[0]).is_equal("OPEN STORE ›")
+	assert_str(label[1]).is_equal("%d CARDS" % staff.cart_target())
+	assert_bool(label[2]).is_true()
+	assert_str(BuildPageDraw.hint_line(staff)).is_equal(BuildPage.READY_HINT)
+	# No starter pack is drawn or hit any more (v1.45).
+	for id: String in ["pack0", "newpacks", "heldpacks"]:
+		assert_bool(_hit(staff, id).is_empty()).is_true()
+	# Wearing one of those pins holds the next run's OPEN STORE for the step.
 	screen.profile.worn_pins.append(staff.pins.owned()[0].id)
 	assert_int(staff.pins.gate_count()).is_equal(1)
+	assert_bool(staff.primary()).is_true()
 
 
 ## With every pin owned (8), the step's rows turn compact and all fit inside the box, above the
-## packs' gate note and the confirm key, apart from each other; each rule fits its one line; keys
+## gate note and the confirm key, apart from each other; each rule fits its one line; keys
 ## 6-8 reach the last rows. No pin is left locked.
 func test_every_pin_owned_fits_the_step() -> void:
 	var screen: ShiftScreen = await _screen(99)
@@ -161,8 +147,8 @@ func test_every_pin_owned_fits_the_step() -> void:
 ## Polish audit v1.36: a profile with pins still to earn shows them as grey LOCKED rows with their
 ## milestone under the owned ones (no empty band), every row inside the box above the gate note
 ## and the confirm key; only the owned rows take clicks and no row shows a number. NO PIN IS FINE
-## TOO stands under the badge's NO PIN, ESC · BACK in the packs' note; the ticker is clear while
-## the step is open and says BADGE PINS FIRST · PRESS P once it closes with the packs held.
+## TOO stands under the badge's NO PIN, ESC · BACK in the gate note; the ticker is clear while
+## the step is open and says BADGE PINS FIRST · PRESS P once it closes unconfirmed.
 func test_locked_pins_fill_the_step_as_grey_rows() -> void:
 	var screen: ShiftScreen = await _screen(1)
 	var board: StartBoard = screen._cart_reveal.board
@@ -213,12 +199,12 @@ func test_locked_pins_fill_the_step_as_grey_rows() -> void:
 		assert_bool(text.is_valid_int()).override_failure_message(text).is_false()
 	assert_str(BuildPageDraw.hint_line(staff)).is_empty()
 	assert_bool(staff.pins.close()).is_true()
-	assert_bool(staff.packs_held()).is_true()
+	assert_bool(staff.pins_pending()).is_true()
 	assert_str(BuildPageDraw.hint_line(staff)).is_equal(BuildPageDraw.PINS_FIRST_HINT)
 
 
 ## A pin worn in the step is saved on the run and the profile; the step opens again later (the
-## corkboard) and a new choice keeps the dealt packs (no re-deal).
+## corkboard) and a new choice keeps the cart (no re-deal).
 func test_pins_change_later_without_a_redeal() -> void:
 	var screen: ShiftScreen = await _screen()
 	var board: StartBoard = screen._cart_reveal.board
@@ -231,7 +217,7 @@ func test_pins_change_later_without_a_redeal() -> void:
 	assert_bool(staff.primary()).is_true()
 	assert_array(screen.run.pins).is_equal([owned[0]])
 	assert_bool(screen.profile.worn_pins.has(owned[0].id)).is_true()
-	var packs: Array[StarterPackDefinition] = screen.run.start_offer.packs.duplicate()
+	var shared: Array[CardDefinition] = screen.run.start_offer.shared.duplicate()
 	staff.advance(1.0)
 	(_hit(staff, "pins").act as Callable).call()
 	assert_bool(staff.pins_open).is_true()
@@ -239,122 +225,20 @@ func test_pins_change_later_without_a_redeal() -> void:
 	assert_bool(staff.handle_key(KEY_2)).is_true()
 	assert_bool(staff.primary()).is_true()
 	assert_array(screen.run.pins).is_equal([owned[1]])
-	assert_array(screen.run.start_offer.packs).is_equal(packs)
-	assert_bool(staff.dealt).is_true()
-	assert_bool(staff.packs_held()).is_false()
-
-
-## Hovering a pack spreads its cards and sinks the other two behind the bench (their layer is
-## clipped at the bench's top); the order sheet previews the hovered pack dashed. The three pack
-## hits stand side by side on the stage, clear of the deck, the order sheet and the primary key.
-func test_hover_spreads_one_pack_and_sinks_the_others() -> void:
-	var screen: ShiftScreen = await _screen()
-	var board: StartBoard = screen._cart_reveal.board
-	var staff: BuildPage = await _dealt(board)
-	_clear_pick(board)
-	var clip: Control = staff.get_node("BenchClip")
-	assert_bool(clip.clip_contents).is_true()
-	assert_float(clip.size.y).is_equal(BuildPage.BENCH_Y * ArtPen.UNIT)
-	var rects: Array[Rect2] = []
-	for k: int in 3:
-		rects.append(_hit(staff, "pack%d" % k).rect)
-	var deck: Rect2 = _hit(staff, "newpacks").rect
-	var sheet: Rect2 = Rect2(BuildPage.ORDER_POSITION / ArtPen.UNIT, staff.order.size / ArtPen.UNIT)
-	for k: int in 3:
-		assert_bool(ART.encloses(rects[k])).is_true()
-		assert_bool(rects[k].intersects(deck)).is_false()
-		assert_bool(rects[k].intersects(sheet)).is_false()
-		assert_bool(rects[k].intersects(Rect2(BuildPage.PRIMARY_RECT))).is_false()
-		if k > 0:
-			assert_bool(rects[k].intersects(rects[k - 1])).is_false()
-	staff.mouse = rects[1].get_center()
-	staff.advance(0.05)
-	assert_int(staff.hovered_pack()).is_equal(1)
-	assert_int(staff.spread).is_equal(1)
-	assert_float(staff.stacks[0].sv).is_equal(1.0)
-	assert_float(staff.stacks[2].sv).is_equal(1.0)
-	assert_float(staff.stacks[1].sv).is_equal(0.0)
-	assert_object(staff.order.pack_rows).is_not_null()
-	assert_bool(staff.order.pack_rows.dashed).is_true()
-	staff.mouse = Vector2(-1, -1)
-	staff.advance(0.05)
-	assert_int(staff.spread).is_equal(-1)
-	assert_float(staff.stacks[0].sv).is_equal(0.0)
-
-
-## OPEN STORE waits for a pick: with no pick (and no good first pick) the key is PICK A PACK,
-## unlit, and OPEN STORE is refused; the sheet's waiting note says "from a pack". A pick (key 2)
-## lights OPEN STORE and tints the pack's lines solid on the sheet, inside its paper.
-func test_open_store_waits_for_a_pick() -> void:
-	var screen: ShiftScreen = await _screen()
-	var board: StartBoard = screen._cart_reveal.board
-	var staff: BuildPage = await _dealt(board)
-	_clear_pick(board)
-	var packed: int = screen.run.start_offer.packs[1].cards.size()
-	assert_int(staff.picked()).is_equal(-1)
-	var label: Array = BuildPageDraw.primary_label(staff)
-	assert_str(label[0]).is_equal("PICK A PACK")
-	assert_bool(label[2]).is_false()
-	assert_bool(board.clock_in()).is_false()
-	assert_bool(staff.primary()).is_false()
-	assert_str(staff.message).is_equal("PICK A PACK FIRST")
-	assert_str(staff.order.waiting_note.text).contains("from a pack")
-	assert_bool(staff.handle_key(KEY_2)).is_true()
-	assert_int(staff.picked()).is_equal(1)
-	label = BuildPageDraw.primary_label(staff)
-	assert_str(label[0]).is_equal("OPEN STORE ›")
-	assert_str(label[1]).is_equal("%d CARDS" % staff.cart_target())
-	assert_bool(label[2]).is_true()
-	assert_object(staff.order.waiting_note).is_null()
-	assert_bool(staff.order.pack_rows.dashed).is_false()
-	var paper: Rect2 = (staff.order.get_node("Paper") as Control).get_global_rect()
-	assert_bool(paper.encloses(staff.order.pack_rows.get_global_rect())).is_true()
-	var row: float = OrderSheet.ROW * staff.order.get_global_transform().get_scale().y
-	assert_float(staff.order.pack_rows.get_global_rect().size.y).is_equal_approx(packed * row, 0.5)
-	# Once the refusal's flash is over, the hint LED says what comes next.
-	staff.advance(2.5)
-	assert_str(BuildPageDraw.hint_line(staff)).is_equal("OPEN STORE, THEN START SHIFT 1")
-
-
-## NEW PACKS (the deck, N) once a run: the packs not picked re-deal, the pick keeps its place,
-## the regulars stay, it is saved; then the deck is USED and NEW PACKS is refused.
-func test_new_packs_once_keeps_the_pick() -> void:
-	var screen: ShiftScreen = await _screen()
-	var board: StartBoard = screen._cart_reveal.board
-	var staff: BuildPage = await _dealt(board)
-	_clear_pick(board)
-	board.pick(1)
-	var old: Array[StarterPackDefinition] = screen.run.start_offer.packs.duplicate()
-	var core: Array[CardDefinition] = screen.run.starter.core_cards.duplicate()
-	assert_bool(BuildPageDraw.deck_live(staff)).is_true()
-	assert_bool(staff.handle_key(KEY_N)).is_true()
-	var fresh: Array[StarterPackDefinition] = screen.run.start_offer.packs
-	assert_array(fresh).is_not_equal(old)
-	assert_object(fresh[1]).is_same(old[1])
-	assert_int(staff.picked()).is_equal(1)
-	assert_array(screen.run.starter.core_cards).is_equal(core)
-	assert_bool(BuildPageDraw.deck_live(staff)).is_false()
-	staff.advance(1.0)
-	assert_bool(staff.new_packs()).is_false()
-	assert_str(staff.message).is_equal("NEW PACKS USED")
-	for k: int in 3:
-		assert_object(staff.stacks[k].pack).is_same(fresh[k])
-	var saved: RunSave = RunSave.from_dictionary(_save(), ContentLookup.new(screen.run.balance))
-	assert_bool(saved.run.start_setup.packs_redrawn).is_true()
-	assert_str(String(saved.run.start_setup.picked)).is_equal(String(old[1].id))
+	assert_array(screen.run.start_offer.shared).is_equal(shared)
+	assert_bool(staff.pins_pending()).is_false()
 
 
 ## OPEN STORE with motion plays the flight (cards -> items -> cart): one modal hit swallows the
-## page, every cart card flies from a point on the stage, then the board clocks in with the pick.
+## page, every cart card flies from a point on the stage, then the board clocks in.
 func test_open_store_flies_the_cards_to_the_cart() -> void:
 	var screen: ShiftScreen = await _screen()
 	var board: StartBoard = screen._cart_reveal.board
 	var staff: BuildPage = await _dealt(board)
-	board.pick(0)
 	screen.profile.set_reduced_motion(false)
 	board.refresh()
-	var clocked: Array[StarterPackDefinition] = []
-	board.clocked_in.connect(func(pack: StarterPackDefinition) -> void: clocked.append(pack))
+	var clocked: Array[bool] = []
+	board.clocked_in.connect(func() -> void: clocked.append(true))
 	assert_bool(board.clock_in()).is_true()
 	var flight: StoreFlight = staff.flight
 	assert_object(flight).is_not_null()
@@ -370,74 +254,19 @@ func test_open_store_flies_the_cards_to_the_cart() -> void:
 		t += 0.05
 	assert_object(staff.flight).is_null()
 	assert_int(flight.landed).is_equal(flight.items.size())
-	assert_array(clocked).is_equal([screen.run.start_offer.packs[0]])
-
-
-## v1.36 (polish batch 1): the order sheet's red tail ("+n from a pack", "+n after your pins")
-## ends inside the paper, after the equation, at 1280x720 and 1920x1080 (it ran off mid-word).
-func test_the_waiting_note_fits_the_paper() -> void:
-	var screen: ShiftScreen = await _screen()
-	var board: StartBoard = screen._cart_reveal.board
-	var staff: BuildPage = await _dealt(board)
-	_clear_pick(board)
-	var packed: int = screen.run.start_offer.packs[0].cards.size()
-	for extent: Vector2 in [Vector2(1280, 720), Vector2(1920, 1080)]:
-		await _resize(board, extent)
-		var k: float = board._stage.scale.x
-		for held: bool in [false, true]:
-			staff.order.show_cart(_view(screen.run), null, false, held)
-			await get_tree().process_frame
-			var note: Label = staff.order.waiting_note
-			assert_object(note).is_not_null()
-			var wanted: String = OrderSheet.WAITING_PINS if held else OrderSheet.WAITING_PACK
-			assert_str(note.text).is_equal(wanted % packed)
-			var paper: Rect2 = (staff.order.get_node("Paper") as Control).get_global_rect()
-			var right: float = paper.end.x - OrderSheet.PAD * k
-			var rect: Rect2 = note.get_global_rect()
-			assert_float(rect.end.x).override_failure_message(str(rect)).is_less_equal(right + 0.5)
-			var ink: float = note.get_minimum_size().x * note.get_global_transform().get_scale().x
-			assert_float(ink).is_less_equal(rect.size.x + 0.5)
-			var equation: Rect2 = staff.order.equation.get_global_rect()
-			assert_float(rect.position.x).is_greater_equal(equation.end.x)
-
-
-## v1.36: a spread pack's cards and their RARE tabs clear every strip's plate above them (the
-## left card's tab hid under the next pack's plate), and the spread stays above the bench, on the
-## stage at 1280x720 and 1920x1080.
-func test_the_spread_clears_the_strips() -> void:
-	var screen: ShiftScreen = await _screen()
-	var board: StartBoard = screen._cart_reveal.board
-	var staff: BuildPage = await _dealt(board)
-	for extent: Vector2 in [Vector2(1280, 720), Vector2(1920, 1080)]:
-		await _resize(board, extent)
-		var stage: Rect2 = _stage_rect(board).grow(0.5)
-		var unit: Transform2D = staff.get_global_transform()
-		for j: int in 3:
-			var tab: Rect2 = BuildPageDraw.spread_tab_rect(j)
-			var spread: Rect2 = Rect2(
-				BuildPage.SPX[j], BuildPage.SPY - 4, BoosterArt.CW, BoosterArt.CH
-			)
-			assert_float(spread.end.y).is_less_equal(BuildPage.BENCH_Y)
-			for k: int in 3:
-				for hovered: bool in [false, true]:
-					var strip: Rect2 = BuildPageDraw.strip_rect(k, hovered)
-					var apart: bool = not tab.intersects(strip) and not spread.intersects(strip)
-					assert_bool(apart).override_failure_message(str([j, k, hovered])).is_true()
-			var shown: Rect2 = unit * Rect2(tab.position * ArtPen.UNIT, tab.size * ArtPen.UNIT)
-			assert_bool(stage.encloses(shown)).is_true()
+	assert_array(clocked).is_equal([true])
 
 
 ## v1.36: during OPEN STORE's flight the floor's ticker says CLICK OR ENTER TO SKIP (no stale
-## "OPEN STORE, THEN START SHIFT 1", no loose body-text hint), and the cart's wheels clear it.
+## ready line, no loose body-text hint), and the cart's wheels clear it.
 func test_the_store_flight_ticker_says_skip() -> void:
 	var screen: ShiftScreen = await _screen()
 	var board: StartBoard = screen._cart_reveal.board
 	var staff: BuildPage = await _dealt(board)
-	board.pick(0)
 	screen.profile.set_reduced_motion(false)
 	board.refresh()
 	staff.advance(2.5)
-	assert_str(BuildPageDraw.hint_line(staff)).is_equal("OPEN STORE, THEN START SHIFT 1")
+	assert_str(BuildPageDraw.hint_line(staff)).is_equal(BuildPage.READY_HINT)
 	assert_bool(board.clock_in()).is_true()
 	staff.advance(0.05)
 	assert_object(staff.flight).is_not_null()
@@ -448,51 +277,44 @@ func test_the_store_flight_ticker_says_skip() -> void:
 	assert_float(ArtPen.pix_width(StoreFlight.SKIP_HINT)).is_less(BuildPage.LED_RECT.size.x - 8.0)
 
 
-## The page fills the stage at both sizes; its keys (‹ STORE, the LED, the primary key) and the
-## deck sit on it, clear of each other; the order sheet sits above the footer, its columns lined
-## up. Picked and not.
+## The page fills the stage at both sizes; its keys (‹ STORE, the LED, the primary key) sit on
+## it, clear of each other; the order sheet sits above the footer, its columns lined up.
 func test_page_parts_fit_the_stage_at_both_sizes() -> void:
 	var screen: ShiftScreen = await _screen()
 	var board: StartBoard = screen._cart_reveal.board
 	var staff: BuildPage = await _dealt(board)
-	for selected: int in [-1, 1]:
-		if selected >= 0:
-			board.pick(selected)
-		for extent: Vector2 in [Vector2(1280, 720), Vector2(1920, 1080)]:
-			await _resize(board, extent)
-			var stage: Rect2 = _stage_rect(board)
-			var k: float = board._stage.scale.x
-			assert_bool(staff.get_global_rect().is_equal_approx(stage)).is_true()
-			var parts: Array[Rect2] = [
-				Rect2(BuildPage.BACK_RECT),
-				Rect2(BuildPage.LED_RECT),
-				Rect2(BuildPage.PRIMARY_RECT),
-				_hit(staff, "newpacks").rect,
-			]
-			for a: int in parts.size():
-				assert_bool(ART.encloses(parts[a])).is_true()
-				for b: int in range(a + 1, parts.size()):
-					assert_bool(parts[a].intersects(parts[b])).is_false()
-			var sheet: Rect2 = staff.order.get_global_rect()
-			assert_bool(stage.encloses(sheet)).is_true()
-			var footer_top: float = stage.position.y + BuildPage.LED_RECT.position.y * 2.0 * k
-			assert_float(sheet.end.y).is_less_equal(footer_top)
-			_assert_sheet_aligned(staff.order, k)
+	for extent: Vector2 in [Vector2(1280, 720), Vector2(1920, 1080)]:
+		await _resize(board, extent)
+		var stage: Rect2 = _stage_rect(board)
+		var k: float = board._stage.scale.x
+		assert_bool(staff.get_global_rect().is_equal_approx(stage)).is_true()
+		var parts: Array[Rect2] = [
+			Rect2(BuildPage.BACK_RECT),
+			Rect2(BuildPage.LED_RECT),
+			Rect2(BuildPage.PRIMARY_RECT),
+		]
+		for a: int in parts.size():
+			assert_bool(ART.encloses(parts[a])).is_true()
+			for b: int in range(a + 1, parts.size()):
+				assert_bool(parts[a].intersects(parts[b])).is_false()
+		var sheet: Rect2 = staff.order.get_global_rect()
+		assert_bool(stage.encloses(sheet)).is_true()
+		var footer_top: float = stage.position.y + BuildPage.LED_RECT.position.y * 2.0 * k
+		assert_float(sheet.end.y).is_less_equal(footer_top)
+		_assert_sheet_aligned(staff.order, k)
 
 
-## v1.32 press-bob on page 2: OPEN STORE (armed 0.3 s after the pick) and the pins step's OK
+## v1.32 press-bob on page 2: OPEN STORE (armed 0.3 s after the page opens) and the pins step's OK
 ## key (armed 0.3 s after the step opens) hop to 2 art px, then bob 1 px; each rests while hovered
 ## and under reduced motion; the 9-slice and its labels ride the lift and the hit rects never move.
 func test_page_two_keys_press_bob_on_fixed_rects() -> void:
 	var screen: ShiftScreen = await _screen()
 	var board: StartBoard = screen._cart_reveal.board
 	var staff: BuildPage = await _dealt(board)
-	_clear_pick(board)
-	assert_bool(staff.handle_key(KEY_2)).is_true()
 	staff.rm = false
 	var rect: Rect2 = Rect2(BuildPage.PRIMARY_RECT)
 	assert_that(_hit(staff, "primary").rect).is_equal(rect)
-	var armed: float = staff.pick_t + 0.3
+	var armed: float = staff.page_t + 0.3
 	_assert_key_lift(staff, rect, "primary", armed - 0.1, armed, 0)
 	_assert_key_lift(staff, rect, "primary", armed + 0.1, armed, 2)
 	_assert_key_lift(staff, rect, "primary", armed + 0.55, armed, 1)
@@ -533,32 +355,16 @@ func _assert_key_lift(
 	assert_that(pen.text_y).is_equal([face.position.y + 5, face.position.y + rect.size.y - 9])
 
 
-## Page 2 with the BADGE PINS step confirmed (no pin) and the deal landed.
+## Page 2 with the BADGE PINS step confirmed (no pin) and the regulars kept.
 func _dealt(board: StartBoard) -> BuildPage:
 	board.show_page(2)
 	var staff: BuildPage = board.staff
 	staff.advance(0.2)
 	assert_bool(staff.primary()).is_true()
+	assert_bool(staff.keep_regulars()).is_true()
 	staff.advance(1.0)
 	await get_tree().process_frame
 	return staff
-
-
-## No pick and no good first pick (a new run only suggests its good first pack).
-static func _clear_pick(board: StartBoard) -> void:
-	board.run.start_setup.picked = &""
-	board.run.start_offer.first_pick = null
-	board.refresh()
-
-
-## The staff room's read-only view of `run` (as BuildPage._sync_order builds it).
-static func _view(run: RunState) -> StartBuildView:
-	var view: StartBuildView = StartBuildView.new()
-	view.starter = run.starter
-	view.start_offer = run.start_offer
-	view.balance = run.balance
-	view.pins = run.pins
-	return view
 
 
 static func _hit(staff: BuildPage, id: String) -> Dictionary:
@@ -595,12 +401,6 @@ func _assert_sheet_aligned(order: OrderSheet, k: float) -> void:
 	assert_float(last.end.x).is_equal_approx(right, 0.5)
 	assert_float(paper.end.y - last.end.y).is_equal_approx(pad, 0.5)
 	_assert_sheet_header(order, k)
-	if order.pack_rows != null:
-		# The pack's highlight runs as far past the lines on the right as on the left.
-		var rows: Rect2 = order.pack_rows.get_global_rect()
-		assert_float(rows.end.x - right).is_equal_approx(
-			paper.position.x + pad - rows.position.x, 0.5
-		)
 	# Each line's number, name, source and price share one centre line.
 	var lines: int = 0
 	while order.find_child("RowNumber%d" % lines, true, false) != null:
@@ -639,8 +439,8 @@ func _stage_rect(board: StartBoard) -> Rect2:
 
 
 ## A new run on a profile that earned the catalogue's first `earned` earned pins (those with an
-## unlock condition; the pins every profile starts with are owned anyway): earned > 0 holds the
-## packs for the BADGE PINS step.
+## unlock condition; the pins every profile starts with are owned anyway): earned > 0 holds OPEN
+## STORE for the BADGE PINS step.
 func _screen(earned: int = 1) -> ShiftScreen:
 	var screen: ShiftScreen = auto_free(SCREEN.instantiate())
 	add_child(screen)

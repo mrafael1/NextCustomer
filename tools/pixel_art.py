@@ -186,7 +186,7 @@ GOLDEN_PREFIX = "golden="
 AISLE_PREFIX = "aisle="
 AISLE_BODY_RAMP = ("2", "3", "4", "5")
 AISLE_MAPS = {
-    "cold_cases": ("2", "3", "4", "5"),
+    "dairy": ("2", "3", "4", "5"),
     "pantry": ("m", "m", "M", "y"),
     "household": ("=", "=", "-", ":"),
     "fruit_and_veg": ("1", "g", "g", "G"),

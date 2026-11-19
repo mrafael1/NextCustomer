@@ -19,9 +19,6 @@ extends SceneTree
 ##                     from the coupon pool since v0.51)
 ##   --random-start    start each run from the game's recipe deck (RANDOM_START_DECK) instead
 ##                     of the fixed starter deck; not with --deck
-##   --pack=ID         with --random-start, every run takes this starter pack (v1.29, measuring
-##                     a pack): it replaces the offer's first pack when the offer lacks it, even
-##                     one the stock would not offer (StarterPackDefinition.needs_aisle)
 ##   --balance=PATH    balance data (default the live balance data)
 ##   --builds=DIR      the build files (default res://data/builds); see SimBuilds (a
 ##                     measure-only build, v1.29, can be a build: strategy's target but is never
@@ -99,7 +96,6 @@ const SIMULATION_DEFAULTS: Dictionary[String, String] = {
 	"list": "",
 	"list-gate": "false",
 	"random-start": "false",
-	"pack": "",
 	"offer-samples": "1000",
 	"orphan-samples": "30",
 	"duel-samples": "200",
@@ -133,8 +129,8 @@ const NUMBER_OPTIONS: Array[String] = [
 const CHAIN_SEED_STEP := 100000
 ## Options given without a value (--list-gate): they read "true".
 const FLAG_OPTIONS: Array[String] = ["list-gate", "cache-name", "random-start"]
-## The game's starting deck (a recipe, v0.49; since v0.63 the one with starter packs, #107),
-## played with --random-start.
+## The game's starting deck (a recipe, v0.49; the opening-time one since v1.32, dealt here as a
+## plain recipe: its products from the stock, no aisle boosters), played with --random-start.
 const RANDOM_START_DECK := "res://data/decks/pack_starter.tres"
 
 var _options: Dictionary[String, String] = {}
@@ -182,21 +178,12 @@ func _print_cache_name() -> int:
 
 ## The deck the coupon duel plays: the starting deck, or for a recipe the
 ## deal of the first run's seed from a new profile's stock.
-## A recipe with starter packs (#107): its first offer's first pack.
 func _reference_deck() -> DeckDefinition:
 	var stock: RunStock = RunStock.starting(_balance)
 	var stream: RandomNumberGenerator = EventLogService.derived_stream(
 		int(_options["seed"]), EventLogService.STARTING_DECK_STREAM
 	)
-	if _starter.starter_packs.is_empty():
-		return StartingDeck.deal(_starter, stock, _balance, stream, _deal_quota)
-	var offer: StartOffer = StartingDeck.deal_offer(
-		_starter, stock, _balance, stream, false, _deal_quota
-	)
-	var pack: StarterPackDefinition = _forced_pack()
-	return StartingDeck.with_pack(
-		_starter, pack if pack != null else offer.default_pack(), offer.shared
-	)
+	return StartingDeck.deal(_starter, stock, _balance, stream, _deal_quota)
 
 
 func _run() -> int:
@@ -349,8 +336,6 @@ func _load_data() -> bool:
 		_balance = load(_options["balance"]) as BalanceDefinition
 		if _starter == null or _balance == null:
 			problem = "couldn't load the deck or the balance data"
-		elif not _options["pack"].is_empty() and _forced_pack() == null:
-			problem = "--pack names no starter pack of the recipe: %s" % _options["pack"]
 	if not problem.is_empty():
 		push_error("balance_sim: " + problem)
 		return false
@@ -364,17 +349,7 @@ static func random_start_problem(options: Dictionary[String, String]) -> String:
 		return "--random-start takes no value"
 	if options["random-start"] == "true" and options["deck"] != SIMULATION_DEFAULTS["deck"]:
 		return "--random-start plays the game's recipe deck: no --deck"
-	if not options.get("pack", "").is_empty() and options["random-start"] != "true":
-		return "--pack takes a starter pack: it needs --random-start"
 	return ""
-
-
-## The starter pack --pack names (null without one).
-func _forced_pack() -> StarterPackDefinition:
-	for pack: StarterPackDefinition in _starter.starter_packs:
-		if String(pack.id) == _options["pack"]:
-			return pack
-	return null
 
 
 ## What is wrong with the collection options, or "".
@@ -455,7 +430,6 @@ func _simulate(shard: int, shards: int, search: SimRowSearch) -> void:
 			_builds
 		)
 		player.deal_quota = _deal_quota
-		player.forced_pack = _forced_pack()
 		var records: Array[SimRunRecord] = []
 		_begin_phase(limit, search)
 		for index: int in range(shard, runs, shards):
@@ -510,7 +484,6 @@ func _play_chains(
 			_starter, _balance, search, strategy, int(_options["samples"]), stock, _builds
 		)
 		player.deal_quota = _deal_quota
-		player.forced_pack = _forced_pack()
 		return player
 	for index: int in range(shard, int(_options["chains"]), shards):
 		if limit.is_phase_over(Time.get_ticks_msec()):

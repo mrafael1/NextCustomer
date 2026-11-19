@@ -11,7 +11,7 @@ extends GdUnitTestSuite
 ## The approved lines, filled (chips marked **).
 const APPROVED: Dictionary[String, String] = {
 	"G3": "Open both **BOOSTERS**.",
-	"G5": "Pick one **STARTER PACK**.",
+	"G6": "Click KEEP, then OPEN STORE.",
 	"G7": "Drag items into the row to reach the **QUOTA**: 30€.",
 	"G8": "The order matters: hold the pointer on an item to read its rule.",
 	"G10": "",
@@ -30,12 +30,12 @@ const APPROVED: Dictionary[String, String] = {
 	"T15": "**COINS** buy toy capsules, from the title screen.",
 	"R1": "**RESTOCK**: send back a booster you opened for a new one.",
 	"P1": "You earned a **BADGE PIN**: wear it to change a rule for this run.",
-	"SA1": "You can now swap one of your regulars: click the basket.",
+	"SA1": "You can now swap one of your regulars: click SWAP.",
 	"swap_drag": "Drag a card onto a regular to swap them.",
 }
 ## The guided run's steps, in order (they keep the ids of the 14-step script they were cut from;
 ## G15, the closing step, took the REDRAW tip's place), and the one-time tips'.
-const GUIDED: Array[String] = ["G1", "G3", "G5", "G7", "G8", "G10", "G15"]
+const GUIDED: Array[String] = ["G1", "G3", "G6", "G7", "G8", "G10", "G15"]
 const TIPS: Array[String] = ["T2", "T6", "T7", "T9", "T11", "T14", "T15"]
 ## The cut's budget (v1.40; before it: 14 guided lines with the retry and answer lines, 18 hints,
 ## 16 tips, 3 callouts and 7 quick hints, 60 lines): the lines a new player can meet, at most.
@@ -444,14 +444,20 @@ func test_the_gate_allows_only_the_steps_move() -> void:
 	assert_bool(g8.allows(TutorialActions.CHECKOUT)).is_false()
 	assert_bool(g8.allows(TutorialActions.PICK_CARD, _card(&"eggs", true))).is_true()
 	var g3: TutorialStep = script.step(&"G3")
+	# G3: the player opens both boosters (round 2 of the 2026-11-19 play test: they wait sealed),
+	# by their clicks or Enter; nothing else.
+	assert_bool(g3.allows(TutorialActions.HIT, {TutorialActions.ARG_ID: &"booster0"})).is_true()
 	assert_bool(g3.allows(TutorialActions.HIT, {TutorialActions.ARG_ID: &"booster1"})).is_true()
-	assert_bool(g3.allows(TutorialActions.HIT, {TutorialActions.ARG_ID: &"crate"})).is_false()
+	assert_bool(g3.allows(TutorialActions.HIT, {TutorialActions.ARG_ID: &"primary"})).is_true()
+	assert_bool(g3.allows(TutorialActions.HIT, {TutorialActions.ARG_ID: &"swap_key"})).is_false()
 	assert_bool(g3.allows(TutorialActions.HIT, {TutorialActions.ARG_ID: &"restock"})).is_false()
-	# The steps before a board key say nothing of it, so they let it through: NEXT and tab 2 once
-	# the boosters are open (G5 waits on page 2), OPEN STORE once a pack is picked (G7 waits).
-	var g5: TutorialStep = script.step(&"G5")
-	assert_bool(g5.allows(TutorialActions.HIT, {TutorialActions.ARG_ID: &"primary"})).is_true()
-	assert_bool(g5.allows(TutorialActions.HIT, {TutorialActions.ARG_ID: &"newpacks"})).is_false()
+	# G6 waits on page 2 (v1.46: no pack to pick), so it lets NEXT and tab 2 through once the
+	# boosters are open, then rings KEEP and OPEN STORE; nothing else on the board.
+	var g6: TutorialStep = script.step(&"G6")
+	assert_bool(g6.allows(TutorialActions.HIT, {TutorialActions.ARG_ID: &"primary"})).is_true()
+	assert_bool(g6.allows(TutorialActions.HIT, {TutorialActions.ARG_ID: &"tab2"})).is_true()
+	assert_bool(g6.allows(TutorialActions.HIT, {TutorialActions.ARG_ID: &"regulars_ok"})).is_true()
+	assert_bool(g6.allows(TutorialActions.HIT, {TutorialActions.ARG_ID: &"restock"})).is_false()
 	var g7: TutorialStep = script.step(&"G7")
 	assert_bool(g7.allows(TutorialActions.HIT, {TutorialActions.ARG_ID: &"primary"})).is_true()
 	assert_bool(g7.allows(TutorialActions.CHECKOUT)).is_false()

@@ -1,0 +1,20 @@
+; Page 2's SWAP key (round 2 of the 2026-11-19 play test: the SWAP text key became a brand):
+; two opposed arrows burned into the SWAP key's small plank (left of KEEP, under the REGULARS
+; crate), in a burned frame, each stroke with a lighter lip under it; transparent inside so the
+; plank's grain shows through. Drawn at 1 art px (BuildRegulars). Hovered: swap_brand_hot (gold arrows); no swap left: swap_brand_off.
+@size 26x14
+@kind icon
+.TTTTTTTTTTTTTTTTTTTTTTTT.
+T.QQQQQQQQQQQQQQQQQQQQQQ.T
+T..............U.........T
+T..............UU........T
+T...UUUUUUUUUUUUUU.......T
+T...QQQQQQQQQQQUUQ.......T
+T..............UQ........T
+T.........U....Q.........T
+T........UU..............T
+T.......UUUUUUUUUUUUUU...T
+T.......QUUQQQQQQQQQQQ...T
+T........QU..............T
+T.........Q..............T
+.TTTTTTTTTTTTTTTTTTTTTTTT.

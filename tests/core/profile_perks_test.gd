@@ -1,7 +1,8 @@
 extends GdUnitTestSuite
 ## The profile's loyalty perks (v1.30 round 10, the FIGURINE BOOK's PERKS): the highest level
 ## picked from the machine per perk in runs that ended (ProfileState.perk_levels,
-## PerkLevels.picked_levels), the chain lengths, and the saved form (format 7).
+## PerkLevels.picked_levels), the chain lengths, and the saved form (format 7; 8 since the Dairy
+## aisle, v1.44).
 
 const STARTER := "res://data/decks/starter.tres"
 const BALANCE := "res://data/balance/balance.tres"
@@ -73,12 +74,12 @@ func test_only_an_ended_run_records_perks() -> void:
 	assert_dict(profile.perk_levels).is_equal({&"dairy_regulars": 2, &"banana_stand": 1})
 
 
-func test_perk_levels_round_trip_and_format_7() -> void:
+func test_perk_levels_round_trip_and_format_8() -> void:
 	var profile: ProfileState = ProfileState.new()
 	profile.perk_levels = {&"dairy_regulars": 3, &"banana_stand": 1}
 	var data: Dictionary = profile.to_dictionary()
-	assert_int(data["format_version"]).is_equal(7)
-	assert_int(ProfileState.FORMAT_VERSION).is_equal(7)
+	assert_int(data["format_version"]).is_equal(8)
+	assert_int(ProfileState.FORMAT_VERSION).is_equal(8)
 	var parsed: Variant = JSON.parse_string(JSON.stringify(data))
 	var read: ProfileState = ProfileState.from_dictionary(parsed as Dictionary)
 	assert_object(read).is_not_null()

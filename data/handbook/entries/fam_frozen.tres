@@ -9,4 +9,4 @@ group = &"families"
 title = "Frozen"
 mark = 3
 mark_value = "Frozen"
-rule = "Frozen food. {item:frozen_peas} pay more beside another {fam:Frozen} item; {item:soup} beside one pays nothing."
+rule = "Frozen food. {item:frozen_peas} pay more beside another {fam:Frozen} item."

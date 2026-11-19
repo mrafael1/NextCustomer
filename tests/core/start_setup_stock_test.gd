@@ -1,6 +1,6 @@
 extends GdUnitTestSuite
 ## A run stocks only its boosters' two aisles (v1.32 feedback, 2026-11-13; full build plan 7.2):
-## dealt or picked at PICK 2 OF 3, the setup's stock, the run stock and the RECEIPT REWARDS
+## at any completed count, the setup's stock, the run stock and the RECEIPT REWARDS
 ## machine's NEW ITEMS hold no third aisle's product. On the live data, with the named derived
 ## streams the game uses; nothing here touches a save file.
 
@@ -14,30 +14,24 @@ func before_test() -> void:
 	_balance = Kit.balance()
 
 
-## v1.32 feedback (2026-11-13): a run stocks exactly its two boosters' aisles, dealt (any
-## completed count below PICK 2 OF 3) or picked (each pair of PICK 2 OF 3): the setup's stock, the
-## run stock's aisles and its products (staples aside) are those two aisles' only.
+## v1.32 feedback (2026-11-13): a run stocks exactly its two boosters' aisles, at any completed
+## count: the setup's stock, the run stock's aisles and its products (staples aside) are those
+## two aisles' only.
 func test_the_run_stocks_only_its_two_booster_aisles() -> void:
 	for completed: int in [0, 3, 6]:
 		for seed_value: int in range(SEED, SEED + 3):
-			var pairs: Array = [[]] if completed < 6 else [[0, 1], [0, 2], [1, 2]]
-			for pair: Array in pairs:
-				var profile: ProfileState = Kit.profile(completed)
-				var run: RunState = Kit.dealt(profile, seed_value)
-				if not pair.is_empty():
-					var picks: Array[int] = []
-					picks.assign(pair)
-					StartSetupRules.pick_boosters(run, profile, picks, Kit.pick_rng(run))
-				var aisles: Array[StringName] = []
-				for booster: StartBooster in run.start_setup.active_boosters():
-					aisles.append(booster.aisle)
-				var label: String = "%d %d %s" % [completed, seed_value, str(pair)]
-				assert_int(aisles.size()).override_failure_message(label).is_equal(2)
-				assert_array(run.start_setup.stock_aisles).is_equal(
-					StartSetupRules.ordered_pair(_balance, aisles)
-				)
-				assert_array(run.stock.aisle_ids).is_equal(run.start_setup.stock_aisles)
-				_assert_stock_of(run, aisles, label)
+			var profile: ProfileState = Kit.profile(completed)
+			var run: RunState = Kit.dealt(profile, seed_value)
+			var aisles: Array[StringName] = []
+			for booster: StartBooster in run.start_setup.active_boosters():
+				aisles.append(booster.aisle)
+			var label: String = "%d %d" % [completed, seed_value]
+			assert_int(aisles.size()).override_failure_message(label).is_equal(2)
+			assert_array(run.start_setup.stock_aisles).is_equal(
+				StartSetupRules.ordered_pair(_balance, aisles)
+			)
+			assert_array(run.stock.aisle_ids).is_equal(run.start_setup.stock_aisles)
+			_assert_stock_of(run, aisles, label)
 
 
 ## No product of a third aisle reaches the RECEIPT REWARDS machine: NEW ITEMS' pools (every tier)

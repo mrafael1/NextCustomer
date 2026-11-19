@@ -3,12 +3,12 @@ extends RefCounted
 ## One aisle booster on YOUR STORE (v1.32, mock-up docs/art/mockups/start_boosters_v3.html): its
 ## place on the counter and its cosmetic opening on its own clock (`lt`), so a skip plays it
 ## `boost` times as fast and OPEN ALL offsets each booster. The rules (what it holds, whether it
-## is opened, SOLD OUT or restocked) are StartBooster's in the run's setup; this only plays them.
+## is opened or restocked) are StartBooster's in the run's setup; this only plays them.
 ## The plan (the mock-up's buildPlan): the commons flip by themselves on a rising note ladder, the
 ## hit card rises, trembles and then waits for a click (TAP IT) unless the opening is fast (OPEN
 ## ALL, a skip), and a RARE flips last with its own beat.
 
-enum State { SEALED, OPENING, OPEN, GONE }
+enum State { SEALED, OPENING, OPEN }
 enum Beat { COMMON, HEAVY, RARE }
 
 var index: int = 0
@@ -41,21 +41,26 @@ var notes: Array[int] = []
 var flash_t: float = -INF
 var hover_t: float = -INF
 var hovered: bool = false
-## PICK 2 OF 3: picked (and when), SOLD OUT (when its stamp lands), when it sinks away.
-var picked: bool = false
-var pick_t: float = -INF
-var sold_t: float = INF
-var sink_t: float = INF
-## A move to its zone after the pick: from, to, start (stage clock) and length.
-var move_from: float = 0.0
-var move_to: float = 0.0
-var move_t0: float = INF
-var move_s: float = 0.0
 ## Its lamp: on at, off at, last hot at, a flick at (stage clock).
 var lamp_on: float = INF
 var lamp_off: float = INF
 var lamp_hot_t: float = -INF
 var lamp_flick: float = -INF
+## The aisle board (page 1, v1.44): it stands in front of bay `bay`, thrown from `fly_from` at
+## `fly_t` (stage clock; INF: not thrown yet); its cards are `compact` (the rule only on hover) and
+## wear no COMMON / RARE tab (`tabs`). A RESTOCK sends `old_cards` back to the bay from `return_t`.
+var board: bool = false
+var compact: bool = false
+var tabs: bool = true
+var bay: int = -1
+## Its compact fan's row on the board (AisleRoulette.layout: 0 the left bay's, on top; 1 the
+## right bay's; -1 none: the fan stands centred under its bay, as full cards always do).
+var row: int = -1
+var fly_t: float = INF
+var fly_from: Vector2 = Vector2.ZERO
+var return_t: float = INF
+var old_cards: Array[CardDefinition] = []
+var old_hits: Array[bool] = []
 
 
 func _init(booster: StartBooster, booster_index: int, centre: float) -> void:
@@ -189,5 +194,62 @@ func landed(k: int, tuning: StartBoostersTuning) -> bool:
 	return flip_at[k] != INF and lt >= flip_at[k] + tuning.flip_s
 
 
-func is_counted() -> bool:
-	return state != State.GONE and sold_t == INF
+## A fan card's height (art px): the compact face's on the aisle board, else the full card's.
+func card_h() -> int:
+	return AisleBoardArt.MH if compact else BoosterArt.CH
+
+
+## Whether its compact fan stands in its row (AisleBoardArt.row_foot) on the board.
+func in_row() -> bool:
+	return board and compact and row >= 0
+
+
+## Its pouch's top left: on the aisle board a row's booster waits at its row's start, beside the
+## row's aisle tab (AisleBoardArt.row_pouch_pos, round 3 of the 2026-11-19 play test), else
+## centred on `cx` on the counter (BoosterArt.pouch_pos).
+func pouch_pos() -> Vector2:
+	return AisleBoardArt.row_pouch_pos(row) if in_row() else BoosterArt.pouch_pos(cx)
+
+
+## The line below which nothing of its pouch is drawn (it drops out of sight there as it opens):
+## the counter top, or a row pouch's own foot when that is higher (the top row's).
+func pouch_clip() -> float:
+	var clip: float = BoosterPageDraw.COUNTER_CLIP
+	return minf(clip, pouch_pos().y + BoosterArt.BH) if in_row() else clip
+
+
+## Card k's top left at rest: on the aisle board a compact fan stands in its row from ROW_X, else
+## every card on the counter's line under its bay; off the board BoosterArt.fan_pos (the swap
+## window's boosters).
+func fan_pos(k: int) -> Vector2:
+	if not board:
+		return BoosterArt.fan_pos(cx, k)
+	if in_row():
+		return Vector2(
+			AisleBoardArt.ROW_X + k * AisleBoardArt.ROW_STEP, AisleBoardArt.row_foot(row) - card_h()
+		)
+	return Vector2(
+		roundf(cx) - AisleBoardArt.FAN_HALF + k * AisleBoardArt.FAN_STEP,
+		AisleBoardArt.STAND - card_h()
+	)
+
+
+func card_rect(k: int) -> Rect2:
+	return Rect2(fan_pos(k), Vector2(BoosterArt.CW, card_h()))
+
+
+## The whole fan's rect at rest.
+func fan_rect() -> Rect2:
+	var first: Vector2 = fan_pos(0)
+	var count: int = maxi(1, cards.size())
+	var step: int = BoosterArt.FAN_STEP
+	if in_row():
+		step = AisleBoardArt.ROW_STEP
+	elif board:
+		step = AisleBoardArt.FAN_STEP
+	return Rect2(
+		first.x,
+		float(AisleBoardArt.STAND - card_h()) if board and not in_row() else first.y,
+		step * (count - 1) + BoosterArt.CW,
+		card_h() + (0.0 if board else 2.0)
+	)

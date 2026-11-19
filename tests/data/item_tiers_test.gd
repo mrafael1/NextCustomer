@@ -254,8 +254,8 @@ func test_tier_values_and_stickers(
 		["coffee_golden", 4, "+2 per Breakfast"],
 		["bread_big", 7, ""],
 		["bread_golden", 9, ""],
-		["soup_big", 7, "Pays nothing beside Frozen"],
-		["soup_golden", 9, "Pays nothing beside Frozen"],
+		["soup_big", 7, "Pays nothing beside Dairy"],
+		["soup_golden", 9, "Pays nothing beside Dairy"],
 		["cheese_big", 5, "+5 PAIR per Bread beside"],
 		["cheese_golden", 5, "+10 PAIR per Bread beside"],
 		["frozen_peas_big", 5, "+5 beside Frozen"],
@@ -378,8 +378,8 @@ func test_tiers_score_as_their_product(
 		["tea_bags_golden,bread,bread,bread", [3, 7, 28, 28]],
 		# Golden Carrier bag 3 + 16 for Soup beside it (Bread is not beside it).
 		["bread,soup,carrier_bag_golden", [5, 5, 19]],
-		# Golden Soup still pays 0 beside a Frozen product.
-		["soup_golden,frozen_peas", [0, 3]],
+		# Golden Soup still pays 0 beside a Dairy product (Frozen until v1.45).
+		["soup_golden,cheese", [0, 3]],
 	]
 ) -> void:
 	var instances: Array[CardInstance] = []

@@ -110,7 +110,7 @@ static func _until_shown(screen: ShiftScreen) -> StringName:
 
 
 ## The move a screen with no line waits for (&"": none): the armed machine's phase's, the opening
-## board's NEXT once its boosters are open and OPEN STORE once a pack is picked.
+## board's NEXT once its boosters are open and OPEN STORE on the build page (no pack, v1.45).
 static func _own_move(screen: ShiftScreen) -> StringName:
 	var machine: MachineFlow = screen._machine
 	if machine.is_open() and machine.view.is_armed():
@@ -121,7 +121,7 @@ static func _own_move(screen: ShiftScreen) -> StringName:
 		return &""
 	if board.page == 1 and board.store.page_done():
 		return TutorialEvents.PAGE_SHOWN
-	if board.page == 2 and board.selected() >= 0:
+	if board.page == 2:
 		return TutorialEvents.STORE_OPENED
 	return &""
 
@@ -133,13 +133,8 @@ static func _act(screen: ShiftScreen, id: StringName) -> void:
 	var step: TutorialStep = TutorialScript.guided().step(id)
 	var waits: StringName = step.advance_on if step != null else id
 	match waits:
-		TutorialEvents.BOOSTERS_ALL_OPEN:
-			var sealed: bool = board.store.boosters[0].state == BoosterOpening.State.SEALED
-			_click_booster(board.store, 0 if sealed else 1)
 		TutorialEvents.PAGE_SHOWN:
 			board.store.primary()
-		TutorialEvents.PACK_PICKED:
-			board.pick(0)
 		TutorialEvents.STORE_OPENED:
 			board.staff.primary()
 		TutorialEvents.CHUTE_CHOSEN:
@@ -214,11 +209,6 @@ static func _press(screen: ShiftScreen) -> void:
 	var overlay: TutorialOverlay = screen.tutorial.overlay()
 	if overlay != null:
 		overlay.callout().press_button()
-
-
-static func _click_booster(page: BoosterPage, index: int) -> void:
-	var at: Vector2 = BoosterArt.pouch_pos(page.boosters[index].cx) + Vector2(40, 40)
-	page.click(at)
 
 
 static func _place(screen: ShiftScreen, place: int, slot: int) -> void:

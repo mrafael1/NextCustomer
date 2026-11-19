@@ -15,8 +15,6 @@ const INDEX0 := 100
 ## The drag's pointer travel (art px) under which a press and release is a click (it then follows
 ## the pointer until the next click: the click-then-click path).
 const CLICK_SLOP := 3.0
-## The tag of DONE's delayed go-on cue (dropped when the window opens again or NEXT goes on).
-const GO_ON_TAG := "swap_go_on"
 ## A held card over the basket stands this far (art px) above the pointer.
 const GHOST_GAP := 6.0
 
@@ -24,8 +22,7 @@ var page: BoosterPage
 var active: bool = false
 var open_t: float = -INF
 var close_t: float = -INF
-## Opened from NEXT (DONE goes on to YOUR BUILD); shown once on this page (NEXT no longer stops).
-var from_next: bool = false
+## Shown once on this page.
 var seen: bool = false
 ## No swap unlocked when it opened: its boosters stay sealed under a padlock.
 var locked: bool = false
@@ -71,36 +68,14 @@ func is_live() -> bool:
 	return page.run != null and page.counter.swaps_live()
 
 
-## Whether NEXT stops on page 1 to open the window: a swap unlocked and unused, every booster
-## open, the window not shown yet on this page, and the swap not locked by the guided run (its
-## SWAP plate LOCKED: NEXT goes on to YOUR BUILD, as the step says).
-func wants_stop() -> bool:
-	return (
-		not seen
-		and not StartBoardActions.is_locked(page.actions, TutorialAnchors.SWAP_PLATE)
-		and is_live()
-		and StartSetupRules.swaps_left(page.run, page.profile) > 0
-		and not page.picking()
-	)
-
-
 ## Opens the window (the basket's click, or NEXT's stop when `next` is true): its boosters drop
 ## in sealed (or stand open, as saved), its offers drawn and saved the first time.
-func open_window(next: bool = false) -> bool:
+func open_window(_next: bool = false) -> bool:
 	if active or page.run == null:
-		return false
-	if page.picking():
-		page.flash(
-			(
-				"PICK %d OF %d BOOSTERS"
-				% [page.run.balance.dealt_aisle_count, page.run.balance.start_booster_choice_count]
-			)
-		)
 		return false
 	if not is_live():
 		page.flash("OPEN THE BOOSTERS FIRST")
 		return false
-	page.fx.drop_cues(GO_ON_TAG)
 	if page.restock_armed:
 		page.cancel_restock("ui_close")
 	if not _build():
@@ -108,7 +83,6 @@ func open_window(next: bool = false) -> bool:
 		return false
 	active = true
 	open_t = page.now
-	from_next = next
 	seen = true
 	before = page.run.starter.core_cards.duplicate()
 	err_slot = -1
@@ -132,7 +106,7 @@ func _build() -> bool:
 	boosters.clear()
 	pieces.clear()
 	held = null
-	# RESTOCK and NEW PACKS change the cards the copy rule counts: fresh reasons each opening.
+	# RESTOCK changes the cards the copy rule counts: fresh reasons each opening.
 	_cache_key = ""
 	_reasons.clear()
 	_blocked.clear()
@@ -684,8 +658,7 @@ func busy() -> bool:
 	return false
 
 
-## DONE (its key, Enter): speeds up an opening; else closes, going on to YOUR BUILD when NEXT
-## opened the window.
+## DONE (its key, Enter): speeds up an opening; else closes.
 func primary(_via: String = "key") -> bool:
 	if busy():
 		for opening: BoosterOpening in boosters:
@@ -696,9 +669,8 @@ func primary(_via: String = "key") -> bool:
 	return true
 
 
-## Closes the window (DONE: `go_on`; Esc and the close key: not): page 1's basket plays each
-## changed regular in, one after the other; a window NEXT opened then goes on to YOUR BUILD.
-func close(go_on: bool) -> void:
+## Closes the window (DONE, Esc, the close key); the page under it shows again.
+func close(_go_on: bool = false) -> void:
 	if not active:
 		return
 	if held != null:
@@ -710,37 +682,5 @@ func close(go_on: bool) -> void:
 	active = false
 	close_t = page.now
 	page.fx.sfx("ui_close", -6.0)
-	var tuning: StartBoostersTuning = page.tuning
-	var n: int = 0
-	for slot: int in page.run.starter.core_cards.size():
-		if page.run.starter.core_cards[slot] == before[slot]:
-			continue
-		var t0: float = page.now
-		if not page.rm:
-			t0 += tuning.swap_play_in_at_s + n * tuning.swap_play_in_step_s
-		page.swap_t[slot] = t0
-		page.swap_from[slot] = before[slot]
-		page.fx.cue(t0 + tuning.swap_play_in_s * 0.6, _thud.bind(slot))
-		page.fx.cue(t0 + tuning.swap_play_in_s * 0.75, page.fx.sfx.bind("tag", -6.0))
-		n += 1
 	page.set_hint("")
 	StartBoardActions.emit(page.actions, TutorialEvents.SWAP_DONE)
-	if go_on and from_next:
-		page.fx.cue(page.now + (0.0 if page.rm else tuning.swap_next_hold_s), _go_on, GO_ON_TAG)
-
-
-## DONE's go-on, once the play-in has had its moment: only while this window is still the page's,
-## shut, and page 1 still done (not reopened, no RESTOCK armed, the board not left).
-func _go_on() -> void:
-	if page.swap != self or active or not from_next or page.run == null:
-		return
-	if not page.page_done() or page.restock_armed or page.picking():
-		return
-	page.press_next()
-
-
-## Page 1's basket as a changed regular lands in it: its thud and dust.
-func _thud(slot: int) -> void:
-	page.fx.sfx("card_place_%d" % (1 + slot % 3), -4.0)
-	var count: int = page.run.starter.core_cards.size()
-	page.fx.dust(BoosterChromeDraw.regular_x(slot, count) + 24, 222 + BoosterArt.DY, 3)

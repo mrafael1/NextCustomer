@@ -46,10 +46,8 @@ extends Control
 ## the cart reveal, frozen at that time of its timeline (and of its fold into the Cart button), and
 ## the file is shift_screen_reveal_[outro_<tenths>_][hover<n>_]<tenths>_<width>x<height>.png;
 ## `hover=<n>` (v0.54) opens the scan popup of tile n (the staples, then the picks, from 0).
-## Since #107 (v0.63) a new run opens on the starter pack choice: `raise=<n>` raises pack n (from
-## 0), `pick=<n>` raises and takes it (the timeline then runs from the picks' start, so
-## `<seconds>` counts from 0 again), `stock=<n>` opens the popup of today's product n in the
-## dispenser; the file name gets raise<n>_, pick<n>_ or stock<n>_.
+## `stock=<n>` opens the popup of today's product n in the dispenser; the file name gets
+## stock<n>_.
 ## With `--tip=<card id>[,<n>]` (#105) the glyph tooltip of glyph n (from 0) on that card's first
 ## belt ticket shows (below the ticket), `--tip=<card id>,colour` its colour's tooltip, and
 ## `--tip=monitor[,<n>]` that of the monitor scan's glyph n (above it; with --effects=<card id>);
@@ -95,7 +93,7 @@ const UPGRADE_IDS: Array[String] = ["coupon_engine", "slot_engine", "category_en
 const HAND_IDS: Array[String] = [
 	"eggs", "tea_bags", "banana", "batteries", "two_for_one", "crisps", "coffee", "milk"
 ]
-## The cards on the belt: a product from Cold cases, Produce and Bakery, and a coupon.
+## The cards on the belt: a product from Dairy, Produce and Bakery, and a coupon.
 const ROW_IDS: Array[String] = ["cheese", "strawberries", "croissant", "multipack"]
 ## --effects' shift (#71): #60's reference row on the belt under the Spot check.
 const EFFECTS_INSPECTION := "spot_check"
@@ -162,7 +160,7 @@ const COLOUR_TIP := "colour"
 ## --deck's full cart: the first copies upgraded to these tiers, and this coupon added.
 const FULL_TIERS: Dictionary[String, String] = {"banana": "banana_golden", "milk": "milk_big"}
 const FULL_COUPON_ID := "multipack"
-## --deck's Run info: the inspection of the shift and the prize the chooser is for.
+## --deck's STOCK BOOK page (info): the inspection of the shift; and the prize the chooser is for.
 const DECK_INSPECTION := "short_belt"
 const CHOOSER_PRIZE_ID := "breakfast_sticker"
 ## --machine's shift (#77): shift 1's passing row (Milk, Multipack, Milk x5 = 109), and the
@@ -627,8 +625,6 @@ func reveal(spec: String) -> void:
 	var outro: float = -1.0
 	var seed_value: int = SEED
 	var hovered: int = -1
-	var raised: int = -1
-	var picked: int = -1
 	var stocked: int = -1
 	for option: String in options.slice(1):
 		if option.begins_with("outro="):
@@ -637,13 +633,9 @@ func reveal(spec: String) -> void:
 			seed_value = option.trim_prefix("seed=").to_int()
 		elif option.begins_with("hover="):
 			hovered = option.trim_prefix("hover=").to_int()
-		elif option.begins_with("raise="):
-			raised = option.trim_prefix("raise=").to_int()
-		elif option.begins_with("pick="):
-			picked = option.trim_prefix("pick=").to_int()
 		elif option.begins_with("stock="):
 			stocked = option.trim_prefix("stock=").to_int()
-	var board_part: String = CaptureStart.open(_screen, options, raised, seed_value)
+	var board_part: String = CaptureStart.open(_screen, options, seed_value)
 	if board_part != "":
 		_reveal_part = board_part
 		return
@@ -654,14 +646,8 @@ func reveal(spec: String) -> void:
 		# Reopened without the board's actions, it builds the older panel.
 		cart_reveal.play(_screen.run, _screen._deck_button, _screen.profile.reduced_motion())
 	var fold: String = "outro_%d_" % roundi(outro * 10.0) if outro >= 0.0 else ""
-	if cart_reveal.is_choosing() and (raised >= 0 or picked >= 0):
-		cart_reveal.freeze_at(cart_reveal.end_time())
-		cart_reveal.raise_pack(raised if picked < 0 else picked)
-		fold += ("raise%d_" % raised) if picked < 0 else ("pick%d_" % picked)
-		if picked >= 0:
-			cart_reveal.take_pack()
 	cart_reveal.freeze_at(seconds, outro)
-	if stocked >= 0 and cart_reveal.is_choosing():
+	if stocked >= 0:
 		var heap: Array[TextureRect] = cart_reveal.panel().dispenser.heap_art()
 		cart_reveal.show_popup(heap[heap.size() - 1 - stocked])
 		fold += "stock%d_" % stocked
@@ -676,7 +662,7 @@ func reveal(spec: String) -> void:
 
 ## Opens the deck view (#56) on a new run (SEED), as the top bar's Cart would; capture() then names
 ## its file shift_screen_deck_<page>[_<options>]_<w>x<h>.png. `spec` is "<page>[,<option>...]":
-## the page is cart, info (Run info: the capture's upgrades, a Short belt shift, the stock) or
+## the page is cart, info (the STOCK BOOK: the capture's upgrades, a Short belt shift) or
 ## chooser (the machine's deck-full chooser for a Breakfast sticker, on a full cart);
 ## the options:
 ## - seed=<n>: the run's seed;

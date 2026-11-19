@@ -76,9 +76,9 @@ func test_an_item_lights_what_it_works_with() -> void:
 	)
 
 
-## A penalty pair beats a pair paying now: Soup beside Frozen peas.
+## A penalty pair beats a pair paying now: Soup beside Cheese (Dairy since v1.45).
 func test_a_penalty_wins() -> void:
-	var entries: Array[MixModel.Entry] = _entries(["frozen_peas", "soup"], [])
+	var entries: Array[MixModel.Entry] = _entries(["cheese", "soup"], [])
 	var graph: EffectGraph = _graph(entries)
 	var looks: Array[MixModel.Look] = MixModel.for_card(entries, entries[1], graph, _broad())
 	assert_array(looks).is_equal([MixModel.Look.PENALTY, MixModel.Look.SELF])

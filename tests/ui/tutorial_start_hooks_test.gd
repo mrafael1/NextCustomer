@@ -39,20 +39,20 @@ func test_the_board_sends_its_hooks() -> void:
 	var events: Array[Array] = _listen(board)
 	await get_tree().process_frame
 	assert_bool(_has(events, TutorialEvents.PAGE_SHOWN, {TutorialEvents.ARG_PAGE: 0})).is_true()
-	page.openings.roll_up()
-	page.openings.end_arrival()
-	_run(page, 1.0)
-	_click(page, BoosterArt.pouch_pos(page.boosters[0].cx) + Vector2(40, 40))
-	(
-		assert_bool(_has(events, TutorialEvents.BOOSTER_OPENED, {TutorialEvents.ARG_INDEX: 0}))
-		. is_true()
-	)
-	page.openings.open_all("key")
-	(
-		assert_bool(_has(events, TutorialEvents.BOOSTER_OPENED, {TutorialEvents.ARG_INDEX: 1}))
-		. is_true()
-	)
+	# The boosters wait sealed for their clicks (round 2 of the 2026-11-19 play test): each
+	# opening sends its hook.
+	assert_int(_count(events, TutorialEvents.BOOSTER_OPENED)).is_equal(0)
+	_run(page, 14.0)
+	assert_int(_count(events, TutorialEvents.BOOSTER_OPENED)).is_equal(0)
+	_open_landed(page)
 	_run(page, 8.0)
+	for index: int in 2:
+		(
+			assert_bool(
+				_has(events, TutorialEvents.BOOSTER_OPENED, {TutorialEvents.ARG_INDEX: index})
+			)
+			. is_true()
+		)
 	assert_int(_count(events, TutorialEvents.BOOSTERS_ALL_OPEN)).is_equal(1)
 	_run(page, 1.0)
 	assert_int(_count(events, TutorialEvents.BOOSTERS_ALL_OPEN)).is_equal(1)
@@ -63,11 +63,7 @@ func test_the_board_sends_its_hooks() -> void:
 	staff.frozen = true
 	for _step: int in 240:
 		staff.advance(STEP)
-	staff.mouse = Vector2(BuildPage.STX[1] + 30, 200)
-	staff.advance(STEP)
-	assert_bool(_has(events, TutorialEvents.PACK_HOVERED, {TutorialEvents.ARG_INDEX: 1})).is_true()
-	assert_bool(staff.pick_pack(1, "click")).is_true()
-	assert_bool(_has(events, TutorialEvents.PACK_PICKED, {TutorialEvents.ARG_INDEX: 1})).is_true()
+	assert_bool(staff.keep_regulars()).is_true()
 	assert_bool(staff.open_store()).is_true()
 	assert_int(_count(events, TutorialEvents.STORE_OPENED)).is_equal(1)
 	for event: Array in events:
@@ -90,8 +86,8 @@ func test_restock_sends_its_hooks() -> void:
 	assert_bool(page.counter.arm_restock()).is_true()
 	assert_bool(page.counter.restock(0)).is_true()
 	assert_bool(_has(events, TutorialEvents.RESTOCK_DONE, {TutorialEvents.ARG_INDEX: 0})).is_true()
-	_run(page, 3.0)
-	page.openings.open_all("key")
+	_run(page, 8.0)
+	_open_landed(page)
 	_run(page, 8.0)
 	assert_int(_count(events, TutorialEvents.BOOSTERS_ALL_OPEN)).is_equal(2)
 
@@ -131,10 +127,11 @@ func test_the_swap_window_sends_its_hooks() -> void:
 		assert_bool(TutorialEvents.args_valid(event[0], event[1])).is_true()
 
 
-## The gate: a refused click, key or Space acts on nothing and flashes nothing; the same input
+## The gate: a skip is never asked (Enter while the light runs, a click while a booster opens); a
+## refused click or key on the stocked page acts on nothing and flashes nothing; the same input
 ## once allowed acts; each ask names its hit as TutorialActions.HIT {id}.
 func test_the_gate_refuses_and_allows_page_one_input() -> void:
-	var page: BoosterPage = await _page(0)
+	var page: BoosterPage = await _page(3)
 	var board: StartBoard = _board(page)
 	var asked: Array[StringName] = []
 	var allowed: Array[StringName] = []
@@ -142,38 +139,48 @@ func test_the_gate_refuses_and_allows_page_one_input() -> void:
 		assert_str(action).is_equal(TutorialActions.HIT)
 		asked.append(args[TutorialActions.ARG_ID] as StringName)
 		return allowed.has(args[TutorialActions.ARG_ID] as StringName)
-	_click(page, Vector2(320, 200))
-	assert_int(page.shutter).is_equal(BoosterPage.Shutter.DOWN)
-	assert_array(asked).contains([TutorialAnchors.ROLLUP])
-	allowed.append(TutorialAnchors.ROLLUP)
-	_click(page, Vector2(320, 200))
-	assert_int(page.shutter).is_not_equal(BoosterPage.Shutter.DOWN)
-	page.openings.end_arrival()
-	_run(page, 1.0)
-	var pouch: Vector2 = BoosterArt.pouch_pos(page.boosters[0].cx) + Vector2(40, 40)
-	_click(page, pouch)
-	board._input(_key(KEY_1))
-	board._input(_key(KEY_A))
+	board._input(_key(KEY_ENTER))
+	assert_int(page.roulette.phase).is_equal(AisleRoulette.Phase.DEAL)
+	assert_array(asked).is_empty()
+	# Opening a sealed booster is asked (its hit, or the primary key): opened here unasked, a click
+	# while they open only speeds them up.
+	_open_landed(page)
+	_click(page, Vector2(320, 150))
+	board._input(_key(KEY_SPACE))
+	assert_array(asked).is_empty()
+	_run(page, 8.0)
+	assert_bool(page.page_done()).is_true()
+	_click(page, BoosterChromeDraw.key_rect().get_center())
+	board._input(_key(KEY_R))
+	assert_bool(page.restock_armed).is_false()
+	_click(page, BoosterChromeDraw.tab_rect(1).get_center())
 	board._input(_key(KEY_ENTER))
 	board._input(_key(KEY_SPACE))
-	_run(page, 1.0)
-	assert_bool(page.openings.any_sealed()).is_true()
-	assert_int(page.boosters[0].state).is_equal(BoosterOpening.State.SEALED)
-	assert_float(page.hold_t).is_less(0.0)
+	assert_int(board.page).is_equal(1)
 	assert_str(page.message).is_empty()
-	assert_array(asked).contains([TutorialAnchors.booster(0), TutorialAnchors.PRIMARY])
-	allowed.append(TutorialAnchors.booster(0))
-	_click(page, pouch)
-	assert_int(page.boosters[0].state).is_equal(BoosterOpening.State.OPENING)
-	assert_int(page.boosters[1].state).is_equal(BoosterOpening.State.SEALED)
+	assert_array(asked).contains(
+		[TutorialAnchors.RESTOCK, TutorialAnchors.TAB2, TutorialAnchors.PRIMARY]
+	)
+	allowed.append(TutorialAnchors.RESTOCK)
+	board._input(_key(KEY_R))
+	assert_bool(page.restock_armed).is_true()
+	asked.clear()
+	board._input(_key(KEY_1))
+	assert_int(page.run.start_setup.restock_booster()).is_equal(-1)
+	var first: int = page.shown_boosters()[0].index
+	assert_array(asked).contains([TutorialAnchors.indexed(TutorialAnchors.RCARDS, first)])
 	# Esc is never asked (the page's own Esc; the board's opens the options).
 	asked.clear()
 	page.handle_key(KEY_ESCAPE)
 	assert_array(asked).is_empty()
+	assert_bool(page.restock_armed).is_false()
+	allowed.append(TutorialAnchors.PRIMARY)
+	board._input(_key(KEY_ENTER))
+	assert_int(board.page).is_equal(2)
 
 
-## Page 2 and the reveal's own entries: a refused pack, NEW PACKS, OPEN STORE (click, key, or the
-## reveal's take) do nothing; allowed, they act.
+## Page 2: a refused OPEN STORE (click, key, or the board's clock-in) does nothing; allowed, it
+## acts.
 func test_the_gate_refuses_and_allows_page_two_input() -> void:
 	var page: BoosterPage = await _page(0)
 	var board: StartBoard = _board(page)
@@ -184,19 +191,11 @@ func test_the_gate_refuses_and_allows_page_two_input() -> void:
 	staff.frozen = true
 	for _step: int in 240:
 		staff.advance(STEP)
+	assert_bool(staff.keep_regulars()).is_true()
 	var allowed: Array[StringName] = []
 	_gate(board).guide_gate = func(_action: StringName, args: Dictionary) -> bool:
 		return allowed.has(args[TutorialActions.ARG_ID] as StringName)
-	var packs_before: Array[StarterPackDefinition] = board.run.start_offer.packs.duplicate()
-	staff.click(Vector2(BuildPage.STX[0] + 30, 200))
-	board._input(_key(KEY_2))
-	board.pick(2)
-	board._input(_key(KEY_N))
-	assert_int(staff.picked()).is_equal(-1)
-	assert_array(board.run.start_offer.packs).is_equal(packs_before)
-	allowed.append(TutorialAnchors.pack(0))
-	staff.click(Vector2(BuildPage.STX[0] + 30, 200))
-	assert_int(staff.picked()).is_equal(0)
+	staff.click(Rect2(BuildPage.PRIMARY_RECT).get_center())
 	board._input(_key(KEY_ENTER))
 	assert_bool(board.clock_in()).is_false()
 	assert_object(staff.flight).is_null()
@@ -204,31 +203,30 @@ func test_the_gate_refuses_and_allows_page_two_input() -> void:
 	assert_bool(board.clock_in()).is_true()
 
 
-## The locks: the swap plate, RESTOCK's key (shown LOCKED on a fresh profile, where it is
-## otherwise hidden) and NEW PACKS are drawn locked, their clicks and keys refused; anchors find
-## them. Without the locks a fresh profile's page is as before.
+## The locks: RESTOCK's key is drawn LOCKED (on a profile that has RESTOCK; one without it never
+## sees the key, locked or not) and page 2's SWAP key is hidden; their clicks and keys are refused.
+## Without the locks the pages are as before.
 func test_the_locks_draw_and_refuse() -> void:
-	var page: BoosterPage = await _page(1)
+	var fresh: BoosterPage = await _page(1)
+	_stocked(fresh)
+	_gate(_board(fresh)).guide_locks = func(_id: StringName) -> bool: return true
+	fresh.advance(0.0)
+	assert_bool(BoosterChromeDraw.key_shown(fresh)).is_false()
+	assert_bool(_ids(fresh.hits).has("restock")).is_false()
+	var page: BoosterPage = await _page(3)
 	var board: StartBoard = _board(page)
 	_stocked(page)
-	assert_bool(BoosterChromeDraw.key_shown(page)).is_false()
-	var locks: Array[StringName] = [
-		TutorialAnchors.SWAP_PLATE, TutorialAnchors.RESTOCK, TutorialAnchors.NEWPACKS
-	]
+	assert_bool(BoosterChromeDraw.key_shown(page)).is_true()
+	assert_bool(BoosterChromeDraw.key_locked(page)).is_false()
+	var locks: Array[StringName] = [TutorialAnchors.SWAP_KEY, TutorialAnchors.RESTOCK]
 	_gate(board).guide_locks = func(id: StringName) -> bool: return locks.has(id)
 	page.advance(0.0)
 	assert_bool(BoosterChromeDraw.key_shown(page)).is_true()
 	assert_bool(BoosterChromeDraw.key_locked(page)).is_true()
 	assert_bool(_ids(page.hits).has("restock")).is_true()
-	assert_float(BoosterChromeDraw.hint_rect(page).end.x).is_less_equal(
-		BoosterChromeDraw.key_rect().position.x
-	)
 	_click(page, BoosterChromeDraw.key_rect().get_center())
 	board._input(_key(KEY_R))
 	assert_bool(page.restock_armed).is_false()
-	_click(page, BoosterChromeDraw.CRATE_RECT.get_center())
-	_click(page, BoosterChromeDraw.SWAP_PLATE_RECT.get_center())
-	assert_bool(page.swap.active).is_false()
 	assert_str(page.message).is_empty()
 	page.queue_redraw()
 	await get_tree().process_frame
@@ -236,67 +234,24 @@ func test_the_locks_draw_and_refuse() -> void:
 	board._end_slide()
 	var staff: BuildPage = board.staff
 	staff.frozen = true
+	staff.pins.close()
 	for _step: int in 240:
 		staff.advance(STEP)
-	assert_bool(BuildPageDraw.deck_live(staff)).is_false()
-	var packs_before: Array[StarterPackDefinition] = board.run.start_offer.packs.duplicate()
-	staff.click(Vector2(BuildPage.DECK) + Vector2(20, 40))
-	assert_bool(board.new_packs()).is_false()
-	assert_array(board.run.start_offer.packs).is_equal(packs_before)
-	assert_bool(board.run.start_setup.packs_redrawn).is_false()
+	assert_bool(BuildRegulars.swap_shown(staff)).is_false()
+	assert_bool(_ids(staff.hits).has(BuildRegulars.ID)).is_false()
+	board._input(_key(KEY_S))
+	assert_bool(board.open_swap()).is_false()
+	assert_bool(page.swap.active).is_false()
 	await get_tree().process_frame
 	locks.clear()
-	assert_bool(BuildPageDraw.deck_live(staff)).is_true()
-
-
-## Six regulars stand in the crate in two zigzag rows: each inside the crate, in reading order,
-## their tip rects apart; four stand as before (REG_X + k * REG_STEP). A page with 6 draws.
-func test_the_crate_holds_six_regulars() -> void:
-	for k: int in 4:
-		assert_vector(BoosterArt.regular_at(k, 4)).is_equal(
-			Vector2(BoosterArt.REG_X + k * BoosterArt.REG_STEP, BoosterArt.REG_Y)
-		)
-	var crate: Rect2 = BoosterChromeDraw.CRATE_RECT
-	var rects: Array[Rect2] = []
-	for k: int in 6:
-		var at: Vector2 = BoosterArt.regular_at(k, 6)
-		# The sprite's 32 px of art inside its 48 px canvas stays inside the crate.
-		(
-			assert_bool(crate.encloses(Rect2(at + Vector2(8, 0), Vector2(32, 36))))
-			. override_failure_message("regular %d at %s" % [k, at])
-			. is_true()
-		)
-		if k > 0:
-			assert_float(at.x).is_greater(BoosterArt.regular_at(k - 1, 6).x)
-		rects.append(BoosterArt.regular_rect(k, 6))
-	for a: int in rects.size():
-		assert_bool(crate.encloses(rects[a])).is_true()
-		for b: int in range(a + 1, rects.size()):
-			(
-				assert_bool(rects[a].intersects(rects[b]))
-				. override_failure_message("%d and %d" % [a, b])
-				. is_false()
-			)
-	assert_array(BoosterArt.crate_order(6)).is_equal([1, 3, 5, 0, 2, 4])
-	assert_array(BoosterArt.crate_order(4)).is_equal([0, 1, 2, 3])
-	var page: BoosterPage = await _page(0)
-	var starter: DeckDefinition = page.run.starter.duplicate()
-	var extra: Array[CardDefinition] = [
-		load("res://data/cards/bread.tres") as CardDefinition,
-		load("res://data/cards/coffee.tres") as CardDefinition,
-	]
-	var regulars: Array[CardDefinition] = starter.core_cards.duplicate()
-	regulars.append_array(extra)
-	starter.core_cards = regulars
-	page.run.starter = starter
-	page.run.start_setup.originals.append_array(extra)
-	_stocked(page)
-	await get_tree().process_frame
-	assert_int(BoosterChromeDraw.tip_entries(page).size()).is_greater_equal(6)
+	staff.advance(0.0)
+	assert_bool(BuildRegulars.swap_shown(staff)).is_true()
+	assert_bool(_ids(staff.hits).has(BuildRegulars.ID)).is_true()
 
 
 ## StartGuide's anchors at both sizes: page 1's, the swap window's and page 2's lie on the board,
-## where the page draws them (a booster's pouch, then its fan); one not shown is Rect2().
+## where the page draws them (a booster's bay, then its fan); one not shown is Rect2(). The swap
+## window's show while it is open over page 2.
 func test_the_anchors_lie_on_the_board_at_both_sizes() -> void:
 	for size: Vector2 in SIZES:
 		var page: BoosterPage = await _page(2)
@@ -306,18 +261,17 @@ func test_the_anchors_lie_on_the_board_at_both_sizes() -> void:
 		board._resize()
 		var guide: StartGuide = StartGuide.new(board)
 		var frame: Rect2 = board.get_global_rect()
-		page.openings.roll_up()
-		page.openings.end_arrival()
-		_run(page, 1.0)
+		_run(page, 0.5)
 		var sealed: Rect2 = guide.anchor_rect(TutorialAnchors.booster(0))
 		_assert_on(frame, sealed, "booster0 sealed %s" % size)
+		var bay: Rect2 = AisleBoardArt.bay_rect(page.boosters[0].bay, page.roulette.count)
+		assert_vector(sealed.position).is_equal_approx(_on_screen(page, bay).position, Vector2.ONE)
 		_stocked(page)
 		var ids: Array[StringName] = [
-			TutorialAnchors.CRATE,
-			TutorialAnchors.SWAP_PLATE,
 			TutorialAnchors.PRIMARY,
 			TutorialAnchors.TITLE,
 			TutorialAnchors.TAB2,
+			TutorialAnchors.CART,
 			TutorialAnchors.booster(0),
 			TutorialAnchors.booster(1),
 			TutorialAnchors.card(0, 1),
@@ -326,12 +280,32 @@ func test_the_anchors_lie_on_the_board_at_both_sizes() -> void:
 			_assert_on(frame, guide.anchor_rect(id), "%s %s" % [id, size])
 		assert_object(guide.anchor_rect(TutorialAnchors.booster(0))).is_not_equal(sealed)
 		assert_object(guide.anchor_rect(TutorialAnchors.RESTOCK)).is_equal(Rect2())
-		assert_object(guide.anchor_rect(TutorialAnchors.pack(0))).is_equal(Rect2())
-		var plate: Rect2 = guide.anchor_rect(TutorialAnchors.SWAP_PLATE)
-		var expected: Rect2 = _on_screen(page, BoosterChromeDraw.SWAP_PLATE_RECT)
-		assert_vector(plate.position).is_equal_approx(expected.position, Vector2.ONE)
+		var fan: Rect2 = guide.anchor_rect(TutorialAnchors.booster(0))
+		var expected: Rect2 = _on_screen(page, page.boosters[0].fan_rect())
+		assert_vector(fan.position).is_equal_approx(expected.position, Vector2.ONE)
+		assert_object(guide.anchor_rect(TutorialAnchors.SWAP_KEY)).is_equal(Rect2())
+		assert_bool(guide.swap_due()).is_false()
+		board.show_page(2, "tab")
+		board._end_slide()
+		var staff: BuildPage = board.staff
+		staff.frozen = true
+		staff.pins.close()
+		for _step: int in 240:
+			staff.advance(STEP)
+		assert_int(guide.shown_page()).is_equal(1)
 		assert_bool(guide.swap_due()).is_true()
-		assert_bool(page.swap.open_window(false)).is_true()
+		var key: Rect2 = guide.anchor_rect(TutorialAnchors.SWAP_KEY)
+		_assert_on(frame, key, "swap_key %s" % size)
+		var key_at: Rect2 = (
+			staff.get_global_transform()
+			* Rect2(
+				Vector2(BuildRegulars.SWAP_RECT.position) * ArtPen.UNIT,
+				Vector2(BuildRegulars.SWAP_RECT.size) * ArtPen.UNIT
+			)
+		)
+		assert_vector(key.position).is_equal_approx(key_at.position, Vector2.ONE)
+		assert_bool(board.open_swap()).is_true()
+		assert_bool(guide.swap_due()).is_false()
 		_run(page, 2.0)
 		for id: StringName in [
 			TutorialAnchors.SWAP_DONE,
@@ -343,25 +317,17 @@ func test_the_anchors_lie_on_the_board_at_both_sizes() -> void:
 			_assert_on(frame, guide.anchor_rect(id), "%s %s" % [id, size])
 		page.swap.close(false)
 		_run(page, 2.0)
-		board.show_page(2, "tab")
-		board._end_slide()
-		var staff: BuildPage = board.staff
-		staff.frozen = true
-		for _step: int in 240:
-			staff.advance(STEP)
-		assert_int(guide.shown_page()).is_equal(1)
+		assert_bool(board.swap_showing()).is_false()
+		staff.advance(0.0)
 		for id: StringName in [
-			TutorialAnchors.pack(0),
-			TutorialAnchors.pack(2),
-			TutorialAnchors.NEWPACKS,
 			TutorialAnchors.PRIMARY,
 			TutorialAnchors.BACK,
 			TutorialAnchors.PINS,
 			TutorialAnchors.TAB1,
+			TutorialAnchors.SWAP_KEY,
 		]:
 			_assert_on(frame, guide.anchor_rect(id), "%s %s" % [id, size])
 		assert_object(guide.anchor_rect(TutorialAnchors.PINS_CONFIRM)).is_equal(Rect2())
-		assert_object(guide.anchor_rect(TutorialAnchors.CRATE)).is_equal(Rect2())
 
 
 ## The overlay's mount point is over both pages and their tips; StartGuide passes the board's
@@ -475,10 +441,16 @@ static func _board(page: BoosterPage) -> StartBoard:
 
 ## Rolls up, opens every booster and lets STOCKED! come.
 static func _stocked(page: BoosterPage) -> void:
-	page.openings.roll_up()
-	page.openings.end_arrival()
-	page.openings.open_all("key")
+	page.roulette.skip()
+	_open_landed(page)
 	_run(page, 8.0)
+
+
+## Opens every booster waiting sealed on the counter (their clicks).
+static func _open_landed(page: BoosterPage) -> void:
+	var next: BoosterOpening = page.openings.next_sealed()
+	while next != null and page.openings.open_booster(next.index, "click"):
+		next = page.openings.next_sealed()
 
 
 static func _run(page: BoosterPage, seconds: float) -> void:

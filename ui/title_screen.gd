@@ -201,6 +201,7 @@ func _ready() -> void:
 	_guide.discovered = func(card_id: StringName) -> bool:
 		return _profile == null or CouponFinds.found(_profile, card_id)
 	_guide.replay_requested.connect(_on_replay_requested)
+	_guide.offer_collection(_collection_profile, _balance)
 	_options = OptionsCard.new()
 	_options.still = _still
 	_options.closed.connect(_on_options_closed)
@@ -677,6 +678,13 @@ func _on_toy_machines_pressed() -> void:
 		profile, saves, _balance, _log, _saved_run != null, peeked != null
 	)
 	_toys.open(counter, _balance)
+
+
+## The handbook's COLLECTION's profile: the saved one as it is now (the TOY MACHINES' draws
+## included), peeked without reporting; an unreadable one shows as empty.
+func _collection_profile() -> ProfileState:
+	var peeked: ProfileState = SaveService.new(SaveService.default_folder()).peek_profile()
+	return peeked if peeked != null else ProfileState.new()
 
 
 ## DONE or Esc: back to the title, the coins on the REWARDS plate following the draws.

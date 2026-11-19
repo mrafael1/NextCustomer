@@ -9,4 +9,4 @@ group = &"families"
 title = "Dairy"
 mark = 3
 mark_value = "Dairy"
-rule = "From the cold case. Most {fam:Dairy} items pay as a {kw:PAIR} beside their partner."
+rule = "From the cold case. Most {fam:Dairy} items pay as a {kw:PAIR} beside their partner; {item:soup} beside one pays nothing."

@@ -61,6 +61,10 @@ const UNROLL_SECONDS := 0.16
 ## Reduced motion: the strip shows at once.
 var still: bool = false
 
+## The ribbon's scale (canvas px an art px): SCALE in the book, 2 in the deck view's STOCK BOOK
+## (StockBook: a whole number of screen px at 1920x1080's 1.5 too).
+var _scale: float = SCALE
+
 var _styles: Array[FamilyStyle] = []
 ## The recoloured ribbons and swatches made so far (tinted), by texture and colours. Kept on the
 ## ribbon, not in a static var: a static one kept the scripts it reaches alive at exit.
@@ -73,9 +77,11 @@ var _roll: Control
 var _unroll: Tween
 
 
-## A ribbon with its top left at `at` (canvas px) in a control covering `area`.
-func _init(at: Vector2, area: Vector2) -> void:
-	super("", Rect2(at, Vector2(RIBBON.get_size()) * SCALE), true, area)
+## A ribbon with its top left at `at` (canvas px) in a control covering `area`, drawn `art_scale`
+## canvas px an art px.
+func _init(at: Vector2, area: Vector2, art_scale: float = SCALE) -> void:
+	_scale = art_scale
+	super("", Rect2(at, Vector2(RIBBON.get_size()) * art_scale), true, area)
 	move_child(_plate, -1)  # Over the strip: its tail lies on the strip's rolled top.
 
 
@@ -185,7 +191,7 @@ func _layout_list(count: int) -> void:
 	var width: float = widest + ROW_PADDING * 2.0 + ROW_SIDE * 2.0 + MenuPlate.HOT_SHIFT
 	width = TOOTH * ceilf(width / TOOTH)
 	var height: float = (
-		TUCK
+		_tuck()
 		+ ROWS_BELOW
 		+ count * ROW_HEIGHT
 		+ maxi(count - 1, 0) * ROW_GAP
@@ -194,7 +200,7 @@ func _layout_list(count: int) -> void:
 	)
 	var left: float = _plate_rect.get_center().x - width / 2.0
 	left = clampf(left, STAGE_MARGIN, size.x - STAGE_MARGIN - width)
-	_list.position = Vector2(art * roundf(left / art), _plate_rect.end.y - TUCK)
+	_list.position = Vector2(art * roundf(left / art), _plate_rect.end.y - _tuck())
 	_list.size = Vector2(width, height)
 	_roll = Control.new()
 	_roll.name = "Roll"
@@ -214,7 +220,7 @@ func _layout_list(count: int) -> void:
 
 
 func _option_rect(index: int) -> Rect2:
-	var top: float = TUCK + ROWS_BELOW + index * (ROW_HEIGHT + ROW_GAP)
+	var top: float = _tuck() + ROWS_BELOW + index * (ROW_HEIGHT + ROW_GAP)
 	var width: float = _list.size.x - ROW_SIDE * 2.0 - MenuPlate.HOT_SHIFT
 	return Rect2(ROW_SIDE, top, width, ROW_HEIGHT)
 
@@ -239,7 +245,7 @@ func _dress_option(index: int, is_picked: bool) -> void:
 
 
 func _show_on_plate(index: int) -> void:
-	var art: float = SCALE
+	var art: float = _scale
 	_cloth_art.texture = tinted(RIBBON, _style(index))
 	var icon: Texture2D = _icons[index] if index < _icons.size() else null
 	_emblem.texture = icon if icon != null else ALL_MARK
@@ -266,7 +272,7 @@ func _open_changed(open: bool) -> void:
 	_roll.size.y = _list.size.y
 	if not open or still or not is_inside_tree():
 		return
-	_roll.size.y = TUCK
+	_roll.size.y = _tuck()
 	_unroll = create_tween()
 	(
 		_unroll
@@ -287,4 +293,9 @@ func _hover(on: bool) -> void:
 
 ## Lifted under the mouse and while the list is open.
 func _show_lift() -> void:
-	_cloth.position.y = -LIFT if _hovered or is_open() else 0.0
+	_cloth.position.y = -_scale if _hovered or is_open() else 0.0
+
+
+## The strip's top behind the ribbon's tail (TUCK at the ribbon's own scale).
+func _tuck() -> float:
+	return TUCK / SCALE * _scale

@@ -1,0 +1,2 @@
+; swap_brand with no swap left (still clickable: it opens the window to undo), two steps down.
+@derive swap_brand tone=dim

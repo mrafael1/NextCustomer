@@ -4,7 +4,7 @@ extends GdUnitTestSuite
 ## stream and state give the same capsules. Uses the live aisles.
 
 const BAKERY := "res://data/aisles/bakery.tres"
-const COLD_CASES := "res://data/aisles/cold_cases.tres"
+const DAIRY := "res://data/aisles/dairy.tres"
 const BALANCE := "res://data/balance/balance.tres"
 
 
@@ -67,10 +67,10 @@ func test_the_same_stream_and_state_give_the_same_capsules() -> void:
 
 
 func test_the_capsule_count_is_every_aisles_capsules() -> void:
-	assert_int(CapsuleDraw.capsule_count(load(BALANCE))).is_equal(30)
-	var cold: AisleDefinition = load(COLD_CASES)
+	assert_int(CapsuleDraw.capsule_count(load(BALANCE))).is_equal(31)
+	var dairy: AisleDefinition = load(DAIRY)
 	var none: Dictionary[StringName, int] = {}
-	assert_int(CapsuleDraw.items_left(cold, none).size()).is_equal(2)
+	assert_int(CapsuleDraw.items_left(dairy, none).size()).is_equal(2)
 
 
 func _sequence(aisle: AisleDefinition, seed_value: int) -> Array[String]:
