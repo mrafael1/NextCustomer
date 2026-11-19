@@ -1,46 +1,53 @@
 class_name StockIcon
 extends Control
-## One item of the Run info's MACHINE STOCK (the slim Run info, mock-up
-## docs/art/mockups/cart_cards.html's RUN INFO · SLIM, approved by the user on 2026-11-13): the
-## item's sprite at 1x (a coupon's slip at 2x) over its price (a coupon: COUPON, "◆ RARE" with a
-## pixel diamond, or LEGENDARY, machine.tres's rarity), and a badge on its top left when the cart
-## holds copies of it (Badge: "×N", teal with a diamond when one is BIG, gold with a star when one
-## is GOLDEN). Hovering it (the pointer on it) rings it mustard; DeckView opens the tip with its
-## card face. `dimmed` fades it (the family filter: not of the previewed family).
-## Every pixel mark and sprite stands on an even layout px (crisp at 1280x720 and at 1920x1080's
-## 1.5 scale, where an even px is a whole screen px): the marks' pixels are 2 layout px (3 screen
-## px at 1080p).
+## One sleeve of the deck view's STOCK BOOK (StockBook, 2026-11-19; it was the Run info's MACHINE
+## STOCK icon): a stocked item. When the cart holds it, a cream insert in its section's light
+## colour with the item's sprite at the game's 2x (a coupon's slip at 4x), its price on a mustard
+## sticker (a coupon: COUPON, "◆ RARE" with a pixel diamond, or LEGENDARY, machine.tres's rarity,
+## on an ink plate) and a badge on its top left (Badge: "×N", teal with a diamond when one is BIG,
+## gold with a star when one is GOLDEN). Not owned yet: the sprite as a dark silhouette on the
+## empty sleeve (the handbook's locked coupons' tint) over its price or rarity. Hovering it rings
+## it mustard; DeckView opens the tip with its card face. `dimmed` fades it (the family filter: not
+## of the picked family). Every pixel mark and sprite stands on an even layout px (crisp at
+## 1280x720 and at 1920x1080's 1.5 scale).
 
 signal hovered(icon: StockIcon)
 signal unhovered(icon: StockIcon)
 
-const SIZE := Vector2(60, 76)
-const SPRITE_AT := Vector2(6, 2)
-const SPRITE_SIZE := Vector2(48, 48)
-## A coupon's slip: 2x, centred in the sprite's box (on an even px).
-const COUPON_SCALE := 2.0
-const PRICE_TOP := 52.0
-const PRICE_SIZE := 15
-const COUPON_WORD_SIZE := 11
-const COUPON_WORD_MIN := 9
+## The sleeve's inside (StockBook.pocket_rect's size), the insert's inset, the sprite's box.
+const SIZE := Vector2(172, 168)
+const INSERT_INSET := 4.0
+const SPRITE_AT := Vector2(38, 14)
+const SPRITE_SIZE := Vector2(96, 96)
+## A coupon's slip: 4x, centred in the sprite's box (on an even px).
+const COUPON_SCALE := 4.0
+const PRICE_TOP := 118.0
+const PRICE_HEIGHT := 30.0
+const PRICE_SIZE := 18
+const STICKER_PAD := 8.0
+const COUPON_WORD_SIZE := 13
+const COUPON_WORD_MIN := 10
 const COUPON_WORD_WEIGHT := 800
 const COUPON_WORDS: Array[String] = ["COUPON", "RARE", "LEGENDARY"]
 ## The RARE coupon word's pixel diamond (the mock-up's "◆ RARE"; a 3-row one read as a "+"): its
-## rows, DIAMOND_PIXEL px a cell (2: whole screen px at 1x and 1.5x; a 1 px cell was 1.5 screen
-## px at 1080p and blurred), and its gap before the word.
+## rows, DIAMOND_PIXEL px a cell (2: whole screen px at 1x and 1.5x), and its gap before the word.
 const RARE_DIAMOND: Array[String] = ["..#..", ".###.", "#####", ".###.", "..#.."]
 const DIAMOND_PIXEL := 2.0
-const DIAMOND_GAP := 2.0
-## The coupon word's widest (px): the old 58 px icon less a margin, so LEGENDARY (the mock-up's
-## 9.5 px) keeps clear of its neighbour's "◆ RARE".
-const COUPON_WORD_WIDTH := 56.0
-const HOVER_FILL := Color("2f5552")
-const HOVER_LINE := 2.0
+const DIAMOND_GAP := 4.0
+## The coupon word's widest (px).
+const COUPON_WORD_WIDTH := 120.0
+## The silhouette of an item not owned yet (HandbookPage.LOCKED_TINT's).
+const SILHOUETTE := Color(0.12, 0.12, 0.16)
+## The insert's light top (px) and its dithered fade's rows (2 px each) under it.
+const INSERT_LIGHT := 56.0
+const INSERT_FADE_ROWS := 12
+const HOVER_LINE := 4.0
 const DIM_ALPHA := 0.3
-const BADGE_AT := Vector2(-4, -4)
+const BADGE_AT := Vector2(8, 8)
 ## Node names (for tests).
 const PRICE := "Price"
 const BADGE := "InCart"
+const ART_NAME := "Art"
 
 var card: CardDefinition
 ## Copies of it in the cart, and the highest tier among them.
@@ -57,51 +64,59 @@ var dimmed: bool = false:
 		modulate.a = DIM_ALPHA if value else 1.0
 var _price: Label
 var _badge: Badge
+var _art: TextureRect
+var _light: Color = Palette.CREAM_SHADE
 
 
-## The icon of `definition` (a stocked card), its look from `machine`, with `copies` copies in
-## the cart, the highest of them `tier`.
+## The slot of `definition` (a stocked card), its look from `machine`, with `copies` copies in
+## the cart, the highest of them `tier`; its insert lit in `light` (its section's light colour).
 func _init(
 	definition: CardDefinition,
 	machine: MachineDefinition,
 	copies: int,
-	tier: CardDefinition.Tier = CardDefinition.Tier.PLAIN
+	tier: CardDefinition.Tier = CardDefinition.Tier.PLAIN,
+	light: Color = Palette.CREAM_SHADE
 ) -> void:
 	card = definition
 	in_cart = copies
 	cart_tier = tier
+	_light = light
 	look = CartCardDraw.look_of(definition, machine)
 	name = "Stock%s" % String(definition.id).to_pascal_case()
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	size = SIZE
 	custom_minimum_size = SIZE
-	var art: TextureRect
 	if definition.is_coupon():
-		art = UiKit.sprite(ArtStyle.coupon_icon(definition))
+		_art = UiKit.sprite(ArtStyle.coupon_icon(definition))
 		var shown: Vector2 = (
-			art.texture.get_size() * COUPON_SCALE if art.texture != null else Vector2()
+			_art.texture.get_size() * COUPON_SCALE if _art.texture != null else Vector2()
 		)
-		art.size = shown
-		art.position = SPRITE_AT + even_floor((SPRITE_SIZE - shown) / 2.0)
+		_art.size = shown
+		_art.position = SPRITE_AT + even_floor((SPRITE_SIZE - shown) / 2.0)
 	else:
-		art = UiKit.sprite(ArtStyle.item_sprite(definition))
-		art.size = SPRITE_SIZE
-		art.position = SPRITE_AT
-	art.name = "Art"
-	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(art)
+		_art = UiKit.sprite(ArtStyle.item_sprite(definition))
+		_art.size = SPRITE_SIZE
+		_art.position = SPRITE_AT
+	_art.name = ART_NAME
+	_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if copies <= 0:
+		_art.modulate = SILHOUETTE
+	add_child(_art)
 	if definition.is_coupon():
 		var word: String = COUPON_WORDS[look]
 		_price = UiKit.body_label(word, coupon_word_size(word), _coupon_ink())
 		_price.add_theme_font_override("font", ArtStyle.bold_font(COUPON_WORD_WEIGHT))
 		_price.add_theme_constant_override("line_spacing", 0)
 	else:
-		_price = UiKit.number_label(PriceSticker.price_text(definition.base), PRICE_SIZE, true)
+		var ink: Color = Palette.INK if copies > 0 else Palette.TEAL_PALE
+		_price = UiKit.number_label(PriceSticker.price_text(definition.base), PRICE_SIZE, false)
+		_price.add_theme_color_override("font_color", ink)
 	_price.name = PRICE
 	_price.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_price.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_price.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_price.position = Vector2(-4, PRICE_TOP)
-	_price.size = Vector2(SIZE.x + 8, SIZE.y - PRICE_TOP)
+	_price.position = Vector2(0, PRICE_TOP)
+	_price.size = Vector2(SIZE.x, PRICE_HEIGHT)
 	if look == BoosterArt.Look.RARE and definition.is_coupon():
 		# The word moves right by half the diamond's room; the diamond stands before it.
 		_price.position.x += _diamond_room() / 2.0
@@ -111,6 +126,16 @@ func _init(
 		_badge.name = BADGE
 		_badge.position = BADGE_AT
 		add_child(_badge)
+
+
+## Whether the cart holds it (its sprite filled, not a silhouette).
+func owned() -> bool:
+	return in_cart > 0
+
+
+## The sprite (for tests).
+func art() -> TextureRect:
+	return _art
 
 
 ## The coupon word's size: COUPON_WORD_SIZE, smaller (down to COUPON_WORD_MIN) while `word` is
@@ -144,10 +169,14 @@ func diamond_rect() -> Rect2:
 	var side: float = RARE_DIAMOND.size() * DIAMOND_PIXEL
 	var word_left: float = _price.position.x + (_price.size.x - word) / 2.0
 	# Centred on the capitals (about 0.7 of the size tall, standing on the baseline).
+	var text_top: float = (
+		_price.position.y
+		+ (_price.size.y - font.get_ascent(text_size) - font.get_descent(text_size)) / 2.0
+	)
 	var at: Vector2 = even_floor(
 		Vector2(
 			word_left - DIAMOND_GAP - side,
-			_price.position.y + font.get_ascent(text_size) - text_size * 0.35 - side / 2.0
+			text_top + font.get_ascent(text_size) - text_size * 0.35 - side / 2.0
 		)
 	)
 	return Rect2(at, Vector2(side, side))
@@ -191,12 +220,49 @@ func _notification(what: int) -> void:
 
 
 func _draw() -> void:
-	if lit:
-		var rect: Rect2 = Rect2(Vector2.ZERO, SIZE)
-		draw_rect(rect, HOVER_FILL)
-		draw_rect(rect.grow(-HOVER_LINE / 2.0), Palette.MUSTARD, false, HOVER_LINE)
+	if owned():
+		_draw_insert()
+	if owned() or card.is_coupon():
+		_draw_sticker()
 	for cell: Rect2 in diamond_pixels():
 		draw_rect(cell, _coupon_ink())
+	if lit:
+		var rect: Rect2 = Rect2(Vector2.ZERO, SIZE)
+		draw_rect(rect.grow(-HOVER_LINE / 2.0), Palette.MUSTARD, false, HOVER_LINE)
+
+
+## The cream insert (2 px art pixels): an ink rim, its light colour at the top fading to cream.
+func _draw_insert() -> void:
+	var outer: Rect2 = Rect2(Vector2.ZERO, SIZE).grow(-INSERT_INSET)
+	draw_rect(outer.grow_individual(-2, 0, -2, 0), Palette.INK)
+	draw_rect(outer.grow_individual(0, -2, 0, -2), Palette.INK)
+	var inner: Rect2 = outer.grow(-2)
+	draw_rect(inner, Palette.CREAM)
+	draw_rect(Rect2(inner.position, Vector2(inner.size.x, INSERT_LIGHT)), _light)
+	for row: int in range(INSERT_FADE_ROWS):
+		for x: int in range((row % 2) * 2, int(inner.size.x), 4):
+			var at: Vector2 = inner.position + Vector2(x, INSERT_LIGHT + row * 2)
+			draw_rect(Rect2(at, Vector2(2, 2)), _light)
+	draw_rect(Rect2(inner.position.x, inner.end.y - 2, inner.size.x, 2), Palette.CREAM_SHADE)
+
+
+## The price's mustard sticker, or a coupon's ink plate, as wide as its words (on even px).
+func _draw_sticker() -> void:
+	var font: Font = _price.get_theme_font("font")
+	var text_size: int = _price.get_theme_font_size("font_size")
+	var words: float = font.get_string_size(_price.text, HORIZONTAL_ALIGNMENT_LEFT, -1, text_size).x
+	var width: float = ceilf((words + STICKER_PAD * 2.0) / 2.0) * 2.0
+	if look == BoosterArt.Look.RARE and card.is_coupon():
+		width += ceilf(_diamond_room() / 2.0) * 2.0
+	var at: Vector2 = even_floor(Vector2((SIZE.x - width) / 2.0, PRICE_TOP))
+	var sticker: Rect2 = Rect2(at, Vector2(width, PRICE_HEIGHT))
+	var coupon: bool = card.is_coupon()
+	draw_rect(sticker.grow_individual(-2, 0, -2, 0), Palette.INK)
+	draw_rect(sticker.grow_individual(0, -2, 0, -2), Palette.INK)
+	var face: Rect2 = sticker.grow(-2)
+	draw_rect(face, Palette.TEAL_BLACK if coupon else Palette.MUSTARD_LIGHT)
+	var foot: Color = Palette.TEAL_DARK if coupon else Palette.MUSTARD
+	draw_rect(Rect2(face.position.x, face.end.y - 2, face.size.x, 2), foot)
 
 
 ## The in-cart badge: "×N" in the number font on green, teal with a pixel diamond after it when a

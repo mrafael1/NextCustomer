@@ -162,7 +162,7 @@ const COLOUR_TIP := "colour"
 ## --deck's full cart: the first copies upgraded to these tiers, and this coupon added.
 const FULL_TIERS: Dictionary[String, String] = {"banana": "banana_golden", "milk": "milk_big"}
 const FULL_COUPON_ID := "multipack"
-## --deck's Run info: the inspection of the shift and the prize the chooser is for.
+## --deck's STOCK BOOK page (info): the inspection of the shift; and the prize the chooser is for.
 const DECK_INSPECTION := "short_belt"
 const CHOOSER_PRIZE_ID := "breakfast_sticker"
 ## --machine's shift (#77): shift 1's passing row (Milk, Multipack, Milk x5 = 109), and the
@@ -676,7 +676,7 @@ func reveal(spec: String) -> void:
 
 ## Opens the deck view (#56) on a new run (SEED), as the top bar's Cart would; capture() then names
 ## its file shift_screen_deck_<page>[_<options>]_<w>x<h>.png. `spec` is "<page>[,<option>...]":
-## the page is cart, info (Run info: the capture's upgrades, a Short belt shift, the stock) or
+## the page is cart, info (the STOCK BOOK: the capture's upgrades, a Short belt shift) or
 ## chooser (the machine's deck-full chooser for a Breakfast sticker, on a full cart);
 ## the options:
 ## - seed=<n>: the run's seed;

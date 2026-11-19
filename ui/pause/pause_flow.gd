@@ -84,6 +84,7 @@ func _init(screen: ShiftScreen, log_service: EventLogService) -> void:
 			_guide.replay_offer = _replay_offer
 			_guide.discovered = _found_coupon
 			_guide.replay_requested.connect(_on_replay_requested)
+			_guide.offer_collection(func() -> ProfileState: return _screen.profile, screen._balance)
 	settings.apply(screen.profile, screen._music, true)
 
 
