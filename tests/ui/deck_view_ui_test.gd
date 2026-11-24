@@ -14,6 +14,9 @@ const STARTER := "res://data/decks/starter.tres"
 const MAX_PANEL_HEIGHT := 592.0
 const WINDOWS: Array[Vector2] = [Vector2(1280, 720), Vector2(1920, 1080)]
 const BALANCE := "res://data/balance/balance.tres"
+## The price box's foot under the art window's top (art px: BoosterArt's price window, 2 down and
+## 12 tall).
+const PRICE_BOX_FOOT := 14
 var _folder: String = ""
 
 
@@ -616,6 +619,65 @@ func test_numbers_print_in_the_number_font() -> void:
 	assert_str(view.title_text()).is_equal(DeckView.INFO_TITLE)
 	view.show_page(false)
 	assert_str(view.title_text()).starts_with("Your cart")
+
+
+## A graded run's marks on the Cart's cards at 1280x720 (the user's play test of 2026-11-24: they
+## covered the family glyphs): on every card with a shrink and a date on some of its copies, the
+## BEST BEFORE tag, the "1/2" copies chip and the "-1€" sticker stand inside the art window, clear
+## of the family glyph tiles and the START chip, the second row under the price box.
+func test_the_grade_marks_clear_the_card_glyphs() -> void:
+	var screen: ShiftScreen = await _screen_at(Vector2(1280, 720))
+	screen.start_new_run(20261014, false)
+	var run: RunState = screen.run
+	run.balance = GradeApply.balance_for(run.balance, 5)
+	run.grade = 5
+	var marked: int = 0
+	for group: DeckSummary.Group in DeckSummary.groups(run.deck.cards):
+		if group.card.is_product():
+			run.twists.shrinks[group.card.product_card().id] = 1
+		var dated: CardInstance = group.copies[group.copies.size() - 1]
+		run.twists.expiry[dated.instance_id] = GradeRules.playing_shift(run) + 2
+	screen._on_deck_button_pressed()
+	await get_tree().create_timer(0.4).timeout
+	var window: Rect2 = screen.get_viewport_rect()
+	for cell: DeckCell in screen._deck_view.cells():
+		var tags: GradeTags = cell.get_node_or_null(NodePath(GradeTags.NODE_NAME)) as GradeTags
+		if tags == null:
+			continue
+		marked += 1
+		var id: String = String(cell.card.id)
+		var win: Rect2i = CartCardDraw.window(cell.look)
+		var art: Rect2 = Rect2(
+			cell.get_global_transform() * (Vector2(win.position) * DeckCell.UNIT),
+			Vector2(win.size) * DeckCell.UNIT
+		)
+		var price_foot: float = art.position.y + PRICE_BOX_FOOT * DeckCell.UNIT
+		var parts: Array[Control] = [tags.date_face(), tags.copies_chip(), tags.shrink_face()]
+		for part: Control in parts:
+			if part == null:
+				continue
+			var rect: Rect2 = part.get_global_rect()
+			assert_bool(window.encloses(rect)).override_failure_message(id).is_true()
+			assert_bool(art.encloses(rect)).override_failure_message(id).is_true()
+			for glyph: FamilyGlyph in cell.family_glyphs():
+				(
+					assert_bool(rect.intersects(glyph.get_global_rect()))
+					. override_failure_message(id)
+					. is_false()
+				)
+			for mark: RevealChip in cell.marks():
+				(
+					assert_bool(rect.intersects(mark.get_global_rect()))
+					. override_failure_message(id)
+					. is_false()
+				)
+			if part != tags.date_face() and tags.date_face() != null:
+				assert_float(rect.position.y).override_failure_message(id).is_greater_equal(
+					price_foot
+				)
+		if tags.copies_chip() != null:
+			assert_str(tags.copies_chip().text).is_equal("1/%d" % tags.copies)
+	assert_int(marked).is_greater(0)
 
 
 func _screen() -> ShiftScreen:

@@ -94,6 +94,22 @@ const MARK_GAP := 2.0
 ## A hovered or selected item's mark moves this far sideways (with the sprite's LIFT up), inside
 ## the scan brackets' corner (mock-up B2's hovered coupon).
 const MARK_LIFTED_NUDGE := -6.0
+## A promo tag (PromoTag; _place_promo places it as it is stuck on the sprite) on a belt item:
+## PROMO_OVERHANG px left of the art's visible left edge, at least PROMO_EDGE in from the cell's,
+## its right edge PROMO_STACK_GAP short of the planning stickers' stack (PlanningLayer.STACK_LEFT,
+## a WASTED label's shift in), its top PROMO_FOOT_GRIP over the art's visible foot: stuck on the
+## art's foot and hanging over the mat, under every sticker stack (its own and its neighbours',
+## whose WASTED labels reach over it; PlanningLayer.STACK_BOTTOM_Y); in a basket
+## its right edge PROMO_OVERHANG past the art's visible right, inside the cell, its foot on the rim
+## (BASKET_RIM_Y).
+const PROMO_OVERHANG := 6.0
+const PROMO_EDGE := 2.0
+const PROMO_STACK_GAP := 4.0
+const PROMO_FOOT_GRIP := 6.0
+## The least of the foot a belt tag grips (a boosted item's), and the sticker stacks' floor in a
+## 7-slot cell's coordinates (PlanningLayer.STACK_BOTTOM_Y; a scaled 8-slot cell's is lower).
+const PROMO_MIN_GRIP := 2.0
+const PROMO_STACKS_FLOOR := PlanningLayer.STACK_BOTTOM_Y - ShiftStage.ROW_POSITION.y
 ## The tray's soft shadow under the sprite.
 const TRAY_SHADOW := Rect2(14, 94, 80, 8)
 const SHADOW_ALPHA := 0.25
@@ -235,6 +251,7 @@ func set_form(item_form: Form) -> void:
 	_plaque.position.y = badge_rest_y()
 	_place_mark()
 	_show_mix_mark()
+	_place_promo(_sprite.get_node_or_null(NodePath(PromoTag.NODE_NAME)))
 	queue_redraw()
 
 
@@ -315,6 +332,37 @@ func tags() -> PackedStringArray:
 
 func sprite() -> TextureRect:
 	return _sprite
+
+
+## Sticks `node` where a promo tag sits on the item, in its sprite's coordinates (PromoTag: it
+## rides the sprite; see PROMO_OVERHANG; a tray item's as on the belt); any other node is left.
+func _place_promo(node: Node) -> void:
+	var tag: Control = node as Control
+	if tag == null or tag.name != PromoTag.NODE_NAME:
+		return
+	var tag_size: Vector2 = tag.size
+	var texture: Texture2D = _sprite.texture
+	var art: Rect2i = ContactShadow.opaque_rect(texture)
+	var texel: Vector2 = SPRITE_SIZE / Vector2(texture.get_size())
+	var left: float = art.position.x * texel.x
+	var right: float = art.end.x * texel.x
+	if form == Form.BASKET:
+		var lowest: float = -_stand.position.x
+		var highest: float = maxf(size.x - _stand.position.x - tag_size.x, lowest)
+		var x: float = clampf(right + PROMO_OVERHANG - tag_size.x, lowest, highest)
+		var y: float = BASKET_RIM_Y - _stand.position.y - tag_size.y
+		tag.position = Vector2(x, y).snappedf(ArtStyle.ART_SCALE)
+		return
+	var stack_left: float = PlanningLayer.STACK_LEFT + PlanningLayer.STACK_FIZZLE_SHIFT
+	var most: float = stack_left - PROMO_STACK_GAP - tag_size.x - _stand.position.x
+	var least: float = PROMO_EDGE - _stand.position.x
+	var at_x: float = clampf(left - PROMO_OVERHANG, least, maxf(most, least))
+	# A boost lifts the art (and the tag) toward the sticker stacks' floor: the tag then grips
+	# less of the foot, never less than PROMO_MIN_GRIP, so it never reaches into a stack.
+	var foot: float = art.end.y * texel.y
+	var floor_y: float = PROMO_STACKS_FLOOR - _stand.position.y + _boost_height()
+	var top: float = minf(maxf(foot - PROMO_FOOT_GRIP, floor_y), foot - PROMO_MIN_GRIP)
+	tag.position = Vector2(at_x, top).snappedf(ArtStyle.ART_SCALE)
 
 
 ## Tints the sprite itself: `body` draws nothing, so its self_modulate would not show. The
@@ -580,6 +628,7 @@ func _show_boost() -> void:
 					_halo_tween.tween_interval(halo_step_s)
 					_halo_tween.tween_callback(_set_halo.bind(rings))
 	_place_body()
+	_place_promo(_sprite.get_node_or_null(NodePath(PromoTag.NODE_NAME)))  # Clear of the stacks.
 
 
 ## Shows `rings` rings of the halo: its rect grown (rings + 1) art pixels round the sprite, the
@@ -616,6 +665,7 @@ func _build() -> void:
 	body.pivot_offset = SPRITE_SIZE / 2.0
 	_stand.add_child(body)
 	_sprite = item_art(definition)
+	_sprite.child_entered_tree.connect(_place_promo)  # A promo tag sticks on (PromoTag).
 	body.add_child(_sprite)
 	_name_label = _sprite.get_node_or_null(PRINTED_NAME) as Label
 	_plaque = PayoutPlaque.new()

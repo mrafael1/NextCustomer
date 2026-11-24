@@ -32,7 +32,9 @@ extends RefCounted
 ## and the item's mini (the results screen draws them), "Biggest payout · Golden Milk · 264€" and
 ## the shift on the right. A run with no highlight prints none.
 
-enum Tone { HEADLINE, RULE, SHIFT, DETAIL, SHORTFALL, COINS, COINS_TOTAL, WEEK, HIGHLIGHT }
+## GRADE (#182): a graded run's stamp under the headline ("GRADE 3 BEATEN", or its grade and name
+## on a lost run).
+enum Tone { HEADLINE, RULE, SHIFT, DETAIL, SHORTFALL, COINS, COINS_TOTAL, WEEK, HIGHLIGHT, GRADE }
 
 ## Characters per shift and coin line, so the columns line up in the monospace receipt font.
 const WIDTH := 44
@@ -113,6 +115,9 @@ static func lines(
 	var won: bool = run.phase == RunState.Phase.WON
 	var width: int = WIDE_WIDTH if columns else WIDTH
 	var printed: Array[Line] = [Line.new("RUN WON!" if won else "RUN OVER", Tone.HEADLINE)]
+	var stamp: String = grade_stamp(run)
+	if not stamp.is_empty():
+		printed.append(Line.new(stamp, Tone.GRADE))
 	printed.append(Line.new(rule(width), Tone.RULE))
 	var week: int = 0
 	for record: ShiftRecord in run.history:
@@ -222,16 +227,31 @@ static func visit_text(visit: MachineVisit) -> String:
 	return "%s%s: %s" % [prefix, chute, given]
 
 
-## The coins at the bottom: one line per payout part, then the total, `width` characters each.
+## A graded run's stamp under the headline (#182): "GRADE 3 BEATEN" on a win, "GRADE 3 ·
+## SUPERVISOR" on a loss; "" at grade 0.
+static func grade_stamp(run: RunState) -> String:
+	if run.grade <= 0:
+		return ""
+	if run.phase == RunState.Phase.WON:
+		return "GRADE %d BEATEN" % run.grade
+	var grade: GradeDefinition = GradeApply.grade_of(run.balance, run.grade)
+	return "GRADE %d · %s" % [run.grade, grade.display_name] if grade != null else ""
+
+
+## The coins at the bottom: one line per payout part (a won graded run's bonus, #182, after the
+## shifts'), then the total, `width` characters each.
 static func coin_lines(
 	payout: CoinPayout, coins_owned: int, width: int = WIDTH
 ) -> PackedStringArray:
-	return PackedStringArray(
-		[
-			_line("Shifts met %d" % payout.shifts_passed, "+%d" % payout.shift_coins, width),
-			_line("COINS +%d" % payout.total(), "(you have %s)" % _owned_text(coins_owned), width),
-		]
+	var found: PackedStringArray = PackedStringArray(
+		[_line("Shifts met %d" % payout.shifts_passed, "+%d" % payout.shift_coins, width)]
 	)
+	if payout.grade_coins > 0:
+		found.append(_line("Grade %d win" % payout.grade, "+%d" % payout.grade_coins, width))
+	found.append(
+		_line("COINS +%d" % payout.total(), "(you have %s)" % _owned_text(coins_owned), width)
+	)
+	return found
 
 
 ## The header of the week holding the 1-based `shift_number` ("WEEK 3 · HOLIDAY").

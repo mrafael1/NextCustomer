@@ -1,6 +1,7 @@
 [gd_resource type="Resource" script_class="BalanceDefinition" format=3]
 
 [ext_resource type="Script" path="res://core/balance_definition.gd" id="1_balance"]
+[ext_resource type="Script" path="res://core/grade_definition.gd" id="1_grade_script"]
 [ext_resource type="Script" path="res://core/card_definition.gd" id="2_card"]
 [ext_resource type="Resource" path="res://data/cards/repeat.tres" id="c11_repeat"]
 [ext_resource type="Resource" path="res://data/cards/final_markdown.tres" id="c12_final_markdown"]
@@ -73,6 +74,12 @@
 [ext_resource type="Resource" path="res://data/weeks/clearance_week.tres" id="w5_clearance_week"]
 [ext_resource type="Resource" path="res://data/balance/machine.tres" id="m1_machine"]
 [ext_resource type="Resource" path="res://data/balance/highlight.tres" id="h1_highlight"]
+[ext_resource type="Resource" path="res://data/grades/grade_0.tres" id="g0_grade"]
+[ext_resource type="Resource" path="res://data/grades/grade_1.tres" id="g1_grade"]
+[ext_resource type="Resource" path="res://data/grades/grade_2.tres" id="g2_grade"]
+[ext_resource type="Resource" path="res://data/grades/grade_3.tres" id="g3_grade"]
+[ext_resource type="Resource" path="res://data/grades/grade_4.tres" id="g4_grade"]
+[ext_resource type="Resource" path="res://data/grades/grade_5.tres" id="g5_grade"]
 
 [resource]
 script = ExtResource("1_balance")
@@ -113,3 +120,4 @@ restocks_per_run = 1
 regular_offer_max = 3
 machine = ExtResource("m1_machine")
 highlight = ExtResource("h1_highlight")
+grades = Array[ExtResource("1_grade_script")]([ExtResource("g0_grade"), ExtResource("g1_grade"), ExtResource("g2_grade"), ExtResource("g3_grade"), ExtResource("g4_grade"), ExtResource("g5_grade")])

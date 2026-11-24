@@ -99,6 +99,12 @@ extends Resource
 ## The final receipt's BEST line (v1.37, data/balance/highlight.tres): its bars, kinds and words
 ## (RunHighlight). None: no line.
 @export var highlight: HighlightDefinition
+## The difficulty grades (#182, data/grades/grade_<n>.tres), grade 0 first: a run at grade n plays
+## this balance with grades 1 to n applied (GradeApply.balance_for). Empty: grade 0 only.
+@export var grades: Array[GradeDefinition] = []
+## The grade twists a run plays (v1.49, GradeRules): empty in the data; GradeApply.balance_for's
+## copy for a grade lists those of grades 1 to n.
+@export var twists: Array[GradeTwist] = []
 
 
 ## The aisle a card is stocked from (full build plan 7.2), or null for a staple or a coupon. A

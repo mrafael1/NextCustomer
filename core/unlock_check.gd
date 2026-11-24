@@ -36,6 +36,8 @@ static func is_met(
 		UnlockCondition.Kind.FINISH_RUNS:
 			var ended: bool = run.phase == RunState.Phase.WON or run.phase == RunState.Phase.LOST
 			return ended and earlier_runs + 1 >= condition.amount
+		UnlockCondition.Kind.WIN_AT_GRADE:
+			return run.phase == RunState.Phase.WON and run.grade >= condition.amount
 	return false
 
 

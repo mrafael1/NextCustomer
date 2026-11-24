@@ -448,7 +448,8 @@ func _build(model: WeekCardModel) -> void:
 	column.add_child(hint)
 
 
-## "TIME CARD" and, right-aligned, "CASHIER · TILL 4" over "WEEK 2 OF 3", over an ink rule.
+## "TIME CARD" and, right-aligned, "CASHIER · TILL 4" (a graded run's "GRADE 3 · TILL 4", #182) over
+## "WEEK 2 OF 3", over an ink rule.
 func _head(model: WeekCardModel) -> Control:
 	var head: VBoxContainer = _column(4)
 	var notch_room: Control = Control.new()
@@ -464,7 +465,7 @@ func _head(model: WeekCardModel) -> Control:
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(title)
 	var sub: Label = _bold(
-		"%s\n%s" % [WeekCardModel.CARD_SUB, model.head()], SUB_SIZE, Palette.MUSTARD_DARKEST
+		"%s\n%s" % [model.staff_line, model.head()], SUB_SIZE, Palette.MUSTARD_DARKEST
 	)
 	sub.name = "Sub"
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT

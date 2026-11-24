@@ -9,6 +9,6 @@ group = &"coupons"
 title = "Multipack"
 mark = 4
 mark_value = "multipack"
-rule = "Put it after an item: later items of that item's family pay ×3. {fam:Food} and {fam:Breakfast} don't count."
+rule = "Put it after an item: later items of that item's family pay ×3. {fam:Food} doesn't count."
 example_row = PackedStringArray("milk", "multipack", "milk", "milk")
 example_total = 37

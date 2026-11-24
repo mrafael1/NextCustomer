@@ -11,6 +11,9 @@ extends RefCounted
 ##
 ## from_text() reads a plain tip ("Dairy · Milk is a Dairy item", or lines split by "\n"): its first
 ## part is the title when it is short, the rest the rule.
+##
+## `lines` (#182 v1.49, the grade badge's stacked rules) is a list under the rule: one short line
+## each, drawn by TipCard as a bulleted row of its own, so separate rules read at a glance.
 
 enum Kind { WORD, KEYWORD, FAMILY, PERK, STATUS, PIN, COUPON, PRICE, ITEM, BROKEN }
 enum Live { INFO, OK, BAD, OFF }
@@ -35,6 +38,8 @@ var body: String = ""
 var cond: String = ""
 var live: String = ""
 var live_kind: Live = Live.INFO
+## The list under the rule (TipMarkup text, one item each; empty for none).
+var lines: PackedStringArray = PackedStringArray()
 ## The click's action on the footer ("TIME CARD"; "" for none) and whether a right-click opens
 ## the handbook (GlyphTips sets it from its guide_for).
 var click: String = ""
@@ -78,6 +83,7 @@ func copy() -> TipSpec:
 	]:
 		made.set(field, get(field))
 	made.subs = subs.duplicate()
+	made.lines = lines.duplicate()
 	return made
 
 
@@ -128,7 +134,9 @@ static func sentences(text: String) -> String:
 func shown_subs() -> PackedStringArray:
 	var found: PackedStringArray = PackedStringArray()
 	var named: PackedStringArray = (
-		subs if not subs.is_empty() else TipMarkup.subs_of(body + " " + cond)
+		subs
+		if not subs.is_empty()
+		else TipMarkup.subs_of(" ".join(PackedStringArray([body, cond]) + lines))
 	)
 	for key: String in named:
 		if found.size() >= MAX_SUBS:
@@ -155,7 +163,9 @@ func is_about(key: String) -> bool:
 ## Its plain words (title, tag, rule, fine print, live line, footer), for checks.
 func plain() -> String:
 	var parts: PackedStringArray = PackedStringArray()
-	for part: String in [title, tag, body, cond, live]:
+	for part: String in (
+		PackedStringArray([title, tag, body]) + lines + PackedStringArray([cond, live])
+	):
 		if not part.is_empty():
 			parts.append(TipMarkup.plain(part))
 	return "\n".join(parts)

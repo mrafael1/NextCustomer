@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="GradeDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/grade_definition.gd" id="1_grade"]
+
+[resource]
+script = ExtResource("1_grade")
+id = &"cashier"
+display_name = "CASHIER"
+rule_text = "-1 redraw per shift"
+base_redraws = 1
+coin_bonus = 1

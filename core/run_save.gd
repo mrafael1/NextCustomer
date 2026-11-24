@@ -113,7 +113,21 @@ extends RefCounted
 ## STORE keeps its boosters (the pick it made is dropped), and a run in play that took a pack keeps
 ## its starting deck as dealt (its pack's cards read as dealt products; StartingDeck.could_deal is
 ## not asked, the pack being gone).
-const FORMAT_VERSION := 19
+## Version 20 (v1.49, #182 difficulty grades): the run's `grade`, written only above 0, played with
+## GradeApply.balance_for; a save without it reads at grade 0, a grade not listed is refused.
+## Version 21: `grade_state` (GradeState, the grade twists), only when not empty; a version 20 save
+## reads with none. Version 22 (the 5-grade ladder of 2026-11-23): a version 20 or 21 save reads
+## with its grade mapped (RunSaveMigration.old_ladder_grade). Version 23 (play test of 2026-11-24):
+## `grade_state`'s `promo_cuts`; an older save's promo days read at RunSaveMigration.V22_PROMO_CUT.
+const FORMAT_VERSION := 23
+## Version 22: version 23's form before the random promo cuts (each promo day at the fixed cut).
+const BEFORE_PROMO_CUTS_VERSION := 22
+## Version 21: version 22's form on the 7-grade ladder, read with its grade mapped.
+const OLD_LADDER_VERSION := 21
+## Version 20: version 21's form before the grade twists (no twist state, its grade mapped).
+const BEFORE_TWISTS_VERSION := 20
+## Version 19: version 20's form before the difficulty grades, read as it is (grade 0).
+const BEFORE_GRADES_VERSION := 19
 ## Version 18: version 19's form with the starter pack fields, read with them ignored.
 const BEFORE_NO_PACKS_VERSION := 18
 ## Version 17: version 18's form with the Cold cases aisle's old id, read with it renamed.
@@ -146,6 +160,10 @@ const BEFORE_STARTER_PACKS_VERSION := 6
 ## The versions read as they are (older ones through RunSaveMigration).
 const READ_VERSIONS: Array[int] = [
 	FORMAT_VERSION,
+	BEFORE_PROMO_CUTS_VERSION,
+	OLD_LADDER_VERSION,
+	BEFORE_TWISTS_VERSION,
+	BEFORE_GRADES_VERSION,
 	BEFORE_NO_PACKS_VERSION,
 	BEFORE_DAIRY_VERSION,
 	BEFORE_GUIDED_VERSION,
@@ -246,6 +264,11 @@ static func to_dictionary(saved_run: RunState, saved_run_id: String, played_ms: 
 		"regulars": _ids(saved_run.starter.core_cards),
 		"start_setup": _start_setup_data(saved_run),
 	}
+	# The difficulty grade (v20), only above grade 0.
+	if saved_run.grade > 0:
+		data["grade"] = saved_run.grade
+	if not saved_run.twists.is_empty():  # The grade twists' state (v21), only when not empty.
+		data["grade_state"] = saved_run.twists.to_dictionary()
 	# The guided first run's fields (v17), only for a guided run: a normal run's save is unchanged.
 	if saved_run.guided:
 		data["guided"] = true
@@ -332,7 +355,19 @@ static func from_dictionary(saved: Dictionary, lookup: ContentLookup) -> RunSave
 	var phase_index: int = PHASE_NAMES.find(reader.text("phase"))
 	if not reader.ok or phase_index == -1:
 		return null
-	var restored: RunState = RunState.new(reader.int64("seed"), starter, lookup.balance, stock)
+	var grade: Variant = data.get("grade", 0)
+	if SaveReader.is_whole(grade) and int(version) in [OLD_LADDER_VERSION, BEFORE_TWISTS_VERSION]:
+		grade = RunSaveMigration.old_ladder_grade(int(grade))  # The 7-grade ladder's (v22).
+	if not SaveReader.is_whole(grade) or not GradeApply.is_valid(lookup.balance, int(grade)):
+		return null
+	var balance: BalanceDefinition = GradeApply.balance_for(lookup.balance, int(grade))
+	var restored: RunState = RunState.new(reader.int64("seed"), starter, balance, stock)
+	restored.grade = int(grade)
+	if data.has("grade_state"):
+		var old_cut: int = RunSaveMigration.V22_PROMO_CUT if int(version) < FORMAT_VERSION else -1
+		restored.twists = GradeState.from_data(data["grade_state"], old_cut)
+		if restored.twists == null:
+			return null
 	restored.start_offer = offer
 	if setup_data != null:
 		if not setup_data is Dictionary:

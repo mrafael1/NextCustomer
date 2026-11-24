@@ -61,7 +61,8 @@ static func events_for(
 	return events
 
 
-## Every event `run`'s current shift is played under (events_for), then its worn pins' (#132).
+## Every event `run`'s current shift is played under (events_for), then its grade twists' and worn
+## pins' (#132, v1.49).
 ## A shift a save from before v0.70 was on (RunState.pre_week_shift) keeps playing without its
 ## week event.
 static func shift_events(run: RunState) -> Array[InspectionDefinition]:
@@ -69,8 +70,11 @@ static func shift_events(run: RunState) -> Array[InspectionDefinition]:
 	var events: Array[InspectionDefinition] = run.inspections.duplicate()
 	if shift_number != run.pre_week_shift:
 		events = events_for(run.balance, shift_number, run.inspections)
-	# A worn pin's events (#132: Express lane) come last, after the week event.
+	# A grade twist's day (v1.49: the Picky regular) after the week event; a worn pin's events
+	# (#132: Express lane) after it; Shrinkflation's last (GradeRules.tail_events).
+	events.append_array(GradeRules.day_events(run))
 	events.append_array(RunPins.pin_events(run))
+	events.append_array(GradeRules.tail_events(run))
 	return events
 
 

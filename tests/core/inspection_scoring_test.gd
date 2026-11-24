@@ -75,6 +75,9 @@ func test_the_step_is_a_payout_override_from_the_inspection() -> void:
 	var data: Dictionary = step.to_dictionary()
 	assert_str(data["source_kind"]).is_equal("INSPECTION")
 	assert_int(data["source_index"]).is_equal(1)
+	# A denial, not a promo's cut (#182: only FamilyPayCutRule sets promo_cut).
+	assert_int(step.promo_cut).is_equal(0)
+	assert_bool(data.has("promo_cut")).is_false()
 	# Cheese after Bread: base, its own +4, the override, then its payout.
 	assert_array(_types_at(result, 2)).is_equal(
 		["BASE/CARD", "FLAT/CARD", "PAYOUT_OVERRIDE/INSPECTION", "PAYOUT/CARD"]

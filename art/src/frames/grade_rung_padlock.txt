@@ -1,0 +1,13 @@
+; A locked grade's mark: a small mustard padlock, hung on the rung's bottom right corner by code
+; (GradeRung), clear of the grade's centred number (the user's 2026-11-23 polish).
+; 8x8 art px, shown at 2x.
+@size 8x8
+@kind icon
+..####..
+.#::::#.
+.#:..:#.
+########
+#yMMMMM#
+#MMM#MM#
+#mmm#mm#
+########

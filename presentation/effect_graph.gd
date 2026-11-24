@@ -139,12 +139,17 @@ static func _gains(steps: Array[ScoreStep]) -> PackedInt32Array:
 	return gains
 
 
-## Whether a PAYOUT_OVERRIDE after step `index` replaces its slot's value.
+## Whether a PAYOUT_OVERRIDE after step `index` replaces its slot's value (a promo's cut does
+## not: it cuts the value the step helped make, #182).
 static func _overridden_later(steps: Array[ScoreStep], index: int) -> bool:
 	var slot: int = steps[index].slot
 	for later: int in range(index + 1, steps.size()):
 		var step: ScoreStep = steps[later]
-		if step.slot == slot and step.step_type == ScoreStep.StepType.PAYOUT_OVERRIDE:
+		if (
+			step.slot == slot
+			and step.step_type == ScoreStep.StepType.PAYOUT_OVERRIDE
+			and step.promo_cut == 0
+		):
 			return true
 	return false
 

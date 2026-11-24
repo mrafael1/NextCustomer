@@ -24,6 +24,8 @@ const STEP_STYLES: Array[ReceiptView.LineStyle] = [
 
 const FIZZLE_ICON := preload("res://art/icons/fizzle.png")
 const WARNING_ICON := preload("res://art/icons/warning.png")
+## A promo's cut (#182 grade 5): the small promo tag (art/icons/promo_tag_mini), at MARK_RECT.
+const PROMO_ICON := preload("res://art/icons/promo_tag_mini.png")
 ## A written-off row's mark (v1.29): the Write-off coupon's mini, at twice its pixels in
 ## WRITTEN_OFF_RECT (its 9 px don't scale to MARK_RECT's 14).
 const WRITTEN_OFF_ICON := preload("res://art/icons/coupon_write_off_mini.png")
@@ -81,9 +83,32 @@ static func perk(line: Control) -> void:
 	line.queue_redraw()
 
 
+## The mark an inspection's PAYOUT_OVERRIDE `step` puts on its row: PROMO for a promo's cut
+## (ScoreStep.promo_cut, #182 grade 5), else DENIED; NONE for any other step.
+static func override_mark(step: ScoreStep) -> ReceiptView.Mark:
+	if (
+		step.step_type != ScoreStep.StepType.PAYOUT_OVERRIDE
+		or step.source_kind != ScoreStep.SourceKind.INSPECTION
+	):
+		return ReceiptView.Mark.NONE
+	return ReceiptView.Mark.PROMO if step.promo_cut > 0 else ReceiptView.Mark.DENIED
+
+
+## How strongly a row mark holds its place (ReceiptView.slot_mark, ReceiptPrintRows): DENIED over
+## PROMO over the rest (a fizzle, a write-off: the first of those stays).
+static func mark_rank(kind: ReceiptView.Mark) -> int:
+	match kind:
+		ReceiptView.Mark.DENIED:
+			return 2
+		ReceiptView.Mark.PROMO:
+			return 1
+	return 0
+
+
 ## Puts `kind` on `line`: a "Mark" inside its right label, at MARK_RECT in the line's mark
 ## column, centred on its left label's first row (a wrapped fizzle's mark sits beside the
-## reason's start): the fizzle icon (FIZZLED), the warning icon (DENIED, at its own aspect) or
+## reason's start): the fizzle icon (FIZZLED), the warning icon (DENIED, at its own aspect), the
+## small promo tag (PROMO, a promo's cut, #182) or
 ## the Write-off coupon's mini (WRITTEN_OFF, v1.29: no fizzle, the item still pays; at
 ## WRITTEN_OFF_RECT); nothing for NONE. Its "mark" meta holds `kind`.
 static func mark(line: HBoxContainer, kind: ReceiptView.Mark) -> void:
@@ -93,6 +118,8 @@ static func mark(line: HBoxContainer, kind: ReceiptView.Mark) -> void:
 	var rect: Rect2 = MARK_RECT
 	if kind == ReceiptView.Mark.FIZZLED:
 		icon = _icon(FIZZLE_ICON)
+	elif kind == ReceiptView.Mark.PROMO:
+		icon = _icon(PROMO_ICON)
 	elif kind == ReceiptView.Mark.WRITTEN_OFF:
 		icon = _icon(WRITTEN_OFF_ICON)
 		rect = WRITTEN_OFF_RECT

@@ -25,7 +25,8 @@ extends RefCounted
 ##
 ## The beats: a plain card's scan beep, note, base pop and payout in one short beat; bonuses
 ## flying in from the card (or upgrade box) that caused them; multiplier thuds (no "×N" pop-up,
-## PR #138 round 7); copies; Soup's and the inspections' "denied"; sticker and Bundle moments; an
+## PR #138 round 7); copies; Soup's and the inspections' "denied" (a promo's cut pops its tag
+## instead, #182); sticker and Bundle moments; an
 ## armed effect's glow (the belt ride sends its sparks); fizzle puffs; the total's ticks at each
 ## landing; a register rattle on big payouts; the quota ding as the ding beat's last tick lands.
 
@@ -38,6 +39,10 @@ const OWN_BONUS_RISE := 0.3
 const STAMP_SLAM := 0.16
 const UPGRADE_FLIGHT := 0.3
 const DENIED_LANDING := 0.2
+## A promo beat's tag pop: its first bump, the smaller second one, and its click's level (dB).
+const PROMO_POP := 1.35
+const PROMO_PULSE := 1.15
+const PROMO_DB := -6.0
 const TAG_FLIGHT := 0.35
 const LINK_SHRINK := 0.45
 const RESET_FLIGHT := 0.3
@@ -147,6 +152,8 @@ func play(index: int) -> void:
 			_stamp(beat, step)
 		CountUpBeat.Kind.DENIED:
 			_denied(beat, step)
+		CountUpBeat.Kind.PROMO:
+			_promo(beat, step)
 		CountUpBeat.Kind.PAYOUT:
 			_payout(beat, step)
 		CountUpBeat.Kind.ARMED:
@@ -491,6 +498,29 @@ func _denied(beat: CountUpBeat, step: ScoreStep) -> void:
 	fade.tween_interval(0.25)
 	fade.tween_property(cross, "modulate:a", 0.0, 0.2)
 	fade.tween_callback(cross.queue_free)
+
+
+## A promo's price cut (#182 grade 5, the Picky regular's: ScoreStep.promo_cut): no denial (no
+## "0", no shake, no buzz). The item's red promo tag (PromoTag) pops twice as its price drops to the
+## promo price the score gives, with a soft price-label click; its event's chip punches lightly.
+func _promo(beat: CountUpBeat, step: ScoreStep) -> void:
+	_print_step(step)
+	var view: CardView = _views[step.slot]
+	var inspection: Control = _inspection_source(step)
+	if inspection != null:
+		_fx.punch(inspection, 1.1)
+	var tag: Control = PromoTag.of(view)
+	if tag != null and not plan.reduced_motion:
+		tag.pivot_offset = tag.size / 2.0
+		var pulse: Tween = _fx.scale_tween(tag).set_trans(Tween.TRANS_BACK)
+		pulse.set_ease(Tween.EASE_OUT)
+		pulse.tween_property(tag, "scale", Vector2.ONE * PROMO_POP, 0.07)
+		pulse.tween_property(tag, "scale", Vector2.ONE, 0.12)
+		pulse.tween_property(tag, "scale", Vector2.ONE * PROMO_PULSE, 0.06)
+		pulse.tween_property(tag, "scale", Vector2.ONE, 0.1)
+	sfx.play("tag", 1.0, PROMO_DB)
+	view.show_badge(step.value_after, false)
+	_land_unless_total(beat)
 
 
 ## A PAYOUT beat (a card that is not plain).

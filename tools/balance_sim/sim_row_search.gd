@@ -320,5 +320,23 @@ static func _inspection_key(inspections: Array[InspectionDefinition]) -> String:
 	var key: String = "!"
 	for inspection: InspectionDefinition in inspections:
 		if not inspection.rules.is_empty():
-			key += String(inspection.id) + ","
+			key += String(inspection.id) + _twist_key(inspection) + ","
+	return key
+
+
+## What a grade twist's day copy (GradeRules) sets on its rules under the shared event id
+## (#182): the Picky regular's family and cut and Shrinkflation's shrinks, so a best row cached
+## under one family, cut or week's shrinks is never reused under another.
+static func _twist_key(inspection: InspectionDefinition) -> String:
+	var key: String = ""
+	for rule: InspectionRule in inspection.rules:
+		if rule is FamilyPayCutRule:
+			var cut: FamilyPayCutRule = rule as FamilyPayCutRule
+			key += ":%s@%d" % [cut.tag, cut.pay_percent]
+		elif rule is ProductShrinkRule:
+			var shrinks: Dictionary[StringName, int] = (rule as ProductShrinkRule).shrinks
+			var ids: Array[StringName] = shrinks.keys()
+			ids.sort_custom(func(a: StringName, b: StringName) -> bool: return a < b)
+			for id: StringName in ids:
+				key += ":%s=%d" % [id, shrinks[id]]
 	return key

@@ -32,6 +32,8 @@ class Page:
 	var both_sides: bool = false
 	var pips: Array[PipLook] = []
 	var payday: bool = false
+	## A family's glyph in the sign's place (v1.49: the Picky regular's day), or null.
+	var glyph: Image
 
 	func copy() -> Page:
 		var other: Page = Page.new()
@@ -42,7 +44,12 @@ class Page:
 		other.both_sides = both_sides
 		other.pips = pips.duplicate()
 		other.payday = payday
+		other.glyph = glyph
 		return other
+
+	## The sign's art: the glyph, else the mark's icon (null for none).
+	func sign_art() -> Image:
+		return glyph if glyph != null else DayCalendarArt.icon(mark)
 
 
 ## The look's band, its dark row, its lit row and the word's ink (the mock-up's KIND).

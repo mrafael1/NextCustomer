@@ -68,6 +68,39 @@ func test_an_inspection_denial_marks_its_row() -> void:
 		assert_bool(paper.encloses(mark_rect)).override_failure_message(str(mark_rect)).is_true()
 
 
+## A promo's cut (#182 grade 5: the override carries ScoreStep.promo_cut) is no denial: its row
+## wears the small promo tag (PROMO), never the warning icon, over a fizzle of its own too; a real
+## denial keeps DENIED.
+func test_a_promo_cut_marks_its_row_with_the_promo_tag() -> void:
+	var result: ScoreResult = STUB._closing_result()
+	var cut: ScoreStep = result.steps[5]
+	assert_int(cut.step_type).is_equal(ScoreStep.StepType.PAYOUT_OVERRIDE)
+	assert_int(ReceiptDecor.override_mark(cut)).is_equal(ReceiptView.Mark.DENIED)
+	cut.promo_cut = 25
+	assert_int(ReceiptDecor.override_mark(cut)).is_equal(ReceiptView.Mark.PROMO)
+	result.steps.insert(6, STUB._step(ScoreStep.StepType.WASTED, "Coffee bonus"))
+	result.steps[6].slot = 1
+	assert_int(ReceiptView.slot_mark(result, 1)).is_equal(ReceiptView.Mark.PROMO)
+	_receipt.anchored = true
+	_receipt.reduced_motion = true
+	var names: PackedStringArray = PackedStringArray(NAMES)
+	_receipt.show_planning(PackedStringArray(), result, names, 3, 5)
+	await _frames(1)
+	_receipt.begin_count(PackedStringArray(), names)
+	for step: ScoreStep in result.steps:
+		_receipt.add_step(step, names)
+	_receipt.add_total(result.total)
+	await _frames(2)
+	var row: Control = _receipt.printed_rows()[1]
+	var marks: Array[Node] = row.find_children("Mark", "", true, false)
+	assert_int(marks.size()).is_equal(1)
+	assert_int(marks[0].get_meta("mark") as int).is_equal(ReceiptView.Mark.PROMO)
+	assert_object((marks[0] as TextureRect).texture).is_same(ReceiptDecor.PROMO_ICON)
+	var mark_rect: Rect2 = (marks[0] as Control).get_global_rect()
+	assert_bool(_receipt.get_global_rect().encloses(mark_rect)).is_true()
+	assert_vector(mark_rect.size).is_equal(ReceiptDecor.MARK_RECT.size)
+
+
 ## A context pass's fizzle on the denied item comes before the slot loop (before its row prints and
 ## before the inspection's override): the row still ends DENIED, the warning icon alone.
 func test_a_denial_replaces_an_earlier_fizzle() -> void:

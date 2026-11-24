@@ -37,8 +37,19 @@ extends RefCounted
 ## (v1.48, alpha feedback): Shift off, Express lane, Golden basket and Price gun got a milestone;
 ## an older profile with a run played keeps them (it owned them from the start: OPENED_PINS).
 ## Version 10 (v1.50, the puzzle shifts #183) adds solved_puzzles; older profiles read with none
-## solved.
-const FORMAT_VERSION := 10
+## solved. Version 11 (v1.49, #182 difficulty grades on the 5-grade ladder, merged after the
+## puzzle shifts) adds best_grade_won; an older profile without it reads with -1 (no grade won),
+## or 0 when it has a run won (grade 0 is the game it won). The grades' play-test builds (before
+## the puzzle shifts) saved best_grade_won as version 10 (the 7-grade ladder, grades 0 to 7) and
+## 11 (the 5-grade ladder), with no solved_puzzles: those read with their best grade kept and no
+## puzzle solved, a version 10 one's clamped to OLD_LADDER_TOP. So best_grade_won is read
+## whenever it is there, and a missing one is derived only for version 10 and older.
+const FORMAT_VERSION := 11
+## The last version saved before best_grade_won (a profile of this version or older that holds
+## it comes from a grades play-test build on the 7-grade ladder).
+const BEFORE_GRADES_VERSION := 10
+## The 5-grade ladder's top: an older profile's best grade clamps to it (a migration fact).
+const OLD_LADDER_TOP := 5
 ## The last version saved with the Cold cases aisle's old id.
 const BEFORE_DAIRY_VERSION := 7
 ## The last version saved while OPENED_PINS were owned from the start.
@@ -75,6 +86,9 @@ const RUNS_WON := &"runs_won"
 ## EventLogService.derived_stream(capsule_seed, PIN_STREAM % pins_bought).
 const PIN_STREAM := "pin_%d"
 
+## The highest difficulty grade a run of this profile won (#182, full build plan 7.5), -1 before
+## any win: grades up to one above it are open (open_grade). Never lowered.
+var best_grade_won: int = -1
 ## Coins from final receipts (full build plan 7.1); 1 coin = 1 capsule.
 var coins: int = 0
 ## Runs that ended (won or lost). The run being built has this run index (RunStock).
@@ -143,6 +157,12 @@ func has_variant(variant: CardDefinition) -> bool:
 	return variant.unlock_condition == null or unlocked_variants.has(variant.id)
 
 
+## The highest grade a run can start at (#182): one above the best grade won, at most the
+## ladder's top (`grade_count` - 1, GradeApply.count); 0 before any win.
+func open_grade(grade_count: int) -> int:
+	return clampi(best_grade_won + 1, 0, maxi(grade_count - 1, 0))
+
+
 ## Whether the badge pin is owned: no unlock condition, or unlocked (#122).
 func has_pin(pin: PinDefinition) -> bool:
 	return pin.unlock_condition == null or unlocked_pins.has(pin.id)
@@ -177,7 +197,8 @@ func set_reduced_motion(on: bool) -> void:
 ## Records a run that ended (won or lost; anything else is ignored and returns nothing):
 ## checks every locked deck's, variant's and badge pin's condition with the coupon uses and wins
 ## from before this run, then adds the run's coins (CoinPayout) and coupon uses, keeps the
-## highest level of each loyalty perk it picked (perk_levels; never lowered) and counts the run.
+## highest level of each loyalty perk it picked (perk_levels; never lowered), keeps a won run's
+## grade as best_grade_won when higher (#182: the next grade opens) and counts the run.
 ## Returns the ids unlocked now, decks first, then variants and pins, each in catalogue order.
 func record_run(run: RunState, catalogue: CatalogueDefinition) -> Array[StringName]:
 	var unlocked_now: Array[StringName] = []
@@ -209,6 +230,7 @@ func record_run(run: RunState, catalogue: CatalogueDefinition) -> Array[StringNa
 		perk_levels[id] = maxi(perk_levels.get(id, 0), picked[id])
 	if run.phase == RunState.Phase.WON:
 		stats[RUNS_WON] = int(stats.get(RUNS_WON, 0)) + 1
+		best_grade_won = maxi(best_grade_won, run.grade)
 	run_count += 1
 	return unlocked_now
 
@@ -341,6 +363,7 @@ func to_dictionary() -> Dictionary:
 		"worn_pins": _strings(worn_pins),
 		"pins_bought": pins_bought,
 		"solved_puzzles": _strings(solved_puzzles),
+		"best_grade_won": best_grade_won,
 	}
 
 
@@ -350,7 +373,8 @@ func to_dictionary() -> Dictionary:
 ## with no capsule seed and 0 draws, version 2 with no pins, version 4's staple_swaps are
 ## ignored, version 5 and older with no new figurines, version 6 and older with no perks
 ## collected, version 8 and older with a run played with OPENED_PINS unlocked, version 9 and older
-## with no puzzle solved. Unknown fields
+## with no puzzle solved, version 10 and older with grade 0 won when it has a run won (no grade won
+## otherwise) and a saved best grade clamped to 5. Unknown fields
 ## are ignored; missing fields keep their defaults.
 static func from_dictionary(data: Dictionary) -> ProfileState:
 	var version: Variant = data.get("format_version")
@@ -395,6 +419,14 @@ static func from_dictionary(data: Dictionary) -> ProfileState:
 	ok = ok and _read_names(data.get("worn_pins", []), profile.worn_pins)
 	ok = ok and _read_int(data, "pins_bought", profile, "pins_bought")
 	ok = ok and _read_names(data.get("solved_puzzles", []), profile.solved_puzzles)
+	var best: Variant = data.get("best_grade_won", -1)
+	ok = ok and _is_whole(best) and int(best) >= -1
+	if _is_whole(best):
+		profile.best_grade_won = maxi(int(best), -1)
+	if int(version) <= BEFORE_GRADES_VERSION:
+		if not data.has("best_grade_won") and profile.has_won():
+			profile.best_grade_won = 0
+		profile.best_grade_won = mini(profile.best_grade_won, OLD_LADDER_TOP)
 	var settings_value: Variant = data.get("settings", {})
 	if not settings_value is Dictionary:
 		return null

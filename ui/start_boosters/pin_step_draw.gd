@@ -19,8 +19,9 @@ const KEY_MARGINS := Vector4i(3, 7, 3, 4)
 ## above the gate note.
 const FULL_ROWS := 5
 const COMPACT_ROW_H := 18
-## More than COMPACT_ROWS rows (the puzzle packs' pins, v1.50: 10) use dense rows, DENSE_ROW_H with
-## no gap: a smaller face, the name, one small rule line and a lower key.
+## More than COMPACT_ROWS rows use dense rows, DENSE_ROW_H with no gap: a smaller face, the
+## name, one small rule line and a lower key. When that many don't fit above ROWS_BOTTOM (the
+## puzzle and grade pins make 12), they shrink to share the room (row_height), everything 1 px up.
 const COMPACT_ROWS := 8
 const DENSE_ROW_H := 15
 const DENSE_FACE := 11
@@ -145,7 +146,9 @@ static func row_rect(k: int, count: int, top: float) -> Rect2:
 static func row_height(count: int) -> int:
 	if count <= FULL_ROWS:
 		return BuildPage.PIN_ROW_H
-	return COMPACT_ROW_H if count <= COMPACT_ROWS else DENSE_ROW_H
+	if count <= COMPACT_ROWS:
+		return COMPACT_ROW_H
+	return mini(DENSE_ROW_H, floori(float(ROWS_BOTTOM - ROW_TOP) / count))
 
 
 static func row_gap(count: int) -> int:
@@ -247,16 +250,17 @@ static func _compact_row(
 		pen.r(rx + 1, ry + 1, 2, rh - 2, Palette.MUSTARD)
 		pen.tex(BoosterArt.TICK, rx - 8, ry + 5)
 	var dense: bool = rh < COMPACT_ROW_H
-	face(pen, pin, page.pins.index_of(pin), rx + 4, ry + 2, DENSE_FACE if dense else 14)
-	pen.pix(pin.display_name.to_upper(), rx + 22, ry + 2, Palette.INK)
+	var top: float = ry + (1.0 if rh < DENSE_ROW_H else 2.0)
+	face(pen, pin, page.pins.index_of(pin), rx + 4, top, DENSE_FACE if dense else 14)
+	pen.pix(pin.display_name.to_upper(), rx + 22, top, Palette.INK)
 	var rule_w: float = compact_rule_width(rw)
 	var size: float = DENSE_RULE_SIZE if dense else compact_rule_size(pin.rule_text, rule_w)
 	var rule: PackedStringArray = BoosterCardDraw.wrap_words(pin.rule_text, size, rule_w)
 	if not rule.is_empty():
-		var baseline: float = ry + (13.0 if dense else 15.5)
+		var baseline: float = ry + (rh - 2.0 if dense else 15.5)
 		pen.atk(rule[0], rx + 22, baseline, size, Palette.INK_LIGHT, 700, HORIZONTAL_ALIGNMENT_LEFT)
 	var kx: float = rx + rw - 31
-	var ky: float = ry + 2
+	var ky: float = top
 	var kh: float = 11 if dense else 13
 	pen.nine(BoosterArt.KEY_LIT if on else BoosterArt.KEY, kx, ky, 28, kh, KEY_MARGINS)
 	pen.caps(
@@ -288,7 +292,8 @@ static func _locked_row(
 	if not _faces.has(key):
 		_faces[key] = _disc(d, Palette.STEEL_PALE, Palette.STEEL_SHADE, Palette.CREAM_SHADE)
 	var fx: float = rx + (4 if compact else 5)
-	var fy: float = ry + (2 if compact else 3)
+	var lift: float = 1.0 if rh < DENSE_ROW_H else 0.0
+	var fy: float = ry + (2 if compact else 3) - lift
 	pen.tex(_faces[key], fx, fy)
 	pen.caps(
 		pin.face_text,
@@ -299,7 +304,7 @@ static func _locked_row(
 		HORIZONTAL_ALIGNMENT_CENTER
 	)
 	var tx: float = rx + (22 if compact else 30)
-	var name_y: float = ry + (2 if compact else 3)
+	var name_y: float = ry + (2 if compact else 3) - lift
 	pen.pix(pin.display_name.to_upper(), tx, name_y, Palette.STEEL_SHADE)
 	var size: float = (
 		5.2 if not compact else compact_rule_size(unlock_text(pin), compact_rule_width(rw))
@@ -307,7 +312,7 @@ static func _locked_row(
 	pen.atk(
 		unlock_text(pin),
 		tx,
-		ry + (13.0 if dense else (15.5 if compact else 17.0)),
+		ry + (rh - 2.0 if dense else (15.5 if compact else 17.0)),
 		DENSE_RULE_SIZE if dense else size,
 		Palette.STEEL_SHADE,
 		700,
@@ -316,7 +321,7 @@ static func _locked_row(
 	pen.caps(
 		LOCKED_TEXT,
 		rx + rw - (17 if compact else 18),
-		ry + (4 if dense else (5 if compact else 7)),
+		ry + (4 if dense else (5 if compact else 7)) - lift,
 		Palette.STEEL_SHADE,
 		1.0,
 		HORIZONTAL_ALIGNMENT_CENTER

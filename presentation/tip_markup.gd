@@ -2,9 +2,11 @@ class_name TipMarkup
 extends RefCounted
 ## A hover tip's text markup (the hover tips revamp, mock-up docs/art/mockups/hover_tips.html,
 ## its tips.js): `{x2}` (or `{×2}`) a multiplier's amber pill, `{+5€}` money gained (green dark),
-## `{0€}` nothing (tomato dark), `{+1}` a count (teal shade), `[PAIR]` a keyword's chip (`[PAIR!]`
-## a keyword that is not working: tomato), `<Food>` a family's chip with its dot, and `~row|ROW~` a
-## word underlined in mustard whose box (TipWords) shows beside the tip. TipText lays the runs out.
+## `{0€}` nothing and `{-25%}` or `{25%}` a cut (tomato dark: the Picky regular's promo; auto
+## marks a plain "25%" only after "by", as in "Dairy price reduced by 25%"), `{+1}` a count
+## (teal shade), `[PAIR]` a keyword's chip (`[PAIR!]` a keyword that is not working: tomato),
+## `<Food>` a family's chip with its dot, and `~row|ROW~` a word underlined in mustard whose box
+## (TipWords) shows beside the tip. TipText lays the runs out.
 ##
 ## auto() marks up a plain text (a card's rule from data, a perk's effect): its money, multipliers
 ## and counts, its keywords, its families' names and the first use of each word that has a box.
@@ -29,12 +31,16 @@ const PLAIN_FAMILIES: Array[String] = ["Coupon"]
 ## Punctuation around a word, kept as text beside its run.
 const LEADING := "(\"'"
 const TRAILING := ",.:;!?)\"'…"
+## The word a plain percent after it is a cut ("reduced by 25%").
+const CUT_LEAD := "by"
 const MARK_PATTERN := "(\\{[^}]+\\}|\\[[^\\]]+\\]|<[^>]+>|~[^~]+~)"
 
 static var _mark: RegEx
 static var _money: RegEx
 static var _times: RegEx
 static var _count: RegEx
+static var _cut: RegEx
+static var _percent: RegEx
 
 
 ## `text`'s runs, in order: each {"run": Run, "text": what it shows, "key": a keyword's or a
@@ -87,6 +93,7 @@ static func auto(text: String) -> String:
 	var palette: FamilyPalette = FamilyPalette.shared()
 	var termed: PackedStringArray = PackedStringArray()
 	var words: PackedStringArray = PackedStringArray()
+	var before: String = ""
 	for word: String in text.split(" ", false):
 		var lead: String = ""
 		var core: String = word
@@ -97,7 +104,11 @@ static func auto(text: String) -> String:
 		while not core.is_empty() and TRAILING.contains(core.right(1)):
 			tail = core.right(1) + tail
 			core = core.left(core.length() - 1)
-		words.append(lead + _auto_word(core, palette, termed) + tail)
+		if before == CUT_LEAD and _percent_pattern().search(core) != null:
+			words.append(lead + "{%s}" % core + tail)  # "reduced by 25%": a cut.
+		else:
+			words.append(lead + _auto_word(core, palette, termed) + tail)
+		before = core.to_lower()
 	return " ".join(words)
 
 
@@ -109,6 +120,8 @@ static func _auto_word(core: String, palette: FamilyPalette, termed: PackedStrin
 	if _times_pattern().search(core) != null:
 		return "{%s}" % core
 	if _count_pattern().search(core) != null:
+		return "{%s}" % core
+	if _cut_pattern().search(core) != null:
 		return "{%s}" % core
 	if GlyphText.KEYWORD_TIPS.has(core):
 		return "[%s]" % core
@@ -132,7 +145,8 @@ static func _marked(mark: String) -> Dictionary:
 		"{":
 			if inside.begins_with("x") or inside.begins_with("×"):
 				return _run(Run.PILL, "×" + inside.substr(1))
-			if inside == "0€":
+			var cut: bool = _cut_pattern().search(inside) != null
+			if inside == "0€" or cut or _percent_pattern().search(inside) != null:
 				return _run(Run.ZERO, inside)
 			if inside.contains("€"):
 				return _run(Run.MONEY, inside)
@@ -175,3 +189,17 @@ static func _count_pattern() -> RegEx:
 	if _count == null:
 		_count = RegEx.create_from_string("^[+−]\\d+%?$")
 	return _count
+
+
+## A cut in percent ("-25%", the Picky regular's promo): tomato, like nothing paid.
+static func _cut_pattern() -> RegEx:
+	if _cut == null:
+		_cut = RegEx.create_from_string("^-\\d+%$")
+	return _cut
+
+
+## A plain percent ("25%"): a cut after "by" (CUT_LEAD), or inside a cut's braces.
+static func _percent_pattern() -> RegEx:
+	if _percent == null:
+		_percent = RegEx.create_from_string("^\\d+%$")
+	return _percent

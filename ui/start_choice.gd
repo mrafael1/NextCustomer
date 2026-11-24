@@ -48,9 +48,19 @@ func _init(screen: ShiftScreen, event_log: EventLogService) -> void:
 ## A new run for `seed_value` with `recipe` as its starting deck: its stock from the profile, its
 ## deck dealt (an opening-time recipe: its boosters, the run waiting for OPEN STORE), wearing the
 ## profile's badge pins (#122). With the guided recipe (guided_start), the guided run: its
-## scripted deal (_setup_run) and no pin.
-func new_run(seed_value: int, balance: BalanceDefinition, recipe: DeckDefinition) -> RunState:
-	var run: RunState = _dealt_run(seed_value, balance, recipe)
+## scripted deal (_setup_run) and no pin. The run plays `balance` (the balance data's own) at
+## difficulty grade `grade` (#182, GradeApply.balance_for); -1: the grade the title's card asked
+## for (GradeCard.take_request), at most the profile's open grade. The guided run plays grade 0.
+func new_run(
+	seed_value: int, balance: BalanceDefinition, recipe: DeckDefinition, grade: int = -1
+) -> RunState:
+	if grade < 0:
+		var open: int = _screen.profile.open_grade(GradeApply.count(balance))
+		grade = mini(GradeCard.take_request(), open)
+	if recipe == guided_start().recipe or not GradeApply.is_valid(balance, grade):
+		grade = 0
+	var run: RunState = _dealt_run(seed_value, GradeApply.balance_for(balance, grade), recipe)
+	run.grade = grade
 	if not run.guided:
 		RunPins.wear(run, ProfilePins.worn(_screen.profile, _screen._catalogue))
 	return run
@@ -431,7 +441,7 @@ func _restart_setup() -> void:
 	var recipe: DeckDefinition = (
 		guided_start().recipe if old.guided else load(ShiftScreen.STARTER_DECK) as DeckDefinition
 	)
-	_screen.run = new_run(old.run_seed, old.balance, recipe)
+	_screen.run = new_run(old.run_seed, _screen._balance, recipe, old.grade)
 
 
 func open_pins(host: Control, changed: Callable, offset: Vector2 = Vector2.ZERO) -> BadgeScreen:

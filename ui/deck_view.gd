@@ -402,7 +402,13 @@ func hover(cell: DeckCell) -> void:
 	cell.lifted = true
 	cell.ringed = _choosing and not _placing.is_holding()
 	_tip.visible = true
-	_tip.show_card(cell.card, _machine(), _note_source(cell.card), cell.rule_clipped())
+	_tip.show_card(
+		cell.card,
+		_machine(),
+		_note_source(cell.card),
+		cell.rule_clipped(),
+		GradeTags.notes(_run, _copies_of(cell.card))
+	)
 	_place_tip(cell.get_global_rect())
 	_paint_mix()
 
@@ -417,6 +423,16 @@ func hover_stock(icon: StockIcon) -> void:
 	_tip.visible = true
 	_tip.show_stock(icon.card, _machine())
 	_place_tip(icon.get_global_rect())
+
+
+## The cart's copies of `card`.
+func _copies_of(card: CardDefinition) -> Array[CardInstance]:
+	var found: Array[CardInstance] = []
+	if _run != null:
+		for copy: CardInstance in _run.deck.cards:
+			if copy.definition == card:
+				found.append(copy)
+	return found
 
 
 func _place_tip(item: Rect2) -> void:
@@ -628,7 +644,7 @@ func _fill_deck_grid(family: String) -> void:
 	for index: int in range(ordered.size() - 1, -1, -1):
 		var slot: int = index if index < products.size() else index + spots
 		var group: DeckSummary.Group = ordered[index]
-		var cell: DeckCell = _cell(group.copies[0], group.copies.size())
+		var cell: DeckCell = _cell(group.copies)
 		var product: StringName = group.card.product_card().id
 		if _sources.has(product):
 			cell.add_start_mark(_sources[product])
@@ -807,10 +823,14 @@ func _on_book_family(family: String) -> void:
 	_refilter()
 
 
-## A card for `card` with `copies` copies; its hover and clicks come to the view.
-func _cell(card: CardInstance, copies: int) -> DeckCell:
+## A card for the first of `copies` (one card's copies) with their count; its hover and clicks
+## come to the view.
+func _cell(copies: Array[CardInstance]) -> DeckCell:
+	var card: CardInstance = copies[0]
 	var family: String = FamilySticker.chosen(_run, card) if _run != null else ""
-	var cell: DeckCell = DeckCell.new(card, _balance.machine, copies, family)
+	var cell: DeckCell = DeckCell.new(card, _balance.machine, copies.size(), family)
+	# Shrunk, dated (v1.49): the soonest date of the copies, and how many are dated.
+	GradeTags.mark_copies(cell, _run, copies, GradeTags.cell_at(cell.look), true)
 	cell.clicked.connect(_on_card_clicked)
 	cell.hovered.connect(hover)
 	cell.unhovered.connect(

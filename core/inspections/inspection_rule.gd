@@ -46,5 +46,11 @@ func final_payout(_state: ScoreState, _slot: int, payout: int) -> int:
 	return payout
 
 
+## The price cut, in percent, that final_payout's change is (a promo: 25 for -25%), or 0 when the
+## change is a denial. The engine copies it onto the PAYOUT_OVERRIDE step (ScoreStep.promo_cut).
+func promo_cut() -> int:
+	return 0
+
+
 func text_for(inspection: InspectionDefinition) -> String:
 	return receipt_text if not receipt_text.is_empty() else inspection.display_name

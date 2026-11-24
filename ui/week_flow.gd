@@ -171,7 +171,7 @@ func _open_slip(hover: bool) -> void:
 	var target: ReceiptTarget = _screen._receipt.target
 	if target != null and target.is_visible_in_tree():
 		options["heading"] = target.beat.get_global_rect().merge(target.caption.get_global_rect())
-	slip.open(_calendar.day(), run.inspections, run.limits, _calendar, reduced, week, options)
+	slip.open(_calendar.day(), day_events(run), run.limits, _calendar, reduced, week, options)
 
 
 ## The day calendar, the week glass and the medal case for the run's current shift. While the
@@ -196,6 +196,7 @@ func show_chips() -> void:
 		show_medals(-1)
 	_glass.show_week(model, weeks)
 	(_screen._top_bar as TopBar).show_weeks(weeks)
+	(_screen._top_bar as TopBar).show_grade(run)  # The run's difficulty grade (#182).
 	if _shown_run != run or _quiet:
 		_calendar.play_change(false)
 	_shown_run = run
@@ -256,11 +257,12 @@ static func bonus_line(
 	return DayCalendar.PILL_TIP if state == InspectionTag.Bonus.PROMISED else ""
 
 
-## The events the day calendar shows: the day's only (run.inspections). A worn pin's events
+## The events the day calendar shows: the day's only (run.inspections, then a grade twist's day:
+## the Picky regular's, v1.49). A worn pin's events
 ## (#132: Express lane's) are run-wide, not the day's, so it leaves them out (the belt's end marks
 ## show Express lane); the week event is the week glass's.
 static func day_events(run: RunState) -> Array[InspectionDefinition]:
-	return run.inspections.duplicate()
+	return run.inspections + GradeRules.day_events(run)  # And the Picky regular's (v1.49).
 
 
 ## Where the shift's event `index` (WeekSchedule.shift_events) is on the calendar (day_events), -1
@@ -273,10 +275,16 @@ static func day_index(run: RunState, index: int) -> int:
 
 
 ## Whether the shift's event `index` (WeekSchedule.shift_events) is a worn pin's (#132: they come
-## last, after the day's and the week's).
+## after the day's and the week's) or Shrinkflation's (v1.49, last).
 static func is_pin_event(run: RunState, index: int) -> bool:
 	var count: int = WeekSchedule.shift_events(run).size()
-	return index >= count - RunPins.pin_events(run).size() and index < count
+	return index >= count - item_event_count(run) and index < count
+
+
+## How many of the shift's events (WeekSchedule.shift_events) fly from the items, shown on
+## neither the calendar nor the week glass: the worn pins' and, last, Shrinkflation's (v1.49).
+static func item_event_count(run: RunState) -> int:
+	return RunPins.pin_events(run).size() + GradeRules.tail_events(run).size()
 
 
 ## Whether `run`'s balance has weeks (a week list or a week length).
@@ -289,7 +297,7 @@ static func has_weeks(run: RunState) -> bool:
 static func helper_names(run: RunState) -> PackedStringArray:
 	var names: PackedStringArray = PackedStringArray()
 	for event: InspectionDefinition in WeekSchedule.shift_events(run):
-		if event.is_boon() or event.is_week():
+		if event.is_boon() or event.is_week() or event.is_twist():
 			names.append(event.display_name)
 	return names
 

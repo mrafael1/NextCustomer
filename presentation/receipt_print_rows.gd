@@ -104,8 +104,9 @@ func step(counted: ScoreStep) -> Control:
 			# A context-pass step, before the row prints: its mark waits for it (_mark).
 			_mark(slot, ReceiptView.Mark.WRITTEN_OFF)
 		ScoreStep.StepType.PAYOUT_OVERRIDE:
-			if counted.source_kind == ScoreStep.SourceKind.INSPECTION:
-				_mark(slot, ReceiptView.Mark.DENIED)
+			var override: ReceiptView.Mark = ReceiptDecor.override_mark(counted)
+			if override != ReceiptView.Mark.NONE:
+				_mark(slot, override)
 	return row_of(slot)
 
 
@@ -193,16 +194,18 @@ func _print(slot: int) -> HBoxContainer:
 
 ## Marks `slot`'s row `kind` (pending until it prints). An inspection's DENIED wins over a fizzle
 ## whichever came first (a context pass's fizzle is counted before the slot's override), as
-## ReceiptView.slot_mark decides (and over a write-off's, v1.29); anything else keeps the first
-## mark.
+## ReceiptView.slot_mark decides (and over a write-off's, v1.29), and a promo's cut (PROMO, #182)
+## over the rest (ReceiptDecor.mark_rank); anything else keeps the first mark.
 func _mark(slot: int, kind: ReceiptView.Mark) -> void:
 	var row: HBoxContainer = row_of(slot)
+	var rank: int = ReceiptDecor.mark_rank(kind)
 	if row == null:
-		if _pending_marks.get(slot, ReceiptView.Mark.NONE) != ReceiptView.Mark.DENIED:
+		var pending: ReceiptView.Mark = _pending_marks.get(slot, ReceiptView.Mark.NONE)
+		if rank >= ReceiptDecor.mark_rank(pending):
 			_pending_marks[slot] = kind
 		return
 	if _marked.has(slot):
-		if _marked[slot] == ReceiptView.Mark.DENIED or kind != ReceiptView.Mark.DENIED:
+		if rank <= ReceiptDecor.mark_rank(_marked[slot]):
 			return
 		var old: Node = row.get_child(1).get_node_or_null("Mark")
 		if old != null:

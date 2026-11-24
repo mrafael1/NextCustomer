@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="GradeDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/grade_definition.gd" id="1_grade"]
+[ext_resource type="Script" path="res://core/grades/expiry_twist.gd" id="2_twist"]
+
+[sub_resource type="Resource" id="Resource_twist"]
+script = ExtResource("2_twist")
+id = &"expiry_dates"
+coupon_shifts = 8
+item_shifts = 8
+items_min = 1
+items_max = 2
+
+[resource]
+script = ExtResource("1_grade")
+id = &"supervisor"
+display_name = "SUPERVISOR"
+rule_text = "Expiry dates: coupons and some new items last 2 weeks"
+twist = SubResource("Resource_twist")
+coin_bonus = 3

@@ -1,0 +1,35 @@
+[gd_resource type="Resource" script_class="GradeDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/grade_definition.gd" id="1_grade"]
+[ext_resource type="Script" path="res://core/grades/shrinkflation_twist.gd" id="2_twist"]
+[ext_resource type="Script" path="res://core/inspection_definition.gd" id="3_event"]
+[ext_resource type="Script" path="res://core/inspections/inspection_rule.gd" id="4_rule"]
+[ext_resource type="Script" path="res://core/inspections/product_shrink_rule.gd" id="5_shrink"]
+
+[sub_resource type="Resource" id="Resource_shrink"]
+script = ExtResource("5_shrink")
+min_base = 1
+receipt_text = "Shrinkflation"
+
+[sub_resource type="Resource" id="Resource_event"]
+script = ExtResource("3_event")
+id = &"shrinkflation"
+display_name = "Shrinkflation"
+tone = 3
+notice_text = "Your top item of each week loses 1€"
+chip_text = "Shrunk"
+rules = Array[ExtResource("4_rule")]([SubResource("Resource_shrink")])
+
+[sub_resource type="Resource" id="Resource_twist"]
+script = ExtResource("2_twist")
+id = &"shrinkflation"
+euros = 1
+event = SubResource("Resource_event")
+
+[resource]
+script = ExtResource("1_grade")
+id = &"senior"
+display_name = "SENIOR"
+rule_text = "Shrinkflation: your top item loses 1€ each week"
+twist = SubResource("Resource_twist")
+coin_bonus = 2

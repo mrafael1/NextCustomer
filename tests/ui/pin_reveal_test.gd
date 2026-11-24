@@ -52,7 +52,7 @@ func test_the_news_counts_the_pins_and_names_the_next_milestone() -> void:
 	assert_int(one.cards.size()).is_equal(1)
 	assert_str(one.cards[0].pin.id).is_equal("recycle")
 	assert_int(one.cards[0].owned).is_equal(2)
-	assert_int(one.cards[0].total).is_equal(10)
+	assert_int(one.cards[0].total).is_equal(12)
 	assert_str(one.cards[0].milestone()).is_equal("Finish a run")
 	assert_str(one.next_text).is_equal("Next: Repack · Win a run")
 	var three: PinUnlockNews = _news([&"double_checkout", &"recycle", &"repack"])
@@ -73,7 +73,7 @@ func test_the_card_shows_its_pin() -> void:
 	card.show_unlock(_news([&"recycle"]).cards[0])
 	var pin: PinDefinition = load("res://data/pins/recycle.tres")
 	assert_array(Array(card.texts())).is_equal(
-		["NEW BADGE PIN", "RECYCLE", pin.rule_text, "Finish a run", "2/10"]
+		["NEW BADGE PIN", "RECYCLE", pin.rule_text, "Finish a run", "2/12"]
 	)
 	assert_object(card.face().icon()).is_same(pin.icon_big)
 	assert_vector(card.size).is_equal(PinUnlockCard.CARD_SIZE)
@@ -277,7 +277,7 @@ func test_return_to_menu_mid_print_still_shows_the_cards() -> void:
 
 
 ## A run ended through the real checkout on a fresh profile: Recycle unlocks (Finish a run), the
-## profile owns it, and the results show its one card, 2/10, once the receipt has printed.
+## profile owns it, and the results show its one card, 2/12, once the receipt has printed.
 func test_a_run_ended_through_the_checkout_shows_its_unlock() -> void:
 	var screen: ShiftScreen = await _results_screen()
 	screen.profile = ProfileState.new()
@@ -289,7 +289,7 @@ func test_a_run_ended_through_the_checkout_shows_its_unlock() -> void:
 	assert_bool(screen.profile.unlocked_pins.has(&"recycle")).is_true()
 	var reveal: PinReveal = results.pin_reveal()
 	assert_int(reveal.cards().size()).is_equal(1)
-	assert_array(Array(reveal.cards()[0].texts())).contains(["RECYCLE", "2/10"])
+	assert_array(Array(reveal.cards()[0].texts())).contains(["RECYCLE", "2/12"])
 	results.skip_printing()
 	results.menu_button().disabled = false
 	results.menu_button().pressed.emit()

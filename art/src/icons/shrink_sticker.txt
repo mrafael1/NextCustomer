@@ -1,0 +1,14 @@
+; Shrinkflation's shrink sticker (#182 grade 4, v1.49): a tomato price sticker, lit top left,
+; its face blank for the euros the product lost ("-1€", drawn in the number font by code,
+; GradeTags). 16x9 art px, shown at 2x on an item and a cart card.
+@size 16x9
+@kind icon
+.##############.
+#ooooooooooooor#
+#oRRRRRRRRRRRRr#
+#oRRRRRRRRRRRRr#
+#oRRRRRRRRRRRRr#
+#oRRRRRRRRRRRRr#
+#oRRRRRRRRRRRRr#
+#rrrrrrrrrrrrrr#
+.##############.

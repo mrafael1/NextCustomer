@@ -15,6 +15,8 @@ extends Resource
 ## this one counting. PUZZLE_PACK (#183): solve every puzzle shift of pack `amount` (met when the
 ## pack's last puzzle is solved, ProfilePuzzles.solve; never at a run's end). (Kinds are added
 ## last: their numbers are kept. PUZZLE_PACK is numbered 10 so kinds added beside it keep theirs.)
+## WIN_AT_GRADE (#182, numbered 6): win a run at difficulty grade `amount` or higher
+## (RunState.grade).
 enum Kind {
 	UNSET,
 	WIN_WITH_CARD,
@@ -22,6 +24,7 @@ enum Kind {
 	USE_COUPON_TIMES,
 	WIN_RUNS,
 	FINISH_RUNS,
+	WIN_AT_GRADE = 6,
 	PUZZLE_PACK = 10,
 }
 
@@ -29,7 +32,7 @@ enum Kind {
 ## WIN_WITH_CARD: the card; USE_COUPON_TIMES: the coupon.
 @export var card: CardDefinition
 ## SCORE_IN_ONE_CHECKOUT: the checkout total; USE_COUPON_TIMES: how many uses; WIN_RUNS: how
-## many wins; PUZZLE_PACK: the pack, counted from 1.
+## many wins; PUZZLE_PACK: the pack, counted from 1; WIN_AT_GRADE: the lowest grade.
 @export var amount: int = 0
 
 
@@ -49,6 +52,8 @@ func summary() -> String:
 			text = "Finish a run" if amount == 1 else "Finish %d runs" % amount
 		Kind.PUZZLE_PACK:
 			text = "Solve every puzzle in pack %d" % amount
+		Kind.WIN_AT_GRADE:
+			text = "Win a run at grade %d" % amount
 	return text
 
 
@@ -78,6 +83,9 @@ func problems() -> PackedStringArray:
 		Kind.PUZZLE_PACK:
 			if amount <= 0:
 				found.append("PUZZLE_PACK needs a pack of 1 or more")
+		Kind.WIN_AT_GRADE:
+			if amount <= 0:
+				found.append("WIN_AT_GRADE needs a grade above 0")
 	return found
 
 

@@ -12,7 +12,9 @@ extends HBoxContainer
 ## Guide (the staff handbook, v1.06) and Export log. The day is the desk calendar on the register's
 ## top (DayCalendar, ShiftStage.DESK_CALENDAR_RECT), the week the register's week glass (WeekGlass)
 ## and its medals the medal case (MedalCase). A run without weeks shows the SHIFT chip
-## ("SHIFT n/m") first, and the gauge's chip shortens. Cart and the menu stay clickable behind
+## ("SHIFT n/m") first, and the gauge's chip shortens. A run at a difficulty grade (#182) shows
+## its staff badge (GradeBadge, the grade's number on it) right of the spacer, before Cart; its tip
+## names the grade and its rules. Cart and the menu stay clickable behind
 ## every panel: the shade starts under the band (ShiftScreen), and the menu opens in its own popup
 ## window.
 ##
@@ -59,6 +61,10 @@ const MENU_BUTTON_SIZE := Vector2(44, 38)
 const MENU_PADDING := 6
 const MENU_GAP := 4.0
 
+## The grade badge tip's tag (#182).
+const GRADE_TAG := "GRADE %d"
+const LINE_BREAK := "\n"
+
 const CHIP_FRAME := preload("res://art/frames/chip.png")
 const BUTTON_FRAME := preload("res://art/frames/top_button.png")
 const CART_ICON := preload("res://art/icons/cart.png")
@@ -74,6 +80,10 @@ var gauge_panel: GaugePanel
 ## The gauge's empty socket on the band, behind it (shows while the gauge is up for the count).
 var gauge_socket: GaugeSocket
 var loyalty_card: LoyaltyCard
+## The run's difficulty grade (#182), hidden at grade 0 (show_grade).
+var grade_badge: GradeBadge
+## The Picky regular's sign hanging under the grade badge on its days (show_grade).
+var picky_sign: PickySign
 ## The Cart button (the deck: "Cart" in player strings only, default 1).
 var deck_button: FramedButton
 var menu_button: FramedButton
@@ -122,6 +132,16 @@ func _init() -> void:
 	_spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	add_child(_spacer)
+	grade_badge = GradeBadge.new()
+	grade_badge.name = "GradeBadge"
+	grade_badge.visible = false
+	add_child(grade_badge)
+	picky_sign = PickySign.new()
+	grade_badge.add_child(picky_sign)
+	var hang_x: float = (grade_badge.size.x - picky_sign.size.x) / 2.0
+	picky_sign.position = Vector2(
+		floorf(hang_x / ArtStyle.ART_SCALE) * ArtStyle.ART_SCALE, grade_badge.size.y
+	)
 	# The deck view and the export sound themselves.
 	deck_button = UiKit.framed_button(
 		self, "", deck_pressed.emit, BUTTON_FONT_SIZE, BUTTON_FRAME, Vector2(0, ROW_SIZE.y), ""
@@ -144,6 +164,25 @@ func _init() -> void:
 ## week glass say where the run is).
 func show_weeks(shown: bool) -> void:
 	shift_chip.visible = not shown and not hides_shift
+
+
+## Shows `run`'s difficulty grade (#182) on the staff badge; its tip is the grade's name with its
+## number as the tag ("MANAGER", GRADE 5) over its stacked rules as a list, one bulleted line per
+## rule (GradeApply.rule_lines; v1.49 play test: one paragraph was hard to read); grade 0 hides it.
+## On a Picky regular day its sign hangs under the badge with today's family (PickySign).
+func show_grade(run: RunState) -> void:
+	var grade: GradeDefinition = GradeApply.grade_of(run.balance, run.grade)
+	grade_badge.visible = run.grade > 0 and grade != null
+	grade_badge.grade = run.grade
+	picky_sign.show_day(run if grade_badge.visible else null)
+	if not grade_badge.visible:
+		TipTarget.cover_text(grade_badge, "")
+		return
+	var tip: TipSpec = TipSpec.make(TipSpec.Kind.WORD, grade.display_name, "")
+	tip.tag = GRADE_TAG % run.grade
+	tip.lines = GradeApply.rule_lines(run.balance, run.grade)
+	tip.source = LINE_BREAK.join(PackedStringArray([tip.title, tip.tag]) + tip.lines)
+	TipTarget.cover_control(grade_badge, tip)
 
 
 ## Keeps LOYALTY at LOYALTY_X and the gauge's chip in the room before it: the room takes what the

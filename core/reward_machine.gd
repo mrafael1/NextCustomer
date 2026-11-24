@@ -220,6 +220,7 @@ func pick(run: RunState, index: int, replaced: CardInstance = null) -> MachineLa
 				landing.replaced = replaced
 				_visit.replaced = replaced.definition
 			landing.added = run.deck.add_card(prize.card)
+			GradeRules.on_added(run, landing.added)  # Expiry dates (v1.49).
 		MachinePrize.Kind.REGISTER:
 			landing.register = prize.upgrade
 			landing.level_up = PerkLevels.is_level_up(prize.upgrade)
@@ -232,6 +233,7 @@ func pick(run: RunState, index: int, replaced: CardInstance = null) -> MachineLa
 		MachinePrize.Kind.UPGRADE:
 			for target: CardInstance in _targets(run, prize):
 				var upgraded: CardInstance = run.deck.upgrade(target, _stepped(target, prize))
+				GradeRules.on_upgraded(run, upgraded)  # Its BEST BEFORE date goes (v1.49).
 				landing.upgraded.append([target, upgraded])
 				_visit.upgraded.append(
 					[

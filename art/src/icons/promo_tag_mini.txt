@@ -1,0 +1,13 @@
+; The promo mark (#182 grade 5, the user's 2026-11-24 review: a promo's cut is no denial): the
+; Picky regular's promo tag (promo_tag.txt) at a row mark's size, as price_tag_mini.txt draws the
+; shelf tag: a tomato label pointing left, its hole in ink, lit along its top, shaded below. 7x7
+; (the tag 7x5, centred), shown at 2x (14x14) on the monitor's promo line and the receipt's row.
+@size 7x7
+@kind icon
+.......
+..#####
+.#oooo#
+#R#RRr#
+.#rrrr#
+..#####
+.......

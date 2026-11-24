@@ -63,8 +63,8 @@ enum LineStyle {
 	CLOSING,
 }
 
-## An item line's mark in planning: none, fizzled, or denied by an inspection.
-enum Mark { NONE, FIZZLED, DENIED, WRITTEN_OFF }
+## An item line's mark: none, fizzled, denied by an inspection, written off, or a promo's (#182).
+enum Mark { NONE, FIZZLED, DENIED, WRITTEN_OFF, PROMO }
 
 ## How a boon day's notice starts (v0.69: a shift is a day): its NOTICE line prints in green.
 const BOON_NOTICE_PREFIX := "TOMORROW: "
@@ -431,24 +431,21 @@ static func money(euros: int, signed: bool = false) -> String:
 
 
 ## `slot`'s mark in `result`, read from its recorded amounts: DENIED when an inspection's
-## PAYOUT_OVERRIDE is on it, else FIZZLED when a WASTED step of its own is on it (even when
-## another card raises its payout: since #45 an unpaired Banana or Cheese that another card boosts
-## fizzles too; an upgrade's row-wide fizzle on the last slot is not the item's:
-## ScoreStep.row_wide), else NONE.
+## PAYOUT_OVERRIDE is on it, else PROMO for a promo's cut (#182), else FIZZLED when a WASTED step
+## of its own is on it (even when another card raises its payout: since #45 an unpaired Banana or
+## Cheese that another card boosts fizzles too; an upgrade's row-wide fizzle on the last slot is
+## not the item's: ScoreStep.row_wide), else NONE (ReceiptDecor.override_mark, mark_rank).
 static func slot_mark(result: ScoreResult, slot: int) -> Mark:
-	var fizzled: bool = false
+	var found: Mark = Mark.NONE
 	for step: ScoreStep in result.steps:
 		if step.slot != slot:
 			continue
-		if (
-			step.step_type == ScoreStep.StepType.PAYOUT_OVERRIDE
-			and step.source_kind == ScoreStep.SourceKind.INSPECTION
-		):
-			return Mark.DENIED
-		fizzled = fizzled or (step.step_type == ScoreStep.StepType.WASTED and not step.row_wide)
-	if fizzled:
-		return Mark.FIZZLED
-	return Mark.NONE
+		var override: Mark = ReceiptDecor.override_mark(step)
+		if ReceiptDecor.mark_rank(override) > ReceiptDecor.mark_rank(found):
+			found = override
+		elif found == Mark.NONE and step.step_type == ScoreStep.StepType.WASTED:
+			found = Mark.NONE if step.row_wide else Mark.FIZZLED
+	return found
 
 
 ## The whole receipt at once, under `header` (none when empty): a resumed

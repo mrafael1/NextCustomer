@@ -103,8 +103,8 @@ func test_the_flags_round_trip_with_no_format_bump() -> void:
 	TutorialFlags.mark_quick(profile, TutorialFlags.QUICK_SWAP)
 	var text: String = JSON.stringify(profile.to_dictionary())
 	var read: ProfileState = ProfileState.from_dictionary(JSON.parse_string(text))
-	# 10 since the puzzle shifts (v1.50); the flags themselves bumped nothing.
-	assert_int(ProfileState.FORMAT_VERSION).is_equal(10)
+	# 11 since the difficulty grades (v1.49); the flags themselves bumped nothing.
+	assert_int(ProfileState.FORMAT_VERSION).is_equal(11)
 	assert_array(read.seen).is_equal(profile.seen)
 	assert_bool(TutorialFlags.guided_due(read)).is_false()
 	assert_bool(TutorialFlags.tip_seen(read, &"coupon")).is_true()

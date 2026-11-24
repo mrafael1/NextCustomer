@@ -678,7 +678,7 @@ static func _color(line: FinalReceipt.Line) -> Color:
 	match line.tone:
 		FinalReceipt.Tone.RULE:
 			return Palette.MUTED_INK
-		FinalReceipt.Tone.SHORTFALL:
+		FinalReceipt.Tone.SHORTFALL, FinalReceipt.Tone.GRADE:
 			return Palette.TOMATO
 		FinalReceipt.Tone.COINS_TOTAL:
 			return Palette.TEAL

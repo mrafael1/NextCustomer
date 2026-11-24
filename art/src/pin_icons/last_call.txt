@@ -1,0 +1,14 @@
+; Last call's pin icon (small): a brass counter bell (the last card pays more).
+; Drawn for the pin's own face colour (PinFace.COLOURS last_call: face p, band 3); 8x8 art px, for the
+; PinFace 16-cell faces (lanyard and pin tip 32 px) and the start screen's 14-16 art px faces. #182 difficulty grades (2026-11-23, the user's play-test feedback: the puzzle build keeps Long belt and Spotlight): drawn as real pixel art in the existing pin icons' style;
+; worn as PinDefinition.icon (small).
+@size 8x8
+@kind icon
+...##...
+..#nl#..
+.#nLLl#.
+.#nLLl#.
+#nLLLLl#
+#llllll#
+.######.
+...##...

@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="PinDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/pin_definition.gd" id="1_pin"]
+[ext_resource type="Script" path="res://core/unlock_condition.gd" id="2_condition"]
+[ext_resource type="Texture2D" path="res://art/pin_icons/overtime.png" id="9_icon"]
+[ext_resource type="Texture2D" path="res://art/pin_icons/overtime_big.png" id="10_icon_big"]
+
+[sub_resource type="Resource" id="Resource_grade"]
+script = ExtResource("2_condition")
+kind = 6
+amount = 4
+
+[resource]
+script = ExtResource("1_pin")
+id = &"overtime"
+display_name = "Overtime"
+rule_text = "+2 redraws a shift"
+face_text = "OT"
+face_colour = 11
+icon = ExtResource("9_icon")
+icon_big = ExtResource("10_icon_big")
+unlock_condition = SubResource("Resource_grade")
+extra_redraws = 2

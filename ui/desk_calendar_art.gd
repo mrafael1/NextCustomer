@@ -106,7 +106,7 @@ static func paint_page(image: Image, page: DayCalendarArt.Page, top: int) -> voi
 		DayCalendarArt.paint_words(
 			image, PAGE_WORD, PAGE_WORD_SHEET, 1, DAY_AT + Vector2i(0, top), Palette.INK_LIGHT
 		)
-		var icon: Image = DayCalendarArt.icon(page.mark)
+		var icon: Image = page.sign_art()
 		if icon != null:
 			DayCalendarArt.paint_icon(image, icon, sign_rect(page).position + Vector2i(0, top))
 	var number: Rect2i = number_rect(page)
@@ -186,7 +186,7 @@ static func payday_word_rect() -> Rect2i:
 ## The sign's rect on the page (art px from the page's top left), empty for none (and on a
 ## payday: its band takes the head).
 static func sign_rect(page: DayCalendarArt.Page) -> Rect2i:
-	var icon: Image = DayCalendarArt.icon(page.mark)
+	var icon: Image = page.sign_art()
 	if icon == null or page.payday:
 		return Rect2i()
 	var size: Vector2i = icon.get_size()

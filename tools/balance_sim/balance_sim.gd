@@ -20,6 +20,10 @@ extends SceneTree
 ##   --random-start    start each run from the game's recipe deck (RANDOM_START_DECK) instead
 ##                     of the fixed starter deck; not with --deck
 ##   --balance=PATH    balance data (default the live balance data)
+##   --grade=N         play at difficulty grade N (#182): the balance with grades 1 to N applied
+##                     (GradeApply.balance_for: 0 to 5, its twists played too) before anything
+##                     else reads it, and each run's coins with the grade's win bonus (default
+##                     0: the game as it is)
 ##   --builds=DIR      the build files (default res://data/builds); see SimBuilds (a
 ##                     measure-only build, v1.29, can be a build: strategy's target but is never
 ##                     a main build nor in the list gate)
@@ -90,6 +94,7 @@ const SIMULATION_DEFAULTS: Dictionary[String, String] = {
 	"samples": "6",
 	"deck": "res://data/decks/starter.tres",
 	"balance": "res://data/balance/balance.tres",
+	"grade": "0",
 	"builds": "res://data/builds",
 	"profile": "",
 	"collection": "",
@@ -116,6 +121,7 @@ const PROCESS_DEFAULTS: Dictionary[String, String] = {
 }
 const NUMBER_OPTIONS: Array[String] = [
 	"runs",
+	"grade",
 	"seed",
 	"samples",
 	"duel-samples",
@@ -336,6 +342,14 @@ func _load_data() -> bool:
 		_balance = load(_options["balance"]) as BalanceDefinition
 		if _starter == null or _balance == null:
 			problem = "couldn't load the deck or the balance data"
+		elif (
+			not String(_options["grade"]).is_valid_int()
+			or int(_options["grade"]) < 0
+			or int(_options["grade"]) >= GradeApply.count(_balance)
+		):
+			problem = "--grade needs 0 to %d" % (GradeApply.count(_balance) - 1)
+		else:
+			_balance = GradeApply.balance_for(_balance, int(_options["grade"]))
 	if not problem.is_empty():
 		push_error("balance_sim: " + problem)
 		return false
@@ -430,6 +444,7 @@ func _simulate(shard: int, shards: int, search: SimRowSearch) -> void:
 			_builds
 		)
 		player.deal_quota = _deal_quota
+		player.grade = int(_options["grade"])
 		var records: Array[SimRunRecord] = []
 		_begin_phase(limit, search)
 		for index: int in range(shard, runs, shards):
@@ -484,6 +499,7 @@ func _play_chains(
 			_starter, _balance, search, strategy, int(_options["samples"]), stock, _builds
 		)
 		player.deal_quota = _deal_quota
+		player.grade = int(_options["grade"])
 		return player
 	for index: int in range(shard, int(_options["chains"]), shards):
 		if limit.is_phase_over(Time.get_ticks_msec()):
@@ -653,6 +669,18 @@ func _simulation_options() -> Dictionary:
 	return result
 
 
+## The report's grade line (#182): the grade played, its name and its stacked rules.
+func _grade_line() -> String:
+	var grade: int = int(_options["grade"])
+	var rules: GradeDefinition = GradeApply.grade_of(_balance, grade)
+	var named: String = rules.display_name if rules != null else "no grades listed"
+	var stacked: PackedStringArray = GradeApply.rule_lines(_balance, grade)
+	return (
+		"Grade %d (%s): %s"
+		% [grade, named, "; ".join(stacked) if not stacked.is_empty() else "the game as it is"]
+	)
+
+
 func _report(summaries: Array[SimSummary], seconds: float) -> String:
 	var report: PackedStringArray = PackedStringArray()
 	var build_label: String = ProjectSettings.get_setting("next_customer/build_label", "?")
@@ -662,6 +690,7 @@ func _report(summaries: Array[SimSummary], seconds: float) -> String:
 			% [build_label, _starter.id, _runs_text(summaries)]
 		)
 	)
+	report.append(_grade_line())
 	var row_text: String = "%d slots" % _balance.slot_count
 	var redraw_text: String = (
 		"%d redraws of a basket (%d items)" % [_balance.base_redraws, _balance.basket_size]

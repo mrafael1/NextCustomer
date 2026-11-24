@@ -17,6 +17,9 @@ extends Control
 ## - `--capture=<folder> --loader=<percent>[,roll=<seconds>]`: the loader at that share printed
 ##   (100: TOTAL and THANK YOU!) and that far into the shutters' roll, the title's first frame
 ##   made under them when rolling, boot_loader_<percent>[_roll<tenths>]_<w>x<h>.png.
+## - `--capture=<folder> --grade-card=<grade>[,best=<n>]` (#182): START RUN's grade card on a
+##   profile whose best grade won is n (default 4: every grade open), that grade picked and the
+##   card settled, grade_card_pick<grade>_<w>x<h>.png.
 
 const TITLE := preload("res://ui/title_screen.tscn")
 const LOADER_PATH := "res://ui/boot/boot_loader.tscn"
@@ -66,9 +69,13 @@ func _ready() -> void:
 		var folder: String = _argument("--capture=")
 		var title_spec: String = _argument("--title=")
 		var loader_spec: String = _argument("--loader=")
+		var grade_spec: String = _argument("--grade-card=")
 		var window: Vector2i = _host.get_viewport().get_texture().get_size()
 		var size_part: String = "%dx%d" % [window.x, window.y]
-		if title_spec != "":
+		if grade_spec != "":
+			var file: String = await _grade_card(grade_spec)
+			await _save(folder.path_join("%s_%s.png" % [file, size_part]))
+		elif title_spec != "":
 			var file: String = _title(title_spec)
 			await _save(folder.path_join("%s_%s.png" % [file, size_part]))
 		elif loader_spec != "":
@@ -107,6 +114,33 @@ func _title(spec: String) -> String:
 		front._process(STEP)
 		front.neon_sign()._process(STEP)
 	return "title_opening_%02d" % roundi(seconds * 10.0)
+
+
+## START RUN's grade card (#182) on a profile that won up to `spec`'s best, its grade picked.
+func _grade_card(spec: String) -> String:
+	var parts: PackedStringArray = spec.split(",")
+	var best: int = 4
+	if parts.size() > 1 and parts[1].begins_with("best="):
+		best = parts[1].trim_prefix("best=").to_int()
+	var profile: ProfileState = ProfileState.new()
+	profile.best_grade_won = best
+	profile.run_count = best + 2
+	profile.stats[ProfileState.RUNS_WON] = best + 1
+	TutorialFlags.finish_guide(profile)
+	SaveService.new(_folder).save_profile(profile)
+	var title: TitleScreen = TITLE.instantiate()
+	title.changes_scene = false
+	_host.add_child(title)
+	title.skip_intro()
+	for _frame: int in SETTLE_FRAMES:
+		await get_tree().process_frame
+	title.menu().plate(TitleMenu.Entry.PRIMARY).pressed.emit()
+	await get_tree().create_timer(TitlePopup.OPEN_TIME + 0.5).timeout
+	var card: GradeCard = title.grade_card()
+	if card != null:
+		card.pick(parts[0].to_int())
+	await get_tree().create_timer(0.6).timeout
+	return "grade_card_pick%s" % parts[0]
 
 
 ## The title made and held still (its own clock stopped) on a fresh profile.

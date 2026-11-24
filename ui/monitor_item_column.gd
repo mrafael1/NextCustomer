@@ -159,6 +159,8 @@ var _counting: bool = false
 ## Whether the description is cut for an equation (EQUATION_CUT_TIER).
 var _cut_for_equation: bool = false
 var _count_fizzled: bool = false
+## The item shown had a promo's cut (ItemLines.promo, set_value; #182): no 0€ warning sign.
+var _promo: bool = false
 ## The count's coupon: what it adds in all ("+N€" in the payout's zone, as in planning; v1.00).
 var _count_given: int = 0
 var _count_lines: Array[Dictionary] = []
@@ -198,7 +200,7 @@ func show_item(
 ) -> void:
 	var key: Array = [definition, tags, redraws_left, shown.payout, shown.lines, shown.fizzles]
 	key.append_array([shown.gives, shown.minis, shown.harms, shown.given, shown.collapsed])
-	key.append_array([shown.equations, shown.copied_by, shown.runs])
+	key.append_array([shown.equations, shown.copied_by, shown.runs, shown.promo])
 	if not _counting and _definition == definition and key == _shown_key:
 		return
 	_counting = false
@@ -217,6 +219,7 @@ func show_item(
 	# say what went unused).
 	var fizzled: bool = shown.fizzles.has(true) and not (definition.is_coupon() and shown.gives > 0)
 	var hand: bool = shown.payout < 0
+	_promo = shown.promo and not hand
 	_payout.set_note(shown.copied_by)
 	_set_payout(shown.payout if not hand else _base_of(definition), fizzled, false, shown.given)
 	_fill_pages(built)
@@ -320,11 +323,12 @@ func _hint() -> Label:
 	return get_node_or_null("Hint") as Label
 
 
-## The count: the item's payout is now `value` (a landing on it), punching when it changed.
-func set_value(value: int, fizzled: bool = false) -> void:
+## The count: the item's payout is now `value` (`promo`: a promo's cut), punching on a change.
+func set_value(value: int, fizzled: bool = false, promo: bool = false) -> void:
 	if _definition == null:
 		return
 	_count_fizzled = _count_fizzled or fizzled
+	_promo = _promo or promo
 	_set_payout(value, _count_fizzled, value != _shown_value)
 
 
@@ -432,6 +436,7 @@ func clear() -> void:
 	_shown_key = []
 	_count_lines.clear()
 	_count_fizzled = false
+	_promo = false
 	_count_given = 0
 	_shown_value = -1
 	_panel = Rect2()
@@ -834,7 +839,7 @@ func _set_payout(value: int, fizzled: bool, punch: bool, given: int = 0) -> void
 		value, base, fizzled, _definition.is_coupon()
 	)
 	var glyph: PlanningModel.Glyph = PlanningModel.Glyph.NONE
-	if state == PriceWindow.State.ZERO:
+	if state == PriceWindow.State.ZERO and (fizzled or not _promo):
 		glyph = PlanningModel.Glyph.FIZZLE if fizzled else PlanningModel.Glyph.WARNING
 	_shown_value = value
 	_payout.show_pay(state, value, base, glyph, given)

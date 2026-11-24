@@ -134,6 +134,17 @@ var write_ups: int:
 ## checkout: the history then no longer holds one entry per shift before the current one
 ## (RunSave skips that check for such a run).
 var debug_jumped: bool = false
+## The run's difficulty grade (#182, 0 to the balance's grade count - 1): `balance` is already
+## GradeApply.balance_for's copy for it. Read by the payout (CoinPayout), the unlocks
+## (UnlockCheck's WIN_AT_GRADE), the profile's ladder (ProfileState.record_run) and the screens.
+var grade: int = 0
+## The grade twists' state (v1.49, GradeRules: shrinks, expiry dates, the Picky regular's
+## families, the shift's news); empty on a run without twists. Saved with the run (RunSave v21).
+var twists: GradeState = GradeState.new()
+## The run's RNG, for the rules outside RunState that draw with it (GradeRules). Read only.
+var rng: RandomNumberGenerator:
+	get:
+		return _rng
 ## Whether this run is the guided first run (the tutorial; TutorialFlags.guided_due when it
 ## started). Neutral by default: a normal run is never guided, and nothing in core/ reads it.
 var guided: bool = false
@@ -409,6 +420,7 @@ func next_shift() -> bool:
 	if phase != Phase.SCORED:
 		return false
 	shift_index += 1
+	GradeRules.start_shift(self)  # A week's end shrinks and dates; expired cards leave (v1.49).
 	_plan_week()
 	inspections = week.day(shift_index + 1)
 	start_shift()
@@ -434,6 +446,8 @@ func debug_skip_to_shift(index: int) -> void:
 		var previous: Array[InspectionDefinition] = _last_inspections()
 		if week == null or not week.covers(target + 1):
 			week = WeekSchedule.draw(_rng, balance, target + 1, previous)
+			shift_index = target
+			GradeRules.plan_week(self)
 		inspections = week.day(target + 1)
 	elif week != null:
 		week.set_day(target + 1, inspections)  # The debug panel's events are the day's own.
@@ -446,6 +460,7 @@ func debug_skip_to_shift(index: int) -> void:
 func _plan_week() -> void:
 	if week == null or not week.covers(shift_index + 1):
 		week = WeekSchedule.draw(_rng, balance, shift_index + 1, _last_inspections())
+		GradeRules.plan_week(self)  # The Picky regular's families (v1.49).
 
 
 ## The run's last inspections: the current shift's, else the last inspected shift's (no

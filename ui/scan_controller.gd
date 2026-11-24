@@ -155,6 +155,8 @@ class ItemLines:
 	var given: int = 0
 	var collapsed: String = ""
 	var collapsed_mini: Texture2D
+	## A promo's cut lowers the item (ScoreStep.promo_cut, #182): a 0€ promo price shows no warning.
+	var promo: bool = false
 
 
 ## One "gives" row (gives_rows): its `line` (text and amount, ReceiptView.joined_line), its
@@ -345,11 +347,20 @@ static func footer_steps(result: ScoreResult, slot: int) -> Array[ScoreStep]:
 
 ## Belt item `slot`'s payout and step lines as the monitor shows them (see ItemLines), from the
 ## last set_result; a hand item's (payout -1, no lines) when there is no result for it.
+## Whether a promo's cut (ScoreStep.promo_cut, #182) lowered `slot` among `steps`.
+static func has_promo(steps: Array[ScoreStep], slot: int) -> bool:
+	for step: ScoreStep in steps:
+		if step.slot == slot and step.promo_cut > 0:
+			return true
+	return false
+
+
 func item_lines(slot: int) -> ItemLines:
 	var shown: ItemLines = ItemLines.new()
 	if _result == null or slot < 0 or slot >= _result.payouts.size():
 		return shown
 	shown.payout = _result.payouts[slot]
+	shown.promo = ScanController.has_promo(_result.steps, slot)
 	shown.copied_by = MonitorText.copied_by(PlanningModel.copied_by(_result, slot, _names))
 	for row: GivesRow in gives_rows(_result, slot, _names, gives_arrow()):
 		shown.lines.append(row.line)

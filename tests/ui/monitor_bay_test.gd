@@ -259,9 +259,10 @@ func test_the_shift_screen_keeps_the_last_placed_in_the_bay() -> void:
 	screen._scan.release_monitor()
 	assert_object(bay.bed().shown_definition()).is_same(run.row[0].definition)
 	assert_bool(bay.shows_scan()).is_false()
-	# A row that passes the shift, bread placed back in slot 1 last; then the checkout: the count
-	# starts with slot 1's item in the bay, no drop-in.
-	await _place(screen, ["multipack", "milk", "milk", "milk", "milk", "milk"])
+	# A row that passes the shift (plain Milks: since v1.49 a Multipack after Bread would
+	# triple them past extra quota laps, delaying the count), bread placed back in slot 1 last;
+	# then the checkout: the count starts with slot 1's item in the bay, no drop-in.
+	await _place(screen, ["milk", "milk", "milk", "milk", "milk", "milk"])
 	var bread: CardInstance = run.row[0]
 	screen._on_row_card_clicked(screen._row_views[0])
 	screen._place_picked(0)

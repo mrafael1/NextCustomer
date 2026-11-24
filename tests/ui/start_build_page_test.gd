@@ -195,8 +195,13 @@ func test_locked_pins_fill_the_step_as_grey_rows() -> void:
 	assert_bool(pen.texts.has(PinStepDraw.NO_PIN_NOTE)).is_true()
 	assert_bool(pen.texts.has(PinStepDraw.BACK_NOTE)).is_true()
 	assert_bool(pen.texts.has("NONE IS FINE TOO")).is_false()
+	# No row numbers (a face's own text may read as one: Last call's "+5").
+	var faces: Array[String] = []
+	for pin: PinDefinition in screen._catalogue.pins:
+		faces.append(pin.face_text)
 	for text: String in pen.texts:
-		assert_bool(text.is_valid_int()).override_failure_message(text).is_false()
+		if not faces.has(text):
+			assert_bool(text.is_valid_int()).override_failure_message(text).is_false()
 	assert_str(BuildPageDraw.hint_line(staff)).is_empty()
 	assert_bool(staff.pins.close()).is_true()
 	assert_bool(staff.pins_pending()).is_true()

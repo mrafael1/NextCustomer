@@ -571,7 +571,7 @@ static func _add_inspection_step(
 
 
 ## Applies the inspections' final payout overrides, each with a PAYOUT_OVERRIDE step when it
-## changes the value.
+## changes the value (carrying the rule's promo_cut: a promo's price cut is no denial).
 static func _inspection_overrides(state: ScoreState, slot: int, value: int, checks: Array) -> int:
 	var inspection_rules: Array[InspectionRule] = checks[1]
 	for at: int in range(inspection_rules.size()):
@@ -593,6 +593,7 @@ static func _inspection_overrides(state: ScoreState, slot: int, value: int, chec
 			)
 			step.source_kind = ScoreStep.SourceKind.INSPECTION
 			step.source_index = rule_inspections[at]
+			step.promo_cut = rule.promo_cut()
 	return value
 
 
