@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="PuzzleDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/puzzle_definition.gd" id="1_puzzle"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="2_card"]
+[ext_resource type="Resource" path="res://data/cards/batteries.tres" id="c_batteries"]
+[ext_resource type="Resource" path="res://data/cards/odd_socks.tres" id="c_odd_socks"]
+[ext_resource type="Resource" path="res://data/cards/carrier_bag.tres" id="c_carrier_bag"]
+[ext_resource type="Resource" path="res://data/cards/chipped_mug.tres" id="c_chipped_mug"]
+[ext_resource type="Resource" path="res://data/cards/coffee.tres" id="c_coffee"]
+[ext_resource type="Resource" path="res://data/cards/bread.tres" id="c_bread"]
+
+[resource]
+script = ExtResource("1_puzzle")
+id = &"lr_household"
+title = "Household goods"
+pack = 2
+target = 35
+slot_count = 4
+hand = Array[ExtResource("2_card")]([ExtResource("c_batteries"), ExtResource("c_odd_socks"), ExtResource("c_carrier_bag"), ExtResource("c_chipped_mug"), ExtResource("c_coffee"), ExtResource("c_bread")])
+solution = PackedStringArray("odd_socks", "batteries", "bread", "carrier_bag")
+hint = "Batteries double the next 2 Household items."

@@ -287,7 +287,12 @@ func test_a_full_receipt_fits_the_screen_with_the_card_and_the_coins() -> void:
 	assert_object(results._loyalty_card.level_mark(0)).is_null()
 	var mark: Control = results._loyalty_card.level_mark(1)
 	assert_object(mark).is_not_null()
-	assert_str((mark as Label).text).is_equal("3")
+	# LV 3 is the top level (alpha feedback v1.48): a gold star and ring, no numeral.
+	assert_str(String(mark.name)).is_equal(LoyaltyCard.MAX_STAR_NAME)
+	(
+		assert_object(results._loyalty_card.box(1).get_node_or_null(LoyaltyCard.MAX_RING_NAME))
+		. is_not_null()
+	)
 	var in_box: Array[Rect2] = results._loyalty_card.level_mark_in_box(1)
 	(
 		assert_bool(in_box[1].grow(0.01).encloses(in_box[0]))

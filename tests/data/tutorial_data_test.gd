@@ -28,6 +28,7 @@ const APPROVED: Dictionary[String, String] = {
 	"T14": "Next time, put Eggs somewhere before your best Food item.",
 	"T14 fallback": "Next time, try a new order before you press checkout.",
 	"T15": "**COINS** buy toy capsules, from the title screen.",
+	"T17": "Puzzles are open: click the planner in the window.",
 	"R1": "**RESTOCK**: send back a booster you opened for a new one.",
 	"P1": "You earned a **BADGE PIN**: wear it to change a rule for this run.",
 	"SA1": "You can now swap one of your regulars: click SWAP.",
@@ -36,7 +37,7 @@ const APPROVED: Dictionary[String, String] = {
 ## The guided run's steps, in order (they keep the ids of the 14-step script they were cut from;
 ## G15, the closing step, took the REDRAW tip's place), and the one-time tips'.
 const GUIDED: Array[String] = ["G1", "G3", "G6", "G7", "G8", "G10", "G15"]
-const TIPS: Array[String] = ["T2", "T6", "T7", "T9", "T11", "T14", "T15"]
+const TIPS: Array[String] = ["T2", "T6", "T7", "T9", "T11", "T14", "T15", "T17"]
 ## The cut's budget (v1.40; before it: 14 guided lines with the retry and answer lines, 18 hints,
 ## 16 tips, 3 callouts and 7 quick hints, 60 lines): the lines a new player can meet, at most.
 const MAX_LINES := 24

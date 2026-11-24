@@ -1,0 +1,16 @@
+; The puzzle shifts' verdict stamp (#183), OVER or SHORT: stamp_exact's double rim in tomato, as the
+; monitor's checkout column prints it once a puzzle's count misses its target. A 9-slice
+; (3 art px margins) stretched to the stamp's words (CheckoutColumn.show_verdict).
+@size 10x10
+@kind frame
+@scale 2
+.rrrrrrrr.
+rRRRRRRRRr
+rRwwwwwwRr
+rRwwwwwwRr
+rRwwwwwwRr
+rRwwwwwwRr
+rRwwwwwwRr
+rRwwwwwwRr
+rRRRRRRRRr
+.rrrrrrrr.

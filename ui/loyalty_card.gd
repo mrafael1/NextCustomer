@@ -34,6 +34,10 @@ extends PanelContainer
 ## shows its level as a small mustard badge with the level's numeral in Pixelify at the box's
 ## bottom right, inside the box (level_mark), on both faces; its tooltip names the level
 ## ("Coupon engine LV 2").
+##
+## A maxed perk (PerkLevels.MAX_LEVEL; alpha feedback v1.48): a gold ring round its box
+## (MAX_RING_NAME) and a small gold pixel star in place of its level badge (level_mark), on both
+## faces; a box that reaches the top level on a rebuild shines once (play_max_shine).
 
 ## The pointer entered or left the stamped box of the run's upgrade `index`.
 signal box_hovered(index: int)
@@ -78,6 +82,15 @@ const CHIP_LEVEL_SIZE := 9
 const CHIP_LEVEL_PAD := 1.0
 ## The card face's upright level badge sits this far in from the box's corner (polish pass).
 const LEVEL_INSET := 2.0
+## A maxed perk's gold ring (alpha feedback v1.48): MAX_RING px of gold round the box, over its
+## own ring; its star: MAX_STAR's gold cells inside a one-texel ink edge, at the art scale.
+const MAX_RING_NAME := "MaxRing"
+const MAX_RING := 2
+const MAX_STAR_NAME := "MaxStar"
+const MAX_STAR: Array[String] = ["..#..", ".###.", "#####", ".###.", ".#.#."]
+## The maxed box's shine: its peak tint and length.
+const MAX_SHINE := Color(1.45, 1.3, 0.85)
+const MAX_SHINE_S := 0.45
 ## The ring laid over a perk icon (polish pass), so the icon's corners tuck under the ring.
 const ICON_RIM_NAME := "Rim"
 ## A perk icon's node in its box.
@@ -170,6 +183,7 @@ func show_upgrades(boxes: int, upgrades: Array[UpgradeDefinition]) -> void:
 	if boxes == _box_count and upgrades == _shown:
 		return
 	_box_count = boxes
+	var before: Array[UpgradeDefinition] = _shown
 	_shown = upgrades.duplicate()
 	for child: Node in _boxes.get_children():
 		_boxes.remove_child(child)
@@ -182,6 +196,29 @@ func show_upgrades(boxes: int, upgrades: Array[UpgradeDefinition]) -> void:
 			_add_relation_parts(made)
 			made.mouse_entered.connect(box_hovered.emit.bind(index))
 			made.mouse_exited.connect(box_unhovered.emit.bind(index))
+			if is_maxed(upgrade) and index < before.size() and not is_maxed(before[index]):
+				play_max_shine(made)
+
+
+## Whether `upgrade` is a perk at its top level (PerkLevels.MAX_LEVEL).
+static func is_maxed(upgrade: UpgradeDefinition) -> bool:
+	return upgrade != null and upgrade.level_number() >= PerkLevels.MAX_LEVEL
+
+
+## A short gold shine on the maxed box `stamped` (alpha feedback v1.48): its tint flashes warm and
+## its star pops, then both settle.
+static func play_max_shine(stamped: Control) -> void:
+	stamped.modulate = MAX_SHINE
+	var shine: Tween = stamped.create_tween().set_parallel()
+	shine.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	shine.tween_property(stamped, "modulate", Color.WHITE, MAX_SHINE_S)
+	var holder: Control = stamped.get_node_or_null(NodePath(LEVEL_MARK_NAME)) as Control
+	if holder == null or holder.get_child_count() == 0:
+		return
+	var star: Control = holder.get_child(0) as Control
+	star.pivot_offset = star.size / 2.0
+	star.scale = Vector2(1.5, 1.5)
+	shine.tween_property(star, "scale", Vector2.ONE, MAX_SHINE_S).set_trans(Tween.TRANS_BACK)
 
 
 ## Rings the box of upgrade `index` in gold (#71), or takes the ring off.
@@ -664,6 +701,9 @@ static func add_level_mark(
 	holder.name = LEVEL_MARK_NAME
 	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stamped.add_child(holder)
+	if is_maxed(upgrade):
+		_add_max_parts(stamped, holder, box_size)
+		return
 	var text: String = str(upgrade.level_number())
 	var chip: bool = box_size == CHIP_BOX_SIZE
 	var font_size: int = CHIP_LEVEL_SIZE if chip else LEVEL_SIZE
@@ -693,6 +733,54 @@ static func add_level_mark(
 		badge.pivot_offset = side / 2.0
 		badge.rotation = -deg_to_rad(STAMP_TILT)
 	holder.add_child(badge)
+
+
+## A maxed perk's gold ring over its box `stamped` (`box_size`) and its star in `holder` at the
+## box's bottom right, upright on the card's tilted stamp, on the art grid.
+static func _add_max_parts(stamped: PanelContainer, holder: Control, box_size: Vector2) -> void:
+	var ring: Panel = Panel.new()
+	ring.name = MAX_RING_NAME
+	ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var line: StyleBoxFlat = StyleBoxFlat.new()
+	line.anti_aliasing = false
+	line.draw_center = false
+	line.border_color = Palette.GOLD
+	line.set_border_width_all(MAX_RING)
+	line.set_corner_radius_all(int(box_size.x / 2.0))
+	ring.add_theme_stylebox_override("panel", line)
+	stamped.add_child(ring)
+	stamped.move_child(ring, holder.get_index())
+	var texel: float = float(ArtStyle.ART_SCALE)
+	var star: Control = Control.new()
+	star.name = MAX_STAR_NAME
+	star.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	star.size = Vector2(MAX_STAR[0].length() + 2, MAX_STAR.size() + 2) * texel
+	star.position = box_size - star.size
+	if box_size != CHIP_BOX_SIZE:
+		star.position -= Vector2.ONE * LEVEL_INSET
+		star.pivot_offset = star.size / 2.0
+		star.rotation = -deg_to_rad(STAMP_TILT)
+	star.draw.connect(func() -> void: _draw_max_star(star))
+	holder.add_child(star)
+
+
+## Draws the MAX star on `star`: each gold cell of MAX_STAR with an ink texel on every side that
+## isn't gold, one texel in from the control's edge.
+static func _draw_max_star(star: Control) -> void:
+	var texel: Vector2 = Vector2.ONE * ArtStyle.ART_SCALE
+	var cells: Array[Vector2i] = []
+	for row: int in MAX_STAR.size():
+		for column: int in MAX_STAR[row].length():
+			if MAX_STAR[row][column] == "#":
+				cells.append(Vector2i(column + 1, row + 1))
+	for cell: Vector2i in cells:
+		for dy: int in range(-1, 2):
+			for dx: int in range(-1, 2):
+				var near: Vector2i = cell + Vector2i(dx, dy)
+				if not cells.has(near):
+					star.draw_rect(Rect2(Vector2(near) * texel, texel), Palette.INK)
+	for cell: Vector2i in cells:
+		star.draw_rect(Rect2(Vector2(cell) * texel, texel), Palette.GOLD)
 
 
 ## The largest CHIP_INITIALS_SIZES size at which `text` fits inside the chip's rings (else the

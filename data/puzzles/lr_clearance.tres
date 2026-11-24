@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="PuzzleDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/puzzle_definition.gd" id="1_puzzle"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="2_card"]
+[ext_resource type="Resource" path="res://data/cards/squashed_cake.tres" id="c_squashed_cake"]
+[ext_resource type="Resource" path="res://data/cards/day_old_buns.tres" id="c_day_old_buns"]
+[ext_resource type="Resource" path="res://data/cards/bruised_apples.tres" id="c_bruised_apples"]
+[ext_resource type="Resource" path="res://data/cards/clearance_tag.tres" id="c_clearance_tag"]
+[ext_resource type="Resource" path="res://data/cards/ham_ends.tres" id="c_ham_ends"]
+[ext_resource type="Resource" path="res://data/cards/milk.tres" id="c_milk"]
+
+[resource]
+script = ExtResource("1_puzzle")
+id = &"lr_clearance"
+title = "Clearance aisle"
+pack = 2
+target = 26
+slot_count = 4
+hand = Array[ExtResource("2_card")]([ExtResource("c_squashed_cake"), ExtResource("c_day_old_buns"), ExtResource("c_bruised_apples"), ExtResource("c_clearance_tag"), ExtResource("c_ham_ends"), ExtResource("c_milk")])
+solution = PackedStringArray("squashed_cake", "day_old_buns", "milk", "ham_ends")
+hint = "Clearance items pay for what stands right before them."

@@ -12,31 +12,44 @@ extends Resource
 ## `amount` in one checkout. USE_COUPON_TIMES: check out the coupon `card` `amount` times in
 ## all (every copy in a checked-out row counts once). WIN_RUNS (#122): win `amount` runs in all,
 ## this one counting. FINISH_RUNS (#122, Recycle): finish `amount` runs in all, won or lost,
-## this one counting. (Kinds are added last: their numbers are kept.)
-enum Kind { UNSET, WIN_WITH_CARD, SCORE_IN_ONE_CHECKOUT, USE_COUPON_TIMES, WIN_RUNS, FINISH_RUNS }
+## this one counting. PUZZLE_PACK (#183): solve every puzzle shift of pack `amount` (met when the
+## pack's last puzzle is solved, ProfilePuzzles.solve; never at a run's end). (Kinds are added
+## last: their numbers are kept. PUZZLE_PACK is numbered 10 so kinds added beside it keep theirs.)
+enum Kind {
+	UNSET,
+	WIN_WITH_CARD,
+	SCORE_IN_ONE_CHECKOUT,
+	USE_COUPON_TIMES,
+	WIN_RUNS,
+	FINISH_RUNS,
+	PUZZLE_PACK = 10,
+}
 
 @export var kind: Kind = Kind.UNSET
 ## WIN_WITH_CARD: the card; USE_COUPON_TIMES: the coupon.
 @export var card: CardDefinition
 ## SCORE_IN_ONE_CHECKOUT: the checkout total; USE_COUPON_TIMES: how many uses; WIN_RUNS: how
-## many wins.
+## many wins; PUZZLE_PACK: the pack, counted from 1.
 @export var amount: int = 0
 
 
 ## The condition as the player reads it, e.g. "Score 40€ in one checkout".
 func summary() -> String:
+	var text: String = ""
 	match kind:
 		Kind.WIN_WITH_CARD:
-			return "Win a run with %s in your deck" % _card_name()
+			text = "Win a run with %s in your deck" % _card_name()
 		Kind.SCORE_IN_ONE_CHECKOUT:
-			return "Score %d€ in one checkout" % amount
+			text = "Score %d€ in one checkout" % amount
 		Kind.USE_COUPON_TIMES:
-			return "Use %s %d times" % [_card_name(), amount]
+			text = "Use %s %d times" % [_card_name(), amount]
 		Kind.WIN_RUNS:
-			return "Win a run" if amount == 1 else "Win %d runs" % amount
+			text = "Win a run" if amount == 1 else "Win %d runs" % amount
 		Kind.FINISH_RUNS:
-			return "Finish a run" if amount == 1 else "Finish %d runs" % amount
-	return ""
+			text = "Finish a run" if amount == 1 else "Finish %d runs" % amount
+		Kind.PUZZLE_PACK:
+			text = "Solve every puzzle in pack %d" % amount
+	return text
 
 
 ## Why this condition can't work as data, or an empty list (checked by a data test).
@@ -62,6 +75,9 @@ func problems() -> PackedStringArray:
 		Kind.FINISH_RUNS:
 			if amount <= 0:
 				found.append("FINISH_RUNS needs an amount above 0")
+		Kind.PUZZLE_PACK:
+			if amount <= 0:
+				found.append("PUZZLE_PACK needs a pack of 1 or more")
 	return found
 
 

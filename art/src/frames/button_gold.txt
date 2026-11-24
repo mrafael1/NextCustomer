@@ -1,0 +1,4 @@
+; The chunky button (button.txt) in gold (#183 polish, 2026-11-23): a completed puzzle pack's tab
+; on the puzzle board. Its tomato ramp through the GOLDEN keys: pale lit edge, gold face, brass
+; shade and ledge.
+@derive button golden=keys O=Y o=n R=n r=L q=l

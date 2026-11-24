@@ -1,28 +1,22 @@
 class_name ShiftScreen
 extends Control
-## The shift screen (plan section 2): draw, redraw, click-to-place into the row, the live projected
-## total and receipt, checkout with the count-up, the RECEIPT REWARDS machine's visits after a
-## passed shift (#77, MachineFlow) and the loyalty card (plan section 3.8), the shift's inspection
-## and the next one's notice (plan section 3.9), the deck view, and the run's results with its
-## history. It only displays RunState and ScoreResult; every rule lives in core/. The run is saved
-## at every stable point and resumed when the screen opens (full build plan section 4); the debug
-## tools live in ShiftDebug.
+## The shift screen (plan section 2): draw, redraw, click-to-place, the projected total and
+## receipt, checkout with the count-up, the machine's visits (#77, MachineFlow), the loyalty card,
+## inspections (plan 3.8, 3.9), the deck view and the results. It only displays RunState and
+## ScoreResult. The run is saved at every stable point and resumed when the screen opens (full
+## build plan section 4); the debug tools live in ShiftDebug.
 ##
 ## Click-to-place: click a hand card, then a slot (a filled slot pushes the cards right); click a
 ## row card to pick it back up; drag-and-drop does the same (CardDrag). Hand items keep their
 ## places (plan section 3.8). The row's slot_count general slots are compacted (v0.46, RowCapacity).
 ##
-## The basket redraw (plan section 3.8): the Redraw key arms redraw mode (BasketTags' REDRAW tags,
-## the monitor's RedrawPanel); a basket click redraws it at once (logged and saved) and
-## BasketRedraw plays the motion, every click blocked until it ends.
+## The basket redraw (plan section 3.8): the Redraw key arms redraw mode (BasketTags, the monitor's
+## RedrawPanel); a basket click redraws it at once and BasketRedraw plays the motion.
 ##
-## The layout (#55) is ShiftStage's 1280x720 stage, centred over a wall and a counter. The store
-## is in the StoreCamera (#77 machine v2), which glides to the machine at 2x for its visits and
-## back (MachineFlow); the top band and the hud never zoom. Planning input waits for the glide.
-##
-## Sounds (#62) play on the screen's Sfx: cards picked up, placed and let go, refusals, the redraw,
-## CHECKOUT and the log export here; the rest in MachineFlow, UiKit, CardDrag and ShiftMusic.
-## The tutorial (WP-5) asks ShiftGuide's gate before a move and hears its hooks (guide_event).
+## The layout (#55): ShiftStage's 1280x720 stage over a wall and a counter, the store in the
+## StoreCamera (#77 machine v2; it glides to the machine and back, planning input waits for it).
+## Sounds (#62) play on the screen's Sfx; the tutorial (WP-5) asks ShiftGuide's gate before a move
+## and hears its hooks (guide_event). A puzzle shift (#183) is PuzzleFlow's, asked by the title.
 
 ## The tutorial's hooks (TutorialEvents): sent at all times, guided or not (ShiftGuide).
 signal guide_event(event: StringName, args: Dictionary)
@@ -48,6 +42,7 @@ var tracker: CheckoutTracker = CheckoutTracker.new()
 var guide: ShiftGuide
 ## The guided first run's director (WP-8): plays a guided run's steps.
 var tutorial: TutorialDirector
+var puzzle_flow: PuzzleFlow  # A puzzle shift's part (#183, PuzzlePlay), or null.
 var _picked: CardInstance
 ## True when the picked card was taken from the row: placing it again is a move (plan 8:
 ## 1 placement, 0 removals); only leaving it in the hand counts as a removal.
@@ -145,6 +140,9 @@ func _ready() -> void:
 	_start_choice = StartChoice.new(self, _log)
 	_pins = PinFlow.new(self, _log)
 	_debug.add_panel(_balance.quotas.size())
+	puzzle_flow = PuzzleFlow.started(self, _log, PuzzlePlay.take())  # Leaves the run save be.
+	if puzzle_flow != null:
+		return
 	if _debug.wants_demo_row():
 		_debug.play_demo_row()  # A new run that leaves the run save as it is.
 		return
@@ -319,7 +317,8 @@ func _on_row_card_clicked(view: CardView) -> void:
 	elif guide.may_pick(view.card, true) and run.remove(view.card):
 		_pick(view.card, true)
 		_sfx.play("card_pickup")
-		_drag.arm(view.card, get_viewport().get_mouse_position())
+		# A click returns it to the basket unpicked (alpha v1.48); a drag still moves it.
+		_drag.arm(view.card, get_viewport().get_mouse_position(), true, false)
 		_refresh()
 		_save_run()
 
@@ -563,6 +562,9 @@ func _on_checkout_pressed() -> void:
 	_log.log_event("count_up", RunEvents.count_up_of(_count_up, shift, count_ms, context))
 	_counting = false
 	guide.counted(run)  # COUNT_FINISHED, and MISS.
+	if puzzle_flow != null:
+		puzzle_flow.counted(result.total)
+		return
 	if retry:
 		if tutorial.put_back(rehearsal, result.total):
 			return
@@ -587,7 +589,9 @@ func _on_checkout_pressed() -> void:
 ## the game during the count-up loses nothing.
 func _log_checkout(checkout_data: Dictionary) -> void:
 	_log.log_event("checkout", checkout_data)
-	if run.phase == RunState.Phase.WON or run.phase == RunState.Phase.LOST:
+	if puzzle_flow != null:
+		puzzle_flow.log_checkout(checkout_data)  # A puzzle never ends a run.
+	elif run.phase == RunState.Phase.WON or run.phase == RunState.Phase.LOST:
 		_run_ended_ms = Time.get_ticks_msec()
 		_log.log_event("run_end", RunEvents.run_end(run, _run_ended_ms - _run_started_ms))
 		_results.pin_news = PinUnlockNews.record(run, profile, _catalogue)  # Its unlock cards.
@@ -776,8 +780,7 @@ func _refresh_preview() -> void:
 	_show_projected(result)
 
 
-## Planning's monitor and quota gauge (#105 piece 2): the LED goes blank; the monitor shows the
-## last placed item (shown_slot; a pinned scan over it) and, like the gauge, `result`'s total.
+## Planning's monitor and gauge (#105 piece 2): the LED blank, the last placed item (shown_slot).
 func _show_projected(result: ScoreResult) -> void:
 	if _led.mode() != LedDisplay.Mode.BLANK:
 		_led.clear()
@@ -899,7 +902,6 @@ func _build() -> void:
 	_redraw_button = _stage.redraw_button
 	_checkout_button = _stage.checkout_button
 	_hand_box = _stage.hand
-
 	_overlay = Control.new()
 	_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -946,7 +948,6 @@ func _build() -> void:
 	_basket_redraw.setup(_stage)
 	_basket_redraw.reduced_motion = _scan.reduced_motion
 	_basket_redraw.finished.connect(_on_redraw_finished)
-
 	_shade = ScreenShade.new()
 	_shade.set_anchors_preset(Control.PRESET_FULL_RECT)
 	# Below the top bar: its menu and Cart stay reachable (_process keeps it there on a move).

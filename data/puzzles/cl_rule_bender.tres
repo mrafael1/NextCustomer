@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="PuzzleDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/puzzle_definition.gd" id="1_puzzle"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="2_card"]
+[ext_resource type="Script" path="res://core/upgrade_definition.gd" id="3_upgrade"]
+[ext_resource type="Resource" path="res://data/cards/two_for_one.tres" id="c_two_for_one"]
+[ext_resource type="Resource" path="res://data/cards/shelf_swap.tres" id="c_shelf_swap"]
+[ext_resource type="Resource" path="res://data/cards/cheese.tres" id="c_cheese"]
+[ext_resource type="Resource" path="res://data/cards/bread.tres" id="c_bread"]
+[ext_resource type="Resource" path="res://data/cards/butter.tres" id="c_butter"]
+[ext_resource type="Resource" path="res://data/cards/scone.tres" id="c_scone"]
+[ext_resource type="Resource" path="res://data/upgrades/rule_bender.tres" id="u_rule_bender"]
+
+[resource]
+script = ExtResource("1_puzzle")
+id = &"cl_rule_bender"
+title = "Rule bender"
+pack = 3
+target = 42
+slot_count = 5
+hand = Array[ExtResource("2_card")]([ExtResource("c_two_for_one"), ExtResource("c_shelf_swap"), ExtResource("c_cheese"), ExtResource("c_bread"), ExtResource("c_butter"), ExtResource("c_scone"), ExtResource("c_bread")])
+upgrades = Array[ExtResource("3_upgrade")]([ExtResource("u_rule_bender")])
+solution = PackedStringArray("bread", "shelf_swap", "cheese", "bread", "butter")
+hint = "Items with a coupon between them still count as beside each other."

@@ -1,0 +1,35 @@
+[gd_resource type="Resource" script_class="PuzzleList" format=3]
+
+[ext_resource type="Script" path="res://core/puzzle_list.gd" id="1_list"]
+[ext_resource type="Script" path="res://core/puzzle_definition.gd" id="2_puzzle"]
+[ext_resource type="Resource" path="res://data/puzzles/op_first_customer.tres" id="p_op_first_customer"]
+[ext_resource type="Resource" path="res://data/puzzles/op_banana_split.tres" id="p_op_banana_split"]
+[ext_resource type="Resource" path="res://data/puzzles/op_cheese_board.tres" id="p_op_cheese_board"]
+[ext_resource type="Resource" path="res://data/puzzles/op_early_bird.tres" id="p_op_early_bird"]
+[ext_resource type="Resource" path="res://data/puzzles/op_soup_of_the_day.tres" id="p_op_soup_of_the_day"]
+[ext_resource type="Resource" path="res://data/puzzles/op_breakfast_for_one.tres" id="p_op_breakfast_for_one"]
+[ext_resource type="Resource" path="res://data/puzzles/op_say_it_again.tres" id="p_op_say_it_again"]
+[ext_resource type="Resource" path="res://data/puzzles/op_spot_check.tres" id="p_op_spot_check"]
+[ext_resource type="Resource" path="res://data/puzzles/lr_fresh_batch.tres" id="p_lr_fresh_batch"]
+[ext_resource type="Resource" path="res://data/puzzles/lr_two_for_one.tres" id="p_lr_two_for_one"]
+[ext_resource type="Resource" path="res://data/puzzles/lr_shelf_swap.tres" id="p_lr_shelf_swap"]
+[ext_resource type="Resource" path="res://data/puzzles/lr_clearance.tres" id="p_lr_clearance"]
+[ext_resource type="Resource" path="res://data/puzzles/lr_household.tres" id="p_lr_household"]
+[ext_resource type="Resource" path="res://data/puzzles/lr_express_lane.tres" id="p_lr_express_lane"]
+[ext_resource type="Resource" path="res://data/puzzles/lr_perfect_pair.tres" id="p_lr_perfect_pair"]
+[ext_resource type="Resource" path="res://data/puzzles/lr_happy_hour.tres" id="p_lr_happy_hour"]
+[ext_resource type="Resource" path="res://data/puzzles/cl_write_off.tres" id="p_cl_write_off"]
+[ext_resource type="Resource" path="res://data/puzzles/cl_tea_time.tres" id="p_cl_tea_time"]
+[ext_resource type="Resource" path="res://data/puzzles/cl_grand_opening.tres" id="p_cl_grand_opening"]
+[ext_resource type="Resource" path="res://data/puzzles/cl_multipack.tres" id="p_cl_multipack"]
+[ext_resource type="Resource" path="res://data/puzzles/cl_fruit_stand.tres" id="p_cl_fruit_stand"]
+[ext_resource type="Resource" path="res://data/puzzles/cl_party_pack.tres" id="p_cl_party_pack"]
+[ext_resource type="Resource" path="res://data/puzzles/cl_rule_bender.tres" id="p_cl_rule_bender"]
+[ext_resource type="Resource" path="res://data/puzzles/cl_last_orders.tres" id="p_cl_last_orders"]
+
+[resource]
+script = ExtResource("1_list")
+puzzles = Array[ExtResource("2_puzzle")]([ExtResource("p_op_first_customer"), ExtResource("p_op_banana_split"), ExtResource("p_op_cheese_board"), ExtResource("p_op_early_bird"), ExtResource("p_op_soup_of_the_day"), ExtResource("p_op_breakfast_for_one"), ExtResource("p_op_say_it_again"), ExtResource("p_op_spot_check"), ExtResource("p_lr_fresh_batch"), ExtResource("p_lr_two_for_one"), ExtResource("p_lr_shelf_swap"), ExtResource("p_lr_clearance"), ExtResource("p_lr_household"), ExtResource("p_lr_express_lane"), ExtResource("p_lr_perfect_pair"), ExtResource("p_lr_happy_hour"), ExtResource("p_cl_write_off"), ExtResource("p_cl_tea_time"), ExtResource("p_cl_grand_opening"), ExtResource("p_cl_multipack"), ExtResource("p_cl_fruit_stand"), ExtResource("p_cl_party_pack"), ExtResource("p_cl_rule_bender"), ExtResource("p_cl_last_orders")])
+pack_titles = PackedStringArray("OPENING", "LUNCH RUSH", "CLOSING")
+unlock_solves = 4
+max_solutions = 6

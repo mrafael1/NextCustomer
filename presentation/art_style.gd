@@ -324,6 +324,9 @@ static func pixel_display_font() -> Font:
 		_pixel_display_font.keep_rounding_remainders = false
 		_pixel_display_font.generate_mipmaps = false
 		_pixel_display_font.oversampling = PIXEL_OVERSAMPLING
+		# No ligatures: at this size Pixelify Sans' "fi" reads as "Ar" (the puzzle hints, #183).
+		var server: TextServer = TextServerManager.get_primary_interface()
+		_pixel_display_font.opentype_feature_overrides = {server.name_to_tag("liga"): 0}
 	return _pixel_display_font
 
 

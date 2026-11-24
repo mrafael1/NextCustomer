@@ -121,7 +121,7 @@ func test_a_version_7_profile_reads_with_dairy_and_frozen_peas() -> void:
 		for card: CardDefinition in CapsuleDraw.items_left(aisle, read.unlocked_items):
 			assert_str(String(card.id)).is_not_equal("frozen_peas")
 	var saved: Dictionary = JSON.parse_string(JSON.stringify(read.to_dictionary()))
-	assert_int(int(saved["format_version"])).is_equal(8)
+	assert_int(int(saved["format_version"])).is_equal(ProfileState.FORMAT_VERSION)
 	assert_array(saved["last_list"]).is_equal(["dairy", "bakery"])
 	assert_array(saved["unlocked_items"]).is_equal(
 		[["cream", 2.0], ["baguette", 4.0], ["frozen_peas", -1.0]]
@@ -160,7 +160,7 @@ func test_a_version_8_profile_reads_as_it_is() -> void:
 	profile.stock_pair.assign([&"pantry", &"dairy"])
 	profile.stock_run_only = &"dairy"
 	var saved: Dictionary = JSON.parse_string(JSON.stringify(profile.to_dictionary()))
-	assert_int(int(saved["format_version"])).is_equal(8)
+	assert_int(int(saved["format_version"])).is_equal(ProfileState.FORMAT_VERSION)
 	var read: ProfileState = ProfileState.from_dictionary(saved)
 	assert_object(read).is_not_null()
 	assert_array(read.unlocked_items.keys()).is_equal([&"cream", &"baguette"])

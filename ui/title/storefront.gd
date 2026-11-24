@@ -12,24 +12,27 @@ extends Control
 ## menu and the sidewalk's neon reflections (both once the sign is lit); the right window's tube,
 ## which flickers; the doors' warm light spill on the sidewalk; the doors' two sliding leaves; the
 ## REWARDS bay (a glass annex with the REWARDS vinyl, the locked Loyalty poster and the sign-free
-## toy machine, BareToyMachine); the neon sign (NeonSign); and a receipt scrap that blows along
-## the sidewalk now and then (every SCRAP_GAP seconds, once the sign is lit). The menu's plates
-## go on stage() (the title places them); the brick left of the doors is theirs.
+## toy machine, BareToyMachine); the puzzle planner taped inside the right window (#183,
+## PuzzlePlanner, shown once the title offers puzzles); the neon sign (NeonSign); and a receipt
+## scrap that blows along the sidewalk now and then (every SCRAP_GAP seconds, once the sign is
+## lit). The menu's plates go on stage() (the title places them); the brick left of the doors is
+## theirs.
 ##
 ## The title drives it: light_up() lights the sign (sign_lit follows), sweep_on() lights it with
 ## the title's opening (2026-11-13, variant C: the scan beam, sign_swept for the BEEP, then
 ## sign_lit; the sconce wedge and the reflections come on at half for the tuning's glow_half_s,
 ## then full; light_now() puts them at full at once), doors_hot (the primary
 ## entry under the mouse or the marker) cracks the doors DOORS_AJAR art px and brightens the
-## spill, bay_hot (REWARDS) lights the bay and jiggles the machine once, scan_sign() is the sign's
+## spill, bay_hot (REWARDS) lights the bay and jiggles the machine once, `planner`'s hot
+## (PUZZLES) lifts the planner off the glass and jiggles it, scan_sign() is the sign's
 ## hidden toy (a scan line, the scanner's beep and one blink), open_doors() starts a run (the
 ## leaves slide apart in DOOR_STEP px steps, then the light floods the screen), and
-## slide_bay_glass() opens REWARDS. The hit rects (doors_rect, bay_rect, sign_rect) are in this
-## control's coordinates; the scene itself takes no clicks.
+## slide_bay_glass() opens REWARDS. The hit rects (doors_rect, bay_rect, sign_rect,
+## planner_rect) are in this control's coordinates; the scene itself takes no clicks.
 ##
 ## `still` (the profile's reduced motion) holds every loop and slide: the tube stays lit, the sign
 ## lights at once and never stutters, swings or breathes, no star twinkles or shoots, no scrap
-## blows, the machine doesn't
+## blows, the machine and the planner don't
 ## jiggle, the doors and the bay glass don't slide (a start only floods, in steps).
 
 ## The sign is fully lit (after light_up()).
@@ -53,6 +56,9 @@ const FLOOD_COLOR := Palette.MUSTARD_PALE
 ## The machine's jiggle: one art px either way, a step every JIGGLE_STEP for JIGGLE_TIME.
 const JIGGLE_STEP := 0.06
 const JIGGLE_TIME := 0.3
+## The puzzle planner's top left on the stage (art px): inside the right window, right of
+## register 3's monitor, under the tube (PuzzlePlanner).
+const PLANNER_AT := Vector2i(452, 150)
 ## The bay glass slides GLASS_STEP art px every GLASS_STEP_TIME for GLASS_TIME.
 const GLASS_STEP := 12
 const GLASS_STEP_TIME := 0.06
@@ -96,6 +102,8 @@ var still: bool = false:
 	set(value):
 		still = value
 		_sign.still = value
+		if planner != null:
+			planner.still = value
 		_update_live()
 
 ## The primary entry (CONTINUE, START RUN) is hot: the doors stand ajar, the spill brightens.
@@ -115,6 +123,10 @@ var bay_hot: bool = false:
 		bay_hot = value
 		_bay_lit.visible = value
 		_machine.lit = value
+
+## The puzzle planner in the right window (#183): the title shows it, marks it hot and presses
+## it.
+var planner: PuzzlePlanner
 
 var _clock: float = 0.0
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
@@ -166,6 +178,9 @@ func _init() -> void:
 	_stage.add_child(_sky)
 	_wedge = _add_layer("wedge")
 	_tube = _add_layer("tube_on")
+	planner = PuzzlePlanner.new()
+	planner.home = _canvas(PLANNER_AT)
+	_stage.add_child(planner)
 	_reflections = _add_layer("reflections")
 	_wedge.hide()
 	_reflections.hide()
@@ -269,6 +284,14 @@ func doors_rect() -> Rect2:
 ## The REWARDS bay (a click opens REWARDS), in this control's coordinates.
 func bay_rect() -> Rect2:
 	return _on_stage(StorefrontArt.BAY_RECT)
+
+
+## The puzzle planner (a click opens the puzzle board), in this control's coordinates; empty
+## while it isn't shown.
+func planner_rect() -> Rect2:
+	if not planner.visible:
+		return Rect2()
+	return _on_stage(Rect2i(PLANNER_AT, PuzzlePlanner.ART.get_size()))
 
 
 ## The neon sign with its tag (a click scans it), in this control's coordinates.

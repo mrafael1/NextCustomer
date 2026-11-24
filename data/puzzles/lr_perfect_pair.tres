@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="PuzzleDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/puzzle_definition.gd" id="1_puzzle"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="2_card"]
+[ext_resource type="Script" path="res://core/upgrade_definition.gd" id="3_upgrade"]
+[ext_resource type="Resource" path="res://data/cards/butter.tres" id="c_butter"]
+[ext_resource type="Resource" path="res://data/cards/scone.tres" id="c_scone"]
+[ext_resource type="Resource" path="res://data/cards/cheese.tres" id="c_cheese"]
+[ext_resource type="Resource" path="res://data/cards/bread.tres" id="c_bread"]
+[ext_resource type="Resource" path="res://data/cards/cereal.tres" id="c_cereal"]
+[ext_resource type="Resource" path="res://data/cards/milk.tres" id="c_milk"]
+[ext_resource type="Resource" path="res://data/upgrades/perfect_pair.tres" id="u_perfect_pair"]
+
+[resource]
+script = ExtResource("1_puzzle")
+id = &"lr_perfect_pair"
+title = "Perfect pair"
+pack = 2
+target = 46
+slot_count = 4
+hand = Array[ExtResource("2_card")]([ExtResource("c_butter"), ExtResource("c_scone"), ExtResource("c_cheese"), ExtResource("c_bread"), ExtResource("c_cereal"), ExtResource("c_milk")])
+upgrades = Array[ExtResource("3_upgrade")]([ExtResource("u_perfect_pair")])
+solution = PackedStringArray("bread", "cheese", "scone", "milk")
+hint = "Items beside their PAIR partner pay ×2."

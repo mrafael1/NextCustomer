@@ -19,7 +19,8 @@ extends Resource
 ## every pin has its icons (icon, icon_big).
 @export var face_text: String = ""
 ## The face's colour, counted from 1 in the badge screen's pin colours (PinFace.COLOURS: 1 tomato,
-## 2 teal, 3 mustard, 4 velvet, 5 green, 6 gold, 7 brown, 8 slate); 0 goes by catalogue place.
+## 2 teal, 3 mustard, 4 velvet, 5 green, 6 gold, 7 brown, 8 slate, 9 orange, 10 violet); 0 goes
+## by catalogue place.
 @export var face_colour: int = 0
 ## The icon on the pin's small faces (art/pin_icons/<id>.png, up to 8x8 art px): the lanyard, the
 ## pin tip and the start screen's compact rows and corkboard badge (PinFace, PinStepDraw). None:

@@ -4,7 +4,10 @@ extends Control
 ## storefront's brick, left of the doors, under the sconce's light (MenuPlate). With a run saved:
 ## CONTINUE (the tomato primary plate, the saved shift under it: SHIFT 3/16), NEW RUN and
 ## REWARDS; without one: START RUN (the run's length under it: 16 SHIFTS · 4 WEEKS) and
-## REWARDS. REWARDS carries a coin and the profile's coins.
+## REWARDS. REWARDS carries a coin and the profile's coins. Once a run has ended (#183), PUZZLES
+## is an entry with no plate: the storefront's puzzle planner (in the right window) stands for it,
+## and the keys reach it after the run's plates (play test 2026-11-23: a 7th plate pushed QUIT
+## onto the road at 1280x720).
 ##
 ## One marker lights an entry (its plate moves right onto its lit frame, the price-gun tick
 ## shows): the mouse on a plate, the keys (Up and Down; from no marker Down starts on the first
@@ -33,13 +36,17 @@ signal guide_pressed
 signal options_pressed
 ## QUIT was pressed (desktop only): the title asks first.
 signal quit_pressed
+## PUZZLES was pressed (#183): the puzzle board opens.
+signal puzzles_pressed
 ## The marked entry changed (NONE: none).
 signal hot_changed(entry: Entry)
 
 ## NONE: no entry; PRIMARY: CONTINUE or START RUN; NEW_RUN (only with a run saved); REWARDS;
 ## GUIDE (v1.06, the staff handbook, under REWARDS); OPTIONS (the options popup), GUIDE's half
-## plate's neighbour on its shelf; QUIT (desktop only) under them.
-enum Entry { NONE, PRIMARY, NEW_RUN, REWARDS, GUIDE, OPTIONS, QUIT }
+## plate's neighbour on its shelf; QUIT (desktop only) under them; PUZZLES (#183, once a run has
+## ended: the storefront's planner, no plate) after the run's plates in the keys' order (added
+## last: the entries' numbers are kept).
+enum Entry { NONE, PRIMARY, NEW_RUN, REWARDS, GUIDE, OPTIONS, QUIT, PUZZLES }
 
 ## Where the menu stands on the storefront's stage, in canvas px (36,160 art at 2x): the
 ## primary plate's top left.
@@ -86,8 +93,12 @@ var _stepping: Tween
 
 ## The menu with a run saved (`saved`: CONTINUE, NEW RUN, REWARDS) or not (START RUN, REWARDS);
 ## `sub_line` goes under the primary entry (continue_line or length_line), `coins` on REWARDS;
-## `quit`: QUIT under GUIDE and OPTIONS (the desktop game; the web build has none).
-func _init(saved: bool, sub_line: String, coins: int, quit: bool = false) -> void:
+## `quit`: QUIT under GUIDE and OPTIONS (the desktop game; the web build has none); `puzzles`:
+## PUZZLES after the run's plates in the keys' order, with no plate (#183: the storefront's
+## planner).
+func _init(
+	saved: bool, sub_line: String, coins: int, quit: bool = false, puzzles: bool = false
+) -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	position = STAGE_AT
 	_entries = [Entry.PRIMARY, Entry.REWARDS, Entry.GUIDE, Entry.OPTIONS]
@@ -129,6 +140,8 @@ func _init(saved: bool, sub_line: String, coins: int, quit: bool = false) -> voi
 	set_coins(coins)
 	var last: MenuPlate = _plates[_last_entry()]
 	size = Vector2(MenuPlate.PRIMARY_SIZE.x, last.position.y + last.size.y)
+	if puzzles:
+		_entries.insert(_entries.find(Entry.REWARDS), Entry.PUZZLES)
 
 
 ## The primary entry's sub-line for a saved run: its shift out of the run's shifts.
@@ -193,13 +206,14 @@ func step_in(delay: float = 0.0) -> Tween:
 	if _shown:
 		return null
 	_shown = true
+	var plated: Array[Entry] = _plated()
 	if still:
-		for entry: Entry in _entries:
+		for entry: Entry in plated:
 			_plates[entry].visible = true
 		return null
 	_stepping = create_tween().set_parallel()
-	for i: int in _entries.size():
-		var shown_plate: MenuPlate = _plates[_entries[i]]
+	for i: int in plated.size():
+		var shown_plate: MenuPlate = _plates[plated[i]]
 		_slide(0.0, shown_plate)
 		_stepping.tween_method(_slide.bind(shown_plate), 0.0, 1.0, SLIDE_TIME).set_delay(
 			delay + i * STEP_DELAY
@@ -214,7 +228,7 @@ func finish_step_in() -> void:
 	if _stepping != null:
 		_stepping.kill()
 		_stepping = null
-	for entry: Entry in _entries:
+	for entry: Entry in _plated():
 		_plates[entry].visible = true
 		_plates[entry].position.x = _home_x(entry)
 
@@ -226,12 +240,12 @@ func is_stepping() -> bool:
 
 ## Puts the marker on `entry` (NONE: off), lighting its plate; hot_changed when it moves.
 func mark(entry: Entry) -> void:
-	if frozen or (entry != Entry.NONE and not _plates.has(entry)):
+	if frozen or (entry != Entry.NONE and not _entries.has(entry)):
 		return
 	if entry == _marked:
 		return
 	_marked = entry
-	for each: Entry in _entries:
+	for each: Entry in _plated():
 		_plates[each].marked = each == entry
 	hot_changed.emit(entry)
 
@@ -267,6 +281,8 @@ func activate(entry: Entry) -> void:
 			options_pressed.emit()
 		Entry.QUIT:
 			quit_pressed.emit()
+		Entry.PUZZLES:
+			puzzles_pressed.emit()
 
 
 ## A key for the menu: Up and Down move the marker, Enter or Space press the marked entry (the
@@ -304,6 +320,15 @@ static func _plate_text(entry: Entry) -> String:
 		Entry.QUIT:
 			return QUIT_TEXT
 	return REWARDS_TEXT
+
+
+## The entries with a plate, top to bottom (all but PUZZLES, the storefront's planner).
+func _plated() -> Array[Entry]:
+	var plated: Array[Entry] = []
+	for entry: Entry in _entries:
+		if _plates.has(entry):
+			plated.append(entry)
+	return plated
 
 
 ## Where `entry`'s plate rests: OPTIONS beside GUIDE, the rest at the column's left.

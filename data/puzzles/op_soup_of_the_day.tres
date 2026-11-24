@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="PuzzleDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/puzzle_definition.gd" id="1_puzzle"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="2_card"]
+[ext_resource type="Resource" path="res://data/cards/soup.tres" id="c_soup"]
+[ext_resource type="Resource" path="res://data/cards/cheese.tres" id="c_cheese"]
+[ext_resource type="Resource" path="res://data/cards/yogurt.tres" id="c_yogurt"]
+[ext_resource type="Resource" path="res://data/cards/bread.tres" id="c_bread"]
+[ext_resource type="Resource" path="res://data/cards/potatoes.tres" id="c_potatoes"]
+
+[resource]
+script = ExtResource("1_puzzle")
+id = &"op_soup_of_the_day"
+title = "Soup of the day"
+pack = 1
+target = 18
+slot_count = 3
+hand = Array[ExtResource("2_card")]([ExtResource("c_soup"), ExtResource("c_cheese"), ExtResource("c_yogurt"), ExtResource("c_bread"), ExtResource("c_potatoes")])
+solution = PackedStringArray("soup", "bread", "cheese")
+hint = "Soup pays nothing beside a Dairy item."

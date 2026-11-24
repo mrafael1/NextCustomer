@@ -26,6 +26,9 @@ var card: WeekCard
 var slip: DaySlip
 ## The tutorial holds a due card and the page change: Callable() -> bool (null: never).
 var hold: Callable = Callable()
+## A puzzle shift (#183, PuzzleFlow): a run without weeks whose one day still shows on the
+## calendar as a run's day 1 (its kind's band and sign, no week pips), and today's slip opens on it.
+var single_day: bool = false
 var _screen: ShiftScreen
 var _calendar: DayCalendar
 var _glass: WeekGlass
@@ -152,7 +155,7 @@ func hover_slip() -> void:
 ## Whether today's slip could open now (planning shows, no card over it, a day on the calendar).
 func _slip_may_open() -> bool:
 	var run: RunState = _screen.run
-	if run == null or not has_weeks(run) or card.is_open() or not _can_show():
+	if run == null or not (has_weeks(run) or single_day) or card.is_open() or not _can_show():
 		return false
 	return _calendar.day() > 0
 
@@ -186,7 +189,7 @@ func show_chips() -> void:
 	_calendar.reduced_motion = _screen.profile.reduced_motion()
 	var model: WeekCardModel = WeekCardModel.of(run)
 	# The day first: a next day keeps the page last seen (its own pips) as the one that tears off.
-	var day: int = run.shift_index + 1 if weeks else 0
+	var day: int = run.shift_index + 1 if weeks or single_day else 0
 	_calendar.show_inspections(day_events(run), day, event_pool(run), run.shift_count(), payday)
 	if weeks:
 		_calendar.show_week(model)

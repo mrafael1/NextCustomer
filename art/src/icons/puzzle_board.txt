@@ -1,0 +1,24 @@
+; The puzzle shift's BOARD key icon (#183 polish, 2026-11-23): the puzzle board in small, a
+; brown clipboard with its steel clip over a paper sheet of four puzzle cards (two ticked green,
+; the next one ringed tomato). 16x18 (even, polish 5: shown at 2x on the teal key, PuzzleOverlay,
+; its offsets on the key stay on the 2 px art grid, so it stays crisp at any window scale).
+@size 16x18
+@kind icon
+....########....
+...#BBBBBBBB#...
+####DDDDDDDD####
+#FF##########Ff#
+#Fwwwwwwwwwwwwf#
+#Fw3333ww3333bf#
+#Fw36g3ww36g3bf#
+#Fw3g63ww3g63bf#
+#Fw3333ww3333bf#
+#Fwwwwwwwwwwwbf#
+#Fwwwwwwwwwwwbf#
+#FwRRRRww3333bf#
+#FwRwwRww3ww3bf#
+#FwRwwRww3ww3bf#
+#FwRRRRww3333bf#
+#Fbbbbbbbbbbbbf#
+#ffffffffffffff#
+################

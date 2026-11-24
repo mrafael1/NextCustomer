@@ -8,7 +8,7 @@
 [sub_resource type="Resource" id="Resource_score"]
 script = ExtResource("2_condition")
 kind = 2
-amount = 100
+amount = 1000
 
 [resource]
 script = ExtResource("1_pin")

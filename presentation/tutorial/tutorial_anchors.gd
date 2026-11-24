@@ -40,6 +40,8 @@ const MACHINE_SKIP := &"machine_skip"
 const MACHINE_SIGN := &"machine_sign"
 ## Title: the primary plate (START RUN, or NEW RUN with a saved run; G1).
 const TITLE_PRIMARY := &"title_primary"
+## Title: the puzzle planner in the right window (T17, #183 polish 5).
+const TITLE_PUZZLES := &"title_puzzles"
 ## The HANDBOOK's tabs (T16).
 const HANDBOOK_TABS := &"handbook_tabs"
 ## Start board, page 1 (BoosterChromeDraw's hit ids): the RESTOCK key, the main key (NEXT / OPEN
@@ -91,6 +93,7 @@ const FIXED: Array[StringName] = [
 	MACHINE_SKIP,
 	MACHINE_SIGN,
 	TITLE_PRIMARY,
+	TITLE_PUZZLES,
 	HANDBOOK_TABS,
 	RESTOCK,
 	PRIMARY,

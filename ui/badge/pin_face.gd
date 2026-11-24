@@ -20,6 +20,8 @@ const COLOURS: Array[Array] = [
 	[Palette.GOLD, Palette.BRASS_DARK, Palette.MUSTARD_PALE],
 	[Palette.BROWN, Palette.BROWN_DARKEST, Palette.BROWN_LIGHT],
 	[Palette.SLATE, Palette.TEAL_BLACK, Palette.TEAL_SHADE],
+	[Palette.ORANGE, Palette.ORANGE_DARK, Palette.ORANGE_LIGHT],
+	[Palette.VIOLET, Palette.VIOLET_DARK, Palette.VIOLET_LIGHT],
 ]
 const LOCKED_COLOURS: Array[Color] = [Palette.GREY_LIGHT, Palette.GREY, Palette.CREAM]
 ## The art px: the grid, the rim, the glint's size.

@@ -40,6 +40,9 @@ const NOTICE_STAMP_GAP := 0.08
 
 ## The shift's margin against its quota, set when the dessert starts; null before that.
 var margin: ShiftMargin
+## A puzzle shift (#183, play test 2026-11-23): only a total right on the quota passes (`total`,
+## `pass`, the pass's shake and PAID); over it, as short of it, plays the miss (`miss`, `fail`).
+var exact: bool = false
 ## The sounds: the count-up's own Sfx (CountUp sets it before each dessert).
 var sfx: Sfx
 ## The shift's inspections' names (#77): a pass stamps INSPECTION PASSED naming them under PAID
@@ -97,7 +100,7 @@ func play(
 	_tuning = tuning
 	_reduced_motion = reduced_motion
 	margin = ShiftMargin.of(total, quota)
-	var passed: bool = margin.passed()
+	var passed: bool = margin.kind() == ShiftMargin.Kind.ON if exact else margin.passed()
 	await _wait_ms(_tuning.dessert_slam_delay_ms)
 	var verdict: Label = await _slam(total, quota, reduced_motion)
 	sfx.play("total" if passed else "miss")

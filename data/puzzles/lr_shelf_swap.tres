@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="PuzzleDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/puzzle_definition.gd" id="1_puzzle"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="2_card"]
+[ext_resource type="Resource" path="res://data/cards/shelf_swap.tres" id="c_shelf_swap"]
+[ext_resource type="Resource" path="res://data/cards/cheese.tres" id="c_cheese"]
+[ext_resource type="Resource" path="res://data/cards/bread.tres" id="c_bread"]
+[ext_resource type="Resource" path="res://data/cards/butter.tres" id="c_butter"]
+[ext_resource type="Resource" path="res://data/cards/croissant.tres" id="c_croissant"]
+[ext_resource type="Resource" path="res://data/cards/potatoes.tres" id="c_potatoes"]
+
+[resource]
+script = ExtResource("1_puzzle")
+id = &"lr_shelf_swap"
+title = "Shelf swap"
+pack = 2
+target = 29
+slot_count = 4
+hand = Array[ExtResource("2_card")]([ExtResource("c_shelf_swap"), ExtResource("c_cheese"), ExtResource("c_bread"), ExtResource("c_butter"), ExtResource("c_croissant"), ExtResource("c_potatoes")])
+solution = PackedStringArray("croissant", "shelf_swap", "bread", "cheese")
+hint = "Shelf swap joins two different items, and the second pays ×2."

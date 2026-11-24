@@ -132,6 +132,17 @@ const TARGET_COLOR := Palette.TOMATO
 ## would lose (the dark one).
 const GAIN_PREVIEW_ALPHA := 0.55
 const LOSS_PREVIEW_ALPHA := 0.8
+## A puzzle shift's tube (#183, `exact`): the target line is a gold notch EXACT_NOTCH art px
+## thick (brass edged) at the tube's top, and every lap past it pours tomato (SPILL_RAMP).
+const EXACT_NOTCH := 2
+const NOTCH_COLOR := Palette.GOLD
+const NOTCH_EDGE := Palette.BRASS_DARK
+const SPILL_RAMP: Array[Color] = [Palette.TOMATO_LIGHT, Palette.TOMATO, Palette.TOMATO_DARK]
+## An EXACT solve's notch flash (pop_lamp(true), #183 polish 5): the notch blinks paper and gold,
+## NOTCH_BLINKS times over NOTCH_FLASH_SECONDS, one art px thicker while it flashes.
+const NOTCH_FLASH_SECONDS := 0.9
+const NOTCH_BLINKS := 6
+const NOTCH_FLASH_COLOR := Palette.PAPER
 
 ## Returns whether to reduce motion (the profile's setting); an empty Callable means no.
 var reduced_motion: Callable = Callable()
@@ -147,6 +158,15 @@ var lamp_offset: Vector2 = Vector2.ZERO
 ## The lamp names the laps ("×N"); off, a lit lamp shows the check alone in its lap's colour
 ## (the top bar's gauge, whose ×N readout grows beside the glass: LapReadout).
 var names_laps: bool = true
+## A puzzle shift (#183, play test 2026-11-23): the tube fills as the quota's does (planning's
+## projection, the drag preview, the count), but its target line is a gold notch and the laps past
+## it (lap 2 on, the quota's silver and gold) pour tomato: over the target is a miss. It names no
+## laps (no lap_reached, no lamp_changed: no ×N readout); its lamp lights green with the check
+## right on the target and tomato, bare, past it.
+var exact: bool = false:
+	set(value):
+		exact = value
+		queue_redraw()
 
 var _amount: int = 0
 var _quota: int = 0
@@ -168,6 +188,8 @@ var _led: LedDisplay
 var _shown: float = 0.0
 var _slosh: float = 0.0
 var _flash: float = 0.0
+## The notch's flash, from 1 at pop_lamp(true) down to 0.
+var _notch_flash: float = 0.0
 var _time: float = 0.0
 ## The lamp's pop, from 1 at a new lap down to 0, and the lap it last showed.
 var _pop: float = 0.0
@@ -316,10 +338,13 @@ func lamp_canvas_rect() -> Rect2:
 
 
 ## The lamp sends its token to a week medal (MedalFlight): it pops and the tube flashes, as at a
-## new lap (reduced motion: no pop).
-func pop_lamp() -> void:
+## new lap (reduced motion: no pop). `notch`: an EXACT solve (#183 polish 5), the target notch
+## also blinks paper and gold (reduced motion: lit once, no blink).
+func pop_lamp(notch: bool = false) -> void:
 	_pop = 0.0 if _reduced() else 1.0
 	_flash = maxf(_flash, LAMP_LAND_FLASH)
+	if notch:
+		_notch_flash = 1.0
 	queue_redraw()
 
 
@@ -336,7 +361,20 @@ func ramp() -> Array[Color]:
 ## The ramp of the liquid drawn now (the first lap's eased one, or the lap's), for tests.
 func liquid_ramp() -> Array[Color]:
 	var lap: int = _drawn_lap()
-	return QuotaLaps.lap_ramp(lap) if lap >= QuotaLaps.FIRST_LAP else _ramp
+	return _lap_ramp(lap) if lap >= QuotaLaps.FIRST_LAP else _ramp
+
+
+## Lap `lap`'s columns (FIRST_LAP or more): QuotaLaps', tomato on a puzzle's tube (`exact`).
+func _lap_ramp(lap: int) -> Array[Color]:
+	return SPILL_RAMP if exact else QuotaLaps.lap_ramp(lap)
+
+
+## The full tube behind lap `lap` (FIRST_LAP or more): QuotaLaps'; on a puzzle's tube the green
+## behind lap 2 and the tomato behind every later one.
+func _backdrop_ramp(lap: int) -> Array[Color]:
+	if exact and lap > QuotaLaps.FIRST_LAP:
+		return SPILL_RAMP
+	return QuotaLaps.backdrop_ramp(lap)
 
 
 func _process(delta: float) -> void:
@@ -344,6 +382,7 @@ func _process(delta: float) -> void:
 		return
 	_time += delta
 	_flash = maxf(0.0, _flash - delta / FLASH_SECONDS)
+	_notch_flash = maxf(0.0, _notch_flash - delta / NOTCH_FLASH_SECONDS)
 	_pop = maxf(0.0, _pop - delta / LAMP_POP_SECONDS)
 	var target: Array[Color] = _status_ramp()
 	for index: int in range(_ramp.size()):
@@ -383,7 +422,7 @@ func _show(amount_shown: int, quota: int, met: bool, counting: bool = false) -> 
 		_flash = 1.0
 	_met = met
 	var lap: int = QuotaLaps.lap_for(amount_shown, quota, met)
-	if lap > _lap and lap > QuotaLaps.FIRST_LAP and counting:
+	if lap > _lap and lap > QuotaLaps.FIRST_LAP and counting and not exact:
 		lap_reached.emit(lap - 1)
 	_lap = lap
 	if _reduced():
@@ -444,7 +483,7 @@ func _follow_badge() -> void:
 	var laps_before: int = maxi(_badge_lap - 1, 0)
 	_badge_lap = lap
 	var laps: int = maxi(lap - 1, 0)
-	if laps != laps_before or popped:
+	if (laps != laps_before or popped) and not exact:
 		lamp_changed.emit(laps, popped)
 
 
@@ -518,12 +557,25 @@ func _draw() -> void:
 	if not _blank:
 		_draw_liquid(art)
 	_draw_glass(art)
-	# The target: a tomato line across the glass's top row.
-	_cell(1, 1, art.x - 2, 1, TARGET_COLOR)
+	if exact:
+		# A puzzle's target: a gold notch across the glass's top rows, brass edged.
+		var notch: int = EXACT_NOTCH + (1 if _notch_flash > 0.0 else 0)
+		_cell(1, 1, art.x - 2, notch + 1, NOTCH_EDGE)
+		_cell(1, 1, art.x - 2, notch, _notch_colour())
+	else:
+		# The target: a tomato line across the glass's top row.
+		_cell(1, 1, art.x - 2, 1, TARGET_COLOR)
 	if is_near():
 		_draw_glow(art)
 	draw_set_transform(Vector2.ZERO)
 	_draw_lamp()
+
+
+## A puzzle's tube (`exact`, #183) shows the count's `total` against the notch at `quota`, as
+## the count left it (the gauge comes back down with it after the count).
+func show_exact(total: int, quota: int) -> void:
+	_hypothetical = -1
+	_show(total, quota, total >= quota)
 
 
 ## The glass over the liquid: its tick marks on the right side and its highlight on the left.
@@ -558,13 +610,17 @@ func _draw_lamp() -> void:
 	var colours: Array[Color] = []
 	var glow: float = 0.0
 	if _laps_made() > 0:
-		colours = QuotaLaps.backdrop_ramp(_drawn_lap())
+		colours = _backdrop_ramp(_drawn_lap())
+		if exact and _shown > _quota:
+			colours = SPILL_RAMP  # Past a puzzle's target: lit tomato, bare.
 		glow = LAMP_GLOW
 		if not _reduced():
 			glow += LAMP_GLOW_PULSE * sin(TAU * _time / LAMP_GLOW_SECONDS)
 	var pop: float = 1.0 + LAMP_POP * pow(_pop, 3.0)
 	var text: String = badge_text()
-	if not names_laps and not text.is_empty():
+	if exact and _shown > _quota:
+		text = ""
+	elif not names_laps and not text.is_empty():
 		text = LapLamp.CHECK_TEXT
 	LapLamp.draw(self, _lamp_at(), cell, colours, text, glow, pop)
 
@@ -577,7 +633,7 @@ func _draw_liquid(art: Vector2i) -> void:
 	var liquid: Array[Color] = liquid_ramp()
 	var backdrop: Array[Color] = []
 	if lap >= QuotaLaps.FIRST_LAP:
-		backdrop = QuotaLaps.backdrop_ramp(lap)
+		backdrop = _backdrop_ramp(lap)
 	var plan: Dictionary = _preview_plan()
 	for x: int in range(1, art.x - 1):
 		var wobble: float = 0.0
@@ -595,7 +651,7 @@ func _draw_liquid(art: Vector2i) -> void:
 			_draw_preview(plan, Vector3i(x, column, top), foot, liquid, backdrop)
 	if not reduced:
 		_draw_motion(art, front, liquid)
-		if lap >= QuotaLaps.TWINKLE_LAP:
+		if lap >= QuotaLaps.TWINKLE_LAP and not exact:
 			_draw_twinkles(art, front)
 	if _flash > 0.0:
 		_cell(1, 1, art.x - 2, art.y - 2, Color(Palette.PAPER, _flash * FLASH_ALPHA))
@@ -611,7 +667,7 @@ func _preview_plan() -> Dictionary:
 	var lap: int = QuotaLaps.lap_for(_hypothetical, _quota, met)
 	var colours: Array[Color] = SHORT_RAMP
 	if lap >= QuotaLaps.FIRST_LAP:
-		colours = QuotaLaps.lap_ramp(lap)
+		colours = _lap_ramp(lap)
 	elif _hypothetical >= _quota * NEAR_SHARE:
 		colours = NEAR_RAMP
 	return {
@@ -688,6 +744,16 @@ func _cell(x: int, y: int, width: int, height: int, colour: Color) -> void:
 		return
 	var cell: float = ArtStyle.ART_SCALE
 	draw_rect(Rect2(x * cell, y * cell, width * cell, height * cell), colour)
+
+
+## The notch's colour: gold, blinking paper while it flashes (lit paper under reduced motion).
+func _notch_colour() -> Color:
+	if _notch_flash <= 0.0:
+		return NOTCH_COLOR
+	if _reduced():
+		return NOTCH_FLASH_COLOR
+	var blink: int = floori((1.0 - _notch_flash) * NOTCH_BLINKS * 2.0)
+	return NOTCH_FLASH_COLOR if blink % 2 == 0 else NOTCH_COLOR
 
 
 func _reduced() -> bool:

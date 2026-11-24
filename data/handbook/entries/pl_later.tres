@@ -9,6 +9,6 @@ group = &"place"
 title = "LATER"
 mark = 2
 mark_value = "LATER"
-rule = "Any slot after it, near or far, like {item:milk} and {item:bread} after {coupon:final_markdown}, which doubles the last one."
+rule = "Any slot after it, near or far, like {item:milk} and {item:bread} after {coupon:final_markdown}."
 example_row = PackedStringArray("final_markdown", "milk", "bread")
 example_total = 14

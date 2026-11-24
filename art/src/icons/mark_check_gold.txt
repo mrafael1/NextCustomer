@@ -1,0 +1,4 @@
+; The check mark (mark_check.txt) in gold (#183 polish, 2026-11-23): a solved puzzle's tick on a
+; completed pack's golden card. The green disc through the GOLDEN keys (lit rim mustard pale,
+; disc gold, shade brass); the paper check stays.
+@derive mark_check golden=keys z=Y G=n g=L

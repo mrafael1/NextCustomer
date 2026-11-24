@@ -28,6 +28,18 @@ const BEAT_TEXT := "MEET"
 const BEAT_CELL := 2.0
 const BEAT_GAP := 10.0
 const CAPTION_TEXT := "THE QUOTA"
+## A puzzle shift's words (#183, use_puzzle): "HIT" before "EXACTLY".
+const PUZZLE_BEAT_TEXT := "HIT"
+const PUZZLE_CAPTION_TEXT := "EXACTLY"
+## A puzzle's verdict stamp on the over row (show_verdict): its pixel-art frames (EXACT green,
+## OVER or SHORT tomato; 3 art px 9-slices) and its font size.
+const EXACT_STAMP := preload("res://art/frames/stamp_exact.png")
+const MISS_STAMP := preload("res://art/frames/stamp_miss.png")
+const VERDICT_MARGIN := 3
+const VERDICT_SIZE := 14
+## The stamp's words' room inside its rim (canvas px): wide at the sides, none above and below,
+## so the stamp keeps the row's height.
+const VERDICT_PAD := 8
 const CAPTION_SIZE := 13
 const CAPTION_SPACING := 1
 const CAPTION_COLOR := Palette.INK
@@ -112,6 +124,10 @@ var beaten: BeatenStamp
 var roll: ReceiptRoll
 ## The hero's and the target's cells (CELLS).
 var cells: Vector2 = CELLS[0]
+## A puzzle shift (#183): HIT EXACTLY over the target and the count never stamps BEATEN! (the
+## verdict stamps instead); planning shows the projected total as a run's does (play test
+## 2026-11-23). Its words change once (use_puzzle).
+var puzzle: bool = false
 var _row: Control
 var _quota: int = -1
 var _met: bool = false
@@ -128,6 +144,14 @@ var _margin_words: String = ""
 var _stamp_room_text: String = STAMP_ROOM_TEXT
 ## The medal planning's projection would spend (ReceiptGold.PENDING_*): the PROJECTED hero's metal.
 var _pending_metal: int = ReceiptGold.PENDING_NONE
+
+
+## A puzzle shift's receipt head (#183): "HIT EXACTLY" and `puzzle`.
+func use_puzzle() -> void:
+	puzzle = true
+	beat.text = PUZZLE_BEAT_TEXT
+	caption.text = PUZZLE_CAPTION_TEXT
+	_layout()
 
 
 func _init() -> void:
@@ -251,6 +275,8 @@ func show_running(value: int) -> void:
 ## The quota is met: the target turns green dark with its check, the rule goes green, and BEATEN!
 ## slams on (`pop`, unless `still`), else shows settled.
 func show_met(pop: bool, still: bool = false) -> void:
+	if puzzle:
+		return  # A puzzle (#183): the monitor's verdict says it, never BEATEN!.
 	_met = true
 	_layout()
 	beaten.stamp(pop, still)
@@ -350,11 +376,34 @@ func stamp_rect() -> Rect2:
 	return Rect2(beaten.position, beaten.size)
 
 
+## A puzzle's verdict (#183) once the count has ended: the over row's words go and its stamp reads
+## `text` ("EXACT", "OVER 3€", "SHORT 4€") in the EXACT frame (green) when `exact`, else the miss
+## frame (tomato).
+func show_verdict(text: String, exact: bool) -> void:
+	_margin_shown = true
+	over.text = ""
+	_margin_words = ""
+	stamp.text = text
+	stamp.add_theme_font_size_override("font_size", VERDICT_SIZE)
+	stamp.add_theme_color_override("font_color", MET_COLOR if exact else COLOR)
+	var face: StyleBoxTexture = ArtStyle.frame_style(
+		EXACT_STAMP if exact else MISS_STAMP, VERDICT_MARGIN
+	)
+	face.content_margin_left = VERDICT_PAD
+	face.content_margin_right = VERDICT_PAD
+	face.content_margin_top = 0
+	face.content_margin_bottom = 0
+	stamp.add_theme_stylebox_override("normal", face)
+	stamp.visible = true
+
+
 ## The over row's stamp goes (a new projection or count).
 func _clear_stamp() -> void:
 	_margin_words = ""
 	stamp.text = ""
 	stamp.visible = false
+	stamp.remove_theme_stylebox_override("normal")
+	stamp.add_theme_font_size_override("font_size", STAMP_SIZE)
 
 
 ## The margin words at the size their longest form fits beside the caption and the stamp (its
@@ -407,7 +456,10 @@ func _set_hero(value: int, quota: int) -> void:
 	if not _margin_shown:
 		over.text = against_text(value, quota) if quota >= 0 else ""
 		if quota >= 0:
-			over.add_theme_color_override("font_color", against_color(value, quota))
+			var ink: Color = against_color(value, quota)
+			if puzzle and value > quota:
+				ink = Palette.TOMATO_DARK  # Over a puzzle's target is a miss (#183).
+			over.add_theme_color_override("font_color", ink)
 			over.remove_theme_font_size_override("font_size")
 	_layout()
 

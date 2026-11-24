@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="PuzzleDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/puzzle_definition.gd" id="1_puzzle"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="2_card"]
+[ext_resource type="Script" path="res://core/upgrade_definition.gd" id="3_upgrade"]
+[ext_resource type="Script" path="res://core/inspection_definition.gd" id="4_event"]
+[ext_resource type="Resource" path="res://data/cards/final_markdown.tres" id="c_final_markdown"]
+[ext_resource type="Resource" path="res://data/cards/repeat.tres" id="c_repeat"]
+[ext_resource type="Resource" path="res://data/cards/eggs.tres" id="c_eggs"]
+[ext_resource type="Resource" path="res://data/cards/bread.tres" id="c_bread"]
+[ext_resource type="Resource" path="res://data/cards/cheese.tres" id="c_cheese"]
+[ext_resource type="Resource" path="res://data/cards/milk.tres" id="c_milk"]
+[ext_resource type="Resource" path="res://data/cards/banana.tres" id="c_banana"]
+[ext_resource type="Resource" path="res://data/upgrades/slot_engine.tres" id="u_slot_engine"]
+[ext_resource type="Resource" path="res://data/inspections/spot_check.tres" id="e_spot_check"]
+
+[resource]
+script = ExtResource("1_puzzle")
+id = &"cl_last_orders"
+title = "Last orders"
+pack = 3
+target = 81
+slot_count = 6
+hand = Array[ExtResource("2_card")]([ExtResource("c_final_markdown"), ExtResource("c_repeat"), ExtResource("c_eggs"), ExtResource("c_bread"), ExtResource("c_cheese"), ExtResource("c_milk"), ExtResource("c_banana")])
+upgrades = Array[ExtResource("3_upgrade")]([ExtResource("u_slot_engine")])
+inspections = Array[ExtResource("4_event")]([ExtResource("e_spot_check")])
+solution = PackedStringArray("final_markdown", "cheese", "bread", "eggs", "milk", "repeat")
+hint = "Slot 6 pays ×2 and slot 3 pays 0€: every place counts."

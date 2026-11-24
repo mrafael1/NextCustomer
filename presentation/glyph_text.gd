@@ -34,7 +34,7 @@ const KEYWORD_TIPS: Dictionary[String, String] = {
 	CardText.BATCH_WORD:
 	(
 		"Put Bakery items side by side to make a BATCH: the bigger it is, the more each item "
-		+ "earns. Some cards care about their spot in it: Croissant first, Stale doughnut last."
+		+ "earns."
 	),
 	CardText.CHAIN_WORD:
 	(
@@ -44,13 +44,10 @@ const KEYWORD_TIPS: Dictionary[String, String] = {
 	CardText.WASTED_WORD:
 	(
 		"An item with a rule that does nothing where it sits is WASTED. Items with no rule and "
-		+ "coupons are never WASTED. Some Clearance items, like Dusty toffees, pay for WASTED items."
+		+ "coupons are never WASTED."
 	),
 	CardText.PAIR_WORD:
-	(
-		"Put a PAIR item beside the partner its card names, like Cheese by Bread, for a bonus. "
-		+ "Cream pays for each PAIRED item in the row."
-	),
+	"Put a PAIR item beside the partner its card names, like Cheese by Bread, for a bonus.",
 }
 
 ## Each batch role's word and the family whose colour it is drawn in.

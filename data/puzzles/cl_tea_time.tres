@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="PuzzleDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/puzzle_definition.gd" id="1_puzzle"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="2_card"]
+[ext_resource type="Resource" path="res://data/cards/tea_bags.tres" id="c_tea_bags"]
+[ext_resource type="Resource" path="res://data/cards/coffee.tres" id="c_coffee"]
+[ext_resource type="Resource" path="res://data/cards/milk.tres" id="c_milk"]
+[ext_resource type="Resource" path="res://data/cards/cereal.tres" id="c_cereal"]
+[ext_resource type="Resource" path="res://data/cards/egg_timer.tres" id="c_egg_timer"]
+[ext_resource type="Resource" path="res://data/cards/eggs.tres" id="c_eggs"]
+[ext_resource type="Resource" path="res://data/cards/bread.tres" id="c_bread"]
+
+[resource]
+script = ExtResource("1_puzzle")
+id = &"cl_tea_time"
+title = "Tea time"
+pack = 3
+target = 65
+slot_count = 5
+hand = Array[ExtResource("2_card")]([ExtResource("c_tea_bags"), ExtResource("c_coffee"), ExtResource("c_milk"), ExtResource("c_cereal"), ExtResource("c_egg_timer"), ExtResource("c_eggs"), ExtResource("c_bread")])
+solution = PackedStringArray("tea_bags", "eggs", "egg_timer", "milk")
+hint = "Tea bags give ×4 to the last Breakfast item after them."

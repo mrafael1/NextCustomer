@@ -717,3 +717,38 @@ func _until_armed(screen: ShiftScreen) -> void:
 	while not screen._machine.view.is_armed() and Time.get_ticks_msec() - start < 3000:
 		await get_tree().process_frame
 	assert_bool(screen._machine.view.is_armed()).is_true()
+
+
+## A maxed perk (alpha feedback v1.48): its box gets a gold ring and a gold star in place of the
+## level numeral, on both faces, inside the box; reaching LV 3 on a rebuild shines once.
+func test_a_maxed_perk_wears_a_gold_ring_and_star_and_shines_once() -> void:
+	var lv2: UpgradeDefinition = load(UPGRADES.path_join("produce_aisle_run_lv2.tres"))
+	var lv3: UpgradeDefinition = load(UPGRADES.path_join("produce_aisle_run_lv3.tres"))
+	assert_bool(LoyaltyCard.is_maxed(lv2)).is_false()
+	assert_bool(LoyaltyCard.is_maxed(lv3)).is_true()
+	for chip: bool in [true, false]:
+		var card: LoyaltyCard = LoyaltyCard.new(chip)
+		add_child(card)
+		var single: Array[UpgradeDefinition] = [lv2]
+		card.show_upgrades(1, single)
+		await _frames(1)
+		assert_str((card.level_mark(0) as Label).text).is_equal("2")
+		assert_object(card.box(0).get_node_or_null(LoyaltyCard.MAX_RING_NAME)).is_null()
+		var maxed: Array[UpgradeDefinition] = [lv3]
+		card.show_upgrades(1, maxed)
+		assert_that(card.box(0).modulate).is_not_equal(Color.WHITE)
+		await _frames(1)
+		var star: Control = card.level_mark(0)
+		assert_str(String(star.name)).is_equal(LoyaltyCard.MAX_STAR_NAME)
+		assert_object(card.box(0).get_node_or_null(LoyaltyCard.MAX_RING_NAME)).is_not_null()
+		await get_tree().create_timer(LoyaltyCard.MAX_SHINE_S + 0.1).timeout
+		assert_that(card.box(0).modulate).is_equal(Color.WHITE)
+		var in_box: Array[Rect2] = card.level_mark_in_box(0)
+		assert_bool(in_box[1].grow(0.01).encloses(in_box[0])).is_true()
+		# A card built with the perk already maxed (a resumed run) doesn't shine.
+		var fresh: LoyaltyCard = LoyaltyCard.new(chip)
+		add_child(fresh)
+		fresh.show_upgrades(1, maxed)
+		assert_that(fresh.box(0).modulate).is_equal(Color.WHITE)
+		card.queue_free()
+		fresh.queue_free()

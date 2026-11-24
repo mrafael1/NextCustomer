@@ -67,6 +67,8 @@ const MENU_ICON := preload("res://art/icons/menu.png")
 var shift_label: Label
 ## The SHIFT chip ("SHIFT n/m"; hidden with weeks: show_weeks).
 var shift_chip: PanelContainer
+## A puzzle shift (#183) never shows the SHIFT chip: its gauge takes a run's room and place.
+var hides_shift: bool = false
 ## The quota gauge's chip (left column v2), in the gauge's room before LOYALTY.
 var gauge_panel: GaugePanel
 ## The gauge's empty socket on the band, behind it (shows while the gauge is up for the count).
@@ -141,7 +143,7 @@ func _init() -> void:
 ## Whether the run has weeks (WeekFlow.has_weeks): the SHIFT chip hides (the desk calendar and the
 ## week glass say where the run is).
 func show_weeks(shown: bool) -> void:
-	shift_chip.visible = not shown
+	shift_chip.visible = not shown and not hides_shift
 
 
 ## Keeps LOYALTY at LOYALTY_X and the gauge's chip in the room before it: the room takes what the

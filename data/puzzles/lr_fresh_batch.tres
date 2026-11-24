@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="PuzzleDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/puzzle_definition.gd" id="1_puzzle"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="2_card"]
+[ext_resource type="Resource" path="res://data/cards/croissant.tres" id="c_croissant"]
+[ext_resource type="Resource" path="res://data/cards/baguette.tres" id="c_baguette"]
+[ext_resource type="Resource" path="res://data/cards/iced_bun.tres" id="c_iced_bun"]
+[ext_resource type="Resource" path="res://data/cards/bread.tres" id="c_bread"]
+[ext_resource type="Resource" path="res://data/cards/butter.tres" id="c_butter"]
+[ext_resource type="Resource" path="res://data/cards/potatoes.tres" id="c_potatoes"]
+
+[resource]
+script = ExtResource("1_puzzle")
+id = &"lr_fresh_batch"
+title = "Fresh batch"
+pack = 2
+target = 47
+slot_count = 4
+hand = Array[ExtResource("2_card")]([ExtResource("c_croissant"), ExtResource("c_baguette"), ExtResource("c_iced_bun"), ExtResource("c_bread"), ExtResource("c_butter"), ExtResource("c_potatoes")])
+solution = PackedStringArray("croissant", "iced_bun", "baguette")
+hint = "Bakery items side by side make a BATCH: its first and last items get their bonus."

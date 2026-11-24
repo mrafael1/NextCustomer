@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="PuzzleDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/puzzle_definition.gd" id="1_puzzle"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="2_card"]
+[ext_resource type="Resource" path="res://data/cards/eggs.tres" id="c_eggs"]
+[ext_resource type="Resource" path="res://data/cards/bread.tres" id="c_bread"]
+[ext_resource type="Resource" path="res://data/cards/potatoes.tres" id="c_potatoes"]
+[ext_resource type="Resource" path="res://data/cards/cheese.tres" id="c_cheese"]
+[ext_resource type="Resource" path="res://data/cards/mixed_herbs.tres" id="c_mixed_herbs"]
+
+[resource]
+script = ExtResource("1_puzzle")
+id = &"op_early_bird"
+title = "Early bird"
+pack = 1
+target = 22
+slot_count = 4
+hand = Array[ExtResource("2_card")]([ExtResource("c_eggs"), ExtResource("c_bread"), ExtResource("c_potatoes"), ExtResource("c_cheese"), ExtResource("c_mixed_herbs")])
+solution = PackedStringArray("eggs", "cheese", "bread")
+hint = "Eggs double the next Food item, wherever it is."

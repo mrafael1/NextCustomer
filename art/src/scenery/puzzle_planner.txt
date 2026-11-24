@@ -1,0 +1,56 @@
+; The title's puzzle planner (#183 polish, 2026-11-23): a paper sheet taped inside the right
+; window (window 3) under its tube, the PUZZLE SHIFTS' way in once a run has ended. A tomato
+; header with PUZZLES in paper capitals, eight teal puzzle cards in two rows (three ticked green,
+; the next one ringed in tomato pencil), two pencil lines and a red mark, the bottom right corner
+; curling; two cream tape strips hold its top. Light from the top left; the right edge and the
+; foot in cream shade. Drawn at 1x art (Storefront, PLANNER_AT), hazed in code until hot.
+@size 40x48
+@kind scenery
+.....ccccccc.................ccccccc....
+....cccccccc................cccccccc....
+.###cccccccc################cccccccc###.
+.#oobbbbbbb.oooooooooooooooobbbbbbb.oo#.
+.#RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR#.
+.#RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR#.
+.#RRRRRwwRRwRwRwwwRwwwRwRRRwwwRRwwRRRR#.
+.#RRRRRwRwRwRwRRRwRRRwRwRRRwRRRwRRRRRR#.
+.#RRRRRwwRRwRwRRwRRRwRRwRRRwwRRRwRRRRR#.
+.#RRRRRwRRRwRwRwRRRwRRRwRRRwRRRRRwRRRR#.
+.#RRRRRwRRRwwwRwwwRwwwRwwwRwwwRwwRRRRR#.
+.#RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR#.
+.#RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR#.
+.#rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr#.
+.#qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq#.
+.#wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwb#.
+.#wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwb#.
+.#wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwb#.
+.#w3333333ww3333333ww3333333ww3333333b#.
+.#w3555553ww3555553ww3555553ww3444443b#.
+.#w3555553ww3555553ww3555553ww3444443b#.
+.#w36666g3ww36666g3ww36666g3ww3wwwww3b#.
+.#w3666g63ww3666g63ww3666g63ww3wwwww3b#.
+.#w3g6g663ww3g6g663ww3g6g663ww3wwwww3b#.
+.#w36g6663ww36g6663ww36g6663ww3wwwww3b#.
+.#w3666663ww3666663ww3666663ww3wwwww3b#.
+.#w3333333ww3333333ww3333333ww3333333b#.
+.#wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwb#.
+.#wwwwwwwwwwwwwwwwwwwwwwwwwwwRRRRRRRRR#.
+.#w3333333ww3333333ww3333333wR3333333R#.
+.#w3444443ww3444443ww3444443wR3444443R#.
+.#w3444443ww3444443ww3444443wR3444443R#.
+.#w3wwwww3ww3wwwww3ww3wwwww3wR3wwwww3R#.
+.#w3wwwww3ww3wwwww3ww3wwwww3wR3wwwww3R#.
+.#w3wwwww3ww3wwwww3ww3wwwww3wR3wwwww3R#.
+.#w3wwwww3ww3wwwww3ww3wwwww3wR3wwwww3R#.
+.#w3wwwww3ww3wwwww3ww3wwwww3wR3wwwww3R#.
+.#w3333333ww3333333ww3333333wR3333333R#.
+.#wwwwwwwwwwwwwwwwwwwwwwwwwwwRRRRRRRRR#.
+.#wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwb#.
+.#wwwwwwwwwwwwwwwwwwwwwwwwwwwwwRRRRwwb#.
+.#wwwbbbbbbbbbbbbbbbbbbbbbbbbwwrrrrwwb#.
+.#wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwb#.
+.#wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwb#.
+.#wwwbbbbbbbbbbbbbbbbwwwwwwwwwwwwwwwwb#.
+.#wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwbb#.
+.#bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbc#..
+.####################################...

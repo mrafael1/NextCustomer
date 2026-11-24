@@ -221,6 +221,44 @@ func test_exactly_on_the_quota_is_a_green_on_quota() -> void:
 	)
 
 
+## A puzzle's exact quota (#183, CountUp.exact_quota; play test 2026-11-23): over the target
+## plays the miss's sounds (miss, fail), right on it the pass's (total, pass).
+func test_an_exact_quota_passes_on_it_alone() -> void:
+	var screen: ShiftScreen = await _screen()
+	var sfx: Sfx = _recording_sfx(screen)
+	await _place(screen, PASSING_ROW)
+	screen._count_up.exact_quota = true
+	_play_skipped(screen, ROW_TOTAL - 5)
+	await _played(screen)
+	var over: Array[String] = _names_of(_dessert_sounds(sfx, screen._count_up))
+	assert_array(over.slice(0, 2)).is_equal(["miss", "fail"])
+	_play_skipped(screen, ROW_TOTAL)  # Only the sounds after this verdict are read.
+	await _played(screen)
+	var exact: Array[String] = _names_of(_dessert_sounds(sfx, screen._count_up))
+	assert_array(exact.slice(0, 2)).is_equal(["total", "pass"])
+
+
+## A puzzle's OVER cheers nothing (#183, play test 2026-11-23: "cheer should stop when over"): the
+## count never meets the quota (no quota_met, no ding, the crowd's quota pop and yay stay off),
+## while EXACT still meets it with its ding.
+func test_an_exact_quota_over_never_meets_the_quota() -> void:
+	var screen: ShiftScreen = await _screen()
+	var sfx: Sfx = _recording_sfx(screen)
+	await _place(screen, PASSING_ROW)
+	screen._count_up.exact_quota = true
+	var met: Array[bool] = []
+	screen._count_up.quota_met.connect(func(pop: bool) -> void: met.append(pop))
+	_play_skipped(screen, ROW_TOTAL - 5)
+	assert_bool(screen._count_up.plan.quota_reached).is_false()
+	await _played(screen)
+	assert_array(met).is_empty()
+	assert_array(_all_sounds(sfx)).not_contains(["ding"])
+	_play_skipped(screen, ROW_TOTAL)
+	await _played(screen)
+	assert_array(met).is_equal([true])
+	assert_array(_all_sounds(sfx)).contains(["ding"])
+
+
 ## The last shift, won through the real checkout: PAID (on the header) and the tear's rip, no
 ## notice, then the results (no reward). The count_up event is logged once the dessert has finished.
 func test_the_last_shift_is_stamped_and_torn_then_shows_the_results() -> void:
@@ -508,6 +546,12 @@ static func _dessert_sounds(sfx: Sfx, count_up: CountUp) -> Array[Dictionary]:
 		if floori(int(entry["usec"]) / 1000.0) > count_up.total_shown_ms:
 			heard.append(entry)
 	return heard
+
+
+static func _all_sounds(sfx: Sfx) -> Array[String]:
+	var heard: Array[Dictionary] = []
+	heard.assign(sfx.get("sounds"))
+	return _names_of(heard)
 
 
 static func _names_of(heard: Array[Dictionary]) -> Array[String]:
