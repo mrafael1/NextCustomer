@@ -524,7 +524,7 @@ func test_the_level_and_tier_chips_stay_inside_the_art() -> void:
 				PrizeArt.new(MachinePrize.new(MachinePrize.Kind.REGISTER, 0, null, level), null)
 			)
 			var what: String = "%s: %s" % [level.id, art.chip_rect()]
-			assert_str(art.chip_text()).is_equal("LV %d" % level.level_number())
+			assert_str(art.chip_text()).is_equal(LoyaltyCard.level_text(level))
 			assert_bool(art_box.encloses(art.chip_rect())).override_failure_message(what).is_true()
 			(
 				assert_bool(art.chip_rect().intersects(PrizeArt.PUNCH_RECT))

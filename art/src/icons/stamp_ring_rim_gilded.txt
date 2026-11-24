@@ -1,0 +1,17 @@
+; stamp_ring_rim gilded (alpha feedback v1.48): stamp_ring_gilded's rim alone, laid over a maxed
+; perk's gilded icon in the top bar. 13x13, shown at 2x.
+@size 13x13
+@kind icon
+....YYYYY....
+...YnnnnnY...
+..Yn.....nY..
+.Yn.......nY.
+Yn.........nY
+Yn.........nY
+Yn.........nY
+Yn.........nY
+Yn.........nY
+.Yn.......nY.
+..Yn.....nY..
+...YnnnnnY...
+....YYYYY....

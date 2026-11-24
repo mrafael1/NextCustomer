@@ -3,7 +3,8 @@ extends RefCounted
 ## The badge pins a run's end unlocked (#122; the achievement unlock mock-up of 2026-11-05,
 ## docs/art/mockups/achievement_unlock.html, look A), for the results' unlock cards (PinReveal):
 ## one card per pin, in catalogue order (ProfileState.record_run's order), each with the profile's
-## pin count once it is owned (5 pins are owned from the start, so the first unlock reads 6 / 8),
+## pin count once it is owned (only Stock list is owned from the start since v1.48, so a fresh
+## profile's first unlock reads 2 / 8),
 ## and the next milestone still locked ("Next: Repack · Win a run"; none once every pin is owned).
 ## Decks and card variants have unlock code but no locked content yet, so they get no card.
 

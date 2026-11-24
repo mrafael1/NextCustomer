@@ -90,13 +90,13 @@ func test_an_ended_run_adds_its_coins_to_the_profile() -> void:
 
 
 ## The amounts fitted with the balance simulator (plan v0.28, issue #41; stretched to 12 shifts
-## in v0.65, refit for 16 in v0.96): one entry per number of shifts passed, never decreasing,
-## nothing for a run lost with fewer than 8 shifts passed (1 from 8), and a won run pays 2.
+## in v0.65, refit for 16 in v0.96; alpha feedback v1.48: 1 coin per 4 shifts passed, a win pays
+## 5): one entry per number of shifts passed, never decreasing.
 func test_live_coin_amounts() -> void:
 	var balance: BalanceDefinition = load(BALANCE)
 	var table: PackedInt32Array = balance.coins_by_shifts_passed
 	assert_int(table.size()).is_equal(balance.quotas.size() + 1)
-	assert_array(Array(table)).is_equal([0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 2])
+	assert_array(Array(table)).is_equal([0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 5])
 	for index: int in range(1, table.size()):
 		assert_int(table[index]).is_greater_equal(table[index - 1])
 	# The overtime coin's balance fields are gone (v1.03).

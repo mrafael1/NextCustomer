@@ -479,7 +479,7 @@ func rarity_texts() -> PackedStringArray:
 
 
 ## The art's chip on the ticket (ticket coordinates; empty when it has none): a BIG or GOLDEN
-## item's tier, an upgrade's, the SHELF's, a level-up's "LV n".
+## item's tier, an upgrade's, the SHELF's, a level-up's "LV 2" or MAX.
 func chip_rect() -> Rect2:
 	var rect: Rect2 = art.chip_rect()
 	if rect.has_area():

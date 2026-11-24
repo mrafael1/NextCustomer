@@ -78,7 +78,7 @@ func test_the_results_print_the_coins_and_fit_the_screen() -> void:
 		screen.run.place(screen.run.debug_add_to_hand(card), screen.run.row.size())
 	await Rush.checkout(screen)
 	assert_int(screen.run.phase).is_equal(RunState.Phase.WON)
-	# A won run pays the table's last entry (2 since v0.96); no overtime coin since v1.03.
+	# A won run pays the table's last entry (5 since v1.48); no overtime coin since v1.03.
 	var balance: BalanceDefinition = screen.run.balance
 	var won: int = balance.coins_by_shifts_passed[-1]
 	screen._results.skip_printing()

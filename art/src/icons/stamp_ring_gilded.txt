@@ -1,0 +1,18 @@
+; stamp_ring gilded (alpha feedback v1.48, mock-up maxed_perk.html A): a maxed perk's ring in the top
+; bar, through the GOLDEN ramp: the mustard light rim mustard pale, the mustard ring gold, the teal
+; dark panel brass dark. 13x13, shown at 2x like stamp_ring.
+@size 13x13
+@kind icon
+....YYYYY....
+...YnnnnnY...
+..YnlllllnY..
+.YnlllllllnY.
+YnlllllllllnY
+YnlllllllllnY
+YnlllllllllnY
+YnlllllllllnY
+YnlllllllllnY
+.YnlllllllnY.
+..YnlllllnY..
+...YnnnnnY...
+....YYYYY....

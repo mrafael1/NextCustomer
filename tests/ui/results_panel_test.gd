@@ -285,16 +285,11 @@ func test_a_full_receipt_fits_the_screen_with_the_card_and_the_coins() -> void:
 		"res://art/icons/perk_big_basket.png"
 	)
 	assert_object(results._loyalty_card.level_mark(0)).is_null()
-	var mark: Control = results._loyalty_card.level_mark(1)
-	assert_object(mark).is_not_null()
-	assert_str((mark as Label).text).is_equal("3")
-	var in_box: Array[Rect2] = results._loyalty_card.level_mark_in_box(1)
-	(
-		assert_bool(in_box[1].grow(0.01).encloses(in_box[0]))
-		. override_failure_message(str(in_box))
-		. is_true()
-	)
-	assert_bool(card.encloses(mark.get_global_rect())).is_true()
+	# LV 3 is the top level (alpha feedback v1.48): a gilded box with its light, no numeral.
+	assert_object(results._loyalty_card.level_mark(1)).is_null()
+	var light: GildedSweep = LoyaltyCard.gilded_sweep(results._loyalty_card.box(1))
+	assert_object(light).is_not_null()
+	assert_bool(card.encloses(light.get_global_rect())).is_true()
 	# The two columns: side by side, between the rules, the right one starting at the middle.
 	var columns: Array[VBoxContainer] = results.week_columns()
 	assert_int(columns.size()).is_equal(2)

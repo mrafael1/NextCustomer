@@ -33,10 +33,17 @@ extends RefCounted
 ## ended runs, highest level each); older profiles read with no perk collected. Version 8 (v1.44,
 ## the Dairy aisle): the Cold cases aisle's id is `dairy` and Frozen peas is a Fruit & veg capsule
 ## item; an older profile reads with its aisle ids renamed and Frozen peas unlocked (it owned
-## the card from the start; AisleRename), at run index -1 and without counting a draw.
-const FORMAT_VERSION := 8
+## the card from the start; AisleRename), at run index -1 and without counting a draw. Version 9
+## (v1.48, alpha feedback): Shift off, Express lane, Golden basket and Price gun got a milestone;
+## an older profile with a run played keeps them (it owned them from the start: OPENED_PINS).
+const FORMAT_VERSION := 9
 ## The last version saved with the Cold cases aisle's old id.
 const BEFORE_DAIRY_VERSION := 7
+## The last version saved while OPENED_PINS were owned from the start.
+const BEFORE_LOCKED_PINS_VERSION := 8
+## The badge pins owned from the start until version 9: a profile saved before it with a run
+## played reads with them unlocked, so a returning player keeps the pins they had.
+const OPENED_PINS: Array[StringName] = [&"day_off", &"express_lane", &"golden_basket", &"price_gun"]
 ## The settings key of the count-up's speed (full build plan 6.2): COUNT_UP_NORMAL or
 ## COUNT_UP_FAST, read with count_up_speed().
 const COUNT_UP_SPEED_KEY := "count_up_speed"
@@ -337,8 +344,8 @@ func to_dictionary() -> Dictionary:
 ## the wrong type (a capsule seed that isn't "" or a decimal of 0 or more). Version 1 reads
 ## with no capsule seed and 0 draws, version 2 with no pins, version 4's staple_swaps are
 ## ignored, version 5 and older with no new figurines, version 6 and older with no perks
-## collected. Unknown fields are ignored; missing
-## fields keep their defaults.
+## collected, version 8 and older with a run played with OPENED_PINS unlocked. Unknown fields
+## are ignored; missing fields keep their defaults.
 static func from_dictionary(data: Dictionary) -> ProfileState:
 	var version: Variant = data.get("format_version")
 	if not _is_whole(version) or int(version) < 1 or int(version) > FORMAT_VERSION:
@@ -375,6 +382,10 @@ static func from_dictionary(data: Dictionary) -> ProfileState:
 	ok = ok and _read_int(data, "capsule_draws", profile, "capsule_draws")
 	ok = ok and _read_seed(data.get("capsule_seed", ""), profile)
 	ok = ok and _read_names(data.get("unlocked_pins", []), profile.unlocked_pins)
+	if int(version) <= BEFORE_LOCKED_PINS_VERSION and profile.run_count > 0:
+		for id: StringName in OPENED_PINS:
+			if not profile.unlocked_pins.has(id):
+				profile.unlocked_pins.append(id)
 	ok = ok and _read_names(data.get("worn_pins", []), profile.worn_pins)
 	ok = ok and _read_int(data, "pins_bought", profile, "pins_bought")
 	var settings_value: Variant = data.get("settings", {})

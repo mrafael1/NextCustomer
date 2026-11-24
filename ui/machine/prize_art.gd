@@ -12,8 +12,8 @@ extends Control
 ## - a LOYALTY prize (the UPGRADE chute's perks): a punch card matching the top bar's loyalty card
 ##   (cream, a teal band, three stamp slots), centred, its first slot stamped with the perk's icon
 ##   (UpgradeDefinition.icon_ref; Big basket's "+1 slot" ticket) or, with none, its initials. A
-##   level-up (#108, LV 2 or LV 3) stamps as many slots as its level and shows an "LV n" chip in
-##   the art's bottom right corner (chip_rect): the ticket's band carries only the perk's name.
+##   level-up (#108, LV 2 or LV 3) stamps as many slots as its level and shows an "LV 2" or MAX chip
+##   in the art's bottom right corner (chip_rect): the ticket's band carries only the perk's name.
 ## On a LEGENDARY card (v0.99, CardFoil) the art breaks out of its window over the gold plate
 ## (break_out): a sprite whose top stays under BREAKOUT canvas px (6 art px, the mock-up's) above
 ## the window climbs up to CLIMB_MAX on landing (climb: 0.15-0.45 s, a back ease; at once under
@@ -89,7 +89,7 @@ func _init(shown_prize: MachinePrize, preview: MachinePreview) -> void:
 		MachinePrize.Kind.REGISTER:
 			_add_loyalty()
 			if PerkLevels.is_level_up(prize.upgrade):
-				_chip = "LV %d" % prize.upgrade.level_number()
+				_chip = LoyaltyCard.level_text(prize.upgrade)
 
 
 ## The card an UPGRADES prize turns its copy into (the preview's), else the prize's card.
@@ -99,7 +99,7 @@ func upgraded_card() -> CardDefinition:
 	return prize.card
 
 
-## The chip's text ("BIG", "GOLDEN", "SHELF +1", a level-up's "LV 2"; "" for none).
+## The chip's text ("BIG", "GOLDEN", "SHELF +1", a level-up's "LV 2" or MAX; "" for none).
 func chip_text() -> String:
 	return _chip
 

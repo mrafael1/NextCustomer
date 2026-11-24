@@ -34,6 +34,16 @@ extends PanelContainer
 ## shows its level as a small mustard badge with the level's numeral in Pixelify at the box's
 ## bottom right, inside the box (level_mark), on both faces; its tooltip names the level
 ## ("Coupon engine LV 2").
+##
+## A maxed perk (PerkLevels.MAX_LEVEL; alpha feedback v1.48, mock-up maxed_perk.html A, the
+## GILDED BOX): on both faces the whole box goes through the GOLDEN ramp (brass darkest, brass,
+## gold, mustard pale), so it reads as a golden item: a brass dark disc, its ring gold (a family
+## perk's ring gold inside a brass darkest edge, the chip's ring art gilded), its icon the
+## perk's gilded icon (gilded_icon_path, art/perks_gilded/, built through pixel_art.py's perk map)
+## and an Aisle run's tag gilded; it shows no level badge. A GildedSweep over it sweeps a light
+## across it every few seconds; a box that reaches the top level on a rebuild wipes its LV 2 face
+## off bottom to top, flashes and sparkles (GildedSweep.play_reach). Reduced motion
+## (`reduced_motion`) keeps it still.
 
 ## The pointer entered or left the stamped box of the run's upgrade `index`.
 signal box_hovered(index: int)
@@ -78,6 +88,19 @@ const CHIP_LEVEL_SIZE := 9
 const CHIP_LEVEL_PAD := 1.0
 ## The card face's upright level badge sits this far in from the box's corner (polish pass).
 const LEVEL_INSET := 2.0
+## A maxed perk's gilded box (alpha feedback v1.48): its disc (brass dark, a step under the
+## mock-up's brass, so every gilded icon's gold and mustard pale stand out on it), its ring and a
+## family perk's ring (gold), a family ring's edge and an Aisle run tag's edge and cross (brass
+## darkest), an initials stamp's letters, and the light over it (GildedSweep, in a holder the box
+## fits).
+const GILDED_FACE := Palette.BRASS_DARK
+const GILDED_EDGE := Palette.BRASS_DARKEST
+const GILDED_RING := Palette.GOLD
+const GILDED_FAMILY_RING := Palette.GOLD
+const GILDED_TEXT := Palette.MUSTARD_PALE
+const GILDED_NAME := "Gilded"
+## A maxed perk's gilded icon: art/perks_gilded/ holds one per perk icon, by its file name.
+const GILDED_ICONS := "res://art/perks_gilded"
 ## The ring laid over a perk icon (polish pass), so the icon's corners tuck under the ring.
 const ICON_RIM_NAME := "Rim"
 ## A perk icon's node in its box.
@@ -93,6 +116,8 @@ const FAMILY_EDGE_NAME := "FamilyEdge"
 const RUN_MARK_NAME := "RunMark"
 const RUN_MARK_SIZE := Vector2(10, 10)
 const RUN_MARK_FACE := &"run_mark_face"
+## A gilded tag's edge and cross colour (unset: ink).
+const RUN_MARK_INK := &"run_mark_ink"
 const RUN_MARK_CROSS: Array[Vector2i] = [
 	Vector2i(1, 1), Vector2i(3, 1), Vector2i(2, 2), Vector2i(1, 3), Vector2i(3, 3)
 ]
@@ -103,8 +128,15 @@ const RING := preload("res://art/icons/stamp_ring.png")
 const RING_EMPTY := preload("res://art/icons/stamp_ring_empty.png")
 ## The chip ring's rim alone, laid over a perk icon so its square corners tuck under the ring.
 const RING_RIM := preload("res://art/icons/stamp_ring_rim.png")
-## A perk tip's tag (tip_for).
-const PERK_TAG := "PERK · LV %d"
+## The chip's ring and rim for a maxed perk's gilded box.
+const RING_GILDED := preload("res://art/icons/stamp_ring_gilded.png")
+const RING_RIM_GILDED := preload("res://art/icons/stamp_ring_rim_gilded.png")
+## A perk tip's tag (tip_for), with the perk's level_text.
+const PERK_TAG := "PERK · %s"
+## A perk level's text below the top level, and the top level's (alpha feedback v1.48: a maxed
+## perk reads MAX, not LV 3).
+const LEVEL_TEXT := "LV %d"
+const MAX_TEXT := "MAX"
 ## The LOYALTY word's tip: its title, tag, rule and fine print.
 const TITLE_TIP: Array[String] = [
 	"LOYALTY",
@@ -112,6 +144,9 @@ const TITLE_TIP: Array[String] = [
 	"Perks you earned this run. Each one changes how items pay.",
 	"Hover a stamp to read it.",
 ]
+
+## Returns the profile's reduced motion (unset: full motion), for the gilded boxes' light.
+var reduced_motion: Callable = Callable()
 
 var _boxes: HBoxContainer
 var _box_count: int = 0
@@ -170,6 +205,7 @@ func show_upgrades(boxes: int, upgrades: Array[UpgradeDefinition]) -> void:
 	if boxes == _box_count and upgrades == _shown:
 		return
 	_box_count = boxes
+	var before: Array[UpgradeDefinition] = _shown
 	_shown = upgrades.duplicate()
 	for child: Node in _boxes.get_children():
 		_boxes.remove_child(child)
@@ -182,6 +218,56 @@ func show_upgrades(boxes: int, upgrades: Array[UpgradeDefinition]) -> void:
 			_add_relation_parts(made)
 			made.mouse_entered.connect(box_hovered.emit.bind(index))
 			made.mouse_exited.connect(box_unhovered.emit.bind(index))
+			var light: GildedSweep = gilded_sweep(made)
+			if light == null:
+				continue
+			light.reduced_motion = reduced_motion
+			# Only the same perk levelling up in its box reaches max (not another perk moved in).
+			if (
+				index < before.size()
+				and upgrade.same_perk(before[index])
+				and not is_maxed(before[index])
+			):
+				light.play_reach(_make_box(before[index]))
+
+
+## A perk's level as text: "LV 2", or MAX at its top level ("LV 1" for a LV 1 perk).
+static func level_text(upgrade: UpgradeDefinition) -> String:
+	return MAX_TEXT if is_maxed(upgrade) else LEVEL_TEXT % upgrade.level_number()
+
+
+## Whether `upgrade` is a perk at its top level (PerkLevels.MAX_LEVEL).
+static func is_maxed(upgrade: UpgradeDefinition) -> bool:
+	return upgrade != null and upgrade.level_number() >= PerkLevels.MAX_LEVEL
+
+
+## The light over the gilded box `stamped` (a maxed perk's), else null.
+static func gilded_sweep(stamped: Control) -> GildedSweep:
+	var holder: Node = stamped.get_node_or_null(NodePath(GILDED_NAME)) if stamped != null else null
+	return holder.get_child(0) as GildedSweep if holder != null else null
+
+
+## The gilded icon of the perk icon at `icon_ref` (art/perks_gilded/, same file name).
+static func gilded_icon_path(icon_ref: String) -> String:
+	return GILDED_ICONS.path_join(icon_ref.get_file())
+
+
+## Adds the light (GildedSweep) over a maxed perk's box `stamped` (`box_size`), in a holder the
+## box fits; upright on the card's tilted stamp, as the icon. Other perks get none.
+static func add_gilded_sweep(
+	stamped: PanelContainer, upgrade: UpgradeDefinition, box_size: Vector2
+) -> void:
+	if not is_maxed(upgrade):
+		return
+	var holder: Control = Control.new()
+	holder.name = GILDED_NAME
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stamped.add_child(holder)
+	var light: GildedSweep = GildedSweep.new(box_size)
+	if box_size != CHIP_BOX_SIZE:
+		light.pivot_offset = box_size / 2.0
+		light.rotation = -deg_to_rad(STAMP_TILT)
+	holder.add_child(light)
 
 
 ## Rings the box of upgrade `index` in gold (#71), or takes the ring off.
@@ -291,10 +377,11 @@ func play_stamp(index: int) -> void:
 	slam.chain().tween_property(target, "scale", Vector2.ONE, 0.12)
 
 
-## The perk's name with its level past LV 1 ("Coupon engine", "Coupon engine LV 2").
+## The perk's name with its level past LV 1 ("Coupon engine", "Coupon engine LV 2", a maxed
+## perk's "Coupon engine MAX").
 static func perk_name(upgrade: UpgradeDefinition) -> String:
 	if upgrade.level_number() > 1:
-		return "%s LV %d" % [upgrade.display_name, upgrade.level_number()]
+		return "%s %s" % [upgrade.display_name, level_text(upgrade)]
 	return upgrade.display_name
 
 
@@ -330,13 +417,13 @@ static func initials(display_name: String) -> String:
 	return text
 
 
-## A stamped box's tip (the hover tips revamp, TipCard): the perk's name, PERK · LV n, its effect
-## and its condition as the fine print, with its icon on the teal band.
+## A stamped box's tip (the hover tips revamp, TipCard): the perk's name, PERK · LV n (MAX at
+## the top level), its effect and its condition as the fine print, with its icon on the teal band.
 static func tip_for(upgrade: UpgradeDefinition) -> TipSpec:
 	var made: TipSpec = TipSpec.make(
 		TipSpec.Kind.PERK, upgrade.display_name, TipMarkup.auto(upgrade.effect_text)
 	)
-	made.tag = PERK_TAG % upgrade.level_number()
+	made.tag = PERK_TAG % level_text(upgrade)
 	made.cond = TipMarkup.auto(upgrade.condition_text)
 	made.icon = face_icon(upgrade, false)
 	made.source = tooltip_for(upgrade)
@@ -394,6 +481,9 @@ func _make_box(upgrade: UpgradeDefinition) -> PanelContainer:
 		var icon: Texture2D = face_icon(upgrade, false)
 		style.bg_color = Palette.TEAL_DARK if icon != null else Palette.TOMATO_DARK
 		style.border_color = Palette.INK
+		if is_maxed(upgrade):
+			style.bg_color = GILDED_FACE
+			style.border_color = GILDED_RING
 		panel.add_theme_stylebox_override("panel", style)
 	if upgrade != null:
 		# PASS, not IGNORE: its tip needs the mouse.
@@ -403,6 +493,9 @@ func _make_box(upgrade: UpgradeDefinition) -> PanelContainer:
 	# paper with a thin ink outline.
 	var label: Label = UiKit.number_label(stamp_text(upgrade, false), INITIALS_SIZE, true)
 	label.add_theme_constant_override("outline_size", INITIALS_OUTLINE)
+	if is_maxed(upgrade):
+		label.add_theme_color_override("font_color", GILDED_TEXT)
+		label.add_theme_color_override("font_outline_color", GILDED_EDGE)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	panel.add_child(label)
@@ -410,6 +503,7 @@ func _make_box(upgrade: UpgradeDefinition) -> PanelContainer:
 	add_family_edge(panel, upgrade, BOX_SIZE)
 	add_run_mark(panel, upgrade, false)
 	add_level_mark(panel, upgrade, BOX_SIZE)
+	add_gilded_sweep(panel, upgrade, BOX_SIZE)
 	return panel
 
 
@@ -424,6 +518,8 @@ static func make_ring(upgrade: UpgradeDefinition) -> PanelContainer:
 	else:
 		var ring: StyleBoxTexture = StyleBoxTexture.new()
 		ring.texture = RING if upgrade != null else RING_EMPTY
+		if is_maxed(upgrade):
+			ring.texture = RING_GILDED
 		ring.set_content_margin_all(0)
 		panel.add_theme_stylebox_override("panel", ring)
 	ArtStyle.use_pixel_material(panel)
@@ -444,11 +540,13 @@ static func make_ring(upgrade: UpgradeDefinition) -> PanelContainer:
 	add_family_edge(panel, upgrade, CHIP_BOX_SIZE)
 	add_run_mark(panel, upgrade, true)
 	add_level_mark(panel, upgrade, CHIP_BOX_SIZE)
+	add_gilded_sweep(panel, upgrade, CHIP_BOX_SIZE)
 	return panel
 
 
-## The perk icon of `upgrade` (UpgradeDefinition.icon_ref) when it loads and fits `inside` px
-## square at the art scale, else null (the box shows its initials).
+## The perk icon of `upgrade` (UpgradeDefinition.icon_ref; a maxed perk's gilded icon,
+## gilded_icon_path, when there is one) when it loads and fits `inside` px square at the art
+## scale, else null (the box shows its initials).
 static func perk_icon(upgrade: UpgradeDefinition, inside: float) -> Texture2D:
 	if (
 		upgrade == null
@@ -456,7 +554,10 @@ static func perk_icon(upgrade: UpgradeDefinition, inside: float) -> Texture2D:
 		or not ResourceLoader.exists(upgrade.icon_ref)
 	):
 		return null
-	var texture: Texture2D = load(upgrade.icon_ref) as Texture2D
+	var path: String = upgrade.icon_ref
+	if is_maxed(upgrade) and ResourceLoader.exists(gilded_icon_path(path)):
+		path = gilded_icon_path(path)
+	var texture: Texture2D = load(path) as Texture2D
 	if texture == null:
 		return null
 	var drawn: Vector2 = texture.get_size() * ArtStyle.ART_SCALE
@@ -475,8 +576,8 @@ static func family_ring(upgrade: UpgradeDefinition) -> Color:
 static func _family_face(upgrade: UpgradeDefinition, box_size: Vector2) -> StyleBoxFlat:
 	var style: StyleBoxFlat = StyleBoxFlat.new()
 	style.anti_aliasing = false
-	style.bg_color = Palette.TEAL_DARK
-	style.border_color = family_ring(upgrade)
+	style.bg_color = GILDED_FACE if is_maxed(upgrade) else Palette.TEAL_DARK
+	style.border_color = _ring_colour(upgrade)
 	style.set_border_width_all(FAMILY_RING)
 	style.set_corner_radius_all(int(box_size.x / 2.0))
 	style.set_content_margin_all(0)
@@ -497,11 +598,18 @@ static func add_family_edge(
 	var line: StyleBoxFlat = StyleBoxFlat.new()
 	line.anti_aliasing = false
 	line.draw_center = false
-	line.border_color = Palette.INK
+	line.border_color = GILDED_EDGE if is_maxed(upgrade) else Palette.INK
 	line.set_border_width_all(FAMILY_EDGE)
 	line.set_corner_radius_all(int(box_size.x / 2.0))
 	edge.add_theme_stylebox_override("panel", line)
 	stamped.add_child(edge)
+
+
+## The ring colour `upgrade`'s box draws: its family's (family_ring), gold on a maxed perk's
+## gilded box.
+static func _ring_colour(upgrade: UpgradeDefinition) -> Color:
+	var family: Color = family_ring(upgrade)
+	return GILDED_FAMILY_RING if family != Color() and is_maxed(upgrade) else family
 
 
 ## The family look of `upgrade`'s boosts_tag, when it has ticket colours, else null.
@@ -563,7 +671,7 @@ static func add_perk_icon(stamped: PanelContainer, upgrade: UpgradeDefinition, c
 static func _icon_rim(upgrade: UpgradeDefinition, chip: bool) -> Control:
 	var box_size: Vector2 = CHIP_BOX_SIZE if chip else BOX_SIZE
 	if chip and family_ring(upgrade) == Color():
-		var rim: TextureRect = UiKit.sprite(RING_RIM)
+		var rim: TextureRect = UiKit.sprite(RING_RIM_GILDED if is_maxed(upgrade) else RING_RIM)
 		rim.name = ICON_RIM_NAME
 		rim.size = box_size
 		return rim
@@ -574,8 +682,10 @@ static func _icon_rim(upgrade: UpgradeDefinition, chip: bool) -> Control:
 	var line: StyleBoxFlat = StyleBoxFlat.new()
 	line.anti_aliasing = false
 	line.draw_center = false
-	var family: Color = family_ring(upgrade)
+	var family: Color = _ring_colour(upgrade)
 	line.border_color = family if family != Color() else Palette.INK
+	if family == Color() and is_maxed(upgrade):
+		line.border_color = GILDED_RING
 	line.set_border_width_all(FAMILY_RING if family != Color() else STAMP_BORDER)
 	line.set_corner_radius_all(int(box_size.x / 2.0))
 	panel.add_theme_stylebox_override("panel", line)
@@ -601,6 +711,9 @@ static func add_run_mark(stamped: PanelContainer, upgrade: UpgradeDefinition, ch
 	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stamped.add_child(holder)
 	var tag: Control = make_run_tag(face)
+	if is_maxed(upgrade):
+		tag.set_meta(RUN_MARK_FACE, GILDED_TEXT)
+		tag.set_meta(RUN_MARK_INK, GILDED_EDGE)
 	if not chip:
 		tag.pivot_offset = RUN_MARK_SIZE / 2.0
 		tag.rotation = -deg_to_rad(STAMP_TILT)
@@ -626,7 +739,14 @@ static func make_run_tag(face: Color) -> Control:
 	tag.size = RUN_MARK_SIZE
 	tag.position = Vector2.ZERO
 	tag.set_meta(RUN_MARK_FACE, face)
-	tag.draw.connect(func() -> void: _draw_run_mark(tag, tag.get_meta(RUN_MARK_FACE) as Color))
+	tag.draw.connect(
+		func() -> void:
+			_draw_run_mark(
+				tag,
+				tag.get_meta(RUN_MARK_FACE) as Color,
+				tag.get_meta(RUN_MARK_INK, Palette.INK) as Color
+			)
+	)
 	return tag
 
 
@@ -636,14 +756,14 @@ static func set_run_tag_face(tag: Control, face: Color) -> void:
 	tag.queue_redraw()
 
 
-## Draws the Aisle run tag on `tag`: ink, the family's `face` inside a one-texel edge, the ink
-## cross over it.
-static func _draw_run_mark(tag: Control, face: Color) -> void:
+## Draws the Aisle run tag on `tag`: `ink` (a gilded tag's brass darkest), the family's `face`
+## inside a one-texel edge, the `ink` cross over it.
+static func _draw_run_mark(tag: Control, face: Color, ink: Color) -> void:
 	var texel: Vector2 = Vector2.ONE * ArtStyle.ART_SCALE
-	tag.draw_rect(Rect2(Vector2.ZERO, RUN_MARK_SIZE), Palette.INK)
+	tag.draw_rect(Rect2(Vector2.ZERO, RUN_MARK_SIZE), ink)
 	tag.draw_rect(Rect2(texel, RUN_MARK_SIZE - texel * 2.0), face)
 	for cell: Vector2i in RUN_MARK_CROSS:
-		tag.draw_rect(Rect2(Vector2(cell) * texel, texel), Palette.INK)
+		tag.draw_rect(Rect2(Vector2(cell) * texel, texel), ink)
 
 
 ## The Aisle run tag on the box of upgrade `index` (null: none, another perk or no such box).
@@ -658,7 +778,8 @@ func run_mark(index: int) -> Control:
 static func add_level_mark(
 	stamped: PanelContainer, upgrade: UpgradeDefinition, box_size: Vector2
 ) -> void:
-	if upgrade == null or upgrade.level_number() <= 1:
+	# A maxed perk's gilded box is its mark (alpha feedback v1.48): no badge.
+	if upgrade == null or upgrade.level_number() <= 1 or is_maxed(upgrade):
 		return
 	var holder: Control = Control.new()
 	holder.name = LEVEL_MARK_NAME

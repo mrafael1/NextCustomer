@@ -9,6 +9,6 @@ group = &"coupons"
 title = "Write-off"
 mark = 4
 mark_value = "write_off"
-rule = "The next item pays ×2 and counts as {kw:WASTED}, so cards like {item:dusty_toffees} pay for it."
+rule = "The next item pays ×2 and counts as {kw:WASTED}."
 example_row = PackedStringArray("write_off", "bread", "dusty_toffees")
 example_total = 17
