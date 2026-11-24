@@ -7,7 +7,7 @@
 [sub_resource type="Resource" id="Resource_w6vyg"]
 script = ExtResource("2_2xmqd")
 factor = 3
-ignored_tags = PackedStringArray("Food", "Breakfast")
+ignored_tags = PackedStringArray("Food")
 receipt_text = "Multipack ×3"
 
 [resource]
@@ -17,8 +17,8 @@ display_name = "Multipack"
 kind = 2
 tags = PackedStringArray()
 rules = Array[ExtResource("1_ru2h7")]([SubResource("Resource_w6vyg")])
-rule_text = "Look at the item right before it: later items of its family pay ×3 (Food and Breakfast don't count)."
+rule_text = "Look at the item right before it: later items of its family pay ×3 (Food doesn't count)."
 sticker_text = "×{factor} later of the family before"
-monitor_text = "Look at the item right before it: later items of its family pay ×{factor}. Food and Breakfast don't count."
+monitor_text = "Look at the item right before it: later items of its family pay ×{factor}. Food doesn't count."
 art_ref = "res://art/icons/coupon_multipack_v2.png"
 mini_art_ref = "res://art/icons/coupon_multipack_mini.png"

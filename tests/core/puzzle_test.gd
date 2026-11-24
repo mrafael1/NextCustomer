@@ -185,12 +185,13 @@ func test_long_belt_and_spotlight_rules() -> void:
 	assert_int(spot.preview().total).is_equal(3 + 5 + 10)
 
 
-## Format 10: solved puzzles are saved and read back; an older profile reads with none.
+## Format 10 on (11 since the difficulty grades): solved puzzles are saved and read back; an older
+## profile reads with none.
 func test_solved_puzzles_are_saved_in_the_profile() -> void:
 	var profile: ProfileState = ProfileState.new()
 	profile.solved_puzzles.append(&"op_first_customer")
 	var saved: Dictionary = profile.to_dictionary()
-	assert_int(saved["format_version"]).is_equal(10)
+	assert_int(saved["format_version"]).is_equal(11)
 	var read: ProfileState = ProfileState.from_dictionary(JSON.parse_string(JSON.stringify(saved)))
 	assert_array(read.solved_puzzles).is_equal([&"op_first_customer"])
 	saved.erase("solved_puzzles")

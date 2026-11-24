@@ -4,11 +4,15 @@ extends RefCounted
 ## receipt and added to the profile. Decided with the user (phase 1): coins by shifts passed
 ## from a table in balance data (the overtime coin for the run's margin over quota went on
 ## 2026-11-05: a shift far over quota earns a machine ticket instead, OvertimeTickets). Every
-## amount is balance data; a run that hasn't ended pays nothing. Pure.
+## amount is balance data; a run that hasn't ended pays nothing. A won run at a difficulty grade
+## (#182) adds the grade's coin bonus (GradeDefinition.coin_bonus: +1 a grade). Pure.
 
 var shifts_passed: int = 0
 ## Coins for the shifts passed (coins_by_shifts_passed).
 var shift_coins: int = 0
+## The run's grade (RunState.grade) and the coins it adds on a win (0 on a loss or at grade 0).
+var grade: int = 0
+var grade_coins: int = 0
 
 
 ## The payout of a run that ended (won or lost); an empty payout for any other run.
@@ -26,8 +30,11 @@ static func for_run(run: RunState) -> CoinPayout:
 		if run.phase == RunState.Phase.WON:
 			index = table.size() - 1
 		payout.shift_coins = table[mini(index, table.size() - 1)]
+	payout.grade = run.grade
+	if run.phase == RunState.Phase.WON:
+		payout.grade_coins = GradeApply.coin_bonus(run.balance, run.grade)
 	return payout
 
 
 func total() -> int:
-	return shift_coins
+	return shift_coins + grade_coins

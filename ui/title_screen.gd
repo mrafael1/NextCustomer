@@ -53,6 +53,11 @@ extends Control
 ## way (logged as tips_reset). Once the title offers puzzles, the one-time tip T17 rings the
 ## puzzle planner (TitlePuzzleTip, #183 polish 5). The board's PLAY cuts to the puzzle with a
 ## short fade instead of the doors (_cut_to_puzzle).
+##
+## The difficulty grades (#182, 2026-11-23): once the profile has won a run (a grade above 0 is
+## open, GradeCard.wanted; never before the guided run), START RUN opens the grade card first, and
+## so does NEW RUN's ABANDON (the save is deleted only once the card's START is pressed: BACK keeps
+## it). START asks the shift screen for the picked grade (GradeCard.request) and starts the run.
 
 ## What a click on the storefront lands on: nothing, the doors, the REWARDS bay, the sign or the
 ## puzzle planner (#183, PUZZLES).
@@ -121,6 +126,10 @@ var _guide: HandbookPage
 var _rewards_pending: bool = false
 ## The New run question (only with a run saved).
 var _confirm: AbandonConfirm
+## The grade card (#182), made when the profile has a grade above 0 open (GradeCard.wanted).
+var _grades: GradeCard
+## ABANDON was answered and the grade card is open: its START deletes the saved run first.
+var _abandoning: bool = false
 ## The quit question (only when quit_offered).
 var _quit: QuitConfirm
 var _export: TextureButton
@@ -207,6 +216,12 @@ func _ready() -> void:
 		_confirm.still = _still
 		_confirm.abandon_confirmed.connect(_on_abandon_confirmed)
 		add_child(_confirm)
+	if _profile_readable and GradeCard.wanted(_profile, _balance):
+		_grades = GradeCard.new()
+		_grades.still = _still
+		_grades.started.connect(_on_grade_started)
+		_grades.backed.connect(func() -> void: _abandoning = false)
+		add_child(_grades)
 	if quit_offered:
 		_quit = QuitConfirm.new()
 		_quit.still = _still
@@ -491,6 +506,7 @@ func _busy() -> bool:
 		or _rewards_pending
 		or toy_machines_open()
 		or (_confirm != null and _confirm.is_open())
+		or (_grades != null and _grades.is_open())
 		or (_quit != null and _quit.is_open())
 		or (_guide != null and _guide.is_open())
 		or (_options != null and _options.is_open())
@@ -579,6 +595,8 @@ func _presses_start_button(event: InputEvent) -> bool:
 	var buttons: Array[Control] = [_menu.plate(TitleMenu.Entry.PRIMARY)]
 	if _confirm != null:
 		buttons.append(_confirm.abandon_plate())
+	if _grades != null:
+		buttons.append(_grades.start_plate())
 	for button: Control in buttons:
 		if button.is_visible_in_tree() and button.get_global_rect().has_point(press.position):
 			return true
@@ -600,6 +618,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		handled = _puzzles.handle_key(event)
 	elif _confirm != null and _confirm.is_open():
 		handled = _confirm.handle_key(event)
+	elif _grades != null and _grades.is_open():
+		handled = _grades.handle_key(event)
 	elif _quit != null and _quit.is_open():
 		handled = _quit.handle_key(event)
 	elif not key.echo and skip_intro():
@@ -618,12 +638,37 @@ func _on_export_pressed() -> void:
 	_sfx.play(EXPORT_SOUND)
 
 
-## CONTINUE (the shift screen resumes the save) or START RUN.
+## CONTINUE (the shift screen resumes the save) or START RUN (the grade card first, when open).
 func _on_start_pressed() -> void:
 	if _busy():
 		return
 	_sfx.play(UiKit.CLICK_SOUND)
+	if _saved_run == null and _grades != null:
+		_open_grades()
+		return
 	_start()
+
+
+## The grade card, opened on the profile's best open grade.
+func _open_grades() -> void:
+	var catalogue: CatalogueDefinition = load(ShiftScreen.CATALOGUE)
+	_grades.open(_profile, _balance, catalogue.pins)
+
+
+## The grade card's START: the shift screen's new run plays `grade`; after ABANDON the saved run
+## goes first.
+func _on_grade_started(grade: int) -> void:
+	GradeCard.request(grade)
+	if _abandoning:
+		_abandoning = false
+		_abandon_and_start()
+		return
+	_start()
+
+
+## The grade card (#182).
+func grade_card() -> GradeCard:
+	return _grades
 
 
 ## GUIDE: the staff handbook opens over the title, at the last entry viewed.
@@ -800,11 +845,20 @@ func _on_toy_machines_closed() -> void:
 	_menu.set_coins(_coins)
 
 
-## Deletes the saved run and starts a new one. If the save can't be deleted (reported), the
-## title stays as it is: the shift screen would only resume it.
+## ABANDON: the grade card first when it is wanted (its START abandons), else _abandon_and_start.
 func _on_abandon_confirmed() -> void:
 	if _starting:
 		return
+	if _grades != null:
+		_abandoning = true
+		_open_grades()
+		return
+	_abandon_and_start()
+
+
+## Deletes the saved run and starts a new one. If the save can't be deleted (reported), the
+## title stays as it is: the shift screen would only resume it.
+func _abandon_and_start() -> void:
 	if not SaveService.new(SaveService.default_folder()).delete_run():
 		return
 	_log.resume_run(_saved_run.run_id)

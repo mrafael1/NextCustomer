@@ -45,6 +45,8 @@ const EARNED_WORD := "Passed"
 ## passed inspection's.
 const PILL_TIP := "QUOTA MET › +1 EXTRA DRAW"
 const EARNED_TIP := "%s passed"
+## The families' palette (FamilyPalette.PATH): a twist day's family glyph (twist_glyph).
+const PALETTE := "res://data/families/family_palette.tres"
 ## The long hover that opens today's slip (s).
 const HOVER_OPEN_S := 0.45
 ## The tags' gap over the pad.
@@ -417,6 +419,7 @@ func _refresh_page() -> void:
 		var cause: InspectionDefinition = _inspections[_cause]
 		page.word = cause.display_name
 		page.mark = DayCalendarArt.Sign.BOON if cause.is_boon() else DayCalendarArt.Sign.WARNING
+		page.glyph = twist_glyph(cause)
 		page.both_sides = false
 	page.day = _day
 	page.payday = _payday and _day > 0
@@ -445,7 +448,41 @@ static func _kind_page(events: Array[InspectionDefinition]) -> DayCalendarArt.Pa
 			page.look = DayCalendarArt.Look.BOON
 			page.word = InspectionTag.kind_text(events)
 			page.mark = DayCalendarArt.Sign.BOON
+		WeekCardModel.Kind.NONE:
+			# A grade twist's day alone (v1.49: the Picky regular): an inspection's band, its name
+			# and its family's glyph in the sign's place.
+			for event: InspectionDefinition in events:
+				if event.is_twist():
+					page.look = DayCalendarArt.Look.INSPECTION
+					page.word = event.display_name
+					page.mark = DayCalendarArt.Sign.WARNING
+					page.glyph = twist_glyph(event)
 	return page
+
+
+## The glyph of the family a grade twist's day names (v1.49: the Picky regular's FamilyPayCutRule),
+## as an RGBA8 image, or null.
+static func twist_glyph(event: InspectionDefinition) -> Image:
+	if event == null or not event.is_twist():
+		return null
+	for rule: InspectionRule in event.rules:
+		var cut: FamilyPayCutRule = rule as FamilyPayCutRule
+		if cut == null or cut.tag.is_empty():
+			continue
+		# The palette by path, untyped: naming FamilyPalette here leaks its statics at a check's exit.
+		var palette: Resource = load(PALETTE)
+		var style: Resource = (
+			palette.call("style", cut.tag) as Resource if palette != null else null
+		)
+		var glyph: Texture2D = style.get("glyph") as Texture2D if style != null else null
+		if glyph == null:
+			return null
+		var image: Image = glyph.get_image()
+		if image.is_compressed():
+			image.decompress()
+		image.convert(Image.FORMAT_RGBA8)
+		return image
+	return null
 
 
 ## The new page at once: no change waits or plays.

@@ -64,8 +64,10 @@ const AGREED_SOUNDS: Array[String] = [
 	"coin_2",
 	"coin_3",
 ]
-## Several cards that each step the ladder (plain cards and a multiplier).
-const LADDER_ROW: Array[String] = ["milk", "bread", "multipack", "milk", "milk", "milk"]
+## Several cards that each step the ladder (plain cards and a multiplier). Crackers (Bakery only)
+## keeps Multipack off the Milks since Breakfast counts for it (v1.49), so the total stays under
+## one quota lap and the checkout plays no lap notes before the count.
+const LADDER_ROW: Array[String] = ["milk", "crackers", "multipack", "milk", "milk", "milk"]
 
 var _folder: String = ""
 

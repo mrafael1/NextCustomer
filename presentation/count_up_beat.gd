@@ -13,7 +13,7 @@ enum Kind {
 	BONUS,
 	## MULTIPLIER.
 	STAMP,
-	## PAYOUT_OVERRIDE.
+	## PAYOUT_OVERRIDE (a denial; a promo's cut is PROMO).
 	DENIED,
 	PAYOUT,
 	## EFFECT_ARMED.
@@ -26,6 +26,9 @@ enum Kind {
 	LINK,
 	## CREDIT (#108 piece 2): a perk's earnings, a label that changes no value.
 	CREDIT,
+	## A PAYOUT_OVERRIDE that is a promo's price cut (ScoreStep.promo_cut, #182 grade 5): the
+	## item's promo tag pops, no denial.
+	PROMO,
 }
 
 ## What a beat does to the monitor's total (#105 piece 2, mock-up readability_v3.html): nothing, the

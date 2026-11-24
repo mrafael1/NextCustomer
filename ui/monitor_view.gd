@@ -684,7 +684,9 @@ func _on_step_landed(index: int) -> void:
 			ScoreStep.StepType.PAYOUT_OVERRIDE
 		]
 	):
-		_items.set_value(step.value_after, step.step_type == ScoreStep.StepType.PAYOUT_OVERRIDE)
+		# A denial wipes the item (the payout's fizzle glyph); a promo's cut only lowers it (#182).
+		var override: bool = step.step_type == ScoreStep.StepType.PAYOUT_OVERRIDE
+		_items.set_value(step.value_after, override and step.promo_cut == 0, step.promo_cut > 0)
 
 
 ## A bonus or multiplier beat's line (`line_shown`) waits for the tuning's step_line_at of the beat
@@ -787,7 +789,7 @@ func _show_last_item(plan: CountUpPlan, result: ScoreResult, line_of: Callable) 
 				ScanController.running_value(step)
 			)
 	var fizzled: bool = last != null and last.step_type == ScoreStep.StepType.WASTED
-	_items.set_value(result.payouts[slot], fizzled)
+	_items.set_value(result.payouts[slot], fizzled, ScanController.has_promo(result.steps, slot))
 
 
 func _on_notice_showing(_showing: bool) -> void:
@@ -829,6 +831,8 @@ static func _shows_line(beat: CountUpBeat) -> bool:
 	match beat.kind:
 		CountUpBeat.Kind.BONUS, CountUpBeat.Kind.STAMP, CountUpBeat.Kind.DENIED:
 			return true
+		CountUpBeat.Kind.PROMO:
+			return true
 		CountUpBeat.Kind.FIZZLE:
 			return true
 	return false
@@ -866,13 +870,16 @@ func use_sources(owned: Array[UpgradeDefinition], events: Array[InspectionDefini
 
 ## The icon of what gave `step`, as the belt's stickers show it: a card's mini (`giver`, the card
 ## at its card_giver_slot: the supporting neighbour, else the source), a register upgrade's icon
-## (upgrade_icon of `owned`), an event's badge (event_icon of `events`), or null.
+## (upgrade_icon of `owned`), an event's badge (event_icon of `events`; a promo's cut, the small
+## promo tag), or null.
 static func source_icon(
 	step: ScoreStep,
 	giver: CardDefinition,
 	owned: Array[UpgradeDefinition],
 	events: Array[InspectionDefinition]
 ) -> Texture2D:
+	if step.promo_cut > 0:
+		return PromoTag.MINI  # A promo's cut, not a denial's warning sign (#182).
 	match step.source_kind:
 		ScoreStep.SourceKind.UPGRADE:
 			return upgrade_icon(owned, step.source_index)

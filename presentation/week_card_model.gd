@@ -27,6 +27,8 @@ const WEEK_TITLE := "WEEK %d"
 const WEEK_COUNT := "/%d"
 const CARD_TITLE := "TIME CARD"
 const CARD_SUB := "CASHIER · TILL 4"
+## A graded run's line in CARD_SUB's place (#182): the grade on the cashier's time card.
+const GRADE_SUB := "GRADE %d · TILL 4"
 const REVIEW_HEAD := "PAYDAY · %d INSPECTIONS"
 const FINAL_HEAD := "FINAL PAYDAY · %d INSPECTIONS"
 const FINAL_REWARD := "QUOTA MET = RUN WON"
@@ -66,6 +68,8 @@ var allowed_misses: int = 0
 var misses_left: int = 0
 ## The week's days, in order.
 var days: Array[WeekDay] = []
+## The card's staff line: CARD_SUB, or GRADE_SUB on a graded run (#182).
+var staff_line: String = CARD_SUB
 
 
 ## A run of the week's effect line and how it reads for the player.
@@ -130,6 +134,8 @@ static func of(run: RunState) -> WeekCardModel:
 	model.week_number = WeekSchedule.week_of(balance, shift) + 1
 	model.week_count = WeekSchedule.week_count(balance)
 	model.event = WeekSchedule.event_for(balance, shift)
+	if run.grade > 0:
+		model.staff_line = GRADE_SUB % run.grade
 	for week_event: WeekEventDefinition in balance.weeks:
 		if week_event != null and not week_event.chip_text.is_empty():
 			model.chip_names.append(week_event.chip_text)

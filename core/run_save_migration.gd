@@ -16,6 +16,15 @@ extends RefCounted
 ## - A visit waiting for its pick from an old COUPONS, REGISTER or UPGRADES draw keeps its prizes
 ##   under the new chute's name, so the player sees the same tickets and the pick works.
 
+## The 7-grade ladder's grades (run save formats 20 and 21, play tests only; 0 to 7: quotas +10%,
+## 1 less slip, 1 less redraw, Shrinkflation, Expiry dates, 1 less belt slot, quotas +25% and no
+## slips) as the 5-grade ladder's of format 22 (v1.49): the highest new grade whose rules the old
+## one all played (its quota, slip, boon and prize rules are dropped; its twist state maps onto the
+## same twists). A migration fact, not balance data.
+const OLD_LADDER_GRADES: Array[int] = [0, 0, 0, 1, 2, 3, 4, 4]
+## The Picky regular's cut every promo day played at before run save format 23 (v1.49's play test
+## of 2026-11-24 made it random per shift). A migration fact, not balance data.
+const V22_PROMO_CUT := 25
 ## The formats this converts from.
 const FROM_VERSIONS: Array[int] = [4, 5]
 const TO_VERSION := 6
@@ -27,6 +36,12 @@ const CHUTES: Dictionary[String, String] = {
 	"upgrades": "upgrade",
 }
 const STAMP_DAY := "stamp_day"
+
+
+## The 5-grade ladder's grade for a format 20 or 21 save's `grade` (OLD_LADDER_GRADES); -1
+## (refused) for a grade that ladder never had.
+static func old_ladder_grade(grade: int) -> int:
+	return OLD_LADDER_GRADES[grade] if grade >= 0 and grade < OLD_LADDER_GRADES.size() else -1
 
 
 ## The save converted to format 6, or {} when its form can't be read (the caller refuses it).

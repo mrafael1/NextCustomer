@@ -1,0 +1,26 @@
+; The difficulty grade's staff badge (#182, 2026-11-23: GRADE with a numbered staff badge,
+; the recommended pick on the prep page difficulty_grades.html): a tomato staff ID badge, its
+; clip slot punched at the top, its paper window left blank for the grade's number (drawn in the number font by
+; code). 16x20 art px, shown at 2x (the top bar's grade chip) and 3x (the grade card).
+@size 16x20
+@kind icon
+.##############.
+#ooooooooooooor#
+#oRRR######RRrr#
+#oRRR#....#RRrr#
+#oRRR######RRrr#
+#oRRRRRRRRRRRRr#
+#oR##########Rr#
+#oR#bbbbbbbb#Rr#
+#oR#bwwwwwwc#Rr#
+#oR#bwwwwwwc#Rr#
+#oR#bwwwwwwc#Rr#
+#oR#bwwwwwwc#Rr#
+#oR#bwwwwwwc#Rr#
+#oR#bwwwwwwc#Rr#
+#oR#bwwwwwwc#Rr#
+#oR#bwwwwwwc#Rr#
+#oR#cccccccc#Rr#
+#oR##########Rr#
+#rrrrrrrrrrrrrr#
+.##############.

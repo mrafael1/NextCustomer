@@ -600,12 +600,18 @@ func _play_shift_notice() -> void:
 	var run: RunState = _screen.run
 	if run != null and run.phase == RunState.Phase.PLANNING:
 		show_shift_notice(_screen)
+		_screen.play_grade_moves()  # The week end's stamps and expired cards (v1.49).
 
 
 ## The notice a shift opens with (v0.68, WriteUp.shift_notice): after a slip, or on the first
-## shift after the training week (a resume shows it again), once planning takes input.
+## shift after the training week, and a grade twist's news (v1.49, GradeRules.notice); a resume
+## shows it again, once planning takes input.
 static func show_shift_notice(screen: ShiftScreen) -> void:
-	var line: String = WriteUp.shift_notice(screen.run)
+	var lines: PackedStringArray = PackedStringArray()
+	for part: String in [WriteUp.shift_notice(screen.run), GradeRules.notice(screen.run)]:
+		if not part.is_empty():
+			lines.append(part)  # And a grade twist's news (v1.49: a shrink, expired cards).
+	var line: String = "\n".join(lines)
 	if not line.is_empty():
 		screen._notice_label.show_next(line)  # After a notice the player raised (#132's gun).
 

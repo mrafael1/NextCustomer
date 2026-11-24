@@ -20,8 +20,13 @@ const COLOURS: Array[Array] = [
 	[Palette.GOLD, Palette.BRASS_DARK, Palette.MUSTARD_PALE],
 	[Palette.BROWN, Palette.BROWN_DARKEST, Palette.BROWN_LIGHT],
 	[Palette.SLATE, Palette.TEAL_BLACK, Palette.TEAL_SHADE],
+	# 9 orange and 10 violet, the gauge laps' ramps (the puzzle build's Long belt and Spotlight).
 	[Palette.ORANGE, Palette.ORANGE_DARK, Palette.ORANGE_LIGHT],
 	[Palette.VIOLET, Palette.VIOLET_DARK, Palette.VIOLET_LIGHT],
+	# 11 coral and 12 ice (#182: the grade pins Overtime and Last call), from the art's tomato
+	# light and glass ramps.
+	[Palette.TOMATO_LIGHT, Palette.TOMATO_DARK, Palette.TOMATO_PALE],
+	[Palette.GLASS, Palette.TEAL_SHADE, Palette.GLASS_GLOW],
 ]
 const LOCKED_COLOURS: Array[Color] = [Palette.GREY_LIGHT, Palette.GREY, Palette.CREAM]
 ## The art px: the grid, the rim, the glint's size.

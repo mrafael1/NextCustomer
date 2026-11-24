@@ -394,6 +394,10 @@ static func _slot(
 					planning.stickers.append(_sticker(link, names))
 			_:
 				planning.stickers.append(_sticker(link, names))
+	# A promo's cut (the Picky regular's FamilyPayCutRule) is no denial: the item wears its red
+	# promo tag (PromoTag) and its ticket the lowered pay, not a rubber stamp over its art.
+	if denial != null and names.cuts_price(denial):
+		denial = null  # Its ticket shows the promo price, never a denial's warning 0€.
 	if denial != null:
 		planning.stamp_amount = PAY_TEXT % denial.value
 		planning.stamp_caption = names.of_cause(denial).to_upper()
@@ -592,6 +596,18 @@ class CauseNames:
 		for rule: InspectionRule in _inspections[link.cause_index].rules:
 			var zero_rule: NthSlotZeroPayoutRule = rule as NthSlotZeroPayoutRule
 			if zero_rule != null and zero_rule.slot_number - 1 == slot:
+				return true
+		return false
+
+	## Whether `link`'s cause is a promo day (a FamilyPayCutRule, the Picky regular's): it cuts
+	## the item's price, it does not deny it.
+	func cuts_price(link: EffectLink) -> bool:
+		if link == null or link.cause_kind != ScoreStep.SourceKind.INSPECTION:
+			return false
+		if link.cause_index < 0 or link.cause_index >= _inspections.size():
+			return false
+		for rule: InspectionRule in _inspections[link.cause_index].rules:
+			if rule is FamilyPayCutRule:
 				return true
 		return false
 

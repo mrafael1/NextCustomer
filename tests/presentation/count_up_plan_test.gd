@@ -411,6 +411,33 @@ func test_harmful_steps_are_the_ones_that_lower_their_item() -> void:
 		)
 
 
+## A promo's cut (#182 grade 5: FamilyPayCutRule, ScoreStep.promo_cut) plays a PROMO beat, never a
+## DENIED one, at the denial's length with no hit-stop, and never fails its item; a Spot check on
+## the same row still plays DENIED.
+func test_a_promo_cut_plays_a_promo_beat_and_a_denial_stays_denied() -> void:
+	var promo: InspectionDefinition = InspectionDefinition.new()
+	promo.display_name = "Promo day"
+	var cut: FamilyPayCutRule = FamilyPayCutRule.new()
+	cut.tag = "Dairy"
+	cut.pay_percent = 75
+	var rules: Array[InspectionRule] = [cut]
+	promo.rules = rules
+	var inspections: Array[InspectionDefinition] = [load(SPOT_CHECK), promo]
+	# Milk (Dairy) is cut 25%; slot 3, Cheese (Dairy), is denied to 0 by the Spot check first.
+	var result: ScoreResult = Scoring.score(_row("milk,bread,cheese", CARDS), [], inspections)
+	var plan: CountUpPlan = _plan(result.steps)
+	var kinds: Dictionary[int, Array] = {}
+	for beat: CountUpBeat in plan.beats:
+		if beat.kind in [CountUpBeat.Kind.PROMO, CountUpBeat.Kind.DENIED]:
+			kinds.get_or_add(beat.slot, []).append(CountUpBeat.Kind.keys()[beat.kind])
+			assert_int(beat.duration_ms).is_greater(0)
+			assert_int(beat.hit_stop_ms).is_equal(0)
+	assert_array(kinds.get(0, [])).is_equal(["PROMO"])
+	assert_bool(kinds.get(2, []).has("DENIED")).is_true()
+	assert_bool(kinds.get(2, []).has("PROMO")).is_false()
+	assert_bool(kinds.has(1)).is_false()
+
+
 static func _total() -> CountTotalTuning:
 	return load(CountUpPlan.TOTAL_TUNING_PATH) as CountTotalTuning
 

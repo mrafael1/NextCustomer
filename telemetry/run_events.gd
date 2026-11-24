@@ -27,6 +27,7 @@ static func run_start(run: RunState) -> Dictionary:
 		"starting_deck": definition_ids(run.starter.cards),
 		"shift_count": run.shift_count(),
 		"guided": run.guided,
+		"grade": run.grade,
 	}
 	if run.start_setup != null:
 		(
@@ -105,6 +106,31 @@ static func start_choice(run: RunState, decide_ms: int) -> Dictionary:
 	}
 
 
+## The shift_start event: the shift, its quota, the hand drawn, its inspections and, on a run with
+## grade twists (v1.49), `twists`: the news it opened with (GradeState.news: "Shrinkflation: Bread
+## -1€", "Expired: 2 for 1"), the run's shrinks (product id to euros), how many deck cards carry an
+## expiry date, and the Picky regular's family ("" for none).
+static func shift_start(run: RunState) -> Dictionary:
+	var start: Dictionary = {
+		"shift": run.shift_index + 1,
+		"quota": run.quota(),
+		"cards_drawn": card_ids(run.hand()),
+		"inspections": inspection_ids(run.inspections),
+	}
+	if not run.balance.twists.is_empty():
+		var shrinks: Dictionary = {}
+		for id: StringName in run.twists.shrinks:
+			shrinks[String(id)] = run.twists.shrinks[id]
+		start["twists"] = {
+			"news": Array(GradeRules.notice(run).split("\n", false)),
+			"shrinks": shrinks,
+			"dated": run.twists.expiry.size(),
+			"picky": GradeRules.picky_family(run),
+			"promo_cut": GradeRules.picky_cut(run),
+		}
+	return start
+
+
 ## The `run_end` event of a won or lost run: the result, the shift reached, the last checkout's
 ## total, the run's length, the upgrades owned, the write-ups (v0.65; a lost run's last one
 ## got the cashier fired) and the final receipt's BEST line (`highlight`, v1.37:
@@ -117,6 +143,7 @@ static func run_end(run: RunState, run_ms: int) -> Dictionary:
 		"run_ms": run_ms,
 		"upgrades": upgrade_ids(run.upgrades),
 		"write_ups": run.write_ups,
+		"grade": run.grade,
 		"highlight": RunHighlight.log_fields(RunHighlight.pick(run.history, run.balance.highlight)),
 	}
 

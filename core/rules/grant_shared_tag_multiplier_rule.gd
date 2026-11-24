@@ -2,8 +2,9 @@ class_name GrantSharedTagMultiplierRule
 extends Rule
 ## After scanning, multiplies every later product that shares a tag with the product in the
 ## slot just before this card, using tags after the context pass (Multipack: ×2). Tags in
-## ignored_tags never count (Multipack ignores Food and Breakfast, decided with the user in
-## #42). In slot 1, after a coupon, or after a product with only ignored tags, it does nothing.
+## ignored_tags never count (Multipack ignores Food, decided with the user in #42; Breakfast
+## counts again since v1.49's play test). In slot 1, after a coupon, or after a product with
+## only ignored tags, it does nothing.
 ## Several of these stack.
 
 @export var factor: int = 1

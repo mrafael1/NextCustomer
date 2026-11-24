@@ -1,0 +1,33 @@
+; A beaten grade's rung: a brass plate lit gold (its tick hangs on its corner: grade_rung_tick).
+; 28x28 art px, shown at 2x: one rung of the grade card's ladder (#182, GradeCard); the grade's
+; number is drawn over it in the number font by code.
+@size 28x28
+@kind icon
+.##########################.
+#nnnnnnnnnnnnnnnnnnnnnnnnll#
+#nnnnnnnnnnnnnnnnnnnnnnnnll#
+#nnLLLLLLLLLLLLLLLLLLLLLLll#
+#nnLLLLLLLLLLLLLLLLLLLLLLll#
+#nnLLLLLLLLLLLLLLLLLLLLLLll#
+#nnLLLLLLLLLLLLLLLLLLLLLLll#
+#nnLLLLLLLLLLLLLLLLLLLLLLll#
+#nnLLLLLLLLLLLLLLLLLLLLLLll#
+#nnLLLLLLLLLLLLLLLLLLLLLLll#
+#nnLLLLLLLLLLLLLLLLLLLLLLll#
+#nnLLLLLLLLLLLLLLLLLLLLLLll#
+#nnLLLLLLLLLLLLLLLLLLLLLLll#
+#nnLLLLLLLLLLLLLLLLLLLLLLll#
+#nnLLLLLLLLLLLLLLLLLLLLLLll#
+#nnLLLLLLLLLLLLLLLLLLLLLLll#
+#nnLLLLLLLLLLLLLLLLLLLLLLll#
+#nnLLLLLLLLLLLLLLLLLLLLLLll#
+#nnLLLLLLLLLLLLLLLLLLLLLLll#
+#nnLLLLLLLLLLLLLLLLLLLLLLll#
+#nnLLLLLLLLLLLLLLLLLLLLLLll#
+#nnLLLLLLLLLLLLLLLLLLLLLLll#
+#nnLLLLLLLLLLLLLLLLLLLLLLll#
+#nnLLLLLLLLLLLLLLLLLLLLLLll#
+#nnLLLLLLLLLLLLLLLLLLLLLLll#
+#llllllllllllllllllllllllll#
+#kkkkkkkkkkkkkkkkkkkkkkkkkk#
+.##########################.

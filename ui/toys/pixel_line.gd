@@ -35,10 +35,13 @@ const SEPARATOR := "·"
 const SEPARATOR_SIZE := 2
 const SEPARATOR_ROW := 2
 
-## Each number glyph's ink: x its left edge from the pen (font px), y its width.
-static var _number_inks: Dictionary[String, Vector2i] = {}
+## Each number glyph's ink in font px: x its left edge from the pen, y its top from the baseline
+## (up is negative), w and h its size (h 0: no ink).
+static var _number_inks: Dictionary[String, Rect2i] = {}
 
 var _width: float = 0.0
+## The drawn ink's extent in canvas px, from the line's top left (ink_rect).
+var _ink_box: Rect2 = Rect2()
 var _scale_factor: int = 1
 var _text: String = ""
 
@@ -63,31 +66,50 @@ func show_tokens(
 		child.free()
 	_scale_factor = word_scale
 	var art: float = ArtStyle.ART_SCALE
+	var cap: float = ArtStyle.PIXEL_CAP_HEIGHT * art * word_scale
 	var x: float = 0.0
 	var words: PackedStringArray = []
+	var top: float = 0.0
+	var bottom: float = 0.0
 	for index: int in tokens.size():
 		if index > 0:
 			x += gap * art
 		var token: Variant = tokens[index]
 		if token is Texture2D:
+			var icon_y: float = _icon_y(token as Texture2D, icon_top)
+			top = minf(top, icon_y)
+			bottom = maxf(bottom, icon_y + (token as Texture2D).get_size().y * art)
 			x += _add_icon(token as Texture2D, x, icon_top)
 		elif str(token) == SEPARATOR:
 			x += _add_mark(x, SEPARATOR_ROW, Vector2i.ONE * SEPARATOR_SIZE, colour)
 			words.append(SEPARATOR)
+			bottom = maxf(bottom, cap)
 		elif is_number(str(token)):
+			var rows: Vector2 = number_rows(str(token), word_scale)
+			top = minf(top, rows.x)
+			bottom = maxf(bottom, rows.y)
 			x += _add_number(str(token), x, number_colour)
 			words.append(str(token))
 		else:
 			x += _add_word(str(token), x, colour)
 			words.append(str(token))
+			bottom = maxf(bottom, cap)
 	_width = x
 	_text = " ".join(words)
-	size = Vector2(_width, ArtStyle.PIXEL_CAP_HEIGHT * art * word_scale)
+	_ink_box = Rect2(0.0, top, _width, bottom - top)
+	size = Vector2(_width, cap)
 
 
 ## The line's width in canvas px.
 func width() -> float:
 	return _width
+
+
+## The drawn ink's extent in canvas px from the line's top left (the words' cap top): the words'
+## capitals, the numbers' digits (they stand a little taller) and the icons, so a box can centre
+## what it holds (the grade card's status chip).
+func ink_rect() -> Rect2:
+	return _ink_box
 
 
 ## The line's words and numbers, space-joined (icons left out).
@@ -151,13 +173,33 @@ static func _dash_advance(before: String, after: String) -> int:
 static func number_width(number: String) -> float:
 	var ink_width: int = 0
 	for index: int in number.length():
-		ink_width += _number_ink(number[index]).y + (DIGIT_GAP if index > 0 else 0)
+		ink_width += _number_ink(number[index]).size.x + (DIGIT_GAP if index > 0 else 0)
 	return ink_width * ArtStyle.ART_SCALE
 
 
-## The ink of `glyph` in the number font (rendered once): its left edge from the pen and its
-## width, in font px; with no ink, its advance.
-static func _number_ink(glyph: String) -> Vector2i:
+## A number's ink rows in canvas px from the cap top at `word_scale`: x its top, y its bottom.
+static func number_rows(number: String, word_scale: int = 1) -> Vector2:
+	var baseline: int = ArtStyle.PIXEL_CAP_HEIGHT * word_scale
+	var rows: Vector2 = Vector2(INF, -INF)
+	for index: int in number.length():
+		var ink: Rect2i = _number_ink(number[index])
+		if ink.size.y > 0:
+			rows.x = minf(rows.x, baseline + ink.position.y)
+			rows.y = maxf(rows.y, baseline + ink.end.y)
+	if rows.x > rows.y:
+		return Vector2.ZERO
+	return rows * ArtStyle.ART_SCALE
+
+
+## The ink of `glyph` in the number font, in font px (number_ink's; the grade badge centres its
+## digit on it).
+static func glyph_ink(glyph: String) -> Rect2i:
+	return _number_ink(glyph)
+
+
+## The ink of `glyph` in the number font (rendered once), in font px: x its left edge from the
+## pen, y its top from the baseline, its size; with no ink, its advance wide and 0 tall.
+static func _number_ink(glyph: String) -> Rect2i:
 	if not _number_inks.has(glyph):
 		var font: Font = ArtStyle.pixel_number_font()
 		var server: TextServer = TextServerManager.get_primary_interface()
@@ -167,7 +209,7 @@ static func _number_ink(glyph: String) -> Vector2i:
 		var index: int = server.font_get_glyph_index(rid, font_size, glyph.unicode_at(0), 0)
 		server.font_render_glyph(rid, key, index)
 		var advance: float = server.font_get_glyph_advance(rid, font_size, index).x
-		var ink: Vector2i = Vector2i(0, ceili(advance))
+		var ink: Rect2i = Rect2i(0, 0, ceili(advance), 0)
 		var texture_index: int = server.font_get_glyph_texture_idx(rid, key, index)
 		if texture_index >= 0:
 			var image: Image = server.font_get_texture_image(rid, key, texture_index)
@@ -175,7 +217,12 @@ static func _number_ink(glyph: String) -> Vector2i:
 			var used: Rect2i = image.get_region(uv).get_used_rect()
 			var offset: Vector2 = server.font_get_glyph_offset(rid, key, index)
 			if used.has_area():
-				ink = Vector2i(roundi(offset.x) + used.position.x, used.size.x)
+				ink = Rect2i(
+					roundi(offset.x) + used.position.x,
+					roundi(offset.y) + used.position.y,
+					used.size.x,
+					used.size.y
+				)
 		_number_inks[glyph] = ink
 	return _number_inks[glyph]
 
@@ -225,7 +272,7 @@ func _add_number(number: String, x: float, colour: Color) -> float:
 	var cursor: float = x
 	for index: int in number.length():
 		var glyph: String = number[index]
-		var ink: Vector2i = _number_ink(glyph)
+		var ink: Rect2i = _number_ink(glyph)
 		var label: Label = Label.new()
 		label.text = glyph
 		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -235,20 +282,25 @@ func _add_number(number: String, x: float, colour: Color) -> float:
 		label.add_theme_color_override("font_color", colour)
 		ArtStyle.use_pixel_text_material(label)
 		label.scale = Vector2.ONE * art
-		label.position = Vector2(cursor - ink.x * art, (baseline - ascent) * art)
+		label.position = Vector2(cursor - ink.position.x * art, (baseline - ascent) * art)
 		add_child(label)
-		cursor += (ink.y + DIGIT_GAP) * art
+		cursor += (ink.size.x + DIGIT_GAP) * art
 	return number_width(number)
 
 
 func _add_icon(icon: Texture2D, x: float, icon_top: int) -> float:
 	var art: float = ArtStyle.ART_SCALE
 	var icon_size: Vector2 = icon.get_size()
-	var top: float = icon_top
-	if icon_top == CENTRED:
-		top = floorf((ArtStyle.PIXEL_CAP_HEIGHT * _scale_factor - icon_size.y) / 2.0 + 0.5)
 	var sprite: TextureRect = UiKit.sprite(icon)
 	sprite.size = icon_size * art
-	sprite.position = Vector2(x, top * art)
+	sprite.position = Vector2(x, _icon_y(icon, icon_top))
 	add_child(sprite)
 	return icon_size.x * art
+
+
+## An icon's top in canvas px from the cap top: `icon_top` art px, or CENTRED on the capitals.
+func _icon_y(icon: Texture2D, icon_top: int) -> float:
+	var top: float = icon_top
+	if icon_top == CENTRED:
+		top = floorf((ArtStyle.PIXEL_CAP_HEIGHT * _scale_factor - icon.get_size().y) / 2.0 + 0.5)
+	return top * ArtStyle.ART_SCALE

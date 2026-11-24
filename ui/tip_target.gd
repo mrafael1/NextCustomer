@@ -190,6 +190,8 @@ func tip_spec() -> TipSpec:
 	if made.live.is_empty() and not tip_more.is_empty():
 		made.live = TipSpec.sentences(tip_more)
 	made.body = TipMarkup.auto(made.body)
+	for index: int in range(made.lines.size()):
+		made.lines[index] = TipMarkup.auto(made.lines[index])
 	made.cond = TipMarkup.auto(made.cond)
 	made.live = TipMarkup.auto(made.live)
 	made.source = full_tip()

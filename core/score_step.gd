@@ -103,6 +103,10 @@ var support_slot: int = -1
 ## ×1.5), or 0 for a whole one. `value` then holds the factor rounded half up (×2 for ×1.5), for
 ## any reader that wants a whole number; factor_text() is the factor's words.
 var percent: int = 0
+## PAYOUT_OVERRIDE: the price cut in percent when the override is a promo and not a denial (#182
+## grade 5, the Picky regular's FamilyPayCutRule: 25 for -25%), so the count-up, the monitor and
+## the receipt show a promo instead of a denial; 0 for a denial and for every other step.
+var promo_cut: int = 0
 
 
 ## `value` × `factor_percent` / 100, rounded to the nearest whole euro, halves away from zero
@@ -174,4 +178,6 @@ func to_dictionary() -> Dictionary:
 		found["percent"] = percent
 	if batch_size > 0:
 		found["batch_size"] = batch_size
+	if promo_cut > 0:
+		found["promo_cut"] = promo_cut
 	return found

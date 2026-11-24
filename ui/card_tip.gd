@@ -48,7 +48,11 @@ func _init() -> void:
 ## (`rule_cut`), the families it counts as, where a START item came from (`start_source`, "" for
 ## none), and its keywords' boxes. `machine` gives a coupon's rarity.
 func show_card(
-	card: CardDefinition, machine: MachineDefinition, start_source: String, rule_cut := false
+	card: CardDefinition,
+	machine: MachineDefinition,
+	start_source: String,
+	rule_cut := false,
+	grade_notes: PackedStringArray = PackedStringArray()
 ) -> void:
 	_clear()
 	_main = _card_box(card, machine, WIDTH)
@@ -63,6 +67,8 @@ func show_card(
 		_main.add_text(families, CardTipBox.Style.COND)
 	if not start_source.is_empty():
 		_main.add_text(START_TEXT % start_source, CardTipBox.Style.COND)
+	for note: String in grade_notes:  # A graded run's shrink and dates, one line each (v1.49).
+		_main.add_text(note, CardTipBox.Style.BODY)
 	_add_keywords(card)
 
 

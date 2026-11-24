@@ -43,6 +43,12 @@ func test_auto_marks_up_plain_words() -> void:
 	)
 	assert_str(TipMarkup.auto("the row and the row")).is_equal("the ~row|ROW~ and the row")
 	assert_str(TipMarkup.auto("Already {x2}")).is_equal("Already {x2}")
+	# A promo's cut (#182): "-25%", or a plain percent after "by"; another plain percent stays.
+	assert_str(TipMarkup.auto("Dairy price reduced by 25% today")).contains("by {25%} today")
+	assert_str(TipMarkup.auto("-15% promo")).is_equal("{-15%} promo")
+	assert_str(TipMarkup.auto("The quota is 10% higher")).ends_with(" is 10% higher")
+	var cut: Array[Dictionary] = TipMarkup.runs("{25%}")
+	assert_int(cut[0]["run"]).is_equal(TipMarkup.Run.ZERO)
 	assert_str(TipMarkup.auto("")).is_empty()
 
 

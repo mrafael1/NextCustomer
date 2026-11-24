@@ -78,8 +78,8 @@ func test_perk_levels_round_trip_and_format_8() -> void:
 	var profile: ProfileState = ProfileState.new()
 	profile.perk_levels = {&"dairy_regulars": 3, &"banana_stand": 1}
 	var data: Dictionary = profile.to_dictionary()
-	assert_int(data["format_version"]).is_equal(8)
-	assert_int(ProfileState.FORMAT_VERSION).is_equal(8)
+	assert_int(data["format_version"]).is_equal(ProfileState.FORMAT_VERSION)
+	assert_int(ProfileState.FORMAT_VERSION).is_equal(11)
 	var parsed: Variant = JSON.parse_string(JSON.stringify(data))
 	var read: ProfileState = ProfileState.from_dictionary(parsed as Dictionary)
 	assert_object(read).is_not_null()

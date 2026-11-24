@@ -9,10 +9,8 @@ extends Control
 ## Click-to-place: click a hand card, then a slot (a filled slot pushes the cards right); click a
 ## row card to pick it back up; drag-and-drop does the same (CardDrag). Hand items keep their
 ## places (plan section 3.8). The row's slot_count general slots are compacted (v0.46, RowCapacity).
-##
 ## The basket redraw (plan section 3.8): the Redraw key arms redraw mode (BasketTags, the monitor's
 ## RedrawPanel); a basket click redraws it at once and BasketRedraw plays the motion.
-##
 ## The layout (#55): ShiftStage's 1280x720 stage over a wall and a counter, the store in the
 ## StoreCamera (#77 machine v2; it glides to the machine and back, planning input waits for it).
 ## Sounds (#62) play on the screen's Sfx; the tutorial (WP-5) asks ShiftGuide's gate before a move
@@ -206,13 +204,7 @@ func _on_shift_started() -> void:
 	_close_overlays()
 	_cabinet.set_total_down(false)
 	tracker.begin(Time.get_ticks_msec(), _focus.is_player_present())
-	var start: Dictionary = {
-		"shift": run.shift_index + 1,
-		"quota": run.quota(),
-		"cards_drawn": RunEvents.card_ids(run.hand()),
-		"inspections": RunEvents.inspection_ids(run.inspections),
-	}
-	_log.log_event("shift_start", start)
+	_log.log_event("shift_start", RunEvents.shift_start(run))
 	_refresh()
 	_save_run()
 	_machine.shift_started()  # Shows the shift's notice once planning takes input.
@@ -553,7 +545,7 @@ func _on_checkout_pressed() -> void:
 		context,
 		_loyalty_card.stamped_boxes(),
 		LoyaltyCard.names(run.upgrades),
-		_stage.event_sources(WeekSchedule.shift_events(run), RunPins.pin_events(run).size()),
+		_stage.event_sources(WeekSchedule.shift_events(run), WeekFlow.item_event_count(run)),
 		InspectionTag.names(WeekSchedule.shift_events(run)),
 		InspectionTag.next_notice(run.next_inspections)
 	)
@@ -692,8 +684,11 @@ func _refresh() -> void:
 	_seed_label.text = PlaytestUi.seed_line(run.run_seed)
 	_refresh_row()
 	_refresh_hand()
+	var planning: bool = not _counting and run.phase == RunState.Phase.PLANNING
+	var scored: ScoreResult = null if planning else DoubleCheckoutFlow.counted(run)
+	GradeTags.mark_items(run, _row_views, _hand_box.cards(), scored)  # v1.49; belt: _show_belt.
 	_refresh_buttons()
-	if not _counting and run.phase == RunState.Phase.PLANNING:
+	if planning:
 		_refresh_preview()
 	_refresh_redraw()
 	_pins.refresh()  # The badge pins' parts, Double checkout's last.
@@ -710,6 +705,11 @@ func _refresh_bar() -> void:
 	_refresh_loyalty_card()
 	_deck_button.caption = "Cart %d/%d" % [run.deck.size(), run.balance.deck_limit]
 	(_top_bar as TopBar).fit_day()
+
+
+## The grade twists' shift-opening stamps (GradeMoves); returns the tweens playing.
+func play_grade_moves() -> Array[Tween]:
+	return GradeMoves.play(_overlay, run, item_views(), _deck_button, profile.reduced_motion())
 
 
 ## The items on screen: the hand's baskets, then the belt's (the upgrade swap's, #77 machine v2).
@@ -749,9 +749,8 @@ func _refresh_hand() -> void:
 		var card: CardInstance = places[place]
 		if card == null:
 			continue  # On the belt: its place stays empty.
-		var view: ItemView = ItemView.new(
-			card, run.balance.aisle_of(card.definition), ItemView.Form.BASKET
-		)
+		var aisle: AisleDefinition = run.balance.aisle_of(card.definition)
+		var view: ItemView = ItemView.new(card, aisle, ItemView.Form.BASKET)
 		view.clicked.connect(_on_hand_card_clicked)
 		if card == _picked:
 			view.set_highlight(CardView.Highlight.SELECTED)
@@ -835,6 +834,7 @@ func _show_belt(result: ScoreResult, paid: bool = false) -> void:
 		_effects.show_all(result, _row_views, run, _hand_box.cards())
 	for slot: int in range(_row_views.size()):
 		_row_views[slot].set_tags(result.tags[slot])
+	PromoTag.mark_belt(run, _row_views, result)  # The items its promo cuts (#182).
 
 
 ## The win and lose screens (plan section 2): the final receipt, with its music cues (the front

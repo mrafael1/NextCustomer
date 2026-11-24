@@ -11,7 +11,9 @@ extends RefCounted
 ## - week: the register's week glass;
 ## - chute<n>: the machine's chute key n (with --machine=);
 ## - window<n>: price window n's (from 0, the belt's tickets in order);
-## - menu: the top bar's Menu key.
+## - menu: the top bar's Menu key;
+## - grade: the top bar's grade badge (with --grades=, #182);
+## - picky: the Picky regular's sign under it (with --grades=picky, v1.49).
 
 const ARGUMENT := "--hover="
 
@@ -68,6 +70,10 @@ static func find(screen: ShiftScreen, what: String) -> TipTarget:
 	if what == "menu":
 		# Its own cover (v1.36: the bar's first tip was the LOYALTY word's).
 		return _cover((screen._top_bar as TopBar).menu_button)
+	if what == "grade":
+		return _cover((screen._top_bar as TopBar).grade_badge)
+	if what == "picky":
+		return _cover((screen._top_bar as TopBar).picky_sign)
 	if what.begins_with("chute"):
 		return _first(screen, "ChuteKey%d" % what.trim_prefix("chute").to_int(), "Tip")
 	if what.begins_with("window"):

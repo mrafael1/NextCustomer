@@ -74,6 +74,9 @@ const LISTED_UPGRADE_SHARE := 0.95
 ## The quota a recipe's fair-deal check aims at (StartingDeck.deal, v0.54); -1: shift 1's quota
 ## of the balance played. The simulator sets the balance data's when --quotas plays others.
 var deal_quota: int = -1
+## The difficulty grade the runs play at (#182, --grade): the balance is already GradeApply's copy
+## for it; each run is marked with it, so its coins (CoinPayout) include the grade's win bonus.
+var grade: int = 0
 var _starter: DeckDefinition
 var _balance: BalanceDefinition
 var _stock: RunStock
@@ -146,6 +149,7 @@ func play(run_seed: int) -> SimRunRecord:
 	record.run_seed = run_seed
 	var deck: DeckDefinition = StartingDeck.deal(_starter, _stock, _balance, stream, deal_quota)
 	var run: RunState = RunState.new(run_seed, deck, _balance, _stock)
+	run.grade = grade
 	# Per card definition: how many of the run's best rows used it.
 	var usage: Dictionary[CardDefinition, int] = {}
 	run.start_shift()
@@ -494,10 +498,15 @@ func _prize_gain(
 	else:
 		deck = _kept_deck(run, usage)
 		deck.append(found as CardDefinition)
-	return (
+	# Expiry dates (v1.49): a coupon's gain lasts only the share of the run it plays.
+	var gain: float = (
 		_sample_value(deck, run.upgrades, redraws, _visit_seed)
 		- _sample_value(current, run.upgrades, redraws, _visit_seed)
 	)
+	var share: float = (
+		1.0 if kind == "upgrade" else GradeRules.lasting_share(run, found as CardDefinition)
+	)
+	return gain * share if share < 1.0 else gain
 
 
 ## The machine's prizes by id: the stock's products, the coupon pools, the item upgrade chains'
@@ -620,12 +629,19 @@ func _greedy_card(
 	var sample_seed: int = _visit_seed
 	var choice: CardDefinition = null
 	var best_value: float = -1.0
+	var now: float = 0.0
+	if can_skip or GradeRules.expiry(run.balance) != null:
+		now = _sample_value(current, run.upgrades, redraws, sample_seed)
 	if can_skip:
-		best_value = _sample_value(current, run.upgrades, redraws, sample_seed)
+		best_value = now
 	for card: CardDefinition in options:
 		var deck: Array[CardDefinition] = kept.duplicate()
 		deck.append(card)
 		var value: float = _sample_value(deck, run.upgrades, redraws, sample_seed)
+		# Expiry dates (v1.49): an expiring coupon's gain counts for the share of the run it plays.
+		var share: float = GradeRules.lasting_share(run, card)
+		if share < 1.0:
+			value = now + (value - now) * share
 		if value > best_value:
 			best_value = value
 			choice = card

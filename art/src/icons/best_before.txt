@@ -1,0 +1,15 @@
+; Expiry dates' BEST BEFORE tag (#182 grade 5, v1.49): a paper price tag with an ink-light
+; hourglass at its left, its right part blank for the shifts left (drawn in the number font by
+; code, GradeTags). 24x10 art px, shown at 2x on an item, a coupon and a cart card.
+@size 24x10
+@kind icon
+.######################.
+#wwwwwwwwwwwwwwwwwwwwwc#
+#w%%%%%wwwwwwwwwwwwwwwc#
+#ww%M%wwwwwwwwwwwwwwwwc#
+#www%wwwwwwwwwwwwwwwwwc#
+#www%wwwwwwwwwwwwwwwwwc#
+#ww%M%wwwwwwwwwwwwwwwwc#
+#w%MMM%wwwwwwwwwwwwwwwc#
+#bbbbbbbbbbbbbbbbbbbbbb#
+.######################.

@@ -53,6 +53,11 @@ const KEY_GAP := 8.0
 const KEY_BORDER := 2.0
 const KEY_PAD := Vector2(3, 2)
 const DOT_DASH := 2.0
+## A list item's bullet (TipSpec.lines, #182): a tomato square BULLET px, BULLET_GAP before its
+## words, centred on the first line's pitch; LIST_GAP between items.
+const BULLET := 6.0
+const BULLET_GAP := 6.0
+const LIST_GAP := 4.0
 const BOTTOM := 6.0
 const SHADOW := Vector2(4, 4)
 const SHADOW_ALPHA := 0.42
@@ -116,6 +121,8 @@ var _title: TipTitle
 var _body: TipText
 var _cond: TipText
 var _live: TipText
+var _list: Array[TipText] = []
+var _bullets: Array[ColorRect] = []
 var _keys: Array[String] = []
 var _head_height: float = 0.0
 var _band_colour: Color = Palette.PAPER
@@ -176,6 +183,8 @@ func show_spec(tip: TipSpec, is_kept: bool = false) -> void:
 	_body = null
 	_cond = null
 	_live = null
+	_list.clear()
+	_bullets.clear()
 	var width: float = card_width()
 	var colours: Array = band_of(tip)
 	_band_colour = colours[0]
@@ -190,6 +199,7 @@ func show_spec(tip: TipSpec, is_kept: bool = false) -> void:
 		)
 		_body = _put(_body, left, y, inner)
 		y += _body.size.y
+	y = _build_list(tip, left, y, inner)
 	if not tip.cond.is_empty():
 		y += LINE_GAP
 		_cond = _put(
@@ -270,6 +280,15 @@ func body() -> TipText:
 
 func cond() -> TipText:
 	return _cond
+
+
+## The list's items (TipSpec.lines), in order; their bullets.
+func list_lines() -> Array[TipText]:
+	return _list
+
+
+func bullets() -> Array[ColorRect]:
+	return _bullets
 
 
 func live() -> TipText:
@@ -603,6 +622,34 @@ func _build_key(index: int, right: float, y: float) -> float:
 	UiKit.place_pixel_label(cap, face, true)
 	_add(cap)
 	return cap_size.y
+
+
+## The spec's list (TipSpec.lines) from `y`: a bullet, then the item's words beside it; returns
+## the y under it.
+func _build_list(tip: TipSpec, left: float, y: float, inner: float) -> float:
+	var font_size: int = SUB_BODY_SIZE if sub else BODY_SIZE
+	var room: float = BULLET + BULLET_GAP
+	for index: int in range(tip.lines.size()):
+		if index > 0 or _body != null:
+			y += LIST_GAP
+		var item: TipText = _put(
+			_text(
+				"List%d" % index,
+				tip.lines[index],
+				font_size,
+				BODY_WEIGHT,
+				Palette.INK,
+				inner - room
+			),
+			left + room,
+			y,
+			inner - room
+		)
+		var top: float = y + roundf((TipText.pitch_for(font_size) - BULLET) / 2.0)
+		_bullets.append(_rect("Bullet%d" % index, Rect2(left, top, BULLET, BULLET), Palette.TOMATO))
+		_list.append(item)
+		y += item.size.y
+	return y
 
 
 func _text(

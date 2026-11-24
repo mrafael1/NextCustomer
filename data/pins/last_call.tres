@@ -1,0 +1,41 @@
+[gd_resource type="Resource" script_class="PinDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/pin_definition.gd" id="1_pin"]
+[ext_resource type="Script" path="res://core/unlock_condition.gd" id="2_condition"]
+[ext_resource type="Script" path="res://core/inspection_definition.gd" id="2_event"]
+[ext_resource type="Script" path="res://core/inspections/inspection_rule.gd" id="3_rule"]
+[ext_resource type="Script" path="res://core/inspections/last_card_bonus_rule.gd" id="4_last"]
+[ext_resource type="Texture2D" path="res://art/pin_icons/last_call.png" id="9_icon"]
+[ext_resource type="Texture2D" path="res://art/pin_icons/last_call_big.png" id="10_icon_big"]
+
+[sub_resource type="Resource" id="Resource_grade"]
+script = ExtResource("2_condition")
+kind = 6
+amount = 5
+
+[sub_resource type="Resource" id="Resource_last"]
+script = ExtResource("4_last")
+bonus = 5
+receipt_text = "Last call: last card"
+
+[sub_resource type="Resource" id="Resource_event"]
+script = ExtResource("2_event")
+id = &"last_call"
+display_name = "Last call"
+tone = 1
+notice_text = "The last card pays +5€"
+chip_text = "Last card +5€"
+icon_ref = "res://art/pin_icons/last_call.png"
+rules = Array[ExtResource("3_rule")]([SubResource("Resource_last")])
+
+[resource]
+script = ExtResource("1_pin")
+id = &"last_call"
+display_name = "Last call"
+rule_text = "The last card pays +5€"
+face_text = "+5"
+face_colour = 12
+icon = ExtResource("9_icon")
+icon_big = ExtResource("10_icon_big")
+unlock_condition = SubResource("Resource_grade")
+events = Array[ExtResource("2_event")]([SubResource("Resource_event")])

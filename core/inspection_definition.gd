@@ -12,8 +12,10 @@ extends Resource
 ## week (WeekSchedule.shift_events) and is never in a shift's own list.
 
 ## MALUS: an inspection, a restriction (red chip). BOON: a good day (green chip). WEEK: a week
-## event (v0.70, WeekEventDefinition), on the week chip.
-enum Tone { MALUS, BOON, WEEK }
+## event (v0.70, WeekEventDefinition), on the week chip. TWIST (v1.49): a difficulty grade's
+## twist played as an event (GradeRules.events: Shrinkflation, the Picky regular), neither an
+## inspection nor a boon nor the week's (added last: the tones' numbers are kept).
+enum Tone { MALUS, BOON, WEEK, TWIST }
 
 @export var id: StringName = &""
 @export var display_name: String = ""
@@ -49,6 +51,11 @@ func is_boon() -> bool:
 ## Whether this is a week event (v0.70): on the week chip, never an inspection nor a boon.
 func is_week() -> bool:
 	return tone == Tone.WEEK
+
+
+## Whether this is a grade twist's event (v1.49, GradeRules.events).
+func is_twist() -> bool:
+	return tone == Tone.TWIST
 
 
 ## The maluses (the inspections proper) of `events`, in order: never a boon or a week event.

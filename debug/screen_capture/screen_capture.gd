@@ -56,6 +56,8 @@ extends Control
 ## file name tip_<what>_batch_.
 ## With `--double`, `--pin=<id>` and `--gun=<state>` (#122, #132) the fixed shift wears badge
 ## pins (see CapturePins).
+## With `--grades=<part>+...` (#182) the fixed shift plays grade 5 with a twist state set by hand
+## (see CaptureGrades).
 ## With `--deck=<page>[,<option>...]` (#56) a new run opens the deck view (see deck() for the pages
 ## and options), and the file is shift_screen_deck_<page>[_<options>]_<width>x<height>.png.
 ## With `--stack` (#105 piece 3) the belt holds the planning layout test's stress row on Big
@@ -296,6 +298,8 @@ func _ready() -> void:
 	if toys_spec != "":
 		await toys(toys_spec)
 	if capture_folder != "":
+		# --grades= first, so a scan or a checkout plays under the grade (its promo cut, #182).
+		_stack_part += CaptureGrades.apply(_screen, OS.get_cmdline_user_args())
 		var scan_id: String = _argument(SCAN_ARGUMENT)
 		if scan_id != "":
 			await scan(scan_id)

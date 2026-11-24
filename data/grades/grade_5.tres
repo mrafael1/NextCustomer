@@ -1,0 +1,39 @@
+[gd_resource type="Resource" script_class="GradeDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/grade_definition.gd" id="1_grade"]
+[ext_resource type="Script" path="res://core/grades/picky_regular_twist.gd" id="2_twist"]
+[ext_resource type="Script" path="res://core/inspection_definition.gd" id="3_event"]
+[ext_resource type="Script" path="res://core/inspections/inspection_rule.gd" id="4_rule"]
+[ext_resource type="Script" path="res://core/inspections/family_pay_cut_rule.gd" id="5_cut"]
+
+[sub_resource type="Resource" id="Resource_cut"]
+script = ExtResource("5_cut")
+pay_percent = 75
+receipt_text = "{off}"
+
+[sub_resource type="Resource" id="Resource_event"]
+script = ExtResource("3_event")
+id = &"picky_regular"
+display_name = "Promo day"
+tone = 3
+notice_text = "{family} price reduced by {cut}"
+chip_text = "{off} promo"
+rules = Array[ExtResource("4_rule")]([SubResource("Resource_cut")])
+
+[sub_resource type="Resource" id="Resource_twist"]
+script = ExtResource("2_twist")
+id = &"picky_regular"
+families = PackedStringArray("Dairy", "Bakery", "Produce", "Snack", "Household", "Breakfast", "Frozen")
+start_week = 2
+cut_min = 15
+cut_max = 30
+cut_step = 5
+event = SubResource("Resource_event")
+
+[resource]
+script = ExtResource("1_grade")
+id = &"manager"
+display_name = "MANAGER"
+rule_text = "{off} promo on one family each shift from week 2"
+twist = SubResource("Resource_twist")
+coin_bonus = 5

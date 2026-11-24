@@ -255,7 +255,7 @@ func _make_beats(steps: Array[ScoreStep]) -> void:
 			beat.subtotal = steps[index + 1].subtotal
 			index += 1
 		else:
-			beat.kind = _kind_of(step.step_type)
+			beat.kind = _kind_of(step)
 			if beat.kind == CountUpBeat.Kind.PAYOUT:
 				beat.equation = PaymentEquation.of(steps, step.slot)
 		beats.append(beat)
@@ -294,14 +294,14 @@ static func _starts_plain_card(steps: Array[ScoreStep], index: int) -> bool:
 	)
 
 
-static func _kind_of(step_type: ScoreStep.StepType) -> CountUpBeat.Kind:
-	match step_type:
+static func _kind_of(step: ScoreStep) -> CountUpBeat.Kind:
+	match step.step_type:
 		ScoreStep.StepType.FLAT, ScoreStep.StepType.COPY:
 			return CountUpBeat.Kind.BONUS
 		ScoreStep.StepType.MULTIPLIER:
 			return CountUpBeat.Kind.STAMP
 		ScoreStep.StepType.PAYOUT_OVERRIDE:
-			return CountUpBeat.Kind.DENIED
+			return CountUpBeat.Kind.PROMO if step.promo_cut > 0 else CountUpBeat.Kind.DENIED
 		ScoreStep.StepType.PAYOUT:
 			return CountUpBeat.Kind.PAYOUT
 		ScoreStep.StepType.EFFECT_ARMED:
@@ -433,14 +433,14 @@ func _set_cheer_lines(steps: Array[ScoreStep]) -> void:
 
 
 ## Whether the item of `beat` (a payout of 0) failed before its payout: a WASTED step it caused
-## itself, or an override (an inspection's denial).
+## itself, or an override (an inspection's denial; a promo's cut is no failure).
 static func _failed(steps: Array[ScoreStep], beat: CountUpBeat) -> bool:
 	var paid_at: int = beat.steps[beat.steps.size() - 1]
 	for index: int in range(paid_at):
 		var step: ScoreStep = steps[index]
 		if step.slot != beat.slot:
 			continue
-		if step.step_type == ScoreStep.StepType.PAYOUT_OVERRIDE:
+		if step.step_type == ScoreStep.StepType.PAYOUT_OVERRIDE and step.promo_cut == 0:
 			return true
 		if (
 			step.step_type == ScoreStep.StepType.WASTED
@@ -563,7 +563,7 @@ func _set_raw_lengths(steps: Array[ScoreStep]) -> void:
 				if from_card and not stamped.has(beat.slot):
 					stamped[beat.slot] = true
 					beat.first_stamp_on_card = true
-			CountUpBeat.Kind.DENIED:
+			CountUpBeat.Kind.DENIED, CountUpBeat.Kind.PROMO:
 				length = _tuning.denied_ms
 			CountUpBeat.Kind.PAYOUT:
 				length = _payout_hold(beat.payout)

@@ -173,10 +173,13 @@ func test_base_products_fizzle(
 			[[0, "Stale doughnut closes batch", "not last in its Bakery batch"]]
 		],
 		["eggs,carrier_bag,bread,bread", []],
-		# Coffee is only Breakfast, which Multipack ignores (#42).
+		# Soup is only Food, which Multipack ignores (#42; Breakfast counts since v1.49).
 		[
-			"coffee,multipack,milk",
-			[[1, "Multipack ×3", "the item right before it has no family but Food or Breakfast"]]
+			"soup,multipack,milk",
+			[
+				[1, "Multipack ×3", "the item right before it has no family but Food"],
+				[2, "Milk: earlier Breakfast", "no Breakfast item before it"]
+			]
 		],
 	]
 ) -> void:

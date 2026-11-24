@@ -1,0 +1,44 @@
+; The Picky regular's promo sign (#182 grade 5; the user's play test of 2026-11-24: "sign under
+; grade should be like a promo sign: icon with promo on it (-25%)"): a supermarket promo card
+; hanging on two strings through its punched holes under the top bar's grade badge, its mustard
+; face lit top left for today's family glyph (drawn at 4x by code over the face, PickySign) and a
+; tomato band at its foot for the day's cut ("-25%", drawn in the number font in paper by code).
+; 28x36 art px, shown at 2x.
+@size 28x36
+@kind icon
+.##########################.
+#yyyyyyyyyyyyyyyyyyyyyyyyym#
+#yM##MMMMMMMMMMMMMMMMMM##Mm#
+#yMuuMMMMMMMMMMMMMMMMMMuuMm#
+#yMMMMMMMMMMMMMMMMMMMMMMMMm#
+#yMMMMMMMMMMMMMMMMMMMMMMMMm#
+#yMMMMMMMMMMMMMMMMMMMMMMMMm#
+#yMMMMMMMMMMMMMMMMMMMMMMMMm#
+#yMMMMMMMMMMMMMMMMMMMMMMMMm#
+#yMMMMMMMMMMMMMMMMMMMMMMMMm#
+#yMMMMMMMMMMMMMMMMMMMMMMMMm#
+#yMMMMMMMMMMMMMMMMMMMMMMMMm#
+#yMMMMMMMMMMMMMMMMMMMMMMMMm#
+#yMMMMMMMMMMMMMMMMMMMMMMMMm#
+#yMMMMMMMMMMMMMMMMMMMMMMMMm#
+#yMMMMMMMMMMMMMMMMMMMMMMMMm#
+#yMMMMMMMMMMMMMMMMMMMMMMMMm#
+#yMMMMMMMMMMMMMMMMMMMMMMMMm#
+#yMMMMMMMMMMMMMMMMMMMMMMMMm#
+#yMMMMMMMMMMMMMMMMMMMMMMMMm#
+#yMMMMMMMMMMMMMMMMMMMMMMMMm#
+#yMMMMMMMMMMMMMMMMMMMMMMMMm#
+#mmmmmmmmmmmmmmmmmmmmmmmmmm#
+#rrrrrrrrrrrrrrrrrrrrrrrrrr#
+#ooooooooooooooooooooooooor#
+#oRRRRRRRRRRRRRRRRRRRRRRRRr#
+#oRRRRRRRRRRRRRRRRRRRRRRRRr#
+#oRRRRRRRRRRRRRRRRRRRRRRRRr#
+#oRRRRRRRRRRRRRRRRRRRRRRRRr#
+#oRRRRRRRRRRRRRRRRRRRRRRRRr#
+#oRRRRRRRRRRRRRRRRRRRRRRRRr#
+#oRRRRRRRRRRRRRRRRRRRRRRRRr#
+#oRRRRRRRRRRRRRRRRRRRRRRRRr#
+#rrrrrrrrrrrrrrrrrrrrrrrrrr#
+#qqqqqqqqqqqqqqqqqqqqqqqqqq#
+.##########################.
