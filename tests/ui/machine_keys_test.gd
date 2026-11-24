@@ -598,7 +598,7 @@ func test_machine_lines_use_glyphs_their_fonts_have() -> void:
 		["NEW IN CART ✓", "1 swapped out · cart 15/15"],
 		["UPGRADED ✓", "cart stays 15/15"],
 		["STAMPED ✓", "Slot engine on your card"],
-		["LEVEL UP ✓", "Category engine LV 3 on your card"],
+		["LEVEL UP ✓", "Category engine MAX on your card"],
 		["READING…", "quota 99€ met · Spot check passed"],
 		["TOTAL 114€ ✓ THANK YOU!", RewardMachineView.PREMIUM_SUB],
 		["TOTAL 114€ ✓ THANK YOU!", "quota 99€ met" + MachineDisplay.PREMIUM_READ],
@@ -641,7 +641,7 @@ func test_long_display_lines_fit() -> void:
 		["TOTAL 999€ ✓ THANK YOU!", "quota 999€ met · Coupon slot closed passed"],
 		["TOTAL 999€ ✓ THANK YOU!", RewardMachineView.PREMIUM_SUB],
 		["TOTAL 999€ ✓ THANK YOU!", "quota 999€ met" + MachineDisplay.PREMIUM_READ],
-		["LEVEL UP ✓", "Category engine LV 3 on your card"],
+		["LEVEL UP ✓", "Category engine MAX on your card"],
 	]:
 		display.show_message(line[0], line[1])
 		for label: Label in display.labels():

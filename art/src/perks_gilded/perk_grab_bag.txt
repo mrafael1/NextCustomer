@@ -1,0 +1,4 @@
+; perk_grab_bag gilded (alpha feedback v1.48, mock-up maxed_perk.html A): the perk icon on a maxed perk's
+; gilded box, through the perk GOLDEN map. A derived source: tools/pixel_art.py builds it.
+; Own key: the tomato twist goes mustard pale (by luminance it merged with the bag).
+@derive ../icons/perk_grab_bag golden=perk R=Y

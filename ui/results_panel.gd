@@ -175,6 +175,7 @@ func _init(tuning: CountUpTuning = null, reduced_motion: Callable = Callable()) 
 	_headline.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	top.add_child(_headline)
 	_loyalty_card = LoyaltyCard.new()
+	_loyalty_card.reduced_motion = _reduced_motion
 	_loyalty_card.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	_loyalty_card.draw.connect(_draw_staple)
 	top.add_child(_loyalty_card)

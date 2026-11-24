@@ -654,6 +654,40 @@ class DeriveTest(TempTestCase):
         self.assertEqual("".join(out[6]), "nLLLLLL")
         self.assertEqual(sum(key == pa.INK for row in out for key in row), 2)
 
+    def test_the_perk_map_spreads_the_icon_over_the_gilded_steps(self) -> None:
+        palette = pa.parse_palette(self.ws.src / pa.PALETTE_FILE)
+        # Brown darkest, teal, cream shade and paper, dark to light: brass dark to mustard pale; the
+        # top row is kept (an icon fills it) and the ink goes brass darkest.
+        grid = [list("#e#"), list("#4b"), list("w##")]
+        out = pa.golden_perk(grid, palette)
+        self.assertEqual(["".join(row) for row in out], ["klk", "kLn", "Ykk"])
+
+    def test_the_perk_map_lights_a_one_colour_icon(self) -> None:
+        palette = pa.parse_palette(self.ws.src / pa.PALETTE_FILE)
+        out = pa.golden_perk([list(".#."), list("#c#")], palette)
+        self.assertEqual(["".join(row) for row in out], [".k.", "kYk"])
+        # Two colours take the two lightest steps.
+        out = pa.golden_perk([list("4c")], palette)
+        self.assertEqual(["".join(row) for row in out], ["nY"])
+
+    def test_a_derivation_reaches_a_sibling_folder(self) -> None:
+        self.ws.add("icons/dot", "@size 3x3\n@kind icon\n###\n#c#\n###\n")
+        self.ws.add("perks_gilded/dot", "@derive ../icons/dot golden=perk\n")
+        project = self.ws.load()
+        self.assertEqual(project.errors, [])
+        derived = next(s for s in project.sprites if s.name == "perks_gilded/dot")
+        self.assertEqual(derived.rows, ["kkk", "kYk", "kkk"])
+
+    def test_the_perk_map_takes_its_own_keys(self) -> None:
+        # A detail that merges by luminance (Salvage desk's X) gets its own key; no flags.
+        self.ws.add("icons/dot", "@size 3x3\n@kind icon\n###\n#c#\n###\n")
+        self.ws.add("perks_gilded/dot", "@derive ../icons/dot golden=perk c=n\n")
+        self.ws.add("perks_gilded/bad", "@derive ../icons/dot golden=perk glint\n")
+        project = self.ws.load()
+        derived = next(s for s in project.sprites if s.name == "perks_gilded/dot")
+        self.assertEqual(derived.rows, ["kkk", "knk", "kkk"])
+        self.assertTrue(any("glint" in error for error in project.errors), project.errors)
+
     def test_derive_errors(self) -> None:
         self.ws.add("items_v2/box", item_source(boxed_item("c", 48)))
         cases = {

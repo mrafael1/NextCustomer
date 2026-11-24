@@ -30,7 +30,8 @@ A derived source holds no grid and no other directive, only (after its comments)
 
 which renders another source's pixels through a GOLDEN palette map (#77's item tiers:
 art/src/items_v2/milk_golden.txt holds "@derive milk_big golden=rank"). <source> is named
-relative to the derived source's folder and must be a drawn source (not a derived one); the
+relative to the derived source's folder ("../icons/coin" reaches a sibling folder) and must be
+a drawn source (not a derived one); the
 derived sprite takes its size, kind and scale. The maps (GOLDEN_MAPS) are ported from the
 approved prep script docs/art/mockups/machine_77_src/upgrades/gen_upgrades.py:
     rank    the source's colours sorted by luminance, spread over GOLDEN_RANK_STEPS (brass
@@ -53,8 +54,15 @@ approved prep script docs/art/mockups/machine_77_src/upgrades/gen_upgrades.py:
             lit gold (GOLDEN_OUTLINE_LIT) on the top-left half and the mid diagonal and brass
             (GOLDEN_OUTLINE_SHADE) on the bottom-right half; interior ink lines and the fill
             are kept
-Each map but outline then re-inks: rows 0-1 cleared and every opaque pixel on the outline made
-ink.
+    perk    a maxed perk's gilded icon (alpha feedback v1.48, mock-up maxed_perk.html A; art/src/
+            perks_gilded/, derived from ../icons/<icon>): the icon's colours sorted by luminance,
+            one each on GOLDEN_PERK_STEPS' lightest steps (brass dark to mustard pale; more
+            colours than steps spread evenly), so the lightest is always mustard pale, and ink
+            brass darkest; no glint, no re-ink, since an icon fills its grid's top rows;
+            optional <from>=<to> pairs after it (golden=perk R=k) override the map for a key
+            whose detail would merge with a neighbour of close luminance (Salvage desk's X)
+Each map but outline and perk then re-inks: rows 0-1 cleared and every opaque pixel on the
+outline made ink.
 
 A derived source can instead hold
 
@@ -109,6 +117,7 @@ Tests: python tools/pixel_art_test.py
 from __future__ import annotations
 
 import argparse
+import posixpath
 import struct
 import sys
 import zlib
@@ -175,6 +184,11 @@ GOLDEN_KEYS_FLAGS = frozenset({"glint", "rim"})
 GOLDEN_KEYS_RIM_KEYS = frozenset({"n", "Y"})
 # The outline map (giver-badge minis): the ink outline's lit and shaded gold, the two tones of
 # the sticker-minis mock-up's gold ring (gold, brass).
+# A maxed perk's gilded icon (golden=perk): its colours over these steps, dark to light (brass
+# dark, brass, gold, mustard pale), its ink brass darkest.
+GOLDEN_PERK_STEPS = ("l", "L", "n", "Y")
+GOLDEN_PERK_INK = "k"
+GOLDEN_PERK_MAP = "perk"
 GOLDEN_OUTLINE_LIT = "n"
 GOLDEN_OUTLINE_SHADE = "L"
 DERIVE_DIRECTIVE = "@derive"
@@ -277,7 +291,7 @@ class Derivation:
     def base_name(self) -> str:
         """The base source's name, relative to the derived source's folder."""
         folder = self.name.rpartition("/")[0]
-        return f"{folder}/{self.base}" if folder else self.base
+        return posixpath.normpath(f"{folder}/{self.base}") if folder else self.base
 
 
 def parse_palette(path: Path) -> Palette:
@@ -449,26 +463,26 @@ def parse_recolour(args: list[str]) -> tuple[str, str] | None:
 
 def parse_golden_keys(golden: str, args: list[str]) -> tuple[dict[str, str], frozenset[str], str]:
     """The <from>=<to> pairs and flags after golden=keys: (keys, flags, problem or '')."""
-    if golden != GOLDEN_KEYS_MAP:
+    if golden not in (GOLDEN_KEYS_MAP, GOLDEN_PERK_MAP):
         if args:
             return {}, frozenset(), f"golden={golden} takes nothing more, got {' '.join(args)!r}"
         return {}, frozenset(), ""
     keys: dict[str, str] = {}
     flags: set[str] = set()
     for arg in args:
-        if arg in GOLDEN_KEYS_FLAGS:
+        if arg in GOLDEN_KEYS_FLAGS and golden == GOLDEN_KEYS_MAP:
             flags.add(arg)
             continue
         # Three characters: the source key, '=', the target key (so '=' itself can be a key).
         source, sep, target = (arg[0], arg[1], arg[2]) if len(arg) == 3 else ("", "", "")
         if sep != "=" or source in (TRANSPARENT, INK):
-            return {}, frozenset(), (f"golden=keys takes <from>=<to> pairs of one-character keys "
-                                     f"(not '{TRANSPARENT}' or '{INK}') and the flags "
+            return {}, frozenset(), (f"golden={golden} takes <from>=<to> pairs of one-character "
+                                     f"keys (not '{TRANSPARENT}' or '{INK}') and the flags "
                                      f"{', '.join(sorted(GOLDEN_KEYS_FLAGS))}, got {arg!r}")
         if source in keys:
-            return {}, frozenset(), f"golden=keys recolours {source!r} twice"
+            return {}, frozenset(), f"golden={golden} recolours {source!r} twice"
         keys[source] = target
-    if not keys:
+    if not keys and golden == GOLDEN_KEYS_MAP:
         return {}, frozenset(), "golden=keys needs at least one <from>=<to> pair"
     return keys, frozenset(flags), ""
 
@@ -713,9 +727,28 @@ def golden_outline(rows: Grid, _palette: Palette) -> Grid:
              for x, key in enumerate(row)] for y, row in enumerate(rows)]
 
 
+def golden_perk(rows: Grid, palette: Palette, keys: dict[str, str] | None = None) -> Grid:
+    """A maxed perk's gilded icon: the source's colours, dark to light, on GOLDEN_PERK_STEPS'
+    lightest steps one each (more colours than steps: spread evenly over them), so the lightest
+    is always mustard pale and an icon with few colours stays light on the brass dark disc; ink
+    GOLDEN_PERK_INK, then `keys` (the source's <from>=<to> pairs) over that; nothing cleared or
+    re-inked."""
+    used = sorted({key for row in rows for key in row} - {TRANSPARENT, INK},
+                  key=lambda key: (_luma(palette, key), key))
+    steps = len(GOLDEN_PERK_STEPS)
+    if len(used) <= steps:
+        mapping = {key: GOLDEN_PERK_STEPS[steps - len(used) + i] for i, key in enumerate(used)}
+    else:
+        mapping = {key: GOLDEN_PERK_STEPS[int(i * (steps - 1) / (len(used) - 1) + 0.5)]
+                   for i, key in enumerate(used)}
+    mapping[INK] = GOLDEN_PERK_INK
+    mapping.update(keys or {})
+    return [[mapping.get(key, key) for key in row] for row in rows]
+
+
 GOLDEN_MAPS = {
     "rank": golden_rank, "yellow": golden_yellow, "egg": golden_egg, "bake": golden_bake,
-    "outline": golden_outline,
+    "outline": golden_outline, "perk": golden_perk,
 }
 
 
@@ -744,6 +777,8 @@ def derive_sprite(derivation: Derivation, base: Sprite, palette: Palette) -> Spr
             rows = tone_recolour(rows, derivation.tone)
     elif derivation.golden == GOLDEN_KEYS_MAP:
         rows = golden_keys(grid, derivation.keys, derivation.flags)
+    elif derivation.golden == GOLDEN_PERK_MAP:
+        rows = golden_perk(grid, palette, derivation.keys)
     else:
         rows = GOLDEN_MAPS[derivation.golden](grid, palette)
     return Sprite(derivation.source, derivation.name, base.width, base.height, base.kind,

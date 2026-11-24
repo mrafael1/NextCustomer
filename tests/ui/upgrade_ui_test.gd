@@ -283,7 +283,10 @@ func test_every_stamp_fits_inside_its_ring() -> void:
 		assert_object(icon).is_same(LoyaltyCard.face_icon(upgrades[index], false))
 		if icon != null:
 			assert_str(label.text).is_empty()
-			assert_object(face.bg_color).is_equal(Palette.TEAL_DARK)
+			# A maxed perk's box is gilded (alpha feedback v1.48): its disc brass dark.
+			var maxed: bool = LoyaltyCard.is_maxed(upgrades[index])
+			var disc: Color = LoyaltyCard.GILDED_FACE if maxed else Palette.TEAL_DARK
+			assert_object(face.bg_color).is_equal(disc)
 			var sprite: TextureRect = (
 				box.get_node(LoyaltyCard.ICON_NAME).get_child(0) as TextureRect
 			)
@@ -337,11 +340,15 @@ func test_every_chip_stamp_fits_inside_its_ring() -> void:
 		var family: Color = LoyaltyCard.family_ring(upgrades[index])
 		if family != Color():
 			var line: StyleBoxFlat = box.get_theme_stylebox("panel") as StyleBoxFlat
+			if LoyaltyCard.is_maxed(upgrades[index]):
+				family = LoyaltyCard.GILDED_FAMILY_RING
 			assert_object(line.border_color).is_equal(family)
 			assert_object(box.get_node(LoyaltyCard.FAMILY_EDGE_NAME)).is_not_null()
 		else:
 			var ring: StyleBoxTexture = box.get_theme_stylebox("panel") as StyleBoxTexture
-			assert_object(ring.texture).is_same(LoyaltyCard.RING)
+			var maxed_ring: bool = LoyaltyCard.is_maxed(upgrades[index])
+			var art: Texture2D = LoyaltyCard.RING_GILDED if maxed_ring else LoyaltyCard.RING
+			assert_object(ring.texture).is_same(art)
 		var label: Label = box.get_child(0) as Label
 		assert_str(label.text).is_equal(LoyaltyCard.stamp_text(upgrades[index], true))
 		assert_object(chip.box_icon(index)).is_same(LoyaltyCard.face_icon(upgrades[index], true))
@@ -719,13 +726,25 @@ func _until_armed(screen: ShiftScreen) -> void:
 	assert_bool(screen._machine.view.is_armed()).is_true()
 
 
-## A maxed perk (alpha feedback v1.48): its box gets a gold ring and a gold star in place of the
-## level numeral, on both faces, inside the box; reaching LV 3 on a rebuild shines once.
-func test_a_maxed_perk_wears_a_gold_ring_and_star_and_shines_once() -> void:
+## A maxed perk (alpha feedback v1.48, mock-up maxed_perk.html A): its box is gilded on both
+## faces (a brass disc, its gilded icon, no level badge) with a light over it; reaching LV 3 on a
+## rebuild wipes the LV 2 face off bottom to top, then flashes and sparkles, once.
+func test_a_maxed_perk_is_a_gilded_box_that_reaches_max_once() -> void:
 	var lv2: UpgradeDefinition = load(UPGRADES.path_join("produce_aisle_run_lv2.tres"))
 	var lv3: UpgradeDefinition = load(UPGRADES.path_join("produce_aisle_run_lv3.tres"))
 	assert_bool(LoyaltyCard.is_maxed(lv2)).is_false()
 	assert_bool(LoyaltyCard.is_maxed(lv3)).is_true()
+	# Its level reads MAX, not LV 3, wherever a level is text: its tip's tag, its name (receipt,
+	# machine screen), its prize ticket's chip and the prize tip's tag.
+	assert_str(LoyaltyCard.tip_for(lv2).tag).is_equal("PERK · LV 2")
+	assert_str(LoyaltyCard.tip_for(lv3).tag).is_equal("PERK · MAX")
+	assert_str(LoyaltyCard.perk_name(lv2)).is_equal(lv2.display_name + " LV 2")
+	assert_str(LoyaltyCard.perk_name(lv3)).is_equal(lv3.display_name + " MAX")
+	assert_str(LoyaltyCard.tooltip_for(lv3)).not_contains("LV 3")
+	var prize: MachinePrize = MachinePrize.new(MachinePrize.Kind.REGISTER, 0, null, lv3)
+	var art: PrizeArt = auto_free(PrizeArt.new(prize, null))
+	assert_str(art.chip_text()).is_equal("MAX")
+	assert_str(PrizePopup.spec_for(prize, null).tag).is_equal("MAX · NEXT SHIFT")
 	for chip: bool in [true, false]:
 		var card: LoyaltyCard = LoyaltyCard.new(chip)
 		add_child(card)
@@ -733,22 +752,32 @@ func test_a_maxed_perk_wears_a_gold_ring_and_star_and_shines_once() -> void:
 		card.show_upgrades(1, single)
 		await _frames(1)
 		assert_str((card.level_mark(0) as Label).text).is_equal("2")
-		assert_object(card.box(0).get_node_or_null(LoyaltyCard.MAX_RING_NAME)).is_null()
+		assert_object(LoyaltyCard.gilded_sweep(card.box(0))).is_null()
 		var maxed: Array[UpgradeDefinition] = [lv3]
 		card.show_upgrades(1, maxed)
-		assert_that(card.box(0).modulate).is_not_equal(Color.WHITE)
-		await _frames(1)
-		var star: Control = card.level_mark(0)
-		assert_str(String(star.name)).is_equal(LoyaltyCard.MAX_STAR_NAME)
-		assert_object(card.box(0).get_node_or_null(LoyaltyCard.MAX_RING_NAME)).is_not_null()
-		await get_tree().create_timer(LoyaltyCard.MAX_SHINE_S + 0.1).timeout
-		assert_that(card.box(0).modulate).is_equal(Color.WHITE)
-		var in_box: Array[Rect2] = card.level_mark_in_box(0)
-		assert_bool(in_box[1].grow(0.01).encloses(in_box[0])).is_true()
-		# A card built with the perk already maxed (a resumed run) doesn't shine.
+		var light: GildedSweep = LoyaltyCard.gilded_sweep(card.box(0))
+		assert_object(light).is_not_null()
+		assert_bool(light.is_reaching()).is_true()
+		assert_bool(light.has_old_face()).is_true()
+		await _frames(2)
+		assert_object(card.level_mark(0)).is_null()
+		assert_str(card.box_icon(0).resource_path).is_equal(
+			LoyaltyCard.gilded_icon_path(lv3.icon_ref)
+		)
+		var face: StyleBoxFlat = card.box(0).get_theme_stylebox("panel") as StyleBoxFlat
+		assert_that(face.bg_color).is_equal(LoyaltyCard.GILDED_FACE)
+		assert_that(face.border_color).is_equal(LoyaltyCard.GILDED_FAMILY_RING)
+		# The light covers the box (upright on the card's tilted stamp, so give it its corners).
+		var rect: Rect2 = card.box(0).get_global_rect().grow(4.0)
+		assert_bool(rect.encloses(light.get_global_rect())).is_true()
+		await get_tree().create_timer(GildedSweep.FILL_S + 0.1).timeout
+		assert_bool(light.has_old_face()).is_false()
+		await get_tree().create_timer(GildedSweep.SPARKLE_S).timeout
+		assert_bool(light.is_reaching()).is_false()
+		# A card built with the perk already maxed (a resumed run) doesn't reach again.
 		var fresh: LoyaltyCard = LoyaltyCard.new(chip)
 		add_child(fresh)
 		fresh.show_upgrades(1, maxed)
-		assert_that(fresh.box(0).modulate).is_equal(Color.WHITE)
+		assert_bool(LoyaltyCard.gilded_sweep(fresh.box(0)).is_reaching()).is_false()
 		card.queue_free()
 		fresh.queue_free()

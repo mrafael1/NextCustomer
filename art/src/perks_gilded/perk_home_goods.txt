@@ -1,0 +1,4 @@
+; perk_home_goods gilded (alpha feedback v1.48, mock-up maxed_perk.html A): the perk icon on a maxed perk's
+; gilded box, through the perk GOLDEN map. A derived source: tools/pixel_art.py builds it.
+; Own keys: a gold roof and a brass door, which by luminance went brass dark like the disc.
+@derive ../icons/perk_home_goods golden=perk R=n r=L 4=L

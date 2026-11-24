@@ -1,0 +1,4 @@
+; perk_salvage_desk gilded (alpha feedback v1.48, mock-up maxed_perk.html A): the perk icon on a maxed perk's
+; gilded box, through the perk GOLDEN map. A derived source: tools/pixel_art.py builds it.
+; Own keys: the tomato X goes brass darkest on a gold box (by luminance it merged with the grey box).
+@derive ../icons/perk_salvage_desk golden=perk R=k -=n ==L m=L
