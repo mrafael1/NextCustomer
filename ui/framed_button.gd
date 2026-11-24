@@ -122,6 +122,18 @@ func set_icon(texture: Texture2D, icon_size: Vector2) -> void:
 	_place_icon()
 
 
+## Gives the face another 9-slice frame (a puzzle's RETRY in mustard, its BOARD in gold). The
+## caption keeps its own look (only a picked button's frame change restores it).
+func set_frame(frame: Texture2D) -> void:
+	if frame == _frame:
+		return
+	if _shown_frame == _frame:
+		_shown_frame = frame
+		_face.add_theme_stylebox_override("panel", ArtStyle.frame_style(frame, FRAME_MARGIN))
+	_frame = frame
+	queue_redraw()
+
+
 func icon_rect() -> TextureRect:
 	return _icon
 

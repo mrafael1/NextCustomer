@@ -89,7 +89,7 @@ func after_test() -> void:
 ## the faces hold.
 func test_every_pin_has_its_icons() -> void:
 	var pins: Array[PinDefinition] = _pins()
-	assert_int(pins.size()).is_equal(8)
+	assert_int(pins.size()).is_equal(10)  # 8, then the puzzle packs' 2 (v1.50).
 	for pin: PinDefinition in pins:
 		var what: String = String(pin.id)
 		assert_object(pin.icon).override_failure_message(what).is_not_null()

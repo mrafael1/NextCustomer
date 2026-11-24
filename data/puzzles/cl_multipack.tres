@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="PuzzleDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/puzzle_definition.gd" id="1_puzzle"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="2_card"]
+[ext_resource type="Resource" path="res://data/cards/multipack.tres" id="c_multipack"]
+[ext_resource type="Resource" path="res://data/cards/cereal_bar.tres" id="c_cereal_bar"]
+[ext_resource type="Resource" path="res://data/cards/pick_n_mix.tres" id="c_pick_n_mix"]
+[ext_resource type="Resource" path="res://data/cards/bent_lolly.tres" id="c_bent_lolly"]
+[ext_resource type="Resource" path="res://data/cards/breadsticks.tres" id="c_breadsticks"]
+[ext_resource type="Resource" path="res://data/cards/soup.tres" id="c_soup"]
+[ext_resource type="Resource" path="res://data/cards/bread.tres" id="c_bread"]
+
+[resource]
+script = ExtResource("1_puzzle")
+id = &"cl_multipack"
+title = "Multipack"
+pack = 3
+target = 41
+slot_count = 5
+hand = Array[ExtResource("2_card")]([ExtResource("c_multipack"), ExtResource("c_cereal_bar"), ExtResource("c_pick_n_mix"), ExtResource("c_bent_lolly"), ExtResource("c_breadsticks"), ExtResource("c_soup"), ExtResource("c_bread")])
+solution = PackedStringArray("soup", "breadsticks", "multipack", "pick_n_mix")
+hint = "Multipack: later items of the family before it pay ×3."

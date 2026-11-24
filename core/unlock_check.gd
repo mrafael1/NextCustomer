@@ -8,7 +8,7 @@ extends RefCounted
 ## Whether `condition` is met by the run that just ended. `earlier_uses` maps a coupon id to
 ## how many times it was used in earlier runs (USE_COUPON_TIMES counts across runs);
 ## `earlier_wins` is the runs won before this one (WIN_RUNS), `earlier_runs` the runs finished
-## before it (FINISH_RUNS).
+## before it (FINISH_RUNS). A PUZZLE_PACK condition is never met by a run (ProfilePuzzles).
 static func is_met(
 	condition: UnlockCondition,
 	run: RunState,

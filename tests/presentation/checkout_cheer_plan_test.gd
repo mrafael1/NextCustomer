@@ -157,6 +157,66 @@ func test_a_scored_row_cheers_on_its_lines_and_a_copy_is_a_combo() -> void:
 	assert_int(lines).is_greater(0)
 
 
+## A puzzle's OVER (#183, CountUpPlan's `exact`; play test 2026-11-23): past the target the count
+## never meets the quota (no ding) and no standee pops from the payout that goes past it on; right
+## on the target (EXACT) it dings and cheers as usual, and short of it (SHORT) nothing changes.
+func test_a_puzzle_over_stops_the_cheer_at_the_target() -> void:
+	var tuning: CountUpTuning = load(TUNING)
+	var context: CountUpContext = CountUpContext.new()
+	var steps: Array[ScoreStep] = _plain([5, 5, 5, 5])  # Subtotals 5, 10, 15, 20.
+	var over: CountUpPlan = CountUpPlan.build(steps, 12, context, tuning, null, true)
+	assert_bool(over.quota_reached).is_false()
+	assert_int(over.ding_beat).is_equal(-1)
+	assert_array(_cheers(over)).is_equal([1, 1, 0, 0])
+	var exact: CountUpPlan = CountUpPlan.build(steps, 20, context, tuning, null, true)
+	assert_bool(exact.quota_reached).is_true()
+	assert_int(exact.ding_beat).is_equal(3)
+	assert_array(_cheers(exact)).is_equal([1, 1, 1, 1])
+	var short: CountUpPlan = CountUpPlan.build(steps, 25, context, tuning, null, true)
+	assert_bool(short.quota_reached).is_false()
+	assert_array(_cheers(short)).is_equal([1, 1, 1, 1])
+	var run: CountUpPlan = CountUpPlan.build(steps, 12, context, tuning)  # A run's shift cheers on.
+	assert_bool(run.quota_reached).is_true()
+	assert_int(run.ding_beat).is_equal(2)
+	assert_array(_cheers(run)).is_equal([1, 1, 1, 1])
+
+
+## A puzzle's OVER: the item that goes past the target cheers none of its bonus lines either (they
+## pop before its payout); the items before it keep theirs.
+func test_a_puzzle_over_quiets_the_crossing_items_bonus_lines() -> void:
+	var tuning: CountUpTuning = load(TUNING)
+	var steps: Array[ScoreStep] = []
+	# Slot 0: +1, paying 5 (subtotal 5). Slot 1: +2, paying 8 (subtotal 13, past 10).
+	steps.append(_step(ScoreStep.StepType.BASE, 0, 4, 4))
+	steps.append(_step(ScoreStep.StepType.FLAT, 0, 1, 5))
+	steps.append(_step(ScoreStep.StepType.PAYOUT, 0, 5, 5))
+	steps.append(_step(ScoreStep.StepType.BASE, 1, 6, 11))
+	steps.append(_step(ScoreStep.StepType.FLAT, 1, 2, 13))
+	steps.append(_step(ScoreStep.StepType.PAYOUT, 1, 8, 13))
+	var context: CountUpContext = CountUpContext.new()
+	var over: CountUpPlan = CountUpPlan.build(steps, 10, context, tuning, null, true)
+	var run: CountUpPlan = CountUpPlan.build(steps, 10, context, tuning)
+	assert_int(_slot_cheers(run, 0)).is_greater(0)
+	assert_int(_slot_cheers(run, 1)).is_greater(0)
+	assert_int(_slot_cheers(over, 0)).is_equal(_slot_cheers(run, 0))
+	assert_int(_slot_cheers(over, 1)).is_equal(0)
+
+
+static func _slot_cheers(plan: CountUpPlan, slot: int) -> int:
+	var sum: int = 0
+	for beat: CountUpBeat in plan.beats:
+		if beat.slot == slot:
+			sum += beat.cheer_count
+	return sum
+
+
+static func _cheers(plan: CountUpPlan) -> Array[int]:
+	var counts: Array[int] = []
+	for beat: CountUpBeat in plan.beats:
+		counts.append(beat.cheer_count)
+	return counts
+
+
 static func _plan(steps: Array[ScoreStep], context: CountUpContext = null) -> CountUpPlan:
 	var around: CountUpContext = context if context != null else CountUpContext.new()
 	return CountUpPlan.build(steps, 10000, around, load(TUNING))

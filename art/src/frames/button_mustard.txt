@@ -1,0 +1,17 @@
+; The chunky button (button.txt) in mustard (#183 polish 5, 2026-11-23): a puzzle shift's RETRY,
+; amber for "try again", clear of NEXT's tomato, the miss stamp's tomato and a done pack's gold.
+; A pale top row, a light left edge, a mustard face, a dark right edge and bottom row and a
+; darkest ledge, in an ink outline. A 9-slice like button.
+@size 10x10
+@kind frame
+@scale 2
+.########.
+#YYYYYYYY#
+#yMMMMMMm#
+#yMMMMMMm#
+#yMMMMMMm#
+#yMMMMMMm#
+#yMMMMMMm#
+#mmmmmmmm#
+#uuuuuuuu#
+.########.

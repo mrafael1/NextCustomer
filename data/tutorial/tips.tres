@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="TipList" load_steps=10 format=3]
+[gd_resource type="Resource" script_class="TipList" load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://presentation/tutorial/tip_list.gd" id="1_main"]
 [ext_resource type="Script" path="res://presentation/tutorial/tip_definition.gd" id="2_sub"]
@@ -83,6 +83,16 @@ text = "**COINS** buy toy capsules, from the title screen."
 teaches = PackedStringArray("COINS")
 more_page = &"toys:coins"
 
+[sub_resource type="Resource" id="Resource_t17"]
+script = ExtResource("2_sub")
+id = &"T17"
+title = "PUZZLES"
+priority = 6
+trigger = &"puzzles_offered"
+text = "Puzzles are open: click the planner in the window."
+rings = Array[StringName]([&"title_puzzles"])
+side = 1
+
 [resource]
 script = ExtResource("1_main")
-tips = Array[ExtResource("2_sub")]([SubResource("Resource_t2"), SubResource("Resource_t6"), SubResource("Resource_t7"), SubResource("Resource_t9"), SubResource("Resource_t11"), SubResource("Resource_t14"), SubResource("Resource_t15")])
+tips = Array[ExtResource("2_sub")]([SubResource("Resource_t2"), SubResource("Resource_t6"), SubResource("Resource_t7"), SubResource("Resource_t9"), SubResource("Resource_t11"), SubResource("Resource_t14"), SubResource("Resource_t15"), SubResource("Resource_t17")])

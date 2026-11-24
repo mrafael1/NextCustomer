@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="PuzzleDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/puzzle_definition.gd" id="1_puzzle"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="2_card"]
+[ext_resource type="Script" path="res://core/upgrade_definition.gd" id="3_upgrade"]
+[ext_resource type="Resource" path="res://data/cards/write_off.tres" id="c_write_off"]
+[ext_resource type="Resource" path="res://data/cards/flickering_bulb.tres" id="c_flickering_bulb"]
+[ext_resource type="Resource" path="res://data/cards/dusty_toffees.tres" id="c_dusty_toffees"]
+[ext_resource type="Resource" path="res://data/cards/bread.tres" id="c_bread"]
+[ext_resource type="Resource" path="res://data/cards/cheese.tres" id="c_cheese"]
+[ext_resource type="Resource" path="res://data/cards/potatoes.tres" id="c_potatoes"]
+[ext_resource type="Resource" path="res://data/cards/banana.tres" id="c_banana"]
+[ext_resource type="Resource" path="res://data/upgrades/salvage_desk.tres" id="u_salvage_desk"]
+
+[resource]
+script = ExtResource("1_puzzle")
+id = &"cl_write_off"
+title = "Write-off"
+pack = 3
+target = 56
+slot_count = 5
+hand = Array[ExtResource("2_card")]([ExtResource("c_write_off"), ExtResource("c_flickering_bulb"), ExtResource("c_dusty_toffees"), ExtResource("c_bread"), ExtResource("c_cheese"), ExtResource("c_potatoes"), ExtResource("c_banana")])
+upgrades = Array[ExtResource("3_upgrade")]([ExtResource("u_salvage_desk")])
+solution = PackedStringArray("flickering_bulb", "banana", "write_off", "dusty_toffees")
+hint = "WASTED items can still pay: look at who rewards them."

@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="PuzzleDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/puzzle_definition.gd" id="1_puzzle"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="2_card"]
+[ext_resource type="Resource" path="res://data/cards/opening_deal.tres" id="c_opening_deal"]
+[ext_resource type="Resource" path="res://data/cards/mixed_herbs.tres" id="c_mixed_herbs"]
+[ext_resource type="Resource" path="res://data/cards/bread.tres" id="c_bread"]
+[ext_resource type="Resource" path="res://data/cards/cheese.tres" id="c_cheese"]
+[ext_resource type="Resource" path="res://data/cards/eggs.tres" id="c_eggs"]
+[ext_resource type="Resource" path="res://data/cards/potatoes.tres" id="c_potatoes"]
+[ext_resource type="Resource" path="res://data/cards/banana.tres" id="c_banana"]
+
+[resource]
+script = ExtResource("1_puzzle")
+id = &"cl_grand_opening"
+title = "Grand opening"
+pack = 3
+target = 39
+slot_count = 5
+hand = Array[ExtResource("2_card")]([ExtResource("c_opening_deal"), ExtResource("c_mixed_herbs"), ExtResource("c_bread"), ExtResource("c_cheese"), ExtResource("c_eggs"), ExtResource("c_potatoes"), ExtResource("c_banana")])
+solution = PackedStringArray("opening_deal", "bread", "cheese", "mixed_herbs", "banana")
+hint = "Opening deal in slot 1 makes the next item pay ×5. Bigger is not the goal."

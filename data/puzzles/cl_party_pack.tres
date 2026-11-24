@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="PuzzleDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/puzzle_definition.gd" id="1_puzzle"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="2_card"]
+[ext_resource type="Script" path="res://core/upgrade_definition.gd" id="3_upgrade"]
+[ext_resource type="Resource" path="res://data/cards/party_pack.tres" id="c_party_pack"]
+[ext_resource type="Resource" path="res://data/cards/pick_n_mix.tres" id="c_pick_n_mix"]
+[ext_resource type="Resource" path="res://data/cards/cereal_bar.tres" id="c_cereal_bar"]
+[ext_resource type="Resource" path="res://data/cards/bent_lolly.tres" id="c_bent_lolly"]
+[ext_resource type="Resource" path="res://data/cards/breadsticks.tres" id="c_breadsticks"]
+[ext_resource type="Resource" path="res://data/cards/bread.tres" id="c_bread"]
+[ext_resource type="Resource" path="res://data/cards/potatoes.tres" id="c_potatoes"]
+[ext_resource type="Resource" path="res://data/upgrades/grab_bag.tres" id="u_grab_bag"]
+
+[resource]
+script = ExtResource("1_puzzle")
+id = &"cl_party_pack"
+title = "Party pack"
+pack = 3
+target = 59
+slot_count = 5
+hand = Array[ExtResource("2_card")]([ExtResource("c_party_pack"), ExtResource("c_pick_n_mix"), ExtResource("c_cereal_bar"), ExtResource("c_bent_lolly"), ExtResource("c_breadsticks"), ExtResource("c_bread"), ExtResource("c_potatoes")])
+upgrades = Array[ExtResource("3_upgrade")]([ExtResource("u_grab_bag")])
+solution = PackedStringArray("pick_n_mix", "party_pack", "cereal_bar", "potatoes", "bent_lolly")
+hint = "Lone Snacks pay ×2: keep them apart."

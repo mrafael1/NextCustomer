@@ -1,0 +1,16 @@
+; The puzzle board's clipboard (#183): a hardboard clipboard, brown, lit from the top left, in an ink
+; outline with rounded corners; the puzzle's sheet is drawn on it (PuzzleBoardDraw). A 9-slice
+; with 3 art px margins.
+@size 10x10
+@kind frame
+@scale 2
+.########.
+#hhhhhhhh#
+#hFFFFFFf#
+#hFFFFFFf#
+#hFFFFFFf#
+#hFFFFFFf#
+#hFFFFFFf#
+#hFFFFFFf#
+#ffffffff#
+.########.

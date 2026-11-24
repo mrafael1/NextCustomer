@@ -299,6 +299,8 @@ static func _glyph(character: String, chunky_sheet: bool) -> Array:
 			return ["...", "...", ".#.", "...", "..."]
 		if character == ":":
 			return [".", "#", ".", "#", "."]
+		if character == "/":
+			return ["..#", "..#", ".#.", "#..", "#.."]
 		return PixelWords.glyph_of(character, PixelWords.Sheet.CAPS)
 	if character == ":":
 		return ["..", "##", "##", "..", "..", "##", "##", ".."]

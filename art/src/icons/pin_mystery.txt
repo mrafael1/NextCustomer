@@ -1,0 +1,21 @@
+; A puzzle pack's reward badge pin before it is earned (#183 polish 5, 2026-11-23): the pin's
+; round silhouette in grey with a "?" (the puzzle board's pack reward line). 16x16, the size of
+; the real pin's face drawn beside it once earned (PinStepDraw.face).
+@size 16x16
+@kind icon
+.....######.....
+...##------##...
+..#----------#..
+.#------------#.
+.#----::::----#.
+#----::--::----#
+#--------::----#
+#-------::-----#
+#------::------#
+#------::------#
+#--------------#
+.#-----::-----#.
+.#=====::=====#.
+..#==========#..
+...##======##...
+.....######.....

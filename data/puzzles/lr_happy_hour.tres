@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="PuzzleDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/puzzle_definition.gd" id="1_puzzle"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="2_card"]
+[ext_resource type="Script" path="res://core/inspection_definition.gd" id="4_event"]
+[ext_resource type="Resource" path="res://data/cards/final_markdown.tres" id="c_final_markdown"]
+[ext_resource type="Resource" path="res://data/cards/bread.tres" id="c_bread"]
+[ext_resource type="Resource" path="res://data/cards/eggs.tres" id="c_eggs"]
+[ext_resource type="Resource" path="res://data/cards/banana.tres" id="c_banana"]
+[ext_resource type="Resource" path="res://data/cards/potatoes.tres" id="c_potatoes"]
+[ext_resource type="Resource" path="res://data/inspections/happy_hour.tres" id="e_happy_hour"]
+
+[resource]
+script = ExtResource("1_puzzle")
+id = &"lr_happy_hour"
+title = "Happy hour"
+pack = 2
+target = 33
+slot_count = 4
+hand = Array[ExtResource("2_card")]([ExtResource("c_final_markdown"), ExtResource("c_bread"), ExtResource("c_eggs"), ExtResource("c_banana"), ExtResource("c_banana"), ExtResource("c_potatoes")])
+inspections = Array[ExtResource("4_event")]([ExtResource("e_happy_hour")])
+solution = PackedStringArray("final_markdown", "eggs", "bread")
+hint = "Final markdown doubles the last item; Happy hour adds 3€ to the last card."

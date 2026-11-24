@@ -6,7 +6,8 @@ extends GdUnitTestSuite
 
 ## Subfolders are loaded too, so "res://data" covers data/cards, data/decks, data/balance,
 ## data/upgrades, data/inspections, data/aisles, data/catalogue, data/families (#105),
-## data/weeks (v0.70), data/toy_cabinets (#121, v0.77) and data/tutorial (the tutorial);
+## data/weeks (v0.70), data/toy_cabinets (#121, v0.77), data/tutorial (the tutorial) and
+## data/puzzles (the puzzle shifts, #183);
 ## test_every_data_folder_is_loaded checks that.
 const FOLDERS := [
 	"res://data",
@@ -127,6 +128,7 @@ func test_every_data_folder_is_loaded() -> void:
 		"pins",
 		"handbook",
 		"tutorial",
+		"puzzles",
 	]:
 		var prefix: String = "res://data/%s/" % folder
 		var found: bool = files.any(func(path: String) -> bool: return path.begins_with(prefix))

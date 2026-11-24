@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="PuzzleDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/puzzle_definition.gd" id="1_puzzle"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="2_card"]
+[ext_resource type="Script" path="res://core/upgrade_definition.gd" id="3_upgrade"]
+[ext_resource type="Resource" path="res://data/cards/banana.tres" id="c_banana"]
+[ext_resource type="Resource" path="res://data/cards/lemon.tres" id="c_lemon"]
+[ext_resource type="Resource" path="res://data/cards/strawberries.tres" id="c_strawberries"]
+[ext_resource type="Resource" path="res://data/cards/wonky_carrot.tres" id="c_wonky_carrot"]
+[ext_resource type="Resource" path="res://data/cards/grapefruit.tres" id="c_grapefruit"]
+[ext_resource type="Resource" path="res://data/cards/potatoes.tres" id="c_potatoes"]
+[ext_resource type="Resource" path="res://data/upgrades/banana_stand.tres" id="u_banana_stand"]
+
+[resource]
+script = ExtResource("1_puzzle")
+id = &"cl_fruit_stand"
+title = "Fruit stand"
+pack = 3
+target = 41
+slot_count = 5
+hand = Array[ExtResource("2_card")]([ExtResource("c_banana"), ExtResource("c_lemon"), ExtResource("c_banana"), ExtResource("c_strawberries"), ExtResource("c_wonky_carrot"), ExtResource("c_grapefruit"), ExtResource("c_potatoes")])
+upgrades = Array[ExtResource("3_upgrade")]([ExtResource("u_banana_stand")])
+solution = PackedStringArray("potatoes", "grapefruit", "banana", "lemon", "banana")
+hint = "Every Produce item chains like a Banana."

@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="PuzzleDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/puzzle_definition.gd" id="1_puzzle"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="2_card"]
+[ext_resource type="Resource" path="res://data/cards/bread.tres" id="c_bread"]
+[ext_resource type="Resource" path="res://data/cards/potatoes.tres" id="c_potatoes"]
+[ext_resource type="Resource" path="res://data/cards/mixed_herbs.tres" id="c_mixed_herbs"]
+[ext_resource type="Resource" path="res://data/cards/soup.tres" id="c_soup"]
+
+[resource]
+script = ExtResource("1_puzzle")
+id = &"op_first_customer"
+title = "First customer"
+pack = 1
+target = 10
+slot_count = 3
+hand = Array[ExtResource("2_card")]([ExtResource("c_bread"), ExtResource("c_potatoes"), ExtResource("c_potatoes"), ExtResource("c_mixed_herbs"), ExtResource("c_soup")])
+solution = PackedStringArray("bread", "soup")
+hint = "Pick what goes on the belt: plain items pay their price."

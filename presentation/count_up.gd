@@ -177,6 +177,9 @@ var source_rect: Callable
 ## The global rect item `slot`'s sticker stack covers now (v1.36: the belt ride's stack_rect), an
 ## empty rect for none; a fizzle's WASTED puff starts above it, never over the pile. Unset: none.
 var stack_rect: Callable
+## A puzzle shift (#183, CountUpDessert.exact): only a total right on the quota plays the pass.
+## Its OVER celebrates nothing (CountUpPlan's `exact`): no ding, no met quota, no cheering past it.
+var exact_quota: bool = false
 ## How big the ending was, for what follows the total (#61); null until the total shows.
 var intensity: CountUpIntensity
 ## The shift's margin against its quota (#61), set when the dessert starts; null before that.
@@ -296,7 +299,7 @@ func play(
 	_result = result
 	_steps = result.steps
 	run_context = context
-	plan = CountUpPlan.build(result.steps, quota, context, _tuning, _total_tuning)
+	plan = CountUpPlan.build(result.steps, quota, context, _tuning, _total_tuning, exact_quota)
 	_beats.begin(
 		plan,
 		_tuning,
@@ -377,6 +380,7 @@ func play(
 	_dessert.sfx = _sfx
 	_dessert.target = total_target
 	_dessert.speed_setting = plan.speed_setting
+	_dessert.exact = exact_quota
 	# INSPECTION PASSED names the inspections only, never a boon day's event (v0.69).
 	var inspected: PackedStringArray = PackedStringArray()
 	for inspection_name: String in inspection_names:
@@ -388,7 +392,8 @@ func play(
 	await _dessert.play(
 		result.total, quota, notice, _tuning, intensity, plan.reduced_motion, _beats.print_pitch()
 	)
-	if margin.passed():
+	# A puzzle's OVER (exact_quota) is a miss: its receipt tears without the feed.
+	if margin.passed() and not (exact_quota and margin.kind() == ShiftMargin.Kind.OVER):
 		printer_feed_ms = Time.get_ticks_msec()
 		printer_feed.emit()
 	_playing = false
@@ -400,7 +405,7 @@ func play(
 ## at the total, met (quota_met without a pop) when the quota is met (D5). Sets `plan` and
 ## `intensity`; the receipt is the caller's (ReceiptView.show_result).
 func show_end_state(result: ScoreResult, quota: int, context: CountUpContext) -> void:
-	plan = CountUpPlan.build(result.steps, quota, context, _tuning, _total_tuning)
+	plan = CountUpPlan.build(result.steps, quota, context, _tuning, _total_tuning, exact_quota)
 	intensity = CountUpIntensity.from_plan(plan)
 	_clear_row()
 	_led.start_count(quota)

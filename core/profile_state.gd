@@ -36,7 +36,9 @@ extends RefCounted
 ## the card from the start; AisleRename), at run index -1 and without counting a draw. Version 9
 ## (v1.48, alpha feedback): Shift off, Express lane, Golden basket and Price gun got a milestone;
 ## an older profile with a run played keeps them (it owned them from the start: OPENED_PINS).
-const FORMAT_VERSION := 9
+## Version 10 (v1.50, the puzzle shifts #183) adds solved_puzzles; older profiles read with none
+## solved.
+const FORMAT_VERSION := 10
 ## The last version saved with the Cold cases aisle's old id.
 const BEFORE_DAIRY_VERSION := 7
 ## The last version saved while OPENED_PINS were owned from the start.
@@ -102,6 +104,8 @@ var unlocked_pins: Array[StringName] = []
 var worn_pins: Array[StringName] = []
 ## Random pins bought with coins (#122): the next purchase's stream index.
 var pins_bought: int = 0
+## The puzzle shifts solved (#183, ProfilePuzzles), in solve order.
+var solved_puzzles: Array[StringName] = []
 ## Coupon uses in ended runs, by card id (USE_COUPON_TIMES unlocks: UnlockCheck's
 ## earlier_uses).
 var coupon_uses: Dictionary[StringName, int] = {}
@@ -336,6 +340,7 @@ func to_dictionary() -> Dictionary:
 		"unlocked_pins": _strings(unlocked_pins),
 		"worn_pins": _strings(worn_pins),
 		"pins_bought": pins_bought,
+		"solved_puzzles": _strings(solved_puzzles),
 	}
 
 
@@ -344,7 +349,8 @@ func to_dictionary() -> Dictionary:
 ## the wrong type (a capsule seed that isn't "" or a decimal of 0 or more). Version 1 reads
 ## with no capsule seed and 0 draws, version 2 with no pins, version 4's staple_swaps are
 ## ignored, version 5 and older with no new figurines, version 6 and older with no perks
-## collected, version 8 and older with a run played with OPENED_PINS unlocked. Unknown fields
+## collected, version 8 and older with a run played with OPENED_PINS unlocked, version 9 and older
+## with no puzzle solved. Unknown fields
 ## are ignored; missing fields keep their defaults.
 static func from_dictionary(data: Dictionary) -> ProfileState:
 	var version: Variant = data.get("format_version")
@@ -388,6 +394,7 @@ static func from_dictionary(data: Dictionary) -> ProfileState:
 				profile.unlocked_pins.append(id)
 	ok = ok and _read_names(data.get("worn_pins", []), profile.worn_pins)
 	ok = ok and _read_int(data, "pins_bought", profile, "pins_bought")
+	ok = ok and _read_names(data.get("solved_puzzles", []), profile.solved_puzzles)
 	var settings_value: Variant = data.get("settings", {})
 	if not settings_value is Dictionary:
 		return null

@@ -5,10 +5,10 @@
 [ext_resource type="Texture2D" uid="uid://dowah2x176xai" path="res://art/pin_icons/price_gun.png" id="9_icon"]
 [ext_resource type="Texture2D" uid="uid://dad6wnedrm1qq" path="res://art/pin_icons/price_gun_big.png" id="10_icon_big"]
 
-[sub_resource type="Resource" id="Resource_finish"]
+[sub_resource type="Resource" id="Resource_pack"]
 script = ExtResource("2_condition")
-kind = 5
-amount = 6
+kind = 10
+amount = 1
 
 [resource]
 script = ExtResource("1_pin")
@@ -19,6 +19,6 @@ face_text = "TAG"
 face_colour = 3
 icon = ExtResource("9_icon")
 icon_big = ExtResource("10_icon_big")
-unlock_condition = SubResource("Resource_finish")
+unlock_condition = SubResource("Resource_pack")
 relabels_per_shift = 1
 relabel_tags = PackedStringArray("Breakfast", "Bakery", "Produce", "Dairy", "Frozen", "Snack", "Household", "Clearance")

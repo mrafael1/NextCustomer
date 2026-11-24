@@ -21,10 +21,12 @@ extends Control
 ## save), NEW RUN and REWARDS. The mouse on a plate, Up and Down, or the mouse on the doors or
 ## the bay mark an entry (the doors stand ajar for the primary entry, the bay lights for
 ## REWARDS); Enter or Space press the marked entry, or the primary one when none is marked.
-## Clicking the doors is the primary entry, clicking the bay is REWARDS, and clicking the sign
-## scans it (its hidden toy). NEW RUN asks first (AbandonConfirm): on ABANDON the saved run is
-## deleted, logged as run_abandon under its run id, and a new run starts. An abandoned run
-## records nothing in the profile, like a restart before the end.
+## Clicking the doors is the primary entry, clicking the bay is REWARDS, clicking the puzzle
+## planner in the right window is PUZZLES (#183, once a run has ended; the keys reach it after
+## the run's plates), and clicking the sign scans it (its hidden toy). NEW RUN asks first
+## (AbandonConfirm): on ABANDON the saved run is deleted, logged as run_abandon under its run
+## id, and a new run starts. An abandoned run records nothing in the profile, like a restart
+## before the end.
 ##
 ## REWARDS: the bay's glass slides aside, then the TOY MACHINES (#63) open straight over the
 ## title (2026-11-11: no REWARDS menu between them) on the peeked profile (an unreadable one
@@ -48,10 +50,13 @@ extends Control
 ## the next new run to be guided (TutorialFlags.GUIDE_REPLAY: peek, change, save, logged as
 ## tutorial_replay from "title"), which brings G1 up; it never touches a saved run, so NEW RUN
 ## still asks first. The options' RESET TIPS clears the tips' flags in the saved profile the same
-## way (logged as tips_reset).
+## way (logged as tips_reset). Once the title offers puzzles, the one-time tip T17 rings the
+## puzzle planner (TitlePuzzleTip, #183 polish 5). The board's PLAY cuts to the puzzle with a
+## short fade instead of the doors (_cut_to_puzzle).
 
-## What a click on the storefront lands on: nothing, the doors, the REWARDS bay or the sign.
-enum Target { NONE, DOORS, BAY, SIGN }
+## What a click on the storefront lands on: nothing, the doors, the REWARDS bay, the sign or the
+## puzzle planner (#183, PUZZLES).
+enum Target { NONE, DOORS, BAY, SIGN, PLANNER }
 
 const SHIFT_SCREEN := "res://ui/shift_screen.tscn"
 const BALANCE := "res://data/balance/balance.tres"
@@ -73,6 +78,10 @@ const EXPORT_TIP := TopBar.EXPORT_TEXT
 const BUILD_RIGHT := 1264.0
 const BUILD_WIDTH := 240.0
 const BUILD_FONT_SIZE := 14
+## Back from a puzzle's BOARD, PLAY fades to the dark in CUT_STEPS steps over CUT_TIME (#183
+## polish 5) instead of opening the doors.
+const CUT_STEPS := 3
+const CUT_TIME := 0.15
 
 ## Set by request_lit (the results' Return to menu): the next title opens with its sign lit.
 static var _lit_request: bool = false
@@ -126,6 +135,11 @@ var _profile_readable: bool = true
 var _settings: GameSettings = GameSettings.new()
 ## G1 (the tutorial) on the start plate.
 var _title_guide: TitleGuide
+## The puzzle board (#183): PUZZLES once the profile has finished a run.
+var _puzzles: PuzzleBoard
+## T17, the puzzles' unlock tip on the planner (null once seen, or with no puzzles).
+var _puzzle_tip: TitlePuzzleTip
+var _cut: ColorRect
 @onready var _log: EventLogService = get_node("/root/EventLog")
 @onready var _music: MusicService = get_node("/root/Music")
 
@@ -161,7 +175,9 @@ func _ready() -> void:
 		if _saved_run == null
 		else TitleMenu.continue_line(_saved_run)
 	)
-	_menu = TitleMenu.new(_saved_run != null, sub_line, _coins, quit_offered)
+	var puzzles: bool = ProfilePuzzles.offered(_profile)
+	_storefront.planner.visible = puzzles
+	_menu = TitleMenu.new(_saved_run != null, sub_line, _coins, quit_offered, puzzles)
 	_menu.still = _still
 	_menu.hot_changed.connect(_on_hot_changed)
 	_menu.start_pressed.connect(_on_start_pressed)
@@ -170,6 +186,7 @@ func _ready() -> void:
 	_menu.guide_pressed.connect(_on_guide_pressed)
 	_menu.options_pressed.connect(_on_options_pressed)
 	_menu.quit_pressed.connect(_on_quit_pressed)
+	_menu.puzzles_pressed.connect(open_puzzles)
 	stage.add_child(_menu)
 	_add_corner(stage)
 	# The stage's own hover tips (the Export log icon's; the handbook mounts its own).
@@ -207,6 +224,10 @@ func _ready() -> void:
 	_options.closed.connect(_on_options_closed)
 	_options.tips_reset.connect(_on_tips_reset)
 	add_child(_options)
+	_puzzles = PuzzleBoard.new()
+	_puzzles.still = _still
+	_puzzles.play_requested.connect(_on_puzzle_play)
+	add_child(_puzzles)
 	# A return to the title opens lit and silent; reduced motion lit, with only the BEEP.
 	var lit_request: bool = take_lit_request()
 	if _still:
@@ -215,6 +236,77 @@ func _ready() -> void:
 			_play_beep.call_deferred()
 	if lit_request:
 		skip_intro()
+	if (
+		puzzles
+		and _profile_readable
+		and not TutorialFlags.tip_seen(_profile, TitlePuzzleTip.TIP_ID)
+	):
+		_puzzle_tip = TitlePuzzleTip.new(self, func() -> bool: return _still)
+		_puzzle_tip.blocked = func() -> bool:
+			return _busy() or is_intro_playing() or _title_guide.is_showing()
+		_puzzle_tip.mark_seen = _mark_tip_seen
+	if PuzzlePlay.take_board() and puzzles:  # A puzzle's BOARD (#183): back on the board.
+		skip_intro()
+		open_puzzles()
+
+
+## PUZZLES (#183): the planner dips, then the puzzle board opens over the title, on the puzzle
+## played last (if any); a pack completed since the board last opened shines once there.
+func open_puzzles() -> void:
+	if _busy():
+		return
+	_storefront.planner.press()
+	_sfx.play(UiKit.OPEN_SOUND)
+	_puzzles.open(PuzzlePlay.list(), _profile, PuzzlePlay.last_played())
+
+
+## The puzzle board's PLAY (polish 5, play test 2026-11-23): the doors stay shut, a short fade
+## cuts straight to the puzzle shift (no cart reveal), as RETRY and NEXT go straight to the next
+## belt.
+func _on_puzzle_play(puzzle_id: StringName) -> void:
+	PuzzlePlay.request(puzzle_id)
+	_log.log_event("puzzle_board_play", {"puzzle": String(puzzle_id)})
+	_cut_to_puzzle()
+
+
+## The cut from the board to a puzzle: the screen fades to the night's dark in CUT_STEPS steps
+## over CUT_TIME (at once when still), then the shift screen replaces the title.
+func _cut_to_puzzle() -> void:
+	if _starting:
+		return
+	_starting = true
+	_menu.frozen = true
+	_sfx.play(UiKit.CLICK_SOUND)
+	_cut = ColorRect.new()
+	_cut.name = "PuzzleCut"
+	_cut.color = Palette.TEAL_BLACK
+	_cut.mouse_filter = Control.MOUSE_FILTER_STOP
+	_cut.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_cut.modulate.a = 1.0 if _still else 0.0
+	add_child(_cut)
+	var fade: Tween = create_tween()
+	if not _still:
+		for step: int in range(1, CUT_STEPS + 1):
+			fade.tween_property(_cut, "modulate:a", float(step) / CUT_STEPS, 0.0)
+			fade.tween_interval(CUT_TIME / CUT_STEPS)
+	else:
+		fade.tween_interval(0.0)
+	if changes_scene:
+		await fade.finished
+		_sfx.outlive_scene()
+		get_tree().change_scene_to_file(SHIFT_SCREEN)
+
+
+## Marks tip `id` seen on the title's profile and the saved one (saved at once), logged with no
+## run id (as RESET TIPS does).
+func _mark_tip_seen(id: StringName) -> void:
+	TutorialFlags.mark_tip(_profile, id)
+	var saves: SaveService = SaveService.new(SaveService.default_folder())
+	var saved: ProfileState = saves.peek_profile()
+	if saved != null and TutorialFlags.mark_tip(saved, id):
+		saves.save_profile(saved)
+	_log.run_id = ""
+	_log.log_event("tip_shown", RunEvents.tip_shown(id))
 
 
 ## The shift screen's results, before they open the title: the next title made skips its intro
@@ -279,6 +371,8 @@ func target_at(point: Vector2) -> Target:
 		return Target.BAY
 	if _storefront.sign_rect().has_point(local):
 		return Target.SIGN
+	if _storefront.planner_rect().has_point(local):
+		return Target.PLANNER
 	return Target.NONE
 
 
@@ -380,12 +474,14 @@ func _on_sign_lit() -> void:
 
 
 ## The storefront follows the marked entry: the doors stand ajar for the primary entry, the bay
-## lights for REWARDS. Once a run is starting the doors are opening and nothing changes them.
+## lights for REWARDS, the planner lifts for PUZZLES. Once a run is starting the doors are opening
+## and nothing changes them.
 func _on_hot_changed(entry: TitleMenu.Entry) -> void:
 	if _starting:
 		return
 	_storefront.doors_hot = entry == TitleMenu.Entry.PRIMARY
 	_storefront.bay_hot = entry == TitleMenu.Entry.REWARDS
+	_storefront.planner.hot = entry == TitleMenu.Entry.PUZZLES
 
 
 ## Nothing on the title acts: a run is starting, or a popup or the machines are over it.
@@ -398,6 +494,7 @@ func _busy() -> bool:
 		or (_quit != null and _quit.is_open())
 		or (_guide != null and _guide.is_open())
 		or (_options != null and _options.is_open())
+		or (_puzzles != null and _puzzles.is_open())
 	)
 
 
@@ -421,6 +518,8 @@ func _on_scene_input(event: InputEvent) -> void:
 				_menu.activate(TitleMenu.Entry.REWARDS)
 			Target.SIGN:
 				_storefront.scan_sign()
+			Target.PLANNER:
+				_menu.activate(TitleMenu.Entry.PUZZLES)
 		return
 	if event is InputEventMouseMotion:
 		var shown: bool = _menu.is_shown() and not _busy()
@@ -434,6 +533,8 @@ func _on_scene_input(event: InputEvent) -> void:
 			entry = TitleMenu.Entry.PRIMARY
 		elif shown and target == Target.BAY:
 			entry = TitleMenu.Entry.REWARDS
+		elif shown and target == Target.PLANNER:
+			entry = TitleMenu.Entry.PUZZLES
 		_mark_from_scene(entry)
 
 
@@ -495,6 +596,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	var handled: bool = false
 	if _options.is_open():
 		handled = _options.handle_key(event)
+	elif _puzzles.is_open():
+		handled = _puzzles.handle_key(event)
 	elif _confirm != null and _confirm.is_open():
 		handled = _confirm.handle_key(event)
 	elif _quit != null and _quit.is_open():
@@ -574,10 +677,14 @@ func title_guide() -> TitleGuide:
 
 
 ## The tutorial's anchors on the title (TutorialAnchors, global canvas px): TITLE_PRIMARY (the
-## start plate) and HANDBOOK_TABS (while the handbook is open); Rect2() for any other.
+## start plate), TITLE_PUZZLES (the puzzle planner, once offered) and HANDBOOK_TABS (while the
+## handbook is open); Rect2() for any other.
 func anchor_rect(id: StringName) -> Rect2:
 	if id == TutorialAnchors.TITLE_PRIMARY:
 		return _menu.anchor_rect(id)
+	if id == TutorialAnchors.TITLE_PUZZLES:
+		var planner: Rect2 = _storefront.planner_rect()
+		return _storefront.get_global_transform() * planner if planner.has_area() else Rect2()
 	return _guide.anchor_rect(id) if _guide != null else Rect2()
 
 

@@ -1,0 +1,17 @@
+; Long belt's pin icon (large): a checkout belt with one more item on it, and a plus.
+; Drawn for the pin's own face colour (PinFace.COLOURS long_belt: face 4, band 2); 14x12 art px, for the
+; PinFace 22-30 cell faces (badge 44, pin row 48, unlock card 60 px) and the start screen's 20-28 art px faces. Puzzle shifts (#183), 2026-11-23, worn as PinDefinition.icon (small) or icon_big (large).
+@size 14x12
+@kind icon
+..ww..........
+..ww.....####.
+wwwwww...#yM#.
+wwwwww...#MM#.
+..ww.....#mm#.
+..ww.....####.
+##############
+#JJKJJKJJKJJK#
+#KKKKKKKKKKKK#
+##############
+.#DD#....#DD#.
+..##......##..

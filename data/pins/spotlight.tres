@@ -1,0 +1,43 @@
+[gd_resource type="Resource" script_class="PinDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/pin_definition.gd" id="1_pin"]
+[ext_resource type="Script" path="res://core/unlock_condition.gd" id="2_condition"]
+[ext_resource type="Script" path="res://core/inspection_definition.gd" id="2_event"]
+[ext_resource type="Script" path="res://core/inspections/inspection_rule.gd" id="3_rule"]
+[ext_resource type="Script" path="res://core/inspections/nth_product_multiplier_rule.gd" id="4_nth"]
+[ext_resource type="Texture2D" uid="uid://dq0mvvc1gteqe" path="res://art/pin_icons/spotlight.png" id="9_icon"]
+[ext_resource type="Texture2D" uid="uid://da4154k7muyy5" path="res://art/pin_icons/spotlight_big.png" id="10_icon_big"]
+
+[sub_resource type="Resource" id="Resource_pack"]
+script = ExtResource("2_condition")
+kind = 10
+amount = 3
+
+[sub_resource type="Resource" id="Resource_third"]
+script = ExtResource("4_nth")
+product_number = 3
+factor = 2
+receipt_text = "Spotlight ×2"
+
+[sub_resource type="Resource" id="Resource_event"]
+script = ExtResource("2_event")
+id = &"spotlight"
+display_name = "Spotlight"
+tone = 1
+notice_text = "The 3rd product pays ×2"
+chip_text = "3rd item ×2"
+icon_ref = "res://art/icons/coin.png"
+rules = Array[ExtResource("3_rule")]([SubResource("Resource_third")])
+
+[resource]
+script = ExtResource("1_pin")
+id = &"spotlight"
+display_name = "Spotlight"
+rule_text = "1 fewer slot; the 3rd product pays ×2"
+face_text = "3RD"
+face_colour = 10
+icon = ExtResource("9_icon")
+icon_big = ExtResource("10_icon_big")
+unlock_condition = SubResource("Resource_pack")
+slot_delta = -1
+events = Array[ExtResource("2_event")]([SubResource("Resource_event")])

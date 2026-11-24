@@ -1,0 +1,16 @@
+; The puzzle shifts' verdict stamp (#183), EXACT: a rubber stamp's double green rim on paper, as the
+; monitor's checkout column prints it once a puzzle's count lands exactly on its target. A 9-slice
+; (3 art px margins) stretched to the stamp's words (CheckoutColumn.show_verdict).
+@size 10x10
+@kind frame
+@scale 2
+.gggggggg.
+gGGGGGGGGg
+gGwwwwwwGg
+gGwwwwwwGg
+gGwwwwwwGg
+gGwwwwwwGg
+gGwwwwwwGg
+gGwwwwwwGg
+gGGGGGGGGg
+.gggggggg.

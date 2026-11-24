@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="PuzzleDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/puzzle_definition.gd" id="1_puzzle"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="2_card"]
+[ext_resource type="Script" path="res://core/upgrade_definition.gd" id="3_upgrade"]
+[ext_resource type="Script" path="res://core/pin_definition.gd" id="5_pin"]
+[ext_resource type="Resource" path="res://data/cards/milk.tres" id="c_milk"]
+[ext_resource type="Resource" path="res://data/cards/cereal.tres" id="c_cereal"]
+[ext_resource type="Resource" path="res://data/cards/coffee.tres" id="c_coffee"]
+[ext_resource type="Resource" path="res://data/cards/bread.tres" id="c_bread"]
+[ext_resource type="Resource" path="res://data/cards/croissant.tres" id="c_croissant"]
+[ext_resource type="Resource" path="res://data/cards/eggs.tres" id="c_eggs"]
+[ext_resource type="Resource" path="res://data/upgrades/breakfast_regulars.tres" id="u_breakfast_regulars"]
+[ext_resource type="Resource" path="res://data/pins/repack.tres" id="p_repack"]
+
+[resource]
+script = ExtResource("1_puzzle")
+id = &"op_breakfast_for_one"
+title = "Breakfast for one"
+pack = 1
+target = 34
+slot_count = 4
+hand = Array[ExtResource("2_card")]([ExtResource("c_milk"), ExtResource("c_cereal"), ExtResource("c_coffee"), ExtResource("c_bread"), ExtResource("c_croissant"), ExtResource("c_eggs")])
+upgrades = Array[ExtResource("3_upgrade")]([ExtResource("u_breakfast_regulars")])
+pins = Array[ExtResource("5_pin")]([ExtResource("p_repack")])
+solution = PackedStringArray("coffee", "eggs", "cereal", "milk")
+hint = "Each Breakfast item gets +1€ for each Breakfast item before it."

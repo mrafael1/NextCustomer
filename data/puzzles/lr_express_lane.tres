@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="PuzzleDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/puzzle_definition.gd" id="1_puzzle"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="2_card"]
+[ext_resource type="Script" path="res://core/pin_definition.gd" id="5_pin"]
+[ext_resource type="Resource" path="res://data/cards/banana.tres" id="c_banana"]
+[ext_resource type="Resource" path="res://data/cards/eggs.tres" id="c_eggs"]
+[ext_resource type="Resource" path="res://data/cards/bread.tres" id="c_bread"]
+[ext_resource type="Resource" path="res://data/cards/cheese.tres" id="c_cheese"]
+[ext_resource type="Resource" path="res://data/cards/potatoes.tres" id="c_potatoes"]
+[ext_resource type="Resource" path="res://data/cards/milk.tres" id="c_milk"]
+[ext_resource type="Resource" path="res://data/pins/express_lane.tres" id="p_express_lane"]
+
+[resource]
+script = ExtResource("1_puzzle")
+id = &"lr_express_lane"
+title = "Express lane"
+pack = 2
+target = 43
+slot_count = 6
+hand = Array[ExtResource("2_card")]([ExtResource("c_banana"), ExtResource("c_banana"), ExtResource("c_eggs"), ExtResource("c_bread"), ExtResource("c_cheese"), ExtResource("c_potatoes"), ExtResource("c_milk")])
+pins = Array[ExtResource("5_pin")]([ExtResource("p_express_lane")])
+solution = PackedStringArray("bread", "cheese", "eggs", "milk")
+hint = "Express lane: 2 fewer slots, and the first and last items pay ×2."

@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="PuzzleDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/puzzle_definition.gd" id="1_puzzle"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="2_card"]
+[ext_resource type="Resource" path="res://data/cards/repeat.tres" id="c_repeat"]
+[ext_resource type="Resource" path="res://data/cards/bread.tres" id="c_bread"]
+[ext_resource type="Resource" path="res://data/cards/potatoes.tres" id="c_potatoes"]
+[ext_resource type="Resource" path="res://data/cards/banana.tres" id="c_banana"]
+[ext_resource type="Resource" path="res://data/cards/mixed_herbs.tres" id="c_mixed_herbs"]
+
+[resource]
+script = ExtResource("1_puzzle")
+id = &"op_say_it_again"
+title = "Say it again"
+pack = 1
+target = 19
+slot_count = 4
+hand = Array[ExtResource("2_card")]([ExtResource("c_repeat"), ExtResource("c_bread"), ExtResource("c_potatoes"), ExtResource("c_banana"), ExtResource("c_mixed_herbs")])
+solution = PackedStringArray("banana", "mixed_herbs", "bread", "repeat")
+hint = "Repeat copies what the item right before it pays."

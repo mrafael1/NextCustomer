@@ -15,8 +15,10 @@
 [ext_resource type="Resource" path="res://data/pins/golden_basket.tres" id="9_pin_golden"]
 [ext_resource type="Resource" path="res://data/pins/price_gun.tres" id="9_pin_gun"]
 [ext_resource type="Resource" path="res://data/pins/express_lane.tres" id="9_pin_express"]
+[ext_resource type="Resource" path="res://data/pins/long_belt.tres" id="9_pin_long_belt"]
+[ext_resource type="Resource" path="res://data/pins/spotlight.tres" id="9_pin_spotlight"]
 
 [resource]
 script = ExtResource("1_catalogue")
 decks = Array[ExtResource("2_deck")]([ExtResource("3_starter"), ExtResource("4_random_starter"), ExtResource("5_pack_starter"), ExtResource("g_guided_starter")])
-pins = Array[ExtResource("6_pin")]([ExtResource("7_pin_recycle"), ExtResource("8_pin_redraw"), ExtResource("9_pin_double"), ExtResource("9_pin_stock"), ExtResource("9_pin_day_off"), ExtResource("9_pin_golden"), ExtResource("9_pin_gun"), ExtResource("9_pin_express")])
+pins = Array[ExtResource("6_pin")]([ExtResource("7_pin_recycle"), ExtResource("8_pin_redraw"), ExtResource("9_pin_double"), ExtResource("9_pin_stock"), ExtResource("9_pin_day_off"), ExtResource("9_pin_golden"), ExtResource("9_pin_gun"), ExtResource("9_pin_express"), ExtResource("9_pin_long_belt"), ExtResource("9_pin_spotlight")])

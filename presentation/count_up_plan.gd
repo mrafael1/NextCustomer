@@ -117,7 +117,8 @@ func _init(
 	quota: int = 0,
 	context: CountUpContext = null,
 	tuning: CountUpTuning = null,
-	total_tuning: CountTotalTuning = null
+	total_tuning: CountTotalTuning = null,
+	exact: bool = false
 ) -> void:
 	if context == null or tuning == null:
 		return
@@ -154,7 +155,10 @@ func _init(
 	_set_payouts(steps)
 	_set_cheer_lines(steps)
 	_set_notes()
-	_set_quota(quota)
+	if exact and total > quota:
+		_quiet_over(quota)
+	else:
+		_set_quota(quota)
 	_set_size()
 	_set_raw_lengths(steps)
 	_fit()
@@ -167,9 +171,10 @@ static func build(
 	quota: int,
 	context: CountUpContext,
 	tuning: CountUpTuning,
-	total_tuning: CountTotalTuning = null
+	total_tuning: CountTotalTuning = null,
+	exact: bool = false
 ) -> CountUpPlan:
-	return CountUpPlan.new(steps, quota, context, tuning, total_tuning)
+	return CountUpPlan.new(steps, quota, context, tuning, total_tuning, exact)
 
 
 ## Landing beats change the shared subtotal; item bonus beats stay on the monitor.
@@ -490,6 +495,24 @@ func _set_quota(quota: int) -> void:
 	ding.ding = true
 	ding.ding_tick = ding.ticks.size() - 1
 	# Celebrate the completed payment, after its rolling digits reach the paid subtotal.
+
+
+## A puzzle's OVER (#183, `exact`; play test 2026-11-23: "cheer should stop when over"): a total
+## past the target is a miss, so the count never meets the quota (no ding, no quota pop, the LED
+## never turns met) and the crowd stops cheering at the item whose payout goes past it (no standee
+## pops from that item's first beat on, its bonus lines included, which pop before its payout;
+## it topples at the total, as a SHORT's does). EXACT and SHORT play as usual.
+func _quiet_over(quota: int) -> void:
+	quota_reached = false
+	var first: int = beats.size()
+	for index: int in range(beats.size()):
+		if beats[index].shown_to > quota:
+			first = index
+			break
+	while first > 0 and first < beats.size() and beats[first - 1].slot == beats[first].slot:
+		first -= 1
+	for index: int in range(first, beats.size()):
+		beats[index].cheer_count = 0
 
 
 ## D4: the size of the total against the best so far, the pause and its rattle.
