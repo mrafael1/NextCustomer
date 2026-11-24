@@ -220,50 +220,56 @@ func test_the_new_pin_card_shows_the_large_icon() -> void:
 		if pin.unlock_condition != null:
 			ids.append(pin.id)
 	assert_array(ids).is_not_empty()
+	# The stack shows the top card and PEEKS older ones, so the pins come in groups that fit it.
+	var group: int = PinReveal.PEEKS + 1
 	for window: Vector2i in WINDOWS:
-		get_tree().root.size = window
-		var root: Control = auto_free(Control.new())
-		root.size = Vector2(1280, 720)
-		add_child(root)
-		var receipt: Control = Control.new()
-		receipt.position = Vector2(402, 64)
-		receipt.size = Vector2(476, 592)
-		root.add_child(receipt)
-		var reveal: PinReveal = PinReveal.new()
-		reveal.size = root.size
-		var now: Array[int] = [0]
-		reveal.clock = func() -> int: return now[0]
-		reveal.setup(receipt, func() -> bool: return false)
-		root.add_child(reveal)
-		var profile: ProfileState = ProfileState.new()
-		profile.unlocked_pins.assign(ids)
-		reveal.show_news(PinUnlockNews.of(ids, profile, catalogue), true)
-		reveal.finish()
-		await _frames(2)
-		for card: PinUnlockCard in reveal.cards():
-			assert_vector(card.face().scale).is_equal(Vector2.ONE)
-			var pin: PinDefinition = _pin_of(card, catalogue)
-			var where: String = "unlock card %s %s" % [window, pin.id]
-			_assert_icon(card.face(), pin, true, where)
-			# Through the pop the face grows and shrinks; the icon keeps the art's whole scale and
-			# its resting place on whole screen px.
-			var icon: TextureRect = card.face().get_node("Icon") as TextureRect
-			var rest: Transform2D = _on_screen(icon)
-			for progress: float in [0.2, 0.5, 0.6, 0.8]:
-				card.set_pop(progress)
-				var popped: String = "%s pop %.2f" % [where, progress]
-				assert_float(card.face().scale.x).override_failure_message(popped).is_not_equal(1.0)
-				var at: Transform2D = _on_screen(icon)
-				assert_vector(at.get_scale()).override_failure_message(popped).is_equal_approx(
-					rest.get_scale(), Vector2.ONE * 0.001
-				)
-				assert_vector(at.origin).override_failure_message(popped).is_equal_approx(
-					rest.origin, Vector2.ONE * 0.001
-				)
-			card.set_pop(1.0)
-			_assert_icon(card.face(), pin, true, where + " landed")
-		root.queue_free()
-		await _frames(1)
+		for first: int in range(0, ids.size(), group):
+			var shown: Array[StringName] = ids.slice(first, first + group)
+			get_tree().root.size = window
+			var root: Control = auto_free(Control.new())
+			root.size = Vector2(1280, 720)
+			add_child(root)
+			var receipt: Control = Control.new()
+			receipt.position = Vector2(402, 64)
+			receipt.size = Vector2(476, 592)
+			root.add_child(receipt)
+			var reveal: PinReveal = PinReveal.new()
+			reveal.size = root.size
+			var now: Array[int] = [0]
+			reveal.clock = func() -> int: return now[0]
+			reveal.setup(receipt, func() -> bool: return false)
+			root.add_child(reveal)
+			var profile: ProfileState = ProfileState.new()
+			profile.unlocked_pins.assign(shown)
+			reveal.show_news(PinUnlockNews.of(shown, profile, catalogue), true)
+			reveal.finish()
+			await _frames(2)
+			for card: PinUnlockCard in reveal.cards():
+				assert_vector(card.face().scale).is_equal(Vector2.ONE)
+				var pin: PinDefinition = _pin_of(card, catalogue)
+				var where: String = "unlock card %s %s" % [window, pin.id]
+				_assert_icon(card.face(), pin, true, where)
+				# Through the pop the face grows and shrinks; the icon keeps the art's whole scale
+				# and its resting place on whole screen px.
+				var icon: TextureRect = card.face().get_node("Icon") as TextureRect
+				var rest: Transform2D = _on_screen(icon)
+				for progress: float in [0.2, 0.5, 0.6, 0.8]:
+					card.set_pop(progress)
+					var popped: String = "%s pop %.2f" % [where, progress]
+					assert_float(card.face().scale.x).override_failure_message(popped).is_not_equal(
+						1.0
+					)
+					var at: Transform2D = _on_screen(icon)
+					assert_vector(at.get_scale()).override_failure_message(popped).is_equal_approx(
+						rest.get_scale(), Vector2.ONE * 0.001
+					)
+					assert_vector(at.origin).override_failure_message(popped).is_equal_approx(
+						rest.origin, Vector2.ONE * 0.001
+					)
+				card.set_pop(1.0)
+				_assert_icon(card.face(), pin, true, where + " landed")
+			root.queue_free()
+			await _frames(1)
 
 
 ## The start screen's pins step draws each pin's icon centred on its face, on whole art px: the

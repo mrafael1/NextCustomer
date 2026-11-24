@@ -1,0 +1,3 @@
+; redraw_arrow gilded (alpha feedback v1.48, mock-up maxed_perk.html A): the perk icon on a maxed perk's
+; gilded box, through the perk GOLDEN map. A derived source: tools/pixel_art.py builds it.
+@derive ../icons/redraw_arrow golden=perk

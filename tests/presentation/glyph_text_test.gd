@@ -85,11 +85,7 @@ func test_the_batch_keyword_is_a_chip_glued_to_the_next_word() -> void:
 	# Only the keyword itself, in capitals: "batch" stays a word.
 	assert_array(Array(GlyphText.keywords("2 per batch", _palette()))).is_empty()
 	assert_str(GlyphText.keyword_tip("BATCH")).is_equal(
-		(
-			"Put Bakery items side by side to make a BATCH: the bigger it is, the more each "
-			+ "item earns. Some cards care about their spot in it: Croissant first, Stale "
-			+ "doughnut last."
-		)
+		"Put Bakery items side by side to make a BATCH: the bigger it is, the more each item earns."
 	)
 
 

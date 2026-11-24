@@ -53,6 +53,7 @@ var _card: CardInstance
 var _press_position: Vector2 = Vector2.ZERO
 var _dragging: bool = false
 var _lets_go_on_click: bool = false
+var _pickup_on_drag: bool = false
 var _ghost: ItemView
 var _dimmed: ItemView
 var _hovered: int = -1
@@ -85,12 +86,20 @@ func hovered_place() -> int:
 
 ## Called on a press on `card`, now picked up: it becomes a drag if the mouse moves far enough
 ## before the button is released. `lets_go_on_click`: a release without a drag reports
-## `released` too (a click on the card already picked up lets go of it).
-func arm(card: CardInstance, press_position: Vector2, lets_go_on_click: bool = false) -> void:
+## `released` too (a click on the card already picked up lets go of it, and a click on a belt
+## item sends it back to the basket, alpha feedback v1.48). With `lets_go_on_click`, the drag's
+## start sounds the pick-up unless `pickup_on_drag` is false (the press itself sounded it).
+func arm(
+	card: CardInstance,
+	press_position: Vector2,
+	lets_go_on_click: bool = false,
+	pickup_on_drag: bool = true
+) -> void:
 	cancel()
 	_card = card
 	_press_position = press_position
 	_lets_go_on_click = lets_go_on_click
+	_pickup_on_drag = lets_go_on_click and pickup_on_drag
 
 
 func is_dragging() -> bool:
@@ -113,6 +122,7 @@ func cancel() -> void:
 	_card = null
 	_dragging = false
 	_lets_go_on_click = false
+	_pickup_on_drag = false
 	_set_hovered(-1)
 	_set_place(-1)
 	if _ghost != null:
@@ -177,7 +187,7 @@ func _start(mouse_position: Vector2) -> void:
 	_ghost.body.rotation = deg_to_rad(GHOST_TILT)
 	_ghost.body.modulate = Color(1, 1, 1, 0.92)
 	_dim_source()
-	if _lets_go_on_click:
+	if _pickup_on_drag:
 		Sfx.play_at(self, "card_pickup")
 	_follow(mouse_position)
 

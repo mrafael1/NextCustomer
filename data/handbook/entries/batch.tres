@@ -9,7 +9,7 @@ group = &"keywords"
 title = "BATCH"
 mark = 1
 mark_value = "BATCH"
-rule = "Put {fam:Bakery} items side by side to make a {kw:BATCH}: the bigger it is, the more each item earns. Some cards care about their spot in it: {item:croissant} first, {item:stale_doughnut} last.
+rule = "Put {fam:Bakery} items side by side to make a {kw:BATCH}: the bigger it is, the more each item earns.
 
 Every item in a {kw:BATCH} gets a size bonus: +1€ in a batch of 2, +2€ in a batch of 3, +3€ in a batch of 4 or more. Plain {item:bread} counts too. On the receipt it is its own line, Batch of 3.
 

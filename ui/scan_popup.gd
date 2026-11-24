@@ -194,7 +194,9 @@ func show_upgrade(upgrade: UpgradeDefinition, now_text: String = "") -> void:
 	_band.clear()
 	var y: float = PADDING
 	var level: int = upgrade.level_number()
-	_build_title(upgrade.display_name, LOYALTY_TITLE if level <= 1 else "LV %d" % level, y)
+	_build_title(
+		upgrade.display_name, LOYALTY_TITLE if level <= 1 else LoyaltyCard.level_text(upgrade), y
+	)
 	y += HEADER_HEIGHT
 	var tag_label: Label = UiKit.body_label(
 		TAG_SEPARATOR.join([upgrade.type_label(), LOYALTY_WHEN]),

@@ -1,0 +1,3 @@
+; perk_slot_engine gilded (alpha feedback v1.48, mock-up maxed_perk.html A): the perk icon on a maxed perk's
+; gilded box, through the perk GOLDEN map. A derived source: tools/pixel_art.py builds it.
+@derive ../icons/perk_slot_engine golden=perk

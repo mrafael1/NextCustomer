@@ -15,9 +15,9 @@ extends Control
 ## audit's prize-tip), and closes as the pointer leaves, at the pick or the bin, and when the visit
 ## closes. Display only: it takes no clicks.
 
-## The tag of a perk prize, and of a perk's level-up ("LV 2").
+## The tag of a perk prize, and of a perk's level-up ("LV 2", MAX at the top level).
 const PERK_TAG := "PERK · NEXT SHIFT"
-const LEVEL_TAG := "LV %d · NEXT SHIFT"
+const LEVEL_TAG := "%s · NEXT SHIFT"
 const NOW_LINE := "Now: %s"
 const UPGRADE_TAG := "UPGRADE · %s"
 ## The bands of a RARE and a LEGENDARY card, [band, ink] (the cart tips', CardTip).
@@ -193,7 +193,7 @@ static func _perk_spec(upgrade: UpgradeDefinition, owned: Array[UpgradeDefinitio
 		TipSpec.Kind.PERK, upgrade.display_name, TipMarkup.auto(TipSpec.sentences(rule))
 	)
 	var level: int = upgrade.level_number()
-	made.tag = PERK_TAG if level <= 1 else LEVEL_TAG % level
+	made.tag = PERK_TAG if level <= 1 else LEVEL_TAG % LoyaltyCard.level_text(upgrade)
 	if not upgrade.icon_ref.is_empty() and ResourceLoader.exists(upgrade.icon_ref):
 		made.icon = load(upgrade.icon_ref) as Texture2D
 	var index: int = PerkLevels.owned_index(owned, upgrade)

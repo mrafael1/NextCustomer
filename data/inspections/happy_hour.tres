@@ -7,7 +7,7 @@
 [sub_resource type="Resource" id="Resource_last_card"]
 script = ExtResource("2_last_card")
 bonus = 3
-receipt_text = "Happy hour: last card"
+receipt_text = "last card"
 
 [resource]
 script = ExtResource("3_inspection")

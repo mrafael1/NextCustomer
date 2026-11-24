@@ -369,11 +369,13 @@ func event_sources(events: Array[InspectionDefinition], pin_count: int = 0) -> A
 	return controls
 
 
-## The printer's, the bell's and the planning receipt's reduced motion (`reduced`: returns a bool).
+## The printer's, the bell's, the planning receipt's and the loyalty card's reduced motion
+## (`reduced`: returns a bool).
 func use_reduced_motion(reduced: Callable) -> void:
 	printer.reduced_motion = reduced
 	bell.reduced_motion = reduced
 	receipt.planning_still = reduced
+	loyalty_card.reduced_motion = reduced
 
 
 ## The receipt's target on the canvas (its number row): where the quota crossing's streak lands

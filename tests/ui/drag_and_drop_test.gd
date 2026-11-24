@@ -271,9 +271,9 @@ func test_a_picked_card_can_be_dragged_and_a_click_lets_go() -> void:
 	assert_str(screen.tracker.input_method).is_equal("drag")
 
 
-## A row card taken out by a click, then dragged back in: 1 placement and no removal, as a
-## click move.
-func test_a_row_card_picked_by_click_can_be_dragged_back() -> void:
+## A click on a belt item sends it back to the basket and lets go of it (alpha feedback v1.48),
+## so the next click on the belt takes another item out: 2 removals, nothing left picked.
+func test_clicks_on_belt_items_send_each_back_to_the_basket() -> void:
 	var screen: ShiftScreen = await _screen()
 	var first: CardInstance = _add(screen, "bread")
 	_drag_hand_card(screen, first, 0)
@@ -281,14 +281,15 @@ func test_a_row_card_picked_by_click_can_be_dragged_back() -> void:
 	_drag_hand_card(screen, second, 1)
 	screen._on_row_card_clicked(screen._row_views[0])
 	_release(screen, screen._drag._press_position)
-	assert_object(screen._picked).is_same(first)
+	assert_object(screen._picked).is_null()
+	assert_array(screen.run.row).is_equal([second])
 	await _frames(1)
-	screen._on_hand_card_clicked(_view_for(screen, first))
-	_move(screen, _slot_center(screen, 1))
-	_release(screen, _slot_center(screen, 1))
-	assert_array(screen.run.row).is_equal([second, first])
-	assert_int(screen.tracker.placements).is_equal(3)
-	assert_int(screen.tracker.removals).is_equal(0)
+	screen._on_row_card_clicked(screen._row_views[0])
+	_release(screen, screen._drag._press_position)
+	assert_object(screen._picked).is_null()
+	assert_array(screen.run.row).is_empty()
+	assert_bool(screen.run.hand().has(first) and screen.run.hand().has(second)).is_true()
+	assert_int(screen.tracker.removals).is_equal(2)
 
 
 ## The highlight shows where the card would land: the card that would be pushed right, the

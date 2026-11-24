@@ -319,7 +319,8 @@ func _on_row_card_clicked(view: CardView) -> void:
 	elif guide.may_pick(view.card, true) and run.remove(view.card):
 		_pick(view.card, true)
 		_sfx.play("card_pickup")
-		_drag.arm(view.card, get_viewport().get_mouse_position())
+		# A click returns it to the basket unpicked (alpha v1.48); a drag still moves it.
+		_drag.arm(view.card, get_viewport().get_mouse_position(), true, false)
 		_refresh()
 		_save_run()
 
@@ -921,7 +922,7 @@ func _build() -> void:
 	_monitor.follow(_count_up)
 	_stage.follow_count(_count_up)  # The standees (#120) and the quota crossing.
 	_cabinet.follow_count(_count_up, _led)
-	_stage.use_reduced_motion(_monitor.reduced_motion)  # The printer roll and the receipt.
+	_stage.use_reduced_motion(_monitor.reduced_motion)  # Printer roll, receipt, gilded perks.
 	_drag = CardDrag.new()
 	add_child(_drag)
 	_drag.setup(_overlay, _slots, _hand_box, _landing_slot)

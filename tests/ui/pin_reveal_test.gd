@@ -45,13 +45,13 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-## One pin: the profile owns 6 of 8 with it (5 from the start), and the next locked milestone is
-## named. Three: 6, 7 then 8 of 8, in catalogue order, and no next milestone.
+## One pin: the profile owns 2 of 8 with it (Stock list from the start since v1.48), and the next
+## locked milestone is named. Three: 2, 3 then 4 of 8, in catalogue order, and the next one named.
 func test_the_news_counts_the_pins_and_names_the_next_milestone() -> void:
 	var one: PinUnlockNews = _news([&"recycle"])
 	assert_int(one.cards.size()).is_equal(1)
 	assert_str(one.cards[0].pin.id).is_equal("recycle")
-	assert_int(one.cards[0].owned).is_equal(6)
+	assert_int(one.cards[0].owned).is_equal(2)
 	assert_int(one.cards[0].total).is_equal(8)
 	assert_str(one.cards[0].milestone()).is_equal("Finish a run")
 	assert_str(one.next_text).is_equal("Next: Repack · Win a run")
@@ -62,8 +62,8 @@ func test_the_news_counts_the_pins_and_names_the_next_milestone() -> void:
 		ids.append(String(card.pin.id))
 		owned.append(card.owned)
 	assert_array(ids).is_equal(["recycle", "repack", "double_checkout"])
-	assert_array(owned).is_equal([6, 7, 8])
-	assert_str(three.next_text).is_empty()
+	assert_array(owned).is_equal([2, 3, 4])
+	assert_str(three.next_text).is_equal("Next: Shift off · Finish 3 runs")
 	assert_bool(_news([]).is_empty()).is_true()
 
 
@@ -73,7 +73,7 @@ func test_the_card_shows_its_pin() -> void:
 	card.show_unlock(_news([&"recycle"]).cards[0])
 	var pin: PinDefinition = load("res://data/pins/recycle.tres")
 	assert_array(Array(card.texts())).is_equal(
-		["NEW BADGE PIN", "RECYCLE", pin.rule_text, "Finish a run", "6/8"]
+		["NEW BADGE PIN", "RECYCLE", pin.rule_text, "Finish a run", "2/8"]
 	)
 	assert_object(card.face().icon()).is_same(pin.icon_big)
 	assert_vector(card.size).is_equal(PinUnlockCard.CARD_SIZE)
@@ -163,7 +163,7 @@ func test_the_settled_stack_fits_right_of_the_receipt() -> void:
 	var pager: Rect2 = reveal.pager().get_rect()
 	var next: Rect2 = reveal.next_line().get_rect()
 	assert_str(reveal.next_line().text).is_equal(
-		"Next: Double checkout · Score 100€ in one checkout"
+		"Next: Double checkout · Score 1000€ in one checkout"
 	)
 	for rect: Rect2 in [pager, next]:
 		assert_bool(SCREEN_RECT.encloses(rect)).is_true()
@@ -277,7 +277,7 @@ func test_return_to_menu_mid_print_still_shows_the_cards() -> void:
 
 
 ## A run ended through the real checkout on a fresh profile: Recycle unlocks (Finish a run), the
-## profile owns it, and the results show its one card, 6/8, once the receipt has printed.
+## profile owns it, and the results show its one card, 2/8, once the receipt has printed.
 func test_a_run_ended_through_the_checkout_shows_its_unlock() -> void:
 	var screen: ShiftScreen = await _results_screen()
 	screen.profile = ProfileState.new()
@@ -289,7 +289,7 @@ func test_a_run_ended_through_the_checkout_shows_its_unlock() -> void:
 	assert_bool(screen.profile.unlocked_pins.has(&"recycle")).is_true()
 	var reveal: PinReveal = results.pin_reveal()
 	assert_int(reveal.cards().size()).is_equal(1)
-	assert_array(Array(reveal.cards()[0].texts())).contains(["RECYCLE", "6/8"])
+	assert_array(Array(reveal.cards()[0].texts())).contains(["RECYCLE", "2/8"])
 	results.skip_printing()
 	results.menu_button().disabled = false
 	results.menu_button().pressed.emit()

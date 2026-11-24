@@ -298,3 +298,26 @@ static func _copies(run: RunState, path: String) -> int:
 
 static func _stream(index: int) -> RandomNumberGenerator:
 	return EventLogService.derived_stream(5, ProfileState.PIN_STREAM % index)
+
+
+## Alpha feedback (v1.48): four pins that every profile owned got a milestone (format 9). A
+## profile saved before it with a run played keeps them; one with no run played, or a format 9
+## save, reads with only the pins it lists.
+func test_a_played_older_profile_keeps_the_pins_it_owned_from_the_start() -> void:
+	var older: Dictionary = ProfileState.new().to_dictionary()
+	older["format_version"] = ProfileState.BEFORE_LOCKED_PINS_VERSION
+	older["run_count"] = 2
+	older["unlocked_pins"] = ["repack", "price_gun"]
+	var read: ProfileState = ProfileState.from_dictionary(older)
+	assert_array(read.unlocked_pins).is_equal(
+		[&"repack", &"price_gun", &"day_off", &"express_lane", &"golden_basket"]
+	)
+	older["run_count"] = 0
+	assert_array(ProfileState.from_dictionary(older).unlocked_pins).is_equal(
+		[&"repack", &"price_gun"]
+	)
+	older["run_count"] = 2
+	older["format_version"] = ProfileState.FORMAT_VERSION
+	assert_array(ProfileState.from_dictionary(older).unlocked_pins).is_equal(
+		[&"repack", &"price_gun"]
+	)
